@@ -61,7 +61,7 @@ class VectorGroupsBackendTest {
             vector(JSONObject().put("action","replace").put("vector",v));compare()
             command(JSONObject().put("op","set_vector").put("object",1).put("property","position").put("frame",0).put("value",JSONArray(listOf(-1032,-812,0))))
             compare()
-            assertEquals(12,data(NativeBridge.state(id)).getJSONObject("project").getInt("version"))
+            assertEquals(16,data(NativeBridge.state(id)).getJSONObject("project").getInt("version"))
         }finally{NativeBridge.destroy(id)}
     }
 }
@@ -121,7 +121,7 @@ class VectorGroupsUiTest {
         compose.onNodeWithTag("vector-curve").performClick();compose.onNodeWithText("返回属性").performClick()
         compose.onNodeWithTag("vector-select-group:3:copies-0").assertExists()
         scenario.onActivity{vm.save()};settled{vm.state.saved}
-        assertEquals(12,JSONObject(File(root,"project.json").readText()).getInt("version"))
+        assertEquals(16,JSONObject(File(root,"project.json").readText()).getInt("version"))
         compose.waitForIdle();val shot=InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
         File(root,"group-repeater.png").outputStream().use{shot.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)};shot.recycle()
     }
