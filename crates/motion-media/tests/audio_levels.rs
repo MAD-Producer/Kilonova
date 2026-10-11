@@ -6,8 +6,9 @@ use std::{fs, io::Write};
 
 fn fixture(channels: u32) -> (tempfile::TempDir, Project) {
     let root = tempfile::tempdir().unwrap();
-    fs::create_dir_all(root.path().join("cache/audio-v1")).unwrap();
-    let mut file = fs::File::create(root.path().join("cache/audio-v1/tone.pcm")).unwrap();
+    let cache=root.path().join(format!("cache/audio-v{}",motion_media::PCM_VERSION));
+    fs::create_dir_all(&cache).unwrap();
+    let mut file = fs::File::create(cache.join("tone.pcm")).unwrap();
     for _ in 0..144000 {
         for channel in 0..channels {
             file.write_all(&(if channel == 0 { 0.025f32 } else { -0.025f32 }).to_le_bytes())
