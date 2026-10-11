@@ -10,19 +10,24 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--binary", type=Path, required=True)
     parser.add_argument("--output", type=Path, default=Path("artifacts/desktop/ui-framework"))
+    parser.add_argument("--style", type=Path)
     args = parser.parse_args()
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     for locale in ("zh", "en"):
         report = output / f"framework-{locale}.json"
+        command=[str(args.binary.resolve()), "--smoke", str(report), "--locale", locale]
+        if args.style: command+= ["--style",str(args.style.resolve())]
         result = subprocess.run(
-            [str(args.binary.resolve()), "--smoke", str(report), "--locale", locale],
+            command,
             capture_output=True, text=True, encoding="utf-8", timeout=45,
         )
         (output / f"framework-{locale}.stderr.log").write_text(result.stderr, encoding="utf-8")
         if result.returncode:
             raise RuntimeError(f"{locale} framework failed: {result.stderr}")
         data = json.loads(report.read_text(encoding="utf-8"))
+        if args.style and data.get("styles")!={"reloadPreservedModel":True,"invalidReloadKeptStyle":True}:
+            raise RuntimeError(f"{locale} did not verify stylesheet reload")
         for key in ("ok", "independentUiOnly", "numericDragOneUndo", "undoRestored", "floatingPresented", "layoutRoundtrip"):
             if data.get(key) is not True:
                 raise RuntimeError(f"{locale} did not verify {key}")

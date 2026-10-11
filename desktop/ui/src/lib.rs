@@ -18,6 +18,7 @@ pub mod overlay;
 pub mod paint;
 pub mod panel;
 pub mod registry;
+pub mod style;
 pub mod text;
 pub mod theme;
 pub mod ui;

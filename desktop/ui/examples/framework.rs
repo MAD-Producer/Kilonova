@@ -10,6 +10,7 @@ use motion_ui::{
     paint::{self, PaintList},
     panel::{Lifecycle, PanelFrame, PanelHost, PanelLayout, PanelView},
     registry::{Language, PanelDescriptor},
+    style::{self, State, States},
     theme::{metrics, palette},
     ui::{self, Align},
     widgets::{Button, NumberEditor, NumberEvent, NumberOptions, TextEditor, TextEvent},
@@ -25,7 +26,7 @@ use winit::{
     window::{Window, WindowId},
 };
 
-#[derive(Default)]
+#[derive(Default, Clone, PartialEq)]
 struct Model {
     value: f64,
     transaction: Option<f64>,
@@ -86,13 +87,21 @@ impl PanelView for View {
     fn draw(&mut self, frame: &mut PanelFrame) -> Vec<Action> {
         let area = frame.layout.bounds;
         let zh = frame.language == Language::Chinese;
+        let styles = frame.styles;
         let mut actions = vec![];
-        paint::rect(frame.paint, area, palette::PANEL);
+        paint::rect(
+            frame.paint,
+            area,
+            styles
+                .resolve("panel", States::default())
+                .unwrap()
+                .background,
+        );
         if self.id.0 == 2 {
             let value = self.model.borrow().value;
             let input = frame.input_for(1);
             let number = field_rect(area, 0);
-            ui::text(
+            style::text_style(
                 frame.paint,
                 frame.atlas,
                 Rect::new(number.min[0], number.min[1] - 24., number.width(), 22.),
@@ -101,7 +110,13 @@ impl PanelView for View {
                 } else {
                     "Value · drag / click to type"
                 },
-                palette::TEXT_MUTED,
+                motion_ui::style::ResolvedStyle {
+                    foreground: styles
+                        .resolve("label.muted", States::default())
+                        .unwrap()
+                        .foreground,
+                    ..styles.resolve("label", States::default()).unwrap()
+                },
                 Align::Left,
             );
             let options = NumberOptions {
@@ -114,21 +129,38 @@ impl PanelView for View {
                     .into_iter()
                     .map(Action::Number),
             );
-            self.number
-                .draw(frame.paint, frame.atlas, number, value, options);
+            self.number.draw_styled(
+                frame.paint,
+                frame.atlas,
+                number,
+                value,
+                options,
+                styles,
+                if number.contains(input.mouse) {
+                    States::default().with(State::Hovered)
+                } else {
+                    States::default()
+                },
+            );
             if let Some(error) = &self.number.text.error {
-                ui::text(
+                style::text_style(
                     frame.paint,
                     frame.atlas,
                     Rect::new(number.min[0], number.max[1] + 2., number.width(), 20.),
                     error,
-                    palette::TEXT_MUTED,
+                    motion_ui::style::ResolvedStyle {
+                        foreground: styles
+                            .resolve("label.muted", States::default())
+                            .unwrap()
+                            .foreground,
+                        ..styles.resolve("label", States::default()).unwrap()
+                    },
                     Align::Left,
                 );
             }
             let text = field_rect(area, 1);
             let input = frame.input_for(2);
-            ui::text(
+            style::text_style(
                 frame.paint,
                 frame.atlas,
                 Rect::new(text.min[0], text.min[1] - 24., text.width(), 22.),
@@ -137,7 +169,13 @@ impl PanelView for View {
                 } else {
                     "Text · Unicode / selection"
                 },
-                palette::TEXT_MUTED,
+                motion_ui::style::ResolvedStyle {
+                    foreground: styles
+                        .resolve("label.muted", States::default())
+                        .unwrap()
+                        .foreground,
+                    ..styles.resolve("label", States::default()).unwrap()
+                },
                 Align::Left,
             );
             if input.pressed.is_some() {
@@ -150,11 +188,27 @@ impl PanelView for View {
             if !self.text.active() {
                 self.text.text = self.model.borrow().text.clone();
             }
-            self.text.draw(frame.paint, frame.atlas, text);
+            self.text.draw_styled(
+                frame.paint,
+                frame.atlas,
+                text,
+                styles,
+                "field",
+                if text.contains(input.mouse) {
+                    States::default().with(State::Hovered)
+                } else {
+                    States::default()
+                },
+            );
             let input = frame.input_for(3);
+            let button_states = if frame.is_focused(3) {
+                States::default().with(State::Focused)
+            } else {
+                States::default()
+            };
             if self
                 .undo
-                .draw(
+                .draw_with_states(
                     frame.paint,
                     frame.atlas,
                     field_rect(area, 2),
@@ -165,12 +219,15 @@ impl PanelView for View {
                     },
                     &input,
                     !self.model.borrow().undo.is_empty(),
+                    styles,
+                    "button",
+                    button_states,
                 )
                 .clicked
             {
                 actions.push(Action::Undo);
             }
-            ui::text(
+            style::text_style(
                 frame.paint,
                 frame.atlas,
                 Rect::new(
@@ -184,19 +241,39 @@ impl PanelView for View {
                 } else {
                     "Shift fine · Ctrl coarse · Esc cancel"
                 },
-                palette::TEXT_MUTED,
+                motion_ui::style::ResolvedStyle {
+                    foreground: styles
+                        .resolve("label.muted", States::default())
+                        .unwrap()
+                        .foreground,
+                    ..styles.resolve("label", States::default()).unwrap()
+                },
                 Align::Left,
             );
         } else if self.id.0 == 3 {
-            paint::rect(frame.paint, area, palette::CHROME);
+            paint::rect(
+                frame.paint,
+                area,
+                styles
+                    .resolve("canvas", States::default())
+                    .unwrap()
+                    .background,
+            );
             let card = Rect::new(
                 area.min[0] + area.width() * 0.14,
                 area.min[1] + area.height() * 0.22,
                 area.width() * 0.72,
                 area.height() * 0.52,
             );
-            paint::rect(frame.paint, card, palette::SUNKEN);
-            ui::text(
+            paint::rect(
+                frame.paint,
+                card,
+                styles
+                    .resolve("canvas.content", States::default())
+                    .unwrap()
+                    .background,
+            );
+            style::text_style(
                 frame.paint,
                 frame.atlas,
                 Rect::new(
@@ -206,10 +283,16 @@ impl PanelView for View {
                     28.,
                 ),
                 "MOTION STUDIO",
-                palette::TEXT,
+                motion_ui::style::ResolvedStyle {
+                    foreground: styles
+                        .resolve("label", States::default())
+                        .unwrap()
+                        .foreground,
+                    ..styles.resolve("label.title", States::default()).unwrap()
+                },
                 Align::Left,
             );
-            ui::text(
+            style::text_style(
                 frame.paint,
                 frame.atlas,
                 Rect::new(
@@ -223,11 +306,17 @@ impl PanelView for View {
                 } else {
                     "UI Framework · Independent Panels"
                 },
-                palette::ACCENT,
+                motion_ui::style::ResolvedStyle {
+                    foreground: styles
+                        .resolve("label.accent", States::default())
+                        .unwrap()
+                        .foreground,
+                    ..styles.resolve("label", States::default()).unwrap()
+                },
                 Align::Left,
             );
             let model = self.model.borrow();
-            ui::text(
+            style::text_style(
                 frame.paint,
                 frame.atlas,
                 Rect::new(
@@ -237,7 +326,13 @@ impl PanelView for View {
                     28.,
                 ),
                 &format!("{}  ·  {:.2}", model.text, model.value),
-                palette::TEXT_MUTED,
+                motion_ui::style::ResolvedStyle {
+                    foreground: styles
+                        .resolve("label.muted", States::default())
+                        .unwrap()
+                        .foreground,
+                    ..styles.resolve("label", States::default()).unwrap()
+                },
                 Align::Left,
             );
         } else if self.id.0 == 1 {
@@ -265,7 +360,7 @@ impl PanelView for View {
             .into_iter()
             .enumerate()
             {
-                ui::text(
+                style::text_style(
                     frame.paint,
                     frame.atlas,
                     Rect::new(
@@ -275,16 +370,25 @@ impl PanelView for View {
                         26.,
                     ),
                     text,
-                    if i == 0 {
-                        palette::TEXT
-                    } else {
-                        palette::TEXT_MUTED
+                    motion_ui::style::ResolvedStyle {
+                        foreground: if i == 0 {
+                            styles
+                                .resolve("label", States::default())
+                                .unwrap()
+                                .foreground
+                        } else {
+                            styles
+                                .resolve("label.muted", States::default())
+                                .unwrap()
+                                .foreground
+                        },
+                        ..styles.resolve("label", States::default()).unwrap()
                     },
                     Align::Left,
                 );
             }
         } else {
-            ui::text(
+            style::text_style(
                 frame.paint,
                 frame.atlas,
                 area.shrink(14.),
@@ -293,7 +397,13 @@ impl PanelView for View {
                 } else {
                     "Drag panel titles to rearrange · ↗ detach · Dock to return"
                 },
-                palette::TEXT_MUTED,
+                motion_ui::style::ResolvedStyle {
+                    foreground: styles
+                        .resolve("label.muted", States::default())
+                        .unwrap()
+                        .foreground,
+                    ..styles.resolve("label", States::default()).unwrap()
+                },
                 Align::Left,
             );
             for i in 0..3 {
@@ -345,8 +455,30 @@ struct App {
     start: Instant,
     error: Option<String>,
     verified_undo: bool,
+    style_path: Option<PathBuf>,
+    style_status: Option<String>,
 }
 impl App {
+    fn reload_style(&mut self) -> Result<(), String> {
+        let path = self
+            .style_path
+            .as_ref()
+            .ok_or("no --style file configured")?;
+        let next = style::default_stylesheet().load_overrides(path)?;
+        let atlas = TextAtlas::from_family(
+            next.font_family(),
+            next.base_font_size(),
+            self.language == Language::Chinese,
+        )?;
+        self.host.set_stylesheet(next);
+        self.atlas = atlas;
+        self.style_status = None;
+        for window in self.windows.values_mut() {
+            window.dirty = true;
+        }
+        Ok(())
+    }
+
     fn new(smoke: Option<PathBuf>, language: Language) -> Self {
         let model = Rc::new(RefCell::new(Model {
             value: 25.,
@@ -372,10 +504,16 @@ impl App {
             )
             .unwrap();
         }
+        let atlas = TextAtlas::from_family(
+            host.styles().font_family(),
+            host.styles().base_font_size(),
+            language == Language::Chinese,
+        )
+        .unwrap();
         Self {
             windows: Default::default(),
             gpu: None,
-            atlas: TextAtlas::from_system_language(14., language == Language::Chinese).unwrap(),
+            atlas,
             host,
             workspace: Default::default(),
             router: Default::default(),
@@ -386,6 +524,8 @@ impl App {
             start: Instant::now(),
             error: None,
             verified_undo: false,
+            style_path: None,
+            style_status: None,
         }
     }
     fn apply(&mut self, actions: Vec<Action>) {
@@ -477,8 +617,21 @@ impl App {
                 layout.bounds.width(),
                 metrics::TAB_BAR,
             );
-            paint::rect(&mut paint, header, palette::CHROME);
-            paint::stroke(&mut paint, header, palette::BORDER, 1.);
+            let header_style =
+                self.host
+                    .styles()
+                    .resolve(
+                        "panel.header",
+                        if self.router.focus().is_some_and(|target| {
+                            target.window == key && target.panel == layout.panel
+                        }) {
+                            States::default().with(State::Focused)
+                        } else {
+                            States::default()
+                        },
+                    )
+                    .unwrap();
+            style::box_style(&mut paint, header, header_style);
             let title = self
                 .host
                 .registry()
@@ -487,7 +640,7 @@ impl App {
                 .title
                 .get(self.language)
                 .to_owned();
-            ui::text(
+            style::text_style(
                 &mut paint,
                 &mut self.atlas,
                 Rect::new(
@@ -497,10 +650,22 @@ impl App {
                     header.height(),
                 ),
                 &title,
-                palette::TEXT,
+                motion_ui::style::ResolvedStyle {
+                    foreground: self
+                        .host
+                        .styles()
+                        .resolve("panel.header", States::default())
+                        .unwrap()
+                        .foreground,
+                    ..self
+                        .host
+                        .styles()
+                        .resolve("panel.header", States::default())
+                        .unwrap()
+                },
                 Align::Left,
             );
-            if ui::button(
+            if ui::button_styled(
                 &mut paint,
                 &mut self.atlas,
                 Rect::new(header.max[0] - 64., header.min[1] + 3., 60., 20.),
@@ -515,6 +680,8 @@ impl App {
                 },
                 &input,
                 true,
+                self.host.styles(),
+                "button",
             )
             .clicked
             {
@@ -528,7 +695,30 @@ impl App {
                 &mut paint,
                 &mut self.atlas,
             ));
-            paint::stroke(&mut paint, layout.bounds, palette::BORDER, 1.);
+            let panel_style = self
+                .host
+                .styles()
+                .resolve("panel", States::default())
+                .unwrap();
+            paint::stroke(
+                &mut paint,
+                layout.bounds,
+                panel_style.border,
+                panel_style.border_width,
+            );
+        }
+        if let Some(message) = &self.style_status {
+            style::text_style(
+                &mut paint,
+                &mut self.atlas,
+                Rect::new(8., size[1] - 24., size[0] - 16., 24.),
+                message,
+                self.host
+                    .styles()
+                    .resolve("error", States::default())
+                    .unwrap(),
+                Align::Left,
+            );
         }
         self.router.end_frame(&input);
         self.apply(actions);
@@ -591,6 +781,17 @@ fn main() {
     };
     let event_loop = EventLoop::new().unwrap();
     let mut app = App::new(smoke, language);
+    if let Some(index) = args.iter().position(|arg| arg == "--style") {
+        let Some(path) = args.get(index + 1).filter(|p| !p.starts_with("--")) else {
+            eprintln!("--style requires a JSON file");
+            std::process::exit(1)
+        };
+        app.style_path = Some(PathBuf::from(path));
+        if let Err(error) = app.reload_style() {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
+    }
     event_loop.run_app(&mut app).unwrap();
     if let Some(error) = app.error {
         eprintln!("{error}");

@@ -3,6 +3,7 @@ use crate::{
     dock::DockId,
     interaction::{HitRegion, Router, Target},
     registry::{Language, PanelDescriptor, PanelRegistry},
+    style::{default_stylesheet, StyleSheet},
     Input, PaintList, Rect, TextAtlas,
 };
 use std::collections::BTreeMap;
@@ -24,6 +25,7 @@ impl PanelLayout {
     }
 }
 pub struct PanelFrame<'a> {
+    pub styles: &'a StyleSheet,
     pub layout: PanelLayout,
     pub language: Language,
     pub paint: &'a mut PaintList,
@@ -32,6 +34,9 @@ pub struct PanelFrame<'a> {
     input: &'a Input,
 }
 impl PanelFrame<'_> {
+    pub fn is_focused(&self, widget: u64) -> bool {
+        self.router.focus() == Some(self.layout.target(widget))
+    }
     pub fn input_for(&self, widget: u64) -> Input {
         self.router
             .input_for(self.layout.target(widget), self.input)
@@ -62,18 +67,26 @@ pub trait PanelView {
     }
 }
 pub struct PanelHost<A> {
+    styles: StyleSheet,
     registry: PanelRegistry,
     views: BTreeMap<DockId, Box<dyn PanelView<Action = A>>>,
 }
 impl<A> Default for PanelHost<A> {
     fn default() -> Self {
         Self {
+            styles: default_stylesheet().clone(),
             registry: Default::default(),
             views: Default::default(),
         }
     }
 }
 impl<A> PanelHost<A> {
+    pub fn styles(&self) -> &StyleSheet {
+        &self.styles
+    }
+    pub fn set_stylesheet(&mut self, styles: StyleSheet) {
+        self.styles = styles;
+    }
     pub fn register(
         &mut self,
         descriptor: PanelDescriptor,
@@ -118,6 +131,7 @@ impl<A> PanelHost<A> {
         };
         let mut content = PaintList::default();
         let actions = view.draw(&mut PanelFrame {
+            styles: &self.styles,
             layout,
             language,
             paint: &mut content,

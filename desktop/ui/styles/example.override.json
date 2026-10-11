@@ -1,0 +1,10 @@
+{
+  "tokens": {
+    "colors": { "focus": "#60C5A0", "panel": "#1A2024", "raised": "#252D32" },
+    "sizes": { "font.title": 18, "padding": 6 }
+  },
+  "styles": {
+    "button.export": { "extends": "button.primary", "padding": 8 },
+    "panel.header": { "border_width": 1 }
+  }
+}

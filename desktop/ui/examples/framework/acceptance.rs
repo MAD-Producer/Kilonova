@@ -160,6 +160,40 @@ impl App {
                 self.redock(DockId(2))?;
             }
             5 => {
+                let mut style_checks = serde_json::Value::Null;
+                if self.style_path.is_some() {
+                    let before = self.model.borrow().clone();
+                    self.reload_style()?;
+                    if *self.model.borrow() != before {
+                        return Err("stylesheet reload edited UI model or undo history".into());
+                    }
+                    let old_style = self
+                        .host
+                        .styles()
+                        .resolve("panel", States::default())
+                        .unwrap();
+                    let old_font = self.host.styles().font_family().to_owned();
+                    let original = self.style_path.take();
+                    let invalid = path.with_extension("invalid-style.json");
+                    std::fs::write(&invalid, b"invalid json").map_err(|e| e.to_string())?;
+                    self.style_path = Some(invalid.clone());
+                    let rejected = self.reload_style().is_err();
+                    self.style_path = original;
+                    let _ = std::fs::remove_file(invalid);
+                    if !rejected
+                        || self
+                            .host
+                            .styles()
+                            .resolve("panel", States::default())
+                            .unwrap()
+                            != old_style
+                        || self.host.styles().font_family() != old_font
+                        || *self.model.borrow() != before
+                    {
+                        return Err("invalid stylesheet replaced live state".into());
+                    }
+                    style_checks = serde_json::json!({"reloadPreservedModel":true,"invalidReloadKeptStyle":true});
+                }
                 if !self.workspace.valid_for(self.host.registry()) || !self.verified_undo {
                     return Err("workspace or undo validation failed".into());
                 }
@@ -170,7 +204,7 @@ impl App {
                 }
                 self.capture(main, &path.with_extension("png"))?;
                 let info = self.gpu.as_ref().unwrap().adapter.get_info();
-                std::fs::write(&path,serde_json::to_vec_pretty(&serde_json::json!({"ok":true,"adapter":info.name,"backend":format!("{:?}",info.backend),"independentUiOnly":true,"numericDragOneUndo":true,"undoRestored":true,"floatingPresented":true,"layoutRoundtrip":true,"language":if self.language==Language::Chinese{"zh"}else{"en"},"screenshot":path.with_extension("png")})).unwrap()).map_err(|e|e.to_string())?;
+                std::fs::write(&path,serde_json::to_vec_pretty(&serde_json::json!({"styles":style_checks,"ok":true,"adapter":info.name,"backend":format!("{:?}",info.backend),"independentUiOnly":true,"numericDragOneUndo":true,"undoRestored":true,"floatingPresented":true,"layoutRoundtrip":true,"language":if self.language==Language::Chinese{"zh"}else{"en"},"screenshot":path.with_extension("png")})).unwrap()).map_err(|e|e.to_string())?;
                 event_loop.exit();
             }
             _ => {}

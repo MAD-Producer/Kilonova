@@ -35,45 +35,77 @@ pub fn button(
     input: &Input,
     enabled: bool,
 ) -> Response {
-    let hovered = enabled && area.contains(input.mouse);
-    let clicked = hovered
-        && matches!(
-            input.pressed,
-            Some((MouseButton::Left, p)) if area.contains(p)
-        );
-    let background = if !enabled {
-        palette::PANEL
-    } else if clicked {
-        palette::ACCENT.with_alpha(0.35)
-    } else if hovered {
-        palette::CHROME
-    } else {
-        palette::SUNKEN
-    };
-    paint::rect(list, area, background);
-    if enabled {
-        paint::stroke(list, area, palette::BORDER, 1.0);
-    }
-    let color = if enabled {
-        palette::TEXT
-    } else {
-        palette::TEXT_MUTED
-    };
-    let width = atlas.measure(label);
-    text(
+    button_styled(
         list,
         atlas,
-        Rect::new(
-            area.min[0] + 4.0,
-            area.min[1],
-            (area.width() - 8.0).max(0.0),
-            area.height(),
-        ),
+        area,
         label,
-        color,
+        input,
+        enabled,
+        crate::style::default_stylesheet(),
+        "button",
+    )
+}
+pub fn button_styled(
+    list: &mut PaintList,
+    atlas: &mut crate::text::TextAtlas,
+    area: Rect,
+    label: &str,
+    input: &Input,
+    enabled: bool,
+    sheet: &crate::style::StyleSheet,
+    class: &str,
+) -> Response {
+    button_with_states(
+        list,
+        atlas,
+        area,
+        label,
+        input,
+        enabled,
+        sheet,
+        class,
+        crate::style::States::default(),
+    )
+}
+pub fn button_with_states(
+    list: &mut PaintList,
+    atlas: &mut crate::text::TextAtlas,
+    area: Rect,
+    label: &str,
+    input: &Input,
+    enabled: bool,
+    sheet: &crate::style::StyleSheet,
+    class: &str,
+    mut states: crate::style::States,
+) -> Response {
+    use crate::style::{box_style, text_style, State};
+    let hovered = enabled && area.contains(input.mouse);
+    let clicked = hovered
+        && input
+            .pressed
+            .is_some_and(|(b, p)| b == MouseButton::Left && area.contains(p));
+    if hovered {
+        states = states.with(State::Hovered);
+    }
+    if clicked || hovered && input.held == Some(MouseButton::Left) {
+        states = states.with(State::Pressed);
+    }
+    if !enabled {
+        states = states.with(State::Disabled);
+    }
+    let style = sheet
+        .resolve(class, states)
+        .unwrap_or_else(|| sheet.resolve("button", states).expect("button style"));
+    box_style(list, area, style);
+    text_style(
+        list,
+        atlas,
+        area.shrink(style.padding),
+        label,
+        style,
         Align::Center,
     );
-    let _ = width;
     Response {
         hovered,
         clicked,
