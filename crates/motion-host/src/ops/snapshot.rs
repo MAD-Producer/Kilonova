@@ -89,7 +89,8 @@ impl Session {
                 let local = l.local_frame(f);
                 json!({"id":l.id,"position":l.transform.position.sample(local),
             "rotation":l.transform.rotation.sample(local),"scale":l.transform.scale.sample(local),
-            "opacity":l.transform.opacity.sample(local).clamp(0.0,1.0),"active":l.active(f,p.frames),"three_d":l.three_d})
+            "opacity":l.transform.opacity.sample(local).clamp(0.0,1.0),"active":l.active(f,p.frames),"three_d":l.three_d,
+            "audio_levels":l.audio_levels.as_ref().map(|levels|{let v=levels.sample(local);json!({"left":v[0],"right":v[1]})})})
             })
             .collect();
         let mut projected: Vec<_> = self
@@ -211,7 +212,11 @@ impl Session {
                 "adapter":g.renderer.adapter_info.name,
                 "backend":format!("{:?}",g.renderer.adapter_info.backend),
                 "textureBytes":g.renderer.texture_bytes()}))});
-        snapshot["capabilities"]["composition_api"]["project_format"]=json!(13);
+        snapshot["capabilities"]["composition_api"]["project_format"]=json!(14);
+        snapshot["capabilities"]["audio"]["levels"]=json!({"supported":true,"project_format":14,"command":"audio_levels",
+            "unit":"dB","range":[motion_core::audio_levels::MIN_AUDIO_DB,motion_core::audio_levels::MAX_AUDIO_DB],"channels":["left","right"],"animated":true,
+            "sampling":"output_sample","time_coordinates":"layer_local_frames","nested":true,
+            "conversion":"10^(dB/20)","expressions":false,"curve_overshoot":"clamp_to_range"});
         snapshot["capabilities"]["layer_timeline"]["extended_spans"]=json!({"supported":true,"project_format":13,
             "in_frame_min":-(motion_core::MAX_FRAMES as i32),"out_frame_max":motion_core::MAX_FRAMES,
             "coordinates":"signed_composition_frames","outside_composition":"retained_not_rendered"});

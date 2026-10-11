@@ -68,6 +68,28 @@ pub struct AudioVoice {
     pub offset_sample: i64,
     pub source_offset_us: u64,
     pub volume: f32,
+    pub envelopes: Vec<AudioEnvelope>,
+}
+#[derive(Clone, Debug)]
+pub struct AudioEnvelope {
+    pub levels: crate::AudioLevels,
+    pub fps: u32,
+    /// Rational composition origins converted only at the final sampling step.
+    pub origin_sample: f64,
+}
+impl AudioVoice {
+    pub fn animated_levels(&self)->bool {self.envelopes.iter().any(|e|e.levels.animated())}
+    pub fn gain_at(&self,sample:u64)->[f32;2] {
+        if self.envelopes.is_empty(){return [self.volume;2];}
+        let mut db=[0.;2];
+        for envelope in &self.envelopes {
+            let local=(sample as f64-envelope.origin_sample)*f64::from(envelope.fps)/48_000.;
+            let values=envelope.levels.sample(local);
+            db[0]+=values[0];db[1]+=values[1];
+        }
+        let left=self.volume*crate::audio_levels::db_gain(db[0]);
+        [left,if db[0]==db[1]{left}else{self.volume*crate::audio_levels::db_gain(db[1])}]
+    }
 }
 impl CompositionClip {
     pub fn new(composition: String) -> Self {
@@ -272,6 +294,7 @@ impl Project {
             begin: i64,
             end: i64,
             volume: f32,
+            envelopes: &[AudioEnvelope],
             depth: usize,
             out: &mut Vec<AudioVoice>,
         ) -> Result<()> {
@@ -292,6 +315,11 @@ impl Project {
                     continue;
                 }
                 let offset = add(origin,i64::from(clip.offset_frame),p.fps)?;
+                let mut layer_envelopes=envelopes.to_vec();
+                if let Some(levels)=&l.audio_levels {
+                    layer_envelopes.push(AudioEnvelope {levels:levels.clone(),fps:p.fps,
+                        origin_sample:offset.numerator as f64/offset.denominator as f64});
+                }
                 if let Content::Composition { clip } = &l.content {
                     if clip.muted || clip.volume == 0. {
                         continue;
@@ -307,6 +335,7 @@ impl Project {
                             add(child_origin,i64::from(child.frames),child.fps)?.sample(),
                         ),
                         volume * clip.volume,
+                        &layer_envelopes,
                         depth + 1,
                         out,
                     )?;
@@ -321,6 +350,7 @@ impl Project {
                         offset_sample: offset.sample(),
                         source_offset_us: audio.source_offset_us,
                         volume: volume * audio.volume,
+                        envelopes: layer_envelopes,
                     });
                 }
             }
@@ -337,6 +367,7 @@ impl Project {
             0,
             i64::from(self.frames) * 48_000 / i64::from(self.fps),
             1.,
+            &[],
             0,
             &mut out,
         )?;
