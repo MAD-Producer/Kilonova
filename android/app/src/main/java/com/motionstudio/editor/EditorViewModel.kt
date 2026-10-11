@@ -970,11 +970,19 @@ class EditorViewModel @JvmOverloads constructor(app: Application,projectDirector
     }
     fun reorderTo(objectId:Long,index:Int)=edit(JSONObject().put("op","reorder").put("object",objectId).put("index",index))
     fun moveClip(objectId:Long,start:Int,save:Boolean=true)=edit(JSONObject().put("op","move_layer_clip").put("object",objectId).put("in_frame",start),save)
+    fun clipInterval(objectId:Long):Pair<Double,Double>? {
+        val clip=timelineLayer(objectId)?:return null
+        val exact=clip.optJSONObject("subframe_range")
+        return (exact?:clip).getDouble("in_frame") to (exact?:clip).getDouble("out_frame")
+    }
+    fun preciseClipSupported()=state.sample?.optJSONObject("capabilities")?.optJSONObject("layer_timeline")?.optJSONObject("subframe_ranges")?.optBoolean("supported")==true
+    fun setClipInterval(objectId:Long,start:Double,end:Double,save:Boolean=true)=edit(JSONObject().put("op","set_layer_range").put("object",objectId).put("in_frame",start).put("out_frame",end),save)
     fun trimClip(objectId:Long,start:Int,end:Int,save:Boolean=true)=edit(JSONObject().put("op","trim_layer_clip").put("object",objectId).put("in_frame",start).put("out_frame",end),save)
     fun canSplitClip():Boolean {
         if(selected==0L||layerSelectionMode||!editable()||state.busy||importTask!=null)return false
-        val clip=timelineLayer(selected)?:return false
-        return floor(frame).toInt() in clip.getInt("in_frame")+1 until clip.getInt("out_frame")
+        val exact=clipInterval(selected)?:return false
+        val at=floor(frame)
+        return at>exact.first&&at<exact.second&&at<(state.project?.optInt("frames")?:0)
     }
     fun splitClip(){gestureInertia.stop();pause();if(canSplitClip())edit(JSONObject().put("op","split_layer_clip").put("object",selected).put("frame",floor(frame).toInt()))}
     private fun nextId(a:JSONArray):Long=(0 until a.length()).maxOfOrNull{a.getJSONObject(it).getLong("id")}?.plus(1)?:1

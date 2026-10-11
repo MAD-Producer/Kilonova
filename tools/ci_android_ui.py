@@ -13,6 +13,8 @@ if (SOURCE/"LayerClipTimelineTest.kt").exists():
     classes += ["LayerClipTimelineTest#extendedSpansSurviveSaveExpansionAndFrozenEncodedOutput"]
 if (SOURCE/"ExtendedClipUiTest.kt").exists():
     classes += ["ExtendedClipUiTest"]
+if (SOURCE/"SubframeClipUiTest.kt").exists():
+    classes += ["SubframeClipUiTest"]
 classes += [name for name in ["VectorAdjustmentTest","VectorAdjustmentParityTest","VectorFrontendTest","ErrorReportsTest","CompositionBackendApiTest","CompositionParityTest","CompositionFrontendTest","ReleaseUpdatesTest","SpatialEffectsTest"] if (SOURCE/(name+".kt")).exists()]
 classes += [name for name in ["NativeParticleEditorTest","SceneEffectsTest"] if (SOURCE/(name+".kt")).exists()]
 classes += [name for name in ["AudioLevelsUiTest","AudioBackendApiTest"] if (SOURCE/(name+".kt")).exists()]

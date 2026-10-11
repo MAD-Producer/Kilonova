@@ -13,6 +13,7 @@ pub mod expressions;
 pub mod geometry;
 pub mod hierarchy;
 mod model;
+mod clip_range;
 pub mod particle_history;
 pub mod masks;
 pub mod compositing;
@@ -43,6 +44,7 @@ pub use model::{
     Asset, Content, Layer, LayerTimeline, ParentLink, Project, Transform, MAX_COMPOSITION_FPS,
     MAX_FRAMES, MAX_LAYERS,
 };
+pub use clip_range::ClipRange;
 pub use timeline::{TimelineKey, TimelineLayer, TimelineProperties, TimelineTrack};
 pub use video::{
     VideoAsset, VideoClip, VideoSample, MAX_VIDEO_DIMENSION, MAX_VIDEO_FPS, MAX_VIDEO_FRAMES,

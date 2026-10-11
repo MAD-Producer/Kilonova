@@ -237,8 +237,8 @@ impl Scene {
                 continue;
             }
             let referenced = matte_sources.contains(&layer.id) || self.effects.iter().any(|e| e.enabled && e.image_input.and_then(motion_model::EffectImageInput::layer) == Some(layer.id));
-            let clip=layer.clip(project.frames);
-            if frame<f64::from(clip.in_frame)||frame>=f64::from(clip.out_frame)||(!layer.visible&&!referenced) {
+            let clip=layer.interval(project.frames);
+            if frame<clip.in_frame||frame>=clip.out_frame||(!layer.visible&&!referenced) {
                 continue;
             }
             let opacity = layer

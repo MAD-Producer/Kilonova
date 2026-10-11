@@ -307,10 +307,13 @@ impl Project {
                     Error::Composition(CompositionError { code:"audio_time_limit".into(), composition:p.id.into(),
                         message:e.to_string(), details:json!({"layer":l.id,"frames":frames,"fps":fps}) }));
                 let clip = l.clip(p.frames);
-                let first = begin
-                    .max(add(origin,i64::from(clip.in_frame),p.fps)?.sample())
-                    .max(0);
-                let last = end.min(add(origin,i64::from(clip.out_frame),p.fps)?.sample());
+                let (clip_first,clip_last)=if let Some(range)=l.subframe_range {
+                    let base=origin.numerator as f64/origin.denominator as f64;
+                    ((base+range.in_frame*48_000./f64::from(p.fps)).ceil() as i64,
+                     (base+range.out_frame*48_000./f64::from(p.fps)).ceil() as i64)
+                }else{(add(origin,i64::from(clip.in_frame),p.fps)?.sample(),add(origin,i64::from(clip.out_frame),p.fps)?.sample())};
+                let first = begin.max(clip_first).max(0);
+                let last = end.min(clip_last);
                 if first >= last {
                     continue;
                 }
@@ -928,7 +931,13 @@ impl Project {
                         if k == "keys" {
                             continue;
                         }
-                        if matches!(k.as_str(), "in_frame" | "out_frame" | "offset_frame") {
+                        if k=="subframe_range" {
+                            let range=v.as_object_mut().ok_or_else(||Error::Invalid("invalid precise clip range".into()))?;
+                            for endpoint in ["in_frame","out_frame"] {
+                                let before=range[endpoint].as_f64().ok_or_else(||Error::Invalid("invalid precise endpoint".into()))?;
+                                range.insert(endpoint.into(),json!(before*f64::from(new)/f64::from(old)));
+                            }
+                        }else if matches!(k.as_str(), "in_frame" | "out_frame" | "offset_frame") {
                             if let Some(f) = v.as_i64() {
                                 *v = json!(
                                     (f as f64 * f64::from(new) / f64::from(old)).round() as i64
@@ -964,6 +973,9 @@ impl Project {
         node.height = s.height;
         node.fps = s.fps;
         node.frames = s.frames;
+        for layer in &mut node.layers {
+            if let Some(range)=layer.subframe_range {layer.set_interval(s.frames,range)?;}
+        }
         let original: HashSet<_> = node.layers.iter().map(|l| l.id).collect();
         fn outside_keys(v: &Value, end: i64, path: &str, kind: &str, impacts: &mut Vec<Value>) {
             match v {
@@ -1017,10 +1029,9 @@ impl Project {
             if s.frames < previous_frames && i64::from(old.out_frame) > i64::from(s.frames) {
                 impacts.push(json!({"kind":"clip","object":l.id,"before":old,"new_end":s.frames}));
                 if i64::from(old.in_frame) < i64::from(s.frames) {
-                    l.timeline = Some(LayerTimeline {
-                        out_frame: s.frames as i32,
-                        ..old
-                    });
+                    let exact=l.interval(previous_frames);
+                    if l.subframe_range.is_some(){l.set_interval(s.frames,crate::ClipRange{out_frame:f64::from(s.frames),..exact})?;}
+                    else{l.timeline=Some(LayerTimeline{out_frame:s.frames as i32,..old});}
                 }
             } else if l.timeline.is_none() {
                 l.timeline = Some(old);

@@ -309,6 +309,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             clip.validate(frames)?;
             if clip != old {
                 layer.timeline = Some(clip);
+                if let Some(range)=layer.subframe_range {layer.subframe_range=Some(range.translated(delta));}
             }
         }
         Command::TrimLayerClip {
@@ -318,6 +319,8 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
         } => {
             let frames = project.frames;
             let layer = editable_clip(project, object)?;
+            let old=layer.clip(frames);
+            let exact=layer.interval(frames);
             let clip = crate::LayerTimeline {
                 in_frame,
                 out_frame,
@@ -325,8 +328,15 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             };
             clip.validate(frames)?;
             if clip != layer.clip(frames) {
-                layer.timeline = Some(clip);
+                if layer.subframe_range.is_some(){layer.set_interval(frames,crate::ClipRange{
+                    in_frame:if in_frame==old.in_frame{exact.in_frame}else{f64::from(in_frame)},
+                    out_frame:if out_frame==old.out_frame{exact.out_frame}else{f64::from(out_frame)}})?;}
+                else{layer.timeline=Some(clip);}
             }
+        }
+        Command::SetLayerRange {object,in_frame,out_frame}=>{
+            let frames=project.frames;
+            editable_clip(project,object)?.set_interval(frames,crate::ClipRange{in_frame,out_frame})?;
         }
         Command::SplitLayerClip { object, frame } => {
             ensure(
@@ -338,8 +348,10 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             let frame = i32::try_from(frame).map_err(|_| Error::Invalid("split frame overflow".into()))?;
             let mut right = editable_clip(project, object)?.clone();
             let clip = right.clip(frames);
+            let precise=right.subframe_range.is_some();
+            let exact=right.interval(frames);
             ensure(
-                clip.in_frame < frame && frame < clip.out_frame,
+                exact.in_frame < f64::from(frame) && f64::from(frame) < exact.out_frame,
                 "split must be inside the layer clip",
             )?;
             right.id = project
@@ -354,6 +366,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
                 in_frame: frame,
                 ..clip
             });
+            if precise{right.set_interval(frames,crate::ClipRange{in_frame:f64::from(frame),..exact})?;}
             let right_object = right.id;
             let index = project
                 .layers
@@ -364,6 +377,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
                 out_frame: frame,
                 ..clip
             });
+            if precise{project.layers[index].set_interval(frames,crate::ClipRange{out_frame:f64::from(frame),..exact})?;}
             project.layers.insert(index + 1, right);
             crate::expressions::copy_layer(project, object, right_object);
             result = Some(EditResult::SplitLayerClip {
@@ -771,6 +785,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
         if let Content::Vector { vector } = &layer.content { project.version = project.version.max(vector.required_format()); }
         if layer.clip(project.frames).extends_composition(project.frames) { project.version = project.version.max(13); }
         if layer.audio_levels.is_some() {project.version=project.version.max(14);}
+        if layer.subframe_range.is_some() {project.version=project.version.max(15);}
     }
     project.rebuild_plugin_dependencies();
     project.validate()?;
