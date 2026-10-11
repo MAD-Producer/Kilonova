@@ -48,6 +48,8 @@ impl Session {
             info["uploadBytes"] = json!(g.renderer.video_upload_bytes);
             info["uploads"] = json!(g.renderer.video_uploads);
             info["gpuConversions"] = json!(g.renderer.video_gpu_conversions);
+            info["standaloneConversionSubmissions"] = json!(g.renderer.video_conversion_submissions);
+            info["encodedConversions"] = json!(g.renderer.video_encoded_conversions);
         }
         info
     }

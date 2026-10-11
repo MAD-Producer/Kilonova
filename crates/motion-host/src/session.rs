@@ -354,21 +354,7 @@ impl Session {
             self.video_upload_us = 0;
             return Ok(false);
         }
-        let uploading = Instant::now();
-        for (object, image) in frames {
-            let source = self
-                .scene
-                .video_layers()
-                .into_iter()
-                .find(|l| l.id == object)
-                .unwrap()
-                .video
-                .as_ref()
-                .unwrap()
-                .asset;
-            image.upload(&mut g.renderer, object, source)?;
-        }
-        self.video_upload_us = uploading.elapsed().as_micros() as u64;
+        self.video_upload_us = 0;
         g.renderer.device.poll(wgpu::Maintain::Poll);
         g.renderer.check_health().map_err(|e| e.to_string())?;
         let mut gpu_work_us = None;
@@ -406,13 +392,30 @@ impl Session {
         };
         let acquire_us = acquiring.elapsed().as_micros() as u64;
         let sequence = self.presented + 1;
-        let slot = g.timer.as_mut().and_then(|t| t.begin(sequence));
         let mut encoder =
             g.renderer
                 .device
                 .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                     label: Some("Motion Studio composition and presentation"),
                 });
+        let uploading = Instant::now();
+        let mut video_uploads = Vec::new();
+        for (object, image) in frames {
+            let source = self.scene.video_layers().into_iter()
+                .find(|l| l.id == object).unwrap().video.as_ref().unwrap().asset;
+            if self.scene.nested.is_empty() {
+                if let Some(upload) = image.encode_upload(&mut g.renderer, object, source, &mut encoder)? {
+                    video_uploads.push(upload);
+                }
+            } else {
+                // Nested composition rendering still submits child frames first.
+                // Keep conversion queued before those submissions until child
+                // resources can be encoded together without uniform aliasing.
+                image.upload(&mut g.renderer, object, source)?;
+            }
+        }
+        self.video_upload_us = uploading.elapsed().as_micros() as u64;
+        let slot = g.timer.as_mut().and_then(|t| t.begin(sequence));
         let timestamps = slot.map(|i| g.timer.as_ref().unwrap().writes(i, 0));
         let encoded = if self.preview.mode == PreviewMode::High {
             g.renderer.encode(
@@ -461,6 +464,7 @@ impl Session {
         }
         let submitting = Instant::now();
         g.renderer.queue.submit(Some(encoder.finish()));
+        for upload in video_uploads { upload.mark_submitted(); }
         let submit_us = submitting.elapsed().as_micros() as u64;
         if let Some(i) = slot {
             g.timer.as_ref().unwrap().map(i);
