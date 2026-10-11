@@ -9,6 +9,10 @@ SOURCE=ROOT/"android/app/src/androidTest/java/com/motionstudio/editor"
 OUTPUT=ROOT/"artifacts/android-ui";OUTPUT.mkdir(parents=True,exist_ok=True)
 classes=["PropertyOverlayTest","FrontendLayerControlsTest#separatedKeyDragUsesCompositionTimeAndOnlyCapturedAxis"]
 classes += [name for name in ["EditorInertiaTest","LayerSelectionTest","TimelineKeyGestureTest","TransportLayerActionsTest","EffectPreviewBackendTest"] if (SOURCE/(name+".kt")).exists()]
+if (SOURCE/"LayerClipTimelineTest.kt").exists():
+    classes += ["LayerClipTimelineTest#extendedSpansSurviveSaveExpansionAndFrozenEncodedOutput"]
+if (SOURCE/"ExtendedClipUiTest.kt").exists():
+    classes += ["ExtendedClipUiTest"]
 classes += [name for name in ["VectorAdjustmentTest","VectorAdjustmentParityTest","VectorFrontendTest","ErrorReportsTest","CompositionBackendApiTest","CompositionParityTest","CompositionFrontendTest","ReleaseUpdatesTest","SpatialEffectsTest"] if (SOURCE/(name+".kt")).exists()]
 classes += [name for name in ["NativeParticleEditorTest","SceneEffectsTest"] if (SOURCE/(name+".kt")).exists()]
 classes += [name for name in ["ColorBookmarksTest","ColorCurvesApiTest","ColorEditingTest"] if (SOURCE/(name+".kt")).exists()]

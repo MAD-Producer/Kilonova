@@ -25,7 +25,7 @@ fn staggered() -> Project {
         let mut c = node(n, if n % 2 == 0 {20} else {24});
         c.layers.push(Layer::solid(1,"Color",[32.;2],[32.,32.,0.],[0.2,0.8,0.3,1.]));
         let mut l = reference(n as u64, &c.id);
-        l.timeline = Some(LayerTimeline {in_frame:(n as u32-1)*2, out_frame:n as u32*2,
+        l.timeline = Some(LayerTimeline {in_frame:(n as i32-1)*2, out_frame:n as i32*2,
                                          offset_frame:(n as i32-1)*2});
         p.layers.push(l); p.compositions.push(c);
     }

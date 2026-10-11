@@ -577,8 +577,8 @@ impl Project {
             clip: CompositionClip::new(target.into()),
         };
         l.timeline = Some(LayerTimeline {
-            in_frame: at_frame,
-            out_frame: self.frames,
+            in_frame: at_frame as i32,
+            out_frame: self.frames as i32,
             offset_frame: at_frame as i32,
         });
         self.layers.push(l);
@@ -980,11 +980,14 @@ impl Project {
             } else {
                 old_frames
             });
-            if old.out_frame > s.frames {
+            let previous_frames = if s.timing == "preserve_seconds" {
+                (f64::from(old_frames) * f64::from(s.fps) / f64::from(old_fps)).round() as u32
+            } else { old_frames };
+            if s.frames < previous_frames && i64::from(old.out_frame) > i64::from(s.frames) {
                 impacts.push(json!({"kind":"clip","object":l.id,"before":old,"new_end":s.frames}));
-                if old.in_frame < s.frames {
+                if i64::from(old.in_frame) < i64::from(s.frames) {
                     l.timeline = Some(LayerTimeline {
-                        out_frame: s.frames,
+                        out_frame: s.frames as i32,
                         ..old
                     });
                 }
@@ -1006,7 +1009,7 @@ impl Project {
         }
         if s.shorten == "trim" {
             node.layers
-                .retain(|l| l.timeline.map_or(0, |t| t.in_frame) < s.frames);
+                .retain(|l| i64::from(l.timeline.map_or(0, |t| t.in_frame)) < i64::from(s.frames));
             let kept: HashSet<_> = node.layers.iter().map(|l| l.id).collect();
             if node.layers.iter().any(|l| {
                 l.parent

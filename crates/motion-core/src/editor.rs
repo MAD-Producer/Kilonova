@@ -292,7 +292,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             let layer = editable_clip(project, object)?;
             let old = layer.clip(frames);
             let delta = i64::from(in_frame) - i64::from(old.in_frame);
-            let out_frame = u32::try_from(i64::from(old.out_frame) + delta)
+            let out_frame = i32::try_from(i64::from(old.out_frame) + delta)
                 .map_err(|_| Error::Invalid("clip interval overflow".into()))?;
             let offset_frame = i32::try_from(i64::from(old.offset_frame) + delta)
                 .map_err(|_| Error::Invalid("clip offset overflow".into()))?;
@@ -329,6 +329,8 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
                 "layer limit exceeded",
             )?;
             let frames = project.frames;
+            ensure(frame < frames, "split frame outside composition")?;
+            let frame = i32::try_from(frame).map_err(|_| Error::Invalid("split frame overflow".into()))?;
             let mut right = editable_clip(project, object)?.clone();
             let clip = right.clip(frames);
             ensure(
@@ -762,6 +764,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
     }
     for layer in &project.layers {
         if let Content::Vector { vector } = &layer.content { project.version = project.version.max(vector.required_format()); }
+        if layer.clip(project.frames).extends_composition(project.frames) { project.version = project.version.max(13); }
     }
     project.rebuild_plugin_dependencies();
     project.validate()?;

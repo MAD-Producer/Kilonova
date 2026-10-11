@@ -82,7 +82,7 @@ fn legacy_migration_is_in_memory_and_preserves_every_fractional_projection() {
         compare(&p, &migrated, f as f64 / 2.0, f as f64 / 2.0, 2, 2);
     }
     let mut unknown = p;
-    unknown.version = 13;
+    unknown.version = 14;
     assert!(Engine::new(unknown).is_err());
 }
 #[test]
@@ -100,6 +100,41 @@ fn clip_is_left_closed_right_open_at_fractional_frames() {
             active
         );
         assert_eq!(e.project().timeline_layers(f)[1].active, active);
+    }
+}
+
+#[test]
+fn signed_spans_preserve_hidden_time_and_local_animation_across_storage_and_history() {
+    let mut e=Engine::new(Project::new(64,64,30,60).unwrap()).unwrap();
+    let mut layer=Layer::solid(1,"Extended",[20.;2],[32.,32.,0.],[1.;4]);
+    layer.timeline=Some(LayerTimeline{in_frame:-10,out_frame:100,offset_frame:-10});
+    layer.transform.position.upsert(0,[32.,32.,0.],Ease::Linear).unwrap();
+    layer.transform.position.upsert(30,[62.,32.,0.],Ease::Linear).unwrap();
+    e.apply(Command::Add{layer}).unwrap();assert_eq!(e.project().version,13);
+    let before=e.snapshot();let metadata=e.project().timeline_layers(0.);
+    assert_eq!((metadata[0].in_frame,metadata[0].out_frame,metadata[0].offset_frame),(-10,100,-10));
+    assert_eq!(e.project().layers[0].transform.position.sample(e.project().layers[0].local_frame(0.)),[42.,32.,0.]);
+    assert!(!e.project().layers[0].active(-1.,60));assert!(e.project().layers[0].active(59.5,60));assert!(!e.project().layers[0].active(60.,60));
+    e.apply(Command::MoveLayerClip{object:1,in_frame:-20}).unwrap();
+    compare(&before,e.project(),20.,10.,1,1);
+    assert_eq!(e.project().layers[0].timeline,Some(LayerTimeline{in_frame:-20,out_frame:90,offset_frame:-20}));
+    e.undo().unwrap();assert_eq!(e.snapshot(),before);e.redo().unwrap();
+    let folder=tempfile::tempdir().unwrap();motion_core::storage::save(folder.path(),e.project()).unwrap();
+    assert_eq!(motion_core::storage::load(folder.path()).unwrap(),e.snapshot());
+    let before=e.snapshot();assert!(e.apply(Command::TrimLayerClip{object:1,in_frame:-36001,out_frame:90}).is_err());
+    assert_eq!(e.snapshot(),before);assert!(e.apply(Command::SplitLayerClip{object:1,frame:65}).is_err());assert_eq!(e.snapshot(),before);
+}
+
+#[test]
+fn extended_span_requires_new_format_and_rename_or_extension_does_not_crop_it() {
+    let mut p=Project::new(64,64,30,60).unwrap();p.version=13;
+    let mut layer=Layer::solid(1,"Extended",[20.;2],[32.,32.,0.],[1.;4]);
+    layer.timeline=Some(LayerTimeline{in_frame:-10,out_frame:100,offset_frame:-10});p.layers.push(layer);
+    let mut old=p.clone();old.version=12;assert!(old.validate().is_err());
+    for frames in [60,90] {
+        p.edit_composition(motion_core::CompositionAction::Settings{settings:motion_core::CompositionSettings{
+            name:"Renamed".into(),width:64,height:64,fps:30,frames,timing:"preserve_seconds".into(),shorten:"reject".into()}}).unwrap();
+        assert_eq!(p.layers[0].timeline,Some(LayerTimeline{in_frame:-10,out_frame:100,offset_frame:-10}));p.validate().unwrap();
     }
 }
 #[test]
@@ -328,7 +363,7 @@ fn failures_are_atomic_and_no_ops_do_not_change_revision_or_history() {
     for c in [
         Command::MoveLayerClip {
             object: 2,
-            in_frame: 170,
+            in_frame: 36000,
         },
         Command::TrimLayerClip {
             object: 2,
@@ -357,7 +392,7 @@ fn failures_are_atomic_and_no_ops_do_not_change_revision_or_history() {
     assert!(serde_json::from_str::<Command>(
         r#"{"op":"move_layer_clip","object":2,"in_frame":-1}"#
     )
-    .is_err());
+    .is_ok());
     assert!(serde_json::from_str::<Command>(
         r#"{"op":"split_layer_clip","object":2,"frame":61.5}"#
     )
@@ -370,7 +405,7 @@ fn failures_are_atomic_and_no_ops_do_not_change_revision_or_history() {
             },
             Command::MoveLayerClip {
                 object: 4,
-                in_frame: 179
+                in_frame: 36000
             }
         ])
         .is_err());

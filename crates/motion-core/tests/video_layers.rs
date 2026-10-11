@@ -83,6 +83,23 @@ fn format_four_migrates_in_memory_and_unknown_future_versions_are_rejected() {
     let migrated: Project = serde_json::from_str(&bytes).unwrap();
     assert_eq!(migrated.migrate().unwrap().version, 8);
     assert!(old.video_assets.is_empty());
-    old.version = 13;
+    old.version = 14;
     assert!(old.validate().is_err());
+}
+
+#[test]
+fn video_span_keeps_recoverable_source_time_before_zero_and_after_composition_end() {
+    let mut p=project();p.version=13;p.frames=60;
+    p.layers[0].timeline=Some(LayerTimeline{in_frame:-12,out_frame:100,offset_frame:-12});
+    p.validate().unwrap();let mut scene=Scene::new(&p);
+    scene.sample(&p,0.,None,&motion_core::ExpressionEvaluator).unwrap();
+    assert_eq!(scene.layers[0].video.as_ref().unwrap().source_time_us,200_000);
+    scene.sample(&p,59.5,None,&motion_core::ExpressionEvaluator).unwrap();
+    assert_eq!(scene.layers[0].video.as_ref().unwrap().source_time_us,1_191_667);
+    let mut e=Engine::new(p).unwrap();let before=e.snapshot();
+    assert!(e.apply(Command::TrimLayerClip{object:1,in_frame:-12,out_frame:109}).is_err());
+    assert_eq!(e.snapshot(),before);
+    e.apply(Command::MoveLayerClip{object:1,in_frame:-24}).unwrap();
+    assert_eq!(e.project().layers[0].timeline,Some(LayerTimeline{in_frame:-24,out_frame:88,offset_frame:-24}));
+    e.undo().unwrap();assert_eq!(e.snapshot(),before);
 }

@@ -72,13 +72,45 @@ class LayerClipTimelineTest {
         try {
             val before=data(NativeBridge.state(session)).getJSONObject("project").toString()
             for(raw in listOf(
-                "[{\"op\":\"split_layer_clip\",\"object\":2,\"frame\":61},{\"op\":\"move_layer_clip\",\"object\":3,\"in_frame\":179}]",
+                "[{\"op\":\"split_layer_clip\",\"object\":2,\"frame\":61},{\"op\":\"move_layer_clip\",\"object\":3,\"in_frame\":36000}]",
                 "{\"op\":\"split_layer_clip\",\"object\":2,\"frame\":61.5}",
                 "{\"op\":\"trim_layer_clip\",\"object\":0,\"in_frame\":0,\"out_frame\":60}")) {
                 assertFalse(JSONObject(NativeBridge.command(session,raw)).getBoolean("ok"))
                 val state=data(NativeBridge.state(session));assertEquals(before,state.getJSONObject("project").toString());assertEquals(0,state.getInt("revision"));assertFalse(state.getBoolean("canUndo"))
             }
         }finally{NativeBridge.destroy(session)}
+    }
+    @Test fun extendedSpansSurviveSaveExpansionAndFrozenEncodedOutput() {
+        val root=root();val p=fixture().put("version",13).put("frames",24)
+        val layer=p.getJSONArray("layers").getJSONObject(0)
+        layer.getJSONObject("timeline").put("in_frame",-6).put("out_frame",36).put("offset_frame",-6)
+        layer.getJSONObject("transform").put("rotation",track(vector(0,0,0)))
+        val session=NativeBridge.create(root.absolutePath,p.toString());assertTrue(NativeBridge.creationError(),session>0)
+        try {
+            val initial=data(NativeBridge.state(session));val capabilities=initial.getJSONObject("capabilities").getJSONObject("layer_timeline").getJSONObject("extended_spans")
+            assertEquals(13,capabilities.getInt("project_format"))
+            val metadata=initial.getJSONArray("timeline_layers").getJSONObject(0)
+            assertEquals(-6,metadata.getInt("in_frame"));assertEquals(36,metadata.getInt("out_frame"))
+            for(f in listOf(0.0,23.5)){data(NativeBridge.seek(session,f));assertEquals(1,data(NativeBridge.state(session)).getJSONArray("projectedLayers").length())}
+            data(NativeBridge.save(session));assertEquals(36,JSONObject(File(root,"project.json").readText()).getJSONArray("layers").getJSONObject(0).getJSONObject("timeline").getInt("out_frame"))
+            val frozen=data(NativeBridge.state(session)).getJSONObject("project").toString()
+            val movie=VideoExporter(root,frozen).run{done,_->if(done==4)command(session,"trim_layer_clip","object" to 2,"in_frame" to 10,"out_frame" to 20)}
+            val extractor=MediaExtractor()
+            try{extractor.setDataSource(movie.absolutePath);extractor.selectTrack(0);var count=0
+                while(extractor.sampleTime>=0){count++;if(!extractor.advance())break};assertEquals(24,count)
+            }finally{extractor.release()}
+            val reader=MediaMetadataRetriever()
+            try{reader.setDataSource(movie.absolutePath);for(f in listOf(0,12,23)){val b=reader.getFrameAtIndex(f)?:error("Missing encoded frame $f")
+                try{assertTrue(Color.red(b.getPixel(128,128))>220)}finally{b.recycle()}}
+            }finally{reader.release()}
+            data(NativeBridge.history(session,0));assertEquals(36,data(NativeBridge.state(session)).getJSONArray("timeline_layers").getJSONObject(0).getInt("out_frame"))
+            command(session,"composition","action" to JSONObject().put("kind","settings").put("settings",JSONObject().put("name","Extended duration")
+                .put("width",256).put("height",256).put("fps",30).put("frames",48).put("timing","preserve_seconds").put("shorten","reject")))
+            for((frame,active)in listOf(35.5 to true,36.0 to false)){data(NativeBridge.seek(session,frame));assertEquals(if(active)1 else 0,data(NativeBridge.state(session)).getJSONArray("projectedLayers").length())}
+            data(NativeBridge.save(session))
+        }finally{NativeBridge.destroy(session)}
+        val reopened=NativeBridge.create(root.absolutePath,"");assertTrue(reopened>0)
+        try{val state=data(NativeBridge.state(reopened));assertEquals(48,state.getJSONObject("project").getInt("frames"));assertEquals(-6,state.getJSONArray("timeline_layers").getJSONObject(0).getInt("in_frame"))}finally{NativeBridge.destroy(reopened)}
     }
     @Test fun splitVisibilityPickingPngAndActualH264BoundariesAgree() {
         val root=root();val session=NativeBridge.create(root.absolutePath,fixture().toString());assertTrue(session>0)

@@ -335,8 +335,8 @@ impl VideoJobs {
                 video: VideoClip::new(aid),
             };
             layer.timeline = Some(LayerTimeline {
-                in_frame: at,
-                out_frame: out,
+                in_frame: at as i32,
+                out_frame: out as i32,
                 offset_frame: at as i32,
             });
             commands.push(Command::RegisterVideoAsset {
