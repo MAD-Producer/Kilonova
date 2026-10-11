@@ -14,6 +14,10 @@ default = []
 ffmpeg = ["motion-desktop-media/ffmpeg"]
 
 [dependencies]
+motion-graph = { path = "../../crates/motion-graph" }
+motion-effects = { path = "../../crates/motion-effects" }
+bytemuck.workspace = true
+glam.workspace = true
 motion-host = { path = "../../crates/motion-host" }
 motion-core = { path = "../../crates/motion-core" }
 motion-render = { path = "../../crates/motion-render" }
@@ -27,6 +31,8 @@ pollster.workspace = true
 raw-window-handle = "0.6"
 rfd = "0.15"
 image.workspace = true
+cpal = "0.16"
+fontdb = "0.23"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 winit = "0.30"

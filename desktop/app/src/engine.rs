@@ -32,6 +32,7 @@ pub struct UiFrame {
     pub logical_size: [f32; 2],
     pub composition: Option<[f32; 4]>,
     pub window: u64,
+    pub node_preview: Option<crate::node_preview::Viewport>,
 }
 pub struct AtlasUpload {
     pub pixels: Vec<u8>,
@@ -46,6 +47,18 @@ pub struct AtlasUpload {
 /// compile-time change on both platforms.
 #[allow(dead_code)] // Typed SDK bridge; remaining panels will use the other operations.
 pub enum Command {
+    NodeExpect {
+        stamp: (u64, u64),
+    },
+    NodeInstall {
+        preview: crate::node_preview::NodePreview,
+        reply: Sender<Result<bool, String>>,
+    },
+    NodeCapture {
+        seconds: f64,
+        path: PathBuf,
+        reply: Sender<Result<Value, String>>,
+    },
     EditChecked {
         text: String,
         revision: u64,
@@ -95,6 +108,25 @@ pub enum Command {
     },
     ImportProject {
         file: PathBuf,
+        reply: Sender<Result<Value, String>>,
+    },
+    ImportImage {
+        file: PathBuf,
+        reply: Sender<Result<Value, String>>,
+    },
+    CreateText {
+        text: String,
+        size: f32,
+        width: u32,
+        font: Option<(PathBuf, u32)>,
+        reply: Sender<Result<Value, String>>,
+    },
+    FreezeMovie {
+        control: motion_desktop_media::movie::ExportControl,
+        reply: Sender<Result<motion_desktop_media::movie::FrozenMovie, String>>,
+    },
+    RenderPreview {
+        frame: Option<f64>,
         reply: Sender<Result<Value, String>>,
     },
     Edit {
@@ -230,6 +262,36 @@ pub struct Engine {
 
 #[allow(dead_code)] // SDK bridge methods are intentionally available to future panels.
 impl Engine {
+    pub fn node_gpu(&self) -> Result<crate::node_preview::GpuContext, String> {
+        let factory = self
+            .factory
+            .lock()
+            .map_err(|_| "surface factory lock poisoned")?;
+        let factory = factory.as_ref().ok_or("node preview GPU is not attached")?;
+        Ok(crate::node_preview::GpuContext {
+            device: factory.device.clone(),
+            queue: factory.queue.clone(),
+            format: factory.config.format,
+        })
+    }
+    pub fn node_expect(&self, stamp: (u64, u64)) -> Result<(), String> {
+        self.sender
+            .send(Command::NodeExpect { stamp })
+            .map_err(|_| "engine worker is closed".into())
+    }
+    pub fn node_install(
+        &self,
+        preview: crate::node_preview::NodePreview,
+    ) -> Result<std::sync::mpsc::Receiver<Result<bool, String>>, String> {
+        self.request(|reply| Command::NodeInstall { preview, reply })
+    }
+    pub fn node_capture(&self, seconds: f64, path: PathBuf) -> Result<Value, String> {
+        self.call(|reply| Command::NodeCapture {
+            seconds,
+            path,
+            reply,
+        })
+    }
     /// Start the worker thread and open a project at `root`.
     pub fn start(
         root: PathBuf,
@@ -276,6 +338,7 @@ impl Engine {
                     return;
                 }
                 let mut painter = None;
+                let mut node_preview = NodePreviewState::default();
                 let mut windows = std::collections::HashMap::new();
                 while let Ok(command) = receiver.recv() {
                     if handle(
@@ -284,6 +347,7 @@ impl Engine {
                         &mut painter,
                         &mut windows,
                         &mut guard,
+                        &mut node_preview,
                         command,
                     ) {
                         break;
@@ -464,11 +528,44 @@ impl Engine {
     pub fn capture(&self) -> Result<Value, String> {
         self.call(Command::Capture)
     }
+    pub fn render_preview(&self, frame: Option<f64>) -> Result<Value, String> {
+        self.call(|reply| Command::RenderPreview { frame, reply })
+    }
     pub fn pack(&self) -> Result<Value, String> {
         self.call(Command::Pack)
     }
     pub fn image_info(&self, path: String) -> Result<Value, String> {
         self.call(|reply| Command::ImageInfo { path, reply })
+    }
+    pub fn import_image(&self, file: PathBuf) -> Result<Value, String> {
+        self.call(|reply| Command::ImportImage { file, reply })
+    }
+    pub fn create_text(
+        &self,
+        text: String,
+        size: f32,
+        width: u32,
+        font: Option<(PathBuf, u32)>,
+    ) -> Result<Value, String> {
+        self.call(|reply| Command::CreateText {
+            text,
+            size,
+            width,
+            font,
+            reply,
+        })
+    }
+    pub fn freeze_movie(
+        &self,
+        control: motion_desktop_media::movie::ExportControl,
+    ) -> Result<
+        std::sync::mpsc::Receiver<Result<motion_desktop_media::movie::FrozenMovie, String>>,
+        String,
+    > {
+        if !cfg!(feature = "ffmpeg") {
+            return Err("this build does not support MP4 export".into());
+        }
+        self.request(|reply| Command::FreezeMovie { control, reply })
     }
     pub fn prepare_image(&self, root: PathBuf, path: String) -> Result<Value, String> {
         self.call(|reply| Command::PrepareImage { root, path, reply })
@@ -503,6 +600,7 @@ impl Engine {
             instance: target.instance.clone(),
             adapter: target.renderer.adapter.clone(),
             device: target.renderer.device.clone(),
+            queue: target.renderer.queue.clone(),
             config: target.config.clone(),
         });
         self.request(|reply| Command::Attach { target, reply })
@@ -635,12 +733,19 @@ struct SurfaceFactory {
     instance: wgpu::Instance,
     adapter: wgpu::Adapter,
     device: wgpu::Device,
+    queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
 }
 
 pub struct FloatingSurface {
     surface: wgpu::Surface<'static>,
     config: wgpu::SurfaceConfiguration,
+}
+#[derive(Default)]
+struct NodePreviewState {
+    desired: (u64, u64),
+    active: Option<crate::node_preview::NodePreview>,
+    installs: u64,
 }
 
 fn handle(
@@ -649,28 +754,50 @@ fn handle(
     painter: &mut Option<motion_ui::Painter>,
     windows: &mut std::collections::HashMap<u64, FloatingSurface>,
     guard: &mut ProjectGuard,
+    node_preview: &mut NodePreviewState,
     command: Command,
 ) -> bool {
     match command {
-        Command::EditChecked { text, revision, reply } => respond(reply,motion_host::session::with_session(id, |s| {
-            if s.engine.gesture_active(){return Err("finish the active editor gesture before an agent edit".into());}
+        Command::NodeExpect{stamp}=>node_preview.desired=stamp,
+        Command::NodeInstall{preview,reply}=>{
+            let accepted=preview.stamp==node_preview.desired;
+            if accepted {node_preview.active=Some(preview);node_preview.installs+=1;}
+            respond(reply,Ok(accepted));
+        },
+        Command::NodeCapture{seconds,path,reply}=>respond(reply,motion_host::session::with_session(id,|s|{
+            let g=s.graphics.as_ref().ok_or("node GPU not attached")?;
+            let preview=node_preview.active.as_mut().ok_or("no valid node preview")?;
+            let dimension=crate::node_preview::RASTER_SIZE;
+            let target=g.renderer.capture_target(dimension,dimension).map_err(|e|e.to_string())?;
+            let mut encoder=g.renderer.device.create_command_encoder(&Default::default());clear_target(&mut encoder,&target.view);
+            preview.encode(&g.renderer.device,&g.renderer.queue,&mut encoder,&target.view,crate::node_preview::Viewport{rect:[0.,0.,dimension as f32,dimension as f32],seconds},wgpu::TextureFormat::Rgba8UnormSrgb);
+            g.renderer.queue.submit(Some(encoder.finish()));
+            let pixels=g.renderer.read_target(&target).map_err(|e|e.to_string())?;
+            let fingerprint=pixels.iter().fold(0xcbf29ce484222325u64,|h,b|(h^u64::from(*b)).wrapping_mul(0x100000001b3));
+            image::save_buffer(&path,&pixels,dimension,dimension,image::ColorType::Rgba8).map_err(|e|e.to_string())?;
+            Ok(serde_json::json!({"path":path,"seconds":seconds,"fingerprint":format!("{fingerprint:016x}"),"stamp":preview.stamp,"renders":preview.renders,"frames":preview.frames}))
+        })),
+        Command::EditChecked {text,revision,reply}=>respond(reply,motion_host::session::with_session(id, |s| {
+            if s.engine.gesture_active() { return Err("finish the active editor gesture before an agent edit".into()); }
             if s.engine.revision() != revision { return Err("project revision changed; fetch motion_state before editing".into()); }
             s.apply_commands(&text)
         })),
         Command::CaptureUi { ui, path, reply } => respond(reply,motion_host::session::with_session(id, |s| {
             let g = s.graphics.as_ref().ok_or("desktop surface is not attached")?;
-            let width = g.config.width; let height = g.config.height;
+            let (width,height)=if ui.window==0{(g.config.width,g.config.height)}else{let window=windows.get(&ui.window).ok_or("floating screenshot window closed")?;(window.config.width,window.config.height)};
             let target = g.renderer.capture_target(width, height).map_err(|e| e.to_string())?;
             let mut chrome = motion_ui::Painter::new(&g.renderer.device, wgpu::TextureFormat::Rgba8UnormSrgb);
             let upload = ui.atlas.ok_or("screenshot requires the complete glyph atlas")?;
             chrome.upload_atlas(&g.renderer.device, &g.renderer.queue, &upload.pixels, upload.width, upload.height);
             let presenter = motion_render::Presenter::new(&g.renderer, &g.scratch.view, wgpu::TextureFormat::Rgba8UnormSrgb);
             let mut encoder = g.renderer.device.create_command_encoder(&Default::default());
-            let [x,y,w,h] = ui.composition.ok_or("screenshot needs a composition viewport")?;
-            let scale = (w / s.scene.width as f32).min(h / s.scene.height as f32);
-            let vw = s.scene.width as f32 * scale; let vh = s.scene.height as f32 * scale;
-            presenter.encode(&mut encoder, &target.view, None, Some([x+(w-vw)*0.5,y+(h-vh)*0.5,vw,vh]), s.scene.background);
+            if let Some([x,y,w,h])=ui.composition {
+                let scale = (w / s.scene.width as f32).min(h / s.scene.height as f32);
+                let vw = s.scene.width as f32 * scale; let vh = s.scene.height as f32 * scale;
+                presenter.encode(&mut encoder, &target.view, None, Some([x+(w-vw)*0.5,y+(h-vh)*0.5,vw,vh]), s.scene.background);
+            } else {clear_target(&mut encoder,&target.view);}
             chrome.render(&g.renderer.device, &g.renderer.queue, &mut encoder, &target.view, &ui.paint, ui.logical_size);
+            if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview) {preview.encode(&g.renderer.device,&g.renderer.queue,&mut encoder,&target.view,viewport,wgpu::TextureFormat::Rgba8UnormSrgb);}
             g.renderer.queue.submit(Some(encoder.finish()));
             let pixels = g.renderer.read_target(&target).map_err(|e| e.to_string())?;
             image::save_buffer(&path, &pixels, width, height, image::ColorType::Rgba8).map_err(|e| e.to_string())?;
@@ -711,7 +838,10 @@ fn handle(
                 if let Some(upload)=&ui.atlas {painter.upload_atlas(&g.renderer.device,&g.renderer.queue,&upload.pixels,upload.width,upload.height);}
                 if let Some(viewport)=ui.composition {
                     let frame=s.frame; // Shared clock, never a stale UI frame.
-                    s.render_with_overlay(frame,Some(viewport),|r,encoder,target|painter.render(&r.device,&r.queue,encoder,target,&ui.paint,ui.logical_size))
+                    s.render_with_overlay(frame,Some(viewport),|r,encoder,target|{
+                        painter.render(&r.device,&r.queue,encoder,target,&ui.paint,ui.logical_size);
+                        if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){preview.encode(&r.device,&r.queue,encoder,target,viewport,r.target_format);}
+                    })
                 }else{
                     let output=match g.surface.get_current_texture(){
                         Ok(output)=>output,
@@ -722,6 +852,7 @@ fn handle(
                     let mut encoder=g.renderer.device.create_command_encoder(&Default::default());
                     clear_target(&mut encoder,&view);
                     painter.render(&g.renderer.device,&g.renderer.queue,&mut encoder,&view,&ui.paint,ui.logical_size);
+                    if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){preview.encode(&g.renderer.device,&g.renderer.queue,&mut encoder,&view,viewport,g.config.format);}
                     g.renderer.queue.submit(Some(encoder.finish()));output.present();Ok(true)
                 }
             })();
@@ -738,7 +869,8 @@ fn handle(
             let result=project::open_directory(id,&directory)?;*guard=next;Ok(result)
         })()),
         Command::State(reply) => respond(reply,project::state(id).map(|mut state|{
-            state["desktop"]=serde_json::json!({"headless":painter.is_none(),"panelWindows":if painter.is_some(){windows.len()+1}else{0},"sharedGpuDevice":painter.is_some(),"agentToolProtocol":1});state
+            state["desktop"]=serde_json::json!({"headless":painter.is_none(),"panelWindows":if painter.is_some(){windows.len()+1}else{0},"sharedGpuDevice":painter.is_some(),"agentToolProtocol":1,
+                "nodePreview":{"active":node_preview.active.as_ref().map(|p|p.stamp),"frames":node_preview.active.as_ref().map_or(0,|p|p.frames),"shaderRenders":node_preview.active.as_ref().map_or(0,|p|p.renders),"installs":node_preview.installs,"logicalSize":crate::node_preview::LOGICAL_SIZE,"rasterSize":crate::node_preview::RASTER_SIZE,"perFrameCpuReadbacks":0}});state
         })),
         Command::Save(reply) => respond(reply,project::save(id)),
         Command::NewProject { text, reply } => respond(reply,guard.changed(project::new_project(id, &text))),
@@ -749,6 +881,16 @@ fn handle(
             let result=project::open_project(id,&name)?;*guard=next;Ok(result)
         })()),
         Command::ImportProject { file, reply } => respond(reply,guard.changed(project::import_project(id, &file))),
+        Command::ImportImage {file,reply} => respond(reply,motion_host::session::with_session(id,|s|crate::workflow::import_image(s,&file))),
+        Command::CreateText {text,size,width,font,reply}=>respond(reply,motion_host::session::with_session(id,|s|crate::workflow::create_text(s,text,size,width,font))),
+        Command::FreezeMovie {control,reply}=> {
+            let plan=motion_host::session::with_session(id,|s|motion_desktop_media::movie::FrozenMovie::capture_plan(s,&control));
+            match plan {
+                Err(error)=>respond(reply,Err(error)),
+                Ok(plan)=> {let failed=reply.clone();match std::thread::Builder::new().name("motion-freeze-movie".into()).spawn(move||{let result=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||plan.freeze(&control))).unwrap_or_else(|_|Err("movie freeze worker failed".into()));let _=reply.send(result);}) {Ok(_)=>(),Err(error)=>respond(failed,Err(error.to_string()))}}
+            }
+        },
+        Command::RenderPreview {frame,reply}=>respond(reply,(||{if let Some(frame)=frame {preview::seek(id,frame)?;}export::capture(id)})()),
         Command::Edit { text, reply } => respond(reply,editing::command(id, &text)),
         Command::History { op, reply } => respond(reply,editing::history(id, op)),
         Command::Drag {
@@ -849,7 +991,8 @@ mod tests {
     fn project_lock_releases_on_worker_shutdown() {
         let folder = tempfile::tempdir().unwrap();
         let root = folder.path().join("default");
-        let engine = Engine::start(root.clone(), motion_desktop_media::platform(), 8 << 30).unwrap();
+        let engine =
+            Engine::start(root.clone(), motion_desktop_media::platform(), 8 << 30).unwrap();
         assert!(Engine::start(root.clone(), motion_desktop_media::platform(), 8 << 30).is_err());
         engine.save().unwrap();
         drop(engine);

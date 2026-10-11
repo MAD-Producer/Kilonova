@@ -409,23 +409,16 @@ pub fn text_style(
     style: ResolvedStyle,
     align: Align,
 ) {
-    let scale = style.font_size / atlas.font_size();
     let mut content = PaintList::default();
-    ui::text(
+    ui::text_sized(
         &mut content,
         atlas,
-        Rect::new(0., 0., area.width() / scale, area.height() / scale),
+        area,
         text,
         style.foreground,
         align,
+        style.font_size,
     );
-    for glyph in &mut content.glyphs {
-        glyph.position = [
-            area.min[0] + glyph.position[0] * scale,
-            area.min[1] + glyph.position[1] * scale,
-        ];
-        glyph.size = [glyph.size[0] * scale, glyph.size[1] * scale];
-    }
     content.clip_to(area);
     list.append(content);
 }

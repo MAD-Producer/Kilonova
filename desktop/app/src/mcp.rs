@@ -28,6 +28,10 @@ impl ToolRouter<'_> {
             "motion_seek" => &["frame"],
             "motion_history" => &["operation"],
             "motion_save" => &[],
+            "command_list" => &[],
+            "command_run" => &["command", "expectedRevision"],
+            "command_batch" => &["commands", "expectedRevision"],
+            "render_preview" => &["frame"],
             _ => return Err("unknown editor tool".into()),
         };
         if args.keys().any(|key| !fields.contains(&key.as_str())) {
@@ -35,14 +39,42 @@ impl ToolRouter<'_> {
         }
         let write = matches!(
             name,
-            "motion_edit" | "motion_history" | "motion_save" | "motion_seek"
+            "motion_edit"
+                | "motion_history"
+                | "motion_save"
+                | "motion_seek"
+                | "command_run"
+                | "command_batch"
+                | "render_preview"
         );
         if write && matches!(self.access, Access::ReadOnly) {
             return Err("editor writes are disabled for this agent".into());
         }
         match name {
             "motion_state" => self.engine.state(),
-            "motion_edit" => {
+            "command_list" => Ok(motion_core::CommandRegistry::catalogue()),
+            "command_run" => {
+                let command = args
+                    .get("command")
+                    .filter(|v| v.is_object())
+                    .ok_or("command must be an object")?;
+                let revision = args
+                    .get("expectedRevision")
+                    .and_then(Value::as_u64)
+                    .ok_or("expectedRevision must be a nonnegative integer")?;
+                self.engine.edit_at_revision(
+                    serde_json::to_string(command).map_err(|e| e.to_string())?,
+                    revision,
+                )
+            }
+            "render_preview" => {
+                let frame = args
+                    .get("frame")
+                    .map(|v| v.as_f64().ok_or("frame must be a number"))
+                    .transpose()?;
+                self.engine.render_preview(frame)
+            }
+            "motion_edit" | "command_batch" => {
                 let commands = args
                     .get("commands")
                     .and_then(Value::as_array)
@@ -85,6 +117,7 @@ fn tool(name: &str, description: &str, input_schema: Value, read_only: bool) -> 
         "annotations":{"readOnlyHint":read_only,"destructiveHint":false,"openWorldHint":false}})
 }
 pub fn tools() -> Value {
+    let command_schema = json!({"oneOf":motion_core::CommandRegistry::catalogue()["commands"].as_array().unwrap().iter().map(|d|d["inputSchema"].clone()).collect::<Vec<_>>()});
     json!({"tools":[
         tool("motion_state","Get the current project, revision, sampled transforms and timeline. The stdio host is headless.",schema(json!({}),&[]),true),
         tool("motion_edit","Apply an atomic batch of Motion Studio core commands with one undo step. Fetch state first and provide its revision. Use position/rotation/scale, set_vector/set_scalar/set_component, animate, curve, add, add_shape, duplicate, delete, flags, parent, move_layer_clip or trim_layer_clip. All commands use the shared core JSON API.",schema(json!({
@@ -93,7 +126,11 @@ pub fn tools() -> Value {
         }),&["commands","expectedRevision"]),false),
         tool("motion_seek","Seek to a fractional composition frame in [0, frames).",schema(json!({"frame":{"type":"number","minimum":0}}),&["frame"]),false),
         tool("motion_history","Undo or redo the most recent committed operation.",schema(json!({"operation":{"type":"string","enum":["undo","redo"]}}),&["operation"]),false),
-        tool("motion_save","Atomically save the current project and validate its assets.",schema(json!({}),&[]),false)
+        tool("motion_save","Atomically save the current project and validate its assets.",schema(json!({}),&[]),false),
+        tool("command_list","List registered editing commands and their JSON schemas.",schema(json!({}),&[]),true),
+        tool("command_run","Execute one registered core command with a revision check and one undo boundary.",schema(json!({"command":command_schema,"expectedRevision":{"type":"integer","minimum":0}}),&["command","expectedRevision"]),false),
+        tool("command_batch","Execute an atomic batch of registered editing commands with one undo boundary.",schema(json!({"commands":{"type":"array","minItems":1,"items":command_schema},"expectedRevision":{"type":"integer","minimum":0}}),&["commands","expectedRevision"]),false),
+        tool("render_preview","Render the requested composition frame to a project-owned PNG without opening a window.",schema(json!({"frame":{"type":"number","minimum":0}}),&[]),false)
     ]})
 }
 fn error(id: Value, code: i32, message: &str) -> Value {
@@ -277,6 +314,57 @@ pub fn serve(
 mod tests {
     use super::*;
     #[test]
+    fn registered_tools_share_atomic_history_revision_and_permissions() {
+        let folder = tempfile::tempdir().unwrap();
+        let engine = Engine::start(
+            folder.path().join("registered"),
+            motion_desktop_media::platform(),
+            8 << 30,
+        )
+        .unwrap();
+        let edit = ToolRouter {
+            engine: &engine,
+            access: Access::Edit,
+        };
+        let read = ToolRouter {
+            engine: &engine,
+            access: Access::ReadOnly,
+        };
+        let revision = engine.state().unwrap()["revision"].clone();
+        edit.call("command_run",json!({"command":{"op":"add_shape","id":1,"name":"Source","shape":"rectangle","size":[80,40],"position":[160,90,0]},"expectedRevision":revision})).unwrap();
+        let directory = read.call("command_list", json!({})).unwrap();
+        assert!(directory["commands"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|d| d["id"] == "duplicate"));
+        let before = engine.state().unwrap();
+        let revision = before["revision"].clone();
+        let commands = json!([{"op":"duplicate","object":1},{"op":"separate_dimensions","object":2,"property":"position"},{"op":"split_layer_clip","object":2,"frame":60}]);
+        assert!(read
+            .call(
+                "command_batch",
+                json!({"commands":commands,"expectedRevision":revision})
+            )
+            .is_err());
+        let after = edit
+            .call(
+                "command_batch",
+                json!({"commands":commands,"expectedRevision":revision}),
+            )
+            .unwrap();
+        assert_eq!(after["project"]["layers"].as_array().unwrap().len(), 3);
+        assert!(edit
+            .call(
+                "command_run",
+                json!({"command":{"op":"duplicate","object":1},"expectedRevision":revision})
+            )
+            .is_err());
+        engine.history(0).unwrap();
+        assert_eq!(engine.state().unwrap()["project"], before["project"]);
+        assert!(read.call("render_preview", json!({"frame":0})).is_err());
+    }
+    #[test]
     fn initialization_and_live_notifications_keep_the_shared_engine_consistent() {
         let folder = tempfile::tempdir().unwrap();
         let engine = Engine::start(
@@ -328,7 +416,8 @@ mod tests {
     fn mcp_round_trip_edits_seeks_undoes_and_saves() {
         let folder = tempfile::tempdir().unwrap();
         let root = folder.path().join("default");
-        let engine = Engine::start(root.clone(), motion_desktop_media::platform(), 8 << 30).unwrap();
+        let engine =
+            Engine::start(root.clone(), motion_desktop_media::platform(), 8 << 30).unwrap();
         let revision = engine.state().unwrap()["revision"].as_u64().unwrap();
         let requests = [
             json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":PROTOCOL,"capabilities":{},"clientInfo":{"name":"test","version":"1"}}}),

@@ -29,14 +29,29 @@ class VectorFrontendTest {
         scenario=ActivityScenario.launch(Intent(context,AcceptanceActivity::class.java).putExtra("projectDirectory",root.absolutePath))
         scenario.onActivity{vm=ViewModelProvider(it)[EditorViewModel::class.java]}
         compose.waitUntil(20000){vm.state.project!=null}
+        // Establish a real first buffer while the activity window is focused.
+        // Modal catalogues and error dialogs need not redraw an unchanged
+        // SurfaceView underneath them.
+        waitForPresentedPreview()
     }
     @After fun teardown(){if(::scenario.isInitialized)scenario.close()}
     private fun settled(predicate:()->Boolean){compose.waitUntil(15000){vm.state.error!=null||predicate()};assertNull(vm.state.error);assertTrue(predicate())}
+    private fun waitForPresentedPreview() {
+        var nextDiagnostic=0L
+        compose.waitUntil(15000) {
+            val now=android.os.SystemClock.uptimeMillis()
+            if(now>=nextDiagnostic){nextDiagnostic=now+100;vm.refreshDiagnostics()}
+            val sample=vm.state.sample
+            sample!=null&&sample.optLong("presented")>0&&
+                sample.optLong("lastPresentedRevision")==sample.optLong("revision")&&
+                !sample.isNull("lastPresentedFrame")&&sample.optDouble("lastPresentedFrame")==vm.frame
+        }
+    }
     private fun photo(name:String,expectWhiteCenter:Boolean=false) {
         compose.waitForIdle();val before=vm.state.sample?.optLong("presented")?:0
         scenario.onActivity{vm.refreshDiagnostics(repaint=true)}
         try {
-            compose.waitUntil(15000){vm.refreshDiagnostics();(vm.state.sample?.optLong("presented")?:0)>before&&vm.state.sample?.optLong("lastPresentedRevision")==vm.state.sample?.optLong("revision")&&vm.state.sample?.optDouble("lastPresentedFrame")==vm.frame}
+            waitForPresentedPreview()
         } catch(error:Throwable) {
             val diagnostic=JSONObject().put("beforePresented",before).put("requestedFrame",vm.frame).put("error",vm.state.error)
             for(key in listOf("frame","revision","presented","lastPresentedRevision","lastPresentedFrame","renderError","graphics"))diagnostic.put(key,vm.state.sample?.opt(key))

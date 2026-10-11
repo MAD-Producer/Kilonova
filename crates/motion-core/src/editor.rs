@@ -861,7 +861,7 @@ impl Engine {
     }
     /// All edits either commit together or restore the pre-edit state.
     pub fn apply_batch(&mut self, commands: Vec<Command>) -> Result<Vec<EditResult>> {
-        self.apply_batch_inner(commands, None)
+        crate::CommandRegistry::run(self, commands)
     }
     /// Publish history and revision only after the project file is saved successfully.
     /// Used by media imports after their owned source has been staged and validated.
@@ -874,9 +874,9 @@ impl Engine {
             self.gesture.is_none(),
             "finish the active gesture before importing media",
         )?;
-        self.apply_batch_inner(commands, Some(root))
+        crate::CommandRegistry::run_saved(self, commands, root)
     }
-    fn apply_batch_inner(
+    pub(crate) fn apply_batch_inner(
         &mut self,
         commands: Vec<Command>,
         root: Option<&std::path::Path>,

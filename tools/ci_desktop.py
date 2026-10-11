@@ -59,7 +59,7 @@ def verify_mcp(binary: Path, output: Path) -> None:
                 send("initialize", {"protocolVersion": "2025-11-25", "capabilities": {}, "clientInfo": {"name": "motion-ci", "version": "1"}})
                 send("notifications/initialized", notification=True)
                 tools = send("tools/list")["tools"]
-                if {tool["name"] for tool in tools} != {"motion_state", "motion_edit", "motion_seek", "motion_history", "motion_save"}:
+                if {tool["name"] for tool in tools} != {"motion_state", "motion_edit", "motion_seek", "motion_history", "motion_save", "command_list", "command_run", "command_batch", "render_preview"}:
                     raise RuntimeError("MCP catalogue is incomplete")
                 state = send("tools/call", {"name": "motion_state", "arguments": {}})["structuredContent"]
                 result = send("tools/call", {"name": "motion_edit", "arguments": {
@@ -107,8 +107,23 @@ def main() -> None:
         snapshot = json.loads(report.read_text(encoding="utf-8"))
         if snapshot["locale"] != locale or snapshot["floatingFrames"].get("3", 0) < 2:
             raise RuntimeError(f"{locale} did not validate the floating composition")
+        node_report = output / f"node-smoke-{locale}.json"
+        node_result = subprocess.run(
+            [str(binary), "--node-smoke", str(node_report), "--locale", locale],
+            capture_output=True, text=True, encoding="utf-8", timeout=80,
+        )
+        (output / f"node-smoke-{locale}.stderr.log").write_text(node_result.stderr, encoding="utf-8")
+        if node_result.returncode:
+            raise RuntimeError(f"{locale} node acceptance failed: {node_result.stderr}")
+        node_snapshot = json.loads(node_report.read_text(encoding="utf-8"))
+        preview = node_snapshot.get("nodePreview", {})
+        for check in ("clockPixelsChanged", "parameterPixelsChanged", "invalidGraphKeptValidPixels", "projectUntouched", "exampleOpenedAndRendered"):
+            if preview.get(check) is not True:
+                raise RuntimeError(f"{locale} node preview did not verify {check}")
+        if node_snapshot["locale"] != locale or node_snapshot["floatingFrames"].get("10", 0) < 3:
+            raise RuntimeError(f"{locale} did not validate the floating node workspace")
     verify_mcp(binary, output)
-    print("Desktop languages, native floating windows and shared MCP passed.")
+    print("Desktop languages, floating windows, live node rendering and shared MCP passed.")
 
 
 if __name__ == "__main__":

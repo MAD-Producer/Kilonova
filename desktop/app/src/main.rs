@@ -1,11 +1,21 @@
 //! Native desktop editor. One worker owns the session, GPU and swapchain.
+mod audio_output;
+mod dialogs;
 mod engine;
 mod i18n;
 mod mcp;
+mod movie_export;
+mod node_editor;
+mod node_examples;
+mod node_preview;
+mod node_tasks;
 mod panels;
+mod shell;
+mod workflow;
 mod workspace;
 use i18n::{Locale, Text as T};
 
+use engine::{AtlasUpload, Engine, UiFrame};
 use motion_core::{Command, Layer, Project};
 use motion_ui::{
     dock,
@@ -13,7 +23,6 @@ use motion_ui::{
     paint::PaintList,
     text::TextAtlas,
 };
-use engine::{AtlasUpload, Engine, UiFrame};
 use serde_json::Value;
 use std::{
     path::PathBuf,
@@ -30,8 +39,12 @@ use winit::{
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.iter().any(|a| a == "--command-list") {
+        println!("{}", motion_core::CommandRegistry::catalogue());
+        return Ok(());
+    }
     if args.iter().any(|a| a == "--help" || a == "-h") {
-        eprintln!("Motion Studio\n  --project <directory>  open an existing project or create one\n  --mcp                  serve editor tools over MCP stdio (no window)\n  --mcp-ui               serve MCP and open the shared editor window\n  --locale <zh|en>        UI language override\n  --smoke <report.json>  hidden-window GPU acceptance with screenshot");
+        eprintln!("Motion Studio\n  --project <directory>  open an existing project or create one\n  --command-list         print the registered command catalogue\n  --commands <file.json> run/save an atomic command batch without a window\n  --mcp                  serve editor tools over MCP stdio (no window)\n  --mcp-ui               serve MCP and open the shared editor window\n  --locale <zh|en>        UI language override\n  --smoke <report.json>  hidden-window GPU acceptance with screenshot\n  --node-smoke <report.json>  node graph GPU/UI acceptance with screenshots");
         return Ok(());
     }
     let argument = |flag: &str| -> Result<Option<PathBuf>, String> {
@@ -44,7 +57,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(None)
         }
     };
-    let smoke = argument("--smoke")?;
+    let smoke = argument("--smoke")?
+        .or(argument("--node-smoke")?)
+        .or(argument("--panels-smoke")?);
     let locale = argument("--locale")?
         .map(|p| Locale::parse(&p.to_string_lossy()).ok_or("locale must be zh or en"))
         .transpose()?;
@@ -60,6 +75,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         });
     if args.iter().any(|a| a == "--mcp") {
+        if args.iter().any(|a| a == "--commands") {
+            return Err("--commands and --mcp are mutually exclusive".into());
+        }
         return mcp::serve(
             Arc::new(Engine::start(
                 root,
@@ -70,9 +88,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .map_err(Into::into);
     }
+    if let Some(file) = argument("--commands")? {
+        use std::io::Read;
+        let mut bytes = vec![];
+        std::fs::File::open(&file)?
+            .take(engine::REQUEST_LIMIT as u64 + 1)
+            .read_to_end(&mut bytes)?;
+        if bytes.len() > engine::REQUEST_LIMIT {
+            return Err("command file exceeds 256 KiB".into());
+        }
+        let payload = String::from_utf8(bytes)?;
+        let engine = Engine::start(root, motion_desktop_media::platform(), total_memory())?;
+        let revision = engine.state()?["revision"]
+            .as_u64()
+            .ok_or("revision missing")?;
+        let result = engine.edit_at_revision(payload, revision)?;
+        engine.save()?;
+        println!("{}", serde_json::json!({"ok":true,"data":result}));
+        return Ok(());
+    }
     let event_loop = EventLoop::<UserEvent>::with_user_event().build()?;
     let proxy = event_loop.create_proxy();
     let mut app = Shell::new(root, smoke, locale)?;
+    app.smoke_panels = args.iter().any(|a| a == "--panels-smoke");
+    app.smoke_nodes = args
+        .iter()
+        .any(|a| a == "--node-smoke" || a == "--smoke-nodes");
     if args.iter().any(|a| a == "--mcp-ui") {
         let engine = app.engine.clone();
         std::thread::Builder::new()
@@ -137,6 +178,18 @@ struct Shell {
     floating: std::collections::HashMap<WindowId, FloatWindow>,
     next_window: u64,
     panels: panels::Panels,
+    node_tasks: node_tasks::NodeTasks,
+    node_compile_due: Option<Instant>,
+    node_installing: Vec<(
+        node_editor::EditorSnapshot,
+        std::sync::mpsc::Receiver<Result<bool, String>>,
+    )>,
+    node_close_prompt: Option<node_editor::EditorSnapshot>,
+    node_close_save: Option<node_editor::EditorSnapshot>,
+    node_examples: Option<node_examples::Browser>,
+    node_example_after_save: Option<(node_editor::EditorSnapshot, &'static str)>,
+    dialog: Option<dialogs::Dialog>,
+    system_fonts: Option<Vec<dialogs::FontChoice>>,
     input: Input,
     state: Value,
     scale: f32,
@@ -144,6 +197,16 @@ struct Shell {
     pending: bool,
     frame: f64,
     playback: Option<(Instant, f64)>,
+    audio: Option<audio_output::AudioOutput>,
+    freezing_movie: Option<(
+        std::sync::mpsc::Receiver<Result<motion_desktop_media::movie::FrozenMovie, String>>,
+        PathBuf,
+        motion_desktop_media::movie::ExportControl,
+    )>,
+    exporting_movie: Option<movie_export::MovieExport>,
+    export_notified: bool,
+    importing_image: Option<std::sync::mpsc::Receiver<Result<Value, String>>>,
+    importing_media: Option<(String, Instant)>,
     attaching: Option<std::sync::mpsc::Receiver<Result<Value, String>>>,
     attached: bool,
     rendering: std::collections::HashMap<u64, std::sync::mpsc::Receiver<Result<bool, String>>>,
@@ -156,6 +219,12 @@ struct Shell {
     smoke: Option<PathBuf>,
     smoke_frames: u32,
     smoke_stage: u8,
+    smoke_nodes: bool,
+    smoke_panels: bool,
+    smoke_panel_index: usize,
+    smoke_panel_current: Option<dock::Panel>,
+    smoke_panel_records: Vec<Value>,
+    smoke_node_report: Value,
     smoke_float_frames: std::collections::HashMap<u32, u32>,
     started: Instant,
 }
@@ -175,7 +244,10 @@ impl Shell {
             total_memory(),
         )?);
         let state = engine.state()?;
-        let mut workspace = workspace::Workspace::load(&directories().join("desktop-layout.json"));
+        let layout_path = std::env::var_os("MOTION_UI_LAYOUT")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| directories().join("desktop-layout-v2.json"));
+        let mut workspace = workspace::Workspace::load(&layout_path);
         if let Some(locale) = locale {
             workspace.locale = locale;
         }
@@ -183,12 +255,25 @@ impl Shell {
         let mut shell = Self {
             window: None,
             engine,
-            atlas: TextAtlas::from_system_language(18.0, chosen == Locale::Zh)?,
+            atlas: TextAtlas::from_family(
+                motion_ui::style::default_stylesheet().font_family(),
+                motion_ui::style::default_stylesheet().base_font_size(),
+                chosen == Locale::Zh,
+            )?,
             workspace,
-            layout_path: directories().join("desktop-layout.json"),
+            layout_path,
             floating: Default::default(),
             next_window: 1,
             panels: Default::default(),
+            node_tasks: node_tasks::NodeTasks::start()?,
+            node_compile_due: Some(Instant::now()),
+            node_installing: vec![],
+            node_close_prompt: None,
+            node_close_save: None,
+            node_examples: None,
+            node_example_after_save: None,
+            dialog: None,
+            system_fonts: None,
             input: Default::default(),
             state,
             scale: 1.0,
@@ -196,6 +281,12 @@ impl Shell {
             pending: false,
             frame: 0.0,
             playback: None,
+            audio: None,
+            freezing_movie: None,
+            exporting_movie: None,
+            export_notified: false,
+            importing_image: None,
+            importing_media: None,
             attaching: None,
             attached: false,
             rendering: Default::default(),
@@ -208,625 +299,24 @@ impl Shell {
             smoke,
             smoke_frames: 0,
             smoke_stage: 0,
+            smoke_nodes: false,
+            smoke_panels: false,
+            smoke_panel_index: 0,
+            smoke_panel_current: None,
+            smoke_panel_records: vec![],
+            smoke_node_report: Value::Null,
             smoke_float_frames: Default::default(),
             started: Instant::now(),
         };
         shell.panels.locale = chosen;
+        shell.panels.effect_controls.catalogue =
+            shell.engine.plugin("{\"op\":\"catalogue\"}".into())?;
         if shell.smoke.is_some() {
             shell.workspace = workspace::Workspace::default();
             shell.workspace.locale = chosen;
             shell.prepare_smoke()?;
         }
         Ok(shell)
-    }
-    fn prepare_smoke(&mut self) -> Result<(), String> {
-        self.add_solid()?;
-        let object = self.panels.selected.unwrap();
-        self.state = self.engine.edit(
-            serde_json::to_string(&vec![
-                Command::Animate {
-                    object,
-                    property: motion_core::Property::Position,
-                    axis: None,
-                    frame: 0,
-                    enabled: true,
-                },
-                Command::SetVector {
-                    object,
-                    property: motion_core::Property::Position,
-                    frame: 90,
-                    value: [1280.0, 540.0, 0.0],
-                },
-            ])
-            .map_err(|e| e.to_string())?,
-        )?;
-        self.state = self.engine.seek(45.0)?;
-        self.frame = 45.0;
-        self.state = self.engine.save()?;
-        let root = PathBuf::from(self.state["root"].as_str().ok_or("missing project root")?);
-        let mut other = Project::new(1920, 1080, 30, 300).map_err(|e| e.to_string())?;
-        other.name = "Reopen check".into();
-        self.state = self
-            .engine
-            .new_project(serde_json::to_string(&other).map_err(|e| e.to_string())?)?;
-        self.state = self.engine.open_directory(root)?;
-        self.state = self.engine.seek(45.0)?;
-        Ok(())
-    }
-    fn add_solid(&mut self) -> Result<(), String> {
-        let layers = self.state["project"]["layers"]
-            .as_array()
-            .ok_or("missing layers")?;
-        let id = layers
-            .iter()
-            .filter_map(|l| l["id"].as_u64())
-            .max()
-            .unwrap_or(0)
-            .checked_add(1)
-            .ok_or("layer id overflow")?;
-        let w = self.state["project"]["width"].as_f64().unwrap_or(1920.0) as f32;
-        let h = self.state["project"]["height"].as_f64().unwrap_or(1080.0) as f32;
-        let layer = Layer::solid(
-            id,
-            &format!("{} {id}", self.workspace.locale.t(T::Solid)),
-            [w * 0.3, h * 0.3],
-            [w * 0.5, h * 0.5, 0.0],
-            [0.22, 0.6, 0.96, 1.0],
-        );
-        self.state = self
-            .engine
-            .edit(serde_json::to_string(&Command::Add { layer }).map_err(|e| e.to_string())?)?;
-        self.panels.selected = Some(id);
-        Ok(())
-    }
-    fn action(
-        &mut self,
-        action: panels::Action,
-        event_loop: Option<&ActiveEventLoop>,
-    ) -> Result<(), String> {
-        use panels::Action;
-        match action {
-            Action::RefreshState => {
-                self.stop();
-                self.state = self.engine.state()?;
-                self.frame = self.state["frame"].as_f64().unwrap_or(0.0);
-            }
-            Action::Language(locale) => {
-                self.atlas = TextAtlas::from_system_language(18.0, locale == Locale::Zh)?;
-                self.workspace.locale = locale;
-                self.panels.locale = locale;
-                for f in self.floating.values() {
-                    f.window
-                        .set_title(&format!("{} — Motion Studio", locale.panel(f.panel.dock())));
-                }
-                if self.smoke.is_none() {
-                    self.workspace.save(&self.layout_path)?;
-                }
-                self.panels.message = Some(locale.t(T::Ready).into());
-            }
-            Action::ResetWorkspace => {
-                let ids: Vec<_> = self.floating.values().map(|f| f.panel.dock()).collect();
-                for id in ids {
-                    self.redock_panel(id)?;
-                }
-                self.workspace.root = dock::editor_layout();
-                self.workspace.floating.clear();
-                self.workspace.cancel();
-                if self.smoke.is_none() {
-                    self.workspace.save(&self.layout_path)?;
-                }
-            }
-            Action::ShowPanel(id) => {
-                if let Some(f) = self.floating.values().find(|f| f.panel.dock() == id) {
-                    f.window.focus_window();
-                } else if let Some(dock::Node::Dock { id: dock, .. }) = self.workspace.root.find(id)
-                {
-                    let dock = *dock;
-                    self.workspace.root.activate(dock, id);
-                }
-            }
-            Action::About => {
-                self.panels.message = Some(self.workspace.locale.t(T::AboutDescription).into())
-            }
-            Action::PreviewMode(mode) => {
-                self.state["preview"] = self.engine.preview_mode(mode, 0)?
-            }
-            Action::SelectAt(point) => {
-                self.stop();
-                let result = self.engine.hit_candidates(point[0], point[1])?;
-                self.panels.selected = result["candidates"]
-                    .as_array()
-                    .and_then(|c| c.first())
-                    .and_then(|c| c["id"].as_u64());
-            }
-            Action::Float(panel) => {
-                self.float_panel(panel, event_loop.ok_or("window event loop is unavailable")?)?;
-            }
-            Action::Redock(panel) => {
-                self.redock_panel(panel)?;
-            }
-            Action::Activate { dock, tab } => {
-                self.workspace.root.activate(dock, tab);
-                if self.smoke.is_none() {
-                    self.workspace.save(&self.layout_path)?;
-                }
-            }
-            Action::OpenPath(path) => {
-                self.stop();
-                self.state = if path.is_dir() {
-                    self.engine.open_directory(path)?
-                } else if path
-                    .extension()
-                    .is_some_and(|e| e.eq_ignore_ascii_case("msproj") || e.eq_ignore_ascii_case("aem"))
-                {
-                    self.engine.import_project(path)?
-                } else {
-                    self.engine.open_directory(
-                        path.parent()
-                            .ok_or("project file has no parent")?
-                            .to_path_buf(),
-                    )?
-                };
-                self.frame = 0.0;
-                self.panels.selected = None;
-            }
-            Action::Open => {
-                if let Some(path) = rfd::FileDialog::new()
-                    .set_title(self.workspace.locale.t(T::OpenProject))
-                    .add_filter("Motion Studio Project", &["json", "msproj", "aem"])
-                    .pick_file()
-                {
-                    self.stop();
-                    self.state = if path
-                        .extension()
-                        .is_some_and(|e| e.eq_ignore_ascii_case("msproj") || e.eq_ignore_ascii_case("aem"))
-                    {
-                        self.engine.import_project(path)?
-                    } else {
-                        self.engine.open_directory(
-                            path.parent()
-                                .ok_or("project file has no parent")?
-                                .to_path_buf(),
-                        )?
-                    };
-                    self.frame = self.state["frame"].as_f64().unwrap_or(0.0);
-                    self.panels.selected = None;
-                    self.panels.message = Some(self.workspace.locale.t(T::ProjectOpened).into());
-                }
-            }
-            Action::New => {
-                self.stop();
-                let mut project = Project::new(1920, 1080, 30, 300).map_err(|e| e.to_string())?;
-                project.name = self.workspace.locale.t(T::Untitled).into();
-                self.state = self
-                    .engine
-                    .new_project(serde_json::to_string(&project).map_err(|e| e.to_string())?)?;
-                self.frame = 0.0;
-                self.panels.selected = None;
-                self.panels.message = Some(self.workspace.locale.t(T::NewComposition).into());
-            }
-            Action::Save => {
-                self.state = self.engine.save()?;
-                self.panels.message = Some(format!(
-                    "{}: {}",
-                    self.workspace.locale.t(T::Saved),
-                    self.state["root"].as_str().unwrap_or("")
-                ));
-            }
-            Action::Pack => {
-                let result = self.engine.pack()?;
-                self.panels.message = Some(format!(
-                    "{}: {}",
-                    self.workspace.locale.t(T::ProjectPackage),
-                    result["path"].as_str().unwrap_or("")
-                ));
-            }
-            Action::History(op) => {
-                self.stop();
-                self.state = self.engine.history(op)?;
-            }
-            Action::Seek(frame) => {
-                self.stop();
-                self.frame = frame;
-                self.state = self.engine.seek(frame)?;
-            }
-            Action::TogglePlay => {
-                if self.playback.is_some() {
-                    self.stop();
-                } else {
-                    self.playback = Some((Instant::now(), self.frame));
-                    self.panels.playing = true;
-                }
-            }
-            Action::AddSolid => {
-                self.stop();
-                self.add_solid()?;
-            }
-            Action::Edit(command) => {
-                self.stop();
-                self.state = self
-                    .engine
-                    .edit(serde_json::to_string(&command).map_err(|e| e.to_string())?)?;
-            }
-        }
-        self.dirty = true;
-        Ok(())
-    }
-    fn stop(&mut self) {
-        self.playback = None;
-        self.panels.playing = false;
-    }
-    fn translate(&mut self, event: Event) {
-        motion_ui::ui::accumulate(&mut self.input, event);
-        self.dirty = true;
-        self.redraw();
-    }
-    fn redraw(&self) {
-        if let Some(w) = &self.window {
-            w.request_redraw();
-        }
-        for f in self.floating.values() {
-            f.window.request_redraw();
-        }
-    }
-    fn size(&self) -> Option<[f32; 2]> {
-        self.window.as_ref().map(|w| {
-            let s = w.inner_size();
-            [s.width as f32 / self.scale, s.height as f32 / self.scale]
-        })
-    }
-    fn draw_commands(&mut self, size: [f32; 2]) -> (PaintList, Vec<panels::Action>) {
-        let mut paint = PaintList::default();
-        let actions = panels::chrome(
-            &mut paint,
-            &mut self.atlas,
-            size,
-            &self.workspace.root,
-            &mut self.panels,
-            &self.state,
-            &self.input,
-        );
-        self.input.begin_frame(); // Clear transient input only after it has been consumed.
-        (paint, actions)
-    }
-    fn ui_frame(&mut self, paint: PaintList, size: [f32; 2], force_atlas: bool) -> UiFrame {
-        let config = self.atlas.config();
-        let atlas = if self.atlas.take_dirty() || force_atlas {
-            Some(AtlasUpload {
-                pixels: self.atlas.pixel_data().to_vec(),
-                width: config.width,
-                height: config.height,
-            })
-        } else {
-            None
-        };
-        let view = panels::composition_view(&self.workspace.root, size);
-        UiFrame {
-            paint,
-            atlas,
-            logical_size: size,
-            window: 0,
-            composition: if view.width() > 0.0 && view.height() > 0.0 {
-                Some([
-                    view.min[0] * self.scale,
-                    view.min[1] * self.scale,
-                    view.width() * self.scale,
-                    view.height() * self.scale,
-                ])
-            } else {
-                None
-            },
-        }
-    }
-    fn present(&mut self, _event_loop: &ActiveEventLoop) -> Result<(), String> {
-        if !self.actions.is_empty()
-            || !self.attached
-            || self.rendering.contains_key(&0)
-            || self.resizing.is_some()
-            || !self.resize_queue.is_empty()
-        {
-            return Ok(());
-        }
-        let Some(size) = self.size() else {
-            return Ok(());
-        };
-        if size[0] <= 0.0 || size[1] <= 0.0 {
-            return Ok(());
-        }
-        if self.rendering.is_empty() {
-            if let Some((start, origin)) = self.playback {
-                self.frame = playback_frame(
-                    origin,
-                    start.elapsed(),
-                    self.state["project"]["fps"].as_u64().unwrap_or(30) as u32,
-                    self.state["project"]["frames"].as_u64().unwrap_or(1) as u32,
-                );
-                self.state = self.engine.seek(self.frame)?;
-            }
-        }
-        if let Some(change) = self.workspace.interact(&self.input, size) {
-            match change {
-                workspace::Change::Float(panel) => {
-                    self.actions.push_back(panels::Action::Float(panel))
-                }
-                workspace::Change::Changed => {
-                    if self.smoke.is_none() && self.input.released.is_some() {
-                        self.workspace.save(&self.layout_path)?;
-                    }
-                    self.dirty = true;
-                }
-            }
-        }
-        let (mut paint, actions) = self.draw_commands(size);
-        self.actions.extend(actions);
-        if !self.actions.is_empty() {
-            return Ok(());
-        }
-        // Actions may change project, layer selection or playhead during this draw.
-        if self.dirty {
-            let neutral = Input::default();
-            paint = PaintList::default();
-            let _ = panels::chrome(
-                &mut paint,
-                &mut self.atlas,
-                size,
-                &self.workspace.root,
-                &mut self.panels,
-                &self.state,
-                &neutral,
-            );
-        }
-        let ui = self.ui_frame(paint, size, false);
-        self.rendering.insert(0, self.engine.present_async(ui)?);
-        self.dirty = false;
-        Ok(())
-    }
-    fn float_panel(
-        &mut self,
-        id: dock::DockId,
-        event_loop: &ActiveEventLoop,
-    ) -> Result<(), String> {
-        if self.floating.values().any(|f| f.panel.dock() == id) {
-            return Ok(());
-        }
-        let panel = panels::panel(id).ok_or("invalid panel")?;
-        let window = Arc::new(
-            event_loop
-                .create_window(
-                    Window::default_attributes()
-                        .with_title(format!(
-                            "{} — Motion Studio",
-                            self.workspace.locale.panel(panel.dock())
-                        ))
-                        .with_inner_size(winit::dpi::LogicalSize::new(720.0, 520.0))
-                        .with_min_inner_size(winit::dpi::LogicalSize::new(360.0, 320.0))
-                        .with_visible(self.smoke.is_none()),
-                )
-                .map_err(|e| e.to_string())?,
-        );
-        let size = window.inner_size();
-        let key = self.next_window;
-        self.next_window += 1;
-        self.engine
-            .float_window(key, window.clone(), size.width, size.height)?;
-        let scale = window.scale_factor() as f32;
-        self.workspace.float(id);
-        self.floating.insert(
-            window.id(),
-            FloatWindow {
-                window,
-                key,
-                panel,
-                input: Default::default(),
-                scale,
-            },
-        );
-        if self.smoke.is_none() {
-            self.workspace.save(&self.layout_path)?;
-        }
-        self.dirty = true;
-        self.redraw();
-        Ok(())
-    }
-    fn redock_panel(&mut self, panel: dock::DockId) -> Result<(), String> {
-        if let Some(id) = self
-            .floating
-            .iter()
-            .find(|(_, f)| f.panel.dock() == panel)
-            .map(|(id, _)| *id)
-        {
-            if let Some(f) = self.floating.remove(&id) {
-                self.engine.close_window(f.key)?;
-            }
-        }
-        self.workspace.redock(panel);
-        if self.smoke.is_none() {
-            self.workspace.save(&self.layout_path)?;
-        }
-        self.dirty = true;
-        self.redraw();
-        Ok(())
-    }
-    fn present_float(&mut self, id: WindowId, _event_loop: &ActiveEventLoop) -> Result<(), String> {
-        if !self.actions.is_empty()
-            || !self.attached
-            || self.resizing.is_some()
-            || !self.resize_queue.is_empty()
-        {
-            return Ok(());
-        }
-        let f = self.floating.get_mut(&id).ok_or("floating window closed")?;
-        if self.rendering.contains_key(&f.key) {
-            return Ok(());
-        }
-        let physical = f.window.inner_size();
-        if physical.width == 0 || physical.height == 0 {
-            return Ok(());
-        }
-        let size = [
-            physical.width as f32 / f.scale,
-            physical.height as f32 / f.scale,
-        ];
-        let panel = f.panel;
-        let key = f.key;
-        let scale = f.scale;
-        let mut paint = PaintList::default();
-        let actions = panels::floating_chrome(
-            &mut paint,
-            &mut self.atlas,
-            panel,
-            size,
-            &mut self.panels,
-            &self.state,
-            &f.input,
-        );
-        f.input.begin_frame();
-        self.actions.extend(actions);
-        if !self.actions.is_empty() {
-            return Ok(());
-        }
-        if !self.floating.contains_key(&id) {
-            return Ok(());
-        }
-        let config = self.atlas.config();
-        let atlas = if self.atlas.take_dirty() {
-            Some(AtlasUpload {
-                pixels: self.atlas.pixel_data().to_vec(),
-                width: config.width,
-                height: config.height,
-            })
-        } else {
-            None
-        };
-        let composition = panels::floating_view(panel, size).map(|v| {
-            [
-                v.min[0] * scale,
-                v.min[1] * scale,
-                v.width() * scale,
-                v.height() * scale,
-            ]
-        });
-        self.rendering.insert(
-            key,
-            self.engine.present_async(UiFrame {
-                paint,
-                atlas,
-                logical_size: size,
-                composition,
-                window: key,
-            })?,
-        );
-        Ok(())
-    }
-    fn floating_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
-        let Some(f) = self.floating.get_mut(&id) else {
-            return;
-        };
-        let input_event = match event {
-            WindowEvent::CloseRequested => {
-                self.actions
-                    .push_back(panels::Action::Redock(f.panel.dock()));
-                return;
-            }
-            WindowEvent::RedrawRequested => {
-                if let Err(e) = self.present_float(id, event_loop) {
-                    self.panels.message = Some(self.workspace.locale.error(&e));
-                }
-                return;
-            }
-            WindowEvent::Resized(size) => {
-                let key = f.key;
-                if size.width > 0 && size.height > 0 {
-                    self.resize_queue.insert(key, [size.width, size.height]);
-                }
-                self.dirty = true;
-                self.redraw();
-                return;
-            }
-            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                f.scale = scale_factor as f32;
-                self.dirty = true;
-                self.redraw();
-                return;
-            }
-            WindowEvent::ModifiersChanged(m) => {
-                let m = m.state();
-                f.input.modifiers = Modifiers {
-                    control: m.control_key() || m.super_key(),
-                    shift: m.shift_key(),
-                    alt: m.alt_key(),
-                };
-                return;
-            }
-            WindowEvent::CursorMoved { position, .. } => Some(Event::MouseMoved {
-                position: [position.x as f32 / f.scale, position.y as f32 / f.scale],
-            }),
-            WindowEvent::MouseInput { state, button, .. } => {
-                let button = match button {
-                    WinitMouseButton::Left => MouseButton::Left,
-                    WinitMouseButton::Right => MouseButton::Right,
-                    _ => MouseButton::Middle,
-                };
-                Some(if state == ElementState::Pressed {
-                    Event::MousePressed {
-                        position: f.input.mouse,
-                        button,
-                    }
-                } else {
-                    Event::MouseReleased {
-                        position: f.input.mouse,
-                        button,
-                    }
-                })
-            }
-            WindowEvent::MouseWheel { delta, .. } => Some(Event::MouseWheel {
-                delta: match delta {
-                    MouseScrollDelta::LineDelta(x, y) => [-x * 32.0, -y * 32.0],
-                    MouseScrollDelta::PixelDelta(p) => [p.x as f32 / f.scale, p.y as f32 / f.scale],
-                },
-            }),
-            WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
-                if let Some(key) = translate_key(&event.logical_key) {
-                    let modifiers = f.input.modifiers;
-                    motion_ui::ui::accumulate(&mut f.input, Event::KeyPressed { key, modifiers });
-                }
-                event
-                    .text
-                    .filter(|t| !t.chars().all(char::is_control) && !f.input.modifiers.control)
-                    .map(|t| Event::TextInput(t.to_string()))
-            }
-            WindowEvent::Focused(false) => {
-                self.actions
-                    .extend(panels::cancel_interaction(&mut self.panels));
-                Some(Event::FocusLost)
-            }
-            _ => None,
-        };
-        if let Some(event) = input_event {
-            motion_ui::ui::accumulate(&mut f.input, event);
-            self.dirty = true;
-            self.redraw();
-        }
-    }
-    fn finish_smoke(&mut self) -> Result<(), String> {
-        let path = self.smoke.as_ref().ok_or("no smoke report path")?.clone();
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-        }
-        let size = self.size().ok_or("window has no size")?;
-        let (paint, _) = self.draw_commands(size);
-        let ui = self.ui_frame(paint, size, true);
-        let screenshot = path.with_extension("png");
-        self.engine.capture_ui(ui, screenshot.clone())?;
-        let state = self.engine.state()?;
-        let result = serde_json::json!({"ok":true,"framesPresented":state["presented"],"frame":state["frame"],"preview":state["preview"],
-            "root":state["root"],"screenshot":screenshot,"floatingFrames":self.smoke_float_frames,"locale":self.workspace.locale,"desktop":state["desktop"],"checks":["create_layer","animate","seek","save","reopen","single_surface_preview","chrome","floating_properties","floating_composition","resize","redock"]});
-        std::fs::write(
-            &path,
-            serde_json::to_vec_pretty(&result).map_err(|e| e.to_string())?,
-        )
-        .map_err(|e| e.to_string())?;
-        Ok(())
     }
 }
 impl ApplicationHandler<UserEvent> for Shell {
@@ -841,7 +331,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
         let attributes = Window::default_attributes()
             .with_title("Motion Studio")
-            .with_inner_size(winit::dpi::LogicalSize::new(1440.0, 900.0))
+            .with_inner_size(winit::dpi::LogicalSize::new(1600.0, 976.0))
             .with_min_inner_size(winit::dpi::LogicalSize::new(900.0, 600.0))
             .with_visible(self.smoke.is_none());
         let result = (|| {
@@ -851,6 +341,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                     .map_err(|e| e.to_string())?,
             );
             self.scale = window.scale_factor() as f32;
+            window.set_ime_allowed(true);
             let size = window.inner_size();
             self.attaching = Some(self.engine.attach_async(
                 window.clone(),
@@ -873,11 +364,11 @@ impl ApplicationHandler<UserEvent> for Shell {
             return;
         }
         match event {
+            WindowEvent::Ime(winit::event::Ime::Commit(text)) => {
+                self.translate(Event::TextInput(text))
+            }
             WindowEvent::CloseRequested => {
-                self.actions
-                    .extend(panels::cancel_interaction(&mut self.panels));
-                self.stop();
-                self.closing = true;
+                self.request_close();
             }
             WindowEvent::Resized(size) => {
                 if size.width > 0 && size.height > 0 {
@@ -919,12 +410,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 });
             }
             WindowEvent::MouseWheel { delta, .. } => self.translate(Event::MouseWheel {
-                delta: match delta {
-                    MouseScrollDelta::LineDelta(x, y) => [-x * 32.0, -y * 32.0],
-                    MouseScrollDelta::PixelDelta(p) => {
-                        [p.x as f32 / self.scale, p.y as f32 / self.scale]
-                    }
-                },
+                delta: mouse_wheel_delta(delta, self.scale),
             }),
             WindowEvent::KeyboardInput { event, .. } => {
                 if event.state != ElementState::Pressed {
@@ -950,7 +436,21 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.translate(Event::FocusLost);
             }
             WindowEvent::DroppedFile(path) => {
-                self.actions.push_back(panels::Action::OpenPath(path));
+                let ext = path
+                    .extension()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("")
+                    .to_ascii_lowercase();
+                self.actions.push_back(
+                    if path.is_dir()
+                        || path.file_name().is_some_and(|n| n == "project.json")
+                        || matches!(ext.as_str(), "aem" | "msproj")
+                    {
+                        panels::Action::OpenPath(path)
+                    } else {
+                        panels::Action::ImportPath(path)
+                    },
+                );
             }
             WindowEvent::RedrawRequested => {
                 if let Err(error) = self.present(event_loop) {
@@ -967,7 +467,64 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
     }
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        if self.smoke.is_some() && self.started.elapsed() > Duration::from_secs(30) {
+        if let Err(error) = self.poll_nodes() {
+            self.panels.node_editor.report_error(error);
+            self.dirty = true;
+        }
+        if let Some((receive, path, control)) = &self.freezing_movie {
+            if let Ok(result) = receive.try_recv() {
+                let output = path.clone();
+                let control = control.clone();
+                self.freezing_movie = None;
+                match result.and_then(|snapshot| {
+                    movie_export::MovieExport::start_with_control(snapshot, output, control)
+                }) {
+                    Ok(task) => self.exporting_movie = Some(task),
+                    Err(error) => self.panels.message = Some(self.workspace.locale.error(&error)),
+                };
+                self.dirty = true;
+            } else {
+                self.panels.message = Some(format!(
+                    "{} {:.0}%",
+                    self.workspace.locale.t(T::Exporting),
+                    control.progress() * 100.
+                ));
+                self.dirty = true;
+            }
+        }
+        if let Some(export) = &self.exporting_movie {
+            let status = export.status();
+            if status.state == "running" {
+                self.panels.message = Some(format!(
+                    "{} {:.0}%",
+                    self.workspace.locale.t(T::Exporting),
+                    status.progress * 100.
+                ));
+                self.dirty = true;
+            } else if !self.export_notified {
+                self.export_notified = true;
+                self.panels.message = Some(if let Some(result) = status.result {
+                    format!(
+                        "{}: {}",
+                        self.workspace.locale.t(T::ExportFinished),
+                        result.path.display()
+                    )
+                } else {
+                    self.workspace
+                        .locale
+                        .error(status.error.as_deref().unwrap_or("export cancelled"))
+                });
+                self.dirty = true;
+            }
+        }
+        if let Err(error) = self.poll_import() {
+            self.panels.message = Some(self.workspace.locale.error(&error));
+            self.dirty = true;
+        }
+        if self.smoke.is_some()
+            && self.started.elapsed()
+                > Duration::from_secs(if self.smoke_panels { 120 } else { 30 })
+        {
             self.fatal = Some("desktop smoke timed out".into());
             event_loop.exit();
             return;
@@ -982,6 +539,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                         self.dirty = true;
                         let restore = self.workspace.floating.clone();
                         self.workspace.floating.clear();
+                        self.workspace.hidden.clear();
                         for panel in restore {
                             self.workspace.redock(panel);
                             if let Err(e) = self.float_panel(panel, event_loop) {
@@ -1095,6 +653,10 @@ impl ApplicationHandler<UserEvent> for Shell {
                         self.workspace.locale = locale;
                         self.smoke_stage = 3;
                         self.dirty = true;
+                    } else if self.smoke_nodes {
+                        self.node_smoke_step(event_loop)?;
+                    } else if self.smoke_panels {
+                        self.panel_smoke_step(event_loop)?;
                     } else if self.smoke_stage == 3 && self.smoke_frames >= 6 {
                         self.finish_smoke()?;
                         self.smoke_stage = 4;
@@ -1137,8 +699,26 @@ impl ApplicationHandler<UserEvent> for Shell {
             || !self.rendering.is_empty()
             || self.resizing.is_some()
             || !self.resize_queue.is_empty()
-            || !self.actions.is_empty();
-        if busy || self.pending || self.playback.is_some() || self.dirty {
+            || !self.actions.is_empty()
+            || self.node_tasks.busy()
+            || !self.node_installing.is_empty()
+            || self.node_compile_due.is_some();
+        let node_playing = self.panels.node_preview.playing
+            && (panels::node_view(&self.workspace.root, self.size().unwrap_or([0., 0.])).is_some()
+                || self
+                    .floating
+                    .values()
+                    .any(|f| f.panel == dock::Panel::Nodes));
+        if busy
+            || node_playing
+            || self.pending
+            || self.playback.is_some()
+            || self.dirty
+            || self.importing_image.is_some()
+            || self.importing_media.is_some()
+            || self.freezing_movie.is_some()
+            || self.exporting_movie.as_ref().is_some_and(|e| !e.finished())
+        {
             if self.attached
                 && self.resizing.is_none()
                 && self.resize_queue.is_empty()
@@ -1163,11 +743,24 @@ impl ApplicationHandler<UserEvent> for Shell {
 fn playback_frame(origin: f64, elapsed: Duration, fps: u32, frames: u32) -> f64 {
     (origin + elapsed.as_secs_f64() * f64::from(fps.max(1))).rem_euclid(f64::from(frames.max(1)))
 }
+fn mouse_wheel_delta(delta: MouseScrollDelta, scale: f32) -> [f32; 2] {
+    // UI scrolling uses positive offsets towards the end of a list.
+    match delta {
+        MouseScrollDelta::LineDelta(x, y) => [-x * 32., -y * 32.],
+        MouseScrollDelta::PixelDelta(p) => [-p.x as f32 / scale, -p.y as f32 / scale],
+    }
+}
 fn translate_key(key: &WinitKey) -> Option<Key> {
     Some(match key {
         WinitKey::Character(s) => match s.to_ascii_lowercase().as_str() {
+            "a" => Key::A,
+            "f" => Key::F,
+            "g" => Key::G,
+            "t" => Key::T,
+            "0" => Key::Num0,
             "n" => Key::N,
             "o" => Key::O,
+            "i" => Key::I,
             "s" => Key::S,
             "z" => Key::Z,
             "y" => Key::Y,
@@ -1197,6 +790,187 @@ fn translate_key(key: &WinitKey) -> Option<Key> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn builtin_examples_are_independent_and_reject_stale_replacement() {
+        let folder = tempfile::tempdir().unwrap();
+        let mut shell = Shell::new(folder.path().join("project"), None, Some(Locale::Zh)).unwrap();
+        let before = shell.engine.state().unwrap();
+        let initial = shell.panels.node_editor.snapshot();
+        shell.open_node_example(&initial, "uv_gradient").unwrap();
+        assert_eq!(shell.panels.node_editor.document().id, "uv_gradient");
+        assert!(shell.panels.node_editor.snapshot().source_path.is_none());
+        let snapshot = shell.panels.node_editor.snapshot();
+        shell
+            .panels
+            .node_editor
+            .add_node(motion_graph::NodeOp::Float { value: 2. }, [0., 0.])
+            .unwrap();
+        let edited = shell.panels.node_editor.document().clone();
+        assert!(shell.open_node_example(&snapshot, "sdf_ring").is_err());
+        assert_eq!(shell.panels.node_editor.document(), &edited);
+        assert_eq!(shell.engine.state().unwrap()["project"], before["project"]);
+        assert_eq!(
+            shell.engine.state().unwrap()["revision"],
+            before["revision"]
+        );
+    }
+    #[test]
+    fn adjustment_layer_ui_action_uses_shared_history_and_survives_reopen() {
+        let folder = tempfile::tempdir().unwrap();
+        let root = folder.path().join("project");
+        let mut shell = Shell::new(root.clone(), None, Some(Locale::Zh)).unwrap();
+        let before = shell.state["project"].clone();
+        shell.action(panels::Action::AddAdjustment, None).unwrap();
+        let id = shell.panels.selected.unwrap();
+        let project: Project = serde_json::from_value(shell.state["project"].clone()).unwrap();
+        let layer = project.layers.iter().find(|l| l.id == id).unwrap();
+        assert!(matches!(layer.content, motion_core::Content::Adjustment));
+        assert_eq!(layer.size, [project.width as f32, project.height as f32]);
+        assert_eq!(layer.name, "调整图层");
+        shell.action(panels::Action::History(0), None).unwrap();
+        assert_eq!(shell.state["project"], before);
+        shell.action(panels::Action::History(1), None).unwrap();
+        shell.action(panels::Action::Save, None).unwrap();
+        drop(shell);
+        let shell = Shell::new(root, None, Some(Locale::En)).unwrap();
+        let project: Project = serde_json::from_value(shell.state["project"].clone()).unwrap();
+        assert!(project
+            .layers
+            .iter()
+            .any(|l| l.id == id && matches!(l.content, motion_core::Content::Adjustment)));
+    }
+    #[test]
+    fn example_open_waits_for_actual_source_save_before_replacing_graph() {
+        let folder = tempfile::tempdir().unwrap();
+        let mut shell = Shell::new(folder.path().join("project"), None, Some(Locale::En)).unwrap();
+        let source = folder.path().join("saved.msgraph");
+        shell
+            .panels
+            .node_editor
+            .set_parameter_default("color", 0, 0.9)
+            .unwrap();
+        let snapshot = shell.panels.node_editor.snapshot();
+        shell.node_example_after_save = Some((snapshot.clone(), "sdf_ring"));
+        shell
+            .node_tasks
+            .submit_to(
+                node_editor::Action::Save(snapshot.clone()),
+                source.clone(),
+                Locale::En,
+                None,
+            )
+            .unwrap();
+        assert_ne!(shell.panels.node_editor.document().id, "sdf_ring");
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while shell.node_example_after_save.is_some() {
+            assert!(Instant::now() < deadline);
+            shell.poll_nodes().unwrap();
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert_eq!(
+            motion_graph::GraphDocument::load(&source).unwrap(),
+            snapshot.document
+        );
+        assert_eq!(shell.panels.node_editor.document().id, "sdf_ring");
+        assert!(shell.panels.node_editor.snapshot().source_path.is_none());
+    }
+    #[test]
+    fn wheel_and_trackpad_share_up_down_direction_at_display_scale() {
+        for direction in [-1., 1.] {
+            let lines = mouse_wheel_delta(MouseScrollDelta::LineDelta(0., direction), 2.);
+            let pixels = mouse_wheel_delta(
+                MouseScrollDelta::PixelDelta(winit::dpi::PhysicalPosition::new(
+                    0.,
+                    64. * f64::from(direction),
+                )),
+                2.,
+            );
+            assert_eq!(lines, pixels);
+            assert_eq!(lines[1].signum(), -direction);
+        }
+    }
+    #[test]
+    fn unsaved_node_exit_routes_save_discard_cancel_without_project_edits() {
+        let folder = tempfile::tempdir().unwrap();
+        let mut shell = Shell::new(folder.path().join("project"), None, Some(Locale::En)).unwrap();
+        let state = shell.engine.state().unwrap();
+        shell
+            .panels
+            .node_editor
+            .add_node(motion_graph::NodeOp::Float { value: 2. }, [0., 0.])
+            .unwrap();
+        shell.request_close();
+        assert!(!shell.closing);
+        assert!(shell.node_close_prompt.is_some());
+        let size = [1280., 800.];
+        let card_min = [380., 295.];
+        let click = |index: f32| {
+            let point = [
+                card_min[0] + 172. + index * 110. + 50.,
+                card_min[1] + 210. - 54. + 15.,
+            ];
+            Input {
+                mouse: point,
+                pressed: Some((MouseButton::Left, point)),
+                ..Default::default()
+            }
+        };
+        shell.input = click(2.);
+        shell.draw_commands(size);
+        assert!(!shell.closing);
+        assert!(shell.node_close_prompt.is_none());
+        assert!(shell.panels.node_editor.dirty());
+        shell.request_close();
+        shell.input = click(0.);
+        shell.draw_commands(size);
+        assert!(!shell.closing);
+        assert!(shell.node_close_save.is_some());
+        assert!(shell
+            .actions
+            .iter()
+            .any(|a| matches!(a, panels::Action::Node(node_editor::Action::Save(_)))));
+        // A save request only closes after the worker acknowledges actual source bytes.
+        shell.actions.clear();
+        shell.node_close_save = None;
+        shell.request_close();
+        shell.input = click(1.);
+        shell.draw_commands(size);
+        assert!(shell.closing);
+        let after = shell.engine.state().unwrap();
+        assert_eq!(state["revision"], after["revision"]);
+        assert_eq!(state["project"], after["project"]);
+    }
+    #[test]
+    fn node_exit_rejects_edits_made_during_confirmation() {
+        let folder = tempfile::tempdir().unwrap();
+        let mut shell = Shell::new(folder.path().join("project"), None, Some(Locale::Zh)).unwrap();
+        shell
+            .panels
+            .node_editor
+            .add_node(motion_graph::NodeOp::Float { value: 2. }, [0., 0.])
+            .unwrap();
+        shell.request_close();
+        let captured = shell.node_close_prompt.as_ref().unwrap().clone();
+        shell
+            .panels
+            .node_editor
+            .add_node(motion_graph::NodeOp::Float { value: 3. }, [0., 0.])
+            .unwrap();
+        assert!(!shell.node_close_current(&captured));
+        let point = [380. + 172. + 110. + 50., 295. + 210. - 54. + 15.];
+        shell.input = Input {
+            mouse: point,
+            pressed: Some((MouseButton::Left, point)),
+            ..Default::default()
+        };
+        shell.draw_commands([1280., 800.]);
+        assert!(!shell.closing);
+        assert!(shell.node_close_prompt.is_none());
+        assert_eq!(
+            shell.panels.node_editor.document().nodes.len(),
+            motion_graph::demo_graph().nodes.len() + 2
+        );
+    }
     #[test]
     fn playback_wraps_without_sampling_the_invalid_end_frame() {
         assert_eq!(playback_frame(29.0, Duration::from_secs(1), 30, 30), 29.0);

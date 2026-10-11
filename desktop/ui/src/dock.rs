@@ -276,30 +276,43 @@ fn divide(edge: Edge, area: Rect, split: f32) -> (Rect, Rect) {
 pub struct Splitter {
     pub area: Rect,
     pub edge: Edge,
-    /// The dock that grows when the splitter moves toward `edge`.
-    pub target: DockId,
+    pub parent_area: Rect,
 }
 
 /// Collect every draggable handle in a solved layout.
-pub fn splitters(root: &Node, placements: &[Placement]) -> Vec<Splitter> {
+pub fn splitters(root: &Node, area: Rect) -> Vec<Splitter> {
     let mut out = Vec::new();
-    collect_splitters(root, &mut out);
-    // A handle belongs to the dock on the far side of the divider.
-    let _ = placements;
+    collect_splitters(root, area, &mut out);
     out
 }
 
-fn collect_splitters(node: &Node, out: &mut Vec<Splitter>) {
+fn collect_splitters(node: &Node, area: Rect, out: &mut Vec<Splitter>) {
     match node {
         Node::Split {
             edge,
+            split,
             first,
             second,
-            ..
         } => {
-            collect_splitters(first, out);
-            collect_splitters(second, out);
-            let _ = edge;
+            let (first_area, second_area) = divide(*edge, area, *split);
+
+            // Create splitter handle between the two areas
+            let splitter_area = match edge {
+                Edge::Left => Rect::new(first_area.max[0] - 2.0, area.min[1], 4.0, area.height()),
+                Edge::Right => Rect::new(second_area.min[0] - 2.0, area.min[1], 4.0, area.height()),
+                Edge::Top => Rect::new(area.min[0], first_area.max[1] - 2.0, area.width(), 4.0),
+                Edge::Bottom => Rect::new(area.min[0], second_area.min[1] - 2.0, area.width(), 4.0),
+            };
+
+            out.push(Splitter {
+                area: splitter_area,
+                edge: *edge,
+                parent_area: area,
+            });
+
+            // Recursively collect splitters in children
+            collect_splitters(first, first_area, out);
+            collect_splitters(second, second_area, out);
         }
         _ => {}
     }
@@ -309,22 +322,60 @@ fn collect_splitters(node: &Node, out: &mut Vec<Splitter>) {
 ///
 /// Left: Project. Right: Effect Controls over Composition. Bottom: Timeline.
 pub fn editor_layout() -> Node {
-    Node::Split {
-        edge: Edge::Top,
-        split: 0.64,
-        first: Box::new(Node::Split {
-            edge: Edge::Left,
-            split: 0.20,
-            first: Box::new(Node::dock(DockId(1))),
-            second: Box::new(Node::Split {
-                edge: Edge::Right,
-                split: 0.28,
-                first: Box::new(Node::dock(DockId(3))),
-                second: Box::new(Node::dock(DockId(2))),
-            }),
-        }),
-        second: Box::new(Node::dock(DockId(4))),
+    fn split(edge: Edge, ratio: f32, a: Node, b: Node) -> Node {
+        Node::Split {
+            edge,
+            split: ratio,
+            first: Box::new(a),
+            second: Box::new(b),
+        }
     }
+    let right_panels = [
+        (Panel::Info, 120.),
+        (Panel::Preview, 143.),
+        (Panel::Effects, 324.),
+        (Panel::Character, 201.),
+        (Panel::Align, 31.),
+        (Panel::Audio, 29.),
+        (Panel::Masks, 26.),
+        (Panel::Media, 26.),
+    ];
+    fn stack(items: &[(Panel, f32)]) -> Node {
+        if items.len() == 1 {
+            return Node::dock(items[0].0.dock());
+        }
+        let total: f32 = items.iter().map(|p| p.1).sum();
+        split(
+            Edge::Top,
+            items[0].1 / total,
+            Node::dock(items[0].0.dock()),
+            stack(&items[1..]),
+        )
+    }
+    let project = Node::Dock {
+        id: DockId(1),
+        tabs: vec![DockId(1), DockId(17), DockId(2), DockId(11)],
+        active: 0,
+    };
+    // Media has one workspace owner: keep it in the right dock until opened there.
+    let project = match project {
+        Node::Dock {
+            id,
+            mut tabs,
+            active,
+        } => {
+            tabs.retain(|id| *id != DockId(17));
+            Node::Dock { id, tabs, active }
+        }
+        _ => unreachable!(),
+    };
+    let left = split(
+        Edge::Top,
+        0.62,
+        split(Edge::Left, 304. / 1294., project, Node::dock(DockId(3))),
+        Node::dock(DockId(4)),
+    );
+    split(Edge::Right, 304. / 1600., left, stack(&right_panels))
 }
 
 /// Panel identity, matching the After Effects tab names.
@@ -339,9 +390,72 @@ pub enum Panel {
     Vector = 7,
     Audio = 8,
     Expression = 9,
+    Nodes = 10,
+    Properties = 11,
+    Info = 12,
+    Preview = 13,
+    Character = 14,
+    Paragraph = 15,
+    Align = 16,
+    Media = 17,
+    RenderQueue = 18,
+    Curves = 19,
+    NodeProperties = 20,
+    NodePreview = 21,
 }
 
 impl Panel {
+    pub const ALL: [Self; 21] = [
+        Self::Project,
+        Self::EffectControls,
+        Self::Composition,
+        Self::Timeline,
+        Self::Effects,
+        Self::Masks,
+        Self::Vector,
+        Self::Audio,
+        Self::Expression,
+        Self::Nodes,
+        Self::Properties,
+        Self::Info,
+        Self::Preview,
+        Self::Character,
+        Self::Paragraph,
+        Self::Align,
+        Self::Media,
+        Self::RenderQueue,
+        Self::Curves,
+        Self::NodeProperties,
+        Self::NodePreview,
+    ];
+    pub fn from_dock(id: DockId) -> Option<Self> {
+        Self::ALL.into_iter().find(|p| p.dock() == id)
+    }
+    pub fn title_zh(self) -> &'static str {
+        match self {
+            Self::Project => "项目",
+            Self::EffectControls => "效果控制",
+            Self::Composition => "合成",
+            Self::Timeline => "时间轴",
+            Self::Effects => "效果和预设",
+            Self::Masks => "蒙版",
+            Self::Vector => "路径与钢笔",
+            Self::Audio => "音频",
+            Self::Expression => "表达式",
+            Self::Nodes => "节点编辑器",
+            Self::Properties => "属性",
+            Self::Info => "信息",
+            Self::Preview => "预览控制",
+            Self::Character => "字符",
+            Self::Paragraph => "段落",
+            Self::Align => "对齐",
+            Self::Media => "素材浏览器",
+            Self::RenderQueue => "渲染队列",
+            Self::Curves => "曲线编辑器",
+            Self::NodeProperties => "节点属性",
+            Self::NodePreview => "节点预览",
+        }
+    }
     pub fn dock(self) -> DockId {
         DockId(self as u32)
     }
@@ -356,6 +470,18 @@ impl Panel {
             Self::Vector => "Path",
             Self::Audio => "Audio",
             Self::Expression => "Expression",
+            Self::Nodes => "Nodes",
+            Self::Properties => "Properties",
+            Self::Info => "Info",
+            Self::Preview => "Preview",
+            Self::Character => "Character",
+            Self::Paragraph => "Paragraph",
+            Self::Align => "Align",
+            Self::Media => "Media Browser",
+            Self::RenderQueue => "Render Queue",
+            Self::Curves => "Graph Editor",
+            Self::NodeProperties => "Node Properties",
+            Self::NodePreview => "Node Preview",
         }
     }
 }
@@ -394,16 +520,23 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_default_layout_produces_four_docks() {
+    fn the_default_layout_keeps_the_timeline_under_project_and_viewer() {
         let placements = solve(&editor_layout(), Rect::new(0.0, 0.0, 1920.0, 1080.0));
-        assert_eq!(placements.len(), 4);
+        assert_eq!(placements.len(), 11);
         assert_eq!(
             placements.iter().map(|p| p.id).collect::<Vec<_>>(),
             vec![
                 Panel::Project.dock(),
                 Panel::Composition.dock(),
-                Panel::EffectControls.dock(),
-                Panel::Timeline.dock()
+                Panel::Timeline.dock(),
+                Panel::Info.dock(),
+                Panel::Preview.dock(),
+                Panel::Effects.dock(),
+                Panel::Character.dock(),
+                Panel::Align.dock(),
+                Panel::Audio.dock(),
+                Panel::Masks.dock(),
+                Panel::Media.dock()
             ]
         );
     }
@@ -452,7 +585,12 @@ mod tests {
 
     #[test]
     fn activating_an_unopened_tab_adds_it_to_that_dock_only() {
-        let mut node = editor_layout();
+        let mut node = Node::Split {
+            edge: Edge::Left,
+            split: 0.5,
+            first: Box::new(Node::dock(Panel::Project.dock())),
+            second: Box::new(Node::dock(Panel::EffectControls.dock())),
+        };
         assert!(node.activate(Panel::EffectControls.dock(), Panel::Effects.dock()));
         assert!(!node.activate(Panel::Project.dock(), Panel::Effects.dock()));
         let effects = node

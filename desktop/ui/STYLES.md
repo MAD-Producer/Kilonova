@@ -43,6 +43,7 @@ cargo run -p motion-ui --example framework --locked -- --locale zh --style deskt
 - 使用 `resolve(class, states)` 获取已解析的颜色和尺寸，使用 `box_style / text_style` 绘制
 - 使用输入框、数值框和按钮的 `draw_styled` 接口；按钮的 `draw_with_states` 可接收显式焦点状态
 - 更改全局字体时，由窗口宿主用 `TextAtlas::from_family` 更新共享图集；编辑器的工程字体不受影响
+- 字号按每 em 的逻辑像素计算，与设计稿保持同一口径；不同字号独立缓存字形，避免缩放低分辨率字形造成模糊
 
 加载时检查引用、继承循环、版本、属性与尺寸范围，并预计算状态组合。绘制时只查表，不解析 JSON。禁用状态最后应用，错误状态覆盖焦点边框；子样式保留父样式未被覆盖的属性。
 

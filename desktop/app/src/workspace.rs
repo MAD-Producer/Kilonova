@@ -1,5 +1,5 @@
 //! Application preferences wrap the reusable UI workspace; no editor state is stored here.
-pub use motion_ui::workspace::Change;
+pub use motion_ui::workspace::{Change, WindowGeometry};
 use motion_ui::{
     dock::{self, DockId, Edge},
     input::{Input, Rect},
@@ -32,16 +32,24 @@ impl std::ops::DerefMut for Workspace {
     }
 }
 impl Workspace {
+    pub fn valid(&self) -> bool {
+        self.layout.valid()
+            && self
+                .owned_panels()
+                .iter()
+                .all(|id| dock::Panel::from_dock(*id).is_some())
+            && self
+                .window_geometry
+                .keys()
+                .all(|id| dock::Panel::from_dock(DockId(*id)).is_some())
+            && (1..=4).all(|id| self.owned_panels().contains(&DockId(id)))
+    }
     pub fn load(path: &Path) -> Self {
         std::fs::read(path)
             .ok()
             .filter(|bytes| bytes.len() <= 64 * 1024)
             .and_then(|bytes| serde_json::from_slice::<Self>(&bytes).ok())
-            .filter(|w| {
-                w.layout.valid()
-                    && w.owned_panels().iter().all(|id| (1..=4).contains(&id.0))
-                    && (1..=4).all(|id| w.owned_panels().contains(&DockId(id)))
-            })
+            .filter(|w| w.valid())
             .unwrap_or_default()
     }
     pub fn save(&self, path: &Path) -> Result<(), String> {
@@ -57,6 +65,21 @@ impl Workspace {
     pub fn redock(&mut self, panel: DockId) {
         if self.layout.root.find(panel).is_some() {
             return;
+        }
+        let targets = if matches!(panel.0, 10 | 19 | 21) {
+            vec![DockId(3)]
+        } else if panel.0 > 4 {
+            vec![DockId(11), DockId(2)]
+        } else if panel.0 == 2 {
+            vec![DockId(11)]
+        } else {
+            vec![]
+        };
+        for target in targets {
+            if self.layout.root.find(target).is_some() {
+                self.layout.redock_to(panel, target, None);
+                return;
+            }
         }
         let target = dock::solve(&self.layout.root, Rect::new(0., 0., 1000., 800.))
             .first()
@@ -74,7 +97,7 @@ impl Workspace {
         }
     }
     pub fn interact(&mut self, input: &Input, size: [f32; 2]) -> Option<Change> {
-        self.layout.interact(
+        self.layout.interact_with_header_actions(
             input,
             Rect::new(
                 0.,
@@ -82,12 +105,78 @@ impl Workspace {
                 size[0],
                 (size[1] - crate::panels::CHROME_HEIGHT - 22.).max(0.),
             ),
+            0.,
         )
     }
 }
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn all_registered_panels_keep_unique_ownership_through_close_float_and_reopen() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("workspace.json");
+        let mut workspace = Workspace::default();
+        for panel in dock::Panel::ALL {
+            let id = panel.dock();
+            workspace.redock(id);
+            assert!(workspace.float(id));
+            assert!(workspace.valid());
+            workspace.save(&path).unwrap();
+            workspace = Workspace::load(&path);
+            assert!(workspace.floating.contains(&id));
+            workspace.redock(id);
+            assert!(workspace.close(id));
+            assert!(workspace.valid());
+            workspace.save(&path).unwrap();
+            workspace = Workspace::load(&path);
+            assert!(workspace.hidden.contains(&id));
+            workspace.redock(id);
+            assert!(workspace.valid());
+            assert!(!workspace.hidden.contains(&id));
+        }
+    }
+    #[test]
+    fn floating_geometry_round_trips_without_accepting_duplicate_or_unknown_panels() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("workspace.json");
+        let mut workspace = Workspace::default();
+        workspace.window_geometry.insert(
+            19,
+            WindowGeometry {
+                size: [800., 500.],
+                position: Some([-1200, 40]),
+            },
+        );
+        workspace.save(&path).unwrap();
+        let loaded = Workspace::load(&path);
+        assert_eq!(loaded.window_geometry[&19].position, Some([-1200, 40]));
+        workspace.floating.push(DockId(1));
+        assert!(!workspace.valid());
+        workspace.floating = vec![DockId(999)];
+        assert!(!workspace.valid());
+    }
+    #[test]
+    fn optional_nodes_tab_survives_save_float_and_redock() {
+        let folder = tempfile::tempdir().unwrap();
+        let path = folder.path().join("nodes-layout.json");
+        let mut workspace = Workspace::default();
+        assert!(workspace.valid());
+        workspace.redock(dock::Panel::Nodes.dock());
+        assert!(workspace.valid());
+        assert!(workspace.root.find(DockId(10)).is_some());
+        workspace.save(&path).unwrap();
+        let mut loaded = Workspace::load(&path);
+        assert!(loaded.root.find(DockId(10)).is_some());
+        assert!(loaded.float(DockId(10)));
+        assert!(loaded.valid());
+        loaded.save(&path).unwrap();
+        assert!(Workspace::load(&path).floating.contains(&DockId(10)));
+        loaded.redock(DockId(10));
+        assert!(loaded.valid());
+        let owner = loaded.root.find(DockId(3)).unwrap();
+        assert!(matches!(owner,motion_ui::dock::Node::Dock{tabs,..} if tabs.contains(&DockId(10))));
+    }
     #[test]
     fn every_panel_keeps_one_owner_after_dock_float_and_close() {
         let mut w = Workspace::default();
