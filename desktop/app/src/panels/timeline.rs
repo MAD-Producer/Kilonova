@@ -424,10 +424,16 @@ pub(super) fn render(
     }
     if clicked(input, ruler) {
         panels.timeline.scrubbing = true;
-        out.push(Action::Seek(frame_of(input.mouse[0])));
+        panels.timeline.last_seek = None;
     }
-    if panels.timeline.scrubbing && input.dragging() {
-        out.push(Action::Seek(frame_of(input.mouse[0])));
+    if panels.timeline.scrubbing
+        && (clicked(input, ruler) || input.dragging() || input.released.is_some())
+    {
+        let frame = frame_of(input.mouse[0]);
+        if panels.timeline.last_seek != Some(frame) {
+            panels.timeline.last_seek = Some(frame);
+            out.push(Action::Seek(frame));
+        }
     }
     if input.released.is_some() {
         panels.timeline.scrubbing = false;
@@ -537,6 +543,7 @@ pub(super) fn render(
                         atlas,
                         field,
                         panels,
+                        state,
                         input,
                         row.id,
                         property.property,
@@ -544,6 +551,7 @@ pub(super) fn render(
                         value,
                         row.locked,
                         true,
+                        out,
                     );
                 }
                 for frame in &property.keys {
@@ -804,7 +812,19 @@ pub(super) fn render(
             panels.timeline.moving = None;
         }
     }
-    let x = x_of(state["frame"].as_f64().unwrap_or(0.0));
+    let frame = if panels.timeline.scrubbing {
+        frame_of(input.mouse[0])
+    } else {
+        state["frame"].as_f64().unwrap_or(0.)
+    };
+    let target = x_of(frame);
+    let x = panels.motion.value(
+        (0, 2),
+        target,
+        target,
+        motion_ui::style::default_stylesheet().metric("motion.seek_ms", 90.),
+        panels.timeline.scrubbing || panels.playing,
+    );
     if x >= track.min[0] && x < track.max[0] {
         paint::rect(
             list,
@@ -928,6 +948,26 @@ mod property_tests {
     use super::*;
     fn fixture() -> Value {
         serde_json::json!({"frame":21,"project":{"frames":120,"fps":30,"layers":[{"id":7,"name":"Layer","visible":true,"three_d":true}]},"sampledLayers":[{"id":7,"position":[10,20,30],"rotation":[0,0,0],"scale":[100,100,100],"opacity":1}],"timeline_layers":[{"object":7,"properties":{"position":{"separated":true,"axes":{"x":{"keys":[{"frame":0},{"frame":60}]},"y":{"keys":[{"frame":15},{"frame":90}]},"z":{"keys":[]}}}}}]})
+    }
+    #[test]
+    fn holding_the_same_timeline_frame_leaves_room_for_presentation() {
+        let mut panels = Panels::default();
+        let mut atlas = TextAtlas::from_system(12.).unwrap();
+        let point = [600., 45.];
+        let mut input = Input {
+            mouse: point, pressed: Some((MouseButton::Left, point)),
+            held: Some(MouseButton::Left), ..Default::default()
+        };
+        let area = Rect::new(0., 0., 1200., 600.);
+        let mut actions = vec![];
+        render(&mut PaintList::default(), &mut atlas, area, &mut panels, &fixture(), &input, &mut actions);
+        assert!(matches!(actions.as_slice(), [Action::Seek(_)]));
+        actions.clear(); input.begin_frame();
+        render(&mut PaintList::default(), &mut atlas, area, &mut panels, &fixture(), &input, &mut actions);
+        assert!(actions.is_empty());
+        input.mouse[0] += 40.;
+        render(&mut PaintList::default(), &mut atlas, area, &mut panels, &fixture(), &input, &mut actions);
+        assert!(matches!(actions.as_slice(), [Action::Seek(_)]));
     }
     #[test]
     fn separated_rows_use_their_own_key_times_and_static_axis_stays_empty() {

@@ -40,6 +40,37 @@ pub struct AtlasUpload {
     pub height: u32,
 }
 
+#[derive(Clone, PartialEq)]
+struct CompositionStamp {
+    revision: u64,
+    view: u64,
+    surface: u64,
+    frame: u64,
+    window: u64,
+    viewport_size: [u32; 2],
+    mode: motion_render::PreviewMode,
+    tier: motion_render::PreviewTier,
+    quality: motion_render::preview_memory::PreviewMemoryQuality,
+}
+impl CompositionStamp {
+    fn new(s: &motion_host::session::Session, ui: &UiFrame, viewport: [f32; 4]) -> Self {
+        Self {
+            revision: s.engine.revision(), view: s.view_revision,
+            surface: s.surface_epoch, frame: s.frame.to_bits(), window: ui.window,
+            viewport_size: [viewport[2].ceil() as u32, viewport[3].ceil() as u32],
+            mode: s.preview.mode, tier: s.preview.tier(),
+            quality: s.preview_memory.quality(s.preview.mode == motion_render::PreviewMode::High),
+        }
+    }
+}
+#[derive(Default)]
+struct PresentationState {
+    retained: Option<CompositionStamp>,
+    composition_renders: u64,
+    composition_reuses: u64,
+    last_present_us: u64,
+}
+
 /// Everything the worker can be asked to do.
 ///
 /// Commands are a closed enum rather than a string channel so a typo in the UI
@@ -339,6 +370,7 @@ impl Engine {
                 }
                 let mut painter = None;
                 let mut node_preview = NodePreviewState::default();
+                let mut presentation = PresentationState::default();
                 let mut windows = std::collections::HashMap::new();
                 while let Ok(command) = receiver.recv() {
                     if handle(
@@ -348,6 +380,7 @@ impl Engine {
                         &mut windows,
                         &mut guard,
                         &mut node_preview,
+                        &mut presentation,
                         command,
                     ) {
                         break;
@@ -374,7 +407,7 @@ impl Engine {
             .map_err(|_| "engine thread has stopped".into())
     }
 
-    /// Blocking call for operations the UI thread can afford to wait on.
+    /// Queue work without blocking the caller.
     pub fn request<T>(
         &self,
         make: impl FnOnce(Sender<Result<T, String>>) -> Command,
@@ -388,10 +421,23 @@ impl Engine {
         make: impl FnOnce(Sender<Result<T, String>>) -> Command,
     ) -> Result<T, String> {
         let (reply, receive) = channel();
-        self.send(make(reply))?;
-        receive
+        let began = std::time::Instant::now();
+        let command = make(reply);
+        let operation = match &command {
+            Command::Seek { .. } => "seek", Command::Edit { .. } | Command::EditChecked { .. } => "edit",
+            Command::History { .. } => "history", Command::State(_) => "state",
+            Command::Save(_) => "save", Command::CaptureUi { .. } => "capture",
+            Command::Render { .. } => "render", Command::CreateText { .. } => "create_text",
+            _ => "operation",
+        };
+        self.send(command)?;
+        let result = receive
             .recv()
-            .map_err(|_| "engine thread has stopped".to_string())?
+            .map_err(|_| "engine thread has stopped".to_string())?;
+        if began.elapsed().as_millis() >= 16 {
+            eprintln!("[motion-timing] blocking {operation}: {} us", began.elapsed().as_micros());
+        }
+        result
     }
 
     pub fn state(&self) -> Result<Value, String> {
@@ -415,6 +461,10 @@ impl Engine {
         }
         self.call(|reply| Command::Edit { text, reply })
     }
+    pub fn edit_async(&self, text: String) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+        if text.len() > REQUEST_LIMIT { return Err("edit request exceeds 256 KiB".into()); }
+        self.request(|reply| Command::Edit { text, reply })
+    }
     pub fn edit_at_revision(&self, text: String, revision: u64) -> Result<Value, String> {
         if text.len() > REQUEST_LIMIT {
             return Err("edit request exceeds 256 KiB".into());
@@ -430,6 +480,9 @@ impl Engine {
     }
     pub fn history(&self, op: i32) -> Result<Value, String> {
         self.call(|reply| Command::History { op, reply })
+    }
+    pub fn history_async(&self, op: i32) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+        self.request(|reply| Command::History { op, reply })
     }
     pub fn drag(
         &self,
@@ -450,6 +503,9 @@ impl Engine {
     }
     pub fn seek(&self, frame: f64) -> Result<Value, String> {
         self.call(|reply| Command::Seek { frame, reply })
+    }
+    pub fn seek_async(&self, frame: f64) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+        self.request(|reply| Command::Seek { frame, reply })
     }
     pub fn view(&self, kind: i32) -> Result<Value, String> {
         self.call(|reply| Command::View { kind, reply })
@@ -755,8 +811,14 @@ fn handle(
     windows: &mut std::collections::HashMap<u64, FloatingSurface>,
     guard: &mut ProjectGuard,
     node_preview: &mut NodePreviewState,
+    presentation: &mut PresentationState,
     command: Command,
 ) -> bool {
+    // Capture, project operations and view changes can overwrite the shared
+    // scratch texture. A read-only state request leaves it reusable.
+    if !matches!(&command, Command::Present { .. } | Command::State(_) | Command::PreviewInfo(_)) {
+        presentation.retained = None;
+    }
     match command {
         Command::NodeExpect{stamp}=>node_preview.desired=stamp,
         Command::NodeInstall{preview,reply}=>{
@@ -827,6 +889,7 @@ fn handle(
             Ok(s.snapshot())
         })),
         Command::Present { ui, reply } => respond(reply,motion_host::session::with_session(id, |s| {
+            let began = std::time::Instant::now();
             let painter=painter.as_mut().ok_or("desktop surface is not attached")?;
             let floating=if ui.window==0 {None}else{Some(windows.get_mut(&ui.window).ok_or("floating window is closed")?)};
             let mut floating=floating;
@@ -838,10 +901,25 @@ fn handle(
                 if let Some(upload)=&ui.atlas {painter.upload_atlas(&g.renderer.device,&g.renderer.queue,&upload.pixels,upload.width,upload.height);}
                 if let Some(viewport)=ui.composition {
                     let frame=s.frame; // Shared clock, never a stale UI frame.
-                    s.render_with_overlay(frame,Some(viewport),|r,encoder,target|{
+                    let stamp=CompositionStamp::new(s,&ui,viewport);
+                    let reuse=presentation.retained.as_ref()==Some(&stamp)
+                        && !s.preview_memory_held && s.last_error.is_none();
+                    let overlay=|r:&motion_render::Renderer,encoder:&mut wgpu::CommandEncoder,target:&wgpu::TextureView|{
                         painter.render(&r.device,&r.queue,encoder,target,&ui.paint,ui.logical_size);
                         if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){preview.encode(&r.device,&r.queue,encoder,target,viewport,r.target_format);}
-                    })
+                    };
+                    let result=if reuse {
+                        presentation.composition_reuses+=1;
+                        s.present_retained_with_overlay(viewport,overlay)
+                    }else {
+                        presentation.composition_renders+=1;
+                        s.render_with_overlay(frame,Some(viewport),overlay)
+                    };
+                    presentation.retained=if result.as_ref().is_ok_and(|v|*v)
+                        && !s.preview_memory_held && s.last_error.is_none()
+                        && stamp==CompositionStamp::new(s,&ui,viewport)
+                    {Some(stamp)}else{None};
+                    result
                 }else{
                     let output=match g.surface.get_current_texture(){
                         Ok(output)=>output,
@@ -859,6 +937,10 @@ fn handle(
             if let (Some(w),Some(g))=(floating.as_mut(),s.graphics.as_mut()) {
                 std::mem::swap(&mut w.surface,&mut g.surface);std::mem::swap(&mut w.config,&mut g.config);
             }
+            presentation.last_present_us=began.elapsed().as_micros() as u64;
+            if presentation.last_present_us>=30_000 {
+                eprintln!("[motion-timing] surface {} present: {} us, composition renders={}, reuses={}",ui.window,presentation.last_present_us,presentation.composition_renders,presentation.composition_reuses);
+            }
             result
         })),
         Command::OpenDirectory { directory, reply } => respond(reply,(||{
@@ -870,6 +952,7 @@ fn handle(
         })()),
         Command::State(reply) => respond(reply,project::state(id).map(|mut state|{
             state["desktop"]=serde_json::json!({"headless":painter.is_none(),"panelWindows":if painter.is_some(){windows.len()+1}else{0},"sharedGpuDevice":painter.is_some(),"agentToolProtocol":1,
+                "uiPerformance":{"compositionRenders":presentation.composition_renders,"compositionReuses":presentation.composition_reuses,"lastPresentUs":presentation.last_present_us},
                 "nodePreview":{"active":node_preview.active.as_ref().map(|p|p.stamp),"frames":node_preview.active.as_ref().map_or(0,|p|p.frames),"shaderRenders":node_preview.active.as_ref().map_or(0,|p|p.renders),"installs":node_preview.installs,"logicalSize":crate::node_preview::LOGICAL_SIZE,"rasterSize":crate::node_preview::RASTER_SIZE,"perFrameCpuReadbacks":0}});state
         })),
         Command::Save(reply) => respond(reply,project::save(id)),
@@ -987,6 +1070,21 @@ fn capabilities_request(platform: &Arc<dyn Platform>, text: &str) -> Result<Valu
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn asynchronous_edit_replies_preserve_one_transaction_and_undo() {
+        let folder = tempfile::tempdir().unwrap();
+        let engine = Engine::start(folder.path().join("project"), motion_desktop_media::platform(), 8 << 30).unwrap();
+        let before = engine.state().unwrap()["project"].clone();
+        let begin = engine.history_async(2).unwrap();
+        let edit = engine.edit_async(serde_json::to_string(&motion_core::Command::Add {
+            layer: motion_core::Layer::solid(1, "Async layer", [100.; 2], [100., 100., 0.], [1.; 4]),
+        }).unwrap()).unwrap();
+        let end = engine.history_async(3).unwrap();
+        for reply in [begin, edit, end] { reply.recv_timeout(std::time::Duration::from_secs(5)).unwrap().unwrap(); }
+        assert_ne!(engine.state().unwrap()["project"], before);
+        assert_eq!(engine.history_async(0).unwrap().recv_timeout(std::time::Duration::from_secs(5)).unwrap().unwrap()["project"], before);
+        assert_eq!(engine.seek_async(21.5).unwrap().recv_timeout(std::time::Duration::from_secs(5)).unwrap().unwrap()["frame"], 21.5);
+    }
     #[test]
     fn project_lock_releases_on_worker_shutdown() {
         let folder = tempfile::tempdir().unwrap();

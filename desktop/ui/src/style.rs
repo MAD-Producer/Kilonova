@@ -166,6 +166,15 @@ impl StyleSheet {
     pub fn resolve(&self, class: &str, states: States) -> Option<ResolvedStyle> {
         self.compiled.get(class).map(|all| all[states.0 as usize])
     }
+    pub fn metric(&self, name: &str, fallback: f32) -> f32 {
+        self.document
+            .tokens
+            .sizes
+            .get(name)
+            .copied()
+            .filter(|v| v.is_finite())
+            .unwrap_or(fallback)
+    }
     /// Retains the current compiled sheet if the replacement fails to load or validate.
     pub fn reload(&mut self, path: &Path) -> Result<(), String> {
         let next = Self::load(path)?;

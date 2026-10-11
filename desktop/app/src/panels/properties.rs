@@ -217,7 +217,8 @@ pub(super) fn render(
                     );
                 }
                 draw_value(
-                    list, atlas, r, panels, input, object, property, axis, value, locked, false,
+                    list, atlas, r, panels, state, input, object, property, axis, value, locked,
+                    false, out,
                 );
                 y += 28.0;
             }
@@ -231,6 +232,7 @@ pub(super) fn draw_value(
     atlas: &mut TextAtlas,
     r: Rect,
     panels: &mut Panels,
+    state: &Value,
     input: &Input,
     object: u64,
     property: Property,
@@ -238,14 +240,46 @@ pub(super) fn draw_value(
     value: f64,
     locked: bool,
     timeline: bool,
+    out: &mut Vec<Action>,
 ) {
+    let key = (
+        object,
+        100 + property as u64 * 8 + axis as u64 + if timeline { 64 } else { 0 },
+    );
+    let hover = panels.motion.value(
+        key,
+        0.,
+        if !locked && r.contains(input.mouse) {
+            1.
+        } else {
+            0.
+        },
+        motion_ui::style::default_stylesheet().metric("motion.hover_ms", 90.),
+        false,
+    );
+    let changed = panels.motion.changed(
+        (key.0, key.1 + 200),
+        value,
+        motion_ui::style::default_stylesheet().metric("motion.value_ms", 140.),
+    );
+    paint::rect(
+        list,
+        r,
+        palette::ACCENT.with_alpha((hover * 0.07).max(changed * 0.14)),
+    );
     let active = panels.properties.field.as_ref().is_some_and(|f| {
         f.object == object
             && f.property == property
             && f.axis == axis
             && (panels.focused == Some(Panel::Timeline)) == timeline
     });
-    if active {
+    if active
+        && panels
+            .properties
+            .field
+            .as_ref()
+            .is_some_and(|f| f.scrubbing.is_none())
+    {
         paint::rect(list, r, palette::SUNKEN);
         paint::stroke(list, r, palette::ACCENT, 1.0);
     }
@@ -265,7 +299,7 @@ pub(super) fn draw_value(
     if active {
         panels.properties.field.as_mut().unwrap().rect = r;
     }
-    if clicked(input, r) && !locked && !active {
+    if clicked(input, r) && !locked && !active && !panels.properties.consumed_press {
         panels.properties.field = Some(Field {
             object,
             property,
@@ -274,11 +308,15 @@ pub(super) fn draw_value(
             replace: false,
             rect: r,
             scrubbing: Some(ScrubState {
-                start_mouse: input.mouse[0],
+                start_mouse: input.pressed.unwrap().1[0],
                 start_value: value as f32,
+                last_value: value as f32,
                 begun: false,
             }),
         });
+        if input.released.is_some() {
+            process_field(panels, state, input, out);
+        }
     }
 }
 
@@ -338,10 +376,11 @@ pub(super) fn process_field(
     input: &Input,
     out: &mut Vec<Action>,
 ) {
+    panels.properties.consumed_press = false;
     let Some(mut field) = panels.properties.field.take() else {
         return;
     };
-    if input.keys.iter().any(|(key, _)| *key == Key::Escape) {
+    if input.focus_lost || input.keys.iter().any(|(key, _)| *key == Key::Escape) {
         if field.scrubbing.as_ref().is_some_and(|s| s.begun) {
             out.push(Action::History(4));
         }
@@ -353,7 +392,9 @@ pub(super) fn process_field(
         .is_some_and(|(button, _)| button == MouseButton::Left);
     if let Some(scrub) = field.scrubbing.as_mut() {
         let delta = input.mouse[0] - scrub.start_mouse;
-        if (input.dragging() || released) && (delta.abs() > 3. || scrub.begun) {
+        if (input.dragging() || released)
+            && (delta.abs().max(input.pointer_travel) >= 3. || scrub.begun)
+        {
             if !scrub.begun {
                 scrub.begun = true;
                 out.push(Action::History(2));
@@ -369,7 +410,8 @@ pub(super) fn process_field(
             if field.property == Property::Opacity {
                 value = value.clamp(0., 100.);
             }
-            if value.is_finite() {
+            if value.is_finite() && value != scrub.last_value {
+                scrub.last_value = value;
                 field.text = format!("{value:.2}");
                 if let Some(command) = numeric_command(&field, value, state) {
                     out.push(Action::Edit(command));
@@ -378,6 +420,8 @@ pub(super) fn process_field(
         }
         if released || outside {
             if field.scrubbing.as_ref().is_some_and(|s| s.begun) {
+                panels.properties.consumed_press =
+                    input.pressed.is_some_and(|(_, p)| field.rect.contains(p));
                 out.push(Action::History(3));
                 return;
             }
@@ -444,6 +488,7 @@ mod tests {
                     scrubbing: Some(ScrubState {
                         start_mouse: 100.,
                         start_value: 10.,
+                        last_value: 10.,
                         begun: false,
                     }),
                 }),
@@ -465,6 +510,34 @@ mod tests {
             released: Some((MouseButton::Left, [x, 15.])),
             ..Default::default()
         }
+    }
+    #[test]
+    fn stationary_held_pointer_does_not_resubmit_the_numeric_edit() {
+        let mut panels = panels();
+        let mut first = vec![];
+        process_field(&mut panels, &state(), &drag(120.), &mut first);
+        assert_eq!(first.len(), 2);
+        let mut next = vec![];
+        process_field(&mut panels, &state(), &drag(120.), &mut next);
+        assert!(
+            next.is_empty(),
+            "same pointer submitted work and prevented presentation"
+        );
+        process_field(&mut panels, &state(), &release(120.), &mut next);
+        assert!(matches!(next.as_slice(), [Action::History(3)]));
+    }
+    #[test]
+    fn coalesced_return_drag_closes_without_reopening_input() {
+        let mut panels = panels();
+        let mut actions = vec![];
+        let mut input = release(100.);
+        input.pressed = Some((MouseButton::Left, [100., 15.]));
+        input.pointer_travel = 40.;
+        process_field(&mut panels, &state(), &input, &mut actions);
+        assert!(panels.properties.field.is_none());
+        assert!(panels.properties.consumed_press);
+        assert!(matches!(actions.first(), Some(Action::History(2))));
+        assert!(matches!(actions.last(), Some(Action::History(3))));
     }
     #[test]
     fn scrub_returning_through_origin_starts_once_and_closes_transaction() {
