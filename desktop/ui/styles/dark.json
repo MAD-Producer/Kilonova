@@ -10,7 +10,9 @@
     },
     "sizes": {
       "font.body": 12, "font.caption": 10, "font.title": 15,
-      "padding": 5, "padding.panel": 10, "border": 1
+      "padding": 5, "padding.panel": 10, "border": 1,
+      "motion.hover_ms": 90, "motion.divider_ms": 100, "motion.seek_ms": 90,
+      "motion.value_ms": 140
     }
   },
   "styles": {

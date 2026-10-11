@@ -197,6 +197,7 @@ struct Shell {
     pending: bool,
     frame: f64,
     playback: Option<(Instant, f64)>,
+    playback_ready: bool,
     audio: Option<audio_output::AudioOutput>,
     freezing_movie: Option<(
         std::sync::mpsc::Receiver<Result<motion_desktop_media::movie::FrozenMovie, String>>,
@@ -213,6 +214,7 @@ struct Shell {
     resizing: Option<std::sync::mpsc::Receiver<Result<Value, String>>>,
     resize_queue: std::collections::HashMap<u64, [u32; 2]>,
     actions: std::collections::VecDeque<panels::Action>,
+    editing: Option<(Instant, std::sync::mpsc::Receiver<Result<Value, String>>)>,
     closing: bool,
     next_redraw: Instant,
     fatal: Option<String>,
@@ -281,6 +283,7 @@ impl Shell {
             pending: false,
             frame: 0.0,
             playback: None,
+            playback_ready: false,
             audio: None,
             freezing_movie: None,
             exporting_movie: None,
@@ -293,6 +296,7 @@ impl Shell {
             resizing: None,
             resize_queue: Default::default(),
             actions: Default::default(),
+            editing: None,
             closing: false,
             next_redraw: Instant::now(),
             fatal: None,
@@ -467,6 +471,33 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
     }
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        if let Some((began, receive)) = &self.editing {
+            let result = match receive.try_recv() {
+                Ok(result) => Some(result),
+                Err(std::sync::mpsc::TryRecvError::Empty) => None,
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                    Some(Err("engine thread has stopped".into()))
+                }
+            };
+            if let Some(result) = result {
+                if began.elapsed().as_millis() >= 16 {
+                    eprintln!(
+                        "[motion-timing] asynchronous edit: {} us",
+                        began.elapsed().as_micros()
+                    );
+                }
+                self.editing = None;
+                match result {
+                    Ok(state) => self.state = state,
+                    Err(error) => {
+                        self.panels.message = Some(self.workspace.locale.error(&error));
+                        self.stop();
+                    }
+                }
+                self.dirty = true;
+                self.redraw();
+            }
+        }
         if let Err(error) = self.poll_nodes() {
             self.panels.node_editor.report_error(error);
             self.dirty = true;
@@ -596,22 +627,34 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.dirty = true;
             }
         }
-        if self.attached && self.rendering.is_empty() && self.resizing.is_none() {
-            while let Some(action) = self.actions.pop_front() {
+        if self.attached
+            && self.rendering.is_empty()
+            && self.resizing.is_none()
+            && self.editing.is_none()
+        {
+            while let Some(action) = shell::actions::pop_action(&mut self.actions) {
                 if let Err(e) = self.action(action, Some(event_loop)) {
                     self.panels.message = Some(self.workspace.locale.error(&e));
                     self.stop();
                 }
                 self.redraw();
+                if self.editing.is_some() {
+                    break;
+                }
             }
-            if let Some((&key, &size)) = self.resize_queue.iter().next() {
+            if let Some((&key, &size)) = self
+                .resize_queue
+                .iter()
+                .next()
+                .filter(|_| self.editing.is_none())
+            {
                 self.resize_queue.remove(&key);
                 match self.engine.resize_async(key, size[0], size[1]) {
                     Ok(receive) => self.resizing = Some(receive),
                     Err(e) => self.panels.message = Some(e),
                 }
             }
-            if self.closing {
+            if self.closing && self.editing.is_none() && self.actions.is_empty() {
                 match self.engine.save() {
                     Ok(_) => {
                         event_loop.exit();
@@ -624,7 +667,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                     }
                 }
             }
-            if self.smoke.is_some() {
+            if self.smoke.is_some() && self.editing.is_none() {
                 let step = (|| -> Result<(), String> {
                     if self.smoke_stage == 0 && self.smoke_frames >= 2 {
                         self.float_panel(dock::DockId(2), event_loop)?;
@@ -677,6 +720,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         if self.smoke.is_some()
             && self.attached
             && self.rendering.is_empty()
+            && self.editing.is_none()
             && self.resizing.is_none()
             && self.resize_queue.is_empty()
         {
@@ -696,6 +740,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             }
         }
         let busy = self.attaching.is_some()
+            || self.editing.is_some()
             || !self.rendering.is_empty()
             || self.resizing.is_some()
             || !self.resize_queue.is_empty()
@@ -709,8 +754,10 @@ impl ApplicationHandler<UserEvent> for Shell {
                     .floating
                     .values()
                     .any(|f| f.panel == dock::Panel::Nodes));
+        let ui_animating = self.panels.motion.active();
         if busy
             || node_playing
+            || ui_animating
             || self.pending
             || self.playback.is_some()
             || self.dirty
@@ -725,11 +772,15 @@ impl ApplicationHandler<UserEvent> for Shell {
                 && (self.dirty || Instant::now() >= self.next_redraw)
             {
                 self.redraw();
-                let rate = self.state["project"]["fps"]
-                    .as_f64()
-                    .unwrap_or(30.0)
-                    .min(self.state["preview"]["fps"].as_f64().unwrap_or(60.0))
-                    .clamp(1.0, 120.0);
+                let rate = if ui_animating {
+                    60.
+                } else {
+                    self.state["project"]["fps"]
+                        .as_f64()
+                        .unwrap_or(30.0)
+                        .min(self.state["preview"]["fps"].as_f64().unwrap_or(60.0))
+                        .clamp(1.0, 120.0)
+                };
                 self.next_redraw = Instant::now() + Duration::from_secs_f64(1.0 / rate);
             }
             event_loop.set_control_flow(ControlFlow::WaitUntil(
@@ -828,8 +879,24 @@ mod tests {
         assert_eq!(layer.size, [project.width as f32, project.height as f32]);
         assert_eq!(layer.name, "调整图层");
         shell.action(panels::Action::History(0), None).unwrap();
+        shell.state = shell
+            .editing
+            .take()
+            .unwrap()
+            .1
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap()
+            .unwrap();
         assert_eq!(shell.state["project"], before);
         shell.action(panels::Action::History(1), None).unwrap();
+        shell.state = shell
+            .editing
+            .take()
+            .unwrap()
+            .1
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap()
+            .unwrap();
         shell.action(panels::Action::Save, None).unwrap();
         drop(shell);
         let shell = Shell::new(root, None, Some(Locale::En)).unwrap();

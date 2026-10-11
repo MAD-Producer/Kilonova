@@ -97,6 +97,9 @@ pub struct Input {
     pub focus_lost: bool,
     pub held: Option<MouseButton>,
     pub mouse: [f32; 2],
+    /// Press origin and peak travel survive coalesced pointer events and redraws.
+    pub pointer_origin: Option<[f32; 2]>,
+    pub pointer_travel: f32,
     pub pressed: Option<(MouseButton, [f32; 2])>,
     pub released: Option<(MouseButton, [f32; 2])>,
     pub wheel: [f32; 2],

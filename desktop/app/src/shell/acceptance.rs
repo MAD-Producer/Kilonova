@@ -148,9 +148,51 @@ impl Shell {
         let ui = self.ui_frame(paint, size, true);
         let screenshot = path.with_extension("png");
         self.engine.capture_ui(ui, screenshot.clone())?;
+        // Exercise actual surface presentation, not a CPU estimate. UI-only
+        // repaint must reuse the submitted composition without executing effects.
+        let view = panels::composition_view(&self.workspace.root, size);
+        let reuse_probe = if view.width() > 0. && view.height() > 0. {
+            let mut reuse_times = vec![];
+            let before = self.engine.state()?;
+            for index in 0..9 {
+                let (paint, _) = self.draw_commands(size);
+                let ui = self.ui_frame(paint, size, false);
+                let began = Instant::now();
+                if !self
+                    .engine
+                    .present_async(ui)?
+                    .recv_timeout(Duration::from_secs(10))
+                    .map_err(|e| e.to_string())??
+                {
+                    return Err("retained UI presentation failed".into());
+                }
+                if index > 0 {
+                    reuse_times.push(began.elapsed().as_micros() as u64);
+                }
+            }
+            let state = self.engine.state()?;
+            let reuse_delta = state["desktop"]["uiPerformance"]["compositionReuses"]
+                .as_u64()
+                .unwrap_or(0)
+                - before["desktop"]["uiPerformance"]["compositionReuses"]
+                    .as_u64()
+                    .unwrap_or(0);
+            let render_delta = state["desktop"]["uiPerformance"]["compositionRenders"]
+                .as_u64()
+                .unwrap_or(0)
+                - before["desktop"]["uiPerformance"]["compositionRenders"]
+                    .as_u64()
+                    .unwrap_or(0);
+            if reuse_delta != 8 || render_delta != 1 {
+                return Err("UI repaint re-executed the composition".into());
+            }
+            serde_json::json!({"reuses":reuse_delta,"renders":render_delta,"roundTripUs":reuse_times})
+        } else {
+            Value::Null
+        };
         let state = self.engine.state()?;
         let result = serde_json::json!({"panels":self.smoke_panel_records,"ok":true,"framesPresented":state["presented"],"frame":state["frame"],"preview":state["preview"],
-            "root":state["root"],"screenshot":screenshot,"floatingFrames":self.smoke_float_frames,"locale":self.workspace.locale,"desktop":state["desktop"],"nodePreview":self.smoke_node_report,"checks":["create_layer","animate","seek","save","reopen","single_surface_preview","chrome","floating_properties","floating_composition","resize","redock"]});
+            "retainedUiProbe":reuse_probe,"root":state["root"],"screenshot":screenshot,"floatingFrames":self.smoke_float_frames,"locale":self.workspace.locale,"desktop":state["desktop"],"nodePreview":self.smoke_node_report,"checks":["create_layer","animate","seek","save","reopen","single_surface_preview","chrome","floating_properties","floating_composition","resize","redock"]});
         std::fs::write(
             &path,
             serde_json::to_vec_pretty(&result).map_err(|e| e.to_string())?,

@@ -1,11 +1,69 @@
 use motion_ui::{
     dock::{DockId, Edge, Node},
+    input::Event,
     interaction::{HitRegion, Router, Target},
     registry::{Language, PanelDescriptor, PanelRegistry},
     widgets::{NumberEditor, NumberEvent, NumberOptions, TextEditor},
     workspace::Workspace,
     Input, Key, MouseButton, Rect,
 };
+
+#[test]
+fn coalesced_out_and_back_numeric_drag_never_enters_text_input() {
+    use motion_ui::ui::accumulate;
+    let mut input = Input::default();
+    let mut number = NumberEditor::default();
+    let area = Rect::new(0., 0., 100., 30.);
+    for event in [
+        Event::MouseMoved {
+            position: [10., 10.],
+        },
+        Event::MousePressed {
+            position: [10., 10.],
+            button: MouseButton::Left,
+        },
+        Event::MouseMoved {
+            position: [40., 10.],
+        },
+        Event::MouseMoved {
+            position: [10., 10.],
+        },
+        Event::MouseReleased {
+            position: [10., 10.],
+            button: MouseButton::Left,
+        },
+    ] {
+        accumulate(&mut input, event);
+    }
+    let events = number.update(25., NumberOptions::default(), &input, area);
+    assert_eq!(
+        events,
+        vec![
+            NumberEvent::Begin { value: 25. },
+            NumberEvent::Commit { value: 25. }
+        ]
+    );
+    assert!(!number.text.active());
+    input.begin_frame();
+    accumulate(
+        &mut input,
+        Event::MousePressed {
+            position: [10., 10.],
+            button: MouseButton::Left,
+        },
+    );
+    accumulate(
+        &mut input,
+        Event::MouseReleased {
+            position: [10., 10.],
+            button: MouseButton::Left,
+        },
+    );
+    assert!(number
+        .update(25., NumberOptions::default(), &input, area)
+        .is_empty());
+    assert!(number.text.active());
+}
 fn region(window: u64, panel: u32, widget: u64, rect: Rect, layer: u32) -> HitRegion {
     HitRegion {
         target: Target {
@@ -107,6 +165,17 @@ fn click_enter_keeps_full_precision_and_invalid_text_never_writes_zero() {
     assert!(field
         .update(value, NumberOptions::default(), &click, area)
         .is_empty());
+    assert!(!field.text.active());
+    field.update(
+        value,
+        NumberOptions::default(),
+        &Input {
+            mouse: [10., 10.],
+            released: Some((MouseButton::Left, [10., 10.])),
+            ..Default::default()
+        },
+        area,
+    );
     assert_eq!(field.text.text, "10.12");
     let enter = Input {
         keys: vec![(Key::Enter, Default::default())],
@@ -118,6 +187,16 @@ fn click_enter_keeps_full_precision_and_invalid_text_never_writes_zero() {
         vec![NumberEvent::Begin { value }, NumberEvent::Commit { value }]
     );
     field.update(value, NumberOptions::default(), &click, area);
+    field.update(
+        value,
+        NumberOptions::default(),
+        &Input {
+            mouse: [10., 10.],
+            released: Some((MouseButton::Left, [10., 10.])),
+            ..Default::default()
+        },
+        area,
+    );
     let invalid = Input {
         text: "not a number".into(),
         keys: enter.keys,
