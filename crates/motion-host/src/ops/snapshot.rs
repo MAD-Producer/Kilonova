@@ -18,10 +18,24 @@ impl Session {
             .as_ref()
             .map_or((p.width, p.height), |g| (g.config.width, g.config.height));
         let (width, height) = self.preview.render_dimensions(p.width, p.height, sw, sh);
-        json!({"mode":self.preview.mode.name(),"tier":tier.name(),"width":width,"height":height,"fps":tier.fps(),
+        let quality = self.preview_memory.quality(self.preview.mode == PreviewMode::High);
+        let requested = quality.dimensions(width, height);
+        let (width, height) = requested;
+        json!({"mode":self.preview.mode.name(),"tier":tier.name(),"width":width,"height":height,"fps":if self.preview_memory.blocked(){tier.fps().min(15)}else{tier.fps()},
+            "memoryAdaptation":{"version":1,"status":if self.preview_memory.blocked(){"blocked"}else if quality.level>0{"degraded"}else{"normal"},
+                "requested":quality,"actual":self.graphics.as_ref().and_then(|g|g.actual_preview_quality),
+                "requestedWidth":requested.0,"requestedHeight":requested.1,
+                "actualWidth":self.graphics.as_ref().filter(|g|g.scratch.valid()).map(|g|g.scratch.width),
+                "actualHeight":self.graphics.as_ref().filter(|g|g.scratch.valid()).map(|g|g.scratch.height),
+                "failures":self.preview_memory.failures(),"refusalCount":self.preview_memory.refusal_count,"maxLevels":motion_render::preview_memory::PREVIEW_MEMORY_LEVELS,
+                "rejection":self.preview_memory.last_rejection,"held":self.preview_memory_held,
+                "hasLastValidFrame":self.graphics.as_ref().is_some_and(|g|g.scratch.valid()),
+                "nextProbeInMs":self.preview_memory.next_probe_ms().saturating_sub(self.preview_memory_clock.elapsed().as_millis() as u64)},
+            "previewVideoProxyBytes":self.preview_video.bytes(),
             "scratchBudgetBytes":self.effects.scratch_budget(),"memoryPolicyVersion":1,
             "effectResolution":if self.preview.mode == PreviewMode::High {"full_layer"} else {"projected_2d"},
-            "imageResolution":if self.preview.mode == PreviewMode::High {"original"} else {"proxy_max_2048"},
+            "imageResolution":quality.image_edge.map_or_else(||"original".to_string(),|edge|format!("proxy_max_{edge}")),
+            "videoResolution":quality.video_edge.map_or_else(||"decoded_source".to_string(),|edge|format!("proxy_max_{edge}")),
             "imageDecodes":self.graphics.as_ref().map_or(0,|g|g.renderer.image_decodes),
             "imageProxyCacheHits":self.graphics.as_ref().map_or(0,|g|g.renderer.image_proxy_cache_hits),
             "imageUploadBytes":self.graphics.as_ref().map_or(0,|g|g.renderer.image_upload_bytes),
@@ -46,6 +60,7 @@ impl Session {
                     "previewTargetBytes":target,"previewOwnedTextureBytes":memory.total_bytes()+target,
                     "driverResidentBytes":null,"cpuDecodedCacheBytes":null,
                     "cpuVideoDecodedCacheBytes":video["cacheBytes"],
+                    "cpuVideoPreviewProxyBytes":self.preview_video.bytes(),
                     "excludes":["gpu_buffers","upload_staging","cpu_decode_caches",
                         "swapchain","decoder_external_allocations","ui_and_independent_preview_textures"]})
             }),

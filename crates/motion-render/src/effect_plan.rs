@@ -706,7 +706,7 @@ impl PlanBuilder {
         strict: bool,
     ) -> Result<&EffectFramePlan, String> {
         self.preview_inputs = None;
-        self.build_internal(scene, assets, width, height, strict, false)
+        self.build_internal(scene, assets, width, height, strict, false, false)
     }
     /// Typed equivalent of `build`, preserving the existing plan and messages.
     pub fn build_checked(&mut self, scene: &Scene, assets: &[u64], width: u32, height: u32, strict: bool) -> Result<&EffectFramePlan, RenderError> {
@@ -743,6 +743,20 @@ impl PlanBuilder {
         width: u32,
         height: u32,
     ) -> Result<&EffectFramePlan, String> {
+        self.build_preview_internal(scene, assets, width, height, false)
+    }
+    /// Guarded preview refuses visible effect failures without removing effects.
+    pub fn build_preview_guarded(&mut self, scene: &Scene, assets: &[u64], width: u32, height: u32, projected: bool) -> Result<&EffectFramePlan, RenderError> {
+        let result = if projected {
+            self.build_preview_internal(scene, assets, width, height, true).map(|_| ())
+        } else {
+            self.preview_inputs = None;
+            self.build_internal(scene, assets, width, height, false, false, true).map(|_| ())
+        };
+        result.map_err(|message| self.classify_error(message))?;
+        Ok(&self.frame)
+    }
+    fn build_preview_internal(&mut self, scene: &Scene, assets: &[u64], width: u32, height: u32, guarded: bool) -> Result<&EffectFramePlan, String> {
         self.last_scratch_request = None;
         self.last_resource_rejection = None;
         // Scene generators sample births, camera/light sources and occlusion
@@ -764,7 +778,7 @@ impl PlanBuilder {
         }
         self.preview_inputs = None;
         self.preview_plan_builds += 1;
-        self.build_internal(scene, assets, width, height, false, true)?;
+        self.build_internal(scene, assets, width, height, false, true, guarded)?;
         if eligible && self.frame.diagnostics.is_empty() {
             self.preview_inputs = Some(crate::effect_plan_cache::PreviewInputs::capture(
                 scene, assets, width, height, self.device_dimension, &self.registry, &self.program_errors));
@@ -779,6 +793,7 @@ impl PlanBuilder {
         height: u32,
         strict: bool,
         preview: bool,
+        guarded: bool,
     ) -> Result<&EffectFramePlan, String> {
         self.last_scratch_request = None;
         self.last_resource_rejection = None;
@@ -1337,7 +1352,7 @@ impl PlanBuilder {
                         "layer {}, effect {} ({}): {err}",
                         layer.id, e.instance, e.effect
                     );
-                    if strict {
+                    if strict || guarded {
                         return Err(message);
                     }
                     self.frame.diagnostics.push(message);

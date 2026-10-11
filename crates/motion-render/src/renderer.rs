@@ -126,6 +126,7 @@ impl RenderStats {
 }
 
 pub struct Renderer {
+    preview_resource_guard: bool,
     pub adapter: wgpu::Adapter,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
@@ -364,6 +365,7 @@ impl Renderer {
             crate::layer_gpu::LayerGpu::new(&device, &uniform_layout, &image_layout, format);
         let mask_gpu=crate::mask_gpu::MaskGpu::new(&device,&image_layout)?;
         let mut renderer = Self {
+            preview_resource_guard: false,
             adapter,
             device,
             queue,
@@ -426,6 +428,31 @@ impl Renderer {
     }
     pub fn set_scratch_budget(&mut self, bytes: u64) -> Result<()> {
         self.effect_gpu.builder.set_scratch_budget(bytes).map_err(RenderError::Invalid)
+    }
+    pub fn set_preview_resource_guard(&mut self, enabled: bool) {
+        self.preview_resource_guard = enabled;
+        self.effect_gpu.builder.invalidate_preview_plan();
+    }
+    /// Discard unsubmitted video tokens and their encoder before calling this.
+    /// Retained presentation targets belong to the caller, not this working set.
+    pub fn reclaim_preview_working_set(&mut self) -> Result<()> {
+        if self.video_gpu.as_ref().is_some_and(|v| v.has_pending()) {
+            return Err(RenderError::Invalid("cancel preview conversions before reclaiming resources".into()));
+        }
+        self.image_decode.cancel();
+        self.image_prefetch.clear();
+        let idle: Vec<_> = self.image_access.keys().copied().filter(|id| !self.image_active.contains(id)).collect();
+        for id in idle { self.remove_static_image(id); }
+        let dynamic: Vec<_> = self.images.keys().copied().filter(|key| !matches!(key, TextureKey::Static(_))).collect();
+        for key in dynamic { self.texture_bytes -= self.images.remove(&key).unwrap().bytes; }
+        if let Some(video) = &mut self.video_gpu { video.clear(); }
+        self.composition_images.clear();
+        self.mask_gpu.clear();
+        self.layer_gpu.release();
+        if let Some(compositing) = &mut self.compositing_gpu { compositing.release(); }
+        self.effect_gpu.state.release_scratch();
+        self.effect_gpu.invalidate();
+        Ok(())
     }
     pub fn effect_plan_cache_hits(&self) -> u64 {
         self.effect_gpu.builder.preview_cache_hits
@@ -1480,7 +1507,9 @@ impl Renderer {
     ) -> Result<RenderStats> {
         let started = Instant::now();
         loop {
-            if preview {
+            if self.preview_resource_guard {
+                self.effect_gpu.builder.build_preview_guarded(scene, &self.asset_order, width, height, preview)
+            } else if preview {
                 self.effect_gpu.builder.build_preview_checked(scene, &self.asset_order, width, height)
             } else {
                 self.effect_gpu.builder.build_checked(scene, &self.asset_order, width, height, false)
@@ -1503,7 +1532,7 @@ impl Renderer {
                             .builder
                             .program_errors
                             .insert(program, message);
-                        continue;
+                        if !self.preview_resource_guard { continue; }
                     }
                     self.effect_diagnostics = vec![error.to_string()];
                     return Err(error);

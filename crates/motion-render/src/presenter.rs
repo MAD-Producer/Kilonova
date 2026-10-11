@@ -7,6 +7,9 @@ pub struct Presenter {
     pipeline: wgpu::RenderPipeline,
     group: wgpu::BindGroup,
     format: wgpu::TextureFormat,
+    layout: wgpu::BindGroupLayout,
+    sampler: wgpu::Sampler,
+    buffer: wgpu::Buffer,
 }
 impl Presenter {
     pub fn new(
@@ -113,7 +116,21 @@ impl Presenter {
             pipeline,
             group,
             format,
+            layout,
+            sampler,
+            buffer,
         }
+    }
+    /// Rebind a preview buffer without rebuilding the presentation pipeline.
+    pub fn set_source(&mut self, device: &wgpu::Device, source: &wgpu::TextureView) {
+        self.group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: None, layout: &self.layout,
+            entries: &[
+                wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(source) },
+                wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(&self.sampler) },
+                wgpu::BindGroupEntry { binding: 2, resource: self.buffer.as_entire_binding() },
+            ],
+        });
     }
     pub fn draw(&self, renderer: &Renderer, output: &wgpu::TextureView) {
         let mut encoder = renderer
