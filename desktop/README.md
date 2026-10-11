@@ -2,6 +2,8 @@
 
 原生 Rust 桌面编辑器，与 Android 共用工程、动画、效果规划和渲染核心。
 
+桌面 UI 的底层接口与独立组件演示见 [UI Framework](ui/README.md)。业务面板通过统一接口接入共享编辑会话。
+
 ## 运行
 
 ```powershell

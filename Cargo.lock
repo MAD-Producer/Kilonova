@@ -1990,10 +1990,13 @@ dependencies = [
  "ab_glyph",
  "bytemuck",
  "fontdb",
+ "image",
+ "pollster",
  "raw-window-handle",
  "serde",
  "serde_json",
  "wgpu",
+ "winit",
 ]
 
 [[package]]

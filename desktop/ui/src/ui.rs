@@ -607,6 +607,7 @@ pub fn accumulate(input: &mut Input, event: Event) {
         Event::TextInput(text) => input.text.push_str(&text),
         Event::LongPress { position } => input.long_press = Some(position),
         Event::FocusLost => {
+            input.focus_lost = true;
             input.held = None;
             input.pressed = None;
             input.released = None;
