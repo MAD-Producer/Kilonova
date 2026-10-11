@@ -230,3 +230,39 @@ fn particle_birth_poses_and_cache_follow_rotation_order_changes() {
             .unwrap();
     assert!(std::sync::Arc::ptr_eq(&fixed, &unchanged));
 }
+
+#[test]
+fn registry_exposes_the_rotation_enum_and_runs_the_same_reversible_command() {
+    let catalogue = CommandRegistry::catalogue();
+    let descriptor = catalogue["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["id"] == "set_rotation_order")
+        .unwrap();
+    assert_eq!(
+        descriptor["inputSchema"]["properties"]["order"],
+        serde_json::json!({"type":"string","enum":["local_xyz","fixed_xyz"]})
+    );
+    let mut e = Engine::new(project()).unwrap();
+    let before = e.snapshot();
+    let commands =
+        CommandRegistry::parse(r#"{"op":"set_rotation_order","object":1,"order":"fixed_xyz"}"#)
+            .unwrap();
+    let Command::InComposition { composition, command } = &commands[0] else {
+        panic!("parsed commands must carry their composition context");
+    };
+    assert_eq!(composition, MAIN_COMPOSITION);
+    assert_eq!(CommandRegistry::id(command), "set_rotation_order");
+    CommandRegistry::run(&mut e, commands).unwrap();
+    assert_eq!(
+        e.project().layers[0].rotation_order,
+        RotationOrder::FixedXyz
+    );
+    e.undo().unwrap();
+    assert_eq!(e.snapshot(), before);
+    assert!(
+        CommandRegistry::parse(r#"{"op":"set_rotation_order","object":1,"order":"unknown"}"#)
+            .is_err()
+    );
+}

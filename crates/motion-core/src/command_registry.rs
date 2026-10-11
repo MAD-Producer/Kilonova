@@ -61,6 +61,7 @@ fn descriptor(id: &str, fields: &[(&str, &str, bool)]) -> Value {
                     json!({"type":"string","enum":["position","rotation","scale","opacity","target","roll","fov","radius","azimuth","elevation"]})
                 }
                 "crate::Axis" => json!({"type":"string","enum":["x","y","z"]}),
+                "crate::geometry::RotationOrder" => json!({"type":"string","enum":["local_xyz","fixed_xyz"]}),
                 "CameraMode" => json!({"type":"string","enum":["position","orbit"]}),
                 "crate::compositing::BlendMode" => {
                     json!({"type":"string","enum":["normal","add","multiply","screen","overlay","darken","lighten","difference","exclusion","subtract","divide","color_dodge","color_burn","hard_light","soft_light"]})
@@ -99,6 +100,7 @@ registry! {
     Command::RegisterVideoAsset { .. } => "register_video_asset" [("asset","crate::VideoAsset",true)];
     Command::SetAudio { .. } => "set_audio" [("object","u64",true), ("volume","Option<f32>",false), ("muted","Option<bool>",false)];
     Command::SetLayer3d { .. } => "set_layer_3d" [("object","u64",true), ("enabled","bool",true)];
+    Command::SetRotationOrder { .. } => "set_rotation_order" [("object","u64",true), ("order","crate::geometry::RotationOrder",true)];
     Command::SetExpression { .. } => "set_expression" [("expression","crate::PropertyExpression",true), ("frame","u32",true)];
     Command::RemoveExpression { .. } => "remove_expression" [("target","crate::ExpressionTarget",true)];
     Command::Effect { .. } => "effect" [("object","u64",true), ("action","crate::EffectAction",true)];
