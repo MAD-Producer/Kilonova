@@ -35,7 +35,13 @@ class VectorFrontendTest {
     private fun photo(name:String,expectWhiteCenter:Boolean=false) {
         compose.waitForIdle();val before=vm.state.sample?.optLong("presented")?:0
         scenario.onActivity{vm.refreshDiagnostics(repaint=true)}
-        compose.waitUntil(15000){vm.refreshDiagnostics();(vm.state.sample?.optLong("presented")?:0)>before&&vm.state.sample?.optLong("lastPresentedRevision")==vm.state.sample?.optLong("revision")&&vm.state.sample?.optDouble("lastPresentedFrame")==vm.frame}
+        try {
+            compose.waitUntil(15000){vm.refreshDiagnostics();(vm.state.sample?.optLong("presented")?:0)>before&&vm.state.sample?.optLong("lastPresentedRevision")==vm.state.sample?.optLong("revision")&&vm.state.sample?.optDouble("lastPresentedFrame")==vm.frame}
+        } catch(error:Throwable) {
+            val diagnostic=JSONObject().put("beforePresented",before).put("requestedFrame",vm.frame).put("error",vm.state.error)
+            for(key in listOf("frame","revision","presented","lastPresentedRevision","lastPresentedFrame","renderError","graphics"))diagnostic.put(key,vm.state.sample?.opt(key))
+            throw AssertionError("Preview did not settle for $name: $diagnostic",error)
+        }
         compose.waitForIdle();InstrumentationRegistry.getInstrumentation().waitForIdleSync()
         android.os.SystemClock.sleep(150)
         if(expectWhiteCenter) {
