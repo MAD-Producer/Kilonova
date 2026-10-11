@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "tokens": {
+    "font_family": "system-ui",
+    "colors": {
+      "app": "#111111", "panel": "#1C1C1C", "raised": "#232323", "field": "#111111",
+      "hover": "#303030", "pressed": "#273F58", "border": "#363636", "focus": "#378EF0",
+      "text": "#DCDCDC", "muted": "#ADADAD", "disabled": "#858585", "error": "#E17870",
+      "selected": "#378EF02E", "transparent": "#00000000", "primary": "#0D66D1", "on_primary": "#FFFFFF"
+    },
+    "sizes": {
+      "font.body": 14, "font.caption": 12, "font.title": 16,
+      "padding": 5, "padding.panel": 10, "border": 1
+    }
+  },
+  "styles": {
+    "widget": { "background": "$colors.transparent", "foreground": "$colors.text", "border": "$colors.transparent", "border_width": 0, "padding": "$sizes.padding", "font_size": "$sizes.font.body" },
+    "panel": { "extends": "widget", "background": "$colors.panel", "border": "$colors.border", "border_width": "$sizes.border", "padding": "$sizes.padding.panel" },
+    "panel.header": { "extends": "panel", "background": "$colors.raised", "padding": 8, "states": { "focused": { "border": "$colors.focus" } } },
+    "toolbar": { "extends": "panel.header" },
+    "canvas": { "extends": "panel", "background": "$colors.raised" },
+    "canvas.content": { "extends": "panel", "background": "$colors.app", "border_width": 0 },
+    "label": { "extends": "widget" },
+    "label.muted": { "extends": "label", "foreground": "$colors.muted" },
+    "label.accent": { "extends": "label", "foreground": "$colors.focus" },
+    "label.caption": { "extends": "label.muted", "font_size": "$sizes.font.caption" },
+    "label.title": { "extends": "label", "font_size": "$sizes.font.title" },
+    "button": {
+      "extends": "widget", "background": "$colors.field", "border": "$colors.border", "border_width": "$sizes.border",
+      "states": {
+        "hovered": { "background": "$colors.hover" }, "pressed": { "background": "$colors.pressed" },
+        "focused": { "border": "$colors.focus" }, "disabled": { "background": "$colors.panel", "foreground": "$colors.disabled", "border_width": 0 }
+      }
+    },
+    "button.primary": { "extends": "button", "background": "$colors.primary", "foreground": "$colors.on_primary", "states": { "hovered": { "background": "$colors.focus" } } },
+    "field": {
+      "extends": "widget", "background": "$colors.field", "border": "$colors.border", "border_width": "$sizes.border",
+      "states": { "hovered": { "border": "$colors.muted" }, "focused": { "border": "$colors.focus" }, "invalid": { "border": "$colors.error" }, "disabled": { "foreground": "$colors.disabled", "border": "$colors.border" } }
+    },
+    "field.number": { "extends": "field", "background": "$colors.transparent", "foreground": "$colors.focus", "border_width": 0, "states": { "focused": { "background": "$colors.field", "border_width": "$sizes.border" }, "invalid": { "border_width": "$sizes.border" } } },
+    "selection": { "extends": "widget", "background": "$colors.selected" },
+    "row": { "extends": "widget", "states": { "hovered": { "background": "$colors.hover" }, "selected": { "background": "$colors.selected" }, "disabled": { "foreground": "$colors.disabled" } } },
+    "menu": { "extends": "panel", "background": "$colors.raised" },
+    "tooltip": { "extends": "panel", "font_size": "$sizes.font.caption" },
+    "error": { "extends": "label.caption", "foreground": "$colors.error" }
+  }
+}

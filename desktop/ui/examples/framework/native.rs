@@ -136,13 +136,14 @@ impl App {
             self.apply(actions);
             self.windows.remove(&id);
         }
-        let target=if panel!=DockId(3)&&self.workspace.root.find(DockId(3)).is_some(){DockId(3)}else{
-            dock::solve(&self.workspace.root,Rect::new(0.,0.,1280.,800.)).first().map_or(panel,|p|p.id)
+        let target = if panel != DockId(3) && self.workspace.root.find(DockId(3)).is_some() {
+            DockId(3)
+        } else {
+            dock::solve(&self.workspace.root, Rect::new(0., 0., 1280., 800.))
+                .first()
+                .map_or(panel, |p| p.id)
         };
-        if !self
-            .workspace
-            .redock_to(panel, target, Some(Edge::Right))
-        {
+        if !self.workspace.redock_to(panel, target, Some(Edge::Right)) {
             return Err("could not redock panel".into());
         }
         Ok(())
@@ -230,6 +231,16 @@ impl ApplicationHandler for App {
     }
     fn window_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
         if !self.windows.contains_key(&id) {
+            return;
+        }
+        if matches!(&event,WindowEvent::KeyboardInput{event,..} if event.state==ElementState::Pressed && self.windows[&id].input.modifiers.control && matches!(&event.logical_key,WKey::Character(key) if key.eq_ignore_ascii_case("r")))
+        {
+            if let Err(error) = self.reload_style() {
+                self.style_status = Some(error);
+            }
+            for window in self.windows.values_mut() {
+                window.dirty = true;
+            }
             return;
         }
         match event {

@@ -122,7 +122,9 @@ jobs:
         if: runner.os == 'Linux'
         env:
           WGPU_BACKEND: vulkan
-        run: xvfb-run -a python tools/ci_ui_framework.py --binary target/release/examples/framework --output artifacts/desktop/ui-framework
+        run: |
+          xvfb-run -a python tools/ci_ui_framework.py --binary target/release/examples/framework --output artifacts/desktop/ui-framework
+          xvfb-run -a python tools/ci_ui_framework.py --binary target/release/examples/framework --output artifacts/desktop/ui-framework-custom --style desktop/ui/styles/example.override.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:

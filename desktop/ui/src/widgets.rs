@@ -3,7 +3,6 @@ use crate::{
     input::{Input, Key, MouseButton, Rect},
     paint::{self, PaintList},
     text::TextAtlas,
-    theme::palette,
     ui::{self, Align, Response},
 };
 
@@ -115,35 +114,65 @@ impl TextEditor {
         None
     }
     pub fn draw(&self, list: &mut PaintList, atlas: &mut TextAtlas, area: Rect) {
-        paint::rect(list, area, palette::SUNKEN);
-        paint::stroke(
-            list,
-            area,
-            if self.active {
-                palette::ACCENT
-            } else {
-                palette::BORDER
-            },
-            1.,
-        );
-        if self.active && self.select_all {
-            paint::rect(list, area.shrink(3.), palette::ACCENT.with_alpha(0.18));
-        }
-        ui::text(
+        self.draw_styled(
             list,
             atlas,
-            area.shrink(5.),
+            area,
+            crate::style::default_stylesheet(),
+            "field",
+            crate::style::States::default(),
+        );
+    }
+    pub fn draw_styled(
+        &self,
+        list: &mut PaintList,
+        atlas: &mut TextAtlas,
+        area: Rect,
+        sheet: &crate::style::StyleSheet,
+        class: &str,
+        mut states: crate::style::States,
+    ) {
+        use crate::style::{box_style, text_style, State, States};
+        if self.active {
+            states = states.with(State::Focused);
+        }
+        if self.error.is_some() {
+            states = states.with(State::Invalid);
+        }
+        let style = sheet
+            .resolve(class, states)
+            .unwrap_or_else(|| sheet.resolve("field", states).expect("field style"));
+        box_style(list, area, style);
+        if self.active && self.select_all {
+            box_style(
+                list,
+                area.shrink(style.padding),
+                sheet
+                    .resolve("selection", States::default())
+                    .expect("selection style"),
+            );
+        }
+        text_style(
+            list,
+            atlas,
+            area.shrink(style.padding),
             &self.text,
-            palette::TEXT,
+            style,
             Align::Left,
         );
         if self.active && !self.select_all {
-            let x = (area.min[0] + 5. + atlas.measure(&self.text[..self.byte_index()]))
-                .min(area.max[0] - 4.);
+            let pad = style
+                .padding
+                .min(area.width().min(area.height()).max(0.) * 0.5);
+            let x = (area.min[0]
+                + pad
+                + atlas.measure(&self.text[..self.byte_index()]) * style.font_size
+                    / atlas.font_size())
+            .min(area.max[0] - pad);
             paint::line(
                 list,
-                vec![[x, area.min[1] + 6.], [x, area.max[1] - 6.]],
-                palette::TEXT,
+                vec![[x, area.min[1] + pad], [x, area.max[1] - pad]],
+                style.foreground,
             );
         }
     }
@@ -295,16 +324,41 @@ impl NumberEditor {
         current: f64,
         options: NumberOptions,
     ) {
+        self.draw_styled(
+            list,
+            atlas,
+            area,
+            current,
+            options,
+            crate::style::default_stylesheet(),
+            crate::style::States::default(),
+        );
+    }
+    pub fn draw_styled(
+        &self,
+        list: &mut PaintList,
+        atlas: &mut TextAtlas,
+        area: Rect,
+        current: f64,
+        options: NumberOptions,
+        sheet: &crate::style::StyleSheet,
+        states: crate::style::States,
+    ) {
         if self.text.active() {
-            self.text.draw(list, atlas, area);
+            self.text
+                .draw_styled(list, atlas, area, sheet, "field.number", states);
         } else {
             let value = self.drag.as_ref().map_or(current, |d| d.value);
-            ui::text(
+            let style = sheet
+                .resolve("field.number", states)
+                .expect("numeric field style");
+            crate::style::box_style(list, area, style);
+            crate::style::text_style(
                 list,
                 atlas,
-                area.shrink(4.),
+                area.shrink(style.padding),
                 &format!("{:.*}", options.decimals.min(8), value),
-                palette::ACCENT,
+                style,
                 Align::Left,
             );
         }
@@ -324,6 +378,52 @@ impl Button {
         label: &str,
         input: &Input,
         enabled: bool,
+    ) -> Response {
+        self.draw_styled(
+            list,
+            atlas,
+            area,
+            label,
+            input,
+            enabled,
+            crate::style::default_stylesheet(),
+            "button",
+        )
+    }
+    pub fn draw_styled(
+        &mut self,
+        list: &mut PaintList,
+        atlas: &mut TextAtlas,
+        area: Rect,
+        label: &str,
+        input: &Input,
+        enabled: bool,
+        sheet: &crate::style::StyleSheet,
+        class: &str,
+    ) -> Response {
+        self.draw_with_states(
+            list,
+            atlas,
+            area,
+            label,
+            input,
+            enabled,
+            sheet,
+            class,
+            crate::style::States::default(),
+        )
+    }
+    pub fn draw_with_states(
+        &mut self,
+        list: &mut PaintList,
+        atlas: &mut TextAtlas,
+        area: Rect,
+        label: &str,
+        input: &Input,
+        enabled: bool,
+        sheet: &crate::style::StyleSheet,
+        class: &str,
+        states: crate::style::States,
     ) -> Response {
         if input.focus_lost || !enabled || input.keys.iter().any(|(k, _)| *k == Key::Escape) {
             self.armed = false;
@@ -345,7 +445,9 @@ impl Button {
         }
         let mut visual = input.clone();
         visual.pressed = None;
-        let mut response = ui::button(list, atlas, area, label, &visual, enabled);
+        let mut response = ui::button_with_states(
+            list, atlas, area, label, &visual, enabled, sheet, class, states,
+        );
         response.clicked = clicked
             || enabled
                 && input

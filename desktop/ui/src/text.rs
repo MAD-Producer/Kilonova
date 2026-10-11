@@ -63,9 +63,12 @@ impl TextAtlas {
     }
 
     pub fn from_system_language(scale: f32, chinese: bool) -> Result<Self, String> {
-        let (font, families) = load_system_font(chinese)?;
+        Self::from_family("system-ui", scale, chinese)
+    }
+    pub fn from_family(family: &str, scale: f32, chinese: bool) -> Result<Self, String> {
+        let (font, families) = load_preferred_font(chinese, Some(family))?;
         let mut atlas = Self::new(font, scale, families);
-        if !chinese {
+        if !chinese || family != "system-ui" {
             if let Ok((fallback, _)) = load_system_font(true) {
                 atlas.fallback = Some(PxScaleFont {
                     font: fallback,
@@ -74,6 +77,9 @@ impl TextAtlas {
             }
         }
         Ok(atlas)
+    }
+    pub fn font_size(&self) -> f32 {
+        self.font.scale.y
     }
     pub fn new(font: FontArc, scale: f32, families: Vec<String>) -> Self {
         let font = PxScaleFont {
@@ -258,6 +264,12 @@ impl TextAtlas {
 
 /// Prefer a platform UI face, then fall back to any installed font.
 fn load_system_font(chinese: bool) -> Result<(FontArc, Vec<String>), String> {
+    load_preferred_font(chinese, None)
+}
+fn load_preferred_font(
+    chinese: bool,
+    family: Option<&str>,
+) -> Result<(FontArc, Vec<String>), String> {
     let mut database = fontdb::Database::new();
     database.load_system_fonts();
     let families: Vec<String> = database
@@ -268,6 +280,9 @@ fn load_system_font(chinese: bool) -> Result<(FontArc, Vec<String>), String> {
         .into_iter()
         .collect();
     let mut preferred = Vec::new();
+    if let Some(family) = family.filter(|f| *f != "system-ui") {
+        preferred.push(family);
+    }
     if chinese {
         preferred.extend([
             "Microsoft YaHei UI",
