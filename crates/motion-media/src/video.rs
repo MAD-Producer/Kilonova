@@ -334,6 +334,7 @@ impl VideoJobs {
             layer.content = Content::Video {
                 video: VideoClip::new(aid),
             };
+            layer.rotation_order = motion_model::RotationOrder::FixedXyz;
             layer.timeline = Some(LayerTimeline {
                 in_frame: at as i32,
                 out_frame: out as i32,

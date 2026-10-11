@@ -1,5 +1,26 @@
 use crate::{to_world, Layer};
 use glam::{EulerRot, Mat4, Quat, Vec3};
+use serde::{Deserialize, Serialize};
+
+/// Composition of the layer's sampled axis angles. Missing fields keep legacy poses.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RotationOrder {
+    #[default]
+    LocalXyz,
+    FixedXyz,
+}
+pub fn default_rotation_order(value: &RotationOrder) -> bool {
+    *value == RotationOrder::LocalXyz
+}
+pub fn rotation_quaternion(rotation: [f32; 3], order: RotationOrder) -> Quat {
+    let [x, y, z] = [rotation[0].to_radians(), -rotation[1].to_radians(), -rotation[2].to_radians()];
+    match order {
+        RotationOrder::LocalXyz => Quat::from_euler(EulerRot::XYZ, x, y, z),
+        // Rz * Ry * Rx applies fixed parent axes X, then Y, then Z to a vector.
+        RotationOrder::FixedXyz => Quat::from_euler(EulerRot::ZYX, z, y, x),
+    }
+}
 
 pub(crate) fn pivot_matrix(layer: &Layer, frame: f64, width: u32, height: u32) -> Mat4 {
     let frame = layer.local_frame(frame);
@@ -13,12 +34,7 @@ pub(crate) fn pivot_matrix(layer: &Layer, frame: f64, width: u32, height: u32) -
         position[2] = 0.0;
         scale[2] = 100.0;
     }
-    let quaternion = Quat::from_euler(
-        EulerRot::XYZ,
-        rotation[0].to_radians(),
-        -rotation[1].to_radians(),
-        -rotation[2].to_radians(),
-    );
+    let quaternion = rotation_quaternion(rotation, layer.rotation_order);
     let scale = Vec3::from_array(scale) / 100.0;
     Mat4::from_scale_rotation_translation(scale, quaternion, to_world(position, width, height))
 }

@@ -1,7 +1,7 @@
 use crate::{
     ensure, CameraMode, Command, Content, Ease, Easing, EditResult, Error, Layer, Project, Property, Result, Track,
 };
-use glam::{EulerRot, Quat, Vec3};
+use glam::{Quat,Vec3};
 use std::collections::VecDeque;
 
 /// Commands route explicitly within the shared composition graph.
@@ -196,6 +196,12 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             let frames=project.frames;
             crate::audio_levels::edit(project.layer_mut(object)?,frames,action)?;
             if project.layer_mut(object)?.audio_levels.is_some(){project.version=project.version.max(14);}
+        }
+        Command::SetRotationOrder {object,order}=>{
+            let layer=project.layer_mut(object)?;
+            if layer.locked{return Err(Error::Locked(object));}
+            ensure(!matches!(layer.content,Content::Audio{..}|Content::Adjustment),"object has no spatial rotation order")?;
+            layer.rotation_order=order;
         }
         Command::SetLayer3d { object, enabled } => {
             let layer = project.layer_mut(object)?;
@@ -509,6 +515,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             position,
         } => {
             let mut layer = Layer::solid(id, &name, size, position, [1.; 4]);
+            layer.rotation_order=crate::RotationOrder::FixedXyz;
             layer.content = Content::Vector {
                 vector: crate::vector::VectorContent::shape(shape),
             };
@@ -739,12 +746,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
                     r[0] = 0.0;
                     r[1] = 0.0;
                 }
-                let rotation = Quat::from_euler(
-                    EulerRot::XYZ,
-                    r[0].to_radians(),
-                    -r[1].to_radians(),
-                    -r[2].to_radians(),
-                );
+                let rotation=motion_model::geometry::rotation_quaternion(r,old.rotation_order);
                 let delta = rotation
                     * (Vec3::from_array(old.transform.scale.sample(frame)) / 100.0 * local_delta);
                 let pos = old.transform.position.sample(frame);
@@ -786,6 +788,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
         if layer.clip(project.frames).extends_composition(project.frames) { project.version = project.version.max(13); }
         if layer.audio_levels.is_some() {project.version=project.version.max(14);}
         if layer.subframe_range.is_some() {project.version=project.version.max(15);}
+        if layer.rotation_order!=crate::RotationOrder::LocalXyz {project.version=project.version.max(16);}
     }
     project.rebuild_plugin_dependencies();
     project.validate()?;

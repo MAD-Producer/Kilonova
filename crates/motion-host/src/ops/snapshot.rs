@@ -243,7 +243,10 @@ impl Session {
                 "adapter":g.renderer.adapter_info.name,
                 "backend":format!("{:?}",g.renderer.adapter_info.backend),
                 "textureBytes":g.renderer.texture_bytes()}))});
-        snapshot["capabilities"]["composition_api"]["project_format"]=json!(15);
+        snapshot["capabilities"]["composition_api"]["project_format"]=json!(16);
+        snapshot["capabilities"]["layer_3d"]["rotation_order"]=json!({"supported":true,"project_format":16,"command":"set_rotation_order",
+            "default":"fixed_xyz","missing_field":"local_xyz","orders":["local_xyz","fixed_xyz"],"fixed_xyz":"apply_x_then_y_then_z_about_parent_axes",
+            "changes_pose":true,"animated":false,"camera":false});
         snapshot["capabilities"]["layer_timeline"]["subframe_ranges"]=json!({"supported":true,"project_format":15,
             "command":"set_layer_range","field":"subframe_range","coordinates":"composition_frames",
             "in_frame_min":-(motion_core::MAX_FRAMES as i32),"out_frame_max":motion_core::MAX_FRAMES,

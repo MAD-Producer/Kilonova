@@ -736,6 +736,9 @@ class EditorViewModel @JvmOverloads constructor(app: Application,projectDirector
         edit(JSONObject().put("op","separate_dimensions").put("object",selected).put("property",property))
     }}
     fun setThreeD(enabled:Boolean){if(selected!=0L&&editable())edit(JSONObject().put("op","set_layer_3d").put("object",selected).put("enabled",enabled))}
+    fun fixedRotationOrder()=layer(selected)?.optString("rotation_order","local_xyz")=="fixed_xyz"
+    fun rotationOrderSupported()=state.sample?.optJSONObject("capabilities")?.optJSONObject("layer_3d")?.optJSONObject("rotation_order")?.optBoolean("supported")==true
+    fun setFixedRotationOrder(enabled:Boolean){if(selected!=0L&&editable())edit(JSONObject().put("op","set_rotation_order").put("object",selected).put("order",if(enabled)"fixed_xyz"else"local_xyz"))}
     fun track():JSONObject?=propertyTrack()?.let{if(isSeparated())it.optJSONObject("axes")?.optJSONObject(axisName())else it}
     private fun channelCommand(op:String,objectId:Long=selected,key:String=property,axis:Int?=if(isSeparated(objectId,key))activeAxis()else null)=
         JSONObject().put("op",op).put("object",objectId).put("property",key).apply{axis?.let{put("axis",axisName(it))}}
@@ -997,6 +1000,7 @@ class EditorViewModel @JvmOverloads constructor(app: Application,projectDirector
         val p=state.project!!
         return JSONObject().put("id",nextId(p.getJSONArray("layers"))).put("name",name).put("content",content)
             .put("size",JSONArray(listOf(width,height))).put("visible",true).put("locked",false).put("three_d",false)
+            .put("rotation_order",if(rotationOrderSupported())"fixed_xyz"else"local_xyz")
             .put("transform",JSONObject().put("position",channel(JSONArray(listOf(p.getInt("width")/2f,p.getInt("height")/2f,0))))
                 .put("rotation",channel(JSONArray(listOf(0,0,0)))).put("scale",channel(JSONArray(listOf(100,100,100))))
                 .put("opacity",channel(1)).put("anchor",JSONArray(listOf(0.5,0.5))))

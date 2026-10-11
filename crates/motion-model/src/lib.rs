@@ -45,6 +45,7 @@ pub use model::{
     MAX_FRAMES, MAX_LAYERS,
 };
 pub use clip_range::ClipRange;
+pub use geometry::RotationOrder;
 pub use timeline::{TimelineKey, TimelineLayer, TimelineProperties, TimelineTrack};
 pub use video::{
     VideoAsset, VideoClip, VideoSample, MAX_VIDEO_DIMENSION, MAX_VIDEO_FPS, MAX_VIDEO_FRAMES,

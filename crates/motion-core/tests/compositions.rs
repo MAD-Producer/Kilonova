@@ -99,7 +99,7 @@ fn format_six_vectors_and_adjustments_survive_precompose_save_and_reopen() {
     let root=tempfile::tempdir().unwrap();
     motion_core::storage::save(root.path(),e.project()).unwrap();
     let reopened=motion_core::storage::load(root.path()).unwrap();
-    assert_eq!(reopened.version,8);
+    assert_eq!(reopened.version,16);
     assert_eq!(reopened.composition(&id).unwrap().layers,original);
 }
 #[test]
