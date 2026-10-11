@@ -86,7 +86,7 @@ class LayerSelectionTest {
     }
     @Test fun groupClipMovePreservesSpacingRejectsInvalidDeltaAndUndoesOnce() {
         selectTwo();val before=vm.state.project!!.toString()
-        scenario.onActivity{assertFalse(vm.moveSelectedClips(41))}
+        scenario.onActivity{assertFalse(vm.moveSelectedClips(vm.selectedClipDeltaRange()!!.last+1))}
         assertEquals(before,vm.state.project!!.toString())
         more();compose.onNodeWithTag("selected-move").performClick()
         compose.onNodeWithTag("selected-move-offset").performTextReplacement("10")
