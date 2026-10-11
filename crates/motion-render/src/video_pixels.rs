@@ -188,6 +188,39 @@ impl Yuv420Frame {
     pub fn bytes(&self) -> usize {
         self.y.len() + self.uv.len()
     }
+    /// Preview-only nearest proxy in native YUV space; rotation/color metadata
+    /// remain intact and crop chroma phase is absorbed into the new UV plane.
+    pub fn preview_proxy(&self, max_edge: u32) -> Result<Option<Self>> {
+        self.validate()?;
+        let (w, h) = crate::image_resources::Resolution::Preview(max_edge).dimensions(self.width, self.height);
+        if (w, h) == (self.width, self.height) { return Ok(None); }
+        let (cw, _) = self.chroma_size();
+        let mut proxy = Self { width: w, height: h, rotation: self.rotation, standard: self.standard,
+            range: self.range, phase: [0, 0], y: Vec::with_capacity((w * h) as usize),
+            chroma_layout: ChromaLayout::Uv, uv: Vec::with_capacity((w.div_ceil(2) * h.div_ceil(2) * 2) as usize) };
+        let map = |p: u32, source: u32, target: u32| ((u64::from(p) * u64::from(source)) / u64::from(target)).min(u64::from(source - 1)) as u32;
+        for yy in 0..h {
+            for xx in 0..w {
+                proxy.y.push(self.y[(map(yy, self.height, h) * self.width + map(xx, self.width, w)) as usize]);
+            }
+        }
+        for yy in 0..h.div_ceil(2) {
+            for xx in 0..w.div_ceil(2) {
+                let sx = (map(xx * 2, self.width, w) + self.phase[0]) / 2;
+                let sy = (map(yy * 2, self.height, h) + self.phase[1]) / 2;
+                let row = (sy * cw * 2) as usize;
+                let x = sx as usize;
+                let (u, v) = match self.chroma_layout {
+                    ChromaLayout::Uv => (self.uv[row + x * 2], self.uv[row + x * 2 + 1]),
+                    ChromaLayout::Vu => (self.uv[row + x * 2 + 1], self.uv[row + x * 2]),
+                    ChromaLayout::PlanarRows => (self.uv[row + x], self.uv[row + cw as usize + x]),
+                };
+                proxy.uv.extend_from_slice(&[u, v]);
+            }
+        }
+        proxy.validate()?;
+        Ok(Some(proxy))
+    }
     pub fn to_rgba(&self) -> Result<Vec<u8>> {
         self.validate()?;
         let (dw, dh) = self.display_size();

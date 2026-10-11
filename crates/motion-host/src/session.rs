@@ -10,7 +10,7 @@ use motion_core::{Engine, Observer, Project};
 use motion_render::Scene;
 use motion_media::{AudioJobs, AudioMixer, Limits, PackageJobs, VideoJobs};
 use motion_render::{
-    FrameMeasurement, FrameRecorder, GpuTimer, Presenter, PreviewMode, PreviewPolicy, RenderTarget,
+    FrameMeasurement, FrameRecorder, GpuTimer, Presenter, PreviewMode, PreviewPolicy, PreviewFrameTargets,
     Renderer,
 };
 use serde_json::{json, Value};
@@ -43,7 +43,10 @@ fn sessions() -> &'static Mutex<HashMap<i64, Session>> {
 pub struct Graphics {
     pub surface: wgpu::Surface<'static>,
     pub renderer: Renderer,
-    pub scratch: RenderTarget,
+    pub scratch: PreviewFrameTargets,
+    pub actual_preview_quality: Option<motion_render::preview_memory::PreviewMemoryQuality>,
+    last_canvas: [u32; 2],
+    last_background: [f32; 4],
     pub presenter: Presenter,
     pub config: wgpu::SurfaceConfiguration,
     pub timer: Option<GpuTimer>,
@@ -85,6 +88,11 @@ pub struct Session {
     pub last_presented_view_revision: u64,
     pub surface_epoch: u64,
     pub preview: PreviewPolicy,
+    pub preview_memory: motion_render::preview_memory::PreviewMemoryPolicy,
+    pub preview_video: crate::preview_video::PreviewVideoCache,
+    pub preview_memory_held: bool,
+    pub(crate) preview_memory_clock: Instant,
+    memory_context: Option<(u64, u64, u32, u32)>,
     pub recorder: Option<FrameRecorder>,
     pub effects: motion_render::effect_plan::PlanBuilder,
     pub plugin_root: PathBuf,
@@ -166,6 +174,11 @@ impl Session {
             last_presented_view_revision: 0,
             surface_epoch: 0,
             preview: PreviewPolicy::default(),
+            preview_memory: Default::default(),
+            preview_video: Default::default(),
+            preview_memory_held: false,
+            preview_memory_clock: Instant::now(),
+            memory_context: None,
             recorder: None,
             effects,
             plugin_root,
@@ -211,6 +224,10 @@ impl Session {
         // their open source handles belong to the old snapshot.
         self.video_frames.clear();
         self.preview_inputs.cancel();
+        self.preview_video.clear();
+        self.preview_memory = Default::default();
+        self.memory_context = None;
+        if let Some(g) = &mut self.graphics { g.scratch.invalidate(); g.actual_preview_quality = None; }
         self.audio_mixer = None;
         self.root = root;
         self.font_store = None;
@@ -235,6 +252,9 @@ impl Session {
     }
 
     pub fn detach(&mut self) {
+        self.preview_video.clear();
+        self.preview_memory = Default::default();
+        self.memory_context = None;
         self.preview_inputs.cancel();
         self.video_frames.clear();
         if let Some(g) = self.graphics.take() {
@@ -254,6 +274,7 @@ impl Session {
             mut renderer,
         } = target;
         renderer.set_effect_registry(self.effects.registry.clone());
+        renderer.set_preview_resource_guard(true);
         renderer
             .set_scratch_budget(self.effects.scratch_budget())
             .map_err(|e| e.to_string())?;
@@ -267,8 +288,9 @@ impl Session {
             config.width,
             config.height,
         );
-        let scratch = renderer
-            .render_target(render_width, render_height)
+        // Start with a small placeholder; the requested target is prepared under
+        // the bounded policy, rather than failing before the first preview.
+        let scratch = PreviewFrameTargets::new(&renderer, render_width.min(64), render_height.min(64))
             .map_err(|e| e.to_string())?;
         let presenter = Presenter::new(&renderer, &scratch.view, config.format);
         // Auto quality needs GPU cost even without diagnostic recording; only
@@ -278,6 +300,9 @@ impl Session {
             surface,
             renderer,
             scratch,
+            actual_preview_quality: None,
+            last_canvas: [self.scene.width, self.scene.height],
+            last_background: self.scene.background,
             presenter,
             config,
             _instance: instance,
@@ -300,6 +325,7 @@ impl Session {
         viewport: Option<[f32; 4]>,
         overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView),
     ) -> Result<bool> {
+        use motion_render::preview_memory::PREVIEW_MEMORY_LEVELS;
         let began = Instant::now();
         self.render_attempts += 1;
         self.frame = frame;
@@ -308,35 +334,43 @@ impl Session {
         let Some(g) = &mut self.graphics else {
             return Ok(false);
         };
-        let [vx, vy, vw, vh] =
-            viewport.unwrap_or([0.0, 0.0, g.config.width as f32, g.config.height as f32]);
-        if ![vx, vy, vw, vh].iter().all(|v| v.is_finite())
-            || vx < 0.0
-            || vy < 0.0
-            || vw <= 0.0
-            || vh <= 0.0
+        let viewport = viewport.unwrap_or([0., 0., g.config.width as f32, g.config.height as f32]);
+        let [vx, vy, vw, vh] = viewport;
+        if !viewport.iter().all(|v| v.is_finite())
+            || vx < 0.
+            || vy < 0.
+            || vw <= 0.
+            || vh <= 0.
             || vx + vw > g.config.width as f32 + 0.01
             || vy + vh > g.config.height as f32 + 0.01
         {
             return Err("invalid composition viewport".into());
         }
+        let context = (
+            self.engine.revision(),
+            preview_resource_signature(&self.scene),
+            vw.ceil() as u32,
+            vh.ceil() as u32,
+        );
+        if self.memory_context != Some(context) {
+            self.preview_memory.changed();
+            self.memory_context = Some(context);
+        }
+        let now_ms = self.preview_memory_clock.elapsed().as_millis() as u64;
+        self.preview_memory_held = false;
+        if !self.preview_memory.begin(now_ms) {
+            self.preview_memory_held = g.scratch.valid();
+            let held = present_held(g, viewport, overlay)?;
+            self.presented += u64::from(held);
+            return Ok(held);
+        }
         g.renderer.retain_video_instances(&self.scene);
+        self.preview_video.retain(&self.scene);
         g.renderer
             .set_image_prefetch(motion_render::image_resources::upcoming_assets(
                 self.engine.project(),
                 frame,
             ));
-        let image_resolution = if self.preview.mode == PreviewMode::High {
-            motion_render::image_resources::Resolution::Full
-        } else {
-            motion_render::image_resources::Resolution::Preview(
-                motion_render::image_resources::MAX_PREVIEW_EDGE,
-            )
-        };
-        let images_ready = g
-            .renderer
-            .prepare_scene_assets(&self.scene, image_resolution, true)
-            .map_err(|e| e.to_string())?;
         let preparing = Instant::now();
         let frames = self.video_frames.prepare_scene(
             self.engine.project(),
@@ -347,14 +381,8 @@ impl Session {
         self.video_prepare_us = preparing.elapsed().as_micros() as u64;
         let Some(frames) = frames else {
             self.video_pending_attempts += 1;
-            self.video_upload_us = 0;
             return Ok(false);
         };
-        if !images_ready {
-            self.video_upload_us = 0;
-            return Ok(false);
-        }
-        self.video_upload_us = 0;
         g.renderer.device.poll(wgpu::Maintain::Poll);
         g.renderer.check_health().map_err(|e| e.to_string())?;
         let mut gpu_work_us = None;
@@ -366,151 +394,239 @@ impl Session {
                 }
             }
         }
-        let (rw, rh) = self.preview.render_dimensions(
+        let base = self.preview.render_dimensions(
             self.scene.width,
             self.scene.height,
             vw.ceil() as u32,
             vh.ceil() as u32,
         );
-        if (g.scratch.width, g.scratch.height) != (rw, rh) {
-            let target = g
-                .renderer
-                .render_target(rw, rh)
-                .map_err(|e| e.to_string())?;
-            g.presenter = Presenter::new(&g.renderer, &target.view, g.config.format);
-            g.scratch = target;
-        }
-        let acquiring = Instant::now();
-        let output = match g.surface.get_current_texture() {
-            Ok(frame) => frame,
-            Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
-                g.surface.configure(&g.renderer.device, &g.config);
-                return Ok(false);
-            }
-            Err(wgpu::SurfaceError::Timeout) => return Ok(false),
-            Err(error) => return Err(format!("surface rendering failed: {error}")),
-        };
-        let acquire_us = acquiring.elapsed().as_micros() as u64;
-        let sequence = self.presented + 1;
-        let mut encoder =
-            g.renderer
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("Motion Studio composition and presentation"),
-                });
-        let uploading = Instant::now();
-        let mut video_uploads = Vec::new();
-        for (object, image) in frames {
-            let source = self.scene.video_layers().into_iter()
-                .find(|l| l.id == object).unwrap().video.as_ref().unwrap().asset;
-            if self.scene.nested.is_empty() {
-                if let Some(upload) = image.encode_upload(&mut g.renderer, object, source, &mut encoder)? {
-                    video_uploads.push(upload);
+        let mut overlay = Some(overlay);
+        for _ in 0..PREVIEW_MEMORY_LEVELS {
+            let quality = self
+                .preview_memory
+                .quality(self.preview.mode == PreviewMode::High);
+            let image_resolution = quality.image_resolution();
+            let ready =
+                g.renderer
+                    .prepare_scene_assets(&self.scene, image_resolution, quality.level == 0);
+            match ready {
+                Ok(false) => return Ok(false),
+                Ok(true) => {}
+                Err(error) => {
+                    if preview_refused(
+                        g,
+                        &mut self.preview_memory,
+                        error,
+                        self.preview_memory_clock.elapsed().as_millis() as u64,
+                    )? {
+                        continue;
+                    }
+                    break;
                 }
+            }
+            let (rw, rh) = quality.dimensions(base.0, base.1);
+            if let Err(error) = g.scratch.prepare(&g.renderer, rw, rh) {
+                if preview_refused(
+                    g,
+                    &mut self.preview_memory,
+                    error,
+                    self.preview_memory_clock.elapsed().as_millis() as u64,
+                )? {
+                    continue;
+                }
+                break;
+            }
+            let sequence = self.presented + 1;
+            let mut encoder =
+                g.renderer
+                    .device
+                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                        label: Some("Motion Studio bounded composition and presentation"),
+                    });
+            let uploading = Instant::now();
+            let mut video_uploads = Vec::new();
+            let mut upload_error = None;
+            for (object, image) in &frames {
+                let source = self
+                    .scene
+                    .video_layers()
+                    .into_iter()
+                    .find(|l| l.id == *object)
+                    .unwrap()
+                    .video
+                    .as_ref()
+                    .unwrap()
+                    .asset;
+                match self.preview_video.upload(
+                    &mut g.renderer,
+                    *object,
+                    source,
+                    image,
+                    quality.video_edge,
+                    !self.scene.nested.is_empty(),
+                    &mut encoder,
+                ) {
+                    Ok(Some(upload)) => video_uploads.push(upload),
+                    Ok(None) => {}
+                    Err(error) => {
+                        upload_error = Some(error);
+                        break;
+                    }
+                }
+            }
+            self.video_upload_us = uploading.elapsed().as_micros() as u64;
+            if let Some(error) = upload_error {
+                drop(encoder);
+                drop(video_uploads);
+                if preview_refused(
+                    g,
+                    &mut self.preview_memory,
+                    error,
+                    self.preview_memory_clock.elapsed().as_millis() as u64,
+                )? {
+                    continue;
+                }
+                break;
+            }
+            let slot = g.timer.as_mut().and_then(|t| t.begin(sequence));
+            let timestamps = slot.map(|i| g.timer.as_ref().unwrap().writes(i, 0));
+            let candidate_view = g
+                .scratch
+                .prepared()
+                .expect("prepared preview target")
+                .view
+                .clone();
+            let encoded = if self.preview.mode == PreviewMode::High {
+                g.renderer.encode(
+                    &self.scene,
+                    &candidate_view,
+                    rw,
+                    rh,
+                    &mut encoder,
+                    timestamps,
+                )
             } else {
-                // Nested composition rendering still submits child frames first.
-                // Keep conversion queued before those submissions until child
-                // resources can be encoded together without uniform aliasing.
-                image.upload(&mut g.renderer, object, source)?;
+                g.renderer.encode_preview(
+                    &self.scene,
+                    &candidate_view,
+                    rw,
+                    rh,
+                    &mut encoder,
+                    timestamps,
+                )
+            };
+            if let Err(error) = encoded {
+                if let (Some(timer), Some(i)) = (&mut g.timer, slot) {
+                    timer.cancel_unsubmitted(i);
+                }
+                drop(encoder);
+                drop(video_uploads);
+                if preview_refused(
+                    g,
+                    &mut self.preview_memory,
+                    error,
+                    self.preview_memory_clock.elapsed().as_millis() as u64,
+                )? {
+                    continue;
+                }
+                break;
             }
-        }
-        self.video_upload_us = uploading.elapsed().as_micros() as u64;
-        let slot = g.timer.as_mut().and_then(|t| t.begin(sequence));
-        let timestamps = slot.map(|i| g.timer.as_ref().unwrap().writes(i, 0));
-        let encoded = if self.preview.mode == PreviewMode::High {
-            g.renderer.encode(
-                &self.scene,
-                &g.scratch.view,
-                rw,
-                rh,
+            // Do not acquire/drop swapchain images for refused candidates.
+            let acquiring = Instant::now();
+            let output = match acquire_preview_surface(g) {
+                Ok(Some(output)) => output,
+                result => {
+                    if let (Some(timer), Some(i)) = (&mut g.timer, slot) {
+                        timer.cancel_unsubmitted(i);
+                    }
+                    drop(encoder);
+                    drop(video_uploads);
+                    return result.map(|_| false);
+                }
+            };
+            let acquire_us = acquiring.elapsed().as_micros() as u64;
+            g.presenter.set_source(&g.renderer.device, &candidate_view);
+            let view = output.texture.create_view(&Default::default());
+            g.presenter.encode(
                 &mut encoder,
-                timestamps,
-            )
-        } else {
-            g.renderer.encode_preview(
-                &self.scene,
-                &g.scratch.view,
-                rw,
-                rh,
-                &mut encoder,
-                timestamps,
-            )
-        };
-        if let Err(error) = encoded {
-            if let (Some(timer), Some(i)) = (&mut g.timer, slot) {
-                timer.cancel_unsubmitted(i);
+                &view,
+                slot.map(|i| g.timer.as_ref().unwrap().writes(i, 1)),
+                Some(preview_viewport(
+                    viewport,
+                    [self.scene.width, self.scene.height],
+                )),
+                self.scene.background,
+            );
+            overlay.take().unwrap()(&g.renderer, &mut encoder, &view);
+            if let Some(i) = slot {
+                g.timer.as_ref().unwrap().resolve(i, &mut encoder);
             }
-            return Err(error.to_string());
+            let submitting = Instant::now();
+            g.renderer.queue.submit(Some(encoder.finish()));
+            for upload in video_uploads {
+                upload.mark_submitted();
+            }
+            let submit_us = submitting.elapsed().as_micros() as u64;
+            if let Some(i) = slot {
+                g.timer.as_ref().unwrap().map(i);
+            }
+            if let Err(error) = g.renderer.check_health() {
+                g.presenter.set_source(&g.renderer.device, &g.scratch.view);
+                return Err(error.to_string());
+            }
+            g.scratch.commit_submitted();
+            g.actual_preview_quality = Some(quality);
+            g.last_canvas = [self.scene.width, self.scene.height];
+            g.last_background = self.scene.background;
+            let presenting = Instant::now();
+            output.present();
+            let present_call_us = presenting.elapsed().as_micros() as u64;
+            self.presented += 1;
+            let render_wall_us = began.elapsed().as_micros() as u64;
+            self.last_cpu_us = render_wall_us
+                .saturating_sub(acquire_us)
+                .saturating_sub(present_call_us);
+            if let Some(recorder) = &mut self.recorder {
+                recorder.record(FrameMeasurement {
+                    sequence,
+                    frame,
+                    elapsed_us: recorder.elapsed_us(),
+                    cpu_prepare_us: self.last_cpu_us,
+                    acquire_us,
+                    submit_us,
+                    present_call_us,
+                    render_wall_us,
+                    render_width: rw,
+                    render_height: rh,
+                    preview_fps: tier.fps(),
+                    gpu: None,
+                });
+            }
+            self.last_presented_frame = Some(frame);
+            self.last_presented_revision = self.engine.revision();
+            self.last_presented_view_revision = self.view_revision;
+            let previous_tier = self.preview.tier();
+            self.preview.observe_render(
+                self.last_cpu_us,
+                gpu_work_us,
+                acquire_us.saturating_add(present_call_us),
+            );
+            if previous_tier != self.preview.tier() {
+                self.view_revision += 1;
+            }
+            self.preview_memory.succeeded();
+            if quality.level == 0 {
+                g.renderer
+                    .prefetch_scene_assets(image_resolution)
+                    .map_err(|e| e.to_string())?;
+            }
+            self.last_error = None;
+            return Ok(true);
         }
-        let view = output.texture.create_view(&Default::default());
-        let scale = (vw / self.scene.width as f32).min(vh / self.scene.height as f32);
-        let shown_width = self.scene.width as f32 * scale;
-        let shown_height = self.scene.height as f32 * scale;
-        g.presenter.encode(
-            &mut encoder,
-            &view,
-            slot.map(|i| g.timer.as_ref().unwrap().writes(i, 1)),
-            Some([
-                vx + (vw - shown_width) / 2.0,
-                vy + (vh - shown_height) / 2.0,
-                shown_width,
-                shown_height,
-            ]),
-            self.scene.background,
-        );
-        overlay(&g.renderer, &mut encoder, &view);
-        if let Some(i) = slot {
-            g.timer.as_ref().unwrap().resolve(i, &mut encoder);
-        }
-        let submitting = Instant::now();
-        g.renderer.queue.submit(Some(encoder.finish()));
-        for upload in video_uploads { upload.mark_submitted(); }
-        let submit_us = submitting.elapsed().as_micros() as u64;
-        if let Some(i) = slot {
-            g.timer.as_ref().unwrap().map(i);
-        }
-        g.renderer.check_health().map_err(|e| e.to_string())?;
-        let presenting = Instant::now();
-        output.present();
-        let present_call_us = presenting.elapsed().as_micros() as u64;
-        self.presented += 1;
-        let render_wall_us = began.elapsed().as_micros() as u64;
-        self.last_cpu_us = render_wall_us
-            .saturating_sub(acquire_us)
-            .saturating_sub(present_call_us);
-        if let Some(recorder) = &mut self.recorder {
-            recorder.record(FrameMeasurement {
-                sequence,
-                frame,
-                elapsed_us: recorder.elapsed_us(),
-                cpu_prepare_us: self.last_cpu_us,
-                acquire_us,
-                submit_us,
-                present_call_us,
-                render_wall_us,
-                render_width: rw,
-                render_height: rh,
-                preview_fps: tier.fps(),
-                gpu: None,
-            });
-        }
-        self.last_presented_frame = Some(frame);
-        self.last_presented_revision = self.engine.revision();
-        self.last_presented_view_revision = self.view_revision;
-        let previous_tier = self.preview.tier();
-        self.preview.observe_render(
-            self.last_cpu_us,
-            gpu_work_us,
-            acquire_us.saturating_add(present_call_us),
-        );
-        if previous_tier != self.preview.tier() {
-            self.view_revision += 1;
-        }
-        g.renderer
-            .prefetch_scene_assets(image_resolution)
-            .map_err(|e| e.to_string())?;
-        self.last_error = None;
-        Ok(true)
+        self.preview_memory_held = g.scratch.valid();
+        let held = present_held(g, viewport, overlay.take().unwrap())?;
+        self.presented += u64::from(held);
+        Ok(held)
     }
 
     pub fn sample(&mut self) -> Result<()> {
@@ -546,6 +662,59 @@ impl Session {
         }
         .to_string()
     }
+}
+
+fn preview_resource_signature(scene: &Scene) -> u64 {
+    use std::hash::{Hash, Hasher};
+    fn visit(scene: &Scene, hash: &mut impl Hasher) {
+        scene.composition_id.hash(hash);
+        for layer in &scene.layers {
+            layer.id.hash(hash); layer.asset.hash(hash);
+            layer.video.as_ref().map(|v| v.asset).hash(hash);
+            layer.masks.len().hash(hash); layer.vector.is_some().hash(hash);
+        }
+        for effect in &scene.effects { effect.layer.hash(hash); effect.instance.hash(hash); }
+        for child in &scene.nested { visit(&child.scene, hash); }
+    }
+    let mut hash = std::collections::hash_map::DefaultHasher::new();
+    visit(scene, &mut hash);
+    hash.finish()
+}
+fn preview_refused(g: &mut Graphics, policy: &mut motion_render::preview_memory::PreviewMemoryPolicy,
+    error: motion_render::RenderError, now_ms: u64) -> Result<bool> {
+    let Some(rejection) = error.resource_rejection().copied() else { return Err(error.to_string()); };
+    let retry = policy.refused(rejection, now_ms);
+    g.scratch.discard_candidate();
+    g.renderer.reclaim_preview_working_set().map_err(|e| e.to_string())?;
+    Ok(retry)
+}
+fn acquire_preview_surface(g: &mut Graphics) -> Result<Option<wgpu::SurfaceTexture>> {
+    match g.surface.get_current_texture() {
+        Ok(output) => Ok(Some(output)),
+        Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+            g.surface.configure(&g.renderer.device, &g.config); Ok(None)
+        }
+        Err(wgpu::SurfaceError::Timeout) => Ok(None),
+        Err(error) => Err(format!("surface rendering failed: {error}")),
+    }
+}
+fn preview_viewport([x,y,w,h]: [f32; 4], [cw,ch]: [u32; 2]) -> [f32; 4] {
+    let scale = (w / cw as f32).min(h / ch as f32);
+    let width = cw as f32 * scale; let height = ch as f32 * scale;
+    [x + (w - width) / 2., y + (h - height) / 2., width, height]
+}
+fn present_held(g: &mut Graphics, viewport: [f32; 4],
+    overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView)) -> Result<bool> {
+    if !g.scratch.valid() { return Ok(false); }
+    let Some(output) = acquire_preview_surface(g)? else { return Ok(false); };
+    let view = output.texture.create_view(&Default::default());
+    let mut encoder = g.renderer.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Motion Studio retained preview") });
+    g.presenter.encode(&mut encoder, &view, None, Some(preview_viewport(viewport, g.last_canvas)), g.last_background);
+    overlay(&g.renderer, &mut encoder, &view);
+    g.renderer.queue.submit(Some(encoder.finish()));
+    g.renderer.check_health().map_err(|e| e.to_string())?;
+    output.present();
+    Ok(true)
 }
 
 /// Adapt the host's audio fallback to the callback shape `motion-media` expects.

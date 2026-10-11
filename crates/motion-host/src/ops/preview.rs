@@ -127,6 +127,7 @@ pub fn preview_mode(id: i64, mode: i32, thermal: i32) -> Result<serde_json::Valu
         let previous_tier = s.preview.tier();
         if s.preview.mode != mode {
             s.preview.set_mode(mode);
+            s.preview_memory.changed();
         }
         s.preview.set_thermal(thermal);
         if previous_tier != s.preview.tier() {
