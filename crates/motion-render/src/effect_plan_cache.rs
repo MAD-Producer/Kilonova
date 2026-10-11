@@ -1,9 +1,20 @@
 //! One retained preview plan, keyed by sampled inputs rather than document revision.
 //! Video PTS and shader clocks advance independently of static pass geometry.
-use motion_model::SampledEffect;
 use crate::{DrawLayer, Scene};
 use motion_effects::Registry;
+use motion_model::SampledEffect;
 use std::{collections::BTreeMap, sync::Arc};
+
+/// Same immutable package objects and enable state. A newly loaded Arc with
+/// identical keys is deliberately different: callers may replace validated data.
+pub(crate) fn same_registry_packages(a: &Registry, b: &Registry) -> bool {
+    a.disabled == b.disabled
+        && a.packages.len() == b.packages.len()
+        && a.packages
+            .iter()
+            .zip(&b.packages)
+            .all(|((ak, a), (bk, b))| ak == bk && Arc::ptr_eq(a, b))
+}
 
 pub(crate) struct PreviewInputs {
     layers: Vec<DrawLayer>,
@@ -83,14 +94,7 @@ impl PreviewInputs {
         }
     }
     pub fn registry_matches(&self, registry: &Registry) -> bool {
-        self.registry.disabled == registry.disabled
-            && self.registry.packages.len() == registry.packages.len()
-            && self
-                .registry
-                .packages
-                .iter()
-                .zip(&registry.packages)
-                .all(|((ak, a), (bk, b))| ak == bk && Arc::ptr_eq(a, b))
+        same_registry_packages(&self.registry, registry)
     }
     pub fn matches(
         &self,

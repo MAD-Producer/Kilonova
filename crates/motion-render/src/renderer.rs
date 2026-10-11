@@ -405,6 +405,8 @@ impl Renderer {
     pub fn effect_plan_cache_hits(&self) -> u64 {
         self.effect_gpu.builder.preview_cache_hits
     }
+    /// Successful native effect pipeline builds over this renderer's lifetime.
+    pub fn effect_pipeline_builds(&self) -> u64 { self.effect_gpu.state.pipeline_builds }
     pub fn texture_bytes(&self) -> u64 {
         self.texture_bytes
             + self.video_plane_bytes()
