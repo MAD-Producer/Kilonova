@@ -19,6 +19,17 @@ pub struct DecodedFrame {
     pub decoder_name: String,
 }
 impl DecodedFrame {
+    pub fn encode_upload(
+        &self, renderer: &mut Renderer, object: u64, source: u64,
+        encoder: &mut wgpu::CommandEncoder,
+    ) -> Result<Option<motion_render::EncodedVideoUpload>, String> {
+        match &self.pixels {
+            VideoPixels::Yuv(f) => renderer.encode_video_yuv(object, source, self.pts, f, encoder),
+            VideoPixels::Rgba(p) => renderer
+                .upload_video_frame(object, source, self.pts, self.width, self.height, p)
+                .map(|_| None),
+        }.map_err(|e| e.to_string())
+    }
     pub fn bytes(&self) -> usize {
         match &self.pixels {
             VideoPixels::Yuv(f) => f.bytes(),

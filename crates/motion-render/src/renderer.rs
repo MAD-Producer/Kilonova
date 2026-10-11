@@ -130,6 +130,9 @@ pub struct Renderer {
     pub video_upload_bytes: u64,
     pub video_uploads: u64,
     pub video_gpu_conversions: u64,
+    /// Explicit conversion-only submissions; excludes queue upload staging and readback.
+    pub video_conversion_submissions: u64,
+    pub video_encoded_conversions: u64,
     asset_order: Vec<u64>,
     image_sources: HashMap<u64, crate::image_resources::Source>,
     image_decode: crate::image_resources::DecodeTask,
@@ -365,6 +368,8 @@ impl Renderer {
             video_upload_bytes: 0,
             video_uploads: 0,
             video_gpu_conversions: 0,
+            video_conversion_submissions: 0,
+            video_encoded_conversions: 0,
             asset_order: Vec::new(),
             image_sources: HashMap::new(),
             image_decode: Default::default(),
@@ -470,6 +475,7 @@ impl Renderer {
         rgba: &[u8],
     ) -> Result<()> {
         self.check_health()?;
+        self.check_video_pending(object)?;
         if u64::from(width) * u64::from(height) * 4 != rgba.len() as u64 {
             return Err(RenderError::Invalid("video pixel length mismatch".into()));
         }
@@ -477,10 +483,12 @@ impl Renderer {
             .images
             .get(&TextureKey::Video(object))
             .is_some_and(|i| i.video_stamp == Some((source, pts)) && i.size == (width, height))
+            && self.video_gpu.as_ref().is_none_or(|v| v.ready(object))
         {
             return Ok(());
         }
         self.upload_pixels(TextureKey::Video(object), width, height, rgba, false)?;
+        if let Some(video) = &mut self.video_gpu { video.clear_completion(object); }
         self.video_uploads += 1;
         self.video_upload_bytes += rgba.len() as u64;
         self.images
@@ -496,8 +504,42 @@ impl Renderer {
         pts: u64,
         frame: &crate::Yuv420Frame,
     ) -> Result<()> {
+        self.upload_video_yuv_internal(object, source, pts, frame, None).map(|_| ())
+    }
+    /// Encode conversion before sampling video pixels in the same encoder.
+    /// Submit that encoder before calling token.mark_submitted(). On abort,
+    /// discard encoder and token. Each object accepts one unsubmitted upload.
+    /// Nested scene rendering still submits separately; use upload_video_yuv
+    /// for that path until nested passes share the encoder safely.
+    pub fn encode_video_yuv(
+        &mut self,
+        object: u64,
+        source: u64,
+        pts: u64,
+        frame: &crate::Yuv420Frame,
+        encoder: &mut wgpu::CommandEncoder,
+    ) -> Result<Option<crate::EncodedVideoUpload>> {
+        self.upload_video_yuv_internal(object, source, pts, frame, Some(encoder))
+    }
+    fn check_video_pending(&self, object: u64) -> Result<()> {
+        if self.video_gpu.as_ref().is_some_and(|v| v.pending(object)) {
+            return Err(RenderError::Invalid(
+                "video object has an unsubmitted conversion; submit or cancel its encoder and token".into(),
+            ));
+        }
+        Ok(())
+    }
+    fn upload_video_yuv_internal(
+        &mut self,
+        object: u64,
+        source: u64,
+        pts: u64,
+        frame: &crate::Yuv420Frame,
+        encoder: Option<&mut wgpu::CommandEncoder>,
+    ) -> Result<Option<crate::EncodedVideoUpload>> {
         self.check_health()?;
         frame.validate()?;
+        self.check_video_pending(object)?;
         let (width, height) = frame.display_size();
         if width > self.device.limits().max_texture_dimension_2d
             || height > self.device.limits().max_texture_dimension_2d
@@ -509,8 +551,9 @@ impl Renderer {
             .images
             .get(&key)
             .is_some_and(|i| i.video_stamp == Some((source, pts)) && i.size == (width, height))
+            && self.video_gpu.as_ref().is_none_or(|v| v.ready(object))
         {
-            return Ok(());
+            return Ok(None);
         }
         let bytes = u64::from(width) * u64::from(height) * 4;
         let previous = self.images.get(&key).map_or(0, |i| i.bytes);
@@ -603,12 +646,20 @@ impl Renderer {
         let converter = self
             .video_gpu
             .get_or_insert_with(|| crate::video_gpu::VideoGpu::new(&self.device, format));
-        converter.convert(&self.device, &self.queue, object, frame, &target);
+        let upload = if let Some(encoder) = encoder {
+            self.video_encoded_conversions += 1;
+            Some(converter.encode_convert_resized(&self.device, &self.queue,
+                object, frame, &target, (width, height), encoder))
+        } else {
+            converter.convert(&self.device, &self.queue, object, frame, &target);
+            self.video_conversion_submissions += 1;
+            None
+        };
         self.images.get_mut(&key).unwrap().video_stamp = Some((source, pts));
         self.video_uploads += 1;
         self.video_upload_bytes += frame.bytes() as u64;
         self.video_gpu_conversions += 1;
-        Ok(())
+        Ok(upload)
     }
     pub fn retain_video_instances(&mut self, scene: &Scene) {
         fn collect(scene:&Scene,ids:&mut std::collections::HashSet<u64>,compositions:&mut std::collections::HashSet<u64>){for l in &scene.layers{if l.video.is_some()||l.composition{ids.insert(l.id);}if l.composition{compositions.insert(l.id);}}for n in &scene.nested{collect(&n.scene,ids,compositions);}}
@@ -1138,6 +1189,11 @@ impl Renderer {
         preview: bool,
     ) -> Result<RenderStats> {
         self.check_health()?;
+        if !scene.nested.is_empty() && self.video_gpu.as_ref().is_some_and(|v| v.has_pending()) {
+            return Err(RenderError::Invalid(
+                "nested video rendering requires standalone conversion submissions".into(),
+            ));
+        }
         let mut child_stats=RenderStats::default();let mut child_diagnostics=Vec::new();
         for node in &scene.nested {
             let (w,h)=nested_size(scene,&node.scene,width,height);

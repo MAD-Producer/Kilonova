@@ -46,7 +46,8 @@ fn scene(width: u32, height: u32) -> Scene {
     // test supplies draw pixels directly to exercise conversion/compositing.
     p.layers.push(l);
     let mut s = Scene::new(&p);
-    s.sample(&p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
+    s.sample(&p, 0., None, &motion_core::ExpressionEvaluator)
+        .unwrap();
     s.layers[0].video = Some(motion_core::VideoSample {
         asset: 1,
         source_time_us: 0,
@@ -88,6 +89,168 @@ fn gpu_yuv_matches_cpu_export_for_rotation_range_matrix_and_odd_crop_phase() {
     assert_eq!(renderer.video_upload_bytes, 72 * (48 + 40));
     renderer.clear_assets();
     assert_eq!(renderer.texture_bytes(), 4);
+}
+
+#[test]
+fn encoded_yuv_matches_the_same_goldens_with_one_main_submission() {
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    let mut pts = 0;
+    let mut main_submissions = 0;
+    for rotation in [0, 90, 180, 270] {
+        for standard in [1, 2, 4] {
+            for range in [1, 2] {
+                for layout in [ChromaLayout::Uv, ChromaLayout::Vu, ChromaLayout::PlanarRows] {
+                    let f = relayout(frame(rotation, standard, range), layout);
+                    let (w, h) = f.display_size();
+                    let target = renderer.capture_target(w, h).unwrap();
+                    let mut encoder = renderer.device.create_command_encoder(&Default::default());
+                    let upload = renderer
+                        .encode_video_yuv(1, 1, pts, &f, &mut encoder)
+                        .unwrap()
+                        .unwrap();
+                    renderer
+                        .encode(&scene(w, h), &target.view, w, h, &mut encoder, None)
+                        .unwrap();
+                    renderer.queue.submit(Some(encoder.finish()));
+                    main_submissions += 1;
+                    upload.mark_submitted();
+                    let out = renderer.read_target(&target).unwrap();
+                    let expected = f.to_rgba().unwrap();
+                    assert!(out.iter().zip(expected).all(|(a, b)| a.abs_diff(b) <= 1),
+                        "rotation={rotation}, standard={standard}, range={range}, layout={layout:?}");
+                    let mut duplicate = renderer.device.create_command_encoder(&Default::default());
+                    assert!(renderer
+                        .encode_video_yuv(1, 1, pts, &f, &mut duplicate)
+                        .unwrap()
+                        .is_none());
+                    pts += 1;
+                }
+            }
+        }
+    }
+    // Readback has its own submission and is excluded from this comparison.
+    // Plane write_texture/write_buffer calls still stage uploads on the queue.
+    assert_eq!(main_submissions, 72);
+    assert_eq!(renderer.video_conversion_submissions, 0);
+    assert_eq!(renderer.video_encoded_conversions, 72);
+    assert_eq!(renderer.video_gpu_conversions, 72);
+}
+
+#[test]
+fn aborted_encoder_retries_the_same_pts_and_does_not_alias_an_unsubmitted_upload() {
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    let f = frame(90, 2, 1);
+    let (w, h) = f.display_size();
+    let mut aborted = renderer.device.create_command_encoder(&Default::default());
+    let upload = renderer
+        .encode_video_yuv(1, 1, 900, &f, &mut aborted)
+        .unwrap()
+        .unwrap();
+    assert!(renderer.upload_video_yuv(1, 1, 900, &f).is_err());
+    assert!(renderer
+        .upload_video_frame(1, 1, 901, w, h, &f.to_rgba().unwrap())
+        .is_err());
+    let mut duplicate = renderer.device.create_command_encoder(&Default::default());
+    // Matching PTS in a different, unsubmitted encoder is not a ready cache.
+    assert!(renderer.encode_video_yuv(1, 1, 900, &f, &mut duplicate).is_err());
+    assert!(renderer
+        .encode_video_yuv(1, 1, 901, &f, &mut duplicate)
+        .is_err());
+    drop(duplicate);
+    drop(aborted);
+    drop(upload);
+    let target = renderer.capture_target(w, h).unwrap();
+    let mut retry = renderer.device.create_command_encoder(&Default::default());
+    let upload = renderer
+        .encode_video_yuv(1, 1, 900, &f, &mut retry)
+        .unwrap()
+        .unwrap();
+    renderer
+        .encode(&scene(w, h), &target.view, w, h, &mut retry, None)
+        .unwrap();
+    renderer.queue.submit(Some(retry.finish()));
+    upload.mark_submitted();
+    let out = renderer.read_target(&target).unwrap();
+    assert!(out
+        .iter()
+        .zip(f.to_rgba().unwrap())
+        .all(|(a, b)| a.abs_diff(b) <= 1));
+    assert_eq!(renderer.video_gpu_conversions, 2);
+    renderer.upload_video_yuv(1, 1, 900, &f).unwrap();
+    assert_eq!(renderer.video_gpu_conversions, 2);
+
+    let mut aborted = renderer.device.create_command_encoder(&Default::default());
+    let upload = renderer
+        .encode_video_yuv(1, 1, 901, &f, &mut aborted)
+        .unwrap()
+        .unwrap();
+    drop(aborted);
+    drop(upload);
+    let rgba = f.to_rgba().unwrap();
+    renderer.upload_video_frame(1, 1, 901, w, h, &rgba).unwrap();
+    let uploads = renderer.video_uploads;
+    renderer.upload_video_frame(1, 1, 901, w, h, &rgba).unwrap();
+    assert_eq!(uploads, renderer.video_uploads);
+    let out = renderer.capture(&scene(w, h), &target).unwrap().0;
+    assert!(out.iter().zip(rgba).all(|(a, b)| a.abs_diff(b) <= 1));
+}
+
+#[test]
+fn nested_scene_rejects_unsubmitted_conversion_and_keeps_standalone_pixels() {
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    let f = frame(0, 1, 2);
+    let (w, h) = f.display_size();
+    let mut nested = scene(w, h);
+    let mut child = Project::new(w, h, 60, 120).unwrap();
+    child.layers.push(Layer::solid(
+        1,
+        "child",
+        [w as f32, h as f32],
+        [w as f32 / 2., h as f32 / 2., 0.],
+        [1.; 4],
+    ));
+    let mut engine = motion_core::Engine::new(child).unwrap();
+    engine
+        .apply_batch(
+            motion_core::parse_commands(
+                &serde_json::json!({
+                    "op":"composition", "composition":motion_core::MAIN_COMPOSITION,
+                    "action":{"kind":"precompose","objects":[1],"name":"child"}
+                })
+                .to_string(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let mut child_scene = Scene::new(engine.project());
+    child_scene
+        .sample(
+            engine.project(),
+            0.,
+            None,
+            &motion_core::ExpressionEvaluator,
+        )
+        .unwrap();
+    nested.nested = child_scene.nested;
+    let target = renderer.capture_target(w, h).unwrap();
+    let mut encoder = renderer.device.create_command_encoder(&Default::default());
+    let upload = renderer
+        .encode_video_yuv(1, 1, 0, &f, &mut encoder)
+        .unwrap()
+        .unwrap();
+    assert!(renderer
+        .encode(&nested, &target.view, w, h, &mut encoder, None)
+        .is_err());
+    drop(encoder);
+    drop(upload);
+    renderer.upload_video_yuv(1, 1, 0, &f).unwrap();
+    let out = renderer.capture(&nested, &target).unwrap().0;
+    assert!(out
+        .iter()
+        .zip(f.to_rgba().unwrap())
+        .all(|(a, b)| a.abs_diff(b) <= 1));
+    assert_eq!(renderer.video_conversion_submissions, 1);
+    renderer.check_health().unwrap();
 }
 #[test]
 fn strided_planes_preserve_crop_and_reject_truncated_input() {

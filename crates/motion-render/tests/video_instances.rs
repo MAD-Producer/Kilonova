@@ -86,6 +86,45 @@ fn effect(name: &str) -> EffectInstance {
     EffectInstance::new(1, &package.manifest.id, &package.manifest.version,
         &package.hash, definition, [32.; 2])
 }
+
+#[test]
+fn encoded_same_source_instances_keep_distinct_pts_through_effects_and_seek() {
+    use motion_render::{ChromaLayout, Yuv420Frame};
+    let mut p = fixture();
+    for layer in &mut p.layers { layer.effects.push(effect("brightness_contrast")); }
+    p.rebuild_plugin_dependencies();
+    let mut scene = Scene::new(&p);
+    scene.sample(&p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    let mut standalone = pollster::block_on(Renderer::headless()).unwrap();
+    let target = renderer.capture_target(64, 32).unwrap();
+    let reference_target = standalone.capture_target(64, 32).unwrap();
+    let mut memory = None;
+    for (pts, left, right) in [(0, 200, 40), (750_000, 70, 190), (0, 200, 40)] {
+        let mut encoder = renderer.device.create_command_encoder(&Default::default());
+        let mut uploads = Vec::new();
+        for (object, value, offset) in [(1, left, 0), (2, right, 450_000)] {
+            let f = Yuv420Frame { width:16,height:16,rotation:0,standard:1,range:2,
+                phase:[0,0],chroma_layout:ChromaLayout::Uv,y:vec![value;256],uv:vec![128;128] };
+            standalone.upload_video_yuv(object, 1, pts+offset, &f).unwrap();
+            uploads.push(renderer.encode_video_yuv(object,1,pts+offset,&f,&mut encoder)
+                .unwrap().unwrap());
+        }
+        renderer.encode(&scene, &target.view, 64, 32, &mut encoder, None).unwrap();
+        renderer.queue.submit(Some(encoder.finish()));
+        for upload in uploads { upload.mark_submitted(); }
+        let out = renderer.read_target(&target).unwrap();
+        let reference = standalone.capture(&scene, &reference_target).unwrap().0;
+        assert!(out.iter().zip(reference).all(|(a,b)| a.abs_diff(b) <= 1));
+        let pixel = |x: usize| &out[(16*64+x)*4..(16*64+x)*4+4];
+        assert_ne!(pixel(16), pixel(48));
+        if let Some(bytes) = memory { assert_eq!(renderer.texture_bytes(), bytes); }
+        memory = Some(renderer.texture_bytes());
+    }
+    assert_eq!(renderer.video_encoded_conversions, 6);
+    assert_eq!(renderer.video_conversion_submissions, 0);
+    assert_eq!(standalone.video_conversion_submissions, 6);
+}
 #[test]
 fn video_effects_keep_live_instance_pixels_and_rebind_after_visibility_changes() {
     let mut p = fixture();

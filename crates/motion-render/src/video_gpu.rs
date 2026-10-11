@@ -1,5 +1,31 @@
 use crate::Yuv420Frame;
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicU8, Ordering},
+        Arc,
+    },
+};
+
+/// Keep this token until its encoder is submitted. On cancellation, drop both
+/// the encoder and token; the next upload will retry instead of reusing pixels
+/// that were only encoded. Submission means queued, not GPU-completed.
+#[must_use = "mark the upload submitted after queue.submit, or drop it with the aborted encoder"]
+pub struct EncodedVideoUpload {
+    state: Arc<AtomicU8>,
+}
+impl EncodedVideoUpload {
+    pub fn mark_submitted(self) {
+        self.state.store(1, Ordering::Release);
+    }
+}
+impl Drop for EncodedVideoUpload {
+    fn drop(&mut self) {
+        let _ = self
+            .state
+            .compare_exchange(0, 2, Ordering::AcqRel, Ordering::Acquire);
+    }
+}
 
 struct Input {
     size: (u32, u32, u32, u32),
@@ -7,6 +33,7 @@ struct Input {
     uv: wgpu::Texture,
     uniform: wgpu::Buffer,
     group: wgpu::BindGroup,
+    completion: Option<Arc<AtomicU8>>,
 }
 pub(crate) struct VideoGpu {
     layout: wgpu::BindGroupLayout,
@@ -108,6 +135,30 @@ impl VideoGpu {
     pub fn remove(&mut self, object: u64) {
         self.inputs.remove(&object);
     }
+    pub fn pending(&self, object: u64) -> bool {
+        self.inputs
+            .get(&object)
+            .and_then(|i| i.completion.as_ref())
+            .is_some_and(|s| s.load(Ordering::Acquire) == 0)
+    }
+    pub fn has_pending(&self) -> bool {
+        self.inputs.values().any(|i| {
+            i.completion
+                .as_ref()
+                .is_some_and(|s| s.load(Ordering::Acquire) == 0)
+        })
+    }
+    pub fn ready(&self, object: u64) -> bool {
+        self.inputs
+            .get(&object)
+            .and_then(|i| i.completion.as_ref())
+            .is_none_or(|s| s.load(Ordering::Acquire) == 1)
+    }
+    pub fn clear_completion(&mut self, object: u64) {
+        if let Some(input) = self.inputs.get_mut(&object) {
+            input.completion = None;
+        }
+    }
     pub fn convert(
         &mut self,
         device: &wgpu::Device,
@@ -127,6 +178,31 @@ impl VideoGpu {
         target: &wgpu::TextureView,
         output_size: (u32, u32),
     ) {
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("video GPU conversion"),
+        });
+        let upload = self.encode_convert_resized(
+            device,
+            queue,
+            object,
+            frame,
+            target,
+            output_size,
+            &mut encoder,
+        );
+        queue.submit(Some(encoder.finish()));
+        upload.mark_submitted();
+    }
+    pub fn encode_convert_resized(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        object: u64,
+        frame: &Yuv420Frame,
+        target: &wgpu::TextureView,
+        output_size: (u32, u32),
+        encoder: &mut wgpu::CommandEncoder,
+    ) -> EncodedVideoUpload {
         let (cw, ch) = frame.chroma_size();
         let size = (frame.width, frame.height, cw, ch);
         if self.inputs.get(&object).is_none_or(|i| i.size != size) {
@@ -184,10 +260,13 @@ impl VideoGpu {
                     uv,
                     uniform,
                     group,
+                    completion: None,
                 },
             );
         }
-        let input = &self.inputs[&object];
+        let input = self.inputs.get_mut(&object).unwrap();
+        let state = Arc::new(AtomicU8::new(0));
+        input.completion = Some(state.clone());
         let write = |texture, pixels: &[u8], width, height, bpp| {
             queue.write_texture(
                 wgpu::TexelCopyTextureInfo {
@@ -226,9 +305,6 @@ impl VideoGpu {
             0,
         ];
         queue.write_buffer(&input.uniform, 0, bytemuck::cast_slice(&params));
-        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("video GPU conversion"),
-        });
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("video YUV to RGB"),
@@ -248,6 +324,6 @@ impl VideoGpu {
             pass.set_bind_group(0, &input.group, &[]);
             pass.draw(0..3, 0..1);
         }
-        queue.submit(Some(encoder.finish()));
+        EncodedVideoUpload { state }
     }
 }

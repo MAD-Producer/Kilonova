@@ -23,6 +23,7 @@ pub mod compositing_plan;
 mod compositing_gpu;
 mod mask_gpu;
 pub use video_pixels::{ChromaLayout, VideoPlane, Yuv420Frame};
+pub use video_gpu::EncodedVideoUpload;
 pub use measurement::{FrameMeasurement, FrameRecorder};
 pub use presenter::Presenter;
 pub use quality::{PreviewMode, PreviewPolicy, PreviewTier};
