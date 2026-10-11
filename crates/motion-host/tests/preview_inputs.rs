@@ -258,6 +258,20 @@ fn clip_end_is_transparent_and_changed_owned_image_is_rejected() {
         )
         .is_err());
 }
+
+#[test]
+fn layer_source_preview_observes_precise_fractional_bounds() {
+    let folder=tempfile::tempdir().unwrap();let mut project=image_project(folder.path());project.version=15;
+    let frames=project.frames;
+    project.layers.iter_mut().find(|l|l.id==3).unwrap().set_interval(frames,motion_core::ClipRange{in_frame:60.25,out_frame:61.75}).unwrap();
+    project.validate().unwrap();let mut reader=PreviewInputReader::new(Arc::new(PlatformStub));
+    for (index,time) in [60.,60.25,61.749,61.75].into_iter().enumerate() {
+        let sequence=index as u64+1;
+        reader.request(&project,folder.path(),0,request(sequence,InputSource::Layer{composition:"comp-main".into(),object:3},time)).unwrap();
+        let packet=ready(&mut reader,sequence,0);
+        assert_eq!(matches!(packet.pixels,InputPixels::Transparent),!(60.25..61.75).contains(&time));
+    }
+}
 #[test]
 fn host_entry_points_are_revision_checked_and_do_not_seek_or_edit_session() {
     let folder = tempfile::tempdir().unwrap();

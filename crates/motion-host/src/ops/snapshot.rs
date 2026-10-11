@@ -228,7 +228,11 @@ impl Session {
                 "adapter":g.renderer.adapter_info.name,
                 "backend":format!("{:?}",g.renderer.adapter_info.backend),
                 "textureBytes":g.renderer.texture_bytes()}))});
-        snapshot["capabilities"]["composition_api"]["project_format"]=json!(14);
+        snapshot["capabilities"]["composition_api"]["project_format"]=json!(15);
+        snapshot["capabilities"]["layer_timeline"]["subframe_ranges"]=json!({"supported":true,"project_format":15,
+            "command":"set_layer_range","field":"subframe_range","coordinates":"composition_frames",
+            "in_frame_min":-(motion_core::MAX_FRAMES as i32),"out_frame_max":motion_core::MAX_FRAMES,
+            "interval":"half_open","offset_precision":"integer_frames","audio_boundaries":"ceil_output_sample"});
         snapshot["capabilities"]["audio"]["levels"]=json!({"supported":true,"project_format":14,"command":"audio_levels",
             "unit":"dB","range":[motion_core::audio_levels::MIN_AUDIO_DB,motion_core::audio_levels::MAX_AUDIO_DB],"channels":["left","right"],"animated":true,
             "sampling":"output_sample","time_coordinates":"layer_local_frames","nested":true,

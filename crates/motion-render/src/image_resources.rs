@@ -38,9 +38,9 @@ pub fn upcoming_assets(project: &motion_model::Project, frame: f64) -> Vec<u64> 
             return;
         }
         for layer in layers.iter().filter(|l| l.visible) {
-            let clip = layer.clip(frames);
-            let start = begin.max(f64::from(clip.in_frame)).max(0.);
-            let finish = end.min(f64::from(clip.out_frame)).min(f64::from(frames));
+            let clip = layer.interval(frames);
+            let start = begin.max(clip.in_frame).max(0.);
+            let finish = end.min(clip.out_frame).min(f64::from(frames));
             if start >= finish {
                 continue;
             }

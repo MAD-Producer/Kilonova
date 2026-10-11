@@ -243,10 +243,10 @@ impl PreviewInputReader {
                 logical = Some(layer.size);
                 clock.local_frame = layer.local_frame(request.frame);
                 clock.seconds = clock.local_frame / f64::from(snapshot.fps);
-                let clip = layer.clip(snapshot.frames);
+                let clip = layer.interval(snapshot.frames);
                 outside = request.frame >= f64::from(snapshot.frames)
-                    || request.frame < f64::from(clip.in_frame)
-                    || request.frame >= f64::from(clip.out_frame);
+                    || request.frame < clip.in_frame
+                    || request.frame >= clip.out_frame;
                 // Original sources remain selectable when hidden in the editor.
                 layer.visible = true;
                 match &layer.content {

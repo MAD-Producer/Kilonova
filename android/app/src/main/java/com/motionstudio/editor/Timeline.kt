@@ -29,7 +29,8 @@ import java.util.Locale
 import kotlin.math.*
 
 private data class TrackRow(val id:Long,val name:String,val color:Color,val visible:Boolean,val locked:Boolean,
-    val property:String,val axis:Int?,val keys:List<Int>,val allKeys:Set<Int>,val start:Int,val end:Int,val parent:Long?=null)
+    val property:String,val axis:Int?,val keys:List<Int>,val allKeys:Set<Int>,val start:Int,val end:Int,val parent:Long?=null,
+    val exactStart:Double=start.toDouble(),val exactEnd:Double=end.toDouble())
 private data class KeyTarget(val objectId:Long,val property:String,val axis:Int?,val frame:Int)
 private data class ClipDraft(val objectId:Long,val start:Int,val end:Int,val mode:String)
 
@@ -67,7 +68,8 @@ internal fun timelineRowHeightDp(fontScale:Float)=max(36f,12f*fontScale+18f)
                 val all=(listOf("position","rotation","scale","opacity","audio:left","audio:right")+effectProperties).flatMap{allKeys(vm.propertyTrack(id,it))}.toSet()
                 val clip=vm.timelineLayer(id)
                 add(TrackRow(id,l.getString("name"),listOf(Color(0xFF6EADE8),Color(0xFFAD9DE0),Color(0xFF67BFAF))[i%3],
-                    l.getBoolean("visible"),l.getBoolean("locked"),key,axis,keyFrames,all,clip?.optInt("in_frame")?:0,clip?.optInt("out_frame")?:frames,parentOf(vm,id)))
+                    l.getBoolean("visible"),l.getBoolean("locked"),key,axis,keyFrames,all,clip?.optInt("in_frame")?:0,clip?.optInt("out_frame")?:frames,parentOf(vm,id),
+                    vm.clipInterval(id)?.first?:0.0,vm.clipInterval(id)?.second?:frames.toDouble()))
             }
         }
     }.let{if(focused)it.filter{row->row.id==vm.selected}else it}}
@@ -269,7 +271,7 @@ internal fun timelineRowHeightDp(fontScale:Float)=max(36f,12f*fontScale+18f)
                 val y=head+index*rowHeight-vertical
                 if(y+rowHeight<head||y>size.height)return@forEachIndexed
                 val draft=clipDraft?.takeIf{it.objectId==row.id}
-                val begin=draft?.start?:row.start;val end=draft?.end?:row.end
+                val begin=draft?.start?.toDouble()?:row.exactStart;val end=draft?.end?.toDouble()?:row.exactEnd
                 val x=center+(begin-vm.frame).toFloat()*scale;val right=center+(end-vm.frame).toFloat()*scale
                 val left=max(49*density,x);val width=max(0f,min(size.width-12*density,right)-left)
                 if(chosen)drawRect(Accent.copy(alpha=.08f),Offset(0f,y),Size(size.width,rowHeight))
@@ -363,17 +365,17 @@ internal fun timelineRowHeightDp(fontScale:Float)=max(36f,12f*fontScale+18f)
 }
 
 @Composable private fun ClipTrimDialog(vm:EditorViewModel,row:TrackRow,onDismiss:()->Unit) {
-    var start by remember{mutableStateOf(row.start.toString())};var end by remember{mutableStateOf(row.end.toString())}
-    val a=start.toIntOrNull();val b=end.toIntOrNull();val bounds=vm.clipSpanRange()
-    val valid=a!=null&&b!=null&&a>=bounds.first&&b<=bounds.last&&a<b
+    var start by remember{mutableStateOf(row.exactStart.toString())};var end by remember{mutableStateOf(row.exactEnd.toString())}
+    val a=start.toDoubleOrNull();val b=end.toDoubleOrNull();val bounds=vm.clipSpanRange();val precise=vm.preciseClipSupported()
+    val valid=a!=null&&b!=null&&a.isFinite()&&b.isFinite()&&a>=bounds.first&&b<=bounds.last&&a<b&&(precise||(a%1.0==0.0&&b%1.0==0.0))
     AlertDialog(onDismissRequest=onDismiss,title={Text("裁剪片段")},text={Column(Modifier.verticalScroll(rememberScrollState())) {
         OutlinedTextField(start,{start=it},label={Text("开始帧")},singleLine=true,isError=!valid,
-            keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),modifier=Modifier.testTag("clip-in"))
+            keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal),modifier=Modifier.testTag("clip-in"))
         OutlinedTextField(end,{end=it},label={Text("结束帧（不含）")},singleLine=true,isError=!valid,
             supportingText={if(!valid)Text("请输入 ${bounds.first}–${bounds.last} 帧内的有效区间")},
-            keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),modifier=Modifier.testTag("clip-out"))
+            keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal),modifier=Modifier.testTag("clip-out"))
         Text("保留完整关键帧和素材",color=Muted)
-    }},confirmButton={TextButton(enabled=valid,onClick={vm.trimClip(row.id,a!!,b!!);onDismiss()}){Text("应用裁剪")}},dismissButton={TextButton(onClick=onDismiss){Text("取消")}})
+    }},confirmButton={TextButton(enabled=valid,onClick={if(precise)vm.setClipInterval(row.id,a!!,b!!)else vm.trimClip(row.id,a!!.toInt(),b!!.toInt());onDismiss()}){Text("应用裁剪")}},dismissButton={TextButton(onClick=onDismiss){Text("取消")}})
 }
 
 @Composable private fun InputKeyDialog(vm:EditorViewModel,key:KeyTarget,onDismiss:()->Unit) {

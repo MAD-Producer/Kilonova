@@ -142,6 +142,8 @@ pub struct Layer {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timeline: Option<LayerTimeline>,
     #[serde(default,skip_serializing_if="Option::is_none")]
+    pub subframe_range:Option<crate::ClipRange>,
+    #[serde(default,skip_serializing_if="Option::is_none")]
     pub audio_levels: Option<crate::AudioLevels>,
 }
 impl Layer {
@@ -160,6 +162,7 @@ impl Layer {
             masks: Vec::new(),
             blend:Default::default(),track_matte:None,
             timeline: None,
+            subframe_range:None,
             audio_levels: None,
         }
     }
@@ -170,9 +173,9 @@ impl Layer {
         composition_frame - f64::from(self.timeline.map_or(0, |t| t.offset_frame))
     }
     pub fn active(&self, frame: f64, frames: u32) -> bool {
-        let t = self.clip(frames);
+        let t = self.interval(frames);
         self.visible && frame >= 0. && frame < f64::from(frames)
-            && frame >= f64::from(t.in_frame) && frame < f64::from(t.out_frame)
+            && frame >= t.in_frame && frame < t.out_frame
     }
 }
 
@@ -313,7 +316,7 @@ impl Project {
             crate::storage::validate_relative_path(&font.path)?;
             ensure(font.path.starts_with("assets/fonts/")&&font.path.ends_with(".ttf"),"invalid managed font path")?;
         }
-        ensure((1..=14).contains(&self.version), "unsupported project format")?;
+        ensure((1..=15).contains(&self.version), "unsupported project format")?;
         ensure(self.plugin_dependencies == self.composition_dependencies(),
                "plugin dependency list does not match effect instances")?;
         self.validate_one(self)?;
@@ -322,7 +325,7 @@ impl Project {
     pub(crate) fn validate_one(&self, document: &Project) -> Result<()> {
         crate::effects::validate_image_graph(self)?;
         ensure(
-            (1..=14).contains(&self.version),
+            (1..=15).contains(&self.version),
             "unsupported project format",
         )?;
         let spatial = [&self.camera.position, &self.camera.target].iter().any(|t| t.keys.iter().any(|k| k.spatial.is_some()))
@@ -467,6 +470,11 @@ impl Project {
                 "invalid layer size",
             )?;
             layer.clip(self.frames).validate(self.frames)?;
+            if let Some(range)=layer.subframe_range {
+                ensure(self.version>=15,"precise layer clips require project format fifteen")?;
+                range.validate()?;
+                ensure(range.covers(layer.clip(self.frames)),"integer clip bounds do not cover precise interval")?;
+            }
             ensure(self.version >= 13 || !layer.clip(self.frames).extends_composition(self.frames),
                 "layer spans outside the composition require project format thirteen")?;
             if self.version == 1 && layer.timeline.is_none() {
@@ -533,10 +541,14 @@ impl Project {
                     let last = i128::from(video.source_offset_us) * i128::from(self.fps)
                         + (i128::from(clip.out_frame) - 1 - i128::from(clip.offset_frame))
                             * 1_000_000;
-                    ensure(
-                        start >= 0 && last < i128::from(asset.duration_us) * i128::from(self.fps),
-                        "video clip exceeds recoverable source interval",
-                    )?;
+                    if let Some(range)=layer.subframe_range {
+                        let origin=f64::from(clip.offset_frame);
+                        let first=video.source_offset_us as f64/1_000_000.+(range.in_frame-origin)/f64::from(self.fps);
+                        let end=video.source_offset_us as f64/1_000_000.+(range.out_frame-origin)/f64::from(self.fps);
+                        ensure(first>=0.&&end<=asset.duration_us as f64/1_000_000.+1e-9,"video clip exceeds recoverable source interval")?;
+                    }else{
+                        ensure(start >= 0 && last < i128::from(asset.duration_us) * i128::from(self.fps),"video clip exceeds recoverable source interval")?;
+                    }
                 }
                 Content::Audio { audio } => {
                     audio.validate()?;
@@ -560,10 +572,15 @@ impl Project {
                     let last = i128::from(audio.source_offset_us) * i128::from(self.fps)
                         + (i128::from(clip.out_frame) - 1 - i128::from(clip.offset_frame))
                             * 1_000_000;
-                    ensure(
-                        start >= 0 && last < i128::from(asset.duration_us) * i128::from(self.fps),
-                        "audio clip exceeds recoverable source interval",
-                    )?;
+                    if let Some(range)=layer.subframe_range {
+                        let origin=f64::from(clip.offset_frame);
+                        let first=audio.source_offset_us as f64/1_000_000.+(range.in_frame-origin)/f64::from(self.fps);
+                        let end=audio.source_offset_us as f64/1_000_000.+(range.out_frame-origin)/f64::from(self.fps);
+                        let duration=asset.sample_frames as f64/f64::from(asset.sample_rate);
+                        ensure(first>=0.&&end<=duration+1e-9,"audio clip exceeds recoverable source interval")?;
+                    }else{
+                        ensure(start >= 0 && last < i128::from(asset.duration_us) * i128::from(self.fps),"audio clip exceeds recoverable source interval")?;
+                    }
                 }
                 Content::Null => {}
                 Content::Solid { color } => validate_color(*color)?,

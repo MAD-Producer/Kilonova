@@ -92,6 +92,7 @@ pub enum Command {
         in_frame: i32,
         out_frame: i32,
     },
+    SetLayerRange {object:u64,in_frame:f64,out_frame:f64},
     SplitLayerClip {
         object: u64,
         frame: u32,

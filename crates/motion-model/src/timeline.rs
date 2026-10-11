@@ -67,6 +67,8 @@ pub struct TimelineLayer {
     pub in_frame: i32,
     pub out_frame: i32,
     pub offset_frame: i32,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub subframe_range:Option<crate::ClipRange>,
     pub active: bool,
     pub three_d: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -123,9 +125,10 @@ impl Project {
                     in_frame: clip.in_frame,
                     out_frame: clip.out_frame,
                     offset_frame: clip.offset_frame,
+                    subframe_range:l.subframe_range,
                     active: if matches!(l.content, crate::Content::Audio { .. }) {
                         frame >= 0. && frame < f64::from(self.frames)
-                            && frame >= f64::from(clip.in_frame) && frame < f64::from(clip.out_frame)
+                            && frame >= l.interval(self.frames).in_frame && frame < l.interval(self.frames).out_frame
                     } else {
                         l.active(frame, self.frames)
                     },
