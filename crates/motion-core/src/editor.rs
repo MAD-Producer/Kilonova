@@ -192,6 +192,11 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
                 _ => return Err(Error::Invalid("object has no audio controls".into())),
             }
         }
+        Command::AudioLevels {object,action}=>{
+            let frames=project.frames;
+            crate::audio_levels::edit(project.layer_mut(object)?,frames,action)?;
+            if project.layer_mut(object)?.audio_levels.is_some(){project.version=project.version.max(14);}
+        }
         Command::SetLayer3d { object, enabled } => {
             let layer = project.layer_mut(object)?;
             if layer.locked {
@@ -765,6 +770,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
     for layer in &project.layers {
         if let Content::Vector { vector } = &layer.content { project.version = project.version.max(vector.required_format()); }
         if layer.clip(project.frames).extends_composition(project.frames) { project.version = project.version.max(13); }
+        if layer.audio_levels.is_some() {project.version=project.version.max(14);}
     }
     project.rebuild_plugin_dependencies();
     project.validate()?;

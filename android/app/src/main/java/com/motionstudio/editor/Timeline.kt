@@ -64,7 +64,7 @@ internal fun timelineRowHeightDp(fontScale:Float)=max(36f,12f*fontScale+18f)
                 val l=layers.getJSONObject(i);val id=l.getLong("id");val key=if(vm.selected==id)vm.property else "position"
                 val (axis,keyFrames)=rowKeys(id,key)
                 val effectProperties=l.optJSONArray("effects").objects().flatMap{e->e.getJSONObject("params").keys().asSequence().map{"effect:${e.getLong("id")}:$it"}.toList()}
-                val all=(listOf("position","rotation","scale","opacity")+effectProperties).flatMap{allKeys(vm.propertyTrack(id,it))}.toSet()
+                val all=(listOf("position","rotation","scale","opacity","audio:left","audio:right")+effectProperties).flatMap{allKeys(vm.propertyTrack(id,it))}.toSet()
                 val clip=vm.timelineLayer(id)
                 add(TrackRow(id,l.getString("name"),listOf(Color(0xFF6EADE8),Color(0xFFAD9DE0),Color(0xFF67BFAF))[i%3],
                     l.getBoolean("visible"),l.getBoolean("locked"),key,axis,keyFrames,all,clip?.optInt("in_frame")?:0,clip?.optInt("out_frame")?:frames,parentOf(vm,id)))

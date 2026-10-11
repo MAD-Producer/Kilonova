@@ -141,6 +141,8 @@ pub struct Layer {
     pub track_matte:Option<crate::compositing::TrackMatte>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timeline: Option<LayerTimeline>,
+    #[serde(default,skip_serializing_if="Option::is_none")]
+    pub audio_levels: Option<crate::AudioLevels>,
 }
 impl Layer {
     pub fn solid(id: u64, name: &str, size: [f32; 2], position: [f32; 3], color: [f32; 4]) -> Self {
@@ -158,6 +160,7 @@ impl Layer {
             masks: Vec::new(),
             blend:Default::default(),track_matte:None,
             timeline: None,
+            audio_levels: None,
         }
     }
     pub fn clip(&self, frames: u32) -> LayerTimeline {
@@ -310,7 +313,7 @@ impl Project {
             crate::storage::validate_relative_path(&font.path)?;
             ensure(font.path.starts_with("assets/fonts/")&&font.path.ends_with(".ttf"),"invalid managed font path")?;
         }
-        ensure((1..=13).contains(&self.version), "unsupported project format")?;
+        ensure((1..=14).contains(&self.version), "unsupported project format")?;
         ensure(self.plugin_dependencies == self.composition_dependencies(),
                "plugin dependency list does not match effect instances")?;
         self.validate_one(self)?;
@@ -319,7 +322,7 @@ impl Project {
     pub(crate) fn validate_one(&self, document: &Project) -> Result<()> {
         crate::effects::validate_image_graph(self)?;
         ensure(
-            (1..=13).contains(&self.version),
+            (1..=14).contains(&self.version),
             "unsupported project format",
         )?;
         let spatial = [&self.camera.position, &self.camera.target].iter().any(|t| t.keys.iter().any(|k| k.spatial.is_some()))
@@ -439,6 +442,12 @@ impl Project {
         let mut ids = HashSet::new();
         crate::compositing::validate(&self.layers)?;
         for layer in &self.layers {
+            if let Some(levels)=&layer.audio_levels {
+                ensure(self.version>=14,"audio level envelopes require project format fourteen")?;
+                ensure(matches!(layer.content,Content::Audio{..}|Content::Video{..}|Content::Composition{..}),
+                       "audio levels require an audio, video or composition layer")?;
+                levels.validate()?;
+            }
             ensure(self.version>=10||layer.track_matte.is_none()&&layer.blend==crate::compositing::LayerBlend::default(),"layer compositing requires project format ten")?;
             ensure(self.version >= 8 || layer.masks.is_empty(), "layer masks require project format eight")?;
             crate::masks::validate(&layer.masks).map_err(|e| crate::Error::Invalid(format!("layer {}: {e}",layer.id)))?;
