@@ -35,9 +35,12 @@ class MediaFormatApiTest {
         assertEquals(s.toString(),"ready",s.getString("state"));val b=ByteBuffer.allocateDirect(256*144*4);val read=data(MediaBridge.readVideoFrameInto(id,1,seq,b));s.put("source_transfer",read.getString("source_transfer")).put("decoder",read.getString("decoder"));return s to ByteArray(b.capacity()).also{b.get(it)}
     }
     @Test fun capabilityQueryReportsDeviceDecodersAndBackendRestrictionsSeparately() {
-        val caps=req(0,"media_capabilities");assertEquals(1,caps.getInt("schema_version"));assertTrue(caps.getBoolean("requires_probe"));assertFalse(caps.getBoolean("decoder_presence_guarantees_file_support"));assertTrue(caps.getJSONArray("decoders").length()>0)
+        val root=root();val id=create(root)
+        try {
+        val caps=req(id,"media_capabilities");assertEquals(1,caps.getInt("schema_version"));assertTrue(caps.getBoolean("requires_probe"));assertFalse(caps.getBoolean("decoder_presence_guarantees_file_support"));assertTrue(caps.getJSONArray("decoders").length()>0)
         assertEquals(192000,caps.getJSONObject("audio").getInt("max_sample_rate"));assertEquals(4,caps.getJSONObject("video").getJSONArray("mime_types").length());assertFalse(caps.getJSONObject("video").getBoolean("hdr"))
-        File(root(),"capabilities.json").writeText(caps.toString(2))
+        File(root,"capabilities.json").writeText(caps.toString(2))
+        }finally{NativeBridge.destroy(id)}
     }
     @Test fun platformExtractorMetadataIsRecordedForIndependentParityAnalysis() {
         val report=JSONObject()

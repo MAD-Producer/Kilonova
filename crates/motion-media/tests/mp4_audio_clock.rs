@@ -94,18 +94,19 @@ fn presentation_gaps_and_overlap_preserve_clock_and_decoded_sample_positions() {
     let (baseline, pcm) = decode(root.path(), "base", &original, 4 << 20).unwrap();
     assert_eq!(baseline.sample_frames, 96000);
     let mut deltas = vec![1024; 95];
-    deltas[1] += 2400;
-    deltas[2] -= 128;
+    deltas[10] += 2400;
+    deltas[11] -= 128;
     let modified = rewrite(&original, &deltas, deltas.iter().sum(), 98272);
     assert_eq!(modified,fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone-clock-48000.m4a")).unwrap(),
         "the shared Android fixture must contain only the synthetic tone and clock edits");
     let (asset, changed) = decode(root.path(), "clock", &modified, 4 << 20).unwrap();
     assert_eq!(asset.sample_frames, 98272);
     assert_eq!(changed.len(), 98272 * 8);
-    assert_eq!(&changed[..1024 * 8], &pcm[..1024 * 8]);
-    assert!(changed[1024 * 8..3424 * 8].iter().all(|v| *v == 0));
-    assert_eq!(&changed[3424 * 8..4448 * 8], &pcm[1024 * 8..2048 * 8]);
-    assert_eq!(&changed[4448 * 8..5344 * 8], &pcm[2176 * 8..3072 * 8]);
+    assert_eq!(&changed[..10240 * 8], &pcm[..10240 * 8]);
+    assert!(changed[10240 * 8..12640 * 8].iter().all(|v| *v == 0));
+    assert_eq!(&changed[12640 * 8..13664 * 8], &pcm[10240 * 8..11264 * 8]);
+    assert_eq!(&changed[13664 * 8..14560 * 8], &pcm[11392 * 8..12288 * 8]);
+    assert!(pcm[10240*8..11264*8].chunks_exact(4).any(|v|f32::from_le_bytes(v.try_into().unwrap()).abs()>0.1));
     assert!(decode(root.path(), "budget", &modified, 1024)
         .unwrap_err()
         .contains("cache exceeds limit"));

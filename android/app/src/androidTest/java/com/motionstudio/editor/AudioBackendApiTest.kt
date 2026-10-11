@@ -43,15 +43,15 @@ class AudioBackendApiTest {
             val committed=import(id,"tone-clock-48000.m4a","clock")
             val asset=committed.getJSONObject("task").getJSONObject("metadata")
             assertEquals(98272,asset.getLong("sample_frames"))
-            val silent=pcm(id,1024,2400);assertTrue(silent.all{it==0f})
-            val audible=pcm(id,3424,1024);assertTrue(audible.any{kotlin.math.abs(it)>.1f})
+            val silent=pcm(id,10240,2400);assertTrue(silent.all{it==0f})
+            val audible=pcm(id,12640,1024);assertTrue(audible.any{kotlin.math.abs(it)>.1f})
             val cache=File(root,"cache/audio-v2/"+File(asset.getString("path")).nameWithoutExtension+".pcm")
             assertTrue(cache.delete())
             req(id,"prepare_audio","request_id" to "rebuild-clock","asset" to asset.getLong("id"))
             assertEquals("succeeded",await(id,"rebuild-clock").getString("state"))
             data(NativeBridge.command(id,"{\"op\":\"set_audio\",\"object\":1,\"volume\":0.5}"))
-            assertArrayEquals(audible.map{it*.5f}.toFloatArray(),pcm(id,3424,1024),0f)
-            assertTrue(pcm(id,1024,2400).all{it==0f})
+            assertArrayEquals(audible.map{it*.5f}.toFloatArray(),pcm(id,12640,1024),0f)
+            assertTrue(pcm(id,10240,2400).all{it==0f})
         }finally{NativeBridge.destroy(id)}
     }
     @Test fun actualContentUrisDecodeAllFormatsAndAudioSurvivesReopen() {
