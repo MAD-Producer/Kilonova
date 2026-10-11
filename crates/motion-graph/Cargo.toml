@@ -1,0 +1,21 @@
+[package]
+name = "motion-graph"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Typed effect node documents and portable SDK 6 image shader export"
+
+[dependencies]
+motion-effects = { path = "../motion-effects" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+zip = { version = "2.4", default-features = false, features = ["deflate"] }
+
+[dev-dependencies]
+tempfile = "3"
+motion-core = { path = "../motion-core" }
+motion-render = { path = "../motion-render" }
+pollster.workspace = true
+wgpu.workspace = true
+image.workspace = true

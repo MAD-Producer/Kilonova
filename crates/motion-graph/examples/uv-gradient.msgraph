@@ -1,0 +1,216 @@
+{
+  "format_version": 1,
+  "id": "uv_gradient",
+  "name": "UV 双色分量渐变",
+  "english_name": "UV Component Gradient",
+  "working_space": "srgb",
+  "alpha_mode": "straight",
+  "nodes": [
+    {
+      "id": "uv",
+      "version": 1,
+      "operation": {
+        "kind": "uv"
+      },
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "x_axis",
+      "version": 1,
+      "operation": {
+        "kind": "vec2",
+        "value": [
+          1,
+          0
+        ]
+      },
+      "position": [
+        0,
+        175
+      ]
+    },
+    {
+      "id": "y_axis",
+      "version": 1,
+      "operation": {
+        "kind": "vec2",
+        "value": [
+          0,
+          1
+        ]
+      },
+      "position": [
+        0,
+        350
+      ]
+    },
+    {
+      "id": "u",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "dot",
+        "value_type": "vec2"
+      },
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "id": "v",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "dot",
+        "value_type": "vec2"
+      },
+      "position": [
+        260,
+        175
+      ]
+    },
+    {
+      "id": "blue",
+      "version": 1,
+      "operation": {
+        "kind": "float",
+        "value": 0.25
+      },
+      "position": [
+        0,
+        525
+      ]
+    },
+    {
+      "id": "alpha",
+      "version": 1,
+      "operation": {
+        "kind": "float",
+        "value": 1
+      },
+      "position": [
+        0,
+        700
+      ]
+    },
+    {
+      "id": "rgba",
+      "version": 1,
+      "operation": {
+        "kind": "combine_color"
+      },
+      "position": [
+        520,
+        0
+      ]
+    },
+    {
+      "id": "output",
+      "version": 1,
+      "operation": {
+        "kind": "color_output"
+      },
+      "position": [
+        780,
+        0
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": {
+        "node": "uv",
+        "port": "value"
+      },
+      "to": {
+        "node": "u",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "x_axis",
+        "port": "value"
+      },
+      "to": {
+        "node": "u",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "uv",
+        "port": "value"
+      },
+      "to": {
+        "node": "v",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "y_axis",
+        "port": "value"
+      },
+      "to": {
+        "node": "v",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "u",
+        "port": "value"
+      },
+      "to": {
+        "node": "rgba",
+        "port": "r"
+      }
+    },
+    {
+      "from": {
+        "node": "v",
+        "port": "value"
+      },
+      "to": {
+        "node": "rgba",
+        "port": "g"
+      }
+    },
+    {
+      "from": {
+        "node": "blue",
+        "port": "value"
+      },
+      "to": {
+        "node": "rgba",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "alpha",
+        "port": "value"
+      },
+      "to": {
+        "node": "rgba",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "rgba",
+        "port": "color"
+      },
+      "to": {
+        "node": "output",
+        "port": "color"
+      }
+    }
+  ],
+  "public_parameters": []
+}

@@ -1,0 +1,239 @@
+{
+  "format_version": 1,
+  "id": "sdf_ring",
+  "name": "圆环描边",
+  "english_name": "SDF Ring Stroke",
+  "working_space": "srgb",
+  "alpha_mode": "straight",
+  "nodes": [
+    {
+      "id": "position",
+      "version": 1,
+      "operation": {
+        "kind": "position"
+      },
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "center",
+      "version": 1,
+      "operation": {
+        "kind": "vec2",
+        "value": [
+          32,
+          32
+        ]
+      },
+      "position": [
+        0,
+        175
+      ]
+    },
+    {
+      "id": "radius",
+      "version": 1,
+      "operation": {
+        "kind": "parameter",
+        "parameter": "radius"
+      },
+      "position": [
+        0,
+        350
+      ]
+    },
+    {
+      "id": "width",
+      "version": 1,
+      "operation": {
+        "kind": "parameter",
+        "parameter": "width"
+      },
+      "position": [
+        0,
+        525
+      ]
+    },
+    {
+      "id": "circle",
+      "version": 1,
+      "operation": {
+        "kind": "sdf_circle"
+      },
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "id": "color",
+      "version": 1,
+      "operation": {
+        "kind": "color",
+        "value": [
+          0.95,
+          0.45,
+          0.14,
+          0.85
+        ]
+      },
+      "position": [
+        0,
+        700
+      ]
+    },
+    {
+      "id": "stroke",
+      "version": 1,
+      "operation": {
+        "kind": "sdf_stroke"
+      },
+      "position": [
+        520,
+        0
+      ]
+    },
+    {
+      "id": "masked",
+      "version": 1,
+      "operation": {
+        "kind": "apply_mask"
+      },
+      "position": [
+        780,
+        0
+      ]
+    },
+    {
+      "id": "output",
+      "version": 1,
+      "operation": {
+        "kind": "color_output"
+      },
+      "position": [
+        1040,
+        0
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": {
+        "node": "position",
+        "port": "value"
+      },
+      "to": {
+        "node": "circle",
+        "port": "position"
+      }
+    },
+    {
+      "from": {
+        "node": "center",
+        "port": "value"
+      },
+      "to": {
+        "node": "circle",
+        "port": "center"
+      }
+    },
+    {
+      "from": {
+        "node": "radius",
+        "port": "value"
+      },
+      "to": {
+        "node": "circle",
+        "port": "radius"
+      }
+    },
+    {
+      "from": {
+        "node": "circle",
+        "port": "distance"
+      },
+      "to": {
+        "node": "stroke",
+        "port": "distance"
+      }
+    },
+    {
+      "from": {
+        "node": "width",
+        "port": "value"
+      },
+      "to": {
+        "node": "stroke",
+        "port": "width"
+      }
+    },
+    {
+      "from": {
+        "node": "color",
+        "port": "value"
+      },
+      "to": {
+        "node": "masked",
+        "port": "color"
+      }
+    },
+    {
+      "from": {
+        "node": "stroke",
+        "port": "coverage"
+      },
+      "to": {
+        "node": "masked",
+        "port": "coverage"
+      }
+    },
+    {
+      "from": {
+        "node": "masked",
+        "port": "color"
+      },
+      "to": {
+        "node": "output",
+        "port": "color"
+      }
+    }
+  ],
+  "public_parameters": [
+    {
+      "id": "radius",
+      "name": "圆环半径",
+      "english_name": "Ring Radius",
+      "value_type": "float",
+      "default": [
+        20,
+        0,
+        0,
+        0
+      ],
+      "min": 1,
+      "max": 30,
+      "step": 0.25,
+      "units": "px",
+      "animatable": true
+    },
+    {
+      "id": "width",
+      "name": "描边全宽",
+      "english_name": "Stroke Width",
+      "value_type": "float",
+      "default": [
+        4,
+        0,
+        0,
+        0
+      ],
+      "min": 0.5,
+      "max": 16,
+      "step": 0.25,
+      "units": "px",
+      "animatable": true
+    }
+  ]
+}

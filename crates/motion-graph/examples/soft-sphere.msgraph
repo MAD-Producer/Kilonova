@@ -1,0 +1,1461 @@
+{
+  "format_version": 1,
+  "id": "soft_sphere",
+  "name": "柔光球体与接触光影",
+  "english_name": "Soft Sphere and Contact Shading",
+  "working_space": "srgb",
+  "alpha_mode": "straight",
+  "nodes": [
+    {
+      "id": "position",
+      "version": 1,
+      "operation": {
+        "kind": "position"
+      },
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "radius",
+      "version": 1,
+      "operation": {
+        "kind": "parameter",
+        "parameter": "radius"
+      },
+      "position": [
+        0,
+        150
+      ]
+    },
+    {
+      "id": "speed",
+      "version": 1,
+      "operation": {
+        "kind": "parameter",
+        "parameter": "speed"
+      },
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "id": "time",
+      "version": 1,
+      "operation": {
+        "kind": "time"
+      },
+      "position": [
+        0,
+        450
+      ]
+    },
+    {
+      "id": "multiply",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "multiply",
+        "value_type": "float"
+      },
+      "position": [
+        245,
+        0
+      ]
+    },
+    {
+      "id": "sin",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "sin",
+        "value_type": "float"
+      },
+      "position": [
+        490,
+        0
+      ]
+    },
+    {
+      "id": "constant_0",
+      "version": 1,
+      "operation": {
+        "kind": "float",
+        "value": 1.5
+      },
+      "position": [
+        490,
+        150
+      ]
+    },
+    {
+      "id": "multiply_2",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "multiply",
+        "value_type": "float"
+      },
+      "position": [
+        735,
+        0
+      ]
+    },
+    {
+      "id": "constant_1",
+      "version": 1,
+      "operation": {
+        "kind": "float",
+        "value": 32
+      },
+      "position": [
+        980,
+        0
+      ]
+    },
+    {
+      "id": "constant_2",
+      "version": 1,
+      "operation": {
+        "kind": "float",
+        "value": 27
+      },
+      "position": [
+        735,
+        150
+      ]
+    },
+    {
+      "id": "add",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "add",
+        "value_type": "float"
+      },
+      "position": [
+        980,
+        150
+      ]
+    },
+    {
+      "id": "sphere_center",
+      "version": 1,
+      "operation": {
+        "kind": "combine_vec2"
+      },
+      "position": [
+        1225,
+        0
+      ]
+    },
+    {
+      "id": "radius_xy",
+      "version": 1,
+      "operation": {
+        "kind": "splat",
+        "value_type": "vec2"
+      },
+      "position": [
+        245,
+        150
+      ]
+    },
+    {
+      "id": "subtract",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "subtract",
+        "value_type": "vec2"
+      },
+      "position": [
+        1470,
+        0
+      ]
+    },
+    {
+      "id": "divide",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "divide",
+        "value_type": "vec2"
+      },
+      "position": [
+        1715,
+        0
+      ]
+    },
+    {
+      "id": "dot",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "dot",
+        "value_type": "vec2"
+      },
+      "position": [
+        1960,
+        0
+      ]
+    },
+    {
+      "id": "constant_3",
+      "version": 1,
+      "operation": {
+        "kind": "float",
+        "value": 1
+      },
+      "position": [
+        735,
+        300
+      ]
+    },
+    {
+      "id": "subtract_2",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "subtract",
+        "value_type": "float"
+      },
+      "position": [
+        2205,
+        0
+      ]
+    },
+    {
+      "id": "constant_4",
+      "version": 1,
+      "operation": {
+        "kind": "float",
+        "value": 0
+      },
+      "position": [
+        735,
+        450
+      ]
+    },
+    {
+      "id": "clamp",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "clamp",
+        "value_type": "float"
+      },
+      "position": [
+        2450,
+        0
+      ]
+    },
+    {
+      "id": "sqrt",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "sqrt",
+        "value_type": "float"
+      },
+      "position": [
+        2695,
+        0
+      ]
+    },
+    {
+      "id": "constant_5",
+      "version": 1,
+      "operation": {
+        "kind": "vec2",
+        "value": [
+          1,
+          0
+        ]
+      },
+      "position": [
+        1715,
+        150
+      ]
+    },
+    {
+      "id": "dot_2",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "dot",
+        "value_type": "vec2"
+      },
+      "position": [
+        1960,
+        150
+      ]
+    },
+    {
+      "id": "constant_6",
+      "version": 1,
+      "operation": {
+        "kind": "vec2",
+        "value": [
+          0,
+          1
+        ]
+      },
+      "position": [
+        1715,
+        300
+      ]
+    },
+    {
+      "id": "dot_3",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "dot",
+        "value_type": "vec2"
+      },
+      "position": [
+        1960,
+        300
+      ]
+    },
+    {
+      "id": "analytic_normal",
+      "version": 1,
+      "operation": {
+        "kind": "combine_vec3"
+      },
+      "position": [
+        2940,
+        0
+      ]
+    },
+    {
+      "id": "light",
+      "version": 1,
+      "operation": {
+        "kind": "parameter",
+        "parameter": "light"
+      },
+      "position": [
+        0,
+        600
+      ]
+    },
+    {
+      "id": "normalize",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "normalize",
+        "value_type": "vec3"
+      },
+      "position": [
+        245,
+        300
+      ]
+    },
+    {
+      "id": "dot_4",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "dot",
+        "value_type": "vec3"
+      },
+      "position": [
+        3185,
+        0
+      ]
+    },
+    {
+      "id": "clamp_2",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "clamp",
+        "value_type": "float"
+      },
+      "position": [
+        3430,
+        0
+      ]
+    },
+    {
+      "id": "constant_7",
+      "version": 1,
+      "operation": {
+        "kind": "float",
+        "value": 0.35
+      },
+      "position": [
+        3675,
+        0
+      ]
+    },
+    {
+      "id": "constant_8",
+      "version": 1,
+      "operation": {
+        "kind": "float",
+        "value": 0.65
+      },
+      "position": [
+        3430,
+        150
+      ]
+    },
+    {
+      "id": "multiply_3",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "multiply",
+        "value_type": "float"
+      },
+      "position": [
+        3675,
+        150
+      ]
+    },
+    {
+      "id": "add_2",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "add",
+        "value_type": "float"
+      },
+      "position": [
+        3920,
+        0
+      ]
+    },
+    {
+      "id": "tone",
+      "version": 1,
+      "operation": {
+        "kind": "parameter",
+        "parameter": "tone"
+      },
+      "position": [
+        3920,
+        150
+      ]
+    },
+    {
+      "id": "constant_9",
+      "version": 1,
+      "operation": {
+        "kind": "color",
+        "value": [
+          0.28,
+          0.3,
+          0.35,
+          1
+        ]
+      },
+      "position": [
+        3920,
+        300
+      ]
+    },
+    {
+      "id": "diffuse_tone",
+      "version": 1,
+      "operation": {
+        "kind": "color_math",
+        "operation": "mix"
+      },
+      "position": [
+        4165,
+        0
+      ]
+    },
+    {
+      "id": "shadow",
+      "version": 1,
+      "operation": {
+        "kind": "parameter",
+        "parameter": "shadow"
+      },
+      "position": [
+        1470,
+        150
+      ]
+    },
+    {
+      "id": "constant_10",
+      "version": 1,
+      "operation": {
+        "kind": "vec2",
+        "value": [
+          32,
+          46
+        ]
+      },
+      "position": [
+        0,
+        750
+      ]
+    },
+    {
+      "id": "subtract_3",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "subtract",
+        "value_type": "vec2"
+      },
+      "position": [
+        245,
+        450
+      ]
+    },
+    {
+      "id": "constant_11",
+      "version": 1,
+      "operation": {
+        "kind": "vec2",
+        "value": [
+          23,
+          6
+        ]
+      },
+      "position": [
+        245,
+        600
+      ]
+    },
+    {
+      "id": "divide_2",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "divide",
+        "value_type": "vec2"
+      },
+      "position": [
+        490,
+        300
+      ]
+    },
+    {
+      "id": "length",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "length",
+        "value_type": "vec2"
+      },
+      "position": [
+        735,
+        600
+      ]
+    },
+    {
+      "id": "smoothstep",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "smoothstep",
+        "value_type": "float"
+      },
+      "position": [
+        980,
+        300
+      ]
+    },
+    {
+      "id": "subtract_4",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "subtract",
+        "value_type": "float"
+      },
+      "position": [
+        1225,
+        150
+      ]
+    },
+    {
+      "id": "multiply_4",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "multiply",
+        "value_type": "float"
+      },
+      "position": [
+        1470,
+        300
+      ]
+    },
+    {
+      "id": "constant_12",
+      "version": 1,
+      "operation": {
+        "kind": "color",
+        "value": [
+          0.965,
+          0.97,
+          0.98,
+          1
+        ]
+      },
+      "position": [
+        1715,
+        450
+      ]
+    },
+    {
+      "id": "constant_13",
+      "version": 1,
+      "operation": {
+        "kind": "color",
+        "value": [
+          0.48,
+          0.5,
+          0.55,
+          1
+        ]
+      },
+      "position": [
+        1715,
+        600
+      ]
+    },
+    {
+      "id": "multiply_5",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "multiply",
+        "value_type": "float"
+      },
+      "position": [
+        1715,
+        750
+      ]
+    },
+    {
+      "id": "soft_contact_shadow",
+      "version": 1,
+      "operation": {
+        "kind": "color_math",
+        "operation": "mix"
+      },
+      "position": [
+        1960,
+        450
+      ]
+    },
+    {
+      "id": "shape",
+      "version": 1,
+      "operation": {
+        "kind": "sdf_circle"
+      },
+      "position": [
+        1470,
+        450
+      ]
+    },
+    {
+      "id": "coverage",
+      "version": 1,
+      "operation": {
+        "kind": "sdf_fill"
+      },
+      "position": [
+        1715,
+        900
+      ]
+    },
+    {
+      "id": "sphere_over_background",
+      "version": 1,
+      "operation": {
+        "kind": "color_math",
+        "operation": "mix"
+      },
+      "position": [
+        4410,
+        0
+      ]
+    },
+    {
+      "id": "output",
+      "version": 1,
+      "operation": {
+        "kind": "color_output"
+      },
+      "position": [
+        4655,
+        0
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": {
+        "node": "time",
+        "port": "value"
+      },
+      "to": {
+        "node": "multiply",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "speed",
+        "port": "value"
+      },
+      "to": {
+        "node": "multiply",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "multiply",
+        "port": "value"
+      },
+      "to": {
+        "node": "sin",
+        "port": "value"
+      }
+    },
+    {
+      "from": {
+        "node": "sin",
+        "port": "value"
+      },
+      "to": {
+        "node": "multiply_2",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_0",
+        "port": "value"
+      },
+      "to": {
+        "node": "multiply_2",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_2",
+        "port": "value"
+      },
+      "to": {
+        "node": "add",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "multiply_2",
+        "port": "value"
+      },
+      "to": {
+        "node": "add",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_1",
+        "port": "value"
+      },
+      "to": {
+        "node": "sphere_center",
+        "port": "x"
+      }
+    },
+    {
+      "from": {
+        "node": "add",
+        "port": "value"
+      },
+      "to": {
+        "node": "sphere_center",
+        "port": "y"
+      }
+    },
+    {
+      "from": {
+        "node": "radius",
+        "port": "value"
+      },
+      "to": {
+        "node": "radius_xy",
+        "port": "value"
+      }
+    },
+    {
+      "from": {
+        "node": "position",
+        "port": "value"
+      },
+      "to": {
+        "node": "subtract",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "sphere_center",
+        "port": "value"
+      },
+      "to": {
+        "node": "subtract",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "subtract",
+        "port": "value"
+      },
+      "to": {
+        "node": "divide",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "radius_xy",
+        "port": "value"
+      },
+      "to": {
+        "node": "divide",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "divide",
+        "port": "value"
+      },
+      "to": {
+        "node": "dot",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "divide",
+        "port": "value"
+      },
+      "to": {
+        "node": "dot",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_3",
+        "port": "value"
+      },
+      "to": {
+        "node": "subtract_2",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "dot",
+        "port": "value"
+      },
+      "to": {
+        "node": "subtract_2",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "subtract_2",
+        "port": "value"
+      },
+      "to": {
+        "node": "clamp",
+        "port": "value"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_4",
+        "port": "value"
+      },
+      "to": {
+        "node": "clamp",
+        "port": "min"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_3",
+        "port": "value"
+      },
+      "to": {
+        "node": "clamp",
+        "port": "max"
+      }
+    },
+    {
+      "from": {
+        "node": "clamp",
+        "port": "value"
+      },
+      "to": {
+        "node": "sqrt",
+        "port": "value"
+      }
+    },
+    {
+      "from": {
+        "node": "divide",
+        "port": "value"
+      },
+      "to": {
+        "node": "dot_2",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_5",
+        "port": "value"
+      },
+      "to": {
+        "node": "dot_2",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "divide",
+        "port": "value"
+      },
+      "to": {
+        "node": "dot_3",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_6",
+        "port": "value"
+      },
+      "to": {
+        "node": "dot_3",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "dot_2",
+        "port": "value"
+      },
+      "to": {
+        "node": "analytic_normal",
+        "port": "x"
+      }
+    },
+    {
+      "from": {
+        "node": "dot_3",
+        "port": "value"
+      },
+      "to": {
+        "node": "analytic_normal",
+        "port": "y"
+      }
+    },
+    {
+      "from": {
+        "node": "sqrt",
+        "port": "value"
+      },
+      "to": {
+        "node": "analytic_normal",
+        "port": "z"
+      }
+    },
+    {
+      "from": {
+        "node": "light",
+        "port": "value"
+      },
+      "to": {
+        "node": "normalize",
+        "port": "value"
+      }
+    },
+    {
+      "from": {
+        "node": "analytic_normal",
+        "port": "value"
+      },
+      "to": {
+        "node": "dot_4",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "normalize",
+        "port": "value"
+      },
+      "to": {
+        "node": "dot_4",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "dot_4",
+        "port": "value"
+      },
+      "to": {
+        "node": "clamp_2",
+        "port": "value"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_4",
+        "port": "value"
+      },
+      "to": {
+        "node": "clamp_2",
+        "port": "min"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_3",
+        "port": "value"
+      },
+      "to": {
+        "node": "clamp_2",
+        "port": "max"
+      }
+    },
+    {
+      "from": {
+        "node": "clamp_2",
+        "port": "value"
+      },
+      "to": {
+        "node": "multiply_3",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_8",
+        "port": "value"
+      },
+      "to": {
+        "node": "multiply_3",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_7",
+        "port": "value"
+      },
+      "to": {
+        "node": "add_2",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "multiply_3",
+        "port": "value"
+      },
+      "to": {
+        "node": "add_2",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_9",
+        "port": "value"
+      },
+      "to": {
+        "node": "diffuse_tone",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "tone",
+        "port": "value"
+      },
+      "to": {
+        "node": "diffuse_tone",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "add_2",
+        "port": "value"
+      },
+      "to": {
+        "node": "diffuse_tone",
+        "port": "factor"
+      }
+    },
+    {
+      "from": {
+        "node": "position",
+        "port": "value"
+      },
+      "to": {
+        "node": "subtract_3",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_10",
+        "port": "value"
+      },
+      "to": {
+        "node": "subtract_3",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "subtract_3",
+        "port": "value"
+      },
+      "to": {
+        "node": "divide_2",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_11",
+        "port": "value"
+      },
+      "to": {
+        "node": "divide_2",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "divide_2",
+        "port": "value"
+      },
+      "to": {
+        "node": "length",
+        "port": "value"
+      }
+    },
+    {
+      "from": {
+        "node": "length",
+        "port": "value"
+      },
+      "to": {
+        "node": "smoothstep",
+        "port": "value"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_4",
+        "port": "value"
+      },
+      "to": {
+        "node": "smoothstep",
+        "port": "edge0"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_3",
+        "port": "value"
+      },
+      "to": {
+        "node": "smoothstep",
+        "port": "edge1"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_3",
+        "port": "value"
+      },
+      "to": {
+        "node": "subtract_4",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "smoothstep",
+        "port": "value"
+      },
+      "to": {
+        "node": "subtract_4",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "subtract_4",
+        "port": "value"
+      },
+      "to": {
+        "node": "multiply_4",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "subtract_4",
+        "port": "value"
+      },
+      "to": {
+        "node": "multiply_4",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "multiply_4",
+        "port": "value"
+      },
+      "to": {
+        "node": "multiply_5",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "shadow",
+        "port": "value"
+      },
+      "to": {
+        "node": "multiply_5",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_12",
+        "port": "value"
+      },
+      "to": {
+        "node": "soft_contact_shadow",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_13",
+        "port": "value"
+      },
+      "to": {
+        "node": "soft_contact_shadow",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "multiply_5",
+        "port": "value"
+      },
+      "to": {
+        "node": "soft_contact_shadow",
+        "port": "factor"
+      }
+    },
+    {
+      "from": {
+        "node": "position",
+        "port": "value"
+      },
+      "to": {
+        "node": "shape",
+        "port": "position"
+      }
+    },
+    {
+      "from": {
+        "node": "sphere_center",
+        "port": "value"
+      },
+      "to": {
+        "node": "shape",
+        "port": "center"
+      }
+    },
+    {
+      "from": {
+        "node": "radius",
+        "port": "value"
+      },
+      "to": {
+        "node": "shape",
+        "port": "radius"
+      }
+    },
+    {
+      "from": {
+        "node": "shape",
+        "port": "distance"
+      },
+      "to": {
+        "node": "coverage",
+        "port": "distance"
+      }
+    },
+    {
+      "from": {
+        "node": "soft_contact_shadow",
+        "port": "color"
+      },
+      "to": {
+        "node": "sphere_over_background",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "diffuse_tone",
+        "port": "color"
+      },
+      "to": {
+        "node": "sphere_over_background",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "coverage",
+        "port": "coverage"
+      },
+      "to": {
+        "node": "sphere_over_background",
+        "port": "factor"
+      }
+    },
+    {
+      "from": {
+        "node": "sphere_over_background",
+        "port": "color"
+      },
+      "to": {
+        "node": "output",
+        "port": "color"
+      }
+    }
+  ],
+  "public_parameters": [
+    {
+      "id": "radius",
+      "name": "球体半径",
+      "english_name": "Sphere Radius",
+      "value_type": "float",
+      "default": [
+        16,
+        0,
+        0,
+        0
+      ],
+      "min": 6,
+      "max": 23,
+      "step": 0.1,
+      "units": "px",
+      "animatable": true
+    },
+    {
+      "id": "speed",
+      "name": "漂浮速度",
+      "english_name": "Float Speed",
+      "value_type": "float",
+      "default": [
+        0.65,
+        0,
+        0,
+        0
+      ],
+      "min": 0.1,
+      "max": 2,
+      "step": 0.05,
+      "units": "rad/s",
+      "animatable": true
+    },
+    {
+      "id": "light",
+      "name": "光源方向",
+      "english_name": "Light Direction",
+      "value_type": "vec3",
+      "default": [
+        -0.4,
+        -0.55,
+        1,
+        0
+      ],
+      "min": -2,
+      "max": 2,
+      "step": 0.1,
+      "units": "direction",
+      "animatable": true
+    },
+    {
+      "id": "tone",
+      "name": "哑光颜色",
+      "english_name": "Matte Tone",
+      "value_type": "color",
+      "default": [
+        0.78,
+        0.8,
+        0.84,
+        1
+      ],
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "units": "",
+      "animatable": true
+    },
+    {
+      "id": "shadow",
+      "name": "阴影强度",
+      "english_name": "Shadow Strength",
+      "value_type": "float",
+      "default": [
+        0.3,
+        0,
+        0,
+        0
+      ],
+      "min": 0,
+      "max": 0.7,
+      "step": 0.01,
+      "units": "ratio",
+      "animatable": true
+    }
+  ]
+}

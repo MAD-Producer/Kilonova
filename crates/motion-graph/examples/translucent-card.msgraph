@@ -1,0 +1,808 @@
+{
+  "format_version": 1,
+  "id": "translucent_card",
+  "name": "半透卡片与柔和高光",
+  "english_name": "Translucent Card and Soft Rim",
+  "working_space": "srgb",
+  "alpha_mode": "straight",
+  "nodes": [
+    {
+      "id": "position",
+      "version": 1,
+      "operation": {
+        "kind": "position"
+      },
+      "position": [
+        1225,
+        0
+      ]
+    },
+    {
+      "id": "uv",
+      "version": 1,
+      "operation": {
+        "kind": "uv"
+      },
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "constant_0",
+      "version": 1,
+      "operation": {
+        "kind": "vec2",
+        "value": [
+          1,
+          0
+        ]
+      },
+      "position": [
+        0,
+        150
+      ]
+    },
+    {
+      "id": "dot",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "dot",
+        "value_type": "vec2"
+      },
+      "position": [
+        245,
+        0
+      ]
+    },
+    {
+      "id": "constant_1",
+      "version": 1,
+      "operation": {
+        "kind": "color",
+        "value": [
+          0.88,
+          0.9,
+          0.94,
+          1
+        ]
+      },
+      "position": [
+        245,
+        150
+      ]
+    },
+    {
+      "id": "constant_2",
+      "version": 1,
+      "operation": {
+        "kind": "color",
+        "value": [
+          0.99,
+          0.99,
+          1,
+          1
+        ]
+      },
+      "position": [
+        245,
+        300
+      ]
+    },
+    {
+      "id": "background_gradient",
+      "version": 1,
+      "operation": {
+        "kind": "color_math",
+        "operation": "mix"
+      },
+      "position": [
+        490,
+        0
+      ]
+    },
+    {
+      "id": "speed",
+      "version": 1,
+      "operation": {
+        "kind": "parameter",
+        "parameter": "speed"
+      },
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "id": "constant_3",
+      "version": 1,
+      "operation": {
+        "kind": "float",
+        "value": 32
+      },
+      "position": [
+        735,
+        0
+      ]
+    },
+    {
+      "id": "time",
+      "version": 1,
+      "operation": {
+        "kind": "time"
+      },
+      "position": [
+        0,
+        450
+      ]
+    },
+    {
+      "id": "multiply",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "multiply",
+        "value_type": "float"
+      },
+      "position": [
+        245,
+        450
+      ]
+    },
+    {
+      "id": "sin",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "sin",
+        "value_type": "float"
+      },
+      "position": [
+        490,
+        150
+      ]
+    },
+    {
+      "id": "constant_4",
+      "version": 1,
+      "operation": {
+        "kind": "float",
+        "value": 2
+      },
+      "position": [
+        490,
+        300
+      ]
+    },
+    {
+      "id": "multiply_2",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "multiply",
+        "value_type": "float"
+      },
+      "position": [
+        735,
+        150
+      ]
+    },
+    {
+      "id": "add",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "add",
+        "value_type": "float"
+      },
+      "position": [
+        980,
+        0
+      ]
+    },
+    {
+      "id": "half_size",
+      "version": 1,
+      "operation": {
+        "kind": "parameter",
+        "parameter": "half_size"
+      },
+      "position": [
+        1225,
+        150
+      ]
+    },
+    {
+      "id": "roundness",
+      "version": 1,
+      "operation": {
+        "kind": "parameter",
+        "parameter": "roundness"
+      },
+      "position": [
+        1225,
+        300
+      ]
+    },
+    {
+      "id": "combine_xy",
+      "version": 1,
+      "operation": {
+        "kind": "combine_vec2"
+      },
+      "position": [
+        1225,
+        450
+      ]
+    },
+    {
+      "id": "shape",
+      "version": 1,
+      "operation": {
+        "kind": "sdf_rounded_rectangle"
+      },
+      "position": [
+        1470,
+        0
+      ]
+    },
+    {
+      "id": "opacity",
+      "version": 1,
+      "operation": {
+        "kind": "parameter",
+        "parameter": "opacity"
+      },
+      "position": [
+        1715,
+        0
+      ]
+    },
+    {
+      "id": "tone",
+      "version": 1,
+      "operation": {
+        "kind": "parameter",
+        "parameter": "tone"
+      },
+      "position": [
+        1960,
+        0
+      ]
+    },
+    {
+      "id": "coverage",
+      "version": 1,
+      "operation": {
+        "kind": "sdf_fill"
+      },
+      "position": [
+        1715,
+        150
+      ]
+    },
+    {
+      "id": "multiply_3",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "multiply",
+        "value_type": "float"
+      },
+      "position": [
+        1960,
+        150
+      ]
+    },
+    {
+      "id": "translucent_blend",
+      "version": 1,
+      "operation": {
+        "kind": "color_math",
+        "operation": "mix"
+      },
+      "position": [
+        2205,
+        0
+      ]
+    },
+    {
+      "id": "constant_5",
+      "version": 1,
+      "operation": {
+        "kind": "float",
+        "value": 1
+      },
+      "position": [
+        1470,
+        150
+      ]
+    },
+    {
+      "id": "edge_coverage",
+      "version": 1,
+      "operation": {
+        "kind": "sdf_stroke"
+      },
+      "position": [
+        1715,
+        300
+      ]
+    },
+    {
+      "id": "constant_6",
+      "version": 1,
+      "operation": {
+        "kind": "color",
+        "value": [
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      "position": [
+        2205,
+        150
+      ]
+    },
+    {
+      "id": "constant_7",
+      "version": 1,
+      "operation": {
+        "kind": "float",
+        "value": 0.65
+      },
+      "position": [
+        1715,
+        450
+      ]
+    },
+    {
+      "id": "multiply_4",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "multiply",
+        "value_type": "float"
+      },
+      "position": [
+        1960,
+        300
+      ]
+    },
+    {
+      "id": "soft_rim",
+      "version": 1,
+      "operation": {
+        "kind": "color_math",
+        "operation": "mix"
+      },
+      "position": [
+        2450,
+        0
+      ]
+    },
+    {
+      "id": "output",
+      "version": 1,
+      "operation": {
+        "kind": "color_output"
+      },
+      "position": [
+        2695,
+        0
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": {
+        "node": "uv",
+        "port": "value"
+      },
+      "to": {
+        "node": "dot",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_0",
+        "port": "value"
+      },
+      "to": {
+        "node": "dot",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_1",
+        "port": "value"
+      },
+      "to": {
+        "node": "background_gradient",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_2",
+        "port": "value"
+      },
+      "to": {
+        "node": "background_gradient",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "dot",
+        "port": "value"
+      },
+      "to": {
+        "node": "background_gradient",
+        "port": "factor"
+      }
+    },
+    {
+      "from": {
+        "node": "time",
+        "port": "value"
+      },
+      "to": {
+        "node": "multiply",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "speed",
+        "port": "value"
+      },
+      "to": {
+        "node": "multiply",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "multiply",
+        "port": "value"
+      },
+      "to": {
+        "node": "sin",
+        "port": "value"
+      }
+    },
+    {
+      "from": {
+        "node": "sin",
+        "port": "value"
+      },
+      "to": {
+        "node": "multiply_2",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_4",
+        "port": "value"
+      },
+      "to": {
+        "node": "multiply_2",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_3",
+        "port": "value"
+      },
+      "to": {
+        "node": "add",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "multiply_2",
+        "port": "value"
+      },
+      "to": {
+        "node": "add",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_3",
+        "port": "value"
+      },
+      "to": {
+        "node": "combine_xy",
+        "port": "x"
+      }
+    },
+    {
+      "from": {
+        "node": "add",
+        "port": "value"
+      },
+      "to": {
+        "node": "combine_xy",
+        "port": "y"
+      }
+    },
+    {
+      "from": {
+        "node": "position",
+        "port": "value"
+      },
+      "to": {
+        "node": "shape",
+        "port": "position"
+      }
+    },
+    {
+      "from": {
+        "node": "combine_xy",
+        "port": "value"
+      },
+      "to": {
+        "node": "shape",
+        "port": "center"
+      }
+    },
+    {
+      "from": {
+        "node": "half_size",
+        "port": "value"
+      },
+      "to": {
+        "node": "shape",
+        "port": "half_size"
+      }
+    },
+    {
+      "from": {
+        "node": "roundness",
+        "port": "value"
+      },
+      "to": {
+        "node": "shape",
+        "port": "radius"
+      }
+    },
+    {
+      "from": {
+        "node": "shape",
+        "port": "distance"
+      },
+      "to": {
+        "node": "coverage",
+        "port": "distance"
+      }
+    },
+    {
+      "from": {
+        "node": "coverage",
+        "port": "coverage"
+      },
+      "to": {
+        "node": "multiply_3",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "opacity",
+        "port": "value"
+      },
+      "to": {
+        "node": "multiply_3",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "background_gradient",
+        "port": "color"
+      },
+      "to": {
+        "node": "translucent_blend",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "tone",
+        "port": "value"
+      },
+      "to": {
+        "node": "translucent_blend",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "multiply_3",
+        "port": "value"
+      },
+      "to": {
+        "node": "translucent_blend",
+        "port": "factor"
+      }
+    },
+    {
+      "from": {
+        "node": "shape",
+        "port": "distance"
+      },
+      "to": {
+        "node": "edge_coverage",
+        "port": "distance"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_5",
+        "port": "value"
+      },
+      "to": {
+        "node": "edge_coverage",
+        "port": "width"
+      }
+    },
+    {
+      "from": {
+        "node": "edge_coverage",
+        "port": "coverage"
+      },
+      "to": {
+        "node": "multiply_4",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_7",
+        "port": "value"
+      },
+      "to": {
+        "node": "multiply_4",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "translucent_blend",
+        "port": "color"
+      },
+      "to": {
+        "node": "soft_rim",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_6",
+        "port": "value"
+      },
+      "to": {
+        "node": "soft_rim",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "multiply_4",
+        "port": "value"
+      },
+      "to": {
+        "node": "soft_rim",
+        "port": "factor"
+      }
+    },
+    {
+      "from": {
+        "node": "soft_rim",
+        "port": "color"
+      },
+      "to": {
+        "node": "output",
+        "port": "color"
+      }
+    }
+  ],
+  "public_parameters": [
+    {
+      "id": "speed",
+      "name": "漂浮速度",
+      "english_name": "Float Speed",
+      "value_type": "float",
+      "default": [
+        0.5,
+        0,
+        0,
+        0
+      ],
+      "min": 0.1,
+      "max": 2,
+      "step": 0.05,
+      "units": "rad/s",
+      "animatable": true
+    },
+    {
+      "id": "half_size",
+      "name": "卡片半尺寸",
+      "english_name": "Card Half Size",
+      "value_type": "vec2",
+      "default": [
+        22,
+        14,
+        0,
+        0
+      ],
+      "min": 4,
+      "max": 29,
+      "step": 0.1,
+      "units": "px",
+      "animatable": true
+    },
+    {
+      "id": "roundness",
+      "name": "圆角半径",
+      "english_name": "Corner Radius",
+      "value_type": "float",
+      "default": [
+        6,
+        0,
+        0,
+        0
+      ],
+      "min": 0,
+      "max": 14,
+      "step": 0.1,
+      "units": "px",
+      "animatable": true
+    },
+    {
+      "id": "opacity",
+      "name": "卡片覆盖强度",
+      "english_name": "Card Coverage",
+      "value_type": "float",
+      "default": [
+        0.6,
+        0,
+        0,
+        0
+      ],
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "units": "ratio",
+      "animatable": true
+    },
+    {
+      "id": "tone",
+      "name": "卡片颜色",
+      "english_name": "Card Tone",
+      "value_type": "color",
+      "default": [
+        0.98,
+        0.99,
+        1,
+        1
+      ],
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "units": "",
+      "animatable": true
+    }
+  ]
+}

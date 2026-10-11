@@ -1,0 +1,293 @@
+{
+  "format_version": 1,
+  "id": "parameter_tint",
+  "name": "公开参数调色",
+  "english_name": "Public Parameter Tint",
+  "working_space": "srgb",
+  "alpha_mode": "straight",
+  "nodes": [
+    {
+      "id": "source",
+      "version": 1,
+      "operation": {
+        "kind": "image",
+        "source": "source"
+      },
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "uv",
+      "version": 1,
+      "operation": {
+        "kind": "uv"
+      },
+      "position": [
+        0,
+        175
+      ]
+    },
+    {
+      "id": "sample",
+      "version": 1,
+      "operation": {
+        "kind": "sample_image",
+        "coordinates": "uv"
+      },
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "id": "tint",
+      "version": 1,
+      "operation": {
+        "kind": "parameter",
+        "parameter": "tint"
+      },
+      "position": [
+        0,
+        350
+      ]
+    },
+    {
+      "id": "strength",
+      "version": 1,
+      "operation": {
+        "kind": "parameter",
+        "parameter": "strength"
+      },
+      "position": [
+        0,
+        525
+      ]
+    },
+    {
+      "id": "enabled",
+      "version": 1,
+      "operation": {
+        "kind": "parameter",
+        "parameter": "enabled"
+      },
+      "position": [
+        0,
+        700
+      ]
+    },
+    {
+      "id": "tinted",
+      "version": 1,
+      "operation": {
+        "kind": "color_math",
+        "operation": "multiply"
+      },
+      "position": [
+        520,
+        0
+      ]
+    },
+    {
+      "id": "mix",
+      "version": 1,
+      "operation": {
+        "kind": "color_math",
+        "operation": "mix"
+      },
+      "position": [
+        780,
+        0
+      ]
+    },
+    {
+      "id": "toggle",
+      "version": 1,
+      "operation": {
+        "kind": "select",
+        "value_type": "color"
+      },
+      "position": [
+        1040,
+        0
+      ]
+    },
+    {
+      "id": "output",
+      "version": 1,
+      "operation": {
+        "kind": "color_output"
+      },
+      "position": [
+        1300,
+        0
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": {
+        "node": "source",
+        "port": "image"
+      },
+      "to": {
+        "node": "sample",
+        "port": "image"
+      }
+    },
+    {
+      "from": {
+        "node": "uv",
+        "port": "value"
+      },
+      "to": {
+        "node": "sample",
+        "port": "coordinate"
+      }
+    },
+    {
+      "from": {
+        "node": "sample",
+        "port": "color"
+      },
+      "to": {
+        "node": "tinted",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "tint",
+        "port": "value"
+      },
+      "to": {
+        "node": "tinted",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "sample",
+        "port": "color"
+      },
+      "to": {
+        "node": "mix",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "tinted",
+        "port": "color"
+      },
+      "to": {
+        "node": "mix",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "strength",
+        "port": "value"
+      },
+      "to": {
+        "node": "mix",
+        "port": "factor"
+      }
+    },
+    {
+      "from": {
+        "node": "enabled",
+        "port": "value"
+      },
+      "to": {
+        "node": "toggle",
+        "port": "condition"
+      }
+    },
+    {
+      "from": {
+        "node": "mix",
+        "port": "color"
+      },
+      "to": {
+        "node": "toggle",
+        "port": "true_value"
+      }
+    },
+    {
+      "from": {
+        "node": "sample",
+        "port": "color"
+      },
+      "to": {
+        "node": "toggle",
+        "port": "false_value"
+      }
+    },
+    {
+      "from": {
+        "node": "toggle",
+        "port": "value"
+      },
+      "to": {
+        "node": "output",
+        "port": "color"
+      }
+    }
+  ],
+  "public_parameters": [
+    {
+      "id": "tint",
+      "name": "着色颜色",
+      "english_name": "Tint Color",
+      "value_type": "color",
+      "default": [
+        1,
+        0.4,
+        0.15,
+        1
+      ],
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "units": "",
+      "animatable": true
+    },
+    {
+      "id": "strength",
+      "name": "着色强度",
+      "english_name": "Tint Strength",
+      "value_type": "float",
+      "default": [
+        0.65,
+        0,
+        0,
+        0
+      ],
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "units": "",
+      "animatable": true
+    },
+    {
+      "id": "enabled",
+      "name": "启用着色",
+      "english_name": "Enable Tint",
+      "value_type": "bool",
+      "default": [
+        1,
+        0,
+        0,
+        0
+      ],
+      "min": 0,
+      "max": 1,
+      "step": 1,
+      "units": "",
+      "animatable": true
+    }
+  ]
+}
