@@ -1,5 +1,5 @@
 //! The same frame plan drives wgpu and the MediaCodec/GLES adapter.
-use crate::Scene;
+use crate::{RenderError, ResourceBudgetScope, ResourceRejection, Scene};
 use motion_effects::{
     shader, AlphaMode, EdgeMode, EffectDefinition, EffectPackage, Registry, WorkingSpace,
 };
@@ -328,6 +328,8 @@ pub struct PlanBuilder {
     pub frame: EffectFramePlan,
     /// Last actual pool check; cache hits do not perform a new check.
     pub last_scratch_request: Option<ScratchRequest>,
+    /// Refusal responsible for the current failed build; never a stale diagnostic.
+    pub last_resource_rejection: Option<ResourceRejection>,
     geometry: crate::PlaneCompositor,
     sizes: Vec<[f32; 2]>,
     origins: Vec<[f32; 2]>,
@@ -365,11 +367,14 @@ impl PlanBuilder {
     fn check_scratch(
         sizes: &[[u32; 2]; 8], device_dimension: u32, budget: u64,
         request: &mut Option<ScratchRequest>,
+        rejection: &mut Option<ResourceRejection>,
     ) -> Result<(), String> {
+        *rejection = None;
         *request = Some(ScratchRequest { sizes: *sizes, budget_bytes: budget, rejection: None });
         for (slot, size) in sizes.iter().enumerate() {
             if size.iter().any(|&n| n > device_dimension) {
                 request.as_mut().unwrap().rejection = Some(ScratchRejection::DimensionLimit);
+                *rejection = Some(ResourceRejection::TextureDimensions { width: size[0], height: size[1], max_dimension: device_dimension });
                 return Err(format!(
                     "effect scratch texture {slot} requires {}x{}; device dimension limit is {}",
                     size[0], size[1], device_dimension
@@ -379,6 +384,7 @@ impl PlanBuilder {
         let bytes = scratch_capacity_bytes(sizes);
         if bytes > budget {
             request.as_mut().unwrap().rejection = Some(ScratchRejection::CapacityBudget);
+            *rejection = Some(ResourceRejection::Budget { scope: ResourceBudgetScope::EffectScratch, required_bytes: bytes, budget_bytes: budget });
             return Err(format!("effect scratch textures require {:.2} MiB; budget is {} MiB (full layer bounds, including effect padding)",
                 bytes as f64 / 1048576.0, budget / 1048576));
         }
@@ -570,6 +576,7 @@ impl PlanBuilder {
             resolved: Vec::new(),
             frame: EffectFramePlan::default(),
             last_scratch_request: None,
+            last_resource_rejection: None,
             geometry: crate::PlaneCompositor::new(),
             origins: Vec::with_capacity(motion_model::MAX_LAYERS),
             sizes: Vec::with_capacity(motion_model::MAX_LAYERS),
@@ -592,6 +599,7 @@ impl PlanBuilder {
         self.programs.truncate(3);
         self.frame = EffectFramePlan::default();
         self.last_scratch_request = None;
+        self.last_resource_rejection = None;
         self.preview_inputs = None;
     }
     pub fn scratch_budget(&self) -> u64 { self.scratch_budget }
@@ -700,6 +708,28 @@ impl PlanBuilder {
         self.preview_inputs = None;
         self.build_internal(scene, assets, width, height, strict, false)
     }
+    /// Typed equivalent of `build`, preserving the existing plan and messages.
+    pub fn build_checked(&mut self, scene: &Scene, assets: &[u64], width: u32, height: u32, strict: bool) -> Result<&EffectFramePlan, RenderError> {
+        let result = self.build(scene, assets, width, height, strict).map(|_| ());
+        result.map_err(|message| self.classify_error(message))?;
+        Ok(&self.frame)
+    }
+    /// Typed equivalent of `build_preview`; existing preview diagnostics remain.
+    pub fn build_preview_checked(&mut self, scene: &Scene, assets: &[u64], width: u32, height: u32) -> Result<&EffectFramePlan, RenderError> {
+        let result = self.build_preview(scene, assets, width, height).map(|_| ());
+        result.map_err(|message| self.classify_error(message))?;
+        Ok(&self.frame)
+    }
+    fn classify_error(&self, message: String) -> RenderError {
+        match self.last_resource_rejection {
+            Some(rejection) => RenderError::Resource { rejection, message },
+            None => RenderError::Invalid(message),
+        }
+    }
+    fn reject_budget(&mut self, scope: ResourceBudgetScope, required_bytes: u64, budget_bytes: u64, message: impl Into<String>) -> String {
+        self.last_resource_rejection = Some(ResourceRejection::Budget { scope, required_bytes, budget_bytes });
+        message.into()
+    }
     /// Drop retained preview geometry after an external resource-policy change.
     pub fn invalidate_preview_plan(&mut self) {
         self.preview_inputs = None;
@@ -714,6 +744,7 @@ impl PlanBuilder {
         height: u32,
     ) -> Result<&EffectFramePlan, String> {
         self.last_scratch_request = None;
+        self.last_resource_rejection = None;
         // Scene generators sample births, camera/light sources and occlusion
         // every frame. Image shader time stays live by updating pass clocks.
         let eligible = scene.effects.iter().all(|e| e.scene.is_none());
@@ -750,6 +781,7 @@ impl PlanBuilder {
         preview: bool,
     ) -> Result<&EffectFramePlan, String> {
         self.last_scratch_request = None;
+        self.last_resource_rejection = None;
         self.synchronize(scene)?;
         self.frame.scratch_budget = self.scratch_budget;
         self.frame.sprites.clear();
@@ -833,6 +865,7 @@ impl PlanBuilder {
         self.frame.compositing=scene.layers.iter().map(|l|LayerComposite {blend:l.blend.mode.code(),space:u32::from(l.blend.space==motion_model::compositing::BlendSpace::Srgb),matte:l.track_matte.and_then(|m|scene.layers.iter().position(|s|s.id==m.source)).map_or(-1,|i|i as i32),mode:l.track_matte.map_or(0,|m|m.mode.code()),visible:l.composite_visible}).collect();
         for mask in &self.frame.masks {
             if mask.width>self.device_dimension || mask.height>self.device_dimension {
+                self.last_resource_rejection = Some(ResourceRejection::TextureDimensions { width: mask.width, height: mask.height, max_dimension: self.device_dimension });
                 return Err(format!("layer {}, mask {}: raster exceeds device dimensions",scene.layers[mask.layer].id,mask.id));
             }
         }
@@ -870,6 +903,7 @@ impl PlanBuilder {
                         (layer.size[1] * scale).ceil() as u32,
                     );
                     if w > self.device_dimension || h > self.device_dimension {
+                        self.last_resource_rejection = Some(ResourceRejection::TextureDimensions { width: w, height: h, max_dimension: self.device_dimension });
                         return Err(format!(
                             "layer {}: vector raster exceeds device dimensions",
                             layer.id
@@ -939,6 +973,7 @@ impl PlanBuilder {
                 .filter(|(_, e)| e.layer == layer.id && e.enabled)
             {
                 let clock_start = self.frame.passes.len();
+                self.last_resource_rejection = None;
                 let resolved = self.resolved[index].as_ref().unwrap();
                 let result = (|| -> Result<(), String> {
                     if let Some(err) = &resolved.error {
@@ -1016,7 +1051,7 @@ impl PlanBuilder {
                                 (scene.height as f32 * scale).ceil() as u32,
                             );
                         }
-                        Self::check_scratch(&sizes, self.device_dimension, self.scratch_budget, &mut self.last_scratch_request)?;
+                        Self::check_scratch(&sizes, self.device_dimension, self.scratch_budget, &mut self.last_scratch_request, &mut self.last_resource_rejection)?;
                         let start = self.frame.sprites.len();
                         let stats = crate::scene_generator::generate(
                             scene,
@@ -1153,7 +1188,7 @@ impl PlanBuilder {
                             (next[3] * scale).ceil() as u32,
                         );
                     }
-                    Self::check_scratch(&sizes, self.device_dimension, self.scratch_budget, &mut self.last_scratch_request)?;
+                    Self::check_scratch(&sizes, self.device_dimension, self.scratch_budget, &mut self.last_scratch_request, &mut self.last_resource_rejection)?;
                     let working = [
                         if def.working_space == WorkingSpace::Srgb {
                             1.0
@@ -1306,12 +1341,14 @@ impl PlanBuilder {
                         return Err(message);
                     }
                     self.frame.diagnostics.push(message);
+                    // A bypassed effect is a diagnostic, not the cause of a later error.
+                    self.last_resource_rejection = None;
                 }
             }
             if post_sources.contains(&layer.id)&&!materialized {
                 let w=(region[2]*scale).ceil().max(1.) as u32;let h=(region[3]*scale).ceil().max(1.) as u32;
                 reserve_scratch(&mut self.frame.scratch_sizes,0,w,h);
-                Self::check_scratch(&self.frame.scratch_sizes,self.device_dimension,self.scratch_budget,&mut self.last_scratch_request)?;
+                Self::check_scratch(&self.frame.scratch_sizes,self.device_dimension,self.scratch_budget,&mut self.last_scratch_request, &mut self.last_resource_rejection)?;
                 let mut u=crate::mask_plan::uniform(w,h);u.size=[source_size[0],source_size[1],w as f32,h as f32];
                 u.region=region;u.input_region=region;u.source_region=region;u.mode=[0.,0.,0.,1.];u.output_mode=[0.,0.,1.,scale];
                 u.params[0]=[linear(layer.color[0]),linear(layer.color[1]),linear(layer.color[2]),layer.color[3]];
@@ -1431,7 +1468,7 @@ impl PlanBuilder {
             return Err("frame vector vertex limit exceeded (262144)".into());
         }
         if vector_bytes > 128 * 1024 * 1024 {
-            return Err("vector sources exceed 128 MiB".into());
+            return Err(self.reject_budget(ResourceBudgetScope::VectorSources, vector_bytes, 128 * 1024 * 1024, "vector sources exceed 128 MiB"));
         }
         if self
             .frame
@@ -1444,19 +1481,19 @@ impl PlanBuilder {
                 * u64::from((scene.height as f32 * scale).ceil() as u32)
                 * 4;
             if accumulator > crate::renderer::TEXTURE_BUDGET {
-                return Err(format!(
+                return Err(self.reject_budget(ResourceBudgetScope::LayerCompositing, accumulator, crate::renderer::TEXTURE_BUDGET, format!(
                     "adjustment accumulators require {:.2} MiB; composite budget is 128 MiB",
                     accumulator as f64 / 1048576.0
-                ).into());
+                )));
             }
         }
         let (mw,mh,slots)=crate::mask_plan::scratch_dimensions(&self.frame.masks);
         let mask_scratch=u64::from(mw)*u64::from(mh)*slots as u64;
         let mask_outputs=self.frame.masks.chunk_by(|a,b|a.layer==b.layer).map(|g|u64::from(g[0].width)*u64::from(g[0].height)).sum::<u64>();
-        if mask_outputs>128*1024*1024 {return Err("layer mask outputs exceed 128 MiB".into());}
+        if mask_outputs>128*1024*1024 {return Err(self.reject_budget(ResourceBudgetScope::MaskOutputs, mask_outputs, 128*1024*1024, "layer mask outputs exceed 128 MiB"));}
         let scratch = mask_scratch+scratch_capacity_bytes(&self.frame.scratch_sizes);
         if scratch>self.scratch_budget {
-            return Err(format!("layer mask and effect scratch textures require {:.2} MiB; budget is {} MiB", scratch as f64/1048576., self.scratch_budget/1048576));
+            return Err(self.reject_budget(ResourceBudgetScope::MaskAndEffectScratch, scratch, self.scratch_budget, format!("layer mask and effect scratch textures require {:.2} MiB; budget is {} MiB", scratch as f64/1048576., self.scratch_budget/1048576)));
         }
         Ok(&self.frame)
     }

@@ -324,6 +324,7 @@ impl GpuState {
         scene: &Scene,
         asset_bytes: u64,
     ) -> Result<(), RenderError> {
+        self.failed_program = None;
         let frame = &builder.frame;
         if frame.passes.is_empty() {
             self.release_scratch();
@@ -332,9 +333,10 @@ impl GpuState {
         if frame.width > device.limits().max_texture_dimension_2d
             || frame.height > device.limits().max_texture_dimension_2d
         {
-            return Err(RenderError::Invalid(
-                "effect texture exceeds device dimensions".into(),
-            ));
+            return Err(RenderError::Resource {
+                rejection: crate::ResourceRejection::TextureDimensions { width: frame.width, height: frame.height, max_dimension: device.limits().max_texture_dimension_2d },
+                message: "effect texture exceeds device dimensions".into(),
+            });
         }
         if self.pool_width != frame.width
             || self.pool_height != frame.height
@@ -535,17 +537,15 @@ impl GpuState {
                                 let message = format!(
                                     "effect resource {path} exceeds device texture dimensions"
                                 );
-                                self.failed_program = Some((p.program, message.clone()));
-                                return Err(RenderError::Invalid(message));
+                                return Err(RenderError::Resource {
+                                    rejection: crate::ResourceRejection::TextureDimensions { width: rgba.width(), height: rgba.height(), max_dimension: device.limits().max_texture_dimension_2d },
+                                    message,
+                                });
                             }
                             if asset_bytes + self.resource_bytes + bytes > 128 * 1024 * 1024 {
-                                self.failed_program = Some((
-                                    p.program,
-                                    "images and effect resources exceed 128 MiB".into(),
-                                ));
-                                return Err(RenderError::Invalid(
-                                    "images and effect resources exceed 128 MiB".into(),
-                                ));
+                                return Err(RenderError::budget(crate::ResourceBudgetScope::SourceTextures,
+                                    asset_bytes + self.resource_bytes + bytes, crate::renderer::TEXTURE_BUDGET,
+                                    "images and effect resources exceed 128 MiB"));
                             }
                             let t = texture(
                                 device,

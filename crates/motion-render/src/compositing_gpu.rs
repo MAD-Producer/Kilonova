@@ -285,9 +285,9 @@ impl CompositingGpu {
         let pixels = u64::from(size[0]) * u64::from(size[1]);
         let unique: std::collections::HashSet<_> = needed.iter().copied().collect();
         if other_bytes + 1 + pixels * unique.len() as u64 > crate::renderer::TEXTURE_BUDGET {
-            return Err(RenderError::Invalid(
-                "track matte textures exceed 128 MiB".into(),
-            ));
+            return Err(RenderError::budget(crate::ResourceBudgetScope::SourceTextures,
+                other_bytes + 1 + pixels * unique.len() as u64, crate::renderer::TEXTURE_BUDGET,
+                "track matte textures exceed 128 MiB"));
         }
         for key in needed {
             self.mattes.entry(*key).or_insert_with(|| {
@@ -323,9 +323,9 @@ impl CompositingGpu {
             && u64::from(self.size[0]) * u64::from(self.size[1]) * 12
                 > crate::renderer::TEXTURE_BUDGET
         {
-            return Err(RenderError::Invalid(
-                "layer transfer accumulators exceed 128 MiB".into(),
-            ));
+            return Err(RenderError::budget(crate::ResourceBudgetScope::LayerCompositing,
+                u64::from(self.size[0]) * u64::from(self.size[1]) * 12, crate::renderer::TEXTURE_BUDGET,
+                "layer transfer accumulators exceed 128 MiB"));
         }
         if source_bytes > 0 {
             self.source = Some(crate::effect_gpu::texture(
