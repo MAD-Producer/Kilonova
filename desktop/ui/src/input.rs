@@ -13,8 +13,14 @@ pub enum MouseButton {
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Key {
+    A,
+    F,
+    G,
+    T,
+    Num0,
     N,
     O,
+    I,
     S,
     Z,
     Y,
@@ -88,6 +94,7 @@ pub enum Event {
 /// Accumulated input for one frame.
 #[derive(Default, Clone)]
 pub struct Input {
+    pub focus_lost: bool,
     pub held: Option<MouseButton>,
     pub mouse: [f32; 2],
     pub pressed: Option<(MouseButton, [f32; 2])>,
@@ -101,6 +108,7 @@ pub struct Input {
 
 impl Input {
     pub fn begin_frame(&mut self) {
+        self.focus_lost = false;
         self.pressed = None;
         self.released = None;
         self.wheel = [0.0, 0.0];
@@ -150,6 +158,16 @@ impl Rect {
             && other.min[1] >= self.min[1]
             && other.max[0] <= self.max[0]
             && other.max[1] <= self.max[1]
+    }
+    pub fn intersection(&self, other: Rect) -> Rect {
+        let x = self.min[0].max(other.min[0]);
+        let y = self.min[1].max(other.min[1]);
+        Rect::new(
+            x,
+            y,
+            (self.max[0].min(other.max[0]) - x).max(0.),
+            (self.max[1].min(other.max[1]) - y).max(0.),
+        )
     }
     /// Shrink symmetrically, used to inset widget contents from panel chrome.
     pub fn shrink(&self, amount: f32) -> Self {

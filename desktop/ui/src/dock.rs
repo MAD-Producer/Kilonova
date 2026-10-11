@@ -385,7 +385,7 @@ pub fn clamp_split(edge: Edge, split: f32, area: Rect) -> f32 {
     if extent <= 0.0 {
         return 0.5;
     }
-    let floor = (minimum / extent).clamp(0.05, 0.95);
+    let floor = (minimum / extent).clamp(0.05, 0.45);
     split.clamp(floor, 1.0 - floor)
 }
 

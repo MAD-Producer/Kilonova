@@ -13,10 +13,16 @@
 
 pub mod dock;
 pub mod input;
+pub mod interaction;
+pub mod overlay;
 pub mod paint;
+pub mod panel;
+pub mod registry;
 pub mod text;
 pub mod theme;
 pub mod ui;
+pub mod widgets;
+pub mod workspace;
 
 pub use input::{Input, Key, MouseButton, Rect};
 pub use paint::{PaintList, Painter};

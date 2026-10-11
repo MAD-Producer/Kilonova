@@ -28,32 +28,32 @@ pub mod palette {
     use super::Color;
 
     /// Window background behind all panels.
-    pub const APP_BACKGROUND: Color = Color::rgb(18, 20, 26);
+    pub const APP_BACKGROUND: Color = Color::rgb(17, 17, 17);
     /// Panel and dock background.
-    pub const PANEL: Color = Color::rgb(27, 30, 36);
+    pub const PANEL: Color = Color::rgb(28, 28, 28);
     /// Recessed areas: timeline background, list wells, viewer surround.
-    pub const SUNKEN: Color = Color::rgb(17, 20, 26);
+    pub const SUNKEN: Color = Color::rgb(17, 17, 17);
     /// Raised chrome: menu bar, toolbar, tab strip.
-    pub const CHROME: Color = Color::rgb(31, 34, 41);
+    pub const CHROME: Color = Color::rgb(35, 35, 35);
     /// Hairline borders between panels.
-    pub const BORDER: Color = Color::rgb(49, 53, 62);
+    pub const BORDER: Color = Color::rgb(54, 54, 54);
     /// Focus ring and selection accent.
-    pub const ACCENT: Color = Color::rgb(38, 154, 255);
+    pub const ACCENT: Color = Color::rgb(55, 142, 240);
     /// Secondary accent for the playhead.
-    pub const ACCENT_WARM: Color = Color::rgb(38, 154, 255);
+    pub const ACCENT_WARM: Color = Color::rgb(55, 142, 240);
     /// Primary text.
-    pub const TEXT: Color = Color::rgb(237, 241, 245);
+    pub const TEXT: Color = Color::rgb(220, 220, 220);
     /// Secondary text and disabled labels.
-    pub const TEXT_MUTED: Color = Color::rgb(154, 162, 174);
+    pub const TEXT_MUTED: Color = Color::rgb(173, 173, 173);
     /// Keyframe diamonds in the timeline.
-    pub const KEYFRAME: Color = Color::rgb(240, 196, 92);
+    pub const KEYFRAME: Color = Color::rgb(228, 216, 76);
     /// Track colour for the camera row.
-    pub const TRACK_CAMERA: Color = Color::rgb(38, 154, 255);
+    pub const TRACK_CAMERA: Color = Color::rgb(104, 87, 130);
     /// Alternating layer track colours.
     pub const TRACKS: [Color; 3] = [
-        Color::rgb(48, 136, 248),
-        Color::rgb(173, 157, 224),
-        Color::rgb(103, 191, 175),
+        Color::rgb(116, 116, 67),
+        Color::rgb(77, 89, 127),
+        Color::rgb(65, 98, 59),
     ];
     /// Checkerboard behind transparent pixels.
     pub const TRANSPARENT_LIGHT: Color = Color::rgb(72, 72, 76);
@@ -63,13 +63,13 @@ pub mod palette {
 /// Panel metrics in logical pixels at 100% UI scale.
 pub mod metrics {
     /// Height of the application menu bar.
-    pub const MENU_BAR: f32 = 30.0;
+    pub const MENU_BAR: f32 = 24.0;
     /// Height of the compact tool bar under the menu bar.
-    pub const TOOL_BAR: f32 = 42.0;
+    pub const TOOL_BAR: f32 = 36.0;
     /// Height of a panel tab strip.
-    pub const TAB_BAR: f32 = 36.0;
+    pub const TAB_BAR: f32 = 26.0;
     /// Height of one timeline layer row.
-    pub const ROW: f32 = 30.0;
+    pub const ROW: f32 = 24.0;
     /// Width of the timeline ruler gutter.
     pub const RULER: f32 = 92.0;
     /// Minimum width a dock may be dragged to.
@@ -77,7 +77,7 @@ pub mod metrics {
     /// Minimum height the timeline may be dragged to.
     pub const MIN_TIMELINE: f32 = 90.0;
     /// Width of a docked splitter grab handle.
-    pub const SPLITTER: f32 = 6.0;
+    pub const SPLITTER: f32 = 4.0;
     /// Height of a property row in the effect and property panels.
     pub const PROPERTY_ROW: f32 = 22.0;
 }
