@@ -11,6 +11,7 @@ use serde_json::{json, Value};
 impl Session {
     pub fn preview_info(&self) -> Value {
         let tier = self.preview.tier();
+        let video = self.video_info();
         let p = self.engine.project();
         let (sw, sh) = self
             .graphics
@@ -35,7 +36,19 @@ impl Session {
             "gpuTimingActive":self.graphics.as_ref().is_some_and(|g|g.timer.is_some()),
             "profiling":self.recorder.is_some(),
             "gpuTimestampSupported":self.graphics.as_ref().is_some_and(|g|g.renderer.device.features().contains(wgpu::Features::TIMESTAMP_QUERY)),
-            "video":self.video_info()})
+            "memoryBreakdown":self.graphics.as_ref().map(|g| {
+                let memory=g.renderer.texture_memory_breakdown();
+                let target=g.scratch.texture_bytes();
+                json!({"version":1,"scope":"logical_texture_capacity",
+                    "rendererBytes":memory.total_bytes(),"categories":memory,
+                    "legacyTextureBytes":g.renderer.texture_bytes(),
+                    "previewTargetBytes":target,"previewOwnedTextureBytes":memory.total_bytes()+target,
+                    "driverResidentBytes":null,"cpuDecodedCacheBytes":null,
+                    "cpuVideoDecodedCacheBytes":video["cacheBytes"],
+                    "excludes":["gpu_buffers","upload_staging","cpu_decode_caches",
+                        "swapchain","decoder_external_allocations","ui_and_independent_preview_textures"]})
+            }),
+            "video":video})
     }
 
     pub fn video_info(&self) -> Value {

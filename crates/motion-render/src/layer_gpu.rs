@@ -189,6 +189,13 @@ impl LayerGpu {
                 .map(|((w, h), _)| u64::from(*w) * u64::from(*h) * 20)
                 .sum::<u64>()
     }
+    pub fn accumulator_bytes(&self) -> u64 {
+        self.accumulators.len() as u64 * u64::from(self.size[0]) * u64::from(self.size[1]) * 4
+    }
+    pub fn raster_scratch_bytes(&self) -> u64 {
+        self.raster_scratch.keys().map(|(w,h)| u64::from(*w)*u64::from(*h)*20).sum()
+    }
+    pub fn group_scratch_bytes(&self) -> u64 { self.groups.bytes() }
     pub fn pending_vector_bytes(&self, scene: &crate::Scene, meshes: &[crate::vector_mesh::VectorMesh], images: &HashMap<TextureKey, GpuImage>) -> u64 {
         let mut scratch: std::collections::HashSet<_> = self.raster_scratch.keys().copied()
             .filter(|size| meshes.iter().any(|m| !groups::GroupGpu::grouped(m) && *size == (m.width, m.height))).collect();

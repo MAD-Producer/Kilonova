@@ -408,6 +408,37 @@ impl Renderer {
             + self.mask_gpu.scratch_bytes()
             + self.compositing_gpu.as_ref().map_or(0,|gpu|gpu.bytes())
     }
+    /// Read-only logical texture ledger. Unlike the compatibility getter,
+    /// this includes permanent effect fallback textures. Allocation and budget
+    /// policies are unchanged; this is not physical/resident VRAM accounting.
+    pub fn texture_memory_breakdown(&self) -> crate::TextureMemoryBreakdown {
+        let mut memory = crate::TextureMemoryBreakdown {
+            video_planes: self.video_plane_bytes(),
+            effect_scratch: self.effect_gpu.state.scratch_bytes(),
+            plugin_resources: self.effect_gpu.state.resource_bytes,
+            curve_luts: self.effect_gpu.state.curve_lut_bytes(),
+            vector_raster_scratch: self.layer_gpu.raster_scratch_bytes(),
+            vector_group_scratch: self.layer_gpu.group_scratch_bytes(),
+            layer_compositing_scratch: self.layer_gpu.accumulator_bytes(),
+            mask_scratch: self.mask_gpu.scratch_bytes(),
+            matte_blend_scratch: self.compositing_gpu.as_ref().map_or(0,|g|g.bytes()),
+            system_textures: self.effect_gpu.state.system_texture_bytes(),
+            ..Default::default()
+        };
+        for (key, image) in &self.images {
+            match key {
+                TextureKey::Static(0) => memory.system_textures += image.bytes,
+                TextureKey::Static(_) => memory.static_images += image.bytes,
+                TextureKey::Vector(_) => memory.vector_sources += image.bytes,
+                TextureKey::Mask(_) => memory.mask_outputs += image.bytes,
+                TextureKey::EffectInput(_) => memory.effect_input_snapshots += image.bytes,
+                TextureKey::Video(id) if self.composition_images.contains(id) =>
+                    memory.nested_compositions += image.bytes,
+                TextureKey::Video(_) => memory.video_rgba += image.bytes,
+            }
+        }
+        memory
+    }
     fn video_plane_bytes(&self) -> u64 {
         self.video_gpu.as_ref().map_or(0, |v| v.bytes())
     }
