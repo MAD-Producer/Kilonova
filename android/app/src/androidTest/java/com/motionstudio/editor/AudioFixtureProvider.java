@@ -33,7 +33,7 @@ public final class AudioFixtureProvider extends ContentProvider {
             }
             name = "tone-stereo-48000.wav";
         }
-        if (!Arrays.asList("tone-stereo-48000.wav", "tone-stereo-48000.m4a", "tone-mono-44100.mp3", "invalid.bin").contains(name))
+        if (!Arrays.asList("tone-stereo-48000.wav", "tone-stereo-48000.m4a", "tone-clock-48000.m4a", "tone-mono-44100.mp3", "invalid.bin").contains(name))
             throw new FileNotFoundException("Unknown audio fixture");
         try { return getContext().getAssets().openFd(name); }
         catch (IOException e) { throw new FileNotFoundException(e.toString()); }

@@ -68,7 +68,7 @@ class MediaFormatApiTest {
                 File(root,"reference.f32").outputStream().use {f->val b=ByteBuffer.allocate(samples.size*4).order(ByteOrder.LITTLE_ENDIAN);b.asFloatBuffer().put(samples);f.write(b.array())}
                 val frozen=data(MediaBridge.freezeAudio(id)).getLong("handle")
                 data(NativeBridge.save(id));NativeBridge.destroy(id);id=createOrReopen(root)
-                val cache=File(root,"cache/audio-v1/"+File(a.getString("path")).nameWithoutExtension+".pcm");assertTrue(cache.delete())
+                val cache=File(root,"cache/audio-v2/"+File(a.getString("path")).nameWithoutExtension+".pcm");assertTrue(cache.delete())
                 req(id,"prepare_audio","request_id" to "rebuild","asset" to a.getLong("id"));assertEquals(await(id,"rebuild").toString(),"succeeded",await(id,"rebuild").getString("state"));assertArrayEquals(samples,pcm(id,10000),0f)
                 val b=ByteBuffer.allocateDirect(samples.size*4).order(ByteOrder.LITTLE_ENDIAN);data(MediaBridge.readFrozenPcmInto(frozen,10000,4096,b));val actual=FloatArray(samples.size);b.asFloatBuffer().get(actual);assertArrayEquals(samples,actual,0f);data(MediaBridge.releaseFrozenAudio(frozen))
                 File(root,"audio-report.json").writeText(JSONObject().put("fixture",name).put("asset",a).toString(2))

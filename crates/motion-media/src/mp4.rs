@@ -12,6 +12,8 @@ pub(crate) struct Edit {
     pub skip: u64,
     pub leading: u64,
     pub frames: Option<u64>,
+    /// Maximum presentation rounding introduced by one movie timebase tick.
+    pub rounding_frames: u64,
 }
 fn u32be(b: &[u8]) -> Result<u32> {
     Ok(u32::from_be_bytes(
@@ -131,7 +133,7 @@ pub(crate) fn audio_edit(path: &Path, track: u32, rate: u32) -> Result<Edit> {
                 if count > 2 || elst.len() != 8 + count * stride {
                     return Err("complex MP4 audio edits are not supported".into());
                 }
-                let mut edit = Edit::default();
+                let mut edit = Edit {rounding_frames:u64::from(rate).div_ceil(u64::from(movie_rate)),..Edit::default()};
                 let mut have_media = false;
                 for entry in elst[8..].chunks_exact(stride) {
                     let (duration, media, r) = if wide {

@@ -133,6 +133,13 @@ pub fn decode_audio(
     let mut total = 0u64;
     let mut decoded = 0u64;
     let mut audible = 0u64;
+    let time_base = if mp4_container {
+        Some(params.time_base.ok_or("missing MP4 audio timebase")?)
+    } else {
+        None
+    };
+    let mut packet_end_ts = 0u64;
+    let mut last_packet_ts = None;
     let zeros = [0; 8192];
     let mut lead_bytes = edit.leading * u64::from(channels) * 4;
     while lead_bytes > 0 {
@@ -145,7 +152,12 @@ pub fn decode_audio(
     }
     total += edit.leading;
     loop {
-        check(expected_frames.map_or(0.0, |n| (decoded as f64 / n.max(1) as f64).min(1.0)))?;
+        let position = if mp4_container {
+            packet_end_ts
+        } else {
+            decoded
+        };
+        check(expected_frames.map_or(0.0, |n| (position as f64 / n.max(1) as f64).min(1.0)))?;
         let packet = match format.next_packet() {
             Ok(p) => p,
             Err(symphonia::core::errors::Error::IoError(e))
@@ -157,6 +169,18 @@ pub fn decode_audio(
         };
         if packet.track_id() != id {
             continue;
+        }
+        if mp4_container {
+            if last_packet_ts.is_some_and(|last| packet.ts() < last) {
+                return Err("MP4 audio timestamps move backwards".into());
+            }
+            last_packet_ts = Some(packet.ts());
+            packet_end_ts = packet_end_ts.max(
+                packet
+                    .ts()
+                    .checked_add(packet.dur())
+                    .ok_or("audio timestamp overflow")?,
+            );
         }
         let audio = decoder
             .decode(&packet)
@@ -174,7 +198,52 @@ pub fn decode_audio(
         let mut buffer = SampleBuffer::<f32>::new(audio.frames() as u64, *audio.spec());
         buffer.copy_interleaved_ref(audio);
         let frames = (buffer.len() / channels as usize) as u64;
-        let skip = edit.skip.saturating_sub(decoded).min(frames);
+        // MP4 packet timestamps describe presentation, independently of the
+        // decoded AAC block size. Gaps are silent; already-written overlap wins.
+        let packet_start = if let Some(tb) = time_base {
+            if tb.denom == 0 || tb.numer == 0 {
+                return Err("invalid MP4 audio timebase".into());
+            }
+            let value = u128::from(packet.ts()) * u128::from(tb.numer) * u128::from(rate)
+                / u128::from(tb.denom);
+            u64::try_from(value).map_err(|_| "audio sample timestamp overflow")?
+        } else {
+            decoded
+        };
+        let local_start = packet_start.saturating_sub(edit.skip);
+        let target = local_start.min(edit.frames.unwrap_or(u64::MAX));
+        if mp4_container && target > audible {
+            let gap = target - audible;
+            if total
+                .checked_add(gap)
+                .is_none_or(|n| n > max_frames || n > u64::from(rate) * 3600)
+            {
+                return Err("decoded audio duration/cache budget exceeded".into());
+            }
+            let mut bytes = gap * u64::from(channels) * 4;
+            while bytes > 0 {
+                check(
+                    expected_frames
+                        .map_or(0., |n| (packet_end_ts as f64 / n.max(1) as f64).min(1.)),
+                )?;
+                let count = bytes.min(zeros.len() as u64);
+                output
+                    .write_all(&zeros[..count as usize])
+                    .map_err(|e| e.to_string())?;
+                bytes -= count;
+            }
+            total += gap;
+            audible += gap;
+        }
+        let skip = if mp4_container {
+            edit.skip
+                .checked_add(audible)
+                .ok_or("audio edit timestamp overflow")?
+                .saturating_sub(packet_start)
+                .min(frames)
+        } else {
+            edit.skip.saturating_sub(decoded).min(frames)
+        };
         let count =
             (frames - skip).min(edit.frames.map_or(u64::MAX, |n| n.saturating_sub(audible)));
         if total + count > max_frames || total + count > u64::from(rate) * 3600 {
@@ -197,7 +266,35 @@ pub fn decode_audio(
             return Err("audio duration exceeds one hour".into());
         }
     }
-    if audible == 0 || edit.frames.is_some_and(|n| audible < n) {
+    if mp4_container && expected_frames.is_some_and(|n| packet_end_ts < n) {
+        return Err(format!("MP4 audio sample table is truncated: read through {packet_end_ts}, expected {expected_frames:?}"));
+    }
+    if mp4_container && decoded > 0 {
+        if let Some(end) = edit.frames.filter(|end| *end > audible) {
+            let missing = end - audible;
+            if missing <= edit.rounding_frames
+                && total
+                    .checked_add(missing)
+                    .is_some_and(|n| n <= max_frames && n <= u64::from(rate) * 3600)
+            {
+                let mut bytes = missing * u64::from(channels) * 4;
+                while bytes > 0 {
+                    check(
+                        expected_frames
+                            .map_or(0., |n| (packet_end_ts as f64 / n.max(1) as f64).min(1.)),
+                    )?;
+                    let count = bytes.min(zeros.len() as u64);
+                    output
+                        .write_all(&zeros[..count as usize])
+                        .map_err(|e| e.to_string())?;
+                    bytes -= count;
+                }
+                audible += missing;
+                total += missing;
+            }
+        }
+    }
+    if decoded == 0 || audible == 0 || edit.frames.is_some_and(|n| audible < n) {
         return Err("audio is empty or truncated".into());
     }
     // Lossless sources have exact declared sample counts; Ogg packet padding

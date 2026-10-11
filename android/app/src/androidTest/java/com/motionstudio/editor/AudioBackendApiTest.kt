@@ -37,6 +37,23 @@ class AudioBackendApiTest {
     private fun pcm(id:Long,start:Long,frames:Int=4096):FloatArray {
         val b=ByteBuffer.allocateDirect(frames*8).order(ByteOrder.LITTLE_ENDIAN);val result=data(MediaBridge.readPcmInto(id,start,frames,b));assertEquals(frames,result.getInt("frames"));return FloatArray(frames*2).also{b.asFloatBuffer().get(it)}
     }
+    @Test fun mp4PacketClockKeepsGapsOverlapAndCacheRebuildOnSourceTime() {
+        val root=root();val id=create(root)
+        try {
+            val committed=import(id,"tone-clock-48000.m4a","clock")
+            val asset=committed.getJSONObject("task").getJSONObject("metadata")
+            assertEquals(98272,asset.getLong("sample_frames"))
+            val silent=pcm(id,1024,2400);assertTrue(silent.all{it==0f})
+            val audible=pcm(id,3424,1024);assertTrue(audible.any{kotlin.math.abs(it)>.1f})
+            val cache=File(root,"cache/audio-v2/"+File(asset.getString("path")).nameWithoutExtension+".pcm")
+            assertTrue(cache.delete())
+            req(id,"prepare_audio","request_id" to "rebuild-clock","asset" to asset.getLong("id"))
+            assertEquals("succeeded",await(id,"rebuild-clock").getString("state"))
+            data(NativeBridge.command(id,"{\"op\":\"set_audio\",\"object\":1,\"volume\":0.5}"))
+            assertArrayEquals(audible.map{it*.5f}.toFloatArray(),pcm(id,3424,1024),0f)
+            assertTrue(pcm(id,1024,2400).all{it==0f})
+        }finally{NativeBridge.destroy(id)}
+    }
     @Test fun actualContentUrisDecodeAllFormatsAndAudioSurvivesReopen() {
         val root=root();var id=create(root)
         try{
@@ -126,7 +143,7 @@ class AudioBackendApiTest {
             data(NativeBridge.command(id,"{\"op\":\"split_layer_clip\",\"object\":1,\"frame\":30}"));assertArrayEquals(original,pcm(id,48000),0f)
             data(NativeBridge.command(id,"{\"op\":\"move_layer_clip\",\"object\":2,\"in_frame\":60}"));assertArrayEquals(original,pcm(id,96000),0f)
             data(NativeBridge.command(id,"{\"op\":\"set_audio\",\"object\":2,\"volume\":0.5}"));val half=pcm(id,96000);assertArrayEquals(original.map{it*.5f}.toFloatArray(),half,0f)
-            val cache=File(root,"cache/audio-v1/"+File(a.getString("path")).nameWithoutExtension+".pcm");assertTrue(cache.delete())
+            val cache=File(root,"cache/audio-v2/"+File(a.getString("path")).nameWithoutExtension+".pcm");assertTrue(cache.delete())
             req(id,"prepare_audio","request_id" to "rebuild","asset" to a.getLong("id"));assertEquals("succeeded",await(id,"rebuild").getString("state"))
             // Invalidate the live mixer's revision so it opens the rebuilt file.
             data(NativeBridge.command(id,"{\"op\":\"set_audio\",\"object\":2,\"volume\":1.0}"));assertArrayEquals(original,pcm(id,96000),0f)

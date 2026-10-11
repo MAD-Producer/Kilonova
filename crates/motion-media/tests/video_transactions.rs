@@ -4,10 +4,13 @@ use motion_media::{AudioMixer, ProbeVideo, VideoImportOptions, VideoJobs, VideoP
 use std::{
     fs::File,
     path::Path,
-    sync::Arc,
+    sync::{Arc,Mutex},
     time::{Duration, Instant},
 };
 const VIDEO: &str = "tests/fixtures/video/sound-24fps.mp4";
+// These cases share the process-wide two-worker import budget. Concurrency
+// inside each transaction remains tested; unrelated cases cannot occupy it.
+static TEST_LOCK:Mutex<()>=Mutex::new(());
 fn probe_stub() -> ProbeVideo {
     Arc::new(|source, _, audio, check| {
         check()?;
@@ -84,6 +87,7 @@ fn wait(jobs: &VideoJobs, id: &str) -> motion_media::VideoTaskStatus {
 
 #[test]
 fn source_and_original_audio_share_one_owned_file_and_one_history_entry() {
+    let _guard=TEST_LOCK.lock().unwrap();
     let root = tempfile::tempdir().unwrap();
     let jobs = VideoJobs::new(root.path().into()).unwrap();
     let mut engine = Engine::new(Project::new(256, 144, 60, 240).unwrap()).unwrap();
@@ -139,6 +143,7 @@ fn source_and_original_audio_share_one_owned_file_and_one_history_entry() {
 
 #[test]
 fn cancelled_probe_and_failed_save_preserve_the_original_project() {
+    let _guard=TEST_LOCK.lock().unwrap();
     let root = tempfile::tempdir().unwrap();
     let jobs = VideoJobs::new(root.path().into()).unwrap();
     let mut engine = Engine::new(Project::new(256, 144, 60, 240).unwrap()).unwrap();
@@ -170,6 +175,7 @@ fn cancelled_probe_and_failed_save_preserve_the_original_project() {
 
 #[test]
 fn new_source_cap_accepts_large_declared_lengths_but_still_requires_exact_bytes() {
+    let _guard=TEST_LOCK.lock().unwrap();
     let root = tempfile::tempdir().unwrap();
     let jobs = VideoJobs::new(root.path().into()).unwrap();
     for (id, bytes, message) in [
@@ -210,6 +216,7 @@ fn new_source_cap_accepts_large_declared_lengths_but_still_requires_exact_bytes(
 #[test]
 #[ignore = "requires MOTION_LARGE_VIDEO_SOURCE (>512 MiB MP4/AAC) and several GiB of free disk"]
 fn large_source_roundtrip_with_shared_audio_and_bounded_read_requests() {
+    let _guard=TEST_LOCK.lock().unwrap();
     use std::{
         io::{Read, Write},
         sync::atomic::{AtomicUsize, Ordering},

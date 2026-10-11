@@ -89,7 +89,7 @@ fn portable_formats_preserve_native_rates_samples_waveforms_and_rebuilds() {
 #[test]
 fn downsampling_filters_ultrasonic_aliases_and_is_independent_of_block_boundaries() {
     let root = tempfile::tempdir().unwrap();
-    fs::create_dir_all(root.path().join("cache/audio-v1")).unwrap();
+    fs::create_dir_all(root.path().join(format!("cache/audio-v{}",motion_media::PCM_VERSION))).unwrap();
     let rate = 192000;
     let n = rate as u64;
     let a = AudioAsset {
