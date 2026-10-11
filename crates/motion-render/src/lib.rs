@@ -3,6 +3,8 @@
 mod effect_gpu;
 pub mod effect_plan;
 pub mod resource_policy;
+mod resource_error;
+pub use resource_error::{ResourceBudgetScope, ResourceRejection};
 mod effect_plan_cache;
 pub mod composition_plan;
 mod measurement;

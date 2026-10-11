@@ -304,7 +304,8 @@ impl MaskGpu {
             let cost = u64::from(first.width) * u64::from(first.height);
             let previous = images.get(&key).map_or(0, |i| i.bytes);
             if *bytes - previous + cost + other > 128 * 1024 * 1024 {
-                return Err(RenderError::Invalid(format!(
+                return Err(RenderError::budget(crate::ResourceBudgetScope::SourceTextures,
+                    *bytes - previous + cost + other, crate::renderer::TEXTURE_BUDGET, format!(
                     "layer {owner}: source and mask textures exceed 128 MiB"
                 )));
             }

@@ -275,7 +275,9 @@ impl LayerGpu {
                 cost * 5
             };
             if *bytes + new_source + msaa_bytes + new_scratch + resource_bytes > 128 * 1024 * 1024 {
-                return Err(RenderError::Invalid(format!(
+                return Err(RenderError::budget(crate::ResourceBudgetScope::VectorWorkingSet,
+                    *bytes + new_source + msaa_bytes + new_scratch + resource_bytes,
+                    crate::renderer::TEXTURE_BUDGET, format!(
                     "layer {id}: vector sources and MSAA raster resources exceed 128 MiB"
                 )));
             }
