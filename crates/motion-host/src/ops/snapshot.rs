@@ -32,6 +32,7 @@ impl Session {
             "imagePrefetchSeconds":motion_render::image_resources::PREFETCH_SECONDS,
             "effectPlanBuilds":self.graphics.as_ref().map_or(0,|g|g.renderer.effect_plan_builds()),
             "effectPlanCacheHits":self.graphics.as_ref().map_or(0,|g|g.renderer.effect_plan_cache_hits()),
+            "effectPipelineBuilds":self.graphics.as_ref().map_or(0,|g|g.renderer.effect_pipeline_builds()),
             "surfaceBounded":self.preview.mode != PreviewMode::High,
             "gpuTimingActive":self.graphics.as_ref().is_some_and(|g|g.timer.is_some()),
             "profiling":self.recorder.is_some(),

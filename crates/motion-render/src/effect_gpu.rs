@@ -50,6 +50,7 @@ pub(crate) struct GpuState {
     resource_textures: HashMap<(String, String), FxTexture>,
     pub resource_bytes: u64,
     pub parameter_resource_upload_bytes: u64,
+    pub pipeline_builds: u64,
     pub failed_program: Option<(u32, String)>,
     pub pool: Vec<Option<FxTexture>>,
     pool_width: u32,
@@ -225,6 +226,7 @@ impl EffectGpu {
                 resource_textures: HashMap::new(),
                 resource_bytes: 0,
                 parameter_resource_upload_bytes: 0,
+                pipeline_builds: 0,
                 failed_program: None,
                 pool: (0..8).map(|_| None).collect(),
                 pool_width: 0,
@@ -245,6 +247,12 @@ impl EffectGpu {
         })
     }
     pub fn set_registry(&mut self, r: Registry) {
+        if crate::effect_plan_cache::same_registry_packages(&self.builder.registry, &r) {
+            // Keep preflighted pipelines, resources, program IDs and preview plan.
+            // Refresh non-rendering diagnostics without pretending packages changed.
+            self.builder.registry = r;
+            return;
+        }
         self.builder.set_registry(r);
         self.state.pipelines.clear();
         self.state.resources.clear();
@@ -509,6 +517,7 @@ impl GpuState {
                     return Err(RenderError::Invalid(message));
                 }
                 self.pipelines.insert(key, pipeline);
+                self.pipeline_builds += 1;
             }
             if !self.resources.contains_key(&p.program) {
                 let program = &builder.programs[p.program as usize];
