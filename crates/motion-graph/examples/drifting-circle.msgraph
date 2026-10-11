@@ -1,0 +1,375 @@
+{
+  "format_version": 1,
+  "id": "drifting_circle",
+  "name": "漂移圆形",
+  "english_name": "Drifting Circle",
+  "working_space": "srgb",
+  "alpha_mode": "straight",
+  "nodes": [
+    {
+      "id": "position",
+      "version": 1,
+      "operation": {
+        "kind": "position"
+      },
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "time",
+      "version": 1,
+      "operation": {
+        "kind": "time"
+      },
+      "position": [
+        0,
+        175
+      ]
+    },
+    {
+      "id": "speed",
+      "version": 1,
+      "operation": {
+        "kind": "parameter",
+        "parameter": "speed"
+      },
+      "position": [
+        0,
+        350
+      ]
+    },
+    {
+      "id": "move",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "multiply",
+        "value_type": "float"
+      },
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "id": "zero",
+      "version": 1,
+      "operation": {
+        "kind": "float",
+        "value": 0.0
+      },
+      "position": [
+        0,
+        525
+      ]
+    },
+    {
+      "id": "offset",
+      "version": 1,
+      "operation": {
+        "kind": "combine_vec2"
+      },
+      "position": [
+        520,
+        0
+      ]
+    },
+    {
+      "id": "center",
+      "version": 1,
+      "operation": {
+        "kind": "parameter",
+        "parameter": "center"
+      },
+      "position": [
+        0,
+        700
+      ]
+    },
+    {
+      "id": "moving_center",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "add",
+        "value_type": "vec2"
+      },
+      "position": [
+        780,
+        0
+      ]
+    },
+    {
+      "id": "radius",
+      "version": 1,
+      "operation": {
+        "kind": "parameter",
+        "parameter": "radius"
+      },
+      "position": [
+        0,
+        875
+      ]
+    },
+    {
+      "id": "color",
+      "version": 1,
+      "operation": {
+        "kind": "parameter",
+        "parameter": "color"
+      },
+      "position": [
+        0,
+        1050
+      ]
+    },
+    {
+      "id": "circle",
+      "version": 1,
+      "operation": {
+        "kind": "sdf_circle"
+      },
+      "position": [
+        1040,
+        0
+      ]
+    },
+    {
+      "id": "fill",
+      "version": 1,
+      "operation": {
+        "kind": "sdf_fill"
+      },
+      "position": [
+        1300,
+        0
+      ]
+    },
+    {
+      "id": "masked",
+      "version": 1,
+      "operation": {
+        "kind": "apply_mask"
+      },
+      "position": [
+        1560,
+        0
+      ]
+    },
+    {
+      "id": "output",
+      "version": 1,
+      "operation": {
+        "kind": "color_output"
+      },
+      "position": [
+        1820,
+        0
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": {
+        "node": "time",
+        "port": "value"
+      },
+      "to": {
+        "node": "move",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "speed",
+        "port": "value"
+      },
+      "to": {
+        "node": "move",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "move",
+        "port": "value"
+      },
+      "to": {
+        "node": "offset",
+        "port": "x"
+      }
+    },
+    {
+      "from": {
+        "node": "zero",
+        "port": "value"
+      },
+      "to": {
+        "node": "offset",
+        "port": "y"
+      }
+    },
+    {
+      "from": {
+        "node": "center",
+        "port": "value"
+      },
+      "to": {
+        "node": "moving_center",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "offset",
+        "port": "value"
+      },
+      "to": {
+        "node": "moving_center",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "position",
+        "port": "value"
+      },
+      "to": {
+        "node": "circle",
+        "port": "position"
+      }
+    },
+    {
+      "from": {
+        "node": "moving_center",
+        "port": "value"
+      },
+      "to": {
+        "node": "circle",
+        "port": "center"
+      }
+    },
+    {
+      "from": {
+        "node": "radius",
+        "port": "value"
+      },
+      "to": {
+        "node": "circle",
+        "port": "radius"
+      }
+    },
+    {
+      "from": {
+        "node": "circle",
+        "port": "distance"
+      },
+      "to": {
+        "node": "fill",
+        "port": "distance"
+      }
+    },
+    {
+      "from": {
+        "node": "color",
+        "port": "value"
+      },
+      "to": {
+        "node": "masked",
+        "port": "color"
+      }
+    },
+    {
+      "from": {
+        "node": "fill",
+        "port": "coverage"
+      },
+      "to": {
+        "node": "masked",
+        "port": "coverage"
+      }
+    },
+    {
+      "from": {
+        "node": "masked",
+        "port": "color"
+      },
+      "to": {
+        "node": "output",
+        "port": "color"
+      }
+    }
+  ],
+  "public_parameters": [
+    {
+      "id": "radius",
+      "name": "半径",
+      "english_name": "Radius",
+      "value_type": "float",
+      "default": [
+        16,
+        0,
+        0,
+        0
+      ],
+      "min": 0,
+      "max": 64,
+      "step": 0.25,
+      "units": "px",
+      "animatable": true
+    },
+    {
+      "id": "center",
+      "name": "中心",
+      "english_name": "Center",
+      "value_type": "vec2",
+      "default": [
+        32,
+        32,
+        0,
+        0
+      ],
+      "min": 0,
+      "max": 4096,
+      "step": 0.25,
+      "units": "px",
+      "animatable": true
+    },
+    {
+      "id": "color",
+      "name": "颜色",
+      "english_name": "Color",
+      "value_type": "color",
+      "default": [
+        0.1,
+        0.7,
+        1.0,
+        0.65
+      ],
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "units": "",
+      "animatable": true
+    },
+    {
+      "id": "speed",
+      "name": "移动速度",
+      "english_name": "Speed",
+      "value_type": "float",
+      "default": [
+        8,
+        0,
+        0,
+        0
+      ],
+      "min": -256,
+      "max": 256,
+      "step": 0.25,
+      "units": "px/s",
+      "animatable": true
+    }
+  ]
+}

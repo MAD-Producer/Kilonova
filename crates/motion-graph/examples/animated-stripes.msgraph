@@ -1,0 +1,428 @@
+{
+  "format_version": 1,
+  "id": "animated_stripes",
+  "name": "时间驱动条纹",
+  "english_name": "Animated Stripes",
+  "working_space": "srgb",
+  "alpha_mode": "straight",
+  "nodes": [
+    {
+      "id": "uv",
+      "version": 1,
+      "operation": {
+        "kind": "uv"
+      },
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "x_axis",
+      "version": 1,
+      "operation": {
+        "kind": "vec2",
+        "value": [
+          1,
+          0
+        ]
+      },
+      "position": [
+        0,
+        175
+      ]
+    },
+    {
+      "id": "u",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "dot",
+        "value_type": "vec2"
+      },
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "id": "frequency",
+      "version": 1,
+      "operation": {
+        "kind": "parameter",
+        "parameter": "frequency"
+      },
+      "position": [
+        0,
+        350
+      ]
+    },
+    {
+      "id": "tiles",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "multiply",
+        "value_type": "float"
+      },
+      "position": [
+        520,
+        0
+      ]
+    },
+    {
+      "id": "time",
+      "version": 1,
+      "operation": {
+        "kind": "time"
+      },
+      "position": [
+        0,
+        525
+      ]
+    },
+    {
+      "id": "speed",
+      "version": 1,
+      "operation": {
+        "kind": "parameter",
+        "parameter": "speed"
+      },
+      "position": [
+        0,
+        700
+      ]
+    },
+    {
+      "id": "drift",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "multiply",
+        "value_type": "float"
+      },
+      "position": [
+        260,
+        175
+      ]
+    },
+    {
+      "id": "phase",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "add",
+        "value_type": "float"
+      },
+      "position": [
+        780,
+        0
+      ]
+    },
+    {
+      "id": "repeat",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "fract",
+        "value_type": "float"
+      },
+      "position": [
+        1040,
+        0
+      ]
+    },
+    {
+      "id": "edge_low",
+      "version": 1,
+      "operation": {
+        "kind": "float",
+        "value": 0.45
+      },
+      "position": [
+        0,
+        875
+      ]
+    },
+    {
+      "id": "edge_high",
+      "version": 1,
+      "operation": {
+        "kind": "float",
+        "value": 0.55
+      },
+      "position": [
+        0,
+        1050
+      ]
+    },
+    {
+      "id": "band",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "smoothstep",
+        "value_type": "float"
+      },
+      "position": [
+        1300,
+        0
+      ]
+    },
+    {
+      "id": "dark",
+      "version": 1,
+      "operation": {
+        "kind": "color",
+        "value": [
+          0.035,
+          0.06,
+          0.12,
+          1
+        ]
+      },
+      "position": [
+        0,
+        1225
+      ]
+    },
+    {
+      "id": "light",
+      "version": 1,
+      "operation": {
+        "kind": "color",
+        "value": [
+          0.2,
+          0.86,
+          0.78,
+          1
+        ]
+      },
+      "position": [
+        0,
+        1400
+      ]
+    },
+    {
+      "id": "mix",
+      "version": 1,
+      "operation": {
+        "kind": "color_math",
+        "operation": "mix"
+      },
+      "position": [
+        1560,
+        0
+      ]
+    },
+    {
+      "id": "output",
+      "version": 1,
+      "operation": {
+        "kind": "color_output"
+      },
+      "position": [
+        1820,
+        0
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": {
+        "node": "uv",
+        "port": "value"
+      },
+      "to": {
+        "node": "u",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "x_axis",
+        "port": "value"
+      },
+      "to": {
+        "node": "u",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "u",
+        "port": "value"
+      },
+      "to": {
+        "node": "tiles",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "frequency",
+        "port": "value"
+      },
+      "to": {
+        "node": "tiles",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "time",
+        "port": "value"
+      },
+      "to": {
+        "node": "drift",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "speed",
+        "port": "value"
+      },
+      "to": {
+        "node": "drift",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "tiles",
+        "port": "value"
+      },
+      "to": {
+        "node": "phase",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "drift",
+        "port": "value"
+      },
+      "to": {
+        "node": "phase",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "phase",
+        "port": "value"
+      },
+      "to": {
+        "node": "repeat",
+        "port": "value"
+      }
+    },
+    {
+      "from": {
+        "node": "edge_low",
+        "port": "value"
+      },
+      "to": {
+        "node": "band",
+        "port": "edge0"
+      }
+    },
+    {
+      "from": {
+        "node": "edge_high",
+        "port": "value"
+      },
+      "to": {
+        "node": "band",
+        "port": "edge1"
+      }
+    },
+    {
+      "from": {
+        "node": "repeat",
+        "port": "value"
+      },
+      "to": {
+        "node": "band",
+        "port": "value"
+      }
+    },
+    {
+      "from": {
+        "node": "dark",
+        "port": "value"
+      },
+      "to": {
+        "node": "mix",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "light",
+        "port": "value"
+      },
+      "to": {
+        "node": "mix",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "band",
+        "port": "value"
+      },
+      "to": {
+        "node": "mix",
+        "port": "factor"
+      }
+    },
+    {
+      "from": {
+        "node": "mix",
+        "port": "color"
+      },
+      "to": {
+        "node": "output",
+        "port": "color"
+      }
+    }
+  ],
+  "public_parameters": [
+    {
+      "id": "frequency",
+      "name": "条纹数量",
+      "english_name": "Stripe Count",
+      "value_type": "float",
+      "default": [
+        6,
+        0,
+        0,
+        0
+      ],
+      "min": 1,
+      "max": 16,
+      "step": 1,
+      "units": "",
+      "animatable": true
+    },
+    {
+      "id": "speed",
+      "name": "滚动速度",
+      "english_name": "Scroll Speed",
+      "value_type": "float",
+      "default": [
+        0.25,
+        0,
+        0,
+        0
+      ],
+      "min": -2,
+      "max": 2,
+      "step": 0.05,
+      "units": "cycles/s",
+      "animatable": true
+    }
+  ]
+}

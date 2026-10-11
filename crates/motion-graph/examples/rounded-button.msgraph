@@ -1,0 +1,251 @@
+{
+  "format_version": 1,
+  "id": "rounded_button",
+  "name": "圆角按钮轮廓",
+  "english_name": "Rounded Button Shape",
+  "working_space": "srgb",
+  "alpha_mode": "straight",
+  "nodes": [
+    {
+      "id": "position",
+      "version": 1,
+      "operation": {
+        "kind": "position"
+      },
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "center",
+      "version": 1,
+      "operation": {
+        "kind": "vec2",
+        "value": [
+          32,
+          32
+        ]
+      },
+      "position": [
+        0,
+        175
+      ]
+    },
+    {
+      "id": "half_size",
+      "version": 1,
+      "operation": {
+        "kind": "parameter",
+        "parameter": "half_size"
+      },
+      "position": [
+        0,
+        350
+      ]
+    },
+    {
+      "id": "corner",
+      "version": 1,
+      "operation": {
+        "kind": "parameter",
+        "parameter": "corner"
+      },
+      "position": [
+        0,
+        525
+      ]
+    },
+    {
+      "id": "rectangle",
+      "version": 1,
+      "operation": {
+        "kind": "sdf_rounded_rectangle"
+      },
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "id": "color",
+      "version": 1,
+      "operation": {
+        "kind": "parameter",
+        "parameter": "color"
+      },
+      "position": [
+        0,
+        700
+      ]
+    },
+    {
+      "id": "fill",
+      "version": 1,
+      "operation": {
+        "kind": "sdf_fill"
+      },
+      "position": [
+        520,
+        0
+      ]
+    },
+    {
+      "id": "masked",
+      "version": 1,
+      "operation": {
+        "kind": "apply_mask"
+      },
+      "position": [
+        780,
+        0
+      ]
+    },
+    {
+      "id": "output",
+      "version": 1,
+      "operation": {
+        "kind": "color_output"
+      },
+      "position": [
+        1040,
+        0
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": {
+        "node": "position",
+        "port": "value"
+      },
+      "to": {
+        "node": "rectangle",
+        "port": "position"
+      }
+    },
+    {
+      "from": {
+        "node": "center",
+        "port": "value"
+      },
+      "to": {
+        "node": "rectangle",
+        "port": "center"
+      }
+    },
+    {
+      "from": {
+        "node": "half_size",
+        "port": "value"
+      },
+      "to": {
+        "node": "rectangle",
+        "port": "half_size"
+      }
+    },
+    {
+      "from": {
+        "node": "corner",
+        "port": "value"
+      },
+      "to": {
+        "node": "rectangle",
+        "port": "radius"
+      }
+    },
+    {
+      "from": {
+        "node": "rectangle",
+        "port": "distance"
+      },
+      "to": {
+        "node": "fill",
+        "port": "distance"
+      }
+    },
+    {
+      "from": {
+        "node": "color",
+        "port": "value"
+      },
+      "to": {
+        "node": "masked",
+        "port": "color"
+      }
+    },
+    {
+      "from": {
+        "node": "fill",
+        "port": "coverage"
+      },
+      "to": {
+        "node": "masked",
+        "port": "coverage"
+      }
+    },
+    {
+      "from": {
+        "node": "masked",
+        "port": "color"
+      },
+      "to": {
+        "node": "output",
+        "port": "color"
+      }
+    }
+  ],
+  "public_parameters": [
+    {
+      "id": "half_size",
+      "name": "按钮半尺寸",
+      "english_name": "Button Half Size",
+      "value_type": "vec2",
+      "default": [
+        24,
+        12,
+        0,
+        0
+      ],
+      "min": 1,
+      "max": 32,
+      "step": 0.25,
+      "units": "px",
+      "animatable": true
+    },
+    {
+      "id": "corner",
+      "name": "圆角半径",
+      "english_name": "Corner Radius",
+      "value_type": "float",
+      "default": [
+        6,
+        0,
+        0,
+        0
+      ],
+      "min": 0,
+      "max": 16,
+      "step": 0.25,
+      "units": "px",
+      "animatable": true
+    },
+    {
+      "id": "color",
+      "name": "按钮颜色",
+      "english_name": "Button Color",
+      "value_type": "color",
+      "default": [
+        0.23,
+        0.47,
+        0.93,
+        1
+      ],
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "units": "",
+      "animatable": true
+    }
+  ]
+}

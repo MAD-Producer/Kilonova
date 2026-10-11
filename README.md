@@ -46,6 +46,8 @@ Android 端以触屏操作为主，属性编辑保留预览与时间轴。桌面
 
 第三方效果以 `.msfx` 打包，导入后即可测试，无需重新构建应用。[插件 SDK](sdk/README.md) 提供 WGSL 契约、参数与原生编辑器协议、打包工具，以及可安装的 `motion-studio-plugin` skill。
 
+[节点学习库](crates/motion-graph/README.md) 提供 14 个可编辑 `.msgraph` 示例，包含基础练习、柔光空间、弹性几何和发光氛围。共享后端支持双语目录、引脚语义检查、单 pass WGSL 编译与 `.msfx` 导出；桌面界面入口按独立的 UI 集成进度开放。
+
 效果采用独立实现，部分行为与参数仍有近似或未支持项；具体范围见[效果与字体 API](engineering/host-api/official-motion-effects.md)。
 
 ## 素材、工程与输出

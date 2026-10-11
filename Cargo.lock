@@ -1897,6 +1897,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "motion-graph"
+version = "0.1.0"
+dependencies = [
+ "image",
+ "motion-core",
+ "motion-effects",
+ "motion-render",
+ "pollster",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "wgpu",
+ "zip",
+]
+
+[[package]]
 name = "motion-host"
 version = "0.1.0"
 dependencies = [

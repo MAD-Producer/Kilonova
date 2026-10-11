@@ -1,0 +1,853 @@
+{
+  "format_version": 1,
+  "id": "elastic_capsule",
+  "name": "阻尼回弹与挤压拉伸",
+  "english_name": "Damped Bounce and Squash Stretch",
+  "working_space": "srgb",
+  "alpha_mode": "straight",
+  "nodes": [
+    {
+      "id": "position",
+      "version": 1,
+      "operation": {
+        "kind": "position"
+      },
+      "position": [
+        2450,
+        0
+      ]
+    },
+    {
+      "id": "period",
+      "version": 1,
+      "operation": {
+        "kind": "parameter",
+        "parameter": "period"
+      },
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "time",
+      "version": 1,
+      "operation": {
+        "kind": "time"
+      },
+      "position": [
+        0,
+        150
+      ]
+    },
+    {
+      "id": "divide",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "divide",
+        "value_type": "float"
+      },
+      "position": [
+        245,
+        0
+      ]
+    },
+    {
+      "id": "fract",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "fract",
+        "value_type": "float"
+      },
+      "position": [
+        490,
+        0
+      ]
+    },
+    {
+      "id": "constant_0",
+      "version": 1,
+      "operation": {
+        "kind": "float",
+        "value": 12.5663706
+      },
+      "position": [
+        490,
+        150
+      ]
+    },
+    {
+      "id": "multiply",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "multiply",
+        "value_type": "float"
+      },
+      "position": [
+        735,
+        0
+      ]
+    },
+    {
+      "id": "sin",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "sin",
+        "value_type": "float"
+      },
+      "position": [
+        980,
+        0
+      ]
+    },
+    {
+      "id": "constant_1",
+      "version": 1,
+      "operation": {
+        "kind": "float",
+        "value": 1
+      },
+      "position": [
+        490,
+        300
+      ]
+    },
+    {
+      "id": "subtract",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "subtract",
+        "value_type": "float"
+      },
+      "position": [
+        735,
+        150
+      ]
+    },
+    {
+      "id": "multiply_2",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "multiply",
+        "value_type": "float"
+      },
+      "position": [
+        980,
+        150
+      ]
+    },
+    {
+      "id": "multiply_3",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "multiply",
+        "value_type": "float"
+      },
+      "position": [
+        1225,
+        0
+      ]
+    },
+    {
+      "id": "amplitude",
+      "version": 1,
+      "operation": {
+        "kind": "parameter",
+        "parameter": "amplitude"
+      },
+      "position": [
+        1225,
+        150
+      ]
+    },
+    {
+      "id": "constant_2",
+      "version": 1,
+      "operation": {
+        "kind": "float",
+        "value": 32
+      },
+      "position": [
+        1470,
+        0
+      ]
+    },
+    {
+      "id": "multiply_4",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "multiply",
+        "value_type": "float"
+      },
+      "position": [
+        1470,
+        150
+      ]
+    },
+    {
+      "id": "add",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "add",
+        "value_type": "float"
+      },
+      "position": [
+        1715,
+        0
+      ]
+    },
+    {
+      "id": "combine_xy",
+      "version": 1,
+      "operation": {
+        "kind": "combine_vec2"
+      },
+      "position": [
+        1960,
+        0
+      ]
+    },
+    {
+      "id": "abs",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "abs",
+        "value_type": "float"
+      },
+      "position": [
+        1470,
+        300
+      ]
+    },
+    {
+      "id": "constant_3",
+      "version": 1,
+      "operation": {
+        "kind": "float",
+        "value": 0.3
+      },
+      "position": [
+        1470,
+        450
+      ]
+    },
+    {
+      "id": "multiply_5",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "multiply",
+        "value_type": "float"
+      },
+      "position": [
+        1715,
+        150
+      ]
+    },
+    {
+      "id": "add_2",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "add",
+        "value_type": "float"
+      },
+      "position": [
+        1960,
+        150
+      ]
+    },
+    {
+      "id": "constant_4",
+      "version": 1,
+      "operation": {
+        "kind": "float",
+        "value": 17
+      },
+      "position": [
+        1960,
+        300
+      ]
+    },
+    {
+      "id": "multiply_6",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "multiply",
+        "value_type": "float"
+      },
+      "position": [
+        2205,
+        0
+      ]
+    },
+    {
+      "id": "constant_5",
+      "version": 1,
+      "operation": {
+        "kind": "float",
+        "value": 9
+      },
+      "position": [
+        1960,
+        450
+      ]
+    },
+    {
+      "id": "divide_2",
+      "version": 1,
+      "operation": {
+        "kind": "math",
+        "operation": "divide",
+        "value_type": "float"
+      },
+      "position": [
+        2205,
+        150
+      ]
+    },
+    {
+      "id": "area_preserving_size",
+      "version": 1,
+      "operation": {
+        "kind": "combine_vec2"
+      },
+      "position": [
+        2450,
+        150
+      ]
+    },
+    {
+      "id": "constant_6",
+      "version": 1,
+      "operation": {
+        "kind": "float",
+        "value": 7
+      },
+      "position": [
+        2450,
+        300
+      ]
+    },
+    {
+      "id": "shape",
+      "version": 1,
+      "operation": {
+        "kind": "sdf_rounded_rectangle"
+      },
+      "position": [
+        2695,
+        0
+      ]
+    },
+    {
+      "id": "tone",
+      "version": 1,
+      "operation": {
+        "kind": "parameter",
+        "parameter": "tone"
+      },
+      "position": [
+        2940,
+        0
+      ]
+    },
+    {
+      "id": "constant_7",
+      "version": 1,
+      "operation": {
+        "kind": "color",
+        "value": [
+          0.025,
+          0.03,
+          0.045,
+          1
+        ]
+      },
+      "position": [
+        2940,
+        150
+      ]
+    },
+    {
+      "id": "coverage",
+      "version": 1,
+      "operation": {
+        "kind": "sdf_fill"
+      },
+      "position": [
+        2940,
+        300
+      ]
+    },
+    {
+      "id": "bouncing_graphic",
+      "version": 1,
+      "operation": {
+        "kind": "color_math",
+        "operation": "mix"
+      },
+      "position": [
+        3185,
+        0
+      ]
+    },
+    {
+      "id": "output",
+      "version": 1,
+      "operation": {
+        "kind": "color_output"
+      },
+      "position": [
+        3430,
+        0
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": {
+        "node": "time",
+        "port": "value"
+      },
+      "to": {
+        "node": "divide",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "period",
+        "port": "value"
+      },
+      "to": {
+        "node": "divide",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "divide",
+        "port": "value"
+      },
+      "to": {
+        "node": "fract",
+        "port": "value"
+      }
+    },
+    {
+      "from": {
+        "node": "fract",
+        "port": "value"
+      },
+      "to": {
+        "node": "multiply",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_0",
+        "port": "value"
+      },
+      "to": {
+        "node": "multiply",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "multiply",
+        "port": "value"
+      },
+      "to": {
+        "node": "sin",
+        "port": "value"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_1",
+        "port": "value"
+      },
+      "to": {
+        "node": "subtract",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "fract",
+        "port": "value"
+      },
+      "to": {
+        "node": "subtract",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "subtract",
+        "port": "value"
+      },
+      "to": {
+        "node": "multiply_2",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "subtract",
+        "port": "value"
+      },
+      "to": {
+        "node": "multiply_2",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "sin",
+        "port": "value"
+      },
+      "to": {
+        "node": "multiply_3",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "multiply_2",
+        "port": "value"
+      },
+      "to": {
+        "node": "multiply_3",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "multiply_3",
+        "port": "value"
+      },
+      "to": {
+        "node": "multiply_4",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "amplitude",
+        "port": "value"
+      },
+      "to": {
+        "node": "multiply_4",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_2",
+        "port": "value"
+      },
+      "to": {
+        "node": "add",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "multiply_4",
+        "port": "value"
+      },
+      "to": {
+        "node": "add",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_2",
+        "port": "value"
+      },
+      "to": {
+        "node": "combine_xy",
+        "port": "x"
+      }
+    },
+    {
+      "from": {
+        "node": "add",
+        "port": "value"
+      },
+      "to": {
+        "node": "combine_xy",
+        "port": "y"
+      }
+    },
+    {
+      "from": {
+        "node": "multiply_3",
+        "port": "value"
+      },
+      "to": {
+        "node": "abs",
+        "port": "value"
+      }
+    },
+    {
+      "from": {
+        "node": "abs",
+        "port": "value"
+      },
+      "to": {
+        "node": "multiply_5",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_3",
+        "port": "value"
+      },
+      "to": {
+        "node": "multiply_5",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_1",
+        "port": "value"
+      },
+      "to": {
+        "node": "add_2",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "multiply_5",
+        "port": "value"
+      },
+      "to": {
+        "node": "add_2",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_4",
+        "port": "value"
+      },
+      "to": {
+        "node": "multiply_6",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "add_2",
+        "port": "value"
+      },
+      "to": {
+        "node": "multiply_6",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_5",
+        "port": "value"
+      },
+      "to": {
+        "node": "divide_2",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "add_2",
+        "port": "value"
+      },
+      "to": {
+        "node": "divide_2",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "multiply_6",
+        "port": "value"
+      },
+      "to": {
+        "node": "area_preserving_size",
+        "port": "x"
+      }
+    },
+    {
+      "from": {
+        "node": "divide_2",
+        "port": "value"
+      },
+      "to": {
+        "node": "area_preserving_size",
+        "port": "y"
+      }
+    },
+    {
+      "from": {
+        "node": "position",
+        "port": "value"
+      },
+      "to": {
+        "node": "shape",
+        "port": "position"
+      }
+    },
+    {
+      "from": {
+        "node": "combine_xy",
+        "port": "value"
+      },
+      "to": {
+        "node": "shape",
+        "port": "center"
+      }
+    },
+    {
+      "from": {
+        "node": "area_preserving_size",
+        "port": "value"
+      },
+      "to": {
+        "node": "shape",
+        "port": "half_size"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_6",
+        "port": "value"
+      },
+      "to": {
+        "node": "shape",
+        "port": "radius"
+      }
+    },
+    {
+      "from": {
+        "node": "shape",
+        "port": "distance"
+      },
+      "to": {
+        "node": "coverage",
+        "port": "distance"
+      }
+    },
+    {
+      "from": {
+        "node": "constant_7",
+        "port": "value"
+      },
+      "to": {
+        "node": "bouncing_graphic",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "tone",
+        "port": "value"
+      },
+      "to": {
+        "node": "bouncing_graphic",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "coverage",
+        "port": "coverage"
+      },
+      "to": {
+        "node": "bouncing_graphic",
+        "port": "factor"
+      }
+    },
+    {
+      "from": {
+        "node": "bouncing_graphic",
+        "port": "color"
+      },
+      "to": {
+        "node": "output",
+        "port": "color"
+      }
+    }
+  ],
+  "public_parameters": [
+    {
+      "id": "period",
+      "name": "触发周期",
+      "english_name": "Trigger Period",
+      "value_type": "float",
+      "default": [
+        2,
+        0,
+        0,
+        0
+      ],
+      "min": 0.5,
+      "max": 5,
+      "step": 0.1,
+      "units": "s",
+      "animatable": true
+    },
+    {
+      "id": "amplitude",
+      "name": "回弹幅度",
+      "english_name": "Bounce Amplitude",
+      "value_type": "float",
+      "default": [
+        10,
+        0,
+        0,
+        0
+      ],
+      "min": 0,
+      "max": 18,
+      "step": 0.1,
+      "units": "px",
+      "animatable": true
+    },
+    {
+      "id": "tone",
+      "name": "图形颜色",
+      "english_name": "Graphic Tone",
+      "value_type": "color",
+      "default": [
+        0.85,
+        0.99,
+        0.18,
+        1
+      ],
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "units": "",
+      "animatable": true
+    }
+  ]
+}

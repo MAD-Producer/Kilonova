@@ -1,0 +1,326 @@
+{
+  "format_version": 1,
+  "id": "smooth_union",
+  "name": "平滑融合距离场",
+  "english_name": "Smooth SDF Union",
+  "working_space": "srgb",
+  "alpha_mode": "straight",
+  "nodes": [
+    {
+      "id": "position",
+      "version": 1,
+      "operation": {
+        "kind": "position"
+      },
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "center_a",
+      "version": 1,
+      "operation": {
+        "kind": "vec2",
+        "value": [
+          20,
+          32
+        ]
+      },
+      "position": [
+        0,
+        175
+      ]
+    },
+    {
+      "id": "center_b",
+      "version": 1,
+      "operation": {
+        "kind": "vec2",
+        "value": [
+          44,
+          32
+        ]
+      },
+      "position": [
+        0,
+        350
+      ]
+    },
+    {
+      "id": "radius",
+      "version": 1,
+      "operation": {
+        "kind": "parameter",
+        "parameter": "radius"
+      },
+      "position": [
+        0,
+        525
+      ]
+    },
+    {
+      "id": "smoothness",
+      "version": 1,
+      "operation": {
+        "kind": "parameter",
+        "parameter": "smoothness"
+      },
+      "position": [
+        0,
+        700
+      ]
+    },
+    {
+      "id": "circle_a",
+      "version": 1,
+      "operation": {
+        "kind": "sdf_circle"
+      },
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "id": "circle_b",
+      "version": 1,
+      "operation": {
+        "kind": "sdf_circle"
+      },
+      "position": [
+        260,
+        175
+      ]
+    },
+    {
+      "id": "union",
+      "version": 1,
+      "operation": {
+        "kind": "sdf_smooth_union"
+      },
+      "position": [
+        520,
+        0
+      ]
+    },
+    {
+      "id": "color",
+      "version": 1,
+      "operation": {
+        "kind": "color",
+        "value": [
+          0.43,
+          0.84,
+          0.37,
+          0.9
+        ]
+      },
+      "position": [
+        0,
+        875
+      ]
+    },
+    {
+      "id": "fill",
+      "version": 1,
+      "operation": {
+        "kind": "sdf_fill"
+      },
+      "position": [
+        780,
+        0
+      ]
+    },
+    {
+      "id": "masked",
+      "version": 1,
+      "operation": {
+        "kind": "apply_mask"
+      },
+      "position": [
+        1040,
+        0
+      ]
+    },
+    {
+      "id": "output",
+      "version": 1,
+      "operation": {
+        "kind": "color_output"
+      },
+      "position": [
+        1300,
+        0
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": {
+        "node": "position",
+        "port": "value"
+      },
+      "to": {
+        "node": "circle_a",
+        "port": "position"
+      }
+    },
+    {
+      "from": {
+        "node": "center_a",
+        "port": "value"
+      },
+      "to": {
+        "node": "circle_a",
+        "port": "center"
+      }
+    },
+    {
+      "from": {
+        "node": "radius",
+        "port": "value"
+      },
+      "to": {
+        "node": "circle_a",
+        "port": "radius"
+      }
+    },
+    {
+      "from": {
+        "node": "position",
+        "port": "value"
+      },
+      "to": {
+        "node": "circle_b",
+        "port": "position"
+      }
+    },
+    {
+      "from": {
+        "node": "center_b",
+        "port": "value"
+      },
+      "to": {
+        "node": "circle_b",
+        "port": "center"
+      }
+    },
+    {
+      "from": {
+        "node": "radius",
+        "port": "value"
+      },
+      "to": {
+        "node": "circle_b",
+        "port": "radius"
+      }
+    },
+    {
+      "from": {
+        "node": "circle_a",
+        "port": "distance"
+      },
+      "to": {
+        "node": "union",
+        "port": "a"
+      }
+    },
+    {
+      "from": {
+        "node": "circle_b",
+        "port": "distance"
+      },
+      "to": {
+        "node": "union",
+        "port": "b"
+      }
+    },
+    {
+      "from": {
+        "node": "smoothness",
+        "port": "value"
+      },
+      "to": {
+        "node": "union",
+        "port": "smoothness"
+      }
+    },
+    {
+      "from": {
+        "node": "union",
+        "port": "distance"
+      },
+      "to": {
+        "node": "fill",
+        "port": "distance"
+      }
+    },
+    {
+      "from": {
+        "node": "color",
+        "port": "value"
+      },
+      "to": {
+        "node": "masked",
+        "port": "color"
+      }
+    },
+    {
+      "from": {
+        "node": "fill",
+        "port": "coverage"
+      },
+      "to": {
+        "node": "masked",
+        "port": "coverage"
+      }
+    },
+    {
+      "from": {
+        "node": "masked",
+        "port": "color"
+      },
+      "to": {
+        "node": "output",
+        "port": "color"
+      }
+    }
+  ],
+  "public_parameters": [
+    {
+      "id": "radius",
+      "name": "共享半径",
+      "english_name": "Shared Radius",
+      "value_type": "float",
+      "default": [
+        12,
+        0,
+        0,
+        0
+      ],
+      "min": 2,
+      "max": 20,
+      "step": 0.25,
+      "units": "px",
+      "animatable": true
+    },
+    {
+      "id": "smoothness",
+      "name": "融合宽度",
+      "english_name": "Blend Width",
+      "value_type": "float",
+      "default": [
+        8,
+        0,
+        0,
+        0
+      ],
+      "min": 0,
+      "max": 24,
+      "step": 0.25,
+      "units": "px",
+      "animatable": true
+    }
+  ]
+}

@@ -1,0 +1,111 @@
+{
+  "format_version": 1,
+  "id": "image_invert",
+  "name": "输入图像反相",
+  "english_name": "Image Invert",
+  "working_space": "srgb",
+  "alpha_mode": "straight",
+  "nodes": [
+    {
+      "id": "image",
+      "version": 1,
+      "operation": {
+        "kind": "image",
+        "source": "input"
+      },
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "id": "uv",
+      "version": 1,
+      "operation": {
+        "kind": "uv"
+      },
+      "position": [
+        0,
+        175
+      ]
+    },
+    {
+      "id": "sample",
+      "version": 1,
+      "operation": {
+        "kind": "sample_image",
+        "coordinates": "uv"
+      },
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "id": "invert",
+      "version": 1,
+      "operation": {
+        "kind": "color_math",
+        "operation": "invert"
+      },
+      "position": [
+        520,
+        0
+      ]
+    },
+    {
+      "id": "output",
+      "version": 1,
+      "operation": {
+        "kind": "color_output"
+      },
+      "position": [
+        780,
+        0
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": {
+        "node": "image",
+        "port": "image"
+      },
+      "to": {
+        "node": "sample",
+        "port": "image"
+      }
+    },
+    {
+      "from": {
+        "node": "uv",
+        "port": "value"
+      },
+      "to": {
+        "node": "sample",
+        "port": "coordinate"
+      }
+    },
+    {
+      "from": {
+        "node": "sample",
+        "port": "color"
+      },
+      "to": {
+        "node": "invert",
+        "port": "color"
+      }
+    },
+    {
+      "from": {
+        "node": "invert",
+        "port": "color"
+      },
+      "to": {
+        "node": "output",
+        "port": "color"
+      }
+    }
+  ],
+  "public_parameters": []
+}
