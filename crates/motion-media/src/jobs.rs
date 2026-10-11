@@ -423,8 +423,8 @@ impl AudioJobs {
                 audio: AudioClip::new(asset_id),
             };
             layer.timeline = Some(LayerTimeline {
-                in_frame,
-                out_frame,
+                in_frame: in_frame as i32,
+                out_frame: out_frame as i32,
                 offset_frame: in_frame as i32,
             });
             let stem = prepared

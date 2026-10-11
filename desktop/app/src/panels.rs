@@ -1425,11 +1425,11 @@ fn timeline(
     if let Some((object, start, in_frame, duration, last)) = panels.moving.as_mut() {
         let next = (*in_frame as f32 + (input.mouse[0] - *start) / ppf)
             .round()
-            .clamp(0.0, (total as u32 - *duration) as f32) as u32;
+            .clamp(0.0, (total as u32).saturating_sub(*duration) as f32) as u32;
         if next != *last && (input.dragging() || input.released.is_some()) {
             out.push(Action::Edit(Command::MoveLayerClip {
                 object: *object,
-                in_frame: next,
+                in_frame: next as i32,
             }));
             *last = next;
         }

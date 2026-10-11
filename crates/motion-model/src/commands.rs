@@ -84,12 +84,12 @@ pub enum Command {
     },
     MoveLayerClip {
         object: u64,
-        in_frame: u32,
+        in_frame: i32,
     },
     TrimLayerClip {
         object: u64,
-        in_frame: u32,
-        out_frame: u32,
+        in_frame: i32,
+        out_frame: i32,
     },
     SplitLayerClip {
         object: u64,

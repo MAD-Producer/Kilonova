@@ -64,8 +64,8 @@ pub struct TimelineProperties {
 #[derive(Debug, Serialize)]
 pub struct TimelineLayer {
     pub object: u64,
-    pub in_frame: u32,
-    pub out_frame: u32,
+    pub in_frame: i32,
+    pub out_frame: i32,
     pub offset_frame: i32,
     pub active: bool,
     pub three_d: bool,
@@ -124,7 +124,8 @@ impl Project {
                     out_frame: clip.out_frame,
                     offset_frame: clip.offset_frame,
                     active: if matches!(l.content, crate::Content::Audio { .. }) {
-                        frame >= f64::from(clip.in_frame) && frame < f64::from(clip.out_frame)
+                        frame >= 0. && frame < f64::from(self.frames)
+                            && frame >= f64::from(clip.in_frame) && frame < f64::from(clip.out_frame)
                     } else {
                         l.active(frame, self.frames)
                     },

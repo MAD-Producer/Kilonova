@@ -43,7 +43,7 @@ fn arbitrary_integer_fps_retains_every_sample_and_two_level_precompose_timing() 
         let mut p = audio_project(fps, fps);
         p.layers[0].timeline = Some(LayerTimeline {
             in_frame: 1,
-            out_frame: fps,
+            out_frame: fps as i32,
             offset_frame: 1,
         });
         let expected = vec![(48000 / u64::from(fps), 48000, 48000 / i64::from(fps))];

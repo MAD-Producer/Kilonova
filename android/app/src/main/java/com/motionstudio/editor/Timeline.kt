@@ -167,8 +167,9 @@ internal fun timelineRowHeightDp(fontScale:Float)=max(36f,12f*fontScale+18f)
                         "reorder"->hoveredRow=floor((down.position.y+total.y-head+vertical)/rowHeight).toInt().coerceIn(if(values.firstOrNull()?.id==0L)1 else 0,values.lastIndex)
                         "move","trim-start","trim-end"->if(row!=null) {
                             val delta=(total.x/startScale).roundToInt()
-                            val start=if(mode=="move")(row.start+delta).coerceIn(0,totalFrames-(row.end-row.start))else if(mode=="trim-start")(row.start+delta).coerceIn(0,row.end-1)else row.start
-                            val end=if(mode=="move")start+row.end-row.start else if(mode=="trim-end")(row.end+delta).coerceIn(row.start+1,totalFrames)else row.end
+                            val bounds=vm.clipSpanRange()
+                            val start=if(mode=="move")(row.start+delta).coerceIn(bounds.first,bounds.last-(row.end-row.start))else if(mode=="trim-start")(row.start+delta).coerceIn(bounds.first,row.end-1)else row.start
+                            val end=if(mode=="move")start+row.end-row.start else if(mode=="trim-end")(row.end+delta).coerceIn(row.start+1,bounds.last)else row.end
                             val next=ClipDraft(row.id,start,end,mode)
                             if(next!=clipDraft) {
                                 clipDraft=next
@@ -351,24 +352,25 @@ internal fun timelineRowHeightDp(fontScale:Float)=max(36f,12f*fontScale+18f)
 
 @Composable private fun ClipMoveDialog(vm:EditorViewModel,row:TrackRow,onDismiss:()->Unit) {
     var input by remember{mutableStateOf(row.start.toString())}
-    val frame=input.toIntOrNull();val maximum=(vm.state.project?.optInt("frames")?:0)-(row.end-row.start)
-    val valid=frame!=null&&frame in 0..maximum
+    val bounds=vm.clipSpanRange()
+    val frame=input.toIntOrNull();val maximum=bounds.last-(row.end-row.start)
+    val valid=frame!=null&&frame in bounds.first..maximum
     AlertDialog(onDismissRequest=onDismiss,title={Text("移动片段")},text={
         OutlinedTextField(input,{input=it},label={Text("开始帧")},singleLine=true,isError=!valid,
-            supportingText={Text("范围 0–$maximum 帧 · 时长保持不变")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number))
+            supportingText={Text("范围 ${bounds.first}–$maximum 帧 · 时长保持不变")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number))
     },confirmButton={TextButton(enabled=valid,onClick={vm.moveClip(row.id,frame!!);onDismiss()}){Text("应用移动")}},
         dismissButton={TextButton(onClick=onDismiss){Text("取消")}})
 }
 
 @Composable private fun ClipTrimDialog(vm:EditorViewModel,row:TrackRow,onDismiss:()->Unit) {
     var start by remember{mutableStateOf(row.start.toString())};var end by remember{mutableStateOf(row.end.toString())}
-    val a=start.toIntOrNull();val b=end.toIntOrNull();val frames=vm.state.project?.optInt("frames")?:0
-    val valid=a!=null&&b!=null&&a>=0&&b<=frames&&a<b
+    val a=start.toIntOrNull();val b=end.toIntOrNull();val bounds=vm.clipSpanRange()
+    val valid=a!=null&&b!=null&&a>=bounds.first&&b<=bounds.last&&a<b
     AlertDialog(onDismissRequest=onDismiss,title={Text("裁剪片段")},text={Column(Modifier.verticalScroll(rememberScrollState())) {
         OutlinedTextField(start,{start=it},label={Text("开始帧")},singleLine=true,isError=!valid,
             keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),modifier=Modifier.testTag("clip-in"))
         OutlinedTextField(end,{end=it},label={Text("结束帧（不含）")},singleLine=true,isError=!valid,
-            supportingText={if(!valid)Text("请输入 0–$frames 帧内的有效区间")},
+            supportingText={if(!valid)Text("请输入 ${bounds.first}–${bounds.last} 帧内的有效区间")},
             keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),modifier=Modifier.testTag("clip-out"))
         Text("保留完整关键帧和素材",color=Muted)
     }},confirmButton={TextButton(enabled=valid,onClick={vm.trimClip(row.id,a!!,b!!);onDismiss()}){Text("应用裁剪")}},dismissButton={TextButton(onClick=onDismiss){Text("取消")}})

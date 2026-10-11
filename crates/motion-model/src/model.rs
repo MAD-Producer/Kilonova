@@ -168,28 +168,31 @@ impl Layer {
     }
     pub fn active(&self, frame: f64, frames: u32) -> bool {
         let t = self.clip(frames);
-        self.visible && frame >= f64::from(t.in_frame) && frame < f64::from(t.out_frame)
+        self.visible && frame >= 0. && frame < f64::from(frames)
+            && frame >= f64::from(t.in_frame) && frame < f64::from(t.out_frame)
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LayerTimeline {
-    pub in_frame: u32,
-    pub out_frame: u32,
+    pub in_frame: i32,
+    pub out_frame: i32,
     pub offset_frame: i32,
 }
 impl LayerTimeline {
     pub fn full(frames: u32) -> Self {
         Self {
             in_frame: 0,
-            out_frame: frames,
+            out_frame: frames as i32,
             offset_frame: 0,
         }
     }
     pub fn validate(&self, frames: u32) -> Result<()> {
         ensure(
-            self.in_frame < self.out_frame && self.out_frame <= frames,
+            self.in_frame < self.out_frame
+                && self.in_frame >= -(MAX_FRAMES as i32)
+                && self.out_frame <= MAX_FRAMES as i32,
             "invalid layer clip interval",
         )?;
         self.edit_frame(0)?;
@@ -199,6 +202,9 @@ impl LayerTimeline {
     pub fn edit_frame(&self, frame: u32) -> Result<i32> {
         i32::try_from(i64::from(frame) - i64::from(self.offset_frame))
             .map_err(|_| crate::Error::Invalid("local keyframe time overflow".into()))
+    }
+    pub fn extends_composition(&self, frames: u32) -> bool {
+        self.in_frame < 0 || i64::from(self.out_frame) > i64::from(frames)
     }
 }
 
@@ -304,7 +310,7 @@ impl Project {
             crate::storage::validate_relative_path(&font.path)?;
             ensure(font.path.starts_with("assets/fonts/")&&font.path.ends_with(".ttf"),"invalid managed font path")?;
         }
-        ensure((1..=12).contains(&self.version), "unsupported project format")?;
+        ensure((1..=13).contains(&self.version), "unsupported project format")?;
         ensure(self.plugin_dependencies == self.composition_dependencies(),
                "plugin dependency list does not match effect instances")?;
         self.validate_one(self)?;
@@ -313,7 +319,7 @@ impl Project {
     pub(crate) fn validate_one(&self, document: &Project) -> Result<()> {
         crate::effects::validate_image_graph(self)?;
         ensure(
-            (1..=12).contains(&self.version),
+            (1..=13).contains(&self.version),
             "unsupported project format",
         )?;
         let spatial = [&self.camera.position, &self.camera.target].iter().any(|t| t.keys.iter().any(|k| k.spatial.is_some()))
@@ -452,6 +458,8 @@ impl Project {
                 "invalid layer size",
             )?;
             layer.clip(self.frames).validate(self.frames)?;
+            ensure(self.version >= 13 || !layer.clip(self.frames).extends_composition(self.frames),
+                "layer spans outside the composition require project format thirteen")?;
             if self.version == 1 && layer.timeline.is_none() {
                 layer.transform.validate(self.frames)?;
             } else {

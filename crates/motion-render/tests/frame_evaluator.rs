@@ -54,8 +54,8 @@ fn reference(id: u64, composition: &str, source: i32, offset: i32, frames: u32) 
         },
     };
     layer.timeline = Some(LayerTimeline {
-        in_frame: offset as u32,
-        out_frame: frames,
+        in_frame: offset,
+        out_frame: frames as i32,
         offset_frame: offset,
     });
     layer

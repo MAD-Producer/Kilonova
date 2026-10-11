@@ -211,7 +211,10 @@ impl Session {
                 "adapter":g.renderer.adapter_info.name,
                 "backend":format!("{:?}",g.renderer.adapter_info.backend),
                 "textureBytes":g.renderer.texture_bytes()}))});
-        snapshot["capabilities"]["composition_api"]["project_format"]=json!(12);
+        snapshot["capabilities"]["composition_api"]["project_format"]=json!(13);
+        snapshot["capabilities"]["layer_timeline"]["extended_spans"]=json!({"supported":true,"project_format":13,
+            "in_frame_min":-(motion_core::MAX_FRAMES as i32),"out_frame_max":motion_core::MAX_FRAMES,
+            "coordinates":"signed_composition_frames","outside_composition":"retained_not_rendered"});
         snapshot["capabilities"]["vector_drawing"]["protocol"]=json!(3);
         snapshot["capabilities"]["vector_drawing"]["groups"]=json!({"supported":true,"project_format":12,
             "max_depth":motion_core::vector::groups::MAX_DEPTH,"max_items":motion_core::vector::groups::MAX_ITEMS,

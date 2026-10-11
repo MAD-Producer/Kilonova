@@ -14,8 +14,8 @@ fn layer(id: u64, asset: u64, start: u32, end: u32) -> Layer {
     let mut l = Layer::solid(id, "image", [64.; 2], [32., 32., 0.], [1.; 4]);
     l.content = Content::Image { asset };
     l.timeline = Some(LayerTimeline {
-        in_frame: start,
-        out_frame: end,
+        in_frame: start as i32,
+        out_frame: end as i32,
         offset_frame: 0,
     });
     l

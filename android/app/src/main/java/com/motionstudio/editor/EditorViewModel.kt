@@ -943,9 +943,14 @@ class EditorViewModel @JvmOverloads constructor(app: Application,projectDirector
     fun selectedClipDeltaRange():IntRange? {
         if(!selectionEditable())return null
         val clips=selectedLayers().map{timelineLayer(it.getLong("id"))?:return null}
-        val frames=state.project?.optInt("frames")?:return null
-        val first=clips.maxOf{-it.getInt("in_frame")};val last=clips.minOf{frames-it.getInt("out_frame")}
+        val bounds=clipSpanRange()
+        val first=clips.maxOf{bounds.first-it.getInt("in_frame")};val last=clips.minOf{bounds.last-it.getInt("out_frame")}
         return (first..last).takeUnless{it.isEmpty()}
+    }
+    internal fun clipSpanRange():IntRange {
+        val support=state.sample?.optJSONObject("capabilities")?.optJSONObject("layer_timeline")?.optJSONObject("extended_spans")
+        return if(support?.optBoolean("supported")==true)support.getInt("in_frame_min")..support.getInt("out_frame_max")
+            else 0..(state.project?.optInt("frames")?:0)
     }
     fun moveSelectedClips(delta:Int):Boolean {
         val range=selectedClipDeltaRange()?:return false
