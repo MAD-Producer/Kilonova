@@ -45,6 +45,7 @@ struct View {
     number: NumberEditor,
     text: TextEditor,
     undo: Button,
+    show_icons: bool,
 }
 fn field_rect(area: Rect, index: usize) -> Rect {
     Rect::new(
@@ -251,6 +252,36 @@ impl PanelView for View {
                 Align::Left,
             );
         } else if self.id.0 == 3 {
+            if self.show_icons {
+                let columns = ((area.width() - 24.) / 86.).floor().max(1.) as usize;
+                for (i, icon) in motion_ui::icons::Icon::ALL.iter().enumerate() {
+                    let cell = Rect::new(
+                        area.min[0] + 12. + (i % columns) as f32 * 86.,
+                        area.min[1] + 12. + (i / columns) as f32 * 64.,
+                        80.,
+                        60.,
+                    );
+                    motion_ui::icons::draw(
+                        frame.paint,
+                        Rect::new(cell.min[0], cell.min[1], 80., 36.),
+                        *icon,
+                        28.,
+                        styles
+                            .resolve("icon", States::default())
+                            .unwrap()
+                            .foreground,
+                    );
+                    style::text_style(
+                        frame.paint,
+                        frame.atlas,
+                        Rect::new(cell.min[0], cell.min[1] + 36., 80., 20.),
+                        icon.id(),
+                        styles.resolve("label.caption", States::default()).unwrap(),
+                        Align::Center,
+                    );
+                }
+                return actions;
+            }
             paint::rect(
                 frame.paint,
                 area,
@@ -500,6 +531,7 @@ impl App {
                     number: Default::default(),
                     text: Default::default(),
                     undo: Default::default(),
+                    show_icons: std::env::args().any(|arg| arg == "--icons"),
                 },
             )
             .unwrap();
@@ -515,7 +547,29 @@ impl App {
             gpu: None,
             atlas,
             host,
-            workspace: Default::default(),
+            workspace: {
+                // The standalone gallery owns only its four registered panels;
+                // application default docks must not leak into this example.
+                let mut workspace = Workspace::default();
+                let upper = dock::Node::Split {
+                    edge: Edge::Left,
+                    split: 0.2,
+                    first: Box::new(dock::Node::dock(DockId(1))),
+                    second: Box::new(dock::Node::Split {
+                        edge: Edge::Right,
+                        split: 0.28,
+                        first: Box::new(dock::Node::dock(DockId(3))),
+                        second: Box::new(dock::Node::dock(DockId(2))),
+                    }),
+                };
+                workspace.root = dock::Node::Split {
+                    edge: Edge::Top,
+                    split: 0.72,
+                    first: Box::new(upper),
+                    second: Box::new(dock::Node::dock(DockId(4))),
+                };
+                workspace
+            },
             router: Default::default(),
             model,
             language,

@@ -1,0 +1,519 @@
+//! Node view layout and shared geometry; each editor region is a reusable component.
+mod canvas;
+mod inspector;
+mod interaction;
+mod library;
+mod toolbar;
+use super::catalog::{operation_title, type_label};
+use super::*;
+use motion_ui::{
+    input::{Key, MouseButton},
+    paint,
+    theme::{palette, Color},
+    ui::{self, Align},
+};
+
+pub(super) const NODE_WIDTH: f32 = 204.;
+const HEADER: f32 = 29.;
+const ROW: f32 = 23.;
+const TOOLBAR: [(usize, f32, &str, &str); 12] = [
+    (0, 41., "添加", "Add"),
+    (1, 58., "属性", "Props"),
+    (2, 56., "打开", "Open"),
+    (11, 76., "示例库", "Examples"),
+    (3, 56., "保存", "Save"),
+    (4, 64., "另存", "Save As"),
+    (5, 62., "校验", "Check"),
+    (6, 70., "编译", "Compile"),
+    (7, 82., "导出FX", "Export FX"),
+    (8, 45., "全览", "Frame"),
+    (9, 48., "撤销", "Undo"),
+    (10, 48., "重做", "Redo"),
+];
+#[derive(Clone, Copy, Debug)]
+pub struct Layout {
+    pub toolbar: Rect,
+    pub canvas: Rect,
+    pub library: Option<Rect>,
+    pub inspector: Option<Rect>,
+    pub footer: Rect,
+}
+#[derive(Clone)]
+struct Socket {
+    port: PortRef,
+    output: bool,
+    ty: ValueType,
+    spec: motion_graph::PortSpec,
+    point: [f32; 2],
+}
+struct Card {
+    id: String,
+    rect: Rect,
+    sockets: Vec<Socket>,
+}
+pub(super) fn node_height(node: &Node, document: &GraphDocument) -> f32 {
+    let rows = node_ports(node, &document.public_parameters)
+        .map(|p| p.inputs.len().max(p.outputs.len()))
+        .unwrap_or(1);
+    HEADER + rows as f32 * ROW + 27.
+}
+fn type_color(ty: ValueType) -> Color {
+    match ty {
+        // 改进的类型颜色 - 更饱和，更易区分
+        ValueType::Float => Color::rgb(103, 196, 255), // 亮蓝 #67C4FF
+        ValueType::Vec2 | ValueType::Vec3 => Color::rgb(167, 139, 250), // 紫色 #A78BFA
+        ValueType::Color => Color::rgb(251, 191, 36),  // 金色 #FBBF24
+        ValueType::Bool => Color::rgb(251, 113, 133),  // 粉红 #FB7185
+        ValueType::Image => Color::rgb(52, 211, 153),  // 翠绿 #34D399
+        ValueType::DistancePixels => Color::rgb(251, 146, 60), // 橙色 #FB923C
+    }
+}
+fn category_color(op: &NodeOp) -> Color {
+    match op {
+        // SDF 操作 - 棕褐色系（更明亮）
+        NodeOp::SdfCircle
+        | NodeOp::SdfRoundedRectangle
+        | NodeOp::SdfLine
+        | NodeOp::SdfCapsule
+        | NodeOp::SdfUnion
+        | NodeOp::SdfIntersection
+        | NodeOp::SdfDifference
+        | NodeOp::SdfSmoothUnion
+        | NodeOp::SdfFill
+        | NodeOp::SdfStroke => Color::rgb(68, 55, 41), // 棕色 #B47850 (原: 112,76,53)
+
+        // 输出节点 - 青色系（更明显）
+        NodeOp::ColorOutput => Color::rgb(42, 66, 63), // 青色 #3CB4B4 (原: 48,81,75)
+
+        // 颜色操作 - 金橙色系（更饱和）
+        NodeOp::Color { .. }
+        | NodeOp::ColorMath { .. }
+        | NodeOp::CombineColor
+        | NodeOp::SplitColor
+        | NodeOp::ApplyMask => Color::rgb(73, 62, 39), // 金橙 #DC963C (原: 92,81,45)
+
+        // 数学操作 - 蓝紫色系（更亮）
+        NodeOp::Math { .. }
+        | NodeOp::CombineVec2
+        | NodeOp::CombineVec3
+        | NodeOp::Splat { .. }
+        | NodeOp::Select { .. } => Color::rgb(45, 57, 81), // 蓝紫 #6478C8 (原: 67,67,95)
+
+        // 其他 - 中性灰蓝（稍亮）
+        _ => Color::rgb(49, 56, 63), // 灰蓝 #505F78 (原: 51,64,83)
+    }
+}
+fn label(
+    list: &mut PaintList,
+    atlas: &mut TextAtlas,
+    area: Rect,
+    text: &str,
+    color: Color,
+    align: Align,
+) {
+    ui::text(list, atlas, area, text, color, align)
+}
+fn hit(input: &Input, area: Rect) -> bool {
+    input
+        .pressed
+        .is_some_and(|(button, p)| button == MouseButton::Left && area.contains(p))
+}
+fn intersects(a: Rect, b: Rect) -> bool {
+    a.min[0] < b.max[0] && a.max[0] > b.min[0] && a.min[1] < b.max[1] && a.max[1] > b.min[1]
+}
+fn curve(a: [f32; 2], b: [f32; 2]) -> Vec<[f32; 2]> {
+    let offset = ((b[0] - a[0]).abs() * 0.45).clamp(42., 200.);
+    let c = [a[0] + offset, a[1]];
+    let d = [b[0] - offset, b[1]];
+    (0..=24)
+        .map(|i| {
+            let t = i as f32 / 24.;
+            let q = 1. - t;
+            [
+                q * q * q * a[0] + 3. * q * q * t * c[0] + 3. * q * t * t * d[0] + t * t * t * b[0],
+                q * q * q * a[1] + 3. * q * q * t * c[1] + 3. * q * t * t * d[1] + t * t * t * b[1],
+            ]
+        })
+        .collect()
+}
+fn distance_segment(p: [f32; 2], a: [f32; 2], b: [f32; 2]) -> f32 {
+    let v = [b[0] - a[0], b[1] - a[1]];
+    let t = (((p[0] - a[0]) * v[0] + (p[1] - a[1]) * v[1])
+        / (v[0] * v[0] + v[1] * v[1]).max(1.0e-6))
+    .clamp(0., 1.);
+    ((p[0] - a[0] - v[0] * t).powi(2) + (p[1] - a[1] - v[1] * t).powi(2)).sqrt()
+}
+
+impl NodeEditor {
+    pub fn layout(&self, area: Rect) -> Layout {
+        let mut x = 6.;
+        let mut toolbar_height = 38.;
+        for (_, width, _, _) in TOOLBAR {
+            if x + width > area.width() - 6. {
+                x = 6.;
+                toolbar_height += 34.;
+            }
+            x += width + 4.;
+        }
+        let toolbar = Rect::new(area.min[0], area.min[1], area.width(), toolbar_height);
+        let footer = Rect::new(area.min[0], area.max[1] - 27., area.width(), 27.);
+        let body = Rect::new(
+            area.min[0],
+            toolbar.max[1],
+            area.width(),
+            (footer.min[1] - toolbar.max[1]).max(0.),
+        );
+
+        // 根据 floating_mode 决定侧边栏布局
+        let (library_width, inspector_width, inspector_height) = {
+            // 漂浮形态：显示侧边栏（左侧库，右侧属性面板）
+            let lib_width = if self.library_open && area.width() >= 1024. {
+                210.
+            } else if self.library_open && area.width() >= 320. {
+                (area.width() * 0.32).clamp(190., 202.)
+            } else {
+                0.
+            };
+            let insp_width = if self.inspector_open
+                && !self.external_inspector
+                && lib_width == 0.
+                && area.width() >= 320.
+            {
+                230.
+            } else if self.inspector_open && !self.external_inspector && area.width() >= 1024. {
+                252.
+            } else {
+                0.
+            };
+            (lib_width, insp_width, 0.)
+        };
+
+        Layout {
+            toolbar,
+            footer,
+            library: (library_width > 0.)
+                .then(|| Rect::new(body.min[0], body.min[1], library_width, body.height())),
+            inspector: if inspector_height > 0. {
+                // 底部属性面板（嵌入模式）
+                Some(Rect::new(
+                    body.min[0],
+                    body.max[1] - inspector_height,
+                    body.width(),
+                    inspector_height,
+                ))
+            } else if inspector_width > 0. {
+                // 右侧属性面板（漂浮模式）
+                Some(Rect::new(
+                    body.max[0] - inspector_width,
+                    body.min[1],
+                    inspector_width,
+                    body.height(),
+                ))
+            } else {
+                None
+            },
+            canvas: Rect::new(
+                body.min[0] + library_width,
+                body.min[1],
+                (body.width() - library_width - inspector_width).max(0.),
+                (body.height() - inspector_height).max(0.),
+            ),
+        }
+    }
+
+    /// Call once for the active node panel with its own logical-coordinate Input.
+    pub fn draw(
+        &mut self,
+        list: &mut PaintList,
+        atlas: &mut TextAtlas,
+        area: Rect,
+        input: &Input,
+        language: Language,
+    ) -> FrameResponse {
+        let revision = self.revision;
+        let semantic = self.semantic_revision;
+        let mut response = FrameResponse::default();
+        if area.width() < 320. || area.height() < self.layout(area).toolbar.height() + 77. {
+            paint::rect(list, area, palette::PANEL);
+            label(
+                list,
+                atlas,
+                area.shrink(8.),
+                language.text("扩大节点面板以编辑", "Expand the node panel"),
+                palette::TEXT_MUTED,
+                Align::Left,
+            );
+            return response;
+        }
+        let layout = self.layout(area);
+        self.last_canvas = layout.canvas;
+        if self.first_frame {
+            if let Some(id) = &self.primary {
+                if let Some(node) = self.document.nodes.iter().find(|n| n.id == *id) {
+                    self.view.zoom = 0.85;
+                    self.view.pan = [
+                        layout.canvas.width() * 0.5
+                            - (node.position[0] + NODE_WIDTH * 0.5) * self.view.zoom,
+                        layout.canvas.height() * 0.5
+                            - (node.position[1] + node_height(node, &self.document) * 0.5)
+                                * self.view.zoom,
+                    ];
+                }
+            } else {
+                self.fit_all(layout.canvas);
+            }
+            self.first_frame = false;
+        }
+        if input.pressed.is_some_and(|(_, p)| area.contains(p)) {
+            self.focus = true;
+        } else if input.pressed.is_some() && self.drag.is_none() {
+            let _ = self.commit_field();
+            self.search_focus = false;
+            self.focus = false;
+        }
+        self.keyboard(input, &mut response.actions);
+        self.toolbar(
+            list,
+            atlas,
+            layout.toolbar,
+            input,
+            language,
+            &mut response.actions,
+        );
+        if let Some(library) = layout.library {
+            self.library(list, atlas, library, input, language);
+        }
+        if let Some(inspector) = layout.inspector {
+            self.inspector(list, atlas, inspector, input, language);
+        }
+        let cards = self.cards(layout.canvas);
+        self.canvas_input(&cards, layout.canvas, input);
+        let cards = self.cards(layout.canvas);
+        self.paint_canvas(list, atlas, &cards, layout.canvas, input, language);
+        let mut footer = PaintList::default();
+        paint::rect(&mut footer, layout.footer, palette::CHROME);
+        paint::rect(
+            &mut footer,
+            Rect::new(
+                layout.footer.min[0],
+                layout.footer.min[1],
+                layout.footer.width(),
+                1.,
+            ),
+            palette::BORDER,
+        );
+        let status = self
+            .notice
+            .clone()
+            .or_else(|| self.diagnostic.as_ref().map(|d| d.to_string()))
+            .unwrap_or_else(|| {
+                language
+                    .text(
+                        "空白框选 · Alt+拖动平移 · Alt+滚轮缩放",
+                        "Drag to select · Alt+drag pan · Alt+wheel zoom",
+                    )
+                    .into()
+            });
+        label(
+            &mut footer,
+            atlas,
+            Rect::new(
+                layout.footer.min[0] + 9.,
+                layout.footer.min[1],
+                (layout.footer.width() - 75.).max(0.),
+                27.,
+            ),
+            &status,
+            if self.diagnostic.is_some() {
+                Color::rgb(235, 167, 102)
+            } else {
+                palette::TEXT_MUTED
+            },
+            Align::Left,
+        );
+        label(
+            &mut footer,
+            atlas,
+            Rect::new(layout.footer.max[0] - 64., layout.footer.min[1], 58., 27.),
+            &format!("{:0.0}%", self.view.zoom * 100.),
+            palette::TEXT_MUTED,
+            Align::Right,
+        );
+        footer.clip_to(layout.footer);
+        list.append(footer);
+        response.wants_pointer = area.contains(input.mouse) || self.drag.is_some();
+        response.wants_keyboard = self.focus;
+        response.changed = revision != self.revision;
+        response.semantic_changed = semantic != self.semantic_revision;
+        if response.changed {
+            response.actions.push(Action::Changed {
+                revision: self.revision,
+                semantic_revision: self.semantic_revision,
+                semantic: response.semantic_changed,
+            });
+        }
+        response
+    }
+
+    pub(super) fn commit_field(&mut self) -> Result<(), Diagnostic> {
+        let Some(field) = self.field.as_ref() else {
+            return Ok(());
+        };
+        let binding = field.binding.clone();
+        let text = field.text.clone();
+        let result = self.apply_field(binding, &text);
+        match result {
+            Ok(()) => {
+                self.field = None;
+                Ok(())
+            }
+            Err(error) => {
+                self.field.as_mut().unwrap().error = Some(error.to_string());
+                self.notice = Some(error.to_string());
+                Err(error)
+            }
+        }
+    }
+    pub(super) fn apply_field(&mut self, binding: Binding, text: &str) -> Result<(), Diagnostic> {
+        let number = || {
+            text.trim()
+                .parse::<f32>()
+                .ok()
+                .filter(|v| v.is_finite())
+                .ok_or_else(|| diag(ErrorCode::InvalidValue, None, None, "Enter a finite number"))
+        };
+        match &binding {
+            Binding::Constant(id, component) => {
+                return self.set_constant(id, *component, number()?)
+            }
+            Binding::ParamDefault(id, component) => {
+                return self.set_parameter_default(id, *component, number()?)
+            }
+            _ => {}
+        }
+        let before = self.state(true);
+        let mut document = self.document.clone();
+        let mut options = self.options.clone();
+        match binding {
+            Binding::ParamName(id, chinese) => {
+                let p = document
+                    .public_parameters
+                    .iter_mut()
+                    .find(|p| p.id == id)
+                    .unwrap();
+                if chinese {
+                    p.name = text.into();
+                } else {
+                    p.english_name = text.into();
+                }
+            }
+            Binding::ParamMin(id) => {
+                document
+                    .public_parameters
+                    .iter_mut()
+                    .find(|p| p.id == id)
+                    .unwrap()
+                    .min = number()?
+            }
+            Binding::ParamMax(id) => {
+                document
+                    .public_parameters
+                    .iter_mut()
+                    .find(|p| p.id == id)
+                    .unwrap()
+                    .max = number()?
+            }
+            Binding::ParamStep(id) => {
+                document
+                    .public_parameters
+                    .iter_mut()
+                    .find(|p| p.id == id)
+                    .unwrap()
+                    .step = number()?
+            }
+            Binding::ParamUnits(id) => {
+                document
+                    .public_parameters
+                    .iter_mut()
+                    .find(|p| p.id == id)
+                    .unwrap()
+                    .units = text.into()
+            }
+            Binding::GraphName(chinese) => {
+                if chinese {
+                    document.name = text.into();
+                } else {
+                    document.english_name = text.into();
+                }
+            }
+            Binding::PluginId => {
+                if !text.is_empty()
+                    && text.len() <= 128
+                    && text
+                        .bytes()
+                        .all(|c| c.is_ascii_alphanumeric() || matches!(c, b'.' | b'_' | b'-'))
+                {
+                    options.plugin_id = text.into();
+                } else {
+                    return Err(diag(
+                        ErrorCode::InvalidValue,
+                        None,
+                        None,
+                        "Invalid stable plugin ID",
+                    ));
+                }
+            }
+            Binding::Version => {
+                if text.is_empty() || text.len() > 128 {
+                    return Err(diag(
+                        ErrorCode::InvalidValue,
+                        None,
+                        None,
+                        "Enter a SemVer version",
+                    ));
+                }
+                options.version = text.into();
+            }
+            Binding::Author => options.author = text.into(),
+            Binding::License => options.license = text.into(),
+            _ => unreachable!(),
+        }
+        if let Err(error) = motion_graph::validate(&document, &options) {
+            let diagnostic = error.diagnostic();
+            if matches!(
+                diagnostic.code,
+                ErrorCode::InvalidValue
+                    | ErrorCode::DuplicateParameter
+                    | ErrorCode::Budget
+                    | ErrorCode::DocumentVersion
+            ) {
+                return Err(diagnostic);
+            }
+        }
+        if document == self.document
+            && serde_json::to_value(&options).unwrap()
+                == serde_json::to_value(&self.options).unwrap()
+        {
+            return Ok(());
+        }
+        self.document = document;
+        self.options = options;
+        self.finish_edit(before);
+        Ok(())
+    }
+}
+fn selection_rect(origin: [f32; 2], current: [f32; 2]) -> Rect {
+    Rect::new(
+        origin[0].min(current[0]),
+        origin[1].min(current[1]),
+        (origin[0] - current[0]).abs(),
+        (origin[1] - current[1]).abs(),
+    )
+}
+fn clipped_input(input: &Input, area: Rect) -> Input {
+    let mut input = input.clone();
+    if !area.contains(input.mouse) {
+        input.pressed = None;
+    }
+    input
+}

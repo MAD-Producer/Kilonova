@@ -1,0 +1,265 @@
+use super::*;
+
+pub(super) fn render(
+    list: &mut PaintList,
+    atlas: &mut TextAtlas,
+    size: [f32; 2],
+    panels: &mut Panels,
+    input: &Input,
+    state: &Value,
+    out: &mut Vec<Action>,
+) {
+    let locale = panels.locale;
+    paint::rect(
+        list,
+        Rect::new(0.0, 0.0, size[0], metrics::MENU_BAR),
+        palette::CHROME,
+    );
+    let mut x = 8.0;
+    let mut starts = vec![];
+    for (i, key) in [
+        T::File,
+        T::Edit,
+        T::Composition,
+        T::Layer,
+        T::Effect,
+        T::Animation,
+        T::View,
+        T::Window,
+        T::Help,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let name = locale.t(key);
+        let width = atlas.measure(name) + 22.0;
+        let r = Rect::new(x, 0.0, width, metrics::MENU_BAR);
+        starts.push(x);
+        if r.contains(input.mouse) || panels.menu == Some(i) {
+            paint::rect(list, r, palette::SUNKEN);
+        }
+        label(
+            list,
+            atlas,
+            Rect::new(x + 10.0, 0.0, width - 20.0, metrics::MENU_BAR),
+            name,
+            false,
+        );
+        if clicked(input, r) {
+            panels.menu = if panels.menu == Some(i) {
+                None
+            } else {
+                Some(i)
+            };
+        }
+        x += width;
+    }
+    label(
+        list,
+        atlas,
+        Rect::new(
+            (size[0] - 160.0).max(x + 12.0),
+            0.0,
+            150.0,
+            metrics::MENU_BAR,
+        ),
+        "Motion Studio",
+        true,
+    );
+    if let Some(menu) = panels.menu {
+        let selected = panels.selected.filter(|id| *id != 0);
+        let frame = state["frame"].as_f64().unwrap_or(0.0).floor() as u32;
+        let entries: Vec<(String, Action, bool)> = match menu {
+            0 => vec![
+                (
+                    format!("{}    Ctrl+N", locale.t(T::NewProject)),
+                    Action::New,
+                    true,
+                ),
+                (
+                    format!("{}    Ctrl+O", locale.t(T::OpenProject)),
+                    Action::Open,
+                    true,
+                ),
+                (
+                    format!("{}    Ctrl+S", locale.t(T::Save)),
+                    Action::Save,
+                    true,
+                ),
+                (locale.t(T::ExportPackage).into(), Action::Pack, true),
+                (
+                    format!("{}    Ctrl+I", locale.t(T::ImportMedia)),
+                    Action::ImportMedia,
+                    true,
+                ),
+                (locale.t(T::ExportPng).into(), Action::ExportPng, true),
+                (
+                    locale.t(T::ExportMovie).into(),
+                    Action::ExportMovie,
+                    cfg!(feature = "ffmpeg"),
+                ),
+                (locale.t(T::CancelExport).into(), Action::CancelExport, true),
+                (locale.t(T::CancelImport).into(), Action::CancelImport, true),
+            ],
+            1 => vec![
+                (
+                    format!("{}    Ctrl+Z", locale.t(T::Undo)),
+                    Action::History(0),
+                    state["canUndo"].as_bool().unwrap_or(false),
+                ),
+                (
+                    format!("{}    Ctrl+Shift+Z", locale.t(T::Redo)),
+                    Action::History(1),
+                    state["canRedo"].as_bool().unwrap_or(false),
+                ),
+            ],
+            2 => vec![
+                (
+                    locale.t(T::CompositionSettings).into(),
+                    Action::CompositionSettings,
+                    true,
+                ),
+                (locale.t(T::Play).into(), Action::TogglePlay, true),
+                (locale.t(T::FirstFrame).into(), Action::Seek(0.0), true),
+                (
+                    locale.t(T::LastFrame).into(),
+                    Action::Seek(last_frame(state)),
+                    true,
+                ),
+            ],
+            3 => vec![
+                (locale.t(T::NewSolid).into(), Action::AddSolid, true),
+                (locale.t(T::NewText).into(), Action::NewText, true),
+                (locale.t(T::NewNull).into(), Action::AddNull, true),
+                (
+                    locale.t(T::NewAdjustment).into(),
+                    Action::AddAdjustment,
+                    true,
+                ),
+                (
+                    locale.t(T::NewCamera).into(),
+                    Action::Edit(Command::CreateCamera),
+                    !state["project"]["camera"]["created"]
+                        .as_bool()
+                        .unwrap_or(false),
+                ),
+                (
+                    locale.t(T::NewRectangle).into(),
+                    Action::AddShape(motion_core::vector::ShapeKind::Rectangle),
+                    true,
+                ),
+                (
+                    locale.t(T::NewEllipse).into(),
+                    Action::AddShape(motion_core::vector::ShapeKind::Ellipse),
+                    true,
+                ),
+                (
+                    locale.t(T::SplitLayer).into(),
+                    Action::Edit(Command::SplitLayerClip {
+                        object: selected.unwrap_or(0),
+                        frame,
+                    }),
+                    selected.is_some(),
+                ),
+                (
+                    format!("{}    Ctrl+D", locale.t(T::Duplicate)),
+                    Action::Edit(Command::Duplicate {
+                        object: selected.unwrap_or(0),
+                    }),
+                    selected.is_some(),
+                ),
+                (
+                    locale.t(T::Delete).into(),
+                    Action::Edit(Command::Delete {
+                        object: selected.unwrap_or(0),
+                    }),
+                    selected.is_some(),
+                ),
+            ],
+            4 => vec![(
+                locale.t(T::ShowEffects).into(),
+                Action::ShowPanel(dock::DockId(2)),
+                true,
+            )],
+            5 => vec![(
+                locale.t(T::AddPositionKey).into(),
+                Action::Edit(Command::Animate {
+                    object: selected.unwrap_or(0),
+                    property: Property::Position,
+                    axis: None,
+                    frame,
+                    enabled: true,
+                }),
+                selected.is_some(),
+            )],
+            6 => vec![(
+                locale.t(T::ShowComposition).into(),
+                Action::ShowPanel(dock::DockId(3)),
+                true,
+            )],
+            7 => Panel::ALL
+                .into_iter()
+                .map(|panel| {
+                    (
+                        locale.panel(panel.dock()).into(),
+                        Action::ShowPanel(panel.dock()),
+                        true,
+                    )
+                })
+                .chain(std::iter::once((
+                    locale.t(T::ResetWorkspace).into(),
+                    Action::ResetWorkspace,
+                    true,
+                )))
+                .collect(),
+            _ => vec![(locale.t(T::About).into(), Action::About, true)],
+        };
+        let popup = Rect::new(
+            starts
+                .get(menu)
+                .copied()
+                .unwrap_or(8.0)
+                .min((size[0] - 280.0).max(0.0)),
+            metrics::MENU_BAR,
+            280.0,
+            entries.len() as f32 * 32.0 + 8.0,
+        );
+        // Text is drawn in a second GPU pass: remove covered labels before drawing the popup.
+        list.glyphs.retain(|g| {
+            g.position[0] + g.size[0] <= popup.min[0]
+                || g.position[0] >= popup.max[0]
+                || g.position[1] + g.size[1] <= popup.min[1]
+                || g.position[1] >= popup.max[1]
+        });
+        paint::rect(list, popup, palette::CHROME);
+        paint::stroke(list, popup, palette::BORDER, 1.0);
+        for (i, (text, action, enabled)) in entries.into_iter().enumerate() {
+            let r = Rect::new(
+                popup.min[0] + 4.0,
+                popup.min[1] + 4.0 + i as f32 * 32.0,
+                popup.width() - 8.0,
+                30.0,
+            );
+            if r.contains(input.mouse) {
+                paint::rect(list, r, palette::SUNKEN);
+            }
+            label(
+                list,
+                atlas,
+                Rect::new(r.min[0] + 8.0, r.min[1], r.width() - 16.0, r.height()),
+                &text,
+                !enabled,
+            );
+            if clicked(input, r) && enabled {
+                out.push(action);
+                panels.menu = None;
+            }
+        }
+        if input
+            .pressed
+            .is_some_and(|(_, p)| !popup.contains(p) && p[1] >= metrics::MENU_BAR)
+        {
+            panels.menu = None;
+        }
+    }
+}

@@ -12,6 +12,7 @@
 //! which is why [`dock`] carries its own assertions.
 
 pub mod dock;
+pub mod icons;
 pub mod input;
 pub mod interaction;
 pub mod overlay;
@@ -19,6 +20,7 @@ pub mod paint;
 pub mod panel;
 pub mod registry;
 pub mod style;
+pub mod tabs;
 pub mod text;
 pub mod theme;
 pub mod ui;

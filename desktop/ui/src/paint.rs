@@ -16,6 +16,8 @@ pub enum Shape {
     Quad { points: [[f32; 2]; 4] },
     /// Polyline expanded to a strip on the CPU.
     Line { points: Vec<[f32; 2]> },
+    /// Precompiled SVG geometry, in independent triangle-list order.
+    Triangles { points: Vec<[f32; 2]> },
 }
 
 /// Solid fills collected for one frame.
@@ -35,9 +37,18 @@ impl PaintList {
             .into_iter()
             .zip(std::mem::take(&mut self.colors))
         {
+            if let Shape::Triangles { points } = &mut shape {
+                *points = clip_triangles(points, area);
+                if !points.is_empty() {
+                    shapes.push(shape);
+                    colors.push(color);
+                }
+                continue;
+            }
             let points: &mut [[f32; 2]] = match &mut shape {
                 Shape::Quad { points } => points,
                 Shape::Line { points } => points,
+                Shape::Triangles { .. } => unreachable!(),
             };
             let intersects = points.iter().any(|p| {
                 p[0] >= area.min[0]
@@ -86,6 +97,59 @@ impl PaintList {
         self.colors.append(&mut other.colors);
         self.glyphs.append(&mut other.glyphs);
     }
+}
+
+/// Sutherland-Hodgman clipping preserves an icon's silhouette at panel edges.
+fn clip_triangles(points: &[[f32; 2]], area: Rect) -> Vec<[f32; 2]> {
+    let mut result = Vec::with_capacity(points.len());
+    if area.width() <= 0. || area.height() <= 0. {
+        return result;
+    }
+    for triangle in points.chunks_exact(3) {
+        if triangle.iter().all(|p| area.contains(*p)) {
+            result.extend_from_slice(triangle);
+            continue;
+        }
+        let mut polygon = triangle.to_vec();
+        for (axis, bound, keep_greater) in [
+            (0, area.min[0], true),
+            (0, area.max[0], false),
+            (1, area.min[1], true),
+            (1, area.max[1], false),
+        ] {
+            let mut clipped = Vec::with_capacity(polygon.len() + 1);
+            let Some(mut previous) = polygon.last().copied() else {
+                break;
+            };
+            let inside = |p: [f32; 2]| {
+                if keep_greater {
+                    p[axis] >= bound
+                } else {
+                    p[axis] <= bound
+                }
+            };
+            for current in polygon {
+                if inside(previous) != inside(current) {
+                    let t = (bound - previous[axis]) / (current[axis] - previous[axis]);
+                    let mut crossing = [
+                        previous[0] + (current[0] - previous[0]) * t,
+                        previous[1] + (current[1] - previous[1]) * t,
+                    ];
+                    crossing[axis] = bound;
+                    clipped.push(crossing);
+                }
+                if inside(current) {
+                    clipped.push(current);
+                }
+                previous = current;
+            }
+            polygon = clipped;
+        }
+        for i in 1..polygon.len().saturating_sub(1) {
+            result.extend_from_slice(&[polygon[0], polygon[i], polygon[i + 1]]);
+        }
+    }
+    result
 }
 
 /// One positioned glyph.
@@ -509,6 +573,12 @@ impl Painter {
                         });
                     }
                 }
+                Shape::Triangles { points } => {
+                    solids.extend(points.iter().map(|position| SolidVertex {
+                        position: *position,
+                        color: rgba,
+                    }));
+                }
             }
         }
         let glyphs: Vec<GlyphVertex> = list
@@ -724,7 +794,7 @@ mod tests {
                     let height = points[2][1] - points[0][1];
                     Some(width * height)
                 }
-                Shape::Line { .. } => None,
+                Shape::Line { .. } | Shape::Triangles { .. } => None,
             })
             .collect();
         assert_eq!(areas.iter().sum::<f32>(), 100.0);

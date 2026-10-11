@@ -5,7 +5,7 @@
 //! platform UI face and falls back to any installed font, so the shell renders
 //! on a machine with no fonts of its own.
 
-use ab_glyph::{FontArc, PxScale, PxScaleFont, ScaleFont};
+use ab_glyph::{Font, FontArc, PxScale, PxScaleFont, ScaleFont};
 
 /// One rendered glyph in the atlas.
 #[derive(Clone, Copy)]
@@ -42,12 +42,15 @@ impl Default for AtlasConfig {
 /// read regardless of how many times it is drawn.
 pub struct TextAtlas {
     font: PxScaleFont<FontArc>,
+    /// Font size in pixels per em, as used by the design and stylesheet.
+    font_size: f32,
     fallback: Option<PxScaleFont<FontArc>>,
     config: AtlasConfig,
     pixels: Vec<u8>,
-    entries: std::collections::HashMap<char, GlyphEntry>,
+    entries: std::collections::HashMap<(char, u32), GlyphEntry>,
     /// Pen position of the next glyph in the atlas, in texels.
     cursor: [f32; 2],
+    row_height: u32,
     pub line_height: f32,
     pub ascent: f32,
     dirty: bool,
@@ -68,23 +71,23 @@ impl TextAtlas {
     pub fn from_family(family: &str, scale: f32, chinese: bool) -> Result<Self, String> {
         let (font, families) = load_preferred_font(chinese, Some(family))?;
         let mut atlas = Self::new(font, scale, families);
-        if !chinese || family != "system-ui" {
+        if atlas.font.font.glyph_id('中').0 == 0 {
             if let Ok((fallback, _)) = load_system_font(true) {
                 atlas.fallback = Some(PxScaleFont {
+                    scale: em_scale(&fallback, scale),
                     font: fallback,
-                    scale: PxScale::from(scale),
                 });
             }
         }
         Ok(atlas)
     }
     pub fn font_size(&self) -> f32 {
-        self.font.scale.y
+        self.font_size
     }
     pub fn new(font: FontArc, scale: f32, families: Vec<String>) -> Self {
         let font = PxScaleFont {
+            scale: em_scale(&font, scale),
             font,
-            scale: PxScale::from(scale),
         };
         let line_height = font.height().max(scale);
         let ascent = font.ascent();
@@ -92,11 +95,13 @@ impl TextAtlas {
         let pixels = vec![0u8; (config.width * config.height * 4) as usize];
         Self {
             font,
+            font_size: scale,
             fallback: None,
             config,
             pixels,
             entries: std::collections::HashMap::new(),
             cursor: [0.0, 0.0],
+            row_height: 0,
             line_height,
             ascent,
             dirty: true,
@@ -106,13 +111,14 @@ impl TextAtlas {
 
     /// Scale the rasterisation size, for example after a display scale change.
     pub fn set_scale(&mut self, scale: f32) {
-        let current = self.font.scale.y;
+        let current = self.font_size;
         if (scale - current).abs() < f32::EPSILON {
             return;
         }
-        self.font.scale = PxScale::from(scale);
+        self.font_size = scale;
+        self.font.scale = em_scale(&self.font.font, scale);
         if let Some(fallback) = &mut self.fallback {
-            fallback.scale = PxScale::from(scale);
+            fallback.scale = em_scale(&fallback.font, scale);
         }
         self.ascent = self.font.ascent();
         self.line_height = self.font.height().max(scale);
@@ -123,6 +129,7 @@ impl TextAtlas {
         self.entries.clear();
         self.pixels.fill(0);
         self.cursor = [0.0, 0.0];
+        self.row_height = 0;
         self.dirty = true;
     }
 
@@ -164,10 +171,16 @@ impl TextAtlas {
 
     /// Rasterise a character if it is not already cached.
     pub fn glyph(&mut self, character: char) -> GlyphEntry {
-        if let Some(entry) = self.entries.get(&character) {
+        self.glyph_at(character, self.font_size)
+    }
+    /// Rasterize at the requested em size rather than enlarging a small bitmap.
+    pub fn glyph_at(&mut self, character: char, size: f32) -> GlyphEntry {
+        let key = (character, size.to_bits());
+        if let Some(entry) = self.entries.get(&key) {
             return *entry;
         }
-        let advance = self.advance(character);
+        let ratio = size / self.font_size;
+        let advance = self.advance(character) * ratio;
         let blank = GlyphEntry {
             uv: [0.0; 4],
             offset: [0.0, 0.0],
@@ -176,11 +189,13 @@ impl TextAtlas {
         let font = self.face(character);
         let id = font.glyph_id(character);
         if id.0 == 0 {
-            self.entries.insert(character, blank);
+            self.entries.insert(key, blank);
             return blank;
         }
-        let Some(outlined) = font.outline_glyph(font.scaled_glyph(character)) else {
-            self.entries.insert(character, blank);
+        let mut glyph = font.scaled_glyph(character);
+        glyph.scale = PxScale::from(font.scale.y * ratio);
+        let Some(outlined) = font.outline_glyph(glyph) else {
+            self.entries.insert(key, blank);
             return blank;
         };
         // Pixel bounds are integers and exactly match what `draw` reports, so
@@ -190,21 +205,22 @@ impl TextAtlas {
         let height = (bounds.max.y - bounds.min.y) as u32;
         if width == 0 || height == 0 {
             // Whitespace advances without a bitmap.
-            self.entries.insert(character, blank);
+            self.entries.insert(key, blank);
             return blank;
         }
         let padding = self.config.padding;
-        let row_height = self.line_height.ceil() as u32;
         if self.cursor[0] + width as f32 + padding as f32 > self.config.width as f32 {
             self.cursor[0] = 0.0;
-            self.cursor[1] += row_height as f32;
+            self.cursor[1] += self.row_height as f32;
+            self.row_height = 0;
         }
-        if self.cursor[1] + row_height as f32 > self.config.height as f32 {
+        if self.cursor[1] + height as f32 + padding as f32 > self.config.height as f32 {
             // Atlas full. Panel text is short, so this only happens with an
             // unusual font or a very large UI scale; repacking is cheaper than
             // growing the atlas at runtime.
             self.clear();
         }
+        self.row_height = self.row_height.max(height + padding);
         let x = self.cursor[0] as u32;
         let y = self.cursor[1] as u32;
         let stride = self.config.width as usize;
@@ -231,7 +247,7 @@ impl TextAtlas {
             offset: [bounds.min.x as f32, bounds.min.y],
             advance,
         };
-        self.entries.insert(character, entry);
+        self.entries.insert(key, entry);
         self.dirty = true;
         entry
     }
@@ -260,6 +276,14 @@ impl TextAtlas {
         result.push('\u{2026}');
         result
     }
+}
+
+// ab_glyph's PxScale is ascender-to-descender height, not pixels per em.
+// Design tools and CSS use em size, so convert once for each selected face.
+fn em_scale(font: &FontArc, pixels: f32) -> PxScale {
+    PxScale::from(
+        pixels * font.height_unscaled() / font.units_per_em().unwrap_or(font.height_unscaled()),
+    )
 }
 
 /// Prefer a platform UI face, then fall back to any installed font.

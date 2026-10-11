@@ -65,7 +65,7 @@ pub mod metrics {
     /// Height of the application menu bar.
     pub const MENU_BAR: f32 = 24.0;
     /// Height of the compact tool bar under the menu bar.
-    pub const TOOL_BAR: f32 = 36.0;
+    pub const TOOL_BAR: f32 = 32.0;
     /// Height of a panel tab strip.
     pub const TAB_BAR: f32 = 26.0;
     /// Height of one timeline layer row.

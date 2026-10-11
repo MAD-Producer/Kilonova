@@ -130,20 +130,33 @@ pub fn text(
     color: Color,
     align: Align,
 ) {
+    text_sized(list, atlas, area, label, color, align, atlas.font_size());
+}
+pub fn text_sized(
+    list: &mut PaintList,
+    atlas: &mut crate::text::TextAtlas,
+    area: Rect,
+    label: &str,
+    color: Color,
+    align: Align,
+    font_size: f32,
+) {
     if area.width() <= 0.0 || label.is_empty() {
         return;
     }
-    let shown = atlas.ellipsize(label, area.width());
-    let width = atlas.measure(&shown);
+    let scale = font_size / atlas.font_size();
+    let shown = atlas.ellipsize(label, area.width() / scale);
+    let width = atlas.measure(&shown) * scale;
     let origin = match align {
         Align::Left => area.min[0],
         Align::Center => area.min[0] + (area.width() - width).max(0.0) * 0.5,
         Align::Right => area.max[0] - width,
     };
-    let baseline = area.min[1] + (area.height() + atlas.ascent) * 0.5;
+    let baseline =
+        area.min[1] + (area.height() + (atlas.ascent * 2. - atlas.line_height) * scale) * 0.5;
     let mut pen = origin;
     for character in shown.chars() {
-        let glyph = atlas.glyph(character);
+        let glyph = atlas.glyph_at(character, font_size);
         let width = (glyph.uv[2] - glyph.uv[0]) * atlas.config().width as f32;
         let height = (glyph.uv[3] - glyph.uv[1]) * atlas.config().height as f32;
         // Whitespace has no atlas rectangle and only advances the pen.
@@ -277,13 +290,13 @@ pub fn tab_strip(
     if titles.is_empty() {
         return None;
     }
-    let width = area.width() / titles.len() as f32;
+    let mut x = area.min[0];
     let mut clicked = None;
     for (index, title) in titles.iter().enumerate() {
         let tab = Rect::new(
-            area.min[0] + width * index as f32,
+            x,
             area.min[1],
-            width,
+            (atlas.measure(title) + 22.).min((area.max[0] - x).max(0.)),
             area.height() - 1.0,
         );
         let selected = index == active;
@@ -296,13 +309,6 @@ pub fn tab_strip(
                 palette::CHROME
             },
         );
-        if selected {
-            paint::rect(
-                list,
-                Rect::new(tab.min[0], tab.min[1], tab.width(), 2.0),
-                palette::ACCENT,
-            );
-        }
         let color = if selected {
             palette::TEXT
         } else {
@@ -326,6 +332,7 @@ pub fn tab_strip(
         {
             clicked = Some(index);
         }
+        x += tab.width();
     }
     clicked
 }
@@ -515,6 +522,37 @@ pub enum Icon {
 }
 
 pub fn icon(list: &mut PaintList, area: Rect, icon: Icon) {
+    let svg = match icon {
+        Icon::Eye | Icon::EyeOff => Some(crate::icons::Icon::Eye),
+        Icon::Lock => Some(crate::icons::Icon::Lock),
+        Icon::Camera => Some(crate::icons::Icon::Camera),
+        Icon::Keyframe => Some(crate::icons::Icon::Key),
+        Icon::Stopwatch => Some(crate::icons::Icon::Stopwatch),
+        _ => None,
+    };
+    if let Some(svg) = svg {
+        crate::icons::draw(
+            list,
+            area,
+            svg,
+            16.,
+            if icon == Icon::Keyframe {
+                palette::KEYFRAME
+            } else {
+                palette::TEXT_MUTED
+            },
+        );
+        if icon == Icon::EyeOff {
+            let x = area.min[0] + area.width() * 0.25;
+            let y = area.min[1] + area.height() * 0.25;
+            paint::line(
+                list,
+                vec![[x, y + area.height() * 0.5], [x + area.width() * 0.5, y]],
+                palette::TEXT_MUTED,
+            );
+        }
+        return;
+    }
     let size = 12.0;
     let min = [
         area.min[0] + (area.width() - size) * 0.5,

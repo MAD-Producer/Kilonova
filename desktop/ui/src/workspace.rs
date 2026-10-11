@@ -11,7 +11,7 @@ pub struct Workspace {
     pub floating: Vec<DockId>,
     #[serde(default)]
     pub hidden: Vec<DockId>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_window_geometry")]
     pub window_geometry: std::collections::BTreeMap<u32, WindowGeometry>,
     #[serde(skip)]
     drag: Option<Drag>,
@@ -20,6 +20,29 @@ pub struct Workspace {
 pub struct WindowGeometry {
     pub size: [f64; 2],
     pub position: Option<[i32; 2]>,
+}
+
+// serde's flattened ContentDeserializer doesn't coerce JSON string keys into
+// integers. Parse explicitly so app preferences can safely flatten Workspace.
+fn deserialize_window_geometry<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<std::collections::BTreeMap<u32, WindowGeometry>, D::Error> {
+    use serde::Deserialize;
+    let entries = std::collections::BTreeMap::<String, WindowGeometry>::deserialize(deserializer)?;
+    entries
+        .into_iter()
+        .map(|(id, geometry)| {
+            let id = id.parse().map_err(serde::de::Error::custom)?;
+            if geometry
+                .size
+                .iter()
+                .any(|v| !v.is_finite() || *v <= 0. || *v > 16384.)
+            {
+                return Err(serde::de::Error::custom("invalid floating window size"));
+            }
+            Ok((id, geometry))
+        })
+        .collect()
 }
 enum Drag {
     Split {
@@ -365,7 +388,16 @@ impl Workspace {
     /// Drag a divider to resize; drag a title to dock on an edge or combine tabs.
     /// Releasing a title outside the workspace detaches it to a native window.
     pub fn interact(&mut self, input: &Input, area: Rect) -> Option<Change> {
-        if input.pressed.is_some_and(|(b, _)| b == MouseButton::Left) {
+        self.interact_with_header_actions(input, area, 30.)
+    }
+    /// Reserve space for header actions only when the host actually draws them.
+    pub fn interact_with_header_actions(
+        &mut self,
+        input: &Input,
+        area: Rect,
+        action_width: f32,
+    ) -> Option<Change> {
+        if self.drag.is_none() && input.pressed.is_some_and(|(b, _)| b == MouseButton::Left) {
             let mut found = vec![];
             handles(&self.root, area, &mut vec![], &mut found);
             if let Some(h) = found
@@ -383,7 +415,7 @@ impl Workspace {
                     let title = Rect::new(
                         placement.area.min[0],
                         placement.area.min[1],
-                        (placement.area.width() - 30.0).max(0.0),
+                        (placement.area.width() - action_width.max(0.0)).max(0.0),
                         metrics::TAB_BAR,
                     );
                     if title.contains(input.mouse) {
@@ -463,5 +495,14 @@ impl Workspace {
     }
     pub fn cancel(&mut self) {
         self.drag = None;
+    }
+    /// Select the actual clicked tab within the captured group, including inactive tabs.
+    pub fn choose_dragged_tab(&mut self, panel: DockId) {
+        if let Some(Drag::Tab { panel: current, .. }) = &mut self.drag {
+            let same_group = matches!(self.root.find(*current),Some(Node::Dock{tabs,..}) if tabs.contains(&panel));
+            if same_group {
+                *current = panel;
+            }
+        }
     }
 }

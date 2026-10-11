@@ -1,4 +1,6 @@
 //! Editing, undo and expression execution over shared Motion Studio data.
+mod command_registry;
+pub use command_registry::CommandRegistry;
 mod editor;
 mod expressions;
 mod hierarchy;

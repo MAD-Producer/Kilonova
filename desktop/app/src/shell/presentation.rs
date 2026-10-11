@@ -1,0 +1,629 @@
+use crate::*;
+
+impl Shell {
+    pub(crate) fn translate(&mut self, event: Event) {
+        motion_ui::ui::accumulate(&mut self.input, event);
+        self.dirty = true;
+        self.redraw();
+    }
+    pub(crate) fn redraw(&self) {
+        if let Some(w) = &self.window {
+            w.request_redraw();
+        }
+        for f in self.floating.values() {
+            f.window.request_redraw();
+        }
+    }
+    pub(crate) fn size(&self) -> Option<[f32; 2]> {
+        self.window.as_ref().map(|w| {
+            let s = w.inner_size();
+            [s.width as f32 / self.scale, s.height as f32 / self.scale]
+        })
+    }
+    pub(crate) fn draw_commands(&mut self, size: [f32; 2]) -> (PaintList, Vec<panels::Action>) {
+        let mut paint = PaintList::default();
+        let neutral = Input::default();
+        let actions = panels::chrome(
+            &mut paint,
+            &mut self.atlas,
+            size,
+            &self.workspace.root,
+            &mut self.panels,
+            &self.state,
+            if self.dialog.is_some()
+                || self.node_close_prompt.is_some()
+                || self.node_examples.is_some()
+            {
+                &neutral
+            } else {
+                &self.input
+            },
+        );
+        if let Some(dialog) = &mut self.dialog {
+            if let Some(event) = dialog.render(
+                &mut paint,
+                &mut self.atlas,
+                size,
+                &self.input,
+                self.workspace.locale,
+            ) {
+                let result = (|| -> Result<(), String> {
+                    match event {
+                        dialogs::Event::Cancelled => {
+                            self.dialog = None;
+                        }
+                        dialogs::Event::ImportFont => {
+                            if let Some(path) = rfd::FileDialog::new()
+                                .add_filter("Fonts", &["ttf", "otf", "ttc"])
+                                .pick_file()
+                            {
+                                let mut faces = dialogs::imported_faces(&path)?;
+                                faces.reverse();
+                                for face in faces {
+                                    self.dialog.as_mut().unwrap().add_font(face);
+                                }
+                            }
+                        }
+                        dialogs::Event::Settings(settings) => {
+                            let settings =
+                                serde_json::from_value::<motion_core::CompositionSettings>(
+                                    settings,
+                                )
+                                .map_err(|e| e.to_string())?;
+                            self.state = self.engine.edit(
+                                serde_json::to_string(&Command::Composition {
+                                    action: motion_core::CompositionAction::Settings { settings },
+                                })
+                                .map_err(|e| e.to_string())?,
+                            )?;
+                            self.dialog = None;
+                        }
+                        dialogs::Event::Text {
+                            text,
+                            size,
+                            width,
+                            font,
+                        } => {
+                            self.state = self.engine.create_text(
+                                text,
+                                size,
+                                width,
+                                font.map(|f| (f.path, f.index)),
+                            )?;
+                            self.panels.selected = self.state["project"]["layers"]
+                                .as_array()
+                                .and_then(|ls| ls.last())
+                                .and_then(|l| l["id"].as_u64());
+                            self.dialog = None;
+                        }
+                    };
+                    self.dirty = true;
+                    Ok(())
+                })();
+                if let Err(error) = result {
+                    if let Some(dialog) = &mut self.dialog {
+                        dialog.error = Some(self.workspace.locale.error(&error));
+                    }
+                }
+            }
+        }
+        if let Some(browser) = &mut self.node_examples {
+            if let Some(event) = browser.draw(
+                &mut paint,
+                &mut self.atlas,
+                size,
+                &self.input,
+                self.workspace.locale,
+            ) {
+                let browser = self.node_examples.take().unwrap();
+                let result = match event {
+                    node_examples::Event::Cancel => Ok(()),
+                    node_examples::Event::Open { id, save_first } => {
+                        if !self.node_close_current(&browser.snapshot) {
+                            Err(self.workspace.locale.t(T::NodeStaleOpen).into())
+                        } else if save_first {
+                            self.node_example_after_save = Some((browser.snapshot.clone(), id));
+                            self.actions.push_back(panels::Action::Node(
+                                node_editor::Action::Save(browser.snapshot),
+                            ));
+                            Ok(())
+                        } else {
+                            self.open_node_example(&browser.snapshot, id)
+                        }
+                    }
+                };
+                if let Err(error) = result {
+                    self.panels.node_editor.report_error(error);
+                }
+                self.dirty = true;
+            }
+        }
+        if self.node_close_prompt.is_some() {
+            if let Some(choice) = node_tasks::close_prompt(
+                &mut paint,
+                &mut self.atlas,
+                size,
+                &self.input,
+                self.workspace.locale,
+            ) {
+                let snapshot = self.node_close_prompt.take().unwrap();
+                match choice {
+                    node_tasks::CloseChoice::Cancel => {
+                        let _ = self.schedule_node_compile();
+                    }
+                    _ if !self.node_close_current(&snapshot) => {
+                        self.panels
+                            .node_editor
+                            .report_error(self.workspace.locale.t(T::NodeStaleClose));
+                        let _ = self.schedule_node_compile();
+                    }
+                    node_tasks::CloseChoice::Discard => self.begin_close(),
+                    node_tasks::CloseChoice::Save => {
+                        self.node_close_save = Some(snapshot.clone());
+                        self.actions
+                            .push_back(panels::Action::Node(node_editor::Action::Save(snapshot)));
+                    }
+                }
+                self.dirty = true;
+            }
+        }
+        self.input.begin_frame(); // Clear transient input only after it has been consumed.
+        (paint, actions)
+    }
+    pub(crate) fn ui_frame(
+        &mut self,
+        paint: PaintList,
+        size: [f32; 2],
+        force_atlas: bool,
+    ) -> UiFrame {
+        let config = self.atlas.config();
+        let atlas = if self.atlas.take_dirty() || force_atlas {
+            Some(AtlasUpload {
+                pixels: self.atlas.pixel_data().to_vec(),
+                width: config.width,
+                height: config.height,
+            })
+        } else {
+            None
+        };
+        let view = panels::composition_view(&self.workspace.root, size);
+        UiFrame {
+            paint,
+            atlas,
+            logical_size: size,
+            window: 0,
+            node_preview: self
+                .node_viewport(panels::node_view(&self.workspace.root, size), self.scale),
+            composition: if view.width() > 0.0 && view.height() > 0.0 {
+                Some([
+                    view.min[0] * self.scale,
+                    view.min[1] * self.scale,
+                    view.width() * self.scale,
+                    view.height() * self.scale,
+                ])
+            } else {
+                None
+            },
+        }
+    }
+    pub(crate) fn present(&mut self, _event_loop: &ActiveEventLoop) -> Result<(), String> {
+        if !self.actions.is_empty()
+            || !self.attached
+            || self.rendering.contains_key(&0)
+            || self.resizing.is_some()
+            || !self.resize_queue.is_empty()
+        {
+            return Ok(());
+        }
+        let Some(size) = self.size() else {
+            return Ok(());
+        };
+        if size[0] <= 0.0 || size[1] <= 0.0 {
+            return Ok(());
+        }
+        if self.rendering.is_empty() {
+            if let Some((start, origin)) = self.playback {
+                let fps = self.state["project"]["fps"].as_u64().unwrap_or(30) as u32;
+                let frames = self.state["project"]["frames"].as_u64().unwrap_or(1) as u32;
+                if let Some(audio) = &self.audio {
+                    let position = audio.frame(fps);
+                    let error = audio.error();
+                    self.frame = position.min(f64::from(frames - 1));
+                    if position >= f64::from(frames) - f64::from(fps) / 48000. || error.is_some() {
+                        self.stop();
+                        if let Some(error) = error {
+                            self.panels.message = Some(self.workspace.locale.error(&error));
+                        }
+                    }
+                } else {
+                    self.frame = playback_frame(origin, start.elapsed(), fps, frames);
+                }
+                self.state = self.engine.seek(self.frame)?;
+            }
+        }
+        let header_hit = if self.panels.header_size == Some(size) {
+            self.panels
+                .header_hits
+                .iter()
+                .rev()
+                .find(|hit| hit.rect.contains(self.input.mouse))
+                .map(|hit| (hit.panel, hit.action))
+        } else {
+            None
+        };
+        let header_action = self
+            .input
+            .pressed
+            .is_some_and(|(button, _)| button == MouseButton::Left)
+            && header_hit.is_some_and(|(_, action)| action);
+        let modal = self.panels.panel_menu.is_some()
+            || self.panels.menu.is_some()
+            || self.panels.fx_console.is_some();
+        if header_action || modal {
+            self.workspace.cancel();
+        }
+        if let Some(change) = if header_action || modal {
+            None
+        } else {
+            self.workspace.interact(&self.input, size)
+        } {
+            match change {
+                workspace::Change::Float(panel) => {
+                    self.actions.push_back(panels::Action::Float(panel))
+                }
+                workspace::Change::Changed => {
+                    if self.smoke.is_none() && self.input.released.is_some() {
+                        self.workspace.save(&self.layout_path)?;
+                    }
+                    self.dirty = true;
+                }
+            }
+        }
+        if self
+            .input
+            .pressed
+            .is_some_and(|(button, _)| button == MouseButton::Left)
+        {
+            if let Some((panel, false)) = header_hit {
+                self.workspace.choose_dragged_tab(panel);
+            }
+        }
+        let (mut paint, actions) = self.draw_commands(size);
+        self.actions.extend(actions);
+        if !self.actions.is_empty() {
+            return Ok(());
+        }
+        // Actions may change project, layer selection or playhead during this draw.
+        if self.dirty
+            && self.dialog.is_none()
+            && self.node_close_prompt.is_none()
+            && self.node_examples.is_none()
+        {
+            let neutral = Input::default();
+            paint = PaintList::default();
+            let _ = panels::chrome(
+                &mut paint,
+                &mut self.atlas,
+                size,
+                &self.workspace.root,
+                &mut self.panels,
+                &self.state,
+                &neutral,
+            );
+        }
+        let ui = self.ui_frame(paint, size, false);
+        self.rendering.insert(0, self.engine.present_async(ui)?);
+        self.dirty = false;
+        Ok(())
+    }
+    pub(crate) fn float_panel(
+        &mut self,
+        id: dock::DockId,
+        event_loop: &ActiveEventLoop,
+    ) -> Result<(), String> {
+        if self.floating.values().any(|f| f.panel.dock() == id) {
+            return Ok(());
+        }
+        let panel = panels::panel(id).ok_or("invalid panel")?;
+        if panel == dock::Panel::Nodes {
+            self.panels.node_editor.cancel_interaction();
+        }
+        let window = Arc::new(
+            event_loop
+                .create_window(
+                    Window::default_attributes()
+                        .with_title(format!(
+                            "{} — Motion Studio",
+                            self.workspace.locale.panel(panel.dock())
+                        ))
+                        .with_inner_size(if panel == dock::Panel::Nodes {
+                            winit::dpi::LogicalSize::new(1280.0, 800.0)
+                        } else {
+                            winit::dpi::LogicalSize::new(720.0, 520.0)
+                        })
+                        .with_min_inner_size(winit::dpi::LogicalSize::new(360.0, 320.0))
+                        .with_visible(self.smoke.is_none()),
+                )
+                .map_err(|e| e.to_string())?,
+        );
+        if let Some(geometry) = self.workspace.window_geometry.get(&id.0) {
+            if geometry
+                .size
+                .iter()
+                .all(|v| v.is_finite() && (320.0..=8192.0).contains(v))
+            {
+                let _ = window.request_inner_size(winit::dpi::LogicalSize::new(
+                    geometry.size[0],
+                    geometry.size[1],
+                ));
+            }
+            if let Some([x, y]) = geometry.position {
+                if event_loop.available_monitors().any(|m| {
+                    let p = m.position();
+                    let s = m.size();
+                    x >= p.x && y >= p.y && x < p.x + s.width as i32 && y < p.y + s.height as i32
+                }) {
+                    window.set_outer_position(winit::dpi::PhysicalPosition::new(x, y));
+                }
+            }
+        }
+        let size = window.inner_size();
+        window.set_ime_allowed(true);
+        let key = self.next_window;
+        self.next_window += 1;
+        self.engine
+            .float_window(key, window.clone(), size.width, size.height)?;
+        let scale = window.scale_factor() as f32;
+        self.workspace.float(id);
+        self.floating.insert(
+            window.id(),
+            FloatWindow {
+                window,
+                key,
+                panel,
+                input: Default::default(),
+                scale,
+            },
+        );
+        if self.smoke.is_none() {
+            self.workspace.save(&self.layout_path)?;
+        }
+        self.dirty = true;
+        self.redraw();
+        Ok(())
+    }
+    pub(crate) fn redock_panel(&mut self, panel: dock::DockId) -> Result<(), String> {
+        if panel == dock::Panel::Nodes.dock() {
+            self.panels.node_editor.cancel_interaction();
+        }
+        if let Some(id) = self
+            .floating
+            .iter()
+            .find(|(_, f)| f.panel.dock() == panel)
+            .map(|(id, _)| *id)
+        {
+            if let Some(f) = self.floating.remove(&id) {
+                self.engine.close_window(f.key)?;
+            }
+        }
+        self.workspace.redock(panel);
+        if panel == dock::Panel::Nodes.dock()
+            && self.panels.node_preview.active != Some(self.panels.node_editor.stamp())
+            && !self.closing
+        {
+            self.schedule_node_compile()?;
+        }
+        if self.smoke.is_none() {
+            self.workspace.save(&self.layout_path)?;
+        }
+        self.dirty = true;
+        self.redraw();
+        Ok(())
+    }
+    pub(crate) fn present_float(
+        &mut self,
+        id: WindowId,
+        _event_loop: &ActiveEventLoop,
+    ) -> Result<(), String> {
+        if !self.actions.is_empty()
+            || !self.attached
+            || self.resizing.is_some()
+            || !self.resize_queue.is_empty()
+        {
+            return Ok(());
+        }
+        let f = self.floating.get_mut(&id).ok_or("floating window closed")?;
+        if self.rendering.contains_key(&f.key) {
+            return Ok(());
+        }
+        let physical = f.window.inner_size();
+        if physical.width == 0 || physical.height == 0 {
+            return Ok(());
+        }
+        let size = [
+            physical.width as f32 / f.scale,
+            physical.height as f32 / f.scale,
+        ];
+        let panel = f.panel;
+        let key = f.key;
+        let scale = f.scale;
+        let mut paint = PaintList::default();
+        let neutral = Input::default();
+        let blocked = self.node_examples.is_some() || self.node_close_prompt.is_some();
+        let actions = panels::floating_chrome(
+            &mut paint,
+            &mut self.atlas,
+            panel,
+            size,
+            &mut self.panels,
+            &self.state,
+            if blocked { &neutral } else { &f.input },
+        );
+        f.input.begin_frame();
+        self.actions.extend(actions);
+        if !self.actions.is_empty() {
+            return Ok(());
+        }
+        if !self.floating.contains_key(&id) {
+            return Ok(());
+        }
+        let config = self.atlas.config();
+        let atlas = if self.atlas.take_dirty() {
+            Some(AtlasUpload {
+                pixels: self.atlas.pixel_data().to_vec(),
+                width: config.width,
+                height: config.height,
+            })
+        } else {
+            None
+        };
+        let composition = panels::floating_view(panel, size).map(|v| {
+            [
+                v.min[0] * scale,
+                v.min[1] * scale,
+                v.width() * scale,
+                v.height() * scale,
+            ]
+        });
+        self.rendering.insert(
+            key,
+            self.engine.present_async(UiFrame {
+                paint,
+                atlas,
+                logical_size: size,
+                composition,
+                window: key,
+                node_preview: self.node_viewport(panels::floating_node_view(panel, size), scale),
+            })?,
+        );
+        Ok(())
+    }
+    pub(crate) fn floating_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        id: WindowId,
+        event: WindowEvent,
+    ) {
+        let Some(f) = self.floating.get_mut(&id) else {
+            return;
+        };
+        let input_event = match event {
+            WindowEvent::CloseRequested => {
+                if f.panel == dock::Panel::Nodes {
+                    self.node_tasks.cancel(&mut self.panels.node_editor);
+                    self.node_compile_due = None;
+                }
+                self.actions
+                    .push_back(panels::Action::Redock(f.panel.dock()));
+                return;
+            }
+            WindowEvent::RedrawRequested => {
+                if let Err(e) = self.present_float(id, event_loop) {
+                    self.panels.message = Some(self.workspace.locale.error(&e));
+                }
+                return;
+            }
+            WindowEvent::Resized(size) => {
+                let position = f.window.outer_position().ok().map(|p| [p.x, p.y]);
+                self.workspace.window_geometry.insert(
+                    f.panel.dock().0,
+                    workspace::WindowGeometry {
+                        size: [
+                            size.width as f64 / f.scale as f64,
+                            size.height as f64 / f.scale as f64,
+                        ],
+                        position,
+                    },
+                );
+                if self.smoke.is_none() {
+                    let _ = self.workspace.save(&self.layout_path);
+                }
+                let key = f.key;
+                if size.width > 0 && size.height > 0 {
+                    self.resize_queue.insert(key, [size.width, size.height]);
+                }
+                self.dirty = true;
+                self.redraw();
+                return;
+            }
+            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                f.scale = scale_factor as f32;
+                self.dirty = true;
+                self.redraw();
+                return;
+            }
+            WindowEvent::Moved(position) => {
+                let size = f.window.inner_size();
+                self.workspace.window_geometry.insert(
+                    f.panel.dock().0,
+                    workspace::WindowGeometry {
+                        size: [
+                            size.width as f64 / f.scale as f64,
+                            size.height as f64 / f.scale as f64,
+                        ],
+                        position: Some([position.x, position.y]),
+                    },
+                );
+                if self.smoke.is_none() {
+                    let _ = self.workspace.save(&self.layout_path);
+                }
+                return;
+            }
+            WindowEvent::ModifiersChanged(m) => {
+                let m = m.state();
+                f.input.modifiers = Modifiers {
+                    control: m.control_key() || m.super_key(),
+                    shift: m.shift_key(),
+                    alt: m.alt_key(),
+                };
+                return;
+            }
+            WindowEvent::CursorMoved { position, .. } => Some(Event::MouseMoved {
+                position: [position.x as f32 / f.scale, position.y as f32 / f.scale],
+            }),
+            WindowEvent::MouseInput { state, button, .. } => {
+                let button = match button {
+                    WinitMouseButton::Left => MouseButton::Left,
+                    WinitMouseButton::Right => MouseButton::Right,
+                    _ => MouseButton::Middle,
+                };
+                Some(if state == ElementState::Pressed {
+                    Event::MousePressed {
+                        position: f.input.mouse,
+                        button,
+                    }
+                } else {
+                    Event::MouseReleased {
+                        position: f.input.mouse,
+                        button,
+                    }
+                })
+            }
+            WindowEvent::MouseWheel { delta, .. } => Some(Event::MouseWheel {
+                delta: mouse_wheel_delta(delta, f.scale),
+            }),
+            WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
+                if let Some(key) = translate_key(&event.logical_key) {
+                    let modifiers = f.input.modifiers;
+                    motion_ui::ui::accumulate(&mut f.input, Event::KeyPressed { key, modifiers });
+                }
+                event
+                    .text
+                    .filter(|t| !t.chars().all(char::is_control) && !f.input.modifiers.control)
+                    .map(|t| Event::TextInput(t.to_string()))
+            }
+            WindowEvent::Ime(winit::event::Ime::Commit(text)) => Some(Event::TextInput(text)),
+            WindowEvent::Focused(false) => {
+                self.actions
+                    .extend(panels::cancel_interaction(&mut self.panels));
+                Some(Event::FocusLost)
+            }
+            _ => None,
+        };
+        if let Some(event) = input_event {
+            motion_ui::ui::accumulate(&mut f.input, event);
+            self.dirty = true;
+            self.redraw();
+        }
+    }
+}

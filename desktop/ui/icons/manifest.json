@@ -1,0 +1,179 @@
+{
+  "version": 1,
+  "source": "Ardot · Motion Studio · 新版灰黑桌面组件 · modern/sheet/icon",
+  "viewport": [
+    28,
+    28
+  ],
+  "defaultSize": 20,
+  "icons": [
+    {
+      "name": "select",
+      "node": "7:145"
+    },
+    {
+      "name": "hand",
+      "node": "7:150"
+    },
+    {
+      "name": "move",
+      "node": "7:155"
+    },
+    {
+      "name": "pen",
+      "node": "7:160"
+    },
+    {
+      "name": "text",
+      "node": "7:168"
+    },
+    {
+      "name": "shape",
+      "node": "7:173"
+    },
+    {
+      "name": "camera",
+      "node": "7:178"
+    },
+    {
+      "name": "curve",
+      "node": "7:184"
+    },
+    {
+      "name": "folder",
+      "node": "7:193"
+    },
+    {
+      "name": "cloud",
+      "node": "7:199"
+    },
+    {
+      "name": "image",
+      "node": "7:204"
+    },
+    {
+      "name": "video",
+      "node": "7:211"
+    },
+    {
+      "name": "audio",
+      "node": "7:218"
+    },
+    {
+      "name": "composition",
+      "node": "7:223"
+    },
+    {
+      "name": "node",
+      "node": "7:231"
+    },
+    {
+      "name": "fx",
+      "node": "7:238"
+    },
+    {
+      "name": "play",
+      "node": "7:244"
+    },
+    {
+      "name": "pause",
+      "node": "7:249"
+    },
+    {
+      "name": "previous",
+      "node": "7:255"
+    },
+    {
+      "name": "next",
+      "node": "7:261"
+    },
+    {
+      "name": "volume",
+      "node": "7:267"
+    },
+    {
+      "name": "muted",
+      "node": "7:273"
+    },
+    {
+      "name": "expand",
+      "node": "7:279"
+    },
+    {
+      "name": "dock",
+      "node": "7:284"
+    },
+    {
+      "name": "search",
+      "node": "7:291"
+    },
+    {
+      "name": "more",
+      "node": "7:297"
+    },
+    {
+      "name": "settings",
+      "node": "7:304"
+    },
+    {
+      "name": "star",
+      "node": "7:310"
+    },
+    {
+      "name": "eye",
+      "node": "7:315"
+    },
+    {
+      "name": "lock",
+      "node": "7:321"
+    },
+    {
+      "name": "link",
+      "node": "7:328"
+    },
+    {
+      "name": "key",
+      "node": "7:333"
+    },
+    {
+      "name": "plus",
+      "node": "7:339"
+    },
+    {
+      "name": "x",
+      "node": "7:344"
+    },
+    {
+      "name": "export",
+      "node": "7:349"
+    },
+    {
+      "name": "download",
+      "node": "7:354"
+    },
+    {
+      "name": "check",
+      "node": "7:359"
+    },
+    {
+      "name": "compile",
+      "node": "7:365"
+    },
+    {
+      "name": "undo",
+      "node": "7:371"
+    },
+    {
+      "name": "redo",
+      "node": "7:376"
+    },
+    {
+      "name": "stopwatch",
+      "source": "Motion Studio 补充图标，沿用当前设计的尺寸与线宽规范"
+    },
+    {
+      "name": "menu",
+      "source": "Motion Studio 补充图标，用于用户指定的标签内菜单样式"
+    }
+  ]
+}

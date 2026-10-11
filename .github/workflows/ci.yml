@@ -40,7 +40,7 @@ jobs:
       - name: Install headless Vulkan and native build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y mesa-vulkan-drivers libvulkan1 libclang-18-dev fonts-noto-cjk
+          sudo apt-get install -y mesa-vulkan-drivers libvulkan1 libclang-18-dev fonts-noto-cjk libasound2-dev
           mkdir -p "$XDG_RUNTIME_DIR"
           chmod 700 "$XDG_RUNTIME_DIR"
           rustup toolchain install 1.97.1 --profile minimal
@@ -53,6 +53,7 @@ jobs:
         run: |
           python -m compileall -q tools
           python tools/generate_editor_icons.py --check
+          python tools/generate_desktop_icons.py --check
           python -m unittest discover -s tools -p 'test_ci_*.py' -v
           test -z "$(git ls-files docs)"
       - name: Run Rust and software Vulkan tests
@@ -93,7 +94,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y mesa-vulkan-drivers libvulkan1 libclang-18-dev fonts-noto-cjk xvfb libxkbcommon0 libxkbcommon-x11-0
+          sudo apt-get install -y mesa-vulkan-drivers libvulkan1 libclang-18-dev fonts-noto-cjk xvfb libxkbcommon0 libxkbcommon-x11-0 libasound2-dev
           mkdir -p "$XDG_RUNTIME_DIR"
           chmod 700 "$XDG_RUNTIME_DIR"
       - name: Install Rust
@@ -149,7 +150,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libavcodec-dev libavformat-dev libavutil-dev \
             libavfilter-dev libswscale-dev libswresample-dev \
-            mesa-vulkan-drivers libvulkan1 libclang-18-dev
+            mesa-vulkan-drivers libvulkan1 libclang-18-dev libasound2-dev
       - name: Install Rust
         run: rustup toolchain install 1.97.1 --profile minimal --no-self-update
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2

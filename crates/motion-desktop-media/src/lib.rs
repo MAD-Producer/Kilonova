@@ -13,6 +13,9 @@ use std::{path::Path, sync::Arc};
 
 #[cfg(feature = "ffmpeg")]
 pub mod av;
+#[cfg(feature = "ffmpeg")]
+pub mod encode;
+pub mod movie;
 
 /// Presentation backends tried in order.
 ///
@@ -196,6 +199,10 @@ impl Platform for DesktopPlatform {
 /// per-device codec list to enumerate, so the report states what the build
 /// supports and keeps `requires_probe` set so the UI still probes real files.
 pub fn capabilities(has_video: bool, query: Option<&VideoQuery>) -> Value {
+    #[cfg(feature = "ffmpeg")]
+    let has_encoder = has_video && encode::available();
+    #[cfg(not(feature = "ffmpeg"))]
+    let has_encoder = false;
     let query = query.and_then(|q| q.mime.as_ref()).map(|mime| {
         json!({"mime":mime,"width":query.and_then(|q| q.width),"height":query.and_then(|q| q.height),
             "frame_rate":query.and_then(|q| q.frame_rate)})
@@ -205,7 +212,7 @@ pub fn capabilities(has_video: bool, query: Option<&VideoQuery>) -> Value {
         "backend_enabled": has_video,
         "backend": if has_video { "libav" } else { "none" },
         "decoders": if has_video { video_decoders() } else { Value::Array(Vec::new()) },
-        "encoders": Value::Array(Vec::new()),
+        "encoders": if has_encoder { json!(["video/avc", "audio/mp4a-latm"]) } else { json!([]) },
         "video": {
             "containers": ["MP4","MOV","3GP","Matroska","WebM"],
             "mime_types": motion_media::VIDEO_MIMES,
@@ -227,8 +234,8 @@ pub fn capabilities(has_video: bool, query: Option<&VideoQuery>) -> Value {
             "square_pixels_only": true,
             "input_is_independent_of_composition": true,
             "max_stream_cache_bytes": motion_host::video_cache::MAX_CACHE_BYTES,
-            "output": Value::Null,
-            "export_enabled": false,
+            "output": if has_encoder { json!({"container":"MP4","video_codec":"H.264","audio_codec":"AAC-LC","sample_rate":48000,"channels":2,"requires_even_dimensions":true}) } else { Value::Null },
+            "export_enabled": has_encoder,
         },
         "audio": {
             "portable_formats": ["M4A/AAC-LC","M4A/ALAC","MP3","FLAC","Ogg/Vorbis/Opus","WAV/PCM8/16/24/32","WAV/float32/64","AIFF/PCM"],
