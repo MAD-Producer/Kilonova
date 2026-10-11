@@ -35,9 +35,12 @@ class MediaFormatApiTest {
         assertEquals(s.toString(),"ready",s.getString("state"));val b=ByteBuffer.allocateDirect(256*144*4);val read=data(MediaBridge.readVideoFrameInto(id,1,seq,b));s.put("source_transfer",read.getString("source_transfer")).put("decoder",read.getString("decoder"));return s to ByteArray(b.capacity()).also{b.get(it)}
     }
     @Test fun capabilityQueryReportsDeviceDecodersAndBackendRestrictionsSeparately() {
-        val caps=req(0,"media_capabilities");assertEquals(1,caps.getInt("schema_version"));assertTrue(caps.getBoolean("requires_probe"));assertFalse(caps.getBoolean("decoder_presence_guarantees_file_support"));assertTrue(caps.getJSONArray("decoders").length()>0)
+        val root=root();val id=create(root)
+        try {
+        val caps=req(id,"media_capabilities");assertEquals(1,caps.getInt("schema_version"));assertTrue(caps.getBoolean("requires_probe"));assertFalse(caps.getBoolean("decoder_presence_guarantees_file_support"));assertTrue(caps.getJSONArray("decoders").length()>0)
         assertEquals(192000,caps.getJSONObject("audio").getInt("max_sample_rate"));assertEquals(4,caps.getJSONObject("video").getJSONArray("mime_types").length());assertFalse(caps.getJSONObject("video").getBoolean("hdr"))
-        File(root(),"capabilities.json").writeText(caps.toString(2))
+        File(root,"capabilities.json").writeText(caps.toString(2))
+        }finally{NativeBridge.destroy(id)}
     }
     @Test fun platformExtractorMetadataIsRecordedForIndependentParityAnalysis() {
         val report=JSONObject()
@@ -68,7 +71,7 @@ class MediaFormatApiTest {
                 File(root,"reference.f32").outputStream().use {f->val b=ByteBuffer.allocate(samples.size*4).order(ByteOrder.LITTLE_ENDIAN);b.asFloatBuffer().put(samples);f.write(b.array())}
                 val frozen=data(MediaBridge.freezeAudio(id)).getLong("handle")
                 data(NativeBridge.save(id));NativeBridge.destroy(id);id=createOrReopen(root)
-                val cache=File(root,"cache/audio-v1/"+File(a.getString("path")).nameWithoutExtension+".pcm");assertTrue(cache.delete())
+                val cache=File(root,"cache/audio-v2/"+File(a.getString("path")).nameWithoutExtension+".pcm");assertTrue(cache.delete())
                 req(id,"prepare_audio","request_id" to "rebuild","asset" to a.getLong("id"));assertEquals(await(id,"rebuild").toString(),"succeeded",await(id,"rebuild").getString("state"));assertArrayEquals(samples,pcm(id,10000),0f)
                 val b=ByteBuffer.allocateDirect(samples.size*4).order(ByteOrder.LITTLE_ENDIAN);data(MediaBridge.readFrozenPcmInto(frozen,10000,4096,b));val actual=FloatArray(samples.size);b.asFloatBuffer().get(actual);assertArrayEquals(samples,actual,0f);data(MediaBridge.releaseFrozenAudio(frozen))
                 File(root,"audio-report.json").writeText(JSONObject().put("fixture",name).put("asset",a).toString(2))
