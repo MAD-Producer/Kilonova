@@ -279,6 +279,12 @@ impl GpuState {
             + self.resource_bytes
             + self.luts.len() as u64 * 1024
     }
+    pub fn scratch_bytes(&self) -> u64 {
+        crate::effect_plan::scratch_capacity_bytes(&self.pool_sizes)
+    }
+    pub fn curve_lut_bytes(&self) -> u64 { self.luts.len() as u64 * 1024 }
+    /// Permanent white fallback and identity curve, omitted by the legacy sum.
+    pub fn system_texture_bytes(&self) -> u64 { 4 + 1024 }
     /// Reserve validated package PNGs before uploading, so idle preview images
     /// cannot turn an otherwise valid active effect into a budget failure.
     pub fn pending_resource_bytes(&self, builder: &PlanBuilder) -> u64 {
