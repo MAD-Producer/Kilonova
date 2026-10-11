@@ -15,6 +15,7 @@ if (SOURCE/"ExtendedClipUiTest.kt").exists():
     classes += ["ExtendedClipUiTest"]
 classes += [name for name in ["VectorAdjustmentTest","VectorAdjustmentParityTest","VectorFrontendTest","ErrorReportsTest","CompositionBackendApiTest","CompositionParityTest","CompositionFrontendTest","ReleaseUpdatesTest","SpatialEffectsTest"] if (SOURCE/(name+".kt")).exists()]
 classes += [name for name in ["NativeParticleEditorTest","SceneEffectsTest"] if (SOURCE/(name+".kt")).exists()]
+classes += [name for name in ["AudioLevelsUiTest","AudioBackendApiTest"] if (SOURCE/(name+".kt")).exists()]
 classes += [name for name in ["ColorBookmarksTest","ColorCurvesApiTest","ColorEditingTest"] if (SOURCE/(name+".kt")).exists()]
 classes += [name for name in ["LayerMasksTest"] if (SOURCE/(name+".kt")).exists()]
 classes += [name for name in ["IntegratedEffectsTest"] if (SOURCE/(name+".kt")).exists()]

@@ -420,6 +420,7 @@ class EditorViewModel @JvmOverloads constructor(app: Application,projectDirector
     /** Only absolute assignments can replace earlier updates in one gesture. */
     private fun gestureKey(command:JSONObject):String? {
         val op=command.optString("op")
+        if(op=="audio_levels"){val action=command.getJSONObject("action");if(action.optString("kind")=="set")return "audio_levels:${command.getLong("object")}:${action.getString("channel")}:${action.getInt("frame")}"}
         if(op=="set_color")return "set_color:${command.getLong("object")}"
         if(op=="mask") {val action=command.getJSONObject("action");if(action.optString("kind")=="set")return "mask:${command.getLong("object")}:${action.getLong("mask")}:${action.get("property")}:${action.getInt("frame")}"}
         if(op=="effect") {
@@ -640,7 +641,7 @@ class EditorViewModel @JvmOverloads constructor(app: Application,projectDirector
         errors.operation("edit:"+command.optString("op"))
         if(pluginEditor.gesture)return
         if(command.optString("op") in listOf("remove","flags","camera_mode","set_layer_3d"))pluginEditor.close()
-        pause();val routed=(routeMaskCommand(routeVectorCommand(routeEffectCommand(command))?:return)?:return).put("composition",compositionId)
+        pause();val routed=(routeAudioLevelCommand(routeMaskCommand(routeVectorCommand(routeEffectCommand(command))?:return)?:return)?:return).put("composition",compositionId)
         if(!save&&queueGesture(listOf(routed)))return
         invoke(save){NativeBridge.command(id,routed.toString())}
     }
@@ -648,7 +649,7 @@ class EditorViewModel @JvmOverloads constructor(app: Application,projectDirector
         if(!colorCommand)finishColorEditor(true)
         errors.operation("batch:"+commands.objects().map{it.optString("op")}.distinct().joinToString(","))
         if(pluginEditor.gesture)return
-        pause();val routed=commands.objects().map{(routeMaskCommand(routeVectorCommand(routeEffectCommand(it))?:return)?:return).put("composition",compositionId)}
+        pause();val routed=commands.objects().map{(routeAudioLevelCommand(routeMaskCommand(routeVectorCommand(routeEffectCommand(it))?:return)?:return)?:return).put("composition",compositionId)}
         if(!save&&queueGesture(routed))return
         invoke(save){NativeBridge.command(id,JSONArray(routed).toString())}
     }
@@ -680,6 +681,7 @@ class EditorViewModel @JvmOverloads constructor(app: Application,projectDirector
     fun timelineLayer(objectId:Long):JSONObject?=state.sample?.optJSONArray("timeline_layers")?.let{a->
         (0 until a.length()).map{a.getJSONObject(it)}.firstOrNull{it.getLong("object")==objectId}}
     fun propertyTrack(objectId:Long=selected,key:String=property):JSONObject? {
+        if(audioLevelChannel(key)!=null)return audioLevelTrackRaw(objectId,key)?.let{raw->JSONObject(raw.toString()).apply{val offset=timelineLayer(objectId)?.optInt("offset_frame")?:0;optJSONArray("keys").objects().forEach{it.put("frame",it.getLong("frame")+offset)}}}
         if(key.startsWith("mask:"))return maskTrackRaw(objectId,key)?.let{raw->JSONObject(raw.toString()).apply{val offset=timelineLayer(objectId)?.optInt("offset_frame")?:0;optJSONArray("keys").objects().forEach{it.put("frame",it.getLong("frame")+offset)}}}
         if(key.startsWith("vector:"))return vectorTrackRaw(objectId,key)?.let{raw->
             JSONObject(raw.toString()).apply{val offset=timelineLayer(objectId)?.optInt("offset_frame")?:0
@@ -741,6 +743,7 @@ class EditorViewModel @JvmOverloads constructor(app: Application,projectDirector
         return sampleValueFor(selected,property)
     }
     fun sampleValueFor(objectId:Long,key:String):Any? {
+        if(audioLevelChannel(key)!=null)return audioLevelValue(objectId,key)
         if(key.startsWith("mask:"))return maskValue(objectId,key)
         if(key.startsWith("vector:"))return vectorValue(objectId,key)
         effectTarget(key)?.let{(instance,param)->

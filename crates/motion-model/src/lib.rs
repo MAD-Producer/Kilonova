@@ -1,6 +1,7 @@
 //! Stable project data, validation and deterministic sampling; no editing runtime or GPU APIs.
 mod animation;
 mod audio;
+pub mod audio_levels;
 pub mod boundaries;
 mod camera;
 pub mod composition;
@@ -24,6 +25,7 @@ pub use boundaries::{EditSink, FrameEvaluator, PackageExportSource, PackagePubli
 pub use commands::{Command, EditResult, Property};
 pub use animation::{Axis, AxisTracks, Ease, Keyframe, SpatialTangents, Track, Tween};
 pub use audio::{AudioAsset, AudioClip};
+pub use audio_levels::{AudioLevels, AudioLevelsAction, AudioChannel};
 pub use camera::{
     to_project, to_world, Camera, CameraMode, CameraPose, ObservationView, Observer, ProjectionKind,
 };

@@ -55,6 +55,7 @@ pub enum Command {
         #[serde(default)]
         muted: Option<bool>,
     },
+    AudioLevels { object:u64, action:crate::AudioLevelsAction },
     #[serde(rename = "set_layer_3d")]
     SetLayer3d {
         object: u64,

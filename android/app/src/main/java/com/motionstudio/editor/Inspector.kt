@@ -144,7 +144,7 @@ private class ValueDrag(private val vm:EditorViewModel) {
 
 @Composable internal fun Properties(vm:EditorViewModel,modifier:Modifier,backEnabled:Boolean=true,onCurveMode:(Boolean)->Unit={}) {
     if(vm.property=="compositing"){LayerCompositingPanel(vm,modifier,backEnabled);return}
-    if(vm.contentKind()=="audio"||vm.property=="audio") {AudioProperties(vm,modifier);return}
+    if(vm.contentKind()=="audio"||vm.property=="audio"||audioLevelChannel(vm.property)!=null) {AudioProperties(vm,modifier);return}
     var rename by remember{mutableStateOf(false)}
     var anchor by remember{mutableStateOf(false)}
     var more by remember{mutableStateOf(false)}
