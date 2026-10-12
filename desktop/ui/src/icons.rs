@@ -183,8 +183,7 @@ pub fn draw(list: &mut PaintList, area: Rect, icon: Icon, size: f32, color: Colo
         })
         .collect();
     let mut content = PaintList::default();
-    content.shapes.push(Shape::Triangles { points });
-    content.colors.push(color);
+    content.push_shape(Shape::Triangles { points }, color);
     // SVG viewport clipping and host clipping must not distort crossing triangles.
     content.clip_to(Rect::new(origin[0], origin[1], edge, edge));
     list.append(content);

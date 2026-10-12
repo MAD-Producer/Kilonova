@@ -147,7 +147,7 @@ pub fn chrome(
     let node_modal = panels.node_editor.popup_open();
     if let Some((_, point)) = input
         .pressed
-        .filter(|_| panels.fx_console.is_none() && !node_modal)
+        .filter(|_| !panels.fx_console_in(None) && !node_modal)
     {
         let focused = frames(layout, size)
             .into_iter()
@@ -186,7 +186,8 @@ pub fn chrome(
     {
         out.extend(cancel_interaction(panels));
     }
-    if panels.fx_console.is_none()
+    if !panels.fx_console_in(None)
+        && !(panels.fx_console.is_some() && keyboard::console_close_pressed(input))
         && !node_modal
         && matches!(panels.focused, Some(Panel::Masks | Panel::Vector))
     {
@@ -222,7 +223,7 @@ pub fn chrome(
     let menu_modal = shortcut_modal
         || panels.menu.is_some()
         || panels.panel_menu.is_some()
-        || panels.fx_console.is_some()
+        || panels.fx_console_in(None)
         || panels.timeline.timeline_context_menu.is_some();
     let neutral = Input::default();
     let body_input = if menu_modal || node_modal {
@@ -586,12 +587,14 @@ pub fn floating_chrome(
 ) -> Vec<Action> {
     let mut out = vec![];
     panels.cursor=None;
-    if panels.fx_console.is_none() && matches!(panel, Panel::Masks | Panel::Vector) {
+    if !panels.fx_console_in(Some(panel))
+        && !(panels.fx_console.is_some() && keyboard::console_close_pressed(input))
+        && matches!(panel, Panel::Masks | Panel::Vector) {
         panels.path_controls.parameter_input(state, input, &mut out);
     }
     let body = Rect::new(0.0, 30.0, size[0], (size[1] - 52.0).max(1.0));
     let mut content = PaintList::default();
-    if panels.fx_console.is_none()
+    if !panels.fx_console_in(Some(panel))
         && (input.pressed.is_some() || !input.keys.is_empty() || !input.text.is_empty())
     {
         if panels.focused != Some(panel) {
@@ -767,6 +770,28 @@ pub fn floating_node_view(panel: Panel, size: [f32; 2]) -> Option<Rect> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn floating_console_does_not_block_main_menu_pointer_input() {
+        let mut panels=Panels { fx_console:Some(FxConsole { position:[20.,20.],query:"glow".into(),selected_index:0,owner:Some(Panel::NodeProperties) }),..Default::default() };
+        let mut atlas=TextAtlas::from_system(13.).unwrap();
+        let layout=Node::dock(Panel::Project.dock());
+        let state=serde_json::json!({"frame":0,"project":{"frames":120,"layers":[]}});
+        let point=[24.,12.];
+        let input=Input { mouse:point,pressed:Some((MouseButton::Left,point)),..Default::default() };
+        chrome(&mut PaintList::default(),&mut atlas,[1440.,900.],&layout,&mut panels,&state,&input);
+        assert_eq!(panels.menu,Some(0));
+        assert_eq!(panels.fx_console.as_ref().unwrap().owner,Some(Panel::NodeProperties));
+    }
+    #[test]
+    fn main_console_does_not_block_floating_window_shortcuts() {
+        let mut panels=Panels { fx_console:Some(FxConsole { position:[20.,20.],query:"glow".into(),selected_index:0,owner:None }),..Default::default() };
+        let mut atlas=TextAtlas::from_system(13.).unwrap();
+        let state=serde_json::json!({"frame":0,"project":{"frames":120,"layers":[]}});
+        let input=Input { keys:vec![(Key::S,motion_ui::input::Modifiers {control:true,..Default::default()})],..Default::default() };
+        let out=floating_chrome(&mut PaintList::default(),&mut atlas,Panel::Info,[420.,600.],&mut panels,&state,&input);
+        assert!(matches!(out.as_slice(),[Action::Save]));
+        assert!(panels.fx_console_in(None));
+    }
     #[test]
     fn node_popup_owns_file_keys_and_outside_panel_click_without_switching_tabs() {
         let state = serde_json::json!({"frame":0,"project":{"frames":120,"layers":[{"id":1,"name":"Layer","three_d":false}]}});

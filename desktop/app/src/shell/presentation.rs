@@ -283,7 +283,7 @@ impl Shell {
             && header_hit.is_some_and(|(_, action)| action);
         let modal = self.panels.panel_menu.is_some()
             || self.panels.menu.is_some()
-            || self.panels.fx_console.is_some()
+            || self.panels.fx_console_in(None)
             || self.panels.node_editor.popup_open()
             || self.dialog.is_some()
             || self.project_modal()

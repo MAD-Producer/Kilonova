@@ -1,6 +1,6 @@
 //! Commands, gestures and temporal curve operations.
 use crate::session::{Result, Session};
-use motion_core::{Command, Engine};
+use motion_core::Command;
 use serde_json::{json, Value};
 
 impl Session {
@@ -11,35 +11,28 @@ impl Session {
     }
     pub fn apply_command_batch(&mut self, commands: Vec<Command>) -> Result<Value> {
         let resources = commands.iter().any(Command::changes_resources);
-        if resources {
-            let mut check =
-                Engine::new(self.engine.snapshot()).map_err(|e| e.to_string())?;
-            check
-                .apply_batch(commands.clone())
-                .map_err(|e| e.to_string())?;
-            motion_core::storage::validate_assets(&self.root, check.project())
-                .map_err(|e| e.to_string())?;
-        }
         if self.editor.as_ref().is_some_and(|e| e.gesture) {
             return Err("finish the plugin editor gesture before ordinary edits".into());
         }
         let results = self
             .engine
-            .apply_batch(commands)
+            .apply_batch_with_prepare(commands, |project| {
+                if resources {
+                    motion_core::storage::validate_assets(&self.root, project)?;
+                    if let Some(g) = &mut self.graphics {
+                        // configure_assets resolves every source before changing
+                        // its catalog/caches, so Err leaves the old renderer intact.
+                        g.renderer.configure_assets(project, &self.root)
+                            .map_err(|error| motion_core::Error::Invalid(error.to_string()))?;
+                    }
+                }
+                Ok(())
+            })
             .map_err(|e| e.to_string())?;
         if resources {
             self.effects.alpha_images.clear();
             self.editor_renderer = None;
             self.editor_target = None;
-            if let Some(g) = &mut self.graphics {
-                if let Err(error) = g.renderer.configure_assets(self.engine.project(), &self.root)
-                {
-                    self.engine.undo().map_err(|e| e.to_string())?;
-                    g.renderer.clear_assets();
-                    let _ = g.renderer.configure_assets(self.engine.project(), &self.root);
-                    return Err(error.to_string());
-                }
-            }
         }
         // The edit has committed. A frame-specific expression failure is reported
         // in renderError without pretending the stored edit failed or losing it.

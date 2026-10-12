@@ -27,6 +27,10 @@ fn text_active(panels: &Panels) -> bool {
 }
 
 /// The modal also owns its closing frame, preventing input from reaching the canvas.
+pub fn console_close_pressed(input: &Input) -> bool {
+    FX_CONSOLE.pressed(input) || KeyChord::new(Key::Escape, false, false, false).pressed(input)
+}
+
 pub fn route(
     input: &Input,
     panels: &mut Panels,
@@ -36,14 +40,14 @@ pub fn route(
     out: &mut Vec<Action>,
 ) -> bool {
     if let Some(console) = &panels.fx_console {
-        if console.owner == owner
-            && (input.focus_lost
-                || FX_CONSOLE.pressed(input)
-                || KeyChord::new(Key::Escape, false, false, false).pressed(input))
-        {
+        let owned = console.owner == owner;
+        if console_close_pressed(input) || owned && input.focus_lost {
             panels.fx_console = None;
+            return true;
         }
-        return true;
+        if owned {
+            return true;
+        }
     }
     if panels.node_editor.popup_open()
         || panels.menu.is_some()
@@ -209,6 +213,45 @@ pub fn handle_shortcuts(input: &Input, panels: &mut Panels, state: &Value, out: 
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn console(owner: Option<Panel>) -> FxConsole {
+        FxConsole { position: [20.,20.], query: "glow".into(), selected_index: 0, owner }
+    }
+    #[test]
+    fn console_blocks_only_its_owner_and_other_window_can_save() {
+        for (owner, other) in [(Some(Panel::NodeProperties),None),(None,Some(Panel::Info))] {
+            let mut panels=Panels { fx_console:Some(console(owner)), ..Default::default() };
+            let mut out=vec![];
+            assert!(route(&Input::default(),&mut panels,&Value::Null,false,owner,&mut out));
+            assert!(!route(&Input::default(),&mut panels,&Value::Null,false,other,&mut out));
+            let input=Input { keys:vec![(Key::S,motion_ui::input::Modifiers { control:true,..Default::default() })],..Default::default() };
+            assert!(!route(&input,&mut panels,&Value::Null,false,other,&mut out));
+            assert!(matches!(out.as_slice(),[Action::Save]));
+            assert_eq!(panels.fx_console.as_ref().unwrap().owner,owner);
+        }
+    }
+    #[test]
+    fn escape_and_toggle_from_either_window_close_and_consume_the_frame() {
+        for (owner, other) in [(Some(Panel::NodeProperties),None),(None,Some(Panel::Info))] {
+            for chord in [KeyChord::new(Key::Escape,false,false,false),FX_CONSOLE] {
+                let mut panels=Panels { fx_console:Some(console(owner)), ..Default::default() };
+                let input=Input { keys:vec![(chord.key,chord.modifiers),(Key::Delete,Default::default())],..Default::default() };
+                let mut out=vec![];
+                assert!(route(&input,&mut panels,&Value::Null,false,other,&mut out));
+                assert!(panels.fx_console.is_none());assert!(out.is_empty());
+            }
+        }
+    }
+    #[test]
+    fn unrelated_focus_loss_keeps_console_and_owner_focus_loss_closes_it() {
+        let owner=Some(Panel::NodeProperties);
+        let mut panels=Panels { fx_console:Some(console(owner)), ..Default::default() };
+        let input=Input { focus_lost:true,..Default::default() };
+        let mut out=vec![];
+        assert!(!route(&input,&mut panels,&Value::Null,false,None,&mut out));
+        assert!(panels.fx_console.is_some());
+        assert!(route(&input,&mut panels,&Value::Null,false,owner,&mut out));
+        assert!(panels.fx_console.is_none());assert!(out.is_empty());
+    }
     #[test]
     fn node_preview_history_uses_the_node_document_without_a_canvas() {
         let mut panels = Panels::default();
@@ -361,15 +404,6 @@ mod tests {
             Some(Panel::NodeProperties)
         );
         route(&input, &mut panels, &Value::Null, true, None, &mut out);
-        assert!(panels.fx_console.is_some());
-        route(
-            &input,
-            &mut panels,
-            &Value::Null,
-            true,
-            Some(Panel::NodeProperties),
-            &mut out,
-        );
         assert!(panels.fx_console.is_none());
         assert!(out.is_empty());
     }

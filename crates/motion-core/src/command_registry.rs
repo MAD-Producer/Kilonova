@@ -18,6 +18,11 @@ macro_rules! registry {
             pub fn run(engine:&mut crate::Engine,commands:Vec<Command>)->crate::Result<Vec<crate::EditResult>> {
                 engine.apply_batch_inner(commands,None)
             }
+            /// Prepare external resources before committing model/history changes.
+            /// The callback must leave its external state unchanged on error.
+            pub fn run_prepared(engine:&mut crate::Engine,commands:Vec<Command>,prepare:impl FnOnce(&crate::Project)->crate::Result<()>)->crate::Result<Vec<crate::EditResult>> {
+                engine.apply_batch_inner_prepared(commands,None,prepare)
+            }
             pub(crate) fn run_saved(engine:&mut crate::Engine,commands:Vec<Command>,root:&std::path::Path)->crate::Result<Vec<crate::EditResult>> {
                 engine.apply_batch_inner(commands,Some(root))
             }

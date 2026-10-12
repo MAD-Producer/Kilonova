@@ -979,6 +979,8 @@ impl Renderer {
     /// inactive images. Source files in a project are immutable; replacing a
     /// resource must use a new path (including when retaining its asset ID).
     pub fn configure_assets(&mut self, project: &Project, root: &Path) -> Result<()> {
+        // Keep all fallible source resolution before any live cache/catalog
+        // mutation: host command preparation relies on Err being non-destructive.
         let mut sources = HashMap::new();
         for asset in &project.assets {
             let source = crate::image_resources::Source::new(root, asset)
