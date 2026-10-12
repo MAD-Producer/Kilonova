@@ -49,6 +49,7 @@ pub enum Action {
 
 #[derive(Default)]
 pub struct Panels {
+    pub(crate) motion: motion_ui::motion::Motion,
     pub(crate) project: ProjectState,
     pub(crate) properties: PropertiesState,
     pub(crate) timeline: TimelineState,
@@ -100,6 +101,7 @@ pub(crate) struct Field {
 pub(crate) struct ScrubState {
     pub start_mouse: f32,
     pub start_value: f32,
+    pub last_value: f32,
     pub begun: bool,
 }
 
@@ -134,6 +136,7 @@ pub(crate) struct ProjectState {
 
 #[derive(Default)]
 pub(crate) struct PropertiesState {
+    pub consumed_press: bool,
     pub transform_collapsed: bool,
     pub properties_scroll: f32,
     pub field: Option<Field>,
@@ -148,6 +151,7 @@ pub(crate) struct TimelineState {
     pub zoom: f32,
     pub offset: f32,
     pub scrubbing: bool,
+    pub last_seek: Option<f64>,
     pub moving: Option<(u64, f32, i32, i32, i32)>,
     pub trimming: Option<(u64, f64, f64, bool, f64)>,
     pub timeline_context_menu: Option<[f32; 2]>,

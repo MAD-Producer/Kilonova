@@ -318,6 +318,25 @@ impl Session {
         self.render_with_overlay(frame, None, |_, _, _| {})
     }
 
+    /// Repaint host chrome over the last completed composition without sampling
+    /// or executing its effects. The caller must invalidate its reuse key when
+    /// project, camera, quality, surface or viewport dimensions change.
+    pub fn present_retained_with_overlay(
+        &mut self,
+        viewport: [f32; 4],
+        overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView),
+    ) -> Result<bool> {
+        let Some(g) = &mut self.graphics else { return Ok(false); };
+        let [x, y, w, h] = viewport;
+        if !viewport.iter().all(|v| v.is_finite()) || x < 0. || y < 0.
+            || w <= 0. || h <= 0. || x + w > g.config.width as f32 + 0.01
+            || y + h > g.config.height as f32 + 0.01
+        { return Err("invalid composition viewport".into()); }
+        let rendered = present_held(g, viewport, overlay)?;
+        self.presented += u64::from(rendered);
+        Ok(rendered)
+    }
+
     /// Present once, with host chrome on the same GPU device and session thread.
     pub fn render_with_overlay(
         &mut self,

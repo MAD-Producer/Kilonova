@@ -149,6 +149,9 @@ pub struct Input {
     pub focus_lost: bool,
     pub held: Option<MouseButton>,
     pub mouse: [f32; 2],
+    /// Press origin and peak travel survive coalesced pointer events and redraws.
+    pub pointer_origin: Option<[f32; 2]>,
+    pub pointer_travel: f32,
     pub pressed: Option<(MouseButton, [f32; 2])>,
     pub released: Option<(MouseButton, [f32; 2])>,
     pub wheel: [f32; 2],
@@ -328,8 +331,27 @@ mod shortcut_tests {
         );
         assert!(input.held_keys.is_empty());
         assert_eq!(input.released_keys, [Key::D]);
+        accumulate(
+            &mut input,
+            Event::MousePressed {
+                position: [10., 10.],
+                button: MouseButton::Left,
+            },
+        );
+        accumulate(
+            &mut input,
+            Event::MouseMoved {
+                position: [30., 10.],
+            },
+        );
+        assert_eq!(input.pointer_travel, 20.);
         accumulate(&mut input, Event::FocusLost);
         assert!(input.keys.is_empty());
+        assert!(input.released_keys.is_empty());
+        assert!(input.key_repeats.is_empty());
+        assert!(input.held.is_none());
+        assert!(input.pointer_origin.is_none());
+        assert_eq!(input.pointer_travel, 0.);
         assert_eq!(input.modifiers, Modifiers::default());
     }
     #[test]

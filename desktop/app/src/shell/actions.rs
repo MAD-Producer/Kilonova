@@ -1,5 +1,45 @@
 use crate::*;
 
+// Absolute seeks can replace consecutive pending seeks. Never cross an edit,
+// save or transaction boundary, and never drop relative numeric edits.
+pub(crate) fn pop_action(
+    queue: &mut std::collections::VecDeque<panels::Action>,
+) -> Option<panels::Action> {
+    let mut action = queue.pop_front()?;
+    if matches!(action, panels::Action::Seek(_)) {
+        while matches!(queue.front(), Some(panels::Action::Seek(_))) {
+            action = queue.pop_front().unwrap();
+        }
+    }
+    Some(action)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn seek_coalescing_preserves_edit_save_and_history_boundaries() {
+        use panels::Action;
+        let mut queue = std::collections::VecDeque::from([
+            Action::Seek(1.),
+            Action::Seek(2.),
+            Action::History(2),
+            Action::Seek(3.),
+            Action::Seek(4.),
+            Action::Save,
+            Action::Seek(5.),
+            Action::History(3),
+        ]);
+        assert!(matches!(pop_action(&mut queue), Some(Action::Seek(2.))));
+        assert!(matches!(pop_action(&mut queue), Some(Action::History(2))));
+        assert!(matches!(pop_action(&mut queue), Some(Action::Seek(4.))));
+        assert!(matches!(pop_action(&mut queue), Some(Action::Save)));
+        assert!(matches!(pop_action(&mut queue), Some(Action::Seek(5.))));
+        assert!(matches!(pop_action(&mut queue), Some(Action::History(3))));
+        assert!(pop_action(&mut queue).is_none());
+    }
+}
+
 impl Shell {
     pub(crate) fn add_solid(&mut self) -> Result<(), String> {
         let layers = self.state["project"]["layers"]
@@ -86,9 +126,11 @@ impl Shell {
             }
             Action::EditBatch(commands) => {
                 self.stop();
-                self.state = self
-                    .engine
-                    .edit(serde_json::to_string(&commands).map_err(|e| e.to_string())?)?;
+                self.editing = Some((
+                    Instant::now(),
+                    self.engine
+                        .edit_async(serde_json::to_string(&commands).map_err(|e| e.to_string())?)?,
+                ));
             }
             Action::Plugin(request) => {
                 self.stop();
@@ -378,13 +420,13 @@ impl Shell {
                     }
                 } else {
                     self.stop();
-                    self.state = self.engine.history(op)?;
+                    self.editing = Some((Instant::now(), self.engine.history_async(op)?));
                 }
             }
             Action::Seek(frame) => {
                 self.stop();
                 self.frame = frame;
-                self.state = self.engine.seek(frame)?;
+                self.editing = Some((Instant::now(), self.engine.seek_async(frame)?));
             }
             Action::TogglePlay => {
                 if self.playback.is_some() {
@@ -420,9 +462,11 @@ impl Shell {
             }
             Action::Edit(command) => {
                 self.stop();
-                self.state = self
-                    .engine
-                    .edit(serde_json::to_string(&command).map_err(|e| e.to_string())?)?;
+                self.editing = Some((
+                    Instant::now(),
+                    self.engine
+                        .edit_async(serde_json::to_string(&command).map_err(|e| e.to_string())?)?,
+                ));
             }
         }
         self.dirty = true;
@@ -433,6 +477,7 @@ impl Shell {
             audio.stop();
         }
         self.playback = None;
+        self.playback_ready = false;
         self.panels.playing = false;
     }
 }

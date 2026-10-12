@@ -658,16 +658,31 @@ pub fn icon(list: &mut PaintList, area: Rect, icon: Icon) {
 /// position so drags can be measured as deltas.
 pub fn accumulate(input: &mut Input, event: Event) {
     match event {
-        Event::MouseMoved { position } => input.mouse = position,
+        Event::MouseMoved { position } => {
+            if let Some(origin) = input.pointer_origin {
+                input.pointer_travel = input
+                    .pointer_travel
+                    .max((position[0] - origin[0]).hypot(position[1] - origin[1]));
+            }
+            input.mouse = position;
+        }
         Event::MousePressed { position, button } => {
             input.mouse = position;
             input.held = Some(button);
             input.pressed = Some((button, position));
+            input.pointer_origin = Some(position);
+            input.pointer_travel = 0.;
         }
         Event::MouseReleased { position, button } => {
             input.mouse = position;
             input.held = None;
             input.released = Some((button, position));
+            if let Some(origin) = input.pointer_origin {
+                input.pointer_travel = input
+                    .pointer_travel
+                    .max((position[0] - origin[0]).hypot(position[1] - origin[1]));
+            }
+            input.pointer_origin = None;
         }
         Event::MouseWheel { delta } => input.wheel = delta,
         Event::KeyPressed { key, modifiers } | Event::KeyRepeated { key, modifiers } => {
@@ -716,6 +731,8 @@ pub fn accumulate(input: &mut Input, event: Event) {
             input.text.clear();
             input.composing = false;
             input.ime_consumed = false;
+            input.pointer_origin = None;
+            input.pointer_travel = 0.;
         }
     }
 }

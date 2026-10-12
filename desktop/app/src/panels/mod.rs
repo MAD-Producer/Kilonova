@@ -513,9 +513,25 @@ pub fn chrome(
         size[0],
         (size[1] - CHROME_HEIGHT - 22.).max(0.),
     );
-    for handle in dock::splitters(layout, layout_area) {
-        if handle.area.contains(input.mouse) {
-            paint::rect(list, handle.area, palette::ACCENT.with_alpha(0.3));
+    for (index, handle) in dock::splitters(layout, layout_area).into_iter().enumerate() {
+        let target = if handle.area.contains(input.mouse) {
+            if input.dragging() {
+                1.
+            } else {
+                0.6
+            }
+        } else {
+            0.
+        };
+        let amount = panels.motion.value(
+            (0, 1000 + index as u64),
+            0.,
+            target,
+            motion_ui::style::default_stylesheet().metric("motion.divider_ms", 100.),
+            false,
+        );
+        if amount > 0.001 {
+            paint::rect(list, handle.area, palette::ACCENT.with_alpha(amount * 0.5));
         }
     }
     out

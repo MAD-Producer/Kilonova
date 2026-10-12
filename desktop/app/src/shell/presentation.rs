@@ -208,6 +208,7 @@ impl Shell {
     }
     pub(crate) fn present(&mut self, _event_loop: &ActiveEventLoop) -> Result<(), String> {
         if !self.actions.is_empty()
+            || self.editing.is_some()
             || !self.attached
             || self.rendering.contains_key(&0)
             || self.resizing.is_some()
@@ -221,7 +222,7 @@ impl Shell {
         if size[0] <= 0.0 || size[1] <= 0.0 {
             return Ok(());
         }
-        if self.rendering.is_empty() {
+        if self.rendering.is_empty() && !self.playback_ready {
             if let Some((start, origin)) = self.playback {
                 let fps = self.state["project"]["fps"].as_u64().unwrap_or(30) as u32;
                 let frames = self.state["project"]["frames"].as_u64().unwrap_or(1) as u32;
@@ -238,7 +239,9 @@ impl Shell {
                 } else {
                     self.frame = playback_frame(origin, start.elapsed(), fps, frames);
                 }
-                self.state = self.engine.seek(self.frame)?;
+                self.editing = Some((Instant::now(), self.engine.seek_async(self.frame)?));
+                self.playback_ready = true;
+                return Ok(());
             }
         }
         let header_hit = if self.panels.header_size == Some(size) {
@@ -304,7 +307,12 @@ impl Shell {
             && self.node_close_prompt.is_none()
             && self.node_examples.is_none()
         {
-            let neutral = Input::default();
+            let neutral = Input {
+                mouse: self.input.mouse,
+                held: self.input.held,
+                modifiers: self.input.modifiers,
+                ..Default::default()
+            };
             paint = PaintList::default();
             let _ = panels::chrome(
                 &mut paint,
@@ -318,6 +326,7 @@ impl Shell {
         }
         let ui = self.ui_frame(paint, size, false);
         self.rendering.insert(0, self.engine.present_async(ui)?);
+        self.playback_ready = false;
         self.dirty = false;
         Ok(())
     }
@@ -439,6 +448,7 @@ impl Shell {
         _event_loop: &ActiveEventLoop,
     ) -> Result<(), String> {
         if !self.actions.is_empty()
+            || self.editing.is_some()
             || !self.attached
             || self.resizing.is_some()
             || !self.resize_queue.is_empty()

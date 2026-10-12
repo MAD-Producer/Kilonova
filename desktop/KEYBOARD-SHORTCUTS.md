@@ -1,6 +1,6 @@
 # Motion Studio 桌面快捷键与接入规划
 
-基于 `origin/main` 的 `c0f1253`。实现分支：`codex/desktop-shortcuts-20261011`，跟踪 [issue #107](https://github.com/MAD-Producer/motion-studio/issues/107)。
+开发起点为 `origin/main` 的 `c0f1253`，提交前已合并主分支 `9f3094d`。实现分支：`codex/desktop-shortcuts-20261011`，跟踪 [issue #107](https://github.com/MAD-Producer/motion-studio/issues/107)。
 
 ## 当前已实现
 
@@ -194,7 +194,7 @@ Ctrl+空格调用紧凑的效果搜索浮层，定位在鼠标附近并避让窗
 - 文本编辑、输入法组合和模态对话框先按焦点规则处理；按住 Ctrl+空格不反复开关。开关浮层不会触发空格播放。
 - 回车与重复按键只应用一次，编辑进入同一工程历史；后续多选图层应用需要明确的批量事务。
 
-当前 `app/src/panels/fx_console.rs` 已有鼠标附近浮层、搜索、↑↓、Enter 应用、Esc/外部点击关闭与目标锁定检查。需补齐再次 Ctrl+空格关闭、跨面板焦点路由、完整中英文与分类搜索、输入框编辑、最近使用和失败反馈。
+当前 `app/src/panels/fx_console.rs` 已支持鼠标附近浮层、再次 Ctrl+空格关闭、跨面板焦点路由、中英文与分类搜索、输入框编辑、↑↓、Enter 应用、Esc/外部点击关闭和目标锁定检查。最近使用排序及进一步的目录加载、应用失败反馈仍属后续规划。
 
 ## 节点画布
 

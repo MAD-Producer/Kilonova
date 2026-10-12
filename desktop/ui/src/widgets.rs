@@ -244,22 +244,25 @@ impl NumberEditor {
             self.text.error = Some("Invalid numeric field configuration".into());
             return events;
         }
-        if input
-            .pressed
-            .is_some_and(|(b, p)| b == MouseButton::Left && area.contains(p))
+        if self.drag.is_none()
+            && !self.text.active()
+            && input
+                .pressed
+                .is_some_and(|(b, p)| b == MouseButton::Left && area.contains(p))
         {
             self.drag = Some(Drag {
-                mouse: input.mouse[0],
+                mouse: input.pressed.unwrap().1[0],
                 original: current,
                 value: current,
                 begun: false,
             });
-            self.text
-                .begin(&format!("{:.*}", options.decimals.min(8), current));
         }
         if let Some(drag) = &mut self.drag {
             let delta = input.mouse[0] - drag.mouse;
-            if !drag.begun && delta.abs() >= 3. && (input.dragging() || input.released.is_some()) {
+            if !drag.begun
+                && delta.abs().max(input.pointer_travel) >= 3.
+                && (input.dragging() || input.released.is_some())
+            {
                 drag.begun = true;
                 self.text.cancel();
                 events.push(NumberEvent::Begin {
@@ -290,6 +293,11 @@ impl NumberEditor {
             if input.released.is_some() {
                 if drag.begun {
                     events.push(NumberEvent::Commit { value: drag.value });
+                } else if input.released.is_some_and(|(button, point)| {
+                    button == MouseButton::Left && area.contains(point)
+                }) {
+                    self.text
+                        .begin(&format!("{:.*}", options.decimals.min(8), current));
                 }
                 self.drag = None;
             }

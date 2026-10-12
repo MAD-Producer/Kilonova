@@ -48,7 +48,7 @@ impl BuiltinExample {
 pub fn builtin_examples() -> &'static [BuiltinExample] {
     &EXAMPLES
 }
-const EXAMPLES: [BuiltinExample; 14] = [
+const EXAMPLES: [BuiltinExample; 15] = [
     BuiltinExample {
         id: "drifting_circle", name: "漂移圆形", english_name: "Drifting Circle",
         description: "公开半径、中心、颜色和速度参数，按局部时间移动半透明圆形。默认尺寸为 64×64。",
@@ -149,6 +149,19 @@ const EXAMPLES: [BuiltinExample; 14] = [
         english_limitations: "An analytic screen-space shading study: no depth map, ray tracing, physical contact shadow or collision simulation.",
         collection: ExampleCollection::SoftSpace,
         source: include_str!("../examples/soft-sphere.msgraph"),
+    },
+    BuiltinExample {
+        id: "soft_sphere_motion",
+        name: "柔光球体 · 伪3D运动",
+        english_name: "Soft Sphere Pseudo-3D Motion",
+        description: "在柔光球体基础上加入循环绕行、近大远小、平滑抬落和斜轴表面细环旋转；阴影跟随落点、尺度和高度变化。运动与材质参数可调。",
+        english_description: "Extend the soft matte sphere with a looping orbit, perspective size changes, smooth lift and a rotating tilted surface band. The shadow follows the ground position, scale and height; expose motion and material controls.",
+        lesson: "Time×速度生成周期相位；Sin 控制横移，Cos 控制纵深，1/(1+纵深) 同时投影位置和半径。抬起高度控制阴影扩散与浓淡；解析半球法线与旋转轴点乘生成细环，展示表面旋转。速度设为 0 可分别停止绕行或自转，细环强度设为 0 回到纯色球体。",
+        english_lesson: "Time × speed gives the phase. Sin drives horizontal travel; Cos gives depth, and 1/(1+depth) projects position and radius together. Lift controls shadow spread and fading. Dot analytic hemisphere normals with a rotating axis to show a surface band. Zero speeds stop orbit or spin independently; zero band strength restores the plain sphere.",
+        limitations: "这是解析球面与二维阴影的伪3D学习图，未生成场景深度，不是真实网格、光线追踪、接触阴影或碰撞模拟；参考画布为 64×64。",
+        english_limitations: "A pseudo-3D study using an analytic sphere and 2D shadow, without scene depth, meshes, ray tracing, physical contact shadows or collision simulation. Reference canvas: 64×64.",
+        collection: ExampleCollection::SoftSpace,
+        source: include_str!("../examples/soft-sphere-motion.msgraph"),
     },
     BuiltinExample {
         id: "translucent_card",
