@@ -99,6 +99,137 @@ fn style_examples_render_animate_and_accept_public_colors_through_exported_packa
         );
     }
 }
+
+#[test]
+fn soft_sphere_projects_orbit_lift_shadow_and_independent_surface_rotation() {
+    let graph = builtin_examples()
+        .iter()
+        .find(|e| e.id == "soft_sphere_motion")
+        .unwrap()
+        .load()
+        .unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let (mut project, mut renderer, target) = setup(&graph, &dir.path().join("sphere.msfx"));
+    project.frames = 400;
+    fn parameter(project: &mut Project, id: &str, value: f32) {
+        project.layers[0].effects[0]
+            .params
+            .get_mut(id)
+            .unwrap()
+            .track
+            .value[0] = value;
+    }
+    let differences = |a: &[u8], b: &[u8]| {
+        a.chunks_exact(4)
+            .zip(b.chunks_exact(4))
+            .filter(|(a, b)| a[..3].iter().zip(&b[..3]).any(|(x, y)| x.abs_diff(*y) > 2))
+            .count()
+    };
+    parameter(&mut project, "speed", 0.0);
+    parameter(&mut project, "spin", 0.0);
+    let still = render(&project, &mut renderer, &target, 0.0);
+    assert_eq!(
+        still,
+        render(&project, &mut renderer, &target, 47.5),
+        "zero speeds must pause both motions"
+    );
+
+    // Surface rotation must be visible even while the sphere and shadow stay still.
+    parameter(&mut project, "spin", 0.75);
+    parameter(&mut project, "band", 0.6);
+    let rotation_start = render(&project, &mut renderer, &target, 0.0);
+    let rotation_later = render(&project, &mut renderer, &target, 30.0);
+    assert!(
+        differences(&rotation_start, &rotation_later) > 20,
+        "surface rotation is invisible"
+    );
+    parameter(&mut project, "band", 0.0);
+    let plain = render(&project, &mut renderer, &target, 0.0);
+    assert_eq!(
+        plain,
+        render(&project, &mut renderer, &target, 30.0),
+        "hiding the band must preserve the plain stationary material"
+    );
+
+    parameter(&mut project, "spin", 0.0);
+    parameter(&mut project, "speed", 0.65);
+    parameter(&mut project, "shadow", 0.0);
+    let cycle_frames = std::f64::consts::TAU / f64::from(0.65_f32) * 30.0;
+    let far = render(&project, &mut renderer, &target, 0.0);
+    let side = render(&project, &mut renderer, &target, cycle_frames / 4.0);
+    let near = render(&project, &mut renderer, &target, cycle_frames / 2.0);
+    let repeated = render(&project, &mut renderer, &target, cycle_frames);
+    assert_eq!(
+        differences(&far, &repeated),
+        0,
+        "orbit must return without a loop seam"
+    );
+    let silhouette = |bytes: &[u8]| {
+        let xs: Vec<_> = bytes
+            .chunks_exact(4)
+            .enumerate()
+            .filter(|(_, p)| p[0] < 210 && p[1] < 210 && p[2] < 225)
+            .map(|(i, _)| (i % 64) as f64)
+            .collect();
+        (xs.len(), xs.iter().sum::<f64>() / xs.len() as f64)
+    };
+    let (far_area, far_x) = silhouette(&far);
+    let (_, side_x) = silhouette(&side);
+    let (near_area, _) = silhouette(&near);
+    assert!(
+        near_area as f64 > far_area as f64 * 1.5,
+        "perspective must enlarge the nearer sphere"
+    );
+    assert!(side_x > far_x + 3.0, "orbit must visibly move sideways");
+
+    // Isolate height: same footprint and radius, different lift and shadow fading.
+    parameter(&mut project, "orbit", 0.0);
+    parameter(&mut project, "depth", 0.0);
+    parameter(&mut project, "shadow", 0.3);
+    let contact = render(&project, &mut renderer, &target, 0.0);
+    let lifted = render(&project, &mut renderer, &target, cycle_frames / 4.0);
+    assert!(
+        pixel(&lifted, 32, 48)[0] > pixel(&contact, 32, 48)[0],
+        "lift must fade the contact shadow"
+    );
+    assert!(lifted.chunks_exact(4).all(|p| p[3] == 255));
+
+    // A wide canvas must center the same round sphere instead of stretching it.
+    parameter(&mut project, "speed", 0.0);
+    let square = render(&project, &mut renderer, &target, 0.0);
+    project.width = 128;
+    project.layers[0].size = [128.0, 64.0];
+    project.layers[0].transform.position.value = [64.0, 32.0, 0.0];
+    let wide_target = renderer.capture_target(128, 64).unwrap();
+    let wide = render(&project, &mut renderer, &wide_target, 0.0);
+    for y in 0..64 {
+        for x in 0..64 {
+            let a = &square[(y * 64 + x) * 4..(y * 64 + x + 1) * 4];
+            let b = &wide[(y * 128 + x + 32) * 4..(y * 128 + x + 33) * 4];
+            assert!(
+                a.iter().zip(b).all(|(a, b)| a.abs_diff(*b) <= 1),
+                "wide canvas distorted the sphere at {x},{y}"
+            );
+        }
+    }
+    let report = compile(&graph, &CompileOptions::default()).unwrap().report;
+    assert_eq!(report.passes, 1);
+    let original = builtin_examples()
+        .iter()
+        .find(|e| e.id == "soft_sphere")
+        .unwrap()
+        .load()
+        .unwrap();
+    assert_eq!(
+        report.loop_work,
+        compile(&original, &CompileOptions::default())
+            .unwrap()
+            .report
+            .loop_work
+    );
+    assert_eq!(report.graph_sample_sites, 0);
+    assert_eq!(report.package_resource_textures, 0);
+}
 #[test]
 fn exported_sdf_pixels_preserve_alpha_fractional_time_and_animated_public_slots() {
     let dir = tempfile::tempdir().unwrap();

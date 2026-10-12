@@ -20,9 +20,20 @@
 | ID / 文件 | 节点 / 参数 | 学习路线 |
 | --- | --- | --- |
 | `soft_sphere` · [柔光球体](soft-sphere.msgraph) | 54 / 5 | 像素位置 → 球面法线 → 漫反射近似 → 圆形填充；独立椭圆渐变模拟接触光影 |
+| `soft_sphere_motion` · [柔光球体 · 伪3D运动](soft-sphere-motion.msgraph) | 121 / 10 | 周期绕行与透视缩放 → 球面法线与细环旋转 → 漫反射近似；落点、高度和尺度驱动椭圆光影 |
 | `translucent_card` · [半透卡片](translucent-card.msgraph) | 31 / 5 | 圆角距离场 → 填充与描边 → 内置渐变背景混合 → 慢速漂浮 |
 
 调整球体光照方向与灰色调，观察相同轮廓如何产生不同的体积感；再改卡片的半尺寸、圆角与覆盖强度。
+
+原柔光球体示例保持不变，运动版作为独立示例提供。运动版公开“绕行幅度”“伪3D纵深”“抬起高度”和“球体旋转速度”。横移、纵深和抬落共享运动相位，透视尺度同时作用于轮廓、解析法线与阴影；抬起时阴影变宽、变淡，落下时收拢。斜轴细环在球面上旋转，使纯色球体的自转可见。漂浮速度和旋转速度可分别设为 0；细环强度设为 0 恢复纯色材质。速度单位为 rad/s，参考画布保持 64×64，大半径或大绕行幅度可能超出画布。
+
+The original sphere is preserved; the motion version is a separate example. It exposes orbit width, pseudo-3D depth, lift height and surface spin speed. Perspective scale applies consistently to the silhouette, analytic normals and shadow. Lift widens and fades the shadow; contact tightens it. A subtle tilted surface band makes spin visible. Orbit and spin can be paused independently with zero speed, and zero band strength restores the plain material.
+
+运动版按画布短边等比缩放，并在任意长宽比画布中居中，保持球体圆形。参数中的 px 使用 64×64 教学坐标。可复现地导出运动版并生成 290 帧、384×384 的 GPU 渲染序列（30 fps）：
+
+```sh
+cargo run -p motion-graph --example render_learning_examples -- target/sphere-motion soft_sphere_motion 290 384
+```
 
 球体没有场景深度或真实投射阴影。卡片只混合本图生成的背景，不折射、不模糊工程中的其他图层。两者都是二维图像效果。
 
