@@ -866,6 +866,15 @@ impl Engine {
     pub fn apply_batch(&mut self, commands: Vec<Command>) -> Result<Vec<EditResult>> {
         crate::CommandRegistry::run(self, commands)
     }
+    /// A failed preparation creates no history entry and preserves an active
+    /// gesture. Its callback must not partially mutate external state on error.
+    pub fn apply_batch_with_prepare(
+        &mut self,
+        commands: Vec<Command>,
+        prepare: impl FnOnce(&Project) -> Result<()>,
+    ) -> Result<Vec<EditResult>> {
+        crate::CommandRegistry::run_prepared(self, commands, prepare)
+    }
     /// Publish history and revision only after the project file is saved successfully.
     /// Used by media imports after their owned source has been staged and validated.
     pub fn apply_batch_saved(
@@ -884,6 +893,14 @@ impl Engine {
         commands: Vec<Command>,
         root: Option<&std::path::Path>,
     ) -> Result<Vec<EditResult>> {
+        self.apply_batch_inner_prepared(commands, root, |_| Ok(()))
+    }
+    pub(crate) fn apply_batch_inner_prepared(
+        &mut self,
+        commands: Vec<Command>,
+        root: Option<&std::path::Path>,
+        prepare: impl FnOnce(&Project) -> Result<()>,
+    ) -> Result<Vec<EditResult>> {
         if self.gesture.is_some() && commands.iter().any(Command::composition_transaction) {
             return Err(Error::Gesture);
         }
@@ -898,6 +915,10 @@ impl Engine {
                     return Err(error);
                 }
             }
+        }
+        if let Err(error) = prepare(&self.project) {
+            self.project = before;
+            return Err(error);
         }
         if before != self.project {
             if let Some(root) = root {
