@@ -67,18 +67,22 @@ pub fn error_envelope(error: &str) -> Value {
 /// Every host entry point routes through this so a panic in one operation can
 /// never take down the process or leave a session wedged.
 pub fn dispatch(operation: impl FnOnce() -> Result<Value>) -> Value {
-    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(operation)) {
+    match catch_panic(operation) {
         Ok(Ok(value)) => envelope(value),
         Ok(Err(error)) => error_envelope(&error),
-        Err(payload) => {
-            let reason = payload
-                .downcast_ref::<String>()
-                .cloned()
-                .or_else(|| payload.downcast_ref::<&str>().map(|s| s.to_string()))
-                .unwrap_or_else(|| "unknown native error".into());
-            error_envelope(&reason.chars().take(2048).collect::<String>())
-        }
+        Err(reason) => error_envelope(&reason),
     }
+}
+
+/// Shared native panic formatting. Normal errors and panics remain distinct so
+/// a stateful worker can close a failed session without stopping on ordinary Err.
+pub fn catch_panic<T>(operation: impl FnOnce() -> T) -> std::result::Result<T, String> {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(operation)).map_err(|payload| {
+        let reason = payload.downcast_ref::<String>().map(String::as_str)
+            .or_else(|| payload.downcast_ref::<&str>().copied())
+            .unwrap_or("unknown native error");
+        reason.chars().take(2048).collect()
+    })
 }
 
 /// Parse a host request body, rejecting oversized payloads before any work.

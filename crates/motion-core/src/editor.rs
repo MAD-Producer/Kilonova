@@ -906,19 +906,26 @@ impl Engine {
         }
         let before = self.project.clone();
         let mut results = Vec::new();
-        for command in commands {
-            match apply_to(&mut self.project, command) {
-                Ok(Some(result)) => results.push(result),
-                Ok(None) => {}
-                Err(error) => {
-                    self.project = before;
-                    return Err(error);
+        let prepared = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<()> {
+            for command in commands {
+                match apply_to(&mut self.project, command) {
+                    Ok(Some(result)) => results.push(result),
+                    Ok(None) => {}
+                    Err(error) => return Err(error),
                 }
             }
-        }
-        if let Err(error) = prepare(&self.project) {
-            self.project = before;
-            return Err(error);
+            prepare(&self.project)
+        }));
+        match prepared {
+            Ok(Ok(())) => {},
+            Ok(Err(error)) => {
+                self.project = before;
+                return Err(error);
+            }
+            Err(payload) => {
+                self.project = before;
+                std::panic::resume_unwind(payload);
+            }
         }
         if before != self.project {
             if let Some(root) = root {

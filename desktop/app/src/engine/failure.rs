@@ -1,0 +1,133 @@
+//! Terminal worker failures: keep a bounded recovery document, release owned
+//! resources on the worker, and report the same diagnostic to queued callers.
+use super::*;
+use std::io::Write;
+
+pub(super) type Failure = Arc<std::sync::Mutex<Option<String>>>;
+pub(super) enum ErrorReply {
+    Value(Sender<Result<Value, String>>),
+    Bool(Sender<Result<bool, String>>),
+    Ticket(Sender<Result<crate::project_lifecycle::Ticket, String>>),
+    Movie(Sender<Result<motion_desktop_media::movie::FrozenMovie, String>>),
+    Frame(Sender<Result<ArcFrame, String>>),
+}
+impl ErrorReply {
+    pub(super) fn send(self, error: String) {
+        match self {
+            Self::Value(reply) => {
+                let _ = reply.send(Err(error));
+            }
+            Self::Bool(reply) => {
+                let _ = reply.send(Err(error));
+            }
+            Self::Ticket(reply) => {
+                let _ = reply.send(Err(error));
+            }
+            Self::Movie(reply) => {
+                let _ = reply.send(Err(error));
+            }
+            Self::Frame(reply) => {
+                let _ = reply.send(Err(error));
+            }
+        }
+    }
+}
+
+pub(super) struct SessionLease(pub i64);
+impl Drop for SessionLease {
+    fn drop(&mut self) {
+        if let Err(error) = motion_host::ops::catch_panic(|| motion_host::session::close(self.0)) {
+            eprintln!("[motion-engine] session cleanup panicked: {error}");
+        }
+    }
+}
+
+const MAX_RECOVERY_BYTES: u64 = 16 * 1024 * 1024;
+struct RecoveryWriter<'a> {
+    file: &'a mut std::fs::File,
+    remaining: u64,
+}
+impl Write for RecoveryWriter<'_> {
+    fn write(&mut self, data: &[u8]) -> std::io::Result<usize> {
+        if data.len() as u64 > self.remaining {
+            return Err(std::io::Error::other("recovery JSON exceeds 16 MiB"));
+        }
+        let written = self.file.write(data)?;
+        self.remaining -= written as u64;
+        Ok(written)
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.file.flush()
+    }
+}
+
+pub(super) fn recovery(id: i64) -> Result<PathBuf, String> {
+    motion_host::session::with_session(id, |session| {
+        // Do not require external assets to still exist. They may be the cause
+        // of the failure; keep their project-relative references for repair.
+        session
+            .engine
+            .project()
+            .validate()
+            .map_err(|error| error.to_string())?;
+        let path = session.root.join(format!(
+            ".motion-recovery-{}.json",
+            motion_host::ops::stamp()?
+        ));
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+            .map_err(|error| error.to_string())?;
+        let result = (|| {
+            let mut writer = RecoveryWriter {
+                file: &mut file,
+                remaining: MAX_RECOVERY_BYTES,
+            };
+            serde_json::to_writer(&mut writer, session.engine.project())
+                .map_err(|error| error.to_string())?;
+            writer.flush().map_err(|error| error.to_string())?;
+            file.sync_all().map_err(|error| error.to_string())
+        })();
+        drop(file);
+        if let Err(error) = result {
+            let _ = std::fs::remove_file(&path); // Only the create_new file owned by this call.
+            return Err(error);
+        }
+        Ok(path)
+    })
+}
+
+impl Engine {
+    pub(crate) fn failed(&self) -> bool {
+        self.check_running().is_err()
+    }
+    pub(super) fn check_running(&self) -> Result<(), String> {
+        if let Some(error) = self
+            .failure
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+        {
+            return Err(error);
+        }
+        if self
+            .worker
+            .as_ref()
+            .is_some_and(|worker| worker.is_finished())
+        {
+            return Err(self.stopped_error());
+        }
+        Ok(())
+    }
+    pub(super) fn stopped_error(&self) -> String {
+        self.failure
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
+            .unwrap_or_else(|| "engine session has stopped; reopen the project".into())
+    }
+}
+
+#[cfg(test)]
+mod tests;
