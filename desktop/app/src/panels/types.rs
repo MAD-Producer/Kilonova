@@ -32,6 +32,7 @@ pub enum Action {
     About,
     PreviewMode(i32),
     SelectAt([f64; 2]),
+    PreviewDrag { object: u64, delta: [f32; 2], size: [i32; 2] },
     OpenPath(std::path::PathBuf),
     Float(dock::DockId),
     Redock(dock::DockId),
@@ -49,6 +50,8 @@ pub enum Action {
 
 #[derive(Default)]
 pub struct Panels {
+    pub(crate) cursor: Option<motion_ui::cursor::Cursor>,
+    pub(crate) drag_readout: Option<([f32;2],String)>,
     pub(crate) motion: motion_ui::motion::Motion,
     pub(crate) project: ProjectState,
     pub(crate) properties: PropertiesState,
@@ -72,6 +75,7 @@ pub struct Panels {
     pub node_editor: crate::node_editor::NodeEditor,
     pub node_preview: crate::node_preview::Controls,
     pub path_controls: crate::panels::path_controls::Controls,
+    pub transform_controls: crate::panels::transform_controls::Controls,
 }
 pub(crate) struct HeaderHit {
     pub rect: Rect,
@@ -144,6 +148,7 @@ pub(crate) struct PropertiesState {
 
 #[derive(Default)]
 pub(crate) struct TimelineState {
+    pub rows_cache: Option<((String,String,u64),std::sync::Arc<Vec<super::timeline::Row>>)>,
     pub expanded: std::collections::HashSet<u64>,
     pub filters: std::collections::HashMap<u64, PropertyFilter>,
     pub graph_mode: bool,
@@ -152,6 +157,7 @@ pub(crate) struct TimelineState {
     pub offset: f32,
     pub scrubbing: bool,
     pub last_seek: Option<f64>,
+    pub snap_guide: Option<f64>,
     pub moving: Option<(u64, f32, i32, i32, i32)>,
     pub trimming: Option<(u64, f64, f64, bool, f64)>,
     pub timeline_context_menu: Option<[f32; 2]>,

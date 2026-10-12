@@ -41,7 +41,7 @@ pub fn render(
         .enumerate()
     {
         let rect = Rect::new(8. + i as f32 * 28., area.min[1] + 4., 24., 24.);
-        let states = if panels.path_controls.tool == tool {
+        let states = if panels.path_controls.tool == tool && (tool!=PathTool::Select||panels.transform_controls.tool==super::transform_controls::Tool::Move) {
             States::default().with(State::Selected)
         } else {
             States::default()
@@ -53,6 +53,17 @@ pub fn render(
         };
         if icons::button(list, rect, icon, input, default_stylesheet(), states).clicked {
             panels.path_controls.choose(tool, out);
+            if tool==PathTool::Select {panels.transform_controls.choose(super::transform_controls::Tool::Move,out);}
+        }
+    }
+    use super::transform_controls::Tool as TransformTool;
+    for (i,(tool,icon)) in [(TransformTool::Rotate,Icon::Rotate),(TransformTool::Scale,Icon::Scale),(TransformTool::Anchor,Icon::Anchor)].into_iter().enumerate() {
+        let states=if panels.path_controls.tool==PathTool::Select&&panels.transform_controls.tool==tool {
+            States::default().with(State::Selected)
+        }else{States::default()};
+        if icons::button(list,Rect::new(96.+i as f32*28.,area.min[1]+4.,24.,24.),icon,input,default_stylesheet(),states).clicked {
+            panels.path_controls.choose(PathTool::Select,out);
+            panels.transform_controls.choose(tool,out);
         }
     }
     for (i, (tool, action, enabled)) in [
@@ -78,7 +89,7 @@ pub fn render(
     {
         icon_button(
             list,
-            Rect::new(96. + i as f32 * 28., area.min[1] + 3., 25., 25.),
+            Rect::new(180. + i as f32 * 28., area.min[1] + 3., 25., 25.),
             tool,
             input,
             enabled,
@@ -88,10 +99,10 @@ pub fn render(
     }
     paint::rect(
         list,
-        Rect::new(215., area.min[1] + 6., 1., 20.),
+        Rect::new(299., area.min[1] + 6., 1., 20.),
         palette::BORDER,
     );
-    let x = 224.;
+    let x = 308.;
     label(
         list,
         atlas,

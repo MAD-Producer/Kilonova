@@ -289,10 +289,17 @@ pub struct Engine {
     worker: Option<JoinHandle<()>>,
     platform: Arc<dyn Platform>,
     factory: std::sync::Mutex<Option<SurfaceFactory>>,
+    paint_pool: Arc<std::sync::Mutex<Vec<motion_ui::paint::PaintList>>>,
 }
 
 #[allow(dead_code)] // SDK bridge methods are intentionally available to future panels.
 impl Engine {
+    pub fn take_paint(&self)->motion_ui::paint::PaintList {
+        self.paint_pool.lock().ok().and_then(|mut p|p.pop()).unwrap_or_default()
+    }
+    pub fn recycle_paint(&self,mut paint:motion_ui::paint::PaintList) {
+        paint.clear();if let Ok(mut pool)=self.paint_pool.lock(){if pool.len()<8 {pool.push(paint);}}
+    }
     pub fn node_gpu(&self) -> Result<crate::node_preview::GpuContext, String> {
         let factory = self
             .factory
@@ -330,6 +337,8 @@ impl Engine {
         total_memory: u64,
     ) -> Result<Self, String> {
         let desktop_platform = platform.clone();
+        let paint_pool=Arc::new(std::sync::Mutex::new(Vec::new()));
+        let worker_paints=paint_pool.clone();
         let (sender, receiver) = channel::<Command>();
         let (ready, opened) = channel::<Result<i64, String>>();
         let worker = std::thread::Builder::new()
@@ -381,6 +390,7 @@ impl Engine {
                         &mut guard,
                         &mut node_preview,
                         &mut presentation,
+                        &worker_paints,
                         command,
                     ) {
                         break;
@@ -398,6 +408,7 @@ impl Engine {
             worker: Some(worker),
             platform: desktop_platform,
             factory: std::sync::Mutex::new(None),
+            paint_pool,
         })
     }
 
@@ -503,6 +514,9 @@ impl Engine {
     }
     pub fn seek(&self, frame: f64) -> Result<Value, String> {
         self.call(|reply| Command::Seek { frame, reply })
+    }
+    pub fn drag_async(&self, object: i64, delta: [f32;2], size: [i32;2]) -> Result<std::sync::mpsc::Receiver<Result<Value,String>>,String> {
+        self.request(|reply|Command::Drag {object,dx:delta[0] as f64,dy:delta[1] as f64,width:size[0],height:size[1],reply})
     }
     pub fn seek_async(&self, frame: f64) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
         self.request(|reply| Command::Seek { frame, reply })
@@ -812,6 +826,7 @@ fn handle(
     guard: &mut ProjectGuard,
     node_preview: &mut NodePreviewState,
     presentation: &mut PresentationState,
+    paints: &Arc<std::sync::Mutex<Vec<motion_ui::paint::PaintList>>>,
     command: Command,
 ) -> bool {
     // Capture, project operations and view changes can overwrite the shared
@@ -858,7 +873,7 @@ fn handle(
                 let vw = s.scene.width as f32 * scale; let vh = s.scene.height as f32 * scale;
                 presenter.encode(&mut encoder, &target.view, None, Some([x+(w-vw)*0.5,y+(h-vh)*0.5,vw,vh]), s.scene.background);
             } else {clear_target(&mut encoder,&target.view);}
-            chrome.render(&g.renderer.device, &g.renderer.queue, &mut encoder, &target.view, &ui.paint, ui.logical_size);
+            chrome.render_scaled(&g.renderer.device,&g.renderer.queue,&mut encoder,&target.view,&ui.paint,ui.logical_size,[g.config.width as f32/ui.logical_size[0],g.config.height as f32/ui.logical_size[1]]);
             if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview) {preview.encode(&g.renderer.device,&g.renderer.queue,&mut encoder,&target.view,viewport,wgpu::TextureFormat::Rgba8UnormSrgb);}
             g.renderer.queue.submit(Some(encoder.finish()));
             let pixels = g.renderer.read_target(&target).map_err(|e| e.to_string())?;
@@ -888,7 +903,7 @@ fn handle(
             }
             Ok(s.snapshot())
         })),
-        Command::Present { ui, reply } => respond(reply,motion_host::session::with_session(id, |s| {
+        Command::Present { ui, reply } => {let result=motion_host::session::with_session(id, |s| {
             let began = std::time::Instant::now();
             let painter=painter.as_mut().ok_or("desktop surface is not attached")?;
             let floating=if ui.window==0 {None}else{Some(windows.get_mut(&ui.window).ok_or("floating window is closed")?)};
@@ -904,8 +919,9 @@ fn handle(
                     let stamp=CompositionStamp::new(s,&ui,viewport);
                     let reuse=presentation.retained.as_ref()==Some(&stamp)
                         && !s.preview_memory_held && s.last_error.is_none();
+                    let pixel_ratio=[g.config.width as f32/ui.logical_size[0],g.config.height as f32/ui.logical_size[1]];
                     let overlay=|r:&motion_render::Renderer,encoder:&mut wgpu::CommandEncoder,target:&wgpu::TextureView|{
-                        painter.render(&r.device,&r.queue,encoder,target,&ui.paint,ui.logical_size);
+                        painter.render_scaled(&r.device,&r.queue,encoder,target,&ui.paint,ui.logical_size,pixel_ratio);
                         if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){preview.encode(&r.device,&r.queue,encoder,target,viewport,r.target_format);}
                     };
                     let result=if reuse {
@@ -929,7 +945,7 @@ fn handle(
                     let view=output.texture.create_view(&Default::default());
                     let mut encoder=g.renderer.device.create_command_encoder(&Default::default());
                     clear_target(&mut encoder,&view);
-                    painter.render(&g.renderer.device,&g.renderer.queue,&mut encoder,&view,&ui.paint,ui.logical_size);
+                    painter.render_scaled(&g.renderer.device,&g.renderer.queue,&mut encoder,&view,&ui.paint,ui.logical_size,[g.config.width as f32/ui.logical_size[0],g.config.height as f32/ui.logical_size[1]]);
                     if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){preview.encode(&g.renderer.device,&g.renderer.queue,&mut encoder,&view,viewport,g.config.format);}
                     g.renderer.queue.submit(Some(encoder.finish()));output.present();Ok(true)
                 }
@@ -942,7 +958,11 @@ fn handle(
                 eprintln!("[motion-timing] surface {} present: {} us, composition renders={}, reuses={}",ui.window,presentation.last_present_us,presentation.composition_renders,presentation.composition_reuses);
             }
             result
-        })),
+        });
+        let mut paint=ui.paint;paint.clear();
+        if let Ok(mut pool)=paints.lock(){if pool.len()<8 {pool.push(paint);}}
+        respond(reply,result);
+        },
         Command::OpenDirectory { directory, reply } => respond(reply,(||{
             motion_core::storage::load(&directory).map_err(|e|e.to_string())?;
             let directory=directory.canonicalize().map_err(|e|e.to_string())?;

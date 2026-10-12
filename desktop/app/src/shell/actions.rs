@@ -260,7 +260,9 @@ impl Shell {
                 self.frame = self.state["frame"].as_f64().unwrap_or(0.0);
             }
             Action::Language(locale) => {
-                self.atlas = TextAtlas::from_system_language(14.0, locale == Locale::Zh)?;
+                let sheet=motion_ui::style::default_stylesheet();
+                self.atlas = TextAtlas::from_family(sheet.font_family(),sheet.base_font_size(),locale==Locale::Zh)?;
+                self.atlas.set_pixel_ratio(self.scale);
                 self.workspace.locale = locale;
                 self.panels.locale = locale;
                 for f in self.floating.values() {
@@ -314,6 +316,10 @@ impl Shell {
                     .as_array()
                     .and_then(|c| c.first())
                     .and_then(|c| c["id"].as_u64());
+            }
+            Action::PreviewDrag { object, delta, size } => {
+                self.stop();
+                self.editing = Some((Instant::now(), self.engine.drag_async(object as i64, delta, size)?));
             }
             Action::Float(panel) => {
                 self.float_panel(panel, event_loop.ok_or("window event loop is unavailable")?)?;
@@ -429,6 +435,7 @@ impl Shell {
                 self.editing = Some((Instant::now(), self.engine.seek_async(frame)?));
             }
             Action::TogglePlay => {
+                if std::env::var_os("MOTION_TRACE_UI").is_some(){eprintln!("[motion-ui] toggle playback, previously {}",self.playback.is_some());}
                 if self.playback.is_some() {
                     self.stop();
                 } else {
@@ -472,12 +479,16 @@ impl Shell {
         self.dirty = true;
         Ok(())
     }
+    #[track_caller]
     pub(crate) fn stop(&mut self) {
+        if self.playback.is_some() && std::env::var_os("MOTION_TRACE_UI").is_some() {
+            eprintln!("[motion-ui] stopped by {}", std::panic::Location::caller());
+        }
         if let Some(mut audio) = self.audio.take() {
             audio.stop();
         }
         self.playback = None;
-        self.playback_ready = false;
+        self.next_composition=Instant::now();
         self.panels.playing = false;
     }
 }

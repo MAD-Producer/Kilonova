@@ -195,6 +195,22 @@ impl Session {
                 "group_parameters":vector.group_parameters,
                 "fill":vector.fill,"stroke":vector.stroke.map(|s|json!({"color":s.0,"width":s.1,"cap":s.2,"join":s.3,"miter_limit":s.4}))}))
         }).collect();
+        // Logical source plane, before vector/effect output bounds expansion.
+        // Hosts use this same evaluated matrix for transform and path gestures.
+        let source_transforms: Vec<_> = p.layers.iter().filter_map(|layer| {
+            if !layer.active(f,p.frames) || matches!(layer.content,motion_core::Content::Audio{..}) {return None;}
+            let world=self.scene.world_matrix(layer.id)?;
+            let vp=self.scene.layers.iter().find(|l|l.id==layer.id).map(|l|l.view_projection)
+                .unwrap_or_else(||if layer.three_d {self.scene.camera.view_projection}else{
+                    glam::Mat4::orthographic_rh(-(p.width as f32)*0.5,p.width as f32*0.5,
+                        -(p.height as f32)*0.5,p.height as f32*0.5,-1.,1.)
+                });
+            let offset=glam::Mat4::from_translation(glam::Vec3::new(
+                (0.5-layer.transform.anchor[0])*layer.size[0],
+                (layer.transform.anchor[1]-0.5)*layer.size[1],0.));
+            Some(json!({"id":layer.id,"mvp":(vp*world*offset).to_cols_array(),
+                "size":layer.size,"anchor":layer.transform.anchor,"coordinates":"source_centered_pixels"}))
+        }).collect();
         let camera_properties: Vec<&str> = if !p.camera.created {
             vec![]
         } else if p.camera.mode == motion_core::CameraMode::Position {
@@ -206,7 +222,7 @@ impl Session {
             "main_composition":"comp-main","composition":p.composition_id,"compositions":p.composition_list(),
             "has_audio":p.audio_voices().is_ok_and(|v|!v.is_empty()),
             "composition_context":self.composition_context_snapshot(),
-            "vector_layers":vector_layers,"mask_layers":mask_layers,
+            "vector_layers":vector_layers,"mask_layers":mask_layers,"source_transforms":source_transforms,
             "platform":{"name":self.platform().name(),"graphics":"wgpu"},
             "capabilities":{"spatial_paths":{"supported":true,"version":1,"query":"position_path","command":"spatial","parameter_scope":true,"max_visible_keys":512,"max_trace_samples":257,"coordinates":"property_local","temporal_easing":"independent","separated_axes":"trace_only"},"adjustment_layers":{"supported":true,"command":"add_adjustment","composite":"lower_layers","mask":"transformed_rectangle","background":"excluded","three_d":false},"vector_drawing":{"supported":true,"protocol":1,"command":"vector","coordinates":"centered_canvas_pixels_y_down","max_paths":motion_core::vector::MAX_PATHS,"max_nodes":motion_core::vector::MAX_NODES,"fill_rules":["non_zero","even_odd"],"stroke_caps":["butt","round","square"],"stroke_joins":["miter","round","bevel"],"shape_catalog":motion_core::vector::shape_catalog()},"scene_effects":{"sdk_version":motion_effects::SDK_VERSION,"plugin_editor_protocol":1,"max_particles_per_effect":20000,"max_sprites_per_frame":65536,"occlusion":"source_alpha_planes","simulation":"analytic_world_birth_or_legacy_local_space","particle_birth_history":true,"particle_history_expressions":false,"particle_rate_animation":false},"native_plugin_ui":{"supported":true,"protocol":1,"slots":["preview","timeline","parameters","layer_source","image_sprite","seed","transform","note"],"preview":"shared_wgpu_surface","timeline":"shared_composition_clock"},"property_expressions":{"supported":true,"profile":motion_core::EXPRESSION_PROFILE,"engine":"QuickJS-NG","source_max_bytes":8192,"max_expressions":motion_core::MAX_EXPRESSIONS,"cross_property_references":false,"opacity_unit":"percent"},"layer_clips":true,"layer_3d":{"supported":true,"default":false,"activation":"explicit","command":"set_layer_3d"},
                 "planar_intersections":{"supported":true,"method":"bsp","geometry_api":"sampleGeometryInto","max_batches":8192,"max_vertices":65536},

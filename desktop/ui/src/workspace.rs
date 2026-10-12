@@ -390,6 +390,14 @@ impl Workspace {
     pub fn interact(&mut self, input: &Input, area: Rect) -> Option<Change> {
         self.interact_with_header_actions(input, area, 30.)
     }
+    pub fn drag_cursor(&self) -> Option<crate::cursor::Cursor> {
+        use crate::cursor::Cursor;
+        match &self.drag {
+            Some(Drag::Split { edge, .. }) => Some(if edge.is_horizontal() {Cursor::ResizeEW}else{Cursor::ResizeNS}),
+            Some(Drag::Tab { .. }) => Some(Cursor::Grabbing),
+            None => None,
+        }
+    }
     /// Reserve space for header actions only when the host actually draws them.
     pub fn interact_with_header_actions(
         &mut self,

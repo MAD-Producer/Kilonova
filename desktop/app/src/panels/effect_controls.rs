@@ -17,7 +17,9 @@ use std::collections::HashMap;
 
 #[derive(Default)]
 pub struct Controls {
-    pub catalogue: Value,
+    pub catalogue: std::sync::Arc<Value>,
+    pub cursor: bool,
+    pub drag_readout: Option<([f32; 2], String)>,
     pub choosing: bool,
     query: String,
     field: Option<Field>,
@@ -31,8 +33,8 @@ struct Field {
     effect: u64,
     param: String,
     component: usize,
-    text: String,
-    replace: bool,
+    number: super::numeric::Field,
+    rect: Rect,
 }
 fn clicked(input: &Input, rect: Rect) -> bool {
     input
@@ -96,9 +98,10 @@ impl Controls {
     pub fn editing(&self) -> bool {
         self.field.is_some() || self.choosing
     }
-    pub fn cancel(&mut self) {
-        self.field = None;
+    pub fn cancel(&mut self) -> bool {
+        let begun = self.field.take().is_some_and(|mut f| f.number.cancel());
         self.choosing = false;
+        begun
     }
     fn definition(&self, effect: &Value) -> Option<Value> {
         self.catalogue["packages"].as_array()?.iter().find(|p| {
@@ -185,13 +188,19 @@ impl Controls {
         locale: Locale,
         out: &mut Vec<Action>,
     ) {
+        self.cursor = false;
+        self.drag_readout = None;
         let object = layer["id"].as_u64().unwrap();
         let locked = layer["locked"].as_bool().unwrap_or(false);
         let frame = state["frame"].as_f64().unwrap_or(0.0).floor() as u32;
         let local = state["frame"].as_f64().unwrap_or(0.0)
             - layer["timeline"]["offset_frame"].as_f64().unwrap_or(0.0);
-        if self.field.as_ref().is_some_and(|f| f.object != object) {
-            self.field = None;
+        if self.field.as_ref().is_some_and(|f| {
+            f.object != object || locked || input.pressed.is_some_and(|(_, p)| !f.rect.contains(p))
+        }) {
+            if self.cancel() {
+                out.push(Action::History(4));
+            }
         }
         let revision = (
             state["root"].as_str().unwrap_or("").into(),
@@ -571,42 +580,33 @@ impl Controls {
                     }));
                 }
                 for component in 0..dimensions(kind) {
-                    let rect = Rect::new(area.min[0] + 62., *y, area.width() - 82., 24.);
-                    let active = self.field.as_ref().is_some_and(|f| {
-                        f.effect == id && f.param == param && f.component == component
-                    });
-                    let shown = if active {
-                        self.field.as_ref().unwrap().text.clone()
-                    } else if kind == "bool" {
-                        if value[0] > 0.5 {
-                            locale.t(T::Enabled)
-                        } else {
-                            locale.t(T::Disabled)
-                        }
-                        .into()
-                    } else if kind == "enum" {
-                        parameter["options"][value[0] as usize]
-                            .as_str()
-                            .unwrap_or("")
-                            .to_string()
-                    } else {
-                        format!(
-                            "{}{:.3}",
-                            if dimensions(kind) > 1 {
-                                ["X  ", "Y  ", "Z  ", "A  "][component]
-                            } else {
-                                ""
-                            },
-                            value[component]
-                        )
-                    };
-                    paint::rect(list, rect, palette::SUNKEN);
-                    text(list, atlas, rect.shrink(4.), &shown, !implemented);
-                    if active {
-                        paint::stroke(list, rect, palette::ACCENT, 1.);
+                    let inset=if dimensions(kind)>1 {20.}else{0.};
+                    if dimensions(kind)>1 {
+                        let axis=if kind=="color" {["R","G","B","A"][component]}else{["X","Y","Z","W"][component]};
+                        ui::text(list,atlas,Rect::new(area.min[0]+62.,*y,18.,24.),axis,palette::TEXT_MUTED,Align::Left);
                     }
-                    if clicked(input, rect) && !locked && implemented {
-                        if kind == "bool" || kind == "enum" {
+                    let rect = Rect::new(area.min[0] + 62.+inset, *y, area.width() - 82.-inset, 24.);
+                    let active = self.field.as_ref().is_some_and(|f| {
+                        f.object == object
+                            && f.effect == id
+                            && f.param == param
+                            && f.component == component
+                    });
+                    if kind == "bool" || kind == "enum" {
+                        let shown = if kind == "bool" {
+                            if value[0] > 0.5 {
+                                locale.t(T::Enabled)
+                            } else {
+                                locale.t(T::Disabled)
+                            }
+                        } else {
+                            parameter["options"][value[0] as usize]
+                                .as_str()
+                                .unwrap_or("")
+                        };
+                        paint::rect(list, rect, palette::SUNKEN);
+                        text(list, atlas, rect.shrink(4.), shown, !implemented);
+                        if clicked(input, rect) && !locked && implemented {
                             value[0] = if kind == "bool" {
                                 if value[0] > 0.5 {
                                     0.
@@ -631,47 +631,57 @@ impl Controls {
                                     value,
                                 },
                             }));
-                        } else {
+                        }
+                    } else {
+                        if clicked(input, rect) && !active && !locked && implemented {
+                            if self.field.take().is_some_and(|mut f| f.number.cancel()) {
+                                out.push(Action::History(4));
+                            }
                             self.field = Some(Field {
                                 object,
                                 effect: id,
                                 param: param.into(),
                                 component,
-                                text: format!("{}", value[component]),
-                                replace: true,
+                                number: Default::default(),
+                                rect,
                             });
                         }
-                    }
-                    *y += 26.;
-                }
-                if let Some(field) = self
-                    .field
-                    .as_mut()
-                    .filter(|f| f.effect == id && f.param == param)
-                {
-                    if !input.text.is_empty() {
-                        if field.replace {
-                            field.text.clear();
-                            field.replace = false;
-                        }
-                        field.text.push_str(&input.text);
-                    }
-                    if input.keys.iter().any(|(k, _)| *k == Key::Backspace) {
-                        if field.replace {
-                            field.text.clear();
-                            field.replace = false;
-                        } else {
-                            field.text.pop();
-                        }
-                    }
-                    if input.keys.iter().any(|(k, _)| *k == Key::Enter) {
-                        if let Ok(number) = field.text.parse::<f32>() {
-                            if number.is_finite() {
-                                value[field.component] = number.clamp(
-                                    parameter["min"].as_f64().unwrap_or(-1e9) as f32,
-                                    parameter["max"].as_f64().unwrap_or(1e9) as f32,
-                                );
-                                out.push(Action::Edit(Command::Effect {
+                        if let Some(field) = self.field.as_mut().filter(|f| {
+                            f.object == object
+                                && f.effect == id
+                                && f.param == param
+                                && f.component == component
+                        }) {
+                            field.rect = rect;
+                            self.cursor |=
+                                field.number.editor.dragging() || rect.contains(input.mouse);
+                            let min = parameter["min"].as_f64().unwrap_or(-1e9);
+                            let max = parameter["max"].as_f64().unwrap_or(1e9);
+                            let speed = if (max - min).is_finite() && (max - min) <= 2. {
+                                0.005
+                            } else {
+                                0.5
+                            };
+                            let options = motion_ui::widgets::NumberOptions {
+                                min,
+                                max,
+                                speed,
+                                decimals: 3,
+                            };
+                            let events = field.number.draw(
+                                list,
+                                atlas,
+                                rect,
+                                value[component] as f64,
+                                options,
+                                input,
+                            );
+                            if let Some(note) = field.number.readout() {
+                                self.drag_readout = Some((input.mouse, note));
+                            }
+                            if super::numeric::apply(events, out, |v| {
+                                value[component] = v;
+                                Command::Effect {
                                     object,
                                     action: EffectAction::Set {
                                         effect: id,
@@ -679,11 +689,23 @@ impl Controls {
                                         frame,
                                         value,
                                     },
-                                }));
+                                }
+                            }) {
                                 self.field = None;
                             }
+                        } else {
+                            self.cursor |= !locked && implemented && rect.contains(input.mouse);
+                            super::numeric::passive(
+                                list,
+                                atlas,
+                                rect,
+                                value[component] as f64,
+                                input,
+                                !locked && implemented,
+                            );
                         }
                     }
+                    *y += 26.;
                 }
                 *y += 8.;
             }

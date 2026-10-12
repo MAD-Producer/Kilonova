@@ -97,15 +97,20 @@ pub(super) fn render(
         panels.locale,
         out,
     );
-    if clicked(input, v) && !consumed {
+    let consumed = if panels.path_controls.tool==super::path_controls::Tool::Select {
+        panels.transform_controls.draw(list,v,state,panels.selected,input,out) || consumed
+    }else{consumed};
+    if let Some(cursor)=panels.transform_controls.cursor {panels.cursor=Some(cursor);}
+    if input.pressed.is_some_and(|(b,p)|b==MouseButton::Left&&v.contains(p)) && !consumed {
+        let point=input.pressed.unwrap().1;
         let w = state["project"]["width"].as_f64().unwrap_or(1.0);
         let h = state["project"]["height"].as_f64().unwrap_or(1.0);
         let scale = (v.width() as f64 / w).min(v.height() as f64 / h);
         let ox = v.min[0] as f64 + (v.width() as f64 - w * scale) * 0.5;
         let oy = v.min[1] as f64 + (v.height() as f64 - h * scale) * 0.5;
         out.push(Action::SelectAt([
-            (input.mouse[0] as f64 - ox) / scale,
-            (input.mouse[1] as f64 - oy) / scale,
+            (point[0] as f64 - ox) / scale,
+            (point[1] as f64 - oy) / scale,
         ]));
     }
 }

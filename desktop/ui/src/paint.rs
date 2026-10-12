@@ -12,12 +12,36 @@ use wgpu::util::DeviceExt;
 /// One drawable shape.
 #[derive(Clone, Debug)]
 pub enum Shape {
+    /// One analytic quad; clipping trims geometry without changing its pattern.
+    Procedural {
+        area: Rect,
+        clip: Rect,
+        kind: Pattern,
+    },
     /// Convex quad in logical pixels, wound for a triangle strip.
     Quad { points: [[f32; 2]; 4] },
     /// Polyline expanded to a strip on the CPU.
     Line { points: Vec<[f32; 2]> },
     /// Precompiled SVG geometry, in independent triangle-list order.
     Triangles { points: Vec<[f32; 2]> },
+}
+#[derive(Clone, Debug)]
+pub enum Pattern {
+    Box {
+        border: Color,
+        width: f32,
+        radius: f32,
+    },
+    Checker {
+        dark: Color,
+        size: f32,
+    },
+    Grid {
+        major: Color,
+        origin: [f32; 2],
+        minor: f32,
+        major_step: f32,
+    },
 }
 
 /// Solid fills collected for one frame.
@@ -29,6 +53,11 @@ pub struct PaintList {
 }
 
 impl PaintList {
+    pub fn clear(&mut self) {
+        self.shapes.clear();
+        self.colors.clear();
+        self.glyphs.clear();
+    }
     /// Bound flat UI geometry and adjust cropped glyph UVs to a panel rectangle.
     pub fn clip_to(&mut self, area: Rect) {
         let mut shapes = Vec::new();
@@ -37,6 +66,15 @@ impl PaintList {
             .into_iter()
             .zip(std::mem::take(&mut self.colors))
         {
+            if let Shape::Procedural { clip, .. } = &mut shape {
+                clip.min = [clip.min[0].max(area.min[0]), clip.min[1].max(area.min[1])];
+                clip.max = [clip.max[0].min(area.max[0]), clip.max[1].min(area.max[1])];
+                if clip.width() > 0. && clip.height() > 0. {
+                    shapes.push(shape);
+                    colors.push(color);
+                }
+                continue;
+            }
             if let Shape::Triangles { points } = &mut shape {
                 *points = clip_triangles(points, area);
                 if !points.is_empty() {
@@ -45,27 +83,27 @@ impl PaintList {
                 }
                 continue;
             }
-            let points: &mut [[f32; 2]] = match &mut shape {
-                Shape::Quad { points } => points,
-                Shape::Line { points } => points,
-                Shape::Triangles { .. } => unreachable!(),
+            let inside = |p: &[f32; 2]| {
+                area.contains(*p)
+                    || p[0] == area.max[0] && p[1] >= area.min[1] && p[1] <= area.max[1]
+                    || p[1] == area.max[1] && p[0] >= area.min[0] && p[0] <= area.max[0]
             };
-            let intersects = points.iter().any(|p| {
-                p[0] >= area.min[0]
-                    && p[0] <= area.max[0]
-                    && p[1] >= area.min[1]
-                    && p[1] <= area.max[1]
-            });
-            let spans = points.iter().any(|p| p[0] < area.min[0])
-                && points.iter().any(|p| p[0] > area.max[0])
-                || points.iter().any(|p| p[1] < area.min[1])
-                    && points.iter().any(|p| p[1] > area.max[1]);
-            if !intersects && !spans {
-                continue;
-            }
-            for point in points {
-                point[0] = point[0].clamp(area.min[0], area.max[0]);
-                point[1] = point[1].clamp(area.min[1], area.max[1]);
+            let all_inside = match &shape {
+                Shape::Quad { points } => points.iter().all(inside),
+                Shape::Line { points } => points.iter().all(inside),
+                _ => false,
+            };
+            if !all_inside {
+                let triangles = match &shape {
+                    Shape::Quad { points } => expand_quad(*points).to_vec(),
+                    Shape::Line { points } => expand_line(points),
+                    _ => unreachable!(),
+                };
+                let points = clip_triangles(&triangles, area);
+                if points.is_empty() {
+                    continue;
+                }
+                shape = Shape::Triangles { points };
             }
             shapes.push(shape);
             colors.push(color);
@@ -166,6 +204,77 @@ pub struct Glyph {
 struct SolidVertex {
     position: [f32; 2],
     color: [f32; 4],
+    geometry: [f32; 4],
+    params: [f32; 4],
+    extra: [f32; 4],
+    secondary: [f32; 4],
+}
+impl SolidVertex {
+    fn plain(position: [f32; 2], color: [f32; 4]) -> Self {
+        Self {
+            position,
+            color,
+            geometry: [0.; 4],
+            params: [0.; 4],
+            extra: [0.; 4],
+            secondary: [0.; 4],
+        }
+    }
+}
+pub fn box_rect(
+    list: &mut PaintList,
+    area: Rect,
+    fill: Color,
+    border: Color,
+    width: f32,
+    radius: f32,
+) {
+    if area.width() > 0. && area.height() > 0. && (fill.0[3] > 0. || border.0[3] > 0. && width > 0.)
+    {
+        list.shapes.push(Shape::Procedural {
+            area,
+            clip: Rect::new(
+                area.min[0] - 1.,
+                area.min[1] - 1.,
+                area.width() + 2.,
+                area.height() + 2.,
+            ),
+            kind: Pattern::Box {
+                border,
+                width,
+                radius,
+            },
+        });
+        list.colors.push(fill);
+    }
+}
+pub fn grid(
+    list: &mut PaintList,
+    area: Rect,
+    minor_color: Color,
+    major_color: Color,
+    origin: [f32; 2],
+    minor: f32,
+    major: f32,
+) {
+    if area.width() > 0.
+        && area.height() > 0.
+        && minor.is_finite()
+        && major.is_finite()
+        && major > 0.
+    {
+        list.shapes.push(Shape::Procedural {
+            area,
+            clip: area,
+            kind: Pattern::Grid {
+                major: major_color,
+                origin,
+                minor,
+                major_step: major,
+            },
+        });
+        list.colors.push(minor_color);
+    }
 }
 
 #[repr(C)]
@@ -182,6 +291,10 @@ const GLYPH_CAPACITY: usize = 1 << 17;
 /// Draw a filled rectangle.
 pub fn rect(list: &mut PaintList, area: Rect, color: Color) {
     if area.width() <= 0.0 || area.height() <= 0.0 || color.0[3] <= 0.0 {
+        return;
+    }
+    if area.width() <= 1. || area.height() <= 1. {
+        box_rect(list, area, color, Color([0.; 4]), 0., 0.);
         return;
     }
     let min = area.min;
@@ -209,39 +322,42 @@ pub fn diamond(list: &mut PaintList, center: [f32; 2], radius: f32, color: Color
 
 /// Stroke a rectangle outline of `thickness` logical pixels.
 pub fn stroke(list: &mut PaintList, area: Rect, color: Color, thickness: f32) {
-    if thickness <= 0.0 {
+    if !thickness.is_finite()
+        || thickness <= 0.
+        || area.width() <= 0.
+        || area.height() <= 0.
+        || color.0[3] <= 0.
+    {
         return;
     }
-    rect(
-        list,
-        Rect::new(area.min[0], area.min[1], area.width(), thickness),
-        color,
-    );
-    rect(
-        list,
+    if thickness <= 1. {
+        box_rect(list, area, Color([0.; 4]), color, thickness, 0.);
+        return;
+    }
+    let t = thickness.min(area.width() * 0.5).min(area.height() * 0.5);
+    let strips = [
+        Rect::new(area.min[0], area.min[1], area.width(), t),
+        Rect::new(area.min[0], area.max[1] - t, area.width(), t),
         Rect::new(
             area.min[0],
-            area.max[1] - thickness,
-            area.width(),
-            thickness,
+            area.min[1] + t,
+            t,
+            (area.height() - 2. * t).max(0.),
         ),
-        color,
-    );
-    rect(
-        list,
-        Rect::new(area.min[0], area.min[1], thickness, area.height()),
-        color,
-    );
-    rect(
-        list,
         Rect::new(
-            area.max[0] - thickness,
-            area.min[1],
-            thickness,
-            area.height(),
+            area.max[0] - t,
+            area.min[1] + t,
+            t,
+            (area.height() - 2. * t).max(0.),
         ),
-        color,
-    );
+    ];
+    let points = strips
+        .into_iter()
+        .filter(|r| r.width() > 0. && r.height() > 0.)
+        .flat_map(|r| expand_quad([r.min, [r.max[0], r.min[1]], r.max, [r.min[0], r.max[1]]]))
+        .collect();
+    list.shapes.push(Shape::Triangles { points });
+    list.colors.push(color);
 }
 
 pub fn line(list: &mut PaintList, points: Vec<[f32; 2]>, color: Color) {
@@ -254,17 +370,13 @@ pub fn line(list: &mut PaintList, points: Vec<[f32; 2]>, color: Color) {
 
 /// Alpha checkerboard for transparent pixels.
 pub fn checkerboard(list: &mut PaintList, area: Rect, light: Color, dark: Color, size: f32) {
-    let columns = (area.width() / size).ceil() as i32;
-    let rows = (area.height() / size).ceil() as i32;
-    for row in 0..rows.max(0) {
-        for column in 0..columns.max(0) {
-            let color = if (row + column) % 2 == 0 { light } else { dark };
-            let min_x = area.min[0] + column as f32 * size;
-            let min_y = area.min[1] + row as f32 * size;
-            let width = (area.min[0] + (column as f32 + 1.0) * size).min(area.max[0]) - min_x;
-            let height = (area.min[1] + (row as f32 + 1.0) * size).min(area.max[1]) - min_y;
-            rect(list, Rect::new(min_x, min_y, width, height), color);
-        }
+    if area.width() > 0. && area.height() > 0. && size.is_finite() && size > 0. {
+        list.shapes.push(Shape::Procedural {
+            area,
+            clip: area,
+            kind: Pattern::Checker { dark, size },
+        });
+        list.colors.push(light);
     }
 }
 
@@ -312,6 +424,8 @@ fn upload_color(mut rgba: [f32; 4], srgb: bool) -> [f32; 4] {
 
 /// GPU resources for the two-pass panel renderer.
 pub struct Painter {
+    solid_cpu: Vec<SolidVertex>,
+    glyph_cpu: Vec<GlyphVertex>,
     srgb_target: bool,
     solid_pipeline: wgpu::RenderPipeline,
     glyph_pipeline: wgpu::RenderPipeline,
@@ -392,7 +506,7 @@ impl Painter {
                 buffers: &[wgpu::VertexBufferLayout {
                     array_stride: std::mem::size_of::<SolidVertex>() as u64,
                     step_mode: wgpu::VertexStepMode::Vertex,
-                    attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x4],
+                    attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x4, 2=>Float32x4, 3=>Float32x4, 4=>Float32x4, 5=>Float32x4],
                 }],
                 compilation_options: Default::default(),
             },
@@ -454,6 +568,8 @@ impl Painter {
         let uniform_bytes = bytemuck::bytes_of(&[0.0f32, 0.0, 1.0, 1.0]);
         Self {
             srgb_target: format.is_srgb(),
+            solid_cpu: Vec::new(),
+            glyph_cpu: Vec::new(),
             solid_pipeline,
             glyph_pipeline,
             solid_layout,
@@ -553,61 +669,153 @@ impl Painter {
         list: &PaintList,
         viewport: [f32; 2],
     ) {
-        let mut solids: Vec<SolidVertex> = Vec::with_capacity(list.shapes.len() * 6);
+        self.render_scaled(device, queue, encoder, target, list, viewport, [1., 1.]);
+    }
+    pub fn render_scaled(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        encoder: &mut wgpu::CommandEncoder,
+        target: &wgpu::TextureView,
+        list: &PaintList,
+        viewport: [f32; 2],
+        scale: [f32; 2],
+    ) {
+        let mut solids = std::mem::take(&mut self.solid_cpu);
+        solids.clear();
         for (shape, color) in list.shapes.iter().zip(list.colors.iter()) {
             let rgba = upload_color(color.0, self.srgb_target);
             match shape {
+                Shape::Procedural { area, clip, kind } => {
+                    let mut area = *area;
+                    let mut rgba = rgba;
+                    let mut border_scale = 1.;
+                    let mut snapped_width = None;
+                    if let Pattern::Box { width, .. } = kind {
+                        let sx = scale[0].max(0.001);
+                        let sy = scale[1].max(0.001);
+                        if *width > 0. {
+                            area.min = [
+                                (area.min[0] * sx).round() / sx,
+                                (area.min[1] * sy).round() / sy,
+                            ];
+                            area.max = [
+                                (area.max[0] * sx).round() / sx,
+                                (area.max[1] * sy).round() / sy,
+                            ];
+                            let density = sx.min(sy);
+                            let px = (*width * density).ceil().max(1.);
+                            snapped_width = Some(px / density);
+                            border_scale = (*width * density / px).min(1.);
+                        } else if area.width() <= 1. || area.height() <= 1. {
+                            for (axis, density) in [(0, sx), (1, sy)] {
+                                let size = area.max[axis] - area.min[axis];
+                                if size <= 1. {
+                                    let px = (size * density).ceil().max(1.);
+                                    rgba[3] *= (size * density / px).min(1.);
+                                    area.min[axis] = (area.min[axis] * density).round() / density;
+                                    area.max[axis] = area.min[axis] + px / density;
+                                }
+                            }
+                        }
+                    }
+                    let geometry = [area.min[0], area.min[1], area.width(), area.height()];
+                    let (params, extra, secondary) = match kind {
+                        Pattern::Box {
+                            border,
+                            width,
+                            radius,
+                        } => {
+                            let mut color = upload_color(border.0, self.srgb_target);
+                            color[3] *= border_scale;
+                            (
+                                [1., snapped_width.unwrap_or(*width), *radius, 0.],
+                                [0.; 4],
+                                color,
+                            )
+                        }
+                        Pattern::Checker { dark, size } => (
+                            [2., *size, 0., 0.],
+                            [0.; 4],
+                            upload_color(dark.0, self.srgb_target),
+                        ),
+                        Pattern::Grid {
+                            major,
+                            origin,
+                            minor,
+                            major_step,
+                        } => (
+                            [3., 0., 0., 0.],
+                            [origin[0], origin[1], *minor, *major_step],
+                            upload_color(major.0, self.srgb_target),
+                        ),
+                    };
+                    let min = [
+                        clip.min[0].max(area.min[0] - 1.),
+                        clip.min[1].max(area.min[1] - 1.),
+                    ];
+                    let max = [
+                        clip.max[0].min(area.max[0] + 1.),
+                        clip.max[1].min(area.max[1] + 1.),
+                    ];
+                    if max[0] > min[0] && max[1] > min[1] {
+                        solids.extend(
+                            expand_quad([min, [max[0], min[1]], max, [min[0], max[1]]])
+                                .into_iter()
+                                .map(|position| SolidVertex {
+                                    position,
+                                    color: rgba,
+                                    geometry,
+                                    params,
+                                    extra,
+                                    secondary,
+                                }),
+                        );
+                    }
+                }
                 Shape::Quad { points } => {
                     for vertex in expand_quad(*points) {
-                        solids.push(SolidVertex {
-                            position: vertex,
-                            color: rgba,
-                        });
+                        solids.push(SolidVertex::plain(vertex, rgba));
                     }
                 }
                 Shape::Line { points } => {
                     for vertex in expand_line(points) {
-                        solids.push(SolidVertex {
-                            position: vertex,
-                            color: rgba,
-                        });
+                        solids.push(SolidVertex::plain(vertex, rgba));
                     }
                 }
                 Shape::Triangles { points } => {
-                    solids.extend(points.iter().map(|position| SolidVertex {
-                        position: *position,
-                        color: rgba,
-                    }));
+                    solids.extend(
+                        points
+                            .iter()
+                            .map(|position| SolidVertex::plain(*position, rgba)),
+                    );
                 }
             }
         }
-        let glyphs: Vec<GlyphVertex> = list
-            .glyphs
-            .iter()
-            .flat_map(|glyph| {
-                let rgba = upload_color(glyph.color.0, self.srgb_target);
-                let min = glyph.position;
-                let max = [
-                    glyph.position[0] + glyph.size[0],
-                    glyph.position[1] + glyph.size[1],
-                ];
-                [
-                    (min, [glyph.uv[0], glyph.uv[1]]),
-                    ([max[0], min[1]], [glyph.uv[2], glyph.uv[1]]),
-                    (max, [glyph.uv[2], glyph.uv[3]]),
-                    (min, [glyph.uv[0], glyph.uv[1]]),
-                    (max, [glyph.uv[2], glyph.uv[3]]),
-                    ([min[0], max[1]], [glyph.uv[0], glyph.uv[3]]),
-                ]
-                .into_iter()
-                .map(|(position, uv)| GlyphVertex {
-                    position,
-                    uv,
-                    color: rgba,
-                })
-                .collect::<Vec<_>>()
+        let mut glyphs = std::mem::take(&mut self.glyph_cpu);
+        glyphs.clear();
+        glyphs.extend(list.glyphs.iter().flat_map(|glyph| {
+            let rgba = upload_color(glyph.color.0, self.srgb_target);
+            let min = glyph.position;
+            let max = [
+                glyph.position[0] + glyph.size[0],
+                glyph.position[1] + glyph.size[1],
+            ];
+            [
+                (min, [glyph.uv[0], glyph.uv[1]]),
+                ([max[0], min[1]], [glyph.uv[2], glyph.uv[1]]),
+                (max, [glyph.uv[2], glyph.uv[3]]),
+                (min, [glyph.uv[0], glyph.uv[1]]),
+                (max, [glyph.uv[2], glyph.uv[3]]),
+                ([min[0], max[1]], [glyph.uv[0], glyph.uv[3]]),
+            ]
+            .into_iter()
+            .map(move |(position, uv)| GlyphVertex {
+                position,
+                uv,
+                color: rgba,
             })
-            .collect();
+        }));
         self.last_solid_vertices = solids.len();
         self.last_glyph_vertices = glyphs.len();
         if !solids.is_empty() {
@@ -670,6 +878,8 @@ impl Painter {
             occlusion_query_set: None,
         });
         if solids.is_empty() && glyphs.is_empty() {
+            self.solid_cpu = solids;
+            self.glyph_cpu = glyphs;
             return;
         }
         if !solids.is_empty() {
@@ -686,6 +896,9 @@ impl Painter {
                 pass.draw(0..glyphs.len() as u32, 0..1);
             }
         }
+        drop(pass);
+        self.solid_cpu = solids;
+        self.glyph_cpu = glyphs;
     }
 }
 
@@ -710,7 +923,7 @@ mod tests {
         assert_eq!(list.glyphs[0].uv, [0.25, 0.0, 0.75, 1.0]);
         assert_eq!(list.glyphs[0].size, [10.0, 10.0]);
         assert!(
-            matches!(&list.shapes[0],Shape::Quad{points} if points.iter().all(|p|p[0]>=0.0&&p[0]<=10.0&&p[1]>=0.0&&p[1]<=10.0))
+            matches!(&list.shapes[0],Shape::Triangles{points} if points.iter().all(|p|p[0]>=0.0&&p[0]<=10.0&&p[1]>=0.0&&p[1]<=10.0))
         );
     }
 
@@ -762,7 +975,7 @@ mod tests {
             Color::grey(80),
             1.0,
         );
-        assert_eq!(list.shapes.len(), 4);
+        assert_eq!(list.shapes.len(), 1);
         let mut list = PaintList::default();
         stroke(
             &mut list,
@@ -783,20 +996,12 @@ mod tests {
             Color::grey(50),
             8.0,
         );
-        // Two columns by two rows, all four clipped to the 10x10 area.
-        assert_eq!(list.shapes.len(), 4);
-        let areas: Vec<f32> = list
-            .shapes
-            .iter()
-            .filter_map(|shape| match shape {
-                Shape::Quad { points } => {
-                    let width = points[2][0] - points[0][0];
-                    let height = points[2][1] - points[0][1];
-                    Some(width * height)
-                }
-                Shape::Line { .. } | Shape::Triangles { .. } => None,
-            })
-            .collect();
-        assert_eq!(areas.iter().sum::<f32>(), 100.0);
+        assert!(
+            matches!(&list.shapes[0],Shape::Procedural{area,kind:Pattern::Checker{size,..},..} if area.width()*area.height()==100.&&*size==8.)
+        );
+        list.clip_to(Rect::new(2., 3., 5., 4.));
+        assert!(
+            matches!(&list.shapes[0],Shape::Procedural{area,clip,..} if area.min==[0.,0.]&&clip.min==[2.,3.]&&clip.max==[7.,7.])
+        );
     }
 }

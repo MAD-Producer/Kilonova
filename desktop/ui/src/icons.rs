@@ -38,6 +38,7 @@ icons! {
     Undo => "undo", Redo => "redo",
     Stopwatch => "stopwatch",
     Menu => "menu",
+    Rotate => "rotate", Scale => "scale", Anchor => "anchor",
 }
 #[derive(Deserialize)]
 struct Source {

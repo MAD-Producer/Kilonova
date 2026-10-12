@@ -1,11 +1,10 @@
-//! Glyph atlas and text shaping for the shell chrome.
-//!
-//! Panels render a bounded set of short strings, so a single-page atlas is
-//! enough and a full shaping engine is not needed. Font selection prefers the
-//! platform UI face and falls back to any installed font, so the shell renders
-//! on a machine with no fonts of its own.
+//! Glyph atlas for shell chrome. Windows uses grid-fitted grayscale glyphs
+//! from the selected installed face. Rasterization is per glyph; complex-script
+//! shaping and bidirectional layout are not yet supported.
 
 use ab_glyph::{Font, FontArc, PxScale, PxScaleFont, ScaleFont};
+#[cfg(target_os = "windows")]
+mod windows;
 
 /// One rendered glyph in the atlas.
 #[derive(Clone, Copy)]
@@ -47,7 +46,11 @@ pub struct TextAtlas {
     fallback: Option<PxScaleFont<FontArc>>,
     config: AtlasConfig,
     pixels: Vec<u8>,
-    entries: std::collections::HashMap<(char, u32), GlyphEntry>,
+    entries: std::collections::HashMap<(char, u32, u32), GlyphEntry>,
+    pixel_ratio: f32,
+    pub selected_family: String,
+    #[cfg(target_os = "windows")]
+    hinted: Option<windows::Rasterizer>,
     /// Pen position of the next glyph in the atlas, in texels.
     cursor: [f32; 2],
     row_height: u32,
@@ -61,18 +64,21 @@ pub struct TextAtlas {
 impl TextAtlas {
     /// Build an atlas from the system UI font at `scale` logical pixels.
     pub fn from_system(scale: f32) -> Result<Self, String> {
-        let (font, families) = load_system_font(false)?;
-        Ok(Self::new(font, scale, families))
+        let (font, families, family) = load_system_font(false)?;
+        let mut atlas = Self::new(font, scale, families);
+        atlas.configure_family(family);
+        Ok(atlas)
     }
 
     pub fn from_system_language(scale: f32, chinese: bool) -> Result<Self, String> {
         Self::from_family("system-ui", scale, chinese)
     }
     pub fn from_family(family: &str, scale: f32, chinese: bool) -> Result<Self, String> {
-        let (font, families) = load_preferred_font(chinese, Some(family))?;
+        let (font, families, selected) = load_preferred_font(chinese, Some(family))?;
         let mut atlas = Self::new(font, scale, families);
+        atlas.configure_family(selected);
         if atlas.font.font.glyph_id('中').0 == 0 {
-            if let Ok((fallback, _)) = load_system_font(true) {
+            if let Ok((fallback, _, _)) = load_system_font(true) {
                 atlas.fallback = Some(PxScaleFont {
                     scale: em_scale(&fallback, scale),
                     font: fallback,
@@ -83,6 +89,24 @@ impl TextAtlas {
     }
     pub fn font_size(&self) -> f32 {
         self.font_size
+    }
+    fn configure_family(&mut self, family: String) {
+        #[cfg(target_os = "windows")]
+        {
+            self.hinted = windows::Rasterizer::new(&family);
+        }
+        self.selected_family = family;
+    }
+    pub fn pixel_ratio(&self) -> f32 {
+        self.pixel_ratio
+    }
+    pub fn set_pixel_ratio(&mut self, ratio: f32) {
+        if ratio.is_finite() && ratio > 0. {
+            self.pixel_ratio = ratio.clamp(0.5, 4.);
+        }
+    }
+    pub fn supports(&self, character: char) -> bool {
+        self.face(character).glyph_id(character).0 != 0
     }
     pub fn new(font: FontArc, scale: f32, families: Vec<String>) -> Self {
         let font = PxScaleFont {
@@ -100,6 +124,10 @@ impl TextAtlas {
             config,
             pixels,
             entries: std::collections::HashMap::new(),
+            pixel_ratio: 1.,
+            selected_family: "custom".into(),
+            #[cfg(target_os = "windows")]
+            hinted: None,
             cursor: [0.0, 0.0],
             row_height: 0,
             line_height,
@@ -175,7 +203,7 @@ impl TextAtlas {
     }
     /// Rasterize at the requested em size rather than enlarging a small bitmap.
     pub fn glyph_at(&mut self, character: char, size: f32) -> GlyphEntry {
-        let key = (character, size.to_bits());
+        let key = (character, size.to_bits(), self.pixel_ratio.to_bits());
         if let Some(entry) = self.entries.get(&key) {
             return *entry;
         }
@@ -193,7 +221,7 @@ impl TextAtlas {
             return blank;
         }
         let mut glyph = font.scaled_glyph(character);
-        glyph.scale = PxScale::from(font.scale.y * ratio);
+        glyph.scale = PxScale::from(font.scale.y * ratio * self.pixel_ratio);
         let Some(outlined) = font.outline_glyph(glyph) else {
             self.entries.insert(key, blank);
             return blank;
@@ -201,8 +229,29 @@ impl TextAtlas {
         // Pixel bounds are integers and exactly match what `draw` reports, so
         // the atlas rectangle and the draw coordinates agree without rounding.
         let bounds = outlined.px_bounds();
-        let width = (bounds.max.x - bounds.min.x) as u32;
-        let height = (bounds.max.y - bounds.min.y) as u32;
+        #[cfg(target_os = "windows")]
+        let hinted = if self.font.glyph_id(character).0 != 0 {
+            self.hinted
+                .as_mut()
+                .and_then(|r| r.glyph(id.0, size * self.pixel_ratio))
+        } else {
+            None
+        };
+        #[cfg(target_os = "windows")]
+        let (width, height, offset) = hinted.as_ref().map_or(
+            (
+                (bounds.max.x - bounds.min.x) as u32,
+                (bounds.max.y - bounds.min.y) as u32,
+                [bounds.min.x, bounds.min.y],
+            ),
+            |b| (b.width, b.height, b.offset),
+        );
+        #[cfg(not(target_os = "windows"))]
+        let (width, height, offset) = (
+            (bounds.max.x - bounds.min.x) as u32,
+            (bounds.max.y - bounds.min.y) as u32,
+            [bounds.min.x, bounds.min.y],
+        );
         if width == 0 || height == 0 {
             // Whitespace advances without a bitmap.
             self.entries.insert(key, blank);
@@ -225,7 +274,7 @@ impl TextAtlas {
         let y = self.cursor[1] as u32;
         let stride = self.config.width as usize;
         let pixels = &mut self.pixels;
-        outlined.draw(|column, row, coverage| {
+        let mut write = |column: u32, row: u32, coverage: f32| {
             let local_column = column;
             let local_row = row;
             if local_column >= width || local_row >= height {
@@ -234,7 +283,17 @@ impl TextAtlas {
             let index =
                 ((y + local_row) as usize * stride + x as usize + local_column as usize) * 4;
             pixels[index..index + 4].fill((coverage.clamp(0.0, 1.0) * 255.0).round() as u8);
-        });
+        };
+        #[cfg(target_os = "windows")]
+        if let Some(bitmap) = hinted {
+            for (i, c) in bitmap.coverage.into_iter().enumerate() {
+                write(i as u32 % width, i as u32 / width, c as f32 / 255.);
+            }
+        } else {
+            outlined.draw(&mut write);
+        }
+        #[cfg(not(target_os = "windows"))]
+        outlined.draw(&mut write);
         self.cursor[0] += width as f32 + padding as f32;
         let entry = GlyphEntry {
             uv: [
@@ -244,7 +303,7 @@ impl TextAtlas {
                 (y + height) as f32 / self.config.height as f32,
             ],
             // Atlas rows advance downward; glyph space advances upward.
-            offset: [bounds.min.x as f32, bounds.min.y],
+            offset: offset.map(|v| v / self.pixel_ratio),
             advance,
         };
         self.entries.insert(key, entry);
@@ -287,13 +346,13 @@ fn em_scale(font: &FontArc, pixels: f32) -> PxScale {
 }
 
 /// Prefer a platform UI face, then fall back to any installed font.
-fn load_system_font(chinese: bool) -> Result<(FontArc, Vec<String>), String> {
+fn load_system_font(chinese: bool) -> Result<(FontArc, Vec<String>, String), String> {
     load_preferred_font(chinese, None)
 }
 fn load_preferred_font(
     chinese: bool,
     family: Option<&str>,
-) -> Result<(FontArc, Vec<String>), String> {
+) -> Result<(FontArc, Vec<String>, String), String> {
     let mut database = fontdb::Database::new();
     database.load_system_fonts();
     let families: Vec<String> = database
@@ -348,7 +407,12 @@ fn load_preferred_font(
             ab_glyph::FontVec::try_from_vec_and_index(data.to_vec(), index).map(FontArc::new)
         });
         if let Some(Ok(font)) = font {
-            return Ok((font, families));
+            let family = database
+                .face(id)
+                .and_then(|f| f.families.first())
+                .map(|f| f.0.clone())
+                .unwrap_or_else(|| "unknown".into());
+            return Ok((font, families, family));
         }
     }
     Err("no usable system font was found".into())
@@ -441,5 +505,19 @@ mod tests {
         assert!(atlas.take_dirty());
         assert_eq!(atlas.entries.len(), 0);
         assert!(atlas.line_height >= 26.0);
+    }
+
+    #[test]
+    fn dpi_rasterization_preserves_logical_metrics_and_existing_uvs() {
+        let Some(mut atlas) = fixture() else { return; };
+        let width = atlas.measure("Preview 123");
+        let first = atlas.glyph('A');
+        atlas.set_pixel_ratio(2.0);
+        let second = atlas.glyph('A');
+        assert_eq!(atlas.measure("Preview 123"), width);
+        assert_eq!(first.advance, second.advance);
+        assert!(second.uv[2] - second.uv[0] > first.uv[2] - first.uv[0]);
+        atlas.set_pixel_ratio(1.0);
+        assert_eq!(atlas.glyph('A').uv, first.uv);
     }
 }

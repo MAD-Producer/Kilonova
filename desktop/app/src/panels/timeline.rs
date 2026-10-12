@@ -2,6 +2,8 @@ use super::*;
 use super::{toolbar::icon_button, types::Tool};
 
 pub(super) struct Row {
+    pub(super) spatial: bool,
+    pub(super) property_count: usize,
     pub(super) id: u64,
     pub(super) name: String,
     pub(super) visible: bool,
@@ -116,6 +118,11 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
             keys.sort_by(|a, b| a.total_cmp(b));
             keys.dedup();
             Row {
+                spatial: l["content"]["kind"]!="audio",
+                property_count: ["position","rotation","scale","opacity"].iter().map(|property| {
+                    if *property=="opacity"||t.is_none_or(|t|t["properties"][*property]["separated"]!=true){1}
+                    else if l["three_d"]==true{3}else if *property=="rotation"{1}else{2}
+                }).sum(),
                 id,
                 name: l["name"].as_str().unwrap_or("Layer").into(),
                 visible: l["visible"].as_bool().unwrap_or(true),
@@ -150,6 +157,8 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
         rows.insert(
             0,
             Row {
+                spatial: false,
+                property_count: 0,
                 id: 0,
                 name: "Camera".into(),
                 visible: true,
@@ -210,13 +219,14 @@ pub(super) fn render(
     };
     paint::rect(list, area, palette::PANEL);
     let total = last_frame(state) + 1.0;
-    let graph_mode = panels.timeline.graph_mode;
-    let mut rows = rows(state);
-    rows.retain(|row| {
-        row.name
-            .to_lowercase()
-            .contains(&panels.timeline.timeline_query.to_lowercase())
-    });
+    let graph_mode=panels.timeline.graph_mode;
+    let cache_key=(state["root"].as_str().unwrap_or("").to_string(),state["composition"].as_str().unwrap_or("").to_string(),state["revision"].as_u64().unwrap_or(0));
+    if panels.timeline.rows_cache.as_ref().is_none_or(|(key,_)|key!=&cache_key) {
+        panels.timeline.rows_cache=Some((cache_key,std::sync::Arc::new(rows(state))));
+    }
+    let all_rows=panels.timeline.rows_cache.as_ref().unwrap().1.clone();
+    let query=panels.timeline.timeline_query.to_lowercase();
+    let rows:Vec<_>=all_rows.iter().filter(|row|query.is_empty()||row.name.to_lowercase().contains(&query)).collect();
     let gutter = GUTTER.min(area.width() * 0.4);
     let track = Rect::new(
         area.min[0] + gutter,
@@ -266,6 +276,14 @@ pub(super) fn render(
         .min((total as f32 - total as f32 / panels.timeline.zoom.max(1.0)).max(0.0));
     let ppf = track.width() / total as f32 * panels.timeline.zoom.max(1.0);
     let offset = panels.timeline.offset;
+    let candidates_for=|exclude:Option<u64>,include_playhead:bool| {
+        let mut candidates=vec![0.,total];
+        if include_playhead {candidates.push(state["frame"].as_f64().unwrap_or(0.));}
+        for row in all_rows.iter().filter(|r|Some(r.id)!=exclude) {candidates.extend(row.range);candidates.extend(row.keys.iter().copied());}
+        for key in ["in_frame","out_frame"] {if let Some(v)=state["project"]["work_area"][key].as_f64(){candidates.push(v);}}
+        candidates
+    };
+    let seek_candidates=candidates_for(None,false);
     let x_of = |f: f64| track.min[0] + (f as f32 - offset) * ppf;
     let frame_of = |x: f32| {
         ((x - track.min[0]) / ppf + offset)
@@ -490,10 +508,13 @@ pub(super) fn render(
         panels.timeline.scrubbing = true;
         panels.timeline.last_seek = None;
     }
-    if panels.timeline.scrubbing
-        && (clicked(input, ruler) || input.dragging() || input.released.is_some())
-    {
-        let frame = frame_of(input.mouse[0]);
+    let scrub_frame=if panels.timeline.scrubbing {
+        let raw=frame_of(input.mouse[0]);
+        let snap=if input.modifiers.alt {None}else{motion_ui::snap::nearest(seek_candidates.iter().copied().filter(|v|*v>=0.&&*v<=total-1.),raw,ppf as f64,8.)};
+        panels.timeline.snap_guide=snap.map(|s|s.target);
+        Some(snap.map_or(raw,|s|s.value))
+    }else{None};
+    if let Some(frame)=scrub_frame.filter(|_|clicked(input,ruler)||input.dragging()||input.released.is_some()) {
         if panels.timeline.last_seek != Some(frame) {
             panels.timeline.last_seek = Some(frame);
             out.push(Action::Seek(frame));
@@ -510,28 +531,16 @@ pub(super) fn render(
     );
     let mut row_offset = 0;
     for (index, row) in rows.iter().enumerate() {
-        let expandable = row.id != 0
-            && state["project"]["layers"]
-                .as_array()
-                .and_then(|ls| ls.iter().find(|l| l["id"].as_u64() == Some(row.id)))
-                .is_some_and(|l| l["content"]["kind"].as_str() != Some("audio"));
-        let expanded = expandable && panels.timeline.expanded.contains(&row.id);
-        let properties = if expanded {
-            filtered_properties(
-                state,
-                row.id,
-                panels
-                    .timeline
-                    .filters
-                    .get(&row.id)
-                    .copied()
-                    .unwrap_or_default(),
-            )
-        } else {
-            vec![]
-        };
-        let y = body.min[1] + row_offset as f32 * metrics::ROW - panels.timeline.scroll;
-        row_offset += 1 + if expanded { 1 + properties.len() } else { 0 };
+        let expandable=row.id!=0&&row.spatial;
+        let expanded=expandable&&panels.timeline.expanded.contains(&row.id);
+        let filter=panels.timeline.filters.get(&row.id).copied().unwrap_or_default();
+        let filtered=if expanded&&filter!=types::PropertyFilter::All {Some(filtered_properties(state,row.id,filter))}else{None};
+        let property_count=filtered.as_ref().map_or(row.property_count,Vec::len);
+        let y=body.min[1]+row_offset as f32*metrics::ROW-panels.timeline.scroll;
+        let row_count=1+if expanded {1+property_count}else{0};
+        row_offset+=row_count;
+        if y+row_count as f32*metrics::ROW<body.min[1]-metrics::ROW||y>body.max[1]+metrics::ROW {continue;}
+        let properties=if expanded{filtered.unwrap_or_else(||property_rows(state,row.id))}else{vec![]};
         if expanded {
             let group = Rect::new(
                 area.min[0] + 80.,
@@ -805,6 +814,7 @@ pub(super) fn render(
         if selected {
             paint::stroke(list, bar, palette::ACCENT, 1.0);
         }
+        if !row.locked && bar.contains(input.mouse) {panels.cursor=Some(motion_ui::cursor::Cursor::Grab);}
         for (head, x, visible) in [
             (true, left, x_of(row.range[0]) >= track.min[0]),
             (false, right, x_of(row.range[1]) <= track.max[0]),
@@ -812,6 +822,7 @@ pub(super) fn render(
             let handle = Rect::new(x - 4.0, y + 4.0, 8.0, metrics::ROW - 8.0);
             if selected && visible && !row.locked {
                 paint::rect(list, handle, palette::ACCENT);
+                if handle.contains(input.mouse) {panels.cursor=Some(motion_ui::cursor::Cursor::ResizeEW);}
                 if clicked(input, handle) {
                     panels.timeline.trimming = Some((
                         row.id,
@@ -864,6 +875,9 @@ pub(super) fn render(
         } else {
             position.round()
         };
+        let snap=if input.modifiers.alt {None}else{motion_ui::snap::nearest(candidates_for(Some(*object),true),position,ppf as f64,8.)};
+        panels.timeline.snap_guide=snap.map(|s|s.target);
+        let position=snap.map_or(position,|s|s.value);
         let position = position.clamp(
             -(motion_core::MAX_FRAMES as f64),
             motion_core::MAX_FRAMES as f64,
@@ -887,8 +901,16 @@ pub(super) fn render(
         }
     }
     if let Some((object, start, in_frame, duration, last)) = panels.timeline.moving.as_mut() {
-        let next = (*in_frame as f32 + (input.mouse[0] - *start) / ppf)
-            .round()
+        let raw=*in_frame as f64+(input.mouse[0]-*start) as f64/ppf as f64;
+        let candidates=candidates_for(Some(*object),true);
+        let snap=if input.modifiers.alt {None}else {
+            let a=motion_ui::snap::nearest(candidates.iter().copied(),raw,ppf as f64,8.);
+            let b=motion_ui::snap::nearest(candidates.iter().copied(),raw+*duration as f64,ppf as f64,8.);
+            match (a,b) { (Some(a),Some(b))=>Some(if a.distance_pixels<=b.distance_pixels {(a.value,a.target)}else{(b.value-*duration as f64,b.target)}),
+                (Some(a),None)=>Some((a.value,a.target)),(None,Some(b))=>Some((b.value-*duration as f64,b.target)),_=>None }
+        };
+        panels.timeline.snap_guide=snap.map(|s|s.1);
+        let next = (snap.map_or(raw,|s|s.0) as f32).round()
             .clamp(
                 -(motion_core::MAX_FRAMES as f32),
                 motion_core::MAX_FRAMES as f32 - *duration as f32,
@@ -905,8 +927,26 @@ pub(super) fn render(
             panels.timeline.moving = None;
         }
     }
+    if panels.timeline.scrubbing {
+        panels.cursor=Some(motion_ui::cursor::Cursor::ResizeEW);
+        let frame=scrub_frame.unwrap_or(state["frame"].as_f64().unwrap_or(0.));
+        panels.drag_readout=Some((input.mouse,format!("{}  ({:+.0} f)",timecode(frame,fps as u32),frame-state["frame"].as_f64().unwrap_or(0.))));
+    }else if let Some((_,_,initial,_,last))=&panels.timeline.moving {
+        panels.cursor=Some(motion_ui::cursor::Cursor::Grabbing);
+        panels.drag_readout=Some((input.mouse,format!("{}  ({:+} f)",timecode(*last as f64,fps as u32),last-initial)));
+    }else if let Some((_,start,end,head,last))=&panels.timeline.trimming {
+        panels.cursor=Some(motion_ui::cursor::Cursor::ResizeEW);
+        panels.drag_readout=Some((input.mouse,format!("{}  ({:+.2} f)",timecode(*last,fps as u32),last-if *head {*start}else{*end})));
+    }
+    if panels.timeline.scrubbing||panels.timeline.moving.is_some()||panels.timeline.trimming.is_some() {
+        if let Some(frame)=panels.timeline.snap_guide {
+            let x=x_of(frame);if x>=track.min[0]&&x<=track.max[0] {
+                paint::rect(list,Rect::new(x,ruler.min[1],1.,body.max[1]-ruler.min[1]),motion_ui::Color::rgb(255,210,60));
+            }
+        }
+    }else{panels.timeline.snap_guide=None;}
     let frame = if panels.timeline.scrubbing {
-        frame_of(input.mouse[0])
+        scrub_frame.unwrap_or(state["frame"].as_f64().unwrap_or(0.))
     } else {
         state["frame"].as_f64().unwrap_or(0.)
     };
@@ -1041,6 +1081,32 @@ mod property_tests {
     use super::*;
     fn fixture() -> Value {
         serde_json::json!({"frame":21,"project":{"frames":120,"fps":30,"layers":[{"id":7,"name":"Layer","visible":true,"three_d":true}]},"sampledLayers":[{"id":7,"position":[10,20,30],"rotation":[0,0,0],"scale":[100,100,100],"opacity":1}],"timeline_layers":[{"object":7,"properties":{"position":{"separated":true,"axes":{"x":{"keys":[{"frame":0},{"frame":60}]},"y":{"keys":[{"frame":15},{"frame":90}]},"z":{"keys":[]}}}}}]})
+    }
+    #[test]
+    fn playhead_never_snaps_to_itself_and_repaint_drops_stale_guide() {
+        let mut panels=Panels::default();let mut atlas=TextAtlas::from_system(12.).unwrap();
+        let area=Rect::new(0.,0.,1200.,600.);let ppf=(1200.-GUTTER)/120.;
+        let point=|frame:f32| [GUTTER+frame*ppf,45.];
+        let mut actions=vec![];
+        render(&mut PaintList::default(),&mut atlas,area,&mut panels,&fixture(),&Input {
+            mouse:point(22.),pressed:Some((MouseButton::Left,point(22.))),held:Some(MouseButton::Left),..Default::default()
+        },&mut actions);
+        assert!(matches!(actions.as_slice(),[Action::Seek(frame)] if *frame==22.));
+        assert_eq!(panels.timeline.snap_guide,None);
+        actions.clear();
+        render(&mut PaintList::default(),&mut atlas,area,&mut panels,&fixture(),&Input {
+            mouse:point(60.),held:Some(MouseButton::Left),..Default::default()
+        },&mut actions);
+        assert_eq!(panels.timeline.snap_guide,Some(60.));
+        actions.clear();
+        // Pending seeks can repaint at a newer pointer without consuming its input.
+        render(&mut PaintList::default(),&mut atlas,area,&mut panels,&fixture(),&Input {
+            mouse:point(40.),..Default::default()
+        },&mut actions);
+        assert!(actions.is_empty());assert_eq!(panels.timeline.snap_guide,None);
+        let mut alt=Input {mouse:point(60.),..Default::default()};alt.modifiers.alt=true;
+        render(&mut PaintList::default(),&mut atlas,area,&mut panels,&fixture(),&alt,&mut actions);
+        assert!(actions.is_empty());assert_eq!(panels.timeline.snap_guide,None);
     }
     #[test]
     fn holding_the_same_timeline_frame_leaves_room_for_presentation() {

@@ -407,8 +407,7 @@ fn merge(base: &mut serde_json::Value, overrides: serde_json::Value) {
 }
 
 pub fn box_style(list: &mut PaintList, area: Rect, style: ResolvedStyle) {
-    paint::rect(list, area, style.background);
-    paint::stroke(list, area, style.border, style.border_width);
+    paint::box_rect(list,area,style.background,style.border,style.border_width,0.);
 }
 pub fn text_style(
     list: &mut PaintList,

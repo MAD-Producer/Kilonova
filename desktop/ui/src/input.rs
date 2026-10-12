@@ -146,6 +146,8 @@ pub enum Event {
 /// Accumulated input for one frame.
 #[derive(Default, Clone)]
 pub struct Input {
+    /// New events await a real interaction pass, independently of paint dirtiness.
+    pub pending: bool,
     pub focus_lost: bool,
     pub held: Option<MouseButton>,
     pub mouse: [f32; 2],
@@ -169,6 +171,7 @@ pub struct Input {
 
 impl Input {
     pub fn begin_frame(&mut self) {
+        self.pending = false;
         self.focus_lost = false;
         self.pressed = None;
         self.released = None;

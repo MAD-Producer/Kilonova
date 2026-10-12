@@ -214,6 +214,18 @@ pub struct NumberEditor {
     drag: Option<Drag>,
 }
 impl NumberEditor {
+    pub fn drag_values(&self) -> Option<(f64, f64)> {
+        self.drag.as_ref().filter(|drag| drag.begun).map(|drag| (drag.original, drag.value))
+    }
+    pub fn interacting(&self) -> bool {
+        self.text.active() || self.drag.is_some()
+    }
+    pub fn dragging(&self) -> bool {
+        self.drag.as_ref().is_some_and(|d| d.begun)
+    }
+    pub fn display_value(&self, current: f64) -> f64 {
+        self.drag.as_ref().map_or(current, |d| d.value)
+    }
     pub fn cancel(&mut self) -> Vec<NumberEvent> {
         let events = self
             .drag
