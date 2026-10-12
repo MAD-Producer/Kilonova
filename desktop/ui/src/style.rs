@@ -41,6 +41,10 @@ pub struct ResolvedStyle {
     pub border_width: f32,
     pub padding: f32,
     pub font_size: f32,
+    pub radius: f32,
+    pub shadow_color: Color,
+    pub shadow_blur: f32,
+    pub shadow_offset_y: f32,
 }
 impl Default for ResolvedStyle {
     fn default() -> Self {
@@ -51,6 +55,10 @@ impl Default for ResolvedStyle {
             border_width: 0.,
             padding: 5.,
             font_size: 14.,
+            radius: 0.,
+            shadow_color: Color::rgba(0, 0, 0, 0.),
+            shadow_blur: 0.,
+            shadow_offset_y: 0.,
         }
     }
 }
@@ -69,6 +77,10 @@ struct Patch {
     border_width: Option<Size>,
     padding: Option<Size>,
     font_size: Option<Size>,
+    radius: Option<Size>,
+    shadow_color: Option<String>,
+    shadow_blur: Option<Size>,
+    shadow_offset_y: Option<Size>,
 }
 #[derive(Clone, Default, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
@@ -80,6 +92,10 @@ struct Rule {
     border_width: Option<Size>,
     padding: Option<Size>,
     font_size: Option<Size>,
+    radius: Option<Size>,
+    shadow_color: Option<String>,
+    shadow_blur: Option<Size>,
+    shadow_offset_y: Option<Size>,
     states: BTreeMap<State, Patch>,
 }
 impl Rule {
@@ -91,15 +107,35 @@ impl Rule {
             border_width: self.border_width.clone(),
             padding: self.padding.clone(),
             font_size: self.font_size.clone(),
+            radius: self.radius.clone(),
+            shadow_color: self.shadow_color.clone(),
+            shadow_blur: self.shadow_blur.clone(),
+            shadow_offset_y: self.shadow_offset_y.clone(),
         }
     }
 }
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct MotionTokens {
+    #[serde(default)]
+    easing: crate::motion::Easing,
+}
+impl Default for MotionTokens {
+    fn default() -> Self {
+        Self {
+            easing: Default::default(),
+        }
+    }
+}
+
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct Tokens {
     font_family: String,
     colors: BTreeMap<String, String>,
     sizes: BTreeMap<String, f32>,
+    #[serde(default)]
+    motion: MotionTokens,
 }
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -112,6 +148,7 @@ struct Document {
 pub struct StyleSheet {
     document: Document,
     compiled: BTreeMap<String, [ResolvedStyle; 64]>,
+    colors: BTreeMap<String, Color>,
 }
 impl StyleSheet {
     pub fn from_json(bytes: &[u8]) -> Result<Self, String> {
@@ -125,7 +162,7 @@ impl StyleSheet {
     pub fn load(path: &Path) -> Result<Self, String> {
         let mut bytes = vec![];
         std::fs::File::open(path)
-            .map_err(|e| e.to_string())?
+            .map_err(|e| format!("{}: {e}", path.display()))?
             .take(MAX_BYTES as u64 + 1)
             .read_to_end(&mut bytes)
             .map_err(|e| e.to_string())?;
@@ -151,11 +188,12 @@ impl StyleSheet {
     pub fn load_overrides(&self, path: &Path) -> Result<Self, String> {
         let mut bytes = vec![];
         std::fs::File::open(path)
-            .map_err(|e| e.to_string())?
+            .map_err(|e| format!("{}: {e}", path.display()))?
             .take(MAX_BYTES as u64 + 1)
             .read_to_end(&mut bytes)
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| format!("{}: {e}", path.display()))?;
         self.with_overrides(&bytes)
+            .map_err(|e| format!("{}: {e}", path.display()))
     }
     pub fn font_family(&self) -> &str {
         &self.document.tokens.font_family
@@ -165,6 +203,18 @@ impl StyleSheet {
     }
     pub fn resolve(&self, class: &str, states: States) -> Option<ResolvedStyle> {
         self.compiled.get(class).map(|all| all[states.0 as usize])
+    }
+    pub fn color(&self, name: &str) -> Color {
+        self.colors
+            .get(name)
+            .copied()
+            .unwrap_or(Color::rgba(0, 0, 0, 0.))
+    }
+    pub fn easing(&self) -> crate::motion::Easing {
+        self.document.tokens.motion.easing
+    }
+    pub fn colors(&self) -> crate::theme::Colors {
+        crate::theme::Colors::from_sheet(self)
     }
     pub fn metric(&self, name: &str, fallback: f32) -> f32 {
         self.document
@@ -224,11 +274,29 @@ impl StyleSheet {
                 return Err(format!("invalid size token {name}"));
             }
         }
+        for name in [
+            "row.height",
+            "field.height",
+            "panel.header.height",
+            "label.column",
+            "value.min_width",
+            "checkbox.size",
+        ] {
+            if document.tokens.sizes.get(name).is_some_and(|v| *v < 1.) {
+                return Err(format!("invalid positive size token {name}"));
+            }
+        }
         let body = document.tokens.sizes["font.body"];
         if !(1.0..=128.0).contains(&body) {
             return Err("font.body must be 1..128 logical pixels".into());
         }
         let mut sheet = Self {
+            colors: document
+                .tokens
+                .colors
+                .iter()
+                .map(|(k, v)| Ok((k.clone(), color(v)?)))
+                .collect::<Result<_, String>>()?,
             document,
             compiled: BTreeMap::new(),
         };
@@ -239,7 +307,9 @@ impl StyleSheet {
             let mut all = [ResolvedStyle::default(); 64];
             for (mask, style) in all.iter_mut().enumerate() {
                 for rule in &chain {
-                    sheet.apply(style, &rule.patch())?;
+                    sheet
+                        .apply(style, &rule.patch())
+                        .map_err(|e| format!("style {name}: {e}"))?;
                 }
                 for state in [
                     State::Selected,
@@ -252,7 +322,9 @@ impl StyleSheet {
                     if States(mask as u8).contains(state) {
                         for rule in &chain {
                             if let Some(patch) = rule.states.get(&state) {
-                                sheet.apply(style, patch)?;
+                                sheet
+                                    .apply(style, patch)
+                                    .map_err(|e| format!("style {name}: {e}"))?;
                             }
                         }
                     }
@@ -334,6 +406,27 @@ impl StyleSheet {
         if let Some(v) = &patch.font_size {
             style.font_size = resolve_size(v)?;
         }
+        if let Some(v) = &patch.radius {
+            style.radius = resolve_size(v)?;
+        }
+        if let Some(v) = &patch.shadow_color {
+            style.shadow_color = resolve_color(v)?;
+        }
+        if let Some(v) = &patch.shadow_blur {
+            style.shadow_blur = resolve_size(v)?;
+        }
+        if let Some(v) = &patch.shadow_offset_y {
+            style.shadow_offset_y = resolve_size(v)?;
+        }
+        for (name, value, max) in [
+            ("radius", style.radius, 128.),
+            ("shadow_blur", style.shadow_blur, 64.),
+            ("shadow_offset_y", style.shadow_offset_y, 64.),
+        ] {
+            if !value.is_finite() || !(0.0..=max).contains(&value) {
+                return Err(format!("invalid style property {name}: {value}"));
+            }
+        }
         if !style.border_width.is_finite()
             || !(0.0..=32.).contains(&style.border_width)
             || !style.padding.is_finite()
@@ -350,11 +443,20 @@ impl StyleSheet {
         serde_json::to_string(&self.document).expect("validated stylesheet can serialize")
     }
 }
+pub fn default_stylesheet_arc() -> std::sync::Arc<StyleSheet> {
+    static SHEET: OnceLock<std::sync::Arc<StyleSheet>> = OnceLock::new();
+    SHEET
+        .get_or_init(|| {
+            std::sync::Arc::new(
+                StyleSheet::from_json(DEFAULT_SOURCE.as_bytes())
+                    .expect("bundled stylesheet must compile"),
+            )
+        })
+        .clone()
+}
 pub fn default_stylesheet() -> &'static StyleSheet {
-    static SHEET: OnceLock<StyleSheet> = OnceLock::new();
-    SHEET.get_or_init(|| {
-        StyleSheet::from_json(DEFAULT_SOURCE.as_bytes()).expect("bundled stylesheet must compile")
-    })
+    static SHEET: OnceLock<std::sync::Arc<StyleSheet>> = OnceLock::new();
+    SHEET.get_or_init(default_stylesheet_arc).as_ref()
 }
 fn valid_name(name: &str) -> Result<(), String> {
     if name.is_empty()
@@ -407,7 +509,24 @@ fn merge(base: &mut serde_json::Value, overrides: serde_json::Value) {
 }
 
 pub fn box_style(list: &mut PaintList, area: Rect, style: ResolvedStyle) {
-    paint::box_rect(list,area,style.background,style.border,style.border_width,0.);
+    if style.shadow_color.0[3] > 0. {
+        paint::shadow(
+            list,
+            area,
+            style.shadow_color,
+            style.radius,
+            style.shadow_blur,
+            style.shadow_offset_y,
+        );
+    }
+    paint::box_rect(
+        list,
+        area,
+        style.background,
+        style.border,
+        style.border_width,
+        style.radius,
+    );
 }
 pub fn text_style(
     list: &mut PaintList,
@@ -417,7 +536,7 @@ pub fn text_style(
     style: ResolvedStyle,
     align: Align,
 ) {
-    let mut content = PaintList::default();
+    let mut content = list.child();
     ui::text_sized(
         &mut content,
         atlas,

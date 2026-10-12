@@ -7,14 +7,21 @@ pub(super) fn label(
     text: &str,
     muted: bool,
 ) {
+    let styles = list.styles();
+
     motion_ui::style::text_style(
         list,
         atlas,
         area,
         text,
-        motion_ui::style::default_stylesheet()
+        styles
+            .as_ref()
             .resolve(
-                if muted { "label.caption" } else { "label" },
+                if muted {
+                    "label.small.muted"
+                } else {
+                    "label.small"
+                },
                 Default::default(),
             )
             .unwrap(),

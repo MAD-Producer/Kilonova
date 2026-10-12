@@ -4,7 +4,10 @@ impl Shell {
     pub(crate) fn playback_ready(&self, now: Instant) -> bool {
         self.playback.is_some()
             && !playback_input_blocks(&self.input)
-            && self.floating.values().all(|window| !playback_input_blocks(&window.input))
+            && self
+                .floating
+                .values()
+                .all(|window| !playback_input_blocks(&window.input))
             && now >= self.next_composition
             && self.attached
             && self.rendering.is_empty()
@@ -16,13 +19,19 @@ impl Shell {
     }
     pub(crate) fn lose_focus(&mut self) {
         self.workspace.cancel();
-        self.actions.extend(panels::cancel_interaction(&mut self.panels));
+        self.actions
+            .extend(panels::cancel_interaction(&mut self.panels));
         self.translate(Event::FocusLost);
     }
     pub(crate) fn ui_interval(&self) -> Duration {
-        let rate = self.window.as_ref().and_then(|w|w.current_monitor())
-            .and_then(|m|m.refresh_rate_millihertz()).map(|v|v as f64/1000.)
-            .unwrap_or(60.).clamp(30.,240.);
+        let rate = self
+            .window
+            .as_ref()
+            .and_then(|w| w.current_monitor())
+            .and_then(|m| m.refresh_rate_millihertz())
+            .map(|v| v as f64 / 1000.)
+            .unwrap_or(60.)
+            .clamp(30., 240.);
         Duration::from_secs_f64(1. / rate)
     }
     pub(crate) fn translate(&mut self, event: Event) {
@@ -49,6 +58,7 @@ impl Shell {
     pub(crate) fn draw_commands(&mut self, size: [f32; 2]) -> (PaintList, Vec<panels::Action>) {
         self.atlas.set_pixel_ratio(self.scale);
         let mut paint = self.engine.take_paint();
+        paint.stylesheet = self.panels.styles.clone();
         let neutral = Input::default();
         let project_modal = self.project_modal();
         let actions = panels::chrome(
@@ -199,7 +209,15 @@ impl Shell {
         project_lifecycle::render(self, &mut paint, size);
         self.input.begin_frame(); // Clear transient input only after it has been consumed.
         if let Some(window) = &self.window {
-            window.set_cursor(self.cursors.get(self.workspace.drag_cursor().or(self.panels.cursor).unwrap_or_default(),self.scale));
+            window.set_cursor(
+                self.cursors.get(
+                    self.workspace
+                        .drag_cursor()
+                        .or(self.panels.cursor)
+                        .unwrap_or_default(),
+                    self.scale,
+                ),
+            );
         }
         (paint, actions)
     }
@@ -276,7 +294,10 @@ impl Shell {
         }
         if let Some(press) = self.input.pressed {
             if std::env::var_os("MOTION_TRACE_UI").is_some() {
-                eprintln!("[motion-ui] input press {:?}, focused {:?}, expanded {:?}", press, self.panels.focused, self.panels.timeline.expanded);
+                eprintln!(
+                    "[motion-ui] input press {:?}, focused {:?}, expanded {:?}",
+                    press, self.panels.focused, self.panels.timeline.expanded
+                );
             }
         }
         let header_hit = if self.panels.header_size == Some(size) {
@@ -427,7 +448,7 @@ impl Shell {
         self.engine
             .float_window(key, window.clone(), size.width, size.height)?;
         let scale = window.scale_factor() as f32;
-        self.cursors.prepare(event_loop,scale);
+        self.cursors.prepare(event_loop, scale);
         self.workspace.float(id);
         self.floating.insert(
             window.id(),
@@ -515,14 +536,18 @@ impl Shell {
         let scale = f.scale;
         self.atlas.set_pixel_ratio(scale);
         let mut paint = self.engine.take_paint();
+        paint.stylesheet = self.panels.styles.clone();
         let neutral = Input {
             mouse: f.input.mouse,
             modifiers: f.input.modifiers,
             ..Default::default()
         };
         let acknowledged = self.present_due;
-        let blocked =
-            acknowledged || project_modal || self.dialog.is_some() || self.node_examples.is_some() || self.node_close_prompt.is_some();
+        let blocked = acknowledged
+            || project_modal
+            || self.dialog.is_some()
+            || self.node_examples.is_some()
+            || self.node_close_prompt.is_some();
         let actions = panels::floating_chrome(
             &mut paint,
             &mut self.atlas,
@@ -532,8 +557,10 @@ impl Shell {
             &self.state,
             if blocked { &neutral } else { &f.input },
         );
-        f.window
-            .set_cursor(self.cursors.get(self.panels.cursor.unwrap_or_default(),scale));
+        f.window.set_cursor(
+            self.cursors
+                .get(self.panels.cursor.unwrap_or_default(), scale),
+        );
         self.actions.extend(actions);
         if !acknowledged {
             f.input.begin_frame();
@@ -630,7 +657,7 @@ impl Shell {
             }
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 f.scale = scale_factor as f32;
-                self.cursors.prepare(event_loop,f.scale);
+                self.cursors.prepare(event_loop, f.scale);
                 self.dirty = true;
                 self.redraw();
                 return;
@@ -712,12 +739,18 @@ impl Shell {
 // Hover changes UI paint, not composition time. Preserve the ordering barrier
 // for real interactions without starving playback on a stream of pointer moves.
 fn playback_input_blocks(input: &Input) -> bool {
-    input.pending && (
-        input.pressed.is_some() || input.released.is_some() || input.held.is_some()
-        || input.wheel != [0.; 2] || input.long_press.is_some() || input.focus_lost
-        || !input.keys.is_empty() || !input.released_keys.is_empty()
-        || !input.text.is_empty() || input.composing || input.ime_consumed
-    )
+    input.pending
+        && (input.pressed.is_some()
+            || input.released.is_some()
+            || input.held.is_some()
+            || input.wheel != [0.; 2]
+            || input.long_press.is_some()
+            || input.focus_lost
+            || !input.keys.is_empty()
+            || !input.released_keys.is_empty()
+            || !input.text.is_empty()
+            || input.composing
+            || input.ime_consumed)
 }
 
 #[cfg(test)]
@@ -732,7 +765,9 @@ mod playback_tests {
         shell.playback = Some((Instant::now() - Duration::from_millis(150), 0.));
         for tick in 0..12 {
             for movement in 0..120 {
-                shell.translate(Event::MouseMoved { position: [movement as f32, tick as f32] });
+                shell.translate(Event::MouseMoved {
+                    position: [movement as f32, tick as f32],
+                });
             }
             assert!(shell.input.pending);
             shell.next_composition = Instant::now();
@@ -748,7 +783,10 @@ mod playback_tests {
 
     #[test]
     fn active_interaction_and_acknowledged_frames_still_block_playback() {
-        let mut input = Input { pending: true, ..Default::default() };
+        let mut input = Input {
+            pending: true,
+            ..Default::default()
+        };
         assert!(!playback_input_blocks(&input));
         input.pressed = Some((MouseButton::Left, [10., 10.]));
         assert!(playback_input_blocks(&input));
@@ -776,7 +814,9 @@ mod playback_tests {
 
 impl Shell {
     pub(crate) fn advance_playback(&mut self) -> Result<(), String> {
-        if std::env::var_os("MOTION_TRACE_UI").is_some(){eprintln!("[motion-ui] content tick");}
+        if std::env::var_os("MOTION_TRACE_UI").is_some() {
+            eprintln!("[motion-ui] content tick");
+        }
         let Some((start, origin)) = self.playback else {
             return Ok(());
         };

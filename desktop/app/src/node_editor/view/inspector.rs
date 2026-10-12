@@ -35,12 +35,15 @@ impl NodeEditor {
         input: &Input,
         language: Language,
     ) {
-        let mut panel = PaintList::default();
-        paint::rect(&mut panel, area, palette::PANEL);
+        let styles = list.styles();
+        let colors = styles.colors();
+
+        let mut panel = list.child();
+        paint::rect(&mut panel, area, colors.PANEL);
         paint::rect(
             &mut panel,
             Rect::new(area.min[0], area.min[1], 1., area.height()),
-            palette::BORDER,
+            colors.BORDER,
         );
         let node = self
             .primary
@@ -52,7 +55,7 @@ impl NodeEditor {
             atlas,
             Rect::new(area.min[0] + 12., area.min[1] + 5., area.width() - 24., 26.),
             language.text("节点属性", "NODE PROPERTIES"),
-            palette::TEXT,
+            colors.TEXT,
             Align::Left,
         );
         let content = Rect::new(
@@ -64,7 +67,7 @@ impl NodeEditor {
         if area.contains(input.mouse) && !input.modifiers.alt {
             self.inspector_scroll = (self.inspector_scroll + input.wheel[1]).max(0.);
         }
-        let mut body = PaintList::default();
+        let mut body = list.child();
         let mut y = content.min[1] - self.inspector_scroll;
         if let Some(node) = node {
             label(
@@ -72,7 +75,7 @@ impl NodeEditor {
                 atlas,
                 Rect::new(content.min[0], y, content.width(), 27.),
                 &operation_title(&node.operation, language),
-                palette::TEXT,
+                colors.TEXT,
                 Align::Left,
             );
             y += 26.;
@@ -81,7 +84,7 @@ impl NodeEditor {
                 atlas,
                 Rect::new(content.min[0], y, content.width(), 23.),
                 &node.id,
-                palette::TEXT_MUTED,
+                colors.TEXT_MUTED,
                 Align::Left,
             );
             y += 30.;
@@ -144,8 +147,8 @@ impl NodeEditor {
                     paint::checkerboard(
                         &mut body,
                         swatch,
-                        palette::TRANSPARENT_LIGHT,
-                        palette::TRANSPARENT_DARK,
+                        colors.TRANSPARENT_LIGHT,
+                        colors.TRANSPARENT_DARK,
                         7.,
                     );
                     paint::rect(&mut body, swatch, Color(*value));
@@ -359,7 +362,7 @@ impl NodeEditor {
                         atlas,
                         Rect::new(content.min[0], y, content.width(), 23.),
                         language.text("仅当前图层宿主图像", "Host image of the current layer"),
-                        palette::TEXT_MUTED,
+                        colors.TEXT_MUTED,
                         Align::Left,
                     );
                     y += 27.;
@@ -431,7 +434,7 @@ impl NodeEditor {
                                 type_label(p.value_type),
                                 language.text("稳定参数ID", "Stable parameter ID")
                             ),
-                            palette::TEXT_MUTED,
+                            colors.TEXT_MUTED,
                             Align::Left,
                         );
                         y += 29.;
@@ -566,7 +569,7 @@ impl NodeEditor {
                     atlas,
                     Rect::new(content.min[0], y, content.width(), 24.),
                     language.text("输入连接", "INPUT CONNECTIONS"),
-                    palette::TEXT_MUTED,
+                    colors.TEXT_MUTED,
                     Align::Left,
                 );
                 y += 27.;
@@ -633,7 +636,7 @@ impl NodeEditor {
                 atlas,
                 Rect::new(content.min[0], y, content.width(), 27.),
                 language.text("图与导出设置", "GRAPH & EXPORT"),
-                palette::TEXT,
+                colors.TEXT,
                 Align::Left,
             );
             y += 33.;
@@ -706,7 +709,7 @@ impl NodeEditor {
                     self.document.nodes.len(),
                     self.document.public_parameters.len()
                 ),
-                palette::TEXT_MUTED,
+                colors.TEXT_MUTED,
                 Align::Left,
             );
             y += 40.;
@@ -784,7 +787,7 @@ impl NodeEditor {
                 atlas,
                 Rect::new(content.min[0], y, content.width(), 80.),
                 language.text(zh, en),
-                palette::TEXT_MUTED,
+                colors.TEXT_MUTED,
                 4,
             );
             if let Ok(specs) = motion_graph::node_port_specs(node, &self.document.public_parameters)
@@ -801,7 +804,7 @@ impl NodeEditor {
                         atlas,
                         Rect::new(content.min[0], y + 6., content.width(), 24.),
                         heading,
-                        palette::TEXT,
+                        colors.TEXT,
                         Align::Left,
                     );
                     y += 34.;
@@ -816,7 +819,7 @@ impl NodeEditor {
                                 language.text(spec.name, spec.english_name),
                                 language.text(zh, en)
                             ),
-                            palette::ACCENT,
+                            colors.ACCENT,
                             Align::Left,
                         );
                         y += 26.;
@@ -825,7 +828,7 @@ impl NodeEditor {
                             atlas,
                             Rect::new(content.min[0], y, content.width(), 60.),
                             language.text(spec.description, spec.english_description),
-                            palette::TEXT_MUTED,
+                            colors.TEXT_MUTED,
                             3,
                         ) + 6.;
                     }
@@ -843,7 +846,7 @@ impl NodeEditor {
                 } else {
                     language.text("上次有效编译", "LAST VALID COMPILE")
                 },
-                palette::TEXT_MUTED,
+                colors.TEXT_MUTED,
                 Align::Left,
             );
             y += 25.;
@@ -855,7 +858,7 @@ impl NodeEditor {
                     "{} pass · {} sample sites · loop {}",
                     report.passes, report.total_sample_sites, report.loop_work
                 ),
-                palette::TEXT_MUTED,
+                colors.TEXT_MUTED,
                 Align::Left,
             );
             y += 27.;
@@ -879,12 +882,15 @@ impl NodeEditor {
         value: &str,
         input: &Input,
     ) -> bool {
+        let styles = list.styles();
+        let colors = styles.colors();
+
         label(
             list,
             atlas,
             Rect::new(area.min[0], *y, 66., 27.),
             name,
-            palette::TEXT_MUTED,
+            colors.TEXT_MUTED,
             Align::Left,
         );
         let clicked = ui::button(
@@ -910,6 +916,9 @@ impl NodeEditor {
         value: String,
         input: &Input,
     ) {
+        let styles = list.styles();
+        let colors = styles.colors();
+
         let rect = Rect::new(area.min[0] + 68., *y, (area.width() - 68.).max(1.), 27.);
         let active = self.field.as_ref().is_some_and(|f| f.binding == binding);
         label(
@@ -917,10 +926,10 @@ impl NodeEditor {
             atlas,
             Rect::new(area.min[0], *y, 64., 27.),
             name,
-            palette::TEXT_MUTED,
+            colors.TEXT_MUTED,
             Align::Left,
         );
-        paint::rect(list, rect, palette::SUNKEN);
+        paint::rect(list, rect, colors.SUNKEN);
         if active {
             paint::stroke(
                 list,
@@ -928,7 +937,7 @@ impl NodeEditor {
                 if self.field.as_ref().unwrap().error.is_some() {
                     Color::rgb(230, 128, 103)
                 } else {
-                    palette::ACCENT
+                    colors.ACCENT
                 },
                 1.,
             );
@@ -939,24 +948,20 @@ impl NodeEditor {
             &value
         };
         if active && self.field.as_ref().unwrap().replace {
-            paint::rect(list, rect.shrink(4.), palette::ACCENT.with_alpha(0.2));
+            paint::rect(list, rect.shrink(4.), colors.ACCENT.with_alpha(0.2));
         }
         label(
             list,
             atlas,
             rect.shrink(5.),
             shown,
-            palette::TEXT,
+            colors.TEXT,
             Align::Left,
         );
         if active && !self.field.as_ref().unwrap().replace {
             let cursor = self.field.as_ref().unwrap().cursor;
             let x = (rect.min[0] + 5. + atlas.measure(&shown[..cursor])).min(rect.max[0] - 5.);
-            paint::rect(
-                list,
-                Rect::new(x, rect.min[1] + 6., 1., 15.),
-                palette::ACCENT,
-            );
+            paint::rect(list, Rect::new(x, rect.min[1] + 6., 1., 15.), colors.ACCENT);
         }
         if area.contains(input.mouse) && hit(input, rect) {
             if !active && self.commit_field().is_ok() {

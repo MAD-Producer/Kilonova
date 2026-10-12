@@ -9,19 +9,22 @@ impl NodeEditor {
         input: &Input,
         language: Language,
     ) {
-        let mut paint = PaintList::default();
-        paint::rect(&mut paint, area, palette::PANEL);
+        let styles = list.styles();
+        let colors = styles.colors();
+
+        let mut paint = list.child();
+        paint::rect(&mut paint, area, colors.PANEL);
         paint::rect(
             &mut paint,
             Rect::new(area.max[0] - 1., area.min[1], 1., area.height()),
-            palette::BORDER,
+            colors.BORDER,
         );
         label(
             &mut paint,
             atlas,
             Rect::new(area.min[0] + 12., area.min[1] + 6., area.width() - 24., 26.),
             language.text("节点库", "NODE LIBRARY"),
-            palette::TEXT,
+            colors.TEXT,
             Align::Left,
         );
         let search = Rect::new(
@@ -30,9 +33,9 @@ impl NodeEditor {
             area.width() - 20.,
             27.,
         );
-        paint::rect(&mut paint, search, palette::SUNKEN);
+        paint::rect(&mut paint, search, colors.SUNKEN);
         if self.search_focus {
-            paint::stroke(&mut paint, search, palette::ACCENT, 1.);
+            paint::stroke(&mut paint, search, colors.ACCENT, 1.);
         }
         label(
             &mut paint,
@@ -44,9 +47,9 @@ impl NodeEditor {
                 &self.search
             },
             if self.search.is_empty() {
-                palette::TEXT_MUTED
+                colors.TEXT_MUTED
             } else {
-                palette::TEXT
+                colors.TEXT
             },
             Align::Left,
         );
@@ -79,7 +82,7 @@ impl NodeEditor {
             self.library_scroll = (self.library_scroll + input.wheel[1])
                 .clamp(0., (extent - content.height()).max(0.));
         }
-        let mut rows = PaintList::default();
+        let mut rows = list.child();
         let mut y = content.min[1] - self.library_scroll;
         let mut category = None;
         for item in items {
@@ -89,7 +92,7 @@ impl NodeEditor {
                     atlas,
                     Rect::new(content.min[0] + 5., y, content.width() - 10., 27.),
                     item.category.title(language),
-                    palette::TEXT_MUTED,
+                    colors.TEXT_MUTED,
                     Align::Left,
                 );
                 y += 29.;
@@ -99,7 +102,7 @@ impl NodeEditor {
             if intersects(rect, content) {
                 let hovered = rect.contains(input.mouse) && content.contains(input.mouse);
                 if hovered {
-                    paint::rect(&mut rows, rect, palette::SUNKEN);
+                    paint::rect(&mut rows, rect, colors.SUNKEN);
                 }
                 paint::rect(
                     &mut rows,
@@ -111,7 +114,7 @@ impl NodeEditor {
                     atlas,
                     Rect::new(rect.min[0] + 20., rect.min[1], rect.width() - 24., 27.),
                     &item.title(language),
-                    palette::TEXT,
+                    colors.TEXT,
                     Align::Left,
                 );
                 if content.contains(input.mouse) && hit(input, rect) && self.commit_field().is_ok()

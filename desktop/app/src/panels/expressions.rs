@@ -8,7 +8,10 @@ pub(super) fn render(
     input: &Input,
     out: &mut Vec<Action>,
 ) {
-    paint::rect(list, area, palette::PANEL);
+    let styles = list.styles();
+    let colors = styles.colors();
+
+    paint::rect(list, area, colors.PANEL);
     let Some(layer) = auxiliary::selected(panels, state) else {
         label(
             list,
@@ -66,7 +69,7 @@ pub(super) fn render(
         }
     }
     let field = Rect::new(area.min[0] + 10., y, area.width() - 20., 72.);
-    paint::rect(list, field, palette::SUNKEN);
+    paint::rect(list, field, colors.SUNKEN);
     label(
         list,
         atlas,

@@ -1,4 +1,10 @@
 //! Stateful edit widgets. They emit transactions; callers decide how values enter an engine.
+pub mod numeric_behavior;
+mod property_layout;
+pub use property_layout::PropertyColumns;
+mod composite;
+pub use composite::*;
+
 use crate::{
     input::{Input, Key, MouseButton, Rect},
     paint::{self, PaintList},
@@ -114,11 +120,13 @@ impl TextEditor {
         None
     }
     pub fn draw(&self, list: &mut PaintList, atlas: &mut TextAtlas, area: Rect) {
+        let styles = list.styles();
+
         self.draw_styled(
             list,
             atlas,
             area,
-            crate::style::default_stylesheet(),
+            styles.as_ref(),
             "field",
             crate::style::States::default(),
         );
@@ -210,12 +218,16 @@ struct Drag {
 }
 #[derive(Default)]
 pub struct NumberEditor {
+    pub drag_threshold: Option<f32>,
     pub text: TextEditor,
     drag: Option<Drag>,
 }
 impl NumberEditor {
     pub fn drag_values(&self) -> Option<(f64, f64)> {
-        self.drag.as_ref().filter(|drag| drag.begun).map(|drag| (drag.original, drag.value))
+        self.drag
+            .as_ref()
+            .filter(|drag| drag.begun)
+            .map(|drag| (drag.original, drag.value))
     }
     pub fn interacting(&self) -> bool {
         self.text.active() || self.drag.is_some()
@@ -272,7 +284,13 @@ impl NumberEditor {
         if let Some(drag) = &mut self.drag {
             let delta = input.mouse[0] - drag.mouse;
             if !drag.begun
-                && delta.abs().max(input.pointer_travel) >= 3.
+                && numeric_behavior::started(
+                    delta,
+                    input.pointer_travel,
+                    self.drag_threshold.unwrap_or_else(|| {
+                        crate::style::default_stylesheet().metric("motion.drag_threshold", 3.)
+                    }),
+                )
                 && (input.dragging() || input.released.is_some())
             {
                 drag.begun = true;
@@ -282,13 +300,7 @@ impl NumberEditor {
                 });
             }
             if drag.begun && (input.dragging() || input.released.is_some()) {
-                let fine = if input.modifiers.shift {
-                    0.1
-                } else if input.modifiers.control {
-                    10.
-                } else {
-                    1.
-                };
+                let fine = numeric_behavior::step(input);
                 let speed = if options.speed.is_finite() {
                     options.speed
                 } else {
@@ -344,13 +356,15 @@ impl NumberEditor {
         current: f64,
         options: NumberOptions,
     ) {
+        let styles = list.styles();
+
         self.draw_styled(
             list,
             atlas,
             area,
             current,
             options,
-            crate::style::default_stylesheet(),
+            styles.as_ref(),
             crate::style::States::default(),
         );
     }
@@ -399,6 +413,8 @@ impl Button {
         input: &Input,
         enabled: bool,
     ) -> Response {
+        let styles = list.styles();
+
         self.draw_styled(
             list,
             atlas,
@@ -406,7 +422,7 @@ impl Button {
             label,
             input,
             enabled,
-            crate::style::default_stylesheet(),
+            styles.as_ref(),
             "button",
         )
     }

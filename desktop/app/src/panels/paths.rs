@@ -9,7 +9,10 @@ pub(super) fn render(
     input: &Input,
     out: &mut Vec<Action>,
 ) {
-    paint::rect(list, area, palette::PANEL);
+    let styles = list.styles();
+    let colors = styles.colors();
+
+    paint::rect(list, area, colors.PANEL);
     let Some(layer) = auxiliary::selected(panels, state)
         .and_then(|l| serde_json::from_value::<motion_core::Layer>(l.clone()).ok())
     else {
@@ -41,4 +44,11 @@ pub(super) fn render(
         panels.locale,
         out,
     );
+    if let Some((rect, dragging)) = panels.path_controls.numeric_cursor() {
+        if dragging || rect.contains(input.mouse) {
+            panels.cursor = Some(motion_ui::widgets::numeric_behavior::cursor(
+                input, dragging,
+            ));
+        }
+    }
 }

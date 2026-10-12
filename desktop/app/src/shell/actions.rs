@@ -258,14 +258,31 @@ impl Shell {
                     ));
                 }
             }
+            Action::Favorites(favorites) => {
+                self.workspace.favorites = favorites;
+                if self.smoke.is_none() {
+                    self.workspace.save(&self.layout_path)?;
+                }
+            }
+            Action::ReloadStyle => {
+                self.reload_styles()?;
+            }
             Action::RefreshState => {
                 self.stop();
                 self.state = self.engine.state()?;
                 self.frame = self.state["frame"].as_f64().unwrap_or(0.0);
             }
             Action::Language(locale) => {
-                let sheet=motion_ui::style::default_stylesheet();
-                self.atlas = TextAtlas::from_family(sheet.font_family(),sheet.base_font_size(),locale==Locale::Zh)?;
+                let sheet = self
+                    .panels
+                    .styles
+                    .clone()
+                    .unwrap_or_else(motion_ui::style::default_stylesheet_arc);
+                self.atlas = TextAtlas::from_family(
+                    sheet.font_family(),
+                    sheet.base_font_size(),
+                    locale == Locale::Zh,
+                )?;
                 self.atlas.set_pixel_ratio(self.scale);
                 self.workspace.locale = locale;
                 self.panels.locale = locale;
@@ -321,9 +338,16 @@ impl Shell {
                     .and_then(|c| c.first())
                     .and_then(|c| c["id"].as_u64());
             }
-            Action::PreviewDrag { object, delta, size } => {
+            Action::PreviewDrag {
+                object,
+                delta,
+                size,
+            } => {
                 self.stop();
-                self.editing = Some((Instant::now(), self.engine.drag_async(object as i64, delta, size)?));
+                self.editing = Some((
+                    Instant::now(),
+                    self.engine.drag_async(object as i64, delta, size)?,
+                ));
             }
             Action::Float(panel) => {
                 self.float_panel(panel, event_loop.ok_or("window event loop is unavailable")?)?;
@@ -420,7 +444,12 @@ impl Shell {
                 self.editing = Some((Instant::now(), self.engine.seek_async(frame)?));
             }
             Action::TogglePlay => {
-                if std::env::var_os("MOTION_TRACE_UI").is_some(){eprintln!("[motion-ui] toggle playback, previously {}",self.playback.is_some());}
+                if std::env::var_os("MOTION_TRACE_UI").is_some() {
+                    eprintln!(
+                        "[motion-ui] toggle playback, previously {}",
+                        self.playback.is_some()
+                    );
+                }
                 if self.playback.is_some() {
                     self.stop();
                 } else {
@@ -473,7 +502,7 @@ impl Shell {
             audio.stop();
         }
         self.playback = None;
-        self.next_composition=Instant::now();
+        self.next_composition = Instant::now();
         self.panels.playing = false;
     }
 }

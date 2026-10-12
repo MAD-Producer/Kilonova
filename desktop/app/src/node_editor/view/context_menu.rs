@@ -27,6 +27,9 @@ impl NodeEditor {
         input: &Input,
         language: Language,
     ) {
+        let styles = list.styles();
+        let colors = styles.colors();
+
         let Some(mut menu) = self.context_menu.take() else {
             return;
         };
@@ -178,20 +181,20 @@ impl NodeEditor {
         let start = menu.selected.saturating_sub(rows - 1);
         let enter = motion_ui::input::KeyChord::new(Key::Enter, false, false, false).pressed(input);
         let mut chosen = None;
-        let mut popup = PaintList::default();
-        paint::rect(&mut popup, area, palette::CHROME);
-        paint::stroke(&mut popup, area, palette::BORDER, 1.);
+        let mut popup = list.child();
+        paint::rect(&mut popup, area, colors.CHROME);
+        paint::stroke(&mut popup, area, colors.BORDER, 1.);
         for (i, (title, _)) in entries.iter().enumerate().skip(start).take(rows) {
             let row = Rect::new(x + 6., y + 8. + (i - start) as f32 * 28., width - 12., 26.);
             if i == menu.selected || row.contains(input.mouse) {
-                paint::rect(&mut popup, row, palette::ACCENT.with_alpha(0.2));
+                paint::rect(&mut popup, row, colors.ACCENT.with_alpha(0.2));
             }
             label(
                 &mut popup,
                 atlas,
                 row.shrink(4.),
                 title,
-                palette::TEXT,
+                colors.TEXT,
                 Align::Left,
             );
             if hit(input, row) || (enter && i == menu.selected) {

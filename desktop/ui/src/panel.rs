@@ -3,7 +3,7 @@ use crate::{
     dock::DockId,
     interaction::{HitRegion, Router, Target},
     registry::{Language, PanelDescriptor, PanelRegistry},
-    style::{default_stylesheet, StyleSheet},
+    style::StyleSheet,
     Input, PaintList, Rect, TextAtlas,
 };
 use std::collections::BTreeMap;
@@ -67,14 +67,14 @@ pub trait PanelView {
     }
 }
 pub struct PanelHost<A> {
-    styles: StyleSheet,
+    styles: std::sync::Arc<StyleSheet>,
     registry: PanelRegistry,
     views: BTreeMap<DockId, Box<dyn PanelView<Action = A>>>,
 }
 impl<A> Default for PanelHost<A> {
     fn default() -> Self {
         Self {
-            styles: default_stylesheet().clone(),
+            styles: crate::style::default_stylesheet_arc(),
             registry: Default::default(),
             views: Default::default(),
         }
@@ -85,7 +85,7 @@ impl<A> PanelHost<A> {
         &self.styles
     }
     pub fn set_stylesheet(&mut self, styles: StyleSheet) {
-        self.styles = styles;
+        self.styles = std::sync::Arc::new(styles);
     }
     pub fn register(
         &mut self,
@@ -129,7 +129,7 @@ impl<A> PanelHost<A> {
         let Some(view) = self.views.get_mut(&layout.panel) else {
             return vec![];
         };
-        let mut content = PaintList::default();
+        let mut content = PaintList::with_styles(self.styles.clone());
         let actions = view.draw(&mut PanelFrame {
             styles: &self.styles,
             layout,

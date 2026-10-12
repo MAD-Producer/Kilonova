@@ -3,7 +3,6 @@ use motion_ui::{
     input::{Input, Key, MouseButton, Rect},
     paint::{self, PaintList},
     text::TextAtlas,
-    theme::palette,
     ui::{self, Align},
 };
 use serde_json::Value;
@@ -106,13 +105,16 @@ fn button(
     rect: Rect,
     label: &str,
 ) -> bool {
+    let styles = list.styles();
+    let colors = styles.colors();
+
     paint::rect(
         list,
         rect,
         if rect.contains(input.mouse) {
-            palette::SUNKEN
+            colors.SUNKEN
         } else {
-            palette::CHROME
+            colors.CHROME
         },
     );
     ui::text(
@@ -120,7 +122,7 @@ fn button(
         atlas,
         rect.shrink(4.),
         label,
-        palette::TEXT,
+        colors.TEXT,
         Align::Center,
     );
     input
@@ -177,6 +179,9 @@ impl Dialog {
         input: &Input,
         locale: Locale,
     ) -> Option<Event> {
+        let styles = list.styles();
+        let colors = styles.colors();
+
         if input.keys.iter().any(|(k, _)| *k == Key::Escape) {
             return Some(Event::Cancelled);
         }
@@ -184,10 +189,10 @@ impl Dialog {
         paint::rect(
             list,
             Rect::new(0., 0., size[0], size[1]),
-            palette::SUNKEN.with_alpha(0.76),
+            colors.SUNKEN.with_alpha(0.76),
         );
-        paint::rect(list, card, palette::PANEL);
-        paint::stroke(list, card, palette::BORDER, 1.);
+        paint::rect(list, card, colors.PANEL);
+        paint::stroke(list, card, colors.BORDER, 1.);
         let title = match self.kind {
             Kind::Settings => word(locale, "合成设置", "Composition Settings"),
             Kind::Text => word(locale, "新建文字", "New Text Layer"),
@@ -197,7 +202,7 @@ impl Dialog {
             atlas,
             Rect::new(card.min[0] + 24., card.min[1] + 14., 452., 30.),
             &title,
-            palette::TEXT,
+            colors.TEXT,
             Align::Left,
         );
         let labels = match self.kind {
@@ -221,20 +226,20 @@ impl Dialog {
                 atlas,
                 Rect::new(card.min[0] + 24., y, 120., 32.),
                 label,
-                palette::TEXT_MUTED,
+                colors.TEXT_MUTED,
                 Align::Left,
             );
             let field = Rect::new(card.min[0] + 156., y, 320., 32.);
-            paint::rect(list, field, palette::SUNKEN);
+            paint::rect(list, field, colors.SUNKEN);
             if self.focus == i {
-                paint::stroke(list, field, palette::ACCENT, 1.);
+                paint::stroke(list, field, colors.ACCENT, 1.);
             }
             ui::text(
                 list,
                 atlas,
                 field.shrink(6.),
                 value,
-                palette::TEXT,
+                colors.TEXT,
                 Align::Left,
             );
             if input
@@ -334,7 +339,7 @@ impl Dialog {
                 atlas,
                 Rect::new(card.min[0] + 24., card.max[1] - 98., 452., 42.),
                 error,
-                palette::KEYFRAME,
+                colors.KEYFRAME,
                 Align::Left,
             );
         }

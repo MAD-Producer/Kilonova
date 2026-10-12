@@ -3,7 +3,6 @@ use crate::{i18n::Locale, node_editor::EditorSnapshot};
 use motion_ui::{
     input::Key,
     paint,
-    theme::palette,
     ui::{self, Align},
     Input, PaintList, Rect, TextAtlas,
 };
@@ -33,6 +32,9 @@ impl Browser {
         input: &Input,
         locale: Locale,
     ) -> Option<Event> {
+        let styles = list.styles();
+        let colors = styles.colors();
+
         let zh = locale == Locale::Zh;
         let entries = motion_graph::builtin_examples();
         if input.keys.iter().any(|(key, _)| *key == Key::Escape) {
@@ -49,10 +51,10 @@ impl Browser {
         paint::rect(
             list,
             Rect::new(0., 0., size[0], size[1]),
-            palette::SUNKEN.with_alpha(0.85),
+            colors.SUNKEN.with_alpha(0.85),
         );
-        paint::rect(list, card, palette::PANEL);
-        paint::stroke(list, card, palette::BORDER, 1.);
+        paint::rect(list, card, colors.PANEL);
+        paint::stroke(list, card, colors.BORDER, 1.);
         ui::text(
             list,
             atlas,
@@ -62,7 +64,7 @@ impl Browser {
             } else {
                 "Node Example Library"
             },
-            palette::TEXT,
+            colors.TEXT,
             Align::Left,
         );
         ui::text(
@@ -74,7 +76,7 @@ impl Browser {
             } else {
                 "Open editable .msgraph sources and explore their connections and parameters"
             },
-            palette::TEXT_MUTED,
+            colors.TEXT_MUTED,
             Align::Left,
         );
         let rows = entries.len().div_ceil(2).max(1);
@@ -104,7 +106,7 @@ impl Browser {
                 self.selected = index;
             }
             if index == self.selected {
-                paint::stroke(list, rect, palette::ACCENT, 2.);
+                paint::stroke(list, rect, colors.ACCENT, 2.);
             }
         }
         let example = &entries[self.selected.min(entries.len() - 1)];
@@ -119,7 +121,7 @@ impl Browser {
         } else {
             example.english_lesson
         };
-        let used = paragraph(list, atlas, details, description, palette::TEXT, 2);
+        let used = paragraph(list, atlas, details, description, colors.TEXT, 2);
         paragraph(
             list,
             atlas,
@@ -130,7 +132,7 @@ impl Browser {
                 details.height() - used,
             ),
             lesson,
-            palette::TEXT_MUTED,
+            colors.TEXT_MUTED,
             3,
         );
         if self.needs_save {
@@ -143,7 +145,7 @@ impl Browser {
                 } else {
                     "The current graph has unsaved changes; save it before opening an example"
                 },
-                palette::ACCENT,
+                colors.ACCENT,
                 Align::Left,
             );
         }

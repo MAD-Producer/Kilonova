@@ -7,9 +7,47 @@ import json
 import os
 from pathlib import Path
 import queue
+import re
 import subprocess
 import tempfile
 import threading
+
+
+def verify_style_consumers() -> None:
+    panels = Path(__file__).resolve().parents[1] / "desktop/app/src/panels"
+    for source in panels.glob("*.rs"):
+        if re.search(r"\bpalette::|\bdefault_stylesheet\s*\(", source.read_text(encoding="utf-8")):
+            raise RuntimeError(f"{source.name} bypasses its window's style context")
+
+
+def verify_style_overrides(binary: Path, output: Path) -> None:
+    override = output / "acceptance.override.json"
+    override.write_text(json.dumps({
+        "tokens": {
+            "colors": {"panel": "#212428", "focus": "#60C5A0", "header": "#161819"},
+            "sizes": {"row.height": 32, "motion.drag_threshold": 12},
+            "motion": {"easing": "linear"},
+        },
+        "styles": {"button": {"radius": 6}},
+    }), encoding="utf-8")
+    for locale in ("en", "zh"):
+        report = output / f"styled-panels-{locale}.json"
+        result = subprocess.run(
+            [str(binary), "--panels-smoke", str(report), "--locale", locale, "--style", str(override)],
+            capture_output=True, text=True, encoding="utf-8", timeout=90,
+        )
+        (output / f"styled-panels-{locale}.stderr.log").write_text(result.stderr, encoding="utf-8")
+        if result.returncode:
+            raise RuntimeError(f"{locale} styled window acceptance failed: {result.stderr}")
+        snapshot = json.loads(report.read_text(encoding="utf-8"))
+        style = snapshot["style"]
+        if not style["overrideActive"] or style["rowHeight"] != 32 or style["dragThreshold"] != 12 or style["easing"] != "linear":
+            raise RuntimeError(f"{locale} ignored style/density/motion overrides")
+        if len(snapshot["panels"]) < 21:
+            raise RuntimeError(f"{locale} did not render every floating panel with overrides")
+        baseline = json.loads((output / f"smoke-{locale}.json").read_text(encoding="utf-8"))
+        if Path(snapshot["screenshot"]).read_bytes() == Path(baseline["screenshot"]).read_bytes():
+            raise RuntimeError(f"{locale} style override did not change rendered pixels")
 
 
 def verify_mcp(binary: Path, output: Path) -> None:
@@ -95,6 +133,7 @@ def main() -> None:
     parser.add_argument("--binary", type=Path, required=True)
     parser.add_argument("--output", type=Path, default=Path("artifacts/desktop"))
     args = parser.parse_args()
+    verify_style_consumers()
     binary = args.binary.resolve()
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
@@ -123,7 +162,8 @@ def main() -> None:
         if node_snapshot["locale"] != locale or node_snapshot["floatingFrames"].get("10", 0) < 3:
             raise RuntimeError(f"{locale} did not validate the floating node workspace")
     verify_mcp(binary, output)
-    print("Desktop languages, floating windows, live node rendering and shared MCP passed.")
+    verify_style_overrides(binary, output)
+    print("Desktop languages, styled floating windows, live node rendering and shared MCP passed.")
 
 
 if __name__ == "__main__":

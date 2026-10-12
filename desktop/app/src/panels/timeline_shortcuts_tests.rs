@@ -152,7 +152,7 @@ fn repeated_p_can_be_reopened_manually_in_both_property_views() {
         let point = if focused == Panel::Timeline {
             [81., 76.]
         } else {
-            [60., 143.]
+            [60., 129.]
         };
         let input = Input {
             mouse: point,

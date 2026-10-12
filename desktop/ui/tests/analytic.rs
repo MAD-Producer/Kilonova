@@ -237,3 +237,74 @@ fn mixed_paint_order_covers_old_glyphs_and_keeps_new_glyphs_after_clip_and_appen
         capture(&device, &queue, &mut painter, &reference, [32., 32.], 1.)
     );
 }
+
+#[test]
+fn stylesheet_radius_and_shadow_render_distinct_clipped_pixels_at_fractional_dpi() {
+    use motion_ui::style::{box_style, default_stylesheet, States};
+    let instance = wgpu::Instance::new(&Default::default());
+    let adapter = pollster::block_on(instance.request_adapter(&Default::default()))
+        .expect("UI pixel regression requires GPU");
+    let (device, queue) =
+        pollster::block_on(adapter.request_device(&Default::default(), None)).unwrap();
+    let mut painter = Painter::new(&device, wgpu::TextureFormat::Rgba8Unorm);
+    let square = default_stylesheet()
+        .with_overrides(
+            br##"{"styles":{"button":{"background":"#ffffff","border_width":0,"radius":0}}}"##,
+        )
+        .unwrap()
+        .resolve("button", States::default())
+        .unwrap();
+    let rounded=default_stylesheet().with_overrides(br##"{"styles":{"button":{"background":"#ffffff","border_width":0,"radius":8,"shadow_color":"#00000080","shadow_blur":6,"shadow_offset_y":3}}}"##).unwrap().resolve("button",States::default()).unwrap();
+    for ratio in [1., 1.25, 1.5, 1.75, 2.] {
+        let area = Rect::new(8., 8., 24., 20.);
+        let mut a = PaintList::default();
+        box_style(&mut a, area, square);
+        let mut b = PaintList::default();
+        box_style(&mut b, area, rounded);
+        let flat = capture(&device, &queue, &mut painter, &a, [40., 40.], ratio);
+        let raised = capture(&device, &queue, &mut painter, &b, [40., 40.], ratio);
+        assert_ne!(flat, raised);
+        let width = (40. * ratio) as usize;
+        let pixel = |x: f32, y: f32| (((y * ratio) as usize) * width + (x * ratio) as usize) * 4;
+        assert_eq!(flat[pixel(20., 32.) + 3], 0);
+        assert!(
+            raised[pixel(20., 32.) + 3] > 0,
+            "shadow is visible at {ratio} DPI"
+        );
+        b.clip_to(Rect::new(0., 0., 40., 28.));
+        let clipped = capture(&device, &queue, &mut painter, &b, [40., 40.], ratio);
+        assert_eq!(clipped[pixel(20., 32.) + 3], 0);
+        // The real Motion sample and the renderer must preserve the configured
+        // curve at the same hover time, rather than silently using one easing.
+        let mut hover_pixels = vec![];
+        for easing in ["linear", "cubic-out"] {
+            let sheet = default_stylesheet()
+                .with_overrides(
+                    format!("{{\"tokens\":{{\"motion\":{{\"easing\":\"{easing}\"}}}}}}").as_bytes(),
+                )
+                .unwrap();
+            let mut motion = motion_ui::motion::Motion::default();
+            motion.set_easing(sheet.easing());
+            motion.value_at((1, 1), 0., 1., 100., false, 0.);
+            let amount = motion.value_at((1, 1), 0., 1., 100., false, 0.05);
+            let mut hover = PaintList::default();
+            paint::rect(
+                &mut hover,
+                area,
+                sheet.color("focus").with_alpha(amount * 0.07),
+            );
+            hover_pixels.push(capture(
+                &device,
+                &queue,
+                &mut painter,
+                &hover,
+                [40., 40.],
+                ratio,
+            ));
+        }
+        assert_ne!(
+            hover_pixels[0], hover_pixels[1],
+            "easing must change intermediate hover pixels at {ratio} DPI"
+        );
+    }
+}

@@ -3,8 +3,7 @@ use crate::{
     icons::{self, Icon},
     input::MouseButton,
     paint,
-    style::{default_stylesheet, States},
-    theme::palette,
+    style::States,
     ui::{self, Align},
     Color, Input, PaintList, Rect, TextAtlas,
 };
@@ -85,18 +84,21 @@ pub fn draw(
     input: &Input,
     underline: bool,
 ) -> Option<Event> {
-    paint::rect(list, area, palette::CHROME);
+    let styles = list.styles();
+    let colors = styles.colors();
+
+    paint::rect(list, area, colors.HEADER);
     paint::rect(
         list,
         Rect::new(area.min[0], area.max[1] - 1., area.width(), 1.),
-        palette::BORDER,
+        colors.BORDER,
     );
     let rects = layouts(atlas, area, tabs, active);
     let mut event = None;
     for (i, (tab, layout)) in tabs.iter().zip(rects).enumerate() {
         let mut x = layout.area.min[0] + 6.;
         if let Some(close) = layout.close {
-            icons::draw(list, close, Icon::Close, 10., palette::TEXT_MUTED);
+            icons::draw(list, close, Icon::Close, 10., colors.TEXT_MUTED);
             if pressed(input, close) {
                 event = Some(Event::Close(i));
             }
@@ -112,25 +114,28 @@ pub fn draw(
                 Rect::new(x, area.min[1] + 5., 12., 16.),
                 Icon::Lock,
                 12.,
-                palette::TEXT_MUTED,
+                colors.TEXT_MUTED,
             );
             x += 16.;
         }
         let end = layout
             .menu
             .map_or(layout.area.max[0] - 6., |m| m.min[0] - 2.);
-        let title_width = atlas.measure(tab.title).min((end - x).max(0.));
-        ui::text(
+        let header = styles.resolve("panel.header", States::default()).unwrap();
+        let title_width = (atlas.measure(tab.title) * header.font_size / atlas.font_size())
+            .min((end - x).max(0.));
+        ui::text_sized(
             list,
             atlas,
             Rect::new(x, area.min[1], title_width, area.height()),
             tab.title,
             if i == active {
-                palette::TEXT
+                colors.TEXT
             } else {
-                palette::TEXT_MUTED
+                colors.TEXT_MUTED
             },
             Align::Left,
+            header.font_size,
         );
         x += title_width + 4.;
         if let Some(context) = tab.context {
@@ -140,17 +145,18 @@ pub fn draw(
                 Rect::new(x, area.min[1], (end - x).max(0.), area.height()),
                 context,
                 if i == active {
-                    palette::ACCENT
+                    colors.ACCENT
                 } else {
-                    palette::TEXT_MUTED
+                    colors.TEXT_MUTED
                 },
                 Align::Left,
             );
         }
         if let Some(menu) = layout.menu {
-            let color = default_stylesheet()
+            let color = styles
+                .as_ref()
                 .resolve("icon", States::default())
-                .map_or(palette::TEXT_MUTED, |s| s.foreground);
+                .map_or(colors.TEXT_MUTED, |s| s.foreground);
             icons::draw(list, menu, Icon::Menu, 12., color);
             if pressed(input, menu) {
                 event = Some(Event::Menu(i));
@@ -165,7 +171,7 @@ pub fn draw(
                     (layout.area.width() - 12.).max(0.),
                     1.,
                 ),
-                palette::TEXT,
+                colors.TEXT,
             );
         }
         let action_hit = layout.close.is_some_and(|r| r.contains(input.mouse))

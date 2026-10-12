@@ -24,40 +24,47 @@ impl Color {
 }
 
 /// Chrome colours shared by every panel.
-pub mod palette {
-    use super::Color;
-
-    /// Window background behind all panels.
-    pub const APP_BACKGROUND: Color = Color::rgb(17, 17, 17);
-    /// Panel and dock background.
-    pub const PANEL: Color = Color::rgb(28, 28, 28);
-    /// Recessed areas: timeline background, list wells, viewer surround.
-    pub const SUNKEN: Color = Color::rgb(17, 17, 17);
-    /// Raised chrome: menu bar, toolbar, tab strip.
-    pub const CHROME: Color = Color::rgb(35, 35, 35);
-    /// Hairline borders between panels.
-    pub const BORDER: Color = Color::rgb(54, 54, 54);
-    /// Focus ring and selection accent.
-    pub const ACCENT: Color = Color::rgb(55, 142, 240);
-    /// Secondary accent for the playhead.
-    pub const ACCENT_WARM: Color = Color::rgb(55, 142, 240);
-    /// Primary text.
-    pub const TEXT: Color = Color::rgb(220, 220, 220);
-    /// Secondary text and disabled labels.
-    pub const TEXT_MUTED: Color = Color::rgb(173, 173, 173);
-    /// Keyframe diamonds in the timeline.
-    pub const KEYFRAME: Color = Color::rgb(228, 216, 76);
-    /// Track colour for the camera row.
-    pub const TRACK_CAMERA: Color = Color::rgb(104, 87, 130);
-    /// Alternating layer track colours.
-    pub const TRACKS: [Color; 3] = [
-        Color::rgb(116, 116, 67),
-        Color::rgb(77, 89, 127),
-        Color::rgb(65, 98, 59),
-    ];
-    /// Checkerboard behind transparent pixels.
-    pub const TRANSPARENT_LIGHT: Color = Color::rgb(72, 72, 76);
-    pub const TRANSPARENT_DARK: Color = Color::rgb(58, 58, 62);
+#[allow(non_snake_case)]
+#[derive(Clone, Copy)]
+pub struct Colors {
+    pub APP_BACKGROUND: Color,
+    pub PANEL: Color,
+    pub SUNKEN: Color,
+    pub CHROME: Color,
+    pub HEADER: Color,
+    pub BORDER: Color,
+    pub ACCENT: Color,
+    pub TEXT: Color,
+    pub TEXT_MUTED: Color,
+    pub KEYFRAME: Color,
+    pub TRACK_CAMERA: Color,
+    pub TRANSPARENT_LIGHT: Color,
+    pub TRANSPARENT_DARK: Color,
+    pub TRACKS: [Color; 3],
+}
+impl Colors {
+    pub fn from_sheet(sheet: &crate::style::StyleSheet) -> Self {
+        Self {
+            APP_BACKGROUND: sheet.color("app"),
+            PANEL: sheet.color("panel"),
+            SUNKEN: sheet.color("app"),
+            CHROME: sheet.color("raised"),
+            HEADER: sheet.color("header"),
+            BORDER: sheet.color("border"),
+            ACCENT: sheet.color("focus"),
+            TEXT: sheet.color("text"),
+            TEXT_MUTED: sheet.color("muted"),
+            KEYFRAME: sheet.color("keyframe"),
+            TRACK_CAMERA: sheet.color("camera"),
+            TRANSPARENT_LIGHT: sheet.color("checker.light"),
+            TRANSPARENT_DARK: sheet.color("checker.dark"),
+            TRACKS: [
+                sheet.color("track.0"),
+                sheet.color("track.1"),
+                sheet.color("track.2"),
+            ],
+        }
+    }
 }
 
 /// Panel metrics in logical pixels at 100% UI scale.

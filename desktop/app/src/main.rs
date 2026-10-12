@@ -2,7 +2,6 @@
 mod audio_output;
 mod cursors;
 mod dialogs;
-mod project_lifecycle;
 mod engine;
 mod i18n;
 mod mcp;
@@ -12,6 +11,7 @@ mod node_examples;
 mod node_preview;
 mod node_tasks;
 mod panels;
+mod project_lifecycle;
 mod shell;
 mod shortcuts;
 mod workflow;
@@ -47,7 +47,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
     if args.iter().any(|a| a == "--help" || a == "-h") {
-        eprintln!("Motion Studio\n  --project <directory>  open an existing project or create one\n  --command-list         print the registered command catalogue\n  --commands <file.json> run/save an atomic command batch without a window\n  --mcp                  serve editor tools over MCP stdio (no window)\n  --mcp-ui               serve MCP and open the shared editor window\n  --locale <zh|en>        UI language override\n  --smoke <report.json>  hidden-window GPU acceptance with screenshot\n  --node-smoke <report.json>  node graph GPU/UI acceptance with screenshots");
+        eprintln!("Motion Studio\n  --project <directory>  open an existing project or create one\n  --command-list         print the registered command catalogue\n  --commands <file.json> run/save an atomic command batch without a window\n  --mcp                  serve editor tools over MCP stdio (no window)\n  --mcp-ui               serve MCP and open the shared editor window\n  --style <file.json>     style overrides; auto reload or Ctrl+R\n  --locale <zh|en>        UI language override\n  --smoke <report.json>  hidden-window GPU acceptance with screenshot\n  --node-smoke <report.json>  node graph GPU/UI acceptance with screenshots");
         return Ok(());
     }
     let argument = |flag: &str| -> Result<Option<PathBuf>, String> {
@@ -113,6 +113,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let event_loop = EventLoop::<UserEvent>::with_user_event().build()?;
     let proxy = event_loop.create_proxy();
     let mut app = Shell::new(root, smoke, locale)?;
+    if let Some(path) =
+        argument("--style")?.or_else(|| std::env::var_os("MOTION_UI_STYLE").map(PathBuf::from))
+    {
+        app.load_style_source(path)?;
+    }
     app.smoke_panels = args.iter().any(|a| a == "--panels-smoke");
     app.smoke_nodes = args
         .iter()
@@ -179,6 +184,7 @@ struct Shell {
     cursors: cursors::Cursors,
     workspace: workspace::Workspace,
     layout_path: PathBuf,
+    style_source: shell::styles::StyleSource,
     floating: std::collections::HashMap<WindowId, FloatWindow>,
     next_window: u64,
     panels: panels::Panels,
@@ -273,6 +279,7 @@ impl Shell {
             )?,
             workspace,
             layout_path,
+            style_source: Default::default(),
             floating: Default::default(),
             next_window: 1,
             panels: Default::default(),
@@ -325,12 +332,20 @@ impl Shell {
             started: Instant::now(),
         };
         shell.panels.locale = chosen;
+        shell.panels.browser.favorites = shell.workspace.favorites.clone();
         shell.panels.effect_controls.catalogue =
             shell.engine.plugin("{\"op\":\"catalogue\"}".into())?.into();
         if shell.smoke.is_some() {
             shell.workspace = workspace::Workspace::default();
             shell.workspace.locale = chosen;
             shell.prepare_smoke()?;
+        }
+        if shell.smoke.is_none() {
+            if let Some(path) = shell.workspace.style_path.clone() {
+                if let Err(error) = shell.load_style_source(path) {
+                    shell.panels.message = Some(error);
+                }
+            }
         }
         Ok(shell)
     }
@@ -357,7 +372,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                     .map_err(|e| e.to_string())?,
             );
             self.scale = window.scale_factor() as f32;
-            self.cursors.prepare(event_loop,self.scale);
+            self.cursors.prepare(event_loop, self.scale);
             window.set_ime_allowed(true);
             let size = window.inner_size();
             self.attaching = Some(self.engine.attach_async(
@@ -398,7 +413,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             }
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 self.scale = scale_factor as f32;
-                self.cursors.prepare(event_loop,self.scale);
+                self.cursors.prepare(event_loop, self.scale);
                 self.dirty = true;
                 self.redraw();
             }
@@ -474,6 +489,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
     }
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        self.poll_styles();
         self.poll_project_change();
         if let Some((began, receive)) = &self.editing {
             let result = match receive.try_recv() {
@@ -634,8 +650,12 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.dirty = true;
             }
         }
-        if self.closing && self.rendering.is_empty() && self.resizing.is_none()
-            && self.editing.is_none() && self.project_pending.is_none() && self.actions.is_empty()
+        if self.closing
+            && self.rendering.is_empty()
+            && self.resizing.is_none()
+            && self.editing.is_none()
+            && self.project_pending.is_none()
+            && self.actions.is_empty()
         {
             event_loop.exit();
             return;
@@ -746,16 +766,29 @@ impl ApplicationHandler<UserEvent> for Shell {
         // for an obscured window. Keep the display-rate deadline independent
         // of composition sampling and do not consume acknowledged-frame input.
         if Instant::now() >= self.next_redraw
-            && self.attached && self.editing.is_none() && self.rendering.is_empty()
-            && self.resizing.is_none() && self.resize_queue.is_empty() && !self.present_due
+            && self.attached
+            && self.editing.is_none()
+            && self.rendering.is_empty()
+            && self.resizing.is_none()
+            && self.resize_queue.is_empty()
+            && !self.present_due
         {
-            let floats: Vec<_> = self.floating.iter().filter(|(_, f)| f.input.pending).map(|(id, _)| *id).collect();
+            let floats: Vec<_> = self
+                .floating
+                .iter()
+                .filter(|(_, f)| f.input.pending)
+                .map(|(id, _)| *id)
+                .collect();
             if self.input.pending || !floats.is_empty() {
                 if self.input.pending {
-                    if let Err(error) = self.present(event_loop) {self.panels.message=Some(self.workspace.locale.error(&error));}
+                    if let Err(error) = self.present(event_loop) {
+                        self.panels.message = Some(self.workspace.locale.error(&error));
+                    }
                 }
                 for id in floats {
-                    if let Err(error) = self.present_float(id, event_loop) {self.panels.message=Some(self.workspace.locale.error(&error));}
+                    if let Err(error) = self.present_float(id, event_loop) {
+                        self.panels.message = Some(self.workspace.locale.error(&error));
+                    }
                 }
                 self.next_redraw = Instant::now() + self.ui_interval();
             }
@@ -828,9 +861,17 @@ impl ApplicationHandler<UserEvent> for Shell {
             if self.playback.is_some() {
                 wake = wake.min(self.next_composition.max(now + Duration::from_millis(1)));
             }
-            event_loop.set_control_flow(ControlFlow::WaitUntil(wake));
+            event_loop.set_control_flow(ControlFlow::WaitUntil(
+                self.style_source
+                    .next_poll
+                    .map_or(wake, |poll| wake.min(poll)),
+            ));
         } else {
-            event_loop.set_control_flow(ControlFlow::Wait);
+            event_loop.set_control_flow(
+                self.style_source
+                    .next_poll
+                    .map_or(ControlFlow::Wait, ControlFlow::WaitUntil),
+            );
         }
     }
 }
@@ -941,16 +982,25 @@ mod tests {
     use super::*;
     #[test]
     fn losing_window_focus_cancels_input_without_stopping_playback() {
-        let folder=tempfile::tempdir().unwrap();
-        let mut shell=Shell::new(folder.path().join("project"),None,Some(Locale::En)).unwrap();
-        shell.playback=Some((Instant::now()-Duration::from_millis(250),0.));
-        shell.panels.playing=true;
+        let folder = tempfile::tempdir().unwrap();
+        let mut shell = Shell::new(folder.path().join("project"), None, Some(Locale::En)).unwrap();
+        shell.playback = Some((Instant::now() - Duration::from_millis(250), 0.));
+        shell.panels.playing = true;
         shell.lose_focus();
-        assert!(shell.playback.is_some());assert!(shell.panels.playing);
-        assert!(shell.input.focus_lost);assert!(shell.input.held.is_none());
+        assert!(shell.playback.is_some());
+        assert!(shell.panels.playing);
+        assert!(shell.input.focus_lost);
+        assert!(shell.input.held.is_none());
         shell.advance_playback().unwrap();
-        let state=shell.editing.take().unwrap().1.recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
-        assert!(state["frame"].as_f64().unwrap()>0.);
+        let state = shell
+            .editing
+            .take()
+            .unwrap()
+            .1
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap()
+            .unwrap();
+        assert!(state["frame"].as_f64().unwrap() > 0.);
     }
     #[test]
     fn builtin_examples_are_independent_and_reject_stale_replacement() {

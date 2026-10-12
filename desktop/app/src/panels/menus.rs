@@ -9,11 +9,14 @@ pub(super) fn render(
     state: &Value,
     out: &mut Vec<Action>,
 ) {
+    let styles = list.styles();
+    let colors = styles.colors();
+
     let locale = panels.locale;
     paint::rect(
         list,
         Rect::new(0.0, 0.0, size[0], metrics::MENU_BAR),
-        palette::CHROME,
+        colors.CHROME,
     );
     let mut x = 8.0;
     let mut starts = vec![];
@@ -36,7 +39,7 @@ pub(super) fn render(
         let r = Rect::new(x, 0.0, width, metrics::MENU_BAR);
         starts.push(x);
         if r.contains(input.mouse) || panels.menu == Some(i) {
-            paint::rect(list, r, palette::SUNKEN);
+            paint::rect(list, r, colors.SUNKEN);
         }
         label(
             list,
@@ -231,8 +234,8 @@ pub(super) fn render(
                 || g.position[1] + g.size[1] <= popup.min[1]
                 || g.position[1] >= popup.max[1]
         });
-        paint::rect(list, popup, palette::CHROME);
-        paint::stroke(list, popup, palette::BORDER, 1.0);
+        paint::rect(list, popup, colors.CHROME);
+        paint::stroke(list, popup, colors.BORDER, 1.0);
         for (i, (text, action, enabled)) in entries.into_iter().enumerate() {
             let r = Rect::new(
                 popup.min[0] + 4.0,
@@ -241,7 +244,7 @@ pub(super) fn render(
                 30.0,
             );
             if r.contains(input.mouse) {
-                paint::rect(list, r, palette::SUNKEN);
+                paint::rect(list, r, colors.SUNKEN);
             }
             label(
                 list,

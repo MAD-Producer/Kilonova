@@ -9,7 +9,10 @@ pub(super) fn render(
     input: &Input,
     out: &mut Vec<Action>,
 ) {
-    paint::rect(list, area, palette::PANEL);
+    let styles = list.styles();
+    let colors = styles.colors();
+
+    paint::rect(list, area, colors.PANEL);
     let selected = auxiliary::selected(panels, state).cloned();
     let fallback = serde_json::json!({"id":0,"locked":true,"effects":[]});
     let layer = selected.as_ref().unwrap_or(&fallback);
@@ -22,7 +25,22 @@ pub(super) fn render(
         &mut panels.effect_controls
     };
     let height = controls.height(layer).max(500.);
-    let mut y = auxiliary::body_y(panel, area, height, panels, input);
+    let scroll_frame = if panel == Panel::Effects {
+        Some(panels.library_scroll.begin(
+            list,
+            area,
+            panels.library_height.max(area.height()),
+            input,
+            false,
+        ))
+    } else {
+        None
+    };
+    let mut y = scroll_frame.as_ref().map_or_else(
+        || auxiliary::body_y(panel, area, height, panels, input),
+        |f| f.content.min[1] + 8.,
+    );
+    let input = scroll_frame.as_ref().map_or(input, |f| &f.input);
     if panel == Panel::Effects {
         panels.browser.render_library(
             list,
@@ -56,9 +74,22 @@ pub(super) fn render(
             true,
         );
     }
-    let controls = if panel == Panel::Effects { &panels.browser } else { &panels.effect_controls };
-    if let Some(readout) = &controls.drag_readout { panels.drag_readout = Some(readout.clone()); }
+    if panel == Panel::Effects {
+        panels.library_height =
+            (y - area.min[1] + panels.library_scroll.offset + 8.).max(area.height());
+    }
+    let controls = if panel == Panel::Effects {
+        &panels.browser
+    } else {
+        &panels.effect_controls
+    };
+    if let Some(readout) = &controls.drag_readout {
+        panels.drag_readout = Some(readout.clone());
+    }
     if controls.cursor {
-        panels.cursor=Some(motion_ui::cursor::Cursor::ResizeEW);
+        panels.cursor = Some(motion_ui::widgets::numeric_behavior::cursor(
+            input,
+            controls.drag_readout.is_some(),
+        ));
     }
 }

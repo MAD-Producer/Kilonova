@@ -13,6 +13,7 @@ use serde_json::Value;
 
 fn text_active(panels: &Panels) -> bool {
     panels.properties.field.is_some()
+        || (panels.focused == Some(Panel::Properties) && panels.properties.checkbox_focused)
         || panels.project.search
         || panels.timeline.timeline_search
         || panels.timeline.moving.is_some()
@@ -81,6 +82,13 @@ pub fn route(
             return true;
         }
     }
+    if !input.composing
+        && !input.ime_consumed
+        && KeyChord::new(Key::R, true, false, false).pressed(input)
+    {
+        out.push(Action::ReloadStyle);
+        return true;
+    }
     if text_active(panels) || input.composing || input.ime_consumed {
         return false;
     }
@@ -146,6 +154,7 @@ pub fn handle_shortcuts(input: &Input, panels: &mut Panels, state: &Value, out: 
             continue;
         };
         let action = match command {
+            Command::ReloadStyle => Action::ReloadStyle,
             Command::NewProject => Action::New,
             Command::Open => Action::Open,
             Command::Save => Action::Save,
@@ -214,43 +223,125 @@ pub fn handle_shortcuts(input: &Input, panels: &mut Panels, state: &Value, out: 
 mod tests {
     use super::*;
     fn console(owner: Option<Panel>) -> FxConsole {
-        FxConsole { position: [20.,20.], query: "glow".into(), selected_index: 0, owner }
+        FxConsole {
+            position: [20., 20.],
+            query: "glow".into(),
+            selected_index: 0,
+            owner,
+        }
     }
     #[test]
     fn console_blocks_only_its_owner_and_other_window_can_save() {
-        for (owner, other) in [(Some(Panel::NodeProperties),None),(None,Some(Panel::Info))] {
-            let mut panels=Panels { fx_console:Some(console(owner)), ..Default::default() };
-            let mut out=vec![];
-            assert!(route(&Input::default(),&mut panels,&Value::Null,false,owner,&mut out));
-            assert!(!route(&Input::default(),&mut panels,&Value::Null,false,other,&mut out));
-            let input=Input { keys:vec![(Key::S,motion_ui::input::Modifiers { control:true,..Default::default() })],..Default::default() };
-            assert!(!route(&input,&mut panels,&Value::Null,false,other,&mut out));
-            assert!(matches!(out.as_slice(),[Action::Save]));
-            assert_eq!(panels.fx_console.as_ref().unwrap().owner,owner);
+        for (owner, other) in [
+            (Some(Panel::NodeProperties), None),
+            (None, Some(Panel::Info)),
+        ] {
+            let mut panels = Panels {
+                fx_console: Some(console(owner)),
+                ..Default::default()
+            };
+            let mut out = vec![];
+            assert!(route(
+                &Input::default(),
+                &mut panels,
+                &Value::Null,
+                false,
+                owner,
+                &mut out
+            ));
+            assert!(!route(
+                &Input::default(),
+                &mut panels,
+                &Value::Null,
+                false,
+                other,
+                &mut out
+            ));
+            let input = Input {
+                keys: vec![(
+                    Key::S,
+                    motion_ui::input::Modifiers {
+                        control: true,
+                        ..Default::default()
+                    },
+                )],
+                ..Default::default()
+            };
+            assert!(!route(
+                &input,
+                &mut panels,
+                &Value::Null,
+                false,
+                other,
+                &mut out
+            ));
+            assert!(matches!(out.as_slice(), [Action::Save]));
+            assert_eq!(panels.fx_console.as_ref().unwrap().owner, owner);
         }
     }
     #[test]
     fn escape_and_toggle_from_either_window_close_and_consume_the_frame() {
-        for (owner, other) in [(Some(Panel::NodeProperties),None),(None,Some(Panel::Info))] {
-            for chord in [KeyChord::new(Key::Escape,false,false,false),FX_CONSOLE] {
-                let mut panels=Panels { fx_console:Some(console(owner)), ..Default::default() };
-                let input=Input { keys:vec![(chord.key,chord.modifiers),(Key::Delete,Default::default())],..Default::default() };
-                let mut out=vec![];
-                assert!(route(&input,&mut panels,&Value::Null,false,other,&mut out));
-                assert!(panels.fx_console.is_none());assert!(out.is_empty());
+        for (owner, other) in [
+            (Some(Panel::NodeProperties), None),
+            (None, Some(Panel::Info)),
+        ] {
+            for chord in [KeyChord::new(Key::Escape, false, false, false), FX_CONSOLE] {
+                let mut panels = Panels {
+                    fx_console: Some(console(owner)),
+                    ..Default::default()
+                };
+                let input = Input {
+                    keys: vec![
+                        (chord.key, chord.modifiers),
+                        (Key::Delete, Default::default()),
+                    ],
+                    ..Default::default()
+                };
+                let mut out = vec![];
+                assert!(route(
+                    &input,
+                    &mut panels,
+                    &Value::Null,
+                    false,
+                    other,
+                    &mut out
+                ));
+                assert!(panels.fx_console.is_none());
+                assert!(out.is_empty());
             }
         }
     }
     #[test]
     fn unrelated_focus_loss_keeps_console_and_owner_focus_loss_closes_it() {
-        let owner=Some(Panel::NodeProperties);
-        let mut panels=Panels { fx_console:Some(console(owner)), ..Default::default() };
-        let input=Input { focus_lost:true,..Default::default() };
-        let mut out=vec![];
-        assert!(!route(&input,&mut panels,&Value::Null,false,None,&mut out));
+        let owner = Some(Panel::NodeProperties);
+        let mut panels = Panels {
+            fx_console: Some(console(owner)),
+            ..Default::default()
+        };
+        let input = Input {
+            focus_lost: true,
+            ..Default::default()
+        };
+        let mut out = vec![];
+        assert!(!route(
+            &input,
+            &mut panels,
+            &Value::Null,
+            false,
+            None,
+            &mut out
+        ));
         assert!(panels.fx_console.is_some());
-        assert!(route(&input,&mut panels,&Value::Null,false,owner,&mut out));
-        assert!(panels.fx_console.is_none());assert!(out.is_empty());
+        assert!(route(
+            &input,
+            &mut panels,
+            &Value::Null,
+            false,
+            owner,
+            &mut out
+        ));
+        assert!(panels.fx_console.is_none());
+        assert!(out.is_empty());
     }
     #[test]
     fn node_preview_history_uses_the_node_document_without_a_canvas() {

@@ -31,10 +31,25 @@ pub fn close_prompt(
     locale: Locale,
 ) -> Option<CloseChoice> {
     let zh = locale == Locale::Zh;
-    decision_prompt(list, atlas, size, input, locale, locale.t(T::NodeUnsaved),
-        if zh { "退出前保存节点图？" } else { "Save the node graph before exiting?" },
-        if zh { "节点图单独保存为 .msgraph；保存工程不会保存节点图。" }
-        else { "Node graphs use .msgraph files; saving the project does not save this graph." }, false)
+    decision_prompt(
+        list,
+        atlas,
+        size,
+        input,
+        locale,
+        locale.t(T::NodeUnsaved),
+        if zh {
+            "退出前保存节点图？"
+        } else {
+            "Save the node graph before exiting?"
+        },
+        if zh {
+            "节点图单独保存为 .msgraph；保存工程不会保存节点图。"
+        } else {
+            "Node graphs use .msgraph files; saving the project does not save this graph."
+        },
+        false,
+    )
 }
 
 pub(crate) fn decision_prompt(
@@ -48,10 +63,12 @@ pub(crate) fn decision_prompt(
     note: &str,
     error: bool,
 ) -> Option<CloseChoice> {
+    let styles = list.styles();
+    let colors = styles.colors();
+
     use motion_ui::{
         input::Key,
         paint,
-        theme::palette,
         ui::{self, Align},
         Rect,
     };
@@ -60,16 +77,16 @@ pub(crate) fn decision_prompt(
     paint::rect(
         list,
         Rect::new(0., 0., size[0], size[1]),
-        palette::SUNKEN.with_alpha(0.82),
+        colors.SUNKEN.with_alpha(0.82),
     );
-    paint::rect(list, card, palette::PANEL);
-    paint::stroke(list, card, palette::BORDER, 1.);
+    paint::rect(list, card, colors.PANEL);
+    paint::stroke(list, card, colors.BORDER, 1.);
     ui::text(
         list,
         atlas,
         Rect::new(card.min[0] + 22., card.min[1] + 16., 476., 32.),
         title,
-        palette::TEXT,
+        colors.TEXT,
         Align::Left,
     );
     ui::text(
@@ -77,7 +94,7 @@ pub(crate) fn decision_prompt(
         atlas,
         Rect::new(card.min[0] + 22., card.min[1] + 58., 476., 32.),
         message,
-        palette::TEXT,
+        colors.TEXT,
         Align::Left,
     );
     ui::text(
@@ -86,10 +103,13 @@ pub(crate) fn decision_prompt(
         Rect::new(card.min[0] + 22., card.min[1] + 97., 476., 32.),
         note,
         if error {
-            motion_ui::style::default_stylesheet()
+            styles
+                .as_ref()
                 .resolve("error", motion_ui::style::States::default())
-                .map_or(palette::TEXT, |style| style.foreground)
-        } else { palette::TEXT_MUTED },
+                .map_or(colors.TEXT, |style| style.foreground)
+        } else {
+            colors.TEXT_MUTED
+        },
         Align::Left,
     );
     if input.keys.iter().any(|(key, _)| *key == Key::Escape) {

@@ -9,6 +9,10 @@ use std::path::Path;
 pub struct Workspace {
     #[serde(default)]
     pub locale: crate::i18n::Locale,
+    #[serde(default)]
+    pub style_path: Option<std::path::PathBuf>,
+    #[serde(default)]
+    pub favorites: std::collections::BTreeSet<String>,
     #[serde(flatten)]
     layout: motion_ui::workspace::Workspace,
 }
@@ -16,6 +20,8 @@ impl Default for Workspace {
     fn default() -> Self {
         Self {
             locale: Default::default(),
+            favorites: Default::default(),
+            style_path: None,
             layout: Default::default(),
         }
     }

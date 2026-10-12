@@ -6,7 +6,7 @@ use motion_ui::{
     input::{Input, Key, MouseButton, Rect},
     paint::{self, PaintList},
     text::TextAtlas,
-    theme::{metrics, palette},
+    theme::metrics,
     ui::{self, Align, Icon},
 };
 use serde_json::Value;
@@ -29,7 +29,6 @@ mod menus;
 pub(crate) mod numeric;
 pub(crate) mod parent_controls;
 pub(crate) mod path_controls;
-pub(crate) mod transform_controls;
 mod paths;
 mod project;
 mod properties;
@@ -39,6 +38,7 @@ mod timeline_shortcuts;
 #[cfg(test)]
 mod timeline_shortcuts_tests;
 mod toolbar;
+pub(crate) mod transform_controls;
 mod types;
 
 use composition::render as composition;
@@ -118,12 +118,12 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     let animation = panels.animation_controls.cancel();
     let path = panels.path_controls.cancel();
     let transform = panels.transform_controls.cancel();
-    let mut actions = if moving || trimming || numeric || animation || path || transform || effect || camera
-    {
-        vec![Action::History(4)]
-    } else {
-        vec![]
-    };
+    let mut actions =
+        if moving || trimming || numeric || animation || path || transform || effect || camera {
+            vec![Action::History(4)]
+        } else {
+            vec![]
+        };
     if node_changed {
         actions.push(Action::Node(crate::node_editor::Action::PreviewChanged));
     }
@@ -140,9 +140,15 @@ pub fn chrome(
     state: &Value,
     input: &Input,
 ) -> Vec<Action> {
+    if let Some(styles) = &panels.styles {
+        list.stylesheet = Some(styles.clone());
+    }
+    let styles = list.styles();
+    let colors = styles.colors();
+
     let mut out = Vec::new();
     panels.cursor = None;
-    panels.drag_readout=None;
+    panels.drag_readout = None;
     panels.node_editor.external_inspector = layout.find(Panel::NodeProperties.dock()).is_some();
     let node_modal = panels.node_editor.popup_open();
     if let Some((_, point)) = input
@@ -164,6 +170,7 @@ pub fn chrome(
                 out.extend(cancel_interaction(panels));
             }
             panels.project.search = false;
+            panels.project.search_field.editor.cancel();
             panels.timeline.timeline_search = false;
             panels.focused = focused;
         }
@@ -191,7 +198,12 @@ pub fn chrome(
         && !node_modal
         && matches!(panels.focused, Some(Panel::Masks | Panel::Vector))
     {
-        panels.path_controls.parameter_input(state, input, &mut out);
+        panels.path_controls.parameter_input(
+            state,
+            input,
+            &mut out,
+            styles.metric("motion.drag_threshold", 3.),
+        );
     }
     if panels.fx_console.is_none()
         && input
@@ -256,7 +268,7 @@ pub fn chrome(
                 motion_ui::tabs::Tab {
                     title: titles[i],
                     context: if inspector { context.as_deref() } else { None },
-                    badge: (inspector && layer.is_some()).then_some(palette::TRACKS[0]),
+                    badge: (inspector && layer.is_some()).then_some(colors.TRACKS[0]),
                     locked: inspector && layer.is_some_and(|l| l["locked"].as_bool() == Some(true)),
                     closable: tabs.len() > 1 && id.0 != 1,
                 }
@@ -311,13 +323,16 @@ pub fn chrome(
             opened_panel_menu = true;
         }
         let _ = title;
-        let mut body = PaintList::default();
+        let mut body = list.child();
         if !matches!(
             f.panel,
             Panel::Composition | Panel::Nodes | Panel::NodePreview
         ) {
-            let style=motion_ui::style::default_stylesheet().resolve("panel",motion_ui::style::States::default()).unwrap();
-            paint::rect(&mut body,f.content,style.background);
+            let style = styles
+                .as_ref()
+                .resolve("panel", motion_ui::style::States::default())
+                .unwrap();
+            paint::rect(&mut body, f.content, style.background);
         }
         let timeline_popup = panels.timeline.timeline_context_menu.is_some();
         if f.content.height() >= metrics::ROW {
@@ -349,7 +364,7 @@ pub fn chrome(
                     f.tabs.width(),
                     f.tabs.height() + f.content.height(),
                 ),
-                palette::ACCENT,
+                colors.ACCENT,
                 1.,
             );
         }
@@ -362,7 +377,11 @@ pub fn chrome(
     );
     for handle in dock::splitters(layout, layout_area) {
         if handle.area.contains(input.mouse) && !menu_modal {
-            panels.cursor=Some(if handle.edge.is_horizontal() {motion_ui::cursor::Cursor::ResizeEW}else{motion_ui::cursor::Cursor::ResizeNS});
+            panels.cursor = Some(if handle.edge.is_horizontal() {
+                motion_ui::cursor::Cursor::ResizeEW
+            } else {
+                motion_ui::cursor::Cursor::ResizeNS
+            });
         }
         let line = if handle.edge.is_horizontal() {
             Rect::new(
@@ -379,38 +398,59 @@ pub fn chrome(
                 1.,
             )
         };
-        paint::rect(list, line, palette::BORDER);
+        paint::rect(list, line, colors.BORDER);
     }
     toolbar::render(list, atlas, size, panels, state, body_input, &mut out);
     let status = Rect::new(0.0, size[1] - 22.0, size[0], 22.0);
-    paint::rect(list, status, palette::CHROME);
+    paint::rect(list, status, colors.CHROME);
     let render_error = state["renderError"].as_str().filter(|s| !s.is_empty());
     let localized_error = render_error.map(|e| panels.locale.error(e));
     let message = localized_error
         .as_deref()
-        .or(panels.drag_readout.as_ref().map(|(_,text)|text.as_str()))
+        .or(panels.drag_readout.as_ref().map(|(_, text)| text.as_str()))
         .or(panels.message.as_deref())
         .unwrap_or(panels.locale.t(T::Ready));
     if render_error.is_some() {
-        let style=motion_ui::style::default_stylesheet().resolve("error",motion_ui::style::States::default()).unwrap();
-        motion_ui::style::text_style(list,atlas,Rect::new(8.,status.min[1],status.width()-16.,status.height()),message,style,Align::Left);
-    }else {label(
-        list,
-        atlas,
-        Rect::new(
-            8.0,
-            status.min[1],
-            (status.width() - 16.0).max(0.0),
-            status.height(),
-        ),
-        message,
-        render_error.is_none(),
-    );}
-    if let Some((point,note))=&panels.drag_readout {
-        let width=(atlas.measure(note)+16.).min(size[0]-16.).max(1.);
-        let rect=Rect::new((point[0]+14.).min(size[0]-width-4.).max(4.),(point[1]+20.).min(size[1]-52.).max(4.),width,24.);
-        let style=motion_ui::style::default_stylesheet().resolve("tooltip",motion_ui::style::States::default()).unwrap();
-        motion_ui::style::box_style(list,rect,style);motion_ui::style::text_style(list,atlas,rect.shrink(4.),note,style,Align::Left);
+        let style = styles
+            .as_ref()
+            .resolve("error", motion_ui::style::States::default())
+            .unwrap();
+        motion_ui::style::text_style(
+            list,
+            atlas,
+            Rect::new(8., status.min[1], status.width() - 16., status.height()),
+            message,
+            style,
+            Align::Left,
+        );
+    } else {
+        label(
+            list,
+            atlas,
+            Rect::new(
+                8.0,
+                status.min[1],
+                (status.width() - 16.0).max(0.0),
+                status.height(),
+            ),
+            message,
+            render_error.is_none(),
+        );
+    }
+    if let Some((point, note)) = &panels.drag_readout {
+        let width = (atlas.measure(note) + 16.).min(size[0] - 16.).max(1.);
+        let rect = Rect::new(
+            (point[0] + 14.).min(size[0] - width - 4.).max(4.),
+            (point[1] + 20.).min(size[1] - 52.).max(4.),
+            width,
+            24.,
+        );
+        let style = styles
+            .as_ref()
+            .resolve("tooltip", motion_ui::style::States::default())
+            .unwrap();
+        motion_ui::style::box_style(list, rect, style);
+        motion_ui::style::text_style(list, atlas, rect.shrink(4.), note, style, Align::Left);
     }
     menus(
         list,
@@ -458,8 +498,8 @@ pub fn chrome(
             220.,
             116.,
         );
-        paint::rect(list, card, palette::CHROME);
-        paint::stroke(list, card, palette::BORDER, 1.);
+        paint::rect(list, card, colors.CHROME);
+        paint::stroke(list, card, colors.BORDER, 1.);
         for (index, text) in entries.iter().enumerate() {
             let row = Rect::new(
                 card.min[0] + 3.,
@@ -469,14 +509,14 @@ pub fn chrome(
             );
             let enabled = index != 2 || group.len() > 1;
             if enabled && row.contains(input.mouse) {
-                paint::rect(list, row, palette::ACCENT.with_alpha(0.18));
+                paint::rect(list, row, colors.ACCENT.with_alpha(0.18));
             }
             label(list, atlas, row.shrink(5.), text, !enabled);
             if index == 3 {
                 paint::rect(
                     list,
                     Rect::new(card.min[0] + 8., row.min[1] - 2., 204., 1.),
-                    palette::BORDER,
+                    colors.BORDER,
                 );
             }
             if enabled && clicked(input, row) {
@@ -552,11 +592,11 @@ pub fn chrome(
             (0, 1000 + index as u64),
             0.,
             target,
-            motion_ui::style::default_stylesheet().metric("motion.divider_ms", 100.),
+            styles.as_ref().metric("motion.divider_ms", 100.),
             false,
         );
         if amount > 0.001 {
-            paint::rect(list, handle.area, palette::ACCENT.with_alpha(amount * 0.5));
+            paint::rect(list, handle.area, colors.ACCENT.with_alpha(amount * 0.5));
         }
     }
     out
@@ -585,15 +625,27 @@ pub fn floating_chrome(
     state: &Value,
     input: &Input,
 ) -> Vec<Action> {
+    if let Some(styles) = &panels.styles {
+        list.stylesheet = Some(styles.clone());
+    }
+    let styles = list.styles();
+    let colors = styles.colors();
+
     let mut out = vec![];
-    panels.cursor=None;
+    panels.cursor = None;
     if !panels.fx_console_in(Some(panel))
         && !(panels.fx_console.is_some() && keyboard::console_close_pressed(input))
-        && matches!(panel, Panel::Masks | Panel::Vector) {
-        panels.path_controls.parameter_input(state, input, &mut out);
+        && matches!(panel, Panel::Masks | Panel::Vector)
+    {
+        panels.path_controls.parameter_input(
+            state,
+            input,
+            &mut out,
+            styles.metric("motion.drag_threshold", 3.),
+        );
     }
     let body = Rect::new(0.0, 30.0, size[0], (size[1] - 52.0).max(1.0));
-    let mut content = PaintList::default();
+    let mut content = list.child();
     if !panels.fx_console_in(Some(panel))
         && (input.pressed.is_some() || !input.keys.is_empty() || !input.text.is_empty())
     {
@@ -635,7 +687,7 @@ pub fn floating_chrome(
     );
     content.clip_to(body);
     list.append(content);
-    paint::rect(list, Rect::new(0.0, 0.0, size[0], 30.0), palette::CHROME);
+    paint::rect(list, Rect::new(0.0, 0.0, size[0], 30.0), colors.HEADER);
     label(
         list,
         atlas,
@@ -656,7 +708,7 @@ pub fn floating_chrome(
     paint::rect(
         list,
         Rect::new(0.0, size[1] - 22.0, size[0], 22.0),
-        palette::CHROME,
+        colors.CHROME,
     );
     label(
         list,
@@ -772,24 +824,72 @@ mod tests {
     use super::*;
     #[test]
     fn floating_console_does_not_block_main_menu_pointer_input() {
-        let mut panels=Panels { fx_console:Some(FxConsole { position:[20.,20.],query:"glow".into(),selected_index:0,owner:Some(Panel::NodeProperties) }),..Default::default() };
-        let mut atlas=TextAtlas::from_system(13.).unwrap();
-        let layout=Node::dock(Panel::Project.dock());
-        let state=serde_json::json!({"frame":0,"project":{"frames":120,"layers":[]}});
-        let point=[24.,12.];
-        let input=Input { mouse:point,pressed:Some((MouseButton::Left,point)),..Default::default() };
-        chrome(&mut PaintList::default(),&mut atlas,[1440.,900.],&layout,&mut panels,&state,&input);
-        assert_eq!(panels.menu,Some(0));
-        assert_eq!(panels.fx_console.as_ref().unwrap().owner,Some(Panel::NodeProperties));
+        let mut panels = Panels {
+            fx_console: Some(FxConsole {
+                position: [20., 20.],
+                query: "glow".into(),
+                selected_index: 0,
+                owner: Some(Panel::NodeProperties),
+            }),
+            ..Default::default()
+        };
+        let mut atlas = TextAtlas::from_system(13.).unwrap();
+        let layout = Node::dock(Panel::Project.dock());
+        let state = serde_json::json!({"frame":0,"project":{"frames":120,"layers":[]}});
+        let point = [24., 12.];
+        let input = Input {
+            mouse: point,
+            pressed: Some((MouseButton::Left, point)),
+            ..Default::default()
+        };
+        chrome(
+            &mut PaintList::default(),
+            &mut atlas,
+            [1440., 900.],
+            &layout,
+            &mut panels,
+            &state,
+            &input,
+        );
+        assert_eq!(panels.menu, Some(0));
+        assert_eq!(
+            panels.fx_console.as_ref().unwrap().owner,
+            Some(Panel::NodeProperties)
+        );
     }
     #[test]
     fn main_console_does_not_block_floating_window_shortcuts() {
-        let mut panels=Panels { fx_console:Some(FxConsole { position:[20.,20.],query:"glow".into(),selected_index:0,owner:None }),..Default::default() };
-        let mut atlas=TextAtlas::from_system(13.).unwrap();
-        let state=serde_json::json!({"frame":0,"project":{"frames":120,"layers":[]}});
-        let input=Input { keys:vec![(Key::S,motion_ui::input::Modifiers {control:true,..Default::default()})],..Default::default() };
-        let out=floating_chrome(&mut PaintList::default(),&mut atlas,Panel::Info,[420.,600.],&mut panels,&state,&input);
-        assert!(matches!(out.as_slice(),[Action::Save]));
+        let mut panels = Panels {
+            fx_console: Some(FxConsole {
+                position: [20., 20.],
+                query: "glow".into(),
+                selected_index: 0,
+                owner: None,
+            }),
+            ..Default::default()
+        };
+        let mut atlas = TextAtlas::from_system(13.).unwrap();
+        let state = serde_json::json!({"frame":0,"project":{"frames":120,"layers":[]}});
+        let input = Input {
+            keys: vec![(
+                Key::S,
+                motion_ui::input::Modifiers {
+                    control: true,
+                    ..Default::default()
+                },
+            )],
+            ..Default::default()
+        };
+        let out = floating_chrome(
+            &mut PaintList::default(),
+            &mut atlas,
+            Panel::Info,
+            [420., 600.],
+            &mut panels,
+            &state,
+            &input,
+        );
+        assert!(matches!(out.as_slice(), [Action::Save]));
         assert!(panels.fx_console_in(None));
     }
     #[test]

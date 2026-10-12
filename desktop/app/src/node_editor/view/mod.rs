@@ -12,9 +12,9 @@ mod inspector;
 mod interaction;
 mod library;
 #[cfg(test)]
-mod tests;
-#[cfg(test)]
 mod nudge_tests;
+#[cfg(test)]
+mod tests;
 mod toolbar;
 mod wires;
 use super::catalog::{operation_title, type_label};
@@ -22,7 +22,7 @@ use super::*;
 use motion_ui::{
     input::{Key, MouseButton},
     paint,
-    theme::{palette, Color},
+    theme::Color,
     ui::{self, Align},
 };
 
@@ -258,6 +258,9 @@ impl NodeEditor {
         input: &Input,
         language: Language,
     ) -> FrameResponse {
+        let styles = list.styles();
+        let colors = styles.colors();
+
         let revision = self.revision;
         let semantic = self.semantic_revision;
         let preview_revision = self.preview_revision;
@@ -274,13 +277,13 @@ impl NodeEditor {
                     semantic: response.semantic_changed,
                 });
             }
-            paint::rect(list, area, palette::PANEL);
+            paint::rect(list, area, colors.PANEL);
             label(
                 list,
                 atlas,
                 area.shrink(8.),
                 language.text("扩大节点面板以编辑", "Expand the node panel"),
-                palette::TEXT_MUTED,
+                colors.TEXT_MUTED,
                 Align::Left,
             );
             return response;
@@ -407,7 +410,7 @@ impl NodeEditor {
                     25.,
                 ),
                 &path,
-                palette::TEXT_MUTED,
+                colors.TEXT_MUTED,
                 Align::Left,
             );
         }
@@ -421,8 +424,8 @@ impl NodeEditor {
         self.canvas_input(&cards, layout.canvas, body_input);
         let cards = self.cards(layout.canvas);
         self.paint_canvas(list, atlas, &cards, layout.canvas, input, language);
-        let mut footer = PaintList::default();
-        paint::rect(&mut footer, layout.footer, palette::CHROME);
+        let mut footer = list.child();
+        paint::rect(&mut footer, layout.footer, colors.CHROME);
         paint::rect(
             &mut footer,
             Rect::new(
@@ -431,7 +434,7 @@ impl NodeEditor {
                 layout.footer.width(),
                 1.,
             ),
-            palette::BORDER,
+            colors.BORDER,
         );
         let status = self
             .notice
@@ -458,7 +461,7 @@ impl NodeEditor {
             if self.diagnostic.is_some() {
                 Color::rgb(235, 167, 102)
             } else {
-                palette::TEXT_MUTED
+                colors.TEXT_MUTED
             },
             Align::Left,
         );
@@ -467,7 +470,7 @@ impl NodeEditor {
             atlas,
             Rect::new(layout.footer.max[0] - 64., layout.footer.min[1], 58., 27.),
             &format!("{:0.0}%", self.view.zoom * 100.),
-            palette::TEXT_MUTED,
+            colors.TEXT_MUTED,
             Align::Right,
         );
         footer.clip_to(layout.footer);
