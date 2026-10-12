@@ -73,7 +73,14 @@ impl JsEngine {
             context.with(|ctx| {
                 let operation = || -> rquickjs::Result<Vec<f32>> {
                     ctx.globals().set("__msData", data)?;
-                    ctx.globals().set("__msSample", Function::new(ctx.clone(), sample)?)?;
+                    ctx.globals().set("__msSample", Function::new(ctx.clone(), move |time: f64| -> rquickjs::Result<String> {
+                        if !time.is_finite() {
+                            return Err(rquickjs::Error::new_from_js_message(
+                                "number", "sample time", "invalid sample time: seconds must be finite",
+                            ));
+                        }
+                        Ok(sample(time))
+                    })?)?;
                     // No external clocks, module loader, timers, native IO or async host APIs.
                     ctx.eval::<(), _>("globalThis.Date=undefined; globalThis.Promise=undefined; globalThis.SharedArrayBuffer=undefined; globalThis.Atomics=undefined;")?;
                     // SAFETY: only bytecode produced above by this exact runtime is loaded.

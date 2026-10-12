@@ -250,11 +250,15 @@ impl<T: Tween> Track<T> {
             axes: None,
         }
     }
-    /// Sampling copies only scalars/arrays and allocates no memory.
+    /// Sampling copies only scalars/arrays and allocates no memory. NaN falls
+    /// back to static values; hosts accepting time input must reject it first.
     pub fn sample(&self, frame: f64) -> T {
         if let Some(a) = &self.axes {
             return T::from_components([a.x.sample(frame), a.y.sample(frame), a.z.sample(frame)])
                 .expect("validated vector dimensions");
+        }
+        if frame.is_nan() {
+            return self.value;
         }
         let Some(first) = self.keys.first() else {
             return self.value;

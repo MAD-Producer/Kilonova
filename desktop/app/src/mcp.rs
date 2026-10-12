@@ -314,6 +314,41 @@ pub fn serve(
 mod tests {
     use super::*;
     #[test]
+    fn nonfinite_expression_seek_keeps_worker_editing_and_history_available() {
+        let folder = tempfile::tempdir().unwrap();
+        let engine = Engine::start(folder.path().join("sample-time"), motion_desktop_media::platform(), 8 << 30).unwrap();
+        let router = ToolRouter { engine: &engine, access: Access::Edit };
+        let revision = engine.state().unwrap()["revision"].clone();
+        let state = router.call("command_batch", json!({"expectedRevision":revision,"commands":[
+            {"op":"add_shape","id":1,"name":"Card","shape":"rectangle","size":[20,20],"position":[32,32,0]},
+            {"op":"animate","object":1,"property":"position","frame":0,"enabled":true},
+            {"op":"set_expression","frame":0,"expression":{
+                "target":{"kind":"property","object":1,"property":"position"},
+                "source":"time == 0 ? value : valueAtTime(0/0)","enabled":true,"seed":1,
+                "profile":motion_core::EXPRESSION_PROFILE
+            }}
+        ]})).unwrap();
+        let error = router.call("motion_seek", json!({"frame":15})).unwrap_err();
+        assert!(error.contains("invalid sample time"), "{error}");
+        let after = router.call("motion_state", json!({})).unwrap();
+        assert_eq!(state["project"], after["project"]);
+        assert_eq!(state["revision"], after["revision"]);
+        assert_eq!(after["canUndo"], true);
+        let renamed = router.call("command_run", json!({"expectedRevision":after["revision"],"command":{
+            "op":"rename","object":1,"name":"Still editable"
+        }})).unwrap();
+        assert_eq!(renamed["project"]["layers"][0]["name"], "Still editable");
+        let recovered = router.call("command_run", json!({"expectedRevision":renamed["revision"],"command":{
+            "op":"remove_expression","target":{"kind":"property","object":1,"property":"position"}
+        }})).unwrap();
+        assert!(recovered["renderError"].is_null());
+        router.call("motion_seek", json!({"frame":15})).unwrap();
+        router.call("motion_history", json!({"operation":"undo"})).unwrap();
+        assert_eq!(router.call("motion_state",json!({})).unwrap()["project"],renamed["project"]);
+        router.call("motion_history", json!({"operation":"redo"})).unwrap();
+        router.call("motion_seek", json!({"frame":15})).unwrap();
+    }
+    #[test]
     fn registered_tools_share_atomic_history_revision_and_permissions() {
         let folder = tempfile::tempdir().unwrap();
         let engine = Engine::start(
