@@ -11,6 +11,8 @@ impl NodeEditor {
     ) -> FrameResponse {
         let revision = self.revision;
         let semantic = self.semantic_revision;
+        let neutral = Input::default();
+        let input = if self.inline.busy() { &neutral } else { input };
         self.field_input(input);
         self.inspector(list, atlas, area, input, language);
         let mut result = FrameResponse::default();

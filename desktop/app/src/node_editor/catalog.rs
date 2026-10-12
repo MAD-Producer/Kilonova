@@ -186,6 +186,9 @@ pub(super) fn type_label(ty: ValueType) -> &'static str {
     }
 }
 pub(super) fn operation_title(op: &NodeOp, language: Language) -> String {
+    if let NodeOp::Group { graph } = op {
+        return language.text(&graph.name, &graph.english_name).to_string();
+    }
     let titles = match op {
         NodeOp::Math { operation, .. } => match operation {
             MathOp::Add => ("相加", "Add"),

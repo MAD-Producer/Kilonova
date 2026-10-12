@@ -303,6 +303,77 @@ impl Shell {
             self.smoke_node_report["parameterPixelsChanged"] = Value::Bool(true);
             self.smoke_node_report["floatingScreenshot"] =
                 serde_json::to_value(self.capture_node_float()?).map_err(|e| e.to_string())?;
+            self.panels.node_editor.select(Some("circle"), false);
+            self.panels.node_editor.select(Some("fill"), true);
+            self.panels
+                .node_editor
+                .group_selected()
+                .map_err(|error| error.to_string())?;
+            self.smoke_node_report["groupId"] =
+                serde_json::to_value(self.panels.node_editor.selected())
+                    .map_err(|error| error.to_string())?;
+            self.schedule_node_compile()?;
+            self.smoke_stage = 10;
+        } else if self.smoke_stage == 10
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            let grouped = self.engine.node_capture(
+                0.,
+                self.smoke.as_ref().unwrap().with_extension("grouped.png"),
+            )?;
+            if grouped["fingerprint"] != self.smoke_node_report["parameter"]["fingerprint"] {
+                return Err("grouping changed actual GPU pixels".into());
+            }
+            self.smoke_node_report["groupPixelsPreserved"] = Value::Bool(true);
+            let id = self.smoke_node_report["groupId"]
+                .as_str()
+                .ok_or("group id missing")?
+                .to_string();
+            if !self.panels.node_editor.enter_group(&id)
+                || !self.panels.node_editor.toggle_collapsed("circle")
+            {
+                return Err("native group navigation/collapse failed".into());
+            }
+            let snapshot = self.panels.node_editor.snapshot();
+            let path = self.smoke.as_ref().unwrap().with_extension("group.msgraph");
+            snapshot.save(&path).map_err(|error| error.to_string())?;
+            if motion_graph::GraphDocument::load(&path).map_err(|error| error.to_string())?
+                != snapshot.document
+            {
+                return Err("saving inside a group lost root data or folded state".into());
+            }
+            self.smoke_node_report["groupSourceReopened"] = Value::Bool(true);
+            self.schedule_node_compile()?;
+            self.smoke_stage = 11;
+        } else if self.smoke_stage == 11
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            let screenshot = self.capture_node_float()?;
+            let path = self.smoke.as_ref().unwrap().with_extension("group.png");
+            std::fs::copy(screenshot, &path).map_err(|error| error.to_string())?;
+            self.smoke_node_report["groupEditorScreenshot"] =
+                serde_json::to_value(path).map_err(|error| error.to_string())?;
+            if !self.panels.node_editor.leave_group() {
+                return Err("native parent navigation failed".into());
+            }
+            self.panels
+                .node_editor
+                .ungroup_selected()
+                .map_err(|error| error.to_string())?;
+            self.panels.node_editor.toggle_collapsed("circle");
+            self.schedule_node_compile()?;
+            self.smoke_stage = 12;
+        } else if self.smoke_stage == 12
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            let ungrouped = self.engine.node_capture(
+                0.,
+                self.smoke.as_ref().unwrap().with_extension("ungrouped.png"),
+            )?;
+            if ungrouped["fingerprint"] != self.smoke_node_report["parameter"]["fingerprint"] {
+                return Err("ungrouping changed actual GPU pixels".into());
+            }
+            self.smoke_node_report["ungroupPixelsPreserved"] = Value::Bool(true);
             self.panels
                 .node_editor
                 .disconnect_input(&motion_graph::PortRef::new("output", "color"));

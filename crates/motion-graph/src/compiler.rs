@@ -88,8 +88,61 @@ pub fn node_ports(node: &Node, parameters: &[PublicParameter]) -> Result<NodePor
         inputs: BTreeMap::new(),
         outputs: BTreeMap::new(),
     };
+    let group_ports = |ports: &BTreeMap<String, GroupPort>| -> Result<BTreeMap<String, ValueType>> {
+        for (id, port) in ports {
+            use crate::PortSemantic::*;
+            let semantic_valid = match port.value_type {
+                ValueType::Float => matches!(port.semantic, Scalar | Seconds | Frame | SizePixels),
+                ValueType::Vec2 | ValueType::Vec3 => {
+                    matches!(port.semantic, Vector | PositionPixels | Uv | SizePixels)
+                }
+                ValueType::Color => port.semantic == Color,
+                ValueType::Bool => port.semantic == Bool,
+                ValueType::Image => port.semantic == Image,
+                ValueType::DistancePixels => port.semantic == DistancePixels,
+            };
+            if !semantic_valid {
+                return Err(Error::invalid(
+                    ErrorCode::TypeMismatch,
+                    Some(&node.id),
+                    Some(id),
+                    "group port storage shape does not match its semantic units",
+                ));
+            }
+            if !motion_effects::valid_id(id)
+                || port.name.is_empty()
+                || port.english_name.is_empty()
+                || port.name.len() > 120
+                || port.english_name.len() > 120
+            {
+                return Err(Error::invalid(
+                    ErrorCode::InvalidValue,
+                    Some(&node.id),
+                    Some(id),
+                    "invalid group port identity or bilingual name",
+                ));
+            }
+        }
+        Ok(ports
+            .iter()
+            .map(|(id, port)| (id.clone(), port.value_type))
+            .collect())
+    };
     let (inputs, outputs): (Vec<(&str, ValueType)>, Vec<(&str, ValueType)>) = match &node.operation
     {
+        NodeOp::Group { graph } => {
+            p.inputs = group_ports(graph.ports(false)?)?;
+            p.outputs = group_ports(graph.ports(true)?)?;
+            return Ok(p);
+        }
+        NodeOp::GroupInput { ports } => {
+            p.outputs = group_ports(ports)?;
+            return Ok(p);
+        }
+        NodeOp::GroupOutput { ports } => {
+            p.inputs = group_ports(ports)?;
+            return Ok(p);
+        }
         NodeOp::Time | NodeOp::FrameIndex | NodeOp::Float { .. } => {
             (vec![], vec![("value", ValueType::Float)])
         }
@@ -318,7 +371,12 @@ pub fn node_ports(node: &Node, parameters: &[PublicParameter]) -> Result<NodePor
 }
 
 pub fn validate(document: &GraphDocument, options: &CompileOptions) -> Result<ValidationReport> {
-    validate_root(document, options, None)
+    if crate::groups::structured(document) {
+        let flat = crate::groups::flatten(document, options)?;
+        validate_root(&flat.document, options, None).map_err(|error| flat.describe(error))
+    } else {
+        validate_root(document, options, None)
+    }
 }
 
 fn validate_root(
@@ -663,6 +721,13 @@ fn validate_root(
 }
 
 pub fn compile(document: &GraphDocument, options: &CompileOptions) -> Result<CompiledGraph> {
+    if crate::groups::structured(document) {
+        let flat = crate::groups::flatten(document, options)?;
+        let plan =
+            validate_root(&flat.document, options, None).map_err(|error| flat.describe(error))?;
+        return compile_plan(&flat.document, options, &plan, None)
+            .map_err(|error| flat.describe(error));
+    }
     let plan = validate(document, options)?;
     compile_plan(document, options, &plan, None)
 }
@@ -674,6 +739,12 @@ pub fn compile_preview(
     options: &CompileOptions,
     target: &PortRef,
 ) -> Result<CompiledGraph> {
+    if crate::groups::structured(document) {
+        let flat = crate::groups::flatten(document, options)?;
+        let target = flat.resolve(target)?;
+        return compile_preview(&flat.document, options, &target)
+            .map_err(|error| flat.describe(error));
+    }
     if document.nodes.len() > options.max_nodes
         || document.connections.len() > options.max_connections
     {
@@ -960,6 +1031,14 @@ impl<'a> Builder<'a> {
         let input = |name: &str| self.input(&node.id, name);
         let from_straight = |expr: String| format!("ng_from_straight({expr})");
         match &node.operation {
+            Group { .. } | GroupInput { .. } | GroupOutput { .. } => {
+                return Err(Error::invalid(
+                    ErrorCode::InvalidValue,
+                    Some(&node.id),
+                    None,
+                    "group nodes must be lowered before shader generation",
+                ))
+            }
             Time => self.put(
                 node,
                 "value",

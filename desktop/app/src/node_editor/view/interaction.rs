@@ -56,6 +56,24 @@ impl NodeEditor {
                 continue;
             };
             match command {
+                Command::Group => {
+                    if let Err(error) = self.group_selected() {
+                        self.notice = Some(error.to_string());
+                    }
+                }
+                Command::Ungroup => {
+                    if let Err(error) = self.ungroup_selected() {
+                        self.notice = Some(error.to_string());
+                    }
+                }
+                Command::EnterGroup => {
+                    if let Some(id) = self.primary.clone() {
+                        self.enter_group(&id);
+                    }
+                }
+                Command::LeaveGroup => {
+                    self.leave_group();
+                }
                 Command::Delete => {
                     self.delete_selected();
                 }
@@ -139,6 +157,7 @@ impl NodeEditor {
                 .iter()
                 .rev()
                 .flat_map(|c| c.sockets.iter())
+                .filter(|socket| socket.connectable)
                 .find(|s| {
                     (s.point[0] - point[0]).abs() <= 8. && (s.point[1] - point[1]).abs() <= 8.
                 })
@@ -214,6 +233,28 @@ impl NodeEditor {
                         }
                     } else if let Some(card) = cards.iter().rev().find(|c| c.rect.contains(point)) {
                         let header = point[1] < card.rect.min[1] + HEADER * self.view.zoom;
+                        if header
+                            && input.modifiers == Default::default()
+                            && self.document.nodes.iter().any(|node| {
+                                node.id == card.id && matches!(node.operation, NodeOp::Group { .. })
+                            })
+                        {
+                            let now = std::time::Instant::now();
+                            let double = self.last_group_click.as_ref().is_some_and(
+                                |(id, time, previous)| {
+                                    id == &card.id
+                                        && now.duration_since(*time).as_millis() <= 400
+                                        && (point[0] - previous[0]).hypot(point[1] - previous[1])
+                                            <= 5.
+                                },
+                            );
+                            self.last_group_click = Some((card.id.clone(), now, point));
+                            if double && self.enter_group(&card.id) {
+                                return;
+                            }
+                        } else {
+                            self.last_group_click = None;
+                        }
                         if !header || !self.selected.contains(&card.id) || input.modifiers.shift {
                             self.select(Some(&card.id), input.modifiers.shift);
                         } else {

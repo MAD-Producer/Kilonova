@@ -1,7 +1,7 @@
 use crate::{Error, ErrorCode, Result};
 use motion_effects::{AlphaMode, WorkingSpace};
 use serde::{Deserialize, Serialize};
-use std::{fs, path::Path};
+use std::{collections::BTreeMap, fs, path::Path};
 
 pub const GRAPH_FORMAT_VERSION: u32 = 1;
 pub const MAX_DOCUMENT_BYTES: usize = 4 * 1024 * 1024;
@@ -86,6 +86,15 @@ pub enum ColorOp {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum NodeOp {
+    Group {
+        graph: Box<NodeGroup>,
+    },
+    GroupInput {
+        ports: BTreeMap<String, GroupPort>,
+    },
+    GroupOutput {
+        ports: BTreeMap<String, GroupPort>,
+    },
     Time,
     FrameIndex,
     Resolution,
@@ -152,6 +161,9 @@ pub enum NodeOp {
 impl NodeOp {
     pub fn kind(&self) -> &'static str {
         match self {
+            Self::Group { .. } => "group",
+            Self::GroupInput { .. } => "group_input",
+            Self::GroupOutput { .. } => "group_output",
             Self::Time => "time",
             Self::FrameIndex => "frame_index",
             Self::Resolution => "resolution",
@@ -190,6 +202,9 @@ impl NodeOp {
     }
     pub fn title(&self) -> (&'static str, &'static str) {
         match self {
+            Self::Group { .. } => ("节点组", "Node Group"),
+            Self::GroupInput { .. } => ("组输入", "Group Input"),
+            Self::GroupOutput { .. } => ("组输出", "Group Output"),
             Self::Time => ("时间", "Time"),
             Self::FrameIndex => ("帧（含小数）", "Frame Index"),
             Self::Resolution => ("图层尺寸", "Resolution"),
@@ -236,6 +251,8 @@ pub struct Node {
     pub operation: NodeOp,
     #[serde(default)]
     pub position: [f32; 2],
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub collapsed: bool,
 }
 impl Node {
     pub fn new(id: impl Into<String>, operation: NodeOp) -> Self {
@@ -244,7 +261,59 @@ impl Node {
             version: 1,
             operation,
             position: [0.0; 2],
+            collapsed: false,
         }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct GroupPort {
+    pub name: String,
+    pub english_name: String,
+    pub value_type: ValueType,
+    pub semantic: crate::PortSemantic,
+}
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NodeGroup {
+    pub name: String,
+    pub english_name: String,
+    pub nodes: Vec<Node>,
+    pub connections: Vec<Connection>,
+    pub input_node: String,
+    pub output_node: String,
+}
+impl NodeGroup {
+    pub fn ports(&self, output: bool) -> Result<&BTreeMap<String, GroupPort>> {
+        let id = if output {
+            &self.output_node
+        } else {
+            &self.input_node
+        };
+        match self
+            .nodes
+            .iter()
+            .find(|node| node.id == *id)
+            .map(|node| &node.operation)
+        {
+            Some(NodeOp::GroupInput { ports }) if !output => Ok(ports),
+            Some(NodeOp::GroupOutput { ports }) if output => Ok(ports),
+            _ => Err(Error::invalid(
+                ErrorCode::UnknownNode,
+                Some(id),
+                None,
+                "group boundary node is missing or has the wrong kind",
+            )),
+        }
+    }
+}
+pub fn group_port<'a>(operation: &'a NodeOp, id: &str, output: bool) -> Option<&'a GroupPort> {
+    match operation {
+        NodeOp::Group { graph } => graph.ports(output).ok()?.get(id),
+        NodeOp::GroupInput { ports } if output => ports.get(id),
+        NodeOp::GroupOutput { ports } if !output => ports.get(id),
+        _ => None,
     }
 }
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -322,6 +391,9 @@ impl GraphDocument {
                 let id = node.get("id").and_then(|v| v.as_str());
                 if let Some(kind) = node.pointer("/operation/kind").and_then(|v| v.as_str()) {
                     let known = [
+                        "group",
+                        "group_input",
+                        "group_output",
                         "time",
                         "frame_index",
                         "resolution",

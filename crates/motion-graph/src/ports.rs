@@ -1,10 +1,10 @@
 //! Additive port meaning and help. ValueType remains the shader's storage shape;
 //! semantic units are known only for declared inputs and explicit source nodes.
 use crate::*;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PortSemantic {
     PositionPixels,
@@ -101,6 +101,9 @@ fn semantic(
     value_type: ValueType,
     parameters: &[PublicParameter],
 ) -> PortSemantic {
+    if let Some(port) = group_port(op, id, output) {
+        return port.semantic;
+    }
     use PortSemantic::*;
     if output {
         return match op {
@@ -342,6 +345,9 @@ fn help(op: &NodeOp, id: &str, output: bool, semantic: PortSemantic) -> Help {
 
 pub fn node_description(operation: &NodeOp) -> (&'static str, &'static str) {
     match operation {
+        NodeOp::Group { .. } => ("双击或 Tab 进入子图；Ctrl+Tab 返回；Alt+G 解包。分组保留端口类型、单位和原始计算结果。", "Double-click or Tab to enter; Ctrl+Tab returns; Alt+G ungroups. Boundaries preserve types, units and computation."),
+        NodeOp::GroupInput { .. } => ("从父图读取节点组输入；边界节点不可删除。", "Reads the group inputs from its parent graph. This boundary node cannot be deleted."),
+        NodeOp::GroupOutput { .. } => ("把内部结果交给父图的组输出；边界节点不可删除。", "Routes internal values to the parent group outputs. This boundary node cannot be deleted."),
         NodeOp::Time => ("输出效果局部秒 fx.clock.x，保留小数。用速度换算为位移后再连接像素位置。","Outputs effect-local seconds fx.clock.x, including fractions. Convert using a speed before producing a pixel position."),
         NodeOp::FrameIndex => ("输出效果局部帧 fx.clock.y，保留小数；它不是秒数。","Outputs effect-local frames fx.clock.y, including fractions; it is not a seconds value."),
         NodeOp::Resolution => ("输出原图层逻辑像素尺寸 (宽,高)，不是预览纹理尺寸。","Outputs original layer logical-pixel dimensions (width,height), not preview texture size."),

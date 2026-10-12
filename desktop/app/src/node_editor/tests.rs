@@ -861,6 +861,12 @@ fn wheel_navigation_uses_ctrl_zoom_and_normal_scrolling_without_graph_edits() {
 #[test]
 fn marquee_selection_supports_group_drag_modifiers_and_cancel() {
     let mut editor = simple();
+    // Keep the lower selection band clear of the expanded color controls.
+    for node in &mut editor.document.nodes {
+        if node.id == "number" || node.id == "math" {
+            node.position[1] = 340.;
+        }
+    }
     let mut atlas = TextAtlas::from_system(13.).unwrap();
     frame(&mut editor, &mut atlas, Input::default());
     let original = editor.snapshot();
@@ -881,8 +887,8 @@ fn marquee_selection_supports_group_drag_modifiers_and_cancel() {
     assert_eq!(editor.selected, pair);
     assert!(matches!(editor.drag, Some(Drag::Marquee { .. })));
     frame(&mut editor, &mut atlas, release(end, MouseButton::Left));
-    let bottom = editor.view.world_to_screen([250., 410.], canvas);
-    let top = editor.view.world_to_screen([10., 245.], canvas);
+    let bottom = editor.view.world_to_screen([250., 490.], canvas);
+    let top = editor.view.world_to_screen([10., 325.], canvas);
     let mut additive = press(bottom, MouseButton::Left);
     additive.modifiers.shift = true;
     frame(&mut editor, &mut atlas, additive);
@@ -1076,7 +1082,7 @@ fn responsive_layout_and_paint_remain_within_panel() {
                 motion_ui::paint::Shape::Quad { points } => points.into(),
                 motion_ui::paint::Shape::Line { points } => points,
                 motion_ui::paint::Shape::Triangles { points } => points,
-                motion_ui::paint::Shape::Procedural { clip, .. } => vec![clip.min,clip.max],
+                motion_ui::paint::Shape::Procedural { clip, .. } => vec![clip.min, clip.max],
             };
             assert!(points.iter().all(|p| p[0].is_finite()
                 && p[1].is_finite()

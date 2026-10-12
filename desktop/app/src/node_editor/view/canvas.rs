@@ -20,6 +20,7 @@ impl NodeEditor {
                     for (output, entries) in [(false, ports.inputs), (true, ports.outputs)] {
                         for (index, (port, spec)) in entries.into_iter().enumerate() {
                             sockets.push(Socket {
+                                connectable: !node.collapsed,
                                 port: PortRef::new(&node.id, port),
                                 output,
                                 ty: spec.value_type,
@@ -27,7 +28,11 @@ impl NodeEditor {
                                 point: [
                                     if output { rect.max[0] } else { rect.min[0] },
                                     rect.min[1]
-                                        + (HEADER + ROW * (index as f32 + 0.5)) * self.view.zoom,
+                                        + if node.collapsed {
+                                            HEADER * 0.5 * self.view.zoom
+                                        } else {
+                                            (HEADER + ROW * (index as f32 + 0.5)) * self.view.zoom
+                                        },
                                 ],
                             });
                         }
@@ -53,12 +58,21 @@ impl NodeEditor {
         let mut canvas = PaintList::default();
         paint::rect(&mut canvas, area, palette::SUNKEN);
 
-        let world_origin=self.view.world_to_screen([0.,0.],area);
-        let minor=20.*self.view.zoom;
-        let mut major=100.*self.view.zoom;
-        while major<24. {major*=5.;}
-        paint::grid(&mut canvas,area,palette::BORDER.with_alpha(0.15),palette::BORDER.with_alpha(0.35),world_origin,
-            if minor>=8. {minor}else{0.},major);
+        let world_origin = self.view.world_to_screen([0., 0.], area);
+        let minor = 20. * self.view.zoom;
+        let mut major = 100. * self.view.zoom;
+        while major < 24. {
+            major *= 5.;
+        }
+        paint::grid(
+            &mut canvas,
+            area,
+            palette::BORDER.with_alpha(0.15),
+            palette::BORDER.with_alpha(0.35),
+            world_origin,
+            if minor >= 8. { minor } else { 0. },
+            major,
+        );
 
         // 绘制原点标记（十字）
         if area.contains(world_origin) {
@@ -200,42 +214,57 @@ impl NodeEditor {
             label(
                 &mut content,
                 atlas,
-                Rect::new(10., 1., NODE_WIDTH - 20., HEADER - 2.),
+                Rect::new(10., 1., NODE_WIDTH - 44., HEADER - 2.),
                 &title,
                 palette::TEXT,
                 Align::Left,
             );
-            if let Ok(ports) = motion_graph::node_port_specs(node, &self.document.public_parameters)
-            {
-                for (output, entries) in [(false, ports.inputs), (true, ports.outputs)] {
-                    for (index, (_, spec)) in entries.into_iter().enumerate() {
-                        let compatible = match &self.drag {
-                            Some(Drag::Wire { source, .. }) if !output => cards
-                                .iter()
-                                .flat_map(|card| &card.sockets)
-                                .find(|socket| socket.output && socket.port == *source)
-                                .is_none_or(|socket| {
-                                    motion_graph::ports_compatible(&socket.spec, &spec)
-                                }),
-                            _ => true,
-                        };
-                        label(
-                            &mut content,
-                            atlas,
-                            Rect::new(
-                                if output { NODE_WIDTH * 0.5 } else { 12. },
-                                HEADER + index as f32 * ROW,
-                                NODE_WIDTH * 0.5 - 14.,
-                                ROW,
-                            ),
-                            language.text(spec.name, spec.english_name),
-                            if compatible {
-                                palette::TEXT_MUTED
-                            } else {
-                                palette::TEXT_MUTED.with_alpha(0.35)
-                            },
-                            if output { Align::Right } else { Align::Left },
-                        );
+            let x = NODE_WIDTH - 18.;
+            paint::line(
+                &mut content,
+                if node.collapsed {
+                    vec![[x - 3., 11.], [x + 2., 15.], [x - 3., 19.]]
+                } else {
+                    vec![[x - 4., 12.], [x, 16.], [x + 4., 12.]]
+                },
+                palette::TEXT_MUTED,
+            );
+            if !node.collapsed {
+                if let Ok(ports) =
+                    motion_graph::node_port_specs(node, &self.document.public_parameters)
+                {
+                    for (output, entries) in [(false, ports.inputs), (true, ports.outputs)] {
+                        for (index, (port, spec)) in entries.into_iter().enumerate() {
+                            let compatible = match &self.drag {
+                                Some(Drag::Wire { source, .. }) if !output => cards
+                                    .iter()
+                                    .flat_map(|card| &card.sockets)
+                                    .find(|socket| socket.output && socket.port == *source)
+                                    .is_none_or(|socket| {
+                                        motion_graph::ports_compatible(&socket.spec, &spec)
+                                    }),
+                                _ => true,
+                            };
+                            label(
+                                &mut content,
+                                atlas,
+                                Rect::new(
+                                    if output { NODE_WIDTH * 0.5 } else { 12. },
+                                    HEADER + index as f32 * ROW,
+                                    NODE_WIDTH * 0.5 - 14.,
+                                    ROW,
+                                ),
+                                motion_graph::group_port(&node.operation, &port, output)
+                                    .map(|port| language.text(&port.name, &port.english_name))
+                                    .unwrap_or_else(|| language.text(spec.name, spec.english_name)),
+                                if compatible {
+                                    palette::TEXT_MUTED
+                                } else {
+                                    palette::TEXT_MUTED.with_alpha(0.35)
+                                },
+                                if output { Align::Right } else { Align::Left },
+                            );
+                        }
                     }
                 }
             }
@@ -260,26 +289,24 @@ impl NodeEditor {
                 | NodeOp::Select { value_type } => type_label(*value_type).into(),
                 _ => String::new(),
             };
-            label(
-                &mut content,
-                atlas,
-                Rect::new(12., local.max[1] - 24., NODE_WIDTH - 24., 22.),
-                &preview,
-                palette::TEXT_MUTED,
-                Align::Left,
-            );
-            for glyph in &mut content.glyphs {
-                glyph.position = [
-                    card.rect.min[0] + glyph.position[0] * self.view.zoom,
-                    card.rect.min[1] + glyph.position[1] * self.view.zoom,
-                ];
-                glyph.size = [
-                    glyph.size[0] * self.view.zoom,
-                    glyph.size[1] * self.view.zoom,
-                ];
+            if !node.collapsed && inline::control_count(node, &self.document) == 0 {
+                label(
+                    &mut content,
+                    atlas,
+                    Rect::new(12., local.max[1] - 24., NODE_WIDTH - 24., 22.),
+                    &preview,
+                    palette::TEXT_MUTED,
+                    Align::Left,
+                );
             }
+            self.paint_controls(&mut content, atlas, node, language);
+            controls::transform_content(&mut content, card.rect.min, self.view.zoom);
+            content.clip_to(card.rect);
             canvas.append(content);
             for socket in &card.sockets {
+                if !socket.connectable {
+                    continue;
+                }
                 let radius = (4.5 * self.view.zoom).max(2.5);
                 if self.preview_target.as_ref() == Some(&socket.port) && socket.output {
                     paint::diamond(&mut canvas, socket.point, radius + 3., palette::ACCENT);
@@ -320,7 +347,7 @@ impl NodeEditor {
                 width,
                 height,
             );
-            canvas.glyphs.retain(|g| {
+            canvas.retain_glyphs(|g| {
                 !intersects(
                     tooltip,
                     Rect::new(g.position[0], g.position[1], g.size[0], g.size[1]),
@@ -351,10 +378,15 @@ impl NodeEditor {
             );
         }
         if self.drag.is_none() && area.contains(input.mouse) {
-            if let Some(socket) = cards.iter().flat_map(|card| &card.sockets).find(|socket| {
-                (socket.point[0] - input.mouse[0]).abs() <= 9.
-                    && (socket.point[1] - input.mouse[1]).abs() <= 9.
-            }) {
+            if let Some(socket) = cards
+                .iter()
+                .flat_map(|card| &card.sockets)
+                .filter(|socket| socket.connectable)
+                .find(|socket| {
+                    (socket.point[0] - input.mouse[0]).abs() <= 9.
+                        && (socket.point[1] - input.mouse[1]).abs() <= 9.
+                })
+            {
                 let width = 330_f32.min(area.width() - 12.);
                 let height = 128_f32.min(area.height() - 12.);
                 let tooltip = Rect::new(
@@ -367,7 +399,7 @@ impl NodeEditor {
                     width,
                     height,
                 );
-                canvas.glyphs.retain(|glyph| {
+                canvas.retain_glyphs(|glyph| {
                     !intersects(
                         Rect::new(
                             glyph.position[0],

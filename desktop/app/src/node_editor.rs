@@ -15,6 +15,10 @@ use std::{
 mod catalog;
 #[path = "node_editor/editing.rs"]
 mod editing;
+#[path = "node_editor/grouping.rs"]
+mod grouping;
+#[path = "node_editor/inline.rs"]
+mod inline;
 #[path = "node_editor/preview.rs"]
 mod preview;
 #[path = "node_editor/view/mod.rs"]
@@ -152,6 +156,10 @@ struct History {
     document: GraphDocument,
     options: CompileOptions,
     semantic: bool,
+    parents: Vec<grouping::ParentScope>,
+    view: CanvasView,
+    selection: BTreeSet<String>,
+    primary: Option<String>,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Binding {
@@ -219,6 +227,8 @@ struct AddMenu {
 
 pub struct NodeEditor {
     document: GraphDocument,
+    parents: Vec<grouping::ParentScope>,
+    last_group_click: Option<(String, std::time::Instant, [f32; 2])>,
     options: CompileOptions,
     source_path: Option<PathBuf>,
     saved_document: Option<GraphDocument>,
@@ -237,6 +247,7 @@ pub struct NodeEditor {
     focus: bool,
     drag: Option<Drag>,
     field: Option<Field>,
+    inline: inline::InlineState,
     library_open: bool,
     inspector_open: bool,
     pub external_inspector: bool,
@@ -285,6 +296,8 @@ impl NodeEditor {
             .map(|e| e.diagnostic());
         Self {
             document,
+            parents: vec![],
+            last_group_click: None,
             options,
             source_path: None,
             saved_document: None,
@@ -303,6 +316,7 @@ impl NodeEditor {
             focus: false,
             drag: None,
             field: None,
+            inline: Default::default(),
             library_open: true,
             inspector_open: true,
             external_inspector: false,
@@ -331,7 +345,7 @@ impl NodeEditor {
         self.primary.as_deref()
     }
     pub fn dirty(&self) -> bool {
-        self.saved_document.as_ref() != Some(&self.document)
+        self.saved_document.as_ref() != Some(&self.root_document())
     }
     pub fn focused(&self) -> bool {
         self.focus
@@ -340,7 +354,7 @@ impl NodeEditor {
         self.field.is_some() || self.search_focus || self.popup_open()
     }
     pub fn popup_open(&self) -> bool {
-        self.add_menu.is_some() || self.context_menu.is_some()
+        self.add_menu.is_some() || self.context_menu.is_some() || self.inline.busy()
     }
     pub fn focus_panel(&mut self) {
         self.focus = true;
@@ -361,12 +375,15 @@ impl NodeEditor {
     }
     pub fn snapshot(&self) -> EditorSnapshot {
         EditorSnapshot {
-            document: self.document.clone(),
+            document: self.root_document(),
             options: self.options.clone(),
             revision: self.revision,
             semantic_revision: self.semantic_revision,
             preview_revision: self.preview_revision,
-            preview_target: self.preview_target.clone(),
+            preview_target: self
+                .preview_target
+                .as_ref()
+                .map(|target| PortRef::new(self.qualified_node(&target.node), &target.port)),
             epoch: self.epoch,
             source_path: self.source_path.clone(),
         }
@@ -498,19 +515,25 @@ impl NodeEditor {
     pub fn stamp(&self) -> (u64, u64) {
         (self.epoch, self.preview_revision)
     }
-    pub fn cancel_interaction(&mut self) {
+    pub fn cancel_interaction(&mut self) -> bool {
+        let before = self.stamp();
         self.cancel_edit_only();
         self.focus = false;
+        before != self.stamp()
     }
     fn state(&self, semantic: bool) -> History {
         History {
             document: self.document.clone(),
             options: self.options.clone(),
             semantic,
+            parents: self.parents.clone(),
+            view: self.view,
+            selection: self.selected.clone(),
+            primary: self.primary.clone(),
         }
     }
     fn refresh_diagnostic(&mut self) {
-        self.diagnostic = motion_graph::validate(&self.document, &self.options)
+        self.diagnostic = motion_graph::validate(&self.root_document(), &self.options)
             .err()
             .map(|e| e.diagnostic());
     }
@@ -533,8 +556,7 @@ impl NodeEditor {
         if let Some(previous) = self.undo.pop() {
             let current = self.state(previous.semantic);
             self.redo.push(current);
-            self.document = previous.document;
-            self.options = previous.options;
+            self.restore_history(&previous);
             self.bump(previous.semantic);
             true
         } else {
@@ -546,8 +568,7 @@ impl NodeEditor {
         if let Some(next) = self.redo.pop() {
             let current = self.state(next.semantic);
             self.undo.push(current);
-            self.document = next.document;
-            self.options = next.options;
+            self.restore_history(&next);
             self.bump(next.semantic);
             true
         } else {
@@ -572,6 +593,7 @@ impl NodeEditor {
         self.refresh_diagnostic();
     }
     fn cancel_edit_only(&mut self) {
+        self.cancel_inline();
         self.add_menu = None;
         self.context_menu = None;
         match self.drag.take() {
@@ -630,6 +652,9 @@ impl NodeEditor {
         let mut node = Node::new(id.clone(), operation);
         node.position = position;
         self.check_node(&node)?;
+        let mut candidate = self.document.clone();
+        candidate.nodes.push(node.clone());
+        self.check_nested_budget(&candidate)?;
         let before = self.state(true);
         self.document.nodes.push(node);
         self.selected.clear();
@@ -651,6 +676,11 @@ impl NodeEditor {
                 "Node position must be finite",
             ));
         }
+        let mut budget = self.document.clone();
+        budget
+            .nodes
+            .push(Node::new("budget_probe", NodeOp::Float { value: 0. }));
+        self.check_nested_budget(&budget)?;
         if self.document.public_parameters.len() >= 32 {
             return Err(diag(
                 ErrorCode::Budget,
@@ -732,20 +762,26 @@ impl NodeEditor {
         self.inspector_scroll = 0.;
     }
     pub fn delete_selected(&mut self) -> bool {
-        if self.selected.is_empty() {
+        let protected: BTreeSet<_> = self
+            .document
+            .nodes
+            .iter()
+            .filter(|node| grouping::boundary(&node.operation))
+            .map(|node| node.id.clone())
+            .collect();
+        let deleting: BTreeSet<_> = self.selected.difference(&protected).cloned().collect();
+        if deleting.is_empty() {
             return false;
         }
         let before = self.state(true);
         self.field = None;
         self.drag = None;
+        self.document.nodes.retain(|n| !deleting.contains(&n.id));
         self.document
-            .nodes
-            .retain(|n| !self.selected.contains(&n.id));
-        self.document.connections.retain(|c| {
-            !self.selected.contains(&c.from.node) && !self.selected.contains(&c.to.node)
-        });
-        self.selected.clear();
-        self.primary = None;
+            .connections
+            .retain(|c| !deleting.contains(&c.from.node) && !deleting.contains(&c.to.node));
+        self.selected.retain(|id| protected.contains(id));
+        self.primary = self.selected.iter().next().cloned();
         self.finish_edit(before);
         true
     }
@@ -830,6 +866,17 @@ impl NodeEditor {
             }
         }
         edges.push(Connection { from, to });
+        if !self.parents.is_empty()
+            || self
+                .document
+                .nodes
+                .iter()
+                .any(|node| matches!(node.operation, NodeOp::Group { .. }))
+        {
+            let mut candidate = self.document.clone();
+            candidate.connections = edges.clone();
+            self.check_nested_budget(&candidate)?;
+        }
         Ok(edges)
     }
     fn port_type(&self, port: &PortRef, output: bool) -> Result<ValueType, Diagnostic> {
@@ -932,13 +979,19 @@ impl NodeEditor {
                 "Constants must be finite (±1e6); RGBA colors must be normalized",
             ));
         }
-        if matches!(node.operation, NodeOp::ColorOutput)
-            && self
-                .document
-                .nodes
-                .iter()
-                .any(|n| n.id != node.id && matches!(n.operation, NodeOp::ColorOutput))
-        {
+        let old_outputs = self
+            .document
+            .nodes
+            .iter()
+            .find(|old| old.id == node.id)
+            .map_or(0, |old| grouping::output_count(&old.operation));
+        let total_outputs: usize = self
+            .root_document()
+            .nodes
+            .iter()
+            .map(|n| grouping::output_count(&n.operation))
+            .sum();
+        if total_outputs.saturating_sub(old_outputs) + grouping::output_count(&node.operation) > 1 {
             return Err(diag(
                 ErrorCode::MultipleOutputs,
                 Some(&node.id),
@@ -1073,7 +1126,7 @@ impl NodeEditor {
     fn arrange_without_history(&mut self) {
         if let Ok(plan) = motion_graph::validate(&self.document, &self.options) {
             let mut depth: BTreeMap<String, usize> = BTreeMap::new();
-            let mut rows: BTreeMap<usize, usize> = BTreeMap::new();
+            let mut rows: BTreeMap<usize, f32> = BTreeMap::new();
             for id in plan.topological_order {
                 let level = self
                     .document
@@ -1085,10 +1138,17 @@ impl NodeEditor {
                     .unwrap_or(0);
                 depth.insert(id.clone(), level);
                 let row = rows.entry(level).or_default();
+                let height = self
+                    .document
+                    .nodes
+                    .iter()
+                    .find(|node| node.id == id)
+                    .map(|node| view::node_height(node, &self.document))
+                    .unwrap_or(114.);
                 if let Some(node) = self.document.nodes.iter_mut().find(|n| n.id == id) {
-                    node.position = [level as f32 * 244., *row as f32 * 154.];
+                    node.position = [level as f32 * 244., *row];
                 }
-                *row += 1;
+                *row += height + 40.;
             }
         }
     }
