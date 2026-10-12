@@ -157,6 +157,7 @@ pub(crate) struct PropertiesState {
 pub(crate) struct TimelineState {
     pub rows_cache: Option<((String,String,u64),std::sync::Arc<Vec<super::timeline::Row>>)>,
     pub expanded: std::collections::HashSet<u64>,
+    pub collapsed_transforms: std::collections::HashSet<u64>,
     pub filters: std::collections::HashMap<u64, PropertyFilter>,
     pub graph_mode: bool,
     pub scroll: f32,
@@ -178,6 +179,13 @@ pub(crate) enum PropertyFilter {
     All,
     Properties(u8),
     Animated,
+}
+impl TimelineState {
+    pub fn reopen_properties(&mut self, object: u64) {
+        if self.filters.get(&object) == Some(&PropertyFilter::Properties(0)) {
+            self.filters.remove(&object);
+        }
+    }
 }
 pub(crate) fn property_bit(property: Property) -> u8 {
     match property {

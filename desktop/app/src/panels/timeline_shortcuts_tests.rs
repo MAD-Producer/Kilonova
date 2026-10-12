@@ -135,6 +135,114 @@ fn property_keys_filter_and_append_without_editing_and_u_omits_static_channels()
 }
 
 #[test]
+fn repeated_p_can_be_reopened_manually_in_both_property_views() {
+    let engine = engine();
+    let mut state = state(&engine, 32.);
+    state["sampledLayers"] = serde_json::json!([{"id":7,"position":[10,20,30],"rotation":[0,0,0],"scale":[100,100,100],"opacity":1}]);
+    let mut atlas = TextAtlas::from_system(12.).unwrap();
+    for focused in [Panel::Timeline, Panel::Properties] {
+        let mut panels = panels();
+        panels.focused = Some(focused);
+        invoke(&mut panels, &state, Key::P, Modifiers::default());
+        invoke(&mut panels, &state, Key::P, Modifiers::default());
+        assert_eq!(
+            panels.timeline.filters[&7],
+            types::PropertyFilter::Properties(0)
+        );
+        let point = if focused == Panel::Timeline {
+            [81., 76.]
+        } else {
+            [60., 143.]
+        };
+        let input = Input {
+            mouse: point,
+            pressed: Some((MouseButton::Left, point)),
+            ..Default::default()
+        };
+        let mut actions = vec![];
+        if focused == Panel::Timeline {
+            timeline::render(
+                &mut PaintList::default(),
+                &mut atlas,
+                Rect::new(0., 0., 1200., 600.),
+                &mut panels,
+                &state,
+                &input,
+                &mut actions,
+            );
+            assert!(panels.timeline.expanded.contains(&7));
+        } else {
+            properties::render(
+                &mut PaintList::default(),
+                &mut atlas,
+                Rect::new(0., 0., 320., 600.),
+                &mut panels,
+                &state,
+                &input,
+                &mut actions,
+            );
+            assert!(!panels.properties.transform_collapsed);
+        }
+        assert!(timeline::property_visible(
+            &panels,
+            &state,
+            7,
+            Property::Position
+        ));
+        assert!(timeline::property_visible(
+            &panels,
+            &state,
+            7,
+            Property::Scale
+        ));
+        assert!(actions.is_empty());
+    }
+}
+
+#[test]
+fn timeline_transform_header_collapses_and_reopens_while_layer_stays_expanded() {
+    let engine = engine();
+    let state = state(&engine, 32.);
+    let mut panels = panels();
+    panels.timeline.expanded.insert(7);
+    let mut atlas = TextAtlas::from_system(12.).unwrap();
+    let point = [120., 100.];
+    let input = Input {
+        mouse: point,
+        pressed: Some((MouseButton::Left, point)),
+        ..Default::default()
+    };
+    let mut actions = vec![];
+    for collapsed in [true, false] {
+        timeline::render(
+            &mut PaintList::default(),
+            &mut atlas,
+            Rect::new(0., 0., 1200., 600.),
+            &mut panels,
+            &state,
+            &input,
+            &mut actions,
+        );
+        assert!(panels.timeline.expanded.contains(&7));
+        assert_eq!(panels.timeline.collapsed_transforms.contains(&7), collapsed);
+    }
+    assert!(actions.is_empty());
+    invoke(&mut panels, &state, Key::P, Modifiers::default());
+    assert!(timeline::property_visible(
+        &panels,
+        &state,
+        7,
+        Property::Position
+    ));
+    assert!(!timeline::property_visible(
+        &panels,
+        &state,
+        7,
+        Property::Scale
+    ));
+}
+
+#[test]
 fn navigation_uses_visible_property_times_and_accumulates_repeated_keys() {
     let engine = engine();
     let state = state(&engine, 12.);

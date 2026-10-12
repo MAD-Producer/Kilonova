@@ -143,6 +143,9 @@ pub(super) fn render(
     );
     if clicked(input, group) {
         panels.properties.transform_collapsed = !panels.properties.transform_collapsed;
+        if !panels.properties.transform_collapsed {
+            panels.timeline.reopen_properties(object);
+        }
         panels.properties.field = None;
     }
     y += 34.0;

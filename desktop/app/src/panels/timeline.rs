@@ -248,6 +248,9 @@ pub(super) fn render(
                     .iter()
                     .map(|row| {
                         if panels.timeline.expanded.contains(&row.id) {
+                            if panels.timeline.collapsed_transforms.contains(&row.id) {
+                                return 2;
+                            }
                             2 + filtered_properties(
                                 state,
                                 row.id,
@@ -533,14 +536,15 @@ pub(super) fn render(
     for (index, row) in rows.iter().enumerate() {
         let expandable=row.id!=0&&row.spatial;
         let expanded=expandable&&panels.timeline.expanded.contains(&row.id);
+        let transform_expanded=expanded&&!panels.timeline.collapsed_transforms.contains(&row.id);
         let filter=panels.timeline.filters.get(&row.id).copied().unwrap_or_default();
         let filtered=if expanded&&filter!=types::PropertyFilter::All {Some(filtered_properties(state,row.id,filter))}else{None};
-        let property_count=filtered.as_ref().map_or(row.property_count,Vec::len);
+        let property_count=if transform_expanded {filtered.as_ref().map_or(row.property_count,Vec::len)}else{0};
         let y=body.min[1]+row_offset as f32*metrics::ROW-panels.timeline.scroll;
         let row_count=1+if expanded {1+property_count}else{0};
         row_offset+=row_count;
         if y+row_count as f32*metrics::ROW<body.min[1]-metrics::ROW||y>body.max[1]+metrics::ROW {continue;}
-        let properties=if expanded{filtered.unwrap_or_else(||property_rows(state,row.id))}else{vec![]};
+        let properties=if transform_expanded{filtered.unwrap_or_else(||property_rows(state,row.id))}else{vec![]};
         if expanded {
             let group = Rect::new(
                 area.min[0] + 80.,
@@ -549,7 +553,15 @@ pub(super) fn render(
                 metrics::ROW,
             );
             if group.min[1] >= body.min[1] && group.max[1] <= body.max[1] {
-                label(list, atlas, group, locale.t(T::Transform), true);
+                label(list, atlas, group, &format!("{}  {}", if transform_expanded { "⌄" } else { "›" }, locale.t(T::Transform)), true);
+                if clicked(input, group) {
+                    if transform_expanded {
+                        panels.timeline.collapsed_transforms.insert(row.id);
+                    } else {
+                        panels.timeline.collapsed_transforms.remove(&row.id);
+                        panels.timeline.reopen_properties(row.id);
+                    }
+                }
             }
             let sample = state["sampledLayers"]
                 .as_array()
@@ -693,6 +705,7 @@ pub(super) fn render(
                     panels.timeline.expanded.remove(&row.id);
                 } else {
                     panels.timeline.expanded.insert(row.id);
+                    panels.timeline.reopen_properties(row.id);
                 }
             }
         }
