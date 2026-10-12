@@ -2,6 +2,12 @@ use crate::*;
 
 impl Shell {
     pub(crate) fn begin_close(&mut self) {
+        if let Err(error) = self.request_project_change(project_lifecycle::Target::Close) {
+            self.panels.message = Some(self.workspace.locale.error(&error));
+            self.dirty = true;
+        }
+    }
+    pub(crate) fn finish_close(&mut self) {
         self.node_tasks.cancel(&mut self.panels.node_editor);
         self.node_compile_due = None;
         self.node_installing.clear();
@@ -12,7 +18,7 @@ impl Shell {
         self.closing = true;
     }
     pub(crate) fn request_close(&mut self) {
-        if self.node_close_prompt.is_some() || self.node_close_save.is_some() || self.closing {
+        if self.node_close_prompt.is_some() || self.node_close_save.is_some() || self.project_modal() || self.closing {
             return;
         }
         let snapshot = match self.panels.node_editor.request(node_editor::Request::Save) {

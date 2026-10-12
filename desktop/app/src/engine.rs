@@ -78,6 +78,13 @@ struct PresentationState {
 /// compile-time change on both platforms.
 #[allow(dead_code)] // Typed SDK bridge; remaining panels will use the other operations.
 pub enum Command {
+    ProjectTicket(Sender<Result<crate::project_lifecycle::Ticket, String>>),
+    ChangeProject {
+        target: crate::project_lifecycle::Target,
+        ticket: crate::project_lifecycle::Ticket,
+        save: bool,
+        reply: Sender<Result<Value, String>>,
+    },
     NodeExpect {
         stamp: (u64, u64),
     },
@@ -366,6 +373,7 @@ impl Engine {
                         return;
                     }
                 };
+                guard.initial = motion_host::session::with_session(id, |s| Ok(s.engine.snapshot())).ok();
                 // The scratch budget is a device property, so apply it before
                 // the first render rather than after a visible hitch.
                 if let Err(error) = preview::configure_memory(id, total_memory as i64, false) {
@@ -771,6 +779,7 @@ fn respond<T>(reply: Sender<Result<T, String>>, value: Result<T, String>) {
 struct ProjectGuard {
     root: PathBuf,
     _file: std::fs::File,
+    initial: Option<motion_core::Project>,
 }
 impl ProjectGuard {
     fn acquire(root: &std::path::Path) -> Result<Self, String> {
@@ -785,7 +794,20 @@ impl ProjectGuard {
             .map_err(|e| e.to_string())?;
         file.try_lock()
             .map_err(|e| format!("project is already open or cannot be locked: {e}"))?;
-        Ok(Self { root, _file: file })
+        Ok(Self { root, _file: file, initial: None })
+    }
+    fn ticket(&self, id: i64) -> Result<crate::project_lifecycle::Ticket, String> {
+        let saved = if self.root.join("project.json").try_exists().map_err(|e| e.to_string())? {
+            Some(motion_core::storage::load_document(&self.root).map_err(|e| e.to_string())?)
+        } else {
+            self.initial.clone()
+        };
+        motion_host::session::with_session(id, |s| Ok(crate::project_lifecycle::Ticket {
+            root: self.root.clone(),
+            revision: s.engine.revision(),
+            dirty: saved.as_ref() != Some(s.engine.project()),
+            name: s.engine.project().name.clone(),
+        }))
     }
     fn changed(&mut self, result: Result<Value, String>) -> Result<Value, String> {
         let state = result?;
@@ -835,6 +857,39 @@ fn handle(
         presentation.retained = None;
     }
     match command {
+        Command::ProjectTicket(reply) => respond(reply, guard.ticket(id)),
+        Command::ChangeProject { target, ticket, save, reply } => respond(reply, (|| {
+            motion_host::session::with_session(id, |s| {
+                if guard.root != ticket.root || s.engine.revision() != ticket.revision {
+                    return Err("project changed while confirming; review the current changes again".into());
+                }
+                Ok(())
+            })?;
+            let choice = if save { project::PreviousProject::Save } else { project::PreviousProject::Discard };
+            match target {
+                crate::project_lifecycle::Target::Close => {
+                    if save { project::save(id) } else { project::state(id) }
+                }
+                crate::project_lifecycle::Target::New(text) => {
+                    guard.changed(project::new_project_with_choice(id, &text, choice))
+                }
+                crate::project_lifecycle::Target::Import(file) => {
+                    guard.changed(project::import_project_with_choice(id, &file, choice))
+                }
+                crate::project_lifecycle::Target::Open(directory) => {
+                    let directory = directory.canonicalize().map_err(|e| e.to_string())?;
+                    if directory == guard.root {
+                        return if save { project::save(id) } else {
+                            project::open_directory_with_choice(id, &directory, choice)
+                        };
+                    }
+                    let next = ProjectGuard::acquire(&directory)?;
+                    let result = project::open_directory_with_choice(id, &directory, choice)?;
+                    *guard = next;
+                    Ok(result)
+                }
+            }
+        })()),
         Command::NodeExpect{stamp}=>node_preview.desired=stamp,
         Command::NodeInstall{preview,reply}=>{
             let accepted=preview.stamp==node_preview.desired;
@@ -976,7 +1031,7 @@ fn handle(
                 "nodePreview":{"active":node_preview.active.as_ref().map(|p|p.stamp),"frames":node_preview.active.as_ref().map_or(0,|p|p.frames),"shaderRenders":node_preview.active.as_ref().map_or(0,|p|p.renders),"installs":node_preview.installs,"logicalSize":crate::node_preview::LOGICAL_SIZE,"rasterSize":crate::node_preview::RASTER_SIZE,"perFrameCpuReadbacks":0}});state
         })),
         Command::Save(reply) => respond(reply,project::save(id)),
-        Command::NewProject { text, reply } => respond(reply,guard.changed(project::new_project(id, &text))),
+        Command::NewProject { text, reply } => respond(reply,guard.changed(project::new_project_with_choice(id, &text, project::PreviousProject::Save))),
         Command::OpenProject { name, reply } => respond(reply,(||{
             let directory=guard.root.parent().ok_or("project parent is missing")?.join(&name).canonicalize().map_err(|e|e.to_string())?;
             if directory==guard.root{return project::save(id);}

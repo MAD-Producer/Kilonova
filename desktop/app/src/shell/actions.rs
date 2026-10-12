@@ -73,6 +73,9 @@ impl Shell {
         event_loop: Option<&ActiveEventLoop>,
     ) -> Result<(), String> {
         use panels::Action;
+        if self.project_modal() && !matches!(&action, Action::ProjectChoice(_)) {
+            return Ok(());
+        }
         if self.importing_image.is_some() && !matches!(&action, Action::Node(_)) {
             return Err(self.workspace.locale.t(T::Importing).into());
         }
@@ -82,6 +85,7 @@ impl Shell {
             return Err(self.workspace.locale.t(T::Importing).into());
         }
         match action {
+            Action::ProjectChoice(choice) => self.choose_project_change(choice)?,
             Action::Node(action) => self.node_action(action)?,
             Action::NewText => {
                 self.stop();
@@ -347,22 +351,20 @@ impl Shell {
                 }
             }
             Action::OpenPath(path) => {
-                self.stop();
-                self.state = if path.is_dir() {
-                    self.engine.open_directory(path)?
+                let target = if path.is_dir() {
+                    project_lifecycle::Target::Open(path)
                 } else if path.extension().is_some_and(|e| {
                     e.eq_ignore_ascii_case("msproj") || e.eq_ignore_ascii_case("aem")
                 }) {
-                    self.engine.import_project(path)?
+                    project_lifecycle::Target::Import(path)
                 } else {
-                    self.engine.open_directory(
+                    project_lifecycle::Target::Open(
                         path.parent()
                             .ok_or("project file has no parent")?
                             .to_path_buf(),
-                    )?
+                    )
                 };
-                self.frame = 0.0;
-                self.panels.selected = None;
+                self.request_project_change(target)?;
             }
             Action::Open => {
                 if let Some(path) = rfd::FileDialog::new()
@@ -370,33 +372,16 @@ impl Shell {
                     .add_filter("Motion Studio Project", &["json", "msproj", "aem"])
                     .pick_file()
                 {
-                    self.stop();
-                    self.state = if path.extension().is_some_and(|e| {
-                        e.eq_ignore_ascii_case("msproj") || e.eq_ignore_ascii_case("aem")
-                    }) {
-                        self.engine.import_project(path)?
-                    } else {
-                        self.engine.open_directory(
-                            path.parent()
-                                .ok_or("project file has no parent")?
-                                .to_path_buf(),
-                        )?
-                    };
-                    self.frame = self.state["frame"].as_f64().unwrap_or(0.0);
-                    self.panels.selected = None;
-                    self.panels.message = Some(self.workspace.locale.t(T::ProjectOpened).into());
+                    self.action(Action::OpenPath(path), event_loop)?;
                 }
             }
             Action::New => {
                 self.stop();
                 let mut project = Project::new(1920, 1080, 30, 300).map_err(|e| e.to_string())?;
                 project.name = self.workspace.locale.t(T::Untitled).into();
-                self.state = self
-                    .engine
-                    .new_project(serde_json::to_string(&project).map_err(|e| e.to_string())?)?;
-                self.frame = 0.0;
-                self.panels.selected = None;
-                self.panels.message = Some(self.workspace.locale.t(T::NewComposition).into());
+                self.request_project_change(project_lifecycle::Target::New(
+                    serde_json::to_string(&project).map_err(|e| e.to_string())?,
+                ))?;
             }
             Action::Save => {
                 self.state = self.engine.save()?;

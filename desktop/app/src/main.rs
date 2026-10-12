@@ -2,6 +2,7 @@
 mod audio_output;
 mod cursors;
 mod dialogs;
+mod project_lifecycle;
 mod engine;
 mod i18n;
 mod mcp;
@@ -192,6 +193,8 @@ struct Shell {
     node_examples: Option<node_examples::Browser>,
     node_example_after_save: Option<(node_editor::EditorSnapshot, &'static str)>,
     dialog: Option<dialogs::Dialog>,
+    project_prompt: Option<project_lifecycle::Prompt>,
+    project_pending: Option<project_lifecycle::Pending>,
     system_fonts: Option<Vec<dialogs::FontChoice>>,
     input: Input,
     state: Value,
@@ -280,6 +283,8 @@ impl Shell {
             node_examples: None,
             node_example_after_save: None,
             dialog: None,
+            project_prompt: None,
+            project_pending: None,
             system_fonts: None,
             input: Default::default(),
             state,
@@ -468,6 +473,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
     }
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        self.poll_project_change();
         if let Some((began, receive)) = &self.editing {
             let result = match receive.try_recv() {
                 Ok(result) => Some(result),
@@ -631,6 +637,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             && self.rendering.is_empty()
             && self.resizing.is_none()
             && self.editing.is_none()
+            && self.project_pending.is_none()
             && (!self.present_due || self.closing)
         {
             while let Some(action) = shell::actions::pop_action(&mut self.actions) {
@@ -639,7 +646,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                     self.stop();
                 }
                 self.redraw();
-                if self.editing.is_some() {
+                if self.editing.is_some() || self.project_pending.is_some() {
                     break;
                 }
             }
@@ -656,17 +663,8 @@ impl ApplicationHandler<UserEvent> for Shell {
                 }
             }
             if self.closing && self.editing.is_none() && self.actions.is_empty() {
-                match self.engine.save() {
-                    Ok(_) => {
-                        event_loop.exit();
-                        return;
-                    }
-                    Err(e) => {
-                        self.closing = false;
-                        self.panels.message = Some(self.workspace.locale.error(&e));
-                        self.dirty = true;
-                    }
-                }
+                event_loop.exit();
+                return;
             }
             if self.smoke.is_some() && self.editing.is_none() {
                 let step = (|| -> Result<(), String> {
@@ -797,6 +795,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             || self.node_tasks.busy()
             || !self.node_installing.is_empty()
             || self.node_compile_due.is_some();
+        let busy = busy || self.project_pending.is_some();
         let node_playing = self.panels.node_preview.playing
             && (panels::node_view(&self.workspace.root, self.size().unwrap_or([0., 0.])).is_some()
                 || self
@@ -1117,6 +1116,12 @@ mod tests {
         shell.request_close();
         shell.input = click(1.);
         shell.draw_commands(size);
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while shell.project_pending.is_some() {
+            assert!(Instant::now() < deadline);
+            shell.poll_project_change();
+            std::thread::sleep(Duration::from_millis(2));
+        }
         assert!(shell.closing);
         let after = shell.engine.state().unwrap();
         assert_eq!(state["revision"], after["revision"]);

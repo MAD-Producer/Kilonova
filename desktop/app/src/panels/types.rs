@@ -10,6 +10,7 @@ pub enum Action {
     New,
     Open,
     Save,
+    ProjectChoice(crate::node_tasks::CloseChoice),
     ImportMedia,
     ImportPath(std::path::PathBuf),
     CancelImport,
