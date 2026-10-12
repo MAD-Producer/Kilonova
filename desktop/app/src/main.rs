@@ -722,17 +722,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 }
             }
         }
-        if self.playback.is_some()
-            && !self.input.pending
-            && self.floating.values().all(|window| !window.input.pending)
-            && Instant::now() >= self.next_composition
-            && self.attached
-            && self.rendering.is_empty()
-            && self.editing.is_none()
-            && !self.present_due
-            && self.actions.is_empty()
-            && self.resizing.is_none()
-        {
+        if self.playback_ready(Instant::now()) {
             if let Err(error) = self.advance_playback() {
                 self.stop();
                 self.panels.message = Some(self.workspace.locale.error(&error));

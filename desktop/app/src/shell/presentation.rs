@@ -1,6 +1,19 @@
 use crate::*;
 
 impl Shell {
+    pub(crate) fn playback_ready(&self, now: Instant) -> bool {
+        self.playback.is_some()
+            && !playback_input_blocks(&self.input)
+            && self.floating.values().all(|window| !playback_input_blocks(&window.input))
+            && now >= self.next_composition
+            && self.attached
+            && self.rendering.is_empty()
+            && self.editing.is_none()
+            && !self.present_due
+            && self.actions.is_empty()
+            && self.resizing.is_none()
+            && self.resize_queue.is_empty()
+    }
     pub(crate) fn lose_focus(&mut self) {
         self.workspace.cancel();
         self.actions.extend(panels::cancel_interaction(&mut self.panels));
@@ -693,6 +706,71 @@ impl Shell {
             self.dirty = true;
             self.redraw();
         }
+    }
+}
+
+// Hover changes UI paint, not composition time. Preserve the ordering barrier
+// for real interactions without starving playback on a stream of pointer moves.
+fn playback_input_blocks(input: &Input) -> bool {
+    input.pending && (
+        input.pressed.is_some() || input.released.is_some() || input.held.is_some()
+        || input.wheel != [0.; 2] || input.long_press.is_some() || input.focus_lost
+        || !input.keys.is_empty() || !input.released_keys.is_empty()
+        || !input.text.is_empty() || input.composing || input.ime_consumed
+    )
+}
+
+#[cfg(test)]
+mod playback_tests {
+    use super::*;
+
+    #[test]
+    fn repeated_pointer_events_cannot_starve_composition_ticks() {
+        let folder = tempfile::tempdir().unwrap();
+        let mut shell = Shell::new(folder.path().join("project"), None, Some(Locale::En)).unwrap();
+        shell.attached = true;
+        shell.playback = Some((Instant::now() - Duration::from_millis(150), 0.));
+        for tick in 0..12 {
+            for movement in 0..120 {
+                shell.translate(Event::MouseMoved { position: [movement as f32, tick as f32] });
+            }
+            assert!(shell.input.pending);
+            shell.next_composition = Instant::now();
+            assert!(shell.playback_ready(Instant::now()));
+            shell.advance_playback().unwrap();
+            assert!(!shell.playback_ready(Instant::now())); // Never overlap seeks.
+            let (_, reply) = shell.editing.take().unwrap();
+            shell.state = reply.recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+            assert!(shell.state["frame"].as_f64().unwrap() >= 4.);
+            assert!(shell.playback.is_some());
+        }
+    }
+
+    #[test]
+    fn active_interaction_and_acknowledged_frames_still_block_playback() {
+        let mut input = Input { pending: true, ..Default::default() };
+        assert!(!playback_input_blocks(&input));
+        input.pressed = Some((MouseButton::Left, [10., 10.]));
+        assert!(playback_input_blocks(&input));
+        input.pressed = None;
+        input.held = Some(MouseButton::Left);
+        assert!(playback_input_blocks(&input));
+        input.held = None;
+        input.text = "12".into();
+        assert!(playback_input_blocks(&input));
+        input.text.clear();
+        input.keys.push((Key::Space, Modifiers::default()));
+        assert!(playback_input_blocks(&input));
+        let folder = tempfile::tempdir().unwrap();
+        let mut shell = Shell::new(folder.path().join("project"), None, Some(Locale::En)).unwrap();
+        shell.attached = true;
+        shell.playback = Some((Instant::now(), 0.));
+        assert!(shell.playback_ready(Instant::now()));
+        shell.present_due = true;
+        assert!(!shell.playback_ready(Instant::now()));
+        shell.present_due = false;
+        shell.actions.push_back(panels::Action::Save);
+        assert!(!shell.playback_ready(Instant::now()));
     }
 }
 
