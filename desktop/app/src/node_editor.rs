@@ -19,6 +19,8 @@ mod editing;
 mod grouping;
 #[path = "node_editor/inline.rs"]
 mod inline;
+#[path = "node_editor/nudge.rs"]
+mod nudge;
 #[path = "node_editor/preview.rs"]
 mod preview;
 #[path = "node_editor/view/mod.rs"]
@@ -246,6 +248,7 @@ pub struct NodeEditor {
     next_id: u64,
     focus: bool,
     drag: Option<Drag>,
+    nudge_before: Option<History>,
     field: Option<Field>,
     inline: inline::InlineState,
     library_open: bool,
@@ -315,6 +318,7 @@ impl NodeEditor {
             next_id: 1,
             focus: false,
             drag: None,
+            nudge_before: None,
             field: None,
             inline: Default::default(),
             library_open: true,
@@ -360,7 +364,7 @@ impl NodeEditor {
         self.focus = true;
     }
     pub fn editing(&self) -> bool {
-        self.drag.is_some() || self.text_editing()
+        self.drag.is_some() || self.nudge_before.is_some() || self.text_editing()
     }
     pub fn diagnostic(&self) -> Option<&Diagnostic> {
         self.diagnostic.as_ref()
@@ -391,6 +395,7 @@ impl NodeEditor {
     /// Commit a valid inspector field and an active move before capturing an owned
     /// document. The host may send this action to a worker without borrowing UI state.
     pub fn request(&mut self, request: Request) -> Result<Action, Diagnostic> {
+        self.finish_nudge();
         self.commit_field()?;
         if let Some(Drag::Nodes { before, .. }) = self.drag.take() {
             if self.document != before.document {
@@ -517,11 +522,13 @@ impl NodeEditor {
     }
     pub fn cancel_interaction(&mut self) -> bool {
         let before = self.stamp();
+        self.finish_nudge();
         self.cancel_edit_only();
         self.focus = false;
         before != self.stamp()
     }
-    fn state(&self, semantic: bool) -> History {
+    fn state(&mut self, semantic: bool) -> History {
+        self.finish_nudge();
         History {
             document: self.document.clone(),
             options: self.options.clone(),
@@ -538,6 +545,7 @@ impl NodeEditor {
             .map(|e| e.diagnostic());
     }
     fn finish_edit(&mut self, before: History) {
+        self.finish_nudge();
         self.undo.push(before.clone());
         if self.undo.len() > 64 {
             self.undo.remove(0);
@@ -552,6 +560,7 @@ impl NodeEditor {
         self.refresh_diagnostic();
     }
     pub fn undo(&mut self) -> bool {
+        self.finish_nudge();
         self.cancel_edit_only();
         if let Some(previous) = self.undo.pop() {
             let current = self.state(previous.semantic);
@@ -564,6 +573,7 @@ impl NodeEditor {
         }
     }
     pub fn redo(&mut self) -> bool {
+        self.finish_nudge();
         self.cancel_edit_only();
         if let Some(next) = self.redo.pop() {
             let current = self.state(next.semantic);
@@ -594,6 +604,10 @@ impl NodeEditor {
     }
     fn cancel_edit_only(&mut self) {
         self.cancel_inline();
+        if let Some(before) = self.nudge_before.take() {
+            self.document = before.document;
+            self.bump(false);
+        }
         self.add_menu = None;
         self.context_menu = None;
         match self.drag.take() {
