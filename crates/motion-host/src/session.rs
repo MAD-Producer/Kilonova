@@ -195,6 +195,31 @@ impl Session {
         &self.platform
     }
 
+    pub fn configure_memory_policy(
+        &mut self,
+        policy: motion_render::resource_policy::MemoryPolicy,
+    ) -> Result<Value> {
+        policy.validate()?;
+        if self.effects.memory_policy() != policy {
+            self.effects.set_memory_policy(policy)?;
+            if let Some(graphics) = &mut self.graphics {
+                graphics
+                    .renderer
+                    .set_memory_policy(policy)
+                    .map_err(|error| error.to_string())?;
+            }
+            if let Some(renderer) = &mut self.editor_renderer {
+                renderer
+                    .set_memory_policy(policy)
+                    .map_err(|error| error.to_string())?;
+            }
+            self.preview_memory.changed();
+            self.memory_context = None;
+            self.view_revision += 1; // Retained presentation must recheck the new limits.
+        }
+        Ok(json!({"policyVersion":2,"memoryPolicy":policy}))
+    }
+
     pub fn replace_project(&mut self, engine: Engine, root: PathBuf) -> Result<()> {
         let platform = self.platform.clone();
         let audio_jobs =
@@ -276,7 +301,7 @@ impl Session {
         renderer.set_effect_registry(self.effects.registry.clone());
         renderer.set_preview_resource_guard(true);
         renderer
-            .set_scratch_budget(self.effects.scratch_budget())
+            .set_memory_policy(self.effects.memory_policy())
             .map_err(|e| e.to_string())?;
         surface.configure(&renderer.device, &config);
         renderer

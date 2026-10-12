@@ -323,6 +323,7 @@ impl GpuState {
         builder: &PlanBuilder,
         scene: &Scene,
         asset_bytes: u64,
+        source_budget: u64,
     ) -> Result<(), RenderError> {
         self.failed_program = None;
         let frame = &builder.frame;
@@ -542,10 +543,10 @@ impl GpuState {
                                     message,
                                 });
                             }
-                            if asset_bytes + self.resource_bytes + bytes > 128 * 1024 * 1024 {
+                            if asset_bytes + self.resource_bytes + bytes > source_budget {
                                 return Err(RenderError::budget(crate::ResourceBudgetScope::SourceTextures,
-                                    asset_bytes + self.resource_bytes + bytes, crate::renderer::TEXTURE_BUDGET,
-                                    "images and effect resources exceed 128 MiB"));
+                                    asset_bytes + self.resource_bytes + bytes, source_budget,
+                                    "images and effect resources exceed configured source texture budget"));
                             }
                             let t = texture(
                                 device,

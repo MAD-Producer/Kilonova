@@ -2,6 +2,7 @@
 //! while the live editor changes, seeks, switches composition or closes.
 use motion_core::Project;
 use motion_effects::Registry;
+use motion_render::resource_policy::MemoryPolicy;
 use motion_host::{session::Session, Result};
 use serde::Serialize;
 use std::{
@@ -20,7 +21,7 @@ pub struct FrozenMovie {
     project: Project,
     registry: Registry,
     assets: tempfile::TempDir,
-    scratch_budget: u64,
+    memory_policy: MemoryPolicy,
     source_paths: BTreeSet<PathBuf>,
     pub revision: u64,
 }
@@ -43,6 +44,30 @@ mod tests {
                 [value, value]
             })
             .collect()
+    }
+    #[test]
+    fn export_snapshot_freezes_source_and_scratch_limits() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().join("project");
+        fs::create_dir(&root).unwrap();
+        let mut session = Session::new(
+            Project::new(64, 64, 30, 6).unwrap(),
+            root,
+            crate::platform(),
+        )
+        .unwrap();
+        let policy = MemoryPolicy {
+            source_texture_budget_bytes: 256 << 20,
+            scratch_budget_bytes: 96 << 20,
+        };
+        session.configure_memory_policy(policy).unwrap();
+        let plan = FrozenMovie::capture_plan(&session, &ExportControl::default()).unwrap();
+        session
+            .configure_memory_policy(MemoryPolicy::default())
+            .unwrap();
+        let frozen = plan.freeze(&ExportControl::default()).unwrap();
+        assert_eq!(frozen.memory_policy, policy);
+        assert_eq!(session.effects.memory_policy(), MemoryPolicy::default());
     }
     fn source_movie(path: &Path) {
         let mut encode = crate::encode::Mp4Encoder::new(path, 64, 64, 30).unwrap();
@@ -302,7 +327,7 @@ mod tests {
             Project::new(64, 64, 30, 6).unwrap(),
             dir.path(),
             Registry::new_with_builtins().unwrap(),
-            motion_render::resource_policy::MAX_SCRATCH_BUDGET,
+            MemoryPolicy { scratch_budget_bytes: motion_render::resource_policy::MAX_SCRATCH_BUDGET, ..Default::default() },
             0,
             &control,
         )
@@ -333,7 +358,7 @@ mod tests {
             project,
             dir.path(),
             Registry::new_with_builtins().unwrap(),
-            motion_render::resource_policy::MAX_SCRATCH_BUDGET,
+            MemoryPolicy { scratch_budget_bytes: motion_render::resource_policy::MAX_SCRATCH_BUDGET, ..Default::default() },
             0,
             &control,
         )
@@ -404,7 +429,7 @@ pub struct MovieFreezePlan {
     project: Project,
     registry: Registry,
     root: PathBuf,
-    scratch_budget: u64,
+    memory_policy: MemoryPolicy,
     revision: u64,
     sources: Vec<(PathBuf, PathBuf, fs::File, fs::Metadata)>,
     source_paths: BTreeSet<PathBuf>,
@@ -415,7 +440,7 @@ impl MovieFreezePlan {
         project: Project,
         root: &Path,
         registry: Registry,
-        scratch_budget: u64,
+        memory_policy: MemoryPolicy,
         revision: u64,
         control: &ExportControl,
     ) -> Result<Self> {
@@ -423,7 +448,7 @@ impl MovieFreezePlan {
         project.validate().map_err(|e| e.to_string())?;
         let root = root.canonicalize().map_err(|e| e.to_string())?;
         let mut plans = motion_render::effect_plan::PlanBuilder::new(registry.clone())?;
-        plans.set_scratch_budget(scratch_budget)?;
+        plans.set_memory_policy(memory_policy)?;
         for id in project
             .reachable_compositions()
             .map_err(|e| e.to_string())?
@@ -492,7 +517,7 @@ impl MovieFreezePlan {
             project,
             registry,
             root,
-            scratch_budget,
+            memory_policy,
             revision,
             sources,
             source_paths,
@@ -506,7 +531,7 @@ impl MovieFreezePlan {
             project,
             registry,
             root,
-            scratch_budget,
+            memory_policy,
             revision,
             sources,
             mut source_paths,
@@ -567,7 +592,7 @@ impl MovieFreezePlan {
             project,
             registry,
             assets,
-            scratch_budget,
+            memory_policy,
             source_paths,
             revision,
         })
@@ -595,7 +620,7 @@ impl FrozenMovie {
             session.engine.snapshot(),
             &session.root,
             session.effects.registry.clone(),
-            session.effects.scratch_budget(),
+            session.effects.memory_policy(),
             session.engine.revision(),
             control,
         )
@@ -626,7 +651,7 @@ impl FrozenMovie {
         revision: u64,
         control: &ExportControl,
     ) -> Result<Self> {
-        MovieFreezePlan::new(project, root, registry, scratch_budget, revision, control)?
+        MovieFreezePlan::new(project, root, registry, MemoryPolicy { scratch_budget_bytes: scratch_budget, ..Default::default() }, revision, control)?
             .freeze(control)
     }
 
@@ -685,7 +710,7 @@ impl FrozenMovie {
             pollster::block_on(Renderer::headless()).map_err(|e| format!("export GPU: {e}"))?;
         renderer.set_effect_registry(self.registry.clone());
         renderer
-            .set_scratch_budget(self.scratch_budget)
+            .set_memory_policy(self.memory_policy)
             .map_err(|e| e.to_string())?;
         renderer
             .configure_assets(p, self.assets.path())

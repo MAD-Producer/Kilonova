@@ -9,19 +9,19 @@ pub fn configure_memory(id: i64, total_mem: i64, guarded: bool) -> Result<serde_
             return Err("invalid device physical memory".into());
         }
         let budget = motion_render::resource_policy::scratch_budget(total_mem as u64, guarded);
-        s.effects.set_scratch_budget(budget)?;
-        if let Some(g) = &mut s.graphics {
-            g.renderer
-                .set_scratch_budget(budget)
-                .map_err(|e| e.to_string())?;
-        }
-        if let Some(renderer) = &mut s.editor_renderer {
-            renderer
-                .set_scratch_budget(budget)
-                .map_err(|e| e.to_string())?;
-        }
+        let mut policy = s.effects.memory_policy();
+        policy.scratch_budget_bytes = budget;
+        s.configure_memory_policy(policy)?;
         Ok(json!({"scratchBudgetBytes":budget,"policyVersion":1}))
     })
+}
+
+/// Shared backend API; a session policy is runtime state, not project data.
+pub fn configure_memory_policy(
+    id: i64,
+    policy: motion_render::resource_policy::MemoryPolicy,
+) -> Result<serde_json::Value> {
+    crate::session::with_session(id, |session| session.configure_memory_policy(policy))
 }
 
 pub fn seek(id: i64, frame: f64) -> Result<serde_json::Value> {

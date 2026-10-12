@@ -11,7 +11,8 @@ use std::{
     time::Instant,
 };
 
-pub(crate) const TEXTURE_BUDGET: u64 = 128 * 1024 * 1024;
+#[cfg(test)]
+pub(crate) const TEXTURE_BUDGET: u64 = crate::resource_policy::DEFAULT_SOURCE_TEXTURE_BUDGET;
 const CAPTURE_PIXEL_LIMIT: u64 = 16 * 1024 * 1024;
 const DRAW_SIZE: u64 = std::mem::size_of::<DrawUniform>() as u64;
 const TARGET_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
@@ -429,6 +430,15 @@ impl Renderer {
     pub fn set_scratch_budget(&mut self, bytes: u64) -> Result<()> {
         self.effect_gpu.builder.set_scratch_budget(bytes).map_err(RenderError::Invalid)
     }
+    pub fn memory_policy(&self) -> crate::resource_policy::MemoryPolicy {
+        self.effect_gpu.builder.memory_policy()
+    }
+    pub fn set_memory_policy(&mut self, policy: crate::resource_policy::MemoryPolicy) -> Result<()> {
+        self.effect_gpu
+            .builder
+            .set_memory_policy(policy)
+            .map_err(RenderError::Invalid)
+    }
     pub fn set_preview_resource_guard(&mut self, enabled: bool) {
         self.preview_resource_guard = enabled;
         self.effect_gpu.builder.invalidate_preview_plan();
@@ -520,13 +530,14 @@ impl Renderer {
             &self.effect_gpu.builder,
             scene,
             self.texture_bytes + self.video_plane_bytes(),
+            self.effect_gpu.builder.source_texture_budget,
         )?;
         if self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes
-            > TEXTURE_BUDGET
+            > self.effect_gpu.builder.source_texture_budget
         {
             return Err(RenderError::budget(ResourceBudgetScope::SourceTextures,
                 self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes,
-                TEXTURE_BUDGET, "images and plugin resources exceed 128 MiB"));
+                self.effect_gpu.builder.source_texture_budget, "images and plugin resources exceed configured source texture budget"));
         }
         Ok(())
     }
@@ -657,11 +668,11 @@ impl Renderer {
             .map_or(frame.bytes() as u64, |v| v.replacement_bytes(object, frame));
         self.trim_image_cache((bytes + planes).saturating_sub(previous + self.video_plane_bytes()));
         if self.texture_bytes - previous + bytes + planes + self.effect_gpu.state.resource_bytes
-            > TEXTURE_BUDGET
+            > self.effect_gpu.builder.source_texture_budget
         {
             return Err(RenderError::budget(ResourceBudgetScope::SourceTextures,
                 self.texture_bytes - previous + bytes + planes + self.effect_gpu.state.resource_bytes,
-                TEXTURE_BUDGET, "video planes and images exceed 128 MiB"));
+                self.effect_gpu.builder.source_texture_budget, "video planes and images exceed configured source texture budget"));
         }
         if self.images.get(&key).is_none_or(|i| {
             i.size != (width, height)
@@ -799,11 +810,11 @@ impl Renderer {
             + bytes
             + self.video_plane_bytes()
             + self.effect_gpu.state.resource_bytes
-            > TEXTURE_BUDGET
+            > self.effect_gpu.builder.source_texture_budget
         {
             return Err(RenderError::budget(ResourceBudgetScope::SourceTextures,
                 self.texture_bytes - previous + bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes,
-                TEXTURE_BUDGET, "decoded preview textures exceed 128 MiB"));
+                self.effect_gpu.builder.source_texture_budget, "decoded preview textures exceed configured source texture budget"));
         }
         let mut premultiplied = if premultiply {
             rgba.to_vec()
@@ -933,9 +944,9 @@ impl Renderer {
                     "asset metadata mismatch or texture budget exceeded".into(),
                 ));
             }
-            if bytes > TEXTURE_BUDGET || self.texture_bytes + self.video_plane_bytes() + bytes > TEXTURE_BUDGET {
+            if bytes > self.effect_gpu.builder.source_texture_budget || self.texture_bytes + self.video_plane_bytes() + bytes > self.effect_gpu.builder.source_texture_budget {
                 return Err(RenderError::budget(ResourceBudgetScope::SourceTextures,
-                    self.texture_bytes + self.video_plane_bytes() + bytes, TEXTURE_BUDGET,
+                    self.texture_bytes + self.video_plane_bytes() + bytes, self.effect_gpu.builder.source_texture_budget,
                     "asset metadata mismatch or texture budget exceeded"));
             }
             let decoded = ImageReader::open(root.join(&asset.path))?
@@ -1041,7 +1052,7 @@ impl Renderer {
             .map(|(id, time)| (*time, *id)).collect();
         victims.sort_unstable();
         for (_, id) in victims {
-            if idle <= limit && total <= TEXTURE_BUDGET { break; }
+            if idle <= limit && total <= self.effect_gpu.builder.source_texture_budget { break; }
             let bytes = self.images.get(&TextureKey::Static(id)).map_or(0, |i| i.bytes);
             self.remove_static_image(id);
             idle -= bytes;
@@ -1079,9 +1090,9 @@ impl Renderer {
             }
             required += u64::from(w) * u64::from(h) * 4;
         }
-        if required > TEXTURE_BUDGET {
-            return Err(RenderError::budget(ResourceBudgetScope::ActiveImages, required, TEXTURE_BUDGET,
-                "active image working set exceeds 128 MiB; full output requires original resolution"));
+        if required > self.effect_gpu.builder.source_texture_budget {
+            return Err(RenderError::budget(ResourceBudgetScope::ActiveImages, required, self.effect_gpu.builder.source_texture_budget,
+                "active image working set exceeds configured source texture budget; full output requires original resolution"));
         }
         self.image_cache_enabled = matches!(resolution, Resolution::Preview(_));
         for id in wanted.difference(&self.image_active) {
@@ -1117,7 +1128,7 @@ impl Renderer {
                     // resources needed by an already active video/effect.
                     let cost = pixels.rgba.len() as u64;
                     if !wanted.contains(&source.id) && (cost + self.image_idle_bytes() > crate::image_resources::IDLE_TEXTURE_BYTES
-                        || self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes + cost > TEXTURE_BUDGET) { return Ok(true); }
+                        || self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes + cost > self.effect_gpu.builder.source_texture_budget) { return Ok(true); }
                 self.upload_pixels(TextureKey::Static(source.id), pixels.width, pixels.height, &pixels.rgba, false)?;
                 self.image_decodes += u64::from(!pixels.cached);
                 self.image_proxy_cache_hits += u64::from(pixels.cached);
@@ -1162,7 +1173,7 @@ impl Renderer {
             let bytes = u64::from(w) * u64::from(h) * 4;
             if w > self.device.limits().max_texture_dimension_2d || h > self.device.limits().max_texture_dimension_2d
                 || bytes + self.image_idle_bytes() > crate::image_resources::IDLE_TEXTURE_BYTES
-                || self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes + bytes > TEXTURE_BUDGET { continue; }
+                || self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes + bytes > self.effect_gpu.builder.source_texture_budget { continue; }
             self.image_decode.start(source.clone(), resolution, true).map_err(RenderError::Invalid)?;
             self.image_prefetches += 1;
             break;
@@ -1282,6 +1293,14 @@ impl Renderer {
         preview: bool,
     ) -> Result<RenderStats> {
         self.check_health()?;
+        // A reduced budget also applies to already-resident sources. It must
+        // not be bypassed by a cached plan or a no-op upload.
+        self.trim_image_cache(0);
+        let resident = self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes;
+        if resident > self.effect_gpu.builder.source_texture_budget {
+            return Err(RenderError::budget(ResourceBudgetScope::SourceTextures, resident,
+                self.effect_gpu.builder.source_texture_budget, "resident sources exceed source texture budget"));
+        }
         if !scene.nested.is_empty() && self.video_gpu.as_ref().is_some_and(|v| v.has_pending()) {
             return Err(RenderError::Invalid(
                 "nested video rendering requires standalone conversion submissions".into(),
@@ -1295,10 +1314,10 @@ impl Renderer {
                 let bytes=u64::from(w)*u64::from(h)*4;
                 let previous=self.images.get(&key).map_or(0,|image|image.bytes);
                 self.trim_image_cache(bytes.saturating_sub(previous));
-                if self.texture_bytes-previous+self.video_plane_bytes()+self.effect_gpu.state.resource_bytes+bytes>TEXTURE_BUDGET {
+                if self.texture_bytes-previous+self.video_plane_bytes()+self.effect_gpu.state.resource_bytes+bytes>self.effect_gpu.builder.source_texture_budget {
                     return Err(RenderError::budget(ResourceBudgetScope::SourceTextures,
                         self.texture_bytes-previous+self.video_plane_bytes()+self.effect_gpu.state.resource_bytes+bytes,
-                        TEXTURE_BUDGET, format!("composition {}: nested textures exceed 128 MiB",node.composition)));
+                        self.effect_gpu.builder.source_texture_budget, format!("composition {}: nested textures exceed configured source texture budget",node.composition)));
                 }
                 let target=self.render_target(w,h)?;
                 let group=self.device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -1356,6 +1375,7 @@ impl Renderer {
             &mut self.images,
             &mut self.texture_bytes,
             self.effect_gpu.state.resource_bytes,
+            self.effect_gpu.builder.source_texture_budget,
         )? {
             self.effect_gpu.state.invalidate();
         }
@@ -1482,10 +1502,10 @@ impl Renderer {
         for (key,width,height) in specs {
             if self.images.get(&key).is_some_and(|image|image.size==(width,height)){continue;}
             let bytes=u64::from(width)*u64::from(height)*4;
-            if self.texture_bytes+self.video_plane_bytes()+self.effect_gpu.state.resource_bytes+bytes>TEXTURE_BUDGET {
+            if self.texture_bytes+self.video_plane_bytes()+self.effect_gpu.state.resource_bytes+bytes>self.effect_gpu.builder.source_texture_budget {
                 return Err(RenderError::budget(ResourceBudgetScope::SourceTextures,
                     self.texture_bytes+self.video_plane_bytes()+self.effect_gpu.state.resource_bytes+bytes,
-                    TEXTURE_BUDGET, "effect image snapshots exceed source texture budget"));
+                    self.effect_gpu.builder.source_texture_budget, "effect image snapshots exceed source texture budget"));
             }
             let texture=self.device.create_texture(&wgpu::TextureDescriptor {label:Some("same-frame effect image input"),size:wgpu::Extent3d{width,height,depth_or_array_layers:1},
                 mip_level_count:1,sample_count:1,dimension:wgpu::TextureDimension::D2,format:TARGET_FORMAT,usage:wgpu::TextureUsages::TEXTURE_BINDING|wgpu::TextureUsages::COPY_DST|wgpu::TextureUsages::COPY_SRC,view_formats:&[]});
@@ -1526,6 +1546,7 @@ impl Renderer {
                 &self.effect_gpu.builder,
                 scene,
                 self.texture_bytes + self.video_plane_bytes(),
+            self.effect_gpu.builder.source_texture_budget,
             ) {
                 Ok(()) => break,
                 Err(error) => {
@@ -1554,7 +1575,7 @@ impl Renderer {
         let mask_other=self.video_plane_bytes()+self.effect_gpu.state.resource_bytes;
         let frame = &self.effect_gpu.builder.frame;
         let masks_changed=self.mask_gpu.prepare(&self.device,&self.queue,encoder,&self.image_layout,scene,&frame.masks,
-            &mut self.images,&mut self.texture_bytes,mask_other)?;
+            &mut self.images,&mut self.texture_bytes,mask_other,self.effect_gpu.builder.source_texture_budget)?;
         if masks_changed {
             self.effect_gpu.state.invalidate();
         }
@@ -1568,6 +1589,7 @@ impl Renderer {
             &mut self.images,
             &mut self.texture_bytes,
             self.effect_gpu.state.resource_bytes,
+            self.effect_gpu.builder.source_texture_budget,
         )?;
         let has_adjustment = frame
             .draws
@@ -1598,8 +1620,8 @@ impl Renderer {
             let needed: Vec<_> = frame.compositing.iter().filter(|c| c.matte >= 0)
                 .map(|c| (frame.draws[c.matte as usize].layer, c.mode >= 3)).collect();
             gpu.prepare_mattes(&self.device, &self.image_layout, &self.sampler, composition_size, &needed,
-                source_bytes)?;
-            let changed = gpu.prepare_source(&self.device, &self.image_layout, &self.sampler, has_transfer)?;
+                source_bytes,self.effect_gpu.builder.source_texture_budget)?;
+            let changed = gpu.prepare_source(&self.device, &self.image_layout, &self.sampler, has_transfer,self.effect_gpu.builder.source_texture_budget)?;
             gpu.prepare_blend_inputs(&self.device, &self.queue, &self.sampler, &self.layer_gpu.accumulators,
                 &scene.layers, changed || accumulators_changed);
         } else if let Some(gpu) = &mut self.compositing_gpu { gpu.release(); }
@@ -1612,6 +1634,7 @@ impl Renderer {
                 &self.effect_gpu.builder,
                 scene,
                 self.texture_bytes + self.video_plane_bytes(),
+            self.effect_gpu.builder.source_texture_budget,
             )?;
         }
         self.geometry_upload.clear();
