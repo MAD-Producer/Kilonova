@@ -4,6 +4,52 @@ use motion_graph::*;
 use motion_render::Scene;
 use motion_render::{CaptureTarget, Renderer};
 use std::sync::Arc;
+#[path = "support/group_fixture.rs"]
+mod group_fixture;
+
+#[test]
+fn nested_groups_export_pixel_identically_and_keep_public_parameter_animation() {
+    let dir = tempfile::tempdir().unwrap();
+    let plain = demo_graph();
+    let nested = group_fixture::nested_demo(3);
+    let (mut p, mut renderer, target) = setup(&plain, &dir.path().join("plain.msfx"));
+    let (mut grouped, mut group_renderer, group_target) =
+        setup(&nested, &dir.path().join("nested.msfx"));
+    for frame in [0., 15.5, 29.] {
+        assert_eq!(
+            render(&p, &mut renderer, &target, frame),
+            render(&grouped, &mut group_renderer, &group_target, frame)
+        );
+    }
+    for project in [&mut p, &mut grouped] {
+        project.layers[0].effects[0]
+            .params
+            .get_mut("color")
+            .unwrap()
+            .track
+            .value = [0.8, 0.1, 0.35, 0.45];
+        project.layers[0].effects[0]
+            .params
+            .get_mut("radius")
+            .unwrap()
+            .track
+            .upsert(0, [8., 0., 0., 0.], Ease::Linear)
+            .unwrap();
+        project.layers[0].effects[0]
+            .params
+            .get_mut("radius")
+            .unwrap()
+            .track
+            .upsert(30, [23., 0., 0., 0.], Ease::Linear)
+            .unwrap();
+    }
+    for frame in [0., 15.5, 29.] {
+        assert_eq!(
+            render(&p, &mut renderer, &target, frame),
+            render(&grouped, &mut group_renderer, &group_target, frame)
+        );
+    }
+}
 
 fn setup(graph: &GraphDocument, path: &std::path::Path) -> (Project, Renderer, CaptureTarget) {
     let report = export_msfx(

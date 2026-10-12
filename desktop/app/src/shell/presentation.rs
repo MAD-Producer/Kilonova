@@ -364,7 +364,9 @@ impl Shell {
         }
         let panel = panels::panel(id).ok_or("invalid panel")?;
         if panel == dock::Panel::Nodes {
-            self.panels.node_editor.cancel_interaction();
+            if self.panels.node_editor.cancel_interaction() {
+                self.schedule_node_compile()?;
+            }
         }
         let window = Arc::new(
             event_loop
@@ -441,7 +443,9 @@ impl Shell {
             self.panels.fx_console = None;
         }
         if panel == dock::Panel::Nodes.dock() {
-            self.panels.node_editor.cancel_interaction();
+            if self.panels.node_editor.cancel_interaction() {
+                self.schedule_node_compile()?;
+            }
         }
         if let Some(id) = self
             .floating

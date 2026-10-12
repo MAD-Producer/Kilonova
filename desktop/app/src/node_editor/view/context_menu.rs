@@ -3,6 +3,12 @@
 use super::*;
 
 enum Choice {
+    Group,
+    Ungroup,
+    Enter(String),
+    Leave,
+    Collapse(String),
+    Expose(PortRef, bool),
     Add,
     Fit,
     Duplicate,
@@ -33,11 +39,27 @@ impl NodeEditor {
         }
         let mut entries: Vec<(String, Choice)> = vec![];
         match &menu.kind {
-            MenuKind::Wire(port) => entries.push((
-                language.text("断开连线", "Disconnect wire").into(),
-                Choice::Disconnect(port.clone()),
-            )),
+            MenuKind::Wire(port) => {
+                if !self.parents.is_empty() {
+                    entries.push((
+                        language.text("公开为组输入", "Expose group input").into(),
+                        Choice::Expose(port.clone(), false),
+                    ));
+                }
+                entries.push((
+                    language.text("断开连线", "Disconnect wire").into(),
+                    Choice::Disconnect(port.clone()),
+                ));
+            }
             MenuKind::Canvas => {
+                if !self.parents.is_empty() {
+                    entries.push((
+                        language
+                            .text("返回父图 · Ctrl+Tab", "Parent · Ctrl+Tab")
+                            .into(),
+                        Choice::Leave,
+                    ));
+                }
                 entries.push((
                     language
                         .text("添加节点 · Shift+A", "Add node · Shift+A")
@@ -52,6 +74,31 @@ impl NodeEditor {
             MenuKind::Node(id) | MenuKind::Preview(id) => {
                 if matches!(menu.kind, MenuKind::Node(_)) {
                     entries.push((
+                        language.text("分组 · Ctrl+G", "Group · Ctrl+G").into(),
+                        Choice::Group,
+                    ));
+                    if let Some(node) = self.document.nodes.iter().find(|node| node.id == *id) {
+                        if matches!(node.operation, NodeOp::Group { .. }) {
+                            entries.push((
+                                language.text("进入子图 · Tab", "Enter group · Tab").into(),
+                                Choice::Enter(id.clone()),
+                            ));
+                            entries.push((
+                                language.text("解包 · Alt+G", "Ungroup · Alt+G").into(),
+                                Choice::Ungroup,
+                            ));
+                        }
+                        entries.push((
+                            if node.collapsed {
+                                language.text("展开节点", "Expand node")
+                            } else {
+                                language.text("折叠节点", "Collapse node")
+                            }
+                            .into(),
+                            Choice::Collapse(id.clone()),
+                        ));
+                    }
+                    entries.push((
                         language.text("复制 · Ctrl+D", "Duplicate · Ctrl+D").into(),
                         Choice::Duplicate,
                     ));
@@ -64,6 +111,25 @@ impl NodeEditor {
                     if let Ok(ports) =
                         motion_graph::node_port_specs(node, &self.document.public_parameters)
                     {
+                        if !self.parents.is_empty() && !grouping::boundary(&node.operation) {
+                            for (output, specs) in [(false, &ports.inputs), (true, &ports.outputs)]
+                            {
+                                for (port, spec) in specs {
+                                    entries.push((
+                                        format!(
+                                            "{} · {}",
+                                            if output {
+                                                language.text("公开组输出", "Expose output")
+                                            } else {
+                                                language.text("公开组输入", "Expose input")
+                                            },
+                                            language.text(spec.name, spec.english_name)
+                                        ),
+                                        Choice::Expose(PortRef::new(id, port), output),
+                                    ));
+                                }
+                            }
+                        }
                         for (port, spec) in ports.outputs {
                             entries.push((
                                 format!(
@@ -142,6 +208,41 @@ impl NodeEditor {
         list.append(popup);
         if let Some(i) = chosen {
             match entries.into_iter().nth(i).unwrap().1 {
+                Choice::Expose(port, output) => match self.expose_group_port(port, output) {
+                    Ok(true) => {
+                        if !output {
+                            self.notice = Some(
+                                language
+                                    .text(
+                                        "组输入已添加，请返回父图连接",
+                                        "Group input added; connect it in the parent graph",
+                                    )
+                                    .into(),
+                            );
+                        }
+                    }
+                    Ok(false) => {}
+                    Err(error) => self.notice = Some(error.to_string()),
+                },
+                Choice::Group => {
+                    if let Err(error) = self.group_selected() {
+                        self.notice = Some(error.to_string());
+                    }
+                }
+                Choice::Ungroup => {
+                    if let Err(error) = self.ungroup_selected() {
+                        self.notice = Some(error.to_string());
+                    }
+                }
+                Choice::Enter(id) => {
+                    self.enter_group(&id);
+                }
+                Choice::Leave => {
+                    self.leave_group();
+                }
+                Choice::Collapse(id) => {
+                    self.toggle_collapsed(&id);
+                }
                 Choice::Disconnect(port) => {
                     self.disconnect_input(&port);
                 }

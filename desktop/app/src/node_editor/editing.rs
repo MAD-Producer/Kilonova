@@ -23,7 +23,7 @@ impl NodeEditor {
             .document
             .nodes
             .iter()
-            .filter(|n| self.selected.contains(&n.id))
+            .filter(|n| self.selected.contains(&n.id) && !grouping::boundary(&n.operation))
             .cloned()
             .collect();
         if nodes.is_empty() {
@@ -31,7 +31,7 @@ impl NodeEditor {
         }
         if nodes
             .iter()
-            .any(|n| matches!(n.operation, NodeOp::ColorOutput))
+            .any(|n| grouping::output_count(&n.operation) > 0)
         {
             return Err(diag(
                 ErrorCode::MultipleOutputs,
@@ -40,11 +40,12 @@ impl NodeEditor {
                 "The graph supports one Color Output; exclude it before duplicating",
             ));
         }
+        let copied_ids: BTreeSet<_> = nodes.iter().map(|node| node.id.clone()).collect();
         let edges: Vec<_> = self
             .document
             .connections
             .iter()
-            .filter(|e| self.selected.contains(&e.from.node) && self.selected.contains(&e.to.node))
+            .filter(|e| copied_ids.contains(&e.from.node) && copied_ids.contains(&e.to.node))
             .cloned()
             .collect();
         if self.document.nodes.len() + nodes.len() > self.options.max_nodes
@@ -65,14 +66,15 @@ impl NodeEditor {
             node.id = new_id;
             node.position = node.position.map(|v| (v + 32.).clamp(-1.0e6, 1.0e6));
         }
-        self.document
-            .connections
-            .extend(edges.into_iter().map(|mut e| {
-                e.from.node = ids[&e.from.node].clone();
-                e.to.node = ids[&e.to.node].clone();
-                e
-            }));
-        self.document.nodes.extend(nodes);
+        let mut candidate = self.document.clone();
+        candidate.connections.extend(edges.into_iter().map(|mut e| {
+            e.from.node = ids[&e.from.node].clone();
+            e.to.node = ids[&e.to.node].clone();
+            e
+        }));
+        candidate.nodes.extend(nodes);
+        self.checked_structure(&candidate)?;
+        self.document = candidate;
         self.primary = self.primary.as_ref().and_then(|id| ids.get(id).cloned());
         self.selected = ids.into_values().collect();
         self.primary = self

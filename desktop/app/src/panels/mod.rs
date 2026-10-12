@@ -103,7 +103,7 @@ fn viewer(area: Rect) -> Rect {
     )
 }
 pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
-    panels.node_editor.cancel_interaction();
+    let node_changed = panels.node_editor.cancel_interaction();
     panels.parent_controls.open = false;
     let camera = panels.camera_controls.cancel();
     let effect = panels.effect_controls.cancel();
@@ -118,11 +118,16 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     let animation = panels.animation_controls.cancel();
     let path = panels.path_controls.cancel();
     let transform = panels.transform_controls.cancel();
-    if moving || trimming || numeric || animation || path || transform || effect || camera {
+    let mut actions = if moving || trimming || numeric || animation || path || transform || effect || camera
+    {
         vec![Action::History(4)]
     } else {
         vec![]
+    };
+    if node_changed {
+        actions.push(Action::Node(crate::node_editor::Action::PreviewChanged));
     }
+    actions
 }
 
 /// The chrome leaves a hole for the preview; its geometry is also used for hit testing.

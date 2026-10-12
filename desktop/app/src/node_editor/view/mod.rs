@@ -2,6 +2,12 @@
 mod add_menu;
 mod canvas;
 mod context_menu;
+mod control_popup;
+#[cfg(test)]
+mod control_tests;
+mod controls;
+#[cfg(test)]
+mod group_tests;
 mod inspector;
 mod interaction;
 mod library;
@@ -46,6 +52,7 @@ pub struct Layout {
 }
 #[derive(Clone)]
 struct Socket {
+    connectable: bool,
     port: PortRef,
     output: bool,
     ty: ValueType,
@@ -58,10 +65,20 @@ struct Card {
     sockets: Vec<Socket>,
 }
 pub(super) fn node_height(node: &Node, document: &GraphDocument) -> f32 {
+    if node.collapsed {
+        return HEADER;
+    }
     let rows = node_ports(node, &document.public_parameters)
         .map(|p| p.inputs.len().max(p.outputs.len()))
         .unwrap_or(1);
-    HEADER + rows as f32 * ROW + 27.
+    let count = inline::control_count(node, document);
+    HEADER
+        + rows as f32 * ROW
+        + if count == 0 {
+            27.
+        } else {
+            14. + count as f32 * inline::CONTROL_ROW
+        }
 }
 fn type_color(ty: ValueType) -> Color {
     match ty {
@@ -161,6 +178,9 @@ impl NodeEditor {
             }
             x += width + 4.;
         }
+        if !self.parents.is_empty() {
+            toolbar_height += 28.;
+        }
         let toolbar = Rect::new(area.min[0], area.min[1], area.width(), toolbar_height);
         let footer = Rect::new(area.min[0], area.max[1] - 27., area.width(), 27.);
         let body = Rect::new(
@@ -241,6 +261,16 @@ impl NodeEditor {
         let preview_revision = self.preview_revision;
         let mut response = FrameResponse::default();
         if area.width() < 320. || area.height() < self.layout(area).toolbar.height() + 77. {
+            self.cancel_inline();
+            response.changed = revision != self.revision;
+            response.semantic_changed = semantic != self.semantic_revision;
+            if response.changed {
+                response.actions.push(Action::Changed {
+                    revision: self.revision,
+                    semantic_revision: self.semantic_revision,
+                    semantic: response.semantic_changed,
+                });
+            }
             paint::rect(list, area, palette::PANEL);
             label(
                 list,
@@ -252,7 +282,7 @@ impl NodeEditor {
             );
             return response;
         }
-        let layout = self.layout(area);
+        let mut layout = self.layout(area);
         self.last_canvas = layout.canvas;
         if self.first_frame {
             if let Some(id) = &self.primary {
@@ -271,7 +301,7 @@ impl NodeEditor {
             }
             self.first_frame = false;
         }
-        if input.pressed.is_some_and(|(_, p)| area.contains(p)) {
+        if self.inline.busy() || input.pressed.is_some_and(|(_, p)| area.contains(p)) {
             self.focus = true;
         } else if input.pressed.is_some() && self.drag.is_none() {
             let _ = self.commit_field();
@@ -282,8 +312,52 @@ impl NodeEditor {
         if !had_menu {
             self.keyboard(input, &mut response.actions);
         }
+        layout = self.layout(area);
+        self.last_canvas = layout.canvas;
+        let cards = self.cards(layout.canvas);
+        let numeric_file = if self.inline.popup.is_none()
+            && self
+                .inline
+                .number
+                .as_ref()
+                .is_some_and(|edit| edit.editor.text.active())
+        {
+            input.key_presses().find_map(|(key, modifiers, repeat)| {
+                use crate::shortcuts::{self, Command, Scope};
+                match shortcuts::resolve(Scope::Nodes, key, modifiers, repeat) {
+                    Some(Command::Open) => Some(Request::Open),
+                    Some(Command::Save) => Some(Request::Save),
+                    Some(Command::SaveAs) => Some(Request::SaveAs),
+                    _ => None,
+                }
+            })
+        } else {
+            None
+        };
+        let commit_input = numeric_file.as_ref().map(|_| {
+            let mut local = input.clone();
+            local.keys.push((Key::Enter, Default::default()));
+            local.key_repeats.push(false);
+            local
+        });
+        let controls_consumed = if self.add_menu.is_none() && self.context_menu.is_none() {
+            self.inline_input(
+                &cards,
+                layout.canvas,
+                commit_input.as_ref().unwrap_or(input),
+                language,
+            )
+        } else {
+            false
+        };
+        if let Some(request) = numeric_file.filter(|_| self.inline.number.is_none()) {
+            match self.request(request) {
+                Ok(action) => response.actions.push(action),
+                Err(error) => self.notice = Some(error.to_string()),
+            }
+        }
         let neutral = Input::default();
-        let body_input = if had_menu || self.popup_open() {
+        let body_input = if had_menu || self.popup_open() || controls_consumed {
             &neutral
         } else {
             input
@@ -296,6 +370,43 @@ impl NodeEditor {
             language,
             &mut response.actions,
         );
+        if !self.parents.is_empty() {
+            let back = Rect::new(
+                layout.toolbar.min[0] + 6.,
+                layout.toolbar.max[1] - 27.,
+                85.,
+                25.,
+            );
+            if ui::button(
+                list,
+                atlas,
+                back,
+                language.text("返回父图", "Parent"),
+                body_input,
+                true,
+            )
+            .clicked
+            {
+                self.leave_group();
+            }
+            let path = std::iter::once(language.text("主图", "Root"))
+                .chain(self.parents.iter().map(|parent| parent.group.as_str()))
+                .collect::<Vec<_>>()
+                .join(" / ");
+            label(
+                list,
+                atlas,
+                Rect::new(
+                    back.max[0] + 8.,
+                    back.min[1],
+                    (layout.toolbar.width() - back.width() - 25.).max(0.),
+                    25.,
+                ),
+                &path,
+                palette::TEXT_MUTED,
+                Align::Left,
+            );
+        }
         if let Some(library) = layout.library {
             self.library(list, atlas, library, body_input, language);
         }
@@ -372,6 +483,13 @@ impl NodeEditor {
             language,
         );
         response.wants_pointer = area.contains(input.mouse) || self.drag.is_some();
+        self.paint_control_popup(
+            list,
+            atlas,
+            area,
+            if had_menu { input } else { &neutral },
+            language,
+        );
         response.wants_keyboard = self.focus;
         response.changed = revision != self.revision;
         response.semantic_changed = semantic != self.semantic_revision;
@@ -511,7 +629,7 @@ impl NodeEditor {
             Binding::License => options.license = text.into(),
             _ => unreachable!(),
         }
-        if let Err(error) = motion_graph::validate(&document, &options) {
+        if let Err(error) = motion_graph::validate(&self.root_with(&document), &options) {
             let diagnostic = error.diagnostic();
             if matches!(
                 diagnostic.code,

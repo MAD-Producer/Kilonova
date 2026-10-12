@@ -5,6 +5,7 @@ mod document;
 mod error;
 mod examples;
 mod export;
+mod groups;
 mod ports;
 pub use compiler::{
     compile, compile_preview, node_ports, validate, CompileOptions, CompileReport, CompiledGraph,
@@ -17,6 +18,7 @@ pub use examples::{
     builtin_example_catalogue, builtin_examples, BuiltinExample, ExampleCollection,
 };
 pub use export::{export_msfx, ExportReport};
+pub use groups::scope_topological_order;
 pub use ports::{
     check_connection, node_description, node_port_specs, port_semantics_compatible,
     ports_compatible, PortSemantic, PortSpec, PortSpecs,

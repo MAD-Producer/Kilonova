@@ -124,10 +124,12 @@ impl NodeEditor {
         if !canvas.contains(point) {
             return None;
         }
-        let hovered =
-            cards.iter().rev().flat_map(|c| &c.sockets).find(|s| {
-                (s.point[0] - point[0]).abs() <= 8. && (s.point[1] - point[1]).abs() <= 8.
-            })?;
+        let hovered = cards
+            .iter()
+            .rev()
+            .flat_map(|c| &c.sockets)
+            .filter(|socket| socket.connectable)
+            .find(|s| (s.point[0] - point[0]).abs() <= 8. && (s.point[1] - point[1]).abs() <= 8.)?;
         let (from, to, old) = match &self.drag {
             Some(Drag::Wire { source, old_input }) if &hovered.port != source => {
                 if hovered.output {
