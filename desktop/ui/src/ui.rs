@@ -161,7 +161,7 @@ pub fn text_sized(
         let height = (glyph.uv[3] - glyph.uv[1]) * atlas.config().height as f32 /atlas.pixel_ratio();
         // Whitespace has no atlas rectangle and only advances the pen.
         if width > 0.0 && height > 0.0 {
-            list.glyphs.push(paint::Glyph {
+            list.push_glyph(paint::Glyph {
                 uv: glyph.uv,
                 position: [(pen*atlas.pixel_ratio()).round()/atlas.pixel_ratio()+glyph.offset[0],(baseline*atlas.pixel_ratio()).round()/atlas.pixel_ratio()+glyph.offset[1]],
                 size: [width, height],

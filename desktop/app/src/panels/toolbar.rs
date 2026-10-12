@@ -308,15 +308,14 @@ pub(super) fn icon_button(
             }
         }
         Tool::Play => {
-            list.shapes.push(paint::Shape::Quad {
+            list.push_shape(paint::Shape::Quad {
                 points: [
                     [x + 3., y],
                     [x + 16., y + 8.],
                     [x + 3., y + 16.],
                     [x + 3., y + 16.],
                 ],
-            });
-            list.colors.push(c);
+            }, c);
         }
         Tool::Pause => {
             paint::rect(list, Rect::new(x + 2., y, 5., 16.), c);
