@@ -14,12 +14,14 @@ use serde_json::Value;
 #[derive(Default)]
 pub struct Controls {
     field: Option<Field>,
+    pub cursor: bool,
+    pub drag_readout: Option<([f32; 2], String)>,
 }
 struct Field {
     property: Property,
     axis: usize,
-    text: String,
-    replace: bool,
+    number: super::numeric::Field,
+    rect: Rect,
 }
 fn clicked(input: &Input, rect: Rect) -> bool {
     input
@@ -33,8 +35,8 @@ impl Controls {
     pub fn editing(&self) -> bool {
         self.field.is_some()
     }
-    pub fn cancel(&mut self) {
-        self.field = None;
+    pub fn cancel(&mut self) -> bool {
+        self.field.take().is_some_and(|mut f| f.number.cancel())
     }
     pub fn render(
         &mut self,
@@ -47,8 +49,19 @@ impl Controls {
         locale: Locale,
         out: &mut Vec<Action>,
     ) {
+        self.cursor = false;
+        self.drag_readout = None;
+        if self
+            .field
+            .as_ref()
+            .is_some_and(|f| input.pressed.is_some_and(|(_, p)| !f.rect.contains(p)))
+        {
+            if self.cancel() {
+                out.push(Action::History(4));
+            }
+        }
         let camera = &state["project"]["camera"];
-        let sample = &state["camera"];
+        let sample = &state["sampledCamera"];
         let orbit = camera["mode"] == "orbit";
         let mode = Rect::new(area.min[0] + 16., *y, area.width() - 32., 28.);
         paint::rect(list, mode, palette::SUNKEN);
@@ -73,6 +86,9 @@ impl Controls {
             Align::Left,
         );
         if clicked(input, mode) {
+            if self.cancel() {
+                out.push(Action::History(4));
+            }
             out.push(Action::Edit(Command::CameraMode {
                 mode: if orbit {
                     CameraMode::Position
@@ -146,110 +162,107 @@ impl Controls {
                 } else {
                     sample[key][axis].as_f64().unwrap_or(0.)
                 };
-                let rect = Rect::new(area.min[0] + 30., *y, area.width() - 50., 26.);
+                let inset = if dimensions > 1 {20.} else {0.};
+                if dimensions > 1 {
+                    ui::text(list,atlas,Rect::new(area.min[0]+30.,*y,18.,26.),["X","Y","Z"][axis],palette::TEXT_MUTED,Align::Left);
+                }
+                let rect = Rect::new(area.min[0] + 30.+inset, *y, area.width() - 50.-inset, 26.);
                 let active = self
                     .field
                     .as_ref()
                     .is_some_and(|f| f.property == property && f.axis == axis);
-                paint::rect(list, rect, palette::SUNKEN);
-                let shown = if active {
-                    self.field.as_ref().unwrap().text.clone()
-                } else {
-                    format!(
-                        "{}{value:.2}",
-                        if dimensions == 3 {
-                            ["X  ", "Y  ", "Z  "][axis]
-                        } else {
-                            ""
-                        }
-                    )
-                };
-                ui::text(
-                    list,
-                    atlas,
-                    rect.shrink(5.),
-                    &shown,
-                    palette::ACCENT,
-                    Align::Left,
-                );
-                if active {
-                    paint::stroke(list, rect, palette::ACCENT, 1.);
-                }
-                if clicked(input, rect) {
+                if clicked(input, rect) && !active {
+                    if self.cancel() {
+                        out.push(Action::History(4));
+                    }
                     self.field = Some(Field {
                         property,
                         axis,
-                        text: format!("{value:.2}"),
-                        replace: true,
+                        number: Default::default(),
+                        rect,
                     });
+                }
+                if let Some(field) = self
+                    .field
+                    .as_mut()
+                    .filter(|f| f.property == property && f.axis == axis)
+                {
+                    field.rect = rect;
+                    self.cursor |= field.number.editor.dragging() || rect.contains(input.mouse);
+                    let (min, max, speed) = match property {
+                        Property::Fov => (10., 120., 0.5),
+                        Property::Radius => (1., 10_000_000., 1.),
+                        Property::Elevation => (-89., 89., 0.5),
+                        _ => (-10_000_000., 10_000_000., 0.5),
+                    };
+                    let events = field.number.draw(
+                        list,
+                        atlas,
+                        rect,
+                        value,
+                        motion_ui::widgets::NumberOptions {
+                            min,
+                            max,
+                            speed,
+                            decimals: 3,
+                        },
+                        input,
+                    );
+                    if let Some(note) = field.number.readout() {
+                        self.drag_readout = Some((input.mouse, note));
+                    }
+                    if super::numeric::apply(events, out, |v| {
+                        camera_command(state, property, axis, v)
+                    }) {
+                        self.field = None;
+                    }
+                } else {
+                    self.cursor |= rect.contains(input.mouse);
+                    super::numeric::passive(list, atlas, rect, value, input, true);
                 }
                 *y += 28.;
             }
         }
-        if let Some(field) = &mut self.field {
-            if !input.text.is_empty() {
-                if field.replace {
-                    field.text.clear();
-                    field.replace = false;
-                }
-                field.text.push_str(&input.text);
+    }
+}
+fn camera_command(state: &Value, property: Property, axis: usize, value: f32) -> Command {
+    let frame = state["frame"].as_f64().unwrap_or(0.).floor() as u32;
+    let key = match property {
+        Property::Position => "position",
+        Property::Target => "target",
+        Property::Roll => "roll",
+        Property::Fov => "fov",
+        Property::Radius => "radius",
+        Property::Azimuth => "azimuth",
+        _ => "elevation",
+    };
+    if matches!(property, Property::Position | Property::Target) {
+        if state["project"]["camera"][key]["axes"].is_object() {
+            Command::SetComponent {
+                object: 0,
+                property,
+                axis: [Axis::X, Axis::Y, Axis::Z][axis],
+                frame,
+                value,
             }
-            if input.keys.iter().any(|(k, _)| *k == Key::Backspace) {
-                if field.replace {
-                    field.text.clear();
-                    field.replace = false;
-                } else {
-                    field.text.pop();
-                }
+        } else {
+            let mut xyz = std::array::from_fn(|i| {
+                state["sampledCamera"][key][i].as_f64().unwrap_or(0.) as f32
+            });
+            xyz[axis] = value;
+            Command::SetVector {
+                object: 0,
+                property,
+                frame,
+                value: xyz,
             }
-            if input.keys.iter().any(|(k, _)| *k == Key::Enter) {
-                if let Ok(value) = field.text.parse::<f32>() {
-                    if value.is_finite() {
-                        let property = field.property;
-                        let frame = state["frame"].as_f64().unwrap_or(0.).floor() as u32;
-                        let key = match property {
-                            Property::Position => "position",
-                            Property::Target => "target",
-                            Property::Roll => "roll",
-                            Property::Fov => "fov",
-                            Property::Radius => "radius",
-                            Property::Azimuth => "azimuth",
-                            _ => "elevation",
-                        };
-                        let command = if matches!(property, Property::Position | Property::Target) {
-                            if camera[key]["axes"].is_object() {
-                                Command::SetComponent {
-                                    object: 0,
-                                    property,
-                                    axis: [Axis::X, Axis::Y, Axis::Z][field.axis],
-                                    frame,
-                                    value,
-                                }
-                            } else {
-                                let mut xyz = std::array::from_fn(|i| {
-                                    sample[key][i].as_f64().unwrap_or(0.) as f32
-                                });
-                                xyz[field.axis] = value;
-                                Command::SetVector {
-                                    object: 0,
-                                    property,
-                                    frame,
-                                    value: xyz,
-                                }
-                            }
-                        } else {
-                            Command::SetScalar {
-                                object: 0,
-                                property,
-                                frame,
-                                value,
-                            }
-                        };
-                        out.push(Action::Edit(command));
-                        self.field = None;
-                    }
-                }
-            }
+        }
+    } else {
+        Command::SetScalar {
+            object: 0,
+            property,
+            frame,
+            value,
         }
     }
 }

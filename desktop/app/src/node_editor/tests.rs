@@ -1076,6 +1076,7 @@ fn responsive_layout_and_paint_remain_within_panel() {
                 motion_ui::paint::Shape::Quad { points } => points.into(),
                 motion_ui::paint::Shape::Line { points } => points,
                 motion_ui::paint::Shape::Triangles { points } => points,
+                motion_ui::paint::Shape::Procedural { clip, .. } => vec![clip.min,clip.max],
             };
             assert!(points.iter().all(|p| p[0].is_finite()
                 && p[1].is_finite()

@@ -44,6 +44,8 @@ pub(super) fn render(
         panels
             .camera_controls
             .render(list, atlas, area, &mut y, state, input, panels.locale, out);
+        if panels.camera_controls.cursor {panels.cursor=Some(motion_ui::cursor::Cursor::ResizeEW);}
+        if let Some(readout) = &panels.camera_controls.drag_readout {panels.drag_readout=Some(readout.clone());}
         return;
     }
     let Some(object) = panels.selected.filter(|id| *id != 0) else {
@@ -249,6 +251,9 @@ pub(super) fn draw_value(
         object,
         100 + property as u64 * 8 + axis as u64 + if timeline { 64 } else { 0 },
     );
+    if !locked && (r.contains(input.mouse)||panels.properties.field.as_ref().is_some_and(|f|f.scrubbing.as_ref().is_some_and(|s|s.begun))) {
+        panels.cursor = Some(motion_ui::cursor::Cursor::ResizeEW);
+    }
     let hover = panels.motion.value(
         key,
         0.,
@@ -276,16 +281,12 @@ pub(super) fn draw_value(
             && f.axis == axis
             && (panels.focused == Some(Panel::Timeline)) == timeline
     });
-    if active
-        && panels
-            .properties
-            .field
-            .as_ref()
-            .is_some_and(|f| f.scrubbing.is_none())
-    {
-        paint::rect(list, r, palette::SUNKEN);
-        paint::stroke(list, r, palette::ACCENT, 1.0);
-    }
+    let mut states=motion_ui::style::States::default();
+    if active&&panels.properties.field.as_ref().is_some_and(|f|f.scrubbing.is_none()) {states=states.with(motion_ui::style::State::Focused);}
+    if !locked&&r.contains(input.mouse){states=states.with(motion_ui::style::State::Hovered);}
+    if locked {states=states.with(motion_ui::style::State::Disabled);}
+    let style=motion_ui::style::default_stylesheet().resolve("field.number",states).unwrap();
+    motion_ui::style::box_style(list,r,style);
     let text = if active {
         panels.properties.field.as_ref().unwrap().text.clone()
     } else {
@@ -298,6 +299,10 @@ pub(super) fn draw_value(
             }
         )
     };
+    if active&&panels.properties.field.as_ref().is_some_and(|f|f.scrubbing.as_ref().is_some_and(|s|s.begun)) {
+        let delta=panels.properties.field.as_ref().and_then(|f|f.scrubbing.as_ref()).map_or(0.,|s|s.last_value-s.start_value);
+        panels.drag_readout=Some((input.mouse,format!("{}  {:+.2}",text,delta)));
+    }
     ui::text(list, atlas, r, &text, palette::ACCENT, Align::Left);
     if active {
         panels.properties.field.as_mut().unwrap().rect = r;

@@ -1,10 +1,23 @@
 use crate::*;
 
 impl Shell {
+    pub(crate) fn lose_focus(&mut self) {
+        self.workspace.cancel();
+        self.actions.extend(panels::cancel_interaction(&mut self.panels));
+        self.translate(Event::FocusLost);
+    }
+    pub(crate) fn ui_interval(&self) -> Duration {
+        let rate = self.window.as_ref().and_then(|w|w.current_monitor())
+            .and_then(|m|m.refresh_rate_millihertz()).map(|v|v as f64/1000.)
+            .unwrap_or(60.).clamp(30.,240.);
+        Duration::from_secs_f64(1. / rate)
+    }
     pub(crate) fn translate(&mut self, event: Event) {
         motion_ui::ui::accumulate(&mut self.input, event);
         self.dirty = true;
-        self.redraw();
+        if Instant::now() >= self.next_redraw {
+            self.redraw();
+        }
     }
     pub(crate) fn redraw(&self) {
         if let Some(w) = &self.window {
@@ -21,7 +34,8 @@ impl Shell {
         })
     }
     pub(crate) fn draw_commands(&mut self, size: [f32; 2]) -> (PaintList, Vec<panels::Action>) {
-        let mut paint = PaintList::default();
+        self.atlas.set_pixel_ratio(self.scale);
+        let mut paint = self.engine.take_paint();
         let neutral = Input::default();
         let actions = panels::chrome(
             &mut paint,
@@ -168,6 +182,9 @@ impl Shell {
             }
         }
         self.input.begin_frame(); // Clear transient input only after it has been consumed.
+        if let Some(window) = &self.window {
+            window.set_cursor(native_cursor(self.workspace.drag_cursor().or(self.panels.cursor).unwrap_or_default()));
+        }
         (paint, actions)
     }
     pub(crate) fn ui_frame(
@@ -207,7 +224,7 @@ impl Shell {
         }
     }
     pub(crate) fn present(&mut self, _event_loop: &ActiveEventLoop) -> Result<(), String> {
-        if !self.actions.is_empty()
+        if (!self.actions.is_empty() && !self.present_due)
             || self.editing.is_some()
             || !self.attached
             || self.rendering.contains_key(&0)
@@ -220,28 +237,30 @@ impl Shell {
             return Ok(());
         };
         if size[0] <= 0.0 || size[1] <= 0.0 {
+            self.present_due = false;
             return Ok(());
         }
-        if self.rendering.is_empty() && !self.playback_ready {
-            if let Some((start, origin)) = self.playback {
-                let fps = self.state["project"]["fps"].as_u64().unwrap_or(30) as u32;
-                let frames = self.state["project"]["frames"].as_u64().unwrap_or(1) as u32;
-                if let Some(audio) = &self.audio {
-                    let position = audio.frame(fps);
-                    let error = audio.error();
-                    self.frame = position.min(f64::from(frames - 1));
-                    if position >= f64::from(frames) - f64::from(fps) / 48000. || error.is_some() {
-                        self.stop();
-                        if let Some(error) = error {
-                            self.panels.message = Some(self.workspace.locale.error(&error));
-                        }
-                    }
-                } else {
-                    self.frame = playback_frame(origin, start.elapsed(), fps, frames);
-                }
-                self.editing = Some((Instant::now(), self.engine.seek_async(self.frame)?));
-                self.playback_ready = true;
-                return Ok(());
+        // A completed edit gets a visible frame before more input can enqueue
+        // another edit. Retain real input for the following interaction pass.
+        if self.present_due {
+            let neutral = Input {
+                mouse: self.input.mouse,
+                modifiers: self.input.modifiers,
+                ..Default::default()
+            };
+            let input = std::mem::replace(&mut self.input, neutral);
+            let (paint, actions) = self.draw_commands(size);
+            self.actions.extend(actions);
+            self.input = input;
+            let ui = self.ui_frame(paint, size, false);
+            self.rendering.insert(0, self.engine.present_async(ui)?);
+            self.present_due = false;
+            self.dirty = true;
+            return Ok(());
+        }
+        if let Some(press) = self.input.pressed {
+            if std::env::var_os("MOTION_TRACE_UI").is_some() {
+                eprintln!("[motion-ui] input press {:?}, focused {:?}, expanded {:?}", press, self.panels.focused, self.panels.timeline.expanded);
             }
         }
         let header_hit = if self.panels.header_size == Some(size) {
@@ -299,6 +318,7 @@ impl Shell {
         let (mut paint, actions) = self.draw_commands(size);
         self.actions.extend(actions);
         if !self.actions.is_empty() {
+            self.engine.recycle_paint(paint);
             return Ok(());
         }
         // Actions may change project, layer selection or playhead during this draw.
@@ -309,12 +329,11 @@ impl Shell {
         {
             let neutral = Input {
                 mouse: self.input.mouse,
-                held: self.input.held,
                 modifiers: self.input.modifiers,
                 ..Default::default()
             };
-            paint = PaintList::default();
-            let _ = panels::chrome(
+            paint.clear();
+            let actions = panels::chrome(
                 &mut paint,
                 &mut self.atlas,
                 size,
@@ -323,10 +342,10 @@ impl Shell {
                 &self.state,
                 &neutral,
             );
+            self.actions.extend(actions);
         }
         let ui = self.ui_frame(paint, size, false);
         self.rendering.insert(0, self.engine.present_async(ui)?);
-        self.playback_ready = false;
         self.dirty = false;
         Ok(())
     }
@@ -447,7 +466,7 @@ impl Shell {
         id: WindowId,
         _event_loop: &ActiveEventLoop,
     ) -> Result<(), String> {
-        if !self.actions.is_empty()
+        if (!self.actions.is_empty() && !self.present_due)
             || self.editing.is_some()
             || !self.attached
             || self.resizing.is_some()
@@ -470,11 +489,16 @@ impl Shell {
         let panel = f.panel;
         let key = f.key;
         let scale = f.scale;
-        let mut paint = PaintList::default();
-        let neutral = Input::default();
-        let blocked = self.dialog.is_some()
-            || self.node_examples.is_some()
-            || self.node_close_prompt.is_some();
+        self.atlas.set_pixel_ratio(scale);
+        let mut paint = self.engine.take_paint();
+        let neutral = Input {
+            mouse: f.input.mouse,
+            modifiers: f.input.modifiers,
+            ..Default::default()
+        };
+        let acknowledged = self.present_due;
+        let blocked =
+            acknowledged || self.dialog.is_some() || self.node_examples.is_some() || self.node_close_prompt.is_some();
         let actions = panels::floating_chrome(
             &mut paint,
             &mut self.atlas,
@@ -484,9 +508,14 @@ impl Shell {
             &self.state,
             if blocked { &neutral } else { &f.input },
         );
-        f.input.begin_frame();
+        f.window
+            .set_cursor(native_cursor(self.panels.cursor.unwrap_or_default()));
         self.actions.extend(actions);
-        if !self.actions.is_empty() {
+        if !acknowledged {
+            f.input.begin_frame();
+        }
+        if !self.actions.is_empty() && !acknowledged {
+            self.engine.recycle_paint(paint);
             return Ok(());
         }
         if !self.floating.contains_key(&id) {
@@ -521,6 +550,10 @@ impl Shell {
                 node_preview: self.node_viewport(panels::floating_node_view(panel, size), scale),
             })?,
         );
+        if acknowledged {
+            self.present_due = false;
+            self.dirty = true;
+        }
         Ok(())
     }
     pub(crate) fn floating_event(
@@ -648,5 +681,53 @@ impl Shell {
             self.dirty = true;
             self.redraw();
         }
+    }
+}
+
+fn native_cursor(cursor: motion_ui::cursor::Cursor) -> winit::window::CursorIcon {
+    use motion_ui::cursor::Cursor as C;
+    use winit::window::CursorIcon as N;
+    match cursor {
+        C::Default => N::Default,
+        C::Grab => N::Grab,
+        C::Grabbing => N::Grabbing,
+        C::Move => N::Move,
+        C::ResizeEW => N::EwResize,
+        C::ResizeNS => N::NsResize,
+        C::ResizeNESW => N::NeswResize,
+        C::ResizeNWSE => N::NwseResize,
+        C::Text => N::Text,
+        C::Crosshair => N::Crosshair,
+        C::Wait => N::Wait,
+    }
+}
+
+impl Shell {
+    pub(crate) fn advance_playback(&mut self) -> Result<(), String> {
+        if std::env::var_os("MOTION_TRACE_UI").is_some(){eprintln!("[motion-ui] content tick");}
+        let Some((start, origin)) = self.playback else {
+            return Ok(());
+        };
+        let fps = self.state["project"]["fps"].as_u64().unwrap_or(30) as u32;
+        let frames = self.state["project"]["frames"].as_u64().unwrap_or(1) as u32;
+        if let Some(audio) = &self.audio {
+            let position = audio.frame(fps);
+            let error = audio.error();
+            self.frame = position.min(f64::from(frames - 1));
+            if position >= f64::from(frames) - f64::from(fps) / 48000. || error.is_some() {
+                self.stop();
+                if let Some(error) = error {
+                    self.panels.message = Some(self.workspace.locale.error(&error));
+                }
+            }
+        } else {
+            self.frame = playback_frame(origin, start.elapsed(), fps, frames);
+        }
+        self.editing = Some((Instant::now(), self.engine.seek_async(self.frame)?));
+        let rate = (fps as f64)
+            .min(self.state["preview"]["fps"].as_f64().unwrap_or(60.))
+            .clamp(1., 120.);
+        self.next_composition = Instant::now() + Duration::from_secs_f64(1. / rate);
+        Ok(())
     }
 }

@@ -157,13 +157,13 @@ pub fn text_sized(
     let mut pen = origin;
     for character in shown.chars() {
         let glyph = atlas.glyph_at(character, font_size);
-        let width = (glyph.uv[2] - glyph.uv[0]) * atlas.config().width as f32;
-        let height = (glyph.uv[3] - glyph.uv[1]) * atlas.config().height as f32;
+        let width = (glyph.uv[2] - glyph.uv[0]) * atlas.config().width as f32 /atlas.pixel_ratio();
+        let height = (glyph.uv[3] - glyph.uv[1]) * atlas.config().height as f32 /atlas.pixel_ratio();
         // Whitespace has no atlas rectangle and only advances the pen.
         if width > 0.0 && height > 0.0 {
             list.glyphs.push(paint::Glyph {
                 uv: glyph.uv,
-                position: [pen + glyph.offset[0], baseline + glyph.offset[1]],
+                position: [(pen*atlas.pixel_ratio()).round()/atlas.pixel_ratio()+glyph.offset[0],(baseline*atlas.pixel_ratio()).round()/atlas.pixel_ratio()+glyph.offset[1]],
                 size: [width, height],
                 color,
             });
@@ -657,6 +657,7 @@ pub fn icon(list: &mut PaintList, area: Rect, icon: Icon) {
 /// Translate a raw event into a frame's input, keeping the previous mouse
 /// position so drags can be measured as deltas.
 pub fn accumulate(input: &mut Input, event: Event) {
+    input.pending = true;
     match event {
         Event::MouseMoved { position } => {
             if let Some(origin) = input.pointer_origin {
@@ -684,7 +685,10 @@ pub fn accumulate(input: &mut Input, event: Event) {
             }
             input.pointer_origin = None;
         }
-        Event::MouseWheel { delta } => input.wheel = delta,
+        Event::MouseWheel { delta } => {
+            input.wheel[0] += delta[0];
+            input.wheel[1] += delta[1];
+        },
         Event::KeyPressed { key, modifiers } | Event::KeyRepeated { key, modifiers } => {
             input.modifiers = modifiers;
             if !input.held_keys.contains(&key) {
@@ -755,6 +759,23 @@ impl Default for Response {
 mod tests {
     use super::*;
     use crate::input::{Modifiers, Scroll};
+
+    #[test]
+    fn pending_input_survives_painting_and_coalesces_wheel_until_consumed() {
+        let mut input = Input::default();
+        accumulate(&mut input, Event::MousePressed { position: [10., 20.], button: MouseButton::Left });
+        accumulate(&mut input, Event::MouseWheel { delta: [1., 2.] });
+        accumulate(&mut input, Event::MouseWheel { delta: [3., -1.] });
+        assert!(input.pending);
+        assert_eq!(input.wheel, [4., 1.]);
+        let mut paint_input = Input { mouse: input.mouse, ..Default::default() };
+        paint_input.begin_frame();
+        assert!(input.pending);
+        input.begin_frame();
+        assert!(!input.pending);
+        assert_eq!(input.held, Some(MouseButton::Left));
+        assert_eq!(input.wheel, [0., 0.]);
+    }
 
     #[test]
     fn values_format_without_trailing_noise() {

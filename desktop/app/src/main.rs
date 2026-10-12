@@ -198,7 +198,7 @@ struct Shell {
     pending: bool,
     frame: f64,
     playback: Option<(Instant, f64)>,
-    playback_ready: bool,
+    next_composition: Instant,
     audio: Option<audio_output::AudioOutput>,
     freezing_movie: Option<(
         std::sync::mpsc::Receiver<Result<motion_desktop_media::movie::FrozenMovie, String>>,
@@ -216,6 +216,7 @@ struct Shell {
     resize_queue: std::collections::HashMap<u64, [u32; 2]>,
     actions: std::collections::VecDeque<panels::Action>,
     editing: Option<(Instant, std::sync::mpsc::Receiver<Result<Value, String>>)>,
+    present_due: bool,
     closing: bool,
     next_redraw: Instant,
     fatal: Option<String>,
@@ -284,7 +285,7 @@ impl Shell {
             pending: false,
             frame: 0.0,
             playback: None,
-            playback_ready: false,
+            next_composition: Instant::now(),
             audio: None,
             freezing_movie: None,
             exporting_movie: None,
@@ -298,6 +299,7 @@ impl Shell {
             resize_queue: Default::default(),
             actions: Default::default(),
             editing: None,
+            present_due: false,
             closing: false,
             next_redraw: Instant::now(),
             fatal: None,
@@ -315,7 +317,7 @@ impl Shell {
         };
         shell.panels.locale = chosen;
         shell.panels.effect_controls.catalogue =
-            shell.engine.plugin("{\"op\":\"catalogue\"}".into())?;
+            shell.engine.plugin("{\"op\":\"catalogue\"}".into())?.into();
         if shell.smoke.is_some() {
             shell.workspace = workspace::Workspace::default();
             shell.workspace.locale = chosen;
@@ -396,6 +398,8 @@ impl ApplicationHandler<UserEvent> for Shell {
                     shift: m.shift_key(),
                     alt: m.alt_key(),
                 };
+                self.input.pending = true;
+                self.dirty = true;
             }
             WindowEvent::CursorMoved { position, .. } => self.translate(Event::MouseMoved {
                 position: [
@@ -425,11 +429,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 }
             }
             WindowEvent::Focused(false) => {
-                self.workspace.cancel();
-                self.stop();
-                self.actions
-                    .extend(panels::cancel_interaction(&mut self.panels));
-                self.translate(Event::FocusLost);
+                self.lose_focus();
             }
             WindowEvent::DroppedFile(path) => {
                 let ext = path
@@ -480,7 +480,10 @@ impl ApplicationHandler<UserEvent> for Shell {
                 }
                 self.editing = None;
                 match result {
-                    Ok(state) => self.state = state,
+                    Ok(state) => {
+                        self.state = state;
+                        self.present_due = true;
+                    }
                     Err(error) => {
                         self.panels.message = Some(self.workspace.locale.error(&error));
                         self.stop();
@@ -623,6 +626,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             && self.rendering.is_empty()
             && self.resizing.is_none()
             && self.editing.is_none()
+            && (!self.present_due || self.closing)
         {
             while let Some(action) = shell::actions::pop_action(&mut self.actions) {
                 if let Err(e) = self.action(action, Some(event_loop)) {
@@ -709,6 +713,53 @@ impl ApplicationHandler<UserEvent> for Shell {
                 }
             }
         }
+        if self.playback.is_some()
+            && !self.input.pending
+            && self.floating.values().all(|window| !window.input.pending)
+            && Instant::now() >= self.next_composition
+            && self.attached
+            && self.rendering.is_empty()
+            && self.editing.is_none()
+            && !self.present_due
+            && self.actions.is_empty()
+            && self.resizing.is_none()
+        {
+            if let Err(error) = self.advance_playback() {
+                self.stop();
+                self.panels.message = Some(self.workspace.locale.error(&error));
+            }
+        }
+        if self.present_due
+            && self.attached
+            && self.editing.is_none()
+            && self.rendering.is_empty()
+            && self.resizing.is_none()
+            && self.resize_queue.is_empty()
+            && !self.closing
+        {
+            if let Err(error) = self.present(event_loop) {
+                self.panels.message = Some(self.workspace.locale.error(&error));
+                self.present_due = false;
+            }
+        }
+        // Queued input must progress even if the OS suppresses redraw events
+        // for an obscured window. Keep the display-rate deadline independent
+        // of composition sampling and do not consume acknowledged-frame input.
+        if Instant::now() >= self.next_redraw
+            && self.attached && self.editing.is_none() && self.rendering.is_empty()
+            && self.resizing.is_none() && self.resize_queue.is_empty() && !self.present_due
+        {
+            let floats: Vec<_> = self.floating.iter().filter(|(_, f)| f.input.pending).map(|(id, _)| *id).collect();
+            if self.input.pending || !floats.is_empty() {
+                if self.input.pending {
+                    if let Err(error) = self.present(event_loop) {self.panels.message=Some(self.workspace.locale.error(&error));}
+                }
+                for id in floats {
+                    if let Err(error) = self.present_float(id, event_loop) {self.panels.message=Some(self.workspace.locale.error(&error));}
+                }
+                self.next_redraw = Instant::now() + self.ui_interval();
+            }
+        }
         if self.smoke.is_some()
             && self.attached
             && self.rendering.is_empty()
@@ -732,6 +783,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             }
         }
         let busy = self.attaching.is_some()
+            || self.present_due
             || self.editing.is_some()
             || !self.rendering.is_empty()
             || self.resizing.is_some()
@@ -761,23 +813,21 @@ impl ApplicationHandler<UserEvent> for Shell {
             if self.attached
                 && self.resizing.is_none()
                 && self.resize_queue.is_empty()
-                && (self.dirty || Instant::now() >= self.next_redraw)
+                && (self.dirty || ui_animating || node_playing || self.pending)
+                && Instant::now() >= self.next_redraw
             {
                 self.redraw();
-                let rate = if ui_animating {
-                    60.
-                } else {
-                    self.state["project"]["fps"]
-                        .as_f64()
-                        .unwrap_or(30.0)
-                        .min(self.state["preview"]["fps"].as_f64().unwrap_or(60.0))
-                        .clamp(1.0, 120.0)
-                };
-                self.next_redraw = Instant::now() + Duration::from_secs_f64(1.0 / rate);
+                self.next_redraw = Instant::now() + self.ui_interval();
             }
-            event_loop.set_control_flow(ControlFlow::WaitUntil(
-                Instant::now() + Duration::from_millis(if busy { 4 } else { 16 }),
-            ));
+            let now = Instant::now();
+            let mut wake = now + Duration::from_millis(if busy { 4 } else { 16 });
+            if self.dirty || ui_animating || node_playing {
+                wake = wake.min(self.next_redraw.max(now + Duration::from_millis(1)));
+            }
+            if self.playback.is_some() {
+                wake = wake.min(self.next_composition.max(now + Duration::from_millis(1)));
+            }
+            event_loop.set_control_flow(ControlFlow::WaitUntil(wake));
         } else {
             event_loop.set_control_flow(ControlFlow::Wait);
         }
@@ -888,6 +938,19 @@ fn translate_ime(ime: winit::event::Ime) -> Option<Event> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn losing_window_focus_cancels_input_without_stopping_playback() {
+        let folder=tempfile::tempdir().unwrap();
+        let mut shell=Shell::new(folder.path().join("project"),None,Some(Locale::En)).unwrap();
+        shell.playback=Some((Instant::now()-Duration::from_millis(250),0.));
+        shell.panels.playing=true;
+        shell.lose_focus();
+        assert!(shell.playback.is_some());assert!(shell.panels.playing);
+        assert!(shell.input.focus_lost);assert!(shell.input.held.is_none());
+        shell.advance_playback().unwrap();
+        let state=shell.editing.take().unwrap().1.recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+        assert!(state["frame"].as_f64().unwrap()>0.);
+    }
     #[test]
     fn builtin_examples_are_independent_and_reject_stale_replacement() {
         let folder = tempfile::tempdir().unwrap();

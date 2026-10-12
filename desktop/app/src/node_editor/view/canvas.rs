@@ -53,52 +53,12 @@ impl NodeEditor {
         let mut canvas = PaintList::default();
         paint::rect(&mut canvas, area, palette::SUNKEN);
 
-        // 改进的网格系统 - 双层网格（大网格 + 小网格）
-        let minor_step = (20. * self.view.zoom).max(10.);
-        let major_step = minor_step * 5.;
-
-        // 计算网格原点（世界坐标 0,0 对应的屏幕位置）
-        let world_origin = self.view.world_to_screen([0., 0.], area);
-
-        // 绘制小网格（淡）
-        if self.view.zoom >= 0.4 {
-            let minor_origin = [
-                (world_origin[0] - area.min[0]).rem_euclid(minor_step) + area.min[0],
-                (world_origin[1] - area.min[1]).rem_euclid(minor_step) + area.min[1],
-            ];
-            let mut x = minor_origin[0];
-            while x < area.max[0] {
-                let mut y = minor_origin[1];
-                while y < area.max[1] {
-                    paint::rect(
-                        &mut canvas,
-                        Rect::new(x, y, 1., 1.),
-                        palette::BORDER.with_alpha(0.15),
-                    );
-                    y += minor_step;
-                }
-                x += minor_step;
-            }
-        }
-
-        // 绘制大网格（稍亮）
-        let major_origin = [
-            (world_origin[0] - area.min[0]).rem_euclid(major_step) + area.min[0],
-            (world_origin[1] - area.min[1]).rem_euclid(major_step) + area.min[1],
-        ];
-        let mut x = major_origin[0];
-        while x < area.max[0] {
-            let mut y = major_origin[1];
-            while y < area.max[1] {
-                paint::rect(
-                    &mut canvas,
-                    Rect::new(x, y, 1., 1.),
-                    palette::BORDER.with_alpha(0.35),
-                );
-                y += major_step;
-            }
-            x += major_step;
-        }
+        let world_origin=self.view.world_to_screen([0.,0.],area);
+        let minor=20.*self.view.zoom;
+        let mut major=100.*self.view.zoom;
+        while major<24. {major*=5.;}
+        paint::grid(&mut canvas,area,palette::BORDER.with_alpha(0.15),palette::BORDER.with_alpha(0.35),world_origin,
+            if minor>=8. {minor}else{0.},major);
 
         // 绘制原点标记（十字）
         if area.contains(world_origin) {

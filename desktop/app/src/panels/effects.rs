@@ -56,4 +56,9 @@ pub(super) fn render(
             true,
         );
     }
+    let controls = if panel == Panel::Effects { &panels.browser } else { &panels.effect_controls };
+    if let Some(readout) = &controls.drag_readout { panels.drag_readout = Some(readout.clone()); }
+    if controls.cursor {
+        panels.cursor=Some(motion_ui::cursor::Cursor::ResizeEW);
+    }
 }

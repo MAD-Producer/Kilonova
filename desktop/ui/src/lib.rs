@@ -16,6 +16,8 @@ pub mod icons;
 pub mod input;
 pub mod interaction;
 pub mod motion;
+pub mod cursor;
+pub mod snap;
 pub mod overlay;
 pub mod paint;
 pub mod panel;

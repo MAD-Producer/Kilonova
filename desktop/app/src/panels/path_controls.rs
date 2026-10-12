@@ -184,6 +184,7 @@ struct Drag {
     node: u64,
     axis: usize,
     value: [f32; 6],
+    last_geometry: [f32; 6],
     start: [f32; 2],
     projection: Projection,
     offset: [f32; 2],
@@ -214,6 +215,7 @@ struct Parameter {
     rect: Rect,
     start: Option<f32>,
     begun: bool,
+    last_value: f32,
     range: [f32; 2],
 }
 fn label(list: &mut PaintList, atlas: &mut TextAtlas, r: Rect, text: &str, color: Color) {
@@ -543,6 +545,7 @@ impl Controls {
                         node,
                         axis,
                         value,
+                        last_geometry: value,
                         start,
                         projection: p.clone(),
                         offset,
@@ -635,7 +638,8 @@ impl Controls {
                             g[other + 1] = -g[drag.axis + 1];
                         }
                     }
-                    if g.iter().all(|v| v.is_finite() && v.abs() <= 32768.) {
+                    if g!=drag.last_geometry && g.iter().all(|v| v.is_finite() && v.abs() <= 32768.) {
+                        drag.last_geometry=g;
                         out.push(Action::Edit(match drag.target {
                             Target::Vector { object } => Command::Vector {
                                 object,
@@ -1127,8 +1131,9 @@ impl Controls {
                             text: format!("{value:.1}"),
                             replace: true,
                             rect: r,
-                            start: Some(input.mouse[0]),
+                            start: Some(input.pressed.unwrap().1[0]),
                             begun: false,
+                            last_value: *value,
                             range,
                         });
                         out.push(Action::Seek(state["frame"].as_f64().unwrap_or(0.)));
@@ -1202,7 +1207,7 @@ impl Controls {
             .is_some_and(|(_, point)| !p.rect.contains(point));
         if let Some(start) = p.start {
             let delta = input.mouse[0] - start;
-            if (input.dragging() || release) && (delta.abs() > 3. || p.begun) {
+            if (input.dragging() || release) && (delta.abs().max(input.pointer_travel) >= 3. || p.begun) {
                 if !p.begun {
                     out.push(Action::History(2));
                     p.begun = true;
@@ -1210,7 +1215,7 @@ impl Controls {
                 let step = if input.modifiers.shift { 0.1 } else { 1. };
                 let value = (p.values[p.axis] + delta * step).clamp(p.range[0], p.range[1]);
                 p.text = format!("{value:.1}");
-                out.push(command(&p, value));
+                if value!=p.last_value {p.last_value=value;out.push(command(&p, value));}
             }
             if release || outside {
                 if p.begun {

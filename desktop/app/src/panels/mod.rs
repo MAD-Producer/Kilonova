@@ -26,8 +26,10 @@ pub(crate) mod fx_console;
 mod helpers;
 mod keyboard;
 mod menus;
+pub(crate) mod numeric;
 pub(crate) mod parent_controls;
 pub(crate) mod path_controls;
+pub(crate) mod transform_controls;
 mod paths;
 mod project;
 mod properties;
@@ -103,8 +105,8 @@ fn viewer(area: Rect) -> Rect {
 pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     panels.node_editor.cancel_interaction();
     panels.parent_controls.open = false;
-    panels.camera_controls.cancel();
-    panels.effect_controls.cancel();
+    let camera = panels.camera_controls.cancel();
+    let effect = panels.effect_controls.cancel();
     let numeric = panels
         .properties
         .field
@@ -115,7 +117,8 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     let trimming = panels.timeline.trimming.take().is_some();
     let animation = panels.animation_controls.cancel();
     let path = panels.path_controls.cancel();
-    if moving || trimming || numeric || animation || path {
+    let transform = panels.transform_controls.cancel();
+    if moving || trimming || numeric || animation || path || transform || effect || camera {
         vec![Action::History(4)]
     } else {
         vec![]
@@ -133,6 +136,8 @@ pub fn chrome(
     input: &Input,
 ) -> Vec<Action> {
     let mut out = Vec::new();
+    panels.cursor = None;
+    panels.drag_readout=None;
     panels.node_editor.external_inspector = layout.find(Panel::NodeProperties.dock()).is_some();
     let node_modal = panels.node_editor.popup_open();
     if let Some((_, point)) = input
@@ -305,7 +310,8 @@ pub fn chrome(
             f.panel,
             Panel::Composition | Panel::Nodes | Panel::NodePreview
         ) {
-            paint::rect(&mut body, f.content, palette::PANEL);
+            let style=motion_ui::style::default_stylesheet().resolve("panel",motion_ui::style::States::default()).unwrap();
+            paint::rect(&mut body,f.content,style.background);
         }
         let timeline_popup = panels.timeline.timeline_context_menu.is_some();
         if f.content.height() >= metrics::ROW {
@@ -349,6 +355,9 @@ pub fn chrome(
         (size[1] - CHROME_HEIGHT - 22.).max(0.),
     );
     for handle in dock::splitters(layout, layout_area) {
+        if handle.area.contains(input.mouse) && !menu_modal {
+            panels.cursor=Some(if handle.edge.is_horizontal() {motion_ui::cursor::Cursor::ResizeEW}else{motion_ui::cursor::Cursor::ResizeNS});
+        }
         let line = if handle.edge.is_horizontal() {
             Rect::new(
                 handle.area.min[0] + 2.,
@@ -373,9 +382,13 @@ pub fn chrome(
     let localized_error = render_error.map(|e| panels.locale.error(e));
     let message = localized_error
         .as_deref()
+        .or(panels.drag_readout.as_ref().map(|(_,text)|text.as_str()))
         .or(panels.message.as_deref())
         .unwrap_or(panels.locale.t(T::Ready));
-    label(
+    if render_error.is_some() {
+        let style=motion_ui::style::default_stylesheet().resolve("error",motion_ui::style::States::default()).unwrap();
+        motion_ui::style::text_style(list,atlas,Rect::new(8.,status.min[1],status.width()-16.,status.height()),message,style,Align::Left);
+    }else {label(
         list,
         atlas,
         Rect::new(
@@ -386,7 +399,13 @@ pub fn chrome(
         ),
         message,
         render_error.is_none(),
-    );
+    );}
+    if let Some((point,note))=&panels.drag_readout {
+        let width=(atlas.measure(note)+16.).min(size[0]-16.).max(1.);
+        let rect=Rect::new((point[0]+14.).min(size[0]-width-4.).max(4.),(point[1]+20.).min(size[1]-52.).max(4.),width,24.);
+        let style=motion_ui::style::default_stylesheet().resolve("tooltip",motion_ui::style::States::default()).unwrap();
+        motion_ui::style::box_style(list,rect,style);motion_ui::style::text_style(list,atlas,rect.shrink(4.),note,style,Align::Left);
+    }
     menus(
         list,
         atlas,
@@ -561,6 +580,7 @@ pub fn floating_chrome(
     input: &Input,
 ) -> Vec<Action> {
     let mut out = vec![];
+    panels.cursor=None;
     if panels.fx_console.is_none() && matches!(panel, Panel::Masks | Panel::Vector) {
         panels.path_controls.parameter_input(state, input, &mut out);
     }
