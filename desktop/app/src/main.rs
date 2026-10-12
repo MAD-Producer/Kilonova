@@ -633,6 +633,12 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.dirty = true;
             }
         }
+        if self.closing && self.rendering.is_empty() && self.resizing.is_none()
+            && self.editing.is_none() && self.project_pending.is_none() && self.actions.is_empty()
+        {
+            event_loop.exit();
+            return;
+        }
         if self.attached
             && self.rendering.is_empty()
             && self.resizing.is_none()

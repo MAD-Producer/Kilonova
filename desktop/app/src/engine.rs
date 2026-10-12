@@ -20,6 +20,8 @@ use std::{
     },
     thread::JoinHandle,
 };
+mod failure;
+use failure::{ErrorReply, Failure, SessionLease};
 
 /// Maximum JSON payload accepted from the UI. Matches the Android bridge limit
 /// so a request that works on one platform works on both.
@@ -78,6 +80,12 @@ struct PresentationState {
 /// compile-time change on both platforms.
 #[allow(dead_code)] // Typed SDK bridge; remaining panels will use the other operations.
 pub enum Command {
+    #[cfg(test)]
+    TestPanic { during_prepare: bool, reply: Sender<Result<Value, String>> },
+    #[cfg(test)]
+    TestRecoveryPanic { root: PathBuf, reply: Sender<Result<Value, String>> },
+    #[cfg(test)]
+    TestDelay { delay: std::time::Duration, reply: Sender<Result<Value, String>> },
     ProjectTicket(Sender<Result<crate::project_lifecycle::Ticket, String>>),
     ChangeProject {
         target: crate::project_lifecycle::Target,
@@ -276,6 +284,37 @@ pub enum Command {
     Shutdown,
 }
 
+impl Command {
+    fn panic_reply(&self) -> Option<ErrorReply> {
+        use Command::*;
+        let reply = match self {
+            ProjectTicket(reply) => ErrorReply::Ticket(reply.clone()),
+            NodeInstall { reply, .. } | Present { reply, .. } | Render { reply, .. } => ErrorReply::Bool(reply.clone()),
+            FreezeMovie { reply, .. } => ErrorReply::Movie(reply.clone()),
+            VideoFrame { reply, .. } => ErrorReply::Frame(reply.clone()),
+            State(reply) | Save(reply) | PreviewInfo(reply) | MediaPackageLimits(reply)
+            | Capture(reply) | Pack(reply)
+            | ChangeProject { reply, .. } | NodeCapture { reply, .. }
+            | EditChecked { reply, .. } | CaptureUi { reply, .. }
+            | Attach { reply, .. } | Resize { reply, .. } | OpenDirectory { reply, .. }
+            | FloatWindow { reply, .. } | CloseWindow { reply, .. }
+            | NewProject { reply, .. } | OpenProject { reply, .. } | ImportProject { reply, .. }
+            | ImportImage { reply, .. } | CreateText { reply, .. } | RenderPreview { reply, .. }
+            | Edit { reply, .. } | History { reply, .. } | Drag { reply, .. } | Seek { reply, .. }
+            | View { reply, .. } | Observe { reply, .. } | Navigate { reply, .. }
+            | ConfigureMemory { reply, .. } | PreviewMode { reply, .. } | CurveGraph { reply, .. }
+            | HitCandidates { reply, .. } | Plugin { reply, .. } | ColorCurveGraph { reply, .. }
+            | Composition { reply, .. } | Media { reply, .. } | ImageInfo { reply, .. }
+            | PrepareImage { reply, .. } | MediaCapabilities { reply, .. }
+            | ResourceInfo { reply, .. } => ErrorReply::Value(reply.clone()),
+            #[cfg(test)]
+            TestPanic { reply, .. } | TestRecoveryPanic { reply, .. } | TestDelay { reply, .. } => ErrorReply::Value(reply.clone()),
+            NodeExpect { .. } | Shutdown => return None,
+        };
+        Some(reply)
+    }
+}
+
 /// A decoded frame plus its timing report, as both hosts return it.
 #[allow(dead_code)] // Video frame reports are part of the desktop SDK bridge.
 pub struct ArcFrame {
@@ -295,7 +334,8 @@ pub struct Engine {
     sender: Sender<Command>,
     worker: Option<JoinHandle<()>>,
     platform: Arc<dyn Platform>,
-    factory: std::sync::Mutex<Option<SurfaceFactory>>,
+    factory: Arc<std::sync::Mutex<Option<SurfaceFactory>>>,
+    failure: Failure,
     paint_pool: Arc<std::sync::Mutex<Vec<motion_ui::paint::PaintList>>>,
 }
 
@@ -308,6 +348,7 @@ impl Engine {
         paint.clear();if let Ok(mut pool)=self.paint_pool.lock(){if pool.len()<8 {pool.push(paint);}}
     }
     pub fn node_gpu(&self) -> Result<crate::node_preview::GpuContext, String> {
+        self.check_running()?;
         let factory = self
             .factory
             .lock()
@@ -320,9 +361,7 @@ impl Engine {
         })
     }
     pub fn node_expect(&self, stamp: (u64, u64)) -> Result<(), String> {
-        self.sender
-            .send(Command::NodeExpect { stamp })
-            .map_err(|_| "engine worker is closed".into())
+        self.send(Command::NodeExpect { stamp })
     }
     pub fn node_install(
         &self,
@@ -346,6 +385,10 @@ impl Engine {
         let desktop_platform = platform.clone();
         let paint_pool=Arc::new(std::sync::Mutex::new(Vec::new()));
         let worker_paints=paint_pool.clone();
+        let failure: Failure = Arc::new(std::sync::Mutex::new(None));
+        let worker_failure = failure.clone();
+        let factory = Arc::new(std::sync::Mutex::new(None));
+        let worker_factory = factory.clone();
         let (sender, receiver) = channel::<Command>();
         let (ready, opened) = channel::<Result<i64, String>>();
         let worker = std::thread::Builder::new()
@@ -373,24 +416,25 @@ impl Engine {
                         return;
                     }
                 };
+                let lease = SessionLease(id);
                 guard.initial = motion_host::session::with_session(id, |s| Ok(s.engine.snapshot())).ok();
                 // The scratch budget is a device property, so apply it before
                 // the first render rather than after a visible hitch.
                 if let Err(error) = preview::configure_memory(id, total_memory as i64, false) {
-                    motion_host::session::close(id);
                     let _ = ready.send(Err(error));
                     return;
                 }
                 if ready.send(Ok(id)).is_err() {
-                    motion_host::session::close(id);
                     return;
                 }
                 let mut painter = None;
                 let mut node_preview = NodePreviewState::default();
                 let mut presentation = PresentationState::default();
                 let mut windows = std::collections::HashMap::new();
+                let mut failed_reply = None;
                 while let Ok(command) = receiver.recv() {
-                    if handle(
+                    let on_panic = command.panic_reply();
+                    match motion_host::ops::catch_panic(|| handle(
                         id,
                         &platform,
                         &mut painter,
@@ -400,30 +444,49 @@ impl Engine {
                         &mut presentation,
                         &worker_paints,
                         command,
-                    ) {
-                        break;
+                    )) {
+                        Ok(true) => break,
+                        Ok(false) => {},
+                        Err(reason) => {
+                            let recovery = match motion_host::ops::catch_panic(|| failure::recovery(id)) {
+                                Ok(Ok(path)) => format!("recovery JSON: {}", path.display()),
+                                Ok(Err(error)) | Err(error) => format!("recovery unavailable: {error}"),
+                            };
+                            let message = format!("engine session closed after native panic: {reason}; {recovery}; reopen the project");
+                            eprintln!("[motion-engine] {message}");
+                            *worker_failure.lock().unwrap_or_else(|error| error.into_inner()) = Some(message.clone());
+                            failed_reply = on_panic.map(|reply| (reply, message));
+                            break;
+                        }
                     }
                 }
-                windows.clear();
-                motion_host::session::close(id);
+                drop(windows);
+                drop(painter);
+                drop(node_preview);
+                worker_factory.lock().unwrap_or_else(|error| error.into_inner()).take();
+                drop(lease);
+                drop(guard);
+                if let Some((reply, error)) = failed_reply { reply.send(error); }
             })
             .map_err(|e| e.to_string())?;
         let _id = opened
-            .recv()
+            .recv_timeout(std::time::Duration::from_secs(60))
             .map_err(|_| "engine thread stopped during startup".to_string())??;
         Ok(Self {
             sender,
             worker: Some(worker),
             platform: desktop_platform,
-            factory: std::sync::Mutex::new(None),
+            factory,
+            failure,
             paint_pool,
         })
     }
 
     fn send(&self, command: Command) -> Result<(), String> {
+        self.check_running()?;
         self.sender
             .send(command)
-            .map_err(|_| "engine thread has stopped".into())
+            .map_err(|_| self.stopped_error())
     }
 
     /// Queue work without blocking the caller.
@@ -439,6 +502,13 @@ impl Engine {
         &self,
         make: impl FnOnce(Sender<Result<T, String>>) -> Command,
     ) -> Result<T, String> {
+        self.call_with_timeout(make, std::time::Duration::from_secs(60))
+    }
+    fn call_with_timeout<T>(
+        &self,
+        make: impl FnOnce(Sender<Result<T, String>>) -> Command,
+        timeout: std::time::Duration,
+    ) -> Result<T, String> {
         let (reply, receive) = channel();
         let began = std::time::Instant::now();
         let command = make(reply);
@@ -451,8 +521,11 @@ impl Engine {
         };
         self.send(command)?;
         let result = receive
-            .recv()
-            .map_err(|_| "engine thread has stopped".to_string())?;
+            .recv_timeout(timeout)
+            .map_err(|error| match error {
+                std::sync::mpsc::RecvTimeoutError::Disconnected => self.stopped_error(),
+                std::sync::mpsc::RecvTimeoutError::Timeout => format!("{operation} timed out; its result is still pending; check project state before retrying"),
+            })?;
         if began.elapsed().as_millis() >= 16 {
             eprintln!("[motion-timing] blocking {operation}: {} us", began.elapsed().as_micros());
         }
@@ -668,6 +741,7 @@ impl Engine {
         width: u32,
         height: u32,
     ) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+        self.check_running()?;
         // Winit exposes Win32 handles only on the GUI thread. Build a surface
         // here, then transfer rendering ownership to the session worker.
         let target = self.platform.attach_surface(window, width, height)?;
@@ -703,6 +777,8 @@ impl Engine {
         width: u32,
         height: u32,
     ) -> Result<Value, String> {
+        self.check_running()?;
+        let target = {
         let factory = self
             .factory
             .lock()
@@ -724,6 +800,8 @@ impl Engine {
         config.height = height;
         surface.configure(&factory.device, &config);
         let target = FloatingSurface { surface, config };
+        target
+        };
         self.call(|reply| Command::FloatWindow { key, target, reply })
     }
     pub fn close_window(&self, key: u64) -> Result<Value, String> {
@@ -857,6 +935,23 @@ fn handle(
         presentation.retained = None;
     }
     match command {
+        #[cfg(test)]
+        Command::TestPanic { during_prepare, reply } => respond(reply, motion_host::session::with_session(id, |session| {
+            if during_prepare {
+                session.engine.apply_batch_with_prepare(vec![motion_core::Command::SetColor { object: 0, value: [1.,0.,0.,1.] }], |_| panic!("injected preparation panic")).map_err(|error| error.to_string())?;
+            }
+            panic!("injected worker panic");
+        })),
+        #[cfg(test)]
+        Command::TestDelay { delay, reply } => {
+            std::thread::sleep(delay);
+            respond(reply, project::state(id));
+        },
+        #[cfg(test)]
+        Command::TestRecoveryPanic { root, reply } => respond(reply, motion_host::session::with_session(id, |session| {
+            session.root = root;
+            panic!("injected panic with unavailable recovery directory");
+        })),
         Command::ProjectTicket(reply) => respond(reply, guard.ticket(id)),
         Command::ChangeProject { target, ticket, save, reply } => respond(reply, (|| {
             motion_host::session::with_session(id, |s| {
