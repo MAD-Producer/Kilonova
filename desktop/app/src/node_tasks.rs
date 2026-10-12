@@ -1,12 +1,11 @@
-//! Serial file operations and a separate graph/GPU compiler keep native dialogs
+//! Serial file operations and a separate CPU graph compiler keep native dialogs
 //! off the GUI thread and do not stall live preview compilation.
 use crate::{
     i18n::{Locale, Text as T},
     node_editor::{Action, EditorSnapshot, NodeEditor},
-    node_preview::{GpuContext, NodePreview},
 };
 use motion_graph::{
-    CompileReport, Diagnostic, ErrorCode, ExportReport, GraphDocument, ValidationReport,
+    CompiledGraph, Diagnostic, ErrorCode, ExportReport, GraphDocument, ValidationReport,
 };
 use std::{
     collections::BTreeMap,
@@ -139,13 +138,12 @@ struct Job {
     locale: Locale,
     dirty: bool,
     path: Option<PathBuf>,
-    gpu: Option<GpuContext>,
 }
 enum Outcome {
     Opened(GraphDocument, PathBuf),
     Saved(PathBuf),
     Validated(Result<ValidationReport, Diagnostic>),
-    Compiled(Result<(CompileReport, Option<NodePreview>), Diagnostic>),
+    Compiled(Result<CompiledGraph, Diagnostic>),
     Exported(ExportReport),
     Cancelled,
     Failed(String),
@@ -158,7 +156,7 @@ struct Completion {
 }
 pub struct ReadyPreview {
     pub snapshot: EditorSnapshot,
-    pub gpu: NodePreview,
+    pub compiled: CompiledGraph,
 }
 pub struct NodeTasks {
     io: Sender<Job>,
@@ -231,23 +229,16 @@ impl NodeTasks {
                 && s.preview_stamp() == snapshot.preview_stamp()
         })
     }
-    pub fn submit(
-        &mut self,
-        action: Action,
-        locale: Locale,
-        dirty: bool,
-        gpu: Option<GpuContext>,
-    ) -> Result<(), String> {
-        self.submit_inner(action, locale, dirty, None, gpu)
+    pub fn submit(&mut self, action: Action, locale: Locale, dirty: bool) -> Result<(), String> {
+        self.submit_inner(action, locale, dirty, None)
     }
     pub fn submit_to(
         &mut self,
         action: Action,
         path: PathBuf,
         locale: Locale,
-        gpu: Option<GpuContext>,
     ) -> Result<(), String> {
-        self.submit_inner(action, locale, false, Some(path), gpu)
+        self.submit_inner(action, locale, false, Some(path))
     }
     fn submit_inner(
         &mut self,
@@ -255,7 +246,6 @@ impl NodeTasks {
         locale: Locale,
         dirty: bool,
         path: Option<PathBuf>,
-        gpu: Option<GpuContext>,
     ) -> Result<(), String> {
         let (kind, snapshot) = match action {
             Action::Open(s) => (Kind::Open, s),
@@ -292,7 +282,6 @@ impl NodeTasks {
                 locale,
                 dirty,
                 path,
-                gpu,
             })
             .is_err()
         {
@@ -322,7 +311,8 @@ impl NodeTasks {
             }
             changed = true;
             let snapshot = completion.snapshot;
-            if snapshot.epoch != editor.snapshot().epoch {
+            let current = editor.snapshot();
+            if snapshot.epoch != current.epoch {
                 editor.cancel_compile(&snapshot);
                 continue;
             }
@@ -347,13 +337,15 @@ impl NodeTasks {
                     editor.accept_validation(&snapshot, result);
                 }
                 Outcome::Compiled(result) => match result {
-                    Ok((report, gpu)) => {
-                        if editor.accept_compile(&snapshot, Ok(report)) {
-                            if let Some(gpu) = gpu {
-                                ready.push(ReadyPreview { snapshot, gpu });
-                            } else {
-                                editor.report_status(locale.t(T::NodeCompiled));
-                            }
+                    Ok(compiled) => {
+                        // The renderer acknowledges success only after GPU
+                        // validation; CPU compilation does not replace it.
+                        if snapshot.preview_stamp() == current.preview_stamp()
+                            && snapshot.semantic_revision == current.semantic_revision
+                        {
+                            ready.push(ReadyPreview { snapshot, compiled });
+                        } else {
+                            editor.cancel_compile(&snapshot);
                         }
                     }
                     Err(error) => {
@@ -417,18 +409,7 @@ fn execute(job: &Job, generation: &AtomicU64, latest_compile: &AtomicU64) -> Out
                             message: "node compilation cancelled".into(),
                         });
                     }
-                    let gpu = job
-                        .gpu
-                        .as_ref()
-                        .map(|gpu| NodePreview::build(gpu, &job.snapshot, &compiled))
-                        .transpose()
-                        .map_err(|error| Diagnostic {
-                            code: ErrorCode::Shader,
-                            node: None,
-                            port: None,
-                            message: error,
-                        })?;
-                    Ok((compiled.report, gpu))
+                    Ok(compiled)
                 });
             return Ok(if cancelled() {
                 Outcome::Cancelled
@@ -513,6 +494,29 @@ fn execute(job: &Job, generation: &AtomicU64, latest_compile: &AtomicU64) -> Out
 mod tests {
     use super::*;
     use crate::node_editor::Request;
+    #[test]
+    fn background_compile_returns_owned_cpu_work_for_renderer_validation() {
+        let mut editor = NodeEditor::default();
+        let snapshot = editor.snapshot();
+        let mut tasks = NodeTasks::start().unwrap();
+        tasks
+            .submit(editor.request(Request::Compile).unwrap(), Locale::En, false)
+            .unwrap();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        let ready = loop {
+            assert!(std::time::Instant::now() < deadline);
+            let (_, mut ready) = tasks.poll(&mut editor, Locale::En);
+            if let Some(ready) = ready.pop() {
+                break ready;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(2));
+        };
+        assert_eq!(ready.snapshot.preview_stamp(), snapshot.preview_stamp());
+        assert!(!ready.compiled.shader.wgsl.is_empty());
+        assert_eq!(editor.snapshot().document, snapshot.document);
+        assert!(editor.accept_compile(&ready.snapshot, Ok(ready.compiled.report)));
+        assert!(editor.diagnostic().is_none());
+    }
     fn drain(tasks: &mut NodeTasks, editor: &mut NodeEditor) {
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
         while tasks.busy() {
@@ -532,7 +536,6 @@ mod tests {
                 editor.request(Request::SaveAs).unwrap(),
                 path.clone(),
                 Locale::En,
-                None,
             )
             .unwrap();
         editor
@@ -543,7 +546,6 @@ mod tests {
                 editor.request(Request::SaveAs).unwrap(),
                 path.clone(),
                 Locale::En,
-                None,
             )
             .unwrap();
         drain(&mut tasks, &mut editor);
@@ -555,18 +557,12 @@ mod tests {
                 editor.request(Request::ExportMsfx).unwrap(),
                 package.clone(),
                 Locale::En,
-                None,
             )
             .unwrap();
         drain(&mut tasks, &mut editor);
         assert!(std::fs::read(package).unwrap().starts_with(b"PK"));
         tasks
-            .submit_to(
-                editor.request(Request::Open).unwrap(),
-                path,
-                Locale::En,
-                None,
-            )
+            .submit_to(editor.request(Request::Open).unwrap(), path, Locale::En)
             .unwrap();
         editor
             .add_node(motion_graph::NodeOp::Float { value: 4. }, [0., 0.])
@@ -580,12 +576,7 @@ mod tests {
         let mut editor = NodeEditor::default();
         let mut tasks = NodeTasks::start().unwrap();
         tasks
-            .submit(
-                editor.request(Request::Compile).unwrap(),
-                Locale::En,
-                false,
-                None,
-            )
+            .submit(editor.request(Request::Compile).unwrap(), Locale::En, false)
             .unwrap();
         tasks.cancel(&mut editor);
         editor.replace_document(motion_graph::demo_graph(), None);

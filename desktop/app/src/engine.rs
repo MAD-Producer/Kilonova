@@ -21,6 +21,8 @@ use std::{
     thread::JoinHandle,
 };
 mod failure;
+#[cfg(all(test, target_os = "windows"))]
+mod scope_tests;
 use failure::{ErrorReply, Failure, SessionLease};
 
 /// Maximum JSON payload accepted from the UI. Matches the Android bridge limit
@@ -97,7 +99,8 @@ pub enum Command {
         stamp: (u64, u64),
     },
     NodeInstall {
-        preview: crate::node_preview::NodePreview,
+        snapshot: crate::node_editor::EditorSnapshot,
+        compiled: motion_graph::CompiledGraph,
         reply: Sender<Result<bool, String>>,
     },
     NodeCapture {
@@ -347,27 +350,24 @@ impl Engine {
     pub fn recycle_paint(&self,mut paint:motion_ui::paint::PaintList) {
         paint.clear();if let Ok(mut pool)=self.paint_pool.lock(){if pool.len()<8 {pool.push(paint);}}
     }
-    pub fn node_gpu(&self) -> Result<crate::node_preview::GpuContext, String> {
+    pub fn node_preview_available(&self) -> Result<(), String> {
         self.check_running()?;
         let factory = self
             .factory
             .lock()
             .map_err(|_| "surface factory lock poisoned")?;
-        let factory = factory.as_ref().ok_or("node preview GPU is not attached")?;
-        Ok(crate::node_preview::GpuContext {
-            device: factory.device.clone(),
-            queue: factory.queue.clone(),
-            format: factory.config.format,
-        })
+        factory.as_ref().ok_or("node preview GPU is not attached")?;
+        Ok(())
     }
     pub fn node_expect(&self, stamp: (u64, u64)) -> Result<(), String> {
         self.send(Command::NodeExpect { stamp })
     }
     pub fn node_install(
         &self,
-        preview: crate::node_preview::NodePreview,
+        snapshot: crate::node_editor::EditorSnapshot,
+        compiled: motion_graph::CompiledGraph,
     ) -> Result<std::sync::mpsc::Receiver<Result<bool, String>>, String> {
-        self.request(|reply| Command::NodeInstall { preview, reply })
+        self.request(|reply| Command::NodeInstall { snapshot, compiled, reply })
     }
     pub fn node_capture(&self, seconds: f64, path: PathBuf) -> Result<Value, String> {
         self.call(|reply| Command::NodeCapture {
@@ -986,11 +986,24 @@ fn handle(
             }
         })()),
         Command::NodeExpect{stamp}=>node_preview.desired=stamp,
-        Command::NodeInstall{preview,reply}=>{
-            let accepted=preview.stamp==node_preview.desired;
-            if accepted {node_preview.active=Some(preview);node_preview.installs+=1;}
-            respond(reply,Ok(accepted));
-        },
+        Command::NodeInstall { snapshot, compiled, reply } => respond(reply, (|| {
+            // All pipeline creation and scope push/pop stay on this worker,
+            // alongside effects and presentation. Reject stale CPU work first.
+            if snapshot.preview_stamp() != node_preview.desired { return Ok(false); }
+            let preview = motion_host::session::with_session(id, |session| {
+                let graphics = session.graphics.as_ref().ok_or("node GPU not attached")?;
+                let context = crate::node_preview::GpuContext {
+                    device: graphics.renderer.device.clone(),
+                    queue: graphics.renderer.queue.clone(),
+                    format: graphics.config.format,
+                };
+                crate::node_preview::NodePreview::build(&context, &snapshot, &compiled)
+                    .map_err(|error| format!("node graph {} {:?}: {error}", snapshot.document.id, snapshot.preview_stamp()))
+            })?;
+            node_preview.active = Some(preview);
+            node_preview.installs += 1;
+            Ok(true)
+        })()),
         Command::NodeCapture{seconds,path,reply}=>respond(reply,motion_host::session::with_session(id,|s|{
             let g=s.graphics.as_ref().ok_or("node GPU not attached")?;
             let preview=node_preview.active.as_mut().ok_or("no valid node preview")?;

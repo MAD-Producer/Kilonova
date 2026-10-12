@@ -39,18 +39,18 @@ impl Shell {
             | node_editor::Action::ExportMsfx(s) => s.clone(),
             _ => unreachable!(),
         };
-        let gpu = if matches!(&action, node_editor::Action::Compile(_)) {
+        if matches!(&action, node_editor::Action::Compile(_)) {
             self.engine.node_expect(snapshot.preview_stamp())?;
             self.node_compile_due = None;
-            Some(self.engine.node_gpu()?)
-        } else {
-            None
-        };
+            if let Err(error) = self.engine.node_preview_available() {
+                self.panels.node_editor.cancel_compile(&snapshot);
+                return Err(error);
+            }
+        }
         if let Err(error) = self.node_tasks.submit(
             action,
             self.workspace.locale,
             self.panels.node_editor.dirty(),
-            gpu,
         ) {
             self.panels.node_editor.cancel_compile(&snapshot);
             self.panels.node_editor.report_error(&error);
@@ -83,14 +83,24 @@ impl Shell {
             self.schedule_node_compile()?;
         }
         for ready in ready {
-            match self.engine.node_install(ready.gpu) {
-                Ok(receive) => self.node_installing.push((ready.snapshot, receive)),
-                Err(error) => self.panels.node_editor.report_error(error),
+            let report = ready.compiled.report.clone();
+            match self
+                .engine
+                .node_install(ready.snapshot.clone(), ready.compiled)
+            {
+                Ok(receive) => self.node_installing.push((ready.snapshot, report, receive)),
+                Err(error) => {
+                    self.panels.node_editor.cancel_compile(&ready.snapshot);
+                    self.panels.node_editor.report_error(error);
+                }
             }
         }
         self.node_installing
-            .retain(|(snapshot, receive)| match receive.try_recv() {
+            .retain(|(snapshot, report, receive)| match receive.try_recv() {
                 Ok(Ok(true)) => {
+                    self.panels
+                        .node_editor
+                        .accept_compile(snapshot, Ok(report.clone()));
                     self.panels.node_preview.active = Some(snapshot.preview_stamp());
                     if self.panels.node_editor.stamp() == snapshot.preview_stamp() {
                         self.panels
@@ -100,13 +110,25 @@ impl Shell {
                     self.dirty = true;
                     false
                 }
-                Ok(Ok(false)) => false,
+                Ok(Ok(false)) => {
+                    self.panels.node_editor.cancel_compile(snapshot);
+                    false
+                }
                 Ok(Err(error)) => {
-                    self.panels.node_editor.report_error(error);
+                    self.panels.node_editor.accept_compile(
+                        snapshot,
+                        Err(motion_graph::Diagnostic {
+                            code: motion_graph::ErrorCode::Shader,
+                            node: None,
+                            port: None,
+                            message: error,
+                        }),
+                    );
                     self.dirty = true;
                     false
                 }
                 Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                    self.panels.node_editor.cancel_compile(snapshot);
                     self.panels
                         .node_editor
                         .report_error("node GPU worker disconnected");

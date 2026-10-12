@@ -186,6 +186,7 @@ struct Shell {
     node_compile_due: Option<Instant>,
     node_installing: Vec<(
         node_editor::EditorSnapshot,
+        motion_graph::CompileReport,
         std::sync::mpsc::Receiver<Result<bool, String>>,
     )>,
     node_close_prompt: Option<node_editor::EditorSnapshot>,
@@ -1034,7 +1035,6 @@ mod tests {
                 node_editor::Action::Save(snapshot.clone()),
                 source.clone(),
                 Locale::En,
-                None,
             )
             .unwrap();
         assert_ne!(shell.panels.node_editor.document().id, "sdf_ring");
