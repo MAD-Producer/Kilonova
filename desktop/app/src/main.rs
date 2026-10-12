@@ -1,5 +1,6 @@
 //! Native desktop editor. One worker owns the session, GPU and swapchain.
 mod audio_output;
+mod cursors;
 mod dialogs;
 mod engine;
 mod i18n;
@@ -174,6 +175,7 @@ struct Shell {
     window: Option<Arc<Window>>,
     engine: Arc<Engine>,
     atlas: TextAtlas,
+    cursors: cursors::Cursors,
     workspace: workspace::Workspace,
     layout_path: PathBuf,
     floating: std::collections::HashMap<WindowId, FloatWindow>,
@@ -259,6 +261,7 @@ impl Shell {
         let mut shell = Self {
             window: None,
             engine,
+            cursors: Default::default(),
             atlas: TextAtlas::from_family(
                 motion_ui::style::default_stylesheet().font_family(),
                 motion_ui::style::default_stylesheet().base_font_size(),
@@ -348,6 +351,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                     .map_err(|e| e.to_string())?,
             );
             self.scale = window.scale_factor() as f32;
+            self.cursors.prepare(event_loop,self.scale);
             window.set_ime_allowed(true);
             let size = window.inner_size();
             self.attaching = Some(self.engine.attach_async(
@@ -388,6 +392,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             }
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 self.scale = scale_factor as f32;
+                self.cursors.prepare(event_loop,self.scale);
                 self.dirty = true;
                 self.redraw();
             }

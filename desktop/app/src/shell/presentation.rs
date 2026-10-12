@@ -183,7 +183,7 @@ impl Shell {
         }
         self.input.begin_frame(); // Clear transient input only after it has been consumed.
         if let Some(window) = &self.window {
-            window.set_cursor(native_cursor(self.workspace.drag_cursor().or(self.panels.cursor).unwrap_or_default()));
+            window.set_cursor(self.cursors.get(self.workspace.drag_cursor().or(self.panels.cursor).unwrap_or_default(),self.scale));
         }
         (paint, actions)
     }
@@ -407,6 +407,7 @@ impl Shell {
         self.engine
             .float_window(key, window.clone(), size.width, size.height)?;
         let scale = window.scale_factor() as f32;
+        self.cursors.prepare(event_loop,scale);
         self.workspace.float(id);
         self.floating.insert(
             window.id(),
@@ -509,7 +510,7 @@ impl Shell {
             if blocked { &neutral } else { &f.input },
         );
         f.window
-            .set_cursor(native_cursor(self.panels.cursor.unwrap_or_default()));
+            .set_cursor(self.cursors.get(self.panels.cursor.unwrap_or_default(),scale));
         self.actions.extend(actions);
         if !acknowledged {
             f.input.begin_frame();
@@ -606,6 +607,7 @@ impl Shell {
             }
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 f.scale = scale_factor as f32;
+                self.cursors.prepare(event_loop,f.scale);
                 self.dirty = true;
                 self.redraw();
                 return;
@@ -681,24 +683,6 @@ impl Shell {
             self.dirty = true;
             self.redraw();
         }
-    }
-}
-
-fn native_cursor(cursor: motion_ui::cursor::Cursor) -> winit::window::CursorIcon {
-    use motion_ui::cursor::Cursor as C;
-    use winit::window::CursorIcon as N;
-    match cursor {
-        C::Default => N::Default,
-        C::Grab => N::Grab,
-        C::Grabbing => N::Grabbing,
-        C::Move => N::Move,
-        C::ResizeEW => N::EwResize,
-        C::ResizeNS => N::NsResize,
-        C::ResizeNESW => N::NeswResize,
-        C::ResizeNWSE => N::NwseResize,
-        C::Text => N::Text,
-        C::Crosshair => N::Crosshair,
-        C::Wait => N::Wait,
     }
 }
 
