@@ -85,6 +85,35 @@ impl PaintList {
         self.order.push(PaintOp::Glyph(self.glyphs.len()));
         self.glyphs.push(glyph);
     }
+    /// Remove obscured text without losing creation order or shifting stale indices.
+    pub fn retain_glyphs(&mut self, mut keep: impl FnMut(&Glyph) -> bool) {
+        self.legacy_order();
+        let mut mapping = vec![None; self.glyphs.len()];
+        let mut old = 0;
+        let mut next = 0;
+        self.glyphs.retain(|glyph| {
+            let index = old;
+            old += 1;
+            if keep(glyph) {
+                mapping[index] = Some(next);
+                next += 1;
+                true
+            } else {
+                false
+            }
+        });
+        self.order.retain_mut(|op| match op {
+            PaintOp::Shape(_) => true,
+            PaintOp::Glyph(index) => {
+                if let Some(new) = mapping[*index] {
+                    *index = new;
+                    true
+                } else {
+                    false
+                }
+            }
+        });
+    }
     /// Bound flat UI geometry and adjust cropped glyph UVs to a panel rectangle.
     pub fn clip_to(&mut self, area: Rect) {
         let mut shape_map = vec![None; self.shapes.len()];

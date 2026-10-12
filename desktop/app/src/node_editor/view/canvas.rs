@@ -347,7 +347,7 @@ impl NodeEditor {
                 width,
                 height,
             );
-            canvas.glyphs.retain(|g| {
+            canvas.retain_glyphs(|g| {
                 !intersects(
                     tooltip,
                     Rect::new(g.position[0], g.position[1], g.size[0], g.size[1]),
@@ -399,7 +399,7 @@ impl NodeEditor {
                     width,
                     height,
                 );
-                canvas.glyphs.retain(|glyph| {
+                canvas.retain_glyphs(|glyph| {
                     !intersects(
                         Rect::new(
                             glyph.position[0],

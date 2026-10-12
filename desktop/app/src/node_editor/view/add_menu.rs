@@ -171,7 +171,7 @@ impl NodeEditor {
         }
         rows.clip_to(content);
         popup.append(rows);
-        list.glyphs.retain(|g| {
+        list.retain_glyphs(|g| {
             !intersects(
                 area,
                 Rect::new(g.position[0], g.position[1], g.size[0], g.size[1]),
