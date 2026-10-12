@@ -31,6 +31,24 @@ pub fn close_prompt(
     input: &motion_ui::Input,
     locale: Locale,
 ) -> Option<CloseChoice> {
+    let zh = locale == Locale::Zh;
+    decision_prompt(list, atlas, size, input, locale, locale.t(T::NodeUnsaved),
+        if zh { "退出前保存节点图？" } else { "Save the node graph before exiting?" },
+        if zh { "节点图单独保存为 .msgraph；保存工程不会保存节点图。" }
+        else { "Node graphs use .msgraph files; saving the project does not save this graph." }, false)
+}
+
+pub(crate) fn decision_prompt(
+    list: &mut motion_ui::PaintList,
+    atlas: &mut motion_ui::TextAtlas,
+    size: [f32; 2],
+    input: &motion_ui::Input,
+    locale: Locale,
+    title: &str,
+    message: &str,
+    note: &str,
+    error: bool,
+) -> Option<CloseChoice> {
     use motion_ui::{
         input::Key,
         paint,
@@ -51,7 +69,7 @@ pub fn close_prompt(
         list,
         atlas,
         Rect::new(card.min[0] + 22., card.min[1] + 16., 476., 32.),
-        locale.t(T::NodeUnsaved),
+        title,
         palette::TEXT,
         Align::Left,
     );
@@ -59,11 +77,7 @@ pub fn close_prompt(
         list,
         atlas,
         Rect::new(card.min[0] + 22., card.min[1] + 58., 476., 32.),
-        if zh {
-            "退出前保存节点图？"
-        } else {
-            "Save the node graph before exiting?"
-        },
+        message,
         palette::TEXT,
         Align::Left,
     );
@@ -71,12 +85,12 @@ pub fn close_prompt(
         list,
         atlas,
         Rect::new(card.min[0] + 22., card.min[1] + 97., 476., 32.),
-        if zh {
-            "节点图单独保存为 .msgraph；保存工程不会保存节点图。"
-        } else {
-            "Node graphs use .msgraph files; saving the project does not save this graph."
-        },
-        palette::TEXT_MUTED,
+        note,
+        if error {
+            motion_ui::style::default_stylesheet()
+                .resolve("error", motion_ui::style::States::default())
+                .map_or(palette::TEXT, |style| style.foreground)
+        } else { palette::TEXT_MUTED },
         Align::Left,
     );
     if input.keys.iter().any(|(key, _)| *key == Key::Escape) {

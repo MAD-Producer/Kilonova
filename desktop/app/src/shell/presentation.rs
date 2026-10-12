@@ -37,6 +37,7 @@ impl Shell {
         self.atlas.set_pixel_ratio(self.scale);
         let mut paint = self.engine.take_paint();
         let neutral = Input::default();
+        let project_modal = self.project_modal();
         let actions = panels::chrome(
             &mut paint,
             &mut self.atlas,
@@ -45,6 +46,7 @@ impl Shell {
             &mut self.panels,
             &self.state,
             if self.dialog.is_some()
+                || project_modal
                 || self.node_close_prompt.is_some()
                 || self.node_examples.is_some()
             {
@@ -181,6 +183,7 @@ impl Shell {
                 self.dirty = true;
             }
         }
+        project_lifecycle::render(self, &mut paint, size);
         self.input.begin_frame(); // Clear transient input only after it has been consumed.
         if let Some(window) = &self.window {
             window.set_cursor(self.cursors.get(self.workspace.drag_cursor().or(self.panels.cursor).unwrap_or_default(),self.scale));
@@ -283,6 +286,7 @@ impl Shell {
             || self.panels.fx_console.is_some()
             || self.panels.node_editor.popup_open()
             || self.dialog.is_some()
+            || self.project_modal()
             || self.node_close_prompt.is_some()
             || self.node_examples.is_some();
         if header_action || modal {
@@ -324,6 +328,7 @@ impl Shell {
         // Actions may change project, layer selection or playhead during this draw.
         if self.dirty
             && self.dialog.is_none()
+            && !self.project_modal()
             && self.node_close_prompt.is_none()
             && self.node_examples.is_none()
         {
@@ -475,6 +480,7 @@ impl Shell {
         {
             return Ok(());
         }
+        let project_modal = self.project_modal();
         let f = self.floating.get_mut(&id).ok_or("floating window closed")?;
         if self.rendering.contains_key(&f.key) {
             return Ok(());
@@ -499,7 +505,7 @@ impl Shell {
         };
         let acknowledged = self.present_due;
         let blocked =
-            acknowledged || self.dialog.is_some() || self.node_examples.is_some() || self.node_close_prompt.is_some();
+            acknowledged || project_modal || self.dialog.is_some() || self.node_examples.is_some() || self.node_close_prompt.is_some();
         let actions = panels::floating_chrome(
             &mut paint,
             &mut self.atlas,

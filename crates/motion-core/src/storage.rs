@@ -21,6 +21,11 @@ fn read_json(path: &Path) -> Result<Project> {
     let project: Project = serde_json::from_reader(file.take(MAX_JSON + 1))?;
     project.migrate()
 }
+/// Read the saved model without resolving its external assets. This lets a host
+/// compare unsaved edits even when an asset has disappeared from disk.
+pub fn load_document(root: &Path) -> Result<Project> {
+    read_json(&root.join("project.json"))
+}
 pub fn validate_assets(root: &Path, project: &Project) -> Result<()> {
     let base = root.canonicalize()?;
     let mut seen = std::collections::HashMap::new();

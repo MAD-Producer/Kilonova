@@ -7,6 +7,25 @@ use serde_json::Value;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+/// Explicit desktop choice; legacy hosts retain their existing save policy.
+#[derive(Clone, Copy)]
+pub enum PreviousProject {
+    Save,
+    Discard,
+}
+
+fn save_previous(s: &crate::session::Session, choice: Option<PreviousProject>) -> Result<()> {
+    let save = match choice {
+        Some(PreviousProject::Save) => true,
+        Some(PreviousProject::Discard) => false,
+        None => motion_core::storage::validate_assets(&s.root, s.engine.project()).is_ok(),
+    };
+    if save {
+        motion_core::storage::save(&s.root, s.engine.project()).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 /// Directory names the project browser is allowed to open.
 fn project_name_allowed(name: &str, current: &str) -> bool {
     name == current
@@ -54,6 +73,14 @@ pub fn save(id: i64) -> Result<Value> {
 }
 
 pub fn new_project(id: i64, text: &str) -> Result<Value> {
+    new_project_inner(id, text, None)
+}
+
+pub fn new_project_with_choice(id: i64, text: &str, choice: PreviousProject) -> Result<Value> {
+    new_project_inner(id, text, Some(choice))
+}
+
+fn new_project_inner(id: i64, text: &str, choice: Option<PreviousProject>) -> Result<Value> {
     let project: Project = serde_json::from_str(text).map_err(|e| e.to_string())?;
     if !project.assets.is_empty()
         || !project.audio_assets.is_empty()
@@ -65,9 +92,7 @@ pub fn new_project(id: i64, text: &str) -> Result<Value> {
     crate::session::with_session(id, |s| {
         let parent = s.root.parent().ok_or("project parent is missing")?;
         let destination = parent.join(format!("project-{}", stamp()?));
-        if motion_core::storage::validate_assets(&s.root, s.engine.project()).is_ok() {
-            motion_core::storage::save(&s.root, s.engine.project()).map_err(|e| e.to_string())?;
-        }
+        save_previous(s, choice)?;
         std::fs::create_dir(&destination).map_err(|e| e.to_string())?;
         motion_core::storage::save(&destination, engine.project()).map_err(|e| e.to_string())?;
         s.replace_project(engine, destination)?;
@@ -121,24 +146,32 @@ pub fn replace(id: i64, text: &str) -> Result<Value> {
 /// Open an explicitly selected desktop project directory. Loading and asset
 /// validation finish before the current project is saved or replaced.
 pub fn open_directory(id: i64, directory: &std::path::Path) -> Result<Value> {
+    open_directory_with_choice(id, directory, PreviousProject::Save)
+}
+
+pub fn open_directory_with_choice(id: i64, directory: &std::path::Path, choice: PreviousProject) -> Result<Value> {
     let destination = directory.canonicalize().map_err(|e| e.to_string())?;
     let project = motion_core::storage::load(&destination).map_err(|e| e.to_string())?;
     let engine = motion_core::Engine::new(project).map_err(|e| e.to_string())?;
     crate::session::with_session(id, |s| {
-        motion_core::storage::save(&s.root, s.engine.project()).map_err(|e| e.to_string())?;
+        save_previous(s, Some(choice))?;
         s.replace_project(engine, destination)?;
         Ok(s.snapshot())
     })
 }
 
 pub fn import_project(id: i64, file: &std::path::Path) -> Result<Value> {
+    import_project_with_choice(id, file, PreviousProject::Save)
+}
+
+pub fn import_project_with_choice(id: i64, file: &std::path::Path, choice: PreviousProject) -> Result<Value> {
     crate::session::with_session(id, |s| {
         let parent = s.root.parent().ok_or("project parent is missing")?;
         let destination = parent.join(format!("import-{}", stamp()?));
         let project =
             motion_core::storage::import_package(file, &destination).map_err(|e| e.to_string())?;
         let engine = motion_core::Engine::new(project).map_err(|e| e.to_string())?;
-        motion_core::storage::save(&s.root, s.engine.project()).map_err(|e| e.to_string())?;
+        save_previous(s, Some(choice))?;
         s.replace_project(engine, destination)?;
         Ok(s.snapshot())
     })
