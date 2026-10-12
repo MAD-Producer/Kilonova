@@ -78,6 +78,12 @@ pub struct Panels {
     pub path_controls: crate::panels::path_controls::Controls,
     pub transform_controls: crate::panels::transform_controls::Controls,
 }
+
+impl Panels {
+    pub(crate) fn fx_console_in(&self, owner: Option<motion_ui::dock::Panel>) -> bool {
+        self.fx_console.as_ref().is_some_and(|console| console.owner == owner)
+    }
+}
 pub(crate) struct HeaderHit {
     pub rect: Rect,
     pub panel: dock::DockId,
