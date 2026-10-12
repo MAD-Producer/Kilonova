@@ -72,7 +72,7 @@ pub(super) fn render(
         let entries: Vec<(String, Action, bool)> = match menu {
             0 => vec![
                 (
-                    format!("{}    Ctrl+N", locale.t(T::NewProject)),
+                    format!("{}    Ctrl+Alt+N", locale.t(T::NewProject)),
                     Action::New,
                     true,
                 ),
@@ -94,7 +94,7 @@ pub(super) fn render(
                 ),
                 (locale.t(T::ExportPng).into(), Action::ExportPng, true),
                 (
-                    locale.t(T::ExportMovie).into(),
+                    format!("{}    Ctrl+Alt+M", locale.t(T::ExportMovie)),
                     Action::ExportMovie,
                     cfg!(feature = "ffmpeg"),
                 ),
@@ -115,7 +115,7 @@ pub(super) fn render(
             ],
             2 => vec![
                 (
-                    locale.t(T::CompositionSettings).into(),
+                    format!("{}    Ctrl+K", locale.t(T::CompositionSettings)),
                     Action::CompositionSettings,
                     true,
                 ),

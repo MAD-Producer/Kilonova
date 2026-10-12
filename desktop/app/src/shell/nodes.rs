@@ -11,6 +11,10 @@ impl Shell {
         if self.closing {
             return Ok(());
         }
+        if matches!(action, node_editor::Action::PreviewChanged) {
+            self.schedule_node_compile()?;
+            return Ok(());
+        }
         if let node_editor::Action::Examples(snapshot) = action {
             let needs_save = self.panels.node_editor.dirty() && snapshot.revision > 0;
             self.node_examples = Some(node_examples::Browser::new(snapshot, needs_save));
@@ -36,8 +40,7 @@ impl Shell {
             _ => unreachable!(),
         };
         let gpu = if matches!(&action, node_editor::Action::Compile(_)) {
-            self.engine
-                .node_expect((snapshot.epoch, snapshot.semantic_revision))?;
+            self.engine.node_expect(snapshot.preview_stamp())?;
             self.node_compile_due = None;
             Some(self.engine.node_gpu()?)
         } else {
@@ -88,11 +91,8 @@ impl Shell {
         self.node_installing
             .retain(|(snapshot, receive)| match receive.try_recv() {
                 Ok(Ok(true)) => {
-                    self.panels.node_preview.active =
-                        Some((snapshot.epoch, snapshot.semantic_revision));
-                    if self.panels.node_editor.stamp()
-                        == (snapshot.epoch, snapshot.semantic_revision)
-                    {
+                    self.panels.node_preview.active = Some(snapshot.preview_stamp());
+                    if self.panels.node_editor.stamp() == snapshot.preview_stamp() {
                         self.panels
                             .node_editor
                             .report_status(self.workspace.locale.t(T::NodeCompiled));

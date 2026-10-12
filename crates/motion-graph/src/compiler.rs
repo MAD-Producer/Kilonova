@@ -318,6 +318,14 @@ pub fn node_ports(node: &Node, parameters: &[PublicParameter]) -> Result<NodePor
 }
 
 pub fn validate(document: &GraphDocument, options: &CompileOptions) -> Result<ValidationReport> {
+    validate_root(document, options, None)
+}
+
+fn validate_root(
+    document: &GraphDocument,
+    options: &CompileOptions,
+    root: Option<&PortRef>,
+) -> Result<ValidationReport> {
     if document.format_version != GRAPH_FORMAT_VERSION {
         return Err(Error::invalid(
             ErrorCode::DocumentVersion,
@@ -479,6 +487,25 @@ pub fn validate(document: &GraphDocument, options: &CompileOptions) -> Result<Va
             outputs.push(node.id.clone());
         }
     }
+    if let Some(root) = root {
+        let ports = ports.get(&root.node).ok_or_else(|| {
+            Error::invalid(
+                ErrorCode::UnknownNode,
+                Some(&root.node),
+                Some(&root.port),
+                "preview node is missing",
+            )
+        })?;
+        if !ports.outputs.contains_key(&root.port) {
+            return Err(Error::invalid(
+                ErrorCode::UnknownPort,
+                Some(&root.node),
+                Some(&root.port),
+                "preview output is missing",
+            ));
+        }
+        outputs = vec![root.node.clone()];
+    }
     if outputs.is_empty() {
         return Err(Error::invalid(
             ErrorCode::MissingOutput,
@@ -637,14 +664,79 @@ pub fn validate(document: &GraphDocument, options: &CompileOptions) -> Result<Va
 
 pub fn compile(document: &GraphDocument, options: &CompileOptions) -> Result<CompiledGraph> {
     let plan = validate(document, options)?;
+    compile_plan(document, options, &plan, None)
+}
+
+/// Compile a typed diagnostic view of one output and its dependencies. This does
+/// not alter the source document, permanent output or normal export contract.
+pub fn compile_preview(
+    document: &GraphDocument,
+    options: &CompileOptions,
+    target: &PortRef,
+) -> Result<CompiledGraph> {
+    if document.nodes.len() > options.max_nodes
+        || document.connections.len() > options.max_connections
+    {
+        return Err(Error::invalid(
+            ErrorCode::Budget,
+            None,
+            None,
+            "source graph exceeds preview budget",
+        ));
+    }
+    let mut keep = BTreeSet::new();
+    let mut pending = vec![target.node.clone()];
+    while let Some(id) = pending.pop() {
+        if keep.insert(id.clone()) {
+            pending.extend(
+                document
+                    .connections
+                    .iter()
+                    .filter(|edge| edge.to.node == id)
+                    .map(|edge| edge.from.node.clone()),
+            );
+        }
+    }
+    let mut view = document.clone();
+    view.nodes.retain(|node| keep.contains(&node.id));
+    view.connections
+        .retain(|edge| keep.contains(&edge.from.node) && keep.contains(&edge.to.node));
+    let plan = validate_root(&view, options, Some(target))?;
+    compile_plan(&view, options, &plan, Some(target))
+}
+
+fn compile_plan(
+    document: &GraphDocument,
+    options: &CompileOptions,
+    plan: &ValidationReport,
+    target: Option<&PortRef>,
+) -> Result<CompiledGraph> {
     let manifest = make_manifest(document, options)?;
-    let mut builder = Builder::new(document, &plan);
+    let mut builder = Builder::new(document, plan);
     let nodes: BTreeMap<_, _> = document.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
     for id in &plan.reachable_nodes {
         builder.emit(nodes[id.as_str()])?;
     }
-    let output = builder.input(&plan.output_node, "color");
-    let source=format!("// Motion Studio .msgraph format 1; SDK 6 single-pass image target.\n{}\nfn graph_fx(p:vec2<f32>)->vec4<f32>{{\n{}    return {};\n}}\n",helpers(document.alpha_mode),builder.code,output.expr);
+    let output = if let Some(target) = target {
+        let symbol = &builder.symbols[target];
+        let ty = node_ports(nodes[target.node.as_str()], &document.public_parameters)?.outputs
+            [&target.port];
+        match ty {
+            ValueType::Color => symbol.expr.clone(),
+            ValueType::Float => format!("ng_from_straight(vec4<f32>(vec3<f32>(clamp({},0.0,1.0)),1.0))", symbol.expr),
+            ValueType::Vec2 => format!("ng_from_straight(vec4<f32>({},0.0,1.0))", symbol.expr),
+            ValueType::Vec3 => format!("ng_from_straight(vec4<f32>({},1.0))", symbol.expr),
+            ValueType::Bool => format!("ng_from_straight(vec4<f32>(vec3<f32>(select(0.0,1.0,{})),1.0))", symbol.expr),
+            ValueType::DistancePixels => format!("ng_from_straight(vec4<f32>(vec3<f32>(clamp(0.5+{}/max(max(fx.size.x,fx.size.y),1.0),0.0,1.0)),1.0))", symbol.expr),
+            ValueType::Image => {
+                builder.samples += 1;
+                format!("{}(p)", if symbol.image == Some(ImageSource::Input) { "sample_input" } else { "sample_source" })
+            }
+        }
+    } else {
+        builder.input(&plan.output_node, "color").expr
+    };
+    let source=format!("// Motion Studio .msgraph format 1; SDK 6 single-pass image target.\n{}\nfn graph_fx(p:vec2<f32>)->vec4<f32>{{\n{}    return {};\n}}\n",helpers(document.alpha_mode),builder.code,output);
     if source.len() > options.max_shader_bytes {
         return Err(Error::invalid(
             ErrorCode::Budget,

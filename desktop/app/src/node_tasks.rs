@@ -214,7 +214,7 @@ impl NodeTasks {
         self.pending.values().any(|(k, s)| {
             *k == Kind::Compile
                 && s.epoch == snapshot.epoch
-                && s.semantic_revision == snapshot.semantic_revision
+                && s.preview_stamp() == snapshot.preview_stamp()
         })
     }
     pub fn submit(
@@ -250,7 +250,7 @@ impl NodeTasks {
             Action::Validate(s) => (Kind::Validate, s),
             Action::Compile(s) => (Kind::Compile, s),
             Action::ExportMsfx(s) => (Kind::Export, s),
-            Action::Changed { .. } | Action::Examples(_) => return Ok(()),
+            Action::Changed { .. } | Action::Examples(_) | Action::PreviewChanged => return Ok(()),
         };
         if kind == Kind::Compile && self.compiling(&snapshot) {
             return Ok(());
@@ -348,7 +348,9 @@ impl NodeTasks {
                 },
                 Outcome::Exported(report) => {
                     if editor.accept_saved(&snapshot, report.source_path) {
-                        editor.accept_compile(&snapshot, Ok(report.compile));
+                        if snapshot.preview_target.is_none() {
+                            editor.accept_compile(&snapshot, Ok(report.compile));
+                        }
                         editor.report_status(format!(
                             "{}: {}",
                             locale.t(T::NodeExport),
@@ -358,7 +360,7 @@ impl NodeTasks {
                 }
                 Outcome::Cancelled => {
                     editor.cancel_compile(&snapshot);
-                    if editor.stamp() == (snapshot.epoch, snapshot.semantic_revision) {
+                    if editor.stamp() == snapshot.preview_stamp() {
                         editor.report_status(locale.t(T::NodeCancelled));
                     }
                 }
@@ -390,7 +392,7 @@ fn execute(job: &Job, generation: &AtomicU64, latest_compile: &AtomicU64) -> Out
         if job.kind == Kind::Compile {
             let result = job
                 .snapshot
-                .compile()
+                .compile_preview()
                 .map_err(|e| e.diagnostic())
                 .and_then(|compiled| {
                     if cancelled() {

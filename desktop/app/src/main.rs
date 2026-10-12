@@ -11,6 +11,7 @@ mod node_preview;
 mod node_tasks;
 mod panels;
 mod shell;
+mod shortcuts;
 mod workflow;
 mod workspace;
 use i18n::{Locale, Text as T};
@@ -368,8 +369,10 @@ impl ApplicationHandler<UserEvent> for Shell {
             return;
         }
         match event {
-            WindowEvent::Ime(winit::event::Ime::Commit(text)) => {
-                self.translate(Event::TextInput(text))
+            WindowEvent::Ime(ime) => {
+                if let Some(event) = translate_ime(ime) {
+                    self.translate(event);
+                }
             }
             WindowEvent::CloseRequested => {
                 self.request_close();
@@ -417,19 +420,8 @@ impl ApplicationHandler<UserEvent> for Shell {
                 delta: mouse_wheel_delta(delta, self.scale),
             }),
             WindowEvent::KeyboardInput { event, .. } => {
-                if event.state != ElementState::Pressed {
-                    return;
-                }
-                if let Some(key) = translate_key(&event.logical_key) {
-                    self.translate(Event::KeyPressed {
-                        key,
-                        modifiers: self.input.modifiers,
-                    });
-                }
-                if !self.input.modifiers.control && !self.input.modifiers.alt {
-                    if let Some(text) = event.text.filter(|t| !t.chars().all(char::is_control)) {
-                        self.translate(Event::TextInput(text.to_string()));
-                    }
+                for event in keyboard_events(&event, &self.input) {
+                    self.translate(event);
                 }
             }
             WindowEvent::Focused(false) => {
@@ -816,6 +808,14 @@ fn translate_key(key: &WinitKey) -> Option<Key> {
             "z" => Key::Z,
             "y" => Key::Y,
             "d" => Key::D,
+            "k" => Key::K,
+            "p" => Key::P,
+            "r" => Key::R,
+            "u" => Key::U,
+            "j" => Key::J,
+            "m" => Key::M,
+            "x" => Key::X,
+            "=" | "+" => Key::Equal,
             "," => Key::Comma,
             "." => Key::Period,
             _ => return None,
@@ -833,10 +833,57 @@ fn translate_key(key: &WinitKey) -> Option<Key> {
             NamedKey::ArrowDown => Key::Down,
             NamedKey::Home => Key::Home,
             NamedKey::End => Key::End,
+            NamedKey::PageUp => Key::PageUp,
+            NamedKey::PageDown => Key::PageDown,
+            NamedKey::F3 => Key::F3,
+            NamedKey::F9 => Key::F9,
+            NamedKey::Shift => Key::Shift,
+            NamedKey::Control => Key::Control,
+            NamedKey::Alt => Key::Alt,
             _ => return None,
         },
         _ => return None,
     })
+}
+
+/// Main and floating windows normalize keyboard input through the same adapter.
+fn keyboard_events(event: &winit::event::KeyEvent, input: &Input) -> Vec<Event> {
+    let mut result = vec![];
+    if let Some(key) = translate_key(&event.logical_key) {
+        let modifiers = input.modifiers;
+        result.push(if event.state == ElementState::Released {
+            Event::KeyReleased { key, modifiers }
+        } else if event.repeat {
+            Event::KeyRepeated { key, modifiers }
+        } else {
+            Event::KeyPressed { key, modifiers }
+        });
+    }
+    if event.state == ElementState::Pressed
+        && !input.composing
+        && !input.ime_consumed
+        && !input.modifiers.control
+        && !input.modifiers.alt
+    {
+        if let Some(text) = event
+            .text
+            .as_ref()
+            .filter(|t| !t.chars().all(char::is_control))
+        {
+            result.push(Event::TextInput(text.to_string()));
+        }
+    }
+    result
+}
+
+fn translate_ime(ime: winit::event::Ime) -> Option<Event> {
+    use winit::event::Ime;
+    match ime {
+        Ime::Preedit(text, _) => Some(Event::ImeComposition(!text.is_empty())),
+        Ime::Commit(text) => Some(Event::TextCommit(text)),
+        Ime::Disabled => Some(Event::ImeComposition(false)),
+        Ime::Enabled => None,
+    }
 }
 #[cfg(test)]
 mod tests {

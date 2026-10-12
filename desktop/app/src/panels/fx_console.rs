@@ -18,7 +18,7 @@ struct Entry {
     command: Value,
 }
 fn entries(catalogue: &Value, query: &str, locale: Locale, object: u64) -> Vec<Entry> {
-    let query = query.to_lowercase();
+    let query = query.trim().to_lowercase();
     let mut result = vec![];
     for package in catalogue["packages"].as_array().into_iter().flatten() {
         let manifest = &package["manifest"];
@@ -33,9 +33,16 @@ fn entries(catalogue: &Value, query: &str, locale: Locale, object: u64) -> Vec<E
             .unwrap_or(id);
             let category = manifest["name"].as_str().unwrap_or("");
             if !query.is_empty()
-                && ![name, id, category, effect["name"].as_str().unwrap_or("")]
-                    .iter()
-                    .any(|s| s.to_lowercase().contains(&query))
+                && ![
+                    name,
+                    id,
+                    category,
+                    effect["name"].as_str().unwrap_or(""),
+                    effect["english_name"].as_str().unwrap_or(""),
+                    effect["category"].as_str().unwrap_or(""),
+                ]
+                .iter()
+                .any(|s| s.to_lowercase().contains(&query))
             {
                 continue;
             }
@@ -131,7 +138,7 @@ pub fn render_fx_console(
     let start = console
         .selected_index
         .saturating_sub(count.saturating_sub(1));
-    let enter = input.keys.iter().any(|(key, _)| *key == Key::Enter);
+    let enter = motion_ui::input::KeyChord::new(Key::Enter, false, false, false).pressed(input);
     for (i, item) in items.iter().enumerate().skip(start).take(count) {
         let row = Rect::new(
             x + 8.,
@@ -180,6 +187,85 @@ pub fn render_fx_console(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn console_applies_once_and_keeps_disabled_empty_or_repeated_enter_open() {
+        let catalogue = json!({"packages":[{"hash":"abc", "manifest":{"id":"builtin","version":"1","name":"内置",
+            "effects":[{"id":"blur","name":"高斯模糊","english_name":"Gaussian Blur"}]}}]});
+        let mut atlas = TextAtlas::from_system(13.).unwrap();
+        let mut console = FxConsole {
+            position: [400., 250.],
+            query: "Gaussian".into(),
+            selected_index: 0,
+            owner: None,
+        };
+        let mut out = vec![];
+        let mut input = Input {
+            keys: vec![(Key::Enter, Default::default())],
+            ..Default::default()
+        };
+        assert!(render_fx_console(
+            &mut PaintList::default(),
+            &mut atlas,
+            [900., 600.],
+            &mut console,
+            &catalogue,
+            &input,
+            Locale::Zh,
+            None,
+            &mut out
+        ));
+        assert!(out.is_empty());
+        input.key_repeats = vec![true];
+        assert!(render_fx_console(
+            &mut PaintList::default(),
+            &mut atlas,
+            [900., 600.],
+            &mut console,
+            &catalogue,
+            &input,
+            Locale::Zh,
+            Some(42),
+            &mut out
+        ));
+        assert!(out.is_empty());
+        input.key_repeats.clear();
+        assert!(!render_fx_console(
+            &mut PaintList::default(),
+            &mut atlas,
+            [900., 600.],
+            &mut console,
+            &catalogue,
+            &input,
+            Locale::Zh,
+            Some(42),
+            &mut out
+        ));
+        assert!(
+            matches!(out.as_slice(), [Action::Plugin(value)] if value["object"] == 42 && value["effect"] == "blur")
+        );
+        out.clear();
+        console.query = "missing".into();
+        assert!(render_fx_console(
+            &mut PaintList::default(),
+            &mut atlas,
+            [900., 600.],
+            &mut console,
+            &catalogue,
+            &input,
+            Locale::Zh,
+            Some(42),
+            &mut out
+        ));
+        assert!(out.is_empty());
+    }
+    #[test]
+    fn chinese_ui_matches_english_name_and_category() {
+        let catalogue = json!({"packages":[{"hash":"abc", "manifest":{"id":"builtin","version":"1","name":"内置",
+            "effects":[{"id":"blur","name":"高斯模糊","english_name":"Gaussian Blur","category":"blur-sharpen"}]}}]});
+        assert_eq!(entries(&catalogue, "Gaussian", Locale::Zh, 42).len(), 1);
+        assert_eq!(entries(&catalogue, "blur-sharpen", Locale::Zh, 42).len(), 1);
+        assert!(entries(&catalogue, "missing", Locale::Zh, 42).is_empty());
+    }
     #[test]
     fn search_preserves_package_identity_for_shared_plugin_command() {
         let catalogue = json!({"packages":[{"hash":"abc", "manifest":{"id":"builtin","version":"1.0.0","name":"内置",

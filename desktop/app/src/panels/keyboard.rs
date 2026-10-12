@@ -1,92 +1,208 @@
-//! Keyboard shortcut handling
-use motion_core::Command;
-use motion_ui::input::{Input, Key};
-use serde_json::Value;
-
+//! Focus routing and application shortcut actions.
 use super::{
     helpers::last_frame,
     types::{Action, FxConsole, Panels},
 };
+use crate::shortcuts::{self, Command, Scope, FX_CONSOLE};
+use motion_core::Command as Edit;
+use motion_ui::{
+    dock::Panel,
+    input::{Input, Key, KeyChord},
+};
+use serde_json::Value;
 
-/// Process keyboard shortcuts
-pub fn handle_shortcuts(input: &Input, panels: &mut Panels, state: &Value, out: &mut Vec<Action>) {
-    for (key, modifiers) in &input.keys {
-        match (key, modifiers.control, modifiers.shift) {
-            // File operations
-            (Key::N, true, false) => out.push(Action::New),
-            (Key::O, true, false) => out.push(Action::Open),
-            (Key::I, true, false) => out.push(Action::ImportMedia),
-            (Key::S, true, false) => out.push(Action::Save),
+fn text_active(panels: &Panels) -> bool {
+    panels.properties.field.is_some()
+        || panels.project.search
+        || panels.timeline.timeline_search
+        || panels.timeline.moving.is_some()
+        || panels.timeline.trimming.is_some()
+        || panels.timeline.scrubbing
+        || panels.effect_controls.editing()
+        || panels.animation_controls.editing()
+        || panels.camera_controls.editing()
+        || panels.path_controls.wants_keyboard()
+        || panels.node_editor.text_editing()
+        || matches!(panels.focused, Some(Panel::Effects | Panel::Expression))
+}
 
-            // History (Undo/Redo)
-            (Key::Z, true, false) => out.push(Action::History(0)),
-            (Key::Z, true, true) => out.push(Action::History(1)),
-            (Key::Y, true, false) if modifiers.alt => out.push(Action::AddAdjustment),
-            (Key::Y, true, false) => out.push(Action::History(1)),
-
-            // Playback and FX Console
-            (Key::Space, _, _) => {
-                if modifiers.control {
-                    if panels.fx_console.is_some() {
-                        panels.fx_console = None;
-                    } else {
-                        panels.fx_console = Some(FxConsole {
-                            position: input.mouse,
-                            query: String::new(),
-                            selected_index: 0,
-                        });
-                    }
-                } else {
-                    out.push(Action::TogglePlay);
-                }
-            }
-
-            // Frame navigation
-            (Key::Left, false, _) => out.push(Action::Seek(
-                (state["frame"].as_f64().unwrap_or(0.0) - 1.0).max(0.0),
-            )),
-            (Key::Right, false, _) => out.push(Action::Seek(
-                (state["frame"].as_f64().unwrap_or(0.0) + 1.0).min(last_frame(state)),
-            )),
-            (Key::Home, false, _) => out.push(Action::Seek(0.0)),
-            (Key::End, false, _) => out.push(Action::Seek(last_frame(state))),
-
-            // Layer operations
-            (Key::D, true, false) => {
-                // Duplicate layer
-                if let Some(object) = panels.selected.filter(|id| *id != 0) {
-                    out.push(Action::Edit(Command::Duplicate { object }));
-                }
-            }
-            (Key::D, true, true) => {
-                // Split layer at current time
-                if let Some(object) = panels.selected.filter(|id| *id != 0) {
-                    out.push(Action::Edit(Command::SplitLayerClip {
-                        object,
-                        frame: state["frame"].as_f64().unwrap_or(0.0).floor() as u32,
+/// The modal also owns its closing frame, preventing input from reaching the canvas.
+pub fn route(
+    input: &Input,
+    panels: &mut Panels,
+    state: &Value,
+    node_context: bool,
+    owner: Option<Panel>,
+    out: &mut Vec<Action>,
+) -> bool {
+    if let Some(console) = &panels.fx_console {
+        if console.owner == owner
+            && (input.focus_lost
+                || FX_CONSOLE.pressed(input)
+                || KeyChord::new(Key::Escape, false, false, false).pressed(input))
+        {
+            panels.fx_console = None;
+        }
+        return true;
+    }
+    if panels.node_editor.popup_open()
+        || panels.menu.is_some()
+        || panels.panel_menu.is_some()
+        || panels.timeline.timeline_context_menu.is_some()
+    {
+        return false;
+    }
+    // Node properties and preview can be floated or shown without the canvas.
+    // File commands still commit the shared node document's active field once.
+    if node_context {
+        for (key, modifiers, repeat) in input.key_presses() {
+            let request = match shortcuts::resolve(Scope::Nodes, key, modifiers, repeat) {
+                Some(Command::Open) => crate::node_editor::Request::Open,
+                Some(Command::Save) => crate::node_editor::Request::Save,
+                Some(Command::SaveAs) => crate::node_editor::Request::SaveAs,
+                _ => continue,
+            };
+            let before = panels.node_editor.snapshot();
+            if let Ok(action) = panels.node_editor.request(request) {
+                let after = panels.node_editor.snapshot();
+                if before.revision != after.revision {
+                    out.push(Action::Node(crate::node_editor::Action::Changed {
+                        revision: after.revision,
+                        semantic_revision: after.semantic_revision,
+                        semantic: before.semantic_revision != after.semantic_revision,
                     }));
                 }
+                out.push(Action::Node(action));
             }
-            (Key::Delete, false, _) | (Key::Backspace, false, _) => {
-                // Delete selected layer
-                if let Some(object) = panels.selected.filter(|id| *id != 0) {
-                    out.push(Action::Edit(Command::Delete { object }));
-                }
-            }
-
-            // Add new layers (AE-style)
-            (Key::T, true, true) => out.push(Action::NewText),
-            (Key::Y, true, true) => {
-                // Ctrl+Shift+Y: New solid layer
-                out.push(Action::AddSolid);
-            }
-            (Key::N, true, true) => {
-                // Ctrl+Shift+N: New null object
-                out.push(Action::AddNull);
-            }
-
-            _ => {}
+            return true;
         }
+    }
+    if text_active(panels) || input.composing || input.ime_consumed {
+        return false;
+    }
+    if node_context && !panels.node_editor.editing() {
+        for (key, modifiers, repeat) in input.key_presses() {
+            let command = shortcuts::resolve(Scope::Nodes, key, modifiers, repeat);
+            if !matches!(command, Some(Command::Undo | Command::Redo)) {
+                continue;
+            }
+            let before = panels.node_editor.snapshot();
+            let changed = if command == Some(Command::Undo) {
+                panels.node_editor.undo()
+            } else {
+                panels.node_editor.redo()
+            };
+            if changed {
+                let after = panels.node_editor.snapshot();
+                out.push(Action::Node(crate::node_editor::Action::Changed {
+                    revision: after.revision,
+                    semantic_revision: after.semantic_revision,
+                    semantic: before.semantic_revision != after.semantic_revision,
+                }));
+            }
+            return true;
+        }
+    }
+    if FX_CONSOLE.pressed(input) && !panels.node_editor.editing() {
+        panels.fx_console = Some(FxConsole {
+            position: input.mouse,
+            query: String::new(),
+            selected_index: 0,
+            owner,
+        });
+        return true;
+    }
+    if !node_context
+        && panels.menu.is_none()
+        && panels.panel_menu.is_none()
+        && panels.timeline.timeline_context_menu.is_none()
+    {
+        handle_shortcuts(input, panels, state, out);
+    }
+    false
+}
+
+pub fn handle_shortcuts(input: &Input, panels: &mut Panels, state: &Value, out: &mut Vec<Action>) {
+    let mut frame = state["frame"].as_f64().unwrap_or(0.0);
+    let selected = panels.selected.filter(|id| *id != 0).filter(|id| {
+        !state["project"]["layers"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .any(|l| l["id"].as_u64() == Some(*id) && l["locked"].as_bool() == Some(true))
+    });
+    for (key, modifiers, repeat) in input.key_presses() {
+        if let Some(command) = shortcuts::resolve(Scope::Animation, key, modifiers, repeat) {
+            if super::timeline_shortcuts::handle(command, modifiers, panels, state, &mut frame, out)
+            {
+                continue;
+            }
+        }
+        let Some(command) = shortcuts::resolve(Scope::Application, key, modifiers, repeat) else {
+            continue;
+        };
+        let action = match command {
+            Command::NewProject => Action::New,
+            Command::Open => Action::Open,
+            Command::Save => Action::Save,
+            Command::Import => Action::ImportMedia,
+            Command::Settings => Action::CompositionSettings,
+            Command::Export if cfg!(feature = "ffmpeg") => Action::ExportMovie,
+            Command::Undo => Action::History(0),
+            Command::Redo => Action::History(1),
+            Command::Play => Action::TogglePlay,
+            Command::Solid => Action::AddSolid,
+            Command::Text => Action::NewText,
+            Command::Null => Action::AddNull,
+            Command::Adjustment => Action::AddAdjustment,
+            Command::PreviousFrame | Command::NextFrame => {
+                if matches!(key, Key::Left | Key::Right)
+                    && !modifiers.control
+                    && panels.focused != Some(Panel::Timeline)
+                {
+                    continue;
+                }
+                let direction = if command == Command::PreviousFrame {
+                    -1.
+                } else {
+                    1.
+                };
+                frame = (frame + direction * if modifiers.shift { 10. } else { 1. })
+                    .clamp(0., last_frame(state));
+                Action::Seek(frame)
+            }
+            Command::FirstFrame => {
+                frame = 0.;
+                Action::Seek(frame)
+            }
+            Command::LastFrame => {
+                frame = last_frame(state);
+                Action::Seek(frame)
+            }
+            Command::Duplicate => {
+                let Some(object) = selected else {
+                    continue;
+                };
+                Action::Edit(Edit::Duplicate { object })
+            }
+            Command::Split => {
+                let Some(object) = selected else {
+                    continue;
+                };
+                Action::Edit(Edit::SplitLayerClip {
+                    object,
+                    frame: frame.floor() as u32,
+                })
+            }
+            Command::Delete => {
+                let Some(object) = selected else {
+                    continue;
+                };
+                Action::Edit(Edit::Delete { object })
+            }
+            _ => continue,
+        };
+        out.push(action);
     }
 }
 
@@ -94,59 +210,220 @@ pub fn handle_shortcuts(input: &Input, panels: &mut Panels, state: &Value, out: 
 mod tests {
     use super::*;
     #[test]
-    fn adjustment_shortcut_does_not_trigger_redo() {
+    fn node_preview_history_uses_the_node_document_without_a_canvas() {
         let mut panels = Panels::default();
-        let mut actions = vec![];
-        let modifiers = motion_ui::input::Modifiers {
-            control: true,
-            alt: true,
+        panels.focused = Some(Panel::NodePreview);
+        let before = panels.node_editor.document().clone();
+        panels
+            .node_editor
+            .add_node(motion_graph::NodeOp::Float { value: 1. }, [0., 0.])
+            .unwrap();
+        let mut out = vec![];
+        let input = Input {
+            keys: vec![(
+                Key::Z,
+                motion_ui::input::Modifiers {
+                    control: true,
+                    ..Default::default()
+                },
+            )],
             ..Default::default()
         };
-        handle_shortcuts(
-            &Input {
-                keys: vec![(Key::Y, modifiers)],
-                ..Default::default()
-            },
+        assert!(route(
+            &input,
             &mut panels,
             &Value::Null,
-            &mut actions,
-        );
-        assert!(matches!(actions.as_slice(), [Action::AddAdjustment]));
+            true,
+            Some(Panel::NodePreview),
+            &mut out
+        ));
+        assert_eq!(panels.node_editor.document(), &before);
+        assert!(matches!(
+            out.as_slice(),
+            [Action::Node(crate::node_editor::Action::Changed {
+                semantic: true,
+                ..
+            })]
+        ));
     }
     #[test]
-    fn ctrl_space_opens_modal_without_playback_and_shift_y_creates_solid() {
-        let mut panels = Panels::default();
-        let mut actions = vec![];
-        let modifiers = motion_ui::input::Modifiers {
+    fn locked_layers_cannot_edit_and_repeated_frame_steps_accumulate() {
+        let mut panels = Panels {
+            selected: Some(1),
+            ..Default::default()
+        };
+        let state = serde_json::json!({"frame":20,"project":{"frames":120,"layers":[{"id":1,"locked":true}]}});
+        let ctrl = motion_ui::input::Modifiers {
             control: true,
             ..Default::default()
         };
-        handle_shortcuts(
-            &Input {
-                keys: vec![(Key::Space, modifiers)],
-                ..Default::default()
-            },
-            &mut panels,
-            &Value::Null,
-            &mut actions,
-        );
-        assert!(panels.fx_console.is_some());
-        assert!(actions.is_empty());
-        handle_shortcuts(
-            &Input {
-                keys: vec![(
-                    Key::Y,
+        let input = Input {
+            keys: vec![
+                (Key::D, ctrl),
+                (Key::Delete, Default::default()),
+                (Key::Right, ctrl),
+                (Key::Right, ctrl),
+                (
+                    Key::PageUp,
                     motion_ui::input::Modifiers {
                         shift: true,
-                        ..modifiers
+                        ..Default::default()
                     },
-                )],
-                ..Default::default()
-            },
+                ),
+            ],
+            key_repeats: vec![false, false, false, true, false],
+            ..Default::default()
+        };
+        let mut out = vec![];
+        handle_shortcuts(&input, &mut panels, &state, &mut out);
+        assert!(matches!(
+            out.as_slice(),
+            [Action::Seek(21.), Action::Seek(22.), Action::Seek(12.)]
+        ));
+        let input = Input {
+            keys: vec![
+                (Key::N, ctrl),
+                (Key::N, motion_ui::input::Modifiers { alt: true, ..ctrl }),
+                (Key::Y, ctrl),
+                (
+                    Key::Y,
+                    motion_ui::input::Modifiers {
+                        alt: true,
+                        shift: true,
+                        ..ctrl
+                    },
+                ),
+                (
+                    Key::T,
+                    motion_ui::input::Modifiers {
+                        alt: true,
+                        shift: true,
+                        ..ctrl
+                    },
+                ),
+            ],
+            ..Default::default()
+        };
+        out.clear();
+        handle_shortcuts(&input, &mut panels, &state, &mut out);
+        assert!(matches!(
+            out.as_slice(),
+            [
+                Action::New,
+                Action::AddSolid,
+                Action::AddNull,
+                Action::NewText
+            ]
+        ));
+    }
+    #[test]
+    fn node_properties_file_commands_and_floating_modal_keep_their_owner() {
+        let mut panels = Panels::default();
+        panels.focused = Some(Panel::NodeProperties);
+        let mut out = vec![];
+        let input = Input {
+            keys: vec![(
+                Key::S,
+                motion_ui::input::Modifiers {
+                    control: true,
+                    ..Default::default()
+                },
+            )],
+            ..Default::default()
+        };
+        assert!(route(
+            &input,
             &mut panels,
             &Value::Null,
-            &mut actions,
+            true,
+            Some(Panel::NodeProperties),
+            &mut out
+        ));
+        assert!(matches!(
+            out.as_slice(),
+            [Action::Node(crate::node_editor::Action::Save(_))]
+        ));
+        out.clear();
+        let input = Input {
+            keys: vec![(Key::Space, FX_CONSOLE.modifiers)],
+            ..Default::default()
+        };
+        route(
+            &input,
+            &mut panels,
+            &Value::Null,
+            true,
+            Some(Panel::NodeProperties),
+            &mut out,
         );
-        assert!(matches!(actions.as_slice(), [Action::AddSolid]));
+        assert_eq!(
+            panels.fx_console.as_ref().unwrap().owner,
+            Some(Panel::NodeProperties)
+        );
+        route(&input, &mut panels, &Value::Null, true, None, &mut out);
+        assert!(panels.fx_console.is_some());
+        route(
+            &input,
+            &mut panels,
+            &Value::Null,
+            true,
+            Some(Panel::NodeProperties),
+            &mut out,
+        );
+        assert!(panels.fx_console.is_none());
+        assert!(out.is_empty());
+    }
+    #[test]
+    fn modal_has_priority_in_nodes_and_its_closing_frame_is_consumed() {
+        let mut panels = Panels::default();
+        panels.node_editor.focus_panel();
+        let input = Input {
+            keys: vec![(Key::Space, FX_CONSOLE.modifiers)],
+            ..Default::default()
+        };
+        let mut out = vec![];
+        assert!(route(
+            &input,
+            &mut panels,
+            &Value::Null,
+            true,
+            None,
+            &mut out
+        ));
+        assert!(panels.fx_console.is_some());
+        assert!(route(
+            &input,
+            &mut panels,
+            &Value::Null,
+            true,
+            None,
+            &mut out
+        ));
+        assert!(panels.fx_console.is_none());
+        assert!(out.is_empty());
+    }
+    #[test]
+    fn search_and_repeat_do_not_open_modal() {
+        let mut panels = Panels::default();
+        panels.project.search = true;
+        let mut out = vec![];
+        let mut input = Input {
+            keys: vec![(Key::Space, FX_CONSOLE.modifiers)],
+            ..Default::default()
+        };
+        assert!(!route(
+            &input,
+            &mut panels,
+            &Value::Null,
+            false,
+            None,
+            &mut out
+        ));
+        assert!(panels.fx_console.is_none());
+        panels.project.search = false;
+        input.key_repeats = vec![true];
+        route(&input, &mut panels, &Value::Null, false, None, &mut out);
+        assert!(panels.fx_console.is_none());
+        assert!(out.is_empty());
     }
 }

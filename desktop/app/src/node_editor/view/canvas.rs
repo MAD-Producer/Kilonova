@@ -135,21 +135,36 @@ impl NodeEditor {
                     let base_color = type_color(a.ty);
 
                     // 绘制连线（使用稍亮的颜色，alpha 从 0.65 提升到 0.8）
-                    paint::line(&mut canvas, points.clone(), base_color.with_alpha(0.8));
+                    let cutting = matches!(&self.drag, Some(Drag::Cut { inputs, .. }) if inputs.contains(&edge.to));
+                    paint::line(
+                        &mut canvas,
+                        points.clone(),
+                        if cutting {
+                            INVALID_WIRE
+                        } else {
+                            base_color.with_alpha(0.8)
+                        },
+                    );
 
                     // 如果连线被选中，绘制外发光效果
                     // TODO: 添加选中状态检测
                 }
             }
         }
+        let feedback = self.wire_feedback(cards, area, input.mouse);
+        let rubber_color = if feedback.as_ref().is_some_and(|(_, result)| result.is_err()) {
+            INVALID_WIRE
+        } else {
+            palette::ACCENT
+        };
         if let Some(Drag::Wire { source, .. }) = &self.drag {
             if let Some(a) = find(source, true) {
-                paint::line(&mut canvas, curve(a.point, input.mouse), palette::ACCENT);
+                paint::line(&mut canvas, curve(a.point, input.mouse), rubber_color);
             }
         }
         if let Some(Drag::WireInput { target }) = &self.drag {
             if let Some(b) = find(target, false) {
-                paint::line(&mut canvas, curve(input.mouse, b.point), palette::ACCENT);
+                paint::line(&mut canvas, curve(input.mouse, b.point), rubber_color);
             }
         }
         for card in cards {
@@ -170,6 +185,10 @@ impl NodeEditor {
                 .find(|n| n.id == card.id)
                 .unwrap();
             let selected = self.selected.contains(&card.id);
+            let previewing = self
+                .preview_target
+                .as_ref()
+                .is_some_and(|target| target.node == card.id);
             let invalid = self
                 .diagnostic
                 .as_ref()
@@ -209,11 +228,20 @@ impl NodeEditor {
             );
             let mut content = PaintList::default();
             let local = Rect::new(0., 0., NODE_WIDTH, node_height(node, &self.document));
+            let title = if previewing {
+                format!(
+                    "{} · {}",
+                    operation_title(&node.operation, language),
+                    language.text("预览", "Preview")
+                )
+            } else {
+                operation_title(&node.operation, language)
+            };
             label(
                 &mut content,
                 atlas,
                 Rect::new(10., 1., NODE_WIDTH - 20., HEADER - 2.),
-                &operation_title(&node.operation, language),
+                &title,
                 palette::TEXT,
                 Align::Left,
             );
@@ -293,6 +321,9 @@ impl NodeEditor {
             canvas.append(content);
             for socket in &card.sockets {
                 let radius = (4.5 * self.view.zoom).max(2.5);
+                if self.preview_target.as_ref() == Some(&socket.port) && socket.output {
+                    paint::diamond(&mut canvas, socket.point, radius + 3., palette::ACCENT);
+                }
                 paint::diamond(&mut canvas, socket.point, radius + 1., palette::SUNKEN);
                 paint::diamond(&mut canvas, socket.point, radius, type_color(socket.ty));
             }
@@ -304,6 +335,60 @@ impl NodeEditor {
             let selection = selection_rect(*origin, *current);
             paint::rect(&mut canvas, selection, palette::ACCENT.with_alpha(0.12));
             paint::stroke(&mut canvas, selection, palette::ACCENT, 1.);
+        }
+        if let Some(Drag::Cut { points, .. }) = &self.drag {
+            for segment in points.windows(2) {
+                if let Some((a, b)) = wires::clip_segment(segment[0], segment[1], area) {
+                    paint::line(&mut canvas, vec![a, b], INVALID_WIRE);
+                }
+            }
+        }
+        if let Some((socket, result)) = feedback {
+            let color = if result.is_err() {
+                INVALID_WIRE
+            } else {
+                palette::ACCENT
+            };
+            let radius = (4.5 * self.view.zoom).max(2.5);
+            paint::diamond(&mut canvas, socket.point, radius + 3., color);
+            paint::diamond(&mut canvas, socket.point, radius, type_color(socket.ty));
+            let width = 280f32.min((area.width() - 12.).max(1.));
+            let height = 58f32.min((area.height() - 12.).max(1.));
+            let tooltip = Rect::new(
+                (input.mouse[0] + 14.).clamp(area.min[0] + 6., area.max[0] - width - 6.),
+                (input.mouse[1] + 16.).clamp(area.min[1] + 6., area.max[1] - height - 6.),
+                width,
+                height,
+            );
+            canvas.glyphs.retain(|g| {
+                !intersects(
+                    tooltip,
+                    Rect::new(g.position[0], g.position[1], g.size[0], g.size[1]),
+                )
+            });
+            paint::rect(&mut canvas, tooltip, palette::CHROME);
+            paint::stroke(&mut canvas, tooltip, color, 1.);
+            let message = match &result {
+                Ok(()) => language.text("松开鼠标连接", "Release to connect"),
+                Err(error) => wires::reason(error, language),
+            };
+            label(
+                &mut canvas,
+                atlas,
+                Rect::new(tooltip.min[0] + 8., tooltip.min[1] + 3., width - 16., 24.),
+                message,
+                color,
+                Align::Left,
+            );
+            let (zh, en) = socket.spec.semantic.label();
+            label(
+                &mut canvas,
+                atlas,
+                Rect::new(tooltip.min[0] + 8., tooltip.min[1] + 28., width - 16., 24.),
+                language.text(zh, en),
+                palette::TEXT_MUTED,
+                Align::Left,
+            );
         }
         if self.drag.is_none() && area.contains(input.mouse) {
             if let Some(socket) = cards.iter().flat_map(|card| &card.sockets).find(|socket| {

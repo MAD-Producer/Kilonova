@@ -1,4 +1,5 @@
 use super::*;
+use crate::shortcuts::{self, Command, Scope};
 
 impl NodeEditor {
     pub(super) fn keyboard(&mut self, input: &Input, actions: &mut Vec<Action>) {
@@ -6,14 +7,14 @@ impl NodeEditor {
             return;
         }
         // File shortcuts commit active text instead of silently swallowing the request.
-        for (key, modifiers) in &input.keys {
-            if modifiers.control && matches!(key, Key::O | Key::S) {
-                let request = if *key == Key::O {
-                    Request::Open
-                } else if modifiers.shift {
-                    Request::SaveAs
-                } else {
-                    Request::Save
+        for (key, modifiers, repeat) in input.key_presses() {
+            if let Some(command @ (Command::Open | Command::Save | Command::SaveAs)) =
+                shortcuts::resolve(Scope::Nodes, key, modifiers, repeat)
+            {
+                let request = match command {
+                    Command::Open => Request::Open,
+                    Command::SaveAs => Request::SaveAs,
+                    _ => Request::Save,
                 };
                 if let Ok(action) = self.request(request) {
                     actions.push(action);
@@ -42,52 +43,77 @@ impl NodeEditor {
             self.field_input(input);
             return;
         }
-        for (key, modifiers) in &input.keys {
-            match key {
-                Key::Escape => self.cancel_edit_only(),
-                Key::Delete | Key::Backspace if self.drag.is_none() => {
+        for (key, modifiers, repeat) in input.key_presses() {
+            if key == Key::Escape && !repeat {
+                self.cancel_edit_only();
+                self.add_menu = None;
+                continue;
+            }
+            if self.drag.is_some() {
+                continue;
+            }
+            let Some(command) = shortcuts::resolve(Scope::Nodes, key, modifiers, repeat) else {
+                continue;
+            };
+            match command {
+                Command::Delete => {
                     self.delete_selected();
                 }
-                // 框架所有节点（Home 或 F 键）
-                Key::Home | Key::F if !modifiers.control && !modifiers.shift => {
+                Command::FitAll => {
                     self.fit_all(self.last_canvas);
                 }
-                // Ctrl+A 全选节点
-                Key::A if modifiers.control => {
+                Command::FitSelection => self.fit_selected(self.last_canvas),
+                Command::SelectAll => {
                     self.selected = self.document.nodes.iter().map(|n| n.id.clone()).collect();
                     self.primary = self.document.nodes.first().map(|n| n.id.clone());
                 }
-                // 撤销/重做
-                Key::Z if modifiers.control => {
-                    if modifiers.shift {
-                        self.redo();
-                    } else {
-                        self.undo();
-                    }
+                Command::DeselectAll => {
+                    self.selected.clear();
+                    self.primary = None;
                 }
-                Key::Y if modifiers.control => {
+                Command::Undo => {
+                    self.undo();
+                }
+                Command::Redo => {
                     self.redo();
                 }
-                // Ctrl+D 复制节点
-                Key::D if modifiers.control && !self.selected.is_empty() => {
-                    // TODO: 实现节点复制功能
-                    // self.duplicate_selected();
+                Command::Duplicate => {
+                    if let Err(error) = self.duplicate_selected() {
+                        self.notice = Some(error.to_string());
+                    }
                 }
-                // Keep Space available to the shared node preview transport.
-                Key::A if modifiers.shift && !modifiers.control => {
-                    self.library_open = true;
+                Command::AddNode => {
+                    let position = if self.last_canvas.contains(input.mouse) {
+                        input.mouse
+                    } else {
+                        [
+                            (self.last_canvas.min[0] + self.last_canvas.max[0]) * 0.5,
+                            (self.last_canvas.min[1] + self.last_canvas.max[1]) * 0.5,
+                        ]
+                    };
+                    self.add_menu = Some(AddMenu {
+                        position,
+                        world: self.view.screen_to_world(position, self.last_canvas),
+                        query: String::new(),
+                        category: None,
+                        selected: 0,
+                        scroll: 0.,
+                    });
+                    break;
                 }
-                // G 切换网格显示
-                Key::G if !modifiers.control => {
-                    // TODO: 添加网格显示开关状态
+                Command::ResetZoom => self.view.zoom_at(1., input.mouse, self.last_canvas),
+                Command::Arrange => {
+                    self.arrange_selected();
                 }
-                // N 切换迷你地图
-                Key::N if !modifiers.control => {
-                    // TODO: 添加迷你地图开关状态
-                }
-                // Ctrl+0 重置缩放
-                Key::Num0 if modifiers.control => {
-                    self.view.zoom = 1.0;
+                Command::MoveLeft | Command::MoveRight | Command::MoveUp | Command::MoveDown => {
+                    let step = if modifiers.shift { 10. } else { 1. };
+                    let delta = match command {
+                        Command::MoveLeft => [-step, 0.],
+                        Command::MoveRight => [step, 0.],
+                        Command::MoveUp => [0., -step],
+                        _ => [0., step],
+                    };
+                    self.move_selected(delta);
                 }
                 _ => {}
             }
@@ -95,7 +121,7 @@ impl NodeEditor {
     }
     pub(super) fn canvas_input(&mut self, cards: &[Card], canvas: Rect, input: &Input) {
         if canvas.contains(input.mouse) && self.drag.is_none() && input.wheel != [0.; 2] {
-            if input.modifiers.alt {
+            if input.modifiers.control && !input.modifiers.alt && !input.modifiers.shift {
                 self.view.zoom_at(
                     self.view.zoom * (-input.wheel[1] * 0.004).exp(),
                     input.mouse,
@@ -131,7 +157,40 @@ impl NodeEditor {
                     })
                 }
                 MouseButton::Left => {
-                    if input.modifiers.alt {
+                    if input.modifiers.control && input.modifiers.shift && !input.modifiers.alt {
+                        if let Some(port) = socket(point).filter(|s| s.output) {
+                            if let Err(error) = self.toggle_preview(port.port) {
+                                self.notice = Some(error.to_string());
+                            }
+                        } else if let Some(card) =
+                            cards.iter().rev().find(|c| c.rect.contains(point))
+                        {
+                            if let Some(node) = self.document.nodes.iter().find(|n| n.id == card.id)
+                            {
+                                match node_ports(node, &self.document.public_parameters) {
+                                    Ok(ports) if ports.outputs.is_empty() => {
+                                        self.restore_preview();
+                                    }
+                                    Ok(ports) if ports.outputs.len() == 1 => {
+                                        let port = ports.outputs.keys().next().unwrap();
+                                        if let Err(error) =
+                                            self.toggle_preview(PortRef::new(&card.id, port))
+                                        {
+                                            self.notice = Some(error.to_string());
+                                        }
+                                    }
+                                    Ok(_) => {
+                                        self.context_menu = Some(ContextMenu {
+                                            position: point,
+                                            kind: MenuKind::Preview(card.id.clone()),
+                                            selected: 0,
+                                        })
+                                    }
+                                    Err(error) => self.notice = Some(error.to_string()),
+                                }
+                            }
+                        }
+                    } else if input.modifiers.alt {
                         self.drag = Some(Drag::Pan {
                             origin: point,
                             pan: self.view.pan,
@@ -154,12 +213,13 @@ impl NodeEditor {
                             self.drag = Some(Drag::WireInput { target: s.port });
                         }
                     } else if let Some(card) = cards.iter().rev().find(|c| c.rect.contains(point)) {
-                        if !self.selected.contains(&card.id) || input.modifiers.shift {
+                        let header = point[1] < card.rect.min[1] + HEADER * self.view.zoom;
+                        if !header || !self.selected.contains(&card.id) || input.modifiers.shift {
                             self.select(Some(&card.id), input.modifiers.shift);
                         } else {
                             self.primary = Some(card.id.clone());
                         }
-                        if self.selected.contains(&card.id) {
+                        if self.selected.contains(&card.id) && header {
                             let positions = self
                                 .document
                                 .nodes
@@ -185,56 +245,66 @@ impl NodeEditor {
                     }
                 }
                 MouseButton::Right => {
-                    // 检查是否点击了输入端口（断开连接）
-                    if let Some(s) = socket(point).filter(|s| !s.output) {
-                        self.disconnect_input(&s.port);
-                    }
-                    // 检查是否点击了连线（断开连接）
-                    else {
-                        let edge = self
-                            .document
-                            .connections
-                            .iter()
-                            .find(|edge| {
-                                let a = cards
-                                    .iter()
-                                    .flat_map(|c| c.sockets.iter())
-                                    .find(|s| s.output && s.port == edge.from);
-                                let b = cards
-                                    .iter()
-                                    .flat_map(|c| c.sockets.iter())
-                                    .find(|s| !s.output && s.port == edge.to);
-                                a.zip(b).is_some_and(|(a, b)| {
-                                    curve(a.point, b.point)
-                                        .windows(2)
-                                        .any(|p| distance_segment(point, p[0], p[1]) < 6.)
-                                })
-                            })
-                            .map(|e| e.to.clone());
-
-                        if let Some(input) = edge {
-                            self.disconnect_input(&input);
-                        }
-                        // 检查是否点击了节点（显示节点菜单）
-                        else if let Some(card) = cards.iter().find(|c| c.rect.contains(point)) {
-                            self.context_menu = Some(ContextMenu {
-                                position: point,
-                                target_node: Some(card.id.clone()),
-                            });
-                        }
-                        // 点击空白处（显示画布菜单）
-                        else {
-                            self.context_menu = Some(ContextMenu {
-                                position: point,
-                                target_node: None,
-                            });
-                        }
+                    if input.modifiers.alt && !input.modifiers.control && !input.modifiers.shift {
+                        self.drag = Some(Drag::Cut {
+                            points: vec![point],
+                            last: point,
+                            inputs: BTreeSet::new(),
+                        });
+                    } else if input.modifiers == motion_ui::input::Modifiers::default() {
+                        let edge = socket(point)
+                            .filter(|s| !s.output)
+                            .filter(|s| self.document.connections.iter().any(|e| e.to == s.port))
+                            .map(|s| s.port)
+                            .or_else(|| self.wire_at(cards, canvas, point));
+                        let kind = if let Some(port) = edge {
+                            MenuKind::Wire(port)
+                        } else if let Some(card) =
+                            cards.iter().rev().find(|c| c.rect.contains(point))
+                        {
+                            if !self.selected.contains(&card.id) {
+                                self.select(Some(&card.id), false);
+                            }
+                            MenuKind::Node(card.id.clone())
+                        } else {
+                            MenuKind::Canvas
+                        };
+                        self.context_menu = Some(ContextMenu {
+                            position: point,
+                            kind,
+                            selected: 0,
+                        });
                     }
                 }
             }
         }
         if let Some(drag) = self.drag.take() {
             match drag {
+                Drag::Cut {
+                    mut points,
+                    last,
+                    mut inputs,
+                } => {
+                    if input.mouse.iter().all(|v| v.is_finite()) && input.mouse != last {
+                        self.collect_cut_inputs(cards, canvas, last, input.mouse, &mut inputs);
+                        points.push(input.mouse);
+                        if points.len() > 1024 {
+                            points = points.into_iter().step_by(2).collect();
+                        }
+                    }
+                    if input
+                        .released
+                        .is_some_and(|(button, _)| button == MouseButton::Right)
+                    {
+                        self.disconnect_inputs(&inputs);
+                    } else if input.held == Some(MouseButton::Right) {
+                        self.drag = Some(Drag::Cut {
+                            points,
+                            last: input.mouse,
+                            inputs,
+                        });
+                    }
+                }
                 Drag::Pan {
                     origin,
                     pan,
@@ -332,16 +402,20 @@ impl NodeEditor {
                 }
                 Drag::Wire { source, old_input } => {
                     if let Some((MouseButton::Left, point)) = input.released {
-                        if let Some(target) =
-                            socket(point).filter(|s| !s.output && canvas.contains(point))
-                        {
-                            if let Err(error) =
-                                self.connect_replacing(source, target.port, old_input.as_ref())
-                            {
-                                self.notice = Some(error.to_string());
+                        if canvas.contains(point) {
+                            if let Some(target) = socket(point) {
+                                if target.output {
+                                    self.notice = Some("Connect to an input port".into());
+                                } else if let Err(error) =
+                                    self.connect_replacing(source, target.port, old_input.as_ref())
+                                {
+                                    self.notice = Some(error.to_string());
+                                }
+                            } else if !cards.iter().any(|c| c.rect.contains(point)) {
+                                if let Some(input) = old_input {
+                                    self.disconnect_input(&input);
+                                }
                             }
-                        } else if let Some(input) = old_input.filter(|_| canvas.contains(point)) {
-                            self.disconnect_input(&input);
                         }
                     } else if input.held == Some(MouseButton::Left) {
                         self.drag = Some(Drag::Wire { source, old_input });

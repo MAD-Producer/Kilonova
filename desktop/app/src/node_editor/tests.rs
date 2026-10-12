@@ -1,7 +1,7 @@
 use super::*;
 use motion_ui::input::{Key, Modifiers, MouseButton};
 
-fn simple() -> NodeEditor {
+pub(super) fn simple() -> NodeEditor {
     let mut graph = demo_graph();
     graph.public_parameters.clear();
     graph.nodes = vec![
@@ -40,8 +40,310 @@ fn simple() -> NodeEditor {
     editor
 }
 
+#[test]
+fn duplicate_subgraph_copies_only_internal_edges_and_undo_restores_it_once() {
+    let mut editor = simple();
+    editor
+        .document
+        .connections
+        .push(Connection::new("number", "value", "math", "a"));
+    editor.document.nodes.push(Node::new(
+        "outside",
+        NodeOp::Math {
+            operation: MathOp::Add,
+            value_type: ValueType::Float,
+        },
+    ));
+    editor
+        .document
+        .connections
+        .push(Connection::new("math", "value", "outside", "a"));
+    editor.selected = [String::from("number"), String::from("math")].into();
+    editor.primary = Some("number".into());
+    editor.focus_panel();
+    let before = editor.snapshot();
+    let mut atlas = TextAtlas::from_system(13.).unwrap();
+    let input = Input {
+        keys: vec![(
+            Key::D,
+            Modifiers {
+                control: true,
+                ..Default::default()
+            },
+        )],
+        ..Default::default()
+    };
+    let result = frame(&mut editor, &mut atlas, input.clone());
+    assert!(result.changed && result.semantic_changed);
+    assert_eq!(editor.document.nodes.len(), before.document.nodes.len() + 2);
+    assert_eq!(
+        editor.document.connections.len(),
+        before.document.connections.len() + 1
+    );
+    assert_eq!(editor.selected.len(), 2);
+    assert!(editor
+        .selected
+        .iter()
+        .all(|id| !before.document.nodes.iter().any(|n| &n.id == id)));
+    let copied_edge = editor.document.connections.last().unwrap();
+    assert!(
+        editor.selected.contains(&copied_edge.from.node)
+            && editor.selected.contains(&copied_edge.to.node)
+    );
+    for node in editor
+        .document
+        .nodes
+        .iter()
+        .filter(|n| editor.selected.contains(&n.id))
+    {
+        let original = before
+            .document
+            .nodes
+            .iter()
+            .find(|n| n.operation == node.operation)
+            .unwrap();
+        assert_eq!(node.position, original.position.map(|v| v + 32.));
+    }
+    let copied = editor.snapshot().document;
+    let copied_selection = editor.selected.clone();
+    let mut repeated = input;
+    repeated.key_repeats = vec![true];
+    frame(&mut editor, &mut atlas, repeated);
+    assert_eq!(editor.document, copied);
+    assert_eq!(editor.undo.len(), 1);
+    assert!(editor.undo());
+    assert_eq!(editor.document, before.document);
+    assert!(editor.redo());
+    assert_eq!(editor.document, copied);
+    editor.selected = copied_selection;
+    editor.delete_selected();
+    assert_eq!(editor.document, before.document);
+}
+
+#[test]
+fn duplication_rejects_budget_and_unique_output_without_partial_edits() {
+    let mut editor = simple();
+    editor.select(Some("output"), false);
+    let before = editor.snapshot();
+    assert_eq!(
+        editor.duplicate_selected().unwrap_err().code,
+        ErrorCode::MultipleOutputs
+    );
+    assert_eq!(editor.document, before.document);
+    editor.select(Some("number"), false);
+    editor.options.max_nodes = editor.document.nodes.len();
+    assert_eq!(
+        editor.duplicate_selected().unwrap_err().code,
+        ErrorCode::Budget
+    );
+    assert_eq!(editor.document, before.document);
+    assert_eq!(editor.revision, before.revision);
+    assert!(editor.undo.is_empty());
+}
+
+#[test]
+fn node_body_selects_without_dragging_and_header_moves_the_selected_group() {
+    let mut editor = simple();
+    let mut atlas = TextAtlas::from_system(13.).unwrap();
+    frame(&mut editor, &mut atlas, Input::default());
+    let before = editor.snapshot();
+    let body = editor.view.world_to_screen([60., 130.], editor.last_canvas);
+    frame(&mut editor, &mut atlas, press(body, MouseButton::Left));
+    assert!(editor.drag.is_none());
+    frame(
+        &mut editor,
+        &mut atlas,
+        release([body[0] + 40., body[1] + 30.], MouseButton::Left),
+    );
+    assert_eq!(editor.document, before.document);
+    assert_eq!(editor.selected, [String::from("color")].into());
+    editor.selected.insert("output".into());
+    let header = editor.view.world_to_screen([60., 90.], editor.last_canvas);
+    frame(&mut editor, &mut atlas, press(header, MouseButton::Left));
+    frame(
+        &mut editor,
+        &mut atlas,
+        release([header[0] + 20., header[1] - 10.], MouseButton::Left),
+    );
+    assert_eq!(editor.document.nodes[0].position, [40., 70.]);
+    assert_eq!(editor.document.nodes[1].position, [400., 70.]);
+    assert_eq!(editor.undo.len(), 1);
+    assert_eq!(editor.semantic_revision, before.semantic_revision);
+}
+
+#[test]
+fn add_menu_latches_pointer_coordinates_and_consumes_enter_and_outside_click() {
+    let mut editor = simple();
+    let mut atlas = TextAtlas::from_system(13.).unwrap();
+    editor.focus_panel();
+    frame(&mut editor, &mut atlas, Input::default());
+    let mouse = [600., 420.];
+    let world = editor.view.screen_to_world(mouse, editor.last_canvas);
+    frame(
+        &mut editor,
+        &mut atlas,
+        Input {
+            mouse,
+            text: "A".into(),
+            keys: vec![(
+                Key::A,
+                Modifiers {
+                    shift: true,
+                    ..Default::default()
+                },
+            )],
+            ..Default::default()
+        },
+    );
+    assert!(editor.add_menu.as_ref().unwrap().query.is_empty());
+    let node_count = editor.document.nodes.len();
+    frame(
+        &mut editor,
+        &mut atlas,
+        Input {
+            text: "Float".into(),
+            ..Default::default()
+        },
+    );
+    assert!(editor.add_menu.is_some());
+    frame(
+        &mut editor,
+        &mut atlas,
+        Input {
+            mouse: [700., 520.],
+            keys: vec![(Key::Enter, Modifiers::default())],
+            ..Default::default()
+        },
+    );
+    assert!(editor.add_menu.is_none());
+    assert_eq!(editor.document.nodes.len(), node_count + 1);
+    assert_eq!(editor.document.nodes.last().unwrap().position, world);
+    let before = editor.snapshot();
+    frame(
+        &mut editor,
+        &mut atlas,
+        Input {
+            mouse,
+            keys: vec![(
+                Key::A,
+                Modifiers {
+                    shift: true,
+                    ..Default::default()
+                },
+            )],
+            ..Default::default()
+        },
+    );
+    let selection = editor.selected.clone();
+    frame(
+        &mut editor,
+        &mut atlas,
+        press([50., 700.], MouseButton::Left),
+    );
+    assert!(editor.add_menu.is_none());
+    assert!(editor.drag.is_none());
+    assert_eq!(editor.selected, selection);
+    assert_eq!(editor.document, before.document);
+}
+
+#[test]
+fn node_navigation_is_layout_only_and_text_keeps_ime_commits() {
+    let mut editor = simple();
+    let mut atlas = TextAtlas::from_system(13.).unwrap();
+    editor.focus_panel();
+    editor.select(Some("number"), false);
+    let before = editor.snapshot();
+    frame(
+        &mut editor,
+        &mut atlas,
+        Input {
+            keys: vec![
+                (Key::Right, Modifiers::default()),
+                (
+                    Key::Down,
+                    Modifiers {
+                        shift: true,
+                        ..Default::default()
+                    },
+                ),
+            ],
+            ..Default::default()
+        },
+    );
+    assert_eq!(editor.document.nodes[2].position, [21., 270.]);
+    assert_eq!(editor.semantic_revision, before.semantic_revision);
+    editor.field = Some(active_field(Binding::GraphName(true), ""));
+    let mut input = Input::default();
+    motion_ui::ui::accumulate(
+        &mut input,
+        motion_ui::input::Event::TextCommit("新图".into()),
+    );
+    frame(&mut editor, &mut atlas, input);
+    assert_eq!(editor.field.as_ref().unwrap().text, "新图");
+    frame(
+        &mut editor,
+        &mut atlas,
+        Input {
+            keys: vec![(Key::X, Modifiers::default())],
+            ..Default::default()
+        },
+    );
+    assert_eq!(editor.document.nodes.len(), before.document.nodes.len());
+}
+
+#[test]
+fn f_frames_selection_and_arrange_preserves_external_nodes_and_edges() {
+    let mut editor = simple();
+    editor
+        .document
+        .connections
+        .push(Connection::new("number", "value", "math", "a"));
+    editor.select(Some("number"), false);
+    let canvas = Rect::new(0., 0., 500., 600.);
+    editor.fit_all(canvas);
+    let all_zoom = editor.view.zoom;
+    editor.fit_selected(canvas);
+    assert!(editor.view.zoom > all_zoom);
+    editor.selected.insert("math".into());
+    let before = editor.snapshot();
+    assert!(editor.arrange_selected());
+    assert!(editor.document.nodes[3].position[0] > editor.document.nodes[2].position[0]);
+    assert_eq!(editor.document.nodes[..2], before.document.nodes[..2]);
+    assert_eq!(editor.document.connections, before.document.connections);
+    assert_eq!(editor.semantic_revision, before.semantic_revision);
+    assert!(editor.undo());
+    assert_eq!(editor.document, before.document);
+}
+
 fn output(id: &str) -> PortRef {
     PortRef::new(id, "value")
+}
+
+#[test]
+fn home_fits_distant_nodes_and_ctrl_wheel_retains_the_anchor_at_fit_scale() {
+    let mut editor = simple();
+    editor.document.nodes[0].position = [-1.0e6, -1.0e6];
+    editor.document.nodes[1].position = [1.0e6, 1.0e6];
+    let canvas = Rect::new(100., 70., 720., 600.);
+    editor.fit_all(canvas);
+    assert!(editor.view.zoom < 0.25);
+    for node in &editor.document.nodes {
+        let start = editor.view.world_to_screen(node.position, canvas);
+        let end = editor.view.world_to_screen(
+            [
+                node.position[0] + view::NODE_WIDTH,
+                node.position[1] + view::node_height(node, &editor.document),
+            ],
+            canvas,
+        );
+        assert!(canvas.contains(start) && canvas.contains(end));
+    }
+    let mouse = [430., 240.];
+    let anchor = editor.view.screen_to_world(mouse, canvas);
+    editor.view.zoom_at(editor.view.zoom * 1.12, mouse, canvas);
+    let after = editor.view.screen_to_world(mouse, canvas);
+    assert!(anchor.iter().zip(after).all(|(a, b)| (*a - b).abs() < 0.25));
+    assert!(editor.undo.is_empty());
 }
 fn active_field(binding: Binding, text: &str) -> Field {
     Field {
@@ -339,7 +641,7 @@ fn save_reopen_and_real_msfx_export_round_trip() {
     std::fs::remove_dir(directory).unwrap();
 }
 
-fn frame(editor: &mut NodeEditor, atlas: &mut TextAtlas, input: Input) -> FrameResponse {
+pub(super) fn frame(editor: &mut NodeEditor, atlas: &mut TextAtlas, input: Input) -> FrameResponse {
     editor.draw(
         &mut PaintList::default(),
         atlas,
@@ -348,7 +650,7 @@ fn frame(editor: &mut NodeEditor, atlas: &mut TextAtlas, input: Input) -> FrameR
         Language::English,
     )
 }
-fn press(point: [f32; 2], button: MouseButton) -> Input {
+pub(super) fn press(point: [f32; 2], button: MouseButton) -> Input {
     Input {
         mouse: point,
         pressed: Some((button, point)),
@@ -356,7 +658,7 @@ fn press(point: [f32; 2], button: MouseButton) -> Input {
         ..Default::default()
     }
 }
-fn release(point: [f32; 2], button: MouseButton) -> Input {
+pub(super) fn release(point: [f32; 2], button: MouseButton) -> Input {
     Input {
         mouse: point,
         released: Some((button, point)),
@@ -396,7 +698,7 @@ fn real_pointer_events_drag_undo_zoom_pan_and_connect_both_directions() {
             mouse: anchor,
             wheel: [0., 60.],
             modifiers: Modifiers {
-                alt: true,
+                control: true,
                 ..Default::default()
             },
             ..Default::default()
@@ -428,6 +730,22 @@ fn real_pointer_events_drag_undo_zoom_pan_and_connect_both_directions() {
         .iter()
         .any(|c| c.from == output("number") && c.to == PortRef::new("math", "a")));
     frame(&mut editor, &mut atlas, press(target, MouseButton::Right));
+    assert!(
+        editor
+            .document
+            .connections
+            .iter()
+            .any(|c| c.to == PortRef::new("math", "a")),
+        "opening a context menu cannot disconnect immediately"
+    );
+    frame(
+        &mut editor,
+        &mut atlas,
+        Input {
+            keys: vec![(Key::Enter, Modifiers::default())],
+            ..Default::default()
+        },
+    );
     assert!(!editor
         .document
         .connections
@@ -455,7 +773,7 @@ fn real_pointer_events_drag_undo_zoom_pan_and_connect_both_directions() {
 }
 
 #[test]
-fn wheel_navigation_uses_alt_zoom_and_normal_scrolling_without_graph_edits() {
+fn wheel_navigation_uses_ctrl_zoom_and_normal_scrolling_without_graph_edits() {
     let mut editor = simple();
     let mut atlas = TextAtlas::from_system(13.).unwrap();
     frame(&mut editor, &mut atlas, Input::default());
@@ -493,13 +811,13 @@ fn wheel_navigation_uses_alt_zoom_and_normal_scrolling_without_graph_edits() {
             mouse: anchor,
             wheel: up,
             modifiers: Modifiers {
-                alt: true,
+                control: true,
                 ..Default::default()
             },
             ..Default::default()
         },
     );
-    assert!(editor.view.zoom > zoom, "Alt+wheel up zooms in");
+    assert!(editor.view.zoom > zoom, "Ctrl+wheel up zooms in");
     let after = editor.view.screen_to_world(anchor, editor.last_canvas);
     assert!(world.iter().zip(after).all(|(a, b)| (*a - b).abs() < 0.01));
     frame(
@@ -509,7 +827,7 @@ fn wheel_navigation_uses_alt_zoom_and_normal_scrolling_without_graph_edits() {
             mouse: anchor,
             wheel: [0., 32.],
             modifiers: Modifiers {
-                alt: true,
+                control: true,
                 ..Default::default()
             },
             ..Default::default()
@@ -517,7 +835,7 @@ fn wheel_navigation_uses_alt_zoom_and_normal_scrolling_without_graph_edits() {
     );
     assert!(
         (editor.view.zoom - zoom).abs() < 0.0001,
-        "Alt+wheel down zooms out"
+        "Ctrl+wheel down zooms out"
     );
     let pan = editor.view.pan;
     frame(

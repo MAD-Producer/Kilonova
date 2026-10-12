@@ -85,6 +85,7 @@ pub struct FxConsole {
     pub position: [f32; 2],
     pub query: String,
     pub selected_index: usize,
+    pub owner: Option<dock::Panel>,
 }
 
 pub(crate) struct Field {
@@ -144,6 +145,8 @@ pub(crate) struct PropertiesState {
 #[derive(Default)]
 pub(crate) struct TimelineState {
     pub expanded: std::collections::HashSet<u64>,
+    pub filters: std::collections::HashMap<u64, PropertyFilter>,
+    pub graph_mode: bool,
     pub scroll: f32,
     pub zoom: f32,
     pub offset: f32,
@@ -154,4 +157,38 @@ pub(crate) struct TimelineState {
     pub timeline_context_menu: Option<[f32; 2]>,
     pub timeline_query: String,
     pub timeline_search: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum PropertyFilter {
+    #[default]
+    All,
+    Properties(u8),
+    Animated,
+}
+pub(crate) fn property_bit(property: Property) -> u8 {
+    match property {
+        Property::Position => 1,
+        Property::Scale => 2,
+        Property::Rotation => 4,
+        Property::Opacity => 8,
+        _ => 0,
+    }
+}
+impl PropertyFilter {
+    pub fn admits(self, property: Property, animated: bool) -> bool {
+        match self {
+            Self::All => true,
+            Self::Properties(mask) => mask & property_bit(property) != 0,
+            Self::Animated => animated,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct KeySelection {
+    pub object: u64,
+    pub property: Property,
+    pub axis: Option<motion_core::Axis>,
+    pub frame: u32,
 }

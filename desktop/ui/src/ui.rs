@@ -685,9 +685,36 @@ pub fn accumulate(input: &mut Input, event: Event) {
             input.pointer_origin = None;
         }
         Event::MouseWheel { delta } => input.wheel = delta,
-        Event::KeyPressed { key, modifiers } => {
+        Event::KeyPressed { key, modifiers } | Event::KeyRepeated { key, modifiers } => {
             input.modifiers = modifiers;
-            input.keys.push((key, modifiers));
+            if !input.held_keys.contains(&key) {
+                input.held_keys.push(key);
+            }
+            if !input.composing && !input.ime_consumed {
+                input.key_repeats.resize(input.keys.len(), false);
+                input.keys.push((key, modifiers));
+                input
+                    .key_repeats
+                    .push(matches!(event, Event::KeyRepeated { .. }));
+            }
+        }
+        Event::KeyReleased { key, modifiers } => {
+            input.modifiers = modifiers;
+            input.held_keys.retain(|held| *held != key);
+            input.released_keys.push(key);
+        }
+        Event::ImeComposition(active) => {
+            input.composing = active;
+            input.ime_consumed = true;
+            input.keys.clear();
+            input.key_repeats.clear();
+        }
+        Event::TextCommit(text) => {
+            input.composing = false;
+            input.ime_consumed = true;
+            input.keys.clear();
+            input.key_repeats.clear();
+            input.text.push_str(&text);
         }
         Event::TextInput(text) => input.text.push_str(&text),
         Event::LongPress { position } => input.long_press = Some(position),
@@ -697,6 +724,13 @@ pub fn accumulate(input: &mut Input, event: Event) {
             input.pressed = None;
             input.released = None;
             input.modifiers = Default::default();
+            input.held_keys.clear();
+            input.released_keys.clear();
+            input.keys.clear();
+            input.key_repeats.clear();
+            input.text.clear();
+            input.composing = false;
+            input.ime_consumed = false;
             input.pointer_origin = None;
             input.pointer_travel = 0.;
         }

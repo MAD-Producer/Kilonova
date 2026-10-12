@@ -1,4 +1,5 @@
 //! Explicit property/axis selection; all timing edits use shared core commands.
+use super::types::KeySelection;
 use crate::{
     i18n::{Locale, Text as T},
     panels::Action,
@@ -19,6 +20,8 @@ pub struct Controls {
     pub property: Option<Property>,
     pub axis: Option<Axis>,
     selected_key: Option<i64>,
+    key_context: Option<(u64, Property, Option<Axis>)>,
+    key_explicit: bool,
     clipboard: Option<Easing>,
     dragging: Option<(usize, Easing, [f64; 2])>,
 }
@@ -67,6 +70,47 @@ fn button(
     enabled && pressed(input, rect)
 }
 impl Controls {
+    pub(crate) fn choose_track(&mut self, object: u64, property: Property, axis: Option<Axis>) {
+        let context = (object, property, axis);
+        if self.key_context != Some(context) {
+            self.selected_key = None;
+            self.key_explicit = false;
+        }
+        self.key_context = Some(context);
+        self.property = Some(property);
+        self.axis = axis;
+        self.expanded = true;
+    }
+    pub(crate) fn select_key(
+        &mut self,
+        object: u64,
+        property: Property,
+        axis: Option<Axis>,
+        frame: i64,
+    ) {
+        self.choose_track(object, property, axis);
+        self.selected_key = Some(frame);
+        self.key_explicit = true;
+    }
+    pub(crate) fn user_key(&self) -> Option<KeySelection> {
+        if !self.key_explicit {
+            return None;
+        }
+        let (object, property, axis) = self.key_context?;
+        if self.property != Some(property) || self.axis != axis {
+            return None;
+        }
+        Some(KeySelection {
+            object,
+            property,
+            axis,
+            frame: self.selected_key?.try_into().ok()?,
+        })
+    }
+    pub(crate) fn clear_key(&mut self) {
+        self.selected_key = None;
+        self.key_explicit = false;
+    }
     pub fn cancel(&mut self) -> bool {
         self.dragging.take().is_some()
     }
@@ -124,7 +168,7 @@ impl Controls {
                 !locked && self.dragging.is_none(),
             ) {
                 self.property = Some(property);
-                self.selected_key = None;
+                self.clear_key();
                 self.axis = None;
             }
         }
@@ -146,7 +190,7 @@ impl Controls {
                     !locked && self.dragging.is_none(),
                 ) {
                     self.axis = Some(axis);
-                    self.selected_key = None;
+                    self.clear_key();
                 }
             }
         } else {
@@ -178,6 +222,13 @@ impl Controls {
             track
         };
         let keys = track["keys"].as_array().map(Vec::as_slice).unwrap_or(&[]);
+        self.choose_track(object, property, self.axis);
+        if self
+            .selected_key
+            .is_some_and(|frame| !keys.iter().any(|k| k["frame"].as_i64() == Some(frame)))
+        {
+            self.clear_key();
+        }
         let animated = !keys.is_empty();
         if button(
             list,
@@ -248,7 +299,7 @@ impl Controls {
                 },
                 command,
             ]));
-            self.selected_key = Some(frame as i64);
+            self.select_key(object, property, self.axis, frame as i64);
         }
         *y += 30.;
         let selected = self
@@ -294,7 +345,7 @@ impl Controls {
                 enabled && self.dragging.is_none(),
             ) {
                 let next = keys[index]["frame"].as_i64().unwrap_or(0);
-                self.selected_key = Some(next);
+                self.select_key(object, property, self.axis, next);
                 if next >= 0 {
                     out.push(Action::Seek(next as f64));
                 }
@@ -324,7 +375,7 @@ impl Controls {
                 from: selected_frame as u32,
                 to: frame,
             }));
-            self.selected_key = Some(frame as i64);
+            self.select_key(object, property, self.axis, frame as i64);
         }
         if button(
             list,
@@ -340,7 +391,7 @@ impl Controls {
                 axis: self.axis,
                 frame: selected_frame as u32,
             }));
-            self.selected_key = None;
+            self.clear_key();
         }
         *y += 30.;
         let mut easing = Easing {
