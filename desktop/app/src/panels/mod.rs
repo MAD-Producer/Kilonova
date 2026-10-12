@@ -13,6 +13,7 @@ use serde_json::Value;
 
 mod align;
 pub(crate) mod animation_controls;
+mod animation_data;
 mod audio;
 mod auxiliary;
 pub(crate) mod camera_controls;
@@ -31,6 +32,10 @@ mod paths;
 mod project;
 mod properties;
 mod timeline;
+mod timeline_graph;
+mod timeline_shortcuts;
+#[cfg(test)]
+mod timeline_shortcuts_tests;
 mod toolbar;
 mod types;
 
@@ -129,7 +134,11 @@ pub fn chrome(
 ) -> Vec<Action> {
     let mut out = Vec::new();
     panels.node_editor.external_inspector = layout.find(Panel::NodeProperties.dock()).is_some();
-    if let Some((_, point)) = input.pressed {
+    let node_modal = panels.node_editor.popup_open();
+    if let Some((_, point)) = input
+        .pressed
+        .filter(|_| panels.fx_console.is_none() && !node_modal)
+    {
         let focused = frames(layout, size)
             .into_iter()
             .find(|f| f.content.contains(point) || f.tabs.contains(point))
@@ -167,10 +176,17 @@ pub fn chrome(
     {
         out.extend(cancel_interaction(panels));
     }
-    if matches!(panels.focused, Some(Panel::Masks | Panel::Vector)) {
+    if panels.fx_console.is_none()
+        && !node_modal
+        && matches!(panels.focused, Some(Panel::Masks | Panel::Vector))
+    {
         panels.path_controls.parameter_input(state, input, &mut out);
     }
-    if input.keys.iter().any(|(k, _)| *k == Key::Escape) {
+    if panels.fx_console.is_none()
+        && input
+            .key_presses()
+            .any(|(k, _, repeat)| k == Key::Escape && !repeat)
+    {
         out.extend(cancel_interaction(panels));
         panels.menu = None;
         panels.panel_menu = None;
@@ -179,36 +195,31 @@ pub fn chrome(
         panels.fx_console = None;
         panels.timeline.timeline_context_menu = None;
     }
-    let field_active = panels.properties.field.is_some()
-        || panels.project.search
-        || panels.timeline.timeline_search
-        || panels.effect_controls.editing()
-        || panels.animation_controls.editing()
-        || panels.camera_controls.editing()
-        || panels.path_controls.wants_keyboard()
-        || matches!(
-            panels.focused,
-            Some(Panel::Effects | Panel::Expression | Panel::NodeProperties)
-        );
     let nodes_frame = frames(layout, size)
         .into_iter()
         .find(|f| f.panel == Panel::Nodes);
-    let node_keyboard = nodes_frame.as_ref().is_some_and(|f| {
+    let node_keyboard = matches!(
+        panels.focused,
+        Some(Panel::Nodes | Panel::NodeProperties | Panel::NodePreview)
+    ) || nodes_frame.as_ref().is_some_and(|f| {
         if let Some((_, point)) = input.pressed {
             f.content.contains(point)
         } else {
             panels.node_editor.focused()
         }
     }) && panels.menu.is_none();
-    if !field_active && !node_keyboard && panels.fx_console.is_none() {
-        keyboard::handle_shortcuts(input, panels, state, &mut out);
-    }
-    let menu_modal = panels.menu.is_some()
+    let shortcut_modal = keyboard::route(input, panels, state, node_keyboard, None, &mut out);
+    let menu_modal = shortcut_modal
+        || panels.menu.is_some()
         || panels.panel_menu.is_some()
         || panels.fx_console.is_some()
         || panels.timeline.timeline_context_menu.is_some();
     let neutral = Input::default();
-    let body_input = if menu_modal { &neutral } else { input };
+    let body_input = if menu_modal || node_modal {
+        &neutral
+    } else {
+        input
+    };
     let project_input = body_input.clone();
     let mut opened_panel_menu = false;
     panels.header_hits.clear();
@@ -305,7 +316,9 @@ pub fn chrome(
                 f.content,
                 panels,
                 state,
-                if timeline_popup && f.panel == Panel::Timeline {
+                if (node_modal && f.panel == Panel::Nodes && !menu_modal)
+                    || (timeline_popup && f.panel == Panel::Timeline)
+                {
                     input
                 } else {
                     &project_input
@@ -374,7 +387,19 @@ pub fn chrome(
         message,
         render_error.is_none(),
     );
-    menus(list, atlas, size, panels, input, state, &mut out);
+    menus(
+        list,
+        atlas,
+        size,
+        panels,
+        if shortcut_modal || node_modal {
+            &neutral
+        } else {
+            input
+        },
+        state,
+        &mut out,
+    );
     if let Some((panel, position)) = panels.panel_menu {
         let group = match layout.find(panel) {
             Some(Node::Dock { tabs, .. }) => tabs.clone(),
@@ -449,29 +474,35 @@ pub fn chrome(
         }
     }
 
-    if let Some(mut console) = panels.fx_console.take() {
-        let open = crate::panels::fx_console::render_fx_console(
-            list,
-            atlas,
-            size,
-            &mut console,
-            &panels.effect_controls.catalogue,
-            input,
-            panels.locale,
-            panels.selected.filter(|id| {
-                *id != 0
-                    && !state["project"]["layers"]
-                        .as_array()
-                        .into_iter()
-                        .flatten()
-                        .any(|l| {
-                            l["id"].as_u64() == Some(*id) && l["locked"].as_bool() == Some(true)
-                        })
-            }),
-            &mut out,
-        );
-        if open {
-            panels.fx_console = Some(console);
+    if panels
+        .fx_console
+        .as_ref()
+        .is_some_and(|c| c.owner.is_none())
+    {
+        if let Some(mut console) = panels.fx_console.take() {
+            let open = crate::panels::fx_console::render_fx_console(
+                list,
+                atlas,
+                size,
+                &mut console,
+                &panels.effect_controls.catalogue,
+                input,
+                panels.locale,
+                panels.selected.filter(|id| {
+                    *id != 0
+                        && !state["project"]["layers"]
+                            .as_array()
+                            .into_iter()
+                            .flatten()
+                            .any(|l| {
+                                l["id"].as_u64() == Some(*id) && l["locked"].as_bool() == Some(true)
+                            })
+                }),
+                &mut out,
+            );
+            if open {
+                panels.fx_console = Some(console);
+            }
         }
     }
 
@@ -514,12 +545,14 @@ pub fn floating_chrome(
     input: &Input,
 ) -> Vec<Action> {
     let mut out = vec![];
-    if matches!(panel, Panel::Masks | Panel::Vector) {
+    if panels.fx_console.is_none() && matches!(panel, Panel::Masks | Panel::Vector) {
         panels.path_controls.parameter_input(state, input, &mut out);
     }
     let body = Rect::new(0.0, 30.0, size[0], (size[1] - 52.0).max(1.0));
     let mut content = PaintList::default();
-    if input.pressed.is_some() || !input.keys.is_empty() || !input.text.is_empty() {
+    if panels.fx_console.is_none()
+        && (input.pressed.is_some() || !input.keys.is_empty() || !input.text.is_empty())
+    {
         if panels.focused != Some(panel) {
             let node_region = |p: Option<Panel>| {
                 matches!(
@@ -533,6 +566,19 @@ pub fn floating_chrome(
         }
         panels.focused = Some(panel);
     }
+    let shortcut_modal = keyboard::route(
+        input,
+        panels,
+        state,
+        matches!(
+            panel,
+            Panel::Nodes | Panel::NodeProperties | Panel::NodePreview
+        ),
+        Some(panel),
+        &mut out,
+    );
+    let neutral = Input::default();
+    let body_input = if shortcut_modal { &neutral } else { input };
     render_panel(
         panel,
         &mut content,
@@ -540,7 +586,7 @@ pub fn floating_chrome(
         body,
         panels,
         state,
-        input,
+        body_input,
         &mut out,
     );
     content.clip_to(body);
@@ -558,7 +604,7 @@ pub fn floating_chrome(
         atlas,
         Rect::new(size[0] - 78.0, 4.0, 72.0, 22.0),
         panels.locale.t(T::Dock),
-        input,
+        body_input,
         true,
         Action::Redock(panel.dock()),
         &mut out,
@@ -578,6 +624,37 @@ pub fn floating_chrome(
             .unwrap_or(panels.locale.t(T::SharedProject)),
         true,
     );
+    if panels
+        .fx_console
+        .as_ref()
+        .is_some_and(|c| c.owner == Some(panel))
+    {
+        if let Some(mut console) = panels.fx_console.take() {
+            let selected = panels.selected.filter(|id| {
+                *id != 0
+                    && !state["project"]["layers"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .any(|l| {
+                            l["id"].as_u64() == Some(*id) && l["locked"].as_bool() == Some(true)
+                        })
+            });
+            if fx_console::render_fx_console(
+                list,
+                atlas,
+                size,
+                &mut console,
+                &panels.effect_controls.catalogue,
+                input,
+                panels.locale,
+                selected,
+                &mut out,
+            ) {
+                panels.fx_console = Some(console);
+            }
+        }
+    }
     out
 }
 fn node_panel(
@@ -596,10 +673,7 @@ fn node_panel(
     let (editor, preview) = crate::node_preview::regions(area);
     if panels.node_editor.focused()
         && !panels.node_editor.editing()
-        && input
-            .keys
-            .iter()
-            .any(|(key, mods)| *key == Key::Space && !mods.control && !mods.shift)
+        && motion_ui::input::KeyChord::new(Key::Space, false, false, false).pressed(input)
     {
         panels.node_preview.toggle();
     }
@@ -621,6 +695,7 @@ fn node_panel(
             input,
             panels.locale,
             panels.node_editor.stamp(),
+            panels.node_editor.preview_target(),
         );
     }
 }
@@ -651,6 +726,98 @@ pub fn floating_node_view(panel: Panel, size: [f32; 2]) -> Option<Rect> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn node_popup_owns_file_keys_and_outside_panel_click_without_switching_tabs() {
+        let state = serde_json::json!({"frame":0,"project":{"frames":120,"layers":[{"id":1,"name":"Layer","three_d":false}]}});
+        let mut panels = Panels {
+            focused: Some(Panel::Nodes),
+            selected: Some(1),
+            ..Default::default()
+        };
+        panels.node_editor.focus_panel();
+        let mut atlas = TextAtlas::from_system(13.).unwrap();
+        let layout = Node::Split {
+            edge: dock::Edge::Left,
+            split: 0.25,
+            first: Box::new(Node::dock(Panel::Project.dock())),
+            second: Box::new(Node::dock(Panel::Nodes.dock())),
+        };
+        let size = [1440., 900.];
+        chrome(
+            &mut PaintList::default(),
+            &mut atlas,
+            size,
+            &layout,
+            &mut panels,
+            &state,
+            &Input::default(),
+        );
+        let input = Input {
+            mouse: [700., 350.],
+            keys: vec![(
+                Key::A,
+                motion_ui::input::Modifiers {
+                    shift: true,
+                    ..Default::default()
+                },
+            )],
+            ..Default::default()
+        };
+        chrome(
+            &mut PaintList::default(),
+            &mut atlas,
+            size,
+            &layout,
+            &mut panels,
+            &state,
+            &input,
+        );
+        assert!(panels.node_editor.popup_open());
+        let input = Input {
+            keys: vec![(
+                Key::S,
+                motion_ui::input::Modifiers {
+                    control: true,
+                    ..Default::default()
+                },
+            )],
+            ..Default::default()
+        };
+        let out = chrome(
+            &mut PaintList::default(),
+            &mut atlas,
+            size,
+            &layout,
+            &mut panels,
+            &state,
+            &input,
+        );
+        assert!(out.is_empty());
+        assert!(panels.node_editor.popup_open());
+        let project = frames(&layout, size)
+            .into_iter()
+            .find(|f| f.panel == Panel::Project)
+            .unwrap();
+        let point = [project.tabs.min[0] + 12., project.tabs.min[1] + 12.];
+        let input = Input {
+            mouse: point,
+            pressed: Some((MouseButton::Left, point)),
+            ..Default::default()
+        };
+        let out = chrome(
+            &mut PaintList::default(),
+            &mut atlas,
+            size,
+            &layout,
+            &mut panels,
+            &state,
+            &input,
+        );
+        assert!(out.is_empty());
+        assert!(!panels.node_editor.popup_open());
+        assert_eq!(panels.focused, Some(Panel::Nodes));
+        assert_eq!(panels.selected, Some(1));
+    }
     #[test]
     fn nodes_route_file_and_delete_keys_without_project_commands() {
         let state = serde_json::json!({"frame":0,"project":{"frames":120,"layers":[{"id":1,"name":"Layer","three_d":false}]}});
@@ -909,7 +1076,9 @@ fn render_panel(
     out: &mut Vec<Action>,
 ) {
     let mut local = input.clone();
-    local.pressed = local.pressed.filter(|(_, p)| area.contains(*p));
+    if panel != Panel::Nodes || !panels.node_editor.popup_open() {
+        local.pressed = local.pressed.filter(|(_, p)| area.contains(*p));
+    }
     if panels.focused != Some(panel) {
         local.keys.clear();
         local.text.clear();
@@ -951,6 +1120,7 @@ fn render_panel(
                 input,
                 panels.locale,
                 panels.node_editor.stamp(),
+                panels.node_editor.preview_target(),
             );
         }
         Panel::Audio => audio::render(list, atlas, area, panels, state, input, out),

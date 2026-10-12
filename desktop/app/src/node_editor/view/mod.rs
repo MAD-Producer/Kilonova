@@ -1,9 +1,14 @@
 //! Node view layout and shared geometry; each editor region is a reusable component.
+mod add_menu;
 mod canvas;
+mod context_menu;
 mod inspector;
 mod interaction;
 mod library;
+#[cfg(test)]
+mod tests;
 mod toolbar;
+mod wires;
 use super::catalog::{operation_title, type_label};
 use super::*;
 use motion_ui::{
@@ -16,6 +21,7 @@ use motion_ui::{
 pub(super) const NODE_WIDTH: f32 = 204.;
 const HEADER: f32 = 29.;
 const ROW: f32 = 23.;
+const INVALID_WIRE: Color = Color::rgb(240, 101, 106);
 const TOOLBAR: [(usize, f32, &str, &str); 12] = [
     (0, 41., "添加", "Add"),
     (1, 58., "属性", "Props"),
@@ -232,6 +238,7 @@ impl NodeEditor {
     ) -> FrameResponse {
         let revision = self.revision;
         let semantic = self.semantic_revision;
+        let preview_revision = self.preview_revision;
         let mut response = FrameResponse::default();
         if area.width() < 320. || area.height() < self.layout(area).toolbar.height() + 77. {
             paint::rect(list, area, palette::PANEL);
@@ -271,23 +278,32 @@ impl NodeEditor {
             self.search_focus = false;
             self.focus = false;
         }
-        self.keyboard(input, &mut response.actions);
+        let had_menu = self.popup_open();
+        if !had_menu {
+            self.keyboard(input, &mut response.actions);
+        }
+        let neutral = Input::default();
+        let body_input = if had_menu || self.popup_open() {
+            &neutral
+        } else {
+            input
+        };
         self.toolbar(
             list,
             atlas,
             layout.toolbar,
-            input,
+            body_input,
             language,
             &mut response.actions,
         );
         if let Some(library) = layout.library {
-            self.library(list, atlas, library, input, language);
+            self.library(list, atlas, library, body_input, language);
         }
         if let Some(inspector) = layout.inspector {
-            self.inspector(list, atlas, inspector, input, language);
+            self.inspector(list, atlas, inspector, body_input, language);
         }
         let cards = self.cards(layout.canvas);
-        self.canvas_input(&cards, layout.canvas, input);
+        self.canvas_input(&cards, layout.canvas, body_input);
         let cards = self.cards(layout.canvas);
         self.paint_canvas(list, atlas, &cards, layout.canvas, input, language);
         let mut footer = PaintList::default();
@@ -309,8 +325,8 @@ impl NodeEditor {
             .unwrap_or_else(|| {
                 language
                     .text(
-                        "空白框选 · Alt+拖动平移 · Alt+滚轮缩放",
-                        "Drag to select · Alt+drag pan · Alt+wheel zoom",
+                        "空白框选 · 中键平移 · Ctrl+滚轮缩放 · Shift+A 添加",
+                        "Drag to select · MMB pan · Ctrl+wheel zoom · Shift+A add",
                     )
                     .into()
             });
@@ -341,6 +357,20 @@ impl NodeEditor {
         );
         footer.clip_to(layout.footer);
         list.append(footer);
+        self.paint_add_menu(
+            list,
+            atlas,
+            area,
+            if had_menu { input } else { &neutral },
+            language,
+        );
+        self.paint_context_menu(
+            list,
+            atlas,
+            area,
+            if had_menu { input } else { &neutral },
+            language,
+        );
         response.wants_pointer = area.contains(input.mouse) || self.drag.is_some();
         response.wants_keyboard = self.focus;
         response.changed = revision != self.revision;
@@ -351,6 +381,9 @@ impl NodeEditor {
                 semantic_revision: self.semantic_revision,
                 semantic: response.semantic_changed,
             });
+        }
+        if preview_revision != self.preview_revision && !response.semantic_changed {
+            response.actions.push(Action::PreviewChanged);
         }
         response
     }

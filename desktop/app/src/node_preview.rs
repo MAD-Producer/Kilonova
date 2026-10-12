@@ -70,18 +70,30 @@ impl Controls {
         input: &Input,
         locale: crate::i18n::Locale,
         stamp: (u64, u64),
+        target: Option<&motion_graph::PortRef>,
     ) -> Rect {
         let zh = locale == crate::i18n::Locale::Zh;
         paint::rect(list, area, palette::PANEL);
-        ui::text(
-            list,
-            atlas,
-            Rect::new(area.min[0] + 10., area.min[1] + 3., area.width() - 20., 25.),
+        let title = if let Some(target) = target {
+            format!(
+                "{} · {}.{}",
+                if zh { "临时预览" } else { "Preview" },
+                target.node,
+                target.port
+            )
+        } else {
             if zh {
                 "实时效果预览"
             } else {
                 "LIVE EFFECT PREVIEW"
-            },
+            }
+            .into()
+        };
+        ui::text(
+            list,
+            atlas,
+            Rect::new(area.min[0] + 10., area.min[1] + 3., area.width() - 20., 25.),
+            &title,
             palette::TEXT,
             Align::Left,
         );
@@ -511,7 +523,7 @@ impl NodePreview {
             ];
             let display = Display::new(device, &view, context.format, display_mode);
             Ok(Self {
-                stamp: (snapshot.epoch, snapshot.semantic_revision),
+                stamp: snapshot.preview_stamp(),
                 pipeline,
                 groups: [uniform_group, input_group, resource_group],
                 uniform,
@@ -791,6 +803,62 @@ mod tests {
             pixels(&renderer, &mut changed, 0.),
             "compile failure leaves actual valid GPU texture"
         );
+    }
+    #[test]
+    fn temporary_output_changes_gpu_pixels_and_restores_canonical_save_and_export() {
+        let renderer = pollster::block_on(motion_render::Renderer::headless()).unwrap();
+        let context = GpuContext {
+            device: renderer.device.clone(),
+            queue: renderer.queue.clone(),
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+        };
+        let mut editor = crate::node_editor::NodeEditor::default();
+        let id = editor
+            .add_node(
+                motion_graph::NodeOp::Vec3 {
+                    value: [0.2, 0.4, 0.6],
+                },
+                [0., 0.],
+            )
+            .unwrap();
+        let original = editor.snapshot();
+        let canonical = original.compile().unwrap();
+        let mut full = NodePreview::build(&context, &original, &canonical).unwrap();
+        let first = pixels(&renderer, &mut full, 0.);
+        let dirty = editor.dirty();
+        let target = motion_graph::PortRef::new(id, "value");
+        editor.toggle_preview(target.clone()).unwrap();
+        let inspected = editor.snapshot();
+        assert_eq!(inspected.revision, original.revision);
+        assert_eq!(inspected.semantic_revision, original.semantic_revision);
+        assert_eq!(editor.dirty(), dirty);
+        assert_eq!(inspected.document, original.document);
+        assert_eq!(inspected.compile().unwrap().source, canonical.source);
+        let compiled = inspected.compile_preview().unwrap();
+        let mut preview = NodePreview::build(&context, &inspected, &compiled).unwrap();
+        assert_eq!(preview.stamp, inspected.preview_stamp());
+        assert_ne!(first, pixels(&renderer, &mut preview, 0.));
+        let folder = tempfile::tempdir().unwrap();
+        let path = folder.path().join("saved.msgraph");
+        inspected.save(&path).unwrap();
+        assert_eq!(
+            motion_graph::GraphDocument::load(&path).unwrap(),
+            original.document
+        );
+        let export = inspected
+            .export_msfx(&folder.path().join("canonical.msfx"))
+            .unwrap();
+        assert_eq!(
+            export.compile.reachable_nodes,
+            canonical.report.reachable_nodes
+        );
+        editor.toggle_preview(target).unwrap();
+        let restored = editor.snapshot();
+        let compiled = restored.compile_preview().unwrap();
+        assert_eq!(compiled.source, canonical.source);
+        let mut full = NodePreview::build(&context, &restored, &compiled).unwrap();
+        assert_eq!(first, pixels(&renderer, &mut full, 0.));
+        assert!(!editor.accept_compile(&inspected, Ok(compiled.report)));
     }
     #[test]
     fn node_viewports_stay_inside_editor_panel() {

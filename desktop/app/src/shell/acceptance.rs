@@ -22,6 +22,15 @@ impl Shell {
             }
             let revision = self.state["revision"].clone();
             let screenshot = self.capture_panel_float(panel)?;
+            let value_graph = if panel == dock::Panel::Timeline {
+                let previous = self.panels.timeline.graph_mode;
+                self.panels.timeline.graph_mode = true;
+                let graph = self.capture_panel_float(panel);
+                self.panels.timeline.graph_mode = previous;
+                Some(graph?)
+            } else {
+                None
+            };
             self.redock_panel(panel.dock())?;
             if !self.workspace.valid() {
                 return Err("panel lost unique workspace ownership".into());
@@ -29,7 +38,7 @@ impl Shell {
             if self.state["revision"] != revision {
                 return Err("layout change edited the project".into());
             }
-            self.smoke_panel_records.push(serde_json::json!({"id":panel as u32,"title":self.workspace.locale.panel(panel.dock()),"frames":self.smoke_float_frames[&(panel as u32)],"screenshot":screenshot,"projectRevision":revision}));
+            self.smoke_panel_records.push(serde_json::json!({"id":panel as u32,"title":self.workspace.locale.panel(panel.dock()),"frames":self.smoke_float_frames[&(panel as u32)],"screenshot":screenshot,"valueGraphScreenshot":value_graph,"projectRevision":revision}));
             self.smoke_panel_current = None;
             self.smoke_panel_index += 1;
         } else if let Some(panel) = dock::Panel::ALL.get(self.smoke_panel_index).copied() {
@@ -95,11 +104,15 @@ impl Shell {
             window: key,
             node_preview: self.node_viewport(panels::floating_node_view(panel, size), scale),
         };
-        let path = self
-            .smoke
-            .as_ref()
-            .unwrap()
-            .with_extension(format!("panel-{}.png", panel as u32));
+        let path = self.smoke.as_ref().unwrap().with_extension(format!(
+            "panel-{}{}.png",
+            panel as u32,
+            if panel == dock::Panel::Timeline && self.panels.timeline.graph_mode {
+                "-graph"
+            } else {
+                ""
+            }
+        ));
         self.engine.capture_ui(ui, path.clone())?;
         Ok(path)
     }

@@ -258,7 +258,11 @@ impl Shell {
             && header_hit.is_some_and(|(_, action)| action);
         let modal = self.panels.panel_menu.is_some()
             || self.panels.menu.is_some()
-            || self.panels.fx_console.is_some();
+            || self.panels.fx_console.is_some()
+            || self.panels.node_editor.popup_open()
+            || self.dialog.is_some()
+            || self.node_close_prompt.is_some()
+            || self.node_examples.is_some();
         if header_action || modal {
             self.workspace.cancel();
         }
@@ -279,10 +283,11 @@ impl Shell {
                 }
             }
         }
-        if self
-            .input
-            .pressed
-            .is_some_and(|(button, _)| button == MouseButton::Left)
+        if !modal
+            && self
+                .input
+                .pressed
+                .is_some_and(|(button, _)| button == MouseButton::Left)
         {
             if let Some((panel, false)) = header_hit {
                 self.workspace.choose_dragged_tab(panel);
@@ -393,6 +398,14 @@ impl Shell {
         Ok(())
     }
     pub(crate) fn redock_panel(&mut self, panel: dock::DockId) -> Result<(), String> {
+        if self
+            .panels
+            .fx_console
+            .as_ref()
+            .is_some_and(|c| c.owner.is_some_and(|owner| owner.dock() == panel))
+        {
+            self.panels.fx_console = None;
+        }
         if panel == dock::Panel::Nodes.dock() {
             self.panels.node_editor.cancel_interaction();
         }
@@ -449,7 +462,9 @@ impl Shell {
         let scale = f.scale;
         let mut paint = PaintList::default();
         let neutral = Input::default();
-        let blocked = self.node_examples.is_some() || self.node_close_prompt.is_some();
+        let blocked = self.dialog.is_some()
+            || self.node_examples.is_some()
+            || self.node_close_prompt.is_some();
         let actions = panels::floating_chrome(
             &mut paint,
             &mut self.atlas,
@@ -602,17 +617,15 @@ impl Shell {
             WindowEvent::MouseWheel { delta, .. } => Some(Event::MouseWheel {
                 delta: mouse_wheel_delta(delta, f.scale),
             }),
-            WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
-                if let Some(key) = translate_key(&event.logical_key) {
-                    let modifiers = f.input.modifiers;
-                    motion_ui::ui::accumulate(&mut f.input, Event::KeyPressed { key, modifiers });
+            WindowEvent::KeyboardInput { event, .. } => {
+                for event in keyboard_events(&event, &f.input) {
+                    motion_ui::ui::accumulate(&mut f.input, event);
                 }
-                event
-                    .text
-                    .filter(|t| !t.chars().all(char::is_control) && !f.input.modifiers.control)
-                    .map(|t| Event::TextInput(t.to_string()))
+                self.dirty = true;
+                self.redraw();
+                return;
             }
-            WindowEvent::Ime(winit::event::Ime::Commit(text)) => Some(Event::TextInput(text)),
+            WindowEvent::Ime(ime) => translate_ime(ime),
             WindowEvent::Focused(false) => {
                 self.actions
                     .extend(panels::cancel_interaction(&mut self.panels));

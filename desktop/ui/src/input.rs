@@ -11,7 +11,7 @@ pub enum MouseButton {
     Middle,
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Key {
     A,
     F,
@@ -25,6 +25,18 @@ pub enum Key {
     Z,
     Y,
     D,
+    K,
+    P,
+    R,
+    U,
+    J,
+    F3,
+    F9,
+    M,
+    X,
+    Equal,
+    PageUp,
+    PageDown,
     Escape,
     Enter,
     Tab,
@@ -45,11 +57,41 @@ pub enum Key {
 }
 
 /// A key with its modifiers folded in.
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Modifiers {
     pub shift: bool,
     pub control: bool,
     pub alt: bool,
+}
+
+/// Exact chord matching prevents Alt/Shift variants from invoking another command.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct KeyChord {
+    pub key: Key,
+    pub modifiers: Modifiers,
+}
+
+impl KeyChord {
+    pub const fn new(key: Key, control: bool, shift: bool, alt: bool) -> Self {
+        Self {
+            key,
+            modifiers: Modifiers {
+                control,
+                shift,
+                alt,
+            },
+        }
+    }
+
+    pub fn matches(self, key: Key, modifiers: Modifiers) -> bool {
+        self.key == key && self.modifiers == modifiers
+    }
+
+    pub fn pressed(self, input: &Input) -> bool {
+        input
+            .key_presses()
+            .any(|(key, modifiers, repeat)| !repeat && self.matches(key, modifiers))
+    }
 }
 
 impl Default for Modifiers {
@@ -82,6 +124,16 @@ pub enum Event {
         key: Key,
         modifiers: Modifiers,
     },
+    KeyRepeated {
+        key: Key,
+        modifiers: Modifiers,
+    },
+    KeyReleased {
+        key: Key,
+        modifiers: Modifiers,
+    },
+    ImeComposition(bool),
+    TextCommit(String),
     TextInput(String),
     /// A press held past the long-press threshold; the timeline and preview use
     /// this to distinguish a scrub from an intended clip move.
@@ -103,6 +155,12 @@ pub struct Input {
     pub modifiers: Modifiers,
     pub long_press: Option<[f32; 2]>,
     pub keys: Vec<(Key, Modifiers)>,
+    /// Parallel to `keys`; absent entries are initial presses for synthetic input.
+    pub key_repeats: Vec<bool>,
+    pub held_keys: Vec<Key>,
+    pub released_keys: Vec<Key>,
+    pub composing: bool,
+    pub ime_consumed: bool,
     pub text: String,
 }
 
@@ -114,12 +172,30 @@ impl Input {
         self.wheel = [0.0, 0.0];
         self.long_press = None;
         self.keys.clear();
+        self.key_repeats.clear();
+        self.released_keys.clear();
+        self.ime_consumed = false;
         self.text.clear();
     }
 
     /// True while the primary button is held, whether or not it moved.
     pub fn dragging(&self) -> bool {
         self.held == Some(MouseButton::Left)
+    }
+
+    /// Shortcut input excludes IME confirmation keys, including the commit frame.
+    pub fn key_presses(&self) -> impl Iterator<Item = (Key, Modifiers, bool)> + '_ {
+        self.keys
+            .iter()
+            .enumerate()
+            .filter(|_| !self.composing && !self.ime_consumed)
+            .map(|(i, (key, modifiers))| {
+                (
+                    *key,
+                    *modifiers,
+                    self.key_repeats.get(i).copied().unwrap_or(false),
+                )
+            })
     }
 }
 
@@ -209,5 +285,87 @@ impl Scroll {
         let fraction = (viewport / content).clamp(0.05, 1.0);
         let travel = self.max;
         (fraction, (self.offset / travel.max(1.0)).clamp(0.0, 1.0))
+    }
+}
+
+#[cfg(test)]
+mod shortcut_tests {
+    use super::*;
+    use crate::ui::accumulate;
+    #[test]
+    fn key_repeat_release_and_focus_have_distinct_lifetimes() {
+        let mut input = Input::default();
+        let modifiers = Modifiers {
+            control: true,
+            ..Default::default()
+        };
+        let duplicate = KeyChord::new(Key::D, true, false, false);
+        accumulate(
+            &mut input,
+            Event::KeyPressed {
+                key: Key::D,
+                modifiers,
+            },
+        );
+        assert!(duplicate.pressed(&input));
+        input.begin_frame();
+        assert_eq!(input.held_keys, [Key::D]);
+        accumulate(
+            &mut input,
+            Event::KeyRepeated {
+                key: Key::D,
+                modifiers,
+            },
+        );
+        assert!(!duplicate.pressed(&input));
+        assert_eq!(input.key_presses().next(), Some((Key::D, modifiers, true)));
+        accumulate(
+            &mut input,
+            Event::KeyReleased {
+                key: Key::D,
+                modifiers,
+            },
+        );
+        assert!(input.held_keys.is_empty());
+        assert_eq!(input.released_keys, [Key::D]);
+        accumulate(&mut input, Event::FocusLost);
+        assert!(input.keys.is_empty());
+        assert_eq!(input.modifiers, Modifiers::default());
+    }
+    #[test]
+    fn ime_confirmation_cannot_become_a_shortcut_and_commit_keeps_text() {
+        let mut input = Input::default();
+        accumulate(&mut input, Event::ImeComposition(true));
+        input.begin_frame();
+        accumulate(
+            &mut input,
+            Event::KeyPressed {
+                key: Key::Space,
+                modifiers: Modifiers {
+                    control: true,
+                    ..Default::default()
+                },
+            },
+        );
+        assert!(input.keys.is_empty());
+        accumulate(&mut input, Event::TextCommit("效果".into()));
+        accumulate(
+            &mut input,
+            Event::KeyPressed {
+                key: Key::Enter,
+                modifiers: Modifiers::default(),
+            },
+        );
+        assert!(input.key_presses().next().is_none());
+        assert_eq!(input.text, "效果");
+        input.begin_frame();
+        accumulate(
+            &mut input,
+            Event::KeyPressed {
+                key: Key::Enter,
+                modifiers: Modifiers::default(),
+            },
+        );
+        assert!(KeyChord::new(Key::Enter, false, false, false).pressed(&input));
     }
 }

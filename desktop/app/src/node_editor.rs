@@ -13,6 +13,10 @@ use std::{
 
 #[path = "node_editor/catalog.rs"]
 mod catalog;
+#[path = "node_editor/editing.rs"]
+mod editing;
+#[path = "node_editor/preview.rs"]
+mod preview;
 #[path = "node_editor/view/mod.rs"]
 mod view;
 pub use catalog::catalog;
@@ -40,10 +44,22 @@ pub struct EditorSnapshot {
     pub options: CompileOptions,
     pub revision: u64,
     pub semantic_revision: u64,
+    pub preview_revision: u64,
+    pub preview_target: Option<PortRef>,
     pub epoch: u64,
     pub source_path: Option<PathBuf>,
 }
 impl EditorSnapshot {
+    pub fn preview_stamp(&self) -> (u64, u64) {
+        (self.epoch, self.preview_revision)
+    }
+    pub fn compile_preview(&self) -> motion_graph::Result<motion_graph::CompiledGraph> {
+        if let Some(target) = &self.preview_target {
+            motion_graph::compile_preview(&self.document, &self.options, target)
+        } else {
+            self.compile()
+        }
+    }
     pub fn validate(&self) -> motion_graph::Result<motion_graph::ValidationReport> {
         motion_graph::validate(&self.document, &self.options)
     }
@@ -69,6 +85,7 @@ pub enum Action {
     Validate(EditorSnapshot),
     Compile(EditorSnapshot),
     ExportMsfx(EditorSnapshot),
+    PreviewChanged,
     Changed {
         revision: u64,
         semantic_revision: u64,
@@ -123,7 +140,7 @@ impl CanvasView {
     }
     pub fn zoom_at(&mut self, zoom: f32, point: [f32; 2], canvas: Rect) {
         let world = self.screen_to_world(point, canvas);
-        self.zoom = zoom.clamp(0.25, 2.5);
+        self.zoom = zoom.clamp(1.0e-6, 2.5);
         self.pan = [
             point[0] - canvas.min[0] - world[0] * self.zoom,
             point[1] - canvas.min[1] - world[1] * self.zoom,
@@ -184,6 +201,20 @@ enum Drag {
     WireInput {
         target: PortRef,
     },
+    Cut {
+        points: Vec<[f32; 2]>,
+        last: [f32; 2],
+        inputs: BTreeSet<PortRef>,
+    },
+}
+
+struct AddMenu {
+    position: [f32; 2],
+    world: [f32; 2],
+    query: String,
+    category: Option<catalog::Category>,
+    selected: usize,
+    scroll: f32,
 }
 
 pub struct NodeEditor {
@@ -199,6 +230,8 @@ pub struct NodeEditor {
     redo: Vec<History>,
     revision: u64,
     semantic_revision: u64,
+    preview_revision: u64,
+    preview_target: Option<PortRef>,
     epoch: u64,
     next_id: u64,
     focus: bool,
@@ -218,13 +251,22 @@ pub struct NodeEditor {
     last_canvas: Rect,
     first_frame: bool,
     context_menu: Option<ContextMenu>,
+    add_menu: Option<AddMenu>,
     floating_mode: bool, // true=漂浮形态(有侧边栏), false=嵌入形态(无侧边栏)
 }
 
 #[derive(Clone, Debug)]
 struct ContextMenu {
     position: [f32; 2],
-    target_node: Option<String>, // None = 画布菜单, Some(id) = 节点菜单
+    kind: MenuKind,
+    selected: usize,
+}
+#[derive(Clone, Debug)]
+enum MenuKind {
+    Canvas,
+    Node(String),
+    Wire(PortRef),
+    Preview(String),
 }
 impl Default for NodeEditor {
     fn default() -> Self {
@@ -254,6 +296,8 @@ impl NodeEditor {
             redo: vec![],
             revision: 0,
             semantic_revision: 0,
+            preview_revision: 0,
+            preview_target: None,
             epoch: 1,
             next_id: 1,
             focus: false,
@@ -273,6 +317,7 @@ impl NodeEditor {
             last_canvas: Rect::default(),
             first_frame: true,
             context_menu: None,
+            add_menu: None,
             floating_mode: false, // 默认嵌入模式（无侧边栏）
         }
     }
@@ -291,11 +336,17 @@ impl NodeEditor {
     pub fn focused(&self) -> bool {
         self.focus
     }
+    pub fn text_editing(&self) -> bool {
+        self.field.is_some() || self.search_focus || self.popup_open()
+    }
+    pub fn popup_open(&self) -> bool {
+        self.add_menu.is_some() || self.context_menu.is_some()
+    }
     pub fn focus_panel(&mut self) {
         self.focus = true;
     }
     pub fn editing(&self) -> bool {
-        self.drag.is_some() || self.field.is_some() || self.search_focus
+        self.drag.is_some() || self.text_editing()
     }
     pub fn diagnostic(&self) -> Option<&Diagnostic> {
         self.diagnostic.as_ref()
@@ -314,6 +365,8 @@ impl NodeEditor {
             options: self.options.clone(),
             revision: self.revision,
             semantic_revision: self.semantic_revision,
+            preview_revision: self.preview_revision,
+            preview_target: self.preview_target.clone(),
             epoch: self.epoch,
             source_path: self.source_path.clone(),
         }
@@ -336,7 +389,7 @@ impl NodeEditor {
             Request::SaveAs => Action::SaveAs(snapshot),
             Request::Validate => Action::Validate(snapshot),
             Request::Compile => {
-                self.pending_compile = Some(self.semantic_revision);
+                self.pending_compile = Some(self.preview_revision);
                 Action::Compile(snapshot)
             }
             Request::ExportMsfx => Action::ExportMsfx(snapshot),
@@ -405,8 +458,7 @@ impl NodeEditor {
     }
     /// Call when a compile worker is canceled or cannot start.
     pub fn cancel_compile(&mut self, snapshot: &EditorSnapshot) {
-        if snapshot.epoch == self.epoch && self.pending_compile == Some(snapshot.semantic_revision)
-        {
+        if snapshot.epoch == self.epoch && self.pending_compile == Some(snapshot.preview_revision) {
             self.pending_compile = None;
         }
     }
@@ -416,13 +468,17 @@ impl NodeEditor {
         snapshot: &EditorSnapshot,
         result: Result<CompileReport, Diagnostic>,
     ) -> bool {
-        if snapshot.epoch != self.epoch || snapshot.semantic_revision != self.semantic_revision {
+        if snapshot.preview_stamp() != self.stamp()
+            || snapshot.semantic_revision != self.semantic_revision
+        {
             return false;
         }
         self.pending_compile = None;
         match result {
             Ok(report) => {
-                self.compiled = Some((self.semantic_revision, report));
+                if snapshot.preview_target.is_none() {
+                    self.compiled = Some((self.semantic_revision, report));
+                }
                 self.notice = Some("Compiled".into());
                 self.refresh_diagnostic();
             }
@@ -440,7 +496,7 @@ impl NodeEditor {
         self.notice = Some(message.into());
     }
     pub fn stamp(&self) -> (u64, u64) {
-        (self.epoch, self.semantic_revision)
+        (self.epoch, self.preview_revision)
     }
     pub fn cancel_interaction(&mut self) {
         self.cancel_edit_only();
@@ -467,7 +523,7 @@ impl NodeEditor {
         self.revision = self.revision.wrapping_add(1);
         if before.semantic {
             self.semantic_revision = self.semantic_revision.wrapping_add(1);
-            self.pending_compile = None;
+            self.advance_preview();
         }
         self.notice = None;
         self.refresh_diagnostic();
@@ -502,7 +558,7 @@ impl NodeEditor {
         self.revision = self.revision.wrapping_add(1);
         if semantic {
             self.semantic_revision = self.semantic_revision.wrapping_add(1);
-            self.pending_compile = None;
+            self.advance_preview();
         }
         self.selected
             .retain(|id| self.document.nodes.iter().any(|n| n.id == *id));
@@ -516,6 +572,8 @@ impl NodeEditor {
         self.refresh_diagnostic();
     }
     fn cancel_edit_only(&mut self) {
+        self.add_menu = None;
+        self.context_menu = None;
         match self.drag.take() {
             Some(Drag::Nodes { before, .. }) => self.document = before.document,
             Some(Drag::Marquee { base, primary, .. }) => {
@@ -709,6 +767,22 @@ impl NodeEditor {
         to: PortRef,
         old_input: Option<&PortRef>,
     ) -> Result<(), Diagnostic> {
+        let edges = self.candidate_connections(from, to, old_input)?;
+        if edges == self.document.connections {
+            return Ok(());
+        }
+        let before = self.state(true);
+        self.document.connections = edges;
+        self.finish_edit(before);
+        Ok(())
+    }
+    /// Preview and commit use the same atomic replacement and graph checks.
+    fn candidate_connections(
+        &self,
+        from: PortRef,
+        to: PortRef,
+        old_input: Option<&PortRef>,
+    ) -> Result<Vec<Connection>, Diagnostic> {
         motion_graph::check_connection(&self.document, &from, &to)
             .map_err(|error| error.diagnostic())?;
         let mut edges: Vec<_> = self
@@ -718,15 +792,22 @@ impl NodeEditor {
             .filter(|c| c.to != to && old_input != Some(&c.to))
             .cloned()
             .collect();
-        if self.document.connections.len() >= self.options.max_connections
-            && edges.len() == self.document.connections.len()
-        {
+        if edges.len().saturating_add(1) > self.options.max_connections {
             return Err(diag(
                 ErrorCode::Budget,
                 None,
                 None,
                 "Connection budget reached",
             ));
+        }
+        if (old_input.is_none() || old_input == Some(&to))
+            && self
+                .document
+                .connections
+                .iter()
+                .any(|edge| edge.from == from && edge.to == to)
+        {
+            return Ok(self.document.connections.clone());
         }
         let mut seen = BTreeSet::new();
         let mut pending = vec![to.node.clone()];
@@ -749,13 +830,7 @@ impl NodeEditor {
             }
         }
         edges.push(Connection { from, to });
-        if edges == self.document.connections {
-            return Ok(());
-        }
-        let before = self.state(true);
-        self.document.connections = edges;
-        self.finish_edit(before);
-        Ok(())
+        Ok(edges)
     }
     fn port_type(&self, port: &PortRef, output: bool) -> Result<ValueType, Diagnostic> {
         let node = self
@@ -958,6 +1033,12 @@ impl NodeEditor {
         Ok(())
     }
     pub fn fit_all(&mut self, canvas: Rect) {
+        self.fit_nodes(canvas, false);
+    }
+    pub fn fit_selected(&mut self, canvas: Rect) {
+        self.fit_nodes(canvas, !self.selected.is_empty());
+    }
+    fn fit_nodes(&mut self, canvas: Rect, selected_only: bool) {
         if self.document.nodes.is_empty() {
             self.view = Default::default();
             return;
@@ -965,6 +1046,9 @@ impl NodeEditor {
         let mut lo = [f64::INFINITY; 2];
         let mut hi = [f64::NEG_INFINITY; 2];
         for n in &self.document.nodes {
+            if selected_only && !self.selected.contains(&n.id) {
+                continue;
+            }
             if n.position.iter().any(|v| !v.is_finite()) {
                 continue;
             }
@@ -977,9 +1061,9 @@ impl NodeEditor {
         if lo.iter().chain(hi.iter()).any(|v| !v.is_finite()) {
             return;
         }
-        let zoom = ((f64::from(canvas.width().max(1.) - 80.) / (hi[0] - lo[0]).max(1.))
-            .min(f64::from(canvas.height().max(1.) - 80.) / (hi[1] - lo[1]).max(1.)))
-        .clamp(0.25, 1.2) as f32;
+        let zoom = ((f64::from((canvas.width() - 80.).max(1.)) / (hi[0] - lo[0]).max(1.))
+            .min(f64::from((canvas.height() - 80.).max(1.)) / (hi[1] - lo[1]).max(1.)))
+        .clamp(1.0e-6, 1.2) as f32;
         self.view.zoom = zoom;
         self.view.pan = [
             (f64::from(canvas.width()) * 0.5 - (lo[0] + hi[0]) * 0.5 * f64::from(zoom)) as f32,

@@ -7,8 +7,8 @@ mod examples;
 mod export;
 mod ports;
 pub use compiler::{
-    compile, node_ports, validate, CompileOptions, CompileReport, CompiledGraph, NodePorts,
-    ValidationReport,
+    compile, compile_preview, node_ports, validate, CompileOptions, CompileReport, CompiledGraph,
+    NodePorts, ValidationReport,
 };
 pub use demo::demo_graph;
 pub use document::*;

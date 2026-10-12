@@ -11,13 +11,13 @@ pub(super) struct Row {
     pub(super) keys: Vec<f64>,
 }
 
-struct PropertyRow {
-    property: Property,
+pub(super) struct PropertyRow {
+    pub property: Property,
     key: &'static str,
     title: T,
-    axis: Option<usize>,
-    axes: Vec<usize>,
-    keys: Vec<f64>,
+    pub axis: Option<usize>,
+    pub axes: Vec<usize>,
+    pub keys: Vec<f64>,
 }
 fn property_rows(state: &Value, object: u64) -> Vec<PropertyRow> {
     let layer = state["project"]["layers"]
@@ -162,6 +162,33 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
     }
     rows
 }
+pub(super) fn filtered_properties(
+    state: &Value,
+    object: u64,
+    filter: types::PropertyFilter,
+) -> Vec<PropertyRow> {
+    property_rows(state, object)
+        .into_iter()
+        .filter(|row| filter.admits(row.property, !row.keys.is_empty()))
+        .collect()
+}
+pub(super) fn property_visible(
+    panels: &Panels,
+    state: &Value,
+    object: u64,
+    property: Property,
+) -> bool {
+    let animated = property_rows(state, object)
+        .iter()
+        .any(|r| r.property == property && !r.keys.is_empty());
+    panels
+        .timeline
+        .filters
+        .get(&object)
+        .copied()
+        .unwrap_or_default()
+        .admits(property, animated)
+}
 pub(super) fn render(
     list: &mut PaintList,
     atlas: &mut TextAtlas,
@@ -183,6 +210,7 @@ pub(super) fn render(
     };
     paint::rect(list, area, palette::PANEL);
     let total = last_frame(state) + 1.0;
+    let graph_mode = panels.timeline.graph_mode;
     let mut rows = rows(state);
     rows.retain(|row| {
         row.name
@@ -203,14 +231,24 @@ pub(super) fn render(
                 (panels.timeline.zoom.max(1.0) * (input.wheel[1] * -0.005).exp()).clamp(1.0, 100.0);
         } else if input.modifiers.shift {
             panels.timeline.offset = (panels.timeline.offset + input.wheel[1] as f32).max(0.0);
-        } else {
+        } else if !(graph_mode && input.mouse[0] >= track.min[0]) {
             panels.timeline.scroll = (panels.timeline.scroll + input.wheel[1]).clamp(
                 0.0,
                 (rows
                     .iter()
                     .map(|row| {
                         if panels.timeline.expanded.contains(&row.id) {
-                            2 + property_rows(state, row.id).len()
+                            2 + filtered_properties(
+                                state,
+                                row.id,
+                                panels
+                                    .timeline
+                                    .filters
+                                    .get(&row.id)
+                                    .copied()
+                                    .unwrap_or_default(),
+                            )
+                            .len()
                         } else {
                             1
                         }
@@ -256,6 +294,32 @@ pub(super) fn render(
         Align::Left,
     );
     let locale = panels.locale;
+    if gutter >= 370. {
+        if ui::button(
+            list,
+            atlas,
+            Rect::new(area.min[0] + gutter - 98., area.min[1] + 5., 90., 25.),
+            if panels.timeline.graph_mode {
+                if locale == Locale::Zh {
+                    "时间轴"
+                } else {
+                    "Timeline"
+                }
+            } else {
+                if locale == Locale::Zh {
+                    "曲线"
+                } else {
+                    "Graph"
+                }
+            },
+            input,
+            true,
+        )
+        .clicked
+        {
+            panels.timeline.graph_mode = !panels.timeline.graph_mode;
+        }
+    }
     let search = Rect::new(
         track.min[0] + 12.,
         area.min[1] + 5.,
@@ -447,7 +511,16 @@ pub(super) fn render(
                 .is_some_and(|l| l["content"]["kind"].as_str() != Some("audio"));
         let expanded = expandable && panels.timeline.expanded.contains(&row.id);
         let properties = if expanded {
-            property_rows(state, row.id)
+            filtered_properties(
+                state,
+                row.id,
+                panels
+                    .timeline
+                    .filters
+                    .get(&row.id)
+                    .copied()
+                    .unwrap_or_default(),
+            )
         } else {
             vec![]
         };
@@ -507,10 +580,10 @@ pub(super) fn render(
                 label(list, atlas, caption, &text, true);
                 if clicked(input, caption) {
                     panels.selected = Some(row.id);
-                    panels.animation_controls.property = Some(property.property);
-                    panels.animation_controls.axis = axis;
-                    panels.animation_controls.expanded = true;
-                    out.push(Action::ShowPanel(Panel::Curves.dock()));
+                    panels
+                        .animation_controls
+                        .choose_track(row.id, property.property, axis);
+                    panels.animation_controls.clear_key();
                 }
                 for (j, component) in property.axes.iter().enumerate() {
                     let value = if property.property == Property::Opacity {
@@ -546,7 +619,7 @@ pub(super) fn render(
                         true,
                     );
                 }
-                for frame in &property.keys {
+                for frame in property.keys.iter().filter(|_| !graph_mode) {
                     let x = x_of(*frame);
                     if x >= track.min[0] + 4. && x < track.max[0] - 4. {
                         let current =
@@ -563,8 +636,12 @@ pub(super) fn render(
                         );
                         if clicked(input, Rect::new(x - 5., py, 10., metrics::ROW)) {
                             panels.selected = Some(row.id);
-                            panels.animation_controls.property = Some(property.property);
-                            panels.animation_controls.axis = axis;
+                            panels.animation_controls.select_key(
+                                row.id,
+                                property.property,
+                                axis,
+                                *frame as i64,
+                            );
                             out.push(Action::Seek(frame.clamp(0., total - 1.)));
                         }
                     }
@@ -702,6 +779,9 @@ pub(super) fn render(
             panels.selected = Some(row.id);
             panels.properties.field = None;
         }
+        if graph_mode {
+            continue;
+        }
         let left = x_of(row.range[0]).max(track.min[0]);
         let right = x_of(row.range[1]).min(track.max[0]);
         let bar = Rect::new(left, y + 5.0, (right - left).max(0.0), metrics::ROW - 10.0);
@@ -755,6 +835,19 @@ pub(super) fn render(
                 paint::diamond(list, [x, y + metrics::ROW * 0.5], 4.0, palette::KEYFRAME);
             }
         }
+    }
+    if graph_mode {
+        super::timeline_graph::render(
+            list,
+            atlas,
+            Rect::new(track.min[0], body.min[1], track.width(), body.height()),
+            panels,
+            state,
+            input,
+            offset as f64,
+            ppf,
+            out,
+        );
     }
     if let Some((object, start, end, head, last)) = panels.timeline.trimming.as_mut() {
         let position = ((input.mouse[0] - track.min[0]) / ppf + offset) as f64;

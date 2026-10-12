@@ -167,6 +167,9 @@ pub(super) fn render(
             ),
             (locale.t(T::Opacity), Property::Opacity, "opacity", vec![0]),
         ] {
+            if !super::timeline::property_visible(panels, state, object, property) {
+                continue;
+            }
             let track = timeline.map(|l| &l["properties"][key]);
             let separated = track.is_some_and(|t| t["separated"].as_bool().unwrap_or(false));
             let animated = track.is_some_and(|t| !t["keys"].as_array().is_none_or(Vec::is_empty));
