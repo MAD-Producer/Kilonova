@@ -123,7 +123,7 @@ fn panic_saves_last_valid_project_releases_session_lock_and_reports_the_failure(
         wait_stopped(&engine);
         assert_eq!(engine.state().unwrap_err(), error);
         assert_eq!(engine.save().unwrap_err(), error);
-        assert_eq!(engine.node_gpu().err().unwrap(), error);
+        assert_eq!(engine.node_preview_available().err().unwrap(), error);
         assert!(engine.factory.lock().unwrap().is_none());
         assert_eq!(
             motion_host::session::resource_info(&root).unwrap()["sessions"],
@@ -286,7 +286,9 @@ fn attached_hidden_surface_and_factory_release_after_worker_panic() {
         motion_host::session::resource_info(&root).unwrap()["graphics"],
         1
     );
-    assert!(engine.node_gpu().is_ok());
+    assert!(engine.node_preview_available().is_ok());
+    // Reuse the process's one native event loop for concurrent scope coverage.
+    crate::engine::scope_tests::exercise(&engine, folder.path());
     let error = engine
         .call_with_timeout(
             |reply| Command::TestPanic {
