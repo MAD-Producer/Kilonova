@@ -49,6 +49,7 @@ fn reveal(
         !panels.properties.transform_collapsed
     } else {
         panels.timeline.expanded.contains(&object)
+            && !panels.timeline.collapsed_transforms.contains(&object)
     };
     let next = if let Some(property) = property {
         let bit = property_bit(property);
@@ -85,6 +86,7 @@ fn reveal(
         panels.animation_controls.clear_key();
     } else {
         panels.timeline.expanded.insert(object);
+        panels.timeline.collapsed_transforms.remove(&object);
     }
     panels.properties.transform_collapsed = hidden;
     panels.properties.properties_scroll = 0.;
