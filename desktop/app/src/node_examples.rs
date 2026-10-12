@@ -46,7 +46,6 @@ impl Browser {
             width,
             height,
         );
-        list.glyphs.clear();
         paint::rect(
             list,
             Rect::new(0., 0., size[0], size[1]),

@@ -50,6 +50,14 @@ pub struct PaintList {
     pub shapes: Vec<Shape>,
     pub colors: Vec<Color>,
     pub glyphs: Vec<Glyph>,
+    /// Creation order across buffers. Use push_shape/push_glyph to record it.
+    pub order: Vec<PaintOp>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PaintOp {
+    Shape(usize),
+    Glyph(usize),
 }
 
 impl PaintList {
@@ -57,19 +65,42 @@ impl PaintList {
         self.shapes.clear();
         self.colors.clear();
         self.glyphs.clear();
+        self.order.clear();
+    }
+    fn legacy_order(&mut self) {
+        if self.order.len() != self.shapes.len() + self.glyphs.len() {
+            self.order.clear();
+            self.order.extend((0..self.shapes.len()).map(PaintOp::Shape));
+            self.order.extend((0..self.glyphs.len()).map(PaintOp::Glyph));
+        }
+    }
+    pub fn push_shape(&mut self, shape: Shape, color: Color) {
+        self.legacy_order();
+        self.order.push(PaintOp::Shape(self.shapes.len()));
+        self.shapes.push(shape);
+        self.colors.push(color);
+    }
+    pub fn push_glyph(&mut self, glyph: Glyph) {
+        self.legacy_order();
+        self.order.push(PaintOp::Glyph(self.glyphs.len()));
+        self.glyphs.push(glyph);
     }
     /// Bound flat UI geometry and adjust cropped glyph UVs to a panel rectangle.
     pub fn clip_to(&mut self, area: Rect) {
+        let mut shape_map = vec![None; self.shapes.len()];
+        let mut glyph_map = vec![None; self.glyphs.len()];
         let mut shapes = Vec::new();
         let mut colors = Vec::new();
-        for (mut shape, color) in std::mem::take(&mut self.shapes)
+        for (old, (mut shape, color)) in std::mem::take(&mut self.shapes)
             .into_iter()
             .zip(std::mem::take(&mut self.colors))
+            .enumerate()
         {
             if let Shape::Procedural { clip, .. } = &mut shape {
                 clip.min = [clip.min[0].max(area.min[0]), clip.min[1].max(area.min[1])];
                 clip.max = [clip.max[0].min(area.max[0]), clip.max[1].min(area.max[1])];
                 if clip.width() > 0. && clip.height() > 0. {
+                    shape_map[old] = Some(shapes.len());
                     shapes.push(shape);
                     colors.push(color);
                 }
@@ -78,6 +109,7 @@ impl PaintList {
             if let Shape::Triangles { points } = &mut shape {
                 *points = clip_triangles(points, area);
                 if !points.is_empty() {
+                    shape_map[old] = Some(shapes.len());
                     shapes.push(shape);
                     colors.push(color);
                 }
@@ -105,12 +137,17 @@ impl PaintList {
                 }
                 shape = Shape::Triangles { points };
             }
+            shape_map[old] = Some(shapes.len());
             shapes.push(shape);
             colors.push(color);
         }
         self.shapes = shapes;
         self.colors = colors;
+        let mut old_glyph = 0;
+        let mut new_glyph = 0;
         self.glyphs.retain_mut(|glyph| {
+            let old = old_glyph;
+            old_glyph += 1;
             let left = glyph.position[0].max(area.min[0]);
             let top = glyph.position[1].max(area.min[1]);
             let right = (glyph.position[0] + glyph.size[0]).min(area.max[0]);
@@ -127,10 +164,30 @@ impl PaintList {
             ];
             glyph.position = [left, top];
             glyph.size = [right - left, bottom - top];
+            glyph_map[old] = Some(new_glyph);
+            new_glyph += 1;
             true
+        });
+        self.order.retain_mut(|op| {
+            let (index, mapping) = match op {
+                PaintOp::Shape(index) => (index, &shape_map),
+                PaintOp::Glyph(index) => (index, &glyph_map),
+            };
+            if let Some(Some(new)) = mapping.get(*index) {
+                *index = *new;
+                true
+            } else { false }
         });
     }
     pub fn append(&mut self, mut other: Self) {
+        self.legacy_order();
+        other.legacy_order();
+        let shapes = self.shapes.len();
+        let glyphs = self.glyphs.len();
+        self.order.extend(other.order.into_iter().map(|op| match op {
+            PaintOp::Shape(index) => PaintOp::Shape(index + shapes),
+            PaintOp::Glyph(index) => PaintOp::Glyph(index + glyphs),
+        }));
         self.shapes.append(&mut other.shapes);
         self.colors.append(&mut other.colors);
         self.glyphs.append(&mut other.glyphs);
@@ -231,7 +288,7 @@ pub fn box_rect(
 ) {
     if area.width() > 0. && area.height() > 0. && (fill.0[3] > 0. || border.0[3] > 0. && width > 0.)
     {
-        list.shapes.push(Shape::Procedural {
+        list.push_shape(Shape::Procedural {
             area,
             clip: Rect::new(
                 area.min[0] - 1.,
@@ -244,8 +301,7 @@ pub fn box_rect(
                 width,
                 radius,
             },
-        });
-        list.colors.push(fill);
+        }, fill);
     }
 }
 pub fn grid(
@@ -263,7 +319,7 @@ pub fn grid(
         && major.is_finite()
         && major > 0.
     {
-        list.shapes.push(Shape::Procedural {
+        list.push_shape(Shape::Procedural {
             area,
             clip: area,
             kind: Pattern::Grid {
@@ -272,8 +328,7 @@ pub fn grid(
                 minor,
                 major_step: major,
             },
-        });
-        list.colors.push(minor_color);
+        }, minor_color);
     }
 }
 
@@ -300,24 +355,22 @@ pub fn rect(list: &mut PaintList, area: Rect, color: Color) {
     let min = area.min;
     let max = area.max;
     // Counter-clockwise in screen space so both pipelines can use one winding.
-    list.shapes.push(Shape::Quad {
+    list.push_shape(Shape::Quad {
         points: [min, [max[0], min[1]], max, [min[0], max[1]]],
-    });
-    list.colors.push(color);
+    }, color);
 }
 
 /// Stroke a rectangle outline of `thickness` logical pixels.
 pub fn diamond(list: &mut PaintList, center: [f32; 2], radius: f32, color: Color) {
     let [x, y] = center;
-    list.shapes.push(Shape::Quad {
+    list.push_shape(Shape::Quad {
         points: [
             [x, y - radius],
             [x + radius, y],
             [x, y + radius],
             [x - radius, y],
         ],
-    });
-    list.colors.push(color);
+    }, color);
 }
 
 /// Stroke a rectangle outline of `thickness` logical pixels.
@@ -356,27 +409,24 @@ pub fn stroke(list: &mut PaintList, area: Rect, color: Color, thickness: f32) {
         .filter(|r| r.width() > 0. && r.height() > 0.)
         .flat_map(|r| expand_quad([r.min, [r.max[0], r.min[1]], r.max, [r.min[0], r.max[1]]]))
         .collect();
-    list.shapes.push(Shape::Triangles { points });
-    list.colors.push(color);
+    list.push_shape(Shape::Triangles { points }, color);
 }
 
 pub fn line(list: &mut PaintList, points: Vec<[f32; 2]>, color: Color) {
     if points.len() < 2 || color.0[3] <= 0.0 {
         return;
     }
-    list.shapes.push(Shape::Line { points });
-    list.colors.push(color);
+    list.push_shape(Shape::Line { points }, color);
 }
 
 /// Alpha checkerboard for transparent pixels.
 pub fn checkerboard(list: &mut PaintList, area: Rect, light: Color, dark: Color, size: f32) {
     if area.width() > 0. && area.height() > 0. && size.is_finite() && size > 0. {
-        list.shapes.push(Shape::Procedural {
+        list.push_shape(Shape::Procedural {
             area,
             clip: area,
             kind: Pattern::Checker { dark, size },
-        });
-        list.colors.push(light);
+        }, light);
     }
 }
 
@@ -422,10 +472,27 @@ fn upload_color(mut rgba: [f32; 4], srgb: bool) -> [f32; 4] {
     rgba
 }
 
-/// GPU resources for the two-pass panel renderer.
+struct DrawBatch {
+    glyph: bool,
+    vertices: std::ops::Range<u32>,
+}
+fn push_batch(batches: &mut Vec<DrawBatch>, glyph: bool, vertices: std::ops::Range<u32>) {
+    if vertices.is_empty() { return; }
+    if let Some(previous) = batches.last_mut() {
+        if previous.glyph == glyph && previous.vertices.end == vertices.start {
+            previous.vertices.end = vertices.end;
+            return;
+        }
+    }
+    batches.push(DrawBatch { glyph, vertices });
+}
+
+/// Two vertex buffers and one render pass; only adjacent compatible draws merge.
 pub struct Painter {
     solid_cpu: Vec<SolidVertex>,
     glyph_cpu: Vec<GlyphVertex>,
+    shape_ranges: Vec<std::ops::Range<u32>>,
+    draw_batches: Vec<DrawBatch>,
     srgb_target: bool,
     solid_pipeline: wgpu::RenderPipeline,
     glyph_pipeline: wgpu::RenderPipeline,
@@ -443,6 +510,7 @@ pub struct Painter {
     pub last_solid_vertices: usize,
     /// Glyph vertices submitted for the last frame.
     pub last_glyph_vertices: usize,
+    pub last_draw_calls: usize,
 }
 
 impl Painter {
@@ -570,6 +638,8 @@ impl Painter {
             srgb_target: format.is_srgb(),
             solid_cpu: Vec::new(),
             glyph_cpu: Vec::new(),
+            shape_ranges: Vec::new(),
+            draw_batches: Vec::new(),
             solid_pipeline,
             glyph_pipeline,
             solid_layout,
@@ -607,6 +677,7 @@ impl Painter {
             atlas_size: [0, 0],
             last_solid_vertices: 0,
             last_glyph_vertices: 0,
+            last_draw_calls: 0,
         }
     }
 
@@ -683,7 +754,9 @@ impl Painter {
     ) {
         let mut solids = std::mem::take(&mut self.solid_cpu);
         solids.clear();
+        self.shape_ranges.clear();
         for (shape, color) in list.shapes.iter().zip(list.colors.iter()) {
+            let start = solids.len() as u32;
             let rgba = upload_color(color.0, self.srgb_target);
             match shape {
                 Shape::Procedural { area, clip, kind } => {
@@ -791,6 +864,7 @@ impl Painter {
                     );
                 }
             }
+            self.shape_ranges.push(start..solids.len() as u32);
         }
         let mut glyphs = std::mem::take(&mut self.glyph_cpu);
         glyphs.clear();
@@ -818,6 +892,28 @@ impl Painter {
         }));
         self.last_solid_vertices = solids.len();
         self.last_glyph_vertices = glyphs.len();
+        self.last_draw_calls = 0;
+        self.draw_batches.clear();
+        if list.order.len() != list.shapes.len() + list.glyphs.len() {
+            // Preserve compatibility with legacy lists assembled from raw buffers.
+            push_batch(&mut self.draw_batches, false, 0..solids.len() as u32);
+            push_batch(&mut self.draw_batches, true, 0..glyphs.len() as u32);
+        } else {
+            for op in &list.order {
+                match *op {
+                    PaintOp::Shape(index) => {
+                        if let Some(range) = self.shape_ranges.get(index) {
+                            push_batch(&mut self.draw_batches, false, range.clone());
+                        }
+                    }
+                    PaintOp::Glyph(index) if index < list.glyphs.len() => {
+                        let start = (index * 6) as u32;
+                        push_batch(&mut self.draw_batches, true, start..start + 6);
+                    }
+                    _ => {}
+                }
+            }
+        }
         if !solids.is_empty() {
             queue.write_buffer(&self.solid_buffer, 0, bytemuck::cast_slice(&solids));
         }
@@ -882,19 +978,19 @@ impl Painter {
             self.glyph_cpu = glyphs;
             return;
         }
-        if !solids.is_empty() {
-            pass.set_pipeline(&self.solid_pipeline);
-            pass.set_bind_group(0, &solid_bind, &[]);
-            pass.set_vertex_buffer(0, self.solid_buffer.slice(..));
-            pass.draw(0..solids.len() as u32, 0..1);
-        }
-        if let Some(bind) = glyph_bind {
-            if !glyphs.is_empty() {
+        for batch in &self.draw_batches {
+            if batch.glyph {
+                let Some(bind) = &glyph_bind else { continue };
                 pass.set_pipeline(&self.glyph_pipeline);
-                pass.set_bind_group(0, &bind, &[]);
+                pass.set_bind_group(0, bind, &[]);
                 pass.set_vertex_buffer(0, self.glyph_buffer.slice(..));
-                pass.draw(0..glyphs.len() as u32, 0..1);
+            } else {
+                pass.set_pipeline(&self.solid_pipeline);
+                pass.set_bind_group(0, &solid_bind, &[]);
+                pass.set_vertex_buffer(0, self.solid_buffer.slice(..));
             }
+            pass.draw(batch.vertices.clone(), 0..1);
+            self.last_draw_calls += 1;
         }
         drop(pass);
         self.solid_cpu = solids;

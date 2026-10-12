@@ -155,3 +155,85 @@ fn procedural_patterns_and_fractional_dpi_borders_render_actual_pixels() {
     assert!(pixels.chunks_exact(4).any(|p| p[3] > 0));
     assert!(pixels.chunks_exact(4).any(|p| p[3] == 0));
 }
+
+#[test]
+fn mixed_paint_order_covers_old_glyphs_and_keeps_new_glyphs_after_clip_and_append() {
+    use motion_ui::paint::{Glyph, PaintOp};
+    let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
+    let Some(adapter) =
+        pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))
+    else {
+        panic!("UI paint-order regression requires a GPU adapter");
+    };
+    let (device, queue) =
+        pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default(), None))
+            .unwrap();
+    let mut painter = Painter::new(&device, wgpu::TextureFormat::Rgba8Unorm);
+    // A deterministic coverage atlas exercises the actual glyph pipeline without
+    // depending on platform font shape, hinting or font installation.
+    painter.upload_atlas(&device, &queue, &[255; 4], 1, 1);
+    let glyph = |position, color| Glyph {
+        position,
+        size: [8., 8.],
+        uv: [0., 0., 1., 1.],
+        color,
+    };
+    let background = Color::rgb(20, 40, 60);
+    let mut reference = PaintList::default();
+    paint::rect(&mut reference, Rect::new(0., 0., 32., 32.), background);
+    for ratio in [1., 1.25, 1.5, 1.75, 2.] {
+        let expected = capture(&device, &queue, &mut painter, &reference, [32., 32.], ratio);
+        let mut covered = PaintList::default();
+        covered.push_glyph(glyph([4., 4.], Color::rgb(255, 0, 0)));
+        paint::rect(&mut covered, Rect::new(0., 0., 32., 32.), background);
+        assert_eq!(covered.order, [PaintOp::Glyph(0), PaintOp::Shape(0)]);
+        assert_eq!(
+            capture(&device, &queue, &mut painter, &covered, [32., 32.], ratio),
+            expected
+        );
+        assert_eq!(painter.last_draw_calls, 2);
+        let mut foreground = PaintList::default();
+        paint::rect(&mut foreground, Rect::new(0., 0., 32., 32.), background);
+        foreground.push_glyph(glyph([4., 4.], Color::rgb(255, 0, 0)));
+        let above = capture(
+            &device,
+            &queue,
+            &mut painter,
+            &foreground,
+            [32., 32.],
+            ratio,
+        );
+        assert_ne!(above, expected);
+        assert!(above.chunks_exact(4).any(|pixel| pixel == [255, 0, 0, 255]));
+    }
+    let mut parent = PaintList::default();
+    parent.push_glyph(glyph([4., 4.], Color::rgb(255, 0, 0)));
+    let mut popup = PaintList::default();
+    popup.push_glyph(glyph([100., 100.], Color::rgb(255, 0, 0)));
+    paint::rect(&mut popup, Rect::new(100., 100., 8., 8.), background);
+    paint::rect(&mut popup, Rect::new(0., 0., 32., 32.), background);
+    popup.push_glyph(glyph([4., 4.], Color::rgb(0, 255, 0)));
+    popup.clip_to(Rect::new(0., 0., 32., 32.));
+    assert_eq!(popup.order, [PaintOp::Shape(0), PaintOp::Glyph(0)]);
+    parent.append(popup);
+    assert_eq!(
+        parent.order,
+        [PaintOp::Glyph(0), PaintOp::Shape(0), PaintOp::Glyph(1)]
+    );
+    let pixels = capture(&device, &queue, &mut painter, &parent, [32., 32.], 1.);
+    assert!(!pixels
+        .chunks_exact(4)
+        .any(|pixel| pixel == [255, 0, 0, 255]));
+    assert!(pixels
+        .chunks_exact(4)
+        .any(|pixel| pixel == [0, 255, 0, 255]));
+    assert_eq!(painter.last_draw_calls, 3);
+    parent.clear();
+    assert!(parent.order.is_empty());
+    paint::rect(&mut parent, Rect::new(0., 0., 32., 32.), background);
+    assert_eq!(parent.order, [PaintOp::Shape(0)]);
+    assert_eq!(
+        capture(&device, &queue, &mut painter, &parent, [32., 32.], 1.),
+        capture(&device, &queue, &mut painter, &reference, [32., 32.], 1.)
+    );
+}
