@@ -13,6 +13,8 @@ mod interaction;
 mod library;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod nudge_tests;
 mod toolbar;
 mod wires;
 use super::catalog::{operation_title, type_label};
@@ -260,6 +262,7 @@ impl NodeEditor {
         let semantic = self.semantic_revision;
         let preview_revision = self.preview_revision;
         let mut response = FrameResponse::default();
+        self.settle_nudge(input);
         if area.width() < 320. || area.height() < self.layout(area).toolbar.height() + 77. {
             self.cancel_inline();
             response.changed = revision != self.revision;
@@ -304,6 +307,7 @@ impl NodeEditor {
         if self.inline.busy() || input.pressed.is_some_and(|(_, p)| area.contains(p)) {
             self.focus = true;
         } else if input.pressed.is_some() && self.drag.is_none() {
+            self.finish_nudge();
             let _ = self.commit_field();
             self.search_focus = false;
             self.focus = false;

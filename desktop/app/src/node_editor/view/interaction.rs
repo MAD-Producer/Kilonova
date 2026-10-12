@@ -3,6 +3,7 @@ use crate::shortcuts::{self, Command, Scope};
 
 impl NodeEditor {
     pub(super) fn keyboard(&mut self, input: &Input, actions: &mut Vec<Action>) {
+        self.settle_nudge(input);
         if !self.focus {
             return;
         }
@@ -131,7 +132,7 @@ impl NodeEditor {
                         Command::MoveUp => [0., -step],
                         _ => [0., step],
                     };
-                    self.move_selected(delta);
+                    self.nudge_selected(delta);
                 }
                 _ => {}
             }
