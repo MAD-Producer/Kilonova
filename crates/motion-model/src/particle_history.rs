@@ -90,12 +90,14 @@ impl ParticleHistory {
                         && a.parent == b.parent
                         && a.timeline == b.timeline
                         && a.three_d == b.three_d
+                        && a.rotation_order == b.rotation_order
                 })
             {
                 return Ok(old.clone());
             }
         }
         let mut pose = Project::new(p.width, p.height, p.fps, p.frames)?;
+        pose.version = p.version;
         if camera_parent {
             pose.camera = p.camera.clone();
         }
@@ -106,6 +108,7 @@ impl ParticleHistory {
             skeletal.parent = node.parent.clone();
             skeletal.timeline = node.timeline;
             skeletal.three_d = node.three_d;
+            skeletal.rotation_order = node.rotation_order;
             pose.layers.push(skeletal);
         }
         Ok(Arc::new(Self {

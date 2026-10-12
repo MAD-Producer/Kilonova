@@ -57,7 +57,7 @@ class VectorPathOperationsBackendTest {
             vector(JSONObject().put("action","set_dashes").put("dashes",JSONObject().put("pattern",JSONArray().put(constant(5.0)).put(constant(5.0)))
                 .put("offset",constant(0.0))))
             val caps=data(NativeBridge.state(id)).getJSONObject("capabilities").getJSONObject("vector_drawing")
-            assertTrue(caps.getInt("protocol")>=2);assertEquals(11,data(NativeBridge.state(id)).getJSONObject("project").getInt("version"))
+            assertTrue(caps.getInt("protocol")>=2);assertEquals(16,data(NativeBridge.state(id)).getJSONObject("project").getInt("version"))
             val frozen=data(NativeBridge.state(id)).getJSONObject("project").toString()
             val still=compare(0)
             assertTrue(android.graphics.Color.alpha(still.getPixel(14,32))>200)
@@ -137,7 +137,7 @@ class VectorPathOperationsUiTest {
         scenario.onActivity{vm.undo()};settled{vm.vectorTrackRaw(vm.selected,"vector:dash_offset")?.getJSONArray("keys")?.length()==2}
         scenario.onActivity{vm.save()};settled{vm.state.saved}
         val disk=JSONObject(File(root,"project.json").readText())
-        assertEquals(11,disk.getInt("version"));assertEquals(2,disk.getJSONArray("layers").getJSONObject(0).getJSONObject("content")
+        assertEquals(16,disk.getInt("version"));assertEquals(2,disk.getJSONArray("layers").getJSONObject(0).getJSONObject("content")
             .getJSONObject("vector").getJSONObject("stroke").getJSONObject("dashes").getJSONObject("offset").getJSONArray("keys").length())
     }
 }

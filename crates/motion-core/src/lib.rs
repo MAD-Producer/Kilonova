@@ -13,6 +13,7 @@ pub use expressions::{ExpressionEvaluator, ProjectExpressions};
 pub use motion_model::{Axis, AxisTracks, Ease, Keyframe, SpatialTangents, Track, Tween};
 pub use motion_model::{AudioAsset, AudioClip};
 pub use motion_model::ClipRange;
+pub use motion_model::geometry::RotationOrder;
 pub use motion_model::{audio_levels,AudioLevels,AudioLevelsAction,AudioChannel};
 pub use motion_model::{
     to_project, to_world, Camera, CameraMode, CameraPose, ObservationView, Observer, ProjectionKind,

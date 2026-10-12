@@ -71,7 +71,7 @@ class VectorGroupContentsTest {
         scenario.onActivity{vm.save()};settled{vm.state.saved}
         compose.onNodeWithTag("vector-wheel-group:2:node:1:1-1").performScrollTo()
         screenshot("group-path-node")
-        val saved=JSONObject(File(root,"project.json").readText());assertEquals(12,saved.getInt("version"))
+        val saved=JSONObject(File(root,"project.json").readText());assertEquals(16,saved.getInt("version"))
         assertEquals(2,vm.vectorTrackRaw(vm.selected,key)!!.getJSONArray("keys").length())
         compose.onNodeWithTag("vector:group:2-delete-node").performScrollTo().performClick()
         settled{group().getJSONArray("items").getJSONObject(0).getJSONObject("vector").getJSONObject("source").getJSONArray("paths").getJSONObject(0).getJSONArray("nodes").length()==3}

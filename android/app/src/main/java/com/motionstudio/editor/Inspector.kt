@@ -186,6 +186,9 @@ private class ValueDrag(private val vm:EditorViewModel) {
                     }
                     if(!camera)DropdownMenuItem(text={Text("显示中心点")},trailingIcon={Checkbox(vm.showLayerCenters,null)},modifier=Modifier.testTag("show-layer-centers"),onClick={vm.toggleLayerCenters();more=false})
                     if(vm.canSeparate())DropdownMenuItem(text={Text("分离 XYZ")},modifier=Modifier.testTag("separate-dimensions"),enabled=vm.editable(),onClick={more=false;vm.separateDimensions()})
+                    if(!camera&&threeD&&vm.rotationOrderSupported())DropdownMenuItem(text={Text("固定轴顺序 X→Y→Z")},
+                        trailingIcon={Checkbox(vm.fixedRotationOrder(),null)},enabled=vm.editable(),modifier=Modifier.testTag("rotation-order-toggle"),
+                        onClick={vm.setFixedRotationOrder(!vm.fixedRotationOrder());more=false})
                     DropdownMenuItem(text={Text("父级")},enabled=vm.editable(),onClick={more=false;parenting=true})
                     if(camera) {
                         DropdownMenuItem(text={Text(if(mode=="orbit")"切换位置路径" else "切换环绕轨道")},onClick={more=false;vm.cameraMode(mode!="orbit");vm.property=if(mode=="orbit")"position" else "radius"})

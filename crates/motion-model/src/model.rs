@@ -129,6 +129,8 @@ pub struct Layer {
     /// New layers are flat until the user explicitly enables spatial transforms.
     #[serde(default)]
     pub three_d: bool,
+    #[serde(default,skip_serializing_if="crate::geometry::default_rotation_order")]
+    pub rotation_order:crate::geometry::RotationOrder,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<ParentLink>,
     #[serde(default)]
@@ -157,6 +159,7 @@ impl Layer {
             visible: true,
             locked: false,
             three_d: false,
+            rotation_order:Default::default(),
             parent: None,
             effects: Vec::new(),
             masks: Vec::new(),
@@ -316,7 +319,7 @@ impl Project {
             crate::storage::validate_relative_path(&font.path)?;
             ensure(font.path.starts_with("assets/fonts/")&&font.path.ends_with(".ttf"),"invalid managed font path")?;
         }
-        ensure((1..=15).contains(&self.version), "unsupported project format")?;
+        ensure((1..=16).contains(&self.version), "unsupported project format")?;
         ensure(self.plugin_dependencies == self.composition_dependencies(),
                "plugin dependency list does not match effect instances")?;
         self.validate_one(self)?;
@@ -325,7 +328,7 @@ impl Project {
     pub(crate) fn validate_one(&self, document: &Project) -> Result<()> {
         crate::effects::validate_image_graph(self)?;
         ensure(
-            (1..=15).contains(&self.version),
+            (1..=16).contains(&self.version),
             "unsupported project format",
         )?;
         let spatial = [&self.camera.position, &self.camera.target].iter().any(|t| t.keys.iter().any(|k| k.spatial.is_some()))
@@ -445,6 +448,7 @@ impl Project {
         let mut ids = HashSet::new();
         crate::compositing::validate(&self.layers)?;
         for layer in &self.layers {
+            ensure(self.version>=16||layer.rotation_order==crate::geometry::RotationOrder::LocalXyz,"fixed-axis rotations require project format sixteen")?;
             if let Some(levels)=&layer.audio_levels {
                 ensure(self.version>=14,"audio level envelopes require project format fourteen")?;
                 ensure(matches!(layer.content,Content::Audio{..}|Content::Video{..}|Content::Composition{..}),

@@ -610,6 +610,8 @@ impl Project {
         l.content = Content::Composition {
             clip: CompositionClip::new(target.into()),
         };
+        l.rotation_order=crate::geometry::RotationOrder::FixedXyz;
+        self.version=self.version.max(16);
         l.timeline = Some(LayerTimeline {
             in_frame: at_frame as i32,
             out_frame: self.frames as i32,

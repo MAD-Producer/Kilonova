@@ -93,6 +93,7 @@ pub enum Command {
         out_frame: i32,
     },
     SetLayerRange {object:u64,in_frame:f64,out_frame:f64},
+    SetRotationOrder {object:u64,order:crate::geometry::RotationOrder},
     SplitLayerClip {
         object: u64,
         frame: u32,
