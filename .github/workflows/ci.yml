@@ -58,6 +58,10 @@ jobs:
           test -z "$(git ls-files docs)"
       - name: Run Rust and software Vulkan tests
         run: cargo test --workspace --locked --features motion-android/diagnostics -- --test-threads=1
+      - name: Validate SDK packer with the Rust loader
+        run: |
+          cargo build --locked -p motion-effects --bin effect_tool
+          MOTION_EFFECT_VALIDATOR="$GITHUB_WORKSPACE/target/debug/effect_tool" python -m unittest discover -s sdk/tests -v
       - name: Validate portable loop bounds in release
         run: cargo test --locked --release -p motion-effects --lib --test loop_work -- --test-threads=1
       - name: Summarize effect costs

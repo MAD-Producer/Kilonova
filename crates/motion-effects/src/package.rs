@@ -184,24 +184,57 @@ impl EffectPackage {
         Self::from_bytes(bytes)
     }
 }
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SourceFilePlan {
+    pub name: String,
+    pub byte_limit: usize,
+}
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SourcePackagePlan {
+    pub protocol: u32,
+    pub plugin: String,
+    pub version: String,
+    pub manifest_sha256: String,
+    pub manifest_byte_limit: usize,
+    pub package_byte_limit: usize,
+    pub files: Vec<SourceFilePlan>,
+}
+fn declared_files(manifest: &PluginManifest) -> Result<BTreeSet<String>> {
+    let mut names = BTreeSet::from(["manifest.json".to_owned()]);
+    for effect in &manifest.effects {
+        if let Some(editor) = &effect.editor { names.extend(editor.files.iter().cloned()); }
+        names.extend(effect.passes.iter().map(|pass| pass.shader.clone()));
+        names.extend(effect.resources.iter().cloned());
+    }
+    ensure(names.len() <= 256, "too many effect package entries")?;
+    let lowered: BTreeSet<_> = names.iter().map(|name| name.to_lowercase()).collect();
+    ensure(lowered.len() == names.len(), "duplicate case-insensitive package entry")?;
+    Ok(names)
+}
+/// Use the loader's schema, reference set and budgets for external packers.
+/// Full PNG/WGSL validation still runs on the resulting archive before publication.
+pub fn package_source_plan(path: &Path) -> Result<SourcePackagePlan> {
+    let data = read_file_bounded(path, MAX_MANIFEST, "manifest.json")?;
+    let manifest: PluginManifest = serde_json::from_slice(&data)?;
+    manifest.validate()?;
+    let files = declared_files(&manifest)?.into_iter().map(|name| {
+        Ok(SourceFilePlan { byte_limit: resource_limit(&name)?, name })
+    }).collect::<Result<Vec<_>>>()?;
+    Ok(SourcePackagePlan {
+        protocol: 1, plugin: manifest.id, version: manifest.version,
+        manifest_sha256: format!("{:x}", Sha256::digest(&data)),
+        manifest_byte_limit: MAX_MANIFEST, package_byte_limit: MAX_PACKAGE, files,
+    })
+}
+
 pub fn package_directory(path: &Path) -> Result<Vec<u8>> {
     let base = path.canonicalize()?;
     let mut manifest_data = read_file_bounded(&source_file(&base, "manifest.json")?, MAX_MANIFEST, "manifest.json")?;
     let manifest: PluginManifest = serde_json::from_slice(&manifest_data)?;
     manifest.validate()?;
-    let mut names = BTreeSet::from(["manifest.json".to_owned()]);
-    for effect in &manifest.effects {
-        if let Some(editor) = &effect.editor {
-            names.extend(editor.files.iter().cloned());
-        }
-        for pass in &effect.passes {
-            names.insert(pass.shader.clone());
-        }
-        for resource in &effect.resources {
-            names.insert(resource.clone());
-        }
-    }
-    ensure(names.len() <= 256, "too many effect package entries")?;
+    let names = declared_files(&manifest)?;
     let mut writer = ZipWriter::new(std::io::Cursor::new(Vec::new()));
     let options = SimpleFileOptions::default()
         .compression_method(CompressionMethod::Deflated)
