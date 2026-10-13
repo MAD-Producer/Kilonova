@@ -63,6 +63,7 @@ jobs:
         run: |
           cargo build --locked -p motion-effects --bin effect_tool
           MOTION_EFFECT_VALIDATOR="$GITHUB_WORKSPACE/target/debug/effect_tool" python -m unittest discover -s sdk/tests -v
+          python tools/validation_inventory.py --effect-validator "$GITHUB_WORKSPACE/target/debug/effect_tool"
       - name: Validate portable loop bounds in release
         run: cargo test --locked --release -p motion-effects --lib --test loop_work -- --test-threads=1
       - name: Summarize effect costs

@@ -64,7 +64,7 @@ def verify_mcp(binary: Path, output: Path) -> None:
             received: queue.Queue[str | None] = queue.Queue()
 
             def read() -> None:
-                assert process.stdout
+                if not (process.stdout): raise RuntimeError('Desktop MCP stdout pipe is unavailable')
                 for line in process.stdout:
                     received.put(line)
                 received.put(None)
@@ -80,7 +80,7 @@ def verify_mcp(binary: Path, output: Path) -> None:
                     message["id"] = sequence
                 if params is not None:
                     message["params"] = params
-                assert process.stdin
+                if not (process.stdin): raise RuntimeError('Desktop MCP stdin pipe is unavailable')
                 process.stdin.write(json.dumps(message, ensure_ascii=False) + "\n")
                 process.stdin.flush()
                 if notification:
@@ -112,7 +112,7 @@ def verify_mcp(binary: Path, output: Path) -> None:
                 result = send("tools/call", {"name": "motion_save", "arguments": {}})
                 if result.get("isError"):
                     raise RuntimeError("shared save failed")
-                assert process.stdin
+                if not (process.stdin): raise RuntimeError('Desktop MCP stdin pipe is unavailable')
                 process.stdin.close()
                 if process.wait(timeout=40) != 0:
                     raise RuntimeError("shared-window acceptance failed")
