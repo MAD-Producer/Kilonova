@@ -8,6 +8,7 @@
 use crate::input::Rect;
 use crate::theme::Color;
 use wgpu::util::DeviceExt;
+mod strokes;
 
 /// One drawable shape.
 #[derive(Clone, Debug)]
@@ -20,13 +21,18 @@ pub enum Shape {
     },
     /// Convex quad in logical pixels, wound for a triangle strip.
     Quad { points: [[f32; 2]; 4] },
-    /// Polyline expanded to a strip on the CPU.
-    Line { points: Vec<[f32; 2]> },
+    /// Connected, coverage-antialiased one-pixel stroke. Keep its original
+    /// centerline through clipping; the painter clips its expanded fringe.
+    Line {
+        points: Vec<[f32; 2]>,
+        clip: Option<Rect>,
+    },
     /// Precompiled SVG geometry, in independent triangle-list order.
     Triangles { points: Vec<[f32; 2]> },
 }
 #[derive(Clone, Debug)]
 pub enum Pattern {
+    Diamond,
     Box {
         border: Color,
         width: f32,
@@ -152,6 +158,23 @@ impl PaintList {
             .zip(std::mem::take(&mut self.colors))
             .enumerate()
         {
+            if let Shape::Line { clip, .. } = &mut shape {
+                let bounds = clip.get_or_insert(area);
+                bounds.min = [
+                    bounds.min[0].max(area.min[0]),
+                    bounds.min[1].max(area.min[1]),
+                ];
+                bounds.max = [
+                    bounds.max[0].min(area.max[0]),
+                    bounds.max[1].min(area.max[1]),
+                ];
+                if bounds.width() > 0. && bounds.height() > 0. {
+                    shape_map[old] = Some(shapes.len());
+                    shapes.push(shape);
+                    colors.push(color);
+                }
+                continue;
+            }
             if let Shape::Procedural { clip, .. } = &mut shape {
                 clip.min = [clip.min[0].max(area.min[0]), clip.min[1].max(area.min[1])];
                 clip.max = [clip.max[0].min(area.max[0]), clip.max[1].min(area.max[1])];
@@ -178,13 +201,11 @@ impl PaintList {
             };
             let all_inside = match &shape {
                 Shape::Quad { points } => points.iter().all(inside),
-                Shape::Line { points } => points.iter().all(inside),
                 _ => false,
             };
             if !all_inside {
                 let triangles = match &shape {
                     Shape::Quad { points } => expand_quad(*points).to_vec(),
-                    Shape::Line { points } => expand_line(points),
                     _ => unreachable!(),
                 };
                 let points = clip_triangles(&triangles, area);
@@ -463,17 +484,23 @@ pub fn rect(list: &mut PaintList, area: Rect, color: Color) {
     );
 }
 
-/// Stroke a rectangle outline of `thickness` logical pixels.
+/// Filled analytic diamond; its diagonal edges retain fractional coverage.
 pub fn diamond(list: &mut PaintList, center: [f32; 2], radius: f32, color: Color) {
+    if !radius.is_finite() || radius <= 0. || color.0[3] <= 0. {
+        return;
+    }
     let [x, y] = center;
+    let area = Rect::new(x - radius, y - radius, 2. * radius, 2. * radius);
     list.push_shape(
-        Shape::Quad {
-            points: [
-                [x, y - radius],
-                [x + radius, y],
-                [x, y + radius],
-                [x - radius, y],
-            ],
+        Shape::Procedural {
+            area,
+            clip: Rect::new(
+                x - radius - 1.,
+                y - radius - 1.,
+                2. * radius + 2.,
+                2. * radius + 2.,
+            ),
+            kind: Pattern::Diamond,
         },
         color,
     );
@@ -518,11 +545,14 @@ pub fn stroke(list: &mut PaintList, area: Rect, color: Color, thickness: f32) {
     list.push_shape(Shape::Triangles { points }, color);
 }
 
-pub fn line(list: &mut PaintList, points: Vec<[f32; 2]>, color: Color) {
-    if points.len() < 2 || color.0[3] <= 0.0 {
+pub fn line(list: &mut PaintList, mut points: Vec<[f32; 2]>, color: Color) {
+    if points.len() < 2 || color.0[3] <= 0.0 || points.iter().flatten().any(|v| !v.is_finite()) {
         return;
     }
-    list.push_shape(Shape::Line { points }, color);
+    points.dedup_by(|a, b| (a[0] - b[0]).hypot(a[1] - b[1]) <= f32::EPSILON);
+    if points.len() > 1 {
+        list.push_shape(Shape::Line { points, clip: None }, color);
+    }
 }
 
 /// Alpha checkerboard for transparent pixels.
@@ -545,28 +575,6 @@ fn expand_quad(points: [[f32; 2]; 4]) -> [[f32; 2]; 6] {
     ]
 }
 
-fn expand_line(points: &[[f32; 2]]) -> Vec<[f32; 2]> {
-    let mut out = Vec::with_capacity(points.len().saturating_sub(1) * 6);
-    for pair in points.windows(2) {
-        let a = pair[0];
-        let b = pair[1];
-        let dx = b[0] - a[0];
-        let dy = b[1] - a[1];
-        let length = dx.hypot(dy);
-        if length <= f32::EPSILON {
-            continue;
-        }
-        let nx = -dy / length * 0.5;
-        let ny = dx / length * 0.5;
-        out.extend_from_slice(&expand_quad([
-            [a[0] + nx, a[1] + ny],
-            [b[0] + nx, b[1] + ny],
-            [b[0] - nx, b[1] - ny],
-            [a[0] - nx, a[1] - ny],
-        ]));
-    }
-    out
-}
 fn upload_color(mut rgba: [f32; 4], srgb: bool) -> [f32; 4] {
     if srgb {
         for component in &mut rgba[..3] {
@@ -905,6 +913,7 @@ impl Painter {
                     }
                     let geometry = [area.min[0], area.min[1], area.width(), area.height()];
                     let (params, extra, secondary) = match kind {
+                        Pattern::Diamond => ([6., 0., 0., 0.], [0.; 4], [0.; 4]),
                         Pattern::Box {
                             border,
                             width,
@@ -976,10 +985,8 @@ impl Painter {
                         solids.push(SolidVertex::plain(vertex, rgba));
                     }
                 }
-                Shape::Line { points } => {
-                    for vertex in expand_line(points) {
-                        solids.push(SolidVertex::plain(vertex, rgba));
-                    }
+                Shape::Line { points, clip } => {
+                    strokes::append(&mut solids, points, rgba, scale, *clip);
                 }
                 Shape::Triangles { points } => {
                     solids.extend(
@@ -1181,10 +1188,19 @@ mod tests {
 
     #[test]
     fn polylines_expand_to_triangles_without_dropping_the_last_segment() {
-        let line = expand_line(&[[0.0, 0.0], [10.0, 0.0], [10.0, 10.0]]);
+        let mut line = vec![];
+        strokes::append(
+            &mut line,
+            &[[0.0, 0.0], [10.0, 0.0], [10.0, 10.0]],
+            [1.; 4],
+            [1.; 2],
+            None,
+        );
         assert_eq!(line.len(), 12);
-        assert!(line.iter().any(|p| (p[1] - 10.0).abs() < 0.01));
-        assert!(expand_line(&[[1.0, 1.0], [1.0, 1.0]]).is_empty());
+        assert!(line.iter().any(|p| p.position[1] > 10.));
+        let mut list = PaintList::default();
+        super::line(&mut list, vec![[1., 1.], [1., 1.]], Color::grey(255));
+        assert!(list.shapes.is_empty());
     }
 
     #[test]
