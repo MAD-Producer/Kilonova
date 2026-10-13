@@ -19,41 +19,15 @@ struct Entry {
 fn entries(catalogue: &Value, query: &str, locale: Locale, object: u64) -> Vec<Entry> {
     let query = query.trim().to_lowercase();
     let mut result = vec![];
-    for package in catalogue["packages"].as_array().into_iter().flatten() {
-        let manifest = &package["manifest"];
-        for effect in manifest["effects"].as_array().into_iter().flatten() {
-            let id = effect["id"].as_str().unwrap_or("");
-            let name = if locale == Locale::Zh {
-                effect["name"].as_str()
-            } else {
-                effect["english_name"].as_str()
-            }
-            .or_else(|| effect["name"].as_str())
-            .unwrap_or(id);
-            let category = manifest["name"].as_str().unwrap_or("");
-            if !query.is_empty()
-                && ![
-                    name,
-                    id,
-                    category,
-                    effect["name"].as_str().unwrap_or(""),
-                    effect["english_name"].as_str().unwrap_or(""),
-                    effect["category"].as_str().unwrap_or(""),
-                ]
-                .iter()
-                .any(|s| s.to_lowercase().contains(&query))
-            {
-                continue;
-            }
-            result.push(Entry {
-                name: name.into(),
-                category: category.into(),
-                command: json!({
-                    "op":"add", "object":object, "plugin":manifest["id"],
-                    "version":manifest["version"], "hash":package["hash"], "effect":id
-                }),
-            });
-        }
+    for effect in super::effect_controls::entries(catalogue, locale)
+        .into_iter()
+        .filter(|e| e.supported && e.matches(&query))
+    {
+        result.push(Entry {
+            name: effect.name.clone(),
+            category: effect.category.clone(),
+            command: effect.command(object),
+        });
     }
     result.sort_by(|a, b| a.name.cmp(&b.name));
     result

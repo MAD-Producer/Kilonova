@@ -13,13 +13,14 @@ impl Shell {
             "home",
             "composition-settings",
             "workspace-manager",
+            "effect-library",
             "timeline-parent-menu",
             "timeline-blend-menu",
             "timeline-graph",
             "value-graph",
             "speed-graph",
         ] {
-            let graph_preset = if screen.starts_with("timeline-") {
+            let graph_preset = if screen.starts_with("timeline-") || screen == "effect-library" {
                 workspace::Preset::Default
             } else {
                 workspace::Preset::Animation
@@ -57,6 +58,28 @@ impl Shell {
                         &Input::default(),
                         self.workspace.locale,
                     );
+                }
+                "effect-library" => {
+                    let old = std::mem::take(&mut self.panels.browser);
+                    self.panels.browser.catalogue = self.panels.effect_controls.catalogue.clone();
+                    self.panels.browser.favorites = self.workspace.favorites.clone();
+                    self.panels
+                        .browser
+                        .preview_categories(self.workspace.locale);
+                    let layout = workspace::Workspace::design_layout(workspace::Preset::Default);
+                    let actions = panels::chrome(
+                        &mut paint,
+                        &mut self.atlas,
+                        size,
+                        &layout,
+                        &mut self.panels,
+                        &self.state,
+                        &Input::default(),
+                    );
+                    self.panels.browser = old;
+                    if !actions.is_empty() {
+                        return Err("effect library capture must not edit the project".into());
+                    }
                 }
                 "timeline-parent-menu" | "timeline-blend-menu" => {
                     let old = self.panels.timeline.clone();
@@ -157,7 +180,8 @@ impl Shell {
                 }
             }
             let mut ui = self.ui_frame(paint, size, true);
-            if !screen.ends_with("graph") && !screen.ends_with("menu") {
+            if !screen.ends_with("graph") && !screen.ends_with("menu") && screen != "effect-library"
+            {
                 ui.composition = None;
                 ui.node_preview = None;
             } else {

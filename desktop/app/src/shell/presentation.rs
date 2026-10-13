@@ -757,6 +757,17 @@ impl Shell {
             WindowEvent::CursorMoved { position, .. } => Some(Event::MouseMoved {
                 position: [position.x as f32 / f.scale, position.y as f32 / f.scale],
             }),
+            WindowEvent::DroppedFile(path)
+                if path
+                    .extension()
+                    .is_some_and(|ext| ext.to_string_lossy().eq_ignore_ascii_case("msfx")) =>
+            {
+                self.actions
+                    .push_back(panels::Action::ImportEffectPath(path));
+                self.dirty = true;
+                self.redraw();
+                return;
+            }
             WindowEvent::MouseInput { state, button, .. } => {
                 let button = match button {
                     WinitMouseButton::Left => MouseButton::Left,

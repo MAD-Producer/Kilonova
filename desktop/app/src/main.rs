@@ -2,6 +2,7 @@
 mod audio_output;
 mod cursors;
 mod dialogs;
+mod effect_import;
 mod engine;
 mod home;
 mod i18n;
@@ -227,6 +228,7 @@ struct Shell {
     export_notified: bool,
     importing_image: Option<std::sync::mpsc::Receiver<Result<Value, String>>>,
     importing_media: Option<(String, Instant)>,
+    importing_effect: Option<effect_import::Task>,
     attaching: Option<std::sync::mpsc::Receiver<Result<Value, String>>>,
     attached: bool,
     rendering: std::collections::HashMap<u64, std::sync::mpsc::Receiver<Result<bool, String>>>,
@@ -316,6 +318,7 @@ impl Shell {
             export_notified: false,
             importing_image: None,
             importing_media: None,
+            importing_effect: None,
             attaching: None,
             attached: false,
             rendering: Default::default(),
@@ -479,6 +482,8 @@ impl ApplicationHandler<UserEvent> for Shell {
                         || matches!(ext.as_str(), "aem" | "msproj")
                     {
                         panels::Action::OpenPath(path)
+                    } else if ext == "msfx" {
+                        panels::Action::ImportEffectPath(path)
                     } else {
                         panels::Action::ImportPath(path)
                     },
@@ -581,6 +586,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.dirty = true;
             }
         }
+        self.poll_effect_import();
         if let Err(error) = self.poll_import() {
             self.panels.message = Some(self.workspace.locale.error(&error));
             self.dirty = true;
@@ -851,6 +857,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             || self.dirty
             || self.importing_image.is_some()
             || self.importing_media.is_some()
+            || self.importing_effect.is_some()
             || self.freezing_movie.is_some()
             || self.exporting_movie.as_ref().is_some_and(|e| !e.finished())
         {

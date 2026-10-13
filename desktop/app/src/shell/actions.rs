@@ -84,6 +84,23 @@ impl Shell {
         {
             return Err(self.workspace.locale.t(T::Importing).into());
         }
+        if self.importing_effect.is_some()
+            && matches!(
+                &action,
+                Action::New
+                    | Action::Open
+                    | Action::OpenPath(_)
+                    | Action::ImportEffectPackage
+                    | Action::ImportEffectPath(_)
+            )
+        {
+            return Err(if self.workspace.locale == Locale::Zh {
+                "正在导入效果包，请稍候"
+            } else {
+                "Wait for the effect package import to finish"
+            }
+            .into());
+        }
         match action {
             Action::ProjectChoice(choice) => self.choose_project_change(choice)?,
             Action::Node(action) => self.node_action(action)?,
@@ -148,6 +165,20 @@ impl Shell {
                 self.stop();
                 self.state = self.engine.plugin(request.to_string())?;
             }
+            Action::ImportEffectPackage => {
+                if let Some(path) = rfd::FileDialog::new()
+                    .set_title(if self.workspace.locale == Locale::Zh {
+                        "导入效果包"
+                    } else {
+                        "Import effect package"
+                    })
+                    .add_filter("Motion Studio Effects", &["msfx"])
+                    .pick_file()
+                {
+                    self.start_effect_import(path)?;
+                }
+            }
+            Action::ImportEffectPath(path) => self.start_effect_import(path)?,
             Action::ImportMedia => {
                 if let Some(path) = rfd::FileDialog::new()
                     .set_title(self.workspace.locale.t(T::ImportMedia))

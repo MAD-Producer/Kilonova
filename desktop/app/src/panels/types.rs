@@ -12,6 +12,8 @@ pub enum Action {
     Save,
     ProjectChoice(crate::node_tasks::CloseChoice),
     ImportMedia,
+    ImportEffectPackage,
+    ImportEffectPath(std::path::PathBuf),
     ImportPath(std::path::PathBuf),
     CancelImport,
     ExportPng,

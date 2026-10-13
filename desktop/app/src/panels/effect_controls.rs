@@ -13,6 +13,8 @@ use motion_ui::{
 };
 use serde_json::Value;
 use std::collections::HashMap;
+mod library;
+pub(super) use library::entries;
 
 #[derive(Default)]
 pub struct Controls {
@@ -21,6 +23,11 @@ pub struct Controls {
     pub drag_readout: Option<([f32; 2], String)>,
     pub choosing: bool,
     library_tab: usize,
+    library_initialized: bool,
+    library_scroll: motion_ui::widgets::ScrollArea,
+    library_selected: Option<String>,
+    library_last_click: Option<(String, std::time::Instant)>,
+    pub importing_package: bool,
     recent: Vec<String>,
     query: String,
     search: motion_ui::widgets::SearchField,
@@ -97,39 +104,15 @@ fn press(
     );
     enabled && clicked(input, rect)
 }
-fn category(effect: &Value, locale: Locale) -> String {
-    let id = effect["id"].as_str().unwrap_or("").to_lowercase();
-    let key = effect["category"]
-        .as_str()
-        .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| {
-            if id.contains("glow") || id.contains("bloom") || id.contains("light") {
-                "lighting"
-            } else if id.contains("blur") || id.contains("sharp") {
-                "blur-sharpen"
-            } else if id.contains("color")
-                || id.contains("brightness")
-                || id.contains("contrast")
-                || id.contains("level")
-            {
-                "color-correction"
-            } else if id.contains("particle") || id.contains("dust") {
-                "particles"
-            } else if id.contains("transform") || id.contains("displace") || id.contains("warp") {
-                "distort"
-            } else if id.contains("noise") || id.contains("grain") {
-                "noise-grain"
-            } else {
-                "other"
-            }
-        });
+pub(super) fn category(effect: &Value, locale: Locale) -> String {
+    let key = effect["category"].as_str().unwrap_or("").trim();
     let zh = locale == Locale::Zh;
     match key {
-        "lighting" | "light" => {
+        "" => {
             if zh {
-                "光效"
+                "未分类"
             } else {
-                "Lighting"
+                "Uncategorized"
             }
         }
         "blur-sharpen" => {
@@ -144,6 +127,13 @@ fn category(effect: &Value, locale: Locale) -> String {
                 "颜色校正"
             } else {
                 "Color Correction"
+            }
+        }
+        "lighting" => {
+            if zh {
+                "光效"
+            } else {
+                "Lighting"
             }
         }
         "particles" => {
@@ -167,17 +157,11 @@ fn category(effect: &Value, locale: Locale) -> String {
                 "Noise & Grain"
             }
         }
-        "other" => {
-            if zh {
-                "其他"
-            } else {
-                "Other"
-            }
-        }
-        _ => return key.replace(['-', '_'], " "),
+        _ => key,
     }
-    .into()
+    .to_string()
 }
+
 fn dimensions(kind: &str) -> usize {
     match kind {
         "vec2" => 2,
@@ -268,9 +252,10 @@ impl Controls {
         locale: Locale,
         out: &mut Vec<Action>,
     ) {
-        self.choosing = true;
-        self.render_mode(true, list, atlas, area, y, layer, state, input, locale, out);
+        self.draw_library(list, atlas, area, layer, input, locale, out);
+        *y = area.max[1];
     }
+
     fn render_mode(
         &mut self,
         library: bool,
@@ -399,67 +384,23 @@ impl Controls {
                 }
             }
             *y += 28.;
-            let mut seen = std::collections::HashSet::new();
-            // Group effects by category for AE-style organization
-            let mut categories: std::collections::HashMap<
-                String,
-                Vec<(String, String, String, String)>,
-            > = std::collections::HashMap::new();
-
-            for package in self.catalogue["packages"]
-                .as_array()
+            let mut categories: HashMap<String, Vec<(String, String, String, String)>> =
+                HashMap::new();
+            let query = self.query.trim().to_lowercase();
+            for e in entries(&self.catalogue, locale)
                 .into_iter()
-                .flatten()
-                .filter(|p| p["enabled"] != false)
+                .filter(|e| e.supported && e.matches(&query))
             {
-                for effect in package["manifest"]["effects"]
-                    .as_array()
-                    .into_iter()
-                    .flatten()
+                if self.library_tab == 1 && !self.favorites.contains(&e.key)
+                    || self.library_tab == 2 && !self.recent.contains(&e.key)
                 {
-                    let name = if locale == Locale::Zh {
-                        effect["name"].as_str()
-                    } else {
-                        effect["english_name"].as_str()
-                    }
-                    .unwrap_or("Effect");
-
-                    if !self.query.is_empty()
-                        && !name.to_lowercase().contains(&self.query.to_lowercase())
-                        && !effect["id"]
-                            .as_str()
-                            .unwrap_or("")
-                            .contains(&self.query.to_lowercase())
-                    {
-                        continue;
-                    }
-
-                    let favorite = format!(
-                        "{}/{}",
-                        package["manifest"]["id"].as_str().unwrap_or(""),
-                        effect["id"].as_str().unwrap_or("")
-                    );
-                    if !seen.insert(favorite.clone())
-                        || self.library_tab == 1 && !self.favorites.contains(&favorite)
-                        || self.library_tab == 2 && !self.recent.contains(&favorite)
-                    {
-                        continue;
-                    }
-                    categories
-                        .entry(category(effect, locale))
-                        .or_default()
-                        .push((
-                            package["manifest"]["id"].as_str().unwrap_or("").to_string(),
-                            package["manifest"]["version"]
-                                .as_str()
-                                .unwrap_or("")
-                                .to_string(),
-                            package["hash"].as_str().unwrap_or("").to_string(),
-                            effect["id"].as_str().unwrap_or("").to_string(),
-                        ));
+                    continue;
                 }
+                categories
+                    .entry(e.category)
+                    .or_default()
+                    .push((e.plugin, e.version, e.hash, e.id));
             }
-
             for effects in categories.values_mut() {
                 effects.sort_by_key(|(plugin, _, _, effect)| {
                     (
