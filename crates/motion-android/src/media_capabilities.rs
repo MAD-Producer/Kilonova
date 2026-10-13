@@ -175,10 +175,7 @@ fn query_with_env(env: &mut JNIEnv, target: Option<&VideoQuery>) -> Result<Value
             "requires_probe":true,"probe_operation":"probe_media","decoder_presence_guarantees_file_support":false,
             "project_package":motion_host::ops::media::package_limits(),"max_source_bytes":motion_core::storage::MAX_MEDIA_ASSET,"max_duration_seconds":3600,"max_pcm_cache_bytes":motion_media::Limits::default().cache_bytes}))
     })();
-    if env.exception_check().unwrap_or(false) {
-        let _ = env.exception_clear();
-    }
-    result.map_err(|e| format!("media capability query failed: {e}"))
+    result.map_err(|error| format!("media capability query failed: {}", crate::bridge::java_error(env, error)))
 }
 
 /// Attach the calling thread to the JVM and enumerate the decoder inventory.
