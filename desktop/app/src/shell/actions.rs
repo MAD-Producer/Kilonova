@@ -505,9 +505,12 @@ impl Shell {
             }
             Action::Save => {
                 if self.panels.node_editor.layer_target.is_some() {
-                    self.node_action(node_editor::Action::Save(
-                        self.panels.node_editor.snapshot(),
-                    ))?;
+                    let save = self
+                        .panels
+                        .node_editor
+                        .request(node_editor::Request::Save)
+                        .map_err(|e| e.to_string())?;
+                    self.node_action(save)?;
                     return Ok(());
                 }
                 self.state = self.engine.save()?;

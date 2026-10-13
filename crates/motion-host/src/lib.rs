@@ -22,6 +22,7 @@
 //! ```
 #![recursion_limit = "256"]
 
+mod node_effects;
 pub mod ops;
 pub mod platform;
 pub mod preview_inputs;

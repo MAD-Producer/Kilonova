@@ -134,9 +134,9 @@ impl Session {
             .parent()
             .ok_or("project directory has no parent")?
             .join("plugins");
-        let effects = motion_render::effect_plan::PlanBuilder::new(
-            motion_effects::Registry::load(&plugin_root).map_err(|e| e.to_string())?,
-        )?;
+        let mut registry=motion_effects::Registry::load(&plugin_root).map_err(|e|e.to_string())?;
+        crate::node_effects::restore(project,&mut registry)?;
+        let effects = motion_render::effect_plan::PlanBuilder::new(registry)?;
         let video_jobs = VideoJobs::with_audio_decoder(root.clone(), audio_decoder(&platform))?;
         let audio_jobs =
             AudioJobs::with_decoder(root.clone(), Limits::default(), audio_decoder(&platform))?;
@@ -221,6 +221,8 @@ impl Session {
     }
 
     pub fn replace_project(&mut self, engine: Engine, root: PathBuf) -> Result<()> {
+        let mut registry=self.effects.registry.clone();
+        crate::node_effects::restore(engine.project(),&mut registry)?;
         let platform = self.platform.clone();
         let audio_jobs =
             AudioJobs::with_decoder(root.clone(), Limits::default(), audio_decoder(&platform))?;
@@ -237,6 +239,8 @@ impl Session {
         }
         self.editor_renderer = None;
         self.editor_target = None;
+        self.effects.set_registry(registry.clone());
+        if let Some(graphics)=&mut self.graphics{graphics.renderer.set_effect_registry(registry);}
         self.effects.alpha_images.clear();
         self.scene = Scene::new(engine.project());
         self.observer = Observer::new(engine.project().width, engine.project().height);

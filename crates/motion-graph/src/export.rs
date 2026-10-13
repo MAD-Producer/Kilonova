@@ -11,7 +11,6 @@ use std::{
     },
     time::{SystemTime, UNIX_EPOCH},
 };
-use zip::{write::SimpleFileOptions, CompressionMethod, ZipWriter};
 
 #[derive(Clone, Debug, Serialize)]
 pub struct ExportReport {
@@ -30,9 +29,9 @@ pub fn compiled_package_bytes(
     manifest: &motion_effects::PluginManifest,
     source: &str,
 ) -> Result<Vec<u8>> {
-    let mut zip = ZipWriter::new(Cursor::new(Vec::new()));
-    let settings = SimpleFileOptions::default()
-        .compression_method(CompressionMethod::Deflated)
+    let mut zip = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    let settings = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated)
         .last_modified_time(zip::DateTime::default())
         .unix_permissions(0o644);
     zip.start_file("manifest.json", settings)?;

@@ -744,15 +744,16 @@ impl Shell {
                 return Err("project reopen lost editable graph source".into());
             }
             let package = self.engine.pack()?;
+            let isolated_root = directory.join(format!(
+                "bound-package-reopened-{}/project",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_nanos()
+            ));
             let imported = motion_core::storage::import_package(
                 std::path::Path::new(package["path"].as_str().unwrap()),
-                &directory.join(format!(
-                    "bound-package-reopened-{}",
-                    std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .as_nanos()
-                )),
+                &isolated_root,
             )
             .map_err(|e| e.to_string())?;
             if !imported.layers.iter().flat_map(|l| &l.effects).any(|e| {
@@ -762,6 +763,26 @@ impl Shell {
             }) {
                 return Err("packed project lost graph source or runtime package".into());
             }
+            let offline = Engine::start(isolated_root, motion_desktop_media::platform(), 8 << 30)?;
+            offline.seek(self.frame)?;
+            let captured = offline.capture()?;
+            let image = image::open(captured["path"].as_str().ok_or("offline capture missing")?)
+                .map_err(|e| e.to_string())?
+                .to_rgba8();
+            let fingerprint = image.as_raw().iter().fold(0xcbf29ce484222325u64, |h, b| {
+                (h ^ u64::from(*b)).wrapping_mul(0x100000001b3)
+            });
+            if format!("{fingerprint:016x}")
+                != self.smoke_node_report["layerParameter"]["fingerprint"]
+                    .as_str()
+                    .unwrap()
+            {
+                return Err(
+                    "offline project package did not restore the last valid node effect pixels"
+                        .into(),
+                );
+            }
+            self.smoke_node_report["layerOfflinePackageRestoresPixels"] = Value::Bool(true);
             self.smoke_node_report["layerSourceAndRuntimePackedAndReopened"] = Value::Bool(true);
             self.finish_smoke()?;
             self.smoke_stage = 4;

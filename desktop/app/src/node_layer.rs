@@ -53,9 +53,19 @@ pub fn identity() -> GraphDocument {
     ];
     graph
 }
+fn source_session(snapshot: &node_editor::EditorSnapshot) -> String {
+    static NONCE: std::sync::OnceLock<u128> = std::sync::OnceLock::new();
+    let nonce = NONCE.get_or_init(|| {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos()
+    });
+    format!("{nonce}:{}", snapshot.epoch)
+}
 pub fn source(snapshot: &node_editor::EditorSnapshot, target: &Target) -> Result<Value, String> {
     Ok(
-        serde_json::json!({"format_version":1,"key":target.key,"document":snapshot.document,"options":snapshot.options,"session":snapshot.epoch,"revision":snapshot.revision,"semantic_revision":snapshot.semantic_revision}),
+        serde_json::json!({"format_version":1,"key":target.key,"document":snapshot.document,"options":snapshot.options,"session":source_session(snapshot),"revision":snapshot.revision,"semantic_revision":snapshot.semantic_revision}),
     )
 }
 pub fn package(compiled: &CompiledGraph, target: &Target) -> Result<Vec<u8>, String> {
@@ -124,10 +134,13 @@ pub fn persist(
     let Some(effect) = layer.effects.iter().find(|e| e.id == target.effect) else {
         return Err("node effect has not finished its first compile".into());
     };
-    let value = source(snapshot, target)?;
+    let mut value = source(snapshot, target)?;
+    if let Some(runtime) = effect.node_graph.as_ref().and_then(|v| v.get("runtime")) {
+        value["runtime"] = runtime.clone();
+    }
     if effect.node_graph.as_ref().is_some_and(|old| {
         (old["document"] == value["document"] && old["options"] == value["options"])
-            || (old["session"] == snapshot.epoch
+            || (old["session"] == source_session(snapshot)
                 && old["revision"].as_u64().unwrap_or(0) > snapshot.revision)
     }) {
         return Ok(s.snapshot());
@@ -192,7 +205,7 @@ pub fn apply(
                 == serde_json::to_value(&snapshot.document).map_err(|e| e.to_string())?
                 && value["options"]
                     == serde_json::to_value(&snapshot.options).map_err(|e| e.to_string())?)
-                || (value["session"] == snapshot.epoch
+                || (value["session"] == source_session(snapshot)
                     && value["semantic_revision"] == snapshot.semantic_revision
                     && value["revision"].as_u64().unwrap_or(0) > snapshot.revision)
             {
@@ -200,6 +213,7 @@ pub fn apply(
             }
         }
     }
+    source_value["runtime"] = serde_json::json!({"package_hex":bytes.iter().map(|byte|format!("{byte:02x}")).collect::<String>()});
     instance.node_graph = Some(source_value);
     instance
         .validate(s.engine.project().frames)
@@ -409,13 +423,24 @@ mod tests {
         let archive = folder.path().join("project.msproj");
         motion_core::storage::export_package(&session.root, session.engine.project(), &archive)
             .unwrap();
-        let imported =
-            motion_core::storage::import_package(&archive, &folder.path().join("isolated/reopened"))
-                .unwrap();
+        let imported = motion_core::storage::import_package(
+            &archive,
+            &folder.path().join("isolated/reopened"),
+        )
+        .unwrap();
         assert_eq!(&imported, session.engine.project());
-        let e = &imported.layers[0].effects[0];
-        let registry = motion_effects::Registry::load(&folder.path().join("isolated/plugins")).unwrap();
-        assert!(registry.resolve(&e.plugin, &e.version, &e.hash).is_ok());
+        let reopened = motion_host::Session::new(
+            imported,
+            folder.path().join("isolated/reopened"),
+            motion_desktop_media::platform(),
+        )
+        .unwrap();
+        let e = &reopened.engine.project().layers[0].effects[0];
+        assert!(reopened
+            .effects
+            .registry
+            .resolve(&e.plugin, &e.version, &e.hash)
+            .is_ok());
     }
     #[test]
     fn removed_existing_target_cannot_be_recreated_by_stale_compile() {
@@ -444,5 +469,18 @@ mod tests {
         assert!(!second.accept_compile(&snapshot, Ok(snapshot.compile().unwrap().report)));
         first.replace_document(identity(), None);
         assert_ne!(snapshot.preview_stamp(), first.stamp());
+    }
+    #[test]
+    fn invalid_embedded_runtime_is_rejected_when_no_cached_package_exists() {
+        let (folder, mut session, editor) = setup();
+        let snapshot = editor.snapshot();
+        apply(&mut session, &snapshot, &snapshot.compile().unwrap()).unwrap();
+        let mut project = session.engine.project().clone();
+        project.layers[0].effects[0].hash = "0".repeat(64);
+        project.rebuild_plugin_dependencies();
+        let root = folder.path().join("empty-cache/project");
+        std::fs::create_dir_all(&root).unwrap();
+        let result = motion_host::Session::new(project, root, motion_desktop_media::platform());
+        assert!(matches!(result,Err(message)if message.contains("does not match")));
     }
 }

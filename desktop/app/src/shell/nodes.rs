@@ -37,16 +37,24 @@ impl Shell {
         if effect.is_some() && source.as_ref().is_none_or(Value::is_null) {
             return Err("this effect package does not contain an editable node source".into());
         }
-        let id = effect.unwrap_or_else(|| {
-            layer["effects"]
+        if effect.is_none()
+            && layer["effects"].as_array().map_or(0, Vec::len)
+                >= motion_effects::MAX_EFFECTS_PER_LAYER
+        {
+            return Err("layer effect limit exceeded".into());
+        }
+        let id = match effect {
+            Some(id) => id,
+            None => layer["effects"]
                 .as_array()
                 .into_iter()
                 .flatten()
                 .filter_map(|e| e["id"].as_u64())
                 .max()
                 .unwrap_or(0)
-                + 1
-        });
+                .checked_add(1)
+                .ok_or("effect ID space exhausted")?,
+        };
         let key = source
             .as_ref()
             .and_then(|v| v["key"].as_str())
