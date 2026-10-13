@@ -1,4 +1,5 @@
 use motion_effects::{builtin, shader, EffectPackage, Registry};
+use sha2::Digest;
 use std::{io::Write, sync::Arc};
 
 #[test]
@@ -349,4 +350,24 @@ fn directory_enforces_remaining_expanded_budget_with_the_offending_resource_name
     let error = motion_effects::package_directory(dir.path()).unwrap_err().to_string();
     assert!(error.contains("assets/b.png"), "{error}");
     assert!(error.contains("size limit"), "{error}");
+}
+
+#[test]
+fn rust_source_plan_uses_loader_reference_set_and_byte_limits() {
+    let package = builtin::package().unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let data = &package.files["manifest.json"];
+    let path = dir.path().join("manifest.json");
+    std::fs::write(&path,data).unwrap();
+    let plan = motion_effects::package_source_plan(&path).unwrap();
+    assert_eq!(plan.protocol,1);
+    assert_eq!(plan.plugin,package.manifest.id);
+    assert_eq!(plan.version,package.manifest.version);
+    assert_eq!(plan.manifest_byte_limit,512*1024);
+    assert_eq!(plan.package_byte_limit,16*1024*1024);
+    assert_eq!(plan.manifest_sha256,format!("{:x}",sha2::Sha256::digest(data)));
+    assert_eq!(plan.files.iter().map(|file|&file.name).collect::<Vec<_>>(),package.files.keys().collect::<Vec<_>>());
+    for file in plan.files {
+        assert!(package.files[&file.name].len() <= file.byte_limit);
+    }
 }
