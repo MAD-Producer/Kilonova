@@ -44,6 +44,39 @@ class PackageWorkflowTest(unittest.TestCase):
             self.assertEqual(manifest["effects"][0]["native_editor"]["protocol"], 1)
         self.assertEqual(first["sha256"], packer.pack(self.source, self.output)["sha256"])
 
+    def test_switching_a_published_deflate_package_to_stored_requires_a_new_version(self):
+        with zipfile.ZipFile(self.output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            for name in ["manifest.json", "shaders/gain.wgsl"]:
+                archive.writestr(name, (self.source / name).read_bytes())
+        before = self.output.read_bytes()
+        with self.assertRaisesRegex(ValueError, "increment the version"):
+            packer.pack(self.source, self.output)
+        self.assertEqual(self.output.read_bytes(), before)
+        self.assertFalse(list(self.root.glob(".msfx-*.tmp")))
+        self.manifest(lambda value: value.update(version="0.3.0"))
+        result = packer.pack(self.source, self.output)
+        self.assertEqual(result["version"], "0.3.0")
+        self.assertEqual(result["archive_format"], "stored-v1")
+        self.assertEqual(result["compression_backend"], "none")
+        with zipfile.ZipFile(self.output) as archive:
+            self.assertTrue(all(info.compress_type == zipfile.ZIP_STORED for info in archive.infolist()))
+
+    def test_changed_valid_sources_cannot_replace_the_same_plugin_version(self):
+        packer.pack(self.source, self.output)
+        before = self.output.read_bytes()
+        self.manifest(lambda value: value.update(name="Changed valid package"))
+        with self.assertRaisesRegex(ValueError, "same plugin version"):
+            packer.pack(self.source, self.output)
+        self.assertEqual(self.output.read_bytes(), before)
+
+    def test_existing_output_identity_check_bounds_manifest_inflation(self):
+        with zipfile.ZipFile(self.output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("manifest.json", b" " * (512 * 1024 + 1))
+        before = self.output.read_bytes()
+        with self.assertRaisesRegex(ValueError, "existing manifest exceeds"):
+            packer.pack(self.source, self.output)
+        self.assertEqual(self.output.read_bytes(), before)
+
     def test_invalid_reference_preserves_previous_package(self):
         packer.pack(self.source, self.output)
         before = self.output.read_bytes()

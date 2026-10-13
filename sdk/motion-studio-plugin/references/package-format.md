@@ -13,3 +13,7 @@
 完整例子见 [模板](../assets/effect-template/manifest.json)。模板使用 SDK 5 展示原生编辑页；只使用图像能力的效果可声明较低的最低 SDK。
 
 插件版本和包 SHA-256 共同确定工程依赖。同版本同哈希重复安装幂等，同版本不同哈希拒绝安装；升级需显式执行，参数不会自动迁移。缺失依赖保留实例和动画；启用依赖失败时阻止正式导出。
+
+Python SDK 打包器默认使用 `stored-v1`：ZIP Stored、按路径排序、1980-01-01 固定时间、Unix regular file 0644 权限、固定版本字段且无额外字段或注释。Stored 不调用 zlib，避免不同 Python/zlib/zlib-ng 构建改变包字节；JSON 摘要同时返回 SHA-256、`archive_format` 与 `compression_backend: none`。资源字节仍保留原样，源码文本使用仓库约定的 UTF-8/LF。
+
+已有 deflate 包仍可加载，但不能用新编码器覆盖同 ID、同版本、不同哈希的输出。首次使用新编码器时提升插件版本，并保留旧发布包；从新路径打包也需要按版本规则发布和显式升级工程实例。压缩包与展开预算仍分别为 16 MiB，Stored 输出包含 ZIP 头开销，超过压缩包预算时拒绝发布。

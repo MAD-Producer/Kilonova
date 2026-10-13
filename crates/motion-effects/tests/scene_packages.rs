@@ -50,7 +50,7 @@ fn native_slot_bindings_and_limits_are_validated_before_install() {
 #[test]
 fn sdk_two_generators_and_independent_editor_assets_compile_portably() {
     let package = builtin::scene_package().unwrap();
-    assert_eq!(package.manifest.version, "1.1.0");
+    assert_eq!(package.manifest.version, "1.1.1");
     assert_eq!(package.manifest.sdk_version, 2);
     assert_eq!(package.manifest.effects.len(), 6);
     for e in &package.manifest.effects {
@@ -87,7 +87,7 @@ fn scene_editor_upgrade_preserves_published_package_and_render_contracts() {
         .resolve(&old.manifest.id, "1.0.0", &old.hash)
         .is_ok());
     assert!(registry
-        .resolve(&current.manifest.id, "1.1.0", &current.hash)
+        .resolve(&current.manifest.id, "1.1.1", &current.hash)
         .is_ok());
     for previous in &old.manifest.effects {
         let mut normalized = previous.clone();

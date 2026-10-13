@@ -44,6 +44,43 @@ def validate(executable: Path, *arguments: str) -> str:
     return result.stdout
 
 
+def write_archive(output: Path, files: list[tuple[str, bytes]]) -> None:
+    """Stored payloads avoid zlib/zlib-ng-dependent package identity changes."""
+    with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_STORED, allowZip64=False) as archive:
+        for name, data in sorted(files):
+            info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_STORED
+            info.create_system = 3
+            info.create_version = 20
+            info.extract_version = 20
+            info.external_attr = 0o100644 << 16
+            info.internal_attr = 0
+            info.extra = b""
+            info.comment = b""
+            archive.writestr(info, data)
+
+
+def require_new_identity(destination: Path, plan: dict, digest: str) -> None:
+    if not destination.exists():
+        return
+    require(destination.stat().st_size <= plan["packageByteLimit"], "existing package exceeds SDK size limit")
+    previous = destination.read_bytes()
+    try:
+        with zipfile.ZipFile(destination) as archive:
+            entry = archive.getinfo("manifest.json")
+            require(entry.file_size <= plan["manifestByteLimit"], "existing manifest exceeds SDK size limit")
+            with archive.open(entry) as stream:
+                data = stream.read(plan["manifestByteLimit"] + 1)
+            require(len(data) == entry.file_size, "existing manifest length mismatch")
+            manifest = json.loads(data)
+    except (zipfile.BadZipFile, KeyError, json.JSONDecodeError, UnicodeDecodeError) as error:
+        raise ValueError("existing output is not a valid .msfx; choose a new output path") from error
+    require(isinstance(manifest, dict), "existing output manifest is not an object")
+    require(manifest.get("id") != plan["plugin"] or manifest.get("version") != plan["version"]
+            or hashlib.sha256(previous).hexdigest() == digest,
+            "same plugin version has different package hash; increment the version and retain the published package")
+
+
 def pack(source: Path, output: Path, validator: Path | None = None) -> dict:
     executable = find_validator(validator)
     base = source.resolve(strict=True)
@@ -81,18 +118,13 @@ def pack(source: Path, output: Path, validator: Path | None = None) -> dict:
     temporary = Path(handle.name)
     handle.close()
     try:
-        with zipfile.ZipFile(temporary, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
-            for name, data in files:
-                info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
-                info.compress_type = zipfile.ZIP_DEFLATED
-                info.create_system = 3
-                info.external_attr = 0o100644 << 16
-                archive.writestr(info, data)
+        write_archive(temporary, files)
         require(temporary.stat().st_size <= plan["packageByteLimit"], "compressed package exceeds SDK budget")
         validate(executable, "check", str(temporary))
         digest = hashlib.sha256(temporary.read_bytes()).hexdigest()
+        require_new_identity(destination, plan, digest)
         os.replace(temporary, destination)
-        return {"path": str(destination), "plugin": plan["plugin"], "version": plan["version"], "sha256": digest, "files": len(files), "expanded_bytes": total, "validation": "sdk"}
+        return {"path": str(destination), "plugin": plan["plugin"], "version": plan["version"], "sha256": digest, "files": len(files), "expanded_bytes": total, "validation": "sdk", "archive_format": "stored-v1", "compression_backend": "none"}
     finally:
         temporary.unlink(missing_ok=True)
 
