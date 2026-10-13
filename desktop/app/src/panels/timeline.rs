@@ -230,13 +230,15 @@ pub(super) fn render(
     if panels.focused == Some(Panel::Timeline) {
         super::properties::process_field(panels, state, input, out);
     }
+    panels.timeline_columns.begin(state);
     let context_input = input;
     let neutral = Input::default();
-    let input = if panels.timeline.timeline_context_menu.is_some() {
-        &neutral
-    } else {
-        input
-    };
+    let input =
+        if panels.timeline.timeline_context_menu.is_some() || panels.timeline_columns.editing() {
+            &neutral
+        } else {
+            input
+        };
     paint::rect(list, area, colors.PANEL);
     let total = last_frame(state) + 1.0;
     let graph_mode = panels.timeline.graph_mode;
@@ -506,10 +508,17 @@ pub(super) fn render(
         Rect::new(
             area.min[0] + 90.0,
             ruler.min[1],
-            (gutter - 212.0).max(1.0),
+            (gutter - 320.0).max(1.0),
             28.0,
         ),
         locale.t(T::SourceName),
+        true,
+    );
+    label(
+        list,
+        atlas,
+        Rect::new(area.min[0] + gutter - 196., ruler.min[1], 76., 28.),
+        locale.t(T::BlendMode),
         true,
     );
     label(
@@ -767,7 +776,7 @@ pub(super) fn render(
         let name = Rect::new(
             area.min[0] + 112.0,
             y,
-            (gutter - 212.0).max(1.0),
+            (gutter - 320.0).max(1.0),
             row_height,
         );
         let selected = panels.selected == Some(row.id);
@@ -833,36 +842,80 @@ pub(super) fn render(
             18.,
             colors.TEXT_MUTED,
         );
-        label(
-            list,
-            atlas,
-            Rect::new(area.min[0] + gutter - 196., y, 76., row_height),
-            layer
-                .and_then(|l| l["blend"].as_str())
-                .unwrap_or(if locale == Locale::Zh {
-                    "正常"
+        if let Some(owner) = super::timeline_columns::owner(state, row.id) {
+            let blend = Rect::new(
+                area.min[0] + gutter - 196.,
+                y + 2.,
+                76.,
+                (row_height - 4.).max(1.),
+            );
+            let parent = Rect::new(
+                area.min[0] + gutter - 94.,
+                y + 2.,
+                86.,
+                (row_height - 4.).max(1.),
+            );
+            let link = Rect::new(
+                area.min[0] + gutter - 114.,
+                y + 4.,
+                14.,
+                (row_height - 8.).max(1.),
+            );
+            let blend_supported = !matches!(
+                owner["content"]["kind"].as_str(),
+                Some("null" | "audio" | "adjustment")
+            ) && row.id != 0;
+            let blend_enabled = blend_supported && !row.locked;
+            let parent_enabled = row.id == 0 || !row.locked && row.spatial;
+            if (blend_enabled && clicked(input, blend))
+                || (parent_enabled && (clicked(input, parent) || clicked(input, link)))
+            {
+                out.extend(super::cancel_interaction(panels));
+            }
+            motion_ui::icons::draw(
+                list,
+                link,
+                motion_ui::icons::Icon::Link,
+                14.,
+                if parent_enabled {
+                    colors.TEXT_MUTED
                 } else {
-                    "Normal"
-                }),
-            true,
-        );
-        let parent = layer
-            .and_then(|l| l["parent"]["object"].as_u64())
-            .and_then(|id| {
-                state["project"]["layers"]
-                    .as_array()?
-                    .iter()
-                    .find(|l| l["id"].as_u64() == Some(id))
-            })
-            .and_then(|l| l["name"].as_str())
-            .unwrap_or(locale.t(T::None));
-        label(
-            list,
-            atlas,
-            Rect::new(area.min[0] + gutter - 110.0, y, 102.0, row_height),
-            parent,
-            true,
-        );
+                    colors.TEXT_MUTED.with_alpha(0.4)
+                },
+            );
+            let mut link_input = input.clone();
+            if parent_enabled && clicked(input, link) {
+                link_input.pressed =
+                    Some((MouseButton::Left, [parent.min[0] + 1., parent.min[1] + 1.]));
+            }
+            let opened_blend = if blend_supported {
+                panels.timeline_columns.cell(
+                    list,
+                    atlas,
+                    blend,
+                    row.id,
+                    super::timeline_columns::Column::Blend,
+                    super::timeline_columns::blend_name(owner, locale),
+                    input,
+                    blend_enabled,
+                )
+            } else {
+                false
+            };
+            let opened_parent = panels.timeline_columns.cell(
+                list,
+                atlas,
+                parent,
+                row.id,
+                super::timeline_columns::Column::Parent,
+                &super::timeline_columns::parent_name(owner, state, locale),
+                &link_input,
+                parent_enabled,
+            );
+            if opened_blend || opened_parent {
+                panels.selected = Some(row.id);
+            }
+        }
         let eye = Rect::new(area.min[0] + 10.0, y, 16.0, row_height);
         let lock = Rect::new(area.min[0] + 28.0, y, 16.0, row_height);
         if motion_ui::widgets::Checkbox::draw(
@@ -1135,6 +1188,10 @@ pub(super) fn render(
         );
         paint::diamond(list, [x, ruler.min[1] + 6.0], 6.0, colors.ACCENT);
     }
+
+    panels
+        .timeline_columns
+        .overlay(list, atlas, area, state, context_input, locale, out);
 
     // Timeline right-click context menu for creating layers
     if right_clicked(input, body) {

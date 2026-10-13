@@ -120,8 +120,29 @@ impl Shell {
         self.add_solid()?;
         let object = self.panels.selected.unwrap();
         self.panels.timeline.expanded.insert(object);
+        let controller_id = self.state["project"]["layers"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|l| l["id"].as_u64())
+            .max()
+            .unwrap_or(0)
+            + 10;
+        let mut controller = motion_core::Layer::solid(
+            controller_id,
+            if self.workspace.locale == Locale::Zh {
+                "控制器"
+            } else {
+                "Controller"
+            },
+            [100.; 2],
+            [960., 540., 0.],
+            [0.; 4],
+        );
+        controller.content = motion_core::Content::Null;
         self.state = self.engine.edit(
             serde_json::to_string(&vec![
+                Command::Add { layer: controller },
                 Command::Animate {
                     object,
                     property: motion_core::Property::Position,

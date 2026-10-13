@@ -378,7 +378,8 @@ impl Shell {
             .pressed
             .is_some_and(|(button, _)| button == MouseButton::Left)
             && header_hit.is_some_and(|(_, action)| action);
-        let modal = self.panels.panel_menu.is_some()
+        let modal = self.panels.timeline_columns.editing()
+            || self.panels.panel_menu.is_some()
             || self.panels.menu.is_some()
             || self.panels.fx_console_in(None)
             || self.panels.node_editor.popup_open()

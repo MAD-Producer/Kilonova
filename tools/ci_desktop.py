@@ -22,7 +22,7 @@ def verify_style_consumers() -> None:
 
 def verify_design_screens(snapshot: dict, locale: str) -> None:
     screens = snapshot.get("designScreens", {})
-    for name in ("home", "composition-settings", "workspace-manager", "timeline-graph", "value-graph", "speed-graph"):
+    for name in ("home", "composition-settings", "workspace-manager", "timeline-parent-menu", "timeline-blend-menu", "timeline-graph", "value-graph", "speed-graph"):
         if name not in screens:
             raise RuntimeError(f"{locale} did not capture {name}")
         data = Path(screens[name]).read_bytes()

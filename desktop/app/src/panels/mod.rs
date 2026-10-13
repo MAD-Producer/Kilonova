@@ -37,6 +37,9 @@ mod paths;
 mod project;
 mod properties;
 mod timeline;
+mod timeline_columns;
+#[cfg(test)]
+mod timeline_columns_tests;
 mod timeline_graph;
 mod timeline_shortcuts;
 #[cfg(test)]
@@ -110,6 +113,7 @@ fn viewer(area: Rect) -> Rect {
 pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     let node_changed = panels.node_editor.cancel_interaction();
     panels.parent_controls.open = false;
+    panels.timeline_columns.cancel();
     let camera = panels.camera_controls.cancel();
     let effect = panels.effect_controls.cancel();
     let numeric = panels
@@ -166,9 +170,10 @@ pub fn chrome(
     panels.drag_readout = None;
     panels.node_editor.external_inspector = layout.find(Panel::NodeProperties.dock()).is_some();
     let node_modal = panels.node_editor.popup_open();
+    let timeline_dropdown = panels.timeline_columns.editing();
     if let Some((_, point)) = input
         .pressed
-        .filter(|_| !panels.fx_console_in(None) && !node_modal)
+        .filter(|_| !panels.fx_console_in(None) && !node_modal && !timeline_dropdown)
     {
         let focused = frames(layout, size)
             .into_iter()
@@ -251,7 +256,8 @@ pub fn chrome(
         || panels.menu.is_some()
         || panels.panel_menu.is_some()
         || panels.fx_console_in(None)
-        || panels.timeline.timeline_context_menu.is_some();
+        || panels.timeline.timeline_context_menu.is_some()
+        || timeline_dropdown;
     let neutral = Input::default();
     let body_input = if menu_modal || node_modal {
         &neutral
@@ -259,6 +265,7 @@ pub fn chrome(
         input
     };
     let project_input = body_input.clone();
+    panels.timeline_columns.prepare_window(None, input);
     let mut opened_panel_menu = false;
     panels.header_hits.clear();
     panels.header_size = Some(size);
@@ -349,7 +356,7 @@ pub fn chrome(
                 .unwrap();
             paint::rect(&mut body, f.content, style.background);
         }
-        let timeline_popup = panels.timeline.timeline_context_menu.is_some();
+        let timeline_popup = panels.timeline.timeline_context_menu.is_some() || timeline_dropdown;
         if f.content.height() >= metrics::ROW {
             render_panel(
                 f.panel,
@@ -600,6 +607,21 @@ pub fn chrome(
             paint::rect(list, handle.area, colors.ACCENT.with_alpha(amount * 0.5));
         }
     }
+    panels.timeline_columns.finish_window(
+        list,
+        atlas,
+        Rect::new(
+            0.,
+            CHROME_HEIGHT,
+            size[0],
+            (size[1] - CHROME_HEIGHT - 20.).max(1.),
+        ),
+        state,
+        input,
+        panels.locale,
+        &mut out,
+    );
+
     out
 }
 pub fn panel(id: dock::DockId) -> Option<Panel> {
@@ -634,6 +656,9 @@ pub fn floating_chrome(
 
     let mut out = vec![];
     panels.cursor = None;
+    let timeline_dropdown = panels.timeline_columns.editing();
+    let dropdown_owned = panels.timeline_columns.editing_in(Some(panel));
+    let popup_neutral = Input::default();
     if !panels.fx_console_in(Some(panel))
         && !(panels.fx_console.is_some() && keyboard::console_close_pressed(input))
         && matches!(panel, Panel::Masks | Panel::Vector)
@@ -664,7 +689,11 @@ pub fn floating_chrome(
         panels.focused = Some(panel);
     }
     let shortcut_modal = keyboard::route(
-        input,
+        if timeline_dropdown && !dropdown_owned {
+            &popup_neutral
+        } else {
+            input
+        },
         panels,
         state,
         matches!(
@@ -675,7 +704,12 @@ pub fn floating_chrome(
         &mut out,
     );
     let neutral = Input::default();
-    let body_input = if shortcut_modal { &neutral } else { input };
+    let body_input = if shortcut_modal || timeline_dropdown && !dropdown_owned {
+        &neutral
+    } else {
+        input
+    };
+    panels.timeline_columns.prepare_window(Some(panel), input);
     render_panel(
         panel,
         &mut content,
@@ -701,7 +735,11 @@ pub fn floating_chrome(
         atlas,
         Rect::new(size[0] - 78.0, 4.0, 72.0, 22.0),
         panels.locale.t(T::Dock),
-        body_input,
+        if timeline_dropdown {
+            &neutral
+        } else {
+            body_input
+        },
         true,
         Action::Redock(panel.dock()),
         &mut out,
@@ -752,6 +790,16 @@ pub fn floating_chrome(
             }
         }
     }
+    panels.timeline_columns.finish_window(
+        list,
+        atlas,
+        Rect::new(0., 30., size[0], (size[1] - 50.).max(1.)),
+        state,
+        input,
+        panels.locale,
+        &mut out,
+    );
+
     out
 }
 fn node_panel(

@@ -94,6 +94,7 @@ pub struct Panels {
     pub effect_controls: crate::panels::effect_controls::Controls,
     pub animation_controls: crate::panels::animation_controls::Controls,
     pub parent_controls: crate::panels::parent_controls::Controls,
+    pub timeline_columns: crate::panels::timeline_columns::Controls,
     pub camera_controls: crate::panels::camera_controls::Controls,
     pub node_editor: crate::node_editor::NodeEditor,
     pub node_preview: crate::node_preview::Controls,

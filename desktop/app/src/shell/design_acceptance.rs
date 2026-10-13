@@ -13,11 +13,13 @@ impl Shell {
             "home",
             "composition-settings",
             "workspace-manager",
+            "timeline-parent-menu",
+            "timeline-blend-menu",
             "timeline-graph",
             "value-graph",
             "speed-graph",
         ] {
-            let graph_preset = if screen == "timeline-graph" {
+            let graph_preset = if screen.starts_with("timeline-") {
                 workspace::Preset::Default
             } else {
                 workspace::Preset::Animation
@@ -55,6 +57,62 @@ impl Shell {
                         &Input::default(),
                         self.workspace.locale,
                     );
+                }
+                "timeline-parent-menu" | "timeline-blend-menu" => {
+                    let old = self.panels.timeline.clone();
+                    let columns = std::mem::take(&mut self.panels.timeline_columns);
+                    let focus = self.panels.focused;
+                    self.panels.timeline.set_graph_mode(false);
+                    self.panels.timeline.scroll = 0.;
+                    let layout = workspace::Workspace::design_layout(workspace::Preset::Default);
+                    let frame = panels::frames(&layout, size)
+                        .into_iter()
+                        .find(|f| f.panel == dock::Panel::Timeline)
+                        .ok_or("timeline placement missing")?;
+                    let gutter = 640f32.min(frame.content.width() * 0.52);
+                    let rows = self.state["project"]["layers"]
+                        .as_array()
+                        .ok_or("missing smoke layers")?;
+                    let ordinal = rows
+                        .iter()
+                        .rev()
+                        .position(|l| l["id"].as_u64() == self.panels.selected)
+                        .ok_or("missing smoke selection")?;
+                    let point = [
+                        frame.content.min[0] + gutter
+                            - if screen == "timeline-parent-menu" {
+                                58.
+                            } else {
+                                158.
+                            },
+                        frame.content.min[1]
+                            + 64.
+                            + ordinal as f32 * paint.styles().metric("row.height", 22.)
+                            + 11.,
+                    ];
+                    let input = Input {
+                        mouse: point,
+                        pressed: Some((motion_ui::input::MouseButton::Left, point)),
+                        ..Default::default()
+                    };
+                    let actions = panels::chrome(
+                        &mut paint,
+                        &mut self.atlas,
+                        size,
+                        &layout,
+                        &mut self.panels,
+                        &self.state,
+                        &input,
+                    );
+                    if !actions.is_empty() || !self.panels.timeline_columns.editing() {
+                        return Err(
+                            "timeline dropdown capture must open without editing the project"
+                                .into(),
+                        );
+                    }
+                    self.panels.timeline = old;
+                    self.panels.timeline_columns = columns;
+                    self.panels.focused = focus;
                 }
                 _ => {
                     let old = self.panels.timeline.clone();
@@ -99,7 +157,7 @@ impl Shell {
                 }
             }
             let mut ui = self.ui_frame(paint, size, true);
-            if !screen.ends_with("graph") {
+            if !screen.ends_with("graph") && !screen.ends_with("menu") {
                 ui.composition = None;
                 ui.node_preview = None;
             } else {

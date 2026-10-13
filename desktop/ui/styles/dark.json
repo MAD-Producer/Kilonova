@@ -60,7 +60,9 @@
       "graph.curve_width": 2,
       "graph.handle_width": 1,
       "graph.handle_radius": 4,
-      "graph.key_radius": 5
+      "graph.key_radius": 5,
+      "dropdown.max_width": 320,
+      "dropdown.menu_min_width": 160
     },
     "motion": {
       "easing": "cubic-out"

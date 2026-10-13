@@ -11,6 +11,115 @@ use motion_ui::{
 };
 use serde_json::Value;
 
+/// Spatial parent candidates shared by the inspector and timeline.
+/// Object IDs, not display names or row indices, identify the destination.
+pub(super) fn candidates(state: &Value, object: u64, locale: Locale) -> Vec<(u64, String)> {
+    use std::collections::{HashMap, HashSet};
+    let layers = state["project"]["layers"]
+        .as_array()
+        .map(Vec::as_slice)
+        .unwrap_or(&[]);
+    let camera = &state["project"]["camera"];
+    let mut parents: HashMap<u64, Option<u64>> = layers
+        .iter()
+        .filter_map(|l| Some((l["id"].as_u64()?, l["parent"]["object"].as_u64())))
+        .collect();
+    if camera["created"] == true {
+        parents.insert(0, camera["parent"]["object"].as_u64());
+    }
+    let allowed = |id: u64| {
+        let mut current = Some(id);
+        let mut seen = HashSet::new();
+        while let Some(next) = current {
+            if next == object || !seen.insert(next) {
+                return false;
+            }
+            let Some(parent) = parents.get(&next) else {
+                return false;
+            };
+            current = *parent;
+        }
+        true
+    };
+    let mut choices = Vec::new();
+    if camera["created"] == true && allowed(0) {
+        choices.push((
+            0,
+            format!(
+                "1. {}",
+                if locale == Locale::Zh {
+                    "摄像机"
+                } else {
+                    "Camera"
+                }
+            ),
+        ));
+    }
+    choices.extend(layers.iter().rev().enumerate().filter_map(|(index, l)| {
+        let id = l["id"].as_u64()?;
+        if l["content"]["kind"] == "audio" || !allowed(id) {
+            return None;
+        }
+        Some((
+            id,
+            format!(
+                "{}. {}",
+                index + 1 + usize::from(camera["created"] == true),
+                l["name"].as_str().unwrap_or("Layer")
+            ),
+        ))
+    }));
+    choices
+}
+
+pub(super) fn menu_entries(
+    state: &Value,
+    object: u64,
+    locale: Locale,
+) -> Vec<(Option<u64>, String, bool)> {
+    let allowed: std::collections::HashSet<_> = candidates(state, object, locale)
+        .into_iter()
+        .map(|(id, _)| id)
+        .collect();
+    let camera = state["project"]["camera"]["created"] == true;
+    let mut entries = vec![(None, locale.t(T::None).to_string(), true)];
+    if camera {
+        entries.push((
+            Some(0),
+            format!(
+                "1. {}",
+                if locale == Locale::Zh {
+                    "摄像机"
+                } else {
+                    "Camera"
+                }
+            ),
+            allowed.contains(&0),
+        ));
+    }
+    entries.extend(
+        state["project"]["layers"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .rev()
+            .enumerate()
+            .filter_map(|(index, l)| {
+                let id = l["id"].as_u64()?;
+                Some((
+                    Some(id),
+                    format!(
+                        "{}. {}",
+                        index + 1 + usize::from(camera),
+                        l["name"].as_str().unwrap_or("Layer")
+                    ),
+                    allowed.contains(&id),
+                ))
+            }),
+    );
+    entries
+}
+
 #[derive(Default)]
 pub struct Controls {
     pub open: bool,
@@ -49,10 +158,18 @@ impl Controls {
             .map(Vec::as_slice)
             .unwrap_or(&[]);
         let current = owner["parent"]["object"].as_u64();
-        let name = current
-            .and_then(|id| layers.iter().find(|l| l["id"].as_u64() == Some(id)))
-            .and_then(|l| l["name"].as_str())
-            .unwrap_or(locale.t(T::None));
+        let name = if current == Some(0) {
+            if locale == Locale::Zh {
+                "摄像机"
+            } else {
+                "Camera"
+            }
+        } else {
+            current
+                .and_then(|id| layers.iter().find(|l| l["id"].as_u64() == Some(id)))
+                .and_then(|l| l["name"].as_str())
+                .unwrap_or(locale.t(T::None))
+        };
         let rect = Rect::new(area.min[0] + 16., *y, area.width() - 32., 26.);
         paint::rect(list, rect, colors.SUNKEN);
         ui::text(
@@ -72,26 +189,9 @@ impl Controls {
             return;
         }
         let mut options = vec![(None, locale.t(T::None))];
-        for layer in layers {
-            let id = layer["id"].as_u64().unwrap();
-            let mut cursor = Some(id);
-            let mut allowed = true;
-            for _ in 0..=layers.len() {
-                let Some(next) = cursor else {
-                    break;
-                };
-                if next == object {
-                    allowed = false;
-                    break;
-                }
-                cursor = layers
-                    .iter()
-                    .find(|l| l["id"].as_u64() == Some(next))
-                    .and_then(|l| l["parent"]["object"].as_u64());
-            }
-            if allowed {
-                options.push((Some(id), layer["name"].as_str().unwrap_or("Layer")));
-            }
+        let choices = candidates(state, object, locale);
+        for (id, name) in &choices {
+            options.push((Some(*id), name.as_str()));
         }
         if area.contains(input.mouse) {
             if input.wheel[1] > 0. {
@@ -112,7 +212,7 @@ impl Controls {
                 },
             );
             ui::text(list, atlas, row.shrink(4.), name, colors.TEXT, Align::Left);
-            if clicked(input, row) {
+            if clicked(input, row) && parent != current {
                 out.push(Action::Edit(Command::Parent {
                     object,
                     parent,
