@@ -54,6 +54,7 @@ pub struct EditorSnapshot {
     pub preview_target: Option<PortRef>,
     pub epoch: u64,
     pub source_path: Option<PathBuf>,
+    pub layer_target: Option<crate::node_layer::Target>,
 }
 impl EditorSnapshot {
     pub fn preview_stamp(&self) -> (u64, u64) {
@@ -84,6 +85,7 @@ impl EditorSnapshot {
 }
 #[derive(Clone, Debug)]
 pub enum Action {
+    ShowProperties,
     Examples(EditorSnapshot),
     Open(EditorSnapshot),
     Save(EditorSnapshot),
@@ -228,6 +230,7 @@ struct AddMenu {
 }
 
 pub struct NodeEditor {
+    pub layer_target: Option<crate::node_layer::Target>,
     document: GraphDocument,
     parents: Vec<grouping::ParentScope>,
     last_group_click: Option<(String, std::time::Instant, [f32; 2])>,
@@ -291,13 +294,22 @@ impl Default for NodeEditor {
         editor
     }
 }
+fn next_editor_epoch() -> u64 {
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+    NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+}
 impl NodeEditor {
+    pub fn renew_session(&mut self) {
+        self.epoch = next_editor_epoch();
+        self.pending_compile = None;
+    }
     pub fn new(document: GraphDocument) -> Self {
         let options = CompileOptions::default();
         let diagnostic = motion_graph::validate(&document, &options)
             .err()
             .map(|e| e.diagnostic());
         Self {
+            layer_target: None,
             document,
             parents: vec![],
             last_group_click: None,
@@ -314,7 +326,7 @@ impl NodeEditor {
             semantic_revision: 0,
             preview_revision: 0,
             preview_target: None,
-            epoch: 1,
+            epoch: next_editor_epoch(),
             next_id: 1,
             focus: false,
             drag: None,
@@ -390,6 +402,7 @@ impl NodeEditor {
                 .map(|target| PortRef::new(self.qualified_node(&target.node), &target.port)),
             epoch: self.epoch,
             source_path: self.source_path.clone(),
+            layer_target: self.layer_target.clone(),
         }
     }
     /// Commit a valid inspector field and an active move before capturing an owned
@@ -427,19 +440,56 @@ impl NodeEditor {
         if snapshot.epoch != self.epoch || snapshot.revision != self.revision || self.editing() {
             return false;
         }
-        self.replace_document(document, Some(path));
+        let target = self.layer_target.clone();
+        self.replace_document(document, if target.is_some() { None } else { Some(path) });
+        self.layer_target = target;
         true
     }
     pub fn replace_document(&mut self, document: GraphDocument, path: Option<PathBuf>) {
-        let next_epoch = self.epoch.wrapping_add(1);
         let options = self.options.clone();
         *self = Self::new(document);
-        self.epoch = next_epoch;
         self.options = options;
         self.source_path = path;
         self.saved_document = Some(self.document.clone());
         self.saved_revision = Some(self.revision);
         self.refresh_diagnostic();
+    }
+    pub fn bound_creating(&self, state: &serde_json::Value) -> bool {
+        self.layer_target.as_ref().is_some_and(|t| {
+            !state["project"]["layers"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter(|l| l["id"].as_u64() == Some(t.object))
+                .flat_map(|l| l["effects"].as_array().into_iter().flatten())
+                .any(|e| e["id"].as_u64() == Some(t.effect))
+        })
+    }
+    pub fn accept_project_saved(&mut self, snapshot: &EditorSnapshot) {
+        if self.epoch == snapshot.epoch
+            && self.saved_revision.is_none_or(|r| r <= snapshot.revision)
+        {
+            self.saved_document = Some(snapshot.document.clone());
+            self.saved_revision = Some(snapshot.revision);
+            if let Some(target) = &mut self.layer_target {
+                target.creating = false;
+            }
+        }
+    }
+    pub fn load_layer_source(
+        &mut self,
+        source: &serde_json::Value,
+        target: crate::node_layer::Target,
+    ) -> Result<(), String> {
+        let document =
+            GraphDocument::from_json(&source["document"].to_string()).map_err(|e| e.to_string())?;
+        let options =
+            serde_json::from_value(source["options"].clone()).map_err(|e| e.to_string())?;
+        self.replace_document(document, None);
+        self.options = options;
+        self.layer_target = Some(target);
+        self.refresh_diagnostic();
+        Ok(())
     }
     pub fn accept_saved(&mut self, snapshot: &EditorSnapshot, path: PathBuf) -> bool {
         if snapshot.epoch != self.epoch

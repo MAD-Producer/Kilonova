@@ -116,15 +116,24 @@ fn layout(preset: Preset) -> motion_ui::workspace::Workspace {
             root
         }
         Preset::Nodes => split(
-            Edge::Right,
-            304. / 1600.,
+            Edge::Bottom,
+            0.27,
             split(
-                Edge::Bottom,
-                0.23,
+                Edge::Right,
+                0.32,
                 Node::dock(Panel::Nodes.dock()),
-                tabs(&[Panel::NodePreview, Panel::Composition]),
+                split(
+                    Edge::Bottom,
+                    0.43,
+                    Node::dock(Panel::Composition.dock()),
+                    tabs(&[
+                        Panel::EffectControls,
+                        Panel::NodeProperties,
+                        Panel::NodePreview,
+                    ]),
+                ),
             ),
-            Node::dock(Panel::NodeProperties.dock()),
+            Node::dock(Panel::Timeline.dock()),
         ),
         Preset::Drawing => split(
             Edge::Bottom,
@@ -203,19 +212,40 @@ impl Workspace {
             .and_then(SavedLayout::restore)
             .unwrap_or_else(|| layout(preset));
         self.preset = preset;
-        self.design_revision = 1;
+        self.design_revision = 2;
     }
     pub fn reset_preset(&mut self) {
         self.layout = layout(self.preset);
-        self.design_revision = 1;
+        self.design_revision = 2;
         self.preset_layouts.remove(&self.preset);
     }
     pub fn migrate_design(&mut self) {
+        if self.design_revision == 1 {
+            // Preserve custom workspaces. Only upgrade the former Nodes default,
+            // which lacks a Composition panel, and retain it as a named layout.
+            if let Some(old) = self.preset_layouts.get(&Preset::Nodes).cloned() {
+                if old.root.find(Panel::Composition.dock()).is_none() {
+                    self.named_layouts
+                        .entry("Nodes (previous)".into())
+                        .or_insert(old);
+                    self.preset_layouts.remove(&Preset::Nodes);
+                }
+            }
+            if self.preset == Preset::Nodes
+                && self.layout.root.find(Panel::Composition.dock()).is_none()
+            {
+                self.named_layouts
+                    .entry("Nodes (previous)".into())
+                    .or_insert_with(|| SavedLayout::capture(&self.layout));
+                self.layout = layout(Preset::Nodes);
+            }
+            self.design_revision = 2;
+        }
         if self.design_revision == 0 {
             self.legacy_layout = Some(SavedLayout::capture(&self.layout));
             self.layout = layout(Preset::Default);
             self.preset = Preset::Default;
-            self.design_revision = 1;
+            self.design_revision = 2;
         }
     }
 }

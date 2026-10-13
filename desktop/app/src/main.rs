@@ -9,6 +9,7 @@ mod i18n;
 mod mcp;
 mod movie_export;
 mod node_editor;
+mod node_layer;
 mod node_examples;
 mod node_preview;
 mod node_tasks;
@@ -196,6 +197,9 @@ struct Shell {
     next_window: u64,
     panels: panels::Panels,
     node_tasks: node_tasks::NodeTasks,
+    node_standalone: Option<node_editor::NodeEditor>,
+    node_save_project: Option<node_editor::EditorSnapshot>,
+    node_sources: Vec<(node_editor::EditorSnapshot,std::sync::mpsc::Receiver<Result<Value,String>>,bool)>,
     node_compile_due: Option<Instant>,
     node_installing: Vec<(
         node_editor::EditorSnapshot,
@@ -294,6 +298,9 @@ impl Shell {
             next_window: 1,
             panels: Default::default(),
             node_tasks: node_tasks::NodeTasks::start()?,
+            node_standalone:None,
+            node_save_project:None,
+            node_sources:vec![],
             node_compile_due: Some(Instant::now()),
             node_installing: vec![],
             node_close_prompt: None,
@@ -593,7 +600,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
         if self.smoke.is_some()
             && self.started.elapsed()
-                > Duration::from_secs(if self.smoke_panels { 120 } else { 30 })
+                > Duration::from_secs(if self.smoke_panels||self.smoke_nodes { 120 } else { 30 })
         {
             self.fatal = Some("desktop smoke timed out".into());
             event_loop.exit();
@@ -838,6 +845,8 @@ impl ApplicationHandler<UserEvent> for Shell {
             || self.resizing.is_some()
             || !self.resize_queue.is_empty()
             || !self.actions.is_empty()
+            || self.node_save_project.is_some()
+            || !self.node_sources.is_empty()
             || self.node_tasks.busy()
             || !self.node_installing.is_empty()
             || self.node_compile_due.is_some();

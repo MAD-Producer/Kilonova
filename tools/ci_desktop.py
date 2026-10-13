@@ -160,14 +160,14 @@ def main() -> None:
         node_report = output / f"node-smoke-{locale}.json"
         node_result = subprocess.run(
             [str(binary), "--node-smoke", str(node_report), "--locale", locale],
-            capture_output=True, text=True, encoding="utf-8", timeout=80,
+            capture_output=True, text=True, encoding="utf-8", timeout=125,
         )
         (output / f"node-smoke-{locale}.stderr.log").write_text(node_result.stderr, encoding="utf-8")
         if node_result.returncode:
             raise RuntimeError(f"{locale} node acceptance failed: {node_result.stderr}")
         node_snapshot = json.loads(node_report.read_text(encoding="utf-8"))
         preview = node_snapshot.get("nodePreview", {})
-        for check in ("clockPixelsChanged", "parameterPixelsChanged", "groupPixelsPreserved", "ungroupPixelsPreserved", "groupSourceReopened", "invalidGraphKeptValidPixels", "projectUntouched", "exampleOpenedAndRendered"):
+        for check in ("clockPixelsChanged", "parameterPixelsChanged", "groupPixelsPreserved", "ungroupPixelsPreserved", "groupSourceReopened", "invalidGraphKeptValidPixels", "projectUntouched", "exampleOpenedAndRendered", "layerIdentityPreservedPixels", "layerGraphChangedPixels", "layerPublicParameterChangedPixels", "layerProjectUndoRedoRestoresSourceAndPixels", "layerPortPreviewIsObservational", "layerInvalidGraphKeptValidPixels", "layerSourceAndRuntimePackedAndReopened"):
             if preview.get(check) is not True:
                 raise RuntimeError(f"{locale} node preview did not verify {check}")
         if node_snapshot["locale"] != locale or node_snapshot["floatingFrames"].get("10", 0) < 3:

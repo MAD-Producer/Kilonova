@@ -307,7 +307,7 @@ impl Shell {
             logical_size: size,
             window: 0,
             node_preview: self
-                .node_viewport(panels::node_view(&self.workspace.root, size), self.scale),
+                .node_viewport(panels::node_view_bound(&self.workspace.root,size,self.panels.node_editor.layer_target.is_some()), self.scale),
             composition: if self.home.is_none() && view.width() > 0.0 && view.height() > 0.0 {
                 Some([
                     view.min[0] * self.scale,
@@ -664,7 +664,7 @@ impl Shell {
                 logical_size: size,
                 composition,
                 window: key,
-                node_preview: self.node_viewport(panels::floating_node_view(panel, size), scale),
+                node_preview: self.node_viewport(panels::floating_node_view_bound(panel,size,self.panels.node_editor.layer_target.is_some()), scale),
             })?,
         );
         if acknowledged {

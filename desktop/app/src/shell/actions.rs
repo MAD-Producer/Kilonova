@@ -161,6 +161,32 @@ impl Shell {
                         .edit_async(serde_json::to_string(&commands).map_err(|e| e.to_string())?)?,
                 ));
             }
+            Action::NewNodeEffect(object) => {
+                self.open_node_effect(object, None, false, event_loop)?
+            }
+            Action::EditNodeEffect { object, effect } => {
+                self.open_node_effect(object, Some(effect), false, event_loop)?
+            }
+            Action::ApplyNodeGraph => {
+                let object = self
+                    .panels
+                    .selected
+                    .filter(|id| *id != 0)
+                    .ok_or("select a layer to apply the node graph")?;
+                self.open_node_effect(object, None, true, event_loop)?;
+            }
+            Action::ReturnToNodeDraft => self.restore_node_draft()?,
+            Action::ReturnToEffects => {
+                if let Some(target) = &self.panels.node_editor.layer_target {
+                    self.panels.selected = Some(target.object);
+                }
+                self.switch_workspace(workspace::Preset::Default, event_loop)?;
+                self.action(
+                    Action::ShowPanel(dock::Panel::EffectControls.dock()),
+                    event_loop,
+                )?;
+                self.panels.focused = Some(dock::Panel::EffectControls);
+            }
             Action::Plugin(request) => {
                 self.stop();
                 self.state = self.engine.plugin(request.to_string())?;
@@ -478,6 +504,12 @@ impl Shell {
                 ))?;
             }
             Action::Save => {
+                if self.panels.node_editor.layer_target.is_some() {
+                    self.node_action(node_editor::Action::Save(
+                        self.panels.node_editor.snapshot(),
+                    ))?;
+                    return Ok(());
+                }
                 self.state = self.engine.save()?;
                 self.panels.message = Some(format!(
                     "{}: {}",
@@ -486,6 +518,7 @@ impl Shell {
                 ));
             }
             Action::Pack => {
+                self.flush_bound_source()?;
                 let result = self.engine.pack()?;
                 self.panels.message = Some(format!(
                     "{}: {}",
@@ -494,7 +527,12 @@ impl Shell {
                 ));
             }
             Action::History(op) => {
-                if self.panels.node_editor.focused() && matches!(op, 0 | 1) {
+                if matches!(
+                    self.panels.focused,
+                    Some(dock::Panel::Nodes | dock::Panel::NodeProperties)
+                ) && self.panels.node_editor.focused()
+                    && matches!(op, 0 | 1)
+                {
                     let changed = if op == 0 {
                         self.panels.node_editor.undo()
                     } else {
@@ -504,6 +542,10 @@ impl Shell {
                         self.schedule_node_compile()?;
                     }
                 } else {
+                    self.flush_bound_source()?;
+                    self.node_tasks.cancel(&mut self.panels.node_editor);
+                    self.node_compile_due = None;
+                    self.engine.node_expect((u64::MAX, u64::MAX))?;
                     self.stop();
                     self.editing = Some((Instant::now(), self.engine.history_async(op)?));
                 }

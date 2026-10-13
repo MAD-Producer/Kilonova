@@ -210,19 +210,20 @@ impl Controls {
             .into_iter()
             .flatten()
             .map(|e| {
-                40. + self.definition(e).map_or(0., |d| {
-                    d["params"]
-                        .as_array()
-                        .into_iter()
-                        .flatten()
-                        .map(|p| {
-                            dimensions(p["kind"].as_str().unwrap_or("float")) as f32 * 26. + 20.
-                        })
-                        .sum::<f32>()
-                })
+                40. + if e["node_graph"].is_object() { 28. } else { 0. }
+                    + self.definition(e).map_or(0., |d| {
+                        d["params"]
+                            .as_array()
+                            .into_iter()
+                            .flatten()
+                            .map(|p| {
+                                dimensions(p["kind"].as_str().unwrap_or("float")) as f32 * 26. + 20.
+                            })
+                            .sum::<f32>()
+                    })
             })
             .sum::<f32>()
-            + 38.
+            + 94.
     }
     pub fn render(
         &mut self,
@@ -317,6 +318,27 @@ impl Controls {
                 self.query.clear();
             }
             *y += 34.;
+            if ui::button_styled(
+                list,
+                atlas,
+                Rect::new(area.min[0] + 20., *y, area.width() - 40., 24.),
+                if locale == Locale::Zh {
+                    "新建节点效果"
+                } else {
+                    "New Node Effect"
+                },
+                input,
+                !locked
+                    && object != 0
+                    && !matches!(layer["content"]["kind"].as_str(), Some("audio" | "null")),
+                &styles,
+                "button.icon",
+            )
+            .clicked
+            {
+                out.push(Action::NewNodeEffect(object));
+            }
+            *y += 28.;
         }
         if layer["effects"].as_array().is_none_or(Vec::is_empty) && !self.choosing {
             text(
@@ -657,6 +679,27 @@ impl Controls {
             }
             *y += 34.;
 
+            if effect["node_graph"].is_object() {
+                if ui::button_styled(
+                    list,
+                    atlas,
+                    Rect::new(area.min[0] + 24., *y, area.width() - 48., 22.),
+                    if locale == Locale::Zh {
+                        "编辑节点"
+                    } else {
+                        "Edit Nodes"
+                    },
+                    input,
+                    !locked,
+                    &styles,
+                    "button.icon",
+                )
+                .clicked
+                {
+                    out.push(Action::EditNodeEffect { object, effect: id });
+                }
+                *y += 26.;
+            }
             // Skip parameters if collapsed
             if is_collapsed {
                 continue;

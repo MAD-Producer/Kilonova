@@ -25,6 +25,23 @@ pub struct ExportReport {
     pub compile: CompileReport,
 }
 
+/// Package already compiled code without touching the editing session or GPU.
+pub fn compiled_package_bytes(
+    manifest: &motion_effects::PluginManifest,
+    source: &str,
+) -> Result<Vec<u8>> {
+    let mut zip = ZipWriter::new(Cursor::new(Vec::new()));
+    let settings = SimpleFileOptions::default()
+        .compression_method(CompressionMethod::Deflated)
+        .last_modified_time(zip::DateTime::default())
+        .unix_permissions(0o644);
+    zip.start_file("manifest.json", settings)?;
+    zip.write_all(&serde_json::to_vec_pretty(manifest)?)?;
+    zip.start_file("shaders/graph.wgsl", settings)?;
+    zip.write_all(source.as_bytes())?;
+    Ok(zip.finish()?.into_inner())
+}
+
 pub fn export_msfx(
     document: &GraphDocument,
     options: &CompileOptions,
@@ -40,16 +57,7 @@ pub fn export_msfx(
     }
     let compiled = compile(document, options)?;
     let source = document.to_json()?;
-    let mut zip = ZipWriter::new(Cursor::new(Vec::new()));
-    let settings = SimpleFileOptions::default()
-        .compression_method(CompressionMethod::Deflated)
-        .last_modified_time(zip::DateTime::default())
-        .unix_permissions(0o644);
-    zip.start_file("manifest.json", settings)?;
-    zip.write_all(&serde_json::to_vec_pretty(&compiled.manifest)?)?;
-    zip.start_file("shaders/graph.wgsl", settings)?;
-    zip.write_all(compiled.source.as_bytes())?;
-    let bytes = zip.finish()?.into_inner();
+    let bytes = compiled_package_bytes(&compiled.manifest, &compiled.source)?;
     let package = Arc::new(EffectPackage::from_bytes(bytes.clone()).map_err(|e| {
         Error::invalid(
             ErrorCode::Manifest,

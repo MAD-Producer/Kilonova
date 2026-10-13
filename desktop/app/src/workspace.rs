@@ -46,7 +46,7 @@ impl Default for Workspace {
             locale: Default::default(),
             preset: Default::default(),
             recent_projects: vec![],
-            design_revision: 1,
+            design_revision: 2,
             preset_layouts: Default::default(),
             legacy_layout: None,
             named_layouts: Default::default(),
