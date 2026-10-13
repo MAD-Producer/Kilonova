@@ -1,16 +1,18 @@
 use super::*;
 use super::{toolbar::icon_button, types::Tool};
+use std::hash::{Hash, Hasher};
 
 pub(super) struct Row {
     pub(super) spatial: bool,
-    pub(super) property_count: usize,
     pub(super) id: u64,
     pub(super) name: String,
+    name_lower: String,
     pub(super) visible: bool,
     pub(super) locked: bool,
     pub(super) clip: [i32; 2],
     pub(super) range: [f64; 2],
     pub(super) keys: Vec<f64>,
+    properties: Vec<PropertyRow>,
 }
 
 pub(super) struct PropertyRow {
@@ -25,13 +27,16 @@ fn property_rows(state: &Value, object: u64) -> Vec<PropertyRow> {
     let layer = state["project"]["layers"]
         .as_array()
         .and_then(|ls| ls.iter().find(|l| l["id"].as_u64() == Some(object)));
+    let timeline = state["timeline_layers"]
+        .as_array()
+        .and_then(|ts| ts.iter().find(|t| t["object"].as_u64() == Some(object)));
+    property_rows_for(layer, timeline)
+}
+fn property_rows_for(layer: Option<&Value>, timeline: Option<&Value>) -> Vec<PropertyRow> {
     let three_d = layer.is_some_and(|l| l["three_d"].as_bool() == Some(true));
     if layer.is_some_and(|l| l["content"]["kind"].as_str() == Some("audio")) {
         return vec![];
     }
-    let timeline = state["timeline_layers"]
-        .as_array()
-        .and_then(|ts| ts.iter().find(|t| t["object"].as_u64() == Some(object)));
     let mut rows = vec![];
     for (property, key, title, axes) in [
         (
@@ -87,6 +92,12 @@ fn property_rows(state: &Value, object: u64) -> Vec<PropertyRow> {
 }
 pub(super) fn rows(state: &Value) -> Vec<Row> {
     let total = state["project"]["frames"].as_u64().unwrap_or(1) as u32;
+    let timeline_by_object: std::collections::HashMap<_, _> = state["timeline_layers"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|timeline| Some((timeline["object"].as_u64()?, timeline)))
+        .collect();
     let mut rows: Vec<_> = state["project"]["layers"]
         .as_array()
         .into_iter()
@@ -94,9 +105,8 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
         .rev()
         .map(|l| {
             let id = l["id"].as_u64().unwrap_or(0);
-            let t = state["timeline_layers"]
-                .as_array()
-                .and_then(|ts| ts.iter().find(|t| t["object"].as_u64() == Some(id)));
+            let t = timeline_by_object.get(&id).copied();
+            let properties = property_rows_for(Some(l), t);
             let mut keys = Vec::new();
             if let Some(t) = t {
                 for property in ["position", "rotation", "scale", "opacity"] {
@@ -119,24 +129,9 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
             keys.dedup();
             Row {
                 spatial: l["content"]["kind"] != "audio",
-                property_count: ["position", "rotation", "scale", "opacity"]
-                    .iter()
-                    .map(|property| {
-                        if *property == "opacity"
-                            || t.is_none_or(|t| t["properties"][*property]["separated"] != true)
-                        {
-                            1
-                        } else if l["three_d"] == true {
-                            3
-                        } else if *property == "rotation" {
-                            1
-                        } else {
-                            2
-                        }
-                    })
-                    .sum(),
                 id,
                 name: l["name"].as_str().unwrap_or("Layer").into(),
+                name_lower: l["name"].as_str().unwrap_or("Layer").to_lowercase(),
                 visible: l["visible"].as_bool().unwrap_or(true),
                 locked: l["locked"].as_bool().unwrap_or(false),
                 clip: [
@@ -159,6 +154,7 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
                     .unwrap_or(total as f64),
                 ],
                 keys,
+                properties,
             }
         })
         .collect();
@@ -170,18 +166,77 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
             0,
             Row {
                 spatial: false,
-                property_count: 0,
                 id: 0,
                 name: "Camera".into(),
+                name_lower: "camera".into(),
                 visible: true,
                 locked: true,
                 clip: [0, total as i32],
                 range: [0., total as f64],
                 keys: vec![],
+                properties: vec![],
             },
         );
     }
     rows
+}
+fn filtered_property_count(row: &Row, filter: types::PropertyFilter) -> usize {
+    row.properties
+        .iter()
+        .filter(|property| filter.admits(property.property, !property.keys.is_empty()))
+        .count()
+}
+fn scroll_extent_signature(
+    rows_key: &(String, String, u64),
+    timeline: &types::TimelineState,
+    query: &str,
+    area_height: f32,
+    row_height: f32,
+) -> u64 {
+    let mut hash = std::collections::hash_map::DefaultHasher::new();
+    rows_key.hash(&mut hash);
+    query.hash(&mut hash);
+    area_height.to_bits().hash(&mut hash);
+    row_height.to_bits().hash(&mut hash);
+    timeline.expanded.len().hash(&mut hash);
+    for id in &timeline.expanded {
+        id.hash(&mut hash);
+    }
+    timeline.collapsed_transforms.len().hash(&mut hash);
+    for id in &timeline.collapsed_transforms {
+        id.hash(&mut hash);
+    }
+    timeline.filters.len().hash(&mut hash);
+    for entry in &timeline.filters {
+        entry.hash(&mut hash);
+    }
+    hash.finish()
+}
+fn calculate_scroll_max(
+    rows: &[&Row],
+    timeline: &types::TimelineState,
+    area_height: f32,
+    row_height: f32,
+) -> f32 {
+    (rows
+        .iter()
+        .map(|row| {
+            if timeline.expanded.contains(&row.id) {
+                if timeline.collapsed_transforms.contains(&row.id) {
+                    return 2;
+                }
+                2 + filtered_property_count(
+                    row,
+                    timeline.filters.get(&row.id).copied().unwrap_or_default(),
+                )
+            } else {
+                1
+            }
+        })
+        .sum::<usize>() as f32
+        * row_height
+        - (area_height - 64.0))
+        .max(0.0)
 }
 pub(super) fn filtered_properties(
     state: &Value,
@@ -253,8 +308,29 @@ pub(super) fn render(
     let query = panels.timeline.timeline_query.to_lowercase();
     let rows: Vec<_> = all_rows
         .iter()
-        .filter(|row| query.is_empty() || row.name.to_lowercase().contains(&query))
+        .filter(|row| query.is_empty() || row.name_lower.contains(&query))
         .collect();
+    let extent_signature = {
+        let rows_key = &panels.timeline.rows_cache.as_ref().unwrap().0;
+        scroll_extent_signature(
+            rows_key,
+            &panels.timeline,
+            &query,
+            area.height(),
+            row_height,
+        )
+    };
+    let scroll_max = if panels
+        .timeline
+        .scroll_extent_cache
+        .is_some_and(|(signature, _)| signature == extent_signature)
+    {
+        panels.timeline.scroll_extent_cache.unwrap().1
+    } else {
+        let max = calculate_scroll_max(&rows, &panels.timeline, area.height(), row_height);
+        panels.timeline.scroll_extent_cache = Some((extent_signature, max));
+        max
+    };
     let gutter = GUTTER.min(area.width() * 0.4);
     let track = Rect::new(
         area.min[0] + gutter,
@@ -270,37 +346,11 @@ pub(super) fn render(
         } else if input.modifiers.shift {
             panels.timeline.offset = (panels.timeline.offset + input.wheel[1] as f32).max(0.0);
         } else if !(graph_mode && input.mouse[0] >= track.min[0]) {
-            panels.timeline.scroll = (panels.timeline.scroll + input.wheel[1]).clamp(
-                0.0,
-                (rows
-                    .iter()
-                    .map(|row| {
-                        if panels.timeline.expanded.contains(&row.id) {
-                            if panels.timeline.collapsed_transforms.contains(&row.id) {
-                                return 2;
-                            }
-                            2 + filtered_properties(
-                                state,
-                                row.id,
-                                panels
-                                    .timeline
-                                    .filters
-                                    .get(&row.id)
-                                    .copied()
-                                    .unwrap_or_default(),
-                            )
-                            .len()
-                        } else {
-                            1
-                        }
-                    })
-                    .sum::<usize>() as f32
-                    * row_height
-                    - (area.height() - 64.0))
-                    .max(0.0),
-            );
+            panels.timeline.scroll =
+                (panels.timeline.scroll + input.wheel[1]).clamp(0.0, scroll_max);
         }
     }
+    panels.timeline.scroll = panels.timeline.scroll.clamp(0.0, scroll_max);
     panels.timeline.offset = panels
         .timeline
         .offset
@@ -598,13 +648,8 @@ pub(super) fn render(
             .get(&row.id)
             .copied()
             .unwrap_or_default();
-        let filtered = if expanded && filter != types::PropertyFilter::All {
-            Some(filtered_properties(state, row.id, filter))
-        } else {
-            None
-        };
         let property_count = if transform_expanded {
-            filtered.as_ref().map_or(row.property_count, Vec::len)
+            filtered_property_count(row, filter)
         } else {
             0
         };
@@ -616,8 +661,11 @@ pub(super) fn render(
         {
             continue;
         }
-        let properties = if transform_expanded {
-            filtered.unwrap_or_else(|| property_rows(state, row.id))
+        let properties: Vec<_> = if transform_expanded {
+            row.properties
+                .iter()
+                .filter(|property| filter.admits(property.property, !property.keys.is_empty()))
+                .collect()
         } else {
             vec![]
         };

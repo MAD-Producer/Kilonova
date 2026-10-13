@@ -23,6 +23,14 @@ impl Shell {
             .extend(panels::cancel_interaction(&mut self.panels));
         self.translate(Event::FocusLost);
     }
+    pub(crate) fn pointer_left(&mut self) {
+        if self.input.held.is_some() {
+            self.workspace.cancel();
+            self.actions
+                .extend(panels::cancel_interaction(&mut self.panels));
+        }
+        self.translate(Event::PointerLeft);
+    }
     pub(crate) fn ui_interval(&self) -> Duration {
         let rate = self
             .window
@@ -707,6 +715,14 @@ impl Shell {
             WindowEvent::CursorMoved { position, .. } => Some(Event::MouseMoved {
                 position: [position.x as f32 / f.scale, position.y as f32 / f.scale],
             }),
+            WindowEvent::CursorLeft { .. } => {
+                if f.input.held.is_some() {
+                    self.workspace.cancel();
+                    self.actions
+                        .extend(panels::cancel_interaction(&mut self.panels));
+                }
+                Some(Event::PointerLeft)
+            }
             WindowEvent::MouseInput { state, button, .. } => {
                 let button = match button {
                     WinitMouseButton::Left => MouseButton::Left,

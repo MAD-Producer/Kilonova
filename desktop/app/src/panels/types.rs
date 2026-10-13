@@ -186,6 +186,7 @@ pub(crate) struct TimelineState {
     pub filters: std::collections::HashMap<u64, PropertyFilter>,
     pub graph_mode: bool,
     pub scroll: f32,
+    pub scroll_extent_cache: Option<(u64, f32)>,
     pub zoom: f32,
     pub offset: f32,
     pub scrubbing: bool,
@@ -198,7 +199,7 @@ pub(crate) struct TimelineState {
     pub timeline_search: bool,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub(crate) enum PropertyFilter {
     #[default]
     All,
