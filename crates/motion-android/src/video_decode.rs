@@ -408,6 +408,7 @@ impl Decoder {
         pts: Vec<u64>,
         reader_kind: usize,
     ) -> Result<Self> {
+        crate::video_pixels::validate_decoder(&asset, &pts, reader_kind)?;
         let attached = attach()?;
         let permit = Permit::new()?;
         let ex = Extractor::open(path)?;
@@ -497,7 +498,7 @@ impl Decoder {
         if target < self.asset.video_start_us || target >= self.asset.video_end_us {
             return Err("source time outside visible video".into());
         }
-        let index = self.pts.partition_point(|p| *p <= target) - 1;
+        let index = self.pts.partition_point(|p| *p <= target).saturating_sub(1);
         let wanted = self.pts[index];
         let end = self
             .pts
@@ -685,59 +686,25 @@ impl Drop for Decoder {
 }
 fn convert(image: &Image, a: &VideoAsset, standard: u32, range: u32) -> Result<VideoPixels> {
     let format = ndk(image.format())?;
+    let crop = ndk(image.crop_rect())?;
+    let source_size = [ndk(image.width())?, ndk(image.height())?];
+    let crop_bounds = [crop.left, crop.top, crop.right, crop.bottom];
+    let origin = crate::video_pixels::crop_origin(a, source_size, crop_bounds)?;
     if matches!(format, ImageFormat::RGBA_8888 | ImageFormat::RGB_565) {
-        let crop = ndk(image.crop_rect())?;
-        if crop.right - crop.left != a.width as i32
-            || crop.bottom - crop.top != a.height as i32
-            || crop.left < 0
-            || crop.top < 0
-        {
-            return Err("decoded RGB crop mismatch".into());
-        }
         let bytes = ndk(image.plane_data(0))?;
         let row = ndk(image.plane_row_stride(0))?;
         let stride = ndk(image.plane_pixel_stride(0))?;
         if row <= 0 || stride < if format == ImageFormat::RGB_565 { 2 } else { 4 } {
             return Err("invalid RGB plane strides".into());
         }
-        let mut rgba = vec![0; (a.display_width * a.display_height * 4) as usize];
-        for y in 0..a.height {
-            for x in 0..a.width {
-                let at = (y + crop.top as u32) as usize * row as usize
-                    + (x + crop.left as u32) as usize * stride as usize;
-                let rgb = if format == ImageFormat::RGB_565 {
-                    let pair = bytes.get(at..at + 2).ok_or("RGB565 plane too short")?;
-                    let v = u16::from_le_bytes(pair.try_into().unwrap());
-                    [
-                        (((v >> 11) & 31) * 255 / 31) as u8,
-                        (((v >> 5) & 63) * 255 / 63) as u8,
-                        ((v & 31) * 255 / 31) as u8,
-                        255,
-                    ]
-                } else {
-                    let p = bytes.get(at..at + 4).ok_or("RGBA plane too short")?;
-                    [p[0], p[1], p[2], 255]
-                };
-                let (dx, dy) = match a.rotation {
-                    90 => (a.height - 1 - y, x),
-                    180 => (a.width - 1 - x, a.height - 1 - y),
-                    270 => (y, a.width - 1 - x),
-                    _ => (x, y),
-                };
-                let to = (dy * a.display_width + dx) as usize * 4;
-                rgba[to..to + 4].copy_from_slice(&rgb);
-            }
-        }
-        return Ok(VideoPixels::Rgba(rgba));
+        return crate::video_pixels::rgb(a, source_size, crop_bounds,
+            if format == ImageFormat::RGB_565 { motion_render::VideoRgbFormat::Rgb565 }
+            else { motion_render::VideoRgbFormat::Rgba8888 },
+            VideoPlane { data: bytes, row_stride: row as usize, pixel_stride: stride as usize })
+            .map(VideoPixels::Rgba);
     }
     if ndk(image.format())? != ImageFormat::YUV_420_888 || ndk(image.number_of_planes())? != 3 {
         return Err("device did not provide 8-bit YUV420 video".into());
-    }
-    let crop = ndk(image.crop_rect())?;
-    let w = crop.right - crop.left;
-    let h = crop.bottom - crop.top;
-    if w != a.width as i32 || h != a.height as i32 || crop.left < 0 || crop.top < 0 {
-        return Err("decoded crop differs from source metadata".into());
     }
     let planes = [
         ndk(image.plane_data(0))?,
@@ -757,7 +724,7 @@ fn convert(image: &Image, a: &VideoAsset, standard: u32, range: u32) -> Result<V
     if rows.iter().chain(pixels.iter()).any(|s| *s <= 0) {
         return Err("invalid YUV plane stride".into());
     }
-    Yuv420Frame::pack(a.width, a.height, [crop.left as u32, crop.top as u32], a.rotation, standard, range,
+    Yuv420Frame::pack(a.width, a.height, origin, a.rotation, standard, range,
         std::array::from_fn(|i| VideoPlane { data: planes[i], row_stride: rows[i] as usize, pixel_stride: pixels[i] as usize }))
         .map(VideoPixels::Yuv).map_err(|e| e.to_string())
 }

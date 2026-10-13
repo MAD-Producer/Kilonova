@@ -32,7 +32,7 @@ pub mod mask_plan;
 pub mod compositing_plan;
 mod compositing_gpu;
 mod mask_gpu;
-pub use video_pixels::{ChromaLayout, VideoPlane, Yuv420Frame};
+pub use video_pixels::{rgb_video_to_rgba, ChromaLayout, VideoPlane, VideoRgbFormat, Yuv420Frame};
 pub use video_gpu::EncodedVideoUpload;
 pub use measurement::{FrameMeasurement, FrameRecorder};
 pub use memory::TextureMemoryBreakdown;
