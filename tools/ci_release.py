@@ -9,6 +9,7 @@ import re
 import subprocess
 import tempfile
 import zipfile
+from package_desktop import collect_assets
 
 ROOT=Path(__file__).resolve().parents[1]
 SEMVER=re.compile(r"v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?")
@@ -150,6 +151,11 @@ def publish():
     apk=folder/info["apk"]
     if apk.parent!=folder or hashlib.sha256(apk.read_bytes()).hexdigest()!=info["sha256"]:
         raise ValueError("Release artifact checksum mismatch")
+    assets=collect_assets(folder,info)
+    info["schemaVersion"]=2
+    info["artifacts"]=assets
+    (folder/"build-info.json").write_text(json.dumps(info,indent=2)+"\n",encoding="utf-8")
+    (folder/"SHA256SUMS").write_text("".join(item["sha256"]+"  "+item["name"]+"\n" for item in sorted(assets,key=lambda item:item["name"])),encoding="utf-8")
     repo=os.environ["GITHUB_REPOSITORY"];commit=info["commit"]
     if not re.fullmatch(r"[0-9a-f]{40}",commit): raise ValueError("Invalid commit")
     tag="preview" if kind=="preview" else "v"+version
@@ -172,16 +178,20 @@ def publish():
         with tempfile.TemporaryDirectory() as temporary:
             gh("release","download",tag,"--repo",repo,"--pattern","build-info.json","--dir",temporary)
             previous=json.loads((Path(temporary)/"build-info.json").read_text(encoding="utf-8"))
-            if previous["commit"]!=commit or previous["sha256"]!=info["sha256"]:
+            if previous["commit"]!=commit or previous.get("artifacts")!=assets:
                 raise RuntimeError("A published version cannot be replaced; create a new version tag")
         print("This exact release is already published:",release["url"])
         return
     notes=folder/"release-notes.md"
-    notes.write_text("版本："+info["versionName"]+"\n\n"+release_changelog(repo,commit,tag,kind)+("main 分支自动预览构建。\n\n" if kind=="preview" else "版本标签自动构建。\n\n")+"包含 arm64-v8a 与 x86_64。下载 APK 后可使用 SHA256SUMS 校验文件。\n",encoding="utf-8")
+    notes.write_text("版本："+info["versionName"]+"\n\n"+release_changelog(repo,commit,tag,kind)+("main 分支自动预览构建。\n\n" if kind=="preview" else "版本标签自动构建。\n\n")+
+        "| 平台 | 下载包 |\n| --- | --- |\n"+
+        "".join("| "+item["platform"]+" | `"+item["name"]+"` |\n" for item in assets)+
+        "\nAndroid 包含 arm64-v8a 与 x86_64。Windows 解压后运行 exe；Linux 解压后运行 motion-studio；macOS 按 Apple Silicon / Intel 下载对应 .app 包（ad-hoc 签名，未公证）。\n\n"
+        "桌面包沿用已验收的独立构建，未附 FFmpeg 视频导入/解码后端。能力记录在 build-info.json 中。使用 SHA256SUMS 校验下载文件。\n",encoding="utf-8")
     title="自动预览版" if kind=="preview" else "Motion Studio "+version
     if not release:
         gh("release","create",tag,"--repo",repo,"--verify-tag","--title",title,"--notes-file",str(notes),"--draft")
-    gh("release","upload",tag,*map(str,[apk,folder/"SHA256SUMS",folder/"build-info.json"]),"--repo",repo,"--clobber")
+    gh("release","upload",tag,*map(str,[folder/item["name"] for item in assets]+[folder/"SHA256SUMS",folder/"build-info.json"]),"--repo",repo,"--clobber")
     gh("release","edit",tag,"--repo",repo,"--title",title,"--notes-file",str(notes),"--draft=false","--prerelease="+str(prerelease).lower(),"--latest="+str(not prerelease).lower())
     print(gh("release","view",tag,"--repo",repo,"--json","url","--jq",".url").stdout.strip())
 
