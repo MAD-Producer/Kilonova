@@ -8,6 +8,86 @@ pub struct VideoPlane<'a> {
     pub pixel_stride: usize,
 }
 
+/// Android RGB fallback formats; output remains opaque SDR RGBA.
+#[derive(Clone, Copy, Debug)]
+pub enum VideoRgbFormat {
+    Rgba8888,
+    Rgb565,
+}
+
+struct PixelLayout {
+    width: u32,
+    height: u32,
+    rotation: u32,
+    display_width: u32,
+    bytes: usize,
+}
+impl PixelLayout {
+    fn new(width: u32, height: u32, rotation: u32) -> Result<Self> {
+        if width == 0 || height == 0 || width > 8192 || height > 8192
+            || u64::from(width) * u64::from(height) > 16 * 1024 * 1024
+            || !matches!(rotation, 0 | 90 | 180 | 270)
+        {
+            return Err(RenderError::Invalid("invalid video pixel geometry".into()));
+        }
+        let bytes = (width as usize).checked_mul(height as usize)
+            .and_then(|pixels| pixels.checked_mul(4))
+            .ok_or_else(|| RenderError::Invalid("video RGBA size overflow".into()))?;
+        Ok(Self { width, height, rotation,
+            display_width: if rotation % 180 == 0 { width } else { height }, bytes })
+    }
+    // Only called with coordinates from the validated source rectangle.
+    fn offset(&self, x: u32, y: u32) -> usize {
+        let (dx, dy) = match self.rotation {
+            90 => (self.height - 1 - y, x),
+            180 => (self.width - 1 - x, self.height - 1 - y),
+            270 => (y, self.width - 1 - x),
+            _ => (x, y),
+        };
+        (dy as usize * self.display_width as usize + dx as usize) * 4
+    }
+}
+
+/// Pack a cropped RGB plane with the same rotation mapping as YUV export.
+/// Source and plane extents are checked before allocating the destination.
+pub fn rgb_video_to_rgba(
+    size: [u32; 2], rotation: u32, crop: [u32; 2], source_size: [u32; 2],
+    format: VideoRgbFormat, plane: VideoPlane<'_>,
+) -> Result<Vec<u8>> {
+    let layout = PixelLayout::new(size[0], size[1], rotation)?;
+    let invalid = || RenderError::Invalid("invalid RGB crop or plane extent".into());
+    let right = crop[0].checked_add(size[0]).ok_or_else(invalid)?;
+    let bottom = crop[1].checked_add(size[1]).ok_or_else(invalid)?;
+    let pixel_bytes = match format { VideoRgbFormat::Rgba8888 => 4, VideoRgbFormat::Rgb565 => 2 };
+    if right > source_size[0] || bottom > source_size[1] || plane.row_stride == 0
+        || plane.pixel_stride < pixel_bytes
+    { return Err(invalid()); }
+    let row_end = (right as usize - 1).checked_mul(plane.pixel_stride)
+        .and_then(|last| last.checked_add(pixel_bytes)).ok_or_else(invalid)?;
+    let end = (bottom as usize - 1).checked_mul(plane.row_stride)
+        .and_then(|last| last.checked_add(row_end)).ok_or_else(invalid)?;
+    if row_end > plane.row_stride || end > plane.data.len() { return Err(invalid()); }
+    let mut rgba = vec![0; layout.bytes];
+    for y in 0..size[1] {
+        for x in 0..size[0] {
+            let at = (y as usize + crop[1] as usize) * plane.row_stride
+                + (x as usize + crop[0] as usize) * plane.pixel_stride;
+            let rgb = match format {
+                VideoRgbFormat::Rgb565 => {
+                    let value = u16::from_le_bytes([plane.data[at], plane.data[at + 1]]);
+                    [(((value >> 11) & 31) * 255 / 31) as u8,
+                     (((value >> 5) & 63) * 255 / 63) as u8,
+                     ((value & 31) * 255 / 31) as u8, 255]
+                }
+                VideoRgbFormat::Rgba8888 => [plane.data[at], plane.data[at + 1], plane.data[at + 2], 255],
+            };
+            let target = layout.offset(x, y);
+            rgba[target..target + 4].copy_from_slice(&rgb);
+        }
+    }
+    Ok(rgba)
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
 pub enum ChromaLayout {
@@ -144,12 +224,7 @@ impl Yuv420Frame {
         Ok(frame)
     }
     fn validate_metadata(&self) -> Result<()> {
-        if self.width == 0
-            || self.height == 0
-            || self.width > 8192
-            || self.height > 8192
-            || u64::from(self.width) * u64::from(self.height) > 16 * 1024 * 1024
-            || !matches!(self.rotation, 0 | 90 | 180 | 270)
+        if PixelLayout::new(self.width, self.height, self.rotation).is_err()
             || !matches!(self.standard, 1 | 2 | 4)
             || !matches!(self.range, 1 | 2)
             || self.phase.iter().any(|v| *v > 1)
@@ -223,9 +298,9 @@ impl Yuv420Frame {
     }
     pub fn to_rgba(&self) -> Result<Vec<u8>> {
         self.validate()?;
-        let (dw, dh) = self.display_size();
+        let layout = PixelLayout::new(self.width, self.height, self.rotation)?;
         let (cw, _) = self.chroma_size();
-        let mut rgba = vec![0; dw as usize * dh as usize * 4];
+        let mut rgba = vec![0; layout.bytes];
         for y in 0..self.height {
             for x in 0..self.width {
                 let yy = i32::from(self.y[(y * self.width + x) as usize]);
@@ -260,13 +335,7 @@ impl Yuv420Frame {
                         (c + 409 * v, c - 100 * u - 208 * v, c + 516 * u)
                     }
                 };
-                let (dx, dy) = match self.rotation {
-                    90 => (self.height - 1 - y, x),
-                    180 => (self.width - 1 - x, self.height - 1 - y),
-                    270 => (y, self.width - 1 - x),
-                    _ => (x, y),
-                };
-                let at = (dy * dw + dx) as usize * 4;
+                let at = layout.offset(x, y);
                 rgba[at..at + 4].copy_from_slice(&[
                     ((r + 128) >> 8).clamp(0, 255) as u8,
                     ((g + 128) >> 8).clamp(0, 255) as u8,
