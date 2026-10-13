@@ -296,7 +296,6 @@ impl Session {
     }
 
     pub fn detach(&mut self) {
-        if let Err(error) = self.close_plugin_editor(false, "surface_detached") { self.last_error = Some(error); }
         self.preview_video.clear();
         self.preview_memory = Default::default();
         self.memory_context = None;

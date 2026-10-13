@@ -18,7 +18,7 @@
 {"op":"editor_disconnected","token":"editor-42"}
 ```
 
-该操作总是取消，不能提交。窗口 detach 也会取消并释放编辑器渲染目标。全局 `HISTORY_CANCEL` / `HISTORY_COMMIT` 会同步关闭插件编辑会话。
+该操作总是取消，不能提交。预览 Surface detach 只释放 GPU 绑定：原生编辑页在布局切换时可以替换 Surface，页面会话和未提交手势仍保留。实际页面或通信通道关闭时使用 `editor_disconnected`，没有通信时由活动租约兜底。全局 `HISTORY_CANCEL` / `HISTORY_COMMIT` 会同步关闭插件编辑会话。
 
 ## 主编辑器恢复入口
 

@@ -90,7 +90,7 @@ fn begin_and_edit(session: &mut Session, token: &str) {
 }
 #[test]
 fn expired_or_disconnected_pages_cancel_and_restore_history_and_saved_edits() {
-    for reason in ["lease", "disconnect", "cancel", "detach"] {
+    for reason in ["lease", "disconnect", "cancel", "surface_then_disconnect"] {
         let (directory, mut session, token) = session();
         let original = session.engine.snapshot();
         begin_and_edit(&mut session, &token);
@@ -119,7 +119,16 @@ fn expired_or_disconnected_pages_cancel_and_restore_history_and_saved_edits() {
                     .plugin_request("{\"op\":\"cancel_plugin_gesture\"}")
                     .unwrap();
             }
-            "detach" => session.detach(),
+            "surface_then_disconnect" => {
+                session.detach();
+                // Compose can replace the preview Surface while the same
+                // native editor page and transaction remain alive.
+                assert!(session.editor.as_ref().unwrap().gesture);
+                assert!(session.engine.gesture_active());
+                session
+                    .plugin_request(&json!({"op":"editor_disconnected","token":token}).to_string())
+                    .unwrap();
+            }
             _ => unreachable!(),
         }
         assert_eq!(session.engine.snapshot(), original);
