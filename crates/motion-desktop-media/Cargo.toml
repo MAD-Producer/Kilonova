@@ -22,6 +22,7 @@ motion-render = { path = "../motion-render" }
 motion-media = { path = "../motion-media" }
 motion-effects = { path = "../motion-effects" }
 tempfile = "3"
+flate2 = "1"
 serde.workspace = true
 serde_json.workspace = true
 wgpu.workspace = true

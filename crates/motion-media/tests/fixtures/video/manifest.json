@@ -2164,5 +2164,818 @@
       }
     ],
     "video_end_us": 2998334
+  },
+  "video-tail-90k.mp4": {
+    "frames": [
+      {
+        "best_effort_timestamp_time": "0.250000",
+        "side_data_list": [
+          {
+            "side_data_type": "H.26[45] User Data Unregistered SEI message"
+          }
+        ]
+      },
+      {
+        "best_effort_timestamp_time": "0.291667"
+      },
+      {
+        "best_effort_timestamp_time": "0.333333"
+      },
+      {
+        "best_effort_timestamp_time": "0.375000"
+      },
+      {
+        "best_effort_timestamp_time": "0.416667"
+      },
+      {
+        "best_effort_timestamp_time": "0.458333"
+      },
+      {
+        "best_effort_timestamp_time": "0.500000"
+      },
+      {
+        "best_effort_timestamp_time": "0.541667"
+      },
+      {
+        "best_effort_timestamp_time": "0.583333"
+      },
+      {
+        "best_effort_timestamp_time": "0.625000"
+      },
+      {
+        "best_effort_timestamp_time": "0.666667"
+      },
+      {
+        "best_effort_timestamp_time": "0.708333"
+      },
+      {
+        "best_effort_timestamp_time": "0.750000"
+      },
+      {
+        "best_effort_timestamp_time": "0.791667"
+      },
+      {
+        "best_effort_timestamp_time": "0.833333"
+      },
+      {
+        "best_effort_timestamp_time": "0.875000"
+      },
+      {
+        "best_effort_timestamp_time": "0.916667"
+      },
+      {
+        "best_effort_timestamp_time": "0.958333"
+      },
+      {
+        "best_effort_timestamp_time": "1.000000"
+      },
+      {
+        "best_effort_timestamp_time": "1.041667"
+      },
+      {
+        "best_effort_timestamp_time": "1.083333"
+      },
+      {
+        "best_effort_timestamp_time": "1.125000"
+      },
+      {
+        "best_effort_timestamp_time": "1.166667"
+      },
+      {
+        "best_effort_timestamp_time": "1.208333"
+      },
+      {
+        "best_effort_timestamp_time": "1.250000"
+      },
+      {
+        "best_effort_timestamp_time": "1.291667"
+      },
+      {
+        "best_effort_timestamp_time": "1.333333"
+      },
+      {
+        "best_effort_timestamp_time": "1.375000"
+      },
+      {
+        "best_effort_timestamp_time": "1.416667"
+      },
+      {
+        "best_effort_timestamp_time": "1.458333"
+      },
+      {
+        "best_effort_timestamp_time": "1.500000"
+      },
+      {
+        "best_effort_timestamp_time": "1.541667"
+      },
+      {
+        "best_effort_timestamp_time": "1.583333"
+      },
+      {
+        "best_effort_timestamp_time": "1.625000"
+      },
+      {
+        "best_effort_timestamp_time": "1.666667"
+      },
+      {
+        "best_effort_timestamp_time": "1.708333"
+      },
+      {
+        "best_effort_timestamp_time": "1.750000"
+      },
+      {
+        "best_effort_timestamp_time": "1.791667"
+      },
+      {
+        "best_effort_timestamp_time": "1.833333"
+      },
+      {
+        "best_effort_timestamp_time": "1.875000"
+      },
+      {
+        "best_effort_timestamp_time": "1.916667"
+      },
+      {
+        "best_effort_timestamp_time": "1.958333"
+      },
+      {
+        "best_effort_timestamp_time": "2.000000"
+      },
+      {
+        "best_effort_timestamp_time": "2.041667"
+      },
+      {
+        "best_effort_timestamp_time": "2.083333"
+      },
+      {
+        "best_effort_timestamp_time": "2.125000"
+      },
+      {
+        "best_effort_timestamp_time": "2.166667"
+      },
+      {
+        "best_effort_timestamp_time": "2.208333"
+      },
+      {
+        "best_effort_timestamp_time": "2.275000"
+      },
+      {
+        "best_effort_timestamp_time": "2.316667"
+      },
+      {
+        "best_effort_timestamp_time": "2.358333"
+      },
+      {
+        "best_effort_timestamp_time": "2.400000"
+      },
+      {
+        "best_effort_timestamp_time": "2.441667"
+      },
+      {
+        "best_effort_timestamp_time": "2.483333"
+      },
+      {
+        "best_effort_timestamp_time": "2.525000"
+      },
+      {
+        "best_effort_timestamp_time": "2.566667"
+      },
+      {
+        "best_effort_timestamp_time": "2.608333"
+      },
+      {
+        "best_effort_timestamp_time": "2.650000"
+      },
+      {
+        "best_effort_timestamp_time": "2.691667"
+      },
+      {
+        "best_effort_timestamp_time": "2.733333"
+      },
+      {
+        "best_effort_timestamp_time": "2.775000"
+      },
+      {
+        "best_effort_timestamp_time": "2.816667"
+      },
+      {
+        "best_effort_timestamp_time": "2.858333"
+      },
+      {
+        "best_effort_timestamp_time": "2.900000"
+      },
+      {
+        "best_effort_timestamp_time": "2.941667"
+      },
+      {
+        "best_effort_timestamp_time": "2.983333"
+      },
+      {
+        "best_effort_timestamp_time": "3.025000"
+      },
+      {
+        "best_effort_timestamp_time": "3.066667"
+      },
+      {
+        "best_effort_timestamp_time": "3.108333"
+      },
+      {
+        "best_effort_timestamp_time": "3.150000"
+      },
+      {
+        "best_effort_timestamp_time": "3.191667"
+      },
+      {
+        "best_effort_timestamp_time": "3.233333"
+      }
+    ],
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "width": 256,
+        "height": 144,
+        "r_frame_rate": "120/1",
+        "avg_frame_rate": "3240000/134701",
+        "duration": "2.993356",
+        "disposition": {
+          "default": 1,
+          "dub": 0,
+          "original": 0,
+          "comment": 0,
+          "lyrics": 0,
+          "karaoke": 0,
+          "forced": 0,
+          "hearing_impaired": 0,
+          "visual_impaired": 0,
+          "clean_effects": 0,
+          "attached_pic": 0,
+          "timed_thumbnails": 0,
+          "non_diegetic": 0,
+          "captions": 0,
+          "descriptions": 0,
+          "metadata": 0,
+          "dependent": 0,
+          "still_image": 0,
+          "multilayer": 0
+        },
+        "tags": {
+          "language": "und",
+          "handler_name": "VideoHandler",
+          "encoder": "Lavc63.7.100 libx264"
+        }
+      }
+    ],
+    "video_end_us": 3243356,
+    "tail_sample": {
+      "pts": 291000,
+      "dts": 291000,
+      "duration": 902,
+      "size": "23",
+      "pos": "3549",
+      "time_base": "1/90000"
+    }
+  },
+  "video-fragmented.mp4": {
+    "frames": [
+      {
+        "best_effort_timestamp_time": "0.020000",
+        "side_data_list": [
+          {
+            "side_data_type": "H.26[45] User Data Unregistered SEI message"
+          }
+        ]
+      },
+      {
+        "best_effort_timestamp_time": "0.061667"
+      },
+      {
+        "best_effort_timestamp_time": "0.103333"
+      },
+      {
+        "best_effort_timestamp_time": "0.145000"
+      },
+      {
+        "best_effort_timestamp_time": "0.186667"
+      },
+      {
+        "best_effort_timestamp_time": "0.228333"
+      },
+      {
+        "best_effort_timestamp_time": "0.270000"
+      },
+      {
+        "best_effort_timestamp_time": "0.311667"
+      },
+      {
+        "best_effort_timestamp_time": "0.353333"
+      },
+      {
+        "best_effort_timestamp_time": "0.395000"
+      },
+      {
+        "best_effort_timestamp_time": "0.436667"
+      },
+      {
+        "best_effort_timestamp_time": "0.478333"
+      },
+      {
+        "best_effort_timestamp_time": "0.520000"
+      },
+      {
+        "best_effort_timestamp_time": "0.561667"
+      },
+      {
+        "best_effort_timestamp_time": "0.603333"
+      },
+      {
+        "best_effort_timestamp_time": "0.645000"
+      },
+      {
+        "best_effort_timestamp_time": "0.686667"
+      },
+      {
+        "best_effort_timestamp_time": "0.728333"
+      },
+      {
+        "best_effort_timestamp_time": "0.770000"
+      },
+      {
+        "best_effort_timestamp_time": "0.811667"
+      },
+      {
+        "best_effort_timestamp_time": "0.853333"
+      },
+      {
+        "best_effort_timestamp_time": "0.895000"
+      },
+      {
+        "best_effort_timestamp_time": "0.936667"
+      },
+      {
+        "best_effort_timestamp_time": "0.978333"
+      },
+      {
+        "best_effort_timestamp_time": "1.020000"
+      },
+      {
+        "best_effort_timestamp_time": "1.061667"
+      },
+      {
+        "best_effort_timestamp_time": "1.103333"
+      },
+      {
+        "best_effort_timestamp_time": "1.145000"
+      },
+      {
+        "best_effort_timestamp_time": "1.186667"
+      },
+      {
+        "best_effort_timestamp_time": "1.228333"
+      },
+      {
+        "best_effort_timestamp_time": "1.270000"
+      },
+      {
+        "best_effort_timestamp_time": "1.311667"
+      },
+      {
+        "best_effort_timestamp_time": "1.353333"
+      },
+      {
+        "best_effort_timestamp_time": "1.395000"
+      },
+      {
+        "best_effort_timestamp_time": "1.436667"
+      },
+      {
+        "best_effort_timestamp_time": "1.478333"
+      },
+      {
+        "best_effort_timestamp_time": "1.520000"
+      },
+      {
+        "best_effort_timestamp_time": "1.561667"
+      },
+      {
+        "best_effort_timestamp_time": "1.603333"
+      },
+      {
+        "best_effort_timestamp_time": "1.645000"
+      },
+      {
+        "best_effort_timestamp_time": "1.686667"
+      },
+      {
+        "best_effort_timestamp_time": "1.728333"
+      },
+      {
+        "best_effort_timestamp_time": "1.770000"
+      },
+      {
+        "best_effort_timestamp_time": "1.811667"
+      },
+      {
+        "best_effort_timestamp_time": "1.853333"
+      },
+      {
+        "best_effort_timestamp_time": "1.895000"
+      },
+      {
+        "best_effort_timestamp_time": "1.936667"
+      },
+      {
+        "best_effort_timestamp_time": "1.978333"
+      },
+      {
+        "best_effort_timestamp_time": "2.020000"
+      },
+      {
+        "best_effort_timestamp_time": "2.061667"
+      },
+      {
+        "best_effort_timestamp_time": "2.103333"
+      },
+      {
+        "best_effort_timestamp_time": "2.145000"
+      },
+      {
+        "best_effort_timestamp_time": "2.186667"
+      },
+      {
+        "best_effort_timestamp_time": "2.228333"
+      },
+      {
+        "best_effort_timestamp_time": "2.270000"
+      },
+      {
+        "best_effort_timestamp_time": "2.311667"
+      },
+      {
+        "best_effort_timestamp_time": "2.353333"
+      },
+      {
+        "best_effort_timestamp_time": "2.395000"
+      },
+      {
+        "best_effort_timestamp_time": "2.436667"
+      },
+      {
+        "best_effort_timestamp_time": "2.478333"
+      },
+      {
+        "best_effort_timestamp_time": "2.520000"
+      },
+      {
+        "best_effort_timestamp_time": "2.561667"
+      },
+      {
+        "best_effort_timestamp_time": "2.603333"
+      },
+      {
+        "best_effort_timestamp_time": "2.645000"
+      },
+      {
+        "best_effort_timestamp_time": "2.686667"
+      },
+      {
+        "best_effort_timestamp_time": "2.728333"
+      },
+      {
+        "best_effort_timestamp_time": "2.770000"
+      },
+      {
+        "best_effort_timestamp_time": "2.811667"
+      },
+      {
+        "best_effort_timestamp_time": "2.853333"
+      },
+      {
+        "best_effort_timestamp_time": "2.895000"
+      },
+      {
+        "best_effort_timestamp_time": "2.936667"
+      },
+      {
+        "best_effort_timestamp_time": "2.978333"
+      }
+    ],
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "width": 256,
+        "height": 144,
+        "r_frame_rate": "48/1",
+        "avg_frame_rate": "72000000/2978333",
+        "duration": "2.978333",
+        "disposition": {
+          "default": 1,
+          "dub": 0,
+          "original": 0,
+          "comment": 0,
+          "lyrics": 0,
+          "karaoke": 0,
+          "forced": 0,
+          "hearing_impaired": 0,
+          "visual_impaired": 0,
+          "clean_effects": 0,
+          "attached_pic": 0,
+          "timed_thumbnails": 0,
+          "non_diegetic": 0,
+          "captions": 0,
+          "descriptions": 0,
+          "metadata": 0,
+          "dependent": 0,
+          "still_image": 0,
+          "multilayer": 0
+        },
+        "tags": {
+          "language": "und",
+          "handler_name": "VideoHandler",
+          "encoder": "Lavc63.7.100 libx264"
+        }
+      }
+    ],
+    "video_end_us": 2998334,
+    "tail_sample": {
+      "pts": 2978333,
+      "dts": 2916666,
+      "duration": 20001,
+      "size": "23",
+      "pos": "5736",
+      "time_base": "1/1000000"
+    }
+  },
+  "video-tail-cmov.mov": {
+    "frames": [
+      {
+        "best_effort_timestamp_time": "0.250000",
+        "side_data_list": [
+          {
+            "side_data_type": "H.26[45] User Data Unregistered SEI message"
+          }
+        ]
+      },
+      {
+        "best_effort_timestamp_time": "0.291667"
+      },
+      {
+        "best_effort_timestamp_time": "0.333333"
+      },
+      {
+        "best_effort_timestamp_time": "0.375000"
+      },
+      {
+        "best_effort_timestamp_time": "0.416667"
+      },
+      {
+        "best_effort_timestamp_time": "0.458333"
+      },
+      {
+        "best_effort_timestamp_time": "0.500000"
+      },
+      {
+        "best_effort_timestamp_time": "0.541667"
+      },
+      {
+        "best_effort_timestamp_time": "0.583333"
+      },
+      {
+        "best_effort_timestamp_time": "0.625000"
+      },
+      {
+        "best_effort_timestamp_time": "0.666667"
+      },
+      {
+        "best_effort_timestamp_time": "0.708333"
+      },
+      {
+        "best_effort_timestamp_time": "0.750000"
+      },
+      {
+        "best_effort_timestamp_time": "0.791667"
+      },
+      {
+        "best_effort_timestamp_time": "0.833333"
+      },
+      {
+        "best_effort_timestamp_time": "0.875000"
+      },
+      {
+        "best_effort_timestamp_time": "0.916667"
+      },
+      {
+        "best_effort_timestamp_time": "0.958333"
+      },
+      {
+        "best_effort_timestamp_time": "1.000000"
+      },
+      {
+        "best_effort_timestamp_time": "1.041667"
+      },
+      {
+        "best_effort_timestamp_time": "1.083333"
+      },
+      {
+        "best_effort_timestamp_time": "1.125000"
+      },
+      {
+        "best_effort_timestamp_time": "1.166667"
+      },
+      {
+        "best_effort_timestamp_time": "1.208333"
+      },
+      {
+        "best_effort_timestamp_time": "1.250000"
+      },
+      {
+        "best_effort_timestamp_time": "1.291667"
+      },
+      {
+        "best_effort_timestamp_time": "1.333333"
+      },
+      {
+        "best_effort_timestamp_time": "1.375000"
+      },
+      {
+        "best_effort_timestamp_time": "1.416667"
+      },
+      {
+        "best_effort_timestamp_time": "1.458333"
+      },
+      {
+        "best_effort_timestamp_time": "1.500000"
+      },
+      {
+        "best_effort_timestamp_time": "1.541667"
+      },
+      {
+        "best_effort_timestamp_time": "1.583333"
+      },
+      {
+        "best_effort_timestamp_time": "1.625000"
+      },
+      {
+        "best_effort_timestamp_time": "1.666667"
+      },
+      {
+        "best_effort_timestamp_time": "1.708333"
+      },
+      {
+        "best_effort_timestamp_time": "1.750000"
+      },
+      {
+        "best_effort_timestamp_time": "1.791667"
+      },
+      {
+        "best_effort_timestamp_time": "1.833333"
+      },
+      {
+        "best_effort_timestamp_time": "1.875000"
+      },
+      {
+        "best_effort_timestamp_time": "1.916667"
+      },
+      {
+        "best_effort_timestamp_time": "1.958333"
+      },
+      {
+        "best_effort_timestamp_time": "2.000000"
+      },
+      {
+        "best_effort_timestamp_time": "2.041667"
+      },
+      {
+        "best_effort_timestamp_time": "2.083333"
+      },
+      {
+        "best_effort_timestamp_time": "2.125000"
+      },
+      {
+        "best_effort_timestamp_time": "2.166667"
+      },
+      {
+        "best_effort_timestamp_time": "2.208333"
+      },
+      {
+        "best_effort_timestamp_time": "2.275000"
+      },
+      {
+        "best_effort_timestamp_time": "2.316667"
+      },
+      {
+        "best_effort_timestamp_time": "2.358333"
+      },
+      {
+        "best_effort_timestamp_time": "2.400000"
+      },
+      {
+        "best_effort_timestamp_time": "2.441667"
+      },
+      {
+        "best_effort_timestamp_time": "2.483333"
+      },
+      {
+        "best_effort_timestamp_time": "2.525000"
+      },
+      {
+        "best_effort_timestamp_time": "2.566667"
+      },
+      {
+        "best_effort_timestamp_time": "2.608333"
+      },
+      {
+        "best_effort_timestamp_time": "2.650000"
+      },
+      {
+        "best_effort_timestamp_time": "2.691667"
+      },
+      {
+        "best_effort_timestamp_time": "2.733333"
+      },
+      {
+        "best_effort_timestamp_time": "2.775000"
+      },
+      {
+        "best_effort_timestamp_time": "2.816667"
+      },
+      {
+        "best_effort_timestamp_time": "2.858333"
+      },
+      {
+        "best_effort_timestamp_time": "2.900000"
+      },
+      {
+        "best_effort_timestamp_time": "2.941667"
+      },
+      {
+        "best_effort_timestamp_time": "2.983333"
+      },
+      {
+        "best_effort_timestamp_time": "3.025000"
+      },
+      {
+        "best_effort_timestamp_time": "3.066667"
+      },
+      {
+        "best_effort_timestamp_time": "3.108333"
+      },
+      {
+        "best_effort_timestamp_time": "3.150000"
+      },
+      {
+        "best_effort_timestamp_time": "3.191667"
+      },
+      {
+        "best_effort_timestamp_time": "3.233333"
+      }
+    ],
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "width": 256,
+        "height": 144,
+        "r_frame_rate": "120/1",
+        "avg_frame_rate": "3240000/134701",
+        "duration": "2.993356",
+        "disposition": {
+          "default": 1,
+          "dub": 0,
+          "original": 0,
+          "comment": 0,
+          "lyrics": 0,
+          "karaoke": 0,
+          "forced": 0,
+          "hearing_impaired": 0,
+          "visual_impaired": 0,
+          "clean_effects": 0,
+          "attached_pic": 0,
+          "timed_thumbnails": 0,
+          "non_diegetic": 0,
+          "captions": 0,
+          "descriptions": 0,
+          "metadata": 0,
+          "dependent": 0,
+          "still_image": 0,
+          "multilayer": 0
+        },
+        "tags": {
+          "language": "und",
+          "handler_name": "VideoHandler",
+          "encoder": "Lavc63.7.100 libx264"
+        }
+      }
+    ],
+    "video_end_us": 3243356,
+    "tail_sample": {
+      "pts": 291000,
+      "dts": 291000,
+      "duration": 902,
+      "size": "23",
+      "pos": "3549",
+      "time_base": "1/90000"
+    }
   }
 }

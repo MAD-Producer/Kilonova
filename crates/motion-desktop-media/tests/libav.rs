@@ -125,6 +125,48 @@ fn all_visible_frames_match_reference_pts_and_scrub_in_both_directions() {
 }
 
 #[test]
+fn fragmented_compressed_and_fractional_short_tail_use_exact_sample_intervals() {
+    let manifest: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(fixture("manifest.json")).unwrap()).unwrap();
+    for name in [
+        "video-fragmented.mp4",
+        "video-tail-90k.mp4",
+        "video-tail-cmov.mov",
+    ] {
+        let expected = &manifest[name];
+        let expected_end = expected["video_end_us"].as_u64().unwrap();
+        let probed = probe(&fixture(name), None, Some(u32::MAX), &|| Ok(())).unwrap();
+        let pts: Vec<u64> = expected["frames"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|frame| {
+                (frame["best_effort_timestamp_time"]
+                    .as_str()
+                    .unwrap()
+                    .parse::<f64>()
+                    .unwrap()
+                    * 1_000_000.0)
+                    .round() as u64
+            })
+            .collect();
+        assert_eq!(probed.timestamps, pts, "{name}");
+        assert_eq!(probed.asset.video_end_us, expected_end, "{name}");
+        assert_eq!(probed.asset.duration_us, expected_end, "{name}");
+        if name != "video-fragmented.mp4" {
+            assert!(probed.asset.variable_frame_rate, "{name}");
+            assert_eq!(expected_end, 3_243_356);
+            assert_eq!(probed.asset.video_start_us, 250_000);
+        }
+        let mut decoder = Decoder::open(&fixture(name), probed.asset, probed.timestamps).unwrap();
+        let tail = decoder.frame(expected_end - 1, &|| Ok(())).unwrap();
+        assert_eq!(tail.pts, *pts.last().unwrap(), "{name}");
+        assert_eq!(tail.end, expected_end, "{name}");
+        assert!(decoder.frame(expected_end, &|| Ok(())).is_err(), "{name}");
+    }
+}
+
+#[test]
 fn stream_selection_and_cancel_do_not_silently_fall_back() {
     let path = fixture("sound-24fps.mp4");
     assert!(probe(&path, Some(99), None, &|| Ok(())).is_err());

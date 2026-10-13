@@ -44,12 +44,12 @@ fn micros(pts: i64, base: Rational) -> Result<u64> {
     if pts < 0 || base.numerator() <= 0 || base.denominator() <= 0 {
         return Err("invalid video timestamp or time base".into());
     }
-    let n = i128::from(pts).checked_mul(i128::from(base.numerator()))
+    let n = i128::from(pts)
+        .checked_mul(i128::from(base.numerator()))
         .and_then(|n| n.checked_mul(1_000_000))
         .and_then(|n| n.checked_add(i128::from(base.denominator()) / 2))
         .ok_or("video timestamp overflow")?;
-    u64::try_from(n / i128::from(base.denominator()))
-        .map_err(|_| "video timestamp overflow".into())
+    u64::try_from(n / i128::from(base.denominator())).map_err(|_| "video timestamp overflow".into())
 }
 fn rotation(stream: &format::stream::Stream<'_>) -> Result<u32> {
     let mut degrees = stream
@@ -130,6 +130,8 @@ pub fn probe(
     }
     let stream = video_stream(&input, selected)?;
     let track = stream.index();
+    let track_id = stream.id();
+    let mov = input.format().name().split(',').any(|name| name == "mov");
     let base = stream.time_base();
     let mime = mime(stream.parameters().id())?.to_string();
     let video = codec::context::Context::from_parameters(stream.parameters())
@@ -181,8 +183,8 @@ pub fn probe(
         timestamps.push(time);
         // Packets are in decode order (B frames), so retain the duration paired
         // with the largest presentation timestamp, not the last scanned packet.
-        if last_sample.is_none_or(|(pts, _)| time >= pts) {
-            last_sample = Some((time, micros(packet.duration().max(0), base)?));
+        if last_sample.is_none_or(|(previous, _, _, _)| pts >= previous) {
+            last_sample = Some((pts, packet.duration(), packet.position(), packet.size()));
         }
         if timestamps.len() > motion_core::MAX_VIDEO_FRAMES as usize {
             return Err("video timestamp cache budget exceeded".into());
@@ -203,15 +205,43 @@ pub fn probe(
             33_333
         });
     let variable = deltas.iter().any(|d| d.abs_diff(step) > 2);
-    let end = motion_media::video_end_us(
-        last,
-        last_sample.map(|(_, duration)| duration),
-        step,
-        motion_media::VideoDuration::Span {
-            start_us: first,
-            duration_us: declared,
-        },
-    )?;
+    let (pts, duration, position, packet_bytes) =
+        last_sample.ok_or("video has no visible samples")?;
+    let end = if mov {
+        // Older MOV demuxers infer packet.duration from FPS when CTTS exists.
+        // Neither a positive packet duration nor a decoded frame proves STTS.
+        let timing = crate::mp4_timing::sample_duration(
+            path,
+            u32::try_from(track_id).map_err(|_| "invalid MOV track identity")?,
+            u64::try_from(position).map_err(|_| "MOV packet has no source position")?,
+            packet_bytes,
+            &|| {
+                check()?;
+                if began.elapsed() > budget {
+                    Err("video timestamp scan timed out".into())
+                } else {
+                    Ok(())
+                }
+            },
+        )?;
+        timing.end_us(pts, base.numerator(), base.denominator())?
+    } else if duration > 0 {
+        micros(
+            pts.checked_add(duration)
+                .ok_or("video timestamp overflow")?,
+            base,
+        )?
+    } else {
+        motion_media::video_end_us(
+            last,
+            None,
+            step,
+            motion_media::VideoDuration::Span {
+                start_us: first,
+                duration_us: declared,
+            },
+        )?
+    };
     let (display_width, display_height) = if rotation % 180 == 0 {
         (width, height)
     } else {
@@ -511,7 +541,10 @@ mod timestamp_arithmetic_tests {
     #[test]
     fn extreme_timestamps_are_rejected_or_rescaled_without_wrapping() {
         assert_eq!(micros(0, Rational(1, 1)).unwrap(), 0);
-        assert_eq!(micros(i64::MAX, Rational(1, 1_000_000)).unwrap(), i64::MAX as u64);
+        assert_eq!(
+            micros(i64::MAX, Rational(1, 1_000_000)).unwrap(),
+            i64::MAX as u64
+        );
         assert_eq!(micros(1, Rational(1, 3)).unwrap(), 333333);
         assert_eq!(micros(2, Rational(1, 3)).unwrap(), 666667);
         assert!(micros(i64::MAX, Rational(i32::MAX, 1)).is_err());

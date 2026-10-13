@@ -16,6 +16,8 @@ pub mod av;
 #[cfg(feature = "ffmpeg")]
 pub mod encode;
 pub mod movie;
+#[cfg(any(feature = "ffmpeg", test))]
+mod mp4_timing;
 
 /// Presentation backends tried in order.
 ///
