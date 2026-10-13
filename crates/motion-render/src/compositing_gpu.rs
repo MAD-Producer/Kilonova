@@ -23,6 +23,16 @@ pub(crate) struct CompositingGpu {
 }
 
 impl CompositingGpu {
+    pub(crate) fn collect_textures(&self, ledger: &mut crate::TextureResourceLedger) {
+        use crate::TextureCategory::MatteBlendScratch;
+        ledger.retained(&self.zero.texture, MatteBlendScratch, "compositing/zero".into());
+        for ((id,luma),t) in &self.mattes {
+            ledger.retained(&t.texture, MatteBlendScratch, format!("compositing/matte/{id}/{luma}"));
+        }
+        if let Some(t) = &self.source {
+            ledger.retained(&t.texture, MatteBlendScratch, "compositing/source".into());
+        }
+    }
     pub fn new(
         device: &wgpu::Device,
         queue: &wgpu::Queue,

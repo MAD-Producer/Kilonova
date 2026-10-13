@@ -100,3 +100,30 @@ fn shared_json_policy_is_atomic_runtime_state_and_inherited_by_editor_rendering(
     session.engine.redo().unwrap();
     assert_eq!(session.engine.snapshot(), before);
 }
+
+#[test]
+fn resource_ledger_json_query_is_read_only_and_available_without_a_surface() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut session = Session::new(Project::new(64, 64, 30, 60).unwrap(), directory.path().to_path_buf(), Arc::new(Stub)).unwrap();
+    let revision = session.engine.revision();
+    let view = session.view_revision;
+    let project = session.engine.snapshot();
+    let query = "{\"op\":\"resource_ledger\"}";
+    let empty = session.plugin_request(query).unwrap();
+    assert_eq!(empty["knownBytes"], 0);
+    assert_eq!(empty["graphicsAvailable"], false);
+    assert_eq!(empty["editorRendererAvailable"], false);
+    assert!(empty["driverResidentBytes"].is_null());
+    assert!(empty["gpuRetirementBytes"].is_null());
+    let renderer = pollster::block_on(Renderer::headless()).unwrap();
+    session.editor_renderer = Some(renderer);
+    let occupied = session.plugin_request(query).unwrap();
+    assert_eq!(occupied["knownBytes"], 1032);
+    assert_eq!(occupied["unknownCapacityCount"], 0);
+    assert_eq!(occupied["editorRendererAvailable"], true);
+    assert_eq!(occupied["resources"].as_array().unwrap().len(), 3);
+    assert_eq!(occupied, session.plugin_request(query).unwrap());
+    assert_eq!(session.engine.snapshot(), project);
+    assert_eq!(session.engine.revision(), revision);
+    assert_eq!(session.view_revision, view);
+}

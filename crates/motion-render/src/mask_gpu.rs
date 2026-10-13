@@ -34,6 +34,11 @@ fn texture(
     crate::effect_gpu::texture(device, layout, sampler, w, h, wgpu::TextureFormat::R8Unorm)
 }
 impl MaskGpu {
+    pub(crate) fn collect_textures(&self, ledger: &mut crate::TextureResourceLedger) {
+        for (i,t) in self.scratch.iter().enumerate() {
+            ledger.retained(&t.texture, crate::TextureCategory::MaskScratch, format!("masks/scratch/{i}"));
+        }
+    }
     pub fn new(
         device: &wgpu::Device,
         image_layout: &wgpu::BindGroupLayout,

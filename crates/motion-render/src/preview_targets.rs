@@ -34,6 +34,12 @@ impl PreviewFrameTargets {
     pub fn discard_candidate(&mut self) {
         self.candidate = None;
     }
+    pub fn collect_texture_resources(&self, ledger: &mut crate::TextureResourceLedger) {
+        self.front.collect_texture_resources(ledger, "preview/front", crate::TextureState::PreviewFront);
+        if let Some(candidate) = &self.candidate {
+            candidate.collect_texture_resources(ledger, "preview/candidate", crate::TextureState::PreviewCandidate);
+        }
+    }
     pub fn texture_bytes(&self) -> u64 {
         self.front.texture_bytes()
             + self

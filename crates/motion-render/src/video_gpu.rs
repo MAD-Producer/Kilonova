@@ -1,3 +1,4 @@
+use crate::resource_ledger::{DeviceTextureExt, OwnedTexture};
 use crate::Yuv420Frame;
 use std::{
     collections::HashMap,
@@ -29,8 +30,8 @@ impl Drop for EncodedVideoUpload {
 
 struct Input {
     size: (u32, u32, u32, u32),
-    y: wgpu::Texture,
-    uv: wgpu::Texture,
+    y: OwnedTexture,
+    uv: OwnedTexture,
     uniform: wgpu::Buffer,
     group: wgpu::BindGroup,
     completion: Option<Arc<AtomicU8>>,
@@ -41,6 +42,12 @@ pub(crate) struct VideoGpu {
     inputs: HashMap<u64, Input>,
 }
 impl VideoGpu {
+    pub(crate) fn collect_textures(&self, ledger: &mut crate::TextureResourceLedger) {
+        for (id, input) in &self.inputs {
+            ledger.retained(&input.y, crate::TextureCategory::VideoPlanes, format!("video/{id}/y"));
+            ledger.retained(&input.uv, crate::TextureCategory::VideoPlanes, format!("video/{id}/uv"));
+        }
+    }
     pub fn new(device: &wgpu::Device, format: wgpu::TextureFormat) -> Self {
         let texture_entry = |binding| wgpu::BindGroupLayoutEntry {
             binding,
@@ -207,7 +214,7 @@ impl VideoGpu {
         let size = (frame.width, frame.height, cw, ch);
         if self.inputs.get(&object).is_none_or(|i| i.size != size) {
             let create = |width, height, format| {
-                device.create_texture(&wgpu::TextureDescriptor {
+                device.create_owned_texture(&wgpu::TextureDescriptor {
                     label: Some("reusable video plane"),
                     size: wgpu::Extent3d {
                         width,

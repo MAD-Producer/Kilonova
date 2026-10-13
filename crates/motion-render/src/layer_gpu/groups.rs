@@ -1,8 +1,9 @@
+use crate::resource_ledger::{DeviceTextureExt, OwnedTexture};
 use super::*;
 use crate::vector_mesh::{RasterCommand, VectorMesh};
 use std::collections::HashSet;
 
-struct Target { multisample: wgpu::Texture, resolved: FxTexture }
+struct Target { multisample: OwnedTexture, resolved: FxTexture }
 pub(super) struct GroupGpu {
     targets: HashMap<(u32,u32,usize),Target>,
     uniform: wgpu::BindGroupLayout,
@@ -10,6 +11,13 @@ pub(super) struct GroupGpu {
     encode: wgpu::RenderPipeline,
 }
 impl GroupGpu {
+    pub(super) fn collect_textures(&self, ledger: &mut crate::TextureResourceLedger) {
+        for ((w,h,depth), target) in &self.targets {
+            let owner = format!("vectors/group/{w}x{h}/{depth}");
+            ledger.retained(&target.multisample, crate::TextureCategory::VectorGroupScratch, format!("{owner}/msaa"));
+            ledger.retained(&target.resolved.texture, crate::TextureCategory::VectorGroupScratch, format!("{owner}/resolve"));
+        }
+    }
     pub fn new(device:&wgpu::Device,image:&wgpu::BindGroupLayout) -> Self {
         let uniform=device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label:Some("vector group opacity"), entries:&[wgpu::BindGroupLayoutEntry {
@@ -55,7 +63,7 @@ impl GroupGpu {
         mesh:&VectorMesh,output:&wgpu::TextureView,paint:&wgpu::RenderPipeline,clear:&wgpu::RenderPipeline,clear_vertices:&wgpu::Buffer) -> Result<(),RenderError> {
         for depth in 0..=mesh.scope_depth() {
             self.targets.entry((mesh.width,mesh.height,depth)).or_insert_with(||Target {
-                multisample:device.create_texture(&wgpu::TextureDescriptor {label:Some("pooled vector group MSAA"),
+                multisample:device.create_owned_texture(&wgpu::TextureDescriptor {label:Some("pooled vector group MSAA"),
                     size:wgpu::Extent3d {width:mesh.width,height:mesh.height,depth_or_array_layers:1},mip_level_count:1,sample_count:4,
                     dimension:wgpu::TextureDimension::D2,format:wgpu::TextureFormat::Rgba8Unorm,usage:wgpu::TextureUsages::RENDER_ATTACHMENT,view_formats:&[]}),
                 resolved:crate::effect_gpu::texture(device,image,sampler,mesh.width,mesh.height,wgpu::TextureFormat::Rgba8Unorm),
