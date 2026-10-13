@@ -445,6 +445,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                     position.y as f32 / self.scale,
                 ],
             }),
+            WindowEvent::CursorLeft { .. } => self.pointer_left(),
             WindowEvent::MouseInput { state, button, .. } => {
                 let button = match button {
                     WinitMouseButton::Left => MouseButton::Left,
@@ -1041,6 +1042,19 @@ mod tests {
             .unwrap()
             .unwrap();
         assert!(state["frame"].as_f64().unwrap() > 0.);
+    }
+    #[test]
+    fn leaving_the_window_cancels_a_pointer_gesture_without_losing_keyboard_focus() {
+        let folder = tempfile::tempdir().unwrap();
+        let mut shell = Shell::new(folder.path().join("project"), None, Some(Locale::En)).unwrap();
+        shell.input.mouse = [25., 25.];
+        shell.input.held = Some(MouseButton::Left);
+        shell.input.pointer_origin = Some([25., 25.]);
+        shell.pointer_left();
+        assert!(shell.input.held.is_none());
+        assert!(shell.input.pointer_origin.is_none());
+        assert!(!shell.input.mouse[0].is_finite());
+        assert!(!shell.input.focus_lost);
     }
     #[test]
     fn builtin_examples_are_independent_and_reject_stale_replacement() {
