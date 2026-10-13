@@ -22,6 +22,21 @@ def release_kind(ref):
     raise ValueError("Publishing requires main or a vMAJOR.MINOR.PATCH[-prerelease] tag")
 
 
+def build_kind(event,ref):
+    """Only push events on supported release refs may use signing material."""
+    if event=="push":
+        try: return release_kind(ref)[0]
+        except ValueError: pass
+    return "validation"
+
+
+def policy():
+    kind=build_kind(os.environ["GITHUB_EVENT_NAME"],os.environ["GITHUB_REF"])
+    with Path(os.environ["GITHUB_OUTPUT"]).open("a",encoding="utf-8") as output:
+        output.write("kind="+kind+"\npublish="+str(kind!="validation").lower()+"\n")
+    print("Build policy:",kind)
+
+
 def version_code(raw):
     if not raw.isascii() or not raw.isdecimal() or not 1<=int(raw)<=2100000000:
         raise ValueError("Android version code must be 1..2100000000")
@@ -172,5 +187,5 @@ def publish():
 
 
 if __name__=="__main__":
-    parser=argparse.ArgumentParser();parser.add_argument("action",choices=["prepare","package","publish"])
-    {"prepare":prepare,"package":package,"publish":publish}[parser.parse_args().action]()
+    parser=argparse.ArgumentParser();parser.add_argument("action",choices=["policy","prepare","package","publish"])
+    {"policy":policy,"prepare":prepare,"package":package,"publish":publish}[parser.parse_args().action]()
