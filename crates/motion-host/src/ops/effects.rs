@@ -24,6 +24,18 @@ impl Session {
             return self.editor_operation(&v);
         }
         let text = |name: &str| v[name].as_str().ok_or_else(|| format!("missing {name}"));
+        // Available through the existing desktop/Android JSON bridge. Query
+        // omits policy; writes validate all limits before changing runtime state.
+        if text("op")? == "resource_ledger" {
+            return Ok(self.texture_resource_ledger());
+        }
+        if text("op")? == "memory_policy" {
+            if let Some(policy) = v.get("policy") {
+                let policy = serde_json::from_value(policy.clone()).map_err(|error| error.to_string())?;
+                return self.configure_memory_policy(policy);
+            }
+            return Ok(json!({"policyVersion":2,"memoryPolicy":self.effects.memory_policy()}));
+        }
         if self.editor.as_ref().is_some_and(|e| e.gesture) && v["op"] != "catalogue" {
             return Err("finish the plugin editor gesture before other plugin operations".into());
         }
@@ -305,7 +317,7 @@ impl Session {
                 pollster::block_on(Renderer::headless()).map_err(|e| e.to_string())?;
             renderer.set_effect_registry(self.effects.registry.clone());
             renderer
-                .set_scratch_budget(self.effects.scratch_budget())
+                .set_memory_policy(self.effects.memory_policy())
                 .map_err(|e| e.to_string())?;
             renderer
                 .configure_assets(self.engine.project(), &self.root)

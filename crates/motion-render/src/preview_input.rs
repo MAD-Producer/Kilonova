@@ -1,5 +1,6 @@
 //! Bounded, independent source textures for authoring previews.
 //! Every exposed view samples linear premultiplied RGBA. No CPU GPU-readback.
+use crate::resource_ledger::{DeviceTextureExt, OwnedTexture};
 use crate::{image_resources::Resolution, video_gpu::VideoGpu, Yuv420Frame};
 use wgpu::util::DeviceExt;
 
@@ -8,10 +9,10 @@ pub struct PreviewInputTexture {
     device: wgpu::Device,
     queue: wgpu::Queue,
     budget: u64,
-    output: Option<wgpu::Texture>,
+    output: Option<OwnedTexture>,
     view: Option<wgpu::TextureView>,
     size: (u32, u32),
-    rgba: Option<wgpu::Texture>,
+    rgba: Option<OwnedTexture>,
     rgba_size: (u32, u32),
     video: Option<VideoGpu>,
     copy_layout: wgpu::BindGroupLayout,
@@ -21,6 +22,17 @@ pub struct PreviewInputTexture {
     copy_group: Option<wgpu::BindGroup>,
 }
 impl PreviewInputTexture {
+    pub fn texture_resource_ledger(&self) -> crate::TextureResourceLedger {
+        let mut ledger = crate::TextureResourceLedger::default();
+        if let Some(texture) = &self.output {
+            ledger.retained(texture, crate::TextureCategory::AuthoringInputs, "authoring/input/output".into());
+        }
+        if let Some(texture) = &self.rgba {
+            ledger.retained(texture, crate::TextureCategory::AuthoringInputs, "authoring/input/rgba".into());
+        }
+        if let Some(video) = &self.video { video.collect_textures(&mut ledger); }
+        ledger
+    }
     pub fn new(device: wgpu::Device, queue: wgpu::Queue, budget: u64) -> Self {
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("authoring source copy"),
@@ -146,8 +158,8 @@ impl PreviewInputTexture {
         }
         Ok(())
     }
-    fn texture(&self, size: (u32, u32)) -> wgpu::Texture {
-        self.device.create_texture(&wgpu::TextureDescriptor {
+    fn texture(&self, size: (u32, u32)) -> OwnedTexture {
+        self.device.create_owned_texture(&wgpu::TextureDescriptor {
             label: Some("independent authoring source"),
             size: wgpu::Extent3d {
                 width: size.0,

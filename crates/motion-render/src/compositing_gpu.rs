@@ -23,6 +23,16 @@ pub(crate) struct CompositingGpu {
 }
 
 impl CompositingGpu {
+    pub(crate) fn collect_textures(&self, ledger: &mut crate::TextureResourceLedger) {
+        use crate::TextureCategory::MatteBlendScratch;
+        ledger.retained(&self.zero.texture, MatteBlendScratch, "compositing/zero".into());
+        for ((id,luma),t) in &self.mattes {
+            ledger.retained(&t.texture, MatteBlendScratch, format!("compositing/matte/{id}/{luma}"));
+        }
+        if let Some(t) = &self.source {
+            ledger.retained(&t.texture, MatteBlendScratch, "compositing/source".into());
+        }
+    }
     pub fn new(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
@@ -276,6 +286,7 @@ impl CompositingGpu {
         size: [u32; 2],
         needed: &[(u64, bool)],
         other_bytes: u64,
+        source_budget: u64,
     ) -> Result<(), RenderError> {
         if self.size != size {
             self.release();
@@ -284,10 +295,10 @@ impl CompositingGpu {
         self.mattes.retain(|key, _| needed.contains(key));
         let pixels = u64::from(size[0]) * u64::from(size[1]);
         let unique: std::collections::HashSet<_> = needed.iter().copied().collect();
-        if other_bytes + 1 + pixels * unique.len() as u64 > crate::renderer::TEXTURE_BUDGET {
+        if other_bytes + 1 + pixels * unique.len() as u64 > source_budget {
             return Err(RenderError::budget(crate::ResourceBudgetScope::SourceTextures,
-                other_bytes + 1 + pixels * unique.len() as u64, crate::renderer::TEXTURE_BUDGET,
-                "track matte textures exceed 128 MiB"));
+                other_bytes + 1 + pixels * unique.len() as u64, source_budget,
+                "track matte textures exceed configured source texture budget"));
         }
         for key in needed {
             self.mattes.entry(*key).or_insert_with(|| {
@@ -309,6 +320,7 @@ impl CompositingGpu {
         image: &wgpu::BindGroupLayout,
         sampler: &wgpu::Sampler,
         blend: bool,
+        source_budget: u64,
     ) -> Result<bool, RenderError> {
         if !blend {
             self.source = None;
@@ -321,11 +333,11 @@ impl CompositingGpu {
         };
         if blend
             && u64::from(self.size[0]) * u64::from(self.size[1]) * 12
-                > crate::renderer::TEXTURE_BUDGET
+                > source_budget
         {
             return Err(RenderError::budget(crate::ResourceBudgetScope::LayerCompositing,
-                u64::from(self.size[0]) * u64::from(self.size[1]) * 12, crate::renderer::TEXTURE_BUDGET,
-                "layer transfer accumulators exceed 128 MiB"));
+                u64::from(self.size[0]) * u64::from(self.size[1]) * 12, source_budget,
+                "layer transfer accumulators exceed configured source texture budget"));
         }
         if source_bytes > 0 {
             self.source = Some(crate::effect_gpu::texture(

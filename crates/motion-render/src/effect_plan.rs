@@ -320,6 +320,7 @@ pub struct ScratchRequest {
 }
 pub struct PlanBuilder {
     scratch_budget: u64,
+    pub(crate) source_texture_budget: u64,
     pub registry: Registry,
     pub device_dimension: u32,
     pub program_errors: std::collections::BTreeMap<u32, String>,
@@ -586,6 +587,7 @@ impl PlanBuilder {
             vector_cache: Default::default(),
             mask_cache: Default::default(),
             scratch_budget: motion_effects::SCRATCH_BUDGET_FLOOR,
+            source_texture_budget: crate::resource_policy::DEFAULT_SOURCE_TEXTURE_BUDGET,
             preview_inputs: None,
             pass_clocks: Vec::new(),
             preview_cache_hits: 0,
@@ -603,6 +605,24 @@ impl PlanBuilder {
         self.preview_inputs = None;
     }
     pub fn scratch_budget(&self) -> u64 { self.scratch_budget }
+    pub fn memory_policy(&self) -> crate::resource_policy::MemoryPolicy {
+        crate::resource_policy::MemoryPolicy {
+            source_texture_budget_bytes: self.source_texture_budget,
+            scratch_budget_bytes: self.scratch_budget,
+        }
+    }
+    pub fn set_memory_policy(
+        &mut self,
+        policy: crate::resource_policy::MemoryPolicy,
+    ) -> Result<(), String> {
+        policy.validate()?;
+        if self.memory_policy() != policy {
+            self.preview_inputs = None;
+        }
+        self.source_texture_budget = policy.source_texture_budget_bytes;
+        self.scratch_budget = policy.scratch_budget_bytes;
+        Ok(())
+    }
     pub fn set_scratch_budget(&mut self, budget: u64) -> Result<(), String> {
         if !(motion_effects::SCRATCH_BUDGET_FLOOR..=crate::resource_policy::MAX_SCRATCH_BUDGET).contains(&budget) {
             return Err("invalid host scratch memory policy".into());
@@ -1482,8 +1502,8 @@ impl PlanBuilder {
         {
             return Err("frame vector vertex limit exceeded (262144)".into());
         }
-        if vector_bytes > 128 * 1024 * 1024 {
-            return Err(self.reject_budget(ResourceBudgetScope::VectorSources, vector_bytes, 128 * 1024 * 1024, "vector sources exceed 128 MiB"));
+        if vector_bytes > self.source_texture_budget {
+            return Err(self.reject_budget(ResourceBudgetScope::VectorSources, vector_bytes, self.source_texture_budget, "vector sources exceed configured source texture budget"));
         }
         if self
             .frame
@@ -1495,9 +1515,9 @@ impl PlanBuilder {
                 * u64::from((scene.width as f32 * scale).ceil() as u32)
                 * u64::from((scene.height as f32 * scale).ceil() as u32)
                 * 4;
-            if accumulator > crate::renderer::TEXTURE_BUDGET {
-                return Err(self.reject_budget(ResourceBudgetScope::LayerCompositing, accumulator, crate::renderer::TEXTURE_BUDGET, format!(
-                    "adjustment accumulators require {:.2} MiB; composite budget is 128 MiB",
+            if accumulator > self.source_texture_budget {
+                return Err(self.reject_budget(ResourceBudgetScope::LayerCompositing, accumulator, self.source_texture_budget, format!(
+                    "adjustment accumulators require {:.2} MiB; composite source budget exceeded",
                     accumulator as f64 / 1048576.0
                 )));
             }
@@ -1505,7 +1525,7 @@ impl PlanBuilder {
         let (mw,mh,slots)=crate::mask_plan::scratch_dimensions(&self.frame.masks);
         let mask_scratch=u64::from(mw)*u64::from(mh)*slots as u64;
         let mask_outputs=self.frame.masks.chunk_by(|a,b|a.layer==b.layer).map(|g|u64::from(g[0].width)*u64::from(g[0].height)).sum::<u64>();
-        if mask_outputs>128*1024*1024 {return Err(self.reject_budget(ResourceBudgetScope::MaskOutputs, mask_outputs, 128*1024*1024, "layer mask outputs exceed 128 MiB"));}
+        if mask_outputs>self.source_texture_budget {return Err(self.reject_budget(ResourceBudgetScope::MaskOutputs, mask_outputs, self.source_texture_budget, "layer mask outputs exceed configured source texture budget"));}
         let scratch = mask_scratch+scratch_capacity_bytes(&self.frame.scratch_sizes);
         if scratch>self.scratch_budget {
             return Err(self.reject_budget(ResourceBudgetScope::MaskAndEffectScratch, scratch, self.scratch_budget, format!("layer mask and effect scratch textures require {:.2} MiB; budget is {} MiB", scratch as f64/1048576., self.scratch_budget/1048576)));

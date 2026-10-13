@@ -1,3 +1,4 @@
+use crate::resource_ledger::{DeviceTextureExt, OwnedTexture};
 use crate::{
     effect_plan::{EffectFramePlan, PlanBuilder},
     renderer::GpuImage,
@@ -8,7 +9,7 @@ use motion_effects::Registry;
 use std::collections::HashMap;
 
 pub(crate) struct FxTexture {
-    pub texture: wgpu::Texture,
+    pub texture: OwnedTexture,
     pub view: wgpu::TextureView,
     pub composite: wgpu::BindGroup,
 }
@@ -29,7 +30,7 @@ struct Binding {
     group: wgpu::BindGroup,
 }
 struct Lut {
-    texture: wgpu::Texture,
+    texture: OwnedTexture,
     view: wgpu::TextureView,
     last: [u8; 1024],
 }
@@ -71,7 +72,7 @@ pub(crate) fn texture(
     h: u32,
     format: wgpu::TextureFormat,
 ) -> FxTexture {
-    let texture = device.create_texture(&wgpu::TextureDescriptor {
+    let texture = device.create_owned_texture(&wgpu::TextureDescriptor {
         label: Some("motion-studio effect texture"),
         size: wgpu::Extent3d {
             width: w,
@@ -282,6 +283,22 @@ impl GpuState {
             self.invalidate();
         }
     }
+    pub(crate) fn collect_textures(&self, ledger: &mut crate::TextureResourceLedger) {
+        use crate::TextureCategory::*;
+        ledger.retained(&self.white.texture, SystemTextures, "effects/white".into());
+        ledger.retained(&self.identity.texture, SystemTextures, "effects/identity".into());
+        for (i, lut) in self.luts.iter().enumerate() {
+            ledger.retained(&lut.texture, CurveLuts, format!("effects/lut/{i}"));
+        }
+        for ((package, resource), texture) in &self.resource_textures {
+            ledger.retained(&texture.texture, PluginResources, format!("effects/resource/{package}/{resource}"));
+        }
+        for (i, texture) in self.pool.iter().enumerate() {
+            if let Some(texture) = texture {
+                ledger.retained(&texture.texture, EffectScratch, format!("effects/pool/{i}"));
+            }
+        }
+    }
     pub fn bytes(&self) -> u64 {
         crate::effect_plan::scratch_capacity_bytes(&self.pool_sizes)
             + self.resource_bytes
@@ -323,6 +340,7 @@ impl GpuState {
         builder: &PlanBuilder,
         scene: &Scene,
         asset_bytes: u64,
+        source_budget: u64,
     ) -> Result<(), RenderError> {
         self.failed_program = None;
         let frame = &builder.frame;
@@ -542,10 +560,10 @@ impl GpuState {
                                     message,
                                 });
                             }
-                            if asset_bytes + self.resource_bytes + bytes > 128 * 1024 * 1024 {
+                            if asset_bytes + self.resource_bytes + bytes > source_budget {
                                 return Err(RenderError::budget(crate::ResourceBudgetScope::SourceTextures,
-                                    asset_bytes + self.resource_bytes + bytes, crate::renderer::TEXTURE_BUDGET,
-                                    "images and effect resources exceed 128 MiB"));
+                                    asset_bytes + self.resource_bytes + bytes, source_budget,
+                                    "images and effect resources exceed configured source texture budget"));
                             }
                             let t = texture(
                                 device,

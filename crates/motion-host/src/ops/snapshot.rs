@@ -9,6 +9,24 @@ use motion_render::PreviewMode;
 use serde_json::{json, Value};
 
 impl Session {
+    /// Explicit diagnostic read; ordinary playback snapshots do not enumerate allocations.
+    pub fn texture_resource_ledger(&self) -> Value {
+        let mut ledger = motion_render::TextureResourceLedger::default();
+        if let Some(g) = &self.graphics {
+            ledger.merge(g.renderer.texture_resource_ledger());
+            g.scratch.collect_texture_resources(&mut ledger);
+        }
+        if let Some(renderer) = &self.editor_renderer {
+            ledger.merge(renderer.texture_resource_ledger());
+        }
+        json!({"version":1,"scope":"session_application_owned_texture_capacity",
+            "graphicsAvailable":self.graphics.is_some(),"editorRendererAvailable":self.editor_renderer.is_some(),
+            "knownBytes":ledger.total_known_bytes(),"unknownCapacityCount":ledger.unknown_capacity_count(),
+            "resources":ledger.resources().collect::<Vec<_>>(),
+            "gpuRetirementBytes":null,"driverResidentBytes":null,
+            "excludes":["gpu_buffers","upload_staging","cpu_decode_caches","swapchain",
+                "decoder_external_allocations","ui_and_independent_preview_textures","gpu_retirement"]})
+    }
     pub fn preview_info(&self) -> Value {
         let tier = self.preview.tier();
         let video = self.video_info();
@@ -32,7 +50,9 @@ impl Session {
                 "hasLastValidFrame":self.graphics.as_ref().is_some_and(|g|g.scratch.valid()),
                 "nextProbeInMs":self.preview_memory.next_probe_ms().saturating_sub(self.preview_memory_clock.elapsed().as_millis() as u64)},
             "previewVideoProxyBytes":self.preview_video.bytes(),
-            "scratchBudgetBytes":self.effects.scratch_budget(),"memoryPolicyVersion":1,
+            "scratchBudgetBytes":self.effects.scratch_budget(),"memoryPolicyVersion":2,
+            "sourceTextureBudgetBytes":self.effects.memory_policy().source_texture_budget_bytes,
+            "memoryPolicy":self.effects.memory_policy(),
             "effectResolution":if self.preview.mode == PreviewMode::High {"full_layer"} else {"projected_2d"},
             "imageResolution":quality.image_edge.map_or_else(||"original".to_string(),|edge|format!("proxy_max_{edge}")),
             "videoResolution":quality.video_edge.map_or_else(||"decoded_source".to_string(),|edge|format!("proxy_max_{edge}")),
@@ -51,6 +71,7 @@ impl Session {
             "gpuTimingActive":self.graphics.as_ref().is_some_and(|g|g.timer.is_some()),
             "profiling":self.recorder.is_some(),
             "gpuTimestampSupported":self.graphics.as_ref().is_some_and(|g|g.renderer.device.features().contains(wgpu::Features::TIMESTAMP_QUERY)),
+            "resourceLedgerVersion":1,
             "memoryBreakdown":self.graphics.as_ref().map(|g| {
                 let memory=g.renderer.texture_memory_breakdown();
                 let target=g.scratch.texture_bytes();

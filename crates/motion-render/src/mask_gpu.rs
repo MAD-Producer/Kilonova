@@ -34,6 +34,11 @@ fn texture(
     crate::effect_gpu::texture(device, layout, sampler, w, h, wgpu::TextureFormat::R8Unorm)
 }
 impl MaskGpu {
+    pub(crate) fn collect_textures(&self, ledger: &mut crate::TextureResourceLedger) {
+        for (i,t) in self.scratch.iter().enumerate() {
+            ledger.retained(&t.texture, crate::TextureCategory::MaskScratch, format!("masks/scratch/{i}"));
+        }
+    }
     pub fn new(
         device: &wgpu::Device,
         image_layout: &wgpu::BindGroupLayout,
@@ -266,6 +271,7 @@ impl MaskGpu {
         images: &mut HashMap<TextureKey, GpuImage>,
         bytes: &mut u64,
         other: u64,
+        source_budget: u64,
     ) -> Result<bool, RenderError> {
         let active: HashSet<_> = masks.iter().map(|m| scene.layers[m.layer].id).collect();
         let active_meshes:HashSet<_>=masks.iter().map(|m|(scene.layers[m.layer].id,m.id)).collect();
@@ -303,10 +309,10 @@ impl MaskGpu {
             let first = &group[0];
             let cost = u64::from(first.width) * u64::from(first.height);
             let previous = images.get(&key).map_or(0, |i| i.bytes);
-            if *bytes - previous + cost + other > 128 * 1024 * 1024 {
+            if *bytes - previous + cost + other > source_budget {
                 return Err(RenderError::budget(crate::ResourceBudgetScope::SourceTextures,
-                    *bytes - previous + cost + other, crate::renderer::TEXTURE_BUDGET, format!(
-                    "layer {owner}: source and mask textures exceed 128 MiB"
+                    *bytes - previous + cost + other, source_budget, format!(
+                    "layer {owner}: source and mask textures exceed configured source texture budget"
                 )));
             }
             if images

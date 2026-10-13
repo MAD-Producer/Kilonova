@@ -22,6 +22,7 @@ fn effect(id: &str) -> EffectInstance {
 #[test]
 fn owned_images_planes_and_fallbacks_are_disjoint_and_external_targets_are_excluded() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    assert_ledger(&renderer);
     let before = renderer.texture_memory_breakdown();
     assert_eq!(before.system_textures, 4 + 4 + 1024);
     assert_eq!(before.total_bytes(), 1032);
@@ -43,6 +44,7 @@ fn owned_images_planes_and_fallbacks_are_disjoint_and_external_targets_are_exclu
         uv: vec![128; 4],
     };
     renderer.upload_video_yuv(9, 1, 0, &yuv).unwrap();
+    assert_ledger(&renderer);
     let memory = renderer.texture_memory_breakdown();
     assert_eq!(memory.static_images, 24);
     assert_eq!(memory.video_rgba, 16 + 32);
@@ -72,6 +74,7 @@ fn grouped_vectors_share_scratch_while_sources_and_curve_luts_keep_their_owners(
     project.layers.push(layer.clone());
     project.rebuild_plugin_dependencies();
     render(&mut renderer, &project);
+    assert_ledger(&renderer);
     let first = renderer.texture_memory_breakdown();
     assert!(first.vector_sources > 0 && first.vector_group_scratch > 0);
     assert_eq!(first.curve_luts, 1024);
@@ -82,6 +85,7 @@ fn grouped_vectors_share_scratch_while_sources_and_curve_luts_keep_their_owners(
     project.layers.push(layer);
     project.rebuild_plugin_dependencies();
     render(&mut renderer, &project);
+    assert_ledger(&renderer);
     let second = renderer.texture_memory_breakdown();
     assert_eq!(second.vector_sources, first.vector_sources * 2);
     assert_eq!(second.vector_group_scratch, first.vector_group_scratch);
@@ -110,6 +114,7 @@ fn nested_composition_outputs_are_not_reported_as_video_rgba() {
         .unwrap();
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     render(&mut renderer, engine.project());
+    assert_ledger(&renderer);
     let memory = renderer.texture_memory_breakdown();
     assert_eq!(memory.nested_compositions, 64 * 64 * 4);
     assert_eq!(memory.video_rgba, 0);
@@ -153,6 +158,7 @@ fn masks_and_shared_effect_input_snapshots_have_distinct_ownership() {
     project.rebuild_plugin_dependencies();
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     render(&mut renderer, &project);
+    assert_ledger(&renderer);
     let first = renderer.texture_memory_breakdown();
     assert!(first.mask_outputs > 0 && first.mask_scratch > 0);
     assert!(first.effect_input_snapshots > 0);
@@ -174,8 +180,79 @@ fn masks_and_shared_effect_input_snapshots_have_distinct_ownership() {
         });
     }
     render(&mut renderer, &project);
+    assert_ledger(&renderer);
     let last = renderer.texture_memory_breakdown();
     assert_eq!(last.mask_outputs, 0);
     assert_eq!(last.effect_input_snapshots, 0);
     assert_eq!(last.total_bytes(), renderer.texture_bytes() + 1028);
+}
+
+fn assert_ledger(renderer: &Renderer) {
+    let ledger = renderer.texture_resource_ledger();
+    assert_eq!(ledger.unknown_capacity_count(), 0);
+    assert_eq!(ledger.total_known_bytes(), renderer.texture_memory_breakdown().total_bytes());
+    assert_eq!(ledger, renderer.texture_resource_ledger());
+    let ids = ledger.resources().map(|r| &r.id).collect::<std::collections::HashSet<_>>();
+    assert_eq!(ids.len(), ledger.resources().count());
+}
+
+#[test]
+fn resource_identity_survives_reuse_but_not_replacement_or_project_switch() {
+    use motion_render::TextureCategory;
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    let initial = renderer.texture_resource_ledger();
+    renderer.upload_image(7, 2, 3, &[255; 24]).unwrap();
+    let uploaded = renderer.texture_resource_ledger();
+    let id = uploaded.resources().find(|r| r.references[0].category == TextureCategory::StaticImages).unwrap().id.clone();
+    // An upload into the same allocation keeps the ID.
+    renderer.upload_image(7, 2, 3, &[128; 24]).unwrap();
+    assert_eq!(uploaded, renderer.texture_resource_ledger());
+    // Replacing dimensions allocates a distinct texture even with the same asset ID.
+    renderer.upload_image(7, 3, 3, &[255; 36]).unwrap();
+    let replaced = renderer.texture_resource_ledger();
+    assert!(replaced.resources().all(|r| r.id != id));
+    let before_failure = replaced.clone();
+    assert!(renderer.upload_image(8, 0, 0, &[]).is_err());
+    assert_eq!(before_failure, renderer.texture_resource_ledger());
+    renderer.clear_assets();
+    assert_eq!(initial, renderer.texture_resource_ledger());
+    // A retained metadata snapshot does not repopulate the renderer or its accounting.
+    assert!(uploaded.total_known_bytes() > initial.total_known_bytes());
+    assert_ledger(&renderer);
+}
+
+#[test]
+fn preview_candidates_swap_ownership_and_aliases_count_once() {
+    use motion_render::{PreviewFrameTargets, TextureState};
+    let renderer = pollster::block_on(Renderer::headless()).unwrap();
+    let mut targets = PreviewFrameTargets::new(&renderer, 32, 32).unwrap();
+    let snapshot = |targets: &PreviewFrameTargets| {
+        let mut ledger = renderer.texture_resource_ledger();
+        targets.collect_texture_resources(&mut ledger);
+        ledger
+    };
+    let initial = snapshot(&targets);
+    targets.prepare(&renderer, 16, 16).unwrap();
+    let prepared = snapshot(&targets);
+    let candidate = prepared.resources().find(|r| r.references[0].state == TextureState::PreviewCandidate).unwrap().id.clone();
+    let mut alias = prepared.clone();
+    let target = targets.prepared().unwrap();
+    target.collect_texture_resources(&mut alias, "presenter/borrowed", TextureState::Retained);
+    target.collect_texture_resources(&mut alias, "presenter/borrowed", TextureState::Retained);
+    assert_eq!(alias.total_known_bytes(), prepared.total_known_bytes());
+    assert_eq!(alias.resources().find(|r| r.id == candidate).unwrap().references.len(), 2);
+    let encoder = renderer.device.create_command_encoder(&Default::default());
+    renderer.queue.submit(Some(encoder.finish()));
+    targets.commit_submitted();
+    let committed = snapshot(&targets);
+    assert_eq!(prepared.total_known_bytes(), committed.total_known_bytes());
+    assert_eq!(committed.resources().find(|r| r.id == candidate).unwrap().references[0].state, TextureState::PreviewFront);
+    // Dropping a failed candidate leaves the last front and changes only owned capacity.
+    targets.discard_candidate();
+    let discarded = snapshot(&targets);
+    assert_eq!(discarded.total_known_bytes(), initial.total_known_bytes() - 32*32*4 + 16*16*4);
+    assert!(targets.prepare(&renderer, u32::MAX, u32::MAX).is_err());
+    assert_eq!(discarded, snapshot(&targets));
+    renderer.device.poll(wgpu::Maintain::Wait);
+    renderer.check_health().unwrap();
 }

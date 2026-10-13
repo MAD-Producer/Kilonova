@@ -12,6 +12,8 @@ mod effect_plan_cache;
 pub mod composition_plan;
 mod measurement;
 mod memory;
+mod resource_ledger;
+pub use resource_ledger::{TextureCategory, TextureState, TextureReference, TextureResource, TextureResourceLedger};
 mod presenter;
 mod quality;
 mod renderer;

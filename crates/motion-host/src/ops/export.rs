@@ -156,7 +156,7 @@ pub fn capture(id: i64) -> Result<serde_json::Value> {
         };
         renderer.set_effect_registry(s.effects.registry.clone());
         renderer
-            .set_scratch_budget(s.effects.scratch_budget())
+            .set_memory_policy(s.effects.memory_policy())
             .map_err(|e| e.to_string())?;
         renderer
             .configure_assets(p, &s.root)

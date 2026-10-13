@@ -34,4 +34,19 @@ fn android_presentation_shader_is_valid_on_an_actual_gpu() {
     let presenter = Presenter::new(&r, &source.view, wgpu::TextureFormat::Rgba8Unorm);
     presenter.draw(&r, &view);
     r.device.poll(wgpu::Maintain::Wait);
+    r.check_health().unwrap();
+}
+
+#[test]
+fn presentation_validation_failures_are_visible_to_the_test() {
+    let r = pollster::block_on(Renderer::headless()).unwrap();
+    let source = r.capture_target(64, 64).unwrap();
+    let output = r.capture_target(64, 64).unwrap();
+    // The capture target is sRGB. An Unorm-only pipeline is deliberately
+    // incompatible, exercising the same error callback as Presenter::draw.
+    let presenter = Presenter::new(&r, &source.view, wgpu::TextureFormat::Rgba8Unorm);
+    presenter.draw(&r, &output.view);
+    r.device.poll(wgpu::Maintain::Wait);
+    let error = r.check_health().unwrap_err();
+    assert!(error.to_string().contains("format"), "{error}");
 }
