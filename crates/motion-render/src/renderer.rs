@@ -1409,6 +1409,7 @@ impl Renderer {
         }
         self.effect_diagnostics.clear();
         if let Some(gpu) = &mut self.compositing_gpu { gpu.release(); }
+        let vector_other = self.effect_gpu.state.resource_bytes + self.video_plane_bytes();
         if self.layer_gpu.prepare_vectors(
             &self.device,
             encoder,
@@ -1418,7 +1419,7 @@ impl Renderer {
             &[],
             &mut self.images,
             &mut self.texture_bytes,
-            self.effect_gpu.state.resource_bytes,
+            vector_other,
             self.effect_gpu.builder.source_texture_budget,
         )? {
             self.effect_gpu.state.invalidate();
@@ -1623,6 +1624,7 @@ impl Renderer {
         if masks_changed {
             self.effect_gpu.state.invalidate();
         }
+        let vector_other = self.effect_gpu.state.resource_bytes + self.video_plane_bytes();
         let vectors_changed = self.layer_gpu.prepare_vectors(
             &self.device,
             encoder,
@@ -1632,7 +1634,7 @@ impl Renderer {
             &frame.vectors,
             &mut self.images,
             &mut self.texture_bytes,
-            self.effect_gpu.state.resource_bytes,
+            vector_other,
             self.effect_gpu.builder.source_texture_budget,
         )?;
         let has_adjustment = frame
