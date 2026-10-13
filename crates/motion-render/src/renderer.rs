@@ -1090,6 +1090,9 @@ impl Renderer {
         let limit = if self.image_cache_enabled { crate::image_resources::IDLE_TEXTURE_BYTES } else { 0 };
         let mut idle = self.image_idle_bytes();
         let mut total = self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes + additional;
+        if idle <= limit && total <= self.effect_gpu.builder.source_texture_budget {
+            return;
+        }
         let mut victims: Vec<_> = self.image_access.iter()
             .filter(|(id, _)| !self.image_active.contains(id) && replacing != Some(TextureKey::Static(**id)))
             .map(|(id, time)| (*time, *id)).collect();
@@ -1534,9 +1537,9 @@ impl Renderer {
             particles_culled: 0,
         })
     }
-    fn prepare_input_snapshots(&mut self)->Result<()> {
+    fn prepare_input_snapshots(&mut self, input_order: &[usize])->Result<()> {
         let frame=&self.effect_gpu.builder.frame;
-        let specs=crate::effect_plan::image_input_order(frame).map_err(RenderError::Invalid)?.into_iter().map(|i| {
+        let specs=input_order.iter().copied().map(|i| {
             let draw=&frame.draws[i];let pass=&frame.passes[draw.pass_end-1];(TextureKey::EffectInput(draw.layer),pass.width,pass.height)
         }).collect::<Vec<_>>();
         let stale=self.images.keys().copied().filter(|key|matches!(key,TextureKey::EffectInput(_))&&!specs.iter().any(|v|v.0==*key)).collect::<Vec<_>>();
@@ -1573,7 +1576,7 @@ impl Renderer {
         preview: bool,
     ) -> Result<RenderStats> {
         let started = Instant::now();
-        loop {
+        let image_input_order = loop {
             if self.preview_resource_guard {
                 self.effect_gpu.builder.build_preview_guarded(scene, &self.asset_order, width, height, preview)
             } else if preview {
@@ -1583,7 +1586,9 @@ impl Renderer {
             }
             ?;
             self.prepare_effect_images();
-            self.prepare_input_snapshots()?;
+            let input_order = crate::effect_plan::image_input_order(&self.effect_gpu.builder.frame)
+                .map_err(RenderError::Invalid)?;
+            self.prepare_input_snapshots(&input_order)?;
             match self.effect_gpu.state.prepare(
                 &self.device,
                 &self.queue,
@@ -1593,7 +1598,7 @@ impl Renderer {
                 self.texture_bytes + self.video_plane_bytes(),
             self.effect_gpu.builder.source_texture_budget,
             ) {
-                Ok(()) => break,
+                Ok(()) => break input_order,
                 Err(error) => {
                     if let Some((program, message)) = self.effect_gpu.state.failed_program.take() {
                         self.effect_gpu
@@ -1606,7 +1611,7 @@ impl Renderer {
                     return Err(error);
                 }
             }
-        }
+        };
         let vector_bytes = self.layer_gpu.pending_vector_bytes(scene, &self.effect_gpu.builder.frame.vectors, &self.images);
         let mask_bytes = self.effect_gpu.builder.frame.masks
             .chunk_by(|a,b|a.layer==b.layer)
@@ -1770,7 +1775,7 @@ impl Renderer {
         let mut accumulator = 0;
         // Preserve each referenced source before another layer reuses slot 0.
         // This is GPU-only and independent of the composition's stacking order.
-        for i in crate::effect_plan::image_input_order(frame).map_err(RenderError::Invalid)? {
+        for i in image_input_order {
             let draw=&frame.draws[i];
             for p in draw.pass_start..draw.pass_end {
                 self.effect_gpu.state.encode_pass(p,frame,&self.asset_order,
