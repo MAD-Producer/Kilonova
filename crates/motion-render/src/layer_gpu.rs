@@ -221,6 +221,7 @@ impl LayerGpu {
         images: &mut HashMap<TextureKey, GpuImage>,
         bytes: &mut u64,
         resource_bytes: u64,
+        source_budget: u64,
     ) -> Result<bool, RenderError> {
         let stale = images
             .keys()
@@ -274,11 +275,11 @@ impl LayerGpu {
             } else {
                 cost * 5
             };
-            if *bytes + new_source + msaa_bytes + new_scratch + resource_bytes > 128 * 1024 * 1024 {
+            if *bytes + new_source + msaa_bytes + new_scratch + resource_bytes > source_budget {
                 return Err(RenderError::budget(crate::ResourceBudgetScope::VectorWorkingSet,
                     *bytes + new_source + msaa_bytes + new_scratch + resource_bytes,
-                    crate::renderer::TEXTURE_BUDGET, format!(
-                    "layer {id}: vector sources and MSAA raster resources exceed 128 MiB"
+                    source_budget, format!(
+                    "layer {id}: vector sources and MSAA raster resources exceed configured source texture budget"
                 )));
             }
             if resize {
