@@ -10,6 +10,50 @@ fn fixture(name: &str) -> PathBuf {
 }
 
 #[test]
+fn leading_edits_and_ctts_have_exact_tail_intervals_without_repeating_the_last_frame() {
+    let manifest: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(fixture("manifest.json")).unwrap()).unwrap();
+    for name in ["video-delayed.mp4", "video-ctts.mp4"] {
+        let probed = probe(&fixture(name), None, Some(u32::MAX), &|| Ok(())).unwrap();
+        let expected_end = manifest[name]["video_end_us"].as_u64().unwrap();
+        let expected_pts: Vec<u64> = manifest[name]["frames"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|frame| {
+                (frame["best_effort_timestamp_time"]
+                    .as_str()
+                    .unwrap()
+                    .parse::<f64>()
+                    .unwrap()
+                    * 1_000_000.0)
+                    .round() as u64
+            })
+            .collect();
+        assert!(probed.asset.video_start_us > 0, "{name}");
+        assert_eq!(probed.timestamps, expected_pts, "{name}");
+        assert_eq!(probed.asset.frame_count, 72, "{name}");
+        assert_eq!(probed.asset.video_end_us, expected_end, "{name}");
+        assert_eq!(probed.asset.duration_us, expected_end, "{name}");
+        let mut decoder =
+            Decoder::open(&fixture(name), probed.asset.clone(), probed.timestamps).unwrap();
+        let tail = decoder.frame(expected_end - 1, &|| Ok(())).unwrap();
+        assert_eq!(tail.pts, *expected_pts.last().unwrap(), "{name}");
+        assert_eq!(tail.end, expected_end, "{name}");
+        assert!(
+            decoder.frame(expected_end, &|| Ok(())).is_err(),
+            "{name} repeated past end"
+        );
+        assert!(
+            decoder
+                .frame(probed.asset.video_start_us - 1, &|| Ok(()))
+                .is_err(),
+            "{name}"
+        );
+    }
+}
+
+#[test]
 fn all_visible_frames_match_reference_pts_and_scrub_in_both_directions() {
     let manifest: serde_json::Value =
         serde_json::from_slice(&std::fs::read(fixture("manifest.json")).unwrap()).unwrap();

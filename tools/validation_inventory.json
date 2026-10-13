@@ -725,9 +725,13 @@
     },
     "VideoBackendApiTest": {
       "source": "VideoBackendApiTest.kt",
-      "mode": "manual",
-      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
-      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.VideoBackendApiTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+      "mode": "ci",
+      "reason": "Bounded exact-tail regression compares source sample timing across desktop and Android",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.VideoBackendApiTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner",
+      "methods": [
+        "leadingEditAndCttsTailMatchTheDesktopPacketOracle"
+      ],
+      "remaining_methods_reason": "Bulk codec, media and large-source acceptance remains explicit manual/device work"
     },
     "VideoInputApiTest": {
       "source": "VideoInputApiTest.kt",

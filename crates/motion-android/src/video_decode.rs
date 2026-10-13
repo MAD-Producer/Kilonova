@@ -245,6 +245,8 @@ pub fn probe(
     }
     ex.select(track)?;
     let mut timestamps = Vec::new();
+    let mut last_sample = None;
+    let sample_format = MediaFormat::new();
     let started = Instant::now();
     let scan_budget = motion_media::timestamp_scan_budget(path.metadata().map_err(|e| e.to_string())?.len());
     while !ex.eos() {
@@ -258,6 +260,21 @@ pub fn probe(
         let time = ex.pts();
         if time >= 0 {
             timestamps.push(time as u64);
+            if last_sample.is_none_or(|(pts, _)| time as u64 >= pts) {
+                // API 28+ exposes per-sample duration separately from the
+                // track's durationUs. Reuse one format during the bounded scan.
+                status(
+                    unsafe {
+                        ffi::AMediaExtractor_getSampleFormat(ex.0.as_ptr(), sample_format.as_ptr())
+                    },
+                    "read video sample format",
+                )?;
+                let duration = sample_format
+                    .i64("durationUs")
+                    .filter(|duration| *duration > 0)
+                    .map(|duration| duration as u64);
+                last_sample = Some((time as u64, duration));
+            }
         }
         if timestamps.len() > motion_core::MAX_VIDEO_FRAMES as usize {
             return Err("video exceeds timestamp cache budget".into());
@@ -285,11 +302,12 @@ pub fn probe(
             33_333
         });
     let last = *timestamps.last().unwrap();
-    let end = if declared > last as i64 {
-        declared as u64
-    } else {
-        last.checked_add(step).ok_or("video end overflow")?
-    };
+    let end = motion_media::video_end_us(
+        last,
+        last_sample.and_then(|(_, duration)| duration),
+        step,
+        motion_media::VideoDuration::End(declared.max(0) as u64),
+    )?;
     let (dw, dh) = if rotation % 180 == 0 {
         (width, height)
     } else {

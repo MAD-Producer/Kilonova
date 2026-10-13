@@ -45,6 +45,40 @@ class VideoBackendApiTest {
     private fun assertActive(values:FloatArray){assertTrue("Expected decoded sound",values.any{abs(it)>.03f})}
     private fun assertSilent(values:FloatArray){assertTrue("Unexpected sound in silence",values.all{abs(it)<.003f})}
 
+    @Test fun leadingEditAndCttsTailMatchTheDesktopPacketOracle() {
+        val manifest = InstrumentationRegistry.getInstrumentation().context.assets
+            .open("video/manifest.json").bufferedReader().use { JSONObject(it.readText()) }
+        for (name in listOf("video-delayed.mp4", "video-ctts.mp4")) {
+            val root = root(); val id = create(root)
+            try {
+                val expected = manifest.getJSONObject(name)
+                val expectedFrames = expected.getJSONArray("frames")
+                val expectedFirst = Math.round(expectedFrames.getJSONObject(0)
+                    .getString("best_effort_timestamp_time").toDouble() * 1_000_000)
+                val expectedLast = Math.round(expectedFrames.getJSONObject(expectedFrames.length() - 1)
+                    .getString("best_effort_timestamp_time").toDouble() * 1_000_000)
+                val expectedEnd = expected.getLong("video_end_us")
+                val imported = import(id, name, audio = false)
+                val video = imported.getJSONObject("task").getJSONObject("metadata").getJSONObject("video")
+                assertEquals(name, expectedFirst, video.getLong("video_start_us"))
+                assertEquals(name, expectedEnd, video.getLong("video_end_us"))
+                assertEquals(name, expectedEnd, video.getLong("duration_us"))
+                assertEquals(name, expectedFrames.length(), video.getInt("frame_count"))
+                val tail = frame(id, 1, (expectedEnd - 1) * 60.0 / 1_000_000, 1)
+                assertEquals(name, expectedLast, tail.first.getLong("pts_us"))
+                assertEquals(name, expectedEnd, tail.first.getLong("end_us"))
+                val outside = req(id, "request_video_frame", "object" to 1,
+                    "frame" to (expectedEnd + 1) * 60.0 / 1_000_000, "sequence" to 2)
+                assertEquals(name, "outside", outside.getString("state"))
+                val thumbnail = req(id, "video_thumbnail", "asset" to video.getLong("id"))
+                assertTrue(File(thumbnail.getString("path")).isFile)
+                File(root, "video-end-parity-report.json").writeText(JSONObject()
+                    .put("fixture", name).put("metadata", video).put("tail", tail.first)
+                    .put("outside", outside).toString(2))
+            } finally { NativeBridge.destroy(id) }
+        }
+    }
+
     @Test fun gpuYuvPreviewPrefetchesWithoutMoreRenderRequestsAndSeekStaysExact() {
         val root=root();val id=create(root)
         val consumer=HandlerThread("video-preview-consumer").apply{start()}

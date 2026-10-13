@@ -39,6 +39,11 @@ with tempfile.TemporaryDirectory(prefix='motion-video-fixtures-') as directory:
     run('-f','rawvideo','-pixel_format','rgb24','-video_size',f'{WIDTH}x{HEIGHT}','-framerate','24','-i',raw,*options,video)
     run('-i',video,'-i',audio,'-map','0:v:0','-map','1:a:0','-c:v','copy','-c:a','aac','-b:a','128k','-movflags','+faststart',OUT/'sound-24fps.mp4')
     run('-i',video,'-itsoffset','0.25','-i',audio,'-map','0:v:0','-map','1:a:0','-c:v','copy','-c:a','aac','-b:a','128k','-movflags','+faststart',OUT/'audio-delayed.mp4')
+    # Nonzero video PTS with a leading empty edit, and B-frame ctts without edits.
+    run('-itsoffset','0.25','-i',video,'-map','0:v:0','-c','copy','-video_track_timescale','1000000',OUT/'video-delayed.mp4')
+    # A small ctts offset and shorter final sample expose a median-step tail
+    # overrun; the muxer records the actual shortened sample duration in stts.
+    run('-i',video,'-c','copy','-bsf:v','setts=pts=PTS-63333','-use_editlist','0','-video_track_timescale','1000000',OUT/'video-ctts.mp4')
     run('-display_rotation','-90','-i',video,'-c','copy',OUT/'rotated-90.mp4')
     durations=[.04,.08,.12,.20,.04,.12,.08,.16,.04,.20,.08,.12]
     lines=[]
@@ -53,5 +58,10 @@ manifest={}
 for path in sorted(OUT.glob('*.mp4')):
     result=subprocess.check_output(['ffprobe','-v','error','-select_streams','v:0','-show_frames','-show_streams','-show_entries','frame=best_effort_timestamp_time,pkt_duration_time:stream=width,height,avg_frame_rate,r_frame_rate,duration:stream_side_data=rotation','-of','json',str(path)])
     manifest[path.name]=json.loads(result)
+    if path.name in ('video-delayed.mp4','video-ctts.mp4'):
+        packets=json.loads(subprocess.check_output(['ffprobe','-v','error','-select_streams','v:0','-show_packets','-show_entries','packet=pts_time,duration_time','-of','json',str(path)]))['packets']
+        from decimal import Decimal
+        tail=max(packets,key=lambda p:Decimal(p['pts_time']))
+        manifest[path.name]['video_end_us']=int((Decimal(tail['pts_time'])+Decimal(tail['duration_time']))*1_000_000)
 (OUT/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
 print(json.dumps({p.name:p.stat().st_size for p in sorted(OUT.glob('*.mp4'))},indent=2))

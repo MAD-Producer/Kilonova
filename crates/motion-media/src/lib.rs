@@ -12,7 +12,7 @@ pub use packages::{PackageJobs, PackageTaskStatus};
 mod mp4;
 mod video;
 mod video_timing;
-pub use video_timing::{source_frame_rate, timestamp_scan_budget};
+pub use video_timing::{source_frame_rate, timestamp_scan_budget, video_end_us, VideoDuration};
 mod video_metadata;
 pub use avc::{avc_metadata, AvcMetadata};
 pub use decode::{decode_audio, DecodeAudio};

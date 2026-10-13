@@ -156,7 +156,7 @@ pub fn probe(
     let began = Instant::now();
     let budget = motion_media::timestamp_scan_budget(bytes);
     let mut timestamps = Vec::new();
-    let mut packet_end = 0;
+    let mut last_sample = None;
     loop {
         check()?;
         if began.elapsed() > budget {
@@ -179,7 +179,11 @@ pub fn probe(
         }
         let time = micros(pts, base)?;
         timestamps.push(time);
-        packet_end = packet_end.max(time.saturating_add(micros(packet.duration().max(0), base)?));
+        // Packets are in decode order (B frames), so retain the duration paired
+        // with the largest presentation timestamp, not the last scanned packet.
+        if last_sample.is_none_or(|(pts, _)| time >= pts) {
+            last_sample = Some((time, micros(packet.duration().max(0), base)?));
+        }
         if timestamps.len() > motion_core::MAX_VIDEO_FRAMES as usize {
             return Err("video timestamp cache budget exceeded".into());
         }
@@ -199,10 +203,15 @@ pub fn probe(
             33_333
         });
     let variable = deltas.iter().any(|d| d.abs_diff(step) > 2);
-    // Track duration is a duration, not an absolute timestamp. Preserve leading edits.
-    let end = packet_end
-        .max(first.saturating_add(declared))
-        .max(last.saturating_add(step));
+    let end = motion_media::video_end_us(
+        last,
+        last_sample.map(|(_, duration)| duration),
+        step,
+        motion_media::VideoDuration::Span {
+            start_us: first,
+            duration_us: declared,
+        },
+    )?;
     let (display_width, display_height) = if rotation % 180 == 0 {
         (width, height)
     } else {
@@ -349,6 +358,9 @@ impl Decoder {
         Err("video ended before requested frame".into())
     }
     pub fn frame(&mut self, target: u64, check: &dyn Fn() -> Result<()>) -> Result<DecodedFrame> {
+        if target < self.asset.video_start_us || target >= self.asset.video_end_us {
+            return Err("source time outside visible video".into());
+        }
         let began = Instant::now();
         let index = self
             .timestamps
