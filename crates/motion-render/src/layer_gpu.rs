@@ -1,3 +1,4 @@
+use crate::resource_ledger::{DeviceTextureExt, OwnedTexture};
 use crate::{
     effect_gpu::FxTexture,
     renderer::{GpuImage, TextureKey},
@@ -16,7 +17,7 @@ pub(crate) struct LayerGpu {
     pub accumulators: Vec<FxTexture>,
     size: [u32; 2],
     fingerprints: HashMap<u64, u64>,
-    raster_scratch: HashMap<(u32, u32), wgpu::Texture>,
+    raster_scratch: HashMap<(u32, u32), OwnedTexture>,
     raster_resolve: HashMap<(u32, u32), FxTexture>,
     groups: groups::GroupGpu,
 }
@@ -181,6 +182,19 @@ impl LayerGpu {
         }
         changed
     }
+    pub(crate) fn collect_textures(&self, ledger: &mut crate::TextureResourceLedger) {
+        use crate::TextureCategory::*;
+        for (i,t) in self.accumulators.iter().enumerate() {
+            ledger.retained(&t.texture, LayerCompositingScratch, format!("layers/accumulator/{i}"));
+        }
+        for ((w,h), t) in &self.raster_scratch {
+            ledger.retained(t, VectorRasterScratch, format!("vectors/raster/{w}x{h}/msaa"));
+        }
+        for ((w,h), t) in &self.raster_resolve {
+            ledger.retained(&t.texture, VectorRasterScratch, format!("vectors/raster/{w}x{h}/resolve"));
+        }
+        self.groups.collect_textures(ledger);
+    }
     pub fn bytes(&self) -> u64 {
         self.accumulators.len() as u64 * u64::from(self.size[0]) * u64::from(self.size[1]) * 4 + self.groups.bytes()
             + self
@@ -314,7 +328,7 @@ impl LayerGpu {
                 .raster_scratch
                 .entry((mesh.width, mesh.height))
                 .or_insert_with(|| {
-                    device.create_texture(&wgpu::TextureDescriptor {
+                    device.create_owned_texture(&wgpu::TextureDescriptor {
                         label: Some("shared vector MSAA scratch"),
                         size: wgpu::Extent3d {
                             width: mesh.width,

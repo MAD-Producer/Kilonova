@@ -211,3 +211,8 @@ pub fn render_inner(s: &mut crate::session::Session, frame: f64) -> Result<bool>
         }
     }
 }
+
+/// Read application texture ownership without touching project/history or submitting GPU work.
+pub fn resource_ledger(id: i64) -> crate::Result<serde_json::Value> {
+    crate::session::with_session(id, |session| Ok(session.texture_resource_ledger()))
+}

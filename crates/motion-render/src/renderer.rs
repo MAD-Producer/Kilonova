@@ -1,3 +1,4 @@
+use crate::resource_ledger::{DeviceTextureExt, OwnedTexture};
 use motion_model::{Project, MAX_LAYERS};
 use crate::{PlaneCompositor, ResourceBudgetScope, ResourceRejection, Scene};
 mod compositing;
@@ -74,14 +75,14 @@ struct GeometryVertex {
     uv: [f32; 2],
 }
 pub(crate) struct GpuImage {
-    pub(crate) _texture: wgpu::Texture,
+    pub(crate) _texture: OwnedTexture,
     pub(crate) view: wgpu::TextureView,
     pub(crate) bind_group: wgpu::BindGroup,
     pub(crate) bytes: u64,
     pub(crate) size: (u32, u32),
     pub(crate) video_stamp: Option<(u64, u64)>,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum TextureKey {
     Static(u64),
     Video(u64),
@@ -477,9 +478,30 @@ impl Renderer {
             + self.mask_gpu.scratch_bytes()
             + self.compositing_gpu.as_ref().map_or(0,|gpu|gpu.bytes())
     }
-    /// Read-only logical texture ledger. Unlike the compatibility getter,
-    /// this includes permanent effect fallback textures. Allocation and budget
-    /// policies are unchanged; this is not physical/resident VRAM accounting.
+    /// Snapshot of application-owned textures; it does not keep GPU handles alive.
+    /// Command buffers and GPU-retired allocations are outside this snapshot.
+    pub fn texture_resource_ledger(&self) -> crate::TextureResourceLedger {
+        use crate::TextureCategory::*;
+        let mut ledger = crate::TextureResourceLedger::default();
+        for (key, image) in &self.images {
+            let category = match key {
+                TextureKey::Static(0) => SystemTextures,
+                TextureKey::Static(_) => StaticImages,
+                TextureKey::Vector(_) => VectorSources,
+                TextureKey::Mask(_) => MaskOutputs,
+                TextureKey::EffectInput(_) => EffectInputSnapshots,
+                TextureKey::Video(id) if self.composition_images.contains(id) => NestedCompositions,
+                TextureKey::Video(_) => VideoRgba,
+            };
+            ledger.retained(&image._texture, category, format!("images/{key:?}"));
+        }
+        self.effect_gpu.state.collect_textures(&mut ledger);
+        self.layer_gpu.collect_textures(&mut ledger);
+        self.mask_gpu.collect_textures(&mut ledger);
+        if let Some(gpu) = &self.compositing_gpu { gpu.collect_textures(&mut ledger); }
+        if let Some(gpu) = &self.video_gpu { gpu.collect_textures(&mut ledger); }
+        ledger
+    }
     pub fn texture_memory_breakdown(&self) -> crate::TextureMemoryBreakdown {
         let mut memory = crate::TextureMemoryBreakdown {
             video_planes: self.video_plane_bytes(),
@@ -684,7 +706,7 @@ impl Renderer {
         }) {
             // Write encoded RGB bytes to an UNORM attachment, then sample the
             // sRGB view in the same compositing space as existing RGBA uploads.
-            let texture = self.device.create_texture(&wgpu::TextureDescriptor {
+            let texture = self.device.create_owned_texture(&wgpu::TextureDescriptor {
                 label: Some("GPU converted video"),
                 size: wgpu::Extent3d {
                     width,
@@ -855,7 +877,7 @@ impl Renderer {
             );
             return Ok(());
         }
-        let texture = self.device.create_texture(&wgpu::TextureDescriptor {
+        let texture = self.device.create_owned_texture(&wgpu::TextureDescriptor {
             label: Some("Motion Studio cached image"),
             size: wgpu::Extent3d {
                 width,
@@ -1507,7 +1529,7 @@ impl Renderer {
                     self.texture_bytes+self.video_plane_bytes()+self.effect_gpu.state.resource_bytes+bytes,
                     self.effect_gpu.builder.source_texture_budget, "effect image snapshots exceed source texture budget"));
             }
-            let texture=self.device.create_texture(&wgpu::TextureDescriptor {label:Some("same-frame effect image input"),size:wgpu::Extent3d{width,height,depth_or_array_layers:1},
+            let texture=self.device.create_owned_texture(&wgpu::TextureDescriptor {label:Some("same-frame effect image input"),size:wgpu::Extent3d{width,height,depth_or_array_layers:1},
                 mip_level_count:1,sample_count:1,dimension:wgpu::TextureDimension::D2,format:TARGET_FORMAT,usage:wgpu::TextureUsages::TEXTURE_BINDING|wgpu::TextureUsages::COPY_DST|wgpu::TextureUsages::COPY_SRC,view_formats:&[]});
             let view=texture.create_view(&Default::default());
             let bind_group=self.device.create_bind_group(&wgpu::BindGroupDescriptor {label:None,layout:&self.image_layout,entries:&[
@@ -1968,7 +1990,7 @@ impl Renderer {
         {
             return Err(RenderError::Invalid("invalid capture size".into()));
         }
-        let texture = self.device.create_texture(&wgpu::TextureDescriptor {
+        let texture = self.device.create_owned_texture(&wgpu::TextureDescriptor {
             label: Some("Motion Studio reusable offscreen frame"),
             size: wgpu::Extent3d {
                 width,
@@ -2106,23 +2128,33 @@ pub fn premultiply_pixels(rgba: &mut [u8]) {
 }
 
 pub struct RenderTarget {
-    texture: wgpu::Texture,
+    texture: OwnedTexture,
     pub view: wgpu::TextureView,
     pub width: u32,
     pub height: u32,
 }
 impl RenderTarget {
+    pub fn collect_texture_resources(&self, ledger: &mut crate::TextureResourceLedger, owner: &str, state: crate::TextureState) {
+        ledger.add(&self.texture, crate::TextureCategory::PreviewTargets, owner.into(), state);
+    }
     pub fn texture_bytes(&self) -> u64 {
         u64::from(self.width) * u64::from(self.height) * 4
     }
 }
 pub struct CaptureTarget {
-    texture: wgpu::Texture,
+    texture: OwnedTexture,
     pub view: wgpu::TextureView,
     buffer: wgpu::Buffer,
     pub width: u32,
     pub height: u32,
     row_stride: u32,
+}
+impl CaptureTarget {
+    pub fn texture_resource_ledger(&self) -> crate::TextureResourceLedger {
+        let mut ledger = crate::TextureResourceLedger::default();
+        ledger.retained(&self.texture, crate::TextureCategory::CaptureTargets, "capture/target".into());
+        ledger
+    }
 }
 pub(crate) fn srgb_to_linear(v: f32) -> f32 {
     if v <= 0.04045 {

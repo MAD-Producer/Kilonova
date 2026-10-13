@@ -26,6 +26,9 @@ impl Session {
         let text = |name: &str| v[name].as_str().ok_or_else(|| format!("missing {name}"));
         // Available through the existing desktop/Android JSON bridge. Query
         // omits policy; writes validate all limits before changing runtime state.
+        if text("op")? == "resource_ledger" {
+            return Ok(self.texture_resource_ledger());
+        }
         if text("op")? == "memory_policy" {
             if let Some(policy) = v.get("policy") {
                 let policy = serde_json::from_value(policy.clone()).map_err(|error| error.to_string())?;
