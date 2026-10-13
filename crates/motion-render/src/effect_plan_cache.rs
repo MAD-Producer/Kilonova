@@ -54,6 +54,7 @@ fn same_layer(a: &DrawLayer, b: &DrawLayer) -> bool {
         && a.depth.to_bits() == b.depth.to_bits()
         && a.order == b.order
         && a.three_d == b.three_d
+        && a.screen_overlay == b.screen_overlay
         && bytemuck::bytes_of(&a.view_projection.to_cols_array())
             == bytemuck::bytes_of(&b.view_projection.to_cols_array())
 }
