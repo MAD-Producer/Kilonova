@@ -557,8 +557,8 @@ fn graph_toggle_preserves_layer_property_playhead_and_has_no_vertical_grid() {
     assert!(paint
         .shapes
         .iter()
-        .any(|s| matches!(s,motion_ui::paint::Shape::Line {points} if points.len()>100)));
-    assert!(!paint.shapes.iter().any(|s|matches!(s,motion_ui::paint::Shape::Line {points} if points.len()==2 && points[0][0]==points[1][0] && points[0][1]!=points[1][1])));
+        .any(|s| matches!(s,motion_ui::paint::Shape::Line {points,..} if points.len()>100)));
+    assert!(!paint.shapes.iter().any(|s|matches!(s,motion_ui::paint::Shape::Line {points,..} if points.len()==2 && points[0][0]==points[1][0] && points[0][1]!=points[1][1])));
     invoke(
         &mut panels,
         &state,
