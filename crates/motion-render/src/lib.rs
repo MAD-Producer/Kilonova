@@ -13,6 +13,8 @@ pub mod composition_plan;
 mod measurement;
 mod memory;
 mod resource_ledger;
+mod submission_ledger;
+pub use submission_ledger::{SubmissionMemoryInfo, MAX_SUBMISSION_SNAPSHOTS};
 pub use resource_ledger::{TextureCategory, TextureState, TextureReference, TextureResource, TextureResourceLedger};
 mod presenter;
 mod quality;

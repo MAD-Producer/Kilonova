@@ -26,6 +26,9 @@ impl Session {
         let text = |name: &str| v[name].as_str().ok_or_else(|| format!("missing {name}"));
         // Available through the existing desktop/Android JSON bridge. Query
         // omits policy; writes validate all limits before changing runtime state.
+        if text("op")? == "resource_tracking" {
+            return Ok(self.configure_resource_tracking(v["enabled"].as_bool().ok_or("missing boolean enabled")?));
+        }
         if text("op")? == "resource_ledger" {
             return Ok(self.texture_resource_ledger());
         }
@@ -322,6 +325,7 @@ impl Session {
             renderer
                 .configure_assets(self.engine.project(), &self.root)
                 .map_err(|e| e.to_string())?;
+            renderer.set_submission_tracking(self.resource_tracking || self.recorder.is_some());
             self.editor_renderer = Some(renderer);
         }
         let renderer = self.editor_renderer.as_mut().unwrap();
