@@ -526,6 +526,7 @@ impl Engine {
                 std::sync::mpsc::RecvTimeoutError::Disconnected => self.stopped_error(),
                 std::sync::mpsc::RecvTimeoutError::Timeout => format!("{operation} timed out; its result is still pending; check project state before retrying"),
             })?;
+        #[cfg(debug_assertions)]
         if began.elapsed().as_millis() >= 16 {
             eprintln!("[motion-timing] blocking {operation}: {} us", began.elapsed().as_micros());
         }
@@ -1121,6 +1122,7 @@ fn handle(
                 std::mem::swap(&mut w.surface,&mut g.surface);std::mem::swap(&mut w.config,&mut g.config);
             }
             presentation.last_present_us=began.elapsed().as_micros() as u64;
+            #[cfg(debug_assertions)]
             if presentation.last_present_us>=30_000 {
                 eprintln!("[motion-timing] surface {} present: {} us, composition renders={}, reuses={}",ui.window,presentation.last_present_us,presentation.composition_renders,presentation.composition_reuses);
             }
