@@ -249,6 +249,16 @@ pub fn probe(
     let sample_format = MediaFormat::new();
     let started = Instant::now();
     let scan_budget = motion_media::timestamp_scan_budget(path.metadata().map_err(|e| e.to_string())?.len());
+    let native_timing = motion_media::mp4_sample_timing(
+        path,
+        format.i32("track-id").and_then(|id| u32::try_from(id).ok()),
+        &|| {
+            check()?;
+            if started.elapsed() > scan_budget { Err("video timestamp scan timed out".into()) }
+            else { Ok(()) }
+        },
+    )?;
+    let mut sample_index = 0usize;
     while !ex.eos() {
         check()?;
         if started.elapsed() > scan_budget {
@@ -258,30 +268,40 @@ pub fn probe(
             return Err("encrypted video is unsupported".into());
         }
         let time = ex.pts();
+        if let Some(timing) = &native_timing {
+            timing.verify_android_sample(sample_index, time)?;
+        }
         if time >= 0 {
             timestamps.push(time as u64);
-            if last_sample.is_none_or(|(pts, _)| time as u64 >= pts) {
-                // API 28+ exposes per-sample duration separately from the
-                // track's durationUs. Reuse one format during the bounded scan.
-                status(
-                    unsafe {
-                        ffi::AMediaExtractor_getSampleFormat(ex.0.as_ptr(), sample_format.as_ptr())
-                    },
-                    "read video sample format",
-                )?;
-                let duration = sample_format
-                    .i64("durationUs")
-                    .filter(|duration| *duration > 0)
-                    .map(|duration| duration as u64);
-                last_sample = Some((time as u64, duration));
+            if last_sample.is_none_or(|(pts, _, _)| time as u64 >= pts) {
+                // MOV retains the native sample identity until the final end.
+                // Other containers use API 28+ per-sample durationUs.
+                let native_index = native_timing.as_ref().map(|_| sample_index);
+                let duration = if native_index.is_none() {
+                    status(
+                        unsafe {
+                            ffi::AMediaExtractor_getSampleFormat(ex.0.as_ptr(), sample_format.as_ptr())
+                        },
+                        "read video sample format",
+                    )?;
+                    sample_format
+                        .i64("durationUs")
+                        .filter(|duration| *duration > 0)
+                        .map(|duration| duration as u64)
+                } else { None };
+                last_sample = Some((time as u64, duration, native_index));
             }
         }
         if timestamps.len() > motion_core::MAX_VIDEO_FRAMES as usize {
             return Err("video exceeds timestamp cache budget".into());
         }
+        sample_index += 1;
         if !ex.advance() {
             break;
         }
+    }
+    if let Some(timing) = &native_timing {
+        timing.verify_android_count(sample_index)?;
     }
     timestamps.sort_unstable();
     timestamps.dedup();
@@ -302,12 +322,16 @@ pub fn probe(
             33_333
         });
     let last = *timestamps.last().unwrap();
-    let end = motion_media::video_end_us(
-        last,
-        last_sample.and_then(|(_, duration)| duration),
-        step,
-        motion_media::VideoDuration::End(declared.max(0) as u64),
-    )?;
+    let end = if let (Some(timing), Some((_, _, Some(index)))) = (&native_timing, last_sample) {
+        timing.android_sample_end(index)?
+    } else {
+        motion_media::video_end_us(
+            last,
+            last_sample.and_then(|(_, duration, _)| duration),
+            step,
+            motion_media::VideoDuration::End(declared.max(0) as u64),
+        )?
+    };
     let (dw, dh) = if rotation % 180 == 0 {
         (width, height)
     } else {

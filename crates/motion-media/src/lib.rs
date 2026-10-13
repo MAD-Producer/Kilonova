@@ -10,6 +10,11 @@ mod mixer;
 mod packages;
 pub use packages::{PackageJobs, PackageTaskStatus};
 mod mp4;
+mod mp4_timing;
+pub use mp4_timing::{
+    sample_duration as mp4_sample_duration, sample_timing as mp4_sample_timing, Mp4SampleTiming,
+    SampleDuration,
+};
 mod video;
 mod video_timing;
 pub use video_timing::{source_frame_rate, timestamp_scan_budget, video_end_us, VideoDuration};

@@ -1952,7 +1952,6 @@ name = "motion-desktop-media"
 version = "0.1.0"
 dependencies = [
  "ffmpeg-next",
- "flate2",
  "motion-core",
  "motion-effects",
  "motion-host",
@@ -2022,6 +2021,7 @@ dependencies = [
 name = "motion-media"
 version = "0.1.0"
 dependencies = [
+ "flate2",
  "fontdue",
  "fs2",
  "image",

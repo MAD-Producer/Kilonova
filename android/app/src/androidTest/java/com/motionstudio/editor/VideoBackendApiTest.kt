@@ -48,7 +48,7 @@ class VideoBackendApiTest {
     @Test fun leadingEditAndCttsTailMatchTheDesktopPacketOracle() {
         val manifest = InstrumentationRegistry.getInstrumentation().context.assets
             .open("video/manifest.json").bufferedReader().use { JSONObject(it.readText()) }
-        for (name in listOf("video-delayed.mp4", "video-ctts.mp4")) {
+        for (name in listOf("video-delayed.mp4", "video-ctts.mp4", "video-tail-90k.mp4", "video-fragmented.mp4")) {
             val root = root(); val id = create(root)
             try {
                 val expected = manifest.getJSONObject(name)
@@ -58,6 +58,9 @@ class VideoBackendApiTest {
                 val expectedLast = Math.round(expectedFrames.getJSONObject(expectedFrames.length() - 1)
                     .getString("best_effort_timestamp_time").toDouble() * 1_000_000)
                 val expectedEnd = expected.getLong("video_end_us")
+                if (name == "video-tail-90k.mp4") {
+                    assertEquals(3_243_356L, expectedEnd)
+                }
                 val imported = import(id, name, audio = false)
                 val video = imported.getJSONObject("task").getJSONObject("metadata").getJSONObject("video")
                 assertEquals(name, expectedFirst, video.getLong("video_start_us"))

@@ -77,7 +77,7 @@ with tempfile.TemporaryDirectory(prefix='motion-video-fixtures-') as directory:
     concat=temp/'vfr.txt';concat.write_text('\n'.join(lines)+'\n',encoding='utf-8')
     run('-f','concat','-safe','0','-i',concat,'-fps_mode','vfr',*options,OUT/'variable.mp4')
 
-manifest={}
+manifest={};native_timing={}
 for path in sorted(list(OUT.glob('*.mp4'))+list(OUT.glob('*.mov'))):
     result=subprocess.check_output(['ffprobe','-v','error','-select_streams','v:0','-show_frames','-show_streams','-show_entries','frame=best_effort_timestamp_time,pkt_duration_time:stream=width,height,avg_frame_rate,r_frame_rate,duration:stream_side_data=rotation','-of','json',str(path)])
     manifest[path.name]=json.loads(result)
@@ -88,5 +88,12 @@ for path in sorted(list(OUT.glob('*.mp4'))+list(OUT.glob('*.mov'))):
         base=result['streams'][0]['time_base'];end=(tail['pts']+tail['duration'])*Fraction(base)*1_000_000
         manifest[path.name]['video_end_us']=(end.numerator*2+end.denominator)//(2*end.denominator)
         manifest[path.name]['tail_sample']={**tail,'time_base':base}
+        scale=Fraction(base)
+        if scale.numerator!=1: raise RuntimeError('Native fixture oracle requires one tick per timescale unit')
+        native_timing[path.name]={'timescale':scale.denominator,
+            'columns':['pts','duration','pos','size','android_pts_us'],
+            'samples':[[packet['pts'],packet['duration'],int(packet['pos']),int(packet['size']),
+                max(0,packet['pts']*1_000_000//scale.denominator)] for packet in result['packets']]}
 (OUT/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
+(OUT/'native-timing.json').write_text(json.dumps(native_timing,separators=(',',':'))+'\n',encoding='utf-8')
 print(json.dumps({p.name:p.stat().st_size for p in sorted(OUT.glob('*.mp4'))},indent=2))

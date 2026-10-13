@@ -210,7 +210,7 @@ pub fn probe(
     let end = if mov {
         // Older MOV demuxers infer packet.duration from FPS when CTTS exists.
         // Neither a positive packet duration nor a decoded frame proves STTS.
-        let timing = crate::mp4_timing::sample_duration(
+        let timing = motion_media::mp4_sample_duration(
             path,
             u32::try_from(track_id).map_err(|_| "invalid MOV track identity")?,
             u64::try_from(position).map_err(|_| "MOV packet has no source position")?,

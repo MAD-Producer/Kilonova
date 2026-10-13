@@ -1,5 +1,5 @@
 //! Bounded container sample durations, independent of libav's FPS inference.
-use motion_host::Result;
+use crate::Result;
 use std::{
     collections::BTreeMap,
     fs::File,
@@ -8,7 +8,7 @@ use std::{
 };
 
 const MAX_METADATA: u64 = 64 * 1024 * 1024;
-const MAX_SAMPLES: u32 = motion_core::MAX_VIDEO_FRAMES;
+const MAX_SAMPLES: u32 = motion_model::MAX_VIDEO_FRAMES;
 const MAX_DEPTH: u8 = 8;
 
 #[derive(Clone, Copy)]
@@ -132,12 +132,96 @@ struct Defaults {
     duration: u32,
     size: u32,
 }
-pub(crate) struct Duration {
+pub struct SampleDuration {
     pub ticks: u64,
     pub timescale: u32,
 }
 
-impl Duration {
+#[derive(Clone, Copy)]
+struct Sample {
+    position: u64,
+    pts: i64,
+    duration: u32,
+    size: u32,
+}
+
+/// Original decode-order samples of one identified MOV/MP4 track.
+/// Metadata is bounded independently of the media payload. Platform PTS caches
+/// keep their existing rounding; only the end is rounded from native ticks.
+pub struct Mp4SampleTiming {
+    samples: Vec<Sample>,
+    timescale: u32,
+    android_shift: i64,
+}
+
+impl Mp4SampleTiming {
+    fn android_pts(&self, index: usize) -> Result<i64> {
+        self.samples
+            .get(index)
+            .ok_or("MOV extractor exceeds source sample count")?
+            .pts
+            .checked_add(self.android_shift)
+            .ok_or("MOV edited timestamp overflow".into())
+    }
+
+    /// Validate the extractor's decode-order identity against its exact integer
+    /// projection, including Stagefright's zero clamp for edit preroll.
+    pub fn verify_android_sample(&self, index: usize, pts_us: i64) -> Result<()> {
+        let pts = self.android_pts(index)?;
+        let projected = (i128::from(pts) * 1_000_000 / i128::from(self.timescale)).max(0);
+        require(
+            projected == i128::from(pts_us),
+            "extractor sample order/time disagrees with native MOV timing",
+        )
+    }
+
+    /// The native sample interval ends before conversion, preserving the PTS
+    /// fraction that MediaExtractor sampleTime/durationUs individually lose.
+    pub fn android_sample_end(&self, index: usize) -> Result<u64> {
+        let sample = self.samples.get(index).ok_or("MOV source sample missing")?;
+        require(
+            sample.duration > 0,
+            "final sample duration is missing or zero",
+        )?;
+        let end = self
+            .android_pts(index)?
+            .checked_add(i64::from(sample.duration))
+            .ok_or("MOV sample end overflow")?;
+        require(end >= 0, "MOV sample ends before the visible interval")?;
+        u64::try_from(
+            (i128::from(end) * 1_000_000 + i128::from(self.timescale) / 2)
+                / i128::from(self.timescale),
+        )
+        .map_err(|_| "video timestamp overflow".into())
+    }
+
+    pub fn verify_android_count(&self, count: usize) -> Result<()> {
+        require(
+            count == self.samples.len(),
+            "extractor sample count disagrees with native MOV timing",
+        )
+    }
+
+    fn duration(&self, position: u64, bytes: usize) -> Result<SampleDuration> {
+        let mut found = self.samples.iter().filter(|sample| {
+            sample.position == position && usize::try_from(sample.size).ok() == Some(bytes)
+        });
+        let sample = found
+            .next()
+            .ok_or("selected MOV packet does not match its sample tables")?;
+        require(found.next().is_none(), "ambiguous sample position")?;
+        require(
+            sample.duration > 0,
+            "final sample duration is missing or zero",
+        )?;
+        Ok(SampleDuration {
+            ticks: u64::from(sample.duration),
+            timescale: self.timescale,
+        })
+    }
+}
+
+impl SampleDuration {
     /// Add the two native rational values before rounding once to microseconds.
     pub fn end_us(&self, pts: i64, numerator: i32, denominator: i32) -> Result<u64> {
         require(
@@ -169,18 +253,27 @@ fn media_range(ranges: &[Atom], position: u64, size: u64) -> Result<()> {
     )
 }
 fn record(
-    found: &mut Option<u64>,
+    samples: &mut Vec<Sample>,
     position: u64,
     size: u32,
     duration: u32,
-    target: u64,
-    bytes: usize,
+    dts: u64,
+    composition: i64,
 ) -> Result<()> {
-    if position == target && usize::try_from(size).ok() == Some(bytes) {
-        require(found.is_none(), "ambiguous sample position")?;
-        require(duration > 0, "final sample duration is missing or zero")?;
-        *found = Some(u64::from(duration));
-    }
+    require(
+        samples.len() < MAX_SAMPLES as usize,
+        "sample count budget exceeded",
+    )?;
+    let pts = i64::try_from(dts)
+        .map_err(|_| "MOV decode timestamp overflow")?
+        .checked_add(composition)
+        .ok_or("MOV composition timestamp overflow")?;
+    samples.push(Sample {
+        position,
+        pts,
+        duration,
+        size,
+    });
     Ok(())
 }
 
@@ -269,9 +362,8 @@ fn static_samples(
     reader: &mut Reader<'_>,
     atoms: &[Atom],
     media: &[Atom],
-    target: u64,
-    bytes: usize,
-    found: &mut Option<u64>,
+    output: &mut Vec<Sample>,
+    dts: &mut u64,
 ) -> Result<u32> {
     let (size_atom, compact) = match (unique(atoms, b"stsz")?, unique(atoms, b"stz2")?) {
         (Some(atom), None) => (atom, false),
@@ -296,6 +388,7 @@ fn static_samples(
         sample_total == sizes.count,
         "duration and size sample counts disagree",
     )?;
+    let mut compositions = Vec::new();
     if let Some(ctts) = unique(atoms, b"ctts")? {
         let data = reader.body(ctts)?;
         let flags = u32_at(&data, 0)?;
@@ -315,11 +408,22 @@ fn static_samples(
             total = total
                 .checked_add(run)
                 .ok_or("MOV composition count overflow")?;
+            let value = u32_at(&data, 12 + index * 8)?;
+            compositions.push((
+                run,
+                if flags == 0 {
+                    i64::from(value)
+                } else {
+                    i64::from(value as i32)
+                },
+            ));
         }
         require(
             total == sizes.count,
             "composition and size sample counts disagree",
         )?;
+    } else if sizes.count > 0 {
+        compositions.push((sizes.count, 0));
     }
     let stsc = reader.body(mandatory(atoms, b"stsc")?)?;
     let count = table(&stsc, 12)?;
@@ -361,6 +465,7 @@ fn static_samples(
     )?;
     let (mut chunk_run, mut duration_run, mut remaining, mut sample) =
         (0usize, 0usize, durations[0].0, 0u32);
+    let (mut composition_run, mut composition_remaining) = (0usize, compositions[0].0);
     for chunk in 1..=count {
         (reader.check)()?;
         if chunk_run + 1 < chunks.len() && chunks[chunk_run + 1].0 == chunk {
@@ -379,18 +484,26 @@ fn static_samples(
             let size = sizes.at(sample)?;
             media_range(media, position, u64::from(size))?;
             record(
-                found,
+                output,
                 position,
                 size,
                 durations[duration_run].1,
-                target,
-                bytes,
+                *dts,
+                compositions[composition_run].1,
             )?;
+            *dts = dts
+                .checked_add(u64::from(durations[duration_run].1))
+                .ok_or("MOV decode timestamp overflow")?;
             position = position
                 .checked_add(u64::from(size))
                 .ok_or("MOV sample position overflow")?;
             sample += 1;
             remaining -= 1;
+            composition_remaining -= 1;
+            if composition_remaining == 0 && sample < sizes.count {
+                composition_run += 1;
+                composition_remaining = compositions[composition_run].0;
+            }
             if remaining == 0 && sample < sizes.count {
                 duration_run += 1;
                 remaining = durations[duration_run].0;
@@ -410,10 +523,8 @@ fn fragments(
     media: &[Atom],
     defaults: &BTreeMap<u32, Defaults>,
     selected: u32,
-    target: u64,
-    bytes: usize,
-    found: &mut Option<u64>,
-    samples: &mut u32,
+    samples: &mut Vec<Sample>,
+    dts: &mut u64,
 ) -> Result<()> {
     let children = reader.children(moof.body, moof.end, 1)?;
     let mut previous_end = moof.start;
@@ -458,6 +569,26 @@ fn fragments(
             offset += 4;
         }
         require(offset == data.len(), "fragment-header length mismatch")?;
+        if let Some(tfdt) = unique(&atoms, b"tfdt")? {
+            let data = reader.body(tfdt)?;
+            let version = u32_at(&data, 0)?;
+            require(
+                version == 0 || version == 0x01000000,
+                "unsupported fragment decode-time version/flags",
+            )?;
+            require(
+                data.len() == if version == 0 { 8 } else { 12 },
+                "fragment decode-time length mismatch",
+            )?;
+            let value = if version == 0 {
+                u64::from(u32_at(&data, 4)?)
+            } else {
+                u64_at(&data, 4)?
+            };
+            if track == selected {
+                *dts = value;
+            }
+        }
         let mut cursor = base;
         for run in atoms.iter().filter(|atom| &atom.kind == b"trun") {
             let data = reader.body(*run)?;
@@ -472,10 +603,13 @@ fn fragments(
                 "fragment sample count budget exceeded",
             )?;
             if track == selected {
-                *samples = samples
-                    .checked_add(count)
-                    .ok_or("MOV fragment count overflow")?;
-                require(*samples <= MAX_SAMPLES, "sample count budget exceeded")?;
+                require(
+                    samples
+                        .len()
+                        .checked_add(count as usize)
+                        .is_some_and(|count| count <= MAX_SAMPLES as usize),
+                    "sample count budget exceeded",
+                )?;
             }
             require(!empty || count == 0, "empty fragment contains samples")?;
             require(flags & 0x404 != 0x404, "conflicting fragment sample flags")?;
@@ -516,12 +650,23 @@ fn fragments(
                 if flags & 0x400 != 0 {
                     offset += 4;
                 }
-                if flags & 0x800 != 0 {
+                let composition = if flags & 0x800 != 0 {
+                    let value = u32_at(&data, offset)?;
                     offset += 4;
-                }
+                    if flags >> 24 == 0 {
+                        i64::from(value)
+                    } else {
+                        i64::from(value as i32)
+                    }
+                } else {
+                    0
+                };
                 media_range(media, cursor, u64::from(size))?;
                 if track == selected {
-                    record(found, cursor, size, duration, target, bytes)?;
+                    record(samples, cursor, size, duration, *dts, composition)?;
+                    *dts = dts
+                        .checked_add(u64::from(duration))
+                        .ok_or("MOV fragment decode timestamp overflow")?;
                 }
                 cursor = cursor
                     .checked_add(u64::from(size))
@@ -535,13 +680,40 @@ fn fragments(
 
 /// Locate the selected packet's original sample, including fragmented movies.
 /// `check` includes the caller's cancellation and timestamp-scan deadline.
-pub(crate) fn sample_duration(
+pub fn sample_duration(
     path: &Path,
     track: u32,
     position: u64,
     bytes: usize,
     check: &dyn Fn() -> Result<()>,
-) -> Result<Duration> {
+) -> Result<SampleDuration> {
+    read_timing(path, track, check)?.duration(position, bytes)
+}
+
+/// Sniff a native MOV/MP4 timing ledger. Other containers retain their platform
+/// timing path. Recognized movies require the actual tkhd/track-id identity.
+pub fn sample_timing(
+    path: &Path,
+    track: Option<u32>,
+    check: &dyn Fn() -> Result<()>,
+) -> Result<Option<Mp4SampleTiming>> {
+    check()?;
+    let mut header = [0u8; 8];
+    let count = File::open(path)
+        .and_then(|mut file| file.read(&mut header))
+        .map_err(|e| e.to_string())?;
+    if count < 8
+        || !matches!(
+            &header[4..8],
+            b"ftyp" | b"moov" | b"mdat" | b"wide" | b"free" | b"skip"
+        )
+    {
+        return Ok(None);
+    }
+    read_timing(path, track.ok_or("MOV extractor track-id missing")?, check).map(Some)
+}
+
+fn read_timing(path: &Path, track: u32, check: &dyn Fn() -> Result<()>) -> Result<Mp4SampleTiming> {
     check()?;
     let file = File::open(path).map_err(|e| e.to_string())?;
     let length = file.metadata().map_err(|e| e.to_string())?.len();
@@ -623,6 +795,16 @@ pub(crate) fn sample_duration(
             "nested movie compression unsupported",
         )?;
     }
+    let movie_timescale = if let Some(mvhd) = unique(&moov, b"mvhd")? {
+        let data = metadata.body(mvhd)?;
+        let version = *data.first().ok_or("truncated movie header")?;
+        require(version <= 1, "unsupported movie header version")?;
+        let scale = u32_at(&data, if version == 0 { 12 } else { 20 })?;
+        require(scale > 0, "movie timescale is zero")?;
+        scale
+    } else {
+        0
+    };
     let mut chosen = None;
     for trak in moov.iter().filter(|atom| &atom.kind == b"trak") {
         let atoms = metadata.children(trak.body, trak.end, 3)?;
@@ -635,6 +817,7 @@ pub(crate) fn sample_duration(
         require(chosen.is_none(), "duplicate track identity")?;
         // libav maps edits into packet PTS. Durations remain in media units;
         // retain its existing edit-rate handling rather than reinterpreting PTS.
+        let mut edit_list = Vec::new();
         if let Some(edts) = unique(&atoms, b"edts")? {
             let edits = metadata.children(edts.body, edts.end, 4)?;
             if let Some(elst) = unique(&edits, b"elst")? {
@@ -648,6 +831,27 @@ pub(crate) fn sample_duration(
                     data.len() == 8 + count as usize * width,
                     "edit-list length mismatch",
                 )?;
+                require(
+                    u32_at(&data, 0)? == u32::from(version) << 24,
+                    "unsupported edit-list flags",
+                )?;
+                require(
+                    count == 0 || movie_timescale > 0,
+                    "edit list has no movie timescale",
+                )?;
+                for index in 0..count as usize {
+                    let offset = 8 + index * width;
+                    let (duration, media_time) = if version == 0 {
+                        (
+                            u64::from(u32_at(&data, offset)?),
+                            i64::from(u32_at(&data, offset + 4)? as i32),
+                        )
+                    } else {
+                        (u64_at(&data, offset)?, u64_at(&data, offset + 8)? as i64)
+                    };
+                    require(media_time >= -1, "invalid edit media time")?;
+                    edit_list.push((duration, media_time));
+                }
             }
         }
         let mdia = mandatory(&atoms, b"mdia")?;
@@ -661,11 +865,35 @@ pub(crate) fn sample_duration(
         let minf = metadata.children(minf.body, minf.end, 5)?;
         let stbl = mandatory(&minf, b"stbl")?;
         let stbl = metadata.children(stbl.body, stbl.end, 6)?;
-        chosen = Some((timescale, stbl));
+        chosen = Some((timescale, stbl, edit_list));
     }
-    let (timescale, stbl) = chosen.ok_or("selected MOV track identity is missing")?;
-    let mut found = None;
-    let mut samples = static_samples(metadata, &stbl, &media, position, bytes, &mut found)?;
+    let (timescale, stbl, edit_list) = chosen.ok_or("selected MOV track identity is missing")?;
+    // Preserve Stagefright's existing single edit / leading-empty edit mapping.
+    // It ignores longer lists and media rate; do not change the PTS cache while
+    // fixing the loss caused by converting sample PTS and duration separately.
+    let mut android_shift = 0i128;
+    if edit_list.len() <= 2 {
+        if let Some(&(duration, media_time)) = edit_list.first() {
+            if media_time == -1 {
+                android_shift = (i128::from(duration) * i128::from(timescale)
+                    + i128::from(movie_timescale) / 2)
+                    / i128::from(movie_timescale);
+                if let Some(&(_, media_time)) = edit_list.get(1) {
+                    require(
+                        media_time >= 0,
+                        "leading empty edit is followed by another empty edit",
+                    )?;
+                    android_shift -= i128::from(media_time);
+                }
+            } else {
+                android_shift = -i128::from(media_time);
+            }
+        }
+    }
+    let android_shift = i64::try_from(android_shift).map_err(|_| "MOV edit shift overflow")?;
+    let mut samples = Vec::new();
+    let mut dts = 0;
+    static_samples(metadata, &stbl, &media, &mut samples, &mut dts)?;
     let mut defaults = BTreeMap::new();
     if let Some(mvex) = unique(&moov, b"mvex")? {
         let atoms = metadata.children(mvex.body, mvex.end, 3)?;
@@ -701,14 +929,15 @@ pub(crate) fn sample_duration(
             &media,
             &defaults,
             track,
-            position,
-            bytes,
-            &mut found,
             &mut samples,
+            &mut dts,
         )?;
     }
-    let ticks = found.ok_or("selected MOV packet does not match its sample tables")?;
-    Ok(Duration { ticks, timescale })
+    Ok(Mp4SampleTiming {
+        samples,
+        timescale,
+        android_shift,
+    })
 }
 
 #[cfg(test)]
@@ -718,7 +947,7 @@ mod tests {
 
     fn fixture(name: &str) -> std::path::PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../motion-media/tests/fixtures/video")
+            .join("tests/fixtures/video")
             .join(name)
     }
     fn words(values: &[u32]) -> Vec<u8> {
@@ -748,7 +977,7 @@ mod tests {
         };
         atom(b"moov", &[trak, mvex].concat())
     }
-    fn read_bytes(data: &[u8], track: u32, pos: u64, bytes: usize) -> Result<Duration> {
+    fn read_bytes(data: &[u8], track: u32, pos: u64, bytes: usize) -> Result<SampleDuration> {
         let mut file = tempfile::NamedTempFile::new().unwrap();
         file.write_all(data).unwrap();
         sample_duration(file.path(), track, pos, bytes, &|| Ok(()))
@@ -904,7 +1133,7 @@ mod tests {
 
     #[test]
     fn mixed_native_time_bases_round_the_sum_once_and_reject_overflow() {
-        let timing = Duration {
+        let timing = SampleDuration {
             ticks: 902,
             timescale: 90000,
         };
@@ -912,11 +1141,149 @@ mod tests {
         assert_eq!(timing.end_us(3233333, 1, 1000000).unwrap(), 3243355);
         assert!(timing.end_us(-1, 1, 90000).is_err());
         assert!(timing.end_us(1, 1, 0).is_err());
-        assert!(Duration {
+        assert!(SampleDuration {
             ticks: u64::MAX,
             timescale: 1
         }
         .end_us(i64::MAX, i32::MAX, 1)
         .is_err());
+    }
+
+    #[test]
+    fn native_decode_order_ledger_matches_real_ffmpeg_packets_and_android_projection() {
+        let oracle: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(fixture("native-timing.json")).unwrap()).unwrap();
+        let manifest: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(fixture("manifest.json")).unwrap()).unwrap();
+        for (name, expected) in oracle.as_object().unwrap() {
+            let timing = sample_timing(&fixture(name), Some(1), &|| Ok(()))
+                .unwrap()
+                .unwrap();
+            let packets = expected["samples"].as_array().unwrap();
+            timing.verify_android_count(packets.len()).unwrap();
+            assert_eq!(
+                u64::from(timing.timescale),
+                expected["timescale"].as_u64().unwrap()
+            );
+            let mut maximum = (i64::MIN, 0);
+            for (index, packet) in packets.iter().enumerate() {
+                let sample = &timing.samples[index];
+                let pts = packet[0].as_i64().unwrap();
+                assert_eq!(timing.android_pts(index).unwrap(), pts, "{name}/{index}");
+                assert_eq!(
+                    u64::from(sample.duration),
+                    packet[1].as_u64().unwrap(),
+                    "{name}/{index}"
+                );
+                assert_eq!(
+                    sample.position,
+                    packet[2].as_u64().unwrap(),
+                    "{name}/{index}"
+                );
+                assert_eq!(
+                    u64::from(sample.size),
+                    packet[3].as_u64().unwrap(),
+                    "{name}/{index}"
+                );
+                let observed = packet[4].as_i64().unwrap();
+                timing.verify_android_sample(index, observed).unwrap();
+                assert!(timing.verify_android_sample(index, observed + 1).is_err());
+                if pts >= maximum.0 {
+                    maximum = (pts, index);
+                }
+            }
+            assert_eq!(
+                timing.android_sample_end(maximum.1).unwrap(),
+                manifest[name]["video_end_us"].as_u64().unwrap(),
+                "{name}"
+            );
+            assert!(timing.verify_android_count(packets.len() - 1).is_err());
+            assert!(timing.verify_android_sample(packets.len(), 0).is_err());
+            assert!(sample_timing(&fixture(name), Some(999), &|| Ok(())).is_err());
+            assert!(sample_timing(&fixture(name), None, &|| Ok(())).is_err());
+        }
+    }
+
+    #[test]
+    fn signed_composition_and_version_one_leading_edits_keep_native_fraction() {
+        let stbl = [
+            atom(b"stts", &words(&[0, 1, 2, 11])),
+            atom(b"stsc", &words(&[0, 1, 1, 2, 1])),
+            atom(b"stsz", &words(&[0, 0, 2, 2, 3])),
+            atom(b"stco", &words(&[0, 1, 8])),
+            atom(
+                b"ctts",
+                &words(&[0x01000000, 2, 1, (-12i32) as u32, 1, (-3i32) as u32]),
+            ),
+        ]
+        .concat();
+        let original = movie(stbl, false);
+        let mut entries = words(&[0x01000000, 2]);
+        for (duration, media_time) in [(1u64, -1i64), (1000, 5)] {
+            entries.extend_from_slice(&duration.to_be_bytes());
+            entries.extend_from_slice(&media_time.to_be_bytes());
+            entries.extend_from_slice(&0x10000u32.to_be_bytes());
+        }
+        let edts = atom(b"edts", &atom(b"elst", &entries));
+        let trak = atom(b"trak", &[edts, original[16..].to_vec()].concat());
+        let mvhd = atom(b"mvhd", &words(&[0, 0, 0, 1001]));
+        let data = [
+            atom(b"mdat", &[1; 5]),
+            atom(b"moov", &[mvhd, trak].concat()),
+        ]
+        .concat();
+        let mut file = tempfile::NamedTempFile::new().unwrap();
+        file.write_all(&data).unwrap();
+        let timing = sample_timing(file.path(), Some(7), &|| Ok(()))
+            .unwrap()
+            .unwrap();
+        assert_eq!(timing.samples[0].pts, -12);
+        assert_eq!(timing.samples[1].pts, 8);
+        assert_eq!(timing.android_shift, 85); // nearest(90000/1001) - 5
+        timing.verify_android_sample(1, 1033).unwrap();
+        assert_eq!(timing.android_sample_end(1).unwrap(), 1156);
+    }
+
+    #[test]
+    fn fragment_decode_time_and_signed_composition_use_original_native_ticks() {
+        let empty = [
+            atom(b"stts", &words(&[0, 0])),
+            atom(b"stsc", &words(&[0, 0])),
+            atom(b"stsz", &words(&[0, 0, 0])),
+            atom(b"stco", &words(&[0, 0])),
+        ]
+        .concat();
+        let moov = movie(empty, true);
+        let tfhd = atom(b"tfhd", &words(&[0x20000, 7]));
+        let tfdt = atom(
+            b"tfdt",
+            &[words(&[0x01000000]), 90001u64.to_be_bytes().to_vec()].concat(),
+        );
+        let make = |offset| {
+            atom(
+                b"moof",
+                &atom(
+                    b"traf",
+                    &[
+                        tfhd.clone(),
+                        tfdt.clone(),
+                        atom(b"trun", &words(&[0x01000801, 1, offset, u32::MAX])),
+                    ]
+                    .concat(),
+                ),
+            )
+        };
+        let moof = make(make(0).len() as u32 + 8);
+        let data = [moov, moof, atom(b"mdat", &[1; 5])].concat();
+        let mut file = tempfile::NamedTempFile::new().unwrap();
+        file.write_all(&data).unwrap();
+        let timing = read_timing(file.path(), 7, &|| Ok(())).unwrap();
+        assert_eq!(timing.samples[0].pts, 90000);
+        timing.verify_android_sample(0, 1000000).unwrap();
+        assert_eq!(timing.android_sample_end(0).unwrap(), 1010022);
+        let mut bad = data.clone();
+        let index = bad.windows(4).position(|bytes| bytes == b"tfdt").unwrap();
+        bad[index + 8..index + 16].copy_from_slice(&u64::MAX.to_be_bytes());
+        assert!(read_bytes(&bad, 7, 0, 5).is_err());
     }
 }
