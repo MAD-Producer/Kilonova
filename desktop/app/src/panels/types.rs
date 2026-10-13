@@ -33,6 +33,8 @@ pub enum Action {
     ResetWorkspace,
     ShowPanel(dock::DockId),
     About,
+    ExportDiagnostics,
+    ToggleDiagnostics,
     PreviewMode(i32),
     SelectAt([f64; 2]),
     PreviewDrag {

@@ -73,6 +73,23 @@ impl Shell {
         event_loop: Option<&ActiveEventLoop>,
     ) -> Result<(), String> {
         use panels::Action;
+        let mut context = crate::diagnostics::Context::from_state(&self.state);
+        context.playing = self.playback.is_some();
+        context.pointer_dragging = self.input.held == Some(MouseButton::Left);
+        context.panel = self.panels.focused.map(|p| p.dock().0);
+        context.action = match &action {
+            Action::Edit(command) => motion_core::CommandRegistry::id(command),
+            Action::EditBatch(_) => "command_batch",
+            Action::Seek(_) => "seek",
+            Action::History(_) => "history",
+            Action::Plugin(_) => "plugin",
+            Action::TogglePlay => "toggle_play",
+            Action::PreviewDrag { .. } => "preview_drag",
+            Action::SelectAt(_) => "select_at",
+            Action::ExportDiagnostics => "export_diagnostics",
+            _ => "menu_action",
+        };
+        self.engine.diagnostics().set_context(context);
         if self.project_modal() && !matches!(&action, Action::ProjectChoice(_)) {
             return Ok(());
         }
@@ -326,6 +343,27 @@ impl Shell {
             }
             Action::About => {
                 self.panels.message = Some(self.workspace.locale.t(T::AboutDescription).into())
+            }
+            Action::ExportDiagnostics => {
+                if self.diagnostics_export.is_none() {
+                    if let Some(path) = rfd::FileDialog::new()
+                        .set_title(self.workspace.locale.t(T::ExportDiagnostics))
+                        .add_filter("JSON diagnostics", &["json"])
+                        .set_file_name("motion-studio-stalls.json")
+                        .save_file()
+                    {
+                        self.diagnostics_export = Some(self.engine.diagnostics().export(path)?);
+                        self.panels.message =
+                            Some(self.workspace.locale.t(T::DiagnosticsExporting).into());
+                    }
+                }
+            }
+            Action::ToggleDiagnostics => {
+                let enabled = !self.engine.diagnostics().enabled();
+                self.engine.diagnostics().set_enabled(enabled)?;
+                self.workspace.send_diagnostics = enabled;
+                self.workspace.save(&self.layout_path)?;
+                self.state["desktop"]["diagnostics"] = self.engine.diagnostics().status();
             }
             Action::PreviewMode(mode) => {
                 self.state["preview"] = self.engine.preview_mode(mode, 0)?
