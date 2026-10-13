@@ -20,6 +20,16 @@ def verify_style_consumers() -> None:
             raise RuntimeError(f"{source.name} bypasses its window's style context")
 
 
+def verify_design_screens(snapshot: dict, locale: str) -> None:
+    screens = snapshot.get("designScreens", {})
+    for name in ("home", "composition-settings", "workspace-manager", "value-graph", "speed-graph"):
+        if name not in screens:
+            raise RuntimeError(f"{locale} did not capture {name}")
+        data = Path(screens[name]).read_bytes()
+        if len(data) < 1024 or not data.startswith(b"\x89PNG\r\n\x1a\n"):
+            raise RuntimeError(f"{locale} {name} is not a rendered PNG")
+
+
 def verify_style_overrides(binary: Path, output: Path) -> None:
     override = output / "acceptance.override.json"
     override.write_text(json.dumps({
@@ -144,6 +154,7 @@ def main() -> None:
         if result.returncode:
             raise RuntimeError(f"{locale} desktop acceptance failed: {result.stderr}")
         snapshot = json.loads(report.read_text(encoding="utf-8"))
+        verify_design_screens(snapshot, locale)
         if snapshot["locale"] != locale or snapshot["floatingFrames"].get("3", 0) < 2:
             raise RuntimeError(f"{locale} did not validate the floating composition")
         node_report = output / f"node-smoke-{locale}.json"
