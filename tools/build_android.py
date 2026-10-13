@@ -13,7 +13,10 @@ ROOT=Path(__file__).resolve().parents[1]
 def tool_config():
     shared=next((p for p in [ROOT,*ROOT.parents] if (p/".tools/environment.json").exists()),None)
     if shared is not None:
-        return shared,json.loads((shared/".tools/environment.json").read_text(encoding="utf-8"))
+        config=json.loads((shared/".tools/environment.json").read_text(encoding="utf-8"))
+        if os.environ.get("ANDROID_NDK_HOME"):
+            config["ndk"]=os.environ["ANDROID_NDK_HOME"]
+        return shared,config
     sdk=os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT")
     java=os.environ.get("JAVA_HOME")
     gradle=shutil.which("gradle")
@@ -30,6 +33,7 @@ def main():
     parser.add_argument("--rust-only",action="store_true")
     parser.add_argument("--diagnostics",action="store_true",help="Enable opt-in GPU fault injection for the debug acceptance build")
     parser.add_argument("--effects-acceptance",action="store_true",help="Use an isolated debug application ID for effects tests")
+    parser.add_argument("--isolated-debug",action="store_true",help="Use the .dev application ID for a debug build that can be installed separately")
     parser.add_argument("--task",nargs="+",default=["assembleDebug"])
     parser.add_argument("--target-dir",type=Path,help="Override the native output directory")
     parser.add_argument("--codegen-units",type=int,choices=range(1,257),help="Override project-crate release codegen units for memory-constrained local builds")
@@ -38,6 +42,8 @@ def main():
     diagnostics=args.diagnostics or any(task.endswith("AndroidTest") and "Benchmark" not in task for task in args.task)
     if diagnostics and any(any(kind in task for kind in ("Release","Benchmark","Preview")) for task in args.task):
         raise RuntimeError("Release/Benchmark/Preview tasks must be built without GPU diagnostic injection")
+    if args.isolated_debug and (args.effects_acceptance or any(any(kind in task for kind in ("Release","Benchmark","Preview")) for task in args.task)):
+        raise RuntimeError("--isolated-debug applies only to debug tasks and cannot be combined with --effects-acceptance")
     targets={"arm64-v8a":("aarch64-linux-android","aarch64-linux-android29"),
         "x86_64":("x86_64-linux-android","x86_64-linux-android29")}
     abis=args.abis.split(",")
@@ -95,8 +101,10 @@ def main():
         android=ROOT/"android"
         sdk=Path(config["sdk"]).as_posix().replace(":","\\:")
         (android/"local.properties").write_text("sdk.dir="+sdk+"\n",encoding="utf-8")
-        properties=["-PperformanceTest=true"] if benchmark else []
+        properties=[f'-PmotionAbis={",".join(abis)}']
+        if benchmark: properties.append("-PperformanceTest=true")
         if args.effects_acceptance: properties.append("-PeffectsAcceptance=true")
+        if args.isolated_debug: properties.append("-PisolatedDebug=true")
         subprocess.run([config["gradle"],"--no-daemon","--console=plain",*properties,*args.task],cwd=android,env=env,check=True)
         print("Android build completed",flush=True)
 
