@@ -61,6 +61,7 @@ impl Shell {
         paint.stylesheet = self.panels.styles.clone();
         let neutral = Input::default();
         let project_modal = self.project_modal();
+        let began = Instant::now();
         let actions = panels::chrome(
             &mut paint,
             &mut self.atlas,
@@ -77,6 +78,21 @@ impl Shell {
             } else {
                 &self.input
             },
+        );
+        let mut context = self.engine.diagnostics().context();
+        context.panel = self.panels.focused.map(|p| p.dock().0);
+        context.playing = self.playback.is_some();
+        context.pointer_dragging = self.input.held == Some(MouseButton::Left);
+        context.frame = self.frame;
+        self.engine.diagnostics().set_context(context.clone());
+        self.engine.diagnostics().record(
+            0,
+            "ui_build",
+            "panels",
+            began.elapsed(),
+            None,
+            Some(began.elapsed()),
+            context,
         );
         if let Some(dialog) = &mut self.dialog {
             if let Some(event) = dialog.render(

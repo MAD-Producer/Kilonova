@@ -1,6 +1,7 @@
 //! Native desktop editor. One worker owns the session, GPU and swapchain.
 mod audio_output;
 mod cursors;
+mod diagnostics;
 mod dialogs;
 mod engine;
 mod i18n;
@@ -47,7 +48,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
     if args.iter().any(|a| a == "--help" || a == "-h") {
-        eprintln!("Motion Studio\n  --project <directory>  open an existing project or create one\n  --command-list         print the registered command catalogue\n  --commands <file.json> run/save an atomic command batch without a window\n  --mcp                  serve editor tools over MCP stdio (no window)\n  --mcp-ui               serve MCP and open the shared editor window\n  --style <file.json>     style overrides; auto reload or Ctrl+R\n  --locale <zh|en>        UI language override\n  --smoke <report.json>  hidden-window GPU acceptance with screenshot\n  --node-smoke <report.json>  node graph GPU/UI acceptance with screenshots");
+        eprintln!("Motion Studio\n  --project <directory>  open an existing project or create one\n  --command-list         print the registered command catalogue\n  --commands <file.json> run/save an atomic command batch without a window\n  --mcp                  serve editor tools over MCP stdio (no window)\n  --mcp-ui               serve MCP and open the shared editor window\n  --style <file.json>     style overrides; auto reload or Ctrl+R\n  --locale <zh|en>        UI language override\n  --diagnostics-report <file.json>  export timing diagnostics when the editor exits\n  --smoke <report.json>  hidden-window GPU acceptance with screenshot\n  --node-smoke <report.json>  node graph GPU/UI acceptance with screenshots");
         return Ok(());
     }
     let argument = |flag: &str| -> Result<Option<PathBuf>, String> {
@@ -138,6 +139,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             })?;
     }
     event_loop.run_app(&mut app)?;
+    if let Some(path) = argument("--diagnostics-report")? {
+        app.engine
+            .diagnostics()
+            .export(path)?
+            .recv_timeout(Duration::from_secs(5))??;
+    } else if let Ok(receive) = app.engine.diagnostics().checkpoint() {
+        let _ = receive.recv_timeout(Duration::from_secs(1));
+    }
     if let Some(error) = app.fatal {
         return Err(error.into());
     }
@@ -229,6 +238,7 @@ struct Shell {
     actions: std::collections::VecDeque<panels::Action>,
     editing: Option<(Instant, std::sync::mpsc::Receiver<Result<Value, String>>)>,
     present_due: bool,
+    diagnostics_export: Option<std::sync::mpsc::Receiver<Result<(), String>>>,
     closing: bool,
     next_redraw: Instant,
     fatal: Option<String>,
@@ -264,6 +274,7 @@ impl Shell {
             .map(PathBuf::from)
             .unwrap_or_else(|| directories().join("desktop-layout-v2.json"));
         let mut workspace = workspace::Workspace::load(&layout_path);
+        let _ = engine.diagnostics().set_enabled(workspace.send_diagnostics);
         if let Some(locale) = locale {
             workspace.locale = locale;
         }
@@ -316,6 +327,7 @@ impl Shell {
             actions: Default::default(),
             editing: None,
             present_due: false,
+            diagnostics_export: None,
             closing: false,
             next_redraw: Instant::now(),
             fatal: None,
@@ -489,6 +501,24 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
     }
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        if let Some(receive) = &self.diagnostics_export {
+            let result = match receive.try_recv() {
+                Ok(r) => Some(r),
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                    Some(Err("diagnostics reporter stopped".into()))
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => None,
+            };
+            if let Some(result) = result {
+                self.panels.message = Some(match result {
+                    Ok(()) => self.workspace.locale.t(T::DiagnosticsExported).into(),
+                    Err(e) => self.workspace.locale.error(&e),
+                });
+                self.diagnostics_export = None;
+                self.dirty = true;
+                self.redraw();
+            }
+        }
         self.poll_styles();
         self.poll_project_change();
         if let Some((began, receive)) = &self.editing {
@@ -506,6 +536,15 @@ impl ApplicationHandler<UserEvent> for Shell {
                         began.elapsed().as_micros()
                     );
                 }
+                self.engine.diagnostics().record(
+                    0,
+                    "response_poll",
+                    "edit_async",
+                    began.elapsed(),
+                    None,
+                    None,
+                    self.engine.diagnostics().context(),
+                );
                 self.editing = None;
                 match result {
                     Ok(state) => {
@@ -816,6 +855,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             }
         }
         let busy = self.attaching.is_some()
+            || self.diagnostics_export.is_some()
             || self.present_due
             || self.editing.is_some()
             || !self.rendering.is_empty()
