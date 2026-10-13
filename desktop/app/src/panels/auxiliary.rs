@@ -63,7 +63,10 @@ pub(super) fn render(
     input: &Input,
     out: &mut Vec<Action>,
 ) {
-    paint::rect(list, area, palette::PANEL);
+    let styles = list.styles();
+    let colors = styles.colors();
+
+    paint::rect(list, area, colors.PANEL);
     let locale = panels.locale;
     let layer = selected(panels, state).cloned();
     let mut y = body_y(panel, area, 500., panels, input);

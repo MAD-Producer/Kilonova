@@ -9,10 +9,17 @@ pub(super) fn render(
     input: &Input,
     out: &mut Vec<Action>,
 ) {
+    let styles = list.styles();
+    let colors = styles.colors();
+
     if panels.focused != Some(Panel::Timeline) {
         process_field(panels, state, input, out);
     }
-    paint::rect(list, area, palette::PANEL);
+    paint::rect(list, area, colors.PANEL);
+    let row = styles.metric("row.height", 22.);
+    let padding = styles.metric("padding.panel", 10.);
+    let icon_slot = styles.metric("icon.slot", 20.);
+    let header_height = styles.metric("panel.header.height", 24.);
     let filtered = Input {
         pressed: input.pressed.filter(|(_, p)| area.contains(*p)),
         ..input.clone()
@@ -28,7 +35,7 @@ pub(super) fn render(
                 + input.wheel[1])
                 .clamp(0., (800. - area.height()).max(0.));
         }
-        let mut y = area.min[1] + 8. - panels.properties.properties_scroll;
+        let mut y = area.min[1] + padding - panels.properties.properties_scroll;
         panels.parent_controls.render(
             list,
             atlas,
@@ -44,8 +51,15 @@ pub(super) fn render(
         panels
             .camera_controls
             .render(list, atlas, area, &mut y, state, input, panels.locale, out);
-        if panels.camera_controls.cursor {panels.cursor=Some(motion_ui::cursor::Cursor::ResizeEW);}
-        if let Some(readout) = &panels.camera_controls.drag_readout {panels.drag_readout=Some(readout.clone());}
+        if panels.camera_controls.cursor {
+            panels.cursor = Some(motion_ui::widgets::numeric_behavior::cursor(
+                input,
+                panels.camera_controls.drag_readout.is_some(),
+            ));
+        }
+        if let Some(readout) = &panels.camera_controls.drag_readout {
+            panels.drag_readout = Some(readout.clone());
+        }
         return;
     }
     let Some(object) = panels.selected.filter(|id| *id != 0) else {
@@ -76,56 +90,77 @@ pub(super) fn render(
     let timeline = state["timeline_layers"]
         .as_array()
         .and_then(|ls| ls.iter().find(|l| l["object"].as_u64() == Some(object)));
-    let content_height = if three_d { 620.0 } else { 490.0 };
+    let content_height = panels
+        .properties
+        .content_height
+        .max(if three_d { 620. } else { 490. });
     if area.contains(input.mouse) && !panels.parent_controls.open {
         panels.properties.properties_scroll = (panels.properties.properties_scroll
             + input.wheel[1])
             .clamp(0.0, (content_height - area.height()).max(0.0));
     }
-    let mut y = area.min[1] + 8.0 - panels.properties.properties_scroll;
-    let heading = Rect::new(area.min[0], y, area.width(), 32.0);
-    paint::rect(list, heading, palette::CHROME.with_alpha(0.55));
+    let mut y = area.min[1] + padding - panels.properties.properties_scroll;
+    let heading = Rect::new(area.min[0], y, area.width(), header_height);
+    paint::rect(list, heading, colors.CHROME.with_alpha(0.55));
     label(
         list,
         atlas,
-        heading.shrink(10.0),
+        Rect::new(
+            heading.min[0] + padding,
+            heading.min[1],
+            (heading.width() - padding * 2.).max(0.),
+            heading.height(),
+        ),
         layer["name"].as_str().unwrap_or(locale.t(T::Layer)),
         false,
     );
-    y += 40.0;
+    y += header_height + padding;
     panels.parent_controls.render(
         list, atlas, area, &mut y, object, layer, state, input, locale, out,
     );
-    let check = Rect::new(area.max[0] - 58.0, y + 7.0, 14.0, 14.0);
-    paint::stroke(list, check, palette::TEXT_MUTED, 1.0);
-    if three_d {
-        paint::rect(list, check.shrink(3.0), palette::ACCENT);
+    if input.key_presses().any(|(k, _, _)| k == Key::Tab) {
+        panels.properties.checkbox_focused = true;
     }
-    label(
+    if input.pressed.is_some() {
+        panels.properties.checkbox_focused = false;
+    }
+    let check = Rect::new(
+        area.min[0] + padding,
+        y,
+        (area.width() - padding * 2.).max(0.),
+        row,
+    );
+    if motion_ui::widgets::Checkbox::draw(
         list,
         atlas,
-        Rect::new(area.min[0] + 20.0, y, area.width() - 82.0, 30.0),
+        check,
         locale.t(T::Enable3D),
-        false,
-    );
-    if clicked(
+        three_d,
         input,
-        Rect::new(area.min[0] + 12.0, y, area.width() - 24.0, 30.0),
-    ) && !locked
+        !locked,
+        panels.properties.checkbox_focused,
+        None,
+    )
+    .clicked
     {
         out.push(Action::Edit(Command::SetLayer3d {
             object,
             enabled: !three_d,
         }));
     }
-    y += 42.0;
+    y += row + padding;
     paint::rect(
         list,
-        Rect::new(area.min[0] + 12.0, y, area.width() - 24.0, 1.0),
-        palette::BORDER,
+        Rect::new(area.min[0], y, area.width(), 0.5),
+        colors.BORDER.with_alpha(0.35),
     );
-    y += 4.0;
-    let group = Rect::new(area.min[0] + 10.0, y, area.width() - 20.0, 30.0);
+    y += padding;
+    let group = Rect::new(
+        area.min[0] + padding,
+        y,
+        (area.width() - padding * 2.).max(0.),
+        row,
+    );
     label(
         list,
         atlas,
@@ -148,7 +183,7 @@ pub(super) fn render(
         }
         panels.properties.field = None;
     }
-    y += 34.0;
+    y += row;
     let frame = state["frame"].as_f64().unwrap_or(0.0).floor() as u32;
     if !panels.properties.transform_collapsed {
         for (name, property, key, axes) in [
@@ -178,13 +213,13 @@ pub(super) fn render(
             let track = timeline.map(|l| &l["properties"][key]);
             let separated = track.is_some_and(|t| t["separated"].as_bool().unwrap_or(false));
             let animated = track.is_some_and(|t| !t["keys"].as_array().is_none_or(Vec::is_empty));
-            let animate = Rect::new(area.min[0] + 14.0, y + 2.0, 14.0, 24.0);
+            let animate = Rect::new(area.min[0] + padding, y, icon_slot, row);
             ui::icon(list, animate, Icon::Stopwatch);
             if animated {
                 paint::rect(
                     list,
-                    Rect::new(animate.min[0], y + 22.0, 12.0, 2.0),
-                    palette::ACCENT,
+                    Rect::new(animate.min[0], y + row - 1., icon_slot, 1.),
+                    colors.ACCENT,
                 );
             }
             if clicked(input, animate) && !locked && !separated {
@@ -196,43 +231,57 @@ pub(super) fn render(
                     enabled: !animated,
                 }));
             }
-            label(
-                list,
-                atlas,
-                Rect::new(area.min[0] + 38.0, y, area.width() * 0.40, 28.0),
-                name,
-                true,
-            );
+            let mut first_axis = true;
             for axis in axes {
                 let value = if property == Property::Opacity {
                     sample[key].as_f64().unwrap_or(1.0) * 100.0
                 } else {
                     sample[key][axis].as_f64().unwrap_or(0.0)
                 };
-                let r = Rect::new(
-                    area.min[0] + area.width() * 0.59,
-                    y,
-                    (area.width() * 0.38 - 8.0).max(1.0),
-                    28.0,
+                let shown = format!(
+                    "{value:.2}{}",
+                    if matches!(property, Property::Scale | Property::Opacity) {
+                        "%"
+                    } else {
+                        ""
+                    }
                 );
-                if property != Property::Opacity {
-                    label(
-                        list,
-                        atlas,
-                        Rect::new(r.min[0] - 20.0, y, 18.0, 28.0),
-                        ["X", "Y", "Z"][axis],
-                        true,
-                    );
+                let value_width = atlas.measure(&shown) * styles.metric("font.small", 11.)
+                    / atlas.font_size()
+                    + styles.metric("padding", 5.) * 2.;
+                let mut columns =
+                    motion_ui::widgets::PropertyColumns::new(&styles, area, y, value_width);
+                if !first_axis && columns.height > row {
+                    columns.axis.min[1] -= row;
+                    columns.axis.max[1] -= row;
+                    columns.value.min[1] -= row;
+                    columns.value.max[1] -= row;
+                    columns.height -= row;
                 }
+                if first_axis {
+                    label(list, atlas, columns.label, name, true);
+                }
+                if property != Property::Opacity {
+                    label(list, atlas, columns.axis, ["X", "Y", "Z"][axis], true);
+                }
+                let r = columns.value;
                 draw_value(
                     list, atlas, r, panels, state, input, object, property, axis, value, locked,
                     false, out,
                 );
-                y += 28.0;
+                paint::rect(
+                    list,
+                    Rect::new(area.min[0], y + columns.height - 0.5, area.width(), 0.5),
+                    colors.BORDER.with_alpha(0.25),
+                );
+                y += columns.height;
+                first_axis = false;
             }
-            y += 6.0;
+            y += padding * 0.5;
         }
     }
+    panels.properties.content_height =
+        y - area.min[1] + panels.properties.properties_scroll + padding;
 }
 
 pub(super) fn draw_value(
@@ -250,12 +299,29 @@ pub(super) fn draw_value(
     timeline: bool,
     out: &mut Vec<Action>,
 ) {
+    let styles = list.styles();
+    let colors = styles.colors();
+
     let key = (
         object,
         100 + property as u64 * 8 + axis as u64 + if timeline { 64 } else { 0 },
     );
-    if !locked && (r.contains(input.mouse)||panels.properties.field.as_ref().is_some_and(|f|f.scrubbing.as_ref().is_some_and(|s|s.begun))) {
-        panels.cursor = Some(motion_ui::cursor::Cursor::ResizeEW);
+    if !locked
+        && (r.contains(input.mouse)
+            || panels
+                .properties
+                .field
+                .as_ref()
+                .is_some_and(|f| f.scrubbing.as_ref().is_some_and(|s| s.begun)))
+    {
+        panels.cursor = Some(motion_ui::widgets::numeric_behavior::cursor(
+            input,
+            panels
+                .properties
+                .field
+                .as_ref()
+                .is_some_and(|f| f.scrubbing.as_ref().is_some_and(|s| s.begun)),
+        ));
     }
     let hover = panels.motion.value(
         key,
@@ -265,18 +331,18 @@ pub(super) fn draw_value(
         } else {
             0.
         },
-        motion_ui::style::default_stylesheet().metric("motion.hover_ms", 90.),
+        styles.as_ref().metric("motion.hover_ms", 90.),
         false,
     );
     let changed = panels.motion.changed(
         (key.0, key.1 + 200),
         value,
-        motion_ui::style::default_stylesheet().metric("motion.value_ms", 140.),
+        styles.as_ref().metric("motion.value_ms", 140.),
     );
     paint::rect(
         list,
         r,
-        palette::ACCENT.with_alpha((hover * 0.07).max(changed * 0.14)),
+        colors.ACCENT.with_alpha((hover * 0.07).max(changed * 0.14)),
     );
     let active = panels.properties.field.as_ref().is_some_and(|f| {
         f.object == object
@@ -284,12 +350,24 @@ pub(super) fn draw_value(
             && f.axis == axis
             && (panels.focused == Some(Panel::Timeline)) == timeline
     });
-    let mut states=motion_ui::style::States::default();
-    if active&&panels.properties.field.as_ref().is_some_and(|f|f.scrubbing.is_none()) {states=states.with(motion_ui::style::State::Focused);}
-    if !locked&&r.contains(input.mouse){states=states.with(motion_ui::style::State::Hovered);}
-    if locked {states=states.with(motion_ui::style::State::Disabled);}
-    let style=motion_ui::style::default_stylesheet().resolve("field.number",states).unwrap();
-    motion_ui::style::box_style(list,r,style);
+    let mut states = motion_ui::style::States::default();
+    if active
+        && panels
+            .properties
+            .field
+            .as_ref()
+            .is_some_and(|f| f.scrubbing.is_none())
+    {
+        states = states.with(motion_ui::style::State::Focused);
+    }
+    if !locked && r.contains(input.mouse) {
+        states = states.with(motion_ui::style::State::Hovered);
+    }
+    if locked {
+        states = states.with(motion_ui::style::State::Disabled);
+    }
+    let style = styles.as_ref().resolve("field.number", states).unwrap();
+    motion_ui::style::box_style(list, r, style);
     let text = if active {
         panels.properties.field.as_ref().unwrap().text.clone()
     } else {
@@ -302,11 +380,22 @@ pub(super) fn draw_value(
             }
         )
     };
-    if active&&panels.properties.field.as_ref().is_some_and(|f|f.scrubbing.as_ref().is_some_and(|s|s.begun)) {
-        let delta=panels.properties.field.as_ref().and_then(|f|f.scrubbing.as_ref()).map_or(0.,|s|s.last_value-s.start_value);
-        panels.drag_readout=Some((input.mouse,format!("{}  {:+.2}",text,delta)));
+    if active
+        && panels
+            .properties
+            .field
+            .as_ref()
+            .is_some_and(|f| f.scrubbing.as_ref().is_some_and(|s| s.begun))
+    {
+        let delta = panels
+            .properties
+            .field
+            .as_ref()
+            .and_then(|f| f.scrubbing.as_ref())
+            .map_or(0., |s| s.last_value - s.start_value);
+        panels.drag_readout = Some((input.mouse, format!("{}  {:+.2}", text, delta)));
     }
-    ui::text(list, atlas, r, &text, palette::ACCENT, Align::Left);
+    motion_ui::style::text_style(list, atlas, r, &text, style, Align::Left);
     if active {
         panels.properties.field.as_mut().unwrap().rect = r;
     }
@@ -404,19 +493,23 @@ pub(super) fn process_field(
     if let Some(scrub) = field.scrubbing.as_mut() {
         let delta = input.mouse[0] - scrub.start_mouse;
         if (input.dragging() || released)
-            && (delta.abs().max(input.pointer_travel) >= 3. || scrub.begun)
+            && (motion_ui::widgets::numeric_behavior::started(
+                delta,
+                input.pointer_travel,
+                panels.styles.as_ref().map_or_else(
+                    || {
+                        motion_ui::style::default_stylesheet_arc()
+                            .metric("motion.drag_threshold", 3.)
+                    },
+                    |s| s.metric("motion.drag_threshold", 3.),
+                ),
+            ) || scrub.begun)
         {
             if !scrub.begun {
                 scrub.begun = true;
                 out.push(Action::History(2));
             }
-            let step = if input.modifiers.shift {
-                0.1
-            } else if input.modifiers.control {
-                10.
-            } else {
-                1.
-            };
+            let step = motion_ui::widgets::numeric_behavior::step(input) as f32;
             let mut value = scrub.start_value + delta * 0.5 * step;
             if field.property == Property::Opacity {
                 value = value.clamp(0., 100.);
@@ -536,6 +629,55 @@ mod tests {
         );
         process_field(&mut panels, &state(), &release(120.), &mut next);
         assert!(matches!(next.as_slice(), [Action::History(3)]));
+    }
+    #[test]
+    fn stylesheet_threshold_and_grabbing_cursor_preserve_single_transaction() {
+        for threshold in [0., 12.] {
+            let mut panels = panels();
+            panels.set_stylesheet(motion_ui::style::default_stylesheet_arc().with_overrides(format!("{{\"tokens\":{{\"sizes\":{{\"motion.drag_threshold\":{threshold}}}}}}}").as_bytes()).unwrap());
+            let mut actions = vec![];
+            process_field(&mut panels, &state(), &drag(105.), &mut actions);
+            assert_eq!(
+                actions
+                    .iter()
+                    .filter(|a| matches!(a, Action::History(2)))
+                    .count(),
+                usize::from(threshold == 0.)
+            );
+            process_field(&mut panels, &state(), &drag(120.), &mut actions);
+            let mut atlas = TextAtlas::from_system(12.).unwrap();
+            draw_value(
+                &mut PaintList::default(),
+                &mut atlas,
+                Rect::new(90., 0., 120., 30.),
+                &mut panels,
+                &state(),
+                &drag(120.),
+                7,
+                Property::Position,
+                0,
+                20.,
+                false,
+                false,
+                &mut vec![],
+            );
+            assert_eq!(panels.cursor, Some(motion_ui::cursor::Cursor::Grabbing));
+            process_field(&mut panels, &state(), &release(120.), &mut actions);
+            assert_eq!(
+                actions
+                    .iter()
+                    .filter(|a| matches!(a, Action::History(2)))
+                    .count(),
+                1
+            );
+            assert_eq!(
+                actions
+                    .iter()
+                    .filter(|a| matches!(a, Action::History(3)))
+                    .count(),
+                1
+            );
+        }
     }
     #[test]
     fn coalesced_return_drag_closes_without_reopening_input() {

@@ -75,6 +75,16 @@ pub(super) fn transform_content(content: &mut PaintList, origin: [f32; 2], zoom:
                         *width *= zoom;
                         *radius *= zoom;
                     }
+                    Pattern::Shadow {
+                        radius,
+                        blur,
+                        bounds,
+                    } => {
+                        *radius *= zoom;
+                        *blur *= zoom;
+                        point(&mut bounds.min);
+                        point(&mut bounds.max);
+                    }
                     Pattern::Checker { size, .. } => *size *= zoom,
                     Pattern::Grid {
                         origin: grid,
@@ -359,6 +369,9 @@ impl NodeEditor {
         node: &Node,
         language: Language,
     ) {
+        let styles = list.styles();
+        let colors = styles.colors();
+
         for (row, control) in control_rows(node, &self.document, language) {
             match control {
                 Control::Number {
@@ -373,7 +386,7 @@ impl NodeEditor {
                         atlas,
                         Rect::new(row.min[0], row.min[1], 33., row.height()),
                         &name,
-                        palette::TEXT_MUTED,
+                        colors.TEXT_MUTED,
                         Align::Left,
                     );
                     let number = self.inline.number.as_ref().filter(|edit| {
@@ -399,12 +412,12 @@ impl NodeEditor {
                         list,
                         box_rect,
                         if checked {
-                            palette::ACCENT
+                            colors.ACCENT
                         } else {
-                            palette::SUNKEN
+                            colors.SUNKEN
                         },
                     );
-                    paint::stroke(list, box_rect, palette::BORDER, 1.);
+                    paint::stroke(list, box_rect, colors.BORDER, 1.);
                     if checked {
                         paint::line(
                             list,
@@ -413,7 +426,7 @@ impl NodeEditor {
                                 [box_rect.min[0] + 6., box_rect.min[1] + 10.],
                                 [box_rect.min[0] + 11., box_rect.min[1] + 4.],
                             ],
-                            palette::CHROME,
+                            colors.CHROME,
                         );
                     }
                     label(
@@ -426,7 +439,7 @@ impl NodeEditor {
                             row.height(),
                         ),
                         &name,
-                        palette::TEXT,
+                        colors.TEXT,
                         Align::Left,
                     );
                 }
@@ -434,12 +447,12 @@ impl NodeEditor {
                     paint::checkerboard(
                         list,
                         row,
-                        palette::TRANSPARENT_LIGHT,
-                        palette::TRANSPARENT_DARK,
+                        colors.TRANSPARENT_LIGHT,
+                        colors.TRANSPARENT_DARK,
                         6.,
                     );
                     paint::rect(list, row, Color(value));
-                    paint::stroke(list, row, palette::BORDER, 1.);
+                    paint::stroke(list, row, colors.BORDER, 1.);
                 }
                 Control::Choice {
                     label: name, value, ..
@@ -449,13 +462,13 @@ impl NodeEditor {
                         atlas,
                         Rect::new(row.min[0], row.min[1], 34., row.height()),
                         &name,
-                        palette::TEXT_MUTED,
+                        colors.TEXT_MUTED,
                         Align::Left,
                     );
                     let field = number_rect(row, false);
-                    paint::rect(list, field, palette::SUNKEN);
-                    paint::stroke(list, field, palette::BORDER, 1.);
-                    let mut text = PaintList::default();
+                    paint::rect(list, field, colors.SUNKEN);
+                    paint::stroke(list, field, colors.BORDER, 1.);
+                    let mut text = list.child();
                     label(
                         &mut text,
                         atlas,
@@ -466,7 +479,7 @@ impl NodeEditor {
                             field.height(),
                         ),
                         &value,
-                        palette::TEXT,
+                        colors.TEXT,
                         Align::Left,
                     );
                     text.clip_to(field);
@@ -490,13 +503,16 @@ impl NodeEditor {
         options: NumberOptions,
         active: Option<&NumericEdit>,
     ) {
+        let styles = list.styles();
+        let colors = styles.colors();
+
         if let Some(edit) = active {
             edit.editor.draw(list, atlas, rect, value as f64, options);
         } else {
             NumberEditor::default().draw(list, atlas, rect, value as f64, options);
         }
         if let Some(slider) = slider {
-            paint::rect(list, slider, palette::BORDER.with_alpha(0.5));
+            paint::rect(list, slider, colors.BORDER.with_alpha(0.5));
             let ratio = ((value as f64 - options.min) / (options.max - options.min).max(1e-9))
                 .clamp(0., 1.) as f32;
             paint::rect(
@@ -507,7 +523,7 @@ impl NodeEditor {
                     slider.width() * ratio,
                     (slider.height() - 2.).max(1.),
                 ),
-                palette::ACCENT.with_alpha(0.6),
+                colors.ACCENT.with_alpha(0.6),
             );
         }
     }

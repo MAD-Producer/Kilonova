@@ -11,6 +11,9 @@ impl NodeEditor {
         input: &Input,
         language: Language,
     ) {
+        let styles = list.styles();
+        let colors = styles.colors();
+
         let Some(mut menu) = self.add_menu.take() else {
             return;
         };
@@ -52,11 +55,11 @@ impl NodeEditor {
         {
             return;
         }
-        let mut popup = PaintList::default();
-        paint::rect(&mut popup, area, palette::CHROME);
-        paint::stroke(&mut popup, area, palette::BORDER, 1.);
+        let mut popup = list.child();
+        paint::rect(&mut popup, area, colors.CHROME);
+        paint::stroke(&mut popup, area, colors.BORDER, 1.);
         let search = Rect::new(x + 8., y + 8., width - 16., 30.);
-        paint::rect(&mut popup, search, palette::SUNKEN);
+        paint::rect(&mut popup, search, colors.SUNKEN);
         label(
             &mut popup,
             atlas,
@@ -66,7 +69,7 @@ impl NodeEditor {
             } else {
                 &menu.query
             },
-            palette::TEXT,
+            colors.TEXT,
             Align::Left,
         );
         for (i, category) in [
@@ -83,7 +86,7 @@ impl NodeEditor {
         {
             let row = Rect::new(x + 8., y + 46. + i as f32 * 30., 126., 28.);
             if menu.category == category {
-                paint::rect(&mut popup, row, palette::ACCENT.with_alpha(0.2));
+                paint::rect(&mut popup, row, colors.ACCENT.with_alpha(0.2));
             }
             label(
                 &mut popup,
@@ -92,7 +95,7 @@ impl NodeEditor {
                 category
                     .map(|c| c.title(language))
                     .unwrap_or(language.text("全部", "ALL")),
-                palette::TEXT_MUTED,
+                colors.TEXT_MUTED,
                 Align::Left,
             );
             if hit(input, row) {
@@ -134,7 +137,7 @@ impl NodeEditor {
                 .max(top + 28. - content.height())
                 .clamp(0., max_scroll);
         }
-        let mut rows = PaintList::default();
+        let mut rows = list.child();
         let mut chosen = None;
         let enter = motion_ui::input::KeyChord::new(Key::Enter, false, false, false).pressed(input);
         for (i, item) in entries.iter().enumerate() {
@@ -145,14 +148,14 @@ impl NodeEditor {
                 27.,
             );
             if i == menu.selected {
-                paint::rect(&mut rows, row, palette::ACCENT.with_alpha(0.2));
+                paint::rect(&mut rows, row, colors.ACCENT.with_alpha(0.2));
             }
             label(
                 &mut rows,
                 atlas,
                 row.shrink(4.),
                 &item.title(language),
-                palette::TEXT,
+                colors.TEXT,
                 Align::Left,
             );
             if (enter && i == menu.selected) || (content.contains(input.mouse) && hit(input, row)) {
@@ -165,7 +168,7 @@ impl NodeEditor {
                 atlas,
                 content.shrink(4.),
                 language.text("没有匹配的节点", "No nodes found"),
-                palette::TEXT_MUTED,
+                colors.TEXT_MUTED,
                 Align::Left,
             );
         }

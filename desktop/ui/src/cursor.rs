@@ -7,6 +7,8 @@ pub enum Cursor {
     Grabbing,
     Move,
     ResizeEW,
+    ScrubFine,
+    ScrubCoarse,
     ResizeNS,
     ResizeNESW,
     ResizeNWSE,

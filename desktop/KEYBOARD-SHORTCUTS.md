@@ -262,3 +262,5 @@ Ctrl+空格调用紧凑的效果搜索浮层，定位在鼠标附近并避让窗
 第一阶段建议接入现有操作的绑定与统一输入路由；第二阶段接入属性过滤、关键帧选择、工具模式；第三阶段补多选剪贴板、工作区范围、快捷键配置与面板最大化。后续项不应显示为当前已可用的快捷键。
 
 代码核对入口：`desktop/app/src/shortcuts.rs`、`desktop/app/src/panels/keyboard.rs`、`desktop/app/src/panels/mod.rs`、`desktop/app/src/main.rs`、`desktop/ui/src/input.rs`、`desktop/app/src/node_editor/view/interaction.rs`、`crates/motion-model/src/commands.rs`。
+
+样式调试：`Ctrl+R` 重载 `--style`／工作区已记住的样式覆盖文件。主窗口和浮窗同步更新；失败保留当前样式。

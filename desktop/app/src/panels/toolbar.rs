@@ -1,13 +1,13 @@
 //! Toolbar rendering and icon buttons
 use motion_ui::{
     icons::{self, Icon},
-    style::{default_stylesheet, State, States},
+    style::{State, States},
 };
 use motion_ui::{
     input::{Input, Rect},
     paint::{self, PaintList},
     text::TextAtlas,
-    theme::{metrics, palette},
+    theme::metrics,
 };
 use serde_json::Value;
 
@@ -27,13 +27,16 @@ pub fn render(
     input: &Input,
     out: &mut Vec<Action>,
 ) {
+    let styles = list.styles();
+    let colors = styles.colors();
+
     use crate::panels::path_controls::Tool as PathTool;
     let area = Rect::new(0., metrics::MENU_BAR, size[0], metrics::TOOL_BAR);
-    paint::rect(list, area, palette::CHROME);
+    paint::rect(list, area, colors.CHROME);
     paint::rect(
         list,
         Rect::new(0., area.max[1] - 1., size[0], 1.),
-        palette::BORDER,
+        colors.BORDER,
     );
     let locale = panels.locale;
     for (i, tool) in [PathTool::Select, PathTool::Pen, PathTool::Mask]
@@ -41,7 +44,10 @@ pub fn render(
         .enumerate()
     {
         let rect = Rect::new(8. + i as f32 * 28., area.min[1] + 4., 24., 24.);
-        let states = if panels.path_controls.tool == tool && (tool!=PathTool::Select||panels.transform_controls.tool==super::transform_controls::Tool::Move) {
+        let states = if panels.path_controls.tool == tool
+            && (tool != PathTool::Select
+                || panels.transform_controls.tool == super::transform_controls::Tool::Move)
+        {
             States::default().with(State::Selected)
         } else {
             States::default()
@@ -51,19 +57,43 @@ pub fn render(
             PathTool::Pen => Icon::Pen,
             PathTool::Mask => Icon::Shape,
         };
-        if icons::button(list, rect, icon, input, default_stylesheet(), states).clicked {
+        if icons::button(list, rect, icon, input, styles.as_ref(), states).clicked {
             panels.path_controls.choose(tool, out);
-            if tool==PathTool::Select {panels.transform_controls.choose(super::transform_controls::Tool::Move,out);}
+            if tool == PathTool::Select {
+                panels
+                    .transform_controls
+                    .choose(super::transform_controls::Tool::Move, out);
+            }
         }
     }
     use super::transform_controls::Tool as TransformTool;
-    for (i,(tool,icon)) in [(TransformTool::Rotate,Icon::Rotate),(TransformTool::Scale,Icon::Scale),(TransformTool::Anchor,Icon::Anchor)].into_iter().enumerate() {
-        let states=if panels.path_controls.tool==PathTool::Select&&panels.transform_controls.tool==tool {
+    for (i, (tool, icon)) in [
+        (TransformTool::Rotate, Icon::Rotate),
+        (TransformTool::Scale, Icon::Scale),
+        (TransformTool::Anchor, Icon::Anchor),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let states = if panels.path_controls.tool == PathTool::Select
+            && panels.transform_controls.tool == tool
+        {
             States::default().with(State::Selected)
-        }else{States::default()};
-        if icons::button(list,Rect::new(96.+i as f32*28.,area.min[1]+4.,24.,24.),icon,input,default_stylesheet(),states).clicked {
-            panels.path_controls.choose(PathTool::Select,out);
-            panels.transform_controls.choose(tool,out);
+        } else {
+            States::default()
+        };
+        if icons::button(
+            list,
+            Rect::new(96. + i as f32 * 28., area.min[1] + 4., 24., 24.),
+            icon,
+            input,
+            styles.as_ref(),
+            states,
+        )
+        .clicked
+        {
+            panels.path_controls.choose(PathTool::Select, out);
+            panels.transform_controls.choose(tool, out);
         }
     }
     for (i, (tool, action, enabled)) in [
@@ -100,7 +130,7 @@ pub fn render(
     paint::rect(
         list,
         Rect::new(299., area.min[1] + 6., 1., 20.),
-        palette::BORDER,
+        colors.BORDER,
     );
     let x = 308.;
     label(
@@ -117,7 +147,7 @@ pub fn render(
     paint::rect(
         list,
         Rect::new(x + 34., area.min[1] + 9., 16., 14.),
-        palette::TEXT,
+        colors.TEXT,
     );
     label(
         list,
@@ -133,7 +163,7 @@ pub fn render(
     paint::rect(
         list,
         Rect::new(x + 90., area.min[1] + 9., 16., 14.),
-        palette::ACCENT,
+        colors.ACCENT,
     );
     label(
         list,
@@ -196,6 +226,9 @@ pub(super) fn icon_button(
     action: Action,
     out: &mut Vec<Action>,
 ) {
+    let styles = list.styles();
+    let colors = styles.colors();
+
     // Use the current Ardot SVGs wherever there is a matching canonical glyph.
     let svg = match tool {
         Tool::Open => Some(Icon::Folder),
@@ -215,20 +248,20 @@ pub(super) fn icon_button(
         } else {
             States::default().with(State::Disabled)
         };
-        if icons::button(list, r, icon, input, default_stylesheet(), states).clicked {
+        if icons::button(list, r, icon, input, styles.as_ref(), states).clicked {
             out.push(action);
         }
         return;
     }
     let hovered = enabled && r.contains(input.mouse);
     if hovered {
-        paint::rect(list, r, palette::CHROME);
-        paint::stroke(list, r, palette::BORDER, 1.0);
+        paint::rect(list, r, colors.CHROME);
+        paint::stroke(list, r, colors.BORDER, 1.0);
     }
     let c = if enabled {
-        palette::TEXT
+        colors.TEXT
     } else {
-        palette::TEXT_MUTED.with_alpha(0.45)
+        colors.TEXT_MUTED.with_alpha(0.45)
     };
     let x = r.min[0] + 8.0;
     let y = r.min[1] + 6.0;
@@ -308,14 +341,17 @@ pub(super) fn icon_button(
             }
         }
         Tool::Play => {
-            list.push_shape(paint::Shape::Quad {
-                points: [
-                    [x + 3., y],
-                    [x + 16., y + 8.],
-                    [x + 3., y + 16.],
-                    [x + 3., y + 16.],
-                ],
-            }, c);
+            list.push_shape(
+                paint::Shape::Quad {
+                    points: [
+                        [x + 3., y],
+                        [x + 16., y + 8.],
+                        [x + 3., y + 16.],
+                        [x + 3., y + 16.],
+                    ],
+                },
+                c,
+            );
         }
         Tool::Pause => {
             paint::rect(list, Rect::new(x + 2., y, 5., 16.), c);

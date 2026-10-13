@@ -4,7 +4,6 @@ use motion_effects::{AlphaMode, WorkingSpace};
 use motion_render::effect_plan::EffectUniform;
 use motion_ui::{
     paint,
-    theme::palette,
     ui::{self, Align},
     Input, PaintList, Rect, TextAtlas,
 };
@@ -72,8 +71,11 @@ impl Controls {
         stamp: (u64, u64),
         target: Option<&motion_graph::PortRef>,
     ) -> Rect {
+        let styles = list.styles();
+        let colors = styles.colors();
+
         let zh = locale == crate::i18n::Locale::Zh;
-        paint::rect(list, area, palette::PANEL);
+        paint::rect(list, area, colors.PANEL);
         let title = if let Some(target) = target {
             format!(
                 "{} · {}.{}",
@@ -94,7 +96,7 @@ impl Controls {
             atlas,
             Rect::new(area.min[0] + 10., area.min[1] + 3., area.width() - 20., 25.),
             &title,
-            palette::TEXT,
+            colors.TEXT,
             Align::Left,
         );
         let play = Rect::new(area.min[0] + 10., area.min[1] + 32., 66., 27.);
@@ -157,7 +159,7 @@ impl Controls {
             } else {
                 "Sample colors · 64×64 · 30 fps"
             },
-            palette::TEXT_MUTED,
+            colors.TEXT_MUTED,
             Align::Left,
         );
         let available = Rect::new(
@@ -173,7 +175,7 @@ impl Controls {
             side,
             side,
         );
-        paint::rect(list, image, palette::SUNKEN);
+        paint::rect(list, image, colors.SUNKEN);
         let status = match self.active {
             None => {
                 if zh {
@@ -203,7 +205,7 @@ impl Controls {
                 atlas,
                 image.shrink(8.),
                 status,
-                palette::TEXT_MUTED,
+                colors.TEXT_MUTED,
                 Align::Center,
             );
         }
@@ -217,7 +219,7 @@ impl Controls {
                 30.,
             ),
             status,
-            palette::TEXT_MUTED,
+            colors.TEXT_MUTED,
             Align::Left,
         );
         image

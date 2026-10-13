@@ -27,8 +27,11 @@ pub(super) fn render(
     ppf: f32,
     out: &mut Vec<Action>,
 ) {
-    let mut graph = PaintList::default();
-    paint::rect(&mut graph, area, palette::SUNKEN);
+    let styles = list.styles();
+    let colors = styles.colors();
+
+    let mut graph = list.child();
+    paint::rect(&mut graph, area, colors.SUNKEN);
     let Some(object) = panels.selected.filter(|id| *id != 0) else {
         label(
             &mut graph,
@@ -222,7 +225,7 @@ pub(super) fn render(
         paint::line(
             &mut graph,
             vec![[plot.min[0], y], [plot.max[0], y]],
-            palette::BORDER.with_alpha(0.35),
+            colors.BORDER.with_alpha(0.35),
         );
         label(
             &mut graph,
@@ -232,12 +235,12 @@ pub(super) fn render(
             true,
         );
     }
-    let mut lines = PaintList::default();
+    let mut lines = list.child();
     let mut clicked_key = None;
     let selected = panels.animation_controls.user_key();
     for (index, curve) in points.iter().enumerate() {
         let color =
-            palette::TRACKS[axis.map_or(components[index], |a| a.index()) % palette::TRACKS.len()];
+            colors.TRACKS[axis.map_or(components[index], |a| a.index()) % colors.TRACKS.len()];
         paint::line(
             &mut lines,
             curve
@@ -269,7 +272,7 @@ pub(super) fn render(
                 &mut lines,
                 point,
                 if chosen { 5. } else { 4. },
-                if chosen { palette::KEYFRAME } else { color },
+                if chosen { colors.KEYFRAME } else { color },
             );
             if clicked(input, Rect::new(point[0] - 6., point[1] - 6., 12., 12.)) {
                 clicked_key = Some(frame);

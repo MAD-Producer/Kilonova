@@ -27,13 +27,19 @@ pub enum Action {
     AddSolid,
     Pack,
     RefreshState,
+    ReloadStyle,
+    Favorites(std::collections::BTreeSet<String>),
     Language(Locale),
     ResetWorkspace,
     ShowPanel(dock::DockId),
     About,
     PreviewMode(i32),
     SelectAt([f64; 2]),
-    PreviewDrag { object: u64, delta: [f32; 2], size: [i32; 2] },
+    PreviewDrag {
+        object: u64,
+        delta: [f32; 2],
+        size: [i32; 2],
+    },
     OpenPath(std::path::PathBuf),
     Float(dock::DockId),
     Redock(dock::DockId),
@@ -51,8 +57,9 @@ pub enum Action {
 
 #[derive(Default)]
 pub struct Panels {
+    pub styles: Option<std::sync::Arc<motion_ui::style::StyleSheet>>,
     pub(crate) cursor: Option<motion_ui::cursor::Cursor>,
-    pub(crate) drag_readout: Option<([f32;2],String)>,
+    pub(crate) drag_readout: Option<([f32; 2], String)>,
     pub(crate) motion: motion_ui::motion::Motion,
     pub(crate) project: ProjectState,
     pub(crate) properties: PropertiesState,
@@ -60,6 +67,8 @@ pub struct Panels {
     pub locale: Locale,
     pub(crate) focused: Option<dock::Panel>,
     pub(crate) auxiliary: super::auxiliary::State,
+    pub(crate) library_scroll: motion_ui::widgets::ScrollArea,
+    pub(crate) library_height: f32,
     pub(crate) browser: crate::panels::effect_controls::Controls,
     pub selected: Option<u64>,
     pub playing: bool,
@@ -80,8 +89,15 @@ pub struct Panels {
 }
 
 impl Panels {
+    pub fn set_stylesheet(&mut self, sheet: motion_ui::style::StyleSheet) {
+        self.motion.set_easing(sheet.easing());
+        self.styles = Some(std::sync::Arc::new(sheet));
+    }
+
     pub(crate) fn fx_console_in(&self, owner: Option<motion_ui::dock::Panel>) -> bool {
-        self.fx_console.as_ref().is_some_and(|console| console.owner == owner)
+        self.fx_console
+            .as_ref()
+            .is_some_and(|console| console.owner == owner)
     }
 }
 pub(crate) struct HeaderHit {
@@ -141,6 +157,8 @@ pub(crate) enum Tool {
 
 #[derive(Default)]
 pub(crate) struct ProjectState {
+    pub search_field: motion_ui::widgets::SearchField,
+    pub asset_list: motion_ui::widgets::ListView,
     pub query: String,
     pub search: bool,
 }
@@ -149,13 +167,18 @@ pub(crate) struct ProjectState {
 pub(crate) struct PropertiesState {
     pub consumed_press: bool,
     pub transform_collapsed: bool,
+    pub checkbox_focused: bool,
     pub properties_scroll: f32,
+    pub content_height: f32,
     pub field: Option<Field>,
 }
 
 #[derive(Default)]
 pub(crate) struct TimelineState {
-    pub rows_cache: Option<((String,String,u64),std::sync::Arc<Vec<super::timeline::Row>>)>,
+    pub rows_cache: Option<(
+        (String, String, u64),
+        std::sync::Arc<Vec<super::timeline::Row>>,
+    )>,
     pub expanded: std::collections::HashSet<u64>,
     pub collapsed_transforms: std::collections::HashSet<u64>,
     pub filters: std::collections::HashMap<u64, PropertyFilter>,

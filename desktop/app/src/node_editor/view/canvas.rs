@@ -55,8 +55,11 @@ impl NodeEditor {
         input: &Input,
         language: Language,
     ) {
-        let mut canvas = PaintList::default();
-        paint::rect(&mut canvas, area, palette::SUNKEN);
+        let styles = list.styles();
+        let colors = styles.colors();
+
+        let mut canvas = list.child();
+        paint::rect(&mut canvas, area, colors.SUNKEN);
 
         let world_origin = self.view.world_to_screen([0., 0.], area);
         let minor = 20. * self.view.zoom;
@@ -67,8 +70,8 @@ impl NodeEditor {
         paint::grid(
             &mut canvas,
             area,
-            palette::BORDER.with_alpha(0.15),
-            palette::BORDER.with_alpha(0.35),
+            colors.BORDER.with_alpha(0.15),
+            colors.BORDER.with_alpha(0.35),
             world_origin,
             if minor >= 8. { minor } else { 0. },
             major,
@@ -83,7 +86,7 @@ impl NodeEditor {
                     [world_origin[0] - cross_size, world_origin[1]],
                     [world_origin[0] + cross_size, world_origin[1]],
                 ],
-                palette::BORDER.with_alpha(0.5),
+                colors.BORDER.with_alpha(0.5),
             );
             paint::line(
                 &mut canvas,
@@ -91,7 +94,7 @@ impl NodeEditor {
                     [world_origin[0], world_origin[1] - cross_size],
                     [world_origin[0], world_origin[1] + cross_size],
                 ],
-                palette::BORDER.with_alpha(0.5),
+                colors.BORDER.with_alpha(0.5),
             );
         }
         let find = |port: &PortRef, output: bool| {
@@ -129,7 +132,7 @@ impl NodeEditor {
         let rubber_color = if feedback.as_ref().is_some_and(|(_, result)| result.is_err()) {
             INVALID_WIRE
         } else {
-            palette::ACCENT
+            colors.ACCENT
         };
         if let Some(Drag::Wire { source, .. }) = &self.drag {
             if let Some(a) = find(source, true) {
@@ -177,7 +180,7 @@ impl NodeEditor {
                 ),
                 Color::rgba(0, 0, 0, 0.22),
             );
-            paint::rect(&mut canvas, card.rect, palette::PANEL);
+            paint::rect(&mut canvas, card.rect, colors.PANEL);
             paint::rect(
                 &mut canvas,
                 Rect::new(
@@ -192,15 +195,15 @@ impl NodeEditor {
                 &mut canvas,
                 card.rect,
                 if selected {
-                    palette::ACCENT
+                    colors.ACCENT
                 } else if invalid {
                     Color::rgb(218, 118, 91)
                 } else {
-                    palette::BORDER
+                    colors.BORDER
                 },
                 if selected { 2. } else { 1. },
             );
-            let mut content = PaintList::default();
+            let mut content = list.child();
             let local = Rect::new(0., 0., NODE_WIDTH, node_height(node, &self.document));
             let title = if previewing {
                 format!(
@@ -216,7 +219,7 @@ impl NodeEditor {
                 atlas,
                 Rect::new(10., 1., NODE_WIDTH - 44., HEADER - 2.),
                 &title,
-                palette::TEXT,
+                colors.TEXT,
                 Align::Left,
             );
             let x = NODE_WIDTH - 18.;
@@ -227,7 +230,7 @@ impl NodeEditor {
                 } else {
                     vec![[x - 4., 12.], [x, 16.], [x + 4., 12.]]
                 },
-                palette::TEXT_MUTED,
+                colors.TEXT_MUTED,
             );
             if !node.collapsed {
                 if let Ok(ports) =
@@ -258,9 +261,9 @@ impl NodeEditor {
                                     .map(|port| language.text(&port.name, &port.english_name))
                                     .unwrap_or_else(|| language.text(spec.name, spec.english_name)),
                                 if compatible {
-                                    palette::TEXT_MUTED
+                                    colors.TEXT_MUTED
                                 } else {
-                                    palette::TEXT_MUTED.with_alpha(0.35)
+                                    colors.TEXT_MUTED.with_alpha(0.35)
                                 },
                                 if output { Align::Right } else { Align::Left },
                             );
@@ -295,7 +298,7 @@ impl NodeEditor {
                     atlas,
                     Rect::new(12., local.max[1] - 24., NODE_WIDTH - 24., 22.),
                     &preview,
-                    palette::TEXT_MUTED,
+                    colors.TEXT_MUTED,
                     Align::Left,
                 );
             }
@@ -309,9 +312,9 @@ impl NodeEditor {
                 }
                 let radius = (4.5 * self.view.zoom).max(2.5);
                 if self.preview_target.as_ref() == Some(&socket.port) && socket.output {
-                    paint::diamond(&mut canvas, socket.point, radius + 3., palette::ACCENT);
+                    paint::diamond(&mut canvas, socket.point, radius + 3., colors.ACCENT);
                 }
-                paint::diamond(&mut canvas, socket.point, radius + 1., palette::SUNKEN);
+                paint::diamond(&mut canvas, socket.point, radius + 1., colors.SUNKEN);
                 paint::diamond(&mut canvas, socket.point, radius, type_color(socket.ty));
             }
         }
@@ -320,8 +323,8 @@ impl NodeEditor {
         }) = &self.drag
         {
             let selection = selection_rect(*origin, *current);
-            paint::rect(&mut canvas, selection, palette::ACCENT.with_alpha(0.12));
-            paint::stroke(&mut canvas, selection, palette::ACCENT, 1.);
+            paint::rect(&mut canvas, selection, colors.ACCENT.with_alpha(0.12));
+            paint::stroke(&mut canvas, selection, colors.ACCENT, 1.);
         }
         if let Some(Drag::Cut { points, .. }) = &self.drag {
             for segment in points.windows(2) {
@@ -334,7 +337,7 @@ impl NodeEditor {
             let color = if result.is_err() {
                 INVALID_WIRE
             } else {
-                palette::ACCENT
+                colors.ACCENT
             };
             let radius = (4.5 * self.view.zoom).max(2.5);
             paint::diamond(&mut canvas, socket.point, radius + 3., color);
@@ -353,7 +356,7 @@ impl NodeEditor {
                     Rect::new(g.position[0], g.position[1], g.size[0], g.size[1]),
                 )
             });
-            paint::rect(&mut canvas, tooltip, palette::CHROME);
+            paint::rect(&mut canvas, tooltip, colors.CHROME);
             paint::stroke(&mut canvas, tooltip, color, 1.);
             let message = match &result {
                 Ok(()) => language.text("松开鼠标连接", "Release to connect"),
@@ -373,7 +376,7 @@ impl NodeEditor {
                 atlas,
                 Rect::new(tooltip.min[0] + 8., tooltip.min[1] + 28., width - 16., 24.),
                 language.text(zh, en),
-                palette::TEXT_MUTED,
+                colors.TEXT_MUTED,
                 Align::Left,
             );
         }
@@ -410,8 +413,8 @@ impl NodeEditor {
                         tooltip,
                     )
                 });
-                paint::rect(&mut canvas, tooltip, palette::PANEL);
-                paint::stroke(&mut canvas, tooltip, palette::ACCENT, 1.);
+                paint::rect(&mut canvas, tooltip, colors.PANEL);
+                paint::stroke(&mut canvas, tooltip, colors.ACCENT, 1.);
                 let name = language.text(socket.spec.name, socket.spec.english_name);
                 let direction = if socket.output {
                     language.text("输出", "Output")
@@ -423,7 +426,7 @@ impl NodeEditor {
                     atlas,
                     Rect::new(tooltip.min[0] + 10., tooltip.min[1] + 6., width - 20., 23.),
                     &format!("{direction} · {name}"),
-                    palette::TEXT,
+                    colors.TEXT,
                     Align::Left,
                 );
                 let (zh, en) = socket.spec.semantic.label();
@@ -432,7 +435,7 @@ impl NodeEditor {
                     atlas,
                     Rect::new(tooltip.min[0] + 10., tooltip.min[1] + 31., width - 20., 22.),
                     language.text(zh, en),
-                    palette::ACCENT,
+                    colors.ACCENT,
                     Align::Left,
                 );
                 crate::node_examples::paragraph(
@@ -445,7 +448,7 @@ impl NodeEditor {
                         height - 63.,
                     ),
                     language.text(socket.spec.description, socket.spec.english_description),
-                    palette::TEXT_MUTED,
+                    colors.TEXT_MUTED,
                     3,
                 );
             }

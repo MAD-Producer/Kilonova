@@ -7,11 +7,13 @@ use winit::{
 };
 
 const EDGE: f32 = 17.;
-const CUSTOM: [Kind; 8] = [
+const CUSTOM: [Kind; 10] = [
     Kind::Grab,
     Kind::Grabbing,
     Kind::Move,
     Kind::ResizeEW,
+    Kind::ScrubFine,
+    Kind::ScrubCoarse,
     Kind::ResizeNS,
     Kind::ResizeNESW,
     Kind::ResizeNWSE,
@@ -53,7 +55,7 @@ fn system(kind: Kind) -> CursorIcon {
         Kind::Grab => CursorIcon::Grab,
         Kind::Grabbing => CursorIcon::Grabbing,
         Kind::Move => CursorIcon::Move,
-        Kind::ResizeEW => CursorIcon::EwResize,
+        Kind::ResizeEW | Kind::ScrubFine | Kind::ScrubCoarse => CursorIcon::EwResize,
         Kind::ResizeNS => CursorIcon::NsResize,
         Kind::ResizeNESW => CursorIcon::NeswResize,
         Kind::ResizeNWSE => CursorIcon::NwseResize,
@@ -71,6 +73,18 @@ fn paths(kind: Kind) -> Vec<Vec<Point>> {
     ];
     match kind {
         Kind::ResizeEW => horizontal,
+        Kind::ScrubFine => {
+            let mut p = horizontal;
+            p.push(vec![[7., 3.], [10., 3.]]);
+            p
+        }
+        Kind::ScrubCoarse => {
+            let mut p = horizontal;
+            p.push(vec![[6., 2.], [6., 5.]]);
+            p.push(vec![[11., 2.], [11., 5.]]);
+            p
+        }
+
         Kind::ResizeNS => horizontal
             .into_iter()
             .map(|path| path.into_iter().map(|[x, y]| [y, x]).collect())

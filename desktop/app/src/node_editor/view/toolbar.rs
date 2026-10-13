@@ -10,8 +10,11 @@ impl NodeEditor {
         language: Language,
         actions: &mut Vec<Action>,
     ) {
-        let mut paint = PaintList::default();
-        paint::rect(&mut paint, area, palette::CHROME);
+        let styles = list.styles();
+        let colors = styles.colors();
+
+        let mut paint = list.child();
+        paint::rect(&mut paint, area, colors.CHROME);
         let mut x = area.min[0] + 6.;
         let mut y = area.min[1] + 5.;
         for (index, width, zh, en) in TOOLBAR {
@@ -85,7 +88,7 @@ impl NodeEditor {
                 atlas,
                 Rect::new(x + 10., y, area.max[0] - x - 16., 27.),
                 &title,
-                palette::TEXT_MUTED,
+                colors.TEXT_MUTED,
                 Align::Right,
             );
         }

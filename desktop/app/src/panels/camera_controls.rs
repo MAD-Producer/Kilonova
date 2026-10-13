@@ -4,10 +4,9 @@ use crate::{
 };
 use motion_core::{Axis, CameraMode, Command, Property};
 use motion_ui::{
-    input::{Input, Key, MouseButton, Rect},
+    input::{Input, MouseButton, Rect},
     paint::{self, PaintList},
     text::TextAtlas,
-    theme::palette,
     ui::{self, Align},
 };
 use serde_json::Value;
@@ -49,6 +48,9 @@ impl Controls {
         locale: Locale,
         out: &mut Vec<Action>,
     ) {
+        let styles = list.styles();
+        let colors = styles.colors();
+
         self.cursor = false;
         self.drag_readout = None;
         if self
@@ -64,7 +66,7 @@ impl Controls {
         let sample = &state["sampledCamera"];
         let orbit = camera["mode"] == "orbit";
         let mode = Rect::new(area.min[0] + 16., *y, area.width() - 32., 28.);
-        paint::rect(list, mode, palette::SUNKEN);
+        paint::rect(list, mode, colors.SUNKEN);
         ui::text(
             list,
             atlas,
@@ -82,7 +84,7 @@ impl Controls {
                     "Camera Mode: Position"
                 },
             ),
-            palette::ACCENT,
+            colors.ACCENT,
             Align::Left,
         );
         if clicked(input, mode) {
@@ -152,7 +154,7 @@ impl Controls {
                 atlas,
                 Rect::new(area.min[0] + 16., *y, area.width() - 32., 22.),
                 &name,
-                palette::TEXT_MUTED,
+                colors.TEXT_MUTED,
                 Align::Left,
             );
             *y += 22.;
@@ -162,11 +164,23 @@ impl Controls {
                 } else {
                     sample[key][axis].as_f64().unwrap_or(0.)
                 };
-                let inset = if dimensions > 1 {20.} else {0.};
+                let inset = if dimensions > 1 { 20. } else { 0. };
                 if dimensions > 1 {
-                    ui::text(list,atlas,Rect::new(area.min[0]+30.,*y,18.,26.),["X","Y","Z"][axis],palette::TEXT_MUTED,Align::Left);
+                    ui::text(
+                        list,
+                        atlas,
+                        Rect::new(area.min[0] + 30., *y, 18., 26.),
+                        ["X", "Y", "Z"][axis],
+                        colors.TEXT_MUTED,
+                        Align::Left,
+                    );
                 }
-                let rect = Rect::new(area.min[0] + 30.+inset, *y, area.width() - 50.-inset, 26.);
+                let rect = Rect::new(
+                    area.min[0] + 30. + inset,
+                    *y,
+                    area.width() - 50. - inset,
+                    26.,
+                );
                 let active = self
                     .field
                     .as_ref()

@@ -84,6 +84,12 @@ fn solid_fs(v:SolidOutput)->@location(0) vec4<f32> {
         let cell=floor((v.logical-v.geometry.xy)/max(v.params.y,1.0));
         return select(v.color,v.secondary,i32(cell.x+cell.y)%2!=0);
     }
+    if v.params.x>3.5 {
+        let p=v.logical-(v.extra.xy+v.extra.zw*0.5);
+        let d=rectangle_distance(p,v.extra.zw*0.5,v.params.z);
+        let coverage=1.0-smoothstep(-max(v.params.y,0.001)*0.5,max(v.params.y,0.001),d);
+        return vec4(v.color.rgb,v.color.a*coverage);
+    }
     let minor_coverage=(1.0-smoothstep(-0.5*ma,0.5*ma,minor_distance))*smoothstep(8.0,16.0,v.extra.z);
     let major_coverage=1.0-smoothstep(-0.5*ga,0.5*ga,major_distance);
     let alpha=max(v.color.a*minor_coverage,v.secondary.a*major_coverage);

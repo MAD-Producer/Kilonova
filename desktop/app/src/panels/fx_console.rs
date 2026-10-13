@@ -7,7 +7,6 @@ use motion_ui::{
     input::{Input, Key, Rect},
     paint::{self, PaintList},
     text::TextAtlas,
-    theme::palette,
     ui::{self, Align},
 };
 use serde_json::{json, Value};
@@ -71,6 +70,9 @@ pub fn render_fx_console(
     selected_layer: Option<u64>,
     out: &mut Vec<Action>,
 ) -> bool {
+    let styles = list.styles();
+    let colors = styles.colors();
+
     if input.keys.iter().any(|(k, _)| *k == Key::Escape) {
         return false;
     }
@@ -114,10 +116,10 @@ pub fn render_fx_console(
             || g.position[1] + g.size[1] <= area.min[1]
             || g.position[1] >= area.max[1]
     });
-    paint::rect(list, area, palette::CHROME);
-    paint::stroke(list, area, palette::ACCENT, 1.);
+    paint::rect(list, area, colors.CHROME);
+    paint::stroke(list, area, colors.ACCENT, 1.);
     let input_area = Rect::new(x + 8., y + 8., (width - 16.).max(1.), 36.);
-    paint::rect(list, input_area, palette::SUNKEN);
+    paint::rect(list, input_area, colors.SUNKEN);
     let placeholder = if locale == Locale::Zh {
         "搜索效果…"
     } else {
@@ -132,7 +134,7 @@ pub fn render_fx_console(
         } else {
             &console.query
         },
-        palette::TEXT,
+        colors.TEXT,
         Align::Left,
     );
     let start = console
@@ -147,14 +149,14 @@ pub fn render_fx_console(
             30.,
         );
         if i == console.selected_index || row.contains(input.mouse) {
-            paint::rect(list, row, palette::ACCENT.with_alpha(0.25));
+            paint::rect(list, row, colors.ACCENT.with_alpha(0.25));
         }
         ui::text(
             list,
             atlas,
             row.shrink(6.),
             &item.name,
-            palette::TEXT,
+            colors.TEXT,
             Align::Left,
         );
         let click = input
@@ -178,7 +180,7 @@ pub fn render_fx_console(
         atlas,
         Rect::new(x + 8., area.max[1] - 28., (width - 16.).max(1.), 24.),
         hint,
-        palette::TEXT_MUTED,
+        colors.TEXT_MUTED,
         Align::Left,
     );
     !input.pressed.is_some_and(|(_, p)| !area.contains(p))

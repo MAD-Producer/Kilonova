@@ -11,7 +11,7 @@ use motion_ui::{
     panel::{Lifecycle, PanelFrame, PanelHost, PanelLayout, PanelView},
     registry::{Language, PanelDescriptor},
     style::{self, State, States},
-    theme::{metrics, palette},
+    theme::metrics,
     ui::{self, Align},
     widgets::{Button, NumberEditor, NumberEvent, NumberOptions, TextEditor, TextEvent},
     workspace::Workspace,
@@ -446,7 +446,7 @@ impl PanelView for View {
                         (area.width() - 32.) * (0.45 + i as f32 * 0.18),
                         18.,
                     ),
-                    palette::TRACKS[i],
+                    styles.colors().TRACKS[i],
                 );
             }
         }

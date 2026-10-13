@@ -14,7 +14,7 @@ use motion_ui::{
     input::{Input, Key, MouseButton, Rect},
     paint::{self, PaintList},
     text::TextAtlas,
-    theme::{palette, Color},
+    theme::Color,
     ui::{self, Align},
 };
 use serde_json::Value;
@@ -389,6 +389,9 @@ impl Controls {
         locale: Locale,
         out: &mut Vec<Action>,
     ) -> bool {
+        let styles = list.styles();
+        let colors = styles.colors();
+
         if self.tool == Tool::Select {
             return false;
         }
@@ -638,8 +641,10 @@ impl Controls {
                             g[other + 1] = -g[drag.axis + 1];
                         }
                     }
-                    if g!=drag.last_geometry && g.iter().all(|v| v.is_finite() && v.abs() <= 32768.) {
-                        drag.last_geometry=g;
+                    if g != drag.last_geometry
+                        && g.iter().all(|v| v.is_finite() && v.abs() <= 32768.)
+                    {
+                        drag.last_geometry = g;
                         out.push(Action::Edit(match drag.target {
                             Target::Vector { object } => Command::Vector {
                                 object,
@@ -706,7 +711,7 @@ impl Controls {
                     path["closed"].as_bool().unwrap_or(false),
                     offset,
                     self.selected.map(|v| v.1),
-                    palette::ACCENT,
+                    colors.ACCENT,
                 );
             }
         }
@@ -732,7 +737,7 @@ impl Controls {
                 22.,
             ),
             self.notice.as_deref().unwrap_or(locale.t(T::DrawingHint)),
-            palette::TEXT_MUTED,
+            colors.TEXT_MUTED,
         );
         view.contains(input.mouse) || self.editing()
     }
@@ -794,6 +799,9 @@ impl Controls {
         locale: Locale,
         out: &mut Vec<Action>,
     ) {
+        let styles = list.styles();
+        let colors = styles.colors();
+
         if vector_only {
             if let Content::Vector { vector } = &l.content {
                 let title = if locale == Locale::Zh {
@@ -806,7 +814,7 @@ impl Controls {
                     atlas,
                     Rect::new(area.min[0] + 12., *y, area.width() - 24., 28.),
                     title,
-                    palette::TEXT,
+                    colors.TEXT,
                 );
                 *y += 30.;
                 if ui::button(
@@ -857,7 +865,7 @@ impl Controls {
             return;
         }
         let title = Rect::new(area.min[0] + 12., *y, area.width() - 24., 28.);
-        paint::rect(list, title, palette::CHROME);
+        paint::rect(list, title, colors.CHROME);
         label(
             list,
             atlas,
@@ -868,7 +876,7 @@ impl Controls {
                 locale.t(T::Mask),
                 l.masks.len()
             ),
-            palette::TEXT,
+            colors.TEXT,
         );
         if click(input, title) {
             self.masks_open = !self.masks_open;
@@ -950,13 +958,13 @@ impl Controls {
             );
         for mask in &l.masks {
             let heading = Rect::new(area.min[0] + 12., *y, area.width() - 24., 26.);
-            paint::rect(list, heading, palette::SUNKEN);
+            paint::rect(list, heading, colors.SUNKEN);
             label(
                 list,
                 atlas,
                 Rect::new(heading.min[0] + 5., *y, heading.width() - 65., 26.),
                 &mask.name,
-                palette::TEXT,
+                colors.TEXT,
             );
             if ui::button(
                 list,
@@ -1098,7 +1106,7 @@ impl Controls {
                     atlas,
                     Rect::new(area.min[0] + 18., *y, area.width() * 0.42, 24.),
                     name,
-                    palette::TEXT_MUTED,
+                    colors.TEXT_MUTED,
                 );
                 let width = (area.width() * 0.48 - 12.) / values.len() as f32;
                 for (axis, value) in values.iter().enumerate() {
@@ -1114,13 +1122,13 @@ impl Controls {
                             && std::mem::discriminant(&p.property)
                                 == std::mem::discriminant(&property)
                     });
-                    paint::rect(list, r, palette::SUNKEN);
+                    paint::rect(list, r, colors.SUNKEN);
                     let text = if active {
                         self.parameter.as_ref().unwrap().text.clone()
                     } else {
                         format!("{value:.1}")
                     };
-                    label(list, atlas, r.shrink(4.), &text, palette::ACCENT);
+                    label(list, atlas, r.shrink(4.), &text, colors.ACCENT);
                     if click(input, r) && allowed && !active {
                         self.parameter = Some(Parameter {
                             object: l.id,
@@ -1176,7 +1184,16 @@ impl Controls {
             *y += 32.;
         }
     }
-    pub fn parameter_input(&mut self, state: &Value, input: &Input, out: &mut Vec<Action>) {
+    pub fn numeric_cursor(&self) -> Option<(Rect, bool)> {
+        self.parameter.as_ref().map(|p| (p.rect, p.begun))
+    }
+    pub fn parameter_input(
+        &mut self,
+        state: &Value,
+        input: &Input,
+        out: &mut Vec<Action>,
+        drag_threshold: f32,
+    ) {
         let Some(mut p) = self.parameter.take() else {
             return;
         };
@@ -1195,7 +1212,7 @@ impl Controls {
                 },
             })
         };
-        if input.keys.iter().any(|(k, _)| *k == Key::Escape) {
+        if input.focus_lost || input.keys.iter().any(|(k, _)| *k == Key::Escape) {
             if p.begun {
                 out.push(Action::History(4));
             }
@@ -1207,15 +1224,24 @@ impl Controls {
             .is_some_and(|(_, point)| !p.rect.contains(point));
         if let Some(start) = p.start {
             let delta = input.mouse[0] - start;
-            if (input.dragging() || release) && (delta.abs().max(input.pointer_travel) >= 3. || p.begun) {
+            if (input.dragging() || release)
+                && (motion_ui::widgets::numeric_behavior::started(
+                    delta,
+                    input.pointer_travel,
+                    drag_threshold,
+                ) || p.begun)
+            {
                 if !p.begun {
                     out.push(Action::History(2));
                     p.begun = true;
                 }
-                let step = if input.modifiers.shift { 0.1 } else { 1. };
+                let step = motion_ui::widgets::numeric_behavior::step(input) as f32;
                 let value = (p.values[p.axis] + delta * step).clamp(p.range[0], p.range[1]);
                 p.text = format!("{value:.1}");
-                if value!=p.last_value {p.last_value=value;out.push(command(&p, value));}
+                if value != p.last_value {
+                    p.last_value = value;
+                    out.push(command(&p, value));
+                }
             }
             if release || outside {
                 if p.begun {
@@ -1302,6 +1328,137 @@ fn paint_path(
                     paint::line(list, vec![p, h], color.with_alpha(0.7));
                     paint::diamond(list, h, 3., color);
                 }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod numeric_tests {
+    use super::*;
+    #[test]
+    fn mask_scrub_obeys_shared_threshold_and_commit_or_cancel_restores_engine_bytes() {
+        for threshold in [0., 12.] {
+            for canceled in [false, true] {
+                let mut project = motion_core::Project::new(640, 480, 30, 120).unwrap();
+                let mut layer = motion_core::Layer::solid(
+                    7,
+                    "Mask numeric",
+                    [100., 100.],
+                    [0., 0., 0.],
+                    [1.; 4],
+                );
+                let path = VectorPath {
+                    id: 1,
+                    closed: true,
+                    nodes: [[0., 0.], [100., 0.], [0., 100.]]
+                        .into_iter()
+                        .enumerate()
+                        .map(|(i, p)| PathNode {
+                            id: i as u64 + 1,
+                            geometry: Track::constant([p[0], p[1], 0., 0., 0., 0.]),
+                        })
+                        .collect(),
+                };
+                let mut mask = LayerMask::new(1, path);
+                mask.opacity = Track::constant(50.);
+                layer.masks.push(mask);
+                project.layers.push(layer);
+                let mut engine = motion_core::Engine::new(project).unwrap();
+                let before = serde_json::to_vec(engine.project()).unwrap();
+                let mut controls = Controls::default();
+                controls.parameter = Some(Parameter {
+                    object: 7,
+                    mask: 1,
+                    property: MaskProperty::Opacity,
+                    axis: 0,
+                    values: vec![50.],
+                    text: "50".into(),
+                    replace: true,
+                    rect: Rect::new(90., 0., 120., 30.),
+                    start: Some(100.),
+                    begun: false,
+                    last_value: 50.,
+                    range: [0., 100.],
+                });
+                let state = serde_json::json!({"frame":0});
+                let mut actions = vec![];
+                controls.parameter_input(
+                    &state,
+                    &Input {
+                        mouse: [105., 15.],
+                        held: Some(MouseButton::Left),
+                        ..Default::default()
+                    },
+                    &mut actions,
+                    threshold,
+                );
+                assert_eq!(
+                    actions
+                        .iter()
+                        .filter(|a| matches!(a, Action::History(2)))
+                        .count(),
+                    usize::from(threshold == 0.)
+                );
+                controls.parameter_input(
+                    &state,
+                    &Input {
+                        mouse: [120., 15.],
+                        held: Some(MouseButton::Left),
+                        ..Default::default()
+                    },
+                    &mut actions,
+                    threshold,
+                );
+                assert!(controls.numeric_cursor().unwrap().1);
+                controls.parameter_input(
+                    &state,
+                    &Input {
+                        mouse: [100., 15.],
+                        held: Some(MouseButton::Left),
+                        pointer_travel: 20.,
+                        ..Default::default()
+                    },
+                    &mut actions,
+                    threshold,
+                );
+                let end = if canceled {
+                    Input {
+                        keys: vec![(Key::Escape, Default::default())],
+                        ..Default::default()
+                    }
+                } else {
+                    Input {
+                        mouse: [120., 15.],
+                        released: Some((MouseButton::Left, [120., 15.])),
+                        ..Default::default()
+                    }
+                };
+                controls.parameter_input(&state, &end, &mut actions, threshold);
+                assert_eq!(
+                    actions
+                        .iter()
+                        .filter(|a| matches!(a, Action::History(2)))
+                        .count(),
+                    1
+                );
+                for action in actions {
+                    match action {
+                        Action::History(2) => engine.begin_gesture().unwrap(),
+                        Action::History(3) => engine.end_gesture(true).unwrap(),
+                        Action::History(4) => engine.end_gesture(false).unwrap(),
+                        Action::Edit(command) => {
+                            engine.apply(command).unwrap();
+                        }
+                        _ => panic!("unexpected mask action"),
+                    }
+                }
+                if !canceled {
+                    assert_ne!(serde_json::to_vec(engine.project()).unwrap(), before);
+                    engine.undo().unwrap();
+                }
+                assert_eq!(serde_json::to_vec(engine.project()).unwrap(), before);
+                assert!(controls.numeric_cursor().is_none());
             }
         }
     }

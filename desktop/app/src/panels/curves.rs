@@ -8,7 +8,10 @@ pub(super) fn render(
     input: &Input,
     out: &mut Vec<Action>,
 ) {
-    paint::rect(list, area, palette::PANEL);
+    let styles = list.styles();
+    let colors = styles.colors();
+
+    paint::rect(list, area, colors.PANEL);
     let Some(layer) = auxiliary::selected(panels, state).cloned() else {
         label(
             list,

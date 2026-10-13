@@ -45,6 +45,9 @@ pub(super) fn popup_rect(position: [f32; 2], area: Rect, size: [f32; 2]) -> Rect
     )
 }
 fn paint_popup(list: &mut PaintList, rect: Rect) {
+    let styles = list.styles();
+    let colors = styles.colors();
+
     paint::rect(
         list,
         Rect::new(
@@ -55,8 +58,8 @@ fn paint_popup(list: &mut PaintList, rect: Rect) {
         ),
         Color::rgba(0, 0, 0, 0.4),
     );
-    paint::rect(list, rect, palette::CHROME);
-    paint::stroke(list, rect, palette::BORDER, 1.);
+    paint::rect(list, rect, colors.CHROME);
+    paint::stroke(list, rect, colors.BORDER, 1.);
 }
 impl NodeEditor {
     pub(super) fn paint_control_popup(
@@ -67,6 +70,9 @@ impl NodeEditor {
         input: &Input,
         language: Language,
     ) {
+        let styles = list.styles();
+        let colors = styles.colors();
+
         let Some(popup) = self.inline.popup.take() else {
             return;
         };
@@ -119,7 +125,7 @@ impl NodeEditor {
                     }
                     scroll = scroll.clamp(0., max_scroll);
                 }
-                let mut menu = PaintList::default();
+                let mut menu = list.child();
                 paint_popup(&mut menu, rect);
                 for (index, item) in items.iter().enumerate() {
                     let row = Rect::new(
@@ -132,14 +138,14 @@ impl NodeEditor {
                         continue;
                     }
                     if index == selected || row.contains(input.mouse) {
-                        paint::rect(&mut menu, row, palette::ACCENT.with_alpha(0.12));
+                        paint::rect(&mut menu, row, colors.ACCENT.with_alpha(0.12));
                     }
                     label(
                         &mut menu,
                         atlas,
                         row.shrink(5.),
                         &item.label,
-                        palette::TEXT,
+                        colors.TEXT,
                         Align::Left,
                     );
                     if hit(input, row) && rect.contains(input.pressed.unwrap().1) {
@@ -201,14 +207,14 @@ impl NodeEditor {
                 let had_number = self.inline.number.is_some();
                 let mut color =
                     std::array::from_fn(|i| self.binding_value(&bindings[i]).unwrap_or(0.));
-                let mut panel = PaintList::default();
+                let mut panel = list.child();
                 paint_popup(&mut panel, rect);
                 label(
                     &mut panel,
                     atlas,
                     Rect::new(rect.min[0] + 10., rect.min[1] + 4., rect.width() - 20., 24.),
                     language.text("颜色 · RGBA", "Color · RGBA"),
-                    palette::TEXT,
+                    colors.TEXT,
                     Align::Left,
                 );
                 if show_hsv {
@@ -295,7 +301,7 @@ impl NodeEditor {
                             square.min[1] + (1. - hsv[2]) * square.height(),
                         ],
                         4.,
-                        palette::TEXT,
+                        colors.TEXT,
                     );
                     paint::line(
                         &mut panel,
@@ -309,7 +315,7 @@ impl NodeEditor {
                                 hue_rect.min[1] + hue * hue_rect.height(),
                             ],
                         ],
-                        palette::TEXT,
+                        colors.TEXT,
                     );
                 }
                 let mut active_rect = None;
@@ -373,7 +379,7 @@ impl NodeEditor {
                         hue = hsv[0];
                     }
                 }
-                let mut fields = PaintList::default();
+                let mut fields = list.child();
                 for i in 0..4 {
                     let row = Rect::new(
                         rect.min[0] + 12.,
@@ -386,7 +392,7 @@ impl NodeEditor {
                         atlas,
                         Rect::new(row.min[0], row.min[1], 30., row.height()),
                         ["R", "G", "B", "A"][i],
-                        palette::TEXT_MUTED,
+                        colors.TEXT_MUTED,
                         Align::Left,
                     );
                     let active = self

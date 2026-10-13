@@ -36,6 +36,11 @@ pub enum Pattern {
         dark: Color,
         size: f32,
     },
+    Shadow {
+        radius: f32,
+        blur: f32,
+        bounds: Rect,
+    },
     Grid {
         major: Color,
         origin: [f32; 2],
@@ -47,6 +52,8 @@ pub enum Pattern {
 /// Solid fills collected for one frame.
 #[derive(Default)]
 pub struct PaintList {
+    /// Immutable per-window drawing context. Child buffers inherit it explicitly.
+    pub stylesheet: Option<std::sync::Arc<crate::style::StyleSheet>>,
     pub shapes: Vec<Shape>,
     pub colors: Vec<Color>,
     pub glyphs: Vec<Glyph>,
@@ -61,6 +68,24 @@ pub enum PaintOp {
 }
 
 impl PaintList {
+    pub fn with_styles(styles: std::sync::Arc<crate::style::StyleSheet>) -> Self {
+        Self {
+            stylesheet: Some(styles),
+            ..Default::default()
+        }
+    }
+    pub fn styles(&self) -> std::sync::Arc<crate::style::StyleSheet> {
+        self.stylesheet
+            .clone()
+            .unwrap_or_else(crate::style::default_stylesheet_arc)
+    }
+    pub fn child(&self) -> Self {
+        Self {
+            stylesheet: self.stylesheet.clone(),
+            ..Default::default()
+        }
+    }
+
     pub fn clear(&mut self) {
         self.shapes.clear();
         self.colors.clear();
@@ -70,8 +95,10 @@ impl PaintList {
     fn legacy_order(&mut self) {
         if self.order.len() != self.shapes.len() + self.glyphs.len() {
             self.order.clear();
-            self.order.extend((0..self.shapes.len()).map(PaintOp::Shape));
-            self.order.extend((0..self.glyphs.len()).map(PaintOp::Glyph));
+            self.order
+                .extend((0..self.shapes.len()).map(PaintOp::Shape));
+            self.order
+                .extend((0..self.glyphs.len()).map(PaintOp::Glyph));
         }
     }
     pub fn push_shape(&mut self, shape: Shape, color: Color) {
@@ -205,7 +232,9 @@ impl PaintList {
             if let Some(Some(new)) = mapping.get(*index) {
                 *index = *new;
                 true
-            } else { false }
+            } else {
+                false
+            }
         });
     }
     pub fn append(&mut self, mut other: Self) {
@@ -213,10 +242,11 @@ impl PaintList {
         other.legacy_order();
         let shapes = self.shapes.len();
         let glyphs = self.glyphs.len();
-        self.order.extend(other.order.into_iter().map(|op| match op {
-            PaintOp::Shape(index) => PaintOp::Shape(index + shapes),
-            PaintOp::Glyph(index) => PaintOp::Glyph(index + glyphs),
-        }));
+        self.order
+            .extend(other.order.into_iter().map(|op| match op {
+                PaintOp::Shape(index) => PaintOp::Shape(index + shapes),
+                PaintOp::Glyph(index) => PaintOp::Glyph(index + glyphs),
+            }));
         self.shapes.append(&mut other.shapes);
         self.colors.append(&mut other.colors);
         self.glyphs.append(&mut other.glyphs);
@@ -307,6 +337,41 @@ impl SolidVertex {
         }
     }
 }
+/// One bounded analytic shadow quad; clipping preserves the blur domain.
+pub fn shadow(
+    list: &mut PaintList,
+    area: Rect,
+    color: Color,
+    radius: f32,
+    blur: f32,
+    offset_y: f32,
+) {
+    let bounds = Rect::new(
+        area.min[0],
+        area.min[1] + offset_y,
+        area.width(),
+        area.height(),
+    );
+    let pad = blur.max(0.);
+    let outer = Rect::new(
+        bounds.min[0] - pad,
+        bounds.min[1] - pad,
+        bounds.width() + 2. * pad,
+        bounds.height() + 2. * pad,
+    );
+    list.push_shape(
+        Shape::Procedural {
+            area: outer,
+            clip: outer,
+            kind: Pattern::Shadow {
+                radius,
+                blur,
+                bounds,
+            },
+        },
+        color,
+    );
+}
 pub fn box_rect(
     list: &mut PaintList,
     area: Rect,
@@ -317,20 +382,23 @@ pub fn box_rect(
 ) {
     if area.width() > 0. && area.height() > 0. && (fill.0[3] > 0. || border.0[3] > 0. && width > 0.)
     {
-        list.push_shape(Shape::Procedural {
-            area,
-            clip: Rect::new(
-                area.min[0] - 1.,
-                area.min[1] - 1.,
-                area.width() + 2.,
-                area.height() + 2.,
-            ),
-            kind: Pattern::Box {
-                border,
-                width,
-                radius,
+        list.push_shape(
+            Shape::Procedural {
+                area,
+                clip: Rect::new(
+                    area.min[0] - 1.,
+                    area.min[1] - 1.,
+                    area.width() + 2.,
+                    area.height() + 2.,
+                ),
+                kind: Pattern::Box {
+                    border,
+                    width,
+                    radius,
+                },
             },
-        }, fill);
+            fill,
+        );
     }
 }
 pub fn grid(
@@ -348,16 +416,19 @@ pub fn grid(
         && major.is_finite()
         && major > 0.
     {
-        list.push_shape(Shape::Procedural {
-            area,
-            clip: area,
-            kind: Pattern::Grid {
-                major: major_color,
-                origin,
-                minor,
-                major_step: major,
+        list.push_shape(
+            Shape::Procedural {
+                area,
+                clip: area,
+                kind: Pattern::Grid {
+                    major: major_color,
+                    origin,
+                    minor,
+                    major_step: major,
+                },
             },
-        }, minor_color);
+            minor_color,
+        );
     }
 }
 
@@ -384,22 +455,28 @@ pub fn rect(list: &mut PaintList, area: Rect, color: Color) {
     let min = area.min;
     let max = area.max;
     // Counter-clockwise in screen space so both pipelines can use one winding.
-    list.push_shape(Shape::Quad {
-        points: [min, [max[0], min[1]], max, [min[0], max[1]]],
-    }, color);
+    list.push_shape(
+        Shape::Quad {
+            points: [min, [max[0], min[1]], max, [min[0], max[1]]],
+        },
+        color,
+    );
 }
 
 /// Stroke a rectangle outline of `thickness` logical pixels.
 pub fn diamond(list: &mut PaintList, center: [f32; 2], radius: f32, color: Color) {
     let [x, y] = center;
-    list.push_shape(Shape::Quad {
-        points: [
-            [x, y - radius],
-            [x + radius, y],
-            [x, y + radius],
-            [x - radius, y],
-        ],
-    }, color);
+    list.push_shape(
+        Shape::Quad {
+            points: [
+                [x, y - radius],
+                [x + radius, y],
+                [x, y + radius],
+                [x - radius, y],
+            ],
+        },
+        color,
+    );
 }
 
 /// Stroke a rectangle outline of `thickness` logical pixels.
@@ -451,11 +528,14 @@ pub fn line(list: &mut PaintList, points: Vec<[f32; 2]>, color: Color) {
 /// Alpha checkerboard for transparent pixels.
 pub fn checkerboard(list: &mut PaintList, area: Rect, light: Color, dark: Color, size: f32) {
     if area.width() > 0. && area.height() > 0. && size.is_finite() && size > 0. {
-        list.push_shape(Shape::Procedural {
-            area,
-            clip: area,
-            kind: Pattern::Checker { dark, size },
-        }, light);
+        list.push_shape(
+            Shape::Procedural {
+                area,
+                clip: area,
+                kind: Pattern::Checker { dark, size },
+            },
+            light,
+        );
     }
 }
 
@@ -506,7 +586,9 @@ struct DrawBatch {
     vertices: std::ops::Range<u32>,
 }
 fn push_batch(batches: &mut Vec<DrawBatch>, glyph: bool, vertices: std::ops::Range<u32>) {
-    if vertices.is_empty() { return; }
+    if vertices.is_empty() {
+        return;
+    }
     if let Some(previous) = batches.last_mut() {
         if previous.glyph == glyph && previous.vertices.end == vertices.start {
             previous.vertices.end = vertices.end;
@@ -836,6 +918,20 @@ impl Painter {
                                 color,
                             )
                         }
+                        Pattern::Shadow {
+                            radius,
+                            blur,
+                            bounds,
+                        } => (
+                            [4., *blur, *radius, 0.],
+                            [
+                                bounds.min[0],
+                                bounds.min[1],
+                                bounds.width(),
+                                bounds.height(),
+                            ],
+                            [0.; 4],
+                        ),
                         Pattern::Checker { dark, size } => (
                             [2., *size, 0., 0.],
                             [0.; 4],

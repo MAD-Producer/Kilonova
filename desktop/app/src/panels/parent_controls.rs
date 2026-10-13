@@ -7,7 +7,6 @@ use motion_ui::{
     input::{Input, MouseButton, Rect},
     paint::{self, PaintList},
     text::TextAtlas,
-    theme::palette,
     ui::{self, Align},
 };
 use serde_json::Value;
@@ -37,6 +36,9 @@ impl Controls {
         locale: Locale,
         out: &mut Vec<Action>,
     ) {
+        let styles = list.styles();
+        let colors = styles.colors();
+
         if self.object != Some(object) {
             self.object = Some(object);
             self.open = false;
@@ -52,13 +54,13 @@ impl Controls {
             .and_then(|l| l["name"].as_str())
             .unwrap_or(locale.t(T::None));
         let rect = Rect::new(area.min[0] + 16., *y, area.width() - 32., 26.);
-        paint::rect(list, rect, palette::SUNKEN);
+        paint::rect(list, rect, colors.SUNKEN);
         ui::text(
             list,
             atlas,
             rect.shrink(4.),
             &format!("{}  ›  {}", locale.t(T::ParentLink), name),
-            palette::TEXT,
+            colors.TEXT,
             Align::Left,
         );
         let locked = owner["locked"].as_bool().unwrap_or(false);
@@ -104,19 +106,12 @@ impl Controls {
                 list,
                 row,
                 if parent == current {
-                    palette::ACCENT.with_alpha(0.2)
+                    colors.ACCENT.with_alpha(0.2)
                 } else {
-                    palette::CHROME
+                    colors.CHROME
                 },
             );
-            ui::text(
-                list,
-                atlas,
-                row.shrink(4.),
-                name,
-                palette::TEXT,
-                Align::Left,
-            );
+            ui::text(list, atlas, row.shrink(4.), name, colors.TEXT, Align::Left);
             if clicked(input, row) {
                 out.push(Action::Edit(Command::Parent {
                     object,

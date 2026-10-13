@@ -9,7 +9,6 @@ use motion_ui::{
     input::{Input, MouseButton, Rect},
     paint::{self, PaintList},
     text::TextAtlas,
-    theme::palette,
     ui::{self, Align},
 };
 use serde_json::Value;
@@ -46,13 +45,16 @@ fn button(
     label: &str,
     enabled: bool,
 ) -> bool {
+    let styles = list.styles();
+    let colors = styles.colors();
+
     paint::rect(
         list,
         rect,
         if enabled && rect.contains(input.mouse) {
-            palette::SUNKEN
+            colors.SUNKEN
         } else {
-            palette::CHROME
+            colors.CHROME
         },
     );
     ui::text(
@@ -61,9 +63,9 @@ fn button(
         rect.shrink(3.),
         label,
         if enabled {
-            palette::TEXT
+            colors.TEXT
         } else {
-            palette::TEXT_MUTED.with_alpha(0.4)
+            colors.TEXT_MUTED.with_alpha(0.4)
         },
         Align::Center,
     );
@@ -131,6 +133,9 @@ impl Controls {
         locale: Locale,
         out: &mut Vec<Action>,
     ) {
+        let styles = list.styles();
+        let colors = styles.colors();
+
         let object = layer["id"].as_u64().unwrap();
         let locked = layer["locked"].as_bool().unwrap_or(false);
         let frame = state["frame"].as_f64().unwrap_or(0.0).floor() as u32;
@@ -316,7 +321,7 @@ impl Controls {
                 atlas,
                 Rect::new(start, *y, width, 26.),
                 locale.t(T::NoKeys),
-                palette::TEXT_MUTED,
+                colors.TEXT_MUTED,
                 Align::Left,
             );
             *y += 30.;
@@ -356,7 +361,7 @@ impl Controls {
             atlas,
             Rect::new(start + 70., *y, width - 70., 24.),
             &format!("{}: {}", locale.t(T::Keyframe), selected_frame),
-            palette::ACCENT,
+            colors.ACCENT,
             Align::Left,
         );
         *y += 28.;
@@ -506,8 +511,8 @@ impl Controls {
         }
         *y += 30.;
         let graph = Rect::new(start, *y, width, 130.);
-        paint::rect(list, graph, palette::SUNKEN);
-        paint::stroke(list, graph, palette::BORDER, 1.);
+        paint::rect(list, graph, colors.SUNKEN);
+        paint::stroke(list, graph, colors.BORDER, 1.);
         if let Some((_, value, _)) = self.dragging {
             easing = value;
         }
@@ -559,7 +564,7 @@ impl Controls {
             paint::line(
                 list,
                 vec![[x, graph.min[1]], [x, graph.max[1]]],
-                palette::BORDER,
+                colors.BORDER,
             );
         }
         let samples: Vec<_> = values
@@ -567,7 +572,7 @@ impl Controls {
             .enumerate()
             .map(|(i, value)| point([i as f64 / 80., value]))
             .collect();
-        paint::line(list, samples, palette::ACCENT);
+        paint::line(list, samples, colors.ACCENT);
         if let Some(curve) = easing.curve {
             let controls = match curve.shape {
                 CurveShape::Cubic {
@@ -578,7 +583,7 @@ impl Controls {
             };
             for (i, p) in controls.into_iter().enumerate() {
                 let p = point(p);
-                paint::diamond(list, p, 5., palette::KEYFRAME);
+                paint::diamond(list, p, 5., colors.KEYFRAME);
                 if editable && pressed(input, Rect::new(p[0] - 10., p[1] - 10., 20., 20.)) {
                     self.dragging = Some((i, easing, bounds));
                     out.push(Action::History(2));

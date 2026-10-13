@@ -130,3 +130,58 @@ fn font_sizes_change_glyph_geometry_and_keep_paint_inside_the_widget() {
     box_style(&mut paint, area, style);
     assert_eq!(paint.colors[0], Color::rgb(18, 52, 86));
 }
+
+#[test]
+fn panel_host_installs_styles_for_frame_and_nested_draw_helpers() {
+    use motion_ui::{
+        dock::DockId,
+        interaction::Router,
+        panel::{PanelFrame, PanelHost, PanelLayout, PanelView},
+        registry::{Language, PanelDescriptor},
+        ui,
+    };
+    struct Probe;
+    impl PanelView for Probe {
+        type Action = ();
+        fn draw(&mut self, frame: &mut PanelFrame<'_>) -> Vec<()> {
+            assert_eq!(frame.styles.color("panel"), Color::rgb(18, 52, 86));
+            assert_eq!(frame.paint.styles().color("focus"), Color::rgb(0, 255, 136));
+            let mut child = frame.paint.child();
+            ui::button(
+                &mut child,
+                frame.atlas,
+                frame.layout.bounds,
+                "测试 / Test",
+                &motion_ui::Input {
+                    mouse: [-1., -1.],
+                    ..Default::default()
+                },
+                true,
+            );
+            assert!(child.colors.contains(&Color::rgb(18, 52, 86)));
+            frame.paint.append(child);
+            vec![]
+        }
+    }
+    let mut host = PanelHost::default();
+    host.register(
+        PanelDescriptor::new(DockId(91), "样式测试", "Style test"),
+        Probe,
+    )
+    .unwrap();
+    host.set_stylesheet(default_stylesheet().with_overrides(br##"{"tokens":{"colors":{"panel":"#123456","focus":"#00ff88","field":"#123456"}}}"##).unwrap());
+    let mut atlas = TextAtlas::from_system(12.).unwrap();
+    host.draw(
+        PanelLayout {
+            window: 1,
+            panel: DockId(91),
+            bounds: Rect::new(0., 0., 180., 24.),
+            clip: Rect::new(0., 0., 180., 24.),
+        },
+        Language::English,
+        &Default::default(),
+        &Router::default(),
+        &mut PaintList::default(),
+        &mut atlas,
+    );
+}

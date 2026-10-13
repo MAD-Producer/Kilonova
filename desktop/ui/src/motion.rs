@@ -1,5 +1,27 @@
 //! Short presentation transitions, independent of project time and undo data.
 use std::{collections::HashMap, time::Instant};
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Easing {
+    Linear,
+    #[default]
+    CubicOut,
+    CubicIn,
+    Standard,
+    Decelerate,
+    Accelerate,
+}
+impl Easing {
+    pub fn sample(self, t: f32) -> f32 {
+        let t = t.clamp(0., 1.);
+        match self {
+            Self::Linear => t,
+            Self::CubicOut | Self::Decelerate => 1. - (1. - t).powi(3),
+            Self::CubicIn | Self::Accelerate => t.powi(3),
+            Self::Standard => t * t * (3. - 2. * t),
+        }
+    }
+}
 pub type Key = (u64, u64);
 struct Channel {
     from: f32,
@@ -8,11 +30,13 @@ struct Channel {
     seconds: f64,
     touched: u64,
     observed: Option<f64>,
+    easing: Easing,
 }
 pub struct Motion {
     origin: Instant,
     channels: HashMap<Key, Channel>,
     clock: u64,
+    easing: Easing,
 }
 impl Default for Motion {
     fn default() -> Self {
@@ -20,10 +44,14 @@ impl Default for Motion {
             origin: Instant::now(),
             channels: HashMap::new(),
             clock: 0,
+            easing: Default::default(),
         }
     }
 }
 impl Motion {
+    pub fn set_easing(&mut self, easing: Easing) {
+        self.easing = easing;
+    }
     pub fn value(
         &mut self,
         key: Key,
@@ -71,6 +99,7 @@ impl Motion {
             seconds: 0.,
             touched: self.clock,
             observed: None,
+            easing: self.easing,
         });
         channel.touched = self.clock;
         let current = sample(channel, now);
@@ -87,6 +116,7 @@ impl Motion {
                 seconds: 0.,
                 touched: self.clock,
                 observed: channel.observed,
+                easing: self.easing,
             };
             return target;
         }
@@ -95,6 +125,7 @@ impl Motion {
             channel.to = target;
             channel.at = now;
             channel.seconds = seconds;
+            channel.easing = self.easing;
         }
         sample(channel, now)
     }
@@ -114,6 +145,7 @@ impl Motion {
         let changed = c.observed.is_some_and(|previous| previous != value);
         c.observed = Some(value);
         if changed {
+            c.easing = self.easing;
             c.from = 1.;
             c.to = 0.;
             c.at = self.origin.elapsed().as_secs_f64();
@@ -132,7 +164,7 @@ fn sample(c: &Channel, now: f64) -> f32 {
         return c.to;
     }
     let t = ((now - c.at) / c.seconds).clamp(0., 1.) as f32;
-    c.from + (c.to - c.from) * (1. - (1. - t).powi(3))
+    c.from + (c.to - c.from) * c.easing.sample(t)
 }
 #[cfg(test)]
 mod tests {

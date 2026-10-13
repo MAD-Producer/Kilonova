@@ -6,10 +6,9 @@ use crate::{
 use motion_core::EffectParam;
 use motion_core::{Command, EffectAction};
 use motion_ui::{
-    input::{Input, Key, MouseButton, Rect},
+    input::{Input, MouseButton, Rect},
     paint::{self, PaintList},
     text::TextAtlas,
-    theme::palette,
     ui::{self, Align},
 };
 use serde_json::Value;
@@ -22,6 +21,10 @@ pub struct Controls {
     pub drag_readout: Option<([f32; 2], String)>,
     pub choosing: bool,
     query: String,
+    search: motion_ui::widgets::SearchField,
+    dropdowns: HashMap<(u64, String), motion_ui::widgets::Dropdown>,
+    enum_owner: Option<(u64, String)>,
+    pub favorites: std::collections::BTreeSet<String>,
     field: Option<Field>,
     revision: Option<(String, String, u64)>,
     tracks: HashMap<(u64, u64, String), EffectParam>,
@@ -42,15 +45,18 @@ fn clicked(input: &Input, rect: Rect) -> bool {
         .is_some_and(|(b, p)| b == MouseButton::Left && rect.contains(p))
 }
 fn text(list: &mut PaintList, atlas: &mut TextAtlas, rect: Rect, value: &str, muted: bool) {
+    let styles = list.styles();
+    let colors = styles.colors();
+
     ui::text(
         list,
         atlas,
         rect,
         value,
         if muted {
-            palette::TEXT_MUTED
+            colors.TEXT_MUTED
         } else {
-            palette::TEXT
+            colors.TEXT
         },
         Align::Left,
     );
@@ -63,13 +69,16 @@ fn press(
     value: &str,
     enabled: bool,
 ) -> bool {
+    let styles = list.styles();
+    let colors = styles.colors();
+
     paint::rect(
         list,
         rect,
         if rect.contains(input.mouse) && enabled {
-            palette::SUNKEN
+            colors.SUNKEN
         } else {
-            palette::CHROME
+            colors.CHROME
         },
     );
     ui::text(
@@ -78,9 +87,9 @@ fn press(
         rect.shrink(4.),
         value,
         if enabled {
-            palette::TEXT
+            colors.TEXT
         } else {
-            palette::TEXT_MUTED.with_alpha(0.4)
+            colors.TEXT_MUTED.with_alpha(0.4)
         },
         Align::Center,
     );
@@ -96,11 +105,15 @@ fn dimensions(kind: &str) -> usize {
 }
 impl Controls {
     pub fn editing(&self) -> bool {
-        self.field.is_some() || self.choosing
+        self.field.is_some() || self.choosing || self.enum_owner.is_some()
     }
     pub fn cancel(&mut self) -> bool {
         let begun = self.field.take().is_some_and(|mut f| f.number.cancel());
         self.choosing = false;
+        self.enum_owner = None;
+        for dropdown in self.dropdowns.values_mut() {
+            dropdown.open = false;
+        }
         begun
     }
     fn definition(&self, effect: &Value) -> Option<Value> {
@@ -188,6 +201,18 @@ impl Controls {
         locale: Locale,
         out: &mut Vec<Action>,
     ) {
+        let styles = list.styles();
+        let colors = styles.colors();
+
+        let original_input = input;
+        let neutral = Input::default();
+        let modal_owner = self.enum_owner.clone();
+        let input = if modal_owner.is_some() {
+            &neutral
+        } else {
+            input
+        };
+        let mut overlays = list.child();
         self.cursor = false;
         self.drag_readout = None;
         let object = layer["id"].as_u64().unwrap();
@@ -237,22 +262,14 @@ impl Controls {
         }
         if self.choosing {
             let search = Rect::new(area.min[0] + 20., *y, area.width() - 40., 28.);
-            paint::rect(list, search, palette::SUNKEN);
-            paint::stroke(list, search, palette::ACCENT, 1.);
-            self.query.push_str(&input.text);
-            if input.keys.iter().any(|(k, _)| *k == Key::Backspace) {
-                self.query.pop();
-            }
-            text(
+            self.search.draw(
                 list,
                 atlas,
-                search.shrink(6.),
-                if self.query.is_empty() {
-                    locale.t(T::SearchEffects)
-                } else {
-                    &self.query
-                },
-                self.query.is_empty(),
+                search,
+                &mut self.query,
+                locale.t(T::SearchEffects),
+                input,
+                true,
             );
             *y += 34.;
 
@@ -307,6 +324,14 @@ impl Controls {
                 }
             }
 
+            for effects in categories.values_mut() {
+                effects.sort_by_key(|(plugin, _, _, effect)| {
+                    (
+                        !self.favorites.contains(&format!("{plugin}/{effect}")),
+                        effect.clone(),
+                    )
+                });
+            }
             // Sort categories alphabetically
             let mut sorted_categories: Vec<_> = categories.iter().collect();
             sorted_categories.sort_by_key(|(name, _)| *name);
@@ -321,7 +346,7 @@ impl Controls {
                 let header_rect = Rect::new(area.min[0] + 16., *y, area.width() - 32., 28.);
 
                 // Category header background
-                paint::rect(list, header_rect, palette::SUNKEN.with_alpha(0.3));
+                paint::rect(list, header_rect, colors.SUNKEN.with_alpha(0.3));
 
                 // Collapse/expand triangle
                 let triangle_rect = Rect::new(area.min[0] + 20., *y + 4., 16., 20.);
@@ -330,7 +355,7 @@ impl Controls {
                     atlas,
                     triangle_rect,
                     if is_collapsed { "▶" } else { "▼" },
-                    palette::TEXT,
+                    colors.TEXT,
                     Align::Left,
                 );
 
@@ -340,7 +365,7 @@ impl Controls {
                     atlas,
                     Rect::new(area.min[0] + 40., *y + 4., area.width() - 60., 20.),
                     category_name,
-                    palette::TEXT,
+                    colors.TEXT,
                     Align::Left,
                 );
 
@@ -351,7 +376,7 @@ impl Controls {
                     atlas,
                     Rect::new(area.max[0] - 60., *y + 4., 40., 20.),
                     &count_text,
-                    palette::TEXT_MUTED,
+                    colors.TEXT_MUTED,
                     Align::Right,
                 );
 
@@ -393,11 +418,29 @@ impl Controls {
                             })
                             .unwrap_or("Effect");
 
+                        let favorite_key = format!("{plugin_id}/{effect_id}");
+                        let star = Rect::new(area.max[0] - 38., *y, 20., 26.);
+                        if let Some(value) = motion_ui::widgets::StarRating::draw(
+                            list,
+                            star,
+                            usize::from(self.favorites.contains(&favorite_key)),
+                            1,
+                            input,
+                            true,
+                            false,
+                        ) {
+                            if value == 0 {
+                                self.favorites.remove(&favorite_key);
+                            } else {
+                                self.favorites.insert(favorite_key);
+                            }
+                            out.push(Action::Favorites(self.favorites.clone()));
+                        }
                         if press(
                             list,
                             atlas,
                             input,
-                            Rect::new(area.min[0] + 32., *y, area.width() - 52., 26.),
+                            Rect::new(area.min[0] + 32., *y, (area.width() - 76.).max(0.), 26.),
                             effect_name,
                             !locked,
                         ) {
@@ -442,7 +485,7 @@ impl Controls {
 
             // Background highlight on hover
             if header_rect.contains(input.mouse) {
-                paint::rect(list, header_rect, palette::SUNKEN.with_alpha(0.2));
+                paint::rect(list, header_rect, colors.SUNKEN.with_alpha(0.2));
             }
 
             // Collapse/expand triangle
@@ -580,12 +623,28 @@ impl Controls {
                     }));
                 }
                 for component in 0..dimensions(kind) {
-                    let inset=if dimensions(kind)>1 {20.}else{0.};
-                    if dimensions(kind)>1 {
-                        let axis=if kind=="color" {["R","G","B","A"][component]}else{["X","Y","Z","W"][component]};
-                        ui::text(list,atlas,Rect::new(area.min[0]+62.,*y,18.,24.),axis,palette::TEXT_MUTED,Align::Left);
+                    let inset = if dimensions(kind) > 1 { 20. } else { 0. };
+                    if dimensions(kind) > 1 {
+                        let axis = if kind == "color" {
+                            ["R", "G", "B", "A"][component]
+                        } else {
+                            ["X", "Y", "Z", "W"][component]
+                        };
+                        ui::text(
+                            list,
+                            atlas,
+                            Rect::new(area.min[0] + 62., *y, 18., 24.),
+                            axis,
+                            colors.TEXT_MUTED,
+                            Align::Left,
+                        );
                     }
-                    let rect = Rect::new(area.min[0] + 62.+inset, *y, area.width() - 82.-inset, 24.);
+                    let rect = Rect::new(
+                        area.min[0] + 62. + inset,
+                        *y,
+                        area.width() - 82. - inset,
+                        24.,
+                    );
                     let active = self.field.as_ref().is_some_and(|f| {
                         f.object == object
                             && f.effect == id
@@ -593,35 +652,62 @@ impl Controls {
                             && f.component == component
                     });
                     if kind == "bool" || kind == "enum" {
-                        let shown = if kind == "bool" {
-                            if value[0] > 0.5 {
-                                locale.t(T::Enabled)
+                        let enabled = !locked && implemented;
+                        let changed =
+                            if kind == "bool" {
+                                motion_ui::widgets::Checkbox::draw(
+                                    list,
+                                    atlas,
+                                    rect,
+                                    if value[0] > 0.5 {
+                                        locale.t(T::Enabled)
+                                    } else {
+                                        locale.t(T::Disabled)
+                                    },
+                                    value[0] > 0.5,
+                                    input,
+                                    enabled,
+                                    false,
+                                    None,
+                                )
+                                .clicked
+                                .then_some(if value[0] > 0.5 { 0. } else { 1. })
                             } else {
-                                locale.t(T::Disabled)
-                            }
-                        } else {
-                            parameter["options"][value[0] as usize]
-                                .as_str()
-                                .unwrap_or("")
-                        };
-                        paint::rect(list, rect, palette::SUNKEN);
-                        text(list, atlas, rect.shrink(4.), shown, !implemented);
-                        if clicked(input, rect) && !locked && implemented {
-                            value[0] = if kind == "bool" {
-                                if value[0] > 0.5 {
-                                    0.
-                                } else {
-                                    1.
+                                let key = (id, param.to_string());
+                                let items: Vec<_> = parameter["options"]
+                                    .as_array()
+                                    .into_iter()
+                                    .flatten()
+                                    .map(|o| motion_ui::widgets::DropdownItem {
+                                        label: o.as_str().unwrap_or(""),
+                                        enabled: true,
+                                    })
+                                    .collect();
+                                let dropdown = self.dropdowns.entry(key.clone()).or_default();
+                                let result = dropdown.draw(
+                                    &mut overlays,
+                                    atlas,
+                                    rect,
+                                    area,
+                                    &items,
+                                    value[0] as usize,
+                                    if modal_owner.as_ref() == Some(&key) {
+                                        original_input
+                                    } else {
+                                        input
+                                    },
+                                    enabled,
+                                    false,
+                                );
+                                if dropdown.open {
+                                    self.enum_owner = Some(key);
+                                } else if self.enum_owner.as_ref() == Some(&key) {
+                                    self.enum_owner = None;
                                 }
-                            } else {
-                                let min = parameter["min"].as_f64().unwrap_or(0.) as f32;
-                                let max = parameter["max"].as_f64().unwrap_or(1.) as f32;
-                                if value[0] >= max {
-                                    min
-                                } else {
-                                    value[0] + 1.
-                                }
+                                result.map(|i| i as f32)
                             };
+                        if let Some(next) = changed {
+                            value[0] = next;
                             out.push(Action::Edit(Command::Effect {
                                 object,
                                 action: EffectAction::Set {
@@ -710,5 +796,6 @@ impl Controls {
                 *y += 8.;
             }
         }
+        list.append(overlays);
     }
 }

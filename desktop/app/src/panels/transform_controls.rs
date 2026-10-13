@@ -6,7 +6,6 @@ use super::{
 use motion_core::{Axis, Command, Property};
 use motion_ui::{
     paint::{self, PaintList},
-    theme::palette,
     Input, Key, MouseButton, Rect,
 };
 use serde_json::Value;
@@ -139,10 +138,13 @@ impl Pose {
         None
     }
     fn paint(&self, list: &mut PaintList) {
+        let styles = list.styles();
+        let colors = styles.colors();
+
         let color = if self.locked {
-            palette::TEXT_MUTED
+            colors.TEXT_MUTED
         } else {
-            palette::ACCENT
+            colors.ACCENT
         };
         let mut outline = self.corners.to_vec();
         outline.push(self.corners[0]);
@@ -153,7 +155,7 @@ impl Pose {
                 mid(self.corners[i], self.corners[(i + 1) % 4]),
             ] {
                 let r = Rect::new(p[0] - 3., p[1] - 3., 6., 6.);
-                paint::rect(list, r, palette::SUNKEN);
+                paint::rect(list, r, colors.SUNKEN);
                 paint::stroke(list, r, color, 1.);
             }
         }

@@ -6,7 +6,7 @@
 
 use crate::input::{Event, Input, Key, MouseButton, Rect};
 use crate::paint::{self, PaintList};
-use crate::theme::{metrics, palette, Color};
+use crate::theme::Color;
 
 /// Interaction result for one widget.
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -35,6 +35,8 @@ pub fn button(
     input: &Input,
     enabled: bool,
 ) -> Response {
+    let styles = list.styles();
+
     button_styled(
         list,
         atlas,
@@ -42,7 +44,7 @@ pub fn button(
         label,
         input,
         enabled,
-        crate::style::default_stylesheet(),
+        styles.as_ref(),
         "button",
     )
 }
@@ -157,13 +159,18 @@ pub fn text_sized(
     let mut pen = origin;
     for character in shown.chars() {
         let glyph = atlas.glyph_at(character, font_size);
-        let width = (glyph.uv[2] - glyph.uv[0]) * atlas.config().width as f32 /atlas.pixel_ratio();
-        let height = (glyph.uv[3] - glyph.uv[1]) * atlas.config().height as f32 /atlas.pixel_ratio();
+        let width = (glyph.uv[2] - glyph.uv[0]) * atlas.config().width as f32 / atlas.pixel_ratio();
+        let height =
+            (glyph.uv[3] - glyph.uv[1]) * atlas.config().height as f32 / atlas.pixel_ratio();
         // Whitespace has no atlas rectangle and only advances the pen.
         if width > 0.0 && height > 0.0 {
             list.push_glyph(paint::Glyph {
                 uv: glyph.uv,
-                position: [(pen*atlas.pixel_ratio()).round()/atlas.pixel_ratio()+glyph.offset[0],(baseline*atlas.pixel_ratio()).round()/atlas.pixel_ratio()+glyph.offset[1]],
+                position: [
+                    (pen * atlas.pixel_ratio()).round() / atlas.pixel_ratio() + glyph.offset[0],
+                    (baseline * atlas.pixel_ratio()).round() / atlas.pixel_ratio()
+                        + glyph.offset[1],
+                ],
                 size: [width, height],
                 color,
             });
@@ -214,15 +221,18 @@ pub fn scrub_field(
     field: &mut ScrubField,
     input: &Input,
 ) -> Response {
+    let styles = list.styles();
+    let colors = styles.colors();
+
     let hovered = area.contains(input.mouse);
     let grabbed = hovered
         && matches!(
             input.pressed,
             Some((MouseButton::Left, p)) if area.contains(p)
         );
-    paint::rect(list, area, palette::SUNKEN);
+    paint::rect(list, area, colors.SUNKEN);
     if hovered || field.dragging {
-        paint::stroke(list, area, palette::ACCENT.with_alpha(0.6), 1.0);
+        paint::stroke(list, area, colors.ACCENT.with_alpha(0.6), 1.0);
     }
     let right = Rect::new(
         area.min[0] + area.width() * 0.45,
@@ -230,13 +240,13 @@ pub fn scrub_field(
         area.width() * 0.55,
         area.height(),
     );
-    text(list, atlas, area, label, palette::TEXT_MUTED, Align::Left);
+    text(list, atlas, area, label, colors.TEXT_MUTED, Align::Left);
     text(
         list,
         atlas,
         right,
         &format_value(value),
-        palette::TEXT,
+        colors.TEXT,
         Align::Right,
     );
     Response {
@@ -281,11 +291,14 @@ pub fn tab_strip(
     active: usize,
     input: &Input,
 ) -> Option<usize> {
-    paint::rect(list, area, palette::CHROME);
+    let styles = list.styles();
+    let colors = styles.colors();
+
+    paint::rect(list, area, colors.CHROME);
     paint::rect(
         list,
         Rect::new(area.min[0], area.max[1] - 1.0, area.width(), 1.0),
-        palette::BORDER,
+        colors.BORDER,
     );
     if titles.is_empty() {
         return None;
@@ -304,15 +317,15 @@ pub fn tab_strip(
             list,
             tab,
             if selected {
-                palette::PANEL
+                colors.PANEL
             } else {
-                palette::CHROME
+                colors.CHROME
             },
         );
         let color = if selected {
-            palette::TEXT
+            colors.TEXT
         } else {
-            palette::TEXT_MUTED
+            colors.TEXT_MUTED
         };
         text(
             list,
@@ -346,6 +359,9 @@ pub fn checkbox(
     value: &mut bool,
     input: &Input,
 ) -> Response {
+    let styles = list.styles();
+    let colors = styles.colors();
+
     let box_area = Rect::new(area.min[0] + 2.0, area.min[1] + 3.0, 12.0, 12.0);
     let hovered = area.contains(input.mouse);
     let clicked =
@@ -353,22 +369,18 @@ pub fn checkbox(
     if clicked {
         *value = !*value;
     }
-    paint::rect(list, box_area, palette::SUNKEN);
+    paint::rect(list, box_area, colors.SUNKEN);
     paint::stroke(
         list,
         box_area,
-        if *value {
-            palette::ACCENT
-        } else {
-            palette::BORDER
-        },
+        if *value { colors.ACCENT } else { colors.BORDER },
         1.0,
     );
     if *value {
         paint::rect(
             list,
             Rect::new(box_area.min[0] + 3.0, box_area.min[1] + 3.0, 6.0, 6.0),
-            palette::ACCENT,
+            colors.ACCENT,
         );
     }
     text(
@@ -381,7 +393,7 @@ pub fn checkbox(
             area.height(),
         ),
         label,
-        palette::TEXT,
+        colors.TEXT,
         Align::Left,
     );
     Response {
@@ -427,12 +439,15 @@ pub fn layer_list(
     offset: f32,
     input: &Input,
 ) -> LayerListHit {
+    let styles = list.styles();
+    let colors = styles.colors();
+
     let mut hit = LayerListHit::default();
-    let row_height = metrics::ROW;
+    let row_height = styles.metric("row.height", 22.);
     let gutter = 44.0;
     let visible = (area.height() / row_height).ceil() as usize;
     let first = (offset / row_height).floor().max(0.0) as usize;
-    paint::rect(list, area, palette::PANEL);
+    paint::rect(list, area, colors.PANEL);
     for index in first..(first + visible).min(rows.len()) {
         let row = &rows[index];
         let top = area.min[1] + index as f32 * row_height - offset;
@@ -441,19 +456,19 @@ pub fn layer_list(
             continue;
         }
         let background = if row.selected {
-            palette::ACCENT.with_alpha(0.18)
+            colors.ACCENT.with_alpha(0.18)
         } else if row.camera {
-            palette::TRACK_CAMERA.with_alpha(0.10)
+            colors.TRACK_CAMERA.with_alpha(0.10)
         } else {
-            palette::PANEL
+            colors.PANEL
         };
         paint::rect(list, row_area, background);
         if !row.active {
             // Inactive clips stay readable but clearly recede.
-            paint::rect(list, row_area, palette::APP_BACKGROUND.with_alpha(0.55));
+            paint::rect(list, row_area, colors.APP_BACKGROUND.with_alpha(0.55));
         }
         let color = if row.camera {
-            palette::TRACK_CAMERA
+            colors.TRACK_CAMERA
         } else {
             row.color
         };
@@ -474,9 +489,9 @@ pub fn layer_list(
             name_area,
             &row.name,
             if row.active {
-                palette::TEXT
+                colors.TEXT
             } else {
-                palette::TEXT_MUTED
+                colors.TEXT_MUTED
             },
             Align::Left,
         );
@@ -522,6 +537,9 @@ pub enum Icon {
 }
 
 pub fn icon(list: &mut PaintList, area: Rect, icon: Icon) {
+    let styles = list.styles();
+    let colors = styles.colors();
+
     let svg = match icon {
         Icon::Eye | Icon::EyeOff => Some(crate::icons::Icon::Eye),
         Icon::Lock => Some(crate::icons::Icon::Lock),
@@ -537,9 +555,9 @@ pub fn icon(list: &mut PaintList, area: Rect, icon: Icon) {
             svg,
             16.,
             if icon == Icon::Keyframe {
-                palette::KEYFRAME
+                colors.KEYFRAME
             } else {
-                palette::TEXT_MUTED
+                colors.TEXT_MUTED
             },
         );
         if icon == Icon::EyeOff {
@@ -548,7 +566,7 @@ pub fn icon(list: &mut PaintList, area: Rect, icon: Icon) {
             paint::line(
                 list,
                 vec![[x, y + area.height() * 0.5], [x + area.width() * 0.5, y]],
-                palette::TEXT_MUTED,
+                colors.TEXT_MUTED,
             );
         }
         return;
@@ -559,7 +577,7 @@ pub fn icon(list: &mut PaintList, area: Rect, icon: Icon) {
         area.min[1] + (area.height() - size) * 0.5,
     ];
     let max = [min[0] + size, min[1] + size];
-    let color = palette::TEXT_MUTED;
+    let color = colors.TEXT_MUTED;
     match icon {
         Icon::Chevron => {
             paint::line(
@@ -627,7 +645,7 @@ pub fn icon(list: &mut PaintList, area: Rect, icon: Icon) {
                     [mid[0] - radius, mid[1]],
                     [mid[0], mid[1] - radius],
                 ],
-                palette::KEYFRAME,
+                colors.KEYFRAME,
             );
         }
         Icon::Stopwatch => {
@@ -688,7 +706,7 @@ pub fn accumulate(input: &mut Input, event: Event) {
         Event::MouseWheel { delta } => {
             input.wheel[0] += delta[0];
             input.wheel[1] += delta[1];
-        },
+        }
         Event::KeyPressed { key, modifiers } | Event::KeyRepeated { key, modifiers } => {
             input.modifiers = modifiers;
             if !input.held_keys.contains(&key) {
@@ -763,12 +781,21 @@ mod tests {
     #[test]
     fn pending_input_survives_painting_and_coalesces_wheel_until_consumed() {
         let mut input = Input::default();
-        accumulate(&mut input, Event::MousePressed { position: [10., 20.], button: MouseButton::Left });
+        accumulate(
+            &mut input,
+            Event::MousePressed {
+                position: [10., 20.],
+                button: MouseButton::Left,
+            },
+        );
         accumulate(&mut input, Event::MouseWheel { delta: [1., 2.] });
         accumulate(&mut input, Event::MouseWheel { delta: [3., -1.] });
         assert!(input.pending);
         assert_eq!(input.wheel, [4., 1.]);
-        let mut paint_input = Input { mouse: input.mouse, ..Default::default() };
+        let mut paint_input = Input {
+            mouse: input.mouse,
+            ..Default::default()
+        };
         paint_input.begin_frame();
         assert!(input.pending);
         input.begin_frame();

@@ -4,8 +4,7 @@ use motion_core::Command;
 use motion_ui::{
     paint::{self, PaintList},
     text::TextAtlas,
-    theme::palette,
-    ui::{self, Align},
+    ui::Align,
     widgets::{NumberEditor, NumberEvent, NumberOptions},
     Input, Rect,
 };
@@ -31,10 +30,14 @@ impl Field {
         options: NumberOptions,
         input: &Input,
     ) -> Vec<NumberEvent> {
+        let styles = list.styles();
+        let colors = styles.colors();
+
+        self.editor.drag_threshold = Some(styles.metric("motion.drag_threshold", 3.));
         let events = self.editor.update(value, options, input, rect);
         self.editor.draw(list, atlas, rect, value, options);
         if self.editor.dragging() {
-            paint::stroke(list, rect, palette::ACCENT, 1.);
+            paint::stroke(list, rect, colors.ACCENT, 1.);
         }
         let shown = self.editor.display_value(value);
         if options.min.is_finite() && options.max.is_finite() && options.max > options.min {
@@ -43,7 +46,7 @@ impl Field {
             paint::rect(
                 list,
                 Rect::new(rect.min[0], rect.max[1] - 1., rect.width() * fraction, 1.),
-                palette::ACCENT.with_alpha(0.45),
+                colors.ACCENT.with_alpha(0.45),
             );
         }
         events
@@ -57,7 +60,9 @@ pub fn passive(
     input: &Input,
     enabled: bool,
 ) {
-    use motion_ui::style::{box_style, default_stylesheet, text_style, State, States};
+    let styles = list.styles();
+
+    use motion_ui::style::{box_style, text_style, State, States};
     let mut states = States::default();
     if enabled && rect.contains(input.mouse) {
         states = states.with(State::Hovered);
@@ -65,9 +70,7 @@ pub fn passive(
     if !enabled {
         states = states.with(State::Disabled);
     }
-    let style = default_stylesheet()
-        .resolve("field.number", states)
-        .unwrap();
+    let style = styles.as_ref().resolve("field.number", states).unwrap();
     box_style(list, rect, style);
     text_style(
         list,

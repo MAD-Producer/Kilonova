@@ -3,49 +3,297 @@
   "tokens": {
     "font_family": "Microsoft YaHei",
     "colors": {
-      "app": "#111111", "panel": "#1C1C1C", "raised": "#232323", "field": "#282828",
-      "hover": "#303030", "pressed": "#273F58", "border": "#363636", "focus": "#378EF0",
-      "icon": "#BBC2C9", "text": "#DCDCDC", "muted": "#ADADAD", "disabled": "#858585", "error": "#E17870",
-      "selected": "#378EF02E", "transparent": "#00000000", "primary": "#0D66D1", "on_primary": "#FFFFFF"
+      "app": "#111111",
+      "panel": "#1C1C1C",
+      "raised": "#232323",
+      "field": "#282828",
+      "hover": "#303030",
+      "pressed": "#273F58",
+      "border": "#363636",
+      "focus": "#378EF0",
+      "icon": "#BBC2C9",
+      "text": "#DCDCDC",
+      "muted": "#ADADAD",
+      "disabled": "#858585",
+      "error": "#E17870",
+      "selected": "#378EF02E",
+      "transparent": "#00000000",
+      "primary": "#0D66D1",
+      "on_primary": "#FFFFFF",
+      "header": "#181818",
+      "keyframe": "#E4D84C",
+      "camera": "#685782",
+      "track.0": "#747443",
+      "track.1": "#4D597F",
+      "track.2": "#41623B",
+      "checker.light": "#48484C",
+      "checker.dark": "#3A3A3E",
+      "shadow": "#00000066"
     },
     "sizes": {
-      "font.body": 12, "font.caption": 10, "font.title": 15,
-      "padding": 5, "padding.panel": 10, "border": 1,
-      "motion.hover_ms": 90, "motion.divider_ms": 100, "motion.seek_ms": 90,
-      "motion.value_ms": 140
+      "font.body": 12,
+      "font.caption": 10,
+      "font.title": 15,
+      "padding": 5,
+      "padding.panel": 10,
+      "border": 1,
+      "motion.hover_ms": 90,
+      "motion.divider_ms": 100,
+      "motion.seek_ms": 90,
+      "motion.value_ms": 140,
+      "font.small": 11,
+      "panel.header.height": 24,
+      "row.height": 22,
+      "field.height": 18,
+      "label.column": 98,
+      "value.min_width": 64,
+      "icon.slot": 20,
+      "checkbox.size": 14,
+      "radius.control": 2,
+      "radius.popup": 4,
+      "shadow.blur": 8,
+      "shadow.offset_y": 3,
+      "motion.drag_threshold": 3
+    },
+    "motion": {
+      "easing": "cubic-out"
     }
   },
   "styles": {
-    "widget": { "background": "$colors.transparent", "foreground": "$colors.text", "border": "$colors.transparent", "border_width": 0, "padding": "$sizes.padding", "font_size": "$sizes.font.body" },
-    "panel": { "extends": "widget", "background": "$colors.panel", "border": "$colors.border", "border_width": "$sizes.border", "padding": "$sizes.padding.panel" },
-    "panel.header": { "extends": "panel", "background": "$colors.raised", "padding": 8, "states": { "focused": { "border": "$colors.focus" } } },
-    "toolbar": { "extends": "panel.header" },
-    "canvas": { "extends": "panel", "background": "$colors.raised" },
-    "canvas.content": { "extends": "panel", "background": "$colors.app", "border_width": 0 },
-    "label": { "extends": "widget" },
-    "label.muted": { "extends": "label", "foreground": "$colors.muted" },
-    "label.accent": { "extends": "label", "foreground": "$colors.focus" },
-    "label.caption": { "extends": "label.muted", "font_size": "$sizes.font.caption" },
-    "label.title": { "extends": "label", "font_size": "$sizes.font.title" },
-    "button": {
-      "extends": "widget", "background": "$colors.field", "border": "$colors.border", "border_width": "$sizes.border",
+    "widget": {
+      "background": "$colors.transparent",
+      "foreground": "$colors.text",
+      "border": "$colors.transparent",
+      "border_width": 0,
+      "padding": "$sizes.padding",
+      "font_size": "$sizes.font.body"
+    },
+    "panel": {
+      "extends": "widget",
+      "background": "$colors.panel",
+      "border": "$colors.border",
+      "border_width": "$sizes.border",
+      "padding": "$sizes.padding.panel"
+    },
+    "panel.header": {
+      "extends": "panel",
+      "background": "$colors.header",
+      "padding": 8,
       "states": {
-        "hovered": { "background": "$colors.hover" }, "pressed": { "background": "$colors.pressed" },
-        "focused": { "border": "$colors.focus" }, "disabled": { "background": "$colors.panel", "foreground": "$colors.disabled", "border_width": 0 }
+        "focused": {
+          "border": "$colors.focus"
+        }
+      },
+      "font_size": "$sizes.font.small"
+    },
+    "toolbar": {
+      "extends": "panel.header"
+    },
+    "canvas": {
+      "extends": "panel",
+      "background": "$colors.raised"
+    },
+    "canvas.content": {
+      "extends": "panel",
+      "background": "$colors.app",
+      "border_width": 0
+    },
+    "label": {
+      "extends": "widget"
+    },
+    "label.muted": {
+      "extends": "label",
+      "foreground": "$colors.muted"
+    },
+    "label.accent": {
+      "extends": "label",
+      "foreground": "$colors.focus"
+    },
+    "label.caption": {
+      "extends": "label.muted",
+      "font_size": "$sizes.font.caption"
+    },
+    "label.title": {
+      "extends": "label",
+      "font_size": "$sizes.font.title"
+    },
+    "button": {
+      "extends": "widget",
+      "background": "$colors.field",
+      "border": "$colors.border",
+      "border_width": "$sizes.border",
+      "states": {
+        "hovered": {
+          "background": "$colors.hover"
+        },
+        "pressed": {
+          "background": "$colors.pressed"
+        },
+        "focused": {
+          "border": "$colors.focus"
+        },
+        "disabled": {
+          "background": "$colors.panel",
+          "foreground": "$colors.disabled",
+          "border_width": 0
+        }
+      },
+      "radius": "$sizes.radius.control"
+    },
+    "button.icon": {
+      "extends": "widget",
+      "foreground": "$colors.icon",
+      "padding": 2,
+      "states": {
+        "hovered": {
+          "background": "$colors.hover",
+          "foreground": "$colors.text"
+        },
+        "pressed": {
+          "background": "$colors.pressed"
+        },
+        "selected": {
+          "background": "$colors.selected",
+          "foreground": "$colors.focus"
+        },
+        "focused": {
+          "border": "$colors.focus",
+          "border_width": 1
+        },
+        "disabled": {
+          "foreground": "$colors.disabled"
+        }
       }
     },
-    "button.icon": { "extends": "widget", "foreground": "$colors.icon", "padding": 2, "states": { "hovered": { "background": "$colors.hover", "foreground": "$colors.text" }, "pressed": { "background": "$colors.pressed" }, "selected": { "background": "$colors.selected", "foreground": "$colors.focus" }, "focused": { "border": "$colors.focus", "border_width": 1 }, "disabled": { "foreground": "$colors.disabled" } } },
-    "icon": { "extends": "widget", "foreground": "$colors.icon", "states": { "selected": { "foreground": "$colors.focus" }, "disabled": { "foreground": "$colors.disabled" } } },
-    "button.primary": { "extends": "button", "background": "$colors.primary", "foreground": "$colors.on_primary", "states": { "hovered": { "background": "$colors.focus" } } },
-    "field": {
-      "extends": "widget", "background": "$colors.field", "border": "$colors.border", "border_width": "$sizes.border",
-      "states": { "hovered": { "border": "$colors.muted" }, "focused": { "border": "$colors.focus" }, "invalid": { "border": "$colors.error" }, "disabled": { "foreground": "$colors.disabled", "border": "$colors.border" } }
+    "icon": {
+      "extends": "widget",
+      "foreground": "$colors.icon",
+      "states": {
+        "selected": {
+          "foreground": "$colors.focus"
+        },
+        "disabled": {
+          "foreground": "$colors.disabled"
+        }
+      }
     },
-    "field.number": { "extends": "field", "background": "$colors.transparent", "foreground": "$colors.focus", "border_width": 0, "states": { "focused": { "background": "$colors.field", "border_width": "$sizes.border" }, "invalid": { "border_width": "$sizes.border" } } },
-    "selection": { "extends": "widget", "background": "$colors.selected" },
-    "row": { "extends": "widget", "states": { "hovered": { "background": "$colors.hover" }, "selected": { "background": "$colors.selected" }, "disabled": { "foreground": "$colors.disabled" } } },
-    "menu": { "extends": "panel", "background": "$colors.raised" },
-    "tooltip": { "extends": "panel", "font_size": "$sizes.font.caption" },
-    "error": { "extends": "label.caption", "foreground": "$colors.error" }
+    "button.primary": {
+      "extends": "button",
+      "background": "$colors.primary",
+      "foreground": "$colors.on_primary",
+      "states": {
+        "hovered": {
+          "background": "$colors.focus"
+        }
+      }
+    },
+    "field": {
+      "extends": "widget",
+      "background": "$colors.field",
+      "border": "$colors.border",
+      "border_width": "$sizes.border",
+      "states": {
+        "hovered": {
+          "border": "$colors.muted"
+        },
+        "focused": {
+          "border": "$colors.focus"
+        },
+        "invalid": {
+          "border": "$colors.error"
+        },
+        "disabled": {
+          "foreground": "$colors.disabled",
+          "border": "$colors.border"
+        }
+      },
+      "radius": "$sizes.radius.control"
+    },
+    "field.number": {
+      "extends": "field",
+      "background": "$colors.transparent",
+      "foreground": "$colors.focus",
+      "border_width": 0,
+      "states": {
+        "focused": {
+          "background": "$colors.field",
+          "border_width": "$sizes.border"
+        },
+        "invalid": {
+          "border_width": "$sizes.border"
+        }
+      },
+      "radius": "$sizes.radius.control",
+      "font_size": "$sizes.font.small"
+    },
+    "selection": {
+      "extends": "widget",
+      "background": "$colors.selected"
+    },
+    "row": {
+      "extends": "widget",
+      "font_size": "$sizes.font.small",
+      "states": {
+        "hovered": {
+          "background": "$colors.hover"
+        },
+        "selected": {
+          "background": "$colors.selected"
+        },
+        "focused": {
+          "border": "$colors.focus",
+          "border_width": 1
+        },
+        "disabled": {
+          "foreground": "$colors.disabled"
+        }
+      }
+    },
+    "menu": {
+      "extends": "panel",
+      "background": "$colors.raised"
+    },
+    "tooltip": {
+      "extends": "panel",
+      "font_size": "$sizes.font.caption"
+    },
+    "error": {
+      "extends": "label.caption",
+      "foreground": "$colors.error"
+    },
+    "label.small": {
+      "extends": "label",
+      "font_size": "$sizes.font.small"
+    },
+    "checkbox": {
+      "extends": "button",
+      "radius": "$sizes.radius.control",
+      "states": {
+        "selected": {
+          "background": "$colors.focus",
+          "foreground": "$colors.on_primary"
+        },
+        "disabled": {
+          "foreground": "$colors.disabled",
+          "background": "$colors.panel"
+        },
+        "invalid": {
+          "border": "$colors.error",
+          "border_width": 1
+        }
+      }
+    },
+    "popup": {
+      "extends": "panel",
+      "background": "$colors.raised",
+      "radius": "$sizes.radius.popup",
+      "shadow_color": "$colors.shadow",
+      "shadow_blur": "$sizes.shadow.blur",
+      "shadow_offset_y": "$sizes.shadow.offset_y"
+    },
+    "label.small.muted": {
+      "extends": "label.small",
+      "foreground": "$colors.muted"
+    }
   }
 }
