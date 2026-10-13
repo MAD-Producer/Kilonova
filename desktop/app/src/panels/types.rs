@@ -89,6 +89,9 @@ pub struct Panels {
     pub playing: bool,
     pub message: Option<String>,
     pub(crate) menu: Option<usize>,
+    /// First visible row in the application menu when the popup is taller than
+    /// the available window height.
+    pub(crate) menu_scroll: usize,
     pub(crate) panel_menu: Option<(dock::DockId, [f32; 2])>,
     pub(crate) header_hits: Vec<HeaderHit>,
     pub(crate) header_size: Option<[f32; 2]>,
