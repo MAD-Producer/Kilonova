@@ -1013,3 +1013,87 @@ fn visible_bezier_handles_edit_the_curve_without_moving_keyframes() {
     engine.undo().unwrap();
     assert_eq!(engine.project(), &before);
 }
+
+#[test]
+fn linked_graph_button_and_shortcut_restore_both_views_and_share_key_selection() {
+    let engine = engine();
+    let snapshot = state(&engine, 32.);
+    let before = engine.snapshot();
+    let mut panels = panels();
+    panels.timeline.expanded.insert(7);
+    panels.timeline.zoom = 4.;
+    panels.timeline.offset = 18.;
+    panels.timeline.scroll = 11.;
+    panels
+        .animation_controls
+        .select_key(7, Property::Position, None, 32);
+    let selected = panels.animation_controls.user_key();
+    let mut atlas = TextAtlas::from_system(12.).unwrap();
+    let mut actions = vec![];
+    let enter = [570., 17.];
+    timeline::render(
+        &mut PaintList::default(),
+        &mut atlas,
+        Rect::new(0., 0., 1200., 180.),
+        &mut panels,
+        &snapshot,
+        &Input {
+            mouse: enter,
+            pressed: Some((MouseButton::Left, enter)),
+            ..Default::default()
+        },
+        &mut actions,
+    );
+    assert!(panels.timeline.graph_mode);
+    assert!(actions.is_empty());
+    panels.timeline.zoom = 7.;
+    panels.timeline.offset = 8.;
+    panels.timeline.scroll = 5.;
+    let exit = [1180., 12.];
+    timeline::render(
+        &mut PaintList::default(),
+        &mut atlas,
+        Rect::new(0., 0., 1200., 180.),
+        &mut panels,
+        &snapshot,
+        &Input {
+            mouse: exit,
+            pressed: Some((MouseButton::Left, exit)),
+            ..Default::default()
+        },
+        &mut actions,
+    );
+    assert!(!panels.timeline.graph_mode);
+    assert!(actions.is_empty());
+    assert_eq!(
+        (
+            panels.timeline.zoom,
+            panels.timeline.offset,
+            panels.timeline.scroll
+        ),
+        (4., 18., 11.)
+    );
+    assert!(invoke(
+        &mut panels,
+        &snapshot,
+        Key::F3,
+        Modifiers {
+            shift: true,
+            ..Default::default()
+        }
+    )
+    .is_empty());
+    assert!(panels.timeline.graph_mode);
+    assert_eq!(
+        (
+            panels.timeline.zoom,
+            panels.timeline.offset,
+            panels.timeline.scroll
+        ),
+        (7., 8., 5.)
+    );
+    assert_eq!(panels.animation_controls.user_key(), selected);
+    assert_eq!(panels.selected, Some(7));
+    assert!(panels.timeline.expanded.contains(&7));
+    assert_eq!(engine.snapshot(), before);
+}

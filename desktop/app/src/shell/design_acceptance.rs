@@ -13,9 +13,15 @@ impl Shell {
             "home",
             "composition-settings",
             "workspace-manager",
+            "timeline-graph",
             "value-graph",
             "speed-graph",
         ] {
+            let graph_preset = if screen == "timeline-graph" {
+                workspace::Preset::Default
+            } else {
+                workspace::Preset::Animation
+            };
             let mut paint = PaintList::default();
             paint.stylesheet = styles.clone();
             match screen {
@@ -51,11 +57,10 @@ impl Shell {
                     );
                 }
                 _ => {
-                    let old = self.panels.timeline.graph_mode;
-                    let speed = self.panels.timeline.speed_graph;
+                    let old = self.panels.timeline.clone();
                     let controls = std::mem::take(&mut self.panels.animation_controls);
                     let preset = self.panels.workspace_preset;
-                    self.panels.workspace_preset = workspace::Preset::Animation;
+                    self.panels.workspace_preset = graph_preset;
                     if let Some(object) = self.panels.selected {
                         if let Some(frame) = self.state["timeline_layers"]
                             .as_array()
@@ -73,9 +78,9 @@ impl Shell {
                         }
                     }
 
-                    self.panels.timeline.graph_mode = true;
+                    self.panels.timeline.set_graph_mode(true);
                     self.panels.timeline.speed_graph = screen == "speed-graph";
-                    let layout = workspace::Workspace::design_layout(workspace::Preset::Animation);
+                    let layout = workspace::Workspace::design_layout(graph_preset);
                     let actions = panels::chrome(
                         &mut paint,
                         &mut self.atlas,
@@ -88,8 +93,7 @@ impl Shell {
                     if !actions.is_empty() {
                         return Err("design capture must not edit the project".into());
                     }
-                    self.panels.timeline.graph_mode = old;
-                    self.panels.timeline.speed_graph = speed;
+                    self.panels.timeline = old;
                     self.panels.animation_controls = controls;
                     self.panels.workspace_preset = preset;
                 }
@@ -100,7 +104,7 @@ impl Shell {
                 ui.node_preview = None;
             } else {
                 let view = panels::composition_view(
-                    &workspace::Workspace::design_layout(workspace::Preset::Animation),
+                    &workspace::Workspace::design_layout(graph_preset),
                     size,
                 );
                 ui.composition = Some([

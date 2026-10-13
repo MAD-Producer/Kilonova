@@ -37,7 +37,9 @@ impl Shell {
             self.engine.close_window(floating.key)?;
         }
         self.panels.workspace_preset = preset;
-        self.panels.timeline.graph_mode = preset == workspace::Preset::Animation;
+        self.panels
+            .timeline
+            .set_graph_mode(preset == workspace::Preset::Animation);
         self.panels.focused = Some(match preset {
             workspace::Preset::Nodes => dock::Panel::Nodes,
             workspace::Preset::Drawing => dock::Panel::Vector,

@@ -223,7 +223,6 @@ pub(super) fn render(
         super::graph_workspace::render(list, atlas, area, panels, state, input, out);
         return;
     }
-    panels.timeline.graph_fitted = false;
     let styles = list.styles();
     let row_height = styles.metric("row.height", 22.);
     let colors = styles.colors();
@@ -363,25 +362,24 @@ pub(super) fn render(
             list,
             atlas,
             Rect::new(area.min[0] + gutter - 98., area.min[1] + 5., 90., 25.),
-            if panels.timeline.graph_mode {
-                if locale == Locale::Zh {
-                    "时间轴"
-                } else {
-                    "Timeline"
-                }
+            if locale == Locale::Zh {
+                "曲线编辑"
             } else {
-                if locale == Locale::Zh {
-                    "曲线"
-                } else {
-                    "Graph"
-                }
+                "Graph editor"
             },
             input,
             true,
         )
         .clicked
         {
-            panels.timeline.graph_mode = !panels.timeline.graph_mode;
+            out.extend(super::cancel_interaction(panels));
+            panels.timeline.set_graph_mode(true);
+            let neutral = Input {
+                mouse: input.mouse,
+                ..Default::default()
+            };
+            super::graph_workspace::render(list, atlas, area, panels, state, &neutral, out);
+            return;
         }
     }
     let search = Rect::new(

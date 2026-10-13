@@ -140,7 +140,14 @@ pub(super) fn render(
         )
         .clicked
         {
-            panels.timeline.graph_mode = false;
+            out.extend(super::cancel_interaction(panels));
+            panels.timeline.set_graph_mode(false);
+            let neutral = Input {
+                mouse: input.mouse,
+                ..Default::default()
+            };
+            super::timeline::render(list, atlas, area, panels, state, &neutral, out);
+            return;
         }
     }
     let top = area.min[1] + 28.;

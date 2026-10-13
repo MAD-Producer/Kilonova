@@ -268,21 +268,7 @@ pub fn chrome(
             Some(Node::Dock { id, tabs, active }) => (*id, tabs.clone(), *active),
             _ => (f.panel.dock(), vec![f.panel.dock()], 0),
         };
-        let animation_title = if panels.locale == Locale::Zh {
-            "动画编辑器"
-        } else {
-            "Animation editor"
-        };
-        let titles: Vec<_> = tabs
-            .iter()
-            .map(|id| {
-                if *id == Panel::Timeline.dock() && panels.timeline.graph_mode {
-                    animation_title
-                } else {
-                    panels.locale.panel(*id)
-                }
-            })
-            .collect();
+        let titles: Vec<_> = tabs.iter().map(|id| panels.locale.panel(*id)).collect();
         let layer = state["project"]["layers"]
             .as_array()
             .and_then(|ls| ls.iter().find(|l| l["id"].as_u64() == panels.selected));

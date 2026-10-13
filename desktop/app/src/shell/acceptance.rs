@@ -23,10 +23,10 @@ impl Shell {
             let revision = self.state["revision"].clone();
             let screenshot = self.capture_panel_float(panel)?;
             let value_graph = if panel == dock::Panel::Timeline {
-                let previous = self.panels.timeline.graph_mode;
-                self.panels.timeline.graph_mode = true;
+                let previous = self.panels.timeline.clone();
+                self.panels.timeline.set_graph_mode(true);
                 let graph = self.capture_panel_float(panel);
-                self.panels.timeline.graph_mode = previous;
+                self.panels.timeline = previous;
                 Some(graph?)
             } else {
                 None

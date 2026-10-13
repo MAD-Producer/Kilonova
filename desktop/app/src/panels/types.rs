@@ -186,7 +186,15 @@ pub(crate) struct PropertiesState {
     pub field: Option<Field>,
 }
 
-#[derive(Default)]
+#[derive(Clone, Copy)]
+pub(super) struct TimelineViewport {
+    zoom: f32,
+    offset: f32,
+    scroll: f32,
+    fitted: bool,
+}
+
+#[derive(Clone, Default)]
 pub(crate) struct TimelineState {
     pub rows_cache: Option<(
         (String, String, u64),
@@ -196,6 +204,8 @@ pub(crate) struct TimelineState {
     pub collapsed_transforms: std::collections::HashSet<u64>,
     pub filters: std::collections::HashMap<u64, PropertyFilter>,
     pub graph_mode: bool,
+    pub(super) clip_view: Option<TimelineViewport>,
+    pub(super) curve_view: Option<TimelineViewport>,
     pub speed_graph: bool,
     pub graph_component: usize,
     pub graph_fitted: bool,
@@ -225,6 +235,36 @@ pub(crate) enum PropertyFilter {
     Animated,
 }
 impl TimelineState {
+    pub fn set_graph_mode(&mut self, enabled: bool) {
+        if self.graph_mode == enabled {
+            return;
+        }
+        let current = TimelineViewport {
+            zoom: self.zoom,
+            offset: self.offset,
+            scroll: self.scroll,
+            fitted: self.graph_fitted,
+        };
+        let restore = if enabled {
+            self.clip_view = Some(current);
+            self.curve_view
+        } else {
+            self.curve_view = Some(current);
+            self.clip_view
+        };
+        if let Some(view) = restore {
+            self.zoom = view.zoom;
+            self.offset = view.offset;
+            self.scroll = view.scroll;
+            self.graph_fitted = view.fitted;
+        } else if enabled {
+            self.graph_fitted = false;
+        }
+        self.graph_mode = enabled;
+        self.scrubbing = false;
+        self.last_seek = None;
+        self.snap_guide = None;
+    }
     pub fn reopen_properties(&mut self, object: u64) {
         if self.filters.get(&object) == Some(&PropertyFilter::Properties(0)) {
             self.filters.remove(&object);
