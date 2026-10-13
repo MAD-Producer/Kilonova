@@ -45,12 +45,12 @@ fn state_precedence_retains_focus_border_and_disabled_overrides_primary_backgrou
         .with(State::Pressed)
         .with(State::Focused);
     let style = sheet.resolve("button", states).unwrap();
-    assert_eq!(style.border, Color::rgb(55, 142, 240));
-    assert_eq!(style.background, Color::rgb(39, 63, 88));
+    assert_eq!(style.border, Color::rgb(97, 168, 245));
+    assert_eq!(style.background, Color::rgb(48, 69, 89));
     let disabled = sheet
         .resolve("button.primary", states.with(State::Disabled))
         .unwrap();
-    assert_eq!(disabled.background, Color::grey(28));
+    assert_eq!(disabled.background, Color::grey(35));
     assert_eq!(disabled.foreground, Color::grey(133));
     assert_eq!(disabled.border_width, 0.);
     assert_eq!(

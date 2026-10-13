@@ -10,6 +10,7 @@ pub(super) fn render(
     out: &mut Vec<Action>,
 ) {
     let v = viewer(area);
+    let surround = list.styles().color("field");
     // Paint the viewer surround, leaving its contents to the shared GPU renderer.
     for r in [
         Rect::new(
@@ -22,54 +23,30 @@ pub(super) fn render(
         Rect::new(v.max[0], v.min[1], area.max[0] - v.max[0], v.height()),
         Rect::new(area.min[0], v.max[1], area.width(), area.max[1] - v.max[1]),
     ] {
-        paint::rect(list, r, motion_ui::theme::Color::grey(37));
+        paint::rect(list, r, surround);
     }
-    let controls = Rect::new(
-        area.min[0] + 8.0,
-        area.max[1] - 29.0,
-        area.width() - 16.0,
-        24.0,
-    );
-    button(
-        list,
-        atlas,
-        Rect::new(controls.min[0], controls.min[1], 30.0, 24.0),
-        "|<",
-        input,
-        true,
-        Action::Seek(0.0),
-        out,
-    );
-    button(
-        list,
-        atlas,
-        Rect::new(controls.min[0] + 36.0, controls.min[1], 54.0, 24.0),
-        if panels.playing {
-            panels.locale.t(T::Pause)
-        } else {
-            panels.locale.t(T::Play)
-        },
-        input,
-        true,
-        Action::TogglePlay,
-        out,
-    );
-    let fps = state["project"]["fps"].as_u64().unwrap_or(30) as u32;
+    let sheet = list.styles();
+    let colors = sheet.colors();
+    let controls = Rect::new(area.min[0], area.max[1] - 28., area.width(), 28.);
+    paint::rect(list, controls, colors.CHROME);
+    let pw = state["project"]["width"].as_f64().unwrap_or(1920.) as f32;
+    let ph = state["project"]["height"].as_f64().unwrap_or(1080.) as f32;
+    let scale = (v.width() / pw).min(v.height() / ph) * 100.;
     label(
         list,
         atlas,
-        Rect::new(
-            controls.min[0] + 108.0,
-            controls.min[1],
-            controls.width() - 108.0,
-            24.0,
-        ),
-        &format!(
-            "{}   ·   {}",
-            timecode(state["frame"].as_f64().unwrap_or(0.0), fps),
-            panels.locale.t(T::Fit)
-        ),
-        false,
+        Rect::new(controls.min[0] + 8., controls.min[1], 60., 28.),
+        &format!("{scale:.1}%"),
+        true,
+    );
+    let fps = state["project"]["fps"].as_u64().unwrap_or(30) as u32;
+    motion_ui::style::text_style(
+        list,
+        atlas,
+        Rect::new(controls.min[0] + 72., controls.min[1], 116., 28.),
+        &timecode(state["frame"].as_f64().unwrap_or(0.), fps),
+        sheet.resolve("label.accent", Default::default()).unwrap(),
+        Align::Left,
     );
     let (quality, next) = match state["preview"]["mode"].as_str().unwrap_or("auto") {
         "high" => (T::Full, 2),
@@ -80,12 +57,34 @@ pub(super) fn render(
     button(
         list,
         atlas,
-        Rect::new(controls.max[0] - 86.0, controls.min[1], 80.0, 24.0),
+        Rect::new(controls.max[0] - 250., controls.min[1] + 3., 68., 22.),
         panels.locale.t(quality),
         input,
         true,
         Action::PreviewMode(next),
         out,
+    );
+    label(
+        list,
+        atlas,
+        Rect::new(controls.max[0] - 178., controls.min[1], 98., 28.),
+        if panels.locale == Locale::Zh {
+            "活动摄影机"
+        } else {
+            "Active camera"
+        },
+        true,
+    );
+    label(
+        list,
+        atlas,
+        Rect::new(controls.max[0] - 78., controls.min[1], 74., 28.),
+        if panels.locale == Locale::Zh {
+            "1 个视图"
+        } else {
+            "1 view"
+        },
+        true,
     );
     let consumed = panels.path_controls.draw(
         list,
@@ -97,12 +96,23 @@ pub(super) fn render(
         panels.locale,
         out,
     );
-    let consumed = if panels.path_controls.tool==super::path_controls::Tool::Select {
-        panels.transform_controls.draw(list,v,state,panels.selected,input,out) || consumed
-    }else{consumed};
-    if let Some(cursor)=panels.transform_controls.cursor {panels.cursor=Some(cursor);}
-    if input.pressed.is_some_and(|(b,p)|b==MouseButton::Left&&v.contains(p)) && !consumed {
-        let point=input.pressed.unwrap().1;
+    let consumed = if panels.path_controls.tool == super::path_controls::Tool::Select {
+        panels
+            .transform_controls
+            .draw(list, v, state, panels.selected, input, out)
+            || consumed
+    } else {
+        consumed
+    };
+    if let Some(cursor) = panels.transform_controls.cursor {
+        panels.cursor = Some(cursor);
+    }
+    if input
+        .pressed
+        .is_some_and(|(b, p)| b == MouseButton::Left && v.contains(p))
+        && !consumed
+    {
+        let point = input.pressed.unwrap().1;
         let w = state["project"]["width"].as_f64().unwrap_or(1.0);
         let h = state["project"]["height"].as_f64().unwrap_or(1.0);
         let scale = (v.width() as f64 / w).min(v.height() as f64 / h);

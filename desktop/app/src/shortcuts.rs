@@ -12,6 +12,7 @@ pub enum Scope {
 pub enum Command {
     ReloadStyle,
     NewProject,
+    NewComposition,
     Open,
     Save,
     SaveAs,
@@ -88,6 +89,7 @@ pub fn resolve(scope: Scope, key: Key, m: Modifiers, repeat: bool) -> Option<Com
         (_, Key::D, true, false, false) => Duplicate,
         (_, Key::Delete | Key::Backspace, false, false, false) => Delete,
         (Application, Key::N, true, false, true) => NewProject,
+        (Application, Key::N, true, false, false) => NewComposition,
         (Application, Key::I, true, false, false) => Import,
         (Application, Key::K, true, false, false) => Settings,
         (Application, Key::M, true, false, true) => Export,

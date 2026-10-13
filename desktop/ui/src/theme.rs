@@ -47,7 +47,7 @@ impl Colors {
         Self {
             APP_BACKGROUND: sheet.color("app"),
             PANEL: sheet.color("panel"),
-            SUNKEN: sheet.color("app"),
+            SUNKEN: sheet.color("well"),
             CHROME: sheet.color("raised"),
             HEADER: sheet.color("header"),
             BORDER: sheet.color("border"),
@@ -70,11 +70,12 @@ impl Colors {
 /// Panel metrics in logical pixels at 100% UI scale.
 pub mod metrics {
     /// Height of the application menu bar.
+    pub const TITLE_BAR: f32 = 24.0;
     pub const MENU_BAR: f32 = 24.0;
     /// Height of the compact tool bar under the menu bar.
     pub const TOOL_BAR: f32 = 32.0;
     /// Height of a panel tab strip.
-    pub const TAB_BAR: f32 = 26.0;
+    pub const TAB_BAR: f32 = 24.0;
     /// Height of one timeline layer row.
     pub const ROW: f32 = 24.0;
     /// Width of the timeline ruler gutter.

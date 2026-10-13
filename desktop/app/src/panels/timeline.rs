@@ -15,13 +15,13 @@ pub(super) struct Row {
 
 pub(super) struct PropertyRow {
     pub property: Property,
-    key: &'static str,
-    title: T,
+    pub key: &'static str,
+    pub title: T,
     pub axis: Option<usize>,
     pub axes: Vec<usize>,
     pub keys: Vec<f64>,
 }
-fn property_rows(state: &Value, object: u64) -> Vec<PropertyRow> {
+pub(super) fn property_rows(state: &Value, object: u64) -> Vec<PropertyRow> {
     let layer = state["project"]["layers"]
         .as_array()
         .and_then(|ls| ls.iter().find(|l| l["id"].as_u64() == Some(object)));
@@ -219,6 +219,11 @@ pub(super) fn render(
     input: &Input,
     out: &mut Vec<Action>,
 ) {
+    if panels.timeline.graph_mode {
+        super::graph_workspace::render(list, atlas, area, panels, state, input, out);
+        return;
+    }
+    panels.timeline.graph_fitted = false;
     let styles = list.styles();
     let row_height = styles.metric("row.height", 22.);
     let colors = styles.colors();
@@ -255,7 +260,7 @@ pub(super) fn render(
         .iter()
         .filter(|row| query.is_empty() || row.name.to_lowercase().contains(&query))
         .collect();
-    let gutter = GUTTER.min(area.width() * 0.4);
+    let gutter = if graph_mode { 320. } else { GUTTER }.min(area.width() * 0.52);
     let track = Rect::new(
         area.min[0] + gutter,
         area.min[1],
@@ -347,13 +352,13 @@ pub(super) fn render(
             foreground: colors.ACCENT,
             ..styles
                 .as_ref()
-                .resolve("label.title", Default::default())
+                .resolve("label", Default::default())
                 .unwrap()
         },
         Align::Left,
     );
     let locale = panels.locale;
-    if gutter >= 370. {
+    if gutter >= 220. {
         if ui::button(
             list,
             atlas,
@@ -764,7 +769,7 @@ pub(super) fn render(
         let name = Rect::new(
             area.min[0] + 112.0,
             y,
-            (gutter - 320.0).max(1.0),
+            (gutter - 212.0).max(1.0),
             row_height,
         );
         let selected = panels.selected == Some(row.id);
@@ -1194,7 +1199,7 @@ fn render_timeline_context_menu(
     let menu_y = pos[1].clamp(area.min[1], (area.max[1] - menu_height).max(area.min[1]));
 
     let menu_rect = Rect::new(menu_x, menu_y, menu_width, menu_height);
-    list.glyphs.retain(|g| {
+    list.retain_glyphs(|g| {
         g.position[0] + g.size[0] <= menu_rect.min[0]
             || g.position[0] >= menu_rect.max[0]
             || g.position[1] + g.size[1] <= menu_rect.min[1]
@@ -1256,8 +1261,9 @@ mod property_tests {
         let mut panels = Panels::default();
         let mut atlas = TextAtlas::from_system(12.).unwrap();
         let area = Rect::new(0., 0., 1200., 600.);
-        let ppf = (1200. - GUTTER) / 120.;
-        let point = |frame: f32| [GUTTER + frame * ppf, 45.];
+        let gutter = GUTTER.min(1200. * 0.52);
+        let ppf = (1200. - gutter - 8.) / 120.;
+        let point = |frame: f32| [gutter + frame * ppf, 45.];
         let mut actions = vec![];
         render(
             &mut PaintList::default(),
@@ -1327,7 +1333,7 @@ mod property_tests {
     fn holding_the_same_timeline_frame_leaves_room_for_presentation() {
         let mut panels = Panels::default();
         let mut atlas = TextAtlas::from_system(12.).unwrap();
-        let point = [600., 45.];
+        let point = [760., 45.];
         let mut input = Input {
             mouse: point,
             pressed: Some((MouseButton::Left, point)),
@@ -1391,7 +1397,7 @@ mod property_tests {
         panels.timeline.expanded.insert(7);
         let mut atlas = TextAtlas::from_system(12.).unwrap();
         let area = Rect::new(0., 0., 1200., 600.);
-        let point = [247., 124.];
+        let point = [335., 124.];
         let mut actions = vec![];
         for input in [
             Input {

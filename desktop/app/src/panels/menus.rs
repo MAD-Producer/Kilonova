@@ -15,7 +15,7 @@ pub(super) fn render(
     let locale = panels.locale;
     paint::rect(
         list,
-        Rect::new(0.0, 0.0, size[0], metrics::MENU_BAR),
+        Rect::new(0.0, metrics::TITLE_BAR, size[0], metrics::MENU_BAR),
         colors.CHROME,
     );
     let mut x = 8.0;
@@ -36,7 +36,7 @@ pub(super) fn render(
     {
         let name = locale.t(key);
         let width = atlas.measure(name) + 22.0;
-        let r = Rect::new(x, 0.0, width, metrics::MENU_BAR);
+        let r = Rect::new(x, metrics::TITLE_BAR, width, metrics::MENU_BAR);
         starts.push(x);
         if r.contains(input.mouse) || panels.menu == Some(i) {
             paint::rect(list, r, colors.SUNKEN);
@@ -44,7 +44,12 @@ pub(super) fn render(
         label(
             list,
             atlas,
-            Rect::new(x + 10.0, 0.0, width - 20.0, metrics::MENU_BAR),
+            Rect::new(
+                x + 10.0,
+                metrics::TITLE_BAR,
+                width - 20.0,
+                metrics::MENU_BAR,
+            ),
             name,
             false,
         );
@@ -57,18 +62,6 @@ pub(super) fn render(
         }
         x += width;
     }
-    label(
-        list,
-        atlas,
-        Rect::new(
-            (size[0] - 160.0).max(x + 12.0),
-            0.0,
-            150.0,
-            metrics::MENU_BAR,
-        ),
-        "Motion Studio",
-        true,
-    );
     if let Some(menu) = panels.menu {
         let selected = panels.selected.filter(|id| *id != 0);
         let frame = state["frame"].as_f64().unwrap_or(0.0).floor() as u32;
@@ -223,12 +216,12 @@ pub(super) fn render(
                 .copied()
                 .unwrap_or(8.0)
                 .min((size[0] - 280.0).max(0.0)),
-            metrics::MENU_BAR,
+            metrics::TITLE_BAR + metrics::MENU_BAR,
             280.0,
             entries.len() as f32 * 32.0 + 8.0,
         );
         // Text is drawn in a second GPU pass: remove covered labels before drawing the popup.
-        list.glyphs.retain(|g| {
+        list.retain_glyphs(|g| {
             g.position[0] + g.size[0] <= popup.min[0]
                 || g.position[0] >= popup.max[0]
                 || g.position[1] + g.size[1] <= popup.min[1]
@@ -258,10 +251,9 @@ pub(super) fn render(
                 panels.menu = None;
             }
         }
-        if input
-            .pressed
-            .is_some_and(|(_, p)| !popup.contains(p) && p[1] >= metrics::MENU_BAR)
-        {
+        if input.pressed.is_some_and(|(_, p)| {
+            !popup.contains(p) && p[1] >= metrics::TITLE_BAR + metrics::MENU_BAR
+        }) {
             panels.menu = None;
         }
     }

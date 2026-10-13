@@ -152,7 +152,7 @@ fn repeated_p_can_be_reopened_manually_in_both_property_views() {
         let point = if focused == Panel::Timeline {
             [81., 76.]
         } else {
-            [60., 129.]
+            [60., 41.]
         };
         let input = Input {
             mouse: point,
@@ -557,7 +557,9 @@ fn graph_toggle_preserves_layer_property_playhead_and_has_no_vertical_grid() {
     assert!(paint
         .shapes
         .iter()
-        .any(|s| matches!(s,motion_ui::paint::Shape::Line {points} if points.len()>100)));
+        .zip(&paint.colors)
+        .any(|(shape, color)| *color == paint.styles().color("curve")
+            && matches!(shape,motion_ui::paint::Shape::Triangles {points} if points.len()>100)));
     assert!(!paint.shapes.iter().any(|s|matches!(s,motion_ui::paint::Shape::Line {points} if points.len()==2 && points[0][0]==points[1][0] && points[0][1]!=points[1][1])));
     invoke(
         &mut panels,
@@ -579,7 +581,7 @@ fn clicking_a_value_graph_key_selects_its_channel_without_editing_the_layer() {
     let mut panels = panels();
     let mut atlas = TextAtlas::from_system(13.).unwrap();
     let mut out = vec![];
-    let point = [320., 302.];
+    let point = [384., 281.];
     timeline_graph::render(
         &mut PaintList::default(),
         &mut atlas,
@@ -595,7 +597,7 @@ fn clicking_a_value_graph_key_selects_its_channel_without_editing_the_layer() {
         10.,
         &mut out,
     );
-    assert!(matches!(out.as_slice(), [Action::Seek(32.)]));
+    assert!(matches!(out.as_slice(), [Action::Seek(32.)]), "{out:?}");
     assert_eq!(
         panels.animation_controls.user_key(),
         Some(types::KeySelection {
@@ -664,4 +666,350 @@ fn fields_search_ime_and_drag_own_animation_shortcuts() {
         },
     );
     assert!(!panels.timeline.graph_mode);
+}
+
+fn apply_graph_actions(engine: &mut Engine, actions: Vec<Action>) {
+    for action in actions {
+        match action {
+            Action::Edit(command) => engine.apply(command).unwrap(),
+            Action::History(2) => engine.begin_gesture().unwrap(),
+            Action::History(3) => engine.end_gesture(true).unwrap(),
+            Action::History(4) => engine.end_gesture(false).unwrap(),
+            Action::Seek(_) => {}
+            other => panic!("unexpected {other:?}"),
+        }
+    }
+}
+#[test]
+fn graph_axis_drag_preserves_other_axes_and_moves_one_undoable_key() {
+    let mut engine = engine();
+    let before = engine.project().clone();
+    let snapshot = state(&engine, 32.);
+    let mut panels = panels();
+    let source = animation_data::channel(&snapshot, 7, Property::Position, None).unwrap();
+    let press = Input {
+        mouse: [320., 100.],
+        pressed: Some((MouseButton::Left, [320., 100.])),
+        ..Default::default()
+    };
+    let mut actions = vec![];
+    graph_keys::begin(
+        &mut panels,
+        &snapshot,
+        7,
+        Property::Position,
+        None,
+        1,
+        source,
+        32,
+        [320., 100.],
+        50.,
+        [0., 200.],
+        &press,
+        &mut actions,
+    );
+    assert!(actions.is_empty());
+    let held = Input {
+        mouse: [340., 80.],
+        held: Some(MouseButton::Left),
+        ..Default::default()
+    };
+    graph_keys::update(
+        &mut panels,
+        &snapshot,
+        Rect::new(0., 0., 600., 200.),
+        10.,
+        1.,
+        source,
+        &held,
+        &mut actions,
+    );
+    assert_eq!(
+        actions
+            .iter()
+            .filter(|a| matches!(a, Action::History(2)))
+            .count(),
+        1
+    );
+    apply_graph_actions(&mut engine, std::mem::take(&mut actions));
+    let snapshot = state(&engine, 34.);
+    let source = animation_data::channel(&snapshot, 7, Property::Position, None).unwrap();
+    graph_keys::update(
+        &mut panels,
+        &snapshot,
+        Rect::new(0., 0., 600., 200.),
+        10.,
+        1.,
+        source,
+        &held,
+        &mut actions,
+    );
+    assert!(
+        actions.is_empty(),
+        "holding still must leave room for presentation"
+    );
+    let release = Input {
+        mouse: held.mouse,
+        released: Some((MouseButton::Left, held.mouse)),
+        ..Default::default()
+    };
+    graph_keys::update(
+        &mut panels,
+        &snapshot,
+        Rect::new(0., 0., 600., 200.),
+        10.,
+        1.,
+        source,
+        &release,
+        &mut actions,
+    );
+    apply_graph_actions(&mut engine, actions);
+    let track = &engine.project().layers[0].transform.position;
+    assert_eq!(track.keys[1].frame, 22); // composition frame 34, layer offset 12
+    assert_eq!(track.keys[1].value, [100., 70., 20.]);
+    assert!(track.axes.is_none());
+    engine.undo().unwrap();
+    assert_eq!(engine.project(), &before);
+}
+#[test]
+fn graph_drag_return_to_origin_then_cancel_restores_engine_bytes() {
+    let mut engine = engine();
+    let before = serde_json::to_vec(engine.project()).unwrap();
+    let snapshot = state(&engine, 32.);
+    let mut panels = panels();
+    let source = animation_data::channel(&snapshot, 7, Property::Position, None).unwrap();
+    let mut actions = vec![];
+    let press = Input {
+        mouse: [320., 100.],
+        pressed: Some((MouseButton::Left, [320., 100.])),
+        ..Default::default()
+    };
+    graph_keys::begin(
+        &mut panels,
+        &snapshot,
+        7,
+        Property::Position,
+        None,
+        0,
+        source,
+        32,
+        [320., 100.],
+        100.,
+        [0., 200.],
+        &press,
+        &mut actions,
+    );
+    for mouse in [[320., 80.], [320., 100.]] {
+        let snapshot = state(&engine, 32.);
+        let source = animation_data::channel(&snapshot, 7, Property::Position, None).unwrap();
+        graph_keys::update(
+            &mut panels,
+            &snapshot,
+            Rect::new(0., 0., 600., 200.),
+            10.,
+            1.,
+            source,
+            &Input {
+                mouse,
+                held: Some(MouseButton::Left),
+                ..Default::default()
+            },
+            &mut actions,
+        );
+        apply_graph_actions(&mut engine, std::mem::take(&mut actions));
+    }
+    assert_eq!(serde_json::to_vec(engine.project()).unwrap(), before);
+    let snapshot = state(&engine, 32.);
+    let source = animation_data::channel(&snapshot, 7, Property::Position, None).unwrap();
+    graph_keys::update(
+        &mut panels,
+        &snapshot,
+        Rect::new(0., 0., 600., 200.),
+        10.,
+        1.,
+        source,
+        &Input {
+            keys: vec![(Key::Escape, Modifiers::default())],
+            ..Default::default()
+        },
+        &mut actions,
+    );
+    apply_graph_actions(&mut engine, actions);
+    assert_eq!(serde_json::to_vec(engine.project()).unwrap(), before);
+    assert!(panels.timeline.key_drag.is_none());
+}
+
+#[test]
+fn graph_property_tree_selects_y_without_separating_or_editing_the_track() {
+    let engine = engine();
+    let snapshot = state(&engine, 32.);
+    let before = engine.snapshot();
+    let mut panels = panels();
+    panels.timeline.expanded.insert(7);
+    let mut atlas = TextAtlas::from_system(12.).unwrap();
+    let mut actions = vec![];
+    let point = [90., 151.];
+    graph_workspace::render(
+        &mut PaintList::default(),
+        &mut atlas,
+        Rect::new(0., 0., 1200., 600.),
+        &mut panels,
+        &snapshot,
+        &Input {
+            mouse: point,
+            pressed: Some((MouseButton::Left, point)),
+            ..Default::default()
+        },
+        &mut actions,
+    );
+    assert!(actions.is_empty());
+    assert_eq!(panels.selected, Some(7));
+    assert_eq!(panels.timeline.graph_component, 1);
+    assert_eq!(panels.animation_controls.property, Some(Property::Position));
+    assert_eq!(panels.animation_controls.axis, None);
+    assert_eq!(engine.snapshot(), before);
+}
+
+#[test]
+fn visible_bezier_handles_edit_the_curve_without_moving_keyframes() {
+    let mut engine = engine();
+    let before = engine.project().clone();
+    let snapshot = state(&engine, 32.);
+    let mut panels = panels();
+    panels
+        .animation_controls
+        .select_key(7, Property::Position, None, 32);
+    let source = animation_data::channel(&snapshot, 7, Property::Position, None).unwrap();
+    let mut atlas = TextAtlas::from_system(12.).unwrap();
+    let mut list = PaintList::default();
+    let mut actions = vec![];
+    let plot = graph_handles::Plot {
+        area: Rect::new(0., 0., 600., 200.),
+        offset: 12.,
+        ppf: 10.,
+        low: 0.,
+        high: 200.,
+        speed: false,
+        fps: 30.,
+        scale: 1.,
+    };
+    graph_handles::draw(
+        &mut list,
+        &mut atlas,
+        &mut panels,
+        source,
+        7,
+        Property::Position,
+        None,
+        0,
+        plot,
+        &Input::default(),
+        false,
+        &mut actions,
+    );
+    let circles=list.shapes.iter().filter(|shape|matches!(shape,motion_ui::paint::Shape::Procedural{kind:motion_ui::paint::Pattern::Box{radius,..},..}if *radius==4.)).count();
+    assert_eq!(
+        circles, 4,
+        "both handles of each adjacent segment must be visible"
+    );
+    assert!(actions.is_empty());
+    let point = [200. / 3. * 2., 200. - 100. / 3. * 2.];
+    graph_handles::draw(
+        &mut PaintList::default(),
+        &mut atlas,
+        &mut panels,
+        source,
+        7,
+        Property::Position,
+        None,
+        0,
+        plot,
+        &Input {
+            mouse: point,
+            pressed: Some((MouseButton::Left, point)),
+            ..Default::default()
+        },
+        false,
+        &mut actions,
+    );
+    assert!(actions.is_empty());
+    assert!(panels.timeline.graph_drag.is_some());
+    let held = Input {
+        mouse: [160., 120.],
+        held: Some(MouseButton::Left),
+        modifiers: Modifiers {
+            alt: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    graph_handles::draw(
+        &mut PaintList::default(),
+        &mut atlas,
+        &mut panels,
+        source,
+        7,
+        Property::Position,
+        None,
+        0,
+        plot,
+        &held,
+        false,
+        &mut actions,
+    );
+    apply_graph_actions(&mut engine, std::mem::take(&mut actions));
+    let snapshot = state(&engine, 32.);
+    let source = animation_data::channel(&snapshot, 7, Property::Position, None).unwrap();
+    graph_handles::draw(
+        &mut PaintList::default(),
+        &mut atlas,
+        &mut panels,
+        source,
+        7,
+        Property::Position,
+        None,
+        0,
+        plot,
+        &held,
+        false,
+        &mut actions,
+    );
+    assert!(
+        actions.is_empty(),
+        "stationary handle must not resubmit an edit"
+    );
+    graph_handles::draw(
+        &mut PaintList::default(),
+        &mut atlas,
+        &mut panels,
+        source,
+        7,
+        Property::Position,
+        None,
+        0,
+        plot,
+        &Input {
+            mouse: held.mouse,
+            released: Some((MouseButton::Left, held.mouse)),
+            ..Default::default()
+        },
+        false,
+        &mut actions,
+    );
+    apply_graph_actions(&mut engine, actions);
+    let actual = &engine.project().layers[0].transform.position.keys;
+    let original = &before.layers[0].transform.position.keys;
+    assert_eq!(
+        actual
+            .iter()
+            .map(|k| (k.frame, k.value))
+            .collect::<Vec<_>>(),
+        original
+            .iter()
+            .map(|k| (k.frame, k.value))
+            .collect::<Vec<_>>()
+    );
+    assert_ne!(actual[0].curve, original[0].curve);
+    engine.undo().unwrap();
+    assert_eq!(engine.project(), &before);
 }

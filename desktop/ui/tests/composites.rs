@@ -415,6 +415,6 @@ fn property_columns_stack_on_narrow_panels_without_overlap_and_keep_numeric_widt
                 || columns.label.max[1] <= columns.value.min[1]
         );
         assert!(columns.value.max[0] <= width);
-        assert_eq!(sheet.color("focus"), Color::rgb(55, 142, 240));
+        assert_eq!(sheet.color("focus"), Color::rgb(97, 168, 245));
     }
 }

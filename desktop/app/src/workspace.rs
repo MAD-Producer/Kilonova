@@ -1,14 +1,38 @@
 //! Application preferences wrap the reusable UI workspace; no editor state is stored here.
+mod manager;
+mod presets;
+pub use manager::{Manager, ManagerEvent};
 pub use motion_ui::workspace::{Change, WindowGeometry};
 use motion_ui::{
     dock::{self, DockId, Edge},
     input::{Input, Rect},
 };
+pub use presets::{Preset, SavedLayout};
 use std::path::Path;
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct RecentProject {
+    pub root: std::path::PathBuf,
+    pub name: String,
+    pub width: u32,
+    pub height: u32,
+    pub fps: u32,
+}
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct Workspace {
     #[serde(default)]
     pub locale: crate::i18n::Locale,
+    #[serde(default)]
+    pub preset: Preset,
+    #[serde(default)]
+    pub recent_projects: Vec<RecentProject>,
+    #[serde(default)]
+    design_revision: u32,
+    #[serde(default)]
+    preset_layouts: std::collections::BTreeMap<Preset, SavedLayout>,
+    #[serde(default)]
+    legacy_layout: Option<SavedLayout>,
+    #[serde(default)]
+    pub named_layouts: std::collections::BTreeMap<String, SavedLayout>,
     #[serde(default)]
     pub style_path: Option<std::path::PathBuf>,
     #[serde(default)]
@@ -20,6 +44,12 @@ impl Default for Workspace {
     fn default() -> Self {
         Self {
             locale: Default::default(),
+            preset: Default::default(),
+            recent_projects: vec![],
+            design_revision: 1,
+            preset_layouts: Default::default(),
+            legacy_layout: None,
+            named_layouts: Default::default(),
             favorites: Default::default(),
             style_path: None,
             layout: Default::default(),
@@ -56,6 +86,10 @@ impl Workspace {
             .filter(|bytes| bytes.len() <= 64 * 1024)
             .and_then(|bytes| serde_json::from_slice::<Self>(&bytes).ok())
             .filter(|w| w.valid())
+            .map(|mut w| {
+                w.migrate_design();
+                w
+            })
             .unwrap_or_default()
     }
     pub fn save(&self, path: &Path) -> Result<(), String> {
@@ -109,7 +143,7 @@ impl Workspace {
                 0.,
                 crate::panels::CHROME_HEIGHT,
                 size[0],
-                (size[1] - crate::panels::CHROME_HEIGHT - 22.).max(0.),
+                (size[1] - crate::panels::CHROME_HEIGHT - 20.).max(0.),
             ),
             0.,
         )

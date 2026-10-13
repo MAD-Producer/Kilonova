@@ -1,3 +1,4 @@
+mod composition;
 use crate::i18n::Locale;
 use motion_ui::{
     input::{Input, Key, MouseButton, Rect},
@@ -71,6 +72,7 @@ pub fn imported_faces(path: &std::path::Path) -> Result<Vec<FontChoice>, String>
 }
 pub enum Event {
     Settings(Value),
+    CreateComposition(Value),
     Text {
         text: String,
         size: f32,
@@ -82,10 +84,16 @@ pub enum Event {
 }
 enum Kind {
     Settings,
+    NewComposition,
     Text,
 }
 pub struct Dialog {
     kind: Kind,
+    settings_tab: usize,
+    preset_dropdown: motion_ui::widgets::Dropdown,
+    preset_index: usize,
+    aspect_locked: bool,
+    aspect: f64,
     fields: Vec<String>,
     focus: usize,
     replace: bool,
@@ -130,10 +138,22 @@ fn button(
         .is_some_and(|(b, p)| b == MouseButton::Left && rect.contains(p))
 }
 impl Dialog {
+    pub fn new_composition(width: u32, height: u32) -> Self {
+        let mut dialog = Self::settings(
+            &serde_json::json!({"project":{"name":"合成 1","width":width,"height":height,"fps":30,"frames":300}}),
+        );
+        dialog.kind = Kind::NewComposition;
+        dialog
+    }
     pub fn settings(state: &Value) -> Self {
         let p = &state["project"];
         Self {
             kind: Kind::Settings,
+            settings_tab: 0,
+            preset_dropdown: Default::default(),
+            preset_index: 0,
+            aspect_locked: false,
+            aspect: 16. / 9.,
             fields: vec![
                 p["name"].as_str().unwrap_or("").into(),
                 p["width"].to_string(),
@@ -157,6 +177,11 @@ impl Dialog {
             .or_else(|| (!fonts.is_empty()).then_some(0));
         Self {
             kind: Kind::Text,
+            settings_tab: 0,
+            preset_dropdown: Default::default(),
+            preset_index: 0,
+            aspect_locked: false,
+            aspect: 16. / 9.,
             fields: vec!["Motion Studio".into(), "64".into(), "1024".into()],
             focus: 0,
             replace: true,
@@ -179,6 +204,9 @@ impl Dialog {
         input: &Input,
         locale: Locale,
     ) -> Option<Event> {
+        if !matches!(self.kind, Kind::Text) {
+            return self.composition_ui(list, atlas, size, input, locale);
+        }
         let styles = list.styles();
         let colors = styles.colors();
 
@@ -194,7 +222,9 @@ impl Dialog {
         paint::rect(list, card, colors.PANEL);
         paint::stroke(list, card, colors.BORDER, 1.);
         let title = match self.kind {
-            Kind::Settings => word(locale, "合成设置", "Composition Settings"),
+            Kind::Settings | Kind::NewComposition => {
+                word(locale, "合成设置", "Composition Settings")
+            }
             Kind::Text => word(locale, "新建文字", "New Text Layer"),
         };
         ui::text(
@@ -206,7 +236,7 @@ impl Dialog {
             Align::Left,
         );
         let labels = match self.kind {
-            Kind::Settings => vec![
+            Kind::Settings | Kind::NewComposition => vec![
                 word(locale, "名称", "Name"),
                 word(locale, "宽度", "Width"),
                 word(locale, "高度", "Height"),
@@ -364,7 +394,7 @@ impl Dialog {
         }
         let result = (|| -> Result<Event, String> {
             match self.kind {
-                Kind::Settings => {
+                Kind::Settings | Kind::NewComposition => {
                     let width = self.fields[1]
                         .parse::<u32>()
                         .map_err(|_| word(locale, "宽度必须为整数", "Width must be an integer"))?;
@@ -379,9 +409,12 @@ impl Dialog {
                     })?;
                     motion_core::Project::new(width, height, fps, frames)
                         .map_err(|e| e.to_string())?;
-                    Ok(Event::Settings(
-                        serde_json::json!({"name":self.fields[0],"width":width,"height":height,"fps":fps,"frames":frames,"timing":"preserve_seconds","shorten":"reject"}),
-                    ))
+                    let settings = serde_json::json!({"name":self.fields[0],"width":width,"height":height,"fps":fps,"frames":frames,"timing":"preserve_seconds","shorten":"reject"});
+                    Ok(if matches!(self.kind, Kind::NewComposition) {
+                        Event::CreateComposition(settings)
+                    } else {
+                        Event::Settings(settings)
+                    })
                 }
                 Kind::Text => {
                     let size = self.fields[1]

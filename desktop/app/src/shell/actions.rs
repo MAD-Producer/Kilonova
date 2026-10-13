@@ -96,6 +96,14 @@ impl Shell {
                     self.system_fonts.clone().unwrap_or_default(),
                 ));
             }
+            Action::NewComposition => {
+                self.stop();
+                self.dialog = Some(dialogs::Dialog::new_composition(1920, 1080));
+            }
+            Action::CompositionPreset(w, h) => {
+                self.stop();
+                self.dialog = Some(dialogs::Dialog::new_composition(w, h));
+            }
             Action::CompositionSettings => {
                 self.stop();
                 self.dialog = Some(dialogs::Dialog::settings(&self.state));
@@ -259,7 +267,9 @@ impl Shell {
                 }
             }
             Action::Favorites(favorites) => {
-                self.workspace.favorites = favorites;
+                self.workspace.favorites = favorites.clone();
+                self.panels.browser.favorites = favorites.clone();
+                self.panels.effect_controls.favorites = favorites;
                 if self.smoke.is_none() {
                     self.workspace.save(&self.layout_path)?;
                 }
@@ -295,19 +305,48 @@ impl Shell {
                 }
                 self.panels.message = Some(locale.t(T::Ready).into());
             }
-            Action::ResetWorkspace => {
-                self.panels.node_editor.cancel_interaction();
-                let ids: Vec<_> = self.floating.values().map(|f| f.panel.dock()).collect();
-                for id in ids {
-                    self.redock_panel(id)?;
+            Action::ApplyWorkspace { visible, name } => {
+                for panel in dock::Panel::ALL {
+                    let id = panel.dock();
+                    let action = if visible.contains(&id) {
+                        Action::ShowPanel(id)
+                    } else {
+                        Action::ClosePanel(id)
+                    };
+                    self.action(action, event_loop)?;
                 }
-                self.workspace.root = dock::editor_layout();
-                self.workspace.floating.clear();
-                self.workspace.hidden.clear();
-                self.workspace.cancel();
+                if !name.is_empty() {
+                    self.workspace.save_named(name);
+                }
                 if self.smoke.is_none() {
                     self.workspace.save(&self.layout_path)?;
                 }
+            }
+            Action::ManageWorkspace => {
+                self.workspace_manager = Some(workspace::Manager::new(&self.workspace));
+            }
+            Action::WindowDrag => {
+                if let Some(window) = &self.window {
+                    let _ = window.drag_window();
+                }
+            }
+            Action::WindowClose => self.request_close(),
+            Action::WindowMinimize => {
+                if let Some(window) = &self.window {
+                    window.set_minimized(true);
+                }
+            }
+            Action::WindowMaximize => {
+                if let Some(window) = &self.window {
+                    window.set_maximized(!window.is_maximized());
+                }
+            }
+            Action::Workspace(preset) => {
+                self.switch_workspace(preset, event_loop)?;
+            }
+            Action::ResetWorkspace => {
+                self.switch_workspace(self.workspace.preset, event_loop)?;
+                self.workspace.reset_preset();
             }
             Action::ShowPanel(id) => {
                 self.panels.node_editor.cancel_interaction();

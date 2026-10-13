@@ -18,6 +18,8 @@ fn text_active(panels: &Panels) -> bool {
         || panels.timeline.timeline_search
         || panels.timeline.moving.is_some()
         || panels.timeline.trimming.is_some()
+        || panels.timeline.key_drag.is_some()
+        || panels.timeline.graph_drag.is_some()
         || panels.timeline.scrubbing
         || panels.effect_controls.editing()
         || panels.animation_controls.editing()
@@ -156,6 +158,7 @@ pub fn handle_shortcuts(input: &Input, panels: &mut Panels, state: &Value, out: 
         let action = match command {
             Command::ReloadStyle => Action::ReloadStyle,
             Command::NewProject => Action::New,
+            Command::NewComposition => Action::NewComposition,
             Command::Open => Action::Open,
             Command::Save => Action::Save,
             Command::Import => Action::ImportMedia,
@@ -443,6 +446,7 @@ mod tests {
         assert!(matches!(
             out.as_slice(),
             [
+                Action::NewComposition,
                 Action::New,
                 Action::AddSolid,
                 Action::AddNull,

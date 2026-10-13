@@ -20,6 +20,8 @@ pub struct Controls {
     pub cursor: bool,
     pub drag_readout: Option<([f32; 2], String)>,
     pub choosing: bool,
+    library_tab: usize,
+    recent: Vec<String>,
     query: String,
     search: motion_ui::widgets::SearchField,
     dropdowns: HashMap<(u64, String), motion_ui::widgets::Dropdown>,
@@ -94,6 +96,87 @@ fn press(
         Align::Center,
     );
     enabled && clicked(input, rect)
+}
+fn category(effect: &Value, locale: Locale) -> String {
+    let id = effect["id"].as_str().unwrap_or("").to_lowercase();
+    let key = effect["category"]
+        .as_str()
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| {
+            if id.contains("glow") || id.contains("bloom") || id.contains("light") {
+                "lighting"
+            } else if id.contains("blur") || id.contains("sharp") {
+                "blur-sharpen"
+            } else if id.contains("color")
+                || id.contains("brightness")
+                || id.contains("contrast")
+                || id.contains("level")
+            {
+                "color-correction"
+            } else if id.contains("particle") || id.contains("dust") {
+                "particles"
+            } else if id.contains("transform") || id.contains("displace") || id.contains("warp") {
+                "distort"
+            } else if id.contains("noise") || id.contains("grain") {
+                "noise-grain"
+            } else {
+                "other"
+            }
+        });
+    let zh = locale == Locale::Zh;
+    match key {
+        "lighting" | "light" => {
+            if zh {
+                "光效"
+            } else {
+                "Lighting"
+            }
+        }
+        "blur-sharpen" => {
+            if zh {
+                "模糊与锐化"
+            } else {
+                "Blur & Sharpen"
+            }
+        }
+        "color-correction" => {
+            if zh {
+                "颜色校正"
+            } else {
+                "Color Correction"
+            }
+        }
+        "particles" => {
+            if zh {
+                "粒子"
+            } else {
+                "Particles"
+            }
+        }
+        "distort" => {
+            if zh {
+                "扭曲"
+            } else {
+                "Distort"
+            }
+        }
+        "noise-grain" => {
+            if zh {
+                "噪波与颗粒"
+            } else {
+                "Noise & Grain"
+            }
+        }
+        "other" => {
+            if zh {
+                "其他"
+            } else {
+                "Other"
+            }
+        }
+        _ => return key.replace(['-', '_'], " "),
+    }
+    .into()
 }
 fn dimensions(kind: &str) -> usize {
     match kind {
@@ -273,6 +356,50 @@ impl Controls {
             );
             *y += 34.;
 
+            for (index, label) in [
+                if locale == Locale::Zh {
+                    "全部"
+                } else {
+                    "All"
+                },
+                if locale == Locale::Zh {
+                    "收藏"
+                } else {
+                    "Favorites"
+                },
+                if locale == Locale::Zh {
+                    "最近"
+                } else {
+                    "Recent"
+                },
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let rect = Rect::new(area.min[0] + 12. + index as f32 * 58., *y, 54., 22.);
+                let states = if index == self.library_tab {
+                    motion_ui::style::States::default().with(motion_ui::style::State::Selected)
+                } else {
+                    Default::default()
+                };
+                if ui::button_with_states(
+                    list,
+                    atlas,
+                    rect,
+                    label,
+                    input,
+                    true,
+                    &styles,
+                    "button.icon",
+                    states,
+                )
+                .clicked
+                {
+                    self.library_tab = index;
+                }
+            }
+            *y += 28.;
+            let mut seen = std::collections::HashSet::new();
             // Group effects by category for AE-style organization
             let mut categories: std::collections::HashMap<
                 String,
@@ -285,11 +412,6 @@ impl Controls {
                 .flatten()
                 .filter(|p| p["enabled"] != false)
             {
-                let package_name = package["manifest"]["name"]
-                    .as_str()
-                    .unwrap_or("Effects")
-                    .to_string();
-
                 for effect in package["manifest"]["effects"]
                     .as_array()
                     .into_iter()
@@ -312,15 +434,29 @@ impl Controls {
                         continue;
                     }
 
-                    categories.entry(package_name.clone()).or_default().push((
-                        package["manifest"]["id"].as_str().unwrap_or("").to_string(),
-                        package["manifest"]["version"]
-                            .as_str()
-                            .unwrap_or("")
-                            .to_string(),
-                        package["hash"].as_str().unwrap_or("").to_string(),
-                        effect["id"].as_str().unwrap_or("").to_string(),
-                    ));
+                    let favorite = format!(
+                        "{}/{}",
+                        package["manifest"]["id"].as_str().unwrap_or(""),
+                        effect["id"].as_str().unwrap_or("")
+                    );
+                    if !seen.insert(favorite.clone())
+                        || self.library_tab == 1 && !self.favorites.contains(&favorite)
+                        || self.library_tab == 2 && !self.recent.contains(&favorite)
+                    {
+                        continue;
+                    }
+                    categories
+                        .entry(category(effect, locale))
+                        .or_default()
+                        .push((
+                            package["manifest"]["id"].as_str().unwrap_or("").to_string(),
+                            package["manifest"]["version"]
+                                .as_str()
+                                .unwrap_or("")
+                                .to_string(),
+                            package["hash"].as_str().unwrap_or("").to_string(),
+                            effect["id"].as_str().unwrap_or("").to_string(),
+                        ));
                 }
             }
 
@@ -419,7 +555,7 @@ impl Controls {
                             .unwrap_or("Effect");
 
                         let favorite_key = format!("{plugin_id}/{effect_id}");
-                        let star = Rect::new(area.max[0] - 38., *y, 20., 26.);
+                        let star = Rect::new(area.max[0] - 32., *y, 20., 22.);
                         if let Some(value) = motion_ui::widgets::StarRating::draw(
                             list,
                             star,
@@ -432,18 +568,37 @@ impl Controls {
                             if value == 0 {
                                 self.favorites.remove(&favorite_key);
                             } else {
-                                self.favorites.insert(favorite_key);
+                                self.favorites.insert(favorite_key.clone());
                             }
                             out.push(Action::Favorites(self.favorites.clone()));
                         }
-                        if press(
+                        let row =
+                            Rect::new(area.min[0] + 12., *y, (area.width() - 52.).max(0.), 22.);
+                        let mut states = motion_ui::style::States::default();
+                        if row.contains(input.mouse) {
+                            states = states.with(motion_ui::style::State::Hovered);
+                        }
+                        let style = styles.resolve("row", states).unwrap();
+                        motion_ui::style::box_style(list, row, style);
+                        motion_ui::icons::draw(
+                            list,
+                            Rect::new(row.min[0] + 4., *y, 16., 22.),
+                            motion_ui::icons::Icon::Fx,
+                            14.,
+                            colors.TEXT_MUTED,
+                        );
+                        motion_ui::style::text_style(
                             list,
                             atlas,
-                            input,
-                            Rect::new(area.min[0] + 32., *y, (area.width() - 76.).max(0.), 26.),
+                            Rect::new(row.min[0] + 26., *y, (row.width() - 28.).max(0.), 22.),
                             effect_name,
-                            !locked,
-                        ) {
+                            style,
+                            Align::Left,
+                        );
+                        if clicked(input, row) && !locked {
+                            self.recent.retain(|id| id != &favorite_key);
+                            self.recent.insert(0, favorite_key);
+                            self.recent.truncate(24);
                             out.push(Action::Plugin(serde_json::json!({
                                 "op": "add",
                                 "object": object,
@@ -454,7 +609,7 @@ impl Controls {
                             })));
                             self.choosing = false;
                         }
-                        *y += 28.;
+                        *y += styles.metric("row.height", 22.);
                     }
                 }
             }
