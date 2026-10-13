@@ -128,6 +128,7 @@ impl RenderStats {
 }
 
 pub struct Renderer {
+    submission_ledger: crate::submission_ledger::SubmissionLedger,
     preview_resource_guard: bool,
     pub adapter: wgpu::Adapter,
     pub device: wgpu::Device,
@@ -368,6 +369,7 @@ impl Renderer {
         let mask_gpu=crate::mask_gpu::MaskGpu::new(&device,&image_layout)?;
         let mut renderer = Self {
             preview_resource_guard: false,
+            submission_ledger: Default::default(),
             adapter,
             device,
             queue,
@@ -478,8 +480,23 @@ impl Renderer {
             + self.mask_gpu.scratch_bytes()
             + self.compositing_gpu.as_ref().map_or(0,|gpu|gpu.bytes())
     }
+    /// Enable diagnostic snapshots for future submissions; pending records remain intact.
+    pub fn set_submission_tracking(&self, enabled: bool) {
+        self.submission_ledger.set_enabled(enabled);
+    }
+    /// Optional metadata instrumentation. Disabled submissions execute no ledger closure.
+    /// Raw queue.submit calls, uploads and caller GPU resources are outside this scope.
+    pub fn submit_tracked(&self, buffer: wgpu::CommandBuffer,
+        extra_resources: impl FnOnce(&mut crate::TextureResourceLedger)) -> wgpu::SubmissionIndex {
+        if !self.submission_ledger.enabled() { return self.queue.submit(Some(buffer)); }
+        let mut ledger = self.texture_resource_ledger();
+        extra_resources(&mut ledger);
+        self.submission_ledger.submit(&self.queue, buffer, ledger)
+    }
+    pub fn submission_memory_info(&self, current: &crate::TextureResourceLedger) -> crate::SubmissionMemoryInfo {
+        self.submission_ledger.info(current)
+    }
     /// Snapshot of application-owned textures; it does not keep GPU handles alive.
-    /// Command buffers and GPU-retired allocations are outside this snapshot.
     pub fn texture_resource_ledger(&self) -> crate::TextureResourceLedger {
         use crate::TextureCategory::*;
         let mut ledger = crate::TextureResourceLedger::default();
@@ -1275,7 +1292,7 @@ impl Renderer {
             });
         let mut stats = self.encode_internal(scene, view, width, height, &mut encoder, None, preview)?;
         let submitted = Instant::now();
-        self.queue.submit(Some(encoder.finish()));
+        self.submit_tracked(encoder.finish(), |_| {});
         stats.cpu_prepare_us += submitted.elapsed().as_micros() as u64;
         self.check_health()?;
         Ok(stats)
@@ -2070,7 +2087,7 @@ impl Renderer {
                 depth_or_array_layers: 1,
             },
         );
-        self.queue.submit(Some(encoder.finish()));
+        self.submit_tracked(encoder.finish(), |ledger| ledger.merge(target.texture_resource_ledger()));
         let (send, recv) = mpsc::sync_channel(1);
         target
             .buffer

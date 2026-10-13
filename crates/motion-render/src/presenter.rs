@@ -139,7 +139,7 @@ impl Presenter {
                 label: Some("Motion Studio present"),
             });
         self.encode(&mut encoder, output, None, None, [0.0, 0.0, 0.0, 1.0]);
-        renderer.queue.submit(Some(encoder.finish()));
+        renderer.submit_tracked(encoder.finish(), |_| {});
     }
     pub fn encode(
         &self,

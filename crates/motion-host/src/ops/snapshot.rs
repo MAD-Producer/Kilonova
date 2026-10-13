@@ -19,7 +19,13 @@ impl Session {
         if let Some(renderer) = &self.editor_renderer {
             ledger.merge(renderer.texture_resource_ledger());
         }
+        if let Some(target) = &self.editor_target { ledger.merge(target.texture_resource_ledger()); }
         json!({"version":1,"scope":"session_application_owned_texture_capacity",
+            "submissionTracking":{"requested":self.resource_tracking,
+                "preview":self.graphics.as_ref().map(|g|g.renderer.submission_memory_info(&ledger)),
+                "editor":self.editor_renderer.as_ref().map(|r|r.submission_memory_info(&ledger)),
+                "coverage":"conservative_instrumented_submissions",
+                "excludes":["raw_queue_submissions","standalone_video_conversions","gpu_uploads","swapchain","ui_and_node_preview_resources","detached_renderer_contexts","view_and_bind_group_only_references"]},
             "graphicsAvailable":self.graphics.is_some(),"editorRendererAvailable":self.editor_renderer.is_some(),
             "knownBytes":ledger.total_known_bytes(),"unknownCapacityCount":ledger.unknown_capacity_count(),
             "resources":ledger.resources().collect::<Vec<_>>(),

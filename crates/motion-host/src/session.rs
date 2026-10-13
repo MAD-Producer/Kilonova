@@ -94,6 +94,7 @@ pub struct Session {
     pub(crate) preview_memory_clock: Instant,
     memory_context: Option<(u64, u64, u32, u32)>,
     pub recorder: Option<FrameRecorder>,
+    pub(crate) resource_tracking: bool,
     pub effects: motion_render::effect_plan::PlanBuilder,
     pub plugin_root: PathBuf,
     pub editor: Option<motion_core::plugin_editor::PluginEditorSession>,
@@ -180,6 +181,7 @@ impl Session {
             preview_memory_clock: Instant::now(),
             memory_context: None,
             recorder: None,
+            resource_tracking: false,
             effects,
             plugin_root,
             editor: None,
@@ -195,6 +197,16 @@ impl Session {
         &self.platform
     }
 
+    pub(crate) fn update_submission_tracking(&self) {
+        let enabled = self.resource_tracking || self.recorder.is_some();
+        if let Some(g) = &self.graphics { g.renderer.set_submission_tracking(enabled); }
+        if let Some(renderer) = &self.editor_renderer { renderer.set_submission_tracking(enabled); }
+    }
+    pub fn configure_resource_tracking(&mut self, enabled: bool) -> Value {
+        self.resource_tracking = enabled;
+        self.update_submission_tracking();
+        json!({"version":1,"enabled":enabled,"profiling":self.recorder.is_some()})
+    }
     pub fn configure_memory_policy(
         &mut self,
         policy: motion_render::resource_policy::MemoryPolicy,
@@ -300,6 +312,7 @@ impl Session {
         } = target;
         renderer.set_effect_registry(self.effects.registry.clone());
         renderer.set_preview_resource_guard(true);
+        renderer.set_submission_tracking(self.resource_tracking || self.recorder.is_some());
         renderer
             .set_memory_policy(self.effects.memory_policy())
             .map_err(|e| e.to_string())?;
@@ -606,7 +619,7 @@ impl Session {
                 g.timer.as_ref().unwrap().resolve(i, &mut encoder);
             }
             let submitting = Instant::now();
-            g.renderer.queue.submit(Some(encoder.finish()));
+            g.renderer.submit_tracked(encoder.finish(), |ledger| g.scratch.collect_texture_resources(ledger));
             for upload in video_uploads {
                 upload.mark_submitted();
             }
@@ -755,7 +768,7 @@ fn present_held(g: &mut Graphics, viewport: [f32; 4],
     let mut encoder = g.renderer.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Motion Studio retained preview") });
     g.presenter.encode(&mut encoder, &view, None, Some(preview_viewport(viewport, g.last_canvas)), g.last_background);
     overlay(&g.renderer, &mut encoder, &view);
-    g.renderer.queue.submit(Some(encoder.finish()));
+    g.renderer.submit_tracked(encoder.finish(), |ledger| g.scratch.collect_texture_resources(ledger));
     g.renderer.check_health().map_err(|e| e.to_string())?;
     output.present();
     Ok(true)
