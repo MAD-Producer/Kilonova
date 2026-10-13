@@ -48,3 +48,22 @@ fn exported_metric_does_not_relax_loop_rejections() {
     .unwrap();
     assert_eq!(sprite.loop_work, 1);
 }
+
+#[test]
+fn legitimate_high_counter_values_keep_their_iteration_cost() {
+    for body in [
+        "for(var i:i32=2147483646;i<2147483647;i=i+1){c+=vec4(0.01);}",
+        "for(var i:u32=4294967294u;i<4294967295u;i=i+1u){c+=vec4(0.01);}",
+        "for(var i=4294967294u;i<4294967295u;i=i+1u){c+=vec4(0.01);}",
+    ] {
+        let source = format!("fn main_fx(p:vec2<f32>)->vec4<f32>{{var c=vec4(0.0);{body}return c;}}");
+        assert_eq!(shader::compile(&source, "main_fx").unwrap().loop_work, 1);
+    }
+    for body in [
+        "for(var i:i32=2147483647;i<=2147483647;i=i+1){c+=vec4(0.01);}",
+        "for(var i:u32=4294967295u;i<=4294967295u;i=i+1u){c+=vec4(0.01);}",
+    ] {
+        let source = format!("fn main_fx(p:vec2<f32>)->vec4<f32>{{var c=vec4(0.0);{body}return c;}}");
+        assert!(shader::compile(&source, "main_fx").is_err());
+    }
+}

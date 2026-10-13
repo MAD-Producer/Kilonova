@@ -44,8 +44,11 @@ fn micros(pts: i64, base: Rational) -> Result<u64> {
     if pts < 0 || base.numerator() <= 0 || base.denominator() <= 0 {
         return Err("invalid video timestamp or time base".into());
     }
-    let n = i128::from(pts) * i128::from(base.numerator()) * 1_000_000;
-    u64::try_from((n + i128::from(base.denominator()) / 2) / i128::from(base.denominator()))
+    let n = i128::from(pts).checked_mul(i128::from(base.numerator()))
+        .and_then(|n| n.checked_mul(1_000_000))
+        .and_then(|n| n.checked_add(i128::from(base.denominator()) / 2))
+        .ok_or("video timestamp overflow")?;
+    u64::try_from(n / i128::from(base.denominator()))
         .map_err(|_| "video timestamp overflow".into())
 }
 fn rotation(stream: &format::stream::Stream<'_>) -> Result<u32> {
@@ -489,3 +492,19 @@ impl EncoderSettings {
 }
 pub const OUTPUT_SAMPLE_RATE: u32 = 48_000;
 pub const OUTPUT_LAYOUT: av::ChannelLayout = av::ChannelLayout::STEREO;
+
+#[cfg(test)]
+mod timestamp_arithmetic_tests {
+    use super::*;
+    #[test]
+    fn extreme_timestamps_are_rejected_or_rescaled_without_wrapping() {
+        assert_eq!(micros(0, Rational(1, 1)).unwrap(), 0);
+        assert_eq!(micros(i64::MAX, Rational(1, 1_000_000)).unwrap(), i64::MAX as u64);
+        assert_eq!(micros(1, Rational(1, 3)).unwrap(), 333333);
+        assert_eq!(micros(2, Rational(1, 3)).unwrap(), 666667);
+        assert!(micros(i64::MAX, Rational(i32::MAX, 1)).is_err());
+        assert!(micros(-1, Rational(1, 1)).is_err());
+        assert!(micros(1, Rational(0, 1)).is_err());
+        assert!(micros(1, Rational(1, 0)).is_err());
+    }
+}
