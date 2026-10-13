@@ -308,3 +308,45 @@ fn fresh_registry_retains_bundled_versions_and_checks_other_sessions() {
     assert!(stale.install(&store, &b).is_err());
     assert!(Registry::load(&store).unwrap().diagnostics.is_empty());
 }
+
+#[test]
+fn directory_pack_is_deterministic_and_checks_limits_before_reading_resources() {
+    let package = builtin::package().unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    for (name, data) in &package.files {
+        let path = dir.path().join(name);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path,data).unwrap();
+    }
+    let first = motion_effects::package_directory(dir.path()).unwrap();
+    assert_eq!(first, motion_effects::package_directory(dir.path()).unwrap());
+    let restored = EffectPackage::from_bytes(first).unwrap();
+    assert_eq!(restored.files, package.files);
+    let path = dir.path().join(&package.manifest.effects[0].passes[0].shader);
+    std::fs::File::create(&path).unwrap().set_len(256*1024+1).unwrap();
+    let error = motion_effects::package_directory(dir.path()).unwrap_err().to_string();
+    assert!(error.contains(&package.manifest.effects[0].passes[0].shader), "{error}");
+    assert!(error.contains("size limit"), "{error}");
+    std::fs::File::create(dir.path().join("manifest.json")).unwrap().set_len(512*1024+1).unwrap();
+    let error = motion_effects::package_directory(dir.path()).unwrap_err().to_string();
+    assert!(error.contains("manifest.json"), "{error}");
+}
+
+#[test]
+fn directory_enforces_remaining_expanded_budget_with_the_offending_resource_name() {
+    let package = builtin::package().unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    for (name, data) in &package.files {
+        let path = dir.path().join(name);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path,data).unwrap();
+    }
+    let mut manifest = package.manifest.clone();
+    manifest.effects[0].resources.extend(["assets/a.png".into(),"assets/b.png".into()]);
+    std::fs::write(dir.path().join("manifest.json"),serde_json::to_vec(&manifest).unwrap()).unwrap();
+    std::fs::create_dir_all(dir.path().join("assets")).unwrap();
+    for name in ["a.png","b.png"] { std::fs::File::create(dir.path().join("assets").join(name)).unwrap().set_len(8*1024*1024).unwrap(); }
+    let error = motion_effects::package_directory(dir.path()).unwrap_err().to_string();
+    assert!(error.contains("assets/b.png"), "{error}");
+    assert!(error.contains("size limit"), "{error}");
+}
