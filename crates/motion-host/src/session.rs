@@ -99,6 +99,8 @@ pub struct Session {
     pub plugin_root: PathBuf,
     pub editor: Option<motion_core::plugin_editor::PluginEditorSession>,
     pub editor_token: String,
+    pub(crate) editor_activity: Option<Instant>,
+    pub(crate) editor_recovery: Option<Value>,
     pub editor_renderer: Option<Renderer>,
     pub editor_target: Option<motion_render::CaptureTarget>,
     platform: Arc<dyn Platform>,
@@ -186,6 +188,8 @@ impl Session {
             plugin_root,
             editor: None,
             editor_token: String::new(),
+            editor_activity: None,
+            editor_recovery: None,
             editor_renderer: None,
             editor_target: None,
             platform,
@@ -247,6 +251,9 @@ impl Session {
                 .close(&mut self.engine, false)
                 .map_err(|e| e.to_string())?;
         }
+        self.editor_token.clear();
+        self.editor_activity = None;
+        self.editor_recovery = None;
         self.editor_renderer = None;
         self.editor_target = None;
         self.effects.alpha_images.clear();
@@ -793,6 +800,7 @@ pub fn with_session<T>(id: i64, operation: impl FnOnce(&mut Session) -> Result<T
     let mut registry = sessions().lock().unwrap_or_else(|e| e.into_inner());
     let session = registry.get_mut(&id).ok_or("native session is closed")?;
     session.check_thread()?;
+    session.recover_plugin_editor(std::time::Instant::now())?;
     operation(session)
 }
 
