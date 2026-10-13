@@ -58,6 +58,8 @@ jobs:
           test -z "$(git ls-files docs)"
       - name: Run Rust and software Vulkan tests
         run: cargo test --workspace --locked --features motion-android/diagnostics -- --test-threads=1
+      - name: Validate portable loop bounds in release
+        run: cargo test --locked --release -p motion-effects --lib --test loop_work -- --test-threads=1
       - name: Summarize effect costs
         if: always()
         run: |
