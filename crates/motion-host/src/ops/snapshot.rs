@@ -77,6 +77,8 @@ impl Session {
             "surfaceBounded":self.preview.mode != PreviewMode::High,
             "gpuTimingActive":self.graphics.as_ref().is_some_and(|g|g.timer.is_some()),
             "profiling":self.recorder.is_some(),
+            "pluginEditorRecovery":{"open":self.editor.is_some(),"gesture":self.editor.as_ref().is_some_and(|e|e.gesture),
+                "leaseMillis":super::effects::PLUGIN_EDITOR_LEASE.as_millis(),"cancelOperation":"cancel_plugin_gesture","last":self.editor_recovery},
             "gpuTimestampSupported":self.graphics.as_ref().is_some_and(|g|g.renderer.device.features().contains(wgpu::Features::TIMESTAMP_QUERY)),
             "resourceLedgerVersion":1,
             "memoryBreakdown":self.graphics.as_ref().map(|g| {
