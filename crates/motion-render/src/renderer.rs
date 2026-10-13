@@ -155,6 +155,7 @@ pub struct Renderer {
     layer_gpu: crate::layer_gpu::LayerGpu,
     mask_gpu: crate::mask_gpu::MaskGpu,
     compositing_gpu: Option<crate::compositing_gpu::CompositingGpu>,
+    compositing_pipeline_set_builds: u64,
     video_gpu: Option<crate::video_gpu::VideoGpu>,
     pub video_upload_bytes: u64,
     pub video_uploads: u64,
@@ -417,6 +418,7 @@ impl Renderer {
             image_prefetches: 0,
             effect_diagnostics: Vec::new(),
             compositing_gpu: None,
+            compositing_pipeline_set_builds: 0,
         };
         renderer.effect_gpu.builder.device_dimension =
             renderer.device.limits().max_texture_dimension_2d.min(8192);
@@ -472,6 +474,8 @@ impl Renderer {
     }
     /// Successful native effect pipeline builds over this renderer's lifetime.
     pub fn effect_pipeline_builds(&self) -> u64 { self.effect_gpu.state.pipeline_builds }
+    /// Compositing pipeline-set construction count, not driver compilation time.
+    pub fn compositing_pipeline_set_builds(&self) -> u64 { self.compositing_pipeline_set_builds }
     pub fn texture_bytes(&self) -> u64 {
         self.texture_bytes
             + self.video_plane_bytes()
@@ -1395,15 +1399,16 @@ impl Renderer {
         {
             return self.encode_effects(scene, view, width, height, encoder, timestamps, preview);
         }
-        // The last mask may have been disabled without changing source media.
-        // Releasing its coverage must also happen on the direct draw path.
-        let obsolete_masks:Vec<_>=self.images.keys().copied().filter(|k|matches!(k,TextureKey::Mask(_))).collect();
-        if !obsolete_masks.is_empty() {
-            for key in obsolete_masks {self.texture_bytes-=self.images.remove(&key).unwrap().bytes;}
+        // Direct drawing consumes neither mask coverage nor effect-input snapshots.
+        // Release both without discarding reusable compositing pipelines.
+        let obsolete_inputs:Vec<_>=self.images.keys().copied()
+            .filter(|k|matches!(k,TextureKey::Mask(_) | TextureKey::EffectInput(_))).collect();
+        if !obsolete_inputs.is_empty() {
+            for key in obsolete_inputs {self.texture_bytes-=self.images.remove(&key).unwrap().bytes;}
             self.mask_gpu.clear();self.effect_gpu.state.invalidate();
         }
         self.effect_diagnostics.clear();
-        self.compositing_gpu = None;
+        if let Some(gpu) = &mut self.compositing_gpu { gpu.release(); }
         if self.layer_gpu.prepare_vectors(
             &self.device,
             encoder,
@@ -1654,8 +1659,13 @@ impl Renderer {
         );
         if has_compositing {
             let source_bytes=self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes;
-            let gpu = self.compositing_gpu.get_or_insert_with(|| crate::compositing_gpu::CompositingGpu::new(
-                &self.device, &self.queue, &self.uniform_layout, &self.image_layout, &self.sampler, self.target_format));
+            let builds = &mut self.compositing_pipeline_set_builds;
+            let gpu = self.compositing_gpu.get_or_insert_with(|| {
+                let gpu = crate::compositing_gpu::CompositingGpu::new(
+                    &self.device, &self.queue, &self.uniform_layout, &self.image_layout, &self.sampler, self.target_format);
+                *builds += 1;
+                gpu
+            });
             let needed: Vec<_> = frame.compositing.iter().filter(|c| c.matte >= 0)
                 .map(|c| (frame.draws[c.matte as usize].layer, c.mode >= 3)).collect();
             gpu.prepare_mattes(&self.device, &self.image_layout, &self.sampler, composition_size, &needed,
