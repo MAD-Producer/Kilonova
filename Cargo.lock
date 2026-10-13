@@ -2021,6 +2021,7 @@ dependencies = [
 name = "motion-media"
 version = "0.1.0"
 dependencies = [
+ "flate2",
  "fontdue",
  "fs2",
  "image",

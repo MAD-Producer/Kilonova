@@ -309,6 +309,12 @@ fn drain(
         match encoder.receive_packet(&mut packet) {
             Ok(()) => {
                 packet.set_stream(stream);
+                // This encoder emits CFR video at one frame per source tick.
+                // Some older codecs leave duration unset even on flush; the
+                // muxer cannot infer the final sample from a following DTS.
+                if encoder.medium() == av::media::Type::Video && packet.duration() <= 0 {
+                    packet.set_duration(1);
+                }
                 packet.rescale_ts(source_base, target_base);
                 packet
                     .write_interleaved(output)
