@@ -7,7 +7,7 @@ pub use scene::*;
 mod native_ui;
 pub use native_ui::*;
 pub mod shader;
-pub use package::{package_directory, EffectPackage, InstalledPlugin, Registry};
+pub use package::{package_directory, package_source_plan, SourceFilePlan, SourcePackagePlan, EffectPackage, InstalledPlugin, Registry};
 pub use schema::*;
 
 #[derive(Debug, thiserror::Error)]

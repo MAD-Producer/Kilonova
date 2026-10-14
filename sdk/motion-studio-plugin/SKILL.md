@@ -5,9 +5,9 @@ description: 为 Motion Studio 创建、修改和测试 WGSL 效果包、参数�
 
 # Motion Studio 插件开发
 
-交付可导入 App 的效果包、明确参数契约与验证结果。技能自包含：模板在 `assets/effect-template`，打包器在 `scripts/pack_msfx.py`；不依赖宿主源码或内部研究目录。
+交付可导入 App 的效果包、明确参数契约与验证结果。模板和脚本随技能提供：模板在 `assets/effect-template`，打包器在 `scripts/pack_msfx.py`；不依赖宿主源码或内部研究目录。
 
-先按用户目标选择已有宿主能力，确认所用 App 的 SDK 与能力版本。当前公开版本为 SDK 1–5，原生 UI 使用 SDK 5 / 协议 1。读取 [包与参数](references/package-format.md)，使用稳定 ID，明确含义、单位、默认值、有效范围和动画标记。一个颜色用一个 `color` 参数；独立通道运算保留自身语义。
+先按用户目标选择已有宿主能力，确认所用 App 的 SDK 与能力版本。当前公开版本为 SDK 1–6，原生 UI 使用 SDK 5 / 协议 1。读取 [包与参数](references/package-format.md)，使用稳定 ID，明确含义、单位、默认值、有效范围和动画标记。一个颜色用一个 `color` 参数；独立通道运算保留自身语义。
 
 实现算法时读取 [WGSL](references/wgsl.md)。使用图层局部像素和宿主采样函数，声明色彩、Alpha、边缘与输出边界。随机效果固定种子、使用局部时钟，支持倒序和随机寻帧。不要通过缩小合法参数或裁切来隐藏资源失败。
 
@@ -19,7 +19,7 @@ description: 为 Motion Studio 创建、修改和测试 WGSL 效果包、参数�
 python <skill目录>/scripts/pack_msfx.py <插件源码目录> <输出文件.msfx>
 ```
 
-无需 Rust/JDK/Android 构建。有现成 `effect_tool` 时增加 `--validator <可执行文件>` 做完整离线检查。App 导入仍检查参数、资源和两端 shader；打包成功不能代替画面验收。修改后提升版本并显式升级测试实例，不覆盖同版本不同哈希的包。
+打包需要 `effect_tool` 完整离线校验器，通过 `--validator <可执行文件>`、`MOTION_EFFECT_VALIDATOR`、PATH 或仓库 target 目录选择。缺失时先构建 `cargo build --locked -p motion-effects --bin effect_tool` 或提供已有二进制；不能跳过校验。普通效果无需 JDK、Android/APK 重编译。App 导入仍检查参数、资源和两端 shader；打包成功不能代替画面验收。修改后提升版本并显式升级测试实例，不覆盖同版本不同哈希的包。
 
 纯 WGSL/描述/资源修改无需宿主 APK 重编译或完整 Android CI。宿主编译器、渲染器、新能力或原生控件实现改动应独立检查。发布 `.msfx` 不要求重编译 App，外部发布按用户已授权范围执行。
 

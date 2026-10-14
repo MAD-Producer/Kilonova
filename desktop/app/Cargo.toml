@@ -33,6 +33,7 @@ rfd = "0.15"
 image.workspace = true
 cpal = "0.16"
 fontdb = "0.23"
+sentry = { version = "0.49.3", default-features = false, features = ["ureq", "rustls"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 winit = "0.30"

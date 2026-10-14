@@ -83,7 +83,7 @@ def emit(id, name, english, category, params, body, helpers="", passes=1,
          resources=None, alpha="straight", working="srgb", edge="transparent",
          padding=None, bounds=None, differences=None, capabilities=None):
     params = [f("effect_opacity","效果不透明度",100,0,100)] + params
-    assert len(params) <= 32
+    if not (len(params) <= 32): raise RuntimeError('Effect parameter count exceeds 32')
     lookup = {p["id"]: i for i,p in enumerate(params)}
     source = CREDIT + BASE + helpers + "\nfn main_fx(p:vec2<f32>)->vec4<f32>{\n" + body + "\n}\n"
     source = re.sub(r"\bpass\b", "stage", source)

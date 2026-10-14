@@ -37,6 +37,8 @@ pub struct Workspace {
     pub style_path: Option<std::path::PathBuf>,
     #[serde(default)]
     pub favorites: std::collections::BTreeSet<String>,
+    #[serde(default)]
+    pub send_diagnostics: bool,
     #[serde(flatten)]
     layout: motion_ui::workspace::Workspace,
 }
@@ -51,6 +53,7 @@ impl Default for Workspace {
             legacy_layout: None,
             named_layouts: Default::default(),
             favorites: Default::default(),
+            send_diagnostics: false,
             style_path: None,
             layout: Default::default(),
         }

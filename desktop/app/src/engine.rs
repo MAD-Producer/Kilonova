@@ -20,6 +20,7 @@ use std::{
     },
     thread::JoinHandle,
 };
+mod diagnostic_names;
 mod failure;
 #[cfg(all(test, target_os = "windows"))]
 mod scope_tests;
@@ -59,11 +60,17 @@ struct CompositionStamp {
 impl CompositionStamp {
     fn new(s: &motion_host::session::Session, ui: &UiFrame, viewport: [f32; 4]) -> Self {
         Self {
-            revision: s.engine.revision(), view: s.view_revision,
-            surface: s.surface_epoch, frame: s.frame.to_bits(), window: ui.window,
+            revision: s.engine.revision(),
+            view: s.view_revision,
+            surface: s.surface_epoch,
+            frame: s.frame.to_bits(),
+            window: ui.window,
             viewport_size: [viewport[2].ceil() as u32, viewport[3].ceil() as u32],
-            mode: s.preview.mode, tier: s.preview.tier(),
-            quality: s.preview_memory.quality(s.preview.mode == motion_render::PreviewMode::High),
+            mode: s.preview.mode,
+            tier: s.preview.tier(),
+            quality: s
+                .preview_memory
+                .quality(s.preview.mode == motion_render::PreviewMode::High),
         }
     }
 }
@@ -83,11 +90,22 @@ struct PresentationState {
 #[allow(dead_code)] // Typed SDK bridge; remaining panels will use the other operations.
 pub enum Command {
     #[cfg(test)]
-    TestPanic { during_prepare: bool, reply: Sender<Result<Value, String>> },
+    TestPanic {
+        during_prepare: bool,
+        reply: Sender<Result<Value, String>>,
+    },
     #[cfg(test)]
-    TestRecoveryPanic { root: PathBuf, reply: Sender<Result<Value, String>> },
+    TestRecoveryPanic {
+        root: PathBuf,
+        reply: Sender<Result<Value, String>>,
+    },
     #[cfg(test)]
-    TestDelay { delay: std::time::Duration, reply: Sender<Result<Value, String>> },
+    TestDelay {
+        delay: std::time::Duration,
+        reply: Sender<Result<Value, String>>,
+    },
+    #[cfg(test)]
+    TestWait {entered:Sender<()>,release:std::sync::mpsc::Receiver<()>,reply:Sender<Result<Value,String>>},
     ProjectTicket(Sender<Result<crate::project_lifecycle::Ticket, String>>),
     ChangeProject {
         target: crate::project_lifecycle::Target,
@@ -292,26 +310,55 @@ impl Command {
         use Command::*;
         let reply = match self {
             ProjectTicket(reply) => ErrorReply::Ticket(reply.clone()),
-            NodeInstall { reply, .. } | Present { reply, .. } | Render { reply, .. } => ErrorReply::Bool(reply.clone()),
+            NodeInstall { reply, .. } | Present { reply, .. } | Render { reply, .. } => {
+                ErrorReply::Bool(reply.clone())
+            }
             FreezeMovie { reply, .. } => ErrorReply::Movie(reply.clone()),
             VideoFrame { reply, .. } => ErrorReply::Frame(reply.clone()),
-            State(reply) | Save(reply) | PreviewInfo(reply) | MediaPackageLimits(reply)
-            | Capture(reply) | Pack(reply)
-            | ChangeProject { reply, .. } | NodeCapture { reply, .. }
-            | EditChecked { reply, .. } | CaptureUi { reply, .. }
-            | Attach { reply, .. } | Resize { reply, .. } | OpenDirectory { reply, .. }
-            | FloatWindow { reply, .. } | CloseWindow { reply, .. }
-            | NewProject { reply, .. } | OpenProject { reply, .. } | ImportProject { reply, .. }
-            | ImportImage { reply, .. } | CreateText { reply, .. } | RenderPreview { reply, .. }
-            | Edit { reply, .. } | History { reply, .. } | Drag { reply, .. } | Seek { reply, .. }
-            | View { reply, .. } | Observe { reply, .. } | Navigate { reply, .. }
-            | ConfigureMemory { reply, .. } | PreviewMode { reply, .. } | CurveGraph { reply, .. }
-            | HitCandidates { reply, .. } | Plugin { reply, .. } | ColorCurveGraph { reply, .. }
-            | Composition { reply, .. } | Media { reply, .. } | ImageInfo { reply, .. }
-            | PrepareImage { reply, .. } | MediaCapabilities { reply, .. }
+            State(reply)
+            | Save(reply)
+            | PreviewInfo(reply)
+            | MediaPackageLimits(reply)
+            | Capture(reply)
+            | Pack(reply)
+            | ChangeProject { reply, .. }
+            | NodeCapture { reply, .. }
+            | EditChecked { reply, .. }
+            | CaptureUi { reply, .. }
+            | Attach { reply, .. }
+            | Resize { reply, .. }
+            | OpenDirectory { reply, .. }
+            | FloatWindow { reply, .. }
+            | CloseWindow { reply, .. }
+            | NewProject { reply, .. }
+            | OpenProject { reply, .. }
+            | ImportProject { reply, .. }
+            | ImportImage { reply, .. }
+            | CreateText { reply, .. }
+            | RenderPreview { reply, .. }
+            | Edit { reply, .. }
+            | History { reply, .. }
+            | Drag { reply, .. }
+            | Seek { reply, .. }
+            | View { reply, .. }
+            | Observe { reply, .. }
+            | Navigate { reply, .. }
+            | ConfigureMemory { reply, .. }
+            | PreviewMode { reply, .. }
+            | CurveGraph { reply, .. }
+            | HitCandidates { reply, .. }
+            | Plugin { reply, .. }
+            | ColorCurveGraph { reply, .. }
+            | Composition { reply, .. }
+            | Media { reply, .. }
+            | ImageInfo { reply, .. }
+            | PrepareImage { reply, .. }
+            | MediaCapabilities { reply, .. }
             | ResourceInfo { reply, .. } => ErrorReply::Value(reply.clone()),
             #[cfg(test)]
-            TestPanic { reply, .. } | TestRecoveryPanic { reply, .. } | TestDelay { reply, .. } => ErrorReply::Value(reply.clone()),
+            TestPanic { reply, .. } | TestRecoveryPanic { reply, .. } | TestDelay { reply, .. } | TestWait {reply,..} => {
+                ErrorReply::Value(reply.clone())
+            }
             NodeExpect { .. } | Shutdown => return None,
         };
         Some(reply)
@@ -334,21 +381,40 @@ impl std::ops::Deref for ArcFrame {
 
 /// Handle used by the UI thread to talk to the engine.
 pub struct Engine {
-    sender: Sender<Command>,
+    sender: Sender<QueuedCommand>,
     worker: Option<JoinHandle<()>>,
     platform: Arc<dyn Platform>,
     factory: Arc<std::sync::Mutex<Option<SurfaceFactory>>>,
     failure: Failure,
     paint_pool: Arc<std::sync::Mutex<Vec<motion_ui::paint::PaintList>>>,
+    diagnostics: Arc<crate::diagnostics::Diagnostics>,
+}
+struct QueuedCommand {
+    command: Command,
+    queued: std::time::Instant,
+    request: u64,
+    context: crate::diagnostics::Context,
 }
 
 #[allow(dead_code)] // SDK bridge methods are intentionally available to future panels.
 impl Engine {
-    pub fn take_paint(&self)->motion_ui::paint::PaintList {
-        self.paint_pool.lock().ok().and_then(|mut p|p.pop()).unwrap_or_default()
+    pub fn diagnostics(&self) -> &Arc<crate::diagnostics::Diagnostics> {
+        &self.diagnostics
     }
-    pub fn recycle_paint(&self,mut paint:motion_ui::paint::PaintList) {
-        paint.clear();if let Ok(mut pool)=self.paint_pool.lock(){if pool.len()<8 {pool.push(paint);}}
+    pub fn take_paint(&self) -> motion_ui::paint::PaintList {
+        self.paint_pool
+            .lock()
+            .ok()
+            .and_then(|mut p| p.pop())
+            .unwrap_or_default()
+    }
+    pub fn recycle_paint(&self, mut paint: motion_ui::paint::PaintList) {
+        paint.clear();
+        if let Ok(mut pool) = self.paint_pool.lock() {
+            if pool.len() < 8 {
+                pool.push(paint);
+            }
+        }
     }
     pub fn node_preview_available(&self) -> Result<(), String> {
         self.check_running()?;
@@ -367,7 +433,11 @@ impl Engine {
         snapshot: crate::node_editor::EditorSnapshot,
         compiled: motion_graph::CompiledGraph,
     ) -> Result<std::sync::mpsc::Receiver<Result<bool, String>>, String> {
-        self.request(|reply| Command::NodeInstall { snapshot, compiled, reply })
+        self.request(|reply| Command::NodeInstall {
+            snapshot,
+            compiled,
+            reply,
+        })
     }
     pub fn node_capture(&self, seconds: f64, path: PathBuf) -> Result<Value, String> {
         self.call(|reply| Command::NodeCapture {
@@ -383,13 +453,34 @@ impl Engine {
         total_memory: u64,
     ) -> Result<Self, String> {
         let desktop_platform = platform.clone();
-        let paint_pool=Arc::new(std::sync::Mutex::new(Vec::new()));
-        let worker_paints=paint_pool.clone();
+        let diagnostics = crate::diagnostics::Diagnostics::new(
+            if cfg!(test) {
+                None
+            } else {
+                Some(
+                    std::env::var_os("MOTION_DIAGNOSTICS_PATH")
+                        .map(PathBuf::from)
+                        .unwrap_or_else(|| {
+                            crate::directories().join("diagnostics/last-stalls.json")
+                        }),
+                )
+            },
+            if cfg!(test) {
+                None
+            } else {
+                std::env::var("MOTION_SENTRY_DSN")
+                    .ok()
+                    .or_else(|| option_env!("MOTION_SENTRY_DSN").map(str::to_owned))
+            },
+        );
+        let worker_diagnostics = diagnostics.clone();
+        let paint_pool = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let worker_paints = paint_pool.clone();
         let failure: Failure = Arc::new(std::sync::Mutex::new(None));
         let worker_failure = failure.clone();
         let factory = Arc::new(std::sync::Mutex::new(None));
         let worker_factory = factory.clone();
-        let (sender, receiver) = channel::<Command>();
+        let (sender, receiver) = channel::<QueuedCommand>();
         let (ready, opened) = channel::<Result<i64, String>>();
         let worker = std::thread::Builder::new()
             .name("motion-engine".into())
@@ -432,9 +523,11 @@ impl Engine {
                 let mut presentation = PresentationState::default();
                 let mut windows = std::collections::HashMap::new();
                 let mut failed_reply = None;
-                while let Ok(command) = receiver.recv() {
+                while let Ok(QueuedCommand {command,queued,request,context}) = receiver.recv() {
+                    let began=std::time::Instant::now();
+                    let operation=command.diagnostic_name();
                     let on_panic = command.panic_reply();
-                    match motion_host::ops::catch_panic(|| handle(
+                    let handled=motion_host::ops::catch_panic(|| handle(
                         id,
                         &platform,
                         &mut painter,
@@ -443,8 +536,11 @@ impl Engine {
                         &mut node_preview,
                         &mut presentation,
                         &worker_paints,
+                        &worker_diagnostics,
                         command,
-                    )) {
+                    ));
+                    worker_diagnostics.record(request,"worker",operation,queued.elapsed(),Some(began.duration_since(queued)),Some(began.elapsed()),context);
+                    match handled {
                         Ok(true) => break,
                         Ok(false) => {},
                         Err(reason) => {
@@ -479,14 +575,25 @@ impl Engine {
             factory,
             failure,
             paint_pool,
+            diagnostics,
         })
     }
 
     fn send(&self, command: Command) -> Result<(), String> {
+        self.dispatch(command).map(|_| ())
+    }
+    fn dispatch(&self, command: Command) -> Result<u64, String> {
         self.check_running()?;
+        let request = self.diagnostics.next_request();
         self.sender
-            .send(command)
-            .map_err(|_| self.stopped_error())
+            .send(QueuedCommand {
+                command,
+                queued: std::time::Instant::now(),
+                request,
+                context: self.diagnostics.context(),
+            })
+            .map_err(|_| self.stopped_error())?;
+        Ok(request)
     }
 
     /// Queue work without blocking the caller.
@@ -512,23 +619,29 @@ impl Engine {
         let (reply, receive) = channel();
         let began = std::time::Instant::now();
         let command = make(reply);
-        let operation = match &command {
-            Command::Seek { .. } => "seek", Command::Edit { .. } | Command::EditChecked { .. } => "edit",
-            Command::History { .. } => "history", Command::State(_) => "state",
-            Command::Save(_) => "save", Command::CaptureUi { .. } => "capture",
-            Command::Render { .. } => "render", Command::CreateText { .. } => "create_text",
-            _ => "operation",
-        };
-        self.send(command)?;
-        let result = receive
-            .recv_timeout(timeout)
+        let operation = command.diagnostic_name();
+        let request = self.dispatch(command)?;
+        let received = receive.recv_timeout(timeout);
+        self.diagnostics.record(
+            request,
+            "blocking_wait",
+            operation,
+            began.elapsed(),
+            None,
+            None,
+            self.diagnostics.context(),
+        );
+        let result = received
             .map_err(|error| match error {
                 std::sync::mpsc::RecvTimeoutError::Disconnected => self.stopped_error(),
                 std::sync::mpsc::RecvTimeoutError::Timeout => format!("{operation} timed out; its result is still pending; check project state before retrying"),
             })?;
         #[cfg(debug_assertions)]
         if began.elapsed().as_millis() >= 16 {
-            eprintln!("[motion-timing] blocking {operation}: {} us", began.elapsed().as_micros());
+            eprintln!(
+                "[motion-timing] blocking {operation}: {} us",
+                began.elapsed().as_micros()
+            );
         }
         result
     }
@@ -554,8 +667,13 @@ impl Engine {
         }
         self.call(|reply| Command::Edit { text, reply })
     }
-    pub fn edit_async(&self, text: String) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
-        if text.len() > REQUEST_LIMIT { return Err("edit request exceeds 256 KiB".into()); }
+    pub fn edit_async(
+        &self,
+        text: String,
+    ) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+        if text.len() > REQUEST_LIMIT {
+            return Err("edit request exceeds 256 KiB".into());
+        }
         self.request(|reply| Command::Edit { text, reply })
     }
     pub fn edit_at_revision(&self, text: String, revision: u64) -> Result<Value, String> {
@@ -574,7 +692,10 @@ impl Engine {
     pub fn history(&self, op: i32) -> Result<Value, String> {
         self.call(|reply| Command::History { op, reply })
     }
-    pub fn history_async(&self, op: i32) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+    pub fn history_async(
+        &self,
+        op: i32,
+    ) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
         self.request(|reply| Command::History { op, reply })
     }
     pub fn drag(
@@ -597,10 +718,25 @@ impl Engine {
     pub fn seek(&self, frame: f64) -> Result<Value, String> {
         self.call(|reply| Command::Seek { frame, reply })
     }
-    pub fn drag_async(&self, object: i64, delta: [f32;2], size: [i32;2]) -> Result<std::sync::mpsc::Receiver<Result<Value,String>>,String> {
-        self.request(|reply|Command::Drag {object,dx:delta[0] as f64,dy:delta[1] as f64,width:size[0],height:size[1],reply})
+    pub fn drag_async(
+        &self,
+        object: i64,
+        delta: [f32; 2],
+        size: [i32; 2],
+    ) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+        self.request(|reply| Command::Drag {
+            object,
+            dx: delta[0] as f64,
+            dy: delta[1] as f64,
+            width: size[0],
+            height: size[1],
+            reply,
+        })
     }
-    pub fn seek_async(&self, frame: f64) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+    pub fn seek_async(
+        &self,
+        frame: f64,
+    ) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
         self.request(|reply| Command::Seek { frame, reply })
     }
     pub fn view(&self, kind: i32) -> Result<Value, String> {
@@ -750,6 +886,7 @@ impl Engine {
         // Winit exposes Win32 handles only on the GUI thread. Build a surface
         // here, then transfer rendering ownership to the session worker.
         let target = self.platform.attach_surface(window, width, height)?;
+        self.diagnostics.set_gpu(target.renderer.adapter.get_info());
         *self
             .factory
             .lock()
@@ -784,28 +921,28 @@ impl Engine {
     ) -> Result<Value, String> {
         self.check_running()?;
         let target = {
-        let factory = self
-            .factory
-            .lock()
-            .map_err(|_| "surface factory lock poisoned")?;
-        let factory = factory.as_ref().ok_or("desktop surface is not attached")?;
-        let surface = factory
-            .instance
-            .create_surface(window)
-            .map_err(|e| e.to_string())?;
-        if !surface
-            .get_capabilities(&factory.adapter)
-            .formats
-            .contains(&factory.config.format)
-        {
-            return Err("floating surface format is incompatible".into());
-        }
-        let mut config = factory.config.clone();
-        config.width = width;
-        config.height = height;
-        surface.configure(&factory.device, &config);
-        let target = FloatingSurface { surface, config };
-        target
+            let factory = self
+                .factory
+                .lock()
+                .map_err(|_| "surface factory lock poisoned")?;
+            let factory = factory.as_ref().ok_or("desktop surface is not attached")?;
+            let surface = factory
+                .instance
+                .create_surface(window)
+                .map_err(|e| e.to_string())?;
+            if !surface
+                .get_capabilities(&factory.adapter)
+                .formats
+                .contains(&factory.config.format)
+            {
+                return Err("floating surface format is incompatible".into());
+            }
+            let mut config = factory.config.clone();
+            config.width = width;
+            config.height = height;
+            surface.configure(&factory.device, &config);
+            let target = FloatingSurface { surface, config };
+            target
         };
         self.call(|reply| Command::FloatWindow { key, target, reply })
     }
@@ -822,7 +959,12 @@ impl Engine {
 
 impl Drop for Engine {
     fn drop(&mut self) {
-        let _ = self.sender.send(Command::Shutdown);
+        let _ = self.sender.send(QueuedCommand {
+            command: Command::Shutdown,
+            queued: std::time::Instant::now(),
+            request: 0,
+            context: Default::default(),
+        });
         if let Some(worker) = self.worker.take() {
             let _ = worker.join();
         }
@@ -877,20 +1019,31 @@ impl ProjectGuard {
             .map_err(|e| e.to_string())?;
         file.try_lock()
             .map_err(|e| format!("project is already open or cannot be locked: {e}"))?;
-        Ok(Self { root, _file: file, initial: None })
+        Ok(Self {
+            root,
+            _file: file,
+            initial: None,
+        })
     }
     fn ticket(&self, id: i64) -> Result<crate::project_lifecycle::Ticket, String> {
-        let saved = if self.root.join("project.json").try_exists().map_err(|e| e.to_string())? {
+        let saved = if self
+            .root
+            .join("project.json")
+            .try_exists()
+            .map_err(|e| e.to_string())?
+        {
             Some(motion_core::storage::load_document(&self.root).map_err(|e| e.to_string())?)
         } else {
             self.initial.clone()
         };
-        motion_host::session::with_session(id, |s| Ok(crate::project_lifecycle::Ticket {
-            root: self.root.clone(),
-            revision: s.engine.revision(),
-            dirty: saved.as_ref() != Some(s.engine.project()),
-            name: s.engine.project().name.clone(),
-        }))
+        motion_host::session::with_session(id, |s| {
+            Ok(crate::project_lifecycle::Ticket {
+                root: self.root.clone(),
+                revision: s.engine.revision(),
+                dirty: saved.as_ref() != Some(s.engine.project()),
+                name: s.engine.project().name.clone(),
+            })
+        })
     }
     fn changed(&mut self, result: Result<Value, String>) -> Result<Value, String> {
         let state = result?;
@@ -932,11 +1085,15 @@ fn handle(
     node_preview: &mut NodePreviewState,
     presentation: &mut PresentationState,
     paints: &Arc<std::sync::Mutex<Vec<motion_ui::paint::PaintList>>>,
+    diagnostics: &crate::diagnostics::Diagnostics,
     command: Command,
 ) -> bool {
     // Capture, project operations and view changes can overwrite the shared
     // scratch texture. A read-only state request leaves it reusable.
-    if !matches!(&command, Command::Present { .. } | Command::State(_) | Command::PreviewInfo(_)) {
+    if !matches!(
+        &command,
+        Command::Present { .. } | Command::State(_) | Command::PreviewInfo(_)
+    ) {
         presentation.retained = None;
     }
     match command {
@@ -951,6 +1108,11 @@ fn handle(
         Command::TestDelay { delay, reply } => {
             std::thread::sleep(delay);
             respond(reply, project::state(id));
+        },
+        #[cfg(test)]
+        Command::TestWait {entered,release,reply}=> {
+            let _=entered.send(());
+            respond(reply,release.recv_timeout(std::time::Duration::from_secs(5)).map(|_|serde_json::json!({"ready":true})).map_err(|e|e.to_string()));
         },
         #[cfg(test)]
         Command::TestRecoveryPanic { root, reply } => respond(reply, motion_host::session::with_session(id, |session| {
@@ -1142,6 +1304,7 @@ fn handle(
         Command::State(reply) => respond(reply,project::state(id).map(|mut state|{
             state["desktop"]=serde_json::json!({"headless":painter.is_none(),"panelWindows":if painter.is_some(){windows.len()+1}else{0},"sharedGpuDevice":painter.is_some(),"agentToolProtocol":1,
                 "uiPerformance":{"compositionRenders":presentation.composition_renders,"compositionReuses":presentation.composition_reuses,"lastPresentUs":presentation.last_present_us},
+                "diagnostics":diagnostics.status(),
                 "nodePreview":{"active":node_preview.active.as_ref().map(|p|p.stamp),"frames":node_preview.active.as_ref().map_or(0,|p|p.frames),"shaderRenders":node_preview.active.as_ref().map_or(0,|p|p.renders),"installs":node_preview.installs,"logicalSize":crate::node_preview::LOGICAL_SIZE,"rasterSize":crate::node_preview::RASTER_SIZE,"perFrameCpuReadbacks":0}});state
         })),
         Command::Save(reply) => respond(reply,project::save(id)),
@@ -1262,17 +1425,54 @@ mod tests {
     #[test]
     fn asynchronous_edit_replies_preserve_one_transaction_and_undo() {
         let folder = tempfile::tempdir().unwrap();
-        let engine = Engine::start(folder.path().join("project"), motion_desktop_media::platform(), 8 << 30).unwrap();
+        let engine = Engine::start(
+            folder.path().join("project"),
+            motion_desktop_media::platform(),
+            8 << 30,
+        )
+        .unwrap();
         let before = engine.state().unwrap()["project"].clone();
         let begin = engine.history_async(2).unwrap();
-        let edit = engine.edit_async(serde_json::to_string(&motion_core::Command::Add {
-            layer: motion_core::Layer::solid(1, "Async layer", [100.; 2], [100., 100., 0.], [1.; 4]),
-        }).unwrap()).unwrap();
+        let edit = engine
+            .edit_async(
+                serde_json::to_string(&motion_core::Command::Add {
+                    layer: motion_core::Layer::solid(
+                        1,
+                        "Async layer",
+                        [100.; 2],
+                        [100., 100., 0.],
+                        [1.; 4],
+                    ),
+                })
+                .unwrap(),
+            )
+            .unwrap();
         let end = engine.history_async(3).unwrap();
-        for reply in [begin, edit, end] { reply.recv_timeout(std::time::Duration::from_secs(5)).unwrap().unwrap(); }
+        for reply in [begin, edit, end] {
+            reply
+                .recv_timeout(std::time::Duration::from_secs(5))
+                .unwrap()
+                .unwrap();
+        }
         assert_ne!(engine.state().unwrap()["project"], before);
-        assert_eq!(engine.history_async(0).unwrap().recv_timeout(std::time::Duration::from_secs(5)).unwrap().unwrap()["project"], before);
-        assert_eq!(engine.seek_async(21.5).unwrap().recv_timeout(std::time::Duration::from_secs(5)).unwrap().unwrap()["frame"], 21.5);
+        assert_eq!(
+            engine
+                .history_async(0)
+                .unwrap()
+                .recv_timeout(std::time::Duration::from_secs(5))
+                .unwrap()
+                .unwrap()["project"],
+            before
+        );
+        assert_eq!(
+            engine
+                .seek_async(21.5)
+                .unwrap()
+                .recv_timeout(std::time::Duration::from_secs(5))
+                .unwrap()
+                .unwrap()["frame"],
+            21.5
+        );
     }
     #[test]
     fn project_lock_releases_on_worker_shutdown() {

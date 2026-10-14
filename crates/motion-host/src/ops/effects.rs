@@ -5,8 +5,11 @@ use motion_render::Renderer;
 use serde_json::{json, Value};
 use std::path::PathBuf;
 
+pub(crate) const PLUGIN_EDITOR_LEASE: std::time::Duration = std::time::Duration::from_secs(120);
+
 impl Session {
     pub fn plugin_request(&mut self, request: &str) -> Result<Value> {
+        self.recover_plugin_editor(std::time::Instant::now())?;
         if request.len() > 256 * 1024 {
             return Err("plugin request exceeds 256 KiB".into());
         }
@@ -23,9 +26,16 @@ impl Session {
         if v["op"].as_str().is_some_and(|op| op.starts_with("editor_")) {
             return self.editor_operation(&v);
         }
+        if v["op"] == "cancel_plugin_gesture" {
+            self.close_plugin_editor(false, "host_cancel")?;
+            return Ok(self.snapshot());
+        }
         let text = |name: &str| v[name].as_str().ok_or_else(|| format!("missing {name}"));
         // Available through the existing desktop/Android JSON bridge. Query
         // omits policy; writes validate all limits before changing runtime state.
+        if text("op")? == "resource_tracking" {
+            return Ok(self.configure_resource_tracking(v["enabled"].as_bool().ok_or("missing boolean enabled")?));
+        }
         if text("op")? == "resource_ledger" {
             return Ok(self.texture_resource_ledger());
         }
@@ -202,6 +212,25 @@ impl Session {
         Ok(self.snapshot())
     }
 
+    pub(crate) fn close_plugin_editor(&mut self, commit: bool, reason: &str) -> Result<()> {
+        let Some(mut editor) = self.editor.take() else { return Ok(()); };
+        let cancelled = editor.gesture && self.engine.gesture_active() && !commit;
+        let result = editor.close(&mut self.engine, commit).map_err(|e|e.to_string());
+        self.editor_token.clear();
+        self.editor_activity = None;
+        self.editor_renderer = None;
+        self.editor_target = None;
+        self.editor_recovery = Some(json!({"reason":reason,"cancelled":cancelled,"revision":self.engine.revision()}));
+        if let Err(error) = self.sample() { self.last_error = Some(error); }
+        result
+    }
+    pub(crate) fn recover_plugin_editor(&mut self, now: std::time::Instant) -> Result<()> {
+        if self.editor.as_ref().is_some_and(|editor| editor.gesture) && self.editor_activity
+            .is_some_and(|last| now.saturating_duration_since(last) >= PLUGIN_EDITOR_LEASE) {
+            self.close_plugin_editor(false, "lease_expired")?;
+        }
+        Ok(())
+    }
     fn editor_operation(&mut self, v: &Value) -> Result<Value> {
         let op = v["op"].as_str().ok_or("missing editor operation")?;
         if op == "editor_open" {
@@ -237,10 +266,21 @@ impl Session {
                 .map_err(|e| e.to_string())?;
             self.editor_token = format!("editor-{}-{}", next_token(), self.engine.revision());
             self.editor = Some(editor);
+            self.editor_activity = Some(std::time::Instant::now());
+            self.editor_recovery = None;
             return Ok(json!({"protocol":1,"token":self.editor_token,"definition":definition,"state":state}));
         }
         if self.editor.is_none() || v["token"].as_str() != Some(self.editor_token.as_str()) {
             return Err("plugin editor session is stale or missing".into());
+        }
+        if op == "editor_close" || op == "editor_disconnected" {
+            self.close_plugin_editor(op == "editor_close" && v["commit"].as_bool().unwrap_or(false),
+                if op == "editor_disconnected" { "transport_disconnected" } else { "page_closed" })?;
+            return Ok(self.snapshot());
+        }
+        if op == "editor_heartbeat" {
+            self.editor_activity = Some(std::time::Instant::now());
+            return Ok(json!({"leaseMillis":PLUGIN_EDITOR_LEASE.as_millis(),"gesture":self.editor.as_ref().is_some_and(|e|e.gesture)}));
         }
         let editor = self.editor.as_ref().unwrap();
         let package = self
@@ -266,31 +306,30 @@ impl Session {
                     return Err("asset is outside this plugin editor".into());
                 }
                 let bytes = package.files.get(path).ok_or("editor asset missing")?;
+                self.editor_activity = Some(std::time::Instant::now());
                 Ok(json!({"mime":motion_effects::editor_mime(path),"base64":crate::encode_base64(bytes)}))
-            }
-            "editor_close" => {
-                let mut editor = self.editor.take().unwrap();
-                editor
-                    .close(&mut self.engine, v["commit"].as_bool().unwrap_or(false))
-                    .map_err(|e| e.to_string())?;
-                self.editor_renderer = None;
-                self.editor_target = None;
-                self.editor_token.clear();
-                self.sample()?;
-                Ok(self.snapshot())
             }
             "editor_message" => {
                 if v["message"]["op"] == "preview" {
-                    return self.editor_preview(&v["message"]);
+                    let result = self.editor_preview(&v["message"]);
+                    if result.is_ok() { self.editor_activity = Some(std::time::Instant::now()); }
+                    return result;
                 }
                 let request: motion_core::plugin_editor::EditorRequest =
                     serde_json::from_value(v["message"].clone()).map_err(|e| e.to_string())?;
-                let mut state = self
-                    .editor
-                    .as_mut()
-                    .unwrap()
-                    .request(&mut self.engine, self.frame.floor() as u32, request)
-                    .map_err(|e| e.to_string())?;
+                let was_gesture = self.editor.as_ref().unwrap().gesture;
+                let result = self.editor.as_mut().unwrap().request(&mut self.engine, self.frame.floor() as u32, request);
+                let mut state = match result {
+                    Ok(state) => state,
+                    Err(error) => {
+                        if error.to_string().starts_with("plugin editor request panicked:") {
+                            self.close_plugin_editor(false, "request_panicked")?;
+                            if let Some(recovery) = &mut self.editor_recovery { recovery["cancelled"] = json!(was_gesture); }
+                        }
+                        return Err(error.to_string());
+                    }
+                };
+                self.editor_activity = Some(std::time::Instant::now());
                 if let Err(error) = self.sample() {
                     state["render_error"] = json!(error);
                 }
@@ -322,6 +361,7 @@ impl Session {
             renderer
                 .configure_assets(self.engine.project(), &self.root)
                 .map_err(|e| e.to_string())?;
+            renderer.set_submission_tracking(self.resource_tracking || self.recorder.is_some());
             self.editor_renderer = Some(renderer);
         }
         let renderer = self.editor_renderer.as_mut().unwrap();
@@ -393,3 +433,7 @@ pub fn color_curve_graph(text: &str) -> Result<Value> {
     value.validate().map_err(|e| e.to_string())?;
     Ok(value.graph())
 }
+
+#[cfg(test)]
+#[path = "effects_recovery_tests.rs"]
+mod recovery_tests;

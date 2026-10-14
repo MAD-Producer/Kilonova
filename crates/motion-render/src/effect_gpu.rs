@@ -58,12 +58,15 @@ pub(crate) struct GpuState {
     pool_height: u32,
     pool_slots: u32,
     pool_sizes: [[u32; 2]; 8],
+    scratch_idle_frames: u32,
     epoch: u64,
     buffers: Vec<Buffer>,
     sprite_buffer: wgpu::Buffer,
     bindings: Vec<Option<Binding>>,
     input_resources: Vec<Option<(u32, usize, wgpu::BindGroup)>>,
 }
+
+const SCRATCH_IDLE_FRAME_LIMIT: u32 = 120;
 pub(crate) fn texture(
     device: &wgpu::Device,
     layout: &wgpu::BindGroupLayout,
@@ -234,6 +237,7 @@ impl EffectGpu {
                 pool_height: 0,
                 pool_slots: 0,
                 pool_sizes: [[0; 2]; 8],
+                scratch_idle_frames: 0,
                 epoch: 0,
                 buffers: Vec::new(),
                 sprite_buffer: device.create_buffer(&wgpu::BufferDescriptor {
@@ -272,12 +276,17 @@ impl GpuState {
         self.input_resources.clear();
     }
     pub fn release_scratch(&mut self) {
-        if self.pool_slots != 0 {
+        let has_resources = self.pool_slots != 0
+            || self.pool.iter().any(Option::is_some)
+            || !self.luts.is_empty()
+            || !self.buffers.is_empty();
+        if has_resources {
             self.pool.iter_mut().for_each(|v| *v = None);
             self.pool_width = 0;
             self.pool_height = 0;
             self.pool_slots = 0;
             self.pool_sizes = [[0; 2]; 8];
+            self.scratch_idle_frames = 0;
             self.luts.clear();
             self.buffers.clear();
             self.invalidate();
@@ -345,9 +354,18 @@ impl GpuState {
         self.failed_program = None;
         let frame = &builder.frame;
         if frame.passes.is_empty() {
-            self.release_scratch();
+            self.scratch_idle_frames = self.scratch_idle_frames.saturating_add(1);
+            if self.scratch_idle_frames >= SCRATCH_IDLE_FRAME_LIMIT {
+                self.release_scratch();
+            } else {
+                // Empty effect plans are common while switching layers. Keep the
+                // validated pool warm for a short idle window instead of forcing
+                // the next effect frame to recreate every texture and buffer.
+                self.invalidate();
+            }
             return Ok(());
         }
+        self.scratch_idle_frames = 0;
         if frame.width > device.limits().max_texture_dimension_2d
             || frame.height > device.limits().max_texture_dimension_2d
         {
@@ -356,39 +374,48 @@ impl GpuState {
                 message: "effect texture exceeds device dimensions".into(),
             });
         }
-        if self.pool_width != frame.width
-            || self.pool_height != frame.height
-            || self.pool_slots != frame.slots
-            || self.pool_sizes != frame.scratch_sizes
-        {
+        if self.pool_slots != frame.slots || self.pool_sizes != frame.scratch_sizes || self.pool.len() != 8 {
+            let old_slots = self.pool_slots;
+            let old_sizes = self.pool_sizes;
+            let mut old_pool = std::mem::take(&mut self.pool);
+            let mut next_pool = Vec::with_capacity(8);
+            for i in 0..8 {
+                let active = frame.slots & (1 << i) != 0;
+                let reusable = active
+                    && old_slots & (1 << i) != 0
+                    && old_sizes[i] == frame.scratch_sizes[i]
+                    && old_pool.get(i).is_some_and(|slot| slot.is_some());
+                if reusable {
+                    next_pool.push(old_pool[i].take());
+                } else if active {
+                    next_pool.push(Some(texture(
+                        device,
+                        composite,
+                        &self.sampler,
+                        frame.scratch_sizes[i][0],
+                        frame.scratch_sizes[i][1],
+                        if i == 7 {
+                            wgpu::TextureFormat::Rgba16Float
+                        } else if (1..=3).contains(&i) {
+                            wgpu::TextureFormat::Rgba8Unorm
+                        } else {
+                            wgpu::TextureFormat::Rgba8UnormSrgb
+                        },
+                    )));
+                } else {
+                    next_pool.push(None);
+                }
+            }
             self.invalidate();
-            self.pool = (0..8)
-                .map(|i| {
-                    if frame.slots & (1 << i) != 0 {
-                        Some(texture(
-                            device,
-                            composite,
-                            &self.sampler,
-                            frame.scratch_sizes[i][0],
-                            frame.scratch_sizes[i][1],
-                            if i == 7 {
-                                wgpu::TextureFormat::Rgba16Float
-                            } else if (1..=3).contains(&i) {
-                                wgpu::TextureFormat::Rgba8Unorm
-                            } else {
-                                wgpu::TextureFormat::Rgba8UnormSrgb
-                            },
-                        ))
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-            self.pool_width = frame.width;
-            self.pool_height = frame.height;
+            self.pool = next_pool;
             self.pool_slots = frame.slots;
             self.pool_sizes = frame.scratch_sizes;
         }
+        // Width and height are frame metadata; scratch texture dimensions come
+        // from scratch_sizes. Do not rebuild the pool for a one-pixel frame
+        // change when every slot can still be reused.
+        self.pool_width = frame.width;
+        self.pool_height = frame.height;
         self.luts.truncate(scene.curve_luts.len());
         for (index, lut) in scene.curve_luts.iter().enumerate() {
             let bytes: [u8; 1024] =
@@ -625,11 +652,18 @@ impl GpuState {
         queue: &wgpu::Queue,
         encoder: &mut wgpu::CommandEncoder,
     ) -> Result<(), RenderError> {
-        let p = &frame.passes[index];
+        let p = frame
+            .passes
+            .get(index)
+            .ok_or_else(|| RenderError::Invalid(format!("effect pass {index} is out of range")))?;
         let source_key = if p.sprite {None} else {source_key};
         let external = if p.sprite {None} else {external};
+        let buffer = self
+            .buffers
+            .get(index)
+            .ok_or_else(|| RenderError::Invalid(format!("effect buffer {index} is missing")))?;
         queue.write_buffer(
-            &self.buffers[index].buffer,
+            &buffer.buffer,
             0,
             bytemuck::bytes_of(&p.uniform),
         );
@@ -643,38 +677,90 @@ impl GpuState {
             source_key,
             external_id,
         );
-        if self.bindings[index].as_ref().is_none_or(|v| v.key != key) {
-            let view = |id: i32| -> &wgpu::TextureView {
+        if self
+            .bindings
+            .get(index)
+            .and_then(|binding| binding.as_ref())
+            .is_none_or(|v| v.key != key)
+        {
+            let view = |id: i32| -> Result<&wgpu::TextureView, RenderError> {
                 if id <= crate::mask_plan::SOURCE_TOKEN {
-                    let owner=(crate::mask_plan::SOURCE_TOKEN-id) as usize;
-                    return &images[&crate::renderer::TextureKey::Mask(frame.draws[owner].layer)].view;
+                    let owner = i64::from(crate::mask_plan::SOURCE_TOKEN) - i64::from(id);
+                    let owner = usize::try_from(owner).map_err(|_| {
+                        RenderError::Invalid(format!("effect mask owner token {id} is invalid"))
+                    })?;
+                    let draw = frame.draws.get(owner).ok_or_else(|| {
+                        RenderError::Invalid(format!("effect mask owner {owner} is out of range"))
+                    })?;
+                    return images
+                        .get(&crate::renderer::TextureKey::Mask(draw.layer))
+                        .map(|image| &image.view)
+                        .ok_or_else(|| {
+                            RenderError::Invalid(format!("effect mask texture for layer {} is missing", draw.layer))
+                        });
                 }
                 if id < 0 {
+                    let asset_index = usize::try_from(-i64::from(id) - 1).map_err(|_| {
+                        RenderError::Invalid(format!("effect asset token {id} is invalid"))
+                    })?;
                     if p.sprite {
-                        return &images[&crate::renderer::TextureKey::Static(assets[(-id - 1) as usize])].view;
+                        let asset = *assets.get(asset_index).ok_or_else(|| {
+                            RenderError::Invalid(format!("effect asset slot {asset_index} is missing"))
+                        })?;
+                        return images
+                            .get(&crate::renderer::TextureKey::Static(asset))
+                            .map(|image| &image.view)
+                            .ok_or_else(|| {
+                                RenderError::Invalid(format!("effect asset {asset} texture is missing"))
+                            });
                     }
                     if let Some(view) = external {
-                        return view;
+                        return Ok(view);
                     }
                     // External pass inputs refer to the owning layer's source.
                     // Videos use a live instance texture rather than the white asset.
-                    let image = source_key.unwrap_or_else(|| {
-                        crate::renderer::TextureKey::Static(assets[(-id - 1) as usize])
-                    });
-                    &images[&image].view
+                    let image = if let Some(source_key) = source_key {
+                        source_key
+                    } else {
+                        let asset = *assets.get(asset_index).ok_or_else(|| {
+                            RenderError::Invalid(format!("effect input asset slot {asset_index} is missing"))
+                        })?;
+                        crate::renderer::TextureKey::Static(asset)
+                    };
+                    return images
+                        .get(&image)
+                        .map(|image| &image.view)
+                        .ok_or_else(|| RenderError::Invalid(format!("effect input texture {image:?} is missing")));
                 } else {
-                    &self.pool[id as usize].as_ref().unwrap().view
+                    let slot = usize::try_from(id).map_err(|_| {
+                        RenderError::Invalid(format!("effect scratch slot {id} is invalid"))
+                    })?;
+                    return self
+                        .pool
+                        .get(slot)
+                        .and_then(|texture| texture.as_ref())
+                        .map(|texture| &texture.view)
+                        .ok_or_else(|| {
+                            RenderError::Invalid(format!("effect scratch slot {slot} is unavailable"))
+                        });
                 }
             };
             let lut = if p.lut >= 0 {
-                &self.luts[p.lut as usize].view
+                let index = usize::try_from(p.lut).map_err(|_| {
+                    RenderError::Invalid(format!("effect LUT index {} is invalid", p.lut))
+                })?;
+                &self
+                    .luts
+                    .get(index)
+                    .ok_or_else(|| RenderError::Invalid(format!("effect LUT {index} is missing")))?
+                    .view
             } else {
                 &self.identity.view
             };
             let entries = [
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: wgpu::BindingResource::TextureView(view(p.input)),
+                    resource: wgpu::BindingResource::TextureView(view(p.input)?),
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
@@ -682,7 +768,7 @@ impl GpuState {
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
-                    resource: wgpu::BindingResource::TextureView(view(p.source)),
+                    resource: wgpu::BindingResource::TextureView(view(p.source)?),
                 },
                 wgpu::BindGroupEntry {
                     binding: 3,
@@ -697,7 +783,12 @@ impl GpuState {
                     resource: wgpu::BindingResource::Sampler(&self.sampler),
                 },
             ];
-            self.bindings[index] = Some(Binding {
+            drop(view);
+            let binding_slot = self
+                .bindings
+                .get_mut(index)
+                .ok_or_else(|| RenderError::Invalid(format!("effect binding slot {index} is out of range")))?;
+            *binding_slot = Some(Binding {
                 key,
                 group: device.create_bind_group(&wgpu::BindGroupDescriptor {
                     label: None,
@@ -706,31 +797,80 @@ impl GpuState {
                 }),
             });
         }
-        let target = &self.pool[p.output as usize].as_ref().unwrap().view;
+        let target = self
+            .pool
+            .get(p.output as usize)
+            .and_then(|texture| texture.as_ref())
+            .map(|texture| &texture.view)
+            .ok_or_else(|| RenderError::Invalid(format!("effect output slot {} is unavailable", p.output)))?;
         if p.resource_input != 0 {
             use crate::renderer::TextureKey;
             let image = if p.resource_input < 0 {
-                TextureKey::Static(assets[(-p.resource_input-1) as usize])
+                let asset_index = usize::try_from(-i64::from(p.resource_input) - 1).map_err(|_| {
+                    RenderError::Invalid(format!("effect resource asset token {} is invalid", p.resource_input))
+                })?;
+                TextureKey::Static(*assets.get(asset_index).ok_or_else(|| {
+                    RenderError::Invalid(format!("effect resource asset slot {asset_index} is missing"))
+                })?)
             } else {
-                let draw=&frame.draws[(p.resource_input-1) as usize];
+                let draw_index = usize::try_from(p.resource_input - 1).map_err(|_| {
+                    RenderError::Invalid(format!("effect resource draw {} is invalid", p.resource_input))
+                })?;
+                let draw = frame.draws.get(draw_index).ok_or_else(|| {
+                    RenderError::Invalid(format!("effect resource draw {draw_index} is missing"))
+                })?;
                 if p.uniform.params[30][1]>0.5 {TextureKey::EffectInput(draw.layer)}
                 else if draw.words[31]==1. {TextureKey::Vector(draw.layer)}
                 else if draw.words[24]<0. {TextureKey::Video(draw.layer)}
-                else {TextureKey::Static(assets[draw.words[24] as usize])}
+                else {
+                    let asset_index = usize::try_from(draw.words[24] as i64).map_err(|_| {
+                        RenderError::Invalid(format!("effect resource asset index {} is invalid", draw.words[24]))
+                    })?;
+                    TextureKey::Static(*assets.get(asset_index).ok_or_else(|| {
+                        RenderError::Invalid(format!("effect resource asset slot {asset_index} is missing"))
+                    })?)
+                }
             };
             let view=&images.get(&image).ok_or_else(||RenderError::Invalid("effect image input is not available".into()))?.view;
             let pointer=view as *const _ as usize;
-            if self.input_resources[index].as_ref().is_none_or(|(program,old,_)|*program!=p.program||*old!=pointer) {
+            let input_resource = self
+                .input_resources
+                .get(index)
+                .ok_or_else(|| RenderError::Invalid(format!("effect resource slot {index} is out of range")))?;
+            if input_resource
+                .as_ref()
+                .is_none_or(|(program, old, _)| *program != p.program || *old != pointer)
+            {
                 let mut entries=Vec::new();
                 for slot in 0..4 {
                     entries.push(wgpu::BindGroupEntry {binding:slot*2,resource:wgpu::BindingResource::TextureView(if slot==0 {view}else{&self.white.view})});
                     entries.push(wgpu::BindGroupEntry {binding:slot*2+1,resource:wgpu::BindingResource::Sampler(&self.sampler)});
                 }
-                self.input_resources[index]=Some((p.program,pointer,device.create_bind_group(&wgpu::BindGroupDescriptor {
+                let input_resource = self
+                    .input_resources
+                    .get_mut(index)
+                    .ok_or_else(|| RenderError::Invalid(format!("effect resource slot {index} is out of range")))?;
+                *input_resource = Some((p.program,pointer,device.create_bind_group(&wgpu::BindGroupDescriptor {
                     label:Some("effect image input"),layout:&self.resource_layout,entries:&entries
                 })));
             }
         }
+        let pipeline_format = if p.output == 7 {
+            7
+        } else if (1..=3).contains(&p.output) {
+            1
+        } else {
+            0
+        };
+        let pipeline = self
+            .pipelines
+            .get(&(p.program, pipeline_format))
+            .ok_or_else(|| {
+                RenderError::Invalid(format!(
+                    "effect pipeline ({}, {}) is missing",
+                    p.program, pipeline_format
+                ))
+            })?;
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("motion-studio effect"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -746,21 +886,26 @@ impl GpuState {
             occlusion_query_set: None,
         });
         pass.set_viewport(0.0, 0.0, p.width as f32, p.height as f32, 0.0, 1.0);
-        pass.set_pipeline(
-            &self.pipelines[&(
-                p.program,
-                if p.output == 7 {
-                    7
-                } else if (1..=3).contains(&p.output) {
-                    1
-                } else {
-                    0
-                },
-            )],
-        );
+        pass.set_pipeline(pipeline);
         pass.set_bind_group(0, &self.buffers[index].group, &[]);
-        pass.set_bind_group(1, &self.bindings[index].as_ref().unwrap().group, &[]);
-        let resources=if p.resource_input!=0 {&self.input_resources[index].as_ref().unwrap().2} else {&self.resources[&p.program]};
+        let binding = self
+            .bindings
+            .get(index)
+            .and_then(|binding| binding.as_ref())
+            .ok_or_else(|| RenderError::Invalid(format!("effect binding {index} is missing")))?;
+        pass.set_bind_group(1, &binding.group, &[]);
+        let resources = if p.resource_input != 0 {
+            &self
+                .input_resources
+                .get(index)
+                .and_then(|resource| resource.as_ref())
+                .ok_or_else(|| RenderError::Invalid(format!("effect resource binding {index} is missing")))?
+                .2
+        } else {
+            self.resources
+                .get(&p.program)
+                .ok_or_else(|| RenderError::Invalid(format!("effect resource program {} is missing", p.program)))?
+        };
         pass.set_bind_group(2, resources, &[]);
         if p.sprite {
             pass.set_vertex_buffer(0, self.sprite_buffer.slice(..));

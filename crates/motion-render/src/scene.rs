@@ -32,8 +32,31 @@ pub struct DrawLayer {
     pub depth: f32,
     pub order: usize,
     pub three_d: bool,
+    /// The generated raster is already in composition pixels. Logical model,
+    /// node transforms and three_d remain available for editing/emitter poses.
+    pub screen_overlay: bool,
     /// 2D layers use a fixed composition projection; 3D layers use the camera.
     pub view_projection: Mat4,
+}
+
+pub(crate) fn effect_has_output(effect: &motion_model::SampledEffect) -> bool {
+    effect.enabled && effect.param_ids.iter().position(|id| id == "effect_opacity")
+        .is_none_or(|index| effect.values[index][0] != 0.)
+}
+pub(crate) fn effect_is_screen_generator(effect: &motion_model::SampledEffect) -> bool {
+    // The validated SDK contract requires scene state for every sprite renderer
+    // and forbids it for image renderers; opacity zero is the wrapper identity.
+    effect.scene.is_some() && effect_has_output(effect)
+}
+pub(crate) fn plane_model(layer: &DrawLayer, overlay: bool) -> Mat4 {
+    if overlay { Mat4::IDENTITY } else { layer.model }
+}
+pub(crate) fn plane_projection(scene: &Scene, layer: &DrawLayer, overlay: bool) -> Mat4 {
+    if overlay { Mat4::from_scale(Vec3::new(2. / scene.width as f32, 2. / scene.height as f32, 1.)) }
+    else { layer.view_projection }
+}
+pub(crate) fn plane_size(scene: &Scene, layer: &DrawLayer, overlay: bool) -> [f32; 2] {
+    if overlay { [scene.width as f32, scene.height as f32] } else { layer.size }
 }
 #[derive(Clone, Debug)]
 pub struct Scene {
@@ -74,6 +97,9 @@ pub struct NestedScene {
     pub scene: Box<Scene>,
 }
 impl Scene {
+    pub fn is_screen_overlay(&self, layer: u64) -> bool {
+        self.effects.iter().any(|effect| effect.layer == layer && effect_is_screen_generator(effect))
+    }
     pub fn new(project: &Project) -> Self {
         Self {
             camera: project.camera.pose(0.0, project.width, project.height),
@@ -161,9 +187,27 @@ impl Scene {
                 sampled.scene = e.scene.clone();
                 sampled.lut = None;
                 sampled.particle_history_error = None;
+                if e.params.len() > motion_effects::MAX_PARAMS {
+                    return Err(motion_model::Error::Invalid(format!(
+                        "effect {} on layer {} has too many parameters (max {})",
+                        e.id,
+                        layer.id,
+                        motion_effects::MAX_PARAMS
+                    )));
+                }
                 if e.enabled && e.scene.as_ref().is_some_and(|s| s.particle_space.is_some()) {
-                    let raw_layer = original.layers.iter().find(|l| l.id == layer.id).unwrap();
-                    let raw_effect = raw_layer.effects.iter().find(|v| v.id == e.id).unwrap();
+                    let raw_layer = original.layers.iter().find(|l| l.id == layer.id).ok_or_else(|| {
+                        motion_model::Error::Invalid(format!(
+                            "particle effect layer {} is missing from the source project",
+                            layer.id
+                        ))
+                    })?;
+                    let raw_effect = raw_layer.effects.iter().find(|v| v.id == e.id).ok_or_else(|| {
+                        motion_model::Error::Invalid(format!(
+                            "particle effect {} is missing from source layer {}",
+                            e.id, layer.id
+                        ))
+                    })?;
                     match motion_model::particle_history::ParticleHistory::capture(original, raw_layer, raw_effect, sampled.particle_history.as_ref()) {
                         Ok(history) => sampled.particle_history = Some(history),
                         Err(error) => { sampled.particle_history = None; sampled.particle_history_error = Some(error.to_string()); }
@@ -192,9 +236,21 @@ impl Scene {
         self.node_spatial.push(true);
         let link = project.camera.parent.as_ref();
         let prefix = if let Some(link) = link {
-            let parent = link.object.map_or(Mat4::IDENTITY, |id| {
-                self.node_world[self.node_ids.iter().position(|v| *v == id).unwrap()]
-            });
+            let parent = if let Some(id) = link.object {
+                let index = self
+                    .node_ids
+                    .iter()
+                    .position(|v| *v == id)
+                    .ok_or_else(|| {
+                        motion_model::Error::Invalid(format!(
+                            "camera parent layer {} is missing from the sampled project",
+                            id
+                        ))
+                    })?;
+                self.node_world[index]
+            } else {
+                Mat4::IDENTITY
+            };
             parent * Mat4::from_cols_array_2d(&link.bind)
         } else {
             Mat4::IDENTITY
@@ -270,7 +326,12 @@ impl Scene {
                     .video_assets
                     .iter()
                     .find(|a| a.id == video.asset)
-                    .unwrap();
+                    .ok_or_else(|| {
+                        motion_model::Error::Invalid(format!(
+                            "video asset {} is missing for layer {}",
+                            video.asset, layer.id
+                        ))
+                    })?;
                 let time = video.source_time_us(layer.local_frame(frame), project.fps);
                 if time < a.video_start_us as i64 || time >= a.video_end_us as i64 {
                     continue;
@@ -382,6 +443,7 @@ impl Scene {
                     }
                 }
             }
+            let screen_overlay = self.is_screen_overlay(layer.id);
             self.layers.push(DrawLayer {
                 id: layer.id,
                 model: self.node_world[order] * geometry_offset(layer) * Mat4::from_translation(vector_center),
@@ -406,6 +468,7 @@ impl Scene {
                 depth: (center - self.camera.eye).dot(forward),
                 order,
                 three_d: layer.three_d,
+                screen_overlay,
                 view_projection: if layer.three_d {
                     self.camera.view_projection
                 } else {
@@ -416,13 +479,13 @@ impl Scene {
         // A visible 2D layer is a compositing boundary between spatial groups.
         let mut start = 0;
         while start < self.layers.len() {
-            if !self.layers[start].three_d {
+            if !self.layers[start].three_d || self.layers[start].screen_overlay {
                 start += 1;
                 continue;
             }
             let end = self.layers[start..]
                 .iter()
-                .position(|l| !l.three_d)
+                .position(|l| !l.three_d || l.screen_overlay)
                 .map_or(self.layers.len(), |n| start + n);
             self.layers[start..end]
                 .sort_unstable_by(|a, b| b.depth.total_cmp(&a.depth).then(a.order.cmp(&b.order)));
@@ -517,10 +580,11 @@ impl Scene {
         let mut hits = Vec::new();
         let mut start = 0;
         while start < self.layers.len() {
-            let end = if self.layers[start].three_d {
+            let spatial = |l: &DrawLayer| l.three_d && !self.is_screen_overlay(l.id);
+            let end = if spatial(&self.layers[start]) {
                 self.layers[start..]
                     .iter()
-                    .position(|l| !l.three_d)
+                    .position(|l| !spatial(l))
                     .map_or(self.layers.len(), |n| start + n)
             } else {
                 start + 1
@@ -528,7 +592,8 @@ impl Scene {
             let group_start = hits.len();
             for l in &self.layers[start..end] {
                 if l.opacity <= 0.0 || !l.composite_visible { continue; }
-                let mvp = (l.view_projection * l.model).as_dmat4();
+                let mvp = (plane_projection(self, l, l.screen_overlay) * plane_model(l, l.screen_overlay)).as_dmat4();
+                let size = plane_size(self, l, l.screen_overlay);
                 if mvp.determinant().abs() < 1e-20 {
                     continue;
                 }
@@ -551,8 +616,8 @@ impl Scene {
                 }
                 let depth = clip.z / clip.w;
                 let uv = [
-                    (p.x / f64::from(l.size[0]) + 0.5) as f32,
-                    (0.5 - p.y / f64::from(l.size[1])) as f32,
+                    (p.x / f64::from(size[0]) + 0.5) as f32,
+                    (0.5 - p.y / f64::from(size[1])) as f32,
                 ];
                 if (0.0..=1.0).contains(&depth) && uv.into_iter().all(|v| (0.0..=1.0).contains(&v))
                 {
