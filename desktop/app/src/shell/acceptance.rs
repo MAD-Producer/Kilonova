@@ -23,10 +23,10 @@ impl Shell {
             let revision = self.state["revision"].clone();
             let screenshot = self.capture_panel_float(panel)?;
             let value_graph = if panel == dock::Panel::Timeline {
-                let previous = self.panels.timeline.graph_mode;
-                self.panels.timeline.graph_mode = true;
+                let previous = self.panels.timeline.clone();
+                self.panels.timeline.set_graph_mode(true);
                 let graph = self.capture_panel_float(panel);
-                self.panels.timeline.graph_mode = previous;
+                self.panels.timeline = previous;
                 Some(graph?)
             } else {
                 None
@@ -120,8 +120,29 @@ impl Shell {
         self.add_solid()?;
         let object = self.panels.selected.unwrap();
         self.panels.timeline.expanded.insert(object);
+        let controller_id = self.state["project"]["layers"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|l| l["id"].as_u64())
+            .max()
+            .unwrap_or(0)
+            + 10;
+        let mut controller = motion_core::Layer::solid(
+            controller_id,
+            if self.workspace.locale == Locale::Zh {
+                "控制器"
+            } else {
+                "Controller"
+            },
+            [100.; 2],
+            [960., 540., 0.],
+            [0.; 4],
+        );
+        controller.content = motion_core::Content::Null;
         self.state = self.engine.edit(
             serde_json::to_string(&vec![
+                Command::Add { layer: controller },
                 Command::Animate {
                     object,
                     property: motion_core::Property::Position,
@@ -134,6 +155,24 @@ impl Shell {
                     property: motion_core::Property::Position,
                     frame: 90,
                     value: [1280.0, 540.0, 0.0],
+                },
+                Command::Curve {
+                    object,
+                    property: motion_core::Property::Position,
+                    axis: None,
+                    frame: 0,
+                    easing: motion_core::Easing {
+                        ease: motion_core::Ease::InOut,
+                        curve: Some(motion_core::Curve {
+                            space: motion_core::CurveSpace::Progress,
+                            shape: motion_core::CurveShape::Cubic {
+                                control1: [1. / 3., 0.],
+                                control2: [2. / 3., 1.],
+                                start: 0.,
+                                end: 1.,
+                            },
+                        }),
+                    },
                 },
             ])
             .map_err(|e| e.to_string())?,
@@ -203,6 +242,7 @@ impl Shell {
         } else {
             Value::Null
         };
+        let design_screens = self.capture_design_screens(size)?;
         let state = self.engine.state()?;
         let styles = self
             .panels
@@ -210,7 +250,7 @@ impl Shell {
             .clone()
             .unwrap_or_else(motion_ui::style::default_stylesheet_arc);
         let style_report = serde_json::json!({"focus":styles.color("focus").0,"panel":styles.color("panel").0,"header":styles.color("header").0,"rowHeight":styles.metric("row.height",22.),"dragThreshold":styles.metric("motion.drag_threshold",3.),"smallFont":styles.metric("font.small",11.),"easing":styles.easing(),"overrideActive":self.style_source.path.is_some()});
-        let result = serde_json::json!({"style":style_report,"panels":self.smoke_panel_records,"ok":true,"framesPresented":state["presented"],"frame":state["frame"],"preview":state["preview"],
+        let result = serde_json::json!({"designScreens":design_screens,"style":style_report,"panels":self.smoke_panel_records,"ok":true,"framesPresented":state["presented"],"frame":state["frame"],"preview":state["preview"],
             "retainedUiProbe":reuse_probe,"root":state["root"],"screenshot":screenshot,"floatingFrames":self.smoke_float_frames,"locale":self.workspace.locale,"desktop":state["desktop"],"nodePreview":self.smoke_node_report,"checks":["create_layer","animate","seek","save","reopen","single_surface_preview","chrome","floating_properties","floating_composition","resize","redock"]});
         std::fs::write(
             &path,

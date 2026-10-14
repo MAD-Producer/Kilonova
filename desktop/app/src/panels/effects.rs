@@ -18,6 +18,19 @@ pub(super) fn render(
     let layer = selected.as_ref().unwrap_or(&fallback);
     if panel == Panel::Effects {
         panels.browser.catalogue = panels.effect_controls.catalogue.clone();
+        let mut y = area.min[1];
+        panels.browser.render_library(
+            list,
+            atlas,
+            area,
+            &mut y,
+            layer,
+            state,
+            input,
+            panels.locale,
+            out,
+        );
+        return;
     }
     let controls = if panel == Panel::Effects {
         &mut panels.browser

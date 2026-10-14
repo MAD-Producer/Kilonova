@@ -101,6 +101,23 @@ impl Shell {
         {
             return Err(self.workspace.locale.t(T::Importing).into());
         }
+        if self.importing_effect.is_some()
+            && matches!(
+                &action,
+                Action::New
+                    | Action::Open
+                    | Action::OpenPath(_)
+                    | Action::ImportEffectPackage
+                    | Action::ImportEffectPath(_)
+            )
+        {
+            return Err(if self.workspace.locale == Locale::Zh {
+                "正在导入效果包，请稍候"
+            } else {
+                "Wait for the effect package import to finish"
+            }
+            .into());
+        }
         match action {
             Action::ProjectChoice(choice) => self.choose_project_change(choice)?,
             Action::Node(action) => self.node_action(action)?,
@@ -112,6 +129,14 @@ impl Shell {
                 self.dialog = Some(dialogs::Dialog::text(
                     self.system_fonts.clone().unwrap_or_default(),
                 ));
+            }
+            Action::NewComposition => {
+                self.stop();
+                self.dialog = Some(dialogs::Dialog::new_composition(1920, 1080));
+            }
+            Action::CompositionPreset(w, h) => {
+                self.stop();
+                self.dialog = Some(dialogs::Dialog::new_composition(w, h));
             }
             Action::CompositionSettings => {
                 self.stop();
@@ -157,6 +182,20 @@ impl Shell {
                 self.stop();
                 self.state = self.engine.plugin(request.to_string())?;
             }
+            Action::ImportEffectPackage => {
+                if let Some(path) = rfd::FileDialog::new()
+                    .set_title(if self.workspace.locale == Locale::Zh {
+                        "导入效果包"
+                    } else {
+                        "Import effect package"
+                    })
+                    .add_filter("Motion Studio Effects", &["msfx"])
+                    .pick_file()
+                {
+                    self.start_effect_import(path)?;
+                }
+            }
+            Action::ImportEffectPath(path) => self.start_effect_import(path)?,
             Action::ImportMedia => {
                 if let Some(path) = rfd::FileDialog::new()
                     .set_title(self.workspace.locale.t(T::ImportMedia))
@@ -276,7 +315,9 @@ impl Shell {
                 }
             }
             Action::Favorites(favorites) => {
-                self.workspace.favorites = favorites;
+                self.workspace.favorites = favorites.clone();
+                self.panels.browser.favorites = favorites.clone();
+                self.panels.effect_controls.favorites = favorites;
                 if self.smoke.is_none() {
                     self.workspace.save(&self.layout_path)?;
                 }
@@ -312,19 +353,48 @@ impl Shell {
                 }
                 self.panels.message = Some(locale.t(T::Ready).into());
             }
-            Action::ResetWorkspace => {
-                self.panels.node_editor.cancel_interaction();
-                let ids: Vec<_> = self.floating.values().map(|f| f.panel.dock()).collect();
-                for id in ids {
-                    self.redock_panel(id)?;
+            Action::ApplyWorkspace { visible, name } => {
+                for panel in dock::Panel::ALL {
+                    let id = panel.dock();
+                    let action = if visible.contains(&id) {
+                        Action::ShowPanel(id)
+                    } else {
+                        Action::ClosePanel(id)
+                    };
+                    self.action(action, event_loop)?;
                 }
-                self.workspace.root = dock::editor_layout();
-                self.workspace.floating.clear();
-                self.workspace.hidden.clear();
-                self.workspace.cancel();
+                if !name.is_empty() {
+                    self.workspace.save_named(name);
+                }
                 if self.smoke.is_none() {
                     self.workspace.save(&self.layout_path)?;
                 }
+            }
+            Action::ManageWorkspace => {
+                self.workspace_manager = Some(workspace::Manager::new(&self.workspace));
+            }
+            Action::WindowDrag => {
+                if let Some(window) = &self.window {
+                    let _ = window.drag_window();
+                }
+            }
+            Action::WindowClose => self.request_close(),
+            Action::WindowMinimize => {
+                if let Some(window) = &self.window {
+                    window.set_minimized(true);
+                }
+            }
+            Action::WindowMaximize => {
+                if let Some(window) = &self.window {
+                    window.set_maximized(!window.is_maximized());
+                }
+            }
+            Action::Workspace(preset) => {
+                self.switch_workspace(preset, event_loop)?;
+            }
+            Action::ResetWorkspace => {
+                self.switch_workspace(self.workspace.preset, event_loop)?;
+                self.workspace.reset_preset();
             }
             Action::ShowPanel(id) => {
                 self.panels.node_editor.cancel_interaction();

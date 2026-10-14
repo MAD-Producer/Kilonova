@@ -17,13 +17,13 @@ pub(super) struct Row {
 
 pub(super) struct PropertyRow {
     pub property: Property,
-    key: &'static str,
-    title: T,
+    pub key: &'static str,
+    pub title: T,
     pub axis: Option<usize>,
     pub axes: Vec<usize>,
     pub keys: Vec<f64>,
 }
-fn property_rows(state: &Value, object: u64) -> Vec<PropertyRow> {
+pub(super) fn property_rows(state: &Value, object: u64) -> Vec<PropertyRow> {
     let layer = state["project"]["layers"]
         .as_array()
         .and_then(|ls| ls.iter().find(|l| l["id"].as_u64() == Some(object)));
@@ -274,6 +274,10 @@ pub(super) fn render(
     input: &Input,
     out: &mut Vec<Action>,
 ) {
+    if panels.timeline.graph_mode {
+        super::graph_workspace::render(list, atlas, area, panels, state, input, out);
+        return;
+    }
     let styles = list.styles();
     let row_height = styles.metric("row.height", 22.);
     let colors = styles.colors();
@@ -281,13 +285,15 @@ pub(super) fn render(
     if panels.focused == Some(Panel::Timeline) {
         super::properties::process_field(panels, state, input, out);
     }
+    panels.timeline_columns.begin(state);
     let context_input = input;
     let neutral = Input::default();
-    let input = if panels.timeline.timeline_context_menu.is_some() {
-        &neutral
-    } else {
-        input
-    };
+    let input =
+        if panels.timeline.timeline_context_menu.is_some() || panels.timeline_columns.editing() {
+            &neutral
+        } else {
+            input
+        };
     paint::rect(list, area, colors.PANEL);
     let total = last_frame(state) + 1.0;
     let graph_mode = panels.timeline.graph_mode;
@@ -331,7 +337,7 @@ pub(super) fn render(
         panels.timeline.scroll_extent_cache = Some((extent_signature, max));
         max
     };
-    let gutter = GUTTER.min(area.width() * 0.4);
+    let gutter = if graph_mode { 320. } else { GUTTER }.min(area.width() * 0.52);
     let track = Rect::new(
         area.min[0] + gutter,
         area.min[1],
@@ -397,36 +403,35 @@ pub(super) fn render(
             foreground: colors.ACCENT,
             ..styles
                 .as_ref()
-                .resolve("label.title", Default::default())
+                .resolve("label", Default::default())
                 .unwrap()
         },
         Align::Left,
     );
     let locale = panels.locale;
-    if gutter >= 370. {
+    if gutter >= 220. {
         if ui::button(
             list,
             atlas,
             Rect::new(area.min[0] + gutter - 98., area.min[1] + 5., 90., 25.),
-            if panels.timeline.graph_mode {
-                if locale == Locale::Zh {
-                    "时间轴"
-                } else {
-                    "Timeline"
-                }
+            if locale == Locale::Zh {
+                "曲线编辑"
             } else {
-                if locale == Locale::Zh {
-                    "曲线"
-                } else {
-                    "Graph"
-                }
+                "Graph editor"
             },
             input,
             true,
         )
         .clicked
         {
-            panels.timeline.graph_mode = !panels.timeline.graph_mode;
+            out.extend(super::cancel_interaction(panels));
+            panels.timeline.set_graph_mode(true);
+            let neutral = Input {
+                mouse: input.mouse,
+                ..Default::default()
+            };
+            super::graph_workspace::render(list, atlas, area, panels, state, &neutral, out);
+            return;
         }
     }
     let search = Rect::new(
@@ -553,10 +558,17 @@ pub(super) fn render(
         Rect::new(
             area.min[0] + 90.0,
             ruler.min[1],
-            (gutter - 212.0).max(1.0),
+            (gutter - 320.0).max(1.0),
             28.0,
         ),
         locale.t(T::SourceName),
+        true,
+    );
+    label(
+        list,
+        atlas,
+        Rect::new(area.min[0] + gutter - 196., ruler.min[1], 76., 28.),
+        locale.t(T::BlendMode),
         true,
     );
     label(
@@ -878,36 +890,80 @@ pub(super) fn render(
             18.,
             colors.TEXT_MUTED,
         );
-        label(
-            list,
-            atlas,
-            Rect::new(area.min[0] + gutter - 196., y, 76., row_height),
-            layer
-                .and_then(|l| l["blend"].as_str())
-                .unwrap_or(if locale == Locale::Zh {
-                    "正常"
+        if let Some(owner) = super::timeline_columns::owner(state, row.id) {
+            let blend = Rect::new(
+                area.min[0] + gutter - 196.,
+                y + 2.,
+                76.,
+                (row_height - 4.).max(1.),
+            );
+            let parent = Rect::new(
+                area.min[0] + gutter - 94.,
+                y + 2.,
+                86.,
+                (row_height - 4.).max(1.),
+            );
+            let link = Rect::new(
+                area.min[0] + gutter - 114.,
+                y + 4.,
+                14.,
+                (row_height - 8.).max(1.),
+            );
+            let blend_supported = !matches!(
+                owner["content"]["kind"].as_str(),
+                Some("null" | "audio" | "adjustment")
+            ) && row.id != 0;
+            let blend_enabled = blend_supported && !row.locked;
+            let parent_enabled = row.id == 0 || !row.locked && row.spatial;
+            if (blend_enabled && clicked(input, blend))
+                || (parent_enabled && (clicked(input, parent) || clicked(input, link)))
+            {
+                out.extend(super::cancel_interaction(panels));
+            }
+            motion_ui::icons::draw(
+                list,
+                link,
+                motion_ui::icons::Icon::Link,
+                14.,
+                if parent_enabled {
+                    colors.TEXT_MUTED
                 } else {
-                    "Normal"
-                }),
-            true,
-        );
-        let parent = layer
-            .and_then(|l| l["parent"]["object"].as_u64())
-            .and_then(|id| {
-                state["project"]["layers"]
-                    .as_array()?
-                    .iter()
-                    .find(|l| l["id"].as_u64() == Some(id))
-            })
-            .and_then(|l| l["name"].as_str())
-            .unwrap_or(locale.t(T::None));
-        label(
-            list,
-            atlas,
-            Rect::new(area.min[0] + gutter - 110.0, y, 102.0, row_height),
-            parent,
-            true,
-        );
+                    colors.TEXT_MUTED.with_alpha(0.4)
+                },
+            );
+            let mut link_input = input.clone();
+            if parent_enabled && clicked(input, link) {
+                link_input.pressed =
+                    Some((MouseButton::Left, [parent.min[0] + 1., parent.min[1] + 1.]));
+            }
+            let opened_blend = if blend_supported {
+                panels.timeline_columns.cell(
+                    list,
+                    atlas,
+                    blend,
+                    row.id,
+                    super::timeline_columns::Column::Blend,
+                    super::timeline_columns::blend_name(owner, locale),
+                    input,
+                    blend_enabled,
+                )
+            } else {
+                false
+            };
+            let opened_parent = panels.timeline_columns.cell(
+                list,
+                atlas,
+                parent,
+                row.id,
+                super::timeline_columns::Column::Parent,
+                &super::timeline_columns::parent_name(owner, state, locale),
+                &link_input,
+                parent_enabled,
+            );
+            if opened_blend || opened_parent {
+                panels.selected = Some(row.id);
+            }
+        }
         let eye = Rect::new(area.min[0] + 10.0, y, 16.0, row_height);
         let lock = Rect::new(area.min[0] + 28.0, y, 16.0, row_height);
         if motion_ui::widgets::Checkbox::draw(
@@ -1181,6 +1237,10 @@ pub(super) fn render(
         paint::diamond(list, [x, ruler.min[1] + 6.0], 6.0, colors.ACCENT);
     }
 
+    panels
+        .timeline_columns
+        .overlay(list, atlas, area, state, context_input, locale, out);
+
     // Timeline right-click context menu for creating layers
     if right_clicked(input, body) {
         panels.timeline.timeline_context_menu = Some(input.mouse);
@@ -1242,7 +1302,7 @@ fn render_timeline_context_menu(
     let menu_y = pos[1].clamp(area.min[1], (area.max[1] - menu_height).max(area.min[1]));
 
     let menu_rect = Rect::new(menu_x, menu_y, menu_width, menu_height);
-    list.glyphs.retain(|g| {
+    list.retain_glyphs(|g| {
         g.position[0] + g.size[0] <= menu_rect.min[0]
             || g.position[0] >= menu_rect.max[0]
             || g.position[1] + g.size[1] <= menu_rect.min[1]
@@ -1304,8 +1364,9 @@ mod property_tests {
         let mut panels = Panels::default();
         let mut atlas = TextAtlas::from_system(12.).unwrap();
         let area = Rect::new(0., 0., 1200., 600.);
-        let ppf = (1200. - GUTTER) / 120.;
-        let point = |frame: f32| [GUTTER + frame * ppf, 45.];
+        let gutter = GUTTER.min(1200. * 0.52);
+        let ppf = (1200. - gutter - 8.) / 120.;
+        let point = |frame: f32| [gutter + frame * ppf, 45.];
         let mut actions = vec![];
         render(
             &mut PaintList::default(),
@@ -1375,7 +1436,7 @@ mod property_tests {
     fn holding_the_same_timeline_frame_leaves_room_for_presentation() {
         let mut panels = Panels::default();
         let mut atlas = TextAtlas::from_system(12.).unwrap();
-        let point = [600., 45.];
+        let point = [760., 45.];
         let mut input = Input {
             mouse: point,
             pressed: Some((MouseButton::Left, point)),
@@ -1439,7 +1500,7 @@ mod property_tests {
         panels.timeline.expanded.insert(7);
         let mut atlas = TextAtlas::from_system(12.).unwrap();
         let area = Rect::new(0., 0., 1200., 600.);
-        let point = [247., 124.];
+        let point = [335., 124.];
         let mut actions = vec![];
         for input in [
             Input {

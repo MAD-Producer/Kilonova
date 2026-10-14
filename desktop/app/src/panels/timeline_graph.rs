@@ -8,6 +8,17 @@ enum Samples {
     Vector(Track<[f32; 3]>),
 }
 impl Samples {
+    fn velocity(&self, frame: f64, component: usize, fps: f64) -> f32 {
+        match self {
+            Self::Scalar(track) => {
+                super::graph_sampling::velocity(track, frame, fps, |v| v as f64) as f32
+            }
+            Self::Vector(track) => {
+                super::graph_sampling::velocity(track, frame, fps, |v| v[component] as f64) as f32
+            }
+        }
+    }
+
     fn value(&self, frame: f64, component: usize) -> f32 {
         match self {
             Self::Scalar(track) => track.sample(frame),
@@ -30,7 +41,26 @@ pub(super) fn render(
     let styles = list.styles();
     let colors = styles.colors();
 
+    if input.pressed.is_some() {
+        if panels
+            .timeline
+            .key_drag
+            .as_ref()
+            .is_some_and(|d| !d.begun())
+        {
+            panels.timeline.key_drag = None;
+        }
+        if panels
+            .timeline
+            .graph_drag
+            .as_ref()
+            .is_some_and(|d| !d.begun())
+        {
+            panels.timeline.graph_drag = None;
+        }
+    }
     let mut graph = list.child();
+    let fps = state["project"]["fps"].as_f64().unwrap_or(30.);
     paint::rect(&mut graph, area, colors.SUNKEN);
     let Some(object) = panels.selected.filter(|id| *id != 0) else {
         label(
@@ -102,52 +132,6 @@ pub(super) fn render(
         Property::Rotation => T::Rotation,
         _ => T::Opacity,
     };
-    label(
-        &mut graph,
-        atlas,
-        Rect::new(
-            area.min[0] + 8.,
-            area.min[1] + 2.,
-            (area.width() - 140.).max(1.),
-            25.,
-        ),
-        &format!(
-            "{} · {}",
-            panels.locale.t(title),
-            if panels.locale == Locale::Zh {
-                "值曲线"
-            } else {
-                "Value graph"
-            }
-        ),
-        false,
-    );
-    if separated {
-        for index in &visible_axes {
-            let button = Rect::new(
-                area.max[0] - 112. + *index as f32 * 32.,
-                area.min[1] + 3.,
-                28.,
-                22.,
-            );
-            if ui::button(
-                &mut graph,
-                atlas,
-                button,
-                ["X", "Y", "Z"][*index],
-                input,
-                true,
-            )
-            .clicked
-            {
-                panels.animation_controls.choose_track(
-                    object,
-                    property,
-                    Some([Axis::X, Axis::Y, Axis::Z][*index]),
-                );
-            }
-        }
-    }
     let axis = panels.animation_controls.axis;
     let Some(source) = data::channel(state, object, property, axis) else {
         return;
@@ -177,15 +161,21 @@ pub(super) fn render(
     let components = if axis.is_some() || property == Property::Opacity {
         vec![0]
     } else {
-        visible_axes
+        let component = visible_axes
+            .iter()
+            .copied()
+            .find(|c| *c == panels.timeline.graph_component)
+            .unwrap_or(visible_axes[0]);
+        panels.timeline.graph_component = component;
+        vec![component]
     };
     let plot = Rect::new(
-        area.min[0],
-        area.min[1] + 30.,
-        area.width(),
-        (area.height() - 56.).max(1.),
+        area.min[0] + 64.,
+        area.min[1] + 32.,
+        (area.width() - 72.).max(1.),
+        (area.height() - 102.).max(1.),
     );
-    let end = (offset + area.width() as f64 / ppf.max(1e-6) as f64).min(last_frame(state));
+    let end = (offset + plot.width() as f64 / ppf.max(1e-6) as f64).min(last_frame(state));
     let scale = if property == Property::Opacity {
         100.
     } else {
@@ -199,7 +189,11 @@ pub(super) fn render(
                     let frame = offset + (end - offset).max(0.) * i as f64 / 256.;
                     (
                         frame,
-                        samples.value(frame - layer_offset as f64, *component) * scale,
+                        if panels.timeline.speed_graph {
+                            samples.velocity(frame - layer_offset as f64, *component, fps) * scale
+                        } else {
+                            samples.value(frame - layer_offset as f64, *component) * scale
+                        },
                     )
                 })
                 .collect()
@@ -216,8 +210,35 @@ pub(super) fn render(
         .map(|p| p.1)
         .fold(f32::NEG_INFINITY, f32::max);
     let margin = ((max - min) * 0.1).max(1.);
-    let low = min - margin;
-    let high = max + margin;
+    let auto_low = min - margin;
+    let auto_high = max + margin;
+    let old_zoom = if panels.timeline.graph_y_zoom > 0. {
+        panels.timeline.graph_y_zoom
+    } else {
+        1.
+    };
+    if area.contains(input.mouse) && input.modifiers.control && input.wheel[1] != 0. {
+        let zoom = (old_zoom * (-input.wheel[1] / 240.).exp()).clamp(0.25, 64.);
+        let fraction = (plot.max[1] - input.mouse[1]) / plot.height().max(1.) - 0.5;
+        panels.timeline.graph_y_offset +=
+            fraction * (auto_high - auto_low) * (1. / old_zoom - 1. / zoom);
+        panels.timeline.graph_y_zoom = zoom;
+    }
+    let zoom = if panels.timeline.graph_y_zoom > 0. {
+        panels.timeline.graph_y_zoom
+    } else {
+        1.
+    };
+    let half = (auto_high - auto_low) * 0.5 / zoom;
+    let center = (auto_high + auto_low) * 0.5 + panels.timeline.graph_y_offset;
+    let fixed = panels
+        .timeline
+        .graph_drag
+        .as_ref()
+        .map(|d| d.bounds())
+        .or_else(|| panels.timeline.key_drag.as_ref().map(|d| d.bounds()));
+    let low = fixed.map_or(center - half, |b| b[0]);
+    let high = fixed.map_or(center + half, |b| b[1]);
     let y_of = |value: f32| plot.max[1] - (value - low) / (high - low) * plot.height();
     for i in 0..5 {
         let value = low + (high - low) * i as f32 / 4.;
@@ -230,24 +251,58 @@ pub(super) fn render(
         label(
             &mut graph,
             atlas,
-            Rect::new(plot.min[0] + 4., y - 12., 52., 22.),
+            Rect::new(area.min[0] + 4., y - 11., 52., 22.),
             &format!("{value:.1}"),
             true,
         );
     }
+    let unit = match property {
+        Property::Position => {
+            if panels.timeline.speed_graph {
+                "px/s"
+            } else {
+                "px"
+            }
+        }
+        Property::Rotation => {
+            if panels.timeline.speed_graph {
+                "°/s"
+            } else {
+                "°"
+            }
+        }
+        _ => {
+            if panels.timeline.speed_graph {
+                "%/s"
+            } else {
+                "%"
+            }
+        }
+    };
+    label(
+        &mut graph,
+        atlas,
+        Rect::new(area.min[0] + 8., area.min[1] + 2., 50., 24.),
+        unit,
+        true,
+    );
     let mut lines = list.child();
     let mut clicked_key = None;
     let selected = panels.animation_controls.user_key();
     for (index, curve) in points.iter().enumerate() {
-        let color =
-            colors.TRACKS[axis.map_or(components[index], |a| a.index()) % colors.TRACKS.len()];
-        paint::line(
+        let color = if index == 0 {
+            styles.color("curve")
+        } else {
+            colors.TRACKS[axis.map_or(components[index], |a| a.index()) % colors.TRACKS.len()]
+        };
+        paint::line_with_width(
             &mut lines,
             curve
                 .iter()
-                .map(|(frame, value)| [area.min[0] + (*frame - offset) as f32 * ppf, y_of(*value)])
+                .map(|(frame, value)| [plot.min[0] + (*frame - offset) as f32 * ppf, y_of(*value)])
                 .collect(),
             color,
+            styles.metric("graph.curve_width", 2.),
         );
         for key in source["keys"].as_array().into_iter().flatten() {
             let Some(frame) = key["frame"]
@@ -256,10 +311,13 @@ pub(super) fn render(
             else {
                 continue;
             };
-            let value =
-                samples.value(frame as f64 - layer_offset as f64, components[index]) * scale;
+            let value = if panels.timeline.speed_graph {
+                samples.velocity(frame as f64 - layer_offset as f64, components[index], fps) * scale
+            } else {
+                samples.value(frame as f64 - layer_offset as f64, components[index]) * scale
+            };
             let point = [
-                area.min[0] + (frame as f64 - offset) as f32 * ppf,
+                plot.min[0] + (frame as f64 - offset) as f32 * ppf,
                 y_of(value),
             ];
             let chosen = selected.is_some_and(|s| {
@@ -271,14 +329,55 @@ pub(super) fn render(
             paint::diamond(
                 &mut lines,
                 point,
-                if chosen { 5. } else { 4. },
-                if chosen { colors.KEYFRAME } else { color },
+                styles.metric("graph.key_radius", 5.) + if chosen { 0.5 } else { 0. },
+                colors.KEYFRAME,
             );
-            if clicked(input, Rect::new(point[0] - 6., point[1] - 6., 12., 12.)) {
+            if clicked(input, Rect::new(point[0] - 9., point[1] - 9., 18., 18.)) {
                 clicked_key = Some(frame);
+                if layer["locked"].as_bool() != Some(true) && panels.timeline.graph_drag.is_none() {
+                    super::graph_keys::begin(
+                        panels,
+                        state,
+                        object,
+                        property,
+                        axis,
+                        components[index],
+                        source,
+                        frame as u32,
+                        point,
+                        value,
+                        [low, high],
+                        input,
+                        out,
+                    );
+                }
             }
         }
     }
+    super::graph_handles::draw(
+        &mut lines,
+        atlas,
+        panels,
+        source,
+        object,
+        property,
+        axis,
+        components[0],
+        super::graph_handles::Plot {
+            area: plot,
+            offset,
+            ppf,
+            low,
+            high,
+            speed: panels.timeline.speed_graph,
+            fps,
+            scale,
+        },
+        input,
+        layer["locked"].as_bool().unwrap_or(false),
+        out,
+    );
+    super::graph_keys::update(panels, state, plot, ppf, scale, source, input, out);
     lines.clip_to(plot);
     graph.append(lines);
     if let Some(frame) = clicked_key {
@@ -286,17 +385,170 @@ pub(super) fn render(
             .animation_controls
             .select_key(object, property, axis, frame);
         out.push(Action::Seek(frame as f64));
-    } else if clicked(input, plot) {
+    } else if panels.timeline.graph_drag.is_none()
+        && panels.timeline.key_drag.is_none()
+        && clicked(input, plot)
+    {
         panels.animation_controls.clear_key();
+    }
+    if plot.contains(input.mouse) {
+        let frame = offset + (input.mouse[0] - plot.min[0]) as f64 / ppf.max(0.001) as f64;
+        let value = if panels.timeline.speed_graph {
+            samples.velocity(frame - layer_offset as f64, components[0], fps) * scale
+        } else {
+            samples.value(frame - layer_offset as f64, components[0]) * scale
+        };
+        let width = 168.;
+        let height = 50.;
+        let x = if input.mouse[0] + 16. + width > plot.max[0] {
+            input.mouse[0] - width - 16.
+        } else {
+            input.mouse[0] + 16.
+        };
+        let y = if input.mouse[1] + 16. + height > plot.max[1] {
+            input.mouse[1] - height - 16.
+        } else {
+            input.mouse[1] + 16.
+        };
+        let card = Rect::new(x.max(plot.min[0]), y.max(plot.min[1]), width, height);
+        motion_ui::style::box_style(
+            &mut graph,
+            card,
+            styles.resolve("popup", Default::default()).unwrap(),
+        );
+        label(
+            &mut graph,
+            atlas,
+            Rect::new(card.min[0] + 8., card.min[1] + 4., 152., 20.),
+            panels.locale.t(title),
+            true,
+        );
+        motion_ui::style::text_style(
+            &mut graph,
+            atlas,
+            Rect::new(card.min[0] + 8., card.min[1] + 24., 152., 20.),
+            &format!("{value:.1} {unit}"),
+            styles.resolve("label.accent", Default::default()).unwrap(),
+            Align::Left,
+        );
+    }
+    let axis_label = axis.map_or(components[0], |a| a.index());
+    label(
+        &mut graph,
+        atlas,
+        Rect::new(plot.min[0], area.min[1] + 2., plot.width(), 24.),
+        &format!(
+            "{} {} · {}",
+            ["X", "Y", "Z"][axis_label],
+            panels.locale.t(title),
+            if panels.timeline.speed_graph {
+                if panels.locale == Locale::Zh {
+                    "速度"
+                } else {
+                    "Speed"
+                }
+            } else {
+                if panels.locale == Locale::Zh {
+                    "数值"
+                } else {
+                    "Value"
+                }
+            }
+        ),
+        true,
+    );
+    let step = (plot.width() / ppf / 4.).max(1.);
+    for i in 0..=4 {
+        let frame = offset + i as f64 * step as f64;
+        let x = plot.min[0] + (frame - offset) as f32 * ppf;
+        if x <= plot.max[0] {
+            if panels.timeline.graph_grid {
+                paint::line(
+                    &mut graph,
+                    vec![[x, plot.min[1]], [x, plot.max[1]]],
+                    colors.BORDER.with_alpha(0.3),
+                );
+            }
+            let seconds = frame.max(0.) / fps;
+            let whole = seconds.floor() as u32;
+            let sub = ((seconds - seconds.floor()) * fps).round() as u32;
+            ui::text(
+                &mut graph,
+                atlas,
+                Rect::new(
+                    (x - 28.).clamp(area.min[0], (area.max[0] - 56.).max(area.min[0])),
+                    plot.max[1] + 16.,
+                    56.,
+                    22.,
+                ),
+                &format!("{whole}:{sub:02}"),
+                colors.TEXT_MUTED,
+                Align::Center,
+            );
+        }
+    }
+    let frame = state["frame"].as_f64().unwrap_or(0.);
+    let head = plot.min[0] + (frame - offset) as f32 * ppf;
+    if head >= plot.min[0] && head <= plot.max[0] {
+        paint::rect(
+            &mut graph,
+            Rect::new(head, area.min[1], 1., plot.max[1] - area.min[1]),
+            colors.ACCENT.with_alpha(0.8),
+        );
+        let tag = Rect::new(
+            (head - 40.).clamp(plot.min[0], (plot.max[0] - 80.).max(plot.min[0])),
+            area.min[1],
+            80.,
+            20.,
+        );
+        paint::rect(&mut graph, tag, colors.ACCENT.with_alpha(0.2));
+        ui::text(
+            &mut graph,
+            atlas,
+            tag,
+            &format!(
+                "{}:{:02}",
+                (frame / fps).floor() as u32,
+                frame.max(0.) as u32 % fps as u32
+            ),
+            colors.ACCENT,
+            Align::Center,
+        );
+    }
+    let ruler = Rect::new(plot.min[0], plot.max[1] + 8., plot.width(), 28.);
+    if clicked(input, ruler) {
+        panels.timeline.scrubbing = true;
+    }
+    if panels.timeline.scrubbing
+        && (clicked(input, ruler) || input.dragging() || input.released.is_some())
+    {
+        let frame = (offset + (input.mouse[0] - plot.min[0]) as f64 / ppf.max(0.001) as f64)
+            .round()
+            .clamp(0., last_frame(state));
+        if panels.timeline.last_seek != Some(frame) {
+            out.push(Action::Seek(frame));
+            panels.timeline.last_seek = Some(frame);
+        }
+    }
+    if input.released.is_some() {
+        panels.timeline.scrubbing = false;
     }
     label(
         &mut graph,
         atlas,
-        Rect::new(area.min[0] + 8., area.max[1] - 24., area.width() - 16., 22.),
-        if panels.locale == Locale::Zh {
-            "单击关键帧选择 · F9 平滑 · Shift+F3 返回时间轴"
+        Rect::new(plot.min[0], area.max[1] - 24., plot.width(), 22.),
+        if panels.timeline.speed_graph {
+            if panels.locale == Locale::Zh {
+                "速度图表：显示属性每秒的变化速率"
+            } else {
+                "Speed graph: property change per second"
+            }
         } else {
-            "Click a key to select · F9 smooth · Shift+F3 timeline"
+            if panels.locale == Locale::Zh {
+                "数值图表：通过手柄控制属性随时间的变化"
+            } else {
+                "Value graph: adjust property changes over time"
+            }
         },
         true,
     );

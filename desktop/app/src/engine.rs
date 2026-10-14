@@ -794,6 +794,10 @@ impl Engine {
     pub fn hit_candidates(&self, x: f64, y: f64) -> Result<Value, String> {
         self.call(|reply| Command::HitCandidates { x, y, reply })
     }
+    pub fn plugin_async(&self, request: String) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+        if request.len() > REQUEST_LIMIT { return Err("plugin request exceeds 256 KiB".into()); }
+        self.request(|reply| Command::Plugin { request, reply })
+    }
     pub fn plugin(&self, request: String) -> Result<Value, String> {
         self.call(|reply| Command::Plugin { request, reply })
     }

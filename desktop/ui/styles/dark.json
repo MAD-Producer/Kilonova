@@ -3,39 +3,42 @@
   "tokens": {
     "font_family": "Microsoft YaHei",
     "colors": {
-      "app": "#111111",
-      "panel": "#1C1C1C",
-      "raised": "#232323",
-      "field": "#282828",
+      "app": "#1D1D1D",
+      "panel": "#232323",
+      "raised": "#242424",
+      "field": "#262626",
       "hover": "#303030",
-      "pressed": "#273F58",
-      "border": "#363636",
-      "focus": "#378EF0",
+      "pressed": "#304559",
+      "border": "#3B3B3B",
+      "focus": "#61A8F5",
       "icon": "#BBC2C9",
-      "text": "#DCDCDC",
-      "muted": "#ADADAD",
+      "text": "#D1D1D1",
+      "muted": "#A6A6A6",
       "disabled": "#858585",
       "error": "#E17870",
-      "selected": "#378EF02E",
+      "selected": "#304559",
       "transparent": "#00000000",
       "primary": "#0D66D1",
       "on_primary": "#FFFFFF",
-      "header": "#181818",
-      "keyframe": "#E4D84C",
+      "header": "#1C1C1E",
+      "keyframe": "#E3D94D",
       "camera": "#685782",
       "track.0": "#747443",
       "track.1": "#4D597F",
       "track.2": "#41623B",
       "checker.light": "#48484C",
       "checker.dark": "#3A3A3E",
-      "shadow": "#00000066"
+      "shadow": "#00000066",
+      "dock": "#181818",
+      "well": "#171717",
+      "curve": "#76C46A"
     },
     "sizes": {
       "font.body": 12,
       "font.caption": 10,
-      "font.title": 15,
+      "font.title": 18,
       "padding": 5,
-      "padding.panel": 10,
+      "padding.panel": 8,
       "border": 1,
       "motion.hover_ms": 90,
       "motion.divider_ms": 100,
@@ -45,7 +48,7 @@
       "panel.header.height": 24,
       "row.height": 22,
       "field.height": 18,
-      "label.column": 98,
+      "label.column": 72,
       "value.min_width": 64,
       "icon.slot": 20,
       "checkbox.size": 14,
@@ -53,7 +56,13 @@
       "radius.popup": 4,
       "shadow.blur": 8,
       "shadow.offset_y": 3,
-      "motion.drag_threshold": 3
+      "motion.drag_threshold": 3,
+      "graph.curve_width": 2,
+      "graph.handle_width": 1,
+      "graph.handle_radius": 4,
+      "graph.key_radius": 5,
+      "dropdown.max_width": 320,
+      "dropdown.menu_min_width": 160
     },
     "motion": {
       "easing": "cubic-out"
@@ -238,7 +247,8 @@
           "background": "$colors.hover"
         },
         "selected": {
-          "background": "$colors.selected"
+          "background": "$colors.selected",
+          "foreground": "$colors.on_primary"
         },
         "focused": {
           "border": "$colors.focus",

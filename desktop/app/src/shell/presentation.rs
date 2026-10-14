@@ -70,23 +70,49 @@ impl Shell {
         let neutral = Input::default();
         let project_modal = self.project_modal();
         let began = Instant::now();
-        let actions = panels::chrome(
-            &mut paint,
-            &mut self.atlas,
-            size,
-            &self.workspace.root,
-            &mut self.panels,
-            &self.state,
-            if self.dialog.is_some()
-                || project_modal
-                || self.node_close_prompt.is_some()
-                || self.node_examples.is_some()
-            {
-                &neutral
-            } else {
-                &self.input
-            },
-        );
+        let mut actions = if let Some(home) = &mut self.home {
+            home.draw(
+                &mut paint,
+                &mut self.atlas,
+                size,
+                &self.workspace.recent_projects,
+                if self.dialog.is_some() || project_modal || self.workspace_manager.is_some() {
+                    &neutral
+                } else {
+                    &self.input
+                },
+                self.workspace.locale,
+            )
+        } else {
+            panels::chrome(
+                &mut paint,
+                &mut self.atlas,
+                size,
+                &self.workspace.root,
+                &mut self.panels,
+                &self.state,
+                if self.dialog.is_some()
+                    || self.workspace_manager.is_some()
+                    || project_modal
+                    || self.node_close_prompt.is_some()
+                    || self.node_examples.is_some()
+                {
+                    &neutral
+                } else {
+                    &self.input
+                },
+            )
+        };
+        if self.home.is_some() {
+            panels::titlebar::render(
+                &mut paint,
+                &mut self.atlas,
+                size,
+                &self.state,
+                &self.input,
+                &mut actions,
+            );
+        }
         let mut context = self.engine.diagnostics().context();
         context.panel = self.panels.focused.map(|p| p.dock().0);
         context.playing = self.playback.is_some();
@@ -126,6 +152,22 @@ impl Shell {
                                     self.dialog.as_mut().unwrap().add_font(face);
                                 }
                             }
+                        }
+                        dialogs::Event::CreateComposition(settings) => {
+                            let settings =
+                                serde_json::from_value::<motion_core::CompositionSettings>(
+                                    settings,
+                                )
+                                .map_err(|e| e.to_string())?;
+                            self.state = self.engine.edit(
+                                serde_json::to_string(&Command::Composition {
+                                    action: motion_core::CompositionAction::Create { settings },
+                                })
+                                .map_err(|e| e.to_string())?,
+                            )?;
+                            self.dialog = None;
+                            self.home = None;
+                            self.remember_project()?;
                         }
                         dialogs::Event::Settings(settings) => {
                             let settings =
@@ -230,6 +272,27 @@ impl Shell {
                 self.dirty = true;
             }
         }
+        if let Some(manager) = &mut self.workspace_manager {
+            if let Some(event) = manager.draw(
+                &mut paint,
+                &mut self.atlas,
+                size,
+                &self.input,
+                self.workspace.locale,
+            ) {
+                match event {
+                    workspace::ManagerEvent::Cancel => self.workspace_manager = None,
+                    workspace::ManagerEvent::Preset(preset) => {
+                        self.workspace_manager = None;
+                        actions.push(panels::Action::Workspace(preset));
+                    }
+                    workspace::ManagerEvent::Apply { visible, name } => {
+                        self.workspace_manager = None;
+                        actions.push(panels::Action::ApplyWorkspace { visible, name });
+                    }
+                }
+            }
+        }
         project_lifecycle::render(self, &mut paint, size);
         self.input.begin_frame(); // Clear transient input only after it has been consumed.
         if let Some(window) = &self.window {
@@ -269,7 +332,7 @@ impl Shell {
             window: 0,
             node_preview: self
                 .node_viewport(panels::node_view(&self.workspace.root, size), self.scale),
-            composition: if view.width() > 0.0 && view.height() > 0.0 {
+            composition: if self.home.is_none() && view.width() > 0.0 && view.height() > 0.0 {
                 Some([
                     view.min[0] * self.scale,
                     view.min[1] * self.scale,
@@ -339,7 +402,8 @@ impl Shell {
             .pressed
             .is_some_and(|(button, _)| button == MouseButton::Left)
             && header_hit.is_some_and(|(_, action)| action);
-        let modal = self.panels.panel_menu.is_some()
+        let modal = self.panels.timeline_columns.editing()
+            || self.panels.panel_menu.is_some()
             || self.panels.menu.is_some()
             || self.panels.fx_console_in(None)
             || self.panels.node_editor.popup_open()
@@ -385,6 +449,8 @@ impl Shell {
         }
         // Actions may change project, layer selection or playhead during this draw.
         if self.dirty
+            && self.home.is_none()
+            && self.workspace_manager.is_none()
             && self.dialog.is_none()
             && !self.project_modal()
             && self.node_close_prompt.is_none()
@@ -715,6 +781,17 @@ impl Shell {
             WindowEvent::CursorMoved { position, .. } => Some(Event::MouseMoved {
                 position: [position.x as f32 / f.scale, position.y as f32 / f.scale],
             }),
+            WindowEvent::DroppedFile(path)
+                if path
+                    .extension()
+                    .is_some_and(|ext| ext.to_string_lossy().eq_ignore_ascii_case("msfx")) =>
+            {
+                self.actions
+                    .push_back(panels::Action::ImportEffectPath(path));
+                self.dirty = true;
+                self.redraw();
+                return;
+            }
             WindowEvent::CursorLeft { .. } => {
                 if f.input.held.is_some() {
                     self.workspace.cancel();

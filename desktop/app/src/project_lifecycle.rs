@@ -96,6 +96,10 @@ impl Shell {
         match result {
             Ok(state) => {
                 self.state = state;
+                if !matches!(prompt.target, Target::Close) {
+                    self.home = None;
+                    let _ = self.remember_project();
+                }
                 if matches!(prompt.target, Target::Close) {
                     self.finish_close();
                 } else {

@@ -12,10 +12,10 @@ use motion_ui::{
 use serde_json::Value;
 
 use super::{
-    helpers::{button, label},
+    helpers::label,
     types::{Action, Panels, Tool},
 };
-use crate::i18n::{Locale, Text as T};
+use crate::i18n::Locale;
 
 /// Render the main toolbar
 pub fn render(
@@ -31,7 +31,12 @@ pub fn render(
     let colors = styles.colors();
 
     use crate::panels::path_controls::Tool as PathTool;
-    let area = Rect::new(0., metrics::MENU_BAR, size[0], metrics::TOOL_BAR);
+    let area = Rect::new(
+        0.,
+        metrics::TITLE_BAR + metrics::MENU_BAR,
+        size[0],
+        metrics::TOOL_BAR,
+    );
     paint::rect(list, area, colors.CHROME);
     paint::rect(
         list,
@@ -172,47 +177,47 @@ pub fn render(
         "3 px",
         true,
     );
-    let right = (size[0] - 270.).max(400.);
-    for (i, (text, action)) in [
-        (locale.t(T::Default), Action::ResetWorkspace),
-        (
-            locale.t(T::Nodes),
-            Action::ShowPanel(motion_ui::dock::Panel::Nodes.dock()),
-        ),
-        (
-            if locale == Locale::Zh {
-                "图表"
-            } else {
-                "Graph"
-            },
-            Action::ShowPanel(motion_ui::dock::Panel::Curves.dock()),
-        ),
-        (
-            if locale == Locale::Zh {
-                "中文"
-            } else {
-                "English"
-            },
-            Action::Language(if locale == Locale::Zh {
-                Locale::En
-            } else {
-                Locale::Zh
-            }),
-        ),
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        button(
+    let right = (size[0] - 340.).max(500.);
+    let mut x = right;
+    for preset in crate::workspace::Preset::ALL {
+        let text = preset.title(locale);
+        let width = (atlas.measure(text) + 16.).max(38.);
+        let rect = Rect::new(x, area.min[1] + 4., width, 24.);
+        let states = if preset == panels.workspace_preset {
+            States::default().with(State::Selected)
+        } else {
+            States::default()
+        };
+        if motion_ui::ui::button_with_states(
             list,
             atlas,
-            Rect::new(right + i as f32 * 64., area.min[1] + 4., 60., 24.),
+            rect,
             text,
             input,
             true,
-            action,
-            out,
-        );
+            &styles,
+            "button.icon",
+            states,
+        )
+        .clicked
+        {
+            out.push(Action::Workspace(preset));
+        }
+        x += width + 2.;
+    }
+    if motion_ui::ui::button_styled(
+        list,
+        atlas,
+        Rect::new((size[0] - 34.).max(0.), area.min[1] + 4., 28., 24.),
+        "»",
+        input,
+        true,
+        &styles,
+        "button.icon",
+    )
+    .clicked
+    {
+        out.push(Action::ManageWorkspace);
     }
 }
 

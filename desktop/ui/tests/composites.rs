@@ -415,6 +415,170 @@ fn property_columns_stack_on_narrow_panels_without_overlap_and_keep_numeric_widt
                 || columns.label.max[1] <= columns.value.min[1]
         );
         assert!(columns.value.max[0] <= width);
-        assert_eq!(sheet.color("focus"), Color::rgb(55, 142, 240));
+        assert_eq!(sheet.color("focus"), Color::rgb(97, 168, 245));
     }
+}
+
+#[test]
+fn dropdown_widens_long_options_within_bounds_and_accepts_the_extended_hit_area() {
+    let mut atlas = TextAtlas::from_system(12.).unwrap();
+    let mut dropdown = Dropdown::default();
+    let mut list = PaintList::default();
+    let area = Rect::new(220., 20., 80., 24.);
+    let bounds = Rect::new(0., 0., 320., 240.);
+    let items = [
+        DropdownItem {
+            label: "A very long destination layer name in the project",
+            enabled: true,
+        },
+        DropdownItem {
+            label: "Other",
+            enabled: true,
+        },
+    ];
+    assert!(dropdown
+        .draw(
+            &mut list,
+            &mut atlas,
+            area,
+            bounds,
+            &items,
+            0,
+            &click(240., 30.),
+            true,
+            true
+        )
+        .is_none());
+    assert_eq!(
+        dropdown.draw(
+            &mut list,
+            &mut atlas,
+            area,
+            bounds,
+            &items,
+            0,
+            &click(310., 55.),
+            true,
+            true
+        ),
+        Some(0)
+    );
+    assert!(!dropdown.open);
+}
+
+#[test]
+fn grouped_menu_flips_above_to_fit_groups_and_marks_the_current_option() {
+    let mut atlas = TextAtlas::from_system(12.).unwrap();
+    let mut list = PaintList::default();
+    let mut dropdown = Dropdown::default();
+    let labels: Vec<_> = (0..15).map(|i| format!("Mode {i}")).collect();
+    let items: Vec<_> = labels
+        .iter()
+        .map(|label| DropdownItem {
+            label,
+            enabled: true,
+        })
+        .collect();
+    let area = Rect::new(40., 500., 90., 22.);
+    let bounds = Rect::new(0., 0., 300., 650.);
+    assert!(dropdown
+        .draw_grouped(
+            &mut list,
+            &mut atlas,
+            area,
+            bounds,
+            &items,
+            0,
+            &click(50., 510.),
+            true,
+            true,
+            &[1, 4, 8, 11],
+            true
+        )
+        .is_none());
+    assert!(list.shapes.iter().any(|s|matches!(s,motion_ui::paint::Shape::Procedural{kind:motion_ui::paint::Pattern::Box{radius,..},..}if *radius==1.5)));
+    // Full menu is 15 rows + four 6px separators, starting at 146px above the cell.
+    assert_eq!(
+        dropdown.draw_grouped(
+            &mut list,
+            &mut atlas,
+            area,
+            bounds,
+            &items,
+            0,
+            &click(80., 300.),
+            true,
+            true,
+            &[1, 4, 8, 11],
+            true
+        ),
+        Some(6)
+    );
+}
+
+#[test]
+fn dropdown_wheel_position_survives_a_neutral_repaint() {
+    let mut atlas = TextAtlas::from_system(12.).unwrap();
+    let mut dropdown = Dropdown::default();
+    let labels: Vec<_> = (0..20).map(|i| format!("Choice {i}")).collect();
+    let items: Vec<_> = labels
+        .iter()
+        .map(|label| DropdownItem {
+            label,
+            enabled: true,
+        })
+        .collect();
+    let area = Rect::new(0., 0., 100., 24.);
+    let bounds = Rect::new(0., 0., 200., 220.);
+    dropdown.draw(
+        &mut PaintList::default(),
+        &mut atlas,
+        area,
+        bounds,
+        &items,
+        0,
+        &click(10., 12.),
+        true,
+        true,
+    );
+    dropdown.draw(
+        &mut PaintList::default(),
+        &mut atlas,
+        area,
+        bounds,
+        &items,
+        0,
+        &Input {
+            mouse: [10., 50.],
+            wheel: [0., 22.],
+            ..Default::default()
+        },
+        true,
+        true,
+    );
+    dropdown.draw(
+        &mut PaintList::default(),
+        &mut atlas,
+        area,
+        bounds,
+        &items,
+        0,
+        &Input::default(),
+        true,
+        true,
+    );
+    assert_eq!(
+        dropdown.draw(
+            &mut PaintList::default(),
+            &mut atlas,
+            area,
+            bounds,
+            &items,
+            0,
+            &click(10., 35.),
+            true,
+            true
+        ),
+        Some(1)
+    );
 }

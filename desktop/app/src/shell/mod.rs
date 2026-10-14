@@ -7,3 +7,7 @@ mod nodes;
 mod presentation;
 
 pub(crate) mod styles;
+
+mod workspaces;
+
+mod design_acceptance;

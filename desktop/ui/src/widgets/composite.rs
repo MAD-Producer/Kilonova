@@ -376,6 +376,35 @@ impl Dropdown {
         enabled: bool,
         focused: bool,
     ) -> Option<usize> {
+        self.draw_grouped(
+            list,
+            atlas,
+            area,
+            bounds,
+            items,
+            selected,
+            input,
+            enabled,
+            focused,
+            &[],
+            false,
+        )
+    }
+    /// Group starts add separators; marked menus show a dot on the current value.
+    pub fn draw_grouped(
+        &mut self,
+        list: &mut PaintList,
+        atlas: &mut TextAtlas,
+        area: Rect,
+        bounds: Rect,
+        items: &[DropdownItem<'_>],
+        selected: usize,
+        input: &Input,
+        enabled: bool,
+        focused: bool,
+        group_starts: &[usize],
+        marked: bool,
+    ) -> Option<usize> {
         let enabled = enabled && !items.is_empty();
         self.highlighted = self.highlighted.min(items.len().saturating_sub(1));
         let sheet = list.styles();
@@ -408,30 +437,47 @@ impl Dropdown {
             style,
             Align::Left,
         );
-        text_style(
+        let cx = area.max[0] - 11.;
+        let cy = area.min[1] + area.height() * 0.5;
+        paint::line(
             list,
-            atlas,
-            Rect::new(area.max[0] - 18., area.min[1], 14., area.height()),
-            "⌄",
-            style,
-            Align::Center,
+            vec![[cx - 3., cy - 1.], [cx, cy + 2.], [cx + 3., cy - 1.]],
+            style.foreground,
         );
         if !self.open || items.is_empty() {
             return None;
         }
         let below = (bounds.max[1] - area.max[1]).max(0.);
         let above = (area.min[1] - bounds.min[1]).max(0.);
-        let available = if below >= row || below >= above {
-            below
-        } else {
-            above
-        };
-        let count = ((available / row).floor() as usize).min(8).min(items.len());
+        let max_rows = if marked { 32 } else { 8 };
+        let desired = items.len().min(max_rows) as f32 * row
+            + group_starts
+                .iter()
+                .filter(|i| **i > 0 && **i < items.len().min(max_rows))
+                .count() as f32
+                * 6.;
+        let below_first = below >= desired || below >= above;
+        let available = if below_first { below } else { above };
+        let mut count = ((available / row).floor() as usize)
+            .min(max_rows)
+            .min(items.len());
+        while count > 0
+            && count as f32 * row
+                + group_starts
+                    .iter()
+                    .filter(|i| **i > self.scroll && **i < self.scroll + count)
+                    .count() as f32
+                    * 6.
+                > available
+        {
+            count -= 1;
+        }
         if count == 0 {
             self.open = false;
             return None;
         }
-        if key(input, Key::Down) || key(input, Key::Up) {
+        let navigated = key(input, Key::Down) || key(input, Key::Up);
+        if navigated {
             let forward = key(input, Key::Down);
             for _ in 0..items.len() {
                 self.highlighted = if forward {
@@ -444,21 +490,61 @@ impl Dropdown {
                 }
             }
         }
-        if self.highlighted < self.scroll {
-            self.scroll = self.highlighted;
+        if !was_open || navigated {
+            if self.highlighted < self.scroll {
+                self.scroll = self.highlighted;
+            }
+            if self.highlighted >= self.scroll + count {
+                self.scroll = self.highlighted + 1 - count;
+            }
         }
-        if self.highlighted >= self.scroll + count {
-            self.scroll = self.highlighted + 1 - count;
+        self.scroll = self.scroll.min(items.len() - count);
+        loop {
+            let groups = group_starts
+                .iter()
+                .filter(|i| **i > self.scroll && **i < self.scroll + count)
+                .count();
+            if count as f32 * row + groups as f32 * 6. <= available {
+                break;
+            }
+            count -= 1;
+            if count == 0 {
+                self.open = false;
+                return None;
+            }
+            if navigated && self.highlighted >= self.scroll + count {
+                self.scroll = self.highlighted + 1 - count;
+            }
+            self.scroll = self.scroll.min(items.len() - count);
         }
+        let width = items
+            .iter()
+            .map(|item| atlas.measure(item.label) + if marked { 34. } else { 16. })
+            .fold(
+                area.width().max(if marked {
+                    sheet.metric("dropdown.menu_min_width", 160.)
+                } else {
+                    0.
+                }),
+                f32::max,
+            )
+            .min(sheet.metric("dropdown.max_width", 320.))
+            .min(bounds.width());
+        let height = count as f32 * row
+            + group_starts
+                .iter()
+                .filter(|i| **i > self.scroll && **i < self.scroll + count)
+                .count() as f32
+                * 6.;
         let popup = Rect::new(
-            area.min[0].max(bounds.min[0]),
-            if below >= row || below >= above {
+            area.min[0].clamp(bounds.min[0], (bounds.max[0] - width).max(bounds.min[0])),
+            if below_first {
                 area.max[1]
             } else {
-                area.min[1] - count as f32 * row
+                area.min[1] - height
             },
-            area.width().min(bounds.width()),
-            count as f32 * row,
+            width,
+            height,
         );
         if popup.contains(input.mouse) {
             if input.wheel[1] > 0. {
@@ -482,27 +568,46 @@ impl Dropdown {
             sheet.resolve("popup", States::default()).unwrap(),
         );
         let mut chosen = None;
+        let mut y = popup.min[1];
         for (index, item) in items.iter().enumerate().skip(self.scroll).take(count) {
-            let rect = Rect::new(
-                popup.min[0],
-                popup.min[1] + (index - self.scroll) as f32 * row,
-                popup.width(),
-                row,
-            );
+            if index > self.scroll && group_starts.contains(&index) {
+                paint::rect(
+                    &mut overlay,
+                    Rect::new(
+                        popup.min[0] + 8.,
+                        y + 3.,
+                        (popup.width() - 16.).max(1.),
+                        0.5,
+                    ),
+                    sheet.color("border").with_alpha(0.7),
+                );
+                y += 6.;
+            }
+            let rect = Rect::new(popup.min[0], y, popup.width(), row);
+            y += row;
             let mut s = states(input, rect, item.enabled, false);
             if index == self.highlighted {
                 s = s.with(State::Selected);
             }
             let style = sheet.resolve("row", s).unwrap();
             box_style(&mut overlay, rect, style);
-            text_style(
-                &mut overlay,
-                atlas,
-                rect.shrink(4.),
-                item.label,
-                style,
-                Align::Left,
+            if marked && index == selected {
+                paint::box_rect(
+                    &mut overlay,
+                    Rect::new(rect.min[0] + 9., rect.min[1] + row * 0.5 - 1.5, 3., 3.),
+                    style.foreground,
+                    sheet.color("transparent"),
+                    0.,
+                    1.5,
+                );
+            }
+            let caption = Rect::new(
+                rect.min[0] + if marked { 22. } else { 4. },
+                rect.min[1],
+                (rect.width() - if marked { 26. } else { 8. }).max(0.),
+                rect.height(),
             );
+            text_style(&mut overlay, atlas, caption, item.label, style, Align::Left);
             if item.enabled && press(input, rect) {
                 chosen = Some(index);
             }

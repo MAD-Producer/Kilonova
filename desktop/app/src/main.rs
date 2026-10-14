@@ -3,7 +3,9 @@ mod audio_output;
 mod cursors;
 mod diagnostics;
 mod dialogs;
+mod effect_import;
 mod engine;
+mod home;
 mod i18n;
 mod mcp;
 mod movie_export;
@@ -119,6 +121,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         app.load_style_source(path)?;
     }
+    if app.smoke.is_none() && !args.iter().any(|a| a == "--project" || a == "--mcp-ui") {
+        app.home = Some(home::Home::default());
+    }
     app.smoke_panels = args.iter().any(|a| a == "--panels-smoke");
     app.smoke_nodes = args
         .iter()
@@ -194,6 +199,8 @@ struct Shell {
     workspace: workspace::Workspace,
     layout_path: PathBuf,
     style_source: shell::styles::StyleSource,
+    home: Option<home::Home>,
+    workspace_manager: Option<workspace::Manager>,
     floating: std::collections::HashMap<WindowId, FloatWindow>,
     next_window: u64,
     panels: panels::Panels,
@@ -230,6 +237,7 @@ struct Shell {
     export_notified: bool,
     importing_image: Option<std::sync::mpsc::Receiver<Result<Value, String>>>,
     importing_media: Option<(String, Instant)>,
+    importing_effect: Option<effect_import::Task>,
     attaching: Option<std::sync::mpsc::Receiver<Result<Value, String>>>,
     attached: bool,
     rendering: std::collections::HashMap<u64, std::sync::mpsc::Receiver<Result<bool, String>>>,
@@ -291,6 +299,8 @@ impl Shell {
             workspace,
             layout_path,
             style_source: Default::default(),
+            home: None,
+            workspace_manager: None,
             floating: Default::default(),
             next_window: 1,
             panels: Default::default(),
@@ -319,6 +329,7 @@ impl Shell {
             export_notified: false,
             importing_image: None,
             importing_media: None,
+            importing_effect: None,
             attaching: None,
             attached: false,
             rendering: Default::default(),
@@ -344,6 +355,7 @@ impl Shell {
             started: Instant::now(),
         };
         shell.panels.locale = chosen;
+        shell.panels.workspace_preset = shell.workspace.preset;
         shell.panels.browser.favorites = shell.workspace.favorites.clone();
         shell.panels.effect_controls.catalogue =
             shell.engine.plugin("{\"op\":\"catalogue\"}".into())?.into();
@@ -374,7 +386,8 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
         let attributes = Window::default_attributes()
             .with_title("Motion Studio")
-            .with_inner_size(winit::dpi::LogicalSize::new(1600.0, 976.0))
+            .with_inner_size(winit::dpi::LogicalSize::new(1600.0, 1000.0))
+            .with_decorations(false)
             .with_min_inner_size(winit::dpi::LogicalSize::new(900.0, 600.0))
             .with_visible(self.smoke.is_none());
         let result = (|| {
@@ -482,6 +495,8 @@ impl ApplicationHandler<UserEvent> for Shell {
                         || matches!(ext.as_str(), "aem" | "msproj")
                     {
                         panels::Action::OpenPath(path)
+                    } else if ext == "msfx" {
+                        panels::Action::ImportEffectPath(path)
                     } else {
                         panels::Action::ImportPath(path)
                     },
@@ -611,6 +626,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.dirty = true;
             }
         }
+        self.poll_effect_import();
         if let Err(error) = self.poll_import() {
             self.panels.message = Some(self.workspace.locale.error(&error));
             self.dirty = true;
@@ -882,6 +898,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             || self.dirty
             || self.importing_image.is_some()
             || self.importing_media.is_some()
+            || self.importing_effect.is_some()
             || self.freezing_movie.is_some()
             || self.exporting_movie.as_ref().is_some_and(|e| !e.finished())
         {

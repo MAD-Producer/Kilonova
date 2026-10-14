@@ -23,6 +23,10 @@ pub(crate) mod effect_controls;
 mod effects;
 mod expressions;
 pub(crate) mod fx_console;
+pub(crate) mod graph_handles;
+pub(crate) mod graph_keys;
+mod graph_sampling;
+mod graph_workspace;
 mod helpers;
 mod keyboard;
 mod menus;
@@ -33,10 +37,14 @@ mod paths;
 mod project;
 mod properties;
 mod timeline;
+mod timeline_columns;
+#[cfg(test)]
+mod timeline_columns_tests;
 mod timeline_graph;
 mod timeline_shortcuts;
 #[cfg(test)]
 mod timeline_shortcuts_tests;
+pub(crate) mod titlebar;
 mod toolbar;
 pub(crate) mod transform_controls;
 mod types;
@@ -53,8 +61,8 @@ use timeline::rows;
 pub use types::{Action, Frame, FxConsole, Panels};
 use types::{Field, ScrubState};
 
-pub const CHROME_HEIGHT: f32 = metrics::MENU_BAR + metrics::TOOL_BAR;
-const GUTTER: f32 = 456.0;
+pub const CHROME_HEIGHT: f32 = metrics::TITLE_BAR + metrics::MENU_BAR + metrics::TOOL_BAR;
+const GUTTER: f32 = 640.0;
 
 pub fn frames(layout: &Node, size: [f32; 2]) -> Vec<Frame> {
     dock::solve(
@@ -63,7 +71,7 @@ pub fn frames(layout: &Node, size: [f32; 2]) -> Vec<Frame> {
             0.0,
             CHROME_HEIGHT,
             size[0],
-            (size[1] - CHROME_HEIGHT - 22.0).max(0.0),
+            (size[1] - CHROME_HEIGHT - 20.0).max(0.0),
         ),
     )
     .into_iter()
@@ -105,6 +113,7 @@ fn viewer(area: Rect) -> Rect {
 pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     let node_changed = panels.node_editor.cancel_interaction();
     panels.parent_controls.open = false;
+    panels.timeline_columns.cancel();
     let camera = panels.camera_controls.cancel();
     let effect = panels.effect_controls.cancel();
     let numeric = panels
@@ -116,14 +125,24 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     let moving = panels.timeline.moving.take().is_some();
     let trimming = panels.timeline.trimming.take().is_some();
     let animation = panels.animation_controls.cancel();
+    let graph = panels.timeline.graph_drag.take().is_some_and(|d| d.begun())
+        | panels.timeline.key_drag.take().is_some_and(|d| d.begun());
     let path = panels.path_controls.cancel();
     let transform = panels.transform_controls.cancel();
-    let mut actions =
-        if moving || trimming || numeric || animation || path || transform || effect || camera {
-            vec![Action::History(4)]
-        } else {
-            vec![]
-        };
+    let mut actions = if moving
+        || trimming
+        || numeric
+        || animation
+        || graph
+        || path
+        || transform
+        || effect
+        || camera
+    {
+        vec![Action::History(4)]
+    } else {
+        vec![]
+    };
     if node_changed {
         actions.push(Action::Node(crate::node_editor::Action::PreviewChanged));
     }
@@ -151,9 +170,10 @@ pub fn chrome(
     panels.drag_readout = None;
     panels.node_editor.external_inspector = layout.find(Panel::NodeProperties.dock()).is_some();
     let node_modal = panels.node_editor.popup_open();
+    let timeline_dropdown = panels.timeline_columns.editing();
     if let Some((_, point)) = input
         .pressed
-        .filter(|_| !panels.fx_console_in(None) && !node_modal)
+        .filter(|_| !panels.fx_console_in(None) && !node_modal && !timeline_dropdown)
     {
         let focused = frames(layout, size)
             .into_iter()
@@ -236,7 +256,8 @@ pub fn chrome(
         || panels.menu.is_some()
         || panels.panel_menu.is_some()
         || panels.fx_console_in(None)
-        || panels.timeline.timeline_context_menu.is_some();
+        || panels.timeline.timeline_context_menu.is_some()
+        || timeline_dropdown;
     let neutral = Input::default();
     let body_input = if menu_modal || node_modal {
         &neutral
@@ -244,6 +265,7 @@ pub fn chrome(
         input
     };
     let project_input = body_input.clone();
+    panels.timeline_columns.prepare_window(None, input);
     let mut opened_panel_menu = false;
     panels.header_hits.clear();
     panels.header_size = Some(size);
@@ -334,7 +356,7 @@ pub fn chrome(
                 .unwrap();
             paint::rect(&mut body, f.content, style.background);
         }
-        let timeline_popup = panels.timeline.timeline_context_menu.is_some();
+        let timeline_popup = panels.timeline.timeline_context_menu.is_some() || timeline_dropdown;
         if f.content.height() >= metrics::ROW {
             render_panel(
                 f.panel,
@@ -383,25 +405,11 @@ pub fn chrome(
                 motion_ui::cursor::Cursor::ResizeNS
             });
         }
-        let line = if handle.edge.is_horizontal() {
-            Rect::new(
-                handle.area.min[0] + 2.,
-                handle.area.min[1],
-                1.,
-                handle.area.height(),
-            )
-        } else {
-            Rect::new(
-                handle.area.min[0],
-                handle.area.min[1] + 2.,
-                handle.area.width(),
-                1.,
-            )
-        };
-        paint::rect(list, line, colors.BORDER);
+        paint::rect(list, handle.area, styles.color("dock"));
     }
+    titlebar::render(list, atlas, size, state, body_input, &mut out);
     toolbar::render(list, atlas, size, panels, state, body_input, &mut out);
-    let status = Rect::new(0.0, size[1] - 22.0, size[0], 22.0);
+    let status = Rect::new(0.0, size[1] - 20.0, size[0], 20.0);
     paint::rect(list, status, colors.CHROME);
     let render_error = state["renderError"].as_str().filter(|s| !s.is_empty());
     let localized_error = render_error.map(|e| panels.locale.error(e));
@@ -599,6 +607,21 @@ pub fn chrome(
             paint::rect(list, handle.area, colors.ACCENT.with_alpha(amount * 0.5));
         }
     }
+    panels.timeline_columns.finish_window(
+        list,
+        atlas,
+        Rect::new(
+            0.,
+            CHROME_HEIGHT,
+            size[0],
+            (size[1] - CHROME_HEIGHT - 20.).max(1.),
+        ),
+        state,
+        input,
+        panels.locale,
+        &mut out,
+    );
+
     out
 }
 pub fn panel(id: dock::DockId) -> Option<Panel> {
@@ -633,6 +656,9 @@ pub fn floating_chrome(
 
     let mut out = vec![];
     panels.cursor = None;
+    let timeline_dropdown = panels.timeline_columns.editing();
+    let dropdown_owned = panels.timeline_columns.editing_in(Some(panel));
+    let popup_neutral = Input::default();
     if !panels.fx_console_in(Some(panel))
         && !(panels.fx_console.is_some() && keyboard::console_close_pressed(input))
         && matches!(panel, Panel::Masks | Panel::Vector)
@@ -663,7 +689,11 @@ pub fn floating_chrome(
         panels.focused = Some(panel);
     }
     let shortcut_modal = keyboard::route(
-        input,
+        if timeline_dropdown && !dropdown_owned {
+            &popup_neutral
+        } else {
+            input
+        },
         panels,
         state,
         matches!(
@@ -674,7 +704,12 @@ pub fn floating_chrome(
         &mut out,
     );
     let neutral = Input::default();
-    let body_input = if shortcut_modal { &neutral } else { input };
+    let body_input = if shortcut_modal || timeline_dropdown && !dropdown_owned {
+        &neutral
+    } else {
+        input
+    };
+    panels.timeline_columns.prepare_window(Some(panel), input);
     render_panel(
         panel,
         &mut content,
@@ -700,14 +735,18 @@ pub fn floating_chrome(
         atlas,
         Rect::new(size[0] - 78.0, 4.0, 72.0, 22.0),
         panels.locale.t(T::Dock),
-        body_input,
+        if timeline_dropdown {
+            &neutral
+        } else {
+            body_input
+        },
         true,
         Action::Redock(panel.dock()),
         &mut out,
     );
     paint::rect(
         list,
-        Rect::new(0.0, size[1] - 22.0, size[0], 22.0),
+        Rect::new(0.0, size[1] - 20.0, size[0], 20.0),
         colors.CHROME,
     );
     label(
@@ -751,6 +790,16 @@ pub fn floating_chrome(
             }
         }
     }
+    panels.timeline_columns.finish_window(
+        list,
+        atlas,
+        Rect::new(0., 30., size[0], (size[1] - 50.).max(1.)),
+        state,
+        input,
+        panels.locale,
+        &mut out,
+    );
+
     out
 }
 fn node_panel(
@@ -836,7 +885,7 @@ mod tests {
         let mut atlas = TextAtlas::from_system(13.).unwrap();
         let layout = Node::dock(Panel::Project.dock());
         let state = serde_json::json!({"frame":0,"project":{"frames":120,"layers":[]}});
-        let point = [24., 12.];
+        let point = [24., metrics::TITLE_BAR + 12.];
         let input = Input {
             mouse: point,
             pressed: Some((MouseButton::Left, point)),
@@ -1209,7 +1258,10 @@ mod tests {
                     .into_iter()
                     .map(|key| atlas.measure(locale.t(key)) + 22.)
                     .sum::<f32>();
-            let point = [x + 12., metrics::MENU_BAR + 4. + 3. * 32. + 15.];
+            let point = [
+                x + 12.,
+                metrics::TITLE_BAR + metrics::MENU_BAR + 4. + 3. * 32. + 15.,
+            ];
             let input = Input {
                 mouse: point,
                 pressed: Some((MouseButton::Left, point)),

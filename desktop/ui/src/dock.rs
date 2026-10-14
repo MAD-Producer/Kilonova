@@ -318,9 +318,7 @@ fn collect_splitters(node: &Node, area: Rect, out: &mut Vec<Splitter>) {
     }
 }
 
-/// Default editor layout matching After Effects.
-///
-/// Left: Project. Right: Effect Controls over Composition. Bottom: Timeline.
+/// Ardot 2:1: project/effects at left, composition at center, linked timeline below.
 pub fn editor_layout() -> Node {
     fn split(edge: Edge, ratio: f32, a: Node, b: Node) -> Node {
         Node::Split {
@@ -330,52 +328,50 @@ pub fn editor_layout() -> Node {
             second: Box::new(b),
         }
     }
-    let right_panels = [
-        (Panel::Info, 120.),
-        (Panel::Preview, 143.),
-        (Panel::Effects, 324.),
-        (Panel::Character, 201.),
-        (Panel::Align, 31.),
-        (Panel::Audio, 29.),
-        (Panel::Masks, 26.),
-        (Panel::Media, 26.),
-    ];
-    fn stack(items: &[(Panel, f32)]) -> Node {
-        if items.len() == 1 {
-            return Node::dock(items[0].0.dock());
-        }
-        let total: f32 = items.iter().map(|p| p.1).sum();
-        split(
-            Edge::Top,
-            items[0].1 / total,
-            Node::dock(items[0].0.dock()),
-            stack(&items[1..]),
-        )
-    }
-    let project = Node::Dock {
-        id: DockId(1),
-        tabs: vec![DockId(1), DockId(17), DockId(2), DockId(11)],
-        active: 0,
-    };
-    // Media has one workspace owner: keep it in the right dock until opened there.
-    let project = match project {
+    fn tabs(panels: &[Panel]) -> Node {
+        let ids: Vec<_> = panels.iter().map(|p| p.dock()).collect();
         Node::Dock {
-            id,
-            mut tabs,
-            active,
-        } => {
-            tabs.retain(|id| *id != DockId(17));
-            Node::Dock { id, tabs, active }
+            id: ids[0],
+            tabs: ids,
+            active: 0,
         }
-        _ => unreachable!(),
-    };
+    }
     let left = split(
         Edge::Top,
-        0.62,
-        split(Edge::Left, 304. / 1294., project, Node::dock(DockId(3))),
-        Node::dock(DockId(4)),
+        265. / 508.,
+        Node::dock(Panel::Project.dock()),
+        Node::dock(Panel::EffectControls.dock()),
     );
-    split(Edge::Right, 304. / 1600., left, stack(&right_panels))
+    let upper = split(
+        Edge::Left,
+        282. / 1276.,
+        left,
+        Node::dock(Panel::Composition.dock()),
+    );
+    let linked = split(
+        Edge::Top,
+        508. / 894.,
+        upper,
+        tabs(&[Panel::Timeline, Panel::RenderQueue]),
+    );
+    let lower = split(
+        Edge::Top,
+        282. / 494.,
+        Node::dock(Panel::Effects.dock()),
+        tabs(&[Panel::Character, Panel::Paragraph, Panel::Align]),
+    );
+    let right = split(
+        Edge::Top,
+        276. / 894.,
+        Node::dock(Panel::Properties.dock()),
+        split(
+            Edge::Top,
+            112. / 612.,
+            tabs(&[Panel::Preview, Panel::Info, Panel::Audio]),
+            lower,
+        ),
+    );
+    split(Edge::Right, 320. / 1600., linked, right)
 }
 
 /// Panel identity, matching the After Effects tab names.
@@ -522,21 +518,18 @@ mod tests {
     #[test]
     fn the_default_layout_keeps_the_timeline_under_project_and_viewer() {
         let placements = solve(&editor_layout(), Rect::new(0.0, 0.0, 1920.0, 1080.0));
-        assert_eq!(placements.len(), 11);
+        assert_eq!(placements.len(), 8);
         assert_eq!(
             placements.iter().map(|p| p.id).collect::<Vec<_>>(),
             vec![
                 Panel::Project.dock(),
+                Panel::EffectControls.dock(),
                 Panel::Composition.dock(),
                 Panel::Timeline.dock(),
-                Panel::Info.dock(),
+                Panel::Properties.dock(),
                 Panel::Preview.dock(),
                 Panel::Effects.dock(),
-                Panel::Character.dock(),
-                Panel::Align.dock(),
-                Panel::Audio.dock(),
-                Panel::Masks.dock(),
-                Panel::Media.dock()
+                Panel::Character.dock()
             ]
         );
     }

@@ -12,6 +12,8 @@ pub enum Action {
     Save,
     ProjectChoice(crate::node_tasks::CloseChoice),
     ImportMedia,
+    ImportEffectPackage,
+    ImportEffectPath(std::path::PathBuf),
     ImportPath(std::path::PathBuf),
     CancelImport,
     ExportPng,
@@ -23,6 +25,8 @@ pub enum Action {
     AddShape(motion_core::vector::ShapeKind),
     NewText,
     CompositionSettings,
+    NewComposition,
+    CompositionPreset(u32, u32),
     Plugin(Value),
     AddSolid,
     Pack,
@@ -31,6 +35,16 @@ pub enum Action {
     Favorites(std::collections::BTreeSet<String>),
     Language(Locale),
     ResetWorkspace,
+    ManageWorkspace,
+    ApplyWorkspace {
+        visible: Vec<dock::DockId>,
+        name: String,
+    },
+    Workspace(crate::workspace::Preset),
+    WindowDrag,
+    WindowClose,
+    WindowMinimize,
+    WindowMaximize,
     ShowPanel(dock::DockId),
     About,
     ExportDiagnostics,
@@ -59,6 +73,7 @@ pub enum Action {
 
 #[derive(Default)]
 pub struct Panels {
+    pub workspace_preset: crate::workspace::Preset,
     pub styles: Option<std::sync::Arc<motion_ui::style::StyleSheet>>,
     pub(crate) cursor: Option<motion_ui::cursor::Cursor>,
     pub(crate) drag_readout: Option<([f32; 2], String)>,
@@ -83,6 +98,7 @@ pub struct Panels {
     pub effect_controls: crate::panels::effect_controls::Controls,
     pub animation_controls: crate::panels::animation_controls::Controls,
     pub parent_controls: crate::panels::parent_controls::Controls,
+    pub timeline_columns: crate::panels::timeline_columns::Controls,
     pub camera_controls: crate::panels::camera_controls::Controls,
     pub node_editor: crate::node_editor::NodeEditor,
     pub node_preview: crate::node_preview::Controls,
@@ -175,7 +191,15 @@ pub(crate) struct PropertiesState {
     pub field: Option<Field>,
 }
 
-#[derive(Default)]
+#[derive(Clone, Copy)]
+pub(super) struct TimelineViewport {
+    zoom: f32,
+    offset: f32,
+    scroll: f32,
+    fitted: bool,
+}
+
+#[derive(Clone, Default)]
 pub(crate) struct TimelineState {
     pub rows_cache: Option<(
         (String, String, u64),
@@ -185,6 +209,16 @@ pub(crate) struct TimelineState {
     pub collapsed_transforms: std::collections::HashSet<u64>,
     pub filters: std::collections::HashMap<u64, PropertyFilter>,
     pub graph_mode: bool,
+    pub(super) clip_view: Option<TimelineViewport>,
+    pub(super) curve_view: Option<TimelineViewport>,
+    pub speed_graph: bool,
+    pub graph_component: usize,
+    pub graph_fitted: bool,
+    pub graph_grid: bool,
+    pub(crate) graph_drag: Option<super::graph_handles::Drag>,
+    pub(crate) key_drag: Option<super::graph_keys::Drag>,
+    pub graph_y_zoom: f32,
+    pub graph_y_offset: f32,
     pub scroll: f32,
     pub scroll_extent_cache: Option<(u64, f32)>,
     pub zoom: f32,
@@ -207,6 +241,36 @@ pub(crate) enum PropertyFilter {
     Animated,
 }
 impl TimelineState {
+    pub fn set_graph_mode(&mut self, enabled: bool) {
+        if self.graph_mode == enabled {
+            return;
+        }
+        let current = TimelineViewport {
+            zoom: self.zoom,
+            offset: self.offset,
+            scroll: self.scroll,
+            fitted: self.graph_fitted,
+        };
+        let restore = if enabled {
+            self.clip_view = Some(current);
+            self.curve_view
+        } else {
+            self.curve_view = Some(current);
+            self.clip_view
+        };
+        if let Some(view) = restore {
+            self.zoom = view.zoom;
+            self.offset = view.offset;
+            self.scroll = view.scroll;
+            self.graph_fitted = view.fitted;
+        } else if enabled {
+            self.graph_fitted = false;
+        }
+        self.graph_mode = enabled;
+        self.scrubbing = false;
+        self.last_seek = None;
+        self.snap_guide = None;
+    }
     pub fn reopen_properties(&mut self, object: u64) {
         if self.filters.get(&object) == Some(&PropertyFilter::Properties(0)) {
             self.filters.remove(&object);
