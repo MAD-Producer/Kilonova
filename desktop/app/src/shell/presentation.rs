@@ -202,10 +202,11 @@ impl Shell {
                                 width,
                                 font.map(|f| (f.path, f.index)),
                             )?;
-                            self.panels.selected = self.state["project"]["layers"]
+                            let selected = self.state["project"]["layers"]
                                 .as_array()
                                 .and_then(|ls| ls.last())
                                 .and_then(|l| l["id"].as_u64());
+                            self.panels.select_only(selected);
                             self.dialog = None;
                         }
                     };

@@ -37,6 +37,8 @@ pub(crate) mod path_controls;
 mod paths;
 mod project;
 mod properties;
+#[cfg(test)]
+mod selection_tests;
 mod timeline;
 mod timeline_columns;
 #[cfg(test)]
@@ -169,6 +171,9 @@ pub fn chrome(
     let colors = styles.colors();
 
     let mut out = Vec::new();
+    if panels.normalize_selection(state) {
+        out.extend(cancel_interaction(panels));
+    }
     if input.focus_lost {
         panels.menu = None;
         panels.menu_scroll = 0;
@@ -219,7 +224,7 @@ pub fn chrome(
                 .as_array()
                 .is_some_and(|ls| ls.iter().any(|l| l["id"].as_u64() == Some(id)))
         {
-            panels.selected = None;
+            panels.select_only(None);
             out.extend(cancel_interaction(panels));
         }
     }
@@ -439,8 +444,12 @@ pub fn chrome(
     let render_error = state["renderError"].as_str().filter(|s| !s.is_empty());
     let localized_error = render_error.map(|e| panels.locale.error(e));
     let plugin_warning = (state["preview"]["pluginEditorRecovery"]["gesture"] == true).then_some(
-        if panels.locale == Locale::Zh { "插件编辑尚未提交，可在编辑菜单中取消并恢复操作" }
-        else { "Plugin edit is pending; cancel it from Edit to restore editing" });
+        if panels.locale == Locale::Zh {
+            "插件编辑尚未提交，可在编辑菜单中取消并恢复操作"
+        } else {
+            "Plugin edit is pending; cancel it from Edit to restore editing"
+        },
+    );
     let message = localized_error
         .as_deref()
         .or(panels.drag_readout.as_ref().map(|(_, text)| text.as_str()))
@@ -590,16 +599,7 @@ pub fn chrome(
                 &panels.effect_controls.catalogue,
                 input,
                 panels.locale,
-                panels.selected.filter(|id| {
-                    *id != 0
-                        && !state["project"]["layers"]
-                            .as_array()
-                            .into_iter()
-                            .flatten()
-                            .any(|l| {
-                                l["id"].as_u64() == Some(*id) && l["locked"].as_bool() == Some(true)
-                            })
-                }),
+                panels.editable_selection(state).first().copied(),
                 &mut out,
             );
             if open {
@@ -710,6 +710,9 @@ pub fn floating_chrome(
     let colors = styles.colors();
 
     let mut out = vec![];
+    if panels.normalize_selection(state) {
+        out.extend(cancel_interaction(panels));
+    }
     panels.cursor = None;
     let timeline_dropdown = panels.timeline_columns.editing();
     let dropdown_owned = panels.timeline_columns.editing_in(Some(panel));
@@ -835,16 +838,7 @@ pub fn floating_chrome(
         .is_some_and(|c| c.owner == Some(panel))
     {
         if let Some(mut console) = panels.fx_console.take() {
-            let selected = panels.selected.filter(|id| {
-                *id != 0
-                    && !state["project"]["layers"]
-                        .as_array()
-                        .into_iter()
-                        .flatten()
-                        .any(|l| {
-                            l["id"].as_u64() == Some(*id) && l["locked"].as_bool() == Some(true)
-                        })
-            });
+            let selected = panels.editable_selection(state).first().copied();
             if fx_console::render_fx_console(
                 list,
                 atlas,
@@ -1163,17 +1157,42 @@ mod tests {
     #[test]
     fn pending_plugin_edit_can_be_cancelled_from_host_menu_even_when_history_is_disabled() {
         for locale in [Locale::Zh, Locale::En] {
-            for (active, observing, expected) in [(true, false, true), (false, false, false), (true, true, false)] {
-                let mut panels = Panels { locale, menu: Some(1), ..Default::default() };
+            for (active, observing, expected) in [
+                (true, false, true),
+                (false, false, false),
+                (true, true, false),
+            ] {
+                let mut panels = Panels {
+                    locale,
+                    menu: Some(1),
+                    ..Default::default()
+                };
                 let state = serde_json::json!({"canUndo":false,"canRedo":false,"observing":observing,
                     "preview":{"pluginEditorRecovery":{"gesture":active}},"project":{"layers":[]}});
-                let point = [20., metrics::TITLE_BAR + metrics::MENU_BAR + 4. + 2. * 32. + 15.];
+                let point = [
+                    20.,
+                    metrics::TITLE_BAR + metrics::MENU_BAR + 4. + 2. * 32. + 15.,
+                ];
                 let mut out = vec![];
-                menus(&mut PaintList::default(), &mut TextAtlas::from_system(12.).unwrap(),
-                    [280., 240.], &mut panels, &Input { mouse: point,
-                        pressed: Some((MouseButton::Left, point)), ..Default::default() }, &state, &mut out);
+                menus(
+                    &mut PaintList::default(),
+                    &mut TextAtlas::from_system(12.).unwrap(),
+                    [280., 240.],
+                    &mut panels,
+                    &Input {
+                        mouse: point,
+                        pressed: Some((MouseButton::Left, point)),
+                        ..Default::default()
+                    },
+                    &state,
+                    &mut out,
+                );
                 assert_eq!(out.len(), usize::from(expected));
-                if expected { assert!(matches!(&out[0], Action::Plugin(v) if v["op"] == "cancel_plugin_gesture")); }
+                if expected {
+                    assert!(
+                        matches!(&out[0], Action::Plugin(v) if v["op"] == "cancel_plugin_gesture")
+                    );
+                }
             }
         }
     }

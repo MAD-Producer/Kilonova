@@ -34,14 +34,17 @@ impl Session {
         // Available through the existing desktop/Android JSON bridge. Query
         // omits policy; writes validate all limits before changing runtime state.
         if text("op")? == "resource_tracking" {
-            return Ok(self.configure_resource_tracking(v["enabled"].as_bool().ok_or("missing boolean enabled")?));
+            return Ok(self.configure_resource_tracking(
+                v["enabled"].as_bool().ok_or("missing boolean enabled")?,
+            ));
         }
         if text("op")? == "resource_ledger" {
             return Ok(self.texture_resource_ledger());
         }
         if text("op")? == "memory_policy" {
             if let Some(policy) = v.get("policy") {
-                let policy = serde_json::from_value(policy.clone()).map_err(|error| error.to_string())?;
+                let policy =
+                    serde_json::from_value(policy.clone()).map_err(|error| error.to_string())?;
                 return self.configure_memory_policy(policy);
             }
             return Ok(json!({"policyVersion":2,"memoryPolicy":self.effects.memory_policy()}));
@@ -49,21 +52,51 @@ impl Session {
         if self.editor.as_ref().is_some_and(|e| e.gesture) && v["op"] != "catalogue" {
             return Err("finish the plugin editor gesture before other plugin operations".into());
         }
-        if text("op")?.starts_with("font_") {return self.font_request(&v);}
+        if text("op")?.starts_with("font_") {
+            return self.font_request(&v);
+        }
         let registry = &mut self.effects.registry;
         match text("op")? {
             "image_input" => {
-                let object=v["object"].as_u64().ok_or("missing object")?;
-                let instance=v["instance"].as_u64().ok_or("missing instance")?;
-                let layer=self.engine.project().layers.iter().find(|l|l.id==object).ok_or("layer does not exist")?;
-                let e=layer.effects.iter().find(|e|e.id==instance).ok_or("effect instance does not exist")?;
-                let p=registry.resolve(&e.plugin,&e.version,&e.hash).map_err(|e|e.to_string())?;
-                if !p.manifest.effects.iter().find(|d|d.id==e.effect).is_some_and(|d|d.required_capabilities.iter().any(|c|c=="image_input")) {
+                let object = v["object"].as_u64().ok_or("missing object")?;
+                let instance = v["instance"].as_u64().ok_or("missing instance")?;
+                let layer = self
+                    .engine
+                    .project()
+                    .layers
+                    .iter()
+                    .find(|l| l.id == object)
+                    .ok_or("layer does not exist")?;
+                let e = layer
+                    .effects
+                    .iter()
+                    .find(|e| e.id == instance)
+                    .ok_or("effect instance does not exist")?;
+                let p = registry
+                    .resolve(&e.plugin, &e.version, &e.hash)
+                    .map_err(|e| e.to_string())?;
+                if !p
+                    .manifest
+                    .effects
+                    .iter()
+                    .find(|d| d.id == e.effect)
+                    .is_some_and(|d| d.required_capabilities.iter().any(|c| c == "image_input"))
+                {
                     return Err("effect does not accept an image input".into());
                 }
-                let input:Option<motion_core::EffectImageInput>=serde_json::from_value(v["input"].clone()).map_err(|e|e.to_string())?;
-                self.engine.apply(Command::Effect {object,action:motion_core::EffectAction::SetImageInput {effect:instance,input}}).map_err(|e|e.to_string())?;
-                self.sample()?;return Ok(self.snapshot());
+                let input: Option<motion_core::EffectImageInput> =
+                    serde_json::from_value(v["input"].clone()).map_err(|e| e.to_string())?;
+                self.engine
+                    .apply(Command::Effect {
+                        object,
+                        action: motion_core::EffectAction::SetImageInput {
+                            effect: instance,
+                            input,
+                        },
+                    })
+                    .map_err(|e| e.to_string())?;
+                self.sample()?;
+                return Ok(self.snapshot());
             }
             "catalogue" => {
                 return Ok(
@@ -102,97 +135,136 @@ impl Session {
                     .iter()
                     .find(|d| Some(d.id.as_str()) == v["effect"].as_str())
                     .ok_or("unknown effect")?;
-                let object = v["object"].as_u64().ok_or("missing layer")?;
-                let layer = self
-                    .engine
-                    .project()
-                    .layers
-                    .iter()
-                    .find(|l| l.id == object)
-                    .ok_or("layer does not exist")?;
-                let upgrading = text("op")? == "upgrade";
-                if matches!(layer.content, motion_core::Content::Adjustment)
-                    && def.renderer != motion_effects::RendererKind::Image
-                {
-                    return Err("adjustment layers support image effects only".into());
-                }
-                let instance = if upgrading {
-                    v["instance"].as_u64().ok_or("missing instance")?
-                } else {
-                    layer.effects.iter().map(|e| e.id).max().unwrap_or(0) + 1
-                };
-                let index = if upgrading {
-                    layer
-                        .effects
+                let objects = if let Some(values) = v.get("objects") {
+                    if text("op")? != "add" || v.get("object").is_some() {
+                        return Err("objects is supported only for add, without object".into());
+                    }
+                    values
+                        .as_array()
+                        .ok_or("objects must be an array")?
                         .iter()
-                        .position(|e| e.id == instance)
-                        .ok_or("instance does not exist")?
+                        .map(|value| {
+                            value
+                                .as_u64()
+                                .ok_or_else(|| "objects must contain layer ids".to_owned())
+                        })
+                        .collect::<Result<Vec<_>>>()?
                 } else {
-                    layer.effects.len()
+                    vec![v["object"].as_u64().ok_or("missing layer")?]
                 };
-                let mut effect = motion_core::EffectInstance::new(
-                    instance,
-                    &p.manifest.id,
-                    &p.manifest.version,
-                    &p.hash,
-                    def,
-                    if matches!(layer.content, motion_core::Content::Adjustment) {
-                        [
-                            self.engine.project().width as f32,
-                            self.engine.project().height as f32,
-                        ]
-                    } else {
-                        layer.size
-                    },
-                );
+                if objects.is_empty() {
+                    return Err("at least one layer is required".into());
+                }
+                let mut seen = std::collections::HashSet::new();
+                let objects = objects
+                    .into_iter()
+                    .filter(|id| seen.insert(*id))
+                    .collect::<Vec<_>>();
+                let upgrading = text("op")? == "upgrade";
                 let preserve = v
                     .get("preserve_parameters")
                     .map(|v| v.as_bool().ok_or("preserve_parameters must be a boolean"))
                     .transpose()?
                     .unwrap_or(false);
-                if upgrading && preserve {
-                    let old = &layer.effects[index];
-                    let old_package = registry
-                        .resolve(&old.plugin, &old.version, &old.hash)
-                        .map_err(|e| e.to_string())?;
-                    let old_def = old_package
-                        .manifest
-                        .effects
-                        .iter()
-                        .find(|d| d.id == old.effect)
-                        .ok_or("old effect definition is missing")?;
-                    if old.plugin != p.manifest.id
-                        || old.effect != def.id
-                        || old_def.params != def.params
-                        || old_def.renderer != def.renderer
-                    {
-                        return Err("effect parameter contract differs; preserving parameters requires an explicit migration".into());
-                    }
-                    effect.params = old.params.clone();
-                    effect.seed = old.seed;
-                    effect.enabled = old.enabled;
-                    effect.scene = old.scene.clone();
-                    effect.image_input = old.image_input;
-                }
                 let mut cmds = Vec::new();
-                if upgrading {
-                    cmds.push(Command::Effect {
-                        object,
-                        action: motion_core::EffectAction::Remove { effect: instance },
-                    });
-                }
-                cmds.push(Command::Effect {
-                    object,
-                    action: motion_core::EffectAction::Insert { instance: effect },
-                });
-                if upgrading {
-                    cmds.push(Command::Effect {
-                        object,
-                        action: motion_core::EffectAction::Move {
-                            effect: instance,
-                            index,
+                for object in objects {
+                    let layer = self
+                        .engine
+                        .project()
+                        .layers
+                        .iter()
+                        .find(|l| l.id == object)
+                        .ok_or("layer does not exist")?;
+                    if layer.locked {
+                        return Err("object is locked".into());
+                    }
+                    if matches!(layer.content, motion_core::Content::Audio { .. }) {
+                        return Err("audio layers do not support visual effects".into());
+                    }
+                    if matches!(layer.content, motion_core::Content::Adjustment)
+                        && def.renderer != motion_effects::RendererKind::Image
+                    {
+                        return Err("adjustment layers support image effects only".into());
+                    }
+                    let instance = if upgrading {
+                        v["instance"].as_u64().ok_or("missing instance")?
+                    } else {
+                        layer
+                            .effects
+                            .iter()
+                            .map(|e| e.id)
+                            .max()
+                            .unwrap_or(0)
+                            .checked_add(1)
+                            .ok_or("effect ID space exhausted")?
+                    };
+                    let index = if upgrading {
+                        layer
+                            .effects
+                            .iter()
+                            .position(|e| e.id == instance)
+                            .ok_or("instance does not exist")?
+                    } else {
+                        layer.effects.len()
+                    };
+                    let mut effect = motion_core::EffectInstance::new(
+                        instance,
+                        &p.manifest.id,
+                        &p.manifest.version,
+                        &p.hash,
+                        def,
+                        if matches!(layer.content, motion_core::Content::Adjustment) {
+                            [
+                                self.engine.project().width as f32,
+                                self.engine.project().height as f32,
+                            ]
+                        } else {
+                            layer.size
                         },
+                    );
+                    if upgrading && preserve {
+                        let old = &layer.effects[index];
+                        let old_package = registry
+                            .resolve(&old.plugin, &old.version, &old.hash)
+                            .map_err(|e| e.to_string())?;
+                        let old_def = old_package
+                            .manifest
+                            .effects
+                            .iter()
+                            .find(|d| d.id == old.effect)
+                            .ok_or("old effect definition is missing")?;
+                        if old.plugin != p.manifest.id
+                            || old.effect != def.id
+                            || old_def.params != def.params
+                            || old_def.renderer != def.renderer
+                        {
+                            return Err("effect parameter contract differs; preserving parameters requires an explicit migration".into());
+                        }
+                        effect.params = old.params.clone();
+                        effect.seed = old.seed;
+                        effect.enabled = old.enabled;
+                        effect.scene = old.scene.clone();
+                        effect.image_input = old.image_input;
+                    }
+                    if upgrading {
+                        cmds.push(Command::Effect {
+                            object,
+                            action: motion_core::EffectAction::Remove { effect: instance },
+                        });
+                    }
+                    cmds.push(Command::Effect {
+                        object,
+                        action: motion_core::EffectAction::Insert { instance: effect },
                     });
+                    if upgrading {
+                        cmds.push(Command::Effect {
+                            object,
+                            action: motion_core::EffectAction::Move {
+                                effect: instance,
+                                index,
+                            },
+                        });
+                    }
                 }
                 self.engine.apply_batch(cmds).map_err(|e| e.to_string())?;
                 self.sample()?;
@@ -213,20 +285,30 @@ impl Session {
     }
 
     pub(crate) fn close_plugin_editor(&mut self, commit: bool, reason: &str) -> Result<()> {
-        let Some(mut editor) = self.editor.take() else { return Ok(()); };
+        let Some(mut editor) = self.editor.take() else {
+            return Ok(());
+        };
         let cancelled = editor.gesture && self.engine.gesture_active() && !commit;
-        let result = editor.close(&mut self.engine, commit).map_err(|e|e.to_string());
+        let result = editor
+            .close(&mut self.engine, commit)
+            .map_err(|e| e.to_string());
         self.editor_token.clear();
         self.editor_activity = None;
         self.editor_renderer = None;
         self.editor_target = None;
-        self.editor_recovery = Some(json!({"reason":reason,"cancelled":cancelled,"revision":self.engine.revision()}));
-        if let Err(error) = self.sample() { self.last_error = Some(error); }
+        self.editor_recovery =
+            Some(json!({"reason":reason,"cancelled":cancelled,"revision":self.engine.revision()}));
+        if let Err(error) = self.sample() {
+            self.last_error = Some(error);
+        }
         result
     }
     pub(crate) fn recover_plugin_editor(&mut self, now: std::time::Instant) -> Result<()> {
-        if self.editor.as_ref().is_some_and(|editor| editor.gesture) && self.editor_activity
-            .is_some_and(|last| now.saturating_duration_since(last) >= PLUGIN_EDITOR_LEASE) {
+        if self.editor.as_ref().is_some_and(|editor| editor.gesture)
+            && self
+                .editor_activity
+                .is_some_and(|last| now.saturating_duration_since(last) >= PLUGIN_EDITOR_LEASE)
+        {
             self.close_plugin_editor(false, "lease_expired")?;
         }
         Ok(())
@@ -268,19 +350,29 @@ impl Session {
             self.editor = Some(editor);
             self.editor_activity = Some(std::time::Instant::now());
             self.editor_recovery = None;
-            return Ok(json!({"protocol":1,"token":self.editor_token,"definition":definition,"state":state}));
+            return Ok(
+                json!({"protocol":1,"token":self.editor_token,"definition":definition,"state":state}),
+            );
         }
         if self.editor.is_none() || v["token"].as_str() != Some(self.editor_token.as_str()) {
             return Err("plugin editor session is stale or missing".into());
         }
         if op == "editor_close" || op == "editor_disconnected" {
-            self.close_plugin_editor(op == "editor_close" && v["commit"].as_bool().unwrap_or(false),
-                if op == "editor_disconnected" { "transport_disconnected" } else { "page_closed" })?;
+            self.close_plugin_editor(
+                op == "editor_close" && v["commit"].as_bool().unwrap_or(false),
+                if op == "editor_disconnected" {
+                    "transport_disconnected"
+                } else {
+                    "page_closed"
+                },
+            )?;
             return Ok(self.snapshot());
         }
         if op == "editor_heartbeat" {
             self.editor_activity = Some(std::time::Instant::now());
-            return Ok(json!({"leaseMillis":PLUGIN_EDITOR_LEASE.as_millis(),"gesture":self.editor.as_ref().is_some_and(|e|e.gesture)}));
+            return Ok(
+                json!({"leaseMillis":PLUGIN_EDITOR_LEASE.as_millis(),"gesture":self.editor.as_ref().is_some_and(|e|e.gesture)}),
+            );
         }
         let editor = self.editor.as_ref().unwrap();
         let package = self
@@ -307,24 +399,37 @@ impl Session {
                 }
                 let bytes = package.files.get(path).ok_or("editor asset missing")?;
                 self.editor_activity = Some(std::time::Instant::now());
-                Ok(json!({"mime":motion_effects::editor_mime(path),"base64":crate::encode_base64(bytes)}))
+                Ok(
+                    json!({"mime":motion_effects::editor_mime(path),"base64":crate::encode_base64(bytes)}),
+                )
             }
             "editor_message" => {
                 if v["message"]["op"] == "preview" {
                     let result = self.editor_preview(&v["message"]);
-                    if result.is_ok() { self.editor_activity = Some(std::time::Instant::now()); }
+                    if result.is_ok() {
+                        self.editor_activity = Some(std::time::Instant::now());
+                    }
                     return result;
                 }
                 let request: motion_core::plugin_editor::EditorRequest =
                     serde_json::from_value(v["message"].clone()).map_err(|e| e.to_string())?;
                 let was_gesture = self.editor.as_ref().unwrap().gesture;
-                let result = self.editor.as_mut().unwrap().request(&mut self.engine, self.frame.floor() as u32, request);
+                let result = self.editor.as_mut().unwrap().request(
+                    &mut self.engine,
+                    self.frame.floor() as u32,
+                    request,
+                );
                 let mut state = match result {
                     Ok(state) => state,
                     Err(error) => {
-                        if error.to_string().starts_with("plugin editor request panicked:") {
+                        if error
+                            .to_string()
+                            .starts_with("plugin editor request panicked:")
+                        {
                             self.close_plugin_editor(false, "request_panicked")?;
-                            if let Some(recovery) = &mut self.editor_recovery { recovery["cancelled"] = json!(was_gesture); }
+                            if let Some(recovery) = &mut self.editor_recovery {
+                                recovery["cancelled"] = json!(was_gesture);
+                            }
                         }
                         return Err(error.to_string());
                     }
@@ -398,10 +503,12 @@ impl Session {
             image::ExtendedColorType::Rgba8,
         )
         .map_err(|e| e.to_string())?;
-        Ok(json!({"width":width,"height":height,"png":crate::encode_base64(&png),
+        Ok(
+            json!({"width":width,"height":height,"png":crate::encode_base64(&png),
             "revision":self.engine.revision(),"frame":self.frame,
             "instances":{"alive":stats.particles_alive,"visible":stats.particles_visible,
-                "culled":stats.particles_culled,"upload_bytes":stats.instance_upload_bytes}}))
+                "culled":stats.particles_culled,"upload_bytes":stats.instance_upload_bytes}}),
+        )
     }
 }
 

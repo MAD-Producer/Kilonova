@@ -217,7 +217,7 @@ pub(super) fn render(
     );
     if let Some(index) = response.selected {
         if let Some(id) = filtered[index].2 {
-            panels.selected = Some(id);
+            panels.select_only(Some(id));
         }
     }
     paint::rect(list, footer, colors.CHROME);

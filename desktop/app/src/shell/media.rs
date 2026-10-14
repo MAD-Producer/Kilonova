@@ -42,10 +42,11 @@ impl Shell {
                 Ok(result) => {
                     self.importing_image = None;
                     self.state = result?;
-                    self.panels.selected = self.state["project"]["layers"]
+                    let selected = self.state["project"]["layers"]
                         .as_array()
                         .and_then(|ls| ls.last())
                         .and_then(|l| l["id"].as_u64());
+                    self.panels.select_only(selected);
                     self.panels.message = Some(self.workspace.locale.t(T::Imported).into());
                     self.dirty = true;
                 }
@@ -77,10 +78,11 @@ impl Shell {
                             .to_string(),
                     )?;
                     self.state = result?["state"].clone();
-                    self.panels.selected = self.state["project"]["layers"]
+                    let selected = self.state["project"]["layers"]
                         .as_array()
                         .and_then(|ls| ls.last())
                         .and_then(|l| l["id"].as_u64());
+                    self.panels.select_only(selected);
                     self.panels.message = Some(self.workspace.locale.t(T::Imported).into());
                     self.dirty = true;
                 }

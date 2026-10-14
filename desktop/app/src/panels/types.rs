@@ -97,6 +97,12 @@ pub struct Panels {
     pub(crate) library_height: f32,
     pub(crate) browser: crate::panels::effect_controls::Controls,
     pub selected: Option<u64>,
+    /// Stable selection collection for timeline multi-select. `selected` is
+    /// kept as the primary layer for panels whose controls still need one
+    /// active object.
+    pub(crate) selected_layers: Vec<u64>,
+    pub(crate) selection_anchor: Option<u64>,
+    pub(crate) selection_composition: Option<String>,
     pub playing: bool,
     pub message: Option<String>,
     pub(crate) menu: Option<usize>,
@@ -119,6 +125,137 @@ pub struct Panels {
 }
 
 impl Panels {
+    pub(crate) fn select_only(&mut self, object: Option<u64>) {
+        self.selected = object;
+        self.selection_anchor = object.filter(|id| *id != 0);
+        self.animation_controls.clear_key();
+        self.selected_layers.clear();
+        if let Some(object) = object.filter(|id| *id != 0) {
+            self.selected_layers.push(object);
+        }
+    }
+
+    pub(crate) fn selection_contains(&self, object: u64) -> bool {
+        self.selected == Some(object) || self.selected_layers.contains(&object)
+    }
+
+    pub(crate) fn selection_ids(&self) -> Vec<u64> {
+        let mut ids = self.selected_layers.clone();
+        if let Some(primary) = self.selected.filter(|id| *id != 0) {
+            ids.retain(|id| *id != primary);
+            ids.insert(0, primary);
+        }
+        ids
+    }
+
+    pub(crate) fn editable_selection(&self, state: &serde_json::Value) -> Vec<u64> {
+        self.selection_ids()
+            .into_iter()
+            .filter(|id| {
+                state["project"]["layers"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .any(|layer| {
+                        layer["id"].as_u64() == Some(*id) && layer["locked"].as_bool() != Some(true)
+                    })
+            })
+            .collect()
+    }
+
+    /// All desktop effect entry points share the same atomic selection request.
+    pub(crate) fn effect_request(
+        &self,
+        mut request: serde_json::Value,
+        state: &serde_json::Value,
+    ) -> serde_json::Value {
+        if request["op"] == "add"
+            && request["object"]
+                .as_u64()
+                .is_some_and(|id| self.selection_contains(id))
+        {
+            let ids = self.editable_selection(state);
+            request.as_object_mut().unwrap().remove("object");
+            request["objects"] = serde_json::json!(ids);
+        }
+        request
+    }
+
+    pub(crate) fn toggle_selection(&mut self, object: u64) {
+        if object == 0 {
+            self.select_only(Some(object));
+            return;
+        }
+        self.animation_controls.clear_key();
+        self.selected_layers = self.selection_ids();
+        self.selection_anchor = Some(object);
+        if let Some(index) = self.selected_layers.iter().position(|id| *id == object) {
+            self.selected_layers.remove(index);
+            if self.selected == Some(object) {
+                self.selected = self.selected_layers.last().copied();
+            }
+        } else {
+            self.selected_layers.push(object);
+            self.selected = Some(object);
+        }
+    }
+
+    pub(crate) fn add_selection(&mut self, object: u64) {
+        if object != 0 && !self.selected_layers.contains(&object) {
+            self.selected_layers.push(object);
+        }
+        self.selected = Some(object);
+    }
+
+    pub(crate) fn normalize_selection(&mut self, state: &serde_json::Value) -> bool {
+        let mut context_changed = false;
+        if let Some(composition) = state["project"]["composition_id"].as_str() {
+            if self
+                .selection_composition
+                .as_deref()
+                .is_some_and(|old| old != composition)
+            {
+                context_changed = true;
+                self.select_only(None);
+            }
+            self.selection_composition = Some(composition.to_owned());
+        }
+        let valid = |id: &u64| {
+            *id != 0
+                && state["project"]["layers"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .any(|layer| layer["id"].as_u64() == Some(*id))
+        };
+        let invalid = self.selection_ids().iter().any(|id| !valid(id))
+            || self
+                .timeline
+                .moving
+                .as_ref()
+                .is_some_and(|moving| moving.layers.iter().any(|(id, _, _)| !valid(id)))
+            || self
+                .timeline
+                .trimming
+                .as_ref()
+                .is_some_and(|(id, _, _, _, _)| !valid(id));
+        self.selected_layers.retain(|id| valid(id));
+        if self.selected.is_some_and(|id| id != 0 && !valid(&id)) {
+            self.selected = self.selected_layers.last().copied();
+        }
+        if let Some(primary) = self.selected.filter(|id| *id != 0) {
+            if !self.selected_layers.contains(&primary) {
+                self.selected_layers.insert(0, primary);
+            }
+        } else if self.selected.is_none() || self.selected == Some(0) {
+            self.selected_layers.clear();
+        }
+        if self.selection_anchor.is_some_and(|id| !valid(&id)) {
+            self.selection_anchor = self.selected.filter(|id| *id != 0);
+        }
+        context_changed || invalid
+    }
+
     pub fn set_stylesheet(&mut self, sheet: motion_ui::style::StyleSheet) {
         self.motion.set_easing(sheet.easing());
         self.styles = Some(std::sync::Arc::new(sheet));
@@ -239,11 +376,38 @@ pub(crate) struct TimelineState {
     pub scrubbing: bool,
     pub last_seek: Option<f64>,
     pub snap_guide: Option<f64>,
-    pub moving: Option<(u64, f32, i32, i32, i32)>,
+    pub moving: Option<MovingLayers>,
     pub trimming: Option<(u64, f64, f64, bool, f64)>,
     pub timeline_context_menu: Option<[f32; 2]>,
     pub timeline_query: String,
     pub timeline_search: bool,
+}
+
+#[derive(Clone)]
+pub(crate) struct MovingLayers {
+    pub start_mouse: f32,
+    pub initial: i32,
+    pub last: i32,
+    pub layers: Vec<(u64, i32, i32)>,
+}
+
+impl MovingLayers {
+    pub(crate) fn clamp_delta(&self, delta: i64) -> i32 {
+        let limit = i64::from(motion_core::MAX_FRAMES);
+        let lower = self
+            .layers
+            .iter()
+            .map(|(_, start, _)| -limit - i64::from(*start))
+            .max()
+            .unwrap_or(0);
+        let upper = self
+            .layers
+            .iter()
+            .map(|(_, start, duration)| limit - i64::from(*start) - i64::from(*duration))
+            .min()
+            .unwrap_or(0);
+        delta.clamp(lower, upper) as i32
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]

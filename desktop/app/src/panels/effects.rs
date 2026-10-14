@@ -13,9 +13,18 @@ pub(super) fn render(
     let colors = styles.colors();
 
     paint::rect(list, area, colors.PANEL);
-    let selected = auxiliary::selected(panels, state).cloned();
+    let selected = if panel == Panel::Effects {
+        panels.editable_selection(state).first().and_then(|id| {
+            state["project"]["layers"]
+                .as_array()?
+                .iter()
+                .find(|l| l["id"].as_u64() == Some(*id))
+        })
+    } else {
+        auxiliary::selected(panels, state)
+    };
     let fallback = serde_json::json!({"id":0,"locked":true,"effects":[]});
-    let layer = selected.as_ref().unwrap_or(&fallback);
+    let layer = selected.unwrap_or(&fallback);
     if panel == Panel::Effects {
         panels.browser.catalogue = panels.effect_controls.catalogue.clone();
         let mut y = area.min[1];

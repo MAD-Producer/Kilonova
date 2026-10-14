@@ -219,7 +219,7 @@ pub(super) fn render(
                 panels.timeline.expanded.insert(row.id);
             }
         } else if clicked(tree_input, rect) {
-            panels.selected = Some(row.id);
+            panels.select_only(Some(row.id));
             panels.timeline.expanded.insert(row.id);
         }
         y += row_height;
@@ -319,7 +319,7 @@ pub(super) fn render(
                         Align::Right,
                     );
                     if clicked(tree_input, rect) {
-                        panels.selected = Some(row.id);
+                        panels.select_only(Some(row.id));
                         panels
                             .animation_controls
                             .choose_track(row.id, property.property, axis);
