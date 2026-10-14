@@ -187,9 +187,27 @@ impl Scene {
                 sampled.scene = e.scene.clone();
                 sampled.lut = None;
                 sampled.particle_history_error = None;
+                if e.params.len() > motion_effects::MAX_PARAMS {
+                    return Err(motion_model::Error::Invalid(format!(
+                        "effect {} on layer {} has too many parameters (max {})",
+                        e.id,
+                        layer.id,
+                        motion_effects::MAX_PARAMS
+                    )));
+                }
                 if e.enabled && e.scene.as_ref().is_some_and(|s| s.particle_space.is_some()) {
-                    let raw_layer = original.layers.iter().find(|l| l.id == layer.id).unwrap();
-                    let raw_effect = raw_layer.effects.iter().find(|v| v.id == e.id).unwrap();
+                    let raw_layer = original.layers.iter().find(|l| l.id == layer.id).ok_or_else(|| {
+                        motion_model::Error::Invalid(format!(
+                            "particle effect layer {} is missing from the source project",
+                            layer.id
+                        ))
+                    })?;
+                    let raw_effect = raw_layer.effects.iter().find(|v| v.id == e.id).ok_or_else(|| {
+                        motion_model::Error::Invalid(format!(
+                            "particle effect {} is missing from source layer {}",
+                            e.id, layer.id
+                        ))
+                    })?;
                     match motion_model::particle_history::ParticleHistory::capture(original, raw_layer, raw_effect, sampled.particle_history.as_ref()) {
                         Ok(history) => sampled.particle_history = Some(history),
                         Err(error) => { sampled.particle_history = None; sampled.particle_history_error = Some(error.to_string()); }
@@ -218,9 +236,21 @@ impl Scene {
         self.node_spatial.push(true);
         let link = project.camera.parent.as_ref();
         let prefix = if let Some(link) = link {
-            let parent = link.object.map_or(Mat4::IDENTITY, |id| {
-                self.node_world[self.node_ids.iter().position(|v| *v == id).unwrap()]
-            });
+            let parent = if let Some(id) = link.object {
+                let index = self
+                    .node_ids
+                    .iter()
+                    .position(|v| *v == id)
+                    .ok_or_else(|| {
+                        motion_model::Error::Invalid(format!(
+                            "camera parent layer {} is missing from the sampled project",
+                            id
+                        ))
+                    })?;
+                self.node_world[index]
+            } else {
+                Mat4::IDENTITY
+            };
             parent * Mat4::from_cols_array_2d(&link.bind)
         } else {
             Mat4::IDENTITY
@@ -296,7 +326,12 @@ impl Scene {
                     .video_assets
                     .iter()
                     .find(|a| a.id == video.asset)
-                    .unwrap();
+                    .ok_or_else(|| {
+                        motion_model::Error::Invalid(format!(
+                            "video asset {} is missing for layer {}",
+                            video.asset, layer.id
+                        ))
+                    })?;
                 let time = video.source_time_us(layer.local_frame(frame), project.fps);
                 if time < a.video_start_us as i64 || time >= a.video_end_us as i64 {
                     continue;
