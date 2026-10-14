@@ -25,6 +25,7 @@ fn text_active(panels: &Panels) -> bool {
         || panels.effect_controls.editing()
         || panels.animation_controls.editing()
         || panels.camera_controls.editing()
+        || panels.audio_controls.editing()
         || panels.path_controls.wants_keyboard()
         || panels.node_editor.text_editing()
         || matches!(panels.focused, Some(Panel::Effects | Panel::Expression))

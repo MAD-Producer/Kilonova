@@ -118,6 +118,7 @@ pub struct Panels {
     pub parent_controls: crate::panels::parent_controls::Controls,
     pub timeline_columns: crate::panels::timeline_columns::Controls,
     pub camera_controls: crate::panels::camera_controls::Controls,
+    pub(crate) audio_controls: crate::panels::audio::Controls,
     pub node_editor: crate::node_editor::NodeEditor,
     pub node_preview: crate::node_preview::Controls,
     pub path_controls: crate::panels::path_controls::Controls,

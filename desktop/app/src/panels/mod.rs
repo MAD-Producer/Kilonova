@@ -120,6 +120,7 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     panels.parent_controls.open = false;
     panels.timeline_columns.cancel();
     let camera = panels.camera_controls.cancel();
+    let audio = panels.audio_controls.cancel();
     let effect = panels.effect_controls.cancel();
     let numeric = panels
         .properties
@@ -143,6 +144,7 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
         || transform
         || effect
         || camera
+        || audio
     {
         vec![Action::History(4)]
     } else {
@@ -287,8 +289,9 @@ pub fn chrome(
         || panels.project.context_menu.is_some()
         || panels.timeline.timeline_context_menu.is_some();
     let effect_modal = panels.effect_controls.editing();
+    let audio_modal = panels.audio_controls.editing();
     let neutral = Input::default();
-    let body_input = if menu_modal || node_modal || effect_modal {
+    let body_input = if menu_modal || node_modal || effect_modal || audio_modal {
         &neutral
     } else {
         input
@@ -396,6 +399,7 @@ pub fn chrome(
                 state,
                 if (node_modal && f.panel == Panel::Nodes && !menu_modal)
                     || (effect_modal && f.panel == Panel::EffectControls && !menu_modal && !node_modal)
+                    || (audio_modal && f.panel == Panel::Audio && !menu_modal && !node_modal)
                     || (timeline_popup && f.panel == Panel::Timeline)
                 {
                     input

@@ -39,10 +39,20 @@ impl Shell {
                 return Err("layout change edited the project".into());
             }
             self.smoke_panel_records.push(serde_json::json!({"id":panel as u32,"title":self.workspace.locale.panel(panel.dock()),"frames":self.smoke_float_frames[&(panel as u32)],"screenshot":screenshot,"valueGraphScreenshot":value_graph,"projectRevision":revision}));
+            if panel == dock::Panel::Audio {
+                // Subsequent parent/blend captures require a visual target.
+                let visual = self.state["project"]["layers"].as_array().into_iter().flatten().rev()
+                    .find(|layer| layer["content"]["kind"] != "audio")
+                    .and_then(|layer| layer["id"].as_u64());
+                self.panels.select_only(visual);
+            }
             self.smoke_panel_current = None;
             self.smoke_panel_index += 1;
         } else if let Some(panel) = dock::Panel::ALL.get(self.smoke_panel_index).copied() {
             self.action(panels::Action::ShowPanel(panel.dock()), Some(event_loop))?;
+            if panel == dock::Panel::Audio {
+                self.prepare_audio_panel_smoke()?;
+            }
             if panel == dock::Panel::Vector {
                 self.action(
                     panels::Action::AddShape(motion_core::vector::ShapeKind::Rectangle),
@@ -59,6 +69,43 @@ impl Shell {
             self.finish_smoke()?;
             self.smoke_stage = 4;
         }
+        Ok(())
+    }
+    fn prepare_audio_panel_smoke(&mut self) -> Result<(), String> {
+        // Owned acceptance-only source, sufficient for the complete composition.
+        let root = PathBuf::from(self.state["root"].as_str().ok_or("missing smoke root")?);
+        let frames = self.state["project"]["frames"].as_u64().unwrap_or(300);
+        let fps = self.state["project"]["fps"].as_u64().unwrap_or(30);
+        let samples = frames * 48_000 / fps;
+        let data_len = u32::try_from(samples * 4).map_err(|e| e.to_string())?;
+        let mut wave = Vec::with_capacity(data_len as usize + 44);
+        wave.extend(b"RIFF"); wave.extend((36+data_len).to_le_bytes()); wave.extend(b"WAVEfmt ");
+        wave.extend(16u32.to_le_bytes()); wave.extend(1u16.to_le_bytes()); wave.extend(2u16.to_le_bytes());
+        wave.extend(48_000u32.to_le_bytes()); wave.extend(192_000u32.to_le_bytes());
+        wave.extend(4u16.to_le_bytes()); wave.extend(16u16.to_le_bytes()); wave.extend(b"data"); wave.extend(data_len.to_le_bytes());
+        for _ in 0..samples { wave.extend(4096i16.to_le_bytes()); wave.extend(8192i16.to_le_bytes()); }
+        std::fs::create_dir_all(root.join("assets")).map_err(|e| e.to_string())?;
+        let relative = "assets/smoke-audio.wav";
+        let mut file = std::fs::OpenOptions::new().create_new(true).write(true).open(root.join(relative)).map_err(|e| e.to_string())?;
+        use std::io::Write;
+        file.write_all(&wave).map_err(|e| e.to_string())?;
+        let asset = self.state["project"]["audio_assets"].as_array().into_iter().flatten()
+            .filter_map(|v| v["id"].as_u64()).max().unwrap_or(0)+1;
+        let object = self.state["project"]["layers"].as_array().into_iter().flatten()
+            .filter_map(|v| v["id"].as_u64()).max().unwrap_or(0)+1;
+        let mut layer = Layer::solid(object, "Stereo audio", [0.;2], [0.;3], [1.;4]);
+        layer.content = motion_core::Content::Audio { audio: motion_core::AudioClip::new(asset) };
+        self.state = self.engine.edit(serde_json::to_string(&vec![
+            Command::RegisterAudioAsset { asset: motion_core::AudioAsset {
+                id:asset,path:relative.into(),mime:"audio/wav".into(),bytes:wave.len() as u64,track:0,
+                sample_rate:48_000,channels:2,sample_frames:samples,duration_us:samples*1_000_000/48_000 } },
+            Command::Add { layer },
+            Command::AudioLevels { object, action: motion_core::AudioLevelsAction::Set {
+                channel:motion_core::AudioChannel::Left,frame:0,value:0.,animated:Some(true) } },
+            Command::AudioLevels { object, action: motion_core::AudioLevelsAction::Set {
+                channel:motion_core::AudioChannel::Left,frame:60,value:-12.,animated:None } },
+        ]).map_err(|e| e.to_string())?)?;
+        self.panels.select_only(Some(object));
         Ok(())
     }
     fn capture_panel_float(&mut self, panel: dock::Panel) -> Result<PathBuf, String> {
