@@ -146,6 +146,8 @@ pub fn history(id: i64, op: i32) -> Result<Value> {
                 s.engine.redo().map_err(|e| e.to_string())?;
             }
             HISTORY_BEGIN => s.engine.begin_gesture().map_err(|e| e.to_string())?,
+            HISTORY_COMMIT if s.editor.as_ref().is_some_and(|e|e.gesture) => s.close_plugin_editor(true, "host_commit")?,
+            HISTORY_CANCEL if s.editor.as_ref().is_some_and(|e|e.gesture) => s.close_plugin_editor(false, "host_cancel")?,
             HISTORY_COMMIT => s.engine.end_gesture(true).map_err(|e| e.to_string())?,
             HISTORY_CANCEL => s.engine.end_gesture(false).map_err(|e| e.to_string())?,
             _ => return Err("invalid history operation".into()),

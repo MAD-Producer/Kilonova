@@ -132,10 +132,15 @@ fn failed_save_blocks_new_and_leaves_retry_discard_cancel_available() {
         sample_frames: 48000,
         duration_us: 1_000_000,
     };
+    let source = root.join(&asset.path);
+    fs::create_dir_all(source.parent().unwrap()).unwrap();
+    fs::write(&source, [0u8; 64]).unwrap();
     shell
         .engine
         .edit(serde_json::to_string(&Command::RegisterAudioAsset { asset }).unwrap())
         .unwrap();
+    // Registration validates the source; simulate it disappearing afterward.
+    fs::remove_file(source).unwrap();
     let before = shell.engine.state().unwrap();
     shell.request_project_change(new_target()).unwrap();
     shell.choose_project_change(CloseChoice::Save).unwrap();

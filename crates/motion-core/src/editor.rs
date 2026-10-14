@@ -803,26 +803,37 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
 
 struct History {
     project: Project,
-    bytes: usize,
+    size: crate::history_accounting::ProjectSize,
+}
+struct Gesture {
+    before: History,
+    changes: crate::history_accounting::Changes,
 }
 pub struct Engine {
     project: Project,
+    size: crate::history_accounting::ProjectSize,
     revision: u64,
     undo: VecDeque<History>,
     redo: VecDeque<History>,
-    gesture: Option<Project>,
+    gesture: Option<Gesture>,
     history_budget: usize,
 }
 impl Engine {
     pub fn activate_composition(&mut self, id: &str) -> Result<()> {
         if self.gesture.is_some() { return Err(Error::Gesture); }
-        self.project.activate_composition(id)
+        self.project.activate_composition(id)?;
+        self.size = self
+            .size
+            .updated(&self.project, &crate::history_accounting::Changes::default());
+        Ok(())
     }
     pub fn gesture_active(&self) -> bool { self.gesture.is_some() }
     pub fn new(project: Project) -> Result<Self> {
         let project = project.migrate()?;
+        let size = crate::history_accounting::ProjectSize::new(&project);
         Ok(Self {
             project,
+            size,
             revision: 0,
             undo: VecDeque::new(),
             redo: VecDeque::new(),
@@ -849,17 +860,26 @@ impl Engine {
         if self.gesture.is_some() {
             return Err(Error::Gesture);
         }
-        self.gesture = Some(self.project.clone());
+        self.gesture = Some(Gesture {
+            before: History {
+                project: self.project.clone(),
+                size: self.size.clone(),
+            },
+            changes: crate::history_accounting::Changes::default(),
+        });
         Ok(())
     }
     pub fn end_gesture(&mut self, commit: bool) -> Result<()> {
-        let before = self.gesture.take().ok_or(Error::Gesture)?;
-        if before != self.project {
+        let gesture = self.gesture.take().ok_or(Error::Gesture)?;
+        let before = gesture.before;
+        if before.project != self.project {
             if commit {
+                self.size = self.size.updated(&self.project, &gesture.changes);
                 self.push_undo(before);
                 self.redo.clear();
             } else {
-                self.project = before;
+                self.project = before.project;
+                self.size = before.size;
                 self.revision = self.revision.wrapping_add(1);
             }
         }
@@ -911,6 +931,10 @@ impl Engine {
             return Err(Error::Gesture);
         }
         let before = self.project.clone();
+        let mut changes = crate::history_accounting::Changes::default();
+        for command in &commands {
+            changes.note(command, &self.project.composition_id);
+        }
         let mut results = Vec::new();
         let prepared = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<()> {
             for command in commands {
@@ -941,8 +965,16 @@ impl Engine {
                 }
             }
             if self.gesture.is_none() {
-                self.push_undo(before);
+                let next_size = self.size.updated(&self.project, &changes);
+                let before_size = std::mem::replace(&mut self.size, next_size);
+                self.push_undo(History {
+                    project: before,
+                    size: before_size,
+                });
                 self.redo.clear();
+            } else if let Some(gesture) = &mut self.gesture {
+                // Continuous gesture updates create no snapshots or size walks.
+                gesture.changes.merge(changes);
             }
             self.revision = self.revision.wrapping_add(1);
         }
@@ -956,8 +988,9 @@ impl Engine {
             return Ok(false);
         };
         let previous = std::mem::replace(&mut self.project, entry.project);
+        let previous_size = std::mem::replace(&mut self.size, entry.size);
         self.redo.push_back(History {
-            bytes: previous.estimated_bytes(),
+            size: previous_size,
             project: previous,
         });
         self.revision = self.revision.wrapping_add(1);
@@ -972,16 +1005,17 @@ impl Engine {
             return Ok(false);
         };
         let previous = std::mem::replace(&mut self.project, entry.project);
-        self.push_undo(previous);
+        let previous_size = std::mem::replace(&mut self.size, entry.size);
+        self.push_undo(History {
+            project: previous,
+            size: previous_size,
+        });
         self.revision = self.revision.wrapping_add(1);
         self.trim();
         Ok(true)
     }
-    fn push_undo(&mut self, project: Project) {
-        self.undo.push_back(History {
-            bytes: project.estimated_bytes(),
-            project,
-        });
+    fn push_undo(&mut self, entry: History) {
+        self.undo.push_back(entry);
         self.trim();
     }
     fn trim(&mut self) {
@@ -990,7 +1024,7 @@ impl Engine {
                 .undo
                 .iter()
                 .chain(&self.redo)
-                .map(|h| h.bytes)
+                .map(|h| h.size.bytes())
                 .sum::<usize>()
                 > self.history_budget
         {
@@ -1007,3 +1041,7 @@ impl motion_model::EditSink for Engine {
         Engine::apply_batch_saved(self, commands, root)
     }
 }
+
+#[cfg(test)]
+#[path = "history_accounting_tests.rs"]
+mod history_accounting_tests;

@@ -162,6 +162,11 @@
       "runner": ".github/workflows/ci.yml",
       "reason": "Executed by the workflow or its test_ci_*.py unittest discovery."
     },
+    "tools/test_ci_android_build.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "CI discovery verifies ABI propagation, isolated debug guards and explicit NDK configuration precedence"
+    },
     "tools/test_ci_tools.py": {
       "mode": "ci",
       "runner": ".github/workflows/ci.yml",

@@ -3,6 +3,40 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+val motionAbis = providers.gradleProperty("motionAbis")
+    .orElse("arm64-v8a,x86_64").get().split(",").map(String::trim).distinct()
+require(motionAbis.isNotEmpty() && motionAbis.all { it in setOf("arm64-v8a", "x86_64") }) {
+    "motionAbis must be arm64-v8a and/or x86_64"
+}
+val nativeFiles = motionAbis.associateWith { file("src/main/jniLibs/$it/libmotion_engine.so") }
+val verifyMotionNativeLibraries = tasks.register("verifyMotionNativeLibraries") {
+    group = "verification"
+    description = "Verify the generated Motion Studio runtime for every selected ABI"
+    doLast {
+        val invalid = nativeFiles.filter { (abi, library) ->
+            if (!library.isFile || library.length() < 64) true
+            else {
+                val header = runCatching { library.inputStream().use { it.readNBytes(20) } }
+                    .getOrElse { byteArrayOf() }
+                header.size != 20 || !header.copyOfRange(0, 4).contentEquals(byteArrayOf(127, 69, 76, 70)) ||
+                    header[4].toInt() != 2 || header[5].toInt() != 1 ||
+                    header[16].toInt() != 3 || header[17].toInt() != 0 ||
+                    ((header[18].toInt() and 255) or ((header[19].toInt() and 255) shl 8)) !=
+                        if (abi == "arm64-v8a") 183 else 62
+            }
+        }.keys
+        if (invalid.isNotEmpty()) throw GradleException(
+            "Missing or invalid Motion Studio native runtime for: ${invalid.joinToString()}\n" +
+            "From the repository root run: python tools/build_android.py --abis ${motionAbis.joinToString(",")} --task assembleDebug\n" +
+            "Use the requested build variant instead of assembleDebug when preparing release/preview packages"
+        )
+    }
+}
+// Kotlin checks and JVM tests can run without an Android runtime. Every APK
+// packaging variant must verify its selected native libraries before merging.
+tasks.configureEach {
+    if (name.startsWith("merge") && name.endsWith("NativeLibs")) dependsOn(verifyMotionNativeLibraries)
+}
 android {
     namespace = "com.motionstudio.editor"
     compileSdk = 35
@@ -14,7 +48,7 @@ android {
             require(it in 1..2100000000) { "Invalid Android version code" }
         } ?: 1
         versionName = providers.environmentVariable("MOTION_VERSION_NAME").orNull ?: "0.1.0"
-        ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
+        ndk { abiFilters += motionAbis }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true }
@@ -37,6 +71,8 @@ android {
             isDebuggable = true
             if (providers.gradleProperty("effectsAcceptance").orNull == "true") {
                 applicationIdSuffix = ".effectsacceptance"
+            } else if (providers.gradleProperty("isolatedDebug").orNull == "true") {
+                applicationIdSuffix = ".dev"
             }
         }
         release {

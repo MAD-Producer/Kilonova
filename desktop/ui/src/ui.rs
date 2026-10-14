@@ -740,6 +740,15 @@ pub fn accumulate(input: &mut Input, event: Event) {
         }
         Event::TextInput(text) => input.text.push_str(&text),
         Event::LongPress { position } => input.long_press = Some(position),
+        Event::PointerLeft => {
+            input.mouse = [f32::NEG_INFINITY; 2];
+            input.held = None;
+            input.pressed = None;
+            input.released = None;
+            input.pointer_origin = None;
+            input.pointer_travel = 0.;
+            input.long_press = None;
+        }
         Event::FocusLost => {
             input.focus_lost = true;
             input.held = None;
@@ -802,6 +811,34 @@ mod tests {
         assert!(!input.pending);
         assert_eq!(input.held, Some(MouseButton::Left));
         assert_eq!(input.wheel, [0., 0.]);
+    }
+
+    #[test]
+    fn leaving_the_window_invalidates_the_last_hit_test_coordinate() {
+        let mut input = Input::default();
+        accumulate(
+            &mut input,
+            Event::MousePressed {
+                position: [10., 20.],
+                button: MouseButton::Left,
+            },
+        );
+        accumulate(&mut input, Event::PointerLeft);
+        assert_eq!(input.held, None);
+        assert_eq!(input.pointer_origin, None);
+        assert!(!Rect::new(0., 0., 100., 100.).contains(input.mouse));
+
+        // winit can still deliver the button release after CursorLeft. The
+        // shell uses the invalidated coordinate, so no widget sees it inside.
+        let position = input.mouse;
+        accumulate(
+            &mut input,
+            Event::MouseReleased {
+                position,
+                button: MouseButton::Left,
+            },
+        );
+        assert!(!Rect::new(0., 0., 100., 100.).contains(input.released.unwrap().1));
     }
 
     #[test]

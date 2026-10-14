@@ -46,6 +46,8 @@ py tools/build_android.py --task assembleDebug
 
 工具链默认放在 `.tools`，APK 输出到 `android/app/build/outputs/apk/debug/app-debug.apk`。只构建模拟器版本时可以增加 `--abis x86_64`。
 
+开发包需要与正式包同时安装时可加 `--isolated-debug`，包名使用 `.dev` 后缀。直接运行 Gradle 打包前必须先生成所选 ABI 的原生库；NDK 版本、签名与单 ABI 构建说明见 [Android 构建说明](engineering/android/building.md)。
+
 ## 工作区
 
 桌面工作区由项目、合成、效果控件、节点编辑器和时间轴组成。面板支持缩放、停靠、拆分浮窗和布局保存。

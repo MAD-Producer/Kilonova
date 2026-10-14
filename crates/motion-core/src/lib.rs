@@ -2,6 +2,7 @@
 mod command_registry;
 pub use command_registry::CommandRegistry;
 mod editor;
+mod history_accounting;
 mod expressions;
 mod hierarchy;
 pub mod plugin_editor;

@@ -113,7 +113,7 @@ fn portable_source(source: &str) -> Result<u64> {
         "shader must use host entry points/bindings and statically bounded for loops",
     )?;
     let loops = regex::Regex::new(r"\bfor\s*\(([^)]*)\)").unwrap();
-    let bounds=regex::Regex::new(r"^\s*var\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:\s*:\s*(?:i32|u32))?\s*=\s*(-?\d+)[iu]?\s*;\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*(<|<=)\s*(-?\d+)[iu]?\s*;\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\+\s*1[iu]?\s*$").unwrap();
+    let bounds=regex::Regex::new(r"^\s*var\s+(?P<counter>[a-zA-Z_][a-zA-Z0-9_]*)(?:\s*:\s*(?P<type>i32|u32))?\s*=\s*(?P<start>-?\d+)(?P<suffix>[iu])?\s*;\s*(?P<test>[a-zA-Z_][a-zA-Z0-9_]*)\s*(?P<comparison><|<=)\s*(?P<end>-?\d+)[iu]?\s*;\s*(?P<lhs>[a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(?P<rhs>[a-zA-Z_][a-zA-Z0-9_]*)\s*\+\s*1[iu]?\s*$").unwrap();
     let mut work = 1u64;
     let body = loops.replace_all(&text, "");
     for lp in loops.captures_iter(&text) {
@@ -121,30 +121,47 @@ fn portable_source(source: &str) -> Result<u64> {
             Error::Invalid("for loop requires literal bounds and unit increment".into())
         })?;
         ensure(
-            b[1] == b[3] && b[1] == b[6] && b[1] == b[7],
+            b["counter"] == b["test"] && b["counter"] == b["lhs"] && b["counter"] == b["rhs"],
             "inconsistent loop variable",
         )?;
         let writes = regex::Regex::new(&format!(
             r"\b{}\s*(?:=[^=]|[+*/%-]=|\+\+|--)|&\s*\b{}\b",
-            &b[1], &b[1]
+            &b["counter"], &b["counter"]
         ))
         .unwrap();
         ensure(
             !writes.is_match(&body),
             "loop counters cannot be written or borrowed in loop bodies",
         )?;
-        let start: i64 = b[2]
+        let start: i64 = b["start"]
             .parse()
             .map_err(|_| Error::Invalid("invalid loop bound".into()))?;
-        let end: i64 = b[5]
+        let end: i64 = b["end"]
             .parse()
             .map_err(|_| Error::Invalid("invalid loop bound".into()))?;
-        let count = (end - start + i64::from(&b[4] == "<=")).max(0) as u64;
-        ensure(count <= 1024, "loop exceeds 1024 iterations")?;
+        // Untyped integer var initializers materialize as i32, unless suffixed u.
+        let unsigned = b.name("type").map_or_else(
+            || b.name("suffix").is_some_and(|s| s.as_str() == "u"),
+            |ty| ty.as_str() == "u32",
+        );
+        let count = loop_iterations(start, end, &b["comparison"] == "<=", unsigned)?;
         work = work.saturating_mul(count.max(1));
         ensure(work <= 65536, "shader static loop work exceeds limit")?;
     }
     Ok(work)
+}
+
+fn loop_iterations(start: i64, end: i64, inclusive: bool, unsigned: bool) -> Result<u64> {
+    let (minimum, maximum) = if unsigned { (0, i64::from(u32::MAX)) }
+        else { (i64::from(i32::MIN), i64::from(i32::MAX)) };
+    ensure((minimum..=maximum).contains(&start) && (minimum..=maximum).contains(&end),
+        "loop bound outside counter's 32-bit range")?;
+    // An inclusive maximum would execute a unit increment past the counter's range.
+    ensure(!inclusive || end < maximum, "loop counter can overflow at inclusive bound")?;
+    let count = end.checked_sub(start).and_then(|n| n.checked_add(i64::from(inclusive)))
+        .ok_or_else(|| Error::Invalid("loop iteration count overflow".into()))?.max(0) as u64;
+    ensure(count <= 1024, "loop exceeds 1024 iterations")?;
+    Ok(count)
 }
 
 pub fn compile(source: &str, entry: &str) -> Result<CompiledShader> {
@@ -300,3 +317,41 @@ struct SpriteVertex {
     out.uv=vec2(p.x+0.5,0.5-p.y); out.color=color; out.style=style; return out;
 }
 "#;
+
+#[cfg(test)]
+mod loop_bounds_tests {
+    use super::*;
+
+    #[test]
+    fn extreme_literal_boundaries_never_panic_or_bypass_the_portable_gate() {
+        for (ty, suffix, min, max) in [("i32", "i", i64::from(i32::MIN), i64::from(i32::MAX)),
+            ("u32", "u", 0, i64::from(u32::MAX))] {
+            let values = [i64::MIN, min-1, min, min+1, 0, 1024, max-1, max, max+1, i64::MAX];
+            for start in values { for end in values { for inclusive in [false, true] {
+                // Independent wide arithmetic oracle for the permitted counter domain.
+                let count = (i128::from(end)-i128::from(start)+i128::from(inclusive)).max(0);
+                let valid = (min..=max).contains(&start) && (min..=max).contains(&end)
+                    && (!inclusive || end < max) && count <= 1024;
+                let comparison = if inclusive { "<=" } else { "<" };
+                let source = format!("for(var i:{ty}={start}{suffix};i{comparison}{end}{suffix};i=i+1{suffix}){{}}");
+                let result = portable_source(&source);
+                assert_eq!(result.is_ok(), valid, "{source}: {result:?}");
+                if valid { assert_eq!(result.unwrap(), (count as u64).max(1)); }
+            } } }
+        }
+    }
+
+    #[test]
+    fn inferred_types_and_counter_wrap_are_checked_before_naga() {
+        for source in [
+            "for(var i=2147483647;i<=2147483647;i=i+1){}",
+            "for(var i=4294967295u;i<=4294967295u;i=i+1u){}",
+            "for(var i:u32=0u;i<-1;i=i+1u){}",
+            "for(var i:i32=-9223372036854775808;i<=9223372036854775807;i=i+1){}",
+            "for(var i=99999999999999999999999999;i<0;i=i+1){}",
+        ] { assert!(portable_source(source).is_err(), "{source}"); }
+        assert_eq!(portable_source("for(var i=4294967294u;i<4294967295u;i=i+1u){}").unwrap(), 1);
+        assert_eq!(portable_source("for(var i:i32=0;i<256;i=i+1){for(var j:i32=0;j<256;j=j+1){}}").unwrap(), 65536);
+        assert!(portable_source("for(var i:i32=0;i<257;i=i+1){for(var j:i32=0;j<256;j=j+1){}}").is_err());
+    }
+}

@@ -23,7 +23,7 @@ public final class AudioFixtureProvider extends ContentProvider {
             try { return getContext().getAssets().openFd("formats/" + name); }
             catch (IOException e) { throw new FileNotFoundException(e.toString()); }
         }
-        if (Arrays.asList("silent-24fps.mp4", "sound-24fps.mp4", "audio-delayed.mp4", "rotated-90.mp4", "variable.mp4", "preview-1080p.mp4").contains(name)) {
+        if (Arrays.asList("silent-24fps.mp4", "sound-24fps.mp4", "audio-delayed.mp4", "video-delayed.mp4", "video-ctts.mp4", "video-tail-90k.mp4", "video-fragmented.mp4", "rotated-90.mp4", "variable.mp4", "preview-1080p.mp4").contains(name)) {
             try { return getContext().getAssets().openFd("video/" + name); }
             catch (IOException e) { throw new FileNotFoundException(e.toString()); }
         }
