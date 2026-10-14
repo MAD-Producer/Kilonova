@@ -112,7 +112,7 @@ mod tests {
     use crate::{
         engine::Engine,
         i18n::Locale,
-        panels::{camera_controls, effect_controls},
+        panels::camera_controls,
     };
     use motion_ui::MouseButton;
 
@@ -178,48 +178,40 @@ mod tests {
             .unwrap();
         engine.plugin(serde_json::json!({"op":"add","object":7,"plugin":package["manifest"]["id"],"version":package["manifest"]["version"],"hash":package["hash"],"effect":"brightness_contrast"}).to_string()).unwrap();
         let before = engine.state().unwrap();
-        let mut controls = effect_controls::Controls::default();
-        controls.catalogue = catalogue.into();
+        let mut panels = crate::panels::Panels::default();
+        panels.selected = Some(7);
+        panels.effect_controls.catalogue = catalogue.into();
+        let id = motion_ui::dock::Panel::EffectControls.dock();
+        let layout = motion_ui::dock::Node::Dock { id, tabs: vec![id], active: 0 };
+        let top = crate::panels::frames(&layout, [400., 1000.])[0].content.min[1] + 8.;
         let mut atlas = TextAtlas::from_system(12.).unwrap();
-        let mut draw = |controls: &mut effect_controls::Controls, input: &Input| {
+        let mut draw = |panels: &mut crate::panels::Panels, input: &Input| {
             let state = engine.state().unwrap();
-            let mut actions = vec![];
-            let mut y = 0.;
-            controls.render(
-                &mut PaintList::default(),
-                &mut atlas,
-                Rect::new(0., 0., 400., 1000.),
-                &mut y,
-                &state["project"]["layers"][0],
-                &state,
-                input,
-                Locale::En,
-                &mut actions,
-            );
-            actions
+            crate::panels::chrome(&mut PaintList::default(), &mut atlas, [400., 1000.],
+                &layout, panels, &state, input)
         };
-        assert!(draw(&mut controls, &input(100., 177., true, false)).is_empty());
+        assert!(draw(&mut panels, &input(100., top + 177., true, false)).is_empty());
         assert!(draw(
-            &mut controls,
+            &mut panels,
             &Input {
-                mouse: [120., 177.],
+                mouse: [120., top + 177.],
                 ..Default::default()
             }
         )
         .is_empty());
         run(
             &engine,
-            draw(&mut controls, &input(120., 177., false, false)),
+            draw(&mut panels, &input(120., top + 177., false, false)),
         );
         assert!(!engine.state().unwrap()["canUndo"].as_bool().unwrap());
-        assert!(controls.drag_readout.is_some());
+        assert!(panels.effect_controls.drag_readout.is_some());
         run(
             &engine,
-            draw(&mut controls, &input(130., 177., false, false)),
+            draw(&mut panels, &input(130., top + 177., false, false)),
         );
         run(
             &engine,
-            draw(&mut controls, &input(130., 177., false, true)),
+            draw(&mut panels, &input(130., top + 177., false, true)),
         );
         let after = engine.state().unwrap();
         assert_ne!(after["project"], before["project"]);

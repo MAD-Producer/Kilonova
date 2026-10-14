@@ -224,6 +224,7 @@ struct Shell {
     project_pending: Option<project_lifecycle::Pending>,
     system_fonts: Option<Vec<dialogs::FontChoice>>,
     input: Input,
+    paint_input: Input,
     state: Value,
     scale: f32,
     dirty: bool,
@@ -271,6 +272,7 @@ struct FloatWindow {
     key: u64,
     panel: dock::Panel,
     input: Input,
+    paint_input: Input,
     scale: f32,
 }
 
@@ -323,6 +325,7 @@ impl Shell {
             project_pending: None,
             system_fonts: None,
             input: Default::default(),
+            paint_input: Default::default(),
             state,
             scale: 1.0,
             dirty: true,
@@ -571,8 +574,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                 self.editing = None;
                 match result {
                     Ok(state) => {
-                        self.state = state;
-                        self.present_due = true;
+                        self.accept_edit_state(state);
                     }
                     Err(error) => {
                         self.panels.message = Some(self.workspace.locale.error(&error));
