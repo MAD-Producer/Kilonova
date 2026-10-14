@@ -228,7 +228,13 @@ impl Command {
     pub fn changes_resources(&self) -> bool {
         match self {
             Self::InComposition { command, .. } => command.changes_resources(),
-            Self::RegisterAsset { .. } | Self::Content { .. } | Self::Add { .. } | Self::Composition { .. } => true,
+            Self::RegisterAsset { .. }
+            | Self::RegisterAudioAsset { .. }
+            | Self::RegisterVideoAsset { .. }
+            | Self::RegisterFontAsset { .. }
+            | Self::Content { .. }
+            | Self::Add { .. }
+            | Self::Composition { .. } => true,
             _ => false,
         }
     }

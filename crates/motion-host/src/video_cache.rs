@@ -60,7 +60,13 @@ impl FrameCache {
             let Some(i) = self.frames.iter().position(|f| f.pts != required) else {
                 return false;
             };
-            self.bytes -= self.frames.remove(i).unwrap().bytes();
+            let Some(removed) = self.frames.remove(i) else {
+                // The candidate came from the same deque, but keep cache
+                // accounting recoverable if the collection changes in a future
+                // implementation.
+                return false;
+            };
+            self.bytes = self.bytes.saturating_sub(removed.bytes());
         }
         self.bytes += frame.bytes();
         self.frames.push_back(frame);

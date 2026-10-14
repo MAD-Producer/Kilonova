@@ -108,7 +108,7 @@ return sample_input(mix(p,q,fx.params[1].x));
         compact = json.dumps(effects[id]['output_bounds'], separators=(',', ':'))
         text = text.replace('"output_bounds": ' + indented, '"output_bounds": ' + compact)
     encoded = (text + '\n').encode('utf-8')
-    assert len(encoded) <= 256 * 1024, len(encoded)
+    if not (len(encoded) <= 256 * 1024): raise RuntimeError(len(encoded))
     (LIB / 'manifest.json').write_bytes(encoded)
     for path, source in shaders.items():
         (LIB / path).write_bytes(source.encode('utf-8'))

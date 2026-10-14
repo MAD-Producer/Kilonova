@@ -95,7 +95,7 @@ impl PlaneCompositor {
         ensure(sizes.is_empty() || sizes.len() == scene.layers.len(), "invalid compositor sizes")?;
         ensure(origins.is_empty() || origins.len() == scene.layers.len(), "invalid compositor origins")?;
         ensure(overlays.is_empty() || overlays.len() == scene.layers.len(), "invalid compositor overlays")?;
-        let overlay = |index: usize| overlays.get(index).copied().unwrap_or(false);
+        let overlay = |index: usize| overlays.get(index).copied().unwrap_or(scene.layers[index].screen_overlay);
         let spatial = |index: usize| scene.layers[index].three_d && !overlay(index);
         ensure(
             scene.layers.len() <= MAX_LAYERS,
@@ -141,14 +141,14 @@ impl PlaneCompositor {
             "intersection geometry budget exceeded",
         )?;
         let l = &scene.layers[layer];
-        let size = sizes.get(layer).copied().unwrap_or(l.size);
+        let size = sizes.get(layer).copied().unwrap_or(crate::scene::plane_size(scene, l, overlay));
         let offset = if overlay { [0.; 2] } else {
             origins.get(layer).map_or([0.; 2], |origin| [
                 origin[0] + (size[0] - l.size[0]) * 0.5,
                 -origin[1] - (size[1] - l.size[1]) * 0.5,
             ])
         };
-        let model = if overlay { glam::DMat4::IDENTITY } else { l.model.as_dmat4() };
+        let model = crate::scene::plane_model(l, overlay).as_dmat4();
         let start = self.arena.len();
         for [x, y] in [[-0.5, 0.5], [-0.5, -0.5], [0.5, -0.5], [0.5, 0.5]] {
             let position = model.transform_point3(DVec3::new(

@@ -675,8 +675,9 @@ impl Project {
             .ok_or(crate::Error::Missing(id))
     }
     pub fn estimated_bytes(&self) -> usize {
-        // A bounded approximation for history, independent of image/GPU caches.
-        serde_json::to_vec(self).map_or(usize::MAX, |v| v.len())
+        // Exact compact JSON size; excludes caches and heap capacity. The editor
+        // reuses component counts so ordinary edits do not revisit this document.
+        serialized_bytes(self)
     }
     pub fn rebuild_plugin_dependencies(&mut self) {
         self.plugin_dependencies = self.composition_dependencies();
@@ -692,4 +693,24 @@ fn validate_color(color: [f32; 4]) -> Result<()> {
             .all(|v| v.is_finite() && (0.0..=1.0).contains(&v)),
         "invalid RGBA color",
     )
+}
+
+/// Exact compact JSON length without allocating a serialized document. Large
+/// callers should cache immutable component sizes rather than recounting trees.
+pub fn serialized_bytes<T: Serialize + ?Sized>(value: &T) -> usize {
+    struct Counter(usize);
+    impl std::io::Write for Counter {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.0 = self
+                .0
+                .checked_add(bytes.len())
+                .ok_or_else(|| std::io::Error::other("serialized size overflow"))?;
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let mut counter = Counter(0);
+    serde_json::to_writer(&mut counter, value).map_or(usize::MAX, |_| counter.0)
 }

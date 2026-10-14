@@ -124,6 +124,7 @@ mod tests {
     fn decoded_pixels(path: &Path) -> (Vec<u8>, Vec<u8>) {
         let probe = crate::av::probe(path, None, None, &|| Ok(())).unwrap();
         assert_eq!(probe.asset.frame_count, 6);
+        assert_eq!(probe.asset.video_end_us, 200_000, "six 30 fps frames must include the final sample duration");
         assert_eq!(
             probe.asset.color_standard, 1,
             "MP4 must signal the BT.709 conversion matrix"

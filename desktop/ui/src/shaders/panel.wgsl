@@ -31,7 +31,9 @@ struct SolidOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) color: vec4<f32>,
     @location(1) logical: vec2<f32>,
-    @location(2) @interpolate(flat) geometry: vec4<f32>,
+    // Pattern bounds are constant; strokes interpolate signed distance and
+    // longitudinal coordinates through their connected and clipped quads.
+    @location(2) geometry: vec4<f32>,
     @location(3) @interpolate(flat) params: vec4<f32>,
     @location(4) @interpolate(flat) extra: vec4<f32>,
     @location(5) @interpolate(flat) secondary: vec4<f32>,
@@ -70,6 +72,12 @@ fn solid_fs(v:SolidOutput)->@location(0) vec4<f32> {
     let major_distance=grid_distance(v.logical,v.extra.xy,v.extra.w);
     let ma=max(fwidth(minor_distance),0.001);
     let ga=max(fwidth(major_distance),0.001);
+    var stroke_distance=abs(v.geometry.x)-v.params.y;
+    stroke_distance=select(stroke_distance,max(stroke_distance,-v.geometry.y),v.params.w==1.0||v.params.w==3.0);
+    stroke_distance=select(stroke_distance,max(stroke_distance,v.geometry.y-v.params.z),v.params.w>=2.0);
+    let stroke_aa=max(length(vec2(dpdx(v.geometry.x),dpdy(v.geometry.x))),0.001);
+    let diamond_distance=(abs(point.x)+abs(point.y)-v.geometry.z*0.5)*0.70710678;
+    let diamond_aa=max(length(vec2(dpdx(point.x),dpdy(point.x))),0.001);
     if v.params.x<0.5 {return v.color;}
     if v.params.x<1.5 {
         let oc=1.0-smoothstep(-0.5*aa,0.5*aa,outer);
@@ -83,6 +91,12 @@ fn solid_fs(v:SolidOutput)->@location(0) vec4<f32> {
     if v.params.x<2.5 {
         let cell=floor((v.logical-v.geometry.xy)/max(v.params.y,1.0));
         return select(v.color,v.secondary,i32(cell.x+cell.y)%2!=0);
+    }
+    if v.params.x>5.5 {
+        return vec4(v.color.rgb,v.color.a*clamp(0.5-diamond_distance/diamond_aa,0.0,1.0));
+    }
+    if v.params.x>4.5 {
+        return vec4(v.color.rgb,v.color.a*clamp(0.5-stroke_distance/stroke_aa,0.0,1.0));
     }
     if v.params.x>3.5 {
         let p=v.logical-(v.extra.xy+v.extra.zw*0.5);

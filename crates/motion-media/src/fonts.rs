@@ -328,11 +328,13 @@ impl FontStore {
                 + 4),
             (ascent - descent) as u32 + 4,
         ];
+        let cell_capacity = u64::from(cell[0]).checked_mul(u64::from(cell[1]))
+            .and_then(|n| n.checked_mul(255)).ok_or("font coverage capacity overflow")?;
         let mut ordered: Vec<_> = glyphs
             .into_iter()
             .map(|g| {
                 let coverage = g.coverage.iter().map(|v| u64::from(*v)).sum::<u64>() as f32
-                    / (cell[0] * cell[1] * 255) as f32;
+                    / cell_capacity as f32;
                 (g, coverage)
             })
             .collect();

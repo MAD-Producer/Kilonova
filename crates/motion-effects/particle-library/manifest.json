@@ -2,7 +2,7 @@
   "format_version": 1,
   "sdk_version": 5,
   "id": "com.motionstudio.effects.particles",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "name": "Motion Studio Particle Effects",
   "author": "Motion Studio",
   "license": "MIT",

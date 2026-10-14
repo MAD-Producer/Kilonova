@@ -3,6 +3,7 @@
 //! Desktop hosts pass real paths, so this module is the only place the shared
 //! import pipeline learns about Android's storage model.
 use motion_host::ops::media::Opener;
+use crate::bridge::java_error;
 use jni::objects::{JObject, JValue};
 use jni::JNIEnv;
 use std::{
@@ -12,27 +13,6 @@ use std::{
 };
 
 pub const MAX_URI_LENGTH: usize = 8192;
-
-/// Render a pending Java exception as a message and clear it.
-pub fn java_error(env: &mut JNIEnv, error: jni::errors::Error) -> String {
-    if env.exception_check().unwrap_or(false) {
-        let exception = env.exception_occurred();
-        let _ = env.exception_clear();
-        if let Ok(exception) = exception {
-            if let Ok(text) =
-                env.call_method(&exception, "toString", "()Ljava/lang/String;", &[])
-            {
-                if let Ok(text) = text.l() {
-                    if let Ok(s) = env.get_string(&jni::objects::JString::from(text)) {
-                        return s.into();
-                    }
-                }
-            }
-            let _ = env.exception_clear();
-        }
-    }
-    error.to_string()
-}
 
 fn uri_reader(
     env: &mut JNIEnv,
@@ -132,7 +112,11 @@ fn uri_reader(
         Ok((reader, bytes))
     })();
     if let Err(e) = env.call_method(&afd, "close", "()V", &[]) {
-        let _ = java_error(env, e);
+        let error = java_error(env, e);
+        return Err(match result {
+            Err(original) => format!("{original}; descriptor close failed: {error}"),
+            Ok(_) => error,
+        });
     }
     result
 }
@@ -143,7 +127,7 @@ pub fn uri_opener(
     context: &JObject,
     uri: String,
 ) -> motion_host::Result<Opener> {
-    let vm = env.get_java_vm().map_err(|e| e.to_string())?;
+    let vm = env.get_java_vm().map_err(|e| java_error(env, e))?;
     let context = env
         .new_global_ref(context)
         .map_err(|e| java_error(env, e))?;

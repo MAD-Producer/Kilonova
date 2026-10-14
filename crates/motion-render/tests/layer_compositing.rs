@@ -178,3 +178,37 @@ fn rotated_three_d_matte_uses_the_same_camera_projection_as_the_target() {
     assert_eq!(alpha(&pixels,44,44),0);
     assert!(alpha(&pixels,42,32)>80);
 }
+
+#[test]
+fn normal_blend_and_matte_switches_reuse_pipelines_and_release_working_textures() {
+    let mut plain = fixture(MatteMode::Alpha);
+    plain.layers[0].visible = true;
+    plain.layers[1].track_matte = None;
+    let mut blended = plain.clone();
+    blended.layers[1].blend = LayerBlend { mode: BlendMode::Multiply, space: BlendSpace::Srgb };
+    let mut matted = plain.clone();
+    matted.layers[1].track_matte = Some(TrackMatte { source: 1, mode: MatteMode::Alpha, hide_source: true });
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    let before = renderer.texture_memory_breakdown();
+    let ordinary = render(&mut renderer, &plain, 0.);
+    assert_eq!(renderer.compositing_pipeline_set_builds(), 0);
+    let blend_pixels = render(&mut renderer, &blended, 0.);
+    let matte_pixels = render(&mut renderer, &matted, 0.);
+    assert_eq!(renderer.compositing_pipeline_set_builds(), 1);
+    for round in 0..8 {
+        assert_eq!(render(&mut renderer, &plain, 0.), ordinary);
+        let memory = renderer.texture_memory_breakdown();
+        // Pipeline retention includes one permanent R8 zero-coverage pixel.
+        assert_eq!(memory.matte_blend_scratch, 1);
+        assert_eq!(memory.layer_compositing_scratch, 0);
+        assert_eq!(memory.total_bytes(), before.total_bytes()+1, "{memory:?}");
+        let (project, pixels) = if round % 2 == 0 { (&blended, &blend_pixels) } else { (&matted, &matte_pixels) };
+        assert_eq!(&render(&mut renderer, project, 0.), pixels);
+        assert_eq!(renderer.compositing_pipeline_set_builds(), 1);
+    }
+    renderer.reclaim_preview_working_set().unwrap();
+    assert_eq!(render(&mut renderer, &plain, 0.), ordinary);
+    assert_eq!(renderer.texture_memory_breakdown().total_bytes(), before.total_bytes()+1);
+    assert_eq!(render(&mut renderer, &matted, 0.), matte_pixels);
+    assert_eq!(renderer.compositing_pipeline_set_builds(), 1);
+}

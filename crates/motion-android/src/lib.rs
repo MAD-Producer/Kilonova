@@ -10,6 +10,12 @@
 pub use motion_core::Engine;
 pub use motion_host::{Platform, Session};
 
+#[cfg(any(target_os = "android", test))]
+mod jni_diagnostic;
+
+#[cfg(any(target_os = "android", test))]
+mod video_pixels;
+
 #[cfg(target_os = "android")]
 mod android_window;
 #[cfg(target_os = "android")]
