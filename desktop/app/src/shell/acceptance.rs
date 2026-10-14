@@ -243,6 +243,29 @@ impl Shell {
             Value::Null
         };
         let design_screens = self.capture_design_screens(size)?;
+        let layer_menu_screenshot = if let Some(object) = self.panels.selected.filter(|id| *id != 0)
+        {
+            let revision = self.state["revision"].clone();
+            self.panels.layer_actions.open(
+                Some(object),
+                [36., (size[1] * 0.56).max(180.)],
+                &self.state,
+            );
+            let (paint, actions) = self.draw_commands(size);
+            if !actions.is_empty() {
+                return Err("drawing the layer context menu emitted an edit".into());
+            }
+            let ui = self.ui_frame(paint, size, true);
+            let screenshot = path.with_extension("layer-context-menu.png");
+            self.engine.capture_ui(ui, screenshot.clone())?;
+            self.panels.layer_actions.cancel();
+            if self.engine.state()?["revision"] != revision {
+                return Err("opening the layer context menu edited the project".into());
+            }
+            serde_json::to_value(screenshot).map_err(|error| error.to_string())?
+        } else {
+            return Err("layer context menu acceptance requires a selected layer".into());
+        };
         let state = self.engine.state()?;
         let styles = self
             .panels
@@ -251,7 +274,9 @@ impl Shell {
             .unwrap_or_else(motion_ui::style::default_stylesheet_arc);
         let style_report = serde_json::json!({"focus":styles.color("focus").0,"panel":styles.color("panel").0,"header":styles.color("header").0,"rowHeight":styles.metric("row.height",22.),"dragThreshold":styles.metric("motion.drag_threshold",3.),"smallFont":styles.metric("font.small",11.),"easing":styles.easing(),"overrideActive":self.style_source.path.is_some()});
         let result = serde_json::json!({"designScreens":design_screens,"style":style_report,"panels":self.smoke_panel_records,"ok":true,"framesPresented":state["presented"],"frame":state["frame"],"preview":state["preview"],
-            "retainedUiProbe":reuse_probe,"root":state["root"],"screenshot":screenshot,"floatingFrames":self.smoke_float_frames,"locale":self.workspace.locale,"desktop":state["desktop"],"nodePreview":self.smoke_node_report,"checks":["create_layer","animate","seek","save","reopen","single_surface_preview","chrome","floating_properties","floating_composition","resize","redock"]});
+            "retainedUiProbe":reuse_probe,"root":state["root"],"screenshot":screenshot,
+            "layerContextMenuScreenshot":layer_menu_screenshot,
+            "floatingFrames":self.smoke_float_frames,"locale":self.workspace.locale,"desktop":state["desktop"],"nodePreview":self.smoke_node_report,"checks":["create_layer","animate","seek","save","reopen","single_surface_preview","chrome","floating_properties","floating_composition","resize","redock","layer_context_menu"]});
         std::fs::write(
             &path,
             serde_json::to_vec_pretty(&result).map_err(|e| e.to_string())?,

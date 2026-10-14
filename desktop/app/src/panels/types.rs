@@ -79,6 +79,7 @@ pub struct Panels {
     pub(crate) project: ProjectState,
     pub(crate) properties: PropertiesState,
     pub(crate) timeline: TimelineState,
+    pub(crate) layer_actions: super::layer_actions::Controls,
     pub locale: Locale,
     pub(crate) focused: Option<dock::Panel>,
     pub(crate) auxiliary: super::auxiliary::State,
@@ -177,6 +178,7 @@ pub(crate) struct ProjectState {
     pub asset_list: motion_ui::widgets::ListView,
     pub query: String,
     pub search: bool,
+    pub context_menu: Option<[f32; 2]>,
 }
 
 #[derive(Default)]

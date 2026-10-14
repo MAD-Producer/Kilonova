@@ -29,6 +29,7 @@ mod graph_sampling;
 mod graph_workspace;
 mod helpers;
 mod keyboard;
+mod layer_actions;
 mod menus;
 pub(crate) mod numeric;
 pub(crate) mod parent_controls;
@@ -53,7 +54,7 @@ use composition::render as composition;
 pub use helpers::timecode;
 use helpers::{button, clicked, label, last_frame, right_clicked};
 use menus::render as menus;
-use project::render as project;
+use project::{finish_context_menu as finish_project_context_menu, render as project};
 use properties::render as properties;
 use timeline::render as timeline;
 #[cfg(test)]
@@ -112,6 +113,8 @@ fn viewer(area: Rect) -> Rect {
 }
 pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     let node_changed = panels.node_editor.cancel_interaction();
+    panels.layer_actions.cancel();
+    panels.timeline.timeline_context_menu = None;
     panels.parent_controls.open = false;
     panels.timeline_columns.cancel();
     let camera = panels.camera_controls.cancel();
@@ -168,13 +171,23 @@ pub fn chrome(
     let mut out = Vec::new();
     panels.cursor = None;
     panels.drag_readout = None;
+    let layer_modal = panels.layer_actions.prepare(
+        Some(Panel::Timeline),
+        state,
+        input,
+        panels.locale,
+        panels.selected,
+        panels.focused == Some(Panel::Timeline)
+            && panels.properties.field.is_none()
+            && !panels.timeline.timeline_search,
+        &mut out,
+    );
     panels.node_editor.external_inspector = layout.find(Panel::NodeProperties.dock()).is_some();
     let node_modal = panels.node_editor.popup_open();
     let timeline_dropdown = panels.timeline_columns.editing();
-    if let Some((_, point)) = input
-        .pressed
-        .filter(|_| !panels.fx_console_in(None) && !node_modal && !timeline_dropdown)
-    {
+    if let Some((_, point)) = input.pressed.filter(|_| {
+        !panels.fx_console_in(None) && !node_modal && !timeline_dropdown && !layer_modal
+    }) {
         let focused = frames(layout, size)
             .into_iter()
             .find(|f| f.content.contains(point) || f.tabs.contains(point))
@@ -237,6 +250,7 @@ pub fn chrome(
         panels.timeline.timeline_search = false;
         panels.fx_console = None;
         panels.timeline.timeline_context_menu = None;
+        panels.project.context_menu = None;
     }
     let nodes_frame = frames(layout, size)
         .into_iter()
@@ -252,12 +266,17 @@ pub fn chrome(
         }
     }) && panels.menu.is_none();
     let shortcut_modal = keyboard::route(input, panels, state, node_keyboard, None, &mut out);
-    let menu_modal = shortcut_modal
+    let menu_modal = layer_modal
+        || panels.layer_actions.modal_in(Some(Panel::Timeline))
+        || shortcut_modal
         || panels.menu.is_some()
         || panels.panel_menu.is_some()
         || panels.fx_console_in(None)
         || panels.timeline.timeline_context_menu.is_some()
-        || timeline_dropdown;
+        || timeline_dropdown
+        || panels.effect_controls.editing()
+        || panels.project.context_menu.is_some()
+        || panels.timeline.timeline_context_menu.is_some();
     let neutral = Input::default();
     let body_input = if menu_modal || node_modal {
         &neutral
@@ -621,7 +640,33 @@ pub fn chrome(
         panels.locale,
         &mut out,
     );
-
+    panels.layer_actions.finish_window(
+        list,
+        atlas,
+        Rect::new(0., 0., size[0], size[1]),
+        state,
+        input,
+        panels.locale,
+        &mut out,
+    );
+    panels.effect_controls.finish_context_menu(
+        list,
+        atlas,
+        Rect::new(0., 0., size[0], size[1]),
+        state,
+        input,
+        panels.locale,
+        &mut out,
+    );
+    finish_project_context_menu(
+        list,
+        atlas,
+        Rect::new(0., 0., size[0], size[1]),
+        panels,
+        input,
+        panels.locale,
+        &mut out,
+    );
     out
 }
 pub fn panel(id: dock::DockId) -> Option<Panel> {
@@ -659,6 +704,17 @@ pub fn floating_chrome(
     let timeline_dropdown = panels.timeline_columns.editing();
     let dropdown_owned = panels.timeline_columns.editing_in(Some(panel));
     let popup_neutral = Input::default();
+    let layer_modal = panels.layer_actions.prepare(
+        Some(panel),
+        state,
+        input,
+        panels.locale,
+        panels.selected,
+        panel == Panel::Timeline
+            && panels.properties.field.is_none()
+            && !panels.timeline.timeline_search,
+        &mut out,
+    );
     if !panels.fx_console_in(Some(panel))
         && !(panels.fx_console.is_some() && keyboard::console_close_pressed(input))
         && matches!(panel, Panel::Masks | Panel::Vector)
@@ -704,7 +760,11 @@ pub fn floating_chrome(
         &mut out,
     );
     let neutral = Input::default();
-    let body_input = if shortcut_modal || timeline_dropdown && !dropdown_owned {
+    let body_input = if layer_modal
+        || panels.layer_actions.modal_in(Some(panel))
+        || shortcut_modal
+        || timeline_dropdown && !dropdown_owned
+    {
         &neutral
     } else {
         input
@@ -799,7 +859,33 @@ pub fn floating_chrome(
         panels.locale,
         &mut out,
     );
-
+    panels.layer_actions.finish_window(
+        list,
+        atlas,
+        Rect::new(0., 0., size[0], size[1]),
+        state,
+        input,
+        panels.locale,
+        &mut out,
+    );
+    panels.effect_controls.finish_context_menu(
+        list,
+        atlas,
+        Rect::new(0., 0., size[0], size[1]),
+        state,
+        input,
+        panels.locale,
+        &mut out,
+    );
+    finish_project_context_menu(
+        list,
+        atlas,
+        Rect::new(0., 0., size[0], size[1]),
+        panels,
+        input,
+        panels.locale,
+        &mut out,
+    );
     out
 }
 fn node_panel(
@@ -1204,8 +1290,9 @@ mod tests {
             },
         );
         assert!(opened.is_empty());
-        assert_eq!(panels.timeline.timeline_context_menu, Some(point));
-        let clicked = [710., 215.];
+        assert!(panels.layer_actions.modal_in(Some(Panel::Timeline)));
+        // The context menu grows upward from the right-click point.
+        let clicked = [710., 200. - (7. * 20. + 6.) + 3. + 10.];
         let actions = chrome(
             &mut PaintList::default(),
             &mut atlas,
@@ -1235,21 +1322,31 @@ mod tests {
                 },
                 ..Default::default()
             };
-            let point = [110., 200. + 4. + 3. * 28. + 14.];
+            let layout = Node::dock(Panel::Timeline.dock());
+            let size = [1280., 800.];
+            chrome(
+                &mut PaintList::default(),
+                &mut atlas,
+                size,
+                &layout,
+                &mut panels,
+                &state,
+                &Input::default(),
+            );
+            let point = [110., 200. - (7. * 22. + 8.) + 4. + 3. * 22. + 11.];
             let input = Input {
                 mouse: point,
                 pressed: Some((MouseButton::Left, point)),
                 ..Default::default()
             };
-            let mut actions = vec![];
-            timeline(
+            let mut actions = chrome(
                 &mut PaintList::default(),
                 &mut atlas,
-                Rect::new(0., 0., 1280., 800.),
+                size,
+                &layout,
                 &mut panels,
                 &state,
                 &input,
-                &mut actions,
             );
             assert!(matches!(actions.as_slice(), [Action::AddAdjustment]));
             panels.menu = Some(3);

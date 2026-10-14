@@ -1,4 +1,5 @@
 use super::*;
+use motion_ui::style::{box_style, text_style, State, States};
 
 pub(super) fn render(
     list: &mut PaintList,
@@ -148,6 +149,9 @@ pub(super) fn render(
             locale.t(T::Composition),
             true,
         );
+        if right_clicked(input, row) {
+            panels.project.context_menu = Some(input.mouse);
+        }
     }
     let footer = Rect::new(area.min[0], area.max[1] - 30.0, area.width(), 30.0);
     let layers = p["layers"].as_array().map(Vec::as_slice).unwrap_or(&[]);
@@ -230,4 +234,172 @@ pub(super) fn render(
         ),
         true,
     );
+}
+
+fn pword(locale: Locale, zh: &str, en: &str) -> String {
+    if locale == Locale::Zh {
+        zh.into()
+    } else {
+        en.into()
+    }
+}
+
+pub(super) fn finish_context_menu(
+    list: &mut PaintList,
+    atlas: &mut TextAtlas,
+    bounds: Rect,
+    panels: &mut Panels,
+    input: &Input,
+    locale: Locale,
+    out: &mut Vec<Action>,
+) {
+    let Some(anchor) = panels.project.context_menu else {
+        return;
+    };
+    let styles = list.styles();
+    let entries = [
+        (
+            "合成设置...",
+            "Composition Settings...",
+            true,
+            Some(Action::CompositionSettings),
+            false,
+        ),
+        (
+            "在基本图形中打开",
+            "Open in Essential Graphics",
+            false,
+            None,
+            false,
+        ),
+        (
+            "基于所选项新建合成",
+            "New Composition from Selection",
+            false,
+            None,
+            false,
+        ),
+        (
+            "替换为预合成",
+            "Replace with Precomposition",
+            false,
+            None,
+            false,
+        ),
+        ("创建代理", "Create Proxy", false, None, true),
+        ("设置代理", "Set Proxy", false, None, true),
+        ("解释素材", "Interpret Footage", false, None, true),
+        ("替换素材", "Replace Footage", false, None, true),
+        ("重新加载素材", "Reload Footage", false, None, false),
+        ("许可...", "Interpretation...", false, None, false),
+        (
+            "在资源管理器中显示",
+            "Reveal in Explorer",
+            false,
+            None,
+            false,
+        ),
+        ("在 Bridge 中显示", "Reveal in Bridge", false, None, false),
+        (
+            "在合成中显示",
+            "Reveal in Composition",
+            true,
+            Some(Action::ShowPanel(Panel::Timeline.dock())),
+            true,
+        ),
+        ("纯色文件夹", "Solids Folder", false, None, false),
+        ("重命名    Enter", "Rename    Enter", false, None, false),
+    ];
+    let row = styles.metric("context.row.height", 20.).clamp(18., 24.);
+    let width = 238f32.min(bounds.width());
+    let height = entries.len() as f32 * row + 6.;
+    let card = Rect::new(
+        anchor[0].clamp(bounds.min[0], (bounds.max[0] - width).max(bounds.min[0])),
+        (anchor[1] - height).clamp(bounds.min[1], (bounds.max[1] - height).max(bounds.min[1])),
+        width,
+        height,
+    );
+    if input.focus_lost
+        || input.keys.iter().any(|(key, _)| *key == Key::Escape)
+        || input
+            .pressed
+            .is_some_and(|(_, point)| !card.contains(point))
+    {
+        panels.project.context_menu = None;
+        return;
+    }
+    box_style(
+        list,
+        card,
+        styles.resolve("context_menu", States::default()).unwrap(),
+    );
+    let mut chosen = None;
+    for (index, (zh, en, enabled, _action, arrow)) in entries.iter().enumerate() {
+        let area = Rect::new(
+            card.min[0] + 3.,
+            card.min[1] + 3. + index as f32 * row,
+            width - 6.,
+            row,
+        );
+        let mut states = States::default();
+        if *enabled && area.contains(input.mouse) {
+            states = states.with(State::Selected);
+        }
+        if !*enabled {
+            states = states.with(State::Disabled);
+        }
+        let style = styles.resolve("context_menu.row", states).unwrap();
+        box_style(list, area, style);
+        text_style(
+            list,
+            atlas,
+            Rect::new(
+                area.min[0] + 5.,
+                area.min[1],
+                area.width() - 28.,
+                area.height(),
+            ),
+            &pword(locale, zh, en),
+            style,
+            Align::Left,
+        );
+        if *arrow {
+            paint::line(
+                list,
+                vec![
+                    [area.max[0] - 13., area.min[1] + row * 0.5 - 4.],
+                    [area.max[0] - 9., area.min[1] + row * 0.5],
+                    [area.max[0] - 13., area.min[1] + row * 0.5 + 4.],
+                ],
+                style.foreground.with_alpha(0.82),
+            );
+        }
+        if *enabled
+            && input
+                .pressed
+                .is_some_and(|(button, point)| button == MouseButton::Left && area.contains(point))
+        {
+            chosen = Some(index);
+        }
+        if matches!(index, 3 | 8 | 12) {
+            paint::line(
+                list,
+                vec![
+                    [area.min[0] + 4., area.max[1] - 1.],
+                    [area.max[0] - 4., area.max[1] - 1.],
+                ],
+                styles.color("context.border"),
+            );
+        }
+    }
+    if let Some(index) = chosen {
+        panels.project.context_menu = None;
+        if let Some(action) = entries[index].3.as_ref() {
+            match action {
+                Action::CompositionSettings => out.push(Action::CompositionSettings),
+                Action::ShowPanel(dock) => out.push(Action::ShowPanel(*dock)),
+                _ => {}
+            }
+        }
+    }
 }

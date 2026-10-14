@@ -157,6 +157,10 @@ def main() -> None:
         verify_design_screens(snapshot, locale)
         if snapshot["locale"] != locale or snapshot["floatingFrames"].get("3", 0) < 2:
             raise RuntimeError(f"{locale} did not validate the floating composition")
+        layer_menu = Path(snapshot["layerContextMenuScreenshot"])
+        data = layer_menu.read_bytes()
+        if len(data) < 1024 or not data.startswith(b"\x89PNG\r\n\x1a\n"):
+            raise RuntimeError(f"{locale} did not render the timeline layer context menu")
         node_report = output / f"node-smoke-{locale}.json"
         node_result = subprocess.run(
             [str(binary), "--node-smoke", str(node_report), "--locale", locale],

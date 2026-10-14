@@ -1,4 +1,5 @@
 use crate::*;
+use motion_ui::dock::Panel;
 
 impl Shell {
     pub(crate) fn playback_ready(&self, now: Instant) -> bool {
@@ -379,6 +380,10 @@ impl Shell {
             .is_some_and(|(button, _)| button == MouseButton::Left)
             && header_hit.is_some_and(|(_, action)| action);
         let modal = self.panels.timeline_columns.editing()
+            || self.panels.layer_actions.modal_in(None)
+            || self.panels.layer_actions.modal_in(Some(Panel::Timeline))
+            || self.panels.layer_actions.text_in(None)
+            || self.panels.layer_actions.text_in(Some(Panel::Timeline))
             || self.panels.panel_menu.is_some()
             || self.panels.menu.is_some()
             || self.panels.fx_console_in(None)
