@@ -163,7 +163,7 @@ enum Outcome {
     Opened(GraphDocument, PathBuf),
     Saved(PathBuf),
     Validated(Result<ValidationReport, Diagnostic>),
-    Compiled(Result<CompiledGraph, Diagnostic>),
+    Compiled(Result<(CompiledGraph, Option<CompiledGraph>), Diagnostic>),
     Exported(ExportReport),
     Cancelled,
     Failed(String),
@@ -177,6 +177,7 @@ struct Completion {
 pub struct ReadyPreview {
     pub snapshot: EditorSnapshot,
     pub compiled: CompiledGraph,
+    pub canonical: Option<CompiledGraph>,
 }
 pub struct NodeTasks {
     io: Sender<Job>,
@@ -274,7 +275,10 @@ impl NodeTasks {
             Action::Validate(s) => (Kind::Validate, s),
             Action::Compile(s) => (Kind::Compile, s),
             Action::ExportMsfx(s) => (Kind::Export, s),
-            Action::Changed { .. } | Action::Examples(_) | Action::PreviewChanged => return Ok(()),
+            Action::ShowProperties
+            | Action::Changed { .. }
+            | Action::Examples(_)
+            | Action::PreviewChanged => return Ok(()),
         };
         if kind == Kind::Compile && self.compiling(&snapshot) {
             return Ok(());
@@ -357,13 +361,17 @@ impl NodeTasks {
                     editor.accept_validation(&snapshot, result);
                 }
                 Outcome::Compiled(result) => match result {
-                    Ok(compiled) => {
+                    Ok((compiled, canonical)) => {
                         // The renderer acknowledges success only after GPU
                         // validation; CPU compilation does not replace it.
                         if snapshot.preview_stamp() == current.preview_stamp()
                             && snapshot.semantic_revision == current.semantic_revision
                         {
-                            ready.push(ReadyPreview { snapshot, compiled });
+                            ready.push(ReadyPreview {
+                                snapshot,
+                                compiled,
+                                canonical,
+                            });
                         } else {
                             editor.cancel_compile(&snapshot);
                         }
@@ -429,7 +437,14 @@ fn execute(job: &Job, generation: &AtomicU64, latest_compile: &AtomicU64) -> Out
                             message: "node compilation cancelled".into(),
                         });
                     }
-                    Ok(compiled)
+                    let canonical = if job.snapshot.layer_target.is_some()
+                        && job.snapshot.preview_target.is_some()
+                    {
+                        Some(job.snapshot.compile().map_err(|e| e.diagnostic())?)
+                    } else {
+                        None
+                    };
+                    Ok((compiled, canonical))
                 });
             return Ok(if cancelled() {
                 Outcome::Cancelled

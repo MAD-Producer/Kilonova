@@ -227,6 +227,12 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             project.expressions.retain(|e| e.target != target);
         }
         Command::Effect { object, action } => {
+            if matches!(&action, crate::EffectAction::SetNodeGraph { .. })
+                || matches!(&action, crate::EffectAction::Insert { instance }
+                    | crate::EffectAction::Replace { instance } if instance.node_graph.is_some())
+            {
+                project.version = project.version.max(17);
+            }
             if matches!(&action, crate::EffectAction::Spatial { .. }) { project.version = project.version.max(9); }
             let copy = if let crate::EffectAction::Duplicate { effect } = &action {
                 Some(*effect)

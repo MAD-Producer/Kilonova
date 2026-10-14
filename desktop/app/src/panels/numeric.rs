@@ -198,28 +198,28 @@ mod tests {
             );
             actions
         };
-        assert!(draw(&mut controls, &input(100., 149., true, false)).is_empty());
+        assert!(draw(&mut controls, &input(100., 177., true, false)).is_empty());
         assert!(draw(
             &mut controls,
             &Input {
-                mouse: [120., 149.],
+                mouse: [120., 177.],
                 ..Default::default()
             }
         )
         .is_empty());
         run(
             &engine,
-            draw(&mut controls, &input(120., 149., false, false)),
+            draw(&mut controls, &input(120., 177., false, false)),
         );
         assert!(!engine.state().unwrap()["canUndo"].as_bool().unwrap());
         assert!(controls.drag_readout.is_some());
         run(
             &engine,
-            draw(&mut controls, &input(130., 149., false, false)),
+            draw(&mut controls, &input(130., 177., false, false)),
         );
         run(
             &engine,
-            draw(&mut controls, &input(130., 149., false, true)),
+            draw(&mut controls, &input(130., 177., false, true)),
         );
         let after = engine.state().unwrap();
         assert_ne!(after["project"], before["project"]);

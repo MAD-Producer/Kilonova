@@ -60,6 +60,7 @@ pub(crate) fn entries(catalogue: &Value, locale: Locale) -> Vec<Entry> {
     {
         let m = &p["manifest"];
         let plugin = m["id"].as_str().unwrap_or("");
+        if plugin.starts_with("local.motionstudio.bound."){continue;}
         let ver = m["version"].as_str().unwrap_or("");
         let hash = p["hash"].as_str().unwrap_or("");
         for e in m["effects"].as_array().into_iter().flatten() {
@@ -611,5 +612,13 @@ mod scroll_tests {
         controls.preview_categories(Locale::Zh);let mut atlas=TextAtlas::from_system(12.).unwrap();let layer=serde_json::json!({"id":0,"locked":true});let mut out=vec![];
         controls.draw_library(&mut PaintList::default(),&mut atlas,Rect::new(0.,0.,300.,400.),&layer,&Input{mouse:[100.,200.],wheel:[0.,500.],..Default::default()},Locale::Zh,&mut out);assert!(controls.library_scroll.offset>0.);assert!(out.is_empty());
         controls.draw_library(&mut PaintList::default(),&mut atlas,Rect::new(0.,0.,300.,400.),&layer,&Input{mouse:[265.,20.],pressed:Some((MouseButton::Left,[265.,20.])),..Default::default()},Locale::Zh,&mut out);assert!(matches!(out.as_slice(),[Action::ImportEffectPackage]));
+    }
+}
+
+#[cfg(test)]mod bound_tests{
+    use super::*;
+    #[test]fn bound_runtime_versions_are_hidden_from_public_effect_search(){
+        let catalogue=serde_json::json!({"packages":[{"manifest":{"id":"local.motionstudio.bound.abc","version":"0.0.0+123","effects":[{"id":"node","name":"节点效果","category":"颜色"}]}},{"manifest":{"id":"published.node.effect","version":"1.0.0","effects":[{"id":"node","name":"节点效果","category":"颜色"}]}}]});
+        let visible=entries(&catalogue,Locale::Zh);assert_eq!(visible.len(),1);assert_eq!(visible[0].plugin,"published.node.effect");
     }
 }

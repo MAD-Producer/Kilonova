@@ -181,7 +181,7 @@ fn archive_rejects_parent_paths_and_duplicate_case_names() {
 }
 #[test]
 fn png_with_valid_dimensions_but_truncated_pixels_is_rejected_at_import() {
-    // Synthetic input keeps clean checkouts independent of local AE references.
+    // Synthetic input keeps clean checkouts independent of local reference files.
     let mut encoded = std::io::Cursor::new(Vec::new());
     image::RgbaImage::from_fn(256, 256, |x, y| {
         image::Rgba([x as u8, y as u8, (x ^ y) as u8, 255])

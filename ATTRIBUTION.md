@@ -1,0 +1,30 @@
+# 第三方归属说明 / Third-party attribution
+
+本文件列出当前计划进入仓库或发布包的第三方材料。每个组件保留原始许可证和版权声明。根目录 [LICENSE](LICENSE) 只适用于按该许可证贡献的 Motion Studio 代码。
+
+This file lists third-party material currently intended for the repository or a release. Each component keeps its original license and copyright notice. The root [LICENSE](LICENSE) applies only to Motion Studio code contributed under that license.
+
+| 组件 / Component | 用途 / Use | 版权与来源 / Copyright and source | 许可证与声明 / License and notice |
+| --- | --- | --- | --- |
+| Motion Studio 源码 / Motion Studio source | Rust、UI、schema、测试和原创资产 / Rust, UI, schemas, tests, and original assets | Motion Studio contributors | MIT，见 [LICENSE](LICENSE) / MIT, see [LICENSE](LICENSE) |
+| IBM Plex Mono Regular | 随应用分发的等宽字体 / Bundled monospace font | IBM Corp.; `google/fonts` revision `51303ca9e8ac9dcea7b12d307ba568fd0e6fcfca`, path `ofl/ibmplexmono/IBMPlexMono-Regular.ttf` | SIL Open Font License 1.1，见 [`crates/motion-media/fonts/OFL.txt`](crates/motion-media/fonts/OFL.txt) 和 [`crates/motion-media/fonts/SOURCE.json`](crates/motion-media/fonts/SOURCE.json) / SIL Open Font License 1.1, see the linked files |
+| Naga 24.0.0 | shader 转换与校验的 vendored 组件 / Vendored shader translation and validation | gfx-rs developers; source metadata in `vendor/naga/Cargo.toml` | MIT 或 Apache-2.0，见 [`vendor/naga/LICENSE.MIT`](vendor/naga/LICENSE.MIT) 和 [`vendor/naga/LICENSE.APACHE`](vendor/naga/LICENSE.APACHE) / MIT or Apache-2.0, see the linked files |
+| Shader Effects 公式与参考 / Shader Effects formulas and references | 效果库使用的适配公式和独立 kernel / Adapted formulas and independent kernels used by the motion library | `shader-effects-inc/shaders`, revision `d49008cc2d6b547f216ca09bc13ae8f44572f040` | MIT；范围见 [`crates/motion-effects/motion-library/SOURCES.json`](crates/motion-effects/motion-library/SOURCES.json) 和 [`crates/motion-effects/motion-library/LICENSE.shaders.txt`](crates/motion-effects/motion-library/LICENSE.shaders.txt) / MIT; see the linked scope and notice files |
+
+## Rust 依赖 / Rust dependencies
+
+workspace 和传递 Rust 依赖保留各自作者发布的许可证 metadata。发布自动化必须根据 `Cargo.lock` 和包 metadata 生成完整的依赖声明；本表不能替代该清单。
+
+Workspace and transitive Rust dependencies retain the license metadata published by their respective authors. Release automation must generate a complete dependency notice from `Cargo.lock` and package metadata; this table is not a substitute for that inventory.
+
+## 字体与系统资源 / Fonts and system resources
+
+用户选择的系统字体不会由 Motion Studio 重新分发。工程包会保存用户导入时提供的字体字节和许可证文本。新增内置字体前，必须先添加来源记录和完整许可证。
+
+System fonts selected by a user are not redistributed by Motion Studio. A project package stores the selected font bytes and the license text supplied at import time. A new bundled font must add a source record and full license before it is committed.
+
+## Adobe 与其他商标 / Adobe and other trademarks
+
+在需要标识来源或兼容性边界时，Adobe 产品名可以出现在内部参考记录中。Motion Studio 资产不包含 Adobe logo、产品图标、截图、二进制文件、插件、预设或字体。商标免责见 [NOTICE](NOTICE)。
+
+Adobe product names may appear in internal reference notes when identifying a source or compatibility boundary. No Adobe logo, product icon, screenshot, binary, plug-in, preset, or font is included as a Motion Studio asset. See [NOTICE](NOTICE) for the trademark disclaimer.

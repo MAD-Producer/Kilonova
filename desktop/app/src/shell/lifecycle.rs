@@ -55,6 +55,24 @@ impl Shell {
             }
             _ => unreachable!(),
         };
+        if snapshot.layer_target.is_some() {
+            if let Err(error) = self.flush_bound_source() {
+                self.panels.node_editor.report_error(error);
+                self.dirty = true;
+                return;
+            }
+            if self
+                .node_standalone
+                .as_ref()
+                .is_some_and(|e| e.dirty() && e.snapshot().revision > 0)
+            {
+                self.panels.node_editor = self.node_standalone.take().unwrap();
+                self.request_close();
+                return;
+            }
+            self.begin_close();
+            return;
+        }
         if self.smoke.is_none() && self.panels.node_editor.dirty() && snapshot.revision > 0 {
             self.node_tasks.cancel(&mut self.panels.node_editor);
             self.node_compile_due = None;

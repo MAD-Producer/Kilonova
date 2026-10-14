@@ -893,21 +893,139 @@ pub fn floating_chrome(
     );
     out
 }
+fn node_body(area: Rect) -> Rect {
+    Rect::new(
+        area.min[0],
+        area.min[1] + 28.,
+        area.width(),
+        (area.height() - 28.).max(1.),
+    )
+}
 fn node_panel(
     list: &mut PaintList,
     atlas: &mut TextAtlas,
     area: Rect,
     panels: &mut Panels,
+    state: &Value,
     input: &Input,
     out: &mut Vec<Action>,
 ) {
+    let styles = list.styles();
+    let colors = styles.colors();
+    let heading = Rect::new(area.min[0], area.min[1], area.width(), 28.);
+    paint::rect(list, heading, colors.CHROME);
+    let target = panels.node_editor.layer_target.clone();
+    let title = target
+        .as_ref()
+        .map(|t| {
+            format!(
+                "{} · {}",
+                if panels.locale == Locale::Zh {
+                    "图层节点效果"
+                } else {
+                    "Layer Node Effect"
+                },
+                t.label
+            )
+        })
+        .unwrap_or_else(|| {
+            if panels.locale == Locale::Zh {
+                "节点草稿 · 尚未绑定图层"
+            } else {
+                "Node Draft · Unbound"
+            }
+            .into()
+        });
+    label(
+        list,
+        atlas,
+        Rect::new(
+            heading.min[0] + 8.,
+            heading.min[1],
+            (heading.width() - if target.is_some() { 226. } else { 144. }).max(1.),
+            28.,
+        ),
+        &title,
+        false,
+    );
+    if ui::button_styled(
+        list,
+        atlas,
+        Rect::new(heading.max[0] - 130., heading.min[1] + 2., 122., 24.),
+        if target.is_some() {
+            if panels.locale == Locale::Zh {
+                "返回效果控件"
+            } else {
+                "Effect Controls"
+            }
+        } else {
+            if panels.locale == Locale::Zh {
+                "应用到当前图层"
+            } else {
+                "Apply to Layer"
+            }
+        },
+        input,
+        target.is_some()
+            || panels.selected.is_some_and(|id| {
+                state["project"]["layers"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .any(|l| {
+                        l["id"].as_u64() == Some(id)
+                            && id != 0
+                            && l["locked"] != true
+                            && !matches!(l["content"]["kind"].as_str(), Some("audio" | "null"))
+                    })
+            }),
+        &styles,
+        "button.icon",
+    )
+    .clicked
+    {
+        out.push(if target.is_some() {
+            Action::ReturnToEffects
+        } else {
+            Action::ApplyNodeGraph
+        });
+    }
+    if target.is_some()
+        && ui::button_styled(
+            list,
+            atlas,
+            Rect::new(heading.max[0] - 218., heading.min[1] + 2., 80., 24.),
+            if panels.locale == Locale::Zh {
+                "节点草稿"
+            } else {
+                "Node Draft"
+            },
+            input,
+            true,
+            &styles,
+            "button.icon",
+        )
+        .clicked
+    {
+        out.push(Action::ReturnToNodeDraft);
+    }
+    let area = node_body(area);
+    let blocked =
+        panels.node_editor.bound_creating(state) && panels.node_editor.diagnostic().is_none();
+    let neutral = Input::default();
+    let input = if blocked { &neutral } else { input };
     let language = if panels.locale == Locale::Zh {
         crate::node_editor::Language::Chinese
     } else {
         crate::node_editor::Language::English
     };
-    let (editor, preview) = crate::node_preview::regions(area);
-    if panels.node_editor.focused()
+    let (editor, preview) = if target.is_some() {
+        (area, Rect::default())
+    } else {
+        crate::node_preview::regions(area)
+    };
+    if target.is_none()
+        && panels.node_editor.focused()
         && !panels.node_editor.editing()
         && motion_ui::input::KeyChord::new(Key::Space, false, false, false).pressed(input)
     {
@@ -936,6 +1054,9 @@ fn node_panel(
     }
 }
 pub fn node_view(layout: &Node, size: [f32; 2]) -> Option<Rect> {
+    node_view_bound(layout, size, false)
+}
+pub fn node_view_bound(layout: &Node, size: [f32; 2], bound: bool) -> Option<Rect> {
     if let Some(frame) = frames(layout, size)
         .into_iter()
         .find(|f| f.panel == Panel::NodePreview)
@@ -943,21 +1064,30 @@ pub fn node_view(layout: &Node, size: [f32; 2]) -> Option<Rect> {
         return (frame.content.height() >= 135.)
             .then(|| crate::node_preview::panel_image_rect(frame.content));
     }
+    if bound {
+        return None;
+    }
     frames(layout, size)
         .into_iter()
         .find(|f| f.panel == Panel::Nodes)
         .and_then(|f| {
-            let (_, preview) = crate::node_preview::regions(f.content);
-            (preview.height() >= 135.).then(|| crate::node_preview::image_rect(f.content))
+            let (_, preview) = crate::node_preview::regions(node_body(f.content));
+            (preview.height() >= 135.)
+                .then(|| crate::node_preview::image_rect(node_body(f.content)))
         })
 }
 pub fn floating_node_view(panel: Panel, size: [f32; 2]) -> Option<Rect> {
+    floating_node_view_bound(panel, size, false)
+}
+pub fn floating_node_view_bound(panel: Panel, size: [f32; 2], bound: bool) -> Option<Rect> {
     let body = Rect::new(0., 30., size[0], (size[1] - 52.).max(1.));
     if panel == Panel::NodePreview {
         return (body.height() >= 135.).then(|| crate::node_preview::panel_image_rect(body));
     }
-    (panel == Panel::Nodes && crate::node_preview::regions(body).1.height() >= 135.)
-        .then(|| crate::node_preview::image_rect(body))
+    (!bound
+        && panel == Panel::Nodes
+        && crate::node_preview::regions(node_body(body)).1.height() >= 135.)
+        .then(|| crate::node_preview::image_rect(node_body(body)))
 }
 #[cfg(test)]
 mod tests {
@@ -1468,7 +1598,7 @@ fn render_panel(
         }
         Panel::Curves => curves::render(list, atlas, area, panels, state, input, out),
         Panel::Timeline => timeline(list, atlas, area, panels, state, input, out),
-        Panel::Nodes => node_panel(list, atlas, area, panels, input, out),
+        Panel::Nodes => node_panel(list, atlas, area, panels, state, input, out),
         Panel::NodeProperties => {
             let language = if panels.locale == Locale::Zh {
                 crate::node_editor::Language::Chinese

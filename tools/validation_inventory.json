@@ -269,6 +269,11 @@
       "runner": ".github/workflows/ci.yml",
       "reason": "Package validated desktop builds in the workflow and guard publishing manifests"
     },
+    "tools/validate_provenance.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Reject tracked proprietary binaries, unapproved font names, and Adobe marks in release-facing text"
+    },
     "tools/test_ci_desktop_release.py": {
       "mode": "ci",
       "runner": ".github/workflows/ci.yml",
