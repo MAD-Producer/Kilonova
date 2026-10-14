@@ -176,8 +176,12 @@ class ExpressionAndPluginUiTest {
         val begin=send(JSONObject().put("op","begin").put("revision",host.state!!.getLong("revision")))
         scenario.onActivity{vm.seek(20.0)};assertEquals(15.0,vm.frame,0.0)
         send(JSONObject().put("op","set").put("revision",begin.getLong("revision")).put("param","rate").put("value",org.json.JSONArray(listOf(initial+2,0,0,0))))
-        scenario.onActivity{host.close()}
+        compose.onNodeWithTag("plugin-gesture-recovery").assertIsDisplayed()
+        compose.onNodeWithTag("plugin-force-cancel").performClick()
         compose.waitUntil(10000){host.session==null&&vm.effectParam(2,1,"rate")!!.getJSONObject("track").getJSONArray("value").getDouble(0)==initial}
+        compose.waitUntil(10000){vm.state.canUndo}
+        scenario.onActivity{vm.undo()}
+        compose.waitUntil(10000){vm.layer(2)?.optJSONArray("effects")?.length()==0}
         assertNull(vm.state.error)
     }
     @Test fun lensEditorConnectsAndProjectReplacementClosesItsSession() {

@@ -22,6 +22,7 @@ enum Choice {
 struct Entry {
     label: String,
     enabled: bool,
+    disabled_reason: Option<String>,
     choice: Choice,
     divider_after: bool,
 }
@@ -395,7 +396,7 @@ impl Controls {
         popup.highlighted = popup.highlighted.min(entries.len() - 1);
         let width = 220f32.min(bounds.width());
         let height = count as f32 * row + 6.;
-        // AE-style context menus grow upward from the pointer. Near a window
+        // Context menus grow upward from the pointer. Near a window
         // edge we clamp the card while keeping the click as close as possible
         // to its lower-left corner.
         let card = popup_rect(popup.anchor, bounds, width, height);
@@ -441,6 +442,7 @@ impl Controls {
             styles.resolve("context_menu", States::default()).unwrap(),
         );
         let mut chosen = None;
+        let mut hint = None;
         for (index, e) in entries.iter().enumerate().skip(popup.scroll).take(count) {
             let area = Rect::new(
                 card.min[0] + 3.,
@@ -450,6 +452,9 @@ impl Controls {
             );
             if area.contains(active.mouse) && e.enabled {
                 popup.highlighted = index;
+            }
+            if area.contains(active.mouse) && !e.enabled {
+                hint = e.disabled_reason.as_deref();
             }
             let mut states = States::default();
             if index == popup.highlighted && e.enabled {
@@ -490,6 +495,9 @@ impl Controls {
                 chosen = Some(index);
             }
         }
+        if let Some(reason) = hint {
+            disabled_hint(list, atlas, bounds, active.mouse, reason);
+        }
         if !active.composing
             && !active.ime_consumed
             && active
@@ -527,6 +535,53 @@ impl Controls {
     }
 }
 
+fn disabled_hint(list: &mut PaintList, atlas: &mut TextAtlas, bounds: Rect, point: [f32; 2], reason: &str) {
+    let width = (atlas.measure(reason) + 12.).min((bounds.width() - 8.).max(1.));
+    let mut lines = Vec::new();
+    let mut line = String::new();
+    for character in reason.chars() {
+        let mut next = line.clone();
+        next.push(character);
+        if !line.is_empty() && atlas.measure(&next) > (width - 12.).max(1.) {
+            lines.push(std::mem::take(&mut line));
+        }
+        line.push(character);
+    }
+    if !line.is_empty() { lines.push(line); }
+    let line_height = atlas.line_height.max(1.);
+    let height = (lines.len() as f32 * line_height + 8.).min(bounds.height().max(1.));
+    let card = popup_rect([point[0] + 12., point[1] - 8.], bounds, width, height);
+    let style = list.styles().resolve("tooltip", States::default()).unwrap();
+    let mut content = list.child();
+    box_style(&mut content, card, style);
+    for (index, line) in lines.iter().enumerate() {
+        ui::text(&mut content, atlas,
+            Rect::new(card.min[0] + 6., card.min[1] + 4. + index as f32 * line_height,
+                (card.width() - 12.).max(0.), line_height), line, style.foreground, Align::Left);
+    }
+    content.clip_to(bounds.intersection(card));
+    list.append(content);
+}
+
+fn disabled_reason(choice: &Choice, layer: &Value, state: &Value, locale: Locale) -> String {
+    if layer["locked"] == true { return word(locale, "图层已锁定，请先解锁", "Unlock this layer before editing it"); }
+    match choice {
+        Choice::Page(Page::Blend) => word(locale, "音频图层不支持画面混合模式", "Audio layers do not support visual blend modes"),
+        Choice::Precompose if layer["three_d"] == true => word(locale, "预合成暂不支持三维图层", "Precompose does not yet support 3D layers"),
+        Choice::Precompose if state["project"]["expressions"].as_array().into_iter().flatten().any(|e|
+            e["enabled"] != false && e["source"].as_str().is_some_and(|code| code.contains("index"))) =>
+            word(locale, "请先处理使用图层索引的表达式", "Resolve expressions using layer indices before precomposing"),
+        Choice::Precompose => word(locale, "请先解除父级、遮罩或跨图层效果依赖", "Resolve parent, matte or cross-layer effect dependencies first"),
+        Choice::Edit(Command::Remove { .. }) => word(locale, "其他图层正在使用此图层作为轨道遮罩", "Another layer uses this layer as its track matte"),
+        Choice::Edit(Command::Reorder { index: 0, .. }) => word(locale, "图层已经位于最底部", "This layer is already at the bottom"),
+        Choice::Edit(Command::Reorder { .. }) => word(locale, "图层已经位于最顶部", "This layer is already at the top"),
+        Choice::Edit(Command::SplitLayerClip { .. }) => word(locale, "播放头必须位于图层入点和出点之间", "Place the playhead strictly between the layer's in and out points"),
+        Choice::Edit(Command::MoveLayerClip { .. }) => word(locale, "片段必须对齐整帧，且移动后不能超出时间范围", "Align the clip to whole frames and keep it within the timeline limits"),
+        Choice::Edit(Command::SetLayerRange { .. }) => word(locale, "播放头必须位于当前片段内，并保留有效长度", "Keep the playhead inside the clip and retain a valid duration"),
+        _ => word(locale, "当前图层状态不支持此操作", "This operation is unavailable for the current layer state"),
+    }
+}
+
 fn entries(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
     let mut result = vec![];
     let mut divider_indices = vec![];
@@ -535,6 +590,7 @@ fn entries(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
         result.push(Entry {
             label: word(locale, zh, en),
             enabled,
+            disabled_reason: None,
             choice,
             divider_after: false,
         });
@@ -565,6 +621,12 @@ fn entries(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
             let enabled = !matches!(action, Action::Edit(Command::CreateCamera))
                 || state["project"]["camera"]["created"] != true;
             add(zh, en, enabled, Choice::New(action));
+        }
+        drop(add);
+        for entry in &mut result {
+            if !entry.enabled {
+                entry.disabled_reason = Some(word(locale, "当前合成已经有摄影机", "This composition already has a camera"));
+            }
         }
         return result;
     };
@@ -827,6 +889,11 @@ fn entries(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
         }
     }
     drop(add);
+    for entry in &mut result {
+        if !entry.enabled {
+            entry.disabled_reason = Some(disabled_reason(&entry.choice, l, state, locale));
+        }
+    }
     for index in divider_indices {
         result[index].divider_after = true;
     }
@@ -1183,5 +1250,76 @@ mod tests {
         assert_eq!(engine.project().compositions.len(), 1);
         engine.undo().unwrap();
         assert_eq!(engine.project(), &before);
+    }
+
+    #[test]
+    fn unavailable_actions_explain_lock_clip_edges_dependencies_and_camera_in_both_languages() {
+        let mut engine = engine();
+        engine.apply(Command::Flags { object: 9, visible: true, locked: true }).unwrap();
+        let mut state = state(&engine);
+        let mut popup = Popup { target: Some(9), anchor: [0.; 2], owner: None,
+            context: context(&state), page: Page::Root, highlighted: 0, scroll: 0, opened: false };
+        for locale in [Locale::Zh, Locale::En] {
+            let locked = entries(&popup, &state, locale);
+            assert!(locked.iter().filter(|e| !e.enabled).all(|e| e.disabled_reason.as_ref().is_some_and(|r|
+                r.contains(if locale == Locale::Zh { "解锁" } else { "Unlock" }))));
+            assert!(locked.iter().filter(|e| e.enabled).all(|e| e.disabled_reason.is_none()));
+            state["project"]["layers"][1]["locked"] = serde_json::json!(false);
+            popup.page = Page::Time;
+            state["frame"] = serde_json::json!(0);
+            let edge = entries(&popup, &state, locale);
+            let split = edge.iter().find(|e| matches!(e.choice, Choice::Edit(Command::SplitLayerClip { .. }))).unwrap();
+            assert!(!split.enabled);
+            assert!(split.disabled_reason.as_ref().unwrap().contains(if locale == Locale::Zh { "播放头" } else { "playhead" }));
+            popup.page = Page::Root;
+            state["project"]["layers"][1]["three_d"] = serde_json::json!(true);
+            let root = entries(&popup, &state, locale);
+            assert!(root.iter().find(|e| matches!(e.choice, Choice::Precompose)).unwrap().disabled_reason.is_some());
+            popup.target = None;
+            state["project"]["camera"]["created"] = serde_json::json!(true);
+            let empty = entries(&popup, &state, locale);
+            let camera = empty.iter().find(|e| matches!(e.choice, Choice::New(Action::Edit(Command::CreateCamera)))).unwrap();
+            assert!(!camera.enabled && camera.disabled_reason.is_some());
+            popup.target = Some(9);
+            state["project"]["layers"][1]["locked"] = serde_json::json!(true);
+        }
+        let mut atlas = TextAtlas::from_system(12.).unwrap();
+        for bounds in [Rect::new(0., 0., 220., 120.), Rect::new(0., 0., 800., 500.)] {
+            let mut paint = PaintList::default();
+            disabled_hint(&mut paint, &mut atlas, bounds, bounds.max,
+                "Unlock this layer before editing it; the current clip remains unchanged");
+            assert!(!paint.glyphs.is_empty());
+            for glyph in &paint.glyphs {
+                assert!(bounds.contains_rect(Rect::new(glyph.position[0], glyph.position[1], glyph.size[0], glyph.size[1])));
+            }
+        }
+    }
+
+    #[test]
+    fn scoped_menu_edit_survives_save_reopen_and_one_step_undo_in_both_languages() {
+        for locale in [Locale::Zh, Locale::En] {
+            let mut engine = engine();
+            let before = engine.project().clone();
+            let state = state(&engine);
+            let mut panels = Panels { locale, selected: Some(7), ..Default::default() };
+            assert!(draw(&mut panels, &state, &click(MouseButton::Right, point())).is_empty());
+            let popup = panels.layer_actions.popup.as_ref().unwrap();
+            let index = entries(popup, &state, locale).iter().position(|e|
+                matches!(e.choice, Choice::Edit(Command::Duplicate { object: 9 }))).unwrap();
+            let popup = panels.layer_actions.popup.as_mut().unwrap();
+            popup.highlighted = index;
+            popup.opened = false;
+            let command = edit(draw(&mut panels, &state, &Input {
+                keys: vec![(Key::Enter, Default::default())], ..Default::default() }));
+            engine.apply(command).unwrap();
+            let after = engine.project().clone();
+            let directory = tempfile::tempdir().unwrap();
+            motion_core::storage::save(directory.path(), &after).unwrap();
+            assert_eq!(motion_core::storage::load(directory.path()).unwrap(), after);
+            engine.undo().unwrap();
+            assert_eq!(engine.project(), &before);
+            engine.redo().unwrap();
+            assert_eq!(engine.project(), &after);
+        }
     }
 }

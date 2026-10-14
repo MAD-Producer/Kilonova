@@ -117,6 +117,11 @@ pub(super) fn render(
                     Action::History(1),
                     state["canRedo"].as_bool().unwrap_or(false),
                 ),
+                (
+                    if locale == Locale::Zh { "取消未提交的插件编辑" } else { "Cancel Pending Plugin Edit" }.into(),
+                    Action::Plugin(serde_json::json!({"op":"cancel_plugin_gesture"})),
+                    state["preview"]["pluginEditorRecovery"]["gesture"] == true && state["observing"] != true,
+                ),
             ],
             2 => vec![
                 (

@@ -112,6 +112,12 @@ private fun effectLabel(vm:EditorViewModel,e:JSONObject)=vm.effectDefinition(e)?
             }
             if(vm.pluginEditor.session!=null) {
                 val session=vm.pluginEditor.session!!
+                if((vm.pluginEditor.state?:session.initialState).optBoolean("gesture")) {
+                    Row(Modifier.fillMaxWidth().testTag("plugin-gesture-recovery"),verticalAlignment=Alignment.CenterVertically) {
+                        Text("编辑尚未提交",Modifier.weight(1f),color=Muted,fontSize=12.sp)
+                        TextButton(onClick={vm.pluginEditor.close(session.token)},modifier=Modifier.heightIn(min=48.dp).testTag("plugin-force-cancel")){Text("取消编辑")}
+                    }
+                }
                 key(session.token){PluginEditorView(vm.pluginEditor,session,Modifier.weight(1f).fillMaxWidth().testTag("plugin-editor-webview"))}
             }else if(vm.pluginEditor.loading)Box(Modifier.weight(1f).fillMaxWidth(),contentAlignment=Alignment.Center){CircularProgressIndicator(color=Accent)}
             else if(add)EffectCatalogue(vm,Modifier.weight(1f),onChoose={pkg,e->

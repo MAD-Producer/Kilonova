@@ -579,8 +579,12 @@
     },
     "ExpressionAndPluginUiTest": {
       "source": "ExpressionAndPluginUiTest.kt",
-      "mode": "manual",
-      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "mode": "ci",
+      "methods": [
+        "actualWebViewLoadsParticlePageEditsAndRollsBackAnUncommittedGesture"
+      ],
+      "reason": "The real WebView regression verifies host cancellation restores the project and unblocks undo without requiring the plugin page to cooperate.",
+      "remaining_methods_reason": "The remaining expression and WebView acceptance methods require explicit device execution outside the bounded CI suite.",
       "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.ExpressionAndPluginUiTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
     },
     "FrontendGeometryExportTest": {
