@@ -2,6 +2,12 @@ use crate::*;
 use motion_ui::dock::Panel;
 
 impl Shell {
+    pub(crate) fn accept_edit_state(&mut self, state: Value) {
+        self.state = state;
+        // Finish the commands emitted by one interaction pass before presenting.
+        // Begin/change/commit do not need GPU round trips between each step.
+        self.present_due = self.actions.is_empty();
+    }
     pub(crate) fn playback_ready(&self, now: Instant) -> bool {
         self.playback.is_some()
             && !playback_input_blocks(&self.input)
@@ -296,6 +302,7 @@ impl Shell {
         }
         project_lifecycle::render(self, &mut paint, size);
         self.input.begin_frame(); // Clear transient input only after it has been consumed.
+        self.paint_input = self.input.clone();
         if let Some(window) = &self.window {
             window.set_cursor(
                 self.cursors.get(
@@ -365,15 +372,8 @@ impl Shell {
         // A completed edit gets a visible frame before more input can enqueue
         // another edit. Retain real input for the following interaction pass.
         if self.present_due {
-            let neutral = Input {
-                mouse: self.input.mouse,
-                modifiers: self.input.modifiers,
-                ..Default::default()
-            };
-            let input = std::mem::replace(&mut self.input, neutral);
-            let (paint, actions) = self.draw_commands(size);
+            let (paint, actions) = self.draw_acknowledged(size);
             self.actions.extend(actions);
-            self.input = input;
             let ui = self.ui_frame(paint, size, false);
             self.rendering.insert(0, self.engine.present_async(ui)?);
             self.present_due = false;
@@ -446,42 +446,24 @@ impl Shell {
                 self.workspace.choose_dragged_tab(panel);
             }
         }
-        let (mut paint, actions) = self.draw_commands(size);
+        let (paint, actions) = self.draw_commands(size);
         self.actions.extend(actions);
         if !self.actions.is_empty() {
             self.engine.recycle_paint(paint);
             return Ok(());
         }
-        // Actions may change project, layer selection or playhead during this draw.
-        if self.dirty
-            && self.home.is_none()
-            && self.workspace_manager.is_none()
-            && self.dialog.is_none()
-            && !self.project_modal()
-            && self.node_close_prompt.is_none()
-            && self.node_examples.is_none()
-        {
-            let neutral = Input {
-                mouse: self.input.mouse,
-                modifiers: self.input.modifiers,
-                ..Default::default()
-            };
-            paint.clear();
-            let actions = panels::chrome(
-                &mut paint,
-                &mut self.atlas,
-                size,
-                &self.workspace.root,
-                &mut self.panels,
-                &self.state,
-                &neutral,
-            );
-            self.actions.extend(actions);
-        }
         let ui = self.ui_frame(paint, size, false);
         self.rendering.insert(0, self.engine.present_async(ui)?);
         self.dirty = false;
         Ok(())
+    }
+    fn draw_acknowledged(&mut self, size: [f32; 2]) -> (PaintList, Vec<panels::Action>) {
+        // Preserve the last consumed pointer/key state. New movement, release
+        // and IME events remain queued for the next real interaction pass.
+        let input = std::mem::replace(&mut self.input, self.paint_input.clone());
+        let frame = self.draw_commands(size);
+        self.input = input;
+        frame
     }
     pub(crate) fn float_panel(
         &mut self,
@@ -552,6 +534,7 @@ impl Shell {
                 key,
                 panel,
                 input: Default::default(),
+                paint_input: Default::default(),
                 scale,
             },
         );
@@ -632,12 +615,12 @@ impl Shell {
         self.atlas.set_pixel_ratio(scale);
         let mut paint = self.engine.take_paint();
         paint.stylesheet = self.panels.styles.clone();
-        let neutral = Input {
+        let acknowledged = self.present_due;
+        let neutral = if acknowledged { f.paint_input.clone() } else { Input {
             mouse: f.input.mouse,
             modifiers: f.input.modifiers,
             ..Default::default()
-        };
-        let acknowledged = self.present_due;
+        }};
         let blocked = acknowledged
             || project_modal
             || self.dialog.is_some()
@@ -659,6 +642,7 @@ impl Shell {
         self.actions.extend(actions);
         if !acknowledged {
             f.input.begin_frame();
+            f.paint_input = f.input.clone();
         }
         if !self.actions.is_empty() && !acknowledged {
             self.engine.recycle_paint(paint);
@@ -923,6 +907,162 @@ mod playback_tests {
         shell.present_due = false;
         shell.actions.push_back(panels::Action::Save);
         assert!(!shell.playback_ready(Instant::now()));
+    }
+}
+
+#[cfg(test)]
+mod interaction_tests {
+    use super::*;
+    use motion_ui::Rect;
+
+    fn node_shell(root: PathBuf) -> (Shell, Rect) {
+        let mut shell = Shell::new(root, None, Some(Locale::En)).unwrap();
+        shell.home = None;
+        let id = dock::Panel::Nodes.dock();
+        shell.workspace.root = dock::Node::Dock { id, tabs: vec![id], active: 0 };
+        shell.panels.focused = Some(dock::Panel::Nodes);
+        let mut graph = shell.panels.node_editor.snapshot().document;
+        let mut math = motion_graph::Node::new("math", motion_graph::NodeOp::Math {
+            operation: motion_graph::MathOp::Add, value_type: motion_graph::ValueType::Float });
+        math.position = [380., 0.];
+        graph.nodes = vec![motion_graph::Node::new("number", motion_graph::NodeOp::Float { value: 1. }), math];
+        graph.connections.clear();
+        graph.public_parameters.clear();
+        shell.panels.node_editor = node_editor::NodeEditor::new(graph);
+        shell.draw_commands([1200., 900.]);
+        let area = panels::frames(&shell.workspace.root, [1200., 900.])[0].content;
+        let body = Rect::new(area.min[0], area.min[1] + 28., area.width(), area.height() - 28.);
+        let editor = node_preview::regions(body).0;
+        let canvas = shell.panels.node_editor.layout(editor).canvas;
+        (shell, canvas)
+    }
+
+    #[test]
+    fn acknowledged_frame_preserves_node_drag_and_pending_release() {
+        let folder = tempfile::tempdir().unwrap();
+        let (mut shell, canvas) = node_shell(folder.path().join("project"));
+        let point = shell.panels.node_editor.view.world_to_screen([60., 14.], canvas);
+        shell.translate(Event::MousePressed { position: point, button: MouseButton::Left });
+        assert!(shell.draw_commands([1200., 900.]).1.is_empty());
+        let before = shell.panels.node_editor.snapshot();
+        let moved = [point[0] + 48., point[1] + 24.];
+        shell.translate(Event::MouseMoved { position: moved });
+        shell.draw_commands([1200., 900.]);
+        let dragging = shell.panels.node_editor.snapshot();
+        assert_ne!(dragging.document, before.document);
+        shell.translate(Event::MouseReleased { position: moved, button: MouseButton::Left });
+        assert!(shell.draw_acknowledged([1200., 900.]).1.is_empty());
+        assert_eq!(shell.panels.node_editor.snapshot().document, dragging.document);
+        assert!(shell.panels.node_editor.editing());
+        assert!(shell.input.released.is_some() && shell.input.pending);
+        shell.draw_commands([1200., 900.]);
+        assert!(!shell.panels.node_editor.editing());
+        assert_eq!(shell.panels.node_editor.snapshot().document, dragging.document);
+        assert!(shell.panels.node_editor.undo());
+        assert_eq!(shell.panels.node_editor.snapshot().document, before.document);
+    }
+
+    #[test]
+    fn node_wiring_pan_marquee_and_zoom_survive_acknowledged_frames() {
+        let folder = tempfile::tempdir().unwrap();
+        let (mut shell, canvas) = node_shell(folder.path().join("project"));
+        let view = shell.panels.node_editor.view;
+        let source = view.world_to_screen([204., 40.5], canvas);
+        let target = view.world_to_screen([380., 40.5], canvas);
+        shell.translate(Event::MousePressed { position: source, button: MouseButton::Left });
+        shell.draw_commands([1200., 900.]);
+        assert!(shell.draw_acknowledged([1200., 900.]).1.is_empty());
+        assert!(shell.panels.node_editor.editing());
+        shell.translate(Event::MouseReleased { position: target, button: MouseButton::Left });
+        shell.draw_acknowledged([1200., 900.]);
+        shell.draw_commands([1200., 900.]);
+        assert_eq!(shell.panels.node_editor.document().connections,
+            vec![motion_graph::Connection::new("number", "value", "math", "a")]);
+        assert!(shell.panels.node_editor.undo());
+        assert!(shell.panels.node_editor.document().connections.is_empty());
+
+        let point = [canvas.min[0] + 20., canvas.min[1] + 20.];
+        shell.translate(Event::MousePressed { position: point, button: MouseButton::Middle });
+        shell.draw_commands([1200., 900.]);
+        let moved = [point[0] + 30., point[1] + 40.];
+        shell.translate(Event::MouseMoved { position: moved });
+        shell.draw_commands([1200., 900.]);
+        let pan = shell.panels.node_editor.view.pan;
+        shell.draw_acknowledged([1200., 900.]);
+        assert!(shell.panels.node_editor.editing());
+        assert_eq!(shell.panels.node_editor.view.pan, pan);
+        shell.translate(Event::MouseReleased { position: moved, button: MouseButton::Middle });
+        shell.draw_commands([1200., 900.]);
+        assert!(!shell.panels.node_editor.editing());
+
+        let view = shell.panels.node_editor.view;
+        let start = view.world_to_screen([-10., -10.], canvas);
+        let end = view.world_to_screen([220., 160.], canvas);
+        shell.translate(Event::MousePressed { position: start, button: MouseButton::Left });
+        shell.draw_commands([1200., 900.]);
+        shell.translate(Event::MouseMoved { position: end });
+        shell.draw_commands([1200., 900.]);
+        assert_eq!(shell.panels.node_editor.selected(), Some("number"));
+        shell.draw_acknowledged([1200., 900.]);
+        assert_eq!(shell.panels.node_editor.selected(), Some("number"));
+        assert!(shell.panels.node_editor.editing());
+        shell.translate(Event::MouseReleased { position: end, button: MouseButton::Left });
+        shell.draw_commands([1200., 900.]);
+        shell.input.modifiers.control = true;
+        shell.translate(Event::MouseWheel { delta: [0., -20.] });
+        shell.draw_commands([1200., 900.]);
+        let zoom = shell.panels.node_editor.view.zoom;
+        shell.draw_acknowledged([1200., 900.]);
+        assert_eq!(shell.panels.node_editor.view.zoom, zoom);
+        assert_ne!(zoom, view.zoom);
+    }
+
+    fn finish_actions(shell: &mut Shell) -> usize {
+        let mut frames = 0;
+        while let Some(action) = shell::actions::pop_action(&mut shell.actions) {
+            shell.action(action, None).unwrap();
+            if let Some((_, receive)) = shell.editing.take() {
+                shell.accept_edit_state(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap());
+                frames += usize::from(shell.present_due);
+            }
+        }
+        frames
+    }
+
+    #[test]
+    fn property_scrub_processes_a_gesture_batch_before_paint_and_commits_the_latest_release() {
+        let folder = tempfile::tempdir().unwrap();
+        let mut shell = Shell::new(folder.path().join("project"), None, Some(Locale::En)).unwrap();
+        shell.home = None;
+        shell.state = shell.engine.edit(serde_json::to_string(&Command::Add {
+            layer: Layer::solid(7, "Scrub", [100.; 2], [100., 200., 0.], [1.; 4]) }).unwrap()).unwrap();
+        let before = shell.state["project"].clone();
+        shell.panels.selected = Some(7);
+        let id = dock::Panel::Properties.dock();
+        shell.workspace.root = dock::Node::Dock { id, tabs: vec![id], active: 0 };
+        let area = panels::frames(&shell.workspace.root, [400., 1000.])[0].content;
+        let styles = motion_ui::style::default_stylesheet_arc();
+        let y = area.min[1] + 8. + 2. * styles.metric("row.height", 22.);
+        let columns = motion_ui::widgets::PropertyColumns::new(&styles, area, y, 64.);
+        let point = [columns.value.min[0] + 10., y + 10.];
+        shell.translate(Event::MousePressed { position: point, button: MouseButton::Left });
+        assert!(shell.draw_commands([400., 1000.]).1.is_empty());
+        shell.translate(Event::MouseMoved { position: [point[0] + 40., point[1]] });
+        let (_, actions) = shell.draw_commands([400., 1000.]);
+        assert!(matches!(actions.as_slice(), [panels::Action::History(2), panels::Action::Edit(_)]));
+        shell.actions.extend(actions);
+        shell.translate(Event::MouseReleased { position: [point[0] + 60., point[1]], button: MouseButton::Left });
+        assert_eq!(finish_actions(&mut shell), 1);
+        assert_eq!(shell.state["sampledLayers"][0]["position"][0], 120.);
+        assert!(shell.draw_acknowledged([400., 1000.]).1.is_empty());
+        assert!(shell.input.pending && shell.input.released.is_some());
+        let (_, actions) = shell.draw_commands([400., 1000.]);
+        assert!(matches!(actions.as_slice(), [panels::Action::Edit(_), panels::Action::History(3)]));
+        shell.actions.extend(actions);
+        assert_eq!(finish_actions(&mut shell), 1);
+        assert_eq!(shell.state["sampledLayers"][0]["position"][0], 130.);
+        assert_eq!(shell.state["sampledLayers"][0]["position"][1], 200.);
+        assert_eq!(shell.engine.history(0).unwrap()["project"], before);
     }
 }
 

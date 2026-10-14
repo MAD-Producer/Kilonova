@@ -279,11 +279,11 @@ pub fn chrome(
         || panels.fx_console_in(None)
         || panels.timeline.timeline_context_menu.is_some()
         || timeline_dropdown
-        || panels.effect_controls.editing()
         || panels.project.context_menu.is_some()
         || panels.timeline.timeline_context_menu.is_some();
+    let effect_modal = panels.effect_controls.editing();
     let neutral = Input::default();
-    let body_input = if menu_modal || node_modal {
+    let body_input = if menu_modal || node_modal || effect_modal {
         &neutral
     } else {
         input
@@ -390,6 +390,7 @@ pub fn chrome(
                 panels,
                 state,
                 if (node_modal && f.panel == Panel::Nodes && !menu_modal)
+                    || (effect_modal && f.panel == Panel::EffectControls && !menu_modal && !node_modal)
                     || (timeline_popup && f.panel == Panel::Timeline)
                 {
                     input
