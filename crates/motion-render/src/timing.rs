@@ -4,6 +4,18 @@ use std::sync::{
 };
 const SLOTS: usize = 4;
 const QUERIES: u32 = 4;
+const TIMESTAMP_WORD_BYTES: usize = std::mem::size_of::<u64>();
+const TIMESTAMP_BUFFER_BYTES: usize = QUERIES as usize * TIMESTAMP_WORD_BYTES;
+
+fn read_timestamp_words(mapped: &[u8]) -> Option<[u64; QUERIES as usize]> {
+    let mut words = [0; QUERIES as usize];
+    for (index, word) in words.iter_mut().enumerate() {
+        let start = index * TIMESTAMP_WORD_BYTES;
+        let bytes = mapped.get(start..start + TIMESTAMP_WORD_BYTES)?;
+        *word = u64::from_le_bytes(bytes.try_into().ok()?);
+    }
+    Some(words)
+}
 struct Slot {
     buffer: wgpu::Buffer,
     state: Arc<AtomicU8>,
@@ -16,8 +28,8 @@ pub struct GpuTiming {
     pub presentation_us: f64,
     pub total_us: f64,
 }
-/// Four reusable 32-byte staging buffers. Busy slots are skipped, never waited
-/// on by the frame loop. These are timing words, not image readbacks.
+/// Four reusable timestamp staging buffers. Busy slots are skipped, never
+/// waited on by the frame loop. These are timing words, not image readbacks.
 pub struct GpuTimer {
     queries: wgpu::QuerySet,
     resolve: wgpu::Buffer,
@@ -50,7 +62,7 @@ impl GpuTimer {
             slots: std::array::from_fn(|_| Slot {
                 buffer: device.create_buffer(&wgpu::BufferDescriptor {
                     label: Some("Motion Studio timing words"),
-                    size: 32,
+                    size: TIMESTAMP_BUFFER_BYTES as u64,
                     usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
                     mapped_at_creation: false,
                 }),
@@ -111,12 +123,12 @@ impl GpuTimer {
             let result = if state == 2 {
                 let words = {
                     let mapped = s.buffer.slice(..).get_mapped_range();
-                    std::array::from_fn::<_, 4, _>(|j| {
-                        u64::from_le_bytes(mapped[j * 8..j * 8 + 8].try_into().unwrap())
-                    })
+                    read_timestamp_words(&mapped)
                 };
                 s.buffer.unmap();
-                if words[1] > words[0] && words[3] > words[2] && words[3] > words[0] {
+                if let Some(words) = words.filter(|words| {
+                    words[1] > words[0] && words[3] > words[2] && words[3] > words[0]
+                }) {
                     Some(GpuTiming {
                         sequence: s.sequence,
                         composition_us: (words[1] - words[0]) as f64 * self.period / 1000.0,
@@ -134,5 +146,26 @@ impl GpuTimer {
             s.state.store(0, Ordering::Release);
             result
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{read_timestamp_words, TIMESTAMP_BUFFER_BYTES};
+
+    #[test]
+    fn timestamp_reader_rejects_short_buffers_without_panicking() {
+        assert_eq!(read_timestamp_words(&[]), None);
+        assert_eq!(read_timestamp_words(&vec![0; TIMESTAMP_BUFFER_BYTES - 1]), None);
+    }
+
+    #[test]
+    fn timestamp_reader_accepts_exact_buffer_size() {
+        let mut bytes = vec![0; TIMESTAMP_BUFFER_BYTES];
+        bytes[0..8].copy_from_slice(&11u64.to_le_bytes());
+        bytes[8..16].copy_from_slice(&22u64.to_le_bytes());
+        bytes[16..24].copy_from_slice(&33u64.to_le_bytes());
+        bytes[24..32].copy_from_slice(&44u64.to_le_bytes());
+        assert_eq!(read_timestamp_words(&bytes), Some([11, 22, 33, 44]));
     }
 }
