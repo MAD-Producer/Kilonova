@@ -181,9 +181,9 @@ pub fn text_sized(
 
 /// A numeric field that scrubs horizontally and accepts a typed value.
 ///
-/// This is the interaction After Effects uses for every property value, so it
-/// is deliberately shared: drag changes the value smoothly, a click opens the
-/// text field, and the modifier keys invert or constrain the drag.
+/// This is the shared property-value interaction: drag changes the value
+/// smoothly, a click opens the text field, and modifier keys invert or
+/// constrain the drag.
 #[derive(Clone, Copy, Default, Debug)]
 pub struct ScrubField {
     pub editing: bool,

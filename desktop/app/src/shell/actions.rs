@@ -489,7 +489,7 @@ impl Shell {
             Action::Open => {
                 if let Some(path) = rfd::FileDialog::new()
                     .set_title(self.workspace.locale.t(T::OpenProject))
-                    .add_filter("Motion Studio Project", &["json", "msproj", "aem"])
+                    .add_filter("Motion Studio Project (.msproj; legacy .aem)", &["json", "msproj", "aem"])
                     .pick_file()
                 {
                     self.action(Action::OpenPath(path), event_loop)?;
