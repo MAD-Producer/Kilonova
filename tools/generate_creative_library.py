@@ -78,7 +78,7 @@ def add(id, name, english, reference, params, body, *, passes=1, pad=None, alpha
     params = params + [param('effect_opacity', '效果不透明度', 100, 0, 100, '%')]
     for index, p in enumerate(params):
         body = body.replace('$'+p['id']+'$', f'fx.params[{index}]')
-    assert '$' not in body
+    if not ('$' not in body): raise RuntimeError('Unresolved shader parameter placeholder')
     definition = dict(id=id, name=name, english_name=english, category=category, params=params,
         passes=[dict(shader=f'shaders/{id}.wgsl', entry='main_fx') for _ in range(passes)], resources=[],
         padding=pad or dict(op='constant', value=0), edge_mode='transparent',
@@ -293,7 +293,7 @@ def main():
     (LIB/'shaders').mkdir(exist_ok=True)
     old = json.loads((LIB/'manifest.json').read_text(encoding='utf-8'))
     definitions = [e for e in old['effects'] if e['compatibility_profile']=='ae2021-srgb8-v1']
-    assert len(definitions) == 20, 'The original 20 core effects must be retained'
+    if not (len(definitions) == 20): raise RuntimeError('The original 20 core effects must be retained')
     for definition, shader, reference in EFFECTS:
         definitions.append(definition)
         shader = '\n'.join(line.rstrip() for line in shader.lstrip().splitlines())+'\n'

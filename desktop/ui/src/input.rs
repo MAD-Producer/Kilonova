@@ -140,6 +140,9 @@ pub enum Event {
     LongPress {
         position: [f32; 2],
     },
+    /// The pointer left the native window. The last in-window coordinate must
+    /// no longer be eligible for release hit testing.
+    PointerLeft,
     FocusLost,
 }
 

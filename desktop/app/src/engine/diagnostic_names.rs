@@ -1,0 +1,64 @@
+use super::Command;
+impl Command {
+    pub(super) fn diagnostic_name(&self) -> &'static str {
+        use Command::*;
+        match self {
+            #[cfg(test)]
+            TestPanic { .. } => "test_panic",
+            #[cfg(test)]
+            TestRecoveryPanic { .. } => "test_recovery_panic",
+            #[cfg(test)]
+            TestDelay { .. } => "test_delay",
+            #[cfg(test)]
+            TestWait {..}=>"test_wait",
+            ProjectTicket(_) => "project_ticket",
+            ChangeProject { .. } => "change_project",
+            NodeExpect { .. } => "node_expect",
+            NodeInstall { .. } => "node_install",
+            NodeCapture { .. } => "node_capture",
+            EditChecked { .. } => "edit_checked",
+            CaptureUi { .. } => "capture_ui",
+            Attach { .. } => "attach",
+            Resize { .. } => "resize",
+            Present { .. } => "present",
+            OpenDirectory { .. } => "open_directory",
+            FloatWindow { .. } => "float_window",
+            CloseWindow { .. } => "close_window",
+            State(_) => "state",
+            Save(_) => "save",
+            NewProject { .. } => "new_project",
+            OpenProject { .. } => "open_project",
+            ImportProject { .. } => "import_project",
+            ImportImage { .. } => "import_image",
+            CreateText { .. } => "create_text",
+            FreezeMovie { .. } => "freeze_movie",
+            RenderPreview { .. } => "render_preview",
+            Edit { .. } => "edit",
+            History { .. } => "history",
+            Drag { .. } => "drag",
+            Seek { .. } => "seek",
+            View { .. } => "view",
+            Observe { .. } => "observe",
+            Navigate { .. } => "navigate",
+            Render { .. } => "render",
+            ConfigureMemory { .. } => "configure_memory",
+            PreviewMode { .. } => "preview_mode",
+            PreviewInfo(_) => "preview_info",
+            CurveGraph { .. } => "curve_graph",
+            HitCandidates { .. } => "hit_candidates",
+            Plugin { .. } => "plugin",
+            ColorCurveGraph { .. } => "color_curve_graph",
+            Composition { .. } => "composition",
+            Media { .. } => "media",
+            MediaPackageLimits(_) => "media_package_limits",
+            Capture(_) => "capture",
+            Pack(_) => "pack",
+            ImageInfo { .. } => "image_info",
+            PrepareImage { .. } => "prepare_image",
+            MediaCapabilities { .. } => "media_capabilities",
+            ResourceInfo { .. } => "resource_info",
+            VideoFrame { .. } => "video_frame",
+            Shutdown => "shutdown",
+        }
+    }
+}

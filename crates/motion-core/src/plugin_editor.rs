@@ -151,6 +151,38 @@ impl PluginEditorSession {
         )
     }
     pub fn request(
+        &mut self, engine: &mut Engine, frame: u32, request: EditorRequest,
+    ) -> Result<Value> {
+        let automatic = !engine.gesture_active() && matches!(&request,
+            EditorRequest::Transform { .. } | EditorRequest::Set { .. } | EditorRequest::SetAt { .. }
+            | EditorRequest::Spatial { .. } | EditorRequest::Animate { .. } | EditorRequest::Key { .. }
+            | EditorRequest::Curve { .. } | EditorRequest::Scene { .. } | EditorRequest::Seed { .. });
+        let starting = !engine.gesture_active() && matches!(&request, EditorRequest::Begin { .. });
+        self.request_boundary(engine, automatic, starting, |editor, engine| editor.request_inner(engine, frame, request))
+    }
+    fn request_boundary(
+        &mut self, engine: &mut Engine, automatic: bool, starting: bool,
+        operation: impl FnOnce(&mut Self, &mut Engine) -> Result<Value>,
+    ) -> Result<Value> {
+        if automatic { engine.begin_gesture()?; }
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| operation(self, engine)));
+        match outcome {
+            Ok(result) => {
+                if automatic { engine.end_gesture(result.is_ok())?; }
+                result
+            }
+            Err(payload) => {
+                if (automatic || starting || self.gesture) && engine.gesture_active() { engine.end_gesture(false)?; }
+                self.gesture = false;
+                self.color_edit = None;
+                self.parameter_edit = None;
+                let reason = payload.downcast_ref::<String>().map(String::as_str)
+                    .or_else(||payload.downcast_ref::<&str>().copied()).unwrap_or("unknown panic");
+                Err(Error::Invalid(format!("plugin editor request panicked: {}", reason.chars().take(2048).collect::<String>())))
+            }
+        }
+    }
+    fn request_inner(
         &mut self,
         engine: &mut Engine,
         frame: u32,
@@ -320,11 +352,64 @@ impl PluginEditorSession {
         self.state(engine, frame)
     }
     pub fn close(&mut self, engine: &mut Engine, commit: bool) -> Result<()> {
-        if self.gesture {
-            engine.end_gesture(commit)?;
-            self.gesture = false;
-        }
+        if self.gesture && engine.gesture_active() { engine.end_gesture(commit)?; }
+        self.gesture = false;
         self.color_edit = None;
+        self.parameter_edit = None;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod request_panic_tests {
+    use super::*;
+    fn setup() -> (Engine, PluginEditorSession) {
+        let package = motion_effects::builtin::particle_package().unwrap();
+        let registry = motion_effects::Registry::new_with_builtins().unwrap();
+        let mut project = Project::new(64,64,30,120).unwrap();
+        let mut layer = crate::Layer::solid(1,"editor",[64.;2],[32.,32.,0.],[0.;4]);
+        layer.effects.push(crate::EffectInstance::new(1,&package.manifest.id,&package.manifest.version,&package.hash,&package.manifest.effects[0],[64.;2]));
+        project.layers.push(layer);project.rebuild_plugin_dependencies();
+        let engine = Engine::new(project).unwrap();
+        let editor = PluginEditorSession::open(engine.project(),&registry,1,1).unwrap();
+        (engine,editor)
+    }
+    #[test]
+    fn a_panic_after_an_editor_edit_restores_the_whole_page_and_clears_scopes() {
+        for page in [false,true] {
+            let (mut engine, mut editor) = setup();
+            engine.apply(Command::SetColor { object:1,value:[0.2,0.3,0.4,1.] }).unwrap();
+            let original = engine.snapshot();
+            if page {
+                editor.request(&mut engine,0,EditorRequest::Begin { revision:1 }).unwrap();
+                let revision = engine.revision();
+                editor.request(&mut engine,0,EditorRequest::ColorBegin { revision,param:"color".into() }).unwrap();
+            }
+            let result = editor.request_boundary(&mut engine,!page,false,|_,engine| {
+                engine.apply(Command::SetColor { object:1,value:[0.9,0.8,0.7,1.] })?;
+                panic!("injected plugin request failure")
+            });
+            assert!(result.unwrap_err().to_string().contains("plugin editor request panicked"));
+            assert_eq!(engine.snapshot(),original);
+            assert!(!engine.gesture_active());
+            assert!(!editor.gesture);
+            assert!(editor.color_edit.is_none() && editor.parameter_edit.is_none());
+            assert!(engine.can_undo());
+            assert!(engine.undo().unwrap());
+            assert!(engine.redo().unwrap());
+            assert_eq!(engine.snapshot(),original);
+        }
+    }
+    #[test]
+    fn close_clears_parameter_and_color_state_even_after_host_cancellation() {
+        let (mut engine, mut editor) = setup();
+        editor.request(&mut engine,0,EditorRequest::Begin { revision:0 }).unwrap();
+        let track = engine.project().layers[0].effects[0].params["color"].track.clone();
+        editor.color_edit = Some(ColorEdit {param:"color".into(),frame:0,track:track.clone()});
+        editor.parameter_edit = Some(ColorEdit {param:"center".into(),frame:0,track});
+        engine.end_gesture(false).unwrap();
+        editor.close(&mut engine,false).unwrap();
+        assert!(!editor.gesture);
+        assert!(editor.color_edit.is_none() && editor.parameter_edit.is_none());
     }
 }

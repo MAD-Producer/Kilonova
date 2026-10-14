@@ -1316,7 +1316,7 @@ fn paint_path(
         let Some(p) = projection.screen([g[0] - offset[0], g[1] - offset[1]]) else {
             continue;
         };
-        paint::rect(list, Rect::new(p[0] - 3., p[1] - 3., 6., 6.), color);
+        paint::box_rect(list, Rect::new(p[0] - 3., p[1] - 3., 6., 6.), color, Color([0.;4]), 0., 0.);
         if selected == Some(i as u64 + 1) || selected.is_none() {
             for axis in [2, 4] {
                 if g[axis].abs() + g[axis + 1].abs() < 0.01 {

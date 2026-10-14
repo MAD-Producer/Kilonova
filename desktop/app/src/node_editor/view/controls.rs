@@ -62,8 +62,15 @@ pub(super) fn transform_content(content: &mut PaintList, origin: [f32; 2], zoom:
         use motion_ui::paint::{Pattern, Shape};
         match shape {
             Shape::Quad { points } => points.iter_mut().for_each(&point),
-            Shape::Line { points } | Shape::Triangles { points } => {
+            Shape::Triangles { points } => {
                 points.iter_mut().for_each(&point)
+            }
+            Shape::Line { points, clip } => {
+                points.iter_mut().for_each(&point);
+                if let Some(clip) = clip {
+                    point(&mut clip.min);
+                    point(&mut clip.max);
+                }
             }
             Shape::Procedural { area, clip, kind } => {
                 point(&mut area.min);
@@ -71,6 +78,7 @@ pub(super) fn transform_content(content: &mut PaintList, origin: [f32; 2], zoom:
                 point(&mut clip.min);
                 point(&mut clip.max);
                 match kind {
+                    Pattern::Diamond => {}
                     Pattern::Box { width, radius, .. } => {
                         *width *= zoom;
                         *radius *= zoom;

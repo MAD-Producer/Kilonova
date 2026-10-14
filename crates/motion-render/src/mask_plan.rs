@@ -94,6 +94,9 @@ impl MaskCache {
         scale: f32,
         preview: bool,
     ) -> Result<Vec<MaskRaster>, String> {
+        self.build_with_limit(scene, scale, preview, vector_mesh::MAX_TRIANGLE_VERTICES)
+    }
+    fn build_with_limit(&mut self, scene: &Scene, scale: f32, preview: bool, limit: usize) -> Result<Vec<MaskRaster>, String> {
         self.shapes.retain(|(layer, mask), _| {
             scene
                 .layers
@@ -101,6 +104,7 @@ impl MaskCache {
                 .any(|l| l.id == *layer && l.masks.iter().any(|m| m.id == *mask))
         });
         let mut rasters = vec![];
+        let mut remaining = limit.min(vector_mesh::MAX_TRIANGLE_VERTICES);
         for (layer, l) in scene.layers.iter().enumerate() {
             let density = if preview {
                 crate::quality::preview_layer_scale(l, scene.width, scene.height, scale)
@@ -142,12 +146,14 @@ impl MaskCache {
                             4.,
                         )),
                     };
-                    let vertices = Arc::new(vector_mesh::tessellate(&vector, l.size, density)?);
+                    let vertices = Arc::new(vector_mesh::tessellate_with_limit(&vector, l.size, density, remaining)?);
                     let mut hash = std::collections::hash_map::DefaultHasher::new();
                     bytemuck::cast_slice::<_, u8>(&vertices).hash(&mut hash);
                     self.shapes.insert(cache, (key, vertices, hash.finish()));
                 }
                 let (_, vertices, fingerprint) = &self.shapes[&cache];
+                remaining = remaining.checked_sub(vertices.len())
+                    .ok_or("frame mask triangle budget exceeds 262144 vertices")?;
                 rasters.push(MaskRaster {
                     layer,
                     id: m.id,
@@ -253,5 +259,32 @@ pub fn write(masks: &[MaskRaster], out: &mut [u8], records: usize, vertices: usi
         let bytes = bytemuck::cast_slice(&m.vertices);
         out[cursor..cursor + bytes.len()].copy_from_slice(bytes);
         cursor += bytes.len();
+    }
+}
+
+#[cfg(test)]
+mod geometry_budget_tests {
+    use super::*;
+    #[test]
+    fn frame_remaining_budget_refuses_new_geometry_and_cached_masks_before_append() {
+        let mut project = motion_model::Project::new(64, 64, 30, 60).unwrap();
+        project.layers.push(motion_model::Layer::solid(1, "masked", [64.; 2], [32., 32., 0.], [1.; 4]));
+        let mut scene = Scene::new(&project);
+        scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
+        let mask = |id| motion_model::masks::SampledMask {
+            id, nodes: [[22., 22.], [42., 22.], [42., 42.], [22., 42.]].into_iter().map(|p| [p[0], p[1], 0., 0., 0., 0.]).collect(),
+            mode: motion_model::masks::MaskMode::Add, inverted: false, opacity: 1., feather: [0.; 2], expansion: 0.,
+        };
+        scene.layers[0].masks = Arc::new(vec![mask(1)]);
+        let mut cache = MaskCache::default();
+        let first = cache.build_with_limit(&scene, 1., false, 6).unwrap();
+        assert_eq!(first[0].vertices.len(), 6);
+        scene.layers[0].masks = Arc::new(vec![mask(1), mask(2)]);
+        assert!(cache.build_with_limit(&scene, 1., false, 6).is_err());
+        assert_eq!(cache.shapes.len(), 1, "rejected second mask was never cached");
+        assert!(Arc::ptr_eq(&first[0].vertices, &cache.shapes[&(1, 1)].1));
+        assert_eq!(cache.build_with_limit(&scene, 1., false, 12).unwrap().len(), 2);
+        assert!(cache.build_with_limit(&scene, 1., false, 6).is_err(), "cache hits must also spend the remaining frame budget");
+        assert_eq!(cache.shapes.len(), 2);
     }
 }
