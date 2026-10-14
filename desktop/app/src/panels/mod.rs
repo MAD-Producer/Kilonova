@@ -166,6 +166,11 @@ pub fn chrome(
     let colors = styles.colors();
 
     let mut out = Vec::new();
+    if input.focus_lost {
+        panels.menu = None;
+        panels.menu_scroll = 0;
+        panels.panel_menu = None;
+    }
     panels.cursor = None;
     panels.drag_readout = None;
     panels.node_editor.external_inspector = layout.find(Panel::NodeProperties.dock()).is_some();
@@ -905,6 +910,58 @@ mod tests {
             panels.fx_console.as_ref().unwrap().owner,
             Some(Panel::NodeProperties)
         );
+    }
+    #[test]
+    fn application_menus_close_when_the_window_loses_focus() {
+        let mut panels = Panels {
+            menu: Some(7),
+            menu_scroll: 3,
+            panel_menu: Some((Panel::Project.dock(), [20., 30.])),
+            ..Default::default()
+        };
+        let mut atlas = TextAtlas::from_system(13.).unwrap();
+        let state = serde_json::json!({"frame":0,"project":{"frames":120,"layers":[]}});
+        let input = Input {
+            focus_lost: true,
+            ..Default::default()
+        };
+        chrome(
+            &mut PaintList::default(),
+            &mut atlas,
+            [900., 600.],
+            &Node::dock(Panel::Project.dock()),
+            &mut panels,
+            &state,
+            &input,
+        );
+        assert_eq!(panels.menu, None);
+        assert_eq!(panels.menu_scroll, 0);
+        assert_eq!(panels.panel_menu, None);
+    }
+    #[test]
+    fn window_menu_uses_scrollable_rows_at_small_sizes() {
+        let mut panels = Panels {
+            menu: Some(7),
+            ..Default::default()
+        };
+        let mut atlas = TextAtlas::from_system(13.).unwrap();
+        let state = serde_json::json!({"frame":0,"project":{"frames":120,"layers":[]}});
+        let input = Input {
+            mouse: [20., 100.],
+            wheel: [0., -1.],
+            ..Default::default()
+        };
+        menus(
+            &mut PaintList::default(),
+            &mut atlas,
+            [280., 160.],
+            &mut panels,
+            &input,
+            &state,
+            &mut Vec::new(),
+        );
+        assert_eq!(panels.menu, Some(7));
+        assert!(panels.menu_scroll > 0);
     }
     #[test]
     fn main_console_does_not_block_floating_window_shortcuts() {
