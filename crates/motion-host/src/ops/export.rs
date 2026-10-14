@@ -38,16 +38,30 @@ pub fn render_plan_info(id: i64) -> Result<serde_json::Value> {
             .effects
             .programs
             .iter()
-            .map(|program| {
-                json!({"key":program.key,"wgsl":program.shader.wgsl,"glsl":program.shader.glsl,
+            .map(|program| -> Result<serde_json::Value> {
+                let resources = program
+                    .resources
+                    .iter()
+                    .map(|path| {
+                        let package = program
+                            .package
+                            .as_ref()
+                            .ok_or_else(|| format!("effect package missing for resource {path}"))?;
+                        let bytes = package
+                            .files
+                            .get(path)
+                            .ok_or_else(|| format!("effect resource {path} is missing from package"))?;
+                        let dimensions = image::load_from_memory(bytes)
+                            .map(|image| (image.width(), image.height()))
+                            .unwrap_or((0, 0));
+                        Ok(json!({"path":path,"width":dimensions.0,"height":dimensions.1}))
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                Ok(json!({"key":program.key,"wgsl":program.shader.wgsl,"glsl":program.shader.glsl,
                     "sprite":program.shader.sprite,"additive":program.shader.additive,
-                    "resources":program.resources.iter().map(|path|{
-                        let bytes=&program.package.as_ref().unwrap().files[path];
-                        let dimensions=image::load_from_memory(bytes).map(|v|(v.width(),v.height())).unwrap_or((0,0));
-                        json!({"path":path,"width":dimensions.0,"height":dimensions.1})
-                    }).collect::<Vec<_>>()})
+                    "resources":resources}))
             })
-            .collect::<Vec<_>>();
+            .collect::<Result<Vec<_>>>()?;
         let mask_programs = motion_render::mask_plan::shaders()?
             .iter()
             .enumerate()
@@ -152,7 +166,9 @@ pub fn capture(id: i64) -> Result<serde_json::Value> {
         let renderer = if let Some(g) = &mut s.graphics {
             &mut g.renderer
         } else {
-            temporary.as_mut().unwrap()
+            temporary
+                .as_mut()
+                .ok_or("headless renderer was not initialized")?
         };
         renderer.set_effect_registry(s.effects.registry.clone());
         renderer
@@ -174,14 +190,15 @@ pub fn capture(id: i64) -> Result<serde_json::Value> {
             .ok_or("video capture pending; request frames and retry")?;
         renderer.retain_video_instances(&scene);
         for (object, image) in frames {
-            let source = scene
+            let layer = scene
                 .video_layers()
                 .into_iter()
                 .find(|l| l.id == object)
-                .unwrap()
+                .ok_or_else(|| format!("video layer {object} is missing from the sampled scene"))?;
+            let source = layer
                 .video
                 .as_ref()
-                .unwrap()
+                .ok_or_else(|| format!("video layer {object} has no video sample"))?
                 .asset;
             image.upload(renderer, object, source)?;
         }
@@ -200,7 +217,10 @@ pub fn capture(id: i64) -> Result<serde_json::Value> {
 pub fn pack(id: i64) -> Result<serde_json::Value> {
     crate::session::with_session(id, |s| {
         let output = s.root.join("exports/project.msproj");
-        std::fs::create_dir_all(output.parent().unwrap())
+        let parent = output
+            .parent()
+            .ok_or("export package has no parent directory")?;
+        std::fs::create_dir_all(parent)
             .map_err(|e| e.to_string())?;
         motion_core::storage::export_package(&s.root, s.engine.project(), &output)
             .map_err(|e| e.to_string())?;
