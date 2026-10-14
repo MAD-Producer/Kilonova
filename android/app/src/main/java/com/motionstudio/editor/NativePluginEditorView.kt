@@ -58,7 +58,7 @@ import org.json.JSONObject
     Column(modifier.testTag("plugin-editor-native").then(if(compact)Modifier.verticalScroll(rememberScrollState())else Modifier)) {
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
             Text(schema.getString("title"),Modifier.padding(12.dp),color=Ink)
-            Text("原生设计器",Modifier.padding(12.dp),color=Muted)
+            Text(if(state.optBoolean("gesture"))"编辑尚未提交"else"原生设计器",Modifier.padding(12.dp),color=Muted)
         }
         val slots=schema.getJSONArray("sections").objects().flatMap{it.getJSONArray("slots").objects()}
         if(slots.any{it.getString("kind")=="preview"})preview(Modifier.fillMaxWidth().height(if(compact)96.dp else 180.dp).testTag("native-plugin-preview"),positions)

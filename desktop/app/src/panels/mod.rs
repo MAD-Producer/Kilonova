@@ -437,10 +437,14 @@ pub fn chrome(
     paint::rect(list, status, colors.CHROME);
     let render_error = state["renderError"].as_str().filter(|s| !s.is_empty());
     let localized_error = render_error.map(|e| panels.locale.error(e));
+    let plugin_warning = (state["preview"]["pluginEditorRecovery"]["gesture"] == true).then_some(
+        if panels.locale == Locale::Zh { "插件编辑尚未提交，可在编辑菜单中取消并恢复操作" }
+        else { "Plugin edit is pending; cancel it from Edit to restore editing" });
     let message = localized_error
         .as_deref()
         .or(panels.drag_readout.as_ref().map(|(_, text)| text.as_str()))
         .or(panels.message.as_deref())
+        .or(plugin_warning)
         .unwrap_or(panels.locale.t(T::Ready));
     if render_error.is_some() {
         let style = styles
@@ -1153,6 +1157,24 @@ mod tests {
         assert_eq!(panels.menu, None);
         assert_eq!(panels.menu_scroll, 0);
         assert_eq!(panels.panel_menu, None);
+    }
+
+    #[test]
+    fn pending_plugin_edit_can_be_cancelled_from_host_menu_even_when_history_is_disabled() {
+        for locale in [Locale::Zh, Locale::En] {
+            for (active, observing, expected) in [(true, false, true), (false, false, false), (true, true, false)] {
+                let mut panels = Panels { locale, menu: Some(1), ..Default::default() };
+                let state = serde_json::json!({"canUndo":false,"canRedo":false,"observing":observing,
+                    "preview":{"pluginEditorRecovery":{"gesture":active}},"project":{"layers":[]}});
+                let point = [20., metrics::TITLE_BAR + metrics::MENU_BAR + 4. + 2. * 32. + 15.];
+                let mut out = vec![];
+                menus(&mut PaintList::default(), &mut TextAtlas::from_system(12.).unwrap(),
+                    [280., 240.], &mut panels, &Input { mouse: point,
+                        pressed: Some((MouseButton::Left, point)), ..Default::default() }, &state, &mut out);
+                assert_eq!(out.len(), usize::from(expected));
+                if expected { assert!(matches!(&out[0], Action::Plugin(v) if v["op"] == "cancel_plugin_gesture")); }
+            }
+        }
     }
     #[test]
     fn window_menu_uses_scrollable_rows_at_small_sizes() {
