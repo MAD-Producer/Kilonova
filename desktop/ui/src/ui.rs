@@ -181,9 +181,9 @@ pub fn text_sized(
 
 /// A numeric field that scrubs horizontally and accepts a typed value.
 ///
-/// This is the interaction After Effects uses for every property value, so it
-/// is deliberately shared: drag changes the value smoothly, a click opens the
-/// text field, and the modifier keys invert or constrain the drag.
+/// This is the shared property-value interaction: drag changes the value
+/// smoothly, a click opens the text field, and modifier keys invert or
+/// constrain the drag.
 #[derive(Clone, Copy, Default, Debug)]
 pub struct ScrubField {
     pub editing: bool,
@@ -443,16 +443,19 @@ pub fn layer_list(
     let colors = styles.colors();
 
     let mut hit = LayerListHit::default();
-    let row_height = styles.metric("row.height", 22.);
+    let row_height = styles.metric("row.height", 22.).max(1.);
     let gutter = 44.0;
-    let visible = (area.height() / row_height).ceil() as usize;
+    let offset = if offset.is_finite() { offset.max(0.) } else { 0. };
     let first = (offset / row_height).floor().max(0.0) as usize;
+    let last = ((offset + area.height().max(0.)) / row_height).ceil() as usize;
     paint::rect(list, area, colors.PANEL);
-    for index in first..(first + visible).min(rows.len()) {
+    let mut content = list.child();
+    for index in first..last.min(rows.len()) {
         let row = &rows[index];
         let top = area.min[1] + index as f32 * row_height - offset;
         let row_area = Rect::new(area.min[0], top, area.width(), row_height);
-        if !area.contains_rect(row_area) {
+        let visible_area = area.intersection(row_area);
+        if visible_area.width() <= 0. || visible_area.height() <= 0. {
             continue;
         }
         let background = if row.selected {
@@ -462,10 +465,10 @@ pub fn layer_list(
         } else {
             colors.PANEL
         };
-        paint::rect(list, row_area, background);
+        paint::rect(&mut content, row_area, background);
         if !row.active {
             // Inactive clips stay readable but clearly recede.
-            paint::rect(list, row_area, colors.APP_BACKGROUND.with_alpha(0.55));
+            paint::rect(&mut content, row_area, colors.APP_BACKGROUND.with_alpha(0.55));
         }
         let color = if row.camera {
             colors.TRACK_CAMERA
@@ -473,7 +476,7 @@ pub fn layer_list(
             row.color
         };
         paint::rect(
-            list,
+            &mut content,
             Rect::new(row_area.min[0] + 2.0, top + 5.0, 3.0, row_height - 10.0),
             color,
         );
@@ -484,7 +487,7 @@ pub fn layer_list(
             row_height,
         );
         text(
-            list,
+            &mut content,
             atlas,
             name_area,
             &row.name,
@@ -498,17 +501,17 @@ pub fn layer_list(
         let eye = Rect::new(row_area.min[0] + 12.0, top, 14.0, row_height);
         let lock = Rect::new(row_area.min[0] + 28.0, top, 14.0, row_height);
         icon(
-            list,
+            &mut content,
             eye,
             if row.visible { Icon::Eye } else { Icon::EyeOff },
         );
         icon(
-            list,
+            &mut content,
             lock,
             if row.locked { Icon::Lock } else { Icon::Unlock },
         );
         if let Some((MouseButton::Left, point)) = input.pressed {
-            if row_area.contains(point) {
+            if visible_area.contains(point) {
                 hit.row = Some(row.id);
                 hit.column = if eye.contains(point) {
                     LayerColumn::Visibility
@@ -520,6 +523,8 @@ pub fn layer_list(
             }
         }
     }
+    content.clip_to(area);
+    list.append(content);
     hit
 }
 

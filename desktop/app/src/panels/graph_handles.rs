@@ -67,6 +67,20 @@ fn cubic(easing: Easing) -> Easing {
         }),
     }
 }
+
+fn linkable(easing: &Easing) -> bool {
+    if easing.ease == Ease::Hold {
+        return false;
+    }
+    match easing.curve {
+        None => true,
+        Some(Curve {
+            space: CurveSpace::Progress,
+            shape: CurveShape::Cubic { .. },
+        }) => true,
+        Some(_) => false,
+    }
+}
 pub(super) fn draw(
     list: &mut PaintList,
     atlas: &mut TextAtlas,
@@ -311,7 +325,7 @@ pub(super) fn draw(
                                 };
                                 if dt > 0.
                                     && dv.abs() > 1e-9
-                                    && !old.curve.is_some_and(|c| c.space == CurveSpace::Velocity)
+                                    && linkable(&old)
                                 {
                                     let mut linked = cubic(old);
                                     let slope = if drag.index == 0 {
@@ -402,6 +416,43 @@ pub(super) fn draw(
             panels.timeline.graph_drag = None;
             out.push(Action::History(3));
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn linked_handles_do_not_rewrite_hold_or_non_cubic_segments() {
+        assert!(!linkable(&Easing {
+            ease: Ease::Hold,
+            curve: None,
+        }));
+        assert!(!linkable(&Easing {
+            ease: Ease::Linear,
+            curve: Some(Curve {
+                space: CurveSpace::Progress,
+                shape: CurveShape::Quadratic {
+                    control: [0.25, 0.75],
+                    start: 0.,
+                    end: 1.,
+                },
+            }),
+        }));
+        assert!(!linkable(&Easing {
+            ease: Ease::Linear,
+            curve: Some(Curve {
+                space: CurveSpace::Velocity,
+                shape: CurveShape::Cubic {
+                    control1: [0.25, 0.],
+                    control2: [0.75, 1.],
+                    start: 0.,
+                    end: 1.,
+                },
+            }),
+        }));
+        assert!(linkable(&Easing::default()));
     }
 }
 

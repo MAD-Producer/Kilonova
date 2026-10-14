@@ -28,6 +28,14 @@ pub enum Action {
     NewComposition,
     CompositionPreset(u32, u32),
     Plugin(Value),
+    NewNodeEffect(u64),
+    EditNodeEffect {
+        object: u64,
+        effect: u64,
+    },
+    ApplyNodeGraph,
+    ReturnToEffects,
+    ReturnToNodeDraft,
     AddSolid,
     Pack,
     RefreshState,
@@ -81,6 +89,7 @@ pub struct Panels {
     pub(crate) project: ProjectState,
     pub(crate) properties: PropertiesState,
     pub(crate) timeline: TimelineState,
+    pub(crate) layer_actions: super::layer_actions::Controls,
     pub locale: Locale,
     pub(crate) focused: Option<dock::Panel>,
     pub(crate) auxiliary: super::auxiliary::State,
@@ -97,6 +106,9 @@ pub struct Panels {
     pub playing: bool,
     pub message: Option<String>,
     pub(crate) menu: Option<usize>,
+    /// First visible row in the application menu when the popup is taller than
+    /// the available window height.
+    pub(crate) menu_scroll: usize,
     pub(crate) panel_menu: Option<(dock::DockId, [f32; 2])>,
     pub(crate) header_hits: Vec<HeaderHit>,
     pub(crate) header_size: Option<[f32; 2]>,
@@ -316,6 +328,7 @@ pub(crate) struct ProjectState {
     pub asset_list: motion_ui::widgets::ListView,
     pub query: String,
     pub search: bool,
+    pub context_menu: Option<[f32; 2]>,
 }
 
 #[derive(Default)]

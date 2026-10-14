@@ -29,6 +29,7 @@ mod graph_sampling;
 mod graph_workspace;
 mod helpers;
 mod keyboard;
+mod layer_actions;
 mod menus;
 pub(crate) mod numeric;
 pub(crate) mod parent_controls;
@@ -55,7 +56,7 @@ use composition::render as composition;
 pub use helpers::timecode;
 use helpers::{button, clicked, label, last_frame, right_clicked};
 use menus::render as menus;
-use project::render as project;
+use project::{finish_context_menu as finish_project_context_menu, render as project};
 use properties::render as properties;
 use timeline::render as timeline;
 #[cfg(test)]
@@ -114,6 +115,8 @@ fn viewer(area: Rect) -> Rect {
 }
 pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     let node_changed = panels.node_editor.cancel_interaction();
+    panels.layer_actions.cancel();
+    panels.timeline.timeline_context_menu = None;
     panels.parent_controls.open = false;
     panels.timeline_columns.cancel();
     let camera = panels.camera_controls.cancel();
@@ -171,15 +174,30 @@ pub fn chrome(
     if panels.normalize_selection(state) {
         out.extend(cancel_interaction(panels));
     }
+    if input.focus_lost {
+        panels.menu = None;
+        panels.menu_scroll = 0;
+        panels.panel_menu = None;
+    }
     panels.cursor = None;
     panels.drag_readout = None;
+    let layer_modal = panels.layer_actions.prepare(
+        Some(Panel::Timeline),
+        state,
+        input,
+        panels.locale,
+        panels.selected,
+        panels.focused == Some(Panel::Timeline)
+            && panels.properties.field.is_none()
+            && !panels.timeline.timeline_search,
+        &mut out,
+    );
     panels.node_editor.external_inspector = layout.find(Panel::NodeProperties.dock()).is_some();
     let node_modal = panels.node_editor.popup_open();
     let timeline_dropdown = panels.timeline_columns.editing();
-    if let Some((_, point)) = input
-        .pressed
-        .filter(|_| !panels.fx_console_in(None) && !node_modal && !timeline_dropdown)
-    {
+    if let Some((_, point)) = input.pressed.filter(|_| {
+        !panels.fx_console_in(None) && !node_modal && !timeline_dropdown && !layer_modal
+    }) {
         let focused = frames(layout, size)
             .into_iter()
             .find(|f| f.content.contains(point) || f.tabs.contains(point))
@@ -242,6 +260,7 @@ pub fn chrome(
         panels.timeline.timeline_search = false;
         panels.fx_console = None;
         panels.timeline.timeline_context_menu = None;
+        panels.project.context_menu = None;
     }
     let nodes_frame = frames(layout, size)
         .into_iter()
@@ -257,12 +276,17 @@ pub fn chrome(
         }
     }) && panels.menu.is_none();
     let shortcut_modal = keyboard::route(input, panels, state, node_keyboard, None, &mut out);
-    let menu_modal = shortcut_modal
+    let menu_modal = layer_modal
+        || panels.layer_actions.modal_in(Some(Panel::Timeline))
+        || shortcut_modal
         || panels.menu.is_some()
         || panels.panel_menu.is_some()
         || panels.fx_console_in(None)
         || panels.timeline.timeline_context_menu.is_some()
-        || timeline_dropdown;
+        || timeline_dropdown
+        || panels.effect_controls.editing()
+        || panels.project.context_menu.is_some()
+        || panels.timeline.timeline_context_menu.is_some();
     let neutral = Input::default();
     let body_input = if menu_modal || node_modal {
         &neutral
@@ -418,10 +442,18 @@ pub fn chrome(
     paint::rect(list, status, colors.CHROME);
     let render_error = state["renderError"].as_str().filter(|s| !s.is_empty());
     let localized_error = render_error.map(|e| panels.locale.error(e));
+    let plugin_warning = (state["preview"]["pluginEditorRecovery"]["gesture"] == true).then_some(
+        if panels.locale == Locale::Zh {
+            "插件编辑尚未提交，可在编辑菜单中取消并恢复操作"
+        } else {
+            "Plugin edit is pending; cancel it from Edit to restore editing"
+        },
+    );
     let message = localized_error
         .as_deref()
         .or(panels.drag_readout.as_ref().map(|(_, text)| text.as_str()))
         .or(panels.message.as_deref())
+        .or(plugin_warning)
         .unwrap_or(panels.locale.t(T::Ready));
     if render_error.is_some() {
         let style = styles
@@ -617,7 +649,33 @@ pub fn chrome(
         panels.locale,
         &mut out,
     );
-
+    panels.layer_actions.finish_window(
+        list,
+        atlas,
+        Rect::new(0., 0., size[0], size[1]),
+        state,
+        input,
+        panels.locale,
+        &mut out,
+    );
+    panels.effect_controls.finish_context_menu(
+        list,
+        atlas,
+        Rect::new(0., 0., size[0], size[1]),
+        state,
+        input,
+        panels.locale,
+        &mut out,
+    );
+    finish_project_context_menu(
+        list,
+        atlas,
+        Rect::new(0., 0., size[0], size[1]),
+        panels,
+        input,
+        panels.locale,
+        &mut out,
+    );
     out
 }
 pub fn panel(id: dock::DockId) -> Option<Panel> {
@@ -658,6 +716,17 @@ pub fn floating_chrome(
     let timeline_dropdown = panels.timeline_columns.editing();
     let dropdown_owned = panels.timeline_columns.editing_in(Some(panel));
     let popup_neutral = Input::default();
+    let layer_modal = panels.layer_actions.prepare(
+        Some(panel),
+        state,
+        input,
+        panels.locale,
+        panels.selected,
+        panel == Panel::Timeline
+            && panels.properties.field.is_none()
+            && !panels.timeline.timeline_search,
+        &mut out,
+    );
     if !panels.fx_console_in(Some(panel))
         && !(panels.fx_console.is_some() && keyboard::console_close_pressed(input))
         && matches!(panel, Panel::Masks | Panel::Vector)
@@ -703,7 +772,11 @@ pub fn floating_chrome(
         &mut out,
     );
     let neutral = Input::default();
-    let body_input = if shortcut_modal || timeline_dropdown && !dropdown_owned {
+    let body_input = if layer_modal
+        || panels.layer_actions.modal_in(Some(panel))
+        || shortcut_modal
+        || timeline_dropdown && !dropdown_owned
+    {
         &neutral
     } else {
         input
@@ -789,24 +862,168 @@ pub fn floating_chrome(
         panels.locale,
         &mut out,
     );
-
+    panels.layer_actions.finish_window(
+        list,
+        atlas,
+        Rect::new(0., 0., size[0], size[1]),
+        state,
+        input,
+        panels.locale,
+        &mut out,
+    );
+    panels.effect_controls.finish_context_menu(
+        list,
+        atlas,
+        Rect::new(0., 0., size[0], size[1]),
+        state,
+        input,
+        panels.locale,
+        &mut out,
+    );
+    finish_project_context_menu(
+        list,
+        atlas,
+        Rect::new(0., 0., size[0], size[1]),
+        panels,
+        input,
+        panels.locale,
+        &mut out,
+    );
     out
+}
+fn node_body(area: Rect) -> Rect {
+    Rect::new(
+        area.min[0],
+        area.min[1] + 28.,
+        area.width(),
+        (area.height() - 28.).max(1.),
+    )
 }
 fn node_panel(
     list: &mut PaintList,
     atlas: &mut TextAtlas,
     area: Rect,
     panels: &mut Panels,
+    state: &Value,
     input: &Input,
     out: &mut Vec<Action>,
 ) {
+    let styles = list.styles();
+    let colors = styles.colors();
+    let heading = Rect::new(area.min[0], area.min[1], area.width(), 28.);
+    paint::rect(list, heading, colors.CHROME);
+    let target = panels.node_editor.layer_target.clone();
+    let title = target
+        .as_ref()
+        .map(|t| {
+            format!(
+                "{} · {}",
+                if panels.locale == Locale::Zh {
+                    "图层节点效果"
+                } else {
+                    "Layer Node Effect"
+                },
+                t.label
+            )
+        })
+        .unwrap_or_else(|| {
+            if panels.locale == Locale::Zh {
+                "节点草稿 · 尚未绑定图层"
+            } else {
+                "Node Draft · Unbound"
+            }
+            .into()
+        });
+    label(
+        list,
+        atlas,
+        Rect::new(
+            heading.min[0] + 8.,
+            heading.min[1],
+            (heading.width() - if target.is_some() { 226. } else { 144. }).max(1.),
+            28.,
+        ),
+        &title,
+        false,
+    );
+    if ui::button_styled(
+        list,
+        atlas,
+        Rect::new(heading.max[0] - 130., heading.min[1] + 2., 122., 24.),
+        if target.is_some() {
+            if panels.locale == Locale::Zh {
+                "返回效果控件"
+            } else {
+                "Effect Controls"
+            }
+        } else {
+            if panels.locale == Locale::Zh {
+                "应用到当前图层"
+            } else {
+                "Apply to Layer"
+            }
+        },
+        input,
+        target.is_some()
+            || panels.selected.is_some_and(|id| {
+                state["project"]["layers"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .any(|l| {
+                        l["id"].as_u64() == Some(id)
+                            && id != 0
+                            && l["locked"] != true
+                            && !matches!(l["content"]["kind"].as_str(), Some("audio" | "null"))
+                    })
+            }),
+        &styles,
+        "button.icon",
+    )
+    .clicked
+    {
+        out.push(if target.is_some() {
+            Action::ReturnToEffects
+        } else {
+            Action::ApplyNodeGraph
+        });
+    }
+    if target.is_some()
+        && ui::button_styled(
+            list,
+            atlas,
+            Rect::new(heading.max[0] - 218., heading.min[1] + 2., 80., 24.),
+            if panels.locale == Locale::Zh {
+                "节点草稿"
+            } else {
+                "Node Draft"
+            },
+            input,
+            true,
+            &styles,
+            "button.icon",
+        )
+        .clicked
+    {
+        out.push(Action::ReturnToNodeDraft);
+    }
+    let area = node_body(area);
+    let blocked =
+        panels.node_editor.bound_creating(state) && panels.node_editor.diagnostic().is_none();
+    let neutral = Input::default();
+    let input = if blocked { &neutral } else { input };
     let language = if panels.locale == Locale::Zh {
         crate::node_editor::Language::Chinese
     } else {
         crate::node_editor::Language::English
     };
-    let (editor, preview) = crate::node_preview::regions(area);
-    if panels.node_editor.focused()
+    let (editor, preview) = if target.is_some() {
+        (area, Rect::default())
+    } else {
+        crate::node_preview::regions(area)
+    };
+    if target.is_none()
+        && panels.node_editor.focused()
         && !panels.node_editor.editing()
         && motion_ui::input::KeyChord::new(Key::Space, false, false, false).pressed(input)
     {
@@ -835,6 +1052,9 @@ fn node_panel(
     }
 }
 pub fn node_view(layout: &Node, size: [f32; 2]) -> Option<Rect> {
+    node_view_bound(layout, size, false)
+}
+pub fn node_view_bound(layout: &Node, size: [f32; 2], bound: bool) -> Option<Rect> {
     if let Some(frame) = frames(layout, size)
         .into_iter()
         .find(|f| f.panel == Panel::NodePreview)
@@ -842,21 +1062,30 @@ pub fn node_view(layout: &Node, size: [f32; 2]) -> Option<Rect> {
         return (frame.content.height() >= 135.)
             .then(|| crate::node_preview::panel_image_rect(frame.content));
     }
+    if bound {
+        return None;
+    }
     frames(layout, size)
         .into_iter()
         .find(|f| f.panel == Panel::Nodes)
         .and_then(|f| {
-            let (_, preview) = crate::node_preview::regions(f.content);
-            (preview.height() >= 135.).then(|| crate::node_preview::image_rect(f.content))
+            let (_, preview) = crate::node_preview::regions(node_body(f.content));
+            (preview.height() >= 135.)
+                .then(|| crate::node_preview::image_rect(node_body(f.content)))
         })
 }
 pub fn floating_node_view(panel: Panel, size: [f32; 2]) -> Option<Rect> {
+    floating_node_view_bound(panel, size, false)
+}
+pub fn floating_node_view_bound(panel: Panel, size: [f32; 2], bound: bool) -> Option<Rect> {
     let body = Rect::new(0., 30., size[0], (size[1] - 52.).max(1.));
     if panel == Panel::NodePreview {
         return (body.height() >= 135.).then(|| crate::node_preview::panel_image_rect(body));
     }
-    (panel == Panel::Nodes && crate::node_preview::regions(body).1.height() >= 135.)
-        .then(|| crate::node_preview::image_rect(body))
+    (!bound
+        && panel == Panel::Nodes
+        && crate::node_preview::regions(node_body(body)).1.height() >= 135.)
+        .then(|| crate::node_preview::image_rect(node_body(body)))
 }
 #[cfg(test)]
 mod tests {
@@ -895,6 +1124,101 @@ mod tests {
             panels.fx_console.as_ref().unwrap().owner,
             Some(Panel::NodeProperties)
         );
+    }
+    #[test]
+    fn application_menus_close_when_the_window_loses_focus() {
+        let mut panels = Panels {
+            menu: Some(7),
+            menu_scroll: 3,
+            panel_menu: Some((Panel::Project.dock(), [20., 30.])),
+            ..Default::default()
+        };
+        let mut atlas = TextAtlas::from_system(13.).unwrap();
+        let state = serde_json::json!({"frame":0,"project":{"frames":120,"layers":[]}});
+        let input = Input {
+            focus_lost: true,
+            ..Default::default()
+        };
+        chrome(
+            &mut PaintList::default(),
+            &mut atlas,
+            [900., 600.],
+            &Node::dock(Panel::Project.dock()),
+            &mut panels,
+            &state,
+            &input,
+        );
+        assert_eq!(panels.menu, None);
+        assert_eq!(panels.menu_scroll, 0);
+        assert_eq!(panels.panel_menu, None);
+    }
+
+    #[test]
+    fn pending_plugin_edit_can_be_cancelled_from_host_menu_even_when_history_is_disabled() {
+        for locale in [Locale::Zh, Locale::En] {
+            for (active, observing, expected) in [
+                (true, false, true),
+                (false, false, false),
+                (true, true, false),
+            ] {
+                let mut panels = Panels {
+                    locale,
+                    menu: Some(1),
+                    ..Default::default()
+                };
+                let state = serde_json::json!({"canUndo":false,"canRedo":false,"observing":observing,
+                    "preview":{"pluginEditorRecovery":{"gesture":active}},"project":{"layers":[]}});
+                let point = [
+                    20.,
+                    metrics::TITLE_BAR + metrics::MENU_BAR + 4. + 2. * 32. + 15.,
+                ];
+                let mut out = vec![];
+                menus(
+                    &mut PaintList::default(),
+                    &mut TextAtlas::from_system(12.).unwrap(),
+                    [280., 240.],
+                    &mut panels,
+                    &Input {
+                        mouse: point,
+                        pressed: Some((MouseButton::Left, point)),
+                        ..Default::default()
+                    },
+                    &state,
+                    &mut out,
+                );
+                assert_eq!(out.len(), usize::from(expected));
+                if expected {
+                    assert!(
+                        matches!(&out[0], Action::Plugin(v) if v["op"] == "cancel_plugin_gesture")
+                    );
+                }
+            }
+        }
+    }
+    #[test]
+    fn window_menu_uses_scrollable_rows_at_small_sizes() {
+        let mut panels = Panels {
+            menu: Some(7),
+            ..Default::default()
+        };
+        let mut atlas = TextAtlas::from_system(13.).unwrap();
+        let state = serde_json::json!({"frame":0,"project":{"frames":120,"layers":[]}});
+        let input = Input {
+            mouse: [20., 100.],
+            wheel: [0., -1.],
+            ..Default::default()
+        };
+        menus(
+            &mut PaintList::default(),
+            &mut atlas,
+            [280., 160.],
+            &mut panels,
+            &input,
+            &state,
+            &mut Vec::new(),
+        );
+        assert_eq!(panels.menu, Some(7));
+        assert!(panels.menu_scroll > 0);
     }
     #[test]
     fn main_console_does_not_block_floating_window_shortcuts() {
@@ -1194,8 +1518,9 @@ mod tests {
             },
         );
         assert!(opened.is_empty());
-        assert_eq!(panels.timeline.timeline_context_menu, Some(point));
-        let clicked = [710., 215.];
+        assert!(panels.layer_actions.modal_in(Some(Panel::Timeline)));
+        // The context menu grows upward from the right-click point.
+        let clicked = [710., 200. - (7. * 20. + 6.) + 3. + 10.];
         let actions = chrome(
             &mut PaintList::default(),
             &mut atlas,
@@ -1225,21 +1550,31 @@ mod tests {
                 },
                 ..Default::default()
             };
-            let point = [110., 200. + 4. + 3. * 28. + 14.];
+            let layout = Node::dock(Panel::Timeline.dock());
+            let size = [1280., 800.];
+            chrome(
+                &mut PaintList::default(),
+                &mut atlas,
+                size,
+                &layout,
+                &mut panels,
+                &state,
+                &Input::default(),
+            );
+            let point = [110., 200. - (7. * 22. + 8.) + 4. + 3. * 22. + 11.];
             let input = Input {
                 mouse: point,
                 pressed: Some((MouseButton::Left, point)),
                 ..Default::default()
             };
-            let mut actions = vec![];
-            timeline(
+            let mut actions = chrome(
                 &mut PaintList::default(),
                 &mut atlas,
-                Rect::new(0., 0., 1280., 800.),
+                size,
+                &layout,
                 &mut panels,
                 &state,
                 &input,
-                &mut actions,
             );
             assert!(matches!(actions.as_slice(), [Action::AddAdjustment]));
             panels.menu = Some(3);
@@ -1304,7 +1639,7 @@ fn render_panel(
         }
         Panel::Curves => curves::render(list, atlas, area, panels, state, input, out),
         Panel::Timeline => timeline(list, atlas, area, panels, state, input, out),
-        Panel::Nodes => node_panel(list, atlas, area, panels, input, out),
+        Panel::Nodes => node_panel(list, atlas, area, panels, state, input, out),
         Panel::NodeProperties => {
             let language = if panels.locale == Locale::Zh {
                 crate::node_editor::Language::Chinese

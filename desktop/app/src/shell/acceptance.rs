@@ -243,6 +243,29 @@ impl Shell {
             Value::Null
         };
         let design_screens = self.capture_design_screens(size)?;
+        let layer_menu_screenshot = if let Some(object) = self.panels.selected.filter(|id| *id != 0)
+        {
+            let revision = self.state["revision"].clone();
+            self.panels.layer_actions.open(
+                Some(object),
+                [36., (size[1] * 0.56).max(180.)],
+                &self.state,
+            );
+            let (paint, actions) = self.draw_commands(size);
+            if !actions.is_empty() {
+                return Err("drawing the layer context menu emitted an edit".into());
+            }
+            let ui = self.ui_frame(paint, size, true);
+            let screenshot = path.with_extension("layer-context-menu.png");
+            self.engine.capture_ui(ui, screenshot.clone())?;
+            self.panels.layer_actions.cancel();
+            if self.engine.state()?["revision"] != revision {
+                return Err("opening the layer context menu edited the project".into());
+            }
+            serde_json::to_value(screenshot).map_err(|error| error.to_string())?
+        } else {
+            return Err("layer context menu acceptance requires a selected layer".into());
+        };
         let state = self.engine.state()?;
         let styles = self
             .panels
@@ -251,7 +274,9 @@ impl Shell {
             .unwrap_or_else(motion_ui::style::default_stylesheet_arc);
         let style_report = serde_json::json!({"focus":styles.color("focus").0,"panel":styles.color("panel").0,"header":styles.color("header").0,"rowHeight":styles.metric("row.height",22.),"dragThreshold":styles.metric("motion.drag_threshold",3.),"smallFont":styles.metric("font.small",11.),"easing":styles.easing(),"overrideActive":self.style_source.path.is_some()});
         let result = serde_json::json!({"designScreens":design_screens,"style":style_report,"panels":self.smoke_panel_records,"ok":true,"framesPresented":state["presented"],"frame":state["frame"],"preview":state["preview"],
-            "retainedUiProbe":reuse_probe,"root":state["root"],"screenshot":screenshot,"floatingFrames":self.smoke_float_frames,"locale":self.workspace.locale,"desktop":state["desktop"],"nodePreview":self.smoke_node_report,"checks":["create_layer","animate","seek","save","reopen","single_surface_preview","chrome","floating_properties","floating_composition","resize","redock"]});
+            "retainedUiProbe":reuse_probe,"root":state["root"],"screenshot":screenshot,
+            "layerContextMenuScreenshot":layer_menu_screenshot,
+            "floatingFrames":self.smoke_float_frames,"locale":self.workspace.locale,"desktop":state["desktop"],"nodePreview":self.smoke_node_report,"checks":["create_layer","animate","seek","save","reopen","single_surface_preview","chrome","floating_properties","floating_composition","resize","redock","layer_context_menu"]});
         std::fs::write(
             &path,
             serde_json::to_vec_pretty(&result).map_err(|e| e.to_string())?,
@@ -299,6 +324,25 @@ impl Shell {
         let path = self.smoke.as_ref().unwrap().with_extension("nodes.png");
         self.engine.capture_ui(ui, path.clone())?;
         Ok(path)
+    }
+    fn capture_bound_composition(&self, name: &str) -> Result<Value, String> {
+        let capture = self.engine.capture()?;
+        let source = PathBuf::from(
+            capture["path"]
+                .as_str()
+                .ok_or("composition capture path missing")?,
+        );
+        let path = self
+            .smoke
+            .as_ref()
+            .unwrap()
+            .with_extension(format!("{name}.png"));
+        std::fs::copy(source, &path).map_err(|e| e.to_string())?;
+        let pixels = image::open(&path).map_err(|e| e.to_string())?.to_rgba8();
+        let fingerprint = pixels.as_raw().iter().fold(0xcbf29ce484222325u64, |h, b| {
+            (h ^ u64::from(*b)).wrapping_mul(0x100000001b3)
+        });
+        Ok(serde_json::json!({"path":path,"fingerprint":format!("{fingerprint:016x}")}))
     }
     pub(crate) fn node_smoke_step(&mut self, event_loop: &ActiveEventLoop) -> Result<(), String> {
         let directory = self
@@ -492,6 +536,279 @@ impl Shell {
             }
             self.smoke_node_report["example"] = gradient;
             self.smoke_node_report["exampleOpenedAndRendered"] = Value::Bool(true);
+            let initial = self.capture_bound_composition("layer-before")?;
+            self.smoke_node_report["layerBefore"] = initial;
+            let object = self
+                .panels
+                .selected
+                .ok_or("bound node smoke selection missing")?;
+            self.open_node_effect(object, None, false, Some(event_loop))?;
+            self.smoke_stage = 13;
+        } else if self.smoke_stage == 13
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            let identity = self.capture_bound_composition("layer-identity")?;
+            if identity["fingerprint"] != self.smoke_node_report["layerBefore"]["fingerprint"] {
+                return Err("identity node effect changed the layer composition".into());
+            }
+            self.smoke_node_report["layerIdentityPreservedPixels"] = Value::Bool(true);
+            let target = self.panels.node_editor.layer_target.clone();
+            let mut document = self.panels.node_editor.snapshot().document;
+            document
+                .public_parameters
+                .push(motion_graph::PublicParameter {
+                    id: "amount".into(),
+                    name: "反相强度".into(),
+                    english_name: "Invert Amount".into(),
+                    value_type: motion_graph::ValueType::Float,
+                    default: [0.5, 0., 0., 0.],
+                    min: 0.,
+                    max: 1.,
+                    step: 0.01,
+                    units: "".into(),
+                    animatable: true,
+                });
+            document.nodes.extend([
+                motion_graph::Node::new(
+                    "invert",
+                    motion_graph::NodeOp::ColorMath {
+                        operation: motion_graph::ColorOp::Invert,
+                    },
+                ),
+                motion_graph::Node::new(
+                    "mix",
+                    motion_graph::NodeOp::ColorMath {
+                        operation: motion_graph::ColorOp::Mix,
+                    },
+                ),
+                motion_graph::Node::new(
+                    "amount",
+                    motion_graph::NodeOp::Parameter {
+                        parameter: "amount".into(),
+                    },
+                ),
+            ]);
+            document.connections.retain(|c| c.to.node != "output");
+            document.connections.extend([
+                motion_graph::Connection::new("sample", "color", "invert", "color"),
+                motion_graph::Connection::new("sample", "color", "mix", "a"),
+                motion_graph::Connection::new("invert", "color", "mix", "b"),
+                motion_graph::Connection::new("amount", "value", "mix", "factor"),
+                motion_graph::Connection::new("mix", "color", "output", "color"),
+            ]);
+            for node in &mut document.nodes {
+                node.position = match node.id.as_str() {
+                    "input" => [0., 0.],
+                    "uv" => [0., 190.],
+                    "sample" => [260., 50.],
+                    "invert" => [520., 190.],
+                    "amount" => [520., 390.],
+                    "mix" => [780., 50.],
+                    _ => [1040., 50.],
+                };
+            }
+            self.panels.node_editor.replace_document(document, None);
+            self.panels.node_editor.layer_target = target;
+            self.schedule_node_compile()?;
+            self.smoke_stage = 14;
+        } else if self.smoke_stage == 14
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            let changed = self.capture_bound_composition("layer-invert")?;
+            if changed["fingerprint"] == self.smoke_node_report["layerBefore"]["fingerprint"] {
+                return Err("bound graph did not update main composition pixels".into());
+            }
+            self.smoke_node_report["layerGraphChangedPixels"] = Value::Bool(true);
+            self.smoke_node_report["layerInvert"] = changed;
+            self.panels
+                .node_editor
+                .set_parameter_default("amount", 0, 0.9)
+                .map_err(|e| e.to_string())?;
+            self.schedule_node_compile()?;
+            self.action(panels::Action::Save, Some(event_loop))?;
+            self.smoke_stage = 15;
+        } else if self.smoke_stage == 15
+            && self.node_save_project.is_none()
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            let changed = self.capture_bound_composition("layer-parameter")?;
+            if changed["fingerprint"] == self.smoke_node_report["layerInvert"]["fingerprint"] {
+                return Err("bound public default did not update composition pixels".into());
+            }
+            self.smoke_node_report["layerPublicParameterChangedPixels"] = Value::Bool(true);
+            self.smoke_node_report["layerParameter"] = changed;
+            let target = self.panels.node_editor.layer_target.as_ref().unwrap();
+            let layer = self.state["project"]["layers"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|l| l["id"] == target.object)
+                .unwrap();
+            let effect = layer["effects"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|e| e["id"] == target.effect)
+                .unwrap();
+            if !effect["params"]["amount"].is_object() {
+                return Err("bound parameters missing from effect controls".into());
+            }
+            let size = self.size().ok_or("bound node window missing")?;
+            let (paint, _) = self.draw_commands(size);
+            let ui = self.ui_frame(paint, size, true);
+            let path = self
+                .smoke
+                .as_ref()
+                .unwrap()
+                .with_extension("layer-nodes.png");
+            self.engine.capture_ui(ui, path.clone())?;
+            self.smoke_node_report["layerWorkspaceScreenshot"] =
+                serde_json::to_value(path).map_err(|e| e.to_string())?;
+            self.state = self.engine.history(0)?;
+            self.reconcile_node_target()?;
+            if self
+                .panels
+                .node_editor
+                .snapshot()
+                .document
+                .public_parameters[0]
+                .default[0]
+                != 0.5
+            {
+                return Err(
+                    "undo did not restore the public default in the editable source".into(),
+                );
+            }
+            self.smoke_stage = 18;
+        } else if self.smoke_stage == 18
+            && self.node_compile_due.is_none()
+            && self.node_installing.is_empty()
+            && !self.node_tasks.busy()
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            let undone = self.capture_bound_composition("layer-undo")?;
+            if undone["fingerprint"] != self.smoke_node_report["layerInvert"]["fingerprint"] {
+                return Err(
+                    "project undo failed to restore node source and composition pixels".into(),
+                );
+            }
+            self.state = self.engine.history(1)?;
+            self.reconcile_node_target()?;
+            self.smoke_stage = 19;
+        } else if self.smoke_stage == 19
+            && self.node_compile_due.is_none()
+            && self.node_installing.is_empty()
+            && !self.node_tasks.busy()
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            let redone = self.capture_bound_composition("layer-redo")?;
+            if redone["fingerprint"] != self.smoke_node_report["layerParameter"]["fingerprint"] {
+                return Err(
+                    "project redo failed to restore node source and composition pixels".into(),
+                );
+            }
+            self.smoke_node_report["layerProjectUndoRedoRestoresSourceAndPixels"] =
+                Value::Bool(true);
+            self.panels
+                .node_editor
+                .toggle_preview(motion_graph::PortRef::new("sample", "color"))
+                .map_err(|e| e.to_string())?;
+            self.schedule_node_compile()?;
+            self.smoke_stage = 16;
+        } else if self.smoke_stage == 16
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            let preview = self.capture_bound_composition("layer-port-preview")?;
+            if preview["fingerprint"] != self.smoke_node_report["layerParameter"]["fingerprint"] {
+                return Err("temporary port preview overwrote canonical layer output".into());
+            }
+            self.smoke_node_report["layerPortPreviewIsObservational"] = Value::Bool(true);
+            self.panels.node_editor.restore_preview();
+            self.panels
+                .node_editor
+                .disconnect_input(&motion_graph::PortRef::new("output", "color"));
+            self.schedule_node_compile()?;
+            self.smoke_stage = 17;
+        } else if self.smoke_stage == 17
+            && !self.node_tasks.busy()
+            && self.node_installing.is_empty()
+            && self.node_sources.is_empty()
+            && self.node_compile_due.is_none()
+            && self.panels.node_editor.diagnostic().is_some()
+        {
+            let retained = self.capture_bound_composition("layer-retained")?;
+            if retained["fingerprint"] != self.smoke_node_report["layerParameter"]["fingerprint"] {
+                return Err("invalid layer graph replaced valid composition pixels".into());
+            }
+            self.smoke_node_report["layerInvalidGraphKeptValidPixels"] = Value::Bool(true);
+            self.action(panels::Action::Save, Some(event_loop))?;
+            self.smoke_stage = 20;
+        } else if self.smoke_stage == 20
+            && self.node_save_project.is_none()
+            && self.node_sources.is_empty()
+        {
+            let target = self.panels.node_editor.layer_target.clone().unwrap();
+            let expected = self.panels.node_editor.snapshot().document;
+            self.state = self.engine.open_directory(target.root.clone())?;
+            let layer = self.state["project"]["layers"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|l| l["id"] == target.object)
+                .unwrap();
+            let effect = layer["effects"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|e| e["id"] == target.effect)
+                .unwrap();
+            self.panels
+                .node_editor
+                .load_layer_source(&effect["node_graph"], target)?;
+            if self.panels.node_editor.snapshot().document != expected {
+                return Err("project reopen lost editable graph source".into());
+            }
+            let package = self.engine.pack()?;
+            let isolated_root = directory.join(format!(
+                "bound-package-reopened-{}/project",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_nanos()
+            ));
+            let imported = motion_core::storage::import_package(
+                std::path::Path::new(package["path"].as_str().unwrap()),
+                &isolated_root,
+            )
+            .map_err(|e| e.to_string())?;
+            if !imported.layers.iter().flat_map(|l| &l.effects).any(|e| {
+                e.node_graph
+                    .as_ref()
+                    .is_some_and(|s| s["document"] == serde_json::to_value(&expected).unwrap())
+            }) {
+                return Err("packed project lost graph source or runtime package".into());
+            }
+            let offline = Engine::start(isolated_root, motion_desktop_media::platform(), 8 << 30)?;
+            offline.seek(self.frame)?;
+            let captured = offline.capture()?;
+            let image = image::open(captured["path"].as_str().ok_or("offline capture missing")?)
+                .map_err(|e| e.to_string())?
+                .to_rgba8();
+            let fingerprint = image.as_raw().iter().fold(0xcbf29ce484222325u64, |h, b| {
+                (h ^ u64::from(*b)).wrapping_mul(0x100000001b3)
+            });
+            if format!("{fingerprint:016x}")
+                != self.smoke_node_report["layerParameter"]["fingerprint"]
+                    .as_str()
+                    .unwrap()
+            {
+                return Err(
+                    "offline project package did not restore the last valid node effect pixels"
+                        .into(),
+                );
+            }
+            self.smoke_node_report["layerOfflinePackageRestoresPixels"] = Value::Bool(true);
+            self.smoke_node_report["layerSourceAndRuntimePackedAndReopened"] = Value::Bool(true);
             self.finish_smoke()?;
             self.smoke_stage = 4;
         }

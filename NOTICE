@@ -1,0 +1,20 @@
+# Motion Studio 法律声明 / Legal notice
+
+版权所有 (c) 2026 Motion Studio contributors
+Copyright (c) 2026 Motion Studio contributors
+
+## 中文
+
+Motion Studio 源代码采用 MIT License，见 [LICENSE](LICENSE)。第三方组件不会因该文件而重新获得许可证；其版权和许可证声明列在 [ATTRIBUTION.md](ATTRIBUTION.md) 及对应组件目录中。
+
+Motion Studio 是独立项目。Adobe、After Effects、Photoshop、Premiere 以及其他 Adobe 名称和标志，是 Adobe 在美国及其他国家或地区的商标。项目只在标识公开参考来源或兼容性边界时使用这些名称。Motion Studio 不受 Adobe 赞助、认可、隶属或认证，本项目不包含 Adobe 软件、源代码、二进制资源、产品图标、预设或模板。
+
+其他产品名称和标志归各自所有者所有。本声明不授予任何商标许可，也不构成任何背书关系。
+
+## English
+
+Motion Studio source code is available under the MIT License; see [LICENSE](LICENSE). Third-party components are not relicensed by that file. Their copyright and license notices are listed in [ATTRIBUTION.md](ATTRIBUTION.md) and in the relevant component directories.
+
+Motion Studio is an independent project. Adobe, After Effects, Photoshop, Premiere, and other Adobe names and marks are trademarks of Adobe in the United States and/or other countries. They are used only when necessary to identify a public reference or a compatibility boundary. Motion Studio is not sponsored, endorsed, affiliated with, or certified by Adobe, and this project does not include Adobe software, source code, binary resources, product icons, presets, or templates.
+
+Other product names and marks belong to their respective owners. No trademark license or endorsement is granted by this notice. If a translation differs from an original license text, the original license text governs.

@@ -58,7 +58,7 @@
 
 下面保留原提案的规划状态，当前可用行为以“当前已实现”表及 `app/src/shortcuts.rs` 为准。
 
-默认方案面向 Windows，常用工具、属性和时间轴操作参考 [Adobe 官方快捷键表](https://helpx.adobe.com/after-effects/desktop/get-started/keyboard-shortcuts/keyboard-shortcuts-reference.html)，节点区沿用 Motion Studio 的现有工作流。工具激活和创建图层是不同操作。
+默认方案面向 Windows，常用工具、属性和时间轴操作参考专业合成软件的通用习惯，节点区沿用 Motion Studio 的现有工作流。工具激活和创建图层是不同操作。
 
 状态：**保留**＝当前代码已有明确绑定；**改绑**＝已有功能调整默认键位；**新增**＝需补快捷键路由；**后续**＝还需要补工具模式、选择模型或操作入口。保留项仍需统一焦点和修饰键处理。
 

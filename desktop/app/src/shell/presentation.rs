@@ -1,4 +1,5 @@
 use crate::*;
+use motion_ui::dock::Panel;
 
 impl Shell {
     pub(crate) fn playback_ready(&self, now: Instant) -> bool {
@@ -332,7 +333,7 @@ impl Shell {
             logical_size: size,
             window: 0,
             node_preview: self
-                .node_viewport(panels::node_view(&self.workspace.root, size), self.scale),
+                .node_viewport(panels::node_view_bound(&self.workspace.root,size,self.panels.node_editor.layer_target.is_some()), self.scale),
             composition: if self.home.is_none() && view.width() > 0.0 && view.height() > 0.0 {
                 Some([
                     view.min[0] * self.scale,
@@ -404,6 +405,10 @@ impl Shell {
             .is_some_and(|(button, _)| button == MouseButton::Left)
             && header_hit.is_some_and(|(_, action)| action);
         let modal = self.panels.timeline_columns.editing()
+            || self.panels.layer_actions.modal_in(None)
+            || self.panels.layer_actions.modal_in(Some(Panel::Timeline))
+            || self.panels.layer_actions.text_in(None)
+            || self.panels.layer_actions.text_in(Some(Panel::Timeline))
             || self.panels.panel_menu.is_some()
             || self.panels.menu.is_some()
             || self.panels.fx_console_in(None)
@@ -689,7 +694,7 @@ impl Shell {
                 logical_size: size,
                 composition,
                 window: key,
-                node_preview: self.node_viewport(panels::floating_node_view(panel, size), scale),
+                node_preview: self.node_viewport(panels::floating_node_view_bound(panel,size,self.panels.node_editor.layer_target.is_some()), scale),
             })?,
         );
         if acknowledged {

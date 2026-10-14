@@ -4,7 +4,8 @@ use swc_ecma_ast::*;
 use swc_ecma_parser::{lexer::Lexer, EsSyntax, Parser, StringInput, Syntax};
 use swc_ecma_visit::{VisitMut, VisitMutWith};
 
-/// Parse real JavaScript before adapting AE's vector operators and completion value.
+/// Parse real JavaScript before adapting the vector operators and completion value
+/// supported by Motion Studio expressions.
 pub(super) fn transpile(source: &str) -> Result<String> {
     ensure(
         !source.trim().is_empty() && source.len() <= 8192,

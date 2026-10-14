@@ -88,14 +88,16 @@ fn panels(node: &Node, out: &mut Vec<DockId>) {
 }
 fn remove(node: Node, panel: DockId) -> Option<Node> {
     match node {
-        Node::Dock { id, tabs, active } => {
-            let tabs: Vec<_> = tabs.into_iter().filter(|id| *id != panel).collect();
+        Node::Dock { id, mut tabs, mut active } => {
+            if let Some(index) = tabs.iter().position(|id| *id == panel) {
+                dock::remove_tab(&mut tabs, &mut active, index);
+            }
             if tabs.is_empty() {
                 None
             } else {
                 Some(Node::Dock {
                     id: if id == panel { tabs[0] } else { id },
-                    active: active.min(tabs.len() - 1),
+                    active,
                     tabs,
                 })
             }

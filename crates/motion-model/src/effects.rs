@@ -320,6 +320,8 @@ pub struct EffectInstance {
     pub image_input: Option<EffectImageInput>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scene: Option<motion_effects::SceneSettings>,
+    #[serde(default, skip_serializing_if="Option::is_none")]
+    pub node_graph: Option<serde_json::Value>,
 }
 impl EffectInstance {
     pub fn new(
@@ -372,6 +374,7 @@ impl EffectInstance {
             params,
             image_input: None,
             scene: definition.scene.clone(),
+            node_graph: None,
         }
     }
     pub fn dependency(&self) -> PluginDependency {
@@ -398,6 +401,17 @@ impl EffectInstance {
             self.params.len() <= MAX_PARAMS,
             "too many effect parameters",
         )?;
+        if let Some(source) = &self.node_graph {
+            ensure(
+                source["format_version"] == 1
+                    && source["key"].as_str().is_some_and(|key| !key.trim().is_empty() && key.len() <= 128)
+                    && source["document"].is_object()
+                    && source["options"].is_object(),
+                "invalid editable node effect source",
+            )?;
+            ensure(serde_json::to_vec(source)?.len() <= 4 * 1024 * 1024,
+                "node effect source exceeds 4 MiB")?;
+        }
         if let Some(scene) = &self.scene {
             scene
                 .validate()
@@ -413,6 +427,10 @@ impl EffectInstance {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum EffectAction {
+    /// Replace a compiled node effect and its source as one undoable edit.
+    Replace { instance: EffectInstance },
+    /// Preserve an unfinished graph without replacing the last valid shader.
+    SetNodeGraph { effect: u64, source: serde_json::Value },
     SetImageInput {
         effect: u64,
         input: Option<EffectImageInput>,
@@ -522,6 +540,16 @@ pub fn apply(layer: &mut Layer, action: EffectAction, frames: u32) -> Result<()>
         clip.edit_frame(f)
     };
     match action {
+        EffectAction::Replace { instance } => {
+            instance.validate(frames)?;
+            let current = instance_mut(layer, instance.id)?;
+            *current = instance;
+        }
+        EffectAction::SetNodeGraph { effect, source } => {
+            let instance = instance_mut(layer, effect)?;
+            instance.node_graph = Some(source);
+            instance.validate(frames)?;
+        }
         EffectAction::RestoreParameterTrack { effect, param, track } => {
             let p = param_mut(layer, effect, &param)?;
             ensure(matches!(p.kind, ParamKind::Vec2 | ParamKind::Vec3), "parameter scope requires a vector parameter")?;

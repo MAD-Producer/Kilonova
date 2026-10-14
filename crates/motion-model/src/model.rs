@@ -319,7 +319,7 @@ impl Project {
             crate::storage::validate_relative_path(&font.path)?;
             ensure(font.path.starts_with("assets/fonts/")&&font.path.ends_with(".ttf"),"invalid managed font path")?;
         }
-        ensure((1..=16).contains(&self.version), "unsupported project format")?;
+        ensure((1..=17).contains(&self.version), "unsupported project format")?;
         ensure(self.plugin_dependencies == self.composition_dependencies(),
                "plugin dependency list does not match effect instances")?;
         self.validate_one(self)?;
@@ -328,7 +328,7 @@ impl Project {
     pub(crate) fn validate_one(&self, document: &Project) -> Result<()> {
         crate::effects::validate_image_graph(self)?;
         ensure(
-            (1..=16).contains(&self.version),
+            (1..=17).contains(&self.version),
             "unsupported project format",
         )?;
         let spatial = [&self.camera.position, &self.camera.target].iter().any(|t| t.keys.iter().any(|k| k.spatial.is_some()))
@@ -447,6 +447,7 @@ impl Project {
         }
         let mut ids = HashSet::new();
         crate::compositing::validate(&self.layers)?;
+        ensure(self.version>=17||self.layers.iter().all(|l|l.effects.iter().all(|e|e.node_graph.is_none())),"editable node effects require project format seventeen")?;
         for layer in &self.layers {
             ensure(self.version>=16||layer.rotation_order==crate::geometry::RotationOrder::LocalXyz,"fixed-axis rotations require project format sixteen")?;
             if let Some(levels)=&layer.audio_levels {

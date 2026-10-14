@@ -17,7 +17,8 @@ impl NodeEditor {
         paint::rect(&mut paint, area, colors.CHROME);
         let mut x = area.min[0] + 6.;
         let mut y = area.min[1] + 5.;
-        for (index, width, zh, en) in TOOLBAR {
+        let items: Vec<_> = self.toolbar_items().collect();
+        for (index, width, zh, en) in items {
             if x + width > area.max[0] - 6. {
                 x = area.min[0] + 6.;
                 y += 34.;
@@ -44,6 +45,7 @@ impl NodeEditor {
                         self.library_open = !self.library_open;
                         self.search_focus = false;
                     }
+                    1 if self.external_inspector => actions.push(Action::ShowProperties),
                     1 => {
                         if area.width() < 1024. && self.library_open {
                             self.library_open = false;

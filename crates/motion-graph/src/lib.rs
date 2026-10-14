@@ -17,7 +17,7 @@ pub use error::{Diagnostic, Error, ErrorCode, Result};
 pub use examples::{
     builtin_example_catalogue, builtin_examples, BuiltinExample, ExampleCollection,
 };
-pub use export::{export_msfx, ExportReport};
+pub use export::{compiled_package_bytes, export_msfx, ExportReport};
 pub use groups::scope_topological_order;
 pub use ports::{
     check_connection, node_description, node_port_specs, port_semantics_compatible,

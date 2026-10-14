@@ -210,6 +210,8 @@ fn timeline_modifier_clicks_and_blank_clear_selection_without_editing() {
         (74., false, false, 1),
         (118., false, true, 3),
         (96., true, false, 2),
+        (96., true, false, 3),
+        (96., true, false, 2),
         (350., false, false, 0),
     ] {
         let point = [150., y];
@@ -233,6 +235,7 @@ fn timeline_modifier_clicks_and_blank_clear_selection_without_editing() {
             &mut actions,
         );
         assert_eq!(panels.selection_ids().len(), count, "y={y}");
+        assert!(!panels.layer_actions.editing());
     }
     assert!(actions.is_empty());
 }

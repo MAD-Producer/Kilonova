@@ -1,8 +1,8 @@
 //! Colour palette and metrics for the desktop shell.
 //!
-//! The layout mirrors After Effects: a near-black panel chrome, one accent
-//! colour for selection and focus, and a muted grey scale for type. Values are
-//! kept here rather than inline so a future light theme is a data change.
+//! The shell uses a near-black panel chrome, one accent colour for selection
+//! and focus, and a muted grey scale for type. Values are kept here rather
+//! than inline so a future light theme is a data change.
 
 /// Linear RGBA colour with sRGB-encoded components.
 #[derive(Clone, Copy, PartialEq, Debug)]

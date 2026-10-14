@@ -116,9 +116,11 @@ pub enum Command {
     NodeExpect {
         stamp: (u64, u64),
     },
+    NodeSource {snapshot:crate::node_editor::EditorSnapshot,reply:Sender<Result<Value,String>>},
     NodeInstall {
         snapshot: crate::node_editor::EditorSnapshot,
         compiled: motion_graph::CompiledGraph,
+        canonical: Option<motion_graph::CompiledGraph>,
         reply: Sender<Result<bool, String>>,
     },
     NodeCapture {
@@ -315,45 +317,20 @@ impl Command {
             }
             FreezeMovie { reply, .. } => ErrorReply::Movie(reply.clone()),
             VideoFrame { reply, .. } => ErrorReply::Frame(reply.clone()),
-            State(reply)
-            | Save(reply)
-            | PreviewInfo(reply)
-            | MediaPackageLimits(reply)
-            | Capture(reply)
-            | Pack(reply)
-            | ChangeProject { reply, .. }
-            | NodeCapture { reply, .. }
-            | EditChecked { reply, .. }
-            | CaptureUi { reply, .. }
-            | Attach { reply, .. }
-            | Resize { reply, .. }
-            | OpenDirectory { reply, .. }
-            | FloatWindow { reply, .. }
-            | CloseWindow { reply, .. }
-            | NewProject { reply, .. }
-            | OpenProject { reply, .. }
-            | ImportProject { reply, .. }
-            | ImportImage { reply, .. }
-            | CreateText { reply, .. }
-            | RenderPreview { reply, .. }
-            | Edit { reply, .. }
-            | History { reply, .. }
-            | Drag { reply, .. }
-            | Seek { reply, .. }
-            | View { reply, .. }
-            | Observe { reply, .. }
-            | Navigate { reply, .. }
-            | ConfigureMemory { reply, .. }
-            | PreviewMode { reply, .. }
-            | CurveGraph { reply, .. }
-            | HitCandidates { reply, .. }
-            | Plugin { reply, .. }
-            | ColorCurveGraph { reply, .. }
-            | Composition { reply, .. }
-            | Media { reply, .. }
-            | ImageInfo { reply, .. }
-            | PrepareImage { reply, .. }
-            | MediaCapabilities { reply, .. }
+            State(reply) | Save(reply) | PreviewInfo(reply) | MediaPackageLimits(reply)
+            | Capture(reply) | Pack(reply)
+            | ChangeProject { reply, .. } | NodeCapture { reply, .. }
+            | EditChecked { reply, .. } | CaptureUi { reply, .. }
+            | Attach { reply, .. } | Resize { reply, .. } | OpenDirectory { reply, .. }
+            | FloatWindow { reply, .. } | CloseWindow { reply, .. }
+            | NewProject { reply, .. } | OpenProject { reply, .. } | ImportProject { reply, .. }
+            | ImportImage { reply, .. } | CreateText { reply, .. } | RenderPreview { reply, .. }
+            | Edit { reply, .. } | History { reply, .. } | Drag { reply, .. } | Seek { reply, .. }
+            | View { reply, .. } | Observe { reply, .. } | Navigate { reply, .. }
+            | ConfigureMemory { reply, .. } | PreviewMode { reply, .. } | CurveGraph { reply, .. }
+            | HitCandidates { reply, .. } | Plugin { reply, .. } | NodeSource {reply,..} | ColorCurveGraph { reply, .. }
+            | Composition { reply, .. } | Media { reply, .. } | ImageInfo { reply, .. }
+            | PrepareImage { reply, .. } | MediaCapabilities { reply, .. }
             | ResourceInfo { reply, .. } => ErrorReply::Value(reply.clone()),
             #[cfg(test)]
             TestPanic { reply, .. } | TestRecoveryPanic { reply, .. } | TestDelay { reply, .. } | TestWait {reply,..} => {
@@ -433,12 +410,15 @@ impl Engine {
         snapshot: crate::node_editor::EditorSnapshot,
         compiled: motion_graph::CompiledGraph,
     ) -> Result<std::sync::mpsc::Receiver<Result<bool, String>>, String> {
-        self.request(|reply| Command::NodeInstall {
-            snapshot,
-            compiled,
-            reply,
-        })
+        self.request(|reply| Command::NodeInstall { snapshot, compiled, canonical:None,reply })
     }
+    pub fn node_install_bound(&self,snapshot:crate::node_editor::EditorSnapshot,compiled:motion_graph::CompiledGraph,canonical:Option<motion_graph::CompiledGraph>)->Result<std::sync::mpsc::Receiver<Result<bool,String>>,String>{
+        self.request(|reply|Command::NodeInstall{snapshot,compiled,canonical,reply})
+    }
+    pub fn node_source(&self,snapshot:crate::node_editor::EditorSnapshot)->Result<std::sync::mpsc::Receiver<Result<Value,String>>,String>{
+        self.request(|reply|Command::NodeSource{snapshot,reply})
+    }
+
     pub fn node_capture(&self, seconds: f64, path: PathBuf) -> Result<Value, String> {
         self.call(|reply| Command::NodeCapture {
             seconds,
@@ -636,6 +616,7 @@ impl Engine {
                 std::sync::mpsc::RecvTimeoutError::Disconnected => self.stopped_error(),
                 std::sync::mpsc::RecvTimeoutError::Timeout => format!("{operation} timed out; its result is still pending; check project state before retrying"),
             })?;
+        #[cfg(debug_assertions)]
         if began.elapsed().as_millis() >= 16 {
             eprintln!(
                 "[motion-timing] blocking {operation}: {} us",
@@ -1151,8 +1132,9 @@ fn handle(
                 }
             }
         })()),
+        Command::NodeSource{snapshot,reply}=>respond(reply,motion_host::session::with_session(id,|s|crate::node_layer::persist(s,&snapshot))),
         Command::NodeExpect{stamp}=>node_preview.desired=stamp,
-        Command::NodeInstall { snapshot, compiled, reply } => respond(reply, (|| {
+        Command::NodeInstall { snapshot, compiled, canonical,reply } => respond(reply, (|| {
             // All pipeline creation and scope push/pop stay on this worker,
             // alongside effects and presentation. Reject stale CPU work first.
             if snapshot.preview_stamp() != node_preview.desired { return Ok(false); }
@@ -1163,9 +1145,11 @@ fn handle(
                     queue: graphics.renderer.queue.clone(),
                     format: graphics.config.format,
                 };
+                if let Some(canonical)=&canonical{crate::node_preview::NodePreview::build(&context,&snapshot,canonical).map_err(|e|e.to_string())?;}
                 crate::node_preview::NodePreview::build(&context, &snapshot, &compiled)
                     .map_err(|error| format!("node graph {} {:?}: {error}", snapshot.document.id, snapshot.preview_stamp()))
             })?;
+            if snapshot.layer_target.is_some(){motion_host::session::with_session(id,|s|crate::node_layer::apply(s,&snapshot,canonical.as_ref().unwrap_or(&compiled)))?;}
             node_preview.active = Some(preview);
             node_preview.installs += 1;
             Ok(true)
@@ -1283,6 +1267,7 @@ fn handle(
                 std::mem::swap(&mut w.surface,&mut g.surface);std::mem::swap(&mut w.config,&mut g.config);
             }
             presentation.last_present_us=began.elapsed().as_micros() as u64;
+            #[cfg(debug_assertions)]
             if presentation.last_present_us>=30_000 {
                 eprintln!("[motion-timing] surface {} present: {} us, composition renders={}, reuses={}",ui.window,presentation.last_present_us,presentation.composition_renders,presentation.composition_reuses);
             }

@@ -6,8 +6,9 @@ use crate::{
 use motion_core::EffectParam;
 use motion_core::{Command, EffectAction};
 use motion_ui::{
-    input::{Input, MouseButton, Rect},
+    input::{Input, Key, MouseButton, Rect},
     paint::{self, PaintList},
+    style::{box_style, text_style, State, States},
     text::TextAtlas,
     ui::{self, Align},
 };
@@ -15,6 +16,23 @@ use serde_json::Value;
 use std::collections::HashMap;
 mod library;
 pub(super) use library::entries;
+
+fn word(locale: Locale, zh: &str, en: &str) -> String {
+    if locale == Locale::Zh {
+        zh.into()
+    } else {
+        en.into()
+    }
+}
+
+fn context_row(card: Rect, width: f32, row: f32, index: usize) -> Rect {
+    Rect::new(
+        card.min[0] + 3.,
+        card.min[1] + 3. + index as f32 * row,
+        width - 6.,
+        row,
+    )
+}
 
 #[derive(Default)]
 pub struct Controls {
@@ -39,6 +57,14 @@ pub struct Controls {
     tracks: HashMap<(u64, u64, String), EffectParam>,
     collapsed_categories: std::collections::HashSet<String>,
     collapsed_effects: std::collections::HashSet<u64>,
+    context_menu: Option<EffectContextMenu>,
+}
+struct EffectContextMenu {
+    anchor: [f32; 2],
+    object: u64,
+    control: String,
+    effect: String,
+    category: Option<String>,
 }
 struct Field {
     object: u64,
@@ -172,12 +198,16 @@ fn dimensions(kind: &str) -> usize {
 }
 impl Controls {
     pub fn editing(&self) -> bool {
-        self.field.is_some() || self.choosing || self.enum_owner.is_some()
+        self.field.is_some()
+            || self.choosing
+            || self.enum_owner.is_some()
+            || self.context_menu.is_some()
     }
     pub fn cancel(&mut self) -> bool {
         let begun = self.field.take().is_some_and(|mut f| f.number.cancel());
         self.choosing = false;
         self.enum_owner = None;
+        self.context_menu = None;
         for dropdown in self.dropdowns.values_mut() {
             dropdown.open = false;
         }
@@ -210,19 +240,20 @@ impl Controls {
             .into_iter()
             .flatten()
             .map(|e| {
-                40. + self.definition(e).map_or(0., |d| {
-                    d["params"]
-                        .as_array()
-                        .into_iter()
-                        .flatten()
-                        .map(|p| {
-                            dimensions(p["kind"].as_str().unwrap_or("float")) as f32 * 26. + 20.
-                        })
-                        .sum::<f32>()
-                })
+                40. + if e["node_graph"].is_object() { 28. } else { 0. }
+                    + self.definition(e).map_or(0., |d| {
+                        d["params"]
+                            .as_array()
+                            .into_iter()
+                            .flatten()
+                            .map(|p| {
+                                dimensions(p["kind"].as_str().unwrap_or("float")) as f32 * 26. + 20.
+                            })
+                            .sum::<f32>()
+                    })
             })
             .sum::<f32>()
-            + 38.
+            + 94.
     }
     pub fn render(
         &mut self,
@@ -239,6 +270,284 @@ impl Controls {
         self.render_mode(
             false, list, atlas, area, y, layer, state, input, locale, out,
         );
+    }
+
+    pub fn finish_context_menu(
+        &mut self,
+        list: &mut PaintList,
+        atlas: &mut TextAtlas,
+        bounds: Rect,
+        state: &Value,
+        input: &Input,
+        locale: Locale,
+        out: &mut Vec<Action>,
+    ) {
+        let categories = self.context_categories(locale);
+        let Some(menu) = self.context_menu.as_ref() else {
+            return;
+        };
+        let anchor = menu.anchor;
+        let object = menu.object;
+        let control = menu.control.clone();
+        let effect = menu.effect.clone();
+        let mut active_category = menu.category.clone();
+        let styles = list.styles();
+        let row = styles.metric("context.row.height", 20.).clamp(18., 24.);
+        let width = 250f32.min(bounds.width());
+        let height = (4 + categories.len()) as f32 * row + 6.;
+        let card = Rect::new(
+            anchor[0].clamp(bounds.min[0], (bounds.max[0] - width).max(bounds.min[0])),
+            (anchor[1] - height).clamp(bounds.min[1], (bounds.max[1] - height).max(bounds.min[1])),
+            width,
+            height,
+        );
+        if input.focus_lost
+            || input.keys.iter().any(|(key, _)| *key == Key::Escape)
+            || input
+                .pressed
+                .is_some_and(|(_, point)| !card.contains(point) && active_category.is_none())
+        {
+            self.context_menu = None;
+            return;
+        }
+        box_style(
+            list,
+            card,
+            styles.resolve("context_menu", States::default()).unwrap(),
+        );
+        let mut chosen = None;
+        let clear_effects = word(locale, "清除所有效果", "Remove All Effects");
+        let header = [
+            (control.as_str(), false, false),
+            (effect.as_str(), false, false),
+            (clear_effects.as_str(), true, false),
+        ];
+        for (index, (label, enabled, _)) in header.iter().enumerate() {
+            let area = context_row(card, width, row, index);
+            let mut states = States::default();
+            if *enabled && area.contains(input.mouse) {
+                states = states.with(State::Selected);
+            }
+            if !*enabled {
+                states = states.with(State::Disabled);
+            }
+            let style = styles.resolve("context_menu.row", states).unwrap();
+            box_style(list, area, style);
+            text_style(
+                list,
+                atlas,
+                Rect::new(
+                    area.min[0] + 5.,
+                    area.min[1],
+                    area.width() - 10.,
+                    area.height(),
+                ),
+                label,
+                style,
+                Align::Left,
+            );
+            if *enabled && clicked(input, area) {
+                chosen = Some(index);
+            }
+        }
+        paint::line(
+            list,
+            vec![
+                [card.min[0] + 4., card.min[1] + 3. * row + 3.],
+                [card.max[0] - 4., card.min[1] + 3. * row + 3.],
+            ],
+            styles.color("context.border"),
+        );
+        let mut hovered = None;
+        for (offset, category) in categories.iter().enumerate() {
+            let index = offset + 3;
+            let area = context_row(card, width, row, index);
+            let selected = active_category.as_deref() == Some(category.as_str());
+            let mut states = States::default();
+            if area.contains(input.mouse) || selected {
+                states = states.with(State::Selected);
+            }
+            let style = styles.resolve("context_menu.row", states).unwrap();
+            box_style(list, area, style);
+            text_style(
+                list,
+                atlas,
+                Rect::new(
+                    area.min[0] + 5.,
+                    area.min[1],
+                    area.width() - 28.,
+                    area.height(),
+                ),
+                category,
+                style,
+                Align::Left,
+            );
+            paint::line(
+                list,
+                vec![
+                    [area.max[0] - 13., area.min[1] + row * 0.5 - 4.],
+                    [area.max[0] - 9., area.min[1] + row * 0.5],
+                    [area.max[0] - 13., area.min[1] + row * 0.5 + 4.],
+                ],
+                style.foreground.with_alpha(0.82),
+            );
+            if area.contains(input.mouse) {
+                hovered = Some(category.clone());
+            }
+        }
+        if let Some(category) = hovered {
+            active_category = Some(category);
+        }
+        if let Some(category) = active_category.as_deref() {
+            self.draw_effect_submenu(list, atlas, card, row, category, object, input, locale, out);
+        }
+        if let Some(menu) = self.context_menu.as_mut() {
+            menu.category = active_category;
+        }
+        if chosen == Some(2) {
+            let commands = state["project"]["layers"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .find(|layer| layer["id"].as_u64() == Some(object))
+                .and_then(|layer| layer["effects"].as_array())
+                .into_iter()
+                .flatten()
+                .filter_map(|effect| effect["id"].as_u64())
+                .map(|effect| Command::Effect {
+                    object,
+                    action: EffectAction::Remove { effect },
+                })
+                .collect::<Vec<_>>();
+            if !commands.is_empty() {
+                out.push(Action::EditBatch(commands));
+            }
+            self.context_menu = None;
+        } else if chosen.is_some() {
+            self.context_menu = None;
+        }
+    }
+
+    fn context_categories(&self, locale: Locale) -> Vec<String> {
+        let mut categories = std::collections::BTreeSet::new();
+        for package in self.catalogue["packages"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|package| package["enabled"] != false)
+        {
+            let fallback = package["manifest"]["name"].as_str().unwrap_or("Effects");
+            for effect in package["manifest"]["effects"]
+                .as_array()
+                .into_iter()
+                .flatten()
+            {
+                let category = effect["category"].as_str().unwrap_or(fallback);
+                let category = if locale == Locale::Zh {
+                    effect["category_name"].as_str().unwrap_or(category)
+                } else {
+                    category
+                };
+                categories.insert(category.to_string());
+            }
+        }
+        categories.into_iter().collect()
+    }
+
+    fn draw_effect_submenu(
+        &self,
+        list: &mut PaintList,
+        atlas: &mut TextAtlas,
+        card: Rect,
+        row: f32,
+        category: &str,
+        object: u64,
+        input: &Input,
+        locale: Locale,
+        out: &mut Vec<Action>,
+    ) {
+        let mut effects = Vec::new();
+        for package in self.catalogue["packages"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|package| package["enabled"] != false)
+        {
+            let fallback = package["manifest"]["name"].as_str().unwrap_or("Effects");
+            for effect in package["manifest"]["effects"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter(|effect| effect["category"].as_str().unwrap_or(fallback) == category)
+            {
+                effects.push((
+                    package["manifest"]["id"].as_str().unwrap_or("").to_string(),
+                    package["manifest"]["version"]
+                        .as_str()
+                        .unwrap_or("")
+                        .to_string(),
+                    package["hash"].as_str().unwrap_or("").to_string(),
+                    effect["id"].as_str().unwrap_or("").to_string(),
+                    if locale == Locale::Zh {
+                        effect["name"].as_str().unwrap_or("Effect")
+                    } else {
+                        effect["english_name"].as_str().unwrap_or("Effect")
+                    }
+                    .to_string(),
+                ));
+            }
+        }
+        effects.sort_by(|a, b| a.4.cmp(&b.4));
+        let width = 250f32.min((card.max[0] - card.min[0]).max(1.));
+        let submenu = Rect::new(
+            card.max[0] - 1.,
+            (card.max[1] - effects.len() as f32 * row - 6.).max(card.min[1]),
+            width,
+            effects.len() as f32 * row + 6.,
+        );
+        let styles = list.styles();
+        box_style(
+            list,
+            submenu,
+            styles.resolve("context_menu", States::default()).unwrap(),
+        );
+        for (index, (plugin, version, hash, effect_id, name)) in effects.iter().enumerate() {
+            let area = context_row(submenu, width, row, index);
+            let mut states = States::default();
+            if area.contains(input.mouse) {
+                states = states.with(State::Selected);
+            }
+            let style = styles.resolve("context_menu.row", states).unwrap();
+            box_style(list, area, style);
+            text_style(
+                list,
+                atlas,
+                Rect::new(
+                    area.min[0] + 5.,
+                    area.min[1],
+                    area.width() - 10.,
+                    area.height(),
+                ),
+                name,
+                style,
+                Align::Left,
+            );
+            if area.contains(input.mouse)
+                && input.pressed.is_some_and(|(button, point)| {
+                    button == MouseButton::Left && area.contains(point)
+                })
+            {
+                out.push(Action::Plugin(serde_json::json!({
+                    "op": "add",
+                    "object": object,
+                    "plugin": plugin,
+                    "version": version,
+                    "hash": hash,
+                    "effect": effect_id
+                })));
+                break;
+            }
+        }
     }
     pub fn render_library(
         &mut self,
@@ -317,6 +626,27 @@ impl Controls {
                 self.query.clear();
             }
             *y += 34.;
+            if ui::button_styled(
+                list,
+                atlas,
+                Rect::new(area.min[0] + 20., *y, area.width() - 40., 24.),
+                if locale == Locale::Zh {
+                    "新建节点效果"
+                } else {
+                    "New Node Effect"
+                },
+                input,
+                !locked
+                    && object != 0
+                    && !matches!(layer["content"]["kind"].as_str(), Some("audio" | "null")),
+                &styles,
+                "button.icon",
+            )
+            .clicked
+            {
+                out.push(Action::NewNodeEffect(object));
+            }
+            *y += 28.;
         }
         if layer["effects"].as_array().is_none_or(Vec::is_empty) && !self.choosing {
             text(
@@ -579,6 +909,18 @@ impl Controls {
             // Effect header with collapse triangle
             let header_rect = Rect::new(area.min[0] + 14., *y, area.width() - 28., 30.);
 
+            if input.pressed.is_some_and(|(button, point)| {
+                button == MouseButton::Right && header_rect.contains(point)
+            }) {
+                self.context_menu = Some(EffectContextMenu {
+                    anchor: input.mouse,
+                    object,
+                    control: word(locale, "效果控件", "Effect Controls"),
+                    effect: title.to_string(),
+                    category: None,
+                });
+            }
+
             // Background highlight on hover
             if header_rect.contains(input.mouse) {
                 paint::rect(list, header_rect, colors.SUNKEN.with_alpha(0.2));
@@ -657,6 +999,27 @@ impl Controls {
             }
             *y += 34.;
 
+            if effect["node_graph"].is_object() {
+                if ui::button_styled(
+                    list,
+                    atlas,
+                    Rect::new(area.min[0] + 24., *y, area.width() - 48., 22.),
+                    if locale == Locale::Zh {
+                        "编辑节点"
+                    } else {
+                        "Edit Nodes"
+                    },
+                    input,
+                    !locked,
+                    &styles,
+                    "button.icon",
+                )
+                .clicked
+                {
+                    out.push(Action::EditNodeEffect { object, effect: id });
+                }
+                *y += 26.;
+            }
             // Skip parameters if collapsed
             if is_collapsed {
                 continue;
@@ -675,6 +1038,18 @@ impl Controls {
                     name,
                     !implemented,
                 );
+                let parameter_row = Rect::new(area.min[0] + 18., *y, area.width() - 36., 24.);
+                if input.pressed.is_some_and(|(button, point)| {
+                    button == MouseButton::Right && parameter_row.contains(point)
+                }) {
+                    self.context_menu = Some(EffectContextMenu {
+                        anchor: input.mouse,
+                        object,
+                        control: name.to_string(),
+                        effect: title.to_string(),
+                        category: None,
+                    });
+                }
                 *y += 20.;
                 if kind == "curve" {
                     text(

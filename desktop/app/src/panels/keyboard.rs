@@ -53,9 +53,19 @@ pub fn route(
             return true;
         }
     }
+    let docked_timeline_modal = owner.is_none()
+        && (panels.layer_actions.modal_in(Some(Panel::Timeline))
+            || panels.layer_actions.text_in(Some(Panel::Timeline)));
+    if panels.layer_actions.modal_in(owner)
+        || panels.layer_actions.text_in(owner)
+        || docked_timeline_modal
+    {
+        return true;
+    }
     if panels.node_editor.popup_open()
         || panels.menu.is_some()
         || panels.panel_menu.is_some()
+        || panels.project.context_menu.is_some()
         || panels.timeline.timeline_context_menu.is_some()
     {
         return false;

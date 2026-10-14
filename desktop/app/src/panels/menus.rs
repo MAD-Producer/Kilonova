@@ -9,6 +9,11 @@ pub(super) fn render(
     state: &Value,
     out: &mut Vec<Action>,
 ) {
+    if input.focus_lost {
+        panels.menu = None;
+        panels.menu_scroll = 0;
+        return;
+    }
     let styles = list.styles();
     let colors = styles.colors();
 
@@ -54,11 +59,15 @@ pub(super) fn render(
             false,
         );
         if clicked(input, r) {
-            panels.menu = if panels.menu == Some(i) {
+            let next = if panels.menu == Some(i) {
                 None
             } else {
                 Some(i)
             };
+            if panels.menu != next {
+                panels.menu_scroll = 0;
+            }
+            panels.menu = next;
         }
         x += width;
     }
@@ -107,6 +116,11 @@ pub(super) fn render(
                     format!("{}    Ctrl+Shift+Z", locale.t(T::Redo)),
                     Action::History(1),
                     state["canRedo"].as_bool().unwrap_or(false),
+                ),
+                (
+                    if locale == Locale::Zh { "取消未提交的插件编辑" } else { "Cancel Pending Plugin Edit" }.into(),
+                    Action::Plugin(serde_json::json!({"op":"cancel_plugin_gesture"})),
+                    state["preview"]["pluginEditorRecovery"]["gesture"] == true && state["observing"] != true,
                 ),
             ],
             2 => vec![
@@ -235,16 +249,35 @@ pub(super) fn render(
                 (locale.t(T::About).into(), Action::About, true),
             ],
         };
+        let desired_height = entries.len() as f32 * 32.0 + 8.0;
+        let top = metrics::TITLE_BAR + metrics::MENU_BAR;
+        let bottom = (size[1] - 20.0).max(top + 32.0);
+        let max_height = (bottom - top).max(32.0);
+        let visible_rows = (((max_height - 8.0) / 32.0).floor() as usize)
+            .max(1)
+            .min(entries.len());
+        let max_scroll = entries.len().saturating_sub(visible_rows);
+        if panels.menu_scroll > max_scroll {
+            panels.menu_scroll = max_scroll;
+        }
+        let popup_height = desired_height.min(max_height);
         let popup = Rect::new(
             starts
                 .get(menu)
                 .copied()
                 .unwrap_or(8.0)
                 .min((size[0] - 280.0).max(0.0)),
-            metrics::TITLE_BAR + metrics::MENU_BAR,
+            top,
             280.0,
-            entries.len() as f32 * 32.0 + 8.0,
+            popup_height,
         );
+        if popup.contains(input.mouse) {
+            if input.wheel[1] < 0.0 {
+                panels.menu_scroll = (panels.menu_scroll + 1).min(max_scroll);
+            } else if input.wheel[1] > 0.0 {
+                panels.menu_scroll = panels.menu_scroll.saturating_sub(1);
+            }
+        }
         // Text is drawn in a second GPU pass: remove covered labels before drawing the popup.
         list.retain_glyphs(|g| {
             g.position[0] + g.size[0] <= popup.min[0]
@@ -252,20 +285,27 @@ pub(super) fn render(
                 || g.position[1] + g.size[1] <= popup.min[1]
                 || g.position[1] >= popup.max[1]
         });
-        paint::rect(list, popup, colors.CHROME);
-        paint::stroke(list, popup, colors.BORDER, 1.0);
-        for (i, (text, action, enabled)) in entries.into_iter().enumerate() {
+        let start = panels.menu_scroll;
+        let mut popup_list = list.child();
+        paint::rect(&mut popup_list, popup, colors.CHROME);
+        paint::stroke(&mut popup_list, popup, colors.BORDER, 1.0);
+        for (i, (text, action, enabled)) in entries
+            .into_iter()
+            .enumerate()
+            .skip(start)
+            .take(visible_rows)
+        {
             let r = Rect::new(
                 popup.min[0] + 4.0,
-                popup.min[1] + 4.0 + i as f32 * 32.0,
+                popup.min[1] + 4.0 + (i - start) as f32 * 32.0,
                 popup.width() - 8.0,
                 30.0,
             );
             if r.contains(input.mouse) {
-                paint::rect(list, r, colors.SUNKEN);
+                paint::rect(&mut popup_list, r, colors.SUNKEN);
             }
             label(
-                list,
+                &mut popup_list,
                 atlas,
                 Rect::new(r.min[0] + 8.0, r.min[1], r.width() - 16.0, r.height()),
                 &text,
@@ -274,12 +314,16 @@ pub(super) fn render(
             if clicked(input, r) && enabled {
                 out.push(action);
                 panels.menu = None;
+                panels.menu_scroll = 0;
             }
         }
+        popup_list.clip_to(popup);
+        list.append(popup_list);
         if input.pressed.is_some_and(|(_, p)| {
             !popup.contains(p) && p[1] >= metrics::TITLE_BAR + metrics::MENU_BAR
         }) {
             panels.menu = None;
+            panels.menu_scroll = 0;
         }
     }
 }
