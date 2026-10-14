@@ -160,13 +160,22 @@ impl Node {
                 let Some(index) = tabs.iter().position(|t| *t == tab) else {
                     return false;
                 };
-                tabs.remove(index);
-                *active = (*active).min(tabs.len().saturating_sub(1));
+                remove_tab(tabs, active, index);
                 true
             }
             Node::Fixed { .. } => false,
         }
     }
+}
+
+/// Preserve the active panel when an earlier tab is removed. Removing the
+/// active tab selects the next neighbour, or the preceding one at the end.
+pub(crate) fn remove_tab(tabs: &mut Vec<DockId>, active: &mut usize, index: usize) {
+    tabs.remove(index);
+    if index < *active {
+        *active = active.saturating_sub(1);
+    }
+    *active = (*active).min(tabs.len().saturating_sub(1));
 }
 
 /// A dock after layout: where it is and how big it is.
