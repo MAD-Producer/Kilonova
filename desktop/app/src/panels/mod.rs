@@ -36,6 +36,8 @@ pub(crate) mod path_controls;
 mod paths;
 mod project;
 mod properties;
+#[cfg(test)]
+mod selection_tests;
 mod timeline;
 mod timeline_columns;
 #[cfg(test)]
@@ -166,6 +168,9 @@ pub fn chrome(
     let colors = styles.colors();
 
     let mut out = Vec::new();
+    if panels.normalize_selection(state) {
+        out.extend(cancel_interaction(panels));
+    }
     panels.cursor = None;
     panels.drag_readout = None;
     panels.node_editor.external_inspector = layout.find(Panel::NodeProperties.dock()).is_some();
@@ -201,7 +206,7 @@ pub fn chrome(
                 .as_array()
                 .is_some_and(|ls| ls.iter().any(|l| l["id"].as_u64() == Some(id)))
         {
-            panels.selected = None;
+            panels.select_only(None);
             out.extend(cancel_interaction(panels));
         }
     }
@@ -561,16 +566,7 @@ pub fn chrome(
                 &panels.effect_controls.catalogue,
                 input,
                 panels.locale,
-                panels.selected.filter(|id| {
-                    *id != 0
-                        && !state["project"]["layers"]
-                            .as_array()
-                            .into_iter()
-                            .flatten()
-                            .any(|l| {
-                                l["id"].as_u64() == Some(*id) && l["locked"].as_bool() == Some(true)
-                            })
-                }),
+                panels.editable_selection(state).first().copied(),
                 &mut out,
             );
             if open {
@@ -655,6 +651,9 @@ pub fn floating_chrome(
     let colors = styles.colors();
 
     let mut out = vec![];
+    if panels.normalize_selection(state) {
+        out.extend(cancel_interaction(panels));
+    }
     panels.cursor = None;
     let timeline_dropdown = panels.timeline_columns.editing();
     let dropdown_owned = panels.timeline_columns.editing_in(Some(panel));
@@ -765,16 +764,7 @@ pub fn floating_chrome(
         .is_some_and(|c| c.owner == Some(panel))
     {
         if let Some(mut console) = panels.fx_console.take() {
-            let selected = panels.selected.filter(|id| {
-                *id != 0
-                    && !state["project"]["layers"]
-                        .as_array()
-                        .into_iter()
-                        .flatten()
-                        .any(|l| {
-                            l["id"].as_u64() == Some(*id) && l["locked"].as_bool() == Some(true)
-                        })
-            });
+            let selected = panels.editable_selection(state).first().copied();
             if fx_console::render_fx_console(
                 list,
                 atlas,

@@ -64,7 +64,7 @@ impl Shell {
         self.state = self
             .engine
             .edit(serde_json::to_string(&Command::Add { layer }).map_err(|e| e.to_string())?)?;
-        self.panels.selected = Some(id);
+        self.panels.select_only(Some(id));
         Ok(())
     }
     pub(crate) fn action(
@@ -180,6 +180,7 @@ impl Shell {
             }
             Action::Plugin(request) => {
                 self.stop();
+                let request = self.panels.effect_request(request, &self.state);
                 self.state = self.engine.plugin(request.to_string())?;
             }
             Action::ImportEffectPackage => {
@@ -244,7 +245,7 @@ impl Shell {
                     })
                     .map_err(|e| e.to_string())?,
                 )?;
-                self.panels.selected = Some(id);
+                self.panels.select_only(Some(id));
                 self.actions.push_back(panels::Action::ShowPanel(
                     dock::Panel::EffectControls.dock(),
                 ));
@@ -267,7 +268,7 @@ impl Shell {
                 self.state = self.engine.edit(
                     serde_json::to_string(&Command::Add { layer }).map_err(|e| e.to_string())?,
                 )?;
-                self.panels.selected = Some(id);
+                self.panels.select_only(Some(id));
             }
             Action::AddShape(shape) => {
                 self.stop();
@@ -291,7 +292,7 @@ impl Shell {
                     })
                     .map_err(|e| e.to_string())?,
                 )?;
-                self.panels.selected = Some(id);
+                self.panels.select_only(Some(id));
             }
             Action::ExportPng => {
                 self.stop();
@@ -441,10 +442,11 @@ impl Shell {
             Action::SelectAt(point) => {
                 self.stop();
                 let result = self.engine.hit_candidates(point[0], point[1])?;
-                self.panels.selected = result["candidates"]
+                let selected = result["candidates"]
                     .as_array()
                     .and_then(|c| c.first())
                     .and_then(|c| c["id"].as_u64());
+                self.panels.select_only(selected);
             }
             Action::PreviewDrag {
                 object,

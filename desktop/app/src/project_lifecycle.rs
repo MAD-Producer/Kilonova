@@ -109,7 +109,7 @@ impl Shell {
                     self.workspace.cancel();
                     self.actions.clear();
                     self.frame = self.state["frame"].as_f64().unwrap_or(0.);
-                    self.panels.selected = None;
+                    self.panels.select_only(None);
                     self.present_due = true;
                 }
             }

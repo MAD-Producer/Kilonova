@@ -139,16 +139,12 @@ pub fn route(
 
 pub fn handle_shortcuts(input: &Input, panels: &mut Panels, state: &Value, out: &mut Vec<Action>) {
     let mut frame = state["frame"].as_f64().unwrap_or(0.0);
-    let selected = panels.selected.filter(|id| *id != 0).filter(|id| {
-        !state["project"]["layers"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .any(|l| l["id"].as_u64() == Some(*id) && l["locked"].as_bool() == Some(true))
-    });
     for (key, modifiers, repeat) in input.key_presses() {
+        let key_owned = matches!(panels.focused, Some(Panel::Timeline | Panel::Curves))
+            && panels.animation_controls.user_key().is_some();
         if let Some(command) = shortcuts::resolve(Scope::Animation, key, modifiers, repeat) {
             if super::timeline_shortcuts::handle(command, modifiers, panels, state, &mut frame, out)
+                || key_owned && command == Command::Delete
             {
                 continue;
             }
@@ -156,6 +152,8 @@ pub fn handle_shortcuts(input: &Input, panels: &mut Panels, state: &Value, out: 
         let Some(command) = shortcuts::resolve(Scope::Application, key, modifiers, repeat) else {
             continue;
         };
+        let selected_ids = panels.editable_selection(state);
+        let selected = panels.selected.filter(|id| selected_ids.contains(id));
         let action = match command {
             Command::ReloadStyle => Action::ReloadStyle,
             Command::NewProject => Action::New,
@@ -197,10 +195,27 @@ pub fn handle_shortcuts(input: &Input, panels: &mut Panels, state: &Value, out: 
                 Action::Seek(frame)
             }
             Command::Duplicate => {
-                let Some(object) = selected else {
+                if panels.focused == Some(Panel::Curves)
+                    || matches!(panels.focused, Some(Panel::Timeline))
+                        && (panels.timeline.graph_mode
+                            || panels.animation_controls.user_key().is_some())
+                {
+                    continue;
+                }
+                let Some(object) = selected_ids.first().copied() else {
                     continue;
                 };
-                Action::Edit(Edit::Duplicate { object })
+                if selected_ids.len() > 1 {
+                    Action::EditBatch(
+                        selected_ids
+                            .iter()
+                            .copied()
+                            .map(|object| Edit::Duplicate { object })
+                            .collect(),
+                    )
+                } else {
+                    Action::Edit(Edit::Duplicate { object })
+                }
             }
             Command::Split => {
                 let Some(object) = selected else {
@@ -212,10 +227,44 @@ pub fn handle_shortcuts(input: &Input, panels: &mut Panels, state: &Value, out: 
                 })
             }
             Command::Delete => {
-                let Some(object) = selected else {
+                let Some(object) = selected_ids.first().copied() else {
                     continue;
                 };
-                Action::Edit(Edit::Delete { object })
+                if selected_ids.len() > 1 {
+                    Action::EditBatch(
+                        selected_ids
+                            .iter()
+                            .copied()
+                            .map(|object| Edit::Delete { object })
+                            .collect(),
+                    )
+                } else {
+                    Action::Edit(Edit::Delete { object })
+                }
+            }
+            Command::SelectAll | Command::DeselectAll
+                if matches!(panels.focused, Some(Panel::Timeline | Panel::Composition))
+                    && (panels.focused != Some(Panel::Timeline)
+                        || (!panels.timeline.graph_mode
+                            && panels.animation_controls.user_key().is_none())) =>
+            {
+                if command == Command::DeselectAll {
+                    panels.select_only(None);
+                } else {
+                    let primary = panels.selected;
+                    panels.selected_layers = state["project"]["layers"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .filter_map(|layer| layer["id"].as_u64())
+                        .filter(|id| *id != 0)
+                        .collect();
+                    panels.selected = primary
+                        .filter(|id| panels.selected_layers.contains(id))
+                        .or_else(|| panels.selected_layers.first().copied());
+                    panels.selection_anchor = panels.selected;
+                }
+                continue;
             }
             _ => continue,
         };
@@ -453,6 +502,56 @@ mod tests {
                 Action::AddNull,
                 Action::NewText
             ]
+        ));
+    }
+
+    #[test]
+    fn duplicate_and_delete_use_one_batch_for_multiple_selected_layers() {
+        let mut panels = Panels {
+            selected: Some(2),
+            selected_layers: vec![1, 2],
+            ..Default::default()
+        };
+        let state = serde_json::json!({
+            "frame": 0,
+            "project": {"frames": 120, "layers": [
+                {"id": 1, "locked": false},
+                {"id": 2, "locked": false}
+            ]}
+        });
+        let mut out = vec![];
+        handle_shortcuts(
+            &Input {
+                keys: vec![(
+                    Key::D,
+                    motion_ui::input::Modifiers {
+                        control: true,
+                        ..Default::default()
+                    },
+                )],
+                ..Default::default()
+            },
+            &mut panels,
+            &state,
+            &mut out,
+        );
+        assert!(matches!(
+            out.as_slice(),
+            [Action::EditBatch(commands)] if commands.len() == 2
+        ));
+        out.clear();
+        handle_shortcuts(
+            &Input {
+                keys: vec![(Key::Delete, Default::default())],
+                ..Default::default()
+            },
+            &mut panels,
+            &state,
+            &mut out,
+        );
+        assert!(matches!(
+            out.as_slice(),
+            [Action::EditBatch(commands)] if commands.len() == 2
         ));
     }
     #[test]

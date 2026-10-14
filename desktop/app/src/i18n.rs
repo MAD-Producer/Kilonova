@@ -361,6 +361,21 @@ impl Locale {
             .unwrap_or(self.t(Text::Window))
     }
     pub fn error(self, error: &str) -> String {
+        if self == Self::Zh {
+            let message = match error {
+                "audio layers do not support visual effects" => {
+                    Some("所选音频图层不支持视觉效果，本次操作未应用。")
+                }
+                "adjustment layers support image effects only" => {
+                    Some("调整图层只支持图像效果，本次操作未应用。")
+                }
+                "at least one layer is required" => Some("请先选择可编辑图层。"),
+                _ => None,
+            };
+            if let Some(message) = message {
+                return format!("{}: {message}", self.t(Text::OperationFailed));
+            }
+        }
         if self == Self::Zh && error.starts_with("project is already open") {
             return "工程已被另一个进程打开，请关闭后再试。".into();
         }

@@ -282,3 +282,100 @@ fn trusted_plugin_cancel_does_not_cancel_an_unrelated_host_gesture() {
     assert!(session.engine.gesture_active());
     session.engine.end_gesture(false).unwrap();
 }
+
+#[test]
+fn batch_effect_add_deduplicates_targets_and_roundtrips_with_one_step_undo() {
+    let (directory, mut session, _) = session();
+    session
+        .plugin_request("{\"op\":\"cancel_plugin_gesture\"}")
+        .unwrap();
+    session
+        .engine
+        .apply(Command::Duplicate { object: 1 })
+        .unwrap();
+    let original = session.engine.snapshot();
+    let package = motion_effects::builtin::particle_package().unwrap();
+    let request = json!({"op":"add","objects":[1,2,1],"plugin":package.manifest.id,
+        "version":package.manifest.version,"hash":package.hash,"effect":package.manifest.effects[0].id});
+    session.plugin_request(&request.to_string()).unwrap();
+    assert!(session
+        .engine
+        .project()
+        .layers
+        .iter()
+        .all(|l| l.effects.len() == 2));
+    let edited = session.engine.snapshot();
+    motion_core::storage::save(directory.path(), session.engine.project()).unwrap();
+    let reopened = motion_core::storage::load(directory.path()).unwrap();
+    assert!(reopened.layers.iter().all(|l| l.effects.len() == 2));
+    assert!(session.engine.undo().unwrap());
+    assert_eq!(session.engine.snapshot(), original);
+    assert!(session.engine.redo().unwrap());
+    assert_eq!(session.engine.snapshot(), edited);
+}
+
+#[test]
+fn invalid_batch_effect_targets_fail_atomically_and_leave_history_unchanged() {
+    for mode in [
+        "locked",
+        "adjustment",
+        "audio",
+        "missing",
+        "empty",
+        "malformed",
+    ] {
+        let (_, mut session, _) = session();
+        session
+            .plugin_request("{\"op\":\"cancel_plugin_gesture\"}")
+            .unwrap();
+        let mut layer = motion_core::Layer::solid(2, "second", [64.; 2], [32., 32., 0.], [0.; 4]);
+        let mut commands = vec![];
+        match mode {
+            "locked" => layer.locked = true,
+            "adjustment" => layer.content = motion_core::Content::Adjustment,
+            "audio" => {
+                layer.content = motion_core::Content::Audio {
+                    audio: motion_core::AudioClip::new(1),
+                };
+                layer.size = [0.; 2];
+                layer.transform = motion_core::Transform::new([0.; 3]);
+                commands.push(Command::RegisterAudioAsset {
+                    asset: motion_core::AudioAsset {
+                        id: 1,
+                        path: "assets/audio.wav".into(),
+                        mime: "audio/wav".into(),
+                        bytes: 1,
+                        track: 0,
+                        sample_rate: 48000,
+                        channels: 2,
+                        sample_frames: 192000,
+                        duration_us: 4_000_000,
+                    },
+                });
+            }
+            _ => {}
+        }
+        // The audio fixture needs no decoder: target validation precedes sampling.
+        commands.push(Command::Add { layer });
+        session.engine.apply_batch(commands).unwrap();
+        let before = session.engine.snapshot();
+        let revision = session.engine.revision();
+        let package = motion_effects::builtin::particle_package().unwrap();
+        let objects = match mode {
+            "missing" => json!([1, 99]),
+            "empty" => json!([]),
+            "malformed" => json!([1, "two"]),
+            _ => json!([1, 2]),
+        };
+        let request = json!({"op":"add","objects":objects,"plugin":package.manifest.id,
+            "version":package.manifest.version,"hash":package.hash,"effect":package.manifest.effects[0].id});
+        assert!(
+            session.plugin_request(&request.to_string()).is_err(),
+            "{mode}"
+        );
+        assert_eq!(session.engine.snapshot(), before, "{mode}");
+        assert_eq!(session.engine.revision(), revision, "{mode}");
+        assert!(session.engine.undo().unwrap());
+        assert_eq!(session.engine.project().layers.len(), 1, "{mode}");
+    }
+}
