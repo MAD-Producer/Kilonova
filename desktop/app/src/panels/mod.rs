@@ -954,7 +954,7 @@ mod tests {
         menus(
             &mut PaintList::default(),
             &mut atlas,
-            [900., 600.],
+            [900., 160.],
             &mut panels,
             &input,
             &state,
