@@ -40,6 +40,8 @@ object NativeBridge {
     @JvmStatic external fun startProfiling(id:Long,maxFrames:Int):String
     @JvmStatic external fun stopProfiling(id:Long):String
     @JvmStatic external fun injectGraphicsFault(id:Long,kind:Int):String
+    /** Diagnostics builds only; release builds reject probes before calling Java. */
+    @JvmStatic external fun diagnosticJniException(kind:Int,value:Any?):String
     @JvmStatic external fun capture(id: Long): String
     @JvmStatic external fun pack(id: Long): String
     @JvmStatic external fun replace(id: Long, project: String): String

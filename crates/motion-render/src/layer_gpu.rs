@@ -207,6 +207,8 @@ impl LayerGpu {
         self.accumulators.len() as u64 * u64::from(self.size[0]) * u64::from(self.size[1]) * 4
     }
     pub fn raster_scratch_bytes(&self) -> u64 {
+        // One shared size owns 16-byte MSAA plus a 4-byte resolve. The separate
+        // 4-byte vector source belongs to images/VectorSources, not this pool.
         self.raster_scratch.keys().map(|(w,h)| u64::from(*w)*u64::from(*h)*20).sum()
     }
     pub fn group_scratch_bytes(&self) -> u64 { self.groups.bytes() }
@@ -263,6 +265,13 @@ impl LayerGpu {
         self.raster_resolve
             .retain(|size, _| meshes.iter().any(|m| !groups::GroupGpu::grouped(m) && *size == (m.width, m.height)));
         self.groups.retain(meshes);
+        // Include the complete working set even when all fingerprints hit.
+        // Policy reductions and later meshes must refuse before any new upload.
+        let required = *bytes + self.pending_vector_bytes(scene, meshes, images) + resource_bytes;
+        if !meshes.is_empty() && required > source_budget {
+            return Err(RenderError::budget(crate::ResourceBudgetScope::VectorWorkingSet,
+                required, source_budget, "vector sources and MSAA raster resources exceed configured source texture budget"));
+        }
         for mesh in meshes {
             let id = scene.layers[mesh.layer].id;
             let key = TextureKey::Vector(id);

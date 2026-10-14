@@ -34,5 +34,8 @@ image = { version = "0.25", default-features = false, features = ["png", "jpeg"]
 lto = "thin"
 codegen-units = 1
 
+[profile.release.package.motion-effects]
+overflow-checks = true
+
 [patch.crates-io]
 naga = { path = "vendor/naga" }

@@ -38,6 +38,62 @@ fn host() -> Arc<AndroidPlatform> {
 // NativeBridge: project lifecycle
 // ---------------------------------------------------------------------------
 
+/// Error-path acceptance hook. Non-diagnostic builds never invoke the callback.
+#[no_mangle]
+pub extern "system" fn Java_com_motionstudio_editor_NativeBridge_diagnosticJniException(
+    mut env: JNIEnv,
+    _class: JClass,
+    kind: jint,
+    value: JObject,
+) -> jstring {
+    #[cfg(not(feature = "diagnostics"))]
+    let result: Result<serde_json::Value, Error> = {
+        let _ = (kind, value);
+        Err("JNI diagnostic probes are not included in this build".into())
+    };
+    #[cfg(feature = "diagnostics")]
+    let result = motion_host::ops::catch_panic(|| -> Result<serde_json::Value, Error> {
+        if value.is_null() {
+            return Err("JNI diagnostic input is null".into());
+        }
+        match kind {
+            0 => {
+                let string = env
+                    .is_instance_of(&value, "java/lang/String")
+                    .map_err(|error| crate::bridge::java_error(&mut env, error))?;
+                if !string {
+                    return Err("JNI input must be a java.lang.String".into());
+                }
+                // Checked before constructing the typed JNI wrapper; this
+                // probe never passes an arbitrary object to unchecked JNI.
+                let text = read_string(&mut env, &JString::from(value))?;
+                Ok(serde_json::json!({"text":text}))
+            }
+            1 => {
+                let read_only = crate::bridge::read_only_value(&mut env, &value)?;
+                Ok(serde_json::json!({"readOnly":read_only}))
+            }
+            2 => {
+                let buffer = env
+                    .is_instance_of(&value, "java/nio/ByteBuffer")
+                    .map_err(|error| crate::bridge::java_error(&mut env, error))?;
+                if !buffer {
+                    return Err("JNI input must be a java.nio.ByteBuffer".into());
+                }
+                let buffer = JByteBuffer::from(value);
+                if is_read_only(&mut env, &buffer)? {
+                    return Err("JNI diagnostic output buffer is read-only".into());
+                }
+                let (_, capacity) = BufferAccess::capture(&mut env, &buffer).resolve()?;
+                Ok(serde_json::json!({"capacity":capacity}))
+            }
+            _ => Err("unknown JNI diagnostic operation".into()),
+        }
+    })
+    .and_then(|result| result);
+    string_result(&mut env, || result)
+}
+
 #[no_mangle]
 pub extern "system" fn Java_com_motionstudio_editor_NativeBridge_resourceInfo(
     mut env: JNIEnv,
@@ -88,12 +144,17 @@ pub extern "system" fn Java_com_motionstudio_editor_NativeBridge_projectTemplate
 
 #[no_mangle]
 pub extern "system" fn Java_com_motionstudio_editor_NativeBridge_creationError(
-    env: JNIEnv,
+    mut env: JNIEnv,
     _class: JClass,
 ) -> jstring {
     let error = session::creation_error();
-    env.new_string(error.as_str())
-        .map_or(std::ptr::null_mut(), |s| s.into_raw())
+    match env.new_string(error.as_str()) {
+        Ok(text) => text.into_raw(),
+        Err(error) => {
+            let _ = crate::bridge::java_error(&mut env, error);
+            std::ptr::null_mut()
+        }
+    }
 }
 
 #[no_mangle]
@@ -439,14 +500,14 @@ pub extern "system" fn Java_com_motionstudio_editor_NativeBridge_renderPlanInfo(
 
 #[no_mangle]
 pub extern "system" fn Java_com_motionstudio_editor_NativeBridge_sampleRenderPlanInto(
-    env: JNIEnv,
+    mut env: JNIEnv,
     _class: JClass,
     id: jlong,
     frame: jint,
     buffer: JByteBuffer,
 ) -> jint {
     integer_result(|| {
-        let (pointer, capacity) = BufferAccess::capacity_first(&env, &buffer)?;
+        let (pointer, capacity) = BufferAccess::capacity_first(&mut env, &buffer)?;
         with(id, |s| {
             // JNI owns this direct buffer for the duration of the call.
             let out = unsafe { crate::bridge::output_bytes(pointer, capacity) };
@@ -475,14 +536,14 @@ pub extern "system" fn Java_com_motionstudio_editor_NativeBridge_pack(
 
 #[no_mangle]
 pub extern "system" fn Java_com_motionstudio_editor_NativeBridge_sampleInto(
-    env: JNIEnv,
+    mut env: JNIEnv,
     _class: JClass,
     id: jlong,
     frame: jint,
     buffer: JByteBuffer,
 ) -> jint {
     integer_result(|| {
-        let (pointer, capacity) = BufferAccess::address_first(&env, &buffer)?;
+        let (pointer, capacity) = BufferAccess::address_first(&mut env, &buffer)?;
         with(id, |s| {
             let out = unsafe { crate::bridge::output_bytes(pointer, capacity) };
             export::sample_into_inner(s, frame, out).map(|batches| batches as i32)
@@ -492,12 +553,12 @@ pub extern "system" fn Java_com_motionstudio_editor_NativeBridge_sampleInto(
 
 #[no_mangle]
 pub extern "system" fn Java_com_motionstudio_editor_NativeBridge_assetPixels(
-    env: JNIEnv,
+    mut env: JNIEnv,
     _class: JClass,
     id: jlong,
     asset: jlong,
 ) -> jbyteArray {
-    bytes_result(&env, || export::asset_pixels(id, asset))
+    bytes_result(&mut env, || export::asset_pixels(id, asset))
 }
 
 #[no_mangle]
@@ -533,7 +594,7 @@ pub extern "system" fn Java_com_motionstudio_editor_NativeBridge_assetPixelsInto
     buffer: JByteBuffer,
 ) -> jstring {
     let writable = is_read_only(&mut env, &buffer);
-    let access = BufferAccess::capture(&env, &buffer);
+    let access = BufferAccess::capture(&mut env, &buffer);
     string_result(&mut env, || {
         if writable? {
             return Err("image output buffer is read-only".into());
@@ -562,13 +623,13 @@ pub extern "system" fn Java_com_motionstudio_editor_NativeBridge_plugin(
 
 #[no_mangle]
 pub extern "system" fn Java_com_motionstudio_editor_NativeBridge_pluginPixels(
-    env: JNIEnv,
+    mut env: JNIEnv,
     _class: JClass,
     id: jlong,
     program: jint,
     resource: jint,
 ) -> jbyteArray {
-    bytes_result(&env, || effects::plugin_pixels(id, program, resource))
+    bytes_result(&mut env, || effects::plugin_pixels(id, program, resource))
 }
 
 #[no_mangle]
@@ -607,8 +668,8 @@ pub extern "system" fn Java_com_motionstudio_editor_GeometryBridge_sampleGeometr
 ) -> jstring {
     // Capture buffer lookup before the writability check: this endpoint has
     // always reported read-only buffers before lookup failures.
-    let parameter_access = BufferAccess::capture(&env, &parameters);
-    let vertex_access = BufferAccess::capture(&env, &vertices);
+    let parameter_access = BufferAccess::capture(&mut env, &parameters);
+    let vertex_access = BufferAccess::capture(&mut env, &vertices);
     let parameter_readonly = is_read_only(&mut env, &parameters);
     let vertex_readonly = is_read_only(&mut env, &vertices);
     string_result(&mut env, || {
@@ -670,7 +731,7 @@ pub extern "system" fn Java_com_motionstudio_editor_CompositionBridge_sampleFram
         if is_read_only(&mut env, &buffer)? {
             return Err("frame bundle buffer is read-only".into());
         }
-        let (address, capacity) = BufferAccess::capacity_first(&env, &buffer)?;
+        let (address, capacity) = BufferAccess::capacity_first(&mut env, &buffer)?;
         let mut bundle = Vec::new();
         let len = composition::frame_bundle(id, &composition_id?, frame, &mut bundle)?;
         // A negative result reports the required size so Java can grow the buffer.

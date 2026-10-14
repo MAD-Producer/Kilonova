@@ -23,6 +23,14 @@ impl Shell {
             .extend(panels::cancel_interaction(&mut self.panels));
         self.translate(Event::FocusLost);
     }
+    pub(crate) fn pointer_left(&mut self) {
+        if self.input.held.is_some() {
+            self.workspace.cancel();
+            self.actions
+                .extend(panels::cancel_interaction(&mut self.panels));
+        }
+        self.translate(Event::PointerLeft);
+    }
     pub(crate) fn ui_interval(&self) -> Duration {
         let rate = self
             .window
@@ -61,6 +69,7 @@ impl Shell {
         paint.stylesheet = self.panels.styles.clone();
         let neutral = Input::default();
         let project_modal = self.project_modal();
+        let began = Instant::now();
         let mut actions = if let Some(home) = &mut self.home {
             home.draw(
                 &mut paint,
@@ -104,6 +113,21 @@ impl Shell {
                 &mut actions,
             );
         }
+        let mut context = self.engine.diagnostics().context();
+        context.panel = self.panels.focused.map(|p| p.dock().0);
+        context.playing = self.playback.is_some();
+        context.pointer_dragging = self.input.held == Some(MouseButton::Left);
+        context.frame = self.frame;
+        self.engine.diagnostics().set_context(context.clone());
+        self.engine.diagnostics().record(
+            0,
+            "ui_build",
+            "panels",
+            began.elapsed(),
+            None,
+            Some(began.elapsed()),
+            context,
+        );
         if let Some(dialog) = &mut self.dialog {
             if let Some(event) = dialog.render(
                 &mut paint,
@@ -767,6 +791,14 @@ impl Shell {
                 self.dirty = true;
                 self.redraw();
                 return;
+            }
+            WindowEvent::CursorLeft { .. } => {
+                if f.input.held.is_some() {
+                    self.workspace.cancel();
+                    self.actions
+                        .extend(panels::cancel_interaction(&mut self.panels));
+                }
+                Some(Event::PointerLeft)
             }
             WindowEvent::MouseInput { state, button, .. } => {
                 let button = match button {

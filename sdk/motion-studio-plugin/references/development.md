@@ -2,7 +2,7 @@
 
 普通插件：修改 WGSL/manifest/PNG → 提升版本 → 打包 → App 导入 → 显式升级测试实例 → 预览、动画与导出对照。无需重建 App，不必每次等待完整 Android CI。
 
-打包器只读取 manifest 声明的文件，不收集研究素材、日志、账号配置或输出包。结构检查不等于完整 schema/PNG/shader 验收，后者由 App 导入完成。有现成 `effect_tool` 时增加 `--validator` 提前做完整离线检查，不需重新编译工具或 App。
+打包器只读取 manifest 声明的文件，不收集研究素材、日志、账号配置或输出包。由 Rust `effect_tool plan` 输出声明文件和限制，生成临时包后必须通过 `effect_tool check` 完整 schema/PNG/shader 校验才发布。校验器通过 --validator、MOTION_EFFECT_VALIDATOR 或自动路径发现提供；缺失时拒绝打包，不需要重新构建 App。
 
 使用渐变、色块、棋盘格、脉冲与半透明边缘，覆盖默认、代表与边界参数、链顺序、多实例、动画、倒序和随机寻帧。记录色彩/Alpha、边缘和差异；对照 AE 等产品时固定身份、版本和工程条件，不把同名当成已验收。
 

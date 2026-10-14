@@ -128,6 +128,7 @@ impl RenderStats {
 }
 
 pub struct Renderer {
+    submission_ledger: crate::submission_ledger::SubmissionLedger,
     preview_resource_guard: bool,
     pub adapter: wgpu::Adapter,
     pub device: wgpu::Device,
@@ -154,6 +155,7 @@ pub struct Renderer {
     layer_gpu: crate::layer_gpu::LayerGpu,
     mask_gpu: crate::mask_gpu::MaskGpu,
     compositing_gpu: Option<crate::compositing_gpu::CompositingGpu>,
+    compositing_pipeline_set_builds: u64,
     video_gpu: Option<crate::video_gpu::VideoGpu>,
     pub video_upload_bytes: u64,
     pub video_uploads: u64,
@@ -368,6 +370,7 @@ impl Renderer {
         let mask_gpu=crate::mask_gpu::MaskGpu::new(&device,&image_layout)?;
         let mut renderer = Self {
             preview_resource_guard: false,
+            submission_ledger: Default::default(),
             adapter,
             device,
             queue,
@@ -415,6 +418,7 @@ impl Renderer {
             image_prefetches: 0,
             effect_diagnostics: Vec::new(),
             compositing_gpu: None,
+            compositing_pipeline_set_builds: 0,
         };
         renderer.effect_gpu.builder.device_dimension =
             renderer.device.limits().max_texture_dimension_2d.min(8192);
@@ -470,6 +474,8 @@ impl Renderer {
     }
     /// Successful native effect pipeline builds over this renderer's lifetime.
     pub fn effect_pipeline_builds(&self) -> u64 { self.effect_gpu.state.pipeline_builds }
+    /// Compositing pipeline-set construction count, not driver compilation time.
+    pub fn compositing_pipeline_set_builds(&self) -> u64 { self.compositing_pipeline_set_builds }
     pub fn texture_bytes(&self) -> u64 {
         self.texture_bytes
             + self.video_plane_bytes()
@@ -478,8 +484,23 @@ impl Renderer {
             + self.mask_gpu.scratch_bytes()
             + self.compositing_gpu.as_ref().map_or(0,|gpu|gpu.bytes())
     }
+    /// Enable diagnostic snapshots for future submissions; pending records remain intact.
+    pub fn set_submission_tracking(&self, enabled: bool) {
+        self.submission_ledger.set_enabled(enabled);
+    }
+    /// Optional metadata instrumentation. Disabled submissions execute no ledger closure.
+    /// Raw queue.submit calls, uploads and caller GPU resources are outside this scope.
+    pub fn submit_tracked(&self, buffer: wgpu::CommandBuffer,
+        extra_resources: impl FnOnce(&mut crate::TextureResourceLedger)) -> wgpu::SubmissionIndex {
+        if !self.submission_ledger.enabled() { return self.queue.submit(Some(buffer)); }
+        let mut ledger = self.texture_resource_ledger();
+        extra_resources(&mut ledger);
+        self.submission_ledger.submit(&self.queue, buffer, ledger)
+    }
+    pub fn submission_memory_info(&self, current: &crate::TextureResourceLedger) -> crate::SubmissionMemoryInfo {
+        self.submission_ledger.info(current)
+    }
     /// Snapshot of application-owned textures; it does not keep GPU handles alive.
-    /// Command buffers and GPU-retired allocations are outside this snapshot.
     pub fn texture_resource_ledger(&self) -> crate::TextureResourceLedger {
         use crate::TextureCategory::*;
         let mut ledger = crate::TextureResourceLedger::default();
@@ -1069,6 +1090,9 @@ impl Renderer {
         let limit = if self.image_cache_enabled { crate::image_resources::IDLE_TEXTURE_BYTES } else { 0 };
         let mut idle = self.image_idle_bytes();
         let mut total = self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes + additional;
+        if idle <= limit && total <= self.effect_gpu.builder.source_texture_budget {
+            return;
+        }
         let mut victims: Vec<_> = self.image_access.iter()
             .filter(|(id, _)| !self.image_active.contains(id) && replacing != Some(TextureKey::Static(**id)))
             .map(|(id, time)| (*time, *id)).collect();
@@ -1275,7 +1299,7 @@ impl Renderer {
             });
         let mut stats = self.encode_internal(scene, view, width, height, &mut encoder, None, preview)?;
         let submitted = Instant::now();
-        self.queue.submit(Some(encoder.finish()));
+        self.submit_tracked(encoder.finish(), |_| {});
         stats.cpu_prepare_us += submitted.elapsed().as_micros() as u64;
         self.check_health()?;
         Ok(stats)
@@ -1378,15 +1402,17 @@ impl Renderer {
         {
             return self.encode_effects(scene, view, width, height, encoder, timestamps, preview);
         }
-        // The last mask may have been disabled without changing source media.
-        // Releasing its coverage must also happen on the direct draw path.
-        let obsolete_masks:Vec<_>=self.images.keys().copied().filter(|k|matches!(k,TextureKey::Mask(_))).collect();
-        if !obsolete_masks.is_empty() {
-            for key in obsolete_masks {self.texture_bytes-=self.images.remove(&key).unwrap().bytes;}
+        // Direct drawing consumes neither mask coverage nor effect-input snapshots.
+        // Release both without discarding reusable compositing pipelines.
+        let obsolete_inputs:Vec<_>=self.images.keys().copied()
+            .filter(|k|matches!(k,TextureKey::Mask(_) | TextureKey::EffectInput(_))).collect();
+        if !obsolete_inputs.is_empty() {
+            for key in obsolete_inputs {self.texture_bytes-=self.images.remove(&key).unwrap().bytes;}
             self.mask_gpu.clear();self.effect_gpu.state.invalidate();
         }
         self.effect_diagnostics.clear();
-        self.compositing_gpu = None;
+        if let Some(gpu) = &mut self.compositing_gpu { gpu.release(); }
+        let vector_other = self.effect_gpu.state.resource_bytes + self.video_plane_bytes();
         if self.layer_gpu.prepare_vectors(
             &self.device,
             encoder,
@@ -1396,7 +1422,7 @@ impl Renderer {
             &[],
             &mut self.images,
             &mut self.texture_bytes,
-            self.effect_gpu.state.resource_bytes,
+            vector_other,
             self.effect_gpu.builder.source_texture_budget,
         )? {
             self.effect_gpu.state.invalidate();
@@ -1511,9 +1537,9 @@ impl Renderer {
             particles_culled: 0,
         })
     }
-    fn prepare_input_snapshots(&mut self)->Result<()> {
+    fn prepare_input_snapshots(&mut self, input_order: &[usize])->Result<()> {
         let frame=&self.effect_gpu.builder.frame;
-        let specs=crate::effect_plan::image_input_order(frame).map_err(RenderError::Invalid)?.into_iter().map(|i| {
+        let specs=input_order.iter().copied().map(|i| {
             let draw=&frame.draws[i];let pass=&frame.passes[draw.pass_end-1];(TextureKey::EffectInput(draw.layer),pass.width,pass.height)
         }).collect::<Vec<_>>();
         let stale=self.images.keys().copied().filter(|key|matches!(key,TextureKey::EffectInput(_))&&!specs.iter().any(|v|v.0==*key)).collect::<Vec<_>>();
@@ -1550,7 +1576,7 @@ impl Renderer {
         preview: bool,
     ) -> Result<RenderStats> {
         let started = Instant::now();
-        loop {
+        let image_input_order = loop {
             if self.preview_resource_guard {
                 self.effect_gpu.builder.build_preview_guarded(scene, &self.asset_order, width, height, preview)
             } else if preview {
@@ -1560,7 +1586,9 @@ impl Renderer {
             }
             ?;
             self.prepare_effect_images();
-            self.prepare_input_snapshots()?;
+            let input_order = crate::effect_plan::image_input_order(&self.effect_gpu.builder.frame)
+                .map_err(RenderError::Invalid)?;
+            self.prepare_input_snapshots(&input_order)?;
             match self.effect_gpu.state.prepare(
                 &self.device,
                 &self.queue,
@@ -1570,7 +1598,7 @@ impl Renderer {
                 self.texture_bytes + self.video_plane_bytes(),
             self.effect_gpu.builder.source_texture_budget,
             ) {
-                Ok(()) => break,
+                Ok(()) => break input_order,
                 Err(error) => {
                     if let Some((program, message)) = self.effect_gpu.state.failed_program.take() {
                         self.effect_gpu
@@ -1583,7 +1611,7 @@ impl Renderer {
                     return Err(error);
                 }
             }
-        }
+        };
         let vector_bytes = self.layer_gpu.pending_vector_bytes(scene, &self.effect_gpu.builder.frame.vectors, &self.images);
         let mask_bytes = self.effect_gpu.builder.frame.masks
             .chunk_by(|a,b|a.layer==b.layer)
@@ -1601,6 +1629,7 @@ impl Renderer {
         if masks_changed {
             self.effect_gpu.state.invalidate();
         }
+        let vector_other = self.effect_gpu.state.resource_bytes + self.video_plane_bytes();
         let vectors_changed = self.layer_gpu.prepare_vectors(
             &self.device,
             encoder,
@@ -1610,7 +1639,7 @@ impl Renderer {
             &frame.vectors,
             &mut self.images,
             &mut self.texture_bytes,
-            self.effect_gpu.state.resource_bytes,
+            vector_other,
             self.effect_gpu.builder.source_texture_budget,
         )?;
         let has_adjustment = frame
@@ -1637,8 +1666,13 @@ impl Renderer {
         );
         if has_compositing {
             let source_bytes=self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes;
-            let gpu = self.compositing_gpu.get_or_insert_with(|| crate::compositing_gpu::CompositingGpu::new(
-                &self.device, &self.queue, &self.uniform_layout, &self.image_layout, &self.sampler, self.target_format));
+            let builds = &mut self.compositing_pipeline_set_builds;
+            let gpu = self.compositing_gpu.get_or_insert_with(|| {
+                let gpu = crate::compositing_gpu::CompositingGpu::new(
+                    &self.device, &self.queue, &self.uniform_layout, &self.image_layout, &self.sampler, self.target_format);
+                *builds += 1;
+                gpu
+            });
             let needed: Vec<_> = frame.compositing.iter().filter(|c| c.matte >= 0)
                 .map(|c| (frame.draws[c.matte as usize].layer, c.mode >= 3)).collect();
             gpu.prepare_mattes(&self.device, &self.image_layout, &self.sampler, composition_size, &needed,
@@ -1741,7 +1775,7 @@ impl Renderer {
         let mut accumulator = 0;
         // Preserve each referenced source before another layer reuses slot 0.
         // This is GPU-only and independent of the composition's stacking order.
-        for i in crate::effect_plan::image_input_order(frame).map_err(RenderError::Invalid)? {
+        for i in image_input_order {
             let draw=&frame.draws[i];
             for p in draw.pass_start..draw.pass_end {
                 self.effect_gpu.state.encode_pass(p,frame,&self.asset_order,
@@ -2070,7 +2104,7 @@ impl Renderer {
                 depth_or_array_layers: 1,
             },
         );
-        self.queue.submit(Some(encoder.finish()));
+        self.submit_tracked(encoder.finish(), |ledger| ledger.merge(target.texture_resource_ledger()));
         let (send, recv) = mpsc::sync_channel(1);
         target
             .buffer

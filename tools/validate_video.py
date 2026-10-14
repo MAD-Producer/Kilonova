@@ -64,8 +64,8 @@ def main():
             oracle = run("ffmpeg", "-v", "error", "-i", str(fixtures / name), "-vf",
                          f"select=eq(n\\,{source_index})", "-frames:v", "1", "-f", "rawvideo",
                          "-pix_fmt", "rgba", "pipe:1")
-            assert len(pixels) == len(oracle) == sample["width"] * sample["height"] * 4
-            assert source_index + 1 == len(pts) or sample["end_us"] == pts[source_index + 1]
+            if not (len(pixels) == len(oracle) == sample["width"] * sample["height"] * 4): raise RuntimeError('Decoded frame dimensions differ from the reference')
+            if not (source_index + 1 == len(pts) or sample["end_us"] == pts[source_index + 1]): raise RuntimeError('Decoded frame end timestamp differs from the reference')
             diffs = [abs(pixels[n] - oracle[n]) for n in range(len(pixels)) if n % 4 != 3]
             ordered = sorted(diffs)
             result = {"source": name, "source_frame": source_index, "pts_us": sample["pts_us"],
@@ -76,10 +76,10 @@ def main():
                       "p99_absolute_rgb_error": ordered[int(len(diffs)*.99)],
                       "max_absolute_rgb_error": max(diffs), "decode_us": sample["decode_us"]}
             # Edges differ between chroma upsamplers. Large colour/rotation errors still fail.
-            assert result["mean_absolute_rgb_error"] < 8, result
-            assert result["p99_absolute_rgb_error"] < 35, result
+            if not (result["mean_absolute_rgb_error"] < 8): raise RuntimeError(result)
+            if not (result["p99_absolute_rgb_error"] < 35): raise RuntimeError(result)
             results.append(result)
-    assert results, "No frames compared"
+    if not (results): raise RuntimeError("No frames compared")
     args.output.mkdir(parents=True, exist_ok=True)
     (args.output / "comparison.json").write_text(json.dumps(results, indent=2) + "\n")
     print(json.dumps(results, indent=2))

@@ -1,7 +1,9 @@
 """Build deterministic SDK 2 scene packages; no proprietary plugin assets."""
 from pathlib import Path
+import argparse
+import importlib.util
 import json
-import zipfile
+import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 DEST = ROOT / "crates/motion-effects/scene-library"
@@ -12,9 +14,21 @@ def parameter(id, name, kind, default, low, high, units="", animate=True, option
                 min=low, max=high, step=0.01, units=units, animatable=animate,
                 options=options or [])
 
-def main():
-    (DEST / "shaders").mkdir(parents=True, exist_ok=True)
-    (DEST / "ui").mkdir(exist_ok=True)
+def pack_library(source, output, validator=None):
+    script = ROOT / "sdk/motion-studio-plugin/scripts/pack_msfx.py"
+    spec = importlib.util.spec_from_file_location("motion_sdk_packer", script)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("SDK packer is unavailable")
+    packer = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(packer)
+    return packer.pack(source, output, validator)
+
+
+def generate(destination, validator=None, ui_source=None):
+    source = ui_source or DEST
+    destination = Path(destination)
+    (destination / "shaders").mkdir(parents=True, exist_ok=True)
+    (destination / "ui").mkdir(exist_ok=True)
     # One appearance shader works with all host-generated sprites. Plugins can
     # replace this shader, including sampling their own packaged PNG resources.
     shader = '''fn main_sprite(uv:vec2<f32>,c:vec4<f32>,style:vec4<f32>)->vec4<f32>{
@@ -27,7 +41,7 @@ def main():
     let fringe=vec3(1.0+style.z*p.x,1.0,1.0-style.z*p.x);
     return vec4(c.rgb*fringe*coverage,c.a*coverage);
 }'''
-    (DEST / "shaders/sprite.wgsl").write_text(shader, encoding="utf-8", newline="\n")
+    (destination / "shaders/sprite.wgsl").write_text(shader, encoding="utf-8", newline="\n")
     editor = dict(id="com.motionstudio.scene-editor", protocol=1, title="场景效果编辑器",
                   entry="ui/editor.html", files=["ui/editor.html","ui/editor.js","ui/editor.css","ui/bridge.js"])
     def effect(id, name, english, renderer, params, scene, blend="alpha"):
@@ -69,16 +83,29 @@ def main():
                 parameter("fade","淡入淡出比例","float",.15,0,.5),
                 parameter("prewarm","预热","bool",1,0,1,animate=False)]
         effects.append(effect(id,name,english,"particles",params,dict(occlusion=False,elements=[]),blend))
-    manifest=dict(format_version=1,sdk_version=2,id="com.motionstudio.effects.scene",version="1.1.0",name="Motion Studio Scene Effects",author="Motion Studio",license="MIT",effects=effects)
-    (DEST / "manifest.json").write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+"\n",encoding="utf-8",newline="\n")
-    names=["manifest.json","shaders/sprite.wgsl",*editor["files"]]
+    manifest=dict(format_version=1,sdk_version=2,id="com.motionstudio.effects.scene",version="1.1.1",name="Motion Studio Scene Effects",author="Motion Studio",license="MIT",effects=effects)
+    (destination / "manifest.json").write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+"\n",encoding="utf-8",newline="\n")
     # Match Git's LF checkout so Windows and other hosts produce the same hash.
     for name in editor["files"]:
-        path = DEST / name
-        path.write_text(path.read_text(encoding="utf-8"), encoding="utf-8", newline="\n")
-    with zipfile.ZipFile(DEST / "scene-effects.msfx","w",compression=zipfile.ZIP_DEFLATED) as archive:
-        for name in sorted(names):
-            info=zipfile.ZipInfo(name,date_time=(1980,1,1,0,0,0));info.compress_type=zipfile.ZIP_DEFLATED
-            archive.writestr(info,(DEST / name).read_bytes())
+        (destination / name).write_text((source / name).read_text(encoding="utf-8"), encoding="utf-8", newline="\n")
+    return pack_library(destination, destination / "scene-effects.msfx", validator)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--check", action="store_true", help="Regenerate in a temporary directory and compare the published package bytes")
+    parser.add_argument("--validator", type=Path)
+    args = parser.parse_args()
+    if args.check:
+        with tempfile.TemporaryDirectory(prefix="motion-scene-check-") as directory:
+            output = Path(directory)
+            report = generate(output, args.validator)
+            if (output / "scene-effects.msfx").read_bytes() != (DEST / "scene-effects.msfx").read_bytes():
+                raise RuntimeError("scene package is stale; regenerate and retain the previous published version")
+        report["path"] = str(DEST / "scene-effects.msfx")
+        report["checked"] = True
+    else:
+        report = generate(DEST, args.validator)
+    print(json.dumps(report, ensure_ascii=False, indent=2))
 
 if __name__ == "__main__": main()

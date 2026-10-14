@@ -146,6 +146,7 @@ pub fn start_profiling(id: i64, limit: i32) -> Result<serde_json::Value> {
         g.renderer.device.poll(wgpu::Maintain::Wait);
         g.timer = GpuTimer::new(&g.renderer.device, &g.renderer.queue);
         s.recorder = Some(FrameRecorder::new(s.presented + 1, limit as usize));
+        s.update_submission_tracking();
         Ok(s.preview_info())
     })
 }
@@ -167,7 +168,7 @@ pub fn stop_profiling(id: i64) -> Result<serde_json::Value> {
             .recorder
             .as_ref()
             .ok_or("frame recording is not active")?;
-        let metadata = json!({"preview":s.preview_info(),
+        let metadata = json!({"preview":s.preview_info(),"resourceLedger":s.texture_resource_ledger(),
             "projectWidth":s.engine.project().width,"projectHeight":s.engine.project().height,
             "projectFps":s.engine.project().fps,"projectFrames":s.engine.project().frames,
             "layerCount":s.engine.project().layers.len(),"surfaceEpoch":s.surface_epoch,
@@ -190,6 +191,7 @@ pub fn stop_profiling(id: i64) -> Result<serde_json::Value> {
         )
         .map_err(|e| e.to_string())?;
         s.recorder = None;
+        s.update_submission_tracking();
         Ok(json!({"file":path.to_string_lossy()}))
     })
 }
@@ -215,4 +217,9 @@ pub fn render_inner(s: &mut crate::session::Session, frame: f64) -> Result<bool>
 /// Read application texture ownership without touching project/history or submitting GPU work.
 pub fn resource_ledger(id: i64) -> crate::Result<serde_json::Value> {
     crate::session::with_session(id, |session| Ok(session.texture_resource_ledger()))
+}
+
+/// Toggle bounded submission diagnostics without modifying project/history.
+pub fn resource_tracking(id: i64, enabled: bool) -> Result<serde_json::Value> {
+    crate::session::with_session(id, |session| Ok(session.configure_resource_tracking(enabled)))
 }

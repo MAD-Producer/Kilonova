@@ -60,7 +60,7 @@ def blue_noise():
     low=[power(x,y) for x,y in [(1,0),(0,1),(1,1),(2,0),(0,2)]]
     high=[power(x,y) for x,y in [(24,0),(0,24),(20,20),(28,8),(8,28)]]
     ratio=(sum(low)/len(low))/(sum(high)/len(high))
-    assert ratio<0.15,ratio
+    if not (ratio<0.15): raise RuntimeError(ratio)
     (LIB/'blue-noise-spectrum.json').write_text(json.dumps(dict(size=64,seed=271828,method='toroidal_void_and_cluster',low_power=low,high_power=high,low_high_ratio=ratio),indent=2)+'\n')
     print('Blue-noise low/high frequency power ratio:',ratio)
 

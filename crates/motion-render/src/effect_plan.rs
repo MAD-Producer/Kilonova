@@ -17,6 +17,38 @@ pub fn scratch_bytes(width: u32, height: u32, slots: u32) -> u64 {
         * 4
         * u64::from(slots.count_ones() + u32::from(slots & 128 != 0))
 }
+
+#[cfg(test)]
+mod vector_frame_budget_tests {
+    use super::*;
+    fn scene(count:u64)->Scene {
+        let mut p=motion_model::Project::new(64,64,30,60).unwrap();
+        for id in 1..=count {
+            let mut l=motion_model::Layer::solid(id,"vector",[20.;2],[32.,32.,0.],[1.;4]);
+            l.content=motion_model::Content::Vector {vector:motion_model::vector::VectorContent::shape(motion_model::vector::ShapeKind::Rectangle)};
+            p.layers.push(l);
+        }
+        let mut s=Scene::new(&p);s.sample(&p,0.,None,&motion_core::ExpressionEvaluator).unwrap();s
+    }
+    #[test]
+    fn cached_vectors_spend_the_frame_limit_before_new_or_cached_meshes_are_appended() {
+        for existing_third in [false,true] {
+            let mut builder=PlanBuilder::new(Registry::new_with_builtins().unwrap()).unwrap();
+            builder.build(&scene(if existing_third{3}else{2}),&[0],64,64,false).unwrap();
+            // Repeat the opaque cached rectangle's actual triangles. This
+            // exercises cached buffer capacity without another large Lyon run.
+            for id in [1,2] {
+                let mesh=&mut builder.vector_cache.get_mut(&id).unwrap().3;
+                assert_eq!(mesh.vertices.len(),6);
+                mesh.vertices=std::sync::Arc::new(mesh.vertices.repeat(21845));
+            }
+            assert!(builder.build(&scene(3),&[0],64,64,false).is_err());
+            assert!(builder.frame.vectors.iter().map(|m|m.vertices.len()).sum::<usize>()<=crate::vector_mesh::MAX_TRIANGLE_VERTICES);
+            assert_eq!(builder.vector_cache.contains_key(&3),existing_third,"new rejected geometry must not enter the cache");
+            assert_eq!(builder.vector_cache[&1].3.vertices.len(),131070);
+        }
+    }
+}
 /// Exact capacities of the independently sized, host-owned scratch textures.
 pub fn scratch_capacity_bytes(sizes: &[[u32; 2]; 8]) -> u64 {
     sizes
@@ -828,6 +860,7 @@ impl PlanBuilder {
         self.frame.scratch_sizes = [[0; 2]; 8];
         self.frame.draws.clear();
         self.frame.vectors.clear();
+        let mut vector_remaining = crate::vector_mesh::MAX_TRIANGLE_VERTICES;
         self.vector_cache.retain(|id, _| {
             scene
                 .layers
@@ -931,7 +964,7 @@ impl PlanBuilder {
                 if dirty {
                     let origin = [layer.source_rect[0]+layer.size[0]*0.5-layer.source_size[0]*0.5,
                         layer.source_rect[1]+layer.size[1]*0.5-layer.source_size[1]*0.5];
-                    let geometry = crate::vector_mesh::rasterize(vector, layer.size, scale, origin)
+                    let geometry = crate::vector_mesh::rasterize_with_limit(vector, layer.size, scale, origin, vector_remaining)
                         .map_err(|e| format!("layer {}: {e}", layer.id))?;
                     let (w, h) = (
                         (layer.size[0] * scale).ceil() as u32,
@@ -965,6 +998,8 @@ impl PlanBuilder {
                         .insert(layer.id, (vector.clone(), layer.size, scale, mesh));
                 }
                 let mut mesh = self.vector_cache[&layer.id].3.clone();
+                vector_remaining = vector_remaining.checked_sub(mesh.vertices.len())
+                    .ok_or("frame vector vertex limit exceeded (262144)")?;
                 mesh.layer = layer_index;
                 self.frame.vectors.push(mesh);
             }
@@ -1058,15 +1093,13 @@ impl PlanBuilder {
                     // The SDK wrapper mixes the final result with the original input.
                     // Zero opacity is an exact identity: avoid all conversions, padding,
                     // and shader passes while retaining dependency/parameter validation.
-                    if def
-                        .params
-                        .iter()
-                        .position(|p| p.id == "effect_opacity")
-                        .is_some_and(|i| params[i][0] == 0.0)
-                    {
+                    if !crate::scene::effect_has_output(e) {
                         return Ok(());
                     }
                     if def.renderer != motion_effects::RendererKind::Image {
+                        if !crate::scene::effect_is_screen_generator(e) {
+                            return Err("scene generator state missing".into());
+                        }
                         if materialized {
                             return Err(
                                 "a scene generator must be the first enabled effect on its layer"
@@ -1395,15 +1428,7 @@ impl PlanBuilder {
             }
             let mut words = [0.0; 32];
             self.overlays.push(overlay);
-            let mvp = if overlay {
-                glam::Mat4::from_scale(glam::Vec3::new(
-                    2. / scene.width as f32,
-                    2. / scene.height as f32,
-                    1.,
-                ))
-            } else {
-                layer.view_projection
-            };
+            let mvp = crate::scene::plane_projection(scene, layer, overlay);
             words[..16].copy_from_slice(&mvp.to_cols_array());
             words[16..20].copy_from_slice(&if materialized {
                 [1.0; 4]

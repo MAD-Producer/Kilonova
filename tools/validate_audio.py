@@ -36,7 +36,7 @@ def main():
         if sys.byteorder != "little":
             native.byteswap()
             independent.byteswap()
-        assert len(native) <= len(independent), (name, len(native), len(independent))
+        if not (len(native) <= len(independent)): raise RuntimeError((name, len(native), len(independent)))
         errors = [a - b for a, b in zip(native, independent)]
         rms = math.sqrt(sum(e * e for e in errors) / len(errors))
         maximum = max(abs(e) for e in errors)
@@ -46,8 +46,8 @@ def main():
                   "independent_tail_padding_frames": (len(independent) - len(native)) // metadata["channels"]}
         reports.append(report)
         (args.output / "decoder-parity.json").write_text(json.dumps({"comparisons": reports}, indent=2), encoding="utf-8")
-        assert rms < 0.001 and maximum < 0.01, report
-        assert metadata["duration_us"] == 2_000_000, report
+        if not (rms < 0.001 and maximum < 0.01): raise RuntimeError(report)
+        if not (metadata["duration_us"] == 2_000_000): raise RuntimeError(report)
     print(json.dumps({"comparisons": reports}, indent=2))
 
 
