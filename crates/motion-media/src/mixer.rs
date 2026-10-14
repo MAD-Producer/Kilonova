@@ -208,6 +208,7 @@ pub fn read_waveform(
     first_bucket: u64,
     count: usize,
 ) -> Result<Vec<WaveBucket>> {
+    validate_waveform_asset(asset)?;
     if count > 4096 {
         return Err("waveform query exceeds 4096 buckets".into());
     }
@@ -285,6 +286,7 @@ pub(crate) fn build_waveform(
     asset: &AudioAsset,
     mut check: impl FnMut() -> Result<()>,
 ) -> Result<()> {
+    validate_waveform_asset(asset)?;
     let mut source = File::open(pcm).map_err(|e| e.to_string())?;
     let mut out = std::io::BufWriter::new(
         File::create(pcm.with_extension("wave")).map_err(|e| e.to_string())?,
@@ -299,6 +301,12 @@ pub(crate) fn build_waveform(
         let from = bucket * u64::from(asset.sample_rate) / 100;
         let to = (bucket + 1) * u64::from(asset.sample_rate) / 100;
         let count = remaining.min((to - from) * u64::from(asset.channels)) as usize;
+        if count == 0 {
+            return Err(format!(
+                "audio asset {} waveform builder made no progress",
+                asset.id
+            ));
+        }
         bucket += 1;
         source
             .read_exact(&mut bytes[..count * 4])
@@ -320,4 +328,100 @@ pub(crate) fn build_waveform(
     out.flush().map_err(|e| e.to_string())?;
     out.get_ref().sync_all().map_err(|e| e.to_string())?;
     Ok(())
+}
+
+fn validate_waveform_asset(asset: &AudioAsset) -> Result<()> {
+    asset
+        .validate()
+        .map_err(|error| format!("audio asset {}: {error}", asset.id))
+}
+
+#[cfg(test)]
+mod waveform_tests {
+    use super::*;
+    use std::{sync::mpsc, time::Duration};
+
+    fn asset(sample_rate: u32, sample_frames: u64) -> AudioAsset {
+        AudioAsset {
+            id: 42,
+            path: "assets/waveform.wav".into(),
+            mime: "audio/wav".into(),
+            bytes: 16,
+            track: 0,
+            sample_rate,
+            channels: 1,
+            sample_frames,
+            duration_us: if sample_rate == 0 {
+                0
+            } else {
+                sample_frames * 1_000_000 / u64::from(sample_rate)
+            },
+        }
+    }
+
+    #[test]
+    fn invalid_sample_rates_return_with_asset_context_without_opening_pcm() {
+        for sample_rate in [0, 1, 50, 99, 100, 7_999, 192_001, u32::MAX] {
+            let (send, receive) = mpsc::channel();
+            std::thread::spawn(move || {
+                let result = build_waveform(
+                    Path::new("this-file-must-not-be-opened.pcm"),
+                    &asset(sample_rate, 1),
+                    || Ok(()),
+                );
+                send.send(result).unwrap();
+            });
+            let error = receive
+                .recv_timeout(Duration::from_secs(1))
+                .expect("invalid waveform metadata must terminate")
+                .unwrap_err();
+            assert!(error.contains("audio asset 42"), "{sample_rate}: {error}");
+            assert!(error.contains("8–192 kHz"), "{sample_rate}: {error}");
+        }
+    }
+
+    #[test]
+    fn valid_waveform_keeps_exact_min_max_rms_bytes_and_read_contract() {
+        let root = tempfile::tempdir().unwrap();
+        let pcm = root.path().join("decoded.pcm");
+        let samples = [-1.0f32, -0.5, 0.5, 1.0];
+        std::fs::write(
+            &pcm,
+            samples
+                .into_iter()
+                .flat_map(f32::to_le_bytes)
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
+        let valid = asset(8_000, 4);
+        let mut checks = 0;
+        build_waveform(&pcm, &valid, || {
+            checks += 1;
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(checks, 1);
+        let bytes = std::fs::read(pcm.with_extension("wave")).unwrap();
+        let expected = [-1.0f32, 1.0, (0.625f32).sqrt()]
+            .into_iter()
+            .flat_map(f32::to_le_bytes)
+            .collect::<Vec<_>>();
+        assert_eq!(bytes, expected);
+
+        let cache = crate::cache_path(root.path(), &valid).unwrap();
+        std::fs::create_dir_all(cache.parent().unwrap()).unwrap();
+        std::fs::rename(pcm.with_extension("wave"), cache.with_extension("wave")).unwrap();
+        let buckets = read_waveform(root.path(), &valid, 0, 1).unwrap();
+        assert_eq!(buckets.len(), 1);
+        assert_eq!(buckets[0].min, -1.);
+        assert_eq!(buckets[0].max, 1.);
+        assert_eq!(buckets[0].rms, (0.625f32).sqrt());
+    }
+
+    #[test]
+    fn public_waveform_reader_rejects_invalid_metadata_before_division_or_io() {
+        let root = tempfile::tempdir().unwrap();
+        let error = read_waveform(root.path(), &asset(0, 1), 0, 1).unwrap_err();
+        assert!(error.contains("audio asset 42"), "{error}");
+    }
 }

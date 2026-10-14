@@ -1,13 +1,17 @@
 """Build the SDK 5 world-birth emitter without modifying published scene packages."""
 from pathlib import Path
+import argparse
 import json
-import zipfile
-from generate_scene_library import parameter
+import tempfile
+from generate_scene_library import parameter, pack_library
 
 ROOT = Path(__file__).resolve().parents[1]
 DEST = ROOT / "crates/motion-effects/particle-library"
 
-def main():
+def generate(destination, validator=None, shader_source=None):
+    source = shader_source or DEST / "shaders/sprite.wgsl"
+    destination = Path(destination)
+    (destination / "shaders").mkdir(parents=True, exist_ok=True)
     params = [
         parameter("rate", "出生速率", "float", 360, 0, 10000, "particles/s", False),
         parameter("lifetime", "寿命", "float", 2, .001, 120, "s", False),
@@ -44,13 +48,28 @@ def main():
                 required_capabilities=["scene_projection","sprite_instances","native_plugin_editor","particle_birth_history"],
                 known_differences=["Independent world-birth emitter inspired by common particle workflows; no Trapcode Particular compatibility claim.",
                     "Fixed rate/lifetime; keyed birth appearance; single project-image sprite; no emitter-history expressions, collision, ribbons, auxiliary or fluid simulation."])
-    manifest=dict(format_version=1,sdk_version=5,id="com.motionstudio.effects.particles",version="1.0.0",
+    manifest=dict(format_version=1,sdk_version=5,id="com.motionstudio.effects.particles",version="1.0.1",
                   name="Motion Studio Particle Effects",author="Motion Studio",license="MIT",effects=[effect])
-    (DEST/"manifest.json").write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+"\n",encoding="utf-8",newline="\n")
-    with zipfile.ZipFile(DEST/"particle-effects.msfx","w",compression=zipfile.ZIP_DEFLATED) as archive:
-        for name in sorted(["manifest.json","shaders/sprite.wgsl"]):
-            data=(DEST/name).read_text(encoding="utf-8").replace("\r\n","\n")
-            info=zipfile.ZipInfo(name,date_time=(1980,1,1,0,0,0));info.compress_type=zipfile.ZIP_DEFLATED
-            archive.writestr(info,data.encode("utf-8"))
+    (destination/"manifest.json").write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+"\n",encoding="utf-8",newline="\n")
+    (destination/"shaders/sprite.wgsl").write_text(Path(source).read_text(encoding="utf-8"),encoding="utf-8",newline="\n")
+    return pack_library(destination, destination / "particle-effects.msfx", validator)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--check", action="store_true", help="Regenerate in a temporary directory and compare the published package bytes")
+    parser.add_argument("--validator", type=Path)
+    args = parser.parse_args()
+    if args.check:
+        with tempfile.TemporaryDirectory(prefix="motion-particle-check-") as directory:
+            output = Path(directory)
+            report = generate(output, args.validator)
+            if (output / "particle-effects.msfx").read_bytes() != (DEST / "particle-effects.msfx").read_bytes():
+                raise RuntimeError("particle package is stale; regenerate and retain the previous published version")
+        report["path"] = str(DEST / "particle-effects.msfx")
+        report["checked"] = True
+    else:
+        report = generate(DEST, args.validator)
+    print(json.dumps(report, ensure_ascii=False, indent=2))
 
 if __name__=="__main__": main()

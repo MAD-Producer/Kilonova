@@ -13,6 +13,35 @@ use zip::{write::SimpleFileOptions, CompressionMethod, ZipArchive, ZipWriter};
 const MAX_PACKAGE: usize = 16 * 1024 * 1024;
 const MAX_MANIFEST: usize = 512 * 1024;
 const MAX_SHADER: usize = 256 * 1024;
+fn resource_limit(name: &str) -> Result<usize> {
+    if name == "manifest.json" { Ok(MAX_MANIFEST) }
+    else if name.starts_with("shaders/") && name.ends_with(".wgsl") { Ok(MAX_SHADER) }
+    else if name.starts_with("assets/") && name.ends_with(".png") { Ok(MAX_PACKAGE) }
+    else if name.starts_with("ui/") && crate::editor_mime(name).is_some() { Ok(MAX_SHADER) }
+    else { Err(Error::Invalid(format!("unexpected package file: {name}"))) }
+}
+
+/// Validate declared size before any payload allocation; detect growth/shrinkage
+/// with at most one byte beyond that size, regardless of the actual stream size.
+fn read_bounded(reader: impl Read, expected: u64, limit: usize, name: &str) -> Result<Vec<u8>> {
+    ensure(expected <= limit as u64, &format!("{name}: effect resource exceeds size limit ({limit} bytes)"))?;
+    let mut data = Vec::new();
+    reader.take(expected + 1).read_to_end(&mut data)?;
+    ensure(data.len() as u64 == expected, &format!("{name}: effect resource length mismatch"))?;
+    Ok(data)
+}
+fn read_file_bounded(path: &Path, limit: usize, name: &str) -> Result<Vec<u8>> {
+    let file = File::open(path)?;
+    let metadata = file.metadata()?;
+    ensure(metadata.is_file(), &format!("{name}: package resource is not a regular file"))?;
+    read_bounded(file, metadata.len(), limit, name)
+}
+fn source_file(base: &Path, name: &str) -> Result<PathBuf> {
+    let file = base.join(name).canonicalize()?;
+    ensure(file.starts_with(base), &format!("{name}: package file resolves outside source directory"))?;
+    Ok(file)
+}
+
 pub struct EffectPackage {
     pub manifest: PluginManifest,
     pub hash: String,
@@ -38,27 +67,9 @@ impl EffectPackage {
                 "directories and symlinks are not effect resources",
             )?;
             ensure(names.insert(name.to_lowercase()), "duplicate package entry")?;
-            let limit = if name == "manifest.json" {
-                MAX_MANIFEST
-            } else if name.starts_with("shaders/") && name.ends_with(".wgsl") {
-                MAX_SHADER
-            } else if name.starts_with("assets/") && name.ends_with(".png") {
-                MAX_PACKAGE
-            } else if name.starts_with("ui/") && crate::editor_mime(&name).is_some() {
-                MAX_SHADER
-            } else {
-                return Err(Error::Invalid("unexpected package file".into()));
-            };
-            ensure(
-                entry.size() <= limit as u64,
-                "effect resource exceeds size limit",
-            )?;
-            let mut data = Vec::new();
-            (&mut entry).take(limit as u64 + 1).read_to_end(&mut data)?;
-            ensure(
-                data.len() <= limit && data.len() as u64 == entry.size(),
-                "effect resource length mismatch",
-            )?;
+            let limit = resource_limit(&name)?.min(MAX_PACKAGE - total);
+            let expected = entry.size();
+            let data = read_bounded(&mut entry, expected, limit, &name)?;
             total = total
                 .checked_add(data.len())
                 .ok_or_else(|| Error::Invalid("package size overflow".into()))?;
@@ -169,47 +180,74 @@ impl EffectPackage {
         })
     }
     pub fn open(path: &Path) -> Result<Self> {
-        ensure(
-            fs::metadata(path)?.len() <= MAX_PACKAGE as u64,
-            "effect package exceeds 16 MiB",
-        )?;
-        let mut bytes = Vec::new();
-        File::open(path)?
-            .take(MAX_PACKAGE as u64 + 1)
-            .read_to_end(&mut bytes)?;
+        let bytes = read_file_bounded(path, MAX_PACKAGE, &path.to_string_lossy())?;
         Self::from_bytes(bytes)
     }
 }
-pub fn package_directory(path: &Path) -> Result<Vec<u8>> {
-    let manifest: PluginManifest = serde_json::from_slice(&fs::read(path.join("manifest.json"))?)?;
-    manifest.validate()?;
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SourceFilePlan {
+    pub name: String,
+    pub byte_limit: usize,
+}
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SourcePackagePlan {
+    pub protocol: u32,
+    pub plugin: String,
+    pub version: String,
+    pub manifest_sha256: String,
+    pub manifest_byte_limit: usize,
+    pub package_byte_limit: usize,
+    pub files: Vec<SourceFilePlan>,
+}
+fn declared_files(manifest: &PluginManifest) -> Result<BTreeSet<String>> {
     let mut names = BTreeSet::from(["manifest.json".to_owned()]);
     for effect in &manifest.effects {
-        if let Some(editor) = &effect.editor {
-            names.extend(editor.files.iter().cloned());
-        }
-        for pass in &effect.passes {
-            names.insert(pass.shader.clone());
-        }
-        for resource in &effect.resources {
-            names.insert(resource.clone());
-        }
+        if let Some(editor) = &effect.editor { names.extend(editor.files.iter().cloned()); }
+        names.extend(effect.passes.iter().map(|pass| pass.shader.clone()));
+        names.extend(effect.resources.iter().cloned());
     }
+    ensure(names.len() <= 256, "too many effect package entries")?;
+    let lowered: BTreeSet<_> = names.iter().map(|name| name.to_lowercase()).collect();
+    ensure(lowered.len() == names.len(), "duplicate case-insensitive package entry")?;
+    Ok(names)
+}
+/// Use the loader's schema, reference set and budgets for external packers.
+/// Full PNG/WGSL validation still runs on the resulting archive before publication.
+pub fn package_source_plan(path: &Path) -> Result<SourcePackagePlan> {
+    let data = read_file_bounded(path, MAX_MANIFEST, "manifest.json")?;
+    let manifest: PluginManifest = serde_json::from_slice(&data)?;
+    manifest.validate()?;
+    let files = declared_files(&manifest)?.into_iter().map(|name| {
+        Ok(SourceFilePlan { byte_limit: resource_limit(&name)?, name })
+    }).collect::<Result<Vec<_>>>()?;
+    Ok(SourcePackagePlan {
+        protocol: 1, plugin: manifest.id, version: manifest.version,
+        manifest_sha256: format!("{:x}", Sha256::digest(&data)),
+        manifest_byte_limit: MAX_MANIFEST, package_byte_limit: MAX_PACKAGE, files,
+    })
+}
+
+pub fn package_directory(path: &Path) -> Result<Vec<u8>> {
     let base = path.canonicalize()?;
+    let mut manifest_data = read_file_bounded(&source_file(&base, "manifest.json")?, MAX_MANIFEST, "manifest.json")?;
+    let manifest: PluginManifest = serde_json::from_slice(&manifest_data)?;
+    manifest.validate()?;
+    let names = declared_files(&manifest)?;
     let mut writer = ZipWriter::new(std::io::Cursor::new(Vec::new()));
     let options = SimpleFileOptions::default()
         .compression_method(CompressionMethod::Deflated)
         .last_modified_time(zip::DateTime::default());
-    let mut size = 0usize;
+    let mut size = manifest_data.len();
     for name in names {
-        let file = path.join(&name).canonicalize()?;
-        ensure(
-            file.starts_with(&base),
-            "package file resolves outside source directory",
-        )?;
-        let data = fs::read(file)?;
-        size = size.saturating_add(data.len());
-        ensure(size <= MAX_PACKAGE, "expanded package exceeds 16 MiB")?;
+        let data = if name == "manifest.json" { std::mem::take(&mut manifest_data) }
+            else {
+                let limit = resource_limit(&name)?.min(MAX_PACKAGE - size);
+                let data = read_file_bounded(&source_file(&base, &name)?, limit, &name)?;
+                size = size.checked_add(data.len()).ok_or_else(|| Error::Invalid("package size overflow".into()))?;
+                data
+            };
         writer.start_file(name, options)?;
         writer.write_all(&data)?;
     }
@@ -398,5 +436,27 @@ impl Registry {
         self.enable(directory, id, version, hash, true)?;
         self.packages.remove(&key);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod bounded_read_tests {
+    use super::*;
+    struct Unreadable;
+    impl Read for Unreadable {
+        fn read(&mut self, _: &mut [u8]) -> std::io::Result<usize> { panic!("oversized input was read"); }
+    }
+    #[test]
+    fn gigabyte_metadata_is_rejected_without_a_single_payload_read() {
+        assert!(read_bounded(Unreadable, 3 << 30, MAX_PACKAGE, "assets/huge.png").unwrap_err()
+            .to_string().contains("assets/huge.png"));
+    }
+    #[test]
+    fn changed_streams_stop_after_one_byte_and_short_reads_are_rejected() {
+        let mut source = std::io::Cursor::new([7u8; 64]);
+        assert!(read_bounded(&mut source, 4, MAX_PACKAGE, "shaders/changed.wgsl").is_err());
+        assert_eq!(source.position(), 5);
+        assert!(read_bounded(std::io::Cursor::new([7u8; 3]), 4, MAX_PACKAGE, "short").is_err());
+        assert_eq!(read_bounded(std::io::Cursor::new([7u8; 4]), 4, 4, "exact").unwrap(), vec![7;4]);
     }
 }

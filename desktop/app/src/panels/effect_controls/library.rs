@@ -605,47 +605,11 @@ mod tests {
 #[cfg(test)]
 mod scroll_tests {
     use super::*;
-    #[test]
-    fn scrolling_the_library_keeps_the_import_button_fixed() {
+    #[test]fn scrolling_the_library_keeps_the_import_button_fixed(){
         let effects:Vec<_>=(0..100).map(|i|serde_json::json!({"id":format!("effect{i}"),"name":format!("效果{i}"),"english_name":format!("Effect{i}"),"category":"测试分类"})).collect();
-        let mut controls = Controls {
-            catalogue: std::sync::Arc::new(
-                serde_json::json!({"packages":[{"hash":"h","manifest":{"id":"p","version":"1.0.0","name":"P","effects":effects}}]}),
-            ),
-            ..Default::default()
-        };
-        controls.preview_categories(Locale::Zh);
-        let mut atlas = TextAtlas::from_system(12.).unwrap();
-        let layer = serde_json::json!({"id":0,"locked":true});
-        let mut out = vec![];
-        controls.draw_library(
-            &mut PaintList::default(),
-            &mut atlas,
-            Rect::new(0., 0., 300., 400.),
-            &layer,
-            &Input {
-                mouse: [100., 200.],
-                wheel: [0., 500.],
-                ..Default::default()
-            },
-            Locale::Zh,
-            &mut out,
-        );
-        assert!(controls.library_scroll.offset > 0.);
-        assert!(out.is_empty());
-        controls.draw_library(
-            &mut PaintList::default(),
-            &mut atlas,
-            Rect::new(0., 0., 300., 400.),
-            &layer,
-            &Input {
-                mouse: [265., 20.],
-                pressed: Some((MouseButton::Left, [265., 20.])),
-                ..Default::default()
-            },
-            Locale::Zh,
-            &mut out,
-        );
-        assert!(matches!(out.as_slice(), [Action::ImportEffectPackage]));
+        let mut controls=Controls{catalogue:std::sync::Arc::new(serde_json::json!({"packages":[{"hash":"h","manifest":{"id":"p","version":"1.0.0","name":"P","effects":effects}}]})),..Default::default()};
+        controls.preview_categories(Locale::Zh);let mut atlas=TextAtlas::from_system(12.).unwrap();let layer=serde_json::json!({"id":0,"locked":true});let mut out=vec![];
+        controls.draw_library(&mut PaintList::default(),&mut atlas,Rect::new(0.,0.,300.,400.),&layer,&Input{mouse:[100.,200.],wheel:[0.,500.],..Default::default()},Locale::Zh,&mut out);assert!(controls.library_scroll.offset>0.);assert!(out.is_empty());
+        controls.draw_library(&mut PaintList::default(),&mut atlas,Rect::new(0.,0.,300.,400.),&layer,&Input{mouse:[265.,20.],pressed:Some((MouseButton::Left,[265.,20.])),..Default::default()},Locale::Zh,&mut out);assert!(matches!(out.as_slice(),[Action::ImportEffectPackage]));
     }
 }

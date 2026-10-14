@@ -66,7 +66,9 @@ pub fn packages() -> Result<Vec<Arc<EffectPackage>>> {
         legacy_current_package()?,
         package()?,
         legacy_scene_package()?,
+        legacy_scene_editor_package()?,
         scene_package()?,
+        legacy_particle_package()?,
         particle_package()?,
     ])
 }
@@ -122,6 +124,12 @@ pub fn particle_package() -> Result<Arc<EffectPackage>> {
     PACKAGE.get_or_init(|| EffectPackage::from_bytes(include_bytes!("../particle-library/particle-effects.msfx").to_vec())
         .map(Arc::new).map_err(|e| e.to_string())).clone().map_err(Error::Invalid)
 }
+/// Preserve the original published emitter identity across archive normalization.
+pub fn legacy_particle_package() -> Result<Arc<EffectPackage>> {
+    static PACKAGE: OnceLock<std::result::Result<Arc<EffectPackage>, String>> = OnceLock::new();
+    PACKAGE.get_or_init(|| EffectPackage::from_bytes(include_bytes!("../particle-library/legacy/particle-effects-1.0.0.msfx").to_vec())
+        .map(Arc::new).map_err(|e| e.to_string())).clone().map_err(Error::Invalid)
+}
 fn build() -> Result<EffectPackage> {
     // Every host installs the exact published package bytes, independent of the
     // target platform's ZIP writer and source checkout line endings.
@@ -146,6 +154,13 @@ pub fn legacy_scene_package() -> Result<Arc<EffectPackage>> {
         })
         .clone()
         .map_err(Error::Invalid)
+}
+
+/// Preserve the published 1.1.0 editor package bytes and their exact dependency.
+pub fn legacy_scene_editor_package() -> Result<Arc<EffectPackage>> {
+    static PACKAGE: OnceLock<std::result::Result<Arc<EffectPackage>, String>> = OnceLock::new();
+    PACKAGE.get_or_init(|| EffectPackage::from_bytes(include_bytes!("../scene-library/legacy/scene-effects-1.1.0.msfx").to_vec())
+        .map(Arc::new).map_err(|e| e.to_string())).clone().map_err(Error::Invalid)
 }
 
 /// Latest scene package; already saved instances keep their exact dependency.

@@ -218,7 +218,7 @@ pub fn sample(
             )
         }
         PositionTarget::Effect { effect, param, .. } => {
-            let layer = layer.unwrap();
+            let layer = layer.ok_or(Error::Missing(object))?;
             let e = layer
                 .effects
                 .iter()
@@ -240,12 +240,16 @@ pub fn sample(
                 .layers
                 .iter()
                 .find(|l| l.id == object)
-                .unwrap()
+                .ok_or(Error::Missing(object))?
                 .effects
                 .iter()
                 .find(|v| v.id == *effect)
-                .unwrap();
-            let sampled = current.params[param].sample(local);
+                .ok_or_else(|| Error::Invalid("position effect missing from evaluated layer".into()))?;
+            let current_param = current
+                .params
+                .get(param)
+                .ok_or_else(|| Error::Invalid("position parameter missing from evaluated effect".into()))?;
+            let sampled = current_param.sample(local);
             let particle =
                 e.effect == "particle_emitter" && param == "position" && e.scene.is_some();
             let matrix = if particle {
@@ -283,18 +287,21 @@ pub fn sample(
             )
         }
     };
-    result["target"] = serde_json::to_value(target).unwrap();
+    result["target"] = serde_json::to_value(target)
+        .map_err(|error| Error::Invalid(format!("position target serialization failed: {error}")))?;
     result["frame"] = json!(frame);
     let limits = match target {
         PositionTarget::Property { .. } => [-10_000_000., 10_000_000.],
         PositionTarget::Effect { effect, param, .. } => {
-            let p = &layer
-                .unwrap()
+            let p = layer
+                .ok_or(Error::Missing(object))?
                 .effects
                 .iter()
                 .find(|e| e.id == *effect)
-                .unwrap()
-                .params[param];
+                .ok_or_else(|| Error::Invalid("position effect missing".into()))?
+                .params
+                .get(param)
+                .ok_or_else(|| Error::Invalid("position parameter missing".into()))?;
             [p.min, p.max]
         }
     };
