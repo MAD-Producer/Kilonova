@@ -283,8 +283,10 @@ impl MaskGpu {
             .filter(|k| matches!(k,TextureKey::Mask(id) if !active.contains(id)))
             .collect();
         for key in stale {
-            *bytes -= images.remove(&key).unwrap().bytes;
-            changed = true;
+            if let Some(image) = images.remove(&key) {
+                *bytes = (*bytes).saturating_sub(image.bytes);
+                changed = true;
+            }
         }
         self.fingerprints.retain(|id, _| active.contains(id));
         if masks.is_empty() {
