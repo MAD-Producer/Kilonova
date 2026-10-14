@@ -288,12 +288,17 @@ pub(super) fn render(
     panels.timeline_columns.begin(state);
     let context_input = input;
     let neutral = Input::default();
-    let input =
-        if panels.timeline.timeline_context_menu.is_some() || panels.timeline_columns.editing() {
-            &neutral
-        } else {
-            input
-        };
+    let input = if panels.timeline.timeline_context_menu.is_some()
+        || panels.timeline_columns.editing()
+        || panels.layer_actions.editing()
+    {
+        &neutral
+    } else {
+        input
+    };
+    if let Some(pos) = panels.timeline.timeline_context_menu.take() {
+        panels.layer_actions.open(None, pos, state);
+    }
     paint::rect(list, area, colors.PANEL);
     let total = last_frame(state) + 1.0;
     let graph_mode = panels.timeline.graph_mode;
@@ -859,7 +864,16 @@ pub(super) fn render(
                 colors.PANEL
             },
         );
-        label(list, atlas, name, &row.name, false);
+        let row_area = Rect::new(body.min[0], y, body.width(), row_height);
+        let name_editing = panels
+            .layer_actions
+            .row(list, atlas, name, row_area, row.id, state, input, locale);
+        if right_clicked(input, row_area) {
+            panels.selected = Some(row.id);
+        }
+        if !name_editing {
+            label(list, atlas, name, &row.name, false);
+        }
         paint::rect(
             list,
             Rect::new(area.min[0] + 66.0, y + 7.0, 6.0, 12.0),
@@ -1240,116 +1254,8 @@ pub(super) fn render(
     panels
         .timeline_columns
         .overlay(list, atlas, area, state, context_input, locale, out);
-
-    // Timeline right-click context menu for creating layers
-    if right_clicked(input, body) {
-        panels.timeline.timeline_context_menu = Some(input.mouse);
-    }
-
-    // Render timeline context menu if open
-    if let Some(menu_pos) = panels.timeline.timeline_context_menu {
-        render_timeline_context_menu(
-            list,
-            atlas,
-            area,
-            menu_pos,
-            state,
-            context_input,
-            locale,
-            out,
-            &mut panels.timeline.timeline_context_menu,
-        );
-    }
-}
-
-// Render timeline context menu for layer creation
-fn render_timeline_context_menu(
-    list: &mut PaintList,
-    atlas: &mut TextAtlas,
-    area: Rect,
-    pos: [f32; 2],
-    state: &Value,
-    input: &Input,
-    locale: Locale,
-    out: &mut Vec<Action>,
-    menu_state: &mut Option<[f32; 2]>,
-) {
-    let styles = list.styles();
-    let colors = styles.colors();
-
-    let menu_items = vec![
-        (locale.t(T::NewSolid), Action::AddSolid),
-        (locale.t(T::NewText), Action::NewText),
-        (locale.t(T::NewNull), Action::AddNull),
-        (locale.t(T::NewAdjustment), Action::AddAdjustment),
-        (locale.t(T::NewCamera), Action::Edit(Command::CreateCamera)),
-        (
-            locale.t(T::NewRectangle),
-            Action::AddShape(motion_core::vector::ShapeKind::Rectangle),
-        ),
-        (
-            locale.t(T::NewEllipse),
-            Action::AddShape(motion_core::vector::ShapeKind::Ellipse),
-        ),
-    ];
-
-    let item_height = 28.0;
-    let menu_width = 200.0f32.min(area.width().max(1.));
-    let menu_height = menu_items.len() as f32 * item_height + 8.0;
-
-    // Position menu near click, but keep it on screen
-    let menu_x = pos[0].clamp(area.min[0], (area.max[0] - menu_width).max(area.min[0]));
-    let menu_y = pos[1].clamp(area.min[1], (area.max[1] - menu_height).max(area.min[1]));
-
-    let menu_rect = Rect::new(menu_x, menu_y, menu_width, menu_height);
-    list.retain_glyphs(|g| {
-        g.position[0] + g.size[0] <= menu_rect.min[0]
-            || g.position[0] >= menu_rect.max[0]
-            || g.position[1] + g.size[1] <= menu_rect.min[1]
-            || g.position[1] >= menu_rect.max[1]
-    });
-
-    // Menu background
-    paint::rect(list, menu_rect, colors.CHROME);
-    paint::stroke(list, menu_rect, colors.BORDER, 1.0);
-
-    // Check if camera already exists for camera item
-    let camera_exists = state["project"]["camera"]["created"]
-        .as_bool()
-        .unwrap_or(false);
-
-    // Render menu items
-    for (i, (text, action)) in menu_items.into_iter().enumerate() {
-        let item_rect = Rect::new(
-            menu_x + 4.0,
-            menu_y + 4.0 + i as f32 * item_height,
-            menu_width - 8.0,
-            item_height,
-        );
-
-        // Disable camera item if camera already exists
-        let enabled = !matches!(&action, Action::Edit(Command::CreateCamera)) || !camera_exists;
-
-        let hovered = enabled && item_rect.contains(input.mouse);
-
-        if hovered {
-            paint::rect(list, item_rect, colors.ACCENT.with_alpha(0.15));
-        }
-
-        label(list, atlas, item_rect.shrink(8.0), text, !enabled);
-
-        if hovered && clicked(input, item_rect) {
-            out.push(action);
-            *menu_state = None;
-        }
-    }
-
-    // Close menu on click outside or escape
-    if input.pressed.is_some() && !menu_rect.contains(input.mouse) {
-        *menu_state = None;
-    }
-    if input.keys.iter().any(|(k, _)| *k == Key::Escape) {
-        *menu_state = None;
+    if right_clicked(input, body) && !panels.layer_actions.editing() {
+        panels.layer_actions.open(None, input.mouse, state);
     }
 }
 
