@@ -255,8 +255,10 @@ impl LayerGpu {
             .collect::<Vec<_>>();
         let mut changed = false;
         for key in stale {
-            *bytes -= images.remove(&key).unwrap().bytes;
-            changed = true;
+            if let Some(image) = images.remove(&key) {
+                *bytes = (*bytes).saturating_sub(image.bytes);
+                changed = true;
+            }
         }
         self.fingerprints
             .retain(|id, _| images.contains_key(&TextureKey::Vector(*id)));

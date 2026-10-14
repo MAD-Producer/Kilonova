@@ -459,7 +459,11 @@ impl Renderer {
         let idle: Vec<_> = self.image_access.keys().copied().filter(|id| !self.image_active.contains(id)).collect();
         for id in idle { self.remove_static_image(id); }
         let dynamic: Vec<_> = self.images.keys().copied().filter(|key| !matches!(key, TextureKey::Static(_))).collect();
-        for key in dynamic { self.texture_bytes -= self.images.remove(&key).unwrap().bytes; }
+        for key in dynamic {
+            if let Some(image) = self.images.remove(&key) {
+                self.texture_bytes = self.texture_bytes.saturating_sub(image.bytes);
+            }
+        }
         if let Some(video) = &mut self.video_gpu { video.clear(); }
         self.composition_images.clear();
         self.mask_gpu.clear();
@@ -815,11 +819,9 @@ impl Renderer {
             })
             .collect();
         for object in stale {
-            self.texture_bytes -= self
-                .images
-                .remove(&TextureKey::Video(object))
-                .unwrap()
-                .bytes;
+            if let Some(image) = self.images.remove(&TextureKey::Video(object)) {
+                self.texture_bytes = self.texture_bytes.saturating_sub(image.bytes);
+            }
             if let Some(video) = &mut self.video_gpu {
                 video.remove(object);
             }
@@ -1016,7 +1018,9 @@ impl Renderer {
             if let TextureKey::Static(asset) = id {
                 self.effect_gpu.builder.alpha_images.remove(&asset);
             }
-            self.texture_bytes -= self.images.remove(&id).unwrap().bytes;
+            if let Some(image) = self.images.remove(&id) {
+                self.texture_bytes = self.texture_bytes.saturating_sub(image.bytes);
+            }
             if let TextureKey::Video(object) = id {
                 if let Some(video) = &mut self.video_gpu {
                     video.remove(object);
@@ -1055,8 +1059,10 @@ impl Renderer {
         let dynamic: Vec<_> = self.images.keys().copied()
             .filter(|key| !matches!(key, TextureKey::Static(_))).collect();
         for key in dynamic {
-            self.texture_bytes -= self.images.remove(&key).unwrap().bytes;
-            self.effect_gpu.invalidate();
+            if let Some(image) = self.images.remove(&key) {
+                self.texture_bytes = self.texture_bytes.saturating_sub(image.bytes);
+                self.effect_gpu.invalidate();
+            }
         }
         if let Some(video) = &mut self.video_gpu { video.clear(); }
         self.composition_images.clear();
@@ -1067,7 +1073,7 @@ impl Renderer {
     fn remove_static_image(&mut self, id: u64) {
         self.image_access.remove(&id);
         if let Some(image) = self.images.remove(&TextureKey::Static(id)) {
-            self.texture_bytes -= image.bytes;
+            self.texture_bytes = self.texture_bytes.saturating_sub(image.bytes);
             self.effect_gpu.builder.alpha_images.remove(&id);
             self.effect_gpu.invalidate();
         }
@@ -1407,7 +1413,11 @@ impl Renderer {
         let obsolete_inputs:Vec<_>=self.images.keys().copied()
             .filter(|k|matches!(k,TextureKey::Mask(_) | TextureKey::EffectInput(_))).collect();
         if !obsolete_inputs.is_empty() {
-            for key in obsolete_inputs {self.texture_bytes-=self.images.remove(&key).unwrap().bytes;}
+            for key in obsolete_inputs {
+                if let Some(image) = self.images.remove(&key) {
+                    self.texture_bytes = self.texture_bytes.saturating_sub(image.bytes);
+                }
+            }
             self.mask_gpu.clear();self.effect_gpu.state.invalidate();
         }
         self.effect_diagnostics.clear();
@@ -1543,7 +1553,12 @@ impl Renderer {
             let draw=&frame.draws[i];let pass=&frame.passes[draw.pass_end-1];(TextureKey::EffectInput(draw.layer),pass.width,pass.height)
         }).collect::<Vec<_>>();
         let stale=self.images.keys().copied().filter(|key|matches!(key,TextureKey::EffectInput(_))&&!specs.iter().any(|v|v.0==*key)).collect::<Vec<_>>();
-        for key in stale {self.texture_bytes-=self.images.remove(&key).unwrap().bytes;self.effect_gpu.invalidate();}
+        for key in stale {
+            if let Some(image) = self.images.remove(&key) {
+                self.texture_bytes = self.texture_bytes.saturating_sub(image.bytes);
+                self.effect_gpu.invalidate();
+            }
+        }
         let needed=specs.iter().filter(|(key,w,h)|self.images.get(key).is_none_or(|image|image.size!=(*w,*h)))
             .map(|(_,w,h)|u64::from(*w)*u64::from(*h)*4).sum();
         self.trim_image_cache(needed);
@@ -1560,7 +1575,7 @@ impl Renderer {
             let view=texture.create_view(&Default::default());
             let bind_group=self.device.create_bind_group(&wgpu::BindGroupDescriptor {label:None,layout:&self.image_layout,entries:&[
                 wgpu::BindGroupEntry{binding:0,resource:wgpu::BindingResource::TextureView(&view)},wgpu::BindGroupEntry{binding:1,resource:wgpu::BindingResource::Sampler(&self.sampler)}]});
-            if let Some(old)=self.images.insert(key,GpuImage{_texture:texture,view,bind_group,bytes,size:(width,height),video_stamp:None}){self.texture_bytes-=old.bytes;}
+            if let Some(old)=self.images.insert(key,GpuImage{_texture:texture,view,bind_group,bytes,size:(width,height),video_stamp:None}){self.texture_bytes=self.texture_bytes.saturating_sub(old.bytes);}
             self.texture_bytes+=bytes;self.effect_gpu.invalidate();
         }
         Ok(())
