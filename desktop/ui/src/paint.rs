@@ -555,6 +555,34 @@ pub fn line(list: &mut PaintList, mut points: Vec<[f32; 2]>, color: Color) {
     }
 }
 
+/// Stroke a polyline at a logical-pixel width without changing other line styles.
+pub fn line_with_width(list: &mut PaintList, points: Vec<[f32; 2]>, color: Color, width: f32) {
+    if points.len() < 2 || !width.is_finite() || width <= 0. || color.0[3] <= 0. {
+        return;
+    }
+    let mut triangles = Vec::with_capacity((points.len() - 1) * 6);
+    for pair in points.windows(2) {
+        let [a, b] = [pair[0], pair[1]];
+        let dx = b[0] - a[0];
+        let dy = b[1] - a[1];
+        let length = dx.hypot(dy);
+        if !length.is_finite() || length <= f32::EPSILON {
+            continue;
+        }
+        let nx = -dy / length * width * 0.5;
+        let ny = dx / length * width * 0.5;
+        triangles.extend_from_slice(&expand_quad([
+            [a[0] + nx, a[1] + ny],
+            [b[0] + nx, b[1] + ny],
+            [b[0] - nx, b[1] - ny],
+            [a[0] - nx, a[1] - ny],
+        ]));
+    }
+    if !triangles.is_empty() {
+        list.push_shape(Shape::Triangles { points: triangles }, color);
+    }
+}
+
 /// Alpha checkerboard for transparent pixels.
 pub fn checkerboard(list: &mut PaintList, area: Rect, light: Color, dark: Color, size: f32) {
     if area.width() > 0. && area.height() > 0. && size.is_finite() && size > 0. {
