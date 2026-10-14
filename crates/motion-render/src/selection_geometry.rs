@@ -94,7 +94,7 @@ fn hull(mut points: Vec<Vec2>) -> Vec<Vec2> {
     result
 }
 fn pixel_polygon(layer: &DrawLayer, scene: &Scene, registry: &Registry) -> Vec<Vec2> {
-    let rect = layer.source_rect;
+    let rect = if layer.screen_overlay { [0., 0., scene.width as f32, scene.height as f32] } else { layer.source_rect };
     let mut points = vec![
         Vec2::new(rect[0], rect[1]),
         Vec2::new(rect[0] + rect[2], rect[1]),
@@ -130,6 +130,17 @@ fn pixel_polygon(layer: &DrawLayer, scene: &Scene, registry: &Registry) -> Vec<V
 }
 
 pub fn picking_layer(layer: &DrawLayer, scene: &Scene, registry: &Registry) -> DrawLayer {
+    let mut base = layer.clone();
+    if layer.screen_overlay {
+        base.model = crate::scene::plane_model(layer, true);
+        base.view_projection = crate::scene::plane_projection(scene, layer, true);
+        base.size = crate::scene::plane_size(scene, layer, true);
+        base.source_size = base.size;
+        base.source_rect = [0., 0., base.size[0], base.size[1]];
+        // This clone already carries the prepared picking geometry; retain its
+        // logical three_d flag while avoiding a second overlay projection.
+        base.screen_overlay = false;
+    }
     let mut transform = Mat4::IDENTITY;
     let mut partial = false;
     for effect in scene.effects.iter().filter(|e| e.layer == layer.id) {
@@ -138,7 +149,7 @@ pub fn picking_layer(layer: &DrawLayer, scene: &Scene, registry: &Registry) -> D
             partial |= value(effect, "effect_opacity").is_some_and(|v| v[0] < 100.);
         }
     }
-    let mut result = layer.clone();
+    let mut result = base.clone();
     if partial {
         let points = pixel_polygon(layer, scene, registry);
         let min = points
@@ -149,31 +160,33 @@ pub fn picking_layer(layer: &DrawLayer, scene: &Scene, registry: &Registry) -> D
             .fold(Vec2::splat(f32::NEG_INFINITY), |a, p| a.max(*p));
         let center = (min + max) * 0.5;
         result.size = (max - min).to_array();
-        result.model = layer.model
+        result.model = base.model
             * Mat4::from_translation(Vec3::new(
-                center.x - layer.source_size[0] / 2.,
-                layer.source_size[1] / 2. - center.y,
+                center.x - base.source_size[0] / 2.,
+                base.source_size[1] / 2. - center.y,
                 0.,
             ));
     } else {
         let pixels = Mat4::from_translation(Vec3::new(
-            -layer.source_size[0] / 2.,
-            layer.source_size[1] / 2.,
+            -base.source_size[0] / 2.,
+            base.source_size[1] / 2.,
             0.,
         )) * Mat4::from_scale(Vec3::new(1., -1., 1.));
-        result.model = layer.model * pixels * transform * pixels.inverse();
+        result.model = base.model * pixels * transform * pixels.inverse();
     }
     result
 }
 
 pub fn polygon(layer: &DrawLayer, scene: &Scene, registry: &Registry) -> Option<Vec<[f32; 2]>> {
     let mut points = Vec::new();
-    let matrix = layer.view_projection * layer.model;
+    let matrix = crate::scene::plane_projection(scene, layer, layer.screen_overlay)
+        * crate::scene::plane_model(layer, layer.screen_overlay);
+    let source_size = if layer.screen_overlay { [scene.width as f32, scene.height as f32] } else { layer.source_size };
     for point in pixel_polygon(layer, scene, registry) {
         let c = matrix
             * glam::Vec4::new(
-                point.x - layer.source_size[0] / 2.,
-                layer.source_size[1] / 2. - point.y,
+                point.x - source_size[0] / 2.,
+                source_size[1] / 2. - point.y,
                 0.,
                 1.,
             );

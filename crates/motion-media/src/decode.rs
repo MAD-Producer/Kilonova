@@ -204,8 +204,9 @@ pub fn decode_audio(
             if tb.denom == 0 || tb.numer == 0 {
                 return Err("invalid MP4 audio timebase".into());
             }
-            let value = u128::from(packet.ts()) * u128::from(tb.numer) * u128::from(rate)
-                / u128::from(tb.denom);
+            let value = u128::from(packet.ts()).checked_mul(u128::from(tb.numer))
+                .and_then(|n| n.checked_mul(u128::from(rate)))
+                .ok_or("audio sample timestamp overflow")? / u128::from(tb.denom);
             u64::try_from(value).map_err(|_| "audio sample timestamp overflow")?
         } else {
             decoded

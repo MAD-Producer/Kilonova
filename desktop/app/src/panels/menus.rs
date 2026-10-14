@@ -208,7 +208,32 @@ pub(super) fn render(
                     true,
                 )))
                 .collect(),
-            _ => vec![(locale.t(T::About).into(), Action::About, true)],
+            _ => vec![
+                (
+                    locale.t(T::ExportDiagnostics).into(),
+                    Action::ExportDiagnostics,
+                    true,
+                ),
+                (
+                    format!(
+                        "{} {}",
+                        if state["desktop"]["diagnostics"]["enabled"]
+                            .as_bool()
+                            .unwrap_or(false)
+                        {
+                            "✓"
+                        } else {
+                            "  "
+                        },
+                        locale.t(T::SendDiagnostics)
+                    ),
+                    Action::ToggleDiagnostics,
+                    state["desktop"]["diagnostics"]["configured"]
+                        .as_bool()
+                        .unwrap_or(false),
+                ),
+                (locale.t(T::About).into(), Action::About, true),
+            ],
         };
         let popup = Rect::new(
             starts

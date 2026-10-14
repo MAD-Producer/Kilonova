@@ -1,0 +1,755 @@
+{
+  "version": 1,
+  "tools": {
+    "tools/bootstrap_android.py": {
+      "mode": "manual",
+      "command": "python tools/bootstrap_android.py",
+      "requires": [
+        "Network access",
+        "Selected local Android toolchain directory"
+      ],
+      "reason": "Developer toolchain setup is explicit and is not a CI acceptance run."
+    },
+    "tools/build_android.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Executed by the workflow or its test_ci_*.py unittest discovery."
+    },
+    "tools/build_desktop.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Executed by the workflow or its test_ci_*.py unittest discovery."
+    },
+    "tools/ci_android_ui.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Executed by the workflow or its test_ci_*.py unittest discovery."
+    },
+    "tools/ci_desktop.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Executed by the workflow or its test_ci_*.py unittest discovery."
+    },
+    "tools/ci_release.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Executed by the workflow or its test_ci_*.py unittest discovery."
+    },
+    "tools/ci_ui_framework.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Executed by the workflow or its test_ci_*.py unittest discovery."
+    },
+    "tools/collect_surface_latency.py": {
+      "mode": "physical_device",
+      "command": "python tools/collect_surface_latency.py --serial <serial> --output <evidence>",
+      "requires": [
+        "adb",
+        "Physical Android device"
+      ],
+      "reason": "SurfaceFlinger presentation evidence requires a selected physical device."
+    },
+    "tools/compare_export_frames.py": {
+      "mode": "manual",
+      "command": "python tools/compare_export_frames.py <video> <reference> --report <report.json>",
+      "requires": [
+        "Pillow",
+        "ffmpeg/ffprobe",
+        "Encoded video and opaque reference PNG"
+      ],
+      "reason": "Independent parity check consumes explicit captured video/reference evidence."
+    },
+    "tools/effect-library/generate_builtin.py": {
+      "mode": "manual",
+      "command": "python tools/effect-library/generate_builtin.py",
+      "requires": [
+        "Python standard library"
+      ],
+      "reason": "Maintainer regeneration changes checked-in fixtures/assets; not an automatic CI mutation."
+    },
+    "tools/effect-library/generate_motion.py": {
+      "mode": "manual",
+      "command": "python tools/effect-library/generate_motion.py",
+      "requires": [
+        "Python standard library"
+      ],
+      "reason": "Maintainer regeneration changes checked-in fixtures/assets; not an automatic CI mutation."
+    },
+    "tools/effect-library/generate_motion_assets.py": {
+      "mode": "manual",
+      "command": "python tools/effect-library/generate_motion_assets.py",
+      "requires": [
+        "Python standard library"
+      ],
+      "reason": "Maintainer regeneration changes checked-in fixtures/assets; not an automatic CI mutation."
+    },
+    "tools/generate_audio_fixtures.py": {
+      "mode": "manual",
+      "command": "python tools/generate_audio_fixtures.py",
+      "requires": [
+        "ffmpeg/ffprobe"
+      ],
+      "reason": "Maintainer fixture regeneration; generated artifacts are consumed by Rust/device acceptance."
+    },
+    "tools/generate_creative_library.py": {
+      "mode": "manual",
+      "command": "python tools/generate_creative_library.py",
+      "requires": [
+        "Python standard library"
+      ],
+      "reason": "Maintainer regeneration changes checked-in fixtures/assets; not an automatic CI mutation."
+    },
+    "tools/generate_desktop_icons.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Executed by the workflow or its test_ci_*.py unittest discovery."
+    },
+    "tools/generate_editor_icons.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Executed by the workflow or its test_ci_*.py unittest discovery."
+    },
+    "tools/generate_media_format_fixtures.py": {
+      "mode": "manual",
+      "command": "python tools/generate_media_format_fixtures.py",
+      "requires": [
+        "ffmpeg/ffprobe"
+      ],
+      "reason": "Maintainer fixture regeneration; generated artifacts are consumed by Rust/device acceptance."
+    },
+    "tools/generate_particle_library.py": {
+      "mode": "manual",
+      "command": "python tools/generate_particle_library.py",
+      "requires": [
+        "Python standard library"
+      ],
+      "reason": "Maintainer regeneration changes checked-in fixtures/assets; not an automatic CI mutation."
+    },
+    "tools/generate_scene_library.py": {
+      "mode": "manual",
+      "command": "python tools/generate_scene_library.py",
+      "requires": [
+        "Python standard library"
+      ],
+      "reason": "Maintainer regeneration changes checked-in fixtures/assets; not an automatic CI mutation."
+    },
+    "tools/generate_spatial_library.py": {
+      "mode": "manual",
+      "command": "python tools/generate_spatial_library.py",
+      "requires": [
+        "Python standard library"
+      ],
+      "reason": "Maintainer regeneration changes checked-in fixtures/assets; not an automatic CI mutation."
+    },
+    "tools/generate_video_fixtures.py": {
+      "mode": "manual",
+      "command": "python tools/generate_video_fixtures.py",
+      "requires": [
+        "ffmpeg/ffprobe"
+      ],
+      "reason": "Maintainer fixture regeneration; generated artifacts are consumed by Rust/device acceptance."
+    },
+    "tools/generate_video_input_fixtures.py": {
+      "mode": "manual",
+      "command": "python tools/generate_video_input_fixtures.py",
+      "requires": [
+        "ffmpeg/ffprobe"
+      ],
+      "reason": "Maintainer fixture regeneration; generated artifacts are consumed by Rust/device acceptance."
+    },
+    "tools/test_ci_release.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Executed by the workflow or its test_ci_*.py unittest discovery."
+    },
+    "tools/test_ci_android_build.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "CI discovery verifies ABI propagation, isolated debug guards and explicit NDK configuration precedence"
+    },
+    "tools/test_ci_tools.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Executed by the workflow or its test_ci_*.py unittest discovery."
+    },
+    "tools/validate_android.py": {
+      "mode": "manual",
+      "command": "python tools/validate_android.py --serial <serial> --output <evidence>",
+      "requires": [
+        "adb",
+        "Installed instrumented APKs",
+        "Selected Android device or emulator"
+      ],
+      "reason": "Explicit instrumented acceptance on a selected target; not part of the bounded CI interaction suite."
+    },
+    "tools/validate_audio.py": {
+      "mode": "manual",
+      "command": "python tools/validate_audio.py --probe <audio_probe> --output <evidence>",
+      "requires": [
+        "ffmpeg",
+        "Built audio_probe executable"
+      ],
+      "reason": "Explicit instrumented acceptance on a selected target; not part of the bounded CI interaction suite."
+    },
+    "tools/validate_layout_profiles.py": {
+      "mode": "manual",
+      "command": "python tools/validate_layout_profiles.py --serial <serial> --output <evidence>",
+      "requires": [
+        "adb",
+        "Installed instrumented APKs",
+        "Selected Android device or emulator"
+      ],
+      "reason": "Explicit instrumented acceptance on a selected target; not part of the bounded CI interaction suite."
+    },
+    "tools/validate_media_formats.py": {
+      "mode": "manual",
+      "command": "python tools/validate_media_formats.py --adb <adb> --serial <serial> --output <evidence>",
+      "requires": [
+        "adb",
+        "Installed instrumented APKs",
+        "Selected Android device or emulator",
+        "ffmpeg/ffprobe"
+      ],
+      "reason": "Explicit instrumented acceptance on a selected target; not part of the bounded CI interaction suite."
+    },
+    "tools/validate_performance.py": {
+      "mode": "physical_device",
+      "command": "python tools/validate_performance.py --serial <serial> --output <evidence>",
+      "requires": [
+        "Signed benchmark APKs",
+        "Physical Android device",
+        "adb"
+      ],
+      "reason": "Performance capture requires controlled physical-device conditions; --report can revalidate evidence offline."
+    },
+    "tools/validate_process_recovery.py": {
+      "mode": "manual",
+      "command": "python tools/validate_process_recovery.py --serial <serial> --output <evidence>",
+      "requires": [
+        "adb",
+        "Installed instrumented APKs",
+        "Selected Android device or emulator"
+      ],
+      "reason": "Explicit instrumented acceptance on a selected target; not part of the bounded CI interaction suite."
+    },
+    "tools/validate_video.py": {
+      "mode": "manual",
+      "command": "python tools/validate_video.py --adb <adb> --serial <serial> --output <evidence>",
+      "requires": [
+        "adb",
+        "Installed instrumented APKs",
+        "Selected Android device or emulator",
+        "ffmpeg/ffprobe"
+      ],
+      "reason": "Explicit instrumented acceptance on a selected target; not part of the bounded CI interaction suite."
+    },
+    "tools/validate_video_inputs.py": {
+      "mode": "manual",
+      "command": "python tools/validate_video_inputs.py --adb <adb> --serial <serial> --output <evidence>",
+      "requires": [
+        "adb",
+        "Installed instrumented APKs",
+        "Selected Android device or emulator",
+        "ffmpeg/ffprobe"
+      ],
+      "reason": "Explicit instrumented acceptance on a selected target; not part of the bounded CI interaction suite."
+    },
+    "tools/validation_inventory.py": {
+      "mode": "ci",
+      "runner": "tools/test_ci_tools.py",
+      "reason": "Tool/assert and Android coverage guards are exercised by the CI unit tests."
+    },
+    "tools/test_ci_workflow.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Executed by the workflow test_ci_*.py unittest discovery to guard trusted release routes"
+    },
+    "tools/package_desktop.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Package validated desktop builds in the workflow and guard publishing manifests"
+    },
+    "tools/test_ci_desktop_release.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Run through CI unittest discovery and verify real package and publication routes"
+    }
+  },
+  "android_tests": {
+    "PropertyOverlayTest": {
+      "source": "PropertyOverlayTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "FrontendLayerControlsTest": {
+      "source": "FrontendLayerControlsTest.kt",
+      "mode": "ci",
+      "methods": [
+        "separatedKeyDragUsesCompositionTimeAndOnlyCapturedAxis"
+      ],
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required.",
+      "remaining_methods_reason": "Other methods remain explicit manual acceptance; the CI selectors retain the existing bounded suite."
+    },
+    "EditorInertiaTest": {
+      "source": "EditorInertiaTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "LayerSelectionTest": {
+      "source": "LayerSelectionTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "TimelineKeyGestureTest": {
+      "source": "TimelineKeyGestureTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "TransportLayerActionsTest": {
+      "source": "TransportLayerActionsTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "EffectPreviewBackendTest": {
+      "source": "EffectPreviewBackendTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "LayerClipTimelineTest": {
+      "source": "LayerClipTimelineTest.kt",
+      "mode": "ci",
+      "methods": [
+        "extendedSpansSurviveSaveExpansionAndFrozenEncodedOutput"
+      ],
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required.",
+      "remaining_methods_reason": "Other methods remain explicit manual acceptance; the CI selectors retain the existing bounded suite."
+    },
+    "ExtendedClipUiTest": {
+      "source": "ExtendedClipUiTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "SubframeClipUiTest": {
+      "source": "SubframeClipUiTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "VectorAdjustmentTest": {
+      "source": "VectorAdjustmentTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "VectorAdjustmentParityTest": {
+      "source": "VectorAdjustmentParityTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "VectorFrontendTest": {
+      "source": "VectorFrontendTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "ErrorReportsTest": {
+      "source": "ErrorReportsTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "CompositionBackendApiTest": {
+      "source": "CompositionBackendApiTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "CompositionParityTest": {
+      "source": "CompositionParityTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "CompositionFrontendTest": {
+      "source": "CompositionFrontendTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "ReleaseUpdatesTest": {
+      "source": "ReleaseUpdatesTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "SpatialEffectsTest": {
+      "source": "SpatialEffectsTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "NativeParticleEditorTest": {
+      "source": "NativeParticleEditorTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "SceneEffectsTest": {
+      "source": "SceneEffectsTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "AudioLevelsUiTest": {
+      "source": "AudioLevelsUiTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "AudioBackendApiTest": {
+      "source": "AudioBackendApiTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "RotationOrderTest": {
+      "source": "RotationOrderTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "ColorBookmarksTest": {
+      "source": "ColorBookmarksTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "ColorCurvesApiTest": {
+      "source": "ColorCurvesApiTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "ColorEditingTest": {
+      "source": "ColorEditingTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "LayerMasksTest": {
+      "source": "LayerMasksTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "IntegratedEffectsTest": {
+      "source": "IntegratedEffectsTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "LayerCompositingBackendTest": {
+      "source": "LayerCompositingBackendTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "LayerCompositingUiTest": {
+      "source": "LayerCompositingUiTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "VectorPathOperationsBackendTest": {
+      "source": "VectorPathOperationsTest.kt",
+      "mode": "ci",
+      "methods": [
+        "trimDashAnimationMatchesGlesAndSurvivesFrozenProjectAndNestedPlayback"
+      ],
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required.",
+      "remaining_methods_reason": "Other methods remain explicit manual acceptance; the CI selectors retain the existing bounded suite."
+    },
+    "VectorPathOperationsUiTest": {
+      "source": "VectorPathOperationsTest.kt",
+      "mode": "ci",
+      "methods": [
+        "trimUsesSharedTimelineEasingAndGestureUndoWithoutReplacingThePath",
+        "dashPairsAndAnimatedOffsetUseExistingStyleControls"
+      ],
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required.",
+      "remaining_methods_reason": "Other methods remain explicit manual acceptance; the CI selectors retain the existing bounded suite."
+    },
+    "VectorGroupsBackendTest": {
+      "source": "VectorGroupsTest.kt",
+      "mode": "ci",
+      "methods": [
+        "groupedAlphaRepeatersAndViewportCropMatchUnencodedGles"
+      ],
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required.",
+      "remaining_methods_reason": "Other methods remain explicit manual acceptance; the CI selectors retain the existing bounded suite."
+    },
+    "VectorGroupsUiTest": {
+      "source": "VectorGroupsTest.kt",
+      "mode": "ci",
+      "methods": [
+        "groupPositionUsesSharedTouchpadAndUndoWhileKeepingPreviewAndTimeline",
+        "addedRepeaterSharesKeyframesCurveEditorAndStoredLocalTime"
+      ],
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required.",
+      "remaining_methods_reason": "Other methods remain explicit manual acceptance; the CI selectors retain the existing bounded suite."
+    },
+    "VectorGroupContentsTest": {
+      "source": "VectorGroupContentsTest.kt",
+      "mode": "ci",
+      "methods": "*",
+      "reason": "Existing deterministic CI interaction selection; all declared selectors are required."
+    },
+    "AcceptanceInstrumentedTest": {
+      "source": "AcceptanceInstrumentedTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.AcceptanceInstrumentedTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "CameraRigTest": {
+      "source": "CameraRigTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.CameraRigTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "CameraSceneAcceptanceTest": {
+      "source": "CameraSceneAcceptanceTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.CameraSceneAcceptanceTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "CurveEditingTest": {
+      "source": "CurveEditingTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.CurveEditingTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "DeviceMemoryPolicyTest": {
+      "source": "DeviceMemoryPolicyTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.DeviceMemoryPolicyTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "DeviceReadinessTest": {
+      "source": "DeviceReadinessTest.kt",
+      "mode": "physical_device",
+      "reason": "Performance/device-readiness evidence is captured on a selected physical device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.DeviceReadinessTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "EditorGestureTest": {
+      "source": "EditorGestureTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.EditorGestureTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "EditorUiRefreshTest": {
+      "source": "EditorUiRefreshTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.EditorUiRefreshTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "EffectsRuntimeTest": {
+      "source": "EffectsRuntimeTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.EffectsRuntimeTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "ExportParityTest": {
+      "source": "ExportParityTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.ExportParityTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "ExpressionAndPluginUiTest": {
+      "source": "ExpressionAndPluginUiTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.ExpressionAndPluginUiTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "FrontendGeometryExportTest": {
+      "source": "FrontendGeometryExportTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.FrontendGeometryExportTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "ImagePreviewCacheTest": {
+      "source": "ImagePreviewCacheTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.ImagePreviewCacheTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "ImageResourcesTest": {
+      "source": "ImageResourcesTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.ImageResourcesTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "IntegratedFrontendTest": {
+      "source": "IntegratedFrontendTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.IntegratedFrontendTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "Layer3dApiTest": {
+      "source": "Layer3dApiTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.Layer3dApiTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "LayerCategoriesTest": {
+      "source": "LayerCategoriesTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.LayerCategoriesTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "MediaFormatApiTest": {
+      "source": "MediaFormatApiTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.MediaFormatApiTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "MediaImportOrderTest": {
+      "source": "MediaImportOrderTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.MediaImportOrderTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "MotionInteractionTest": {
+      "source": "MotionInteractionTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.MotionInteractionTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "NumericWheelInertiaTest": {
+      "source": "NumericWheelInertiaTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.NumericWheelInertiaTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "OfficialMotionBackendTest": {
+      "source": "OfficialMotionBackendTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.OfficialMotionBackendTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "OrthographicPreviewTest": {
+      "source": "OrthographicPreviewTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.OrthographicPreviewTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "PackageBackendApiTest": {
+      "source": "PackageBackendApiTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.PackageBackendApiTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "PositionEditorTest": {
+      "source": "PositionEditorTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.PositionEditorTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "PreviewFrameInputTest": {
+      "source": "PreviewFrameInputTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.PreviewFrameInputTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "PreviewMemoryBackendTest": {
+      "source": "PreviewMemoryBackendTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.PreviewMemoryBackendTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "PreviewPerformanceTest": {
+      "source": "PreviewPerformanceTest.kt",
+      "mode": "physical_device",
+      "reason": "Performance/device-readiness evidence is captured on a selected physical device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.PreviewPerformanceTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "ProcessRecoveryTest": {
+      "source": "ProcessRecoveryTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.ProcessRecoveryTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "ProjectHomeTest": {
+      "source": "ProjectHomeTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.ProjectHomeTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "ProjectReliabilityTest": {
+      "source": "ProjectReliabilityTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.ProjectReliabilityTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "PropertyExpressionsTest": {
+      "source": "PropertyExpressionsTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.PropertyExpressionsTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "ReferenceFilmTest": {
+      "source": "ReferenceFilmTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.ReferenceFilmTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "ResourceLifecycleTest": {
+      "source": "ResourceLifecycleTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.ResourceLifecycleTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "RotationControlsTest": {
+      "source": "RotationControlsTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.RotationControlsTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "SeparateDimensionsApiTest": {
+      "source": "SeparateDimensionsApiTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.SeparateDimensionsApiTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    },
+    "VideoBackendApiTest": {
+      "source": "VideoBackendApiTest.kt",
+      "mode": "ci",
+      "reason": "Bounded exact-tail regression compares source sample timing across desktop and Android",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.VideoBackendApiTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner",
+      "methods": [
+        "leadingEditAndCttsTailMatchTheDesktopPacketOracle"
+      ],
+      "remaining_methods_reason": "Bulk codec, media and large-source acceptance remains explicit manual/device work"
+    },
+    "VideoInputApiTest": {
+      "source": "VideoInputApiTest.kt",
+      "mode": "manual",
+      "reason": "Separate instrumented acceptance outside the bounded CI UI suite; execute explicitly on a selected emulator/device.",
+      "command": "adb -s <serial> shell am instrument -w -e class com.motionstudio.editor.VideoInputApiTest com.motionstudio.editor.test/androidx.test.runner.AndroidJUnitRunner"
+    }
+  },
+  "effect_libraries": [
+    "crates/motion-effects/library",
+    "crates/motion-effects/motion-library",
+    "crates/motion-effects/builtin-library",
+    "crates/motion-effects/scene-library",
+    "crates/motion-effects/particle-library"
+  ]
+}

@@ -21,7 +21,7 @@ def main():
     parser.add_argument('--serial',required=True)
     parser.add_argument('--output',type=Path,required=True)
     args=parser.parse_args()
-    assert 1<=args.adb_port<=65535
+    if not (1<=args.adb_port<=65535): raise ValueError('ADB port must be 1..65535')
     adb=[args.adb,'-P',str(args.adb_port),'-s',args.serial,'exec-out','run-as','com.motionstudio.editor']
     fixtures=Path(__file__).resolve().parents[1]/'crates/motion-media/tests/fixtures/formats'
     manifest=json.loads((fixtures/'manifest.json').read_text())
@@ -45,11 +45,11 @@ def main():
                 # MediaExtractor truncates some rational MP4 times to us;
                 # ffprobe formats them rounded to six decimals. Allow only 1 us.
                 index=min(range(len(pts)),key=lambda n:abs(pts[n]-sample['pts_us']))
-                assert abs(pts[index]-sample['pts_us'])<=1,(name,sample['pts_us'],pts[index])
+                if not (abs(pts[index]-sample['pts_us'])<=1): raise RuntimeError((name,sample['pts_us'],pts[index]))
                 vf=f'select=eq(n\\,{index})'
                 if 'oracle_color_matrix' in manifest[name]:vf+=',scale=in_color_matrix='+manifest[name]['oracle_color_matrix']
                 oracle=run('ffmpeg','-v','error','-i',str(fixtures/name),'-vf',vf,'-frames:v','1','-f','rawvideo','-pix_fmt','rgba','pipe:1')
-                assert len(frame)==len(oracle),(name,len(frame),len(oracle))
+                if not (len(frame)==len(oracle)): raise RuntimeError((name,len(frame),len(oracle)))
                 errors=[abs(a-b) for n,(a,b) in enumerate(zip(frame,oracle)) if n%4!=3];errors.sort()
                 value={'fixture':name,'kind':'frame','pts_us':sample['pts_us'],'rgb_mae':sum(errors)/len(errors),'rgb_p99':errors[int(.99*len(errors))],'rgb_max':max(errors)}
                 results.append(value)
@@ -57,12 +57,12 @@ def main():
             asset=report['metadata']['audio']
         else:asset=report['asset']
         owned=run(*adb,'cat',root+'/'+asset['path'])
-        assert hashlib.sha256(owned).hexdigest()==manifest[name]['sha256'],('owned source mismatch',name)
+        if not (hashlib.sha256(owned).hexdigest()==manifest[name]['sha256']): raise RuntimeError(('owned source mismatch',name))
         stem=Path(asset['path']).stem
         pcm=run(*adb,'cat',root+f'/cache/audio-v1/{stem}.pcm');(dst/'source.f32').write_bytes(pcm)
         reference=run('ffmpeg','-v','error','-copyts','-i',str(fixtures/name),'-map','0:a:0','-af','aresample=async=1:first_pts=0','-ar',str(asset['sample_rate']),'-f','f32le','-c:a','pcm_f32le','pipe:1')
         native=floats(pcm);independent=floats(reference);n=min(len(native),len(independent))
-        assert n>0
+        if not (n>0): raise RuntimeError('Audio comparison has no samples')
         errors=[a-b for a,b in zip(native,independent)]
         codec=next(s['codec_name'] for s in manifest[name]['streams'] if 'sample_rate' in s)
         # Android may retain one final compressed packet's padding. Validate
@@ -73,8 +73,8 @@ def main():
         results.append(value)
         if abs(delta)>allowed_frames*asset['channels'] or value['rms_error']>=.003 or value['max_error']>=.04:failures.append(value)
     (args.output/'parity.json').write_text(json.dumps({'comparisons':results},indent=2),encoding='utf-8')
-    assert not failures,failures
-    assert len(latest)==19,('missing completed format reports',list(latest))
+    if not (not failures): raise RuntimeError(failures)
+    if not (len(latest)==19): raise RuntimeError(('missing completed format reports',list(latest)))
     print(json.dumps({'fixtures':len(latest),'frame_comparisons':sum(v['kind']=='frame' for v in results),'audio_comparisons':sum(v['kind']=='audio' for v in results),'max_audio_rms':max(v['rms_error'] for v in results if v['kind']=='audio'),'max_frame_mae':max(v['rgb_mae'] for v in results if v['kind']=='frame')},indent=2))
 
 if __name__=='__main__':main()

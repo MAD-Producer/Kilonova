@@ -1,10 +1,11 @@
 //! Both GPU backends consume the same tessellated triangles and linear paints.
 use bytemuck::{Pod, Zeroable};
 use lyon_tessellation::{
-    math::point, path::Path, BuffersBuilder, FillOptions, FillTessellator, FillVertex,
-    StrokeOptions, StrokeTessellator, StrokeVertex, VertexBuffers,
+    math::point, path::Path, FillOptions, FillTessellator, StrokeOptions, StrokeTessellator,
 };
 use motion_model::vector::{FillRule, LineCap, LineJoin, SampledVector};
+mod budget;
+pub const MAX_TRIANGLE_VERTICES: usize = 262144;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Pod, Zeroable)]
 pub struct VectorVertex {
@@ -59,25 +60,20 @@ pub fn group_bounds(v: &SampledVector) -> Option<[f32; 4]> {
     if !min.is_finite() { return Some([-0.5,-0.5,1.,1.]); }
     Some([min.x,min.y,max.x-min.x,max.y-min.y])
 }
-pub fn rasterize(v: &SampledVector, size: [f32; 2], scale: f32, origin: [f32; 2]) -> Result<RasterGeometry, String> {
+pub(crate) fn rasterize_with_limit(v: &SampledVector, size: [f32; 2], scale: f32, origin: [f32; 2], limit: usize) -> Result<RasterGeometry, String> {
     let Some(batches) = &v.batches else {
-        return Ok(RasterGeometry { vertices: tessellate(v, size, scale)?, commands: vec![], root_opacity: 1. });
+        return Ok(RasterGeometry { vertices: tessellate_with_limit(v, size, scale, limit)?, commands: vec![], root_opacity: 1. });
     };
     let mut vertices = Vec::new();
     let mut commands = Vec::new();
     let mut scopes: Vec<motion_model::vector::groups::PaintScope> = Vec::new();
     for batch in batches {
         let matrix = glam::Mat3::from_cols_array(&batch.transform);
-        let mut triangles = tessellate(&batch.vector,size,scale)?;
-        for vertex in &mut triangles {
-            let local=glam::Vec2::new(vertex.position[0]*size[0]*0.5,-vertex.position[1]*size[1]*0.5);
-            let point=matrix.transform_point2(local)-glam::Vec2::from_array(origin);
-            vertex.position=[point.x*2./size[0],-point.y*2./size[1]];
-        }
-        let visible:Vec<_>=triangles.chunks_exact(3).filter(|triangle| !(0..2).any(|axis|
-            triangle.iter().all(|v|v.position[axis]< -1.) || triangle.iter().all(|v|v.position[axis]>1.)))
-            .flat_map(|t|t.iter().copied()).collect();
-        if visible.is_empty() {continue;}
+        let start = vertices.len() as u32;
+        let mut builder = budget::BoundedGeometry::new(vertices, size, limit.min(MAX_TRIANGLE_VERTICES), Some((matrix, glam::Vec2::from_array(origin))));
+        tessellate_into(&batch.vector, scale, &mut builder)?;
+        vertices = builder.output;
+        if vertices.len() == start as usize {continue;}
         let common = scopes.iter().zip(&batch.scopes).take_while(|(a,b)| a == b).count();
         for scope in scopes.drain(common..).rev() {
             commands.push(RasterCommand { kind: 2, start: 0, end: 0, opacity: scope.opacity });
@@ -86,9 +82,6 @@ pub fn rasterize(v: &SampledVector, size: [f32; 2], scale: f32, origin: [f32; 2]
             commands.push(RasterCommand { kind: 1, start: 0, end: 0, opacity: scope.opacity });
             scopes.push(scope.clone());
         }
-        let start = vertices.len() as u32;
-        vertices.extend(visible);
-        if vertices.len() > 262144 { return Err("vector triangle vertex limit exceeded (262144)".into()); }
         commands.push(RasterCommand { kind: 0, start, end: vertices.len() as u32, opacity: 1. });
     }
     for scope in scopes.into_iter().rev() { commands.push(RasterCommand {kind:2,start:0,end:0,opacity:scope.opacity}); }
@@ -100,11 +93,20 @@ fn paint(mut c: [f32; 4]) -> [f32; 4] {
     }
     c
 }
+#[cfg(test)]
 pub fn tessellate(
     v: &SampledVector,
     size: [f32; 2],
     scale: f32,
 ) -> Result<Vec<VectorVertex>, String> {
+    tessellate_with_limit(v, size, scale, MAX_TRIANGLE_VERTICES)
+}
+pub(crate) fn tessellate_with_limit(v: &SampledVector, size: [f32; 2], scale: f32, limit: usize) -> Result<Vec<VectorVertex>, String> {
+    let mut builder = budget::BoundedGeometry::new(Vec::new(), size, limit.min(MAX_TRIANGLE_VERTICES), None);
+    tessellate_into(v, scale, &mut builder)?;
+    Ok(builder.output)
+}
+fn tessellate_into(v: &SampledVector, scale: f32, builder: &mut budget::BoundedGeometry) -> Result<(), String> {
     if v.batches.is_some() {
         return Err("grouped vector raster execution is not available yet".into());
     }
@@ -154,30 +156,28 @@ pub fn tessellate(
         }
         b.build()
     };
-    let position = |p: lyon_tessellation::math::Point| [p.x * 2. / size[0], -p.y * 2. / size[1]];
-    let mut buffers: VertexBuffers<VectorVertex, u32> = VertexBuffers::new();
     let tolerance = (0.2 / scale).max(0.05);
     if let Some(color) = v.fill {
         let color = paint(color);
+        builder.color = color;
         let options = FillOptions::default()
             .with_tolerance(tolerance)
             .with_fill_rule(match v.fill_rule {
                 FillRule::EvenOdd => lyon_tessellation::FillRule::EvenOdd,
                 FillRule::NonZero => lyon_tessellation::FillRule::NonZero,
             });
-        FillTessellator::new()
+        let result = FillTessellator::new()
             .tessellate_path(
                 &make_path(true),
                 &options,
-                &mut BuffersBuilder::new(&mut buffers, |v: FillVertex| VectorVertex {
-                    position: position(v.position()),
-                    color,
-                }),
-            )
-            .map_err(|e| format!("vector fill: {e:?}"))?;
+                builder,
+            );
+        builder.check()?;
+        result.map_err(|e| format!("vector fill: {e:?}"))?;
     }
     if let Some((color, width, cap, join, miter)) = v.stroke.filter(|s| s.1 > 0.) {
         let color = paint(color);
+        builder.color = color;
         let cap = match cap {
             LineCap::Butt => lyon_tessellation::LineCap::Butt,
             LineCap::Round => lyon_tessellation::LineCap::Round,
@@ -194,23 +194,14 @@ pub fn tessellate(
             .with_line_cap(cap)
             .with_line_join(join)
             .with_miter_limit(miter);
-        StrokeTessellator::new()
+        let result = StrokeTessellator::new()
             .tessellate_path(
                 &make_path(false),
                 &options,
-                &mut BuffersBuilder::new(&mut buffers, |v: StrokeVertex| VectorVertex {
-                    position: position(v.position()),
-                    color,
-                }),
-            )
-            .map_err(|e| format!("vector stroke: {e:?}"))?;
+                builder,
+            );
+        builder.check()?;
+        result.map_err(|e| format!("vector stroke: {e:?}"))?;
     }
-    if buffers.indices.len() > 262144 {
-        return Err("vector triangle vertex limit exceeded (262144)".into());
-    }
-    Ok(buffers
-        .indices
-        .iter()
-        .map(|i| buffers.vertices[*i as usize])
-        .collect())
+    builder.check()
 }

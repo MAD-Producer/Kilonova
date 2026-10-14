@@ -7,23 +7,23 @@ import argparse
 import json
 import subprocess
 from pathlib import Path
-from PIL import Image
 
 
 def compare(video, reference, frame):
+    from PIL import Image
     metadata = json.loads(subprocess.check_output([
         'ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_streams', '-of', 'json', str(video)
     ]))['streams'][0]
     image = Image.open(reference).convert('RGBA')
-    assert image.getchannel('A').getextrema() == (255, 255), 'MP4 reference must be composited onto an opaque background'
+    if not (image.getchannel('A').getextrema() == (255, 255)): raise RuntimeError('MP4 reference must be composited onto an opaque background')
     image = image.convert('RGB')
-    assert (metadata['width'], metadata['height']) == image.size, 'frame dimensions differ'
+    if not ((metadata['width'], metadata['height']) == image.size): raise RuntimeError('frame dimensions differ')
     raw = subprocess.check_output([
         'ffmpeg', '-v', 'error', '-i', str(video), '-vf', rf'select=eq(n\,{frame})',
         '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgb24', 'pipe:1'
     ])
     expected = image.tobytes()
-    assert len(raw) == len(expected), 'frame missing or incomplete'
+    if not (len(raw) == len(expected)): raise RuntimeError('frame missing or incomplete')
     total = foreground = count = 0
     for i in range(0, len(raw), 3):
         error = sum(abs(raw[i+c] - expected[i+c]) for c in range(3))
@@ -44,7 +44,7 @@ def main():
     parser.add_argument('--frame', type=int, default=0)
     parser.add_argument('--report', type=Path)
     args = parser.parse_args()
-    assert args.frame >= 0
+    if not (args.frame >= 0): raise ValueError('Frame index must be nonnegative')
     result = compare(args.video, args.reference, args.frame)
     text = json.dumps(result, indent=2) + '\n'
     print(text)

@@ -127,3 +127,40 @@ fn resource_ledger_json_query_is_read_only_and_available_without_a_surface() {
     assert_eq!(session.engine.revision(), revision);
     assert_eq!(session.view_revision, view);
 }
+
+#[test]
+fn resource_tracking_is_runtime_only_and_profiling_keeps_it_enabled() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut session = Session::new(Project::new(64, 64, 30, 60).unwrap(), directory.path().to_path_buf(), Arc::new(Stub)).unwrap();
+    session.editor_renderer = Some(pollster::block_on(Renderer::headless()).unwrap());
+    let revision = session.engine.revision();
+    let view = session.view_revision;
+    let project = session.engine.snapshot();
+    let enable = "{\"op\":\"resource_tracking\",\"enabled\":true}";
+    let disable = "{\"op\":\"resource_tracking\",\"enabled\":false}";
+    session.plugin_request(enable).unwrap();
+    assert!(session.plugin_request("{\"op\":\"resource_tracking\",\"enabled\":1}").is_err());
+    let query = "{\"op\":\"resource_ledger\"}";
+    let info = session.plugin_request(query).unwrap();
+    assert_eq!(info["submissionTracking"]["editor"]["enabled"], true);
+    assert!(info["gpuRetirementBytes"].is_null());
+    let renderer = session.editor_renderer.as_ref().unwrap();
+    renderer.submit_tracked(renderer.device.create_command_encoder(&Default::default()).finish(), |_| {});
+    renderer.device.poll(wgpu::Maintain::Wait);
+    let info = session.plugin_request(query).unwrap();
+    assert_eq!(info["submissionTracking"]["editor"]["submitted"], 1);
+    assert_eq!(info["submissionTracking"]["editor"]["completed"], 1);
+    session.editor_target = Some(session.editor_renderer.as_ref().unwrap().capture_target(5, 7).unwrap());
+    assert_eq!(session.plugin_request(query).unwrap()["knownBytes"], 1032+5*7*4);
+    session.editor_target = None;
+    assert_eq!(session.plugin_request(query).unwrap()["knownBytes"], 1032);
+    session.recorder = Some(motion_render::FrameRecorder::new(1, 1));
+    session.plugin_request(disable).unwrap();
+    assert_eq!(session.plugin_request(query).unwrap()["submissionTracking"]["editor"]["enabled"], true);
+    session.recorder = None;
+    session.plugin_request(disable).unwrap();
+    assert_eq!(session.plugin_request(query).unwrap()["submissionTracking"]["editor"]["enabled"], false);
+    assert_eq!(session.engine.revision(), revision);
+    assert_eq!(session.view_revision, view);
+    assert_eq!(session.engine.snapshot(), project);
+}
