@@ -660,46 +660,28 @@ impl Controls {
                     *y += 26.;
                 }
                 _ => {
-                    let kind = match item {
-                        GroupItem::Geometry { .. } => {
-                            if locale == Locale::Zh {
-                                "路径"
-                            } else {
-                                "Geometry"
-                            }
-                        }
-                        GroupItem::Fill { .. } => {
-                            if locale == Locale::Zh {
-                                "填充"
-                            } else {
-                                "Fill"
-                            }
-                        }
-                        GroupItem::Stroke { .. } => {
-                            if locale == Locale::Zh {
-                                "描边"
-                            } else {
-                                "Stroke"
-                            }
-                        }
-                        _ => {
-                            if locale == Locale::Zh {
-                                "修剪"
-                            } else {
-                                "Trim"
-                            }
-                        }
+                    let (zh, en) = match item {
+                        GroupItem::Geometry { .. } => ("路径", "Geometry"),
+                        GroupItem::Fill { .. } => ("填充", "Fill"),
+                        GroupItem::Stroke { .. } => ("描边", "Stroke"),
+                        _ => ("修剪", "Trim"),
+                    };
+                    let kind = if locale == Locale::Zh { zh } else { en };
+                    let caption = if item.name() == en {
+                        kind.into()
+                    } else {
+                        format!("{} · {kind}", item.name())
                     };
                     label(
                         list,
                         atlas,
                         Rect::new(
-                            area.min[0] + 38. + depth as f32 * 12.,
+                            area.min[0] + 48. + depth as f32 * 12.,
                             *y,
-                            (area.width() - 54. - depth as f32 * 12.).max(1.),
+                            (area.width() - 64. - depth as f32 * 12.).max(1.),
                             24.,
                         ),
-                        &format!("{} · {kind}", item.name()),
+                        &caption,
                         list.styles().colors().TEXT_MUTED,
                     );
                     *y += 26.;

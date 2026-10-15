@@ -25,19 +25,20 @@ pub(super) fn render(
         );
         return;
     };
-    let mut y = auxiliary::body_y(
-        panel,
-        area,
+    let height = if panel == Panel::Vector {
+        panels.path_controls.groups.height(&layer)
+            + match &layer.content {
+                motion_core::Content::Vector { vector } => match vector.source {
+                    motion_core::vector::VectorSource::Group { .. } => 0.,
+                    motion_core::vector::VectorSource::Shape { .. } => 90.,
+                    _ => 60.,
+                },
+                _ => 0.,
+            }
+    } else {
         panels.path_controls.height(&layer)
-            + 140.
-            + if panel == Panel::Vector {
-                panels.path_controls.groups.height(&layer)
-            } else {
-                0.
-            },
-        panels,
-        input,
-    );
+    };
+    let mut y = auxiliary::body_y(panel, area, height + 16., panels, input);
     panels.path_controls.inspector_section(
         panel == Panel::Vector,
         list,

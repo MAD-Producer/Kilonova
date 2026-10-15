@@ -806,7 +806,7 @@ impl Controls {
                 .masks
                 .iter()
                 .map(|m| {
-                    186. + [
+                    174. + [
                         m.opacity.is_animated(),
                         m.feather.is_animated(),
                         m.expansion.is_animated(),
@@ -818,7 +818,7 @@ impl Controls {
                 })
                 .sum::<f32>()
         } else {
-            30.
+            34.
         }
     }
     pub fn inspector_section(
@@ -855,6 +855,10 @@ impl Controls {
                 out,
             );
             if let Content::Vector { vector } = &l.content {
+                // Group contents have their own tree; the flat pen edits only paths.
+                if matches!(vector.source, VectorSource::Group { .. }) {
+                    return;
+                }
                 let title = if locale == Locale::Zh {
                     "矢量路径"
                 } else {
@@ -1017,11 +1021,10 @@ impl Controls {
                 &mask.name,
                 colors.TEXT,
             );
-            if ui::button(
+            if ui::button_icon(
                 list,
-                atlas,
                 Rect::new(heading.max[0] - 56., *y, 26., 24.),
-                "✎",
+                motion_ui::icons::Icon::Pen,
                 input,
                 allowed,
             )
