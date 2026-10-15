@@ -1257,6 +1257,7 @@ fn shared_graph_wheel_keeps_mouse_time_and_separates_time_and_value_scaling() {
     panels.timeline.expanded.insert(7);
     panels.timeline.zoom=4.;
     panels.timeline.offset=18.;
+    let initial_y=panels.timeline.graph_y_zoom;
     let mut atlas=TextAtlas::from_system(12.).unwrap();
     let area=Rect::new(0.,0.,1200.,600.);
     let mouse=[900.,200.];
@@ -1268,7 +1269,7 @@ fn shared_graph_wheel_keeps_mouse_time_and_separates_time_and_value_scaling() {
         &Input {mouse,wheel:[0.,-20.],modifiers:Modifiers {control:true,..Default::default()},..Default::default()},&mut actions);
     let after=panels.timeline.offset+(mouse[0]-gutter)/width*120./panels.timeline.zoom;
     assert!((after-anchor).abs()<0.0001);
-    assert_eq!(panels.timeline.graph_y_zoom,1.);
+    assert_eq!(panels.timeline.graph_y_zoom,initial_y);
     assert!(actions.is_empty());
     let time=(panels.timeline.zoom,panels.timeline.offset);
     timeline::render(&mut PaintList::default(),&mut atlas,area,&mut panels,&snapshot,

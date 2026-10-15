@@ -158,7 +158,7 @@ pub(super) fn interact(
     axis: Option<Axis>,
     component: usize,
     plot: Plot,
-    curve: &[(f64, f32)],
+    _curve: &[(f64, f32)],
     input: &Input,
     locked: bool,
     out: &mut Vec<Action>,
