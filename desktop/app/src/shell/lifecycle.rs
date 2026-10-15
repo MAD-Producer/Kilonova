@@ -12,6 +12,7 @@ impl Shell {
         }
     }
     pub(crate) fn finish_close(&mut self) {
+        self.cancel_audio_analysis();
         self.node_tasks.cancel(&mut self.panels.node_editor);
         self.node_compile_due = None;
         self.node_installing.clear();

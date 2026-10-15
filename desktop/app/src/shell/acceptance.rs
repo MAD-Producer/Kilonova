@@ -24,13 +24,53 @@ impl Shell {
             let screenshot = self.capture_panel_float(panel)?;
             let value_graph = if panel == dock::Panel::Timeline {
                 let previous = self.panels.timeline.clone();
+                let selected = self.panels.selected;
+                let visual = self.state["project"]["layers"].as_array().into_iter().flatten().rev()
+                    .find(|layer| layer["content"]["kind"] != "audio")
+                    .and_then(|layer| layer["id"].as_u64());
+                self.panels.select_only(visual);
                 self.panels.timeline.set_graph_mode(true);
                 let graph = self.capture_panel_float(panel);
                 self.panels.timeline = previous;
+                self.panels.select_only(selected);
                 Some(graph?)
             } else {
                 None
             };
+            let audio_menu = if panel == dock::Panel::Timeline {
+                let f = self.floating.values().find(|f| f.panel == panel).ok_or("timeline window missing")?;
+                let physical = f.window.inner_size();
+                let size = [physical.width as f32 / f.scale, physical.height as f32 / f.scale];
+                let point = [140., 105.];
+                for input in [
+                    Input { mouse:point, pressed:Some((MouseButton::Right, point)), ..Default::default() },
+                    Input { keys:vec![(Key::Down,Default::default())], ..Default::default() },
+                    Input { keys:vec![(Key::Down,Default::default())], ..Default::default() },
+                    Input { keys:vec![(Key::Right,Default::default())], ..Default::default() },
+                ] {
+                    let actions = panels::floating_chrome(&mut PaintList::default(), &mut self.atlas,
+                        panel, size, &mut self.panels, &self.state, &input);
+                    if !actions.is_empty() { return Err("menu navigation edited the project".into()); }
+                }
+                let screenshot = self.capture_panel_float_named(panel, "-audio-menu")?;
+                self.panels.layer_actions.cancel();
+                Some(screenshot)
+            } else { None };
+            let marker_menu = if panel == dock::Panel::Timeline {
+                let f = self.floating.values().find(|f| f.panel == panel).ok_or("timeline window missing")?;
+                let physical = f.window.inner_size();
+                let size = [physical.width as f32 / f.scale, physical.height as f32 / f.scale];
+                let gutter = 640f32.min(size[0] * 0.52);
+                let total = self.state["project"]["frames"].as_f64().unwrap_or(300.);
+                let point = [gutter + 15. / total as f32 * (size[0] - gutter - 8.), 72.];
+                let actions = panels::floating_chrome(&mut PaintList::default(), &mut self.atlas,
+                    panel, size, &mut self.panels, &self.state,
+                    &Input { mouse: point, pressed: Some((MouseButton::Right, point)), ..Default::default() });
+                if !actions.is_empty() { return Err("marker context menu edited the project".into()); }
+                let screenshot = self.capture_panel_float_named(panel, "-marker-menu")?;
+                self.panels.layer_actions.cancel();
+                Some(screenshot)
+            } else { None };
             self.redock_panel(panel.dock())?;
             if !self.workspace.valid() {
                 return Err("panel lost unique workspace ownership".into());
@@ -38,11 +78,21 @@ impl Shell {
             if self.state["revision"] != revision {
                 return Err("layout change edited the project".into());
             }
-            self.smoke_panel_records.push(serde_json::json!({"id":panel as u32,"title":self.workspace.locale.panel(panel.dock()),"frames":self.smoke_float_frames[&(panel as u32)],"screenshot":screenshot,"valueGraphScreenshot":value_graph,"projectRevision":revision}));
+            self.smoke_panel_records.push(serde_json::json!({"id":panel as u32,"title":self.workspace.locale.panel(panel.dock()),"frames":self.smoke_float_frames[&(panel as u32)],"screenshot":screenshot,"valueGraphScreenshot":value_graph,"audioMenuScreenshot":audio_menu,"markerMenuScreenshot":marker_menu,"projectRevision":revision}));
+            if matches!(panel, dock::Panel::Timeline | dock::Panel::Audio) {
+                // Subsequent parent/blend captures require a visual target.
+                let visual = self.state["project"]["layers"].as_array().into_iter().flatten().rev()
+                    .find(|layer| layer["content"]["kind"] != "audio")
+                    .and_then(|layer| layer["id"].as_u64());
+                self.panels.select_only(visual);
+            }
             self.smoke_panel_current = None;
             self.smoke_panel_index += 1;
         } else if let Some(panel) = dock::Panel::ALL.get(self.smoke_panel_index).copied() {
             self.action(panels::Action::ShowPanel(panel.dock()), Some(event_loop))?;
+            if matches!(panel, dock::Panel::Timeline | dock::Panel::Audio) {
+                self.prepare_audio_panel_smoke()?;
+            }
             if panel == dock::Panel::Vector {
                 self.action(
                     panels::Action::AddShape(motion_core::vector::ShapeKind::Rectangle),
@@ -61,7 +111,56 @@ impl Shell {
         }
         Ok(())
     }
+    fn prepare_audio_panel_smoke(&mut self) -> Result<(), String> {
+        if let Some(object) = self.state["project"]["layers"].as_array().into_iter().flatten()
+            .find(|l| l["name"] == "Stereo audio").and_then(|l| l["id"].as_u64()) {
+            self.panels.select_only(Some(object));
+            self.panels.timeline.expanded.insert(object);
+            return Ok(());
+        }
+        // Owned acceptance-only source, sufficient for the complete composition.
+        let root = PathBuf::from(self.state["root"].as_str().ok_or("missing smoke root")?);
+        let frames = self.state["project"]["frames"].as_u64().unwrap_or(300);
+        let fps = self.state["project"]["fps"].as_u64().unwrap_or(30);
+        let samples = frames * 48_000 / fps;
+        let data_len = u32::try_from(samples * 4).map_err(|e| e.to_string())?;
+        let mut wave = Vec::with_capacity(data_len as usize + 44);
+        wave.extend(b"RIFF"); wave.extend((36+data_len).to_le_bytes()); wave.extend(b"WAVEfmt ");
+        wave.extend(16u32.to_le_bytes()); wave.extend(1u16.to_le_bytes()); wave.extend(2u16.to_le_bytes());
+        wave.extend(48_000u32.to_le_bytes()); wave.extend(192_000u32.to_le_bytes());
+        wave.extend(4u16.to_le_bytes()); wave.extend(16u16.to_le_bytes()); wave.extend(b"data"); wave.extend(data_len.to_le_bytes());
+        for _ in 0..samples { wave.extend(4096i16.to_le_bytes()); wave.extend(8192i16.to_le_bytes()); }
+        std::fs::create_dir_all(root.join("assets")).map_err(|e| e.to_string())?;
+        let relative = "assets/smoke-audio.wav";
+        let mut file = std::fs::OpenOptions::new().create_new(true).write(true).open(root.join(relative)).map_err(|e| e.to_string())?;
+        use std::io::Write;
+        file.write_all(&wave).map_err(|e| e.to_string())?;
+        let asset = self.state["project"]["audio_assets"].as_array().into_iter().flatten()
+            .filter_map(|v| v["id"].as_u64()).max().unwrap_or(0)+1;
+        let object = self.state["project"]["layers"].as_array().into_iter().flatten()
+            .filter_map(|v| v["id"].as_u64()).max().unwrap_or(0)+1;
+        let mut layer = Layer::solid(object, "Stereo audio", [0.;2], [0.;3], [1.;4]);
+        layer.content = motion_core::Content::Audio { audio: motion_core::AudioClip::new(asset) };
+        self.state = self.engine.edit(serde_json::to_string(&vec![
+            Command::RegisterAudioAsset { asset: motion_core::AudioAsset {
+                id:asset,path:relative.into(),mime:"audio/wav".into(),bytes:wave.len() as u64,track:0,
+                sample_rate:48_000,channels:2,sample_frames:samples,duration_us:samples*1_000_000/48_000 } },
+            Command::Add { layer },
+            Command::AudioLevels { object, action: motion_core::AudioLevelsAction::Set {
+                channel:motion_core::AudioChannel::Left,frame:0,value:0.,animated:Some(true) } },
+            Command::AudioLevels { object, action: motion_core::AudioLevelsAction::Set {
+                channel:motion_core::AudioChannel::Left,frame:60,value:-12.,animated:None } },
+            Command::AudioMarkers { object, action: motion_core::AudioMarkersAction::ReplaceGenerated {
+                frames: vec![15, 30, 45, 60, 75, 90] } },
+        ]).map_err(|e| e.to_string())?)?;
+        self.panels.select_only(Some(object));
+        self.panels.timeline.expanded.insert(object);
+        Ok(())
+    }
     fn capture_panel_float(&mut self, panel: dock::Panel) -> Result<PathBuf, String> {
+        self.capture_panel_float_named(panel, "")
+    }
+    fn capture_panel_float_named(&mut self, panel: dock::Panel, suffix: &str) -> Result<PathBuf, String> {
         let f = self
             .floating
             .values()
@@ -105,13 +204,14 @@ impl Shell {
             node_preview: self.node_viewport(panels::floating_node_view(panel, size), scale),
         };
         let path = self.smoke.as_ref().unwrap().with_extension(format!(
-            "panel-{}{}.png",
+            "panel-{}{}{}.png",
             panel as u32,
             if panel == dock::Panel::Timeline && self.panels.timeline.graph_mode {
                 "-graph"
             } else {
                 ""
-            }
+            },
+            suffix
         ));
         self.engine.capture_ui(ui, path.clone())?;
         Ok(path)

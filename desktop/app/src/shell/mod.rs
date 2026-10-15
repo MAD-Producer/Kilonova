@@ -3,6 +3,7 @@ mod acceptance;
 pub(crate) mod actions;
 mod lifecycle;
 mod media;
+pub(crate) mod audio_analysis;
 mod nodes;
 mod presentation;
 

@@ -47,7 +47,7 @@ pub fn db_gain(db: f32) -> f32 {
     10f32.powf(db / 20.)
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AudioChannel {
     Left,

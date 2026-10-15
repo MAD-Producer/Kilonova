@@ -91,6 +91,9 @@ fn descriptor(id: &str, fields: &[(&str, &str, bool)]) -> Value {
 }
 registry! {
     Command::AudioLevels { .. } => "audio_levels" [("object","u64",true), ("action","crate::AudioLevelsAction",true)];
+    Command::AudioMarkers { .. } => "audio_markers" [("object","u64",true), ("action","crate::AudioMarkersAction",true)];
+    Command::SplitAudioChannels { .. } => "split_audio_channels" [("object","u64",true)];
+    Command::ExtractAudio { .. } => "extract_audio" [("object","u64",true)];
     Command::SetLayerRange { .. } => "set_layer_range" [("object","u64",true), ("in_frame","f64",true), ("out_frame","f64",true)];
     Command::SetColor { .. } => "set_color" [("object","u64",true), ("value","[f32;4]",true)];
     Command::AddAdjustment { .. } => "add_adjustment" [("id","u64",true), ("name","String",true)];

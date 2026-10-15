@@ -16,6 +16,8 @@ pub enum Action {
     ImportEffectPath(std::path::PathBuf),
     ImportPath(std::path::PathBuf),
     CancelImport,
+    AnalyzeAudio(u64),
+    CancelAudioAnalysis,
     ExportPng,
     ExportMovie,
     CancelExport,
@@ -76,6 +78,10 @@ pub enum Action {
     Seek(f64),
     TogglePlay,
     Edit(Command),
+    EditChecked {
+        command: Command,
+        revision: u64,
+    },
     EditBatch(Vec<Command>),
 }
 
@@ -118,6 +124,7 @@ pub struct Panels {
     pub parent_controls: crate::panels::parent_controls::Controls,
     pub timeline_columns: crate::panels::timeline_columns::Controls,
     pub camera_controls: crate::panels::camera_controls::Controls,
+    pub(crate) audio_controls: crate::panels::audio::Controls,
     pub node_editor: crate::node_editor::NodeEditor,
     pub node_preview: crate::node_preview::Controls,
     pub path_controls: crate::panels::path_controls::Controls,
@@ -126,6 +133,7 @@ pub struct Panels {
 
 impl Panels {
     pub(crate) fn select_only(&mut self, object: Option<u64>) {
+        self.audio_controls.clear_selection();
         self.selected = object;
         self.selection_anchor = object.filter(|id| *id != 0);
         self.animation_controls.clear_key();
@@ -357,6 +365,7 @@ pub(crate) struct TimelineState {
     )>,
     pub expanded: std::collections::HashSet<u64>,
     pub collapsed_transforms: std::collections::HashSet<u64>,
+    pub collapsed_audio: std::collections::HashSet<u64>,
     pub filters: std::collections::HashMap<u64, PropertyFilter>,
     pub graph_mode: bool,
     pub(super) clip_view: Option<TimelineViewport>,

@@ -120,6 +120,7 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     panels.parent_controls.open = false;
     panels.timeline_columns.cancel();
     let camera = panels.camera_controls.cancel();
+    let audio = panels.audio_controls.cancel();
     let effect = panels.effect_controls.cancel();
     let numeric = panels
         .properties
@@ -143,6 +144,7 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
         || transform
         || effect
         || camera
+        || audio
     {
         vec![Action::History(4)]
     } else {
@@ -189,6 +191,7 @@ pub fn chrome(
         panels.selected,
         panels.focused == Some(Panel::Timeline)
             && panels.properties.field.is_none()
+            && !panels.audio_controls.editing()
             && !panels.timeline.timeline_search,
         &mut out,
     );
@@ -287,8 +290,9 @@ pub fn chrome(
         || panels.project.context_menu.is_some()
         || panels.timeline.timeline_context_menu.is_some();
     let effect_modal = panels.effect_controls.editing();
+    let audio_modal = panels.audio_controls.editing();
     let neutral = Input::default();
-    let body_input = if menu_modal || node_modal || effect_modal {
+    let body_input = if menu_modal || node_modal || effect_modal || audio_modal {
         &neutral
     } else {
         input
@@ -395,7 +399,11 @@ pub fn chrome(
                 panels,
                 state,
                 if (node_modal && f.panel == Panel::Nodes && !menu_modal)
-                    || (effect_modal && f.panel == Panel::EffectControls && !menu_modal && !node_modal)
+                    || (effect_modal
+                        && f.panel == Panel::EffectControls
+                        && !menu_modal
+                        && !node_modal)
+                    || (audio_modal && f.panel == Panel::Timeline && !menu_modal && !node_modal)
                     || (timeline_popup && f.panel == Panel::Timeline)
                 {
                     input
@@ -677,7 +685,8 @@ pub fn chrome(
         panels.locale,
         &mut out,
     );
-    out
+    apply_marker_selection(panels, state);
+    scope_edits(out, state)
 }
 pub fn panel(id: dock::DockId) -> Option<Panel> {
     Panel::from_dock(id)
@@ -725,6 +734,7 @@ pub fn floating_chrome(
         panels.selected,
         panel == Panel::Timeline
             && panels.properties.field.is_none()
+            && !panels.audio_controls.editing()
             && !panels.timeline.timeline_search,
         &mut out,
     );
@@ -890,7 +900,42 @@ pub fn floating_chrome(
         panels.locale,
         &mut out,
     );
-    out
+    apply_marker_selection(panels, state);
+    scope_edits(out, state)
+}
+fn apply_marker_selection(panels: &mut Panels, state: &Value) {
+    if let Some(object) = panels.layer_actions.select_generated.take() {
+        panels.select_only(Some(object));
+        panels.audio_controls.select_generated(object, state);
+    }
+}
+/// Bind edits to the composition that produced the input, even if another
+/// window changes the active composition before the worker receives them.
+fn scope_edits(actions: Vec<Action>, state: &Value) -> Vec<Action> {
+    let composition = state["composition"]
+        .as_str()
+        .or_else(|| state["project"]["composition_id"].as_str())
+        .unwrap_or(motion_core::composition::MAIN_COMPOSITION);
+    if composition == motion_core::composition::MAIN_COMPOSITION {
+        return actions;
+    }
+    let scoped = |command| match command {
+        Command::InComposition { .. } => command,
+        command => Command::InComposition {
+            composition: composition.into(),
+            command: Box::new(command),
+        },
+    };
+    actions
+        .into_iter()
+        .map(|action| match action {
+            Action::Edit(command) => Action::Edit(scoped(command)),
+            Action::EditBatch(commands) => {
+                Action::EditBatch(commands.into_iter().map(scoped).collect())
+            }
+            action => action,
+        })
+        .collect()
 }
 fn node_body(area: Rect) -> Rect {
     Rect::new(

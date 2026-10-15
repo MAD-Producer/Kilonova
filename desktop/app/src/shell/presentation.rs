@@ -1031,6 +1031,45 @@ mod interaction_tests {
     }
 
     #[test]
+    fn composition_menu_creates_in_the_existing_project_and_cancel_is_read_only() {
+        for locale in [Locale::Zh, Locale::En] {
+            let folder = tempfile::tempdir().unwrap();
+            let mut shell = Shell::new(folder.path().join("project"), None, Some(locale)).unwrap();
+            shell.home = None;
+            shell.state = shell.engine.edit(serde_json::to_string(&Command::Add {
+                layer: Layer::solid(7, "Keep this layer", [100.; 2], [100., 200., 0.], [1.; 4]) }).unwrap()).unwrap();
+            let before = shell.state["project"].clone();
+            let root = shell.state["root"].clone();
+            for cancel in [true, false] {
+                shell.panels.menu = Some(2);
+                let x = 20. + shell.atlas.measure(locale.t(crate::i18n::Text::File)) + 22.
+                    + shell.atlas.measure(locale.t(crate::i18n::Text::Edit)) + 22.;
+                let point = [x, motion_ui::theme::metrics::TITLE_BAR + motion_ui::theme::metrics::MENU_BAR + 18.];
+                shell.input = Input { mouse: point, pressed: Some((MouseButton::Left, point)), ..Default::default() };
+                let (_, actions) = shell.draw_commands([1200., 900.]);
+                assert!(matches!(actions.as_slice(), [panels::Action::NewComposition]));
+                shell.actions.extend(actions);
+                finish_actions(&mut shell);
+                assert!(shell.dialog.is_some());
+                shell.input = Input { keys: vec![(if cancel { Key::Escape } else { Key::Enter }, Modifiers::default())], ..Default::default() };
+                assert!(shell.draw_commands([1200., 900.]).1.is_empty());
+                assert!(shell.dialog.is_none());
+                assert_eq!(shell.state["root"], root);
+                if cancel {
+                    assert_eq!(shell.state["project"], before);
+                } else {
+                    assert_eq!(shell.state["project"]["layers"], before["layers"]);
+                    assert_eq!(shell.state["project"]["compositions"].as_array().unwrap().len(), 1);
+                    shell.state = shell.engine.save().unwrap();
+                    let reopened = motion_core::storage::load(&PathBuf::from(root.as_str().unwrap())).unwrap();
+                    assert_eq!(serde_json::to_value(reopened).unwrap(), shell.state["project"]);
+                    assert_eq!(shell.engine.history(0).unwrap()["project"], before);
+                }
+            }
+        }
+    }
+
+    #[test]
     fn property_scrub_processes_a_gesture_batch_before_paint_and_commits_the_latest_release() {
         let folder = tempfile::tempdir().unwrap();
         let mut shell = Shell::new(folder.path().join("project"), None, Some(Locale::En)).unwrap();

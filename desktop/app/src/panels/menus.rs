@@ -125,6 +125,11 @@ pub(super) fn render(
             ],
             2 => vec![
                 (
+                    format!("{}    Ctrl+N", locale.t(T::NewComposition)),
+                    Action::NewComposition,
+                    true,
+                ),
+                (
                     format!("{}    Ctrl+K", locale.t(T::CompositionSettings)),
                     Action::CompositionSettings,
                     true,

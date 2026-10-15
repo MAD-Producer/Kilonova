@@ -4,6 +4,7 @@ use std::hash::{Hash, Hasher};
 
 pub(super) struct Row {
     pub(super) spatial: bool,
+    audio: usize,
     pub(super) id: u64,
     pub(super) name: String,
     name_lower: String,
@@ -12,6 +13,7 @@ pub(super) struct Row {
     pub(super) clip: [i32; 2],
     pub(super) range: [f64; 2],
     pub(super) keys: Vec<f64>,
+    references: Vec<f64>,
     properties: Vec<PropertyRow>,
 }
 
@@ -127,8 +129,35 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
             }
             keys.sort_by(|a, b| a.total_cmp(b));
             keys.dedup();
+            let offset = l["timeline"]["offset_frame"].as_i64().unwrap_or(0);
+            let visible_begin = t
+                .and_then(|t| {
+                    t["subframe_range"]["in_frame"]
+                        .as_f64()
+                        .or_else(|| t["in_frame"].as_f64())
+                })
+                .unwrap_or(0.);
+            let visible_end = t
+                .and_then(|t| {
+                    t["subframe_range"]["out_frame"]
+                        .as_f64()
+                        .or_else(|| t["out_frame"].as_f64())
+                })
+                .unwrap_or(f64::from(total));
+            let references = l["audio_markers"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(|m| m["frame"].as_i64().map(|f| (f + offset) as f64))
+                .filter(|f| *f >= visible_begin.max(0.) && *f < visible_end.min(f64::from(total)))
+                .collect();
             Row {
                 spatial: l["content"]["kind"] != "audio",
+                audio: if super::audio::is_audio(l) {
+                    super::audio::rows(l)
+                } else {
+                    0
+                },
                 id,
                 name: l["name"].as_str().unwrap_or("Layer").into(),
                 name_lower: l["name"].as_str().unwrap_or("Layer").to_lowercase(),
@@ -154,6 +183,7 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
                     .unwrap_or(total as f64),
                 ],
                 keys,
+                references,
                 properties,
             }
         })
@@ -166,6 +196,7 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
             0,
             Row {
                 spatial: false,
+                audio: 0,
                 id: 0,
                 name: "Camera".into(),
                 name_lower: "camera".into(),
@@ -174,6 +205,7 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
                 clip: [0, total as i32],
                 range: [0., total as f64],
                 keys: vec![],
+                references: vec![],
                 properties: vec![],
             },
         );
@@ -203,6 +235,9 @@ fn scroll_extent_signature(
         id.hash(&mut hash);
     }
     timeline.collapsed_transforms.len().hash(&mut hash);
+    for id in &timeline.collapsed_audio {
+        id.hash(&mut hash);
+    }
     for id in &timeline.collapsed_transforms {
         id.hash(&mut hash);
     }
@@ -220,23 +255,36 @@ fn calculate_scroll_max(
 ) -> f32 {
     (rows
         .iter()
-        .map(|row| {
-            if timeline.expanded.contains(&row.id) {
-                if timeline.collapsed_transforms.contains(&row.id) {
-                    return 2;
-                }
-                2 + filtered_property_count(
-                    row,
-                    timeline.filters.get(&row.id).copied().unwrap_or_default(),
-                )
-            } else {
-                1
-            }
-        })
+        .map(|row| row_count(row, timeline))
         .sum::<usize>() as f32
         * row_height
         - (area_height - 64.0))
         .max(0.0)
+}
+fn row_count(row: &Row, timeline: &types::TimelineState) -> usize {
+    if row.id == 0 || !timeline.expanded.contains(&row.id) {
+        return 1;
+    }
+    1 + if row.spatial {
+        1 + if timeline.collapsed_transforms.contains(&row.id) {
+            0
+        } else {
+            filtered_property_count(
+                row,
+                timeline.filters.get(&row.id).copied().unwrap_or_default(),
+            )
+        }
+    } else {
+        0
+    } + if row.audio > 0 {
+        1 + if timeline.collapsed_audio.contains(&row.id) {
+            0
+        } else {
+            row.audio
+        }
+    } else {
+        0
+    }
 }
 pub(super) fn filtered_properties(
     state: &Value,
@@ -274,6 +322,7 @@ fn select_row(
     toggle: bool,
     range: bool,
 ) {
+    panels.audio_controls.clear_selection();
     if object == 0 {
         panels.select_only(Some(object));
     } else if range {
@@ -314,6 +363,7 @@ pub(super) fn render(
     input: &Input,
     out: &mut Vec<Action>,
 ) {
+    super::audio::prepare(panels, state, input, out);
     if panels.timeline.graph_mode {
         super::graph_workspace::render(list, atlas, area, panels, state, input, out);
         return;
@@ -424,6 +474,7 @@ pub(super) fn render(
         for row in all_rows.iter().filter(|r| Some(r.id) != exclude) {
             candidates.extend(row.range);
             candidates.extend(row.keys.iter().copied());
+            candidates.extend(row.references.iter().copied());
         }
         for key in ["in_frame", "out_frame"] {
             if let Some(v) = state["project"]["work_area"][key].as_f64() {
@@ -434,6 +485,7 @@ pub(super) fn render(
     };
     let seek_candidates = candidates_for(None, false);
     let x_of = |f: f64| track.min[0] + (f as f32 - offset) * ppf;
+    super::audio::process_drag(panels, state, input, ppf, out);
     let frame_of = |x: f32| {
         ((x - track.min[0]) / ppf + offset)
             .round()
@@ -654,13 +706,15 @@ pub(super) fn render(
         label(
             list,
             atlas,
-            Rect::new(x + 3.0, ruler.min[1], 52.0, 22.0),
+            Rect::new(x + 3.0, ruler.min[1] + 10., 52.0, 18.0),
             &format!("{:.0}s", f / fps),
             true,
         );
         f += step;
     }
-    if clicked(input, ruler) {
+    let marker_owned =
+        super::audio::render_ruler(list, atlas, ruler, ppf, offset, panels, state, input, out);
+    if clicked(input, ruler) && !marker_owned {
         panels.timeline.scrubbing = true;
         panels.timeline.last_seek = None;
     }
@@ -704,10 +758,10 @@ pub(super) fn render(
     let mut row_offset = 0;
     let mut timeline_hit = false;
     for (index, row) in rows.iter().enumerate() {
-        let expandable = row.id != 0 && row.spatial;
+        let expandable = row.id != 0 && (row.spatial || row.audio > 0);
         let expanded = expandable && panels.timeline.expanded.contains(&row.id);
         let transform_expanded =
-            expanded && !panels.timeline.collapsed_transforms.contains(&row.id);
+            expanded && row.spatial && !panels.timeline.collapsed_transforms.contains(&row.id);
         let filter = panels
             .timeline
             .filters
@@ -720,7 +774,7 @@ pub(super) fn render(
             0
         };
         let y = body.min[1] + row_offset as f32 * row_height - panels.timeline.scroll;
-        let row_count = 1 + if expanded { 1 + property_count } else { 0 };
+        let row_count = row_count(row, &panels.timeline);
         row_offset += row_count;
         if y + row_count as f32 * row_height < body.min[1] - row_height
             || y > body.max[1] + row_height
@@ -731,6 +785,22 @@ pub(super) fn render(
         if clicked(input, row_group) {
             timeline_hit = true;
         }
+        if row.audio > 0 {
+            if let Some((MouseButton::Right, point)) =
+                input.pressed.filter(|(_, p)| row_group.contains(*p))
+            {
+                panels.select_only(Some(row.id));
+                let audio_y =
+                    y + (1 + if row.spatial { 1 + property_count } else { 0 }) as f32 * row_height;
+                if expanded && point[1] >= audio_y {
+                    panels
+                        .layer_actions
+                        .open_audio(row.id, point, state, locale);
+                } else {
+                    panels.layer_actions.open(Some(row.id), point, state);
+                }
+            }
+        }
         let properties: Vec<_> = if transform_expanded {
             row.properties
                 .iter()
@@ -739,7 +809,7 @@ pub(super) fn render(
         } else {
             vec![]
         };
-        if expanded {
+        if expanded && row.spatial {
             let group = Rect::new(area.min[0] + 80., y + row_height, gutter - 86., row_height);
             if group.min[1] >= body.min[1] && group.max[1] <= body.max[1] {
                 label(
@@ -874,6 +944,59 @@ pub(super) fn render(
                         }
                     }
                 }
+            }
+        }
+        if expanded && row.audio > 0 {
+            let audio_y =
+                y + (1 + if row.spatial { 1 + property_count } else { 0 }) as f32 * row_height;
+            let group = Rect::new(
+                area.min[0] + 80.,
+                audio_y,
+                (gutter - 86.).max(1.),
+                row_height,
+            );
+            let open = !panels.timeline.collapsed_audio.contains(&row.id);
+            if group.min[1] >= body.min[1] && group.max[1] <= body.max[1] {
+                label(
+                    list,
+                    atlas,
+                    group,
+                    &format!(
+                        "{}  {}",
+                        if open { "⌄" } else { "›" },
+                        if locale == Locale::Zh {
+                            "音频"
+                        } else {
+                            "Audio"
+                        }
+                    ),
+                    true,
+                );
+                if clicked(input, group) {
+                    if open {
+                        panels.timeline.collapsed_audio.insert(row.id);
+                    } else {
+                        panels.timeline.collapsed_audio.remove(&row.id);
+                    }
+                }
+            }
+            if open {
+                super::audio::render_rows(
+                    list,
+                    atlas,
+                    Rect::new(area.min[0], body.min[1], gutter, body.height()),
+                    body,
+                    track,
+                    audio_y + row_height,
+                    row_height,
+                    ppf,
+                    offset,
+                    row.id,
+                    panels,
+                    state,
+                    input,
+                    out,
+                );
             }
         }
         if y < body.min[1] || y + row_height > body.max[1] {
@@ -1250,6 +1373,7 @@ pub(super) fn render(
         {
             candidates.extend(row.range);
             candidates.extend(row.keys.iter().copied());
+            candidates.extend(row.references.iter().copied());
         }
         for key in ["in_frame", "out_frame"] {
             if let Some(v) = state["project"]["work_area"][key].as_f64() {
