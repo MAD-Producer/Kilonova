@@ -60,6 +60,12 @@ pub enum Action {
     ExportDiagnostics,
     ToggleDiagnostics,
     PreviewMode(i32),
+    /// Switch the composition viewer between camera and observation views.
+    ViewKind(i32),
+    /// Orbit/pan the observation camera; host picks the gesture by view.
+    ViewOrbit { delta: [f32; 2] },
+    /// Zoom the observation camera around its target.
+    ViewZoom { ratio: f64, size: [i32; 2] },
     SelectAt([f64; 2]),
     PreviewDrag {
         object: u64,
@@ -129,6 +135,13 @@ pub struct Panels {
     pub node_preview: crate::node_preview::Controls,
     pub path_controls: crate::panels::path_controls::Controls,
     pub transform_controls: crate::panels::transform_controls::Controls,
+    pub(crate) composition: CompositionState,
+}
+
+#[derive(Default)]
+pub(crate) struct CompositionState {
+    /// Last pointer position of an in-progress right-drag orbit gesture.
+    pub orbit: Option<[f32; 2]>,
 }
 
 impl Panels {
@@ -388,6 +401,8 @@ pub(crate) struct TimelineState {
     pub snap_guide: Option<f64>,
     pub moving: Option<MovingLayers>,
     pub trimming: Option<(u64, f64, f64, bool, f64)>,
+    /// Pending/active z-order drag: (layer, press position, past threshold).
+    pub reorder: Option<(u64, [f32; 2], bool)>,
     pub timeline_context_menu: Option<[f32; 2]>,
     pub timeline_query: String,
     pub timeline_search: bool,

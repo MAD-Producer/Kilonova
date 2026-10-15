@@ -169,6 +169,10 @@ pub enum Text {
     ShowComposition,
     ShowEffects,
     ResetWorkspace,
+    ViewComposition,
+    ViewFree,
+    ViewTop,
+    ViewSide,
     FrameStep,
     OperationFailed,
 }
@@ -340,6 +344,10 @@ impl Locale {
             ShowComposition => ("合成面板", "Composition Panel"),
             ShowEffects => ("效果控件面板", "Effect Controls Panel"),
             ResetWorkspace => ("重置默认工作区", "Reset Default Workspace"),
+            ViewComposition => ("合成视图", "Composition"),
+            ViewFree => ("自由视图", "Free"),
+            ViewTop => ("顶视图", "Top"),
+            ViewSide => ("侧视图", "Side"),
             FrameStep => ("方向键：逐帧", "Arrows: frame step"),
             OperationFailed => ("操作失败", "Operation failed"),
         };

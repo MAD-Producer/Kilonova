@@ -116,6 +116,44 @@ pub(super) fn render(
                 ),
                 true,
             );
+            let performance = &state["desktop"]["uiPerformance"];
+            if performance.is_object() {
+                let renders = performance["compositionRenders"].as_u64().unwrap_or(0);
+                let reuses = performance["compositionReuses"].as_u64().unwrap_or(0);
+                let total = renders + reuses;
+                let reuse_ratio = if total > 0 {
+                    reuses as f64 / total as f64 * 100.
+                } else {
+                    0.
+                };
+                line(
+                    list,
+                    atlas,
+                    area,
+                    &mut y,
+                    &format!(
+                        "{}: {}  ·  {} {:.0}%",
+                        localized(locale, "合成渲染", "Comp renders"),
+                        renders,
+                        localized(locale, "纹理复用", "reused"),
+                        reuse_ratio,
+                    ),
+                    true,
+                );
+                let present_us = performance["lastPresentUs"].as_f64().unwrap_or(0.);
+                line(
+                    list,
+                    atlas,
+                    area,
+                    &mut y,
+                    &format!(
+                        "{}: {:.1} ms",
+                        localized(locale, "上次呈现耗时", "Last present"),
+                        present_us / 1000.,
+                    ),
+                    true,
+                );
+            }
         }
         Panel::Preview => {
             for (i, (tool, action)) in [

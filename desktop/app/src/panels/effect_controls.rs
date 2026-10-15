@@ -14,6 +14,7 @@ use motion_ui::{
 };
 use serde_json::Value;
 use std::collections::HashMap;
+mod curve;
 mod library;
 pub(super) use library::entries;
 
@@ -55,6 +56,7 @@ pub struct Controls {
     field: Option<Field>,
     revision: Option<(String, String, u64)>,
     tracks: HashMap<(u64, u64, String), EffectParam>,
+    curve_editors: HashMap<(u64, u64, String), curve::Editor>,
     collapsed_categories: std::collections::HashSet<String>,
     collapsed_effects: std::collections::HashSet<u64>,
     context_menu: Option<EffectContextMenu>,
@@ -202,9 +204,13 @@ impl Controls {
             || self.choosing
             || self.enum_owner.is_some()
             || self.context_menu.is_some()
+            || self.curve_editors.values().any(curve::Editor::dragging)
     }
     pub fn cancel(&mut self) -> bool {
-        let begun = self.field.take().is_some_and(|mut f| f.number.cancel());
+        let mut begun = self.field.take().is_some_and(|mut f| f.number.cancel());
+        for editor in self.curve_editors.values_mut() {
+            begun |= editor.cancel();
+        }
         self.choosing = false;
         self.enum_owner = None;
         self.context_menu = None;
@@ -247,7 +253,13 @@ impl Controls {
                             .into_iter()
                             .flatten()
                             .map(|p| {
-                                dimensions(p["kind"].as_str().unwrap_or("float")) as f32 * 26. + 20.
+                                if p["kind"].as_str() == Some("curve") {
+                                    20. + curve::HEIGHT
+                                } else {
+                                    dimensions(p["kind"].as_str().unwrap_or("float")) as f32
+                                        * 26.
+                                        + 20.
+                                }
                             })
                             .sum::<f32>()
                     })
@@ -1052,14 +1064,39 @@ impl Controls {
                 }
                 *y += 20.;
                 if kind == "curve" {
-                    text(
+                    let key = (object, id, param.to_string());
+                    let Ok(value) =
+                        serde_json::from_value::<EffectParam>(effect["params"][param].clone())
+                    else {
+                        continue;
+                    };
+                    let Some(track) = value.curve else {
+                        continue;
+                    };
+                    let current = curve::value_at(&track, local);
+                    let editor = self.curve_editors.entry(key).or_default();
+                    editor.draw(
                         list,
                         atlas,
-                        Rect::new(area.min[0] + 24., *y, area.width() - 40., 24.),
-                        locale.t(T::ColorCurve),
-                        true,
+                        Rect::new(area.min[0] + 24., *y, area.width() - 48., curve::HEIGHT),
+                        input,
+                        !locked && implemented,
+                        &current,
+                        |value| {
+                            Command::Effect {
+                                object,
+                                action: EffectAction::SetCurveObject {
+                                    effect: id,
+                                    param: param.into(),
+                                    frame,
+                                    value,
+                                },
+                            }
+                        },
+                        out,
+                        &mut self.drag_readout,
                     );
-                    *y += 28.;
+                    *y += curve::HEIGHT + 8.;
                     continue;
                 }
                 let key = (object, id, param.to_string());

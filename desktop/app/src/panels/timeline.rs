@@ -294,6 +294,25 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
     }
     rows
 }
+/// Convert a displayed insertion slot into a storage index for
+/// `Command::Reorder`. Displayed layer rows are the storage stack reversed;
+/// `None` marks no-op drops (the layer's own edge slots).
+pub(super) fn reorder_storage_index(len: usize, from_row: usize, slot: usize) -> Option<usize> {
+    if len == 0 || from_row >= len {
+        return None;
+    }
+    let slot = slot.min(len);
+    if slot == from_row || slot == from_row + 1 {
+        return None;
+    }
+    let storage_from = len - 1 - from_row;
+    let mut index = len - slot;
+    if storage_from < index {
+        index -= 1;
+    }
+    Some(index.min(len - 1))
+}
+
 fn filtered_property_count(row: &Row, filter: types::PropertyFilter) -> usize {
     row.properties
         .iter()
@@ -817,6 +836,7 @@ pub(super) fn render(
     );
     let mut row_offset = 0;
     let mut timeline_hit = false;
+    let mut row_bounds: Vec<(u64, f32, f32)> = Vec::new();
     for (index, row) in rows.iter().enumerate() {
         let expandable = row.id != 0 && (row.spatial || row.audio > 0);
         let expanded = expandable && panels.timeline.expanded.contains(&row.id);
@@ -836,6 +856,9 @@ pub(super) fn render(
         let y = body.min[1] + row_offset as f32 * row_height - panels.timeline.scroll;
         let row_count = row_count(row, &panels.timeline);
         row_offset += row_count;
+        if row.id != 0 {
+            row_bounds.push((row.id, y, row_count as f32 * row_height));
+        }
         if y + row_count as f32 * row_height < body.min[1] - row_height
             || y > body.max[1] + row_height
         {
@@ -1088,6 +1111,9 @@ pub(super) fn render(
                 input.modifiers.shift,
             );
             panels.properties.field = None;
+            if row.id != 0 && panels.timeline.timeline_query.is_empty() {
+                panels.timeline.reorder = Some((row.id, input.mouse, false));
+            }
         }
         if graph_mode {
             continue;
@@ -1304,6 +1330,48 @@ pub(super) fn render(
             panels.timeline.moving = None;
         }
     }
+    // Layer z-order drag: an accent line previews the insertion slot and
+    // releasing issues a single Reorder edit. Displayed rows are the layer
+    // stack reversed, so the slot converts back to a storage index.
+    if let Some((object, press, active)) = panels.timeline.reorder {
+        let slot_of = |y: f32| {
+            let mut slot = row_bounds.len();
+            let mut line = row_bounds.last().map_or(body.min[1], |(_, top, h)| top + h);
+            for (i, (_, top, h)) in row_bounds.iter().enumerate() {
+                if y < top + h * 0.5 {
+                    slot = i;
+                    line = *top;
+                    break;
+                }
+            }
+            (slot, line)
+        };
+        if input.held == Some(MouseButton::Left) {
+            let active = active || (input.mouse[1] - press[1]).abs() > 4.;
+            if active {
+                let (slot, line) = slot_of(input.mouse[1]);
+                paint::rect(
+                    list,
+                    Rect::new(area.min[0] + 60., line - 1., track.max[0] - area.min[0] - 60., 2.),
+                    colors.ACCENT,
+                );
+                panels.cursor = Some(motion_ui::cursor::Cursor::Grabbing);
+                panels.drag_readout = Some((input.mouse, format!("#{}", slot + 1)));
+            }
+            panels.timeline.reorder = Some((object, press, active));
+        } else {
+            if active {
+                let (slot, _) = slot_of(input.mouse[1]);
+                let from = row_bounds.iter().position(|(id, _, _)| *id == object);
+                let len = state["project"]["layers"].as_array().map_or(0, Vec::len);
+                if let Some(index) = from.and_then(|from| reorder_storage_index(len, from, slot))
+                {
+                    out.push(Action::Edit(Command::Reorder { object, index }));
+                }
+            }
+            panels.timeline.reorder = None;
+        }
+    }
     if panels.timeline.scrubbing {
         panels.cursor = Some(motion_ui::cursor::Cursor::ResizeEW);
         let frame = scrub_frame.unwrap_or(state["frame"].as_f64().unwrap_or(0.));
@@ -1380,6 +1448,37 @@ pub(super) fn render(
         .overlay(list, atlas, area, state, context_input, locale, out);
     if right_clicked(input, body) && !panels.layer_actions.editing() {
         panels.layer_actions.open(None, input.mouse, state);
+    }
+}
+
+#[cfg(test)]
+mod reorder_tests {
+    use super::reorder_storage_index;
+
+    #[test]
+    fn drag_top_layer_below_bottom_maps_to_storage_front() {
+        // Displayed [C, B, A] over storage [A, B, C]: C below A is slot 3.
+        assert_eq!(reorder_storage_index(3, 0, 3), Some(0));
+    }
+    #[test]
+    fn drag_bottom_layer_to_top_maps_to_storage_back() {
+        assert_eq!(reorder_storage_index(3, 2, 0), Some(2));
+    }
+    #[test]
+    fn own_edge_slots_are_noops() {
+        assert_eq!(reorder_storage_index(3, 1, 1), None);
+        assert_eq!(reorder_storage_index(3, 1, 2), None);
+    }
+    #[test]
+    fn middle_move_adjusts_for_removal() {
+        // Displayed [C, B, A]: move A (row 2) above B (slot 1) → storage [A?]
+        // A at storage 0, remove then insert above B's slot → [B, A, C].
+        assert_eq!(reorder_storage_index(3, 2, 1), Some(1));
+    }
+    #[test]
+    fn degenerate_inputs_are_noops() {
+        assert_eq!(reorder_storage_index(0, 0, 0), None);
+        assert_eq!(reorder_storage_index(3, 3, 0), None);
     }
 }
 

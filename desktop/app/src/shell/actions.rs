@@ -467,6 +467,23 @@ impl Shell {
             Action::PreviewMode(mode) => {
                 self.state["preview"] = self.engine.preview_mode(mode, 0)?
             }
+            Action::ViewKind(kind) => {
+                self.editing = Some((Instant::now(), self.engine.view_async(kind)?));
+            }
+            Action::ViewOrbit { delta } => {
+                self.editing = Some((
+                    Instant::now(),
+                    self.engine
+                        .observe_async(true, f64::from(delta[0]), f64::from(delta[1]))?,
+                ));
+            }
+            Action::ViewZoom { ratio, size } => {
+                self.editing = Some((
+                    Instant::now(),
+                    self.engine
+                        .navigate_async(0., 0., ratio, true, size[0], size[1])?,
+                ));
+            }
             Action::SelectAt(point) => {
                 self.stop();
                 let result = self.engine.hit_candidates(point[0], point[1])?;

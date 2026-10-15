@@ -132,11 +132,13 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     panels.timeline.scrubbing = false;
     let moving = panels.timeline.moving.take().is_some();
     let trimming = panels.timeline.trimming.take().is_some();
+    panels.timeline.reorder = None;
     let animation = panels.animation_controls.cancel();
     let graph = panels.timeline.graph_drag.take().is_some_and(|d| d.begun())
         | panels.timeline.key_drag.take().is_some_and(|d| d.begun());
     let path = panels.path_controls.cancel();
     let transform = panels.transform_controls.cancel();
+    panels.composition.orbit = None;
     let mut actions = if moving
         || trimming
         || numeric
