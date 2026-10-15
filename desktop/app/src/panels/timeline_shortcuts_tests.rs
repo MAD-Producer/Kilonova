@@ -848,7 +848,7 @@ fn graph_property_tree_selects_y_without_separating_or_editing_the_track() {
     panels.timeline.expanded.insert(7);
     let mut atlas = TextAtlas::from_system(12.).unwrap();
     let mut actions = vec![];
-    let point = [90., 151.];
+    let point = [405., 119.];
     graph_workspace::render(
         &mut PaintList::default(),
         &mut atlas,
@@ -1049,7 +1049,7 @@ fn linked_graph_button_and_shortcut_restore_both_views_and_share_key_selection()
     panels.timeline.zoom = 7.;
     panels.timeline.offset = 8.;
     panels.timeline.scroll = 5.;
-    let exit = [1180., 12.];
+    let exit = enter;
     timeline::render(
         &mut PaintList::default(),
         &mut atlas,

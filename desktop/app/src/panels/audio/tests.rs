@@ -373,7 +373,7 @@ fn timeline_key_and_reference_drags_commit_once_and_delete_only_the_selected_ite
             )
             .unwrap();
         let original = h.state["project"].clone();
-        let marker = [area.min[0] + gutter + 60. * ppf, area.min[1] + 42.];
+        let marker = [area.min[0] + gutter + 60. * ppf, area.min[1] + 57.];
         for input in [
             pointer(marker, true, false),
             pointer([marker[0] + ppf * 10., marker[1]], false, false),
@@ -456,7 +456,7 @@ fn ruler_markers_follow_real_audio_and_video_clip_drag_and_undo_in_main_and_floa
             h.state["project"]["layers"][0]["audio_markers"][0]["frame"],
             50
         );
-        let marker = [area.min[0] + gutter + 80. * ppf, area.min[1] + 42.];
+        let marker = [area.min[0] + gutter + 80. * ppf, area.min[1] + 57.];
         let actions = h.draw(pointer(marker, true, false));
         h.run(actions);
         let actions = h.draw(pointer(marker, false, true));
@@ -562,7 +562,9 @@ fn ruler_markers_seek_add_and_batch_delete_only_generated_references_with_one_un
         let area = h.area();
         let gutter = GUTTER.min(area.width() * 0.52);
         let ppf = (area.width() - gutter - 8.) / 120.;
-        let marker = [area.min[0] + gutter + 60. * ppf, area.min[1] + 42.];
+        // Clicking the numbered body must select the marker's anchor, not the
+        // frame under the text. The whole tab also opens its context menu.
+        let marker = [area.min[0] + gutter + 60. * ppf + 12., area.min[1] + 57.];
         h.engine
             .edit(
                 serde_json::to_string(&vec![

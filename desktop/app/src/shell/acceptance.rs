@@ -62,7 +62,7 @@ impl Shell {
                 let size = [physical.width as f32 / f.scale, physical.height as f32 / f.scale];
                 let gutter = 640f32.min(size[0] * 0.52);
                 let total = self.state["project"]["frames"].as_f64().unwrap_or(300.);
-                let point = [gutter + 15. / total as f32 * (size[0] - gutter - 8.), 72.];
+                let point = [gutter + 15. / total as f32 * (size[0] - gutter - 8.), 87.];
                 let actions = panels::floating_chrome(&mut PaintList::default(), &mut self.atlas,
                     panel, size, &mut self.panels, &self.state,
                     &Input { mouse: point, pressed: Some((MouseButton::Right, point)), ..Default::default() });

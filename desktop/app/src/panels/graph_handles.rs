@@ -373,43 +373,7 @@ pub(super) fn draw(
                     }));
                     panels.timeline.graph_drag = Some(drag.clone());
                 }
-                let hud = Rect::new(
-                    (input.mouse[0] + 16.).min(plot.area.max[0] - 168.),
-                    (input.mouse[1] - 56.).max(plot.area.min[1]),
-                    168.,
-                    50.,
-                );
-                motion_ui::style::box_style(
-                    list,
-                    hud,
-                    sheet.resolve("popup", Default::default()).unwrap(),
-                );
-                label(
-                    list,
-                    atlas,
-                    Rect::new(hud.min[0] + 8., hud.min[1] + 4., 152., 20.),
-                    if panels.locale == Locale::Zh {
-                        "贝塞尔手柄"
-                    } else {
-                        "Bezier handle"
-                    },
-                    true,
-                );
-                label(
-                    list,
-                    atlas,
-                    Rect::new(hud.min[0] + 8., hud.min[1] + 24., 152., 20.),
-                    &format!(
-                        "{:.1}% · {:.2}",
-                        if drag.index == 0 {
-                            p[0] * 100.
-                        } else {
-                            (1. - p[0]) * 100.
-                        },
-                        p[1]
-                    ),
-                    false,
-                );
+
             }
         }
         if input.released.is_some() {

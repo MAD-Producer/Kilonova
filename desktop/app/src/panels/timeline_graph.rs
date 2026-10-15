@@ -127,10 +127,8 @@ pub(super) fn render(
         .animation_controls
         .choose_track(object, property, axis);
     let title = match property {
-        Property::Position => T::Position,
-        Property::Scale => T::Scale,
-        Property::Rotation => T::Rotation,
-        _ => T::Opacity,
+        Property::Position => T::Position, Property::Scale => T::Scale,
+        Property::Rotation => T::Rotation, _ => T::Opacity,
     };
     let axis = panels.animation_controls.axis;
     let Some(source) = data::channel(state, object, property, axis) else {
@@ -170,9 +168,9 @@ pub(super) fn render(
         vec![component]
     };
     let plot = Rect::new(
-        area.min[0] + 64.,
+        area.min[0],
         area.min[1] + 32.,
-        (area.width() - 72.).max(1.),
+        (area.width() - 8.).max(1.),
         (area.height() - 102.).max(1.),
     );
     let end = (offset + plot.width() as f64 / ppf.max(1e-6) as f64).min(last_frame(state));
@@ -432,31 +430,46 @@ pub(super) fn render(
             Align::Left,
         );
     }
-    let axis_label = axis.map_or(components[0], |a| a.index());
-    label(
-        &mut graph,
-        atlas,
-        Rect::new(plot.min[0], area.min[1] + 2., plot.width(), 24.),
-        &format!(
-            "{} {} · {}",
-            ["X", "Y", "Z"][axis_label],
-            panels.locale.t(title),
-            if panels.timeline.speed_graph {
-                if panels.locale == Locale::Zh {
-                    "速度"
-                } else {
-                    "Speed"
-                }
+    for (index, speed) in [true, false].into_iter().enumerate() {
+        let title = if speed {
+            if panels.locale == Locale::Zh {
+                "速度图表"
             } else {
-                if panels.locale == Locale::Zh {
-                    "数值"
-                } else {
-                    "Value"
-                }
+                "Speed graph"
             }
-        ),
-        true,
-    );
+        } else if panels.locale == Locale::Zh {
+            "数值图表"
+        } else {
+            "Value graph"
+        };
+        let rect = Rect::new(
+            area.min[0] + 56. + index as f32 * 100.,
+            area.min[1] + 2.,
+            94.,
+            24.,
+        );
+        let mut states = motion_ui::style::States::default();
+        if panels.timeline.speed_graph == speed {
+            states = states.with(motion_ui::style::State::Selected);
+        }
+        if ui::button_with_states(
+            &mut graph,
+            atlas,
+            rect,
+            title,
+            input,
+            true,
+            &styles,
+            "button.icon",
+            states,
+        )
+        .clicked
+        {
+            panels.timeline.speed_graph = speed;
+            panels.timeline.graph_y_zoom = 1.;
+            panels.timeline.graph_y_offset = 0.;
+        }
+    }
     let step = (plot.width() / ppf / 4.).max(1.);
     for i in 0..=4 {
         let frame = offset + i as f64 * step as f64;
@@ -494,25 +507,6 @@ pub(super) fn render(
             &mut graph,
             Rect::new(head, area.min[1], 1., plot.max[1] - area.min[1]),
             colors.ACCENT.with_alpha(0.8),
-        );
-        let tag = Rect::new(
-            (head - 40.).clamp(plot.min[0], (plot.max[0] - 80.).max(plot.min[0])),
-            area.min[1],
-            80.,
-            20.,
-        );
-        paint::rect(&mut graph, tag, colors.ACCENT.with_alpha(0.2));
-        ui::text(
-            &mut graph,
-            atlas,
-            tag,
-            &format!(
-                "{}:{:02}",
-                (frame / fps).floor() as u32,
-                frame.max(0.) as u32 % fps as u32
-            ),
-            colors.ACCENT,
-            Align::Center,
         );
     }
     let ruler = Rect::new(plot.min[0], plot.max[1] + 8., plot.width(), 28.);
