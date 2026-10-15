@@ -279,7 +279,7 @@ fn child_composition_audio_edits_never_change_the_main_layer_with_the_same_id() 
             h.state["project"]["layers"][0]["audio_levels"]["left"]["value"],
             -15.
         );
-        h.click(h.fields(Control::Right).buttons[1]);
+        h.click(h.fields(Control::Right).watch);
         assert_eq!(
             h.state["project"]["layers"][0]["audio_levels"]["right"]["keys"][0]["frame"],
             0
@@ -323,7 +323,7 @@ fn child_composition_audio_edits_never_change_the_main_layer_with_the_same_id() 
 fn timeline_key_and_reference_drags_commit_once_and_delete_only_the_selected_item() {
     for floating in [false, true] {
         let mut h = Harness::new(floating, Locale::En);
-        h.click(h.fields(Control::Left).buttons[1]);
+        h.click(h.fields(Control::Left).watch);
         h.state = h.engine.seek(40.).unwrap();
         h.type_number(Control::Left, "-6");
         let before = h.state["project"].clone();
@@ -739,7 +739,7 @@ fn audio_stereo_keys_use_local_time_preserve_the_other_channel_and_reopen() {
         h.type_number(Control::Right, "-12");
         let right = h.state["project"]["layers"][0]["audio_levels"]["right"].clone();
         let left = h.fields(Control::Left);
-        h.click(left.buttons[1]); // creates local frame 0 at composition frame 10
+        h.click(left.watch); // creates local frame 0 at composition frame 10
         h.state = h.engine.seek(40.).unwrap();
         h.type_number(Control::Left, "-6");
         let levels = &h.state["project"]["layers"][0]["audio_levels"];
@@ -747,17 +747,33 @@ fn audio_stereo_keys_use_local_time_preserve_the_other_channel_and_reopen() {
         assert_eq!(levels["left"]["keys"][1]["frame"], 30);
         assert_eq!(levels["right"], right);
         h.state = h.engine.seek(25.).unwrap();
-        let actions = h.draw(pointer(
-            [left.buttons[0].min[0] + 5., left.buttons[0].min[1] + 10.],
-            true,
-            false,
-        ));
+        let actions = h.draw(Input {
+            keys: vec![(Key::J, Modifiers::default())],
+            ..Default::default()
+        });
         assert!(matches!(actions.as_slice(), [Action::Seek(10.)]));
         h.run(actions);
-        h.click(left.buttons[2]);
+        let actions = h.draw(Input {
+            keys: vec![(Key::K, Modifiers::default())],
+            ..Default::default()
+        });
+        h.run(actions);
         assert_eq!(h.state["frame"], 40.);
         let before = h.state["project"].clone();
-        h.click(left.buttons[1]);
+        let area = h.area();
+        let gutter = GUTTER.min(area.width() * 0.52);
+        let ppf = (area.width() - gutter - 8.) / 120.;
+        h.click(Rect::new(
+            area.min[0] + gutter + 40. * ppf - 5.,
+            left.number.min[1],
+            10.,
+            22.,
+        ));
+        let actions = h.draw(Input {
+            keys: vec![(Key::Delete, Modifiers::default())],
+            ..Default::default()
+        });
+        h.run(actions);
         assert_eq!(
             h.state["project"]["layers"][0]["audio_levels"]["left"]["keys"]
                 .as_array()

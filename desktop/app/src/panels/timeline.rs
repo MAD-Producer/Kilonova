@@ -25,6 +25,88 @@ pub(super) struct PropertyRow {
     pub axes: Vec<usize>,
     pub keys: Vec<f64>,
 }
+
+pub(super) struct PropertyLayout {
+    pub watch: Rect,
+    pub caption: Rect,
+    pub number: Rect,
+}
+pub(super) fn property_layout(
+    area: Rect,
+    y: f32,
+    height: f32,
+    component: usize,
+    components: usize,
+) -> PropertyLayout {
+    let cell_width = (area.width() * 0.44 / components.max(1) as f32).min(64.);
+    PropertyLayout {
+        watch: Rect::new(area.min[0] + 98., y, 14., height),
+        caption: Rect::new(
+            area.min[0] + 118.,
+            y,
+            (area.width() * 0.5 - 118.).max(1.),
+            height,
+        ),
+        number: Rect::new(
+            area.min[0] + area.width() * 0.52 + component as f32 * cell_width,
+            y,
+            (cell_width - 2.).max(1.),
+            height,
+        ),
+    }
+}
+pub(super) fn property_icon(
+    list: &mut PaintList,
+    area: Rect,
+    icon: motion_ui::icons::Icon,
+    active: bool,
+    enabled: bool,
+) {
+    let colors = list.styles().colors();
+    motion_ui::icons::draw(
+        list,
+        area,
+        icon,
+        16.,
+        if !enabled {
+            colors.TEXT_MUTED.with_alpha(0.4)
+        } else if active {
+            colors.ACCENT
+        } else {
+            colors.TEXT_MUTED
+        },
+    );
+}
+fn property_group(
+    list: &mut PaintList,
+    atlas: &mut TextAtlas,
+    area: Rect,
+    y: f32,
+    height: f32,
+    title: &str,
+    open: bool,
+) -> Rect {
+    let group = Rect::new(area.min[0] + 78., y, (area.width() - 84.).max(1.), height);
+    let x = group.min[0] + 3.;
+    let cy = y + height * 0.5;
+    paint::line(
+        list,
+        if open {
+            vec![[x, cy - 2.], [x + 3., cy + 2.], [x + 6., cy - 2.]]
+        } else {
+            vec![[x, cy - 3.], [x + 4., cy], [x, cy + 3.]]
+        },
+        list.styles().colors().TEXT_MUTED,
+    );
+    label(
+        list,
+        atlas,
+        Rect::new(area.min[0] + 98., y, (area.width() - 104.).max(1.), height),
+        title,
+        true,
+    );
+    group
+}
 pub(super) fn property_rows(state: &Value, object: u64) -> Vec<PropertyRow> {
     let layer = state["project"]["layers"]
         .as_array()
@@ -810,18 +892,16 @@ pub(super) fn render(
             vec![]
         };
         if expanded && row.spatial {
-            let group = Rect::new(area.min[0] + 80., y + row_height, gutter - 86., row_height);
-            if group.min[1] >= body.min[1] && group.max[1] <= body.max[1] {
-                label(
+            let group_y = y + row_height;
+            if group_y >= body.min[1] && group_y + row_height <= body.max[1] {
+                let group = property_group(
                     list,
                     atlas,
-                    group,
-                    &format!(
-                        "{}  {}",
-                        if transform_expanded { "⌄" } else { "›" },
-                        locale.t(T::Transform)
-                    ),
-                    true,
+                    Rect::new(area.min[0], group_y, gutter, row_height),
+                    group_y,
+                    row_height,
+                    locale.t(T::Transform),
+                    transform_expanded,
                 );
                 if clicked(input, group) {
                     if transform_expanded {
@@ -852,9 +932,16 @@ pub(super) fn render(
                         motion_core::Axis::Z,
                     ][a]
                 });
-                let watch = Rect::new(area.min[0] + 78., py, 14., row_height);
-                ui::icon(list, watch, Icon::Stopwatch);
-                if clicked(input, watch) && !row.locked {
+                let property_area = Rect::new(area.min[0], py, gutter, row_height);
+                let fields = property_layout(property_area, py, row_height, 0, property.axes.len());
+                property_icon(
+                    list,
+                    fields.watch,
+                    motion_ui::icons::Icon::Stopwatch,
+                    !property.keys.is_empty(),
+                    !row.locked,
+                );
+                if clicked(input, fields.watch) && !row.locked {
                     out.push(Action::Edit(Command::Animate {
                         object: row.id,
                         property: property.property,
@@ -867,14 +954,8 @@ pub(super) fn render(
                     .axis
                     .map(|a| format!("{} {}", locale.t(property.title), ["X", "Y", "Z"][a]))
                     .unwrap_or_else(|| locale.t(property.title).into());
-                let caption = Rect::new(
-                    area.min[0] + 98.,
-                    py,
-                    (gutter * 0.5 - 98.).max(1.),
-                    row_height,
-                );
-                label(list, atlas, caption, &text, true);
-                if clicked(input, caption) {
+                label(list, atlas, fields.caption, &text, true);
+                if clicked(input, fields.caption) {
                     panels.select_only(Some(row.id));
                     panels
                         .animation_controls
@@ -891,13 +972,9 @@ pub(super) fn render(
                             .map(|s| s[property.key][*component].as_f64().unwrap_or(0.))
                             .unwrap_or(0.)
                     };
-                    let cell_width = (gutter * 0.44 / property.axes.len() as f32).min(64.);
-                    let field = Rect::new(
-                        area.min[0] + gutter * 0.52 + j as f32 * cell_width,
-                        py,
-                        (cell_width - 2.).max(1.),
-                        row_height,
-                    );
+                    let field =
+                        property_layout(property_area, py, row_height, j, property.axes.len())
+                            .number;
                     if clicked(input, field) {
                         panels.select_only(Some(row.id));
                     }
@@ -949,28 +1026,20 @@ pub(super) fn render(
         if expanded && row.audio > 0 {
             let audio_y =
                 y + (1 + if row.spatial { 1 + property_count } else { 0 }) as f32 * row_height;
-            let group = Rect::new(
-                area.min[0] + 80.,
-                audio_y,
-                (gutter - 86.).max(1.),
-                row_height,
-            );
             let open = !panels.timeline.collapsed_audio.contains(&row.id);
-            if group.min[1] >= body.min[1] && group.max[1] <= body.max[1] {
-                label(
+            if audio_y >= body.min[1] && audio_y + row_height <= body.max[1] {
+                let group = property_group(
                     list,
                     atlas,
-                    group,
-                    &format!(
-                        "{}  {}",
-                        if open { "⌄" } else { "›" },
-                        if locale == Locale::Zh {
-                            "音频"
-                        } else {
-                            "Audio"
-                        }
-                    ),
-                    true,
+                    Rect::new(area.min[0], audio_y, gutter, row_height),
+                    audio_y,
+                    row_height,
+                    if locale == Locale::Zh {
+                        "音频"
+                    } else {
+                        "Audio"
+                    },
+                    open,
                 );
                 if clicked(input, group) {
                     if open {

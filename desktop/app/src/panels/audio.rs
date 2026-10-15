@@ -246,26 +246,9 @@ fn controls(layer: &Value) -> Vec<Control> {
     }
     rows
 }
-pub(super) struct Row {
-    pub number: Rect,
-    pub buttons: [Rect; 3],
-    pub watch: Rect,
-    pub caption: Rect,
-}
+pub(super) type Row = super::timeline::PropertyLayout;
 pub(super) fn row(area: Rect, y: f32, height: f32) -> Row {
-    let x = area.min[0];
-    let field_width = 64f32.min((area.width() * 0.35).max(1.));
-    Row {
-        number: Rect::new(area.max[0] - field_width - 6., y, field_width, height),
-        buttons: std::array::from_fn(|i| Rect::new(x + 14. + i as f32 * 16., y, 16., height)),
-        watch: Rect::new(x + 64., y, 16., height),
-        caption: Rect::new(
-            x + 84.,
-            y,
-            (area.width() - field_width - 94.).max(1.),
-            height,
-        ),
-    }
+    super::timeline::property_layout(area, y, height, 0, 1)
 }
 fn key_times(track: &Track<f32>, offset: i64, frames: u64) -> Vec<u32> {
     track
@@ -280,33 +263,6 @@ fn key_times(track: &Track<f32>, offset: i64, frames: u64) -> Vec<u32> {
 fn track(layer: &Value, control: Control) -> Track<f32> {
     serde_json::from_value(layer["audio_levels"][control.name()].clone())
         .unwrap_or_else(|_| Track::constant(0.))
-}
-fn key_button(
-    list: &mut PaintList,
-    atlas: &mut TextAtlas,
-    area: Rect,
-    icon: Icon,
-    active: bool,
-    input: &Input,
-    enabled: bool,
-    action: Action,
-    out: &mut Vec<Action>,
-) {
-    button(list, atlas, area, "", input, enabled, action, out);
-    let colors = list.styles().colors();
-    motion_ui::icons::draw(
-        list,
-        area,
-        icon,
-        14.,
-        if !enabled {
-            colors.TEXT_MUTED.with_alpha(0.4)
-        } else if active {
-            colors.ACCENT
-        } else {
-            colors.TEXT_MUTED
-        },
-    );
 }
 pub(super) fn prepare(panels: &mut Panels, state: &Value, input: &Input, out: &mut Vec<Action>) {
     let context = (
@@ -452,19 +408,15 @@ pub(super) fn render_rows(
             out,
         );
         if gain {
-            if motion_ui::widgets::Checkbox::draw(
+            let muted = source(layer)["muted"] == true;
+            super::timeline::property_icon(
                 list,
-                atlas,
                 fields.watch,
-                "",
-                source(layer)["muted"] == true,
-                input,
+                if muted { Icon::Muted } else { Icon::Volume },
+                muted,
                 enabled,
-                false,
-                None,
-            )
-            .clicked
-            {
+            );
+            if enabled && clicked(input, fields.watch) {
                 out.push(Action::Edit(Command::SetAudio {
                     object,
                     volume: None,
@@ -475,66 +427,25 @@ pub(super) fn render_rows(
         }
         let keys = key_times(&track(layer, control), local_offset, frames);
         let animated = !keys.is_empty();
-        let has_key = keys.contains(&current);
-        key_button(
+        super::timeline::property_icon(
             list,
-            atlas,
             fields.watch,
             Icon::Stopwatch,
             animated,
-            input,
             enabled && supported,
-            Action::Edit(Command::AudioLevels {
+        );
+        if enabled && supported && clicked(input, fields.watch) {
+            panels.select_only(Some(object));
+            panels.audio_controls.active_channel = Some(control.channel());
+            out.push(Action::Edit(Command::AudioLevels {
                 object,
                 action: AudioLevelsAction::Animate {
                     channel: control.channel(),
                     frame: current,
                     enabled: !animated,
                 },
-            }),
-            out,
-        );
-        let prev = keys.iter().copied().filter(|f| *f < current).max();
-        let next = keys.iter().copied().filter(|f| *f > current).min();
-        for (n, key) in [prev, next].into_iter().enumerate() {
-            key_button(
-                list,
-                atlas,
-                fields.buttons[if n == 0 { 0 } else { 2 }],
-                if n == 0 { Icon::Previous } else { Icon::Next },
-                false,
-                input,
-                supported && key.is_some(),
-                Action::Seek(f64::from(key.unwrap_or(current))),
-                out,
-            );
+            }));
         }
-        key_button(
-            list,
-            atlas,
-            fields.buttons[1],
-            Icon::Key,
-            has_key,
-            input,
-            enabled && supported,
-            Action::Edit(Command::AudioLevels {
-                object,
-                action: if has_key {
-                    AudioLevelsAction::DeleteKey {
-                        channel: control.channel(),
-                        frame: current,
-                    }
-                } else {
-                    AudioLevelsAction::Set {
-                        channel: control.channel(),
-                        frame: current,
-                        value: value as f32,
-                        animated: Some(true),
-                    }
-                },
-            }),
-            out,
-        );
         for frame in keys {
             draw_reference(
                 list,
