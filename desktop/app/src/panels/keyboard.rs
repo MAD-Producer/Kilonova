@@ -107,6 +107,13 @@ pub fn route(
     if text_active(panels) || input.composing || input.ime_consumed {
         return false;
     }
+    if panels.focused == Some(Panel::Masks)
+        && panels
+            .path_controls
+            .delete_mask_key(state, panels.selected, input, out)
+    {
+        return true;
+    }
     if node_context && !panels.node_editor.editing() {
         for (key, modifiers, repeat) in input.key_presses() {
             let command = shortcuts::resolve(Scope::Nodes, key, modifiers, repeat);

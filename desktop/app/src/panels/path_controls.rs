@@ -18,6 +18,8 @@ use motion_ui::{
     ui::{self, Align},
 };
 use serde_json::Value;
+mod groups;
+mod mask_keys;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Tool {
@@ -202,7 +204,10 @@ pub struct Controls {
     focus: bool,
     pub notice: Option<String>,
     parameter: Option<Parameter>,
+    parameter_context: Option<(String, String, u32)>,
     pub masks_open: bool,
+    keys: mask_keys::Controls,
+    pub(super) groups: groups::Controls,
 }
 struct Parameter {
     object: u64,
@@ -251,8 +256,21 @@ fn geometry(node: &Value) -> Option<[f32; 6]> {
     Some(g)
 }
 impl Controls {
+    pub(super) fn delete_mask_key(
+        &mut self,
+        state: &Value,
+        selected: Option<u64>,
+        input: &Input,
+        out: &mut Vec<Action>,
+    ) -> bool {
+        self.keys.delete_selected(state, selected, input, out)
+    }
     pub fn editing(&self) -> bool {
-        self.draft.is_some() || self.drag.is_some() || self.parameter.is_some()
+        self.draft.is_some()
+            || self.drag.is_some()
+            || self.parameter.is_some()
+            || self.keys.editing()
+            || self.groups.editing()
     }
     pub fn wants_keyboard(&self) -> bool {
         self.editing() || (self.tool != Tool::Select && self.focus)
@@ -261,8 +279,11 @@ impl Controls {
         let drag = self.drag.take().is_some_and(|d| d.begun);
         let param = self.parameter.take().is_some_and(|p| p.begun);
         self.draft = None;
+        self.parameter_context = None;
         self.focus = false;
-        drag || param
+        let keys = self.keys.cancel();
+        let group = self.groups.cancel();
+        drag || param || keys || group
     }
     pub fn choose(&mut self, tool: Tool, out: &mut Vec<Action>) {
         if self.cancel() {
@@ -781,7 +802,21 @@ impl Controls {
 impl Controls {
     pub fn height(&self, l: &Layer) -> f32 {
         if self.masks_open {
-            76. + l.masks.len() as f32 * 186.
+            76. + l
+                .masks
+                .iter()
+                .map(|m| {
+                    186. + [
+                        m.opacity.is_animated(),
+                        m.feather.is_animated(),
+                        m.expansion.is_animated(),
+                    ]
+                    .into_iter()
+                    .filter(|v| *v)
+                    .count() as f32
+                        * 22.
+                })
+                .sum::<f32>()
         } else {
             30.
         }
@@ -802,7 +837,23 @@ impl Controls {
         let styles = list.styles();
         let colors = styles.colors();
 
+        self.keys.prepare(state, l, input, out);
+        let original_input = input;
+        let neutral = Input::default();
+        let input = if self.keys.modal() { &neutral } else { input };
         if vector_only {
+            self.groups.render(
+                list,
+                atlas,
+                area,
+                y,
+                l,
+                state,
+                input,
+                locale,
+                motion_ui::dock::Panel::Vector,
+                out,
+            );
             if let Content::Vector { vector } = &l.content {
                 let title = if locale == Locale::Zh {
                     "矢量路径"
@@ -1068,7 +1119,7 @@ impl Controls {
                 }));
             }
             *y += 28.;
-            for (name, property, values, range) in [
+            for (property_index, (name, property, values, range)) in [
                 (
                     if locale == Locale::Zh {
                         "不透明度"
@@ -1099,11 +1150,37 @@ impl Controls {
                     vec![mask.expansion.sample(local)],
                     [-32000., 32000.],
                 ),
-            ] {
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let frames: Vec<i32> = match property_index {
+                    0 => mask.opacity.keys.iter().map(|key| key.frame).collect(),
+                    1 => mask.feather.keys.iter().map(|key| key.frame).collect(),
+                    _ => mask.expansion.keys.iter().map(|key| key.frame).collect(),
+                };
+                let row_height = self.keys.row(
+                    list,
+                    area,
+                    *y,
+                    state,
+                    l,
+                    mask,
+                    property_index as u8,
+                    &frames,
+                    &values,
+                    input,
+                    out,
+                );
                 label(
                     list,
                     atlas,
-                    Rect::new(area.min[0] + 18., *y, area.width() * 0.42, 24.),
+                    Rect::new(
+                        area.min[0] + 38.,
+                        *y,
+                        (area.width() * 0.5 - 42.).max(1.),
+                        24.,
+                    ),
                     name,
                     colors.TEXT_MUTED,
                 );
@@ -1143,10 +1220,15 @@ impl Controls {
                             last_value: *value,
                             range,
                         });
+                        self.parameter_context = Some((
+                            state["root"].as_str().unwrap_or("").into(),
+                            state["composition"].as_str().unwrap_or("").into(),
+                            state["frame"].as_f64().unwrap_or(0.).floor() as u32,
+                        ));
                         out.push(Action::Seek(state["frame"].as_f64().unwrap_or(0.)));
                     }
                 }
-                *y += 28.;
+                *y += row_height;
             }
             if ui::button(
                 list,
@@ -1182,6 +1264,8 @@ impl Controls {
             }
             *y += 32.;
         }
+        self.keys
+            .overlay(list, atlas, area, original_input, locale, out);
     }
     pub fn numeric_cursor(&self) -> Option<(Rect, bool)> {
         self.parameter.as_ref().map(|p| (p.rect, p.begun))
@@ -1197,6 +1281,26 @@ impl Controls {
             return;
         };
         let frame = state["frame"].as_f64().unwrap_or(0.).floor() as u32;
+        let context = self.parameter_context.take();
+        let stale = context.as_ref().is_some_and(|(root, composition, at)| {
+            root != state["root"].as_str().unwrap_or("")
+                || composition != state["composition"].as_str().unwrap_or("")
+                || *at != frame
+        }) || state["project"]["layers"].as_array().is_some_and(|layers| {
+            !layers.iter().any(|l| {
+                l["id"].as_u64() == Some(p.object)
+                    && l["locked"] != true
+                    && l["masks"]
+                        .as_array()
+                        .is_some_and(|masks| masks.iter().any(|m| m["id"].as_u64() == Some(p.mask)))
+            })
+        });
+        if stale {
+            if p.begun {
+                out.push(Action::History(4));
+            }
+            return;
+        }
         let command = |p: &Parameter, value: f32| {
             let mut v = p.values.clone();
             v[p.axis] = value;
@@ -1216,6 +1320,20 @@ impl Controls {
                 out.push(Action::History(4));
             }
             return;
+        }
+        if p.start.is_none()
+            && !input.composing
+            && input
+                .pressed
+                .is_some_and(|(b, point)| b == MouseButton::Left && p.rect.contains(point))
+        {
+            if let Ok(value) = p.text.parse::<f32>() {
+                if value.is_finite() {
+                    p.values[p.axis] = value.clamp(p.range[0], p.range[1]);
+                }
+            }
+            p.start = Some(input.pressed.unwrap().1[0]);
+            p.last_value = p.values[p.axis];
         }
         let release = input.released.is_some_and(|(b, _)| b == MouseButton::Left);
         let outside = input
@@ -1279,6 +1397,7 @@ impl Controls {
             }
         }
         self.parameter = Some(p);
+        self.parameter_context = context;
     }
 }
 fn paint_path(
@@ -1315,7 +1434,14 @@ fn paint_path(
         let Some(p) = projection.screen([g[0] - offset[0], g[1] - offset[1]]) else {
             continue;
         };
-        paint::box_rect(list, Rect::new(p[0] - 3., p[1] - 3., 6., 6.), color, Color([0.;4]), 0., 0.);
+        paint::box_rect(
+            list,
+            Rect::new(p[0] - 3., p[1] - 3., 6., 6.),
+            color,
+            Color([0.; 4]),
+            0.,
+            0.,
+        );
         if selected == Some(i as u64 + 1) || selected.is_none() {
             for axis in [2, 4] {
                 if g[axis].abs() + g[axis + 1].abs() < 0.01 {

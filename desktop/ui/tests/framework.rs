@@ -9,6 +9,84 @@ use motion_ui::{
 };
 
 #[test]
+fn opened_number_text_can_scrub_again_without_losing_uncommitted_text_or_ime() {
+    let rect = Rect::new(0., 0., 100., 30.);
+    let options = NumberOptions::default();
+    let mut field = NumberEditor::default();
+    let click = Input {
+        mouse: [10., 10.],
+        pressed: Some((MouseButton::Left, [10., 10.])),
+        held: Some(MouseButton::Left),
+        ..Default::default()
+    };
+    let release = Input {
+        mouse: [10., 10.],
+        released: Some((MouseButton::Left, [10., 10.])),
+        ..Default::default()
+    };
+    assert!(field.update(25., options, &click, rect).is_empty());
+    assert!(field.update(25., options, &release, rect).is_empty());
+    assert!(field
+        .update(
+            25.,
+            options,
+            &Input {
+                text: "32.5".into(),
+                ..Default::default()
+            },
+            rect
+        )
+        .is_empty());
+    // A click inside an open field must retain its pending typed value.
+    assert!(field.update(25., options, &click, rect).is_empty());
+    assert!(field.update(25., options, &release, rect).is_empty());
+    assert_eq!(field.text.text, "32.5");
+    assert!(field
+        .update(
+            25.,
+            options,
+            &Input {
+                composing: true,
+                ..click.clone()
+            },
+            rect
+        )
+        .is_empty());
+    assert!(!field.dragging());
+    assert!(field.update(25., options, &click, rect).is_empty());
+    let events = field.update(
+        25.,
+        options,
+        &Input {
+            mouse: [30., 10.],
+            held: Some(MouseButton::Left),
+            ..Default::default()
+        },
+        rect,
+    );
+    assert_eq!(
+        events,
+        vec![
+            NumberEvent::Begin { value: 32.5 },
+            NumberEvent::Change { value: 52.5 }
+        ]
+    );
+    assert_eq!(
+        field.update(
+            52.5,
+            options,
+            &Input {
+                focus_lost: true,
+                ..Default::default()
+            },
+            rect
+        ),
+        vec![NumberEvent::Cancel { value: 32.5 }]
+    );
+    assert!(!field.interacting());
+}
+
+#[test]
 fn coalesced_out_and_back_numeric_drag_never_enters_text_input() {
     use motion_ui::ui::accumulate;
     let mut input = Input::default();

@@ -269,15 +269,27 @@ impl NumberEditor {
             return events;
         }
         if self.drag.is_none()
-            && !self.text.active()
+            && !input.composing
+            && !input.ime_consumed
             && input
                 .pressed
                 .is_some_and(|(b, p)| b == MouseButton::Left && area.contains(p))
         {
+            let original = if self.text.active() && self.text.dirty {
+                self.text
+                    .text
+                    .trim()
+                    .parse::<f64>()
+                    .ok()
+                    .filter(|v| v.is_finite() && *v >= options.min && *v <= options.max)
+                    .unwrap_or(current)
+            } else {
+                current
+            };
             self.drag = Some(Drag {
                 mouse: input.pressed.unwrap().1[0],
-                original: current,
-                value: current,
+                original,
+                value: original,
                 begun: false,
             });
         }
@@ -319,7 +331,8 @@ impl NumberEditor {
                     events.push(NumberEvent::Commit { value: drag.value });
                 } else if input.released.is_some_and(|(button, point)| {
                     button == MouseButton::Left && area.contains(point)
-                }) {
+                }) && !self.text.active()
+                {
                     self.text
                         .begin(&format!("{:.*}", options.decimals.min(8), current));
                 }

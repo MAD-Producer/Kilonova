@@ -109,6 +109,67 @@ impl Shell {
                     Some(event_loop),
                 )?;
             }
+            if panel == dock::Panel::Vector {
+                self.feature_panel_click(panel, [660., 50.], event_loop)?;
+                let layer = self.state["project"]["layers"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .find(|l| l["id"].as_u64() == self.panels.selected)
+                    .ok_or("vector fixture layer missing")?;
+                if layer["content"]["vector"]["source"]["group"]["items"]
+                    .as_array()
+                    .is_none_or(|items| !items.iter().any(|item| item["kind"] == "repeater"))
+                {
+                    return Err("vector panel add-repeater entry produced no repeater".into());
+                }
+            }
+            if panel == dock::Panel::Masks {
+                let object = self.state["project"]["layers"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .rev()
+                    .find(|l| matches!(l["content"]["kind"].as_str(), Some("solid" | "vector")))
+                    .and_then(|l| l["id"].as_u64())
+                    .ok_or("visual mask fixture missing")?;
+                self.panels.select_only(Some(object));
+                self.panels.path_controls.masks_open = true;
+                self.state = self.engine.seek(0.)?;
+                self.feature_panel_click(panel, [550., 85.], event_loop)?;
+                let mask = self.state["project"]["layers"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .find(|l| l["id"].as_u64() == Some(object))
+                    .and_then(|l| l["masks"].as_array())
+                    .and_then(|m| m.last())
+                    .and_then(|m| m["id"].as_u64())
+                    .ok_or("mask panel rectangle entry produced no mask")?;
+                for y in [178., 228., 278.] {
+                    self.feature_panel_click(panel, [24., y], event_loop)?;
+                }
+                let commands = [
+                    (motion_core::masks::MaskProperty::Opacity, vec![60.]),
+                    (motion_core::masks::MaskProperty::Feather, vec![12., 18.]),
+                    (motion_core::masks::MaskProperty::Expansion, vec![8.]),
+                ]
+                .into_iter()
+                .map(|(property, value)| Command::Mask {
+                    object,
+                    action: motion_core::masks::MaskAction::Set {
+                        mask,
+                        property,
+                        frame: 60,
+                        value,
+                        animated: None,
+                    },
+                })
+                .collect::<Vec<_>>();
+                self.state = self
+                    .engine
+                    .edit(serde_json::to_string(&commands).map_err(|e| e.to_string())?)?;
+            }
             self.float_panel(panel.dock(), event_loop)?;
             self.smoke_float_frames.insert(panel as u32, 0);
             self.smoke_panel_current = Some(panel);
@@ -118,6 +179,39 @@ impl Shell {
             self.workspace.locale = locale;
             self.finish_smoke()?;
             self.smoke_stage = 4;
+        }
+        Ok(())
+    }
+    fn feature_panel_click(
+        &mut self,
+        panel: dock::Panel,
+        point: [f32; 2],
+        event_loop: &ActiveEventLoop,
+    ) -> Result<(), String> {
+        let actions = panels::floating_chrome(
+            &mut PaintList::default(),
+            &mut self.atlas,
+            panel,
+            [720., 520.],
+            &mut self.panels,
+            &self.state,
+            &Input {
+                mouse: point,
+                pressed: Some((MouseButton::Left, point)),
+                ..Default::default()
+            },
+        );
+        if actions.is_empty() {
+            return Err(format!(
+                "{panel:?} feature entry did not emit an action at {point:?}"
+            ));
+        }
+        for action in actions {
+            self.action(action, Some(event_loop))?;
+            if let Some((_, reply)) = self.editing.take() {
+                self.state = reply.recv_timeout(Duration::from_secs(30))
+                    .map_err(|e| format!("feature input reply failed: {e}"))??;
+            }
         }
         Ok(())
     }

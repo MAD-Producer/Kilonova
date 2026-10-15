@@ -239,6 +239,16 @@ pub(super) fn render(
     panels.parent_controls.render(
         list, atlas, area, &mut y, object, layer, state, input, locale, out,
     );
+    if layer["content"]["kind"] == "vector" {
+        if let Ok(layer) = serde_json::from_value::<motion_core::Layer>(layer.clone()) {
+            panels.path_controls.groups.render(list, atlas, area, &mut y, &layer, state, input, locale, Panel::Properties, out);
+            if let Some((rect,dragging)) = panels.path_controls.groups.cursor {
+                if dragging || rect.contains(input.mouse) { panels.cursor = Some(motion_ui::widgets::numeric_behavior::cursor(input,dragging)); }
+            }
+        }
+    } else if panels.path_controls.groups.cancel() {
+        out.push(Action::History(4));
+    }
     panels.properties.content_height = y - area.min[1] + panels.properties.properties_scroll + pad;
 }
 

@@ -792,6 +792,9 @@ pub(super) fn render(
         locale.t(T::SourceName),
         true,
     );
+    if gutter>=500. {
+        label(list,atlas,Rect::new(area.min[0]+gutter-280.,ruler.min[1],78.,28.),if locale==Locale::Zh {"遮罩"}else{"Track matte"},true);
+    }
     label(
         list,
         atlas,
@@ -908,7 +911,7 @@ pub(super) fn render(
         let name = Rect::new(
             area.min[0] + 112.0,
             y,
-            (gutter - 320.0).max(1.0),
+            (gutter - if gutter>=500. {398.} else {320.}).max(1.0),
             row_height,
         );
         let selected = panels.selection_contains(row.id);
@@ -988,6 +991,12 @@ pub(super) fn render(
             colors.TEXT_MUTED,
         );
         if let Some(owner) = super::timeline_columns::owner(state, row.id) {
+            let matte = Rect::new(
+                area.min[0] + gutter - 280.,
+                y + 2.,
+                78.,
+                (row_height - 4.).max(1.),
+            );
             let blend = Rect::new(
                 area.min[0] + gutter - 196.,
                 y + 2.,
@@ -1011,8 +1020,10 @@ pub(super) fn render(
                 Some("null" | "audio" | "adjustment")
             ) && row.id != 0;
             let blend_enabled = blend_supported && !row.locked;
+            let matte_enabled = blend_enabled && gutter>=500.;
             let parent_enabled = row.id == 0 || !row.locked && row.spatial;
             if (blend_enabled && clicked(input, blend))
+                || (matte_enabled && clicked(input, matte))
                 || (parent_enabled && (clicked(input, parent) || clicked(input, link)))
             {
                 out.extend(super::cancel_interaction(panels));
@@ -1033,6 +1044,16 @@ pub(super) fn render(
                 link_input.pressed =
                     Some((MouseButton::Left, [parent.min[0] + 1., parent.min[1] + 1.]));
             }
+            let opened_matte = gutter>=500. && panels.timeline_columns.cell(
+                list,
+                atlas,
+                matte,
+                row.id,
+                super::timeline_columns::Column::Matte,
+                &super::timeline_columns::matte_name(owner, state, locale),
+                input,
+                matte_enabled,
+            );
             let opened_blend = if blend_supported {
                 panels.timeline_columns.cell(
                     list,
@@ -1057,7 +1078,7 @@ pub(super) fn render(
                 &link_input,
                 parent_enabled,
             );
-            if opened_blend || opened_parent {
+            if opened_blend || opened_parent || opened_matte {
                 panels.select_only(Some(row.id));
             }
         }

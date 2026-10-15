@@ -28,7 +28,13 @@ pub(super) fn render(
     let mut y = auxiliary::body_y(
         panel,
         area,
-        panels.path_controls.height(&layer) + 140.,
+        panels.path_controls.height(&layer)
+            + 140.
+            + if panel == Panel::Vector {
+                panels.path_controls.groups.height(&layer)
+            } else {
+                0.
+            },
         panels,
         input,
     );
@@ -44,7 +50,12 @@ pub(super) fn render(
         panels.locale,
         out,
     );
-    if let Some((rect, dragging)) = panels.path_controls.numeric_cursor() {
+    let numeric = if panel == Panel::Vector {
+        panels.path_controls.groups.cursor
+    } else {
+        panels.path_controls.numeric_cursor()
+    };
+    if let Some((rect, dragging)) = numeric {
         if dragging || rect.contains(input.mouse) {
             panels.cursor = Some(motion_ui::widgets::numeric_behavior::cursor(
                 input, dragging,

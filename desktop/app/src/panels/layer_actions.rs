@@ -11,6 +11,7 @@ enum Page {
     Order,
     Time,
     Blend,
+    Matte,
     Audio,
     Markers,
 }
@@ -997,6 +998,16 @@ fn entries_for(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
                 unlocked && l["content"]["kind"] != "audio",
                 Choice::Page(Page::Blend),
             );
+            let matte_visual = !matches!(
+                l["content"]["kind"].as_str(),
+                Some("null" | "audio" | "adjustment")
+            );
+            add(
+                "遮罩",
+                "Track Matte",
+                unlocked && matte_visual,
+                Choice::Page(Page::Matte),
+            );
             divider_indices.push(add("排列", "Arrange", unlocked, Choice::Page(Page::Order)));
             let precompose = unlocked
                 && l["three_d"] != true
@@ -1283,6 +1294,30 @@ fn entries_for(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
                         space: None,
                     }),
                 );
+            }
+        }
+        Page::Matte => {
+            let current: Option<motion_core::compositing::TrackMatte> =
+                serde_json::from_value(l["track_matte"].clone()).ok().flatten();
+            let (choices, groups, _) = super::timeline_columns::matte_choices(state, id, locale);
+            for (index, choice) in choices.into_iter().enumerate() {
+                let unchanged = choice.matte == current;
+                let mut label = choice.label;
+                if unchanged {
+                    label.push_str(" ✓");
+                }
+                let added = add(
+                    &label,
+                    &label,
+                    unlocked && choice.enabled && !unchanged,
+                    Choice::Edit(Command::SetTrackMatte {
+                        object: id,
+                        matte: choice.matte,
+                    }),
+                );
+                if groups.contains(&(index + 1)) {
+                    divider_indices.push(added);
+                }
             }
         }
     }
