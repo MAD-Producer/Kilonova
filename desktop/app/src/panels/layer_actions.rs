@@ -12,6 +12,7 @@ enum Page {
     Time,
     Blend,
     Audio,
+    Markers,
 }
 enum Choice {
     Edit(Command),
@@ -19,6 +20,7 @@ enum Choice {
     Precompose,
     Page(Page),
     New(Action),
+    SelectGenerated,
 }
 struct Entry {
     label: String,
@@ -51,6 +53,7 @@ struct NameEdit {
 }
 #[derive(Default)]
 pub(crate) struct Controls {
+    pub select_generated: Option<u64>,
     popup: Option<Popup>,
     name: Option<NameEdit>,
     owner: Option<Panel>,
@@ -144,6 +147,23 @@ impl Controls {
             mouse: None,
             opened: true,
         });
+    }
+    pub fn open_audio(&mut self, target: u64, anchor: [f32; 2], state: &Value, locale: Locale) {
+        self.open(Some(target), anchor, state);
+        if let Some(popup) = &mut self.popup {
+            let root = entries(popup, state, locale);
+            if let Some(index) = root
+                .iter()
+                .position(|e| matches!(e.choice, Choice::Page(Page::Audio)))
+            {
+                popup.root_highlighted = index;
+                popup.page = Page::Audio;
+            }
+        }
+    }
+    pub fn open_markers(&mut self, target: u64, anchor: [f32; 2], state: &Value) {
+        self.open(Some(target), anchor, state);
+        self.popup.as_mut().unwrap().page = Page::Markers;
     }
     fn begin_name(&mut self, id: u64, precompose: bool, state: &Value, locale: Locale) {
         let Some(l) = layer(state, id).filter(|l| l["locked"] != true) else {
@@ -401,7 +421,12 @@ impl Controls {
             return;
         }
         let page = popup.page;
-        popup.page = Page::Root;
+        let root_page = if page == Page::Markers {
+            Page::Markers
+        } else {
+            Page::Root
+        };
+        popup.page = root_page;
         let root_entries = entries(popup, state, locale);
         popup.page = page;
         if root_entries.is_empty() {
@@ -412,7 +437,16 @@ impl Controls {
             .styles()
             .metric("context.row.height", 20.)
             .clamp(18., 24.);
-        let width = 220f32.min(
+        let base_width = if root_page == Page::Markers {
+            root_entries
+                .iter()
+                .map(|entry| atlas.measure(&entry.label) + 40.)
+                .fold(220., f32::max)
+                .min(320.)
+        } else {
+            220.
+        };
+        let width = base_width.min(
             if root_entries
                 .iter()
                 .any(|e| matches!(e.choice, Choice::Page(_)))
@@ -424,17 +458,17 @@ impl Controls {
         );
         let count = menu_count(root_entries.len(), bounds, row);
         let card = popup_rect(popup.anchor, bounds, width, count as f32 * row + 6.);
-        let mut root_highlighted = if page == Page::Root {
+        let mut root_highlighted = if page == root_page {
             popup.highlighted
         } else {
             popup.root_highlighted
         };
-        let mut root_scroll = if page == Page::Root {
+        let mut root_scroll = if page == root_page {
             popup.scroll
         } else {
             popup.root_scroll
         };
-        let root_active = page == Page::Root;
+        let root_active = page == root_page;
         let root_chosen = draw_menu(
             list,
             atlas,
@@ -464,7 +498,7 @@ impl Controls {
             .key_presses()
             .any(|(k, m, r)| k == Key::Left && !r && !m.control && !m.alt);
         let branch = branch.or_else(|| {
-            (page == Page::Root && right && root_entries[root_highlighted].enabled)
+            (page == root_page && right && root_entries[root_highlighted].enabled)
                 .then(|| &root_entries[root_highlighted].choice)
                 .and_then(|c| {
                     if let Choice::Page(next) = c {
@@ -475,7 +509,7 @@ impl Controls {
                 })
         });
         if left {
-            popup.page = Page::Root;
+            popup.page = root_page;
         } else if let Some(next) = branch {
             if popup.page != next {
                 popup.page = next;
@@ -483,13 +517,13 @@ impl Controls {
                 popup.scroll = 0;
             }
         } else if over_root.is_some() {
-            popup.page = Page::Root;
+            popup.page = root_page;
         }
         popup.root_highlighted = root_highlighted;
         popup.root_scroll = root_scroll;
         let mut child_card = None;
         let mut child_choice = None;
-        if popup.page != Page::Root {
+        if popup.page != root_page {
             let children = entries(popup, state, locale);
             if !children.is_empty() {
                 let height = menu_count(children.len(), bounds, row) as f32 * row + 6.;
@@ -555,6 +589,7 @@ impl Controls {
         match chosen.choice {
             Choice::Edit(command) => out.push(Action::Edit(scoped(command, state))),
             Choice::New(action) => out.push(action),
+            Choice::SelectGenerated => self.select_generated = target,
             Choice::Rename => {
                 if let Some(id) = target {
                     self.begin_name(id, false, state, locale)
@@ -751,6 +786,11 @@ fn disabled_reason(choice: &Choice, layer: &Value, state: &Value, locale: Locale
             "需要尚未分离的立体声音源",
             "Choose a stereo source whose channels have not been separated",
         ),
+        Choice::Edit(Command::ExtractAudio { .. }) => word(
+            locale,
+            "请选择带有可用音轨的视频图层",
+            "Choose a video layer with a recoverable audio track",
+        ),
         Choice::New(Action::CancelAudioAnalysis) => word(
             locale,
             "当前图层没有正在进行的音频分析",
@@ -921,7 +961,7 @@ fn entries_for(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
     let Some(l) = layer(state, id) else {
         return result;
     };
-    let unlocked = l["locked"] != true;
+    let unlocked = l["locked"] != true && state["observing"] != true;
     let list = state["project"]["layers"].as_array().unwrap();
     let index = list.iter().position(|l| l["id"] == id).unwrap();
     let timeline = state["timeline_layers"]
@@ -1022,14 +1062,48 @@ fn entries_for(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
                 }),
             );
         }
-        Page::Audio => {
+        Page::Audio | Page::Markers => {
             let source = audio_asset(state, l);
-            add(
-                "音频打标",
-                "Mark audio references",
-                unlocked && source.is_some(),
-                Choice::New(Action::AnalyzeAudio(id)),
-            );
+            let has_generated = l["audio_markers"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .any(|m| m["generated"] == true);
+            if has_generated {
+                add(
+                    "选择本音频的分析标记",
+                    "Select this audio's analysis markers",
+                    true,
+                    Choice::SelectGenerated,
+                );
+                add(
+                    "删除本音频的分析标记",
+                    "Delete this audio's analysis markers",
+                    unlocked,
+                    Choice::Edit(Command::AudioMarkers {
+                        object: id,
+                        action: motion_core::AudioMarkersAction::ClearGenerated,
+                    }),
+                );
+            }
+            if popup.page == Page::Markers {
+                drop(add);
+                for entry in &mut result {
+                    if !entry.enabled {
+                        entry.disabled_reason =
+                            Some(disabled_reason(&entry.choice, l, state, locale));
+                    }
+                }
+                return result;
+            }
+            if l["content"]["kind"] == "video" {
+                add(
+                    "音频分离",
+                    "Extract audio",
+                    unlocked && source.is_some(),
+                    Choice::Edit(Command::ExtractAudio { object: id }),
+                );
+            }
             add(
                 "分离左右声道",
                 "Separate left/right channels",
@@ -1039,6 +1113,12 @@ fn entries_for(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
                         .as_str()
                         .is_none_or(|c| c == "stereo"),
                 Choice::Edit(Command::SplitAudioChannels { object: id }),
+            );
+            add(
+                "生成节奏参考点",
+                "Generate rhythm references",
+                unlocked && source.is_some(),
+                Choice::New(Action::AnalyzeAudio(id)),
             );
             add(
                 "添加参考标记",
@@ -1053,20 +1133,6 @@ fn entries_for(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
                 }),
             );
             add(
-                "清除自动标记",
-                "Clear detected references",
-                unlocked
-                    && l["audio_markers"]
-                        .as_array()
-                        .into_iter()
-                        .flatten()
-                        .any(|m| m["generated"] == true),
-                Choice::Edit(Command::AudioMarkers {
-                    object: id,
-                    action: motion_core::AudioMarkersAction::ClearGenerated,
-                }),
-            );
-            add(
                 "重置声道电平与关键帧",
                 "Reset channel levels and keys",
                 unlocked && l["audio_levels"].is_object(),
@@ -1075,12 +1141,14 @@ fn entries_for(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
                     action: motion_core::AudioLevelsAction::Clear,
                 }),
             );
-            add(
-                "取消音频分析",
-                "Cancel audio analysis",
-                state["desktop_audio_analysis"]["object"] == id,
-                Choice::New(Action::CancelAudioAnalysis),
-            );
+            if state["desktop_audio_analysis"]["object"] == id {
+                add(
+                    "取消音频分析",
+                    "Cancel audio analysis",
+                    state["desktop_audio_analysis"]["object"] == id,
+                    Choice::New(Action::CancelAudioAnalysis),
+                );
+            }
         }
         Page::Switch => {
             add(

@@ -56,6 +56,21 @@ impl Shell {
                 self.panels.layer_actions.cancel();
                 Some(screenshot)
             } else { None };
+            let marker_menu = if panel == dock::Panel::Timeline {
+                let f = self.floating.values().find(|f| f.panel == panel).ok_or("timeline window missing")?;
+                let physical = f.window.inner_size();
+                let size = [physical.width as f32 / f.scale, physical.height as f32 / f.scale];
+                let gutter = 640f32.min(size[0] * 0.52);
+                let total = self.state["project"]["frames"].as_f64().unwrap_or(300.);
+                let point = [gutter + 15. / total as f32 * (size[0] - gutter - 8.), 72.];
+                let actions = panels::floating_chrome(&mut PaintList::default(), &mut self.atlas,
+                    panel, size, &mut self.panels, &self.state,
+                    &Input { mouse: point, pressed: Some((MouseButton::Right, point)), ..Default::default() });
+                if !actions.is_empty() { return Err("marker context menu edited the project".into()); }
+                let screenshot = self.capture_panel_float_named(panel, "-marker-menu")?;
+                self.panels.layer_actions.cancel();
+                Some(screenshot)
+            } else { None };
             self.redock_panel(panel.dock())?;
             if !self.workspace.valid() {
                 return Err("panel lost unique workspace ownership".into());
@@ -63,7 +78,7 @@ impl Shell {
             if self.state["revision"] != revision {
                 return Err("layout change edited the project".into());
             }
-            self.smoke_panel_records.push(serde_json::json!({"id":panel as u32,"title":self.workspace.locale.panel(panel.dock()),"frames":self.smoke_float_frames[&(panel as u32)],"screenshot":screenshot,"valueGraphScreenshot":value_graph,"audioMenuScreenshot":audio_menu,"projectRevision":revision}));
+            self.smoke_panel_records.push(serde_json::json!({"id":panel as u32,"title":self.workspace.locale.panel(panel.dock()),"frames":self.smoke_float_frames[&(panel as u32)],"screenshot":screenshot,"valueGraphScreenshot":value_graph,"audioMenuScreenshot":audio_menu,"markerMenuScreenshot":marker_menu,"projectRevision":revision}));
             if matches!(panel, dock::Panel::Timeline | dock::Panel::Audio) {
                 // Subsequent parent/blend captures require a visual target.
                 let visual = self.state["project"]["layers"].as_array().into_iter().flatten().rev()

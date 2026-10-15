@@ -62,7 +62,8 @@ the current desktop route and keeps unfinished UI work explicit.
 | Deterministic mixing, 48 kHz stereo | yes | Shared (`motion_media::mixer`) |
 | Stereo dB envelope editing | yes | Timeline → expanded Audio group: numeric fields, animation, key navigation, drag/delete; audio, video and composition references |
 | Static audio gain in dB | yes | Timeline Audio rows: numeric typing/scrubbing, unity/silence and independent mute for audio/video; Audio panel links to timeline |
-| Audio reference markers | yes | Layer context menu → Audio → Mark audio references; cancellable background energy-rise analysis, manual correction, clip-relative save and atomic undo |
+| Audio reference markers | yes | Audio → Generate rhythm references; flags on the top time ruler, seek/drag/delete, manual add, conditional per-audio batch selection/deletion and atomic undo |
+| Extract video audio | yes | Video layer or expanded Audio properties → Audio → Extract audio; preserve picture, source timing and envelopes, mute original video audio, no re-encoding |
 | Stereo channel separation | yes | Layer context menu → Audio → Separate left/right channels; independent L/R tracks with exact original stereo sum |
 | Video import (H.264, H.265, VP8, VP9 in MP4/MOV/MKV/WebM) | partial | libav behind `--ffmpeg` |
 | Video preview and PTS prefetch | partial | Shared scheduling, libav decode |

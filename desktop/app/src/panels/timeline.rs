@@ -706,13 +706,15 @@ pub(super) fn render(
         label(
             list,
             atlas,
-            Rect::new(x + 3.0, ruler.min[1], 52.0, 22.0),
+            Rect::new(x + 3.0, ruler.min[1] + 10., 52.0, 18.0),
             &format!("{:.0}s", f / fps),
             true,
         );
         f += step;
     }
-    if clicked(input, ruler) {
+    let marker_owned =
+        super::audio::render_ruler(list, atlas, ruler, ppf, offset, panels, state, input, out);
+    if clicked(input, ruler) && !marker_owned {
         panels.timeline.scrubbing = true;
         panels.timeline.last_seek = None;
     }
@@ -788,7 +790,15 @@ pub(super) fn render(
                 input.pressed.filter(|(_, p)| row_group.contains(*p))
             {
                 panels.select_only(Some(row.id));
-                panels.layer_actions.open(Some(row.id), point, state);
+                let audio_y =
+                    y + (1 + if row.spatial { 1 + property_count } else { 0 }) as f32 * row_height;
+                if expanded && point[1] >= audio_y {
+                    panels
+                        .layer_actions
+                        .open_audio(row.id, point, state, locale);
+                } else {
+                    panels.layer_actions.open(Some(row.id), point, state);
+                }
             }
         }
         let properties: Vec<_> = if transform_expanded {

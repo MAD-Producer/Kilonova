@@ -322,7 +322,8 @@
           "background": "$colors.context.hover"
         },
         "selected": {
-          "background": "$colors.context.hover"
+          "background": "$colors.context.hover",
+          "foreground": "$colors.context.foreground"
         },
         "disabled": {
           "foreground": "$colors.context.muted"

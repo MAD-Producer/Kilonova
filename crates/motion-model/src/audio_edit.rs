@@ -26,6 +26,13 @@ pub struct AudioMarker {
     pub label: String,
     #[serde(default)]
     pub generated: bool,
+    /// Retain analysis provenance while protecting a manually adjusted point
+    /// from replacement by the next analysis run.
+    #[serde(default, skip_serializing_if = "uncorrected")]
+    pub corrected: bool,
+}
+fn uncorrected(value: &bool) -> bool {
+    !*value
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -60,6 +67,10 @@ pub fn validate(layer: &Layer) -> Result<()> {
     )?;
     let mut ids = HashSet::new();
     for marker in &layer.audio_markers {
+        ensure(
+            !marker.corrected || marker.generated,
+            "only analysis markers can be corrected",
+        )?;
         ensure(
             marker.id != 0 && ids.insert(marker.id),
             "audio marker IDs must be unique and nonzero",
@@ -103,6 +114,7 @@ pub fn edit(layer: &mut Layer, frames: u32, action: AudioMarkersAction) -> Resul
             frame: local(frame)?,
             label,
             generated,
+            corrected: false,
         })
     };
     match action {
@@ -113,9 +125,12 @@ pub fn edit(layer: &mut Layer, frames: u32, action: AudioMarkersAction) -> Resul
             )?;
             frames.sort_unstable();
             frames.dedup();
-            markers.retain(|m| !m.generated);
+            markers.retain(|m| !m.generated || m.corrected);
+            let retained: HashSet<_> = markers.iter().map(|marker| marker.frame).collect();
             for frame in frames {
-                markers.push(new_marker(frame, String::new(), true)?);
+                if !retained.contains(&local(frame)?) {
+                    markers.push(new_marker(frame, String::new(), true)?);
+                }
             }
         }
         AudioMarkersAction::Add { frame, label } => markers.push(new_marker(frame, label, false)?),
@@ -125,8 +140,7 @@ pub fn edit(layer: &mut Layer, frames: u32, action: AudioMarkersAction) -> Resul
                 .find(|m| m.id == id)
                 .ok_or_else(|| crate::Error::Invalid("audio marker does not exist".into()))?;
             marker.frame = local(frame)?;
-            // A corrected reference becomes manual and survives subsequent analysis.
-            marker.generated = false;
+            marker.corrected |= marker.generated;
         }
         AudioMarkersAction::Remove { id } => {
             ensure(

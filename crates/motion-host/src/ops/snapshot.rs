@@ -304,10 +304,13 @@ impl Session {
         snapshot["capabilities"]["audio"]["reference_markers"] = json!({
             "supported":true,"project_format":18,"command":"audio_markers","max_count":motion_core::audio_edit::MAX_AUDIO_MARKERS,
             "storage_coordinates":"layer_local_frames","edit_coordinates":"composition_frames",
-            "generated_replacement":"preserve_manual","corrected_references":"manual"});
+            "generated_replacement":"preserve_manual_and_corrected","corrected_references":"retain_analysis_origin"});
         snapshot["capabilities"]["audio"]["channel_separation"] = json!({
             "supported":true,"project_format":18,"command":"split_audio_channels",
             "requires":"stereo_single_source","preserves_stereo_sum":true,"output":"left_and_right_layers"});
+        snapshot["capabilities"]["audio"]["extraction"] = json!({
+            "supported":true,"command":"extract_audio","requires":"video_with_audio",
+            "output":"audio_layer","source":"preserved_with_audio_muted","reencode":false});
         snapshot["capabilities"]["layer_timeline"]["extended_spans"]=json!({"supported":true,"project_format":13,
             "in_frame_min":-(motion_core::MAX_FRAMES as i32),"out_frame_max":motion_core::MAX_FRAMES,
             "coordinates":"signed_composition_frames","outside_composition":"retained_not_rendered"});

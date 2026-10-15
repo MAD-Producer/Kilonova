@@ -58,6 +58,7 @@ pub enum Command {
     AudioLevels { object:u64, action:crate::AudioLevelsAction },
     AudioMarkers { object: u64, action: crate::AudioMarkersAction },
     SplitAudioChannels { object: u64 },
+    ExtractAudio { object: u64 },
     #[serde(rename = "set_layer_3d")]
     SetLayer3d {
         object: u64,

@@ -1,6 +1,8 @@
 use super::*;
 use crate::engine::Engine;
-use motion_core::{AudioAsset, AudioClip, Content, Layer, LayerTimeline, Project};
+use motion_core::{
+    AudioAsset, AudioClip, Content, Layer, LayerTimeline, Project, VideoAsset, VideoClip,
+};
 use motion_ui::input::Modifiers;
 
 struct Harness {
@@ -13,6 +15,9 @@ struct Harness {
 }
 impl Harness {
     fn new(floating: bool, locale: Locale) -> Self {
+        Self::with_video(floating, locale, false)
+    }
+    fn with_video(floating: bool, locale: Locale, video: bool) -> Self {
         let folder = tempfile::tempdir().unwrap();
         let root = folder.path().join("project");
         std::fs::create_dir_all(root.join("assets")).unwrap();
@@ -59,6 +64,34 @@ impl Harness {
             offset_frame: 10,
         });
         project.layers.push(layer);
+        if video {
+            // Metadata exercises editor transport without decoding a video.
+            project.video_assets.push(VideoAsset {
+                id: 2,
+                path: "assets/tone.wav".into(),
+                bytes: wav.len() as u64,
+                mime: "video/avc".into(),
+                track: 1,
+                width: 64,
+                height: 64,
+                rotation: 0,
+                display_width: 64,
+                display_height: 64,
+                video_start_us: 0,
+                video_end_us: 4_000_000,
+                duration_us: 4_000_000,
+                frame_count: 120,
+                variable_frame_rate: false,
+                nominal_frame_rate: 30.,
+                color_standard: 1,
+                color_range: 1,
+                audio_asset: Some(1),
+            });
+            project.layers[0].content = Content::Video {
+                video: VideoClip::new(2),
+            };
+            project.layers[0].size = [64.; 2];
+        }
         motion_core::storage::save(&root, &project).unwrap();
         let engine = Engine::start(root, motion_desktop_media::platform(), 8 << 30).unwrap();
         let state = engine.seek(10.).unwrap();
@@ -68,6 +101,9 @@ impl Harness {
         };
         panels.select_only(Some(7));
         panels.timeline.expanded.insert(7);
+        if video {
+            panels.timeline.collapsed_transforms.insert(7);
+        }
         Self {
             _folder: folder,
             engine,
@@ -137,6 +173,10 @@ impl Harness {
                 Action::Edit(command) => self
                     .engine
                     .edit(serde_json::to_string(&command).unwrap())
+                    .unwrap(),
+                Action::EditBatch(commands) => self
+                    .engine
+                    .edit(serde_json::to_string(&commands).unwrap())
                     .unwrap(),
                 Action::History(op) => self.engine.history(op).unwrap(),
                 Action::Seek(frame) => self.engine.seek(frame).unwrap(),
@@ -333,10 +373,7 @@ fn timeline_key_and_reference_drags_commit_once_and_delete_only_the_selected_ite
             )
             .unwrap();
         let original = h.state["project"].clone();
-        let marker = [
-            area.min[0] + gutter + 60. * ppf,
-            area.min[1] + 64. + 5. * 22. + 11.,
-        ];
+        let marker = [area.min[0] + gutter + 60. * ppf, area.min[1] + 42.];
         for input in [
             pointer(marker, true, false),
             pointer([marker[0] + ppf * 10., marker[1]], false, false),
@@ -362,9 +399,240 @@ fn timeline_key_and_reference_drags_commit_once_and_delete_only_the_selected_ite
         );
         assert_eq!(
             h.state["project"]["layers"][0]["audio_markers"][0]["generated"],
-            false
+            true
         );
+        assert_eq!(
+            h.state["project"]["layers"][0]["audio_markers"][0]["corrected"],
+            true
+        );
+        let corrected = [marker[0] + ppf * 10., marker[1]];
+        let actions = h.draw(Input {
+            mouse: corrected,
+            pressed: Some((MouseButton::Right, corrected)),
+            ..Default::default()
+        });
+        h.run(actions);
+        let actions = h.draw(Input {
+            keys: vec![(Key::Enter, Default::default())],
+            ..Default::default()
+        });
+        h.run(actions);
+        assert_eq!(h.panels.audio_controls.batch.as_ref().unwrap().1.len(), 1);
         assert_eq!(h.engine.history(0).unwrap()["project"], original);
+    }
+}
+
+#[test]
+fn ruler_markers_follow_real_audio_and_video_clip_drag_and_undo_in_main_and_floating_windows() {
+    for (floating, video) in [(false, false), (true, false), (false, true), (true, true)] {
+        let mut h = Harness::with_video(floating, Locale::En, video);
+        h.engine
+            .edit(
+                serde_json::to_string(&Command::AudioMarkers {
+                    object: 7,
+                    action: motion_core::AudioMarkersAction::ReplaceGenerated { frames: vec![60] },
+                })
+                .unwrap(),
+            )
+            .unwrap();
+        let before = h.engine.state().unwrap()["project"].clone();
+        let area = h.area();
+        let gutter = GUTTER.min(area.width() * 0.52);
+        let ppf = (area.width() - gutter - 8.) / 120.;
+        let clip = [area.min[0] + gutter + 30. * ppf, area.min[1] + 75.];
+        for mut input in [
+            pointer(clip, true, false),
+            pointer([clip[0] + 20. * ppf, clip[1]], false, true),
+        ] {
+            input.modifiers.alt = true;
+            let actions = h.draw(input);
+            h.run(actions);
+        }
+        assert_eq!(
+            h.state["project"]["layers"][0]["timeline"]["offset_frame"],
+            30
+        );
+        assert_eq!(
+            h.state["project"]["layers"][0]["audio_markers"][0]["frame"],
+            50
+        );
+        let marker = [area.min[0] + gutter + 80. * ppf, area.min[1] + 42.];
+        let actions = h.draw(pointer(marker, true, false));
+        h.run(actions);
+        let actions = h.draw(pointer(marker, false, true));
+        h.run(actions);
+        assert_eq!(h.state["frame"], 80.);
+        assert_eq!(h.engine.history(0).unwrap()["project"], before);
+    }
+}
+
+#[test]
+fn audio_property_menu_only_offers_analysis_selection_after_markers_exist() {
+    for floating in [false, true] {
+        let mut h = Harness::new(floating, Locale::Zh);
+        let field = h.field(Control::Gain);
+        let p = [field.min[0] + 5., field.min[1] + 10.];
+        let actions = h.draw(Input {
+            mouse: p,
+            pressed: Some((MouseButton::Right, p)),
+            ..Default::default()
+        });
+        h.run(actions);
+        let actions = h.draw(Input {
+            keys: vec![(Key::Enter, Default::default())],
+            ..Default::default()
+        });
+        h.run(actions);
+        // No analysis entries: the first audio action separates stereo channels.
+        assert_eq!(h.state["project"]["layers"].as_array().unwrap().len(), 2);
+        h.engine.history(0).unwrap();
+        h.engine
+            .edit(
+                serde_json::to_string(&Command::AudioMarkers {
+                    object: 7,
+                    action: motion_core::AudioMarkersAction::ReplaceGenerated {
+                        frames: vec![40, 60],
+                    },
+                })
+                .unwrap(),
+            )
+            .unwrap();
+        let actions = h.draw(Input {
+            mouse: p,
+            pressed: Some((MouseButton::Right, p)),
+            ..Default::default()
+        });
+        h.run(actions);
+        let actions = h.draw(Input {
+            keys: vec![(Key::Enter, Default::default())],
+            ..Default::default()
+        });
+        h.run(actions);
+        assert_eq!(h.panels.audio_controls.batch.as_ref().unwrap().1.len(), 2);
+        let before = h.state["project"].clone();
+        let actions = h.draw(Input {
+            keys: vec![(Key::Delete, Default::default())],
+            ..Default::default()
+        });
+        h.run(actions);
+        assert_eq!(h.state["project"]["layers"].as_array().unwrap().len(), 1);
+        assert!(h.state["project"]["layers"][0]["audio_markers"].is_null());
+        assert_eq!(h.engine.history(0).unwrap()["project"], before);
+    }
+}
+
+#[test]
+fn video_audio_property_menu_extracts_through_the_desktop_host_and_undoes_once() {
+    for floating in [false, true] {
+        let mut h = Harness::with_video(floating, Locale::Zh, true);
+        let before = h.state["project"].clone();
+        let field = h.field(Control::Gain);
+        let p = [field.min[0] + 5., field.min[1] + 32.]; // collapsed transform group adds one row
+        let actions = h.draw(Input {
+            mouse: p,
+            pressed: Some((MouseButton::Right, p)),
+            ..Default::default()
+        });
+        h.run(actions);
+        let actions = h.draw(Input {
+            keys: vec![(Key::Enter, Default::default())],
+            ..Default::default()
+        });
+        h.run(actions);
+        assert_eq!(h.state["project"]["layers"].as_array().unwrap().len(), 2);
+        assert_eq!(
+            h.state["project"]["layers"][0]["content"]["video"]["muted"],
+            true
+        );
+        assert_eq!(h.state["project"]["layers"][1]["content"]["kind"], "audio");
+        h.engine.save().unwrap();
+        let root = std::path::PathBuf::from(h.state["root"].as_str().unwrap());
+        assert_eq!(
+            serde_json::to_value(motion_core::storage::load(&root).unwrap()).unwrap(),
+            h.state["project"]
+        );
+        assert_eq!(h.engine.history(0).unwrap()["project"], before);
+    }
+}
+
+#[test]
+fn ruler_markers_seek_add_and_batch_delete_only_generated_references_with_one_undo() {
+    for floating in [false, true] {
+        let mut h = Harness::new(floating, Locale::Zh);
+        let area = h.area();
+        let gutter = GUTTER.min(area.width() * 0.52);
+        let ppf = (area.width() - gutter - 8.) / 120.;
+        let marker = [area.min[0] + gutter + 60. * ppf, area.min[1] + 42.];
+        h.engine
+            .edit(
+                serde_json::to_string(&vec![
+                    Command::AudioMarkers {
+                        object: 7,
+                        action: motion_core::AudioMarkersAction::Add {
+                            frame: 20,
+                            label: "Manual".into(),
+                        },
+                    },
+                    Command::AudioMarkers {
+                        object: 7,
+                        action: motion_core::AudioMarkersAction::ReplaceGenerated {
+                            frames: vec![40, 60, 80],
+                        },
+                    },
+                ])
+                .unwrap(),
+            )
+            .unwrap();
+        let actions = h.draw(pointer(marker, true, false));
+        h.run(actions);
+        let actions = h.draw(pointer(marker, false, true));
+        h.run(actions);
+        assert_eq!(h.state["frame"], 60.);
+        assert!(!h.panels.timeline.scrubbing);
+        let before = h.state["project"].clone();
+        let actions = h.draw(Input {
+            mouse: marker,
+            pressed: Some((MouseButton::Right, marker)),
+            ..Default::default()
+        });
+        h.run(actions);
+        let actions = h.draw(Input {
+            keys: vec![(Key::Enter, Default::default())],
+            ..Default::default()
+        });
+        h.run(actions);
+        assert_eq!(h.panels.audio_controls.batch.as_ref().unwrap().1.len(), 3);
+        let actions = h.draw(Input {
+            keys: vec![(Key::Delete, Default::default())],
+            ..Default::default()
+        });
+        h.run(actions);
+        assert_eq!(h.state["project"]["layers"].as_array().unwrap().len(), 1);
+        assert_eq!(
+            h.state["project"]["layers"][0]["audio_markers"]
+                .as_array()
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(
+            h.state["project"]["layers"][0]["audio_markers"][0]["label"],
+            "Manual"
+        );
+        assert_eq!(h.engine.history(0).unwrap()["project"], before);
+        h.state = h.engine.seek(30.).unwrap();
+        h.click(Rect::new(
+            area.min[0] + gutter - 28.,
+            area.min[1] + 39.,
+            24.,
+            22.,
+        ));
+        assert!(h.state["project"]["layers"][0]["audio_markers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|m| m["frame"] == 20 && m["generated"] == false));
+        assert_eq!(h.engine.history(0).unwrap()["project"], before);
     }
 }
 

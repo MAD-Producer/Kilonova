@@ -151,6 +151,34 @@ fn editable_clip(project: &mut Project, object: u64) -> Result<&mut Layer> {
     Ok(layer)
 }
 
+fn video_audio_layer(project: &Project, source: &Layer, id: u64) -> Result<Layer> {
+    ensure(matches!(source.content, Content::Video { .. }), "audio extraction requires a video layer")?;
+    let audio = project.layer_audio(source)
+        .ok_or_else(|| Error::Invalid("video has no audio track".into()))?;
+    let asset = project.audio_assets.iter().find(|a| a.id == audio.asset)
+        .ok_or_else(|| Error::Invalid("audio asset missing".into()))?;
+    let mut layer = Layer::solid(id, &format!("{} Audio", source.name), [0.; 2], [0.; 3], [0.; 4]);
+    layer.content = Content::Audio { audio: audio.clone() };
+    layer.timeline = source.timeline;
+    layer.subframe_range = source.subframe_range;
+    layer.audio_levels = source.audio_levels.clone();
+    layer.audio_markers = source.audio_markers.clone();
+    layer.audio_source_channel = source.audio_source_channel;
+    layer.visible = source.visible;
+    // Video and audio tracks can have different durations. Preserve the source
+    // clock and intersect the video clip with recoverable audio samples.
+    let span = source.interval(project.frames);
+    let source_begin = f64::from(source.clip(project.frames).offset_frame)
+        - audio.source_offset_us as f64 * f64::from(project.fps) / 1_000_000.;
+    let source_end = source_begin + asset.sample_frames as f64
+        * f64::from(project.fps) / f64::from(asset.sample_rate);
+    let range = crate::ClipRange { in_frame: span.in_frame.max(source_begin),
+        out_frame: span.out_frame.min(source_end) };
+    ensure(range.in_frame < range.out_frame, "video clip has no recoverable audio samples")?;
+    layer.set_interval(project.frames, range)?;
+    Ok(layer)
+}
+
 fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult>> {
     if let Command::InComposition { composition, command } = command {
         let previous = project.composition_id.clone();
@@ -213,6 +241,18 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             motion_model::audio_edit::edit(project.layer_mut(object)?, frames, action)?;
             if !project.layer_mut(object)?.audio_markers.is_empty() { project.version = project.version.max(18); }
         }
+        Command::ExtractAudio { object } => {
+            let source = editable_clip(project, object)?.clone();
+            ensure(project.layers.len() < crate::MAX_LAYERS, "layer limit exceeded")?;
+            let next = project.layers.iter().map(|l| l.id).max().unwrap_or(0)
+                .checked_add(1).ok_or_else(|| Error::Invalid("layer ID space exhausted".into()))?;
+            let audio = video_audio_layer(project, &source, next)?;
+            let index = project.layers.iter().position(|l| l.id == object).ok_or(Error::Missing(object))?;
+            if let Content::Video { video } = &mut project.layers[index].content { video.muted = true; }
+            project.layers[index].audio_markers.clear();
+            if audio.subframe_range.is_some() { project.version = project.version.max(15); }
+            project.layers.insert(index + 1, audio);
+        }
         Command::SplitAudioChannels { object } => {
             let source = editable_clip(project, object)?.clone();
             ensure(source.audio_source_channel == crate::AudioSourceChannel::Stereo,
@@ -228,27 +268,12 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             let next = project.layers.iter().map(|l| l.id).max().unwrap_or(0)
                 .checked_add(1).ok_or_else(|| Error::Invalid("layer ID space exhausted".into()))?;
             let mut left = if is_audio { source.clone() } else {
-                let mut layer = crate::Layer::solid(next, &source.name, [0.; 2], [0.; 3], [0.; 4]);
-                layer.content = Content::Audio { audio: audio.clone() };
-                layer.timeline = source.timeline;
-                layer.subframe_range = source.subframe_range;
-                layer.audio_levels = source.audio_levels.clone();
-                layer.audio_markers = source.audio_markers.clone();
-                layer.visible = source.visible;
-                // A video can outlast its audio track. Isolated audio layers
-                // retain the source clock and only cover recoverable samples.
-                let span = source.interval(project.frames);
-                let source_begin = f64::from(source.clip(project.frames).offset_frame)
-                    - audio.source_offset_us as f64 * f64::from(project.fps) / 1_000_000.;
-                let source_end = source_begin + asset.sample_frames as f64
-                    * f64::from(project.fps) / f64::from(asset.sample_rate);
-                let range = crate::ClipRange { in_frame: span.in_frame.max(source_begin),
-                    out_frame: span.out_frame.min(source_end) };
-                ensure(range.in_frame < range.out_frame, "video clip has no recoverable audio samples")?;
-                layer.set_interval(project.frames, range)?;
-                layer
+                video_audio_layer(project, &source, next)?
             };
             let mut right = left.clone();
+            // One analysis has one owner on the shared time ruler. Moving a
+            // split-off channel must not reveal an overlapping duplicate set.
+            right.audio_markers.clear();
             right.id = if is_audio { next } else { next.checked_add(1)
                 .ok_or_else(|| Error::Invalid("layer ID space exhausted".into()))? };
             left.name = format!("{} L", source.name);
@@ -261,6 +286,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
                 project.layers.insert(index + 1, right);
             } else {
                 if let Content::Video { video } = &mut project.layers[index].content { video.muted = true; }
+                project.layers[index].audio_markers.clear();
                 project.layers.insert(index + 1, left);
                 project.layers.insert(index + 2, right);
             }

@@ -25,8 +25,7 @@ fn project() -> Project {
     project.layers.push(layer);
     project
 }
-#[test]
-fn video_separation_keeps_the_picture_and_trims_a_shorter_audio_track_at_sample_time() {
+fn video_project() -> Project {
     let mut project = project();
     project.audio_assets[0].path = "assets/clip.mp4".into();
     project.audio_assets[0].mime = "audio/mp4".into();
@@ -58,7 +57,15 @@ fn video_separation_keeps_the_picture_and_trims_a_shorter_audio_track_at_sample_
     video.source_offset_us = 250_000;
     project.layers[0].content = Content::Video { video };
     project.layers[0].size = [64.; 2];
-    let mut engine = Engine::new(project).unwrap();
+    project
+}
+#[test]
+fn video_separation_keeps_the_picture_and_trims_a_shorter_audio_track_at_sample_time() {
+    let mut engine = Engine::new(video_project()).unwrap();
+    edit(
+        &mut engine,
+        AudioMarkersAction::ReplaceGenerated { frames: vec![40] },
+    );
     let before = engine.project().clone();
     engine
         .apply(Command::SplitAudioChannels { object: 7 })
@@ -83,10 +90,122 @@ fn video_separation_keeps_the_picture_and_trims_a_shorter_audio_track_at_sample_
         );
     }
     let voices = engine.project().audio_voices().unwrap();
+    assert!(layers[0].audio_markers.is_empty());
+    assert_eq!(layers[1].audio_markers, before.layers[0].audio_markers);
+    assert!(layers[2].audio_markers.is_empty());
     assert_eq!(voices.len(), 2);
     assert!(voices.iter().all(|v| v.end_sample == 100_000));
     engine.undo().unwrap();
     assert_eq!(engine.project(), &before);
+}
+
+#[test]
+fn video_audio_extraction_preserves_sound_and_picture_with_one_step_history_and_save() {
+    for channels in [1, 2] {
+        let mut project = video_project();
+        project.audio_assets[0].channels = channels;
+        let mut engine = Engine::new(project).unwrap();
+        engine
+            .apply(Command::AudioLevels {
+                object: 7,
+                action: AudioLevelsAction::Set {
+                    channel: AudioChannel::Left,
+                    frame: 10,
+                    value: -6.,
+                    animated: Some(true),
+                },
+            })
+            .unwrap();
+        edit(
+            &mut engine,
+            AudioMarkersAction::Add {
+                frame: 40,
+                label: "Cut".into(),
+            },
+        );
+        let before = engine.project().clone();
+        let before_voice = before.audio_voices().unwrap().remove(0);
+        let command = Command::ExtractAudio { object: 7 };
+        let wire = serde_json::to_string(&command).unwrap();
+        engine.apply_batch(parse_commands(&wire).unwrap()).unwrap();
+        let after = engine.project().clone();
+        assert_eq!(after.layers.len(), 2);
+        let mut video = after.layers[0].clone();
+        if let Content::Video { video } = &mut video.content {
+            assert!(video.muted);
+            video.muted = false;
+        }
+        let mut expected_video = before.layers[0].clone();
+        expected_video.audio_markers.clear();
+        assert_eq!(video, expected_video);
+        let extracted = &after.layers[1];
+        assert_eq!(extracted.audio_levels, before.layers[0].audio_levels);
+        assert_eq!(extracted.audio_markers, before.layers[0].audio_markers);
+        assert_eq!(extracted.audio_source_channel, AudioSourceChannel::Stereo);
+        assert_eq!(extracted.clip(180).offset_frame, 10);
+        assert_eq!(
+            extracted.interval(180),
+            ClipRange {
+                in_frame: 10.,
+                out_frame: 62.5
+            }
+        );
+        assert!(matches!(&extracted.content, Content::Audio { audio }
+            if !audio.muted && audio.volume == 0.75 && audio.source_offset_us == 250_000));
+        let voices = after.audio_voices().unwrap();
+        assert_eq!(voices.len(), 1);
+        assert_eq!(voices[0].asset, before_voice.asset);
+        assert_eq!(voices[0].offset_sample, before_voice.offset_sample);
+        assert_eq!(voices[0].source_offset_us, before_voice.source_offset_us);
+        for at in [16_000, 40_000, 99_999] {
+            assert_eq!(voices[0].gain_at(at), before_voice.gain_at(at));
+        }
+        engine.undo().unwrap();
+        assert_eq!(engine.project(), &before);
+        engine.redo().unwrap();
+        assert_eq!(engine.project(), &after);
+        let root = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(root.path().join("assets")).unwrap();
+        std::fs::write(root.path().join("assets/clip.mp4"), [0u8; 64]).unwrap();
+        storage::save(root.path(), &after).unwrap();
+        assert_eq!(storage::load(root.path()).unwrap(), after);
+    }
+}
+
+#[test]
+fn unavailable_audio_extraction_is_atomic_and_muted_sources_stay_muted() {
+    let mut muted = video_project();
+    if let Content::Video { video } = &mut muted.layers[0].content {
+        video.muted = true;
+    }
+    let mut engine = Engine::new(muted).unwrap();
+    engine.apply(Command::ExtractAudio { object: 7 }).unwrap();
+    assert!(matches!(&engine.project().layers[1].content, Content::Audio { audio } if audio.muted));
+    let mut locked = video_project();
+    locked.layers[0].locked = true;
+    for project in [project(), locked] {
+        let mut engine = Engine::new(project).unwrap();
+        let before = engine.project().clone();
+        assert!(engine.apply(Command::ExtractAudio { object: 7 }).is_err());
+        assert_eq!(engine.project(), &before);
+        assert!(!engine.can_undo());
+    }
+    let mut missing = video_project();
+    missing.video_assets[0].audio_asset = None;
+    missing.audio_assets.clear();
+    let mut empty = video_project();
+    empty.layers[0].timeline = Some(LayerTimeline {
+        in_frame: 90,
+        out_frame: 120,
+        offset_frame: 10,
+    });
+    for project in [missing, empty] {
+        let mut engine = Engine::new(project).unwrap();
+        let before = engine.project().clone();
+        assert!(engine.apply(Command::ExtractAudio { object: 7 }).is_err());
+        assert_eq!(engine.project(), &before);
+        assert!(!engine.can_undo());
+    }
 }
 #[test]
 fn reference_times_support_trimmed_long_sources_beyond_composition_frame_limits() {
@@ -159,7 +278,7 @@ fn reanalysis_keeps_manual_and_corrected_markers_with_atomic_undo_and_save() {
     assert_eq!(markers.len(), 4);
     assert!(markers
         .iter()
-        .any(|m| m.id == first && m.frame == 15 && !m.generated));
+        .any(|m| m.id == first && m.frame == 15 && m.generated && m.corrected));
     assert!(markers
         .iter()
         .any(|m| m.label == "Cut" && m.frame == 30 && !m.generated));
@@ -172,6 +291,11 @@ fn reanalysis_keeps_manual_and_corrected_markers_with_atomic_undo_and_save() {
     std::fs::write(root.path().join("assets/reference.wav"), [0u8; 64]).unwrap();
     storage::save(root.path(), &after).unwrap();
     assert_eq!(storage::load(root.path()).unwrap(), after);
+    edit(&mut engine, AudioMarkersAction::ClearGenerated);
+    assert_eq!(engine.project().layers[0].audio_markers.len(), 1);
+    assert_eq!(engine.project().layers[0].audio_markers[0].label, "Cut");
+    engine.undo().unwrap();
+    assert_eq!(engine.project(), &after);
 }
 #[test]
 fn markers_follow_clip_moves_splits_and_frame_rate_changes() {
@@ -330,7 +454,11 @@ fn separated_tracks_preserve_timing_envelopes_and_exact_stereo_sum() {
         assert_eq!(split.offset_sample, voice.offset_sample);
         assert_eq!(split.source_offset_us, voice.source_offset_us);
     }
-    assert_eq!(after.layers[0].audio_markers, after.layers[1].audio_markers);
+    assert_eq!(
+        after.layers[0].audio_markers,
+        before.layers[0].audio_markers
+    );
+    assert!(after.layers[1].audio_markers.is_empty());
     assert!(engine
         .apply(Command::SplitAudioChannels { object: 7 })
         .is_err());

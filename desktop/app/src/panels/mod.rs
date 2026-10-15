@@ -685,6 +685,7 @@ pub fn chrome(
         panels.locale,
         &mut out,
     );
+    apply_marker_selection(panels, state);
     scope_edits(out, state)
 }
 pub fn panel(id: dock::DockId) -> Option<Panel> {
@@ -899,7 +900,14 @@ pub fn floating_chrome(
         panels.locale,
         &mut out,
     );
+    apply_marker_selection(panels, state);
     scope_edits(out, state)
+}
+fn apply_marker_selection(panels: &mut Panels, state: &Value) {
+    if let Some(object) = panels.layer_actions.select_generated.take() {
+        panels.select_only(Some(object));
+        panels.audio_controls.select_generated(object, state);
+    }
 }
 /// Bind edits to the composition that produced the input, even if another
 /// window changes the active composition before the worker receives them.

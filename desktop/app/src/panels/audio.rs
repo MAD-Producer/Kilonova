@@ -64,6 +64,7 @@ struct Field {
 }
 #[derive(Default)]
 pub(crate) struct Controls {
+    batch: Option<(u64, Vec<u64>)>,
     field: Option<Field>,
     context: Option<(String, String)>,
     pub cursor: bool,
@@ -74,8 +75,23 @@ pub(crate) struct Controls {
 }
 impl Controls {
     pub fn clear_selection(&mut self) {
+        self.batch = None;
         self.selection = None;
         self.active_channel = None;
+    }
+    pub fn select_generated(&mut self, object: u64, state: &Value) {
+        self.clear_selection();
+        let ids = state["project"]["layers"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .find(|layer| layer["id"] == object)
+            .into_iter()
+            .flat_map(|layer| layer["audio_markers"].as_array().into_iter().flatten())
+            .filter(|marker| marker["generated"] == true)
+            .filter_map(|marker| marker["id"].as_u64())
+            .collect();
+        self.batch = Some((object, ids));
     }
     pub fn editing(&self) -> bool {
         self.field.is_some() || self.drag.is_some()
@@ -215,7 +231,7 @@ fn source(layer: &Value) -> &Value {
     &layer["content"][layer["content"]["kind"].as_str().unwrap_or("")]
 }
 pub(super) fn rows(layer: &Value) -> usize {
-    controls(layer).len() + 1
+    controls(layer).len()
 }
 fn controls(layer: &Value) -> Vec<Control> {
     let mut rows = vec![];
@@ -325,6 +341,14 @@ pub(super) fn prepare(panels: &mut Panels, state: &Value, input: &Input, out: &m
         .is_some_and(|s| panels.selected != Some(s.object))
     {
         controls.selection = None;
+    }
+    if controls
+        .batch
+        .as_ref()
+        .is_some_and(|(object, _)| panels.selected != Some(*object))
+        || input.keys.iter().any(|(key, _)| *key == Key::Escape)
+    {
+        controls.batch = None;
     }
     controls.cursor = false;
     controls.drag_readout = None;
@@ -532,75 +556,6 @@ pub(super) fn render_rows(
             );
         }
     }
-    let py = y + controls_list.len() as f32 * height;
-    if py >= body.min[1] && py + height <= body.max[1] {
-        let fields = row(gutter, py, height);
-        label(
-            list,
-            atlas,
-            fields.caption,
-            &word(locale, "节奏参考", "References"),
-            true,
-        );
-        button(
-            list,
-            atlas,
-            fields.number,
-            "+",
-            input,
-            enabled
-                && current < frames as u32
-                && f64::from(current) >= layer["timeline"]["in_frame"].as_f64().unwrap_or(0.)
-                && f64::from(current)
-                    < layer["timeline"]["out_frame"]
-                        .as_f64()
-                        .unwrap_or(frames as f64),
-            Action::Edit(Command::AudioMarkers {
-                object,
-                action: motion_core::AudioMarkersAction::Add {
-                    frame: current,
-                    label: String::new(),
-                },
-            }),
-            out,
-        );
-        let range = layer["subframe_range"].as_object();
-        let begin = range
-            .and_then(|r| r["in_frame"].as_f64())
-            .unwrap_or_else(|| layer["timeline"]["in_frame"].as_f64().unwrap_or(0.));
-        let end = range
-            .and_then(|r| r["out_frame"].as_f64())
-            .unwrap_or_else(|| {
-                layer["timeline"]["out_frame"]
-                    .as_f64()
-                    .unwrap_or(frames as f64)
-            });
-        for marker in layer["audio_markers"].as_array().into_iter().flatten() {
-            let frame = marker["frame"].as_i64().unwrap_or(0) + local_offset;
-            if frame < 0 || frame as u64 >= frames || (frame as f64) < begin || frame as f64 >= end
-            {
-                continue;
-            }
-            draw_reference(
-                list,
-                track_area,
-                py,
-                height,
-                ppf,
-                offset,
-                Selection {
-                    object,
-                    item: Item::Marker(marker["id"].as_u64().unwrap_or(0)),
-                    frame: frame as u32,
-                },
-                marker["generated"] == true,
-                enabled,
-                panels,
-                input,
-                out,
-            );
-        }
-    }
     if panels.audio_controls.cursor {
         panels.cursor = Some(motion_ui::widgets::numeric_behavior::cursor(
             input,
@@ -610,6 +565,157 @@ pub(super) fn render_rows(
     if panels.audio_controls.drag_readout.is_some() {
         panels.drag_readout = panels.audio_controls.drag_readout.clone();
     }
+}
+/// Audio references share the top time ruler; they are never envelope keys.
+pub(super) fn render_ruler(
+    list: &mut PaintList,
+    atlas: &mut TextAtlas,
+    ruler: Rect,
+    ppf: f32,
+    offset: f32,
+    panels: &mut Panels,
+    state: &Value,
+    input: &Input,
+    out: &mut Vec<Action>,
+) -> bool {
+    let frames = state["project"]["frames"].as_u64().unwrap_or(1);
+    let mut owned = panels
+        .audio_controls
+        .drag
+        .as_ref()
+        .is_some_and(|drag| matches!(drag.selection.item, Item::Marker(_)));
+    let band = Rect::new(ruler.min[0], ruler.min[1], ruler.width(), 12.);
+    // Draw the selected layer last when references from several layers overlap.
+    let mut layers: Vec<_> = state["project"]["layers"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .collect();
+    layers.sort_by_key(|layer| layer["id"].as_u64() == panels.selected);
+    let hit = layers.iter().rev().find_map(|layer| {
+        let object = layer["id"].as_u64()?;
+        let local_offset = layer["timeline"]["offset_frame"].as_i64().unwrap_or(0);
+        layer["audio_markers"]
+            .as_array()?
+            .iter()
+            .rev()
+            .find_map(|marker| {
+                let frame = marker["frame"].as_i64()? + local_offset;
+                let x = ruler.min[0] + (frame as f32 - offset) * ppf;
+                (reference_visible(layer, frame, frames)
+                    && band.contains(input.mouse)
+                    && (input.mouse[0] - x).abs() <= 6.)
+                    .then_some((object, marker["id"].as_u64()?))
+            })
+    });
+    for layer in layers {
+        let Some(object) = layer["id"].as_u64() else {
+            continue;
+        };
+        let local_offset = layer["timeline"]["offset_frame"].as_i64().unwrap_or(0);
+        for marker in layer["audio_markers"].as_array().into_iter().flatten() {
+            let frame = marker["frame"].as_i64().unwrap_or(0) + local_offset;
+            if !reference_visible(layer, frame, frames) {
+                continue;
+            }
+            let id = marker["id"].as_u64().unwrap_or(0);
+            let neutral = Input::default();
+            let active = if hit == Some((object, id)) {
+                input
+            } else {
+                &neutral
+            };
+            draw_reference(
+                list,
+                ruler,
+                band.min[1],
+                band.height(),
+                ppf,
+                offset,
+                Selection {
+                    object,
+                    item: Item::Marker(id),
+                    frame: frame as u32,
+                },
+                marker["generated"] == true && marker["corrected"] != true,
+                layer["locked"] != true && state["observing"] != true,
+                panels,
+                active,
+                out,
+            );
+        }
+    }
+    owned |= hit.is_some() && input.pressed.is_some_and(|(b, _)| b == MouseButton::Left);
+    if hit.is_some() {
+        panels.cursor = Some(motion_ui::cursor::Cursor::Grab);
+    }
+    if let Some((object, _)) =
+        hit.filter(|_| input.pressed.is_some_and(|(b, _)| b == MouseButton::Right))
+    {
+        panels.select_only(Some(object));
+        panels
+            .layer_actions
+            .open_markers(object, input.mouse, state);
+        owned = true;
+    }
+    let add = Rect::new(ruler.min[0] - 28., ruler.min[1] + 3., 24., 22.);
+    let target = panels.selected.and_then(|id| {
+        state["project"]["layers"]
+            .as_array()?
+            .iter()
+            .find(|layer| layer["id"] == id && is_audio(layer))
+    });
+    let now = edit_frame(state);
+    let enabled = target.is_some_and(|layer| {
+        layer["locked"] != true && reference_visible(layer, i64::from(now), frames)
+    }) && state["observing"] != true;
+    button(
+        list,
+        atlas,
+        add,
+        "+",
+        input,
+        enabled,
+        Action::Edit(Command::AudioMarkers {
+            object: panels.selected.unwrap_or(0),
+            action: motion_core::AudioMarkersAction::Add {
+                frame: now,
+                label: String::new(),
+            },
+        }),
+        out,
+    );
+    // Alt-click adds at the cursor; an ordinary ruler click keeps seeking.
+    if hit.is_none() && clicked(input, ruler) && input.modifiers.alt {
+        let frame = ((input.mouse[0] - ruler.min[0]) / ppf + offset)
+            .round()
+            .clamp(0., frames as f32 - 1.) as u32;
+        if target.is_some_and(|layer| {
+            layer["locked"] != true && reference_visible(layer, i64::from(frame), frames)
+        }) && state["observing"] != true
+        {
+            out.push(Action::Edit(Command::AudioMarkers {
+                object: panels.selected.unwrap(),
+                action: motion_core::AudioMarkersAction::Add {
+                    frame,
+                    label: String::new(),
+                },
+            }));
+        }
+        owned = true;
+    }
+    owned
+}
+fn reference_visible(layer: &Value, frame: i64, frames: u64) -> bool {
+    let begin = layer["subframe_range"]["in_frame"]
+        .as_f64()
+        .or_else(|| layer["timeline"]["in_frame"].as_f64())
+        .unwrap_or(0.);
+    let end = layer["subframe_range"]["out_frame"]
+        .as_f64()
+        .or_else(|| layer["timeline"]["out_frame"].as_f64())
+        .unwrap_or(frames as f64);
+    frame >= 0 && (frame as u64) < frames && frame as f64 >= begin && (frame as f64) < end
 }
 fn draw_reference(
     list: &mut PaintList,
@@ -626,11 +732,13 @@ fn draw_reference(
     out: &mut Vec<Action>,
 ) {
     let x = track.min[0] + (selection.frame as f32 - offset) * ppf;
-    if x < track.min[0] + 4. || x > track.max[0] - 4. {
+    if x < track.min[0] || x > track.max[0] {
         return;
     }
     let colors = list.styles().colors();
-    let selected = panels.audio_controls.selection == Some(selection);
+    let selected = panels.audio_controls.selection == Some(selection)
+        || matches!(selection.item, Item::Marker(id) if panels.audio_controls.batch.as_ref()
+            .is_some_and(|(object, ids)| *object == selection.object && ids.contains(&id)));
     let color = if selected {
         colors.KEYFRAME
     } else if generated {
@@ -639,14 +747,20 @@ fn draw_reference(
         colors.ACCENT
     };
     if matches!(selection.item, Item::Marker(_)) {
-        paint::line(list, vec![[x, y + 3.], [x, y + height - 3.]], color);
+        paint::line(list, vec![[x, y + 2.], [x, y + height]], color);
+        paint::rect(
+            list,
+            Rect::new(x, y + 2., 8f32.min(track.max[0] - x), 6.),
+            color,
+        );
+    } else {
+        paint::diamond(
+            list,
+            [x, y + height * 0.5],
+            if selected { 5. } else { 4. },
+            color,
+        );
     }
-    paint::diamond(
-        list,
-        [x, y + height * 0.5],
-        if selected { 5. } else { 4. },
-        color,
-    );
     if clicked(input, Rect::new(x - 6., y, 12., height)) {
         panels.select_only(Some(selection.object));
         panels.audio_controls.selection = Some(selection);
@@ -766,6 +880,29 @@ pub(super) fn shortcut(
         return false;
     };
     if command == Shortcut::Delete {
+        if let Some((target, ids)) = panels.audio_controls.batch.take() {
+            if target == object && layer["locked"] != true && state["observing"] != true {
+                let commands: Vec<_> = layer["audio_markers"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter(|marker| {
+                        marker["generated"] == true
+                            && marker["id"].as_u64().is_some_and(|id| ids.contains(&id))
+                    })
+                    .map(|marker| Command::AudioMarkers {
+                        object,
+                        action: motion_core::AudioMarkersAction::Remove {
+                            id: marker["id"].as_u64().unwrap(),
+                        },
+                    })
+                    .collect();
+                if !commands.is_empty() {
+                    out.push(Action::EditBatch(commands));
+                }
+            }
+            return true;
+        }
         if let Some(selection) = panels
             .audio_controls
             .selection
