@@ -359,6 +359,7 @@ pub(super) struct TimelineViewport {
 
 #[derive(Clone, Default)]
 pub(crate) struct TimelineState {
+    pub(crate) graph_box: super::graph_box::Controls,
     pub rows_cache: Option<(
         (String, String, u64),
         std::sync::Arc<Vec<super::timeline::Row>>,

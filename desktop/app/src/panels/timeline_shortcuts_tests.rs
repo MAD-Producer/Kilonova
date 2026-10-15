@@ -581,7 +581,7 @@ fn clicking_a_value_graph_key_selects_its_channel_without_editing_the_layer() {
     let mut panels = panels();
     let mut atlas = TextAtlas::from_system(13.).unwrap();
     let mut out = vec![];
-    let point = [384., 281.];
+    let point = [320., 281.];
     timeline_graph::render(
         &mut PaintList::default(),
         &mut atlas,
@@ -672,6 +672,7 @@ fn apply_graph_actions(engine: &mut Engine, actions: Vec<Action>) {
     for action in actions {
         match action {
             Action::Edit(command) => engine.apply(command).unwrap(),
+            Action::EditBatch(commands) => { engine.apply_batch(commands).unwrap(); },
             Action::History(2) => engine.begin_gesture().unwrap(),
             Action::History(3) => engine.end_gesture(true).unwrap(),
             Action::History(4) => engine.end_gesture(false).unwrap(),
@@ -1096,4 +1097,153 @@ fn linked_graph_button_and_shortcut_restore_both_views_and_share_key_selection()
     assert_eq!(panels.selected, Some(7));
     assert!(panels.timeline.expanded.contains(&7));
     assert_eq!(engine.snapshot(), before);
+}
+
+fn curve_box_draw(panels: &mut Panels, engine: &Engine, atlas: &mut TextAtlas, input: Input) -> Vec<Action> {
+    let mut actions=vec![];
+    timeline_graph::render(&mut PaintList::default(),atlas,Rect::new(0.,0.,1200.,600.),
+        panels,&state(engine,32.),&input,0.,10.,&mut actions);
+    actions
+}
+fn curve_pointer(point:[f32;2],pressed:bool,released:bool) -> Input {
+    Input { mouse:point,pressed:pressed.then_some((MouseButton::Left,point)),
+        held:(!released).then_some(MouseButton::Left),released:released.then_some((MouseButton::Left,point)),
+        ..Default::default() }
+}
+#[test]
+fn curve_selection_box_translates_and_scales_as_one_undo_without_changing_other_axes() {
+    for resize in [false,true] {
+        let mut engine=engine();
+        let before=engine.project().clone();
+        let mut panels=panels();
+        panels.timeline.graph_mode=true;
+        let mut atlas=TextAtlas::from_system(12.).unwrap();
+        let select=[220.,384.75];
+        let actions=curve_box_draw(&mut panels,&engine,&mut atlas,curve_pointer(select,true,false));
+        assert!(actions.is_empty(),"{actions:?}");
+        assert!(panels.timeline.graph_box.has_selection());
+        assert_eq!(engine.project(),&before);
+        let start=if resize { [520.,70.5] } else { select };
+        let finish=if resize { [620.,29.] } else { [320.,364.75] };
+        let actions=curve_box_draw(&mut panels,&engine,&mut atlas,curve_pointer(start,true,false));
+        assert!(actions.is_empty(),"{actions:?}");
+        let actions=curve_box_draw(&mut panels,&engine,&mut atlas,curve_pointer(finish,false,true));
+        assert!(matches!(actions.as_slice(),[Action::History(2),Action::EditBatch(_),Action::History(3)]),"{actions:?}");
+        apply_graph_actions(&mut engine,actions);
+        let keys=&engine.project().layers[0].transform.position.keys;
+        let times=keys.iter().map(|key|key.frame).collect::<Vec<_>>();
+        assert_eq!(times,if resize { vec![0,25,50] } else { vec![10,30,50] });
+        for (i,key) in keys.iter().enumerate() {
+            assert_eq!(key.value[1..],before.layers[0].transform.position.keys[i].value[1..]);
+            assert_eq!(key.ease,before.layers[0].transform.position.keys[i].ease);
+        }
+        assert!((keys[1].value[0]-(if resize {110.} else {109.63855})).abs()<0.0001);
+        engine.undo().unwrap();
+        assert_eq!(engine.project(),&before);
+    }
+}
+#[test]
+fn curve_selection_box_keeps_its_mapping_during_drag_and_cancels_on_escape_or_focus_loss() {
+    for focus_lost in [false,true] {
+        let mut engine=engine();
+        let before=engine.project().clone();
+        let mut panels=panels();
+        panels.timeline.graph_mode=true;
+        let mut atlas=TextAtlas::from_system(12.).unwrap();
+        let start=[220.,384.75];
+        for input in [curve_pointer(start,true,false),curve_pointer(start,true,false),
+            curve_pointer([320.,364.75],false,false)] {
+            let actions=curve_box_draw(&mut panels,&engine,&mut atlas,input);
+            apply_graph_actions(&mut engine,actions);
+        }
+        assert_ne!(engine.project(),&before);
+        let stationary=curve_box_draw(&mut panels,&engine,&mut atlas,curve_pointer([320.,364.75],false,false));
+        assert!(stationary.is_empty(),"{stationary:?}");
+        let actions=curve_box_draw(&mut panels,&engine,&mut atlas,Input {
+            focus_lost, keys:if focus_lost {vec![]} else {vec![(Key::Escape,Modifiers::default())]},
+            ..Default::default()
+        });
+        assert!(matches!(actions.as_slice(),[Action::History(4)]),"{actions:?}");
+        apply_graph_actions(&mut engine,actions);
+        assert_eq!(engine.project(),&before);
+        assert!(!panels.timeline.graph_box.editing());
+    }
+}
+#[test]
+fn curve_selection_box_delete_owns_keys_only_in_the_focused_timeline() {
+    let mut engine=engine();
+    let before=engine.project().clone();
+    let mut panels=panels();
+    panels.timeline.graph_mode=true;
+    let mut atlas=TextAtlas::from_system(12.).unwrap();
+    assert!(curve_box_draw(&mut panels,&engine,&mut atlas,curve_pointer([220.,384.75],true,false)).is_empty());
+    panels.focused=Some(Panel::Properties);
+    assert!(!graph_box::delete(&mut panels,&state(&engine,32.),&mut vec![]));
+    panels.focused=Some(Panel::Timeline);
+    let mut actions=vec![];
+    assert!(graph_box::delete(&mut panels,&state(&engine,32.),&mut actions));
+    apply_graph_actions(&mut engine,actions);
+    assert_eq!(engine.project().layers.len(),1);
+    assert!(engine.project().layers[0].transform.position.keys.is_empty());
+    engine.undo().unwrap();
+    assert_eq!(engine.project(),&before);
+}
+#[test]
+fn active_numeric_text_can_start_a_new_drag_in_main_and_floating_timeline_and_graph() {
+    for floating in [false,true] {
+        for graph in [false,true] {
+            let mut engine=engine();
+            let before=engine.project().clone();
+            let mut panels=panels();
+            panels.timeline.expanded.insert(7);
+            panels.timeline.graph_mode=graph;
+            let mut atlas=TextAtlas::from_system(12.).unwrap();
+            let size=[1000.,700.];
+            let layout=Node::dock(Panel::Timeline.dock());
+            let area=if floating {Rect::new(0.,30.,1000.,648.)} else {frames(&layout,size)[0].content};
+            let gutter=Rect::new(area.min[0],area.min[1],GUTTER.min(area.width()*0.52),area.height());
+            let field=timeline::property_layout(gutter,area.min[1]+108.,22.,0,3).number;
+            let point=[field.min[0]+8.,field.min[1]+10.];
+            let mut draw=|panels:&mut Panels,engine:&Engine,input:Input| {
+                let mut state=state(engine,32.);
+                let layer=&engine.project().layers[0];
+                state["sampledLayers"]=serde_json::json!([{"id":7,
+                    "position":layer.transform.position.sample(20.),
+                    "scale":layer.transform.scale.sample(20.),
+                    "rotation":layer.transform.rotation.sample(20.),
+                    "opacity":layer.transform.opacity.sample(20.)}]);
+                if floating {floating_chrome(&mut PaintList::default(),&mut atlas,Panel::Timeline,size,panels,&state,&input)}
+                else {chrome(&mut PaintList::default(),&mut atlas,size,&layout,panels,&state,&input)}
+            };
+            for input in [curve_pointer(point,true,false),curve_pointer(point,false,true)] {
+                let actions=draw(&mut panels,&engine,input);
+                assert!(actions.is_empty(),"{actions:?}");
+            }
+            assert!(panels.properties.field.as_ref().unwrap().scrubbing.is_none());
+            let actions=draw(&mut panels,&engine,curve_pointer(point,true,false));
+            assert!(actions.is_empty());
+            let actions=draw(&mut panels,&engine,curve_pointer([point[0]+40.,point[1]],false,false));
+            apply_graph_actions(&mut engine,actions);
+            let actions=draw(&mut panels,&engine,curve_pointer([point[0]+60.,point[1]],false,true));
+            apply_graph_actions(&mut engine,actions);
+            let value=engine.project().layers[0].transform.position.sample(20.);
+            assert_eq!(value,[130.,50.,20.]);
+            assert!(panels.properties.field.is_none());
+            engine.undo().unwrap();
+            assert_eq!(engine.project(),&before);
+        }
+    }
+}
+
+#[test]
+fn graph_select_all_uses_keys_and_never_selects_layers_or_changes_project_history() {
+    let engine=engine();
+    let mut panels=panels();
+    panels.timeline.graph_mode=true;
+    let before=engine.project().clone();
+    let actions=invoke(&mut panels,&state(&engine,32.),Key::A,Modifiers {control:true,..Default::default()});
+    assert!(actions.is_empty(),"{actions:?}");
+    assert!(panels.timeline.graph_box.has_selection());
+    assert_eq!(panels.selected,Some(7));
+    assert_eq!(engine.project(),&before);
 }

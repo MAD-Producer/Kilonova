@@ -23,6 +23,7 @@ pub(crate) mod effect_controls;
 mod effects;
 mod expressions;
 pub(crate) mod fx_console;
+mod graph_box;
 pub(crate) mod graph_handles;
 pub(crate) mod graph_keys;
 mod graph_sampling;
@@ -121,6 +122,7 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     panels.timeline_columns.cancel();
     let camera = panels.camera_controls.cancel();
     let audio = panels.audio_controls.cancel();
+    let graph_box = panels.timeline.graph_box.cancel();
     let effect = panels.effect_controls.cancel();
     let numeric = panels
         .properties
@@ -140,6 +142,7 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
         || numeric
         || animation
         || graph
+        || graph_box
         || path
         || transform
         || effect

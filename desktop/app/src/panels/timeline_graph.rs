@@ -127,8 +127,10 @@ pub(super) fn render(
         .animation_controls
         .choose_track(object, property, axis);
     let title = match property {
-        Property::Position => T::Position, Property::Scale => T::Scale,
-        Property::Rotation => T::Rotation, _ => T::Opacity,
+        Property::Position => T::Position,
+        Property::Scale => T::Scale,
+        Property::Rotation => T::Rotation,
+        _ => T::Opacity,
     };
     let axis = panels.animation_controls.axis;
     let Some(source) = data::channel(state, object, property, axis) else {
@@ -234,7 +236,8 @@ pub(super) fn render(
         .graph_drag
         .as_ref()
         .map(|d| d.bounds())
-        .or_else(|| panels.timeline.key_drag.as_ref().map(|d| d.bounds()));
+        .or_else(|| panels.timeline.key_drag.as_ref().map(|d| d.bounds()))
+        .or_else(|| panels.timeline.graph_box.bounds());
     let low = fixed.map_or(center - half, |b| b[0]);
     let high = fixed.map_or(center + half, |b| b[1]);
     let y_of = |value: f32| plot.max[1] - (value - low) / (high - low) * plot.height();
@@ -284,6 +287,32 @@ pub(super) fn render(
         unit,
         true,
     );
+    let box_plot = super::graph_handles::Plot {
+        area: plot,
+        offset,
+        ppf,
+        low,
+        high,
+        speed: panels.timeline.speed_graph,
+        fps,
+        scale,
+    };
+    let box_owned = super::graph_box::interact(
+        panels,
+        state,
+        source,
+        object,
+        property,
+        axis,
+        components[0],
+        box_plot,
+        &points[0],
+        input,
+        layer["locked"] == true || state["observing"] == true,
+        out,
+    );
+    let neutral_curve = Input::default();
+    let curve_input = if box_owned { &neutral_curve } else { input };
     let mut lines = list.child();
     let mut clicked_key = None;
     let selected = panels.animation_controls.user_key();
@@ -330,7 +359,10 @@ pub(super) fn render(
                 styles.metric("graph.key_radius", 5.) + if chosen { 0.5 } else { 0. },
                 colors.KEYFRAME,
             );
-            if clicked(input, Rect::new(point[0] - 9., point[1] - 9., 18., 18.)) {
+            if clicked(
+                curve_input,
+                Rect::new(point[0] - 9., point[1] - 9., 18., 18.),
+            ) {
                 clicked_key = Some(frame);
                 if layer["locked"].as_bool() != Some(true) && panels.timeline.graph_drag.is_none() {
                     super::graph_keys::begin(
@@ -345,7 +377,7 @@ pub(super) fn render(
                         point,
                         value,
                         [low, high],
-                        input,
+                        curve_input,
                         out,
                     );
                 }
@@ -371,11 +403,32 @@ pub(super) fn render(
             fps,
             scale,
         },
-        input,
+        curve_input,
         layer["locked"].as_bool().unwrap_or(false),
         out,
     );
-    super::graph_keys::update(panels, state, plot, ppf, scale, source, input, out);
+    super::graph_keys::update(panels, state, plot, ppf, scale, source, curve_input, out);
+    let box_selected = if !box_owned && clicked_key.is_none() {
+        super::graph_box::select_curve(
+            panels,
+            state,
+            source,
+            object,
+            property,
+            axis,
+            components[0],
+            box_plot,
+            &points[0],
+            input,
+        )
+    } else {
+        false
+    };
+    if box_selected {
+        panels.audio_controls.clear_selection();
+        panels.animation_controls.clear_key();
+    }
+    super::graph_box::draw(&mut lines, panels, state, source, box_plot);
     lines.clip_to(plot);
     graph.append(lines);
     if let Some(frame) = clicked_key {
@@ -383,7 +436,9 @@ pub(super) fn render(
             .animation_controls
             .select_key(object, property, axis, frame);
         out.push(Action::Seek(frame as f64));
-    } else if panels.timeline.graph_drag.is_none()
+    } else if !box_owned
+        && !box_selected
+        && panels.timeline.graph_drag.is_none()
         && panels.timeline.key_drag.is_none()
         && clicked(input, plot)
     {

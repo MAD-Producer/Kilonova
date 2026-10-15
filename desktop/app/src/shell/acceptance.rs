@@ -25,11 +25,21 @@ impl Shell {
             let value_graph = if panel == dock::Panel::Timeline {
                 let previous = self.panels.timeline.clone();
                 let selected = self.panels.selected;
-                let visual = self.state["project"]["layers"].as_array().into_iter().flatten().rev()
-                    .find(|layer| layer["content"]["kind"] != "audio")
-                    .and_then(|layer| layer["id"].as_u64());
+                let visual = self.state["timeline_layers"].as_array().into_iter().flatten()
+                    .find(|layer| layer["properties"]["position"]["keys"].as_array().is_some_and(|keys| keys.len() >= 2))
+                    .and_then(|layer| layer["object"].as_u64());
                 self.panels.select_only(visual);
                 self.panels.timeline.set_graph_mode(true);
+                self.panels.focused = Some(dock::Panel::Timeline);
+                let f = self.floating.values().find(|f| f.panel == panel).ok_or("timeline window missing")?;
+                let physical = f.window.inner_size();
+                let size = [physical.width as f32 / f.scale, physical.height as f32 / f.scale];
+                let actions = panels::floating_chrome(&mut PaintList::default(), &mut self.atlas,
+                    panel, size, &mut self.panels, &self.state,
+                    &Input { keys: vec![(Key::A,motion_ui::input::Modifiers { control:true, ..Default::default() })], ..Default::default() });
+                if !actions.is_empty() || !self.panels.timeline.graph_box.has_selection() {
+                    return Err("curve selection capture must select real keys without editing".into());
+                }
                 let graph = self.capture_panel_float(panel);
                 self.panels.timeline = previous;
                 self.panels.select_only(selected);
@@ -425,6 +435,25 @@ impl Shell {
         self.engine.capture_ui(ui, path.clone())?;
         Ok(path)
     }
+    fn capture_home_preview_smoke(&mut self, path: PathBuf) -> Result<(), String> {
+        if self.panels.node_preview.active.is_none() { return Err("home smoke requires a live GPU node preview".into()); }
+        let previous_home = self.home.take();
+        let previous_input = std::mem::take(&mut self.input);
+        self.home = Some(home::Home::default());
+        let result = (|| {
+            let size = self.size().ok_or("home smoke window missing")?;
+            let (paint, actions) = self.draw_commands(size);
+            if !actions.is_empty() { return Err("home capture emitted project actions".into()); }
+            let ui = self.ui_frame(paint, size, true);
+            if ui.composition.is_some() || ui.node_preview.is_some() {
+                return Err("home retained a GPU preview viewport".into());
+            }
+            self.engine.capture_ui(ui, path).map(|_| ())
+        })();
+        self.home = previous_home;
+        self.input = previous_input;
+        result
+    }
     fn capture_bound_composition(&self, name: &str) -> Result<Value, String> {
         let capture = self.engine.capture()?;
         let source = PathBuf::from(
@@ -591,6 +620,10 @@ impl Shell {
             self.smoke_node_report["invalidGraphKeptValidPixels"] = Value::Bool(true);
             self.smoke_node_report["projectUntouched"] = Value::Bool(true);
             self.redock_panel(dock::Panel::Nodes.dock())?;
+            let home_path = directory.join("home-after-node-preview.png");
+            self.capture_home_preview_smoke(home_path.clone())?;
+            self.smoke_node_report["homePreviewHidden"] = Value::Bool(true);
+            self.smoke_node_report["homeAfterNodeScreenshot"] = serde_json::to_value(home_path).map_err(|e|e.to_string())?;
             self.smoke_stage = 7;
             self.dirty = true;
         } else if self.smoke_stage == 7 && self.smoke_frames >= 8 {
