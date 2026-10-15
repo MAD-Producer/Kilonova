@@ -7,6 +7,8 @@ mod matroska;
 pub use matroska::{matroska_metadata, MatroskaMetadata, MatroskaTrack};
 mod jobs;
 mod mixer;
+mod onsets;
+pub use onsets::audio_references;
 mod packages;
 pub use packages::{PackageJobs, PackageTaskStatus};
 mod mp4;

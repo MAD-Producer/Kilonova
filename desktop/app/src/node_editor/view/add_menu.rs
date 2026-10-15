@@ -98,7 +98,8 @@ impl NodeEditor {
                 colors.TEXT_MUTED,
                 Align::Left,
             );
-            if hit(input, row) {
+            if menu.category != category && (hit(input, row)
+                || input.keys.is_empty() && input.text.is_empty() && row.contains(input.mouse)) {
                 menu.category = category;
                 menu.selected = 0;
                 menu.scroll = 0.;

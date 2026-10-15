@@ -119,6 +119,8 @@ impl Shell {
             .into());
         }
         match action {
+            Action::AnalyzeAudio(object) => self.analyze_audio(object)?,
+            Action::CancelAudioAnalysis => self.cancel_audio_analysis(),
             Action::ProjectChoice(choice) => self.choose_project_change(choice)?,
             Action::Node(action) => self.node_action(action)?,
             Action::NewText => {
@@ -646,6 +648,11 @@ impl Shell {
                     self.engine
                         .edit_async(serde_json::to_string(&command).map_err(|e| e.to_string())?)?,
                 ));
+            }
+            Action::EditChecked { command, revision } => {
+                self.stop();
+                self.editing = Some((Instant::now(), self.engine.edit_async_at_revision(
+                    serde_json::to_string(&command).map_err(|e| e.to_string())?, revision)?));
             }
         }
         self.dirty = true;

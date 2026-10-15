@@ -242,6 +242,7 @@ struct Shell {
     export_notified: bool,
     importing_image: Option<std::sync::mpsc::Receiver<Result<Value, String>>>,
     importing_media: Option<(String, Instant)>,
+    audio_analysis: Option<shell::audio_analysis::Analysis>,
     importing_effect: Option<effect_import::Task>,
     attaching: Option<std::sync::mpsc::Receiver<Result<Value, String>>>,
     attached: bool,
@@ -339,6 +340,7 @@ impl Shell {
             export_notified: false,
             importing_image: None,
             importing_media: None,
+            audio_analysis: None,
             importing_effect: None,
             attaching: None,
             attached: false,
@@ -577,7 +579,10 @@ impl ApplicationHandler<UserEvent> for Shell {
                         self.accept_edit_state(state);
                     }
                     Err(error) => {
-                        self.panels.message = Some(self.workspace.locale.error(&error));
+                        self.panels.message = Some(if error.contains("project revision changed") {
+                            if self.workspace.locale == Locale::Zh { "工程在操作期间发生变化，请重试" }
+                            else { "The project changed during this operation; please retry" }.into()
+                        } else { self.workspace.locale.error(&error) });
                         self.stop();
                     }
                 }
@@ -636,6 +641,10 @@ impl ApplicationHandler<UserEvent> for Shell {
             }
         }
         self.poll_effect_import();
+        if let Err(error) = self.poll_audio_analysis() {
+            self.panels.message = Some(self.workspace.locale.error(&error));
+            self.dirty = true;
+        }
         if let Err(error) = self.poll_import() {
             self.panels.message = Some(self.workspace.locale.error(&error));
             self.dirty = true;
@@ -909,6 +918,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             || self.dirty
             || self.importing_image.is_some()
             || self.importing_media.is_some()
+            || self.audio_analysis.is_some()
             || self.importing_effect.is_some()
             || self.freezing_movie.is_some()
             || self.exporting_movie.as_ref().is_some_and(|e| !e.finished())

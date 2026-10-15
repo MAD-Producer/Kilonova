@@ -147,6 +147,10 @@ pub struct Layer {
     pub subframe_range:Option<crate::ClipRange>,
     #[serde(default,skip_serializing_if="Option::is_none")]
     pub audio_levels: Option<crate::AudioLevels>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub audio_markers: Vec<crate::AudioMarker>,
+    #[serde(default, skip_serializing_if = "crate::audio_edit::stereo")]
+    pub audio_source_channel: crate::AudioSourceChannel,
 }
 impl Layer {
     pub fn solid(id: u64, name: &str, size: [f32; 2], position: [f32; 3], color: [f32; 4]) -> Self {
@@ -167,6 +171,8 @@ impl Layer {
             timeline: None,
             subframe_range:None,
             audio_levels: None,
+            audio_markers: Vec::new(),
+            audio_source_channel: Default::default(),
         }
     }
     pub fn clip(&self, frames: u32) -> LayerTimeline {
@@ -319,7 +325,7 @@ impl Project {
             crate::storage::validate_relative_path(&font.path)?;
             ensure(font.path.starts_with("assets/fonts/")&&font.path.ends_with(".ttf"),"invalid managed font path")?;
         }
-        ensure((1..=17).contains(&self.version), "unsupported project format")?;
+        ensure((1..=18).contains(&self.version), "unsupported project format")?;
         ensure(self.plugin_dependencies == self.composition_dependencies(),
                "plugin dependency list does not match effect instances")?;
         self.validate_one(self)?;
@@ -328,7 +334,7 @@ impl Project {
     pub(crate) fn validate_one(&self, document: &Project) -> Result<()> {
         crate::effects::validate_image_graph(self)?;
         ensure(
-            (1..=17).contains(&self.version),
+            (1..=18).contains(&self.version),
             "unsupported project format",
         )?;
         let spatial = [&self.camera.position, &self.camera.target].iter().any(|t| t.keys.iter().any(|k| k.spatial.is_some()))
@@ -449,6 +455,9 @@ impl Project {
         crate::compositing::validate(&self.layers)?;
         ensure(self.version>=17||self.layers.iter().all(|l|l.effects.iter().all(|e|e.node_graph.is_none())),"editable node effects require project format seventeen")?;
         for layer in &self.layers {
+            ensure(self.version >= 18 || layer.audio_markers.is_empty()
+                && crate::audio_edit::stereo(&layer.audio_source_channel), "audio references require project format eighteen")?;
+            crate::audio_edit::validate(layer)?;
             ensure(self.version>=16||layer.rotation_order==crate::geometry::RotationOrder::LocalXyz,"fixed-axis rotations require project format sixteen")?;
             if let Some(levels)=&layer.audio_levels {
                 ensure(self.version>=14,"audio level envelopes require project format fourteen")?;

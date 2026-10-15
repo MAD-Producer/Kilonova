@@ -69,6 +69,7 @@ impl Changes {
             | Command::Anchor { object, .. }
             | Command::SetAudio { object, .. }
             | Command::AudioLevels { object, .. }
+            | Command::AudioMarkers { object, .. }
             | Command::SetLayer3d { object, .. }
             | Command::SetRotationOrder { object, .. }
             | Command::MoveLayerClip { object, .. }

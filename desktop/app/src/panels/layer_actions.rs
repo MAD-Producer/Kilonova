@@ -11,6 +11,7 @@ enum Page {
     Order,
     Time,
     Blend,
+    Audio,
 }
 enum Choice {
     Edit(Command),
@@ -34,6 +35,9 @@ struct Popup {
     page: Page,
     highlighted: usize,
     scroll: usize,
+    root_highlighted: usize,
+    root_scroll: usize,
+    mouse: Option<[f32; 2]>,
     opened: bool,
 }
 struct NameEdit {
@@ -135,6 +139,9 @@ impl Controls {
             page: Page::Root,
             highlighted: 0,
             scroll: 0,
+            root_highlighted: 0,
+            root_scroll: 0,
+            mouse: None,
             opened: true,
         });
     }
@@ -383,141 +390,167 @@ impl Controls {
         let Some(popup) = self.popup.as_mut().filter(|p| p.owner == self.owner) else {
             return;
         };
-        let entries = entries(popup, state, locale);
-        if entries.is_empty() {
-            self.popup = None;
-            return;
-        }
-        let styles = list.styles();
-        let row = styles.metric("context.row.height", 20.).clamp(18., 24.);
-        let count = entries
-            .len()
-            .min(((bounds.height() - 8.).max(row) / row).floor() as usize)
-            .max(1);
-        popup.scroll = popup.scroll.min(entries.len() - count);
-        popup.highlighted = popup.highlighted.min(entries.len() - 1);
-        let width = 220f32.min(bounds.width());
-        let height = count as f32 * row + 6.;
-        // Context menus grow upward from the pointer. Near a window
-        // edge we clamp the card while keeping the click as close as possible
-        // to its lower-left corner.
-        let card = popup_rect(popup.anchor, bounds, width, height);
         let neutral = Input::default();
         let active = if popup.opened { &neutral } else { input };
+        let hover =
+            popup.mouse != Some(active.mouse) || active.pressed.is_some() || active.wheel[1] != 0.;
+        popup.mouse = Some(input.mouse);
         popup.opened = false;
-        if active.focus_lost
-            || active.keys.iter().any(|(k, _)| *k == Key::Escape)
-            || active.pressed.is_some_and(|(_, p)| !card.contains(p))
+        if active.focus_lost || active.keys.iter().any(|(k, _)| *k == Key::Escape) {
+            self.popup = None;
+            return;
+        }
+        let page = popup.page;
+        popup.page = Page::Root;
+        let root_entries = entries(popup, state, locale);
+        popup.page = page;
+        if root_entries.is_empty() {
+            self.popup = None;
+            return;
+        }
+        let row = list
+            .styles()
+            .metric("context.row.height", 20.)
+            .clamp(18., 24.);
+        let width = 220f32.min(
+            if root_entries
+                .iter()
+                .any(|e| matches!(e.choice, Choice::Page(_)))
+            {
+                bounds.width() * 0.5
+            } else {
+                bounds.width()
+            },
+        );
+        let count = menu_count(root_entries.len(), bounds, row);
+        let card = popup_rect(popup.anchor, bounds, width, count as f32 * row + 6.);
+        let mut root_highlighted = if page == Page::Root {
+            popup.highlighted
+        } else {
+            popup.root_highlighted
+        };
+        let mut root_scroll = if page == Page::Root {
+            popup.scroll
+        } else {
+            popup.root_scroll
+        };
+        let root_active = page == Page::Root;
+        let root_chosen = draw_menu(
+            list,
+            atlas,
+            card,
+            bounds,
+            row,
+            &root_entries,
+            active,
+            root_active,
+            &mut root_highlighted,
+            &mut root_scroll,
+            hover,
+        );
+        let over_root = (hover && card.contains(active.mouse)).then_some(root_highlighted);
+        let hovered = over_root.filter(|i| root_entries[*i].enabled);
+        let branch = hovered.or(root_chosen).and_then(|i| {
+            if let Choice::Page(next) = root_entries[i].choice {
+                Some(next)
+            } else {
+                None
+            }
+        });
+        let right = active
+            .key_presses()
+            .any(|(k, m, r)| k == Key::Right && !r && !m.control && !m.alt);
+        let left = active
+            .key_presses()
+            .any(|(k, m, r)| k == Key::Left && !r && !m.control && !m.alt);
+        let branch = branch.or_else(|| {
+            (page == Page::Root && right && root_entries[root_highlighted].enabled)
+                .then(|| &root_entries[root_highlighted].choice)
+                .and_then(|c| {
+                    if let Choice::Page(next) = c {
+                        Some(*next)
+                    } else {
+                        None
+                    }
+                })
+        });
+        if left {
+            popup.page = Page::Root;
+        } else if let Some(next) = branch {
+            if popup.page != next {
+                popup.page = next;
+                popup.highlighted = 0;
+                popup.scroll = 0;
+            }
+        } else if over_root.is_some() {
+            popup.page = Page::Root;
+        }
+        popup.root_highlighted = root_highlighted;
+        popup.root_scroll = root_scroll;
+        let mut child_card = None;
+        let mut child_choice = None;
+        if popup.page != Page::Root {
+            let children = entries(popup, state, locale);
+            if !children.is_empty() {
+                let height = menu_count(children.len(), bounds, row) as f32 * row + 6.;
+                let parent_y =
+                    card.min[1] + 3. + root_highlighted.saturating_sub(root_scroll) as f32 * row;
+                // Prefer the right side; at the window edge open to the left.
+                let child_width = children
+                    .iter()
+                    .map(|entry| atlas.measure(&entry.label) + 40.)
+                    .fold(width, f32::max)
+                    .min(320.)
+                    .min((bounds.width() - card.width()).max(1.));
+                let child_x = if card.max[0] + child_width <= bounds.max[0] {
+                    card.max[0]
+                } else {
+                    (card.min[0] - child_width).max(bounds.min[0])
+                };
+                let child = Rect::new(
+                    child_x,
+                    parent_y.clamp(bounds.min[1], (bounds.max[1] - height).max(bounds.min[1])),
+                    child_width,
+                    height,
+                );
+                child_card = Some(child);
+                let chosen = draw_menu(
+                    list,
+                    atlas,
+                    child,
+                    bounds,
+                    row,
+                    &children,
+                    active,
+                    true,
+                    &mut popup.highlighted,
+                    &mut popup.scroll,
+                    hover,
+                );
+                if let Some(i) = chosen {
+                    child_choice = children.into_iter().nth(i);
+                }
+            }
+        } else {
+            popup.highlighted = root_highlighted;
+            popup.scroll = root_scroll;
+        }
+        if active
+            .pressed
+            .is_some_and(|(_, p)| !card.contains(p) && !child_card.is_some_and(|r| r.contains(p)))
         {
             self.popup = None;
             return;
         }
-        if card.contains(active.mouse) && active.wheel[1] != 0. {
-            popup.scroll = (popup.scroll as i32 + if active.wheel[1] > 0. { 1 } else { -1 })
-                .clamp(0, (entries.len() - count) as i32) as usize;
-        }
-        for (k, m, _) in active
-            .key_presses()
-            .filter(|(_, m, _)| !m.control && !m.alt && !m.shift)
-        {
-            let _ = m;
-            if matches!(k, Key::Up | Key::Down) {
-                for _ in 0..entries.len() {
-                    popup.highlighted = if k == Key::Down {
-                        (popup.highlighted + 1) % entries.len()
-                    } else {
-                        (popup.highlighted + entries.len() - 1) % entries.len()
-                    };
-                    if entries[popup.highlighted].enabled {
-                        break;
-                    }
-                }
-                popup.scroll = popup
-                    .scroll
-                    .min(popup.highlighted)
-                    .max(popup.highlighted.saturating_sub(count - 1));
-            }
-        }
-        box_style(
-            list,
-            card,
-            styles.resolve("context_menu", States::default()).unwrap(),
-        );
-        let mut chosen = None;
-        let mut hint = None;
-        for (index, e) in entries.iter().enumerate().skip(popup.scroll).take(count) {
-            let area = Rect::new(
-                card.min[0] + 3.,
-                card.min[1] + 3. + (index - popup.scroll) as f32 * row,
-                width - 6.,
-                row,
-            );
-            if area.contains(active.mouse) && e.enabled {
-                popup.highlighted = index;
-            }
-            if area.contains(active.mouse) && !e.enabled {
-                hint = e.disabled_reason.as_deref();
-            }
-            let mut states = States::default();
-            if index == popup.highlighted && e.enabled {
-                states = states.with(State::Selected);
-            }
-            if !e.enabled {
-                states = states.with(State::Disabled);
-            }
-            let style = styles.resolve("context_menu.row", states).unwrap();
-            box_style(list, area, style);
-            text_style(
-                list,
-                atlas,
-                Rect::new(
-                    area.min[0] + 5.,
-                    area.min[1],
-                    area.width() - 28.,
-                    area.height(),
-                ),
-                &e.label,
-                style,
-                Align::Left,
-            );
-            if matches!(e.choice, Choice::Page(_)) {
-                submenu_arrow(list, area, style.foreground);
-            }
-            if e.divider_after {
-                paint::line(
-                    list,
-                    vec![
-                        [area.min[0] + 7., area.max[1] - 1.],
-                        [area.max[0] - 7., area.max[1] - 1.],
-                    ],
-                    styles.color("context.border"),
-                );
-            }
-            if e.enabled && clicked(active, area) {
-                chosen = Some(index);
-            }
-        }
-        if let Some(reason) = hint {
-            disabled_hint(list, atlas, bounds, active.mouse, reason);
-        }
-        if !active.composing
-            && !active.ime_consumed
-            && active
-                .key_presses()
-                .any(|(k, m, r)| k == Key::Enter && !r && !m.control && !m.alt)
-            && entries[popup.highlighted].enabled
-        {
-            chosen = Some(popup.highlighted);
-        }
-        let Some(index) = chosen else { return };
-        let chosen = entries.into_iter().nth(index).unwrap();
-        if let Choice::Page(page) = chosen.choice {
-            let p = self.popup.as_mut().unwrap();
-            p.page = page;
-            p.highlighted = 0;
-            p.scroll = 0;
-            return;
-        }
+        let chosen = child_choice.or_else(|| {
+            root_chosen.and_then(|i| {
+                root_entries
+                    .into_iter()
+                    .nth(i)
+                    .filter(|e| !matches!(e.choice, Choice::Page(_)))
+            })
+        });
+        let Some(chosen) = chosen else { return };
         let target = self.popup.take().unwrap().target;
         match chosen.choice {
             Choice::Edit(command) => out.push(Action::Edit(scoped(command, state))),
@@ -535,6 +568,122 @@ impl Controls {
             Choice::Page(_) => {}
         }
     }
+}
+
+fn menu_count(len: usize, bounds: Rect, row: f32) -> usize {
+    len.min(((bounds.height() - 8.).max(row) / row).floor() as usize)
+        .max(1)
+}
+fn draw_menu(
+    list: &mut PaintList,
+    atlas: &mut TextAtlas,
+    card: Rect,
+    bounds: Rect,
+    row: f32,
+    entries: &[Entry],
+    input: &Input,
+    keyboard: bool,
+    highlighted: &mut usize,
+    scroll: &mut usize,
+    hover: bool,
+) -> Option<usize> {
+    let count = menu_count(entries.len(), bounds, row);
+    *highlighted = (*highlighted).min(entries.len() - 1);
+    *scroll = (*scroll).min(entries.len() - count);
+    if card.contains(input.mouse) && input.wheel[1] != 0. {
+        *scroll = (*scroll as i32 + if input.wheel[1] > 0. { 1 } else { -1 })
+            .clamp(0, (entries.len() - count) as i32) as usize;
+    }
+    if keyboard && !input.composing && !input.ime_consumed {
+        for (k, m, _) in input
+            .key_presses()
+            .filter(|(_, m, _)| !m.control && !m.alt && !m.shift)
+        {
+            let _ = m;
+            if matches!(k, Key::Up | Key::Down) {
+                for _ in 0..entries.len() {
+                    *highlighted = if k == Key::Down {
+                        (*highlighted + 1) % entries.len()
+                    } else {
+                        (*highlighted + entries.len() - 1) % entries.len()
+                    };
+                    if entries[*highlighted].enabled {
+                        break;
+                    }
+                }
+                *scroll = (*scroll)
+                    .min(*highlighted)
+                    .max(highlighted.saturating_sub(count - 1));
+            }
+        }
+    }
+    let styles = list.styles();
+    box_style(
+        list,
+        card,
+        styles.resolve("context_menu", States::default()).unwrap(),
+    );
+    let mut chosen = None;
+    for (i, entry) in entries.iter().enumerate().skip(*scroll).take(count) {
+        let area = Rect::new(
+            card.min[0] + 3.,
+            card.min[1] + 3. + (i - *scroll) as f32 * row,
+            card.width() - 6.,
+            row,
+        );
+        if hover && area.contains(input.mouse) {
+            *highlighted = i;
+        }
+        let mut states = States::default();
+        if i == *highlighted && entry.enabled {
+            states = states.with(State::Selected);
+        }
+        if !entry.enabled {
+            states = states.with(State::Disabled);
+        }
+        let style = styles.resolve("context_menu.row", states).unwrap();
+        box_style(list, area, style);
+        text_style(
+            list,
+            atlas,
+            Rect::new(area.min[0] + 5., area.min[1], area.width() - 28., row),
+            &entry.label,
+            style,
+            Align::Left,
+        );
+        if matches!(entry.choice, Choice::Page(_)) {
+            submenu_arrow(list, area, style.foreground);
+        }
+        if entry.divider_after {
+            paint::line(
+                list,
+                vec![
+                    [area.min[0] + 7., area.max[1] - 1.],
+                    [area.max[0] - 7., area.max[1] - 1.],
+                ],
+                styles.color("context.border"),
+            );
+        }
+        if area.contains(input.mouse) {
+            if let Some(reason) = entry.disabled_reason.as_deref() {
+                disabled_hint(list, atlas, bounds, input.mouse, reason);
+            }
+        }
+        if entry.enabled && clicked(input, area) {
+            chosen = Some(i);
+        }
+    }
+    if keyboard
+        && !input.composing
+        && !input.ime_consumed
+        && input
+            .key_presses()
+            .any(|(k, m, r)| k == Key::Enter && !r && !m.control && !m.alt)
+        && entries[*highlighted].enabled
+    {
+        chosen = Some(*highlighted);
+    }
+    chosen
 }
 
 fn disabled_hint(
@@ -592,6 +741,21 @@ fn disabled_reason(choice: &Choice, layer: &Value, state: &Value, locale: Locale
         );
     }
     match choice {
+        Choice::New(Action::AnalyzeAudio(_)) => word(
+            locale,
+            "请选择有音频轨道的音频或视频图层",
+            "Choose an audio or video layer with a single audio source",
+        ),
+        Choice::Edit(Command::SplitAudioChannels { .. }) => word(
+            locale,
+            "需要尚未分离的立体声音源",
+            "Choose a stereo source whose channels have not been separated",
+        ),
+        Choice::New(Action::CancelAudioAnalysis) => word(
+            locale,
+            "当前图层没有正在进行的音频分析",
+            "No audio analysis is running for this layer",
+        ),
         Choice::Page(Page::Blend) => word(
             locale,
             "音频图层不支持画面混合模式",
@@ -664,6 +828,27 @@ fn disabled_reason(choice: &Choice, layer: &Value, state: &Value, locale: Locale
 }
 
 fn entries(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
+    entries_for(popup, state, locale)
+}
+fn audio_asset<'a>(state: &'a Value, layer: &Value) -> Option<&'a Value> {
+    let id = match layer["content"]["kind"].as_str()? {
+        "audio" => layer["content"]["audio"]["asset"].as_u64()?,
+        "video" => {
+            let video = layer["content"]["video"]["asset"].as_u64()?;
+            state["project"]["video_assets"]
+                .as_array()?
+                .iter()
+                .find(|a| a["id"] == video)?["audio_asset"]
+                .as_u64()?
+        }
+        _ => return None,
+    };
+    state["project"]["audio_assets"]
+        .as_array()?
+        .iter()
+        .find(|a| a["id"] == id)
+}
+fn entries_for(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
     let mut result = vec![];
     let mut divider_indices = vec![];
     let mut add = |zh: &str, en: &str, enabled: bool, choice: Choice| {
@@ -759,13 +944,13 @@ fn entries(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
         })
         .unwrap_or([0., last_frame(state) + 1.]);
     let now = frame(state) as f64;
-    if popup.page != Page::Root {
-        add("‹ 返回", "‹ Back", true, Choice::Page(Page::Root));
-    }
     match popup.page {
         Page::Root => {
             add("开关", "Switches", true, Choice::Page(Page::Switch));
             add("时间", "Time", unlocked, Choice::Page(Page::Time));
+            if super::audio::is_audio(l) {
+                add("音频", "Audio", unlocked, Choice::Page(Page::Audio));
+            }
             add(
                 "混合模式",
                 "Blend Mode",
@@ -835,6 +1020,66 @@ fn entries(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
                     object: id,
                     frame: frame(state),
                 }),
+            );
+        }
+        Page::Audio => {
+            let source = audio_asset(state, l);
+            add(
+                "音频打标",
+                "Mark audio references",
+                unlocked && source.is_some(),
+                Choice::New(Action::AnalyzeAudio(id)),
+            );
+            add(
+                "分离左右声道",
+                "Separate left/right channels",
+                unlocked
+                    && source.is_some_and(|a| a["channels"] == 2)
+                    && l["audio_source_channel"]
+                        .as_str()
+                        .is_none_or(|c| c == "stereo"),
+                Choice::Edit(Command::SplitAudioChannels { object: id }),
+            );
+            add(
+                "添加参考标记",
+                "Add reference marker",
+                unlocked && now >= range[0] && now < range[1],
+                Choice::Edit(Command::AudioMarkers {
+                    object: id,
+                    action: motion_core::AudioMarkersAction::Add {
+                        frame: frame(state),
+                        label: String::new(),
+                    },
+                }),
+            );
+            add(
+                "清除自动标记",
+                "Clear detected references",
+                unlocked
+                    && l["audio_markers"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .any(|m| m["generated"] == true),
+                Choice::Edit(Command::AudioMarkers {
+                    object: id,
+                    action: motion_core::AudioMarkersAction::ClearGenerated,
+                }),
+            );
+            add(
+                "重置声道电平与关键帧",
+                "Reset channel levels and keys",
+                unlocked && l["audio_levels"].is_object(),
+                Choice::Edit(Command::AudioLevels {
+                    object: id,
+                    action: motion_core::AudioLevelsAction::Clear,
+                }),
+            );
+            add(
+                "取消音频分析",
+                "Cancel audio analysis",
+                state["desktop_audio_analysis"]["object"] == id,
+                Choice::New(Action::CancelAudioAnalysis),
             );
         }
         Page::Switch => {
@@ -1059,6 +1304,96 @@ mod tests {
         assert_eq!(clamped.min, [526., 0.]);
         assert_eq!(clamped.max, [800., 220.]);
     }
+    #[test]
+    fn hover_keeps_root_visible_and_child_click_executes_in_main_and_floating_windows() {
+        for floating in [false, true] {
+            for right_edge in [false, true] {
+                let mut engine = engine();
+                let state = state(&engine);
+                let original = engine.project().clone();
+                let mut panels = Panels {
+                    locale: Locale::En,
+                    selected: Some(9),
+                    focused: Some(Panel::Timeline),
+                    ..Default::default()
+                };
+                let anchor = if right_edge {
+                    [790., 350.]
+                } else {
+                    [120., 350.]
+                };
+                panels.layer_actions.owner = Some(Panel::Timeline);
+                panels.layer_actions.open(Some(9), anchor, &state);
+                let mut atlas = TextAtlas::from_system(12.).unwrap();
+                let mut render = |panels: &mut Panels, input: &Input| {
+                    let mut list = PaintList::default();
+                    let out = if floating {
+                        floating_chrome(
+                            &mut list,
+                            &mut atlas,
+                            Panel::Timeline,
+                            [800., 500.],
+                            panels,
+                            &state,
+                            input,
+                        )
+                    } else {
+                        chrome(
+                            &mut list,
+                            &mut atlas,
+                            [800., 500.],
+                            &dock::Node::dock(Panel::Timeline.dock()),
+                            panels,
+                            &state,
+                            input,
+                        )
+                    };
+                    (out, list)
+                };
+                assert!(render(&mut panels, &Input::default()).0.is_empty());
+                let popup = panels.layer_actions.popup.as_ref().unwrap();
+                let root = entries(popup, &state, Locale::En);
+                let count = root.len();
+                let card = popup_rect(
+                    anchor,
+                    Rect::new(0., 0., 800., 500.),
+                    220.,
+                    count as f32 * 20. + 6.,
+                );
+                let hover = [card.min[0] + 10., card.min[1] + 13.];
+                assert!(render(
+                    &mut panels,
+                    &Input {
+                        mouse: hover,
+                        ..Default::default()
+                    }
+                )
+                .0
+                .is_empty());
+                let popup = panels.layer_actions.popup.as_ref().unwrap();
+                assert!(popup.page == Page::Switch);
+                assert_eq!(engine.project(), &original); // Hover never edits.
+                let child_x = if right_edge {
+                    card.min[0] - 220.
+                } else {
+                    card.max[0]
+                };
+                let child_point = [child_x + 10., card.min[1] + 16.];
+                let (actions, paint) = render(&mut panels, &click(MouseButton::Left, child_point));
+                assert!(paint.glyphs.iter().any(|g| g.position[0] >= card.min[0]
+                    && g.position[0] < card.max[0]
+                    && g.position[1] >= card.min[1]));
+                assert!(paint.glyphs.iter().any(|g| g.position[0] >= child_x
+                    && g.position[0] < child_x + 220.
+                    && g.position[1] >= card.min[1]));
+                engine.apply(edit(actions)).unwrap();
+                assert!(!engine.project().layers[1].visible);
+                engine.undo().unwrap();
+                assert_eq!(engine.project(), &original);
+                assert!(!panels.layer_actions.editing());
+            }
+        }
+    }
     fn click(button: MouseButton, p: [f32; 2]) -> Input {
         Input {
             mouse: p,
@@ -1115,6 +1450,149 @@ mod tests {
         assert_eq!(engine.project().layers.last().unwrap().name, "Layer 9 副本");
         engine.undo().unwrap();
         assert_eq!(engine.project(), &before);
+    }
+    #[test]
+    fn scoped_menu_action_executes_through_the_real_desktop_host() {
+        let fixture = engine();
+        let state = state(&fixture);
+        let root = tempfile::tempdir().unwrap();
+        motion_core::storage::save(root.path(), fixture.project()).unwrap();
+        let host = crate::engine::Engine::start(
+            root.path().into(),
+            motion_desktop_media::platform(),
+            8 << 30,
+        )
+        .unwrap();
+        let before = host.state().unwrap()["project"].clone();
+        let mut panels = Panels {
+            selected: Some(9),
+            ..Default::default()
+        };
+        draw(&mut panels, &state, &click(MouseButton::Right, point()));
+        let popup = panels.layer_actions.popup.as_ref().unwrap();
+        let index = entries(popup, &state, panels.locale)
+            .iter()
+            .position(|e| matches!(e.choice, Choice::Edit(Command::Duplicate { object: 9 })))
+            .unwrap();
+        panels.layer_actions.popup.as_mut().unwrap().highlighted = index;
+        let action = edit(draw(
+            &mut panels,
+            &state,
+            &Input {
+                keys: vec![(Key::Enter, Default::default())],
+                ..Default::default()
+            },
+        ));
+        let after = host.edit(serde_json::to_string(&action).unwrap()).unwrap();
+        assert_eq!(after["project"]["layers"].as_array().unwrap().len(), 3);
+        assert_eq!(host.history(0).unwrap()["project"], before);
+    }
+    #[test]
+    fn inline_rename_reaches_the_real_host_in_main_and_floating_windows_and_both_languages() {
+        for floating in [false, true] {
+            for locale in [Locale::Zh, Locale::En] {
+                let fixture = engine();
+                let root = tempfile::tempdir().unwrap();
+                motion_core::storage::save(root.path(), fixture.project()).unwrap();
+                let host = crate::engine::Engine::start(
+                    root.path().into(),
+                    motion_desktop_media::platform(),
+                    8 << 30,
+                )
+                .unwrap();
+                let state = host.state().unwrap();
+                let before = state["project"].clone();
+                let mut panels = Panels {
+                    locale,
+                    selected: Some(9),
+                    focused: Some(Panel::Timeline),
+                    ..Default::default()
+                };
+                let mut atlas = TextAtlas::from_system(12.).unwrap();
+                let mut render = |panels: &mut Panels, state: &Value, input: &Input| {
+                    if floating {
+                        floating_chrome(
+                            &mut PaintList::default(),
+                            &mut atlas,
+                            Panel::Timeline,
+                            [1280., 700.],
+                            panels,
+                            state,
+                            input,
+                        )
+                    } else {
+                        chrome(
+                            &mut PaintList::default(),
+                            &mut atlas,
+                            [1280., 700.],
+                            &dock::Node::dock(Panel::Timeline.dock()),
+                            panels,
+                            state,
+                            input,
+                        )
+                    }
+                };
+                let enter = Input {
+                    keys: vec![(Key::Enter, Default::default())],
+                    ..Default::default()
+                };
+                assert!(render(&mut panels, &state, &enter).is_empty());
+                assert!(panels.layer_actions.name.is_some());
+                assert!(render(
+                    &mut panels,
+                    &state,
+                    &Input {
+                        text: "Renamed 图层".into(),
+                        ..Default::default()
+                    }
+                )
+                .is_empty());
+                assert!(render(
+                    &mut panels,
+                    &state,
+                    &Input {
+                        composing: true,
+                        keys: vec![
+                            (Key::Enter, Default::default()),
+                            (Key::Delete, Default::default()),
+                            (Key::Space, Default::default())
+                        ],
+                        ..Default::default()
+                    }
+                )
+                .is_empty());
+                let command = edit(render(&mut panels, &state, &enter));
+                let after = host.edit(serde_json::to_string(&command).unwrap()).unwrap();
+                assert_eq!(after["project"]["layers"][1]["name"], "Renamed 图层");
+                assert_eq!(host.save().unwrap()["project"], after["project"]);
+                assert_eq!(
+                    serde_json::to_value(motion_core::storage::load(root.path()).unwrap()).unwrap(),
+                    after["project"]
+                );
+                let state = host.history(0).unwrap();
+                assert_eq!(state["project"], before);
+                assert!(render(&mut panels, &state, &enter).is_empty());
+                render(
+                    &mut panels,
+                    &state,
+                    &Input {
+                        text: "Discard".into(),
+                        ..Default::default()
+                    },
+                );
+                assert!(render(
+                    &mut panels,
+                    &state,
+                    &Input {
+                        keys: vec![(Key::Escape, Default::default())],
+                        ..Default::default()
+                    }
+                )
+                .is_empty());
+                assert_eq!(host.state().unwrap()["project"], before);
+                assert_eq!(host.history(1).unwrap()["project"], after["project"]);
+            }
+        }
     }
     #[test]
     fn name_enter_commit_cancel_ime_and_outside_click_are_scoped() {
@@ -1233,6 +1711,9 @@ mod tests {
             highlighted: 0,
             scroll: 0,
             opened: false,
+            root_highlighted: 0,
+            root_scroll: 0,
+            mouse: None,
         };
         let items = entries(&popup, &state, Locale::Zh);
         assert!(items[0].enabled);
@@ -1254,7 +1735,7 @@ mod tests {
         switch.page = Page::Time;
         for f in [10, 90] {
             state["frame"] = serde_json::json!(f);
-            assert!(!entries(&switch, &state, Locale::En)[1].enabled);
+            assert!(!entries(&switch, &state, Locale::En)[0].enabled);
         }
     }
     #[test]
@@ -1357,6 +1838,9 @@ mod tests {
             highlighted: 0,
             scroll: 0,
             opened: false,
+            root_highlighted: 0,
+            root_scroll: 0,
+            mouse: None,
         };
         for locale in [Locale::Zh, Locale::En] {
             let locked = entries(&popup, &state, locale);

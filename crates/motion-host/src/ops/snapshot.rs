@@ -301,6 +301,13 @@ impl Session {
             "unit":"dB","range":[motion_core::audio_levels::MIN_AUDIO_DB,motion_core::audio_levels::MAX_AUDIO_DB],"channels":["left","right"],"animated":true,
             "sampling":"output_sample","time_coordinates":"layer_local_frames","nested":true,
             "conversion":"10^(dB/20)","expressions":false,"curve_overshoot":"clamp_to_range"});
+        snapshot["capabilities"]["audio"]["reference_markers"] = json!({
+            "supported":true,"project_format":18,"command":"audio_markers","max_count":motion_core::audio_edit::MAX_AUDIO_MARKERS,
+            "storage_coordinates":"layer_local_frames","edit_coordinates":"composition_frames",
+            "generated_replacement":"preserve_manual","corrected_references":"manual"});
+        snapshot["capabilities"]["audio"]["channel_separation"] = json!({
+            "supported":true,"project_format":18,"command":"split_audio_channels",
+            "requires":"stereo_single_source","preserves_stereo_sum":true,"output":"left_and_right_layers"});
         snapshot["capabilities"]["layer_timeline"]["extended_spans"]=json!({"supported":true,"project_format":13,
             "in_frame_min":-(motion_core::MAX_FRAMES as i32),"out_frame_max":motion_core::MAX_FRAMES,
             "coordinates":"signed_composition_frames","outside_composition":"retained_not_rendered"});

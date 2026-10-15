@@ -666,6 +666,11 @@ impl Engine {
             reply,
         })
     }
+    pub fn edit_async_at_revision(&self, text: String, revision: u64)
+        -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+        if text.len() > REQUEST_LIMIT { return Err("edit request exceeds 256 KiB".into()); }
+        self.request(|reply| Command::EditChecked { text, revision, reply })
+    }
     pub fn capture_ui(&self, ui: UiFrame, path: PathBuf) -> Result<Value, String> {
         self.call(|reply| Command::CaptureUi { ui, path, reply })
     }
@@ -1186,7 +1191,7 @@ fn handle(
                 let vw = s.scene.width as f32 * scale; let vh = s.scene.height as f32 * scale;
                 presenter.encode(&mut encoder, &target.view, None, Some([x+(w-vw)*0.5,y+(h-vh)*0.5,vw,vh]), s.scene.background);
             } else {clear_target(&mut encoder,&target.view);}
-            chrome.render_scaled(&g.renderer.device,&g.renderer.queue,&mut encoder,&target.view,&ui.paint,ui.logical_size,[g.config.width as f32/ui.logical_size[0],g.config.height as f32/ui.logical_size[1]]);
+            chrome.render_scaled(&g.renderer.device,&g.renderer.queue,&mut encoder,&target.view,&ui.paint,ui.logical_size,[width as f32/ui.logical_size[0],height as f32/ui.logical_size[1]]);
             if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview) {preview.encode(&g.renderer.device,&g.renderer.queue,&mut encoder,&target.view,viewport,wgpu::TextureFormat::Rgba8UnormSrgb);}
             g.renderer.queue.submit(Some(encoder.finish()));
             let pixels = g.renderer.read_target(&target).map_err(|e| e.to_string())?;

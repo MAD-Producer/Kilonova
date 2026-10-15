@@ -24,13 +24,38 @@ impl Shell {
             let screenshot = self.capture_panel_float(panel)?;
             let value_graph = if panel == dock::Panel::Timeline {
                 let previous = self.panels.timeline.clone();
+                let selected = self.panels.selected;
+                let visual = self.state["project"]["layers"].as_array().into_iter().flatten().rev()
+                    .find(|layer| layer["content"]["kind"] != "audio")
+                    .and_then(|layer| layer["id"].as_u64());
+                self.panels.select_only(visual);
                 self.panels.timeline.set_graph_mode(true);
                 let graph = self.capture_panel_float(panel);
                 self.panels.timeline = previous;
+                self.panels.select_only(selected);
                 Some(graph?)
             } else {
                 None
             };
+            let audio_menu = if panel == dock::Panel::Timeline {
+                let f = self.floating.values().find(|f| f.panel == panel).ok_or("timeline window missing")?;
+                let physical = f.window.inner_size();
+                let size = [physical.width as f32 / f.scale, physical.height as f32 / f.scale];
+                let point = [140., 105.];
+                for input in [
+                    Input { mouse:point, pressed:Some((MouseButton::Right, point)), ..Default::default() },
+                    Input { keys:vec![(Key::Down,Default::default())], ..Default::default() },
+                    Input { keys:vec![(Key::Down,Default::default())], ..Default::default() },
+                    Input { keys:vec![(Key::Right,Default::default())], ..Default::default() },
+                ] {
+                    let actions = panels::floating_chrome(&mut PaintList::default(), &mut self.atlas,
+                        panel, size, &mut self.panels, &self.state, &input);
+                    if !actions.is_empty() { return Err("menu navigation edited the project".into()); }
+                }
+                let screenshot = self.capture_panel_float_named(panel, "-audio-menu")?;
+                self.panels.layer_actions.cancel();
+                Some(screenshot)
+            } else { None };
             self.redock_panel(panel.dock())?;
             if !self.workspace.valid() {
                 return Err("panel lost unique workspace ownership".into());
@@ -38,8 +63,8 @@ impl Shell {
             if self.state["revision"] != revision {
                 return Err("layout change edited the project".into());
             }
-            self.smoke_panel_records.push(serde_json::json!({"id":panel as u32,"title":self.workspace.locale.panel(panel.dock()),"frames":self.smoke_float_frames[&(panel as u32)],"screenshot":screenshot,"valueGraphScreenshot":value_graph,"projectRevision":revision}));
-            if panel == dock::Panel::Audio {
+            self.smoke_panel_records.push(serde_json::json!({"id":panel as u32,"title":self.workspace.locale.panel(panel.dock()),"frames":self.smoke_float_frames[&(panel as u32)],"screenshot":screenshot,"valueGraphScreenshot":value_graph,"audioMenuScreenshot":audio_menu,"projectRevision":revision}));
+            if matches!(panel, dock::Panel::Timeline | dock::Panel::Audio) {
                 // Subsequent parent/blend captures require a visual target.
                 let visual = self.state["project"]["layers"].as_array().into_iter().flatten().rev()
                     .find(|layer| layer["content"]["kind"] != "audio")
@@ -50,7 +75,7 @@ impl Shell {
             self.smoke_panel_index += 1;
         } else if let Some(panel) = dock::Panel::ALL.get(self.smoke_panel_index).copied() {
             self.action(panels::Action::ShowPanel(panel.dock()), Some(event_loop))?;
-            if panel == dock::Panel::Audio {
+            if matches!(panel, dock::Panel::Timeline | dock::Panel::Audio) {
                 self.prepare_audio_panel_smoke()?;
             }
             if panel == dock::Panel::Vector {
@@ -72,6 +97,12 @@ impl Shell {
         Ok(())
     }
     fn prepare_audio_panel_smoke(&mut self) -> Result<(), String> {
+        if let Some(object) = self.state["project"]["layers"].as_array().into_iter().flatten()
+            .find(|l| l["name"] == "Stereo audio").and_then(|l| l["id"].as_u64()) {
+            self.panels.select_only(Some(object));
+            self.panels.timeline.expanded.insert(object);
+            return Ok(());
+        }
         // Owned acceptance-only source, sufficient for the complete composition.
         let root = PathBuf::from(self.state["root"].as_str().ok_or("missing smoke root")?);
         let frames = self.state["project"]["frames"].as_u64().unwrap_or(300);
@@ -104,11 +135,17 @@ impl Shell {
                 channel:motion_core::AudioChannel::Left,frame:0,value:0.,animated:Some(true) } },
             Command::AudioLevels { object, action: motion_core::AudioLevelsAction::Set {
                 channel:motion_core::AudioChannel::Left,frame:60,value:-12.,animated:None } },
+            Command::AudioMarkers { object, action: motion_core::AudioMarkersAction::ReplaceGenerated {
+                frames: vec![15, 30, 45, 60, 75, 90] } },
         ]).map_err(|e| e.to_string())?)?;
         self.panels.select_only(Some(object));
+        self.panels.timeline.expanded.insert(object);
         Ok(())
     }
     fn capture_panel_float(&mut self, panel: dock::Panel) -> Result<PathBuf, String> {
+        self.capture_panel_float_named(panel, "")
+    }
+    fn capture_panel_float_named(&mut self, panel: dock::Panel, suffix: &str) -> Result<PathBuf, String> {
         let f = self
             .floating
             .values()
@@ -152,13 +189,14 @@ impl Shell {
             node_preview: self.node_viewport(panels::floating_node_view(panel, size), scale),
         };
         let path = self.smoke.as_ref().unwrap().with_extension(format!(
-            "panel-{}{}.png",
+            "panel-{}{}{}.png",
             panel as u32,
             if panel == dock::Panel::Timeline && self.panels.timeline.graph_mode {
                 "-graph"
             } else {
                 ""
-            }
+            },
+            suffix
         ));
         self.engine.capture_ui(ui, path.clone())?;
         Ok(path)

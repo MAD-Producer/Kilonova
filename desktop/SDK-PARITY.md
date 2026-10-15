@@ -60,8 +60,10 @@ the current desktop route and keeps unfinished UI work explicit.
 | Audio import (MP3, FLAC, AAC, ALAC, Vorbis, Opus, WAV, AIFF) | yes | Shared Symphonia path |
 | Waveform generation | yes | Shared |
 | Deterministic mixing, 48 kHz stereo | yes | Shared (`motion_media::mixer`) |
-| Stereo dB envelope editing | yes | Window → Audio: independent numeric fields, animation toggles, previous/current/next key and clear; audio, video and composition references |
-| Static audio gain in dB | yes | Window → Audio: numeric typing/scrubbing, unity/silence and independent mute for audio/video |
+| Stereo dB envelope editing | yes | Timeline → expanded Audio group: numeric fields, animation, key navigation, drag/delete; audio, video and composition references |
+| Static audio gain in dB | yes | Timeline Audio rows: numeric typing/scrubbing, unity/silence and independent mute for audio/video; Audio panel links to timeline |
+| Audio reference markers | yes | Layer context menu → Audio → Mark audio references; cancellable background energy-rise analysis, manual correction, clip-relative save and atomic undo |
+| Stereo channel separation | yes | Layer context menu → Audio → Separate left/right channels; independent L/R tracks with exact original stereo sum |
 | Video import (H.264, H.265, VP8, VP9 in MP4/MOV/MKV/WebM) | partial | libav behind `--ffmpeg` |
 | Video preview and PTS prefetch | partial | Shared scheduling, libav decode |
 | Project package import and export | yes | Shared (`motion_core::storage`) |
@@ -85,9 +87,12 @@ protocol is declarative, so the engine half is done. `motion-ui` still needs to
 render the slot kinds: parameters, layer source, image sprite, seed, transform,
 preview, timeline and note.
 
-**Audio timeline.** Stereo envelopes are available in the Audio panel. Expanded
-audio rows in the timeline, audio-only transport and audible scrubbing still need
-desktop UI integration; waveform generation does not imply a waveform UI.
+**Audio timeline.** Gain, stereo envelopes and reference markers are available
+in expanded timeline Audio rows. Audio-only transport and audible scrubbing still
+need desktop UI integration; waveform generation does not imply a waveform UI.
+Energy-rise references assist manual editing; they do not estimate BPM or guarantee
+a musical beat grid. Markers and isolated channels use project format 18;
+older projects retain their version until these features are used.
 
 **Plugin pack management UI.** Shared install, enable and uninstall operations
 exist. The effect library already imports .msfx through a native file picker;

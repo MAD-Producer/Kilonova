@@ -18,11 +18,22 @@ pub fn parse_commands(text: &str) -> Result<Vec<Command>> {
             let object = value
                 .as_object_mut()
                 .ok_or_else(|| Error::Invalid("command must be an object".into()))?;
-            let composition = object.remove("composition").unwrap_or_else(||serde_json::json!(crate::MAIN_COMPOSITION));
+            // Desktop actions serialize the typed wrapper; public API clients
+            // also use a flat command with a composition field. Preserve the
+            // wrapper's required field instead of consuming it as flat scope.
+            let wrapped = object.get("op").and_then(serde_json::Value::as_str) == Some("in_composition");
+            let composition = if wrapped { object.get("composition").cloned().unwrap_or(serde_json::Value::Null) }
+                else { object.remove("composition").unwrap_or_else(||serde_json::json!(crate::MAIN_COMPOSITION)) };
             let composition = composition.as_str().ok_or_else(||Error::Invalid("composition must be a stable ID string".into()))?.to_string();
             ensure(composition.starts_with("comp-")&&composition.len()<=64&&composition.bytes().all(|b|b.is_ascii_alphanumeric()||b==b'-'),"invalid composition ID")?;
             let command = serde_json::from_value(value)?;
-            Ok(Command::InComposition { composition, command: Box::new(command) })
+            let command = if wrapped { command } else { Command::InComposition { composition, command: Box::new(command) } };
+            let mut scope = &command;
+            while let Command::InComposition { composition, command } = scope {
+                ensure(composition.starts_with("comp-")&&composition.len()<=64&&composition.bytes().all(|b|b.is_ascii_alphanumeric()||b==b'-'),"invalid composition ID")?;
+                scope = command;
+            }
+            Ok(command)
         })
         .collect()
 }
@@ -196,6 +207,64 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             let frames=project.frames;
             crate::audio_levels::edit(project.layer_mut(object)?,frames,action)?;
             if project.layer_mut(object)?.audio_levels.is_some(){project.version=project.version.max(14);}
+        }
+        Command::AudioMarkers { object, action } => {
+            let frames = project.frames;
+            motion_model::audio_edit::edit(project.layer_mut(object)?, frames, action)?;
+            if !project.layer_mut(object)?.audio_markers.is_empty() { project.version = project.version.max(18); }
+        }
+        Command::SplitAudioChannels { object } => {
+            let source = editable_clip(project, object)?.clone();
+            ensure(source.audio_source_channel == crate::AudioSourceChannel::Stereo,
+                "audio channels are already separated")?;
+            let audio = project.layer_audio(&source)
+                .ok_or_else(|| Error::Invalid("layer has no single audio source".into()))?;
+            let asset = project.audio_assets.iter().find(|a| a.id == audio.asset)
+                .ok_or_else(|| Error::Invalid("audio asset missing".into()))?.clone();
+            ensure(asset.channels == 2,
+                "channel separation requires stereo audio")?;
+            let is_audio = matches!(source.content, Content::Audio { .. });
+            ensure(project.layers.len() + if is_audio { 1 } else { 2 } <= crate::MAX_LAYERS, "layer limit exceeded")?;
+            let next = project.layers.iter().map(|l| l.id).max().unwrap_or(0)
+                .checked_add(1).ok_or_else(|| Error::Invalid("layer ID space exhausted".into()))?;
+            let mut left = if is_audio { source.clone() } else {
+                let mut layer = crate::Layer::solid(next, &source.name, [0.; 2], [0.; 3], [0.; 4]);
+                layer.content = Content::Audio { audio: audio.clone() };
+                layer.timeline = source.timeline;
+                layer.subframe_range = source.subframe_range;
+                layer.audio_levels = source.audio_levels.clone();
+                layer.audio_markers = source.audio_markers.clone();
+                layer.visible = source.visible;
+                // A video can outlast its audio track. Isolated audio layers
+                // retain the source clock and only cover recoverable samples.
+                let span = source.interval(project.frames);
+                let source_begin = f64::from(source.clip(project.frames).offset_frame)
+                    - audio.source_offset_us as f64 * f64::from(project.fps) / 1_000_000.;
+                let source_end = source_begin + asset.sample_frames as f64
+                    * f64::from(project.fps) / f64::from(asset.sample_rate);
+                let range = crate::ClipRange { in_frame: span.in_frame.max(source_begin),
+                    out_frame: span.out_frame.min(source_end) };
+                ensure(range.in_frame < range.out_frame, "video clip has no recoverable audio samples")?;
+                layer.set_interval(project.frames, range)?;
+                layer
+            };
+            let mut right = left.clone();
+            right.id = if is_audio { next } else { next.checked_add(1)
+                .ok_or_else(|| Error::Invalid("layer ID space exhausted".into()))? };
+            left.name = format!("{} L", source.name);
+            right.name = format!("{} R", source.name);
+            left.audio_source_channel = crate::AudioSourceChannel::Left;
+            right.audio_source_channel = crate::AudioSourceChannel::Right;
+            let index = project.layers.iter().position(|l| l.id == object).ok_or(Error::Missing(object))?;
+            if is_audio {
+                project.layers[index] = left;
+                project.layers.insert(index + 1, right);
+            } else {
+                if let Content::Video { video } = &mut project.layers[index].content { video.muted = true; }
+                project.layers.insert(index + 1, left);
+                project.layers.insert(index + 2, right);
+            }
+            project.version = project.version.max(18);
         }
         Command::SetRotationOrder {object,order}=>{
             let layer=project.layer_mut(object)?;

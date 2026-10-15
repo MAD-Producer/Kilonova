@@ -4,6 +4,41 @@ use motion_core::{
 use motion_media::AudioMixer;
 use std::{fs, io::Write};
 
+#[test]
+fn channel_separation_keeps_pcm_sum_and_isolates_each_track_with_frozen_export() {
+    let (root, mut project) = fixture(2);
+    let mut levels = AudioLevels::default();
+    levels.left.upsert(0, -3., Ease::Linear).unwrap();
+    levels.left.upsert(24, -12., Ease::Linear).unwrap();
+    levels.right.value = -6.;
+    project.layers[0].audio_levels = Some(levels);
+    let mut frozen = AudioMixer::new(project.clone(), root.path()).unwrap();
+    let mut engine = Engine::new(project).unwrap();
+    engine.apply(Command::SplitAudioChannels { object: 1 }).unwrap();
+    let separated = engine.snapshot();
+    let mut split = AudioMixer::new(separated.clone(), root.path()).unwrap();
+    let mut left = separated.clone();
+    left.layers.retain(|l| l.audio_source_channel == motion_core::AudioSourceChannel::Left);
+    let mut right = separated;
+    right.layers.retain(|l| l.audio_source_channel == motion_core::AudioSourceChannel::Right);
+    let mut left = AudioMixer::new(left, root.path()).unwrap();
+    let mut right = AudioMixer::new(right, root.path()).unwrap();
+    for begin in [0, 24000, 48000, 96000] {
+        let mut original = vec![0.; 2000];
+        let mut combined = original.clone();
+        let mut l = original.clone();
+        let mut r = original.clone();
+        frozen.mix(begin, &mut original).unwrap();
+        split.mix(begin, &mut combined).unwrap();
+        left.mix(begin, &mut l).unwrap();
+        right.mix(begin, &mut r).unwrap();
+        assert_eq!(original, combined);
+        assert!(l.chunks_exact(2).all(|s| s[1] == 0.));
+        assert!(r.chunks_exact(2).all(|s| s[0] == 0.));
+        for i in 0..l.len() { assert_eq!(l[i] + r[i], original[i]); }
+    }
+}
+
 fn fixture(channels: u32) -> (tempfile::TempDir, Project) {
     let root = tempfile::tempdir().unwrap();
     let cache=root.path().join(format!("cache/audio-v{}",motion_media::PCM_VERSION));

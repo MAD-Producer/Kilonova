@@ -67,6 +67,7 @@ impl Harness {
             ..Default::default()
         };
         panels.select_only(Some(7));
+        panels.timeline.expanded.insert(7);
         Self {
             _folder: folder,
             engine,
@@ -78,43 +79,33 @@ impl Harness {
     }
     fn area(&self) -> Rect {
         if self.floating {
-            Rect::new(0., 30., 400., 648.)
+            Rect::new(0., 30., 1000., 648.)
         } else {
-            let layout = Node::dock(Panel::Audio.dock());
-            frames(&layout, [400., 700.])[0].content
+            let layout = Node::dock(Panel::Timeline.dock());
+            frames(&layout, [1000., 700.])[0].content
         }
     }
     fn field(&self, control: Control) -> Rect {
-        let top = self.area().min[1] + 8.;
-        let composition = self.state["project"]["layers"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|layer| {
-                layer["id"].as_u64() == self.panels.selected
-                    && layer["content"]["kind"] == "composition"
-            });
+        self.fields(control).number
+    }
+    fn fields(&self, control: Control) -> Row {
+        let area = self.area();
         row(
-            self.area(),
-            top + match control {
-                Control::Gain => 52.,
-                Control::Left => {
-                    if composition {
-                        52.
-                    } else {
-                        138.
-                    }
-                }
-                Control::Right => {
-                    if composition {
-                        114.
-                    } else {
-                        200.
-                    }
-                }
-            },
+            Rect::new(
+                area.min[0],
+                area.min[1],
+                GUTTER.min(area.width() * 0.52),
+                area.height(),
+            ),
+            area.min[1]
+                + 64.
+                + match control {
+                    Control::Gain => 44.,
+                    Control::Left => 66.,
+                    Control::Right => 88.,
+                },
+            22.,
         )
-        .number
     }
     fn draw(&mut self, input: Input) -> Vec<Action> {
         self.state = self.engine.state().unwrap();
@@ -122,8 +113,8 @@ impl Harness {
             floating_chrome(
                 &mut PaintList::default(),
                 &mut self.atlas,
-                Panel::Audio,
-                [400., 700.],
+                Panel::Timeline,
+                [1000., 700.],
                 &mut self.panels,
                 &self.state,
                 &input,
@@ -132,8 +123,8 @@ impl Harness {
             chrome(
                 &mut PaintList::default(),
                 &mut self.atlas,
-                [400., 700.],
-                &Node::dock(Panel::Audio.dock()),
+                [1000., 700.],
+                &Node::dock(Panel::Timeline.dock()),
                 &mut self.panels,
                 &self.state,
                 &input,
@@ -190,6 +181,194 @@ fn volume(state: &Value) -> f64 {
 }
 
 #[test]
+fn child_composition_audio_edits_never_change_the_main_layer_with_the_same_id() {
+    for floating in [false, true] {
+        let mut h = Harness::new(floating, Locale::Zh);
+        let main_layer = h.state["project"]["layers"][0].clone();
+        h.state = h
+            .engine
+            .edit(
+                serde_json::to_string(&Command::Composition {
+                    action: motion_core::CompositionAction::Create {
+                        settings: motion_core::CompositionSettings {
+                            name: "Child audio".into(),
+                            width: 64,
+                            height: 64,
+                            fps: 30,
+                            frames: 120,
+                            timing: "preserve_frames".into(),
+                            shorten: "reject".into(),
+                        },
+                    },
+                })
+                .unwrap(),
+            )
+            .unwrap();
+        let child = h.state["project"]["compositions"][0]["id"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        h.engine
+            .edit(
+                serde_json::to_string(&Command::InComposition {
+                    composition: child.clone(),
+                    command: Box::new(Command::Add {
+                        layer: serde_json::from_value(main_layer.clone()).unwrap(),
+                    }),
+                })
+                .unwrap(),
+            )
+            .unwrap();
+        h.state = h
+            .engine
+            .composition(
+                serde_json::json!({
+                    "version":1,"composition":child,"op":"open",
+                })
+                .to_string(),
+            )
+            .unwrap();
+        h.state = h.engine.seek(10.).unwrap();
+        h.draw(Input::default()); // establish the new selection context
+        h.panels.select_only(Some(7));
+        h.panels.timeline.expanded.insert(7);
+        h.type_number(Control::Gain, "-6");
+        assert!((volume(&h.state) - f64::from(db_gain(-6.))).abs() < 0.000001);
+        h.type_number(Control::Left, "-15");
+        assert_eq!(
+            h.state["project"]["layers"][0]["audio_levels"]["left"]["value"],
+            -15.
+        );
+        h.click(h.fields(Control::Right).buttons[1]);
+        assert_eq!(
+            h.state["project"]["layers"][0]["audio_levels"]["right"]["keys"][0]["frame"],
+            0
+        );
+        h.engine.save().unwrap();
+        let root = std::path::PathBuf::from(h.state["root"].as_str().unwrap());
+        let reopened = motion_core::storage::load(&root).unwrap();
+        assert_eq!(
+            serde_json::to_value(&reopened.composition_view("comp-main").unwrap().layers[0])
+                .unwrap(),
+            main_layer
+        );
+        assert_eq!(
+            reopened.composition_view(&child).unwrap().layers[0]
+                .audio_levels
+                .as_ref()
+                .unwrap()
+                .left
+                .value,
+            -15.
+        );
+        let undone = h.engine.history(0).unwrap();
+        assert_eq!(
+            undone["project"]["layers"][0]["audio_levels"]["right"]["keys"],
+            serde_json::json!([])
+        );
+        let main = h
+            .engine
+            .composition(
+                serde_json::json!({
+                    "version":1,"composition":"comp-main","op":"open",
+                })
+                .to_string(),
+            )
+            .unwrap();
+        assert_eq!(main["project"]["layers"][0], main_layer);
+    }
+}
+
+#[test]
+fn timeline_key_and_reference_drags_commit_once_and_delete_only_the_selected_item() {
+    for floating in [false, true] {
+        let mut h = Harness::new(floating, Locale::En);
+        h.click(h.fields(Control::Left).buttons[1]);
+        h.state = h.engine.seek(40.).unwrap();
+        h.type_number(Control::Left, "-6");
+        let before = h.state["project"].clone();
+        let area = h.area();
+        let gutter = GUTTER.min(area.width() * 0.52);
+        let ppf = (area.width() - gutter - 8.) / 120.;
+        let point = [
+            area.min[0] + gutter + 40. * ppf,
+            h.field(Control::Left).min[1] + 11.,
+        ];
+        for input in [
+            pointer(point, true, false),
+            pointer([point[0] + ppf * 10., point[1]], false, true),
+        ] {
+            let actions = h.draw(input);
+            h.run(actions);
+        }
+        assert_eq!(
+            h.state["project"]["layers"][0]["audio_levels"]["left"]["keys"][1]["frame"],
+            40
+        );
+        assert_eq!(h.engine.history(0).unwrap()["project"], before);
+        // Undo restores the key at 40; clicking it gives Delete to the key, not the layer.
+        h.click(Rect::new(point[0] - 5., point[1] - 10., 10., 22.));
+        let actions = h.draw(Input {
+            keys: vec![(Key::Delete, Default::default())],
+            ..Default::default()
+        });
+        h.run(actions);
+        assert_eq!(h.state["project"]["layers"].as_array().unwrap().len(), 1);
+        assert_eq!(
+            h.state["project"]["layers"][0]["audio_levels"]["left"]["keys"]
+                .as_array()
+                .unwrap()
+                .len(),
+            1
+        );
+        h.engine.history(0).unwrap();
+        h.state = h
+            .engine
+            .edit(
+                serde_json::to_string(&Command::AudioMarkers {
+                    object: 7,
+                    action: motion_core::AudioMarkersAction::ReplaceGenerated { frames: vec![60] },
+                })
+                .unwrap(),
+            )
+            .unwrap();
+        let original = h.state["project"].clone();
+        let marker = [
+            area.min[0] + gutter + 60. * ppf,
+            area.min[1] + 64. + 5. * 22. + 11.,
+        ];
+        for input in [
+            pointer(marker, true, false),
+            pointer([marker[0] + ppf * 10., marker[1]], false, false),
+            Input {
+                keys: vec![(Key::Escape, Default::default())],
+                ..Default::default()
+            },
+        ] {
+            let actions = h.draw(input);
+            h.run(actions);
+        }
+        assert_eq!(h.state["project"], original);
+        for input in [
+            pointer(marker, true, false),
+            pointer([marker[0] + ppf * 10., marker[1]], false, true),
+        ] {
+            let actions = h.draw(input);
+            h.run(actions);
+        }
+        assert_eq!(
+            h.state["project"]["layers"][0]["audio_markers"][0]["frame"],
+            60
+        );
+        assert_eq!(
+            h.state["project"]["layers"][0]["audio_markers"][0]["generated"],
+            false
+        );
+        assert_eq!(h.engine.history(0).unwrap()["project"], original);
+    }
+}
+
+#[test]
 fn audio_db_typing_silence_limits_and_mute_preserve_real_gain_and_history() {
     for floating in [false, true] {
         for locale in [Locale::Zh, Locale::En] {
@@ -212,7 +391,7 @@ fn audio_db_typing_silence_limits_and_mute_preserve_real_gain_and_history() {
                 h.type_number(Control::Gain, "");
             }
             assert_eq!(h.state["project"], changed);
-            let mute = Rect::new(h.area().min[0] + 10., h.area().min[1] + 8. + 80., 100., 24.);
+            let mute = h.fields(Control::Gain).watch;
             h.click(mute);
             assert_eq!(volume(&h.state), 2.);
             assert_eq!(
@@ -291,8 +470,7 @@ fn audio_stereo_keys_use_local_time_preserve_the_other_channel_and_reopen() {
         let mut h = Harness::new(floating, Locale::Zh);
         h.type_number(Control::Right, "-12");
         let right = h.state["project"]["layers"][0]["audio_levels"]["right"].clone();
-        let top = h.area().min[1] + 8.;
-        let left = row(h.area(), top + 138.);
+        let left = h.fields(Control::Left);
         h.click(left.buttons[1]); // creates local frame 0 at composition frame 10
         h.state = h.engine.seek(40.).unwrap();
         h.type_number(Control::Left, "-6");
@@ -372,7 +550,7 @@ fn audio_invalid_input_shortcuts_and_unsupported_capabilities_do_not_edit() {
     let rect = h.field(Control::Left);
     let area = h.area();
     let mut out = vec![];
-    render(
+    timeline::render(
         &mut PaintList::default(),
         &mut h.atlas,
         area,
@@ -431,6 +609,8 @@ fn audio_composition_reference_uses_its_own_envelopes_without_static_gain_comman
         .as_u64()
         .unwrap();
     h.panels.select_only(Some(object));
+    h.panels.timeline.expanded.insert(object);
+    h.panels.timeline.collapsed_transforms.insert(object);
     let before = h.state["project"].clone();
     h.type_number(Control::Left, "-15");
     let layer = h.state["project"]["layers"]
@@ -448,14 +628,24 @@ fn audio_composition_reference_uses_its_own_envelopes_without_static_gain_comman
 fn audio_narrow_main_and_floating_rows_keep_numeric_input_and_release_reachable() {
     for floating in [false, true] {
         let mut h = Harness::new(floating, Locale::Zh);
-        let size = [180., 700.];
-        let layout = Node::dock(Panel::Audio.dock());
+        let size = [400., 700.];
+        let layout = Node::dock(Panel::Timeline.dock());
         let area = if floating {
             Rect::new(0., 30., size[0], size[1] - 52.)
         } else {
             frames(&layout, size)[0].content
         };
-        let field = row(area, area.min[1] + 8. + 52.).number;
+        let field = row(
+            Rect::new(
+                area.min[0],
+                area.min[1],
+                GUTTER.min(area.width() * 0.52),
+                area.height(),
+            ),
+            area.min[1] + 64. + 44.,
+            22.,
+        )
+        .number;
         let original = h.state["project"].clone();
         let start = [field.min[0] + 40., field.min[1] + 10.];
         for input in [
@@ -468,7 +658,7 @@ fn audio_narrow_main_and_floating_rows_keep_numeric_input_and_release_reachable(
                 floating_chrome(
                     &mut PaintList::default(),
                     &mut h.atlas,
-                    Panel::Audio,
+                    Panel::Timeline,
                     size,
                     &mut h.panels,
                     &state,

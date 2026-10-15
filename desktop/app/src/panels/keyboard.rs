@@ -154,6 +154,9 @@ pub fn handle_shortcuts(input: &Input, panels: &mut Panels, state: &Value, out: 
         let key_owned = matches!(panels.focused, Some(Panel::Timeline | Panel::Curves))
             && panels.animation_controls.user_key().is_some();
         if let Some(command) = shortcuts::resolve(Scope::Animation, key, modifiers, repeat) {
+            if super::audio::shortcut(command, panels, state, out) {
+                continue;
+            }
             if super::timeline_shortcuts::handle(command, modifiers, panels, state, &mut frame, out)
                 || key_owned && command == Command::Delete
             {

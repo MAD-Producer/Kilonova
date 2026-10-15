@@ -1,6 +1,7 @@
 //! Audio controls use the shared gain, stereo envelope and gesture commands.
 use super::*;
 use motion_core::{AudioChannel, AudioLevelsAction, Track};
+use motion_ui::icons::Icon;
 use motion_ui::widgets::NumberOptions;
 
 const SILENCE_DB: f64 = -192.;
@@ -23,6 +24,23 @@ enum Control {
     Gain,
     Left,
     Right,
+}
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Item {
+    Key(AudioChannel),
+    Marker(u64),
+}
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct Selection {
+    object: u64,
+    item: Item,
+    frame: u32,
+}
+struct Drag {
+    selection: Selection,
+    start: f32,
+    current: u32,
+    begun: bool,
 }
 impl Control {
     fn channel(self) -> AudioChannel {
@@ -50,15 +68,30 @@ pub(crate) struct Controls {
     context: Option<(String, String)>,
     pub cursor: bool,
     pub drag_readout: Option<([f32; 2], String)>,
+    selection: Option<Selection>,
+    active_channel: Option<AudioChannel>,
+    drag: Option<Drag>,
 }
 impl Controls {
+    pub fn clear_selection(&mut self) {
+        self.selection = None;
+        self.active_channel = None;
+    }
     pub fn editing(&self) -> bool {
-        self.field.is_some()
+        self.field.is_some() || self.drag.is_some()
     }
     pub fn cancel(&mut self) -> bool {
-        self.field
+        let field = self
+            .field
             .take()
-            .is_some_and(|mut field| field.number.cancel())
+            .is_some_and(|mut field| field.number.cancel());
+        let drag = self.drag.take().is_some_and(|drag| {
+            if drag.begun {
+                self.selection = Some(drag.selection);
+            }
+            drag.begun
+        });
+        field || drag
     }
     fn number(
         &mut self,
@@ -172,32 +205,50 @@ fn edit_frame(state: &Value) -> u32 {
 fn word(locale: Locale, zh: &str, en: &str) -> String {
     if locale == Locale::Zh { zh } else { en }.into()
 }
-struct Row {
-    number: Rect,
-    buttons: [Rect; 3],
-    height: f32,
+pub(super) fn is_audio(layer: &Value) -> bool {
+    matches!(
+        layer["content"]["kind"].as_str(),
+        Some("audio" | "video" | "composition")
+    )
 }
-fn row(area: Rect, y: f32) -> Row {
-    let left = area.min[0] + 10.;
-    let width = (area.width() - 20.).max(1.);
-    let stacked = width < 184.;
-    let numeric_width = if stacked { width } else { width - 82. };
-    let button_y = if stacked { y + 28. } else { y };
+fn source(layer: &Value) -> &Value {
+    &layer["content"][layer["content"]["kind"].as_str().unwrap_or("")]
+}
+pub(super) fn rows(layer: &Value) -> usize {
+    controls(layer).len() + 1
+}
+fn controls(layer: &Value) -> Vec<Control> {
+    let mut rows = vec![];
+    if matches!(layer["content"]["kind"].as_str(), Some("audio" | "video")) {
+        rows.push(Control::Gain);
+    }
+    if layer["audio_source_channel"] != "right" {
+        rows.push(Control::Left);
+    }
+    if layer["audio_source_channel"] != "left" {
+        rows.push(Control::Right);
+    }
+    rows
+}
+pub(super) struct Row {
+    pub number: Rect,
+    pub buttons: [Rect; 3],
+    pub watch: Rect,
+    pub caption: Rect,
+}
+pub(super) fn row(area: Rect, y: f32, height: f32) -> Row {
+    let x = area.min[0];
+    let field_width = 64f32.min((area.width() * 0.35).max(1.));
     Row {
-        number: Rect::new(left, y, numeric_width, 24.),
-        buttons: std::array::from_fn(|i| {
-            Rect::new(
-                (if stacked {
-                    left
-                } else {
-                    left + numeric_width + 4.
-                }) + i as f32 * 26.,
-                button_y,
-                24.,
-                24.,
-            )
-        }),
-        height: if stacked { 56. } else { 28. },
+        number: Rect::new(area.max[0] - field_width - 6., y, field_width, height),
+        buttons: std::array::from_fn(|i| Rect::new(x + 14. + i as f32 * 16., y, 16., height)),
+        watch: Rect::new(x + 64., y, 16., height),
+        caption: Rect::new(
+            x + 84.,
+            y,
+            (area.width() - field_width - 94.).max(1.),
+            height,
+        ),
     }
 }
 fn key_times(track: &Track<f32>, offset: i64, frames: u64) -> Vec<u32> {
@@ -206,20 +257,19 @@ fn key_times(track: &Track<f32>, offset: i64, frames: u64) -> Vec<u32> {
         .iter()
         .filter_map(|key| {
             let composition = i64::from(key.frame) + offset;
-            (composition >= 0 && (composition as u64) < frames).then(|| composition as u32)
+            (composition >= 0 && (composition as u64) < frames).then_some(composition as u32)
         })
         .collect()
 }
-fn pending_cancel(controls: &mut Controls, out: &mut Vec<Action>) {
-    if controls.cancel() {
-        out.push(Action::History(4));
-    }
+fn track(layer: &Value, control: Control) -> Track<f32> {
+    serde_json::from_value(layer["audio_levels"][control.name()].clone())
+        .unwrap_or_else(|_| Track::constant(0.))
 }
 fn key_button(
     list: &mut PaintList,
     atlas: &mut TextAtlas,
     area: Rect,
-    icon: motion_ui::icons::Icon,
+    icon: Icon,
     active: bool,
     input: &Input,
     enabled: bool,
@@ -232,7 +282,7 @@ fn key_button(
         list,
         area,
         icon,
-        16.,
+        14.,
         if !enabled {
             colors.TEXT_MUTED.with_alpha(0.4)
         } else if active {
@@ -242,231 +292,129 @@ fn key_button(
         },
     );
 }
-pub(super) fn render(
+pub(super) fn prepare(panels: &mut Panels, state: &Value, input: &Input, out: &mut Vec<Action>) {
+    let context = (
+        state["root"].as_str().unwrap_or("").into(),
+        state["composition"].as_str().unwrap_or("").into(),
+    );
+    let controls = &mut panels.audio_controls;
+    let context_changed = controls.context.as_ref() != Some(&context);
+    if context_changed
+        || controls.field.as_ref().is_some_and(|f| {
+            panels.selected != Some(f.object)
+                || state["observing"] == true
+                || state["project"]["layers"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .find(|l| l["id"] == f.object)
+                    .is_none_or(|l| l["locked"] == true)
+                || input.pressed.is_some_and(|(_, p)| !f.rect.contains(p))
+        })
+    {
+        if controls.cancel() {
+            out.push(Action::History(4));
+        }
+    }
+    if context_changed {
+        controls.clear_selection();
+    }
+    controls.context = Some(context);
+    if controls
+        .selection
+        .is_some_and(|s| panels.selected != Some(s.object))
+    {
+        controls.selection = None;
+    }
+    controls.cursor = false;
+    controls.drag_readout = None;
+}
+pub(super) fn render_rows(
     list: &mut PaintList,
     atlas: &mut TextAtlas,
-    area: Rect,
+    gutter: Rect,
+    body: Rect,
+    track_area: Rect,
+    y: f32,
+    height: f32,
+    ppf: f32,
+    offset: f32,
+    object: u64,
     panels: &mut Panels,
     state: &Value,
     input: &Input,
     out: &mut Vec<Action>,
 ) {
-    let styles = list.styles();
-    paint::rect(list, area, styles.colors().PANEL);
-    let selected = auxiliary::selected(panels, state).cloned();
-    let Some(layer) = selected.filter(|layer| {
-        matches!(
-            layer["content"]["kind"].as_str(),
-            Some("audio" | "video" | "composition")
-        )
-    }) else {
-        pending_cancel(&mut panels.audio_controls, out);
-        label(
-            list,
-            atlas,
-            area.shrink(10.),
-            &word(
-                panels.locale,
-                "选择音频、视频或子合成图层",
-                "Select an audio, video or composition layer",
-            ),
-            true,
-        );
+    let Some(layer) = state["project"]["layers"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find(|l| l["id"] == object)
+    else {
         return;
     };
-    let locale = panels.locale;
-    let height = if area.width() < 204. { 410. } else { 330. };
-    let mut y = auxiliary::body_y(Panel::Audio, area, height, panels, input);
-    let controls = &mut panels.audio_controls;
-    controls.cursor = false;
-    controls.drag_readout = None;
-    let object = layer["id"].as_u64().unwrap();
     let enabled = layer["locked"] != true && state["observing"] != true;
-    let context = (
-        state["root"].as_str().unwrap_or("").to_string(),
-        state["composition"].as_str().unwrap_or("").to_string(),
-    );
-    if controls.context.as_ref() != Some(&context)
-        || controls.field.as_ref().is_some_and(|field| {
-            field.object != object
-                || !enabled
-                || input
-                    .pressed
-                    .is_some_and(|(_, point)| !field.rect.contains(point))
-        })
-    {
-        pending_cancel(controls, out);
-    }
-    controls.context = Some(context);
-    auxiliary::line(
-        list,
-        atlas,
-        area,
-        &mut y,
-        layer["name"].as_str().unwrap_or("Audio"),
-        false,
-    );
-    let kind = layer["content"]["kind"].as_str().unwrap();
-    if matches!(kind, "audio" | "video") {
-        let audio = &layer["content"][kind];
-        auxiliary::line(
-            list,
-            atlas,
-            area,
-            &mut y,
-            &word(locale, "基础增益（dB）", "Base gain (dB)"),
-            true,
-        );
-        let fields = row(area, y);
-        let volume = audio["volume"].as_f64().unwrap_or(1.);
-        controls.number(
-            list,
-            atlas,
-            fields.number,
-            object,
-            Control::Gain,
-            gain_db(volume),
-            NumberOptions {
-                min: SILENCE_DB,
-                max: gain_db(2.),
-                speed: 0.1,
-                decimals: 2,
-            },
-            state,
-            input,
-            enabled,
-            out,
-        );
-        button(
-            list,
-            atlas,
-            Rect::new(fields.buttons[0].min[0], fields.buttons[0].min[1], 38., 24.),
-            "0 dB",
-            input,
-            enabled,
-            Action::Edit(Command::SetAudio {
-                object,
-                volume: Some(1.),
-                muted: None,
-            }),
-            out,
-        );
-        button(
-            list,
-            atlas,
-            Rect::new(
-                fields.buttons[0].min[0] + 40.,
-                fields.buttons[0].min[1],
-                38.,
-                24.,
-            ),
-            "−∞",
-            input,
-            enabled,
-            Action::Edit(Command::SetAudio {
-                object,
-                volume: Some(0.),
-                muted: None,
-            }),
-            out,
-        );
-        y += fields.height;
-        let muted = audio["muted"] == true;
-        if motion_ui::widgets::Checkbox::draw(
-            list,
-            atlas,
-            Rect::new(area.min[0] + 10., y, area.width() - 20., 24.),
-            &word(locale, "静音", "Mute"),
-            muted,
-            input,
-            enabled,
-            false,
-            None,
-        )
-        .clicked
-        {
-            out.push(Action::Edit(Command::SetAudio {
-                object,
-                volume: None,
-                muted: Some(!muted),
-            }));
-        }
-        y += 32.;
-    }
     let supported = state["capabilities"]["audio"]["levels"]["supported"] == true;
-    let range = &state["capabilities"]["audio"]["levels"]["range"];
-    let options = NumberOptions {
-        min: range[0]
-            .as_f64()
-            .unwrap_or(f64::from(motion_core::audio_levels::MIN_AUDIO_DB)),
-        max: range[1]
-            .as_f64()
-            .unwrap_or(f64::from(motion_core::audio_levels::MAX_AUDIO_DB)),
-        speed: 0.1,
-        decimals: 2,
-    };
     let current = edit_frame(state);
-    let offset = layer["timeline"]["offset_frame"].as_i64().unwrap_or(0);
-    let frames = state["project"]["frames"].as_u64().unwrap_or(0);
-    for control in [Control::Left, Control::Right] {
-        let track = if layer["audio_levels"][control.name()].is_null() {
-            Track::constant(0.)
-        } else {
-            let Ok(track) =
-                serde_json::from_value::<Track<f32>>(layer["audio_levels"][control.name()].clone())
-            else {
-                continue;
-            };
-            track
-        };
-        let animated = !track.keys.is_empty();
-        let label_area = Rect::new(area.min[0] + 10., y, (area.width() - 98.).max(1.), 24.);
-        label(
-            list,
-            atlas,
-            label_area,
-            &word(
-                locale,
-                if control == Control::Left {
-                    "左声道（dB）"
-                } else {
-                    "右声道（dB）"
-                },
-                if control == Control::Left {
-                    "Left (dB)"
-                } else {
-                    "Right (dB)"
-                },
-            ),
-            true,
-        );
-        if motion_ui::widgets::Checkbox::draw(
-            list,
-            atlas,
-            Rect::new(area.max[0] - 82., y, 72., 24.),
-            &word(locale, "动画", "Animate"),
-            animated,
-            input,
-            enabled && supported,
-            false,
-            None,
-        )
-        .clicked
-        {
-            out.push(Action::Edit(Command::AudioLevels {
-                object,
-                action: AudioLevelsAction::Animate {
-                    channel: control.channel(),
-                    frame: current,
-                    enabled: !animated,
-                },
-            }));
+    let frames = state["project"]["frames"].as_u64().unwrap_or(1);
+    let local_offset = layer["timeline"]["offset_frame"].as_i64().unwrap_or(0);
+    let locale = panels.locale;
+    let controls_list = controls(layer);
+    for (i, control) in controls_list.iter().copied().enumerate() {
+        let py = y + i as f32 * height;
+        if py < body.min[1] || py + height > body.max[1] {
+            continue;
         }
-        y += 26.;
-        let fields = row(area, y);
-        let value = f64::from(track.sample(state["frame"].as_f64().unwrap_or(0.) - offset as f64))
-            .clamp(options.min, options.max);
-        controls.number(
+        let fields = row(gutter, py, height);
+        paint::rect(
+            list,
+            Rect::new(gutter.min[0], py, gutter.width(), height),
+            list.styles().colors().PANEL,
+        );
+        let gain = control == Control::Gain;
+        let value = if gain {
+            gain_db(source(layer)["volume"].as_f64().unwrap_or(1.))
+        } else {
+            f64::from(
+                track(layer, control)
+                    .sample(state["frame"].as_f64().unwrap_or(0.) - local_offset as f64),
+            )
+        };
+        let caption = word(
+            locale,
+            match control {
+                Control::Gain => "增益 (dB)",
+                Control::Left => "左 (dB)",
+                Control::Right => "右 (dB)",
+            },
+            match control {
+                Control::Gain => "Gain (dB)",
+                Control::Left => "Left (dB)",
+                Control::Right => "Right (dB)",
+            },
+        );
+        label(list, atlas, fields.caption, &caption, true);
+        if clicked(input, fields.caption) || clicked(input, fields.number) {
+            panels.select_only(Some(object));
+            panels.audio_controls.active_channel = (!gain).then_some(control.channel());
+            panels.audio_controls.selection = None;
+        }
+        let range = &state["capabilities"]["audio"]["levels"]["range"];
+        let options = NumberOptions {
+            min: if gain {
+                SILENCE_DB
+            } else {
+                range[0].as_f64().unwrap_or(SILENCE_DB)
+            },
+            max: if gain {
+                gain_db(2.)
+            } else {
+                range[1].as_f64().unwrap_or(24.)
+            },
+            speed: 0.1,
+            decimals: 2,
+        };
+        panels.audio_controls.number(
             list,
             atlas,
             fields.number,
@@ -476,29 +424,72 @@ pub(super) fn render(
             options,
             state,
             input,
-            enabled && supported,
+            enabled && (gain || supported),
             out,
         );
-        let times = key_times(&track, offset, frames);
-        let previous = times.iter().copied().filter(|frame| *frame < current).max();
-        let next = times.iter().copied().filter(|frame| *frame > current).min();
-        let has_key = times.contains(&current);
+        if gain {
+            if motion_ui::widgets::Checkbox::draw(
+                list,
+                atlas,
+                fields.watch,
+                "",
+                source(layer)["muted"] == true,
+                input,
+                enabled,
+                false,
+                None,
+            )
+            .clicked
+            {
+                out.push(Action::Edit(Command::SetAudio {
+                    object,
+                    volume: None,
+                    muted: Some(source(layer)["muted"] != true),
+                }));
+            }
+            continue;
+        }
+        let keys = key_times(&track(layer, control), local_offset, frames);
+        let animated = !keys.is_empty();
+        let has_key = keys.contains(&current);
         key_button(
             list,
             atlas,
-            fields.buttons[0],
-            motion_ui::icons::Icon::Previous,
-            false,
+            fields.watch,
+            Icon::Stopwatch,
+            animated,
             input,
-            supported && previous.is_some(),
-            Action::Seek(f64::from(previous.unwrap_or(current))),
+            enabled && supported,
+            Action::Edit(Command::AudioLevels {
+                object,
+                action: AudioLevelsAction::Animate {
+                    channel: control.channel(),
+                    frame: current,
+                    enabled: !animated,
+                },
+            }),
             out,
         );
+        let prev = keys.iter().copied().filter(|f| *f < current).max();
+        let next = keys.iter().copied().filter(|f| *f > current).min();
+        for (n, key) in [prev, next].into_iter().enumerate() {
+            key_button(
+                list,
+                atlas,
+                fields.buttons[if n == 0 { 0 } else { 2 }],
+                if n == 0 { Icon::Previous } else { Icon::Next },
+                false,
+                input,
+                supported && key.is_some(),
+                Action::Seek(f64::from(key.unwrap_or(current))),
+                out,
+            );
+        }
         key_button(
             list,
             atlas,
             fields.buttons[1],
-            motion_ui::icons::Icon::Key,
+            Icon::Key,
             has_key,
             input,
             enabled && supported,
@@ -520,52 +511,406 @@ pub(super) fn render(
             }),
             out,
         );
-        key_button(
+        for frame in keys {
+            draw_reference(
+                list,
+                track_area,
+                py,
+                height,
+                ppf,
+                offset,
+                Selection {
+                    object,
+                    item: Item::Key(control.channel()),
+                    frame,
+                },
+                false,
+                enabled && supported,
+                panels,
+                input,
+                out,
+            );
+        }
+    }
+    let py = y + controls_list.len() as f32 * height;
+    if py >= body.min[1] && py + height <= body.max[1] {
+        let fields = row(gutter, py, height);
+        label(
             list,
             atlas,
-            fields.buttons[2],
-            motion_ui::icons::Icon::Next,
-            false,
+            fields.caption,
+            &word(locale, "节奏参考", "References"),
+            true,
+        );
+        button(
+            list,
+            atlas,
+            fields.number,
+            "+",
             input,
-            supported && next.is_some(),
-            Action::Seek(f64::from(next.unwrap_or(current))),
+            enabled
+                && current < frames as u32
+                && f64::from(current) >= layer["timeline"]["in_frame"].as_f64().unwrap_or(0.)
+                && f64::from(current)
+                    < layer["timeline"]["out_frame"]
+                        .as_f64()
+                        .unwrap_or(frames as f64),
+            Action::Edit(Command::AudioMarkers {
+                object,
+                action: motion_core::AudioMarkersAction::Add {
+                    frame: current,
+                    label: String::new(),
+                },
+            }),
             out,
         );
-        y += fields.height + 8.;
+        let range = layer["subframe_range"].as_object();
+        let begin = range
+            .and_then(|r| r["in_frame"].as_f64())
+            .unwrap_or_else(|| layer["timeline"]["in_frame"].as_f64().unwrap_or(0.));
+        let end = range
+            .and_then(|r| r["out_frame"].as_f64())
+            .unwrap_or_else(|| {
+                layer["timeline"]["out_frame"]
+                    .as_f64()
+                    .unwrap_or(frames as f64)
+            });
+        for marker in layer["audio_markers"].as_array().into_iter().flatten() {
+            let frame = marker["frame"].as_i64().unwrap_or(0) + local_offset;
+            if frame < 0 || frame as u64 >= frames || (frame as f64) < begin || frame as f64 >= end
+            {
+                continue;
+            }
+            draw_reference(
+                list,
+                track_area,
+                py,
+                height,
+                ppf,
+                offset,
+                Selection {
+                    object,
+                    item: Item::Marker(marker["id"].as_u64().unwrap_or(0)),
+                    frame: frame as u32,
+                },
+                marker["generated"] == true,
+                enabled,
+                panels,
+                input,
+                out,
+            );
+        }
+    }
+    if panels.audio_controls.cursor {
+        panels.cursor = Some(motion_ui::widgets::numeric_behavior::cursor(
+            input,
+            panels.audio_controls.drag_readout.is_some(),
+        ));
+    }
+    if panels.audio_controls.drag_readout.is_some() {
+        panels.drag_readout = panels.audio_controls.drag_readout.clone();
+    }
+}
+fn draw_reference(
+    list: &mut PaintList,
+    track: Rect,
+    y: f32,
+    height: f32,
+    ppf: f32,
+    offset: f32,
+    selection: Selection,
+    generated: bool,
+    enabled: bool,
+    panels: &mut Panels,
+    input: &Input,
+    out: &mut Vec<Action>,
+) {
+    let x = track.min[0] + (selection.frame as f32 - offset) * ppf;
+    if x < track.min[0] + 4. || x > track.max[0] - 4. {
+        return;
+    }
+    let colors = list.styles().colors();
+    let selected = panels.audio_controls.selection == Some(selection);
+    let color = if selected {
+        colors.KEYFRAME
+    } else if generated {
+        colors.TEXT_MUTED
+    } else {
+        colors.ACCENT
+    };
+    if matches!(selection.item, Item::Marker(_)) {
+        paint::line(list, vec![[x, y + 3.], [x, y + height - 3.]], color);
+    }
+    paint::diamond(
+        list,
+        [x, y + height * 0.5],
+        if selected { 5. } else { 4. },
+        color,
+    );
+    if clicked(input, Rect::new(x - 6., y, 12., height)) {
+        panels.select_only(Some(selection.object));
+        panels.audio_controls.selection = Some(selection);
+        panels.audio_controls.active_channel = if let Item::Key(channel) = selection.item {
+            Some(channel)
+        } else {
+            None
+        };
+        if enabled {
+            panels.audio_controls.drag = Some(Drag {
+                selection,
+                start: input.mouse[0],
+                current: selection.frame,
+                begun: false,
+            });
+        }
+        out.push(Action::Seek(f64::from(selection.frame)));
+    }
+}
+pub(super) fn process_drag(
+    panels: &mut Panels,
+    state: &Value,
+    input: &Input,
+    ppf: f32,
+    out: &mut Vec<Action>,
+) {
+    let Some(drag) = panels.audio_controls.drag.as_mut() else {
+        return;
+    };
+    let layer = state["project"]["layers"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find(|l| l["id"] == drag.selection.object);
+    if input.focus_lost
+        || input.keys.iter().any(|(k, _)| *k == Key::Escape)
+        || state["observing"] == true
+        || layer.is_none_or(|l| l["locked"] == true)
+    {
+        if panels.audio_controls.cancel() {
+            out.push(Action::History(4));
+        }
+        return;
+    }
+    let delta = input.mouse[0] - drag.start;
+    if (input.dragging() || input.released.is_some()) && delta.abs() >= 3. {
+        let layer = layer.unwrap();
+        let begin = layer["subframe_range"]["in_frame"]
+            .as_f64()
+            .or_else(|| layer["timeline"]["in_frame"].as_f64())
+            .unwrap_or(0.)
+            .ceil()
+            .max(0.);
+        let end = layer["subframe_range"]["out_frame"]
+            .as_f64()
+            .or_else(|| layer["timeline"]["out_frame"].as_f64())
+            .unwrap_or(state["project"]["frames"].as_f64().unwrap_or(1.));
+        let last = (end.ceil() - 1.).min(state["project"]["frames"].as_f64().unwrap_or(1.) - 1.);
+        if last < begin {
+            return;
+        }
+        let to = (drag.selection.frame as f64 + f64::from(delta / ppf.max(0.001)))
+            .round()
+            .clamp(begin, last) as u32;
+        if to != drag.current {
+            if !drag.begun {
+                out.push(Action::History(2));
+                drag.begun = true;
+            }
+            out.push(Action::Edit(match drag.selection.item {
+                Item::Key(channel) => Command::AudioLevels {
+                    object: drag.selection.object,
+                    action: AudioLevelsAction::MoveKey {
+                        channel,
+                        from: drag.current,
+                        to,
+                    },
+                },
+                Item::Marker(id) => Command::AudioMarkers {
+                    object: drag.selection.object,
+                    action: motion_core::AudioMarkersAction::Move { id, frame: to },
+                },
+            }));
+            drag.current = to;
+            panels.audio_controls.selection = Some(Selection {
+                frame: to,
+                ..drag.selection
+            });
+        }
+    }
+    if input.released.is_some() || input.held.is_none() {
+        if drag.begun {
+            out.push(Action::History(3));
+        }
+        panels.audio_controls.drag = None;
+    }
+}
+pub(super) fn shortcut(
+    command: crate::shortcuts::Command,
+    panels: &mut Panels,
+    state: &Value,
+    out: &mut Vec<Action>,
+) -> bool {
+    use crate::shortcuts::Command as Shortcut;
+    if panels.focused != Some(Panel::Timeline) {
+        return false;
+    }
+    let Some(object) = panels.selected else {
+        return false;
+    };
+    let Some(layer) = state["project"]["layers"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find(|l| l["id"] == object && is_audio(l))
+    else {
+        return false;
+    };
+    if command == Shortcut::Delete {
+        if let Some(selection) = panels
+            .audio_controls
+            .selection
+            .filter(|s| s.object == object)
+        {
+            let exists = match selection.item {
+                Item::Key(channel) => {
+                    let control = if channel == AudioChannel::Left {
+                        Control::Left
+                    } else {
+                        Control::Right
+                    };
+                    key_times(
+                        &track(layer, control),
+                        layer["timeline"]["offset_frame"].as_i64().unwrap_or(0),
+                        state["project"]["frames"].as_u64().unwrap_or(1),
+                    )
+                    .contains(&selection.frame)
+                }
+                Item::Marker(id) => layer["audio_markers"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .any(|m| m["id"] == id),
+            };
+            if !exists {
+                panels.audio_controls.selection = None;
+                return true;
+            }
+            if layer["locked"] != true && state["observing"] != true {
+                out.push(Action::Edit(match selection.item {
+                    Item::Key(channel) => Command::AudioLevels {
+                        object,
+                        action: AudioLevelsAction::DeleteKey {
+                            channel,
+                            frame: selection.frame,
+                        },
+                    },
+                    Item::Marker(id) => Command::AudioMarkers {
+                        object,
+                        action: motion_core::AudioMarkersAction::Remove { id },
+                    },
+                }));
+                panels.audio_controls.selection = None;
+            }
+            return true;
+        }
+    }
+    if matches!(command, Shortcut::PreviousKey | Shortcut::NextKey)
+        && (layer["content"]["kind"] == "audio" || panels.audio_controls.active_channel.is_some())
+    {
+        let offset = layer["timeline"]["offset_frame"].as_i64().unwrap_or(0);
+        let frames = state["project"]["frames"].as_u64().unwrap_or(1);
+        let mut times = vec![];
+        for control in controls(layer).into_iter().filter(|c| *c != Control::Gain) {
+            if panels
+                .audio_controls
+                .active_channel
+                .is_none_or(|c| c == control.channel())
+            {
+                times.extend(key_times(&track(layer, control), offset, frames));
+            }
+        }
+        let now = state["frame"].as_f64().unwrap_or(0.);
+        let next = if command == Shortcut::NextKey {
+            times.into_iter().filter(|f| f64::from(*f) > now).min()
+        } else {
+            times.into_iter().filter(|f| f64::from(*f) < now).max()
+        };
+        if let Some(frame) = next {
+            out.push(Action::Seek(f64::from(frame)));
+        }
+        return true;
+    }
+    false
+}
+pub(super) fn render(
+    list: &mut PaintList,
+    atlas: &mut TextAtlas,
+    area: Rect,
+    panels: &mut Panels,
+    state: &Value,
+    input: &Input,
+    out: &mut Vec<Action>,
+) {
+    let Some(layer) = auxiliary::selected(panels, state).filter(|l| is_audio(l)) else {
+        label(
+            list,
+            atlas,
+            area.shrink(10.),
+            &word(
+                panels.locale,
+                "选择音频、视频或子合成图层",
+                "Select an audio, video or composition layer",
+            ),
+            true,
+        );
+        return;
+    };
+    let object = layer["id"].as_u64().unwrap_or(0);
+    let mut y = area.min[1] + 10.;
+    auxiliary::line(
+        list,
+        atlas,
+        area,
+        &mut y,
+        layer["name"].as_str().unwrap_or("Audio"),
+        false,
+    );
+    if matches!(layer["content"]["kind"].as_str(), Some("audio" | "video")) {
+        let gain = gain_db(source(layer)["volume"].as_f64().unwrap_or(1.));
+        auxiliary::line(
+            list,
+            atlas,
+            area,
+            &mut y,
+            &format!(
+                "{}: {} dB",
+                word(panels.locale, "增益", "Gain"),
+                if gain <= SILENCE_DB {
+                    "−∞".into()
+                } else {
+                    format!("{gain:.2}")
+                }
+            ),
+            true,
+        );
     }
     button(
         list,
         atlas,
-        Rect::new(area.min[0] + 10., y, (area.width() - 20.).max(1.), 26.),
-        &word(locale, "清除左右声道包络", "Clear stereo envelopes"),
+        Rect::new(area.min[0] + 10., y + 8., (area.width() - 20.).max(1.), 26.),
+        &word(panels.locale, "在时间轴调节", "Edit in timeline"),
         input,
-        enabled && supported && layer["audio_levels"].is_object(),
-        Action::Edit(Command::AudioLevels {
-            object,
-            action: AudioLevelsAction::Clear,
-        }),
+        true,
+        Action::ShowPanel(Panel::Timeline.dock()),
         out,
     );
-    y += 32.;
-    label(
-        list,
-        atlas,
-        Rect::new(area.min[0] + 10., y, (area.width() - 20.).max(1.), 24.),
-        &word(
-            locale,
-            "两侧跳到前后关键帧，菱形增删当前键",
-            "Previous/next seek; diamond adds/removes the current key",
-        ),
-        true,
-    );
-    if controls.cursor {
-        panels.cursor = Some(motion_ui::widgets::numeric_behavior::cursor(
-            input,
-            controls.drag_readout.is_some(),
-        ));
-    }
-    if controls.drag_readout.is_some() {
-        panels.drag_readout = controls.drag_readout.clone();
+    if clicked(
+        input,
+        Rect::new(area.min[0] + 10., y + 8., (area.width() - 20.).max(1.), 26.),
+    ) {
+        panels.timeline.expanded.insert(object);
+        panels.timeline.collapsed_audio.remove(&object);
+        panels.timeline.scroll = 0.;
     }
 }
 
