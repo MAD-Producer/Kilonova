@@ -30,10 +30,10 @@ pub(crate) fn render(
         Align::Left,
         12.,
     );
-    for (index, (label, action)) in [
-        ("−", Action::WindowMinimize),
-        ("□", Action::WindowMaximize),
-        ("×", Action::WindowClose),
+    for (index, (icon, action)) in [
+        (motion_ui::icons::Icon::Minimize, Action::WindowMinimize),
+        (motion_ui::icons::Icon::Maximize, Action::WindowMaximize),
+        (motion_ui::icons::Icon::Close, Action::WindowClose),
     ]
     .into_iter()
     .enumerate()
@@ -44,7 +44,7 @@ pub(crate) fn render(
             28.,
             metrics::TITLE_BAR,
         );
-        if ui::button_styled(list, atlas, rect, label, input, true, &sheet, "button.icon").clicked {
+        if ui::button_icon(list, rect, icon, input, true).clicked {
             out.push(action);
         }
     }

@@ -103,7 +103,7 @@ impl Editor {
                 self.cache = None;
             }
         }
-        let reset = Rect::new(rect.max[0] - 48., rect.min[1], 48., 22.);
+        let reset = Rect::new(rect.max[0] - 30., rect.min[1], 30., 22.);
         paint::rect(
             list,
             reset,
@@ -113,17 +113,16 @@ impl Editor {
                 colors.CHROME
             },
         );
-        motion_ui::ui::text(
+        motion_ui::icons::draw(
             list,
-            atlas,
-            reset.shrink(2.),
-            "↺",
+            reset,
+            motion_ui::icons::Icon::Reset,
+            14.,
             if enabled {
                 colors.TEXT
             } else {
                 colors.TEXT_MUTED.with_alpha(0.4)
             },
-            Align::Center,
         );
         if edit_enabled
             && input

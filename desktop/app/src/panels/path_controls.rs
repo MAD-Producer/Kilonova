@@ -982,11 +982,10 @@ impl Controls {
                 self.tool = Tool::Mask;
                 self.mask = Some(mask.id);
             }
-            if ui::button(
+            if ui::button_icon(
                 list,
-                atlas,
                 Rect::new(heading.max[0] - 27., *y, 25., 24.),
-                "×",
+                motion_ui::icons::Icon::Close,
                 input,
                 allowed,
             )

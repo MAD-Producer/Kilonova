@@ -39,6 +39,9 @@ icons! {
     Stopwatch => "stopwatch",
     Menu => "menu",
     Rotate => "rotate", Scale => "scale", Anchor => "anchor",
+    Reset => "reset",
+    ChevronUp => "chevron_up", ChevronDown => "chevron_down", ChevronRight => "chevron_right",
+    Minimize => "minimize", Maximize => "maximize",
 }
 #[derive(Deserialize)]
 struct Source {

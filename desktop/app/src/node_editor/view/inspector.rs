@@ -604,11 +604,10 @@ impl NodeEditor {
                         {
                             self.select(Some(&edge.from.node), false);
                         }
-                        if ui::button(
+                        if ui::button_icon(
                             &mut body,
-                            atlas,
                             Rect::new(content.max[0] - 27., y, 27., 24.),
-                            "×",
+                            motion_ui::icons::Icon::Close,
                             &clipped_input(input, content),
                             true,
                         )
@@ -756,11 +755,10 @@ impl NodeEditor {
                 }
                 if !self.document.nodes.iter().any(
                     |n| matches!(&n.operation,NodeOp::Parameter{parameter} if *parameter==p.id),
-                ) && ui::button(
+                ) && ui::button_icon(
                     &mut body,
-                    atlas,
                     Rect::new(content.max[0] - 27., y, 27., 26.),
-                    "×",
+                    motion_ui::icons::Icon::Close,
                     &clipped_input(input, content),
                     true,
                 )

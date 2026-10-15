@@ -6,6 +6,7 @@ use crate::{
 use motion_core::EffectParam;
 use motion_core::{Command, EffectAction};
 use motion_ui::{
+    icons::{self, Icon},
     input::{Input, Key, MouseButton, Rect},
     paint::{self, PaintList},
     style::{box_style, text_style, State, States},
@@ -129,6 +130,38 @@ fn press(
             colors.TEXT_MUTED.with_alpha(0.4)
         },
         Align::Center,
+    );
+    enabled && clicked(input, rect)
+}
+fn press_icon(
+    list: &mut PaintList,
+    input: &Input,
+    rect: Rect,
+    icon: Icon,
+    enabled: bool,
+) -> bool {
+    let styles = list.styles();
+    let colors = styles.colors();
+
+    paint::rect(
+        list,
+        rect,
+        if rect.contains(input.mouse) && enabled {
+            colors.SUNKEN
+        } else {
+            colors.CHROME
+        },
+    );
+    icons::draw(
+        list,
+        rect,
+        icon,
+        14.,
+        if enabled {
+            colors.TEXT
+        } else {
+            colors.TEXT_MUTED.with_alpha(0.4)
+        },
     );
     enabled && clicked(input, rect)
 }
@@ -767,15 +800,18 @@ impl Controls {
                 // Category header background
                 paint::rect(list, header_rect, colors.SUNKEN.with_alpha(0.3));
 
-                // Collapse/expand triangle
-                let triangle_rect = Rect::new(area.min[0] + 20., *y + 4., 16., 20.);
-                ui::text(
+                // Collapse/expand chevron
+                let chevron_rect = Rect::new(area.min[0] + 20., *y + 4., 16., 20.);
+                icons::draw(
                     list,
-                    atlas,
-                    triangle_rect,
-                    if is_collapsed { "▶" } else { "▼" },
+                    chevron_rect,
+                    if is_collapsed {
+                        Icon::ChevronRight
+                    } else {
+                        Icon::ChevronDown
+                    },
+                    14.,
                     colors.TEXT,
-                    Align::Left,
                 );
 
                 // Category name
@@ -938,14 +974,17 @@ impl Controls {
                 paint::rect(list, header_rect, colors.SUNKEN.with_alpha(0.2));
             }
 
-            // Collapse/expand triangle
-            let triangle_rect = Rect::new(area.min[0] + 18., *y + 5., 16., 20.);
-            if press(
+            // Collapse/expand chevron
+            let chevron_rect = Rect::new(area.min[0] + 18., *y + 5., 16., 20.);
+            if press_icon(
                 list,
-                atlas,
                 input,
-                triangle_rect,
-                if is_collapsed { "▶" } else { "▼" },
+                chevron_rect,
+                if is_collapsed {
+                    Icon::ChevronRight
+                } else {
+                    Icon::ChevronDown
+                },
                 true,
             ) {
                 if is_collapsed {
@@ -983,27 +1022,26 @@ impl Controls {
             );
 
             // Action buttons: Move Up, Duplicate, Remove
-            for (i, (symbol, action, allowed)) in [
+            for (i, (icon, action, allowed)) in [
                 (
-                    "↑",
+                    Icon::ChevronUp,
                     EffectAction::Move {
                         effect: id,
                         index: index.saturating_sub(1),
                     },
                     index > 0,
                 ),
-                ("+", EffectAction::Duplicate { effect: id }, true),
-                ("×", EffectAction::Remove { effect: id }, true),
+                (Icon::Plus, EffectAction::Duplicate { effect: id }, true),
+                (Icon::Close, EffectAction::Remove { effect: id }, true),
             ]
             .into_iter()
             .enumerate()
             {
-                if press(
+                if press_icon(
                     list,
-                    atlas,
                     input,
                     Rect::new(area.max[0] - 94. + i as f32 * 26., *y, 24., 26.),
-                    symbol,
+                    icon,
                     !locked && allowed,
                 ) {
                     out.push(Action::Edit(Command::Effect { object, action }));
