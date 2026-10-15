@@ -157,7 +157,7 @@ impl Shell {
                 let padding = sheet.metric("padding.panel", 8.);
                 let top = 32. + padding;
                 self.feature_panel_click(panel, [720. - padding - slot * 0.5, top + row * 0.5], event_loop)?;
-                self.feature_panel_click(panel, [650., top + row * 2.5], event_loop)?;
+                self.feature_panel_click(panel, [720. - padding - slot * 0.5, top + row * 2.5], event_loop)?;
                 let mask = self.state["project"]["layers"]
                     .as_array()
                     .into_iter()
