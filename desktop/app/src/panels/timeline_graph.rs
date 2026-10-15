@@ -217,7 +217,15 @@ pub(super) fn render(
     } else {
         1.
     };
-    if area.contains(input.mouse) && input.modifiers.control && input.wheel[1] != 0. {
+    if area.contains(input.mouse)
+        && input.modifiers.control
+        && input.modifiers.alt
+        && input.wheel[1].is_finite()
+        && input.wheel[1] != 0.
+        && !panels.timeline.graph_box.editing()
+        && panels.timeline.key_drag.is_none()
+        && panels.timeline.graph_drag.is_none()
+    {
         let zoom = (old_zoom * (-input.wheel[1] / 240.).exp()).clamp(0.25, 64.);
         let fraction = (plot.max[1] - input.mouse[1]) / plot.height().max(1.) - 0.5;
         panels.timeline.graph_y_offset +=

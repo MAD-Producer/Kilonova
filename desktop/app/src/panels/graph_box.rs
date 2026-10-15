@@ -205,9 +205,7 @@ pub(super) fn interact(
                     ((mouse[0] - point[0]).abs() <= 6. && (mouse[1] - point[1]).abs() <= 6.)
                         .then_some(*mode)
                 })
-                .or_else(|| {
-                    (rect.contains(mouse) && near_curve(plot, curve, mouse)).then_some([0, 0])
-                });
+                .or_else(|| rect.contains(mouse).then_some([0, 0]));
             if let Some(mode) = mode {
                 let expected = keys(source);
                 let seeds: Vec<_> = expected
@@ -238,7 +236,13 @@ pub(super) fn interact(
     }
     let owned = controls.drag.is_some();
     if let Some(drag) = &mut controls.drag {
-        panels.cursor = Some(motion_ui::cursor::Cursor::ResizeEW);
+        panels.cursor = Some(match drag.mode {
+            [0, 0] => motion_ui::cursor::Cursor::Grabbing,
+            [0, _] => motion_ui::cursor::Cursor::ResizeNS,
+            [_, 0] => motion_ui::cursor::Cursor::ResizeEW,
+            [x, y] if x == y => motion_ui::cursor::Cursor::ResizeNESW,
+            _ => motion_ui::cursor::Cursor::ResizeNWSE,
+        });
         let delta = [
             input.mouse[0] - drag.mouse[0],
             input.mouse[1] - drag.mouse[1],

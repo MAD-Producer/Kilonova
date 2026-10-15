@@ -1247,3 +1247,38 @@ fn graph_select_all_uses_keys_and_never_selects_layers_or_changes_project_histor
     assert_eq!(panels.selected,Some(7));
     assert_eq!(engine.project(),&before);
 }
+
+#[test]
+fn shared_graph_wheel_keeps_mouse_time_and_separates_time_and_value_scaling() {
+    let engine=engine();
+    let snapshot=state(&engine,32.);
+    let mut panels=panels();
+    panels.timeline.graph_mode=true;
+    panels.timeline.expanded.insert(7);
+    panels.timeline.zoom=4.;
+    panels.timeline.offset=18.;
+    let mut atlas=TextAtlas::from_system(12.).unwrap();
+    let area=Rect::new(0.,0.,1200.,600.);
+    let mouse=[900.,200.];
+    let gutter=GUTTER.min(area.width()*0.52);
+    let width=area.width()-gutter-8.;
+    let anchor=panels.timeline.offset+(mouse[0]-gutter)/width*120./panels.timeline.zoom;
+    let mut actions=vec![];
+    timeline::render(&mut PaintList::default(),&mut atlas,area,&mut panels,&snapshot,
+        &Input {mouse,wheel:[0.,-20.],modifiers:Modifiers {control:true,..Default::default()},..Default::default()},&mut actions);
+    let after=panels.timeline.offset+(mouse[0]-gutter)/width*120./panels.timeline.zoom;
+    assert!((after-anchor).abs()<0.0001);
+    assert_eq!(panels.timeline.graph_y_zoom,1.);
+    assert!(actions.is_empty());
+    let time=(panels.timeline.zoom,panels.timeline.offset);
+    timeline::render(&mut PaintList::default(),&mut atlas,area,&mut panels,&snapshot,
+        &Input {mouse,wheel:[0.,-20.],modifiers:Modifiers {control:true,alt:true,..Default::default()},..Default::default()},&mut actions);
+    assert_eq!((panels.timeline.zoom,panels.timeline.offset),time);
+    assert!(panels.timeline.graph_y_zoom>1.);
+    let vertical=panels.timeline.graph_y_zoom;
+    timeline::render(&mut PaintList::default(),&mut atlas,area,&mut panels,&snapshot,
+        &Input {mouse,wheel:[0.,f32::NAN],modifiers:Modifiers {control:true,alt:true,..Default::default()},..Default::default()},&mut actions);
+    assert_eq!((panels.timeline.zoom,panels.timeline.offset),time);
+    assert_eq!(panels.timeline.graph_y_zoom,vertical);
+    assert!(actions.is_empty());
+}
