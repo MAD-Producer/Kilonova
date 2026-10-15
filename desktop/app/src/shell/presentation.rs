@@ -568,6 +568,7 @@ impl Shell {
             .map(|(id, _)| *id)
         {
             if let Some(f) = self.floating.remove(&id) {
+                self.resize_queue.remove(&f.key);
                 self.engine.close_window(f.key)?;
             }
         }
@@ -1100,6 +1101,120 @@ mod interaction_tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn mask_timeline_drag_survives_acknowledgement_and_commits_the_latest_release() {
+        use motion_core::masks::{LayerMask, MaskAction, MaskProperty};
+        use motion_core::vector::{PathNode, VectorPath};
+        let folder = tempfile::tempdir().unwrap();
+        let mut shell = Shell::new(folder.path().join("project"), None, Some(Locale::En)).unwrap();
+        shell.home = None;
+        let mut layer = Layer::solid(7, "Masked", [100.; 2], [100., 200., 0.], [1.; 4]);
+        layer.timeline = Some(motion_core::LayerTimeline {
+            in_frame: 12,
+            out_frame: 300,
+            offset_frame: 12,
+        });
+        layer.masks.push(LayerMask::new(
+            1,
+            VectorPath {
+                id: 1,
+                closed: true,
+                nodes: [[10., 10.], [90., 10.], [50., 90.]]
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, p)| PathNode {
+                        id: i as u64 + 1,
+                        geometry: motion_core::Track::constant([p[0], p[1], 0., 0., 0., 0.]),
+                    })
+                    .collect(),
+            },
+        ));
+        shell.state = shell
+            .engine
+            .edit(
+                serde_json::to_string(&vec![
+                    Command::Add { layer },
+                    Command::Mask {
+                        object: 7,
+                        action: MaskAction::Set {
+                            mask: 1,
+                            property: MaskProperty::Opacity,
+                            frame: 21,
+                            value: vec![50.],
+                            animated: Some(true),
+                        },
+                    },
+                    Command::Mask {
+                        object: 7,
+                        action: MaskAction::Set {
+                            mask: 1,
+                            property: MaskProperty::Opacity,
+                            frame: 90,
+                            value: vec![80.],
+                            animated: None,
+                        },
+                    },
+                ])
+                .unwrap(),
+            )
+            .unwrap();
+        let before = shell.state["project"].clone();
+        let id = dock::Panel::Timeline.dock();
+        shell.workspace.root = dock::Node::Dock {
+            id,
+            tabs: vec![id],
+            active: 0,
+        };
+        shell.panels.selected = Some(7);
+        shell.panels.focused = Some(dock::Panel::Timeline);
+        shell.panels.timeline.expanded.insert(7);
+        shell.panels.timeline.collapsed_transforms.insert(7);
+        let area = panels::frames(&shell.workspace.root, [1280., 700.])[0].content;
+        let point = |frame: f32| {
+            [
+                640. + frame * 632. / 300.,
+                area.min[1] + 64. + 4. * 22. + 11.,
+            ]
+        };
+        shell.translate(Event::MousePressed {
+            position: point(21.),
+            button: MouseButton::Left,
+        });
+        let (_, actions) = shell.draw_commands([1280., 700.]);
+        shell.actions.extend(actions);
+        finish_actions(&mut shell);
+        shell.translate(Event::MouseMoved {
+            position: point(51.),
+        });
+        let (_, actions) = shell.draw_commands([1280., 700.]);
+        assert!(matches!(
+            &actions[..],
+            [panels::Action::History(2), panels::Action::Edit(_)]
+        ));
+        shell.actions.extend(actions);
+        shell.translate(Event::MouseReleased {
+            position: point(69.),
+            button: MouseButton::Left,
+        });
+        assert_eq!(finish_actions(&mut shell), 1);
+        assert!(shell.draw_acknowledged([1280., 700.]).1.is_empty());
+        assert!(shell.input.pending && shell.input.released.is_some());
+        let (_, actions) = shell.draw_commands([1280., 700.]);
+        assert!(matches!(
+            &actions[..],
+            [panels::Action::Edit(_), panels::Action::History(3)]
+        ));
+        shell.actions.extend(actions);
+        finish_actions(&mut shell);
+        let keys = &shell.state["project"]["layers"][0]["masks"][0]["opacity"]["keys"];
+        assert_eq!(keys[0]["frame"], 57);
+        assert_eq!(
+            keys[1],
+            before["layers"][0]["masks"][0]["opacity"]["keys"][1]
+        );
+        assert_eq!(shell.engine.history(0).unwrap()["project"], before);
     }
 
     #[test]

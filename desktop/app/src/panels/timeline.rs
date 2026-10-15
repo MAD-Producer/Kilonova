@@ -5,6 +5,8 @@ use std::hash::{Hash, Hasher};
 pub(super) struct Row {
     pub(super) spatial: bool,
     audio: usize,
+    pub(super) masks: Vec<motion_core::masks::LayerMask>,
+    pub(super) mask_offset: i32,
     pub(super) id: u64,
     pub(super) name: String,
     name_lower: String,
@@ -77,7 +79,7 @@ pub(super) fn property_icon(
         },
     );
 }
-fn property_group(
+pub(super) fn property_group(
     list: &mut PaintList,
     atlas: &mut TextAtlas,
     area: Rect,
@@ -209,6 +211,16 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
                     }
                 }
             }
+            let masks: Vec<motion_core::masks::LayerMask> =
+                serde_json::from_value(l["masks"].clone()).unwrap_or_default();
+            let mask_offset = l["timeline"]["offset_frame"].as_i64().unwrap_or(0) as i32;
+            for mask in &masks {
+                for index in 0..3 {
+                    for frame in super::path_controls::timeline::key_frames(mask, index) {
+                        keys.push(f64::from(frame) + f64::from(mask_offset));
+                    }
+                }
+            }
             keys.sort_by(|a, b| a.total_cmp(b));
             keys.dedup();
             let offset = l["timeline"]["offset_frame"].as_i64().unwrap_or(0);
@@ -240,6 +252,8 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
                 } else {
                     0
                 },
+                masks,
+                mask_offset,
                 id,
                 name: l["name"].as_str().unwrap_or("Layer").into(),
                 name_lower: l["name"].as_str().unwrap_or("Layer").to_lowercase(),
@@ -279,6 +293,8 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
             Row {
                 spatial: false,
                 audio: 0,
+                masks: vec![],
+                mask_offset: 0,
                 id: 0,
                 name: "Camera".into(),
                 name_lower: "camera".into(),
@@ -342,6 +358,14 @@ fn scroll_extent_signature(
     for id in &timeline.collapsed_transforms {
         id.hash(&mut hash);
     }
+    timeline.collapsed_masks.len().hash(&mut hash);
+    timeline.collapsed_mask_items.len().hash(&mut hash);
+    for object in &timeline.collapsed_masks {
+        object.hash(&mut hash);
+    }
+    for item in &timeline.collapsed_mask_items {
+        item.hash(&mut hash);
+    }
     timeline.filters.len().hash(&mut hash);
     for entry in &timeline.filters {
         entry.hash(&mut hash);
@@ -385,7 +409,7 @@ pub(super) fn row_count(row: &Row, timeline: &types::TimelineState) -> usize {
         }
     } else {
         0
-    }
+    } + super::path_controls::timeline::row_count(row, timeline)
 }
 pub(super) fn filtered_properties(
     state: &Value,
@@ -486,6 +510,7 @@ pub(super) fn render(
     let input = if panels.timeline.timeline_context_menu.is_some()
         || panels.timeline_columns.editing()
         || panels.layer_actions.editing()
+        || panels.path_controls.mask_menu()
     {
         &neutral
     } else {
@@ -554,7 +579,8 @@ pub(super) fn render(
         || panels.timeline.trimming.is_some()
         || panels.timeline.scrubbing
         || panels.properties.field.is_some()
-        || panels.audio_controls.editing();
+        || panels.audio_controls.editing()
+        || panels.path_controls.editing();
     if area.contains(input.mouse) && wheel.is_finite() && wheel != 0. && !gesture {
         let graph_wheel = graph_mode
             && input.mouse[0] >= track.min[0]
@@ -878,11 +904,19 @@ pub(super) fn render(
                 panels.select_only(Some(row.id));
                 let audio_y =
                     y + (1 + if row.spatial { 1 + property_count } else { 0 }) as f32 * row_height;
-                if expanded && point[1] >= audio_y {
+                let audio_rows = 1 + if panels.timeline.collapsed_audio.contains(&row.id) {
+                    0
+                } else {
+                    row.audio
+                };
+                if expanded
+                    && point[1] >= audio_y
+                    && point[1] < audio_y + audio_rows as f32 * row_height
+                {
                     panels
                         .layer_actions
                         .open_audio(row.id, point, state, locale);
-                } else {
+                } else if point[1] < audio_y {
                     panels.layer_actions.open(Some(row.id), point, state);
                 }
             }
@@ -1232,6 +1266,9 @@ pub(super) fn render(
             }
         }
     }
+    super::path_controls::timeline::process(
+        list, &all_rows, body, ppf, offset, panels, state, input, out,
+    );
     if !graph_mode && clicked(input, body) && !timeline_hit {
         panels.select_only(None);
         panels.properties.field = None;
@@ -1467,9 +1504,13 @@ pub(super) fn render(
     panels
         .timeline_columns
         .overlay(list, atlas, area, state, context_input, locale, out);
-    if right_clicked(input, body) && !panels.layer_actions.editing() {
+    if right_clicked(input, body)
+        && !panels.layer_actions.editing()
+        && !panels.path_controls.mask_menu()
+    {
         panels.layer_actions.open(None, input.mouse, state);
     }
+    panels.path_controls.mask_overlay(list, atlas, area, context_input, locale, out);
 }
 
 #[cfg(test)]
@@ -1934,6 +1975,20 @@ pub(super) fn render_layer_properties(
             );
         }
     }
+    let audio_rows = if row.audio > 0 {
+        1 + if panels.timeline.collapsed_audio.contains(&row.id) {
+            0
+        } else {
+            row.audio
+        }
+    } else {
+        0
+    };
+    let start = y + (1 + if row.spatial { 1 + property_count } else { 0 } + audio_rows)
+        as f32 * row_height;
+    super::path_controls::timeline::render(
+        list, atlas, area, body, track, start, row_height, ppf, offset, row, panels, state, input, out,
+    );
 }
 
 pub(super) fn render_time_ruler(

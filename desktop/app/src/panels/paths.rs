@@ -36,7 +36,7 @@ pub(super) fn render(
                 _ => 0.,
             }
     } else {
-        panels.path_controls.height(&layer)
+        panels.path_controls.height(&layer, styles.as_ref())
     };
     let mut y = auxiliary::body_y(panel, area, height + 16., panels, input);
     panels.path_controls.inspector_section(

@@ -425,6 +425,14 @@ impl Shell {
                 self.switch_workspace(self.workspace.preset, event_loop)?;
                 self.workspace.reset_preset();
             }
+            Action::MaskTimeline { object, mask } => {
+                self.stop();
+                let actions = panels::reveal_mask_keys(&mut self.panels, &self.state, object, mask);
+                for action in actions {
+                    self.action(action, event_loop)?;
+                }
+                self.action(Action::ShowPanel(dock::Panel::Timeline.dock()), event_loop)?;
+            }
             Action::ShowPanel(id) => {
                 self.panels.node_editor.cancel_interaction();
                 if let Some(f) = self.floating.values().find(|f| f.panel.dock() == id) {

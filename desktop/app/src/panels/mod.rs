@@ -161,6 +161,17 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     actions
 }
 
+pub(crate) fn reveal_mask_keys(
+    panels: &mut Panels,
+    state: &Value,
+    object: u64,
+    mask: u64,
+) -> Vec<Action> {
+    let actions = cancel_interaction(panels);
+    path_controls::timeline::reveal(panels, state, object, mask);
+    actions
+}
+
 /// The chrome leaves a hole for the preview; its geometry is also used for hit testing.
 pub fn chrome(
     list: &mut PaintList,
@@ -197,6 +208,7 @@ pub fn chrome(
         panels.focused == Some(Panel::Timeline)
             && panels.properties.field.is_none()
             && !panels.audio_controls.editing()
+            && !panels.path_controls.editing()
             && !panels.timeline.timeline_search,
         &mut out,
     );
@@ -247,7 +259,11 @@ pub fn chrome(
     if !panels.fx_console_in(None)
         && !(panels.fx_console.is_some() && keyboard::console_close_pressed(input))
         && !node_modal
-        && matches!(panels.focused, Some(Panel::Masks | Panel::Vector))
+        && matches!(
+            panels.focused,
+            Some(Panel::Masks | Panel::Vector | Panel::Timeline | Panel::Curves)
+        )
+        && panels.path_controls.numeric_owner() == panels.focused
     {
         panels.path_controls.parameter_input(
             state,
@@ -740,12 +756,17 @@ pub fn floating_chrome(
         panel == Panel::Timeline
             && panels.properties.field.is_none()
             && !panels.audio_controls.editing()
+            && !panels.path_controls.editing()
             && !panels.timeline.timeline_search,
         &mut out,
     );
     if !panels.fx_console_in(Some(panel))
         && !(panels.fx_console.is_some() && keyboard::console_close_pressed(input))
-        && matches!(panel, Panel::Masks | Panel::Vector)
+        && matches!(
+            panel,
+            Panel::Masks | Panel::Vector | Panel::Timeline | Panel::Curves
+        )
+        && panels.path_controls.numeric_owner() == Some(panel)
     {
         panels.path_controls.parameter_input(
             state,

@@ -56,6 +56,7 @@ pub enum Action {
     WindowMinimize,
     WindowMaximize,
     ShowPanel(dock::DockId),
+    MaskTimeline { object: u64, mask: u64 },
     About,
     ExportDiagnostics,
     ToggleDiagnostics,
@@ -146,6 +147,7 @@ pub(crate) struct CompositionState {
 
 impl Panels {
     pub(crate) fn select_only(&mut self, object: Option<u64>) {
+        self.path_controls.clear_mask_selection();
         self.audio_controls.clear_selection();
         self.selected = object;
         self.selection_anchor = object.filter(|id| *id != 0);
@@ -380,6 +382,8 @@ pub(crate) struct TimelineState {
     pub expanded: std::collections::HashSet<u64>,
     pub collapsed_transforms: std::collections::HashSet<u64>,
     pub collapsed_audio: std::collections::HashSet<u64>,
+    pub collapsed_masks: std::collections::HashSet<u64>,
+    pub collapsed_mask_items: std::collections::HashSet<(u64, u64)>,
     pub filters: std::collections::HashMap<u64, PropertyFilter>,
     pub graph_mode: bool,
     pub(super) clip_view: Option<TimelineViewport>,

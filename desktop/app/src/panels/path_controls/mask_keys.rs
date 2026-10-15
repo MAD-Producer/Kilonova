@@ -1,23 +1,58 @@
-//! Mask tracks keep their stored local times; UI commands use composition time.
+//! Mask keys use composition time and the shared timeline's viewport.
 use super::*;
 use motion_core::{Ease, Easing};
 use motion_ui::{
-    icons::{self, Icon},
+    icons::Icon,
     widgets::{Dropdown, DropdownItem},
 };
 
+#[derive(Clone, Copy)]
+pub(super) struct Owner {
+    pub object: u64,
+    pub locked: bool,
+    pub offset: i32,
+}
+impl From<&Layer> for Owner {
+    fn from(layer: &Layer) -> Self {
+        Self {
+            object: layer.id,
+            locked: layer.locked,
+            offset: layer.timeline.map_or(0, |t| t.offset_frame),
+        }
+    }
+}
 #[derive(Clone, PartialEq, Eq)]
 struct Channel {
     object: u64,
     mask: u64,
     property: u8,
 }
-
 fn property(index: u8) -> MaskProperty {
     match index {
         0 => MaskProperty::Opacity,
         1 => MaskProperty::Feather,
         _ => MaskProperty::Expansion,
+    }
+}
+pub(super) fn frames(mask: &LayerMask, index: u8) -> Vec<i32> {
+    match index {
+        0 => mask.opacity.keys.iter().map(|k| k.frame).collect(),
+        1 => mask.feather.keys.iter().map(|k| k.frame).collect(),
+        _ => mask.expansion.keys.iter().map(|k| k.frame).collect(),
+    }
+}
+pub(super) fn values(mask: &LayerMask, index: u8, local: f64) -> Vec<f32> {
+    match index {
+        0 => vec![mask.opacity.sample(local)],
+        1 => mask.feather.sample(local).to_vec(),
+        _ => vec![mask.expansion.sample(local)],
+    }
+}
+pub(super) fn animated(mask: &LayerMask, index: u8) -> bool {
+    match index {
+        0 => mask.opacity.is_animated(),
+        1 => mask.feather.is_animated(),
+        _ => mask.expansion.is_animated(),
     }
 }
 struct Drag {
@@ -27,6 +62,8 @@ struct Drag {
     start: f32,
     begun: bool,
     lane: Rect,
+    ppf: f32,
+    offset: f32,
 }
 struct Menu {
     channel: Channel,
@@ -34,11 +71,14 @@ struct Menu {
     anchor: Rect,
     dropdown: Dropdown,
     opened: bool,
+    existing: bool,
     can_curve: bool,
+    values: Vec<f32>,
 }
 #[derive(Default)]
 pub(super) struct Controls {
     context: Option<(String, String, u64)>,
+    active: Option<Channel>,
     selected: Option<(Channel, u32)>,
     drag: Option<Drag>,
     menu: Option<Menu>,
@@ -49,33 +89,6 @@ fn command(channel: &Channel, action: MaskAction) -> Action {
         action,
     })
 }
-fn icon(
-    list: &mut PaintList,
-    input: &Input,
-    rect: Rect,
-    kind: Icon,
-    active: bool,
-    enabled: bool,
-) -> bool {
-    let colors = list.styles().colors();
-    if rect.contains(input.mouse) && enabled {
-        paint::rect(list, rect, colors.SUNKEN);
-    }
-    icons::draw(
-        list,
-        rect,
-        kind,
-        13.,
-        if !enabled {
-            colors.TEXT_MUTED.with_alpha(0.4)
-        } else if active {
-            colors.ACCENT
-        } else {
-            colors.TEXT_MUTED
-        },
-    );
-    enabled && click(input, rect)
-}
 impl Controls {
     pub(super) fn editing(&self) -> bool {
         self.drag.is_some() || self.menu.is_some()
@@ -83,10 +96,359 @@ impl Controls {
     pub(super) fn modal(&self) -> bool {
         self.menu.is_some()
     }
+    pub(super) fn clear_selection(&mut self) {
+        self.active = None;
+        self.selected = None;
+    }
     pub(super) fn cancel(&mut self) -> bool {
         self.menu = None;
-        self.selected = None;
+        self.clear_selection();
         self.drag.take().is_some_and(|d| d.begun)
+    }
+    pub(super) fn owner(&self) -> Option<u64> {
+        self.drag
+            .as_ref()
+            .map(|d| d.channel.object)
+            .or_else(|| self.active.as_ref().map(|c| c.object))
+    }
+    pub(super) fn prepare(
+        &mut self,
+        state: &Value,
+        layer: &Layer,
+        input: &Input,
+        out: &mut Vec<Action>,
+    ) {
+        self.prepare_owner(state, Owner::from(layer), &layer.masks, input, out);
+    }
+    pub(super) fn prepare_owner(
+        &mut self,
+        state: &Value,
+        owner: Owner,
+        masks: &[LayerMask],
+        input: &Input,
+        out: &mut Vec<Action>,
+    ) {
+        let context = (
+            state["root"].as_str().unwrap_or("").into(),
+            state["composition"].as_str().unwrap_or("").into(),
+            owner.object,
+        );
+        let key_frames = |channel: &Channel| {
+            masks
+                .iter()
+                .find(|m| m.id == channel.mask)
+                .map(|m| frames(m, channel.property))
+        };
+        let missing = self.drag.as_ref().is_some_and(|d| {
+            key_frames(&d.channel).is_none_or(|keys| {
+                !keys
+                    .iter()
+                    .any(|f| i64::from(*f) + i64::from(owner.offset) == i64::from(d.from))
+            })
+        }) || self.menu.as_ref().is_some_and(|m| {
+            m.existing
+                && key_frames(&m.channel).is_none_or(|keys| {
+                    !keys
+                        .iter()
+                        .any(|f| i64::from(*f) + i64::from(owner.offset) == i64::from(m.frame))
+                })
+        });
+        if let Some(menu) = &mut self.menu {
+            menu.can_curve = menu.existing
+                && key_frames(&menu.channel).is_some_and(|keys| {
+                    keys.iter()
+                        .any(|f| i64::from(*f) + i64::from(owner.offset) > i64::from(menu.frame))
+                });
+        }
+        if self.context.as_ref() != Some(&context)
+            || owner.locked
+            || missing
+            || input.focus_lost
+            || input.keys.iter().any(|(k, _)| *k == Key::Escape)
+        {
+            if self.cancel() {
+                out.push(Action::History(4));
+            }
+        }
+        self.context = Some(context);
+    }
+    pub(super) fn choose(
+        &mut self,
+        state: &Value,
+        owner: Owner,
+        mask: u64,
+        index: u8,
+        out: &mut Vec<Action>,
+    ) {
+        let context = (
+            state["root"].as_str().unwrap_or("").into(),
+            state["composition"].as_str().unwrap_or("").into(),
+            owner.object,
+        );
+        if self.context.as_ref() != Some(&context) {
+            if self.cancel() {
+                out.push(Action::History(4));
+            }
+            self.context = Some(context);
+        }
+        self.active = Some(Channel {
+            object: owner.object,
+            mask,
+            property: index,
+        });
+        self.selected = None;
+    }
+    pub(super) fn watch(
+        &mut self,
+        list: &mut PaintList,
+        rect: Rect,
+        state: &Value,
+        owner: Owner,
+        mask: &LayerMask,
+        index: u8,
+        input: &Input,
+        out: &mut Vec<Action>,
+    ) {
+        crate::panels::timeline::property_icon(
+            list,
+            rect,
+            Icon::Stopwatch,
+            animated(mask, index),
+            !owner.locked,
+        );
+        if !owner.locked && click(input, rect) {
+            out.push(command(
+                &Channel {
+                    object: owner.object,
+                    mask: mask.id,
+                    property: index,
+                },
+                MaskAction::Animate {
+                    mask: mask.id,
+                    property: property(index),
+                    frame: state["frame"].as_f64().unwrap_or(0.).floor().max(0.) as u32,
+                    enabled: !animated(mask, index),
+                },
+            ));
+        }
+    }
+    pub(super) fn lane(
+        &mut self,
+        list: &mut PaintList,
+        lane: Rect,
+        ppf: f32,
+        offset: f32,
+        state: &Value,
+        owner: Owner,
+        mask: &LayerMask,
+        index: u8,
+        input: &Input,
+        out: &mut Vec<Action>,
+    ) {
+        let channel = Channel {
+            object: owner.object,
+            mask: mask.id,
+            property: index,
+        };
+        let stored = frames(mask, index);
+        let total = state["project"]["frames"].as_u64().unwrap_or(1).max(1) as u32;
+        let colors = list.styles().colors();
+        let mut keys = list.child();
+        let mut hit = None;
+        let cy = lane.min[1] + lane.height() * 0.5;
+        for local in &stored {
+            let time = i64::from(*local) + i64::from(owner.offset);
+            if time < 0 || time >= i64::from(total) {
+                continue;
+            }
+            let x = lane.min[0] + (time as f32 - offset) * ppf;
+            if x < lane.min[0] || x >= lane.max[0] {
+                continue;
+            }
+            let selected = self
+                .selected
+                .as_ref()
+                .is_some_and(|(c, f)| *c == channel && i64::from(*f) == time);
+            let current = (time as f64 - state["frame"].as_f64().unwrap_or(0.)).abs() < 0.001;
+            paint::diamond(
+                &mut keys,
+                [x, cy],
+                4.,
+                if selected || current {
+                    colors.KEYFRAME
+                } else {
+                    colors.ACCENT
+                },
+            );
+            if distance(input.mouse, [x, cy]) <= 7. {
+                hit = Some(time as u32);
+            }
+        }
+        keys.clip_to(lane);
+        list.append(keys);
+        if let Some((button, point)) = input.pressed.filter(|(_, p)| lane.contains(*p)) {
+            self.active = Some(channel.clone());
+            if let Some(time) = hit {
+                self.selected = Some((channel.clone(), time));
+                if button == MouseButton::Left && !owner.locked {
+                    self.drag = Some(Drag {
+                        channel: channel.clone(),
+                        from: time,
+                        origin: time,
+                        start: point[0],
+                        begun: false,
+                        lane,
+                        ppf,
+                        offset,
+                    });
+                    out.push(Action::Seek(f64::from(time)));
+                }
+            } else {
+                self.selected = None;
+            }
+            if button == MouseButton::Right && !owner.locked {
+                let time = hit.unwrap_or_else(|| {
+                    (((point[0] - lane.min[0]) / ppf + offset)
+                        .round()
+                        .clamp(0., (total - 1) as f32)) as u32
+                });
+                self.menu = Some(Menu {
+                    channel,
+                    frame: time,
+                    anchor: Rect::new(point[0], point[1], 200., 1.),
+                    dropdown: Dropdown::default(),
+                    opened: true,
+                    existing: hit.is_some(),
+                    can_curve: hit.is_some()
+                        && stored
+                            .iter()
+                            .any(|f| i64::from(*f) + i64::from(owner.offset) > i64::from(time)),
+                    values: values(mask, index, f64::from(time) - f64::from(owner.offset)),
+                });
+            }
+        }
+    }
+    pub(super) fn process_drag(
+        &mut self,
+        state: &Value,
+        owner: Owner,
+        masks: &[LayerMask],
+        body: Rect,
+        ppf: f32,
+        offset: f32,
+        input: &Input,
+        out: &mut Vec<Action>,
+        threshold: f32,
+    ) {
+        self.prepare_owner(state, owner, masks, input, out);
+        let Some(mut drag) = self.drag.take() else {
+            return;
+        };
+        let Some(mask) = masks.iter().find(|m| m.id == drag.channel.mask) else {
+            if drag.begun {
+                out.push(Action::History(4));
+            }
+            return;
+        };
+        if drag.ppf != ppf
+            || drag.offset != offset
+            || drag.lane.min[1] < body.min[1]
+            || drag.lane.max[1] > body.max[1]
+            || !ppf.is_finite()
+            || ppf <= 0.
+        {
+            if drag.begun {
+                out.push(Action::History(4));
+            }
+            return;
+        }
+        let release = input.released.is_some_and(|(b, _)| b == MouseButton::Left);
+        if input.dragging() || release {
+            let delta = input.mouse[0] - drag.start;
+            let total = state["project"]["frames"].as_u64().unwrap_or(1).max(1) as u32;
+            let target = (drag.origin as f32 + delta / ppf)
+                .round()
+                .clamp(0., (total - 1) as f32) as u32;
+            let occupied = frames(mask, drag.channel.property)
+                .iter()
+                .any(|f| i64::from(*f) + i64::from(owner.offset) == i64::from(target));
+            if (drag.begun
+                || motion_ui::widgets::numeric_behavior::started(
+                    delta,
+                    input.pointer_travel,
+                    threshold,
+                ))
+                && target != drag.from
+                && !occupied
+            {
+                if !drag.begun {
+                    out.push(Action::History(2));
+                    drag.begun = true;
+                }
+                out.push(command(
+                    &drag.channel,
+                    MaskAction::MoveKey {
+                        mask: drag.channel.mask,
+                        property: property(drag.channel.property),
+                        from: drag.from,
+                        to: target,
+                    },
+                ));
+                drag.from = target;
+                self.selected = Some((drag.channel.clone(), target));
+            }
+        }
+        if release {
+            if drag.begun {
+                out.push(Action::History(3));
+            }
+        } else {
+            self.drag = Some(drag);
+        }
+    }
+    pub(super) fn navigate(
+        &mut self,
+        state: &Value,
+        selected: Option<u64>,
+        input: &Input,
+        out: &mut Vec<Action>,
+    ) -> bool {
+        let Some(channel) = self.active.clone().filter(|c| Some(c.object) == selected) else {
+            return false;
+        };
+        let Some(layer) = super::layer(state, channel.object) else {
+            return false;
+        };
+        let Some(mask) = layer.masks.iter().find(|m| m.id == channel.mask) else {
+            return false;
+        };
+        let offset = i64::from(Owner::from(&layer).offset);
+        let total = state["project"]["frames"].as_u64().unwrap_or(1) as i64;
+        let keys: Vec<_> = frames(mask, channel.property)
+            .into_iter()
+            .map(|f| i64::from(f) + offset)
+            .filter(|f| *f >= 0 && *f < total)
+            .collect();
+        let mut at = state["frame"].as_f64().unwrap_or(0.);
+        let mut consumed = false;
+        for (key, mods, _) in input
+            .key_presses()
+            .filter(|(k, m, _)| matches!(k, Key::J | Key::K) && !m.control && !m.alt && !m.shift)
+        {
+            let _ = mods;
+            consumed = true;
+            let target = if key == Key::J {
+                keys.iter().copied().filter(|f| (*f as f64) < at).max()
+            } else {
+                keys.iter().copied().find(|f| (*f as f64) > at)
+            };
+            if let Some(frame) = target {
+                at = frame as f64;
+                self.selected = Some((channel.clone(), frame as u32));
+                out.push(Action::Seek(at));
+            }
+        }
+        consumed
     }
     pub(super) fn delete_selected(
         &mut self,
@@ -103,46 +465,31 @@ impl Controls {
         let Some((channel, frame)) = self.selected.take() else {
             return false;
         };
-        if self.context.as_ref()
-            != Some(&(
-                state["root"].as_str().unwrap_or("").into(),
-                state["composition"].as_str().unwrap_or("").into(),
-                channel.object,
-            ))
-            || selected != Some(channel.object)
-        {
+        if selected != Some(channel.object) {
+            self.clear_selection();
             return true;
         }
         let Some(layer) = super::layer(state, channel.object).filter(|l| !l.locked) else {
             return true;
         };
-        let Some(mask) = layer.masks.iter().find(|m| m.id == channel.mask) else {
-            return true;
-        };
-        let local = i64::from(frame)
-            - i64::from(
-                layer
-                    .clip(state["project"]["frames"].as_u64().unwrap_or(1) as u32)
-                    .offset_frame,
-            );
-        let exists = match channel.property {
-            0 => mask
-                .opacity
-                .keys
+        let valid = self.context.as_ref()
+            == Some(&(
+                state["root"].as_str().unwrap_or("").into(),
+                state["composition"].as_str().unwrap_or("").into(),
+                channel.object,
+            ));
+        let local = i64::from(frame) - i64::from(Owner::from(&layer).offset);
+        if valid
+            && layer
+                .masks
                 .iter()
-                .any(|k| i64::from(k.frame) == local),
-            1 => mask
-                .feather
-                .keys
-                .iter()
-                .any(|k| i64::from(k.frame) == local),
-            _ => mask
-                .expansion
-                .keys
-                .iter()
-                .any(|k| i64::from(k.frame) == local),
-        };
-        if exists {
+                .find(|m| m.id == channel.mask)
+                .is_some_and(|m| {
+                    frames(m, channel.property)
+                        .iter()
+                        .any(|f| i64::from(*f) == local)
+                })
+        {
             out.push(command(
                 &channel,
                 MaskAction::DeleteKey {
@@ -153,278 +500,6 @@ impl Controls {
             ));
         }
         true
-    }
-    pub(super) fn prepare(
-        &mut self,
-        state: &Value,
-        layer: &Layer,
-        input: &Input,
-        out: &mut Vec<Action>,
-    ) {
-        let context = (
-            state["root"].as_str().unwrap_or("").into(),
-            state["composition"].as_str().unwrap_or("").into(),
-            layer.id,
-        );
-        let frames = |channel: &Channel| -> Option<Vec<i32>> {
-            let mask = layer.masks.iter().find(|m| m.id == channel.mask)?;
-            Some(match channel.property {
-                0 => mask.opacity.keys.iter().map(|k| k.frame).collect(),
-                1 => mask.feather.keys.iter().map(|k| k.frame).collect(),
-                _ => mask.expansion.keys.iter().map(|k| k.frame).collect(),
-            })
-        };
-        let offset = i64::from(
-            layer
-                .clip(state["project"]["frames"].as_u64().unwrap_or(1) as u32)
-                .offset_frame,
-        );
-        let missing = self.drag.as_ref().is_some_and(|drag| {
-            frames(&drag.channel).is_none_or(|keys| {
-                !keys
-                    .iter()
-                    .any(|f| i64::from(*f) + offset == i64::from(drag.from))
-            })
-        }) || self.menu.as_ref().is_some_and(|menu| {
-            frames(&menu.channel).is_none_or(|keys| {
-                !keys
-                    .iter()
-                    .any(|f| i64::from(*f) + offset == i64::from(menu.frame))
-            })
-        });
-        if let Some(menu) = &mut self.menu {
-            menu.can_curve = frames(&menu.channel).is_some_and(|keys| {
-                keys.iter()
-                    .any(|f| i64::from(*f) + offset > i64::from(menu.frame))
-            });
-        }
-        if self.context.as_ref() != Some(&context)
-            || layer.locked
-            || missing
-            || input.focus_lost
-            || input.keys.iter().any(|(k, _)| *k == Key::Escape)
-        {
-            if self.cancel() {
-                out.push(Action::History(4));
-            }
-            self.selected = None;
-        }
-        self.context = Some(context);
-    }
-    pub(super) fn row(
-        &mut self,
-        list: &mut PaintList,
-        area: Rect,
-        y: f32,
-        state: &Value,
-        layer: &Layer,
-        mask: &LayerMask,
-        index: u8,
-        keys: &[i32],
-        values: &[f32],
-        input: &Input,
-        out: &mut Vec<Action>,
-    ) -> f32 {
-        let channel = Channel {
-            object: layer.id,
-            mask: mask.id,
-            property: index,
-        };
-        let total = state["project"]["frames"]
-            .as_u64()
-            .unwrap_or(1)
-            .max(1)
-            .min(u32::MAX as u64) as u32;
-        let frame = (state["frame"].as_f64().unwrap_or(0.).floor().max(0.) as u32).min(total - 1);
-        let offset = i64::from(layer.clip(total).offset_frame);
-        let local_keys = keys;
-        let keys: Vec<u32> = keys
-            .iter()
-            .filter_map(|key| {
-                u32::try_from(i64::from(*key) + offset)
-                    .ok()
-                    .filter(|f| *f < total)
-            })
-            .collect();
-        let animated = match index {
-            0 => mask.opacity.is_animated(),
-            1 => mask.feather.is_animated(),
-            _ => mask.expansion.is_animated(),
-        };
-        if icon(
-            list,
-            input,
-            Rect::new(area.min[0] + 14., y, 20., 24.),
-            Icon::Stopwatch,
-            animated,
-            !layer.locked,
-        ) {
-            out.push(command(
-                &channel,
-                MaskAction::Animate {
-                    mask: mask.id,
-                    property: property(index),
-                    frame,
-                    enabled: !animated,
-                },
-            ));
-        }
-        if !animated {
-            return 28.;
-        }
-        let nav_y = y + 24.;
-        for (i, kind) in [Icon::Previous, Icon::Key, Icon::Next]
-            .into_iter()
-            .enumerate()
-        {
-            let target = if i == 0 {
-                keys.iter().copied().filter(|f| *f < frame).max()
-            } else {
-                keys.iter().copied().find(|f| *f > frame)
-            };
-            if icon(
-                list,
-                input,
-                Rect::new(area.min[0] + 14. + i as f32 * 20., nav_y, 20., 22.),
-                kind,
-                i == 1 && keys.contains(&frame),
-                !layer.locked && (i == 1 || target.is_some()),
-            ) {
-                if i == 1 {
-                    out.push(command(
-                        &channel,
-                        if keys.contains(&frame) {
-                            MaskAction::DeleteKey {
-                                mask: mask.id,
-                                property: property(index),
-                                frame,
-                            }
-                        } else {
-                            MaskAction::Set {
-                                mask: mask.id,
-                                property: property(index),
-                                frame,
-                                value: values.to_vec(),
-                                animated: Some(true),
-                            }
-                        },
-                    ));
-                } else if let Some(target) = target {
-                    out.push(Action::Seek(f64::from(target)));
-                }
-            }
-        }
-        let lane = Rect::new(area.min[0] + 80., nav_y, (area.width() - 96.).max(1.), 22.);
-        let x = |f: u32| lane.min[0] + f as f32 / (total - 1).max(1) as f32 * lane.width();
-        let colors = list.styles().colors();
-        paint::line(
-            list,
-            vec![
-                [lane.min[0], lane.min[1] + 11.],
-                [lane.max[0], lane.min[1] + 11.],
-            ],
-            colors.BORDER,
-        );
-        paint::line(
-            list,
-            vec![[x(frame), lane.min[1]], [x(frame), lane.max[1]]],
-            colors.ACCENT.with_alpha(0.5),
-        );
-        let mut hit = None;
-        for key in &keys {
-            let center = [x(*key), nav_y + 11.];
-            let selected = self
-                .selected
-                .as_ref()
-                .is_some_and(|(c, f)| *c == channel && *f == *key);
-            let color = if selected || *key == frame {
-                colors.ACCENT
-            } else {
-                colors.TEXT_MUTED
-            };
-            paint::diamond(list, center, 4., color);
-            if distance(input.mouse, center) <= 7. {
-                hit = Some(*key);
-            }
-        }
-        if let Some((button, point)) = input.pressed.filter(|(_, p)| lane.contains(*p)) {
-            if let Some(key) = hit {
-                self.selected = Some((channel.clone(), key));
-                if button == MouseButton::Left && !layer.locked {
-                    self.drag = Some(Drag {
-                        channel: channel.clone(),
-                        from: key,
-                        origin: key,
-                        start: point[0],
-                        begun: false,
-                        lane,
-                    });
-                    out.push(Action::Seek(f64::from(key)));
-                } else if button == MouseButton::Right && !layer.locked {
-                    self.menu = Some(Menu {
-                        channel: channel.clone(),
-                        frame: key,
-                        anchor: Rect::new(point[0], point[1], 180., 1.),
-                        dropdown: Dropdown::default(),
-                        opened: true,
-                        can_curve: local_keys
-                            .iter()
-                            .any(|f| i64::from(*f) + offset > i64::from(key)),
-                    });
-                }
-            } else if button == MouseButton::Left {
-                out.push(Action::Seek(
-                    (((point[0] - lane.min[0]) / lane.width()) * (total - 1) as f32)
-                        .round()
-                        .clamp(0., (total - 1) as f32) as f64,
-                ));
-            }
-        }
-        if self.drag.as_ref().is_some_and(|d| d.channel == channel) {
-            let mut drag = self.drag.take().unwrap();
-            if !keys.contains(&drag.from) || layer.locked || lane != drag.lane {
-                if drag.begun {
-                    out.push(Action::History(4));
-                }
-            } else {
-                let release = input.released.is_some_and(|(b, _)| b == MouseButton::Left);
-                if input.dragging() || release {
-                    let delta = input.mouse[0] - drag.start;
-                    let target = (drag.origin as f32 + delta / lane.width() * (total - 1) as f32)
-                        .round()
-                        .clamp(0., (total - 1) as f32) as u32;
-                    if (drag.begun
-                        || delta.abs() >= list.styles().metric("motion.drag_threshold", 3.))
-                        && target != drag.from
-                        && !keys.contains(&target)
-                    {
-                        if !drag.begun {
-                            out.push(Action::History(2));
-                            drag.begun = true;
-                        }
-                        out.push(command(
-                            &channel,
-                            MaskAction::MoveKey {
-                                mask: mask.id,
-                                property: property(index),
-                                from: drag.from,
-                                to: target,
-                            },
-                        ));
-                        drag.from = target;
-                        self.selected = Some((channel.clone(), target));
-                    }
-                }
-                if release {
-                    if drag.begun {
-                        out.push(Action::History(3));
-                    }
-                } else {
-                    self.drag = Some(drag);
-                }
-            }
-        }
-        50.
     }
     pub(super) fn overlay(
         &mut self,
@@ -438,12 +513,26 @@ impl Controls {
         let Some(menu) = &mut self.menu else {
             return;
         };
-        let zh = locale == Locale::Zh;
-        let labels = if zh {
-            ["删除关键帧", "线性", "保持", "缓入", "缓出", "缓入缓出"]
+        let labels = if locale == Locale::Zh {
+            [
+                if menu.existing {
+                    "删除关键帧"
+                } else {
+                    "添加关键帧"
+                },
+                "线性",
+                "保持",
+                "缓入",
+                "缓出",
+                "缓入缓出",
+            ]
         } else {
             [
-                "Delete keyframe",
+                if menu.existing {
+                    "Delete keyframe"
+                } else {
+                    "Add keyframe"
+                },
                 "Linear",
                 "Hold",
                 "Ease in",
@@ -485,10 +574,20 @@ impl Controls {
             out.push(command(
                 &menu.channel,
                 if index == 0 {
-                    MaskAction::DeleteKey {
-                        mask: menu.channel.mask,
-                        property: property(menu.channel.property),
-                        frame: menu.frame,
+                    if menu.existing {
+                        MaskAction::DeleteKey {
+                            mask: menu.channel.mask,
+                            property: property(menu.channel.property),
+                            frame: menu.frame,
+                        }
+                    } else {
+                        MaskAction::Set {
+                            mask: menu.channel.mask,
+                            property: property(menu.channel.property),
+                            frame: menu.frame,
+                            value: menu.values.clone(),
+                            animated: Some(true),
+                        }
                     }
                 } else {
                     MaskAction::Curve {
@@ -510,6 +609,56 @@ impl Controls {
     }
 }
 
+#[cfg(test)]
+impl Controls {
+    fn row(
+        &mut self,
+        list: &mut PaintList,
+        area: Rect,
+        y: f32,
+        state: &Value,
+        layer: &Layer,
+        mask: &LayerMask,
+        index: u8,
+        _keys: &[i32],
+        _values: &[f32],
+        input: &Input,
+        out: &mut Vec<Action>,
+    ) -> f32 {
+        let owner = Owner::from(layer);
+        self.watch(
+            list,
+            Rect::new(area.min[0] + 14., y, 20., 24.),
+            state,
+            owner,
+            mask,
+            index,
+            input,
+            out,
+        );
+        let total = state["project"]["frames"].as_u64().unwrap_or(1).max(1);
+        let lane = Rect::new(
+            area.min[0] + 80.,
+            y + 24.,
+            (area.width() - 96.).max(1.),
+            22.,
+        );
+        let ppf = lane.width() / (total - 1).max(1) as f32;
+        self.lane(list, lane, ppf, 0., state, owner, mask, index, input, out);
+        self.process_drag(
+            state,
+            owner,
+            &layer.masks,
+            area,
+            ppf,
+            0.,
+            input,
+            out,
+            list.styles().metric("motion.drag_threshold", 3.),
+        );
+        28.
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -646,12 +795,25 @@ mod tests {
             ));
             apply(&mut engine, actions);
             let animated = engine.project().clone();
+            let x = 80. + 42. / 119. * 304.;
+            assert!(draw(
+                &mut controls,
+                &engine,
+                42,
+                index,
+                &press(MouseButton::Right, x, 35.),
+                &mut atlas
+            )
+            .is_empty());
             let actions = draw(
                 &mut controls,
                 &engine,
                 42,
                 index,
-                &press(MouseButton::Left, 44., 35.),
+                &Input {
+                    keys: vec![(Key::Enter, Default::default())],
+                    ..Default::default()
+                },
                 &mut atlas,
             );
             apply(&mut engine, actions);
@@ -902,7 +1064,7 @@ mod tests {
                 &mut 0.,
                 &engine.project().layers[0],
                 &state,
-                &press(MouseButton::Left, 210., 168.),
+                &press(MouseButton::Left, 210., 99.),
                 Locale::Zh,
                 &mut actions,
             );
@@ -912,7 +1074,7 @@ mod tests {
             controls.parameter_input(
                 &state,
                 &Input {
-                    mouse: [230., 168.],
+                    mouse: [230., 99.],
                     held: Some(MouseButton::Left),
                     ..Default::default()
                 },
@@ -935,8 +1097,8 @@ mod tests {
             controls.parameter_input(
                 &changed,
                 &Input {
-                    mouse: [240., 168.],
-                    released: Some((MouseButton::Left, [240., 168.])),
+                    mouse: [240., 99.],
+                    released: Some((MouseButton::Left, [240., 99.])),
                     ..Default::default()
                 },
                 &mut actions,
@@ -955,7 +1117,8 @@ mod tests {
         }
     }
     #[test]
-    fn delete_shortcut_in_mask_panel_deletes_only_the_selected_key_in_main_and_floating_windows() {
+    fn delete_shortcut_in_mask_timeline_deletes_only_the_selected_key_in_main_and_floating_windows()
+    {
         use motion_ui::dock::{Node, Panel};
         for floating in [false, true] {
             let mut engine = engine();
@@ -970,20 +1133,40 @@ mod tests {
                     },
                 })
                 .unwrap();
+            engine
+                .apply(Command::Mask {
+                    object: 7,
+                    action: MaskAction::Set {
+                        mask: 1,
+                        property: MaskProperty::Opacity,
+                        frame: 60,
+                        value: vec![80.],
+                        animated: None,
+                    },
+                })
+                .unwrap();
             let before = engine.project().clone();
             let mut panels = crate::panels::Panels::default();
             panels.selected = Some(7);
-            panels.focused = Some(Panel::Masks);
-            panels.path_controls.masks_open = true;
+            panels.focused = Some(Panel::Timeline);
+            panels.timeline.expanded.insert(7);
+            panels.timeline.collapsed_transforms.insert(7);
             let mut atlas = TextAtlas::from_system(12.).unwrap();
-            let state = serde_json::json!({"root":"fixture","composition":motion_core::composition::MAIN_COMPOSITION,"frame":21,"project":engine.project()});
+            let state = serde_json::json!({"root":"fixture","composition":motion_core::composition::MAIN_COMPOSITION,"frame":21,"revision":engine.revision(),"project":engine.project()});
+            let layout = Node::dock(Panel::Timeline.dock());
+            let top = if floating {
+                30.
+            } else {
+                crate::panels::frames(&layout, [1280., 700.])[0].content.min[1]
+            };
+            let point = [640. + 21. / 120. * 632., top + 64. + 4. * 22. + 11.];
             let mut render = |panels: &mut crate::panels::Panels, input: &Input| {
                 if floating {
                     crate::panels::floating_chrome(
                         &mut PaintList::default(),
                         &mut atlas,
-                        Panel::Masks,
-                        [400., 600.],
+                        Panel::Timeline,
+                        [1280., 700.],
                         panels,
                         &state,
                         input,
@@ -992,23 +1175,14 @@ mod tests {
                     crate::panels::chrome(
                         &mut PaintList::default(),
                         &mut atlas,
-                        [400., 600.],
-                        &Node::dock(Panel::Masks.dock()),
+                        [1280., 700.],
+                        &layout,
                         panels,
                         &state,
                         input,
                     )
                 }
             };
-            // Derive the content origin from the same chrome used for hit testing.
-            let top = if floating {
-                30.
-            } else {
-                crate::panels::frames(&Node::dock(Panel::Masks.dock()), [400., 600.])[0]
-                    .content
-                    .min[1]
-            };
-            let point = [80. + 21. / 119. * 304., top + 8. + 128. + 35.];
             apply(
                 &mut engine,
                 render(&mut panels, &press(MouseButton::Left, point[0], point[1])),
@@ -1024,6 +1198,14 @@ mod tests {
                     },
                 ),
             );
+            let navigation = render(
+                &mut panels,
+                &Input {
+                    keys: vec![(Key::K, Default::default())],
+                    ..Default::default()
+                },
+            );
+            assert!(matches!(&navigation[..],[Action::Seek(frame)] if *frame==60.));
             let actions = render(
                 &mut panels,
                 &Input {
@@ -1031,16 +1213,20 @@ mod tests {
                     ..Default::default()
                 },
             );
-            assert!(matches!(
-                &actions[..],
-                [Action::Edit(Command::Mask {
-                    action: MaskAction::DeleteKey { .. },
-                    ..
-                })]
-            ));
+            assert!(
+                matches!(
+                    &actions[..],
+                    [Action::Edit(Command::Mask {
+                        action: MaskAction::DeleteKey { .. },
+                        ..
+                    })]
+                ),
+                "{actions:?}"
+            );
             apply(&mut engine, actions);
             assert_eq!(engine.project().layers.len(), 1);
-            assert!(engine.project().layers[0].masks[0].opacity.keys.is_empty());
+            assert_eq!(engine.project().layers[0].masks[0].opacity.keys.len(), 1);
+            assert_eq!(engine.project().layers[0].masks[0].opacity.keys[0].frame, 9);
             engine.undo().unwrap();
             assert_eq!(engine.project(), &before);
         }

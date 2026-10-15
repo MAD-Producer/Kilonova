@@ -81,6 +81,20 @@ impl Shell {
                 self.panels.layer_actions.cancel();
                 Some(screenshot)
             } else { None };
+            let mask_timeline = if panel == dock::Panel::Masks {
+                let object = self.panels.selected.ok_or("mask fixture selection missing")?;
+                let mask = self.state["project"]["layers"].as_array().into_iter().flatten()
+                    .find(|layer| layer["id"].as_u64() == Some(object))
+                    .and_then(|layer| layer["masks"].as_array())
+                    .and_then(|masks| masks.last())
+                    .and_then(|mask| mask["id"].as_u64()).ok_or("mask fixture missing")?;
+                self.action(panels::Action::MaskTimeline { object, mask }, Some(event_loop))?;
+                self.float_panel(dock::Panel::Timeline.dock(), event_loop)?;
+                let path = self.capture_panel_float_named(dock::Panel::Timeline, "-mask-keys")?;
+                self.redock_panel(dock::Panel::Timeline.dock())?;
+                self.panels.focused = Some(panel);
+                Some(path)
+            } else { None };
             self.redock_panel(panel.dock())?;
             if !self.workspace.valid() {
                 return Err("panel lost unique workspace ownership".into());
@@ -88,7 +102,7 @@ impl Shell {
             if self.state["revision"] != revision {
                 return Err("layout change edited the project".into());
             }
-            self.smoke_panel_records.push(serde_json::json!({"id":panel as u32,"title":self.workspace.locale.panel(panel.dock()),"frames":self.smoke_float_frames[&(panel as u32)],"screenshot":screenshot,"valueGraphScreenshot":value_graph,"audioMenuScreenshot":audio_menu,"markerMenuScreenshot":marker_menu,"projectRevision":revision}));
+            self.smoke_panel_records.push(serde_json::json!({"id":panel as u32,"title":self.workspace.locale.panel(panel.dock()),"frames":self.smoke_float_frames[&(panel as u32)],"screenshot":screenshot,"valueGraphScreenshot":value_graph,"audioMenuScreenshot":audio_menu,"markerMenuScreenshot":marker_menu,"maskTimelineScreenshot":mask_timeline,"projectRevision":revision}));
             if matches!(panel, dock::Panel::Timeline | dock::Panel::Audio) {
                 // Subsequent parent/blend captures require a visual target.
                 let visual = self.state["project"]["layers"].as_array().into_iter().flatten().rev()
@@ -136,7 +150,14 @@ impl Shell {
                 self.panels.select_only(Some(object));
                 self.panels.path_controls.masks_open = true;
                 self.state = self.engine.seek(0.)?;
-                self.feature_panel_click(panel, [550., 85.], event_loop)?;
+                let sheet = self.panels.styles.clone()
+                    .unwrap_or_else(motion_ui::style::default_stylesheet_arc);
+                let row = sheet.metric("row.height", 22.);
+                let slot = sheet.metric("icon.slot", 20.);
+                let padding = sheet.metric("padding.panel", 8.);
+                let top = 32. + padding;
+                self.feature_panel_click(panel, [720. - padding - slot * 0.5, top + row * 0.5], event_loop)?;
+                self.feature_panel_click(panel, [650., top + row * 2.5], event_loop)?;
                 let mask = self.state["project"]["layers"]
                     .as_array()
                     .into_iter()
@@ -146,8 +167,17 @@ impl Shell {
                     .and_then(|m| m.last())
                     .and_then(|m| m["id"].as_u64())
                     .ok_or("mask panel rectangle entry produced no mask")?;
-                for y in [178., 228., 278.] {
-                    self.feature_panel_click(panel, [24., y], event_loop)?;
+                for index in 0..3 {
+                    self.feature_panel_click(panel, [padding + slot * 2.5,
+                        top + row * (3.5 + index as f32)], event_loop)?;
+                }
+                let masks = self.state["project"]["layers"].as_array().into_iter().flatten()
+                    .find(|layer| layer["id"].as_u64() == Some(object))
+                    .and_then(|layer| layer["masks"].as_array()).ok_or("mask fixture missing")?;
+                if ["opacity", "feather", "expansion"].iter().any(|key|
+                    masks.last().unwrap()[*key]["keys"].as_array()
+                        .is_none_or(|keys| keys.len() != 1)) {
+                    return Err("mask stopwatches did not animate all three properties".into());
                 }
                 let commands = [
                     (motion_core::masks::MaskProperty::Opacity, vec![60.]),
@@ -201,7 +231,7 @@ impl Shell {
                 ..Default::default()
             },
         );
-        if actions.is_empty() {
+        if actions.is_empty() && panel != dock::Panel::Masks {
             return Err(format!(
                 "{panel:?} feature entry did not emit an action at {point:?}"
             ));
