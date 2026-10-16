@@ -87,6 +87,8 @@ impl Shell {
                     let focus = self.panels.focused;
                     self.panels.timeline.set_graph_mode(false);
                     self.panels.timeline.scroll = 0.;
+                    // This fixture locates layers by ordinal, so property rows stay collapsed.
+                    self.panels.timeline.expanded.clear();
                     let layout = workspace::Workspace::design_layout(workspace::Preset::Default);
                     let frame = panels::frames(&layout, size)
                         .into_iter()
