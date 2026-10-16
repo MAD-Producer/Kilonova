@@ -1,5 +1,7 @@
 # Android 构建入口
 
+Android 端已停止维护。以下步骤仅保留为历史实现的手动入口，不再由 CI 构建、在模拟器执行或自动发布 APK。后续开发集中于桌面端，见 [桌面使用说明](../../desktop/README.md)。
+
 推荐从仓库根目录运行 `python tools/build_android.py --task assembleDebug`。脚本先从当前 Rust 源码生成原生库，再调用 Gradle；干净克隆不包含 `jniLibs/*.so`。
 
 Windows 可先运行 `python tools/bootstrap_android.py` 安装项目工具链，并准备 Rust MSVC 所需的 C/C++ 构建工具。其他环境需提供 Java 21、Gradle 8.11.1、Android SDK 35、Rust Android targets 与 NDK。

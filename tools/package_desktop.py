@@ -164,11 +164,18 @@ def collect_assets(folder, android):
     if digest(apk) != android["sha256"]:
         raise ValueError("Release APK checksum mismatch")
     assets = [{"platform": "android", "name": apk_name, "sha256": android["sha256"], "bytes": apk.stat().st_size}]
+    return assets + collect_desktop_assets(folder, android)
+
+
+def collect_desktop_assets(folder, release):
+    """Validate the desktop matrix without requiring an APK or Android metadata."""
+    folder = Path(folder)
+    assets = []
     for platform in PLATFORMS:
         info = json.loads((folder / f"build-info-{platform}.json").read_text(encoding="utf-8"))
-        if any(info.get(key) != android[key] for key in ("commit", "ref", "kind", "run", "versionName")):
+        if any(info.get(key) != release[key] for key in ("commit", "ref", "kind", "run", "versionName")):
             raise ValueError("Desktop artifact does not belong to this workflow revision")
-        name = archive_name(platform, android["kind"], android["versionName"])
+        name = archive_name(platform, release["kind"], release["versionName"])
         if info.get("schemaVersion") != 1 or info.get("platform") != platform or info.get("archive") != name:
             raise ValueError("Desktop platform/archive mismatch")
         if info.get("capabilities") != {"ffmpeg": False, "videoEncoder": False}:
