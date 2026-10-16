@@ -202,6 +202,7 @@ pub(in crate::panels) fn render(
                     panels.timeline.set_graph_mode(false);
                 }
             }
+            crate::panels::timeline::property_branch(list, fields.watch);
             panels.path_controls.keys.watch(
                 list,
                 fields.watch,

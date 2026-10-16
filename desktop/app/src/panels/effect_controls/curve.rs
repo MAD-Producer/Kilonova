@@ -7,22 +7,13 @@ use motion_ui::{
     input::{Input, MouseButton, Rect},
     paint::{self, PaintList},
     text::TextAtlas,
-    ui::Align,
 };
 
-fn columns(styles: &motion_ui::style::StyleSheet, width: f32) -> usize {
-    let reset = styles.metric("effect.curve.reset.width", 30.);
-    let gap = styles.metric("effect.curve.selector.gap", 4.);
-    let stride = styles.metric("effect.curve.selector.width", 40.) + gap;
-    (((width - reset - gap) / stride).floor().max(1.) as usize).min(CHANNELS.len())
-}
 pub fn height(styles: &motion_ui::style::StyleSheet, width: f32) -> f32 {
-    let rows = CHANNELS.len().div_ceil(columns(styles, width));
-    rows as f32
-        * styles
-            .metric("effect.row.height", 26.)
-            .max(styles.metric("row.height", 22.))
-        + styles.metric("effect.curve.graph_height", 164.)
+    styles
+        .metric("effect.row.height", 26.)
+        .max(styles.metric("row.height", 22.))
+        + width.min(styles.metric("effect.curve.graph_height", 320.))
         + styles.metric("padding.panel", 8.)
 }
 const POINT_LIMIT: usize = 64;
@@ -31,6 +22,7 @@ const CHANNELS: [&str; 5] = ["RGB", "R", "G", "B", "A"];
 #[derive(Default)]
 pub struct Editor {
     channel: usize,
+    channel_menu: motion_ui::widgets::Dropdown,
     drag: Option<Drag>,
     cache: Option<(CurveObject, Vec<[f32; 2]>)>,
     #[cfg(test)]
@@ -42,13 +34,17 @@ struct Drag {
     moved: bool,
 }
 impl Editor {
+    pub fn modal(&self) -> bool {
+        self.channel_menu.open
+    }
     pub fn dragging(&self) -> bool {
         self.drag.is_some()
     }
     /// Drop an unfinished gesture; true when a history transaction needs
     /// cancellation by the caller.
     pub fn cancel(&mut self) -> bool {
-        self.drag.take().is_some_and(|d| d.moved)
+        self.channel_menu.open = false;
+        self.drag.take().is_some()
     }
     fn samples(&mut self, value: &CurveObject) -> &[[f32; 2]] {
         if !self
@@ -73,6 +69,8 @@ impl Editor {
         list: &mut PaintList,
         atlas: &mut TextAtlas,
         rect: Rect,
+        bounds: Rect,
+        channel: Option<usize>,
         input: &Input,
         enabled: bool,
         current: &CurveObject,
@@ -82,42 +80,64 @@ impl Editor {
     ) {
         let styles = list.styles();
         let colors = styles.colors();
+        if let Some(channel) = channel {
+            let channel = channel.min(CHANNELS.len() - 1);
+            if self.channel != channel {
+                self.channel = channel;
+                self.cache = None;
+            }
+            self.channel_menu.open = false;
+        }
+        let original_input = input;
+        let neutral = Input::default();
+        let input = if self.channel_menu.open {
+            &neutral
+        } else {
+            input
+        };
         let edit_enabled = enabled && self.drag.is_none();
-
         let row = styles
             .metric("effect.row.height", 26.)
             .max(styles.metric("row.height", 22.));
-        let field = styles.metric("row.height", 22.);
+        let field = row;
         let gap = styles.metric("effect.curve.selector.gap", 4.);
-        let button_width = styles.metric("effect.curve.selector.width", 40.);
         let reset_width = styles.metric("effect.curve.reset.width", 30.);
-        let count = columns(&styles, rect.width());
-        for (i, name) in CHANNELS.into_iter().enumerate() {
-            let button = Rect::new(
-                rect.min[0] + (i % count) as f32 * (button_width + gap),
-                rect.min[1] + (i / count) as f32 * row,
-                button_width,
-                field,
-            );
-            let state = if i == self.channel {
-                motion_ui::style::States::default().with(motion_ui::style::State::Selected)
-            } else {
-                motion_ui::style::States::default()
-            };
-            if motion_ui::ui::button_with_states(
+        let selector = Rect::new(
+            rect.min[0],
+            rect.min[1],
+            (rect.width() - reset_width - gap).max(0.),
+            field,
+        );
+        let items: Vec<_> = CHANNELS
+            .iter()
+            .map(|name| motion_ui::widgets::DropdownItem {
+                label: *name,
+                enabled: true,
+            })
+            .collect();
+        let mut overlay = list.child();
+        if channel.is_some() {
+            motion_ui::ui::text(
                 list,
                 atlas,
-                button,
-                name,
-                input,
+                selector,
+                CHANNELS[self.channel],
+                colors.TEXT_MUTED,
+                motion_ui::ui::Align::Left,
+            );
+        } else {
+            if let Some(channel) = self.channel_menu.draw(
+                &mut overlay,
+                atlas,
+                selector,
+                bounds,
+                &items,
+                self.channel,
+                original_input,
                 edit_enabled,
-                &styles,
-                "button.icon",
-                state,
-            )
-            .clicked
-            {
-                self.channel = i;
+                false,
+            ) {
+                self.channel = channel;
                 self.cache = None;
             }
         }
@@ -137,13 +157,14 @@ impl Editor {
             value.sampled_lut = None;
             out.push(Action::Edit(command(value)));
         }
-        let top = rect.min[1] + CHANNELS.len().div_ceil(count) as f32 * row;
+        let top = rect.min[1] + row;
         let graph = Rect::new(
             rect.min[0],
             top,
             rect.width(),
             styles
-                .metric("effect.curve.graph_height", 164.)
+                .metric("effect.curve.graph_height", 320.)
+                .min(rect.width())
                 .min((rect.max[1] - top).max(styles.metric("border", 1.))),
         );
         #[cfg(test)]
@@ -236,7 +257,17 @@ impl Editor {
             );
         }
 
-        if !enabled {
+        list.append(overlay);
+        if !enabled
+            || input.focus_lost
+            || input
+                .keys
+                .iter()
+                .any(|(key, _)| *key == motion_ui::Key::Escape)
+        {
+            if self.cancel() {
+                out.push(Action::History(4));
+            }
             return;
         }
         // Begin / continue / finish gestures.
@@ -288,12 +319,6 @@ impl Editor {
                     _ => {}
                 }
             }
-        }
-        if input.focus_lost && self.drag.is_some() {
-            if self.cancel() {
-                out.push(Action::History(4));
-            }
-            return;
         }
         if let Some(drag) = self.drag.as_mut() {
             let i = drag.point;
@@ -457,6 +482,8 @@ mod tests {
                 &mut PaintList::default(),
                 &mut atlas,
                 rect,
+                rect,
+                None,
                 input,
                 true,
                 &CurveObject::default(),
@@ -485,10 +512,81 @@ mod tests {
         let points = points.as_array().unwrap();
         assert_eq!(points.len(), 3);
         assert!((points[1][0].as_f64().unwrap() - 0.667).abs() < 0.01);
-        assert!((points[1][1].as_f64().unwrap() - 0.671).abs() < 0.01);
+        let graph = editor.test_graph.unwrap();
+        assert!(
+            (points[1][1].as_f64().unwrap() - f64::from((graph.max[1] - 80.) / graph.height()))
+                .abs()
+                < 0.01
+        );
         // One undo restores the whole gesture.
         engine.history(0).unwrap();
         assert_eq!(engine.state().unwrap()["project"], before);
+    }
+    #[test]
+    fn channel_dropdown_is_observational_and_escape_cancels_an_unmoved_gesture() {
+        let mut editor = Editor::default();
+        let mut atlas = TextAtlas::from_system(12.).unwrap();
+        let rect = Rect::new(0., 0., 220., height(&PaintList::default().styles(), 220.));
+        let mut draw = |editor: &mut Editor, input: &Input| {
+            let mut actions = vec![];
+            editor.draw(
+                &mut PaintList::default(),
+                &mut atlas,
+                rect,
+                rect,
+                None,
+                input,
+                true,
+                &CurveObject::default(),
+                |value| Command::Effect {
+                    object: 7,
+                    action: EffectAction::SetCurveObject {
+                        effect: 1,
+                        param: "curve".into(),
+                        frame: 0,
+                        value,
+                    },
+                },
+                &mut actions,
+                &mut None,
+            );
+            actions
+        };
+        assert!(draw(&mut editor, &input(10., 10., true, false)).is_empty());
+        assert!(editor.modal());
+        assert!(draw(
+            &mut editor,
+            &Input {
+                keys: vec![(motion_ui::Key::Down, Default::default())],
+                ..Default::default()
+            }
+        )
+        .is_empty());
+        assert!(draw(
+            &mut editor,
+            &Input {
+                keys: vec![(motion_ui::Key::Enter, Default::default())],
+                ..Default::default()
+            }
+        )
+        .is_empty());
+        assert!(!editor.modal());
+        assert_eq!(editor.channel, 1);
+        let graph = editor.test_graph.unwrap();
+        assert_eq!(graph.width(), graph.height());
+        assert!(matches!(
+            draw(&mut editor, &input(graph.min[0] + 0.001, graph.max[1] - 0.001, true, false)).as_slice(),
+            [Action::History(2)]
+        ));
+        let actions = draw(
+            &mut editor,
+            &Input {
+                keys: vec![(motion_ui::Key::Escape, Default::default())],
+                ..Default::default()
+            },
+        );
+        assert!(matches!(actions.as_slice(), [Action::History(4)]));
+        assert!(!editor.dragging());
     }
     #[test]
     fn right_click_removes_interior_points_only() {
@@ -498,14 +596,17 @@ mod tests {
         let mut current = CurveObject::default();
         current.channels[0] = vec![[0., 0.], [0.5, 0.5], [1., 1.]];
         let mut actions = vec![];
-        // Right-click the middle point at (0.5, 0.5) → graph pixel (150, 108).
+        let middle_y = 26. + rect.width().min(320.) * 0.5;
+        // Right-click the actual middle point of the rendered graph.
         editor.draw(
             &mut PaintList::default(),
             &mut atlas,
             rect,
+            rect,
+            None,
             &Input {
-                mouse: [150., 108.],
-                pressed: Some((MouseButton::Right, [150., 108.])),
+                mouse: [150., middle_y],
+                pressed: Some((MouseButton::Right, [150., middle_y])),
                 ..Default::default()
             },
             true,
@@ -536,9 +637,11 @@ mod tests {
             &mut PaintList::default(),
             &mut atlas,
             rect,
+            rect,
+            None,
             &Input {
-                mouse: [0., 190.],
-                pressed: Some((MouseButton::Right, [0., 190.])),
+                mouse: [0., 26. + rect.width().min(320.)],
+                pressed: Some((MouseButton::Right, [0., 26. + rect.width().min(320.)])),
                 ..Default::default()
             },
             true,

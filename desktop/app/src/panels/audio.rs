@@ -376,6 +376,7 @@ pub(super) fn render_rows(
                 Control::Right => "Right (dB)",
             },
         );
+        super::timeline::property_branch(list, fields.watch);
         label(list, atlas, fields.caption, &caption, true);
         if clicked(input, fields.caption) || clicked(input, fields.number) {
             panels.select_only(Some(object));

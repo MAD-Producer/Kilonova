@@ -28,6 +28,10 @@ def verify_design_screens(snapshot: dict, locale: str) -> None:
         for panel in ("info-panel", "preview-panel", "character-panel")
         for suffix, size in (("", (360, 520)), ("-narrow", (220, 360)))
     }
+    auxiliary.update({
+        "effect-controls": (360, 560), "effect-controls-narrow": (220, 560),
+        "effect-controls-bottom": (360, 360), "effect-curve-inline": (360, 560),
+    })
     for name in ("home", "composition-settings", "workspace-manager", "effect-library", "timeline-parent-menu", "timeline-blend-menu", "timeline-graph", "value-graph", "speed-graph", *auxiliary):
         if name not in screens:
             raise RuntimeError(f"{locale} did not capture {name}")

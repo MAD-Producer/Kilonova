@@ -62,7 +62,7 @@ pub struct Controls {
     collapsed_effects: std::collections::HashSet<u64>,
     context_menu: Option<EffectContextMenu>,
     color_popup: Option<ColorPopup>,
-    curve_popup: Option<ColorPopup>,
+    collapsed_curves: std::collections::HashSet<(u64, u64, String)>,
     /// component -2 = popup frame, -1 = swatch, 0.. = popup channel fields.
     #[cfg(test)]
     pub(crate) test_rects: HashMap<(u64, u64, String, i64), Rect>,
@@ -81,6 +81,9 @@ struct EffectContextMenu {
     control: String,
     effect: String,
     category: Option<String>,
+    instance: Option<(u64, usize)>,
+    catalogue: bool,
+    opened: bool,
 }
 struct Field {
     object: u64,
@@ -210,8 +213,10 @@ impl Controls {
             || self.enum_owner.is_some()
             || self.context_menu.is_some()
             || self.color_popup.is_some()
-            || self.curve_popup.is_some()
-            || self.curve_editors.values().any(curve::Editor::dragging)
+            || self
+                .curve_editors
+                .values()
+                .any(|editor| editor.dragging() || editor.modal())
     }
     pub fn cancel(&mut self) -> bool {
         let mut begun = self.field.take().is_some_and(|mut f| f.number.cancel());
@@ -222,7 +227,6 @@ impl Controls {
         self.enum_owner = None;
         self.context_menu = None;
         self.color_popup = None;
-        self.curve_popup = None;
         for dropdown in self.dropdowns.values_mut() {
             dropdown.open = false;
         }
@@ -244,6 +248,7 @@ impl Controls {
         layer: &Value,
         styles: &motion_ui::style::StyleSheet,
         locale: Locale,
+        width: f32,
     ) -> f32 {
         let row = styles
             .metric("effect.row.height", 26.)
@@ -256,7 +261,7 @@ impl Controls {
             styles.metric("effect.toolbar.height", 28.) + styles.metric("effect.toolbar.gap", 6.);
         let secondary = styles.metric("effect.secondary.height", 24.)
             + styles.metric("effect.secondary.gap", 4.);
-        let top = pad * 2. + toolbar + secondary;
+        let top = pad * 2. + toolbar;
         if self.choosing {
             let mut counts: HashMap<String, usize> = HashMap::new();
             let query = self.query.trim().to_lowercase();
@@ -295,7 +300,8 @@ impl Controls {
                 .into_iter()
                 .flatten()
                 .map(|effect| {
-                    header
+                    styles.metric("effect.group.gap", 8.)
+                        + header
                         + if self
                             .collapsed_effects
                             .contains(&effect["id"].as_u64().unwrap_or(0))
@@ -303,7 +309,30 @@ impl Controls {
                             0.
                         } else {
                             self.definition(effect).map_or(0., |definition| {
-                                definition["params"].as_array().map_or(0, Vec::len) as f32 * row
+                                definition["params"]
+                                    .as_array()
+                                    .into_iter()
+                                    .flatten()
+                                    .map(|parameter| {
+                                        row + if parameter["kind"] == "curve"
+                                            && !self.collapsed_curves.contains(&(
+                                                layer["id"].as_u64().unwrap_or(0),
+                                                effect["id"].as_u64().unwrap_or(0),
+                                                parameter["id"].as_str().unwrap_or("").into(),
+                                            )) {
+                                            curve::height(
+                                                styles,
+                                                (width
+                                                    - pad * 2.
+                                                    - styles.metric("tree.indent", 14.))
+                                                .max(0.)
+                                                .min(styles.metric("effect.curve.width", 320.)),
+                                            )
+                                        } else {
+                                            0.
+                                        }
+                                    })
+                                    .sum::<f32>()
                             })
                         }
                         + if effect["node_graph"].is_object() {
@@ -342,10 +371,22 @@ impl Controls {
         locale: Locale,
         out: &mut Vec<Action>,
     ) {
-        let categories = self.context_categories(locale);
-        let Some(menu) = self.context_menu.as_ref() else {
+        let categories = if self
+            .context_menu
+            .as_ref()
+            .is_some_and(|menu| !menu.catalogue)
+        {
+            vec![]
+        } else {
+            self.context_categories(locale)
+        };
+        let Some(menu) = self.context_menu.as_mut() else {
             return;
         };
+        let opened = std::mem::take(&mut menu.opened);
+        let instance = menu.instance;
+        let neutral = Input::default();
+        let input = if opened { &neutral } else { input };
         let anchor = menu.anchor;
         let object = menu.object;
         let control = menu.control.clone();
@@ -354,7 +395,8 @@ impl Controls {
         let styles = list.styles();
         let row = styles.metric("context.row.height", 20.).clamp(18., 24.);
         let width = 250f32.min(bounds.width());
-        let height = (4 + categories.len()) as f32 * row + 6.;
+        let action_count = if instance.is_some() { 3 } else { 0 };
+        let height = (4 + action_count + categories.len()) as f32 * row + 6.;
         let card = Rect::new(
             anchor[0].clamp(bounds.min[0], (bounds.max[0] - width).max(bounds.min[0])),
             (anchor[1] - height).clamp(bounds.min[1], (bounds.max[1] - height).max(bounds.min[1])),
@@ -377,13 +419,49 @@ impl Controls {
         );
         let mut chosen = None;
         let clear_effects = word(locale, "清除所有效果", "Remove All Effects");
-        let header = [
-            (control.as_str(), false, false),
-            (effect.as_str(), false, false),
-            (clear_effects.as_str(), true, false),
+        let locked = state["observing"] == true
+            || state["project"]["layers"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .find(|layer| layer["id"].as_u64() == Some(object))
+                .is_none_or(|layer| layer["locked"] == true);
+        let mut header: Vec<(String, bool, Option<EffectAction>)> = vec![
+            (control.clone(), false, None),
+            (effect.clone(), false, None),
         ];
+        if let Some((id, index)) = instance {
+            header.extend([
+                (
+                    word(locale, "上移效果", "Move Up"),
+                    !locked && index > 0,
+                    Some(EffectAction::Move {
+                        effect: id,
+                        index: index.saturating_sub(1),
+                    }),
+                ),
+                (
+                    word(locale, "复制效果", "Duplicate Effect"),
+                    !locked,
+                    Some(EffectAction::Duplicate { effect: id }),
+                ),
+                (
+                    word(locale, "删除效果", "Remove Effect"),
+                    !locked,
+                    Some(EffectAction::Remove { effect: id }),
+                ),
+            ]);
+        }
+        let clear_index = header.len();
+        header.push((clear_effects, !locked, None));
+        let header_count = header.len();
         for (index, (label, enabled, _)) in header.iter().enumerate() {
             let area = context_row(card, width, row, index);
+            #[cfg(test)]
+            if let Some((id, _)) = instance {
+                self.test_rects
+                    .insert((object, id, "__menu".into(), index as i64), area);
+            }
             let mut states = States::default();
             if *enabled && area.contains(input.mouse) {
                 states = states.with(State::Selected);
@@ -413,14 +491,20 @@ impl Controls {
         paint::line(
             list,
             vec![
-                [card.min[0] + 4., card.min[1] + 3. * row + 3.],
-                [card.max[0] - 4., card.min[1] + 3. * row + 3.],
+                [
+                    card.min[0] + 4.,
+                    card.min[1] + header_count as f32 * row + 3.,
+                ],
+                [
+                    card.max[0] - 4.,
+                    card.min[1] + header_count as f32 * row + 3.,
+                ],
             ],
             styles.color("context.border"),
         );
         let mut hovered = None;
         for (offset, category) in categories.iter().enumerate() {
-            let index = offset + 3;
+            let index = offset + header_count;
             let area = context_row(card, width, row, index);
             let selected = active_category.as_deref() == Some(category.as_str());
             let mut states = States::default();
@@ -464,7 +548,13 @@ impl Controls {
         if let Some(menu) = self.context_menu.as_mut() {
             menu.category = active_category;
         }
-        if chosen == Some(2) {
+        if let Some(operation) = chosen.and_then(|index| header[index].2.clone()) {
+            out.push(Action::Edit(Command::Effect {
+                object,
+                action: operation,
+            }));
+            self.context_menu = None;
+        } else if chosen == Some(clear_index) {
             let commands = state["project"]["layers"]
                 .as_array()
                 .into_iter()
@@ -653,17 +743,38 @@ impl Controls {
         let original_input = input;
         let neutral = Input::default();
         let modal_owner = self.enum_owner.clone();
-        let input =
-            if modal_owner.is_some() || self.color_popup.is_some() || self.curve_popup.is_some() {
-                &neutral
-            } else {
-                input
-            };
+        let curve_owner = self
+            .curve_editors
+            .iter()
+            .find(|(_, editor)| editor.modal())
+            .map(|(key, _)| key.clone());
+        let input = if modal_owner.is_some()
+            || self.color_popup.is_some()
+            || self.context_menu.is_some()
+            || curve_owner.is_some()
+        {
+            &neutral
+        } else {
+            input
+        };
         let mut overlays = list.child();
         self.cursor = false;
         self.drag_readout = None;
         let object = layer["id"].as_u64().unwrap();
         let locked = layer["locked"].as_bool().unwrap_or(false);
+        for ((owner, effect, _), editor) in &mut self.curve_editors {
+            if (locked
+                || *owner != object
+                || !layer["effects"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .any(|item| item["id"].as_u64() == Some(*effect)))
+                && editor.cancel()
+            {
+                out.push(Action::History(4));
+            }
+        }
         let frame = state["frame"].as_f64().unwrap_or(0.0).floor() as u32;
         let local = state["frame"].as_f64().unwrap_or(0.0)
             - layer["timeline"]["offset_frame"].as_f64().unwrap_or(0.0);
@@ -684,6 +795,8 @@ impl Controls {
             self.revision = Some(revision);
         }
         if !library {
+            let node_width = styles.metric("effect.action.size", 26.);
+            let node = Rect::new(area.max[0] - pad - node_width, *y, node_width, toolbar);
             if press(
                 list,
                 atlas,
@@ -691,7 +804,7 @@ impl Controls {
                 Rect::new(
                     area.min[0] + pad,
                     *y,
-                    (area.width() - pad * 2.).max(0.),
+                    (node.min[0] - gap - area.min[0] - pad).max(0.),
                     toolbar,
                 ),
                 locale.t(T::AddEffect),
@@ -703,33 +816,22 @@ impl Controls {
                     self.color_popup = None;
                 }
             }
-            *y += toolbar + toolbar_gap;
-            if ui::button_styled(
+            if press_icon(
                 list,
-                atlas,
-                Rect::new(
-                    area.min[0] + pad,
-                    *y,
-                    (area.width() - pad * 2.).max(0.),
-                    secondary,
-                ),
-                if locale == Locale::Zh {
-                    "新建节点效果"
-                } else {
-                    "New Node Effect"
-                },
                 input,
+                node,
+                Icon::Node,
                 !locked
                     && object != 0
                     && !matches!(layer["content"]["kind"].as_str(), Some("audio" | "null")),
-                &styles,
-                "button.icon",
-            )
-            .clicked
-            {
+            ) {
                 out.push(Action::NewNodeEffect(object));
             }
-            *y += secondary + secondary_gap;
+            if node.contains(input.mouse) {
+                self.drag_readout =
+                    Some((input.mouse, word(locale, "新建节点效果", "New Node Effect")));
+            }
+            *y += toolbar + toolbar_gap;
         }
         if layer["effects"].as_array().is_none_or(Vec::is_empty) && !self.choosing {
             text(
@@ -1008,6 +1110,7 @@ impl Controls {
             .flatten()
             .enumerate()
         {
+            *y += styles.metric("effect.group.gap", 8.);
             let id = effect["id"].as_u64().unwrap();
             let Some(def) = self.definition(effect) else {
                 continue;
@@ -1047,14 +1150,24 @@ impl Controls {
                     control: word(locale, "效果控件", "Effect Controls"),
                     effect: title.to_string(),
                     category: None,
+                    instance: Some((id, index)),
+                    catalogue: true,
+                    opened: true,
                 });
             }
-            if header_rect.contains(input.mouse) {
+            {
                 box_style(
                     list,
                     header_rect,
                     styles
-                        .resolve("row", States::default().with(State::Hovered))
+                        .resolve(
+                            "effect.header",
+                            if header_rect.contains(input.mouse) {
+                                States::default().with(State::Hovered)
+                            } else {
+                                States::default()
+                            },
+                        )
                         .unwrap(),
                 );
             }
@@ -1075,7 +1188,8 @@ impl Controls {
                     self.collapsed_effects.insert(id);
                 }
             }
-            let enable_rect = Rect::new(header_rect.min[0] + slot, *y, toggle, header);
+            let actions_x = header_rect.max[0] - action;
+            let enable_rect = Rect::new(actions_x - toggle, *y, toggle, header);
             if motion_ui::widgets::Checkbox::draw(
                 list,
                 atlas,
@@ -1097,47 +1211,48 @@ impl Controls {
                     },
                 }));
             }
-            let actions_x = header_rect.max[0] - action * 3.;
-            let name_x = enable_rect.max[0] + gap;
+            let name_x = header_rect.min[0] + slot;
             text(
                 list,
                 atlas,
-                Rect::new(name_x, *y, (actions_x - gap - name_x).max(0.), header),
+                Rect::new(
+                    name_x,
+                    *y,
+                    (enable_rect.min[0] - gap - name_x).max(0.),
+                    header,
+                ),
                 title,
                 !enabled,
             );
-            for (i, (icon, operation, allowed)) in [
-                (
-                    Icon::ChevronUp,
-                    EffectAction::Move {
-                        effect: id,
-                        index: index.saturating_sub(1),
-                    },
-                    index > 0,
-                ),
-                (Icon::Plus, EffectAction::Duplicate { effect: id }, true),
-                (Icon::Close, EffectAction::Remove { effect: id }, true),
-            ]
-            .into_iter()
-            .enumerate()
+            let more = Rect::new(actions_x, *y + (header - action) * 0.5, action, action);
+            if press_icon(list, input, more, Icon::More, !locked) {
+                self.context_menu = Some(EffectContextMenu {
+                    anchor: [more.min[0], more.max[1]],
+                    object,
+                    control: word(locale, "效果操作", "Effect Actions"),
+                    effect: title.into(),
+                    category: None,
+                    instance: Some((id, index)),
+                    catalogue: false,
+                    opened: true,
+                });
+            }
+            #[cfg(test)]
             {
-                if press_icon(
-                    list,
-                    input,
+                self.test_rects
+                    .insert((object, id, "__actions".into(), 0), more);
+                self.test_rects.insert(
+                    (object, id, "__title".into(), 0),
                     Rect::new(
-                        actions_x + i as f32 * action,
-                        *y + (header - action) * 0.5,
-                        action,
-                        action,
+                        name_x,
+                        *y,
+                        (enable_rect.min[0] - gap - name_x).max(0.),
+                        header,
                     ),
-                    icon,
-                    !locked && allowed,
-                ) {
-                    out.push(Action::Edit(Command::Effect {
-                        object,
-                        action: operation,
-                    }));
-                }
+                );
+            }
+            if header_rect.contains(input.mouse) && input.pressed.is_none() {
+                self.drag_readout = Some((input.mouse, title.into()));
             }
             *y += header;
             if effect["node_graph"].is_object() {
@@ -1168,20 +1283,27 @@ impl Controls {
             }
 
             // Render effect parameters
-            for parameter in def["params"].as_array().into_iter().flatten() {
+            let mut parameters: Vec<_> = def["params"].as_array().into_iter().flatten().collect();
+            parameters.sort_by_key(|parameter| parameter["kind"] == "curve");
+            for parameter in parameters {
                 let param = parameter["id"].as_str().unwrap();
                 let kind = parameter["kind"].as_str().unwrap_or("float");
                 let implemented = parameter["implemented"].as_bool().unwrap_or(true);
                 let name = parameter["name"].as_str().unwrap_or(param);
-                let caption_x =
-                    header_rect.min[0] + slot + toggle + gap + styles.metric("tree.indent", 14.);
                 let watch_width = styles.metric("effect.watch.width", 24.);
-                let left = caption_x - watch_width - gap;
-                let right = (area.max[0] - pad).max(left);
+                let left = header_rect.min[0] + styles.metric("tree.indent", 14.);
+                let caption_x = left + watch_width + gap;
+                let right = (area.max[0] - pad).max(caption_x);
                 let label_x = caption_x;
+                let components = dimensions(kind);
+                let minimum_value = if components > 1 && kind != "color" {
+                    components as f32 * (atlas.measure("000.000") + gap)
+                } else {
+                    styles.metric("value.min_width", 64.)
+                };
                 let label_width = styles
                     .metric("label.column", 72.)
-                    .min(((right - label_x) * 0.25).max(0.));
+                    .min((right - label_x - gap - minimum_value).max(0.));
                 let value_x = (label_x + label_width + gap).min(right);
                 let values = Rect::new(value_x, *y, (right - value_x).max(0.), row);
                 text(
@@ -1199,7 +1321,15 @@ impl Controls {
                 #[cfg(test)]
                 self.test_rects
                     .insert((object, id, param.into(), -4), values);
+                #[cfg(test)]
+                self.test_rects.insert(
+                    (object, id, param.into(), -7),
+                    Rect::new(label_x, *y, label_width, row),
+                );
                 let parameter_row = Rect::new(left, *y, (right - left).max(0.), row);
+                if Rect::new(label_x, *y, label_width, row).contains(input.mouse) {
+                    self.drag_readout = Some((input.mouse, name.into()));
+                }
                 if input.pressed.is_some_and(|(button, point)| {
                     button == MouseButton::Right && parameter_row.contains(point)
                 }) {
@@ -1209,33 +1339,96 @@ impl Controls {
                         control: name.into(),
                         effect: title.into(),
                         category: None,
+                        instance: Some((id, index)),
+                        catalogue: true,
+                        opened: true,
                     });
                 }
                 if kind == "curve" {
-                    if ui::button_styled(
+                    let key = (object, id, param.to_string());
+                    let open = !self.collapsed_curves.contains(&key);
+                    let disclosure = Rect::new(left, *y, watch_width, row);
+                    let toggle = press_icon(
                         list,
-                        atlas,
-                        values,
-                        &word(locale, "编辑曲线", "Edit curve"),
                         input,
-                        !locked && implemented,
-                        &styles,
-                        "button.icon",
-                    )
-                    .clicked
-                    {
-                        if self.cancel() {
+                        disclosure,
+                        if open {
+                            Icon::ChevronDown
+                        } else {
+                            Icon::ChevronRight
+                        },
+                        true,
+                    ) || clicked(
+                        input,
+                        Rect::new(label_x, *y, (right - label_x).max(0.), row),
+                    );
+                    if toggle {
+                        if open {
+                            self.collapsed_curves.insert(key.clone());
+                        } else {
+                            self.collapsed_curves.remove(&key);
+                        }
+                        if self
+                            .curve_editors
+                            .get_mut(&key)
+                            .is_some_and(curve::Editor::cancel)
+                        {
                             out.push(Action::History(4));
                         }
-                        self.curve_popup = Some(ColorPopup {
-                            object,
-                            effect: id,
-                            param: param.into(),
-                            anchor: values,
-                            opened: true,
-                        });
                     }
                     *y += row;
+                    // This frame follows the same expansion snapshot as its height and hit rectangles.
+                    if open {
+                        if let Some(current) =
+                            serde_json::from_value::<EffectParam>(effect["params"][param].clone())
+                                .ok()
+                                .and_then(|parameter| parameter.curve)
+                                .map(|track| curve::value_at(&track, local))
+                        {
+                            let width = (right - left)
+                                .max(0.)
+                                .min(styles.metric("effect.curve.width", 320.));
+                            let body = Rect::new(left, *y, width, curve::height(&styles, width));
+                            #[cfg(test)]
+                            self.test_rects.insert((object, id, param.into(), -5), body);
+                            self.curve_editors.entry(key.clone()).or_default().draw(
+                                list,
+                                atlas,
+                                body,
+                                area,
+                                if effect["effect"] == "curves" {
+                                    serde_json::from_value::<EffectParam>(
+                                        effect["params"]["p0002"].clone(),
+                                    )
+                                    .ok()
+                                    .map(|parameter| {
+                                        (parameter.sample(local)[0] as usize).saturating_sub(1)
+                                    })
+                                } else {
+                                    None
+                                },
+                                if curve_owner.as_ref() == Some(&key) {
+                                    original_input
+                                } else {
+                                    input
+                                },
+                                !locked && implemented && state["observing"] != true,
+                                &current,
+                                |value| Command::Effect {
+                                    object,
+                                    action: EffectAction::SetCurveObject {
+                                        effect: id,
+                                        param: param.into(),
+                                        frame,
+                                        value,
+                                    },
+                                },
+                                out,
+                                &mut self.drag_readout,
+                            );
+                            *y += body.height();
+                        }
+                    }
                     continue;
                 }
                 let key = (object, id, param.to_string());
@@ -1290,25 +1483,23 @@ impl Controls {
                 }
                 for component in 0..dimensions(kind) {
                     let count = dimensions(kind);
-                    let cell = values.width() / count as f32;
-                    let axis_width = if count > 1 {
-                        atlas.measure(["X", "Y", "Z", "W"][component]) + gap
+                    let cell = if kind == "bool" || kind == "enum" {
+                        values.width()
                     } else {
-                        0.
+                        (values.width() / count as f32).min(styles.metric("value.min_width", 64.))
                     };
                     let x = values.min[0] + component as f32 * cell;
-                    if count > 1 {
+                    let rect = Rect::new(x, *y, (cell - gap).max(0.), row);
+                    if count > 1 && component + 1 < count {
                         ui::text(
                             list,
                             atlas,
-                            Rect::new(x, *y, axis_width, row),
-                            ["X", "Y", "Z", "W"][component],
+                            Rect::new(rect.max[0], *y, gap, row),
+                            ",",
                             colors.TEXT_MUTED,
                             Align::Left,
                         );
                     }
-                    let rect =
-                        Rect::new(x + axis_width, *y, (cell - axis_width - gap).max(0.), row);
                     if kind == "bool" || kind == "enum" {
                         let enabled = !locked && implemented;
                         let changed =
@@ -1332,12 +1523,22 @@ impl Controls {
                                 .then_some(if value[0] > 0.5 { 0. } else { 1. })
                             } else {
                                 let key = (id, param.to_string());
+                                let curve_channel =
+                                    effect["effect"] == "curves" && param == "p0002";
                                 let items: Vec<_> = parameter["options"]
                                     .as_array()
                                     .into_iter()
                                     .flatten()
-                                    .map(|o| motion_ui::widgets::DropdownItem {
-                                        label: o.as_str().unwrap_or(""),
+                                    .enumerate()
+                                    .map(|(index, o)| motion_ui::widgets::DropdownItem {
+                                        label: if curve_channel {
+                                            ["RGB", "R", "G", "B", "A"]
+                                                .get(index)
+                                                .copied()
+                                                .unwrap_or("")
+                                        } else {
+                                            o.as_str().unwrap_or("")
+                                        },
                                         enabled: true,
                                     })
                                     .collect();
@@ -1348,7 +1549,8 @@ impl Controls {
                                     rect,
                                     area,
                                     &items,
-                                    value[0] as usize,
+                                    (value[0] - parameter["min"].as_f64().unwrap_or(0.) as f32)
+                                        .max(0.) as usize,
                                     if modal_owner.as_ref() == Some(&key) {
                                         original_input
                                     } else {
@@ -1362,7 +1564,9 @@ impl Controls {
                                 } else if self.enum_owner.as_ref() == Some(&key) {
                                     self.enum_owner = None;
                                 }
-                                result.map(|i| i as f32)
+                                result.map(|i| {
+                                    i as f32 + parameter["min"].as_f64().unwrap_or(0.) as f32
+                                })
                             };
                         if let Some(next) = changed {
                             value[0] = next;
@@ -1400,16 +1604,6 @@ impl Controls {
                 *y += row;
             }
         }
-        self.curve_overlay(
-            &mut overlays,
-            atlas,
-            area,
-            layer,
-            state,
-            original_input,
-            locale,
-            out,
-        );
         self.color_overlay(
             &mut overlays,
             atlas,
@@ -1421,140 +1615,6 @@ impl Controls {
             out,
         );
         list.append(overlays);
-    }
-    #[allow(clippy::too_many_arguments)]
-    fn curve_overlay(
-        &mut self,
-        paint: &mut PaintList,
-        atlas: &mut TextAtlas,
-        area: Rect,
-        layer: &Value,
-        state: &Value,
-        input: &Input,
-        locale: Locale,
-        out: &mut Vec<Action>,
-    ) {
-        let Some(popup) = self.curve_popup.clone() else {
-            return;
-        };
-        let current = layer["effects"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .find(|effect| effect["id"].as_u64() == Some(popup.effect))
-            .and_then(|effect| {
-                serde_json::from_value::<EffectParam>(effect["params"][&popup.param].clone()).ok()
-            })
-            .and_then(|parameter| parameter.curve)
-            .map(|track| {
-                curve::value_at(
-                    &track,
-                    state["frame"].as_f64().unwrap_or(0.)
-                        - layer["timeline"]["offset_frame"].as_f64().unwrap_or(0.),
-                )
-            });
-        let Some(current) = current.filter(|_| {
-            layer["id"].as_u64() == Some(popup.object)
-                && layer["locked"] != true
-                && state["observing"] != true
-        }) else {
-            if self.cancel() {
-                out.push(Action::History(4));
-            }
-            return;
-        };
-        let styles = paint.styles();
-        let pad = styles.metric("padding.panel", 8.);
-        let row = styles
-            .metric("effect.row.height", 26.)
-            .max(styles.metric("row.height", 22.));
-        let slot = styles.metric("effect.action.size", 26.);
-        let width = styles.metric("effect.curve.width", 320.).min(area.width());
-        let height = (curve::height(&styles, (width - pad * 2.).max(0.)) + row + pad * 2.)
-            .min(area.height());
-        let rect = Rect::new(
-            popup.anchor.min[0]
-                .min(area.max[0] - width)
-                .max(area.min[0]),
-            popup.anchor.max[1]
-                .min(area.max[1] - height)
-                .max(area.min[1]),
-            width,
-            height,
-        );
-        if input.focus_lost
-            || input.keys.iter().any(|(key, _)| *key == Key::Escape)
-            || !popup.opened
-                && input
-                    .pressed
-                    .is_some_and(|(_, point)| !rect.contains(point))
-        {
-            if self.cancel() {
-                out.push(Action::History(4));
-            }
-            return;
-        }
-        self.curve_popup.as_mut().unwrap().opened = false;
-        let neutral = Input::default();
-        let input = if popup.opened { &neutral } else { input };
-        box_style(
-            paint,
-            rect,
-            styles.resolve("popup", States::default()).unwrap(),
-        );
-        let title = Rect::new(
-            rect.min[0] + pad,
-            rect.min[1] + pad,
-            (width - pad * 2. - slot).max(0.),
-            row,
-        );
-        text(paint, atlas, title, &word(locale, "曲线", "Curve"), false);
-        if ui::button_icon(
-            paint,
-            Rect::new(rect.max[0] - pad - slot, title.min[1], slot, row),
-            Icon::Close,
-            input,
-            true,
-        )
-        .clicked
-        {
-            if self.cancel() {
-                out.push(Action::History(4));
-            }
-            return;
-        }
-        let body = Rect::new(
-            title.min[0],
-            title.max[1],
-            (width - pad * 2.).max(0.),
-            (rect.max[1] - pad - title.max[1]).max(0.),
-        );
-        #[cfg(test)]
-        self.test_rects
-            .insert((popup.object, popup.effect, popup.param.clone(), -5), rect);
-        let frame = state["frame"].as_f64().unwrap_or(0.).floor().max(0.) as u32;
-        self.curve_editors
-            .entry((popup.object, popup.effect, popup.param.clone()))
-            .or_default()
-            .draw(
-                paint,
-                atlas,
-                body,
-                input,
-                true,
-                &current,
-                |value| Command::Effect {
-                    object: popup.object,
-                    action: EffectAction::SetCurveObject {
-                        effect: popup.effect,
-                        param: popup.param.clone(),
-                        frame,
-                        value,
-                    },
-                },
-                out,
-                &mut self.drag_readout,
-            );
     }
     /// One row for a color parameter: swatch plus caption, popup edits channels.
     #[allow(clippy::too_many_arguments)]
@@ -1949,12 +2009,22 @@ mod tests {
                 let state = engine.state().unwrap();
                 let mut actions = vec![];
                 let mut y = 0.;
+                let mut paint = PaintList::with_styles(theme.clone());
                 controls.render(
-                    &mut PaintList::with_styles(theme.clone()),
+                    &mut paint,
                     &mut atlas,
                     area,
                     &mut y,
                     &state["project"]["layers"][0],
+                    &state,
+                    input,
+                    Locale::En,
+                    &mut actions,
+                );
+                controls.finish_context_menu(
+                    &mut paint,
+                    &mut atlas,
+                    area,
                     &state,
                     input,
                     Locale::En,
@@ -1974,6 +2044,37 @@ mod tests {
                     assert!(rect.height() >= density.max(24.) && rect.max[0] <= area.max[0]);
                 }
             }
+            assert!(x.width() >= TextAtlas::from_system(12.).unwrap().measure("12.000"));
+            let title = controls.test_rects[&key(shadow, "__title", 0)];
+            assert!(controls.test_rects[&key(shadow, "offset", -7)].min[0] > title.min[0]);
+            assert_eq!(
+                controls.test_rects[&key(shadow, "offset", -7)].min[0],
+                controls.test_rects[&key(brightness, "p0003", -7)].min[0]
+            );
+            let more = controls.test_rects[&key(shadow, "__actions", 0)];
+            assert!(draw(
+                &mut controls,
+                &input(more.min[0] + 2., more.min[1] + 2., true, false)
+            )
+            .is_empty());
+            assert!(controls.context_menu.is_some());
+            let duplicate = controls.test_rects[&key(shadow, "__menu", 3)];
+            run(
+                &engine,
+                draw(
+                    &mut controls,
+                    &input(duplicate.min[0] + 2., duplicate.min[1] + 2., true, false),
+                ),
+            );
+            assert_eq!(
+                engine.state().unwrap()["project"]["layers"][0]["effects"]
+                    .as_array()
+                    .unwrap()
+                    .len(),
+                4
+            );
+            engine.history(0).unwrap();
+            draw(&mut controls, &Input::default());
             let boolean = controls.test_rects[&key(brightness, "p0003", -4)];
             run(
                 &engine,
@@ -2010,6 +2111,69 @@ mod tests {
             assert!(draw(&mut controls, &input(width - 1., 990., true, false)).is_empty());
             assert!(controls.enum_owner.is_none());
             draw(&mut controls, &Input::default());
+            let channel = controls.test_rects[&key(curves, "p0002", -4)];
+            assert!(draw(
+                &mut controls,
+                &input(channel.min[0] + 2., channel.min[1] + 2., true, false)
+            )
+            .is_empty());
+            assert!(draw(
+                &mut controls,
+                &Input {
+                    keys: vec![(Key::Down, Default::default())],
+                    ..Default::default()
+                }
+            )
+            .is_empty());
+            run(
+                &engine,
+                draw(
+                    &mut controls,
+                    &Input {
+                        keys: vec![(Key::Enter, Default::default())],
+                        ..Default::default()
+                    },
+                ),
+            );
+            let state = engine.state().unwrap();
+            let channel_value = state["project"]["layers"][0]["effects"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|effect| effect["id"].as_u64() == Some(curves))
+                .unwrap()["params"]["p0002"]["track"]["value"][0]
+                .as_f64()
+                .unwrap();
+            assert_eq!(channel_value, 2.);
+            draw(&mut controls, &Input::default());
+            let red_graph = controls.curve_editors[&(7, curves, "p0001".into())]
+                .test_graph
+                .unwrap();
+            let middle = [
+                (red_graph.min[0] + red_graph.max[0]) * 0.5,
+                (red_graph.min[1] + red_graph.max[1]) * 0.5,
+            ];
+            run(
+                &engine,
+                draw(&mut controls, &input(middle[0], middle[1], true, false)),
+            );
+            run(
+                &engine,
+                draw(&mut controls, &input(middle[0], middle[1], false, true)),
+            );
+            let state = engine.state().unwrap();
+            let red_curve = &state["project"]["layers"][0]["effects"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|effect| effect["id"].as_u64() == Some(curves))
+                .unwrap()["params"]["p0001"]["curve"]["value"]["channels"];
+            assert_eq!(red_curve[0].as_array().unwrap().len(), 2);
+            assert_eq!(red_curve[1].as_array().unwrap().len(), 3);
+            engine.history(0).unwrap();
+
+            assert_eq!(engine.history(0).unwrap()["project"], original["project"]);
+            draw(&mut controls, &Input::default());
             let edit = controls.test_rects[&key(curves, "p0001", -4)];
             assert!(draw(
                 &mut controls,
@@ -2021,6 +2185,21 @@ mod tests {
                 )
             )
             .is_empty());
+            assert!(controls
+                .collapsed_curves
+                .contains(&(7, curves, "p0001".into())));
+            draw(&mut controls, &Input::default());
+            assert!(draw(
+                &mut controls,
+                &input(
+                    edit.min[0] + 2.,
+                    edit.min[1] + edit.height() * 0.5,
+                    true,
+                    false
+                )
+            )
+            .is_empty());
+            draw(&mut controls, &Input::default());
             let popup = controls.test_rects[&key(curves, "p0001", -5)];
             assert!(popup.min[0] >= area.min[0] && popup.max[0] <= area.max[0]);
             let graph = controls.curve_editors[&(7, curves, "p0001".into())]

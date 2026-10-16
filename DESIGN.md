@@ -166,6 +166,8 @@ Visual layout only — does not define new shortcuts or data fields:
 - **Booleans must visibly communicate on/off.** Plain text and broad stateless buttons are insufficient.
 - Distinguish color wells, numbers, dropdowns, and icon buttons by actual control semantics. Separate destructive actions such as delete from routine editing controls.
 
+Curve-kind properties may disclose an inline graph detail below their single caption row. Keep its channel selector above the graph; this exception is for the graph editor, not for splitting scalar, boolean, enum, color, or vector fields across rows.
+
 ### 5.3 Component-state matrix and precedence
 
 **Legend**: `✓` required visual behavior; `○` when supported by the component's semantics; `—` not applicable. Disabled visuals must not be overridden by hovered/pressed states. **This is an improvement target, not a claim that every state is already implemented.**
@@ -279,6 +281,10 @@ The timeline layer gutter contains **11** existing columns. **Do not invent `sol
 Header band total height `64`; ruler at `+36`, height `28`; rows begin at `+64`; layer row height `$sizes.row.height = 22`. **Zoom control sits on the ruler's top-right, not in a new bottom zoom bar.** Keyframe diamonds are directly drawn primitives, not component-style instances (see §5.3).
 
 ### 7.2 Property subrows
+
+- Group headers use the existing header surface and primary text; child rows retain explicit indentation and subtle tree guides. All values of one property stay inline; do not spend space on redundant X/Y labels for a two-value offset.
+- Time ticks and labels belong to the ruler. Do not extend a vertical grid line at each second through the layer/property body. Preserve the playhead, keyframe marks, snap feedback, and the label/lane boundary.
+
 
 Property subrows are **embedded in the existing name-gutter area**, not a separate property-track area. Existing `property_layout` is in `timeline.rs:34-57`: stopwatch at `+98`, name at `+118`, values begin around `+0.52×width`. Order: **Position → Scale → Rotation → Opacity**. 2D components `[0,1]`, 3D components `[0,1,2]`; 2D Rotation uses `[2]`. **Do not rewrite this geometric contract for appearance alone.**
 

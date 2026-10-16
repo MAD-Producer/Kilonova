@@ -64,8 +64,9 @@ pub(super) fn body_y(
     let pad = styles.metric("padding.panel", 8.);
     let scroll = panels.auxiliary.scroll.entry(panel as u32).or_default();
     if area.contains(input.mouse) {
-        *scroll = (*scroll + input.wheel[1]).clamp(0., (height - area.height()).max(0.));
+        *scroll += input.wheel[1];
     }
+    *scroll = scroll.clamp(0., (height - area.height()).max(0.));
     area.min[1] + pad - *scroll
 }
 pub(super) fn line(
@@ -934,6 +935,37 @@ fn color_overlay(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn content_shrink_clamps_scroll_even_when_pointer_is_outside() {
+        let mut panels = Panels::default();
+        let styles =
+            motion_ui::style::StyleSheet::from_json(include_bytes!("../../../ui/styles/dark.json"))
+                .unwrap();
+        let area = Rect::new(100., 100., 220., 360.);
+        panels
+            .auxiliary
+            .scroll
+            .insert(Panel::EffectControls as u32, 560.);
+        let input = Input::default();
+        let y = body_y(
+            &styles,
+            Panel::EffectControls,
+            area,
+            500.,
+            &mut panels,
+            &input,
+        );
+        assert_eq!(y, area.min[1] + styles.metric("padding.panel", 8.) - 140.);
+        let y = body_y(
+            &styles,
+            Panel::EffectControls,
+            area,
+            200.,
+            &mut panels,
+            &input,
+        );
+        assert_eq!(y, area.min[1] + styles.metric("padding.panel", 8.));
+    }
     #[test]
     fn quality_dropdown_selects_explicitly_and_blocks_transport_behind_the_popup() {
         for floating in [false, true] {

@@ -577,6 +577,9 @@ impl Controls {
         let styles = list.styles();
         let f = layout(styles.as_ref(), area, y, depth, 0, p.values.len(), host);
         let frame = state["frame"].as_f64().unwrap_or(0.).floor().max(0.) as u32;
+        if matches!(host, Panel::Timeline | Panel::Curves) {
+            crate::panels::timeline::property_branch(list, f.watch);
+        }
         crate::panels::timeline::property_icon(
             list,
             f.watch,

@@ -65,31 +65,9 @@ pub(super) fn paint_rows(
     }
 }
 
-/// Major grid lines use exactly the same origin and spacing as ruler ticks.
-pub(super) fn paint_grid(
-    list: &mut PaintList,
-    track: Rect,
-    body: Rect,
-    ppf: f32,
-    offset: f32,
-    fps: f32,
-) {
+/// The ruler owns time ticks; the body only paints the label/lane boundary.
+pub(super) fn paint_track_boundary(list: &mut PaintList, track: Rect, body: Rect) {
     let styles = list.styles();
-    let style = styles.resolve("timeline.grid", States::default()).unwrap();
-    let step = ruler_step(ppf, fps);
-    let mut frame = (offset / step).ceil() * step;
-    loop {
-        let x = track.min[0] + (frame - offset) * ppf;
-        if x >= track.max[0] {
-            break;
-        }
-        paint::rect(
-            list,
-            Rect::new(x, body.min[1], style.border_width, body.height()),
-            style.border,
-        );
-        frame += step;
-    }
     paint::rect(
         list,
         Rect::new(

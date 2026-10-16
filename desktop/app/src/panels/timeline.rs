@@ -47,14 +47,25 @@ pub(super) fn property_layout(
     // the remaining width between components. Every property family uses this
     // value edge, so expanding a shape never shifts its values independently.
     let pad = styles.metric("padding.panel", 8.);
+    let caption = styles.metric("timeline.property.caption_offset", 118.);
     let preferred =
-        118. + styles.metric("tree.indent", 14.) * 2. + styles.metric("label.column", 72.) + pad;
+        caption + styles.metric("tree.indent", 14.) * 2. + styles.metric("label.column", 72.) + pad;
     let value = (area.width() * 0.52).max(preferred).min(area.width() * 0.7);
     let cell_width = ((area.width() - value - pad).max(0.) / components.max(1) as f32)
         .min(styles.metric("value.min_width", 64.));
     PropertyLayout {
-        watch: Rect::new(area.min[0] + 98., y, 14., height),
-        caption: Rect::new(area.min[0] + 118., y, (value - 118. - pad).max(0.), height),
+        watch: Rect::new(
+            area.min[0] + styles.metric("timeline.property.watch_offset", 98.),
+            y,
+            styles.metric("timeline.property.watch_width", 14.),
+            height,
+        ),
+        caption: Rect::new(
+            area.min[0] + caption,
+            y,
+            (value - caption - pad).max(0.),
+            height,
+        ),
         number: Rect::new(
             area.min[0] + value + component as f32 * cell_width,
             y,
@@ -75,9 +86,9 @@ pub(super) fn property_icon(
         list,
         area,
         icon,
-        16.,
+        list.styles().metric("timeline.property.icon_size", 16.),
         if !enabled {
-            colors.TEXT_MUTED.with_alpha(0.4)
+            list.styles().color("disabled")
         } else if active {
             colors.ACCENT
         } else {
@@ -94,26 +105,66 @@ pub(super) fn property_group(
     title: &str,
     open: bool,
 ) -> Rect {
-    let group = Rect::new(area.min[0] + 78., y, (area.width() - 84.).max(1.), height);
-    let x = group.min[0] + 3.;
-    let cy = y + height * 0.5;
-    paint::line(
+    let styles = list.styles();
+    let pad = styles.metric("padding", 5.);
+    let slot = styles.metric("icon.slot", 20.);
+    let start = styles.metric("timeline.property.group_offset", 78.);
+    let group = Rect::new(
+        area.min[0] + start,
+        y,
+        (area.width() - start - pad).max(0.),
+        height,
+    );
+    motion_ui::style::box_style(
         list,
+        group,
+        styles
+            .resolve(
+                "timeline.property.group",
+                motion_ui::style::States::default(),
+            )
+            .unwrap(),
+    );
+    motion_ui::icons::draw(
+        list,
+        Rect::new(group.min[0], y, slot, height),
         if open {
-            vec![[x, cy - 2.], [x + 3., cy + 2.], [x + 6., cy - 2.]]
+            motion_ui::icons::Icon::ChevronDown
         } else {
-            vec![[x, cy - 3.], [x + 4., cy], [x, cy + 3.]]
+            motion_ui::icons::Icon::ChevronRight
         },
-        list.styles().colors().TEXT_MUTED,
+        styles.metric("icon.small.size", 14.),
+        styles.color("muted"),
     );
     label(
         list,
         atlas,
-        Rect::new(area.min[0] + 98., y, (area.width() - 104.).max(1.), height),
+        Rect::new(
+            group.min[0] + slot,
+            y,
+            (group.width() - slot - pad).max(0.),
+            height,
+        ),
         title,
-        true,
+        false,
     );
     group
+}
+pub(super) fn property_branch(list: &mut PaintList, watch: Rect) {
+    let styles = list.styles();
+    let x = watch.min[0] - styles.metric("icon.slot", 20.) * 0.5;
+    let middle = (watch.min[1] + watch.max[1]) * 0.5;
+    let end = watch.min[0] - styles.metric("padding", 5.);
+    paint::line(
+        list,
+        vec![[x, watch.min[1]], [x, watch.max[1]]],
+        styles.color("border"),
+    );
+    paint::line(
+        list,
+        vec![[x, middle], [end, middle]],
+        styles.color("border"),
+    );
 }
 pub(super) fn property_rows(state: &Value, object: u64) -> Vec<PropertyRow> {
     let layer = state["project"]["layers"]
@@ -895,7 +946,7 @@ pub(super) fn render(
         background_row += layout.len();
     }
     if !graph_mode {
-        super::timeline_layout::paint_grid(list, track, body, ppf, offset, fps);
+        super::timeline_layout::paint_track_boundary(list, track, body);
     }
     for (index, (row, layout)) in rows.iter().zip(&layouts).enumerate() {
         let expandable = row.id != 0 && (row.spatial || row.audio > 0);
@@ -1850,6 +1901,7 @@ pub(super) fn render_layer_properties(
                 0,
                 property.axes.len(),
             );
+            property_branch(list, fields.watch);
             property_icon(
                 list,
                 fields.watch,

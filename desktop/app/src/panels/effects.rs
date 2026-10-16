@@ -46,7 +46,7 @@ pub(super) fn render(
     } else {
         &mut panels.effect_controls
     };
-    let height = controls.height(layer,&styles,panels.locale).max(area.height());
+    let height = controls.height(layer,&styles,panels.locale, area.width()).max(area.height());
     let scroll_frame = if panel == Panel::Effects {
         Some(panels.library_scroll.begin(
             list,

@@ -81,7 +81,7 @@
       "effect.enable.width": 28,
       "effect.action.size": 26,
       "effect.curve.width": 320,
-      "effect.curve.graph_height": 164,
+      "effect.curve.graph_height": 320,
       "effect.curve.hit_radius": 7,
       "effect.curve.stroke_width": 1.5,
       "effect.curve.selector.width": 40,
@@ -104,7 +104,13 @@
       "effect.category.height": 28,
       "effect.category.gap": 4,
       "effect.library.tab_width": 54,
-      "effect.library.tab_gap": 4
+      "effect.library.tab_gap": 4,
+      "effect.group.gap": 8,
+      "timeline.property.group_offset": 78,
+      "timeline.property.watch_offset": 98,
+      "timeline.property.caption_offset": 118,
+      "timeline.property.watch_width": 14,
+      "timeline.property.icon_size": 16
     },
     "motion": {
       "easing": "cubic-out"
@@ -385,6 +391,15 @@
     "label.small.muted": {
       "extends": "label.small",
       "foreground": "$colors.muted"
+    },
+    "effect.header": {
+      "extends": "row",
+      "background": "$colors.header"
+    },
+    "timeline.property.group": {
+      "extends": "timeline.row",
+      "background": "$colors.header",
+      "foreground": "$colors.text"
     }
   }
 }
