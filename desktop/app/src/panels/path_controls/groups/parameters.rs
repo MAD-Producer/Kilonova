@@ -321,8 +321,8 @@ fn stroke(
 ) {
     out.push(color(
         if embedded { "stroke_color" } else { "color" },
-        "描边 RGBA",
-        "Stroke RGBA",
+        if embedded { "描边颜色" } else { "颜色" },
+        if embedded { "Stroke color" } else { "Color" },
         &s.color,
         at,
         locale,
@@ -583,7 +583,7 @@ fn geometry(
         setting(OptionKind::Trim, usize::from(v.trim.is_some()), locale),
     ]);
     if let Some(c) = &v.fill {
-        p.push(color("fill", "填充 RGBA", "Fill RGBA", c, at, locale));
+        p.push(color("fill", "填充颜色", "Fill color", c, at, locale));
         s.push(setting(OptionKind::FillRule, v.fill_rule as usize, locale));
     }
     if let Some(st) = &v.stroke {
@@ -685,7 +685,7 @@ fn item_node(item: &GroupItem, at: f64, locale: Locale) -> Node {
             composite,
             ..
         } => {
-            p.push(color("color", "颜色 RGBA", "Color RGBA", c, at, locale));
+            p.push(color("color", "颜色", "Color", c, at, locale));
             s.extend([
                 setting(OptionKind::FillRule, *fill_rule as usize, locale),
                 setting(OptionKind::Composite, *composite as usize, locale),
@@ -738,6 +738,7 @@ fn item_node(item: &GroupItem, at: f64, locale: Locale) -> Node {
         settings: s,
     }
 }
+#[cfg(test)]
 pub(in crate::panels) fn lookup(node: &Node, item: u64, id: &str) -> Option<Parameter> {
     if node.id == item {
         if let Some(p) = node.parameters.iter().find(|p| p.id == id) {

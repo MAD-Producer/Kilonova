@@ -20,30 +20,43 @@ fn visible(mask: &LayerMask, filter: PropertyFilter) -> Vec<u8> {
         })
         .collect()
 }
+#[derive(Default)]
+pub(in crate::panels) struct Rows {
+    present: bool,
+    open: bool,
+    items: Vec<(usize, bool, Vec<u8>)>,
+}
+impl Rows {
+    pub fn new(row: &Row, timeline: &TimelineState) -> Self {
+        let filter = timeline.filters.get(&row.id).copied().unwrap_or_default();
+        let mut rows = Self::default();
+        rows.open = !timeline.collapsed_masks.contains(&row.id);
+        for (index, mask) in row.masks.iter().enumerate() {
+            let channels = visible(mask, filter);
+            if channels.is_empty() {
+                continue;
+            }
+            rows.present = true;
+            if rows.open {
+                let open = !timeline.collapsed_mask_items.contains(&(row.id, mask.id));
+                rows.items
+                    .push((index, open, if open { channels } else { vec![] }));
+            }
+        }
+        rows
+    }
+    pub fn len(&self) -> usize {
+        usize::from(self.present)
+            + self
+                .items
+                .iter()
+                .map(|(_, _, channels)| 1 + channels.len())
+                .sum::<usize>()
+    }
+}
+#[cfg(test)]
 pub(in crate::panels) fn row_count(row: &Row, timeline: &TimelineState) -> usize {
-    let filter = timeline.filters.get(&row.id).copied().unwrap_or_default();
-    let masks: Vec<_> = row
-        .masks
-        .iter()
-        .filter(|mask| !visible(mask, filter).is_empty())
-        .collect();
-    if masks.is_empty() {
-        return 0;
-    }
-    1 + if timeline.collapsed_masks.contains(&row.id) {
-        0
-    } else {
-        masks
-            .iter()
-            .map(|mask| {
-                1 + if timeline.collapsed_mask_items.contains(&(row.id, mask.id)) {
-                    0
-                } else {
-                    visible(mask, filter).len()
-                }
-            })
-            .sum::<usize>()
-    }
+    Rows::new(row, timeline).len()
 }
 pub(in crate::panels) fn render(
     list: &mut PaintList,
@@ -56,12 +69,13 @@ pub(in crate::panels) fn render(
     ppf: f32,
     offset: f32,
     row: &Row,
+    rows: &Rows,
     panels: &mut Panels,
     state: &Value,
     input: &Input,
     out: &mut Vec<Action>,
 ) {
-    if row_count(row, &panels.timeline) == 0 {
+    if rows.len() == 0 {
         return;
     }
     let colors = list.styles().colors();
@@ -71,7 +85,7 @@ pub(in crate::panels) fn render(
         locked: row.locked || state["observing"] == true,
         offset: row.mask_offset,
     };
-    let open = !panels.timeline.collapsed_masks.contains(&row.id);
+    let open = rows.open;
     if y >= body.min[1] && y + height <= body.max[1] {
         let heading = property_group(
             list,
@@ -99,29 +113,18 @@ pub(in crate::panels) fn render(
     if !open {
         return;
     }
-    let filter = panels
-        .timeline
-        .filters
-        .get(&row.id)
-        .copied()
-        .unwrap_or_default();
-    for mask in &row.masks {
-        let channels = visible(mask, filter);
-        if channels.is_empty() {
-            continue;
-        }
-        let open = !panels
-            .timeline
-            .collapsed_mask_items
-            .contains(&(row.id, mask.id));
+    let indent = list.styles().metric("tree.indent", 14.);
+    for (mask_index, open, channels) in &rows.items {
+        let mask = &row.masks[*mask_index];
+        let open = *open;
         if y >= body.min[1] && y + height <= body.max[1] {
             let heading = property_group(
                 list,
                 atlas,
                 Rect::new(
-                    area.min[0] + 20.,
+                    area.min[0] + indent,
                     area.min[1],
-                    area.width() - 20.,
+                    area.width() - indent,
                     area.height(),
                 ),
                 y,
@@ -149,7 +152,7 @@ pub(in crate::panels) fn render(
         if !open {
             continue;
         }
-        for index in channels {
+        for index in channels.iter().copied() {
             let py = y;
             y += height;
             if py < body.min[1] || py + height > body.max[1] {
@@ -172,11 +175,6 @@ pub(in crate::panels) fn render(
                 0,
                 values.len(),
                 Panel::Timeline,
-            );
-            paint::rect(
-                list,
-                Rect::new(area.min[0], py, area.width(), height),
-                colors.PANEL,
             );
             let number_hit = (0..values.len()).any(|axis| {
                 click(

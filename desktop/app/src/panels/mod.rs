@@ -41,6 +41,7 @@ mod properties;
 #[cfg(test)]
 mod selection_tests;
 mod timeline;
+mod timeline_layout;
 mod timeline_columns;
 #[cfg(test)]
 mod timeline_columns_tests;

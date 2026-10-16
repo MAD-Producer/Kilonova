@@ -127,6 +127,7 @@ impl Harness {
     fn fields(&self, control: Control) -> Row {
         let area = self.area();
         row(
+            PaintList::default().styles().as_ref(),
             Rect::new(
                 area.min[0],
                 area.min[1],
@@ -922,6 +923,7 @@ fn audio_narrow_main_and_floating_rows_keep_numeric_input_and_release_reachable(
             frames(&layout, size)[0].content
         };
         let field = row(
+            PaintList::default().styles().as_ref(),
             Rect::new(
                 area.min[0],
                 area.min[1],

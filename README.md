@@ -136,7 +136,7 @@ CI 覆盖 Rust/GPU、桌面平台构建、媒体后端、Android 构建和交互
 3. 运行了哪些验证；
 4. 新增依赖、字体、图标、shader 或素材的来源和许可证。
 
-分支规范、clean-room 规则和来源要求见 [CONTRIBUTING.md](CONTRIBUTING.md)、[PROVENANCE.md](PROVENANCE.md) 和 [ATTRIBUTION.md](ATTRIBUTION.md)。
+分支规范、clean-room 规则和来源要求见 [CONTRIBUTING.md](CONTRIBUTING.md)、[PROVENANCE.md](PROVENANCE.md) 和 [ATTRIBUTION.md](ATTRIBUTION.md)。界面色板、字号、密度、组件契约与对比度基线见 [DESIGN.md](DESIGN.md)。
 
 ## 许可证与商标
 

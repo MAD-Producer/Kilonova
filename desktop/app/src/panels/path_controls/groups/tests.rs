@@ -420,9 +420,14 @@ fn shape_content_rows_edit_fill_stroke_trim_and_group_values_in_both_inspector_h
             let mut c = Controls::default();
             expand_all(&mut c);
             draw_raw(&mut c, &e, &Input::default(), host, &mut atlas);
-            let (watch, number) = row(&c, host, item, key, axis);
+            let (watch, mut number) = row(&c, host, item, key, axis);
             let actions = draw_raw(&mut c, &e, &at(watch), host, &mut atlas);
             apply(&mut e, actions);
+            if key == "color" {
+                let preview = c.color_rects[&(host as u32, 7, item, key.into())];
+                assert!(draw_raw(&mut c, &e, &at(preview), host, &mut atlas).is_empty());
+                number = row(&c, host, item, key, axis).1;
+            }
             let before = e.project().clone();
             let old = parameters::lookup(
                 &parameters::tree(source(&e), [100.; 2], 21., Locale::Zh),

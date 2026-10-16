@@ -255,8 +255,8 @@ fn controls(layer: &Value) -> Vec<Control> {
     rows
 }
 pub(super) type Row = super::timeline::PropertyLayout;
-pub(super) fn row(area: Rect, y: f32, height: f32) -> Row {
-    super::timeline::property_layout(area, y, height, 0, 1)
+pub(super) fn row(styles: &motion_ui::style::StyleSheet, area: Rect, y: f32, height: f32) -> Row {
+    super::timeline::property_layout(styles, area, y, height, 0, 1)
 }
 fn key_times(track: &Track<f32>, offset: i64, frames: u64) -> Vec<u32> {
     track
@@ -353,12 +353,7 @@ pub(super) fn render_rows(
         if py < body.min[1] || py + height > body.max[1] {
             continue;
         }
-        let fields = row(gutter, py, height);
-        paint::rect(
-            list,
-            Rect::new(gutter.min[0], py, gutter.width(), height),
-            list.styles().colors().PANEL,
-        );
+        let fields = row(list.styles().as_ref(), gutter, py, height);
         let gain = control == Control::Gain;
         let value = if gain {
             gain_db(source(layer)["volume"].as_f64().unwrap_or(1.))

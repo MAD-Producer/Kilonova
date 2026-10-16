@@ -6,37 +6,50 @@ use crate::panels::{
     Panels,
 };
 
-enum Entry<'a> {
-    Node(&'a parameters::Node, usize),
-    Parameter(u64, &'a parameters::Parameter, usize),
-    Setting(u64, &'a parameters::Setting, usize),
+enum Entry {
+    Node {
+        id: u64,
+        tag: u8,
+        name: String,
+        depth: usize,
+        open: bool,
+    },
+    Parameter(u64, parameters::Parameter, usize),
+    Setting(u64, parameters::Setting, usize),
 }
-fn entries<'a>(
-    node: &'a parameters::Node,
+fn entries(
+    node: parameters::Node,
     object: u64,
     t: &TimelineState,
     animated: bool,
     depth: usize,
-    out: &mut Vec<Entry<'a>>,
+    out: &mut Vec<Entry>,
 ) {
     if animated && !node.animated() {
         return;
     }
-    out.push(Entry::Node(node, depth));
-    if !t.vector_open.contains(&(object, node.id, node.tag)) {
+    let open = t.vector_open.contains(&(object, node.id, node.tag));
+    out.push(Entry::Node {
+        id: node.id,
+        tag: node.tag,
+        name: node.name,
+        depth,
+        open,
+    });
+    if !open {
         return;
     }
-    for p in &node.parameters {
+    for p in node.parameters {
         if !animated || p.animated() {
             out.push(Entry::Parameter(node.id, p, depth + 1));
         }
     }
     if !animated {
-        for s in &node.settings {
+        for s in node.settings {
             out.push(Entry::Setting(node.id, s, depth + 1));
         }
     }
-    for n in &node.children {
+    for n in node.children {
         entries(n, object, t, animated, depth + 1, out);
     }
 }
@@ -65,29 +78,47 @@ pub(in crate::panels) fn key_frames(vector: &VectorContent, size: [f32; 2]) -> V
     keys.dedup();
     keys
 }
+#[derive(Default)]
+pub(in crate::panels) struct Rows {
+    root: Option<u64>,
+    open: bool,
+    entries: Vec<Entry>,
+}
+impl Rows {
+    pub fn new(row: &Row, t: &TimelineState, frame: f64, locale: Locale) -> Self {
+        let Some(tree) = tree(row, frame, locale) else {
+            return Self::default();
+        };
+        let filter = t.filters.get(&row.id).copied().unwrap_or_default();
+        if matches!(filter, PropertyFilter::Properties(_))
+            || (filter == PropertyFilter::Animated && !tree.animated())
+        {
+            return Self::default();
+        }
+        let mut rows = Self {
+            root: Some(tree.id),
+            open: t.vector_open.contains(&(row.id, 0, 0)),
+            entries: vec![],
+        };
+        if rows.open {
+            entries(
+                tree,
+                row.id,
+                t,
+                filter == PropertyFilter::Animated,
+                0,
+                &mut rows.entries,
+            );
+        }
+        rows
+    }
+    pub fn len(&self) -> usize {
+        usize::from(self.root.is_some()) + self.entries.len()
+    }
+}
+#[cfg(test)]
 pub(in crate::panels) fn row_count(row: &Row, t: &TimelineState) -> usize {
-    let Some(tree) = tree(row, 0., Locale::En) else {
-        return 0;
-    };
-    let filter = t.filters.get(&row.id).copied().unwrap_or_default();
-    if matches!(filter, PropertyFilter::Properties(_))
-        || (filter == PropertyFilter::Animated && !tree.animated())
-    {
-        return 0;
-    }
-    if !t.vector_open.contains(&(row.id, 0, 0)) {
-        return 1;
-    }
-    let mut rows = vec![];
-    entries(
-        &tree,
-        row.id,
-        t,
-        filter == PropertyFilter::Animated,
-        0,
-        &mut rows,
-    );
-    1 + rows.len()
+    Rows::new(row, t, 0., Locale::En).len()
 }
 pub(in crate::panels) fn reveal_animated(panels: &mut Panels, state: &Value, object: u64) {
     let Some(l) = super::super::layer(state, object) else {
@@ -128,15 +159,13 @@ pub(in crate::panels) fn render(
     ppf: f32,
     offset: f32,
     row: &Row,
+    rows: &Rows,
     panels: &mut Panels,
     state: &Value,
     input: &Input,
     out: &mut Vec<Action>,
 ) {
-    if row_count(row, &panels.timeline) == 0 {
-        return;
-    }
-    let Some(tree) = tree(row, state["frame"].as_f64().unwrap_or(0.), panels.locale) else {
+    let Some(root) = rows.root else {
         return;
     };
     let host = if panels.focused == Some(Panel::Curves) {
@@ -155,7 +184,7 @@ pub(in crate::panels) fn render(
     } else {
         input
     };
-    let root_open = panels.timeline.vector_open.contains(&(row.id, 0, 0));
+    let root_open = rows.open;
     if start >= body.min[1] && start + height <= body.max[1] {
         let heading = property_group(
             list,
@@ -181,10 +210,7 @@ pub(in crate::panels) fn render(
             }
             if !panels.timeline.vector_open.remove(&(row.id, 0, 0)) {
                 panels.timeline.vector_open.insert((row.id, 0, 0));
-                panels
-                    .timeline
-                    .vector_open
-                    .insert((row.id, tree.id, tree.tag));
+                panels.timeline.vector_open.insert((row.id, root, 0));
             }
         }
         let rect = Rect::new(area.max[0] - pad - slot, start, slot, height);
@@ -195,50 +221,47 @@ pub(in crate::panels) fn render(
             panels
                 .path_controls
                 .groups
-                .open_menu(host, row.id, tree.id, None, rect);
+                .open_menu(host, row.id, root, None, rect);
         }
     }
     if root_open {
-        let mut rows = vec![];
-        entries(
-            &tree,
-            row.id,
-            &panels.timeline,
-            panels.timeline.filters.get(&row.id) == Some(&PropertyFilter::Animated),
-            0,
-            &mut rows,
-        );
-        for (index, entry) in rows.iter().enumerate() {
+        for (index, entry) in rows.entries.iter().enumerate() {
             let y = start + (index + 1) as f32 * height;
             if y < body.min[1] || y + height > body.max[1] {
                 continue;
             }
             match entry {
-                Entry::Node(n, depth) => {
-                    let x = area.min[0] + styles.metric("icon.slot", 20.) * (*depth + 1) as f32;
+                Entry::Node {
+                    id,
+                    tag,
+                    name,
+                    depth,
+                    open,
+                } => {
+                    let x = area.min[0] + styles.metric("tree.indent", 14.) * (*depth + 1) as f32;
                     let heading = property_group(
                         list,
                         atlas,
                         Rect::new(
                             x,
                             area.min[1],
-                            (area.max[0] - x - if n.tag == 0 { slot + pad } else { 0. }).max(0.),
+                            (area.max[0] - x - if *tag == 0 { slot + pad } else { 0. }).max(0.),
                             area.height(),
                         ),
                         y,
                         height,
-                        &n.name,
-                        panels.timeline.vector_open.contains(&(row.id, n.id, n.tag)),
+                        name,
+                        *open,
                     );
                     if click(normal, heading) {
                         if panels.path_controls.cancel() {
                             out.push(Action::History(4));
                         }
-                        if !panels.timeline.vector_open.remove(&(row.id, n.id, n.tag)) {
-                            panels.timeline.vector_open.insert((row.id, n.id, n.tag));
+                        if !panels.timeline.vector_open.remove(&(row.id, *id, *tag)) {
+                            panels.timeline.vector_open.insert((row.id, *id, *tag));
                         }
                     }
-                    if n.tag == 0 {
+                    if *tag == 0 {
                         let add = Rect::new(area.max[0] - pad - slot, y, slot, height);
                         if icon(list, add, Icon::Plus, normal, !locked, false) {
                             if panels.selected != Some(row.id) {
@@ -247,10 +270,10 @@ pub(in crate::panels) fn render(
                             panels
                                 .path_controls
                                 .groups
-                                .open_menu(host, row.id, n.id, None, add);
+                                .open_menu(host, row.id, *id, None, add);
                         }
                     }
-                    if n.tag != 1
+                    if *tag != 1
                         && normal
                             .pressed
                             .is_some_and(|(b, p)| b == MouseButton::Right && heading.contains(p))
@@ -263,11 +286,11 @@ pub(in crate::panels) fn render(
                         panels.path_controls.groups.open_menu(
                             host,
                             row.id,
-                            n.id,
-                            if n.tag == 0 && *depth == 0 {
+                            *id,
+                            if *tag == 0 && *depth == 0 {
                                 None
                             } else {
-                                Some(n.id)
+                                Some(*id)
                             },
                             Rect::new(point[0], point[1], slot, styles.metric("border", 1.)),
                         );

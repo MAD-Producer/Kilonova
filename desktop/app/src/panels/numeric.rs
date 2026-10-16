@@ -89,7 +89,7 @@ pub fn passive_with_precision(
         rect.shrink(style.padding),
         &format!("{:.*}", decimals.min(8), value),
         style,
-        Align::Left,
+        Align::Right,
     );
 }
 /// Return true when the provider may release the field. The command adapter
@@ -120,11 +120,7 @@ pub fn apply(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        engine::Engine,
-        i18n::Locale,
-        panels::camera_controls,
-    };
+    use crate::{engine::Engine, i18n::Locale, panels::camera_controls};
     use motion_ui::MouseButton;
 
     fn run(engine: &Engine, actions: Vec<Action>) {
@@ -193,13 +189,24 @@ mod tests {
         panels.selected = Some(7);
         panels.effect_controls.catalogue = catalogue.into();
         let id = motion_ui::dock::Panel::EffectControls.dock();
-        let layout = motion_ui::dock::Node::Dock { id, tabs: vec![id], active: 0 };
+        let layout = motion_ui::dock::Node::Dock {
+            id,
+            tabs: vec![id],
+            active: 0,
+        };
         let top = crate::panels::frames(&layout, [400., 1000.])[0].content.min[1] + 8.;
         let mut atlas = TextAtlas::from_system(12.).unwrap();
         let mut draw = |panels: &mut crate::panels::Panels, input: &Input| {
             let state = engine.state().unwrap();
-            crate::panels::chrome(&mut PaintList::default(), &mut atlas, [400., 1000.],
-                &layout, panels, &state, input)
+            crate::panels::chrome(
+                &mut PaintList::default(),
+                &mut atlas,
+                [400., 1000.],
+                &layout,
+                panels,
+                &state,
+                input,
+            )
         };
         assert!(draw(&mut panels, &input(100., top + 177., true, false)).is_empty());
         assert!(draw(

@@ -353,12 +353,6 @@ pub(super) fn draw_value(
     out: &mut Vec<Action>,
 ) {
     let styles = list.styles();
-    let colors = styles.colors();
-
-    let key = (
-        object,
-        100 + property as u64 * 8 + axis as u64 + if timeline { 64 } else { 0 },
-    );
     if !locked
         && (r.contains(input.mouse)
             || panels
@@ -376,27 +370,6 @@ pub(super) fn draw_value(
                 .is_some_and(|f| f.scrubbing.as_ref().is_some_and(|s| s.begun)),
         ));
     }
-    let hover = panels.motion.value(
-        key,
-        0.,
-        if !locked && r.contains(input.mouse) {
-            1.
-        } else {
-            0.
-        },
-        styles.as_ref().metric("motion.hover_ms", 90.),
-        false,
-    );
-    let changed = panels.motion.changed(
-        (key.0, key.1 + 200),
-        value,
-        styles.as_ref().metric("motion.value_ms", 140.),
-    );
-    paint::rect(
-        list,
-        r,
-        colors.ACCENT.with_alpha((hover * 0.07).max(changed * 0.14)),
-    );
     let active = panels.properties.field.as_ref().is_some_and(|f| {
         f.object == object
             && f.property == property
@@ -454,7 +427,11 @@ pub(super) fn draw_value(
         r.shrink(style.padding),
         &text,
         style,
-        Align::Left,
+        if states.contains(motion_ui::style::State::Focused) {
+            Align::Left
+        } else {
+            Align::Right
+        },
     );
     if active {
         panels.properties.field.as_mut().unwrap().rect = r;

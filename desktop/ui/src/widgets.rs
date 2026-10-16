@@ -406,7 +406,7 @@ impl NumberEditor {
                 area.shrink(style.padding),
                 &format!("{:.*}", options.decimals.min(8), value),
                 style,
-                Align::Left,
+                Align::Right,
             );
         }
     }

@@ -9,6 +9,7 @@ use motion_ui::{
     widgets::{Checkbox, Dropdown, DropdownItem, NumberOptions},
 };
 use std::collections::{HashMap, HashSet};
+mod color;
 mod keys;
 pub(in crate::panels) mod parameters;
 pub(in crate::panels) mod timeline;
@@ -131,6 +132,7 @@ struct Menu {
 pub(in crate::panels) struct Controls {
     context: Option<(String, String, u64, u32)>,
     field: Option<Field>,
+    color: Option<color::Popup>,
     open: HashSet<(u64, u64, u8)>,
     initialized: HashSet<u64>,
     menu: Option<Menu>,
@@ -142,7 +144,9 @@ pub(in crate::panels) struct Controls {
     overlays: Option<PaintList>,
     pub(crate) add_rect: Option<(Panel, Rect)>,
     #[cfg(test)]
-    rects: HashMap<(u32, u64, u64, String, usize), (Rect, Rect)>,
+    pub(in crate::panels) rects: HashMap<(u32, u64, u64, String, usize), (Rect, Rect)>,
+    #[cfg(test)]
+    pub(in crate::panels) color_rects: HashMap<(u32, u64, u64, String), Rect>,
     #[cfg(test)]
     option_rects: HashMap<(u32, u64, u64, parameters::OptionKind), Rect>,
 }
@@ -177,8 +181,9 @@ pub(super) fn layout(
     let pad = styles.metric("padding.panel", 8.);
     let slot = styles.metric("icon.slot", 20.);
     if matches!(host, Panel::Timeline | Panel::Curves) {
-        let mut f = crate::panels::timeline::property_layout(area, y, row, axis, axes);
-        let indent = (depth as f32 * slot).min((f.number.min[0] - f.caption.min[0] - pad).max(0.));
+        let mut f = crate::panels::timeline::property_layout(styles, area, y, row, axis, axes);
+        let indent = (depth as f32 * styles.metric("tree.indent", 14.))
+            .min((f.number.min[0] - f.caption.min[0] - pad).max(0.));
         f.watch.min[0] += indent;
         f.watch.max[0] += indent;
         f.caption.min[0] += indent;
@@ -218,15 +223,20 @@ impl Controls {
         self.field.is_some() || self.modal() || self.keys.editing()
     }
     pub(in crate::panels) fn modal(&self) -> bool {
-        self.menu.is_some() || self.dropdowns.values().any(|d| d.open) || self.keys.modal()
+        self.menu.is_some()
+            || self.color.is_some()
+            || self.dropdowns.values().any(|d| d.open)
+            || self.keys.modal()
     }
     pub(in crate::panels) fn menu_in(&self, host: Panel) -> bool {
         self.menu.as_ref().is_some_and(|m| m.host == host)
+            || self.color.as_ref().is_some_and(|c| c.host == host)
             || (self.dropdown_host == Some(host) && self.dropdowns.values().any(|d| d.open))
     }
     pub(in crate::panels) fn cancel(&mut self) -> bool {
         let field = self.field.take().is_some_and(|mut f| f.number.cancel());
         self.menu = None;
+        self.color = None;
         for d in self.dropdowns.values_mut() {
             d.open = false;
         }
@@ -297,6 +307,14 @@ impl Controls {
             }
         }
         self.context = Some(context);
+        if self.color.as_ref().is_some_and(|c| {
+            Some(c.object) != selected
+                || keys::cached_layer(state, c.object, &self.keys.cache).is_none_or(|l| l.locked)
+        }) {
+            if self.cancel() {
+                out.push(Action::History(4));
+            }
+        }
         if self.menu.as_ref().is_some_and(|m| {
             Some(m.object) != selected
                 || keys::cached_layer(state, m.object, &self.keys.cache).is_none_or(|l| l.locked)
@@ -605,87 +623,120 @@ impl Controls {
                 );
             }
         }
-        for (axis, current) in p.values.iter().enumerate() {
+        if p.color {
+            self.color_row(
+                list, atlas, area, y, object, item, p, input, host, enabled, depth, out,
+            );
+            return;
+        }
+        for axis in 0..p.values.len() {
             let rect = layout(styles.as_ref(), area, y, depth, axis, p.values.len(), host).number;
             #[cfg(test)]
             self.rects.insert(
                 (host as u32, object, item, p.id.clone(), axis),
                 (f.watch, rect),
             );
-            let active = self.field.as_ref().is_some_and(|f| {
-                f.host == host
-                    && f.object == object
-                    && f.item == item
-                    && f.parameter == p.id
-                    && f.axis == axis
-            });
-            if enabled && click(input, rect) && !active {
-                self.finish(out);
-                self.context = Some((
-                    state["root"].as_str().unwrap_or("").into(),
-                    state["composition"].as_str().unwrap_or("").into(),
-                    object,
-                    frame,
-                ));
-                self.field = Some(Field {
-                    host,
-                    object,
-                    item,
-                    parameter: p.id.clone(),
-                    axis,
-                    number: Default::default(),
-                });
-                out.push(Action::Seek(f64::from(frame)));
-            }
-            if self.field.as_ref().is_some_and(|f| {
-                f.host == host
-                    && f.object == object
-                    && f.item == item
-                    && f.parameter == p.id
-                    && f.axis == axis
-            }) {
-                let f = self.field.as_mut().unwrap();
-                let events = f.number.draw(
-                    list,
-                    atlas,
-                    rect,
-                    f64::from(*current),
-                    NumberOptions {
-                        speed: if p.color { 0.01 } else { 1. },
-                        min: p.range[0],
-                        max: p.range[1],
-                        decimals: if p.discrete { 0 } else { 2 },
-                    },
-                    input,
-                );
-                if f.number.editor.dragging() || rect.contains(input.mouse) {
-                    self.cursor = Some((rect, f.number.editor.dragging()));
-                }
-                let finished = crate::panels::numeric::apply(events, out, |v| {
-                    let mut p = p.clone();
-                    p.values[axis] = if p.discrete {
-                        v.round() as f32
-                    } else {
-                        v as f32
-                    };
-                    p.set(object, item, frame, None)
-                });
-                if finished {
-                    self.field = None;
+            self.component(
+                list, atlas, rect, object, item, p, axis, state, input, host, enabled, out,
+            );
+        }
+    }
+    fn component(
+        &mut self,
+        list: &mut PaintList,
+        atlas: &mut TextAtlas,
+        rect: Rect,
+        object: u64,
+        item: u64,
+        p: &parameters::Parameter,
+        axis: usize,
+        state: &Value,
+        input: &Input,
+        host: Panel,
+        enabled: bool,
+        out: &mut Vec<Action>,
+    ) {
+        let frame = state["frame"].as_f64().unwrap_or(0.).floor().max(0.) as u32;
+        let current = &p.values[axis];
+        let active = self.field.as_ref().is_some_and(|f| {
+            f.host == host
+                && f.object == object
+                && f.item == item
+                && f.parameter == p.id
+                && f.axis == axis
+        });
+        if enabled && click(input, rect) && !active {
+            if self.color.is_some() {
+                if self.field.take().is_some_and(|mut f| f.number.cancel()) {
+                    out.push(Action::History(3));
                 }
             } else {
-                crate::panels::numeric::passive_with_precision(
-                    list,
-                    atlas,
-                    rect,
-                    f64::from(*current),
-                    input,
-                    enabled,
-                    if p.discrete { 0 } else { 2 },
-                );
-                if enabled && rect.contains(input.mouse) {
-                    self.cursor = Some((rect, false));
-                }
+                self.finish(out);
+            }
+            self.context = Some((
+                state["root"].as_str().unwrap_or("").into(),
+                state["composition"].as_str().unwrap_or("").into(),
+                object,
+                frame,
+            ));
+            self.field = Some(Field {
+                host,
+                object,
+                item,
+                parameter: p.id.clone(),
+                axis,
+                number: Default::default(),
+            });
+            out.push(Action::Seek(f64::from(frame)));
+        }
+        if self.field.as_ref().is_some_and(|f| {
+            f.host == host
+                && f.object == object
+                && f.item == item
+                && f.parameter == p.id
+                && f.axis == axis
+        }) {
+            let f = self.field.as_mut().unwrap();
+            let events = f.number.draw(
+                list,
+                atlas,
+                rect,
+                f64::from(*current),
+                NumberOptions {
+                    speed: if p.color { 0.01 } else { 1. },
+                    min: p.range[0],
+                    max: p.range[1],
+                    decimals: if p.discrete { 0 } else { 2 },
+                },
+                input,
+            );
+            if f.number.editor.dragging() || rect.contains(input.mouse) {
+                self.cursor = Some((rect, f.number.editor.dragging()));
+            }
+            let finished = crate::panels::numeric::apply(events, out, |v| {
+                let mut p = p.clone();
+                p.values[axis] = if p.discrete {
+                    v.round() as f32
+                } else {
+                    v as f32
+                };
+                p.set(object, item, frame, None)
+            });
+            if finished {
+                self.field = None;
+            }
+        } else {
+            crate::panels::numeric::passive_with_precision(
+                list,
+                atlas,
+                rect,
+                f64::from(*current),
+                input,
+                enabled,
+                if p.discrete { 0 } else { 2 },
+            );
+            if enabled && rect.contains(input.mouse) {
+                self.cursor = Some((rect, false));
             }
         }
     }
@@ -809,6 +860,10 @@ impl Controls {
         host: Panel,
         out: &mut Vec<Action>,
     ) {
+        if self.color.as_ref().is_some_and(|c| c.host == host) {
+            self.color_overlay(list, atlas, area, state, input, locale, host, out);
+            return;
+        }
         let Some(menu) = &mut self.menu else { return };
         if menu.host != host {
             return;

@@ -43,10 +43,10 @@ pub(super) fn property_row(
     let indent = if host == Panel::Properties {
         styles.metric("padding.panel", 8.)
     } else {
-        styles.metric("icon.slot", 20.)
+        styles.metric("tree.indent", 14.)
     };
     if matches!(host, Panel::Timeline | Panel::Curves) {
-        let mut layout = crate::panels::timeline::property_layout(area, y, row, axis, axes);
+        let mut layout = crate::panels::timeline::property_layout(styles, area, y, row, axis, axes);
         layout.watch.min[0] += indent;
         layout.watch.max[0] += indent;
         layout.caption.min[0] += indent;

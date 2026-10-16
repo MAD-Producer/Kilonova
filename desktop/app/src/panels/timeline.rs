@@ -4,7 +4,7 @@ use std::hash::{Hash, Hasher};
 
 pub(super) struct Row {
     pub(super) spatial: bool,
-    audio: usize,
+    pub(super) audio: usize,
     pub(super) masks: Vec<motion_core::masks::LayerMask>,
     pub(super) mask_offset: i32,
     pub(super) vector: Option<motion_core::vector::VectorContent>,
@@ -18,7 +18,7 @@ pub(super) struct Row {
     pub(super) range: [f64; 2],
     pub(super) keys: Vec<f64>,
     references: Vec<f64>,
-    properties: Vec<PropertyRow>,
+    pub(super) properties: Vec<PropertyRow>,
 }
 
 pub(super) struct PropertyRow {
@@ -36,25 +36,29 @@ pub(super) struct PropertyLayout {
     pub number: Rect,
 }
 pub(super) fn property_layout(
+    styles: &motion_ui::style::StyleSheet,
     area: Rect,
     y: f32,
     height: f32,
     component: usize,
     components: usize,
 ) -> PropertyLayout {
-    let cell_width = (area.width() * 0.44 / components.max(1) as f32).min(64.);
+    // Reserve a readable caption for two nested operator levels before sharing
+    // the remaining width between components. Every property family uses this
+    // value edge, so expanding a shape never shifts its values independently.
+    let pad = styles.metric("padding.panel", 8.);
+    let preferred =
+        118. + styles.metric("tree.indent", 14.) * 2. + styles.metric("label.column", 72.) + pad;
+    let value = (area.width() * 0.52).max(preferred).min(area.width() * 0.7);
+    let cell_width = ((area.width() - value - pad).max(0.) / components.max(1) as f32)
+        .min(styles.metric("value.min_width", 64.));
     PropertyLayout {
         watch: Rect::new(area.min[0] + 98., y, 14., height),
-        caption: Rect::new(
-            area.min[0] + 118.,
-            y,
-            (area.width() * 0.5 - 118.).max(1.),
-            height,
-        ),
+        caption: Rect::new(area.min[0] + 118., y, (value - 118. - pad).max(0.), height),
         number: Rect::new(
-            area.min[0] + area.width() * 0.52 + component as f32 * cell_width,
+            area.min[0] + value + component as f32 * cell_width,
             y,
-            (cell_width - 2.).max(1.),
+            (cell_width - styles.metric("border", 1.) * 2.).max(0.),
             height,
         ),
     }
@@ -343,12 +347,6 @@ pub(super) fn reorder_storage_index(len: usize, from_row: usize, slot: usize) ->
     Some(index.min(len - 1))
 }
 
-fn filtered_property_count(row: &Row, filter: types::PropertyFilter) -> usize {
-    row.properties
-        .iter()
-        .filter(|property| filter.admits(property.property, !property.keys.is_empty()))
-        .count()
-}
 fn scroll_extent_signature(
     rows_key: &(String, String, u64),
     timeline: &types::TimelineState,
@@ -390,44 +388,15 @@ fn scroll_extent_signature(
     hash.finish()
 }
 fn calculate_scroll_max(
-    rows: &[&Row],
-    timeline: &types::TimelineState,
+    layouts: &[super::timeline_layout::LayerRows],
     area_height: f32,
     row_height: f32,
 ) -> f32 {
-    (rows
-        .iter()
-        .map(|row| row_count(row, timeline))
-        .sum::<usize>() as f32
-        * row_height
-        - (area_height - 64.0))
+    (layouts.iter().map(|row| row.len()).sum::<usize>() as f32 * row_height - (area_height - 64.0))
         .max(0.0)
 }
 pub(super) fn row_count(row: &Row, timeline: &types::TimelineState) -> usize {
-    if row.id == 0 || !timeline.expanded.contains(&row.id) {
-        return 1;
-    }
-    1 + if row.spatial {
-        1 + if timeline.collapsed_transforms.contains(&row.id) {
-            0
-        } else {
-            filtered_property_count(
-                row,
-                timeline.filters.get(&row.id).copied().unwrap_or_default(),
-            )
-        }
-    } else {
-        0
-    } + if row.audio > 0 {
-        1 + if timeline.collapsed_audio.contains(&row.id) {
-            0
-        } else {
-            row.audio
-        }
-    } else {
-        0
-    } + super::path_controls::timeline::row_count(row, timeline)
-        + super::path_controls::groups::timeline::row_count(row, timeline)
+    super::timeline_layout::LayerRows::new(row, timeline, 0., Locale::En).len()
 }
 pub(super) fn filtered_properties(
     state: &Value,
@@ -512,6 +481,8 @@ pub(super) fn render(
     }
     let styles = list.styles();
     let row_height = styles.metric("row.height", 22.);
+    let toolbar_height = styles.metric("field.height", 18.) + styles.metric("padding", 5.) * 2.;
+    let toolbar_top = area.min[1] + styles.metric("border", 1.) * 2.;
     if panels.timeline.moving.is_some()
         && !input.composing
         && !input.ime_consumed
@@ -565,6 +536,17 @@ pub(super) fn render(
         .iter()
         .filter(|row| query.is_empty() || row.name_lower.contains(&query))
         .collect();
+    let layouts: Vec<_> = rows
+        .iter()
+        .map(|row| {
+            super::timeline_layout::LayerRows::new(
+                row,
+                &panels.timeline,
+                state["frame"].as_f64().unwrap_or(0.),
+                panels.locale,
+            )
+        })
+        .collect();
     let extent_signature = {
         let rows_key = &panels.timeline.rows_cache.as_ref().unwrap().0;
         scroll_extent_signature(
@@ -582,7 +564,7 @@ pub(super) fn render(
     {
         panels.timeline.scroll_extent_cache.unwrap().1
     } else {
-        let max = calculate_scroll_max(&rows, &panels.timeline, area.height(), row_height);
+        let max = calculate_scroll_max(&layouts, area.height(), row_height);
         panels.timeline.scroll_extent_cache = Some((extent_signature, max));
         max
     };
@@ -684,7 +666,7 @@ pub(super) fn render(
         if ui::button(
             list,
             atlas,
-            Rect::new(area.min[0] + gutter - 98., area.min[1] + 5., 90., 25.),
+            Rect::new(area.min[0] + gutter - 98., toolbar_top, 90., toolbar_height),
             if graph_mode {
                 if locale == Locale::Zh {
                     "时间轴"
@@ -713,9 +695,9 @@ pub(super) fn render(
     }
     let search = Rect::new(
         track.min[0] + 12.,
-        area.min[1] + 5.,
+        toolbar_top,
         (track.width() - 176.).min(250.).max(1.),
-        25.,
+        toolbar_height,
     );
     paint::rect(list, search, colors.SUNKEN);
     paint::stroke(
@@ -758,7 +740,7 @@ pub(super) fn render(
     if ui::button(
         list,
         atlas,
-        Rect::new(zoom_x, area.min[1] + 5., 25., 25.),
+        Rect::new(zoom_x, toolbar_top, toolbar_height, toolbar_height),
         "−",
         input,
         true,
@@ -770,14 +752,14 @@ pub(super) fn render(
     label(
         list,
         atlas,
-        Rect::new(zoom_x + 29., area.min[1] + 5., 58., 25.),
+        Rect::new(zoom_x + 29., toolbar_top, 58., toolbar_height),
         &format!("{:.0}%", panels.timeline.zoom.max(1.) * 100.),
         true,
     );
     if ui::button(
         list,
         atlas,
-        Rect::new(zoom_x + 86., area.min[1] + 5., 25., 25.),
+        Rect::new(zoom_x + 86., toolbar_top, toolbar_height, toolbar_height),
         "+",
         input,
         true,
@@ -789,7 +771,7 @@ pub(super) fn render(
     if ui::button(
         list,
         atlas,
-        Rect::new(zoom_x + 117., area.min[1] + 5., 26., 25.),
+        Rect::new(zoom_x + 117., toolbar_top, toolbar_height, toolbar_height),
         "↔",
         input,
         true,
@@ -818,9 +800,9 @@ pub(super) fn render(
             list,
             Rect::new(
                 area.min[0] + 146.0 + i as f32 * 38.0,
-                area.min[1] + 2.0,
+                toolbar_top,
                 32.0,
-                28.0,
+                toolbar_height,
             ),
             tool,
             input,
@@ -899,24 +881,27 @@ pub(super) fn render(
     let mut row_offset = 0;
     let mut timeline_hit = false;
     let mut row_bounds: Vec<(u64, f32, f32)> = Vec::new();
-    for (index, row) in rows.iter().enumerate() {
+    let mut background_row = 0;
+    for (row, layout) in rows.iter().zip(&layouts) {
+        super::timeline_layout::paint_rows(
+            list,
+            body,
+            body.min[1] + background_row as f32 * row_height - panels.timeline.scroll,
+            row_height,
+            layout.len(),
+            panels.selection_contains(row.id),
+            input,
+        );
+        background_row += layout.len();
+    }
+    if !graph_mode {
+        super::timeline_layout::paint_grid(list, track, body, ppf, offset, fps);
+    }
+    for (index, (row, layout)) in rows.iter().zip(&layouts).enumerate() {
         let expandable = row.id != 0 && (row.spatial || row.audio > 0);
-        let expanded = expandable && panels.timeline.expanded.contains(&row.id);
-        let transform_expanded =
-            expanded && row.spatial && !panels.timeline.collapsed_transforms.contains(&row.id);
-        let filter = panels
-            .timeline
-            .filters
-            .get(&row.id)
-            .copied()
-            .unwrap_or_default();
-        let property_count = if transform_expanded {
-            filtered_property_count(row, filter)
-        } else {
-            0
-        };
+        let expanded = layout.expanded;
         let y = body.min[1] + row_offset as f32 * row_height - panels.timeline.scroll;
-        let row_count = row_count(row, &panels.timeline);
+        let row_count = layout.len();
         row_offset += row_count;
         if row.id != 0 {
             row_bounds.push((row.id, y, row_count as f32 * row_height));
@@ -935,13 +920,8 @@ pub(super) fn render(
                 input.pressed.filter(|(_, p)| row_group.contains(*p))
             {
                 panels.select_only(Some(row.id));
-                let audio_y =
-                    y + (1 + if row.spatial { 1 + property_count } else { 0 }) as f32 * row_height;
-                let audio_rows = 1 + if panels.timeline.collapsed_audio.contains(&row.id) {
-                    0
-                } else {
-                    row.audio
-                };
+                let audio_y = y + layout.audio.start as f32 * row_height;
+                let audio_rows = layout.audio.len();
                 if expanded
                     && point[1] >= audio_y
                     && point[1] < audio_y + audio_rows as f32 * row_height
@@ -966,6 +946,7 @@ pub(super) fn render(
                 ppf,
                 offset,
                 row,
+                layout,
                 panels,
                 state,
                 input,
@@ -1004,15 +985,6 @@ pub(super) fn render(
                 }
             }
         }
-        paint::rect(
-            list,
-            Rect::new(area.min[0], y, gutter, row_height),
-            if selected {
-                colors.ACCENT.with_alpha(0.18)
-            } else {
-                colors.PANEL
-            },
-        );
         let row_area = Rect::new(body.min[0], y, body.width(), row_height);
         let name_editing = panels
             .layer_actions
@@ -1554,6 +1526,14 @@ pub(super) fn render(
     panels
         .path_controls
         .mask_overlay(list, atlas, area, state, context_input, locale, out);
+    if let Some((rect, dragging)) = panels.path_controls.groups.cursor {
+        if dragging || rect.contains(context_input.mouse) {
+            panels.cursor = Some(motion_ui::widgets::numeric_behavior::cursor(
+                context_input,
+                dragging,
+            ));
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1811,6 +1791,7 @@ pub(super) fn render_layer_properties(
     ppf: f32,
     offset: f32,
     row: &Row,
+    layout: &super::timeline_layout::LayerRows,
     panels: &mut Panels,
     state: &Value,
     input: &Input,
@@ -1821,26 +1802,10 @@ pub(super) fn render_layer_properties(
     let gutter = area.width();
     let total = last_frame(state) + 1.;
     let graph_mode = panels.timeline.graph_mode;
-    let expanded = true;
-    let transform_expanded = row.spatial && !panels.timeline.collapsed_transforms.contains(&row.id);
-    let filter = panels
-        .timeline
-        .filters
-        .get(&row.id)
-        .copied()
-        .unwrap_or_default();
-    let properties: Vec<_> = if transform_expanded {
-        row.properties
-            .iter()
-            .filter(|property| filter.admits(property.property, !property.keys.is_empty()))
-            .collect()
-    } else {
-        vec![]
-    };
-    let property_count = properties.len();
+    let transform_expanded = layout.transform_open;
     let x_of = |frame: f64| track.min[0] + (frame as f32 - offset) * ppf;
-    if expanded && row.spatial {
-        let group_y = y + row_height;
+    if !layout.transform.is_empty() {
+        let group_y = y + layout.transform.start as f32 * row_height;
         if group_y >= body.min[1] && group_y + row_height <= body.max[1] {
             let group = property_group(
                 list,
@@ -1863,16 +1828,12 @@ pub(super) fn render_layer_properties(
         let sample = state["sampledLayers"]
             .as_array()
             .and_then(|ls| ls.iter().find(|l| l["id"].as_u64() == Some(row.id)));
-        for (i, property) in properties.iter().enumerate() {
-            let py = y + (i + 2) as f32 * row_height;
+        for (i, property_index) in layout.properties.iter().enumerate() {
+            let property = &row.properties[*property_index];
+            let py = y + (i + layout.transform.start + 1) as f32 * row_height;
             if py < body.min[1] || py + row_height > body.max[1] {
                 continue;
             }
-            paint::rect(
-                list,
-                Rect::new(area.min[0], py, gutter, row_height),
-                colors.PANEL,
-            );
             let axis = property.axis.map(|a| {
                 [
                     motion_core::Axis::X,
@@ -1881,7 +1842,14 @@ pub(super) fn render_layer_properties(
                 ][a]
             });
             let property_area = Rect::new(area.min[0], py, gutter, row_height);
-            let fields = property_layout(property_area, py, row_height, 0, property.axes.len());
+            let fields = property_layout(
+                list.styles().as_ref(),
+                property_area,
+                py,
+                row_height,
+                0,
+                property.axes.len(),
+            );
             property_icon(
                 list,
                 fields.watch,
@@ -1920,8 +1888,15 @@ pub(super) fn render_layer_properties(
                         .map(|s| s[property.key][*component].as_f64().unwrap_or(0.))
                         .unwrap_or(0.)
                 };
-                let field =
-                    property_layout(property_area, py, row_height, j, property.axes.len()).number;
+                let field = property_layout(
+                    list.styles().as_ref(),
+                    property_area,
+                    py,
+                    row_height,
+                    j,
+                    property.axes.len(),
+                )
+                .number;
                 if clicked(input, field) {
                     panels.select_only(Some(row.id));
                     panels
@@ -1973,10 +1948,9 @@ pub(super) fn render_layer_properties(
             }
         }
     }
-    if expanded && row.audio > 0 {
-        let audio_y =
-            y + (1 + if row.spatial { 1 + property_count } else { 0 }) as f32 * row_height;
-        let open = !panels.timeline.collapsed_audio.contains(&row.id);
+    if !layout.audio.is_empty() {
+        let audio_y = y + layout.audio.start as f32 * row_height;
+        let open = layout.audio.len() > 1;
         if audio_y >= body.min[1] && audio_y + row_height <= body.max[1] {
             let group = property_group(
                 list,
@@ -2018,23 +1992,25 @@ pub(super) fn render_layer_properties(
             );
         }
     }
-    let audio_rows = if row.audio > 0 {
-        1 + if panels.timeline.collapsed_audio.contains(&row.id) {
-            0
-        } else {
-            row.audio
-        }
-    } else {
-        0
-    };
-    let start =
-        y + (1 + if row.spatial { 1 + property_count } else { 0 } + audio_rows) as f32 * row_height;
+    let start = y + layout.masks.start as f32 * row_height;
     super::path_controls::timeline::render(
-        list, atlas, area, body, track, start, row_height, ppf, offset, row, panels, state, input,
+        list,
+        atlas,
+        area,
+        body,
+        track,
+        start,
+        row_height,
+        ppf,
+        offset,
+        row,
+        &layout.mask_rows,
+        panels,
+        state,
+        input,
         out,
     );
-    let vector_start = start
-        + super::path_controls::timeline::row_count(row, &panels.timeline) as f32 * row_height;
+    let vector_start = y + layout.vectors.start as f32 * row_height;
     super::path_controls::groups::timeline::render(
         list,
         atlas,
@@ -2046,6 +2022,7 @@ pub(super) fn render_layer_properties(
         ppf,
         offset,
         row,
+        &layout.vector_rows,
         panels,
         state,
         input,
@@ -2079,8 +2056,8 @@ pub(super) fn render_time_ruler(
         panels.timeline.last_seek = None;
     }
     let fps = state["project"]["fps"].as_u64().unwrap_or(30).max(1) as f32;
-    let step = (60.0 / (ppf * fps)).ceil().max(1.0) * fps;
-    let mut f = (panels.timeline.offset / step).ceil() * step;
+    let step = super::timeline_layout::ruler_step(ppf, fps);
+    let mut f = (offset / step).ceil() * step;
     while x_of(f as f64) < track.max[0] {
         let x = x_of(f as f64);
         paint::rect(
