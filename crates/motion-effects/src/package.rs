@@ -10,6 +10,43 @@ use std::{
 };
 use zip::{write::SimpleFileOptions, CompressionMethod, ZipArchive, ZipWriter};
 
+static WRITE_NONCE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
+struct TemporaryWrite(PathBuf);
+impl Drop for TemporaryWrite {
+    fn drop(&mut self) {
+        if let Err(error) = fs::remove_file(&self.0) {
+            if error.kind() != std::io::ErrorKind::NotFound {
+                log::warn!("effect temporary file cleanup failed: path={} reason={error}", self.0.display());
+            }
+        }
+    }
+}
+
+fn atomic_write(destination: &Path, bytes: &[u8]) -> Result<()> {
+    let directory = destination.parent().ok_or_else(|| Error::Invalid("missing destination directory".into()))?;
+    // Own only files exclusively created by this write, including on unwind.
+    let mut attempts = 0;
+    let (temporary, mut file) = loop {
+        if attempts >= 128 {
+            return Err(Error::Invalid("effect temporary file collision limit exceeded".into()));
+        }
+        attempts += 1;
+        let nonce = WRITE_NONCE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let path = directory.join(format!(".motion-effects-{}-{nonce}.tmp", std::process::id()));
+        match File::options().write(true).create_new(true).open(&path) {
+            Ok(file) => break (TemporaryWrite(path), file),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error.into()),
+        }
+    };
+    file.write_all(bytes)?;
+    file.sync_all()?;
+    drop(file);
+    fs::rename(&temporary.0, destination)?;
+    Ok(())
+}
+
 const MAX_PACKAGE: usize = 16 * 1024 * 1024;
 const MAX_MANIFEST: usize = 512 * 1024;
 const MAX_SHADER: usize = 256 * 1024;
@@ -303,12 +340,7 @@ impl Registry {
         for builtin in &builtins {
             let bundled = directory.join(format!("{}.msfx", builtin.hash));
             if !bundled.exists() {
-                let temp = directory.join(format!("{}.tmp", builtin.hash));
-                let mut file = File::create(&temp)?;
-                file.write_all(&builtin.bytes)?;
-                file.sync_all()?;
-                drop(file);
-                fs::rename(temp, &bundled)?;
+                atomic_write(&bundled, &builtin.bytes)?;
             }
         }
         if directory.exists() {
@@ -369,12 +401,7 @@ impl Registry {
         fs::create_dir_all(directory)?;
         let destination = directory.join(format!("{}.msfx", package.hash));
         if !destination.exists() {
-            let temp = directory.join(format!("{}.tmp", package.hash));
-            let mut f = File::create(&temp)?;
-            f.write_all(&package.bytes)?;
-            f.sync_all()?;
-            drop(f);
-            fs::rename(temp, &destination)?;
+            atomic_write(&destination, &package.bytes)?;
         }
         let info = InstalledPlugin {
             id: package.manifest.id.clone(),
@@ -406,9 +433,7 @@ impl Registry {
             disabled.insert(key);
         }
         fs::create_dir_all(directory)?;
-        let temp = directory.join("disabled.json.tmp");
-        fs::write(&temp, serde_json::to_vec(&disabled)?)?;
-        fs::rename(temp, directory.join("disabled.json"))?;
+        atomic_write(&directory.join("disabled.json"), &serde_json::to_vec(&disabled)?)?;
         self.disabled = disabled;
         Ok(())
     }
@@ -430,10 +455,22 @@ impl Registry {
             hash.len() == 64 && hash.bytes().all(|v| v.is_ascii_hexdigit()),
             "invalid package hash",
         )?;
-        if path.exists() {
-            fs::remove_file(path)?;
-        }
+        let was_disabled = self.disabled.contains(&key);
+        // Persist metadata before removing the only package payload.
         self.enable(directory, id, version, hash, true)?;
+        if let Err(error) = fs::remove_file(&path) {
+            if error.kind() != std::io::ErrorKind::NotFound {
+                if was_disabled {
+                    if let Err(rollback) = self.enable(directory, id, version, hash, false) {
+                        return Err(Error::Invalid(format!(
+                            "uninstall {} failed: {error}; restore disabled state failed: {rollback}",
+                            path.display()
+                        )));
+                    }
+                }
+                return Err(error.into());
+            }
+        }
         self.packages.remove(&key);
         Ok(())
     }
@@ -458,5 +495,23 @@ mod bounded_read_tests {
         assert_eq!(source.position(), 5);
         assert!(read_bounded(std::io::Cursor::new([7u8; 3]), 4, MAX_PACKAGE, "short").is_err());
         assert_eq!(read_bounded(std::io::Cursor::new([7u8; 4]), 4, 4, "exact").unwrap(), vec![7;4]);
+    }
+}
+
+#[cfg(test)]
+mod publication_failure_tests {
+    use super::*;
+
+    #[test]
+    fn failed_atomic_publication_cleans_only_the_owned_temporary_file() {
+        let directory = tempfile::tempdir().unwrap();
+        let destination = directory.path().join("disabled.json");
+        fs::create_dir(&destination).unwrap();
+        let foreign = directory.path().join("disabled.json.tmp");
+        fs::write(&foreign, b"other transaction").unwrap();
+        assert!(atomic_write(&destination, b"[]").is_err());
+        assert!(destination.is_dir());
+        assert_eq!(fs::read(&foreign).unwrap(), b"other transaction");
+        assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 2);
     }
 }

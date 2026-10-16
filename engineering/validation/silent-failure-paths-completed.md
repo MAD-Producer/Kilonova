@@ -109,3 +109,15 @@
 - 核实：原 4.15 所称 bytes=None 会无限接受大文件不成立，worker 还会在流式复制中独立限制实际字节数；改动解决 metadata 错误被隐藏的问题
 - 核实：包加载已经校验全部图片资源并完整解码，4.4 并非普通损坏包的绕过通道；仍移除导出端的伪造尺寸，作为真实失败边界保护
 - 关联辅助：0.8、4.4、4.15；原始测试输出：target/silent-failure-validation/host-batch06.log
+
+## 07 · 插件包发布与卸载事务
+
+状态：已修复；cargo test -p motion-effects --offline 全套 38 passed，0 failed，0 ignored。
+
+- 内置包、用户安装包和 disabled.json 使用独占创建的临时文件；写入、sync 或 rename 失败及 unwind 时清理本次文件，不碰其他事务的文件
+- 临时名含进程与原子序号，碰撞重试有明确上限；清理失败记录文件路径和 IO 原因
+- uninstall 先提交禁用集合，再移除包文件；metadata 提交失败时包字节与内存集合均保留
+- 包文件删除失败时恢复原禁用状态；恢复本身失败则明确返回两次错误，不伪称卸载成功
+- 新增 4 项回归覆盖：原子发布失败的自有文件清理、foreign 临时文件保留、metadata 失败不删包、删除失败恢复禁用状态、正常卸载完成（部分断言同属一项测试）
+- 使用的 log 是工作区已有依赖，未增加新第三方资产或复制内容
+- 关联辅助：11.23–11.26；原始日志：target/silent-failure-validation/effects-batch07.log

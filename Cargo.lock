@@ -2218,6 +2218,7 @@ name = "motion-effects"
 version = "0.1.0"
 dependencies = [
  "image",
+ "log",
  "naga",
  "regex",
  "semver",
