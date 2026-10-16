@@ -10,6 +10,7 @@ mod mixer;
 mod onsets;
 pub use onsets::audio_references;
 mod packages;
+mod publication;
 pub use packages::{PackageJobs, PackageTaskStatus};
 mod mp4;
 mod mp4_timing;

@@ -74,7 +74,7 @@ impl Stage {
 }
 impl Drop for Stage {
     fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.0);
+        crate::publication::cleanup_stage(&self.0);
     }
 }
 struct Prepared {
@@ -379,12 +379,11 @@ impl VideoJobs {
                 );
             }
             Err(e) => {
-                for path in published {
-                    let _ = fs::remove_file(path);
-                }
+                let paths = published.iter().map(PathBuf::as_path).collect::<Vec<_>>();
+                let error = crate::publication::rollback_files(e, &paths);
                 t.status.state = "failed".into();
                 t.status.phase = "failed".into();
-                t.status.error = Some(e);
+                t.status.error = Some(error);
             }
         }
         Ok(t.status.clone())
@@ -439,9 +438,10 @@ impl VideoJobs {
                         if state.cancel.load(Ordering::Acquire) {
                             return Err("video cache cancelled".into());
                         }
-                        fs::rename(stage.0.join("index.pts"), &cache).map_err(|e| e.to_string())?;
-                        fs::rename(stage.0.join("thumbnail.png"), cache.with_extension("png"))
-                            .map_err(|e| e.to_string())?;
+                        crate::publication::publish_cache_pair(
+                            (&stage.0.join("index.pts"), &cache),
+                            (&stage.0.join("thumbnail.png"), &cache.with_extension("png")),
+                        )?;
                         state.status.state = "succeeded".into();
                         state.status.phase = "complete".into();
                         state.status.progress = 1.0;

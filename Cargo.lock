@@ -2275,6 +2275,7 @@ dependencies = [
  "fontdue",
  "fs2",
  "image",
+ "log",
  "motion-core",
  "motion-model",
  "motion-render",
