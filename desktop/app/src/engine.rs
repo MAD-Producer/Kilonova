@@ -16,9 +16,11 @@ use std::{
     path::PathBuf,
     sync::{
         mpsc::{channel, Sender},
-        Arc,
+        atomic::{AtomicUsize, Ordering},
+        Arc, Mutex,
     },
     thread::JoinHandle,
+    time::{Duration, Instant},
 };
 mod diagnostic_names;
 mod failure;
@@ -365,7 +367,23 @@ pub struct Engine {
     failure: Failure,
     paint_pool: Arc<std::sync::Mutex<Vec<motion_ui::paint::PaintList>>>,
     diagnostics: Arc<crate::diagnostics::Diagnostics>,
+    in_flight: Arc<Mutex<Option<Flight>>>,
+    queue_depth: Arc<AtomicUsize>,
 }
+#[derive(Clone, Copy)]
+struct Flight {
+    request: u64,
+    operation: &'static str,
+    started: Instant,
+}
+thread_local! {
+    static CURRENT_COMMAND: std::cell::Cell<Option<Flight>> = const { std::cell::Cell::new(None) };
+}
+pub(crate) fn current_command() -> Option<(u64, &'static str, Duration)> {
+    CURRENT_COMMAND.get().map(|flight| (flight.request, flight.operation, flight.started.elapsed()))
+}
+static PRESENT_SURFACE_FAILURES: motion_render::observability::FailureCounter =
+    motion_render::observability::FailureCounter::new();
 struct QueuedCommand {
     command: Command,
     queued: std::time::Instant,
@@ -375,6 +393,14 @@ struct QueuedCommand {
 
 #[allow(dead_code)] // SDK bridge methods are intentionally available to future panels.
 impl Engine {
+    /// Inspect executing work without asking the (possibly blocked) worker.
+    pub fn in_flight(&self) -> Option<(String, Duration)> {
+        self.in_flight.lock().unwrap_or_else(|e| e.into_inner()).as_ref()
+            .map(|flight| (flight.operation.to_owned(), flight.started.elapsed()))
+    }
+    pub fn queue_depth(&self) -> usize {
+        self.queue_depth.load(Ordering::Acquire)
+    }
     pub fn diagnostics(&self) -> &Arc<crate::diagnostics::Diagnostics> {
         &self.diagnostics
     }
@@ -460,6 +486,10 @@ impl Engine {
         let worker_failure = failure.clone();
         let factory = Arc::new(std::sync::Mutex::new(None));
         let worker_factory = factory.clone();
+        let in_flight = Arc::new(Mutex::new(None));
+        let worker_flight = in_flight.clone();
+        let queue_depth = Arc::new(AtomicUsize::new(0));
+        let worker_depth = queue_depth.clone();
         let (sender, receiver) = channel::<QueuedCommand>();
         let (ready, opened) = channel::<Result<i64, String>>();
         let worker = std::thread::Builder::new()
@@ -503,9 +533,23 @@ impl Engine {
                 let mut presentation = PresentationState::default();
                 let mut windows = std::collections::HashMap::new();
                 let mut failed_reply = None;
+                let mut channel_closed = true;
                 while let Ok(QueuedCommand {command,queued,request,context}) = receiver.recv() {
                     let began=std::time::Instant::now();
                     let operation=command.diagnostic_name();
+                    let flight = Flight { request, operation, started: began };
+                    {
+                        // dispatch holds this same short gate across send + increment.
+                        // recv can wake before send returns; never decrement first.
+                        let mut current = worker_flight.lock().unwrap_or_else(|e| e.into_inner());
+                        worker_depth.fetch_sub(1, Ordering::AcqRel);
+                        *current = Some(flight);
+                    }
+                    CURRENT_COMMAND.set(Some(flight));
+                    if operation != "present" {
+                        log::info!("start #{} {}", request, operation);
+                        crate::logging::flush();
+                    }
                     let on_panic = command.panic_reply();
                     let handled=motion_host::ops::catch_panic(|| handle(
                         id,
@@ -520,22 +564,30 @@ impl Engine {
                         command,
                     ));
                     worker_diagnostics.record(request,"worker",operation,queued.elapsed(),Some(began.duration_since(queued)),Some(began.elapsed()),context);
+                    *worker_flight.lock().unwrap_or_else(|e| e.into_inner()) = None;
+                    CURRENT_COMMAND.set(None);
+                    if operation != "present" || began.elapsed() >= Duration::from_millis(100) {
+                        log::debug!("done #{} {} {}ms", request, operation, began.elapsed().as_millis());
+                    }
                     match handled {
-                        Ok(true) => break,
+                        Ok(true) => { channel_closed = false; break; },
                         Ok(false) => {},
                         Err(reason) => {
+                            channel_closed = false;
+                            log::error!("panic #{} {} {}ms: {}", request, operation, began.elapsed().as_millis(), reason);
                             let recovery = match motion_host::ops::catch_panic(|| failure::recovery(id)) {
                                 Ok(Ok(path)) => format!("recovery JSON: {}", path.display()),
                                 Ok(Err(error)) | Err(error) => format!("recovery unavailable: {error}"),
                             };
                             let message = format!("engine session closed after native panic: {reason}; {recovery}; reopen the project");
-                            eprintln!("[motion-engine] {message}");
+                            log::error!("[motion-engine] {message}");
                             *worker_failure.lock().unwrap_or_else(|error| error.into_inner()) = Some(message.clone());
                             failed_reply = on_panic.map(|reply| (reply, message));
                             break;
                         }
                     }
                 }
+                if channel_closed { log::error!("worker channel closed"); }
                 drop(windows);
                 drop(painter);
                 drop(node_preview);
@@ -556,6 +608,8 @@ impl Engine {
             failure,
             paint_pool,
             diagnostics,
+            in_flight,
+            queue_depth,
         })
     }
 
@@ -565,6 +619,8 @@ impl Engine {
     fn dispatch(&self, command: Command) -> Result<u64, String> {
         self.check_running()?;
         let request = self.diagnostics.next_request();
+        let operation = command.diagnostic_name();
+        let _gate = self.in_flight.lock().unwrap_or_else(|e| e.into_inner());
         self.sender
             .send(QueuedCommand {
                 command,
@@ -573,6 +629,11 @@ impl Engine {
                 context: self.diagnostics.context(),
             })
             .map_err(|_| self.stopped_error())?;
+        let depth = self.queue_depth.fetch_add(1, Ordering::AcqRel) + 1;
+        // Present shares this queue; keep its healthy per-frame path silent.
+        if operation != "present" {
+            log::debug!("dispatch #{} {} queue_depth={}", request, operation, depth);
+        }
         Ok(request)
     }
 
@@ -614,11 +675,14 @@ impl Engine {
         let result = received
             .map_err(|error| match error {
                 std::sync::mpsc::RecvTimeoutError::Disconnected => self.stopped_error(),
-                std::sync::mpsc::RecvTimeoutError::Timeout => format!("{operation} timed out; its result is still pending; check project state before retrying"),
+                std::sync::mpsc::RecvTimeoutError::Timeout => {
+                    log::warn!("timeout #{} {} waited={}ms", request, operation, began.elapsed().as_millis());
+                    format!("{operation} timed out; its result is still pending; check project state before retrying")
+                },
             })?;
         #[cfg(debug_assertions)]
         if began.elapsed().as_millis() >= 16 {
-            eprintln!(
+            log::debug!(
                 "[motion-timing] blocking {operation}: {} us",
                 began.elapsed().as_micros()
             );
@@ -982,12 +1046,8 @@ impl Engine {
 
 impl Drop for Engine {
     fn drop(&mut self) {
-        let _ = self.sender.send(QueuedCommand {
-            command: Command::Shutdown,
-            queued: std::time::Instant::now(),
-            request: 0,
-            context: Default::default(),
-        });
+        // Shutdown must use the same accounting gate as every other command.
+        let _ = self.send(Command::Shutdown);
         if let Some(worker) = self.worker.take() {
             let _ = worker.join();
         }
@@ -1017,6 +1077,12 @@ fn clear_target(encoder: &mut wgpu::CommandEncoder, view: &wgpu::TextureView) {
 }
 
 fn respond<T>(reply: Sender<Result<T, String>>, value: Result<T, String>) {
+    if let Err(reason) = &value {
+        if let Some(flight) = CURRENT_COMMAND.get() {
+            log::error!("error #{} {} {}ms: {}", flight.request, flight.operation,
+                flight.started.elapsed().as_millis(), reason);
+        }
+    }
     let _ = reply.send(value);
 }
 
@@ -1296,9 +1362,15 @@ fn handle(
                     result
                 }else{
                     let output=match g.surface.get_current_texture(){
-                        Ok(output)=>output,
-                        Err(wgpu::SurfaceError::Lost|wgpu::SurfaceError::Outdated)=>{g.surface.configure(&g.renderer.device,&g.config);return Ok(false)},
-                        Err(wgpu::SurfaceError::Timeout)=>return Ok(false),Err(e)=>return Err(e.to_string()),
+                        Ok(output)=>{PRESENT_SURFACE_FAILURES.success();output},
+                        Err(error @ (wgpu::SurfaceError::Lost|wgpu::SurfaceError::Outdated))=>{
+                            PRESENT_SURFACE_FAILURES.failure("desktop.present.surface",format_args!("state={error:?} window={}",ui.window));
+                            g.surface.configure(&g.renderer.device,&g.config);return Ok(false)
+                        },
+                        Err(wgpu::SurfaceError::Timeout)=>{
+                            PRESENT_SURFACE_FAILURES.failure("desktop.present.surface",format_args!("state=Timeout window={}",ui.window));
+                            return Ok(false)
+                        },Err(e)=>return Err(e.to_string()),
                     };
                     let view=output.texture.create_view(&Default::default());
                     let mut encoder=g.renderer.device.create_command_encoder(&Default::default());
@@ -1314,7 +1386,7 @@ fn handle(
             presentation.last_present_us=began.elapsed().as_micros() as u64;
             #[cfg(debug_assertions)]
             if presentation.last_present_us>=30_000 {
-                eprintln!("[motion-timing] surface {} present: {} us, composition renders={}, reuses={}",ui.window,presentation.last_present_us,presentation.composition_renders,presentation.composition_reuses);
+                log::debug!("[motion-timing] surface {} present: {} us, composition renders={}, reuses={}",ui.window,presentation.last_present_us,presentation.composition_renders,presentation.composition_reuses);
             }
             result
         });

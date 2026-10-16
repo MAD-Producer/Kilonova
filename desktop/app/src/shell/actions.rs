@@ -633,7 +633,7 @@ impl Shell {
             }
             Action::TogglePlay => {
                 if std::env::var_os("MOTION_TRACE_UI").is_some() {
-                    eprintln!(
+                    log::debug!(
                         "[motion-ui] toggle playback, previously {}",
                         self.playback.is_some()
                     );
@@ -689,7 +689,7 @@ impl Shell {
     #[track_caller]
     pub(crate) fn stop(&mut self) {
         if self.playback.is_some() && std::env::var_os("MOTION_TRACE_UI").is_some() {
-            eprintln!("[motion-ui] stopped by {}", std::panic::Location::caller());
+            log::debug!("[motion-ui] stopped by {}", std::panic::Location::caller());
         }
         if let Some(mut audio) = self.audio.take() {
             audio.stop();
