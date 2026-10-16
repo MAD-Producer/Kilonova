@@ -199,3 +199,13 @@
 - 默认 MOTION_LOG 未设置的真实启动：123 条普通命令 start，0 条 Present start；debug 下无健康 Present 的逐帧 done/dispatch；日志轮转、MCP 三条 JSON-RPC 响应和 CLI 命令目录无污染均验证通过
 - 原生验收日志：target/silent-failure-validation/native-integrated.log；双语言截图/报告：native-integrated/；日志与协议验收：runtime/runtime-summary.json
 - 当前批次基线对应前 11 个业务修复提交；后续新业务改动仍须按影响范围补验，不能用本节覆盖未知改动
+
+## 13 · 日志 sink 自身中毒后的持续可用性
+
+状态：已修复；logging 3 项回归通过。
+
+- 真实 Display::fmt panic 会中毒 writer Mutex，原普通 log()/flush() 的 if let Ok 随后会永久吞掉所有新日志
+- 普通写入和 flush 现在恢复 BufWriter/File 的锁，并先补换行分隔被中断的半条记录；正常记录的等级、缓冲和 flush 策略保持
+- panic hook 分支继续只用 try_lock；拿不到锁时直接 stderr，不走恢复 helper，不等待自己持有的锁
+- 新增真实 formatter panic 测试，验证中毒确实发生，随后 warn 仍完整写入同一文件并恢复锁；已有捕获 panic 与持锁 hook 不死锁回归仍通过
+- 本节是对新日志层的复核补漏；日志：target/silent-failure-validation/logger-poison-batch13.log

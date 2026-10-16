@@ -19,6 +19,19 @@ thread_local! {
 }
 
 impl FileLogger {
+    fn lock_writer(&self) -> std::sync::MutexGuard<'_, BufWriter<File>> {
+        match self.writer.lock() {
+            Ok(writer) => writer,
+            Err(poisoned) => {
+                let mut writer = poisoned.into_inner();
+                // A formatter can panic after writing part of a record.
+                // Separate the next record and keep this file sink usable.
+                let _ = writer.write_all(b"\n");
+                self.writer.clear_poison();
+                writer
+            }
+        }
+    }
     fn write(&self, record: &log::Record<'_>, writer: &mut impl Write) {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -55,14 +68,13 @@ impl log::Log for FileLogger {
                     let _ = writeln!(io::stderr(), "{}: {}", record.level(), record.args());
                 }
             }
-        } else if let Ok(mut writer) = self.writer.lock() {
+        } else {
+            let mut writer = self.lock_writer();
             self.write(record, &mut *writer);
         }
     }
     fn flush(&self) {
-        if let Ok(mut writer) = self.writer.lock() {
-            let _ = writer.flush();
-        }
+        let _ = self.lock_writer().flush();
     }
 }
 
@@ -164,6 +176,33 @@ mod tests {
         assert!(text.contains("start #7 test_wait"));
         assert!(text.contains("timeout #7"));
         assert!(!text.contains("hidden"));
+    }
+
+    #[test]
+    fn formatter_panic_does_not_disable_subsequent_file_logging() {
+        struct BrokenDisplay;
+        impl std::fmt::Display for BrokenDisplay {
+            fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                panic!("injected formatter panic");
+            }
+        }
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("sink.log");
+        let logger = FileLogger {
+            writer: Mutex::new(BufWriter::new(File::create(&path).unwrap())),
+            level: log::LevelFilter::Info,
+        };
+        let caught = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            logger.log(&log::Record::builder().level(log::Level::Info)
+                .args(format_args!("broken record {BrokenDisplay}")).build());
+        }));
+        assert!(caught.is_err());
+        assert!(logger.writer.is_poisoned());
+        logger.log(&log::Record::builder().level(log::Level::Warn)
+            .args(format_args!("logging survived formatter panic")).build());
+        assert!(!logger.writer.is_poisoned());
+        let text = fs::read_to_string(path).unwrap();
+        assert!(text.lines().any(|line| line.contains(" WARN ") && line.ends_with("logging survived formatter panic")));
     }
 
     #[test]
