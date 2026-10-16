@@ -283,6 +283,8 @@ Header band total height `64`; ruler at `+36`, height `28`; rows begin at `+64`;
 ### 7.2 Property subrows
 
 - Group headers use the existing header surface and primary text; child rows retain explicit indentation and subtle tree guides. All values of one property stay inline; do not spend space on redundant X/Y labels for a two-value offset.
+- Layer properties use the same Transform / Geometry / Effects group order in the inspector and the timeline. Anchor is a real static source-space property; position and scale components share a row. Geometry holds existing mask/vector settings; effect-instance rows preserve their native editor entry.
+- A hairline horizontal separator spans each timeline property row into its keyframe lane, using `tree.separator.width` and `tree.separator.opacity`.
 - Time ticks and labels belong to the ruler. Do not extend a vertical grid line at each second through the layer/property body. Preserve the playhead, keyframe marks, snap feedback, and the label/lane boundary.
 
 

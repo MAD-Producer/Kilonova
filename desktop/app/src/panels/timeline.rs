@@ -4,6 +4,7 @@ use std::hash::{Hash, Hasher};
 
 pub(super) struct Row {
     pub(super) spatial: bool,
+    pub(super) effects: usize,
     pub(super) audio: usize,
     pub(super) masks: Vec<motion_core::masks::LayerMask>,
     pub(super) mask_offset: i32,
@@ -312,6 +313,7 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
                 .collect();
             Row {
                 spatial: l["content"]["kind"] != "audio",
+                effects: l["effects"].as_array().map_or(0, Vec::len),
                 audio: if super::audio::is_audio(l) {
                     super::audio::rows(l)
                 } else {
@@ -359,6 +361,7 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
             0,
             Row {
                 spatial: false,
+                effects: 0,
                 audio: 0,
                 vector: None,
                 vector_size: [0.; 2],
@@ -531,6 +534,7 @@ pub(super) fn render(
         super::properties::process_field(panels, state, input, out);
     }
     let styles = list.styles();
+    panels.timeline_anchor.process(&styles, state, input, out);
     let row_height = styles.metric("row.height", 22.);
     let toolbar_height = styles.metric("field.height", 18.) + styles.metric("padding", 5.) * 2.;
     let toolbar_top = area.min[1] + styles.metric("border", 1.) * 2.;
@@ -1032,6 +1036,7 @@ pub(super) fn render(
                     panels.timeline.expanded.remove(&row.id);
                 } else {
                     panels.timeline.expanded.insert(row.id);
+                    panels.timeline.collapsed_geometry.insert(row.id);
                     panels.timeline.reopen_properties(row.id);
                 }
             }
@@ -1765,7 +1770,7 @@ mod property_tests {
         panels.timeline.expanded.insert(7);
         let mut atlas = TextAtlas::from_system(12.).unwrap();
         let area = Rect::new(0., 0., 1200., 600.);
-        let point = [335., 124.];
+        let point = [335., 146.];
         let mut actions = vec![];
         for input in [
             Input {
@@ -1876,12 +1881,57 @@ pub(super) fn render_layer_properties(
                 }
             }
         }
+        if let Some(index) = layout.anchor {
+            let py = y + index as f32 * row_height;
+            if py >= body.min[1] && py + row_height <= body.max[1] {
+                let fields = property_layout(&list.styles(), area, py, row_height, 0, 2);
+                property_branch(list, fields.watch);
+                property_icon(
+                    list,
+                    fields.watch,
+                    motion_ui::icons::Icon::Anchor,
+                    false,
+                    !row.locked,
+                );
+                label(
+                    list,
+                    atlas,
+                    fields.caption,
+                    if locale == Locale::Zh {
+                        "锚点"
+                    } else {
+                        "Anchor"
+                    },
+                    true,
+                );
+                if let Some(layer) = state["project"]["layers"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .find(|layer| layer["id"].as_u64() == Some(row.id))
+                {
+                    panels.timeline_anchor.draw(
+                        list,
+                        atlas,
+                        area,
+                        py,
+                        Panel::Timeline,
+                        layer,
+                        input,
+                        row.locked,
+                        out,
+                    );
+                }
+            }
+        }
         let sample = state["sampledLayers"]
             .as_array()
             .and_then(|ls| ls.iter().find(|l| l["id"].as_u64() == Some(row.id)));
         for (i, property_index) in layout.properties.iter().enumerate() {
             let property = &row.properties[*property_index];
-            let py = y + (i + layout.transform.start + 1) as f32 * row_height;
+            let py = y
+                + (i + layout.transform.start + 1 + usize::from(layout.anchor.is_some())) as f32
+                    * row_height;
             if py < body.min[1] || py + row_height > body.max[1] {
                 continue;
             }
@@ -2044,6 +2094,63 @@ pub(super) fn render_layer_properties(
             );
         }
     }
+    if !layout.geometry.is_empty() {
+        let gy = y + layout.geometry.start as f32 * row_height;
+        if gy >= body.min[1] && gy + row_height <= body.max[1] {
+            let heading = property_group(
+                list,
+                atlas,
+                area,
+                gy,
+                row_height,
+                if locale == Locale::Zh {
+                    "几何设置"
+                } else {
+                    "Geometry"
+                },
+                layout.geometry_open,
+            );
+            if clicked(input, heading) {
+                if !panels.timeline.collapsed_geometry.remove(&row.id) {
+                    panels.timeline.collapsed_geometry.insert(row.id);
+                }
+            }
+        }
+        if layout.geometry_open {
+            let py = gy + row_height;
+            if py >= body.min[1] && py + row_height <= body.max[1] {
+                let fields = property_layout(&list.styles(), area, py, row_height, 0, 1);
+                property_branch(list, fields.watch);
+                label(list, atlas, fields.caption, "3D", true);
+                if let Some(layer) = state["project"]["layers"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .find(|layer| layer["id"].as_u64() == Some(row.id))
+                {
+                    let enabled = !row.locked && state["observing"] != true;
+                    if motion_ui::widgets::Checkbox::draw(
+                        list,
+                        atlas,
+                        fields.number,
+                        "",
+                        layer["three_d"] == true,
+                        input,
+                        enabled,
+                        false,
+                        None,
+                    )
+                    .clicked
+                    {
+                        out.push(Action::Edit(Command::SetLayer3d {
+                            object: row.id,
+                            enabled: layer["three_d"] != true,
+                        }));
+                    }
+                }
+            }
+        }
+    }
     let start = y + layout.masks.start as f32 * row_height;
     super::path_controls::timeline::render(
         list,
@@ -2080,6 +2187,132 @@ pub(super) fn render_layer_properties(
         input,
         out,
     );
+    if !layout.effects.is_empty() {
+        let ey = y + layout.effects.start as f32 * row_height;
+        if ey >= body.min[1] && ey + row_height <= body.max[1] {
+            let heading = property_group(
+                list,
+                atlas,
+                area,
+                ey,
+                row_height,
+                if locale == Locale::Zh {
+                    "效果"
+                } else {
+                    "Effects"
+                },
+                layout.effects_open,
+            );
+            if clicked(input, heading) {
+                if !panels.timeline.expanded_effects.remove(&row.id) {
+                    panels.timeline.expanded_effects.insert(row.id);
+                }
+            }
+        }
+        if layout.effects_open {
+            let effects = state["project"]["layers"].as_array().into_iter().flatten()
+                .find(|layer| layer["id"].as_u64() == Some(row.id)).and_then(|layer| layer["effects"].as_array());
+            for (index, effect) in effects.into_iter().flatten().enumerate() {
+                let py = ey + (index + 1) as f32 * row_height;
+                if py < body.min[1] || py + row_height > body.max[1] {
+                    continue;
+                }
+                let fields = property_layout(&list.styles(), area, py, row_height, 0, 1);
+                property_branch(list, fields.watch);
+                if motion_ui::widgets::Checkbox::draw(
+                    list,
+                    atlas,
+                    fields.watch,
+                    "",
+                    effect["enabled"] != false,
+                    input,
+                    !row.locked && state["observing"] != true,
+                    false,
+                    None,
+                )
+                .clicked
+                {
+                    if let Some(id) = effect["id"].as_u64() {
+                        out.push(Action::Edit(Command::Effect {
+                            object: row.id,
+                            action: motion_core::EffectAction::Enable {
+                                effect: id,
+                                enabled: effect["enabled"] == false,
+                            },
+                        }));
+                    }
+                }
+                let definition = panels.effect_controls.definition(effect);
+                let title = definition
+                    .as_ref()
+                    .and_then(|definition| {
+                        definition[if locale == Locale::Zh {
+                            "name"
+                        } else {
+                            "english_name"
+                        }]
+                        .as_str()
+                    })
+                    .unwrap_or_else(|| effect["effect"].as_str().unwrap_or("Effect"));
+                label(list, atlas, fields.caption, title, false);
+                let edit = ui::button_styled(
+                    list,
+                    atlas,
+                    fields.number,
+                    if locale == Locale::Zh {
+                        "编辑"
+                    } else {
+                        "Edit"
+                    },
+                    input,
+                    true,
+                    &list.styles(),
+                    "button.icon",
+                )
+                .clicked;
+                if clicked(input, fields.caption) || edit {
+                    panels.select_only(Some(row.id));
+                    out.push(Action::ShowPanel(Panel::EffectControls.dock()));
+                }
+                let mut frames = vec![];
+                for parameter in effect["params"]
+                    .as_object()
+                    .into_iter()
+                    .flat_map(|params| params.values())
+                {
+                    for track in [&parameter["track"], &parameter["curve"]] {
+                        frames.extend(
+                            track["keys"]
+                                .as_array()
+                                .into_iter()
+                                .flatten()
+                                .filter_map(|key| key["frame"].as_f64())
+                                .map(|frame| frame + f64::from(row.mask_offset)),
+                        );
+                    }
+                }
+                frames.sort_by(f64::total_cmp);
+                frames.dedup();
+                for frame in frames {
+                    let x = x_of(frame);
+                    if x < track.min[0] || x >= track.max[0] {
+                        continue;
+                    }
+                    let radius = list.styles().metric("graph.key_radius", 5.);
+                    paint::diamond(
+                        list,
+                        [x, py + row_height * 0.5],
+                        list.styles().metric("graph.handle_radius", 4.),
+                        colors.KEYFRAME,
+                    );
+                    if clicked(input, Rect::new(x - radius, py, radius * 2., row_height)) {
+                        panels.select_only(Some(row.id));
+                        out.push(Action::Seek(frame.clamp(0., total - 1.)));
+                    }
+                }
+            }
+        }
+    }
 }
 
 pub(super) fn render_time_ruler(

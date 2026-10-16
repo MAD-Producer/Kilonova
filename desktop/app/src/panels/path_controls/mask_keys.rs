@@ -1159,6 +1159,7 @@ mod tests {
             panels.focused = Some(Panel::Properties);
             panels.properties.transform_collapsed = true;
             panels.path_controls.masks_open = true;
+            panels.properties.geometry_collapsed = false;
             let layout = Node::dock(Panel::Properties.dock());
             let mut atlas = TextAtlas::from_system(12.).unwrap();
             let mut render = |engine: &motion_core::Engine,
@@ -1226,7 +1227,19 @@ mod tests {
             assert_eq!(engine.project().layers[0].masks.len(), 2);
             let before_drag = engine.project().clone();
             let fy = y + 121.;
-            let actions = render(&engine, &mut panels, &press(MouseButton::Left, 130., fy));
+            let styles = PaintList::default().styles();
+            let indent = styles.metric("tree.indent", 14.);
+            let rect = super::super::mask_inspector::property_row(
+                &styles,
+                Rect::new(indent, 0., 400. - indent, 700.),
+                fy,
+                0,
+                2,
+                Panel::Properties,
+            )
+            .number;
+            let fx = rect.min[0] + rect.width() * 0.5;
+            let actions = render(&engine, &mut panels, &press(MouseButton::Left, fx, fy));
             apply(&mut engine, actions);
             assert_eq!(
                 panels.path_controls.numeric_owner(),
@@ -1236,7 +1249,7 @@ mod tests {
                 &engine,
                 &mut panels,
                 &Input {
-                    mouse: [150., fy],
+                    mouse: [fx + 20., fy],
                     held: Some(MouseButton::Left),
                     ..Default::default()
                 },
@@ -1246,8 +1259,8 @@ mod tests {
                 &engine,
                 &mut panels,
                 &Input {
-                    mouse: [160., fy],
-                    released: Some((MouseButton::Left, [160., fy])),
+                    mouse: [fx + 30., fy],
+                    released: Some((MouseButton::Left, [fx + 30., fy])),
                     ..Default::default()
                 },
             );
@@ -1340,7 +1353,7 @@ mod tests {
             };
             let point = [
                 640. + 21. / 120. * 632.,
-                top + 64. + (if path { 4. } else { 5. }) * 22. + 11.,
+                top + 64. + (if path { 6. } else { 7. }) * 22. + 11.,
             ];
             let mut render = |panels: &mut crate::panels::Panels, input: &Input| {
                 if floating {

@@ -47,9 +47,9 @@ pub(super) fn property_row(
     };
     if matches!(host, Panel::Timeline | Panel::Curves) {
         let mut layout = crate::panels::timeline::property_layout(styles, area, y, row, axis, axes);
-        layout.watch.min[0] += indent;
-        layout.watch.max[0] += indent;
-        layout.caption.min[0] += indent;
+        layout.watch.min[0] += indent * 2.;
+        layout.watch.max[0] += indent * 2.;
+        layout.caption.min[0] += indent * 2.;
         layout.caption.max[0] = layout.caption.max[0].max(layout.caption.min[0]);
         return layout;
     }

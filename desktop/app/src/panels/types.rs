@@ -56,7 +56,10 @@ pub enum Action {
     WindowMinimize,
     WindowMaximize,
     ShowPanel(dock::DockId),
-    MaskTimeline { object: u64, mask: u64 },
+    MaskTimeline {
+        object: u64,
+        mask: u64,
+    },
     About,
     ExportDiagnostics,
     ToggleDiagnostics,
@@ -64,9 +67,14 @@ pub enum Action {
     /// Switch the composition viewer between camera and observation views.
     ViewKind(i32),
     /// Orbit/pan the observation camera; host picks the gesture by view.
-    ViewOrbit { delta: [f32; 2] },
+    ViewOrbit {
+        delta: [f32; 2],
+    },
     /// Zoom the observation camera around its target.
-    ViewZoom { ratio: f64, size: [i32; 2] },
+    ViewZoom {
+        ratio: f64,
+        size: [i32; 2],
+    },
     SelectAt([f64; 2]),
     PreviewDrag {
         object: u64,
@@ -127,6 +135,7 @@ pub struct Panels {
     pub(crate) header_size: Option<[f32; 2]>,
     pub fx_console: Option<FxConsole>,
     pub effect_controls: crate::panels::effect_controls::Controls,
+    pub timeline_anchor: super::properties::AnchorControls,
     pub animation_controls: crate::panels::animation_controls::Controls,
     pub parent_controls: crate::panels::parent_controls::Controls,
     pub timeline_columns: crate::panels::timeline_columns::Controls,
@@ -354,14 +363,34 @@ pub(crate) struct ProjectState {
     pub context_menu: Option<[f32; 2]>,
 }
 
-#[derive(Default)]
 pub(crate) struct PropertiesState {
     pub consumed_press: bool,
     pub transform_collapsed: bool,
+    pub geometry_collapsed: bool,
+    pub effects_collapsed: bool,
+    pub effects: super::effect_controls::Controls,
+    pub anchor: super::properties::AnchorControls,
     pub checkbox_focused: bool,
     pub properties_scroll: f32,
     pub content_height: f32,
     pub field: Option<Field>,
+}
+
+impl Default for PropertiesState {
+    fn default() -> Self {
+        Self {
+            consumed_press: false,
+            transform_collapsed: false,
+            geometry_collapsed: true,
+            effects_collapsed: true,
+            effects: Default::default(),
+            anchor: Default::default(),
+            checkbox_focused: false,
+            properties_scroll: 0.,
+            content_height: 0.,
+            field: None,
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -381,8 +410,10 @@ pub(crate) struct TimelineState {
     )>,
     pub expanded: std::collections::HashSet<u64>,
     pub collapsed_transforms: std::collections::HashSet<u64>,
+    pub collapsed_geometry: std::collections::HashSet<u64>,
+    pub expanded_effects: std::collections::HashSet<u64>,
     pub collapsed_audio: std::collections::HashSet<u64>,
-    pub vector_open: std::collections::HashSet<(u64,u64,u8)>,
+    pub vector_open: std::collections::HashSet<(u64, u64, u8)>,
     pub collapsed_masks: std::collections::HashSet<u64>,
     pub collapsed_mask_items: std::collections::HashSet<(u64, u64)>,
     pub filters: std::collections::HashMap<u64, PropertyFilter>,

@@ -110,7 +110,11 @@
       "timeline.property.watch_offset": 98,
       "timeline.property.caption_offset": 118,
       "timeline.property.watch_width": 14,
-      "timeline.property.icon_size": 16
+      "timeline.property.icon_size": 16,
+      "tree.separator.width": 0.5,
+      "tree.separator.opacity": 0.75,
+      "property.geometry.switch_width": 64,
+      "property.anchor.step": 0.5
     },
     "motion": {
       "easing": "cubic-out"

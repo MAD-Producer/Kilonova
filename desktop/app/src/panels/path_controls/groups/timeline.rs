@@ -190,9 +190,9 @@ pub(in crate::panels) fn render(
             list,
             atlas,
             Rect::new(
-                area.min[0],
+                area.min[0] + styles.metric("tree.indent", 14.),
                 area.min[1],
-                (area.width() - pad - slot).max(0.),
+                (area.width() - pad - slot - styles.metric("tree.indent", 14.)).max(0.),
                 area.height(),
             ),
             start,
@@ -238,7 +238,7 @@ pub(in crate::panels) fn render(
                     depth,
                     open,
                 } => {
-                    let x = area.min[0] + styles.metric("tree.indent", 14.) * (*depth + 1) as f32;
+                    let x = area.min[0] + styles.metric("tree.indent", 14.) * (*depth + 2) as f32;
                     let heading = property_group(
                         list,
                         atlas,

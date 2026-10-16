@@ -13,7 +13,12 @@ pub(super) struct LayerRows {
     pub transform_open: bool,
     pub properties: Vec<usize>,
     pub transform: Range<usize>,
+    pub anchor: Option<usize>,
     pub audio: Range<usize>,
+    pub geometry: Range<usize>,
+    pub effects: Range<usize>,
+    pub geometry_open: bool,
+    pub effects_open: bool,
     pub masks: Range<usize>,
     pub vectors: Range<usize>,
     pub mask_rows: path_controls::timeline::Rows,
@@ -59,6 +64,19 @@ pub(super) fn paint_rows(
         if let Some(style) = styles.resolve(class, states) {
             let mut row = list.child();
             box_style(&mut row, rect, style);
+            let thickness = styles.metric("tree.separator.width", 0.5);
+            paint::rect(
+                &mut row,
+                Rect::new(
+                    rect.min[0],
+                    rect.max[1] - thickness,
+                    rect.width(),
+                    thickness,
+                ),
+                styles
+                    .color("border")
+                    .with_alpha(styles.metric("tree.separator.opacity", 0.75)),
+            );
             row.clip_to(body);
             list.append(row);
         }
@@ -91,7 +109,12 @@ impl LayerRows {
             .filter(|(_, p)| transform_open && filter.admits(p.property, !p.keys.is_empty()))
             .map(|(i, _)| i)
             .collect::<Vec<_>>();
-        let transform = 1..1 + usize::from(expanded && row.spatial) + properties.len();
+        let anchor =
+            (transform_open && matches!(filter, super::types::PropertyFilter::All)).then_some(2);
+        let transform = 1..1
+            + usize::from(expanded && row.spatial)
+            + usize::from(anchor.is_some())
+            + properties.len();
         let audio = transform.end
             ..transform.end
                 + if expanded && row.audio > 0 {
@@ -103,24 +126,45 @@ impl LayerRows {
                 } else {
                     0
                 };
-        let mask_rows = if expanded {
+        let geometry_open = expanded && !t.collapsed_geometry.contains(&row.id);
+        let effects_open = expanded && t.expanded_effects.contains(&row.id);
+        let mask_rows = if geometry_open {
             path_controls::timeline::Rows::new(row, t)
         } else {
             Default::default()
         };
-        let vector_rows = if expanded {
+        let vector_rows = if geometry_open {
             path_controls::groups::timeline::Rows::new(row, t, frame, locale)
         } else {
             Default::default()
         };
-        let masks = audio.end..audio.end + mask_rows.len();
+        let geometry = audio.end
+            ..audio.end
+                + if expanded && row.spatial {
+                    1 + usize::from(geometry_open)
+                } else {
+                    0
+                };
+        let masks = geometry.end..geometry.end + mask_rows.len();
         let vectors = masks.end..masks.end + vector_rows.len();
+        let effects = vectors.end
+            ..vectors.end
+                + if expanded && row.id != 0 {
+                    1 + if effects_open { row.effects } else { 0 }
+                } else {
+                    0
+                };
         Self {
             expanded,
             transform_open,
             properties,
             transform,
+            anchor,
             audio,
+            geometry,
+            effects,
+            geometry_open,
+            effects_open,
             masks,
             vectors,
             mask_rows,
@@ -128,7 +172,7 @@ impl LayerRows {
         }
     }
     pub fn len(&self) -> usize {
-        self.vectors.end
+        self.effects.end
     }
 }
 
@@ -199,7 +243,7 @@ mod tests {
         let plan = LayerRows::new(&rows[0], &panels.timeline, 21., Locale::En);
         let mut atlas = TextAtlas::from_system(12.).unwrap();
         let area = Rect::new(0., 0., 1280., 1000.);
-        let point = [90., 64. + plan.masks.start as f32 * 22. + 11.];
+        let point = [110., 64. + plan.masks.start as f32 * 22. + 11.];
         let mut actions = vec![];
         timeline::render(
             &mut PaintList::default(),
@@ -263,7 +307,9 @@ mod tests {
                 .unwrap();
             let mut list = PaintList::with_styles(std::sync::Arc::new(sheet));
             let mut panels = panels();
-            panels.timeline.scroll = 37.;
+            let rows = timeline::rows(&state);
+            let plan = LayerRows::new(&rows[0], &panels.timeline, 21., Locale::En);
+            panels.timeline.scroll = 37. + plan.geometry.len() as f32 * height;
             panels.timeline.zoom = 2.;
             panels.timeline.offset = 10.;
             timeline::render(
@@ -284,6 +330,11 @@ mod tests {
             )]
                 .1;
             let key_y = (rect.min[1] + rect.max[1]) * 0.5;
+            let bottom = rect.min[1] + height;
+            assert!(list.shapes.iter().any(|shape| matches!(shape,
+                paint::Shape::Procedural {area, kind: paint::Pattern::Box { .. }, ..}
+                if area.width() >= width && area.height() <= 1. && (area.max[1]-bottom).abs()<0.01)),
+                "each keyframe property must retain a horizontal boundary across the time lanes");
             let track_x = super::super::GUTTER.min(width * 0.52);
             let expected_x = track_x
                 + (60. - panels.timeline.offset) * (width - track_x - 8.) / 120.

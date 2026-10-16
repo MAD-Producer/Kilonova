@@ -182,7 +182,7 @@ pub(super) fn layout(
     let slot = styles.metric("icon.slot", 20.);
     if matches!(host, Panel::Timeline | Panel::Curves) {
         let mut f = crate::panels::timeline::property_layout(styles, area, y, row, axis, axes);
-        let indent = (depth as f32 * styles.metric("tree.indent", 14.))
+        let indent = ((depth + 1) as f32 * styles.metric("tree.indent", 14.))
             .min((f.number.min[0] - f.caption.min[0] - pad).max(0.));
         f.watch.min[0] += indent;
         f.watch.max[0] += indent;

@@ -42,11 +42,11 @@ mod properties;
 #[cfg(test)]
 mod selection_tests;
 mod timeline;
-mod timeline_layout;
 mod timeline_columns;
 #[cfg(test)]
 mod timeline_columns_tests;
 mod timeline_graph;
+mod timeline_layout;
 mod timeline_shortcuts;
 #[cfg(test)]
 mod timeline_shortcuts_tests;
@@ -125,7 +125,10 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     let camera = panels.camera_controls.cancel();
     let audio = panels.audio_controls.cancel();
     let graph_box = panels.timeline.graph_box.cancel();
-    let effect = panels.effect_controls.cancel();
+    let effect = panels.effect_controls.cancel()
+        | panels.properties.effects.cancel()
+        | panels.properties.anchor.cancel()
+        | panels.timeline_anchor.cancel();
     let auxiliary = panels.auxiliary.cancel();
     let numeric = panels
         .properties
@@ -173,14 +176,21 @@ pub(crate) fn reveal_mask_keys(
 ) -> Vec<Action> {
     let actions = cancel_interaction(panels);
     path_controls::timeline::reveal(panels, state, object, mask);
+    panels.timeline.collapsed_geometry.remove(&object);
     actions
 }
-pub(crate) fn reveal_shape_keys(panels:&mut Panels,state:&Value,object:u64)->Vec<Action>{
-    let actions=cancel_interaction(panels);
-    panels.select_only(Some(object));panels.timeline.expanded.insert(object);
-    panels.timeline.filters.insert(object,types::PropertyFilter::Animated);
-    path_controls::groups::timeline::reveal_animated(panels,state,object);
-    panels.focused=Some(Panel::Timeline);panels.timeline.scroll=0.;
+pub(crate) fn reveal_shape_keys(panels: &mut Panels, state: &Value, object: u64) -> Vec<Action> {
+    let actions = cancel_interaction(panels);
+    panels.select_only(Some(object));
+    panels.timeline.expanded.insert(object);
+    panels.timeline.collapsed_geometry.remove(&object);
+    panels
+        .timeline
+        .filters
+        .insert(object, types::PropertyFilter::Animated);
+    path_controls::groups::timeline::reveal_animated(panels, state, object);
+    panels.focused = Some(Panel::Timeline);
+    panels.timeline.scroll = 0.;
     actions
 }
 
@@ -273,7 +283,9 @@ pub fn chrome(
         && !node_modal
         && matches!(
             panels.focused,
-            Some(Panel::Masks | Panel::Properties | Panel::Vector | Panel::Timeline | Panel::Curves)
+            Some(
+                Panel::Masks | Panel::Properties | Panel::Vector | Panel::Timeline | Panel::Curves
+            )
         )
         && panels.path_controls.numeric_owner() == panels.focused
     {
@@ -322,13 +334,17 @@ pub fn chrome(
         || timeline_dropdown
         || panels.project.context_menu.is_some()
         || panels.timeline.timeline_context_menu.is_some();
-    let effect_modal = panels.effect_controls.editing();
+    let effect_owner = if panels.properties.effects.editing() {
+        Panel::Properties
+    } else {
+        Panel::EffectControls
+    };
+    let effect_modal = panels.effect_controls.editing() || panels.properties.effects.editing();
     let audio_modal = panels.audio_controls.editing();
-    let auxiliary_owner=panels.auxiliary.owner();
+    let auxiliary_owner = panels.auxiliary.owner();
     let auxiliary_modal = auxiliary_owner.is_some();
     let neutral = Input::default();
-    let body_input = if menu_modal || node_modal || effect_modal || audio_modal || auxiliary_modal
-    {
+    let body_input = if menu_modal || node_modal || effect_modal || audio_modal || auxiliary_modal {
         &neutral
     } else {
         input
@@ -435,10 +451,7 @@ pub fn chrome(
                 panels,
                 state,
                 if (node_modal && f.panel == Panel::Nodes && !menu_modal)
-                    || (effect_modal
-                        && f.panel == Panel::EffectControls
-                        && !menu_modal
-                        && !node_modal)
+                    || (effect_modal && f.panel == effect_owner && !menu_modal && !node_modal)
                     || (audio_modal && f.panel == Panel::Timeline && !menu_modal && !node_modal)
                     || (timeline_popup && f.panel == Panel::Timeline)
                     || (auxiliary_modal && Some(f.panel) == auxiliary_owner && !menu_modal)
@@ -713,6 +726,20 @@ pub fn chrome(
         panels.locale,
         &mut out,
     );
+    if frames(layout, size)
+        .iter()
+        .any(|frame| frame.panel == Panel::Properties)
+    {
+        panels.properties.effects.finish_context_menu(
+            list,
+            atlas,
+            Rect::new(0., 0., size[0], size[1]),
+            state,
+            input,
+            panels.locale,
+            &mut out,
+        );
+    }
     finish_project_context_menu(
         list,
         atlas,
@@ -933,6 +960,17 @@ pub fn floating_chrome(
         panels.locale,
         &mut out,
     );
+    if panel == Panel::Properties {
+        panels.properties.effects.finish_context_menu(
+            list,
+            atlas,
+            Rect::new(0., 0., size[0], size[1]),
+            state,
+            input,
+            panels.locale,
+            &mut out,
+        );
+    }
     finish_project_context_menu(
         list,
         atlas,

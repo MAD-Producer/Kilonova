@@ -232,7 +232,7 @@ impl Controls {
         }
         begun
     }
-    fn definition(&self, effect: &Value) -> Option<Value> {
+    pub(super) fn definition(&self, effect: &Value) -> Option<Value> {
         self.catalogue["packages"].as_array()?.iter().find(|p| {
             p["hash"] == effect["hash"]
                 && p["manifest"]["id"] == effect["plugin"]

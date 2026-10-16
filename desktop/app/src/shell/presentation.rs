@@ -1187,7 +1187,7 @@ mod interaction_tests {
             let point = |frame: f32| {
                 [
                     640. + frame * 632. / 300.,
-                    area.min[1] + 64. + (if path { 4. } else { 5. }) * 22. + 11.,
+                    area.min[1] + 64. + (if path { 6. } else { 7. }) * 22. + 11.,
                 ]
             };
             shell.translate(Event::MousePressed {
@@ -1303,7 +1303,7 @@ mod interaction_tests {
         let point = |frame: f32| {
             [
                 640. + frame * 632. / 300.,
-                area.min[1] + 64. + 5. * 22. + 11.,
+                area.min[1] + 64. + 7. * 22. + 11.,
             ]
         };
         shell.translate(Event::MousePressed {

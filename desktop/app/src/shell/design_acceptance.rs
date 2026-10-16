@@ -26,6 +26,9 @@ impl Shell {
             "effect-controls-narrow",
             "effect-controls-bottom",
             "effect-curve-inline",
+            "layer-properties-tree",
+            "layer-properties-effects",
+            "timeline-properties-tree",
         ] {
             let graph_preset = if screen.starts_with("timeline-") || screen == "effect-library" {
                 workspace::Preset::Default
@@ -87,6 +90,24 @@ impl Shell {
                     if !actions.is_empty() {
                         return Err("effect library capture must not edit the project".into());
                     }
+                }
+                "layer-properties-tree"
+                | "layer-properties-effects"
+                | "timeline-properties-tree" => {
+                    let target = if screen.starts_with("timeline-") {
+                        dock::Panel::Timeline
+                    } else {
+                        dock::Panel::Properties
+                    };
+                    let panel_size = if target == dock::Panel::Timeline {
+                        [720., 520.]
+                    } else {
+                        [360., 560.]
+                    };
+                    let path = report.with_extension(format!("{screen}.png"));
+                    self.capture_auxiliary_panel(target, panel_size, size, &path, screen)?;
+                    output.insert(screen.into(), serde_json::json!(path));
+                    continue;
                 }
                 "effect-controls"
                 | "effect-controls-narrow"
@@ -273,6 +294,9 @@ impl Shell {
         );
         let focus = self.panels.focused;
         let old_animation = std::mem::take(&mut self.panels.animation_controls);
+        let old_properties = std::mem::take(&mut self.panels.properties);
+        let old_timeline = self.panels.timeline.clone();
+        let old_anchor = std::mem::take(&mut self.panels.timeline_anchor);
         let old_scroll = self.panels.auxiliary.scroll.clone();
         let old_controls = if panel == dock::Panel::EffectControls {
             let old = std::mem::take(&mut self.panels.effect_controls);
@@ -297,7 +321,10 @@ impl Shell {
                     .ok_or("character capture requires a real text layer")?;
                 self.panels.select_only(Some(object));
             }
-            if panel == dock::Panel::EffectControls {
+            if matches!(
+                panel,
+                dock::Panel::EffectControls | dock::Panel::Properties | dock::Panel::Timeline
+            ) {
                 self.engine.history(2)?;
                 effect_gesture = true;
                 let object = before["project"]["layers"]
@@ -308,8 +335,17 @@ impl Shell {
                     .max()
                     .unwrap_or(0)
                     + 1;
-                let layer =
-                    Layer::solid(object, "UI controls", [100.; 2], [960., 540., 0.], [1.; 4]);
+                let layer = Layer::solid(
+                    object,
+                    if self.panels.locale == i18n::Locale::Zh {
+                        "纯色层 1"
+                    } else {
+                        "Solid 1"
+                    },
+                    [100.; 2],
+                    [960., 540., 0.],
+                    [1.; 4],
+                );
                 self.state = self.engine.edit(
                     serde_json::to_string(&Command::Add { layer }).map_err(|e| e.to_string())?,
                 )?;
@@ -332,10 +368,40 @@ impl Shell {
                         .ok_or("capture effect missing")?;
                     self.engine.plugin(serde_json::json!({"op":"add","object":object,"plugin":package["manifest"]["id"],"version":package["manifest"]["version"],"hash":package["hash"],"effect":name}).to_string())?;
                 }
+                if matches!(panel, dock::Panel::Properties | dock::Panel::Timeline) {
+                    self.engine.edit(
+                        serde_json::to_string(&vec![
+                            Command::Animate {
+                                object,
+                                property: motion_core::Property::Position,
+                                axis: None,
+                                frame: 0,
+                                enabled: true,
+                            },
+                            Command::SetVector {
+                                object,
+                                property: motion_core::Property::Position,
+                                frame: 60,
+                                value: [1120., 540., 0.],
+                            },
+                        ])
+                        .map_err(|error| error.to_string())?,
+                    )?;
+                }
                 self.state = self.engine.history(3)?;
                 effect_gesture = false;
                 created_text = true;
                 self.panels.select_only(Some(object));
+                if panel == dock::Panel::Properties {
+                    self.panels.properties.transform_collapsed = pose.ends_with("effects");
+                    self.panels.properties.effects_collapsed = !pose.ends_with("effects");
+                }
+                if panel == dock::Panel::Timeline {
+                    self.panels.timeline.expanded.clear();
+                    self.panels.timeline.expanded.insert(object);
+                    self.panels.timeline.collapsed_geometry.insert(object);
+                    self.panels.focused = Some(dock::Panel::Timeline);
+                }
                 if pose == "effect-controls-bottom" {
                     self.panels
                         .auxiliary
@@ -383,6 +449,9 @@ impl Shell {
         self.panels.selection_anchor = selection.2;
         self.panels.focused = focus;
         self.panels.animation_controls = old_animation;
+        self.panels.properties = old_properties;
+        self.panels.timeline = old_timeline;
+        self.panels.timeline_anchor = old_anchor;
         self.panels.auxiliary.scroll = old_scroll;
         if let Some(old) = old_controls {
             self.panels.effect_controls = old;

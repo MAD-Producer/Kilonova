@@ -24,6 +24,9 @@ fn text_active(panels: &Panels) -> bool {
         || panels.timeline.graph_box.editing()
         || panels.timeline.scrubbing
         || panels.effect_controls.editing()
+        || panels.properties.effects.editing()
+        || panels.properties.anchor.editing()
+        || panels.timeline_anchor.editing()
         || panels.auxiliary.editing()
         || panels.animation_controls.editing()
         || panels.camera_controls.editing()
@@ -108,10 +111,12 @@ pub fn route(
     if text_active(panels) || input.composing || input.ime_consumed {
         return false;
     }
-    if matches!(panels.focused, Some(Panel::Masks | Panel::Properties | Panel::Vector | Panel::Timeline | Panel::Curves))
-        && panels
-            .path_controls
-            .mask_key_shortcuts(state, panels.selected, input, out)
+    if matches!(
+        panels.focused,
+        Some(Panel::Masks | Panel::Properties | Panel::Vector | Panel::Timeline | Panel::Curves)
+    ) && panels
+        .path_controls
+        .mask_key_shortcuts(state, panels.selected, input, out)
     {
         return true;
     }
@@ -160,8 +165,13 @@ pub fn route(
 pub fn handle_shortcuts(input: &Input, panels: &mut Panels, state: &Value, out: &mut Vec<Action>) {
     let mut frame = state["frame"].as_f64().unwrap_or(0.0);
     for (key, modifiers, repeat) in input.key_presses() {
-        if key == Key::A && modifiers.control && !modifiers.alt && !modifiers.shift && !repeat
-            && super::graph_box::select_all(panels, state) {
+        if key == Key::A
+            && modifiers.control
+            && !modifiers.alt
+            && !modifiers.shift
+            && !repeat
+            && super::graph_box::select_all(panels, state)
+        {
             continue;
         }
         let key_owned = matches!(panels.focused, Some(Panel::Timeline | Panel::Curves))
