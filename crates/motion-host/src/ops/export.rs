@@ -51,10 +51,7 @@ pub fn render_plan_info(id: i64) -> Result<serde_json::Value> {
                             .files
                             .get(path)
                             .ok_or_else(|| format!("effect resource {path} is missing from package"))?;
-                        let dimensions = image::load_from_memory(bytes)
-                            .map(|image| (image.width(), image.height()))
-                            .unwrap_or((0, 0));
-                        Ok(json!({"path":path,"width":dimensions.0,"height":dimensions.1}))
+                        effect_resource_info(path, bytes)
                     })
                     .collect::<Result<Vec<_>>>()?;
                 Ok(json!({"key":program.key,"wgsl":program.shader.wgsl,"glsl":program.shader.glsl,
@@ -87,12 +84,14 @@ pub fn render_plan_info(id: i64) -> Result<serde_json::Value> {
             + 262144 * 24
             + motion_core::MAX_LAYERS * motion_core::masks::MAX_MASKS * motion_render::mask_plan::RECORD_BYTES
             + 262144 * 24;
+        let has_audio = !p.audio_voices()
+            .map_err(|e| format!("export audio plan: {e}"))?.is_empty();
         let mut info=json!({"version":motion_render::effect_plan::PLAN_VERSION,
             "scratchBudgetBytes":s.effects.scratch_budget(),
             "headerBytes":motion_render::effect_plan::HEADER_BYTES,
             "composition_bundle_version":1,"composition_bundle_buffer_hint":131072,
             "has_video":!p.video_assets.is_empty(),
-            "has_audio":p.audio_voices().is_ok_and(|v|!v.is_empty()),
+            "has_audio":has_audio,
             "programs":programs,"maskPrograms":mask_programs,
             "maskBytes":motion_render::mask_plan::RECORD_BYTES,"maskVertexBytes":24,
             "maskSourceToken":motion_render::mask_plan::SOURCE_TOKEN,
@@ -329,4 +328,24 @@ pub fn asset_pixels(id: i64, asset: i64) -> Result<Vec<u8>> {
         motion_render::premultiply_pixels(&mut pixels);
         Ok(pixels)
     })
+}
+
+fn effect_resource_info(path: &str, bytes: &[u8]) -> Result<serde_json::Value> {
+    let image = image::load_from_memory(bytes)
+        .map_err(|e| format!("decode effect resource {path}: {e}"))?;
+    Ok(json!({"path":path,"width":image.width(),"height":image.height()}))
+}
+
+#[cfg(test)]
+mod failure_tests {
+    #[test]
+    fn corrupt_effect_resource_reports_path_instead_of_zero_dimensions() {
+        let error = super::effect_resource_info("sprites/broken.png", b"invalid PNG").unwrap_err();
+        assert!(error.contains("sprites/broken.png"));
+        let mut png = std::io::Cursor::new(Vec::new());
+        image::DynamicImage::new_rgba8(3, 2).write_to(&mut png, image::ImageFormat::Png).unwrap();
+        let info = super::effect_resource_info("sprites/valid.png", png.get_ref()).unwrap();
+        assert_eq!(info["width"], 3);
+        assert_eq!(info["height"], 2);
+    }
 }

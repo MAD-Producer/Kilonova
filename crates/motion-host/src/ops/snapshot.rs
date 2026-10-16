@@ -248,9 +248,22 @@ impl Session {
         } else {
             vec!["target"]
         };
+        let (has_audio, audio_error) = match p.audio_voices() {
+            Ok(voices) => (Some(!voices.is_empty()), None),
+            Err(error) => (None, Some(error.to_string())),
+        };
+        {
+            let mut previous = self.audio_snapshot_error.borrow_mut();
+            if audio_error != *previous {
+                if let Some(error) = &audio_error {
+                    log::warn!("snapshot audio plan failed: composition={} reason={error}", p.composition_id);
+                }
+                *previous = audio_error.clone();
+            }
+        }
         let mut snapshot=json!({"project":original,"root":self.root.to_string_lossy(),"frame":f,"revision":self.engine.revision(),"canUndo":self.engine.can_undo(),
             "main_composition":"comp-main","composition":p.composition_id,"compositions":p.composition_list(),
-            "has_audio":p.audio_voices().is_ok_and(|v|!v.is_empty()),
+            "has_audio":has_audio,"audio_error":audio_error,
             "composition_context":self.composition_context_snapshot(),
             "vector_layers":vector_layers,"mask_layers":mask_layers,"source_transforms":source_transforms,
             "platform":{"name":self.platform().name(),"graphics":"wgpu"},
