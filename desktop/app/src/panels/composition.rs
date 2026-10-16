@@ -64,16 +64,27 @@ pub(super) fn render(
         Action::PreviewMode(next),
         out,
     );
-    label(
+    // View switcher reflects the live observation state and cycles
+    // Composition → Free → Top → Side → Composition.
+    let observing = state["observing"].as_bool().unwrap_or(false);
+    let (view_label, next_view) = if !observing {
+        (T::ViewComposition, 1)
+    } else {
+        match state["observationView"].as_str().unwrap_or("free") {
+            "top" => (T::ViewTop, 3),
+            "side" => (T::ViewSide, 0),
+            _ => (T::ViewFree, 2),
+        }
+    };
+    button(
         list,
         atlas,
-        Rect::new(controls.max[0] - 178., controls.min[1], 98., 28.),
-        if panels.locale == Locale::Zh {
-            "活动摄影机"
-        } else {
-            "Active camera"
-        },
+        Rect::new(controls.max[0] - 178., controls.min[1] + 3., 98., 22.),
+        panels.locale.t(view_label),
+        input,
         true,
+        Action::ViewKind(next_view),
+        out,
     );
     label(
         list,
@@ -106,6 +117,38 @@ pub(super) fn render(
     };
     if let Some(cursor) = panels.transform_controls.cursor {
         panels.cursor = Some(cursor);
+    }
+    // Observation gestures: right-drag orbits (free view) or pans
+    // (orthogonal views); the wheel zooms the observation camera.
+    if input
+        .pressed
+        .is_some_and(|(b, p)| b == MouseButton::Right && v.contains(p))
+    {
+        panels.composition.orbit = input.pressed.map(|(_, p)| p);
+    }
+    if let Some(last) = panels.composition.orbit {
+        if input.held == Some(MouseButton::Right) {
+            let delta = [
+                (input.mouse[0] - last[0]) * 0.2,
+                (input.mouse[1] - last[1]) * 0.2,
+            ];
+            if delta != [0., 0.] {
+                out.push(Action::ViewOrbit { delta });
+            }
+            panels.composition.orbit = Some(input.mouse);
+            panels.cursor = Some(motion_ui::cursor::Cursor::Grabbing);
+        } else {
+            panels.composition.orbit = None;
+        }
+    }
+    if input.wheel[1] != 0. && v.contains(input.mouse) {
+        if !observing {
+            out.push(Action::ViewKind(1));
+        }
+        out.push(Action::ViewZoom {
+            ratio: if input.wheel[1] > 0. { 1.1 } else { 1. / 1.1 },
+            size: [v.width() as i32, v.height() as i32],
+        });
     }
     if input
         .pressed

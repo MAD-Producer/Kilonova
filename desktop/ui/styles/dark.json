@@ -32,6 +32,7 @@
       "dock": "#181818",
       "well": "#171717",
       "curve": "#76C46A",
+      "path.draft": "#FFBC5C",
       "context.background": "#F4F4F4",
       "context.foreground": "#171717",
       "context.muted": "#8A8A8A",
@@ -56,6 +57,7 @@
       "label.column": 72,
       "value.min_width": 64,
       "icon.slot": 20,
+      "tree.indent": 14,
       "checkbox.size": 14,
       "radius.control": 2,
       "radius.popup": 4,
@@ -72,7 +74,47 @@
       "graph.selection.handle_size": 6,
       "graph.selection.fill_opacity": 0.05,
       "dropdown.max_width": 320,
-      "dropdown.menu_min_width": 160
+      "dropdown.menu_min_width": 160,
+      "effect.row.height": 26,
+      "effect.header.height": 30,
+      "effect.watch.width": 24,
+      "effect.enable.width": 28,
+      "effect.action.size": 26,
+      "effect.curve.width": 320,
+      "effect.curve.graph_height": 320,
+      "effect.curve.hit_radius": 7,
+      "effect.curve.stroke_width": 1.5,
+      "effect.curve.selector.width": 40,
+      "effect.curve.selector.gap": 4,
+      "effect.curve.reset.width": 30,
+      "effect.curve.background_opacity": 0.5,
+      "effect.curve.grid_opacity": 0.25,
+      "effect.curve.diagonal_opacity": 0.35,
+      "auxiliary.control.height": 26,
+      "auxiliary.content.height": 500,
+      "auxiliary.action.width": 28,
+      "auxiliary.transport.width": 36,
+      "auxiliary.gap": 6,
+      "icon.small.size": 14,
+      "path.handle.opacity": 0.7,
+      "effect.toolbar.height": 28,
+      "effect.toolbar.gap": 6,
+      "effect.secondary.height": 24,
+      "effect.secondary.gap": 4,
+      "effect.category.height": 28,
+      "effect.category.gap": 4,
+      "effect.library.tab_width": 54,
+      "effect.library.tab_gap": 4,
+      "effect.group.gap": 8,
+      "timeline.property.group_offset": 78,
+      "timeline.property.watch_offset": 98,
+      "timeline.property.caption_offset": 118,
+      "timeline.property.watch_width": 14,
+      "timeline.property.icon_size": 16,
+      "tree.separator.width": 0.5,
+      "tree.separator.opacity": 0.75,
+      "property.geometry.switch_width": 64,
+      "property.anchor.step": 0.5
     },
     "motion": {
       "easing": "cubic-out"
@@ -269,6 +311,22 @@
         }
       }
     },
+    "timeline.row": {
+      "extends": "row"
+    },
+    "timeline.row.alternate": {
+      "extends": "timeline.row",
+      "background": "$colors.raised"
+    },
+    "timeline.grid": {
+      "extends": "widget",
+      "border": "$colors.header",
+      "border_width": "$sizes.border"
+    },
+    "color_well": {
+      "extends": "button",
+      "padding": "$sizes.border"
+    },
     "menu": {
       "extends": "panel",
       "background": "$colors.raised"
@@ -337,6 +395,15 @@
     "label.small.muted": {
       "extends": "label.small",
       "foreground": "$colors.muted"
+    },
+    "effect.header": {
+      "extends": "row",
+      "background": "$colors.header"
+    },
+    "timeline.property.group": {
+      "extends": "timeline.row",
+      "background": "$colors.header",
+      "foreground": "$colors.text"
     }
   }
 }

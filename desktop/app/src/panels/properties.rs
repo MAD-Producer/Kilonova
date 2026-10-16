@@ -1,5 +1,235 @@
 use super::*;
 
+#[derive(Default)]
+pub(crate) struct AnchorControls {
+    field: Option<AnchorField>,
+}
+struct AnchorField {
+    object: u64,
+    axis: usize,
+    rect: Rect,
+    number: super::numeric::Field,
+}
+impl AnchorControls {
+    pub fn editing(&self) -> bool {
+        self.field.is_some()
+    }
+    pub fn cancel(&mut self) -> bool {
+        self.field
+            .take()
+            .is_some_and(|mut field| field.number.cancel())
+    }
+    fn options(styles: &motion_ui::style::StyleSheet) -> motion_ui::widgets::NumberOptions {
+        motion_ui::widgets::NumberOptions {
+            min: -1e9,
+            max: 1e9,
+            speed: styles.metric("property.anchor.step", 0.5) as f64,
+            decimals: 2,
+        }
+    }
+    fn values(layer: &Value) -> ([f32; 2], [f32; 2]) {
+        (
+            std::array::from_fn(|axis| {
+                layer["transform"]["anchor"][axis].as_f64().unwrap_or(0.5) as f32
+            }),
+            std::array::from_fn(|axis| layer["size"][axis].as_f64().unwrap_or(1.).max(1.) as f32),
+        )
+    }
+    pub fn process(
+        &mut self,
+        styles: &motion_ui::style::StyleSheet,
+        state: &Value,
+        input: &Input,
+        out: &mut Vec<Action>,
+    ) {
+        let Some(object) = self.field.as_ref().map(|field| field.object) else {
+            return;
+        };
+        let Some(layer) = state["project"]["layers"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .find(|layer| layer["id"].as_u64() == Some(object))
+        else {
+            if self.cancel() {
+                out.push(Action::History(4));
+            }
+            return;
+        };
+        if layer["locked"] == true || state["observing"] == true {
+            if self.cancel() {
+                out.push(Action::History(4));
+            }
+            return;
+        }
+        self.process_layer(styles, layer, input, out);
+    }
+    fn process_layer(
+        &mut self,
+        styles: &motion_ui::style::StyleSheet,
+        layer: &Value,
+        input: &Input,
+        out: &mut Vec<Action>,
+    ) {
+        let Some(mut field) = self.field.take() else {
+            return;
+        };
+        let (anchor, size) = Self::values(layer);
+        field.number.editor.drag_threshold = Some(styles.metric("motion.drag_threshold", 3.));
+        let events = field.number.editor.update(
+            f64::from(anchor[field.axis] * size[field.axis]),
+            Self::options(styles),
+            input,
+            field.rect,
+        );
+        let finished = super::numeric::apply(events, out, |value| {
+            let mut next = anchor;
+            next[field.axis] = value / size[field.axis];
+            Command::Anchor {
+                object: field.object,
+                anchor: next,
+            }
+        });
+        if !finished {
+            self.field = Some(field);
+        }
+    }
+    pub(super) fn draw(
+        &mut self,
+        list: &mut PaintList,
+        atlas: &mut TextAtlas,
+        area: Rect,
+        y: f32,
+        host: Panel,
+        layer: &Value,
+        input: &Input,
+        locked: bool,
+        out: &mut Vec<Action>,
+    ) {
+        let object = layer["id"].as_u64().unwrap_or(0);
+        let styles = list.styles();
+        let (anchor, size) = Self::values(layer);
+        for axis in 0..2 {
+            let rect = if host == Panel::Timeline {
+                super::timeline::property_layout(
+                    &styles,
+                    area,
+                    y,
+                    styles.metric("row.height", 22.),
+                    axis,
+                    2,
+                )
+                .number
+            } else {
+                inspector_layout(&styles, area, y, axis, 2).number
+            };
+            let active = self
+                .field
+                .as_ref()
+                .is_some_and(|field| field.object == object && field.axis == axis);
+            if clicked(input, rect) && !locked && !active {
+                if self.cancel() {
+                    out.push(Action::History(4));
+                }
+                self.field = Some(AnchorField {
+                    object,
+                    axis,
+                    rect,
+                    number: Default::default(),
+                });
+                self.process_layer(&styles, layer, input, out);
+            }
+            let value = f64::from(anchor[axis] * size[axis]);
+            if let Some(field) = self
+                .field
+                .as_mut()
+                .filter(|field| field.object == object && field.axis == axis)
+            {
+                field.rect = rect;
+                field
+                    .number
+                    .editor
+                    .draw(list, atlas, rect, value, Self::options(&styles));
+            } else {
+                super::numeric::passive_with_precision(list, atlas, rect, value, input, !locked, 2);
+            }
+        }
+    }
+}
+
+pub(super) fn inspector_layout(
+    styles: &motion_ui::style::StyleSheet,
+    area: Rect,
+    y: f32,
+    axis: usize,
+    axes: usize,
+) -> super::timeline::PropertyLayout {
+    let pad = styles.metric("padding.panel", 8.);
+    let indent = styles.metric("tree.indent", 14.);
+    let slot = styles.metric("icon.slot", 20.);
+    let row = styles.metric("row.height", 22.);
+    let field = styles.metric("field.height", 18.).min(row);
+    let left = area.min[0] + pad + indent;
+    let caption = left + slot;
+    let value = (caption + styles.metric("label.column", 72.) + pad)
+        .min(area.max[0] - pad - axes.max(1) as f32 * styles.metric("value.min_width", 64.))
+        .max(caption + styles.metric("label.column", 72.) * 0.5 + pad);
+    let width = ((area.max[0] - pad - value).max(0.) / axes.max(1) as f32)
+        .min(styles.metric("value.min_width", 64.));
+    super::timeline::PropertyLayout {
+        watch: Rect::new(left, y, slot, row),
+        caption: Rect::new(caption, y, (value - pad - caption).max(0.), row),
+        number: Rect::new(
+            value + axis as f32 * width,
+            y + (row - field) * 0.5,
+            (width - styles.metric("border", 1.) * 2.).max(0.),
+            field,
+        ),
+    }
+}
+
+fn group(
+    list: &mut PaintList,
+    atlas: &mut TextAtlas,
+    area: Rect,
+    y: f32,
+    title: &str,
+    open: bool,
+    input: &Input,
+) -> bool {
+    let styles = list.styles();
+    let pad = styles.metric("padding.panel", 8.);
+    let slot = styles.metric("icon.slot", 20.);
+    let row = styles.metric("row.height", 22.);
+    let rect = Rect::new(area.min[0] + pad, y, (area.width() - pad * 2.).max(0.), row);
+    motion_ui::style::box_style(
+        list,
+        rect,
+        styles
+            .resolve("effect.header", motion_ui::style::States::default())
+            .unwrap(),
+    );
+    motion_ui::icons::draw(
+        list,
+        Rect::new(rect.min[0], y, slot, row),
+        if open {
+            motion_ui::icons::Icon::ChevronDown
+        } else {
+            motion_ui::icons::Icon::ChevronRight
+        },
+        styles.metric("icon.small.size", 14.),
+        styles.color("muted"),
+    );
+    label(
+        list,
+        atlas,
+        Rect::new(rect.min[0] + slot, y, (rect.width() - slot).max(0.), row),
+        title,
+        false,
+    );
+    clicked(input, rect)
+}
+
 pub(super) fn render(
     list: &mut PaintList,
     atlas: &mut TextAtlas,
@@ -11,24 +241,37 @@ pub(super) fn render(
 ) {
     let styles = list.styles();
     let colors = styles.colors();
+    let neutral = Input::default();
+    let mask_modal = panels.path_controls.inspector_menu_in(Panel::Properties);
+    let parent_modal = panels.parent_controls.open;
+    let effect_modal = panels.properties.effects.editing();
+    let original = input;
+    let input = if mask_modal || parent_modal || effect_modal {
+        &neutral
+    } else {
+        input
+    };
     if panels.focused != Some(Panel::Timeline) {
         process_field(panels, state, input, out);
     }
+    panels.properties.anchor.process(&styles, state, input, out);
     paint::rect(list, area, colors.PANEL);
     let row = styles.metric("row.height", 22.);
     let pad = styles.metric("padding.panel", 8.);
-    let input = Input {
-        pressed: input.pressed.filter(|(_, p)| area.contains(*p)),
+    let indent = styles.metric("tree.indent", 14.);
+    let slot = styles.metric("icon.slot", 20.);
+    let filtered = Input {
+        pressed: input.pressed.filter(|(_, point)| area.contains(*point)),
         ..input.clone()
     };
-    let input = &input;
-    if area.contains(input.mouse) && !panels.parent_controls.open {
-        panels.properties.properties_scroll =
-            (panels.properties.properties_scroll + input.wheel[1]).clamp(
-                0.,
-                (panels.properties.content_height - area.height()).max(0.),
-            );
+    let input = &filtered;
+    if area.contains(input.mouse) {
+        panels.properties.properties_scroll += input.wheel[1];
     }
+    panels.properties.properties_scroll = panels.properties.properties_scroll.clamp(
+        0.,
+        (panels.properties.content_height - area.height()).max(0.),
+    );
     let mut y = area.min[1] + pad - panels.properties.properties_scroll;
     if panels.selected == Some(0) && state["project"]["camera"]["created"] == true {
         panels
@@ -48,117 +291,94 @@ pub(super) fn render(
         );
         return;
     };
-    let Some(layer) = state["project"]["layers"]
-        .as_array()
-        .and_then(|ls| ls.iter().find(|l| l["id"].as_u64() == Some(object)))
-    else {
+    let Some(layer) = state["project"]["layers"].as_array().and_then(|layers| {
+        layers
+            .iter()
+            .find(|layer| layer["id"].as_u64() == Some(object))
+    }) else {
         return;
     };
-    let Some(sample) = state["sampledLayers"]
-        .as_array()
-        .and_then(|ls| ls.iter().find(|l| l["id"].as_u64() == Some(object)))
-    else {
+    let Some(sample) = state["sampledLayers"].as_array().and_then(|layers| {
+        layers
+            .iter()
+            .find(|layer| layer["id"].as_u64() == Some(object))
+    }) else {
         return;
     };
     let locale = panels.locale;
-    let locked = layer["locked"].as_bool().unwrap_or(false);
-    let three_d = layer["three_d"].as_bool().unwrap_or(false);
-    let context = Rect::new(area.min[0] + pad, y, (area.width() - pad * 2.).max(0.), row);
-    paint::rect(
-        list,
-        Rect::new(context.min[0], y + 7., 6., 8.),
-        colors.TRACKS[0],
-    );
+    let locked = layer["locked"] == true || state["observing"] == true;
+    let three_d = layer["three_d"] == true;
     label(
         list,
         atlas,
-        Rect::new(
-            context.min[0] + 12.,
-            y,
-            (context.width() - 70.).max(0.),
-            row,
-        ),
-        layer["name"].as_str().unwrap_or(locale.t(T::Layer)),
-        true,
+        Rect::new(area.min[0] + pad, y, (area.width() - pad * 2.).max(0.), row),
+        &format!("<{}>", layer["name"].as_str().unwrap_or(locale.t(T::Layer))),
+        false,
     );
-    if input.key_presses().any(|(k, _, _)| k == Key::Tab) {
-        panels.properties.checkbox_focused = true;
-    }
-    if input.pressed.is_some() {
-        panels.properties.checkbox_focused = false;
-    }
-    if motion_ui::widgets::Checkbox::draw(
-        list,
-        atlas,
-        Rect::new(context.max[0] - 48., y, 48., row),
-        "3D",
-        three_d,
-        input,
-        !locked,
-        panels.properties.checkbox_focused,
-        None,
-    )
-    .clicked
-    {
-        out.push(Action::Edit(Command::SetLayer3d {
-            object,
-            enabled: !three_d,
-        }));
-    }
     y += row;
-    let group = Rect::new(area.min[0] + pad, y, (area.width() - pad * 2.).max(0.), row);
-    label(
+    if group(
         list,
         atlas,
-        group,
-        &format!(
-            "{} {}",
-            if panels.properties.transform_collapsed {
-                "›"
-            } else {
-                "⌄"
-            },
-            locale.t(T::Transform)
-        ),
-        true,
-    );
-    if clicked(input, group) {
+        area,
+        y,
+        locale.t(T::Transform),
+        !panels.properties.transform_collapsed,
+        input,
+    ) {
+        out.extend(super::cancel_interaction(panels));
         panels.properties.transform_collapsed = !panels.properties.transform_collapsed;
         if !panels.properties.transform_collapsed {
             panels.timeline.reopen_properties(object);
         }
-        panels.properties.field = None;
     }
     y += row;
     if !panels.properties.transform_collapsed {
+        let anchor = inspector_layout(&styles, area, y, 0, 2);
+        super::timeline::property_branch(list, anchor.watch);
+        motion_ui::icons::draw(
+            list,
+            anchor.watch,
+            motion_ui::icons::Icon::Anchor,
+            styles.metric("icon.small.size", 14.),
+            colors.TEXT_MUTED,
+        );
+        label(
+            list,
+            atlas,
+            anchor.caption,
+            if locale == Locale::Zh {
+                "锚点"
+            } else {
+                "Anchor"
+            },
+            true,
+        );
+        panels.properties.anchor.draw(
+            list,
+            atlas,
+            area,
+            y,
+            Panel::Properties,
+            layer,
+            input,
+            locked,
+            out,
+        );
+        y += row;
         let mut rows = vec![
             (
                 Property::Position,
                 "position",
                 locale.t(T::Position),
-                vec![0],
+                if three_d { vec![0, 1, 2] } else { vec![0, 1] },
             ),
             (
-                Property::Position,
-                "position",
-                locale.t(T::Position),
-                vec![1],
+                Property::Scale,
+                "scale",
+                locale.t(T::Scale),
+                if three_d { vec![0, 1, 2] } else { vec![0, 1] },
             ),
         ];
-        if three_d {
-            rows.push((
-                Property::Position,
-                "position",
-                locale.t(T::Position),
-                vec![2],
-            ));
-        }
-        rows.push((
-            Property::Scale,
-            "scale",
-            locale.t(T::Scale),
-            if three_d { vec![0, 1, 2] } else { vec![0, 1] },
-        ));
         if three_d {
             for axis in [0, 1, 2] {
                 rows.push((
@@ -181,64 +401,261 @@ pub(super) fn render(
             if !super::timeline::property_visible(panels, state, object, property) {
                 continue;
             }
-            let suffix = if property == Property::Position {
-                format!(" {}", ["X", "Y", "Z"][axes[0]])
-            } else if three_d && property == Property::Rotation {
-                format!(" {}", ["X", "Y", "Z"][axes[0]])
-            } else {
-                String::new()
-            };
-            let columns =
-                motion_ui::widgets::PropertyColumns::new(&styles, area, y, 64. * axes.len() as f32);
-            label(
+            let fields = inspector_layout(&styles, area, y, 0, axes.len());
+            super::timeline::property_branch(list, fields.watch);
+            let tracks = super::timeline::property_rows(state, object);
+            let matching: Vec<_> = tracks
+                .iter()
+                .filter(|track| track.property == property)
+                .collect();
+            let animated = matching.iter().any(|track| !track.keys.is_empty());
+            super::timeline::property_icon(
                 list,
-                atlas,
-                Rect::new(area.min[0] + pad, y, columns.label.width() + 20., row),
-                &format!("{name}{suffix}"),
-                true,
+                fields.watch,
+                motion_ui::icons::Icon::Stopwatch,
+                animated,
+                !locked,
             );
-            let count = axes.len();
-            let width = (columns.value.width() / count as f32).max(1.);
-            for (index, axis) in axes.into_iter().enumerate() {
+            if clicked(input, fields.watch) && !locked {
+                let commands = matching
+                    .iter()
+                    .map(|track| Command::Animate {
+                        object,
+                        property,
+                        axis: track.axis.map(|axis| {
+                            [
+                                motion_core::Axis::X,
+                                motion_core::Axis::Y,
+                                motion_core::Axis::Z,
+                            ][axis]
+                        }),
+                        frame: state["frame"].as_f64().unwrap_or(0.).floor() as u32,
+                        enabled: !animated,
+                    })
+                    .collect();
+                out.push(Action::EditBatch(commands));
+            }
+            let caption = if three_d && property == Property::Rotation {
+                format!("{name} {}", ["X", "Y", "Z"][axes[0]])
+            } else {
+                name.into()
+            };
+            label(list, atlas, fields.caption, &caption, true);
+            for (index, axis) in axes.iter().copied().enumerate() {
                 let value = if property == Property::Opacity {
                     sample[key].as_f64().unwrap_or(1.) * 100.
                 } else {
                     sample[key][axis].as_f64().unwrap_or(0.)
                 };
-                let r = Rect::new(
-                    columns.value.min[0] + index as f32 * width,
-                    columns.value.min[1],
-                    (width - 2.).max(0.),
-                    columns.value.height(),
-                );
+                let rect = inspector_layout(&styles, area, y, index, axes.len()).number;
                 draw_value(
-                    list, atlas, r, panels, state, input, object, property, axis, value, locked,
+                    list, atlas, rect, panels, state, input, object, property, axis, value, locked,
                     false, out,
                 );
             }
-            paint::rect(
-                list,
-                Rect::new(area.min[0], y + columns.height - 0.5, area.width(), 0.5),
-                colors.BORDER.with_alpha(0.18),
-            );
-            y += columns.height;
+            y += row;
         }
     }
-    label(
+    if input.key_presses().any(|(key, _, _)| key == Key::Tab) {
+        panels.properties.geometry_collapsed = false;
+    }
+    let geometry_title = if locale == Locale::Zh {
+        "几何设置"
+    } else {
+        "Geometry"
+    };
+    if group(
         list,
         atlas,
-        Rect::new(area.min[0] + pad, y, area.width() - pad * 2., row),
-        if locale == Locale::Zh {
-            "⌄ 图层关系"
-        } else {
-            "⌄ Layer relationships"
-        },
-        true,
-    );
+        area,
+        y,
+        geometry_title,
+        !panels.properties.geometry_collapsed,
+        input,
+    ) {
+        out.extend(super::cancel_interaction(panels));
+        panels.properties.geometry_collapsed = !panels.properties.geometry_collapsed;
+    }
     y += row;
-    panels.parent_controls.render(
-        list, atlas, area, &mut y, object, layer, state, input, locale, out,
+    let child = Rect::new(
+        area.min[0] + indent,
+        area.min[1],
+        (area.width() - indent).max(0.),
+        area.height(),
     );
+    if !panels.properties.geometry_collapsed {
+        if input.key_presses().any(|(key, _, _)| key == Key::Tab) {
+            panels.properties.checkbox_focused = true;
+        }
+        if input.pressed.is_some() {
+            panels.properties.checkbox_focused = false;
+        }
+        let fields = inspector_layout(&styles, area, y, 0, 1);
+        label(list, atlas, fields.caption, "3D", true);
+        if motion_ui::widgets::Checkbox::draw(
+            list,
+            atlas,
+            Rect::new(
+                fields.number.min[0],
+                y,
+                styles.metric("property.geometry.switch_width", 64.),
+                row,
+            ),
+            "",
+            three_d,
+            input,
+            !locked,
+            panels.properties.checkbox_focused,
+            None,
+        )
+        .clicked
+        {
+            out.push(Action::Edit(Command::SetLayer3d {
+                object,
+                enabled: !three_d,
+            }));
+        }
+        y += row;
+        if !matches!(
+            layer["content"]["kind"].as_str(),
+            Some("audio" | "null" | "adjustment")
+        ) {
+            if let Some(typed) = panels.path_controls.inspector_layer(state, layer) {
+                panels.path_controls.masks_in_properties(
+                    list,
+                    atlas,
+                    child,
+                    &mut y,
+                    &typed,
+                    state,
+                    if parent_modal
+                        || effect_modal
+                        || panels.path_controls.groups.menu_in(Panel::Properties)
+                    {
+                        &neutral
+                    } else {
+                        original
+                    },
+                    locale,
+                    out,
+                );
+            }
+        }
+        panels.parent_controls.render(
+            list,
+            atlas,
+            child,
+            &mut y,
+            object,
+            layer,
+            state,
+            if mask_modal || effect_modal {
+                &neutral
+            } else {
+                original
+            },
+            locale,
+            out,
+        );
+        if layer["content"]["kind"] == "vector" {
+            if let Some(layer) = panels.path_controls.inspector_layer(state, layer) {
+                panels.path_controls.groups.render(
+                    list,
+                    atlas,
+                    child,
+                    &mut y,
+                    &layer,
+                    state,
+                    if panels.path_controls.groups.menu_in(Panel::Properties) {
+                        original
+                    } else {
+                        input
+                    },
+                    locale,
+                    Panel::Properties,
+                    out,
+                );
+                panels.path_controls.groups.finish_paint(
+                    list,
+                    atlas,
+                    area,
+                    state,
+                    if parent_modal || effect_modal {
+                        &neutral
+                    } else {
+                        original
+                    },
+                    locale,
+                    Panel::Properties,
+                    out,
+                );
+            }
+        }
+    }
+    if let Some((rect, dragging)) = panels
+        .path_controls
+        .numeric_cursor()
+        .filter(|_| panels.path_controls.numeric_owner() == Some(Panel::Properties))
+    {
+        if dragging || rect.contains(input.mouse) {
+            panels.cursor = Some(motion_ui::widgets::numeric_behavior::cursor(
+                input, dragging,
+            ));
+        }
+    }
+    if let Some((rect, dragging)) = panels.path_controls.groups.cursor {
+        if dragging || rect.contains(input.mouse) {
+            panels.cursor = Some(motion_ui::widgets::numeric_behavior::cursor(
+                input, dragging,
+            ));
+        }
+    }
+    if group(
+        list,
+        atlas,
+        area,
+        y,
+        if locale == Locale::Zh {
+            "效果"
+        } else {
+            "Effects"
+        },
+        !panels.properties.effects_collapsed,
+        input,
+    ) {
+        out.extend(super::cancel_interaction(panels));
+        panels.properties.effects_collapsed = !panels.properties.effects_collapsed;
+    }
+    y += row;
+    if !panels.properties.effects_collapsed {
+        panels.properties.effects.catalogue = panels.effect_controls.catalogue.clone();
+        panels.properties.effects.importing_package = panels.effect_controls.importing_package;
+        panels.properties.effects.favorites = panels.effect_controls.favorites.clone();
+        panels.properties.effects.render(
+            list,
+            atlas,
+            child,
+            &mut y,
+            layer,
+            state,
+            if mask_modal || parent_modal {
+                &neutral
+            } else {
+                original
+            },
+            locale,
+            out,
+        );
+        if let Some(note) = &panels.properties.effects.drag_readout {
+            panels.drag_readout = Some(note.clone());
+        }
+        if panels.properties.effects.cursor {
+            panels.cursor = Some(motion_ui::widgets::numeric_behavior::cursor(
+                original,
+                panels.properties.effects.drag_readout.is_some(),
+            ));
+        }
+    }
     panels.properties.content_height = y - area.min[1] + panels.properties.properties_scroll + pad;
 }
 
@@ -258,12 +675,6 @@ pub(super) fn draw_value(
     out: &mut Vec<Action>,
 ) {
     let styles = list.styles();
-    let colors = styles.colors();
-
-    let key = (
-        object,
-        100 + property as u64 * 8 + axis as u64 + if timeline { 64 } else { 0 },
-    );
     if !locked
         && (r.contains(input.mouse)
             || panels
@@ -281,27 +692,6 @@ pub(super) fn draw_value(
                 .is_some_and(|f| f.scrubbing.as_ref().is_some_and(|s| s.begun)),
         ));
     }
-    let hover = panels.motion.value(
-        key,
-        0.,
-        if !locked && r.contains(input.mouse) {
-            1.
-        } else {
-            0.
-        },
-        styles.as_ref().metric("motion.hover_ms", 90.),
-        false,
-    );
-    let changed = panels.motion.changed(
-        (key.0, key.1 + 200),
-        value,
-        styles.as_ref().metric("motion.value_ms", 140.),
-    );
-    paint::rect(
-        list,
-        r,
-        colors.ACCENT.with_alpha((hover * 0.07).max(changed * 0.14)),
-    );
     let active = panels.properties.field.as_ref().is_some_and(|f| {
         f.object == object
             && f.property == property
@@ -359,7 +749,11 @@ pub(super) fn draw_value(
         r.shrink(style.padding),
         &text,
         style,
-        Align::Left,
+        if states.contains(motion_ui::style::State::Focused) {
+            Align::Left
+        } else {
+            Align::Right
+        },
     );
     if active {
         panels.properties.field.as_mut().unwrap().rect = r;
@@ -812,3 +1206,6 @@ mod tests {
         assert!(cancel_interaction(&mut panels).is_empty());
     }
 }
+
+#[cfg(test)]
+mod tree_tests;

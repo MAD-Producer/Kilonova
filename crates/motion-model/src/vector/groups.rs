@@ -133,6 +133,48 @@ pub enum ParameterValue {
     Geometry([f32; 6]),
 }
 
+/// Key operations use composition time at the command boundary.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum KeyEdit {
+    Delete { frame: u32 },
+    Move { from: u32, to: u32 },
+    Copy { from: u32, to: u32 },
+    Curve { frame: u32, easing: crate::Easing },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum OptionsEdit {
+    Composite { value: Composite },
+    FillRule { value: FillRule },
+    Cap { value: LineCap },
+    Join { value: LineJoin },
+    Miter { value: f32 },
+    TrimMode { value: TrimMode },
+    Dashes { enabled: bool },
+    DashPairs { pairs: u8 },
+    Fill { enabled: bool },
+    Stroke { enabled: bool },
+    Trim { enabled: bool },
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum StructureEdit {
+    Insert { parent: u64, item: GroupItem },
+    Remove { item: u64 },
+    Move { item: u64, delta: i32 },
+    Options { item: u64, edit: OptionsEdit },
+}
+impl KeyEdit {
+    pub fn frames(&self) -> Vec<u32> {
+        match self {
+            Self::Delete { frame } | Self::Curve { frame, .. } => vec![*frame],
+            Self::Move { from, to } | Self::Copy { from, to } => vec![*from, *to],
+        }
+    }
+}
+
 fn vector_valid(t: &Track<[f32; 2]>, min: f32, max: f32) -> Result<()> {
     t.validate_local()?;
     ensure(
@@ -237,7 +279,306 @@ impl GroupItem {
         }
     }
 }
+enum Channel<'a> {
+    Scalar(&'a mut Track<f32>),
+    Vector(&'a mut Track<[f32; 2]>),
+    Color(&'a mut Track<[f32; 4]>),
+    Geometry(&'a mut Track<[f32; 6]>),
+}
+fn transform<'a>(t: &'a mut GroupTransform, name: &str) -> Option<Channel<'a>> {
+    Some(match name {
+        "position" => Channel::Vector(&mut t.position),
+        "anchor" => Channel::Vector(&mut t.anchor),
+        "scale" => Channel::Vector(&mut t.scale),
+        "rotation" => Channel::Scalar(&mut t.rotation),
+        "skew" => Channel::Scalar(&mut t.skew),
+        "skew_axis" => Channel::Scalar(&mut t.skew_axis),
+        "opacity" => Channel::Scalar(&mut t.opacity),
+        _ => return None,
+    })
+}
+fn find<'a>(g: &'a mut VectorGroup, id: u64, name: &str) -> Option<Channel<'a>> {
+    if g.id == id {
+        return transform(&mut g.transform, name);
+    }
+    for item in &mut g.items {
+        if let GroupItem::Group { group } = item {
+            if let Some(c) = find(group, id, name) {
+                return Some(c);
+            }
+            continue;
+        }
+        if item.id() != id {
+            continue;
+        }
+        return match item {
+            GroupItem::Geometry {
+                size,
+                position,
+                vector,
+                ..
+            } => match name {
+                "size" => Some(Channel::Vector(size)),
+                "position" => Some(Channel::Vector(position)),
+                "fill" => vector.fill.as_mut().map(Channel::Color),
+                "stroke_color" => vector.stroke.as_mut().map(|s| Channel::Color(&mut s.color)),
+                "stroke_width" => vector
+                    .stroke
+                    .as_mut()
+                    .map(|s| Channel::Scalar(&mut s.width)),
+                _ if name.starts_with("node:") => {
+                    let (path, node) = name.strip_prefix("node:")?.split_once(':')?;
+                    let path = path.parse::<u64>().ok()?;
+                    let node = node.parse::<u64>().ok()?;
+                    let VectorSource::Paths { paths } = &mut vector.source else {
+                        return None;
+                    };
+                    paths
+                        .iter_mut()
+                        .find(|p| p.id == path)
+                        .and_then(|p| p.nodes.iter_mut().find(|n| n.id == node))
+                        .map(|n| Channel::Geometry(&mut n.geometry))
+                }
+                _ if name.starts_with("shape:") => {
+                    if let VectorSource::Shape { parameters, .. } = &mut vector.source {
+                        parameters
+                            .get_mut(name.trim_start_matches("shape:"))
+                            .map(Channel::Scalar)
+                    } else {
+                        None
+                    }
+                }
+                _ => vector.modifier_track_mut(name).ok().map(Channel::Scalar),
+            },
+            GroupItem::Fill { color, .. } => (name == "color").then_some(Channel::Color(color)),
+            GroupItem::Stroke { stroke, .. } => match name {
+                "color" => Some(Channel::Color(&mut stroke.color)),
+                "width" => Some(Channel::Scalar(&mut stroke.width)),
+                _ => stroke.dash_track_mut(name).ok().map(Channel::Scalar),
+            },
+            GroupItem::Trim { trim, .. } => match name {
+                "start" => Some(Channel::Scalar(&mut trim.start)),
+                "end" => Some(Channel::Scalar(&mut trim.end)),
+                "offset" => Some(Channel::Scalar(&mut trim.offset)),
+                _ => None,
+            },
+            GroupItem::Repeater { repeater: r, .. } => match name {
+                "copies" => Some(Channel::Scalar(&mut r.copies)),
+                "offset" => Some(Channel::Scalar(&mut r.offset)),
+                "rotation" => Some(Channel::Scalar(&mut r.rotation)),
+                "start_opacity" => Some(Channel::Scalar(&mut r.start_opacity)),
+                "end_opacity" => Some(Channel::Scalar(&mut r.end_opacity)),
+                "position" => Some(Channel::Vector(&mut r.position)),
+                "anchor" => Some(Channel::Vector(&mut r.anchor)),
+                "scale" => Some(Channel::Vector(&mut r.scale)),
+                _ => None,
+            },
+            GroupItem::Group { .. } => unreachable!(),
+        };
+    }
+    None
+}
+
 impl VectorGroup {
+    pub fn edit_structure(&mut self, edit: StructureEdit) -> Result<()> {
+        fn group(g: &mut VectorGroup, id: u64) -> Option<&mut VectorGroup> {
+            if g.id == id {
+                return Some(g);
+            }
+            g.items.iter_mut().find_map(|i| {
+                if let GroupItem::Group { group: g } = i {
+                    group(g, id)
+                } else {
+                    None
+                }
+            })
+        }
+        fn parent(g: &mut VectorGroup, id: u64) -> Option<&mut VectorGroup> {
+            if g.items.iter().any(|i| i.id() == id) {
+                return Some(g);
+            }
+            g.items.iter_mut().find_map(|i| {
+                if let GroupItem::Group { group: g } = i {
+                    parent(g, id)
+                } else {
+                    None
+                }
+            })
+        }
+        fn options(item: &mut GroupItem, edit: OptionsEdit) -> Result<()> {
+            match edit {
+                OptionsEdit::Composite { value } => match item {
+                    GroupItem::Fill { composite, .. } | GroupItem::Stroke { composite, .. } => {
+                        *composite = value
+                    }
+                    GroupItem::Repeater { repeater, .. } => repeater.composite = value,
+                    _ => return Err(crate::Error::Invalid("item has no composite option".into())),
+                },
+                OptionsEdit::FillRule { value } => match item {
+                    GroupItem::Fill { fill_rule, .. } => *fill_rule = value,
+                    GroupItem::Geometry { vector, .. } => vector.fill_rule = value,
+                    _ => return Err(crate::Error::Invalid("item has no fill rule".into())),
+                },
+                OptionsEdit::TrimMode { value } => match item {
+                    GroupItem::Trim { trim, .. } => trim.mode = value,
+                    GroupItem::Geometry { vector, .. } => {
+                        vector
+                            .trim
+                            .as_mut()
+                            .ok_or_else(|| crate::Error::Invalid("trim missing".into()))?
+                            .mode = value
+                    }
+                    _ => return Err(crate::Error::Invalid("item has no trim mode".into())),
+                },
+                OptionsEdit::Fill { enabled } => {
+                    if let GroupItem::Geometry { vector, .. } = item {
+                        if enabled {
+                            vector.fill.get_or_insert_with(|| Track::constant([1.; 4]));
+                        } else {
+                            vector.fill = None;
+                        }
+                    } else {
+                        return Err(crate::Error::Invalid("item has no embedded fill".into()));
+                    }
+                }
+                OptionsEdit::Stroke { enabled } => {
+                    if let GroupItem::Geometry { vector, .. } = item {
+                        if enabled {
+                            vector.stroke.get_or_insert(Stroke {
+                                color: Track::constant([1.; 4]),
+                                width: Track::constant(2.),
+                                cap: LineCap::Butt,
+                                join: LineJoin::Miter,
+                                miter_limit: 4.,
+                                dashes: None,
+                            });
+                        } else {
+                            vector.stroke = None;
+                        }
+                    } else {
+                        return Err(crate::Error::Invalid("item has no embedded stroke".into()));
+                    }
+                }
+                OptionsEdit::Trim { enabled } => {
+                    if let GroupItem::Geometry { vector, .. } = item {
+                        if enabled {
+                            vector.trim.get_or_insert_with(TrimPaths::default);
+                        } else {
+                            vector.trim = None;
+                        }
+                    } else {
+                        return Err(crate::Error::Invalid("item has no embedded trim".into()));
+                    }
+                }
+                edit => {
+                    let stroke = match item {
+                        GroupItem::Stroke { stroke, .. } => Some(stroke),
+                        GroupItem::Geometry { vector, .. } => vector.stroke.as_mut(),
+                        _ => None,
+                    }
+                    .ok_or_else(|| crate::Error::Invalid("stroke missing".into()))?;
+                    match edit {
+                        OptionsEdit::Cap { value } => stroke.cap = value,
+                        OptionsEdit::Join { value } => stroke.join = value,
+                        OptionsEdit::Miter { value } => stroke.miter_limit = value,
+                        OptionsEdit::Dashes { enabled } => {
+                            if enabled {
+                                stroke.dashes.get_or_insert_with(StrokeDashes::default);
+                            } else {
+                                stroke.dashes = None;
+                            }
+                        }
+                        OptionsEdit::DashPairs { pairs } => {
+                            ensure((1..=3).contains(&pairs), "dash pairs must be 1..3")?;
+                            let d = stroke.dashes.get_or_insert_with(StrokeDashes::default);
+                            d.pattern.truncate(usize::from(pairs) * 2);
+                            while d.pattern.len() < usize::from(pairs) * 2 {
+                                d.pattern.push(Track::constant(if d.pattern.len() % 2 == 0 {
+                                    12.
+                                } else {
+                                    8.
+                                }));
+                            }
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+            }
+            Ok(())
+        }
+        match edit {
+            StructureEdit::Insert { parent: id, item } => group(self, id)
+                .ok_or_else(|| crate::Error::Invalid("parent group missing".into()))?
+                .items
+                .push(item),
+            StructureEdit::Remove { item: id } => {
+                let g = parent(self, id)
+                    .ok_or_else(|| crate::Error::Invalid("group item missing".into()))?;
+                g.items.retain(|i| i.id() != id);
+            }
+            StructureEdit::Move { item: id, delta } => {
+                let g = parent(self, id)
+                    .ok_or_else(|| crate::Error::Invalid("group item missing".into()))?;
+                let index = g.items.iter().position(|i| i.id() == id).unwrap();
+                let target =
+                    (index as i64 + i64::from(delta)).clamp(0, g.items.len() as i64 - 1) as usize;
+                let i = g.items.remove(index);
+                g.items.insert(target, i);
+            }
+            StructureEdit::Options { item: id, edit } => {
+                let g = parent(self, id)
+                    .ok_or_else(|| crate::Error::Invalid("group item missing".into()))?;
+                options(g.items.iter_mut().find(|i| i.id() == id).unwrap(), edit)?;
+            }
+        }
+        self.validate()
+    }
+    pub fn edit_key(&mut self, item: u64, name: &str, edit: KeyEdit, offset: i32) -> Result<()> {
+        let local = |f: u32| {
+            i32::try_from(i64::from(f) - i64::from(offset))
+                .map_err(|_| crate::Error::Invalid("group local frame overflow".into()))
+        };
+        let channel = find(self, item, name)
+            .ok_or_else(|| crate::Error::Invalid("group parameter missing".into()))?;
+        macro_rules! apply {
+            ($t:expr) => {{
+                let t = $t;
+                match edit {
+                    KeyEdit::Delete { frame } => t.delete_key(local(frame)?)?,
+                    KeyEdit::Move { from, to } => {
+                        ensure(
+                            from == to
+                                || !t
+                                    .keys
+                                    .iter()
+                                    .any(|k| k.frame == local(to).unwrap_or(i32::MAX)),
+                            "group key destination occupied",
+                        )?;
+                        t.move_key(local(from)?, local(to)?)?;
+                    }
+                    KeyEdit::Copy { from, to } => {
+                        ensure(
+                            from == to
+                                || !t
+                                    .keys
+                                    .iter()
+                                    .any(|k| k.frame == local(to).unwrap_or(i32::MAX)),
+                            "group key destination occupied",
+                        )?;
+                        t.copy_key(local(from)?, local(to)?)?;
+                    }
+                    KeyEdit::Curve { frame, easing } => t.set_curve(local(frame)?, easing)?,
+                }
+            }};
+        }
+        match channel {
+            Channel::Scalar(t) => apply!(t),
+            Channel::Vector(t) => apply!(t),
+            Channel::Color(t) => apply!(t),
+            Channel::Geometry(t) => apply!(t),
+        }
+        self.validate()
+    }
     pub fn wrap(vector: VectorContent, size: [f32; 2]) -> VectorContent {
         VectorContent {
             source: VectorSource::Group {
@@ -361,105 +702,6 @@ impl VectorGroup {
             false
         }
         let hold = discrete(self, item, name);
-        enum Channel<'a> {
-            Scalar(&'a mut Track<f32>),
-            Vector(&'a mut Track<[f32; 2]>),
-            Color(&'a mut Track<[f32; 4]>),
-            Geometry(&'a mut Track<[f32; 6]>),
-        }
-        fn transform<'a>(t: &'a mut GroupTransform, name: &str) -> Option<Channel<'a>> {
-            Some(match name {
-                "position" => Channel::Vector(&mut t.position),
-                "anchor" => Channel::Vector(&mut t.anchor),
-                "scale" => Channel::Vector(&mut t.scale),
-                "rotation" => Channel::Scalar(&mut t.rotation),
-                "skew" => Channel::Scalar(&mut t.skew),
-                "skew_axis" => Channel::Scalar(&mut t.skew_axis),
-                "opacity" => Channel::Scalar(&mut t.opacity),
-                _ => return None,
-            })
-        }
-        fn find<'a>(g: &'a mut VectorGroup, id: u64, name: &str) -> Option<Channel<'a>> {
-            if g.id == id {
-                return transform(&mut g.transform, name);
-            }
-            for item in &mut g.items {
-                if let GroupItem::Group { group } = item {
-                    if let Some(c) = find(group, id, name) {
-                        return Some(c);
-                    }
-                    continue;
-                }
-                if item.id() != id {
-                    continue;
-                }
-                return match item {
-                    GroupItem::Geometry {
-                        size,
-                        position,
-                        vector,
-                        ..
-                    } => match name {
-                        "size" => Some(Channel::Vector(size)),
-                        "position" => Some(Channel::Vector(position)),
-                        "fill" => vector.fill.as_mut().map(Channel::Color),
-                        "stroke_color" => {
-                            vector.stroke.as_mut().map(|s| Channel::Color(&mut s.color))
-                        }
-                        "stroke_width" => vector
-                            .stroke
-                            .as_mut()
-                            .map(|s| Channel::Scalar(&mut s.width)),
-                        _ if name.starts_with("node:") => {
-                            let (path, node) = name.strip_prefix("node:")?.split_once(':')?;
-                            let path = path.parse::<u64>().ok()?;
-                            let node = node.parse::<u64>().ok()?;
-                            let VectorSource::Paths { paths } = &mut vector.source else { return None; };
-                            paths.iter_mut().find(|p| p.id == path)
-                                .and_then(|p| p.nodes.iter_mut().find(|n| n.id == node))
-                                .map(|n| Channel::Geometry(&mut n.geometry))
-                        }
-                        _ if name.starts_with("shape:") => {
-                            if let VectorSource::Shape { parameters, .. } = &mut vector.source {
-                                parameters
-                                    .get_mut(name.trim_start_matches("shape:"))
-                                    .map(Channel::Scalar)
-                            } else {
-                                None
-                            }
-                        }
-                        _ => vector.modifier_track_mut(name).ok().map(Channel::Scalar),
-                    },
-                    GroupItem::Fill { color, .. } => {
-                        (name == "color").then_some(Channel::Color(color))
-                    }
-                    GroupItem::Stroke { stroke, .. } => match name {
-                        "color" => Some(Channel::Color(&mut stroke.color)),
-                        "width" => Some(Channel::Scalar(&mut stroke.width)),
-                        _ => stroke.dash_track_mut(name).ok().map(Channel::Scalar),
-                    },
-                    GroupItem::Trim { trim, .. } => match name {
-                        "start" => Some(Channel::Scalar(&mut trim.start)),
-                        "end" => Some(Channel::Scalar(&mut trim.end)),
-                        "offset" => Some(Channel::Scalar(&mut trim.offset)),
-                        _ => None,
-                    },
-                    GroupItem::Repeater { repeater: r, .. } => match name {
-                        "copies" => Some(Channel::Scalar(&mut r.copies)),
-                        "offset" => Some(Channel::Scalar(&mut r.offset)),
-                        "rotation" => Some(Channel::Scalar(&mut r.rotation)),
-                        "start_opacity" => Some(Channel::Scalar(&mut r.start_opacity)),
-                        "end_opacity" => Some(Channel::Scalar(&mut r.end_opacity)),
-                        "position" => Some(Channel::Vector(&mut r.position)),
-                        "anchor" => Some(Channel::Vector(&mut r.anchor)),
-                        "scale" => Some(Channel::Vector(&mut r.scale)),
-                        _ => None,
-                    },
-                    GroupItem::Group { .. } => unreachable!(),
-                };
-            }
-            None
-        }
         let channel = find(self, item, name).ok_or_else(|| {
             crate::Error::Invalid(format!("vector group {item} parameter missing: {name}"))
         })?;

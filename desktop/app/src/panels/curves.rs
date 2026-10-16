@@ -33,7 +33,7 @@ pub(super) fn render(
         .into_iter()
         .flatten()
         .find(|l| l["object"].as_u64() == object);
-    let mut y = auxiliary::body_y(Panel::Curves, area, 850., panels, input);
+    let mut y = auxiliary::body_y(&styles,Panel::Curves, area, 850., panels, input);
     if let (Some(sample), Some(timeline)) = (sample, timeline) {
         panels.animation_controls.expanded = true;
         panels.animation_controls.render(

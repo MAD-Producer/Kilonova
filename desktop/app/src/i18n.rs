@@ -169,8 +169,19 @@ pub enum Text {
     ShowComposition,
     ShowEffects,
     ResetWorkspace,
+    ViewComposition,
+    ViewFree,
+    ViewTop,
+    ViewSide,
     FrameStep,
     OperationFailed,
+    PlayShortcut,
+    PreviewVideo,
+    PreviewAudio,
+    CacheThenPlay,
+    TrackingLeading,
+    FillStroke,
+    Reset,
 }
 impl Locale {
     pub fn parse(value: &str) -> Option<Self> {
@@ -340,8 +351,19 @@ impl Locale {
             ShowComposition => ("合成面板", "Composition Panel"),
             ShowEffects => ("效果控件面板", "Effect Controls Panel"),
             ResetWorkspace => ("重置默认工作区", "Reset Default Workspace"),
+            ViewComposition => ("合成视图", "Composition"),
+            ViewFree => ("自由视图", "Free"),
+            ViewTop => ("顶视图", "Top"),
+            ViewSide => ("侧视图", "Side"),
             FrameStep => ("方向键：逐帧", "Arrows: frame step"),
             OperationFailed => ("操作失败", "Operation failed"),
+            PlayShortcut => ("快捷键", "Shortcut"),
+            PreviewVideo => ("视频", "Video"),
+            PreviewAudio => ("音频", "Audio"),
+            CacheThenPlay => ("缓存后播放", "Cache before playback"),
+            TrackingLeading => ("字距 / 行距", "Tracking / Leading"),
+            FillStroke => ("填充 / 描边", "Fill / Stroke"),
+            Reset => ("重置", "Reset"),
         };
         if self == Self::Zh {
             zh

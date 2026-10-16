@@ -849,7 +849,7 @@ fn graph_property_tree_selects_y_without_separating_or_editing_the_track() {
     panels.timeline.expanded.insert(7);
     let mut atlas = TextAtlas::from_system(12.).unwrap();
     let mut actions = vec![];
-    let point = [405., 119.];
+    let point = [405., 141.];
     graph_workspace::render(
         &mut PaintList::default(),
         &mut atlas,
@@ -1202,7 +1202,7 @@ fn active_numeric_text_can_start_a_new_drag_in_main_and_floating_timeline_and_gr
             let layout=Node::dock(Panel::Timeline.dock());
             let area=if floating {Rect::new(0.,30.,1000.,648.)} else {frames(&layout,size)[0].content};
             let gutter=Rect::new(area.min[0],area.min[1],GUTTER.min(area.width()*0.52),area.height());
-            let field=timeline::property_layout(gutter,area.min[1]+108.,22.,0,3).number;
+            let field=timeline::property_layout(PaintList::default().styles().as_ref(),gutter,area.min[1]+130.,22.,0,3).number;
             let point=[field.min[0]+8.,field.min[1]+10.];
             let mut draw=|panels:&mut Panels,engine:&Engine,input:Input| {
                 let mut state=state(engine,32.);

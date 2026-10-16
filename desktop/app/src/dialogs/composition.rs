@@ -39,15 +39,12 @@ impl Dialog {
             Align::Left,
             18.,
         );
-        if ui::button_styled(
+        if ui::button_icon(
             list,
-            atlas,
             Rect::new(card.max[0] - 42., card.min[1] + 16., 24., 24.),
-            "×",
+            motion_ui::icons::Icon::Close,
             input,
             true,
-            &sheet,
-            "button.icon",
         )
         .clicked
         {

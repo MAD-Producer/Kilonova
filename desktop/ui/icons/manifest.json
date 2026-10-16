@@ -186,6 +186,42 @@
     {
       "name": "anchor",
       "source": "Motion Studio transform controls"
+    },
+    {
+      "name": "reset",
+      "source": "Motion Studio 补充图标，曲线编辑器通道重置"
+    },
+    {
+      "name": "chevron_right",
+      "source": "Motion Studio 补充图标，折叠状态指示"
+    },
+    {
+      "name": "chevron_down",
+      "source": "Motion Studio 补充图标，展开状态指示"
+    },
+    {
+      "name": "chevron_up",
+      "source": "Motion Studio 补充图标，效果排序上移"
+    },
+    {
+      "name": "minimize",
+      "source": "Motion Studio 补充图标，窗口最小化"
+    },
+    {
+      "name": "maximize",
+      "source": "Motion Studio 补充图标，窗口最大化"
+    },
+    {
+      "name": "align_left",
+      "source": "Motion Studio 补充图标，段落左对齐"
+    },
+    {
+      "name": "align_center",
+      "source": "Motion Studio 补充图标，段落居中对齐"
+    },
+    {
+      "name": "align_right",
+      "source": "Motion Studio 补充图标，段落右对齐"
     }
   ]
 }

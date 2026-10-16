@@ -81,6 +81,36 @@ impl Shell {
                 self.panels.layer_actions.cancel();
                 Some(screenshot)
             } else { None };
+            let mask_timeline = if panel == dock::Panel::Properties {
+                let object = self.panels.selected.ok_or("mask fixture selection missing")?;
+                let mask = self.state["project"]["layers"].as_array().into_iter().flatten()
+                    .find(|layer| layer["id"].as_u64() == Some(object))
+                    .and_then(|layer| layer["masks"].as_array())
+                    .and_then(|masks| masks.last())
+                    .and_then(|mask| mask["id"].as_u64()).ok_or("mask fixture missing")?;
+                self.action(panels::Action::MaskTimeline { object, mask }, Some(event_loop))?;
+                self.float_panel(dock::Panel::Timeline.dock(), event_loop)?;
+                let path = self.capture_panel_float_named(dock::Panel::Timeline, "-mask-keys")?;
+                self.redock_panel(dock::Panel::Timeline.dock())?;
+                self.panels.focused = Some(panel);
+                Some(path)
+            } else { None };
+            let (shape_timeline,shape_operators)=if panel==dock::Panel::Vector {
+                let object=self.panels.selected.ok_or("shape selection missing")?;
+                let mut screens=serde_json::Map::new();
+                for (item,name) in [(4,"fill"),(5,"stroke"),(6,"trim")] {
+                    self.panels.path_controls.reveal_vector_item(&self.state,object,item);
+                    screens.insert(name.into(),serde_json::json!(self.capture_panel_float_named(panel,&format!("-{name}"))?));
+                }
+                self.panels.path_controls.reveal_vector_item(&self.state,object,3);
+                if !panels::reveal_shape_keys(&mut self.panels,&self.state,object).is_empty(){return Err("shape reveal edited project".into());}
+                self.panels.timeline.collapsed_transforms.insert(object);
+                self.float_panel(dock::Panel::Timeline.dock(),event_loop)?;
+                let path=self.capture_panel_float_named(dock::Panel::Timeline,"-shape-keys")?;
+                self.redock_panel(dock::Panel::Timeline.dock())?;
+                self.panels.focused=Some(panel);
+                (Some(path),serde_json::Value::Object(screens))
+            }else{(None,serde_json::Value::Null)};
             self.redock_panel(panel.dock())?;
             if !self.workspace.valid() {
                 return Err("panel lost unique workspace ownership".into());
@@ -88,7 +118,7 @@ impl Shell {
             if self.state["revision"] != revision {
                 return Err("layout change edited the project".into());
             }
-            self.smoke_panel_records.push(serde_json::json!({"id":panel as u32,"title":self.workspace.locale.panel(panel.dock()),"frames":self.smoke_float_frames[&(panel as u32)],"screenshot":screenshot,"valueGraphScreenshot":value_graph,"audioMenuScreenshot":audio_menu,"markerMenuScreenshot":marker_menu,"projectRevision":revision}));
+            self.smoke_panel_records.push(serde_json::json!({"id":panel as u32,"title":self.workspace.locale.panel(panel.dock()),"frames":self.smoke_float_frames[&(panel as u32)],"screenshot":screenshot,"valueGraphScreenshot":value_graph,"audioMenuScreenshot":audio_menu,"markerMenuScreenshot":marker_menu,"maskTimelineScreenshot":mask_timeline,"shapeTimelineScreenshot":shape_timeline,"shapeOperatorScreenshots":shape_operators,"projectRevision":revision}));
             if matches!(panel, dock::Panel::Timeline | dock::Panel::Audio) {
                 // Subsequent parent/blend captures require a visual target.
                 let visual = self.state["project"]["layers"].as_array().into_iter().flatten().rev()
@@ -98,7 +128,7 @@ impl Shell {
             }
             self.smoke_panel_current = None;
             self.smoke_panel_index += 1;
-        } else if let Some(panel) = dock::Panel::ALL.get(self.smoke_panel_index).copied() {
+        } else if let Some(panel) = dock::Panel::available().nth(self.smoke_panel_index) {
             self.action(panels::Action::ShowPanel(panel.dock()), Some(event_loop))?;
             if matches!(panel, dock::Panel::Timeline | dock::Panel::Audio) {
                 self.prepare_audio_panel_smoke()?;
@@ -109,6 +139,126 @@ impl Shell {
                     Some(event_loop),
                 )?;
             }
+            if panel == dock::Panel::Vector {
+                let actions=panels::floating_chrome(&mut PaintList::default(),&mut self.atlas,panel,[720.,520.],&mut self.panels,&self.state,&Input::default());
+                if !actions.is_empty(){return Err("shape layout probe edited project".into());}
+                let add=self.panels.path_controls.vector_add_rect(panel).ok_or("shape contents creation missing")?;
+                let x=add.min[0]+add.width()*0.5;
+                self.feature_panel_click(panel,[x,add.min[1]+add.height()*0.5],event_loop)?;
+                let row=self.panels.styles.as_ref().map_or(22.,|s|s.metric("row.height",22.));
+                self.feature_panel_click(panel,[x,add.max[1]+row*4.5],event_loop)?;
+                let layer = self.state["project"]["layers"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .find(|l| l["id"].as_u64() == self.panels.selected)
+                    .ok_or("vector fixture layer missing")?;
+                if layer["content"]["vector"]["source"]["group"]["items"]
+                    .as_array()
+                    .is_none_or(|items| !items.iter().any(|item| item["kind"] == "repeater"))
+                {
+                    return Err("vector panel add-repeater entry produced no repeater".into());
+                }
+
+                for index in [1,2,3] {
+                    self.feature_panel_click(panel,[x,add.min[1]+add.height()*0.5],event_loop)?;
+                    self.feature_panel_click(panel,[x,add.max[1]+row*(index as f32+0.5)],event_loop)?;
+                }
+                let object=self.panels.selected.ok_or("shape selection missing")?;
+                use motion_core::vector::groups::ParameterValue as V;
+                let mut commands=vec![];
+                for (item,key,a,b) in [(3,"copies",V::Scalar(3.),V::Scalar(6.)),(3,"position",V::Vector([100.,0.]),V::Vector([120.,40.])),(4,"color",V::Color([1.;4]),V::Color([0.4,0.6,0.9,1.])),(5,"width",V::Scalar(2.),V::Scalar(8.)),(6,"start",V::Scalar(0.),V::Scalar(20.))] {
+                    for (frame,value) in [(0,a),(60,b)] {commands.push(Command::Vector {object,action:motion_core::vector::VectorAction::SetGroupParameter {item,parameter:key.into(),frame,value,animated:Some(true)}});}
+                }
+                self.state=self.engine.edit(serde_json::to_string(&commands).map_err(|e|e.to_string())?)?;
+                self.panels.path_controls.reveal_vector_item(&self.state,object,3);
+            }
+            if panel == dock::Panel::Properties {
+                let object = self.state["project"]["layers"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .rev()
+                    .find(|l| l["content"]["kind"] == "solid")
+                    .and_then(|l| l["id"].as_u64())
+                    .ok_or("visual mask fixture missing")?;
+                self.panels.select_only(Some(object));
+                self.panels.path_controls.masks_open = true;
+                self.panels.properties.transform_collapsed = true;
+                self.panels.properties.geometry_collapsed = false;
+                self.panels.properties.properties_scroll = 0.;
+                self.state = self.engine.seek(0.)?;
+                let sheet = self.panels.styles.clone()
+                    .unwrap_or_else(motion_ui::style::default_stylesheet_arc);
+                let row = sheet.metric("row.height", 22.);
+                let slot = sheet.metric("icon.slot", 20.);
+                let padding = sheet.metric("padding.panel", 8.);
+                let actions = panels::floating_chrome(&mut PaintList::default(), &mut self.atlas,
+                    panel, [720., 520.], &mut self.panels, &self.state, &Input::default());
+                if !actions.is_empty() { return Err("mask layout probe edited the project".into()); }
+                let add = self.panels.path_controls.mask_add_rect(panel)
+                    .ok_or("layer properties did not expose mask creation")?;
+                let top = add.min[1];
+                self.feature_panel_click(panel, [add.min[0] + add.width() * 0.5, top + row * 0.5], event_loop)?;
+                self.feature_panel_click(panel, [add.min[0] + add.width() * 0.5, add.max[1] + row * 1.5], event_loop)?;
+                let mask = self.state["project"]["layers"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .find(|l| l["id"].as_u64() == Some(object))
+                    .and_then(|l| l["masks"].as_array())
+                    .and_then(|m| m.last())
+                    .and_then(|m| m["id"].as_u64())
+                    .ok_or("mask panel rectangle entry produced no mask")?;
+                for index in 0..4 {
+                    self.feature_panel_click(panel, [padding * 3. + slot * 0.5 + sheet.metric("tree.indent", 14.),
+                        top + row * (3.5 + index as f32)], event_loop)?;
+                }
+                let masks = self.state["project"]["layers"].as_array().into_iter().flatten()
+                    .find(|layer| layer["id"].as_u64() == Some(object))
+                    .and_then(|layer| layer["masks"].as_array()).ok_or("mask fixture missing")?;
+                if ["opacity", "feather", "expansion"].iter().any(|key|
+                    masks.last().unwrap()[*key]["keys"].as_array()
+                        .is_none_or(|keys| keys.len() != 1)) {
+                    return Err("mask stopwatches did not animate all three properties".into());
+                }
+                if masks.last().unwrap()["path"]["nodes"].as_array().is_none_or(|nodes|
+                    nodes.iter().any(|n| n["geometry"]["keys"].as_array().is_none_or(|keys| keys.len() != 1))) {
+                    return Err("path stopwatch did not animate every vertex".into());
+                }
+                let mut commands = [
+                    (motion_core::masks::MaskProperty::Opacity, vec![60.]),
+                    (motion_core::masks::MaskProperty::Feather, vec![12., 18.]),
+                    (motion_core::masks::MaskProperty::Expansion, vec![8.]),
+                ]
+                .into_iter()
+                .map(|(property, value)| Command::Mask {
+                    object,
+                    action: motion_core::masks::MaskAction::Set {
+                        mask,
+                        property,
+                        frame: 60,
+                        value,
+                        animated: None,
+                    },
+                })
+                .collect::<Vec<_>>();
+                let mut path_mask: motion_core::masks::LayerMask =
+                    serde_json::from_value(masks.last().unwrap().clone())
+                        .map_err(|e| e.to_string())?;
+                for node in &mut path_mask.path.nodes {
+                    let mut value = node.geometry.sample(60.);
+                    value[0] += 20.;
+                    node.geometry.set_at(60, value).map_err(|e| e.to_string())?;
+                }
+                commands.push(Command::Mask {
+                    object,
+                    action: motion_core::masks::MaskAction::Path { mask, path: path_mask.path },
+                });
+                self.state = self
+                    .engine
+                    .edit(serde_json::to_string(&commands).map_err(|e| e.to_string())?)?;
+            }
             self.float_panel(panel.dock(), event_loop)?;
             self.smoke_float_frames.insert(panel as u32, 0);
             self.smoke_panel_current = Some(panel);
@@ -118,6 +268,39 @@ impl Shell {
             self.workspace.locale = locale;
             self.finish_smoke()?;
             self.smoke_stage = 4;
+        }
+        Ok(())
+    }
+    fn feature_panel_click(
+        &mut self,
+        panel: dock::Panel,
+        point: [f32; 2],
+        event_loop: &ActiveEventLoop,
+    ) -> Result<(), String> {
+        let actions = panels::floating_chrome(
+            &mut PaintList::default(),
+            &mut self.atlas,
+            panel,
+            [720., 520.],
+            &mut self.panels,
+            &self.state,
+            &Input {
+                mouse: point,
+                pressed: Some((MouseButton::Left, point)),
+                ..Default::default()
+            },
+        );
+        if actions.is_empty() && !matches!(panel,dock::Panel::Properties|dock::Panel::Vector) {
+            return Err(format!(
+                "{panel:?} feature entry did not emit an action at {point:?}"
+            ));
+        }
+        for action in actions {
+            self.action(action, Some(event_loop))?;
+            if let Some((_, reply)) = self.editing.take() {
+                self.state = reply.recv_timeout(Duration::from_secs(30))
+                    .map_err(|e| format!("feature input reply failed: {e}"))??;
+            }
         }
         Ok(())
     }
@@ -352,7 +535,11 @@ impl Shell {
         } else {
             Value::Null
         };
+        let design_project = self.engine.state()?["project"].clone();
         let design_screens = self.capture_design_screens(size)?;
+        if self.engine.state()?["project"] != design_project {
+            return Err("design screenshots changed the project".into());
+        }
         let layer_menu_screenshot = if let Some(object) = self.panels.selected.filter(|id| *id != 0)
         {
             let revision = self.state["revision"].clone();
@@ -383,7 +570,7 @@ impl Shell {
             .clone()
             .unwrap_or_else(motion_ui::style::default_stylesheet_arc);
         let style_report = serde_json::json!({"focus":styles.color("focus").0,"panel":styles.color("panel").0,"header":styles.color("header").0,"rowHeight":styles.metric("row.height",22.),"dragThreshold":styles.metric("motion.drag_threshold",3.),"smallFont":styles.metric("font.small",11.),"easing":styles.easing(),"overrideActive":self.style_source.path.is_some()});
-        let result = serde_json::json!({"designScreens":design_screens,"style":style_report,"panels":self.smoke_panel_records,"ok":true,"framesPresented":state["presented"],"frame":state["frame"],"preview":state["preview"],
+        let result = serde_json::json!({"designScreens":design_screens,"designCaptureProjectUntouched":true,"style":style_report,"panels":self.smoke_panel_records,"ok":true,"framesPresented":state["presented"],"frame":state["frame"],"preview":state["preview"],
             "retainedUiProbe":reuse_probe,"root":state["root"],"screenshot":screenshot,
             "layerContextMenuScreenshot":layer_menu_screenshot,
             "floatingFrames":self.smoke_float_frames,"locale":self.workspace.locale,"desktop":state["desktop"],"nodePreview":self.smoke_node_report,"checks":["create_layer","animate","seek","save","reopen","single_surface_preview","chrome","floating_properties","floating_composition","resize","redock","layer_context_menu"]});

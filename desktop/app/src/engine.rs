@@ -754,6 +754,44 @@ impl Engine {
             reply,
         })
     }
+    pub fn view_async(
+        &self,
+        kind: i32,
+    ) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+        self.request(|reply| Command::View { kind, reply })
+    }
+    pub fn observe_async(
+        &self,
+        enabled: bool,
+        azimuth: f64,
+        elevation: f64,
+    ) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+        self.request(|reply| Command::Observe {
+            enabled,
+            azimuth,
+            elevation,
+            reply,
+        })
+    }
+    pub fn navigate_async(
+        &self,
+        dx: f64,
+        dy: f64,
+        zoom: f64,
+        multi: bool,
+        width: i32,
+        height: i32,
+    ) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+        self.request(|reply| Command::Navigate {
+            dx,
+            dy,
+            zoom,
+            multi,
+            width,
+            height,
+            reply,
+        })
+    }
     pub fn render(&self, frame: f64) -> Result<bool, String> {
         self.call(|reply| Command::Render { frame, reply })
     }

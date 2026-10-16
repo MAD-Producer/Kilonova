@@ -4,7 +4,12 @@ use std::hash::{Hash, Hasher};
 
 pub(super) struct Row {
     pub(super) spatial: bool,
-    audio: usize,
+    pub(super) effects: usize,
+    pub(super) audio: usize,
+    pub(super) masks: Vec<motion_core::masks::LayerMask>,
+    pub(super) mask_offset: i32,
+    pub(super) vector: Option<motion_core::vector::VectorContent>,
+    pub(super) vector_size: [f32; 2],
     pub(super) id: u64,
     pub(super) name: String,
     name_lower: String,
@@ -14,7 +19,7 @@ pub(super) struct Row {
     pub(super) range: [f64; 2],
     pub(super) keys: Vec<f64>,
     references: Vec<f64>,
-    properties: Vec<PropertyRow>,
+    pub(super) properties: Vec<PropertyRow>,
 }
 
 pub(super) struct PropertyRow {
@@ -32,25 +37,40 @@ pub(super) struct PropertyLayout {
     pub number: Rect,
 }
 pub(super) fn property_layout(
+    styles: &motion_ui::style::StyleSheet,
     area: Rect,
     y: f32,
     height: f32,
     component: usize,
     components: usize,
 ) -> PropertyLayout {
-    let cell_width = (area.width() * 0.44 / components.max(1) as f32).min(64.);
+    // Reserve a readable caption for two nested operator levels before sharing
+    // the remaining width between components. Every property family uses this
+    // value edge, so expanding a shape never shifts its values independently.
+    let pad = styles.metric("padding.panel", 8.);
+    let caption = styles.metric("timeline.property.caption_offset", 118.);
+    let preferred =
+        caption + styles.metric("tree.indent", 14.) * 2. + styles.metric("label.column", 72.) + pad;
+    let value = (area.width() * 0.52).max(preferred).min(area.width() * 0.7);
+    let cell_width = ((area.width() - value - pad).max(0.) / components.max(1) as f32)
+        .min(styles.metric("value.min_width", 64.));
     PropertyLayout {
-        watch: Rect::new(area.min[0] + 98., y, 14., height),
-        caption: Rect::new(
-            area.min[0] + 118.,
+        watch: Rect::new(
+            area.min[0] + styles.metric("timeline.property.watch_offset", 98.),
             y,
-            (area.width() * 0.5 - 118.).max(1.),
+            styles.metric("timeline.property.watch_width", 14.),
+            height,
+        ),
+        caption: Rect::new(
+            area.min[0] + caption,
+            y,
+            (value - caption - pad).max(0.),
             height,
         ),
         number: Rect::new(
-            area.min[0] + area.width() * 0.52 + component as f32 * cell_width,
+            area.min[0] + value + component as f32 * cell_width,
             y,
-            (cell_width - 2.).max(1.),
+            (cell_width - styles.metric("border", 1.) * 2.).max(0.),
             height,
         ),
     }
@@ -67,9 +87,9 @@ pub(super) fn property_icon(
         list,
         area,
         icon,
-        16.,
+        list.styles().metric("timeline.property.icon_size", 16.),
         if !enabled {
-            colors.TEXT_MUTED.with_alpha(0.4)
+            list.styles().color("disabled")
         } else if active {
             colors.ACCENT
         } else {
@@ -77,7 +97,7 @@ pub(super) fn property_icon(
         },
     );
 }
-fn property_group(
+pub(super) fn property_group(
     list: &mut PaintList,
     atlas: &mut TextAtlas,
     area: Rect,
@@ -86,26 +106,66 @@ fn property_group(
     title: &str,
     open: bool,
 ) -> Rect {
-    let group = Rect::new(area.min[0] + 78., y, (area.width() - 84.).max(1.), height);
-    let x = group.min[0] + 3.;
-    let cy = y + height * 0.5;
-    paint::line(
+    let styles = list.styles();
+    let pad = styles.metric("padding", 5.);
+    let slot = styles.metric("icon.slot", 20.);
+    let start = styles.metric("timeline.property.group_offset", 78.);
+    let group = Rect::new(
+        area.min[0] + start,
+        y,
+        (area.width() - start - pad).max(0.),
+        height,
+    );
+    motion_ui::style::box_style(
         list,
+        group,
+        styles
+            .resolve(
+                "timeline.property.group",
+                motion_ui::style::States::default(),
+            )
+            .unwrap(),
+    );
+    motion_ui::icons::draw(
+        list,
+        Rect::new(group.min[0], y, slot, height),
         if open {
-            vec![[x, cy - 2.], [x + 3., cy + 2.], [x + 6., cy - 2.]]
+            motion_ui::icons::Icon::ChevronDown
         } else {
-            vec![[x, cy - 3.], [x + 4., cy], [x, cy + 3.]]
+            motion_ui::icons::Icon::ChevronRight
         },
-        list.styles().colors().TEXT_MUTED,
+        styles.metric("icon.small.size", 14.),
+        styles.color("muted"),
     );
     label(
         list,
         atlas,
-        Rect::new(area.min[0] + 98., y, (area.width() - 104.).max(1.), height),
+        Rect::new(
+            group.min[0] + slot,
+            y,
+            (group.width() - slot - pad).max(0.),
+            height,
+        ),
         title,
-        true,
+        false,
     );
     group
+}
+pub(super) fn property_branch(list: &mut PaintList, watch: Rect) {
+    let styles = list.styles();
+    let x = watch.min[0] - styles.metric("icon.slot", 20.) * 0.5;
+    let middle = (watch.min[1] + watch.max[1]) * 0.5;
+    let end = watch.min[0] - styles.metric("padding", 5.);
+    paint::line(
+        list,
+        vec![[x, watch.min[1]], [x, watch.max[1]]],
+        styles.color("border"),
+    );
+    paint::line(
+        list,
+        vec![[x, middle], [end, middle]],
+        styles.color("border"),
+    );
 }
 pub(super) fn property_rows(state: &Value, object: u64) -> Vec<PropertyRow> {
     let layer = state["project"]["layers"]
@@ -209,6 +269,24 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
                     }
                 }
             }
+            let masks: Vec<motion_core::masks::LayerMask> =
+                serde_json::from_value(l["masks"].clone()).unwrap_or_default();
+            let mask_offset = l["timeline"]["offset_frame"].as_i64().unwrap_or(0) as i32;
+            for mask in &masks {
+                for index in 0..4 {
+                    for frame in super::path_controls::timeline::key_frames(mask, index) {
+                        keys.push(f64::from(frame) + f64::from(mask_offset));
+                    }
+                }
+            }
+            let vector: Option<motion_core::vector::VectorContent> =
+                serde_json::from_value(l["content"]["vector"].clone()).ok();
+            let vector_size = serde_json::from_value(l["size"].clone()).unwrap_or([100.; 2]);
+            if let Some(v) = &vector {
+                for frame in super::path_controls::groups::timeline::key_frames(v, vector_size) {
+                    keys.push(f64::from(frame) + f64::from(mask_offset));
+                }
+            }
             keys.sort_by(|a, b| a.total_cmp(b));
             keys.dedup();
             let offset = l["timeline"]["offset_frame"].as_i64().unwrap_or(0);
@@ -235,11 +313,16 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
                 .collect();
             Row {
                 spatial: l["content"]["kind"] != "audio",
+                effects: l["effects"].as_array().map_or(0, Vec::len),
                 audio: if super::audio::is_audio(l) {
                     super::audio::rows(l)
                 } else {
                     0
                 },
+                masks,
+                mask_offset,
+                vector,
+                vector_size,
                 id,
                 name: l["name"].as_str().unwrap_or("Layer").into(),
                 name_lower: l["name"].as_str().unwrap_or("Layer").to_lowercase(),
@@ -278,7 +361,12 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
             0,
             Row {
                 spatial: false,
+                effects: 0,
                 audio: 0,
+                vector: None,
+                vector_size: [0.; 2],
+                masks: vec![],
+                mask_offset: 0,
                 id: 0,
                 name: "Camera".into(),
                 name_lower: "camera".into(),
@@ -294,12 +382,25 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
     }
     rows
 }
-fn filtered_property_count(row: &Row, filter: types::PropertyFilter) -> usize {
-    row.properties
-        .iter()
-        .filter(|property| filter.admits(property.property, !property.keys.is_empty()))
-        .count()
+/// Convert a displayed insertion slot into a storage index for
+/// `Command::Reorder`. Displayed layer rows are the storage stack reversed;
+/// `None` marks no-op drops (the layer's own edge slots).
+pub(super) fn reorder_storage_index(len: usize, from_row: usize, slot: usize) -> Option<usize> {
+    if len == 0 || from_row >= len {
+        return None;
+    }
+    let slot = slot.min(len);
+    if slot == from_row || slot == from_row + 1 {
+        return None;
+    }
+    let storage_from = len - 1 - from_row;
+    let mut index = len - slot;
+    if storage_from < index {
+        index -= 1;
+    }
+    Some(index.min(len - 1))
 }
+
 fn scroll_extent_signature(
     rows_key: &(String, String, u64),
     timeline: &types::TimelineState,
@@ -323,6 +424,17 @@ fn scroll_extent_signature(
     for id in &timeline.collapsed_transforms {
         id.hash(&mut hash);
     }
+    timeline.collapsed_masks.len().hash(&mut hash);
+    timeline.collapsed_mask_items.len().hash(&mut hash);
+    for object in &timeline.collapsed_masks {
+        object.hash(&mut hash);
+    }
+    for item in &timeline.collapsed_mask_items {
+        item.hash(&mut hash);
+    }
+    for item in &timeline.vector_open {
+        item.hash(&mut hash);
+    }
     timeline.filters.len().hash(&mut hash);
     for entry in &timeline.filters {
         entry.hash(&mut hash);
@@ -330,43 +442,15 @@ fn scroll_extent_signature(
     hash.finish()
 }
 fn calculate_scroll_max(
-    rows: &[&Row],
-    timeline: &types::TimelineState,
+    layouts: &[super::timeline_layout::LayerRows],
     area_height: f32,
     row_height: f32,
 ) -> f32 {
-    (rows
-        .iter()
-        .map(|row| row_count(row, timeline))
-        .sum::<usize>() as f32
-        * row_height
-        - (area_height - 64.0))
+    (layouts.iter().map(|row| row.len()).sum::<usize>() as f32 * row_height - (area_height - 64.0))
         .max(0.0)
 }
 pub(super) fn row_count(row: &Row, timeline: &types::TimelineState) -> usize {
-    if row.id == 0 || !timeline.expanded.contains(&row.id) {
-        return 1;
-    }
-    1 + if row.spatial {
-        1 + if timeline.collapsed_transforms.contains(&row.id) {
-            0
-        } else {
-            filtered_property_count(
-                row,
-                timeline.filters.get(&row.id).copied().unwrap_or_default(),
-            )
-        }
-    } else {
-        0
-    } + if row.audio > 0 {
-        1 + if timeline.collapsed_audio.contains(&row.id) {
-            0
-        } else {
-            row.audio
-        }
-    } else {
-        0
-    }
+    super::timeline_layout::LayerRows::new(row, timeline, 0., Locale::En).len()
 }
 pub(super) fn filtered_properties(
     state: &Value,
@@ -450,7 +534,10 @@ pub(super) fn render(
         super::properties::process_field(panels, state, input, out);
     }
     let styles = list.styles();
+    panels.timeline_anchor.process(&styles, state, input, out);
     let row_height = styles.metric("row.height", 22.);
+    let toolbar_height = styles.metric("field.height", 18.) + styles.metric("padding", 5.) * 2.;
+    let toolbar_top = area.min[1] + styles.metric("border", 1.) * 2.;
     if panels.timeline.moving.is_some()
         && !input.composing
         && !input.ime_consumed
@@ -463,10 +550,16 @@ pub(super) fn render(
 
     panels.timeline_columns.begin(state);
     let context_input = input;
+    panels.path_controls.groups.begin_frame(list, context_input);
+    panels
+        .path_controls
+        .groups
+        .prepare(state, panels.selected, context_input, out);
     let neutral = Input::default();
     let input = if panels.timeline.timeline_context_menu.is_some()
         || panels.timeline_columns.editing()
         || panels.layer_actions.editing()
+        || panels.path_controls.mask_menu()
     {
         &neutral
     } else {
@@ -498,6 +591,17 @@ pub(super) fn render(
         .iter()
         .filter(|row| query.is_empty() || row.name_lower.contains(&query))
         .collect();
+    let layouts: Vec<_> = rows
+        .iter()
+        .map(|row| {
+            super::timeline_layout::LayerRows::new(
+                row,
+                &panels.timeline,
+                state["frame"].as_f64().unwrap_or(0.),
+                panels.locale,
+            )
+        })
+        .collect();
     let extent_signature = {
         let rows_key = &panels.timeline.rows_cache.as_ref().unwrap().0;
         scroll_extent_signature(
@@ -515,7 +619,7 @@ pub(super) fn render(
     {
         panels.timeline.scroll_extent_cache.unwrap().1
     } else {
-        let max = calculate_scroll_max(&rows, &panels.timeline, area.height(), row_height);
+        let max = calculate_scroll_max(&layouts, area.height(), row_height);
         panels.timeline.scroll_extent_cache = Some((extent_signature, max));
         max
     };
@@ -535,7 +639,8 @@ pub(super) fn render(
         || panels.timeline.trimming.is_some()
         || panels.timeline.scrubbing
         || panels.properties.field.is_some()
-        || panels.audio_controls.editing();
+        || panels.audio_controls.editing()
+        || panels.path_controls.editing();
     if area.contains(input.mouse) && wheel.is_finite() && wheel != 0. && !gesture {
         let graph_wheel = graph_mode
             && input.mouse[0] >= track.min[0]
@@ -616,7 +721,7 @@ pub(super) fn render(
         if ui::button(
             list,
             atlas,
-            Rect::new(area.min[0] + gutter - 98., area.min[1] + 5., 90., 25.),
+            Rect::new(area.min[0] + gutter - 98., toolbar_top, 90., toolbar_height),
             if graph_mode {
                 if locale == Locale::Zh {
                     "时间轴"
@@ -645,9 +750,9 @@ pub(super) fn render(
     }
     let search = Rect::new(
         track.min[0] + 12.,
-        area.min[1] + 5.,
+        toolbar_top,
         (track.width() - 176.).min(250.).max(1.),
-        25.,
+        toolbar_height,
     );
     paint::rect(list, search, colors.SUNKEN);
     paint::stroke(
@@ -690,7 +795,7 @@ pub(super) fn render(
     if ui::button(
         list,
         atlas,
-        Rect::new(zoom_x, area.min[1] + 5., 25., 25.),
+        Rect::new(zoom_x, toolbar_top, toolbar_height, toolbar_height),
         "−",
         input,
         true,
@@ -702,14 +807,14 @@ pub(super) fn render(
     label(
         list,
         atlas,
-        Rect::new(zoom_x + 29., area.min[1] + 5., 58., 25.),
+        Rect::new(zoom_x + 29., toolbar_top, 58., toolbar_height),
         &format!("{:.0}%", panels.timeline.zoom.max(1.) * 100.),
         true,
     );
     if ui::button(
         list,
         atlas,
-        Rect::new(zoom_x + 86., area.min[1] + 5., 25., 25.),
+        Rect::new(zoom_x + 86., toolbar_top, toolbar_height, toolbar_height),
         "+",
         input,
         true,
@@ -721,7 +826,7 @@ pub(super) fn render(
     if ui::button(
         list,
         atlas,
-        Rect::new(zoom_x + 117., area.min[1] + 5., 26., 25.),
+        Rect::new(zoom_x + 117., toolbar_top, toolbar_height, toolbar_height),
         "↔",
         input,
         true,
@@ -750,9 +855,9 @@ pub(super) fn render(
             list,
             Rect::new(
                 area.min[0] + 146.0 + i as f32 * 38.0,
-                area.min[1] + 2.0,
+                toolbar_top,
                 32.0,
-                28.0,
+                toolbar_height,
             ),
             tool,
             input,
@@ -773,6 +878,19 @@ pub(super) fn render(
         locale.t(T::SourceName),
         true,
     );
+    if gutter >= 500. {
+        label(
+            list,
+            atlas,
+            Rect::new(area.min[0] + gutter - 280., ruler.min[1], 78., 28.),
+            if locale == Locale::Zh {
+                "遮罩"
+            } else {
+                "Track matte"
+            },
+            true,
+        );
+    }
     label(
         list,
         atlas,
@@ -817,25 +935,32 @@ pub(super) fn render(
     );
     let mut row_offset = 0;
     let mut timeline_hit = false;
-    for (index, row) in rows.iter().enumerate() {
+    let mut row_bounds: Vec<(u64, f32, f32)> = Vec::new();
+    let mut background_row = 0;
+    for (row, layout) in rows.iter().zip(&layouts) {
+        super::timeline_layout::paint_rows(
+            list,
+            body,
+            body.min[1] + background_row as f32 * row_height - panels.timeline.scroll,
+            row_height,
+            layout.len(),
+            panels.selection_contains(row.id),
+            input,
+        );
+        background_row += layout.len();
+    }
+    if !graph_mode {
+        super::timeline_layout::paint_track_boundary(list, track, body);
+    }
+    for (index, (row, layout)) in rows.iter().zip(&layouts).enumerate() {
         let expandable = row.id != 0 && (row.spatial || row.audio > 0);
-        let expanded = expandable && panels.timeline.expanded.contains(&row.id);
-        let transform_expanded =
-            expanded && row.spatial && !panels.timeline.collapsed_transforms.contains(&row.id);
-        let filter = panels
-            .timeline
-            .filters
-            .get(&row.id)
-            .copied()
-            .unwrap_or_default();
-        let property_count = if transform_expanded {
-            filtered_property_count(row, filter)
-        } else {
-            0
-        };
+        let expanded = layout.expanded;
         let y = body.min[1] + row_offset as f32 * row_height - panels.timeline.scroll;
-        let row_count = row_count(row, &panels.timeline);
+        let row_count = layout.len();
         row_offset += row_count;
+        if row.id != 0 {
+            row_bounds.push((row.id, y, row_count as f32 * row_height));
+        }
         if y + row_count as f32 * row_height < body.min[1] - row_height
             || y > body.max[1] + row_height
         {
@@ -850,13 +975,16 @@ pub(super) fn render(
                 input.pressed.filter(|(_, p)| row_group.contains(*p))
             {
                 panels.select_only(Some(row.id));
-                let audio_y =
-                    y + (1 + if row.spatial { 1 + property_count } else { 0 }) as f32 * row_height;
-                if expanded && point[1] >= audio_y {
+                let audio_y = y + layout.audio.start as f32 * row_height;
+                let audio_rows = layout.audio.len();
+                if expanded
+                    && point[1] >= audio_y
+                    && point[1] < audio_y + audio_rows as f32 * row_height
+                {
                     panels
                         .layer_actions
                         .open_audio(row.id, point, state, locale);
-                } else {
+                } else if point[1] < audio_y {
                     panels.layer_actions.open(Some(row.id), point, state);
                 }
             }
@@ -873,6 +1001,7 @@ pub(super) fn render(
                 ppf,
                 offset,
                 row,
+                layout,
                 panels,
                 state,
                 input,
@@ -885,7 +1014,7 @@ pub(super) fn render(
         let name = Rect::new(
             area.min[0] + 112.0,
             y,
-            (gutter - 320.0).max(1.0),
+            (gutter - if gutter >= 500. { 398. } else { 320. }).max(1.0),
             row_height,
         );
         let selected = panels.selection_contains(row.id);
@@ -907,19 +1036,11 @@ pub(super) fn render(
                     panels.timeline.expanded.remove(&row.id);
                 } else {
                     panels.timeline.expanded.insert(row.id);
+                    panels.timeline.collapsed_geometry.insert(row.id);
                     panels.timeline.reopen_properties(row.id);
                 }
             }
         }
-        paint::rect(
-            list,
-            Rect::new(area.min[0], y, gutter, row_height),
-            if selected {
-                colors.ACCENT.with_alpha(0.18)
-            } else {
-                colors.PANEL
-            },
-        );
         let row_area = Rect::new(body.min[0], y, body.width(), row_height);
         let name_editing = panels
             .layer_actions
@@ -965,6 +1086,12 @@ pub(super) fn render(
             colors.TEXT_MUTED,
         );
         if let Some(owner) = super::timeline_columns::owner(state, row.id) {
+            let matte = Rect::new(
+                area.min[0] + gutter - 280.,
+                y + 2.,
+                78.,
+                (row_height - 4.).max(1.),
+            );
             let blend = Rect::new(
                 area.min[0] + gutter - 196.,
                 y + 2.,
@@ -988,8 +1115,10 @@ pub(super) fn render(
                 Some("null" | "audio" | "adjustment")
             ) && row.id != 0;
             let blend_enabled = blend_supported && !row.locked;
+            let matte_enabled = blend_enabled && gutter >= 500.;
             let parent_enabled = row.id == 0 || !row.locked && row.spatial;
             if (blend_enabled && clicked(input, blend))
+                || (matte_enabled && clicked(input, matte))
                 || (parent_enabled && (clicked(input, parent) || clicked(input, link)))
             {
                 out.extend(super::cancel_interaction(panels));
@@ -1010,6 +1139,17 @@ pub(super) fn render(
                 link_input.pressed =
                     Some((MouseButton::Left, [parent.min[0] + 1., parent.min[1] + 1.]));
             }
+            let opened_matte = gutter >= 500.
+                && panels.timeline_columns.cell(
+                    list,
+                    atlas,
+                    matte,
+                    row.id,
+                    super::timeline_columns::Column::Matte,
+                    &super::timeline_columns::matte_name(owner, state, locale),
+                    input,
+                    matte_enabled,
+                );
             let opened_blend = if blend_supported {
                 panels.timeline_columns.cell(
                     list,
@@ -1034,7 +1174,7 @@ pub(super) fn render(
                 &link_input,
                 parent_enabled,
             );
-            if opened_blend || opened_parent {
+            if opened_blend || opened_parent || opened_matte {
                 panels.select_only(Some(row.id));
             }
         }
@@ -1088,6 +1228,9 @@ pub(super) fn render(
                 input.modifiers.shift,
             );
             panels.properties.field = None;
+            if row.id != 0 && panels.timeline.timeline_query.is_empty() {
+                panels.timeline.reorder = Some((row.id, input.mouse, false));
+            }
         }
         if graph_mode {
             continue;
@@ -1185,6 +1328,12 @@ pub(super) fn render(
             }
         }
     }
+    super::path_controls::timeline::process(
+        list, &all_rows, body, ppf, offset, panels, state, input, out,
+    );
+    super::path_controls::groups::timeline::process(
+        list, panels, state, body, ppf, offset, input, out,
+    );
     if !graph_mode && clicked(input, body) && !timeline_hit {
         panels.select_only(None);
         panels.properties.field = None;
@@ -1304,6 +1453,52 @@ pub(super) fn render(
             panels.timeline.moving = None;
         }
     }
+    // Layer z-order drag: an accent line previews the insertion slot and
+    // releasing issues a single Reorder edit. Displayed rows are the layer
+    // stack reversed, so the slot converts back to a storage index.
+    if let Some((object, press, active)) = panels.timeline.reorder {
+        let slot_of = |y: f32| {
+            let mut slot = row_bounds.len();
+            let mut line = row_bounds.last().map_or(body.min[1], |(_, top, h)| top + h);
+            for (i, (_, top, h)) in row_bounds.iter().enumerate() {
+                if y < top + h * 0.5 {
+                    slot = i;
+                    line = *top;
+                    break;
+                }
+            }
+            (slot, line)
+        };
+        if input.held == Some(MouseButton::Left) {
+            let active = active || (input.mouse[1] - press[1]).abs() > 4.;
+            if active {
+                let (slot, line) = slot_of(input.mouse[1]);
+                paint::rect(
+                    list,
+                    Rect::new(
+                        area.min[0] + 60.,
+                        line - 1.,
+                        track.max[0] - area.min[0] - 60.,
+                        2.,
+                    ),
+                    colors.ACCENT,
+                );
+                panels.cursor = Some(motion_ui::cursor::Cursor::Grabbing);
+                panels.drag_readout = Some((input.mouse, format!("#{}", slot + 1)));
+            }
+            panels.timeline.reorder = Some((object, press, active));
+        } else {
+            if active {
+                let (slot, _) = slot_of(input.mouse[1]);
+                let from = row_bounds.iter().position(|(id, _, _)| *id == object);
+                let len = state["project"]["layers"].as_array().map_or(0, Vec::len);
+                if let Some(index) = from.and_then(|from| reorder_storage_index(len, from, slot)) {
+                    out.push(Action::Edit(Command::Reorder { object, index }));
+                }
+            }
+            panels.timeline.reorder = None;
+        }
+    }
     if panels.timeline.scrubbing {
         panels.cursor = Some(motion_ui::cursor::Cursor::ResizeEW);
         let frame = scrub_frame.unwrap_or(state["frame"].as_f64().unwrap_or(0.));
@@ -1378,8 +1573,53 @@ pub(super) fn render(
     panels
         .timeline_columns
         .overlay(list, atlas, area, state, context_input, locale, out);
-    if right_clicked(input, body) && !panels.layer_actions.editing() {
+    if right_clicked(input, body)
+        && !panels.layer_actions.editing()
+        && !panels.path_controls.mask_menu()
+    {
         panels.layer_actions.open(None, input.mouse, state);
+    }
+    panels
+        .path_controls
+        .mask_overlay(list, atlas, area, state, context_input, locale, out);
+    if let Some((rect, dragging)) = panels.path_controls.groups.cursor {
+        if dragging || rect.contains(context_input.mouse) {
+            panels.cursor = Some(motion_ui::widgets::numeric_behavior::cursor(
+                context_input,
+                dragging,
+            ));
+        }
+    }
+}
+
+#[cfg(test)]
+mod reorder_tests {
+    use super::reorder_storage_index;
+
+    #[test]
+    fn drag_top_layer_below_bottom_maps_to_storage_front() {
+        // Displayed [C, B, A] over storage [A, B, C]: C below A is slot 3.
+        assert_eq!(reorder_storage_index(3, 0, 3), Some(0));
+    }
+    #[test]
+    fn drag_bottom_layer_to_top_maps_to_storage_back() {
+        assert_eq!(reorder_storage_index(3, 2, 0), Some(2));
+    }
+    #[test]
+    fn own_edge_slots_are_noops() {
+        assert_eq!(reorder_storage_index(3, 1, 1), None);
+        assert_eq!(reorder_storage_index(3, 1, 2), None);
+    }
+    #[test]
+    fn middle_move_adjusts_for_removal() {
+        // Displayed [C, B, A]: move A (row 2) above B (slot 1) → storage [A?]
+        // A at storage 0, remove then insert above B's slot → [B, A, C].
+        assert_eq!(reorder_storage_index(3, 2, 1), Some(1));
+    }
+    #[test]
+    fn degenerate_inputs_are_noops() {
+        assert_eq!(reorder_storage_index(0, 0, 0), None);
+        assert_eq!(reorder_storage_index(3, 3, 0), None);
     }
 }
 
@@ -1530,7 +1770,7 @@ mod property_tests {
         panels.timeline.expanded.insert(7);
         let mut atlas = TextAtlas::from_system(12.).unwrap();
         let area = Rect::new(0., 0., 1200., 600.);
-        let point = [335., 124.];
+        let point = [335., 146.];
         let mut actions = vec![];
         for input in [
             Input {
@@ -1607,6 +1847,7 @@ pub(super) fn render_layer_properties(
     ppf: f32,
     offset: f32,
     row: &Row,
+    layout: &super::timeline_layout::LayerRows,
     panels: &mut Panels,
     state: &Value,
     input: &Input,
@@ -1617,26 +1858,10 @@ pub(super) fn render_layer_properties(
     let gutter = area.width();
     let total = last_frame(state) + 1.;
     let graph_mode = panels.timeline.graph_mode;
-    let expanded = true;
-    let transform_expanded = row.spatial && !panels.timeline.collapsed_transforms.contains(&row.id);
-    let filter = panels
-        .timeline
-        .filters
-        .get(&row.id)
-        .copied()
-        .unwrap_or_default();
-    let properties: Vec<_> = if transform_expanded {
-        row.properties
-            .iter()
-            .filter(|property| filter.admits(property.property, !property.keys.is_empty()))
-            .collect()
-    } else {
-        vec![]
-    };
-    let property_count = properties.len();
+    let transform_expanded = layout.transform_open;
     let x_of = |frame: f64| track.min[0] + (frame as f32 - offset) * ppf;
-    if expanded && row.spatial {
-        let group_y = y + row_height;
+    if !layout.transform.is_empty() {
+        let group_y = y + layout.transform.start as f32 * row_height;
         if group_y >= body.min[1] && group_y + row_height <= body.max[1] {
             let group = property_group(
                 list,
@@ -1656,19 +1881,60 @@ pub(super) fn render_layer_properties(
                 }
             }
         }
+        if let Some(index) = layout.anchor {
+            let py = y + index as f32 * row_height;
+            if py >= body.min[1] && py + row_height <= body.max[1] {
+                let fields = property_layout(&list.styles(), area, py, row_height, 0, 2);
+                property_branch(list, fields.watch);
+                property_icon(
+                    list,
+                    fields.watch,
+                    motion_ui::icons::Icon::Anchor,
+                    false,
+                    !row.locked,
+                );
+                label(
+                    list,
+                    atlas,
+                    fields.caption,
+                    if locale == Locale::Zh {
+                        "锚点"
+                    } else {
+                        "Anchor"
+                    },
+                    true,
+                );
+                if let Some(layer) = state["project"]["layers"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .find(|layer| layer["id"].as_u64() == Some(row.id))
+                {
+                    panels.timeline_anchor.draw(
+                        list,
+                        atlas,
+                        area,
+                        py,
+                        Panel::Timeline,
+                        layer,
+                        input,
+                        row.locked,
+                        out,
+                    );
+                }
+            }
+        }
         let sample = state["sampledLayers"]
             .as_array()
             .and_then(|ls| ls.iter().find(|l| l["id"].as_u64() == Some(row.id)));
-        for (i, property) in properties.iter().enumerate() {
-            let py = y + (i + 2) as f32 * row_height;
+        for (i, property_index) in layout.properties.iter().enumerate() {
+            let property = &row.properties[*property_index];
+            let py = y
+                + (i + layout.transform.start + 1 + usize::from(layout.anchor.is_some())) as f32
+                    * row_height;
             if py < body.min[1] || py + row_height > body.max[1] {
                 continue;
             }
-            paint::rect(
-                list,
-                Rect::new(area.min[0], py, gutter, row_height),
-                colors.PANEL,
-            );
             let axis = property.axis.map(|a| {
                 [
                     motion_core::Axis::X,
@@ -1677,7 +1943,15 @@ pub(super) fn render_layer_properties(
                 ][a]
             });
             let property_area = Rect::new(area.min[0], py, gutter, row_height);
-            let fields = property_layout(property_area, py, row_height, 0, property.axes.len());
+            let fields = property_layout(
+                list.styles().as_ref(),
+                property_area,
+                py,
+                row_height,
+                0,
+                property.axes.len(),
+            );
+            property_branch(list, fields.watch);
             property_icon(
                 list,
                 fields.watch,
@@ -1716,8 +1990,15 @@ pub(super) fn render_layer_properties(
                         .map(|s| s[property.key][*component].as_f64().unwrap_or(0.))
                         .unwrap_or(0.)
                 };
-                let field =
-                    property_layout(property_area, py, row_height, j, property.axes.len()).number;
+                let field = property_layout(
+                    list.styles().as_ref(),
+                    property_area,
+                    py,
+                    row_height,
+                    j,
+                    property.axes.len(),
+                )
+                .number;
                 if clicked(input, field) {
                     panels.select_only(Some(row.id));
                     panels
@@ -1769,10 +2050,9 @@ pub(super) fn render_layer_properties(
             }
         }
     }
-    if expanded && row.audio > 0 {
-        let audio_y =
-            y + (1 + if row.spatial { 1 + property_count } else { 0 }) as f32 * row_height;
-        let open = !panels.timeline.collapsed_audio.contains(&row.id);
+    if !layout.audio.is_empty() {
+        let audio_y = y + layout.audio.start as f32 * row_height;
+        let open = layout.audio.len() > 1;
         if audio_y >= body.min[1] && audio_y + row_height <= body.max[1] {
             let group = property_group(
                 list,
@@ -1814,6 +2094,225 @@ pub(super) fn render_layer_properties(
             );
         }
     }
+    if !layout.geometry.is_empty() {
+        let gy = y + layout.geometry.start as f32 * row_height;
+        if gy >= body.min[1] && gy + row_height <= body.max[1] {
+            let heading = property_group(
+                list,
+                atlas,
+                area,
+                gy,
+                row_height,
+                if locale == Locale::Zh {
+                    "几何设置"
+                } else {
+                    "Geometry"
+                },
+                layout.geometry_open,
+            );
+            if clicked(input, heading) {
+                if !panels.timeline.collapsed_geometry.remove(&row.id) {
+                    panels.timeline.collapsed_geometry.insert(row.id);
+                }
+            }
+        }
+        if layout.geometry_open {
+            let py = gy + row_height;
+            if py >= body.min[1] && py + row_height <= body.max[1] {
+                let fields = property_layout(&list.styles(), area, py, row_height, 0, 1);
+                property_branch(list, fields.watch);
+                label(list, atlas, fields.caption, "3D", true);
+                if let Some(layer) = state["project"]["layers"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .find(|layer| layer["id"].as_u64() == Some(row.id))
+                {
+                    let enabled = !row.locked && state["observing"] != true;
+                    if motion_ui::widgets::Checkbox::draw(
+                        list,
+                        atlas,
+                        fields.number,
+                        "",
+                        layer["three_d"] == true,
+                        input,
+                        enabled,
+                        false,
+                        None,
+                    )
+                    .clicked
+                    {
+                        out.push(Action::Edit(Command::SetLayer3d {
+                            object: row.id,
+                            enabled: layer["three_d"] != true,
+                        }));
+                    }
+                }
+            }
+        }
+    }
+    let start = y + layout.masks.start as f32 * row_height;
+    super::path_controls::timeline::render(
+        list,
+        atlas,
+        area,
+        body,
+        track,
+        start,
+        row_height,
+        ppf,
+        offset,
+        row,
+        &layout.mask_rows,
+        panels,
+        state,
+        input,
+        out,
+    );
+    let vector_start = y + layout.vectors.start as f32 * row_height;
+    super::path_controls::groups::timeline::render(
+        list,
+        atlas,
+        area,
+        body,
+        track,
+        vector_start,
+        row_height,
+        ppf,
+        offset,
+        row,
+        &layout.vector_rows,
+        panels,
+        state,
+        input,
+        out,
+    );
+    if !layout.effects.is_empty() {
+        let ey = y + layout.effects.start as f32 * row_height;
+        if ey >= body.min[1] && ey + row_height <= body.max[1] {
+            let heading = property_group(
+                list,
+                atlas,
+                area,
+                ey,
+                row_height,
+                if locale == Locale::Zh {
+                    "效果"
+                } else {
+                    "Effects"
+                },
+                layout.effects_open,
+            );
+            if clicked(input, heading) {
+                if !panels.timeline.expanded_effects.remove(&row.id) {
+                    panels.timeline.expanded_effects.insert(row.id);
+                }
+            }
+        }
+        if layout.effects_open {
+            let effects = state["project"]["layers"].as_array().into_iter().flatten()
+                .find(|layer| layer["id"].as_u64() == Some(row.id)).and_then(|layer| layer["effects"].as_array());
+            for (index, effect) in effects.into_iter().flatten().enumerate() {
+                let py = ey + (index + 1) as f32 * row_height;
+                if py < body.min[1] || py + row_height > body.max[1] {
+                    continue;
+                }
+                let fields = property_layout(&list.styles(), area, py, row_height, 0, 1);
+                property_branch(list, fields.watch);
+                if motion_ui::widgets::Checkbox::draw(
+                    list,
+                    atlas,
+                    fields.watch,
+                    "",
+                    effect["enabled"] != false,
+                    input,
+                    !row.locked && state["observing"] != true,
+                    false,
+                    None,
+                )
+                .clicked
+                {
+                    if let Some(id) = effect["id"].as_u64() {
+                        out.push(Action::Edit(Command::Effect {
+                            object: row.id,
+                            action: motion_core::EffectAction::Enable {
+                                effect: id,
+                                enabled: effect["enabled"] == false,
+                            },
+                        }));
+                    }
+                }
+                let definition = panels.effect_controls.definition(effect);
+                let title = definition
+                    .as_ref()
+                    .and_then(|definition| {
+                        definition[if locale == Locale::Zh {
+                            "name"
+                        } else {
+                            "english_name"
+                        }]
+                        .as_str()
+                    })
+                    .unwrap_or_else(|| effect["effect"].as_str().unwrap_or("Effect"));
+                label(list, atlas, fields.caption, title, false);
+                let edit = ui::button_styled(
+                    list,
+                    atlas,
+                    fields.number,
+                    if locale == Locale::Zh {
+                        "编辑"
+                    } else {
+                        "Edit"
+                    },
+                    input,
+                    true,
+                    &list.styles(),
+                    "button.icon",
+                )
+                .clicked;
+                if clicked(input, fields.caption) || edit {
+                    panels.select_only(Some(row.id));
+                    out.push(Action::ShowPanel(Panel::EffectControls.dock()));
+                }
+                let mut frames = vec![];
+                for parameter in effect["params"]
+                    .as_object()
+                    .into_iter()
+                    .flat_map(|params| params.values())
+                {
+                    for track in [&parameter["track"], &parameter["curve"]] {
+                        frames.extend(
+                            track["keys"]
+                                .as_array()
+                                .into_iter()
+                                .flatten()
+                                .filter_map(|key| key["frame"].as_f64())
+                                .map(|frame| frame + f64::from(row.mask_offset)),
+                        );
+                    }
+                }
+                frames.sort_by(f64::total_cmp);
+                frames.dedup();
+                for frame in frames {
+                    let x = x_of(frame);
+                    if x < track.min[0] || x >= track.max[0] {
+                        continue;
+                    }
+                    let radius = list.styles().metric("graph.key_radius", 5.);
+                    paint::diamond(
+                        list,
+                        [x, py + row_height * 0.5],
+                        list.styles().metric("graph.handle_radius", 4.),
+                        colors.KEYFRAME,
+                    );
+                    if clicked(input, Rect::new(x - radius, py, radius * 2., row_height)) {
+                        panels.select_only(Some(row.id));
+                        out.push(Action::Seek(frame.clamp(0., total - 1.)));
+                    }
+                }
+            }
+        }
+    }
 }
 
 pub(super) fn render_time_ruler(
@@ -1842,8 +2341,8 @@ pub(super) fn render_time_ruler(
         panels.timeline.last_seek = None;
     }
     let fps = state["project"]["fps"].as_u64().unwrap_or(30).max(1) as f32;
-    let step = (60.0 / (ppf * fps)).ceil().max(1.0) * fps;
-    let mut f = (panels.timeline.offset / step).ceil() * step;
+    let step = super::timeline_layout::ruler_step(ppf, fps);
+    let mut f = (offset / step).ceil() * step;
     while x_of(f as f64) < track.max[0] {
         let x = x_of(f as f64);
         paint::rect(

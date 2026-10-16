@@ -18,6 +18,11 @@ use motion_ui::{
     ui::{self, Align},
 };
 use serde_json::Value;
+pub(in crate::panels) mod groups;
+mod mask_inspector;
+mod mask_keys;
+mod mask_path;
+pub(in crate::panels) mod timeline;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Tool {
@@ -202,9 +207,23 @@ pub struct Controls {
     focus: bool,
     pub notice: Option<String>,
     parameter: Option<Parameter>,
+    parameter_context: Option<(String, String, u32)>,
+    inspector_context: Option<(String, String, u64, motion_ui::dock::Panel)>,
+    inspector_cache: Option<InspectorLayer>,
+    inspector_add: Option<(motion_ui::dock::Panel, Rect)>,
+    add_mask_menu: motion_ui::widgets::Dropdown,
+    mode_dropdowns: std::collections::HashMap<(u64, u64), motion_ui::widgets::Dropdown>,
+    collapsed_mask_cards: std::collections::HashSet<(u64, u64)>,
     pub masks_open: bool,
+    keys: mask_keys::Controls,
+    pub(super) groups: groups::Controls,
+}
+struct InspectorLayer {
+    context: (String, String, u64, u64),
+    layer: std::sync::Arc<Layer>,
 }
 struct Parameter {
+    host: motion_ui::dock::Panel,
     object: u64,
     mask: u64,
     property: MaskProperty,
@@ -239,6 +258,31 @@ fn layer(state: &Value, id: u64) -> Option<Layer> {
     )
     .ok()
 }
+fn icons_pen_button(
+    list: &mut PaintList,
+    rect: Rect,
+    input: &Input,
+    enabled: bool,
+    active: bool,
+) -> bool {
+    let styles = list.styles();
+    let mut states = motion_ui::style::States::default();
+    if !enabled {
+        states = states.with(motion_ui::style::State::Disabled);
+    }
+    if active {
+        states = states.with(motion_ui::style::State::Selected);
+    }
+    motion_ui::icons::button(
+        list,
+        rect,
+        motion_ui::icons::Icon::Pen,
+        input,
+        styles.as_ref(),
+        states,
+    )
+    .clicked
+}
 fn geometry(node: &Value) -> Option<[f32; 6]> {
     let a = node["geometry"].as_array()?;
     if a.len() != 6 {
@@ -251,8 +295,25 @@ fn geometry(node: &Value) -> Option<[f32; 6]> {
     Some(g)
 }
 impl Controls {
+    pub(super) fn mask_key_shortcuts(
+        &mut self,
+        state: &Value,
+        selected: Option<u64>,
+        input: &Input,
+        out: &mut Vec<Action>,
+    ) -> bool {
+        self.groups.keys.shortcuts(state, selected, input, out)
+            || self.keys.delete_selected(state, selected, input, out)
+            || self.keys.navigate(state, selected, input, out)
+    }
     pub fn editing(&self) -> bool {
-        self.draft.is_some() || self.drag.is_some() || self.parameter.is_some()
+        self.draft.is_some()
+            || self.drag.is_some()
+            || self.parameter.is_some()
+            || self.keys.editing()
+            || self.groups.editing()
+            || self.add_mask_menu.open
+            || self.mode_dropdowns.values().any(|d| d.open)
     }
     pub fn wants_keyboard(&self) -> bool {
         self.editing() || (self.tool != Tool::Select && self.focus)
@@ -261,8 +322,15 @@ impl Controls {
         let drag = self.drag.take().is_some_and(|d| d.begun);
         let param = self.parameter.take().is_some_and(|p| p.begun);
         self.draft = None;
+        self.parameter_context = None;
         self.focus = false;
-        drag || param
+        self.add_mask_menu.open = false;
+        for dropdown in self.mode_dropdowns.values_mut() {
+            dropdown.open = false;
+        }
+        let keys = self.keys.cancel();
+        let group = self.groups.cancel();
+        drag || param || keys || group
     }
     pub fn choose(&mut self, tool: Tool, out: &mut Vec<Action>) {
         if self.cancel() {
@@ -645,8 +713,8 @@ impl Controls {
                         && g.iter().all(|v| v.is_finite() && v.abs() <= 32768.)
                     {
                         drag.last_geometry = g;
-                        out.push(Action::Edit(match drag.target {
-                            Target::Vector { object } => Command::Vector {
+                        let edit = match drag.target {
+                            Target::Vector { object } => Some(Action::Edit(Command::Vector {
                                 object,
                                 action: VectorAction::SetNode {
                                     path: drag.path,
@@ -655,19 +723,21 @@ impl Controls {
                                     value: g,
                                     animated: drag.animated,
                                 },
-                            },
-                            Target::Mask { object, mask } => Command::Mask {
-                                object,
-                                action: MaskAction::Set {
-                                    mask,
-                                    property: MaskProperty::Node(drag.node),
-                                    frame: drag.frame,
-                                    value: g.to_vec(),
-                                    animated: None,
-                                },
-                            },
+                            })),
+                            Target::Mask { object, mask } => target.as_ref().and_then(|layer| {
+                                let source = layer.masks.iter().find(|m| m.id == mask)?;
+                                mask_path::node_command(
+                                    object,
+                                    source,
+                                    layer.timeline.map_or(0, |t| t.offset_frame),
+                                    drag.node,
+                                    drag.frame,
+                                    g,
+                                )
+                            }),
                             Target::New => unreachable!(),
-                        }));
+                        };
+                        out.extend(edit);
                     }
                 }
             }
@@ -716,6 +786,7 @@ impl Controls {
             }
         }
         if let Some(d) = &self.draft {
+            let draft_color=list.styles().color("path.draft");
             let nodes: Vec<_> = d.path.nodes.iter().map(|n| n.geometry.value).collect();
             paint_path(
                 list,
@@ -724,7 +795,7 @@ impl Controls {
                 false,
                 d.offset,
                 None,
-                Color::rgb(255, 188, 92),
+                draft_color,
             );
         }
         label(
@@ -779,11 +850,23 @@ impl Controls {
     }
 }
 impl Controls {
-    pub fn height(&self, l: &Layer) -> f32 {
-        if self.masks_open {
-            76. + l.masks.len() as f32 * 186.
+    pub fn height(&self, l: &Layer, styles: &motion_ui::style::StyleSheet) -> f32 {
+        let row = styles.metric("row.height", 22.);
+        let gap = styles.metric("padding", 5.);
+        if !self.masks_open {
+            row
         } else {
-            30.
+            row + l
+                .masks
+                .iter()
+                .map(|m| {
+                    if self.collapsed_mask_cards.contains(&(l.id, m.id)) {
+                        row + gap
+                    } else {
+                        row * 6. + gap
+                    }
+                })
+                .sum::<f32>()
         }
     }
     pub fn inspector_section(
@@ -803,386 +886,235 @@ impl Controls {
         let colors = styles.colors();
 
         if vector_only {
+            self.groups.render(
+                list,
+                atlas,
+                area,
+                y,
+                l,
+                state,
+                input,
+                locale,
+                motion_ui::dock::Panel::Vector,
+                out,
+            );
             if let Content::Vector { vector } = &l.content {
-                let title = if locale == Locale::Zh {
-                    "矢量路径"
-                } else {
-                    "VECTOR PATH"
-                };
-                label(
-                    list,
-                    atlas,
-                    Rect::new(area.min[0] + 12., *y, area.width() - 24., 28.),
-                    title,
-                    colors.TEXT,
-                );
-                *y += 30.;
-                if ui::button(
-                    list,
-                    atlas,
-                    Rect::new(area.min[0] + 12., *y, area.width() - 24., 26.),
-                    if locale == Locale::Zh {
-                        "钢笔编辑路径"
+                let row = styles.metric("row.height", 22.);
+                let pad = styles.metric("padding.panel", 8.);
+                let slot = styles.metric("icon.slot", 20.);
+                if !matches!(vector.source, VectorSource::Group { .. }) {
+                    let neutral = Input::default();
+                    let action_input = if self.groups.menu_in(motion_ui::dock::Panel::Vector) {
+                        &neutral
                     } else {
-                        "Edit path with Pen"
-                    },
-                    input,
-                    !l.locked,
-                )
-                .clicked
-                {
-                    self.choose(Tool::Pen, out);
-                }
-                *y += 30.;
-                if matches!(vector.source, VectorSource::Shape { .. }) {
-                    if ui::button(
+                        input
+                    };
+                    let fields = mask_inspector::property_row(
+                        styles.as_ref(),
+                        area,
+                        *y,
+                        0,
+                        1,
+                        motion_ui::dock::Panel::Properties,
+                    );
+                    label(
                         list,
                         atlas,
-                        Rect::new(area.min[0] + 12., *y, area.width() - 24., 26.),
+                        fields.caption,
                         if locale == Locale::Zh {
-                            "转换为可编辑路径"
+                            "路径编辑"
                         } else {
-                            "Convert to editable path"
+                            "Path editing"
                         },
-                        input,
-                        !l.locked,
-                    )
-                    .clicked
+                        colors.TEXT_MUTED,
+                    );
+                    let pen = Rect::new(fields.number.min[0], *y, slot, row);
+                    if icons_pen_button(list, pen, action_input, !l.locked, self.tool == Tool::Pen)
                     {
-                        out.push(Action::Edit(Command::Vector {
-                            object: l.id,
-                            action: VectorAction::ConvertToPath {
-                                frame: state["frame"].as_f64().unwrap_or(0.).floor() as u32,
-                            },
-                        }));
                         self.choose(Tool::Pen, out);
                     }
-                    *y += 30.;
+                    if matches!(vector.source, VectorSource::Shape { .. }) {
+                        let text = if locale == Locale::Zh {
+                            "转换为路径"
+                        } else {
+                            "Convert to path"
+                        };
+                        let x = pen.max[0] + pad;
+                        let rect = Rect::new(
+                            x,
+                            *y,
+                            (atlas.measure(text) + pad * 2.).min((area.max[0] - pad - x).max(0.)),
+                            row,
+                        );
+                        if ui::button_styled(
+                            list,
+                            atlas,
+                            rect,
+                            text,
+                            action_input,
+                            !l.locked,
+                            &styles,
+                            "button.icon",
+                        )
+                        .clicked
+                        {
+                            out.push(Action::Edit(Command::Vector {
+                                object: l.id,
+                                action: VectorAction::ConvertToPath {
+                                    frame: state["frame"].as_f64().unwrap_or(0.).floor() as u32,
+                                },
+                            }));
+                            self.choose(Tool::Pen, out);
+                        }
+                    }
+                    *y += row;
                 }
+                self.groups.finish_paint(
+                    list,
+                    atlas,
+                    area,
+                    state,
+                    input,
+                    locale,
+                    motion_ui::dock::Panel::Vector,
+                    out,
+                );
             }
         }
         if vector_only {
             return;
         }
-        let title = Rect::new(area.min[0] + 12., *y, area.width() - 24., 28.);
-        paint::rect(list, title, colors.CHROME);
-        label(
+        self.compact_masks(
             list,
             atlas,
-            title.shrink(6.),
-            &format!(
-                "{} {} ({})",
-                if self.masks_open { "⌄" } else { "›" },
-                locale.t(T::Mask),
-                l.masks.len()
-            ),
-            colors.TEXT,
+            area,
+            y,
+            l,
+            state,
+            input,
+            locale,
+            motion_ui::dock::Panel::Masks,
+            out,
         );
-        if click(input, title) {
-            self.masks_open = !self.masks_open;
+    }
+    pub(super) fn inspector_layer(
+        &mut self,
+        state: &Value,
+        value: &Value,
+    ) -> Option<std::sync::Arc<Layer>> {
+        let revision = state["revision"].as_u64();
+        let context = (
+            state["root"].as_str().unwrap_or("").into(),
+            state["composition"].as_str().unwrap_or("").into(),
+            value["id"].as_u64()?,
+            revision.unwrap_or(0),
+        );
+        if revision.is_some() {
+            if let Some(cached) = &self.inspector_cache {
+                if cached.context == context {
+                    return Some(cached.layer.clone());
+                }
+            }
         }
-        *y += 34.;
-        if !self.masks_open {
-            return;
-        }
-        let allowed = !l.locked
-            && !matches!(
-                l.content,
-                Content::Adjustment | Content::Null | Content::Audio { .. }
-            );
-        let half = (area.width() - 30.) * 0.5;
-        if ui::button(
+        let layer = std::sync::Arc::new(serde_json::from_value::<Layer>(value.clone()).ok()?);
+        self.inspector_cache = Some(InspectorLayer {
+            context,
+            layer: layer.clone(),
+        });
+        Some(layer)
+    }
+    pub(super) fn masks_in_properties(
+        &mut self,
+        list: &mut PaintList,
+        atlas: &mut TextAtlas,
+        area: Rect,
+        y: &mut f32,
+        layer: &Layer,
+        state: &Value,
+        input: &Input,
+        locale: Locale,
+        out: &mut Vec<Action>,
+    ) {
+        self.compact_masks(
             list,
             atlas,
-            Rect::new(area.min[0] + 12., *y, half, 26.),
-            if locale == Locale::Zh {
-                "钢笔蒙版"
-            } else {
-                "Pen Mask"
-            },
+            area,
+            y,
+            layer,
+            state,
             input,
-            allowed,
-        )
-        .clicked
-        {
-            self.choose(Tool::Mask, out);
+            locale,
+            motion_ui::dock::Panel::Properties,
+            out,
+        );
+    }
+    pub(super) fn inspector_menu_in(&self, host: motion_ui::dock::Panel) -> bool {
+        self.inspector_context
+            .as_ref()
+            .is_some_and(|context| context.3 == host)
+            && (self.add_mask_menu.open || self.mode_dropdowns.values().any(|d| d.open))
+            || self.groups.menu_in(host)
+    }
+    pub(crate) fn mask_add_rect(&self, host: motion_ui::dock::Panel) -> Option<Rect> {
+        self.inspector_add
+            .filter(|(owner, _)| *owner == host)
+            .map(|(_, rect)| rect)
+    }
+    pub(crate) fn vector_add_rect(&self, host: motion_ui::dock::Panel) -> Option<Rect> {
+        self.groups
+            .add_rect
+            .filter(|(owner, _)| *owner == host)
+            .map(|(_, r)| r)
+    }
+    pub(crate) fn reveal_vector_item(&mut self, state: &Value, object: u64, item: u64) {
+        if let Some(l) = layer(state, object) {
+            if let Content::Vector { vector } = &l.content {
+                let root = if let VectorSource::Group { group } = &vector.source {
+                    group.id
+                } else {
+                    1
+                };
+                self.groups.reveal_item(object, root, item);
+            }
         }
-        if ui::button(
+    }
+    pub(super) fn clear_mask_selection(&mut self) {
+        self.keys.clear_selection();
+        self.groups.keys.clear_selection();
+    }
+    pub(super) fn numeric_owner(&self) -> Option<motion_ui::dock::Panel> {
+        self.parameter.as_ref().map(|p| p.host)
+    }
+    pub(super) fn mask_menu(&self) -> bool {
+        self.keys.modal()
+            || self.groups.menu_in(motion_ui::dock::Panel::Timeline)
+            || self.groups.keys.modal()
+    }
+    pub(super) fn mask_overlay(
+        &mut self,
+        list: &mut PaintList,
+        atlas: &mut TextAtlas,
+        area: Rect,
+        state: &Value,
+        input: &Input,
+        locale: Locale,
+        out: &mut Vec<Action>,
+    ) {
+        self.keys.overlay(list, atlas, area, input, locale, out);
+        self.groups.append_overlays(list);
+        self.groups
+            .keys
+            .overlay(list, atlas, area, input, locale, out);
+        self.groups.overlay(
             list,
             atlas,
-            Rect::new(area.min[0] + 18. + half, *y, half, 26.),
-            if locale == Locale::Zh {
-                "矩形蒙版"
-            } else {
-                "Rect Mask"
-            },
+            area,
+            state,
             input,
-            allowed,
-        )
-        .clicked
-        {
-            let id = l.masks.iter().map(|m| m.id).max().unwrap_or(0) + 1;
-            let [w, h] = l.size;
-            let points = [
-                [w * 0.1, h * 0.1],
-                [w * 0.9, h * 0.1],
-                [w * 0.9, h * 0.9],
-                [w * 0.1, h * 0.9],
-            ];
-            let path = VectorPath {
-                id: 1,
-                closed: true,
-                nodes: points
-                    .into_iter()
-                    .enumerate()
-                    .map(|(i, p)| PathNode {
-                        id: i as u64 + 1,
-                        geometry: Track::constant([p[0], p[1], 0., 0., 0., 0.]),
-                    })
-                    .collect(),
-            };
-            let mut mask = LayerMask::new(id, path);
-            mask.name = format!("{} {id}", locale.t(T::Mask));
-            out.push(Action::Edit(Command::Mask {
-                object: l.id,
-                action: MaskAction::Add { mask },
-            }));
-            self.tool = Tool::Mask;
-            self.mask = Some(id);
-        }
-        *y += 36.;
-        let local = state["frame"].as_f64().unwrap_or(0.)
-            - f64::from(
-                l.clip(state["project"]["frames"].as_u64().unwrap_or(1) as u32)
-                    .offset_frame,
-            );
-        for mask in &l.masks {
-            let heading = Rect::new(area.min[0] + 12., *y, area.width() - 24., 26.);
-            paint::rect(list, heading, colors.SUNKEN);
-            label(
-                list,
-                atlas,
-                Rect::new(heading.min[0] + 5., *y, heading.width() - 65., 26.),
-                &mask.name,
-                colors.TEXT,
-            );
-            if ui::button(
-                list,
-                atlas,
-                Rect::new(heading.max[0] - 56., *y, 26., 24.),
-                "✎",
-                input,
-                allowed,
-            )
-            .clicked
-            {
-                if self.cancel() {
-                    out.push(Action::History(4));
-                }
-                self.tool = Tool::Mask;
-                self.mask = Some(mask.id);
-            }
-            if ui::button(
-                list,
-                atlas,
-                Rect::new(heading.max[0] - 27., *y, 25., 24.),
-                "×",
-                input,
-                allowed,
-            )
-            .clicked
-            {
-                out.push(Action::Edit(Command::Mask {
-                    object: l.id,
-                    action: MaskAction::Remove { mask: mask.id },
-                }));
-                if self.mask == Some(mask.id) {
-                    self.mask = None;
-                }
-            }
-            *y += 30.;
-            let modes = [
-                MaskMode::None,
-                MaskMode::Add,
-                MaskMode::Subtract,
-                MaskMode::Intersect,
-                MaskMode::Lighten,
-                MaskMode::Darken,
-                MaskMode::Difference,
-            ];
-            let index = modes.iter().position(|m| *m == mask.mode).unwrap_or(1);
-            let names = if locale == Locale::Zh {
-                ["无", "相加", "相减", "交集", "变亮", "变暗", "差值"]
-            } else {
-                [
-                    "None",
-                    "Add",
-                    "Subtract",
-                    "Intersect",
-                    "Lighten",
-                    "Darken",
-                    "Difference",
-                ]
-            };
-            let rect = Rect::new(area.min[0] + 12., *y, half, 24.);
-            if ui::button(list, atlas, rect, names[index], input, allowed).clicked {
-                out.push(Action::Edit(Command::Mask {
-                    object: l.id,
-                    action: MaskAction::Options {
-                        mask: mask.id,
-                        mode: Some(modes[(index + 1) % modes.len()]),
-                        inverted: None,
-                        enabled: None,
-                    },
-                }));
-            }
-            if ui::button(
-                list,
-                atlas,
-                Rect::new(rect.max[0] + 6., *y, half, 24.),
-                if mask.inverted {
-                    if locale == Locale::Zh {
-                        "反相 ✓"
-                    } else {
-                        "Invert ✓"
-                    }
-                } else {
-                    if locale == Locale::Zh {
-                        "反相"
-                    } else {
-                        "Invert"
-                    }
-                },
-                input,
-                allowed,
-            )
-            .clicked
-            {
-                out.push(Action::Edit(Command::Mask {
-                    object: l.id,
-                    action: MaskAction::Options {
-                        mask: mask.id,
-                        mode: None,
-                        inverted: Some(!mask.inverted),
-                        enabled: None,
-                    },
-                }));
-            }
-            *y += 28.;
-            for (name, property, values, range) in [
-                (
-                    if locale == Locale::Zh {
-                        "不透明度"
-                    } else {
-                        "Opacity"
-                    },
-                    MaskProperty::Opacity,
-                    vec![mask.opacity.sample(local)],
-                    [0., 100.],
-                ),
-                (
-                    if locale == Locale::Zh {
-                        "羽化 X / Y"
-                    } else {
-                        "Feather X / Y"
-                    },
-                    MaskProperty::Feather,
-                    mask.feather.sample(local).to_vec(),
-                    [0., 32000.],
-                ),
-                (
-                    if locale == Locale::Zh {
-                        "扩展"
-                    } else {
-                        "Expansion"
-                    },
-                    MaskProperty::Expansion,
-                    vec![mask.expansion.sample(local)],
-                    [-32000., 32000.],
-                ),
-            ] {
-                label(
-                    list,
-                    atlas,
-                    Rect::new(area.min[0] + 18., *y, area.width() * 0.42, 24.),
-                    name,
-                    colors.TEXT_MUTED,
-                );
-                let width = (area.width() * 0.48 - 12.) / values.len() as f32;
-                for (axis, value) in values.iter().enumerate() {
-                    let r = Rect::new(
-                        area.min[0] + area.width() * 0.5 + axis as f32 * width,
-                        *y,
-                        width - 4.,
-                        24.,
-                    );
-                    let active = self.parameter.as_ref().is_some_and(|p| {
-                        p.mask == mask.id
-                            && p.axis == axis
-                            && std::mem::discriminant(&p.property)
-                                == std::mem::discriminant(&property)
-                    });
-                    paint::rect(list, r, colors.SUNKEN);
-                    let text = if active {
-                        self.parameter.as_ref().unwrap().text.clone()
-                    } else {
-                        format!("{value:.1}")
-                    };
-                    label(list, atlas, r.shrink(4.), &text, colors.ACCENT);
-                    if click(input, r) && allowed && !active {
-                        self.parameter = Some(Parameter {
-                            object: l.id,
-                            mask: mask.id,
-                            property: property.clone(),
-                            axis,
-                            values: values.clone(),
-                            text: format!("{value:.1}"),
-                            replace: true,
-                            rect: r,
-                            start: Some(input.pressed.unwrap().1[0]),
-                            begun: false,
-                            last_value: *value,
-                            range,
-                        });
-                        out.push(Action::Seek(state["frame"].as_f64().unwrap_or(0.)));
-                    }
-                }
-                *y += 28.;
-            }
-            if ui::button(
-                list,
-                atlas,
-                Rect::new(area.min[0] + 12., *y, area.width() - 24., 22.),
-                if mask.enabled {
-                    if locale == Locale::Zh {
-                        "启用蒙版 ✓"
-                    } else {
-                        "Mask enabled ✓"
-                    }
-                } else {
-                    if locale == Locale::Zh {
-                        "蒙版已禁用"
-                    } else {
-                        "Mask disabled"
-                    }
-                },
-                input,
-                allowed,
-            )
-            .clicked
-            {
-                out.push(Action::Edit(Command::Mask {
-                    object: l.id,
-                    action: MaskAction::Options {
-                        mask: mask.id,
-                        mode: None,
-                        inverted: None,
-                        enabled: Some(!mask.enabled),
-                    },
-                }));
-            }
-            *y += 32.;
-        }
+            locale,
+            motion_ui::dock::Panel::Timeline,
+            out,
+        );
     }
     pub fn numeric_cursor(&self) -> Option<(Rect, bool)> {
         self.parameter.as_ref().map(|p| (p.rect, p.begun))
@@ -1198,6 +1130,26 @@ impl Controls {
             return;
         };
         let frame = state["frame"].as_f64().unwrap_or(0.).floor() as u32;
+        let context = self.parameter_context.take();
+        let stale = context.as_ref().is_some_and(|(root, composition, at)| {
+            root != state["root"].as_str().unwrap_or("")
+                || composition != state["composition"].as_str().unwrap_or("")
+                || *at != frame
+        }) || state["project"]["layers"].as_array().is_some_and(|layers| {
+            !layers.iter().any(|l| {
+                l["id"].as_u64() == Some(p.object)
+                    && l["locked"] != true
+                    && l["masks"]
+                        .as_array()
+                        .is_some_and(|masks| masks.iter().any(|m| m["id"].as_u64() == Some(p.mask)))
+            })
+        });
+        if stale {
+            if p.begun {
+                out.push(Action::History(4));
+            }
+            return;
+        }
         let command = |p: &Parameter, value: f32| {
             let mut v = p.values.clone();
             v[p.axis] = value;
@@ -1217,6 +1169,20 @@ impl Controls {
                 out.push(Action::History(4));
             }
             return;
+        }
+        if p.start.is_none()
+            && !input.composing
+            && input
+                .pressed
+                .is_some_and(|(b, point)| b == MouseButton::Left && p.rect.contains(point))
+        {
+            if let Ok(value) = p.text.parse::<f32>() {
+                if value.is_finite() {
+                    p.values[p.axis] = value.clamp(p.range[0], p.range[1]);
+                }
+            }
+            p.start = Some(input.pressed.unwrap().1[0]);
+            p.last_value = p.values[p.axis];
         }
         let release = input.released.is_some_and(|(b, _)| b == MouseButton::Left);
         let outside = input
@@ -1280,6 +1246,7 @@ impl Controls {
             }
         }
         self.parameter = Some(p);
+        self.parameter_context = context;
     }
 }
 fn paint_path(
@@ -1316,7 +1283,14 @@ fn paint_path(
         let Some(p) = projection.screen([g[0] - offset[0], g[1] - offset[1]]) else {
             continue;
         };
-        paint::box_rect(list, Rect::new(p[0] - 3., p[1] - 3., 6., 6.), color, Color([0.;4]), 0., 0.);
+        paint::box_rect(
+            list,
+            Rect::new(p[0] - 3., p[1] - 3., 6., 6.),
+            color,
+            Color([0.; 4]),
+            0.,
+            0.,
+        );
         if selected == Some(i as u64 + 1) || selected.is_none() {
             for axis in [2, 4] {
                 if g[axis].abs() + g[axis + 1].abs() < 0.01 {
@@ -1325,7 +1299,8 @@ fn paint_path(
                 if let Some(h) =
                     projection.screen([g[0] + g[axis] - offset[0], g[1] + g[axis + 1] - offset[1]])
                 {
-                    paint::line(list, vec![p, h], color.with_alpha(0.7));
+                    let connector=color.with_alpha(list.styles().metric("path.handle.opacity",0.7));
+                    paint::line(list, vec![p, h], connector);
                     paint::diamond(list, h, 3., color);
                 }
             }
@@ -1368,6 +1343,7 @@ mod numeric_tests {
                 let before = serde_json::to_vec(engine.project()).unwrap();
                 let mut controls = Controls::default();
                 controls.parameter = Some(Parameter {
+                    host: motion_ui::dock::Panel::Masks,
                     object: 7,
                     mask: 1,
                     property: MaskProperty::Opacity,

@@ -48,6 +48,22 @@ pub fn button(
         "button",
     )
 }
+/// Draw and hit test an icon-only button sharing the `button.icon` styling.
+pub fn button_icon(
+    list: &mut PaintList,
+    area: Rect,
+    icon: crate::icons::Icon,
+    input: &Input,
+    enabled: bool,
+) -> Response {
+    let styles = list.styles();
+    let states = if enabled {
+        crate::style::States::default()
+    } else {
+        crate::style::States::default().with(crate::style::State::Disabled)
+    };
+    crate::icons::button(list, area, icon, input, styles.as_ref(), states)
+}
 pub fn button_styled(
     list: &mut PaintList,
     atlas: &mut crate::text::TextAtlas,
@@ -551,6 +567,7 @@ pub fn icon(list: &mut PaintList, area: Rect, icon: Icon) {
         Icon::Camera => Some(crate::icons::Icon::Camera),
         Icon::Keyframe => Some(crate::icons::Icon::Key),
         Icon::Stopwatch => Some(crate::icons::Icon::Stopwatch),
+        Icon::Chevron => Some(crate::icons::Icon::ChevronDown),
         _ => None,
     };
     if let Some(svg) = svg {

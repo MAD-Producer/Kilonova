@@ -405,6 +405,90 @@ impl Dropdown {
         group_starts: &[usize],
         marked: bool,
     ) -> Option<usize> {
+        self.draw_grouped_styled(
+            list,
+            atlas,
+            area,
+            bounds,
+            items,
+            selected,
+            input,
+            enabled,
+            focused,
+            group_starts,
+            marked,
+            Some("field"),
+        )
+    }
+    /// Inline enum: a passive value stays transparent until it is edited.
+    pub fn draw_inline(
+        &mut self,
+        list: &mut PaintList,
+        atlas: &mut TextAtlas,
+        area: Rect,
+        bounds: Rect,
+        items: &[DropdownItem<'_>],
+        selected: usize,
+        input: &Input,
+        enabled: bool,
+        focused: bool,
+    ) -> Option<usize> {
+        self.draw_grouped_styled(
+            list,
+            atlas,
+            area,
+            bounds,
+            items,
+            selected,
+            input,
+            enabled,
+            focused,
+            &[],
+            true,
+            Some("field.number"),
+        )
+    }
+    /// Menu for an independently rendered action button. The host opens it.
+    pub fn draw_menu(
+        &mut self,
+        list: &mut PaintList,
+        atlas: &mut TextAtlas,
+        anchor: Rect,
+        bounds: Rect,
+        items: &[DropdownItem<'_>],
+        input: &Input,
+        enabled: bool,
+    ) -> Option<usize> {
+        self.draw_grouped_styled(
+            list,
+            atlas,
+            anchor,
+            bounds,
+            items,
+            0,
+            input,
+            enabled,
+            true,
+            &[],
+            false,
+            None,
+        )
+    }
+    fn draw_grouped_styled(
+        &mut self,
+        list: &mut PaintList,
+        atlas: &mut TextAtlas,
+        area: Rect,
+        bounds: Rect,
+        items: &[DropdownItem<'_>],
+        selected: usize,
+        input: &Input,
+        enabled: bool,
+        focused: bool,
+        group_starts: &[usize],
+        marked: bool,
+        anchor_style: Option<&str>,
+    ) -> Option<usize> {
         let enabled = enabled && !items.is_empty();
         self.highlighted = self.highlighted.min(items.len().saturating_sub(1));
         let sheet = list.styles();
@@ -414,36 +498,42 @@ impl Dropdown {
         }
         let was_open = self.open;
         if enabled
+            && anchor_style.is_some()
             && (press(input, area)
                 || (focused && !self.open && (key(input, Key::Space) || key(input, Key::Enter))))
         {
             self.open = !self.open;
             self.highlighted = selected.min(items.len().saturating_sub(1));
         }
-        let style = sheet
-            .resolve("field", states(input, area, enabled, focused || self.open))
-            .unwrap();
-        box_style(list, area, style);
-        text_style(
-            list,
-            atlas,
-            Rect::new(
-                area.min[0] + style.padding,
-                area.min[1],
-                (area.width() - 24. - style.padding).max(0.),
-                area.height(),
-            ),
-            items.get(selected).map_or("", |i| i.label),
-            style,
-            Align::Left,
-        );
-        let cx = area.max[0] - 11.;
-        let cy = area.min[1] + area.height() * 0.5;
-        paint::line(
-            list,
-            vec![[cx - 3., cy - 1.], [cx, cy + 2.], [cx + 3., cy - 1.]],
-            style.foreground,
-        );
+        if let Some(anchor_style) = anchor_style {
+            let style = sheet
+                .resolve(
+                    anchor_style,
+                    states(input, area, enabled, focused || self.open),
+                )
+                .unwrap();
+            box_style(list, area, style);
+            text_style(
+                list,
+                atlas,
+                Rect::new(
+                    area.min[0] + style.padding,
+                    area.min[1],
+                    (area.width() - 24. - style.padding).max(0.),
+                    area.height(),
+                ),
+                items.get(selected).map_or("", |i| i.label),
+                style,
+                Align::Left,
+            );
+            let cx = area.max[0] - 11.;
+            let cy = area.min[1] + area.height() * 0.5;
+            paint::line(
+                list,
+                vec![[cx - 3., cy - 1.], [cx, cy + 2.], [cx + 3., cy - 1.]],
+                style.foreground,
+            );
+        }
         if !self.open || items.is_empty() {
             return None;
         }

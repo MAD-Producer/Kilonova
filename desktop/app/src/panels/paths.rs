@@ -25,10 +25,23 @@ pub(super) fn render(
         );
         return;
     };
+    let height = if panel == Panel::Vector {
+        panels.path_controls.groups.height(&layer, styles.as_ref())
+            + match &layer.content {
+                motion_core::Content::Vector { vector } => match vector.source {
+                    motion_core::vector::VectorSource::Group { .. } => 0.,
+                    _ => styles.metric("row.height", 22.),
+                },
+                _ => 0.,
+            }
+    } else {
+        panels.path_controls.height(&layer, styles.as_ref())
+    };
     let mut y = auxiliary::body_y(
+        &styles,
         panel,
         area,
-        panels.path_controls.height(&layer) + 140.,
+        height + styles.metric("padding.panel", 8.) * 2.,
         panels,
         input,
     );
@@ -44,7 +57,12 @@ pub(super) fn render(
         panels.locale,
         out,
     );
-    if let Some((rect, dragging)) = panels.path_controls.numeric_cursor() {
+    let numeric = if panel == Panel::Vector {
+        panels.path_controls.groups.cursor
+    } else {
+        panels.path_controls.numeric_cursor()
+    };
+    if let Some((rect, dragging)) = numeric {
         if dragging || rect.contains(input.mouse) {
             panels.cursor = Some(motion_ui::widgets::numeric_behavior::cursor(
                 input, dragging,

@@ -436,6 +436,11 @@ impl ApplicationHandler<UserEvent> for Shell {
             self.floating_event(event_loop, id, event);
             return;
         }
+        // A closed floating window may still have queued resize/focus events.
+        // Only the main window can change the main surface or deliver its input.
+        if !self.window.as_ref().is_some_and(|window| window.id() == id) {
+            return;
+        }
         match event {
             WindowEvent::Ime(ime) => {
                 if let Some(event) = translate_ime(ime) {

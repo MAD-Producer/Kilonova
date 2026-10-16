@@ -19,6 +19,16 @@ impl Shell {
             "timeline-graph",
             "value-graph",
             "speed-graph",
+            "info-panel",
+            "preview-panel",
+            "character-panel",
+            "effect-controls",
+            "effect-controls-narrow",
+            "effect-controls-bottom",
+            "effect-curve-inline",
+            "layer-properties-tree",
+            "layer-properties-effects",
+            "timeline-properties-tree",
         ] {
             let graph_preset = if screen.starts_with("timeline-") || screen == "effect-library" {
                 workspace::Preset::Default
@@ -81,12 +91,75 @@ impl Shell {
                         return Err("effect library capture must not edit the project".into());
                     }
                 }
+                "layer-properties-tree"
+                | "layer-properties-effects"
+                | "timeline-properties-tree" => {
+                    let target = if screen.starts_with("timeline-") {
+                        dock::Panel::Timeline
+                    } else {
+                        dock::Panel::Properties
+                    };
+                    let panel_size = if target == dock::Panel::Timeline {
+                        [720., 520.]
+                    } else {
+                        [360., 560.]
+                    };
+                    let path = report.with_extension(format!("{screen}.png"));
+                    self.capture_auxiliary_panel(target, panel_size, size, &path, screen)?;
+                    output.insert(screen.into(), serde_json::json!(path));
+                    continue;
+                }
+                "effect-controls"
+                | "effect-controls-narrow"
+                | "effect-controls-bottom"
+                | "effect-curve-inline" => {
+                    let panel_size = [
+                        if screen.ends_with("narrow") {
+                            220.
+                        } else {
+                            360.
+                        },
+                        if screen == "effect-controls-bottom" {
+                            360.
+                        } else {
+                            560.
+                        },
+                    ];
+                    let path = report.with_extension(format!("{screen}.png"));
+                    self.capture_auxiliary_panel(
+                        dock::Panel::EffectControls,
+                        panel_size,
+                        size,
+                        &path,
+                        screen,
+                    )?;
+                    output.insert(screen.into(), serde_json::json!(path));
+                    continue;
+                }
+                "info-panel" | "preview-panel" | "character-panel" => {
+                    let target = if screen == "info-panel" {
+                        dock::Panel::Info
+                    } else if screen == "preview-panel" {
+                        dock::Panel::Preview
+                    } else {
+                        dock::Panel::Character
+                    };
+                    for (suffix, panel_size) in [("", [360., 520.]), ("-narrow", [220., 360.])] {
+                        let name = format!("{screen}{suffix}");
+                        let path = report.with_extension(format!("{name}.png"));
+                        self.capture_auxiliary_panel(target, panel_size, size, &path, &name)?;
+                        output.insert(name, serde_json::json!(path));
+                    }
+                    continue;
+                }
                 "timeline-parent-menu" | "timeline-blend-menu" => {
                     let old = self.panels.timeline.clone();
                     let columns = std::mem::take(&mut self.panels.timeline_columns);
                     let focus = self.panels.focused;
                     self.panels.timeline.set_graph_mode(false);
                     self.panels.timeline.scroll = 0.;
+                    // This fixture locates layers by ordinal, so property rows stay collapsed.
+                    self.panels.timeline.expanded.clear();
                     let layout = workspace::Workspace::design_layout(workspace::Preset::Default);
                     let frame = panels::frames(&layout, size)
                         .into_iter()
@@ -202,5 +275,191 @@ impl Shell {
             output.insert(screen.into(), serde_json::json!(path));
         }
         Ok(Value::Object(output))
+    }
+
+    fn capture_auxiliary_panel(
+        &mut self,
+        panel: dock::Panel,
+        panel_size: [f32; 2],
+        window_size: [f32; 2],
+        path: &std::path::Path,
+        pose: &str,
+    ) -> Result<(), String> {
+        let before = self.engine.state()?;
+        self.state = before.clone();
+        let selection = (
+            self.panels.selected,
+            self.panels.selected_layers.clone(),
+            self.panels.selection_anchor,
+        );
+        let focus = self.panels.focused;
+        let old_animation = std::mem::take(&mut self.panels.animation_controls);
+        let old_properties = std::mem::take(&mut self.panels.properties);
+        let old_timeline = self.panels.timeline.clone();
+        let old_anchor = std::mem::take(&mut self.panels.timeline_anchor);
+        let old_scroll = self.panels.auxiliary.scroll.clone();
+        let old_controls = if panel == dock::Panel::EffectControls {
+            let old = std::mem::take(&mut self.panels.effect_controls);
+            self.panels.effect_controls.catalogue = old.catalogue.clone();
+            Some(old)
+        } else {
+            None
+        };
+        let mut created_text = false;
+        let mut effect_gesture = false;
+        let captured = (|| {
+            if panel == dock::Panel::Character {
+                self.state = self.engine.create_text("Title".into(), 64., 1024, None)?;
+                created_text = true;
+                let object = self.state["project"]["layers"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .rev()
+                    .find(|layer| layer["content"]["kind"] == "text")
+                    .and_then(|layer| layer["id"].as_u64())
+                    .ok_or("character capture requires a real text layer")?;
+                self.panels.select_only(Some(object));
+            }
+            if matches!(
+                panel,
+                dock::Panel::EffectControls | dock::Panel::Properties | dock::Panel::Timeline
+            ) {
+                self.engine.history(2)?;
+                effect_gesture = true;
+                let object = before["project"]["layers"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|layer| layer["id"].as_u64())
+                    .max()
+                    .unwrap_or(0)
+                    + 1;
+                let layer = Layer::solid(
+                    object,
+                    if self.panels.locale == i18n::Locale::Zh {
+                        "纯色层 1"
+                    } else {
+                        "Solid 1"
+                    },
+                    [100.; 2],
+                    [960., 540., 0.],
+                    [1.; 4],
+                );
+                self.state = self.engine.edit(
+                    serde_json::to_string(&Command::Add { layer }).map_err(|e| e.to_string())?,
+                )?;
+                let catalogue = self.panels.effect_controls.catalogue.clone();
+                for name in ["drop_shadow", "curves", "brightness_contrast"]
+                    .into_iter()
+                    .filter(|name| pose != "effect-curve-inline" || *name == "curves")
+                {
+                    let package = catalogue["packages"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .find(|package| {
+                            package["manifest"]["effects"]
+                                .as_array()
+                                .into_iter()
+                                .flatten()
+                                .any(|effect| effect["id"] == name)
+                        })
+                        .ok_or("capture effect missing")?;
+                    self.engine.plugin(serde_json::json!({"op":"add","object":object,"plugin":package["manifest"]["id"],"version":package["manifest"]["version"],"hash":package["hash"],"effect":name}).to_string())?;
+                }
+                if matches!(panel, dock::Panel::Properties | dock::Panel::Timeline) {
+                    self.engine.edit(
+                        serde_json::to_string(&vec![
+                            Command::Animate {
+                                object,
+                                property: motion_core::Property::Position,
+                                axis: None,
+                                frame: 0,
+                                enabled: true,
+                            },
+                            Command::SetVector {
+                                object,
+                                property: motion_core::Property::Position,
+                                frame: 60,
+                                value: [1120., 540., 0.],
+                            },
+                        ])
+                        .map_err(|error| error.to_string())?,
+                    )?;
+                }
+                self.state = self.engine.history(3)?;
+                effect_gesture = false;
+                created_text = true;
+                self.panels.select_only(Some(object));
+                if panel == dock::Panel::Properties {
+                    self.panels.properties.transform_collapsed = pose.ends_with("effects");
+                    self.panels.properties.effects_collapsed = !pose.ends_with("effects");
+                }
+                if panel == dock::Panel::Timeline {
+                    self.panels.timeline.expanded.clear();
+                    self.panels.timeline.expanded.insert(object);
+                    self.panels.timeline.collapsed_geometry.insert(object);
+                    self.panels.focused = Some(dock::Panel::Timeline);
+                }
+                if pose == "effect-controls-bottom" {
+                    self.panels
+                        .auxiliary
+                        .scroll
+                        .insert(panel as u32, panel_size[1]);
+                }
+            }
+            let mut paint = PaintList::default();
+            paint.stylesheet = self.panels.styles.clone();
+            let actions = panels::floating_chrome(
+                &mut paint,
+                &mut self.atlas,
+                panel,
+                panel_size,
+                &mut self.panels,
+                &self.state,
+                &Input::default(),
+            );
+            if !actions.is_empty() {
+                return Err("auxiliary panel capture must not emit edits".into());
+            }
+            // Capture at the window's real pixel ratio, then crop. Changing only
+            // logical_size would stretch this panel across the main surface.
+            let mut ui = self.ui_frame(paint, window_size, true);
+            ui.composition = None;
+            ui.node_preview = None;
+            self.engine.capture_ui(ui, path.to_path_buf())?;
+            let pixels = image::open(path).map_err(|e| e.to_string())?;
+            let width = (panel_size[0] * pixels.width() as f32 / window_size[0]).round() as u32;
+            let height = (panel_size[1] * pixels.height() as f32 / window_size[1]).round() as u32;
+            pixels
+                .crop_imm(0, 0, width, height)
+                .save(path)
+                .map_err(|e| e.to_string())
+        })();
+        let restored = if effect_gesture {
+            self.engine.history(4)
+        } else if created_text {
+            self.engine.history(0)
+        } else {
+            self.engine.state()
+        };
+        self.panels.selected = selection.0;
+        self.panels.selected_layers = selection.1;
+        self.panels.selection_anchor = selection.2;
+        self.panels.focused = focus;
+        self.panels.animation_controls = old_animation;
+        self.panels.properties = old_properties;
+        self.panels.timeline = old_timeline;
+        self.panels.timeline_anchor = old_anchor;
+        self.panels.auxiliary.scroll = old_scroll;
+        if let Some(old) = old_controls {
+            self.panels.effect_controls = old;
+        }
+        self.state = restored?;
+        if self.state["project"] != before["project"] {
+            return Err("auxiliary panel fixture changed the project".into());
+        }
+        captured
     }
 }

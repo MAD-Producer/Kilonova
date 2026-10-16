@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import queue
 import re
+import struct
 import subprocess
 import tempfile
 import threading
@@ -22,12 +23,30 @@ def verify_style_consumers() -> None:
 
 def verify_design_screens(snapshot: dict, locale: str) -> None:
     screens = snapshot.get("designScreens", {})
-    for name in ("home", "composition-settings", "workspace-manager", "effect-library", "timeline-parent-menu", "timeline-blend-menu", "timeline-graph", "value-graph", "speed-graph"):
+    auxiliary = {
+        f"{panel}{suffix}": size
+        for panel in ("info-panel", "preview-panel", "character-panel")
+        for suffix, size in (("", (360, 520)), ("-narrow", (220, 360)))
+    }
+    auxiliary.update({
+        "effect-controls": (360, 560), "effect-controls-narrow": (220, 560),
+        "effect-controls-bottom": (360, 360), "effect-curve-inline": (360, 560),
+        "layer-properties-tree": (360, 560), "layer-properties-effects": (360, 560),
+        "timeline-properties-tree": (720, 520),
+    })
+    for name in ("home", "composition-settings", "workspace-manager", "effect-library", "timeline-parent-menu", "timeline-blend-menu", "timeline-graph", "value-graph", "speed-graph", *auxiliary):
         if name not in screens:
             raise RuntimeError(f"{locale} did not capture {name}")
         data = Path(screens[name]).read_bytes()
         if len(data) < 1024 or not data.startswith(b"\x89PNG\r\n\x1a\n"):
             raise RuntimeError(f"{locale} {name} is not a rendered PNG")
+        if name in auxiliary:
+            width, height = struct.unpack(">II", data[16:24])
+            expected_width, expected_height = auxiliary[name]
+            if not height or abs(width / height - expected_width / expected_height) > 0.01:
+                raise RuntimeError(f"{locale} {name} has stretched panel dimensions: {width}x{height}")
+    if snapshot.get("designCaptureProjectUntouched") is not True:
+        raise RuntimeError(f"{locale} design screenshots did not restore the project")
 
 
 def verify_style_overrides(binary: Path, output: Path) -> None:
@@ -53,8 +72,19 @@ def verify_style_overrides(binary: Path, output: Path) -> None:
         style = snapshot["style"]
         if not style["overrideActive"] or style["rowHeight"] != 32 or style["dragThreshold"] != 12 or style["easing"] != "linear":
             raise RuntimeError(f"{locale} ignored style/density/motion overrides")
-        if len(snapshot["panels"]) < 21:
+        # Masks now belong to Properties; legacy dock ID 6 stays readable.
+        if {panel["id"] for panel in snapshot["panels"]} != set(range(1, 22)) - {6}:
             raise RuntimeError(f"{locale} did not render every floating panel with overrides")
+        properties = next(panel for panel in snapshot["panels"] if panel["id"] == 11)
+        mask_timeline = properties.get("maskTimelineScreenshot")
+        if not mask_timeline or not Path(mask_timeline).is_file():
+            raise RuntimeError(f"{locale} did not render masks in layer properties and the shared timeline")
+        shapes = next(panel for panel in snapshot["panels"] if panel["id"] == 7)
+        if not Path(shapes.get("shapeTimelineScreenshot", "")).is_file():
+            raise RuntimeError(f"{locale} did not render shape content keys in the shared timeline")
+        operators = shapes.get("shapeOperatorScreenshots", {})
+        if set(operators) != {"fill", "stroke", "trim"} or not all(Path(p).is_file() for p in operators.values()):
+            raise RuntimeError(f"{locale} did not render editable fill, stroke and trim properties")
         baseline = json.loads((output / f"smoke-{locale}.json").read_text(encoding="utf-8"))
         if Path(snapshot["screenshot"]).read_bytes() == Path(baseline["screenshot"]).read_bytes():
             raise RuntimeError(f"{locale} style override did not change rendered pixels")

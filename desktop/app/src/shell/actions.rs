@@ -383,7 +383,7 @@ impl Shell {
                 self.panels.message = Some(locale.t(T::Ready).into());
             }
             Action::ApplyWorkspace { visible, name } => {
-                for panel in dock::Panel::ALL {
+                for panel in dock::Panel::available() {
                     let id = panel.dock();
                     let action = if visible.contains(&id) {
                         Action::ShowPanel(id)
@@ -425,7 +425,18 @@ impl Shell {
                 self.switch_workspace(self.workspace.preset, event_loop)?;
                 self.workspace.reset_preset();
             }
+            Action::MaskTimeline { object, mask } => {
+                self.stop();
+                let actions = panels::reveal_mask_keys(&mut self.panels, &self.state, object, mask);
+                for action in actions {
+                    self.action(action, event_loop)?;
+                }
+                self.action(Action::ShowPanel(dock::Panel::Timeline.dock()), event_loop)?;
+            }
             Action::ShowPanel(id) => {
+                let id = if id == dock::Panel::Masks.dock() {
+                    dock::Panel::Properties.dock()
+                } else { id };
                 self.panels.node_editor.cancel_interaction();
                 if let Some(f) = self.floating.values().find(|f| f.panel.dock() == id) {
                     f.window.focus_window();
@@ -466,6 +477,23 @@ impl Shell {
             }
             Action::PreviewMode(mode) => {
                 self.state["preview"] = self.engine.preview_mode(mode, 0)?
+            }
+            Action::ViewKind(kind) => {
+                self.editing = Some((Instant::now(), self.engine.view_async(kind)?));
+            }
+            Action::ViewOrbit { delta } => {
+                self.editing = Some((
+                    Instant::now(),
+                    self.engine
+                        .observe_async(true, f64::from(delta[0]), f64::from(delta[1]))?,
+                ));
+            }
+            Action::ViewZoom { ratio, size } => {
+                self.editing = Some((
+                    Instant::now(),
+                    self.engine
+                        .navigate_async(0., 0., ratio, true, size[0], size[1])?,
+                ));
             }
             Action::SelectAt(point) => {
                 self.stop();
