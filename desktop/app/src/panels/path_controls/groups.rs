@@ -1,265 +1,324 @@
-//! Editable vector contents, using the same numeric transaction widget as effects.
+//! Shape contents share descriptors, numeric editing and timeline key operations.
 use super::*;
-use motion_core::vector::groups::{Composite, GroupItem, ParameterValue, Repeater, VectorGroup};
+use motion_core::vector::groups::{
+    Composite, GroupItem, ParameterValue, Repeater, StructureEdit, VectorGroup,
+};
 use motion_ui::{
     dock::Panel,
     icons::{self, Icon},
-    widgets::NumberOptions,
+    widgets::{Checkbox, Dropdown, DropdownItem, NumberOptions},
 };
-use std::collections::HashSet;
-
+use std::collections::{HashMap, HashSet};
+mod keys;
+pub(in crate::panels) mod parameters;
+pub(in crate::panels) mod timeline;
+fn value(v: &[f32]) -> ParameterValue {
+    match v {
+        [r, g, b, a] => ParameterValue::Color([*r, *g, *b, *a]),
+        [x, y] => ParameterValue::Vector([*x, *y]),
+        _ => ParameterValue::Scalar(v[0]),
+    }
+}
+fn structure(object: u64, edit: StructureEdit) -> Action {
+    Action::Edit(Command::Vector {
+        object,
+        action: VectorAction::EditGroupStructure { edit },
+    })
+}
+fn maximum(g: &VectorGroup) -> u64 {
+    g.items
+        .iter()
+        .map(|i| match i {
+            GroupItem::Group { group } => maximum(group),
+            _ => i.id(),
+        })
+        .fold(g.id, u64::max)
+}
+fn group(vector: &VectorContent, size: [f32; 2]) -> VectorGroup {
+    if let VectorSource::Group { group } = &vector.source {
+        *group.clone()
+    } else {
+        let VectorSource::Group { group } = VectorGroup::wrap(vector.clone(), size).source else {
+            unreachable!()
+        };
+        *group
+    }
+}
+fn new_item(id: u64, kind: usize, locale: Locale) -> GroupItem {
+    let name = |zh: &str, en: &str| format!("{} {id}", if locale == Locale::Zh { zh } else { en });
+    match kind {
+        0 => GroupItem::Group {
+            group: Box::new(VectorGroup {
+                id,
+                name: name("组", "Group"),
+                transform: Default::default(),
+                items: vec![],
+            }),
+        },
+        1 => GroupItem::Fill {
+            id,
+            name: name("填充", "Fill"),
+            color: Track::constant([1.; 4]),
+            fill_rule: FillRule::NonZero,
+            composite: Composite::Above,
+        },
+        2 => GroupItem::Stroke {
+            id,
+            name: name("描边", "Stroke"),
+            stroke: Stroke {
+                color: Track::constant([1.; 4]),
+                width: Track::constant(2.),
+                cap: LineCap::Butt,
+                join: LineJoin::Miter,
+                miter_limit: 4.,
+                dashes: None,
+            },
+            composite: Composite::Above,
+        },
+        3 => GroupItem::Trim {
+            id,
+            name: name("修剪路径", "Trim paths"),
+            trim: Default::default(),
+        },
+        4 => GroupItem::Repeater {
+            id,
+            name: name("中继器", "Repeater"),
+            repeater: Repeater::default(),
+        },
+        _ => {
+            let mut vector = VectorContent::shape(if kind == 5 {
+                motion_core::vector::ShapeKind::Rectangle
+            } else {
+                motion_core::vector::ShapeKind::Ellipse
+            });
+            vector.fill = None;
+            vector.stroke = None;
+            GroupItem::Geometry {
+                id,
+                name: name(
+                    if kind == 5 {
+                        "矩形路径"
+                    } else {
+                        "椭圆路径"
+                    },
+                    if kind == 5 { "Rectangle" } else { "Ellipse" },
+                ),
+                vector: Box::new(vector),
+                size: Track::constant([100.; 2]),
+                position: Track::constant([0.; 2]),
+            }
+        }
+    }
+}
 struct Field {
     host: Panel,
+    object: u64,
     item: u64,
-    parameter: &'static str,
+    parameter: String,
     axis: usize,
     number: crate::panels::numeric::Field,
 }
-
+struct Menu {
+    host: Panel,
+    object: u64,
+    parent: u64,
+    item: Option<u64>,
+    anchor: Rect,
+    dropdown: Dropdown,
+    opened: bool,
+}
 #[derive(Default)]
 pub(in crate::panels) struct Controls {
     context: Option<(String, String, u64, u32)>,
     field: Option<Field>,
-    open: HashSet<u64>,
-    transforms: HashSet<u64>,
-    initialized: bool,
+    open: HashSet<(u64, u64, u8)>,
+    initialized: HashSet<u64>,
+    menu: Option<Menu>,
+    dropdowns: HashMap<(u64, u64, parameters::OptionKind), Dropdown>,
+    dropdown_host: Option<Panel>,
     pub(in crate::panels) cursor: Option<(Rect, bool)>,
-}
-struct Parameter {
-    id: &'static str,
-    zh: &'static str,
-    en: &'static str,
-    values: Vec<f32>,
-    animated: bool,
-    min: f64,
-    max: f64,
-}
-fn scalar(
-    id: &'static str,
-    zh: &'static str,
-    en: &'static str,
-    track: &Track<f32>,
-    local: f64,
-    min: f64,
-    max: f64,
-) -> Parameter {
-    Parameter {
-        id,
-        zh,
-        en,
-        values: vec![track.sample(local)],
-        animated: track.is_animated(),
-        min,
-        max,
-    }
-}
-fn vector(
-    id: &'static str,
-    zh: &'static str,
-    en: &'static str,
-    track: &Track<[f32; 2]>,
-    local: f64,
-    min: f64,
-    max: f64,
-) -> Parameter {
-    Parameter {
-        id,
-        zh,
-        en,
-        values: track.sample(local).to_vec(),
-        animated: track.is_animated(),
-        min,
-        max,
-    }
-}
-fn value(values: &[f32]) -> ParameterValue {
-    if values.len() == 2 {
-        ParameterValue::Vector([values[0], values[1]])
-    } else {
-        ParameterValue::Scalar(values[0])
-    }
-}
-fn replace(object: u64, vector: VectorContent) -> Action {
-    Action::Edit(Command::Vector {
-        object,
-        action: VectorAction::Replace { vector },
-    })
-}
-fn find(group: &mut VectorGroup, id: u64) -> Option<&mut VectorGroup> {
-    if group.id == id {
-        return Some(group);
-    }
-    group.items.iter_mut().find_map(|item| {
-        if let GroupItem::Group { group } = item {
-            find(group, id)
-        } else {
-            None
-        }
-    })
-}
-fn editable(group: &VectorGroup, id: u64) -> bool {
-    group.id == id
-        || group.items.iter().any(|item| match item {
-            GroupItem::Group { group } => editable(group, id),
-            GroupItem::Repeater { id: item_id, .. } => *item_id == id,
-            _ => false,
-        })
-}
-fn maximum(group: &VectorGroup) -> u64 {
-    group
-        .items
-        .iter()
-        .map(|item| match item {
-            GroupItem::Group { group } => maximum(group),
-            _ => item.id(),
-        })
-        .fold(group.id, u64::max)
-}
-pub(super) fn add_repeater(
-    vector: &VectorContent,
-    size: [f32; 2],
-    parent: Option<u64>,
-    locale: Locale,
-) -> Option<(VectorContent, u64)> {
-    let mut next = if matches!(vector.source, VectorSource::Group { .. }) {
-        vector.clone()
-    } else {
-        VectorGroup::wrap(vector.clone(), size)
-    };
-    let VectorSource::Group { group } = &mut next.source else {
-        return None;
-    };
-    let id = maximum(group).checked_add(1)?;
-    let root = group.id;
-    let target = find(group, parent.unwrap_or(root))?;
-    target.items.push(GroupItem::Repeater {
-        id,
-        name: if locale == Locale::Zh {
-            format!("中继器 {id}")
-        } else {
-            format!("Repeater {id}")
-        },
-        repeater: Repeater::default(),
-    });
-    next.validate().ok()?;
-    Some((next, id))
-}
-fn remove(group: &mut VectorGroup, id: u64) -> bool {
-    if let Some(index) = group
-        .items
-        .iter()
-        .position(|item| matches!(item, GroupItem::Repeater { .. }) && item.id() == id)
-    {
-        group.items.remove(index);
-        return true;
-    }
-    group.items.iter_mut().any(|item| match item {
-        GroupItem::Group { group } => remove(group, id),
-        _ => false,
-    })
-}
-fn composite(group: &mut VectorGroup, id: u64) -> bool {
-    for item in &mut group.items {
-        match item {
-            GroupItem::Repeater {
-                id: item_id,
-                repeater,
-                ..
-            } if *item_id == id => {
-                repeater.composite = if repeater.composite == Composite::Below {
-                    Composite::Above
-                } else {
-                    Composite::Below
-                };
-                return true;
-            }
-            GroupItem::Group { group } => {
-                if composite(group, id) {
-                    return true;
-                }
-            }
-            _ => {}
-        }
-    }
-    false
+    pub(super) keys: keys::Controls,
+    popup_input: Input,
+    overlays: Option<PaintList>,
+    pub(crate) add_rect: Option<(Panel, Rect)>,
+    #[cfg(test)]
+    rects: HashMap<(u32, u64, u64, String, usize), (Rect, Rect)>,
+    #[cfg(test)]
+    option_rects: HashMap<(u32, u64, u64, parameters::OptionKind), Rect>,
 }
 fn icon(
     list: &mut PaintList,
-    input: &Input,
     rect: Rect,
     kind: Icon,
-    active: bool,
+    input: &Input,
     enabled: bool,
+    active: bool,
 ) -> bool {
-    let colors = list.styles().colors();
-    if enabled && rect.contains(input.mouse) {
-        paint::rect(list, rect, colors.SUNKEN);
+    let mut states = motion_ui::style::States::default();
+    if !enabled {
+        states = states.with(motion_ui::style::State::Disabled);
     }
-    icons::draw(
-        list,
-        rect,
-        kind,
-        13.,
-        if !enabled {
-            colors.TEXT_MUTED.with_alpha(0.4)
-        } else if active {
-            colors.ACCENT
-        } else {
-            colors.TEXT_MUTED
-        },
-    );
-    enabled && click(input, rect)
+    if active {
+        states = states.with(motion_ui::style::State::Selected);
+    }
+    let sheet = list.styles();
+    icons::button(list, rect, kind, input, sheet.as_ref(), states).clicked
+}
+pub(super) fn layout(
+    styles: &motion_ui::style::StyleSheet,
+    area: Rect,
+    y: f32,
+    depth: usize,
+    axis: usize,
+    axes: usize,
+    host: Panel,
+) -> crate::panels::timeline::PropertyLayout {
+    let row = styles.metric("row.height", 22.);
+    let pad = styles.metric("padding.panel", 8.);
+    let slot = styles.metric("icon.slot", 20.);
+    if matches!(host, Panel::Timeline | Panel::Curves) {
+        let mut f = crate::panels::timeline::property_layout(area, y, row, axis, axes);
+        let indent = (depth as f32 * slot).min((f.number.min[0] - f.caption.min[0] - pad).max(0.));
+        f.watch.min[0] += indent;
+        f.watch.max[0] += indent;
+        f.caption.min[0] += indent;
+        f.caption.max[0] = f.caption.max[0].max(f.caption.min[0]);
+        return f;
+    }
+    let start = area.min[0] + pad + depth as f32 * pad;
+    let x = area.min[0]
+        + (pad + styles.metric("label.column", 72.) + slot * 2.).min(area.width() * 0.52);
+    let field = styles.metric("field.height", 18.).min(row);
+    let cell =
+        ((area.max[0] - pad - x) / axes.max(1) as f32).min(styles.metric("value.min_width", 64.));
+    crate::panels::timeline::PropertyLayout {
+        watch: Rect::new(start, y, slot, row),
+        caption: Rect::new(start + slot, y, (x - start - slot - pad).max(0.), row),
+        number: Rect::new(
+            x + axis as f32 * cell,
+            y + (row - field) * 0.5,
+            (cell - styles.metric("border", 1.) * 2.).max(0.),
+            field,
+        ),
+    }
 }
 impl Controls {
+    pub(crate) fn reveal_item(&mut self, object: u64, root: u64, item: u64) {
+        self.open.retain(|(owner, _, _)| *owner != object);
+        self.open.insert((object, root, 0));
+        self.open.insert((object, item, 2));
+        self.initialized.insert(object);
+    }
+    pub(in crate::panels) fn begin_frame(&mut self, list: &PaintList, input: &Input) {
+        self.popup_input = input.clone();
+        self.overlays = Some(list.child());
+        self.cursor = None;
+    }
     pub(in crate::panels) fn editing(&self) -> bool {
-        self.field.is_some()
+        self.field.is_some() || self.modal() || self.keys.editing()
+    }
+    pub(in crate::panels) fn modal(&self) -> bool {
+        self.menu.is_some() || self.dropdowns.values().any(|d| d.open) || self.keys.modal()
+    }
+    pub(in crate::panels) fn menu_in(&self, host: Panel) -> bool {
+        self.menu.as_ref().is_some_and(|m| m.host == host)
+            || (self.dropdown_host == Some(host) && self.dropdowns.values().any(|d| d.open))
     }
     pub(in crate::panels) fn cancel(&mut self) -> bool {
-        self.field
-            .take()
-            .is_some_and(|mut field| field.number.cancel())
+        let field = self.field.take().is_some_and(|mut f| f.number.cancel());
+        self.menu = None;
+        for d in self.dropdowns.values_mut() {
+            d.open = false;
+        }
+        let key = self.keys.cancel();
+        field || key
     }
     fn finish(&mut self, out: &mut Vec<Action>) {
         if self.cancel() {
             out.push(Action::History(3));
         }
     }
-    pub(in crate::panels) fn height(&self, layer: &Layer) -> f32 {
-        fn group_height(
-            group: &VectorGroup,
-            open: &HashSet<u64>,
-            transforms: &HashSet<u64>,
-        ) -> f32 {
-            if !open.contains(&group.id) {
-                return 26.;
-            }
-            52. + if transforms.contains(&group.id) {
-                7. * 26.
+    pub(in crate::panels) fn height(
+        &self,
+        layer: &Layer,
+        styles: &motion_ui::style::StyleSheet,
+    ) -> f32 {
+        fn count(n: &parameters::Node, object: u64, open: &HashSet<(u64, u64, u8)>) -> usize {
+            1 + if open.contains(&(object, n.id, n.tag)) {
+                n.parameters.len()
+                    + n.settings.len()
+                    + n.children
+                        .iter()
+                        .map(|c| count(c, object, open))
+                        .sum::<usize>()
             } else {
-                0.
-            } + group
-                .items
-                .iter()
-                .map(|item| match item {
-                    GroupItem::Group { group } => group_height(group, open, transforms),
-                    GroupItem::Repeater { id, .. } => {
-                        26. + if open.contains(id) { 9. * 26. } else { 0. }
-                    }
-                    _ => 26.,
-                })
-                .sum::<f32>()
-        }
-        match &layer.content {
-            Content::Vector { vector } => {
-                30. + match &vector.source {
-                    VectorSource::Group { group } => {
-                        group_height(group, &self.open, &self.transforms)
-                    }
-                    _ => 0.,
-                }
+                0
             }
-            _ => 0.,
         }
+        let Content::Vector { vector } = &layer.content else {
+            return 0.;
+        };
+        let tree = parameters::tree(vector, layer.size, 0., Locale::En);
+        styles.metric("row.height", 22.) * (1 + count(&tree, layer.id, &self.open)) as f32
+    }
+    pub(in crate::panels) fn prepare(
+        &mut self,
+        state: &Value,
+        selected: Option<u64>,
+        input: &Input,
+        out: &mut Vec<Action>,
+    ) {
+        let frame = state["frame"].as_f64().unwrap_or(0.).floor().max(0.) as u32;
+        let context = (
+            state["root"].as_str().unwrap_or("").into(),
+            state["composition"].as_str().unwrap_or("").into(),
+            selected.unwrap_or(0),
+            frame,
+        );
+        let changed_project = self
+            .context
+            .as_ref()
+            .is_some_and(|c| c.0 != context.0 || c.1 != context.1);
+        if changed_project
+            || input.focus_lost
+            || input.keys.iter().any(|(k, _)| *k == Key::Escape)
+            || state["observing"] == true
+        {
+            if changed_project {
+                self.open.clear();
+                self.initialized.clear();
+            }
+            if self.cancel() {
+                out.push(Action::History(4));
+            }
+        } else if self.context.as_ref() != Some(&context) {
+            if self.field.take().is_some_and(|mut f| f.number.cancel()) {
+                out.push(Action::History(4));
+            }
+        }
+        self.context = Some(context);
+        if self.menu.as_ref().is_some_and(|m| {
+            Some(m.object) != selected
+                || keys::cached_layer(state, m.object, &self.keys.cache).is_none_or(|l| l.locked)
+        }) {
+            self.menu = None;
+        }
+        for ((object, _, _), d) in &mut self.dropdowns {
+            if d.open
+                && (Some(*object) != selected
+                    || keys::cached_layer(state, *object, &self.keys.cache)
+                        .is_none_or(|l| l.locked))
+            {
+                d.open = false;
+            }
+        }
+        if let Some(f) = &self.field {
+            let valid=keys::cached_layer(state,f.object,&self.keys.cache).is_some_and(|l|!l.locked&&matches!(&l.content,Content::Vector{vector} if parameters::lookup_source(vector,l.size,f.item,&f.parameter,l.local_frame(f64::from(frame)),Locale::En).is_some()));
+            if !valid && self.cancel() {
+                out.push(Action::History(4));
+            }
+        }
+        self.keys.prepare(state, input, out);
     }
     pub(in crate::panels) fn render(
         &mut self,
@@ -274,563 +333,342 @@ impl Controls {
         host: Panel,
         out: &mut Vec<Action>,
     ) {
+        self.prepare(state, Some(layer.id), input, out);
+        self.begin_frame(list, input);
         let Content::Vector { vector } = &layer.content else {
-            if self.cancel() {
-                out.push(Action::History(4));
-            }
-            self.cursor = None;
             return;
         };
-        let frame = state["frame"].as_f64().unwrap_or(0.).floor().max(0.) as u32;
-        let context = (
-            state["root"].as_str().unwrap_or("").into(),
-            state["composition"].as_str().unwrap_or("").into(),
-            layer.id,
-            frame,
+        let styles = list.styles();
+        let row = styles.metric("row.height", 22.);
+        let pad = styles.metric("padding.panel", 8.);
+        let slot = styles.metric("icon.slot", 20.);
+        let modal = self.menu_in(host);
+        let neutral = Input::default();
+        let normal = if modal { &neutral } else { input };
+        let locked = layer.locked || state["observing"] == true;
+        let rect = Rect::new(
+            area.min[0] + pad,
+            *y,
+            (area.width() - pad * 2. - slot).max(0.),
+            row,
         );
-        if self.context.as_ref() != Some(&context) {
-            if self.cancel() {
-                out.push(Action::History(4));
-            }
-            if self.context.as_ref().map(|c| (&c.0, &c.1, c.2))
-                != Some((&context.0, &context.1, context.2))
-            {
-                self.open.clear();
-                self.transforms.clear();
-                self.initialized = false;
-            }
-            self.context = Some(context);
-        }
-        if layer.locked || input.focus_lost {
-            if self.cancel() {
-                out.push(Action::History(4));
-            }
-        }
-        if self.field.as_ref().is_some_and(|field| !matches!(&vector.source,VectorSource::Group {group} if editable(group,field.item))) {
-            if self.cancel(){out.push(Action::History(4));}
-        }
-        self.cursor = None;
-        let colors = list.styles().colors();
         label(
             list,
             atlas,
-            Rect::new(area.min[0] + 12., *y, (area.width() - 140.).max(1.), 26.),
+            rect,
             if locale == Locale::Zh {
                 "矢量内容"
             } else {
                 "Vector contents"
             },
-            colors.TEXT,
+            styles.colors().TEXT,
         );
-        let styles = list.styles();
-        if ui::button_styled(
-            list,
-            atlas,
-            Rect::new(area.max[0] - 126., *y, 114., 24.),
-            if locale == Locale::Zh {
-                "添加中继器"
-            } else {
-                "Add repeater"
-            },
-            input,
-            !layer.locked,
-            &styles,
-            "button.icon",
-        )
-        .clicked
-        {
-            self.finish(out);
-            if let Some((next, id)) = add_repeater(vector, layer.size, None, locale) {
-                if let VectorSource::Group { group } = &next.source {
-                    self.open.insert(group.id);
-                }
-                self.open.insert(id);
-                self.initialized = true;
-                out.push(replace(layer.id, next));
-            }
+        let add = Rect::new(area.max[0] - pad - slot, *y, slot, row);
+        self.add_rect = Some((host, add));
+        if icon(list, add, Icon::Plus, normal, !locked, false) {
+            self.open_menu(host, layer.id, group(vector, layer.size).id, None, add);
         }
-        *y += 30.;
-        if let VectorSource::Group { group } = &vector.source {
-            if !self.initialized {
-                self.open.insert(group.id);
-                self.initialized = true;
-            }
-            let local = f64::from(frame)
-                - f64::from(
-                    layer
-                        .clip(state["project"]["frames"].as_u64().unwrap_or(1) as u32)
-                        .offset_frame,
-                );
-            self.group(
-                list, atlas, area, y, layer, vector, group, local, frame, input, locale, host, 0,
-                out,
-            );
+        *y += row;
+        let tree = parameters::tree(
+            vector,
+            layer.size,
+            layer.local_frame(state["frame"].as_f64().unwrap_or(0.)),
+            locale,
+        );
+        if self.initialized.insert(layer.id) {
+            self.open.insert((layer.id, tree.id, tree.tag));
         }
+        self.node(
+            list, atlas, area, y, layer, &tree, state, normal, locale, host, 0, out,
+        );
     }
-    fn group(
+    pub(super) fn open_menu(
+        &mut self,
+        host: Panel,
+        object: u64,
+        parent: u64,
+        item: Option<u64>,
+        anchor: Rect,
+    ) {
+        self.menu = Some(Menu {
+            host,
+            object,
+            parent,
+            item,
+            anchor,
+            dropdown: Dropdown::default(),
+            opened: true,
+        });
+    }
+    fn node(
         &mut self,
         list: &mut PaintList,
         atlas: &mut TextAtlas,
         area: Rect,
         y: &mut f32,
         layer: &Layer,
-        vector_data: &VectorContent,
-        group: &VectorGroup,
-        local: f64,
-        frame: u32,
+        n: &parameters::Node,
+        state: &Value,
         input: &Input,
         locale: Locale,
         host: Panel,
         depth: usize,
         out: &mut Vec<Action>,
     ) {
-        let heading = Rect::new(
-            area.min[0] + 16. + depth as f32 * 12.,
-            *y,
-            (area.width() - 54. - depth as f32 * 12.).max(1.),
-            24.,
-        );
-        self.heading(list, atlas, heading, &group.name, group.id, input, out);
-        if icon(
+        let styles = list.styles();
+        let row = styles.metric("row.height", 22.);
+        let slot = styles.metric("icon.slot", 20.);
+        let pad = styles.metric("padding.panel", 8.);
+        let x = area.min[0] + pad + depth as f32 * pad;
+        let locked = layer.locked || state["observing"] == true;
+        let heading = Rect::new(x, *y, (area.max[0] - pad - slot - x).max(0.), row);
+        let open = self.open.contains(&(layer.id, n.id, n.tag));
+        icons::draw(
             list,
-            input,
-            Rect::new(area.max[0] - 34., *y, 22., 24.),
-            Icon::Plus,
-            false,
-            !layer.locked,
-        ) {
-            self.finish(out);
-            if let Some((next, id)) = add_repeater(vector_data, layer.size, Some(group.id), locale)
-            {
-                self.open.insert(group.id);
-                self.open.insert(id);
-                out.push(replace(layer.id, next));
+            Rect::new(x, *y, slot, row),
+            if open {
+                Icon::ChevronDown
+            } else {
+                Icon::ChevronRight
+            },
+            slot,
+            styles.colors().TEXT_MUTED,
+        );
+        label(
+            list,
+            atlas,
+            Rect::new(x + slot, *y, (heading.width() - slot).max(0.), row),
+            &n.name,
+            styles.colors().TEXT,
+        );
+        if click(input, heading) {
+            if self.cancel() {
+                out.push(Action::History(4));
+            }
+            if !self.open.remove(&(layer.id, n.id, n.tag)) {
+                self.open.insert((layer.id, n.id, n.tag));
             }
         }
-        *y += 26.;
-        if !self.open.contains(&group.id) {
+        let tail = Rect::new(area.max[0] - pad - slot, *y, slot, row);
+        if n.tag != 1
+            && icon(
+                list,
+                tail,
+                if n.tag == 0 { Icon::Plus } else { Icon::Close },
+                input,
+                !locked,
+                false,
+            )
+        {
+            self.finish(out);
+            if n.tag == 0 {
+                self.open_menu(host, layer.id, n.id, None, tail);
+            } else {
+                out.push(structure(layer.id, StructureEdit::Remove { item: n.id }));
+            }
+        }
+        if n.tag != 1
+            && !(n.tag == 0 && depth == 0)
+            && input
+                .pressed
+                .is_some_and(|(b, p)| b == MouseButton::Right && heading.contains(p))
+            && !locked
+        {
+            let p = input.mouse;
+            self.open_menu(
+                host,
+                layer.id,
+                n.id,
+                Some(n.id),
+                Rect::new(p[0], p[1], slot, styles.metric("border", 1.)),
+            );
+        }
+        *y += row;
+        if !open {
             return;
         }
-        let transform_rect = Rect::new(
-            area.min[0] + 28. + depth as f32 * 12.,
-            *y,
-            (area.width() - 54. - depth as f32 * 12.).max(1.),
-            24.,
-        );
-        icons::draw(
-            list,
-            Rect::new(transform_rect.min[0], *y, 18., 24.),
-            if self.transforms.contains(&group.id) {
-                Icon::ChevronDown
-            } else {
-                Icon::ChevronRight
-            },
-            12.,
-            list.styles().colors().TEXT_MUTED,
-        );
-        label(
-            list,
-            atlas,
-            Rect::new(
-                transform_rect.min[0] + 20.,
+        for p in &n.parameters {
+            self.parameter(
+                list,
+                atlas,
+                area,
                 *y,
-                (transform_rect.width() - 20.).max(1.),
-                24.,
-            ),
-            if locale == Locale::Zh {
-                "变换"
-            } else {
-                "Transform"
-            },
-            list.styles().colors().TEXT_MUTED,
-        );
-        if click(input, transform_rect) {
-            if self.cancel() {
-                out.push(Action::History(4));
-            }
-            if !self.transforms.remove(&group.id) {
-                self.transforms.insert(group.id);
-            }
+                layer.id,
+                n.id,
+                p,
+                state,
+                input,
+                host,
+                !locked,
+                depth + 1,
+                out,
+            );
+            *y += row;
         }
-        *y += 26.;
-        if self.transforms.contains(&group.id) {
-            let t = &group.transform;
-            for parameter in [
-                vector(
-                    "position",
-                    "位置",
-                    "Position",
-                    &t.position,
-                    local,
-                    -32768.,
-                    32768.,
-                ),
-                vector(
-                    "anchor", "锚点", "Anchor", &t.anchor, local, -32768., 32768.,
-                ),
-                vector(
-                    "scale", "缩放 %", "Scale %", &t.scale, local, -10000., 10000.,
-                ),
-                scalar(
-                    "rotation",
-                    "旋转 °",
-                    "Rotation °",
-                    &t.rotation,
-                    local,
-                    -360000.,
-                    360000.,
-                ),
-                scalar("skew", "倾斜 °", "Skew °", &t.skew, local, -89., 89.),
-                scalar(
-                    "skew_axis",
-                    "倾斜轴 °",
-                    "Skew axis °",
-                    &t.skew_axis,
-                    local,
-                    -360000.,
-                    360000.,
-                ),
-                scalar(
-                    "opacity",
-                    "不透明度 %",
-                    "Opacity %",
-                    &t.opacity,
-                    local,
-                    0.,
-                    100.,
-                ),
-            ] {
-                self.parameter(
-                    list,
-                    atlas,
-                    area,
-                    y,
-                    layer.id,
-                    group.id,
-                    parameter,
-                    frame,
-                    input,
-                    locale,
-                    host,
-                    !layer.locked,
-                    depth + 1,
-                    out,
-                );
-            }
+        for s in &n.settings {
+            self.setting(
+                list,
+                atlas,
+                area,
+                *y,
+                layer.id,
+                n.id,
+                s,
+                state,
+                input,
+                host,
+                !locked,
+                depth + 1,
+                out,
+            );
+            *y += row;
         }
-        for item in &group.items {
-            match item {
-                GroupItem::Group { group } => self.group(
-                    list,
-                    atlas,
-                    area,
-                    y,
-                    layer,
-                    vector_data,
-                    group,
-                    local,
-                    frame,
-                    input,
-                    locale,
-                    host,
-                    depth + 1,
-                    out,
-                ),
-                GroupItem::Repeater {
-                    id,
-                    name,
-                    repeater: r,
-                } => {
-                    let heading = Rect::new(
-                        area.min[0] + 28. + depth as f32 * 12.,
-                        *y,
-                        (area.width() - 66. - depth as f32 * 12.).max(1.),
-                        24.,
-                    );
-                    self.heading(list, atlas, heading, name, *id, input, out);
-                    if icon(
-                        list,
-                        input,
-                        Rect::new(area.max[0] - 34., *y, 22., 24.),
-                        Icon::Close,
-                        false,
-                        !layer.locked,
-                    ) {
-                        self.finish(out);
-                        let mut next = vector_data.clone();
-                        if let VectorSource::Group { group } = &mut next.source {
-                            if remove(group, *id) {
-                                out.push(replace(layer.id, next));
-                            }
-                        }
-                    }
-                    *y += 26.;
-                    if !self.open.contains(id) {
-                        continue;
-                    }
-                    for parameter in [
-                        scalar("copies", "副本数", "Copies", &r.copies, local, 0., 1024.),
-                        scalar("offset", "偏移", "Offset", &r.offset, local, -1024., 1024.),
-                        vector(
-                            "position",
-                            "位置",
-                            "Position",
-                            &r.position,
-                            local,
-                            -32768.,
-                            32768.,
-                        ),
-                        vector(
-                            "anchor", "锚点", "Anchor", &r.anchor, local, -32768., 32768.,
-                        ),
-                        vector("scale", "缩放 %", "Scale %", &r.scale, local, -1000., 1000.),
-                        scalar(
-                            "rotation",
-                            "旋转 °",
-                            "Rotation °",
-                            &r.rotation,
-                            local,
-                            -360000.,
-                            360000.,
-                        ),
-                        scalar(
-                            "start_opacity",
-                            "起始不透明度 %",
-                            "Start opacity %",
-                            &r.start_opacity,
-                            local,
-                            0.,
-                            100.,
-                        ),
-                        scalar(
-                            "end_opacity",
-                            "结束不透明度 %",
-                            "End opacity %",
-                            &r.end_opacity,
-                            local,
-                            0.,
-                            100.,
-                        ),
-                    ] {
-                        self.parameter(
-                            list,
-                            atlas,
-                            area,
-                            y,
-                            layer.id,
-                            *id,
-                            parameter,
-                            frame,
-                            input,
-                            locale,
-                            host,
-                            !layer.locked,
-                            depth + 2,
-                            out,
-                        );
-                    }
-                    let caption = match (locale == Locale::Zh, r.composite) {
-                        (true, Composite::Above) => "副本叠放：上方",
-                        (true, Composite::Below) => "副本叠放：下方",
-                        (false, Composite::Above) => "Composite copies: above",
-                        _ => "Composite copies: below",
-                    };
-                    let rect = Rect::new(area.min[0] + 38., *y, (area.width() - 54.).max(1.), 24.);
-                    let styles = list.styles();
-                    if ui::button_styled(
-                        list,
-                        atlas,
-                        rect,
-                        caption,
-                        input,
-                        !layer.locked,
-                        &styles,
-                        "button.icon",
-                    )
-                    .clicked
-                    {
-                        self.finish(out);
-                        let mut next = vector_data.clone();
-                        if let VectorSource::Group { group } = &mut next.source {
-                            if composite(group, *id) {
-                                out.push(replace(layer.id, next));
-                            }
-                        }
-                    }
-                    *y += 26.;
-                }
-                _ => {
-                    let (zh, en) = match item {
-                        GroupItem::Geometry { .. } => ("路径", "Geometry"),
-                        GroupItem::Fill { .. } => ("填充", "Fill"),
-                        GroupItem::Stroke { .. } => ("描边", "Stroke"),
-                        _ => ("修剪", "Trim"),
-                    };
-                    let kind = if locale == Locale::Zh { zh } else { en };
-                    let caption = if item.name() == en {
-                        kind.into()
-                    } else {
-                        format!("{} · {kind}", item.name())
-                    };
-                    label(
-                        list,
-                        atlas,
-                        Rect::new(
-                            area.min[0] + 48. + depth as f32 * 12.,
-                            *y,
-                            (area.width() - 64. - depth as f32 * 12.).max(1.),
-                            24.,
-                        ),
-                        &caption,
-                        list.styles().colors().TEXT_MUTED,
-                    );
-                    *y += 26.;
-                }
-            }
+        for child in &n.children {
+            self.node(
+                list,
+                atlas,
+                area,
+                y,
+                layer,
+                child,
+                state,
+                input,
+                locale,
+                host,
+                depth + 1,
+                out,
+            );
         }
     }
-    fn heading(
-        &mut self,
-        list: &mut PaintList,
-        atlas: &mut TextAtlas,
-        rect: Rect,
-        name: &str,
-        id: u64,
-        input: &Input,
-        out: &mut Vec<Action>,
-    ) {
-        icons::draw(
-            list,
-            Rect::new(rect.min[0], rect.min[1], 18., 24.),
-            if self.open.contains(&id) {
-                Icon::ChevronDown
-            } else {
-                Icon::ChevronRight
-            },
-            12.,
-            list.styles().colors().TEXT_MUTED,
-        );
-        label(
-            list,
-            atlas,
-            Rect::new(
-                rect.min[0] + 20.,
-                rect.min[1],
-                (rect.width() - 20.).max(1.),
-                24.,
-            ),
-            name,
-            list.styles().colors().TEXT,
-        );
-        if click(input, rect) {
-            if self.cancel() {
-                out.push(Action::History(4));
-            }
-            if !self.open.remove(&id) {
-                self.open.insert(id);
-            }
-        }
-    }
-    fn parameter(
+    pub(super) fn parameter(
         &mut self,
         list: &mut PaintList,
         atlas: &mut TextAtlas,
         area: Rect,
-        y: &mut f32,
+        y: f32,
         object: u64,
         item: u64,
-        p: Parameter,
-        frame: u32,
+        p: &parameters::Parameter,
+        state: &Value,
         input: &Input,
-        locale: Locale,
         host: Panel,
         enabled: bool,
         depth: usize,
         out: &mut Vec<Action>,
     ) {
-        let indent = (26. + depth as f32 * 12.).min(area.width() * 0.22);
-        let options = NumberOptions {
-            min: p.min,
-            max: p.max,
-            ..Default::default()
-        };
-        if icon(
+        let styles = list.styles();
+        let f = layout(styles.as_ref(), area, y, depth, 0, p.values.len(), host);
+        let frame = state["frame"].as_f64().unwrap_or(0.).floor().max(0.) as u32;
+        crate::panels::timeline::property_icon(
             list,
-            input,
-            Rect::new(area.min[0] + indent, *y, 18., 24.),
+            f.watch,
             Icon::Stopwatch,
-            p.animated,
-            enabled,
-        ) {
-            self.finish(out);
-            out.push(Action::Edit(Command::Vector {
-                object,
-                action: VectorAction::SetGroupParameter {
-                    item,
-                    parameter: p.id.into(),
-                    frame,
-                    value: value(&p.values),
-                    animated: Some(!p.animated),
-                },
-            }));
-        }
-        label(
-            list,
-            atlas,
-            Rect::new(
-                area.min[0] + indent + 20.,
-                *y,
-                (area.width() * 0.55 - indent - 24.).max(1.),
-                24.,
-            ),
-            if locale == Locale::Zh { p.zh } else { p.en },
-            list.styles().colors().TEXT_MUTED,
+            p.animated(),
+            enabled && !p.static_value,
         );
-        let width = (area.width() * 0.43 - 12.).max(2.) / p.values.len() as f32;
-        for (axis, current) in p.values.iter().copied().enumerate() {
+        if enabled && !p.static_value && click(input, f.watch) {
+            self.finish(out);
+            out.push(Action::Edit(p.set(
+                object,
+                item,
+                frame,
+                Some(!p.animated()),
+            )));
+        }
+        label(list, atlas, f.caption, &p.name, styles.colors().TEXT_MUTED);
+        if area.contains(input.mouse)
+            && f.caption.contains(input.mouse)
+            && atlas.measure(&p.name) > f.caption.width()
+            && !self.modal()
+        {
+            let pad = styles.metric("padding.panel", 8.);
+            let row = styles.metric("row.height", 22.);
+            let width = (atlas.measure(&p.name) + pad * 2.).min(area.width());
             let rect = Rect::new(
-                area.min[0] + area.width() * 0.55 + axis as f32 * width,
-                *y,
-                (width - 2.).max(1.),
-                24.,
+                input.mouse[0].min(area.max[0] - width).max(area.min[0]),
+                (input.mouse[1] + row)
+                    .min(area.max[1] - row)
+                    .max(area.min[1]),
+                width,
+                row,
+            );
+            let paint = self.overlays.get_or_insert_with(|| list.child());
+            if let Some(style) = styles.resolve("tooltip", motion_ui::style::States::default()) {
+                motion_ui::style::box_style(paint, rect, style);
+                motion_ui::style::text_style(
+                    paint,
+                    atlas,
+                    rect.shrink(styles.metric("padding", 5.)),
+                    &p.name,
+                    style,
+                    Align::Left,
+                );
+            }
+        }
+        for (axis, current) in p.values.iter().enumerate() {
+            let rect = layout(styles.as_ref(), area, y, depth, axis, p.values.len(), host).number;
+            #[cfg(test)]
+            self.rects.insert(
+                (host as u32, object, item, p.id.clone(), axis),
+                (f.watch, rect),
             );
             let active = self.field.as_ref().is_some_and(|f| {
-                f.host == host && f.item == item && f.parameter == p.id && f.axis == axis
+                f.host == host
+                    && f.object == object
+                    && f.item == item
+                    && f.parameter == p.id
+                    && f.axis == axis
             });
             if enabled && click(input, rect) && !active {
                 self.finish(out);
+                self.context = Some((
+                    state["root"].as_str().unwrap_or("").into(),
+                    state["composition"].as_str().unwrap_or("").into(),
+                    object,
+                    frame,
+                ));
                 self.field = Some(Field {
                     host,
+                    object,
                     item,
-                    parameter: p.id,
+                    parameter: p.id.clone(),
                     axis,
                     number: Default::default(),
                 });
                 out.push(Action::Seek(f64::from(frame)));
             }
             if self.field.as_ref().is_some_and(|f| {
-                f.host == host && f.item == item && f.parameter == p.id && f.axis == axis
+                f.host == host
+                    && f.object == object
+                    && f.item == item
+                    && f.parameter == p.id
+                    && f.axis == axis
             }) {
-                let field = self.field.as_mut().unwrap();
-                let events = field
-                    .number
-                    .draw(list, atlas, rect, current as f64, options, input);
-                if field.number.editor.dragging() || rect.contains(input.mouse) {
-                    self.cursor = Some((rect, field.number.editor.dragging()));
+                let f = self.field.as_mut().unwrap();
+                let events = f.number.draw(
+                    list,
+                    atlas,
+                    rect,
+                    f64::from(*current),
+                    NumberOptions {
+                        speed: if p.color { 0.01 } else { 1. },
+                        min: p.range[0],
+                        max: p.range[1],
+                        decimals: if p.discrete { 0 } else { 2 },
+                    },
+                    input,
+                );
+                if f.number.editor.dragging() || rect.contains(input.mouse) {
+                    self.cursor = Some((rect, f.number.editor.dragging()));
                 }
-                let finished = crate::panels::numeric::apply(events, out, |new| {
-                    let mut values = p.values.clone();
-                    values[axis] = new;
-                    Command::Vector {
-                        object,
-                        action: VectorAction::SetGroupParameter {
-                            item,
-                            parameter: p.id.into(),
-                            frame,
-                            value: value(&values),
-                            animated: None,
-                        },
-                    }
+                let finished = crate::panels::numeric::apply(events, out, |v| {
+                    let mut p = p.clone();
+                    p.values[axis] = if p.discrete {
+                        v.round() as f32
+                    } else {
+                        v as f32
+                    };
+                    p.set(object, item, frame, None)
                 });
                 if finished {
                     self.field = None;
@@ -840,336 +678,236 @@ impl Controls {
                     list,
                     atlas,
                     rect,
-                    current as f64,
+                    f64::from(*current),
                     input,
                     enabled,
-                    2,
+                    if p.discrete { 0 } else { 2 },
                 );
                 if enabled && rect.contains(input.mouse) {
                     self.cursor = Some((rect, false));
                 }
             }
         }
-        *y += 26.;
+    }
+    pub(super) fn setting(
+        &mut self,
+        list: &mut PaintList,
+        atlas: &mut TextAtlas,
+        area: Rect,
+        y: f32,
+        object: u64,
+        item: u64,
+        s: &parameters::Setting,
+        _state: &Value,
+        input: &Input,
+        host: Panel,
+        enabled: bool,
+        depth: usize,
+        out: &mut Vec<Action>,
+    ) {
+        let styles = list.styles();
+        let f = layout(styles.as_ref(), area, y, depth, 0, 1, host);
+        #[cfg(test)]
+        self.option_rects
+            .insert((host as u32, object, item, s.kind), f.number);
+        label(list, atlas, f.caption, s.title, styles.colors().TEXT_MUTED);
+        let original = self.popup_input.clone();
+        let choice = if s.boolean {
+            Checkbox::draw(
+                list,
+                atlas,
+                f.number,
+                "",
+                s.selected != 0,
+                input,
+                enabled,
+                false,
+                None,
+            )
+            .clicked
+            .then_some(usize::from(s.selected == 0))
+        } else {
+            let items: Vec<_> = s
+                .labels
+                .iter()
+                .map(|label| DropdownItem {
+                    label,
+                    enabled: true,
+                })
+                .collect();
+            let d = self.dropdowns.entry((object, item, s.kind)).or_default();
+            let width = (area.max[0] - styles.metric("padding.panel", 8.) - f.number.min[0])
+                .min(styles.metric("dropdown.menu_min_width", 160.));
+            let rect = Rect::new(
+                f.number.min[0],
+                f.number.min[1],
+                width.max(0.),
+                f.number.height(),
+            );
+            let paint = self.overlays.get_or_insert_with(|| list.child());
+            let mut idle = Dropdown::default();
+            let other_host = d.open && self.dropdown_host != Some(host);
+            let current = if other_host { &mut idle } else { d };
+            let result = current.draw_inline(
+                paint,
+                atlas,
+                rect,
+                area,
+                &items,
+                s.selected,
+                if current.open && self.dropdown_host == Some(host) {
+                    &original
+                } else {
+                    input
+                },
+                enabled,
+                self.dropdown_host == Some(host),
+            );
+            if current.open && !other_host {
+                self.dropdown_host = Some(host);
+            }
+            result
+        };
+        if let Some(i) = choice.filter(|i| *i != s.selected) {
+            self.finish(out);
+            out.push(structure(
+                object,
+                StructureEdit::Options {
+                    item,
+                    edit: s.kind.edit(i),
+                },
+            ));
+        }
+    }
+    pub(super) fn append_overlays(&mut self, list: &mut PaintList) {
+        if let Some(paint) = self.overlays.take() {
+            list.append(paint);
+        }
+    }
+    pub(in crate::panels) fn finish_paint(
+        &mut self,
+        list: &mut PaintList,
+        atlas: &mut TextAtlas,
+        area: Rect,
+        state: &Value,
+        input: &Input,
+        locale: Locale,
+        host: Panel,
+        out: &mut Vec<Action>,
+    ) {
+        self.append_overlays(list);
+        self.overlay(list, atlas, area, state, input, locale, host, out);
+    }
+    pub(super) fn overlay(
+        &mut self,
+        list: &mut PaintList,
+        atlas: &mut TextAtlas,
+        area: Rect,
+        state: &Value,
+        input: &Input,
+        locale: Locale,
+        host: Panel,
+        out: &mut Vec<Action>,
+    ) {
+        let Some(menu) = &mut self.menu else { return };
+        if menu.host != host {
+            return;
+        }
+        let add = if locale == Locale::Zh {
+            [
+                "组",
+                "填充",
+                "描边",
+                "修剪路径",
+                "中继器",
+                "矩形路径",
+                "椭圆路径",
+            ]
+        } else {
+            [
+                "Group",
+                "Fill",
+                "Stroke",
+                "Trim paths",
+                "Repeater",
+                "Rectangle",
+                "Ellipse",
+            ]
+        };
+        let modify = if locale == Locale::Zh {
+            ["上移", "下移", "删除"]
+        } else {
+            ["Move up", "Move down", "Delete"]
+        };
+        let labels: &[&str] = if menu.item.is_some() { &modify } else { &add };
+        let items: Vec<_> = labels
+            .iter()
+            .map(|label| DropdownItem {
+                label,
+                enabled: true,
+            })
+            .collect();
+        let first = Input {
+            mouse: input.mouse,
+            pressed: Some((
+                MouseButton::Left,
+                [
+                    menu.anchor.min[0] + list.styles().metric("border", 1.),
+                    menu.anchor.min[1],
+                ],
+            )),
+            ..Default::default()
+        };
+        let selected = menu.dropdown.draw_grouped(
+            list,
+            atlas,
+            menu.anchor,
+            area,
+            &items,
+            0,
+            if menu.opened { &first } else { input },
+            true,
+            true,
+            &[],
+            true,
+        );
+        menu.opened = false;
+        if let Some(index) = selected {
+            if let Some(item) = menu.item {
+                out.push(structure(
+                    menu.object,
+                    if index == 2 {
+                        StructureEdit::Remove { item }
+                    } else {
+                        StructureEdit::Move {
+                            item,
+                            delta: if index == 0 { -1 } else { 1 },
+                        }
+                    },
+                ));
+            } else if let Some(l) = super::layer(state, menu.object).filter(|l| !l.locked) {
+                if let Content::Vector { vector } = &l.content {
+                    let g = group(vector, l.size);
+                    if let Some(id) = maximum(&g).checked_add(1) {
+                        out.push(structure(
+                            l.id,
+                            StructureEdit::Insert {
+                                parent: menu.parent,
+                                item: new_item(id, index, locale),
+                            },
+                        ));
+                        self.open.insert((l.id, g.id, 0));
+                        self.open.insert((l.id, id, if index == 0 { 0 } else { 2 }));
+                    }
+                }
+            }
+            self.menu = None;
+        } else if !menu.dropdown.open {
+            self.menu = None;
+        }
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    fn engine() -> motion_core::Engine {
-        let mut project = motion_core::Project::new(640, 360, 30, 120).unwrap();
-        let mut layer = Layer::solid(7, "Vector", [100.; 2], [320., 180., 0.], [1.; 4]);
-        layer.timeline = Some(motion_core::LayerTimeline {
-            in_frame: 12,
-            out_frame: 120,
-            offset_frame: 12,
-        });
-        let original = super::super::new_vector(VectorPath {
-            id: 1,
-            closed: true,
-            nodes: [[0., 0.], [100., 0.], [0., 100.]]
-                .into_iter()
-                .enumerate()
-                .map(|(i, p)| PathNode {
-                    id: i as u64 + 1,
-                    geometry: Track::constant([p[0], p[1], 0., 0., 0., 0.]),
-                })
-                .collect(),
-        });
-        layer.content = Content::Vector { vector: original };
-        project.layers.push(layer);
-        motion_core::Engine::new(project).unwrap()
-    }
-    fn apply(engine: &mut motion_core::Engine, actions: Vec<Action>) {
-        for action in actions {
-            match action {
-                Action::Edit(command) => engine.apply(command).unwrap(),
-                Action::History(2) => engine.begin_gesture().unwrap(),
-                Action::History(3) => engine.end_gesture(true).unwrap(),
-                Action::History(4) => engine.end_gesture(false).unwrap(),
-                Action::Seek(_) => {}
-                _ => panic!("unexpected vector action"),
-            }
-        }
-    }
-    fn draw(
-        controls: &mut Controls,
-        engine: &motion_core::Engine,
-        input: &Input,
-        host: Panel,
-        atlas: &mut TextAtlas,
-    ) -> Vec<Action> {
-        let mut actions = vec![];
-        let mut y = 0.;
-        let state = serde_json::json!({"root":"fixture","composition":motion_core::composition::MAIN_COMPOSITION,"frame":33,"project":engine.project()});
-        controls.render(
-            &mut PaintList::default(),
-            atlas,
-            Rect::new(0., 0., 400., 1000.),
-            &mut y,
-            &engine.project().layers[0],
-            &state,
-            input,
-            Locale::Zh,
-            host,
-            &mut actions,
-        );
-        actions
-    }
-    fn source(engine: &motion_core::Engine) -> &VectorContent {
-        let Content::Vector { vector } = &engine.project().layers[0].content else {
-            panic!()
-        };
-        vector
-    }
-    fn repeater(engine: &motion_core::Engine) -> &Repeater {
-        let VectorSource::Group { group } = &source(engine).source else {
-            panic!()
-        };
-        let GroupItem::Repeater { repeater, .. } = &group.items[1] else {
-            panic!()
-        };
-        repeater
-    }
-    fn press(x: f32, y: f32) -> Input {
-        Input {
-            mouse: [x, y],
-            pressed: Some((MouseButton::Left, [x, y])),
-            held: Some(MouseButton::Left),
-            ..Default::default()
-        }
-    }
-    #[test]
-    fn add_repeater_from_ui_preserves_original_geometry_and_style_and_roundtrips() {
-        let mut engine = engine();
-        let before = engine.project().clone();
-        let mut controls = Controls::default();
-        let mut atlas = TextAtlas::from_system(12.).unwrap();
-        let actions = draw(
-            &mut controls,
-            &engine,
-            &press(378., 12.),
-            Panel::Properties,
-            &mut atlas,
-        );
-        assert!(matches!(
-            &actions[..],
-            [Action::Edit(Command::Vector {
-                action: VectorAction::Replace { .. },
-                ..
-            })]
-        ));
-        apply(&mut engine, actions);
-        let VectorSource::Group { group } = &source(&engine).source else {
-            panic!()
-        };
-        let GroupItem::Geometry { vector, size, .. } = &group.items[0] else {
-            panic!()
-        };
-        let Content::Vector { vector: original } = &before.layers[0].content else {
-            panic!()
-        };
-        assert_eq!(vector.as_ref(), original);
-        assert_eq!(size.value, [100.; 2]);
-        assert_eq!(group.items[1].id(), 3);
-        let directory = tempfile::tempdir().unwrap();
-        motion_core::storage::save(directory.path(), engine.project()).unwrap();
-        assert_eq!(
-            &motion_core::storage::load(directory.path()).unwrap(),
-            engine.project()
-        );
-        engine.undo().unwrap();
-        assert_eq!(engine.project(), &before);
-    }
-    #[test]
-    fn repeater_eight_parameter_rows_animate_scrub_and_preserve_vector_components_with_one_undo() {
-        let mut atlas = TextAtlas::from_system(12.).unwrap();
-        for host in [Panel::Properties, Panel::Vector] {
-            for index in 0..8 {
-                let mut engine = engine();
-                let mut controls = Controls::default();
-                let actions = draw(&mut controls, &engine, &press(378., 12.), host, &mut atlas);
-                apply(&mut engine, actions);
-                let row_y = 134. + index as f32 * 26.;
-                let actions = draw(
-                    &mut controls,
-                    &engine,
-                    &press(59., row_y + 12.),
-                    host,
-                    &mut atlas,
-                );
-                apply(&mut engine, actions);
-                let before = engine.project().clone();
-                let sign = if index >= 6 { -1. } else { 1. };
-                for input in [
-                    press(230., row_y + 12.),
-                    Input {
-                        mouse: [230. + sign * 12., row_y + 12.],
-                        held: Some(MouseButton::Left),
-                        ..Default::default()
-                    },
-                    Input {
-                        mouse: [230. + sign * 20., row_y + 12.],
-                        released: Some((MouseButton::Left, [230. + sign * 20., row_y + 12.])),
-                        ..Default::default()
-                    },
-                ] {
-                    let actions = draw(&mut controls, &engine, &input, host, &mut atlas);
-                    apply(&mut engine, actions);
-                }
-                let r = repeater(&engine);
-                let local = 21;
-                match index {
-                    0 => assert_eq!(
-                        (r.copies.keys[0].frame, r.copies.keys[0].value),
-                        (local, 23.)
-                    ),
-                    1 => assert_eq!(
-                        (r.offset.keys[0].frame, r.offset.keys[0].value),
-                        (local, 20.)
-                    ),
-                    2 => assert_eq!(
-                        (r.position.keys[0].frame, r.position.keys[0].value),
-                        (local, [120., 0.])
-                    ),
-                    3 => assert_eq!(
-                        (r.anchor.keys[0].frame, r.anchor.keys[0].value),
-                        (local, [20., 0.])
-                    ),
-                    4 => assert_eq!(
-                        (r.scale.keys[0].frame, r.scale.keys[0].value),
-                        (local, [120., 100.])
-                    ),
-                    5 => assert_eq!(
-                        (r.rotation.keys[0].frame, r.rotation.keys[0].value),
-                        (local, 20.)
-                    ),
-                    6 => assert_eq!(
-                        (r.start_opacity.keys[0].frame, r.start_opacity.keys[0].value),
-                        (local, 80.)
-                    ),
-                    _ => assert_eq!(
-                        (r.end_opacity.keys[0].frame, r.end_opacity.keys[0].value),
-                        (local, 80.)
-                    ),
-                }
-                assert_ne!(engine.project(), &before);
-                engine.undo().unwrap();
-                assert_eq!(engine.project(), &before);
-            }
-        }
-    }
-    #[test]
-    fn repeater_drag_cancels_on_escape_and_collapsing_group_and_other_host_cannot_consume_it() {
-        let mut atlas = TextAtlas::from_system(12.).unwrap();
-        for collapse in [false, true] {
-            let mut engine = engine();
-            let mut controls = Controls::default();
-            let actions = draw(
-                &mut controls,
-                &engine,
-                &press(378., 12.),
-                Panel::Vector,
-                &mut atlas,
-            );
-            apply(&mut engine, actions);
-            let before = engine.project().clone();
-            let actions = draw(
-                &mut controls,
-                &engine,
-                &press(230., 146.),
-                Panel::Vector,
-                &mut atlas,
-            );
-            apply(&mut engine, actions);
-            let actions = draw(
-                &mut controls,
-                &engine,
-                &Input {
-                    mouse: [242., 146.],
-                    held: Some(MouseButton::Left),
-                    ..Default::default()
-                },
-                Panel::Vector,
-                &mut atlas,
-            );
-            apply(&mut engine, actions);
-            assert_ne!(engine.project(), &before);
-            assert!(draw(
-                &mut controls,
-                &engine,
-                &Input {
-                    mouse: [270., 146.],
-                    released: Some((MouseButton::Left, [270., 146.])),
-                    ..Default::default()
-                },
-                Panel::Properties,
-                &mut atlas
-            )
-            .is_empty());
-            let input = if collapse {
-                press(50., 42.)
-            } else {
-                Input {
-                    keys: vec![(Key::Escape, Default::default())],
-                    ..Default::default()
-                }
-            };
-            let actions = draw(&mut controls, &engine, &input, Panel::Vector, &mut atlas);
-            apply(&mut engine, actions);
-            assert_eq!(engine.project(), &before);
-            assert!(!controls.editing());
-        }
-    }
-    #[test]
-    fn removing_repeater_finishes_its_value_gesture_and_undo_restores_each_step() {
-        let mut atlas = TextAtlas::from_system(12.).unwrap();
-        let mut engine = engine();
-        let mut controls = Controls::default();
-        let actions = draw(
-            &mut controls,
-            &engine,
-            &press(378., 12.),
-            Panel::Properties,
-            &mut atlas,
-        );
-        apply(&mut engine, actions);
-        let before = engine.project().clone();
-        for input in [
-            press(230., 146.),
-            Input {
-                mouse: [242., 146.],
-                held: Some(MouseButton::Left),
-                ..Default::default()
-            },
-        ] {
-            let actions = draw(
-                &mut controls,
-                &engine,
-                &input,
-                Panel::Properties,
-                &mut atlas,
-            );
-            apply(&mut engine, actions);
-        }
-        assert_eq!(repeater(&engine).copies.value, 15.);
-        let edited = engine.project().clone();
-        let actions = draw(
-            &mut controls,
-            &engine,
-            &press(378., 120.),
-            Panel::Properties,
-            &mut atlas,
-        );
-        apply(&mut engine, actions);
-        let VectorSource::Group { group } = &source(&engine).source else {
-            panic!()
-        };
-        assert_eq!(group.items.len(), 1);
-        engine.undo().unwrap();
-        assert_eq!(engine.project(), &edited);
-        engine.undo().unwrap();
-        assert_eq!(engine.project(), &before);
-    }
-}
+#[path = "groups/tests.rs"]
+mod tests;

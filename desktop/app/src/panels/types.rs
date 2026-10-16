@@ -382,6 +382,7 @@ pub(crate) struct TimelineState {
     pub expanded: std::collections::HashSet<u64>,
     pub collapsed_transforms: std::collections::HashSet<u64>,
     pub collapsed_audio: std::collections::HashSet<u64>,
+    pub vector_open: std::collections::HashSet<(u64,u64,u8)>,
     pub collapsed_masks: std::collections::HashSet<u64>,
     pub collapsed_mask_items: std::collections::HashSet<(u64, u64)>,
     pub filters: std::collections::HashMap<u64, PropertyFilter>,

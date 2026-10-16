@@ -623,6 +623,9 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             project.layers.push(layer);
         }
         Command::Vector { object, action } => {
+            if let crate::vector::VectorAction::EditGroupKey { edit, .. } = &action {
+                for frame in edit.frames() { valid_frame(frame)?; }
+            }
             let edit_frame = match &action {
                 crate::vector::VectorAction::SetNode { frame, .. }
                 | crate::vector::VectorAction::SetParameter { frame, .. }

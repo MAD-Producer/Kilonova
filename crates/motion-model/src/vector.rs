@@ -322,6 +322,8 @@ pub enum VectorAction {
     ConvertToGroup,
     SetGroupParameter { item: u64, parameter: String, frame: u32,
         value: groups::ParameterValue, #[serde(default)] animated: Option<bool> },
+    EditGroupKey { item: u64, parameter: String, edit: groups::KeyEdit },
+    EditGroupStructure { edit: groups::StructureEdit },
     SetTrim {
         trim: Option<TrimPaths>,
     },
@@ -400,6 +402,17 @@ fn color_valid(track: &Track<[f32; 4]>) -> Result<()> {
     Ok(())
 }
 impl VectorContent {
+    fn edit_contents(&mut self,size:[f32;2],keep_flat:bool,edit:impl FnOnce(&mut groups::VectorGroup)->Result<()>)->Result<()> {
+        if let VectorSource::Group{group}=&mut self.source{return edit(group);}
+        let mut wrapped=groups::VectorGroup::wrap(self.clone(),size);
+        let VectorSource::Group{group}=&mut wrapped.source else{unreachable!()};
+        edit(group)?;
+        if keep_flat {
+            let groups::GroupItem::Geometry{vector,..}=group.items.remove(0)else{unreachable!()};
+            *self=*vector;
+        }else{*self=wrapped;}
+        Ok(())
+    }
     pub fn required_format(&self) -> u32 {
         if matches!(self.source, VectorSource::Group { .. }) { 12 }
         else if self.has_path_modifiers() { 11 } else { 6 }
@@ -662,8 +675,14 @@ impl VectorContent {
                 *self = groups::VectorGroup::wrap(content, size);
             }
             VectorAction::SetGroupParameter { item, parameter, frame, value, animated } => {
-                let VectorSource::Group { group } = &mut self.source else { return Err(crate::Error::Invalid("not a vector group".into())); };
-                group.set_parameter(item, &parameter, local(frame)?, value, animated)?;
+                self.edit_contents(size,item==2&&!matches!(parameter.as_str(),"size"|"position"),|group|group.set_parameter(item,&parameter,local(frame)?,value,animated))?;
+            }
+            VectorAction::EditGroupKey { item, parameter, edit } => {
+                self.edit_contents(size,item==2&&!matches!(parameter.as_str(),"size"|"position"),|group|group.edit_key(item,&parameter,edit,offset))?;
+            }
+            VectorAction::EditGroupStructure { edit } => {
+                let flat=matches!(&edit,groups::StructureEdit::Options{item:2,..});
+                self.edit_contents(size,flat,|group|group.edit_structure(edit))?;
             }
             VectorAction::SetTrim { trim } => self.trim = trim,
             VectorAction::SetDashes { dashes } => {

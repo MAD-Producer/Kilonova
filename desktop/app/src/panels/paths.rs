@@ -26,19 +26,24 @@ pub(super) fn render(
         return;
     };
     let height = if panel == Panel::Vector {
-        panels.path_controls.groups.height(&layer)
+        panels.path_controls.groups.height(&layer, styles.as_ref())
             + match &layer.content {
                 motion_core::Content::Vector { vector } => match vector.source {
                     motion_core::vector::VectorSource::Group { .. } => 0.,
-                    motion_core::vector::VectorSource::Shape { .. } => 90.,
-                    _ => 60.,
+                    _ => styles.metric("row.height", 22.),
                 },
                 _ => 0.,
             }
     } else {
         panels.path_controls.height(&layer, styles.as_ref())
     };
-    let mut y = auxiliary::body_y(panel, area, height + 16., panels, input);
+    let mut y = auxiliary::body_y(
+        panel,
+        area,
+        height + styles.metric("padding.panel", 8.) * 2.,
+        panels,
+        input,
+    );
     panels.path_controls.inspector_section(
         panel == Panel::Vector,
         list,

@@ -60,6 +60,12 @@ def verify_style_overrides(binary: Path, output: Path) -> None:
         mask_timeline = properties.get("maskTimelineScreenshot")
         if not mask_timeline or not Path(mask_timeline).is_file():
             raise RuntimeError(f"{locale} did not render masks in layer properties and the shared timeline")
+        shapes = next(panel for panel in snapshot["panels"] if panel["id"] == 7)
+        if not Path(shapes.get("shapeTimelineScreenshot", "")).is_file():
+            raise RuntimeError(f"{locale} did not render shape content keys in the shared timeline")
+        operators = shapes.get("shapeOperatorScreenshots", {})
+        if set(operators) != {"fill", "stroke", "trim"} or not all(Path(p).is_file() for p in operators.values()):
+            raise RuntimeError(f"{locale} did not render editable fill, stroke and trim properties")
         baseline = json.loads((output / f"smoke-{locale}.json").read_text(encoding="utf-8"))
         if Path(snapshot["screenshot"]).read_bytes() == Path(baseline["screenshot"]).read_bytes():
             raise RuntimeError(f"{locale} style override did not change rendered pixels")

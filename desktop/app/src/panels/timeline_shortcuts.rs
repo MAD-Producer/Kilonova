@@ -91,6 +91,7 @@ fn reveal(
     panels.properties.transform_collapsed = hidden;
     panels.properties.properties_scroll = 0.;
     if next == PropertyFilter::Animated {
+        super::path_controls::groups::timeline::reveal_animated(panels,state,object);
         if let Some(first) = timeline::filtered_properties(state, object, next).first() {
             panels
                 .animation_controls

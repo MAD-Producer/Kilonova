@@ -18,7 +18,7 @@ use motion_ui::{
     ui::{self, Align},
 };
 use serde_json::Value;
-mod groups;
+pub(in crate::panels) mod groups;
 mod mask_inspector;
 mod mask_keys;
 mod mask_path;
@@ -258,6 +258,31 @@ fn layer(state: &Value, id: u64) -> Option<Layer> {
     )
     .ok()
 }
+fn icons_pen_button(
+    list: &mut PaintList,
+    rect: Rect,
+    input: &Input,
+    enabled: bool,
+    active: bool,
+) -> bool {
+    let styles = list.styles();
+    let mut states = motion_ui::style::States::default();
+    if !enabled {
+        states = states.with(motion_ui::style::State::Disabled);
+    }
+    if active {
+        states = states.with(motion_ui::style::State::Selected);
+    }
+    motion_ui::icons::button(
+        list,
+        rect,
+        motion_ui::icons::Icon::Pen,
+        input,
+        styles.as_ref(),
+        states,
+    )
+    .clicked
+}
 fn geometry(node: &Value) -> Option<[f32; 6]> {
     let a = node["geometry"].as_array()?;
     if a.len() != 6 {
@@ -277,7 +302,8 @@ impl Controls {
         input: &Input,
         out: &mut Vec<Action>,
     ) -> bool {
-        self.keys.delete_selected(state, selected, input, out)
+        self.groups.keys.shortcuts(state, selected, input, out)
+            || self.keys.delete_selected(state, selected, input, out)
             || self.keys.navigate(state, selected, input, out)
     }
     pub fn editing(&self) -> bool {
@@ -872,65 +898,86 @@ impl Controls {
                 out,
             );
             if let Content::Vector { vector } = &l.content {
-                // Group contents have their own tree; the flat pen edits only paths.
-                if matches!(vector.source, VectorSource::Group { .. }) {
-                    return;
-                }
-                let title = if locale == Locale::Zh {
-                    "矢量路径"
-                } else {
-                    "VECTOR PATH"
-                };
-                label(
-                    list,
-                    atlas,
-                    Rect::new(area.min[0] + 12., *y, area.width() - 24., 28.),
-                    title,
-                    colors.TEXT,
-                );
-                *y += 30.;
-                if ui::button(
-                    list,
-                    atlas,
-                    Rect::new(area.min[0] + 12., *y, area.width() - 24., 26.),
-                    if locale == Locale::Zh {
-                        "钢笔编辑路径"
+                let row = styles.metric("row.height", 22.);
+                let pad = styles.metric("padding.panel", 8.);
+                let slot = styles.metric("icon.slot", 20.);
+                if !matches!(vector.source, VectorSource::Group { .. }) {
+                    let neutral = Input::default();
+                    let action_input = if self.groups.menu_in(motion_ui::dock::Panel::Vector) {
+                        &neutral
                     } else {
-                        "Edit path with Pen"
-                    },
-                    input,
-                    !l.locked,
-                )
-                .clicked
-                {
-                    self.choose(Tool::Pen, out);
-                }
-                *y += 30.;
-                if matches!(vector.source, VectorSource::Shape { .. }) {
-                    if ui::button(
+                        input
+                    };
+                    let fields = mask_inspector::property_row(
+                        styles.as_ref(),
+                        area,
+                        *y,
+                        0,
+                        1,
+                        motion_ui::dock::Panel::Properties,
+                    );
+                    label(
                         list,
                         atlas,
-                        Rect::new(area.min[0] + 12., *y, area.width() - 24., 26.),
+                        fields.caption,
                         if locale == Locale::Zh {
-                            "转换为可编辑路径"
+                            "路径编辑"
                         } else {
-                            "Convert to editable path"
+                            "Path editing"
                         },
-                        input,
-                        !l.locked,
-                    )
-                    .clicked
+                        colors.TEXT_MUTED,
+                    );
+                    let pen = Rect::new(fields.number.min[0], *y, slot, row);
+                    if icons_pen_button(list, pen, action_input, !l.locked, self.tool == Tool::Pen)
                     {
-                        out.push(Action::Edit(Command::Vector {
-                            object: l.id,
-                            action: VectorAction::ConvertToPath {
-                                frame: state["frame"].as_f64().unwrap_or(0.).floor() as u32,
-                            },
-                        }));
                         self.choose(Tool::Pen, out);
                     }
-                    *y += 30.;
+                    if matches!(vector.source, VectorSource::Shape { .. }) {
+                        let text = if locale == Locale::Zh {
+                            "转换为路径"
+                        } else {
+                            "Convert to path"
+                        };
+                        let x = pen.max[0] + pad;
+                        let rect = Rect::new(
+                            x,
+                            *y,
+                            (atlas.measure(text) + pad * 2.).min((area.max[0] - pad - x).max(0.)),
+                            row,
+                        );
+                        if ui::button_styled(
+                            list,
+                            atlas,
+                            rect,
+                            text,
+                            action_input,
+                            !l.locked,
+                            &styles,
+                            "button.icon",
+                        )
+                        .clicked
+                        {
+                            out.push(Action::Edit(Command::Vector {
+                                object: l.id,
+                                action: VectorAction::ConvertToPath {
+                                    frame: state["frame"].as_f64().unwrap_or(0.).floor() as u32,
+                                },
+                            }));
+                            self.choose(Tool::Pen, out);
+                        }
+                    }
+                    *y += row;
                 }
+                self.groups.finish_paint(
+                    list,
+                    atlas,
+                    area,
+                    state,
+                    input,
+                    locale,
+                    motion_ui::dock::Panel::Vector,
+                    out,
+                );
             }
         }
         if vector_only {
@@ -1005,31 +1052,68 @@ impl Controls {
             .as_ref()
             .is_some_and(|context| context.3 == host)
             && (self.add_mask_menu.open || self.mode_dropdowns.values().any(|d| d.open))
+            || self.groups.menu_in(host)
     }
     pub(crate) fn mask_add_rect(&self, host: motion_ui::dock::Panel) -> Option<Rect> {
         self.inspector_add
             .filter(|(owner, _)| *owner == host)
             .map(|(_, rect)| rect)
     }
+    pub(crate) fn vector_add_rect(&self, host: motion_ui::dock::Panel) -> Option<Rect> {
+        self.groups
+            .add_rect
+            .filter(|(owner, _)| *owner == host)
+            .map(|(_, r)| r)
+    }
+    pub(crate) fn reveal_vector_item(&mut self, state: &Value, object: u64, item: u64) {
+        if let Some(l) = layer(state, object) {
+            if let Content::Vector { vector } = &l.content {
+                let root = if let VectorSource::Group { group } = &vector.source {
+                    group.id
+                } else {
+                    1
+                };
+                self.groups.reveal_item(object, root, item);
+            }
+        }
+    }
     pub(super) fn clear_mask_selection(&mut self) {
         self.keys.clear_selection();
+        self.groups.keys.clear_selection();
     }
     pub(super) fn numeric_owner(&self) -> Option<motion_ui::dock::Panel> {
         self.parameter.as_ref().map(|p| p.host)
     }
     pub(super) fn mask_menu(&self) -> bool {
         self.keys.modal()
+            || self.groups.menu_in(motion_ui::dock::Panel::Timeline)
+            || self.groups.keys.modal()
     }
     pub(super) fn mask_overlay(
         &mut self,
         list: &mut PaintList,
         atlas: &mut TextAtlas,
         area: Rect,
+        state: &Value,
         input: &Input,
         locale: Locale,
         out: &mut Vec<Action>,
     ) {
         self.keys.overlay(list, atlas, area, input, locale, out);
+        self.groups.append_overlays(list);
+        self.groups
+            .keys
+            .overlay(list, atlas, area, input, locale, out);
+        self.groups.overlay(
+            list,
+            atlas,
+            area,
+            state,
+            input,
+            locale,
+            motion_ui::dock::Panel::Timeline,
+            out,
+        );
     }
     pub fn numeric_cursor(&self) -> Option<(Rect, bool)> {
         self.parameter.as_ref().map(|p| (p.rect, p.begun))

@@ -1,0 +1,368 @@
+//! The same shape-content tree and property rows inside the main timeline gutter.
+use super::*;
+use crate::panels::{
+    timeline::{property_group, Row},
+    types::{PropertyFilter, TimelineState},
+    Panels,
+};
+
+enum Entry<'a> {
+    Node(&'a parameters::Node, usize),
+    Parameter(u64, &'a parameters::Parameter, usize),
+    Setting(u64, &'a parameters::Setting, usize),
+}
+fn entries<'a>(
+    node: &'a parameters::Node,
+    object: u64,
+    t: &TimelineState,
+    animated: bool,
+    depth: usize,
+    out: &mut Vec<Entry<'a>>,
+) {
+    if animated && !node.animated() {
+        return;
+    }
+    out.push(Entry::Node(node, depth));
+    if !t.vector_open.contains(&(object, node.id, node.tag)) {
+        return;
+    }
+    for p in &node.parameters {
+        if !animated || p.animated() {
+            out.push(Entry::Parameter(node.id, p, depth + 1));
+        }
+    }
+    if !animated {
+        for s in &node.settings {
+            out.push(Entry::Setting(node.id, s, depth + 1));
+        }
+    }
+    for n in &node.children {
+        entries(n, object, t, animated, depth + 1, out);
+    }
+}
+fn tree(row: &Row, frame: f64, locale: Locale) -> Option<parameters::Node> {
+    row.vector.as_ref().map(|v| {
+        parameters::tree(
+            v,
+            row.vector_size,
+            frame - f64::from(row.mask_offset),
+            locale,
+        )
+    })
+}
+pub(in crate::panels) fn key_frames(vector: &VectorContent, size: [f32; 2]) -> Vec<i32> {
+    fn gather(n: &parameters::Node, out: &mut Vec<i32>) {
+        for p in &n.parameters {
+            out.extend(p.keys.iter().map(|(f, _)| *f));
+        }
+        for n in &n.children {
+            gather(n, out);
+        }
+    }
+    let mut keys = vec![];
+    gather(&parameters::tree(vector, size, 0., Locale::En), &mut keys);
+    keys.sort_unstable();
+    keys.dedup();
+    keys
+}
+pub(in crate::panels) fn row_count(row: &Row, t: &TimelineState) -> usize {
+    let Some(tree) = tree(row, 0., Locale::En) else {
+        return 0;
+    };
+    let filter = t.filters.get(&row.id).copied().unwrap_or_default();
+    if matches!(filter, PropertyFilter::Properties(_))
+        || (filter == PropertyFilter::Animated && !tree.animated())
+    {
+        return 0;
+    }
+    if !t.vector_open.contains(&(row.id, 0, 0)) {
+        return 1;
+    }
+    let mut rows = vec![];
+    entries(
+        &tree,
+        row.id,
+        t,
+        filter == PropertyFilter::Animated,
+        0,
+        &mut rows,
+    );
+    1 + rows.len()
+}
+pub(in crate::panels) fn reveal_animated(panels: &mut Panels, state: &Value, object: u64) {
+    let Some(l) = super::super::layer(state, object) else {
+        return;
+    };
+    let Content::Vector { vector } = &l.content else {
+        return;
+    };
+    let tree = parameters::tree(
+        vector,
+        l.size,
+        l.local_frame(state["frame"].as_f64().unwrap_or(0.)),
+        panels.locale,
+    );
+    fn open(n: &parameters::Node, object: u64, t: &mut TimelineState) {
+        if !n.animated() {
+            return;
+        }
+        t.vector_open.insert((object, n.id, n.tag));
+        for c in &n.children {
+            open(c, object, t);
+        }
+    }
+    if tree.animated() {
+        panels.timeline.vector_open.insert((object, 0, 0));
+        open(&tree, object, &mut panels.timeline);
+        panels.timeline.set_graph_mode(false);
+    }
+}
+pub(in crate::panels) fn render(
+    list: &mut PaintList,
+    atlas: &mut TextAtlas,
+    area: Rect,
+    body: Rect,
+    track: Rect,
+    start: f32,
+    height: f32,
+    ppf: f32,
+    offset: f32,
+    row: &Row,
+    panels: &mut Panels,
+    state: &Value,
+    input: &Input,
+    out: &mut Vec<Action>,
+) {
+    if row_count(row, &panels.timeline) == 0 {
+        return;
+    }
+    let Some(tree) = tree(row, state["frame"].as_f64().unwrap_or(0.), panels.locale) else {
+        return;
+    };
+    let host = if panels.focused == Some(Panel::Curves) {
+        Panel::Curves
+    } else {
+        Panel::Timeline
+    };
+    let locale = panels.locale;
+    let styles = list.styles();
+    let slot = styles.metric("icon.slot", 20.);
+    let pad = styles.metric("padding.panel", 8.);
+    let locked = row.locked || state["observing"] == true;
+    let neutral = Input::default();
+    let normal = if panels.path_controls.groups.menu_in(host) {
+        &neutral
+    } else {
+        input
+    };
+    let root_open = panels.timeline.vector_open.contains(&(row.id, 0, 0));
+    if start >= body.min[1] && start + height <= body.max[1] {
+        let heading = property_group(
+            list,
+            atlas,
+            Rect::new(
+                area.min[0],
+                area.min[1],
+                (area.width() - pad - slot).max(0.),
+                area.height(),
+            ),
+            start,
+            height,
+            if locale == Locale::Zh {
+                "矢量内容"
+            } else {
+                "Vector contents"
+            },
+            root_open,
+        );
+        if click(normal, heading) {
+            if panels.path_controls.cancel() {
+                out.push(Action::History(4));
+            }
+            if !panels.timeline.vector_open.remove(&(row.id, 0, 0)) {
+                panels.timeline.vector_open.insert((row.id, 0, 0));
+                panels
+                    .timeline
+                    .vector_open
+                    .insert((row.id, tree.id, tree.tag));
+            }
+        }
+        let rect = Rect::new(area.max[0] - pad - slot, start, slot, height);
+        if icon(list, rect, Icon::Plus, normal, !locked, false) {
+            if panels.selected != Some(row.id) {
+                panels.select_only(Some(row.id));
+            }
+            panels
+                .path_controls
+                .groups
+                .open_menu(host, row.id, tree.id, None, rect);
+        }
+    }
+    if root_open {
+        let mut rows = vec![];
+        entries(
+            &tree,
+            row.id,
+            &panels.timeline,
+            panels.timeline.filters.get(&row.id) == Some(&PropertyFilter::Animated),
+            0,
+            &mut rows,
+        );
+        for (index, entry) in rows.iter().enumerate() {
+            let y = start + (index + 1) as f32 * height;
+            if y < body.min[1] || y + height > body.max[1] {
+                continue;
+            }
+            match entry {
+                Entry::Node(n, depth) => {
+                    let x = area.min[0] + styles.metric("icon.slot", 20.) * (*depth + 1) as f32;
+                    let heading = property_group(
+                        list,
+                        atlas,
+                        Rect::new(
+                            x,
+                            area.min[1],
+                            (area.max[0] - x - if n.tag == 0 { slot + pad } else { 0. }).max(0.),
+                            area.height(),
+                        ),
+                        y,
+                        height,
+                        &n.name,
+                        panels.timeline.vector_open.contains(&(row.id, n.id, n.tag)),
+                    );
+                    if click(normal, heading) {
+                        if panels.path_controls.cancel() {
+                            out.push(Action::History(4));
+                        }
+                        if !panels.timeline.vector_open.remove(&(row.id, n.id, n.tag)) {
+                            panels.timeline.vector_open.insert((row.id, n.id, n.tag));
+                        }
+                    }
+                    if n.tag == 0 {
+                        let add = Rect::new(area.max[0] - pad - slot, y, slot, height);
+                        if icon(list, add, Icon::Plus, normal, !locked, false) {
+                            if panels.selected != Some(row.id) {
+                                panels.select_only(Some(row.id));
+                            }
+                            panels
+                                .path_controls
+                                .groups
+                                .open_menu(host, row.id, n.id, None, add);
+                        }
+                    }
+                    if n.tag != 1
+                        && normal
+                            .pressed
+                            .is_some_and(|(b, p)| b == MouseButton::Right && heading.contains(p))
+                        && !locked
+                    {
+                        if panels.selected != Some(row.id) {
+                            panels.select_only(Some(row.id));
+                        }
+                        let point = normal.mouse;
+                        panels.path_controls.groups.open_menu(
+                            host,
+                            row.id,
+                            n.id,
+                            if n.tag == 0 && *depth == 0 {
+                                None
+                            } else {
+                                Some(n.id)
+                            },
+                            Rect::new(point[0], point[1], slot, styles.metric("border", 1.)),
+                        );
+                    }
+                }
+                Entry::Parameter(item, p, depth) => {
+                    let fields = layout(styles.as_ref(), area, y, *depth, 0, p.values.len(), host);
+                    let lane = Rect::new(track.min[0], y, track.width(), height);
+                    let hit = normal.pressed.is_some_and(|(_, point)| {
+                        fields.caption.contains(point)
+                            || fields.watch.contains(point)
+                            || lane.contains(point)
+                            || (0..p.values.len()).any(|a| {
+                                layout(styles.as_ref(), area, y, *depth, a, p.values.len(), host)
+                                    .number
+                                    .contains(point)
+                            })
+                    });
+                    if hit {
+                        panels.select_only(Some(row.id));
+                        panels.path_controls.groups.keys.choose(row.id, *item, p);
+                        if click(normal, fields.caption) {
+                            panels.timeline.set_graph_mode(false);
+                        }
+                    }
+                    panels.path_controls.groups.parameter(
+                        list, atlas, area, y, row.id, *item, p, state, normal, host, !locked,
+                        *depth, out,
+                    );
+                    if !panels.timeline.graph_mode {
+                        panels.path_controls.groups.keys.lane(
+                            list,
+                            lane,
+                            ppf,
+                            offset,
+                            state,
+                            row.id,
+                            *item,
+                            p,
+                            row.mask_offset,
+                            locked,
+                            normal,
+                            out,
+                        );
+                    }
+                }
+                Entry::Setting(item, s, depth) => {
+                    let f = layout(styles.as_ref(), area, y, *depth, 0, 1, host);
+                    if normal.pressed.is_some_and(|(_, p)| {
+                        p[1] >= y
+                            && p[1] < y + height
+                            && p[0] >= f.caption.min[0]
+                            && p[0] < area.max[0]
+                    }) && panels.selected != Some(row.id)
+                    {
+                        panels.select_only(Some(row.id));
+                    }
+                    panels.path_controls.groups.setting(
+                        list, atlas, area, y, row.id, *item, s, state, normal, host, !locked,
+                        *depth, out,
+                    );
+                }
+            }
+        }
+    }
+}
+pub(in crate::panels) fn process(
+    list: &PaintList,
+    panels: &mut Panels,
+    state: &Value,
+    body: Rect,
+    ppf: f32,
+    offset: f32,
+    input: &Input,
+    out: &mut Vec<Action>,
+) {
+    panels
+        .path_controls
+        .groups
+        .prepare(state, panels.selected, input, out);
+    panels.path_controls.groups.keys.process(
+        list,
+        state,
+        panels.selected,
+        body,
+        ppf,
+        offset,
+        input,
+        out,
+    );
+    if let Some((rect, dragging)) = panels.path_controls.groups.cursor {
+        if dragging || rect.contains(input.mouse) {
+            panels.cursor = Some(motion_ui::widgets::numeric_behavior::cursor(
+                input, dragging,
+            ));
+        }
+    }
+}

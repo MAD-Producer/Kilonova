@@ -1242,6 +1242,112 @@ mod interaction_tests {
     }
 
     #[test]
+    fn shape_content_timeline_drag_survives_acknowledgement_and_commits_the_latest_release() {
+        let folder = tempfile::tempdir().unwrap();
+        let mut shell = Shell::new(folder.path().join("project"), None, Some(Locale::En)).unwrap();
+        shell.home = None;
+        let mut layer = Layer::solid(7, "Masked", [100.; 2], [100., 200., 0.], [1.; 4]);
+        layer.timeline = Some(motion_core::LayerTimeline {
+            in_frame: 12,
+            out_frame: 300,
+            offset_frame: 12,
+        });
+        let grouped = motion_core::vector::groups::VectorGroup::wrap(
+            motion_core::vector::VectorContent::shape(motion_core::vector::ShapeKind::Rectangle),
+            layer.size,
+        );
+        let motion_core::vector::VectorSource::Group { mut group } = grouped.source else {
+            unreachable!()
+        };
+        let mut r = motion_core::vector::groups::Repeater::default();
+        r.copies.set_animated(9, true).unwrap();
+        r.copies.set_at(78, 8.).unwrap();
+        group
+            .items
+            .push(motion_core::vector::groups::GroupItem::Repeater {
+                id: 3,
+                name: "Repeater".into(),
+                repeater: r,
+            });
+        layer.content = motion_core::Content::Vector {
+            vector: motion_core::vector::VectorContent {
+                source: motion_core::vector::VectorSource::Group { group },
+                fill: None,
+                stroke: None,
+                trim: None,
+                fill_rule: motion_core::vector::FillRule::NonZero,
+            },
+        };
+        shell.state = shell
+            .engine
+            .edit(serde_json::to_string(&vec![Command::Add { layer }]).unwrap())
+            .unwrap();
+        let before = shell.state["project"].clone();
+        let id = dock::Panel::Timeline.dock();
+        shell.workspace.root = dock::Node::Dock {
+            id,
+            tabs: vec![id],
+            active: 0,
+        };
+        shell.panels.selected = Some(7);
+        shell.panels.focused = Some(dock::Panel::Timeline);
+        shell.panels.timeline.expanded.insert(7);
+        shell.panels.timeline.collapsed_transforms.insert(7);
+        shell
+            .panels
+            .timeline
+            .vector_open
+            .extend([(7, 0, 0), (7, 1, 0), (7, 3, 2)]);
+        assert!(panels::reveal_shape_keys(&mut shell.panels, &shell.state, 7).is_empty());
+        let area = panels::frames(&shell.workspace.root, [1280., 700.])[0].content;
+        let point = |frame: f32| {
+            [
+                640. + frame * 632. / 300.,
+                area.min[1] + 64. + 5. * 22. + 11.,
+            ]
+        };
+        shell.translate(Event::MousePressed {
+            position: point(21.),
+            button: MouseButton::Left,
+        });
+        let (_, actions) = shell.draw_commands([1280., 700.]);
+        shell.actions.extend(actions);
+        finish_actions(&mut shell);
+        shell.translate(Event::MouseMoved {
+            position: point(51.),
+        });
+        let (_, actions) = shell.draw_commands([1280., 700.]);
+        assert!(matches!(
+            &actions[..],
+            [panels::Action::History(2), panels::Action::Edit(_)]
+        ));
+        shell.actions.extend(actions);
+        shell.translate(Event::MouseReleased {
+            position: point(69.),
+            button: MouseButton::Left,
+        });
+        assert_eq!(finish_actions(&mut shell), 1);
+        assert!(shell.draw_acknowledged([1280., 700.]).1.is_empty());
+        assert!(shell.input.pending && shell.input.released.is_some());
+        let (_, actions) = shell.draw_commands([1280., 700.]);
+        assert!(matches!(
+            &actions[..],
+            [panels::Action::Edit(_), panels::Action::History(3)]
+        ));
+        shell.actions.extend(actions);
+        finish_actions(&mut shell);
+        let keys = &shell.state["project"]["layers"][0]["content"]["vector"]["source"]["group"]
+            ["items"][1]["repeater"]["copies"]["keys"];
+        assert_eq!(keys[0]["frame"], 57);
+        assert_eq!(
+            keys[1],
+            before["layers"][0]["content"]["vector"]["source"]["group"]["items"][1]["repeater"]
+                ["copies"]["keys"][1]
+        );
+        assert_eq!(shell.engine.history(0).unwrap()["project"], before);
+    }
+
+    #[test]
     fn property_scrub_processes_a_gesture_batch_before_paint_and_commits_the_latest_release() {
         let folder = tempfile::tempdir().unwrap();
         let mut shell = Shell::new(folder.path().join("project"), None, Some(Locale::En)).unwrap();

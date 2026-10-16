@@ -15,7 +15,11 @@ pub(super) fn render(
     let mask_modal = panels.path_controls.inspector_menu_in(Panel::Properties);
     let parent_modal = panels.parent_controls.open;
     let original = input;
-    let mask_input = if parent_modal { &neutral } else { original };
+    let mask_input = if parent_modal || panels.path_controls.groups.menu_in(Panel::Properties) {
+        &neutral
+    } else {
+        original
+    };
     let input = if mask_modal || parent_modal {
         &neutral
     } else {
@@ -290,6 +294,7 @@ pub(super) fn render(
         locale,
         out,
     );
+    list.append(mask_list);
     if layer["content"]["kind"] == "vector" {
         if let Some(layer) = panels.path_controls.inspector_layer(state, layer) {
             panels.path_controls.groups.render(
@@ -299,7 +304,21 @@ pub(super) fn render(
                 &mut y,
                 &layer,
                 state,
-                input,
+                if panels.path_controls.groups.menu_in(Panel::Properties) {
+                    original
+                } else {
+                    input
+                },
+                locale,
+                Panel::Properties,
+                out,
+            );
+            panels.path_controls.groups.finish_paint(
+                list,
+                atlas,
+                area,
+                state,
+                if parent_modal { &neutral } else { original },
                 locale,
                 Panel::Properties,
                 out,
@@ -316,7 +335,6 @@ pub(super) fn render(
         out.push(Action::History(4));
     }
     panels.properties.content_height = y - area.min[1] + panels.properties.properties_scroll + pad;
-    list.append(mask_list);
 }
 
 pub(super) fn draw_value(

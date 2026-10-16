@@ -95,6 +95,22 @@ impl Shell {
                 self.panels.focused = Some(panel);
                 Some(path)
             } else { None };
+            let (shape_timeline,shape_operators)=if panel==dock::Panel::Vector {
+                let object=self.panels.selected.ok_or("shape selection missing")?;
+                let mut screens=serde_json::Map::new();
+                for (item,name) in [(4,"fill"),(5,"stroke"),(6,"trim")] {
+                    self.panels.path_controls.reveal_vector_item(&self.state,object,item);
+                    screens.insert(name.into(),serde_json::json!(self.capture_panel_float_named(panel,&format!("-{name}"))?));
+                }
+                self.panels.path_controls.reveal_vector_item(&self.state,object,3);
+                if !panels::reveal_shape_keys(&mut self.panels,&self.state,object).is_empty(){return Err("shape reveal edited project".into());}
+                self.panels.timeline.collapsed_transforms.insert(object);
+                self.float_panel(dock::Panel::Timeline.dock(),event_loop)?;
+                let path=self.capture_panel_float_named(dock::Panel::Timeline,"-shape-keys")?;
+                self.redock_panel(dock::Panel::Timeline.dock())?;
+                self.panels.focused=Some(panel);
+                (Some(path),serde_json::Value::Object(screens))
+            }else{(None,serde_json::Value::Null)};
             self.redock_panel(panel.dock())?;
             if !self.workspace.valid() {
                 return Err("panel lost unique workspace ownership".into());
@@ -102,7 +118,7 @@ impl Shell {
             if self.state["revision"] != revision {
                 return Err("layout change edited the project".into());
             }
-            self.smoke_panel_records.push(serde_json::json!({"id":panel as u32,"title":self.workspace.locale.panel(panel.dock()),"frames":self.smoke_float_frames[&(panel as u32)],"screenshot":screenshot,"valueGraphScreenshot":value_graph,"audioMenuScreenshot":audio_menu,"markerMenuScreenshot":marker_menu,"maskTimelineScreenshot":mask_timeline,"projectRevision":revision}));
+            self.smoke_panel_records.push(serde_json::json!({"id":panel as u32,"title":self.workspace.locale.panel(panel.dock()),"frames":self.smoke_float_frames[&(panel as u32)],"screenshot":screenshot,"valueGraphScreenshot":value_graph,"audioMenuScreenshot":audio_menu,"markerMenuScreenshot":marker_menu,"maskTimelineScreenshot":mask_timeline,"shapeTimelineScreenshot":shape_timeline,"shapeOperatorScreenshots":shape_operators,"projectRevision":revision}));
             if matches!(panel, dock::Panel::Timeline | dock::Panel::Audio) {
                 // Subsequent parent/blend captures require a visual target.
                 let visual = self.state["project"]["layers"].as_array().into_iter().flatten().rev()
@@ -124,7 +140,13 @@ impl Shell {
                 )?;
             }
             if panel == dock::Panel::Vector {
-                self.feature_panel_click(panel, [660., 50.], event_loop)?;
+                let actions=panels::floating_chrome(&mut PaintList::default(),&mut self.atlas,panel,[720.,520.],&mut self.panels,&self.state,&Input::default());
+                if !actions.is_empty(){return Err("shape layout probe edited project".into());}
+                let add=self.panels.path_controls.vector_add_rect(panel).ok_or("shape contents creation missing")?;
+                let x=add.min[0]+add.width()*0.5;
+                self.feature_panel_click(panel,[x,add.min[1]+add.height()*0.5],event_loop)?;
+                let row=self.panels.styles.as_ref().map_or(22.,|s|s.metric("row.height",22.));
+                self.feature_panel_click(panel,[x,add.max[1]+row*4.5],event_loop)?;
                 let layer = self.state["project"]["layers"]
                     .as_array()
                     .into_iter()
@@ -137,6 +159,19 @@ impl Shell {
                 {
                     return Err("vector panel add-repeater entry produced no repeater".into());
                 }
+
+                for index in [1,2,3] {
+                    self.feature_panel_click(panel,[x,add.min[1]+add.height()*0.5],event_loop)?;
+                    self.feature_panel_click(panel,[x,add.max[1]+row*(index as f32+0.5)],event_loop)?;
+                }
+                let object=self.panels.selected.ok_or("shape selection missing")?;
+                use motion_core::vector::groups::ParameterValue as V;
+                let mut commands=vec![];
+                for (item,key,a,b) in [(3,"copies",V::Scalar(3.),V::Scalar(6.)),(3,"position",V::Vector([100.,0.]),V::Vector([120.,40.])),(4,"color",V::Color([1.;4]),V::Color([0.4,0.6,0.9,1.])),(5,"width",V::Scalar(2.),V::Scalar(8.)),(6,"start",V::Scalar(0.),V::Scalar(20.))] {
+                    for (frame,value) in [(0,a),(60,b)] {commands.push(Command::Vector {object,action:motion_core::vector::VectorAction::SetGroupParameter {item,parameter:key.into(),frame,value,animated:Some(true)}});}
+                }
+                self.state=self.engine.edit(serde_json::to_string(&commands).map_err(|e|e.to_string())?)?;
+                self.panels.path_controls.reveal_vector_item(&self.state,object,3);
             }
             if panel == dock::Panel::Properties {
                 let object = self.state["project"]["layers"]
@@ -254,7 +289,7 @@ impl Shell {
                 ..Default::default()
             },
         );
-        if actions.is_empty() && panel != dock::Panel::Properties {
+        if actions.is_empty() && !matches!(panel,dock::Panel::Properties|dock::Panel::Vector) {
             return Err(format!(
                 "{panel:?} feature entry did not emit an action at {point:?}"
             ));

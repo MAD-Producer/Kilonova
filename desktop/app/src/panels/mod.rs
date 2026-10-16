@@ -171,6 +171,14 @@ pub(crate) fn reveal_mask_keys(
     path_controls::timeline::reveal(panels, state, object, mask);
     actions
 }
+pub(crate) fn reveal_shape_keys(panels:&mut Panels,state:&Value,object:u64)->Vec<Action>{
+    let actions=cancel_interaction(panels);
+    panels.select_only(Some(object));panels.timeline.expanded.insert(object);
+    panels.timeline.filters.insert(object,types::PropertyFilter::Animated);
+    path_controls::groups::timeline::reveal_animated(panels,state,object);
+    panels.focused=Some(Panel::Timeline);panels.timeline.scroll=0.;
+    actions
+}
 
 /// The chrome leaves a hole for the preview; its geometry is also used for hit testing.
 pub fn chrome(

@@ -7,6 +7,8 @@ pub(super) struct Row {
     audio: usize,
     pub(super) masks: Vec<motion_core::masks::LayerMask>,
     pub(super) mask_offset: i32,
+    pub(super) vector: Option<motion_core::vector::VectorContent>,
+    pub(super) vector_size: [f32; 2],
     pub(super) id: u64,
     pub(super) name: String,
     name_lower: String,
@@ -221,6 +223,14 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
                     }
                 }
             }
+            let vector: Option<motion_core::vector::VectorContent> =
+                serde_json::from_value(l["content"]["vector"].clone()).ok();
+            let vector_size = serde_json::from_value(l["size"].clone()).unwrap_or([100.; 2]);
+            if let Some(v) = &vector {
+                for frame in super::path_controls::groups::timeline::key_frames(v, vector_size) {
+                    keys.push(f64::from(frame) + f64::from(mask_offset));
+                }
+            }
             keys.sort_by(|a, b| a.total_cmp(b));
             keys.dedup();
             let offset = l["timeline"]["offset_frame"].as_i64().unwrap_or(0);
@@ -254,6 +264,8 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
                 },
                 masks,
                 mask_offset,
+                vector,
+                vector_size,
                 id,
                 name: l["name"].as_str().unwrap_or("Layer").into(),
                 name_lower: l["name"].as_str().unwrap_or("Layer").to_lowercase(),
@@ -293,6 +305,8 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
             Row {
                 spatial: false,
                 audio: 0,
+                vector: None,
+                vector_size: [0.; 2],
                 masks: vec![],
                 mask_offset: 0,
                 id: 0,
@@ -366,6 +380,9 @@ fn scroll_extent_signature(
     for item in &timeline.collapsed_mask_items {
         item.hash(&mut hash);
     }
+    for item in &timeline.vector_open {
+        item.hash(&mut hash);
+    }
     timeline.filters.len().hash(&mut hash);
     for entry in &timeline.filters {
         entry.hash(&mut hash);
@@ -410,6 +427,7 @@ pub(super) fn row_count(row: &Row, timeline: &types::TimelineState) -> usize {
     } else {
         0
     } + super::path_controls::timeline::row_count(row, timeline)
+        + super::path_controls::groups::timeline::row_count(row, timeline)
 }
 pub(super) fn filtered_properties(
     state: &Value,
@@ -506,6 +524,11 @@ pub(super) fn render(
 
     panels.timeline_columns.begin(state);
     let context_input = input;
+    panels.path_controls.groups.begin_frame(list, context_input);
+    panels
+        .path_controls
+        .groups
+        .prepare(state, panels.selected, context_input, out);
     let neutral = Input::default();
     let input = if panels.timeline.timeline_context_menu.is_some()
         || panels.timeline_columns.editing()
@@ -818,8 +841,18 @@ pub(super) fn render(
         locale.t(T::SourceName),
         true,
     );
-    if gutter>=500. {
-        label(list,atlas,Rect::new(area.min[0]+gutter-280.,ruler.min[1],78.,28.),if locale==Locale::Zh {"遮罩"}else{"Track matte"},true);
+    if gutter >= 500. {
+        label(
+            list,
+            atlas,
+            Rect::new(area.min[0] + gutter - 280., ruler.min[1], 78., 28.),
+            if locale == Locale::Zh {
+                "遮罩"
+            } else {
+                "Track matte"
+            },
+            true,
+        );
     }
     label(
         list,
@@ -945,7 +978,7 @@ pub(super) fn render(
         let name = Rect::new(
             area.min[0] + 112.0,
             y,
-            (gutter - if gutter>=500. {398.} else {320.}).max(1.0),
+            (gutter - if gutter >= 500. { 398. } else { 320. }).max(1.0),
             row_height,
         );
         let selected = panels.selection_contains(row.id);
@@ -1054,7 +1087,7 @@ pub(super) fn render(
                 Some("null" | "audio" | "adjustment")
             ) && row.id != 0;
             let blend_enabled = blend_supported && !row.locked;
-            let matte_enabled = blend_enabled && gutter>=500.;
+            let matte_enabled = blend_enabled && gutter >= 500.;
             let parent_enabled = row.id == 0 || !row.locked && row.spatial;
             if (blend_enabled && clicked(input, blend))
                 || (matte_enabled && clicked(input, matte))
@@ -1078,16 +1111,17 @@ pub(super) fn render(
                 link_input.pressed =
                     Some((MouseButton::Left, [parent.min[0] + 1., parent.min[1] + 1.]));
             }
-            let opened_matte = gutter>=500. && panels.timeline_columns.cell(
-                list,
-                atlas,
-                matte,
-                row.id,
-                super::timeline_columns::Column::Matte,
-                &super::timeline_columns::matte_name(owner, state, locale),
-                input,
-                matte_enabled,
-            );
+            let opened_matte = gutter >= 500.
+                && panels.timeline_columns.cell(
+                    list,
+                    atlas,
+                    matte,
+                    row.id,
+                    super::timeline_columns::Column::Matte,
+                    &super::timeline_columns::matte_name(owner, state, locale),
+                    input,
+                    matte_enabled,
+                );
             let opened_blend = if blend_supported {
                 panels.timeline_columns.cell(
                     list,
@@ -1269,6 +1303,9 @@ pub(super) fn render(
     super::path_controls::timeline::process(
         list, &all_rows, body, ppf, offset, panels, state, input, out,
     );
+    super::path_controls::groups::timeline::process(
+        list, panels, state, body, ppf, offset, input, out,
+    );
     if !graph_mode && clicked(input, body) && !timeline_hit {
         panels.select_only(None);
         panels.properties.field = None;
@@ -1410,7 +1447,12 @@ pub(super) fn render(
                 let (slot, line) = slot_of(input.mouse[1]);
                 paint::rect(
                     list,
-                    Rect::new(area.min[0] + 60., line - 1., track.max[0] - area.min[0] - 60., 2.),
+                    Rect::new(
+                        area.min[0] + 60.,
+                        line - 1.,
+                        track.max[0] - area.min[0] - 60.,
+                        2.,
+                    ),
                     colors.ACCENT,
                 );
                 panels.cursor = Some(motion_ui::cursor::Cursor::Grabbing);
@@ -1422,8 +1464,7 @@ pub(super) fn render(
                 let (slot, _) = slot_of(input.mouse[1]);
                 let from = row_bounds.iter().position(|(id, _, _)| *id == object);
                 let len = state["project"]["layers"].as_array().map_or(0, Vec::len);
-                if let Some(index) = from.and_then(|from| reorder_storage_index(len, from, slot))
-                {
+                if let Some(index) = from.and_then(|from| reorder_storage_index(len, from, slot)) {
                     out.push(Action::Edit(Command::Reorder { object, index }));
                 }
             }
@@ -1510,7 +1551,9 @@ pub(super) fn render(
     {
         panels.layer_actions.open(None, input.mouse, state);
     }
-    panels.path_controls.mask_overlay(list, atlas, area, context_input, locale, out);
+    panels
+        .path_controls
+        .mask_overlay(list, atlas, area, state, context_input, locale, out);
 }
 
 #[cfg(test)]
@@ -1984,10 +2027,29 @@ pub(super) fn render_layer_properties(
     } else {
         0
     };
-    let start = y + (1 + if row.spatial { 1 + property_count } else { 0 } + audio_rows)
-        as f32 * row_height;
+    let start =
+        y + (1 + if row.spatial { 1 + property_count } else { 0 } + audio_rows) as f32 * row_height;
     super::path_controls::timeline::render(
-        list, atlas, area, body, track, start, row_height, ppf, offset, row, panels, state, input, out,
+        list, atlas, area, body, track, start, row_height, ppf, offset, row, panels, state, input,
+        out,
+    );
+    let vector_start = start
+        + super::path_controls::timeline::row_count(row, &panels.timeline) as f32 * row_height;
+    super::path_controls::groups::timeline::render(
+        list,
+        atlas,
+        area,
+        body,
+        track,
+        vector_start,
+        row_height,
+        ppf,
+        offset,
+        row,
+        panels,
+        state,
+        input,
+        out,
     );
 }
 
