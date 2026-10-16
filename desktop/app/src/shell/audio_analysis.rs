@@ -380,7 +380,7 @@ impl Shell {
             );
             return Ok(());
         };
-        match status["state"].as_str().unwrap_or("") {
+        match super::media::checked_task_state(&status, &task.request)? {
             "ready" | "succeeded" => {
                 let text = serde_json::json!({"op":"release_media_task","request_id":task.request})
                     .to_string();
@@ -442,7 +442,8 @@ impl Shell {
                 self.cancel_audio_analysis();
                 return Err(error);
             }
-            _ => {}
+            "running" => {}
+            state => return Err(format!("unexpected audio preparation state: request={} state={state}", task.request)),
         }
         Ok(())
     }

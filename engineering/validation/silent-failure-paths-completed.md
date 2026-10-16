@@ -175,3 +175,14 @@
 | renderer GPU / Engine failure latch / 1.5–1.6 | 出错后终止使用同一资源/worker 是失效边界；不清 latch、不在本任务中重启 GPU 或跨线程搬迁 session |
 | shell/lifecycle.rs / 1.11 | 清空等待队列发生在 failed worker 的关闭流程；故障已被记录且提供 recovery，断开的队列不能阻止进程退出 |
 | node_editor/view/mod.rs / 0.5 | 允许不完整、暂不能编译的图继续编辑；元数据非法仍拒绝。不能机械地把每个结构验证错误都变成禁止修改字段 |
+
+## 11 · 媒体导入与分析的终态处理
+
+状态：已修复；shell 17 项通过，随后桌面全套 331 passed，0 failed，0 ignored；cargo check 与桌面/effect_tool 构建通过。
+
+- 媒体状态查询失败时清空 importing_media，异步请求取消/释放，不再永远拦住下一次导入
+- 只把真实 running 当作进行中；未知/缺失/类型错误的 state 带 request id 返回协议错误，导入与音频分析都会退出等待
+- ready/failed 的任务释放失败写 warn，不覆盖 finish import 或 worker 的原始失败原因；实际成功导入也不会被清理错误伪装成没有导入
+- 新增 3 项测试：未知状态拒绝、真实不存在任务的查询失败后可继续轮询、真实损坏音频导入的终态释放且工程未改
+- 保留 respond 中无人接收异步结果的既有丢弃契约
+- 关联辅助：5.21；日志：shell-batch11.log、desktop-batch11-full.log、check-integrated.log、build-integrated.log
