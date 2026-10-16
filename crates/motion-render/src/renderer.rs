@@ -17,6 +17,9 @@ pub(crate) const TEXTURE_BUDGET: u64 = crate::resource_policy::DEFAULT_SOURCE_TE
 const CAPTURE_PIXEL_LIMIT: u64 = 16 * 1024 * 1024;
 const DRAW_SIZE: u64 = std::mem::size_of::<DrawUniform>() as u64;
 const TARGET_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
+static PREFETCH_FAILURES: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
+static IMAGE_PENDING: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
+static TEXTURE_ACCOUNTING_MISMATCHES: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
 #[derive(Debug, thiserror::Error)]
 pub enum RenderError {
@@ -1092,11 +1095,28 @@ impl Renderer {
     fn trim_image_cache(&mut self, additional: u64) {
         self.trim_image_cache_except(additional, None);
     }
+    fn check_texture_accounting(&self) {
+        use std::sync::atomic::Ordering;
+        // This is live residency. video_upload_bytes is cumulative traffic and
+        // must not be compared with resident textures or decoder planes.
+        let measured: u64 = self.images.values().map(|image| image.bytes).sum();
+        if measured == self.texture_bytes {
+            TEXTURE_ACCOUNTING_MISMATCHES.store(0, Ordering::Relaxed);
+        } else {
+            let previous = TEXTURE_ACCOUNTING_MISMATCHES.fetch_update(Ordering::Relaxed, Ordering::Relaxed,
+                |value| Some(value.saturating_add(1))).unwrap_or_else(|value| value);
+            if previous % 60 == 0 {
+                log::warn!("texture accounting mismatch site=renderer.trim_image_cache count={} booked={} measured={} video_planes={} video_upload_bytes={}",
+                    previous.saturating_add(1), self.texture_bytes, measured, self.video_plane_bytes(), self.video_upload_bytes);
+            }
+        }
+    }
     fn trim_image_cache_except(&mut self, additional: u64, replacing: Option<TextureKey>) {
         let limit = if self.image_cache_enabled { crate::image_resources::IDLE_TEXTURE_BYTES } else { 0 };
         let mut idle = self.image_idle_bytes();
         let mut total = self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes + additional;
         if idle <= limit && total <= self.effect_gpu.builder.source_texture_budget {
+            self.check_texture_accounting();
             return;
         }
         let mut victims: Vec<_> = self.image_access.iter()
@@ -1110,6 +1130,7 @@ impl Renderer {
             idle -= bytes;
             total = total.saturating_sub(bytes);
         }
+        self.check_texture_accounting();
     }
     fn touch_image(&mut self, id: u64) {
         self.image_clock = self.image_clock.saturating_add(1);
@@ -1176,11 +1197,12 @@ impl Renderer {
                 && !self.images.contains_key(&TextureKey::Static(source.id)) {
                 match result {
                 Ok(pixels) => {
+                    PREFETCH_FAILURES.success();
                     // Prefetch must never evict useful recent images or consume
                     // resources needed by an already active video/effect.
                     let cost = pixels.rgba.len() as u64;
                     if !wanted.contains(&source.id) && (cost + self.image_idle_bytes() > crate::image_resources::IDLE_TEXTURE_BYTES
-                        || self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes + cost > self.effect_gpu.builder.source_texture_budget) { return Ok(true); }
+                        || self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes + cost > self.effect_gpu.builder.source_texture_budget) { IMAGE_PENDING.success(); return Ok(true); }
                 self.upload_pixels(TextureKey::Static(source.id), pixels.width, pixels.height, &pixels.rgba, false)?;
                 self.image_decodes += u64::from(!pixels.cached);
                 self.image_proxy_cache_hits += u64::from(pixels.cached);
@@ -1189,7 +1211,10 @@ impl Renderer {
                 }
                 Err(error) if error == crate::image_resources::CANCELLED => {}
                 Err(error) if !speculative => return Err(RenderError::Invalid(format!("image {}: {error}", source.id))),
-                Err(_) => { self.image_prefetch_failed.insert(source.id); }
+                Err(error) => {
+                    PREFETCH_FAILURES.failure("renderer.image_prefetch", format_args!("source_id={} error={error}", source.id));
+                    self.image_prefetch_failed.insert(source.id);
+                }
                 }
             }
         }
@@ -1200,6 +1225,9 @@ impl Renderer {
                 if !self.image_decode.busy() {
                     self.image_decode.start(source, resolution, false).map_err(RenderError::Invalid)?;
                 }
+                IMAGE_PENDING.failure("renderer.prepare_scene_assets", format_args!(
+                    "source_id={} prefetch_failed={} decoder_busy={}", id,
+                    self.image_prefetch_failed.contains(&id), self.image_decode.busy()));
                 return Ok(false);
             }
             let pixels = decode(&source, resolution)
@@ -1209,7 +1237,9 @@ impl Renderer {
             self.image_proxy_cache_hits += u64::from(pixels.cached);
             self.image_upload_bytes += pixels.rgba.len() as u64;
             self.touch_image(id);
+            PREFETCH_FAILURES.success();
         }
+        IMAGE_PENDING.success();
         Ok(true)
     }
     /// Call after active image/video uploads. Speculation never precedes demand

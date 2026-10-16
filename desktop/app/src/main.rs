@@ -7,6 +7,7 @@ mod effect_import;
 mod engine;
 mod home;
 mod i18n;
+mod logging;
 mod mcp;
 mod movie_export;
 mod node_editor;
@@ -45,6 +46,7 @@ use winit::{
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let _logging = logging::init(directories().join("logs"))?;
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.iter().any(|a| a == "--command-list") {
         println!("{}", motion_core::CommandRegistry::catalogue());
@@ -140,7 +142,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let _ = proxy.send_event(UserEvent::EngineChanged);
                     })),
                 ) {
-                    eprintln!("MCP: {e}");
+                    log::error!("MCP: {e}");
                 }
             })?;
     }
@@ -568,7 +570,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             };
             if let Some(result) = result {
                 if began.elapsed().as_millis() >= 16 {
-                    eprintln!(
+                    log::debug!(
                         "[motion-timing] asynchronous edit: {} us",
                         began.elapsed().as_micros()
                     );

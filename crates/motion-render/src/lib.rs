@@ -2,6 +2,7 @@
 //! playback uploads only fixed-size layer uniforms.
 mod effect_gpu;
 pub mod effect_plan;
+pub mod observability;
 pub mod resource_policy;
 mod resource_error;
 pub use resource_error::{ResourceBudgetScope, ResourceRejection};

@@ -756,13 +756,19 @@ fn preview_refused(g: &mut Graphics, policy: &mut motion_render::preview_memory:
     g.renderer.reclaim_preview_working_set().map_err(|e| e.to_string())?;
     Ok(retry)
 }
+static PREVIEW_SURFACE_FAILURES: motion_render::observability::FailureCounter =
+    motion_render::observability::FailureCounter::new();
 fn acquire_preview_surface(g: &mut Graphics) -> Result<Option<wgpu::SurfaceTexture>> {
     match g.surface.get_current_texture() {
-        Ok(output) => Ok(Some(output)),
-        Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+        Ok(output) => { PREVIEW_SURFACE_FAILURES.success(); Ok(Some(output)) },
+        Err(error @ (wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated)) => {
+            PREVIEW_SURFACE_FAILURES.failure("host.acquire_preview_surface", format_args!("state={error:?}"));
             g.surface.configure(&g.renderer.device, &g.config); Ok(None)
         }
-        Err(wgpu::SurfaceError::Timeout) => Ok(None),
+        Err(wgpu::SurfaceError::Timeout) => {
+            PREVIEW_SURFACE_FAILURES.failure("host.acquire_preview_surface", format_args!("state=Timeout"));
+            Ok(None)
+        },
         Err(error) => Err(format!("surface rendering failed: {error}")),
     }
 }

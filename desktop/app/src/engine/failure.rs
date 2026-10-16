@@ -37,7 +37,7 @@ pub(super) struct SessionLease(pub i64);
 impl Drop for SessionLease {
     fn drop(&mut self) {
         if let Err(error) = motion_host::ops::catch_panic(|| motion_host::session::close(self.0)) {
-            eprintln!("[motion-engine] session cleanup panicked: {error}");
+            log::error!("[motion-engine] session cleanup panicked: {error}");
         }
     }
 }

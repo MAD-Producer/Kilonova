@@ -119,3 +119,34 @@ fn actual_engine_queue_records_waiting_separately_and_reply_context_preserves_th
     }
     panic!("no real queued State timing was observed within eight attempts");
 }
+
+#[test]
+fn in_flight_and_queue_depth_track_a_blocked_worker() {
+    let root = tempfile::tempdir().unwrap();
+    let engine = crate::engine::Engine::start(
+        root.path().join("project"), motion_desktop_media::platform(), 8 << 30,
+    ).unwrap();
+    let (entered, waiting) = std::sync::mpsc::channel();
+    let (release, blocked) = std::sync::mpsc::channel();
+    let first = engine.request(|reply| crate::engine::Command::TestWait {
+        entered, release: blocked, reply,
+    }).unwrap();
+    waiting.recv_timeout(Duration::from_secs(5)).unwrap();
+    // Capture assertions before release, but always unblock before panicking so
+    // Engine::drop cannot turn a failing regression test into a hung test suite.
+    let flight = engine.in_flight();
+    let state = engine.request(crate::engine::Command::State).unwrap();
+    let depth = engine.queue_depth();
+    release.send(()).unwrap();
+    first.recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+    state.recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+    assert_eq!(flight.as_ref().map(|(op, _)| op.as_str()), Some("test_wait"));
+    assert!(depth >= 1);
+    // Replies are sent inside handle; the record and clear intentionally follow.
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while engine.in_flight().is_some() && Instant::now() < deadline {
+        std::thread::yield_now();
+    }
+    assert_eq!(engine.queue_depth(), 0);
+    assert!(engine.in_flight().is_none());
+}

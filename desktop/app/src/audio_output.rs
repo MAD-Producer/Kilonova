@@ -370,7 +370,7 @@ fn spawn_monitor(shared: Arc<Shared>) -> Result<JoinHandle<()>, String> {
                 let underruns = shared.underruns.load(Ordering::Relaxed);
                 if underruns != reported {
                     // Diagnostic IO stays off the realtime callback and UI.
-                    eprintln!("[motion-audio] underruns={underruns}");
+                    log::warn!("[motion-audio] underruns={underruns}");
                     reported = underruns;
                 }
                 std::thread::park_timeout(Duration::from_millis(250));

@@ -1,0 +1,231 @@
+//! File-only process logging. stdout belongs to the CLI/MCP protocol.
+use std::{
+    backtrace::Backtrace,
+    cell::Cell,
+    fs::{self, File, OpenOptions},
+    io::{self, BufWriter, Write},
+    path::PathBuf,
+    sync::{Mutex, OnceLock},
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
+
+struct FileLogger {
+    writer: Mutex<BufWriter<File>>,
+    level: log::LevelFilter,
+}
+static LOGGER: OnceLock<FileLogger> = OnceLock::new();
+thread_local! {
+    static IN_PANIC_HOOK: Cell<bool> = const { Cell::new(false) };
+}
+
+impl FileLogger {
+    fn write(&self, record: &log::Record<'_>, writer: &mut impl Write) {
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default();
+        let thread = std::thread::current();
+        let _ = writeln!(
+            writer,
+            "{}.{:03} {} [{}] {}: {}",
+            timestamp.as_secs(),
+            timestamp.subsec_millis(),
+            record.level(),
+            thread.name().unwrap_or("unnamed"),
+            record.target(),
+            record.args()
+        );
+        if record.level() <= log::Level::Warn {
+            let _ = writer.flush();
+        }
+    }
+}
+impl log::Log for FileLogger {
+    fn enabled(&self, metadata: &log::Metadata<'_>) -> bool {
+        metadata.level() <= self.level
+    }
+    fn log(&self, record: &log::Record<'_>) {
+        if !self.enabled(record.metadata()) {
+            return;
+        }
+        if IN_PANIC_HOOK.get() {
+            // The panic may have originated while this very thread held writer.
+            match self.writer.try_lock() {
+                Ok(mut writer) => self.write(record, &mut *writer),
+                Err(_) => {
+                    let _ = writeln!(io::stderr(), "{}: {}", record.level(), record.args());
+                }
+            }
+        } else if let Ok(mut writer) = self.writer.lock() {
+            self.write(record, &mut *writer);
+        }
+    }
+    fn flush(&self) {
+        if let Ok(mut writer) = self.writer.lock() {
+            let _ = writer.flush();
+        }
+    }
+}
+
+/// Flush buffered info/debug records when main returns, including early CLI exits.
+pub struct Guard;
+impl Drop for Guard {
+    fn drop(&mut self) {
+        flush();
+    }
+}
+pub fn flush() {
+    log::logger().flush();
+}
+
+pub fn init(dir: PathBuf) -> Result<Guard, Box<dyn std::error::Error>> {
+    fs::create_dir_all(&dir)?;
+    let path = dir.join("motion-studio.log");
+    if path.exists() {
+        let previous = dir.join("motion-studio.log.1");
+        match fs::remove_file(&previous) {
+            Ok(()) => {}
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error.into()),
+        }
+        fs::rename(&path, previous)?;
+    }
+    let level = std::env::var("MOTION_LOG")
+        .ok()
+        .and_then(|level| level.parse().ok())
+        .unwrap_or(log::LevelFilter::Info);
+    let logger = FileLogger {
+        writer: Mutex::new(BufWriter::new(
+            OpenOptions::new().create(true).append(true).open(path)?,
+        )),
+        level,
+    };
+    LOGGER
+        .set(logger)
+        .map_err(|_| io::Error::other("logging already initialized"))?;
+    let logger = LOGGER
+        .get()
+        .ok_or_else(|| io::Error::other("logger unavailable"))?;
+    log::set_logger(logger).map_err(|_| io::Error::other("process logger already installed"))?;
+    log::set_max_level(level);
+    let original = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        IN_PANIC_HOOK.set(true);
+        log::error!(
+            "panic command={:?}: {info}\n{}",
+            crate::engine::current_command(),
+            Backtrace::force_capture()
+        );
+        IN_PANIC_HOOK.set(false);
+        original(info);
+    }));
+    std::thread::Builder::new()
+        .name("motion-log-flush".into())
+        .spawn(|| loop {
+            std::thread::sleep(Duration::from_secs(1));
+            flush();
+        })?;
+    log::info!("logging initialized level={level}");
+    Ok(Guard)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use log::Log;
+
+    #[test]
+    fn file_sink_filters_debug_and_flushes_buffered_info_on_warning() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("sink.log");
+        let logger = FileLogger {
+            writer: Mutex::new(BufWriter::new(File::create(&path).unwrap())),
+            level: log::LevelFilter::Info,
+        };
+        logger.log(
+            &log::Record::builder()
+                .level(log::Level::Debug)
+                .args(format_args!("hidden"))
+                .build(),
+        );
+        logger.log(
+            &log::Record::builder()
+                .level(log::Level::Info)
+                .args(format_args!("start #7 test_wait"))
+                .build(),
+        );
+        assert!(fs::read_to_string(&path).unwrap().is_empty());
+        logger.log(
+            &log::Record::builder()
+                .level(log::Level::Warn)
+                .args(format_args!("timeout #7"))
+                .build(),
+        );
+        let text = fs::read_to_string(path).unwrap();
+        assert!(text.contains("start #7 test_wait"));
+        assert!(text.contains("timeout #7"));
+        assert!(!text.contains("hidden"));
+    }
+
+    #[test]
+    fn panic_hook_captures_caught_panics_and_never_waits_for_its_own_sink() {
+        // A subprocess isolates the global logger/hook from parallel engine tests.
+        if let Some(root) = std::env::var_os("MOTION_LOG_TEST_CHILD") {
+            let root = PathBuf::from(root);
+            let _guard = init(root.clone()).unwrap();
+            let held = std::env::var_os("MOTION_LOG_TEST_HELD").is_some();
+            let lock = held.then(|| LOGGER.get().unwrap().writer.lock().unwrap());
+            let result = std::panic::catch_unwind(|| panic!("observable caught panic"));
+            drop(lock);
+            assert!(result.is_err());
+            log::warn!("unwind completed");
+            return;
+        }
+        for held in [false, true] {
+            let root = tempfile::tempdir().unwrap();
+            fs::write(root.path().join("motion-studio.log"), "previous run").unwrap();
+            let mut command = std::process::Command::new(std::env::current_exe().unwrap());
+            command.args(["--exact", "logging::tests::panic_hook_captures_caught_panics_and_never_waits_for_its_own_sink"])
+                .env("MOTION_LOG_TEST_CHILD", root.path()).env_remove("MOTION_LOG");
+            if held {
+                command.env("MOTION_LOG_TEST_HELD", "1");
+            } else {
+                command.env_remove("MOTION_LOG_TEST_HELD");
+            }
+            // Redirect to files, so a failed hook cannot block on a full pipe.
+            let stdout = root.path().join("stdout");
+            let stderr = root.path().join("stderr");
+            let mut child = command
+                .stdout(File::create(&stdout).unwrap())
+                .stderr(File::create(&stderr).unwrap())
+                .spawn()
+                .unwrap();
+            let deadline = std::time::Instant::now() + Duration::from_secs(20);
+            let status = loop {
+                if let Some(status) = child.try_wait().unwrap() {
+                    break status;
+                }
+                if std::time::Instant::now() >= deadline {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    panic!("panic hook deadlocked with held={held}");
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            };
+            assert!(status.success(), "{}", fs::read_to_string(&stderr).unwrap());
+            let text = fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
+            assert!(text.contains("unwind completed"));
+            assert_eq!(
+                fs::read_to_string(root.path().join("motion-studio.log.1")).unwrap(),
+                "previous run"
+            );
+            if held {
+                assert!(fs::read_to_string(stderr)
+                    .unwrap()
+                    .contains("observable caught panic"));
+            } else {
+                assert!(text.contains("observable caught panic"));
+                assert!(text.contains("panic_hook_captures_caught_panics"));
+            }
+        }
+    }
+}
