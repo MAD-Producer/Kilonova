@@ -1,4 +1,4 @@
-"""CI regressions for build entrypoint arguments without invoking compilers."""
+"""Manual legacy Android build regressions without invoking compilers."""
 import importlib.util
 import json
 from pathlib import Path

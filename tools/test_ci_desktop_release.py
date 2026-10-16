@@ -171,6 +171,110 @@ class DesktopReleaseTest(unittest.TestCase):
                 ci_release.publish()
             gh.assert_not_called()
 
+    def test_desktop_only_publication_needs_no_apk_and_lists_only_four_packages(self):
+        for platform in desktop.PLATFORMS:
+            self.pack(platform)
+        calls = []
+
+        def gh(*args, **kwargs):
+            calls.append(args)
+            if "git/ref/heads/main" in " ".join(args):
+                return subprocess.CompletedProcess(args, 0, "a" * 40 + "\n", "")
+            if args[:2] == ("release", "view"):
+                return subprocess.CompletedProcess(args, 0, json.dumps({"isDraft": False, "url": "https://example.com/preview"}), "")
+            return subprocess.CompletedProcess(args, 0, "{}", "")
+
+        with patch.object(ci_release, "ROOT", self.root), patch.object(ci_release, "gh", side_effect=gh), patch.object(ci_release, "release_changelog", return_value="changes\n"):
+            ci_release.publish(desktop_only=True)
+        info = json.loads((self.folder / "build-info.json").read_text(encoding="utf-8"))
+        self.assertNotIn("apk", info)
+        self.assertEqual({item["platform"] for item in info["artifacts"]}, set(desktop.PLATFORMS))
+        upload = next(call for call in calls if call[:2] == ("release", "upload"))
+        self.assertFalse(any(str(arg).endswith(".apk") for arg in upload))
+        self.assertEqual(len((self.folder / "SHA256SUMS").read_text().splitlines()), 4)
+        self.assertNotIn("Android", (self.folder / "release-notes.md").read_text(encoding="utf-8"))
+
+    def test_desktop_only_rejects_missing_stale_corrupt_and_unsigned_inputs_before_gh(self):
+        for platform in desktop.PLATFORMS:
+            self.pack(platform)
+        manifest = self.folder / "build-info-macos-arm64.json"
+        original = manifest.read_text()
+        for field, value in [("commit", "b" * 40), ("ref", "refs/heads/fix/work"),
+                             ("run", "999"), ("versionName", "0.1.0-preview.6"),
+                             ("kind", "release"), ("signing", "test-only-unsigned"),
+                             ("sha256", "0" * 64), ("archive", "../bad.zip")]:
+            with self.subTest(field=field):
+                changed = json.loads(original)
+                changed[field] = value
+                manifest.write_text(json.dumps(changed))
+                with patch.object(ci_release, "ROOT", self.root), patch.object(ci_release, "gh") as gh:
+                    with self.assertRaises(ValueError):
+                        ci_release.publish(desktop_only=True)
+                    gh.assert_not_called()
+        manifest.unlink()
+        with patch.object(ci_release, "ROOT", self.root), patch.object(ci_release, "gh") as gh:
+            with self.assertRaises(FileNotFoundError):
+                ci_release.publish(desktop_only=True)
+            gh.assert_not_called()
+
+    def test_desktop_only_refuses_untrusted_events_even_with_main_or_tag_refs(self):
+        for event, ref in [("pull_request", "refs/heads/main"),
+                           ("workflow_dispatch", "refs/tags/v1.2.3"),
+                           ("push", "refs/heads/feat/work")]:
+            with self.subTest(event=event), patch.dict(os.environ, GITHUB_EVENT_NAME=event, GITHUB_REF=ref):
+                with patch.object(ci_release, "ROOT", self.root), patch.object(ci_release, "gh") as gh:
+                    with self.assertRaises(ValueError):
+                        ci_release.publish(desktop_only=True)
+                    gh.assert_not_called()
+
+    def test_desktop_only_version_tags_preserve_stable_and_prerelease_publication(self):
+        for version, prerelease in [("1.2.3", False), ("1.2.3-rc.1", True)]:
+            with self.subTest(version=version), patch.dict(os.environ, GITHUB_REF="refs/tags/v" + version):
+                for platform in desktop.PLATFORMS:
+                    self.pack(platform)
+                calls = []
+
+                def gh(*args, **kwargs):
+                    calls.append(args)
+                    if args[:2] == ("release", "view"):
+                        return subprocess.CompletedProcess(args, 1, "", "release not found")
+                    return subprocess.CompletedProcess(args, 0, "{}", "")
+
+                with patch.object(ci_release, "ROOT", self.root), patch.object(ci_release, "gh", side_effect=gh), patch.object(ci_release, "release_changelog", return_value="changes\n"):
+                    ci_release.publish(desktop_only=True)
+                info = json.loads((self.folder / "build-info.json").read_text())
+                self.assertEqual(info["kind"], "release")
+                self.assertEqual(info["versionName"], version)
+                edit = next(call for call in calls if call[:2] == ("release", "edit"))
+                self.assertEqual(edit[2], "v" + version)
+                self.assertIn("--prerelease=" + str(prerelease).lower(), edit)
+                self.assertIn("--latest=" + str(not prerelease).lower(), edit)
+
+    def test_desktop_only_stale_preview_and_published_versions_are_never_replaced(self):
+        for platform in desktop.PLATFORMS:
+            self.pack(platform)
+        with patch.object(ci_release, "ROOT", self.root), patch.object(ci_release, "gh", return_value=subprocess.CompletedProcess([], 0, "b" * 40 + "\n", "")) as gh:
+            ci_release.publish(desktop_only=True)
+            self.assertEqual(gh.call_count, 1)
+        with patch.dict(os.environ, GITHUB_REF="refs/tags/v1.2.3"):
+            for platform in desktop.PLATFORMS:
+                self.pack(platform)
+            calls = []
+
+            def gh(*args, **kwargs):
+                calls.append(args)
+                if args[:2] == ("release", "view"):
+                    return subprocess.CompletedProcess(args, 0, json.dumps({"isDraft": False, "url": "https://example.com/release"}), "")
+                if args[:2] == ("release", "download"):
+                    destination = Path(args[args.index("--dir") + 1])
+                    (destination / "build-info.json").write_text(json.dumps({"commit": "b" * 40, "artifacts": []}))
+                return subprocess.CompletedProcess(args, 0, "{}", "")
+
+            with patch.object(ci_release, "ROOT", self.root), patch.object(ci_release, "gh", side_effect=gh):
+                with self.assertRaisesRegex(RuntimeError, "cannot be replaced"):
+                    ci_release.publish(desktop_only=True)
+            self.assertFalse(any(call[:2] in (("release", "upload"), ("release", "edit")) for call in calls))
+
     def test_workflow_packages_every_platform_and_downloads_them_before_publication(self):
         workflow=yaml.load((desktop.ROOT/".github/workflows/ci.yml").read_text(),Loader=yaml.BaseLoader)
         matrix=workflow["jobs"]["desktop"]["strategy"]["matrix"]["include"]
@@ -182,7 +286,7 @@ class DesktopReleaseTest(unittest.TestCase):
         steps=publish["steps"]
         download=next(step for step in steps if step.get("with",{}).get("pattern")=="desktop-release-*")
         self.assertEqual(download["with"]["merge-multiple"],"true")
-        self.assertLess(steps.index(download), next(i for i,s in enumerate(steps) if s.get("run")=="python tools/ci_release.py publish"))
+        self.assertLess(steps.index(download), next(i for i,s in enumerate(steps) if s.get("run")=="python tools/ci_release.py publish-desktop"))
 
 
 if __name__ == "__main__":
