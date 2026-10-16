@@ -7,6 +7,8 @@ mod control_popup;
 mod control_tests;
 mod controls;
 #[cfg(test)]
+mod failure_tests;
+#[cfg(test)]
 mod group_tests;
 mod inspector;
 mod interaction;
@@ -271,7 +273,7 @@ impl NodeEditor {
         let mut response = FrameResponse::default();
         self.settle_nudge(input);
         if area.width() < 320. || area.height() < self.layout(area).toolbar.height() + 77. {
-            self.cancel_inline();
+            self.cancel_canvas_interaction();
             response.changed = revision != self.revision;
             response.semantic_changed = semantic != self.semantic_revision;
             if response.changed {

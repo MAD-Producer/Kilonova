@@ -152,3 +152,26 @@
 - 原坏预取转 active 的真 GPU 回归已实测通过，返回 image 9 错误，没有永久 pending；无需将失败集合改为 active 资产的永久黑名单
 - 图片资源测试中唯一未执行项为既有外部 MOTION_IMAGE_SOURCE 本地图片探针，未更改其 ignore 或断言
 - 关联辅助：1.10、11.27–11.28；日志：render-batch09-final.log、render-batch09-gpu.log，位于 target/silent-failure-validation
+
+## 10 · 节点交互取消与能力查询请求
+
+状态：已修复；cargo test -p motion-desktop --offline -- --include-ignored 全套 328 passed，0 failed，0 ignored。
+
+- 能力查询必须通过大小限制、JSON/schema 解码并确认为 media_capabilities；坏 JSON、超限内容、错误命令、错误字段类型和未知字段明确 Err，不再回退为无筛选能力答案
+- 节点拖拽的 Escape、失去按键、焦点取消在确有变化时恢复文档并提升非语义 revision，保持语义/preview revision 与 undo 栈不变，使恢复对外可观察
+- 画布缩小时取消未闭合的节点拖拽和按住中的 nudge；保留文本字段，不新建 undo 记录；不改布局尺寸、样式或 panel 文件
+- 新增 4 项回归包含真实 pointer 输入、按键与 draw 响应；验证恢复后的 changed/semantic_changed、文档、拖拽状态和历史
+- 关联辅助：5.20、9 类节点布局取消；日志：target/silent-failure-validation/desktop-batch10.log
+
+## 新核实的保留项与误报
+
+| 位置/辅助编号 | 源码结论 |
+| --- | --- |
+| animation.rs:spatial_components / 4.6 | 支持 N=2..4 的向量投影到三维；二维 z=0 是有意补齐，并非把缺失的创作轴改零 |
+| audio_levels.rs / 4.12 | 默认左右为 0 dB，db_gain(0)=1，是原始音量；字段缺省不等于静音，也不是丢失已有 envelope |
+| particle_history.rs / 4.13 | source_layer 是可选外部空间源，未指定时用当前 emitter；显式指定但不存在的 layer 会返回 Missing，不会把坏 id 别名到 emitter |
+| vector/groups.rs / 4.11 | 比较时的 MAX fallback 后，move_key/copy_key 仍使用 local(to)?，溢出会拒绝编辑；不是永远不匹配后静默接受 |
+| vector/groups.rs / 4.14 | find 是 Option 查询，edit_key 紧接着把 None 转为 group parameter missing；坏 node:path:node 不会成功丢弃编辑 |
+| renderer GPU / Engine failure latch / 1.5–1.6 | 出错后终止使用同一资源/worker 是失效边界；不清 latch、不在本任务中重启 GPU 或跨线程搬迁 session |
+| shell/lifecycle.rs / 1.11 | 清空等待队列发生在 failed worker 的关闭流程；故障已被记录且提供 recovery，断开的队列不能阻止进程退出 |
+| node_editor/view/mod.rs / 0.5 | 允许不完整、暂不能编译的图继续编辑；元数据非法仍拒绝。不能机械地把每个结构验证错误都变成禁止修改字段 |

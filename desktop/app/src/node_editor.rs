@@ -652,22 +652,31 @@ impl NodeEditor {
         }
         self.refresh_diagnostic();
     }
-    fn cancel_edit_only(&mut self) {
+    fn restore_node_drag(&mut self, before: History) {
+        if self.document != before.document {
+            self.document = before.document;
+            self.bump(false);
+        }
+    }
+    fn cancel_canvas_interaction(&mut self) {
         self.cancel_inline();
         if let Some(before) = self.nudge_before.take() {
             self.document = before.document;
             self.bump(false);
         }
-        self.add_menu = None;
-        self.context_menu = None;
         match self.drag.take() {
-            Some(Drag::Nodes { before, .. }) => self.document = before.document,
+            Some(Drag::Nodes { before, .. }) => self.restore_node_drag(before),
             Some(Drag::Marquee { base, primary, .. }) => {
                 self.selected = base;
                 self.primary = primary;
             }
             _ => {}
         }
+    }
+    fn cancel_edit_only(&mut self) {
+        self.cancel_canvas_interaction();
+        self.add_menu = None;
+        self.context_menu = None;
         self.field = None;
         self.search_focus = false;
     }

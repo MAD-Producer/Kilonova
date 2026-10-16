@@ -1,0 +1,119 @@
+use super::super::tests::{frame, press, simple};
+use super::*;
+use motion_ui::input::Modifiers;
+
+fn begin_moved_drag(editor: &mut NodeEditor, atlas: &mut TextAtlas) -> GraphDocument {
+    frame(editor, atlas, Input::default());
+    let before = editor.document.clone();
+    let card = editor
+        .cards(editor.last_canvas)
+        .into_iter()
+        .find(|c| c.id == "number")
+        .unwrap();
+    let point = [card.rect.min[0] + 80., card.rect.min[1] + 10.];
+    frame(editor, atlas, press(point, MouseButton::Left));
+    frame(
+        editor,
+        atlas,
+        Input {
+            mouse: [point[0] + 60., point[1] + 20.],
+            held: Some(MouseButton::Left),
+            ..Default::default()
+        },
+    );
+    assert!(matches!(editor.drag, Some(Drag::Nodes { .. })));
+    assert_ne!(editor.document, before);
+    before
+}
+
+#[test]
+fn canceling_node_movement_publishes_restoration_without_changing_semantics_or_history() {
+    for reason in ["escape", "lost_button", "focus"] {
+        let mut editor = simple();
+        let mut atlas = TextAtlas::from_system(13.).unwrap();
+        let before = begin_moved_drag(&mut editor, &mut atlas);
+        let (revision, semantic, preview, undo) = (
+            editor.revision,
+            editor.semantic_revision,
+            editor.preview_revision,
+            editor.undo.len(),
+        );
+        let response = match reason {
+            "escape" => Some(frame(
+                &mut editor,
+                &mut atlas,
+                Input {
+                    keys: vec![(Key::Escape, Modifiers::default())],
+                    ..Default::default()
+                },
+            )),
+            "lost_button" => Some(frame(&mut editor, &mut atlas, Input::default())),
+            _ => {
+                editor.cancel_interaction();
+                None
+            }
+        };
+        assert_eq!(editor.document, before, "{reason}");
+        assert!(editor.drag.is_none(), "{reason}");
+        assert_ne!(editor.revision, revision, "{reason}");
+        assert_eq!(editor.semantic_revision, semantic, "{reason}");
+        assert_eq!(editor.preview_revision, preview, "{reason}");
+        assert_eq!(editor.undo.len(), undo, "{reason}");
+        if let Some(response) = response {
+            assert!(response.changed && !response.semantic_changed, "{reason}");
+        }
+    }
+}
+
+#[test]
+fn shrinking_canvas_cancels_node_drag_and_reports_restoration() {
+    let mut editor = simple();
+    let mut atlas = TextAtlas::from_system(13.).unwrap();
+    let before = begin_moved_drag(&mut editor, &mut atlas);
+    let mut paint = PaintList::default();
+    let response = editor.draw(
+        &mut paint,
+        &mut atlas,
+        Rect::new(0., 0., 200., 300.),
+        &Input {
+            held: Some(MouseButton::Left),
+            ..Default::default()
+        },
+        Language::English,
+    );
+    assert_eq!(editor.document, before);
+    assert!(!editor.editing());
+    assert!(response.changed && !response.semantic_changed);
+}
+
+#[test]
+fn shrinking_canvas_cancels_a_held_nudge_without_committing_an_undo_step() {
+    let mut editor = simple();
+    editor.focus_panel();
+    let before = editor.document.clone();
+    let undo = editor.undo.len();
+    editor.keyboard(
+        &Input {
+            keys: vec![(Key::Right, Modifiers::default())],
+            held_keys: vec![Key::Right],
+            ..Default::default()
+        },
+        &mut Vec::new(),
+    );
+    assert!(editor.nudge_before.is_some());
+    let mut atlas = TextAtlas::from_system(13.).unwrap();
+    let response = editor.draw(
+        &mut PaintList::default(),
+        &mut atlas,
+        Rect::new(0., 0., 200., 300.),
+        &Input {
+            held_keys: vec![Key::Right],
+            ..Default::default()
+        },
+        Language::English,
+    );
+    assert_eq!(editor.document, before);
+    assert!(editor.nudge_before.is_none());
+    assert_eq!(editor.undo.len(), undo);
+    assert!(response.changed && !response.semantic_changed);
+}

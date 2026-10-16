@@ -439,7 +439,7 @@ impl NodeEditor {
                             self.finish_edit(before);
                         }
                     } else {
-                        self.document = before.document;
+                        self.restore_node_drag(before);
                     }
                 }
                 Drag::Wire { source, old_input } => {

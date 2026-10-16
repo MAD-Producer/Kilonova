@@ -1513,22 +1513,35 @@ fn media_request(id: i64, text: &str) -> Result<Value, String> {
 
 /// Capability queries need no session, so they answer from the platform alone.
 fn capabilities_request(platform: &Arc<dyn Platform>, text: &str) -> Result<Value, String> {
-    let query = motion_host::ops::parse_request(text, 16 * 1024, "media request")
-        .ok()
-        .and_then(|value| {
-            serde_json::from_value::<media::Request>(value)
-                .ok()
-                .and_then(|request| match request {
-                    media::Request::MediaCapabilities { video_query } => video_query,
-                    _ => None,
-                })
-        });
+    let value = motion_host::ops::parse_request(text, 16 * 1024, "media request")?;
+    let request = serde_json::from_value::<media::Request>(value)
+        .map_err(|error| format!("media request: {error}"))?;
+    let media::Request::MediaCapabilities { video_query: query } = request else {
+        return Err("expected media_capabilities request".into());
+    };
     platform.media_capabilities(query.as_ref())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn capability_queries_reject_bad_requests_instead_of_answering_defaults() {
+        let platform: Arc<dyn Platform> = motion_desktop_media::platform();
+        for text in [
+            "{",
+            r#"{"op":"unknown"}"#,
+            r#"{"op":"media_status","request_id":"wrong-command"}"#,
+            r#"{"op":"media_capabilities","video_query":{"width":"not-a-number"}}"#,
+            r#"{"op":"media_capabilities","unexpected":1}"#,
+        ] {
+            assert!(capabilities_request(&platform, text).is_err(), "accepted {text}");
+        }
+        let oversized = format!("{}{}", " ".repeat(16 * 1024), r#"{"op":"media_capabilities"}"#);
+        assert!(capabilities_request(&platform, &oversized).is_err());
+        assert!(capabilities_request(&platform, r#"{"op":"media_capabilities"}"#).unwrap().is_object());
+    }
+
     #[test]
     fn asynchronous_edit_replies_preserve_one_transaction_and_undo() {
         let folder = tempfile::tempdir().unwrap();
