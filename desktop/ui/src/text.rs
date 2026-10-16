@@ -322,6 +322,9 @@ impl TextAtlas {
             return text.to_owned();
         }
         let ellipsis_width = self.advance('\u{2026}');
+        if !width.is_finite() || width < ellipsis_width {
+            return String::new();
+        }
         let mut result = String::new();
         let mut used = 0.0;
         for character in text.chars() {
