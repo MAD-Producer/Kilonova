@@ -17,6 +17,7 @@ mod animation_data;
 mod audio;
 mod auxiliary;
 pub(crate) mod camera_controls;
+mod color_well;
 mod composition;
 mod curves;
 pub(crate) mod effect_controls;
@@ -125,6 +126,7 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     let audio = panels.audio_controls.cancel();
     let graph_box = panels.timeline.graph_box.cancel();
     let effect = panels.effect_controls.cancel();
+    let auxiliary = panels.auxiliary.cancel();
     let numeric = panels
         .properties
         .field
@@ -151,6 +153,7 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
         || effect
         || camera
         || audio
+        || auxiliary
     {
         vec![Action::History(4)]
     } else {
@@ -321,8 +324,10 @@ pub fn chrome(
         || panels.timeline.timeline_context_menu.is_some();
     let effect_modal = panels.effect_controls.editing();
     let audio_modal = panels.audio_controls.editing();
+    let auxiliary_modal = panels.auxiliary.editing();
     let neutral = Input::default();
-    let body_input = if menu_modal || node_modal || effect_modal || audio_modal {
+    let body_input = if menu_modal || node_modal || effect_modal || audio_modal || auxiliary_modal
+    {
         &neutral
     } else {
         input
@@ -435,6 +440,7 @@ pub fn chrome(
                         && !node_modal)
                     || (audio_modal && f.panel == Panel::Timeline && !menu_modal && !node_modal)
                     || (timeline_popup && f.panel == Panel::Timeline)
+                    || (auxiliary_modal && f.panel == Panel::Character && !menu_modal)
                 {
                     input
                 } else {

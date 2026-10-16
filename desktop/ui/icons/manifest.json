@@ -210,6 +210,18 @@
     {
       "name": "maximize",
       "source": "Motion Studio 补充图标，窗口最大化"
+    },
+    {
+      "name": "align_left",
+      "source": "Motion Studio 补充图标，段落左对齐"
+    },
+    {
+      "name": "align_center",
+      "source": "Motion Studio 补充图标，段落居中对齐"
+    },
+    {
+      "name": "align_right",
+      "source": "Motion Studio 补充图标，段落右对齐"
     }
   ]
 }

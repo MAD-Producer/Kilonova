@@ -1,6 +1,7 @@
 //! A color remains one property row. Precise channels appear only while editing.
 use super::*;
-use motion_ui::style::{box_style, text_style, State, States};
+use crate::panels::color_well;
+use motion_ui::style::{box_style, text_style, States};
 
 #[derive(Clone)]
 pub(super) struct Popup {
@@ -10,32 +11,6 @@ pub(super) struct Popup {
     parameter: String,
     anchor: Rect,
     opened: bool,
-}
-fn swatch(list: &mut PaintList, rect: Rect, values: &[f32], input: &Input, enabled: bool) {
-    let styles = list.styles();
-    let mut states = States::default();
-    if enabled && rect.contains(input.mouse) {
-        states = states.with(State::Hovered);
-    }
-    if !enabled {
-        states = states.with(State::Disabled);
-    }
-    let style = styles.resolve("color_well", states).unwrap();
-    box_style(list, rect, style);
-    let inset = rect.shrink(style.padding + style.border_width);
-    paint::checkerboard(
-        list,
-        inset,
-        styles.color("checker.light"),
-        styles.color("checker.dark"),
-        styles.metric("padding", 5.),
-    );
-    // This is authored color data, rather than an editor theme color.
-    paint::rect(
-        list,
-        inset,
-        Color([values[0], values[1], values[2], values[3]]),
-    );
 }
 impl Controls {
     pub(super) fn color_row(
@@ -62,7 +37,7 @@ impl Controls {
             (edge + styles.metric("icon.slot", 20.)).min(f.number.width()),
             edge,
         );
-        swatch(list, preview, &p.values, input, enabled);
+        color_well::swatch(list, preview, &p.values, input, enabled);
         let text_area = Rect::new(
             preview.max[0] + styles.metric("padding", 5.),
             y,
@@ -73,14 +48,7 @@ impl Controls {
             .max(0.),
             styles.metric("row.height", 22.),
         );
-        let byte = |axis: usize| (p.values[axis].clamp(0., 1.) * 255.).round() as u8;
-        let text = format!(
-            "#{:02X}{:02X}{:02X} · {:.0}%",
-            byte(0),
-            byte(1),
-            byte(2),
-            p.values[3] * 100.
-        );
+        let text = color_well::caption(&p.values);
         let style = styles
             .resolve(
                 if enabled {

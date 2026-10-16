@@ -175,6 +175,13 @@ pub enum Text {
     ViewSide,
     FrameStep,
     OperationFailed,
+    PlayShortcut,
+    PreviewVideo,
+    PreviewAudio,
+    CacheThenPlay,
+    TrackingLeading,
+    FillStroke,
+    Reset,
 }
 impl Locale {
     pub fn parse(value: &str) -> Option<Self> {
@@ -350,6 +357,13 @@ impl Locale {
             ViewSide => ("侧视图", "Side"),
             FrameStep => ("方向键：逐帧", "Arrows: frame step"),
             OperationFailed => ("操作失败", "Operation failed"),
+            PlayShortcut => ("快捷键", "Shortcut"),
+            PreviewVideo => ("视频", "Video"),
+            PreviewAudio => ("音频", "Audio"),
+            CacheThenPlay => ("缓存后播放", "Cache before playback"),
+            TrackingLeading => ("字距 / 行距", "Tracking / Leading"),
+            FillStroke => ("填充 / 描边", "Fill / Stroke"),
+            Reset => ("重置", "Reset"),
         };
         if self == Self::Zh {
             zh

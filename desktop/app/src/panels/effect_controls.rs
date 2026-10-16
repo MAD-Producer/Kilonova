@@ -1,7 +1,7 @@
 //! Catalogue and parameter controls share the core effect command contracts.
 use crate::{
     i18n::{Locale, Text as T},
-    panels::Action,
+    panels::{color_well, Action},
 };
 use motion_core::EffectParam;
 use motion_core::{Command, EffectAction};
@@ -61,6 +61,18 @@ pub struct Controls {
     collapsed_categories: std::collections::HashSet<String>,
     collapsed_effects: std::collections::HashSet<u64>,
     context_menu: Option<EffectContextMenu>,
+    color_popup: Option<ColorPopup>,
+    /// component -2 = popup frame, -1 = swatch, 0.. = popup channel fields.
+    #[cfg(test)]
+    pub(crate) test_rects: HashMap<(u64, u64, String, i64), Rect>,
+}
+#[derive(Clone)]
+struct ColorPopup {
+    object: u64,
+    effect: u64,
+    param: String,
+    anchor: Rect,
+    opened: bool,
 }
 struct EffectContextMenu {
     anchor: [f32; 2],
@@ -237,6 +249,7 @@ impl Controls {
             || self.choosing
             || self.enum_owner.is_some()
             || self.context_menu.is_some()
+            || self.color_popup.is_some()
             || self.curve_editors.values().any(curve::Editor::dragging)
     }
     pub fn cancel(&mut self) -> bool {
@@ -247,6 +260,7 @@ impl Controls {
         self.choosing = false;
         self.enum_owner = None;
         self.context_menu = None;
+        self.color_popup = None;
         for dropdown in self.dropdowns.values_mut() {
             dropdown.open = false;
         }
@@ -286,12 +300,14 @@ impl Controls {
                             .into_iter()
                             .flatten()
                             .map(|p| {
-                                if p["kind"].as_str() == Some("curve") {
+                                let kind = p["kind"].as_str().unwrap_or("float");
+                                if kind == "curve" {
                                     20. + curve::HEIGHT
+                                } else if kind == "color" {
+                                    // One swatch row; channels live in the popup.
+                                    26. + 20.
                                 } else {
-                                    dimensions(p["kind"].as_str().unwrap_or("float")) as f32
-                                        * 26.
-                                        + 20.
+                                    dimensions(kind) as f32 * 26. + 20.
                                 }
                             })
                             .sum::<f32>()
@@ -629,7 +645,7 @@ impl Controls {
         let original_input = input;
         let neutral = Input::default();
         let modal_owner = self.enum_owner.clone();
-        let input = if modal_owner.is_some() {
+        let input = if modal_owner.is_some() || self.color_popup.is_some() {
             &neutral
         } else {
             input
@@ -669,6 +685,9 @@ impl Controls {
             ) {
                 self.choosing = !self.choosing;
                 self.query.clear();
+                if self.choosing {
+                    self.color_popup = None;
+                }
             }
             *y += 34.;
             if ui::button_styled(
@@ -1168,14 +1187,27 @@ impl Controls {
                         },
                     }));
                 }
+                if kind == "color" {
+                    self.color_row(
+                        list,
+                        atlas,
+                        area,
+                        *y,
+                        object,
+                        id,
+                        param,
+                        &value,
+                        input,
+                        !locked && implemented,
+                        out,
+                    );
+                    *y += 26. + 8.;
+                    continue;
+                }
                 for component in 0..dimensions(kind) {
                     let inset = if dimensions(kind) > 1 { 20. } else { 0. };
                     if dimensions(kind) > 1 {
-                        let axis = if kind == "color" {
-                            ["R", "G", "B", "A"][component]
-                        } else {
-                            ["X", "Y", "Z", "W"][component]
-                        };
+                        let axis = ["X", "Y", "Z", "W"][component];
                         ui::text(
                             list,
                             atlas,
@@ -1191,12 +1223,6 @@ impl Controls {
                         area.width() - 82. - inset,
                         24.,
                     );
-                    let active = self.field.as_ref().is_some_and(|f| {
-                        f.object == object
-                            && f.effect == id
-                            && f.param == param
-                            && f.component == component
-                    });
                     if kind == "bool" || kind == "enum" {
                         let enabled = !locked && implemented;
                         let changed =
@@ -1265,83 +1291,465 @@ impl Controls {
                             }));
                         }
                     } else {
-                        if clicked(input, rect) && !active && !locked && implemented {
-                            if self.field.take().is_some_and(|mut f| f.number.cancel()) {
-                                out.push(Action::History(4));
-                            }
-                            self.field = Some(Field {
-                                object,
-                                effect: id,
-                                param: param.into(),
-                                component,
-                                number: Default::default(),
-                                rect,
-                            });
-                        }
-                        if let Some(field) = self.field.as_mut().filter(|f| {
-                            f.object == object
-                                && f.effect == id
-                                && f.param == param
-                                && f.component == component
-                        }) {
-                            field.rect = rect;
-                            self.cursor |=
-                                field.number.editor.dragging() || rect.contains(input.mouse);
-                            let min = parameter["min"].as_f64().unwrap_or(-1e9);
-                            let max = parameter["max"].as_f64().unwrap_or(1e9);
-                            let speed = if (max - min).is_finite() && (max - min) <= 2. {
-                                0.005
-                            } else {
-                                0.5
-                            };
-                            let options = motion_ui::widgets::NumberOptions {
-                                min,
-                                max,
-                                speed,
-                                decimals: 3,
-                            };
-                            let events = field.number.draw(
-                                list,
-                                atlas,
-                                rect,
-                                value[component] as f64,
-                                options,
-                                input,
-                            );
-                            if let Some(note) = field.number.readout() {
-                                self.drag_readout = Some((input.mouse, note));
-                            }
-                            if super::numeric::apply(events, out, |v| {
-                                value[component] = v;
-                                Command::Effect {
-                                    object,
-                                    action: EffectAction::Set {
-                                        effect: id,
-                                        param: param.into(),
-                                        frame,
-                                        value,
-                                    },
-                                }
-                            }) {
-                                self.field = None;
-                            }
-                        } else {
-                            self.cursor |= !locked && implemented && rect.contains(input.mouse);
-                            super::numeric::passive(
-                                list,
-                                atlas,
-                                rect,
-                                value[component] as f64,
-                                input,
-                                !locked && implemented,
-                            );
-                        }
+                        let min = parameter["min"].as_f64().unwrap_or(-1e9);
+                        let max = parameter["max"].as_f64().unwrap_or(1e9);
+                        self.channel_field(
+                            list,
+                            atlas,
+                            rect,
+                            object,
+                            id,
+                            param,
+                            component,
+                            &mut value,
+                            min,
+                            max,
+                            frame,
+                            input,
+                            !locked && implemented,
+                            out,
+                        );
                     }
                     *y += 26.;
                 }
                 *y += 8.;
             }
         }
+        self.color_overlay(
+            &mut overlays,
+            atlas,
+            area,
+            layer,
+            state,
+            original_input,
+            locale,
+            out,
+        );
         list.append(overlays);
+    }
+    /// One row for a color parameter: swatch plus caption, popup edits channels.
+    #[allow(clippy::too_many_arguments)]
+    fn color_row(
+        &mut self,
+        list: &mut PaintList,
+        atlas: &mut TextAtlas,
+        area: Rect,
+        y: f32,
+        object: u64,
+        effect: u64,
+        param: &str,
+        values: &[f32; 4],
+        input: &Input,
+        enabled: bool,
+        out: &mut Vec<Action>,
+    ) {
+        let styles = list.styles();
+        let edge = styles.metric("field.height", 18.).min(24.);
+        let preview = Rect::new(
+            area.min[0] + 62.,
+            y + (24. - edge) * 0.5,
+            edge + styles.metric("icon.slot", 20.),
+            edge,
+        );
+        color_well::swatch(list, preview, values, input, enabled);
+        #[cfg(test)]
+        self.test_rects
+            .insert((object, effect, param.into(), -1), preview);
+        let text_area = Rect::new(
+            preview.max[0] + styles.metric("padding", 5.),
+            y,
+            (area.max[0]
+                - styles.metric("padding.panel", 8.)
+                - preview.max[0]
+                - styles.metric("padding", 5.))
+            .max(0.),
+            24.,
+        );
+        ui::text(
+            list,
+            atlas,
+            text_area,
+            &color_well::caption(values),
+            styles.colors().TEXT_MUTED,
+            Align::Left,
+        );
+        if enabled && (clicked(input, preview) || clicked(input, text_area)) {
+            if self.field.take().is_some_and(|mut f| f.number.cancel()) {
+                out.push(Action::History(4));
+            }
+            self.color_popup = Some(ColorPopup {
+                object,
+                effect,
+                param: param.into(),
+                anchor: preview,
+                opened: true,
+            });
+        }
+    }
+    /// Popup with the four channel editors, drawn above the panel body.
+    #[allow(clippy::too_many_arguments)]
+    fn color_overlay(
+        &mut self,
+        paint: &mut PaintList,
+        atlas: &mut TextAtlas,
+        area: Rect,
+        layer: &Value,
+        state: &Value,
+        input: &Input,
+        locale: Locale,
+        out: &mut Vec<Action>,
+    ) {
+        let Some(popup) = self.color_popup.clone() else {
+            return;
+        };
+        let frame = state["frame"].as_f64().unwrap_or(0.).floor().max(0.) as u32;
+        let local = state["frame"].as_f64().unwrap_or(0.)
+            - layer["timeline"]["offset_frame"].as_f64().unwrap_or(0.0);
+        let locked = layer["locked"].as_bool().unwrap_or(false);
+        let track = layer["effects"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .find(|e| e["id"].as_u64() == Some(popup.effect))
+            .and_then(|e| {
+                serde_json::from_value::<EffectParam>(e["params"][&popup.param].clone()).ok()
+            });
+        let Some(track) = track else {
+            self.color_popup = None;
+            return;
+        };
+        let mut value = track.sample(local);
+        let styles = paint.styles();
+        let pad = styles.metric("padding.panel", 8.);
+        let row = styles.metric("row.height", 22.);
+        let slot = styles.metric("icon.slot", 20.);
+        let width = (styles.metric("label.column", 72.)
+            + styles.metric("value.min_width", 64.)
+            + pad * 2.)
+        .max(styles.metric("dropdown.menu_min_width", 160.))
+        .min(area.width());
+        let height = (row * 5. + pad * 2.).min(area.height());
+        let rect = Rect::new(
+            popup.anchor.min[0]
+                .min(area.max[0] - width)
+                .max(area.min[0]),
+            popup.anchor.max[1]
+                .min(area.max[1] - height)
+                .max(area.min[1]),
+            width,
+            height,
+        );
+        #[cfg(test)]
+        self.test_rects
+            .insert((popup.object, popup.effect, popup.param.clone(), -2), rect);
+        if !popup.opened
+            && input
+                .pressed
+                .is_some_and(|(_, point)| !rect.contains(point))
+        {
+            if self.cancel() {
+                out.push(Action::History(4));
+            }
+            return;
+        }
+        if let Some(popup) = &mut self.color_popup {
+            popup.opened = false;
+        }
+        let neutral = Input::default();
+        let input = if popup.opened { &neutral } else { input };
+        box_style(
+            paint,
+            rect,
+            styles.resolve("popup", States::default()).unwrap(),
+        );
+        let title = Rect::new(
+            rect.min[0] + pad,
+            rect.min[1] + pad,
+            (width - pad * 2. - slot).max(0.),
+            row,
+        );
+        text(paint, atlas, title, "RGBA", false);
+        if press_icon(
+            paint,
+            input,
+            Rect::new(rect.max[0] - pad - slot, title.min[1], slot, row),
+            Icon::Close,
+            true,
+        ) {
+            if self.cancel() {
+                out.push(Action::History(4));
+            }
+            return;
+        }
+        let enabled = !locked && track.implemented;
+        for (axis, name) in (if locale == Locale::Zh {
+            ["R 红", "G 绿", "B 蓝", "A 不透明度"]
+        } else {
+            ["R Red", "G Green", "B Blue", "A Opacity"]
+        })
+        .iter()
+        .enumerate()
+        {
+            let y = title.max[1] + axis as f32 * row;
+            let start = rect.min[0] + pad + styles.metric("label.column", 72.);
+            text(
+                paint,
+                atlas,
+                Rect::new(
+                    rect.min[0] + pad,
+                    y,
+                    (start - rect.min[0] - pad).max(0.),
+                    row,
+                ),
+                name,
+                true,
+            );
+            let number = Rect::new(start, y, (rect.max[0] - pad - start).max(0.), row);
+            #[cfg(test)]
+            self.test_rects.insert(
+                (popup.object, popup.effect, popup.param.clone(), axis as i64),
+                number,
+            );
+            self.channel_field(
+                paint,
+                atlas,
+                number,
+                popup.object,
+                popup.effect,
+                &popup.param,
+                axis,
+                &mut value,
+                0.,
+                1.,
+                frame,
+                input,
+                enabled,
+                out,
+            );
+        }
+    }
+    /// Shared numeric channel editor used by the parameter rows and the color popup.
+    #[allow(clippy::too_many_arguments)]
+    fn channel_field(
+        &mut self,
+        list: &mut PaintList,
+        atlas: &mut TextAtlas,
+        rect: Rect,
+        object: u64,
+        effect: u64,
+        param: &str,
+        component: usize,
+        value: &mut [f32; 4],
+        min: f64,
+        max: f64,
+        frame: u32,
+        input: &Input,
+        enabled: bool,
+        out: &mut Vec<Action>,
+    ) {
+        let active = self.field.as_ref().is_some_and(|f| {
+            f.object == object && f.effect == effect && f.param == param && f.component == component
+        });
+        if clicked(input, rect) && !active && enabled {
+            if self.field.take().is_some_and(|mut f| f.number.cancel()) {
+                out.push(Action::History(4));
+            }
+            self.field = Some(Field {
+                object,
+                effect,
+                param: param.into(),
+                component,
+                number: Default::default(),
+                rect,
+            });
+        }
+        if let Some(field) = self.field.as_mut().filter(|f| {
+            f.object == object && f.effect == effect && f.param == param && f.component == component
+        }) {
+            field.rect = rect;
+            self.cursor |= field.number.editor.dragging() || rect.contains(input.mouse);
+            let speed = if (max - min).is_finite() && (max - min) <= 2. {
+                0.005
+            } else {
+                0.5
+            };
+            let options = motion_ui::widgets::NumberOptions {
+                min,
+                max,
+                speed,
+                decimals: 3,
+            };
+            let events =
+                field
+                    .number
+                    .draw(list, atlas, rect, value[component] as f64, options, input);
+            if let Some(note) = field.number.readout() {
+                self.drag_readout = Some((input.mouse, note));
+            }
+            if super::numeric::apply(events, out, |v| {
+                value[component] = v;
+                Command::Effect {
+                    object,
+                    action: EffectAction::Set {
+                        effect,
+                        param: param.into(),
+                        frame,
+                        value: *value,
+                    },
+                }
+            }) {
+                self.field = None;
+            }
+        } else {
+            self.cursor |= enabled && rect.contains(input.mouse);
+            super::numeric::passive(list, atlas, rect, value[component] as f64, input, enabled);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::engine::Engine;
+    use motion_ui::input::MouseButton;
+
+    fn run(engine: &Engine, actions: Vec<Action>) {
+        for action in actions {
+            match action {
+                Action::History(op) => {
+                    engine.history(op).unwrap();
+                }
+                Action::Edit(command) => {
+                    engine
+                        .edit(serde_json::to_string(&command).unwrap())
+                        .unwrap();
+                }
+                _ => panic!("unexpected action"),
+            }
+        }
+    }
+    fn input(x: f32, y: f32, pressed: bool, released: bool) -> Input {
+        Input {
+            mouse: [x, y],
+            held: (!released).then_some(MouseButton::Left),
+            pressed: pressed.then_some((MouseButton::Left, [x, y])),
+            released: released.then_some((MouseButton::Left, [x, y])),
+            ..Default::default()
+        }
+    }
+    #[test]
+    fn color_row_opens_popup_and_channel_scrub_commits_one_undo() {
+        let folder = tempfile::tempdir().unwrap();
+        let engine = Engine::start(
+            folder.path().join("project"),
+            motion_desktop_media::platform(),
+            8 << 30,
+        )
+        .unwrap();
+        engine
+            .edit(
+                serde_json::to_string(&Command::Add {
+                    layer: motion_core::Layer::solid(
+                        7,
+                        "Color",
+                        [100., 100.],
+                        [960., 540., 0.],
+                        [1.; 4],
+                    ),
+                })
+                .unwrap(),
+            )
+            .unwrap();
+        let catalogue = engine.plugin("{\"op\":\"catalogue\"}".into()).unwrap();
+        let package = catalogue["packages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| {
+                p["manifest"]["effects"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|e| e["id"] == "drop_shadow")
+            })
+            .unwrap();
+        engine.plugin(serde_json::json!({"op":"add","object":7,"plugin":package["manifest"]["id"],"version":package["manifest"]["version"],"hash":package["hash"],"effect":"drop_shadow"}).to_string()).unwrap();
+        let before = engine.state().unwrap();
+        let effect = before["project"]["layers"][0]["effects"][0]["id"]
+            .as_u64()
+            .unwrap();
+        let mut panels = crate::panels::Panels::default();
+        panels.selected = Some(7);
+        panels.effect_controls.catalogue = catalogue.into();
+        let id = motion_ui::dock::Panel::EffectControls.dock();
+        let layout = motion_ui::dock::Node::Dock {
+            id,
+            tabs: vec![id],
+            active: 0,
+        };
+        let mut atlas = TextAtlas::from_system(12.).unwrap();
+        let mut draw = |panels: &mut crate::panels::Panels, input: &Input| {
+            let state = engine.state().unwrap();
+            crate::panels::chrome(
+                &mut PaintList::default(),
+                &mut atlas,
+                [400., 1000.],
+                &layout,
+                panels,
+                &state,
+                input,
+            )
+        };
+        draw(&mut panels, &Input::default());
+        let key = |axis: i64| (7, effect, "color".to_string(), axis);
+        let swatch = panels.effect_controls.test_rects[&key(-1)];
+        assert!(swatch.width() > 0.);
+        let actions = draw(
+            &mut panels,
+            &input(swatch.min[0] + 4., swatch.min[1] + 4., true, false),
+        );
+        assert!(actions.is_empty());
+        assert!(panels.effect_controls.editing());
+        let popup = panels.effect_controls.test_rects[&key(-2)];
+        let channel = panels.effect_controls.test_rects[&key(0)];
+        assert!(popup.contains([channel.min[0] + 1., channel.min[1] + 1.]));
+        let start = [
+            channel.min[0] + channel.width() * 0.5,
+            channel.min[1] + channel.height() * 0.5,
+        ];
+        assert!(
+            draw(&mut panels, &input(start[0], start[1], true, false)).is_empty(),
+            "press only arms the field"
+        );
+        run(
+            &engine,
+            draw(
+                &mut panels,
+                &Input {
+                    mouse: [start[0] + 10., start[1]],
+                    held: Some(MouseButton::Left),
+                    ..Default::default()
+                },
+            ),
+        );
+        run(
+            &engine,
+            draw(
+                &mut panels,
+                &input(start[0] + 20., start[1], false, true),
+            ),
+        );
+        let after = engine.state().unwrap();
+        assert_ne!(after["project"], before["project"]);
+        let changed = after["project"]["layers"][0]["effects"][0]["params"]["color"].clone();
+        let initial = before["project"]["layers"][0]["effects"][0]["params"]["color"].clone();
+        assert_ne!(changed, initial);
+        assert_eq!(engine.history(0).unwrap()["project"], before["project"]);
+        assert!(panels.effect_controls.editing());
+        draw(&mut panels, &input(10., 960., true, false));
+        assert!(
+            !panels.effect_controls.editing(),
+            "clicking outside dismisses the popup"
+        );
     }
 }

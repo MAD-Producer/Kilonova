@@ -42,6 +42,7 @@ icons! {
     Reset => "reset",
     ChevronUp => "chevron_up", ChevronDown => "chevron_down", ChevronRight => "chevron_right",
     Minimize => "minimize", Maximize => "maximize",
+    AlignLeft => "align_left", AlignCenter => "align_center", AlignRight => "align_right",
 }
 #[derive(Deserialize)]
 struct Source {

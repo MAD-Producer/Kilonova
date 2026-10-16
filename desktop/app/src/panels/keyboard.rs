@@ -24,6 +24,7 @@ fn text_active(panels: &Panels) -> bool {
         || panels.timeline.graph_box.editing()
         || panels.timeline.scrubbing
         || panels.effect_controls.editing()
+        || panels.auxiliary.editing()
         || panels.animation_controls.editing()
         || panels.camera_controls.editing()
         || panels.audio_controls.editing()
