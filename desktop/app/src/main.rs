@@ -398,7 +398,11 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
         let attributes = Window::default_attributes()
             .with_title("Motion Studio")
-            .with_inner_size(winit::dpi::LogicalSize::new(1600.0, 1000.0))
+            .with_inner_size(if self.smoke.is_some() && std::env::var_os("MOTION_SMOKE_MINIMUM").is_some() {
+                winit::dpi::LogicalSize::new(900.0, 600.0)
+            } else {
+                winit::dpi::LogicalSize::new(1600.0, 1000.0)
+            })
             .with_decorations(false)
             .with_min_inner_size(winit::dpi::LogicalSize::new(900.0, 600.0))
             .with_visible(self.smoke.is_none());

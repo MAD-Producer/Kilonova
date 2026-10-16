@@ -104,21 +104,24 @@ fn point(plot: Plot, frame: f64, value: f64) -> [f32; 2] {
         plot.area.max[1] - (value as f32 - plot.low) / (plot.high - plot.low) * plot.area.height(),
     ]
 }
-fn rectangle(plot: Plot, bounds: [f64; 4]) -> Rect {
+fn rectangle(plot: Plot, bounds: [f64; 4], styles: &motion_ui::style::StyleSheet) -> Rect {
+    let pad = styles.metric("padding.panel", 8.);
+    let outset = styles.metric("graph.selection.outset", 3.);
+    let minimum = styles.metric("border", 1.);
     let a = point(plot, bounds[0], bounds[3]);
     let b = point(plot, bounds[1], bounds[2]);
     Rect::new(
         a[0],
         if plot.speed {
-            plot.area.min[1] + 8.
+            plot.area.min[1] + pad
         } else {
-            a[1] - 3.
+            a[1] - outset
         },
-        (b[0] - a[0]).max(1.),
+        (b[0] - a[0]).max(minimum),
         if plot.speed {
-            (plot.area.height() - 16.).max(1.)
+            (plot.area.height() - pad * 2.).max(minimum)
         } else {
-            (b[1] - a[1] + 6.).max(6.)
+            (b[1] - a[1] + outset * 2.).max(outset * 2.)
         },
     )
 }
@@ -134,7 +137,7 @@ fn handles(rect: Rect, plot: Plot, bounds: [f64; 4]) -> Vec<([f32; 2], [i8; 2])>
     }
     result
 }
-fn near_curve(plot: Plot, curve: &[(f64, f32)], mouse: [f32; 2]) -> bool {
+fn near_curve(plot: Plot, curve: &[(f64, f32)], mouse: [f32; 2], tolerance: f32) -> bool {
     curve.windows(2).any(|pair| {
         let a = point(plot, pair[0].0, f64::from(pair[0].1));
         let b = point(plot, pair[1].0, f64::from(pair[1].1));
@@ -146,10 +149,11 @@ fn near_curve(plot: Plot, curve: &[(f64, f32)], mouse: [f32; 2]) -> bool {
             0.
         }
         .clamp(0., 1.);
-        (mouse[0] - a[0] - v[0] * t).hypot(mouse[1] - a[1] - v[1] * t) <= 6.
+        (mouse[0] - a[0] - v[0] * t).hypot(mouse[1] - a[1] - v[1] * t) <= tolerance
     })
 }
 pub(super) fn interact(
+    styles: &motion_ui::style::StyleSheet,
     panels: &mut Panels,
     state: &Value,
     source: &Value,
@@ -198,11 +202,13 @@ pub(super) fn interact(
             && panels.timeline.key_drag.is_none()
             && panels.timeline.graph_drag.is_none()
         {
-            let rect = rectangle(plot, bounds);
+            let tolerance = styles.metric("graph.selection.hit_radius", 6.);
+            let rect = rectangle(plot, bounds, styles);
             let mode = handles(rect, plot, bounds)
                 .iter()
                 .find_map(|(point, mode)| {
-                    ((mouse[0] - point[0]).abs() <= 6. && (mouse[1] - point[1]).abs() <= 6.)
+                    ((mouse[0] - point[0]).abs() <= tolerance
+                        && (mouse[1] - point[1]).abs() <= tolerance)
                         .then_some(*mode)
                 })
                 .or_else(|| rect.contains(mouse).then_some([0, 0]));
@@ -428,6 +434,7 @@ fn transform(
     Some((edits, current, values, expected))
 }
 pub(super) fn select_curve(
+    styles: &motion_ui::style::StyleSheet,
     panels: &mut Panels,
     state: &Value,
     source: &Value,
@@ -447,8 +454,10 @@ pub(super) fn select_curve(
         return false;
     }
     let ctx = context(state, object, property, axis, component);
+    let tolerance = styles.metric("graph.selection.hit_radius", 6.);
     let hit = bounds(source, &ctx, plot.scale, last_frame(state) + 1.).is_some_and(|bounds| {
-        rectangle(plot, bounds).contains(input.mouse) && near_curve(plot, curve, input.mouse)
+        rectangle(plot, bounds, styles).contains(input.mouse)
+            && near_curve(plot, curve, input.mouse, tolerance)
     });
     panels.timeline.graph_box.selected = hit;
     panels.timeline.graph_box.context = Some(ctx);
@@ -468,14 +477,25 @@ pub(super) fn draw(
     let Some(bounds) = bounds(source, ctx, plot.scale, last_frame(state) + 1.) else {
         return;
     };
-    let rect = rectangle(plot, bounds);
-    let color = list.styles().colors().ACCENT;
-    paint::rect(list, rect, color.with_alpha(0.05));
-    paint::stroke(list, rect, color, 1.);
+    let styles = list.styles();
+    let rect = rectangle(plot, bounds, &styles);
+    let color = styles.colors().ACCENT;
+    let handle = styles.metric("graph.selection.handle_size", 6.);
+    paint::rect(
+        list,
+        rect,
+        color.with_alpha(styles.metric("graph.selection.fill_opacity", 0.05)),
+    );
+    paint::stroke(list, rect, color, styles.metric("graph.handle_width", 1.));
     for (point, _) in handles(rect, plot, bounds) {
         paint::rect(
             list,
-            Rect::new(point[0] - 3., point[1] - 3., 6., 6.),
+            Rect::new(
+                point[0] - handle * 0.5,
+                point[1] - handle * 0.5,
+                handle,
+                handle,
+            ),
             list.styles().colors().TEXT,
         );
     }
@@ -560,4 +580,56 @@ pub(super) fn select_all(panels: &mut Panels, state: &Value) -> bool {
     panels.audio_controls.clear_selection();
     panels.animation_controls.clear_key();
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn selection_geometry_uses_theme_sizes_and_preserves_the_six_pixel_hit_radius() {
+        let mut data: Value =
+            serde_json::from_str(include_str!("../../../ui/styles/dark.json")).unwrap();
+        let base =
+            motion_ui::style::StyleSheet::from_json(&serde_json::to_vec(&data).unwrap()).unwrap();
+        let plot = Plot {
+            area: Rect::new(0., 0., 100., 100.),
+            offset: 0.,
+            ppf: 10.,
+            low: 0.,
+            high: 1.,
+            speed: false,
+            fps: 30.,
+            scale: 1.,
+        };
+        let bounds = [1., 4., 0.2, 0.8];
+        let original = rectangle(plot, bounds, &base);
+        let curve = [(0., 0.5), (10., 0.5)];
+        assert!(near_curve(
+            plot,
+            &curve,
+            [25., 56.],
+            base.metric("graph.selection.hit_radius", 6.)
+        ));
+        assert!(!near_curve(
+            plot,
+            &curve,
+            [25., 56.1],
+            base.metric("graph.selection.hit_radius", 6.)
+        ));
+        data["tokens"]["sizes"]["graph.selection.outset"] = 9.into();
+        data["tokens"]["sizes"]["graph.selection.hit_radius"] = 14.into();
+        let custom =
+            motion_ui::style::StyleSheet::from_json(&serde_json::to_vec(&data).unwrap()).unwrap();
+        let changed = rectangle(plot, bounds, &custom);
+        assert_eq!(original.min[0], changed.min[0]);
+        assert!((original.min[1] - changed.min[1] - 6.).abs() < 0.001);
+        assert!((changed.height() - original.height() - 12.).abs() < 0.001);
+        assert!(near_curve(
+            plot,
+            &curve,
+            [25., 64.],
+            custom.metric("graph.selection.hit_radius", 6.)
+        ));
+    }
 }
