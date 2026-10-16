@@ -1507,13 +1507,11 @@ impl Renderer {
                 timestamp_writes: timestamps,
                 occlusion_query_set: None,
             });
-            let scale =
-                (width as f32 / scene.width as f32).min(height as f32 / scene.height as f32);
-            let vw = scene.width as f32 * scale;
-            let vh = scene.height as f32 * scale;
+            let [vx, vy, vw, vh] = crate::fit_viewport(
+                [0., 0., width as f32, height as f32], [scene.width, scene.height]);
             pass.set_viewport(
-                (width as f32 - vw) / 2.0,
-                (height as f32 - vh) / 2.0,
+                vx,
+                vy,
                 vw,
                 vh,
                 0.0,
@@ -1723,8 +1721,9 @@ impl Renderer {
         }
         self.effect_diagnostics.clone_from(&frame.diagnostics);
         let viewport = if has_accumulator {composition_size.map(|v|v as f32)} else {
-            let scale=(width as f32/scene.width as f32).min(height as f32/scene.height as f32);
-            [scene.width as f32*scale,scene.height as f32*scale]
+            let [_, _, w, h] = crate::fit_viewport(
+                [0., 0., width as f32, height as f32], [scene.width, scene.height]);
+            [w, h]
         };
         let viewport_origin=if has_accumulator {[0.;2]}else{[(width as f32-viewport[0])*0.5,(height as f32-viewport[1])*0.5]};
         for (i, draw) in frame.draws.iter().enumerate() {
@@ -1914,9 +1913,7 @@ impl Renderer {
             let (vw, vh) = if has_accumulator {
                 (composition_size[0] as f32, composition_size[1] as f32)
             } else {
-                let scale =
-                    (width as f32 / scene.width as f32).min(height as f32 / scene.height as f32);
-                (scene.width as f32 * scale, scene.height as f32 * scale)
+                (viewport[0], viewport[1])
             };
             pass.set_viewport(
                 if has_accumulator {
@@ -1992,12 +1989,11 @@ impl Renderer {
                 timestamp_writes: writes,
                 occlusion_query_set: None,
             });
-            let scale =
-                (width as f32 / scene.width as f32).min(height as f32 / scene.height as f32);
-            let (vw, vh) = (scene.width as f32 * scale, scene.height as f32 * scale);
+            let [vx, vy, vw, vh] = crate::fit_viewport(
+                [0., 0., width as f32, height as f32], [scene.width, scene.height]);
             pass.set_viewport(
-                (width as f32 - vw) * 0.5,
-                (height as f32 - vh) * 0.5,
+                vx,
+                vy,
                 vw,
                 vh,
                 0.,

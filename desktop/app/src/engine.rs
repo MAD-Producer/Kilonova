@@ -1276,9 +1276,11 @@ fn handle(
                     let reuse=presentation.retained.as_ref()==Some(&stamp)
                         && !s.preview_memory_held && s.last_error.is_none();
                     let pixel_ratio=[g.config.width as f32/ui.logical_size[0],g.config.height as f32/ui.logical_size[1]];
+                    // The overlay targets the swapchain, not the composition scratch texture.
+                    let surface_format=g.config.format;
                     let overlay=|r:&motion_render::Renderer,encoder:&mut wgpu::CommandEncoder,target:&wgpu::TextureView|{
                         painter.render_scaled(&r.device,&r.queue,encoder,target,&ui.paint,ui.logical_size,pixel_ratio);
-                        if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){preview.encode(&r.device,&r.queue,encoder,target,viewport,r.target_format);}
+                        if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){preview.encode(&r.device,&r.queue,encoder,target,viewport,surface_format);}
                     };
                     let result=if reuse {
                         presentation.composition_reuses+=1;

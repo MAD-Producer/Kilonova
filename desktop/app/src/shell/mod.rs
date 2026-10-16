@@ -10,5 +10,6 @@ mod presentation;
 pub(crate) mod styles;
 
 mod workspaces;
+mod workspace_acceptance;
 
 mod design_acceptance;
