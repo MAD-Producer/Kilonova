@@ -46,7 +46,7 @@ pub(super) fn render(
     } else {
         &mut panels.effect_controls
     };
-    let height = controls.height(layer).max(500.);
+    let height = controls.height(layer,&styles,panels.locale).max(area.height());
     let scroll_frame = if panel == Panel::Effects {
         Some(panels.library_scroll.begin(
             list,
@@ -59,7 +59,7 @@ pub(super) fn render(
         None
     };
     let mut y = scroll_frame.as_ref().map_or_else(
-        || auxiliary::body_y(panel, area, height, panels, input),
+        || auxiliary::body_y(&styles,panel, area, height, panels, input),
         |f| f.content.min[1] + 8.,
     );
     let input = scroll_frame.as_ref().map_or(input, |f| &f.input);

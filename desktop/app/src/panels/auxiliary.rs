@@ -2,7 +2,7 @@
 use super::*;
 use motion_ui::{
     style::{box_style, text_style, State as WidgetState, States},
-    widgets::{Checkbox, NumberOptions},
+    widgets::{Checkbox, Dropdown, DropdownItem, NumberOptions},
 };
 use std::collections::BTreeMap;
 
@@ -13,6 +13,11 @@ pub(crate) struct State {
     pub expression_object: Option<u64>,
     pub expression_property: usize,
     color_popup: Option<ColorPopup>,
+    preview_quality: Dropdown,
+    #[cfg(test)]
+    preview_rect: Option<Rect>,
+    #[cfg(test)]
+    play_rect: Option<Rect>,
     color_field: Option<(usize, numeric::Field)>,
 }
 #[derive(Clone)]
@@ -23,14 +28,21 @@ struct ColorPopup {
 }
 impl State {
     pub fn editing(&self) -> bool {
-        self.color_popup.is_some()
+        self.owner().is_some()
+    }
+    pub fn owner(&self) -> Option<Panel> {
+        if self.color_popup.is_some() {
+            Some(Panel::Character)
+        } else if self.preview_quality.open {
+            Some(Panel::Preview)
+        } else {
+            None
+        }
     }
     pub fn cancel(&mut self) -> bool {
-        let begun = self
-            .color_field
-            .take()
-            .is_some_and(|(_, mut f)| f.cancel());
+        let begun = self.color_field.take().is_some_and(|(_, mut f)| f.cancel());
         self.color_popup = None;
+        self.preview_quality.open = false;
         begun
     }
 }
@@ -42,17 +54,19 @@ pub(super) fn selected<'a>(panels: &Panels, state: &'a Value) -> Option<&'a Valu
         .find(|l| l["id"].as_u64() == panels.selected)
 }
 pub(super) fn body_y(
+    styles: &motion_ui::style::StyleSheet,
     panel: Panel,
     area: Rect,
     height: f32,
     panels: &mut Panels,
     input: &Input,
 ) -> f32 {
+    let pad = styles.metric("padding.panel", 8.);
     let scroll = panels.auxiliary.scroll.entry(panel as u32).or_default();
     if area.contains(input.mouse) {
         *scroll = (*scroll + input.wheel[1]).clamp(0., (height - area.height()).max(0.));
     }
-    area.min[1] + 8. - *scroll
+    area.min[1] + pad - *scroll
 }
 pub(super) fn line(
     list: &mut PaintList,
@@ -62,14 +76,24 @@ pub(super) fn line(
     text: &str,
     muted: bool,
 ) {
+    let styles = list.styles();
+    let pad = styles.metric("padding.panel", 8.);
+    let row = styles.metric("row.height", 22.);
     label(
         list,
         atlas,
-        Rect::new(area.min[0] + 10., *y, (area.width() - 20.).max(0.), 24.),
+        Rect::new(
+            area.min[0] + pad,
+            *y,
+            (area.width() - pad * 2.).max(0.),
+            row,
+        ),
         text,
         muted,
     );
-    *y += 26.;
+    *y += styles
+        .metric("auxiliary.control.height", 26.)
+        .max(styles.metric("row.height", 22.));
 }
 pub(super) fn localized(locale: Locale, zh: &'static str, en: &'static str) -> &'static str {
     if locale == Locale::Zh {
@@ -89,7 +113,7 @@ fn label_value(
 ) {
     let colors = list.styles().colors();
     ui::text(list, atlas, rect, label, colors.TEXT_MUTED, Align::Left);
-    let offset = atlas.measure(label) + 4.;
+    let offset = atlas.measure(label) + list.styles().metric("padding", 5.);
     ui::text(
         list,
         atlas,
@@ -113,6 +137,7 @@ fn placeholder_field(
     dropdown: bool,
 ) {
     let styles = list.styles();
+    let slot = styles.metric("icon.slot", 20.);
     let states = States::default().with(WidgetState::Disabled);
     let style = styles.resolve("field", states).unwrap();
     box_style(list, rect, style);
@@ -120,19 +145,26 @@ fn placeholder_field(
         Rect::new(
             rect.min[0],
             rect.min[1],
-            (rect.width() - 24.).max(0.),
+            (rect.width() - slot).max(0.),
             rect.height(),
         )
     } else {
         rect
     };
-    text_style(list, atlas, text_area.shrink(style.padding), value, style, Align::Left);
+    text_style(
+        list,
+        atlas,
+        text_area.shrink(style.padding),
+        value,
+        style,
+        Align::Left,
+    );
     if dropdown {
         motion_ui::icons::draw(
             list,
-            Rect::new(rect.max[0] - 24., rect.min[1], 22., rect.height()),
+            Rect::new(rect.max[0] - slot, rect.min[1], slot, rect.height()),
             motion_ui::icons::Icon::ChevronDown,
-            14.,
+            styles.metric("icon.small.size", 14.),
             style.foreground,
         );
     }
@@ -149,27 +181,62 @@ pub(super) fn render(
 ) {
     let styles = list.styles();
     let colors = styles.colors();
+    let pad = styles.metric("padding.panel", 8.);
+    let gap = styles.metric("auxiliary.gap", 6.);
+    let row = styles.metric("row.height", 22.);
+    let control = styles
+        .metric("auxiliary.control.height", 26.)
+        .max(styles.metric("row.height", 22.));
+    let original_input = input;
+    let neutral = Input::default();
+    let input = if panels.auxiliary.editing() {
+        &neutral
+    } else {
+        input
+    };
 
     paint::rect(list, area, colors.PANEL);
     let locale = panels.locale;
     let layer = selected(panels, state).cloned();
-    let mut y = body_y(panel, area, 500., panels, input);
+    let height = match panel {
+        Panel::Preview => pad * 3. + control * 3. + gap * 3. + row,
+        Panel::Character
+            if layer
+                .as_ref()
+                .is_some_and(|layer| layer["content"]["kind"] == "text") =>
+        {
+            pad * 3. + control * 5. + gap * 3. + row * 2.
+        }
+        Panel::Character => pad * 2. + control * 2.,
+        Panel::Info => {
+            pad * 2.
+                + control
+                    * (if state["desktop"]["uiPerformance"].is_object() {
+                        7.
+                    } else {
+                        5.
+                    })
+                + gap * 2.
+        }
+        _ => styles.metric("auxiliary.content.height", 500.),
+    };
+    let mut y = body_y(&styles, panel, area, height, panels, input);
     match panel {
         Panel::Info => {
             // Design-mock hero grid: probe channels, cursor, selection, timecode.
             // Channel and cursor values stay placeholders until the backend probe lands.
-            let left = area.min[0] + 10.;
-            let width = (area.width() - 20.).max(0.);
+            let left = area.min[0] + pad;
+            let width = (area.width() - pad * 2.).max(0.);
             let quarter = width * 0.25;
             let right = left + width * 0.62;
-            for (row, pairs) in [
+            for (index, pairs) in [
                 [("R", "—"), ("G", "—"), ("X", "—")],
                 [("B", "—"), ("A", "—"), ("Y", "—")],
             ]
             .into_iter()
             .enumerate()
             {
-                let line_y = y + row as f32 * 26.;
+                let line_y = y + index as f32 * control;
                 for (i, (tag, value)) in pairs.into_iter().enumerate() {
                     let x = if i < 2 {
                         left + quarter * i as f32
@@ -179,18 +246,18 @@ pub(super) fn render(
                     label_value(
                         list,
                         atlas,
-                        Rect::new(x, line_y, quarter.max(48.), 24.),
+                        Rect::new(x, line_y, quarter, row),
                         &format!("{tag}:"),
                         value,
                         false,
                     );
                 }
             }
-            y += 56.;
+            y += control * 2. + gap;
             ui::text(
                 list,
                 atlas,
-                Rect::new(left, y, width * 0.55, 24.),
+                Rect::new(left, y, width * 0.55, row),
                 layer
                     .as_ref()
                     .and_then(|l| l["name"].as_str())
@@ -201,7 +268,7 @@ pub(super) fn render(
             ui::text(
                 list,
                 atlas,
-                Rect::new(left + width * 0.55, y, width * 0.45, 24.),
+                Rect::new(left + width * 0.55, y, width * 0.45, row),
                 &timecode(
                     state["frame"].as_f64().unwrap_or(0.),
                     state["project"]["fps"].as_u64().unwrap_or(30) as u32,
@@ -209,7 +276,7 @@ pub(super) fn render(
                 colors.TEXT,
                 Align::Right,
             );
-            y += 32.;
+            y += control + gap;
             line(
                 list,
                 atlas,
@@ -273,7 +340,11 @@ pub(super) fn render(
             }
         }
         Panel::Preview => {
-            let transport = [
+            let width = (area.width() - pad * 2.).max(0.);
+            let transport_width = styles.metric("auxiliary.transport.width", 36.);
+            let start =
+                area.min[0] + (area.width() - (transport_width * 3. + gap * 2.)).max(0.) * 0.5;
+            for (i, (tool, action)) in [
                 (types::Tool::First, Action::Seek(0.)),
                 (
                     if panels.playing {
@@ -284,12 +355,27 @@ pub(super) fn render(
                     Action::TogglePlay,
                 ),
                 (types::Tool::Last, Action::Seek(last_frame(state))),
-            ];
-            let start = area.min[0] + (area.width() - (36. * 3. + 6. * 2.)).max(0.) * 0.5;
-            for (i, (tool, action)) in transport.into_iter().enumerate() {
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                #[cfg(test)]
+                if i == 1 {
+                    panels.auxiliary.play_rect = Some(Rect::new(
+                        start + i as f32 * (transport_width + gap),
+                        y,
+                        transport_width,
+                        control,
+                    ));
+                }
                 toolbar::icon_button(
                     list,
-                    Rect::new(start + i as f32 * 42., y, 36., 26.),
+                    Rect::new(
+                        start + i as f32 * (transport_width + gap),
+                        y,
+                        transport_width,
+                        control,
+                    ),
                     tool,
                     input,
                     true,
@@ -297,11 +383,12 @@ pub(super) fn render(
                     out,
                 );
             }
-            y += 38.;
+            y += control + gap * 2.;
+            let caption = styles.metric("label.column", 72.).min(width * 0.32);
             label(
                 list,
                 atlas,
-                Rect::new(area.min[0] + 10., y, 56., 24.),
+                Rect::new(area.min[0] + pad, y, caption, control),
                 locale.t(T::PlayShortcut),
                 true,
             );
@@ -309,65 +396,75 @@ pub(super) fn render(
                 list,
                 atlas,
                 Rect::new(
-                    area.min[0] + 66.,
+                    area.min[0] + pad + caption + gap,
                     y,
-                    (area.max[0] - 10. - (area.min[0] + 66.)).max(0.),
-                    24.,
+                    (width - caption - gap).max(0.),
+                    control,
                 ),
                 localized(locale, "空格键", "Space"),
                 true,
             );
-            y += 32.;
-            Checkbox::draw(
-                list,
-                atlas,
-                Rect::new(area.min[0] + 10., y, 66., 22.),
-                locale.t(T::PreviewVideo),
-                true,
-                input,
-                false,
-                false,
-                None,
-            );
-            Checkbox::draw(
-                list,
-                atlas,
-                Rect::new(area.min[0] + 82., y, 66., 22.),
-                locale.t(T::PreviewAudio),
-                true,
-                input,
-                false,
-                false,
-                None,
-            );
+            y += control + gap;
+            let cell = ((width - gap * 2.) / 3.).max(0.);
+            for (i, title) in [T::PreviewVideo, T::PreviewAudio].into_iter().enumerate() {
+                Checkbox::draw(
+                    list,
+                    atlas,
+                    Rect::new(area.min[0] + pad + i as f32 * (cell + gap), y, cell, row),
+                    locale.t(title),
+                    true,
+                    input,
+                    false,
+                    false,
+                    None,
+                );
+            }
             label(
                 list,
                 atlas,
-                Rect::new(area.min[0] + 154., y, (area.width() - 164.).max(0.), 22.),
+                Rect::new(area.min[0] + pad + (cell + gap) * 2., y, cell, row),
                 locale.t(T::CacheThenPlay),
                 true,
             );
-            y += 30.;
-            let (quality, next) = match state["preview"]["mode"].as_str().unwrap_or("auto") {
-                "high" => (T::Full, 2),
-                "balanced" => (T::Smooth, 3),
-                "economy" => (T::Economy, 0),
-                _ => (T::Auto, 1),
+            y += row + pad;
+            let selected = match state["preview"]["mode"].as_str().unwrap_or("auto") {
+                "high" => 1,
+                "balanced" => 2,
+                "economy" => 3,
+                _ => 0,
             };
-            button(
+            let labels = [
+                locale.t(T::Auto),
+                locale.t(T::Full),
+                locale.t(T::Smooth),
+                locale.t(T::Economy),
+            ];
+            let items = labels.map(|label| DropdownItem {
+                label,
+                enabled: true,
+            });
+            #[cfg(test)]
+            {
+                panels.auxiliary.preview_rect =
+                    Some(Rect::new(area.min[0] + pad, y, width, control));
+            }
+            if let Some(next) = panels.auxiliary.preview_quality.draw(
                 list,
                 atlas,
-                Rect::new(area.min[0] + 10., y, area.width() - 20., 24.),
-                locale.t(quality),
-                input,
+                Rect::new(area.min[0] + pad, y, width, control),
+                area,
+                &items,
+                selected,
+                original_input,
                 true,
-                Action::PreviewMode(next),
-                out,
-            );
+                false,
+            ) {
+                out.push(Action::PreviewMode(next as i32));
+            }
         }
         Panel::Character => {
             if let Some(l) = layer.as_ref().filter(|l| l["content"]["kind"] == "text") {
-                let width = (area.width() - 20.).max(0.);
+                let width = (area.width() - pad * 2.).max(0.);
                 let font = l["content"]["font"].as_str().unwrap_or("");
                 let name = state["project"]["fonts"]
                     .as_array()
@@ -376,44 +473,65 @@ pub(super) fn render(
                     .find(|f| f["id"] == font)
                     .and_then(|f| f["name"].as_str())
                     .unwrap_or(font);
-                placeholder_field(list, atlas, Rect::new(area.min[0] + 10., y, width, 26.), name, true);
-                y += 32.;
-                let half = (width - 6.) * 0.5;
                 placeholder_field(
                     list,
                     atlas,
-                    Rect::new(area.min[0] + 10., y, half, 26.),
+                    Rect::new(area.min[0] + pad, y, width, control),
+                    name,
+                    true,
+                );
+                y += control + gap;
+                let half = (width - gap) * 0.5;
+                placeholder_field(
+                    list,
+                    atlas,
+                    Rect::new(area.min[0] + pad, y, half, control),
                     "—",
                     true,
                 );
                 placeholder_field(
                     list,
                     atlas,
-                    Rect::new(area.min[0] + 16. + half, y, half, 26.),
+                    Rect::new(area.min[0] + pad + gap + half, y, half, control),
                     "— px",
                     false,
                 );
-                y += 32.;
+                y += control + gap;
                 label(
                     list,
                     atlas,
-                    Rect::new(area.min[0] + 10., y, width * 0.4, 22.),
+                    Rect::new(
+                        area.min[0] + pad,
+                        y,
+                        styles.metric("label.column", 72.).min(width * 0.34),
+                        row,
+                    ),
                     locale.t(T::TrackingLeading),
                     true,
                 );
                 ui::text(
                     list,
                     atlas,
-                    Rect::new(area.min[0] + 10. + width * 0.4, y, width * 0.6, 22.),
+                    Rect::new(
+                        area.min[0] + pad + styles.metric("label.column", 72.).min(width * 0.34),
+                        y,
+                        width - styles.metric("label.column", 72.).min(width * 0.34),
+                        row,
+                    ),
                     "—  /  — px",
                     colors.TEXT_MUTED,
                     Align::Left,
                 );
-                y += 26.;
+                y += control;
                 label(
                     list,
                     atlas,
-                    Rect::new(area.min[0] + 10., y, width * 0.4, 22.),
+                    Rect::new(
+                        area.min[0] + pad,
+                        y,
+                        styles.metric("label.column", 72.).min(width * 0.34),
+                        row,
+                    ),
                     locale.t(T::FillStroke),
                     true,
                 );
@@ -428,14 +546,20 @@ pub(super) fn render(
                 {
                     color[i] = v.as_f64().unwrap_or(0.) as f32;
                 }
-                let swatch = Rect::new(area.min[0] + 10. + width * 0.4, y + 2., 18., 18.);
-                let unlocked = !l["locked"].as_bool().unwrap_or(false);
+                let name_width = styles.metric("label.column", 72.).min(width * 0.34);
+                let value_x = area.min[0] + pad + name_width;
+                let edge = styles.metric("field.height", 18.).min(row);
+                let swatch = Rect::new(value_x, y + (row - edge) * 0.5, edge, edge);
+                let unlocked = l["locked"] != true && state["observing"] != true;
                 color_well::swatch(list, swatch, &color, input, unlocked);
+                let none = format!("/ {}", localized(locale, "无", "None"));
+                let tail = atlas.measure(&none) + gap;
+                let right = area.max[0] - pad;
                 let caption_rect = Rect::new(
-                    swatch.max[0] + 6.,
+                    swatch.max[0] + gap,
                     y,
-                    (width * 0.28).max(0.),
-                    22.,
+                    (right - tail - gap - swatch.max[0] - gap).max(0.),
+                    row,
                 );
                 ui::text(
                     list,
@@ -448,10 +572,15 @@ pub(super) fn render(
                 ui::text(
                     list,
                     atlas,
-                    Rect::new(caption_rect.max[0] + 4., y, width, 22.),
-                    &format!("/  {}", localized(locale, "无", "None")),
+                    Rect::new(
+                        (right - tail).max(caption_rect.max[0]),
+                        y,
+                        tail.min((right - caption_rect.max[0]).max(0.)),
+                        row,
+                    ),
+                    &none,
                     colors.TEXT_MUTED,
-                    Align::Left,
+                    Align::Right,
                 );
                 if unlocked && (clicked(input, swatch) || clicked(input, caption_rect)) {
                     if panels.auxiliary.cancel() {
@@ -463,7 +592,7 @@ pub(super) fn render(
                         opened: true,
                     });
                 }
-                y += 30.;
+                y += row + pad;
                 for (i, icon) in [
                     motion_ui::icons::Icon::AlignLeft,
                     motion_ui::icons::Icon::AlignCenter,
@@ -474,7 +603,14 @@ pub(super) fn render(
                 {
                     ui::button_icon(
                         list,
-                        Rect::new(area.min[0] + 10. + i as f32 * 34., y, 28., 22.),
+                        Rect::new(
+                            area.min[0]
+                                + pad
+                                + i as f32 * (styles.metric("auxiliary.action.width", 28.) + gap),
+                            y,
+                            styles.metric("auxiliary.action.width", 28.),
+                            row,
+                        ),
                         icon,
                         input,
                         false,
@@ -483,12 +619,12 @@ pub(super) fn render(
                 ui::text(
                     list,
                     atlas,
-                    Rect::new(area.min[0] + 10., y, width - 0., 22.),
+                    Rect::new(area.min[0] + pad, y, width, row),
                     locale.t(T::Reset),
-                    colors.ACCENT.with_alpha(0.45),
+                    styles.color("disabled"),
                     Align::Right,
                 );
-                y += 28.;
+                y += row + gap;
                 line(
                     list,
                     atlas,
@@ -510,7 +646,7 @@ pub(super) fn render(
             button(
                 list,
                 atlas,
-                Rect::new(area.min[0] + 10., y, area.width() - 20., 26.),
+                Rect::new(area.min[0] + pad, y, area.width() - pad * 2., control),
                 locale.t(T::NewText),
                 input,
                 true,
@@ -551,14 +687,14 @@ pub(super) fn render(
             button(
                 list,
                 atlas,
-                Rect::new(area.min[0] + 10., y, area.width() - 20., 26.),
+                Rect::new(area.min[0] + pad, y, area.width() - pad * 2., control),
                 locale.t(T::ImportMedia),
                 input,
                 true,
                 Action::ImportMedia,
                 out,
             );
-            y += 32.;
+            y += control + gap;
             for key in ["assets", "video_assets", "audio_assets", "fonts"] {
                 for asset in state["project"][key].as_array().into_iter().flatten() {
                     line(
@@ -597,20 +733,20 @@ pub(super) fn render(
                 button(
                     list,
                     atlas,
-                    Rect::new(area.min[0] + 10., y, area.width() - 20., 26.),
+                    Rect::new(area.min[0] + pad, y, area.width() - pad * 2., control),
                     locale.t(text),
                     input,
                     enabled,
                     action,
                     out,
                 );
-                y += 32.;
+                y += control + gap;
             }
         }
         _ => {}
     }
     if panel == Panel::Character {
-        color_overlay(list, atlas, area, panels, &layer, input, out);
+        color_overlay(list, atlas, area, panels, &layer, original_input, out);
     }
 }
 
@@ -651,10 +787,10 @@ fn color_overlay(
     let pad = styles.metric("padding.panel", 8.);
     let row = styles.metric("row.height", 22.);
     let slot = styles.metric("icon.slot", 20.);
-    let width = (styles.metric("label.column", 72.) + styles.metric("value.min_width", 64.)
-        + pad * 2.)
-    .max(styles.metric("dropdown.menu_min_width", 160.))
-    .min(area.width());
+    let width =
+        (styles.metric("label.column", 72.) + styles.metric("value.min_width", 64.) + pad * 2.)
+            .max(styles.metric("dropdown.menu_min_width", 160.))
+            .min(area.width());
     let height = (row * 5. + pad * 2.).min(area.height());
     let rect = Rect::new(
         popup.anchor.min[0]
@@ -773,14 +909,101 @@ fn color_overlay(
             let object = popup.object;
             if numeric::apply(events, out, |v| {
                 color[axis] = v;
-                Command::SetColor { object, value: color }
+                Command::SetColor {
+                    object,
+                    value: color,
+                }
             }) {
                 panels.auxiliary.color_field = None;
             }
         } else {
-            numeric::passive(&mut paint, atlas, number, f64::from(color[axis]), input, true);
+            numeric::passive(
+                &mut paint,
+                atlas,
+                number,
+                f64::from(color[axis]),
+                input,
+                true,
+            );
         }
     }
     paint.clip_to(rect);
     list.append(paint);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn quality_dropdown_selects_explicitly_and_blocks_transport_behind_the_popup() {
+        for floating in [false, true] {
+            let mut panels = Panels::default();
+            let mut atlas = TextAtlas::from_system(12.).unwrap();
+            let state = serde_json::json!({"root":"preview","composition":"main","frame":0,"preview":{"mode":"auto"},"project":{"frames":120,"fps":30,"layers":[]}});
+            let mut draw = |panels: &mut Panels, input: &Input| {
+                if floating {
+                    super::super::floating_chrome(
+                        &mut PaintList::default(),
+                        &mut atlas,
+                        Panel::Preview,
+                        [220., 360.],
+                        panels,
+                        &state,
+                        input,
+                    )
+                } else {
+                    super::super::chrome(
+                        &mut PaintList::default(),
+                        &mut atlas,
+                        [220., 360.],
+                        &motion_ui::dock::Node::dock(Panel::Preview.dock()),
+                        panels,
+                        &state,
+                        input,
+                    )
+                }
+            };
+            draw(&mut panels, &Input::default());
+            let field = panels.auxiliary.preview_rect.unwrap();
+            let click = |rect: Rect| {
+                let point = [
+                    rect.min[0] + rect.width() * 0.5,
+                    rect.min[1] + rect.height() * 0.5,
+                ];
+                Input {
+                    mouse: point,
+                    pressed: Some((motion_ui::input::MouseButton::Left, point)),
+                    ..Default::default()
+                }
+            };
+            assert!(draw(&mut panels, &click(field)).is_empty());
+            assert_eq!(panels.auxiliary.owner(), Some(Panel::Preview));
+            assert!(draw(
+                &mut panels,
+                &Input {
+                    keys: vec![(Key::Down, Default::default())],
+                    ..Default::default()
+                }
+            )
+            .is_empty());
+            let actions = draw(
+                &mut panels,
+                &Input {
+                    keys: vec![(Key::Enter, Default::default())],
+                    ..Default::default()
+                },
+            );
+            assert!(actions
+                .iter()
+                .any(|action| matches!(action, Action::PreviewMode(1))));
+            assert!(!panels.auxiliary.editing());
+            assert!(draw(&mut panels, &click(field)).is_empty());
+            let play = panels.auxiliary.play_rect.unwrap();
+            assert!(
+                draw(&mut panels, &click(play)).is_empty(),
+                "outside click closes the popup without playing behind it"
+            );
+            assert!(!panels.auxiliary.editing());
+        }
+    }
 }

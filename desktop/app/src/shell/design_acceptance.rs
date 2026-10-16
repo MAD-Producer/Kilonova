@@ -233,6 +233,7 @@ impl Shell {
         path: &std::path::Path,
     ) -> Result<(), String> {
         let before = self.engine.state()?;
+        self.state = before.clone();
         let selection = (
             self.panels.selected,
             self.panels.selected_layers.clone(),

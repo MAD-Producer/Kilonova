@@ -324,7 +324,8 @@ pub fn chrome(
         || panels.timeline.timeline_context_menu.is_some();
     let effect_modal = panels.effect_controls.editing();
     let audio_modal = panels.audio_controls.editing();
-    let auxiliary_modal = panels.auxiliary.editing();
+    let auxiliary_owner=panels.auxiliary.owner();
+    let auxiliary_modal = auxiliary_owner.is_some();
     let neutral = Input::default();
     let body_input = if menu_modal || node_modal || effect_modal || audio_modal || auxiliary_modal
     {
@@ -440,7 +441,7 @@ pub fn chrome(
                         && !node_modal)
                     || (audio_modal && f.panel == Panel::Timeline && !menu_modal && !node_modal)
                     || (timeline_popup && f.panel == Panel::Timeline)
-                    || (auxiliary_modal && f.panel == Panel::Character && !menu_modal)
+                    || (auxiliary_modal && Some(f.panel) == auxiliary_owner && !menu_modal)
                 {
                     input
                 } else {

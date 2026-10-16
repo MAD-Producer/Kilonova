@@ -38,6 +38,7 @@ pub(super) fn render(
         panels.path_controls.height(&layer, styles.as_ref())
     };
     let mut y = auxiliary::body_y(
+        &styles,
         panel,
         area,
         height + styles.metric("padding.panel", 8.) * 2.,

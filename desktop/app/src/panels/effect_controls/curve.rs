@@ -10,10 +10,21 @@ use motion_ui::{
     ui::Align,
 };
 
-/// Channel selector row + graph + bottom padding, below the parameter name.
-pub const HEIGHT: f32 = 26. + GRAPH_HEIGHT + 8.;
-const GRAPH_HEIGHT: f32 = 164.;
-const HIT_RADIUS: f32 = 7.;
+fn columns(styles: &motion_ui::style::StyleSheet, width: f32) -> usize {
+    let reset = styles.metric("effect.curve.reset.width", 30.);
+    let gap = styles.metric("effect.curve.selector.gap", 4.);
+    let stride = styles.metric("effect.curve.selector.width", 40.) + gap;
+    (((width - reset - gap) / stride).floor().max(1.) as usize).min(CHANNELS.len())
+}
+pub fn height(styles: &motion_ui::style::StyleSheet, width: f32) -> f32 {
+    let rows = CHANNELS.len().div_ceil(columns(styles, width));
+    rows as f32
+        * styles
+            .metric("effect.row.height", 26.)
+            .max(styles.metric("row.height", 22.))
+        + styles.metric("effect.curve.graph_height", 164.)
+        + styles.metric("padding.panel", 8.)
+}
 const POINT_LIMIT: usize = 64;
 const CHANNELS: [&str; 5] = ["RGB", "R", "G", "B", "A"];
 
@@ -22,6 +33,8 @@ pub struct Editor {
     channel: usize,
     drag: Option<Drag>,
     cache: Option<(CurveObject, Vec<[f32; 2]>)>,
+    #[cfg(test)]
+    pub(crate) test_graph: Option<Rect>,
 }
 struct Drag {
     point: usize,
@@ -71,63 +84,52 @@ impl Editor {
         let colors = styles.colors();
         let edit_enabled = enabled && self.drag.is_none();
 
-        // Channel selector + reset.
+        let row = styles
+            .metric("effect.row.height", 26.)
+            .max(styles.metric("row.height", 22.));
+        let field = styles.metric("row.height", 22.);
+        let gap = styles.metric("effect.curve.selector.gap", 4.);
+        let button_width = styles.metric("effect.curve.selector.width", 40.);
+        let reset_width = styles.metric("effect.curve.reset.width", 30.);
+        let count = columns(&styles, rect.width());
         for (i, name) in CHANNELS.into_iter().enumerate() {
-            let button = Rect::new(rect.min[0] + i as f32 * 44., rect.min[1], 40., 22.);
-            let selected = i == self.channel;
-            paint::rect(
-                list,
-                button,
-                if selected {
-                    colors.ACCENT.with_alpha(0.35)
-                } else if edit_enabled && button.contains(input.mouse) {
-                    colors.SUNKEN
-                } else {
-                    colors.CHROME
-                },
+            let button = Rect::new(
+                rect.min[0] + (i % count) as f32 * (button_width + gap),
+                rect.min[1] + (i / count) as f32 * row,
+                button_width,
+                field,
             );
-            motion_ui::ui::text(
+            let state = if i == self.channel {
+                motion_ui::style::States::default().with(motion_ui::style::State::Selected)
+            } else {
+                motion_ui::style::States::default()
+            };
+            if motion_ui::ui::button_with_states(
                 list,
                 atlas,
-                button.shrink(2.),
+                button,
                 name,
-                if selected { colors.ACCENT } else { colors.TEXT },
-                Align::Center,
-            );
-            if edit_enabled
-                && input
-                    .pressed
-                    .is_some_and(|(b, p)| b == MouseButton::Left && button.contains(p))
+                input,
+                edit_enabled,
+                &styles,
+                "button.icon",
+                state,
+            )
+            .clicked
             {
                 self.channel = i;
                 self.cache = None;
             }
         }
-        let reset = Rect::new(rect.max[0] - 30., rect.min[1], 30., 22.);
-        paint::rect(
-            list,
-            reset,
-            if edit_enabled && reset.contains(input.mouse) {
-                colors.SUNKEN
-            } else {
-                colors.CHROME
-            },
-        );
-        motion_ui::icons::draw(
+        let reset = Rect::new(rect.max[0] - reset_width, rect.min[1], reset_width, field);
+        if motion_ui::ui::button_icon(
             list,
             reset,
             motion_ui::icons::Icon::Reset,
-            14.,
-            if enabled {
-                colors.TEXT
-            } else {
-                colors.TEXT_MUTED.with_alpha(0.4)
-            },
-        );
-        if edit_enabled
-            && input
-                .pressed
-                .is_some_and(|(b, p)| b == MouseButton::Left && reset.contains(p))
+            input,
+            edit_enabled,
+        )
+        .clicked
         {
             let mut value = current.clone();
             value.channels[self.channel] = vec![[0., 0.], [1., 1.]];
@@ -135,13 +137,19 @@ impl Editor {
             value.sampled_lut = None;
             out.push(Action::Edit(command(value)));
         }
-
+        let top = rect.min[1] + CHANNELS.len().div_ceil(count) as f32 * row;
         let graph = Rect::new(
             rect.min[0],
-            rect.min[1] + 26.,
+            top,
             rect.width(),
-            GRAPH_HEIGHT,
+            styles
+                .metric("effect.curve.graph_height", 164.)
+                .min((rect.max[1] - top).max(styles.metric("border", 1.))),
         );
+        #[cfg(test)]
+        {
+            self.test_graph = Some(graph);
+        }
         let gx = |x: f32| ((x - graph.min[0]) / graph.width()).clamp(0., 1.);
         let gy = |y: f32| ((graph.max[1] - y) / graph.height()).clamp(0., 1.);
         let px = |x: f32| graph.min[0] + x * graph.width();
@@ -154,42 +162,58 @@ impl Editor {
         let samples = self.samples(&value).to_vec();
 
         // Background, grid, identity diagonal.
-        paint::rect(list, graph, colors.SUNKEN.with_alpha(0.5));
+        paint::rect(
+            list,
+            graph,
+            colors
+                .SUNKEN
+                .with_alpha(styles.metric("effect.curve.background_opacity", 0.5)),
+        );
         for i in 1..4 {
             let f = i as f32 / 4.;
             paint::line(
                 list,
                 vec![[px(f), graph.min[1]], [px(f), graph.max[1]]],
-                colors.TEXT_MUTED.with_alpha(0.25),
+                colors
+                    .TEXT_MUTED
+                    .with_alpha(styles.metric("effect.curve.grid_opacity", 0.25)),
             );
             paint::line(
                 list,
                 vec![[graph.min[0], py(f)], [graph.max[0], py(f)]],
-                colors.TEXT_MUTED.with_alpha(0.25),
+                colors
+                    .TEXT_MUTED
+                    .with_alpha(styles.metric("effect.curve.grid_opacity", 0.25)),
             );
         }
         paint::line(
             list,
-            vec![
-                [graph.min[0], graph.max[1]],
-                [graph.max[0], graph.min[1]],
-            ],
-            colors.TEXT_MUTED.with_alpha(0.35),
+            vec![[graph.min[0], graph.max[1]], [graph.max[0], graph.min[1]]],
+            colors
+                .TEXT_MUTED
+                .with_alpha(styles.metric("effect.curve.diagonal_opacity", 0.35)),
         );
         paint::line_with_width(
             list,
             samples.iter().map(|p| [px(p[0]), py(p[1])]).collect(),
             colors.ACCENT,
-            1.5,
+            styles.metric("effect.curve.stroke_width", 1.5),
         );
-        paint::stroke(list, graph, colors.TEXT_MUTED.with_alpha(0.5), 1.);
+        paint::stroke(
+            list,
+            graph,
+            colors
+                .TEXT_MUTED
+                .with_alpha(styles.metric("effect.curve.background_opacity", 0.5)),
+            styles.metric("border", 1.),
+        );
 
         // Control points.
         let points = &value.channels[self.channel];
         let hovered = points.iter().position(|p| {
             let dx = px(p[0]) - input.mouse[0];
             let dy = py(p[1]) - input.mouse[1];
-            dx * dx + dy * dy <= HIT_RADIUS * HIT_RADIUS
+            dx * dx + dy * dy <= styles.metric("effect.curve.hit_radius", 7.).powi(2)
         });
         for (i, p) in points.iter().enumerate() {
             let center = [px(p[0]), py(p[1])];
@@ -197,7 +221,11 @@ impl Editor {
             paint::diamond(
                 list,
                 center,
-                if active || hovered == Some(i) { 5. } else { 4. },
+                if active || hovered == Some(i) {
+                    styles.metric("graph.key_radius", 5.)
+                } else {
+                    styles.metric("graph.handle_radius", 4.)
+                },
                 if active {
                     colors.ACCENT
                 } else if hovered == Some(i) && enabled {
@@ -277,10 +305,7 @@ impl Editor {
             } else {
                 (channel[i - 1][0] + 0.004, channel[i + 1][0] - 0.004)
             };
-            let next = [
-                gx(input.mouse[0]).clamp(min_x, max_x),
-                gy(input.mouse[1]),
-            ];
+            let next = [gx(input.mouse[0]).clamp(min_x, max_x), gy(input.mouse[1])];
             let next = [
                 (next[0] * 1000.).round() / 1000.,
                 (next[1] * 1000.).round() / 1000.,
@@ -294,7 +319,10 @@ impl Editor {
             }
             *readout = Some((
                 input.mouse,
-                format!("{} ({:.3}, {:.3})", CHANNELS[self.channel], next[0], next[1]),
+                format!(
+                    "{} ({:.3}, {:.3})",
+                    CHANNELS[self.channel], next[0], next[1]
+                ),
             ));
             if input.released.is_some_and(|(b, _)| b == MouseButton::Left) {
                 self.drag = None;
@@ -310,9 +338,7 @@ pub fn value_at(track: &motion_core::CurveTrack, local: f64) -> CurveObject {
     if track.keys.is_empty() {
         return track.value.clone();
     }
-    let upper = track
-        .keys
-        .partition_point(|k| f64::from(k.frame) <= local);
+    let upper = track.keys.partition_point(|k| f64::from(k.frame) <= local);
     if upper == 0 {
         track.keys[0].value.clone()
     } else {
@@ -415,7 +441,7 @@ mod tests {
 
         let mut editor = Editor::default();
         let mut atlas = TextAtlas::from_system(12.).unwrap();
-        let rect = Rect::new(0., 0., 300., HEIGHT);
+        let rect = Rect::new(0., 0., 300., height(&PaintList::default().styles(), 300.));
         let command = |value: CurveObject| Command::Effect {
             object: 7,
             action: EffectAction::SetCurveObject {
@@ -442,7 +468,10 @@ mod tests {
         };
         // Press on empty graph area adds a point inside a transaction.
         let actions = draw(&mut editor, &input(150., 100., true, false));
-        assert!(matches!(actions.as_slice(), [Action::History(2), Action::Edit(Command::Effect { .. })]));
+        assert!(matches!(
+            actions.as_slice(),
+            [Action::History(2), Action::Edit(Command::Effect { .. })]
+        ));
         run(&engine, actions);
         // Dragging streams edits, release commits the transaction.
         run(&engine, draw(&mut editor, &input(200., 80., false, false)));
@@ -465,7 +494,7 @@ mod tests {
     fn right_click_removes_interior_points_only() {
         let mut editor = Editor::default();
         let mut atlas = TextAtlas::from_system(12.).unwrap();
-        let rect = Rect::new(0., 0., 300., HEIGHT);
+        let rect = Rect::new(0., 0., 300., height(&PaintList::default().styles(), 300.));
         let mut current = CurveObject::default();
         current.channels[0] = vec![[0., 0.], [0.5, 0.5], [1., 1.]];
         let mut actions = vec![];

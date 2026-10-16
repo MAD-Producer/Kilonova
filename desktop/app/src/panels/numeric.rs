@@ -194,7 +194,6 @@ mod tests {
             tabs: vec![id],
             active: 0,
         };
-        let top = crate::panels::frames(&layout, [400., 1000.])[0].content.min[1] + 8.;
         let mut atlas = TextAtlas::from_system(12.).unwrap();
         let mut draw = |panels: &mut crate::panels::Panels, input: &Input| {
             let state = engine.state().unwrap();
@@ -208,28 +207,32 @@ mod tests {
                 input,
             )
         };
-        assert!(draw(&mut panels, &input(100., top + 177., true, false)).is_empty());
+        draw(&mut panels,&Input::default());
+        let effect=before["project"]["layers"][0]["effects"][0]["id"].as_u64().unwrap();
+        let rect=panels.effect_controls.test_rects[&(7,effect,"p0001".into(),0)];
+        let start=[rect.min[0]+rect.width()*0.5,rect.min[1]+rect.height()*0.5];
+        assert!(draw(&mut panels, &input(start[0], start[1], true, false)).is_empty());
         assert!(draw(
             &mut panels,
             &Input {
-                mouse: [120., top + 177.],
+                mouse: [start[0]+20., start[1]],
                 ..Default::default()
             }
         )
         .is_empty());
         run(
             &engine,
-            draw(&mut panels, &input(120., top + 177., false, false)),
+            draw(&mut panels, &input(start[0]+20., start[1], false, false)),
         );
         assert!(!engine.state().unwrap()["canUndo"].as_bool().unwrap());
         assert!(panels.effect_controls.drag_readout.is_some());
         run(
             &engine,
-            draw(&mut panels, &input(130., top + 177., false, false)),
+            draw(&mut panels, &input(start[0]+30., start[1], false, false)),
         );
         run(
             &engine,
-            draw(&mut panels, &input(130., top + 177., false, true)),
+            draw(&mut panels, &input(start[0]+30., start[1], false, true)),
         );
         let after = engine.state().unwrap();
         assert_ne!(after["project"], before["project"]);

@@ -786,6 +786,7 @@ impl Controls {
             }
         }
         if let Some(d) = &self.draft {
+            let draft_color=list.styles().color("path.draft");
             let nodes: Vec<_> = d.path.nodes.iter().map(|n| n.geometry.value).collect();
             paint_path(
                 list,
@@ -794,7 +795,7 @@ impl Controls {
                 false,
                 d.offset,
                 None,
-                Color::rgb(255, 188, 92),
+                draft_color,
             );
         }
         label(
@@ -1298,7 +1299,8 @@ fn paint_path(
                 if let Some(h) =
                     projection.screen([g[0] + g[axis] - offset[0], g[1] + g[axis + 1] - offset[1]])
                 {
-                    paint::line(list, vec![p, h], color.with_alpha(0.7));
+                    let connector=color.with_alpha(list.styles().metric("path.handle.opacity",0.7));
+                    paint::line(list, vec![p, h], connector);
                     paint::diamond(list, h, 3., color);
                 }
             }
