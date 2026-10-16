@@ -290,6 +290,16 @@
       "mode": "ci",
       "runner": ".github/workflows/ci.yml",
       "reason": "Run through CI unittest discovery and verify real package and publication routes"
+    },
+    "tools/source_templates.py": {
+      "mode": "ci",
+      "runner": "tools/test_ci_silent_failures.py",
+      "reason": "Shared fail-closed shader-template replacement helper covered by CI regression tests."
+    },
+    "tools/test_ci_silent_failures.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Executed by workflow test_ci_*.py unittest discovery."
     }
   },
   "android_tests": {

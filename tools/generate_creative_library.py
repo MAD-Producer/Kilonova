@@ -6,6 +6,11 @@ The checked-in package is built separately with effect_tool pack.
 import json
 from pathlib import Path
 
+try:
+    from .source_templates import replace_required
+except ImportError:
+    from source_templates import replace_required
+
 ROOT = Path(__file__).resolve().parents[1]
 LIB = ROOT / 'crates/motion-effects/library'
 
@@ -117,9 +122,9 @@ return combine_light(sample_source(p), light, $strength$.x, $color$.rgb, $affect
 '''
 add('glow', '柔光发光', 'Glow', 'S_Glow', LIGHT_PARAMS, GLOW, passes=2, pad=padding('radius'),
     differences=['线性预乘高光提取与两次65点高斯采样；不提供 RGB 独立宽度或大气模型。'])
-GLOW_EDGES = GLOW.replace('let vertical = fx.clock.z > 0.5;',
+GLOW_EDGES = replace_required(GLOW, 'let vertical = fx.clock.z > 0.5;',
     'if fx.clock.z < 0.5 { return edge_light(p, $threshold$.x); }\nlet vertical = fx.clock.z > 1.5;')
-GLOW_EDGES = GLOW_EDGES.replace('if !vertical { light = bright(light, $threshold$.x); }', '')
+GLOW_EDGES = replace_required(GLOW_EDGES, 'if !vertical { light = bright(light, $threshold$.x); }', '')
 add('glow_edges', '边缘发光', 'Glow Edges', 'S_GlowEdges', LIGHT_PARAMS, GLOW_EDGES,
     passes=3, pad=padding('radius'), differences=['中心差分边缘提取后进行两次高斯采样。'])
 
@@ -138,9 +143,9 @@ return combine_light(sample_source(p), sum/max(total, 0.000001), $strength$.x, $
 '''
 add('rays', '放射光束', 'Rays', 'S_Rays', RAY_PARAMS, RAYS,
     differences=['64点径向积分；输出限于当前图层边界。'])
-EDGE_RAYS = RAYS.replace('var sum = vec4(0.0);',
+EDGE_RAYS = replace_required(RAYS, 'var sum = vec4(0.0);',
     'if fx.clock.z < 0.5 { return edge_light(p, $threshold$.x); }\nvar sum = vec4(0.0);')
-EDGE_RAYS = EDGE_RAYS.replace('bright(sample_input(q), $threshold$.x)', 'sample_input(q)')
+EDGE_RAYS = replace_required(EDGE_RAYS, 'bright(sample_input(q), $threshold$.x)', 'sample_input(q)')
 add('edge_rays', '边缘光束', 'Edge Rays', 'S_EdgeRays', RAY_PARAMS, EDGE_RAYS,
     passes=2, differences=['边缘提取后64点径向积分，输出限于当前图层边界。'])
 
@@ -157,10 +162,10 @@ return combine_light(sample_source(p), sum/total, $strength$.x, $color$.rgb, $af
 '''
 add('streaks', '高光光条', 'Streaks', 'S_Streaks', STREAK_PARAMS, STREAK, pad=padding('radius'),
     differences=['单方向65点指数光条；长半径采用固定采样数。'])
-GLINT = STREAK.replace('var sum = vec4(0.0); var total = 0.0;',
+GLINT = replace_required(STREAK, 'var sum = vec4(0.0); var total = 0.0;',
     'var sum = vec4(0.0); var total = 0.0;\nfor(var ray:i32=0;ray<4;ray=ray+1) {\nlet a = angle+f32(ray)*0.78539816339; let direction = vec2(cos(a),sin(a));')
-GLINT = GLINT.replace('for(var i:i32=-32;i<=32;i=i+1)', 'for(var i:i32=-24;i<=24;i=i+1)').replace('f32(i)/32.0', 'f32(i)/24.0')
-GLINT = GLINT.replace('return combine_light', '}\nreturn combine_light')
+GLINT = replace_required(replace_required(GLINT, 'for(var i:i32=-32;i<=32;i=i+1)', 'for(var i:i32=-24;i<=24;i=i+1)'), 'f32(i)/32.0', 'f32(i)/24.0')
+GLINT = replace_required(GLINT, 'return combine_light', '}\nreturn combine_light')
 add('glint', '高光星芒', 'Glint', 'S_Glint', STREAK_PARAMS, GLINT, pad=padding('radius'),
     differences=['4条等权轴形成8向星芒，共196次高光采样；无独立方向颜色。'])
 
@@ -200,7 +205,7 @@ add('kaleido', '镜面万花筒', 'Kaleidoscope', 'S_Kaleido', KALEIDO_PARAMS, K
     category='扭曲', differences=['等角扇区镜像，无外部图层或透视控制。'])
 add('kaleido_polar', '极坐标万花筒', 'Polar Kaleidoscope', 'S_KaleidoPolar',
     KALEIDO_PARAMS+[param('ring_size', '环宽', 64, 1, 2048, 'px')],
-    KALEIDO.replace('let radius = length(offset);', 'let radius = fract(length(offset)/$ring_size$.x)*$ring_size$.x;'),
+    replace_required(KALEIDO, 'let radius = length(offset);', 'let radius = fract(length(offset)/$ring_size$.x)*$ring_size$.x;'),
     category='扭曲', differences=['角向镜像叠加径向重复，未实现Sapphire全部极坐标映射控制。'])
 
 add('shake', '镜头抖动', 'Shake', 'S_Shake',
