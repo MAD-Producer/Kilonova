@@ -1429,7 +1429,7 @@ fn handle(
             let plan=motion_host::session::with_session(id,|s|motion_desktop_media::movie::FrozenMovie::capture_plan(s,&control));
             match plan {
                 Err(error)=>respond(reply,Err(error)),
-                Ok(plan)=> {let failed=reply.clone();match std::thread::Builder::new().name("motion-freeze-movie".into()).spawn(move||{let result=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||plan.freeze(&control))).unwrap_or_else(|_|Err("movie freeze worker failed".into()));let _=reply.send(result);}) {Ok(_)=>(),Err(error)=>respond(failed,Err(error.to_string()))}}
+                Ok(plan)=> {let failed=reply.clone();match std::thread::Builder::new().name("motion-freeze-movie".into()).spawn(move||{let result=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||plan.freeze(&control))).unwrap_or_else(|payload|Err(format!("movie freeze worker failed: {}",motion_media::panic_reason(payload))));let _=reply.send(result);}) {Ok(_)=>(),Err(error)=>respond(failed,Err(error.to_string()))}}
             }
         },
         Command::RenderPreview {frame,reply}=>respond(reply,(||{if let Some(frame)=frame {preview::seek(id,frame)?;}export::capture(id)})()),

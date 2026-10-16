@@ -709,7 +709,12 @@ impl DecodeTask {
                 let result = std::panic::catch_unwind(|| {
                     decode_cancellable(&input, resolution, Some(&worker_cancel))
                 })
-                .unwrap_or_else(|_| Err("image decoder panicked".into()));
+                .unwrap_or_else(|payload| {
+                    let reason = payload.downcast_ref::<String>().map(String::as_str)
+                        .or_else(|| payload.downcast_ref::<&str>().copied())
+                        .unwrap_or("unknown native error");
+                    Err(format!("image decoder panicked: {}", reason.chars().take(2048).collect::<String>()))
+                });
                 let _ = send.send(result);
             })
             .map_err(|e| e.to_string())?;

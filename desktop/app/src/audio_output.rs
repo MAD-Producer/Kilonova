@@ -322,8 +322,8 @@ fn spawn_producer(
                 let result = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| next()))
                 {
                     Ok(result) => result,
-                    Err(_) => {
-                        shared.fail("audio mixer worker panicked".into());
+                    Err(payload) => {
+                        shared.fail(format!("audio mixer worker panicked: {}",motion_media::panic_reason(payload)));
                         return;
                     }
                 };
@@ -696,6 +696,7 @@ mod tests {
             assert_eq!(pcm, [0.0, 0.0]);
             assert_eq!(consumed, 0);
             assert!(output.error().unwrap().contains("mixer worker panicked"));
+            assert!(output.error().unwrap().contains("injected mixer failure"));
             assert!(shared.stop.load(Ordering::Acquire));
         }
     }

@@ -31,6 +31,13 @@ pub use video::{
     VideoProbe, VideoTaskStatus,
 };
 pub use video_metadata::{hevc_metadata, vp9_metadata};
+/// Bounded native panic detail, shared by asynchronous media and host adapters.
+pub fn panic_reason(payload: Box<dyn std::any::Any + Send>) -> String {
+    let reason = payload.downcast_ref::<String>().map(String::as_str)
+        .or_else(|| payload.downcast_ref::<&str>().copied())
+        .unwrap_or("unknown native error");
+    reason.chars().take(2048).collect()
+}
 pub type Result<T> = std::result::Result<T, String>;
 pub const OUTPUT_RATE: u64 = 48_000;
 pub const MAX_BLOCK_FRAMES: usize = 48_000;

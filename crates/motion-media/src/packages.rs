@@ -195,7 +195,7 @@ impl PackageJobs {
                 let published = match result {
                     Ok(Ok(prepared)) => prepared.publish().map_err(|e| e.to_string()),
                     Ok(Err(error)) => Err(error.to_string()),
-                    Err(_) => Err("package worker failed".into()),
+                    Err(payload) => Err(format!("package worker failed: {}",crate::panic_reason(payload))),
                 };
                 match published {
                     Ok(path) => {

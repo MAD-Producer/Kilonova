@@ -136,7 +136,7 @@ impl Stream {
                             Ok(Arc::new(decoder.as_mut().unwrap().frame(target, &check)?))
                         },
                     ))
-                    .unwrap_or_else(|_| Err("video decoder worker failed".into()));
+                    .unwrap_or_else(|payload| Err(format!("video decoder worker failed: {}",motion_media::panic_reason(payload))));
                     let mut s = copy.0.lock().unwrap_or_else(|e| e.into_inner());
                     s.seeks += decoder
                         .as_ref()

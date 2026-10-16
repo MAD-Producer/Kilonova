@@ -255,7 +255,7 @@ impl VideoJobs {
             let mut t=t.lock().unwrap_or_else(|e|e.into_inner());if t.cancel.load(Ordering::Acquire){return;}
             match result {Ok(Ok(p))=>{t.status.metadata=Some(json!({"video":p.probe.asset,"audio":p.audio,"audio_tracks":p.probe.tracks}));t.status.progress=1.0;
                 if probe_only{t.status.state="succeeded".into();t.status.phase="complete".into();}else{t.status.state="ready".into();t.status.phase="awaiting_commit".into();t.prepared=Some(p);}},
-                other=>{t.status.state="failed".into();t.status.phase="failed".into();t.status.error=Some(match other{Ok(Err(e))=>e,_=>"video worker failed".into()});}}
+                other=>{t.status.state="failed".into();t.status.phase="failed".into();t.status.error=Some(match other{Ok(Err(e))=>e,Err(payload)=>format!("video worker failed: {}",crate::panic_reason(payload)),Ok(Ok(_))=>unreachable!()});}}
         });
         if let Err(e) = spawn {
             let mut t = task.lock().unwrap();
@@ -453,7 +453,7 @@ impl VideoJobs {
                     return;
                 }
                 if let Err(error) =
-                    result.unwrap_or_else(|_| Err("video cache worker failed".into()))
+                    result.unwrap_or_else(|payload| Err(format!("video cache worker failed: {}",crate::panic_reason(payload))))
                 {
                     state.status.state = "failed".into();
                     state.status.phase = "failed".into();

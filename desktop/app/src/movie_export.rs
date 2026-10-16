@@ -47,7 +47,7 @@ impl MovieExport {
                         update.lock().unwrap_or_else(|e| e.into_inner()).progress = progress;
                     })
                 }))
-                .unwrap_or_else(|_| Err("movie export worker failed".into()));
+                .unwrap_or_else(|payload| Err(format!("movie export worker failed: {}",motion_media::panic_reason(payload))));
                 let mut state = update.lock().unwrap_or_else(|e| e.into_inner());
                 match result {
                     Ok(result) => {

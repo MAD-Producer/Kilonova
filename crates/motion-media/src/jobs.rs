@@ -362,10 +362,10 @@ impl AudioJobs {
                         t.status.phase = "failed".into();
                         t.status.error = Some(error);
                     }
-                    Err(_) => {
+                    Err(payload) => {
                         t.status.state = "failed".into();
                         t.status.phase = "failed".into();
-                        t.status.error = Some("audio worker failed".into());
+                        t.status.error = Some(format!("audio worker failed: {}", crate::panic_reason(payload)));
                     }
                 }
             });
@@ -553,7 +553,7 @@ impl AudioJobs {
                 }
                 let result = match result {
                     Ok(result) => result,
-                    Err(_) => Err("audio cache worker failed".into()),
+                    Err(payload) => Err(format!("audio cache worker failed: {}", crate::panic_reason(payload))),
                 };
                 match result.and_then(|stage| {
                     let dest = cache_path(&root, &asset)?;

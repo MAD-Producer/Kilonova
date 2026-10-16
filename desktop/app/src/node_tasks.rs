@@ -215,7 +215,7 @@ impl NodeTasks {
                             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                                 execute(&job, &generation, &latest_compile)
                             }))
-                            .unwrap_or_else(|_| Outcome::Failed("node worker failed".into()))
+                            .unwrap_or_else(|payload| Outcome::Failed(format!("node worker failed: {}",motion_media::panic_reason(payload))))
                         };
                         let _ = reply.send(Completion {
                             id: job.id,
