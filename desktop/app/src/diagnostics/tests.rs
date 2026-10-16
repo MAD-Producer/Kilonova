@@ -150,3 +150,33 @@ fn in_flight_and_queue_depth_track_a_blocked_worker() {
     assert_eq!(engine.queue_depth(), 0);
     assert!(engine.in_flight().is_none());
 }
+
+#[test]
+fn timing_report_contention_cannot_erase_context_or_gpu_identity() {
+    let d = Diagnostics::new(None, None);
+    let held = d.state.lock().unwrap();
+    d.set_context(Context { action: "edit", layers: 7, frame: 12.5, ..Default::default() });
+    assert_eq!(d.context().action, "edit");
+    assert_eq!(d.context().layers, 7);
+    d.set_gpu(wgpu::AdapterInfo { name: "test adapter".into(), vendor: 0, device: 0,
+        device_type: wgpu::DeviceType::Other, driver: String::new(), driver_info: String::new(),
+        backend: wgpu::Backend::Empty });
+    drop(held);
+    assert_eq!(d.report()["gpu"]["name"], "test adapter");
+}
+
+#[test]
+fn oversized_report_replies_with_failure_and_reporter_remains_usable() {
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("report.json");
+    let d = Diagnostics::new(None, None);
+    let huge: &'static str = Box::leak("x".repeat(MAX_REPORT_BYTES).into_boxed_str());
+    d.record(1, "worker", huge, Duration::from_millis(1), None, None, Default::default());
+    let error = d.export(path.clone()).unwrap().recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err();
+    assert!(error.contains("byte budget"));
+    assert_eq!(d.status()["localWriteErrors"], 1);
+    assert!(!path.exists());
+    d.state.lock().unwrap().recent.clear();
+    d.export(path.clone()).unwrap().recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+    assert!(path.exists());
+}

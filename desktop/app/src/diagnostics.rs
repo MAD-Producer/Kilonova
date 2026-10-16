@@ -68,8 +68,6 @@ struct State {
     stalls: VecDeque<Timing>,
     total_stalls: u64,
     last_checkpoint: Option<Instant>,
-    context: Context,
-    gpu: Option<Value>,
 }
 enum Job {
     Checkpoint(Option<Sender<Result<(), String>>>),
@@ -79,6 +77,8 @@ pub struct Diagnostics {
     began: Instant,
     started_unix_ms: u64,
     state: Mutex<State>,
+    context: Mutex<Context>,
+    gpu: Mutex<Option<Value>>,
     jobs: SyncSender<Job>,
     enabled: AtomicBool,
     configured: bool,
@@ -93,15 +93,24 @@ impl Diagnostics {
         Self::with_transport(path,dsn,None)
     }
     fn with_transport(path:Option<PathBuf>,dsn:Option<String>,transport:Option<Arc<dyn sentry::TransportFactory>>)->Arc<Self> {
-        let dsn = dsn.and_then(|s| s.parse::<sentry::types::Dsn>().ok());
+        let dsn = dsn.and_then(|s| match s.parse::<sentry::types::Dsn>() {
+            Ok(dsn) => Some(dsn),
+            Err(_) => {
+                // Never copy a potentially credential-bearing DSN into logs.
+                log::warn!("diagnostics upload disabled: invalid MOTION_SENTRY_DSN");
+                None
+            }
+        });
         let (jobs, receive) = sync_channel(4);
         let this = Arc::new(Self {
             began: Instant::now(),
             started_unix_ms: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
-                .as_millis() as u64,
+                .as_millis().min(u128::from(u64::MAX)) as u64,
             state: Mutex::new(State::default()),
+            context: Mutex::new(Context::default()),
+            gpu: Mutex::new(None),
             jobs,
             enabled: AtomicBool::new(false),
             configured: dsn.is_some(),
@@ -112,33 +121,28 @@ impl Diagnostics {
             io_errors: AtomicU64::new(0),
         });
         let weak = Arc::downgrade(&this);
-        let _ = std::thread::Builder::new()
+        if let Err(error) = std::thread::Builder::new()
             .name("motion-diagnostics".into())
-            .spawn(move || reporter(weak, receive, path, dsn,transport));
+            .spawn(move || reporter(weak, receive, path, dsn,transport)) {
+            this.io_errors.fetch_add(1, Ordering::Relaxed);
+            log::error!("diagnostics reporter could not start: {error}");
+        }
         this
     }
     pub fn next_request(&self) -> u64 {
         self.sequence.fetch_add(1, Ordering::Relaxed)
     }
     pub fn context(&self) -> Context {
-        self.state
-            .try_lock()
-            .map(|s| s.context.clone())
-            .unwrap_or_default()
+        self.context.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
     pub fn set_context(&self, context: Context) {
-        if let Ok(mut state) = self.state.try_lock() {
-            state.context = context;
-        }
+        *self.context.lock().unwrap_or_else(|e| e.into_inner()) = context;
     }
     pub fn set_gpu(&self, info: wgpu::AdapterInfo) {
-        if let Ok(mut s) = self.state.try_lock() {
-            s.gpu = Some(
-                json!({"name":info.name.chars().take(128).collect::<String>(),
+        let gpu = json!({"name":info.name.chars().take(128).collect::<String>(),
             "backend":format!("{:?}",info.backend),"deviceType":format!("{:?}",info.device_type),"vendor":info.vendor,
-            "driver":info.driver.chars().take(128).collect::<String>()}),
-            );
-        }
+            "driver":info.driver.chars().take(128).collect::<String>()});
+        *self.gpu.lock().unwrap_or_else(|e| e.into_inner()) = Some(gpu);
     }
     pub fn record(
         &self,
@@ -201,11 +205,12 @@ impl Diagnostics {
         "droppedRecords":self.dropped_records.load(Ordering::Relaxed),"droppedJobs":self.dropped_jobs.load(Ordering::Relaxed),"localWriteErrors":self.io_errors.load(Ordering::Relaxed)})
     }
     pub fn report(&self) -> Value {
+        let gpu = self.gpu.lock().unwrap_or_else(|e| e.into_inner()).clone();
         let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         json!({"schemaVersion":1,"application":{"name":"Motion Studio","version":env!("CARGO_PKG_VERSION"),
             "build":if cfg!(debug_assertions){"debug"}else{"release"},"os":std::env::consts::OS,"architecture":std::env::consts::ARCH,
             "commit":build_commit()},
-            "startedUnixMs":self.started_unix_ms,"elapsedUs":micros(self.began.elapsed()),"gpu":state.gpu,
+            "startedUnixMs":self.started_unix_ms,"elapsedUs":micros(self.began.elapsed()),"gpu":gpu,
             "timingContract":"CPU wall clock; surface timings include driver/queue waiting, not GPU timestamp measurements",
             "stallThresholdUs":STALL_US,"totalStalls":state.total_stalls,"recent":state.recent,"stalls":state.stalls,"reporting":self.status()})
     }
@@ -254,19 +259,25 @@ fn write_report(path: &std::path::Path, bytes: &[u8]) -> Result<(), String> {
             .unwrap_or_default()
             .as_nanos()
     ));
+    let mut created = false;
     let result = (|| {
         let mut file = std::fs::OpenOptions::new()
             .create_new(true)
             .write(true)
             .open(&tmp)?;
+        created = true;
         file.write_all(bytes)?;
         file.sync_all()?;
         drop(file);
         std::fs::rename(&tmp, path)
     })()
     .map_err(|e| e.to_string());
-    if result.is_err() {
-        let _ = std::fs::remove_file(&tmp);
+    if result.is_err() && created {
+        if let Err(error) = std::fs::remove_file(&tmp) {
+            if error.kind() != std::io::ErrorKind::NotFound {
+                log::warn!("diagnostics temporary cleanup failed path={}: {error}", tmp.display());
+            }
+        }
     }
     result
 }
@@ -285,14 +296,23 @@ fn reporter(
         let Some(owner) = owner.upgrade() else {
             break;
         };
-        let report = owner.report();
-        let bytes = match serde_json::to_vec_pretty(&report) {
-            Ok(b) if b.len() <= MAX_REPORT_BYTES => b,
-            _ => continue,
-        };
         let (destination, reply, auto) = match job {
             Job::Export(p, r) => (Some(p), Some(r), false),
             Job::Checkpoint(r) => (local.clone(), r, true),
+        };
+        let report = owner.report();
+        let encoded = serde_json::to_vec_pretty(&report)
+            .map_err(|error| format!("diagnostics serialization failed: {error}"))
+            .and_then(|bytes| if bytes.len() <= MAX_REPORT_BYTES { Ok(bytes) }
+                else { Err("diagnostics report exceeds its byte budget".into()) });
+        let bytes = match encoded {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                owner.io_errors.fetch_add(1, Ordering::Relaxed);
+                log::error!("{error}");
+                if let Some(reply) = reply { let _ = reply.send(Err(error)); }
+                continue;
+            }
         };
         let result = destination
             .as_ref()
