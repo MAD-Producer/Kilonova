@@ -264,6 +264,37 @@ fn decode_cancellable(
 // source SHA-256 and algorithm version; corrupt cache data is never trusted.
 pub const PROXY_CACHE_BYTES: u64 = 64 * 1024 * 1024;
 static CACHE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+static PROXY_WRITES: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
+static PROXY_DIRECTORY: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
+static PROXY_CLEANUP_WARNED: AtomicBool = AtomicBool::new(false);
+
+fn proxy_cache_lock() -> std::sync::MutexGuard<'static, ()> {
+    CACHE_LOCK.lock().unwrap_or_else(|poisoned| {
+        // This mutex protects filesystem operations, not shared in-memory data.
+        // Proxy reads still validate length/header/hash before accepting bytes.
+        let guard = poisoned.into_inner();
+        CACHE_LOCK.clear_poison();
+        log::warn!("image proxy cache lock recovered after panic; cached bytes remain validated");
+        guard
+    })
+}
+
+struct ProxyTemporary(PathBuf);
+impl Drop for ProxyTemporary {
+    fn drop(&mut self) {
+        match fs::remove_file(&self.0) {
+            Ok(()) => { PROXY_CLEANUP_WARNED.store(false, Ordering::Relaxed); }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                PROXY_CLEANUP_WARNED.store(false, Ordering::Relaxed);
+            }
+            Err(error) => {
+                if !PROXY_CLEANUP_WARNED.swap(true, Ordering::Relaxed) {
+                    log::warn!("image proxy temporary cleanup failed: path={} reason={error}", self.0.display());
+                }
+            }
+        }
+    }
+}
 static CACHE_SERIAL: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 fn proxy_path(source: &Source, w: u32, h: u32, cancel: Option<&AtomicBool>) -> Option<PathBuf> {
     use sha2::{Digest, Sha256};
@@ -288,16 +319,26 @@ fn proxy_path(source: &Source, w: u32, h: u32, cancel: Option<&AtomicBool>) -> O
         hash.update(&buffer[..n]);
     }
     let directory = source.root.join(".cache/image-proxies-v1");
-    fs::create_dir_all(&directory).ok()?;
-    let directory = directory.canonicalize().ok()?;
-    if !directory.starts_with(&source.root) {
-        return None;
-    }
+    let resolved = fs::create_dir_all(&directory).and_then(|()| directory.canonicalize());
+    let directory = match resolved {
+        Ok(directory) if directory.starts_with(&source.root) => directory,
+        Ok(_) => {
+            PROXY_DIRECTORY.failure("image_proxy.directory", format_args!(
+                "source_id={} path={} error=cache escapes project root", source.id, directory.display()));
+            return None;
+        }
+        Err(error) => {
+            PROXY_DIRECTORY.failure("image_proxy.directory", format_args!(
+                "source_id={} path={} error={error}", source.id, directory.display()));
+            return None;
+        }
+    };
+    PROXY_DIRECTORY.success();
     Some(directory.join(format!("{:x}.rgba", hash.finalize())))
 }
 fn read_proxy(path: &Path, w: u32, h: u32) -> Option<Vec<u8>> {
     use sha2::{Digest, Sha256};
-    let _guard = CACHE_LOCK.lock().ok()?;
+    let _guard = proxy_cache_lock();
     let mut file = File::open(path).ok()?;
     let cost = u64::from(w) * u64::from(h) * 4;
     if file.metadata().ok()?.len() != cost + 44 {
@@ -321,73 +362,63 @@ fn read_proxy(path: &Path, w: u32, h: u32) -> Option<Vec<u8>> {
     Some(rgba)
 }
 fn write_proxy(path: &Path, pixels: &Pixels) {
+    let _guard = proxy_cache_lock();
+    match write_proxy_inner(path, pixels) {
+        Ok(()) => PROXY_WRITES.success(),
+        Err(error) => {
+            PROXY_WRITES.failure("image_proxy.write", format_args!("path={} error={error}", path.display()));
+        }
+    }
+}
+fn write_proxy_inner(path: &Path, pixels: &Pixels) -> std::io::Result<()> {
     use sha2::{Digest, Sha256};
-    let Ok(_guard) = CACHE_LOCK.lock() else {
-        return;
-    };
-    let Some(directory) = path.parent() else {
-        return;
-    };
+    use std::io::{Error, ErrorKind};
+    let directory = path.parent().ok_or_else(|| Error::new(ErrorKind::InvalidInput, "proxy directory missing"))?;
     let cost = pixels.rgba.len() as u64 + 44;
-    let Ok(entries) = fs::read_dir(directory) else {
-        return;
-    };
-    let mut old: Vec<_> = entries
-        .filter_map(|e| {
-            let e = e.ok()?;
-            let name = e.file_name().to_str()?.to_owned();
-            if name.len() != 69
-                || !name.ends_with(".rgba")
-                || !name[..64].bytes().all(|b| b.is_ascii_hexdigit())
-            {
-                return None;
-            }
-            let m = e.metadata().ok()?;
-            if !m.is_file() {
-                return None;
-            }
-            Some((m.modified().ok()?, e.path(), m.len()))
-        })
-        .collect();
-    old.sort_by_key(|e| e.0);
-    let mut total: u64 = old.iter().map(|e| e.2).sum();
-    // Rebuild corrupt entries using exclusive temporary files and atomic rename.
-    if let Ok(meta) = path.metadata() {
-        if fs::remove_file(path).is_err() {
-            return;
+    let mut old = Vec::new();
+    for entry in fs::read_dir(directory)? {
+        let entry = entry?;
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else { continue; };
+        if name.len() != 69 || !name.ends_with(".rgba")
+            || !name[..64].bytes().all(|b| b.is_ascii_hexdigit()) {
+            continue;
         }
-        total = total.saturating_sub(meta.len());
+        let metadata = entry.metadata()?;
+        if !metadata.is_file() { continue; }
+        old.push((metadata.modified()?, entry.path(), metadata.len()));
     }
+    old.sort_by_key(|entry| entry.0);
+    // The old destination remains valid until the final atomic replacement.
+    let mut total = old.iter().filter(|entry| entry.1 != path).try_fold(0u64,
+        |sum, entry| sum.checked_add(entry.2).ok_or_else(|| Error::other("proxy cache size overflow")))?;
     for (_, previous, bytes) in old {
-        if total + cost <= PROXY_CACHE_BYTES {
-            break;
-        }
-        if previous != path && fs::remove_file(previous).is_ok() {
-            total = total.saturating_sub(bytes);
-        }
+        if total.saturating_add(cost) <= PROXY_CACHE_BYTES { break; }
+        if previous == path { continue; }
+        fs::remove_file(&previous)
+            .map_err(|error| Error::new(error.kind(), format!("evict proxy {}: {error}", previous.display())))?;
+        total = total.saturating_sub(bytes);
     }
-    if total + cost > PROXY_CACHE_BYTES {
-        return;
+    if total.saturating_add(cost) > PROXY_CACHE_BYTES {
+        return Err(Error::other("image proxy disk budget exhausted"));
     }
-    let serial = CACHE_SERIAL.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let serial = CACHE_SERIAL.fetch_add(1, Ordering::Relaxed);
     let temp = directory.join(format!("proxy-{}-{serial}.tmp", std::process::id()));
-    let result = (|| -> std::io::Result<()> {
-        let mut file = OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&temp)?;
-        file.write_all(b"MSIP")?;
-        file.write_all(&pixels.width.to_le_bytes())?;
-        file.write_all(&pixels.height.to_le_bytes())?;
-        file.write_all(&pixels.rgba)?;
-        file.write_all(&Sha256::digest(&pixels.rgba))?;
-        file.flush()?;
-        drop(file);
-        fs::rename(&temp, path)
-    })();
-    if result.is_err() {
-        let _ = fs::remove_file(temp);
-    }
+    // Install cleanup only after exclusive creation succeeded. Bind the file
+    // after the guard so it closes first during an early return or unwind.
+    let (temporary, mut file) = {
+        let file = OpenOptions::new().write(true).create_new(true).open(&temp)?;
+        (ProxyTemporary(temp), file)
+    };
+    file.write_all(b"MSIP")?;
+    file.write_all(&pixels.width.to_le_bytes())?;
+    file.write_all(&pixels.height.to_le_bytes())?;
+    file.write_all(&pixels.rgba)?;
+    file.write_all(&Sha256::digest(&pixels.rgba))?;
+    file.flush()?;
+    drop(file);
+    fs::rename(&temporary.0, path)?;
+    Ok(())
 }
 
 /// The PNG path writes directly into the caller's allocation, including full
@@ -744,5 +775,54 @@ impl DecodeTask {
 impl Drop for DecodeTask {
     fn drop(&mut self) {
         self.cancel();
+    }
+}
+
+#[cfg(test)]
+mod proxy_failure_tests {
+    use super::*;
+
+    fn pixels() -> Pixels {
+        Pixels {width:2,height:1,rgba:vec![80;8],cached:false}
+    }
+
+    #[test]
+    fn poisoned_cache_lock_recovers_and_still_roundtrips_verified_pixels() {
+        let caught = std::panic::catch_unwind(|| {
+            let _guard = proxy_cache_lock();
+            panic!("injected proxy writer panic");
+        });
+        assert!(caught.is_err());
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join(format!("{:064x}.rgba",1));
+        let pixels = pixels();
+        write_proxy(&path,&pixels);
+        assert!(!CACHE_LOCK.is_poisoned());
+        assert_eq!(read_proxy(&path,2,1).unwrap(),pixels.rgba);
+    }
+
+    #[test]
+    fn exclusive_temp_collision_preserves_foreign_file_and_previous_cache() {
+        let _guard = proxy_cache_lock();
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join(format!("{:064x}.rgba",2));
+        fs::write(&path,b"previous cache").unwrap();
+        let serial = CACHE_SERIAL.load(Ordering::Relaxed);
+        let foreign = root.path().join(format!("proxy-{}-{serial}.tmp", std::process::id()));
+        fs::write(&foreign,b"another writer").unwrap();
+        assert_eq!(write_proxy_inner(&path,&pixels()).unwrap_err().kind(),std::io::ErrorKind::AlreadyExists);
+        assert_eq!(fs::read(foreign).unwrap(),b"another writer");
+        assert_eq!(fs::read(path).unwrap(),b"previous cache");
+    }
+
+    #[test]
+    fn rename_failure_preserves_destination_and_cleans_own_temp_file() {
+        let _guard = proxy_cache_lock();
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join(format!("{:064x}.rgba",3));
+        fs::create_dir(&path).unwrap();
+        assert!(write_proxy_inner(&path,&pixels()).is_err());
+        assert!(path.is_dir());
+        assert_eq!(fs::read_dir(root.path()).unwrap().count(),1);
     }
 }

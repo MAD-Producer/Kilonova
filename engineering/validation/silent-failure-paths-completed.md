@@ -138,4 +138,17 @@
 
 ## 待核验的重要清单断言
 
-- 当前 renderer 的异步 demand 会在 busy 结束后启动非 speculative decode；其错误进入 Err。现有 image_preview_cache 已包含“坏预取资产转为 active 后必须返回 image 9 错误、不能永久 pending”的真 GPU 回归。原“只因没有检查 failed 集合就一定永久 false”推断与当前代码不符，留待本轮 GPU 实测确认
+- 当前 renderer 的异步 demand 会在 busy 结束后启动非 speculative decode；其错误进入 Err。现有 image_preview_cache 已包含“坏预取资产转为 active 后必须返回 image 9 错误、不能永久 pending”的真 GPU 回归。原“只因没有检查 failed 集合就一定永久 false”推断与当前代码不符；本轮真 GPU 实测已确认，详见 09
+
+## 09 · 图片代理缓存的失败与临时文件所有权
+
+状态：已修复；renderer lib 与图片资源测试通过；image_preview_cache / image_working_set 真 GPU 回归共 4 passed。
+
+- CACHE_LOCK 仅保护磁盘操作，不持有可损坏的内存对象；中毒后恢复锁并 warn，所有缓存读取继续验证 header/长度/hash，不重启 renderer 或跨线程移交 GPU
+- 写入、驱逐、目录不可用等失败采用首次 debug、连续 60 次 error 的限频信号，成功后复位
+- 替换前保留原代理文件；create_new 失败不安装清理 guard，避免删除另一个写入者的临时文件（原代码在创建失败时也执行 remove_file）
+- 自有临时文件有 RAII 清理；cleanup 失败限频 warn，路径可定位；预算统计与正常缓存命中行为保持
+- 新增 3 项回归：锁中毒后真实读写恢复、临时名碰撞保留 foreign 文件与原缓存、rename 失败清理本次文件并保留目标
+- 原坏预取转 active 的真 GPU 回归已实测通过，返回 image 9 错误，没有永久 pending；无需将失败集合改为 active 资产的永久黑名单
+- 图片资源测试中唯一未执行项为既有外部 MOTION_IMAGE_SOURCE 本地图片探针，未更改其 ignore 或断言
+- 关联辅助：1.10、11.27–11.28；日志：render-batch09-final.log、render-batch09-gpu.log，位于 target/silent-failure-validation
