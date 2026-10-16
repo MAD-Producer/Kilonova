@@ -53,8 +53,13 @@ def verify_style_overrides(binary: Path, output: Path) -> None:
         style = snapshot["style"]
         if not style["overrideActive"] or style["rowHeight"] != 32 or style["dragThreshold"] != 12 or style["easing"] != "linear":
             raise RuntimeError(f"{locale} ignored style/density/motion overrides")
-        if len(snapshot["panels"]) < 21:
+        # Masks now belong to Properties; legacy dock ID 6 stays readable.
+        if {panel["id"] for panel in snapshot["panels"]} != set(range(1, 22)) - {6}:
             raise RuntimeError(f"{locale} did not render every floating panel with overrides")
+        properties = next(panel for panel in snapshot["panels"] if panel["id"] == 11)
+        mask_timeline = properties.get("maskTimelineScreenshot")
+        if not mask_timeline or not Path(mask_timeline).is_file():
+            raise RuntimeError(f"{locale} did not render masks in layer properties and the shared timeline")
         baseline = json.loads((output / f"smoke-{locale}.json").read_text(encoding="utf-8"))
         if Path(snapshot["screenshot"]).read_bytes() == Path(baseline["screenshot"]).read_bytes():
             raise RuntimeError(f"{locale} style override did not change rendered pixels")

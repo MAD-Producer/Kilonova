@@ -1117,6 +1117,120 @@ mod tests {
         }
     }
     #[test]
+    fn layer_properties_owns_mask_creation_menus_and_numeric_gestures_in_main_and_floating_windows()
+    {
+        use motion_ui::dock::{Node, Panel};
+        for floating in [false, true] {
+            let mut engine = engine();
+            let mut panels = crate::panels::Panels::default();
+            panels.selected = Some(7);
+            panels.focused = Some(Panel::Properties);
+            panels.properties.transform_collapsed = true;
+            panels.path_controls.masks_open = true;
+            let layout = Node::dock(Panel::Properties.dock());
+            let mut atlas = TextAtlas::from_system(12.).unwrap();
+            let mut render = |engine: &motion_core::Engine,
+                              panels: &mut crate::panels::Panels,
+                              input: &Input| {
+                let state = serde_json::json!({"root":"fixture",
+                    "composition":motion_core::composition::MAIN_COMPOSITION,
+                    "frame":21,"revision":engine.revision(),"project":engine.project(),
+                    "sampledLayers":[{"id":7,"position":[320,180,0],"rotation":[0,0,0],
+                        "scale":[100,100,100],"opacity":1}]});
+                if floating {
+                    crate::panels::floating_chrome(
+                        &mut PaintList::default(),
+                        &mut atlas,
+                        Panel::Properties,
+                        [400., 700.],
+                        panels,
+                        &state,
+                        input,
+                    )
+                } else {
+                    crate::panels::chrome(
+                        &mut PaintList::default(),
+                        &mut atlas,
+                        [400., 700.],
+                        &layout,
+                        panels,
+                        &state,
+                        input,
+                    )
+                }
+            };
+            assert!(render(&engine, &mut panels, &Input::default()).is_empty());
+            let add = panels
+                .path_controls
+                .mask_add_rect(Panel::Properties)
+                .unwrap();
+            let x = add.min[0] + add.width() * 0.5;
+            let y = add.min[1];
+            assert!(render(&engine, &mut panels, &press(MouseButton::Left, x, y + 11.)).is_empty());
+            assert!(panels.path_controls.add_mask_menu.open);
+            // Closing the popup over a stopwatch must not animate the obscured property.
+            assert!(render(
+                &engine,
+                &mut panels,
+                &press(MouseButton::Left, 34., y + 77.)
+            )
+            .is_empty());
+            assert!(!panels.path_controls.add_mask_menu.open);
+            assert!(!engine.project().layers[0].masks[0].opacity.is_animated());
+            render(&engine, &mut panels, &press(MouseButton::Left, x, y + 11.));
+            let actions = render(
+                &engine,
+                &mut panels,
+                &press(MouseButton::Left, x, add.max[1] + 33.),
+            );
+            assert!(matches!(
+                &actions[..],
+                [Action::Edit(Command::Mask {
+                    action: MaskAction::Add { .. },
+                    ..
+                })]
+            ));
+            apply(&mut engine, actions);
+            assert_eq!(engine.project().layers[0].masks.len(), 2);
+            let before_drag = engine.project().clone();
+            let fy = y + 99.;
+            let actions = render(&engine, &mut panels, &press(MouseButton::Left, 130., fy));
+            apply(&mut engine, actions);
+            assert_eq!(
+                panels.path_controls.numeric_owner(),
+                Some(Panel::Properties)
+            );
+            let actions = render(
+                &engine,
+                &mut panels,
+                &Input {
+                    mouse: [150., fy],
+                    held: Some(MouseButton::Left),
+                    ..Default::default()
+                },
+            );
+            apply(&mut engine, actions);
+            let actions = render(
+                &engine,
+                &mut panels,
+                &Input {
+                    mouse: [160., fy],
+                    released: Some((MouseButton::Left, [160., fy])),
+                    ..Default::default()
+                },
+            );
+            apply(&mut engine, actions);
+            assert_eq!(
+                engine.project().layers[0].masks[0].feather.value,
+                [38., 13.]
+            );
+            engine.undo().unwrap();
+            assert_eq!(engine.project(), &before_drag);
+            engine.undo().unwrap();
+            assert_eq!(engine.project().layers[0].masks.len(), 1);
+        }
+    }
+    #[test]
     fn delete_shortcut_in_mask_timeline_deletes_only_the_selected_key_in_main_and_floating_windows()
     {
         use motion_ui::dock::{Node, Panel};

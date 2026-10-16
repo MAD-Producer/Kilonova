@@ -107,7 +107,7 @@ pub fn route(
     if text_active(panels) || input.composing || input.ime_consumed {
         return false;
     }
-    if matches!(panels.focused, Some(Panel::Masks | Panel::Timeline))
+    if matches!(panels.focused, Some(Panel::Masks | Panel::Properties | Panel::Timeline))
         && panels
             .path_controls
             .mask_key_shortcuts(state, panels.selected, input, out)

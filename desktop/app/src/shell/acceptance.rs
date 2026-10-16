@@ -81,7 +81,7 @@ impl Shell {
                 self.panels.layer_actions.cancel();
                 Some(screenshot)
             } else { None };
-            let mask_timeline = if panel == dock::Panel::Masks {
+            let mask_timeline = if panel == dock::Panel::Properties {
                 let object = self.panels.selected.ok_or("mask fixture selection missing")?;
                 let mask = self.state["project"]["layers"].as_array().into_iter().flatten()
                     .find(|layer| layer["id"].as_u64() == Some(object))
@@ -112,7 +112,7 @@ impl Shell {
             }
             self.smoke_panel_current = None;
             self.smoke_panel_index += 1;
-        } else if let Some(panel) = dock::Panel::ALL.get(self.smoke_panel_index).copied() {
+        } else if let Some(panel) = dock::Panel::available().nth(self.smoke_panel_index) {
             self.action(panels::Action::ShowPanel(panel.dock()), Some(event_loop))?;
             if matches!(panel, dock::Panel::Timeline | dock::Panel::Audio) {
                 self.prepare_audio_panel_smoke()?;
@@ -138,26 +138,33 @@ impl Shell {
                     return Err("vector panel add-repeater entry produced no repeater".into());
                 }
             }
-            if panel == dock::Panel::Masks {
+            if panel == dock::Panel::Properties {
                 let object = self.state["project"]["layers"]
                     .as_array()
                     .into_iter()
                     .flatten()
                     .rev()
-                    .find(|l| matches!(l["content"]["kind"].as_str(), Some("solid" | "vector")))
+                    .find(|l| l["content"]["kind"] == "solid")
                     .and_then(|l| l["id"].as_u64())
                     .ok_or("visual mask fixture missing")?;
                 self.panels.select_only(Some(object));
                 self.panels.path_controls.masks_open = true;
+                self.panels.properties.transform_collapsed = true;
+                self.panels.properties.properties_scroll = 0.;
                 self.state = self.engine.seek(0.)?;
                 let sheet = self.panels.styles.clone()
                     .unwrap_or_else(motion_ui::style::default_stylesheet_arc);
                 let row = sheet.metric("row.height", 22.);
                 let slot = sheet.metric("icon.slot", 20.);
                 let padding = sheet.metric("padding.panel", 8.);
-                let top = 32. + padding;
-                self.feature_panel_click(panel, [720. - padding - slot * 0.5, top + row * 0.5], event_loop)?;
-                self.feature_panel_click(panel, [720. - padding - slot * 0.5, top + row * 2.5], event_loop)?;
+                let actions = panels::floating_chrome(&mut PaintList::default(), &mut self.atlas,
+                    panel, [720., 520.], &mut self.panels, &self.state, &Input::default());
+                if !actions.is_empty() { return Err("mask layout probe edited the project".into()); }
+                let add = self.panels.path_controls.mask_add_rect(panel)
+                    .ok_or("layer properties did not expose mask creation")?;
+                let top = add.min[1];
+                self.feature_panel_click(panel, [add.min[0] + add.width() * 0.5, top + row * 0.5], event_loop)?;
+                self.feature_panel_click(panel, [add.min[0] + add.width() * 0.5, add.max[1] + row * 1.5], event_loop)?;
                 let mask = self.state["project"]["layers"]
                     .as_array()
                     .into_iter()
@@ -168,7 +175,7 @@ impl Shell {
                     .and_then(|m| m["id"].as_u64())
                     .ok_or("mask panel rectangle entry produced no mask")?;
                 for index in 0..3 {
-                    self.feature_panel_click(panel, [padding + slot * 2.5,
+                    self.feature_panel_click(panel, [padding * 3. + slot * 0.5,
                         top + row * (3.5 + index as f32)], event_loop)?;
                 }
                 let masks = self.state["project"]["layers"].as_array().into_iter().flatten()
@@ -231,7 +238,7 @@ impl Shell {
                 ..Default::default()
             },
         );
-        if actions.is_empty() && panel != dock::Panel::Masks {
+        if actions.is_empty() && panel != dock::Panel::Properties {
             return Err(format!(
                 "{panel:?} feature entry did not emit an action at {point:?}"
             ));

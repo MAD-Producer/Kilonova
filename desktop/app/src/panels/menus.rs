@@ -212,8 +212,7 @@ pub(super) fn render(
                 Action::ShowPanel(dock::DockId(3)),
                 true,
             )],
-            7 => Panel::ALL
-                .into_iter()
+            7 => Panel::available()
                 .map(|panel| {
                     (
                         locale.panel(panel.dock()).into(),

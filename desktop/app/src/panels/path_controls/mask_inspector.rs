@@ -35,7 +35,11 @@ pub(super) fn property_row(
     host: Panel,
 ) -> crate::panels::timeline::PropertyLayout {
     let row = styles.metric("row.height", 22.);
-    let indent = styles.metric("icon.slot", 20.);
+    let indent = if host == Panel::Properties {
+        styles.metric("padding.panel", 8.)
+    } else {
+        styles.metric("icon.slot", 20.)
+    };
     if matches!(host, Panel::Timeline | Panel::Curves) {
         let mut layout = crate::panels::timeline::property_layout(area, y, row, axis, axes);
         layout.watch.min[0] += indent;
@@ -47,10 +51,15 @@ pub(super) fn property_row(
     let padding = styles.metric("padding.panel", 8.);
     let slot = styles.metric("icon.slot", 20.);
     let field = styles.metric("field.height", 18.).min(row);
-    let cell =
-        (area.width() * 0.44 / axes.max(1) as f32).min(styles.metric("value.min_width", 64.));
     let start = area.min[0] + padding + indent * 2.;
-    let value = area.min[0] + area.width() * 0.52;
+    let value = if host == Panel::Properties {
+        area.min[0]
+            + (padding + styles.metric("label.column", 72.) + slot * 2.).min(area.width() * 0.52)
+    } else {
+        area.min[0] + area.width() * 0.52
+    };
+    let cell = ((area.max[0] - padding - value) / axes.max(1) as f32)
+        .min(styles.metric("value.min_width", 64.));
     crate::panels::timeline::PropertyLayout {
         watch: Rect::new(start, y, slot, row),
         caption: Rect::new(
@@ -84,6 +93,46 @@ fn icon(
     }
     let styles = list.styles();
     icons::button(list, rect, kind, input, styles.as_ref(), states).clicked
+}
+struct ModeRow {
+    caption: Rect,
+    mode: Rect,
+    invert: Rect,
+    invert_label: bool,
+}
+fn mode_row(
+    styles: &motion_ui::style::StyleSheet,
+    area: Rect,
+    y: f32,
+    invert_text: f32,
+    host: Panel,
+) -> ModeRow {
+    let row = styles.metric("row.height", 22.);
+    let field = styles.metric("field.height", 18.).min(row);
+    let padding = styles.metric("padding.panel", 8.);
+    let slot = styles.metric("icon.slot", 20.);
+    let gap = styles.metric("padding", 5.);
+    let fields = property_row(styles, area, y, 0, 1, host);
+    let name = fields.caption.min[0];
+    let right = area.max[0] - padding;
+    let available = (right - name).max(0.);
+    let minimum = styles.metric("value.min_width", 64.);
+    let full_invert = styles.metric("checkbox.size", 14.) + gap + invert_text;
+    let invert_label = available >= minimum + gap + full_invert;
+    let invert_width = if invert_label { full_invert } else { slot }.min(available);
+    let max_mode = (available - gap - invert_width).max(0.);
+    let preferred = fields.number.min[0];
+    let width = (right - preferred - gap - invert_width)
+        .max(minimum.min(max_mode))
+        .min(max_mode)
+        .min(styles.metric("dropdown.menu_min_width", 160.));
+    let x = preferred.min(right - width - gap - invert_width).max(name);
+    ModeRow {
+        caption: Rect::new(name, y, (x - gap - name).max(0.), row),
+        mode: Rect::new(x, y + (row - field) * 0.5, width, field),
+        invert: Rect::new(x + width + gap, y, invert_width, row),
+        invert_label,
+    }
 }
 impl Controls {
     pub(super) fn mask_number(
@@ -210,12 +259,14 @@ impl Controls {
         state: &Value,
         input: &Input,
         locale: Locale,
+        host: Panel,
         out: &mut Vec<Action>,
     ) {
         let context = (
             state["root"].as_str().unwrap_or("").into(),
             state["composition"].as_str().unwrap_or("").into(),
             layer.id,
+            host,
         );
         if self.inspector_context.as_ref() != Some(&context) {
             if self.cancel() {
@@ -242,9 +293,12 @@ impl Controls {
         let row = styles.metric("row.height", 22.);
         let slot = styles.metric("icon.slot", 20.);
         let padding = styles.metric("padding.panel", 8.);
-        let indent = styles.metric("icon.slot", 20.);
+        let indent = if host == Panel::Properties {
+            styles.metric("padding.panel", 8.)
+        } else {
+            styles.metric("icon.slot", 20.)
+        };
         let gap = styles.metric("padding", 5.);
-        let field = styles.metric("field.height", 18.).min(row);
         let mut overlays = list.child();
         let allowed = !layer.locked
             && !matches!(
@@ -288,6 +342,7 @@ impl Controls {
             self.masks_open = !self.masks_open;
         }
         let add = Rect::new(area.max[0] - padding - slot, *y, slot, row);
+        self.inspector_add = Some((host, add));
         if ui::button_icon(
             list,
             add,
@@ -464,15 +519,16 @@ impl Controls {
                     "Difference",
                 ]
             };
+            let invert = if locale == Locale::Zh {
+                "反转"
+            } else {
+                "Invert"
+            };
+            let mode_layout = mode_row(styles.as_ref(), area, *y, atlas.measure(invert), host);
             label(
                 list,
                 atlas,
-                Rect::new(
-                    area.min[0] + padding + indent * 2. + slot,
-                    *y,
-                    (area.width() * 0.52 - padding - indent * 2. - slot).max(0.),
-                    row,
-                ),
+                mode_layout.caption,
                 if locale == Locale::Zh {
                     "模式"
                 } else {
@@ -480,13 +536,7 @@ impl Controls {
                 },
                 colors.TEXT_MUTED,
             );
-            let cell = Rect::new(
-                area.min[0] + area.width() * 0.52,
-                *y + (row - field) * 0.5,
-                (area.width() * 0.48 - padding * 2. - slot * 4.)
-                    .clamp(0., styles.metric("dropdown.menu_min_width", 160.)),
-                field,
-            );
+            let cell = mode_layout.mode;
             let items: Vec<_> = labels
                 .iter()
                 .map(|label| DropdownItem {
@@ -528,12 +578,8 @@ impl Controls {
             if Checkbox::draw(
                 list,
                 atlas,
-                Rect::new(cell.max[0] + gap, *y, slot * 4., row),
-                if locale == Locale::Zh {
-                    "反转"
-                } else {
-                    "Invert"
-                },
+                mode_layout.invert,
+                if mode_layout.invert_label { invert } else { "" },
                 mask.inverted,
                 input,
                 allowed,
@@ -556,13 +602,12 @@ impl Controls {
             for index in 0..3 {
                 let (property, title, range) = spec(index, locale);
                 let values = mask_keys::values(mask, index, local);
-                let fields = property_row(styles.as_ref(), area, *y, 0, values.len(), Panel::Masks);
+                let fields = property_row(styles.as_ref(), area, *y, 0, values.len(), host);
                 self.keys
                     .watch(list, fields.watch, state, owner, mask, index, input, out);
                 label(list, atlas, fields.caption, title, colors.TEXT_MUTED);
                 for axis in 0..values.len() {
-                    let fields =
-                        property_row(styles.as_ref(), area, *y, axis, values.len(), Panel::Masks);
+                    let fields = property_row(styles.as_ref(), area, *y, axis, values.len(), host);
                     self.mask_number(
                         list,
                         atlas,
@@ -574,7 +619,7 @@ impl Controls {
                         axis,
                         &values,
                         range,
-                        Panel::Masks,
+                        host,
                         input,
                         out,
                     );
@@ -584,5 +629,30 @@ impl Controls {
             *y += gap;
         }
         list.append(overlays);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn compact_mask_controls_stay_inside_narrow_panels_and_do_not_overlap() {
+        let styles = motion_ui::style::default_stylesheet();
+        for width in [160., 180., 220., 286., 400., 720.] {
+            let area = Rect::new(17., 31., width, 600.);
+            for text in [24., 40.] {
+                let layout = mode_row(&styles, area, 90., text, Panel::Properties);
+                assert!(layout.caption.max[0] <= layout.mode.min[0]);
+                assert!(layout.mode.max[0] < layout.invert.min[0]);
+                assert!(layout.invert.max[0] <= area.max[0]);
+                assert!(layout.mode.width() >= styles.metric("icon.slot", 20.));
+            }
+            let x = property_row(&styles, area, 120., 0, 2, Panel::Properties);
+            let y = property_row(&styles, area, 120., 1, 2, Panel::Properties);
+            assert!(x.watch.max[0] <= x.caption.min[0]);
+            assert!(x.caption.max[0] <= x.number.min[0]);
+            assert!(x.number.max[0] <= y.number.min[0]);
+            assert!(y.number.max[0] <= area.max[0]);
+        }
     }
 }

@@ -106,6 +106,9 @@ impl Workspace {
         .map_err(|e| e.to_string())
     }
     pub fn redock(&mut self, panel: DockId) {
+        let panel = if panel == dock::Panel::Masks.dock() {
+            dock::Panel::Properties.dock()
+        } else { panel };
         if self.layout.root.find(panel).is_some() {
             return;
         }
@@ -160,7 +163,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("workspace.json");
         let mut workspace = Workspace::default();
-        for panel in dock::Panel::ALL {
+        for panel in dock::Panel::available() {
             let id = panel.dock();
             workspace.redock(id);
             assert!(workspace.float(id));

@@ -436,6 +436,10 @@ impl Panel {
     pub fn from_dock(id: DockId) -> Option<Self> {
         Self::ALL.into_iter().find(|p| p.dock() == id)
     }
+    /// Legacy IDs remain readable, but masks are now owned by layer properties.
+    pub fn available() -> impl Iterator<Item = Self> {
+        Self::ALL.into_iter().filter(|panel| *panel != Self::Masks)
+    }
     pub fn title_zh(self) -> &'static str {
         match self {
             Self::Project => "项目",

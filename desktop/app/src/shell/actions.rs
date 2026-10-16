@@ -383,7 +383,7 @@ impl Shell {
                 self.panels.message = Some(locale.t(T::Ready).into());
             }
             Action::ApplyWorkspace { visible, name } => {
-                for panel in dock::Panel::ALL {
+                for panel in dock::Panel::available() {
                     let id = panel.dock();
                     let action = if visible.contains(&id) {
                         Action::ShowPanel(id)
@@ -434,6 +434,9 @@ impl Shell {
                 self.action(Action::ShowPanel(dock::Panel::Timeline.dock()), event_loop)?;
             }
             Action::ShowPanel(id) => {
+                let id = if id == dock::Panel::Masks.dock() {
+                    dock::Panel::Properties.dock()
+                } else { id };
                 self.panels.node_editor.cancel_interaction();
                 if let Some(f) = self.floating.values().find(|f| f.panel.dock() == id) {
                     f.window.focus_window();

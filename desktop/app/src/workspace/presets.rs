@@ -74,7 +74,10 @@ impl SavedLayout {
     }
     fn restore(&self) -> Option<motion_ui::workspace::Workspace> {
         // Reuse the framework deserializer and its geometry checks; no gesture survives a switch.
-        serde_json::from_value(serde_json::to_value(self).expect("layout serializes")).ok()
+        let mut layout: motion_ui::workspace::Workspace =
+            serde_json::from_value(serde_json::to_value(self).expect("layout serializes")).ok()?;
+        layout.close(Panel::Masks.dock());
+        Some(layout)
     }
     pub fn valid(&self) -> bool {
         self.restore().is_some_and(|layout| {
@@ -141,7 +144,7 @@ fn layout(preset: Preset) -> motion_ui::workspace::Workspace {
             split(
                 Edge::Left,
                 304. / 1600.,
-                tabs(&[Panel::Vector, Panel::Masks]),
+                Node::dock(Panel::Vector.dock()),
                 split(
                     Edge::Right,
                     286. / 1292.,
@@ -168,7 +171,6 @@ fn layout(preset: Preset) -> motion_ui::workspace::Workspace {
                     Panel::NodeProperties,
                     Panel::Effects,
                     Panel::Vector,
-                    Panel::Masks,
                     Panel::Expression,
                 ]),
             ),
@@ -220,6 +222,7 @@ impl Workspace {
         self.preset_layouts.remove(&self.preset);
     }
     pub fn migrate_design(&mut self) {
+        self.layout.close(Panel::Masks.dock());
         if self.design_revision == 1 {
             // Preserve custom workspaces. Only upgrade the former Nodes default,
             // which lacks a Composition panel, and retain it as a named layout.
@@ -253,6 +256,38 @@ impl Workspace {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn legacy_mask_panels_are_hidden_without_losing_properties_or_other_layout_ownership() {
+        for floating in [false, true] {
+            let folder = tempfile::tempdir().unwrap();
+            let path = folder.path().join("legacy-masks.json");
+            let mut workspace = Workspace::default();
+            workspace.layout.redock(Panel::Masks.dock());
+            workspace.layout.redock(Panel::Vector.dock());
+            if floating {
+                assert!(workspace.layout.float(Panel::Masks.dock()));
+            }
+            workspace
+                .preset_layouts
+                .insert(Preset::Drawing, SavedLayout::capture(&workspace.layout));
+            workspace.save(&path).unwrap();
+            let mut restored = Workspace::load(&path);
+            for preset in [Preset::Default, Preset::Drawing, Preset::All] {
+                restored.select_preset(preset);
+                assert!(restored.valid());
+                assert!(restored.root.find(Panel::Masks.dock()).is_none());
+                assert!(!restored.floating.contains(&Panel::Masks.dock()));
+                assert!(restored.root.find(Panel::Properties.dock()).is_some());
+                assert!(restored.root.find(Panel::Vector.dock()).is_some());
+            }
+            restored.redock(Panel::Masks.dock());
+            assert!(restored.root.find(Panel::Masks.dock()).is_none());
+            assert!(restored.root.find(Panel::Properties.dock()).is_some());
+            assert!(restored.valid());
+        }
+        assert!(!Panel::available().any(|panel| panel == Panel::Masks));
+        assert_eq!(Panel::from_dock(Panel::Masks.dock()), Some(Panel::Masks));
+    }
     #[test]
     fn presets_remember_docks_and_floating_geometry_without_duplicate_owners() {
         let folder = tempfile::tempdir().unwrap();

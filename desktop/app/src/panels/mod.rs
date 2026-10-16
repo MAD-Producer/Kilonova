@@ -261,7 +261,7 @@ pub fn chrome(
         && !node_modal
         && matches!(
             panels.focused,
-            Some(Panel::Masks | Panel::Vector | Panel::Timeline | Panel::Curves)
+            Some(Panel::Masks | Panel::Properties | Panel::Vector | Panel::Timeline | Panel::Curves)
         )
         && panels.path_controls.numeric_owner() == panels.focused
     {
@@ -764,7 +764,7 @@ pub fn floating_chrome(
         && !(panels.fx_console.is_some() && keyboard::console_close_pressed(input))
         && matches!(
             panel,
-            Panel::Masks | Panel::Vector | Panel::Timeline | Panel::Curves
+            Panel::Masks | Panel::Properties | Panel::Vector | Panel::Timeline | Panel::Curves
         )
         && panels.path_controls.numeric_owner() == Some(panel)
     {

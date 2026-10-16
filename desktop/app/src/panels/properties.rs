@@ -11,6 +11,16 @@ pub(super) fn render(
 ) {
     let styles = list.styles();
     let colors = styles.colors();
+    let neutral = Input::default();
+    let mask_modal = panels.path_controls.inspector_menu_in(Panel::Properties);
+    let parent_modal = panels.parent_controls.open;
+    let original = input;
+    let mask_input = if parent_modal { &neutral } else { original };
+    let input = if mask_modal || parent_modal {
+        &neutral
+    } else {
+        input
+    };
     if panels.focused != Some(Panel::Timeline) {
         process_field(panels, state, input, out);
     }
@@ -198,7 +208,9 @@ pub(super) fn render(
                 true,
             );
             let count = axes.len();
-            let width = (columns.value.width() / count as f32).max(1.);
+            let width = (columns.value.width() / count as f32)
+                .max(1.)
+                .min(styles.metric("value.min_width", 64.));
             for (index, axis) in axes.into_iter().enumerate() {
                 let value = if property == Property::Opacity {
                     sample[key].as_f64().unwrap_or(1.) * 100.
@@ -224,6 +236,36 @@ pub(super) fn render(
             y += columns.height;
         }
     }
+    let mut mask_list = list.child();
+    if !matches!(
+        layer["content"]["kind"].as_str(),
+        Some("audio" | "null" | "adjustment")
+    ) {
+        if let Some(typed) = panels.path_controls.inspector_layer(state, layer) {
+            panels.path_controls.masks_in_properties(
+                &mut mask_list,
+                atlas,
+                area,
+                &mut y,
+                &typed,
+                state,
+                mask_input,
+                locale,
+                out,
+            );
+            if let Some((rect, dragging)) = panels
+                .path_controls
+                .numeric_cursor()
+                .filter(|_| panels.path_controls.numeric_owner() == Some(Panel::Properties))
+            {
+                if dragging || rect.contains(input.mouse) {
+                    panels.cursor = Some(motion_ui::widgets::numeric_behavior::cursor(
+                        input, dragging,
+                    ));
+                }
+            }
+        }
+    }
     label(
         list,
         atlas,
@@ -237,19 +279,44 @@ pub(super) fn render(
     );
     y += row;
     panels.parent_controls.render(
-        list, atlas, area, &mut y, object, layer, state, input, locale, out,
+        list,
+        atlas,
+        area,
+        &mut y,
+        object,
+        layer,
+        state,
+        if mask_modal { &neutral } else { original },
+        locale,
+        out,
     );
     if layer["content"]["kind"] == "vector" {
-        if let Ok(layer) = serde_json::from_value::<motion_core::Layer>(layer.clone()) {
-            panels.path_controls.groups.render(list, atlas, area, &mut y, &layer, state, input, locale, Panel::Properties, out);
-            if let Some((rect,dragging)) = panels.path_controls.groups.cursor {
-                if dragging || rect.contains(input.mouse) { panels.cursor = Some(motion_ui::widgets::numeric_behavior::cursor(input,dragging)); }
+        if let Some(layer) = panels.path_controls.inspector_layer(state, layer) {
+            panels.path_controls.groups.render(
+                list,
+                atlas,
+                area,
+                &mut y,
+                &layer,
+                state,
+                input,
+                locale,
+                Panel::Properties,
+                out,
+            );
+            if let Some((rect, dragging)) = panels.path_controls.groups.cursor {
+                if dragging || rect.contains(input.mouse) {
+                    panels.cursor = Some(motion_ui::widgets::numeric_behavior::cursor(
+                        input, dragging,
+                    ));
+                }
             }
         }
     } else if panels.path_controls.groups.cancel() {
         out.push(Action::History(4));
     }
     panels.properties.content_height = y - area.min[1] + panels.properties.properties_scroll + pad;
+    list.append(mask_list);
 }
 
 pub(super) fn draw_value(

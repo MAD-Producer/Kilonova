@@ -207,13 +207,19 @@ pub struct Controls {
     pub notice: Option<String>,
     parameter: Option<Parameter>,
     parameter_context: Option<(String, String, u32)>,
-    inspector_context: Option<(String, String, u64)>,
+    inspector_context: Option<(String, String, u64, motion_ui::dock::Panel)>,
+    inspector_cache: Option<InspectorLayer>,
+    inspector_add: Option<(motion_ui::dock::Panel, Rect)>,
     add_mask_menu: motion_ui::widgets::Dropdown,
     mode_dropdowns: std::collections::HashMap<(u64, u64), motion_ui::widgets::Dropdown>,
     collapsed_mask_cards: std::collections::HashSet<(u64, u64)>,
     pub masks_open: bool,
     keys: mask_keys::Controls,
     pub(super) groups: groups::Controls,
+}
+struct InspectorLayer {
+    context: (String, String, u64, u64),
+    layer: std::sync::Arc<Layer>,
 }
 struct Parameter {
     host: motion_ui::dock::Panel,
@@ -927,7 +933,80 @@ impl Controls {
         if vector_only {
             return;
         }
-        self.compact_masks(list, atlas, area, y, l, state, input, locale, out);
+        self.compact_masks(
+            list,
+            atlas,
+            area,
+            y,
+            l,
+            state,
+            input,
+            locale,
+            motion_ui::dock::Panel::Masks,
+            out,
+        );
+    }
+    pub(super) fn inspector_layer(
+        &mut self,
+        state: &Value,
+        value: &Value,
+    ) -> Option<std::sync::Arc<Layer>> {
+        let revision = state["revision"].as_u64();
+        let context = (
+            state["root"].as_str().unwrap_or("").into(),
+            state["composition"].as_str().unwrap_or("").into(),
+            value["id"].as_u64()?,
+            revision.unwrap_or(0),
+        );
+        if revision.is_some() {
+            if let Some(cached) = &self.inspector_cache {
+                if cached.context == context {
+                    return Some(cached.layer.clone());
+                }
+            }
+        }
+        let layer = std::sync::Arc::new(serde_json::from_value::<Layer>(value.clone()).ok()?);
+        self.inspector_cache = Some(InspectorLayer {
+            context,
+            layer: layer.clone(),
+        });
+        Some(layer)
+    }
+    pub(super) fn masks_in_properties(
+        &mut self,
+        list: &mut PaintList,
+        atlas: &mut TextAtlas,
+        area: Rect,
+        y: &mut f32,
+        layer: &Layer,
+        state: &Value,
+        input: &Input,
+        locale: Locale,
+        out: &mut Vec<Action>,
+    ) {
+        self.compact_masks(
+            list,
+            atlas,
+            area,
+            y,
+            layer,
+            state,
+            input,
+            locale,
+            motion_ui::dock::Panel::Properties,
+            out,
+        );
+    }
+    pub(super) fn inspector_menu_in(&self, host: motion_ui::dock::Panel) -> bool {
+        self.inspector_context
+            .as_ref()
+            .is_some_and(|context| context.3 == host)
+            && (self.add_mask_menu.open || self.mode_dropdowns.values().any(|d| d.open))
+    }
+    pub(crate) fn mask_add_rect(&self, host: motion_ui::dock::Panel) -> Option<Rect> {
+        self.inspector_add
+            .filter(|(owner, _)| *owner == host)
+            .map(|(_, rect)| rect)
     }
     pub(super) fn clear_mask_selection(&mut self) {
         self.keys.clear_selection();

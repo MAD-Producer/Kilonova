@@ -89,7 +89,7 @@ impl Manager {
         let viewport = Rect::new(card.min[0] + 20., y, 660., list_height);
         let frame = self.scroll.begin(list, viewport, 264., input, false);
         let mut content = list.child();
-        for (i, panel) in dock::Panel::ALL.into_iter().enumerate() {
+        for (i, panel) in dock::Panel::available().enumerate() {
             let x = card.min[0] + 20. + (i % 2) as f32 * 330.;
             let row = Rect::new(x, frame.content.min[1] + (i / 2) as f32 * 24., 310., 22.);
             if Checkbox::draw(
