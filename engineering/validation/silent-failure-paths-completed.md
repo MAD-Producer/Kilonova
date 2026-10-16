@@ -186,3 +186,16 @@
 - 新增 3 项测试：未知状态拒绝、真实不存在任务的查询失败后可继续轮询、真实损坏音频导入的终态释放且工程未改
 - 保留 respond 中无人接收异步结果的既有丢弃契约
 - 关联辅助：5.21；日志：shell-batch11.log、desktop-batch11-full.log、check-integrated.log、build-integrated.log
+
+## 12 · 获准修复的测试夹具与原生验收
+
+状态：已完成；用户明确授权 panels 禁改规则的这一行例外。
+
+- 递归样式门禁实际找到 mask_inspector.rs:680 的既有 cfg(test) 初始化；仅将 default_stylesheet() 改为 PaintList::default().styles()，全部断言原样保留
+- 没有修改该文件的产品绘制函数、颜色、尺寸、布局、控件或交互；本轮 panels 差异仅这一行测试初始化
+- 原 narrow-mask 测试通过；完整 tools/ci_desktop.py 通过两种语言、浮动窗口、五种工作区/回切、活跃节点 overlay、独立和绑定节点预览、共享 MCP、样式覆盖
+- 已人工查看中英文主窗口截图，内容区正常绘制；DESIGN §0.7 的既有视觉整改项全部 retained with reason：本轮为错误边界与测试夹具修复，不做视觉重排；未宣称修复那些已有视觉问题
+- 工具全套带 MOTION_EFFECT_VALIDATOR 重跑：46 passed，0 failed，0 skipped；此前 05 中依赖外部验证器的未执行项已补跑
+- 默认 MOTION_LOG 未设置的真实启动：123 条普通命令 start，0 条 Present start；debug 下无健康 Present 的逐帧 done/dispatch；日志轮转、MCP 三条 JSON-RPC 响应和 CLI 命令目录无污染均验证通过
+- 原生验收日志：target/silent-failure-validation/native-integrated.log；双语言截图/报告：native-integrated/；日志与协议验收：runtime/runtime-summary.json
+- 当前批次基线对应前 11 个业务修复提交；后续新业务改动仍须按影响范围补验，不能用本节覆盖未知改动
