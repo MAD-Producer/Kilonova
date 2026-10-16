@@ -353,7 +353,14 @@ pub(super) fn draw_value(
             .map_or(0., |s| s.last_value - s.start_value);
         panels.drag_readout = Some((input.mouse, format!("{}  {:+.2}", text, delta)));
     }
-    motion_ui::style::text_style(list, atlas, r, &text, style, Align::Left);
+    motion_ui::style::text_style(
+        list,
+        atlas,
+        r.shrink(style.padding),
+        &text,
+        style,
+        Align::Left,
+    );
     if active {
         panels.properties.field.as_mut().unwrap().rect = r;
     }
@@ -443,6 +450,42 @@ pub(super) fn process_field(
             out.push(Action::History(4));
         }
         return;
+    }
+    if field.scrubbing.is_none() && !input.composing && !input.ime_consumed {
+        if let Some((MouseButton::Left, point)) = input
+            .pressed
+            .filter(|(_, point)| field.rect.contains(*point))
+        {
+            let value = field
+                .text
+                .trim()
+                .parse::<f32>()
+                .ok()
+                .filter(|value| value.is_finite())
+                .unwrap_or_else(|| {
+                    let sample = state["sampledLayers"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .find(|sample| sample["id"].as_u64() == Some(field.object));
+                    sample.map_or(0., |sample| match field.property {
+                        Property::Opacity => sample["opacity"].as_f64().unwrap_or(1.) as f32 * 100.,
+                        Property::Position => {
+                            sample["position"][field.axis].as_f64().unwrap_or(0.) as f32
+                        }
+                        Property::Rotation => {
+                            sample["rotation"][field.axis].as_f64().unwrap_or(0.) as f32
+                        }
+                        _ => sample["scale"][field.axis].as_f64().unwrap_or(1.) as f32,
+                    })
+                });
+            field.scrubbing = Some(ScrubState {
+                start_mouse: point[0],
+                start_value: value,
+                last_value: value,
+                begun: false,
+            });
+        }
     }
     let outside = input.pressed.is_some_and(|(_, p)| !field.rect.contains(p));
     let released = input

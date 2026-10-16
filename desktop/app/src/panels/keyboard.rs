@@ -21,6 +21,7 @@ fn text_active(panels: &Panels) -> bool {
         || panels.timeline.trimming.is_some()
         || panels.timeline.key_drag.is_some()
         || panels.timeline.graph_drag.is_some()
+        || panels.timeline.graph_box.editing()
         || panels.timeline.scrubbing
         || panels.effect_controls.editing()
         || panels.animation_controls.editing()
@@ -151,10 +152,17 @@ pub fn route(
 pub fn handle_shortcuts(input: &Input, panels: &mut Panels, state: &Value, out: &mut Vec<Action>) {
     let mut frame = state["frame"].as_f64().unwrap_or(0.0);
     for (key, modifiers, repeat) in input.key_presses() {
+        if key == Key::A && modifiers.control && !modifiers.alt && !modifiers.shift && !repeat
+            && super::graph_box::select_all(panels, state) {
+            continue;
+        }
         let key_owned = matches!(panels.focused, Some(Panel::Timeline | Panel::Curves))
             && panels.animation_controls.user_key().is_some();
         if let Some(command) = shortcuts::resolve(Scope::Animation, key, modifiers, repeat) {
             if super::audio::shortcut(command, panels, state, out) {
+                continue;
+            }
+            if command == Command::Delete && super::graph_box::delete(panels, state, out) {
                 continue;
             }
             if super::timeline_shortcuts::handle(command, modifiers, panels, state, &mut frame, out)

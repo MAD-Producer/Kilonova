@@ -60,6 +60,17 @@ pub fn passive(
     input: &Input,
     enabled: bool,
 ) {
+    passive_with_precision(list, atlas, rect, value, input, enabled, 3);
+}
+pub fn passive_with_precision(
+    list: &mut PaintList,
+    atlas: &mut TextAtlas,
+    rect: Rect,
+    value: f64,
+    input: &Input,
+    enabled: bool,
+    decimals: usize,
+) {
     let styles = list.styles();
 
     use motion_ui::style::{box_style, text_style, State, States};
@@ -76,7 +87,7 @@ pub fn passive(
         list,
         atlas,
         rect.shrink(style.padding),
-        &format!("{value:.3}"),
+        &format!("{:.*}", decimals.min(8), value),
         style,
         Align::Left,
     );

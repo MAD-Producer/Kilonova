@@ -339,8 +339,9 @@ impl Shell {
             atlas,
             logical_size: size,
             window: 0,
-            node_preview: self
-                .node_viewport(panels::node_view_bound(&self.workspace.root,size,self.panels.node_editor.layer_target.is_some()), self.scale),
+            node_preview: if self.home.is_none() {
+                self.node_viewport(panels::node_view_bound(&self.workspace.root,size,self.panels.node_editor.layer_target.is_some()), self.scale)
+            } else { None },
             composition: if self.home.is_none() && view.width() > 0.0 && view.height() > 0.0 {
                 Some([
                     view.min[0] * self.scale,
@@ -936,6 +937,38 @@ mod interaction_tests {
         let editor = node_preview::regions(body).0;
         let canvas = shell.panels.node_editor.layout(editor).canvas;
         (shell, canvas)
+    }
+
+
+    #[test]
+    fn home_hides_active_node_preview_and_restores_it_without_project_edits() {
+        for locale in [Locale::Zh, Locale::En] {
+            let folder = tempfile::tempdir().unwrap();
+            let (mut shell, _) = node_shell(folder.path().join("project"));
+            shell.workspace.locale = locale;
+            shell.panels.node_preview.active = Some(shell.panels.node_editor.stamp());
+            let active = shell.panels.node_preview.active;
+            let before = shell.state.clone();
+            let graph = shell.panels.node_editor.snapshot().document;
+            for scale in [1., 1.5, 2.] {
+                shell.scale = scale;
+                for size in [[1200., 900.], [1598., 998.]] {
+                    shell.home = None;
+                    let (paint, actions) = shell.draw_commands(size);
+                    assert!(actions.is_empty());
+                    assert!(shell.ui_frame(paint, size, false).node_preview.is_some());
+                    shell.home = Some(home::Home::default());
+                    let (paint, actions) = shell.draw_commands(size);
+                    assert!(actions.is_empty());
+                    let ui = shell.ui_frame(paint, size, false);
+                    assert!(ui.node_preview.is_none(), "home retained a node preview overlay");
+                    assert!(ui.composition.is_none());
+                    assert_eq!(shell.panels.node_preview.active, active);
+                    assert_eq!(shell.state, before);
+                    assert_eq!(shell.panels.node_editor.snapshot().document, graph);
+                }
+            }
+        }
     }
 
     #[test]

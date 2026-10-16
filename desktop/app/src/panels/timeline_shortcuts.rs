@@ -363,6 +363,7 @@ pub(super) fn handle(
             }
         }
         Shortcut::ToggleGraph => {
+            out.extend(super::cancel_interaction(panels));
             panels.timeline.set_graph_mode(!panels.timeline.graph_mode);
         }
         Shortcut::PreviousKey | Shortcut::NextKey => {

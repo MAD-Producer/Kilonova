@@ -184,7 +184,15 @@ impl Controls {
             }
         } else {
             self.cursor |= enabled && rect.contains(input.mouse);
-            numeric::passive(&mut number_paint, atlas, rect, value, input, enabled);
+            numeric::passive_with_precision(
+                &mut number_paint,
+                atlas,
+                rect,
+                value,
+                input,
+                enabled,
+                options.decimals,
+            );
         }
         if control == Control::Gain
             && value <= SILENCE_DB
@@ -246,26 +254,9 @@ fn controls(layer: &Value) -> Vec<Control> {
     }
     rows
 }
-pub(super) struct Row {
-    pub number: Rect,
-    pub buttons: [Rect; 3],
-    pub watch: Rect,
-    pub caption: Rect,
-}
+pub(super) type Row = super::timeline::PropertyLayout;
 pub(super) fn row(area: Rect, y: f32, height: f32) -> Row {
-    let x = area.min[0];
-    let field_width = 64f32.min((area.width() * 0.35).max(1.));
-    Row {
-        number: Rect::new(area.max[0] - field_width - 6., y, field_width, height),
-        buttons: std::array::from_fn(|i| Rect::new(x + 14. + i as f32 * 16., y, 16., height)),
-        watch: Rect::new(x + 64., y, 16., height),
-        caption: Rect::new(
-            x + 84.,
-            y,
-            (area.width() - field_width - 94.).max(1.),
-            height,
-        ),
-    }
+    super::timeline::property_layout(area, y, height, 0, 1)
 }
 fn key_times(track: &Track<f32>, offset: i64, frames: u64) -> Vec<u32> {
     track
@@ -280,33 +271,6 @@ fn key_times(track: &Track<f32>, offset: i64, frames: u64) -> Vec<u32> {
 fn track(layer: &Value, control: Control) -> Track<f32> {
     serde_json::from_value(layer["audio_levels"][control.name()].clone())
         .unwrap_or_else(|_| Track::constant(0.))
-}
-fn key_button(
-    list: &mut PaintList,
-    atlas: &mut TextAtlas,
-    area: Rect,
-    icon: Icon,
-    active: bool,
-    input: &Input,
-    enabled: bool,
-    action: Action,
-    out: &mut Vec<Action>,
-) {
-    button(list, atlas, area, "", input, enabled, action, out);
-    let colors = list.styles().colors();
-    motion_ui::icons::draw(
-        list,
-        area,
-        icon,
-        14.,
-        if !enabled {
-            colors.TEXT_MUTED.with_alpha(0.4)
-        } else if active {
-            colors.ACCENT
-        } else {
-            colors.TEXT_MUTED
-        },
-    );
 }
 pub(super) fn prepare(panels: &mut Panels, state: &Value, input: &Input, out: &mut Vec<Action>) {
     let context = (
@@ -452,19 +416,15 @@ pub(super) fn render_rows(
             out,
         );
         if gain {
-            if motion_ui::widgets::Checkbox::draw(
+            let muted = source(layer)["muted"] == true;
+            super::timeline::property_icon(
                 list,
-                atlas,
                 fields.watch,
-                "",
-                source(layer)["muted"] == true,
-                input,
+                if muted { Icon::Muted } else { Icon::Volume },
+                muted,
                 enabled,
-                false,
-                None,
-            )
-            .clicked
-            {
+            );
+            if enabled && clicked(input, fields.watch) {
                 out.push(Action::Edit(Command::SetAudio {
                     object,
                     volume: None,
@@ -475,66 +435,25 @@ pub(super) fn render_rows(
         }
         let keys = key_times(&track(layer, control), local_offset, frames);
         let animated = !keys.is_empty();
-        let has_key = keys.contains(&current);
-        key_button(
+        super::timeline::property_icon(
             list,
-            atlas,
             fields.watch,
             Icon::Stopwatch,
             animated,
-            input,
             enabled && supported,
-            Action::Edit(Command::AudioLevels {
+        );
+        if enabled && supported && clicked(input, fields.watch) {
+            panels.select_only(Some(object));
+            panels.audio_controls.active_channel = Some(control.channel());
+            out.push(Action::Edit(Command::AudioLevels {
                 object,
                 action: AudioLevelsAction::Animate {
                     channel: control.channel(),
                     frame: current,
                     enabled: !animated,
                 },
-            }),
-            out,
-        );
-        let prev = keys.iter().copied().filter(|f| *f < current).max();
-        let next = keys.iter().copied().filter(|f| *f > current).min();
-        for (n, key) in [prev, next].into_iter().enumerate() {
-            key_button(
-                list,
-                atlas,
-                fields.buttons[if n == 0 { 0 } else { 2 }],
-                if n == 0 { Icon::Previous } else { Icon::Next },
-                false,
-                input,
-                supported && key.is_some(),
-                Action::Seek(f64::from(key.unwrap_or(current))),
-                out,
-            );
+            }));
         }
-        key_button(
-            list,
-            atlas,
-            fields.buttons[1],
-            Icon::Key,
-            has_key,
-            input,
-            enabled && supported,
-            Action::Edit(Command::AudioLevels {
-                object,
-                action: if has_key {
-                    AudioLevelsAction::DeleteKey {
-                        channel: control.channel(),
-                        frame: current,
-                    }
-                } else {
-                    AudioLevelsAction::Set {
-                        channel: control.channel(),
-                        frame: current,
-                        value: value as f32,
-                        animated: Some(true),
-                    }
-                },
-            }),
-            out,
-        );
         for frame in keys {
             draw_reference(
                 list,
@@ -584,74 +503,129 @@ pub(super) fn render_ruler(
         .drag
         .as_ref()
         .is_some_and(|drag| matches!(drag.selection.item, Item::Marker(_)));
-    let band = Rect::new(ruler.min[0], ruler.min[1], ruler.width(), 12.);
-    // Draw the selected layer last when references from several layers overlap.
+    let band = Rect::new(ruler.min[0], ruler.max[1] - 14., ruler.width(), 14.);
     let mut layers: Vec<_> = state["project"]["layers"]
         .as_array()
         .into_iter()
         .flatten()
         .collect();
+    // The selected source remains visible above references from other layers.
     layers.sort_by_key(|layer| layer["id"].as_u64() == panels.selected);
-    let hit = layers.iter().rev().find_map(|layer| {
-        let object = layer["id"].as_u64()?;
-        let local_offset = layer["timeline"]["offset_frame"].as_i64().unwrap_or(0);
-        layer["audio_markers"]
-            .as_array()?
-            .iter()
-            .rev()
-            .find_map(|marker| {
-                let frame = marker["frame"].as_i64()? + local_offset;
-                let x = ruler.min[0] + (frame as f32 - offset) * ppf;
-                (reference_visible(layer, frame, frames)
-                    && band.contains(input.mouse)
-                    && (input.mouse[0] - x).abs() <= 6.)
-                    .then_some((object, marker["id"].as_u64()?))
-            })
-    });
+    let font_size = list.styles().metric("font.small", 11.).min(10.);
+    let mut tabs = vec![];
     for layer in layers {
         let Some(object) = layer["id"].as_u64() else {
             continue;
         };
         let local_offset = layer["timeline"]["offset_frame"].as_i64().unwrap_or(0);
-        for marker in layer["audio_markers"].as_array().into_iter().flatten() {
+        let mut markers: Vec<_> = layer["audio_markers"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .collect();
+        markers.sort_by_key(|marker| {
+            (
+                marker["frame"].as_i64().unwrap_or(0),
+                marker["id"].as_u64().unwrap_or(0),
+            )
+        });
+        for (index, marker) in markers.iter().enumerate() {
             let frame = marker["frame"].as_i64().unwrap_or(0) + local_offset;
             if !reference_visible(layer, frame, frames) {
                 continue;
             }
-            let id = marker["id"].as_u64().unwrap_or(0);
-            let neutral = Input::default();
-            let active = if hit == Some((object, id)) {
-                input
-            } else {
-                &neutral
-            };
-            draw_reference(
-                list,
-                ruler,
-                band.min[1],
-                band.height(),
-                ppf,
-                offset,
-                Selection {
+            let x = ruler.min[0] + (frame as f32 - offset) * ppf;
+            if x < ruler.min[0] || x >= ruler.max[0] {
+                continue;
+            }
+            let label = (index + 1).to_string();
+            let label_width = atlas.measure(&label) * font_size / atlas.font_size();
+            let next_x = markers
+                .get(index + 1)
+                .map_or(ruler.max[0], |next| {
+                    let frame = next["frame"].as_i64().unwrap_or(0) + local_offset;
+                    ruler.min[0] + (frame as f32 - offset) * ppf - 1.
+                })
+                .min(ruler.max[0]);
+            let width = (label_width + 10.).max(16.).min((next_x - x).max(1.));
+            tabs.push(MarkerTab {
+                selection: Selection {
                     object,
-                    item: Item::Marker(id),
+                    item: Item::Marker(marker["id"].as_u64().unwrap_or(0)),
                     frame: frame as u32,
                 },
-                marker["generated"] == true && marker["corrected"] != true,
-                layer["locked"] != true && state["observing"] != true,
-                panels,
-                active,
-                out,
+                area: Rect::new(x, band.min[1], width, band.height()),
+                label,
+                label_width,
+                generated: marker["generated"] == true && marker["corrected"] != true,
+                enabled: layer["locked"] != true && state["observing"] != true,
+            });
+        }
+    }
+    let hit = tabs
+        .iter()
+        .rev()
+        .find(|tab| tab.hit_rect().contains(input.mouse));
+    for tab in &tabs {
+        let color = reference_color(list, panels, tab.selection, tab.generated);
+        let x = tab.area.min[0];
+        let bottom = tab.area.max[1] - 1.;
+        if tab.area.width() >= 8. {
+            paint::rect(
+                list,
+                Rect::new(
+                    x + 4.,
+                    tab.area.min[1] + 1.,
+                    tab.area.width() - 4.,
+                    tab.area.height() - 2.,
+                ),
+                color,
+            );
+            list.push_shape(
+                paint::Shape::Triangles {
+                    points: vec![[x, bottom], [x + 4., bottom - 4.], [x + 4., bottom]],
+                },
+                color,
+            );
+            // Dense references retain their anchor; zoom reveals the number.
+            if tab.area.width() >= tab.label_width + 8. {
+                ui::text_sized(
+                    list,
+                    atlas,
+                    Rect::new(
+                        x + 5.,
+                        tab.area.min[1],
+                        tab.area.width() - 6.,
+                        tab.area.height(),
+                    ),
+                    &tab.label,
+                    list.styles().colors().PANEL,
+                    Align::Center,
+                    font_size,
+                );
+            }
+        } else {
+            paint::rect(
+                list,
+                Rect::new(
+                    x,
+                    tab.area.min[1] + 4.,
+                    tab.area.width().min(2.),
+                    tab.area.height() - 5.,
+                ),
+                color,
             );
         }
+    }
+    if let Some(tab) = hit.filter(|tab| clicked(input, tab.hit_rect())) {
+        select_reference(tab.selection, tab.enabled, panels, input, out);
     }
     owned |= hit.is_some() && input.pressed.is_some_and(|(b, _)| b == MouseButton::Left);
     if hit.is_some() {
         panels.cursor = Some(motion_ui::cursor::Cursor::Grab);
     }
-    if let Some((object, _)) =
-        hit.filter(|_| input.pressed.is_some_and(|(b, _)| b == MouseButton::Right))
-    {
+    if let Some(tab) = hit.filter(|_| input.pressed.is_some_and(|(b, _)| b == MouseButton::Right)) {
+        let object = tab.selection.object;
         panels.select_only(Some(object));
         panels
             .layer_actions
@@ -685,7 +659,6 @@ pub(super) fn render_ruler(
         }),
         out,
     );
-    // Alt-click adds at the cursor; an ordinary ruler click keeps seeking.
     if hit.is_none() && clicked(input, ruler) && input.modifiers.alt {
         let frame = ((input.mouse[0] - ruler.min[0]) / ppf + offset)
             .round()
@@ -705,6 +678,24 @@ pub(super) fn render_ruler(
         owned = true;
     }
     owned
+}
+struct MarkerTab {
+    selection: Selection,
+    area: Rect,
+    label: String,
+    label_width: f32,
+    generated: bool,
+    enabled: bool,
+}
+impl MarkerTab {
+    fn hit_rect(&self) -> Rect {
+        Rect::new(
+            self.area.min[0] - 2.,
+            self.area.min[1],
+            self.area.width() + 2.,
+            self.area.height(),
+        )
+    }
 }
 fn reference_visible(layer: &Value, frame: i64, frames: u64) -> bool {
     let begin = layer["subframe_range"]["in_frame"]
@@ -735,50 +726,62 @@ fn draw_reference(
     if x < track.min[0] || x > track.max[0] {
         return;
     }
+    let color = reference_color(list, panels, selection, generated);
+    paint::diamond(
+        list,
+        [x, y + height * 0.5],
+        if panels.audio_controls.selection == Some(selection) {
+            5.
+        } else {
+            4.
+        },
+        color,
+    );
+    if clicked(input, Rect::new(x - 6., y, 12., height)) {
+        select_reference(selection, enabled, panels, input, out);
+    }
+}
+fn reference_color(
+    list: &PaintList,
+    panels: &Panels,
+    selection: Selection,
+    generated: bool,
+) -> motion_ui::Color {
     let colors = list.styles().colors();
     let selected = panels.audio_controls.selection == Some(selection)
         || matches!(selection.item, Item::Marker(id) if panels.audio_controls.batch.as_ref()
             .is_some_and(|(object, ids)| *object == selection.object && ids.contains(&id)));
-    let color = if selected {
+    if selected {
         colors.KEYFRAME
     } else if generated {
         colors.TEXT_MUTED
     } else {
         colors.ACCENT
-    };
-    if matches!(selection.item, Item::Marker(_)) {
-        paint::line(list, vec![[x, y + 2.], [x, y + height]], color);
-        paint::rect(
-            list,
-            Rect::new(x, y + 2., 8f32.min(track.max[0] - x), 6.),
-            color,
-        );
+    }
+}
+fn select_reference(
+    selection: Selection,
+    enabled: bool,
+    panels: &mut Panels,
+    input: &Input,
+    out: &mut Vec<Action>,
+) {
+    panels.select_only(Some(selection.object));
+    panels.audio_controls.selection = Some(selection);
+    panels.audio_controls.active_channel = if let Item::Key(channel) = selection.item {
+        Some(channel)
     } else {
-        paint::diamond(
-            list,
-            [x, y + height * 0.5],
-            if selected { 5. } else { 4. },
-            color,
-        );
+        None
+    };
+    if enabled {
+        panels.audio_controls.drag = Some(Drag {
+            selection,
+            start: input.mouse[0],
+            current: selection.frame,
+            begun: false,
+        });
     }
-    if clicked(input, Rect::new(x - 6., y, 12., height)) {
-        panels.select_only(Some(selection.object));
-        panels.audio_controls.selection = Some(selection);
-        panels.audio_controls.active_channel = if let Item::Key(channel) = selection.item {
-            Some(channel)
-        } else {
-            None
-        };
-        if enabled {
-            panels.audio_controls.drag = Some(Drag {
-                selection,
-                start: input.mouse[0],
-                current: selection.frame,
-                begun: false,
-            });
-        }
-        out.push(Action::Seek(f64::from(selection.frame)));
-    }
+    out.push(Action::Seek(f64::from(selection.frame)));
 }
 pub(super) fn process_drag(
     panels: &mut Panels,

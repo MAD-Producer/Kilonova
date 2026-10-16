@@ -25,6 +25,88 @@ pub(super) struct PropertyRow {
     pub axes: Vec<usize>,
     pub keys: Vec<f64>,
 }
+
+pub(super) struct PropertyLayout {
+    pub watch: Rect,
+    pub caption: Rect,
+    pub number: Rect,
+}
+pub(super) fn property_layout(
+    area: Rect,
+    y: f32,
+    height: f32,
+    component: usize,
+    components: usize,
+) -> PropertyLayout {
+    let cell_width = (area.width() * 0.44 / components.max(1) as f32).min(64.);
+    PropertyLayout {
+        watch: Rect::new(area.min[0] + 98., y, 14., height),
+        caption: Rect::new(
+            area.min[0] + 118.,
+            y,
+            (area.width() * 0.5 - 118.).max(1.),
+            height,
+        ),
+        number: Rect::new(
+            area.min[0] + area.width() * 0.52 + component as f32 * cell_width,
+            y,
+            (cell_width - 2.).max(1.),
+            height,
+        ),
+    }
+}
+pub(super) fn property_icon(
+    list: &mut PaintList,
+    area: Rect,
+    icon: motion_ui::icons::Icon,
+    active: bool,
+    enabled: bool,
+) {
+    let colors = list.styles().colors();
+    motion_ui::icons::draw(
+        list,
+        area,
+        icon,
+        16.,
+        if !enabled {
+            colors.TEXT_MUTED.with_alpha(0.4)
+        } else if active {
+            colors.ACCENT
+        } else {
+            colors.TEXT_MUTED
+        },
+    );
+}
+fn property_group(
+    list: &mut PaintList,
+    atlas: &mut TextAtlas,
+    area: Rect,
+    y: f32,
+    height: f32,
+    title: &str,
+    open: bool,
+) -> Rect {
+    let group = Rect::new(area.min[0] + 78., y, (area.width() - 84.).max(1.), height);
+    let x = group.min[0] + 3.;
+    let cy = y + height * 0.5;
+    paint::line(
+        list,
+        if open {
+            vec![[x, cy - 2.], [x + 3., cy + 2.], [x + 6., cy - 2.]]
+        } else {
+            vec![[x, cy - 3.], [x + 4., cy], [x, cy + 3.]]
+        },
+        list.styles().colors().TEXT_MUTED,
+    );
+    label(
+        list,
+        atlas,
+        Rect::new(area.min[0] + 98., y, (area.width() - 104.).max(1.), height),
+        title,
+        true,
+    );
+    group
+}
 pub(super) fn property_rows(state: &Value, object: u64) -> Vec<PropertyRow> {
     let layer = state["project"]["layers"]
         .as_array()
@@ -261,7 +343,7 @@ fn calculate_scroll_max(
         - (area_height - 64.0))
         .max(0.0)
 }
-fn row_count(row: &Row, timeline: &types::TimelineState) -> usize {
+pub(super) fn row_count(row: &Row, timeline: &types::TimelineState) -> usize {
     if row.id == 0 || !timeline.expanded.contains(&row.id) {
         return 1;
     }
@@ -364,9 +446,8 @@ pub(super) fn render(
     out: &mut Vec<Action>,
 ) {
     super::audio::prepare(panels, state, input, out);
-    if panels.timeline.graph_mode {
-        super::graph_workspace::render(list, atlas, area, panels, state, input, out);
-        return;
+    if panels.focused == Some(Panel::Timeline) {
+        super::properties::process_field(panels, state, input, out);
     }
     let styles = list.styles();
     let row_height = styles.metric("row.height", 22.);
@@ -380,9 +461,6 @@ pub(super) fn render(
     }
     let colors = styles.colors();
 
-    if panels.focused == Some(Panel::Timeline) {
-        super::properties::process_field(panels, state, input, out);
-    }
     panels.timeline_columns.begin(state);
     let context_input = input;
     let neutral = Input::default();
@@ -399,6 +477,7 @@ pub(super) fn render(
     }
     paint::rect(list, area, colors.PANEL);
     let total = last_frame(state) + 1.0;
+    let fps = state["project"]["fps"].as_u64().unwrap_or(30).max(1) as f32;
     let graph_mode = panels.timeline.graph_mode;
     let cache_key = (
         state["root"].as_str().unwrap_or("").to_string(),
@@ -440,7 +519,7 @@ pub(super) fn render(
         panels.timeline.scroll_extent_cache = Some((extent_signature, max));
         max
     };
-    let gutter = if graph_mode { 320. } else { GUTTER }.min(area.width() * 0.52);
+    let gutter = GUTTER.min(area.width() * 0.52);
     let track = Rect::new(
         area.min[0] + gutter,
         area.min[1],
@@ -448,15 +527,34 @@ pub(super) fn render(
         area.height(),
     );
     let ruler = Rect::new(track.min[0], area.min[1] + 36.0, track.width(), 28.0);
-    if area.contains(input.mouse) {
-        if input.modifiers.control {
-            panels.timeline.zoom =
-                (panels.timeline.zoom.max(1.0) * (input.wheel[1] * -0.005).exp()).clamp(1.0, 100.0);
+    let wheel = input.wheel[1];
+    let gesture = panels.timeline.graph_box.editing()
+        || panels.timeline.key_drag.is_some()
+        || panels.timeline.graph_drag.is_some()
+        || panels.timeline.moving.is_some()
+        || panels.timeline.trimming.is_some()
+        || panels.timeline.scrubbing
+        || panels.properties.field.is_some()
+        || panels.audio_controls.editing();
+    if area.contains(input.mouse) && wheel.is_finite() && wheel != 0. && !gesture {
+        let graph_wheel = graph_mode
+            && input.mouse[0] >= track.min[0]
+            && input.mouse[1] >= ruler.max[1]
+            && !input.modifiers.shift
+            && !input.modifiers.alt;
+        if input.modifiers.control && !input.modifiers.alt || graph_wheel {
+            let old_zoom = panels.timeline.zoom.max(1.);
+            let fraction = ((input.mouse[0] - track.min[0]) / track.width()).clamp(0., 1.);
+            let anchor = panels.timeline.offset + total as f32 / old_zoom * fraction;
+            let next = (old_zoom * (-wheel * 0.005).clamp(-8., 8.).exp()).clamp(1., 100.);
+            panels.timeline.zoom = next;
+            panels.timeline.offset = (anchor - total as f32 / next * fraction).max(0.);
+        } else if input.modifiers.control && input.modifiers.alt && graph_mode {
+            // The graph owns vertical scaling; one wheel event has one owner.
         } else if input.modifiers.shift {
-            panels.timeline.offset = (panels.timeline.offset + input.wheel[1] as f32).max(0.0);
+            panels.timeline.offset = (panels.timeline.offset + wheel).max(0.);
         } else if !(graph_mode && input.mouse[0] >= track.min[0]) {
-            panels.timeline.scroll =
-                (panels.timeline.scroll + input.wheel[1]).clamp(0.0, scroll_max);
+            panels.timeline.scroll = (panels.timeline.scroll + wheel).clamp(0., scroll_max);
         }
     }
     panels.timeline.scroll = panels.timeline.scroll.clamp(0.0, scroll_max);
@@ -519,7 +617,13 @@ pub(super) fn render(
             list,
             atlas,
             Rect::new(area.min[0] + gutter - 98., area.min[1] + 5., 90., 25.),
-            if locale == Locale::Zh {
+            if graph_mode {
+                if locale == Locale::Zh {
+                    "时间轴"
+                } else {
+                    "Timeline"
+                }
+            } else if locale == Locale::Zh {
                 "曲线编辑"
             } else {
                 "Graph editor"
@@ -530,12 +634,12 @@ pub(super) fn render(
         .clicked
         {
             out.extend(super::cancel_interaction(panels));
-            panels.timeline.set_graph_mode(true);
+            panels.timeline.set_graph_mode(!graph_mode);
             let neutral = Input {
                 mouse: input.mouse,
                 ..Default::default()
             };
-            super::graph_workspace::render(list, atlas, area, panels, state, &neutral, out);
+            render(list, atlas, area, panels, state, &neutral, out);
             return;
         }
     }
@@ -693,62 +797,18 @@ pub(super) fn render(
         Rect::new(area.min[0] + 30.0, ruler.min[1] + 3.0, 16.0, 24.0),
         Icon::Lock,
     );
-    let fps = state["project"]["fps"].as_u64().unwrap_or(30).max(1) as f32;
-    let step = (60.0 / (ppf * fps)).ceil().max(1.0) * fps;
-    let mut f = (panels.timeline.offset / step).ceil() * step;
-    while x_of(f as f64) < track.max[0] {
-        let x = x_of(f as f64);
-        paint::rect(
-            list,
-            Rect::new(x, ruler.max[1] - 6.0, 1.0, 6.0),
-            colors.TEXT_MUTED,
-        );
-        label(
-            list,
-            atlas,
-            Rect::new(x + 3.0, ruler.min[1] + 10., 52.0, 18.0),
-            &format!("{:.0}s", f / fps),
-            true,
-        );
-        f += step;
-    }
-    let marker_owned =
-        super::audio::render_ruler(list, atlas, ruler, ppf, offset, panels, state, input, out);
-    if clicked(input, ruler) && !marker_owned {
-        panels.timeline.scrubbing = true;
-        panels.timeline.last_seek = None;
-    }
-    let scrub_frame = if panels.timeline.scrubbing {
-        let raw = frame_of(input.mouse[0]);
-        let snap = if input.modifiers.alt {
-            None
-        } else {
-            motion_ui::snap::nearest(
-                seek_candidates
-                    .iter()
-                    .copied()
-                    .filter(|v| *v >= 0. && *v <= total - 1.),
-                raw,
-                ppf as f64,
-                8.,
-            )
-        };
-        panels.timeline.snap_guide = snap.map(|s| s.target);
-        Some(snap.map_or(raw, |s| s.value))
-    } else {
-        None
-    };
-    if let Some(frame) = scrub_frame
-        .filter(|_| clicked(input, ruler) || input.dragging() || input.released.is_some())
-    {
-        if panels.timeline.last_seek != Some(frame) {
-            panels.timeline.last_seek = Some(frame);
-            out.push(Action::Seek(frame));
-        }
-    }
-    if input.released.is_some() {
-        panels.timeline.scrubbing = false;
-    }
+    let scrub_frame = render_time_ruler(
+        list,
+        atlas,
+        ruler,
+        panels,
+        state,
+        input,
+        ppf,
+        offset,
+        &seek_candidates,
+        out,
+    );
     let body = Rect::new(
         area.min[0],
         ruler.max[1],
@@ -801,203 +861,23 @@ pub(super) fn render(
                 }
             }
         }
-        let properties: Vec<_> = if transform_expanded {
-            row.properties
-                .iter()
-                .filter(|property| filter.admits(property.property, !property.keys.is_empty()))
-                .collect()
-        } else {
-            vec![]
-        };
-        if expanded && row.spatial {
-            let group = Rect::new(area.min[0] + 80., y + row_height, gutter - 86., row_height);
-            if group.min[1] >= body.min[1] && group.max[1] <= body.max[1] {
-                label(
-                    list,
-                    atlas,
-                    group,
-                    &format!(
-                        "{}  {}",
-                        if transform_expanded { "⌄" } else { "›" },
-                        locale.t(T::Transform)
-                    ),
-                    true,
-                );
-                if clicked(input, group) {
-                    if transform_expanded {
-                        panels.timeline.collapsed_transforms.insert(row.id);
-                    } else {
-                        panels.timeline.collapsed_transforms.remove(&row.id);
-                        panels.timeline.reopen_properties(row.id);
-                    }
-                }
-            }
-            let sample = state["sampledLayers"]
-                .as_array()
-                .and_then(|ls| ls.iter().find(|l| l["id"].as_u64() == Some(row.id)));
-            for (i, property) in properties.iter().enumerate() {
-                let py = y + (i + 2) as f32 * row_height;
-                if py < body.min[1] || py + row_height > body.max[1] {
-                    continue;
-                }
-                paint::rect(
-                    list,
-                    Rect::new(area.min[0], py, gutter, row_height),
-                    colors.PANEL,
-                );
-                let axis = property.axis.map(|a| {
-                    [
-                        motion_core::Axis::X,
-                        motion_core::Axis::Y,
-                        motion_core::Axis::Z,
-                    ][a]
-                });
-                let watch = Rect::new(area.min[0] + 78., py, 14., row_height);
-                ui::icon(list, watch, Icon::Stopwatch);
-                if clicked(input, watch) && !row.locked {
-                    out.push(Action::Edit(Command::Animate {
-                        object: row.id,
-                        property: property.property,
-                        axis,
-                        frame: state["frame"].as_f64().unwrap_or(0.).floor() as u32,
-                        enabled: property.keys.is_empty(),
-                    }));
-                }
-                let text = property
-                    .axis
-                    .map(|a| format!("{} {}", locale.t(property.title), ["X", "Y", "Z"][a]))
-                    .unwrap_or_else(|| locale.t(property.title).into());
-                let caption = Rect::new(
-                    area.min[0] + 98.,
-                    py,
-                    (gutter * 0.5 - 98.).max(1.),
-                    row_height,
-                );
-                label(list, atlas, caption, &text, true);
-                if clicked(input, caption) {
-                    panels.select_only(Some(row.id));
-                    panels
-                        .animation_controls
-                        .choose_track(row.id, property.property, axis);
-                    panels.animation_controls.clear_key();
-                }
-                for (j, component) in property.axes.iter().enumerate() {
-                    let value = if property.property == Property::Opacity {
-                        sample
-                            .map(|s| s[property.key].as_f64().unwrap_or(1.) * 100.)
-                            .unwrap_or(100.)
-                    } else {
-                        sample
-                            .map(|s| s[property.key][*component].as_f64().unwrap_or(0.))
-                            .unwrap_or(0.)
-                    };
-                    let cell_width = (gutter * 0.44 / property.axes.len() as f32).min(64.);
-                    let field = Rect::new(
-                        area.min[0] + gutter * 0.52 + j as f32 * cell_width,
-                        py,
-                        (cell_width - 2.).max(1.),
-                        row_height,
-                    );
-                    if clicked(input, field) {
-                        panels.select_only(Some(row.id));
-                    }
-                    super::properties::draw_value(
-                        list,
-                        atlas,
-                        field,
-                        panels,
-                        state,
-                        input,
-                        row.id,
-                        property.property,
-                        *component,
-                        value,
-                        row.locked,
-                        true,
-                        out,
-                    );
-                }
-                for frame in property.keys.iter().filter(|_| !graph_mode) {
-                    let x = x_of(*frame);
-                    if x >= track.min[0] + 4. && x < track.max[0] - 4. {
-                        let current =
-                            (frame - state["frame"].as_f64().unwrap_or(0.)).abs() < 0.0001;
-                        paint::diamond(
-                            list,
-                            [x, py + row_height * 0.5],
-                            4.,
-                            if current {
-                                colors.KEYFRAME
-                            } else {
-                                colors.ACCENT
-                            },
-                        );
-                        if clicked(input, Rect::new(x - 5., py, 10., row_height)) {
-                            panels.select_only(Some(row.id));
-                            panels.animation_controls.select_key(
-                                row.id,
-                                property.property,
-                                axis,
-                                *frame as i64,
-                            );
-                            out.push(Action::Seek(frame.clamp(0., total - 1.)));
-                        }
-                    }
-                }
-            }
-        }
-        if expanded && row.audio > 0 {
-            let audio_y =
-                y + (1 + if row.spatial { 1 + property_count } else { 0 }) as f32 * row_height;
-            let group = Rect::new(
-                area.min[0] + 80.,
-                audio_y,
-                (gutter - 86.).max(1.),
+        if expanded {
+            render_layer_properties(
+                list,
+                atlas,
+                Rect::new(area.min[0], body.min[1], gutter, body.height()),
+                body,
+                track,
+                y,
                 row_height,
+                ppf,
+                offset,
+                row,
+                panels,
+                state,
+                input,
+                out,
             );
-            let open = !panels.timeline.collapsed_audio.contains(&row.id);
-            if group.min[1] >= body.min[1] && group.max[1] <= body.max[1] {
-                label(
-                    list,
-                    atlas,
-                    group,
-                    &format!(
-                        "{}  {}",
-                        if open { "⌄" } else { "›" },
-                        if locale == Locale::Zh {
-                            "音频"
-                        } else {
-                            "Audio"
-                        }
-                    ),
-                    true,
-                );
-                if clicked(input, group) {
-                    if open {
-                        panels.timeline.collapsed_audio.insert(row.id);
-                    } else {
-                        panels.timeline.collapsed_audio.remove(&row.id);
-                    }
-                }
-            }
-            if open {
-                super::audio::render_rows(
-                    list,
-                    atlas,
-                    Rect::new(area.min[0], body.min[1], gutter, body.height()),
-                    body,
-                    track,
-                    audio_y + row_height,
-                    row_height,
-                    ppf,
-                    offset,
-                    row.id,
-                    panels,
-                    state,
-                    input,
-                    out,
-                );
-            }
         }
         if y < body.min[1] || y + row_height > body.max[1] {
             continue;
@@ -1714,4 +1594,308 @@ mod property_tests {
         assert_eq!(panels.selection_ids().len(), 2);
         assert!(!panels.selection_contains(references[1].id));
     }
+}
+
+pub(super) fn render_layer_properties(
+    list: &mut PaintList,
+    atlas: &mut TextAtlas,
+    area: Rect,
+    body: Rect,
+    track: Rect,
+    y: f32,
+    row_height: f32,
+    ppf: f32,
+    offset: f32,
+    row: &Row,
+    panels: &mut Panels,
+    state: &Value,
+    input: &Input,
+    out: &mut Vec<Action>,
+) {
+    let colors = list.styles().colors();
+    let locale = panels.locale;
+    let gutter = area.width();
+    let total = last_frame(state) + 1.;
+    let graph_mode = panels.timeline.graph_mode;
+    let expanded = true;
+    let transform_expanded = row.spatial && !panels.timeline.collapsed_transforms.contains(&row.id);
+    let filter = panels
+        .timeline
+        .filters
+        .get(&row.id)
+        .copied()
+        .unwrap_or_default();
+    let properties: Vec<_> = if transform_expanded {
+        row.properties
+            .iter()
+            .filter(|property| filter.admits(property.property, !property.keys.is_empty()))
+            .collect()
+    } else {
+        vec![]
+    };
+    let property_count = properties.len();
+    let x_of = |frame: f64| track.min[0] + (frame as f32 - offset) * ppf;
+    if expanded && row.spatial {
+        let group_y = y + row_height;
+        if group_y >= body.min[1] && group_y + row_height <= body.max[1] {
+            let group = property_group(
+                list,
+                atlas,
+                Rect::new(area.min[0], group_y, gutter, row_height),
+                group_y,
+                row_height,
+                locale.t(T::Transform),
+                transform_expanded,
+            );
+            if clicked(input, group) {
+                if transform_expanded {
+                    panels.timeline.collapsed_transforms.insert(row.id);
+                } else {
+                    panels.timeline.collapsed_transforms.remove(&row.id);
+                    panels.timeline.reopen_properties(row.id);
+                }
+            }
+        }
+        let sample = state["sampledLayers"]
+            .as_array()
+            .and_then(|ls| ls.iter().find(|l| l["id"].as_u64() == Some(row.id)));
+        for (i, property) in properties.iter().enumerate() {
+            let py = y + (i + 2) as f32 * row_height;
+            if py < body.min[1] || py + row_height > body.max[1] {
+                continue;
+            }
+            paint::rect(
+                list,
+                Rect::new(area.min[0], py, gutter, row_height),
+                colors.PANEL,
+            );
+            let axis = property.axis.map(|a| {
+                [
+                    motion_core::Axis::X,
+                    motion_core::Axis::Y,
+                    motion_core::Axis::Z,
+                ][a]
+            });
+            let property_area = Rect::new(area.min[0], py, gutter, row_height);
+            let fields = property_layout(property_area, py, row_height, 0, property.axes.len());
+            property_icon(
+                list,
+                fields.watch,
+                motion_ui::icons::Icon::Stopwatch,
+                !property.keys.is_empty(),
+                !row.locked,
+            );
+            if clicked(input, fields.watch) && !row.locked {
+                out.push(Action::Edit(Command::Animate {
+                    object: row.id,
+                    property: property.property,
+                    axis,
+                    frame: state["frame"].as_f64().unwrap_or(0.).floor() as u32,
+                    enabled: property.keys.is_empty(),
+                }));
+            }
+            let text = property
+                .axis
+                .map(|a| format!("{} {}", locale.t(property.title), ["X", "Y", "Z"][a]))
+                .unwrap_or_else(|| locale.t(property.title).into());
+            label(list, atlas, fields.caption, &text, true);
+            if clicked(input, fields.caption) {
+                panels.select_only(Some(row.id));
+                panels
+                    .animation_controls
+                    .choose_track(row.id, property.property, axis);
+                panels.animation_controls.clear_key();
+            }
+            for (j, component) in property.axes.iter().enumerate() {
+                let value = if property.property == Property::Opacity {
+                    sample
+                        .map(|s| s[property.key].as_f64().unwrap_or(1.) * 100.)
+                        .unwrap_or(100.)
+                } else {
+                    sample
+                        .map(|s| s[property.key][*component].as_f64().unwrap_or(0.))
+                        .unwrap_or(0.)
+                };
+                let field =
+                    property_layout(property_area, py, row_height, j, property.axes.len()).number;
+                if clicked(input, field) {
+                    panels.select_only(Some(row.id));
+                    panels
+                        .animation_controls
+                        .choose_track(row.id, property.property, axis);
+                    panels.timeline.graph_component = *component;
+                }
+                super::properties::draw_value(
+                    list,
+                    atlas,
+                    field,
+                    panels,
+                    state,
+                    input,
+                    row.id,
+                    property.property,
+                    *component,
+                    value,
+                    row.locked,
+                    true,
+                    out,
+                );
+            }
+            for frame in property.keys.iter().filter(|_| !graph_mode) {
+                let x = x_of(*frame);
+                if x >= track.min[0] + 4. && x < track.max[0] - 4. {
+                    let current = (frame - state["frame"].as_f64().unwrap_or(0.)).abs() < 0.0001;
+                    paint::diamond(
+                        list,
+                        [x, py + row_height * 0.5],
+                        4.,
+                        if current {
+                            colors.KEYFRAME
+                        } else {
+                            colors.ACCENT
+                        },
+                    );
+                    if clicked(input, Rect::new(x - 5., py, 10., row_height)) {
+                        panels.select_only(Some(row.id));
+                        panels.animation_controls.select_key(
+                            row.id,
+                            property.property,
+                            axis,
+                            *frame as i64,
+                        );
+                        out.push(Action::Seek(frame.clamp(0., total - 1.)));
+                    }
+                }
+            }
+        }
+    }
+    if expanded && row.audio > 0 {
+        let audio_y =
+            y + (1 + if row.spatial { 1 + property_count } else { 0 }) as f32 * row_height;
+        let open = !panels.timeline.collapsed_audio.contains(&row.id);
+        if audio_y >= body.min[1] && audio_y + row_height <= body.max[1] {
+            let group = property_group(
+                list,
+                atlas,
+                Rect::new(area.min[0], audio_y, gutter, row_height),
+                audio_y,
+                row_height,
+                if locale == Locale::Zh {
+                    "音频"
+                } else {
+                    "Audio"
+                },
+                open,
+            );
+            if clicked(input, group) {
+                if open {
+                    panels.timeline.collapsed_audio.insert(row.id);
+                } else {
+                    panels.timeline.collapsed_audio.remove(&row.id);
+                }
+            }
+        }
+        if open {
+            super::audio::render_rows(
+                list,
+                atlas,
+                Rect::new(area.min[0], body.min[1], gutter, body.height()),
+                body,
+                track,
+                audio_y + row_height,
+                row_height,
+                ppf,
+                offset,
+                row.id,
+                panels,
+                state,
+                input,
+                out,
+            );
+        }
+    }
+}
+
+pub(super) fn render_time_ruler(
+    list: &mut PaintList,
+    atlas: &mut TextAtlas,
+    ruler: Rect,
+    panels: &mut Panels,
+    state: &Value,
+    input: &Input,
+    ppf: f32,
+    offset: f32,
+    seek_candidates: &[f64],
+    out: &mut Vec<Action>,
+) -> Option<f64> {
+    let colors = list.styles().colors();
+    let track = ruler;
+    let total = last_frame(state) + 1.;
+    let x_of = |frame: f64| ruler.min[0] + (frame as f32 - offset) * ppf;
+    let frame_of = |x: f32| {
+        ((x - ruler.min[0]) / ppf + offset)
+            .round()
+            .clamp(0., total as f32 - 1.) as f64
+    };
+    if input.focus_lost || input.keys.iter().any(|(key, _)| *key == Key::Escape) {
+        panels.timeline.scrubbing = false;
+        panels.timeline.last_seek = None;
+    }
+    let fps = state["project"]["fps"].as_u64().unwrap_or(30).max(1) as f32;
+    let step = (60.0 / (ppf * fps)).ceil().max(1.0) * fps;
+    let mut f = (panels.timeline.offset / step).ceil() * step;
+    while x_of(f as f64) < track.max[0] {
+        let x = x_of(f as f64);
+        paint::rect(
+            list,
+            Rect::new(x, ruler.min[1] + 1., 1.0, 5.0),
+            colors.TEXT_MUTED,
+        );
+        label(
+            list,
+            atlas,
+            Rect::new(x + 3.0, ruler.min[1], 52.0, 14.0),
+            &format!("{:.0}s", f / fps),
+            true,
+        );
+        f += step;
+    }
+    let marker_owned =
+        super::audio::render_ruler(list, atlas, ruler, ppf, offset, panels, state, input, out);
+    if clicked(input, ruler) && !marker_owned {
+        panels.timeline.scrubbing = true;
+        panels.timeline.last_seek = None;
+    }
+    let scrub_frame = if panels.timeline.scrubbing {
+        let raw = frame_of(input.mouse[0]);
+        let snap = if input.modifiers.alt {
+            None
+        } else {
+            motion_ui::snap::nearest(
+                seek_candidates
+                    .iter()
+                    .copied()
+                    .filter(|v| *v >= 0. && *v <= total - 1.),
+                raw,
+                ppf as f64,
+                8.,
+            )
+        };
+        panels.timeline.snap_guide = snap.map(|s| s.target);
+        Some(snap.map_or(raw, |s| s.value))
+    } else {
+        None
+    };
+    if let Some(frame) = scrub_frame
+        .filter(|_| clicked(input, ruler) || input.dragging() || input.released.is_some())
+    {
+        if panels.timeline.last_seek != Some(frame) {
+            panels.timeline.last_seek = Some(frame);
+            out.push(Action::Seek(frame));
+        }
+    }
+    if input.released.is_some() {
+        panels.timeline.scrubbing = false;
+    }
+    scrub_frame
 }
