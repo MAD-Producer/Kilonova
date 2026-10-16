@@ -143,10 +143,11 @@ def main():
     parser.add_argument("--root", type=Path, default=ROOT)
     parser.add_argument("--inventory", type=Path, default=INVENTORY)
     parser.add_argument("--effect-validator", type=Path)
+    parser.add_argument("--include-android", action="store_true", help="also audit the frozen Android test inventory")
     args = parser.parse_args()
     inventory = read_inventory(args.inventory)
     tools = check_tools(args.root, inventory)
-    selectors, expected = android_suite(args.root / ANDROID_SOURCE, inventory)
+    selectors, expected = android_suite(args.root / ANDROID_SOURCE, inventory) if args.include_android else ([], 0)
     if args.effect_validator:
         check_effect_libraries(args.root, inventory, args.effect_validator.resolve())
     print(json.dumps({"tools": tools, "androidSelectors": len(selectors), "androidTests": expected,

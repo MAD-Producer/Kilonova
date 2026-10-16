@@ -1,4 +1,4 @@
-"""Prepare signing, validate APKs and publish gated GitHub releases."""
+"""Publish verified desktop releases; retain legacy APK commands for manual use."""
 import argparse
 import base64
 import hashlib
@@ -9,7 +9,7 @@ import re
 import subprocess
 import tempfile
 import zipfile
-from package_desktop import collect_assets
+from package_desktop import collect_assets, collect_desktop_assets
 
 ROOT=Path(__file__).resolve().parents[1]
 SEMVER=re.compile(r"v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?")
@@ -24,7 +24,7 @@ def release_kind(ref):
 
 
 def build_kind(event,ref):
-    """Only push events on supported release refs may use signing material."""
+    """Only push events on supported release refs may enable publication."""
     if event=="push":
         try: return release_kind(ref)[0]
         except ValueError: pass
@@ -142,16 +142,21 @@ def release_changelog(repo,commit,tag,kind):
     return "本次更新\n\n"+("\n".join(entries) if entries else "更新当前版本的编辑与渲染功能。")+"\n\n[查看提交](https://github.com/"+repo+"/commit/"+commit+")\n\n"
 
 
-def publish():
+def publish(desktop_only=False):
     folder=ROOT/"artifacts/release"
-    info=json.loads((folder/"build-info.json").read_text(encoding="utf-8"))
     kind,version=release_kind(os.environ["GITHUB_REF"])
+    if desktop_only:
+        if build_kind(os.environ["GITHUB_EVENT_NAME"],os.environ["GITHUB_REF"])=="validation":
+            raise ValueError("Desktop publication requires a trusted push event")
+        code=version_code(os.environ["GITHUB_RUN_NUMBER"])
+        info={"commit":os.environ["GITHUB_SHA"],"ref":os.environ["GITHUB_REF"],
+              "run":os.environ["GITHUB_RUN_ID"],"kind":kind,
+              "versionName":version+("-preview."+str(code) if kind=="preview" else "")}
+    else:
+        info=json.loads((folder/"build-info.json").read_text(encoding="utf-8"))
     if info["commit"]!=os.environ["GITHUB_SHA"] or info["ref"]!=os.environ["GITHUB_REF"] or info["kind"]!=kind:
         raise ValueError("Release artifact does not belong to this workflow revision")
-    apk=folder/info["apk"]
-    if apk.parent!=folder or hashlib.sha256(apk.read_bytes()).hexdigest()!=info["sha256"]:
-        raise ValueError("Release artifact checksum mismatch")
-    assets=collect_assets(folder,info)
+    assets=collect_desktop_assets(folder,info) if desktop_only else collect_assets(folder,info)
     info["schemaVersion"]=2
     info["artifacts"]=assets
     (folder/"build-info.json").write_text(json.dumps(info,indent=2)+"\n",encoding="utf-8")
@@ -186,7 +191,8 @@ def publish():
     notes.write_text("版本："+info["versionName"]+"\n\n"+release_changelog(repo,commit,tag,kind)+("main 分支自动预览构建。\n\n" if kind=="preview" else "版本标签自动构建。\n\n")+
         "| 平台 | 下载包 |\n| --- | --- |\n"+
         "".join("| "+item["platform"]+" | `"+item["name"]+"` |\n" for item in assets)+
-        "\nAndroid 包含 arm64-v8a 与 x86_64。Windows 解压后运行 exe；Linux 解压后运行 motion-studio；macOS 按 Apple Silicon / Intel 下载对应 .app 包（ad-hoc 签名，未公证）。\n\n"
+        ("\n" if desktop_only else "\nAndroid 包含 arm64-v8a 与 x86_64。")+
+        "Windows 解压后运行 exe；Linux 解压后运行 motion-studio；macOS 按 Apple Silicon / Intel 下载对应 .app 包（ad-hoc 签名，未公证）。\n\n"
         "桌面包沿用已验收的独立构建，未附 FFmpeg 视频导入/解码后端。能力记录在 build-info.json 中。使用 SHA256SUMS 校验下载文件。\n",encoding="utf-8")
     title="自动预览版" if kind=="preview" else "Motion Studio "+version
     if not release:
@@ -197,5 +203,6 @@ def publish():
 
 
 if __name__=="__main__":
-    parser=argparse.ArgumentParser();parser.add_argument("action",choices=["policy","prepare","package","publish"])
-    {"policy":policy,"prepare":prepare,"package":package,"publish":publish}[parser.parse_args().action]()
+    parser=argparse.ArgumentParser();parser.add_argument("action",choices=["policy","prepare","package","publish","publish-desktop"])
+    {"policy":policy,"prepare":prepare,"package":package,"publish":publish,
+     "publish-desktop":lambda:publish(desktop_only=True)}[parser.parse_args().action]()

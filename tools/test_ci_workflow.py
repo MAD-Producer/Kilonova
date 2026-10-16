@@ -1,4 +1,4 @@
-"""Guard the actual workflow's validation, signing and publication routes.
+"""Guard desktop validation and publication routes without Android CI.
 
 Run with: python -m unittest discover -s tools -p 'test_ci_*.py' -v
 Requires the same pinned PyYAML dependency installed by the checks job.
@@ -82,10 +82,10 @@ class WorkflowPolicyTest(unittest.TestCase):
             (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"),
             Loader=yaml.BaseLoader,
         )
-        cls.android = cls.workflow["jobs"]["android"]
+        cls.checks = cls.workflow["jobs"]["checks"]
 
     def step(self, command):
-        matches = [step for step in self.android["steps"] if step.get("run") == command]
+        matches = [step for step in self.checks["steps"] if step.get("run") == command]
         self.assertEqual(len(matches), 1, command)
         return matches[0]
 
@@ -95,18 +95,12 @@ class WorkflowPolicyTest(unittest.TestCase):
         self.assertEqual(triggers["push"]["tags"], ["v*"])
         self.assertEqual(triggers["pull_request"]["branches"], ["main"])
         self.assertIn("workflow_dispatch", triggers)
-        validation = self.step(
-            "python tools/build_android.py --target-dir target --codegen-units 8 "
-            "--effects-acceptance --task testDebugUnitTest assembleDebug assembleDebugAndroidTest lintDebug"
-        )
+        validation = self.step("cargo test --workspace --exclude motion-android --locked --features motion-host/diagnostics -- --test-threads=1")
         self.assertNotIn("if", validation)
-        acceptance = next(
-            step for step in self.android["steps"]
-            if step.get("with", {}).get("name") == "android-acceptance"
-        )
-        self.assertNotIn("if", acceptance)
-        self.assertEqual(acceptance["with"]["if-no-files-found"], "error")
-        self.assertEqual(self.workflow["jobs"]["ui"]["needs"], "android")
+        self.assertEqual(set(self.workflow["jobs"]), {"checks", "desktop", "desktop-media", "publish"})
+        text = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+        for legacy in ("setup-java", "gradle/actions", "android-emulator-runner", "sdkmanager", "KEYSTORE", "motion-android/diagnostics", "tools/build_android.py", "tools/ci_android_ui.py", "tools/generate_editor_icons.py"):
+            self.assertNotIn(legacy, text)
 
     def test_policy_cli_runs_without_secrets_and_writes_step_outputs(self):
         script = ROOT / "tools/ci_release.py"
@@ -131,29 +125,14 @@ class WorkflowPolicyTest(unittest.TestCase):
                         f"existing=output\nkind={expected}\npublish={publish}\n",
                     )
 
-    def test_workflow_signing_packaging_upload_and_publish_follow_policy(self):
+    def test_desktop_publication_follows_policy_without_android_dependencies(self):
         policy = self.step("python tools/ci_release.py policy")
         self.assertEqual(policy["id"], "release_policy")
         self.assertNotIn("if", policy)
-        self.assertLess(
-            self.android["steps"].index(policy),
-            self.android["steps"].index(self.step("python tools/ci_release.py prepare")),
-        )
-        prepare = self.step("python tools/ci_release.py prepare")
-        package = self.step("python tools/ci_release.py package")
-        upload = next(
-            step for step in self.android["steps"]
-            if step.get("with", {}).get("name") == "release-assets"
-        )
-        self.assertEqual(upload["with"]["if-no-files-found"], "error")
-        preview = self.step(
-            "python tools/build_android.py --target-dir target --codegen-units 8 --task assemblePreview"
-        )
-        release = self.step(
-            "python tools/build_android.py --target-dir target --codegen-units 8 --task assembleRelease"
-        )
         publish = self.workflow["jobs"]["publish"]
-        self.assertEqual(publish["needs"], ["checks", "desktop", "desktop-media", "android", "ui"])
+        self.assertEqual(publish["needs"], ["checks", "desktop", "desktop-media"])
+        self.assertEqual(publish["permissions"], {"contents": "write"})
+        self.assertIn("python tools/ci_release.py publish-desktop", [step.get("run") for step in publish["steps"]])
         for event, ref, kind in CASES:
             with self.subTest(event=event, ref=ref):
                 context = {
@@ -162,21 +141,15 @@ class WorkflowPolicyTest(unittest.TestCase):
                         "kind": kind, "publish": str(kind != "validation").lower(),
                     }}},
                 }
-                job_output = expression_value(self.android["outputs"]["publish"], context)
-                context["needs"] = {"android": {"outputs": {"publish": job_output}}}
-                for step in [prepare, package, upload, publish]:
-                    self.assertEqual(expression_value(step.get("if"), context), kind != "validation")
-                self.assertEqual(expression_value(preview.get("if"), context), kind == "preview")
-                self.assertEqual(expression_value(release.get("if"), context), kind == "release")
+                job_output = expression_value(self.checks["outputs"]["publish"], context)
+                context["needs"] = {"checks": {"outputs": {"publish": job_output}}}
+                self.assertEqual(expression_value(publish.get("if"), context), kind != "validation")
 
-    def test_missing_policy_outputs_do_not_enable_signing_or_publish(self):
+    def test_missing_policy_outputs_do_not_enable_publish(self):
         context = {
             "steps": {"release_policy": {"outputs": {"kind": "", "publish": ""}}},
-            "needs": {"android": {"outputs": {"publish": ""}}},
+            "needs": {"checks": {"outputs": {"publish": ""}}},
         }
-        for step in self.android["steps"]:
-            if "release_policy.outputs" in step.get("if", ""):
-                self.assertFalse(expression_value(step["if"], context))
         self.assertFalse(expression_value(self.workflow["jobs"]["publish"]["if"], context))
 
 
