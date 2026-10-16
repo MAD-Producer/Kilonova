@@ -1,8 +1,8 @@
 # Motion Studio
 
-Motion Studio 是一个面向桌面与 Android 的开源动效编辑器。它用图层、关键帧、曲线、节点和 GPU 合成组织创作流程，目标是让动态设计、合成效果和实时预览在同一份工程中协同工作。
+Motion Studio 是一个面向桌面的开源动效编辑器。它用图层、关键帧、曲线、节点和 GPU 合成组织创作流程，目标是让动态设计、合成效果和实时预览在同一份工程中协同工作。
 
-项目目前处于持续开发阶段。桌面端已经具备可用的图层编辑、时间轴、曲线和节点效果流程；Android 端侧重触屏编辑、预览和移动端导出。两个平台共享工程模型、效果协议、编辑内核和渲染后端，但面板能力仍会按平台逐步补齐。
+项目目前处于持续开发阶段，后续开发和自动验证集中于 Windows、Linux 与 macOS 桌面端。桌面端已经具备可用的图层编辑、时间轴、曲线和节点效果流程。Android 端已停止维护，历史源码和手动构建工具保留，自动构建、设备测试及 APK 发布已停用。
 
 ## 当前能力
 
@@ -20,9 +20,9 @@ Motion Studio 是一个面向桌面与 Android 的开源动效编辑器。它用
 
 ## 快速开始
 
-### 获取 Android 预览版
+### 获取桌面预览版
 
-从 [Preview 发布页](https://github.com/MAD-Producer/motion-studio/releases/tag/preview) 获取 APK，或在[全部发布](https://github.com/MAD-Producer/motion-studio/releases)中选择版本。预览版适合体验和反馈，发布页中的 `SHA256SUMS` 与 `build-info.json` 可用于核对下载文件。
+从 [Preview 发布页](https://github.com/MAD-Producer/motion-studio/releases/tag/preview) 按 Windows、Linux、macOS Apple Silicon / Intel 选择桌面包，或在[全部发布](https://github.com/MAD-Producer/motion-studio/releases)中选择版本。预览版适合体验和反馈，发布页中的 `SHA256SUMS` 与 `build-info.json` 可用于核对下载文件。
 
 ### 构建桌面端
 
@@ -37,7 +37,9 @@ py tools/build_desktop.py --task build
 
 桌面端的启动参数、布局、MCP 和恢复副本见[桌面使用说明](desktop/README.md)。
 
-### 构建 Android 端
+### 历史 Android 实现的手动构建
+
+以下工具保留供手动使用，Android 端不再参与 CI 或自动发布。
 
 ```powershell
 py tools/bootstrap_android.py
@@ -103,13 +105,13 @@ py tools/build_android.py --task assembleDebug
 | `crates/motion-media` | 素材、缓存、音频和媒体任务 |
 | `crates/motion-host` | 共享编辑、渲染、效果和媒体会话 |
 | `desktop` | Rust 桌面应用、原生面板和节点编辑器 |
-| `android` | Kotlin、Compose、SurfaceView、JNI 和 MediaCodec |
+| `android` | 已停止维护的 Kotlin、Compose、SurfaceView、JNI 和 MediaCodec 历史实现 |
 
 常用检查：
 
 ```powershell
 python tools/validate_provenance.py
-cargo test --workspace --locked -- --test-threads=1
+cargo test --workspace --exclude motion-android --locked -- --test-threads=1
 ```
 
 桌面专项测试：
@@ -118,14 +120,14 @@ cargo test --workspace --locked -- --test-threads=1
 cargo test -p motion-desktop -p motion-ui -p motion-host -p motion-desktop-media --locked
 ```
 
-Android 设备验证：
+历史 Android 设备验证（手动，不属于 CI）：
 
 ```powershell
 py tools/build_android.py --task assembleDebug assembleDebugAndroidTest
 py tools/validate_android.py --serial <adb-device-serial>
 ```
 
-CI 覆盖 Rust/GPU、桌面平台构建、媒体后端、Android 构建和交互验证。需要真实设备、长时间运行或特定 GPU 的检查，会在对应验证文档中单独记录。
+CI 覆盖共享 Rust/GPU、Windows/Linux/macOS 桌面构建、桌面原生交互和媒体后端；Rust 工作区验证排除 `motion-android`。桌面预览版和版本标签发布直接验证四个平台的桌面包，不依赖 APK。需要真实设备、长时间运行或特定 GPU 的检查，会在对应验证文档中单独记录。
 
 ## 参与开发
 

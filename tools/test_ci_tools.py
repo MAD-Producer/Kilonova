@@ -67,6 +67,14 @@ class InventoryTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "missing=.*validate_audio"):
             inventory.check_tools(root, self.plan)
 
+    def test_default_inventory_does_not_require_the_frozen_android_tree(self):
+        root = self.tool_copy()
+        result = child([ROOT / "tools/validation_inventory.py", "--root", root], optimized=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)["androidTests"], 0)
+        requested = child([ROOT / "tools/validation_inventory.py", "--root", root, "--include-android"], optimized=True)
+        self.assertNotEqual(requested.returncode, 0)
+
     def test_production_assert_or_removed_ci_wiring_is_rejected(self):
         root = self.tool_copy()
         source = root / "tools/validate_audio.py"
@@ -76,7 +84,7 @@ class InventoryTest(unittest.TestCase):
             inventory.check_tools(root, self.plan)
         source.write_text(original, encoding="utf-8")
         workflow = root / ".github/workflows/ci.yml"
-        workflow.write_text(workflow.read_text(encoding="utf-8").replace("tools/ci_android_ui.py", "tools/unwired.py"), encoding="utf-8")
+        workflow.write_text(workflow.read_text(encoding="utf-8").replace("tools/ci_desktop.py", "tools/unwired.py"), encoding="utf-8")
         with self.assertRaisesRegex(ValueError, "CI no longer invokes"):
             inventory.check_tools(root, self.plan)
 

@@ -11,9 +11,12 @@
       "reason": "Developer toolchain setup is explicit and is not a CI acceptance run."
     },
     "tools/build_android.py": {
-      "mode": "ci",
-      "runner": ".github/workflows/ci.yml",
-      "reason": "Executed by the workflow or its test_ci_*.py unittest discovery."
+      "mode": "manual",
+      "command": "python tools/build_android.py --task assembleDebug",
+      "requires": [
+        "Explicit legacy Android maintenance environment"
+      ],
+      "reason": "Android is frozen; this tool is no longer invoked by desktop CI."
     },
     "tools/build_desktop.py": {
       "mode": "ci",
@@ -21,9 +24,12 @@
       "reason": "Executed by the workflow or its test_ci_*.py unittest discovery."
     },
     "tools/ci_android_ui.py": {
-      "mode": "ci",
-      "runner": ".github/workflows/ci.yml",
-      "reason": "Executed by the workflow or its test_ci_*.py unittest discovery."
+      "mode": "manual",
+      "command": "python tools/ci_android_ui.py",
+      "requires": [
+        "Explicit legacy Android maintenance environment"
+      ],
+      "reason": "Android is frozen; this tool is no longer invoked by desktop CI."
     },
     "tools/ci_desktop.py": {
       "mode": "ci",
@@ -105,9 +111,12 @@
       "reason": "Executed by the workflow or its test_ci_*.py unittest discovery."
     },
     "tools/generate_editor_icons.py": {
-      "mode": "ci",
-      "runner": ".github/workflows/ci.yml",
-      "reason": "Executed by the workflow or its test_ci_*.py unittest discovery."
+      "mode": "manual",
+      "command": "python tools/generate_editor_icons.py --check",
+      "requires": [
+        "Explicit legacy Android maintenance environment"
+      ],
+      "reason": "Android is frozen; this tool is no longer invoked by desktop CI."
     },
     "tools/generate_media_format_fixtures.py": {
       "mode": "manual",
@@ -162,10 +171,13 @@
       "runner": ".github/workflows/ci.yml",
       "reason": "Executed by the workflow or its test_ci_*.py unittest discovery."
     },
-    "tools/test_ci_android_build.py": {
-      "mode": "ci",
-      "runner": ".github/workflows/ci.yml",
-      "reason": "CI discovery verifies ABI propagation, isolated debug guards and explicit NDK configuration precedence"
+    "tools/test_android_build.py": {
+      "mode": "manual",
+      "command": "python -m unittest discover -s tools -p 'test_android_build.py' -v",
+      "requires": [
+        "Python standard library"
+      ],
+      "reason": "Android is frozen; legacy build-entrypoint regressions are retained for explicit manual execution."
     },
     "tools/test_ci_tools.py": {
       "mode": "ci",
