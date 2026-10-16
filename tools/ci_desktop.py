@@ -185,6 +185,13 @@ def main() -> None:
             raise RuntimeError(f"{locale} desktop acceptance failed: {result.stderr}")
         snapshot = json.loads(report.read_text(encoding="utf-8"))
         verify_design_screens(snapshot, locale)
+        workspace_probe = snapshot["workspacePresentationProbe"]
+        presentations = workspace_probe["presentations"]
+        if (workspace_probe["projectUntouched"] is not True or len(presentations) != 6
+                or {record["preset"] for record in presentations}
+                != {"default", "nodes", "drawing", "all", "animation"}
+                or not any(record["nodeOverlay"] for record in presentations)):
+            raise RuntimeError(f"{locale} did not present workspace changes with a live node overlay")
         if snapshot["locale"] != locale or snapshot["floatingFrames"].get("3", 0) < 2:
             raise RuntimeError(f"{locale} did not validate the floating composition")
         layer_menu = Path(snapshot["layerContextMenuScreenshot"])

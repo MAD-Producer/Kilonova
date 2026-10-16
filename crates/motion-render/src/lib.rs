@@ -17,6 +17,8 @@ mod submission_ledger;
 pub use submission_ledger::{SubmissionMemoryInfo, MAX_SUBMISSION_SNAPSHOTS};
 pub use resource_ledger::{TextureCategory, TextureState, TextureReference, TextureResource, TextureResourceLedger};
 mod presenter;
+mod viewport;
+pub use viewport::fit_viewport;
 mod quality;
 mod renderer;
 pub mod image_resources;

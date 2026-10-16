@@ -767,9 +767,7 @@ fn acquire_preview_surface(g: &mut Graphics) -> Result<Option<wgpu::SurfaceTextu
     }
 }
 fn preview_viewport([x,y,w,h]: [f32; 4], [cw,ch]: [u32; 2]) -> [f32; 4] {
-    let scale = (w / cw as f32).min(h / ch as f32);
-    let width = cw as f32 * scale; let height = ch as f32 * scale;
-    [x + (w - width) / 2., y + (h - height) / 2., width, height]
+    motion_render::fit_viewport([x, y, w, h], [cw, ch])
 }
 fn present_held(g: &mut Graphics, viewport: [f32; 4],
     overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView)) -> Result<bool> {
