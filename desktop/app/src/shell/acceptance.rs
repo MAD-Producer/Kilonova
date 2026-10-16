@@ -534,7 +534,11 @@ impl Shell {
         } else {
             Value::Null
         };
+        let design_project = self.engine.state()?["project"].clone();
         let design_screens = self.capture_design_screens(size)?;
+        if self.engine.state()?["project"] != design_project {
+            return Err("design screenshots changed the project".into());
+        }
         let layer_menu_screenshot = if let Some(object) = self.panels.selected.filter(|id| *id != 0)
         {
             let revision = self.state["revision"].clone();
@@ -565,7 +569,7 @@ impl Shell {
             .clone()
             .unwrap_or_else(motion_ui::style::default_stylesheet_arc);
         let style_report = serde_json::json!({"focus":styles.color("focus").0,"panel":styles.color("panel").0,"header":styles.color("header").0,"rowHeight":styles.metric("row.height",22.),"dragThreshold":styles.metric("motion.drag_threshold",3.),"smallFont":styles.metric("font.small",11.),"easing":styles.easing(),"overrideActive":self.style_source.path.is_some()});
-        let result = serde_json::json!({"designScreens":design_screens,"style":style_report,"panels":self.smoke_panel_records,"ok":true,"framesPresented":state["presented"],"frame":state["frame"],"preview":state["preview"],
+        let result = serde_json::json!({"designScreens":design_screens,"designCaptureProjectUntouched":true,"style":style_report,"panels":self.smoke_panel_records,"ok":true,"framesPresented":state["presented"],"frame":state["frame"],"preview":state["preview"],
             "retainedUiProbe":reuse_probe,"root":state["root"],"screenshot":screenshot,
             "layerContextMenuScreenshot":layer_menu_screenshot,
             "floatingFrames":self.smoke_float_frames,"locale":self.workspace.locale,"desktop":state["desktop"],"nodePreview":self.smoke_node_report,"checks":["create_layer","animate","seek","save","reopen","single_surface_preview","chrome","floating_properties","floating_composition","resize","redock","layer_context_menu"]});

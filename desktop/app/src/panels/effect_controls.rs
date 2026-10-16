@@ -990,7 +990,11 @@ impl Controls {
 
             // Background highlight on hover
             if header_rect.contains(input.mouse) {
-                paint::rect(list, header_rect, colors.SUNKEN.with_alpha(0.2));
+                box_style(
+                    list,
+                    header_rect,
+                    styles.resolve("row", States::default().with(State::Hovered)).unwrap(),
+                );
             }
 
             // Collapse/expand chevron

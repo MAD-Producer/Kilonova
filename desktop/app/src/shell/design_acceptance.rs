@@ -19,6 +19,9 @@ impl Shell {
             "timeline-graph",
             "value-graph",
             "speed-graph",
+            "info-panel",
+            "preview-panel",
+            "character-panel",
         ] {
             let graph_preset = if screen.starts_with("timeline-") || screen == "effect-library" {
                 workspace::Preset::Default
@@ -80,6 +83,22 @@ impl Shell {
                     if !actions.is_empty() {
                         return Err("effect library capture must not edit the project".into());
                     }
+                }
+                "info-panel" | "preview-panel" | "character-panel" => {
+                    let target = if screen == "info-panel" {
+                        dock::Panel::Info
+                    } else if screen == "preview-panel" {
+                        dock::Panel::Preview
+                    } else {
+                        dock::Panel::Character
+                    };
+                    for (suffix, panel_size) in [("", [360., 520.]), ("-narrow", [220., 360.])] {
+                        let name = format!("{screen}{suffix}");
+                        let path = report.with_extension(format!("{name}.png"));
+                        self.capture_auxiliary_panel(target, panel_size, size, &path)?;
+                        output.insert(name, serde_json::json!(path));
+                    }
+                    continue;
                 }
                 "timeline-parent-menu" | "timeline-blend-menu" => {
                     let old = self.panels.timeline.clone();
@@ -204,5 +223,78 @@ impl Shell {
             output.insert(screen.into(), serde_json::json!(path));
         }
         Ok(Value::Object(output))
+    }
+
+    fn capture_auxiliary_panel(
+        &mut self,
+        panel: dock::Panel,
+        panel_size: [f32; 2],
+        window_size: [f32; 2],
+        path: &std::path::Path,
+    ) -> Result<(), String> {
+        let before = self.engine.state()?;
+        let selection = (
+            self.panels.selected,
+            self.panels.selected_layers.clone(),
+            self.panels.selection_anchor,
+        );
+        let focus = self.panels.focused;
+        let mut created_text = false;
+        let captured = (|| {
+            if panel == dock::Panel::Character {
+                self.state = self.engine.create_text("Title".into(), 64., 1024, None)?;
+                created_text = true;
+                let object = self.state["project"]["layers"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .rev()
+                    .find(|layer| layer["content"]["kind"] == "text")
+                    .and_then(|layer| layer["id"].as_u64())
+                    .ok_or("character capture requires a real text layer")?;
+                self.panels.select_only(Some(object));
+            }
+            let mut paint = PaintList::default();
+            paint.stylesheet = self.panels.styles.clone();
+            let actions = panels::floating_chrome(
+                &mut paint,
+                &mut self.atlas,
+                panel,
+                panel_size,
+                &mut self.panels,
+                &self.state,
+                &Input::default(),
+            );
+            if !actions.is_empty() {
+                return Err("auxiliary panel capture must not emit edits".into());
+            }
+            // Capture at the window's real pixel ratio, then crop. Changing only
+            // logical_size would stretch this panel across the main surface.
+            let mut ui = self.ui_frame(paint, window_size, true);
+            ui.composition = None;
+            ui.node_preview = None;
+            self.engine.capture_ui(ui, path.to_path_buf())?;
+            let pixels = image::open(path).map_err(|e| e.to_string())?;
+            let width = (panel_size[0] * pixels.width() as f32 / window_size[0]).round() as u32;
+            let height = (panel_size[1] * pixels.height() as f32 / window_size[1]).round() as u32;
+            pixels
+                .crop_imm(0, 0, width, height)
+                .save(path)
+                .map_err(|e| e.to_string())
+        })();
+        let restored = if created_text {
+            self.engine.history(0)
+        } else {
+            self.engine.state()
+        };
+        self.panels.selected = selection.0;
+        self.panels.selected_layers = selection.1;
+        self.panels.selection_anchor = selection.2;
+        self.panels.focused = focus;
+        self.state = restored?;
+        if self.state["project"] != before["project"] {
+            return Err("auxiliary panel fixture changed the project".into());
+        }
+        captured
     }
 }
