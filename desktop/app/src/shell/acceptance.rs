@@ -174,7 +174,7 @@ impl Shell {
                     .and_then(|m| m.last())
                     .and_then(|m| m["id"].as_u64())
                     .ok_or("mask panel rectangle entry produced no mask")?;
-                for index in 0..3 {
+                for index in 0..4 {
                     self.feature_panel_click(panel, [padding * 3. + slot * 0.5,
                         top + row * (3.5 + index as f32)], event_loop)?;
                 }
@@ -186,7 +186,11 @@ impl Shell {
                         .is_none_or(|keys| keys.len() != 1)) {
                     return Err("mask stopwatches did not animate all three properties".into());
                 }
-                let commands = [
+                if masks.last().unwrap()["path"]["nodes"].as_array().is_none_or(|nodes|
+                    nodes.iter().any(|n| n["geometry"]["keys"].as_array().is_none_or(|keys| keys.len() != 1))) {
+                    return Err("path stopwatch did not animate every vertex".into());
+                }
+                let mut commands = [
                     (motion_core::masks::MaskProperty::Opacity, vec![60.]),
                     (motion_core::masks::MaskProperty::Feather, vec![12., 18.]),
                     (motion_core::masks::MaskProperty::Expansion, vec![8.]),
@@ -203,6 +207,18 @@ impl Shell {
                     },
                 })
                 .collect::<Vec<_>>();
+                let mut path_mask: motion_core::masks::LayerMask =
+                    serde_json::from_value(masks.last().unwrap().clone())
+                        .map_err(|e| e.to_string())?;
+                for node in &mut path_mask.path.nodes {
+                    let mut value = node.geometry.sample(60.);
+                    value[0] += 20.;
+                    node.geometry.set_at(60, value).map_err(|e| e.to_string())?;
+                }
+                commands.push(Command::Mask {
+                    object,
+                    action: motion_core::masks::MaskAction::Path { mask, path: path_mask.path },
+                });
                 self.state = self
                     .engine
                     .edit(serde_json::to_string(&commands).map_err(|e| e.to_string())?)?;

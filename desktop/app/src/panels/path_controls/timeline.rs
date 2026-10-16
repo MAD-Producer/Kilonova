@@ -11,7 +11,8 @@ pub(in crate::panels) fn key_frames(mask: &LayerMask, index: u8) -> Vec<i32> {
     mask_keys::frames(mask, index)
 }
 fn visible(mask: &LayerMask, filter: PropertyFilter) -> Vec<u8> {
-    (0..3)
+    mask_path::CHANNELS
+        .into_iter()
         .filter(|index| match filter {
             PropertyFilter::All => true,
             PropertyFilter::Animated => mask_keys::animated(mask, *index),
@@ -155,11 +156,15 @@ pub(in crate::panels) fn render(
                 continue;
             }
             let (property, title, range) = super::mask_inspector::spec(index, locale);
-            let values = mask_keys::values(
-                mask,
-                index,
-                state["frame"].as_f64().unwrap_or(0.) - f64::from(owner.offset),
-            );
+            let values = if index == mask_path::CHANNEL {
+                vec![]
+            } else {
+                mask_keys::values(
+                    mask,
+                    index,
+                    state["frame"].as_f64().unwrap_or(0.) - f64::from(owner.offset),
+                )
+            };
             let fields = super::mask_inspector::property_row(
                 list.styles().as_ref(),
                 area,
@@ -210,6 +215,20 @@ pub(in crate::panels) fn render(
                 out,
             );
             label(list, atlas, fields.caption, title, colors.TEXT_MUTED);
+            if index == mask_path::CHANNEL {
+                let slot = list.styles().metric("icon.slot", 20.);
+                panels.path_controls.path_value(
+                    list,
+                    Rect::new(fields.number.min[0], py, slot, height),
+                    owner,
+                    mask.id,
+                    input,
+                    out,
+                );
+                if !owner.locked && click(input, fields.caption) {
+                    panels.path_controls.edit_mask_path(mask.id, out);
+                }
+            }
             let host = if panels.focused == Some(Panel::Curves) {
                 Panel::Curves
             } else {
@@ -321,4 +340,49 @@ pub(in crate::panels) fn reveal(panels: &mut Panels, state: &Value, object: u64,
         .take_while(|row| row.id != object)
         .map(|row| crate::panels::timeline::row_count(row, &panels.timeline) as f32 * height)
         .sum();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn mask_path_only_animation_is_visible_in_animated_filter_and_collapsed_layer_keys() {
+        let mut layer = Layer::solid(7, "Mask", [100.; 2], [0.; 3], [1.; 4]);
+        layer.timeline = Some(motion_core::LayerTimeline {
+            in_frame: 12,
+            out_frame: 120,
+            offset_frame: 12,
+        });
+        let mut node = PathNode {
+            id: 1,
+            geometry: Track::constant([0.; 6]),
+        };
+        node.geometry.set_animated(-5, true).unwrap();
+        node.geometry.set_at(18, [10.; 6]).unwrap();
+        let mask = LayerMask::new(
+            1,
+            VectorPath {
+                id: 1,
+                closed: false,
+                nodes: vec![node],
+            },
+        );
+        layer.masks.push(mask.clone());
+        assert_eq!(
+            visible(&mask, PropertyFilter::Animated),
+            [mask_path::CHANNEL]
+        );
+        assert_eq!(visible(&mask, PropertyFilter::All), mask_path::CHANNELS);
+        let state = serde_json::json!({"project":{"layers":[layer],"frames":120}});
+        let rows = crate::panels::timeline::rows(&state);
+        let row = &rows[0];
+        assert!(row.keys.contains(&7.) && row.keys.contains(&30.));
+        let mut timeline = TimelineState::default();
+        timeline.filters.insert(7, PropertyFilter::Animated);
+        assert_eq!(row_count(row, &timeline), 3);
+        timeline.collapsed_mask_items.insert((7, 1));
+        assert_eq!(row_count(row, &timeline), 2);
+        timeline.collapsed_masks.insert(7);
+        assert_eq!(row_count(row, &timeline), 1);
+    }
 }

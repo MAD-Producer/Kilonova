@@ -21,6 +21,7 @@ use serde_json::Value;
 mod groups;
 mod mask_inspector;
 mod mask_keys;
+mod mask_path;
 pub(in crate::panels) mod timeline;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -686,8 +687,8 @@ impl Controls {
                         && g.iter().all(|v| v.is_finite() && v.abs() <= 32768.)
                     {
                         drag.last_geometry = g;
-                        out.push(Action::Edit(match drag.target {
-                            Target::Vector { object } => Command::Vector {
+                        let edit = match drag.target {
+                            Target::Vector { object } => Some(Action::Edit(Command::Vector {
                                 object,
                                 action: VectorAction::SetNode {
                                     path: drag.path,
@@ -696,19 +697,21 @@ impl Controls {
                                     value: g,
                                     animated: drag.animated,
                                 },
-                            },
-                            Target::Mask { object, mask } => Command::Mask {
-                                object,
-                                action: MaskAction::Set {
-                                    mask,
-                                    property: MaskProperty::Node(drag.node),
-                                    frame: drag.frame,
-                                    value: g.to_vec(),
-                                    animated: None,
-                                },
-                            },
+                            })),
+                            Target::Mask { object, mask } => target.as_ref().and_then(|layer| {
+                                let source = layer.masks.iter().find(|m| m.id == mask)?;
+                                mask_path::node_command(
+                                    object,
+                                    source,
+                                    layer.timeline.map_or(0, |t| t.offset_frame),
+                                    drag.node,
+                                    drag.frame,
+                                    g,
+                                )
+                            }),
                             Target::New => unreachable!(),
-                        }));
+                        };
+                        out.extend(edit);
                     }
                 }
             }
@@ -833,7 +836,7 @@ impl Controls {
                     if self.collapsed_mask_cards.contains(&(l.id, m.id)) {
                         row + gap
                     } else {
-                        row * 5. + gap
+                        row * 6. + gap
                     }
                 })
                 .sum::<f32>()

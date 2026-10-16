@@ -215,7 +215,7 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
                 serde_json::from_value(l["masks"].clone()).unwrap_or_default();
             let mask_offset = l["timeline"]["offset_frame"].as_i64().unwrap_or(0) as i32;
             for mask in &masks {
-                for index in 0..3 {
+                for index in 0..4 {
                     for frame in super::path_controls::timeline::key_frames(mask, index) {
                         keys.push(f64::from(frame) + f64::from(mask_offset));
                     }

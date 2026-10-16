@@ -8,6 +8,11 @@ use motion_ui::{
 
 pub(super) fn spec(index: u8, locale: Locale) -> (MaskProperty, &'static str, [f32; 2]) {
     match (index, locale == Locale::Zh) {
+        (mask_path::CHANNEL, zh) => (
+            MaskProperty::Expansion,
+            if zh { "蒙版路径" } else { "Mask path" },
+            [0., 0.],
+        ),
         (0, zh) => (
             MaskProperty::Opacity,
             if zh { "不透明度 %" } else { "Opacity %" },
@@ -135,6 +140,33 @@ fn mode_row(
     }
 }
 impl Controls {
+    pub(super) fn path_value(
+        &mut self,
+        list: &mut PaintList,
+        rect: Rect,
+        owner: mask_keys::Owner,
+        mask: u64,
+        input: &Input,
+        out: &mut Vec<Action>,
+    ) {
+        if icon(
+            list,
+            input,
+            rect,
+            Icon::Pen,
+            self.tool == Tool::Mask && self.mask == Some(mask),
+            !owner.locked,
+        ) {
+            self.edit_mask_path(mask, out);
+        }
+    }
+    pub(super) fn edit_mask_path(&mut self, mask: u64, out: &mut Vec<Action>) {
+        if self.cancel() {
+            out.push(Action::History(4));
+        }
+        self.tool = Tool::Mask;
+        self.mask = Some(mask);
+    }
     pub(super) fn mask_number(
         &mut self,
         list: &mut PaintList,
@@ -599,13 +631,21 @@ impl Controls {
                 }));
             }
             *y += row;
-            for index in 0..3 {
+            for index in mask_path::CHANNELS {
                 let (property, title, range) = spec(index, locale);
-                let values = mask_keys::values(mask, index, local);
+                let values = if index == mask_path::CHANNEL {
+                    vec![]
+                } else {
+                    mask_keys::values(mask, index, local)
+                };
                 let fields = property_row(styles.as_ref(), area, *y, 0, values.len(), host);
                 self.keys
                     .watch(list, fields.watch, state, owner, mask, index, input, out);
                 label(list, atlas, fields.caption, title, colors.TEXT_MUTED);
+                if index == mask_path::CHANNEL {
+                    let rect = Rect::new(fields.number.min[0], *y, slot, row);
+                    self.path_value(list, rect, owner, mask.id, input, out);
+                }
                 for axis in 0..values.len() {
                     let fields = property_row(styles.as_ref(), area, *y, axis, values.len(), host);
                     self.mask_number(
