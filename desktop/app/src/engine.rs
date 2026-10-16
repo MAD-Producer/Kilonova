@@ -518,7 +518,14 @@ impl Engine {
                     }
                 };
                 let lease = SessionLease(id);
-                guard.initial = motion_host::session::with_session(id, |s| Ok(s.engine.snapshot())).ok();
+                guard.initial = match motion_host::session::with_session(id, |s| Ok(s.engine.snapshot())) {
+                    Ok(snapshot) => Some(snapshot),
+                    Err(error) => {
+                        log::error!("worker initial snapshot failed: {error}");
+                        let _ = ready.send(Err(error));
+                        return;
+                    }
+                };
                 // The scratch budget is a device property, so apply it before
                 // the first render rather than after a visible hitch.
                 if let Err(error) = preview::configure_memory(id, total_memory as i64, false) {

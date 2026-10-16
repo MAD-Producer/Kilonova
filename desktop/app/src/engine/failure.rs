@@ -99,6 +99,23 @@ pub(super) fn recovery(id: i64) -> Result<PathBuf, String> {
 }
 
 impl Engine {
+    /// Empty means pending; a disconnected response is a terminal error even
+    /// when the worker died before it could publish its failure message.
+    pub(crate) fn poll_reply<T>(
+        &self,
+        receive: &std::sync::mpsc::Receiver<Result<T, String>>,
+        operation: &str,
+    ) -> Option<Result<T, String>> {
+        match receive.try_recv() {
+            Ok(result) => Some(result),
+            Err(std::sync::mpsc::TryRecvError::Empty) => None,
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                let error = format!("{operation} response disconnected: {}", self.stopped_error());
+                log::error!("{error}");
+                Some(Err(error))
+            }
+        }
+    }
     pub(crate) fn failed(&self) -> bool {
         self.check_running().is_err()
     }

@@ -305,3 +305,22 @@ fn attached_hidden_surface_and_factory_release_after_worker_panic() {
     assert_eq!(resources["graphics"], 0);
     assert!(engine.factory.lock().unwrap().is_none());
 }
+
+#[test]
+fn reply_poll_distinguishes_pending_success_failure_and_disconnection() {
+    let folder = tempfile::tempdir().unwrap();
+    let engine = Engine::start(folder.path().join("project"), motion_desktop_media::platform(), 8 << 30).unwrap();
+    for operation in ["attach", "present", "resize", "freeze_movie"] {
+        let (send, receive) = channel::<Result<u64, String>>();
+        assert!(engine.poll_reply(&receive, operation).is_none());
+        send.send(Ok(7)).unwrap();
+        assert_eq!(engine.poll_reply(&receive, operation), Some(Ok(7)));
+        send.send(Err("original failure".into())).unwrap();
+        assert_eq!(engine.poll_reply(&receive, operation), Some(Err("original failure".into())));
+        drop(send);
+        let error = engine.poll_reply(&receive, operation).unwrap().unwrap_err();
+        assert!(error.contains(operation));
+        assert!(error.contains("disconnected"));
+    }
+    assert!(!engine.failed());
+}

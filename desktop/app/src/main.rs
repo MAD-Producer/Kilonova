@@ -606,7 +606,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             self.dirty = true;
         }
         if let Some((receive, path, control)) = &self.freezing_movie {
-            if let Ok(result) = receive.try_recv() {
+            if let Some(result) = self.engine.poll_reply(receive, "freeze_movie") {
                 let output = path.clone();
                 let control = control.clone();
                 self.freezing_movie = None;
@@ -669,7 +669,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             return;
         }
         if let Some(receive) = &self.attaching {
-            if let Ok(result) = receive.try_recv() {
+            if let Some(result) = self.engine.poll_reply(receive, "attach") {
                 self.attaching = None;
                 match result {
                     Ok(state) => {
@@ -696,7 +696,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
         let mut completed = vec![];
         for (key, receive) in &self.rendering {
-            if let Ok(result) = receive.try_recv() {
+            if let Some(result) = self.engine.poll_reply(receive, "present") {
                 completed.push((*key, result));
             }
         }
@@ -726,7 +726,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             }
         }
         if let Some(receive) = &self.resizing {
-            if let Ok(result) = receive.try_recv() {
+            if let Some(result) = self.engine.poll_reply(receive, "resize") {
                 self.resizing = None;
                 match result {
                     Ok(state) => self.state = state,
