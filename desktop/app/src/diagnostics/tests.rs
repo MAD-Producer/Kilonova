@@ -83,22 +83,39 @@ fn fast_activity_does_not_count_as_a_stall_or_claim_a_measured_gpu_duration() {
 
 #[test]
 fn actual_engine_queue_records_waiting_separately_and_reply_context_preserves_the_action() {
-    let root=tempfile::tempdir().unwrap();
-    let engine=crate::engine::Engine::start(root.path().join("project"),motion_desktop_media::platform(),8*1024*1024*1024).unwrap();
-    engine.diagnostics().set_context(Context {action:"mask",layers:1,..Default::default()});
-    let (entered,waiting)=std::sync::mpsc::channel();
-    let (release,blocked)=std::sync::mpsc::channel();
-    let first=engine.request(|reply|crate::engine::Command::TestWait {entered,release:blocked,reply}).unwrap();
-    waiting.recv_timeout(Duration::from_secs(5)).unwrap();
-    let state=engine.request(crate::engine::Command::State).unwrap();
-    std::thread::sleep(Duration::from_millis(30));
-    release.send(()).unwrap();
-    first.recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
-    state.recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
-    engine.state().unwrap();
-    let report=engine.diagnostics().report();
-    let records=report["recent"].as_array().unwrap();
-    let state=records.iter().find(|e|e["category"]=="worker"&&e["operation"]=="state"&&e["queueWaitUs"].as_u64().unwrap_or(0)>=10000).unwrap();
-    assert_eq!(state["context"]["action"],"mask");
-    assert!(state["workUs"].is_u64());
+    let root = tempfile::tempdir().unwrap();
+    let engine = crate::engine::Engine::start(root.path().join("project"), motion_desktop_media::platform(), 8 << 30).unwrap();
+    // Recording intentionally drops an event rather than waiting for the report
+    // lock. Observe a bounded series of real queued requests, not an assumption
+    // that one event must survive a concurrent automatic checkpoint.
+    for _ in 0..8 {
+        let (entered, waiting) = std::sync::mpsc::channel();
+        let (release, blocked) = std::sync::mpsc::channel();
+        let first = engine.request(|reply| crate::engine::Command::TestWait { entered, release: blocked, reply }).unwrap();
+        waiting.recv_timeout(Duration::from_secs(5)).unwrap();
+        engine.diagnostics().set_context(Context { action: "mask", layers: 1, ..Default::default() });
+        let state = engine.request(crate::engine::Command::State).unwrap();
+        let (entered, barrier) = std::sync::mpsc::channel();
+        let (finish, blocked) = std::sync::mpsc::channel();
+        let last = engine.request(|reply| crate::engine::Command::TestWait { entered, release: blocked, reply }).unwrap();
+        std::thread::sleep(Duration::from_millis(30));
+        release.send(()).unwrap();
+        first.recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+        state.recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+        // This worker barrier is after State's timing record. Reading the report
+        // now cannot itself race and cause the record being tested to be dropped.
+        barrier.recv_timeout(Duration::from_secs(5)).unwrap();
+        let report = engine.diagnostics().report();
+        finish.send(()).unwrap();
+        last.recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+        if let Some(record) = report["recent"].as_array().unwrap().iter().find(|event| {
+            event["category"] == "worker" && event["operation"] == "state"
+                && event["queueWaitUs"].as_u64().unwrap_or(0) >= 10_000
+        }) {
+            assert_eq!(record["context"]["action"], "mask");
+            assert!(record["workUs"].is_u64());
+            return;
+        }
+    }
+    panic!("no real queued State timing was observed within eight attempts");
 }

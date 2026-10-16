@@ -67,6 +67,10 @@
       "graph.handle_width": 1,
       "graph.handle_radius": 4,
       "graph.key_radius": 5,
+      "graph.selection.outset": 3,
+      "graph.selection.hit_radius": 6,
+      "graph.selection.handle_size": 6,
+      "graph.selection.fill_opacity": 0.05,
       "dropdown.max_width": 320,
       "dropdown.menu_min_width": 160
     },

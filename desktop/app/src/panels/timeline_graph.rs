@@ -306,6 +306,7 @@ pub(super) fn render(
         scale,
     };
     let box_owned = super::graph_box::interact(
+        &styles,
         panels,
         state,
         source,
@@ -418,6 +419,7 @@ pub(super) fn render(
     super::graph_keys::update(panels, state, plot, ppf, scale, source, curve_input, out);
     let box_selected = if !box_owned && clicked_key.is_none() {
         super::graph_box::select_curve(
+            &styles,
             panels,
             state,
             source,
