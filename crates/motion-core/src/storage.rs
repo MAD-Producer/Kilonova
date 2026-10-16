@@ -93,6 +93,17 @@ pub fn load(root: &Path) -> Result<Project> {
     validate_assets(root, &project)?;
     Ok(project)
 }
+fn cleanup_temporary_file(path: &Path) {
+    if let Err(error) = fs::remove_file(path) {
+        if error.kind() != std::io::ErrorKind::NotFound {
+            log::warn!("project temporary cleanup failed: path={} reason={error}", path.display());
+        }
+    }
+}
+struct ProjectTemporary(PathBuf);
+impl Drop for ProjectTemporary {
+    fn drop(&mut self) { cleanup_temporary_file(&self.0); }
+}
 pub fn save(root: &Path, project: &Project) -> Result<()> {
     let canonical = project.composition(crate::MAIN_COMPOSITION)?;
     let project = &canonical;
@@ -105,11 +116,14 @@ pub fn save(root: &Path, project: &Project) -> Result<()> {
         "project JSON exceeds the size limit",
     )?;
     let temp = root.join("project.json.tmp");
-    let mut file = File::create(&temp)?;
+    let (temporary, mut file) = {
+        let file = File::create(&temp)?;
+        (ProjectTemporary(temp), file)
+    };
     file.write_all(&bytes)?;
     file.sync_all()?;
     drop(file);
-    fs::rename(temp, root.join("project.json"))?;
+    fs::rename(&temporary.0, root.join("project.json"))?;
     Ok(())
 }
 struct PackageSource {
@@ -132,7 +146,7 @@ pub struct PreparedPackage {
 impl Drop for PreparedPackage {
     fn drop(&mut self) {
         // This exact temporary file was exclusively created by this transaction.
-        let _ = fs::remove_file(&self.temporary);
+        cleanup_temporary_file(&self.temporary);
     }
 }
 impl PreparedPackage {

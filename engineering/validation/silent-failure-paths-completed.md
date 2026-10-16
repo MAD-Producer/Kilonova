@@ -209,3 +209,14 @@
 - panic hook 分支继续只用 try_lock；拿不到锁时直接 stderr，不走恢复 helper，不等待自己持有的锁
 - 新增真实 formatter panic 测试，验证中毒确实发生，随后 warn 仍完整写入同一文件并恢复锁；已有捕获 panic 与持锁 hook 不死锁回归仍通过
 - 本节是对新日志层的复核补漏；日志：target/silent-failure-validation/logger-poison-batch13.log
+
+## 14 · 工程和节点源的临时文件清理
+
+状态：已修复；storage_failure_cleanup 2 passed，motion-graph 实际导出/重开回归 1 passed。
+
+- 工程 save 在成功打开自己的 project.json.tmp 后安装 RAII guard，写入、sync、rename 失败或 unwind 都尝试清理；文件先关闭再清理，避免 Windows 持句柄影响删除
+- File::create 之前失败时不安装 guard，不删除阻塞创建的既有目录；原工程文件保持不变
+- 工程包与节点源临时文件清理失败记录路径和 IO 原因，不把失败当成已清理
+- 节点导出仍保留双文件发布失败后的恢复副本；11.22 描述的 rollback 失败与 recovery copy 路径本来就明确返回，是保全旧字节的设计，不删除恢复副本来掩盖失败
+- 未改工作流保存契约、工程序列化或任一既有断言；新增两个真实文件系统失败测试
+- 关联辅助：11.9、11.21–11.22；日志：target/silent-failure-validation/storage-batch14.log

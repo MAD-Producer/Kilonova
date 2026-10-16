@@ -203,11 +203,10 @@ impl StagedFile {
             std::process::id(),
             NONCE.fetch_add(1, Ordering::Relaxed)
         ));
-        let mut file = OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&path)?;
-        let staged = Self { path: Some(path) };
+        let (staged, mut file) = {
+            let file = OpenOptions::new().write(true).create_new(true).open(&path)?;
+            (Self { path: Some(path) }, file)
+        };
         file.write_all(bytes)?;
         file.sync_all()?;
         drop(file);
@@ -222,7 +221,11 @@ impl StagedFile {
 impl Drop for StagedFile {
     fn drop(&mut self) {
         if let Some(path) = &self.path {
-            let _ = fs::remove_file(path);
+            if let Err(error) = fs::remove_file(path) {
+                if error.kind() != std::io::ErrorKind::NotFound {
+                    log::warn!("node source temporary cleanup failed: path={} reason={error}", path.display());
+                }
+            }
         }
     }
 }

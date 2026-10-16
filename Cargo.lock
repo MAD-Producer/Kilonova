@@ -2150,6 +2150,7 @@ name = "motion-core"
 version = "0.1.0"
 dependencies = [
  "glam",
+ "log",
  "motion-effects",
  "motion-model",
  "motion-render",
@@ -2235,6 +2236,7 @@ name = "motion-graph"
 version = "0.1.0"
 dependencies = [
  "image",
+ "log",
  "motion-core",
  "motion-effects",
  "motion-render",

@@ -6,6 +6,7 @@ license.workspace = true
 description = "Typed effect node documents and portable SDK 6 image shader export"
 
 [dependencies]
+log.workspace = true
 motion-effects = { path = "../motion-effects" }
 serde.workspace = true
 serde_json.workspace = true
