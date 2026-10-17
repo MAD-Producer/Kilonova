@@ -2,6 +2,7 @@
 use super::*;
 
 pub(super) const CHANNEL: u8 = 3;
+static REJECTED_EDITS: motion_render::observability::FailureCounter = motion_render::observability::FailureCounter::new();
 pub(super) const CHANNELS: [u8; 4] = [CHANNEL, 0, 1, 2];
 
 pub(super) fn frames(mask: &LayerMask) -> Vec<i32> {
@@ -114,15 +115,24 @@ pub(super) fn command(
     offset: i32,
     action: MaskAction,
 ) -> Option<Action> {
-    edit(mask, offset, action).ok().map(|mask| {
-        Action::Edit(Command::Mask {
-            object,
-            action: MaskAction::Path {
-                mask: mask.id,
-                path: mask.path,
-            },
-        })
-    })
+    match edit(mask, offset, action) {
+        Ok(mask) => {
+            REJECTED_EDITS.success();
+            Some(Action::Edit(Command::Mask {
+                object,
+                action: MaskAction::Path {
+                    mask: mask.id,
+                    path: mask.path,
+                },
+            }))
+        }
+        Err(error) => {
+            if REJECTED_EDITS.failure("mask_path_edit", format_args!("object={object} mask={} reason={error}", mask.id)) == 1 {
+                log::warn!("mask path edit rejected: object={object} mask={} reason={error}", mask.id);
+            }
+            None
+        }
+    }
 }
 
 pub(super) fn node_command(

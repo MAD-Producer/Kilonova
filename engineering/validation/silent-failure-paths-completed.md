@@ -309,3 +309,64 @@
 - u64 内存输入先检查有符号预算上限，拒绝回绕；新回归验证拒绝时未创建/锁住工程，正常预算仍可启动和重开
 - 保持原有等待、线程所有权和退出策略，不添加命令超时、强制取消、跨线程释放或 worker 重启；真正卡住的原生初始化仍需外部诊断，日志只提高可定位性
 - 关联辅助清单：10.1–10.5；全集 engine total_memory as i64 候选；日志：desktop-startup-full.log、final-check.log、final-build.log
+
+## 22 · 本轮集成验收与下一处修改边界
+
+状态：以 01–21 为本节基线完成集成验收；后续批次另记，原始两份清单尚未全部关闭。
+
+- cargo check -p motion-desktop --offline 与构建通过；桌面全套 339 passed，0 failed，0 ignored；host 全套 47 passed，0 failed，0 ignored
+- 最新二进制完整运行 tools/ci_desktop.py：中英文、浮窗、工作区切换、节点图 GPU/项目绑定、共享 MCP 与样式覆盖全部通过
+- 已查看最新中英文主窗口截图，合成正常绘制；未把编译通过或二进制自述单独作为视觉验收
+- 最新二进制再次实测默认 Info：123 条普通命令 start、0 条 Present start，debug 健康 Present 无逐帧 done；轮转、Error 文件/stderr 双输出、MCP/命令目录 stdout JSON 纯净均通过
+- 原生验收 stderr 未发生 panic；本机 Vulkan loader 报 Epic Overlay 两个缺失 manifest 路径，现由文件和 stderr 显式暴露，原生渲染验证仍通过；未修改机器的驱动或注册表
+- 原生证据：target/silent-failure-validation/native-final.log、native-final/；协议及日志证据：runtime/runtime-summary.json
+- 相对 origin/main，panels 差异仍只有用户已批准的 mask_inspector 测试初始化一行；生产 panel 文件保持未修改，既有断言不变
+- 两份原始审计文档保持原样；未覆盖项继续待审，机械匹配和未标记行数均不当成缺陷完成数
+
+进一步核实的误报：
+
+| 辅助编号 | 源码结论 |
+| --- | --- |
+| 2.7 quick-ease 半次提交 | edits 是局部 Vec，任何一次校验失败都 return，只有整个循环结束才 push EditBatch；中途 return 会丢弃整批，不能把局部 push 说成已应用 incoming |
+| 4.1、8.1–8.4 曲线图零尺寸 | animation_controls 的 width 在入口是 (area.width()-32).max(1)，graph 高度固定 130；报告忽略了入口约束，当前该除法并非零宽/零高路径 |
+| 8.7 拖拽期间复用 bounds | 固定手势开始的坐标范围可避免控制点拖动时标尺随数据变化，引发反馈跳动；不是独立静默失败 |
+
+下一处修改的授权记录（后续实施见 23）：
+
+- path_controls/mask_path.rs：保留现有 Option 返回，拒绝时记录 object、mask 和真实错误
+- path_controls.rs：仅在确实生成命令后推进 last_geometry，避免未投递的几何被标为已投递
+- 具体待审补丁：target/silent-failure-validation/panel-observability-proposal.patch
+- 此前获准例外仅为一行测试夹具；本次另行给出具体补丁后，用户明确批准这两个生产文件及对应回归测试，不扩展至其他 panels 生产文件
+
+## 23 · 获准修复的蒙版编辑拒绝与拖拽推进
+
+状态：已修复；用户已明确批准两个生产文件及对应测试。蒙版路径专项 8 项通过；加入后续异步导出观测后的当前工作区全套 342 passed，0 failed，0 ignored。
+
+- mask_path::command 保持 Option 返回契约，拒绝时保留 object、mask 和原因；首次 warn、第 60 次升级 Error 一次，成功复位，避免持续拒绝时逐帧刷盘
+- path_controls 只在确实生成编辑命令后更新 last_geometry；未生成命令的几何不会被标为已投递，目标恢复后同一指针位置可重试
+- 新增日志子进程回归，验证 70 次拒绝只告警一次、升级一次，成功后重新告警，且不污染 stdout
+- 新增真实 draw 输入回归：拖拽中目标暂时缺失时无编辑且几何未推进；目标恢复后相同 held 输入生成唯一命令并可应用到模型
+- 旧代码负对照实际失败：无命令时 last_geometry 错误变成 [30,20,0,0,0,0]；恢复修复代码后同一断言通过，未修改任何旧断言
+- check/build 通过；生产拖拽修复的完整原生双语/浮窗/节点/共享 MCP/样式验收通过，最新日志限频另由实际子进程回归覆盖
+- 已查看 Path 与 Properties/Masks 原生截图；无布局、样式、控件、命中范围、图层数据结构或快捷键路由改动
+- 关联辅助清单：2.1、2.21；证据：panel-mask-batch23.log、panel-mask-negative-control.log、desktop-panel-full.log、desktop-mask-throttle-full.log、panel-check.log、panel-build.log、native-panel.log 与 native-panel/
+- 相对 main 的 panels 改动仅为本次获准的两个生产文件、mask_path_tests 对应回归，以及先前已批准的 mask_inspector 一行测试夹具
+
+DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
+
+| 基线项 | 本次状态与理由 |
+| --- | --- |
+| path_controls 六处纵向步进 | retained with reason：未改相关绘制块，保留独立视觉整改追踪 |
+| path_controls 两列宽度 | retained with reason：未改列计算；当前 Path/Masks 截图作为本轮无视觉回归证据 |
+| path_controls 按钮/字段高度 | retained with reason：不改尺寸与命中区 |
+| path_controls 自绘数值字段 | retained with reason：不更换控件 |
+| path_controls 全宽布尔控件 | retained with reason：不重排属性行 |
+| effect_controls 行高/步进 | retained with reason：不在本次获准文件范围 |
+| effect_controls 布尔文本按钮 | retained with reason：不在本次获准文件范围 |
+| effect_controls 全宽枚举 | retained with reason：不在本次获准文件范围 |
+| effect_controls hover alpha | retained with reason：不在本次获准文件范围 |
+| effect_controls 层级缩进 | retained with reason：不在本次获准文件范围 |
+| timeline 11 列坐标 | retained with reason：保留兼容基线 |
+| timeline snap guide 颜色 | retained with reason：遵循规范保留当前行为，不新增 token |
+
+以上仅登记本批未改动视觉基线的范围，不宣称这些历史整改项已全部修复或现有行号仍准确。
