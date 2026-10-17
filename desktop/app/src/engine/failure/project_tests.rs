@@ -2,6 +2,83 @@
 use super::*;
 
 #[test]
+fn real_save_publication_failure_reaches_reply_file_and_stderr() {
+    const CHILD: &str = "MOTION_PROJECT_PUBLICATION_LOG_CHILD";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = PathBuf::from(root);
+        let _logger = crate::logging::init(root.clone()).unwrap();
+        let project = motion_core::Project::new(64, 64, 30, 120).unwrap();
+        let project_root = root.join("project");
+        motion_core::storage::save(&project_root, &project).unwrap();
+        let engine = Engine::start(
+            project_root.clone(),
+            motion_desktop_media::platform(),
+            8 << 30,
+        )
+        .unwrap();
+        let before = engine.state().unwrap();
+        let target = project_root.join("project.json");
+        let original = std::fs::read(&target).unwrap();
+        std::fs::remove_file(&target).unwrap();
+        std::fs::create_dir(&target).unwrap();
+        std::fs::write(target.join("keep"), b"preserved").unwrap();
+        let error = engine.save().unwrap_err();
+        for field in ["phase=publish", "published=false", "cause=", "project.json"] {
+            assert!(error.contains(field), "{error}");
+        }
+        std::fs::write(root.join("reply.txt"), &error).unwrap();
+        assert_eq!(std::fs::read(target.join("keep")).unwrap(), b"preserved");
+        assert!(!project_root.join("project.json.tmp").exists());
+        assert!(!engine.failed());
+        let after = engine.state().unwrap();
+        for key in ["project", "revision", "history", "canUndo", "canRedo"] {
+            assert_eq!(before[key], after[key], "changed {key}");
+        }
+        // Repair only the controlled fixture, then make an explicit new request.
+        std::fs::remove_file(target.join("keep")).unwrap();
+        std::fs::remove_dir(&target).unwrap();
+        std::fs::write(&target, original).unwrap();
+        engine.save().unwrap();
+        assert_eq!(motion_core::storage::load(&project_root).unwrap(), project);
+        drop(engine);
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "engine::failure::project_tests::real_save_publication_failure_reaches_reply_file_and_stderr"])
+        .env(CHILD, root.path()).env_remove("MOTION_LOG").output().unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let reply = std::fs::read_to_string(root.path().join("reply.txt")).unwrap();
+    let file = std::fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(file.contains("logging initialized level=INFO"));
+    let errors: Vec<_> = file
+        .lines()
+        .filter(|line| line.contains("phase=publish"))
+        .collect();
+    assert_eq!(errors.len(), 1, "{file}");
+    let error = errors[0];
+    assert!(error.contains("ERROR") && error.contains(" save ") && error.contains("ms:"));
+    assert!(error.contains(&reply), "{error}\nreply={reply}");
+    assert!(stderr.contains(&reply));
+    let request = error
+        .split("error #")
+        .nth(1)
+        .unwrap()
+        .split_whitespace()
+        .next()
+        .unwrap();
+    assert!(file.find(&format!("start #{request} save")).unwrap() < file.find(error).unwrap());
+    assert!(!stdout.contains(&reply) && !stdout.contains("logging initialized"));
+}
+
+#[test]
 fn rejected_project_switch_rolls_back_directory_and_preserves_error_channels() {
     const CHILD: &str = "MOTION_PROJECT_ROLLBACK_LOG_CHILD";
     const CAUSE: &str = "invalid compiled node runtime archive encoding";
