@@ -3,6 +3,107 @@ use super::*;
 use motion_core::composition::{Composition, MAX_COMPOSITIONS};
 
 #[test]
+fn source_time_failures_reach_reply_file_and_stderr_at_default_level() {
+    const CHILD: &str = "MOTION_SOURCE_TIME_LOG_CHILD";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let _logger = crate::logging::init(PathBuf::from(root)).unwrap();
+        let mut project = motion_core::Project::new(64, 64, 30, 120).unwrap();
+        project.layers.push(motion_core::Layer::solid(
+            1, "Selected", [32.; 2], [0.; 3], [1.; 4],
+        ));
+        let result = project
+            .edit_composition(motion_core::CompositionAction::Precompose {
+                objects: vec![1],
+                name: "Nested".into(),
+                range: "composition".into(),
+            })
+            .unwrap();
+        let child = result["composition"].as_str().unwrap();
+        project
+            .compositions
+            .iter_mut()
+            .find(|c| c.id == child)
+            .unwrap()
+            .fps = 0;
+        let mut scene = motion_render::Scene::new(&project);
+        // Ordinary project loading rejects this state. Exercise the actual
+        // public API failures with controlled origin context at the production
+        // reply boundary, without installing an invalid engine session.
+        let errors = [
+            scene
+                .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
+                .unwrap_err(),
+            motion_render::image_resources::upcoming_assets(&project, 0.).unwrap_err(),
+            motion_core::CompositionClip::new(child.into())
+                .source_frame(f64::NAN, 30, 60)
+                .unwrap_err(),
+        ];
+        for (index, error) in errors.into_iter().enumerate() {
+            let original = error.to_string();
+            let (reply, receive) = channel::<Result<Value, String>>();
+            CURRENT_COMMAND.set(Some(Flight {
+                request: 100 + index as u64,
+                operation: "present",
+                started: Instant::now(),
+            }));
+            respond(reply, Err(original.clone()));
+            CURRENT_COMMAND.set(None);
+            let received = receive
+                .recv_timeout(Duration::from_secs(5))
+                .unwrap()
+                .unwrap_err();
+            assert_eq!(received, original);
+            let envelope = motion_host::ops::error_envelope(&received);
+            assert_eq!(envelope["error_detail"]["composition"], child);
+            assert_eq!(
+                envelope["error_detail"]["code"],
+                if index < 2 {
+                    "invalid_frame_rate"
+                } else {
+                    "invalid_time"
+                }
+            );
+        }
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "engine::failure::composition_tests::source_time_failures_reach_reply_file_and_stderr_at_default_level"])
+        .env(CHILD, root.path()).env_remove("MOTION_LOG").output().unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let file = std::fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(file.contains("logging initialized level=INFO"));
+    for (request, phase) in [(100, "scene_sample"), (101, "image_prefetch"), (102, "NaN")] {
+        let line = file
+            .lines()
+            .find(|line| line.contains(&format!("error #{request} present ")))
+            .unwrap();
+        assert!(line.contains(phase) && line.contains("ms:") && line.contains("comp-1"));
+        assert!(stderr.contains(line.split("motion_studio::engine: ").nth(1).unwrap()));
+    }
+    assert_eq!(stderr.matches("ERROR motion_studio::engine:").count(), 3);
+    assert!(!stderr.contains("logging initialized"));
+    for marker in [
+        "composition_error:",
+        "invalid_frame_rate",
+        "invalid_time",
+        "logging initialized",
+    ] {
+        assert!(
+            !stdout.contains(marker),
+            "log output leaked to stdout: {stdout}"
+        );
+    }
+}
+
+#[test]
 fn capacity_failure_reaches_reply_file_and_stderr_at_default_level() {
     const CHILD: &str = "MOTION_COMPOSITION_BOUNDARY_LOG_CHILD";
     if let Some(root) = std::env::var_os(CHILD) {
