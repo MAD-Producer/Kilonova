@@ -263,7 +263,7 @@ impl Session {
         }
         let mut snapshot=json!({"project":original,"root":self.root.to_string_lossy(),"frame":f,"revision":self.engine.revision(),"canUndo":self.engine.can_undo(),
             "main_composition":"comp-main","composition":p.composition_id,"compositions":p.composition_list(),
-            "has_audio":has_audio,"audio_error":audio_error,
+            "has_audio":has_audio,"audio_error":audio_error,"history":self.engine.history_diagnostics(),
             "composition_context":self.composition_context_snapshot(),
             "vector_layers":vector_layers,"mask_layers":mask_layers,"source_transforms":source_transforms,
             "platform":{"name":self.platform().name(),"graphics":"wgpu"},

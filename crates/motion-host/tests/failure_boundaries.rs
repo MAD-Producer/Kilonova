@@ -1,5 +1,5 @@
 use motion_core::{composition::*, Camera, Content, Layer, LayerTimeline, Project};
-use motion_host::{Platform, Result, SurfaceTarget, VideoDecoder, VideoQuery};
+use motion_host::{Platform, Result, Session, SurfaceTarget, VideoDecoder, VideoQuery};
 use serde_json::{json, Value};
 use std::{path::Path, sync::Arc};
 
@@ -116,4 +116,25 @@ fn audio_plan_failure_is_distinct_from_silence_and_export_rejects_it() {
     })
     .unwrap();
     motion_host::session::close(id);
+}
+
+#[test]
+fn snapshot_exposes_history_pressure_without_persisting_it_into_the_project() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut session =
+        Session::new(Project::demo(), directory.path().into(), Arc::new(Stub)).unwrap();
+    assert_eq!(session.snapshot()["history"]["evictions"], 0);
+    for index in 0..130 {
+        session
+            .engine
+            .apply(motion_core::Command::Rename {
+                object: 1,
+                name: format!("entry-{index}"),
+            })
+            .unwrap();
+    }
+    let snapshot = session.snapshot();
+    assert_eq!(snapshot["history"]["evictions"], 2);
+    assert_eq!(snapshot["history"]["undoEntries"], 128);
+    assert!(snapshot["project"].get("history").is_none());
 }

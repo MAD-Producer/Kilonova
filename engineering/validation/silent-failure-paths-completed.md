@@ -220,3 +220,15 @@
 - 节点导出仍保留双文件发布失败后的恢复副本；11.22 描述的 rollback 失败与 recovery copy 路径本来就明确返回，是保全旧字节的设计，不删除恢复副本来掩盖失败
 - 未改工作流保存契约、工程序列化或任一既有断言；新增两个真实文件系统失败测试
 - 关联辅助：11.9、11.21–11.22；日志：target/silent-failure-validation/storage-batch14.log
+
+## 15 · 撤销历史预算淘汰计数
+
+状态：已完成；历史计账常规回归 12 passed，原手动大文档测量已单独运行并通过；host 边界集成测试 2 passed。
+
+- 保留既有 128 条/32 MiB 的撤销历史策略，实际淘汰时递增运行时 evictions
+- Engine::history_diagnostics 暴露 undoEntries、redoEntries、budgetBytes、evictions、gestureActive，host 快照通过 history 字段提供给调用方
+- 不把历史压力写入工程文件，不改变 undo/redo、gesture 和预算的语义，不增加逐帧日志
+- 新回归实际提交 200 次编辑，再撤销全部可用 128 步，验证 72 个淘汰计数与剩余文档；redo 不虚增淘汰；另验证预算不足的淘汰
+- host 集成测试验证快照可读取计数且 project 不含历史诊断字段
+- 大文档测量原测试的等价性断言通过；测量日志保留，不将一次本机耗时当成性能保证
+- 关联辅助：0.7；日志：history-batch15.log、history-batch15-measurement.log

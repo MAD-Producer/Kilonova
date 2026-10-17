@@ -915,6 +915,7 @@ pub struct Engine {
     redo: VecDeque<History>,
     gesture: Option<Gesture>,
     history_budget: usize,
+    history_evictions: u64,
 }
 impl Engine {
     pub fn activate_composition(&mut self, id: &str) -> Result<()> {
@@ -937,6 +938,7 @@ impl Engine {
             redo: VecDeque::new(),
             gesture: None,
             history_budget: 32 * 1024 * 1024,
+            history_evictions: 0,
         })
     }
     pub fn project(&self) -> &Project {
@@ -947,6 +949,12 @@ impl Engine {
     }
     pub fn revision(&self) -> u64 {
         self.revision
+    }
+    /// Runtime-only history pressure; eviction is the existing bounded policy.
+    pub fn history_diagnostics(&self) -> serde_json::Value {
+        serde_json::json!({"undoEntries":self.undo.len(),"redoEntries":self.redo.len(),
+            "budgetBytes":self.history_budget,"evictions":self.history_evictions,
+            "gestureActive":self.gesture.is_some()})
     }
     pub fn can_undo(&self) -> bool {
         !self.undo.is_empty() && self.gesture.is_none()
@@ -1126,8 +1134,10 @@ impl Engine {
                 .sum::<usize>()
                 > self.history_budget
         {
-            if self.undo.pop_front().is_none() {
-                self.redo.pop_front();
+            if self.undo.pop_front().or_else(|| self.redo.pop_front()).is_some() {
+                self.history_evictions = self.history_evictions.saturating_add(1);
+            } else {
+                break;
             }
         }
     }
