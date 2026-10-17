@@ -299,7 +299,9 @@ impl AudioOutput {
         {
             worker.thread().unpark();
             if worker.is_finished() {
-                let _ = worker.join();
+                if let Err(payload) = worker.join() {
+                    log::error!("audio worker join failed: {}", motion_media::panic_reason(payload));
+                }
             }
         }
     }
@@ -357,7 +359,10 @@ fn spawn_producer(
                 }
             }
         })
-        .map_err(|e| format!("start audio mixer: {e}"))
+        .map_err(|error| {
+            log::error!("start audio mixer failed: {error}");
+            format!("start audio mixer: {error}")
+        })
 }
 
 fn spawn_monitor(shared: Arc<Shared>) -> Result<JoinHandle<()>, String> {
@@ -375,8 +380,18 @@ fn spawn_monitor(shared: Arc<Shared>) -> Result<JoinHandle<()>, String> {
                 }
                 std::thread::park_timeout(Duration::from_millis(250));
             }
+            // Device callbacks only publish state. Observe the latched failure
+            // here, outside the realtime callback and after releasing its mutex.
+            let error = shared.error.lock().unwrap_or_else(|e| e.into_inner()).clone();
+            if let Some(error) = error {
+                log::error!("[motion-audio] output stopped: {error}");
+            }
+            log::debug!("audio watchdog stopped");
         })
-        .map_err(|e| format!("start audio watchdog: {e}"))
+        .map_err(|error| {
+            log::error!("start audio watchdog failed: {error}");
+            format!("start audio watchdog: {error}")
+        })
 }
 
 fn build<T: SizedSample + FromSample<f32>>(
@@ -888,5 +903,51 @@ mod tests {
             output.error()
         );
         output.stop();
+    }
+}
+
+
+#[cfg(test)]
+mod failure_log_tests {
+    use super::*;
+
+    #[test]
+    fn watchdog_logs_the_first_device_failure_once_without_callback_io_or_normal_stop_errors() {
+        const CHILD: &str = "MOTION_AUDIO_FAILURE_LOG_TEST_CHILD";
+        if let Some(root) = std::env::var_os(CHILD) {
+            let root = std::path::PathBuf::from(root);
+            let _logger = crate::logging::init(root.clone()).unwrap();
+            let shared=Arc::new(Shared::new());
+            shared.fail("audio output: controlled device disconnection".into());
+            shared.fail("audio mix: secondary cancellation".into());
+            // Publishing failure is suitable for the device callback: no log IO.
+            assert!(!std::fs::read_to_string(root.join("motion-studio.log")).unwrap().contains("controlled device disconnection"));
+            let monitor=spawn_monitor(shared).unwrap();
+            wait_finished(monitor);
+            let clean=Arc::new(Shared::new());
+            clean.stop.store(true,Ordering::Release);
+            wait_finished(spawn_monitor(clean).unwrap());
+            return;
+        }
+        let root=tempfile::tempdir().unwrap();
+        let output=std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact","audio_output::failure_log_tests::watchdog_logs_the_first_device_failure_once_without_callback_io_or_normal_stop_errors"])
+            .env(CHILD,root.path()).env_remove("MOTION_LOG").output().unwrap();
+        assert!(output.status.success(),"{}",String::from_utf8_lossy(&output.stderr));
+        let text=std::fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
+        assert_eq!(text.lines().filter(|line| line.contains(" ERROR ") && line.contains("[motion-audio] output stopped:")).count(),1);
+        assert!(text.contains("controlled device disconnection"));
+        assert!(!text.contains("secondary cancellation"));
+        assert_eq!(String::from_utf8_lossy(&output.stderr).matches("[motion-audio] output stopped:").count(),1);
+        assert!(!String::from_utf8_lossy(&output.stdout).contains("controlled device disconnection"));
+    }
+
+    fn wait_finished(worker: JoinHandle<()>) {
+        let deadline=Instant::now()+Duration::from_secs(5);
+        while !worker.is_finished() {
+            assert!(Instant::now()<deadline);
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        worker.join().unwrap();
     }
 }

@@ -435,3 +435,15 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - 已有测试实际验证嵌套像素、后序父索引与程序绑定、随机 seek、重复 scene/plan 一致性，以及活跃实例超限拒绝
 - 证据：target/silent-failure-validation/composition-abi-review.log
 - effect_plan 的其他浮点尺寸、长期缓存 program 索引等候选未被本表一并关闭；不以单个 GPU 回归通过替代所有 104 行的逐项核实
+
+## 29 · 音频后台错误的文件与控制台输出
+
+状态：已完成；桌面全套 346 passed，0 failed，0 ignored；check 通过。
+
+- 实时设备回调继续只发布首个错误与 stop，不增加文件或 stderr IO
+- watchdog 退出时在后台线程、释放 error Mutex 后记录一次 Error，让设备错误即使未被 UI 轮询也能落文件与 stderr；正常停止不记录假故障
+- 记录 mixer/watchdog 的 spawn 失败与已结束 worker 的 join panic，保留有界 panic 原因
+- 新增独立进程回归：回调侧发布故障时无错误日志，启动真实 watchdog 后首因仅输出一次；次级取消不覆盖首因，正常停止无 Error，stdout 保持干净
+- 保留音频 stop 的非阻塞策略：磁盘 IO 未完成时不在 UI 线程 join
+- 辅助 1.7 的“永久杀死音频输出”表述不准确：latch 属于单个 AudioOutput，Shell::stop 会 take/drop，下一次播放创建新的输出；不清除当前坏流的保护闩锁
+- 关联辅助清单：1.7、10.11–10.14；证据：desktop-audio-failure-full.log、audio-failure-check.log；随后日志过滤批次的完整构建覆盖本节生产源码
