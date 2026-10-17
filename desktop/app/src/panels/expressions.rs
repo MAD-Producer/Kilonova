@@ -52,12 +52,23 @@ pub(super) fn render(
             .into_iter()
             .flatten()
             .find(|e| {
-                serde_json::from_value::<motion_core::ExpressionTarget>(e["target"].clone())
-                    .ok()
-                    .as_ref()
+                observe!(
+                    "expressions.target",
+                    serde_json::from_value::<motion_core::ExpressionTarget>(e["target"].clone()),
+                    "object={object} property={property:?}"
+                )
+                .ok()
+                .as_ref()
                     == Some(&target)
             })
-            .and_then(|e| e["source"].as_str())
+            .and_then(|e| {
+                observe!(
+                    "expressions.source",
+                    e["source"].as_str().ok_or("expression source is not text"),
+                    "object={object} property={property:?}"
+                )
+                .ok()
+            })
             .unwrap_or("value")
             .to_owned();
         panels.auxiliary.expression_object = Some(object);

@@ -299,9 +299,17 @@ impl NodeTasks {
             Action::ShowProperties
             | Action::Changed { .. }
             | Action::Examples(_)
-            | Action::PreviewChanged => return Ok(()),
+            | Action::PreviewChanged => {
+                log::debug!("node task ignored non-worker action reason=handled_by_shell");
+                return Ok(());
+            }
         };
         if kind == Kind::Compile && self.compiling(&snapshot) {
+            log::debug!(
+                "node compile coalesced epoch={} revision={} reason=already_pending",
+                snapshot.epoch,
+                snapshot.revision
+            );
             return Ok(());
         }
         if self.pending.len() >= 16 {
@@ -337,7 +345,13 @@ impl NodeTasks {
     }
     pub fn cancel(&mut self, editor: &mut NodeEditor) {
         self.generation.fetch_add(1, Ordering::AcqRel);
-        for (_, (_, snapshot)) in std::mem::take(&mut self.pending) {
+        for (id, (kind, snapshot)) in std::mem::take(&mut self.pending) {
+            log::info!(
+                "node task cancellation requested #{id} {kind:?} epoch={} revision={} path={:?}",
+                snapshot.epoch,
+                snapshot.revision,
+                snapshot.source_path
+            );
             editor.cancel_compile(&snapshot);
         }
     }

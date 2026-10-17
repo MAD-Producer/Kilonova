@@ -27,6 +27,16 @@ use std::{
 
 pub type Result<T> = std::result::Result<T, String>;
 
+mod last_error_observation;
+mod resource_observation;
+pub(crate) mod metadata_observation;
+#[cfg(test)]
+mod metadata_observation_tests;
+#[cfg(test)]
+mod resource_observation_tests;
+#[cfg(test)]
+mod last_error_observation_tests;
+
 static NEXT: AtomicI64 = AtomicI64::new(1);
 static SESSIONS: OnceLock<Mutex<HashMap<i64, Session>>> = OnceLock::new();
 
@@ -82,6 +92,7 @@ pub struct Session {
     pub video_prepare_us: u64,
     pub video_upload_us: u64,
     pub last_error: Option<String>,
+    last_error_observation: last_error_observation::Observation,
     pub(crate) audio_snapshot_error: std::cell::RefCell<Option<String>>,
     pub last_presented_frame: Option<f64>,
     pub last_presented_revision: u64,
@@ -172,6 +183,7 @@ impl Session {
             video_prepare_us: 0,
             video_upload_us: 0,
             last_error: initial_error,
+            last_error_observation: Default::default(),
             audio_snapshot_error: std::cell::RefCell::new(None),
             last_presented_frame: None,
             last_presented_revision: 0,
@@ -823,26 +835,45 @@ fn audio_decoder(platform: &Arc<dyn Platform>) -> motion_media::DecodeAudio {
 
 /// Run `operation` against a live session on its owning thread.
 pub fn with_session<T>(id: i64, operation: impl FnOnce(&mut Session) -> Result<T>) -> Result<T> {
+    let began = Instant::now();
+    let _metadata_scope = metadata_observation::Scope::enter();
     let mut registry = sessions().lock().unwrap_or_else(|e| e.into_inner());
     let session = registry.get_mut(&id).ok_or("native session is closed")?;
     session.check_thread()?;
-    session.recover_plugin_editor(std::time::Instant::now())?;
-    operation(session)
+    let result = session.recover_plugin_editor(Instant::now()).and_then(|()| operation(session));
+    let event = session.last_error_observation.observe(
+        session.last_error.as_deref(), session.frame,
+        &session.engine.project().composition_id, began,
+    );
+    // Logging can call host-owned sinks. Release the registry before any IO.
+    drop(registry);
+    if let Some(event) = event { event.emit(id); }
+    result
 }
 
 /// Aggregate resource report for every session rooted under `directory`.
 pub fn resource_info(directory: &std::path::Path) -> Result<Value> {
+    let began = Instant::now();
     let root = directory.canonicalize().map_err(|e| e.to_string())?;
     let registry = sessions().lock().unwrap_or_else(|e| e.into_inner());
     let mut count = 0u64;
     let mut graphics = 0u64;
     let mut assets = 0u64;
     let mut targets = 0u64;
-    for session in registry.values().filter(|s| {
-        s.root
-            .canonicalize()
-            .is_ok_and(|path| path.starts_with(&root))
-    }) {
+    let mut unresolved = 0usize;
+    let mut first = None;
+    for (&id, session) in registry.iter() {
+        match session.root.canonicalize() {
+            Ok(path) if path.starts_with(&root) => {},
+            Ok(_) => continue,
+            Err(error) => {
+                unresolved = unresolved.saturating_add(1);
+                if first.is_none() {
+                    first = Some(resource_observation::UnresolvedRoot::new(id, &session.root, &error));
+                }
+                continue;
+            }
+        }
         count += 1;
         if let Some(g) = &session.graphics {
             graphics += 1;
@@ -850,6 +881,8 @@ pub fn resource_info(directory: &std::path::Path) -> Result<Value> {
             targets += g.scratch.texture_bytes();
         }
     }
+    drop(registry);
+    resource_observation::report(unresolved, first, began);
     Ok(
         json!({"sessions":count,"graphics":graphics,"assetTextureBytes":assets,"renderTargetBytes":targets,
         "scope":"Application-owned sessions and textures in the requested project directory; not driver/system allocations"}),

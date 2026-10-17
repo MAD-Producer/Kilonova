@@ -722,5 +722,19 @@ pub fn serialized_bytes<T: Serialize + ?Sized>(value: &T) -> usize {
         }
     }
     let mut counter = Counter(0);
-    serde_json::to_writer(&mut counter, value).map_or(usize::MAX, |_| counter.0)
+    match serde_json::to_writer(&mut counter, value) {
+        Ok(()) => counter.0,
+        Err(error) => {
+            static FAILURES: crate::observability::Failures = crate::observability::Failures::new();
+            FAILURES.record("serialized_bytes", || {
+                format!(
+                    "fallback=usize::MAX written_bytes={} value_type={} reason={}",
+                    counter.0,
+                    std::any::type_name::<T>().chars().take(128).collect::<String>(),
+                    error.to_string().chars().take(256).collect::<String>(),
+                )
+            });
+            usize::MAX
+        }
+    }
 }

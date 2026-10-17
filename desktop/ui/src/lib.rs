@@ -12,6 +12,7 @@
 //! which is why [`dock`] carries its own assertions.
 
 pub mod dock;
+mod observability;
 pub mod icons;
 pub mod input;
 pub mod interaction;

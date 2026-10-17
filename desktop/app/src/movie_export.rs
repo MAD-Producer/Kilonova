@@ -48,7 +48,8 @@ impl MovieExport {
             .spawn(move || {
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     snapshot.export(&output, &cancel, |progress| {
-                        update.lock().unwrap_or_else(|e| e.into_inner()).progress = progress;
+                        static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+                        crate::fallback_observation::recovered(&update, &FAILURES, "movie.status.progress", |value| value.progress = progress);
                     })
                 }))
                 .unwrap_or_else(|payload| Err(format!("movie export worker failed: {}",motion_media::panic_reason(payload))));
@@ -57,7 +58,8 @@ impl MovieExport {
                     Err(error) if error == "movie export cancelled" => log::info!("movie export cancelled: revision={revision} path={} {}ms", output.display(), began.elapsed().as_millis()),
                     Err(error) => log::error!("movie export failed: revision={revision} path={} {}ms reason={error}", output.display(), began.elapsed().as_millis()),
                 }
-                let mut state = update.lock().unwrap_or_else(|e| e.into_inner());
+                static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+                crate::fallback_observation::recovered(&update, &FAILURES, "movie.status.finish", |state| {
                 match result {
                     Ok(result) => {
                         state.state = "succeeded";
@@ -73,6 +75,7 @@ impl MovieExport {
                         state.error = Some(error);
                     }
                 }
+                });
             })
             .map_err(|error| {
                 log::error!("movie export spawn failed: revision={revision} reason={error}");
@@ -81,10 +84,8 @@ impl MovieExport {
         Ok(Self { control, status })
     }
     pub fn status(&self) -> ExportStatus {
-        self.status
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .clone()
+        static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+        crate::fallback_observation::recovered(&self.status, &FAILURES, "movie.status.read", |value| value.clone())
     }
     pub fn cancel(&self) -> bool {
         self.control.cancel()

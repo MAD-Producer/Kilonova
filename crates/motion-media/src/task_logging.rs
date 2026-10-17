@@ -28,6 +28,10 @@ pub(crate) struct TaskLog {
 }
 
 impl TaskLog {
+    pub(crate) fn request_id(&self) -> &str {
+        &self.request
+    }
+
     pub(crate) fn new(request: &str, operation: &str) -> Self {
         Self {
             request: request.into(),

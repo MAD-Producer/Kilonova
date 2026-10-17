@@ -138,11 +138,12 @@ struct ImageKey {
 impl ImageKey {
     fn new(source: Source, resolution: Resolution) -> Result<Self> {
         let metadata = source.path.metadata().map_err(|error| error.to_string())?;
+        let modified = crate::session::metadata_observation::modified(metadata.modified(), source.id, &source.path);
         Ok(Self {
             source,
             resolution,
             len: metadata.len(),
-            modified: metadata.modified().ok(),
+            modified,
         })
     }
     fn current(&self) -> bool {

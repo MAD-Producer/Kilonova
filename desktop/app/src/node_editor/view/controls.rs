@@ -364,6 +364,16 @@ impl NodeEditor {
                 }
             }
             if !edit.editor.interacting() {
+                if edit
+                    .before
+                    .as_ref()
+                    .is_some_and(|before| before.document != self.document)
+                {
+                    self.observe_failure(
+                        "inline.snapshot_discard",
+                        format_args!("binding={:?} reason=editor_not_interacting", edit.binding),
+                    );
+                }
                 return;
             }
         }

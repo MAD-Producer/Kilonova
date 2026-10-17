@@ -15,6 +15,7 @@ pub mod expressions;
 pub mod geometry;
 pub mod hierarchy;
 mod model;
+mod observability;
 mod clip_range;
 pub mod particle_history;
 pub mod masks;

@@ -203,6 +203,13 @@ pub fn handle_shortcuts(input: &Input, panels: &mut Panels, state: &Value, out: 
             Command::Import => Action::ImportMedia,
             Command::Settings => Action::CompositionSettings,
             Command::Export if cfg!(feature = "ffmpeg") => Action::ExportMovie,
+            Command::Export => {
+                static REPORTED: std::sync::Once = std::sync::Once::new();
+                REPORTED.call_once(|| {
+                    log::warn!("shortcut ignored operation=export reason=ffmpeg_feature_disabled")
+                });
+                continue;
+            }
             Command::Undo => Action::History(0),
             Command::Redo => Action::History(1),
             Command::Play => Action::TogglePlay,
