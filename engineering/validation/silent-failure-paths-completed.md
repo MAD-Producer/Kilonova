@@ -1041,3 +1041,20 @@ DESIGN.md §0.7 逐项状态均为 retained with reason：本批只接入观测�
 - 最终完整验证：cargo test -p motion-media --offline -j 2 -- --test-threads=2 为 74 passed、0 failed、2 项原有大型媒体验收 ignored；cargo test -p motion-desktop --offline -j 2 -- --include-ignored --test-threads=2 为 367 passed、0 failed、0 ignored，含 worker in_flight/queue_depth 及新增 commit 默认日志回归。cargo check/build -p motion-desktop 均通过；证据 b61-media-final.log、b61-desktop-full.log、b61-desktop-check.log、b61-desktop-build.log、b61-test-summary.json
 - 新二进制实际启动验证通过：隔离 LOCALAPPDATA 下生成 directories()/logs/motion-studio.log，MOTION_LOG 未设置时 129 条普通 start、0 条 Present start，健康场景没有新增 registry 降级；Debug 仍无 Present start/dispatch，done 保持至少 100ms 门限。Error 文件/stderr、轮转、CLI/MCP stdout JSON、MCP UI 正常 EOF、fatal 参数错误及 shutdown checkpoint 失败原因均通过；证据 b61-runtime.log、runtime-b61/runtime-summary.json 及各进程原始 stdout/stderr/log
 - panels 样式门、provenance 1365 tracked paths 检查及 git diff --check 通过，原始 832 个候选与本表 115 个唯一 path:line 的包含关系已自动核对；证据 b61-style-gate.log、b61-provenance.log、b61-mechanical-mapping.json、b61-test-summary.json。本批未重跑全部跨平台/原生设计专项，不宣称全量视觉整改验收
+
+## 62 · 媒体任务锁恢复的释放锁后观测
+
+- 补齐 §61 留下的 12 行独立恢复观测：audio import/cache result、audio Drop task、package active/progress/result/spawn failure/Drop registry/Drop task、video cache result/Drop registry/Drop task；另补相邻 audio Drop registry 和 video import result，共 14 个固定源码站点
+- 锁中毒时仍返回原 into_inner，不清除中毒标记、不改严格 status 的 poisoned Err；首次 Warn、进程累计第 60 次 Error，之后抑制。健康调用、其他 session 和 clear_poison 不复位，进程重启清零；不是连续失败、帧数或一秒钟
+- RecoveryScope 在业务 guard 之前声明，仅在阈值时保留最多四条有界证据，反向析构保证嵌套业务 guard 释放后再调用宿主 logger；覆盖普通完成、提前返回、取消和 unwind。当前每个 scope 最多两个固定站点，每站点最多两条阈值事件；未来误用超出固定容量时另有丢弃计数 Error
+- 每条证据包含固定 site、lifetime_count、request、operation、scope_elapsed_ms 和 poisoned_mutex/into_inner；request 最多 128 字符，无动态键、无原因缓存，健康路径不分配事件字符串或写日志。scope_elapsed_ms 表示本作用域经过时间，不冒充 mutex 等待时长或整个媒体任务耗时
+- 这类恢复证据有意延迟到释放锁后输出；若作用域永不退出，不保证恢复日志已经出现。既有非 Present 引擎/媒体 Info start、flush 和 in-flight 状态仍承担挂起前定位，完成或恢复日志不能替代开始信号
+- 工程打包线程创建失败原来在外层 registry 持锁期间记录主 Error；现经生产 mark_spawn_failed 更新同样的 failed 状态和原错误，再在外层 registry 释放后输出，日志原因最多 2048 字符，返回值及 status.error 保留完整原因
+- 新增五项测试、24 个独立进程用例：真实 Mutex 中毒后覆盖音频/视频 import、probe、cache 的失败和取消，三类 Drop、打包 admission、实际工程包 prepare/publish 的成功/取消及真实 IO 失败。默认 Info 捕获 Warn/Error，logger 回调以 try_lock 验证可访问相应状态锁，打包 admission/spawn 另验证外层 registry 已释放；成功包实际生成，取消包不发布，原主错误和 poisoned Err 均保留
+- 独立恢复器用例覆盖健康 120 次安静、两个站点各 120 次恢复仅首次/60 次、清除再中毒不复位、128 字符 Unicode request、unwind 解锁和四槽容量溢出；spawn 用例覆盖 2048 字符日志上界及完整状态原因。线程创建失败只向生产状态发布 helper 注入受控 IO 错误，没有耗尽 OS 线程资源，不声称复现真实系统资源耗尽
+- 首次专项编译暴露新夹具的 Duration 导入、Project 构造方式和 VideoTaskStatus 无 Debug 三处问题，修正新增夹具后专项九项通过；不修改产品类型或任何既有断言来通过验收。证据 b62-poison-special.log，最终新增长原因用例也由完整媒体测试覆盖
+- B6 的 56 行当前为新增观测 15、已有覆盖 27、核实保留 14、部分覆盖 0；与 B7/B8/B9 仍合计 115 个已映射候选，新增观测关联 24 行、已有覆盖 52 行、核实保留 39 行。原始 832 候选按真实 path:line 过滤并验证，剩余 717 行尚未逐行关联，不等于 717 个缺陷；证据 b62-mechanical-mapping.json
+- 不修改 panels、布局、样式、交互、返回值、取消/发布/回滚策略、worker 超时或重启、respond、两处 MOTION_TRACE_UI 输出、两份原始报告及用户无关文件；DESIGN.md §0.7 沿用 §59 retained with reason，不把日志接入等同于中毒根因修复或 issue #133 的全项验收
+- 最终完整验证：cargo test -p motion-media --offline -j 2 -- --test-threads=2 为 79 passed、0 failed、2 项原有大型媒体测试 ignored；cargo test -p motion-desktop --offline -j 2 -- --include-ignored --test-threads=2 为 367 passed、0 failed、0 ignored，包含 worker API 阻塞回归和既有实际 FileLogger 提交失败双输出回归；cargo check/build -p motion-desktop 均通过。证据 b62-media-final.log、b62-desktop-full.log、b62-desktop-check.log、b62-desktop-build.log、b62-test-summary.json
+- panels 递归样式门与 provenance 1370 tracked paths 检查通过；新增锁中毒站点使用默认 Info 的内存 Log 捕获验证实际恢复分支，文件/stderr 路由另外由既有真实 FileLogger 回归验证，不声称正常 UI 启动人为制造了 registry 中毒。证据 b62-style-gate.log、b62-provenance.log
+- 新二进制在隔离 LOCALAPPDATA 下实际启动，生成 directories()/logs/motion-studio.log；移除 MOTION_LOG 后有 129 条普通命令 start、0 条 Present start，健康路径没有新增 poison/registry 恢复日志；Debug 无 Present start/dispatch，done 仍至少 100ms。Error 文件/stderr 双输出、日志轮转、CLI/MCP stdout JSON、fatal 参数错误、MCP UI 正常 EOF 和 shutdown checkpoint 失败原因均通过；证据 b62-runtime.log、runtime-b62/runtime-summary.json 及各进程原始输出。未重新执行全套跨平台/原生设计或感知图像验收

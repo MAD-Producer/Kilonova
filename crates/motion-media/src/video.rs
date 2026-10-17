@@ -254,7 +254,13 @@ impl VideoJobs {
                 image::save_buffer(stage.0.join("thumbnail.png"),&p.first_rgba,p.asset.display_width,p.asset.display_height,image::ColorType::Rgba8).map_err(|e|e.to_string())?;
                 Ok(Prepared{stage,probe:p,audio,options})
             }));
-            let mut t=t.lock().unwrap_or_else(|e|e.into_inner());
+            static RECOVERY: crate::poison_observation::RecoverySite =
+                crate::poison_observation::RecoverySite::new("video.import.result_lock");
+            let mut recoveries = crate::poison_observation::RecoveryScope::new();
+            let mut t = recoveries.recover(
+                t.lock(), &RECOVERY, worker_log.request_id(),
+                if probe_only { "probe_video" } else { "import_video" },
+            );
             if t.cancel.load(Ordering::Acquire) {
                 drop(t);
                 let error = crate::task_logging::cancelled_error(&result, &["video import cancelled"]);
@@ -479,7 +485,12 @@ impl VideoJobs {
                         state.status.metadata = Some(json!({"video":expected}));
                         Ok(())
                     }));
-                let mut state = t.lock().unwrap_or_else(|e| e.into_inner());
+                static RECOVERY: crate::poison_observation::RecoverySite =
+                    crate::poison_observation::RecoverySite::new("video.cache.result_lock");
+                let mut recoveries = crate::poison_observation::RecoveryScope::new();
+                let mut state = recoveries.recover(
+                    t.lock(), &RECOVERY, worker_log.request_id(), "prepare_video",
+                );
                 if state.cancel.load(Ordering::Acquire) {
                     drop(state);
                     let error = crate::task_logging::cancelled_error(
@@ -512,13 +523,15 @@ impl VideoJobs {
 }
 impl Drop for VideoJobs {
     fn drop(&mut self) {
-        for t in self
-            .tasks
-            .get_mut()
-            .unwrap_or_else(|e| e.into_inner())
-            .values()
+        use crate::poison_observation::{RecoveryScope, RecoverySite};
+        static REGISTRY: RecoverySite = RecoverySite::new("video.drop.registry");
+        static TASK: RecoverySite = RecoverySite::new("video.drop.task");
+        let mut recoveries = RecoveryScope::new();
+        for (id, task) in recoveries
+            .recover(self.tasks.get_mut(), &REGISTRY, "session", "drop_video")
+            .iter()
         {
-            let mut t = t.lock().unwrap_or_else(|e| e.into_inner());
+            let mut t = recoveries.recover(task.lock(), &TASK, id, "drop_video");
             t.cancel.store(true, Ordering::Release);
             t.prepared.take();
         }
@@ -591,6 +604,9 @@ fn validate_index(a: &VideoAsset, pts: &[u64]) -> Result<()> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod poison_tests;
 
 #[cfg(test)]
 mod registry_tests {

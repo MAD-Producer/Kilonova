@@ -342,7 +342,15 @@ impl AudioJobs {
                         })
                     },
                 ));
-                let mut t = spawn_task.lock().unwrap_or_else(|e| e.into_inner());
+                static RECOVERY: crate::poison_observation::RecoverySite =
+                    crate::poison_observation::RecoverySite::new("audio.import.result_lock");
+                let mut recoveries = crate::poison_observation::RecoveryScope::new();
+                let mut t = recoveries.recover(
+                    spawn_task.lock(),
+                    &RECOVERY,
+                    worker_log.request_id(),
+                    if probe { "probe_audio" } else { "import_audio" },
+                );
                 if t.cancel.load(Ordering::Acquire) {
                     drop(t);
                     let error = crate::task_logging::cancelled_error(&result, &["audio task cancelled"]);
@@ -569,7 +577,12 @@ impl AudioJobs {
                         })?;
                         Ok(stage)
                     }));
-                let mut t = spawn_task.lock().unwrap_or_else(|e| e.into_inner());
+                static RECOVERY: crate::poison_observation::RecoverySite =
+                    crate::poison_observation::RecoverySite::new("audio.cache.result_lock");
+                let mut recoveries = crate::poison_observation::RecoveryScope::new();
+                let mut t = recoveries.recover(
+                    spawn_task.lock(), &RECOVERY, worker_log.request_id(), "prepare_audio",
+                );
                 if t.cancel.load(Ordering::Acquire) {
                     drop(t);
                     let error = crate::task_logging::cancelled_error(&result, &["audio task cancelled"]);
@@ -617,8 +630,15 @@ impl AudioJobs {
 }
 impl Drop for AudioJobs {
     fn drop(&mut self) {
-        for task in self.tasks.get_mut().unwrap_or_else(|e| e.into_inner()).values() {
-            let mut t = task.lock().unwrap_or_else(|e| e.into_inner());
+        use crate::poison_observation::{RecoveryScope, RecoverySite};
+        static REGISTRY: RecoverySite = RecoverySite::new("audio.drop.registry");
+        static TASK: RecoverySite = RecoverySite::new("audio.drop.task");
+        let mut recoveries = RecoveryScope::new();
+        for (id, task) in recoveries
+            .recover(self.tasks.get_mut(), &REGISTRY, "session", "drop_audio")
+            .iter()
+        {
+            let mut t = recoveries.recover(task.lock(), &TASK, id, "drop_audio");
             t.cancel.store(true, Ordering::Release);
             t.prepared.take();
         }
@@ -635,6 +655,9 @@ fn update(task: &Arc<Mutex<Task>>, phase: &str, progress: f64) -> Result<()> {
     t.status.progress = progress.clamp(0.0, 1.0);
     Ok(())
 }
+
+#[cfg(test)]
+mod poison_tests;
 
 #[cfg(test)]
 mod drop_failure_tests {
