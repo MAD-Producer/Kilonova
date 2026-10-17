@@ -48,15 +48,37 @@ class DesktopReleaseTest(unittest.TestCase):
 
     def pack(self, platform):
         binary = self.binary(platform)
-        report = self.root / (platform + ".json")
-        report.write_text(json.dumps({"task": "build", "release": True, "ffmpeg": False, "executable": str(binary)}))
+        report = self.build_report(binary, platform)
         if platform.startswith("macos-"):
             with patch.object(desktop.sys, "platform", "darwin"), patch.object(desktop.subprocess, "run") as sign:
                 info = desktop.package(binary, platform, report, self.folder)
-                self.assertEqual(sign.call_count, 2)
+                self.assertEqual(sign.call_count, 6)
                 self.assertIn("--verify", sign.call_args.args[0])
                 return info
         return desktop.package(binary, platform, report, self.folder)
+
+    def build_report(self, binary, platform):
+        prefix = self.root / (platform + "-runtime")
+        prefix.mkdir(exist_ok=True)
+        files = []
+        for component in ("avcodec", "avformat", "avutil", "swscale"):
+            name = (component + "-62.dll" if platform == "windows-x86_64" else
+                    "lib" + component + (".62.dylib" if platform.startswith("macos-") else ".so.62"))
+            library = prefix / name
+            library.write_bytes(binary.read_bytes())
+            files.append({"path": name, "sha256": desktop.digest(library)})
+        license_file = prefix / "COPYING.LGPLv3"
+        license_file.write_text("independently authored synthetic license fixture")
+        manifest = prefix / "runtime.json"
+        manifest.write_text(json.dumps({"schemaVersion": 1, "platform": platform,
+            "author": "synthetic fixture", "modifications": "none",
+            "provenance": {"url": "https://example.com/ffmpeg", "sha256": "b" * 64,
+                           "revision": "test", "source": "https://example.com/source", "license": "LGPL-3.0-or-later"},
+            "files": files, "licenses": [{"path": license_file.name, "sha256": desktop.digest(license_file)}]}))
+        report = self.root / (platform + ".json")
+        report.write_text(json.dumps({"task": "build", "release": True, "ffmpeg": True,
+                                     "ffmpeg_runtime": str(manifest), "executable": str(binary)}))
+        return report
 
     def all_assets(self):
         for platform in desktop.PLATFORMS:
@@ -79,6 +101,40 @@ class DesktopReleaseTest(unittest.TestCase):
                     desktop.verify_binary(binary, platform)
         with self.assertRaises(ValueError):
             desktop.verify_binary(self.binary("macos-arm64"), "macos-x86_64")
+
+    def test_video_release_rejects_shell_builds_and_incomplete_or_corrupted_runtime(self):
+        platform = "windows-x86_64"
+        binary = self.binary(platform)
+        report = self.build_report(binary, platform)
+        build = json.loads(report.read_text())
+        manifest_path = Path(build["ffmpeg_runtime"])
+        original = json.loads(manifest_path.read_text())
+        report.write_text(json.dumps({**build, "ffmpeg": False}))
+        with self.assertRaisesRegex(ValueError, "FFmpeg-enabled"):
+            desktop.package(binary, platform, report, self.folder)
+        report.write_text(json.dumps(build))
+        for description, change in (
+            ("missing component", lambda m: m["files"].pop()),
+            ("missing licenses", lambda m: m.update(licenses=[])),
+            ("missing provenance", lambda m: m["provenance"].pop("source")),
+            ("checksum mismatch", lambda m: m["files"][0].update(sha256="0" * 64)),
+            ("traversal", lambda m: m["files"][0].update(path="../outside.dll")),
+            ("wrong architecture", lambda m: m.update(platform="macos-arm64")),
+        ):
+            with self.subTest(case=description):
+                changed = json.loads(json.dumps(original))
+                change(changed)
+                manifest_path.write_text(json.dumps(changed))
+                with self.assertRaises(ValueError):
+                    desktop.package(binary, platform, report, self.folder)
+                self.assertFalse(list(self.folder.glob("*.zip")))
+        manifest_path.write_text(json.dumps(original))
+        library = manifest_path.parent / original["files"][0]["path"]
+        library.write_bytes(self.binary("macos-arm64").read_bytes())
+        original["files"][0]["sha256"] = desktop.digest(library)
+        manifest_path.write_text(json.dumps(original))
+        with self.assertRaisesRegex(ValueError, "Windows"):
+            desktop.package(binary, platform, report, self.folder)
 
     def test_feature_and_pull_request_builds_still_produce_validation_packages(self):
         for event, ref in [("push", "refs/heads/ci/desktop-preview-release"),
@@ -108,11 +164,27 @@ class DesktopReleaseTest(unittest.TestCase):
                             self.assertEqual(plist["CFBundleExecutable"], "motion-studio")
                             self.assertEqual(plist["CFBundleVersion"], "7")
                 self.assertEqual(desktop.digest(archive), info["sha256"])
+                self.assertTrue(info["capabilities"]["ffmpeg"])
+                with (tarfile.open(archive) if platform == "linux-x86_64" else zipfile.ZipFile(archive)) as bundle:
+                    names = bundle.getnames() if platform == "linux-x86_64" else bundle.namelist()
+                    self.assertIn("FFmpeg-SOURCE.json", names)
+                    self.assertIn("ATTRIBUTION.md", names)
+                    self.assertIn("NOTICE", names)
+                    self.assertTrue(any(n.startswith("licenses/ffmpeg/") for n in names))
+                    self.assertTrue(all(e["path"] in names for e in info["runtimeFiles"]))
+
+    def test_publisher_rechecks_the_runtime_inventory_inside_the_archive(self):
+        release = self.all_assets()
+        report = self.folder / "build-info-windows-x86_64.json"
+        info = json.loads(report.read_text())
+        info["runtimeFiles"][0]["sha256"] = "0" * 64
+        report.write_text(json.dumps(info))
+        with self.assertRaisesRegex(ValueError, "runtime checksum"):
+            desktop.collect_assets(self.folder, release)
 
     def test_signing_failure_never_publishes_a_macos_archive(self):
         binary = self.binary("macos-arm64")
-        report = self.root / "build.json"
-        report.write_text(json.dumps({"task":"build", "release":True,"ffmpeg":False,"executable":str(binary)}))
+        report = self.build_report(binary, "macos-arm64")
         with patch.object(desktop.sys, "platform", "darwin"), patch.object(desktop.subprocess, "run", side_effect=subprocess.CalledProcessError(1,"codesign")):
             with self.assertRaises(subprocess.CalledProcessError):
                 desktop.package(binary,"macos-arm64",report,self.folder)
@@ -281,6 +353,15 @@ class DesktopReleaseTest(unittest.TestCase):
         self.assertEqual({row["platform"] for row in matrix},set(desktop.PLATFORMS))
         for row in matrix:
             self.assertIn(row["platform"].split("-")[1], row["target"].replace("aarch64","arm64"))
+        build_steps = workflow["jobs"]["desktop"]["steps"]
+        build_index = next(i for i, s in enumerate(build_steps) if "build_desktop.py --task build" in s.get("run", ""))
+        self.assertIn("--ffmpeg", build_steps[build_index]["run"])
+        prepare_index = next(i for i, s in enumerate(build_steps) if "prepare_ffmpeg.py" in s.get("run", ""))
+        verify_index = next(i for i, s in enumerate(build_steps) if "verify_desktop_video.py" in s.get("run", ""))
+        upload_index = next(i for i, s in enumerate(build_steps) if s.get("with", {}).get("name", "").startswith("desktop-release-"))
+        self.assertLess(prepare_index, build_index)
+        self.assertLess(build_index, verify_index)
+        self.assertLess(verify_index, upload_index)
         publish=workflow["jobs"]["publish"]
         self.assertIn("desktop",publish["needs"])
         steps=publish["steps"]

@@ -21,6 +21,7 @@ import argparse
 import json
 import os
 import shutil
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -125,6 +126,18 @@ def main() -> int:
     env = dict(os.environ)
     if args.ffmpeg:
         env = ffmpeg_environment(args)
+        # Keep the installed decoder libraries relocatable in the release archive.
+        # Unit tests use the prefix through LD_LIBRARY_PATH/DYLD_LIBRARY_PATH.
+        flags = (env["CARGO_ENCODED_RUSTFLAGS"].split("\x1f") if env.get("CARGO_ENCODED_RUSTFLAGS")
+                 else shlex.split(env.get("RUSTFLAGS", "")))
+        if sys.platform == "darwin":
+            flags += ["-C", "link-arg=-Wl,-rpath,@executable_path/../Frameworks"]
+        elif sys.platform.startswith("linux"):
+            # DT_RPATH also covers libav's transitive shared dependencies;
+            # executable-only DT_RUNPATH would not locate those siblings.
+            flags += ["-C", "link-arg=-Wl,--disable-new-dtags,-rpath,$ORIGIN/lib"]
+        if flags:
+            env["CARGO_ENCODED_RUSTFLAGS"] = "\x1f".join(flags)
 
     binary = "motion-studio"
     match args.task:
@@ -181,6 +194,7 @@ def main() -> int:
             "version": DEFAULT_VERSION,
             "executable": executable,
             "video_encoder": False,
+            "ffmpeg_runtime": str(Path(env["FFMPEG_DIR"]) / "runtime.json") if args.ffmpeg and env.get("FFMPEG_DIR") else None,
         }
         report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
     return 0
