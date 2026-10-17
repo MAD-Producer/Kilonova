@@ -160,7 +160,12 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 logging::flush();
             })?;
     }
-    event_loop.run_app(&mut app)?;
+    let event_loop_result = event_loop.run_app(&mut app);
+    let shutdown_result = app.engine.request_shutdown();
+    if let Err(error) = &shutdown_result {
+        log::error!("engine shutdown request failed: {error}");
+    }
+    event_loop_result?;
     if let Some(path) = argument("--diagnostics-report")? {
         app.engine
             .diagnostics()
@@ -179,6 +184,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(error) = app.fatal {
         return Err(error.into());
     }
+    shutdown_result?;
     Ok(())
 }
 fn directories() -> PathBuf {

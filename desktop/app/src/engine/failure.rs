@@ -122,6 +122,9 @@ impl Engine {
         {
             return Err(error);
         }
+        if self.shutdown.load(Ordering::Acquire) {
+            return Err("engine shutdown requested; new commands are not accepted".into());
+        }
         if self
             .worker
             .as_ref()

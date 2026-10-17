@@ -37,7 +37,7 @@ mod compositing_gpu;
 mod mask_gpu;
 pub use video_pixels::{rgb_video_to_rgba, ChromaLayout, VideoPlane, VideoRgbFormat, Yuv420Frame};
 pub use video_gpu::EncodedVideoUpload;
-pub use measurement::{FrameMeasurement, FrameRecorder};
+pub use measurement::{FrameMeasurement, FrameRecorder, FrameResources};
 pub use memory::TextureMemoryBreakdown;
 pub use presenter::Presenter;
 pub use quality::{PreviewMode, PreviewPolicy, PreviewTier};
