@@ -2,7 +2,7 @@
 
 本表与 `silent-failure-paths-followup.md` 的 161 个辅助编号分开计数。原始 `silent-failure-paths-exhaustive.md` 列出 832 个候选；候选不是已确认缺陷。用原始路径与行号作稳定标识，行号不代表修改后的源码位置。
 
-当前已映射 B1 全部365项、B2 全部41项、B5 全部30项、B6 全部56项、B7 全部33项、B8 全部14项和B9 全部12项，共 551 个候选：核实保留 381行、功能边界 48行、新增观测 46行、已有覆盖 76行。其余 281 个候选尚未逐行关联到本表，包含此前已覆盖站点，不等于未修复缺陷数；功能边界不代表全输入已关闭。§63–67 的新增观测及解锁时序修正见完成文档
+当前B1–B9的832个候选已全部逐行复核并唯一映射，未映射0项：核实保留 542行、功能边界 54行、新增观测 98行、已有覆盖 138行。本轮补齐B3的122项和B4的159项，分别标明新增观测、已有覆盖、正常契约和功能边界；54行功能边界保留，不将机械复核完成等同所有功能缺陷修复。原始4443行中的no-loss/test-only/guarded等非候选不计入832。本轮实际验证与限制见完成记录§68–70
 
 ## B1 · GPU 协议、资源池与提交台账（首批 77 项）
 
@@ -439,6 +439,301 @@
 | crates/motion-host/src/video_frames.rs:144 | 功能边界 | VideoDecoder.seeks定义累计seek数，同一decoder在worker内保留，正常后端计数单调；公开trait可实现递减或u64回绕，当前delta饱和0且无独立计数回退观测。保留数值/metrics边界，不声称所有第三方后端遵约或重置已被定位 |
 | crates/motion-host/src/video_frames.rs:363 | 已有覆盖 | 当前generation返回Result，中毒状态明确Err并保留object，不再用.ok()?制造新generation；计数checked_add拒绝耗尽。沿用poisoned_video_state_is_an_error_without_fabricating_a_new_generation等回归，不修改既有替换媒体退休stream顺序 |
 | crates/motion-host/src/video_frames.rs:501 | 已有覆盖 | 此前Stream.request对pending轮询有计数、首Debug/第60次Error和in_flight phase/elapsed，成功/换generation复位；仍Ok(None)给调用方重试，不对每次正常pending无条件日志 |
+
+## B3 · 桌面引擎、音频与应用回退（122 项）
+
+逐项使用原始path:line关联当前生产入口。新增观测 39、核实保留 51、已有覆盖 28、功能边界 4。正常缺省/导航不当作故障，功能边界保持原行为；新增代码和实际验证见完成记录§68–70
+
+| 原始位置 | 处置 | 当前源码证据与限制 |
+| --- | --- | --- |
+| desktop/app/src/audio_output.rs:102 | 新增观测 | §68 fail仍保留第一个错误，锁中毒仅向固定原子事件发布生命周期恢复次数，watchdog循环/退出时排空后记录；UI error读取用recovered保持into_inner。真实中毒/120次写入及第一原因保留回归；未向实时callback加入日志/IO |
+| desktop/app/src/audio_output.rs:111 | 核实保留 | watchdog的now与callback心跳来自同一Instant epoch；跨线程读取时心跳可能晚于本次捕获now，此时saturating_sub为0避免假超时。实际超过2s仍fail，已有真实无callback和持续callback回归，不把并发顺序差当作时钟倒退 |
+| desktop/app/src/audio_output.rs:147 | 核实保留 | device_frames_at以输出延迟锚点作前后外推，now早于未来playback锚点时减法夹零是合法预滚，随后min(submitted)、observed_frames.fetch_max保持单调；加法饱和亦先夹到已提交帧，不丢内部资源记账 |
+| desktop/app/src/audio_output.rs:149 | 核实保留 | device_frames_at以输出延迟锚点作前后外推，now早于未来playback锚点时减法夹零是合法预滚，随后min(submitted)、observed_frames.fetch_max保持单调；加法饱和亦先夹到已提交帧，不丢内部资源记账 |
+| desktop/app/src/audio_output.rs:187 | 核实保留 | 音频开始位置从调用方播放帧换算为非负sample，播放结束另以total_samples限制；保留既有起点夹取及设备时钟契约。任意公开手工非法Project不由此转换证明有效 |
+| desktop/app/src/audio_output.rs:212 | 核实保留 | 未找到48k支持配置时改用设备默认配置是有意的设备能力选择；默认配置查询仍传播Err，随后检查rate/channels/format并由Producer重采样。不是supported_output_configs的Err被吞掉 |
+| desktop/app/src/audio_output.rs:284 | 新增观测 | §68 fail仍保留第一个错误，锁中毒仅向固定原子事件发布生命周期恢复次数，watchdog循环/退出时排空后记录；UI error读取用recovered保持into_inner。真实中毒/120次写入及第一原因保留回归；未向实时callback加入日志/IO |
+| desktop/app/src/audio_output.rs:302 | 已有覆盖 | stop仅join已结束worker且现已Error记录panic_reason；producer在next之前Info start/flush，panic保留payload与阶段、elapsed，EOS/stop有结束原因。沿用producer真实阻塞/初始化panic/解码失败回归，不把未结束worker detach视为join成功 |
+| desktop/app/src/audio_output.rs:325 | 已有覆盖 | stop仅join已结束worker且现已Error记录panic_reason；producer在next之前Info start/flush，panic保留payload与阶段、elapsed，EOS/stop有结束原因。沿用producer真实阻塞/初始化panic/解码失败回归，不把未结束worker detach视为join成功 |
+| desktop/app/src/audio_output.rs:332 | 核实保留 | Producer达到经项目时长计算的total后明确EOS；shared.done/ready和observation.stopped("eof")区分结束与未就绪。回调尾部静音是正常播放终态，不把Ok(None)一概当作失败 |
+| desktop/app/src/audio_output.rs:399 | 新增观测 | §68 callback_latency遇到CPAL playback早于callback仍回退0，仅发布固定原子计数/首与60阈值位，watchdog解锁后Warn/Error并抑制；成功时间戳复位，同一轮poll前多episode会合并。受控None经过实际转换入口验证零延迟与两次episode，未声称自然制造驱动倒序 |
+| desktop/app/src/audio_output.rs:453 | 核实保留 | callback的now+latency饱和保护u64纳秒时钟，实际Instant epoch及设备延迟远低于约584年；原始函数不涉及显存记账。保留现有时间接口，无新增正常回调日志 |
+| desktop/app/src/audio_output.rs:500 | 核实保留 | Producer output_index由项目总帧数、48k源采样及设备rate计算，u128中间乘法避免溢出；原商是源sample索引且在有效项目时长内可用u64。任意伪造巨大内部index不在此有效路径证明内 |
+| desktop/app/src/audio_output.rs:502 | 核实保留 | Producer达到经项目时长计算的total后明确EOS；shared.done/ready和observation.stopped("eof")区分结束与未就绪。回调尾部静音是正常播放终态，不把Ok(None)一概当作失败 |
+| desktop/app/src/audio_output.rs:505 | 核实保留 | remainder先对设备rate取模，再转换为f32插值比例，结果在0..1范围；这是PCM线性重采样的既定浮点精度，不作为整数身份标识丢位或静默Err |
+| desktop/app/src/cursors.rs:49 | 核实保留 | Default/Text/Wait本来使用系统cursor，CUSTOM仅十种交互光标且按prepare缓存；未找到自定义图像时选择同语义系统cursor属刻意兼容策略，不是资源加载Err。保留游标形状及DPI缓存 |
+| desktop/app/src/diagnostics.rs:103 | 已有覆盖 | started_unix_ms与micros现先min(u64::MAX)再转换，report暴露始点与elapsed；已无原始无保护u128收窄。约5.8亿年级别毫秒边界不新增热点日志 |
+| desktop/app/src/diagnostics.rs:115 | 已有覆盖 | invalidDSN现Warn且不回显凭据；reporter spawn失败增加io_errors并Error。reporter工作前Info/flush，写入失败含阶段和路径且请求有结果；沿用实际文件写失败/进程checkpoint回归，OS spawn失败未自然复现 |
+| desktop/app/src/diagnostics.rs:117 | 已有覆盖 | invalidDSN现Warn且不回显凭据；reporter spawn失败增加io_errors并Error。reporter工作前Info/flush，写入失败含阶段和路径且请求有结果；沿用实际文件写失败/进程checkpoint回归，OS spawn失败未自然复现 |
+| desktop/app/src/diagnostics.rs:125 | 新增观测 | 原context/set_context/set_gpu已非try_lock丢弃；§68对现有Mutex中毒恢复按固定进程site记录首Warn/第60次Error，业务guard释放后才写日志。真实context/state中毒回归验证字段与report保留；GPU同一recovered实现，未伪造自然适配器故障 |
+| desktop/app/src/diagnostics.rs:127 | 新增观测 | 原context/set_context/set_gpu已非try_lock丢弃；§68对现有Mutex中毒恢复按固定进程site记录首Warn/第60次Error，业务guard释放后才写日志。真实context/state中毒回归验证字段与report保留；GPU同一recovered实现，未伪造自然适配器故障 |
+| desktop/app/src/diagnostics.rs:130 | 新增观测 | 原context/set_context/set_gpu已非try_lock丢弃；§68对现有Mutex中毒恢复按固定进程site记录首Warn/第60次Error，业务guard释放后才写日志。真实context/state中毒回归验证字段与report保留；GPU同一recovered实现，未伪造自然适配器故障 |
+| desktop/app/src/diagnostics.rs:135 | 新增观测 | 原context/set_context/set_gpu已非try_lock丢弃；§68对现有Mutex中毒恢复按固定进程site记录首Warn/第60次Error，业务guard释放后才写日志。真实context/state中毒回归验证字段与report保留；GPU同一recovered实现，未伪造自然适配器故障 |
+| desktop/app/src/diagnostics.rs:204 | 新增观测 | 原context/set_context/set_gpu已非try_lock丢弃；§68对现有Mutex中毒恢复按固定进程site记录首Warn/第60次Error，业务guard释放后才写日志。真实context/state中毒回归验证字段与report保留；GPU同一recovered实现，未伪造自然适配器故障 |
+| desktop/app/src/diagnostics.rs:96 | 已有覆盖 | invalidDSN现Warn且不回显凭据；reporter spawn失败增加io_errors并Error。reporter工作前Info/flush，写入失败含阶段和路径且请求有结果；沿用实际文件写失败/进程checkpoint回归，OS spawn失败未自然复现 |
+| desktop/app/src/dialogs.rs:308 | 核实保留 | dialog只消费其关心的Action/按键，其余由既有事件路由忽略；不是Result错误分支，不改键盘焦点或引入无关事件噪声 |
+| desktop/app/src/dialogs.rs:329 | 核实保留 | 字体候选滚动max=len-5、向上scroll-1使用饱和处理短列表及顶部，是正常导航下界；不涉及资源计数，保留既有输入交互 |
+| desktop/app/src/dialogs.rs:343 | 核实保留 | 字体候选滚动max=len-5、向上scroll-1使用饱和处理短列表及顶部，是正常导航下界；不涉及资源计数，保留既有输入交互 |
+| desktop/app/src/dialogs.rs:345 | 核实保留 | 字体候选滚动max=len-5、向上scroll-1使用饱和处理短列表及顶部，是正常导航下界；不涉及资源计数，保留既有输入交互 |
+| desktop/app/src/dialogs/composition.rs:160 | 核实保留 | 这里解析尚在编辑中的输入作时码显示/临时aspect基线，失败保留文本或旧aspect；最终submit另验证字段并显示错误，未把默认值写入工程。无效中间输入是正常编辑状态，不记录用户文本 |
+| desktop/app/src/dialogs/composition.rs:199 | 核实保留 | 这里解析尚在编辑中的输入作时码显示/临时aspect基线，失败保留文本或旧aspect；最终submit另验证字段并显示错误，未把默认值写入工程。无效中间输入是正常编辑状态，不记录用户文本 |
+| desktop/app/src/dialogs/composition.rs:200 | 核实保留 | 这里解析尚在编辑中的输入作时码显示/临时aspect基线，失败保留文本或旧aspect；最终submit另验证字段并显示错误，未把默认值写入工程。无效中间输入是正常编辑状态，不记录用户文本 |
+| desktop/app/src/dialogs/composition.rs:307 | 核实保留 | composition弹窗对未处理Key保留无操作，文本/提交/关闭各有显式分支；不是枚举错误或失败被清除，不对普通键盘事件告警 |
+| desktop/app/src/dialogs/composition.rs:312 | 核实保留 | 这里解析尚在编辑中的输入作时码显示/临时aspect基线，失败保留文本或旧aspect；最终submit另验证字段并显示错误，未把默认值写入工程。无效中间输入是正常编辑状态，不记录用户文本 |
+| desktop/app/src/engine.rs:1298 | 已有覆盖 | PRESENT_SURFACE_FAILURES对Lost/Outdated/Timeout持续失败计数，configure后仍保留Ok(false)，60次Error/成功复位，Present热点不无条件记录start/done。headless条件不能自然保证复现驱动Lost/Timeout，沿用受控surface回归与实际健康Present安静验证 |
+| desktop/app/src/engine.rs:1299 | 已有覆盖 | PRESENT_SURFACE_FAILURES对Lost/Outdated/Timeout持续失败计数，configure后仍保留Ok(false)，60次Error/成功复位，Present热点不无条件记录start/done。headless条件不能自然保证复现驱动Lost/Timeout，沿用受控surface回归与实际健康Present安静验证 |
+| desktop/app/src/engine.rs:1312 | 核实保留 | last_present_us的u128→u64微秒需要单次Present持续约58万年才越界；慢Present仍按100ms门控Debug，挂起由handler前InFlight/start证据定位。保留计时接口，不混同现实丢帧 |
+| desktop/app/src/engine.rs:1320 | 新增观测 | §68 paint_pool中毒仍遵守原策略：take返回空PaintList、recycle丢弃，不改为恢复缓存；三个固定进程生命周期site首Warn/60Error，match释放PoisonError内guard后日志。真实Engine中毒120次验证空返回/不入池，worker回收共用真实helper；未伪称驱动Present自然中毒 |
+| desktop/app/src/engine.rs:1351 | 已有覆盖 | Engine Drop的join及freeze worker catch_unwind现保留motion_media::panic_reason并Error；freeze worker Info start/flush先于冻结与通道等待。panic hook另含栈，既有真实panic/终态回归 |
+| desktop/app/src/engine.rs:1436 | 已有覆盖 | 当前capabilities_request使用parse_request?及serde_json::from_value.map_err?，非法请求明确Err并由worker request/error日志关联；已无.ok().unwrap_or_default查询降级，现有MCP非法请求回归 |
+| desktop/app/src/engine.rs:1439 | 已有覆盖 | 当前capabilities_request使用parse_request?及serde_json::from_value.map_err?，非法请求明确Err并由worker request/error日志关联；已无.ok().unwrap_or_default查询降级，现有MCP非法请求回归 |
+| desktop/app/src/engine.rs:384 | 新增观测 | §68 paint_pool中毒仍遵守原策略：take返回空PaintList、recycle丢弃，不改为恢复缓存；三个固定进程生命周期site首Warn/60Error，match释放PoisonError内guard后日志。真实Engine中毒120次验证空返回/不入池，worker回收共用真实helper；未伪称驱动Present自然中毒 |
+| desktop/app/src/engine.rs:386 | 新增观测 | §68 paint_pool中毒仍遵守原策略：take返回空PaintList、recycle丢弃，不改为恢复缓存；三个固定进程生命周期site首Warn/60Error，match释放PoisonError内guard后日志。真实Engine中毒120次验证空返回/不入池，worker回收共用真实helper；未伪称驱动Present自然中毒 |
+| desktop/app/src/engine.rs:390 | 新增观测 | §68 paint_pool中毒仍遵守原策略：take返回空PaintList、recycle丢弃，不改为恢复缓存；三个固定进程生命周期site首Warn/60Error，match释放PoisonError内guard后日志。真实Engine中毒120次验证空返回/不入池，worker回收共用真实helper；未伪称驱动Present自然中毒 |
+| desktop/app/src/engine.rs:443 | 核实保留 | 未设置MOTION_DIAGNOSTICS_PATH时选择应用目录诊断文件是正常配置默认；new/report/export的真实IO失败已有独立观测，不把未设置环境变量当作故障 |
+| desktop/app/src/engine.rs:471 | 已有覆盖 | worker startup各失败在ready.send前Error，初始snapshot失败不再.ok吞掉；ready接收端退出则释放SessionLease。原请求契约允许对已退出接收者丢弃Err，panic hook/worker终态另覆盖，respond保持不变 |
+| desktop/app/src/engine.rs:486 | 已有覆盖 | worker startup各失败在ready.send前Error，初始snapshot失败不再.ok吞掉；ready接收端退出则释放SessionLease。原请求契约允许对已退出接收者丢弃Err，panic hook/worker终态另覆盖，respond保持不变 |
+| desktop/app/src/engine.rs:491 | 已有覆盖 | worker startup各失败在ready.send前Error，初始snapshot失败不再.ok吞掉；ready接收端退出则释放SessionLease。原请求契约允许对已退出接收者丢弃Err，panic hook/worker终态另覆盖，respond保持不变 |
+| desktop/app/src/engine.rs:494 | 已有覆盖 | 当前Engine::start的total_memory为u64并直接传configure_memory，原u64 as i64收窄已不存在；预算配置失败有startup Error与ready Err。未把天文级内存值视为本轮新增功能修复 |
+| desktop/app/src/engine.rs:495 | 已有覆盖 | worker startup各失败在ready.send前Error，初始snapshot失败不再.ok吞掉；ready接收端退出则释放SessionLease。原请求契约允许对已退出接收者丢弃Err，panic hook/worker终态另覆盖，respond保持不变 |
+| desktop/app/src/engine.rs:533 | 新增观测 | §68终态发布failure与退出factory.take改用recovered，into_inner和资源释放原策略保持，先释放业务guard再记录固定site生命周期首Warn/60Error；公共helper真实锁中毒与unwind/try_lock探针回归，不声称自然触发worker退出factory中毒 |
+| desktop/app/src/engine.rs:542 | 新增观测 | §68终态发布failure与退出factory.take改用recovered，into_inner和资源释放原策略保持，先释放业务guard再记录固定site生命周期首Warn/60Error；公共helper真实锁中毒与unwind/try_lock探针回归，不声称自然触发worker退出factory中毒 |
+| desktop/app/src/engine.rs:68 | 功能边界 | FrameStamp将UI viewport ceil转换为缓存尺寸，正规的winit物理窗口到逻辑尺寸为有限正值；手工UiFrame含NaN/极大rect的独立入口仍能发生饱和与缓存键碰撞。本批不改键协议或补全任意浮点输入校验，不标为全输入已修复 |
+| desktop/app/src/engine.rs:992 | 已有覆盖 | Engine Drop的join及freeze worker catch_unwind现保留motion_media::panic_reason并Error；freeze worker Info start/flush先于冻结与通道等待。panic hook另含栈，既有真实panic/终态回归 |
+| desktop/app/src/engine/failure.rs:109 | 新增观测 | §68 check_running/stopped_error中毒保持into_inner和原始终态原因，固定site生命周期Warn1/Error60；真实Engine的failure锁中毒、空值/原始终态值回归，以及解锁再日志探针 |
+| desktop/app/src/engine/failure.rs:126 | 新增观测 | §68 check_running/stopped_error中毒保持into_inner和原始终态原因，固定site生命周期Warn1/Error60；真实Engine的failure锁中毒、空值/原始终态值回归，以及解锁再日志探针 |
+| desktop/app/src/engine/failure.rs:128 | 核实保留 | 仅当worker结束且尚无更具体终态原因时提供 reopen project 通用提示；已发布原因优先，poll_reply断连另Error，属于终态兜底，不声称能恢复未发布的不可获知原因 |
+| desktop/app/src/main.rs:140 | 核实保留 | winit EventLoopProxy::send_event的失败表示event loop已关闭，EngineChanged唤醒是退出阶段best effort；活跃loop排队由winit负责。保留无接收者终止协议，不制造每命令关闭日志 |
+| desktop/app/src/main.rs:290 | 核实保留 | 分别为缺省CLI标志、缺省project/layout路径与无关WindowEvent：可选配置和事件路由正常契约；需要参数但缺值仍由CLI Err及desktop failed日志处理，不把未使用事件当成静默失败 |
+| desktop/app/src/main.rs:292 | 新增观测 | §68启动恢复send_diagnostics偏好若无可用endpoint，Warn记录enabled及拒绝原因；set_enabled原Err和disabled状态保留。无效DSN另有去凭据Warn，不自动启用上传 |
+| desktop/app/src/main.rs:537 | 核实保留 | 分别为缺省CLI标志、缺省project/layout路径与无关WindowEvent：可选配置和事件路由正常契约；需要参数但缺值仍由CLI Err及desktop failed日志处理，不把未使用事件当成静默失败 |
+| desktop/app/src/main.rs:64 | 核实保留 | 分别为缺省CLI标志、缺省project/layout路径与无关WindowEvent：可选配置和事件路由正常契约；需要参数但缺值仍由CLI Err及desktop failed日志处理，不把未使用事件当成静默失败 |
+| desktop/app/src/main.rs:75 | 核实保留 | 分别为缺省CLI标志、缺省project/layout路径与无关WindowEvent：可选配置和事件路由正常契约；需要参数但缺值仍由CLI Err及desktop failed日志处理，不把未使用事件当成静默失败 |
+| desktop/app/src/main.rs:788 | 核实保留 | request_inner_size返回Option<PhysicalSize>表示同步已完成或异步等待Resized，不是Result失败；smoke发起resize后继续真实事件循环验证，不能把None当作拒绝窗口操作 |
+| desktop/app/src/mcp.rs:164 | 核实保留 | JSON-RPC缺省params与tool arguments按原协议提供空object，后续工具/schema继续校验必需字段；不向stdout写日志，不改变MCP工具契约 |
+| desktop/app/src/mcp.rs:211 | 核实保留 | JSON-RPC缺省params与tool arguments按原协议提供空object，后续工具/schema继续校验必需字段；不向stdout写日志，不改变MCP工具契约 |
+| desktop/app/src/mcp.rs:237 | 核实保留 | read_line在EOF且无未处理字节时Ok(None)明确结束服务，不是没有数据的暂态；MCP服务start/stop以及非法JSON/IO分别有日志，实际EOF进程验收 |
+| desktop/app/src/movie_export.rs:45 | 已有覆盖 | catch_unwind现用panic_reason保留payload，start Info/flush先于snapshot.export，最终failed/cancelled/succeeded含revision/path/elapsed。未开启ffmpeg明确Err；不声称这台机器自然发生编码器panic |
+| desktop/app/src/movie_export.rs:47 | 新增观测 | §68进度/最终状态/读取三个固定site的中毒沿用into_inner，统一recovered释放status guard后发生命周期Warn1/Error60。公共真实中毒/unwind探针覆盖guard顺序；未将受控helper等同完整FFmpeg中毒重现 |
+| desktop/app/src/movie_export.rs:50 | 已有覆盖 | catch_unwind现用panic_reason保留payload，start Info/flush先于snapshot.export，最终failed/cancelled/succeeded含revision/path/elapsed。未开启ffmpeg明确Err；不声称这台机器自然发生编码器panic |
+| desktop/app/src/movie_export.rs:51 | 新增观测 | §68进度/最终状态/读取三个固定site的中毒沿用into_inner，统一recovered释放status guard后发生命周期Warn1/Error60。公共真实中毒/unwind探针覆盖guard顺序；未将受控helper等同完整FFmpeg中毒重现 |
+| desktop/app/src/movie_export.rs:74 | 新增观测 | §68进度/最终状态/读取三个固定site的中毒沿用into_inner，统一recovered释放status guard后发生命周期Warn1/Error60。公共真实中毒/unwind探针覆盖guard顺序；未将受控helper等同完整FFmpeg中毒重现 |
+| desktop/app/src/node_editor.rs:1003 | 已有覆盖 | set_operation构建port map现逐node match，Err Warn记录edited_node/node/revision/原原因，保留该节点被过滤与兼容connection pruning，不改变编辑功能。该路径按用户编辑触发，不是每帧热日志 |
+| desktop/app/src/node_editor.rs:1191 | 新增观测 | §69 arrange_without_history验证失败用固定editor/site生命周期观测，Warn1/Error60保留epoch/revision/原因，仍不改positions/history；真实Unsupported节点120次布局验证回归 |
+| desktop/app/src/node_preview.rs:560 | 功能边界 | clock uniform的seconds/frame是既定f32 shader ABI，长时间时间精度会降低；不是JSON身份ID。未扩展双精度或重置时钟，不把日志工作算成长时精度修复 |
+| desktop/app/src/node_preview.rs:561 | 功能边界 | clock uniform的seconds/frame是既定f32 shader ABI，长时间时间精度会降低；不是JSON身份ID。未扩展双精度或重置时钟，不把日志工作算成长时精度修复 |
+| desktop/app/src/node_preview.rs:608 | 功能边界 | 正常viewport由物理窗口/逻辑rect生成，GPU切片范围仍受实际纹理限制；公开手工UiFrame的负值/NaN/无穷rect转u32的完整拒绝尚未加入。本批不改scissor/viewport行为，保留外部调用边界 |
+| desktop/app/src/node_tasks.rs:215 | 已有覆盖 | node worker已有Info start/flush，catch_unwind保留panic_reason并发布Outcome::Failed，完成/失败含job/revision/elapsed，异步结果断连另有观测。原generic-only路径已不存在 |
+| desktop/app/src/node_tasks.rs:218 | 已有覆盖 | node worker已有Info start/flush，catch_unwind保留panic_reason并发布Outcome::Failed，完成/失败含job/revision/elapsed，异步结果断连另有观测。原generic-only路径已不存在 |
+| desktop/app/src/node_tasks.rs:524 | 核实保留 | 把worker status.error转换为Outcome::Failed是终态类型适配，非Some(None)吞Err；缺失具体原因才使用通用failed文本，worker执行起点与原始故障在独立日志中保留 |
+| desktop/app/src/project_lifecycle.rs:103 | 新增观测 | §68工程切换成功后remember_project失败记录Error，保留已替换state与原有继续流程，不回滚工程或改变提示结构；记录changed=true和原原因 |
+| desktop/app/src/project_lifecycle.rs:110 | 核实保留 | cancel_interaction返回旧工程待发送Action序列，不是Result；注释明确旧模型已替换，故意丢弃旧撤销命令以免影响新工程。仍清UI手柄，不改历史契约 |
+| desktop/app/src/project_lifecycle.rs:124 | 已有覆盖 | 当前match project_ticket失败Error记录root、旧revision、retained_stale_ticket和主操作原因；保留prompt与用户重选契约，既有工程竞态回归 |
+| desktop/app/src/shell/acceptance.rs:192 | 核实保留 | 未提供自定义sheet时使用内建default_stylesheet是正常主题选择；加载override失败独立被样式入口观测，不是从Err返回默认sheet |
+| desktop/app/src/shell/acceptance.rs:515 | 核实保留 | 截图测试elapsed微秒到u64需约58万年单次执行才超界；保留测试报告精度与原断言，不加热点告警 |
+| desktop/app/src/shell/acceptance.rs:571 | 核实保留 | 未提供自定义sheet时使用内建default_stylesheet是正常主题选择；加载override失败独立被样式入口观测，不是从Err返回默认sheet |
+| desktop/app/src/shell/acceptance.rs:598 | 核实保留 | 仅smoke截图流程绘制floating_chrome不消费交互Action，Input不含真实编辑请求；实际运行Shell仍路由Action。验收采样不是丢弃产品操作Err |
+| desktop/app/src/shell/actions.rs:367 | 核实保留 | 未选择override时采用默认样式属正常可选配置；不是加载Err被吞掉，已有style override失效保留旧sheet回归 |
+| desktop/app/src/shell/actions.rs:407 | 新增观测 | §68原drag_window的OS Result失败现在Warn保留原因，仍丢弃结果继续原操作，不新增交互提示/重试或布局变化 |
+| desktop/app/src/shell/audio_analysis.rs:278 | 新增观测 | §68 cancel/release异步request入队失败单独Error附operation/request_id，同时保留取消UI与无回复等待的既有语义；成功入队后的业务失败由worker error记录，respond语义不变 |
+| desktop/app/src/shell/audio_analysis.rs:387 | 已有覆盖 | 当前release request后已使用?传播派发失败；discard的是返回Receiver，因为生命周期清理不等待结果，worker仍记录执行Err，不改变协议的无人接收回复 |
+| desktop/app/src/shell/audio_analysis.rs:423 | 核实保留 | 音频检测时间映射后先filter begin<=f<end，再round结果形成marker；begin/end来自合法clip/project帧范围，u32可表示。不把过滤到范围外的参考点当作decode失败 |
+| desktop/app/src/shell/audio_analysis.rs:445 | 已有覆盖 | 未知准备状态当前由checked_task_state校验，match兜底明确Err包含request/state；不再空分支，running是正常等待，failed/cancelled保持原原因 |
+| desktop/app/src/shell/design_acceptance.rs:433 | 核实保留 | 真实window比率截图后裁剪既定panel区域，panel_size/window_size来自非零可见窗口；u32为image crop像素接口，图像读取/保存仍?。仅验收流程，不修改产品尺寸/布局 |
+| desktop/app/src/shell/design_acceptance.rs:434 | 核实保留 | 真实window比率截图后裁剪既定panel区域，panel_size/window_size来自非零可见窗口；u32为image crop像素接口，图像读取/保存仍?。仅验收流程，不修改产品尺寸/布局 |
+| desktop/app/src/shell/lifecycle.rs:19 | 新增观测 | §68 close及close prompt的node_expect派发失败现Error记录operation和原因，仍继续既有关闭/提示流程，既有节点关闭竞态测试保持 |
+| desktop/app/src/shell/lifecycle.rs:81 | 新增观测 | §68 close及close prompt的node_expect派发失败现Error记录operation和原因，仍继续既有关闭/提示流程，既有节点关闭竞态测试保持 |
+| desktop/app/src/shell/media.rs:32 | 核实保留 | 图片导入起点来自session当前帧floor，正规snapshot经host范围校验；workflow亦min(project.frames-1)。任意手工损坏的JSON不由该cast证明有效，不改导入落点 |
+| desktop/app/src/shell/media.rs:57 | 核实保留 | TryRecvError::Empty表示异步媒体请求尚未完成，保留receiver稍后poll；Disconnected/Err已有失败分支。正常未就绪不产生每帧日志 |
+| desktop/app/src/shell/nodes.rs:275 | 核实保留 | 保存绑定节点时validate().is_ok控制是否等待canonical install，非法或尚未可编译的草稿仍可走store_node_source存储，属于允许保存草稿的契约；用户显式Validate/Compile另保留Diagnostic，不强制拒绝保存 |
+| desktop/app/src/shell/nodes.rs:372 | 已有覆盖 | 安装后state/catalogue刷新现match失败Error，包含installed=true/phase/epoch/revision及原原因，保留上次快照，不将安装成功改成失败 |
+| desktop/app/src/shell/nodes.rs:375 | 已有覆盖 | 安装后state/catalogue刷新现match失败Error，包含installed=true/phase/epoch/revision及原原因，保留上次快照，不将安装成功改成失败 |
+| desktop/app/src/shell/nodes.rs:428 | 已有覆盖 | node source receiver断连的细节由worker start/panic hook/engine failure日志保留，poll的generic断连仍经后续Err日志/报告输出。通道本身不携带panic payload，不能声称从Disconnected中恢复原始载荷 |
+| desktop/app/src/shell/nodes.rs:62 | 核实保留 | 新建未绑定source没有key时生成时间戳ID是正常创建策略；已绑定key优先，不是解析Err丢失。SystemTime失败仍传播Err |
+| desktop/app/src/shell/presentation.rs:265 | 新增观测 | §68取消/过期close后schedule_node_compile失败现Error保留operation及原因，仍保持原不传播返回值的恢复行为，不自动重试 |
+| desktop/app/src/shell/presentation.rs:271 | 新增观测 | §68取消/过期close后schedule_node_compile失败现Error保留operation及原因，仍保持原不传播返回值的恢复行为，不自动重试 |
+| desktop/app/src/shell/presentation.rs:511 | 核实保留 | winit request_inner_size的None表示异步尺寸请求，与Err无关；最终Resized驱动原GPU resize与工作区geometry。保留窗口恢复行为 |
+| desktop/app/src/shell/presentation.rs:721 | 新增观测 | §68 floating位置查询与move/resize持久化两个固定进程连续episode，失败Warn1/Error60，成功复位，日志带window或path及原因；原None位置/内存内geometry保留，不加入UI反馈或写盘重试 |
+| desktop/app/src/shell/presentation.rs:733 | 新增观测 | §68 floating位置查询与move/resize持久化两个固定进程连续episode，失败Warn1/Error60，成功复位，日志带window或path及原因；原None位置/内存内geometry保留，不加入UI反馈或写盘重试 |
+| desktop/app/src/shell/presentation.rs:763 | 新增观测 | §68 floating位置查询与move/resize持久化两个固定进程连续episode，失败Warn1/Error60，成功复位，日志带window或path及原因；原None位置/内存内geometry保留，不加入UI反馈或写盘重试 |
+| desktop/app/src/shell/styles.rs:62 | 新增观测 | §68所选文件metadata/modified失败有每StyleSource连续stamp计数，成功/未选文件复位；reload另独立计数，Info start先于解析/font，Warn1/Error60抑制，成功复位且保留旧sheet与原消息。真实缺文件/坏JSON/修复回归；modified不支持未自然重现 |
+| desktop/app/src/shell/styles.rs:63 | 新增观测 | §68所选文件metadata/modified失败有每StyleSource连续stamp计数，成功/未选文件复位；reload另独立计数，Info start先于解析/font，Warn1/Error60抑制，成功复位且保留旧sheet与原消息。真实缺文件/坏JSON/修复回归；modified不支持未自然重现 |
+| desktop/app/src/shell/styles.rs:91 | 新增观测 | §68所选文件metadata/modified失败有每StyleSource连续stamp计数，成功/未选文件复位；reload另独立计数，Info start先于解析/font，Warn1/Error60抑制，成功复位且保留旧sheet与原消息。真实缺文件/坏JSON/修复回归；modified不支持未自然重现 |
+| desktop/app/src/workflow.rs:14 | 核实保留 | image_info来自实际image decoder尺寸u32转换为JSON u64，且有编码格式/像素及资源预算检查；此处u64读回u32不截断正常decoder输出。不是任意外部提供的JSON宽高 |
+| desktop/app/src/workflow.rs:17 | 核实保留 | image_info来自实际image decoder尺寸u32转换为JSON u64，且有编码格式/像素及资源预算检查；此处u64读回u32不截断正常decoder输出。不是任意外部提供的JSON宽高 |
+| desktop/app/src/workflow.rs:33 | 核实保留 | 导入落点显式floor并min(project.frames-1)，项目frames正且受模型校验；保留既有取当前帧/末帧夹取语义，不改变导入历史 |
+| desktop/app/src/workspace.rs:88 | 新增观测 | §68应用Workspace::load与UI框架不同：读全文件后保留64KiB限制、JSON/ownership检查及migrate_design；NotFound正常安静，其他失败固定连续site Warn1/Error60，成功/正常缺文件复位。坏文件不重写，实际FS/阈值/恢复回归 |
+| desktop/app/src/workspace.rs:90 | 新增观测 | §68应用Workspace::load与UI框架不同：读全文件后保留64KiB限制、JSON/ownership检查及migrate_design；NotFound正常安静，其他失败固定连续site Warn1/Error60，成功/正常缺文件复位。坏文件不重写，实际FS/阈值/恢复回归 |
+| desktop/app/src/workspace.rs:96 | 新增观测 | §68应用Workspace::load与UI框架不同：读全文件后保留64KiB限制、JSON/ownership检查及migrate_design；NotFound正常安静，其他失败固定连续site Warn1/Error60，成功/正常缺文件复位。坏文件不重写，实际FS/阈值/恢复回归 |
+| desktop/app/src/workspace/manager.rs:158 | 核实保留 | TextEdit::input返回编辑响应/提交状态，不是Result；name.text在调用中更新，后续Save按钮消费名字并校验。忽略响应不等于丢弃按键Err，不改输入行为 |
+| desktop/app/src/workspace/presets.rs:215 | 新增观测 | §68 select_preset中None缺省安静，Some(saved)反序列化失败由restore站点记录，存在但ownership/面板ID无效则preset.validate固定进程生命周期Warn1/Error60；保持.filter(valid)/默认preset回退。真实重复面板layout经实际select_preset 120次验证默认恢复、健康preset交错不重复告警 |
+| desktop/app/src/workspace/presets.rs:78 | 新增观测 | §68 SavedLayout::restore反序列化失败固定进程生命周期首Warn/60Error保留原因及None回退；正常布局与相邻坏布局交错不重置，serde序列化原expect仍由panic hook观测，不改保存结构 |
+
+## B4 · 面板与节点视图（159 项）
+
+逐项使用原始path:line关联当前生产入口。核实保留 110、新增观测 13、功能边界 2、已有覆盖 34。正常缺省/导航不当作故障，功能边界保持原行为；新增代码和实际验证见完成记录§68–70
+
+| 原始位置 | 处置 | 当前源码证据与限制 |
+| --- | --- | --- |
+| desktop/app/src/node_editor.rs:1058 | 核实保留 | check_node先用root_document求总output数，再减去被替换旧node的output数，检查新操作后总数<=1；合法被编辑node属于同根树，总数>=旧数，饱和仅保护计数下界，不是逐帧资源统计 |
+| desktop/app/src/node_editor.rs:669 | 核实保留 | cancel_canvas_interaction只对Nodes恢复document、Marquee恢复选择；Wire/None取消无需撤销模型，drag.take已终止它们，通配是明确的无持久编辑分支 |
+| desktop/app/src/node_editor.rs:895 | 核实保留 | connections.len.saturating_add(1)>max_connections为安全预算比较，达到usize上界仍拒绝超预算，不会将溢出伪装成0并放宽连接预算 |
+| desktop/app/src/node_editor/inline.rs:407 | 核实保留 | controls按NodeOp生成有枚举选择的操作，其余Float/Color等由常量控件处理，没有对应choices时返回空列表为正常类型分流，Unsupported另有inspector日志，不增加无关控件 |
+| desktop/app/src/node_editor/view/add_menu.rs:123 | 核实保留 | 菜单高亮按Up/Down饱和并在entries生成后min(len-1)，空候选另处理；这是正常键盘导航和过滤后修正，无Err与资源计数 |
+| desktop/app/src/node_editor/view/add_menu.rs:42 | 核实保留 | 菜单高亮按Up/Down饱和并在entries生成后min(len-1)，空候选另处理；这是正常键盘导航和过滤后修正，无Err与资源计数 |
+| desktop/app/src/node_editor/view/add_menu.rs:43 | 核实保留 | 菜单高亮按Up/Down饱和并在entries生成后min(len-1)，空候选另处理；这是正常键盘导航和过滤后修正，无Err与资源计数 |
+| desktop/app/src/node_editor/view/add_menu.rs:44 | 核实保留 | 新增菜单只关心导航/确认/退出键，其余文本由query输入处理，通配不代表丢弃模型错误；保留键盘交互 |
+| desktop/app/src/node_editor/view/canvas.rs:17 | 新增观测 | §69 cards.sockets及paint_canvas.labels各固定editor/site生命周期Warn1/Error60，原node_port_specs Err仍跳过端口，保留节点/文档/历史；原因与node有界。实际Unsupported节点通过真实cards/paint_canvas重复120次验证，不是只测logger |
+| desktop/app/src/node_editor/view/canvas.rs:236 | 新增观测 | §69 cards.sockets及paint_canvas.labels各固定editor/site生命周期Warn1/Error60，原node_port_specs Err仍跳过端口，保留节点/文档/历史；原因与node有界。实际Unsupported节点通过真实cards/paint_canvas重复120次验证，不是只测logger |
+| desktop/app/src/node_editor/view/canvas.rs:262 | 核实保留 | 公开组端口若无用户别名则使用PortSpec的中英文默认名是正常label回退；缺失端口查询本身现有独立观测，不将没有别名视为故障 |
+| desktop/app/src/node_editor/view/canvas.rs:289 | 功能边界 | Parameter节点引用缺失parameter时标签回退ID仍保留；§69端口查询Err已可定位，未自动补回parameter/改文档或修改标签，悬挂引用功能边界不算修复 |
+| desktop/app/src/node_editor/view/context_menu.rs:114 | 新增观测 | §69 context.ports观测真实node_port_specs失败，保留无端口菜单项的既有行为；固定editor/site生命周期Warn1/Error60，实际context菜单回归，不改菜单内容或顺序 |
+| desktop/app/src/node_editor/view/context_menu.rs:164 | 核实保留 | context menu选中项按Up/Down饱和并min(entries-1)，可见start=selected-(rows-1)在顶部夹零是正常滚动窗口，不丢模型命令 |
+| desktop/app/src/node_editor/view/context_menu.rs:165 | 核实保留 | context menu选中项按Up/Down饱和并min(entries-1)，可见start=selected-(rows-1)在顶部夹零是正常滚动窗口，不丢模型命令 |
+| desktop/app/src/node_editor/view/context_menu.rs:166 | 核实保留 | 菜单未识别按键保持原状态，Enter/Escape/导航/鼠标各有显式处理；非错误通配，不改变快捷键路由 |
+| desktop/app/src/node_editor/view/context_menu.rs:173 | 核实保留 | 可见rows=entries.len.min(max(1,按bounds高度计算的行数))，实际bounds为有限屏幕矩形且rows不超过菜单项；转换是现有滚动窗口计算，不产生未受限分配或丢失错误 |
+| desktop/app/src/node_editor/view/context_menu.rs:181 | 核实保留 | context menu选中项按Up/Down饱和并min(entries-1)，可见start=selected-(rows-1)在顶部夹零是正常滚动窗口，不丢模型命令 |
+| desktop/app/src/node_editor/view/control_popup.rs:115 | 核实保留 | 当前对应枚举popup的Up/Down项索引夹取及空列表防护，items变化后仍限制到合法范围；正常导航，不把0下界当作失败 |
+| desktop/app/src/node_editor/view/control_popup.rs:116 | 核实保留 | 当前对应枚举popup的Up/Down项索引夹取及空列表防护，items变化后仍限制到合法范围；正常导航，不把0下界当作失败 |
+| desktop/app/src/node_editor/view/inspector.rs:1047 | 核实保留 | apply_field先专门处理Constant/ParamDefault再进入其他Binding匹配，其余在这一提前分流中不做操作；真正匹配与参数校验在后续代码，未丢Diagnostic |
+| desktop/app/src/node_editor/view/inspector.rs:181 | 已有覆盖 | 当前十个编辑触发点均调用record_inspector_edit，Diagnostic以Warn记录revision与原原因；set_operation/set_parameter_default验证失败保持模型和历史。已有实际inspector拒绝编辑回归，不是忽略let _ |
+| desktop/app/src/node_editor/view/inspector.rs:229 | 已有覆盖 | 当前十个编辑触发点均调用record_inspector_edit，Diagnostic以Warn记录revision与原原因；set_operation/set_parameter_default验证失败保持模型和历史。已有实际inspector拒绝编辑回归，不是忽略let _ |
+| desktop/app/src/node_editor/view/inspector.rs:255 | 已有覆盖 | 当前十个编辑触发点均调用record_inspector_edit，Diagnostic以Warn记录revision与原原因；set_operation/set_parameter_default验证失败保持模型和历史。已有实际inspector拒绝编辑回归，不是忽略let _ |
+| desktop/app/src/node_editor/view/inspector.rs:286 | 已有覆盖 | 当前十个编辑触发点均调用record_inspector_edit，Diagnostic以Warn记录revision与原原因；set_operation/set_parameter_default验证失败保持模型和历史。已有实际inspector拒绝编辑回归，不是忽略let _ |
+| desktop/app/src/node_editor/view/inspector.rs:299 | 已有覆盖 | 当前十个编辑触发点均调用record_inspector_edit，Diagnostic以Warn记录revision与原原因；set_operation/set_parameter_default验证失败保持模型和历史。已有实际inspector拒绝编辑回归，不是忽略let _ |
+| desktop/app/src/node_editor/view/inspector.rs:332 | 已有覆盖 | 当前十个编辑触发点均调用record_inspector_edit，Diagnostic以Warn记录revision与原原因；set_operation/set_parameter_default验证失败保持模型和历史。已有实际inspector拒绝编辑回归，不是忽略let _ |
+| desktop/app/src/node_editor/view/inspector.rs:349 | 已有覆盖 | 当前十个编辑触发点均调用record_inspector_edit，Diagnostic以Warn记录revision与原原因；set_operation/set_parameter_default验证失败保持模型和历史。已有实际inspector拒绝编辑回归，不是忽略let _ |
+| desktop/app/src/node_editor/view/inspector.rs:384 | 已有覆盖 | 当前十个编辑触发点均调用record_inspector_edit，Diagnostic以Warn记录revision与原原因；set_operation/set_parameter_default验证失败保持模型和历史。已有实际inspector拒绝编辑回归，不是忽略let _ |
+| desktop/app/src/node_editor/view/inspector.rs:424 | 已有覆盖 | 当前十个编辑触发点均调用record_inspector_edit，Diagnostic以Warn记录revision与原原因；set_operation/set_parameter_default验证失败保持模型和历史。已有实际inspector拒绝编辑回归，不是忽略let _ |
+| desktop/app/src/node_editor/view/inspector.rs:474 | 已有覆盖 | 当前十个编辑触发点均调用record_inspector_edit，Diagnostic以Warn记录revision与原原因；set_operation/set_parameter_default验证失败保持模型和历史。已有实际inspector拒绝编辑回归，不是忽略let _ |
+| desktop/app/src/node_editor/view/inspector.rs:563 | 核实保留 | NodeOp按适用属性生成控件，未匹配变体无需专用参数编辑；Unsupported已有inspector.unsupported观测，端口部分独立处理，不把无专用控件视为Err |
+| desktop/app/src/node_editor/view/inspector.rs:565 | 新增观测 | §69 inspector.ports/help_ports分别记录真实查询失败，保留省略连接/帮助端口的分支，首Warn/60Error抑制。真实Unsupported节点draw_inspector回归，文档/revision不变 |
+| desktop/app/src/node_editor/view/inspector.rs:791 | 新增观测 | §69 inspector.ports/help_ports分别记录真实查询失败，保留省略连接/帮助端口的分支，首Warn/60Error抑制。真实Unsupported节点draw_inspector回归，文档/revision不变 |
+| desktop/app/src/node_editor/view/interaction.rs:137 | 核实保留 | 分别为搜索状态只处理Backspace/Escape/Enter及画布只消费本Scope快捷键，其他输入交由既有路由；不是失败返回，保留输入与焦点行为 |
+| desktop/app/src/node_editor/view/interaction.rs:20 | 新增观测 | §69公共NodeEditor::request对commit_field拒绝按request.field固定site观测，Warn1/Error60记录request/Diagnostic code，不记录输入文本，保留Field.error/notice与Err、不生成Action；已有键盘真实拒绝UI回归及新增120次实际request阈值回归 |
+| desktop/app/src/node_editor/view/interaction.rs:38 | 核实保留 | 分别为搜索状态只处理Backspace/Escape/Enter及画布只消费本Scope快捷键，其他输入交由既有路由；不是失败返回，保留输入与焦点行为 |
+| desktop/app/src/node_editor/view/mod.rs:447 | 核实保留 | 状态栏优先notice/diagnostic，没有消息时显示节点帮助提示是正常空状态，不是错误原因被覆盖；显式Diagnostic仍优先 |
+| desktop/app/src/node_editor/view/mod.rs:554 | 核实保留 | apply_field的Constant/ParamDefault提前返回，其余Binding进入后续专用逻辑；此通配是分阶段路由，后续Err由commit_field保留并由request记录，不是吞Err |
+| desktop/app/src/node_editor/view/toolbar.rs:74 | 新增观测 | §69 toolbar request复用公共request.field观测，无需修改按钮或Action路由；保留无效字段阻止保存/编译和可见错误，原因code及request在默认级别可定位 |
+| desktop/app/src/panels/align.rs:9 | 核实保留 | 正常snapshot的frame由host ops/preview.rs验证有限、>=0且<project.frames，Project.frames是受模型校验的正u32；这里floor/max(0)后转u32生成现有编辑命令或缓存上下文，不截断正规时间范围。不为手工伪造JSON/NaN UI状态提供全输入保证，不更改取帧与交互 |
+| desktop/app/src/panels/animation_controls.rs:109 | 核实保留 | selected_key为有符号合成时间，负的预滚key无法转换为KeySelection的u32时返回None是现有编辑范围契约；局部负关键帧仍可采样/展示，不通过日志修改其可选中性 |
+| desktop/app/src/panels/animation_controls.rs:141 | 核实保留 | 正常snapshot的frame由host ops/preview.rs验证有限、>=0且<project.frames，Project.frames是受模型校验的正u32；这里floor/max(0)后转u32生成现有编辑命令或缓存上下文，不截断正规时间范围。不为手工伪造JSON/NaN UI状态提供全输入保证，不更改取帧与交互 |
+| desktop/app/src/panels/animation_controls.rs:313 | 核实保留 | 未显式选中key时选播放头之前最近key或第一项是既定导航，随后空keys单独显示NoKeys并return；不是Result失败 |
+| desktop/app/src/panels/animation_controls.rs:334 | 核实保留 | 前一关键帧按钮selected.saturating_sub(1)同时enabled=selected>0，顶部禁用为正常导航，不是计数漂移 |
+| desktop/app/src/panels/animation_controls.rs:403 | 已有覆盖 | ease/curve解析当前统一observed_easing，缺省字段按合法默认保持安静，非空坏值以固定site Warn1/Error60并保留Easing默认；真实坏曲线/缺省交错回归已存在 |
+| desktop/app/src/panels/animation_controls.rs:404 | 已有覆盖 | ease/curve解析当前统一observed_easing，缺省字段按合法默认保持安静，非空坏值以固定site Warn1/Error60并保留Easing默认；真实坏曲线/缺省交错回归已存在 |
+| desktop/app/src/panels/animation_controls.rs:615 | 核实保留 | 曲线拖拽的当前匹配处理Quadratic/Cubic，其他形状不属于该handle操作，保持原Easing；验证路径另有graph_handles.validation，不扩大曲线编辑功能 |
+| desktop/app/src/panels/animation_data.rs:40 | 已有覆盖 | track_value/key_frame/key_range/key_decode均由observe!包装，保留None早退及原serde原因、offset/frame/key_index和类型；固定进程site生命周期Warn1/Error60，真实坏value/key/整数范围观测已有回归 |
+| desktop/app/src/panels/animation_data.rs:49 | 已有覆盖 | track_value/key_frame/key_range/key_decode均由observe!包装，保留None早退及原serde原因、offset/frame/key_index和类型；固定进程site生命周期Warn1/Error60，真实坏value/key/整数范围观测已有回归 |
+| desktop/app/src/panels/animation_data.rs:57 | 已有覆盖 | track_value/key_frame/key_range/key_decode均由observe!包装，保留None早退及原serde原因、offset/frame/key_index和类型；固定进程site生命周期Warn1/Error60，真实坏value/key/整数范围观测已有回归 |
+| desktop/app/src/panels/audio.rs:227 | 核实保留 | 正常snapshot的frame由host ops/preview.rs验证有限、>=0且<project.frames，Project.frames是受模型校验的正u32；这里floor/max(0)后转u32生成现有编辑命令或缓存上下文，不截断正规时间范围。不为手工伪造JSON/NaN UI状态提供全输入保证，不更改取帧与交互 |
+| desktop/app/src/panels/audio.rs:273 | 新增观测 | §69 audio.level_track只对存在且格式错误的音量轨迹观测，原Track::constant(0)保持；缺省/null轨迹仍正常且安静。固定进程生命周期Warn1/Error60，真实坏轨迹与正常缺省交错120次回归 |
+| desktop/app/src/panels/audio.rs:661 | 核实保留 | 音频key/marker拖动先按clip begin/last或project frames-1 clamp再转u32，起点与边界来自合法clip/project；保留取整/首尾限制，不是任意无界浮点输入 |
+| desktop/app/src/panels/audio.rs:826 | 核实保留 | 音频key/marker拖动先按clip begin/last或project frames-1 clamp再转u32，起点与边界来自合法clip/project；保留取整/首尾限制，不是任意无界浮点输入 |
+| desktop/app/src/panels/auxiliary.rs:747 | 核实保留 | auxiliary renderer仅处理其注册的Character/Paragraph等辅助面板，其余Panel由主分发器绘制，通配不产生该面板的内容是正常路由，不是业务错误 |
+| desktop/app/src/panels/camera_controls.rs:243 | 核实保留 | 正常snapshot的frame由host ops/preview.rs验证有限、>=0且<project.frames，Project.frames是受模型校验的正u32；这里floor/max(0)后转u32生成现有编辑命令或缓存上下文，不截断正规时间范围。不为手工伪造JSON/NaN UI状态提供全输入保证，不更改取帧与交互 |
+| desktop/app/src/panels/effect_controls.rs:1384 | 已有覆盖 | effects.parameter/curve_track/curve_channel_parameter包装serde与缺失curve，缺轨None保留；channel额外校验有限、整数、1..5并观测原索引降级。固定site生命周期限频，已有实际效果曲线回归 |
+| desktop/app/src/panels/effect_controls.rs:1403 | 已有覆盖 | effects.parameter/curve_track/curve_channel_parameter包装serde与缺失curve，缺轨None保留；channel额外校验有限、整数、1..5并观测原索引降级。固定site生命周期限频，已有实际效果曲线回归 |
+| desktop/app/src/panels/effect_controls.rs:1553 | 功能边界 | enum dropdown的sample-min转usize保持既有floor/饱和与Dropdown绘制夹取，正常schema提供离散范围；任意伪造/动画产生的越界或非整数value未在此新增完整拒绝，不借观测声称所有枚举采样精度问题已修复 |
+| desktop/app/src/panels/effect_controls.rs:1693 | 核实保留 | 正常snapshot的frame由host ops/preview.rs验证有限、>=0且<project.frames，Project.frames是受模型校验的正u32；这里floor/max(0)后转u32生成现有编辑命令或缓存上下文，不截断正规时间范围。不为手工伪造JSON/NaN UI状态提供全输入保证，不更改取帧与交互 |
+| desktop/app/src/panels/effect_controls.rs:1703 | 新增观测 | §69颜色popup对找到effect但EffectParam反序列化失败记录effect.color_track，保留关闭popup和无Action，附object/effect/param，固定生命周期Warn1/Error60。实际坏track通过color_overlay回归 |
+| desktop/app/src/panels/effect_controls.rs:440 | 核实保留 | 向上移动效果菜单index.saturating_sub(1)配合菜单enabled/合法effect索引保护首项，原顺序与undo保留；不是资源统计 |
+| desktop/app/src/panels/effect_controls.rs:778 | 核实保留 | 正常snapshot的frame由host ops/preview.rs验证有限、>=0且<project.frames，Project.frames是受模型校验的正u32；这里floor/max(0)后转u32生成现有编辑命令或缓存上下文，不截断正规时间范围。不为手工伪造JSON/NaN UI状态提供全输入保证，不更改取帧与交互 |
+| desktop/app/src/panels/effect_controls/curve.rs:319 | 核实保留 | 曲线鼠标操作只支持已有左键拖动/右键删除，Middle等无操作是明确交互范围；模型修改仍验证端点、点数与顺序，非Err丢弃 |
+| desktop/app/src/panels/effect_controls/library.rs:475 | 核实保留 | 无选中effect或未提供说明时显示既定帮助文字是正常空状态/可选元数据，不是反序列化或安装失败；真实目录/manifest加载失败独立有日志 |
+| desktop/app/src/panels/expressions.rs:56 | 已有覆盖 | ExpressionTarget的非空serde失败由expressions.target观测，表达式validate也包装；保留忽略坏项及原原因，固定site限频，已有实际坏target回归 |
+| desktop/app/src/panels/expressions.rs:97 | 核实保留 | 正常snapshot的frame由host ops/preview.rs验证有限、>=0且<project.frames，Project.frames是受模型校验的正u32；这里floor/max(0)后转u32生成现有编辑命令或缓存上下文，不截断正规时间范围。不为手工伪造JSON/NaN UI状态提供全输入保证，不更改取帧与交互 |
+| desktop/app/src/panels/fx_console.rs:116 | 核实保留 | 搜索候选高亮和start偏移用饱和/min约束列表边界与滚动窗口，空候选已有处理；正常键盘导航，不把首项/尾项视为失败 |
+| desktop/app/src/panels/fx_console.rs:67 | 核实保留 | 搜索候选高亮和start偏移用饱和/min约束列表边界与滚动窗口，空候选已有处理；正常键盘导航，不把首项/尾项视为失败 |
+| desktop/app/src/panels/fx_console.rs:72 | 核实保留 | 搜索候选高亮和start偏移用饱和/min约束列表边界与滚动窗口，空候选已有处理；正常键盘导航，不把首项/尾项视为失败 |
+| desktop/app/src/panels/fx_console.rs:74 | 核实保留 | 搜索候选高亮和start偏移用饱和/min约束列表边界与滚动窗口，空候选已有处理；正常键盘导航，不把首项/尾项视为失败 |
+| desktop/app/src/panels/fx_console.rs:75 | 核实保留 | 控制台只消费导航/确认/退出，其他输入用于搜索文本或忽略；非Result错误，不改快捷键/焦点 |
+| desktop/app/src/panels/fx_console.rs:81 | 核实保留 | 可见候选数先min(items.len)及min(10)，再按非负窗口高度计算；结果受候选数限制，不产生超大索引/分配。小窗口0行是既有视觉边界，未改布局 |
+| desktop/app/src/panels/graph_box.rs:259 | 核实保留 | 没选择override时用默认StyleSheet读取motion.drag_threshold是正常语义token回退，未写颜色/尺寸字面量或新增style名 |
+| desktop/app/src/panels/graph_box.rs:327 | 核实保留 | transform先拒绝非有限dx/dy，并把左右frame bounds夹到0..total-1，按相对比例产生有序key后验证严格递增；正规total来自u32项目帧数，round cast在界内，保留原拒绝重复帧行为 |
+| desktop/app/src/panels/graph_box.rs:534 | 核实保留 | last_frame是合法project.frames-1，转u64再+1用来筛选区间key；u32帧范围可在u64精确表示，既有范围过滤，不丢整数身份 |
+| desktop/app/src/panels/graph_handles.rs:124 | 已有覆盖 | Easing ease/curve现在由observed_easing对存在的坏数据分别限频并保留默认/None；拖动阶段validate另有固定site。沿用真实坏曲线、联动与默认字段安静回归，不再仅.ok丢掉原因 |
+| desktop/app/src/panels/graph_handles.rs:125 | 已有覆盖 | Easing ease/curve现在由observed_easing对存在的坏数据分别限频并保留默认/None；拖动阶段validate另有固定site。沿用真实坏曲线、联动与默认字段安静回归，不再仅.ok丢掉原因 |
+| desktop/app/src/panels/graph_handles.rs:308 | 核实保留 | 当前drag.frame已是u32，as u64用于查找JSON key是拓宽；原报告将其称float→u64不准确，保留查找与拖拽契约 |
+| desktop/app/src/panels/graph_handles.rs:323 | 已有覆盖 | Easing ease/curve现在由observed_easing对存在的坏数据分别限频并保留默认/None；拖动阶段validate另有固定site。沿用真实坏曲线、联动与默认字段安静回归，不再仅.ok丢掉原因 |
+| desktop/app/src/panels/graph_handles.rs:324 | 已有覆盖 | Easing ease/curve现在由observed_easing对存在的坏数据分别限频并保留默认/None；拖动阶段validate另有固定site。沿用真实坏曲线、联动与默认字段安静回归，不再仅.ok丢掉原因 |
+| desktop/app/src/panels/graph_keys.rs:110 | 核实保留 | key拖动目标round后clamp到0..last_frame，项目上限为u32范围；受控鼠标坐标异常另由gesture/transform分支限制，不在此改变帧落点 |
+| desktop/app/src/panels/graph_keys.rs:115 | 核实保留 | begin参数frame及next均为u32，as u64用于JSON查找/占用检查是无损拓宽；不是报告所说float→u64，不新增噪声日志 |
+| desktop/app/src/panels/graph_keys.rs:37 | 核实保留 | begin参数frame及next均为u32，as u64用于JSON查找/占用检查是无损拓宽；不是报告所说float→u64，不新增噪声日志 |
+| desktop/app/src/panels/graph_keys.rs:92 | 核实保留 | 正常未选override时取内建StyleSheet的拖拽阈值token；无Err来源，不修改交互容差 |
+| desktop/app/src/panels/helpers.rs:52 | 核实保留 | timecode是显示格式化器，负帧显式max(0)后floor再按fps>=1显示，不回写工程/关键帧；正常有效项目范围可用u64，保留既有负时间显示语义 |
+| desktop/app/src/panels/keyboard.rs:266 | 核实保留 | 正常snapshot的frame由host ops/preview.rs验证有限、>=0且<project.frames，Project.frames是受模型校验的正u32；这里floor/max(0)后转u32生成现有编辑命令或缓存上下文，不截断正规时间范围。不为手工伪造JSON/NaN UI状态提供全输入保证，不更改取帧与交互 |
+| desktop/app/src/panels/keyboard.rs:90 | 新增观测 | §69 keyboard对node request的失败共享request.field默认级别观测，仍保留现有Field.error/notice与无Action；不改变快捷键优先级或UI状态 |
+| desktop/app/src/panels/layer_actions.rs:1205 | 核实保留 | Move Down目标index.saturating_sub(1)在底层边界夹取，菜单enabled/有效list约束，保留既有层级重排和undo，不是失败分支 |
+| desktop/app/src/panels/layer_actions.rs:1301 | 已有覆盖 | track_matte非空serde失败已有layer_menu.matte固定site观测，保留None及原原因；缺省matte正常无日志。已有真实坏matte回归 |
+| desktop/app/src/panels/layer_actions.rs:532 | 核实保留 | 父菜单定位及高亮可见性以saturating_sub处理top/scroll边界，随后限制在有效entries窗口；正常导航不是资源统计漂移 |
+| desktop/app/src/panels/layer_actions.rs:610 | 核实保留 | 菜单count按实际entries.len、有限bounds高度限制，scroll按0..entries.len-count clamp后转usize；原可视行/滚动契约，不产生无界容器或模型身份丢失 |
+| desktop/app/src/panels/layer_actions.rs:631 | 核实保留 | 菜单count按实际entries.len、有限bounds高度限制，scroll按0..entries.len-count clamp后转usize；原可视行/滚动契约，不产生无界容器或模型身份丢失 |
+| desktop/app/src/panels/layer_actions.rs:652 | 核实保留 | 父菜单定位及高亮可见性以saturating_sub处理top/scroll边界，随后限制在有效entries窗口；正常导航不是资源统计漂移 |
+| desktop/app/src/panels/layer_actions.rs:96 | 核实保留 | context_frame先floor再clamp(0,last_frame)，有效项目帧范围为u32；这是命令既有落点边界，不吞Result |
+| desktop/app/src/panels/menus.rs:260 | 核实保留 | 菜单visible_rows按有效屏幕矩形max32/max1后min(entries.len)，usize表示行索引不损正常范围；不改原小窗口布局 |
+| desktop/app/src/panels/menus.rs:263 | 核实保留 | 菜单项减少及向上滚动通过len-visible_rows/scroll-1饱和夹取，是正常列表导航，不涉及失败次数或显存 |
+| desktop/app/src/panels/menus.rs:282 | 核实保留 | 菜单项减少及向上滚动通过len-visible_rows/scroll-1饱和夹取，是正常列表导航，不涉及失败次数或显存 |
+| desktop/app/src/panels/menus.rs:76 | 核实保留 | 正常snapshot的frame由host ops/preview.rs验证有限、>=0且<project.frames，Project.frames是受模型校验的正u32；这里floor/max(0)后转u32生成现有编辑命令或缓存上下文，不截断正规时间范围。不为手工伪造JSON/NaN UI状态提供全输入保证，不更改取帧与交互 |
+| desktop/app/src/panels/mod.rs:1055 | 核实保留 | 节点标题在layer_target None时显示未绑定草稿，这是合法草稿状态；不把尚未选择图层当作渲染错误，不修改文案 |
+| desktop/app/src/panels/parent_controls.rs:198 | 核实保留 | parent候选列表不足8项时max scroll为0，向上滚动在顶部夹零；正常下拉导航，不改变绑定/选项过滤 |
+| desktop/app/src/panels/parent_controls.rs:200 | 核实保留 | parent候选列表不足8项时max scroll为0，向上滚动在顶部夹零；正常下拉导航，不改变绑定/选项过滤 |
+| desktop/app/src/panels/parent_controls.rs:219 | 核实保留 | 正常snapshot的frame由host ops/preview.rs验证有限、>=0且<project.frames，Project.frames是受模型校验的正u32；这里floor/max(0)后转u32生成现有编辑命令或缓存上下文，不截断正规时间范围。不为手工伪造JSON/NaN UI状态提供全输入保证，不更改取帧与交互 |
+| desktop/app/src/panels/path_controls.rs:1019 | 新增观测 | §69 path.layer/path.inspector_layer分别包装实际Layer serde失败，仍返回None且不填inspector cache；附object/revision，进程site生命周期Warn1/Error60。真实坏层120次经两个入口回归；不改变路径/蒙版产品逻辑 |
+| desktop/app/src/panels/path_controls.rs:1132 | 核实保留 | 正常snapshot的frame由host ops/preview.rs验证有限、>=0且<project.frames，Project.frames是受模型校验的正u32；这里floor/max(0)后转u32生成现有编辑命令或缓存上下文，不截断正规时间范围。不为手工伪造JSON/NaN UI状态提供全输入保证，不更改取帧与交互 |
+| desktop/app/src/panels/path_controls.rs:1179 | 核实保留 | 数值字段开始scrub时仅把可解析有限文本作为临时值，否则保留旧已提交数值；文本Commit阶段另保留Field错误/校验。正常中间输入不记录文本或改变拖拽状态 |
+| desktop/app/src/panels/path_controls.rs:1240 | 核实保留 | 数值字段开始scrub时仅把可解析有限文本作为临时值，否则保留旧已提交数值；文本Commit阶段另保留Field错误/校验。正常中间输入不记录文本或改变拖拽状态 |
+| desktop/app/src/panels/path_controls.rs:1261 | 核实保留 | open path边数len-1在0/1节点时饱和产生0边，closed且len>2另加闭合边；有意退化几何为空，不是模型错误或资源记账丢失 |
+| desktop/app/src/panels/path_controls.rs:259 | 新增观测 | §69 path.layer/path.inspector_layer分别包装实际Layer serde失败，仍返回None且不填inspector cache；附object/revision，进程site生命周期Warn1/Error60。真实坏层120次经两个入口回归；不改变路径/蒙版产品逻辑 |
+| desktop/app/src/panels/path_controls.rs:624 | 核实保留 | 正常snapshot的frame由host ops/preview.rs验证有限、>=0且<project.frames，Project.frames是受模型校验的正u32；这里floor/max(0)后转u32生成现有编辑命令或缓存上下文，不截断正规时间范围。不为手工伪造JSON/NaN UI状态提供全输入保证，不更改取帧与交互 |
+| desktop/app/src/panels/path_controls.rs:645 | 核实保留 | 正常snapshot的frame由host ops/preview.rs验证有限、>=0且<project.frames，Project.frames是受模型校验的正u32；这里floor/max(0)后转u32生成现有编辑命令或缓存上下文，不截断正规时间范围。不为手工伪造JSON/NaN UI状态提供全输入保证，不更改取帧与交互 |
+| desktop/app/src/panels/path_controls.rs:964 | 核实保留 | 正常snapshot的frame由host ops/preview.rs验证有限、>=0且<project.frames，Project.frames是受模型校验的正u32；这里floor/max(0)后转u32生成现有编辑命令或缓存上下文，不截断正规时间范围。不为手工伪造JSON/NaN UI状态提供全输入保证，不更改取帧与交互 |
+| desktop/app/src/panels/path_controls/groups.rs:281 | 核实保留 | 正常snapshot的frame由host ops/preview.rs验证有限、>=0且<project.frames，Project.frames是受模型校验的正u32；这里floor/max(0)后转u32生成现有编辑命令或缓存上下文，不截断正规时间范围。不为手工伪造JSON/NaN UI状态提供全输入保证，不更改取帧与交互 |
+| desktop/app/src/panels/path_controls/groups.rs:579 | 核实保留 | 正常snapshot的frame由host ops/preview.rs验证有限、>=0且<project.frames，Project.frames是受模型校验的正u32；这里floor/max(0)后转u32生成现有编辑命令或缓存上下文，不截断正规时间范围。不为手工伪造JSON/NaN UI状态提供全输入保证，不更改取帧与交互 |
+| desktop/app/src/panels/path_controls/groups.rs:662 | 核实保留 | 正常snapshot的frame由host ops/preview.rs验证有限、>=0且<project.frames，Project.frames是受模型校验的正u32；这里floor/max(0)后转u32生成现有编辑命令或缓存上下文，不截断正规时间范围。不为手工伪造JSON/NaN UI状态提供全输入保证，不更改取帧与交互 |
+| desktop/app/src/panels/path_controls/groups/color.rs:102 | 核实保留 | 正常snapshot的frame由host ops/preview.rs验证有限、>=0且<project.frames，Project.frames是受模型校验的正u32；这里floor/max(0)后转u32生成现有编辑命令或缓存上下文，不截断正规时间范围。不为手工伪造JSON/NaN UI状态提供全输入保证，不更改取帧与交互 |
+| desktop/app/src/panels/path_controls/groups/keys.rs:255 | 核实保留 | 右键命中已有key优先用hit，未命中才由鼠标/ppf/offset算夹取后的帧，这是正常空白建key菜单落点，非Result失败回退 |
+| desktop/app/src/panels/path_controls/groups/keys.rs:258 | 核实保留 | 右键空白落帧及key拖动目标按0..total-1 clamp后转u32，total来自有效project.frames；保留composition/local offset与已有碰撞拒绝，不改关键帧交互 |
+| desktop/app/src/panels/path_controls/groups/keys.rs:325 | 核实保留 | 右键空白落帧及key拖动目标按0..total-1 clamp后转u32，total来自有效project.frames；保留composition/local offset与已有碰撞拒绝，不改关键帧交互 |
+| desktop/app/src/panels/path_controls/groups/keys.rs:415 | 核实保留 | 正常snapshot的frame由host ops/preview.rs验证有限、>=0且<project.frames，Project.frames是受模型校验的正u32；这里floor/max(0)后转u32生成现有编辑命令或缓存上下文，不截断正规时间范围。不为手工伪造JSON/NaN UI状态提供全输入保证，不更改取帧与交互 |
+| desktop/app/src/panels/path_controls/groups/parameters.rs:711 | 核实保留 | 参数树对没有可编辑参数的GroupItem跳过构造，geometry/fill/stroke/trim/repeater各有专用处理；空组等无需额外字段，不吞业务Result |
+| desktop/app/src/panels/path_controls/mask_inspector.rs:247 | 核实保留 | 正常snapshot的frame由host ops/preview.rs验证有限、>=0且<project.frames，Project.frames是受模型校验的正u32；这里floor/max(0)后转u32生成现有编辑命令或缓存上下文，不截断正规时间范围。不为手工伪造JSON/NaN UI状态提供全输入保证，不更改取帧与交互 |
+| desktop/app/src/panels/path_controls/mask_keys.rs:261 | 核实保留 | 正常snapshot的frame由host ops/preview.rs验证有限、>=0且<project.frames，Project.frames是受模型校验的正u32；这里floor/max(0)后转u32生成现有编辑命令或缓存上下文，不截断正规时间范围。不为手工伪造JSON/NaN UI状态提供全输入保证，不更改取帧与交互 |
+| desktop/app/src/panels/path_controls/mask_keys.rs:343 | 核实保留 | 右键优先hit已存在key，否则计算0..total-1内新落点为正常空白交互，不是读取/解析错误 |
+| desktop/app/src/panels/path_controls/mask_keys.rs:346 | 核实保留 | mask key菜单/拖拽按0..total-1夹取并round，Project范围可用u32；负局部时间用offset映射，编辑helper另checked i32转换。原碰撞/pose原子替换语义保留 |
+| desktop/app/src/panels/path_controls/mask_keys.rs:405 | 核实保留 | mask key菜单/拖拽按0..total-1夹取并round，Project范围可用u32；负局部时间用offset映射，编辑helper另checked i32转换。原碰撞/pose原子替换语义保留 |
+| desktop/app/src/panels/path_controls/mask_path.rs:117 | 已有覆盖 | observed_edit已保留edit的原始Error并FailureCounter升级，首次notice只给已有UI反馈；Move/Copy/Curve/Set失败不推进拖拽结果，已有真实缺key/冲突/overflow/pose回归。沿用之前明确批准的功能修正，不归为本轮新增 |
+| desktop/app/src/panels/path_controls/mask_path.rs:59 | 核实保留 | edit前置检查只针对需要旧key/空目标/维度约束的Action，其余Animate/Set等交由后续具体Track方法校验；非通配吞Result，失败统一返回并observed_edit记录 |
+| desktop/app/src/panels/paths.rs:17 | 已有覆盖 | paths.layer实际反序列化由observe!记录object/phase和原原因，仍跳过无效层；进程site生命周期Warn1/Error60，已存在实际坏层回归 |
+| desktop/app/src/panels/project.rs:401 | 核实保留 | 项目菜单只生成CompositionSettings/ShowPanel的Action，其余在这一分发点不应出现；当前entries构造与match相符，通配不是丢失运行时Result，不扩大菜单命令 |
+| desktop/app/src/panels/properties.rs:432 | 核实保留 | 正常snapshot的frame由host ops/preview.rs验证有限、>=0且<project.frames，Project.frames是受模型校验的正u32；这里floor/max(0)后转u32生成现有编辑命令或缓存上下文，不截断正规时间范围。不为手工伪造JSON/NaN UI状态提供全输入保证，不更改取帧与交互 |
+| desktop/app/src/panels/properties.rs:783 | 核实保留 | 正常snapshot的frame由host ops/preview.rs验证有限、>=0且<project.frames，Project.frames是受模型校验的正u32；这里floor/max(0)后转u32生成现有编辑命令或缓存上下文，不截断正规时间范围。不为手工伪造JSON/NaN UI状态提供全输入保证，不更改取帧与交互 |
+| desktop/app/src/panels/properties.rs:859 | 已有覆盖 | 数值scrub起点非法文本现在Warn记录object/property/axis并保留既定值，不记录完整文本；真正commit验证与错误保留，已有数值编辑回归。按用户操作触发，不是每帧无条件日志 |
+| desktop/app/src/panels/timeline.rs:1435 | 核实保留 | 移动候选先由原鼠标/snap构造、clamp_delta按全部被移clip边界限制，转换到i64以表达正负delta，随后saturating_sub初始帧；正常窗口/项目范围远小于i64，保留多层对齐移动契约 |
+| desktop/app/src/panels/timeline.rs:1967 | 核实保留 | 正常snapshot的frame由host ops/preview.rs验证有限、>=0且<project.frames，Project.frames是受模型校验的正u32；这里floor/max(0)后转u32生成现有编辑命令或缓存上下文，不截断正规时间范围。不为手工伪造JSON/NaN UI状态提供全输入保证，不更改取帧与交互 |
+| desktop/app/src/panels/timeline.rs:1974 | 核实保留 | 没有axis时仅用property标题，有axis才附X/Y/Z；正常标签可选项，无Err和未实现属性吞掉 |
+| desktop/app/src/panels/timeline.rs:230 | 核实保留 | property axis None时选择全部已知axes而不是单axis，是合法整属性选择；Some(axis)才一条轴，不是失败回退 |
+| desktop/app/src/panels/timeline.rs:273 | 已有覆盖 | timeline.masks/vector/vector_size对存在的坏JSON已有固定site限频观测，保留空mask/None vector/默认size；真实坏三类与正常行交错120次验证默认可见，缺省vector本身安静 |
+| desktop/app/src/panels/timeline.rs:283 | 已有覆盖 | timeline.masks/vector/vector_size对存在的坏JSON已有固定site限频观测，保留空mask/None vector/默认size；真实坏三类与正常行交错120次验证默认可见，缺省vector本身安静 |
+| desktop/app/src/panels/timeline.rs:284 | 已有覆盖 | timeline.masks/vector/vector_size对存在的坏JSON已有固定site限频观测，保留空mask/None vector/默认size；真实坏三类与正常行交错120次验证默认可见，缺省vector本身安静 |
+| desktop/app/src/panels/timeline_columns.rs:283 | 核实保留 | 正常snapshot的frame由host ops/preview.rs验证有限、>=0且<project.frames，Project.frames是受模型校验的正u32；这里floor/max(0)后转u32生成现有编辑命令或缓存上下文，不截断正规时间范围。不为手工伪造JSON/NaN UI状态提供全输入保证，不更改取帧与交互 |
+| desktop/app/src/panels/timeline_columns.rs:291 | 已有覆盖 | matte_choice/matte_layers对非空TrackMatte及整个layers反序列化有observe!，原None/禁用候选回退保留；固定进程site生命周期Warn1/Error60，真实matte/layer坏数据回归 |
+| desktop/app/src/panels/timeline_columns.rs:324 | 新增观测 | §69 timeline.blend对存在且错误的mode观测原serde原因，保留BlendMode默认；未提供mode/null安静，固定site生命周期Warn1/Error60。真实坏枚举与正常缺省交错回归 |
+| desktop/app/src/panels/timeline_columns.rs:360 | 已有覆盖 | matte_choice/matte_layers对非空TrackMatte及整个layers反序列化有observe!，原None/禁用候选回退保留；固定进程site生命周期Warn1/Error60，真实matte/layer坏数据回归 |
+| desktop/app/src/panels/timeline_columns.rs:363 | 已有覆盖 | matte_choice/matte_layers对非空TrackMatte及整个layers反序列化有observe!，原None/禁用候选回退保留；固定进程site生命周期Warn1/Error60，真实matte/layer坏数据回归 |
+| desktop/app/src/panels/timeline_graph.rs:551 | 核实保留 | 网格时间标签把非负帧除以有效fps后格式化whole seconds/subframe；帧来自合法project区间，u32足够，属于显示精度而非关键帧ID。长时间标签的舍入格式保持原样 |
+| desktop/app/src/panels/timeline_graph.rs:552 | 核实保留 | 网格时间标签把非负帧除以有效fps后格式化whole seconds/subframe；帧来自合法project区间，u32足够，属于显示精度而非关键帧ID。长时间标签的舍入格式保持原样 |
+| desktop/app/src/panels/timeline_layout.rs:43 | 核实保留 | 虚拟可见行先floor/ceil/max0，last再min(count)；first>last自然空区间，实际height读正样式token。正常裁剪索引，不因窗口尺寸产生未受限分配，不改样式或命中区 |
+| desktop/app/src/panels/timeline_layout.rs:44 | 核实保留 | 虚拟可见行先floor/ceil/max0，last再min(count)；first>last自然空区间，实际height读正样式token。正常裁剪索引，不因窗口尺寸产生未受限分配，不改样式或命中区 |
+| desktop/app/src/panels/timeline_shortcuts.rs:107 | 已有覆盖 | 快捷键Easing解析已共享observed_easing，缺省默认与非空坏值分别处理，原错误可定位且限频。已有shortcut坏曲线/合法缺省及undo测试 |
+| desktop/app/src/panels/timeline_shortcuts.rs:108 | 已有覆盖 | 快捷键Easing解析已共享observed_easing，缺省默认与非空坏值分别处理，原错误可定位且限频。已有shortcut坏曲线/合法缺省及undo测试 |
+| desktop/app/src/panels/timeline_shortcuts.rs:185 | 核实保留 | key.frame/目标frame当前均来自u32 KeySelection或round后已限制的u32，as u64只用于JSON key相等/占用查询，是整数拓宽；原机械报告float标签不适用于这些当前类型 |
+| desktop/app/src/panels/timeline_shortcuts.rs:27 | 核实保留 | key.frame/目标frame当前均来自u32 KeySelection或round后已限制的u32，as u64只用于JSON key相等/占用查询，是整数拓宽；原机械报告float标签不适用于这些当前类型 |
+| desktop/app/src/panels/timeline_shortcuts.rs:272 | 核实保留 | key.frame/目标frame当前均来自u32 KeySelection或round后已限制的u32，as u64只用于JSON key相等/占用查询，是整数拓宽；原机械报告float标签不适用于这些当前类型 |
+| desktop/app/src/panels/timeline_shortcuts.rs:282 | 核实保留 | key.frame/目标frame当前均来自u32 KeySelection或round后已限制的u32，as u64只用于JSON key相等/占用查询，是整数拓宽；原机械报告float标签不适用于这些当前类型 |
+| desktop/app/src/panels/timeline_shortcuts.rs:450 | 核实保留 | 操作入口已将frame限制在当前project有效区间，frame.floor.max0后送既有编辑命令；负预滚区间在earliest key菜单逻辑显式显示无法编辑，不改范围契约 |
+| desktop/app/src/panels/transform_controls.rs:325 | 核实保留 | 拖动中按Handle选择Resize/Rotate/Move/Anchor相应分支，其余无当前适用变换；有效坐标/范围验证决定是否发Action，不吞Result或改变精确命中容差 |
+| desktop/app/src/panels/transform_controls.rs:348 | 核实保留 | 正常snapshot的frame由host ops/preview.rs验证有限、>=0且<project.frames，Project.frames是受模型校验的正u32；这里floor/max(0)后转u32生成现有编辑命令或缓存上下文，不截断正规时间范围。不为手工伪造JSON/NaN UI状态提供全输入保证，不更改取帧与交互 |
 
 ## B5 · UI 框架绘制、工作区与输入边界（30 项）
 

@@ -2,7 +2,7 @@
 
 本表对应完成记录 §53 的 161 个待关联编号，原始报告不变。分类不是缺陷修复率；“部分覆盖”和“待补观测”均没有宣称问题关闭。源码引用沿用报告位置，具体判断以本文列出的当前函数与完成记录为准。
 
-状态数量：核实保留 54、已有覆盖 11、新增观测 40、核实并补观测 13、部分覆盖 25、功能边界 13、验收边界 5。
+状态数量：核实保留 52、已有覆盖 11、新增观测 40、核实并补观测 15、部分覆盖 25、功能边界 13、验收边界 5。
 
 | 编号 | 状态 | 当前证据与边界 | 原始候选 |
 | --- | --- | --- | --- |
@@ -151,9 +151,9 @@
 | 11.2 | 已有覆盖 | §18/52 代理按内容哈希、尺寸和版本键及 64MiB 预算管理，是可复用缓存，不是持有已删 asset 路径的永久引用；源回滚清理有证据 | `desktop/app/src/workflow.rs:47` + `:71-77` —— `prepare_image`(`crates/motion-host/src/ops/images.rs:28-33`)返回前已通过 `image_resources::decode` |
 | 11.6 | 已有覆盖 | §03 diagnostics 临时清理、§14 PreparedPackage Drop 已记录临时路径与原始 IO 原因；不删除不属于当前事务的文件 | `desktop/app/src/diagnostics.rs:268-270` —— `.motion-diagnostics-{pid}-{nanos}.tmp`(`:249-256`)在 `create_new`/`write_all`/`sync_all`/`rename |
 | 11.7 | 已有覆盖 | §03 diagnostics 临时清理、§14 PreparedPackage Drop 已记录临时路径与原始 IO 原因；不删除不属于当前事务的文件 | `crates/motion-core/src/storage.rs:132-137` —— `PreparedPackage::drop` 的 `let _ = fs::remove_file(&self.temporary)`;`temporary` 是 `.ms-packa |
-| 12.1 | 核实保留 | 原报告已核实：TextEditor 内部更新与显式保存、WM best-effort drag、commit_field 自报 field.error/notice，丢弃返回不会丢掉错误或文本 | `desktop/app/src/workspace/manager.rs:158` —— `let _ = self.name.input(input)`。`TextEditor::input`(`desktop/ui/src/widgets.rs:51`)是 `&mut se |
-| 12.2 | 核实保留 | 原报告已核实：TextEditor 内部更新与显式保存、WM best-effort drag、commit_field 自报 field.error/notice，丢弃返回不会丢掉错误或文本 | `desktop/app/src/shell/actions.rs:405-409` —— `Action::WindowDrag` 的 `let _ = window.drag_window()`。这是 winit 的平台提示,窗口移动由 WM 自行完成,返回值不携带状态;失败 |
-| 12.3 | 核实保留 | 原报告已核实：TextEditor 内部更新与显式保存、WM best-effort drag、commit_field 自报 field.error/notice，丢弃返回不会丢掉错误或文本 | `desktop/app/src/node_editor/view/mod.rs:532-536` —— `commit_field` 的 `Err` 分支在 `return Err` **之前**已把错误写进 `self.field.error`(`:533`,就地可见红字)与 |
+| 12.1 | 核实保留 | TextEditor::input在内部更新编辑缓冲；Option返回值不是持久化失败，显式保存仍沿既有错误通路，不为正常按键产生告警 | `desktop/app/src/workspace/manager.rs:158` —— `let _ = self.name.input(input)`。`TextEditor::input`(`desktop/ui/src/widgets.rs:51`)是 `&mut se |
+| 12.2 | 核实并补观测 | §68为真实window.drag_window失败补Warn原因；仍按WM best-effort保留原动作路由，不改变窗口交互，也不宣称平台提示必然成功 | `desktop/app/src/shell/actions.rs:405-409` —— `Action::WindowDrag` 的 `let _ = window.drag_window()`。这是 winit 的平台提示,窗口移动由 WM 自行完成,返回值不携带状态;失败 |
+| 12.3 | 核实并补观测 | commit_field仍先设置Field.error/notice再返回Err；§69在NodeEditor::request的失败出口补request.field固定site首Warn/第60次Error与有界request/code，不输出字段正文。真实request回归保持文档/revision不变；不声称所有直接commit_field调用都经过此出口 | `desktop/app/src/node_editor/view/mod.rs:532-536` —— `commit_field` 的 `Err` 分支在 `return Err` **之前**已把错误写进 `self.field.error`(`:533`,就地可见红字)与 |
 | 12.4 | 核实保留 | Shutdown 无 reply，respond/ErrorReply 发送是约定的 best effort；保留接口。Drop join 可能阻塞仍是生命周期边界，不加 per-command timeout/restart | `desktop/app/src/engine.rs:983-994` —— `Drop for Engine` 的 `let _ = sender.send(Command::Shutdown)`。`Command::Shutdown` 在 `:1419` 返回 `true`  |
 | 12.5 | 核实保留 | Shutdown 无 reply，respond/ErrorReply 发送是约定的 best effort；保留接口。Drop join 可能阻塞仍是生命周期边界，不加 per-command timeout/restart | `desktop/app/src/engine.rs:1019-1021` —— `respond` 的 `let _ = reply.send(value)`,上方 `:1025-1026` 有明确契约注释"Reply channels are best effort"。发送失 |
 | 12.6 | 核实保留 | Shutdown 无 reply，respond/ErrorReply 发送是约定的 best effort；保留接口。Drop join 可能阻塞仍是生命周期边界，不加 per-command timeout/restart | `desktop/app/src/engine/failure.rs:14-33` —— `ErrorReply::send` 的 5 个臂。全部只丢弃 `send` 的 `Result`;`Err(error)` 一定被放进通道,活着就能收到。`ErrorReply` 的存在本 |
@@ -172,6 +172,6 @@
 
 待补观测编号：无（仅指本表的观测接入）。
 
-部分覆盖项保留各行列明的渲染、事务、协议或验收边界。T7 的静态 token 引用检查、跨平台原生 GUI 和感知图像门未实现；它们不能用日志数量代替。机械全集的 832 个候选仍未全量编号关联。
+部分覆盖项保留各行列明的渲染、事务、协议或验收边界。T7 的静态 token 引用检查、跨平台原生 GUI 和感知图像门未实现；它们不能用日志数量代替。机械全集832个候选已在独立逐项台账全部关联，未映射0项；其中54行功能边界保留，详见完成记录§70，不与本表161个辅助编号混算。
 
 验证状态与实际运行证据以 silent-failure-paths-completed.md §54 起的记录为准；本表不会把编译排队或尚未运行的专项写成通过。

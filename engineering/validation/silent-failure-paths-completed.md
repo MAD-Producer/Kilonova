@@ -1,8 +1,8 @@
 # 静默失败路径处理完成记录
 
-审计源：`silent-failure-paths-exhaustive.md`；辅助定位：`silent-failure-paths.md`。分支：`fix/silent-failure-paths`，当前基线为合并 #305/#306 后的 main `1750d8d`。原始清单保留，本文只登记已核实的结论。
+审计源：`silent-failure-paths-exhaustive.md`；辅助定位：`silent-failure-paths.md`。初批分支：`fix/silent-failure-paths`，初批基线为合并 #305/#306 后的 main `1750d8d`；本轮续审分支为 `fix/silent-failure-followup`。原始清单保留，本文只登记已核实的结论。
 
-全集机械枚举共 4443 行，其中 832 行未标记 no-loss/test-only/guarded。这个数量是待审候选数，不等于已确认缺陷数；既有标签也不能替代源码核对。以下记录未覆盖的条目仍待审，不声明全量完成。
+全集机械枚举共4443行，其中832行未标记no-loss/test-only/guarded。截至§70，这832个候选已全部逐行复核、唯一关联原始path:line，未映射0项：新增观测98、已有覆盖138、核实保留542、功能边界54。候选数不等于缺陷数；54行功能边界仍保留，不声明所有功能问题均已修复，非候选3611行不在本轮复核完成的分母内。历史章节中的剩余计数为当时进度，当前总账以§70和逐项台账为准。
 
 ## 01 · worker 响应断开与启动快照
 
@@ -1175,3 +1175,23 @@ DESIGN.md §0.7 逐项状态均为 retained with reason：本批只接入观测�
 | timeline snap guide颜色 | retained | 按基线保留拖动反馈，不引入新token |
 
 - 样式消费者门与原生GUI冒烟通过；它们不证明以上历史视觉问题已修复，也不代替完整视觉/跨平台验收
+
+
+## 70 · 剩余281项复核完成与整体验收
+
+状态：本轮281/281已复核，机械全集832/832已唯一映射，未映射0项；功能边界如实保留，不等于所有功能缺陷关闭
+
+| 范围 | 新增观测 | 已有覆盖 | 核实保留 | 功能边界 | 待关联 |
+| --- | --- | --- | --- | --- | --- |
+| 本轮B3桌面122项与B4面板/节点159项 | 52 | 62 | 161 | 6 | 0 |
+| B1–B9机械候选全集832项 | 98 | 138 | 542 | 54 | 0 |
+
+- 数量按原始候选行计，不按新增日志站点、counter或已修复缺陷计。用原始报告832个稳定path:line与逐项台账做集合相等、行数、唯一性验证：832行、832唯一键、漏项0、重复0；证据b70-mechanical-mapping.json，新增B3/B4的逐行证据见silent-failure-paths-mechanical-review.md。161项辅助编号单独维护，本轮同步12.1–12.3和旧未完成声明，不与832混算
+- 新增应用日志/锁/回调观测见§68，节点/面板观测及12项DESIGN基线保留原因见§69；两批共新增12个Rust回归，没有修改既有断言。正常缓存缺失、可选字段为空、编辑中间态、音频预滚延迟和异步WM尺寸返回不按失败刷日志；60次表示发生次数，不能推断固定一秒
+- 本轮六行功能边界：engine.rs:68手工UiFrame非有限viewport缓存键；node_preview.rs:608手工非有限/越界viewport与scissor转换；node_preview.rs:560、561长时shader f32秒/帧精度；node_editor/view/canvas.rs:289悬空Parameter标签回退ID；panels/effect_controls.rs:1553枚举采样非整数/极值到usize转换。均以原始报告行号标识，未改数值、返回值或校验契约；正常host预览frame已校验有限且位于正项目帧范围，不为任意伪造JSON/公开对象背书
+- 验证环境加载.tools/msvc-portable/env.ps1，独立CARGO_TARGET_DIR=.tools/observability-validation-build；仅命令环境将dev/test debug设为line-tables-only，未改源码编译配置。cargo test -p motion-desktop --offline -j2 -- --include-ignored --test-threads=2：379 passed、0 failed、0 ignored，64.33秒，包含阻塞worker API、默认FileLogger和上述真实失败入口；cargo check/build -p motion-desktop --offline -j2均成功。日志b70-desktop-tests.log、b70-desktop-check.log、b70-desktop-build.log；build仍有22条warning，不宣称无警告
+- 使用新二进制及隔离LOCALAPPDATA实际启动，未设置MOTION_LOG：普通start 130条、Present start 0条；默认健康应用/面板/音频无新增降级，Debug Present start/dispatch安静，done仍受100ms门控。CLI command-list与MCP仅输出JSON；Error文件与stderr、日志轮转、fatal参数、MCP UI正常EOF及shutdown checkpoint失败原因均验证通过
+- 另以真实坏MOTION_UI_STYLE文件启动，验证style reload Info start先于失败、styles.reload原因及fatal Error文件/stderr；以真实坏MOTION_UI_LAYOUT文件运行GUI，验证workspace.load phase=json且原默认布局回退仍可完成冒烟。证据b70-runtime.log、runtime-b68/runtime-summary.json、runtime-b68/ui-smoke.json；隔离日志位于runtime-b68/local-app-data/MotionStudio/logs/motion-studio.log，不改用户现有日志或项目
+- 最终panels样式消费者门通过，provenance guard通过1389 tracked paths，git diff --check通过。没有新增依赖/第三方资源、UI视觉/交互调整、respond契约变更、per-command超时或重启；两处MOTION_TRACE_UI stderr及两份原始审计报告未修改。用户批准的panels观测仅涉及§69四个生产文件与对应测试
+- 真实文件失败、锁中毒和受控挂起/回调已验证；未声称自然发生GPU设备丢失、CPAL时间戳倒序、FFmpeg状态锁中毒或所有平台OS元数据失败。原生冒烟/样式门不代表全量视觉、感知图像门或跨平台验收；54行功能边界与辅助台账中的协议/验收边界继续保留
+- 代码提交：4d01d63（应用回退与业务锁恢复）、60d9c4c（节点端口与面板解析）。本节与完整逐项映射另作文档提交；本轮未推送或新建PR，CI状态未作为本地验收结论
