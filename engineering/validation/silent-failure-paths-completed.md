@@ -395,3 +395,14 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - 保留原有回退预算策略，不改变正常 UI 与预览策略；本节未新增 Windows/macOS 原生物理内存探测，不把回退值称为真实容量
 - 关联辅助清单尾部未编号 total_memory 项；全集中该项原标 no-loss，但回退不可观测的问题已核实
 - 证据：desktop-memory-probe-full.log、memory-probe-check.log、memory-probe-build.log、memory-probe-runtime.log、runtime/runtime-summary.json
+
+## 26 · 工程包导入暂存目录清理的拒绝与失败原因
+
+状态：已修复；motion-core 全套 211 passed，0 failed，0 ignored，包含原手动测量项；暂存清理/工程保存/包事务专项共 7 项通过。
+
+- StageCleanup 对路径解析失败、越过已验证 base/命名边界的清理拒绝、以及 remove_dir_all 的 IO 失败记录路径和原因
+- 已被发布 rename 或已清理的 NotFound 保持正常退出，不把成功清理伪装为错误
+- 保留原有 canonicalize、base containment、非 base 本身与 importer-owned 名称检查，不在路径未验证时递归删除
+- 新增真实文件系统回归验证：不可解析的路径给出原因、边界外同名前缀目录保留并告警、正常认领目录可删除、重复清理不误报；测试捕获日志只匹配独有夹具名称，避免并行测试互相干扰
+- 首次不限制并发编译全 core 测试触发本机 Windows 页面文件不足；随后使用 -j 2 完整重跑通过，没有改测试断言或系统页面文件配置
+- 关联辅助清单：11.8；证据：staging-cleanup-batch26-serial.log、core-batch26-full.log；保留首次资源不足日志 staging-cleanup-batch26.log
