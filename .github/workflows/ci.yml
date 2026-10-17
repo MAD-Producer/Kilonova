@@ -93,7 +93,7 @@ jobs:
   desktop:
     name: Desktop build
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -110,13 +110,12 @@ jobs:
             platform: macos-arm64
             binary: motion-studio
             target: aarch64-apple-darwin
-          - os: macos-14
+          - os: macos-15-intel
             platform: macos-x86_64
             binary: motion-studio
             target: x86_64-apple-darwin
     env:
       XDG_RUNTIME_DIR: /tmp/motion-runtime
-      LIBCLANG_PATH: /usr/lib/llvm-18/lib
       MACOSX_DEPLOYMENT_TARGET: '11.0'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -141,16 +140,27 @@ jobs:
           shared-key: desktop-native
           save-if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
           cache-on-failure: true
-      # The libav backend is optional so the shell builds on a machine without
-      # FFmpeg; a separate job turns it on to prove the desktop media path links.
-      - name: Build the desktop shell
-        run: python tools/build_desktop.py --task check
       - name: Run desktop unit tests
         run: cargo test -p motion-desktop -p motion-host -p motion-ui -p motion-desktop-media --locked -- --test-threads=1
-      - name: Release desktop binary without video support
-        run: python tools/build_desktop.py --task build --target ${{ matrix.target }} --report artifacts/desktop/desktop-build.json
+      - name: Install portable libclang for FFmpeg bindings
+        run: |
+          python -m pip install --disable-pip-version-check libclang==18.1.1
+          python -c "import os; from clang.cindex import Config; from pathlib import Path; p=Path(Config.library_path).resolve(strict=True); open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8').write('LIBCLANG_PATH=' + str(p) + '\n')"
+      - name: Prepare pinned shared LGPL FFmpeg runtime
+        run: python tools/prepare_ffmpeg.py --platform ${{ matrix.platform }}
+      - name: Build the desktop shell
+        run: python tools/build_desktop.py --task check
+      - name: Release desktop binary with video support
+        run: python tools/build_desktop.py --task build --ffmpeg --target ${{ matrix.target }} --report artifacts/desktop/desktop-build.json
+      - name: Verify packaged-runtime video decoding
+        run: cargo test -p motion-desktop-media --locked --features ffmpeg --test libav -- --test-threads=1
       - name: Package desktop release archive
         run: python tools/package_desktop.py --binary artifacts/desktop/${{ matrix.binary }} --platform ${{ matrix.platform }} --build-report artifacts/desktop/desktop-build.json --output artifacts/desktop-release
+      - name: Verify video decoding from the extracted release archive
+        shell: bash
+        run: |
+          archive=$(python -c 'import json; from pathlib import Path; p=Path("artifacts/desktop-release"); print(p / json.loads((p / "build-info-${{ matrix.platform }}.json").read_text())["archive"])')
+          python tools/verify_desktop_video.py --archive "$archive" --platform ${{ matrix.platform }}
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: desktop-release-${{ matrix.platform }}

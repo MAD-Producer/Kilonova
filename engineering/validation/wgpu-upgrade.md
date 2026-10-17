@@ -32,6 +32,10 @@
 - `wgpu-upgrade-timestamp-observation-final.log`：实际映射失败、阈值抑制和成功复位通过。
 - `wgpu-upgrade-tests-final.log`：GPU / host / UI / FFmpeg 单元与集成测试 347 项通过，1 项已有外部素材测试跳过。测试尾部的文档测试因并行构建覆盖依赖产物出现 E0463，单独串行复跑并记录，不能将首次整条命令记为成功。
 - `wgpu-upgrade-doctests.log`：串行复跑文档测试通过，host 文档用例 1 项通过，其余 3 个 crate 无文档用例。首次 E0463 已通过独立复跑排除。
-- 桌面构建与 DX12 复核结果在完成后追加。
+- `wgpu-upgrade-desktop-tests.log`：正式桌面测试 364 项通过，1 项依赖原生音频设备的已有测试忽略，包含生产日志 sink 的文件/stderr/stdout 信道验证。
+- `wgpu-upgrade-dx12-tests.log`：设置 DX12 后运行实际 GPU 测试程序，错误观察、像素、呈现和新版 API 用例共 6 项通过；headless renderer 使用从环境读取后端的实例描述符。这些是重复验证，不累加为新的独立用例数。
+- `wgpu-upgrade-merge-dimensions-final.log`：合并主分支后的 core/host 轨道合并集成用例 9 项通过；首次命令误向未选择的媒体包请求 feature，命令被 Cargo 拒绝，修正后通过，不把首次命令记录为成功。
+- `preview-video-all-targets.log`：合并主分支后排除 Android 的 workspace all-targets 与 FFmpeg 特性检查通过；现有桌面警告保留。
+- `preview-video-release-build.log`：正式 Windows FFmpeg Release 构建通过，18 分 13 秒，保留 thin LTO、单 codegen unit 和行号调试信息；22 条现有警告。解压后程序完成隐藏窗口、浮窗、resize/redock、工作区切换及保存重开验收，报告 `preview-video-gpu-dx12.json`、`preview-video-gpu-vulkan.json` 均为 `ok=true`。文件名来自调用环境，不作为窗口实际后端已分别选中的证据；DX12 的独立 GPU 验证以上述测试程序为准。
 
 本地运行环境为 Windows；Linux / macOS 原生构建和交互依赖 CI，不将本地检查等同于跨平台验收。没有修改现有像素断言以适配新版依赖。机器上现有 Epic Vulkan overlay 注册项错误属于驱动加载环境日志，不能据此宣称运行时完全没有外部错误。
