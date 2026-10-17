@@ -60,10 +60,9 @@ impl PackageJobs {
             .ok_or_else(|| "package task does not exist".into())
     }
     pub fn contains(&self, id: &str) -> bool {
-        self.tasks
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .contains_key(id)
+        static OBSERVATION: crate::registry_observation::RegistryObservation =
+            crate::registry_observation::RegistryObservation::new();
+        OBSERVATION.contains(&self.tasks, id, "package.registry.contains")
     }
     pub fn status(&self, id: &str) -> Result<PackageTaskStatus> {
         Ok(self
@@ -246,5 +245,52 @@ impl Drop for PackageJobs {
                 task.status.phase = "cancelling".into();
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod registry_tests {
+    use super::*;
+
+    #[test]
+    fn poisoned_package_registry_membership_is_observed_after_unlock() {
+        use crate::registry_observation::tests::{check, child};
+        if !child(
+            "packages::registry_tests::poisoned_package_registry_membership_is_observed_after_unlock",
+        ) {
+            return;
+        }
+        let jobs = Box::leak(Box::new(PackageJobs::default()));
+        jobs.tasks.lock().unwrap().insert(
+            "present".into(),
+            Arc::new(Mutex::new(Task {
+                status: PackageTaskStatus {
+                    schema_version: 1,
+                    request_id: "present".into(),
+                    operation: "export_project".into(),
+                    state: "succeeded".into(),
+                    phase: "complete".into(),
+                    progress: 1.,
+                    bytes_processed: 0,
+                    total_bytes: 0,
+                    source_count: 0,
+                    frozen_revision: 0,
+                    path: None,
+                    error: None,
+                },
+                cancel: false,
+            })),
+        );
+        let healthy = PackageJobs::default();
+        check(
+            &jobs.tasks,
+            "package.registry.contains",
+            |id| jobs.contains(id),
+            |id| healthy.contains(id),
+        );
+        assert_eq!(
+            jobs.status("present").unwrap_err(),
+            "package registry poisoned"
+        );
     }
 }

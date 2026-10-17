@@ -1,4 +1,7 @@
 //! File process logging with console stderr for errors; stdout belongs to CLI/MCP.
+#[cfg(test)]
+mod media_commit_tests;
+
 use std::{
     backtrace::Backtrace,
     cell::Cell,

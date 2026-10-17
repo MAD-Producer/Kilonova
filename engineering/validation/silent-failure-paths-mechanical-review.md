@@ -2,7 +2,7 @@
 
 本表与 `silent-failure-paths-followup.md` 的 161 个辅助编号分开计数。原始 `silent-failure-paths-exhaustive.md` 列出 832 个候选；候选不是已确认缺陷。用原始路径与行号作稳定标识，行号不代表修改后的源码位置。
 
-首批映射 B7 的全部 33 个候选、B8 的全部 14 个候选和 B9 的全部 12 个候选：新增观测关联 9 行、已有覆盖 25 行、核实保留 25 行。9 行对应 3 个新增观测站点，不是 9 个独立缺陷。其余 773 个候选尚未逐行关联到本表，包含此前批次已经处理的站点，不能称为 773 处缺失观测。
+当前已映射 B6 全部 56 项、B7 全部 33 项、B8 全部 14 项和 B9 全部 12 项，共 115 个候选：新增观测关联 12 行、已有覆盖 52 行、核实保留 39 行、部分覆盖 12 行。新增映射关联 6 个站点，另补两个媒体 commit 主失败出口；候选行不等于独立缺陷。其余 717 个候选尚未逐行关联到本表，包含此前批次已经处理的站点，不能称为 717 处缺失观测。12 个部分覆盖行也不计为已关闭。
 
 ## B7 · motion-graph / motion-model
 
@@ -82,8 +82,75 @@ B8 的代码处置复用此前 §07/34/35 的真实失败及可选 ffmpeg 验收
 
 B9 没有新增生产修改；专项重跑 `python -m unittest discover -s tools -p test_ci_silent_failures.py`，覆盖缺失/歧义模板、实际 creative/spatial 模板、递归 panels 扫描和非法 UTF-8，证据 b60-tools-observation.log。
 
+## B6 · motion-media
+
+本批关联全部 56 个候选：新增观测 3、已有覆盖 27、核实保留 14、部分覆盖 12。另补音频/视频 commit 两个未单列候选的主失败出口；不能用清理日志代替返回 Ok(failed status) 的主原因。
+
+| 原始位置 | 处置 | 当前源码证据与限制 |
+| --- | --- | --- |
+| crates/motion-media/src/jobs.rs:84 | 已有覆盖 | Stage::drop 调用 publication::cleanup_stage，非 NotFound 删除失败 Warn，包含路径/原始 IO 原因；完成记录 §08 |
+| crates/motion-media/src/jobs.rs:139 | 新增观测 | audio.registry.contains 在恢复 guard 释放后记录站点、request、entries、布尔结果和 poisoned_registry 原因；首次 Warn、进程累计第 60 次 Error，保持 into_inner 和原布尔结果；实际中毒查询及可重入 logger 回归 |
+| crates/motion-media/src/jobs.rs:258 | 已有覆盖 | 音频导入/缓存 worker 在 provider/decoder 前 Info start 并 flush，spawn Err 以 request/operation/phase=spawn/耗时记录 Error；完成记录 §32 |
+| crates/motion-media/src/jobs.rs:262 | 已有覆盖 | catch_unwind 的 payload 经 panic_reason 保留最多 2048 字符；完成时释放状态锁再 TaskLog::finish(Error)，取消路径也保留真实失败；完成记录 §32/44 |
+| crates/motion-media/src/jobs.rs:343 | 部分覆盖 | 原 into_inner 恢复策略保留；桌面 panic hook 可记中毒起因，后台真实结果/取消错误已有 §32/44 覆盖，但此处恢复本身尚无独立站点计数。部分位置还持有外层 registry/任务锁，不在持锁区直接补日志；后续需逐站点延迟到释放全部业务锁后观察 |
+| crates/motion-media/src/jobs.rs:365 | 已有覆盖 | catch_unwind 的 payload 经 panic_reason 保留最多 2048 字符；完成时释放状态锁再 TaskLog::finish(Error)，取消路径也保留真实失败；完成记录 §32/44 |
+| crates/motion-media/src/jobs.rs:447 | 已有覆盖 | 导入发布失败调用 rollback_files，非 NotFound 清理失败 Warn 且附到主错误；该主错误存入 Ok(status).error 的最终 commit 出口本批另补 Error，不声称仅回滚日志就覆盖主失败；完成记录 §08/61 |
+| crates/motion-media/src/jobs.rs:454 | 已有覆盖 | 导入发布失败调用 rollback_files，非 NotFound 清理失败 Warn 且附到主错误；该主错误存入 Ok(status).error 的最终 commit 出口本批另补 Error，不声称仅回滚日志就覆盖主失败；完成记录 §08/61 |
+| crates/motion-media/src/jobs.rs:455 | 已有覆盖 | 导入发布失败调用 rollback_files，非 NotFound 清理失败 Warn 且附到主错误；该主错误存入 Ok(status).error 的最终 commit 出口本批另补 Error，不声称仅回滚日志就覆盖主失败；完成记录 §08/61 |
+| crates/motion-media/src/jobs.rs:465 | 已有覆盖 | 导入发布失败调用 rollback_files，非 NotFound 清理失败 Warn 且附到主错误；该主错误存入 Ok(status).error 的最终 commit 出口本批另补 Error，不声称仅回滚日志就覆盖主失败；完成记录 §08/61 |
+| crates/motion-media/src/jobs.rs:466 | 已有覆盖 | 导入发布失败调用 rollback_files，非 NotFound 清理失败 Warn 且附到主错误；该主错误存入 Ok(status).error 的最终 commit 出口本批另补 Error，不声称仅回滚日志就覆盖主失败；完成记录 §08/61 |
+| crates/motion-media/src/jobs.rs:467 | 已有覆盖 | 导入发布失败调用 rollback_files，非 NotFound 清理失败 Warn 且附到主错误；该主错误存入 Ok(status).error 的最终 commit 出口本批另补 Error，不声称仅回滚日志就覆盖主失败；完成记录 §08/61 |
+| crates/motion-media/src/jobs.rs:498 | 已有覆盖 | 音频导入/缓存 worker 在 provider/decoder 前 Info start 并 flush，spawn Err 以 request/operation/phase=spawn/耗时记录 Error；完成记录 §32 |
+| crates/motion-media/src/jobs.rs:503 | 已有覆盖 | catch_unwind 的 payload 经 panic_reason 保留最多 2048 字符；完成时释放状态锁再 TaskLog::finish(Error)，取消路径也保留真实失败；完成记录 §32/44 |
+| crates/motion-media/src/jobs.rs:550 | 部分覆盖 | 原 into_inner 恢复策略保留；桌面 panic hook 可记中毒起因，后台真实结果/取消错误已有 §32/44 覆盖，但此处恢复本身尚无独立站点计数。部分位置还持有外层 registry/任务锁，不在持锁区直接补日志；后续需逐站点延迟到释放全部业务锁后观察 |
+| crates/motion-media/src/jobs.rs:556 | 已有覆盖 | catch_unwind 的 payload 经 panic_reason 保留最多 2048 字符；完成时释放状态锁再 TaskLog::finish(Error)，取消路径也保留真实失败；完成记录 §32/44 |
+| crates/motion-media/src/jobs.rs:561 | 已有覆盖 | PCM/waveform 使用 publish_cache_pair，第二文件失败回滚并恢复旧缓存；回滚失败保留 recovery 目录和双重原因，真实事务回归；完成记录 §08 |
+| crates/motion-media/src/jobs.rs:589 | 已有覆盖 | Drop 改用独占 get_mut，registry 中毒仍向已有任务发送取消，已有真实阻塞 source + 中毒关闭回归；完成记录 §08。逐站点恢复日志仍按 jobs:591 的部分覆盖边界登记 |
+| crates/motion-media/src/jobs.rs:591 | 部分覆盖 | 原 into_inner 恢复策略保留；桌面 panic hook 可记中毒起因，后台真实结果/取消错误已有 §32/44 覆盖，但此处恢复本身尚无独立站点计数。部分位置还持有外层 registry/任务锁，不在持锁区直接补日志；后续需逐站点延迟到释放全部业务锁后观察 |
+| crates/motion-media/src/mp4_timing.rs:541 | 核实保留 | 缺 trex 时 tfhd 可覆盖默认 duration/size，trun 也可逐样本提供；selected duration()/android_sample_end() 对缺失或零 duration 明确 Err，不能将所有无 trex 的合法片段报为失败；完成记录 §08 |
+| crates/motion-media/src/packages.rs:65 | 新增观测 | package.registry.contains 在恢复 guard 释放后记录站点、request、entries、布尔结果和 poisoned_registry 原因；首次 Warn、进程累计第 60 次 Error，保持 into_inner 和原布尔结果；实际中毒查询及可重入 logger 回归 |
+| crates/motion-media/src/packages.rs:121 | 部分覆盖 | 原 into_inner 恢复策略保留；桌面 panic hook 可记中毒起因，后台真实结果/取消错误已有 §32/44 覆盖，但此处恢复本身尚无独立站点计数。部分位置还持有外层 registry/任务锁，不在持锁区直接补日志；后续需逐站点延迟到释放全部业务锁后观察 |
+| crates/motion-media/src/packages.rs:156 | 已有覆盖 | 工程包 worker 在归档准备前 Info start + flush，spawn 失败 Error 含 request/operation/phase/耗时；完成记录 §32 |
+| crates/motion-media/src/packages.rs:160 | 已有覆盖 | 归档 panic payload 保留有界原因，失败完成及取消后丢弃结果前均经 TaskLog Error；完成记录 §32/44。不宣称本轮另做包原生 panic 注入 |
+| crates/motion-media/src/packages.rs:175 | 部分覆盖 | 原 into_inner 恢复策略保留；桌面 panic hook 可记中毒起因，后台真实结果/取消错误已有 §32/44 覆盖，但此处恢复本身尚无独立站点计数。部分位置还持有外层 registry/任务锁，不在持锁区直接补日志；后续需逐站点延迟到释放全部业务锁后观察 |
+| crates/motion-media/src/packages.rs:187 | 部分覆盖 | 原 into_inner 恢复策略保留；桌面 panic hook 可记中毒起因，后台真实结果/取消错误已有 §32/44 覆盖，但此处恢复本身尚无独立站点计数。部分位置还持有外层 registry/任务锁，不在持锁区直接补日志；后续需逐站点延迟到释放全部业务锁后观察 |
+| crates/motion-media/src/packages.rs:198 | 已有覆盖 | 归档 panic payload 保留有界原因，失败完成及取消后丢弃结果前均经 TaskLog Error；完成记录 §32/44。不宣称本轮另做包原生 panic 注入 |
+| crates/motion-media/src/packages.rs:215 | 部分覆盖 | 原 into_inner 恢复策略保留；桌面 panic hook 可记中毒起因，后台真实结果/取消错误已有 §32/44 覆盖，但此处恢复本身尚无独立站点计数。部分位置还持有外层 registry/任务锁，不在持锁区直接补日志；后续需逐站点延迟到释放全部业务锁后观察 |
+| crates/motion-media/src/packages.rs:229 | 部分覆盖 | 原 into_inner 恢复策略保留；桌面 panic hook 可记中毒起因，后台真实结果/取消错误已有 §32/44 覆盖，但此处恢复本身尚无独立站点计数。部分位置还持有外层 registry/任务锁，不在持锁区直接补日志；后续需逐站点延迟到释放全部业务锁后观察 |
+| crates/motion-media/src/packages.rs:232 | 部分覆盖 | 原 into_inner 恢复策略保留；桌面 panic hook 可记中毒起因，后台真实结果/取消错误已有 §32/44 覆盖，但此处恢复本身尚无独立站点计数。部分位置还持有外层 registry/任务锁，不在持锁区直接补日志；后续需逐站点延迟到释放全部业务锁后观察 |
+| crates/motion-media/src/video.rs:77 | 已有覆盖 | Stage::drop 调用 cleanup_stage，非 NotFound 清理失败 Warn 含路径及 IO 原因；完成记录 §08 |
+| crates/motion-media/src/video.rs:116 | 新增观测 | video.registry.contains 在恢复 guard 释放后记录站点、request、entries、布尔结果和 poisoned_registry 原因；首次 Warn、进程累计第 60 次 Error，保持 into_inner 和原布尔结果；实际中毒查询及可重入 logger 回归 |
+| crates/motion-media/src/video.rs:227 | 已有覆盖 | 视频导入/缓存 worker 在 open/probe 前 Info start + flush，spawn Err 有 TaskLog Error；完成记录 §32 |
+| crates/motion-media/src/video.rs:229 | 已有覆盖 | 导入/缓存 catch_unwind payload 已保留有界 panic 原因，状态发布及取消分支均在释放状态锁后记录 Error；完成记录 §32/44 |
+| crates/motion-media/src/video.rs:258 | 已有覆盖 | 导入/缓存 catch_unwind payload 已保留有界 panic 原因，状态发布及取消分支均在释放状态锁后记录 Error；完成记录 §32/44 |
+| crates/motion-media/src/video.rs:383 | 已有覆盖 | published 路径逆序经 rollback_files 清理，主因与清理失败并存；最终 Ok(failed status) 的 commit 主错误本批另补 Error；完成记录 §08/61 |
+| crates/motion-media/src/video.rs:402 | 已有覆盖 | 视频导入/缓存 worker 在 open/probe 前 Info start + flush，spawn Err 有 TaskLog Error；完成记录 §32 |
+| crates/motion-media/src/video.rs:407 | 已有覆盖 | 导入/缓存 catch_unwind payload 已保留有界 panic 原因，状态发布及取消分支均在释放状态锁后记录 Error；完成记录 §32/44 |
+| crates/motion-media/src/video.rs:442 | 已有覆盖 | timestamps/thumbnail 改用同一 publish_cache_pair 事务，第二文件失败恢复先前缓存；完成记录 §08 |
+| crates/motion-media/src/video.rs:451 | 部分覆盖 | 原 into_inner 恢复策略保留；桌面 panic hook 可记中毒起因，后台真实结果/取消错误已有 §32/44 覆盖，但此处恢复本身尚无独立站点计数。部分位置还持有外层 registry/任务锁，不在持锁区直接补日志；后续需逐站点延迟到释放全部业务锁后观察 |
+| crates/motion-media/src/video.rs:456 | 已有覆盖 | 导入/缓存 catch_unwind payload 已保留有界 panic 原因，状态发布及取消分支均在释放状态锁后记录 Error；完成记录 §32/44 |
+| crates/motion-media/src/video.rs:477 | 部分覆盖 | 原 into_inner 恢复策略保留；桌面 panic hook 可记中毒起因，后台真实结果/取消错误已有 §32/44 覆盖，但此处恢复本身尚无独立站点计数。部分位置还持有外层 registry/任务锁，不在持锁区直接补日志；后续需逐站点延迟到释放全部业务锁后观察 |
+| crates/motion-media/src/video.rs:480 | 部分覆盖 | 原 into_inner 恢复策略保留；桌面 panic hook 可记中毒起因，后台真实结果/取消错误已有 §32/44 覆盖，但此处恢复本身尚无独立站点计数。部分位置还持有外层 registry/任务锁，不在持锁区直接补日志；后续需逐站点延迟到释放全部业务锁后观察 |
+| crates/motion-media/src/decode.rs:120 | 核实保留 | leading+frames 饱和后立刻与 max_frames 比较；max_frames 由受限 cache bytes 得到，u64::MAX 必然拒绝，属于保守预算而非漏算 |
+| crates/motion-media/src/decode.rs:214 | 核实保留 | packet_start-edit.skip 是编辑后本地时间，preroll 早于可见区时故意钳零；下方 skip 独立去除 priming/overlap，末尾校验 audible，正常剪辑不逐包警告 |
+| crates/motion-media/src/decode.rs:243 | 核实保留 | (edit.skip+audible)-packet_start 表示已写区域与本包重叠；后到包没有重叠时为零，并受 min(frames) 约束；checked_add 仍拒绝时间溢出 |
+| crates/motion-media/src/decode.rs:246 | 核实保留 | 非 MP4 已解码区超过 priming 后，剩余 skip 正常为零；min(frames) 防止跨包裁切，不属于丢失负时间 |
+| crates/motion-media/src/decode.rs:249 | 核实保留 | 编辑区已全部输出后，剩余 count 故意为零；继续解码并检查源完整性，最后 audible<edit.frames 明确 Err |
+| crates/motion-media/src/matroska.rs:98 | 核实保留 | 颜色子元素先经过五个已知 ID 的 matches 守卫，随后 match 已覆盖这五个 ID，通配在该守卫下不可达 |
+| crates/motion-media/src/matroska.rs:103 | 核实保留 | 这是有限容器元数据提取器，TrackEntry 中与 number/codec delay/video colour 无关的元素允许跳过；不是完整 demux，解析范围外元素不等于错误 |
+| crates/motion-media/src/mp4.rs:67 | 核实保留 | len.saturating_sub(at)<8 的分支直接返回 truncated MP4 header；循环每次仅接受 n<=len-at，at 不会静默越过文件尾 |
+| crates/motion-media/src/onsets.rs:21 | 核实保留 | begin 已 clamp 到音源范围；分析向前扩四个 RMS bucket 时在文件起点钳零，属于正常窗口边缘 |
+| crates/motion-media/src/onsets.rs:69 | 核实保留 | RMS novelty 前后 25 bucket 的局部统计窗口在数组左边缘钳零，右边缘也以 min 限制 |
+| crates/motion-media/src/onsets.rs:76 | 核实保留 | 局部峰前后 3 bucket 的正常数组边缘处理；保留能量参考算法，不制造近开头的故障警告 |
+| crates/motion-media/src/packages.rs:168 | 核实保留 | total_bytes+archive overhead 饱和后用于 available_space 下界判断，溢出得到最大需求而不会降低需求；保守拒绝不属于失去预算 |
+| crates/motion-media/src/video_timing.rs:60 | 核实保留 | 仓内 desktop/Android 两个调用方均对 PTS sort_unstable + dedup 并拒绝空数组；两点以上则末点大于首点，倒序下溢回退在这些调用方不可达。公开函数对外部任意 PTS 的原 fallback 保留，不声称增加全序校验 |
+
+12 个部分覆盖行仍待补独立恢复观测；映射完成不等于这些行已关闭。本批三个 membership 站点的计数按进程生命周期累计，健康的其他 session/查询和调用方 clear_poison 不复位，进程重启才清零；无动态键或保留原因缓存，request 最多 128 字符。原 lock、contains、布尔返回及中毒标记均保留。
+
+commit 的 Info start 在任务 registry/状态锁及文件发布之前，返回后在释放业务锁后报告主失败；实际第一次 ready 提交的失败记 Error，重读既有失败终态只做普通完成，不重复放大同一故障。保持 Ok(status)、取消/终态、回滚、落盘和 history 契约，不增加重试。验证见完成记录 §61。
+
 ## 计数、行为与验收边界
 
-三个新增站点各有一个固定进程级原子计数器，无动态键或原因缓存；进程重启清零。健康的其他轨道/路径/序列化不复位计数，避免混合内容永久阻止升级。首次 Warn、第 60 次 Error 之后抑制；这是 lifetime_count，不是连续失败、帧数或一秒钟。正常路径没有日志 IO，错误上下文仅在阈值构造。
+§60 的三个模型站点各有一个固定进程级原子计数器，无动态键或原因缓存；进程重启清零。健康的其他轨道/路径/序列化不复位计数，避免混合内容永久阻止升级。首次 Warn、第 60 次 Error 之后抑制；这是 lifetime_count，不是连续失败、帧数或一秒钟。正常路径没有日志 IO，错误上下文仅在阈值构造。§61 的三个 registry membership 站点采用相同的进程累计边界，具体恢复策略和剩余部分覆盖见 B6。
 
-本表不宣称为任意未校验的公共模型数据增加了功能校验；返回 Infinity、usize::MAX、None 和现有 Err 的行为均保留。未更改 panels、UI、重试、事务或线程模型。验证记录见完成文档 §60。
+本表不宣称为任意未校验的公共模型数据增加了功能校验；返回 Infinity、usize::MAX、None、Ok(failed status) 和现有 Err 的行为均保留。未更改 panels、UI、重试、事务或线程模型。验证记录见完成文档 §60/61。

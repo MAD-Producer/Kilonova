@@ -134,10 +134,9 @@ impl AudioJobs {
             .ok_or_else(|| "audio task does not exist".into())
     }
     pub fn contains(&self, id: &str) -> bool {
-        self.tasks
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .contains_key(id)
+        static OBSERVATION: crate::registry_observation::RegistryObservation =
+            crate::registry_observation::RegistryObservation::new();
+        OBSERVATION.contains(&self.tasks, id, "audio.registry.contains")
     }
     fn reserve(&self, id: &str, operation: &str) -> Result<(Arc<Mutex<Task>>, Worker)> {
         if id.is_empty() || id.len() > 128 {
@@ -391,10 +390,25 @@ impl AudioJobs {
     /// Called on the editor's owning worker. Cancel and commit serialize on the
     /// task lock, so a completed cancellation cannot subsequently publish a layer.
     pub fn commit(&self, id: &str, engine: &mut impl EditSink) -> Result<TaskStatus> {
+        let request: String = id.chars().take(128).collect();
+        let observation = crate::task_logging::TaskLog::new(&request, "commit_audio");
+        observation.start();
+        let result = self.commit_inner(id, engine);
+        match &result {
+            Ok((status, attempted)) => observation.finish(
+                &status.phase,
+                if *attempted { status.error.as_deref() } else { None },
+            ),
+            Err(error) => observation.finish("commit", Some(error)),
+        }
+        result.map(|(status, _)| status)
+    }
+
+    fn commit_inner(&self, id: &str, engine: &mut impl EditSink) -> Result<(TaskStatus, bool)> {
         let task = self.task(id)?;
         let mut t = task.lock().map_err(|_| "audio task poisoned")?;
         if t.status.terminal() {
-            return Ok(t.status.clone());
+            return Ok((t.status.clone(), false));
         }
         if t.status.state != "ready" {
             return Err("audio import is not ready".into());
@@ -490,7 +504,7 @@ impl AudioJobs {
                 t.status.error = Some(error);
             }
         }
-        Ok(t.status.clone())
+        Ok((t.status.clone(), true))
     }
     pub fn prepare_cache(&self, request_id: &str, asset: AudioAsset) -> Result<TaskStatus> {
         asset.validate().map_err(|e| e.to_string())?;
@@ -625,6 +639,32 @@ fn update(task: &Arc<Mutex<Task>>, phase: &str, progress: f64) -> Result<()> {
 #[cfg(test)]
 mod drop_failure_tests {
     use super::*;
+
+    #[test]
+    fn poisoned_audio_registry_membership_is_observed_after_unlock() {
+        use crate::registry_observation::tests::{check, child};
+        if !child(
+            "jobs::drop_failure_tests::poisoned_audio_registry_membership_is_observed_after_unlock",
+        ) {
+            return;
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let jobs = Box::leak(Box::new(
+            AudioJobs::new(directory.path().into(), Limits::default()).unwrap(),
+        ));
+        let healthy = AudioJobs::new(directory.path().into(), Limits::default()).unwrap();
+        let (_task, _worker) = jobs.reserve("present", "test").unwrap();
+        check(
+            &jobs.tasks,
+            "audio.registry.contains",
+            |id| jobs.contains(id),
+            |id| healthy.contains(id),
+        );
+        assert_eq!(
+            jobs.status("present").unwrap_err(),
+            "audio task registry poisoned"
+        );
+    }
 
     #[test]
     fn poisoned_registry_drop_still_cancels_a_blocked_source_worker() {

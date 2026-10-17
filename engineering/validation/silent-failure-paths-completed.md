@@ -1023,3 +1023,21 @@ DESIGN.md §0.7 逐项状态均为 retained with reason：本批只接入观测�
 - cargo build -p motion-desktop 通过，新二进制在隔离 LOCALAPPDATA 实际启动并生成 directories()/logs/motion-studio.log；MOTION_LOG 未设置时有 129 条普通 start、0 条 Present start，健康 UI 没有新增 model degradation。Debug 仍无 Present start/dispatch，done 只允许达到既有 100ms 阈值；证据 b60-desktop-build.log、b60-runtime.log、runtime-b60/runtime-summary.json
 - 新二进制进程级验证 Error 文件/stderr 双输出、轮转、CLI 目录/MCP stdout 纯 JSON、fatal 参数错误、MCP UI 正常 EOF 与 shutdown checkpoint 失败原因，全部通过；runtime-b60 保存各进程 stdout/stderr/log，不以默认级别只看到空日志通过验收
 - 对照 §59 的相同运行时截图：24 张中 21 张逐像素一致；另 3 张的差异是 Info 缓存/呈现运行统计及播放头位置，已查看裁剪并保留 b60-runtime-screen-comparison.json、b60-runtime-changed-crops.png。未声明全部静态像素一致或重新完成全部原生/跨平台设计验收
+
+## 61 · 媒体注册表恢复与最终提交的 Ok 失败
+
+- 逐行复核 B6 全部 56 个机械候选：新增观测 3、已有覆盖 27、核实保留 14、部分覆盖 12；与 B7/B8/B9 合计映射 115/832 行，另外 717 行尚未逐行关联，其中包含此前已覆盖的站点，不能称为 717 个缺陷
+- AudioJobs、VideoJobs、PackageJobs 的 contains 在 registry 中毒时仍恢复 into_inner 并返回原布尔值，但释放 guard 后新增固定站点观测，包含 request、entries、contains 和 poisoned_registry 原因；不清除中毒标记、不更改任务路由
+- 三个站点分别按进程生命周期累计，首次 Warn、第 60 次 Error，之后抑制；其他 session 的健康查询和调用方 clear_poison 不复位计数，重启才清零。不声称连续失败或一秒；request 截取 128 字符，无动态键、原因缓存或健康查询日志 IO
+- 新增三个真实 registry 中毒的独立进程回归：正常 present/missing 各 120 次安静，查询结果和严格 status 的原 poisoned Err 不变；交错健康 session，检查首次/阈值/抑制、超长 Unicode request 截断、清除再中毒后的进程累计策略。日志回调内用 try_lock 直接验证业务 registry 已释放
+- 进一步核实 FinishMediaImport：宿主只是将 audio/video commit 的返回值序列化，方法将提交失败放进 status.error 后仍返回 Ok，后台 worker 此前已在 awaiting_commit 结束，不能由 §32 的后台完成日志覆盖最终提交主错误
+- 在这两个 commit 方法取得 registry/任务锁及进入文件发布之前新增并 flush Info start，携带 request、operation=commit_audio/commit_video；返回后在业务 guard 释放后记录耗时和真实错误。只为实际 ready 提交产生的新失败记录 Error；重读原失败终态保留相同状态且不重复报 Error。外层 Err 仍原样返回并记录
+- 新增桌面真实 FileLogger 子进程回归：移除 MOTION_LOG，真实音频解码/波形准备及视频缓存暂存后，用普通文件阻挡 assets 目录，实际 commit 返回 Ok(failed status)。默认文件和 stderr 各有一次主 IO 失败、stdout 安静；120 次终态读取不重复 Error，工程和 undo 不变，阻挡文件原字节保留。移除外部阻挡后以全新任务正常导入成功，不重试原失败任务
+- 视频回归仅提供受控 ProbeVideo 元数据；实际 staging、cache、commit 和 IO 失败执行生产实现，不宣称完成原生视频解码验收。音频使用仓内既有 WAV 夹具和真实 decode_audio，没有引入素材、依赖或改变既有断言
+- 核实保留正常 MP4 preroll/overlap/剩余编辑帧钳制、音频参考窗口边缘、容器元数据子集提取及无 trex 但由 tfhd/trun 提供数据的分支；预算饱和后仍拒绝超限。source_frame_rate 的两个仓内调用方均先排序去重 PTS，不能把公开 fallback 一律当成真实倒序故障
+- 12 个部分覆盖行仍缺少独立的锁恢复站点计数；已有 panic hook/后台 Error 不等于逐站点恢复观测，尤其部分位置仍持有外层业务锁。本批明确保留这些待补项，没有为追求闭合数量在持锁区调用 logger
+- 与用户提到的 [issue #133](https://github.com/MAD-Producer/Kilonova/issues/133) 有范围重叠：既有 #292/#294/#295/#296/#297 负责多组受检错误，本系列补诊断证据；当前 compositor 平面 expect 和 Android reader unwrap 等还需结合不变量/故障注入核实，源码出现 unwrap 不等于已复现可达崩溃。本批未据此关闭 issue，也不声称满足“所有内容驱动 panic 消除”的验收
+- 本批未修改 panels、布局/样式/交互、UI 错误结构、respond、两处 MOTION_TRACE_UI 输出、原始两份审计报告或用户无关文件；DESIGN.md §0.7 保持 §59 retained with reason，不把日志接入等同于功能或视觉整改
+- 最终完整验证：cargo test -p motion-media --offline -j 2 -- --test-threads=2 为 74 passed、0 failed、2 项原有大型媒体验收 ignored；cargo test -p motion-desktop --offline -j 2 -- --include-ignored --test-threads=2 为 367 passed、0 failed、0 ignored，含 worker in_flight/queue_depth 及新增 commit 默认日志回归。cargo check/build -p motion-desktop 均通过；证据 b61-media-final.log、b61-desktop-full.log、b61-desktop-check.log、b61-desktop-build.log、b61-test-summary.json
+- 新二进制实际启动验证通过：隔离 LOCALAPPDATA 下生成 directories()/logs/motion-studio.log，MOTION_LOG 未设置时 129 条普通 start、0 条 Present start，健康场景没有新增 registry 降级；Debug 仍无 Present start/dispatch，done 保持至少 100ms 门限。Error 文件/stderr、轮转、CLI/MCP stdout JSON、MCP UI 正常 EOF、fatal 参数错误及 shutdown checkpoint 失败原因均通过；证据 b61-runtime.log、runtime-b61/runtime-summary.json 及各进程原始 stdout/stderr/log
+- panels 样式门、provenance 1365 tracked paths 检查及 git diff --check 通过，原始 832 个候选与本表 115 个唯一 path:line 的包含关系已自动核对；证据 b61-style-gate.log、b61-provenance.log、b61-mechanical-mapping.json、b61-test-summary.json。本批未重跑全部跨平台/原生设计专项，不宣称全量视觉整改验收

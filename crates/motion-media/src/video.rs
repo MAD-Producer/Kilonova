@@ -111,10 +111,9 @@ impl VideoJobs {
         })
     }
     pub fn contains(&self, id: &str) -> bool {
-        self.tasks
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .contains_key(id)
+        static OBSERVATION: crate::registry_observation::RegistryObservation =
+            crate::registry_observation::RegistryObservation::new();
+        OBSERVATION.contains(&self.tasks, id, "video.registry.contains")
     }
     fn task(&self, id: &str) -> Result<Arc<Mutex<Task>>> {
         self.tasks
@@ -280,10 +279,25 @@ impl VideoJobs {
         Ok(initial)
     }
     pub fn commit(&self, id: &str, engine: &mut impl EditSink) -> Result<VideoTaskStatus> {
+        let request: String = id.chars().take(128).collect();
+        let observation = crate::task_logging::TaskLog::new(&request, "commit_video");
+        observation.start();
+        let result = self.commit_inner(id, engine);
+        match &result {
+            Ok((status, attempted)) => observation.finish(
+                &status.phase,
+                if *attempted { status.error.as_deref() } else { None },
+            ),
+            Err(error) => observation.finish("commit", Some(error)),
+        }
+        result.map(|(status, _)| status)
+    }
+
+    fn commit_inner(&self, id: &str, engine: &mut impl EditSink) -> Result<(VideoTaskStatus, bool)> {
         let task = self.task(id)?;
         let mut t = task.lock().map_err(|_| "video task poisoned")?;
         if t.status.terminal() {
-            return Ok(t.status.clone());
+            return Ok((t.status.clone(), false));
         }
         if t.status.state != "ready" {
             return Err("video import is not ready".into());
@@ -400,7 +414,7 @@ impl VideoJobs {
                 t.status.error = Some(error);
             }
         }
-        Ok(t.status.clone())
+        Ok((t.status.clone(), true))
     }
     pub fn prepare_cache(
         &self,
@@ -576,4 +590,33 @@ fn validate_index(a: &VideoAsset, pts: &[u64]) -> Result<()> {
         return Err("invalid video timestamp index".into());
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod registry_tests {
+    use super::*;
+
+    #[test]
+    fn poisoned_video_registry_membership_is_observed_after_unlock() {
+        use crate::registry_observation::tests::{check, child};
+        if !child(
+            "video::registry_tests::poisoned_video_registry_membership_is_observed_after_unlock",
+        ) {
+            return;
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let jobs = Box::leak(Box::new(VideoJobs::new(directory.path().into()).unwrap()));
+        let healthy = VideoJobs::new(directory.path().into()).unwrap();
+        let (_task, _worker) = jobs.reserve("present", "test").unwrap();
+        check(
+            &jobs.tasks,
+            "video.registry.contains",
+            |id| jobs.contains(id),
+            |id| healthy.contains(id),
+        );
+        assert_eq!(
+            jobs.status("present").err().as_deref(),
+            Some("video task registry poisoned")
+        );
+    }
 }
