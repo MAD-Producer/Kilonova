@@ -76,6 +76,12 @@ impl NodeEditor {
         let mut body = list.child();
         let mut y = content.min[1] - self.inspector_scroll;
         if let Some(node) = node {
+            if let NodeOp::Unsupported { feature } = &node.operation {
+                self.observe_failure(
+                    "inspector.unsupported",
+                    format_args!("node={:?} feature={feature:?}", node.id),
+                );
+            }
             label(
                 &mut body,
                 atlas,

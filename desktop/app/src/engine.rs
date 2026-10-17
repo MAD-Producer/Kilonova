@@ -1318,7 +1318,10 @@ fn handle(
         Command::NodeInstall { snapshot, compiled, canonical,reply } => respond(reply, (|| {
             // All pipeline creation and scope push/pop stay on this worker,
             // alongside effects and presentation. Reject stale CPU work first.
-            if snapshot.preview_stamp() != node_preview.desired { return Ok(false); }
+            if snapshot.preview_stamp() != node_preview.desired {
+                log::debug!("node install superseded received={:?} desired={:?} revision={}", snapshot.preview_stamp(), node_preview.desired, snapshot.revision);
+                return Ok(false);
+            }
             let preview = motion_host::session::with_session(id, |session| {
                 let graphics = session.graphics.as_ref().ok_or("node GPU not attached")?;
                 let context = crate::node_preview::GpuContext {
@@ -1388,7 +1391,10 @@ fn handle(
         })),
         Command::CloseWindow {key,reply} => {windows.remove(&key);respond(reply,project::state(id));},
         Command::Resize { window, width, height, reply } => respond(reply,motion_host::session::with_session(id, |s| {
-            if width == 0 || height == 0 { return Ok(s.snapshot()); }
+            if width == 0 || height == 0 {
+                log::debug!("surface resize deferred width={width} height={height} reason=zero_extent");
+                return Ok(s.snapshot());
+            }
             if let Some(g) = &mut s.graphics {
                 if window==0 {g.config.width=width;g.config.height=height;g.surface.configure(&g.renderer.device,&g.config);}
                 else if let Some(w)=windows.get_mut(&window){w.config.width=width;w.config.height=height;w.surface.configure(&g.renderer.device,&w.config);}

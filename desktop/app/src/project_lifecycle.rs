@@ -110,7 +110,10 @@ impl Shell {
                     let _ = crate::panels::cancel_interaction(&mut self.panels);
                     self.workspace.cancel();
                     self.actions.clear();
-                    self.frame = self.state["frame"].as_f64().unwrap_or(0.);
+                    self.frame = self.state["frame"].as_f64().unwrap_or_else(|| {
+                        log::warn!("project change frame fallback root={:?} revision={} reason=missing_or_non_numeric_frame fallback=0", self.state["root"].as_str(), self.state["revision"]);
+                        0.
+                    });
                     self.panels.select_only(None);
                     self.present_due = true;
                 }
@@ -121,8 +124,9 @@ impl Shell {
                 if prompt.ticket.dirty {
                     // A concurrent edit invalidates the choice. Show the fresh
                     // state and require another decision, never auto-discard it.
-                    if let Ok(ticket) = self.engine.project_ticket() {
-                        prompt.ticket = ticket;
+                    match self.engine.project_ticket() {
+                        Ok(ticket) => prompt.ticket = ticket,
+                        Err(reason) => log::error!("project prompt ticket refresh failed root={} ticket_revision={} retained_stale_ticket=true operation_error={error:?} reason={reason}", prompt.ticket.root.display(), prompt.ticket.revision),
                     }
                     prompt.error = Some(error);
                     self.project_prompt = Some(prompt);

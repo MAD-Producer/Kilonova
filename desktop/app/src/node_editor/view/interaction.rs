@@ -51,6 +51,9 @@ impl NodeEditor {
                 continue;
             }
             if self.drag.is_some() {
+                if let Some(command) = shortcuts::resolve(Scope::Nodes, key, modifiers, repeat) {
+                    log::debug!("node shortcut deferred during drag command={command:?} epoch={} revision={}", self.epoch, self.revision);
+                }
                 continue;
             }
             let Some(command) = shortcuts::resolve(Scope::Nodes, key, modifiers, repeat) else {

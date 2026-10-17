@@ -21,6 +21,8 @@ mod grouping;
 mod inline;
 #[path = "node_editor/nudge.rs"]
 mod nudge;
+#[path = "node_editor/observability.rs"]
+mod observability;
 #[path = "node_editor/preview.rs"]
 mod preview;
 #[path = "node_editor/view/mod.rs"]
@@ -230,6 +232,7 @@ struct AddMenu {
 }
 
 pub struct NodeEditor {
+    observations: observability::Observations,
     pub layer_target: Option<crate::node_layer::Target>,
     document: GraphDocument,
     parents: Vec<grouping::ParentScope>,
@@ -309,6 +312,7 @@ impl NodeEditor {
             .err()
             .map(|e| e.diagnostic());
         Self {
+            observations: Default::default(),
             layer_target: None,
             document,
             parents: vec![],
@@ -619,6 +623,7 @@ impl NodeEditor {
             self.bump(previous.semantic);
             true
         } else {
+            self.trace_noop("undo", "history_empty");
             false
         }
     }
@@ -632,6 +637,7 @@ impl NodeEditor {
             self.bump(next.semantic);
             true
         } else {
+            self.trace_noop("redo", "history_empty");
             false
         }
     }
@@ -844,6 +850,7 @@ impl NodeEditor {
             .collect();
         let deleting: BTreeSet<_> = self.selected.difference(&protected).cloned().collect();
         if deleting.is_empty() {
+            self.trace_noop("delete_selected", "no_eligible_selection");
             return false;
         }
         let before = self.state(true);
@@ -860,6 +867,7 @@ impl NodeEditor {
     }
     pub fn disconnect_input(&mut self, input: &PortRef) -> bool {
         if !self.document.connections.iter().any(|c| c.to == *input) {
+            self.trace_noop("disconnect_input", "no_connection");
             return false;
         }
         let before = self.state(true);
