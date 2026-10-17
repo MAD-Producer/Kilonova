@@ -346,7 +346,8 @@ impl AudioJobs {
                 let mut t = spawn_task.lock().unwrap_or_else(|e| e.into_inner());
                 if t.cancel.load(Ordering::Acquire) {
                     drop(t);
-                    worker_log.finish("cancelled", None);
+                    let error = crate::task_logging::cancelled_error(&result, &["audio task cancelled"]);
+                    worker_log.finish("cancelled", error.as_deref());
                     return;
                 }
                 match result {
@@ -557,7 +558,8 @@ impl AudioJobs {
                 let mut t = spawn_task.lock().unwrap_or_else(|e| e.into_inner());
                 if t.cancel.load(Ordering::Acquire) {
                     drop(t);
-                    worker_log.finish("cancelled", None);
+                    let error = crate::task_logging::cancelled_error(&result, &["audio task cancelled"]);
+                    worker_log.finish("cancelled", error.as_deref());
                     return;
                 }
                 let result = match result {

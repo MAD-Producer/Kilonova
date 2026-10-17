@@ -35,6 +35,9 @@ pub use video::{
 pub use video_metadata::{hevc_metadata, vp9_metadata};
 /// Bounded native panic detail, shared by asynchronous media and host adapters.
 pub fn panic_reason(payload: Box<dyn std::any::Any + Send>) -> String {
+    panic_reason_ref(payload.as_ref())
+}
+pub(crate) fn panic_reason_ref(payload: &(dyn std::any::Any + Send)) -> String {
     let reason = payload.downcast_ref::<String>().map(String::as_str)
         .or_else(|| payload.downcast_ref::<&str>().copied())
         .unwrap_or("unknown native error");

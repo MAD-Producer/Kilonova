@@ -189,12 +189,13 @@ impl PackageJobs {
                 }));
                 let mut task = spawn_task.lock().unwrap_or_else(|e| e.into_inner());
                 if task.cancel {
+                    let error = crate::task_logging::cancelled_error(&result, &["package export cancelled"]);
                     // Drop/close the prepared archive before advertising terminal cancellation.
                     drop(result);
                     task.status.state = "cancelled".into();
                     task.status.phase = "cancelled".into();
                     drop(task);
-                    worker_log.finish("cancelled", None);
+                    worker_log.finish("cancelled", error.as_deref());
                     return;
                 }
                 let published = match result {

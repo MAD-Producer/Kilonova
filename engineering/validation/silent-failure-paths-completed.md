@@ -461,7 +461,7 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - cargo tree 未发现会在 release 静态屏蔽 Info 的 log max_level/release_max_level feature；未据此宣称已运行 release 二进制
 - 证据：desktop-debug-filter-full.log、debug-filter-check.log、debug-filter-build.log、debug-filter-runtime.log、runtime/runtime-summary.json、log-features.log
 
-当前观测补齐及核实分批记录到 43；后续实施范围限定为可观测性，功能与算法问题单独登记。原始两份清单保留原样，未覆盖条目仍待审，不将 832 个候选当作已确认或已关闭缺陷。
+当前观测补齐及核实分批记录到 44；后续实施范围限定为可观测性，功能与算法问题单独登记。原始两份清单保留原样，未覆盖条目仍待审，不将 832 个候选当作已确认或已关闭缺陷。
 
 ## 31 · 控制台反压时优先保全错误文件
 
@@ -692,3 +692,20 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - 测试使用受控平台适配器，不宣称实际复现了系统编解码器内部死锁；不新增生产超时、重启、跨线程 GPU 操作或改变取消/缓存策略，panels 未修改，既有视觉项保留
 - 首轮默认测试并发为 352 passed、1 failed，失败在既有双击测试的真实时钟断言；不改源码或断言，以 --include-ignored --test-threads=2 完整重跑后 353 项全部通过，不据重跑直接宣称已证明首轮失败根因
 - 关联辅助清单：10.35、10.36；证据：b43-video-observability.log、b43-video-flight-negative.log、b43-host-full.log、b43-desktop-full.log、b43-desktop-full-retry.log、b43-desktop-check.log
+
+
+## 44 · 媒体任务取消时保留已经返回的真实失败
+
+状态：已完成；motion-media 全套 71 passed、0 failed、2 项原有大型媒体 ignored；桌面完整 353 passed、0 failed、0 ignored，cargo check 通过
+
+- 在音频导入/缓存、视频导入/缓存及工程包导出五处 cancel 分支丢弃结果前读取已返回的错误；释放任务状态锁后记录 Error，携带 request、operation、phase=cancelled、实际耗时与原始原因
+- 被 catch_unwind 捕获的 panic 同样保留有界原因，沿用 2048 字符和非字符串 payload 回退；既有公开 panic_reason 接口及正常失败前缀保持不变
+- 仅抑制该操作已有的确切取消原因字符串，成功后取消也不制造故障；不把所有错误统一替换成 cancelled，不修改终态、发布、清理或任务释放语义
+- 工程包仍先关闭/删除准备中的临时归档，再发布 cancelled 终态，日志位于释放状态锁之后；实际 Error 输出沿用桌面文件与 stderr sink，不在媒体库直接写 stdout/stderr
+- 新增独立进程回归：四类音频/视频后台操作在受控 provider/decoder/probe 中阻塞，取消后分别返回真实 Err 和 panic，默认 Info 下验证八次终端 Error 的原始原因、请求、操作和耗时，同时状态保持 cancelled 且 error 字段仍为空
+- 工程包在日志 start 交界受控暂停，先取消，再实际向普通文件阻挡的父目录准备归档，验证原始 IO 原因保留、原文件字节不变且不产生输出；不宣称复现了 OS IO 调用内部的取消竞争或工程包原生 panic
+- 对五类任务再走真实协作取消检查，使用 Debug 仅等待既有完成事件，验证正常取消均无 Error；这些噪声检查与前面的默认 Info 故障观测分开执行
+- 负对照只把音频导入的取消日志恢复为原先 None，保留同一断言，实际退出 101 并报告 missing cancelled worker observation；finally 恢复原始字节后全套媒体测试通过
+- 保留两项原有大型媒体忽略条件，不改变断言或假称实际执行；桌面 include-ignored 仍执行其全部原生音频项
+- 不修改 panels、可视布局、播放行为或业务错误结构；辅助清单关于取消后卡在非终态的原始断言仍按第 02 批核实保留，本批关闭的是原始错误被取消丢弃的观测缺口
+- 关联辅助清单：10.24、10.26、10.29、10.31、10.34；证据：b44-cancellation-tests.log、b44-cancel-negative.log、b44-media-full.log、b44-desktop-full.log、b44-desktop-check.log

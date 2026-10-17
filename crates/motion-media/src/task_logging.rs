@@ -1,5 +1,24 @@
-//! File sinks are supplied by the embedding host; never use stdout/stderr here.
+//! Sinks are supplied by the embedding host; never write stdout/stderr directly here.
 use std::time::Instant;
+
+/// Preserve a failure before cancellation discards a worker's caught result.
+/// Expected cooperative cancellation is a terminal outcome, not a fault.
+pub(crate) fn cancelled_error<T, E: std::fmt::Display>(
+    result: &std::thread::Result<std::result::Result<T, E>>,
+    expected: &[&str],
+) -> Option<String> {
+    match result {
+        Ok(Err(error)) => {
+            let reason = error.to_string();
+            (!expected.contains(&reason.as_str())).then_some(reason)
+        }
+        Err(payload) => Some(format!(
+            "worker panic: {}",
+            crate::panic_reason_ref(payload.as_ref())
+        )),
+        Ok(Ok(_)) => None,
+    }
+}
 
 #[derive(Clone)]
 pub(crate) struct TaskLog {
@@ -7,6 +26,7 @@ pub(crate) struct TaskLog {
     operation: String,
     began: Instant,
 }
+
 impl TaskLog {
     pub(crate) fn new(request: &str, operation: &str) -> Self {
         Self {
@@ -41,6 +61,9 @@ impl TaskLog {
         }
     }
 }
+
+#[cfg(test)]
+mod cancellation_tests;
 
 #[cfg(test)]
 mod tests {
