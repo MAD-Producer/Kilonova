@@ -193,7 +193,7 @@ def publish(desktop_only=False):
         "".join("| "+item["platform"]+" | `"+item["name"]+"` |\n" for item in assets)+
         ("\n" if desktop_only else "\nAndroid 包含 arm64-v8a 与 x86_64。")+
         "Windows 解压后运行 exe；Linux 解压后运行 motion-studio；macOS 按 Apple Silicon / Intel 下载对应 .app 包（ad-hoc 签名，未公证）。\n\n"
-        "桌面包沿用已验收的独立构建，未附 FFmpeg 视频导入/解码后端。能力记录在 build-info.json 中。使用 SHA256SUMS 校验下载文件。\n",encoding="utf-8")
+        "桌面包包含 FFmpeg 视频导入/解码后端、对应共享库、许可证与来源清单。能力记录在 build-info.json 中。使用 SHA256SUMS 校验下载文件。\n",encoding="utf-8")
     title="自动预览版" if kind=="preview" else "Motion Studio "+version
     if not release:
         gh("release","create",tag,"--repo",repo,"--verify-tag","--title",title,"--notes-file",str(notes),"--draft")
