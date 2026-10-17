@@ -432,6 +432,7 @@ pub(crate) struct TimelineState {
     pub scroll_extent_cache: Option<(u64, f32)>,
     pub zoom: f32,
     pub offset: f32,
+    pub zoom_track: Option<Rect>,
     pub scrubbing: bool,
     pub last_seek: Option<f64>,
     pub snap_guide: Option<f64>,

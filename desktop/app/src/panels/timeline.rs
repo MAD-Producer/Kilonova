@@ -656,6 +656,7 @@ pub(super) fn render(
         area.height(),
     );
     let ruler = Rect::new(track.min[0], area.min[1] + 36.0, track.width(), 28.0);
+    panels.timeline.zoom_track = Some(track);
     let wheel = input.wheel[1];
     let gesture = panels.timeline.graph_box.editing()
         || panels.timeline.key_drag.is_some()
@@ -675,10 +676,8 @@ pub(super) fn render(
         if input.modifiers.control && !input.modifiers.alt || graph_wheel {
             let old_zoom = panels.timeline.zoom.max(1.);
             let fraction = ((input.mouse[0] - track.min[0]) / track.width()).clamp(0., 1.);
-            let anchor = panels.timeline.offset + total as f32 / old_zoom * fraction;
-            let next = (old_zoom * (-wheel * 0.005).clamp(-8., 8.).exp()).clamp(1., 100.);
-            panels.timeline.zoom = next;
-            panels.timeline.offset = (anchor - total as f32 / next * fraction).max(0.);
+            let next = old_zoom * (-wheel * 0.005).clamp(-8., 8.).exp();
+            super::timeline_zoom::zoom_at(&mut panels.timeline, total as f32, next, fraction);
         } else if input.modifiers.control && input.modifiers.alt && graph_mode {
             // The graph owns vertical scaling; one wheel event has one owner.
         } else if input.modifiers.shift {
@@ -827,7 +826,8 @@ pub(super) fn render(
     )
     .clicked
     {
-        panels.timeline.zoom = (panels.timeline.zoom.max(1.) / 1.25).max(1.);
+        let next = panels.timeline.zoom.max(1.) / 1.25;
+        super::timeline_zoom::zoom_at(&mut panels.timeline, total as f32, next, 0.5);
     }
     label(
         list,
@@ -846,7 +846,8 @@ pub(super) fn render(
     )
     .clicked
     {
-        panels.timeline.zoom = (panels.timeline.zoom.max(1.) * 1.25).min(100.);
+        let next = panels.timeline.zoom.max(1.) * 1.25;
+        super::timeline_zoom::zoom_at(&mut panels.timeline, total as f32, next, 0.5);
     }
     if ui::button(
         list,

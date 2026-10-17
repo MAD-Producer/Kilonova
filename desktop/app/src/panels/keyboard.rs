@@ -152,19 +152,63 @@ pub fn route(
         });
         return true;
     }
-    if !node_context
-        && panels.menu.is_none()
+    if panels.menu.is_none()
         && panels.panel_menu.is_none()
         && panels.timeline.timeline_context_menu.is_none()
     {
-        handle_shortcuts(input, panels, state, out);
+        if node_context {
+            if !panels.node_editor.editing() {
+                if KeyChord::new(Key::Space, false, false, false).pressed(input) {
+                    panels.node_preview.toggle();
+                    return true;
+                }
+                handle_context_shortcuts(input, panels, state, out, true);
+            }
+        } else {
+            handle_shortcuts(input, panels, state, out);
+        }
     }
     false
 }
 
 pub fn handle_shortcuts(input: &Input, panels: &mut Panels, state: &Value, out: &mut Vec<Action>) {
+    handle_context_shortcuts(input, panels, state, out, false);
+}
+
+fn handle_context_shortcuts(
+    input: &Input,
+    panels: &mut Panels,
+    state: &Value,
+    out: &mut Vec<Action>,
+    node_context: bool,
+) {
     let mut frame = state["frame"].as_f64().unwrap_or(0.0);
     for (key, modifiers, repeat) in input.key_presses() {
+        // Document edits and canvas navigation remain owned by the node scope.
+        // These application actions have no competing node action.
+        if node_context {
+            let allowed = match shortcuts::resolve(Scope::Application, key, modifiers, repeat) {
+                Some(
+                    Command::NewProject
+                    | Command::NewComposition
+                    | Command::Import
+                    | Command::Settings
+                    | Command::Export
+                    | Command::Solid
+                    | Command::Text
+                    | Command::Null
+                    | Command::Adjustment
+                    | Command::LastFrame,
+                ) => true,
+                Some(Command::PreviousFrame | Command::NextFrame) => {
+                    !matches!(key, Key::Left | Key::Right) || modifiers.control
+                }
+                _ => false,
+            };
+            if !allowed {
+                continue;
+            }
+        }
         if key == Key::A
             && modifiers.control
             && !modifiers.alt
@@ -177,6 +221,9 @@ pub fn handle_shortcuts(input: &Input, panels: &mut Panels, state: &Value, out: 
         let key_owned = matches!(panels.focused, Some(Panel::Timeline | Panel::Curves))
             && panels.animation_controls.user_key().is_some();
         if let Some(command) = shortcuts::resolve(Scope::Animation, key, modifiers, repeat) {
+            if super::timeline_zoom::shortcut(command, input, panels, state) {
+                continue;
+            }
             if super::audio::shortcut(command, panels, state, out) {
                 continue;
             }
@@ -703,3 +750,7 @@ mod tests {
         assert!(out.is_empty());
     }
 }
+
+#[cfg(test)]
+#[path = "keyboard_node_tests.rs"]
+mod node_scope_tests;

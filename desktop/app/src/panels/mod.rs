@@ -66,6 +66,7 @@ mod timeline_columns_tests;
 mod timeline_graph;
 mod timeline_layout;
 mod timeline_shortcuts;
+mod timeline_zoom;
 #[cfg(test)]
 mod timeline_shortcuts_tests;
 pub(crate) mod titlebar;
@@ -352,7 +353,7 @@ pub fn chrome(
     let node_keyboard = matches!(
         panels.focused,
         Some(Panel::Nodes | Panel::NodeProperties | Panel::NodePreview)
-    ) || nodes_frame.as_ref().is_some_and(|f| {
+    ) || panels.focused.is_none() && nodes_frame.as_ref().is_some_and(|f| {
         if let Some((_, point)) = input.pressed {
             f.content.contains(point)
         } else {
@@ -1184,13 +1185,6 @@ fn node_panel(
     } else {
         crate::node_preview::regions(area)
     };
-    if target.is_none()
-        && panels.node_editor.focused()
-        && !panels.node_editor.editing()
-        && motion_ui::input::KeyChord::new(Key::Space, false, false, false).pressed(input)
-    {
-        panels.node_preview.toggle();
-    }
     let response = panels
         .node_editor
         .draw(list, atlas, editor, input, language);
