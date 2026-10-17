@@ -4,6 +4,8 @@ use crate::{engine::Engine, node_tasks::CloseChoice, panels::Action, Shell};
 use serde_json::Value;
 use std::{path::PathBuf, sync::mpsc::Receiver};
 
+pub(crate) mod error_notice;
+
 #[derive(Clone, Debug)]
 pub(crate) enum Target {
     New(String),
@@ -24,6 +26,7 @@ pub(crate) struct Prompt {
     pub target: Target,
     pub ticket: Ticket,
     pub error: Option<String>,
+    pub error_scroll: motion_ui::widgets::ScrollArea,
 }
 
 pub(crate) type Pending = (Prompt, Receiver<Result<Value, String>>);
@@ -45,6 +48,7 @@ impl Shell {
             target,
             ticket,
             error: None,
+            error_scroll: Default::default(),
         };
         self.dirty = true;
         if prompt.ticket.dirty && self.smoke.is_none() {
@@ -77,7 +81,9 @@ impl Shell {
             return Ok(());
         };
         self.dirty = true;
-        if choice == CloseChoice::Cancel {
+        // A clean project's failed transition only needs acknowledgement. It
+        // must not expose Save/Discard or resubmit a failed open implicitly.
+        if choice == CloseChoice::Cancel || (!prompt.ticket.dirty && prompt.error.is_some()) {
             return Ok(());
         }
         self.submit_project_change(prompt, choice)
@@ -124,9 +130,9 @@ impl Shell {
                     if let Ok(ticket) = self.engine.project_ticket() {
                         prompt.ticket = ticket;
                     }
-                    prompt.error = Some(error);
-                    self.project_prompt = Some(prompt);
                 }
+                prompt.error = Some(error);
+                self.project_prompt = Some(prompt);
             }
         }
         self.dirty = true;
@@ -154,9 +160,20 @@ impl Engine {
 }
 
 pub(crate) fn render(shell: &mut Shell, paint: &mut motion_ui::PaintList, size: [f32; 2]) {
-    let Some(prompt) = &shell.project_prompt else {
+    let Some(prompt) = &mut shell.project_prompt else {
         return;
     };
+    if !prompt.ticket.dirty {
+        if let Some(error) = &prompt.error {
+            if error_notice::render(
+                paint, &mut shell.atlas, size, &shell.input, shell.workspace.locale,
+                &prompt.target, error, &mut prompt.error_scroll,
+            ) {
+                shell.actions.push_back(Action::ProjectChoice(CloseChoice::Cancel));
+            }
+        }
+        return;
+    }
     let zh = shell.workspace.locale == crate::i18n::Locale::Zh;
     let title = if zh {
         "工程有未保存的修改"

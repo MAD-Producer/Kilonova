@@ -1371,7 +1371,9 @@ fn handle(
                     guard.changed(project::import_project_with_choice(id, &file, choice))
                 }
                 crate::project_lifecycle::Target::Open(directory) => {
-                    let directory = directory.canonicalize().map_err(|e| e.to_string())?;
+                    let directory = directory.canonicalize().map_err(|e| {
+                        format!("open project {}: {e}", directory.display())
+                    })?;
                     if directory == guard.root {
                         return if save { project::save(id) } else {
                             project::open_directory_with_choice(id, &directory, choice)
