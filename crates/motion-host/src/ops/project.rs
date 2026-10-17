@@ -14,6 +14,54 @@ pub enum PreviousProject {
     Discard,
 }
 
+// Lives outside with_session: cleanup and its fallback observation must happen
+// after that function releases the session registry lock, including unwinding.
+#[derive(Default)]
+struct PendingProjectDirectory(Option<(PathBuf, PathBuf)>);
+impl PendingProjectDirectory {
+    fn own(&mut self, base: PathBuf, path: PathBuf) {
+        self.0 = Some((base, path));
+    }
+    fn commit(&mut self) {
+        self.0 = None;
+    }
+    fn cleanup(&mut self) -> Result<()> {
+        let Some((base, path)) = self.0.take() else { return Ok(()); };
+        let resolved = match path.canonicalize() {
+            Ok(resolved) => resolved,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+            Err(error) => return Err(format!("phase=project_cleanup resolve={} cause={error}", path.display())),
+        };
+        // Only this transaction's direct child of the canonical library is owned.
+        // A substituted symlink/junction must not redirect recursive deletion.
+        if resolved != path || resolved.parent() != Some(base.as_path()) {
+            return Err(format!("phase=project_cleanup refused changed directory={} resolved={} library={}",
+                path.display(), resolved.display(), base.display()));
+        }
+        match std::fs::remove_dir_all(&resolved) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(format!("phase=project_cleanup directory={} cause={error}", resolved.display())),
+        }
+    }
+    fn finish<T>(mut self, result: Result<T>) -> Result<T> {
+        match result {
+            Ok(value) => { self.commit(); Ok(value) }
+            Err(primary) => match self.cleanup() {
+                Ok(()) => Err(primary),
+                Err(secondary) => Err(format!("{primary}; cleanup also failed: {secondary}")),
+            },
+        }
+    }
+}
+impl Drop for PendingProjectDirectory {
+    fn drop(&mut self) {
+        if let Err(error) = self.cleanup() {
+            log::error!("project rollback during unwind failed: {error}");
+        }
+    }
+}
+
 fn save_previous(s: &crate::session::Session, choice: Option<PreviousProject>) -> Result<()> {
     let save = match choice {
         Some(PreviousProject::Save) => true,
@@ -95,15 +143,20 @@ fn new_project_inner(id: i64, text: &str, choice: Option<PreviousProject>) -> Re
         return Err("new project must have no external assets".into());
     }
     let engine = motion_core::Engine::new(project).map_err(|e| e.to_string())?;
-    crate::session::with_session(id, |s| {
-        let parent = s.root.parent().ok_or("project parent is missing")?;
+    let mut pending = PendingProjectDirectory::default();
+    let result = crate::session::with_session(id, |s| {
+        let parent = s.root.parent().ok_or("project parent is missing")?
+            .canonicalize().map_err(|e| e.to_string())?;
         let destination = parent.join(format!("project-{}", stamp()?));
         save_previous(s, choice)?;
         std::fs::create_dir(&destination).map_err(|e| e.to_string())?;
+        pending.own(parent, destination.clone());
         motion_core::storage::save(&destination, engine.project()).map_err(|e| e.to_string())?;
         s.replace_project(engine, destination)?;
+        pending.commit();
         Ok(s.snapshot())
-    })
+    });
+    pending.finish(result)
 }
 
 pub fn open_project(id: i64, name: &str) -> Result<Value> {
@@ -169,14 +222,23 @@ pub fn import_project(id: i64, file: &std::path::Path) -> Result<Value> {
 }
 
 pub fn import_project_with_choice(id: i64, file: &std::path::Path, choice: PreviousProject) -> Result<Value> {
-    crate::session::with_session(id, |s| {
-        let parent = s.root.parent().ok_or("project parent is missing")?;
+    let mut pending = PendingProjectDirectory::default();
+    let result = crate::session::with_session(id, |s| {
+        let parent = s.root.parent().ok_or("project parent is missing")?
+            .canonicalize().map_err(|e| e.to_string())?;
         let destination = parent.join(format!("import-{}", stamp()?));
         let project =
             motion_core::storage::import_package(file, &destination).map_err(|e| e.to_string())?;
+        pending.own(parent, destination.clone());
         let engine = motion_core::Engine::new(project).map_err(|e| e.to_string())?;
         save_previous(s, Some(choice))?;
         s.replace_project(engine, destination)?;
+        pending.commit();
         Ok(s.snapshot())
-    })
+    });
+    pending.finish(result)
 }
+
+#[cfg(test)]
+#[path = "project_cleanup_tests.rs"]
+mod cleanup_tests;
