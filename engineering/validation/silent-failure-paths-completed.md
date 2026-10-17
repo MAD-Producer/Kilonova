@@ -1106,3 +1106,17 @@ DESIGN.md §0.7 逐项状态均为 retained with reason：本批只接入观测�
 - 保留验收失败证据：初次命令未加载本机MSVC环境导致cl/ml64不可用，随后加载已有env.ps1；共享target完整构建又遇无具体原因的link.exe退出1，磁盘约40GB可用，另有不同特性的构建并发使用该缓存，未断言并发就是根因。没有停止其他构建，转用独立 .tools/observability-validation-build 复验，dev/test仅由命令环境设line-tables-only，源码Cargo配置不变；证据 b65-initial-env-failure.log、b65-shared-target-link-failure.log
 - 独立target完整复验通过：render 185 passed、desktop 367 passed，均0 failed/ignored，包含doc-test、真实GPU、外部原创PNG探针、阻塞worker API和FileLogger回归；cargo check/build -p motion-desktop通过，未削弱既有断言。新二进制隔离启动，默认Info可见130条普通start、0条Present start，健康代理无告警；Error文件/stderr、轮转、CLI/MCP stdout隔离、fatal参数错误及shutdown失败原因验证通过。样式门、provenance 1376 tracked paths、局部格式和diff检查通过；证据 b65-render-full.log、b65-desktop-full.log、b65-desktop-check.log、b65-desktop-build.log、b65-runtime.log、runtime-b65/runtime-summary.json、b65-test-summary.json
 - 本批不修改panels、UI视觉/交互、last_error结构、respond、两处MOTION_TRACE_UI、两份原始报告或用户无关文件；DESIGN.md §0.7沿用§59 retained with reason。未添加依赖、第三方素材或声明完成跨平台/全量视觉验收
+
+
+## 66 · Host 成功返回中的错误锁存与资源/mtime降级观测
+
+- 逐项关联B2全部41行：新增观测9、已有覆盖10、核实保留20、功能边界2；累计521/832行，剩余311行待逐项关联。新增三个固定站点，中央session出口覆盖7处last_error赋值，不重复算成7套计数器；证据 b66-mechanical-mapping.json
+- with_session在操作/插件恢复返回后读取既有last_error，按Session累计带错误锁存的调用：首次Warn、第60次Error、随后抑制，出口无错误复位；提供session/frame/composition/有界原因与入口到出口耗时（含等待registry）。释放registry后输出，不改last_error结构、编辑提交、主Err或Ok(snapshot)/Ok(false)。计数不是新采样失败数；独立Session直接调用、出口前被清除的错误及尚未返回的handler不在此出口观测范围，挂起仍靠worker start/in_flight
+- resource_info保留原有聚合字段和排除无法canonicalize根目录的结果，补无法解析数量、首session/有界路径/系统原因/耗时。按进程统计存在无法解析根的报告，首Warn/第60次Error/抑制，全部根解析成功才复位，单个健康或其他请求scope不掩盖故障；明确requested_scope_membership=unknown，不假定坏根属于查询目录。解锁后输出，不自动修复计数
+- 图片mtime不可用继续返回None，保留length-only缓存比较；固定进程生命周期累计首Warn/第60次Error/抑制，健康文件不复位，进程重启清零。记录source ID、路径及原因各最多256字符；with_session内最多两个阈值事件存在线程局部作用域，registry释放后输出（含unwind），作用域外直接输出，不新增文件查询、线程、动态路径表或正常帧日志。deferred_elapsed_ms指失败记录到输出时间，不是metadata系统调用耗时
+- 新增三个Rust回归、八个隔离故障场景：真实编辑先提交再因frame=1000重采样失败，验证Ok(snapshot)/错误字段/编辑不回滚、主Err保留、owner约束、阈值抑制/健康替换复位；真实目录canonicalize失败验证原聚合结果/未知scope/长Unicode上下文；mtime健康路径读取真实文件，失败向生产helper注入Unsupported IO结果，验证None、生命周期不被健康文件复位、错误出口及unwind解锁后输出。未声称NTFS已自然重现mtime失败；日志捕获回调try_lock确认没有持有业务registry，包含unwind中仍中毒的锁
+- 保留JSON预算饱和上界、合法无附加结果的Ok(None)、JS成员赋值副作用/完成值类型错误、可选字体和导入名缺省、串行计时夹限、精确FrameCache字节对应及wanted<=last提前分流。ExpressionTarget派生Serialize仅有可序列化enum/u64/string，不把OOM终止当作可恢复to_string错误；composition_view遍历同一不可变Project自有ID，不假造遗漏composition
+- 另列2行功能/协议边界：内部未知视频状态或缺少error仍落通用错误，公开VideoDecoder实现递减/回绕seeks仍会把差值夹0；没有新增这两个独立异常站点，也不声称全部第三方后端遵约。既有snapshot音频错误日志仍位于RefCell/Session锁内，本批未改，不能概称全部host日志已解锁
+- 完整复验通过：host 53 passed（含doc-test）、desktop 367 passed，均0 failed/ignored，含三个新回归与worker API/FileLogger回归；cargo check/build -p motion-desktop通过。新二进制默认Info运行可见129条普通start、0条Present start，健康host三个站点安静；轮转、Error文件/stderr、stdout隔离、Debug Present阈值、fatal参数及shutdown失败验证通过。样式门、provenance 1382 tracked paths、局部格式及diff检查通过；证据 b66-host-final.log、b66-desktop-full.log、b66-desktop-check.log、b66-desktop-build.log、b66-runtime.log、b66-test-summary.json
+- 真实MCP进程默认Info附加故障验收：时间条件表达式在frame=15触发invalid sample time，之后rename仍返回成功、revision推进且名称持久在状态中，renderError保留；240次状态查询跨两个故障episode，文件恰有2条首Warn/2条第60次Error，恢复删除表达式后清零，undo后重新累计，redo恢复。两条升级Error同时出现在stderr，248条响应全部是合法JSON，未向stdout写日志；证据 b66-host-runtime.log、runtime-b66-host-failure/summary.json。此处没有用编译、模拟成功或捕获logger替代真实FileLogger输出
+- 未改变UI/布局/交互、panels、respond、两处MOTION_TRACE_UI、两份原始报告或用户无关文件；没有新依赖/第三方素材。DESIGN.md §0.7沿用§59 retained with reason，跨平台与真实驱动故障不在本机受控测试结论内

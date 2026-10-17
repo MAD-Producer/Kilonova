@@ -2,7 +2,7 @@
 
 本表与 `silent-failure-paths-followup.md` 的 161 个辅助编号分开计数。原始 `silent-failure-paths-exhaustive.md` 列出 832 个候选；候选不是已确认缺陷。用原始路径与行号作稳定标识，行号不代表修改后的源码位置。
 
-当前已映射 B1 全部365项、B6 全部56项、B7 全部33项、B8 全部14项和B9 全部12项，共 480 个候选：核实保留 348行、功能边界 38行、新增观测 30行、已有覆盖 64行。其余 352 个候选尚未逐行关联到本表，包含此前已覆盖站点，不等于未修复缺陷数；功能边界不代表全输入已关闭。§63–65 的新增锁恢复观测及解锁时序修正见完成文档
+当前已映射 B1 全部365项、B2 全部41项、B6 全部56项、B7 全部33项、B8 全部14项和B9 全部12项，共 521 个候选：核实保留 368行、功能边界 40行、新增观测 39行、已有覆盖 74行。其余 311 个候选尚未逐行关联到本表，包含此前已覆盖站点，不等于未修复缺陷数；功能边界不代表全输入已关闭。§63–66 的新增观测及解锁时序修正见完成文档
 
 ## B1 · GPU 协议、资源池与提交台账（首批 77 项）
 
@@ -391,6 +391,54 @@
 | crates/motion-render/src/video_pixels.rs:79 | 核实保留 | RGB565通道先分别mask到5/6/5位，再乘255除31/63，结果0..255，u8转换有界，保留既有像素解码/旋转回归 |
 | crates/motion-render/src/video_pixels.rs:80 | 核实保留 | RGB565通道先分别mask到5/6/5位，再乘255除31/63，结果0..255，u8转换有界，保留既有像素解码/旋转回归 |
 | crates/motion-render/tests/common_effects.rs:85 | 核实保留 | 测试只为wipe/channel_mixer覆盖默认参数，其他builtin保留默认继续render，并assert_ne/alpha/零opacity验证；wildcard不是跳过effect或吞Err |
+
+## B2 · Host 与核心编辑/表达式边界（41 项）
+
+本批新增三个固定观测站点，关联9行候选；只补证据，保持返回值、编辑提交和回退策略。其他行逐项区分已有覆盖、正常契约和未关闭边界
+
+| 原始位置 | 处置 | 当前源码证据与限制 |
+| --- | --- | --- |
+| crates/motion-core/src/editor.rs:1041 | 核实保留 | command成功可返回None表示无附加EditResult；仍经历批次prepare、验证、提交revision/history流程，Err另走rollback。None不是命令未执行或失败，保留命令目录契约 |
+| crates/motion-core/src/expressions/mod.rs:15 | 核实保留 | ExpressionTarget为派生Serialize枚举，仅u64/enum/Option/string，无非有限浮点、自定义失败序列化器或JSON map键；当前to_string不存在可恢复序列化失败输入，保留原表达式错误target。OOM终止不当作可恢复Err验证 |
+| crates/motion-core/src/expressions/transpile.rs:166 | 核实保留 | 只改写简单标识符复合赋值；成员赋值保留JS原语义，以免getter/index副作用重复执行。wildcard没有吞Result，保留既有表达式运行时回归 |
+| crates/motion-core/src/expressions/transpile.rs:72 | 核实保留 | 源码明确其他completion形式返回undefined并由表达式结果类型检查报错；不是解析错误吞掉。保留JavaScript完成值支持范围，不扩展语言或记录正常AST分流 |
+| crates/motion-core/src/history_accounting.rs:181 | 核实保留 | JSON字节累计饱和到usize::MAX是预算fail-closed上界，不能溢出后变小放行；值/键通过counted序列化累计，既有history预算回归与model序列化失败观测。不是renderer驻留减法少计，不分配usize极值对象做伪验收 |
+| crates/motion-core/src/history_accounting.rs:182 | 核实保留 | JSON字节累计饱和到usize::MAX是预算fail-closed上界，不能溢出后变小放行；值/键通过counted序列化累计，既有history预算回归与model序列化失败观测。不是renderer驻留减法少计，不分配usize极值对象做伪验收 |
+| crates/motion-core/src/history_accounting.rs:293 | 核实保留 | JSON字节累计饱和到usize::MAX是预算fail-closed上界，不能溢出后变小放行；值/键通过counted序列化累计，既有history预算回归与model序列化失败观测。不是renderer驻留减法少计，不分配usize极值对象做伪验收 |
+| crates/motion-core/src/history_accounting.rs:294 | 核实保留 | JSON字节累计饱和到usize::MAX是预算fail-closed上界，不能溢出后变小放行；值/键通过counted序列化累计，既有history预算回归与model序列化失败观测。不是renderer驻留减法少计，不分配usize极值对象做伪验收 |
+| crates/motion-core/src/history_accounting.rs:295 | 核实保留 | JSON字节累计饱和到usize::MAX是预算fail-closed上界，不能溢出后变小放行；值/键通过counted序列化累计，既有history预算回归与model序列化失败观测。不是renderer驻留减法少计，不分配usize极值对象做伪验收 |
+| crates/motion-core/src/history_accounting.rs:296 | 核实保留 | JSON字节累计饱和到usize::MAX是预算fail-closed上界，不能溢出后变小放行；值/键通过counted序列化累计，既有history预算回归与model序列化失败观测。不是renderer驻留减法少计，不分配usize极值对象做伪验收 |
+| crates/motion-host/src/ops/composition.rs:110 | 新增观测 | §66 在 with_session 正常/Err 出口观察既有 last_error：按Session累计带错误锁存的调用，首次Warn、第60次Error，之后抑制，出口无错误复位；包含session/frame/composition/有界原因及入口到出口耗时，registry解锁后输出。保留编辑已提交、Ok(snapshot)/Ok(false)及主错误语义；不是每次新采样失败计数，不声称捕获出口前被清除的错误或独立Session直接调用 |
+| crates/motion-host/src/ops/composition.rs:268 | 新增观测 | §66 在 with_session 正常/Err 出口观察既有 last_error：按Session累计带错误锁存的调用，首次Warn、第60次Error，之后抑制，出口无错误复位；包含session/frame/composition/有界原因及入口到出口耗时，registry解锁后输出。保留编辑已提交、Ok(snapshot)/Ok(false)及主错误语义；不是每次新采样失败计数，不声称捕获出口前被清除的错误或独立Session直接调用 |
+| crates/motion-host/src/ops/editing.rs:178 | 新增观测 | §66 在 with_session 正常/Err 出口观察既有 last_error：按Session累计带错误锁存的调用，首次Warn、第60次Error，之后抑制，出口无错误复位；包含session/frame/composition/有界原因及入口到出口耗时，registry解锁后输出。保留编辑已提交、Ok(snapshot)/Ok(false)及主错误语义；不是每次新采样失败计数，不声称捕获出口前被清除的错误或独立Session直接调用 |
+| crates/motion-host/src/ops/editing.rs:39 | 新增观测 | §66 在 with_session 正常/Err 出口观察既有 last_error：按Session累计带错误锁存的调用，首次Warn、第60次Error，之后抑制，出口无错误复位；包含session/frame/composition/有界原因及入口到出口耗时，registry解锁后输出。保留编辑已提交、Ok(snapshot)/Ok(false)及主错误语义；不是每次新采样失败计数，不声称捕获出口前被清除的错误或独立Session直接调用 |
+| crates/motion-host/src/ops/effects.rs:301 | 新增观测 | §66 在 with_session 正常/Err 出口观察既有 last_error：按Session累计带错误锁存的调用，首次Warn、第60次Error，之后抑制，出口无错误复位；包含session/frame/composition/有界原因及入口到出口耗时，registry解锁后输出。保留编辑已提交、Ok(snapshot)/Ok(false)及主错误语义；不是每次新采样失败计数，不声称捕获出口前被清除的错误或独立Session直接调用 |
+| crates/motion-host/src/ops/effects.rs:310 | 核实保留 | last与now来自Instant，通常记录活动后再检查lease；饱和对传入较早Instant按未超期处理是原租约策略，不是系统墙钟回拨。保持gesture恢复时机，不新增正常租约告警 |
+| crates/motion-host/src/ops/export.rs:56 | 已有覆盖 | 此前已将effect_resource_info的解码失败改为带资源路径Err，audio_voices错误带export audio plan原因传播；不再以0x0/false伪装有效计划。沿用现有failure_boundaries等真实失败回归，本批不重复改变返回值 |
+| crates/motion-host/src/ops/export.rs:95 | 已有覆盖 | 此前已将effect_resource_info的解码失败改为带资源路径Err，audio_voices错误带export audio plan原因传播；不再以0x0/false伪装有效计划。沿用现有failure_boundaries等真实失败回归，本批不重复改变返回值 |
+| crates/motion-host/src/ops/fonts.rs:87 | 核实保留 | font_atlas/font_text接口缺省或非string字体使用builtin_id的既有参数契约；显式string ID找不到仍Err(font is not imported)。不改变参数校验、字体选择或为正常缺省打日志 |
+| crates/motion-host/src/ops/media.rs:220 | 核实保留 | 导入名称为可选参数，无名称按媒体类型生成默认名，源文件验证/事务另传播错误；不是失败回退，不增加正常导入告警 |
+| crates/motion-host/src/ops/media.rs:36 | 已有覆盖 | 当前打开媒体后metadata错误直接传播，随后仍检查is_file；原.ok丢失size/is_file分支已不存在，沿用已有媒体文件失败回归 |
+| crates/motion-host/src/ops/preview.rs:212 | 新增观测 | §66 在 with_session 正常/Err 出口观察既有 last_error：按Session累计带错误锁存的调用，首次Warn、第60次Error，之后抑制，出口无错误复位；包含session/frame/composition/有界原因及入口到出口耗时，registry解锁后输出。保留编辑已提交、Ok(snapshot)/Ok(false)及主错误语义；不是每次新采样失败计数，不声称捕获出口前被清除的错误或独立Session直接调用 |
+| crates/motion-host/src/ops/project.rs:128 | 已有覆盖 | 此前集中save_previous：legacy validate_assets失败明确Warn带root/原因后按旧契约跳过保存，显式Save/Discard遵照调用者选择；正常目录切换测试已有覆盖，不将选择Discard计作失败 |
+| crates/motion-host/src/ops/project.rs:21 | 已有覆盖 | 此前集中save_previous：legacy validate_assets失败明确Warn带root/原因后按旧契约跳过保存，显式Save/Discard遵照调用者选择；正常目录切换测试已有覆盖，不将选择Discard计作失败 |
+| crates/motion-host/src/ops/snapshot.rs:253 | 已有覆盖 | 此前audio_voices失败输出has_audio:null及audio_error，原因变化时Warn、恢复清除旧原因，非静默false。本批未调整该既有日志位于audio_snapshot_error RefCell和Session业务锁内的时序，不能概称所有host日志已解锁 |
+| crates/motion-host/src/preview_inputs.rs:145 | 新增观测 | §66 保留mtime不可用时None及长度比较退化；固定进程生命周期首Warn/第60次Error/之后抑制，健康文件不复位，重启清零，无动态路径表。上下文source ID/有界路径及原因；with_session内至多两个阈值事件随线程作用域延迟到解锁后输出，含unwind。NTFS自然失败未重现，测试向生产helper注入Unsupported IO结果，健康metadata为真实文件 |
+| crates/motion-host/src/preview_inputs.rs:471 | 功能边界 | 真实failed状态携带decoder具体error并传播；内部未知状态或缺失error仍替代为通用preview video decode failed，未加独立协议异常站点/原始状态观测。本批不声称异常内部状态完整可定位，也不改变JSON/返回契约 |
+| crates/motion-host/src/preview_inputs.rs:75 | 核实保留 | 枚举ID直接来自同一不可变Project的根及compositions，composition_view只会在ID不存在时Err，当前循环每个ID均可查到；不是实际Result失败被遗漏。手工重复ID造成根/首条遮蔽属于模型验证契约，不改输入选择行为 |
+| crates/motion-host/src/session.rs:288 | 新增观测 | §66 在 with_session 正常/Err 出口观察既有 last_error：按Session累计带错误锁存的调用，首次Warn、第60次Error，之后抑制，出口无错误复位；包含session/frame/composition/有界原因及入口到出口耗时，registry解锁后输出。保留编辑已提交、Ok(snapshot)/Ok(false)及主错误语义；不是每次新采样失败计数，不声称捕获出口前被清除的错误或独立Session直接调用 |
+| crates/motion-host/src/session.rs:538 | 核实保留 | 视频prepare已返回就绪帧，renderer upload的None为同一源/同一帧已驻留无需重复上传；不是decode pending。既有视频上传/缓存验证和GPU计账观测保持，不对正常复用告警 |
+| crates/motion-host/src/session.rs:655 | 核实保留 | acquire与present计时为同一began包围的串行不重叠区间，正常微秒和不超过wall；饱和减仅稳健计时夹限，u64微秒量级远超实际进程寿命。as_micros收窄的极端长期回绕不据此声称逐位无损，不将正常计时与GPU驻留少计混同 |
+| crates/motion-host/src/session.rs:656 | 核实保留 | acquire与present计时为同一began包围的串行不重叠区间，正常微秒和不超过wall；饱和减仅稳健计时夹限，u64微秒量级远超实际进程寿命。as_micros收窄的极端长期回绕不据此声称逐位无损，不将正常计时与GPU驻留少计混同 |
+| crates/motion-host/src/session.rs:680 | 核实保留 | acquire与present计时为同一began包围的串行不重叠区间，正常微秒和不超过wall；饱和减仅稳健计时夹限，u64微秒量级远超实际进程寿命。as_micros收窄的极端长期回绕不据此声称逐位无损，不将正常计时与GPU驻留少计混同 |
+| crates/motion-host/src/session.rs:763 | 已有覆盖 | 已有host surface FailureCounter：Lost/Outdated重配置及Timeout保持Ok(None)，失败首Debug/连续60次Error，成功获取复位，携带surface状态；不是每帧日志，本批未模拟真实驱动Lost/Outdated故障 |
+| crates/motion-host/src/session.rs:822 | 新增观测 | §66 resource_info 对根目录canonicalize失败累计报告次数，首Warn/60Error/抑制，所有根可解析才复位；解锁后带无法解析数量、首session/路径/系统原因/耗时。原报告仍排除该session，无法确定其是否属于请求目录，明确标记membership unknown；真实缺失目录回归，不修复聚合结果 |
+| crates/motion-host/src/video_cache.rs:69 | 核实保留 | FrameCache私有frames/bytes，同一不可变Arc帧先精确累计、移除时减同一bytes，retain_window重新求和，budget≤36MiB且≤5帧；当前没有可独立修改账本的外部路径。保留真实cache窗口/驱逐回归，不当作已重现统计漂移 |
+| crates/motion-host/src/video_decode_policy.rs:14 | 核实保留 | wanted<=last已提前返回needs_seek，后面的wanted-last为正、饱和不会触发；submitted_until决定排空或seek，保留真实前进/回退策略测试 |
+| crates/motion-host/src/video_frames.rs:139 | 已有覆盖 | 此前panic_reason保留worker panic载荷，WorkerObservation及DecodeFlight发布open/decode开始和在途状态，错误带object/source/sequence/PTS/phase/elapsed，stdout安静；已有真实受控panic/阻塞解码回归 |
+| crates/motion-host/src/video_frames.rs:144 | 功能边界 | VideoDecoder.seeks定义累计seek数，同一decoder在worker内保留，正常后端计数单调；公开trait可实现递减或u64回绕，当前delta饱和0且无独立计数回退观测。保留数值/metrics边界，不声称所有第三方后端遵约或重置已被定位 |
+| crates/motion-host/src/video_frames.rs:363 | 已有覆盖 | 当前generation返回Result，中毒状态明确Err并保留object，不再用.ok()?制造新generation；计数checked_add拒绝耗尽。沿用poisoned_video_state_is_an_error_without_fabricating_a_new_generation等回归，不修改既有替换媒体退休stream顺序 |
+| crates/motion-host/src/video_frames.rs:501 | 已有覆盖 | 此前Stream.request对pending轮询有计数、首Debug/第60次Error和in_flight phase/elapsed，成功/换generation复位；仍Ok(None)给调用方重试，不对每次正常pending无条件日志 |
 
 ## B7 · motion-graph / motion-model
 
