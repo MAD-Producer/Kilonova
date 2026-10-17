@@ -436,11 +436,11 @@ impl Session {
         }
         g.renderer.retain_video_instances(&self.scene);
         self.preview_video.retain(&self.scene);
-        g.renderer
-            .set_image_prefetch(motion_render::image_resources::upcoming_assets(
-                self.engine.project(),
-                frame,
-            ));
+        let upcoming = motion_render::image_resources::upcoming_assets(
+            self.engine.project(),
+            frame,
+        ).map_err(|error| error.to_string())?;
+        g.renderer.set_image_prefetch(upcoming);
         let preparing = Instant::now();
         let frames = self.video_frames.prepare_scene(
             self.engine.project(),

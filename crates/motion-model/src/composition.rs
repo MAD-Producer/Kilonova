@@ -105,9 +105,29 @@ impl CompositionClip {
             muted: false,
         }
     }
-    pub fn source_frame(&self, local_frame: f64, parent_fps: u32, child_fps: u32) -> f64 {
-        f64::from(self.source_start_frame)
-            + local_frame * f64::from(child_fps) / f64::from(parent_fps)
+    /// Map clip-local time without allowing invalid rates or non-finite times
+    /// to reach sampling, culling, or dependency prefetch.
+    pub fn source_frame(&self, local_frame: f64, parent_fps: u32, child_fps: u32) -> Result<f64> {
+        if parent_fps == 0 || child_fps == 0 {
+            return fail(
+                &self.composition,
+                "invalid_frame_rate",
+                "Composition frame rates must be positive",
+                json!({"parent_fps":parent_fps,"child_fps":child_fps}),
+            );
+        }
+        let source = f64::from(self.source_start_frame)
+            + local_frame * f64::from(child_fps) / f64::from(parent_fps);
+        if !local_frame.is_finite() || !source.is_finite() {
+            return fail(
+                &self.composition,
+                "invalid_time",
+                "Composition source time must be finite",
+                json!({"local_frame":local_frame.to_string(),"parent_fps":parent_fps,
+                    "child_fps":child_fps,"source_start_frame":self.source_start_frame}),
+            );
+        }
+        Ok(source)
     }
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
