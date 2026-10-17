@@ -273,7 +273,7 @@
 
 - 文件任务在执行前记录默认 Info start 并 flush；后台失败记录 task id、种类、epoch、revision 和耗时，编译/校验拒绝记录 warn
 - 保存/导出成功即记录实际磁盘路径，即使随后取消、切换编辑器或丢弃过期完成结果，产物证据仍保留
-- 高频预览编译的 start/done、接收端关闭和正常 worker 退出仅用 debug，不增加 Present 热路径日志
+- 当时将预览编译 start/done 设为 debug；第 33 批已把真正执行的 Compile start 调整为默认 Info 并 flush，done、接收端关闭和正常退出仍为 debug
 - 新增独立进程回归实际制造输出目录被文件阻塞的保存失败，并验证 file/stderr；再保存成功后切换编辑器，验证旧文件确已保存且不会覆盖新编辑器的 source_path
 - 保留过期校验、编译、保存结果的 epoch/revision 守卫；过期结果不应覆盖新文档，也不应把新编辑标成已保存
 - 新增真实 Ctrl+S 拒绝非法字段回归，证实输入与就地错误和 notice 原本均保留，不新增重复提示
@@ -461,7 +461,7 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - cargo tree 未发现会在 release 静态屏蔽 Info 的 log max_level/release_max_level feature；未据此宣称已运行 release 二进制
 - 证据：desktop-debug-filter-full.log、debug-filter-check.log、debug-filter-build.log、debug-filter-runtime.log、runtime/runtime-summary.json、log-features.log
 
-当前核实/修复分批记录到 32；原始两份清单保留原样，未覆盖条目仍待审，不将 832 个候选当作已确认或已关闭缺陷。
+当前核实/修复分批记录到 33；原始两份清单保留原样，未覆盖条目仍待审，不将 832 个候选当作已确认或已关闭缺陷。
 
 ## 31 · 控制台反压时优先保全错误文件
 
@@ -486,3 +486,14 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - 新增真实后台线程回归：分别阻塞音频/视频 provider，验证默认 Info start 及同线程 flush 发生在释放之前；释放后验证失败状态和 request/operation/ms 日志；真实工程包导出到被普通文件阻挡的目录，验证失败证据
 - 保留两项原有大型媒体忽略条件：release 的大音频/工程包验收和需要 MOTION_LARGE_VIDEO_SOURCE 的大视频验收，未宣称本轮执行了它们
 - 证据：media-task-log-check.log、media-task-log-full.log、desktop-media-observability-full.log、media-observability-check.log、media-observability-build.log
+
+
+## 33 · 节点编译开始也必须默认可见
+
+状态：已完成；桌面全套 348 passed、0 failed、0 ignored，check/build 通过
+
+- 将真正进入执行的 Compile start 与保存/导出 start 统一为 Info 并立即 flush，避免默认配置遗漏编译挂起的开始证据
+- 把 start 放在过期/取消检查之后，未执行的淘汰任务不制造开始噪声，完成继续使用 Debug
+- 加强既有独立进程回归：真实提交第三个 Compile 任务，断言默认日志存在 INFO node start #3 Compile；既有保存失败、成功产物与控制台隔离断言全部保留
+- 不更改执行顺序、结果接收守卫或 Present 路径
+- 证据：desktop-media-observability-full.log、media-observability-check.log、media-observability-build.log

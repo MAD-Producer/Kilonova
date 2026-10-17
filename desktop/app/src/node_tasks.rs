@@ -207,18 +207,14 @@ impl NodeTasks {
                 .spawn(move || {
                     while let Ok(job) = receive.recv() {
                         let began = std::time::Instant::now();
-                        if job.kind == Kind::Compile {
-                            log::debug!("node start #{} {:?} epoch={} revision={}", job.id, job.kind, job.snapshot.epoch, job.snapshot.revision);
-                        } else {
-                            log::info!("node start #{} {:?} epoch={} revision={}", job.id, job.kind, job.snapshot.epoch, job.snapshot.revision);
-                            crate::logging::flush();
-                        }
                         let outcome = if generation.load(Ordering::Acquire) != job.generation
                             || job.kind == Kind::Compile
                                 && latest_compile.load(Ordering::Acquire) != job.id
                         {
                             Outcome::Cancelled
                         } else {
+                            log::info!("node start #{} {:?} epoch={} revision={}", job.id, job.kind, job.snapshot.epoch, job.snapshot.revision);
+                            crate::logging::flush();
                             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                                 execute(&job, &generation, &latest_compile)
                             }))
@@ -670,6 +666,8 @@ mod observability_tests {
             drain(&mut tasks, &mut editor);
             assert_eq!(GraphDocument::load(&root.join("saved.msgraph")).unwrap(), expected);
             assert!(editor.snapshot().source_path.is_none());
+            tasks.submit(editor.request(Request::Compile).unwrap(), Locale::En, false).unwrap();
+            drain(&mut tasks, &mut editor);
             return;
         }
         let root = tempfile::tempdir().unwrap();
@@ -682,6 +680,7 @@ mod observability_tests {
         assert!(text.contains("node start #1 SaveAs epoch="));
         assert!(text.contains("node error #1 SaveAs ") && text.contains("ms epoch="));
         assert!(text.contains("node saved #2 epoch=") && text.contains("saved.msgraph"));
+        assert!(text.lines().any(|line| line.contains(" INFO ") && line.contains("node start #3 Compile")));
         assert!(String::from_utf8_lossy(&output.stderr).contains("node error #1 SaveAs "));
         assert!(!String::from_utf8_lossy(&output.stdout).contains("node saved #"));
     }
