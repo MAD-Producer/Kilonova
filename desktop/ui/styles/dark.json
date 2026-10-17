@@ -53,6 +53,8 @@
       "font.small": 11,
       "panel.header.height": 24,
       "row.height": 22,
+      "camera.row.height": 28,
+      "camera.field.height": 26,
       "field.height": 18,
       "label.column": 72,
       "value.min_width": 64,

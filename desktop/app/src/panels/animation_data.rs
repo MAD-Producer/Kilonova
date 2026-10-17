@@ -9,7 +9,12 @@ pub(super) fn name(property: Property) -> &'static str {
         Property::Rotation => "rotation",
         Property::Scale => "scale",
         Property::Opacity => "opacity",
-        _ => "",
+        Property::Target => "target",
+        Property::Roll => "roll",
+        Property::Fov => "fov",
+        Property::Radius => "radius",
+        Property::Azimuth => "azimuth",
+        Property::Elevation => "elevation",
     }
 }
 pub(super) fn timeline(state: &Value, object: u64) -> Option<&Value> {
@@ -75,7 +80,7 @@ pub(super) fn sample(
     let offset = layer["offset_frame"].as_i64().unwrap_or(0);
     let source = channel(state, object, property, axis)?;
     let local = frame - offset as f64;
-    if property == Property::Opacity || axis.is_some() {
+    if property.is_scalar() || axis.is_some() {
         Some(serde_json::json!(
             track::<f32>(source, offset)?.sample(local)
         ))

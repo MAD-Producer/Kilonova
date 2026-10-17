@@ -255,7 +255,8 @@ impl Scene {
         self.node_spatial
             .extend(project.layers.iter().map(|l| l.three_d));
         self.node_spatial.push(true);
-        let link = project.camera.parent.as_ref();
+        let active_camera = project.active_camera_layer(frame);
+        let link = active_camera.map_or(project.camera.parent.as_ref(), |l| l.parent.as_ref());
         let prefix = if let Some(link) = link {
             let parent = if let Some(id) = link.object {
                 let index = self
@@ -277,14 +278,16 @@ impl Scene {
             Mat4::IDENTITY
         };
         let implicit;
-        let camera = if project.camera.created {
-            &project.camera
+        let (camera, camera_frame) = if let Some(layer) = active_camera {
+            (project.camera_for(layer.id)?, layer.local_frame(frame))
+        } else if project.camera.created {
+            (&project.camera, frame)
         } else {
             implicit = motion_model::Camera::new(project.width, project.height);
-            &implicit
+            (&implicit, frame)
         };
         self.camera = observer.map_or_else(
-            || camera.pose_parented(frame, project.width, project.height, prefix),
+            || camera.pose_parented(camera_frame, project.width, project.height, prefix),
             |o| o.pose(project.width, project.height),
         );
         self.width = project.width;
@@ -310,7 +313,7 @@ impl Scene {
         let matte_sources=motion_model::compositing::matte_sources(&project.layers);
         let hidden_sources=motion_model::compositing::hidden_sources(&project.layers);
         for (order, layer) in project.layers.iter().enumerate() {
-            if matches!(layer.content, Content::Null | Content::Audio { .. }) {
+            if matches!(layer.content, Content::Null | Content::Camera { .. } | Content::Audio { .. }) {
                 continue;
             }
             let referenced = matte_sources.contains(&layer.id) || self.effects.iter().any(|e| e.enabled && e.image_input.and_then(motion_model::EffectImageInput::layer) == Some(layer.id));
@@ -366,7 +369,7 @@ impl Scene {
                 None
             };
             let (color, asset) = match &layer.content {
-                Content::Null | Content::Audio { .. } => unreachable!(),
+                Content::Null | Content::Camera { .. } | Content::Audio { .. } => unreachable!(),
                 Content::Solid { color } => (*color, None),
                 Content::Video { .. } => ([1.0; 4], None),
                 Content::Vector { .. } | Content::Adjustment => ([1.0; 4], None),

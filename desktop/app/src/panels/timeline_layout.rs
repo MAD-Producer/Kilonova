@@ -110,7 +110,7 @@ impl LayerRows {
             .map(|(i, _)| i)
             .collect::<Vec<_>>();
         let anchor =
-            (transform_open && matches!(filter, super::types::PropertyFilter::All)).then_some(2);
+            (transform_open && !row.camera && matches!(filter, super::types::PropertyFilter::All)).then_some(2);
         let transform = 1..1
             + usize::from(expanded && row.spatial)
             + usize::from(anchor.is_some())
@@ -140,7 +140,7 @@ impl LayerRows {
         };
         let geometry = audio.end
             ..audio.end
-                + if expanded && row.spatial {
+                + if expanded && row.spatial && !row.camera {
                     1 + usize::from(geometry_open)
                 } else {
                     0
@@ -149,7 +149,7 @@ impl LayerRows {
         let vectors = masks.end..masks.end + vector_rows.len();
         let effects = vectors.end
             ..vectors.end
-                + if expanded && row.id != 0 {
+                + if expanded && row.id != 0 && !row.camera {
                     1 + if effects_open { row.effects } else { 0 }
                 } else {
                     0

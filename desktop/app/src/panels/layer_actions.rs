@@ -925,19 +925,7 @@ fn entries_for(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
                 Action::AddShape(motion_core::vector::ShapeKind::Ellipse),
             ),
         ] {
-            let enabled = !matches!(action, Action::Edit(Command::CreateCamera))
-                || state["project"]["camera"]["created"] != true;
-            add(zh, en, enabled, Choice::New(action));
-        }
-        drop(add);
-        for entry in &mut result {
-            if !entry.enabled {
-                entry.disabled_reason = Some(word(
-                    locale,
-                    "当前合成已经有摄影机",
-                    "This composition already has a camera",
-                ));
-            }
+            add(zh, en, true, Choice::New(action));
         }
         return result;
     };
@@ -995,12 +983,12 @@ fn entries_for(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
             add(
                 "混合模式",
                 "Blend Mode",
-                unlocked && l["content"]["kind"] != "audio",
+                unlocked && !matches!(l["content"]["kind"].as_str(), Some("audio" | "camera")),
                 Choice::Page(Page::Blend),
             );
             let matte_visual = !matches!(
                 l["content"]["kind"].as_str(),
-                Some("null" | "audio" | "adjustment")
+                Some("null" | "camera" | "audio" | "adjustment")
             );
             add(
                 "遮罩",
@@ -1993,7 +1981,7 @@ mod tests {
                 .iter()
                 .find(|e| matches!(e.choice, Choice::New(Action::Edit(Command::CreateCamera))))
                 .unwrap();
-            assert!(!camera.enabled && camera.disabled_reason.is_some());
+            assert!(camera.enabled && camera.disabled_reason.is_none());
             popup.target = Some(9);
             state["project"]["layers"][1]["locked"] = serde_json::json!(true);
         }

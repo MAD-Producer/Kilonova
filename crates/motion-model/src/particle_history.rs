@@ -86,6 +86,7 @@ impl ParticleHistory {
                 && old.pose.layers.len() == nodes.len()
                 && old.pose.layers.iter().zip(&nodes).all(|(a, b)| {
                     a.id == b.id
+                        && a.camera_data() == b.camera_data()
                         && a.transform == b.transform
                         && a.parent == b.parent
                         && a.timeline == b.timeline
@@ -103,7 +104,10 @@ impl ParticleHistory {
         }
         for node in nodes {
             let mut skeletal = Layer::solid(node.id, "Particle pose", [1., 1.], [0.; 3], [0.; 4]);
-            skeletal.content = Content::Null;
+            skeletal.content = match node.camera_data() {
+                Some(camera) => Content::Camera { camera: Box::new(camera.clone()) },
+                None => Content::Null,
+            };
             skeletal.transform = node.transform.clone();
             skeletal.parent = node.parent.clone();
             skeletal.timeline = node.timeline;
