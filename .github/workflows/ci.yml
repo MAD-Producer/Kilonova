@@ -63,6 +63,10 @@ jobs:
           python tools/generate_desktop_icons.py --check
           python -m unittest discover -s tools -p 'test_ci_*.py' -v
           test -z "$(git ls-files docs)"
+      # The offline dependency-boundary test reads metadata for all lockfile
+      # targets, including packages the desktop test build does not compile.
+      - name: Fetch locked metadata dependencies
+        run: cargo fetch --locked
       - name: Run Rust and software Vulkan tests
         run: cargo test --workspace --exclude motion-android --locked --features motion-host/diagnostics -- --test-threads=1
       - name: Validate SDK packer with the Rust loader

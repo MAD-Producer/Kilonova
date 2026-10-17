@@ -670,6 +670,19 @@ impl Session {
                     render_height: rh,
                     preview_fps: tier.fps(),
                     gpu: None,
+                    resources: Some(motion_render::FrameResources {
+                        textures: g.renderer.texture_memory_breakdown(),
+                        preview_target_bytes: g.scratch.texture_bytes(),
+                        cpu_video_cache_bytes: self.video_frames.cache_bytes()? as u64,
+                        cpu_video_proxy_bytes: self.preview_video.bytes() as u64,
+                        video_prepare_us: self.video_prepare_us,
+                        video_upload_us: self.video_upload_us,
+                        image_upload_bytes_total: g.renderer.image_upload_bytes,
+                        video_upload_bytes_total: g.renderer.video_upload_bytes,
+                        pipeline_builds_total: g.renderer.effect_pipeline_builds(),
+                        memory_quality_level: quality.level,
+                        resource_refusals_total: self.preview_memory.refusal_count,
+                    }),
                 });
             }
             self.last_presented_frame = Some(frame);

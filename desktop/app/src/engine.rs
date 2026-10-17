@@ -15,8 +15,8 @@ use serde_json::Value;
 use std::{
     path::PathBuf,
     sync::{
-        mpsc::{channel, Sender},
-        atomic::{AtomicUsize, Ordering},
+        mpsc::{channel, sync_channel, Sender, SyncSender, TrySendError},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
         Arc, Mutex,
     },
     thread::JoinHandle,
@@ -24,6 +24,8 @@ use std::{
 };
 mod diagnostic_names;
 mod failure;
+#[cfg(test)]
+mod queue_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod scope_tests;
 use failure::{ErrorReply, Failure, SessionLease};
@@ -31,6 +33,7 @@ use failure::{ErrorReply, Failure, SessionLease};
 /// Maximum JSON payload accepted from the UI. Matches the Android bridge limit
 /// so a request that works on one platform works on both.
 pub const REQUEST_LIMIT: usize = 256 * 1024;
+pub const COMMAND_QUEUE_CAPACITY: usize = 128;
 
 /// CPU draw commands only. All GPU objects stay with the session worker.
 pub struct UiFrame {
@@ -114,9 +117,6 @@ pub enum Command {
         ticket: crate::project_lifecycle::Ticket,
         save: bool,
         reply: Sender<Result<Value, String>>,
-    },
-    NodeExpect {
-        stamp: (u64, u64),
     },
     NodeSource {snapshot:crate::node_editor::EditorSnapshot,reply:Sender<Result<Value,String>>},
     NodeInstall {
@@ -338,7 +338,7 @@ impl Command {
             TestPanic { reply, .. } | TestRecoveryPanic { reply, .. } | TestDelay { reply, .. } | TestWait {reply,..} => {
                 ErrorReply::Value(reply.clone())
             }
-            NodeExpect { .. } | Shutdown => return None,
+            Shutdown => return None,
         };
         Some(reply)
     }
@@ -360,7 +360,7 @@ impl std::ops::Deref for ArcFrame {
 
 /// Handle used by the UI thread to talk to the engine.
 pub struct Engine {
-    sender: Sender<QueuedCommand>,
+    sender: SyncSender<QueuedCommand>,
     worker: Option<JoinHandle<()>>,
     platform: Arc<dyn Platform>,
     factory: Arc<std::sync::Mutex<Option<SurfaceFactory>>>,
@@ -369,6 +369,8 @@ pub struct Engine {
     diagnostics: Arc<crate::diagnostics::Diagnostics>,
     in_flight: Arc<Mutex<Option<Flight>>>,
     queue_depth: Arc<AtomicUsize>,
+    shutdown: Arc<AtomicBool>,
+    pending_node_expect: Arc<Mutex<Option<(u64, u64)>>>,
 }
 #[derive(Clone, Copy)]
 struct Flight {
@@ -429,7 +431,36 @@ impl Engine {
         Ok(())
     }
     pub fn node_expect(&self, stamp: (u64, u64)) -> Result<(), String> {
-        self.send(Command::NodeExpect { stamp })
+        self.check_running()?;
+        *self.pending_node_expect.lock().map_err(|_| "node expectation lock poisoned")? = Some(stamp);
+        Ok(())
+    }
+    /// Stop accepting work and drain accepted commands. This also works while
+    /// an MCP reader still owns an Arc; it does not interrupt a native GPU call.
+    pub fn request_shutdown(&self) -> Result<(), String> {
+        let mut gate_error = None;
+        let _gate = self.in_flight.lock().unwrap_or_else(|e| {
+            gate_error = Some("engine dispatch lock poisoned during shutdown".to_owned());
+            e.into_inner()
+        });
+        if self.shutdown.swap(true, Ordering::AcqRel) {
+            return gate_error.map_or(Ok(()), Err);
+        }
+        // Wake an idle worker. A full queue already wakes it; after draining it
+        // observes the flag without requiring another free queue slot.
+        match self.sender.try_send(QueuedCommand {
+            command: Command::Shutdown,
+            queued: Instant::now(),
+            request: self.diagnostics.next_request(),
+            context: self.diagnostics.context(),
+        }) {
+            Ok(()) => { self.queue_depth.fetch_add(1, Ordering::AcqRel); },
+            Err(TrySendError::Full(_)) => {
+                log::debug!("shutdown will follow the accepted full command queue");
+            },
+            Err(TrySendError::Disconnected(_)) => return Err(self.stopped_error()),
+        }
+        gate_error.map_or(Ok(()), Err)
     }
     pub fn node_install(
         &self,
@@ -499,7 +530,11 @@ impl Engine {
         let worker_flight = in_flight.clone();
         let queue_depth = Arc::new(AtomicUsize::new(0));
         let worker_depth = queue_depth.clone();
-        let (sender, receiver) = channel::<QueuedCommand>();
+        let shutdown = Arc::new(AtomicBool::new(false));
+        let worker_shutdown = shutdown.clone();
+        let pending_node_expect = Arc::new(Mutex::new(None));
+        let worker_node_expect = pending_node_expect.clone();
+        let (sender, receiver) = sync_channel::<QueuedCommand>(COMMAND_QUEUE_CAPACITY);
         let (ready, opened) = channel::<Result<i64, String>>();
         let worker = std::thread::Builder::new()
             .name("motion-engine".into())
@@ -558,7 +593,25 @@ impl Engine {
                 let mut windows = std::collections::HashMap::new();
                 let mut failed_reply = None;
                 let mut channel_closed = true;
-                while let Ok(QueuedCommand {command,queued,request,context}) = receiver.recv() {
+                loop {
+                    let drained = {
+                        let _gate = match worker_flight.lock() {
+                            Ok(gate) => gate,
+                            Err(_) => {
+                                let error = "engine dispatch lock poisoned while checking shutdown";
+                                log::error!("{error}");
+                                *worker_failure.lock().unwrap_or_else(|e| e.into_inner()) = Some(error.into());
+                                channel_closed = false;
+                                break;
+                            }
+                        };
+                        worker_shutdown.load(Ordering::Acquire) && worker_depth.load(Ordering::Acquire) == 0
+                    };
+                    if drained {
+                        channel_closed = false;
+                        break;
+                    }
+                    let Ok(QueuedCommand {command,queued,request,context}) = receiver.recv() else { break; };
                     let began=std::time::Instant::now();
                     let operation=command.diagnostic_name();
                     let flight = Flight { request, operation, started: began };
@@ -575,7 +628,13 @@ impl Engine {
                         crate::logging::flush();
                     }
                     let on_panic = command.panic_reply();
-                    let handled=motion_host::ops::catch_panic(|| handle(
+                    let handled=motion_host::ops::catch_panic(|| {
+                        // Keep this inside the existing panic/reply boundary.
+                        let pending = worker_node_expect.lock().map_err(|_| "node expectation lock poisoned")?;
+                        let mut pending = pending;
+                        if let Some(stamp) = pending.take() { node_preview.desired = stamp; }
+                        drop(pending);
+                        Ok(handle(
                         id,
                         &platform,
                         &mut painter,
@@ -586,7 +645,7 @@ impl Engine {
                         &worker_paints,
                         &worker_diagnostics,
                         command,
-                    ));
+                    ))}).and_then(|result| result);
                     worker_diagnostics.record(request,"worker",operation,queued.elapsed(),Some(began.duration_since(queued)),Some(began.elapsed()),context);
                     *worker_flight.lock().unwrap_or_else(|e| e.into_inner()) = None;
                     CURRENT_COMMAND.set(None);
@@ -616,6 +675,7 @@ impl Engine {
                     }
                 }
                 if channel_closed { log::error!("worker channel closed"); }
+                worker_depth.store(0, Ordering::Release);
                 drop(windows);
                 drop(painter);
                 drop(node_preview);
@@ -655,6 +715,8 @@ impl Engine {
             diagnostics,
             in_flight,
             queue_depth,
+            shutdown,
+            pending_node_expect,
         })
     }
 
@@ -666,14 +728,18 @@ impl Engine {
         let request = self.diagnostics.next_request();
         let operation = command.diagnostic_name();
         let _gate = self.in_flight.lock().unwrap_or_else(|e| e.into_inner());
+        self.check_running()?;
         self.sender
-            .send(QueuedCommand {
+            .try_send(QueuedCommand {
                 command,
                 queued: std::time::Instant::now(),
                 request,
                 context: self.diagnostics.context(),
             })
-            .map_err(|_| self.stopped_error())?;
+            .map_err(|error| match error {
+                TrySendError::Full(_) => format!("engine command queue is full (capacity {COMMAND_QUEUE_CAPACITY}); command was not queued"),
+                TrySendError::Disconnected(_) => self.stopped_error(),
+            })?;
         let depth = self.queue_depth.fetch_add(1, Ordering::AcqRel) + 1;
         // Present shares this queue; keep its healthy per-frame path silent.
         if operation != "present" {
@@ -1091,11 +1157,14 @@ impl Engine {
 
 impl Drop for Engine {
     fn drop(&mut self) {
-        // Shutdown must use the same accounting gate as every other command.
-        let _ = self.send(Command::Shutdown);
+        if let Err(error) = self.request_shutdown() {
+            log::error!("engine shutdown: {error}");
+        }
         if let Some(worker) = self.worker.take() {
             if let Err(payload) = worker.join() {
-                log::error!("worker join failed: {}", motion_media::panic_reason(payload));
+                let error = format!("engine shutdown failed: worker panicked outside its command boundary: {}", motion_media::panic_reason(payload));
+                *self.failure.lock().unwrap_or_else(|e| e.into_inner()) = Some(error.clone());
+                log::error!("{error}");
             }
         }
     }
@@ -1314,7 +1383,6 @@ fn handle(
             }
         })()),
         Command::NodeSource{snapshot,reply}=>respond(reply,motion_host::session::with_session(id,|s|crate::node_layer::persist(s,&snapshot))),
-        Command::NodeExpect{stamp}=>node_preview.desired=stamp,
         Command::NodeInstall { snapshot, compiled, canonical,reply } => respond(reply, (|| {
             // All pipeline creation and scope push/pop stay on this worker,
             // alongside effects and presentation. Reject stale CPU work first.
