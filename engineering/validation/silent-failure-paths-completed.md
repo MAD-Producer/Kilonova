@@ -461,7 +461,7 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - cargo tree 未发现会在 release 静态屏蔽 Info 的 log max_level/release_max_level feature；未据此宣称已运行 release 二进制
 - 证据：desktop-debug-filter-full.log、debug-filter-check.log、debug-filter-build.log、debug-filter-runtime.log、runtime/runtime-summary.json、log-features.log
 
-当前观测补齐及核实分批记录到 48；后续实施范围限定为可观测性，功能与算法问题单独登记。原始两份清单保留原样，未覆盖条目仍待审，不将 832 个候选当作已确认或已关闭缺陷。
+当前观测补齐及核实分批记录到 50；后续实施范围限定为可观测性，功能与算法问题单独登记。原始两份清单保留原样，未覆盖条目仍待审，不将 832 个候选当作已确认或已关闭缺陷。
 
 ## 31 · 控制台反压时优先保全错误文件
 
@@ -808,3 +808,41 @@ T10 共 39 个编号均已给出处置，其中 27 项观测完成、1 项观测
 - 本轮没有重跑 motion-media 两项原有大型媒体条件测试，仍按第 44 批的既有 ignored 条件登记；不把可选 FFmpeg 测试通过扩写为大型媒体验收完成
 - git diff 3a710db -- desktop/app/src/panels 为空；未修改任一 panels 文件、原始两份审计报告或无关工作区文件，不新增依赖、第三方素材、worker 超时或重启
 - 证据目录：target/silent-failure-validation；最新日志为 b45-host-full.log、b45-video-negative.log、b46-level-negative.log、b47-level-negative.log、b47-desktop-check.log、b47-desktop-final.log、b48-desktop-media-ffmpeg.log
+
+## 49 · GPU 回调即时错误与后续错误限频
+
+状态：真实 GPU、受控错误分类、渲染回归及桌面集成验收通过
+
+- renderer 原先只在 device-lost/uncaptured 回调内更新错误锁存，依赖后续 check_health 才返回 Err；现在回调本身就保留文件日志证据，不依赖再次绘制或健康查询
+- uncaptured 的 validation、out_of_memory、internal 分别在首次发生时记 Error，携带进程内 renderer 编号、类别、耗时、adapter/backend/vendor/device/driver、原始描述与底层 source；某类持续 60 次后只补一条 Warn，避免校验错误风暴掩盖后来 OOM 或内部错误
+- 分类别计数与原有首因锁存在同一短临界区内更新，实际文件/控制台 IO 在解锁之后；已锁存的后续错误不额外复制完整描述，不增加健康 Present 的日志
+- 保留原有 uncaptured 首条原因以及 device loss 覆盖原因的语义，不清锁存、不自动重建 renderer；显式 Device::destroy 的 Destroyed 只记 Debug，不把正常销毁报成故障，非预期 Unknown 记 Error
+- 新增真实 GPU 回归，实际创建非法 WGSL 模块触发已注册的回调，在 gpu_error/check_health/后续 draw 之前读取默认 Info 文件，验证首条即时错误；再触发 120 次后续校验错误验证只增加一条阈值 Warn，原首因不变，显式销毁及另建合法 renderer 的正常渲染不增加终端故障
+- 新增独立进程受控分类回归，验证 validation 风暴之后 OOM/internal 仍分别有 Error，正常销毁与 Unknown 回调的原有健康状态保留；测试 logger 在每次写入时 try_lock 原因锁，验证日志没有持有该锁
+- OOM/internal/Unknown 使用受控错误对象调用真实回调处理方法，不耗尽显存或触发驱动重置，不宣称复现了实际设备丢失；真实 GPU 回归覆盖的是 WGSL 校验与显式销毁
+- 错误沿既有 log sink 输出，桌面 Error 文件/stderr 双输出和 stdout 隔离由现有日志层回归覆盖，本批未新增直接 stdout/stderr 输出
+- 关联辅助清单：1.5；全集 renderer.rs 原 230/238/594 的锁存相关候选；证据：b49-gpu-callback.log、b49-gpu-causes.log、b49-render-final.log、b49-desktop-check.log、b49-desktop-full.log
+- 最终源码复验：渲染侧 19 项单元及 5 项集成测试通过，0 failed、0 ignored；cargo check -p motion-desktop 退出 0，桌面完整测试 356 passed、0 failed、0 ignored（包含原有忽略项）
+- 本批未修改 panels、两份原始审计报告或无关文件，没有新增依赖；未做新的人工视觉验收，不将编译或自动测试扩写为 DESIGN.md §12 全量验收
+
+## 50 · T1 卡死清单逐项复核
+
+本表对应辅助清单 1.1–1.13，区分历史功能修复、当前观测证据和明确保留的行为。原报告中的“永久”不能直接推导为应清空错误状态或自动重启资源；本任务仍只补可观测性。
+
+| 编号 | 处置 | 当前代码与证据 |
+| --- | --- | --- |
+| 1.1 | 历史修复已验证 | attach 的 Empty/Disconnected 已区分并退出失效等待；§01，集中 poll_reply 回归 |
+| 1.2 | 历史修复已验证 | present 断开清空等待槽并沿原故障链返回；§01，失败 worker 不再阻止关闭 |
+| 1.3 | 历史修复已验证 | resize 断开沿原错误链处理；§01，不伪装为还在等待 |
+| 1.4 | 历史修复已验证 | freeze_movie 断开退出等待；§01/24，后台错误不随 reply 接收端丢弃而消失 |
+| 1.5 | 观测完成，锁存保留 | GPU 回调即时分类 Error 与限频 Warn；§49，错误资源继续按原 check_health 拒绝使用 |
+| 1.6 | 核实保留 | Engine.failure 表示已失效 worker，不能清空后恢复在同一 session 执行；§01/21，首因、请求、关闭及资源释放均可定位 |
+| 1.7 | 观测完成，首因保留 | Shared::fail 保留首条设备原因；§29/47，producer 与 watchdog 错误可关联 playback，不在失效音频输出实例内自动恢复 |
+| 1.8 | 观测已补，功能边界保留 | movie export 开始、保存/取消/失败及耗时已记录，panic 原因保留；§02/24，未添加导出线程独立存活探测、超时终态或重启，不声称保证所有外层线程异常都将 running 改为 failed |
+| 1.9 | 核实并补齐观测 | 预取失败不是 active 资产的永久黑名单，坏预取转 active 有真 GPU Err 回归；§09，首次/持续失败有 source 与计数；前置观测/§20 |
+| 1.10 | 历史修复已验证 | 代理缓存文件系统锁中毒后恢复且校验缓存字节，真实读写回归通过；§09，不将缓存内容无条件视为可信 |
+| 1.11 | 核实保留 | 等待槽清理发生在 failed worker 的关闭流程，故障/恢复文件已有证据；§01，断开队列不能阻止关闭，不恢复执行其中旧编辑 |
+| 1.12 | 历史修复已验证 | AudioJobs::Drop 通过 get_mut 恢复 registry 观测并取消任务，Stage 清理失败有路径与原因；§08，中毒 registry 关闭回归 |
+| 1.13 | 待补观测 | 当前 present_due/draw_acknowledged 会在一批编辑确认后先呈现，已有属性 scrub、蒙版/形状拖拽和重复指针测试；但 actions 造成呈现延期仍无独立连续计数，不将这些既有测试夸大成所有动作风暴均已观测 |
+
+13 项均已给出处置，最后一项持续呈现延期信号仍待补；第 1.8 的线程独立存活探测也没有实现。本表不将这两项标为全量解决，不以 UI/线程策略改动替代观测工作。

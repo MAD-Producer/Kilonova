@@ -2,6 +2,7 @@ use crate::resource_ledger::{DeviceTextureExt, OwnedTexture};
 use motion_model::{Project, MAX_LAYERS};
 use crate::{PlaneCompositor, ResourceBudgetScope, ResourceRejection, Scene};
 mod compositing;
+mod gpu_failure;
 use bytemuck::{Pod, Zeroable};
 use image::ImageReader;
 use std::{
@@ -228,18 +229,13 @@ impl Renderer {
             )
             .await?;
         let gpu_failure = Arc::new(Mutex::new(None));
-        let lost = gpu_failure.clone();
+        let observer = Arc::new(gpu_failure::Observation::new(gpu_failure.clone(), adapter_info.clone()));
+        let lost = observer.clone();
         device.set_device_lost_callback(move |reason, message| {
-            *lost.lock().unwrap_or_else(|e| e.into_inner()) =
-                Some(format!("GPU device lost: {reason:?}: {message}"));
+            lost.device_lost(reason, message);
         });
-        let uncaptured = gpu_failure.clone();
         device.on_uncaptured_error(Box::new(move |error| {
-            // Invalid-command follow-up errors must not overwrite the root cause.
-            uncaptured
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .get_or_insert_with(|| format!("GPU error: {error}"));
+            observer.uncaptured(error);
         }));
         let alignment = device.limits().min_uniform_buffer_offset_alignment as usize;
         let uniform_stride = (DRAW_SIZE as usize).div_ceil(alignment) * alignment;
