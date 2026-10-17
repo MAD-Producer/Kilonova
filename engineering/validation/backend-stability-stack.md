@@ -83,3 +83,18 @@ lock release with an extra `Arc`, poisoned expectation replies, blocked native
 decoders, source replacement, 60 clear/recreate cycles, retirement panic payloads,
 damaged registry settings, blocked cache destinations and bounded resource
 recordings with missing samples.
+
+## CI dependency metadata follow-up
+
+The first PR #308/#309 Linux checks reached the dependency-boundary test and
+failed because its offline, all-target Cargo metadata query needed an uncached
+`android-activity` source package. Desktop compilation does not download that
+target-only package. The checks job now runs `cargo fetch --locked` before tests
+to populate the lockfile sources without compiling Android. The offline boundary
+assertions remain unchanged. The previous CI runs are failures, not full-suite
+validation; the updated heads require a new CI run.
+
+The existing CI Python suite passed 45 tests with 1 existing Rust-validator test
+skipped (`python -m unittest discover -s tools -p 'test_ci_*.py' -v`). The pinned
+CI PyYAML dependency was installed in an ignored artifact directory for this run;
+no repository dependency changed. Log: `artifacts/workspace-stall/pr-stack-ci-tools.log`.
