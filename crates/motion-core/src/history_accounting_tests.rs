@@ -546,3 +546,24 @@ fn history_evictions_count_real_unavailable_undo_entries_and_budget_pressure() {
     assert_eq!(engine.history_diagnostics()["undoEntries"],0);
     assert!(!engine.undo().unwrap());
 }
+
+#[test]
+fn active_gesture_age_distinguishes_history_blocking_without_changing_undo_policy() {
+    let mut engine = Engine::new(Project::demo()).unwrap();
+    assert!(engine.history_diagnostics()["gestureElapsedMs"].is_null());
+    engine.apply(rename("before gesture")).unwrap();
+    assert!(engine.can_undo());
+    engine.begin_gesture().unwrap();
+    engine.gesture.as_mut().unwrap().started -= std::time::Duration::from_secs(3);
+    let diagnostics = engine.history_diagnostics();
+    assert_eq!(diagnostics["gestureActive"], true);
+    assert!(diagnostics["gestureElapsedMs"].as_u64().unwrap() >= 3000);
+    assert_eq!(diagnostics["undoEntries"], 1);
+    assert!(!engine.can_undo());
+    assert!(matches!(engine.begin_gesture(), Err(Error::Gesture)));
+    engine.end_gesture(false).unwrap();
+    assert!(engine.history_diagnostics()["gestureElapsedMs"].is_null());
+    assert!(engine.can_undo());
+    assert!(matches!(engine.end_gesture(false), Err(Error::Gesture)));
+    assert!(engine.undo().unwrap());
+}

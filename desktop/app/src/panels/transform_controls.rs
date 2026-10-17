@@ -261,7 +261,17 @@ impl Drag {
                 }
             }
             Handle::Rotate | Handle::Scale(..) | Handle::Anchor => {
-                let Some(local) = self.pose.projection.local(input.mouse) else {
+                let Some(local) = observe!(
+                    "transform.drag_projection",
+                    self.pose
+                        .projection
+                        .local(input.mouse)
+                        .ok_or("projection unavailable after gesture began"),
+                    "object={} phase=dragging mouse={:?}",
+                    self.pose.object,
+                    input.mouse
+                )
+                .ok() else {
                     return out;
                 };
                 let pivot = self.pose.pivot_local();

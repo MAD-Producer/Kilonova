@@ -269,7 +269,9 @@ fn key_times(track: &Track<f32>, offset: i64, frames: u64) -> Vec<u32> {
         .collect()
 }
 fn track(layer: &Value, control: Control) -> Track<f32> {
-    serde_json::from_value(layer["audio_levels"][control.name()].clone())
+    let value = &layer["audio_levels"][control.name()];
+    if value.is_null() { return Track::constant(0.); }
+    observe!("audio.level_track", serde_json::from_value(value.clone()), "object={} control={} fallback=zero", layer["id"].as_u64().unwrap_or(0), control.name())
         .unwrap_or_else(|_| Track::constant(0.))
 }
 pub(super) fn prepare(panels: &mut Panels, state: &Value, input: &Input, out: &mut Vec<Action>) {
@@ -519,6 +521,22 @@ pub(super) fn render_ruler(
             .into_iter()
             .flatten()
             .collect();
+        for marker in &markers {
+            let _ = observe!(
+                "audio.marker_frame",
+                marker["frame"]
+                    .as_i64()
+                    .ok_or("missing or noninteger frame"),
+                "object={object} marker={} local_offset={local_offset}",
+                marker["id"]
+            );
+            let _ = observe!(
+                "audio.marker_id",
+                marker["id"].as_u64().ok_or("missing or nonunsigned id"),
+                "object={object} frame={} local_offset={local_offset}",
+                marker["frame"]
+            );
+        }
         markers.sort_by_key(|marker| {
             (
                 marker["frame"].as_i64().unwrap_or(0),

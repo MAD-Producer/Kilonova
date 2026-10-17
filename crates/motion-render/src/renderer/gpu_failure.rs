@@ -9,6 +9,15 @@ use std::{
 
 static NEXT_RENDERER: AtomicU64 = AtomicU64::new(1);
 
+mod recovery;
+use recovery::{Recovery, Site};
+
+pub(super) fn read(failure: &Mutex<Option<String>>) -> Option<String> {
+    let mut recovery = Recovery::new(Site::Read, None);
+    let value = recovery.lock(failure.lock());
+    value.clone()
+}
+
 /// Callback evidence must not depend on another frame or check_health() call.
 pub(super) struct Observation {
     failure: Arc<Mutex<Option<String>>>,
@@ -36,7 +45,8 @@ impl Observation {
             wgpu::Error::Internal { .. } => ("internal", 2),
         };
         let (retained_first_cause, count) = {
-            let mut failure = self.failure.lock().unwrap_or_else(|e| e.into_inner());
+            let mut recovery = Recovery::new(Site::Uncaptured, Some(self.renderer));
+            let mut failure = recovery.lock(self.failure.lock());
             let retained = failure.is_some();
             // Preserve the original first-error latch, including its text.
             failure.get_or_insert_with(|| format!("GPU error: {error}"));
@@ -58,7 +68,8 @@ impl Observation {
         // Device loss has always replaced the stored cause. Observability must
         // not turn it into a different recovery or health-check policy.
         let count = {
-            let mut failure = self.failure.lock().unwrap_or_else(|e| e.into_inner());
+            let mut recovery = Recovery::new(Site::DeviceLost, Some(self.renderer));
+            let mut failure = recovery.lock(self.failure.lock());
             *failure = Some(format!("GPU device lost: {reason:?}: {message}"));
             if reason == wgpu::DeviceLostReason::Destroyed {
                 0
@@ -93,3 +104,6 @@ fn increment(counter: &AtomicU64) -> u64 {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod recovery_tests;

@@ -16,7 +16,7 @@ impl Shell {
         self.node_tasks.cancel(&mut self.panels.node_editor);
         self.node_compile_due = None;
         self.node_installing.clear();
-        let _ = self.engine.node_expect((u64::MAX, u64::MAX));
+        if let Err(error) = self.engine.node_expect((u64::MAX, u64::MAX)) { log::error!("node close invalidation failed operation=node_expect reason={error}"); }
         let cancellation = panels::cancel_interaction(&mut self.panels);
         if self.engine.failed() {
             self.actions.clear();
@@ -78,7 +78,7 @@ impl Shell {
             self.node_tasks.cancel(&mut self.panels.node_editor);
             self.node_compile_due = None;
             self.node_installing.clear();
-            let _ = self.engine.node_expect((u64::MAX, u64::MAX));
+            if let Err(error) = self.engine.node_expect((u64::MAX, u64::MAX)) { log::error!("node close invalidation failed operation=node_expect reason={error}"); }
             self.node_close_prompt = Some(snapshot);
             self.dirty = true;
         } else {

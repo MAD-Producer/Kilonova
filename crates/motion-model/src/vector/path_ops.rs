@@ -167,6 +167,15 @@ fn cut(p: &Measured, start: f64, end: f64) -> Option<SampledPath> {
             0.,
         ]);
     }
+    if nodes.iter().flatten().any(|v| !v.is_finite()) {
+        static FAILURES: crate::observability::Failures = crate::observability::Failures::new();
+        FAILURES.record("path_ops.cut", || {
+            format!(
+                "start={start} end={end} length={} input_nodes={} output_nodes={} reason=non_finite_cut",
+                p.length, p.path.nodes.len(), nodes.len(),
+            )
+        });
+    }
     (nodes.len() >= 2).then_some(SampledPath {
         closed: false,
         nodes,

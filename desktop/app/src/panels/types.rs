@@ -483,6 +483,11 @@ impl TimelineState {
         if self.graph_mode == enabled {
             return;
         }
+        if self.graph_drag.as_ref().is_some_and(|d| d.begun())
+            || self.key_drag.as_ref().is_some_and(|d| d.begun())
+        {
+            log::warn!("graph mode changed with active gesture enabled={enabled} handle_drag={} key_drag={}", self.graph_drag.is_some(), self.key_drag.is_some());
+        }
         let current = TimelineViewport {
             zoom: self.zoom,
             offset: self.offset,

@@ -286,10 +286,14 @@ impl Controls {
                 }
                 Column::Matte => {
                     let matte = mattes.as_ref().unwrap().0[index].matte;
-                    let current: Option<TrackMatte> =
-                        serde_json::from_value(owner["track_matte"].clone())
-                            .ok()
-                            .flatten();
+                    let current: Option<TrackMatte> = observe!(
+                        "timeline.matte_current",
+                        serde_json::from_value(owner["track_matte"].clone()),
+                        "object={}",
+                        popup.object
+                    )
+                    .ok()
+                    .flatten();
                     if matte == current {
                         None
                     } else {
@@ -321,7 +325,8 @@ pub(super) fn owner(state: &Value, object: u64) -> Option<&Value> {
     }
 }
 pub(super) fn blend(layer: &Value) -> BlendMode {
-    serde_json::from_value(layer["blend"]["mode"].clone()).unwrap_or_default()
+    if layer["blend"]["mode"].is_null() { return BlendMode::default(); }
+    observe!("timeline.blend", serde_json::from_value(layer["blend"]["mode"].clone()), "object={} fallback=normal", layer["id"].as_u64().unwrap_or(0)).unwrap_or_default()
 }
 /// One track matte menu row shared by the timeline dropdown and the layer
 /// menu: `matte == None` clears, otherwise applies the whole matte at once.
@@ -357,10 +362,22 @@ pub(super) fn matte_choices(
     let current: Option<TrackMatte> = layers
         .iter()
         .find(|l| l["id"].as_u64() == Some(object))
-        .and_then(|l| serde_json::from_value(l["track_matte"].clone()).ok())
+        .and_then(|l| {
+            observe!(
+                "timeline.matte_choice",
+                serde_json::from_value(l["track_matte"].clone()),
+                "object={object}"
+            )
+            .ok()
+        })
         .flatten();
-    let mut stored: Option<Vec<motion_core::Layer>> =
-        serde_json::from_value(serde_json::json!(layers)).ok();
+    let mut stored: Option<Vec<motion_core::Layer>> = observe!(
+        "timeline.matte_layers",
+        serde_json::from_value(serde_json::json!(layers)),
+        "object={object} layer_count={}",
+        layers.len()
+    )
+    .ok();
     let camera = state["project"]["camera"]["created"] == true;
     for (index, l) in layers.iter().rev().enumerate() {
         let id = l["id"].as_u64().unwrap_or(0);

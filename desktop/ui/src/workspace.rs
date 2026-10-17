@@ -5,6 +5,7 @@ use crate::{
     theme::metrics,
 };
 use std::path::Path;
+mod observation;
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct Workspace {
     pub root: Node,
@@ -278,12 +279,34 @@ impl Workspace {
     }
 
     pub fn load(path: &Path) -> Self {
-        std::fs::read(path)
-            .ok()
-            .filter(|b| b.len() <= 16 * 1024)
-            .and_then(|b| serde_json::from_slice::<Self>(&b).ok())
-            .filter(Self::valid)
-            .unwrap_or_default()
+        let bytes = match std::fs::read(path) {
+            Ok(bytes) => bytes,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                observation::reset();
+                return Self::default();
+            }
+            Err(error) => {
+                observation::failure(path, "read", format_args!("{error}"));
+                return Self::default();
+            }
+        };
+        if bytes.len() > 16 * 1024 {
+            observation::failure(path, "size", format_args!("bytes={} limit=16384", bytes.len()));
+            return Self::default();
+        }
+        let workspace: Self = match serde_json::from_slice(&bytes) {
+            Ok(workspace) => workspace,
+            Err(error) => {
+                observation::failure(path, "json", format_args!("{error}"));
+                return Self::default();
+            }
+        };
+        if !workspace.valid() {
+            observation::failure(path, "validation", format_args!("invalid dock ownership or geometry"));
+            return Self::default();
+        }
+        observation::reset();
+        workspace
     }
     pub fn save(&self, path: &Path) -> Result<(), String> {
         if let Some(parent) = path.parent() {

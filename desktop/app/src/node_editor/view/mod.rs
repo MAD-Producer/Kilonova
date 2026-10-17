@@ -16,6 +16,8 @@ mod library;
 #[cfg(test)]
 mod nudge_tests;
 #[cfg(test)]
+mod observability_tests;
+#[cfg(test)]
 mod tests;
 mod toolbar;
 mod wires;
@@ -539,6 +541,16 @@ impl NodeEditor {
         }
     }
     pub(super) fn apply_field(&mut self, binding: Binding, text: &str) -> Result<(), Diagnostic> {
+        if let Binding::ParamName(id, _)
+        | Binding::ParamMin(id)
+        | Binding::ParamMax(id)
+        | Binding::ParamStep(id)
+        | Binding::ParamUnits(id) = &binding
+        {
+            if !self.document.public_parameters.iter().any(|p| p.id == *id) {
+                log::error!("node field binding missing before apply epoch={} revision={} binding={binding:?} parameter={id:?}", self.epoch, self.revision);
+            }
+        }
         let number = || {
             text.trim()
                 .parse::<f32>()

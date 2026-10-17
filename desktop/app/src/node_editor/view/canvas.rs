@@ -15,7 +15,7 @@ impl NodeEditor {
                 );
                 let mut sockets = vec![];
                 if let Ok(ports) =
-                    motion_graph::node_port_specs(node, &self.document.public_parameters)
+                    self.observed("canvas.sockets", &node.id, motion_graph::node_port_specs(node, &self.document.public_parameters))
                 {
                     for (output, entries) in [(false, ports.inputs), (true, ports.outputs)] {
                         for (index, (port, spec)) in entries.into_iter().enumerate() {
@@ -234,7 +234,7 @@ impl NodeEditor {
             );
             if !node.collapsed {
                 if let Ok(ports) =
-                    motion_graph::node_port_specs(node, &self.document.public_parameters)
+                    self.observed("canvas.labels", &node.id, motion_graph::node_port_specs(node, &self.document.public_parameters))
                 {
                     for (output, entries) in [(false, ports.inputs), (true, ports.outputs)] {
                         for (index, (port, spec)) in entries.into_iter().enumerate() {

@@ -277,9 +277,9 @@ impl Shell {
             if task.worker.is_none() {
                 for op in ["cancel_media_task", "release_media_task"] {
                     let text = serde_json::json!({"op":op,"request_id":task.request}).to_string();
-                    let _ = self
-                        .engine
-                        .request(|reply| engine::Command::Media { text, reply });
+                    if let Err(error) = self.engine.request(|reply| engine::Command::Media { text, reply }) {
+                        log::error!("audio analysis cleanup dispatch failed operation={op} request_id={} reason={error}", task.request);
+                    }
                 }
             }
             self.panels.message = Some(word(

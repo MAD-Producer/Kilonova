@@ -399,10 +399,12 @@ impl Controls {
             self.clear_key();
         }
         *y += 30.;
-        let mut easing = Easing {
-            ease: serde_json::from_value(keyframe["ease"].clone()).unwrap_or_default(),
-            curve: serde_json::from_value(keyframe["curve"].clone()).unwrap_or(None),
-        };
+        let mut easing = super::graph_handles::observed_easing(
+            keyframe,
+            object,
+            property,
+            selected_frame as f64,
+        );
         let editable = !locked && selected_frame >= 0 && selected + 1 < keys.len();
         let choices = [
             (locale.t(T::LinearCurve), Easing::default()),

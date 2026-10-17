@@ -11,6 +11,21 @@ use motion_ui::{
 };
 use serde_json::Value;
 
+// Each expansion owns one process-lifetime site counter (see observation).
+// Context is formatted only when the bounded counter emits a record.
+macro_rules! observe {
+    ($site:literal, $result:expr, $($context:tt)*) => {{
+        static COUNTER: $crate::panels::observation::Counter = $crate::panels::observation::Counter::new();
+        match $result {
+            Ok(value) => Ok(value),
+            Err(error) => {
+                COUNTER.failure($site, format_args!("{} reason={error}", format_args!($($context)*)));
+                Err(error)
+            }
+        }
+    }};
+}
+
 mod align;
 pub(crate) mod animation_controls;
 mod animation_data;
@@ -34,6 +49,9 @@ mod keyboard;
 mod layer_actions;
 mod menus;
 pub(crate) mod numeric;
+mod observation;
+#[cfg(test)]
+mod observation_tests;
 pub(crate) mod parent_controls;
 pub(crate) mod path_controls;
 mod paths;
@@ -116,6 +134,24 @@ fn viewer(area: Rect) -> Rect {
         (area.height() - 42.0).max(1.0),
     )
 }
+/// Evidence before visibility/routing changes; no gesture is cancelled here.
+pub(crate) fn observe_interaction_boundary(panels: &Panels, operation: &str) {
+    let graph = panels
+        .timeline
+        .graph_drag
+        .as_ref()
+        .is_some_and(|d| d.begun())
+        || panels.timeline.key_drag.as_ref().is_some_and(|d| d.begun());
+    let path = panels.path_controls.gesture_active();
+    let curve = panels.effect_controls.curve_gesture_active()
+        || panels.properties.effects.curve_gesture_active();
+    let moving = panels.timeline.moving.is_some();
+    let trimming = panels.timeline.trimming.is_some();
+    if graph || path || curve || moving || trimming {
+        log::warn!("panel routing boundary with active gesture operation={operation} selected={:?} graph={graph} path={path} curve={curve} moving={moving} trimming={trimming}", panels.selected);
+    }
+}
+
 pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     let node_changed = panels.node_editor.cancel_interaction();
     panels.layer_actions.cancel();
