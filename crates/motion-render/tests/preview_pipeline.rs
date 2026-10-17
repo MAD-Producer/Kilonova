@@ -3,7 +3,7 @@ use motion_render::Scene;
 use motion_render::{GpuTimer, Presenter, Renderer};
 #[test]
 fn full_resolution_composition_fits_the_surface_and_yields_real_pass_timings() {
-    let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::from_env_or_default());
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
     let mut r = pollster::block_on(Renderer::new_profiled(
         &instance,
         None,
@@ -49,7 +49,7 @@ fn full_resolution_composition_fits_the_surface_and_yields_real_pass_timings() {
     timer.resolve(slot, &mut encoder);
     r.queue.submit(Some(encoder.finish()));
     timer.map(slot);
-    r.device.poll(wgpu::Maintain::Wait);
+    r.device.poll(wgpu::PollType::wait_indefinitely()).expect("GPU poll failed");
     let timing = timer.collect().into_iter().flatten().next().unwrap();
     assert_eq!(timing.sequence, 17);
     assert!(timing.composition_us > 0.0 && timing.presentation_us > 0.0 && timing.total_us > 0.0);

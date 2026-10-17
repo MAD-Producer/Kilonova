@@ -20,8 +20,10 @@ fn disabled_tracking_has_no_snapshot_work_and_callbacks_complete_real_submission
     for _ in 0..2 {
         let mut encoder = renderer.device.create_command_encoder(&Default::default());
         encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            multiview_mask: None,
             label: None,
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                depth_slice: None,
                 view: &target.view,
                 resolve_target: None,
                 ops: wgpu::Operations {
@@ -37,7 +39,7 @@ fn disabled_tracking_has_no_snapshot_work_and_callbacks_complete_real_submission
             target.collect_texture_resources(ledger, "test/target", TextureState::Retained);
         });
     }
-    renderer.device.poll(wgpu::Maintain::Wait);
+    renderer.device.poll(wgpu::PollType::wait_indefinitely()).expect("GPU poll failed");
     let info = renderer.submission_memory_info(&current);
     assert_eq!(info.submitted, 2);
     assert_eq!(info.completed, 2);

@@ -12,7 +12,7 @@ fn summary(values: &[f64]) -> serde_json::Value {
 }
 
 fn measure(encoded: bool) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
-    let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::from_env_or_default());
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
     let mut renderer = pollster::block_on(Renderer::new_profiled(
         &instance,
         None,
@@ -103,9 +103,9 @@ fn measure(encoded: bool) -> Result<serde_json::Value, Box<dyn std::error::Error
                 .map_async(wgpu::MapMode::Read, move |result| {
                     let _ = tx.send(result);
                 });
-            renderer.device.poll(wgpu::Maintain::Wait);
+            renderer.device.poll(wgpu::PollType::wait_indefinitely())?;
             rx.recv()??;
-            let mapped = readback.slice(..).get_mapped_range();
+            let mapped = readback.slice(..).get_mapped_range()?;
             let start = u64::from_le_bytes(mapped[..8].try_into()?);
             let end = u64::from_le_bytes(mapped[8..16].try_into()?);
             let us = end.saturating_sub(start) as f64
@@ -115,7 +115,7 @@ fn measure(encoded: bool) -> Result<serde_json::Value, Box<dyn std::error::Error
             readback.unmap();
             Some(us)
         } else {
-            renderer.device.poll(wgpu::Maintain::Wait);
+            renderer.device.poll(wgpu::PollType::wait_indefinitely())?;
             None
         };
         renderer.check_health()?;

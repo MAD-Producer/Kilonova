@@ -445,7 +445,7 @@ pub extern "system" fn Java_com_motionstudio_editor_NativeBridge_injectGraphicsF
                 match kind {
                     0 => {
                         g.renderer.device.destroy();
-                        g.renderer.device.poll(wgpu::Maintain::Wait);
+                        g.renderer.device.poll(wgpu::PollType::wait_indefinitely()).map_err(|e| format!("GPU diagnostics wait: {e}"))?;
                     }
                     1 => {
                         let _ = g.renderer.device.create_buffer(&wgpu::BufferDescriptor {
@@ -457,7 +457,7 @@ pub extern "system" fn Java_com_motionstudio_editor_NativeBridge_injectGraphicsF
                     }
                     _ => return Err("unknown GPU diagnostic fault".into()),
                 }
-                g.renderer.device.poll(wgpu::Maintain::Poll);
+                g.renderer.device.poll(wgpu::PollType::Poll).map_err(|e| format!("GPU diagnostics poll: {e}"))?;
                 Ok(json!({"diagnostics":true,"kind":kind,"gpuError":g.renderer.gpu_error()}))
             })
         }

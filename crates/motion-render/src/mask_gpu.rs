@@ -85,8 +85,8 @@ impl MaskGpu {
         });
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("mask filters"),
-            bind_group_layouts: &[&uniform_layout, &input_layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&uniform_layout), Some(&input_layout)],
+            immediate_size: 0,
         });
         let filters = mask_plan::shaders()
             .map_err(RenderError::Invalid)?
@@ -118,7 +118,7 @@ impl MaskGpu {
                     primitive: Default::default(),
                     depth_stencil: None,
                     multisample: Default::default(),
-                    multiview: None,
+                    multiview_mask: None,
                     cache: None,
                 })
             })
@@ -133,18 +133,18 @@ impl MaskGpu {
                 &device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: None,
                     bind_group_layouts: &[],
-                    push_constant_ranges: &[],
+                    immediate_size: 0,
                 }),
             ),
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs"),
                 compilation_options: Default::default(),
-                buffers: &[wgpu::VertexBufferLayout {
+                buffers: &[Some(wgpu::VertexBufferLayout {
                     array_stride: 24,
                     step_mode: wgpu::VertexStepMode::Vertex,
                     attributes: &wgpu::vertex_attr_array![0=>Float32x2,1=>Float32x4],
-                }],
+                })],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -159,7 +159,7 @@ impl MaskGpu {
             primitive: Default::default(),
             depth_stencil: None,
             multisample: Default::default(),
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
         let _ = image_layout;
@@ -241,8 +241,10 @@ impl MaskGpu {
             ],
         });
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            multiview_mask: None,
             label: Some("mask feather/combine"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                depth_slice: None,
                 view: target,
                 resolve_target: None,
                 ops: wgpu::Operations {
@@ -361,8 +363,10 @@ impl MaskGpu {
                 let vertices=&self.meshes[&mesh_key].1;
                 {
                     let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                        multiview_mask: None,
                         label: Some("mask source path"),
                         color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                            depth_slice: None,
                             view: &self.scratch[0].view,
                             resolve_target: None,
                             ops: wgpu::Operations {

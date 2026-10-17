@@ -45,6 +45,7 @@ fn callback_causes_are_preserved_without_hiding_new_failure_kinds_or_logging_und
                 driver: "controlled driver".into(),
                 driver_info: String::new(),
                 backend: wgpu::Backend::Vulkan,
+                ..wgpu::AdapterInfo::new(wgpu::DeviceType::DiscreteGpu, wgpu::Backend::Vulkan)
             },
         );
         for i in 0..120 {

@@ -33,7 +33,7 @@ fn android_presentation_shader_is_valid_on_an_actual_gpu() {
     let view = output.create_view(&Default::default());
     let presenter = Presenter::new(&r, &source.view, wgpu::TextureFormat::Rgba8Unorm);
     presenter.draw(&r, &view);
-    r.device.poll(wgpu::Maintain::Wait);
+    r.device.poll(wgpu::PollType::wait_indefinitely()).expect("GPU poll failed");
     r.check_health().unwrap();
 }
 
@@ -46,7 +46,7 @@ fn presentation_validation_failures_are_visible_to_the_test() {
     // incompatible, exercising the same error callback as Presenter::draw.
     let presenter = Presenter::new(&r, &source.view, wgpu::TextureFormat::Rgba8Unorm);
     presenter.draw(&r, &output.view);
-    r.device.poll(wgpu::Maintain::Wait);
+    r.device.poll(wgpu::PollType::wait_indefinitely()).expect("GPU poll failed");
     let error = r.check_health().unwrap_err();
     assert!(error.to_string().contains("format"), "{error}");
 }

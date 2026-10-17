@@ -74,12 +74,12 @@ impl App {
             .map_async(wgpu::MapMode::Read, move |result| {
                 let _ = send.send(result);
             });
-        gpu.device.poll(wgpu::Maintain::Wait);
+        gpu.device.poll(wgpu::PollType::wait_indefinitely()).map_err(|e| e.to_string())?;
         receive
             .recv()
             .map_err(|e| e.to_string())?
             .map_err(|e| e.to_string())?;
-        let data = buffer.slice(..).get_mapped_range();
+        let data = buffer.slice(..).get_mapped_range().map_err(|e| e.to_string())?;
         let mut pixels = Vec::new();
         for row in data.chunks(stride as usize) {
             pixels.extend_from_slice(&row[..width as usize * 4]);

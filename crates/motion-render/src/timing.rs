@@ -31,6 +31,7 @@ pub struct GpuTiming {
 /// Four reusable timestamp staging buffers. Busy slots are skipped, never
 /// waited on by the frame loop. These are timing words, not image readbacks.
 pub struct GpuTimer {
+    map_failures: crate::observability::FailureCounter,
     queries: wgpu::QuerySet,
     resolve: wgpu::Buffer,
     slots: [Slot; SLOTS],
@@ -48,6 +49,7 @@ impl GpuTimer {
             return None;
         }
         Some(Self {
+            map_failures: crate::observability::FailureCounter::new(),
             queries: device.create_query_set(&wgpu::QuerySetDescriptor {
                 label: Some("Motion Studio pass timings"),
                 ty: wgpu::QueryType::Timestamp,
@@ -122,8 +124,10 @@ impl GpuTimer {
             }
             let result = if state == 2 {
                 let words = {
-                    let mapped = s.buffer.slice(..).get_mapped_range();
-                    read_timestamp_words(&mapped)
+                    match s.buffer.slice(..).get_mapped_range() {
+                        Ok(mapped) => { self.map_failures.success(); read_timestamp_words(&mapped) },
+                        Err(error) => { self.map_failures.failure("render.timestamp.readback", format_args!("slot={i} sequence={} cause={error}", s.sequence)); None },
+                    }
                 };
                 s.buffer.unmap();
                 if let Some(words) = words.filter(|words| {
@@ -169,3 +173,7 @@ mod tests {
         assert_eq!(read_timestamp_words(&bytes), Some([11, 22, 33, 44]));
     }
 }
+
+#[cfg(test)]
+#[path = "timing/observation_tests.rs"]
+mod observation_tests;
