@@ -2,7 +2,7 @@
 
 本表与 `silent-failure-paths-followup.md` 的 161 个辅助编号分开计数。原始 `silent-failure-paths-exhaustive.md` 列出 832 个候选；候选不是已确认缺陷。用原始路径与行号作稳定标识，行号不代表修改后的源码位置。
 
-当前已映射 B1 的 77 项、B6 全部 56 项、B7 全部 33 项、B8 全部 14 项和 B9 全部 12 项，共 192 个候选：新增观测关联 27 行、已有覆盖 54 行、核实保留 108 行、功能边界 3 行。§63 新增 3 个固定 submission 锁恢复站点；此前 §60–62 的观测与处置保留。其余 640 个候选尚未逐行关联到本表，包含此前已覆盖的站点，不能称为 640 处缺失观测。映射或观测完成不代表功能风险已经修复，3 行功能边界不计为全输入已关闭。
+当前已映射 B1 的 258 项、B6 全部 56 项、B7 全部 33 项、B8 全部 14 项和 B9 全部 12 项，共 373 个候选：核实保留 254 行、功能边界 27 行、新增观测 30 行、已有覆盖 62 行。§63–64 新增六个 submission/GPU latch 锁恢复站点；此前处置保留。其余 459 个候选尚未逐行关联到本表，包含此前已覆盖的站点，不等于 459 个缺陷；功能边界不代表全输入已关闭。
 
 ## B1 · GPU 协议、资源池与提交台账（首批 77 项）
 
@@ -89,6 +89,194 @@
 | crates/motion-render/src/effect_gpu.rs:422 | 核实保留 | 正规曲线 LUT 有限分量先 clamp(0,1)、乘 255 并 round，再量化 u8，是 GPU 颜色编码契约；不将独立伪造的 NaN Scene LUT 当作已通过模型校验 |
 
 三个 submission 站点按进程生命周期累计，健康 ledger、开关 tracking 和 clear_poison 都不复位；仅进程重启清零。日志保留恢复前的数值快照，不能作为半更新台账已经修复或统计可信的保证。独立 mask API 的三行功能边界仍明确保留；不称所有 NaN/任意 offset 入口已校验。验证见完成记录 §63。
+
+## B1 · renderer 与 effect_plan（续审 181 项）
+
+逐项关联原始 renderer 73 行、renderer/compositing 4 行和 effect_plan 104 行。处置：{"新增观测": 3, "功能边界": 24, "核实保留": 146, "已有覆盖": 8}。公开 writer、手工 Scene 和长期 program 缓存的边界仍保留；功能边界不算缺陷已修复。验证见完成记录 §64
+
+| 原始位置 | 处置 | 当前源码证据与限制 |
+| --- | --- | --- |
+| crates/motion-render/src/effect_plan.rs:216 | 核实保留 | 正规 PlanBuilder 的层数≤128、每层效果≤16、每效果 pass≤8；sprites≤65536、平面顶点≤65536、vector/mask 顶点≤262144，曲线/批次/命令亦来自模型与几何预算，记录数量和 layer 索引可用 u32。不是声称公开可变 EffectFramePlan 能拒绝任意外部伪造值；其 writer 边界单列 |
+| crates/motion-render/src/effect_plan.rs:217 | 核实保留 | 正规 PlanBuilder 的层数≤128、每层效果≤16、每效果 pass≤8；sprites≤65536、平面顶点≤65536、vector/mask 顶点≤262144，曲线/批次/命令亦来自模型与几何预算，记录数量和 layer 索引可用 u32。不是声称公开可变 EffectFramePlan 能拒绝任意外部伪造值；其 writer 边界单列 |
+| crates/motion-render/src/effect_plan.rs:218 | 功能边界 | composition_plan::build 的外层 bundle 限制 32 MiB，可保证正规合成包这些偏移可用 u32；但公开 EffectFramePlan::write 自身只检查 out.len>=buffer_bytes，不检查 size/任意外部 offset/lut 是否能用 u32。保留独立 writer 功能/协议边界，不拿外层限额替所有调用方关闭问题 |
+| crates/motion-render/src/effect_plan.rs:219 | 功能边界 | composition_plan::build 的外层 bundle 限制 32 MiB，可保证正规合成包这些偏移可用 u32；但公开 EffectFramePlan::write 自身只检查 out.len>=buffer_bytes，不检查 size/任意外部 offset/lut 是否能用 u32。保留独立 writer 功能/协议边界，不拿外层限额替所有调用方关闭问题 |
+| crates/motion-render/src/effect_plan.rs:220 | 功能边界 | composition_plan::build 的外层 bundle 限制 32 MiB，可保证正规合成包这些偏移可用 u32；但公开 EffectFramePlan::write 自身只检查 out.len>=buffer_bytes，不检查 size/任意外部 offset/lut 是否能用 u32。保留独立 writer 功能/协议边界，不拿外层限额替所有调用方关闭问题 |
+| crates/motion-render/src/effect_plan.rs:221 | 功能边界 | composition_plan::build 的外层 bundle 限制 32 MiB，可保证正规合成包这些偏移可用 u32；但公开 EffectFramePlan::write 自身只检查 out.len>=buffer_bytes，不检查 size/任意外部 offset/lut 是否能用 u32。保留独立 writer 功能/协议边界，不拿外层限额替所有调用方关闭问题 |
+| crates/motion-render/src/effect_plan.rs:225 | 功能边界 | composition_plan::build 的外层 bundle 限制 32 MiB，可保证正规合成包这些偏移可用 u32；但公开 EffectFramePlan::write 自身只检查 out.len>=buffer_bytes，不检查 size/任意外部 offset/lut 是否能用 u32。保留独立 writer 功能/协议边界，不拿外层限额替所有调用方关闭问题 |
+| crates/motion-render/src/effect_plan.rs:226 | 核实保留 | 正规 PlanBuilder 的层数≤128、每层效果≤16、每效果 pass≤8；sprites≤65536、平面顶点≤65536、vector/mask 顶点≤262144，曲线/批次/命令亦来自模型与几何预算，记录数量和 layer 索引可用 u32。不是声称公开可变 EffectFramePlan 能拒绝任意外部伪造值；其 writer 边界单列 |
+| crates/motion-render/src/effect_plan.rs:227 | 功能边界 | composition_plan::build 的外层 bundle 限制 32 MiB，可保证正规合成包这些偏移可用 u32；但公开 EffectFramePlan::write 自身只检查 out.len>=buffer_bytes，不检查 size/任意外部 offset/lut 是否能用 u32。保留独立 writer 功能/协议边界，不拿外层限额替所有调用方关闭问题 |
+| crates/motion-render/src/effect_plan.rs:228 | 核实保留 | 正规 PlanBuilder 的层数≤128、每层效果≤16、每效果 pass≤8；sprites≤65536、平面顶点≤65536、vector/mask 顶点≤262144，曲线/批次/命令亦来自模型与几何预算，记录数量和 layer 索引可用 u32。不是声称公开可变 EffectFramePlan 能拒绝任意外部伪造值；其 writer 边界单列 |
+| crates/motion-render/src/effect_plan.rs:229 | 功能边界 | composition_plan::build 的外层 bundle 限制 32 MiB，可保证正规合成包这些偏移可用 u32；但公开 EffectFramePlan::write 自身只检查 out.len>=buffer_bytes，不检查 size/任意外部 offset/lut 是否能用 u32。保留独立 writer 功能/协议边界，不拿外层限额替所有调用方关闭问题 |
+| crates/motion-render/src/effect_plan.rs:230 | 功能边界 | composition_plan::build 的外层 bundle 限制 32 MiB，可保证正规合成包这些偏移可用 u32；但公开 EffectFramePlan::write 自身只检查 out.len>=buffer_bytes，不检查 size/任意外部 offset/lut 是否能用 u32。保留独立 writer 功能/协议边界，不拿外层限额替所有调用方关闭问题 |
+| crates/motion-render/src/effect_plan.rs:231 | 核实保留 | 正规 PlanBuilder 的层数≤128、每层效果≤16、每效果 pass≤8；sprites≤65536、平面顶点≤65536、vector/mask 顶点≤262144，曲线/批次/命令亦来自模型与几何预算，记录数量和 layer 索引可用 u32。不是声称公开可变 EffectFramePlan 能拒绝任意外部伪造值；其 writer 边界单列 |
+| crates/motion-render/src/effect_plan.rs:233 | 功能边界 | 正规 scratch_budget setter 限制在 host floor..384 MiB，可用 u32；公开 EffectFramePlan.scratch_budget 是 u64，write 仍只写低 u32，未检查调用者直接构造的大预算。保留独立 ABI 边界，不在仅补观测时修改编码格式 |
+| crates/motion-render/src/effect_plan.rs:234 | 核实保留 | 正规 PlanBuilder 的层数≤128、每层效果≤16、每效果 pass≤8；sprites≤65536、平面顶点≤65536、vector/mask 顶点≤262144，曲线/批次/命令亦来自模型与几何预算，记录数量和 layer 索引可用 u32。不是声称公开可变 EffectFramePlan 能拒绝任意外部伪造值；其 writer 边界单列 |
+| crates/motion-render/src/effect_plan.rs:235 | 功能边界 | composition_plan::build 的外层 bundle 限制 32 MiB，可保证正规合成包这些偏移可用 u32；但公开 EffectFramePlan::write 自身只检查 out.len>=buffer_bytes，不检查 size/任意外部 offset/lut 是否能用 u32。保留独立 writer 功能/协议边界，不拿外层限额替所有调用方关闭问题 |
+| crates/motion-render/src/effect_plan.rs:236 | 核实保留 | 正规 PlanBuilder 的层数≤128、每层效果≤16、每效果 pass≤8；sprites≤65536、平面顶点≤65536、vector/mask 顶点≤262144，曲线/批次/命令亦来自模型与几何预算，记录数量和 layer 索引可用 u32。不是声称公开可变 EffectFramePlan 能拒绝任意外部伪造值；其 writer 边界单列 |
+| crates/motion-render/src/effect_plan.rs:237 | 功能边界 | composition_plan::build 的外层 bundle 限制 32 MiB，可保证正规合成包这些偏移可用 u32；但公开 EffectFramePlan::write 自身只检查 out.len>=buffer_bytes，不检查 size/任意外部 offset/lut 是否能用 u32。保留独立 writer 功能/协议边界，不拿外层限额替所有调用方关闭问题 |
+| crates/motion-render/src/effect_plan.rs:242 | 功能边界 | composition_plan::build 的外层 bundle 限制 32 MiB，可保证正规合成包这些偏移可用 u32；但公开 EffectFramePlan::write 自身只检查 out.len>=buffer_bytes，不检查 size/任意外部 offset/lut 是否能用 u32。保留独立 writer 功能/协议边界，不拿外层限额替所有调用方关闭问题 |
+| crates/motion-render/src/effect_plan.rs:243 | 核实保留 | 正规 PlanBuilder 的层数≤128、每层效果≤16、每效果 pass≤8；sprites≤65536、平面顶点≤65536、vector/mask 顶点≤262144，曲线/批次/命令亦来自模型与几何预算，记录数量和 layer 索引可用 u32。不是声称公开可变 EffectFramePlan 能拒绝任意外部伪造值；其 writer 边界单列 |
+| crates/motion-render/src/effect_plan.rs:244 | 功能边界 | composition_plan::build 的外层 bundle 限制 32 MiB，可保证正规合成包这些偏移可用 u32；但公开 EffectFramePlan::write 自身只检查 out.len>=buffer_bytes，不检查 size/任意外部 offset/lut 是否能用 u32。保留独立 writer 功能/协议边界，不拿外层限额替所有调用方关闭问题 |
+| crates/motion-render/src/effect_plan.rs:246 | 功能边界 | composition_plan::build 的外层 bundle 限制 32 MiB，可保证正规合成包这些偏移可用 u32；但公开 EffectFramePlan::write 自身只检查 out.len>=buffer_bytes，不检查 size/任意外部 offset/lut 是否能用 u32。保留独立 writer 功能/协议边界，不拿外层限额替所有调用方关闭问题 |
+| crates/motion-render/src/effect_plan.rs:256 | 核实保留 | input/source/resource_input/matte 的负值编码资产/无 matte 哨兵，写入 u32 保存相同 32 位位型；消费侧按有符号 token 解释。不能用 try_from 拒绝合法负 token，§28 |
+| crates/motion-render/src/effect_plan.rs:257 | 核实保留 | input/source/resource_input/matte 的负值编码资产/无 matte 哨兵，写入 u32 保存相同 32 位位型；消费侧按有符号 token 解释。不能用 try_from 拒绝合法负 token，§28 |
+| crates/motion-render/src/effect_plan.rs:261 | 功能边界 | composition_plan::build 的外层 bundle 限制 32 MiB，可保证正规合成包这些偏移可用 u32；但公开 EffectFramePlan::write 自身只检查 out.len>=buffer_bytes，不检查 size/任意外部 offset/lut 是否能用 u32。保留独立 writer 功能/协议边界，不拿外层限额替所有调用方关闭问题 |
+| crates/motion-render/src/effect_plan.rs:265 | 功能边界 | composition_plan::build 的外层 bundle 限制 32 MiB，可保证正规合成包这些偏移可用 u32；但公开 EffectFramePlan::write 自身只检查 out.len>=buffer_bytes，不检查 size/任意外部 offset/lut 是否能用 u32。保留独立 writer 功能/协议边界，不拿外层限额替所有调用方关闭问题 |
+| crates/motion-render/src/effect_plan.rs:267 | 核实保留 | input/source/resource_input/matte 的负值编码资产/无 matte 哨兵，写入 u32 保存相同 32 位位型；消费侧按有符号 token 解释。不能用 try_from 拒绝合法负 token，§28 |
+| crates/motion-render/src/effect_plan.rs:287 | 核实保留 | 正规 PlanBuilder 的层数≤128、每层效果≤16、每效果 pass≤8；sprites≤65536、平面顶点≤65536、vector/mask 顶点≤262144，曲线/批次/命令亦来自模型与几何预算，记录数量和 layer 索引可用 u32。不是声称公开可变 EffectFramePlan 能拒绝任意外部伪造值；其 writer 边界单列 |
+| crates/motion-render/src/effect_plan.rs:309 | 核实保留 | 正规 PlanBuilder 的层数≤128、每层效果≤16、每效果 pass≤8；sprites≤65536、平面顶点≤65536、vector/mask 顶点≤262144，曲线/批次/命令亦来自模型与几何预算，记录数量和 layer 索引可用 u32。不是声称公开可变 EffectFramePlan 能拒绝任意外部伪造值；其 writer 边界单列 |
+| crates/motion-render/src/effect_plan.rs:312 | 功能边界 | composition_plan::build 的外层 bundle 限制 32 MiB，可保证正规合成包这些偏移可用 u32；但公开 EffectFramePlan::write 自身只检查 out.len>=buffer_bytes，不检查 size/任意外部 offset/lut 是否能用 u32。保留独立 writer 功能/协议边界，不拿外层限额替所有调用方关闭问题 |
+| crates/motion-render/src/effect_plan.rs:313 | 核实保留 | 正规 PlanBuilder 的层数≤128、每层效果≤16、每效果 pass≤8；sprites≤65536、平面顶点≤65536、vector/mask 顶点≤262144，曲线/批次/命令亦来自模型与几何预算，记录数量和 layer 索引可用 u32。不是声称公开可变 EffectFramePlan 能拒绝任意外部伪造值；其 writer 边界单列 |
+| crates/motion-render/src/effect_plan.rs:314 | 核实保留 | fingerprint 同时写低 32 位和下一字的高 32 位，完整保留 u64；不是高位丢失，§28 |
+| crates/motion-render/src/effect_plan.rs:316 | 功能边界 | composition_plan::build 的外层 bundle 限制 32 MiB，可保证正规合成包这些偏移可用 u32；但公开 EffectFramePlan::write 自身只检查 out.len>=buffer_bytes，不检查 size/任意外部 offset/lut 是否能用 u32。保留独立 writer 功能/协议边界，不拿外层限额替所有调用方关闭问题 |
+| crates/motion-render/src/effect_plan.rs:317 | 核实保留 | 正规 PlanBuilder 的层数≤128、每层效果≤16、每效果 pass≤8；sprites≤65536、平面顶点≤65536、vector/mask 顶点≤262144，曲线/批次/命令亦来自模型与几何预算，记录数量和 layer 索引可用 u32。不是声称公开可变 EffectFramePlan 能拒绝任意外部伪造值；其 writer 边界单列 |
+| crates/motion-render/src/effect_plan.rs:330 | 核实保留 | input/source/resource_input/matte 的负值编码资产/无 matte 哨兵，写入 u32 保存相同 32 位位型；消费侧按有符号 token 解释。不能用 try_from 拒绝合法负 token，§28 |
+| crates/motion-render/src/effect_plan.rs:729 | 功能边界 | programs 是跨 frame 保留的编译缓存，set_registry 会 truncate(3)，但同步新增 key 时没有独立 u32 数量上限；不能用单帧层数/pass 预算保证该长期索引。未制造数十亿 shader 耗尽内存，未声称此功能边界已修复 |
+| crates/motion-render/src/effect_plan.rs:970 | 功能边界 | 正规 sampled layer.size 有模型约束，cast 后有 device_dimension 拒绝；独立 Scene/Layer 的非有限或负尺寸在该转 u32 前没有统一校验，零/NaN 不必触发 >device_dimension。保留手工 Scene 数值边界，不以几何预算代替 finite 校验 |
+| crates/motion-render/src/effect_plan.rs:971 | 功能边界 | 正规 sampled layer.size 有模型约束，cast 后有 device_dimension 拒绝；独立 Scene/Layer 的非有限或负尺寸在该转 u32 前没有统一校验，零/NaN 不必触发 >device_dimension。保留手工 Scene 数值边界，不以几何预算代替 finite 校验 |
+| crates/motion-render/src/effect_plan.rs:1028 | 功能边界 | mask source/post-effect snapshot 对 region×scale 使用 ceil().max(1)；正规输入为有限模型矩形，但独立 Scene 的 NaN/非正 source_rect 可被钳成 1。设备/字节预算不等于原始数值校验，保留此独立调用边界，没有改采样或返回值 |
+| crates/motion-render/src/effect_plan.rs:1109 | 核实保留 | generator 使用正规非零 scene 合成尺寸，scale≤1；reserve_scratch 之后在 generate/提交 pass 之前 check_scratch 校验每槽 device_dimension 与总容量。保留相同取整，不为独立零尺寸 Scene 作全输入保证 |
+| crates/motion-render/src/effect_plan.rs:1111 | 核实保留 | generator 使用正规非零 scene 合成尺寸，scale≤1；reserve_scratch 之后在 generate/提交 pass 之前 check_scratch 校验每槽 device_dimension 与总容量。保留相同取整，不为独立零尺寸 Scene 作全输入保证 |
+| crates/motion-render/src/effect_plan.rs:1118 | 核实保留 | generator 使用正规非零 scene 合成尺寸，scale≤1；reserve_scratch 之后在 generate/提交 pass 之前 check_scratch 校验每槽 device_dimension 与总容量。保留相同取整，不为独立零尺寸 Scene 作全输入保证 |
+| crates/motion-render/src/effect_plan.rs:1119 | 核实保留 | generator 使用正规非零 scene 合成尺寸，scale≤1；reserve_scratch 之后在 generate/提交 pass 之前 check_scratch 校验每槽 device_dimension 与总容量。保留相同取整，不为独立零尺寸 Scene 作全输入保证 |
+| crates/motion-render/src/effect_plan.rs:1147 | 核实保留 | generator 使用正规非零 scene 合成尺寸，scale≤1；reserve_scratch 之后在 generate/提交 pass 之前 check_scratch 校验每槽 device_dimension 与总容量。保留相同取整，不为独立零尺寸 Scene 作全输入保证 |
+| crates/motion-render/src/effect_plan.rs:1148 | 核实保留 | generator 使用正规非零 scene 合成尺寸，scale≤1；reserve_scratch 之后在 generate/提交 pass 之前 check_scratch 校验每槽 device_dimension 与总容量。保留相同取整，不为独立零尺寸 Scene 作全输入保证 |
+| crates/motion-render/src/effect_plan.rs:1171 | 核实保留 | scene_generator::generate 在 append 前限制总 sprites≤65536，start 和本次新增数量均不超过该界；转换到 u32 不丢位，既有 generator/particle 真渲染回归 |
+| crates/motion-render/src/effect_plan.rs:1172 | 核实保留 | scene_generator::generate 在 append 前限制总 sprites≤65536，start 和本次新增数量均不超过该界；转换到 u32 不丢位，既有 generator/particle 真渲染回归 |
+| crates/motion-render/src/effect_plan.rs:1182 | 核实保留 | generator 使用正规非零 scene 合成尺寸，scale≤1；reserve_scratch 之后在 generate/提交 pass 之前 check_scratch 校验每槽 device_dimension 与总容量。保留相同取整，不为独立零尺寸 Scene 作全输入保证 |
+| crates/motion-render/src/effect_plan.rs:1183 | 核实保留 | generator 使用正规非零 scene 合成尺寸，scale≤1；reserve_scratch 之后在 generate/提交 pass 之前 check_scratch 校验每槽 device_dimension 与总容量。保留相同取整，不为独立零尺寸 Scene 作全输入保证 |
+| crates/motion-render/src/effect_plan.rs:1236 | 核实保留 | next 的 output_bounds/padding 先经 BoundsExpr::eval 每节点 finite 且 abs≤32768 校验，OutputBounds 保证宽高≥1；pad 另拒绝负值，正规 region 来自模型。各槽 reserve 后统一 check_scratch 尺寸/容量，再把同一已取整 u.size 写入 pass，不是无条件接受超限效果 |
+| crates/motion-render/src/effect_plan.rs:1237 | 核实保留 | next 的 output_bounds/padding 先经 BoundsExpr::eval 每节点 finite 且 abs≤32768 校验，OutputBounds 保证宽高≥1；pad 另拒绝负值，正规 region 来自模型。各槽 reserve 后统一 check_scratch 尺寸/容量，再把同一已取整 u.size 写入 pass，不是无条件接受超限效果 |
+| crates/motion-render/src/effect_plan.rs:1242 | 核实保留 | next 的 output_bounds/padding 先经 BoundsExpr::eval 每节点 finite 且 abs≤32768 校验，OutputBounds 保证宽高≥1；pad 另拒绝负值，正规 region 来自模型。各槽 reserve 后统一 check_scratch 尺寸/容量，再把同一已取整 u.size 写入 pass，不是无条件接受超限效果 |
+| crates/motion-render/src/effect_plan.rs:1243 | 核实保留 | next 的 output_bounds/padding 先经 BoundsExpr::eval 每节点 finite 且 abs≤32768 校验，OutputBounds 保证宽高≥1；pad 另拒绝负值，正规 region 来自模型。各槽 reserve 后统一 check_scratch 尺寸/容量，再把同一已取整 u.size 写入 pass，不是无条件接受超限效果 |
+| crates/motion-render/src/effect_plan.rs:1248 | 核实保留 | next 的 output_bounds/padding 先经 BoundsExpr::eval 每节点 finite 且 abs≤32768 校验，OutputBounds 保证宽高≥1；pad 另拒绝负值，正规 region 来自模型。各槽 reserve 后统一 check_scratch 尺寸/容量，再把同一已取整 u.size 写入 pass，不是无条件接受超限效果 |
+| crates/motion-render/src/effect_plan.rs:1249 | 核实保留 | next 的 output_bounds/padding 先经 BoundsExpr::eval 每节点 finite 且 abs≤32768 校验，OutputBounds 保证宽高≥1；pad 另拒绝负值，正规 region 来自模型。各槽 reserve 后统一 check_scratch 尺寸/容量，再把同一已取整 u.size 写入 pass，不是无条件接受超限效果 |
+| crates/motion-render/src/effect_plan.rs:1255 | 核实保留 | next 的 output_bounds/padding 先经 BoundsExpr::eval 每节点 finite 且 abs≤32768 校验，OutputBounds 保证宽高≥1；pad 另拒绝负值，正规 region 来自模型。各槽 reserve 后统一 check_scratch 尺寸/容量，再把同一已取整 u.size 写入 pass，不是无条件接受超限效果 |
+| crates/motion-render/src/effect_plan.rs:1256 | 核实保留 | next 的 output_bounds/padding 先经 BoundsExpr::eval 每节点 finite 且 abs≤32768 校验，OutputBounds 保证宽高≥1；pad 另拒绝负值，正规 region 来自模型。各槽 reserve 后统一 check_scratch 尺寸/容量，再把同一已取整 u.size 写入 pass，不是无条件接受超限效果 |
+| crates/motion-render/src/effect_plan.rs:1323 | 核实保留 | next 的 output_bounds/padding 先经 BoundsExpr::eval 每节点 finite 且 abs≤32768 校验，OutputBounds 保证宽高≥1；pad 另拒绝负值，正规 region 来自模型。各槽 reserve 后统一 check_scratch 尺寸/容量，再把同一已取整 u.size 写入 pass，不是无条件接受超限效果 |
+| crates/motion-render/src/effect_plan.rs:1324 | 核实保留 | next 的 output_bounds/padding 先经 BoundsExpr::eval 每节点 finite 且 abs≤32768 校验，OutputBounds 保证宽高≥1；pad 另拒绝负值，正规 region 来自模型。各槽 reserve 后统一 check_scratch 尺寸/容量，再把同一已取整 u.size 写入 pass，不是无条件接受超限效果 |
+| crates/motion-render/src/effect_plan.rs:1362 | 核实保留 | shader manifest 的 MAX_PASSES=8，i 为本效果 pass 枚举索引；i as u32 %2 仅选择两个 ping-pong scratch slot，不是无界累计 program 缓存 id |
+| crates/motion-render/src/effect_plan.rs:1417 | 功能边界 | mask source/post-effect snapshot 对 region×scale 使用 ceil().max(1)；正规输入为有限模型矩形，但独立 Scene 的 NaN/非正 source_rect 可被钳成 1。设备/字节预算不等于原始数值校验，保留此独立调用边界，没有改采样或返回值 |
+| crates/motion-render/src/effect_plan.rs:1540 | 核实保留 | 正规非零 Scene 合成宽高≤32768，scale≤1；计算两个 RGBA accumulator 字节后与 source_texture_budget 明确比较并拒绝。保留预算行为，不将该容量估算当作任意手工 Scene 的完整验证 |
+| crates/motion-render/src/effect_plan.rs:1541 | 核实保留 | 正规非零 Scene 合成宽高≤32768，scale≤1；计算两个 RGBA accumulator 字节后与 source_texture_budget 明确比较并拒绝。保留预算行为，不将该容量估算当作任意手工 Scene 的完整验证 |
+| crates/motion-render/src/renderer.rs:104 | 功能边界 | 正规 Project 合成尺寸非零，嵌套结果还有 source budget/render_target 尺寸拒绝；公开 encode 接受直接构造的 Scene，nested_size 自身未校验零父尺寸/异常缩放，不将任意 Scene 的浮点转 u32 或后续字节乘法算作全输入安全。保留功能边界，没有改返回值 |
+| crates/motion-render/src/renderer.rs:1530 | 核实保留 | encode_local 先拒绝超过 MAX_LAYERS=128 的 scene，batch.layer/i 是当前 draw 索引；同一个对齐 uniform_stride×MAX_LAYERS buffer 已由 device 创建。正常动态偏移在实际 buffer 范围内，不将任意伪造 frame 当作已验证 |
+| crates/motion-render/src/renderer.rs:1538 | 核实保留 | 正规层数 128、每层效果 16、每效果 shader pass 8、平面展开顶点 65536，matte 只有 alpha/luma 两类；批次与已执行 pass 计数受这些小于 u32 上限的预算约束。统计 cast 不涉及资产 id；不为独立伪造超预算 Scene/frame 保证 |
+| crates/motion-render/src/renderer.rs:1672 | 核实保留 | 正规 Scene 尺寸为正且模型有限，render_scale 取 target/scene 比、min(1)、max(0.001) 后取整形成 GPU accumulator 尺寸；原计划与资源预算门仍保留。只核实正常模型与真实 GPU target，不声称独立 NaN/零尺寸 Scene 全校验 |
+| crates/motion-render/src/renderer.rs:1673 | 核实保留 | 正规 Scene 尺寸为正且模型有限，render_scale 取 target/scene 比、min(1)、max(0.001) 后取整形成 GPU accumulator 尺寸；原计划与资源预算门仍保留。只核实正常模型与真实 GPU target，不声称独立 NaN/零尺寸 Scene 全校验 |
+| crates/motion-render/src/renderer.rs:1864 | 核实保留 | encode_local 先拒绝超过 MAX_LAYERS=128 的 scene，batch.layer/i 是当前 draw 索引；同一个对齐 uniform_stride×MAX_LAYERS buffer 已由 device 创建。正常动态偏移在实际 buffer 范围内，不将任意伪造 frame 当作已验证 |
+| crates/motion-render/src/renderer.rs:1947 | 核实保留 | encode_local 先拒绝超过 MAX_LAYERS=128 的 scene，batch.layer/i 是当前 draw 索引；同一个对齐 uniform_stride×MAX_LAYERS buffer 已由 device 创建。正常动态偏移在实际 buffer 范围内，不将任意伪造 frame 当作已验证 |
+| crates/motion-render/src/renderer.rs:2014 | 核实保留 | 正规层数 128、每层效果 16、每效果 shader pass 8、平面展开顶点 65536，matte 只有 alpha/luma 两类；批次与已执行 pass 计数受这些小于 u32 上限的预算约束。统计 cast 不涉及资产 id；不为独立伪造超预算 Scene/frame 保证 |
+| crates/motion-render/src/renderer/compositing.rs:96 | 核实保留 | extract 的 index 是 PlanBuilder 的 draw 索引，encode_local 层数受限 128；extract buffer 以相同 extract_stride×MAX_LAYERS 建立。u32 偏移来自已分配 uniform buffer 的元素范围，§63 同族 |
+| crates/motion-render/src/effect_plan.rs:437 | 核实保留 | alpha_images pixels.len/rgba.len 的 usize→u64 在 32/64 位目标等宽/拓宽；set_alpha 检查非零尺寸、精确 rgba 长度及 32 MiB alpha 总缓存预算，不从转换本身丢失字节 |
+| crates/motion-render/src/effect_plan.rs:441 | 核实保留 | alpha_images pixels.len/rgba.len 的 usize→u64 在 32/64 位目标等宽/拓宽；set_alpha 检查非零尺寸、精确 rgba 长度及 32 MiB alpha 总缓存预算，不从转换本身丢失字节 |
+| crates/motion-render/src/effect_plan.rs:445 | 核实保留 | alpha_images pixels.len/rgba.len 的 usize→u64 在 32/64 位目标等宽/拓宽；set_alpha 检查非零尺寸、精确 rgba 长度及 32 MiB alpha 总缓存预算，不从转换本身丢失字节 |
+| crates/motion-render/src/effect_plan.rs:822 | 核实保留 | shader clock 的秒/frame/seed 是既有 EffectUniform f32 ABI；局部时间仍以 f64 采样，主 timeline 仍为 f64。大时间/u32 seed 可能损失低位，不承诺全部种子一一映射，改变时钟/随机映射需独立渲染协议方案，不能当作资源 id 损坏修复 |
+| crates/motion-render/src/effect_plan.rs:823 | 核实保留 | shader clock 的秒/frame/seed 是既有 EffectUniform f32 ABI；局部时间仍以 f64 采样，主 timeline 仍为 f64。大时间/u32 seed 可能损失低位，不承诺全部种子一一映射，改变时钟/随机映射需独立渲染协议方案，不能当作资源 id 损坏修复 |
+| crates/motion-render/src/effect_plan.rs:928 | 核实保留 | GPU f32 uniform 中保存正规合成/源尺寸、已检查 scratch 尺寸或 UV 比例；尺寸不是 u64 对象 id，0.001..1 分辨率桶/像素取整及 GPU 坐标 ABI 保留。手工非有限 source 的边界在 :970/:1028/:1417 单列 |
+| crates/motion-render/src/effect_plan.rs:929 | 核实保留 | GPU f32 uniform 中保存正规合成/源尺寸、已检查 scratch 尺寸或 UV 比例；尺寸不是 u64 对象 id，0.001..1 分辨率桶/像素取整及 GPU 坐标 ABI 保留。手工非有限 source 的边界在 :970/:1028/:1417 单列 |
+| crates/motion-render/src/effect_plan.rs:1012 | 核实保留 | GPU f32 uniform 中保存正规合成/源尺寸、已检查 scratch 尺寸或 UV 比例；尺寸不是 u64 对象 id，0.001..1 分辨率桶/像素取整及 GPU 坐标 ABI 保留。手工非有限 source 的边界在 :970/:1028/:1417 单列 |
+| crates/motion-render/src/effect_plan.rs:1031 | 核实保留 | GPU f32 uniform 中保存正规合成/源尺寸、已检查 scratch 尺寸或 UV 比例；尺寸不是 u64 对象 id，0.001..1 分辨率桶/像素取整及 GPU 坐标 ABI 保留。手工非有限 source 的边界在 :970/:1028/:1417 单列 |
+| crates/motion-render/src/effect_plan.rs:1137 | 核实保留 | GPU f32 uniform 中保存正规合成/源尺寸、已检查 scratch 尺寸或 UV 比例；尺寸不是 u64 对象 id，0.001..1 分辨率桶/像素取整及 GPU 坐标 ABI 保留。手工非有限 source 的边界在 :970/:1028/:1417 单列 |
+| crates/motion-render/src/effect_plan.rs:1162 | 核实保留 | shader clock 的秒/frame/seed 是既有 EffectUniform f32 ABI；局部时间仍以 f64 采样，主 timeline 仍为 f64。大时间/u32 seed 可能损失低位，不承诺全部种子一一映射，改变时钟/随机映射需独立渲染协议方案，不能当作资源 id 损坏修复 |
+| crates/motion-render/src/effect_plan.rs:1164 | 核实保留 | shader clock 的秒/frame/seed 是既有 EffectUniform f32 ABI；局部时间仍以 f64 采样，主 timeline 仍为 f64。大时间/u32 seed 可能损失低位，不承诺全部种子一一映射，改变时钟/随机映射需独立渲染协议方案，不能当作资源 id 损坏修复 |
+| crates/motion-render/src/effect_plan.rs:1300 | 核实保留 | shader clock 的秒/frame/seed 是既有 EffectUniform f32 ABI；局部时间仍以 f64 采样，主 timeline 仍为 f64。大时间/u32 seed 可能损失低位，不承诺全部种子一一映射，改变时钟/随机映射需独立渲染协议方案，不能当作资源 id 损坏修复 |
+| crates/motion-render/src/effect_plan.rs:1301 | 核实保留 | shader clock 的秒/frame/seed 是既有 EffectUniform f32 ABI；局部时间仍以 f64 采样，主 timeline 仍为 f64。大时间/u32 seed 可能损失低位，不承诺全部种子一一映射，改变时钟/随机映射需独立渲染协议方案，不能当作资源 id 损坏修复 |
+| crates/motion-render/src/effect_plan.rs:1303 | 核实保留 | shader clock 的秒/frame/seed 是既有 EffectUniform f32 ABI；局部时间仍以 f64 采样，主 timeline 仍为 f64。大时间/u32 seed 可能损失低位，不承诺全部种子一一映射，改变时钟/随机映射需独立渲染协议方案，不能当作资源 id 损坏修复 |
+| crates/motion-render/src/effect_plan.rs:1364 | 核实保留 | i 是单效果最多 8 个 manifest pass 的下标，转 f32 作为 shader pass 参数可精确表示，非长期 program id |
+| crates/motion-render/src/effect_plan.rs:1420 | 核实保留 | GPU f32 uniform 中保存正规合成/源尺寸、已检查 scratch 尺寸或 UV 比例；尺寸不是 u64 对象 id，0.001..1 分辨率桶/像素取整及 GPU 坐标 ABI 保留。手工非有限 source 的边界在 :970/:1028/:1417 单列 |
+| crates/motion-render/src/effect_plan.rs:1448 | 核实保留 | words[24] 的 layer.order≤127 或 assets 槽位≤256，f32 精确表示；视频/嵌套资产采用 -(order+1) token，与 renderer 既有纹理查找契约一致 |
+| crates/motion-render/src/effect_plan.rs:1450 | 核实保留 | words[24] 的 layer.order≤127 或 assets 槽位≤256，f32 精确表示；视频/嵌套资产采用 -(order+1) token，与 renderer 既有纹理查找契约一致 |
+| crates/motion-render/src/effect_plan.rs:1455 | 核实保留 | words[28:30] 保存当前帧 pass 范围；正规 128 层×16 效果×最多 8 shader pass 加转换/掩码，远小于 f32 精确整数上限 2^24。宿主 PlannedDraw 同时保留 usize pass_start/pass_end，不是把资源 id 转 float |
+| crates/motion-render/src/effect_plan.rs:1456 | 核实保留 | words[28:30] 保存当前帧 pass 范围；正规 128 层×16 效果×最多 8 shader pass 加转换/掩码，远小于 f32 精确整数上限 2^24。宿主 PlannedDraw 同时保留 usize pass_start/pass_end，不是把资源 id 转 float |
+| crates/motion-render/src/effect_plan.rs:1476 | 核实保留 | GPU f32 uniform 中保存正规合成/源尺寸、已检查 scratch 尺寸或 UV 比例；尺寸不是 u64 对象 id，0.001..1 分辨率桶/像素取整及 GPU 坐标 ABI 保留。手工非有限 source 的边界在 :970/:1028/:1417 单列 |
+| crates/motion-render/src/effect_plan.rs:1489 | 核实保留 | GPU f32 uniform 中保存正规合成/源尺寸、已检查 scratch 尺寸或 UV 比例；尺寸不是 u64 对象 id，0.001..1 分辨率桶/像素取整及 GPU 坐标 ABI 保留。手工非有限 source 的边界在 :970/:1028/:1417 单列 |
+| crates/motion-render/src/effect_plan.rs:1490 | 核实保留 | GPU f32 uniform 中保存正规合成/源尺寸、已检查 scratch 尺寸或 UV 比例；尺寸不是 u64 对象 id，0.001..1 分辨率桶/像素取整及 GPU 坐标 ABI 保留。手工非有限 source 的边界在 :970/:1028/:1417 单列 |
+| crates/motion-render/src/effect_plan.rs:1551 | 核实保留 | scratch_dimensions 最多 4 个 mask 槽，usize→u64 是等宽/拓宽；mask outputs 与 mask+effect scratch 分别有 source/scratch 预算拒绝 |
+| crates/motion-render/src/renderer.rs:18 | 核实保留 | 此处是 size_of/stride/Vec.len/frame.bytes 或有界上传字节数的 usize→u64，在支持的 32/64 位目标等宽/拓宽；输入另有像素长度/device/source budget 校验。video_upload_bytes 是累计流量，不是驻留纹理账面值 |
+| crates/motion-render/src/renderer.rs:230 | 新增观测 | GPU latch 的 uncaptured/device_lost/read 分别固定进程累计首次 Warn、第 60 次 Error，释放 guard 后输出恢复前 cause 是否存在及字节数、可用 renderer id 和作用域耗时；不复制原因、不清除 poison、不改变 None/首因锁存/设备丢失覆盖策略。真实中毒、公开 gpu_error/check_health、阈值、清除再中毒和 unwind 回归，§64 |
+| crates/motion-render/src/renderer.rs:238 | 新增观测 | GPU latch 的 uncaptured/device_lost/read 分别固定进程累计首次 Warn、第 60 次 Error，释放 guard 后输出恢复前 cause 是否存在及字节数、可用 renderer id 和作用域耗时；不复制原因、不清除 poison、不改变 None/首因锁存/设备丢失覆盖策略。真实中毒、公开 gpu_error/check_health、阈值、清除再中毒和 unwind 回归，§64 |
+| crates/motion-render/src/renderer.rs:245 | 核实保留 | 此处是 size_of/stride/Vec.len/frame.bytes 或有界上传字节数的 usize→u64，在支持的 32/64 位目标等宽/拓宽；输入另有像素长度/device/source budget 校验。video_upload_bytes 是累计流量，不是驻留纹理账面值 |
+| crates/motion-render/src/renderer.rs:276 | 核实保留 | 此处是 size_of/stride/Vec.len/frame.bytes 或有界上传字节数的 usize→u64，在支持的 32/64 位目标等宽/拓宽；输入另有像素长度/device/source budget 校验。video_upload_bytes 是累计流量，不是驻留纹理账面值 |
+| crates/motion-render/src/renderer.rs:327 | 核实保留 | 此处是 size_of/stride/Vec.len/frame.bytes 或有界上传字节数的 usize→u64，在支持的 32/64 位目标等宽/拓宽；输入另有像素长度/device/source budget 校验。video_upload_bytes 是累计流量，不是驻留纹理账面值 |
+| crates/motion-render/src/renderer.rs:464 | 已有覆盖 | 共享 texture_bytes 的删除减法保留，既有 trim 在提前返回及淘汰后均比较 images 实测总字节与账面值，首次/每 60 次 Warn、健康复位；§01 前置观测与 §63。不是减法内部即时日志，不等于修复漂移根因 |
+| crates/motion-render/src/renderer.rs:594 | 新增观测 | GPU latch 的 uncaptured/device_lost/read 分别固定进程累计首次 Warn、第 60 次 Error，释放 guard 后输出恢复前 cause 是否存在及字节数、可用 renderer id 和作用域耗时；不复制原因、不清除 poison、不改变 None/首因锁存/设备丢失覆盖策略。真实中毒、公开 gpu_error/check_health、阈值、清除再中毒和 unwind 回归，§64 |
+| crates/motion-render/src/renderer.rs:621 | 核实保留 | 此处是 size_of/stride/Vec.len/frame.bytes 或有界上传字节数的 usize→u64，在支持的 32/64 位目标等宽/拓宽；输入另有像素长度/device/source budget 校验。video_upload_bytes 是累计流量，不是驻留纹理账面值 |
+| crates/motion-render/src/renderer.rs:635 | 核实保留 | 此处是 size_of/stride/Vec.len/frame.bytes 或有界上传字节数的 usize→u64，在支持的 32/64 位目标等宽/拓宽；输入另有像素长度/device/source budget 校验。video_upload_bytes 是累计流量，不是驻留纹理账面值 |
+| crates/motion-render/src/renderer.rs:698 | 核实保留 | 同一 object/source/PTS/size 且既有 YUV 转换 ready 时返回 Ok(None)，表示无需新 encoder token。pending conversion 之前有明确 Err，正常缓存命中不应升级故障；既有 yuv_pipeline/submission 回归 |
+| crates/motion-render/src/renderer.rs:715 | 核实保留 | 此处是 size_of/stride/Vec.len/frame.bytes 或有界上传字节数的 usize→u64，在支持的 32/64 位目标等宽/拓宽；输入另有像素长度/device/source budget 校验。video_upload_bytes 是累计流量，不是驻留纹理账面值 |
+| crates/motion-render/src/renderer.rs:716 | 核实保留 | 计算新旧视频/图像/嵌套纹理/蒙版替换所需的正增量，变小时 additional=0 是正确的保守预留；随后仍计算实际替换后总量并与 source budget 比较。不是从 texture_bytes 或累计 video_upload_bytes 中静默扣账 |
+| crates/motion-render/src/renderer.rs:802 | 核实保留 | 此处是 size_of/stride/Vec.len/frame.bytes 或有界上传字节数的 usize→u64，在支持的 32/64 位目标等宽/拓宽；输入另有像素长度/device/source budget 校验。video_upload_bytes 是累计流量，不是驻留纹理账面值 |
+| crates/motion-render/src/renderer.rs:823 | 已有覆盖 | 共享 texture_bytes 的删除减法保留，既有 trim 在提前返回及淘汰后均比较 images 实测总字节与账面值，首次/每 60 次 Warn、健康复位；§01 前置观测与 §63。不是减法内部即时日志，不等于修复漂移根因 |
+| crates/motion-render/src/renderer.rs:846 | 核实保留 | 此处是 size_of/stride/Vec.len/frame.bytes 或有界上传字节数的 usize→u64，在支持的 32/64 位目标等宽/拓宽；输入另有像素长度/device/source budget 校验。video_upload_bytes 是累计流量，不是驻留纹理账面值 |
+| crates/motion-render/src/renderer.rs:853 | 核实保留 | 计算新旧视频/图像/嵌套纹理/蒙版替换所需的正增量，变小时 additional=0 是正确的保守预留；随后仍计算实际替换后总量并与 source budget 比较。不是从 texture_bytes 或累计 video_upload_bytes 中静默扣账 |
+| crates/motion-render/src/renderer.rs:870 | 核实保留 | u8 通道/alpha 精确转 f32 后在 sRGB/linear 间预乘或去预乘；读回除 alpha 后 clamp(0,1)，最终 0..255 round 量化为 PNG/sRGB 字节。是明确颜色编码契约，不是资源 id 截断 |
+| crates/motion-render/src/renderer.rs:872 | 核实保留 | u8 通道/alpha 精确转 f32 后在 sRGB/linear 间预乘或去预乘；读回除 alpha 后 clamp(0,1)，最终 0..255 round 量化为 PNG/sRGB 字节。是明确颜色编码契约，不是资源 id 截断 |
+| crates/motion-render/src/renderer.rs:1022 | 已有覆盖 | 共享 texture_bytes 的删除减法保留，既有 trim 在提前返回及淘汰后均比较 images 实测总字节与账面值，首次/每 60 次 Warn、健康复位；§01 前置观测与 §63。不是减法内部即时日志，不等于修复漂移根因 |
+| crates/motion-render/src/renderer.rs:1063 | 已有覆盖 | 共享 texture_bytes 的删除减法保留，既有 trim 在提前返回及淘汰后均比较 images 实测总字节与账面值，首次/每 60 次 Warn、健康复位；§01 前置观测与 §63。不是减法内部即时日志，不等于修复漂移根因 |
+| crates/motion-render/src/renderer.rs:1076 | 已有覆盖 | 共享 texture_bytes 的删除减法保留，既有 trim 在提前返回及淘汰后均比较 images 实测总字节与账面值，首次/每 60 次 Warn、健康复位；§01 前置观测与 §63。不是减法内部即时日志，不等于修复漂移根因 |
+| crates/motion-render/src/renderer.rs:1111 | 已有覆盖 | 这是 trim 的 total 候选总量减去被淘汰字节，原报告泛称账面减法；同一 trim 退出前仍执行 check_texture_accounting，对共享账面漂移限频 Warn。未新增即时日志或校正统计 |
+| crates/motion-render/src/renderer.rs:1115 | 核实保留 | image_clock 是 LRU 相对访问序号，u64 饱和不会回绕成最旧值；实际达到上限需极长期访问，饱和后的同序号择优不是现实输入故障。未把该终态计数器当作显存记账 |
+| crates/motion-render/src/renderer.rs:1181 | 核实保留 | 此处是 size_of/stride/Vec.len/frame.bytes 或有界上传字节数的 usize→u64，在支持的 32/64 位目标等宽/拓宽；输入另有像素长度/device/source budget 校验。video_upload_bytes 是累计流量，不是驻留纹理账面值 |
+| crates/motion-render/src/renderer.rs:1187 | 核实保留 | 此处是 size_of/stride/Vec.len/frame.bytes 或有界上传字节数的 usize→u64，在支持的 32/64 位目标等宽/拓宽；输入另有像素长度/device/source budget 校验。video_upload_bytes 是累计流量，不是驻留纹理账面值 |
+| crates/motion-render/src/renderer.rs:1210 | 核实保留 | 此处是 size_of/stride/Vec.len/frame.bytes 或有界上传字节数的 usize→u64，在支持的 32/64 位目标等宽/拓宽；输入另有像素长度/device/source budget 校验。video_upload_bytes 是累计流量，不是驻留纹理账面值 |
+| crates/motion-render/src/renderer.rs:1309 | 核实保留 | 实际是 Instant.elapsed.as_micros 的 u128→u64 收窄，原报告 widened 描述不准确；要约 58 万年连续运行才超 u64 微秒，不作为现实挂起观测缺口修改时间契约，§63 同族 |
+| crates/motion-render/src/renderer.rs:1368 | 核实保留 | 计算新旧视频/图像/嵌套纹理/蒙版替换所需的正增量，变小时 additional=0 是正确的保守预留；随后仍计算实际替换后总量并与 source budget 比较。不是从 texture_bytes 或累计 video_upload_bytes 中静默扣账 |
+| crates/motion-render/src/renderer.rs:1418 | 已有覆盖 | 共享 texture_bytes 的删除减法保留，既有 trim 在提前返回及淘汰后均比较 images 实测总字节与账面值，首次/每 60 次 Warn、健康复位；§01 前置观测与 §63。不是减法内部即时日志，不等于修复漂移根因 |
+| crates/motion-render/src/renderer.rs:1511 | 核实保留 | 这些位置参与目标尺寸、fit_viewport、比例、居中坐标或有限标志的 GPU f32 接口；当前直接/效果路径共同使用 fit_viewport 并保留实际 GPU 纹理/计划预算。不把接口精度转换当作丢失资源身份，亦不保证任意手工 Scene 的数值有效 |
+| crates/motion-render/src/renderer.rs:1512 | 核实保留 | 这些位置参与目标尺寸、fit_viewport、比例、居中坐标或有限标志的 GPU f32 接口；当前直接/效果路径共同使用 fit_viewport 并保留实际 GPU 纹理/计划预算。不把接口精度转换当作丢失资源身份，亦不保证任意手工 Scene 的数值有效 |
+| crates/motion-render/src/renderer.rs:1513 | 核实保留 | 这些位置参与目标尺寸、fit_viewport、比例、居中坐标或有限标志的 GPU f32 接口；当前直接/效果路径共同使用 fit_viewport 并保留实际 GPU 纹理/计划预算。不把接口精度转换当作丢失资源身份，亦不保证任意手工 Scene 的数值有效 |
+| crates/motion-render/src/renderer.rs:1515 | 核实保留 | 这些位置参与目标尺寸、fit_viewport、比例、居中坐标或有限标志的 GPU f32 接口；当前直接/效果路径共同使用 fit_viewport 并保留实际 GPU 纹理/计划预算。不把接口精度转换当作丢失资源身份，亦不保证任意手工 Scene 的数值有效 |
+| crates/motion-render/src/renderer.rs:1516 | 核实保留 | 这些位置参与目标尺寸、fit_viewport、比例、居中坐标或有限标志的 GPU f32 接口；当前直接/效果路径共同使用 fit_viewport 并保留实际 GPU 纹理/计划预算。不把接口精度转换当作丢失资源身份，亦不保证任意手工 Scene 的数值有效 |
+| crates/motion-render/src/renderer.rs:1537 | 核实保留 | 实际是 Instant.elapsed.as_micros 的 u128→u64 收窄，原报告 widened 描述不准确；要约 58 万年连续运行才超 u64 微秒，不作为现实挂起观测缺口修改时间契约，§63 同族 |
+| crates/motion-render/src/renderer.rs:1542 | 核实保留 | 此处是 size_of/stride/Vec.len/frame.bytes 或有界上传字节数的 usize→u64，在支持的 32/64 位目标等宽/拓宽；输入另有像素长度/device/source budget 校验。video_upload_bytes 是累计流量，不是驻留纹理账面值 |
+| crates/motion-render/src/renderer.rs:1558 | 已有覆盖 | 共享 texture_bytes 的删除减法保留，既有 trim 在提前返回及淘汰后均比较 images 实测总字节与账面值，首次/每 60 次 Warn、健康复位；§01 前置观测与 §63。不是减法内部即时日志，不等于修复漂移根因 |
+| crates/motion-render/src/renderer.rs:1637 | 核实保留 | 计算新旧视频/图像/嵌套纹理/蒙版替换所需的正增量，变小时 additional=0 是正确的保守预留；随后仍计算实际替换后总量并与 source budget 比较。不是从 texture_bytes 或累计 video_upload_bytes 中静默扣账 |
+| crates/motion-render/src/renderer.rs:1667 | 核实保留 | 这些位置参与目标尺寸、fit_viewport、比例、居中坐标或有限标志的 GPU f32 接口；当前直接/效果路径共同使用 fit_viewport 并保留实际 GPU 纹理/计划预算。不把接口精度转换当作丢失资源身份，亦不保证任意手工 Scene 的数值有效 |
+| crates/motion-render/src/renderer.rs:1668 | 核实保留 | 这些位置参与目标尺寸、fit_viewport、比例、居中坐标或有限标志的 GPU f32 接口；当前直接/效果路径共同使用 fit_viewport 并保留实际 GPU 纹理/计划预算。不把接口精度转换当作丢失资源身份，亦不保证任意手工 Scene 的数值有效 |
+| crates/motion-render/src/renderer.rs:1725 | 核实保留 | 这些位置参与目标尺寸、fit_viewport、比例、居中坐标或有限标志的 GPU f32 接口；当前直接/效果路径共同使用 fit_viewport 并保留实际 GPU 纹理/计划预算。不把接口精度转换当作丢失资源身份，亦不保证任意手工 Scene 的数值有效 |
+| crates/motion-render/src/renderer.rs:1726 | 核实保留 | 这些位置参与目标尺寸、fit_viewport、比例、居中坐标或有限标志的 GPU f32 接口；当前直接/效果路径共同使用 fit_viewport 并保留实际 GPU 纹理/计划预算。不把接口精度转换当作丢失资源身份，亦不保证任意手工 Scene 的数值有效 |
+| crates/motion-render/src/renderer.rs:1727 | 核实保留 | 这些位置参与目标尺寸、fit_viewport、比例、居中坐标或有限标志的 GPU f32 接口；当前直接/效果路径共同使用 fit_viewport 并保留实际 GPU 纹理/计划预算。不把接口精度转换当作丢失资源身份，亦不保证任意手工 Scene 的数值有效 |
+| crates/motion-render/src/renderer.rs:1729 | 核实保留 | 这些位置参与目标尺寸、fit_viewport、比例、居中坐标或有限标志的 GPU f32 接口；当前直接/效果路径共同使用 fit_viewport 并保留实际 GPU 纹理/计划预算。不把接口精度转换当作丢失资源身份，亦不保证任意手工 Scene 的数值有效 |
+| crates/motion-render/src/renderer.rs:1738 | 核实保留 | 这些位置参与目标尺寸、fit_viewport、比例、居中坐标或有限标志的 GPU f32 接口；当前直接/效果路径共同使用 fit_viewport 并保留实际 GPU 纹理/计划预算。不把接口精度转换当作丢失资源身份，亦不保证任意手工 Scene 的数值有效 |
+| crates/motion-render/src/renderer.rs:1739 | 核实保留 | 这些位置参与目标尺寸、fit_viewport、比例、居中坐标或有限标志的 GPU f32 接口；当前直接/效果路径共同使用 fit_viewport 并保留实际 GPU 纹理/计划预算。不把接口精度转换当作丢失资源身份，亦不保证任意手工 Scene 的数值有效 |
+| crates/motion-render/src/renderer.rs:1915 | 核实保留 | 这些位置参与目标尺寸、fit_viewport、比例、居中坐标或有限标志的 GPU f32 接口；当前直接/效果路径共同使用 fit_viewport 并保留实际 GPU 纹理/计划预算。不把接口精度转换当作丢失资源身份，亦不保证任意手工 Scene 的数值有效 |
+| crates/motion-render/src/renderer.rs:1918 | 核实保留 | 这些位置参与目标尺寸、fit_viewport、比例、居中坐标或有限标志的 GPU f32 接口；当前直接/效果路径共同使用 fit_viewport 并保留实际 GPU 纹理/计划预算。不把接口精度转换当作丢失资源身份，亦不保证任意手工 Scene 的数值有效 |
+| crates/motion-render/src/renderer.rs:1919 | 核实保留 | 这些位置参与目标尺寸、fit_viewport、比例、居中坐标或有限标志的 GPU f32 接口；当前直接/效果路径共同使用 fit_viewport 并保留实际 GPU 纹理/计划预算。不把接口精度转换当作丢失资源身份，亦不保证任意手工 Scene 的数值有效 |
+| crates/motion-render/src/renderer.rs:1925 | 核实保留 | 这些位置参与目标尺寸、fit_viewport、比例、居中坐标或有限标志的 GPU f32 接口；当前直接/效果路径共同使用 fit_viewport 并保留实际 GPU 纹理/计划预算。不把接口精度转换当作丢失资源身份，亦不保证任意手工 Scene 的数值有效 |
+| crates/motion-render/src/renderer.rs:1930 | 核实保留 | 这些位置参与目标尺寸、fit_viewport、比例、居中坐标或有限标志的 GPU f32 接口；当前直接/效果路径共同使用 fit_viewport 并保留实际 GPU 纹理/计划预算。不把接口精度转换当作丢失资源身份，亦不保证任意手工 Scene 的数值有效 |
+| crates/motion-render/src/renderer.rs:1996 | 核实保留 | 这些位置参与目标尺寸、fit_viewport、比例、居中坐标或有限标志的 GPU f32 接口；当前直接/效果路径共同使用 fit_viewport 并保留实际 GPU 纹理/计划预算。不把接口精度转换当作丢失资源身份，亦不保证任意手工 Scene 的数值有效 |
+| crates/motion-render/src/renderer.rs:1997 | 核实保留 | 这些位置参与目标尺寸、fit_viewport、比例、居中坐标或有限标志的 GPU f32 接口；当前直接/效果路径共同使用 fit_viewport 并保留实际 GPU 纹理/计划预算。不把接口精度转换当作丢失资源身份，亦不保证任意手工 Scene 的数值有效 |
+| crates/motion-render/src/renderer.rs:1999 | 核实保留 | 这些位置参与目标尺寸、fit_viewport、比例、居中坐标或有限标志的 GPU f32 接口；当前直接/效果路径共同使用 fit_viewport 并保留实际 GPU 纹理/计划预算。不把接口精度转换当作丢失资源身份，亦不保证任意手工 Scene 的数值有效 |
+| crates/motion-render/src/renderer.rs:2000 | 核实保留 | 这些位置参与目标尺寸、fit_viewport、比例、居中坐标或有限标志的 GPU f32 接口；当前直接/效果路径共同使用 fit_viewport 并保留实际 GPU 纹理/计划预算。不把接口精度转换当作丢失资源身份，亦不保证任意手工 Scene 的数值有效 |
+| crates/motion-render/src/renderer.rs:2013 | 核实保留 | 实际是 Instant.elapsed.as_micros 的 u128→u64 收窄，原报告 widened 描述不准确；要约 58 万年连续运行才超 u64 微秒，不作为现实挂起观测缺口修改时间契约，§63 同族 |
+| crates/motion-render/src/renderer.rs:2022 | 核实保留 | 此处是 size_of/stride/Vec.len/frame.bytes 或有界上传字节数的 usize→u64，在支持的 32/64 位目标等宽/拓宽；输入另有像素长度/device/source budget 校验。video_upload_bytes 是累计流量，不是驻留纹理账面值 |
+| crates/motion-render/src/renderer.rs:2023 | 核实保留 | 此处是 size_of/stride/Vec.len/frame.bytes 或有界上传字节数的 usize→u64，在支持的 32/64 位目标等宽/拓宽；输入另有像素长度/device/source budget 校验。video_upload_bytes 是累计流量，不是驻留纹理账面值 |
+| crates/motion-render/src/renderer.rs:2152 | 核实保留 | u8 通道/alpha 精确转 f32 后在 sRGB/linear 间预乘或去预乘；读回除 alpha 后 clamp(0,1)，最终 0..255 round 量化为 PNG/sRGB 字节。是明确颜色编码契约，不是资源 id 截断 |
+| crates/motion-render/src/renderer.rs:2158 | 核实保留 | u8 通道/alpha 精确转 f32 后在 sRGB/linear 间预乘或去预乘；读回除 alpha 后 clamp(0,1)，最终 0..255 round 量化为 PNG/sRGB 字节。是明确颜色编码契约，不是资源 id 截断 |
+| crates/motion-render/src/renderer.rs:2172 | 核实保留 | u8 通道/alpha 精确转 f32 后在 sRGB/linear 间预乘或去预乘；读回除 alpha 后 clamp(0,1)，最终 0..255 round 量化为 PNG/sRGB 字节。是明确颜色编码契约，不是资源 id 截断 |
+| crates/motion-render/src/renderer.rs:2174 | 核实保留 | u8 通道/alpha 精确转 f32 后在 sRGB/linear 间预乘或去预乘；读回除 alpha 后 clamp(0,1)，最终 0..255 round 量化为 PNG/sRGB 字节。是明确颜色编码契约，不是资源 id 截断 |
+| crates/motion-render/src/renderer/compositing.rs:70 | 核实保留 | flags 来自有限 matte mode 的 2/4 位标志，size 为实际 GPU composition target；传入 DrawUniform 的 f32 是 GPU 坐标/标志接口，不是将 u64 资产身份收窄 |
+| crates/motion-render/src/renderer/compositing.rs:71 | 核实保留 | flags 来自有限 matte mode 的 2/4 位标志，size 为实际 GPU composition target；传入 DrawUniform 的 f32 是 GPU 坐标/标志接口，不是将 u64 资产身份收窄 |
+| crates/motion-render/src/renderer/compositing.rs:75 | 核实保留 | index×extract_stride 的 usize→u64 在支持的 32/64 位目标等宽/拓宽；实际索引和 buffer 范围的前提见该文件原始 :96 |
+| crates/motion-render/src/effect_plan.rs:280 | 核实保留 | 经模型生成的有限曲线 LUT 先 clamp(0,1)×255 后 round 到 u8，是有意量化；手工 NaN LUT 不是本结论已校验的输入，§63 同族 |
+| crates/motion-render/src/effect_plan.rs:933 | 核实保留 | 正规 layer 索引≤127、asset 槽位≤256、LUT 数来自受限模型效果，转 i32 后按 -(asset+1)、draw+1、SOURCE_TOKEN-layer 或 -1 哨兵编码；不会溢出 i32。保留完整有符号 token，单帧预算不能替长期 program 索引背书 |
+| crates/motion-render/src/effect_plan.rs:1034 | 核实保留 | 正规 layer 索引≤127、asset 槽位≤256、LUT 数来自受限模型效果，转 i32 后按 -(asset+1)、draw+1、SOURCE_TOKEN-layer 或 -1 哨兵编码；不会溢出 i32。保留完整有符号 token，单帧预算不能替长期 program 索引背书 |
+| crates/motion-render/src/effect_plan.rs:1080 | 核实保留 | 正规 layer 索引≤127、asset 槽位≤256、LUT 数来自受限模型效果，转 i32 后按 -(asset+1)、draw+1、SOURCE_TOKEN-layer 或 -1 哨兵编码；不会溢出 i32。保留完整有符号 token，单帧预算不能替长期 program 索引背书 |
+| crates/motion-render/src/effect_plan.rs:1084 | 核实保留 | 正规 layer 索引≤127、asset 槽位≤256、LUT 数来自受限模型效果，转 i32 后按 -(asset+1)、draw+1、SOURCE_TOKEN-layer 或 -1 哨兵编码；不会溢出 i32。保留完整有符号 token，单帧预算不能替长期 program 索引背书 |
+| crates/motion-render/src/effect_plan.rs:1144 | 核实保留 | 正规 layer 索引≤127、asset 槽位≤256、LUT 数来自受限模型效果，转 i32 后按 -(asset+1)、draw+1、SOURCE_TOKEN-layer 或 -1 哨兵编码；不会溢出 i32。保留完整有符号 token，单帧预算不能替长期 program 索引背书 |
+| crates/motion-render/src/effect_plan.rs:1145 | 核实保留 | 正规 layer 索引≤127、asset 槽位≤256、LUT 数来自受限模型效果，转 i32 后按 -(asset+1)、draw+1、SOURCE_TOKEN-layer 或 -1 哨兵编码；不会溢出 i32。保留完整有符号 token，单帧预算不能替长期 program 索引背书 |
+| crates/motion-render/src/effect_plan.rs:1149 | 核实保留 | 正规 layer 索引≤127、asset 槽位≤256、LUT 数来自受限模型效果，转 i32 后按 -(asset+1)、draw+1、SOURCE_TOKEN-layer 或 -1 哨兵编码；不会溢出 i32。保留完整有符号 token，单帧预算不能替长期 program 索引背书 |
+| crates/motion-render/src/effect_plan.rs:1344 | 核实保留 | 正规 layer 索引≤127、asset 槽位≤256、LUT 数来自受限模型效果，转 i32 后按 -(asset+1)、draw+1、SOURCE_TOKEN-layer 或 -1 哨兵编码；不会溢出 i32。保留完整有符号 token，单帧预算不能替长期 program 索引背书 |
+| crates/motion-render/src/effect_plan.rs:1345 | 核实保留 | 正规 layer 索引≤127、asset 槽位≤256、LUT 数来自受限模型效果，转 i32 后按 -(asset+1)、draw+1、SOURCE_TOKEN-layer 或 -1 哨兵编码；不会溢出 i32。保留完整有符号 token，单帧预算不能替长期 program 索引背书 |
+| crates/motion-render/src/effect_plan.rs:1355 | 核实保留 | work/output 是有限 scratch 槽号：work 为 1 或 4，output 为 0 或 work+1+i%2，最大 6；u32→i32 精确表示，不是资源身份或长期累加计数 |
+| crates/motion-render/src/effect_plan.rs:1380 | 核实保留 | work/output 是有限 scratch 槽号：work 为 1 或 4，output 为 0 或 work+1+i%2，最大 6；u32→i32 精确表示，不是资源身份或长期累加计数 |
+| crates/motion-render/src/effect_plan.rs:1383 | 核实保留 | 正规 layer 索引≤127、asset 槽位≤256、LUT 数来自受限模型效果，转 i32 后按 -(asset+1)、draw+1、SOURCE_TOKEN-layer 或 -1 哨兵编码；不会溢出 i32。保留完整有符号 token，单帧预算不能替长期 program 索引背书 |
+| crates/motion-render/src/effect_plan.rs:1386 | 核实保留 | work/output 是有限 scratch 槽号：work 为 1 或 4，output 为 0 或 work+1+i%2，最大 6；u32→i32 精确表示，不是资源身份或长期累加计数 |
+| crates/motion-render/src/effect_plan.rs:1424 | 核实保留 | 正规 layer 索引≤127、asset 槽位≤256、LUT 数来自受限模型效果，转 i32 后按 -(asset+1)、draw+1、SOURCE_TOKEN-layer 或 -1 哨兵编码；不会溢出 i32。保留完整有符号 token，单帧预算不能替长期 program 索引背书 |
+| crates/motion-render/src/effect_plan.rs:1425 | 核实保留 | 正规 layer 索引≤127、asset 槽位≤256、LUT 数来自受限模型效果，转 i32 后按 -(asset+1)、draw+1、SOURCE_TOKEN-layer 或 -1 哨兵编码；不会溢出 i32。保留完整有符号 token，单帧预算不能替长期 program 索引背书 |
+| crates/motion-render/src/renderer.rs:873 | 核实保留 | u8 通道/alpha 精确转 f32 后在 sRGB/linear 间预乘或去预乘；读回除 alpha 后 clamp(0,1)，最终 0..255 round 量化为 PNG/sRGB 字节。是明确颜色编码契约，不是资源 id 截断 |
+| crates/motion-render/src/renderer.rs:2160 | 核实保留 | u8 通道/alpha 精确转 f32 后在 sRGB/linear 间预乘或去预乘；读回除 alpha 后 clamp(0,1)，最终 0..255 round 量化为 PNG/sRGB 字节。是明确颜色编码契约，不是资源 id 截断 |
 
 ## B7 · motion-graph / motion-model
 

@@ -1076,3 +1076,17 @@ DESIGN.md §0.7 逐项状态均为 retained with reason：本批只接入观测�
 - cargo test -p motion-render --offline -j 2 -- --include-ignored --test-threads=2 完整通过：183 passed、0 failed、0 ignored，含真实 GPU 锁恢复、既有 submission_memory/像素测试、设置外部原图后的可选探针和 doc-test；证据 b63-render-full.log、b63-render-summary.json。桌面完整测试 367 passed、0 failed、0 ignored，包含 worker 阻塞 API 和真实 FileLogger 回归；cargo check/build -p motion-desktop 均通过。证据 b63-desktop-full.log、b63-desktop-check.log、b63-desktop-build.log、b63-test-summary.json
 - 新二进制在隔离 LOCALAPPDATA 下实际启动，默认 Info 记录 130 条普通 start、0 条 Present start，健康场景无新增提交台账恢复告警；Debug 无 Present start/dispatch，done 只允许至少 100ms。Error 文件/stderr 双输出、日志轮转、CLI/MCP stdout JSON、fatal 参数错误、MCP UI 正常 EOF 与 shutdown checkpoint 失败原因均通过；证据 b63-runtime.log、runtime-b63/runtime-summary.json 及各进程原始输出
 - panels 样式门、provenance 1372 tracked paths、格式与 git diff --check 通过；未重跑全套跨平台/原生设计或感知图像验收，不据此声明全量视觉规范合规。证据 b63-style-gate.log、b63-provenance.log
+
+
+## 64 · GPU 错误状态锁恢复与渲染计划编码边界
+
+- 逐行关联 B1 的 renderer 73、compositing 4、effect_plan 104，共 181 个机械候选：新增观测 3、已有覆盖 8、核实保留 146、功能边界 24；累计关联 373/832，剩余 459 行待逐行复核。候选和边界不是已确认缺陷，也不把已有观测重复计作新修复；证据 b64-mechanical-mapping.json 和机械台账对应原始 path:line
+- gpu_failure.uncaptured、gpu_failure.device_lost、gpu_failure.read 三个真实 Mutex 中毒恢复入口新增有界观测；保留 into_inner、首个 uncaptured 原因、device_lost 替换原因以及中毒 None 仍返回 None/健康检查仍成功的原语义，不清除中毒或伪造 GPU 错误
+- 每个固定站点按进程生命周期累计，首次 Warn、第 60 次 Error，之后抑制；健康调用、其他 renderer 与调用方 clear_poison 均不复位，进程重启清零。记录站点、可用 renderer ID、次数、恢复耗时、原原因是否存在及字节数，不复制或缓存原因文本；新增观测上下文有界，不声称既有 GPU 回调原始原因输出也已截断
+- Recovery 先于业务 guard 声明，正常退出及 unwind 时在释放业务锁后记录；健康路径无日志 IO、计时或原因分配。恢复耗时从获得中毒 guard 后开始，不包含等待锁或整个命令耗时，仍在执行且不返回的命令依赖已有 start/in_flight 证据
+- 新增一个 Rust 回归、三个隔离子进程：真实 headless Renderer 与真实中毒锁，调用生产 getter/回调验证首次/阈值/抑制、健康调用安静、长 Unicode 原因不泄露、解锁后日志、unwind、中毒 None 和原健康语义。回调输入为受控 wgpu 错误及设备丢失原因，没有实际触发驱动重置或显存耗尽；证据 b64-latch-special.log
+- 8 行 texture_bytes/trim 关联已有账面与实测检查，不声称每次 saturating_sub 都立即输出或自动修复；替换资源的饱和差值、图像时钟、YUV 已就绪 None、GPU 有符号 token 位型、指纹高低位、有限范围 LUT 量化和着色器 f32 ABI 保留原语义。时长 u128→u64、长时间/大 seed 的 f32 精度限制如实列出，不统称无损
+- 明确保留 24 行功能边界：手工 Scene/nested size、17 处公开 writer 偏移/长度、公开 scratch_budget、长期 program cache 索引、非有限 vector 尺寸和 snapshot 区域。正规模型预算/组合 bundle 32 MiB 上界不证明任意公开可变对象都安全；未修改返回值、编码或有限性校验，也未为验证边界申请数十亿缓存项
+- cargo test -p motion-render --offline -j 2 -- --include-ignored --test-threads=2 完整通过：184 passed、0 failed、0 ignored，含真实 GPU、缓存/像素、doc-test；设置外部独立生成 PNG 的 MOTION_IMAGE_SOURCE 后执行可选原图探针，没有依靠环境变量缺失提前返回。桌面完整测试 367 passed、0 failed、0 ignored，含阻塞 worker API 和真实 FileLogger 回归；cargo check/build -p motion-desktop 通过，未修改既有断言。证据 b64-render-full.log、b64-desktop-full.log、b64-desktop-check.log、b64-desktop-build.log、b64-test-summary.json
+- 新二进制隔离 LOCALAPPDATA 实际启动：未设置 MOTION_LOG 时 129 条普通 start、0 条 Present start，健康 GPU latch/提交台账无新增恢复告警。Debug 的 Present start/dispatch 保持安静，done 仍受 100ms 阈值；Error 文件/stderr、轮转、CLI/MCP stdout JSON、fatal 参数错误、MCP UI 正常 EOF、shutdown checkpoint 失败原因验证通过，证据 b64-runtime.log、runtime-b64/runtime-summary.json
+- panels 样式门、provenance 1374 tracked paths、局部格式及 git diff --check 通过；没有新增依赖/素材，没有修改 panels、交互、布局、respond、两处 MOTION_TRACE_UI 输出、两份原始报告或用户无关文件。DESIGN.md §0.7 维持 §59 retained with reason；本批原生冒烟不等于完成全量视觉、跨平台或驱动故障验收
