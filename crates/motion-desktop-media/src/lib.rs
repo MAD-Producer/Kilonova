@@ -271,3 +271,27 @@ fn video_decoders() -> Value {
 pub fn platform() -> Arc<DesktopPlatform> {
     Arc::new(DesktopPlatform::new())
 }
+
+/// Acceptance entry point for an extracted release, without a window or GPU.
+/// Exercise the application's actual backend, including backward seeks and RGBA
+/// conversion; a feature flag or an inventory response alone is insufficient.
+pub fn verify_video_runtime(path: &Path) -> Result<Value> {
+    let backend = platform();
+    let probed = backend.probe_video(path, None, Some(u32::MAX), &|| Ok(())).map_err(|e| format!("phase=probe cause={e}"))?;
+    probed.asset.validate().map_err(|e| e.to_string())?;
+    let count = probed.timestamps.len();
+    if count == 0 { return Err("video runtime probe returned no frame timestamps".into()); }
+    let mut decoder = backend.open_decoder(path, probed.asset.clone(), probed.timestamps.clone()).map_err(|e| format!("phase=open cause={e}"))?;
+    let mut frames = Vec::new();
+    for index in [0, count / 2, count - 1, 0] {
+        let pts = probed.timestamps[index];
+        let frame = decoder.frame(pts, &|| Ok(())).map_err(|e| format!("phase=decode index={index} pts={pts} cause={e}"))?;
+        let rgba = frame.rgba().map_err(|e| format!("phase=rgba index={index} pts={pts} cause={e}"))?;
+        if frame.pts != pts || frame.end <= pts || rgba.len() != frame.width as usize * frame.height as usize * 4 {
+            return Err(format!("video runtime frame {index} has an invalid timestamp interval or pixel span"));
+        }
+        frames.push(json!({"pts":frame.pts,"end":frame.end,"width":frame.width,
+            "height":frame.height,"rgbaBytes":rgba.len(),"decoder":frame.decoder_name}));
+    }
+    Ok(json!({"backend":"libav","decoded":true,"sourceFrames":count,"frames":frames}))
+}

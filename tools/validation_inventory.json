@@ -300,6 +300,21 @@
       "mode": "ci",
       "runner": ".github/workflows/ci.yml",
       "reason": "Executed by workflow test_ci_*.py unittest discovery."
+    },
+    "tools/prepare_ffmpeg.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Prepare checksum-pinned shared LGPL FFmpeg runtimes for every desktop release target."
+    },
+    "tools/verify_desktop_video.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Decode synthetic fixtures through the extracted release with build-machine library paths removed, before uploading artifacts."
+    },
+    "tools/test_ci_ffmpeg.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Verify checksum-pinned FFmpeg downloads reject corrupt inputs before release preparation."
     }
   },
   "android_tests": {
