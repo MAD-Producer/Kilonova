@@ -206,6 +206,13 @@ impl NodeTasks {
                 .name(name.into())
                 .spawn(move || {
                     while let Ok(job) = receive.recv() {
+                        let began = std::time::Instant::now();
+                        if job.kind == Kind::Compile {
+                            log::debug!("node start #{} {:?} epoch={} revision={}", job.id, job.kind, job.snapshot.epoch, job.snapshot.revision);
+                        } else {
+                            log::info!("node start #{} {:?} epoch={} revision={}", job.id, job.kind, job.snapshot.epoch, job.snapshot.revision);
+                            crate::logging::flush();
+                        }
                         let outcome = if generation.load(Ordering::Acquire) != job.generation
                             || job.kind == Kind::Compile
                                 && latest_compile.load(Ordering::Acquire) != job.id
@@ -217,13 +224,22 @@ impl NodeTasks {
                             }))
                             .unwrap_or_else(|payload| Outcome::Failed(format!("node worker failed: {}",motion_media::panic_reason(payload))))
                         };
-                        let _ = reply.send(Completion {
+                        match &outcome {
+                            Outcome::Failed(error) => log::error!("node error #{} {:?} {}ms epoch={} revision={}: {error}", job.id, job.kind, began.elapsed().as_millis(), job.snapshot.epoch, job.snapshot.revision),
+                            Outcome::Validated(Err(error)) | Outcome::Compiled(Err(error)) => log::warn!("node rejected #{} {:?} {}ms epoch={} revision={}: {error}", job.id, job.kind, began.elapsed().as_millis(), job.snapshot.epoch, job.snapshot.revision),
+                            _ => {}
+                        }
+                        log::debug!("node done #{} {:?} {}ms", job.id, job.kind, began.elapsed().as_millis());
+                        if reply.send(Completion {
                             id: job.id,
                             generation: job.generation,
                             snapshot: job.snapshot,
                             outcome,
-                        });
+                        }).is_err() {
+                            log::debug!("node response receiver closed #{} {:?}", job.id, job.kind);
+                        }
                     }
+                    log::debug!("node worker channel closed: {name}");
                 })
                 .map_err(|e| e.to_string())?;
         }
@@ -409,6 +425,9 @@ impl NodeTasks {
 }
 impl Drop for NodeTasks {
     fn drop(&mut self) {
+        if !self.pending.is_empty() {
+            log::debug!("node tasks closing: cancelling {} pending job(s)", self.pending.len());
+        }
         self.generation.fetch_add(1, Ordering::AcqRel);
     }
 }
@@ -510,11 +529,16 @@ fn execute(job: &Job, generation: &AtomicU64, latest_compile: &AtomicU64) -> Out
             )),
             Kind::Save | Kind::SaveAs => {
                 job.snapshot.save(&path).map_err(|e| e.to_string())?;
+                // Record the disk side effect even when the editor is replaced
+                // or cancellation arrives before the completion is consumed.
+                log::info!("node saved #{} epoch={} revision={} path={}", job.id, job.snapshot.epoch, job.snapshot.revision, path.display());
                 Ok(Outcome::Saved(path))
             }
-            Kind::Export => Ok(Outcome::Exported(
-                job.snapshot.export_msfx(&path).map_err(|e| e.to_string())?,
-            )),
+            Kind::Export => {
+                let report = job.snapshot.export_msfx(&path).map_err(|e| e.to_string())?;
+                log::info!("node exported #{} epoch={} revision={} path={} source={}", job.id, job.snapshot.epoch, job.snapshot.revision, report.path.display(), report.source_path.display());
+                Ok(Outcome::Exported(report))
+            }
             _ => unreachable!(),
         }
     })();
@@ -621,5 +645,53 @@ mod tests {
         assert!(ready.is_empty());
         assert_eq!(editor.snapshot().epoch, snapshot.epoch);
         assert!(!tasks.busy());
+    }
+}
+
+#[cfg(test)]
+mod observability_tests {
+    use super::*;
+    use crate::node_editor::Request;
+
+    #[test]
+    fn source_side_effects_and_failures_are_logged_even_after_editor_replacement() {
+        const CHILD: &str = "MOTION_NODE_LOG_TEST_CHILD";
+        if let Some(root) = std::env::var_os(CHILD) {
+            let root = PathBuf::from(root);
+            let _logger = crate::logging::init(root.join("logs")).unwrap();
+            let mut editor = NodeEditor::default();
+            let mut tasks = NodeTasks::start().unwrap();
+            std::fs::write(root.join("absent"), b"file blocks output directory").unwrap();
+            tasks.submit_to(editor.request(Request::SaveAs).unwrap(), root.join("absent/failure.msgraph"), Locale::En).unwrap();
+            drain(&mut tasks, &mut editor);
+            let expected = editor.snapshot().document;
+            tasks.submit_to(editor.request(Request::SaveAs).unwrap(), root.join("saved.msgraph"), Locale::En).unwrap();
+            editor.replace_document(motion_graph::demo_graph(), None);
+            drain(&mut tasks, &mut editor);
+            assert_eq!(GraphDocument::load(&root.join("saved.msgraph")).unwrap(), expected);
+            assert!(editor.snapshot().source_path.is_none());
+            return;
+        }
+        let root = tempfile::tempdir().unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "node_tasks::observability_tests::source_side_effects_and_failures_are_logged_even_after_editor_replacement"])
+            .env(CHILD,root.path()).env_remove("MOTION_LOG")
+            .output().unwrap();
+        assert!(output.status.success(),"{}",String::from_utf8_lossy(&output.stderr));
+        let text = std::fs::read_to_string(root.path().join("logs/motion-studio.log")).unwrap();
+        assert!(text.contains("node start #1 SaveAs epoch="));
+        assert!(text.contains("node error #1 SaveAs ") && text.contains("ms epoch="));
+        assert!(text.contains("node saved #2 epoch=") && text.contains("saved.msgraph"));
+        assert!(String::from_utf8_lossy(&output.stderr).contains("node error #1 SaveAs "));
+        assert!(!String::from_utf8_lossy(&output.stdout).contains("node saved #"));
+    }
+
+    fn drain(tasks: &mut NodeTasks, editor: &mut NodeEditor) {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        while tasks.busy() {
+            assert!(std::time::Instant::now() < deadline);
+            tasks.poll(editor, Locale::En);
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
     }
 }

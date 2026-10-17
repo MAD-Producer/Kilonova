@@ -266,3 +266,24 @@
 - 本机 Windows 下验证文件已关闭才删除；强杀进程不会执行 Drop，仍属后续启动清扫议题，不宣称本次解决
 - 关联辅助清单：11.1、11.3–11.5；日志：target/silent-failure-validation/desktop-cleanup-full.log
 - 11.2 所述代理缓存并非永久孤儿：缓存按内容哈希与字节预算管理，可由后续解码/裁剪回收；不把每次源导入回滚升级为清空共享缓存
+
+## 19 · 节点后台任务与已写入文件的证据
+
+状态：已完成；桌面全套 338 passed，0 failed，0 ignored；既有 graph groups 5 项通过。
+
+- 文件任务在执行前记录默认 Info start 并 flush；后台失败记录 task id、种类、epoch、revision 和耗时，编译/校验拒绝记录 warn
+- 保存/导出成功即记录实际磁盘路径，即使随后取消、切换编辑器或丢弃过期完成结果，产物证据仍保留
+- 高频预览编译的 start/done、接收端关闭和正常 worker 退出仅用 debug，不增加 Present 热路径日志
+- 新增独立进程回归实际制造输出目录被文件阻塞的保存失败，并验证 file/stderr；再保存成功后切换编辑器，验证旧文件确已保存且不会覆盖新编辑器的 source_path
+- 保留过期校验、编译、保存结果的 epoch/revision 守卫；过期结果不应覆盖新文档，也不应把新编辑标成已保存
+- 新增真实 Ctrl+S 拒绝非法字段回归，证实输入与就地错误和 notice 原本均保留，不新增重复提示
+- 关联辅助清单：2.23–2.25、5.5–5.6、10.19–10.21；日志：desktop-node-observability-full.log、group-contract-review.log
+
+## 本轮进一步核实的保留项
+
+| 位置 | 结论与验证 |
+| --- | --- |
+| node_editor request/commit_field / 5.5–5.6 | 文件请求唯一 Err 来源为 commit_field；该层先填 field.error 与 notice 再返回 Err，因此调用处 if let Ok 不会吞掉错误反馈；新增实际 Ctrl+S 回归已通过 |
+| motion-graph ports::group_port | node_port_specs 先调用 node_ports，其 Group 分支通过 graph.ports 验证边界类型与语义后才构造帮助信息；不把帮助信息内部的 Option 查询当作绕过验证；groups 5 项现有集成回归通过 |
+| host ops/media::release_frozen_video | 返回 released:false 是幂等释放的明确结果，已区分本次是否真正持有资源；创建时四个 reader 上限另有明确 Err，不等于隐瞒池耗尽 |
+| node_tasks 过期结果 / 2.23–2.25 | 防止旧结果覆盖新文档是有意设计，既有 stale_worker_results_and_save_completion_order_are_safe 与真实异步保存回归通过；新增产物日志补足独立磁盘副作用的可追踪性 |

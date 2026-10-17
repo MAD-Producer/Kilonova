@@ -117,3 +117,22 @@ fn shrinking_canvas_cancels_a_held_nudge_without_committing_an_undo_step() {
     assert_eq!(editor.undo.len(), undo);
     assert!(response.changed && !response.semantic_changed);
 }
+
+
+#[test]
+fn file_shortcut_rejection_already_retains_the_invalid_field_and_visible_error() {
+    let mut editor = simple();
+    editor.focus_panel();
+    let before = editor.document.clone();
+    editor.field = Some(Field { binding: Binding::Constant("number".into(),0), text:"not a number".into(), cursor:12, replace:false, error:None });
+    let mut actions = Vec::new();
+    editor.keyboard(&Input {
+        keys: vec![(Key::S, Modifiers { control:true,..Default::default() })],
+        ..Default::default()
+    }, &mut actions);
+    assert!(actions.is_empty());
+    assert_eq!(editor.document,before);
+    let error = editor.field.as_ref().unwrap().error.as_deref().unwrap();
+    assert_eq!(editor.notice.as_deref(),Some(error));
+    assert_eq!(editor.field.as_ref().unwrap().text,"not a number");
+}
