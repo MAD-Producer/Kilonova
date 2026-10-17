@@ -461,7 +461,7 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - cargo tree 未发现会在 release 静态屏蔽 Info 的 log max_level/release_max_level feature；未据此宣称已运行 release 二进制
 - 证据：desktop-debug-filter-full.log、debug-filter-check.log、debug-filter-build.log、debug-filter-runtime.log、runtime/runtime-summary.json、log-features.log
 
-当前观测补齐及核实分批记录到 44；后续实施范围限定为可观测性，功能与算法问题单独登记。原始两份清单保留原样，未覆盖条目仍待审，不将 832 个候选当作已确认或已关闭缺陷。
+当前观测补齐及核实分批记录到 48；后续实施范围限定为可观测性，功能与算法问题单独登记。原始两份清单保留原样，未覆盖条目仍待审，不将 832 个候选当作已确认或已关闭缺陷。
 
 ## 31 · 控制台反压时优先保全错误文件
 
@@ -675,6 +675,7 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - 另一次完整重跑被磁盘空间不足中止；释放旧构建符号文件后重跑，仍为 16 项功能测试通过、文档阶段 E0463，未修改断言、忽略项或产品代码绕过
 - 本轮保持可观测性范围，不把可选功能元数据排查扩展成产品逻辑修复；桌面验收与可选功能的结果分别登记
 - 证据：b40-desktop-media-ffmpeg.log、b40-doc-retry.log、b41-desktop-media-ffmpeg.log、b41-desktop-media-ffmpeg-retry.log
+- 第 48 批再次执行完整 ffmpeg 命令已退出 0，功能与集成共 16 项通过，文档阶段正常结束；这是最新验证结果，不回写此前失败或声称根因已经定位，详情见第 48 批末尾
 
 
 ## 43 · 视频解码线程的飞行状态与持续等待
@@ -709,3 +710,101 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - 保留两项原有大型媒体忽略条件，不改变断言或假称实际执行；桌面 include-ignored 仍执行其全部原生音频项
 - 不修改 panels、可视布局、播放行为或业务错误结构；辅助清单关于取消后卡在非终态的原始断言仍按第 02 批核实保留，本批关闭的是原始错误被取消丢弃的观测缺口
 - 关联辅助清单：10.24、10.26、10.29、10.31、10.34；证据：b44-cancellation-tests.log、b44-cancel-negative.log、b44-media-full.log、b44-desktop-full.log、b44-desktop-check.log
+
+## 45 · 视频必需帧的即时失败与外层线程退出
+
+状态：已完成；host 全套 50 passed、0 failed、0 ignored，含文档测试；视频专项 8 passed
+
+- 原生打开/必需帧解码返回真实错误及缓存拒绝，在释放状态锁之后立即记录 Error，携带 object、source、sequence、PTS、阶段、耗时、当前请求、是否丢弃及帧/缓存字节；不依赖后续 ready/status 轮询
+- 不将正常 video target superseded 当成故障；非必需预取沿用原有首次 Debug/第 60 次 Error 计数，不改调度和失败后暂停预取的策略
+- 外层生命周期 guard 覆盖现有 frame catch_unwind 之外的退出，记录正常停止原因或异常退出上下文；内层锁 guard 先释放，日志在状态锁之外写入
+- 线程真正退出时追加 worker_stopped 快照及 decodeWorkersStopped 聚合，清除已经结束的飞行状态；仅恢复观测所需的中毒锁数据，不清除中毒或继续业务操作，不改 s.error、取消、缓存策略或增加重启
+- 新增真实后台线程回归，受控打开失败、解码失败、8 MiB 缓存拒绝及 seeks() 在捕获边界之外 panic；没有后续轮询也能取得终端文件记录，外层 panic 后仍保留原来没有业务 error 的结果
+- 负对照只屏蔽终端 failure 日志，测试实际退出 101 并报告 decoder observation deadline exceeded；finally 恢复原字节后 host 全套通过
+- 不声称复现了平台原生解码器内部死锁；全局桌面 panic hook 保留原始栈，host 测试独立 sink 验证的是退出上下文
+- 关联辅助清单：10.35、10.36；证据：b45-video-tests.log、b45-video-negative.log、b45-host-full.log
+
+## 46 · 音频参考分析的开始、无人接收错误与 panic
+
+状态：已完成；专项 2 passed；集成验收见第 47 批
+
+- audio-reference-analysis 在波形读取与标记计算之前记录默认 Info start 并 flush，包含 request、operation=audio_reference_analysis、object 和 source
+- 完成错误在原有回复发送之后立即记 Error，包含原始原因与实际耗时，即使 UI 接收端已丢弃也有文件及 stderr 证据；成功及确切 cancelled 只记 Debug 完成
+- 外层 guard 在未正常完成时记录带任务身份的异常退出；保留原来的 unwind/通道断开处理，panic 栈由全局 hook 记录，不新增 catch 或转换业务结果
+- 新增独立进程测试，以真实不完整 .wave 缓存触发 audio_references 拒绝；受控阻塞期间直接读取文件验证开始记录，丢弃接收端后仍可见具体错误；另验证工作线程 panic 的任务身份、栈与原有 Disconnected，以及成功标记和取消结果原样返回
+- 默认 Info 故障测试与 Debug 完成/降噪测试分别运行；错误同时落文件和 stderr，stdout 无诊断文本
+- 标记换算、排序去重、数量上限、取消检查、历史与 UI 状态处理保持原有语义
+- 关联辅助清单：10.23；证据：b46-analysis-tests.log；默认级别负对照及恢复后的完整结果见第 47 批
+
+## 47 · 混音生产线程生命周期与默认级别回归守卫
+
+状态：已完成；最新桌面完整复验 356 passed、0 failed、0 ignored，cargo check 通过；两处缺失开始记录的负对照实际失败
+
+- 为每次音频输出增加仅用于观测的进程内 playback 编号；生产线程在首个 next()/PCM 打开读取之前记录并 flush 默认 Info start
+- watchdog 的 underrun、停止首因和正常结束也带同一 playback 编号，便于关联同一次输出，不改既有日志级别
+- 正常停止记录 stop、stop_after_read 或 eof 及耗时；真实返回错误和已捕获 panic 立即记录 Error，包含 playback、operation=audio_mix、phase 和原始原因，不依赖 watchdog 是否仍存活
+- 异常离开外层线程同样有上下文 guard；保留第一条 shared.error、已有 catch_unwind、队列、停止检查和非阻塞 detach 策略，不改实时设备回调，不逐采样/逐帧写日志
+- 新增独立进程测试，真实生产线程覆盖开始前停止、EOF、阻塞读取后停止、8192 帧队列填满后停止、返回 Err 及受控 panic，直接读文件验证开始先于读取；大量正常采样只产生生命周期记录，正常停止不制造 Error
+- 两个负对照使用同一已构建测试二进制，在独立子进程将级别设为 Warn 屏蔽 Info，原断言分别在读取前缺少分析/混音 start 时实际退出 101；这是日志级别缺失的负对照，不声称执行了源码降为 Debug 后的构建
+- 原计划的源码降级在等待其他 Cargo 构建锁时已撤回，未计入负对照证据；finally 校验原字节恢复后，两个定向测试均通过，随后最新源码完整复验 356 项通过，未改断言或跳过测试
+- 本轮没有改动 panels、布局、样式或播放算法；DESIGN.md §0.7 的既有视觉项继续保留，未做新的全量人工视觉验收
+- 关联辅助清单：10.11、10.12、10.14；证据：b46-level-negative.log、b47-level-negative.log、b47-desktop-full.log、b47-desktop-final.log、b47-desktop-check.log
+
+## 48 · T10 线程退出清单逐项复核
+
+本表逐项对应辅助清单 10.1–10.39，以当前源码及上述分批验证为依据。原始报告不改动；“观测完成”只表示该行要求的定位证据已具备，不表示修改了线程生命周期或解决了原始报告推测的所有功能问题。特别是字符串取消协议、强制停止、退出时必定持久化等边界仍明确保留。本表不能换算成 832 个候选的全量完成率。
+
+| 编号 | 处置 | 当前证据与保留边界 |
+| --- | --- | --- |
+| 10.1 | 观测完成 | engine worker channel closed Error；§01/21，正常 Shutdown 另行区分 |
+| 10.2 | 观测完成 | engine 启动 ready 接收端关闭 Warn，随后记录资源释放；§21，不延长启动等待 |
+| 10.3 | 观测完成，功能边界保留 | engine 启动阶段、60 秒等待失败、root 与耗时可定位；§21，未强停原生初始化或提前释放仍在使用的工程锁 |
+| 10.4 | 观测完成 | shutdown requested 与 resources released Info；§21，不添加 per-command 超时 |
+| 10.5 | 观测完成 | panic 原因及当前命令、排队回复断开的集中错误传播；§01/02，不恢复执行已失效队列 |
+| 10.6 | 观测完成 | spawn_movie_freeze 携带源命令身份，后台 async start/done/error；§24，保留 detached 生命周期 |
+| 10.7 | 部分完成，协议边界保留 | freeze/movie panic payload 已保留；§02/24，movie export cancelled 的同文真实 Err 与协作取消仍无法仅靠字符串区分 |
+| 10.8 | 观测完成 | respond 在原有 best-effort reply 前记录错误，保存成功有产物日志；§24，let _ = reply.send(value) 保留 |
+| 10.9 | 观测完成 | movie export start/saved/cancelled/failed 含 revision、路径与耗时；§24，进程强杀不保证终态或最后日志持久化 |
+| 10.10 | 观测完成 | movie export catch 保留有界 panic 原因；§02/24 |
+| 10.11 | 观测完成 | producer 调用前 start 与 stop/eof/stop_after_read；§47，不把正常退出写为错误 |
+| 10.12 | 观测完成 | panic payload 已保留且 producer 即时错误含 playback；§02/47，shared.error 仍按原设计保留首因 |
+| 10.13 | 观测完成 | watchdog 报 underrun Warn、停止首因 Error、正常停止 Debug；§29，不在 callback 做 IO |
+| 10.14 | 核实保留 | join 仅用于已完成线程且记录 panic，未完成线程继续 detach；§29/47，其实际生产线程退出有生命周期日志，不让 UI 等阻塞 IO |
+| 10.15 | 观测完成 | Diagnostics::with_transport 的 spawn 失败 Error 并增加 localWriteErrors；当前 diagnostics.rs 源码可核对，不伪装 reporter 已启动 |
+| 10.16 | 观测完成 | reporter started/stopping/stopped 与 channel_closed 原因；§42，SDK flush false Warn |
+| 10.17 | 观测完成 | reporter stopping reason=owner_dropped；§42，不承诺已经失去 owner 的 checkpoint 必定完成 |
+| 10.18 | 观测完成 | 序列化/预算失败回复 Err 且 Error/计数，退出 checkpoint 未完成 Warn；§39/41 |
+| 10.19 | 观测完成 | 实际任务执行前 Info start，关闭/待取消数 Debug；§19/33，过期任务不覆盖新文档 |
+| 10.20 | 观测完成 | node catch 保留 panic 原因，finish 在发送前记录；§02/19 |
+| 10.21 | 观测完成 | finish 在取消替换及 reply 丢弃前保留真实失败，成功文件有路径证据；§19/37，接收端关闭 Debug |
+| 10.22 | 观测完成 | MCP UI service started/stopped Info、失败 Error；§39，stdout 仍为 JSON-RPC |
+| 10.23 | 观测完成 | 新增任务开始及无人接收的失败证据，保留原有 Disconnected；§46 |
+| 10.24 | 核实保留 | 原报告“取消后非终态”不成立，cancel 已写 cancelled；§02/44，取消后真实错误现仍有独立日志 |
+| 10.25 | 观测完成 | audio import 有界 panic 原因、spawn 回退及原始失败；§02/44 |
+| 10.26 | 核实保留 | audio cache cancel 同样先写 cancelled；§02/44，不因正常取消报 Error |
+| 10.27 | 观测完成 | audio cache panic 原因及取消后失败证据；§02/44 |
+| 10.28 | 历史修复已验证 | publish_cache_pair 成对发布/回滚，具体 IO 原因沿任务错误链记录；§08/32，本轮未扩展事务策略 |
+| 10.29 | 核实保留 | video import cancel 先写 cancelled；§02/44，真实错误与 panic 在取消后仍记录 |
+| 10.30 | 观测完成 | video import panic 原因及取消后失败；§02/44 |
+| 10.31 | 核实保留 | video cache cancel 先写 cancelled；§02/44，未修改终态协议 |
+| 10.32 | 观测完成 | video cache panic 原因及取消后失败；§02/44 |
+| 10.33 | 历史修复已验证 | .pts/.png 使用成对发布与回滚；§08/32，不把缓存键契约重写纳入观测 |
+| 10.34 | 观测完成 | package worker panic 原因、任务开始/终态与取消后真实 IO 错误；§02/32/44，保留 detached 执行 |
+| 10.35 | 观测完成 | 原生视频 flight、持续 pending 阈值、正常/异常停止与 worker_stopped；§43/45，不将异常退出自动改为业务 s.error |
+| 10.36 | 部分完成，协议边界保留 | 视频 panic 原因与外层退出可定位；§02/43/45，video target superseded 同文真实 Err 仍沿既有字符串取消合同处理 |
+| 10.37 | 观测完成 | 图片及视频预取计数/具体 source 与原因，持续等待可升级；前置观测/§20/43，不在 Present 每帧无条件输出 |
+| 10.38 | 核实保留 | DecodeTask::poll 已区分 Empty/Disconnected，原报告也将其列为对照；不将丢弃 JoinHandle 本身当成缺陷 |
+| 10.39 | 核实保留 | 列举的是 cfg(test) 线程，未把测试夹具纳入产品线程监控 |
+
+T10 共 39 个编号均已给出处置，其中 27 项观测完成、1 项观测完成但保留功能边界、2 项因字符串协议仅部分完成、7 项核实保留、2 项历史修复已验证。没有把保留项或协议边界伪装成新增缺陷修复；T0–T9、T11–T12 及机械清单其他未关联候选仍按本文已有记录逐项核对，不声明整份审计完成。
+
+### 第 45–48 批最终集成验证
+
+- cargo check -p motion-desktop --offline -j 2 退出 0；cargo test -p motion-desktop --offline -j 2 -- --include-ignored --test-threads=2 最新完整复验 356 passed、0 failed、0 ignored，包含原有受控挂起命令的 flight/queue_depth 回归
+- cargo test -p motion-host --offline -j 2 全套 50 passed、0 failed、0 ignored，含文档测试；视频即时错误负对照实际退出 101，恢复原字节后通过
+- 使用仓库已有 ffmpeg-dev 与 python-libclang 环境，cargo test -p motion-desktop-media --features ffmpeg --offline -j 2 -- --test-threads=2 完整命令退出 0；11 项功能与 5 项集成测试通过，文档阶段正常结束且当前没有文档测试项，未再次出现 E0463
+- 本次没有修正 Cargo、rustdoc 或依赖加载逻辑，不据本次通过推断此前 E0463 的根因；保留第 41–42 批原始失败证据
+- 分析与混音日志级别缺失负对照均在运行时原断言处退出 101，随后使用原默认级别完整复验通过；两个源码降级试跑在编译前撤回，不能冒充源码负对照成功
+- 本轮没有重跑 motion-media 两项原有大型媒体条件测试，仍按第 44 批的既有 ignored 条件登记；不把可选 FFmpeg 测试通过扩写为大型媒体验收完成
+- git diff 3a710db -- desktop/app/src/panels 为空；未修改任一 panels 文件、原始两份审计报告或无关工作区文件，不新增依赖、第三方素材、worker 超时或重启
+- 证据目录：target/silent-failure-validation；最新日志为 b45-host-full.log、b45-video-negative.log、b46-level-negative.log、b47-level-negative.log、b47-desktop-check.log、b47-desktop-final.log、b48-desktop-media-ffmpeg.log
