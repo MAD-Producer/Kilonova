@@ -1,6 +1,6 @@
 # Issue #262: lossless XYZ merge API
 
-Scope: backend portion of [#262](https://github.com/MAD-Producer/Kilonova/issues/262), also contributing to the shared API coverage in #86. Branch `feat/262-merge-dimensions` starts at GitHub `main` commit `1750d8dc`. The previous workspace-performance work remains in its existing worktree. GitHub was read on 2026-10-17: 123 open issues and no open pull requests; #262 had no comments or assignees.
+Scope: backend portion of [#262](https://github.com/MAD-Producer/Kilonova/issues/262), also contributing to the shared API coverage in #86. At the user's request, branch `feat/262-merge-dimensions` now stacks on [PR #307](https://github.com/MAD-Producer/Kilonova/pull/307), head `97a3797f25ab6327c0c9e86b0fe2bb6c18f16b3c` (`fix/silent-failure-paths`). The original main-based implementation was preserved as local commit `3814949` on `backup/262-before-pr307-stack`. The previous workspace-performance work remains in its existing worktree.
 
 ## Implemented contract
 
@@ -18,7 +18,7 @@ Existing axis expressions already support a coupled vector component. Keeping id
 
 **#262 remains open.** Its property/menu entry is explicitly deferred by the user's instruction to leave visible UI issues alone. Broader symbolic equivalence is also pending: mismatched key grids, an unkeyed static axis beside animated axes, redundant keys and differently encoded equivalent curves are conservatively rejected, even when a mathematical reduction might exist. No approximate conversion or baking option is supplied. No UI, shortcut, theme token, hit target, dependency or third-party asset changes are included.
 
-## Verification
+## Original main-based verification
 
 The focused core suite covers all built-in ease modes, progress/velocity curves, overshoot, elastic motion, signed local key times, quarter frames, multi-turn rotation, distinct axis edits, static values, interpolation mismatch, atomic batch rollback with existing redo history, no-op revisions, camera/locking restrictions, explicit child composition routing, gesture cancellation, save/reopen and package import. Expression fixtures cover both whole-vector and axis targets with key metadata and fractional `valueAtTime` queries.
 
@@ -38,4 +38,16 @@ The ignored cases are the existing manual large-document history performance mea
 
 The separate doctest rerun exited successfully after rebuilding dependencies, without source changes. In total, 540 distinct runtime tests passed across the regression, host and GPU suites; the focused core suite is already included in the regression count. `git diff --check` passed. Local logs are under `E:/Dev/aem/artifacts/workspace-stall/`.
 
-These checks compile the desktop test harness, not a new distributable desktop executable. This backend-only branch has not been committed, pushed or merged, and no GitHub issue state was changed. The runnable build from the separate workspace-performance worktree is unchanged.
+These checks compiled the desktop test harness, not a new distributable desktop executable. They predate the rebase and are not a substitute for stacked-base verification. The runnable build from the separate workspace-performance worktree is unchanged.
+
+## Stack and merge order
+
+The PR base should be `fix/silent-failure-paths` while #307 remains open. Merge #307 first. The repository normally squash-merges, so rebase only this branch's child commits onto the merged `main` (using the pinned parent head above as the old base) before retargeting the PR to `main`; simply changing the base can reintroduce the parent's commits into the diff. Inspect the incremental diff again and require its CI before merging. The backend stability increment is a separate sibling stack on #307, not a dependency of this command.
+
+The rebase applied without conflicts. All new rejection paths continue to return `Result` through the existing command/session/MCP reply path; mismatched axis grids and interpolation do not silently bake or overwrite the original axes. The current CI workflow runs on pushes to all branches even though its pull-request trigger currently targets only `main`.
+
+On the stacked base, `cargo test --locked --offline -j1 -p motion-core -p motion-host -p motion-render --test merge_dimensions` passed: 8 core tests, 1 shared-host test and 1 GPU test, including 30 pairs of identical GPU captures/frozen plans. Log: `E:/Dev/aem/artifacts/workspace-stall/issue262-stack-tests.log`.
+
+`cargo test --locked --offline -j1 -p motion-desktop merge_dimensions_uses_registered_mcp_permissions_revisions_and_history -- --test-threads=1` also passed: 1 MCP test, 357 filtered. Log: `E:/Dev/aem/artifacts/workspace-stall/issue262-stack-mcp.log`. The final stacked verification therefore passed 11 targeted tests, with no failed or ignored tests. Vendor and existing desktop warnings remain; this is not a warning-free build.
+
+`git diff --check` and `python tools/validate_provenance.py` also passed. No issue is automatically closed by this partial implementation. Local commits and the PR draft are prepared; no push, PR creation, merge or issue state change was performed during this preparation.
