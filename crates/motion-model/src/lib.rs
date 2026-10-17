@@ -75,6 +75,14 @@ pub enum Error {
     Gesture,
     #[error(transparent)]
     Io(#[from] std::io::Error),
+    #[error("project save phase={phase} path={} published={published} cause={source}", .path.display())]
+    Storage {
+        phase: &'static str,
+        path: std::path::PathBuf,
+        published: bool,
+        #[source]
+        source: std::io::Error,
+    },
     #[error(transparent)]
     Json(#[from] serde_json::Error),
     #[error(transparent)]
