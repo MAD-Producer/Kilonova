@@ -182,35 +182,7 @@ impl Mp4Encoder {
             return Err("invalid RGBA frame or nonsequential export frame".into());
         }
         let mut source = frame::Video::new(format::Pixel::RGBA, self.width, self.height);
-        let stride = source.stride(0);
-        for (row, input) in source
-            .data_mut(0)
-            .chunks_mut(stride)
-            .zip(rgba.chunks_exact(self.width as usize * 4))
-        {
-            row[..input.len()].copy_from_slice(input);
-            // MP4 has no alpha: composite straight-alpha capture pixels onto black.
-            for pixel in row[..input.len()].chunks_exact_mut(4) {
-                if pixel[3] != 255 {
-                    let alpha = f32::from(pixel[3]) / 255.0;
-                    for color in &mut pixel[..3] {
-                        let s = f32::from(*color) / 255.0;
-                        let l = if s <= 0.04045 {
-                            s / 12.92
-                        } else {
-                            ((s + 0.055) / 1.055).powf(2.4)
-                        } * alpha;
-                        let s = if l <= 0.0031308 {
-                            l * 12.92
-                        } else {
-                            1.055 * l.powf(1.0 / 2.4) - 0.055
-                        };
-                        *color = (s * 255.0).round() as u8;
-                    }
-                    pixel[3] = 255;
-                }
-            }
-        }
+        write_rgba(&mut source, rgba)?;
         let mut yuv = frame::Video::empty();
         self.scaler
             .run(&source, &mut yuv)
@@ -297,6 +269,50 @@ impl Mp4Encoder {
     }
 }
 
+/// Initialize the complete padded native plane before passing it to swscale.
+fn write_rgba(source: &mut frame::Video, rgba: &[u8]) -> Result<()> {
+    let row_bytes = (source.width() as usize)
+        .checked_mul(4)
+        .ok_or("export RGBA row size overflow")?;
+    let bytes = row_bytes
+        .checked_mul(source.height() as usize)
+        .ok_or("export RGBA frame size overflow")?;
+    if source.format() != format::Pixel::RGBA || rgba.len() != bytes {
+        return Err("invalid RGBA export source".into());
+    }
+    let stride = crate::frame_layout::checked_stride(source, 0, row_bytes)?;
+    let data = source.data_mut(0);
+    data.fill(0);
+    for (row, input) in data
+        .chunks_exact_mut(stride)
+        .zip(rgba.chunks_exact(row_bytes))
+    {
+        row[..row_bytes].copy_from_slice(input);
+        // MP4 has no alpha: composite straight-alpha capture pixels onto black.
+        for pixel in row[..row_bytes].chunks_exact_mut(4) {
+            if pixel[3] != 255 {
+                let alpha = f32::from(pixel[3]) / 255.0;
+                for color in &mut pixel[..3] {
+                    let s = f32::from(*color) / 255.0;
+                    let l = if s <= 0.04045 {
+                        s / 12.92
+                    } else {
+                        ((s + 0.055) / 1.055).powf(2.4)
+                    } * alpha;
+                    let s = if l <= 0.0031308 {
+                        l * 12.92
+                    } else {
+                        1.055 * l.powf(1.0 / 2.4) - 0.055
+                    };
+                    *color = (s * 255.0).round() as u8;
+                }
+                pixel[3] = 255;
+            }
+        }
+    }
+    Ok(())
+}
+
 fn drain(
     encoder: &mut codec::encoder::Encoder,
     output: &mut format::context::Output,
@@ -324,5 +340,72 @@ fn drain(
             Err(Error::Other { errno }) if errno == av::util::error::EAGAIN => return Ok(()),
             Err(e) => return Err(format!("read encoded packet: {e}")),
         }
+    }
+}
+
+#[cfg(test)]
+mod frame_tests {
+    use super::*;
+
+    #[test]
+    fn rgba_export_initializes_row_padding_and_preserves_opaque_pixels() {
+        let mut frame = frame::Video::new(format::Pixel::RGBA, 18, 4);
+        let stride = frame.stride(0);
+        assert!(stride > 18 * 4, "fixture must include native row padding");
+        frame.data_mut(0).fill(0xa5);
+        let rgba: Vec<_> = (0..18 * 4).flat_map(|i| [i as u8, 80, 160, 255]).collect();
+        write_rgba(&mut frame, &rgba).unwrap();
+        for (row, input) in frame
+            .data(0)
+            .chunks_exact(stride)
+            .zip(rgba.chunks_exact(72))
+        {
+            assert_eq!(&row[..72], input);
+            assert!(row[72..].iter().all(|byte| *byte == 0));
+        }
+    }
+
+    #[test]
+    fn rgba_export_keeps_linear_alpha_compositing_and_clears_padding_each_time() {
+        let mut frame = frame::Video::new(format::Pixel::RGBA, 2, 2);
+        let stride = frame.stride(0);
+        let rgba = [
+            255, 0, 0, 128, 50, 100, 150, 0, 10, 20, 30, 255, 0, 0, 0, 255,
+        ];
+        for _ in 0..2 {
+            frame.data_mut(0).fill(0xa5);
+            write_rgba(&mut frame, &rgba).unwrap();
+            assert_eq!(&frame.data(0)[..8], &[188, 0, 0, 255, 0, 0, 0, 255]);
+            assert_eq!(
+                &frame.data(0)[stride..stride + 8],
+                &[10, 20, 30, 255, 0, 0, 0, 255]
+            );
+            assert!(frame
+                .data(0)
+                .chunks_exact(stride)
+                .all(|row| row[8..].iter().all(|b| *b == 0)));
+        }
+    }
+
+    #[test]
+    fn invalid_rgba_input_or_native_layout_returns_error_without_writes() {
+        let mut frame = frame::Video::new(format::Pixel::RGBA, 18, 4);
+        frame.data_mut(0).fill(0xa5);
+        let before = frame.data(0).to_vec();
+        assert!(write_rgba(&mut frame, &[0; 4]).is_err());
+        assert_eq!(frame.data(0), before);
+        let stride = frame.stride(0);
+        // SAFETY: Restore the owned metadata before reading the plane again.
+        unsafe {
+            (*frame.as_mut_ptr()).linesize[0] = -1;
+        }
+        let result = write_rgba(&mut frame, &[0; 18 * 4 * 4]);
+        unsafe {
+            (*frame.as_mut_ptr()).linesize[0] = stride as i32;
+        }
+        assert!(result
+            .unwrap_err()
+            .contains("video plane 0: invalid row stride"));
+        assert_eq!(frame.data(0), before);
     }
 }
