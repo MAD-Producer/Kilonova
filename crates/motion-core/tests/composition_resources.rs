@@ -15,6 +15,67 @@ fn reference(id: u64, target: &str) -> Layer {
     l.content = Content::Composition { clip:CompositionClip::new(target.into()) };
     l
 }
+
+#[test]
+fn rejected_saved_precompose_preserves_disk_revision_and_redo_history() {
+    let mut project = Project::new(64, 64, 30, 120).unwrap();
+    project.layers.push(Layer::solid(
+        1,
+        "Selected",
+        [32.; 2],
+        [32., 32., 0.],
+        [1.; 4],
+    ));
+    project.compositions = (1..MAX_COMPOSITIONS).map(|id| node(id, 30)).collect();
+    let mut engine = Engine::new(project).unwrap();
+    engine
+        .apply(Command::Rename {
+            object: 1,
+            name: "Redo target".into(),
+        })
+        .unwrap();
+    let redo = engine.snapshot();
+    assert!(engine.undo().unwrap());
+    assert!(engine.can_redo());
+    let directory = tempfile::tempdir().unwrap();
+    storage::save(directory.path(), engine.project()).unwrap();
+    let path = directory.path().join("project.json");
+    let bytes = std::fs::read(&path).unwrap();
+    let before = engine.snapshot();
+    let revision = engine.revision();
+    let history = engine.history_diagnostics();
+    let commands = vec![
+        Command::Rename {
+            object: 1,
+            name: "Must roll back".into(),
+        },
+        Command::Composition {
+            action: CompositionAction::Precompose {
+                objects: vec![1],
+                name: "Nested".into(),
+                range: "composition".into(),
+            },
+        },
+    ];
+    let error = engine
+        .apply_batch_saved(commands, directory.path())
+        .unwrap_err();
+    assert_eq!(error_code(error), "resource_limit");
+    assert!(
+        engine.project() == &before,
+        "failed batch changed the project"
+    );
+    assert_eq!(engine.revision(), revision);
+    assert_eq!(engine.history_diagnostics(), history);
+    assert_eq!(std::fs::read(path).unwrap(), bytes);
+    assert!(storage::load(directory.path()).unwrap() == before);
+    assert!(engine.redo().unwrap());
+    assert!(
+        engine.project() == &redo,
+        "failed batch damaged redo history"
+    );
+}
+
 fn error_code(error: Error) -> String {
     let Error::Composition(e) = error else { panic!("expected composition error: {error}") };
     e.code
