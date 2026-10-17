@@ -461,7 +461,7 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - cargo tree 未发现会在 release 静态屏蔽 Info 的 log max_level/release_max_level feature；未据此宣称已运行 release 二进制
 - 证据：desktop-debug-filter-full.log、debug-filter-check.log、debug-filter-build.log、debug-filter-runtime.log、runtime/runtime-summary.json、log-features.log
 
-当前核实/修复分批记录到 33；原始两份清单保留原样，未覆盖条目仍待审，不将 832 个候选当作已确认或已关闭缺陷。
+当前核实/修复分批记录到 34；原始两份清单保留原样，未覆盖条目仍待审，不将 832 个候选当作已确认或已关闭缺陷。
 
 ## 31 · 控制台反压时优先保全错误文件
 
@@ -497,3 +497,17 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - 加强既有独立进程回归：真实提交第三个 Compile 任务，断言默认日志存在 INFO node start #3 Compile；既有保存失败、成功产物与控制台隔离断言全部保留
 - 不更改执行顺序、结果接收守卫或 Present 路径
 - 证据：desktop-media-observability-full.log、media-observability-check.log、media-observability-build.log
+
+
+## 34 · 电影源时间戳与导出路径解析失败
+
+状态：已完成修复；默认功能的 motion-desktop-media 2 passed，带 ffmpeg 功能全套 16 passed、0 failed、0 ignored
+
+- 将冻结前/后的 modified() 查询错误向上传播，携带资产相对路径和 capture/before-copy/after-copy 阶段，不再把两个失败都塌缩为 None 后比较相等
+- 将导出目标解析集中到 export_destination，仅允许 NotFound 代表尚不存在的新输出，保留其他 canonicalize 错误及目标路径
+- 保留源路径保护和临时 MP4 原子发布，不改编码、GPU 线程或取消策略；本节不把旧的路径回退直接认定为已经发生了源文件覆盖
+- 新增无需 ffmpeg 的真实文件系统回归：成功冻结后保留原字节、同字节长度但修改时间改变时拒绝冻结、已存在源文件不可作为输出、新输出允许但不创建文件、无效 NUL 目标必须报告解析错误
+- 加强原有 AAC 回读测试，只将 EOF/EAGAIN 作为正常停止，其他解码错误直接带原因失败，全部既有音频断言保留
+- 带 ffmpeg 验收实际执行 MP4 编码、AAC 回读、取消保留既有输出与临时文件清理，以及嵌套视频/效果/表达式/PCM 的冻结导出，不再仅用默认功能编译代替可选功能验证
+- 时间戳 API 错误传播已由代码路径检查确认；本机真实文件系统支持 modified()，未宣称复现了“不支持修改时间查询”的文件系统
+- 关联全集 B8：movie.rs 原 105、550、579、697；证据：movie-integrity-full.log、ffmpeg-availability-check.log、desktop-media-ffmpeg-final.log
