@@ -315,6 +315,10 @@ impl Controls {
             || self.add_mask_menu.open
             || self.mode_dropdowns.values().any(|d| d.open)
     }
+    pub(crate) fn gesture_active(&self) -> bool {
+        self.drag.as_ref().is_some_and(|d| d.begun)
+            || self.parameter.as_ref().is_some_and(|p| p.begun)
+    }
     pub fn wants_keyboard(&self) -> bool {
         self.editing() || (self.tool != Tool::Select && self.focus)
     }
@@ -383,13 +387,28 @@ impl Controls {
         let mut base_paths = vec![];
         let mut id = 1;
         let projection = if self.tool == Tool::Mask {
-            let l = layer(state, selected?)?;
+            let selected = observe!(
+                "path.begin_selection",
+                selected.ok_or("no selected layer"),
+                "tool=mask"
+            )
+            .ok()?;
+            let l = observe!(
+                "path.begin_layer",
+                layer(state, selected).ok_or("selected layer missing or malformed"),
+                "object={selected} tool=mask"
+            )
+            .ok()?;
             if l.locked
                 || matches!(
                     l.content,
                     Content::Null | Content::Audio { .. } | Content::Adjustment
                 )
             {
+                log::debug!(
+                    "path begin refused object={} reason=locked_or_nonvisual_layer",
+                    l.id
+                );
                 return None;
             }
             let mask = l
@@ -398,10 +417,20 @@ impl Controls {
                 .map(|m| m.id)
                 .max()
                 .unwrap_or(0)
-                .checked_add(1)?;
+                .checked_add(1)
+                .or_else(|| {
+                    log::error!("path begin refused reason=id_overflow selected={selected:?}");
+                    None
+                })?;
             target = Target::Mask { object: l.id, mask };
             offset = l.size.map(|v| v * 0.5);
-            layer_projection(state, l.id, view)?
+            observe!(
+                "path.begin_projection",
+                layer_projection(state, l.id, view).ok_or("layer projection unavailable"),
+                "object={} view={view:?}",
+                l.id
+            )
+            .ok()?
         } else if let Some(l) = selected
             .and_then(|id| layer(state, id))
             .filter(|l| !l.locked)
@@ -419,15 +448,35 @@ impl Controls {
                     .map(|p| p.id)
                     .max()
                     .unwrap_or(0)
-                    .checked_add(1)?;
+                    .checked_add(1)
+                    .or_else(|| {
+                        log::error!("path begin refused reason=id_overflow selected={selected:?}");
+                        None
+                    })?;
                 target = Target::Vector { object: l.id };
                 base_paths = paths;
-                layer_projection(state, l.id, view)?
+                observe!(
+                    "path.begin_projection",
+                    layer_projection(state, l.id, view).ok_or("layer projection unavailable"),
+                    "object={} view={view:?}",
+                    l.id
+                )
+                .ok()?
             } else {
-                identity_projection(state, view)?
+                observe!(
+                    "path.begin_identity",
+                    identity_projection(state, view).ok_or("composition projection unavailable"),
+                    "selected={selected:?} view={view:?}"
+                )
+                .ok()?
             }
         } else {
-            identity_projection(state, view)?
+            observe!(
+                "path.begin_identity",
+                identity_projection(state, view).ok_or("composition projection unavailable"),
+                "selected={selected:?} view={view:?}"
+            )
+            .ok()?
         };
         self.draft = Some(Draft {
             target,
@@ -647,7 +696,9 @@ impl Controls {
                     }));
                 } else {
                     if self.draft.is_none() {
-                        let _ = self.begin(state, selected, view);
+                        if self.begin(state, selected, view).is_none() {
+                            log::debug!("path begin produced no draft selected={selected:?} tool={:?} revision={}", self.tool, state["revision"]);
+                        }
                         if self.draft.is_some() {
                             out.push(Action::Seek(state["frame"].as_f64().unwrap_or(0.)));
                         }
@@ -689,6 +740,19 @@ impl Controls {
             }
         }
         if let Some(mut drag) = self.drag.take() {
+            if drag.begun {
+                let _ = observe!(
+                    "path.drag_release",
+                    (input.dragging()
+                        || input.released.is_some_and(|(b, _)| b == MouseButton::Left))
+                    .then_some(())
+                    .ok_or("path gesture retained without held button or release"),
+                    "path={} node={} frame={} phase=dragging",
+                    drag.path,
+                    drag.node,
+                    drag.frame
+                );
+            }
             let release = input.released.is_some_and(|(b, _)| b == MouseButton::Left);
             if let Some(p) = drag.projection.local(input.mouse) {
                 if (input.dragging() || release) && (distance(p, drag.start) > 0.1 || drag.begun) {

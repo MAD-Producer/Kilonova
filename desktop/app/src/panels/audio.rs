@@ -519,6 +519,22 @@ pub(super) fn render_ruler(
             .into_iter()
             .flatten()
             .collect();
+        for marker in &markers {
+            let _ = observe!(
+                "audio.marker_frame",
+                marker["frame"]
+                    .as_i64()
+                    .ok_or("missing or noninteger frame"),
+                "object={object} marker={} local_offset={local_offset}",
+                marker["id"]
+            );
+            let _ = observe!(
+                "audio.marker_id",
+                marker["id"].as_u64().ok_or("missing or nonunsigned id"),
+                "object={object} frame={} local_offset={local_offset}",
+                marker["frame"]
+            );
+        }
         markers.sort_by_key(|marker| {
             (
                 marker["frame"].as_i64().unwrap_or(0),

@@ -102,11 +102,19 @@ fn reveal(
     }
 }
 
-fn cubic_ease(source: &Value, incoming: bool, outgoing: bool) -> Easing {
-    let easing = Easing {
-        ease: serde_json::from_value(source["ease"].clone()).unwrap_or_default(),
-        curve: serde_json::from_value(source["curve"].clone()).unwrap_or(None),
-    };
+fn cubic_ease(
+    source: &Value,
+    incoming: bool,
+    outgoing: bool,
+    object: u64,
+    property: Property,
+) -> Easing {
+    let easing = super::graph_handles::observed_easing(
+        source,
+        object,
+        property,
+        source["frame"].as_f64().unwrap_or(0.),
+    );
     let (mut a, mut b, start, end) = match easing.curve {
         Some(Curve {
             space: CurveSpace::Progress,
@@ -214,7 +222,13 @@ fn quick_ease(panels: &mut Panels, state: &Value, command: Shortcut, out: &mut V
             );
             return;
         };
-        let easing = cubic_ease(&entries[index], incoming, outgoing);
+        let easing = cubic_ease(
+            &entries[index],
+            incoming,
+            outgoing,
+            key.object,
+            key.property,
+        );
         if easing.validate().is_err() {
             return;
         }

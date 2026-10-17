@@ -269,8 +269,17 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
                     }
                 }
             }
-            let masks: Vec<motion_core::masks::LayerMask> =
-                serde_json::from_value(l["masks"].clone()).unwrap_or_default();
+            let masks: Vec<motion_core::masks::LayerMask> = if l["masks"].is_null() {
+                Vec::new()
+            } else {
+                observe!(
+                    "timeline.masks",
+                    serde_json::from_value(l["masks"].clone()),
+                    "object={}",
+                    l["id"]
+                )
+                .unwrap_or_default()
+            };
             let mask_offset = l["timeline"]["offset_frame"].as_i64().unwrap_or(0) as i32;
             for mask in &masks {
                 for index in 0..4 {
@@ -280,8 +289,24 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
                 }
             }
             let vector: Option<motion_core::vector::VectorContent> =
-                serde_json::from_value(l["content"]["vector"].clone()).ok();
-            let vector_size = serde_json::from_value(l["size"].clone()).unwrap_or([100.; 2]);
+                if l["content"]["vector"].is_null() && l["content"]["kind"] != "vector" {
+                    None
+                } else {
+                    observe!(
+                        "timeline.vector",
+                        serde_json::from_value(l["content"]["vector"].clone()),
+                        "object={}",
+                        l["id"]
+                    )
+                    .ok()
+                };
+            let vector_size = observe!(
+                "timeline.vector_size",
+                serde_json::from_value(l["size"].clone()),
+                "object={}",
+                l["id"]
+            )
+            .unwrap_or([100.; 2]);
             if let Some(v) = &vector {
                 for frame in super::path_controls::groups::timeline::key_frames(v, vector_size) {
                     keys.push(f64::from(frame) + f64::from(mask_offset));
@@ -1352,6 +1377,13 @@ pub(super) fn render(
         );
     }
     if let Some((object, start, end, head, last)) = panels.timeline.trimming.as_mut() {
+        let _ = observe!(
+            "timeline.trim_release",
+            (input.dragging() || input.released.is_some())
+                .then_some(())
+                .ok_or("gesture retained without held button or release"),
+            "object={object} phase=trimming"
+        );
         let position = ((input.mouse[0] - track.min[0]) / ppf + offset) as f64;
         let position = if input.modifiers.alt {
             position
@@ -1393,6 +1425,15 @@ pub(super) fn render(
         }
     }
     if let Some(moving) = panels.timeline.moving.as_mut() {
+        let _ = observe!(
+            "timeline.move_release",
+            (input.dragging() || input.released.is_some())
+                .then_some(())
+                .ok_or("gesture retained without held button or release"),
+            "phase=moving layer_count={} initial={}",
+            moving.layers.len(),
+            moving.initial
+        );
         let (_, _, duration) = moving.layers[0];
         let raw = moving.initial as f64 + (input.mouse[0] - moving.start_mouse) as f64 / ppf as f64;
         let mut candidates = vec![0., total, state["frame"].as_f64().unwrap_or(0.)];

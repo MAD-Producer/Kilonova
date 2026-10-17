@@ -81,6 +81,36 @@ fn linkable(easing: &Easing) -> bool {
         Some(_) => false,
     }
 }
+// Preserve the existing easing fallback while exposing malformed present fields.
+pub(super) fn observed_easing(
+    value: &Value,
+    object: u64,
+    property: Property,
+    frame: f64,
+) -> Easing {
+    let ease = if value.get("ease").is_none() {
+        Ease::Linear // Legacy omitted default is valid.
+    } else {
+        observe!(
+            "panel.easing.ease",
+            serde_json::from_value(value["ease"].clone()),
+            "object={object} property={property:?} frame={frame}"
+        )
+        .unwrap_or(Ease::Linear)
+    };
+    let curve = if value["curve"].is_null() {
+        None // Absent/None is normal for linear and preset easing.
+    } else {
+        observe!(
+            "panel.easing.curve",
+            serde_json::from_value(value["curve"].clone()),
+            "object={object} property={property:?} frame={frame}"
+        )
+        .ok()
+    };
+    Easing { ease, curve }
+}
+
 pub(super) fn draw(
     list: &mut PaintList,
     atlas: &mut TextAtlas,
@@ -120,10 +150,7 @@ pub(super) fn draw(
         {
             continue;
         }
-        let easing = Easing {
-            ease: serde_json::from_value(pair[0]["ease"].clone()).unwrap_or(Ease::Linear),
-            curve: serde_json::from_value(pair[0]["curve"].clone()).ok(),
-        };
+        let easing = observed_easing(&pair[0], object, property, start);
         if easing.ease == Ease::Hold
             || easing.curve.is_some_and(|c| {
                 !matches!(
@@ -301,7 +328,17 @@ pub(super) fn draw(
                         *control2 = p;
                     }
                 }
-                if drag.easing.validate().is_ok() && drag.easing != previous {
+                if observe!(
+                    "graph_handles.validation",
+                    drag.easing.validate(),
+                    "object={} property={:?} frame={} phase=dragging",
+                    drag.object,
+                    drag.property,
+                    drag.frame
+                )
+                .is_ok()
+                    && drag.easing != previous
+                {
                     if !input.modifiers.alt {
                         let at = keys
                             .iter()
@@ -318,15 +355,13 @@ pub(super) fn draw(
                                 let dt = ob["frame"].as_f64().unwrap_or(0.)
                                     - oa["frame"].as_f64().unwrap_or(0.);
                                 let dv = key_value(ob) - key_value(oa);
-                                let old = Easing {
-                                    ease: serde_json::from_value(oa["ease"].clone())
-                                        .unwrap_or(Ease::Linear),
-                                    curve: serde_json::from_value(oa["curve"].clone()).ok(),
-                                };
-                                if dt > 0.
-                                    && dv.abs() > 1e-9
-                                    && linkable(&old)
-                                {
+                                let old = observed_easing(
+                                    oa,
+                                    drag.object,
+                                    drag.property,
+                                    oa["frame"].as_f64().unwrap_or(0.),
+                                );
+                                if dt > 0. && dv.abs() > 1e-9 && linkable(&old) {
                                     let mut linked = cubic(old);
                                     let slope = if drag.index == 0 {
                                         p[1] / p[0].max(0.001)
@@ -426,5 +461,76 @@ impl Drag {
     }
     pub(super) fn bounds(&self) -> [f32; 2] {
         self.bounds
+    }
+}
+
+#[cfg(test)]
+mod observation_tests {
+    use super::*;
+    #[test]
+    fn malformed_easing_logs_context_without_changing_fallbacks() {
+        const CHILD: &str = "MOTION_PANEL_EASING_OBSERVATION_CHILD";
+        if let Some(root) = std::env::var_os(CHILD) {
+            let root = std::path::PathBuf::from(root);
+            let _logger = crate::logging::init(root.clone()).unwrap();
+            let healthy = serde_json::to_value(Easing::default()).unwrap();
+            for _ in 0..120 {
+                assert_eq!(
+                    observed_easing(&healthy, 7, Property::Opacity, 15.),
+                    Easing::default()
+                );
+            }
+            assert!(std::fs::read_to_string(root.join("motion-studio.log"))
+                .unwrap()
+                .is_empty());
+            let malformed = serde_json::json!({"ease":17,"curve":42});
+            for _episode in 1..=2 {
+                for _ in 0..120 {
+                    assert_eq!(
+                        observed_easing(&malformed, 7, Property::Opacity, 15.),
+                        Easing::default()
+                    );
+                    assert_eq!(
+                        observed_easing(&healthy, 7, Property::Opacity, 15.),
+                        Easing::default()
+                    );
+                }
+                let text = std::fs::read_to_string(root.join("motion-studio.log")).unwrap();
+                assert_eq!(
+                    text.lines()
+                        .filter(|line| line.contains("panel degradation site=panel.easing.")
+                            && line.contains("count=1 "))
+                        .count(),
+                    2
+                );
+                assert_eq!(
+                    text.lines()
+                        .filter(
+                            |line| line.contains("persistent panel degradation site=panel.easing.")
+                        )
+                        .count(),
+                    2
+                );
+                assert!(text.contains("object=7 property=Opacity frame=15"));
+                assert_eq!(
+                    observed_easing(&healthy, 7, Property::Opacity, 15.),
+                    Easing::default()
+                );
+            }
+            return;
+        }
+        let temp = tempfile::tempdir().unwrap();
+        let output=std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact","panels::graph_handles::observation_tests::malformed_easing_logs_context_without_changing_fallbacks"])
+            .env_remove("MOTION_LOG").env(CHILD,temp.path()).output().unwrap();
+        assert!(
+            output.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains("persistent panel degradation site=panel.easing.ease"));
+        assert!(!String::from_utf8_lossy(&output.stdout).contains("panel degradation"));
     }
 }

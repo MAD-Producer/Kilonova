@@ -218,6 +218,9 @@ impl Controls {
                 .values()
                 .any(|editor| editor.dragging() || editor.modal())
     }
+    pub(crate) fn curve_gesture_active(&self) -> bool {
+        self.curve_editors.values().any(|editor| editor.dragging())
+    }
     pub fn cancel(&mut self) -> bool {
         let mut begun = self.field.take().is_some_and(|mut f| f.number.cancel());
         for editor in self.curve_editors.values_mut() {
@@ -1112,7 +1115,16 @@ impl Controls {
         {
             *y += styles.metric("effect.group.gap", 8.);
             let id = effect["id"].as_u64().unwrap();
-            let Some(def) = self.definition(effect) else {
+            let Some(def) = observe!(
+                "effects.definition",
+                self.definition(effect).ok_or("no matching definition"),
+                "object={object} effect={id} hash={} plugin={} version={} kind={}",
+                effect["hash"],
+                effect["plugin"],
+                effect["version"],
+                effect["effect"]
+            )
+            .ok() else {
                 continue;
             };
             let title = if locale == Locale::Zh {
@@ -1379,11 +1391,21 @@ impl Controls {
                     *y += row;
                     // This frame follows the same expansion snapshot as its height and hit rectangles.
                     if open {
-                        if let Some(current) =
-                            serde_json::from_value::<EffectParam>(effect["params"][param].clone())
-                                .ok()
-                                .and_then(|parameter| parameter.curve)
-                                .map(|track| curve::value_at(&track, local))
+                        if let Some(current) = observe!(
+                            "effects.parameter",
+                            serde_json::from_value::<EffectParam>(effect["params"][param].clone()),
+                            "object={object} effect={id} param={param}"
+                        )
+                        .ok()
+                        .and_then(|parameter| {
+                            observe!(
+                                "effects.curve_track",
+                                parameter.curve.ok_or("curve parameter has no curve track"),
+                                "object={object} effect={id} param={param}"
+                            )
+                            .ok()
+                        })
+                        .map(|track| curve::value_at(&track, local))
                         {
                             let width = (right - left)
                                 .max(0.)
@@ -1397,12 +1419,27 @@ impl Controls {
                                 body,
                                 area,
                                 if effect["effect"] == "curves" {
-                                    serde_json::from_value::<EffectParam>(
-                                        effect["params"]["p0002"].clone(),
+                                    observe!(
+                                        "effects.curve_channel_parameter",
+                                        serde_json::from_value::<EffectParam>(
+                                            effect["params"]["p0002"].clone(),
+                                        ),
+                                        "object={object} effect={id} param=p0002"
                                     )
                                     .ok()
                                     .map(|parameter| {
-                                        (parameter.sample(local)[0] as usize).saturating_sub(1)
+                                        let channel = parameter.sample(local)[0];
+                                        let _ = observe!(
+                                            "effects.curve_channel",
+                                            (channel.is_finite()
+                                                && channel >= 1.
+                                                && channel <= 5.
+                                                && channel.fract() == 0.)
+                                                .then_some(())
+                                                .ok_or("invalid channel converted to index"),
+                                            "object={object} effect={id} value={channel}"
+                                        );
+                                        (channel as usize).saturating_sub(1)
                                     })
                                 } else {
                                     None
@@ -1433,9 +1470,11 @@ impl Controls {
                 }
                 let key = (object, id, param.to_string());
                 if !self.tracks.contains_key(&key) {
-                    let Ok(parameter) =
-                        serde_json::from_value::<EffectParam>(effect["params"][param].clone())
-                    else {
+                    let Ok(parameter) = observe!(
+                        "effects.parameter",
+                        serde_json::from_value::<EffectParam>(effect["params"][param].clone()),
+                        "object={object} effect={id} param={param}"
+                    ) else {
                         continue;
                     };
                     self.tracks.insert(key, parameter);

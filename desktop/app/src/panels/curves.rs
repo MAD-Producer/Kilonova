@@ -33,7 +33,16 @@ pub(super) fn render(
         .into_iter()
         .flatten()
         .find(|l| l["object"].as_u64() == object);
-    let mut y = auxiliary::body_y(&styles,Panel::Curves, area, 850., panels, input);
+    let mut y = auxiliary::body_y(&styles, Panel::Curves, area, 850., panels, input);
+    let _ = observe!(
+        "curves.snapshot",
+        (sample.is_some() && timeline.is_some())
+            .then_some(())
+            .ok_or("selected layer missing graph snapshot"),
+        "object={object:?} sampled={} timeline={}",
+        sample.is_some(),
+        timeline.is_some()
+    );
     if let (Some(sample), Some(timeline)) = (sample, timeline) {
         panels.animation_controls.expanded = true;
         panels.animation_controls.render(
