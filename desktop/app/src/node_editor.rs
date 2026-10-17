@@ -1008,9 +1008,13 @@ impl NodeEditor {
             .nodes
             .iter()
             .filter_map(|n| {
-                node_ports(n, &self.document.public_parameters)
-                    .ok()
-                    .map(|p| (n.id.clone(), p))
+                match node_ports(n, &self.document.public_parameters) {
+                    Ok(ports) => Some((n.id.clone(), ports)),
+                    Err(error) => {
+                        log::warn!("node ports unavailable during operation change: edited_node={id} node={} revision={} reason={error}", n.id, self.revision);
+                        None
+                    }
+                }
             })
             .collect();
         let count = self.document.connections.len();

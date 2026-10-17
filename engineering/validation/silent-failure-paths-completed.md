@@ -582,3 +582,15 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - 第 32/33 批实际程序默认 Info 测得 124 条普通 start、0 条 Present start；Error 同时写文件和 stderr，MCP 三条响应及命令目录 stdout 均保持 JSON，GUI smoke 通过
 - 最新 GUI/协议复验记录见 b8-runtime.log 与 runtime/runtime-summary.json；不把后续无关视觉整改纳入本轮完成范围
 - 证据：b8-desktop-check.log、b8-desktop-full.log、b8-desktop-full-include-ignored.log、b8-desktop-build.log、desktop-media-ffmpeg-final.log、media-node-runtime.log
+
+## 36 · 安装已提交后的刷新失败与端口解析原因
+
+状态：已完成；桌面完整测试 351 passed、0 failed、0 ignored，cargo check 通过
+
+- 效果包安装成功后立即记录并 flush 默认 Info，目录刷新派发/接收失败记录 Error，包含包路径、installed=true、catalogue 阶段及原始原因；安装失败保留 install 阶段
+- 图层节点安装后的 state/catalogue 刷新失败分别记录 Error，携带 epoch/revision，不改变原有成功路径、错误提示结构或安装事务
+- 更改节点操作时，邻接节点的端口解析错误记录 Warn，保留 edited_node、失败节点、revision 和原因；保留既有连线裁剪及 Undo 行为，不把无法解析的端口伪装成另一种类型
+- 新增真实安装回归：安装独立测试包后关闭 worker，再刷新目录，验证安装证据先于刷新失败，重开工程仍能读取已安装包，Error 同时出现在文件与 stderr，stdout 无诊断文本
+- 新增邻接参数定义缺失回归，验证日志保留具体参数原因、既有不兼容连线提示仍在，Undo 完整恢复原图
+- 未修改 panels、布局、样式、控件或交互；本节未重新宣称 DESIGN.md 全量视觉验收通过
+- 关联辅助清单：2.3、2.6、2.26；证据：b36-desktop-full.log、b36-desktop-check.log

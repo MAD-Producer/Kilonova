@@ -168,3 +168,62 @@ fn inspector_rejection_is_logged_without_mutating_the_node_or_its_history() {
     assert!(text.contains("MultipleOutputs at node toggle"));
     assert!(!String::from_utf8_lossy(&output.stdout).contains("node inspector edit rejected:"));
 }
+
+#[test]
+fn invalid_neighbour_ports_keep_the_cause_when_incompatible_connections_are_removed() {
+    const CHILD: &str = "MOTION_NODE_PORT_LOG_TEST_CHILD";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let _logger = crate::logging::init(std::path::PathBuf::from(root)).unwrap();
+        let mut editor = simple();
+        editor.document.nodes.push(Node::new(
+            "missing_parameter",
+            NodeOp::Parameter {
+                parameter: "deleted_definition".into(),
+            },
+        ));
+        editor.document.connections.push(motion_graph::Connection {
+            from: motion_graph::PortRef {
+                node: "missing_parameter".into(),
+                port: "value".into(),
+            },
+            to: motion_graph::PortRef {
+                node: "math".into(),
+                port: "a".into(),
+            },
+        });
+        let before = editor.document.clone();
+        editor
+            .set_operation(
+                "math",
+                NodeOp::Math {
+                    operation: MathOp::Multiply,
+                    value_type: ValueType::Float,
+                },
+            )
+            .unwrap();
+        assert!(!editor
+            .document
+            .connections
+            .iter()
+            .any(|c| c.from.node == "missing_parameter"));
+        assert!(editor.notice.as_deref().unwrap().contains("incompatible"));
+        assert!(editor.undo());
+        assert_eq!(editor.document, before);
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "node_editor::view::failure_tests::invalid_neighbour_ports_keep_the_cause_when_incompatible_connections_are_removed"])
+        .env(CHILD, root.path()).env_remove("MOTION_LOG").output().unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let text = std::fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
+    assert!(text.contains(
+        "node ports unavailable during operation change: edited_node=math node=missing_parameter"
+    ));
+    assert!(text.contains("deleted_definition"));
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("node ports unavailable"));
+}

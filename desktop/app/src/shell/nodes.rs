@@ -369,11 +369,13 @@ impl Shell {
                     }
                     if snapshot.layer_target.is_some() {
                         self.panels.node_editor.accept_project_saved(snapshot);
-                        if let Ok(state) = self.engine.state() {
-                            self.state = state;
+                        match self.engine.state() {
+                            Ok(state) => self.state = state,
+                            Err(error) => log::error!("node install refresh failed: installed=true phase=state epoch={} revision={} reason={error}", snapshot.epoch, snapshot.revision),
                         }
-                        if let Ok(catalogue) = self.engine.plugin("{\"op\":\"catalogue\"}".into()) {
-                            self.panels.effect_controls.catalogue = std::sync::Arc::new(catalogue);
+                        match self.engine.plugin("{\"op\":\"catalogue\"}".into()) {
+                            Ok(catalogue) => self.panels.effect_controls.catalogue = std::sync::Arc::new(catalogue),
+                            Err(error) => log::error!("node install refresh failed: installed=true phase=catalogue epoch={} revision={} reason={error}", snapshot.epoch, snapshot.revision),
                         }
                     }
                     self.dirty = true;
