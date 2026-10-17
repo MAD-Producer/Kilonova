@@ -223,9 +223,12 @@ impl VideoJobs {
         let initial = task.lock().unwrap().status.clone();
         let root = self.root.clone();
         let audio_decode = self.audio_decode.clone();
+        let task_log = crate::task_logging::TaskLog::new(&initial.request_id, &initial.operation);
+        let worker_log = task_log.clone();
         let t = task.clone();
         let spawn=std::thread::Builder::new().name("motion-video-import".into()).spawn(move||{
             let _worker=worker;
+            worker_log.start();
             let result=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||->Result<Prepared>{
                 update(&t,"opening",0.0)?;let(mut reader,size)=open()?;
                 if size.is_some_and(|s|s>motion_model::storage::MAX_MEDIA_ASSET){return Err("video exceeds 2 GiB".into());}
@@ -252,12 +255,17 @@ impl VideoJobs {
                 image::save_buffer(stage.0.join("thumbnail.png"),&p.first_rgba,p.asset.display_width,p.asset.display_height,image::ColorType::Rgba8).map_err(|e|e.to_string())?;
                 Ok(Prepared{stage,probe:p,audio,options})
             }));
-            let mut t=t.lock().unwrap_or_else(|e|e.into_inner());if t.cancel.load(Ordering::Acquire){return;}
+            let mut t=t.lock().unwrap_or_else(|e|e.into_inner());if t.cancel.load(Ordering::Acquire){drop(t);worker_log.finish("cancelled",None);return;}
             match result {Ok(Ok(p))=>{t.status.metadata=Some(json!({"video":p.probe.asset,"audio":p.audio,"audio_tracks":p.probe.tracks}));t.status.progress=1.0;
                 if probe_only{t.status.state="succeeded".into();t.status.phase="complete".into();}else{t.status.state="ready".into();t.status.phase="awaiting_commit".into();t.prepared=Some(p);}},
                 other=>{t.status.state="failed".into();t.status.phase="failed".into();t.status.error=Some(match other{Ok(Err(e))=>e,Err(payload)=>format!("video worker failed: {}",crate::panic_reason(payload)),Ok(Ok(_))=>unreachable!()});}}
+            let phase=t.status.phase.clone();
+            let error=t.status.error.clone();
+            drop(t);
+            worker_log.finish(&phase,error.as_deref());
         });
         if let Err(e) = spawn {
+            task_log.finish("spawn", Some(&e.to_string()));
             let mut t = task.lock().unwrap();
             t.status.state = "failed".into();
             t.status.error = Some(e.to_string());
@@ -396,12 +404,15 @@ impl VideoJobs {
     ) -> Result<VideoTaskStatus> {
         let (task, worker) = self.reserve(id, "prepare_video")?;
         let initial = task.lock().unwrap().status.clone();
+        let task_log = crate::task_logging::TaskLog::new(&initial.request_id, &initial.operation);
+        let worker_log = task_log.clone();
         let t = task.clone();
         let root = self.root.clone();
         let spawn = std::thread::Builder::new()
             .name("motion-video-cache".into())
             .spawn(move || {
                 let _worker = worker;
+                worker_log.start();
                 let result =
                     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<()> {
                         update(&t, "probing", 0.0)?;
@@ -450,6 +461,8 @@ impl VideoJobs {
                     }));
                 let mut state = t.lock().unwrap_or_else(|e| e.into_inner());
                 if state.cancel.load(Ordering::Acquire) {
+                    drop(state);
+                    worker_log.finish("cancelled", None);
                     return;
                 }
                 if let Err(error) =
@@ -459,8 +472,13 @@ impl VideoJobs {
                     state.status.phase = "failed".into();
                     state.status.error = Some(error);
                 }
+                let phase = state.status.phase.clone();
+                let error = state.status.error.clone();
+                drop(state);
+                worker_log.finish(&phase, error.as_deref());
             });
         if let Err(e) = spawn {
+            task_log.finish("spawn", Some(&e.to_string()));
             let mut t = task.lock().unwrap();
             t.status.state = "failed".into();
             t.status.error = Some(e.to_string());

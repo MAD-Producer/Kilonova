@@ -254,11 +254,14 @@ impl AudioJobs {
         let limits = self.limits;
         let decode = self.decode.clone();
         let initial = task.lock().unwrap().status.clone();
+        let task_log = crate::task_logging::TaskLog::new(&initial.request_id, &initial.operation);
+        let worker_log = task_log.clone();
         let spawn_task = task.clone();
         let spawn = std::thread::Builder::new()
             .name("motion-audio-import".into())
             .spawn(move || {
                 let _worker = worker;
+                worker_log.start();
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
                     || -> Result<Prepared> {
                         update(&spawn_task, "opening", 0.0)?;
@@ -342,6 +345,8 @@ impl AudioJobs {
                 ));
                 let mut t = spawn_task.lock().unwrap_or_else(|e| e.into_inner());
                 if t.cancel.load(Ordering::Acquire) {
+                    drop(t);
+                    worker_log.finish("cancelled", None);
                     return;
                 }
                 match result {
@@ -368,8 +373,13 @@ impl AudioJobs {
                         t.status.error = Some(format!("audio worker failed: {}", crate::panic_reason(payload)));
                     }
                 }
+                let phase = t.status.phase.clone();
+                let error = t.status.error.clone();
+                drop(t);
+                worker_log.finish(&phase, error.as_deref());
             });
         if let Err(error) = spawn {
+            task_log.finish("spawn", Some(&error.to_string()));
             let mut t = task.lock().unwrap();
             t.status.state = "failed".into();
             t.status.error = Some(error.to_string());
@@ -488,11 +498,14 @@ impl AudioJobs {
         let root = self.root.clone();
         let limit = self.limits.cache_bytes;
         let decode = self.decode.clone();
+        let task_log = crate::task_logging::TaskLog::new(&initial.request_id, &initial.operation);
+        let worker_log = task_log.clone();
         let spawn_task = task.clone();
         let spawn = std::thread::Builder::new()
             .name("motion-audio-cache".into())
             .spawn(move || {
                 let _worker = worker;
+                worker_log.start();
                 let result =
                     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<Stage> {
                         let stage = Stage::new(&root)?;
@@ -543,6 +556,8 @@ impl AudioJobs {
                     }));
                 let mut t = spawn_task.lock().unwrap_or_else(|e| e.into_inner());
                 if t.cancel.load(Ordering::Acquire) {
+                    drop(t);
+                    worker_log.finish("cancelled", None);
                     return;
                 }
                 let result = match result {
@@ -569,8 +584,13 @@ impl AudioJobs {
                         t.status.error = Some(e);
                     }
                 }
+                let phase = t.status.phase.clone();
+                let error = t.status.error.clone();
+                drop(t);
+                worker_log.finish(&phase, error.as_deref());
             });
         if let Err(error) = spawn {
+            task_log.finish("spawn", Some(&error.to_string()));
             let mut t = task.lock().unwrap();
             t.status.state = "failed".into();
             t.status.error = Some(error.to_string());

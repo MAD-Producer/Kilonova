@@ -461,7 +461,7 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - cargo tree 未发现会在 release 静态屏蔽 Info 的 log max_level/release_max_level feature；未据此宣称已运行 release 二进制
 - 证据：desktop-debug-filter-full.log、debug-filter-check.log、debug-filter-build.log、debug-filter-runtime.log、runtime/runtime-summary.json、log-features.log
 
-当前核实/修复分批记录到 30；原始两份清单保留原样，未覆盖条目仍待审，不将 832 个候选当作已确认或已关闭缺陷。
+当前核实/修复分批记录到 32；原始两份清单保留原样，未覆盖条目仍待审，不将 832 个候选当作已确认或已关闭缺陷。
 
 ## 31 · 控制台反压时优先保全错误文件
 
@@ -473,3 +473,16 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - 原 panic hook 仍只 try_lock，原 stderr hook 与锁中毒恢复回归均通过
 - 最新二进制实际验证 CLI 命令目录 JSON、MCP 三条 JSON-RPC 响应、Error 文件/stderr 双输出及日志轮转通过
 - 证据：desktop-console-order-full.log、console-order-check.log、console-order-build.log、console-order-protocol.log
+
+
+## 32 · 媒体后台任务开始与返回 Ok 状态中的错误
+
+状态：已完成；motion-media 全套 64 passed、0 failed、2 项原有大媒体验收 ignored；桌面全套 348 passed、0 failed、0 ignored，check/build 通过
+
+- 为音频导入/探测、音频缓存、视频导入/探测、视频缓存和工程包导出记录 request、operation 与耗时
+- 在后台线程进入 provider/open/执行函数之前写入并 flush 默认 Info start，即使随后阻塞也保留开始证据
+- 对存入 status.error、但由状态查询以 Ok 返回的失败记录 Error；由桌面 sink 同时写文件与 stderr，库本身不直接操作控制台
+- 在更新状态并释放状态 Mutex 后记录完成/错误，保留现有状态结构、发布事务和取消语义，正常完成与取消只记 Debug
+- 新增真实后台线程回归：分别阻塞音频/视频 provider，验证默认 Info start 及同线程 flush 发生在释放之前；释放后验证失败状态和 request/operation/ms 日志；真实工程包导出到被普通文件阻挡的目录，验证失败证据
+- 保留两项原有大型媒体忽略条件：release 的大音频/工程包验收和需要 MOTION_LARGE_VIDEO_SOURCE 的大视频验收，未宣称本轮执行了它们
+- 证据：media-task-log-check.log、media-task-log-full.log、desktop-media-observability-full.log、media-observability-check.log、media-observability-build.log
