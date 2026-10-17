@@ -606,3 +606,16 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - 该测试控制完成交界，不宣称复现某个操作系统 IO 调用内部的竞争时序
 - 负对照临时在错误观测前返回 Cancelled，保留同一断言，Cargo 实际退出 101；随后恢复原字节并重跑完整桌面测试通过
 - 关联辅助清单：3.1；证据：b37-cancel-negative.log、b36-desktop-full.log、b39-desktop-full.log
+
+## 38 · 有限 PCM 运算产生 NaN 的真实失败
+
+状态：已完成；motion-media 全套 67 passed、0 failed、2 项原有大型媒体 ignored；桌面完整测试 351 passed、0 failed、0 ignored
+
+- 两个模型合法、缓存样本也有限的音源，分别为正负 f32::MAX、音量均为 2，能够在原有 f32 累加中得到 NaN；原 mix 返回 Ok(4)，clamp 无法移除 NaN
+- 最终限幅前拒绝 NaN 并返回绝对 sample、合成 frame、零起始 channel 和算术溢出/对消原因，由既有后台失败观测接收；不新增实时回调日志
+- 保留正常增益、重采样顺序、普通削波和正负无穷饱和到正负 1 的既有合同，不把合法的超幅 PCM 一并拒绝
+- 新增真实缓存回归验证 NaN 拒绝、正负削波、单源正负无穷饱和和正常有限增益；移除检查的负对照实际退出 101，同一断言收到原先的 Ok(4)
+- 辅助 4.16 核实保留：不足一帧的源尾部需要补静音；新增 16 样本真实缓存测试验证原样本完整保留，尾部随机 seek 与整块一致，进一步越源的整帧仍被模型明确拒绝
+- 辅助 12.16 为 cfg(test) 波形线程，接收端有 recv_timeout 和断言，不增加产品 worker 监控；10.39 在本节只核实其中 mixer 的测试线程部分
+- 保留两项原有大型媒体忽略条件：release 大音频/工程包与需要外部大于 512 MiB MP4 的视频验收；未修改断言或忽略条件，未称本轮执行过它们
+- 关联辅助清单：4.16、12.16；证据：agent-audio-model-final-full.log、agent-audio-model-negative.log、agent-audio-model.md、b39-desktop-full.log

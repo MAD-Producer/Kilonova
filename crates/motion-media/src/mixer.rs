@@ -178,8 +178,20 @@ impl AudioMixer {
                 }
             }
         }
-        for s in out.iter_mut() {
-            *s = s.clamp(-1.0, 1.0);
+        for (index, value) in out.iter_mut().enumerate() {
+            // Finite source samples can still overflow while mixing; opposite
+            // infinities then produce NaN, which clamp would pass to the device.
+            // Keep the existing saturation of +/-infinity and report NaN before
+            // a caller can publish this block to an audio backend.
+            if value.is_nan() {
+                let sample = start_sample + (index / 2) as u64;
+                let frame = sample * u64::from(self.project.fps) / OUTPUT_RATE;
+                return Err(format!(
+                    "audio mix produced NaN at sample {sample}, frame {frame}, channel {}; finite PCM overflow or cancellation during mixing",
+                    index % 2
+                ));
+            }
+            *value = value.clamp(-1.0, 1.0);
         }
         Ok(count)
     }
@@ -423,5 +435,132 @@ mod waveform_tests {
         let root = tempfile::tempdir().unwrap();
         let error = read_waveform(root.path(), &asset(0, 1), 0, 1).unwrap_err();
         assert!(error.contains("audio asset 42"), "{error}");
+    }
+}
+
+#[cfg(test)]
+mod source_interval_tests {
+    use super::*;
+    use motion_model::{AudioClip, Content, Layer, LayerTimeline};
+
+    #[test]
+    fn integer_frame_audio_tail_is_zero_padded_without_losing_source_samples() {
+        let root = tempfile::tempdir().unwrap();
+        let mut project = Project::new(64, 64, 30, 3).unwrap();
+        let asset = AudioAsset {
+            id: 1,
+            path: "assets/short.wav".into(),
+            mime: "audio/wav".into(),
+            bytes: 64,
+            track: 0,
+            sample_rate: 48_000,
+            channels: 1,
+            sample_frames: 16,
+            duration_us: 333,
+        };
+        let cache = cache_path(root.path(), &asset).unwrap();
+        std::fs::create_dir_all(cache.parent().unwrap()).unwrap();
+        std::fs::write(cache, 0.25f32.to_le_bytes().repeat(16)).unwrap();
+        project.audio_assets.push(asset);
+        let mut layer = Layer::solid(1, "short audio", [0.; 2], [0.; 3], [1.; 4]);
+        layer.content = Content::Audio {
+            audio: AudioClip::new(1),
+        };
+        layer.timeline = Some(LayerTimeline {
+            in_frame: 0,
+            out_frame: 1,
+            offset_frame: 0,
+        });
+        project.layers.push(layer);
+        project.validate().unwrap();
+        let mut mixer = AudioMixer::new(project.clone(), root.path()).unwrap();
+
+        // A source shorter than one timeline frame remains a valid clip. Its
+        // actual PCM is preserved; only the unavailable tail is silent.
+        let mut full_frame = vec![f32::NAN; 1_600 * 2];
+        assert_eq!(mixer.mix(0, &mut full_frame).unwrap(), 1_600);
+        assert_eq!(&full_frame[..16 * 2], vec![0.25; 16 * 2]);
+        assert!(full_frame[16 * 2..].iter().all(|value| *value == 0.));
+
+        // Seeking into that tail takes the empty source-window path and must
+        // agree exactly with the same region from the original block.
+        let mut tail = vec![f32::NAN; 128 * 2];
+        assert_eq!(mixer.mix(64, &mut tail).unwrap(), 128);
+        assert_eq!(&tail[..], &full_frame[64 * 2..192 * 2]);
+
+        // This tolerance does not accept a further frame whose first sample
+        // already lies outside the source; model validation rejects it.
+        project.layers[0].timeline.as_mut().unwrap().out_frame = 2;
+        let error = match AudioMixer::new(project, root.path()) {
+            Ok(_) => panic!("an entirely unavailable audio frame must be rejected"),
+            Err(error) => error,
+        };
+        assert!(
+            error.contains("audio clip exceeds recoverable source interval"),
+            "{error}"
+        );
+    }
+    fn project_with_pcm(root: &Path, values: &[f32]) -> Project {
+        let mut project = Project::new(64, 64, 30, 3).unwrap();
+        for (index, value) in values.iter().enumerate() {
+            let id = index as u64 + 1;
+            let asset = AudioAsset {
+                id,
+                path: format!("assets/source-{id}.wav"),
+                mime: "audio/wav".into(),
+                bytes: 64,
+                track: 0,
+                sample_rate: 48_000,
+                channels: 1,
+                sample_frames: 16,
+                duration_us: 333,
+            };
+            let cache = cache_path(root, &asset).unwrap();
+            std::fs::create_dir_all(cache.parent().unwrap()).unwrap();
+            std::fs::write(cache, value.to_le_bytes().repeat(16)).unwrap();
+            project.audio_assets.push(asset);
+            let mut layer = Layer::solid(id, "audio", [0.; 2], [0.; 3], [1.; 4]);
+            let mut audio = AudioClip::new(id);
+            audio.volume = 2.;
+            layer.content = Content::Audio { audio };
+            layer.timeline = Some(LayerTimeline {
+                in_frame: 0,
+                out_frame: 1,
+                offset_frame: 0,
+            });
+            project.layers.push(layer);
+        }
+        project.validate().unwrap();
+        project
+    }
+
+    #[test]
+    fn opposite_finite_pcm_overflow_is_rejected_before_publishing_a_nan_block() {
+        let root = tempfile::tempdir().unwrap();
+        let project = project_with_pcm(root.path(), &[f32::MAX, -f32::MAX]);
+        let mut mixer = AudioMixer::new(project, root.path()).unwrap();
+        let mut output = [0.; 8];
+        let error = mixer.mix(8, &mut output).unwrap_err();
+        assert!(error.contains("NaN"), "{error}");
+        assert!(error.contains("sample 8, frame 0, channel 0"), "{error}");
+        assert!(error.contains("overflow or cancellation"), "{error}");
+    }
+
+    #[test]
+    fn finite_clipping_and_infinity_saturation_keep_the_existing_pcm_contract() {
+        for (values, expected) in [
+            (vec![1., 1.], 1.),
+            (vec![-1., -1.], -1.),
+            (vec![f32::MAX], 1.),
+            (vec![-f32::MAX], -1.),
+            (vec![0.125, -0.0625], 0.125),
+        ] {
+            let root = tempfile::tempdir().unwrap();
+            let project = project_with_pcm(root.path(), &values);
+            let mut mixer = AudioMixer::new(project, root.path()).unwrap();
+            let mut output = [0.; 8];
+            assert_eq!(mixer.mix(0, &mut output).unwrap(), 4);
+            assert_eq!(output, [expected; 8], "{values:?}");
+        }
     }
 }
