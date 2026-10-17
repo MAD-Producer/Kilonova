@@ -7,6 +7,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 use zip::{write::SimpleFileOptions, CompressionMethod, ZipArchive, ZipWriter};
+mod publication;
 
 const MAX_JSON: u64 = 16 * 1024 * 1024;
 const MAX_ASSET: u64 = 64 * 1024 * 1024;
@@ -104,6 +105,11 @@ struct ProjectTemporary(PathBuf);
 impl Drop for ProjectTemporary {
     fn drop(&mut self) { cleanup_temporary_file(&self.0); }
 }
+/// Sync the document bytes before replacing `project.json`. On Unix, also sync
+/// its directory; on Windows, request write-through replacement. A storage
+/// error with `published: true` means replacement succeeded but the directory
+/// durability acknowledgement failed. Creating ancestor directories and asset
+/// durability are outside this guarantee; filesystem/hardware guarantees apply.
 pub fn save(root: &Path, project: &Project) -> Result<()> {
     let canonical = project.composition(crate::MAIN_COMPOSITION)?;
     let project = &canonical;
@@ -115,7 +121,8 @@ pub fn save(root: &Path, project: &Project) -> Result<()> {
         bytes.len() as u64 <= MAX_JSON,
         "project JSON exceeds the size limit",
     )?;
-    let temp = root.join("project.json.tmp");
+    let publication = publication::ProjectPublication::prepare(root)?;
+    let temp = publication.directory().join("project.json.tmp");
     let (temporary, mut file) = {
         let file = File::create(&temp)?;
         (ProjectTemporary(temp), file)
@@ -123,7 +130,7 @@ pub fn save(root: &Path, project: &Project) -> Result<()> {
     file.write_all(&bytes)?;
     file.sync_all()?;
     drop(file);
-    fs::rename(&temporary.0, root.join("project.json"))?;
+    publication.publish(&temporary.0)?;
     Ok(())
 }
 struct PackageSource {
