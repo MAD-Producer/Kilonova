@@ -1,5 +1,8 @@
 use super::*;
-use super::{toolbar::icon_button, types::Tool};
+use super::{
+    toolbar::icon_button,
+    types::{ScrubRuler, Tool},
+};
 use std::hash::{Hash, Hasher};
 
 pub(super) struct Row {
@@ -2363,9 +2366,12 @@ pub(super) fn render_time_ruler(
         super::audio::render_ruler(list, atlas, ruler, ppf, offset, panels, state, input, out);
     if clicked(input, ruler) && !marker_owned {
         panels.timeline.scrubbing = true;
+        panels.timeline.scrub_ruler = ScrubRuler::Timeline;
         panels.timeline.last_seek = None;
     }
-    let scrub_frame = if panels.timeline.scrubbing {
+    let owns_scrub =
+        panels.timeline.scrubbing && panels.timeline.scrub_ruler == ScrubRuler::Timeline;
+    let scrub_frame = if owns_scrub {
         let raw = frame_of(input.mouse[0]);
         let snap = if input.modifiers.alt {
             None
@@ -2393,7 +2399,7 @@ pub(super) fn render_time_ruler(
             out.push(Action::Seek(frame));
         }
     }
-    if input.released.is_some() {
+    if owns_scrub && input.released.is_some() {
         panels.timeline.scrubbing = false;
     }
     scrub_frame

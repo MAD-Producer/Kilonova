@@ -1,5 +1,6 @@
 //! Value curves share the timeline ruler and use the model's actual sampler.
 use super::animation_data as data;
+use super::types::ScrubRuler;
 use super::*;
 use motion_core::{Axis, Track};
 
@@ -577,8 +578,12 @@ pub(super) fn render(
     let ruler = Rect::new(plot.min[0], plot.max[1] + 8., plot.width(), 28.);
     if clicked(input, ruler) {
         panels.timeline.scrubbing = true;
+        panels.timeline.scrub_ruler = ScrubRuler::Graph;
+        panels.timeline.last_seek = None;
     }
-    if panels.timeline.scrubbing
+    let owns_scrub =
+        panels.timeline.scrubbing && panels.timeline.scrub_ruler == ScrubRuler::Graph;
+    if owns_scrub
         && (clicked(input, ruler) || input.dragging() || input.released.is_some())
     {
         let frame = (offset + (input.mouse[0] - plot.min[0]) as f64 / ppf.max(0.001) as f64)
@@ -589,7 +594,7 @@ pub(super) fn render(
             panels.timeline.last_seek = Some(frame);
         }
     }
-    if input.released.is_some() {
+    if owns_scrub && input.released.is_some() {
         panels.timeline.scrubbing = false;
     }
     label(
