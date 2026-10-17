@@ -2,7 +2,7 @@
 
 本表与 `silent-failure-paths-followup.md` 的 161 个辅助编号分开计数。原始 `silent-failure-paths-exhaustive.md` 列出 832 个候选；候选不是已确认缺陷。用原始路径与行号作稳定标识，行号不代表修改后的源码位置。
 
-当前已映射 B1 的 258 项、B6 全部 56 项、B7 全部 33 项、B8 全部 14 项和 B9 全部 12 项，共 373 个候选：核实保留 254 行、功能边界 27 行、新增观测 30 行、已有覆盖 62 行。§63–64 新增六个 submission/GPU latch 锁恢复站点；此前处置保留。其余 459 个候选尚未逐行关联到本表，包含此前已覆盖的站点，不等于 459 个缺陷；功能边界不代表全输入已关闭。
+当前已映射 B1 全部365项、B6 全部56项、B7 全部33项、B8 全部14项和B9 全部12项，共 480 个候选：核实保留 348行、功能边界 38行、新增观测 30行、已有覆盖 64行。其余 352 个候选尚未逐行关联到本表，包含此前已覆盖站点，不等于未修复缺陷数；功能边界不代表全输入已关闭。§63–65 的新增锁恢复观测及解锁时序修正见完成文档
 
 ## B1 · GPU 协议、资源池与提交台账（首批 77 项）
 
@@ -277,6 +277,120 @@
 | crates/motion-render/src/effect_plan.rs:1425 | 核实保留 | 正规 layer 索引≤127、asset 槽位≤256、LUT 数来自受限模型效果，转 i32 后按 -(asset+1)、draw+1、SOURCE_TOKEN-layer 或 -1 哨兵编码；不会溢出 i32。保留完整有符号 token，单帧预算不能替长期 program 索引背书 |
 | crates/motion-render/src/renderer.rs:873 | 核实保留 | u8 通道/alpha 精确转 f32 后在 sRGB/linear 间预乘或去预乘；读回除 alpha 后 clamp(0,1)，最终 0..255 round 量化为 PNG/sRGB 字节。是明确颜色编码契约，不是资源 id 截断 |
 | crates/motion-render/src/renderer.rs:2160 | 核实保留 | u8 通道/alpha 精确转 f32 后在 sRGB/linear 间预乘或去预乘；读回除 alpha 后 clamp(0,1)，最终 0..255 round 量化为 PNG/sRGB 字节。是明确颜色编码契约，不是资源 id 截断 |
+
+## B1 · 图片代理、场景采样与像素边界（末批 107 项）
+
+本批关联 B1 剩余107行，并补强已覆盖代理锁站点及写入/清理失败日志的解锁时序；新增日志安全修正不重复计为新站点。原始脚本未排除的4个测试数值候选在此明确保留
+
+| 原始位置 | 处置 | 当前源码证据与限制 |
+| --- | --- | --- |
+| crates/motion-render/examples/effect_preview_probe.rs:88 | 核实保留 | 仅对几种builtin修改探针参数，其他effect保留自己的默认值，后续仍渲染该effect；wildcard没有忽略Result |
+| crates/motion-render/examples/video_submit_probe.rs:111 | 功能边界 | 独立性能探针把GPU timestamp逆序/回绕差夹0，未新增驱动时间戳异常观测或实现回绕解释；不影响产品呈现，不把其0us解释为真实GPU耗时证明 |
+| crates/motion-render/src/image_resources.rs:128 | 核实保留 | Preview 的 edge 先限制到 1..2048，longest>edge 时整数 ceil(width×edge/longest)<=edge；两个 u32 的乘积在 u64 内。这两处并不产生预览尺寸截断，Full 原样返回 |
+| crates/motion-render/src/image_resources.rs:129 | 核实保留 | Preview 的 edge 先限制到 1..2048，longest>edge 时整数 ceil(width×edge/longest)<=edge；两个 u32 的乘积在 u64 内。这两处并不产生预览尺寸截断，Full 原样返回 |
+| crates/motion-render/src/image_resources.rs:284 | 核实保留 | Read 字节数、Vec 长度、枚举像素 x 的 usize→u64 在支持的32/64位等宽或拓宽；解码输出另受128MiB预算及真实长度校验，finish_row 的 x≤有效源宽16384 |
+| crates/motion-render/src/image_resources.rs:300 | 已有覆盖 | §09/52 已将 lock().ok 缓存丢弃改为恢复并校验 header/长度/hash；§65 补强恢复首 Warn/生命周期第60次 Error、解锁后输出及真实文件回归，clear_poison 与读取结果不变 |
+| crates/motion-render/src/image_resources.rs:331 | 核实保留 | Read 字节数、Vec 长度、枚举像素 x 的 usize→u64 在支持的32/64位等宽或拓宽；解码输出另受128MiB预算及真实长度校验，finish_row 的 x≤有效源宽16384 |
+| crates/motion-render/src/image_resources.rs:359 | 已有覆盖 | §09 去掉先删除目的再单独减 metadata.len 的旧逻辑；现在 checked_add 对除目的外的快照条目求和，原目的留到最终 rename。此旧减法已不存在，非新增GPU记账告警 |
+| crates/motion-render/src/image_resources.rs:366 | 核实保留 | 磁盘代理 total 来自同一 old 快照的 checked_add，每个非目的项最多成功删除一次后减同一 bytes；失败直接 Err，当前饱和减不可能因这个快照序列少计。它不是 renderer.texture_bytes 驻留账本，也未声称重新扫描并发外部修改后的磁盘实值 |
+| crates/motion-render/src/image_resources.rs:412 | 核实保留 | Read 字节数、Vec 长度、枚举像素 x 的 usize→u64 在支持的32/64位等宽或拓宽；解码输出另受128MiB预算及真实长度校验，finish_row 的 x≤有效源宽16384 |
+| crates/motion-render/src/image_resources.rs:466 | 核实保留 | linear_lut 的 i 为0..255，f32精确表示，归一化得到色彩传递表；不是资源ID或尺寸收窄 |
+| crates/motion-render/src/image_resources.rs:480 | 核实保留 | encode 对有限非负累积色彩先clamp0..1再round量化u8；alpha是有效像素alpha平均值的0..255量化，保留线性预乘/box滤波像素契约。不是任意非有限人工输入的验证 |
+| crates/motion-render/src/image_resources.rs:483 | 核实保留 | 原像素 alpha 为u8，转f32并除255用于线性预乘，整数部分精确且量化规则保持 |
+| crates/motion-render/src/image_resources.rs:491 | 核实保留 | Read 字节数、Vec 长度、枚举像素 x 的 usize→u64 在支持的32/64位等宽或拓宽；解码输出另受128MiB预算及真实长度校验，finish_row 的 x≤有效源宽16384 |
+| crates/motion-render/src/image_resources.rs:492 | 核实保留 | Read 字节数、Vec 长度、枚举像素 x 的 usize→u64 在支持的32/64位等宽或拓宽；解码输出另受128MiB预算及真实长度校验，finish_row 的 x≤有效源宽16384 |
+| crates/motion-render/src/image_resources.rs:493 | 核实保留 | finish_row 的 n 是分箱覆盖的源像素数，源宽高各≤16384，整数积≤2^28；f32可能舍入但作为滤波分母是既有数值契约，不能据此宣称全32位整数无损；既有整幅/代理/Adam7像素回归 |
+| crates/motion-render/src/image_resources.rs:497 | 核实保留 | encode 对有限非负累积色彩先clamp0..1再round量化u8；alpha是有效像素alpha平均值的0..255量化，保留线性预乘/box滤波像素契约。不是任意非有限人工输入的验证 |
+| crates/motion-render/src/image_resources.rs:614 | 核实保留 | 原像素 alpha 为u8，转f32并除255用于线性预乘，整数部分精确且量化规则保持 |
+| crates/motion-render/src/image_resources.rs:78 | 核实保留 | upcoming_assets 只收集图片/文字栅格和递归合成，其他 Solid/Video/Audio/Null/Vector 不属于图片预取依赖；wildcard 是有意分流，不是丢失执行错误 |
+| crates/motion-render/src/particle_emitter.rs:122 | 功能边界 | 正规采样有有限frame、正fps、rate≤10000、life≤120及20000粒子预算，正常出生区间可表示；直接手工 SampledEffect.local_frame/Scene.fps 未在此入口统一拒绝NaN/超大值，i64饱和后+1/区间计算边界保留，不以正常预算证明全部公有输入安全 |
+| crates/motion-render/src/particle_emitter.rs:127 | 功能边界 | 正规采样有有限frame、正fps、rate≤10000、life≤120及20000粒子预算，正常出生区间可表示；直接手工 SampledEffect.local_frame/Scene.fps 未在此入口统一拒绝NaN/超大值，i64饱和后+1/区间计算边界保留，不以正常预算证明全部公有输入安全 |
+| crates/motion-render/src/particle_emitter.rs:128 | 功能边界 | 正规采样有有限frame、正fps、rate≤10000、life≤120及20000粒子预算，正常出生区间可表示；直接手工 SampledEffect.local_frame/Scene.fps 未在此入口统一拒绝NaN/超大值，i64饱和后+1/区间计算边界保留，不以正常预算证明全部公有输入安全 |
+| crates/motion-render/src/particle_emitter.rs:172 | 核实保留 | 正规sprite资产宽高1..16384，f32精确表示，取最长边归一化宽高比；缺资产仍Err。手工sprite_assets零尺寸不在模型验证证明内 |
+| crates/motion-render/src/particle_emitter.rs:173 | 核实保留 | 正规sprite资产宽高1..16384，f32精确表示，取最长边归一化宽高比；缺资产仍Err。手工sprite_assets零尺寸不在模型验证证明内 |
+| crates/motion-render/src/particle_emitter.rs:183 | 核实保留 | 有效age/life先clamp0..1再转f32作为寿命进度与颜色/大小插值；不是ID或保留完整时间精度的承诺 |
+| crates/motion-render/src/particle_emitter.rs:197 | 核实保留 | 解析轨迹的duration/age/acceleration_time转f32供glam位置向量，之后检查clip与rect有限并Err；保留物理采样精度，不声称极端非有限中间值无损 |
+| crates/motion-render/src/particle_emitter.rs:198 | 核实保留 | 解析轨迹的duration/age/acceleration_time转f32供glam位置向量，之后检查clip与rect有限并Err；保留物理采样精度，不声称极端非有限中间值无损 |
+| crates/motion-render/src/particle_emitter.rs:199 | 核实保留 | 解析轨迹的duration/age/acceleration_time转f32供glam位置向量，之后检查clip与rect有限并Err；保留物理采样精度，不声称极端非有限中间值无损 |
+| crates/motion-render/src/particle_emitter.rs:261 | 核实保留 | 正常出生粒子≤MAX_PARTICLES=20000，投影剔除后sorted更少，append前仍有frame MAX_SPRITES=65536检查；visible的u32不会截断正规输出 |
+| crates/motion-render/src/particle_emitter.rs:268 | 核实保留 | remaining是保留birth缓存容量预算，不是已用字节；当前缓存容量大于MAX_SPRITES时剩余额度按0处理、驱逐其他缓存是有意fail-closed，不是统计少计 |
+| crates/motion-render/src/particle_emitter.rs:48 | 核实保留 | birth.id 实际是i64；转u32只取低32位供wrapping随机hash，粒子排序/缓存仍保存完整i64 birth ID，负prewarm同样确定。会周期复用随机分布，不声称全寿命随机键唯一 |
+| crates/motion-render/src/particle_emitter.rs:57 | 核实保留 | 正规 EffectParam 的离散shape由valid_value及整数验证，history读取持有该离散值，match只接受0/1/2，其余Err；手工伪造参数不是此模型证明范围 |
+| crates/motion-render/src/particle_emitter.rs:77 | 核实保留 | 有限参数 inherit 与固定H=1/120 的物理采样分母转f32是既有速度数值算法，birth随后验证position/velocity/size有限；不宣称f64分母逐位无损 |
+| crates/motion-render/src/position_path.rs:194 | 核实保留 | 正规Project宽高1..8192转f32精确，构建平面正交投影/原点平移；sample已检查有效frame并验证目标，不改变节点窗口、父坐标/相机及编辑契约 |
+| crates/motion-render/src/position_path.rs:195 | 核实保留 | 正规Project宽高1..8192转f32精确，构建平面正交投影/原点平移；sample已检查有效frame并验证目标，不改变节点窗口、父坐标/相机及编辑契约 |
+| crates/motion-render/src/position_path.rs:196 | 核实保留 | 正规Project宽高1..8192转f32精确，构建平面正交投影/原点平移；sample已检查有效frame并验证目标，不改变节点窗口、父坐标/相机及编辑契约 |
+| crates/motion-render/src/position_path.rs:197 | 核实保留 | 正规Project宽高1..8192转f32精确，构建平面正交投影/原点平移；sample已检查有效frame并验证目标，不改变节点窗口、父坐标/相机及编辑契约 |
+| crates/motion-render/src/position_path.rs:205 | 核实保留 | 正规Project宽高1..8192转f32精确，构建平面正交投影/原点平移；sample已检查有效frame并验证目标，不改变节点窗口、父坐标/相机及编辑契约 |
+| crates/motion-render/src/position_path.rs:206 | 核实保留 | 正规Project宽高1..8192转f32精确，构建平面正交投影/原点平移；sample已检查有效frame并验证目标，不改变节点窗口、父坐标/相机及编辑契约 |
+| crates/motion-render/src/position_path.rs:56 | 核实保留 | near是partition_point合法插入点；saturating_sub为选择最多512个可见key窗口时夹到首项，输出另显式keys_truncated，不是记账漂移或丢失编辑状态 |
+| crates/motion-render/src/position_path.rs:57 | 核实保留 | near是partition_point合法插入点；saturating_sub为选择最多512个可见key窗口时夹到首项，输出另显式keys_truncated，不是记账漂移或丢失编辑状态 |
+| crates/motion-render/src/scene.rs:282 | 核实保留 | 正规Project宽高1..8192，转f32精确，用于正交投影、屏幕坐标/裁切；不涉及资产ID。project_point 的任意相机除w/手工Scene零尺寸仍属原几何入口边界，不能据这些尺寸转换宣称投影全安全 |
+| crates/motion-render/src/scene.rs:283 | 核实保留 | 正规Project宽高1..8192，转f32精确，用于正交投影、屏幕坐标/裁切；不涉及资产ID。project_point 的任意相机除w/手工Scene零尺寸仍属原几何入口边界，不能据这些尺寸转换宣称投影全安全 |
+| crates/motion-render/src/scene.rs:284 | 核实保留 | 正规Project宽高1..8192，转f32精确，用于正交投影、屏幕坐标/裁切；不涉及资产ID。project_point 的任意相机除w/手工Scene零尺寸仍属原几何入口边界，不能据这些尺寸转换宣称投影全安全 |
+| crates/motion-render/src/scene.rs:285 | 核实保留 | 正规Project宽高1..8192，转f32精确，用于正交投影、屏幕坐标/裁切；不涉及资产ID。project_point 的任意相机除w/手工Scene零尺寸仍属原几何入口边界，不能据这些尺寸转换宣称投影全安全 |
+| crates/motion-render/src/scene.rs:336 | 核实保留 | VideoAsset.validate 限制0≤start<end≤duration≤3600000000us，可用i64表示；time先通过start/end比较，之后time as u64非负。手工跳过资产验证不在此证明内 |
+| crates/motion-render/src/scene.rs:341 | 核实保留 | VideoAsset.validate 限制0≤start<end≤duration≤3600000000us，可用i64表示；time先通过start/end比较，之后time as u64非负。手工跳过资产验证不在此证明内 |
+| crates/motion-render/src/scene.rs:410 | 核实保留 | 正规Project宽高1..8192，转f32精确，用于正交投影、屏幕坐标/裁切；不涉及资产ID。project_point 的任意相机除w/手工Scene零尺寸仍属原几何入口边界，不能据这些尺寸转换宣称投影全安全 |
+| crates/motion-render/src/scene.rs:411 | 核实保留 | 正规Project宽高1..8192，转f32精确，用于正交投影、屏幕坐标/裁切；不涉及资产ID。project_point 的任意相机除w/手工Scene零尺寸仍属原几何入口边界，不能据这些尺寸转换宣称投影全安全 |
+| crates/motion-render/src/scene.rs:55 | 核实保留 | 正规Project宽高1..8192，转f32精确，用于正交投影、屏幕坐标/裁切；不涉及资产ID。project_point 的任意相机除w/手工Scene零尺寸仍属原几何入口边界，不能据这些尺寸转换宣称投影全安全 |
+| crates/motion-render/src/scene.rs:551 | 核实保留 | 正规Project宽高1..8192，转f32精确，用于正交投影、屏幕坐标/裁切；不涉及资产ID。project_point 的任意相机除w/手工Scene零尺寸仍属原几何入口边界，不能据这些尺寸转换宣称投影全安全 |
+| crates/motion-render/src/scene.rs:552 | 核实保留 | 正规Project宽高1..8192，转f32精确，用于正交投影、屏幕坐标/裁切；不涉及资产ID。project_point 的任意相机除w/手工Scene零尺寸仍属原几何入口边界，不能据这些尺寸转换宣称投影全安全 |
+| crates/motion-render/src/scene.rs:578 | 核实保留 | 正规Project宽高1..8192，转f32精确，用于正交投影、屏幕坐标/裁切；不涉及资产ID。project_point 的任意相机除w/手工Scene零尺寸仍属原几何入口边界，不能据这些尺寸转换宣称投影全安全 |
+| crates/motion-render/src/scene.rs:579 | 核实保留 | 正规Project宽高1..8192，转f32精确，用于正交投影、屏幕坐标/裁切；不涉及资产ID。project_point 的任意相机除w/手工Scene零尺寸仍属原几何入口边界，不能据这些尺寸转换宣称投影全安全 |
+| crates/motion-render/src/scene.rs:59 | 核实保留 | 正规Project宽高1..8192，转f32精确，用于正交投影、屏幕坐标/裁切；不涉及资产ID。project_point 的任意相机除w/手工Scene零尺寸仍属原几何入口边界，不能据这些尺寸转换宣称投影全安全 |
+| crates/motion-render/src/scene.rs:619 | 核实保留 | f64射线局部坐标归一化为f32 UV，接着要求UV与depth在0..1才加入命中；舍入契约保留，不改边缘命中容差或声称转换前后边界完全相同 |
+| crates/motion-render/src/scene.rs:620 | 核实保留 | f64射线局部坐标归一化为f32 UV，接着要求UV与depth在0..1才加入命中；舍入契约保留，不改边缘命中容差或声称转换前后边界完全相同 |
+| crates/motion-render/src/scene.rs:627 | 核实保留 | depth加入HitCandidate前已判定0..1，f32深度用于既有排序；小数有舍入，不是任意范围浮点截断 |
+| crates/motion-render/src/scene.rs:672 | 核实保留 | 投影拖拽offset从f64转f32后立即逐项is_finite并Err("drag exceeds numeric range")，保留原有限舍入与坐标轴符号 |
+| crates/motion-render/src/scene_generator.rs:101 | 核实保留 | rate/life先分别检查范围并排除NaN/Infinity，最大乘积1200000，ceil转usize安全；随后与MAX_PARTICLES=20000比较拒绝超预算，不是饱和后放行 |
+| crates/motion-render/src/scene_generator.rs:170 | 核实保留 | rate/life先分别检查范围并排除NaN/Infinity，最大乘积1200000，ceil转usize安全；随后与MAX_PARTICLES=20000比较拒绝超预算，不是饱和后放行 |
+| crates/motion-render/src/scene_generator.rs:184 | 功能边界 | 正常有限frame/正fps/粒子参数与20000预算限定活跃出生窗口；但直接公开generate接受的人工local_frame/fps并无统一finite验证，极值转i64及+1/区间算术边界保留，未改返回或添加调度超时 |
+| crates/motion-render/src/scene_generator.rs:185 | 功能边界 | 正常有限frame/正fps/粒子参数与20000预算限定活跃出生窗口；但直接公开generate接受的人工local_frame/fps并无统一finite验证，极值转i64及+1/区间算术边界保留，未改返回或添加调度超时 |
+| crates/motion-render/src/scene_generator.rs:190 | 核实保留 | 正规shape离散枚举已验证整数及0..2，代码另拒绝shape>2；人工SampledEffect负值/NaN先转u32的退化没有在本项修复，不声称任意参数安全 |
+| crates/motion-render/src/scene_generator.rs:226 | 功能边界 | 正常有限frame/正fps/粒子参数与20000预算限定活跃出生窗口；但直接公开generate接受的人工local_frame/fps并无统一finite验证，极值转i64及+1/区间算术边界保留，未改返回或添加调度超时 |
+| crates/motion-render/src/scene_generator.rs:232 | 核实保留 | 有效life≤120秒，包围球使用f32计算，随后radius.is_finite明确拒绝非有限；保留物理半径浮点精度而非身份/账本转换 |
+| crates/motion-render/src/scene_generator.rs:233 | 核实保留 | 有效life≤120秒，包围球使用f32计算，随后radius.is_finite明确拒绝非有限；保留物理半径浮点精度而非身份/账本转换 |
+| crates/motion-render/src/scene_generator.rs:252 | 核实保留 | 有效age换算f32供旧粒子轨迹；轨迹clip/rect后续finite检查，保留渲染数值精度，不修改host时间或宣称完整f64精度 |
+| crates/motion-render/src/scene_generator.rs:254 | 核实保留 | 原报告称usize，源码实际i64 birth id；u32仅作为随机hash通道，birth_id仍以i64用于时间/排序。保留低32位周期分布，不当作全局唯一粒子身份 |
+| crates/motion-render/src/scene_generator.rs:343 | 核实保留 | 正规合成宽高1..8192，f32可精确表示，分别用于正交投影、NDC尺寸及遮挡半径换算；零/非有限手工Scene和任意alpha输入的完整校验不在本项关闭范围 |
+| crates/motion-render/src/scene_generator.rs:344 | 核实保留 | 正规合成宽高1..8192，f32可精确表示，分别用于正交投影、NDC尺寸及遮挡半径换算；零/非有限手工Scene和任意alpha输入的完整校验不在本项关闭范围 |
+| crates/motion-render/src/scene_generator.rs:345 | 核实保留 | 正规合成宽高1..8192，f32可精确表示，分别用于正交投影、NDC尺寸及遮挡半径换算；零/非有限手工Scene和任意alpha输入的完整校验不在本项关闭范围 |
+| crates/motion-render/src/scene_generator.rs:346 | 核实保留 | 正规合成宽高1..8192，f32可精确表示，分别用于正交投影、NDC尺寸及遮挡半径换算；零/非有限手工Scene和任意alpha输入的完整校验不在本项关闭范围 |
+| crates/motion-render/src/scene_generator.rs:382 | 核实保留 | 正规合成宽高1..8192，f32可精确表示，分别用于正交投影、NDC尺寸及遮挡半径换算；零/非有限手工Scene和任意alpha输入的完整校验不在本项关闭范围 |
+| crates/motion-render/src/scene_generator.rs:383 | 核实保留 | 正规合成宽高1..8192，f32可精确表示，分别用于正交投影、NDC尺寸及遮挡半径换算；零/非有限手工Scene和任意alpha输入的完整校验不在本项关闭范围 |
+| crates/motion-render/src/scene_generator.rs:399 | 核实保留 | 镜头元素rays在SceneSettings/Element验证的有限离散范围内，转f32供sprite style数值，保留GPU ABI |
+| crates/motion-render/src/scene_generator.rs:410 | 核实保留 | 最终out总长已检查≤MAX_SPRITES=65536，start在调用前保存且失败会truncate，因此visible=(out.len-start)的u32转换有界 |
+| crates/motion-render/src/scene_generator.rs:427 | 核实保留 | 正规合成宽高1..8192，f32可精确表示，分别用于正交投影、NDC尺寸及遮挡半径换算；零/非有限手工Scene和任意alpha输入的完整校验不在本项关闭范围 |
+| crates/motion-render/src/scene_generator.rs:44 | 功能边界 | PlanBuilder.set_alpha 正规路径检查正宽高/rgba长度/32MiB预算，clamped texel取样有界；公开AlphaImage字段和generate传入HashMap可手工不匹配/零尺寸，sample本身未新增校验，不能把正规缓存入口证明推广到全部调用 |
+| crates/motion-render/src/scene_generator.rs:48 | 功能边界 | PlanBuilder.set_alpha 正规路径检查正宽高/rgba长度/32MiB预算，clamped texel取样有界；公开AlphaImage字段和generate传入HashMap可手工不匹配/零尺寸，sample本身未新增校验，不能把正规缓存入口证明推广到全部调用 |
+| crates/motion-render/src/scene_generator.rs:49 | 功能边界 | PlanBuilder.set_alpha 正规路径检查正宽高/rgba长度/32MiB预算，clamped texel取样有界；公开AlphaImage字段和generate传入HashMap可手工不匹配/零尺寸，sample本身未新增校验，不能把正规缓存入口证明推广到全部调用 |
+| crates/motion-render/src/scene_generator.rs:71 | 核实保留 | random在移除低8位后最多24bit整数，可由f32精确表示，再除2^24形成[0,1)确定性随机量；完整种子仍在hash之前参与 |
+| crates/motion-render/src/selection_geometry.rs:16 | 功能边界 | time.floor转i32用于与shake shader一致的分段噪声；超长local_frame/大频率可能超i32历元并饱和，未添加全时长范围验证或改变噪声。模型有限不等于所有合法时间都落i32，保留此数值边界 |
+| crates/motion-render/src/selection_geometry.rs:184 | 核实保留 | 正规Scene/Project尺寸1..8192在f32精确表示，用于屏幕overlay矩形、source size与像素坐标；polygon在clip非有限或w≤0时仍None，不改变轮廓或命中行为 |
+| crates/motion-render/src/selection_geometry.rs:197 | 核实保留 | 正规Scene/Project尺寸1..8192在f32精确表示，用于屏幕overlay矩形、source size与像素坐标；polygon在clip非有限或w≤0时仍None，不改变轮廓或命中行为 |
+| crates/motion-render/src/selection_geometry.rs:198 | 核实保留 | 正规Scene/Project尺寸1..8192在f32精确表示，用于屏幕overlay矩形、source size与像素坐标；polygon在clip非有限或w≤0时仍None，不改变轮廓或命中行为 |
+| crates/motion-render/src/selection_geometry.rs:21 | 核实保留 | epoch as u32以原32位位型进入wrapping hash，负历元也须保持确定；是有符号hash编码而非截断资源ID |
+| crates/motion-render/src/selection_geometry.rs:51 | 核实保留 | 秒与频率转f32对应固定内置shake.wgsl数值算法，种子numeric-float位型按既有ABI，较长时间/较大种子存在精度限制；不声称所有f64时刻/32bit种子可区分 |
+| crates/motion-render/src/selection_geometry.rs:97 | 核实保留 | 正规Scene/Project尺寸1..8192在f32精确表示，用于屏幕overlay矩形、source size与像素坐标；polygon在clip非有限或w≤0时仍None，不改变轮廓或命中行为 |
+| crates/motion-render/src/vector_mesh.rs:72 | 核实保留 | 跨batch共用BoundedGeometry，追加前限MAX_TRIANGLE_VERTICES=262144且受frame剩余额度，command start/end是已保存output长度，可用u32；实际Lyon预算回归覆盖，不把Vec capacity当作证明 |
+| crates/motion-render/src/vector_mesh.rs:85 | 核实保留 | 跨batch共用BoundedGeometry，追加前限MAX_TRIANGLE_VERTICES=262144且受frame剩余额度，command start/end是已保存output长度，可用u32；实际Lyon预算回归覆盖，不把Vec capacity当作证明 |
+| crates/motion-render/src/vector_mesh/budget.rs:195 | 核实保留 | 均位于cfg(test)预算夹具：i%3、矩形边插值、断言构造或极端点生成，用于真实Lyon峰值/裁剪回归；不属于产品静默降级，未修改既有断言 |
+| crates/motion-render/src/vector_mesh/budget.rs:210 | 核实保留 | 均位于cfg(test)预算夹具：i%3、矩形边插值、断言构造或极端点生成，用于真实Lyon峰值/裁剪回归；不属于产品静默降级，未修改既有断言 |
+| crates/motion-render/src/vector_mesh/budget.rs:215 | 核实保留 | 均位于cfg(test)预算夹具：i%3、矩形边插值、断言构造或极端点生成，用于真实Lyon峰值/裁剪回归；不属于产品静默降级，未修改既有断言 |
+| crates/motion-render/src/vector_mesh/budget.rs:233 | 核实保留 | 均位于cfg(test)预算夹具：i%3、矩形边插值、断言构造或极端点生成，用于真实Lyon峰值/裁剪回归；不属于产品静默降级，未修改既有断言 |
+| crates/motion-render/src/vector_mesh/budget.rs:28 | 核实保留 | 容量倍增的saturating_mul后立即min(limit)，所需needed先由vertex/triangle回调预算拒绝；饱和只决定增长策略，不会绕过输出上限或减少字节账面 |
+| crates/motion-render/src/video_pixels.rs:241 | 核实保留 | usize平面长度转u64等宽/拓宽，validate已限制正尺寸≤8192且像素≤16Mi及phase/旋转，再与精确u64平面成本比较；非法plane仍Err |
+| crates/motion-render/src/video_pixels.rs:242 | 核实保留 | usize平面长度转u64等宽/拓宽，validate已限制正尺寸≤8192且像素≤16Mi及phase/旋转，再与精确u64平面成本比较；非法plane仍Err |
+| crates/motion-render/src/video_pixels.rs:271 | 核实保留 | YUV尺寸已≤请求Preview边界时没有必要构造新proxy，Ok(None)明确表示可复用原帧；self.validate先执行，非持续非就绪，无需失败计数 |
+| crates/motion-render/src/video_pixels.rs:276 | 核实保留 | map先做u64乘除，再min(source-1)，source由PixelLayout验证正且≤8192，结果u32有界；非源像素值截断而是坐标采样 |
+| crates/motion-render/src/video_pixels.rs:340 | 核实保留 | YUV转换RGB整数加舍入后clamp0..255再转u8，是必需的色域量化；保留颜色/布局/裁剪像素验收，不为正常超色域分量打每帧告警 |
+| crates/motion-render/src/video_pixels.rs:341 | 核实保留 | YUV转换RGB整数加舍入后clamp0..255再转u8，是必需的色域量化；保留颜色/布局/裁剪像素验收，不为正常超色域分量打每帧告警 |
+| crates/motion-render/src/video_pixels.rs:342 | 核实保留 | YUV转换RGB整数加舍入后clamp0..255再转u8，是必需的色域量化；保留颜色/布局/裁剪像素验收，不为正常超色域分量打每帧告警 |
+| crates/motion-render/src/video_pixels.rs:78 | 核实保留 | RGB565通道先分别mask到5/6/5位，再乘255除31/63，结果0..255，u8转换有界，保留既有像素解码/旋转回归 |
+| crates/motion-render/src/video_pixels.rs:79 | 核实保留 | RGB565通道先分别mask到5/6/5位，再乘255除31/63，结果0..255，u8转换有界，保留既有像素解码/旋转回归 |
+| crates/motion-render/src/video_pixels.rs:80 | 核实保留 | RGB565通道先分别mask到5/6/5位，再乘255除31/63，结果0..255，u8转换有界，保留既有像素解码/旋转回归 |
+| crates/motion-render/tests/common_effects.rs:85 | 核实保留 | 测试只为wipe/channel_mixer覆盖默认参数，其他builtin保留默认继续render，并assert_ne/alpha/零opacity验证；wildcard不是跳过effect或吞Err |
 
 ## B7 · motion-graph / motion-model
 

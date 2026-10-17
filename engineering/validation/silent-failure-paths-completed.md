@@ -1090,3 +1090,19 @@ DESIGN.md §0.7 逐项状态均为 retained with reason：本批只接入观测�
 - cargo test -p motion-render --offline -j 2 -- --include-ignored --test-threads=2 完整通过：184 passed、0 failed、0 ignored，含真实 GPU、缓存/像素、doc-test；设置外部独立生成 PNG 的 MOTION_IMAGE_SOURCE 后执行可选原图探针，没有依靠环境变量缺失提前返回。桌面完整测试 367 passed、0 failed、0 ignored，含阻塞 worker API 和真实 FileLogger 回归；cargo check/build -p motion-desktop 通过，未修改既有断言。证据 b64-render-full.log、b64-desktop-full.log、b64-desktop-check.log、b64-desktop-build.log、b64-test-summary.json
 - 新二进制隔离 LOCALAPPDATA 实际启动：未设置 MOTION_LOG 时 129 条普通 start、0 条 Present start，健康 GPU latch/提交台账无新增恢复告警。Debug 的 Present start/dispatch 保持安静，done 仍受 100ms 阈值；Error 文件/stderr、轮转、CLI/MCP stdout JSON、fatal 参数错误、MCP UI 正常 EOF、shutdown checkpoint 失败原因验证通过，证据 b64-runtime.log、runtime-b64/runtime-summary.json
 - panels 样式门、provenance 1374 tracked paths、局部格式及 git diff --check 通过；没有新增依赖/素材，没有修改 panels、交互、布局、respond、两处 MOTION_TRACE_UI 输出、两份原始报告或用户无关文件。DESIGN.md §0.7 维持 §59 retained with reason；本批原生冒烟不等于完成全量视觉、跨平台或驱动故障验收
+
+
+## 65 · 图片代理缓存解锁后观测与渲染侧机械复核收尾
+
+- 逐项关联 B1 剩余107行：核实保留94、已有覆盖2、功能边界11。B1全部365行已复核，累计480/832，剩余352行待逐项关联；累计38行功能边界不等于已修复，也不把原报告误标的拓宽、随机位型、正常缓存复用计作新缺陷；证据 b65-mechanical-mapping.json
+- 修正既有代理缓存观测的三个持锁出口：锁中毒恢复、写入失败、临时文件清理失败均在缓存锁释放后输出；磁盘读取/驱逐/写入/rename/自有临时文件清理仍保留原串行顺序和返回值，没有将文件操作移到锁外。清理失败不替换主写入错误
+- 锁恢复按固定进程级计数：首次Warn、第60次Error、之后抑制，健康读写与clear_poison不复位、进程重启清零；仍恢复into_inner并clear_poison，读取仍校验长度/header/hash。这是多次中毒恢复的累计，不是连续帧失败或60次约一秒
+- 写入失败沿用首次Debug/连续60次Error、成功复位；清理失败沿用首次Warn、成功删除或NotFound复位的原策略。新增待输出上下文按调用栈保存，路径和原因分别最多256字符，避免长路径吃掉整个原因；健康路径不分配日志上下文、不增加文件IO
+- 新增一个Rust回归、Info/Debug/unwind三个隔离子进程，实际执行120次健康文件往返、真实锁中毒与读回、缺失父目录写入失败、真实rename失败，验证阈值/抑制/成功复位和目的文件/自有临时文件保持。直接用目录触发清理guard的真实remove_file失败并验证限频/复位，未声称系统已自然发生此种writer清理竞争；日志回调try_lock确认已解锁，包含unwind后仍中毒的情况。另检验超长Unicode路径/错误分别截断，证据 b65-proxy-special.log
+- 原3项代理夹具仅增加私有Events参数和锁前初始化，预期值及失败断言不变；没有为通过验收削弱碰撞保留foreign文件、rename失败保留目的与清理自有文件的检查
+- 复核两处旧代理磁盘饱和减法：§09已移除先删目的再减独立metadata的分支；当前checked_add快照总量与逐项删除减法对应，并非GPU texture_bytes驻留账本，不新增正常驱逐告警，也不声称跟踪外部并发改变后的磁盘实值
+- 保留预览ceil尺寸、RGB565/YUV色域量化、受检视频平面长度、粒子输出预算、hash低32位/负prewarm、选择窗口饱和减和Lyon预算增长语义。YUV preview_proxy 的None表示原帧已满足尺寸、可直接复用，不是持续未就绪。原始报告将scene_generator粒子id误称usize，台账注明实际i64
+- 11行功能边界为公开AlphaImage/手工generate输入、两类粒子极值时间及区间算术、shake i32历元、独立探针时间戳逆序/回绕；正规模型/参数预算不证明这些手工或长时间输入全安全，未修改数值算法、返回值、随机分布、命中容差或渲染编码。4行测试内部数值转换明确标为非产品分支，不修改其既有断言
+- 保留验收失败证据：初次命令未加载本机MSVC环境导致cl/ml64不可用，随后加载已有env.ps1；共享target完整构建又遇无具体原因的link.exe退出1，磁盘约40GB可用，另有不同特性的构建并发使用该缓存，未断言并发就是根因。没有停止其他构建，转用独立 .tools/observability-validation-build 复验，dev/test仅由命令环境设line-tables-only，源码Cargo配置不变；证据 b65-initial-env-failure.log、b65-shared-target-link-failure.log
+- 独立target完整复验通过：render 185 passed、desktop 367 passed，均0 failed/ignored，包含doc-test、真实GPU、外部原创PNG探针、阻塞worker API和FileLogger回归；cargo check/build -p motion-desktop通过，未削弱既有断言。新二进制隔离启动，默认Info可见130条普通start、0条Present start，健康代理无告警；Error文件/stderr、轮转、CLI/MCP stdout隔离、fatal参数错误及shutdown失败原因验证通过。样式门、provenance 1376 tracked paths、局部格式和diff检查通过；证据 b65-render-full.log、b65-desktop-full.log、b65-desktop-check.log、b65-desktop-build.log、b65-runtime.log、runtime-b65/runtime-summary.json、b65-test-summary.json
+- 本批不修改panels、UI视觉/交互、last_error结构、respond、两处MOTION_TRACE_UI、两份原始报告或用户无关文件；DESIGN.md §0.7沿用§59 retained with reason。未添加依赖、第三方素材或声明完成跨平台/全量视觉验收
