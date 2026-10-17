@@ -461,7 +461,7 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - cargo tree 未发现会在 release 静态屏蔽 Info 的 log max_level/release_max_level feature；未据此宣称已运行 release 二进制
 - 证据：desktop-debug-filter-full.log、debug-filter-check.log、debug-filter-build.log、debug-filter-runtime.log、runtime/runtime-summary.json、log-features.log
 
-当前核实/修复分批记录到 35；原始两份清单保留原样，未覆盖条目仍待审，不将 832 个候选当作已确认或已关闭缺陷。
+当前观测补齐及核实分批记录到 41；后续实施范围限定为可观测性，功能与算法问题单独登记。原始两份清单保留原样，未覆盖条目仍待审，不将 832 个候选当作已确认或已关闭缺陷。
 
 ## 31 · 控制台反压时优先保全错误文件
 
@@ -644,3 +644,16 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - 不把权限错误伪装成 NotFound，不使用平台 ACL 桩声称实际复现了权限错误；open/metadata/seek 的上下文由代码路径核对，当前新增真实故障覆盖 read/路径解析/坏样本
 - 保留既有 Err 调用链，由后台 watchdog/导出失败日志观测；不在实时回调或逐采样循环写文件/stderr，不改变成功 PCM、缓存预算或模型格式
 - 证据：b40-media-full.log、b40-desktop-full.log、b40-desktop-check.log
+
+## 41 · 诊断报告执行前状态与无人接收的写入失败
+
+状态：已完成；桌面完整测试 352 passed、0 failed、0 ignored，cargo check 通过；负对照实际失败
+
+- reporter 在 report()、序列化与文件 IO 之前记录默认 Info start 并立即 flush，携带线程内任务编号、checkpoint/export 操作及目标路径
+- 写入失败保留 localWriteErrors，并记录 Error 的任务编号、操作、耗时、路径与原始原因；无 reply 的自动 checkpoint 同样留下证据，Error 沿既有日志层同时写文件和控制台 stderr
+- 成功完成使用 Debug；自动 checkpoint 沿用既有五秒限频，record() 中不增加文件 IO 或逐帧日志
+- 保留原有写入、上传、回复结果与处理顺序；完成错误日志位于 reply 发送后，避免控制台阻塞先吞掉已生成的回复
+- 新增独立进程回归：真实持有报告状态锁阻塞快照，直接读取日志确认默认 Info start 已落盘；用普通文件阻挡目标父目录，验证显式/自动 checkpoint 两次错误均有文件和 stderr 记录、stdout 无日志、计数为 2，随后真实导出可读 JSON 且原阻挡文件字节不变
+- 负对照只将 start 移到 report() 之后，保留同一断言，Cargo 实际退出 101；finally 恢复源码原字节后再执行完整验收
+- 本节只补日志与回归，未修改 panels；DESIGN.md §0.7 既有视觉项继续保留，不把测试通过表述为 §12 全量人工视觉验收
+- 证据：b41-reporter-test.log、b41-reporter-negative.log、b41-desktop-full.log、b41-desktop-check.log

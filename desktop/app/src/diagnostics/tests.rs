@@ -43,6 +43,68 @@ fn export_replaces_the_file_atomically_and_reports_write_failure_without_stoppin
     slow(&d);assert!(d.report()["totalStalls"].as_u64().unwrap()>=2);
     assert_eq!(std::fs::read_dir(root.path()).unwrap().count(),2);
 }
+
+#[test]
+fn reporter_logs_before_snapshot_and_preserves_unobserved_write_failures() {
+    const CHILD: &str = "MOTION_DIAGNOSTICS_WRITE_LOG_CHILD";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = PathBuf::from(root);
+        let _logger = crate::logging::init(root.join("logs")).unwrap();
+        let blocked = root.join("occupied");
+        std::fs::write(&blocked, b"keep existing bytes").unwrap();
+        let d = Diagnostics::new(Some(blocked.join("report.json")), None);
+        // Stop the actual reporter inside report(), before serialization/IO.
+        // Its start record must already be flushed at the default Info level.
+        let held = d.state.lock().unwrap();
+        let first = d.checkpoint().unwrap();
+        let path = root.join("logs/motion-studio.log");
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let observed = loop {
+            if std::fs::read_to_string(&path).unwrap()
+                .contains("diagnostics start #1 checkpoint") {
+                break true;
+            }
+            if Instant::now() >= deadline { break false; }
+            std::thread::sleep(Duration::from_millis(5));
+        };
+        // Always release before asserting, including a failing negative control.
+        drop(held);
+        assert!(observed, "reporter start was not flushed before snapshot");
+        assert!(first.recv_timeout(Duration::from_secs(5)).unwrap().is_err());
+        // Unlike the first job, automatic checkpoints have no reply recipient.
+        slow(&d);
+        let healthy = root.join("healthy.json");
+        d.export(healthy.clone()).unwrap().recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+        assert_eq!(d.status()["localWriteErrors"], 2);
+        assert_eq!(std::fs::read(&blocked).unwrap(), b"keep existing bytes");
+        let report: Value = serde_json::from_slice(&std::fs::read(&healthy).unwrap()).unwrap();
+        assert_eq!(report["schemaVersion"], 1);
+        assert_eq!(report["reporting"]["localWriteErrors"], 2);
+        // A following serial job proves both failure logs have completed and
+        // the successful export did not terminate the reporter.
+        d.export(healthy).unwrap().recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "diagnostics::tests::reporter_logs_before_snapshot_and_preserves_unobserved_write_failures"])
+        .env(CHILD, root.path()).env_remove("MOTION_LOG").output().unwrap();
+    assert!(output.status.success(), "{}\n{}",
+        String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+    let text = std::fs::read_to_string(root.path().join("logs/motion-studio.log")).unwrap();
+    assert!(text.contains("INFO [motion-diagnostics]"));
+    for request in [1, 2] {
+        let marker = format!("diagnostics failed #{request} checkpoint ");
+        let line = text.lines().find(|line| line.contains(&marker)).unwrap();
+        assert!(line.contains("ERROR [motion-diagnostics]"));
+        assert!(line.contains(&format!("path={} reason=", root.path().join("occupied").join("report.json").display())));
+        assert!(line.split(&marker).nth(1).unwrap().split("ms ").next().unwrap().parse::<u128>().is_ok());
+        assert!(String::from_utf8_lossy(&output.stderr).contains(&marker));
+        assert!(!String::from_utf8_lossy(&output.stdout).contains(&marker));
+    }
+    assert!(!text.contains("diagnostics failed #3 export"));
+    assert!(!text.contains("diagnostics done"), "Debug must remain filtered by default");
+}
 #[derive(Default)]
 struct Recording(Mutex<Vec<Vec<u8>>>);
 impl sentry::Transport for Recording {

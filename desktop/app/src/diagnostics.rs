@@ -292,14 +292,24 @@ fn reporter(
     let mut last_upload: Option<Instant> = None;
     let mut uploads = 0;
     let mut uploaded_stalls=0;
+    let mut request = 0u64;
     while let Ok(job) = receive.recv() {
         let Some(owner) = owner.upgrade() else {
             break;
         };
-        let (destination, reply, auto) = match job {
-            Job::Export(p, r) => (Some(p), Some(r), false),
-            Job::Checkpoint(r) => (local.clone(), r, true),
+        let (destination, reply, auto, operation) = match job {
+            Job::Export(p, r) => (Some(p), Some(r), false, "export"),
+            Job::Checkpoint(r) => (local.clone(), r, true, "checkpoint"),
         };
+        request = request.wrapping_add(1);
+        let began = Instant::now();
+        let target = destination.as_ref().map_or_else(
+            || "<disabled>".to_string(), |path| path.display().to_string(),
+        );
+        // This thread owns serialization and IO. Record before either can hang;
+        // record() remains free of file IO, including the Present hot path.
+        log::info!("diagnostics start #{request} {operation} path={target}");
+        crate::logging::flush();
         let report = owner.report();
         let encoded = serde_json::to_vec_pretty(&report)
             .map_err(|error| format!("diagnostics serialization failed: {error}"))
@@ -309,8 +319,8 @@ fn reporter(
             Ok(bytes) => bytes,
             Err(error) => {
                 owner.io_errors.fetch_add(1, Ordering::Relaxed);
-                log::error!("{error}");
-                if let Some(reply) = reply { let _ = reply.send(Err(error)); }
+                if let Some(reply) = reply { let _ = reply.send(Err(error.clone())); }
+                log::error!("diagnostics failed #{request} {operation} {}ms path={target} reason={error}", began.elapsed().as_millis());
                 continue;
             }
         };
@@ -353,7 +363,13 @@ fn reporter(
             }
         }
         if let Some(reply) = reply {
-            let _ = reply.send(result);
+            let _ = reply.send(result.clone());
+        }
+        // Deliver the existing result before console stderr IO, which can block
+        // when an MCP client pipes errors without draining them.
+        match result {
+            Ok(()) => log::debug!("diagnostics done #{request} {operation} {}ms path={target}", began.elapsed().as_millis()),
+            Err(error) => log::error!("diagnostics failed #{request} {operation} {}ms path={target} reason={error}", began.elapsed().as_millis()),
         }
     }
     if let Some(client) = client {
