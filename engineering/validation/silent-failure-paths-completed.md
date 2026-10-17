@@ -619,3 +619,16 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - 辅助 12.16 为 cfg(test) 波形线程，接收端有 recv_timeout 和断言，不增加产品 worker 监控；10.39 在本节只核实其中 mixer 的测试线程部分
 - 保留两项原有大型媒体忽略条件：release 大音频/工程包与需要外部大于 512 MiB MP4 的视频验收；未修改断言或忽略条件，未称本轮执行过它们
 - 关联辅助清单：4.16、12.16；证据：agent-audio-model-final-full.log、agent-audio-model-negative.log、agent-audio-model.md、b39-desktop-full.log
+
+## 39 · 主程序错误出口与后台服务结束
+
+状态：已完成；桌面完整测试 351 passed、0 failed、0 ignored；带 ffmpeg 独立程序构建与真实进程验收通过
+
+- 在日志初始化后的主程序统一错误出口记录 Error，包含运行耗时和原始原因；保留 Rust main 的退出码和既有 stderr 行为，stdout 不参与日志
+- MCP UI 服务开始/正常返回分别记录默认 Info 并 flush；正常 EOF 不记为错误，不增加重启、超时或新的协议消息
+- 退出时诊断 checkpoint 的派发失败、返回 Err、等待超时/断开记录 Warn，保留原有一秒等待上限和正常退出行为
+- 实际以缺少参数的 --project 启动独立程序，验证非零退出、错误文件/stderr 双输出、stdout 为空；实际 --mcp-ui 配合隐藏窗口 smoke 和 EOF 验证服务开始/结束日志
+- 实际把 MOTION_DIAGNOSTICS_PATH 的父目录替换为普通文件，GUI smoke 仍完成，退出日志保留 checkpoint 的文件系统错误；Warn 不额外写 stderr
+- 实际默认 Info 有 124 条普通 start、0 条 Present start，CLI/MCP stdout JSON、错误双输出和日志轮转均通过；Debug 日志 82,088 字节，Motion Debug 保留而依赖逐帧 Debug 被过滤
+- 使用独立二进制和 LOCALAPPDATA 目录验收，未覆盖用户正在运行的程序或日志；已查看实际主窗口截图，内容区正常绘制，保留 §0.7 既有视觉整改项，不宣称完成 §12 全部人工验收
+- 关联辅助清单：10.18、10.22；证据：b39-desktop-full.log、b39-desktop-build-ffmpeg.log、b39-runtime.log、runtime-b39/runtime-summary.json

@@ -48,6 +48,15 @@ use winit::{
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let _logging = logging::init(directories().join("logs"))?;
+    let began = Instant::now();
+    let result = run();
+    if let Err(error) = &result {
+        log::error!("desktop failed: {}ms reason={error}", began.elapsed().as_millis());
+    }
+    result
+}
+
+fn run() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.iter().any(|a| a == "--command-list") {
         println!("{}", motion_core::CommandRegistry::catalogue());
@@ -137,6 +146,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::thread::Builder::new()
             .name("motion-mcp".into())
             .spawn(move || {
+                log::info!("MCP UI service started");
+                logging::flush();
                 if let Err(e) = mcp::serve(
                     engine,
                     Some(Box::new(move || {
@@ -145,6 +156,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 ) {
                     log::error!("MCP: {e}");
                 }
+                log::info!("MCP UI service stopped");
+                logging::flush();
             })?;
     }
     event_loop.run_app(&mut app)?;
@@ -153,8 +166,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .diagnostics()
             .export(path)?
             .recv_timeout(Duration::from_secs(5))??;
-    } else if let Ok(receive) = app.engine.diagnostics().checkpoint() {
-        let _ = receive.recv_timeout(Duration::from_secs(1));
+    } else {
+        let began = Instant::now();
+        let result = app.engine.diagnostics().checkpoint().and_then(|receive| {
+            receive.recv_timeout(Duration::from_secs(1))
+                .map_err(|error| format!("waiting for checkpoint: {error}"))?
+        });
+        if let Err(error) = result {
+            log::warn!("shutdown diagnostics checkpoint incomplete: {}ms reason={error}", began.elapsed().as_millis());
+        }
     }
     if let Some(error) = app.fatal {
         return Err(error.into());
