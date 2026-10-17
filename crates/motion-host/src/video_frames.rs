@@ -10,6 +10,7 @@ use std::{
     collections::HashMap,
     path::{Path, PathBuf},
     sync::{Arc, Condvar, Mutex},
+    time::Instant,
 };
 static PREFETCH_FAILURES: motion_render::observability::FailureCounter =
     motion_render::observability::FailureCounter::new();
@@ -20,6 +21,20 @@ struct Request {
     source_time: u64,
     index: usize,
     sequence: u64,
+}
+#[derive(Clone, Copy)]
+struct DecodeFlight {
+    time: u64,
+    sequence: u64,
+    speculative: bool,
+    phase: &'static str,
+    began: Instant,
+}
+impl DecodeFlight {
+    fn status(self) -> Value {
+        json!({"pts_us":self.time,"sequence":self.sequence,"speculative":self.speculative,
+            "phase":self.phase,"elapsed_ms":self.began.elapsed().as_millis().min(u128::from(u64::MAX)) as u64})
+    }
 }
 struct State {
     desired: Option<Request>,
@@ -35,6 +50,8 @@ struct State {
     decoded: u64,
     cancelled: u64,
     seeks: u64,
+    in_flight: Option<DecodeFlight>,
+    pending_polls: u64,
 }
 impl State {
     fn prefetch_failed(&mut self, source: u64, time: u64, reason: &str) {
@@ -45,6 +62,7 @@ impl State {
     }
 }
 struct Stream {
+    object: u64,
     asset: VideoAsset,
     pts: Arc<Vec<u64>>,
     shared: Arc<(Mutex<State>, Condvar)>,
@@ -72,6 +90,7 @@ impl Stream {
         root: PathBuf,
         asset: VideoAsset,
         platform: Arc<dyn crate::platform::Platform>,
+        object: u64,
     ) -> Result<Self> {
         let pts = Arc::new(motion_media::load_video_index(&root, &asset)?);
         let shared = Arc::new((
@@ -89,6 +108,8 @@ impl Stream {
                 decoded: 0,
                 cancelled: 0,
                 seeks: 0,
+                in_flight: None,
+                pending_polls: 0,
             }),
             Condvar::new(),
         ));
@@ -99,19 +120,32 @@ impl Stream {
         std::thread::Builder::new()
             .name("motion-video-frames".into())
             .spawn(move || {
+                log::info!("video decoder worker started object={object} source={} path={}", media.id, media.path);
+                log::logger().flush();
                 let mut decoder: Option<Box<dyn VideoDecoder>> = None;
+                let mut announced_open = false;
                 loop {
-                    let (target, speculative) = {
+                    let flight = {
                         let (lock, cv) = &*copy;
                         let s = lock.lock().unwrap_or_else(|e| e.into_inner());
-                        let s = cv
+                        let mut s = cv
                             .wait_while(s, |s| !s.stop && job(s, &times).is_none())
                             .unwrap_or_else(|e| e.into_inner());
                         if s.stop {
+                            drop(s);
+                            log::info!("video decoder worker stopped object={object} source={} reason=stop", media.id);
+                            log::logger().flush();
                             return;
                         }
-                        job(&s, &times).unwrap()
+                        let (time, speculative) = job(&s, &times).unwrap();
+                        let flight = DecodeFlight { time, speculative,
+                            sequence:s.desired.unwrap().sequence,
+                            phase:if decoder.is_none() {"open"} else {"decode"}, began:Instant::now() };
+                        s.in_flight = Some(flight);
+                        flight
                     };
+                    let target = flight.time;
+                    let speculative = flight.speculative;
                     let check = || {
                         let s = copy.0.lock().map_err(|_| "video frame state poisoned")?;
                         let valid = s.desired.is_some_and(|r| {
@@ -131,6 +165,11 @@ impl Stream {
                         || -> Result<Arc<DecodedFrame>> {
                             check()?;
                             if decoder.is_none() {
+                                if !announced_open {
+                                    log::info!("video decoder open start object={object} source={} sequence={} pts_us={target} path={}", media.id, flight.sequence, media.path);
+                                    log::logger().flush();
+                                    announced_open = true;
+                                }
                                 let base = root.canonicalize().map_err(|e| e.to_string())?;
                                 let source = root
                                     .join(&media.path)
@@ -148,6 +187,9 @@ impl Stream {
                                     times.as_ref().clone(),
                                 )?);
                             }
+                            if let Some(active) = &mut copy.0.lock().unwrap_or_else(|e|e.into_inner()).in_flight {
+                                active.phase = "decode";
+                            }
                             Ok(Arc::new(decoder.as_mut().unwrap().frame(target, &check)?))
                         },
                     ))
@@ -158,6 +200,15 @@ impl Stream {
                         .map_or(0u64, |d| d.seeks())
                         .saturating_sub(previous_seeks);
                     if s.stop {
+                        s.in_flight = None;
+                        drop(s);
+                        if let Err(error) = &result {
+                            if error != "video target superseded" {
+                                log::error!("video decode discarded failure object={object} source={} sequence={} pts_us={target} {}ms stopped=true reason={error}", media.id, flight.sequence, flight.began.elapsed().as_millis());
+                            }
+                        }
+                        log::info!("video decoder worker stopped object={object} source={} reason=stop_after_decode", media.id);
+                        log::logger().flush();
                         return;
                     }
                     let desired = s.desired.unwrap();
@@ -194,11 +245,16 @@ impl Stream {
                             }
                         }
                     }
+                    s.in_flight = None;
+                    drop(s);
+                    if flight.began.elapsed().as_millis() >= 100 {
+                        log::debug!("video decode done object={object} source={} sequence={} pts_us={target} {}ms speculative={speculative}", media.id, flight.sequence, flight.began.elapsed().as_millis());
+                    }
                     // Do not await another VSync: fill the next available cache slot.
                 }
             })
             .map_err(|e| e.to_string())?;
-        Ok(Self { asset, pts, shared })
+        Ok(Self { object, asset, pts, shared })
     }
     fn key(&self, time: u64) -> Result<(u64, usize)> {
         if time < self.asset.video_start_us || time >= self.asset.video_end_us {
@@ -252,7 +308,27 @@ impl Stream {
         }
         s.prefetch = prefetch;
         self.shared.1.notify_one();
-        Ok(status(&s))
+        s.pending_polls = if s.error.is_none() && s.cache.find(time).is_none() {
+            s.pending_polls.saturating_add(1)
+        } else { 0 };
+        let count = s.pending_polls;
+        let active = s.in_flight;
+        let result = status(&s);
+        drop(s);
+        // No per-frame IO. Preserve only the first observation and escalation;
+        // do not hold the state mutex while a host's file/console sink runs.
+        if count == 1 || count == 60 {
+            let phase = active.map_or("queued", |f| f.phase);
+            let elapsed = active.map_or(0, |f| f.began.elapsed().as_millis());
+            let active_sequence = active.map(|f|f.sequence);
+            let active_pts = active.map(|f|f.time);
+            if count == 1 {
+                log::debug!("video pending object={} source={} sequence={sequence} pts_us={time} count={count} phase={phase}", self.object, self.asset.id);
+            } else {
+                log::error!("persistent video pending object={} source={} sequence={sequence} pts_us={time} count={count} phase={phase} active_sequence={active_sequence:?} active_pts_us={active_pts:?} decode_elapsed_ms={elapsed}", self.object, self.asset.id);
+            }
+        }
+        Ok(result)
     }
     fn ready(&self, sequence: u64) -> Result<Arc<DecodedFrame>> {
         let s = self
@@ -293,7 +369,8 @@ fn status(s: &State) -> Value {
         "decode_us":frame.as_ref().map(|f|f.decode_us),"codec_us":frame.as_ref().map(|f|f.codec_us),
         "transfer_us":frame.as_ref().map(|f|f.transfer_us),"pack_us":frame.as_ref().map(|f|f.pack_us),
         "cache_bytes":s.cache.bytes(),"cache_frames":s.cache.len(),"cache_hits":s.hits,"cache_misses":s.misses,"error":s.error,
-        "prefetch_failures":s.prefetch_failures,"prefetch_blocked_pts_us":s.failed_prefetch,"last_prefetch_error":s.last_prefetch_error})
+        "prefetch_failures":s.prefetch_failures,"prefetch_blocked_pts_us":s.failed_prefetch,"last_prefetch_error":s.last_prefetch_error,
+        "in_flight":s.in_flight.map(DecodeFlight::status),"pending_polls":s.pending_polls})
 }
 #[derive(Default)]
 pub struct VideoFrames {
@@ -412,7 +489,7 @@ impl VideoFrames {
             }
             self.streams.insert(
                 object,
-                Stream::new(root.into(), asset.clone(), self.backend()?)?,
+                Stream::new(root.into(), asset.clone(), self.backend()?, object)?,
             );
         }
         let mut result = self.streams[&object].request(source, generation, prefetch)?;
@@ -532,6 +609,7 @@ impl VideoFrames {
         let mut cancelled = 0;
         let mut seeks = 0;
         let mut prefetch_failures = 0u64;
+        let mut in_flight = Vec::new();
         for stream in self.streams.values() {
             let s = stream.shared.0.lock().unwrap_or_else(|e| e.into_inner());
             bytes += s.cache.bytes();
@@ -543,9 +621,15 @@ impl VideoFrames {
             cancelled += s.cancelled;
             seeks += s.seeks;
             prefetch_failures = prefetch_failures.saturating_add(s.prefetch_failures);
+            if let Some(active) = s.in_flight {
+                let mut status = active.status();
+                status["object"] = json!(stream.object);
+                status["source"] = json!(stream.asset.id);
+                in_flight.push(status);
+            }
         }
         json!({"cacheBytes":bytes,"cacheFrames":frames,"cacheBudgetBytes":budget,"maxCacheBudgetBytes":4 * crate::video_cache::MAX_CACHE_BYTES,
-            "cacheHits":hits,"cacheMisses":misses,"decodedFrames":decoded,"cancelledFrames":cancelled,"decoderSeeks":seeks,"prefetchFailures":prefetch_failures,"lookaheadFrames":LOOKAHEAD,"streams":self.streams.len()})
+            "cacheHits":hits,"cacheMisses":misses,"decodedFrames":decoded,"cancelledFrames":cancelled,"decoderSeeks":seeks,"prefetchFailures":prefetch_failures,"lookaheadFrames":LOOKAHEAD,"streams":self.streams.len(),"decodeInFlight":in_flight})
     }
 }
 
@@ -566,12 +650,14 @@ mod generation_failure_tests {
     fn frames(asset: &VideoAsset) -> VideoFrames {
         let mut frames = VideoFrames {counter:10,..Default::default()};
         let stream = Stream {
+            object:7,
             asset:asset.clone(),
             pts:Arc::new(vec![0,33333]),
             shared:Arc::new((Mutex::new(State {
                 desired:Some(Request {time:0,source_time:0,index:0,sequence:10}),
                 cache:FrameCache::new(),error:None,stop:false,prefetch:false,failed_prefetch:None,prefetch_failures:0,last_prefetch_error:None,
                 hits:0,misses:0,decoded:0,cancelled:0,seeks:0,
+                in_flight:None,pending_polls:0,
             }),Condvar::new())),
         };
         frames.streams.insert(7,stream);
@@ -659,7 +745,7 @@ mod generation_failure_tests {
         std::fs::create_dir_all(index.parent().unwrap()).unwrap();
         motion_media::save_index(&index,&asset,&[0,33333]).unwrap();
         let fail = Arc::new(std::sync::atomic::AtomicBool::new(true));
-        let stream = Stream::new(root.path().into(),asset,Arc::new(PrefetchBackend(fail.clone()))).unwrap();
+        let stream = Stream::new(root.path().into(),asset,Arc::new(PrefetchBackend(fail.clone())),7).unwrap();
         stream.request(0,1,true).unwrap();
         let deadline = std::time::Instant::now()+std::time::Duration::from_secs(5);
         loop {
@@ -689,3 +775,6 @@ mod generation_failure_tests {
         assert_eq!(frames.metrics()["prefetchFailures"],1);
     }
 }
+
+#[cfg(test)]
+mod observability_tests;

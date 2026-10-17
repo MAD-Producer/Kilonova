@@ -461,7 +461,7 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - cargo tree 未发现会在 release 静态屏蔽 Info 的 log max_level/release_max_level feature；未据此宣称已运行 release 二进制
 - 证据：desktop-debug-filter-full.log、debug-filter-check.log、debug-filter-build.log、debug-filter-runtime.log、runtime/runtime-summary.json、log-features.log
 
-当前观测补齐及核实分批记录到 42；后续实施范围限定为可观测性，功能与算法问题单独登记。原始两份清单保留原样，未覆盖条目仍待审，不将 832 个候选当作已确认或已关闭缺陷。
+当前观测补齐及核实分批记录到 43；后续实施范围限定为可观测性，功能与算法问题单独登记。原始两份清单保留原样，未覆盖条目仍待审，不将 832 个候选当作已确认或已关闭缺陷。
 
 ## 31 · 控制台反压时优先保全错误文件
 
@@ -675,3 +675,20 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - 另一次完整重跑被磁盘空间不足中止；释放旧构建符号文件后重跑，仍为 16 项功能测试通过、文档阶段 E0463，未修改断言、忽略项或产品代码绕过
 - 本轮保持可观测性范围，不把可选功能元数据排查扩展成产品逻辑修复；桌面验收与可选功能的结果分别登记
 - 证据：b40-desktop-media-ffmpeg.log、b40-doc-retry.log、b41-desktop-media-ffmpeg.log、b41-desktop-media-ffmpeg-retry.log
+
+
+## 43 · 视频解码线程的飞行状态与持续等待
+
+状态：已完成；host 全套 49 passed、0 failed、0 ignored，含文档测试；桌面完整重跑 353 passed、0 failed、0 ignored，cargo check 通过
+
+- 在原生解码器打开及 frame() 调用之前发布飞行状态，保留 object、source、sequence、PTS、open/decode 阶段、speculative 与 elapsed_ms，完成结果处理后清除
+- 通过既有 video_info 的 status/metrics 快照追加 in_flight、pending_polls、decodeInFlight，聚合沿用最多四条 stream 的现有限制，不连接新 UI 或改变状态结构合同
+- 每条 stream 连续返回 pending 时首次 Debug、第 60 次 Error 且只升级一次，成功观察或显式错误后清零；错误同时保留当前请求与实际活动请求，避免把过期帧误认为当前帧
+- 60 次为连续查询次数，不能直接等同一秒或证明原生线程已死锁；日志包含实际解码耗时，换请求仍未就绪时不清空连续等待证据
+- 默认 Info 记录并 flush worker 开始、首次 decoder open start 和停止；不逐帧记录 start，完成仅在耗时至少 100ms 时 Debug，不增加 Present 日志
+- 停止后的返回值仍按既有设计丢弃，但真实解码错误和 panic 保留 Error 的 object/source/sequence/PTS/耗时/原因；预期 video target superseded 不制造故障日志，状态锁在文件/控制台输出前释放
+- 新增独立进程测试，真实后台线程分别阻塞受控 open_decoder/frame，验证阻塞期间状态可读、默认 Info 开始证据已刷入文件、120 次 pending 每轮只报一次、成功后可再次升级及停止后原始失败保留；stdout 无诊断文本
+- 负对照临时移除调用前的飞行状态写入，保持同一断言，实际退出 101 且断言收到 Null 而非 open；随后 finally 恢复源码原字节并跑全套，不以编译失败冒充回归守卫
+- 测试使用受控平台适配器，不宣称实际复现了系统编解码器内部死锁；不新增生产超时、重启、跨线程 GPU 操作或改变取消/缓存策略，panels 未修改，既有视觉项保留
+- 首轮默认测试并发为 352 passed、1 failed，失败在既有双击测试的真实时钟断言；不改源码或断言，以 --include-ignored --test-threads=2 完整重跑后 353 项全部通过，不据重跑直接宣称已证明首轮失败根因
+- 关联辅助清单：10.35、10.36；证据：b43-video-observability.log、b43-video-flight-negative.log、b43-host-full.log、b43-desktop-full.log、b43-desktop-full-retry.log、b43-desktop-check.log
