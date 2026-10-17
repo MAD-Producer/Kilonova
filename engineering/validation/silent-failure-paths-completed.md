@@ -287,3 +287,14 @@
 | motion-graph ports::group_port | node_port_specs 先调用 node_ports，其 Group 分支通过 graph.ports 验证边界类型与语义后才构造帮助信息；不把帮助信息内部的 Option 查询当作绕过验证；groups 5 项现有集成回归通过 |
 | host ops/media::release_frozen_video | 返回 released:false 是幂等释放的明确结果，已区分本次是否真正持有资源；创建时四个 reader 上限另有明确 Err，不等于隐瞒池耗尽 |
 | node_tasks 过期结果 / 2.23–2.25 | 防止旧结果覆盖新文档是有意设计，既有 stale_worker_results_and_save_completion_order_are_safe 与真实异步保存回归通过；新增产物日志补足独立磁盘副作用的可追踪性 |
+
+## 20 · 视频预取失败的计数与原因
+
+状态：已完成；motion-host 全套 47 passed，0 failed，0 ignored。
+
+- 视频预取解码失败或缓存拒绝时保留 source id、失败 PTS、累计 prefetch_failures 和有界的 last_prefetch_error
+- 请求状态暴露失败计数、当前阻塞 PTS 和最近原因；聚合 metrics 增加 prefetchFailures，供现有 session 快照读取
+- 复用进程级 FailureCounter：首次 debug，连续第 60 次仅一次 Error，成功的预取复位；维持失败后暂停该轮预取的策略
+- 新增可控解码器的真实后台线程测试：当前必需帧成功而未来帧失败，状态仍 ready 且计数/原因可查；新 sequence 后解除故障可恢复未来帧，累计证据保留
+- 不把预取失败伪装成当前帧解码失败，不改变缓存大小和播放器交互
+- 关联辅助清单：10.37 的视频两处；日志：target/silent-failure-validation/video-prefetch-batch20.log

@@ -11,6 +11,9 @@ use std::{
     path::{Path, PathBuf},
     sync::{Arc, Condvar, Mutex},
 };
+static PREFETCH_FAILURES: motion_render::observability::FailureCounter =
+    motion_render::observability::FailureCounter::new();
+
 #[derive(Clone, Copy)]
 struct Request {
     time: u64,
@@ -25,11 +28,21 @@ struct State {
     stop: bool,
     prefetch: bool,
     failed_prefetch: Option<u64>,
+    prefetch_failures: u64,
+    last_prefetch_error: Option<String>,
     hits: u64,
     misses: u64,
     decoded: u64,
     cancelled: u64,
     seeks: u64,
+}
+impl State {
+    fn prefetch_failed(&mut self, source: u64, time: u64, reason: &str) {
+        self.failed_prefetch = Some(time);
+        self.prefetch_failures = self.prefetch_failures.saturating_add(1);
+        self.last_prefetch_error = Some(reason.chars().take(2048).collect());
+        PREFETCH_FAILURES.failure("video_prefetch", format_args!("source={source} pts_us={time} reason={reason}"));
+    }
 }
 struct Stream {
     asset: VideoAsset,
@@ -69,6 +82,8 @@ impl Stream {
                 stop: false,
                 prefetch: false,
                 failed_prefetch: None,
+                prefetch_failures: 0,
+                last_prefetch_error: None,
                 hits: 0,
                 misses: 0,
                 decoded: 0,
@@ -158,8 +173,10 @@ impl Stream {
                                                 .into(),
                                         );
                                     } else {
-                                        s.failed_prefetch = Some(target);
+                                        s.prefetch_failed(media.id, target, "video source frame exceeds its stream cache budget");
                                     }
+                                } else if speculative {
+                                    PREFETCH_FAILURES.success();
                                 }
                             } else {
                                 s.cancelled += 1;
@@ -173,7 +190,7 @@ impl Stream {
                             if target == desired.time {
                                 s.error = Some(e);
                             } else if speculative {
-                                s.failed_prefetch = Some(target);
+                                s.prefetch_failed(media.id, target, &e);
                             }
                         }
                     }
@@ -275,7 +292,8 @@ fn status(s: &State) -> Value {
         "pts_us":frame.as_ref().map(|f|f.pts),"end_us":frame.as_ref().map(|f|f.end),
         "decode_us":frame.as_ref().map(|f|f.decode_us),"codec_us":frame.as_ref().map(|f|f.codec_us),
         "transfer_us":frame.as_ref().map(|f|f.transfer_us),"pack_us":frame.as_ref().map(|f|f.pack_us),
-        "cache_bytes":s.cache.bytes(),"cache_frames":s.cache.len(),"cache_hits":s.hits,"cache_misses":s.misses,"error":s.error})
+        "cache_bytes":s.cache.bytes(),"cache_frames":s.cache.len(),"cache_hits":s.hits,"cache_misses":s.misses,"error":s.error,
+        "prefetch_failures":s.prefetch_failures,"prefetch_blocked_pts_us":s.failed_prefetch,"last_prefetch_error":s.last_prefetch_error})
 }
 #[derive(Default)]
 pub struct VideoFrames {
@@ -513,6 +531,7 @@ impl VideoFrames {
         let mut decoded = 0;
         let mut cancelled = 0;
         let mut seeks = 0;
+        let mut prefetch_failures = 0u64;
         for stream in self.streams.values() {
             let s = stream.shared.0.lock().unwrap_or_else(|e| e.into_inner());
             bytes += s.cache.bytes();
@@ -523,9 +542,10 @@ impl VideoFrames {
             decoded += s.decoded;
             cancelled += s.cancelled;
             seeks += s.seeks;
+            prefetch_failures = prefetch_failures.saturating_add(s.prefetch_failures);
         }
         json!({"cacheBytes":bytes,"cacheFrames":frames,"cacheBudgetBytes":budget,"maxCacheBudgetBytes":4 * crate::video_cache::MAX_CACHE_BYTES,
-            "cacheHits":hits,"cacheMisses":misses,"decodedFrames":decoded,"cancelledFrames":cancelled,"decoderSeeks":seeks,"lookaheadFrames":LOOKAHEAD,"streams":self.streams.len()})
+            "cacheHits":hits,"cacheMisses":misses,"decodedFrames":decoded,"cancelledFrames":cancelled,"decoderSeeks":seeks,"prefetchFailures":prefetch_failures,"lookaheadFrames":LOOKAHEAD,"streams":self.streams.len()})
     }
 }
 
@@ -550,7 +570,7 @@ mod generation_failure_tests {
             pts:Arc::new(vec![0,33333]),
             shared:Arc::new((Mutex::new(State {
                 desired:Some(Request {time:0,source_time:0,index:0,sequence:10}),
-                cache:FrameCache::new(),error:None,stop:false,prefetch:false,failed_prefetch:None,
+                cache:FrameCache::new(),error:None,stop:false,prefetch:false,failed_prefetch:None,prefetch_failures:0,last_prefetch_error:None,
                 hits:0,misses:0,decoded:0,cancelled:0,seeks:0,
             }),Condvar::new())),
         };
@@ -601,5 +621,71 @@ mod generation_failure_tests {
         let mut frames=VideoFrames {counter:i64::MAX as u64,..Default::default()};
         assert_eq!(frames.generation(&asset(),7,0).unwrap_err(),"video generation exhausted");
         assert_eq!(frames.counter,i64::MAX as u64);
+    }
+
+    struct PrefetchBackend(Arc<std::sync::atomic::AtomicBool>);
+    impl crate::platform::Platform for PrefetchBackend {
+        fn name(&self) -> &'static str { "prefetch-test" }
+        fn probe_video(&self, _: &Path, _: Option<u32>, _: Option<u32>, _: &dyn Fn() -> Result<()>) -> Result<motion_media::VideoProbe> { Err("not used".into()) }
+        fn open_decoder(&self, _: &Path, _: VideoAsset, _: Vec<u64>) -> Result<Box<dyn VideoDecoder>> {
+            Ok(Box::new(PrefetchDecoder(self.0.clone())))
+        }
+        fn decode_audio(&self, _: &Path, _: &Path, _: Option<u32>, _: u64, _: &mut dyn FnMut(f64) -> Result<()>) -> Result<motion_core::AudioAsset> { Err("not used".into()) }
+        fn media_capabilities(&self, _: Option<&crate::platform::VideoQuery>) -> Result<Value> { Err("not used".into()) }
+        fn attach_surface(&self, _: Arc<dyn wgpu::WindowHandle + Send + Sync>, _: u32, _: u32) -> Result<crate::platform::SurfaceTarget> { Err("not used".into()) }
+    }
+    struct PrefetchDecoder(Arc<std::sync::atomic::AtomicBool>);
+    impl VideoDecoder for PrefetchDecoder {
+        fn frame(&mut self, time: u64, check: &dyn Fn() -> Result<()>) -> Result<DecodedFrame> {
+            check()?;
+            if time != 0 && self.0.load(std::sync::atomic::Ordering::Acquire) {
+                return Err("injected speculative decode failure".into());
+            }
+            Ok(DecodedFrame {
+                pixels:crate::video_frame::VideoPixels::Rgba(vec![255;16]),
+                pts:time,end:if time==0 {33333}else{66666},width:2,height:2,
+                decode_us:0,codec_us:0,transfer_us:0,pack_us:0,
+                source_transfer:"test",decoder_name:"controlled".into(),
+            })
+        }
+    }
+    #[test]
+    fn speculative_decode_failure_is_diagnosed_without_poisoning_the_required_frame() {
+        let root = tempfile::tempdir().unwrap();
+        let asset = asset();
+        std::fs::create_dir(root.path().join("assets")).unwrap();
+        std::fs::write(root.path().join(&asset.path),b"1234").unwrap();
+        let index = motion_media::video_cache_path(root.path(),&asset).unwrap();
+        std::fs::create_dir_all(index.parent().unwrap()).unwrap();
+        motion_media::save_index(&index,&asset,&[0,33333]).unwrap();
+        let fail = Arc::new(std::sync::atomic::AtomicBool::new(true));
+        let stream = Stream::new(root.path().into(),asset,Arc::new(PrefetchBackend(fail.clone()))).unwrap();
+        stream.request(0,1,true).unwrap();
+        let deadline = std::time::Instant::now()+std::time::Duration::from_secs(5);
+        loop {
+            assert!(std::time::Instant::now()<deadline);
+            if stream.shared.0.lock().unwrap().failed_prefetch.is_some() { break; }
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+        assert!(stream.ready(1).is_ok());
+        {
+            let state = stream.shared.0.lock().unwrap();
+            let report = status(&state);
+            assert_eq!(report["state"],"ready");
+            assert_eq!(report["prefetch_failures"],1);
+            assert_eq!(report["prefetch_blocked_pts_us"],33333);
+            assert_eq!(report["last_prefetch_error"],"injected speculative decode failure");
+        }
+        fail.store(false,std::sync::atomic::Ordering::Release);
+        stream.request(0,2,true).unwrap();
+        loop {
+            assert!(std::time::Instant::now()<deadline);
+            if stream.shared.0.lock().unwrap().cache.find(33333).is_some() { break; }
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+        assert!(stream.ready(2).is_ok());
+        let mut frames = VideoFrames::default();
+        frames.streams.insert(7,stream);
+        assert_eq!(frames.metrics()["prefetchFailures"],1);
     }
 }
