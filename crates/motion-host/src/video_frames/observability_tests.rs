@@ -94,6 +94,10 @@ impl crate::platform::Platform for Backend {
         Err("not used".into())
     }
     fn open_decoder(&self, _: &Path, _: VideoAsset, _: Vec<u64>) -> Result<Box<dyn VideoDecoder>> {
+        if self.0.phase == "open_error" {
+            self.0.block()?;
+            return Err(self.0.error.unwrap_or("controlled open failure").into());
+        }
         if self.0.phase == "open" {
             self.0.block()?;
         }
@@ -125,7 +129,7 @@ struct Decoder(Arc<Gate>);
 impl VideoDecoder for Decoder {
     fn frame(&mut self, time: u64, check: &dyn Fn() -> Result<()>) -> Result<DecodedFrame> {
         check()?;
-        if self.0.phase == "decode" {
+        if matches!(self.0.phase, "decode" | "oversized") {
             self.0.block()?;
         }
         if let Some(error) = self.0.error {
@@ -133,7 +137,14 @@ impl VideoDecoder for Decoder {
         }
         check()?;
         Ok(DecodedFrame {
-            pixels: crate::video_frame::VideoPixels::Rgba(vec![255; 16]),
+            pixels: crate::video_frame::VideoPixels::Rgba(vec![
+                255;
+                if self.0.phase == "oversized" {
+                    crate::video_cache::CACHE_BYTES + 1
+                } else {
+                    16
+                }
+            ]),
             pts: time,
             end: if time == 0 { 33333 } else { 66666 },
             width: 2,
@@ -145,6 +156,13 @@ impl VideoDecoder for Decoder {
             source_transfer: "test",
             decoder_name: "controlled".into(),
         })
+    }
+    fn seeks(&self) -> u64 {
+        if self.0.phase == "seeks" {
+            self.0.block().unwrap();
+            panic!("controlled seek telemetry panic");
+        }
+        0
     }
 }
 fn fixture(root: &Path) -> VideoAsset {
@@ -288,6 +306,7 @@ fn decoder_stop_preserves_discarded_failure_but_not_expected_supersession() {
                 });
                 let state = shared.0.lock().unwrap();
                 assert!(state.stop);
+                assert!(state.worker_stopped);
                 assert!(
                     state.error.is_none(),
                     "stopped stream must keep its existing discard behavior"
@@ -306,6 +325,84 @@ fn decoder_stop_preserves_discarded_failure_but_not_expected_supersession() {
                     .count(),
                 1
             );
+        },
+    );
+}
+
+#[test]
+fn unpolled_required_failures_and_outer_unwind_leave_file_evidence() {
+    isolated(
+        "unpolled_required_failures_and_outer_unwind_leave_file_evidence",
+        "MOTION_VIDEO_UNPOLLED_FAILURE_CHILD",
+        |root| {
+            for (object, phase, error, expected_phase) in [
+                (11, "open_error", Some("controlled open failure"), "open"),
+                (
+                    12,
+                    "decode",
+                    Some("controlled required frame failure"),
+                    "decode",
+                ),
+                (13, "oversized", None, "cache"),
+                (14, "seeks", None, "decode"),
+            ] {
+                let folder = root.join(object.to_string());
+                let asset = fixture(&folder);
+                let (entered, waiting) = mpsc::channel();
+                let (release, receive) = mpsc::channel();
+                let release = Release(release);
+                let backend = Arc::new(Backend(Arc::new(Gate {
+                    phase,
+                    entered,
+                    release: Mutex::new(receive),
+                    error,
+                })));
+                let stream = Stream::new(folder, asset, backend, object).unwrap();
+                stream.request(0, 41, false).unwrap();
+                waiting.recv_timeout(Duration::from_secs(5)).unwrap();
+                release.0.send(()).unwrap();
+                let marker = if phase == "seeks" {
+                    format!("ERROR video decoder worker exited unexpectedly object={object} source=1 reason=unwind sequence=Some(41) pts_us=Some(0) phase=decode ")
+                } else {
+                    format!(
+                        "ERROR video decode failed object={object} source=1 sequence=41 pts_us=0 "
+                    )
+                };
+                // No status/ready poll after release: the failure itself must flush.
+                wait_until(|| {
+                    std::fs::read_to_string(root.join("events.log"))
+                        .unwrap()
+                        .contains(&marker)
+                });
+                let text = std::fs::read_to_string(root.join("events.log")).unwrap();
+                assert_eq!(text.matches(&marker).count(), 1);
+                if phase == "seeks" {
+                    let mut frames = VideoFrames::default();
+                    frames.streams.insert(object, stream);
+                    assert_eq!(frames.metrics()["decodeWorkersStopped"], 1);
+                    let state = frames.streams[&object]
+                        .shared
+                        .0
+                        .lock()
+                        .unwrap_or_else(|p| p.into_inner());
+                    assert!(state.worker_stopped);
+                    assert!(state.in_flight.is_none());
+                    assert!(
+                        state.error.is_none(),
+                        "observation must preserve the existing outer-panic result"
+                    );
+                    assert_eq!(status(&state)["worker_stopped"], true);
+                } else {
+                    assert!(text.contains(&format!("ms phase={expected_phase} speculative=false requested_sequence=41 requested_pts_us=0 discarded=false")));
+                    let reason =
+                        error.unwrap_or("video source frame exceeds its stream cache budget");
+                    assert!(text.contains(&format!("reason={reason}")));
+                    assert_eq!(stream.ready(41).err().as_deref(), Some(reason));
+                    let state = stream.shared.0.lock().unwrap();
+                    assert!(!state.worker_stopped);
+                    assert!(state.in_flight.is_none());
+                }
+            }
         },
     );
 }

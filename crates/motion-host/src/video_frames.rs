@@ -52,6 +52,7 @@ struct State {
     seeks: u64,
     in_flight: Option<DecodeFlight>,
     pending_polls: u64,
+    worker_stopped: bool,
 }
 impl State {
     fn prefetch_failed(&mut self, source: u64, time: u64, reason: &str) {
@@ -110,6 +111,7 @@ impl Stream {
                 seeks: 0,
                 in_flight: None,
                 pending_polls: 0,
+                worker_stopped: false,
             }),
             Condvar::new(),
         ));
@@ -120,6 +122,7 @@ impl Stream {
         std::thread::Builder::new()
             .name("motion-video-frames".into())
             .spawn(move || {
+                let mut observation = worker_observation::WorkerObservation::new(object, media.id, copy.clone());
                 log::info!("video decoder worker started object={object} source={} path={}", media.id, media.path);
                 log::logger().flush();
                 let mut decoder: Option<Box<dyn VideoDecoder>> = None;
@@ -133,8 +136,7 @@ impl Stream {
                             .unwrap_or_else(|e| e.into_inner());
                         if s.stop {
                             drop(s);
-                            log::info!("video decoder worker stopped object={object} source={} reason=stop", media.id);
-                            log::logger().flush();
+                            observation.stopped("stop");
                             return;
                         }
                         let (time, speculative) = job(&s, &times).unwrap();
@@ -207,22 +209,26 @@ impl Stream {
                                 log::error!("video decode discarded failure object={object} source={} sequence={} pts_us={target} {}ms stopped=true reason={error}", media.id, flight.sequence, flight.began.elapsed().as_millis());
                             }
                         }
-                        log::info!("video decoder worker stopped object={object} source={} reason=stop_after_decode", media.id);
-                        log::logger().flush();
+                        observation.stopped("stop_after_decode");
                         return;
                     }
                     let desired = s.desired.unwrap();
                     let last = times[(desired.index + LOOKAHEAD).min(times.len() - 1)];
+                    let phase = s.in_flight.map_or(flight.phase, |active| active.phase);
+                    let mut failure = result.as_ref().err()
+                        .filter(|error| error.as_str() != "video target superseded" && (target == desired.time || !speculative))
+                        .map(|error| (error.clone(), phase));
+                    let frame_bytes = result.as_ref().ok().map(|frame| frame.bytes());
+                    let cache_budget = s.cache.budget();
                     match result {
                         Ok(frame) => {
                             s.decoded += 1;
                             if frame.pts >= desired.time && frame.pts <= last {
                                 if !s.cache.insert(frame, desired.time) {
                                     if target == desired.time {
-                                        s.error = Some(
-                                            "video source frame exceeds its stream cache budget"
-                                                .into(),
-                                        );
+                                        let reason = "video source frame exceeds its stream cache budget";
+                                        s.error = Some(reason.into());
+                                        failure = Some((reason.into(), "cache"));
                                     } else {
                                         s.prefetch_failed(media.id, target, "video source frame exceeds its stream cache budget");
                                     }
@@ -247,6 +253,9 @@ impl Stream {
                     }
                     s.in_flight = None;
                     drop(s);
+                    if let Some((error, phase)) = failure {
+                        log::error!("video decode failed object={object} source={} sequence={} pts_us={target} {}ms phase={phase} speculative={speculative} requested_sequence={} requested_pts_us={} discarded={} frame_bytes={frame_bytes:?} cache_budget_bytes={cache_budget} reason={error}", media.id, flight.sequence, flight.began.elapsed().as_millis(), desired.sequence, desired.time, target != desired.time);
+                    }
                     if flight.began.elapsed().as_millis() >= 100 {
                         log::debug!("video decode done object={object} source={} sequence={} pts_us={target} {}ms speculative={speculative}", media.id, flight.sequence, flight.began.elapsed().as_millis());
                     }
@@ -370,7 +379,7 @@ fn status(s: &State) -> Value {
         "transfer_us":frame.as_ref().map(|f|f.transfer_us),"pack_us":frame.as_ref().map(|f|f.pack_us),
         "cache_bytes":s.cache.bytes(),"cache_frames":s.cache.len(),"cache_hits":s.hits,"cache_misses":s.misses,"error":s.error,
         "prefetch_failures":s.prefetch_failures,"prefetch_blocked_pts_us":s.failed_prefetch,"last_prefetch_error":s.last_prefetch_error,
-        "in_flight":s.in_flight.map(DecodeFlight::status),"pending_polls":s.pending_polls})
+        "in_flight":s.in_flight.map(DecodeFlight::status),"pending_polls":s.pending_polls,"worker_stopped":s.worker_stopped})
 }
 #[derive(Default)]
 pub struct VideoFrames {
@@ -610,6 +619,7 @@ impl VideoFrames {
         let mut seeks = 0;
         let mut prefetch_failures = 0u64;
         let mut in_flight = Vec::new();
+        let mut stopped_workers = 0;
         for stream in self.streams.values() {
             let s = stream.shared.0.lock().unwrap_or_else(|e| e.into_inner());
             bytes += s.cache.bytes();
@@ -621,6 +631,7 @@ impl VideoFrames {
             cancelled += s.cancelled;
             seeks += s.seeks;
             prefetch_failures = prefetch_failures.saturating_add(s.prefetch_failures);
+            stopped_workers += usize::from(s.worker_stopped);
             if let Some(active) = s.in_flight {
                 let mut status = active.status();
                 status["object"] = json!(stream.object);
@@ -629,7 +640,7 @@ impl VideoFrames {
             }
         }
         json!({"cacheBytes":bytes,"cacheFrames":frames,"cacheBudgetBytes":budget,"maxCacheBudgetBytes":4 * crate::video_cache::MAX_CACHE_BYTES,
-            "cacheHits":hits,"cacheMisses":misses,"decodedFrames":decoded,"cancelledFrames":cancelled,"decoderSeeks":seeks,"prefetchFailures":prefetch_failures,"lookaheadFrames":LOOKAHEAD,"streams":self.streams.len(),"decodeInFlight":in_flight})
+            "cacheHits":hits,"cacheMisses":misses,"decodedFrames":decoded,"cancelledFrames":cancelled,"decoderSeeks":seeks,"prefetchFailures":prefetch_failures,"lookaheadFrames":LOOKAHEAD,"streams":self.streams.len(),"decodeInFlight":in_flight,"decodeWorkersStopped":stopped_workers})
     }
 }
 
@@ -657,7 +668,7 @@ mod generation_failure_tests {
                 desired:Some(Request {time:0,source_time:0,index:0,sequence:10}),
                 cache:FrameCache::new(),error:None,stop:false,prefetch:false,failed_prefetch:None,prefetch_failures:0,last_prefetch_error:None,
                 hits:0,misses:0,decoded:0,cancelled:0,seeks:0,
-                in_flight:None,pending_polls:0,
+                in_flight:None,pending_polls:0,worker_stopped:false,
             }),Condvar::new())),
         };
         frames.streams.insert(7,stream);
@@ -778,3 +789,5 @@ mod generation_failure_tests {
 
 #[cfg(test)]
 mod observability_tests;
+
+mod worker_observation;
