@@ -370,3 +370,16 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 | timeline snap guide 颜色 | retained with reason：遵循规范保留当前行为，不新增 token |
 
 以上仅登记本批未改动视觉基线的范围，不宣称这些历史整改项已全部修复或现有行号仍准确。
+
+## 24 · 脱离串行 worker 的电影冻结与导出日志
+
+状态：已完成观测补漏；当前桌面全套 342 passed，0 failed，0 ignored；check/build 通过。
+
+- 电影冻结线程继承原 request/operation/started 上下文，在真正冻结前写入并 flush 默认 Info async start；异步失败继续通过原 respond 记录编号、操作与总耗时
+- 保留 respond 中 let _ = reply.send(value) 原样；结果无人接收时仍丢弃，后台操作本身的失败证据不再随 reply 消失
+- 后台 panic hook 可读取同一 request 上下文，随后返回的错误仍保留原 panic payload；done 使用 debug
+- MovieExport 在编码前记录 revision 和输出路径，记录实际成功产物/字节数、失败原因、耗时与 spawn 失败；正常取消记录 info，不伪装为故障
+- 新增独立进程、真实后台线程回归：可控阻塞期间文件已有 start 且没有完成错误，释放后 IO 错误正确关联 #21；另一次真实 panic 的 hook 和错误都关联 #22，并验证 file/stderr 与 stdout 隔离
+- 不改变 Engine::in_flight 的含义，不把独立后台任务冒充为串行 worker 当前命令；不增加超时、线程重启或同步等待
+- 关联辅助清单：10.6–10.10；证据：async-movie-batch24.log、desktop-async-movie-full.log、desktop-mask-throttle-full.log、async-movie-check.log、async-movie-build.log
+- 本节验证了生产异步调度/错误传递 helper；未据此宣称运行了 feature=ffmpeg 的真实编码导出验收

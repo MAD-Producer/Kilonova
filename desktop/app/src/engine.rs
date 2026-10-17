@@ -1123,6 +1123,31 @@ fn clear_target(encoder: &mut wgpu::CommandEncoder, view: &wgpu::TextureView) {
     });
 }
 
+
+/// Carry the originating command into the detached freeze worker. The engine's
+/// in_flight still describes only its serial worker, not this background task.
+fn spawn_movie_freeze<T: Send + 'static>(
+    reply: Sender<Result<T, String>>,
+    freeze: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> Result<(), String> {
+    let flight = CURRENT_COMMAND.get();
+    std::thread::Builder::new().name("motion-freeze-movie".into()).spawn(move || {
+        CURRENT_COMMAND.set(flight);
+        let began = Instant::now();
+        if let Some(flight) = flight {
+            log::info!("async start #{} {}", flight.request, flight.operation);
+            crate::logging::flush();
+        }
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(freeze))
+            .unwrap_or_else(|payload| Err(format!("movie freeze worker failed: {}", motion_media::panic_reason(payload))));
+        respond(reply, result);
+        if let Some(flight) = flight {
+            log::debug!("async done #{} {} {}ms", flight.request, flight.operation, began.elapsed().as_millis());
+        }
+        CURRENT_COMMAND.set(None);
+    }).map(|_| ()).map_err(|error| error.to_string())
+}
+
 fn respond<T>(reply: Sender<Result<T, String>>, value: Result<T, String>) {
     if let Err(reason) = &value {
         if let Some(flight) = CURRENT_COMMAND.get() {
@@ -1469,7 +1494,11 @@ fn handle(
             let plan=motion_host::session::with_session(id,|s|motion_desktop_media::movie::FrozenMovie::capture_plan(s,&control));
             match plan {
                 Err(error)=>respond(reply,Err(error)),
-                Ok(plan)=> {let failed=reply.clone();match std::thread::Builder::new().name("motion-freeze-movie".into()).spawn(move||{let result=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||plan.freeze(&control))).unwrap_or_else(|payload|Err(format!("movie freeze worker failed: {}",motion_media::panic_reason(payload))));let _=reply.send(result);}) {Ok(_)=>(),Err(error)=>respond(failed,Err(error.to_string()))}}
+                Ok(plan) => {
+                    if let Err(error) = spawn_movie_freeze(reply.clone(), move || plan.freeze(&control)) {
+                        respond(reply, Err(error));
+                    }
+                }
             }
         },
         Command::RenderPreview {frame,reply}=>respond(reply,(||{if let Some(frame)=frame {preview::seek(id,frame)?;}export::capture(id)})()),
