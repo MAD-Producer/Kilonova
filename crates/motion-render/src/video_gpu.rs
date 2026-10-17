@@ -129,12 +129,14 @@ impl VideoGpu {
             })
             .sum()
     }
-    pub fn replacement_bytes(&self, object: u64, frame: &Yuv420Frame) -> u64 {
-        let previous = self.inputs.get(&object).map_or(0, |i| {
+    pub fn input_bytes(&self, object: u64) -> u64 {
+        self.inputs.get(&object).map_or(0, |i| {
             u64::from(i.size.0) * u64::from(i.size.1)
                 + 2 * u64::from(i.size.2) * u64::from(i.size.3)
-        });
-        self.bytes() - previous + frame.bytes() as u64
+        })
+    }
+    pub fn replacement_bytes(&self, object: u64, frame: &Yuv420Frame) -> u64 {
+        self.bytes() - self.input_bytes(object) + frame.bytes() as u64
     }
     pub fn clear(&mut self) {
         self.inputs.clear();
@@ -160,11 +162,6 @@ impl VideoGpu {
             .get(&object)
             .and_then(|i| i.completion.as_ref())
             .is_none_or(|s| s.load(Ordering::Acquire) == 1)
-    }
-    pub fn clear_completion(&mut self, object: u64) {
-        if let Some(input) = self.inputs.get_mut(&object) {
-            input.completion = None;
-        }
     }
     pub fn convert(
         &mut self,
