@@ -2,7 +2,7 @@
 
 本表与 `silent-failure-paths-followup.md` 的 161 个辅助编号分开计数。原始 `silent-failure-paths-exhaustive.md` 列出 832 个候选；候选不是已确认缺陷。用原始路径与行号作稳定标识，行号不代表修改后的源码位置。
 
-当前已映射 B1 全部365项、B2 全部41项、B6 全部56项、B7 全部33项、B8 全部14项和B9 全部12项，共 521 个候选：核实保留 368行、功能边界 40行、新增观测 39行、已有覆盖 74行。其余 311 个候选尚未逐行关联到本表，包含此前已覆盖站点，不等于未修复缺陷数；功能边界不代表全输入已关闭。§63–66 的新增观测及解锁时序修正见完成文档
+当前已映射 B1 全部365项、B2 全部41项、B5 全部30项、B6 全部56项、B7 全部33项、B8 全部14项和B9 全部12项，共 551 个候选：核实保留 381行、功能边界 48行、新增观测 46行、已有覆盖 76行。其余 281 个候选尚未逐行关联到本表，包含此前已覆盖站点，不等于未修复缺陷数；功能边界不代表全输入已关闭。§63–67 的新增观测及解锁时序修正见完成文档
 
 ## B1 · GPU 协议、资源池与提交台账（首批 77 项）
 
@@ -439,6 +439,43 @@
 | crates/motion-host/src/video_frames.rs:144 | 功能边界 | VideoDecoder.seeks定义累计seek数，同一decoder在worker内保留，正常后端计数单调；公开trait可实现递减或u64回绕，当前delta饱和0且无独立计数回退观测。保留数值/metrics边界，不声称所有第三方后端遵约或重置已被定位 |
 | crates/motion-host/src/video_frames.rs:363 | 已有覆盖 | 当前generation返回Result，中毒状态明确Err并保留object，不再用.ok()?制造新generation；计数checked_add拒绝耗尽。沿用poisoned_video_state_is_an_error_without_fabricating_a_new_generation等回归，不修改既有替换媒体退休stream顺序 |
 | crates/motion-host/src/video_frames.rs:501 | 已有覆盖 | 此前Stream.request对pending轮询有计数、首Debug/第60次Error和in_flight phase/elapsed，成功/换generation复位；仍Ok(None)给调用方重试，不对每次正常pending无条件日志 |
+
+## B5 · UI 框架绘制、工作区与输入边界（30 项）
+
+本批只补框架观测，未改panels、布局或控件行为；新增三个固定site，覆盖7行候选，其余逐项区分正常契约与自定义样式边界
+
+| 原始位置 | 处置 | 当前源码证据与限制 |
+| --- | --- | --- |
+| desktop/ui/src/dock.rs:176 | 核实保留 | 删除已有tab后维持选中同一面板或最近邻，空dock索引按0表示，由调用方处理空状态；饱和为有意tab导航边界，不是队列或资源统计漂移，不改变所有权/选择行为 |
+| desktop/ui/src/dock.rs:178 | 核实保留 | 删除已有tab后维持选中同一面板或最近邻，空dock索引按0表示，由调用方处理空状态；饱和为有意tab导航边界，不是队列或资源统计漂移，不改变所有权/选择行为 |
+| desktop/ui/src/paint.rs:1073 | 新增观测 | §67 Painter对显式order的越界Glyph及缺失Shape范围累计本次无效操作数/首类型与索引，按render而非逐op计数，首Warn/连续60次Error/抑制，健康render独立复位；原skip与legacy raw-buffer兼容顺序保留，实际GPU像素回归验证不改变输出 |
+| desktop/ui/src/paint.rs:1143 | 新增观测 | §67 仅确有glyph draw batch且atlas_view缺失时按Painter/render记录，首Warn/60Error/抑制，成功或无glyph批次复位；记录glyph数量，仍跳过glyph批次，原solid照常绘制。真实GPU验证文字丢弃、atlas上传后恢复，正常无文字不是失败 |
+| desktop/ui/src/paint.rs:323 | 核实保留 | 裁剪后不足3顶点的polygon没有可生成三角形；1..len.saturating_sub(1)安全地产生空循环，避免索引下溢，退化不可见不是失败。保留实际像素/裁剪回归 |
+| desktop/ui/src/paint/strokes.rs:153 | 核实保留 | 线条裁剪得到0/1/2顶点时triangle fan为空是有效退化几何；饱和界避免越界，不影响正常AA轮廓，不添加正常空几何日志 |
+| desktop/ui/src/style.rs:211 | 已有覆盖 | 此前StyleSheet共享的有界Failures对缺失颜色key输出首Warn/生命周期第60次Error，保留透明回退；同一不可变sheet克隆共享、新sheet重置，最多128普通key加overflow槽，不在每帧无条件记录。沿用真实style/glyph默认级别回归 |
+| desktop/ui/src/text.rs:81 | 已有覆盖 | 当前from_family对CJK fallback字体加载失败显式Warn并保留原原因/所选family，仍返回无fallback atlas；不是静默if let Ok。已有glyph缺字/图集观测不能证明此机器实际缺失所有CJK字体，本批不声称已自然重现系统字体库失败 |
+| desktop/ui/src/widgets.rs:283 | 核实保留 | 仅在按下尚未启动的数值拖拽时取dirty文本作候选起点，解析失败/非有限/越界保留已提交current，未发模型修改；真正文本Commit失败另设置TextEdit.error并保留输入。属于既有输入编辑契约，不对用户临时无效文本加每帧告警或泄露输入内容 |
+| desktop/ui/src/widgets.rs:284 | 核实保留 | 仅在按下尚未启动的数值拖拽时取dirty文本作候选起点，解析失败/非有限/越界保留已提交current，未发模型修改；真正文本Commit失败另设置TextEdit.error并保留输入。属于既有输入编辑契约，不对用户临时无效文本加每帧告警或泄露输入内容 |
+| desktop/ui/src/widgets.rs:285 | 核实保留 | 仅在按下尚未启动的数值拖拽时取dirty文本作候选起点，解析失败/非有限/越界保留已提交current，未发模型修改；真正文本Commit失败另设置TextEdit.error并保留输入。属于既有输入编辑契约，不对用户临时无效文本加每帧告警或泄露输入内容 |
+| desktop/ui/src/widgets.rs:67 | 核实保留 | 当前源码为Key::Left将caret饱和在首字符，原报告称backspace并不准确；正常光标移动边界，不是编辑失败，无需告警 |
+| desktop/ui/src/widgets/composite.rs:111 | 功能边界 | 这些checkbox/label.small/调用方anchor/popup/row/button.icon并非compile强制类，手工host sheet可在resolve(...).unwrap时panic；桌面已有panic hook记录文件/行号/强制backtrace，默认sheet包含这些类，但本批不扩展编译必需类、不改回退与布局，也不宣称自定义sheet已全输入安全。独立motion-ui宿主若未安装日志/panic hook不由desktop保证 |
+| desktop/ui/src/widgets/composite.rs:234 | 功能边界 | 这些checkbox/label.small/调用方anchor/popup/row/button.icon并非compile强制类，手工host sheet可在resolve(...).unwrap时panic；桌面已有panic hook记录文件/行号/强制backtrace，默认sheet包含这些类，但本批不扩展编译必需类、不改回退与布局，也不宣称自定义sheet已全输入安全。独立motion-ui宿主若未安装日志/panic hook不由desktop保证 |
+| desktop/ui/src/widgets/composite.rs:493 | 核实保留 | 下拉列表收缩或打开时将highlight夹到当前items范围，空列表另禁用并关闭popup；原有选择/键盘导航契约，不吞模型Err |
+| desktop/ui/src/widgets/composite.rs:506 | 核实保留 | 下拉列表收缩或打开时将highlight夹到当前items范围，空列表另禁用并关闭popup；原有选择/键盘导航契约，不吞模型Err |
+| desktop/ui/src/widgets/composite.rs:514 | 功能边界 | 这些checkbox/label.small/调用方anchor/popup/row/button.icon并非compile强制类，手工host sheet可在resolve(...).unwrap时panic；桌面已有panic hook记录文件/行号/强制backtrace，默认sheet包含这些类，但本批不扩展编译必需类、不改回退与布局，也不宣称自定义sheet已全输入安全。独立motion-ui宿主若未安装日志/panic hook不由desktop保证 |
+| desktop/ui/src/widgets/composite.rs:641 | 核实保留 | 滚动偏移先按方向饱和增减，随后min(items.len-count)夹到可见窗口；顶部/底部滚动为正常交互，无资源少计或失败，不新增UI行为 |
+| desktop/ui/src/widgets/composite.rs:643 | 核实保留 | 滚动偏移先按方向饱和增减，随后min(items.len-count)夹到可见窗口；顶部/底部滚动为正常交互，无资源少计或失败，不新增UI行为 |
+| desktop/ui/src/widgets/composite.rs:658 | 功能边界 | 这些checkbox/label.small/调用方anchor/popup/row/button.icon并非compile强制类，手工host sheet可在resolve(...).unwrap时panic；桌面已有panic hook记录文件/行号/强制backtrace，默认sheet包含这些类，但本批不扩展编译必需类、不改回退与布局，也不宣称自定义sheet已全输入安全。独立motion-ui宿主若未安装日志/panic hook不由desktop保证 |
+| desktop/ui/src/widgets/composite.rs:682 | 功能边界 | 这些checkbox/label.small/调用方anchor/popup/row/button.icon并非compile强制类，手工host sheet可在resolve(...).unwrap时panic；桌面已有panic hook记录文件/行号/强制backtrace，默认sheet包含这些类，但本批不扩展编译必需类、不改回退与布局，也不宣称自定义sheet已全输入安全。独立motion-ui宿主若未安装日志/panic hook不由desktop保证 |
+| desktop/ui/src/widgets/composite.rs:815 | 功能边界 | 这些checkbox/label.small/调用方anchor/popup/row/button.icon并非compile强制类，手工host sheet可在resolve(...).unwrap时panic；桌面已有panic hook记录文件/行号/强制backtrace，默认sheet包含这些类，但本批不扩展编译必需类、不改回退与布局，也不宣称自定义sheet已全输入安全。独立motion-ui宿主若未安装日志/panic hook不由desktop保证 |
+| desktop/ui/src/widgets/composite.rs:885 | 功能边界 | 这些checkbox/label.small/调用方anchor/popup/row/button.icon并非compile强制类，手工host sheet可在resolve(...).unwrap时panic；桌面已有panic hook记录文件/行号/强制backtrace，默认sheet包含这些类，但本批不扩展编译必需类、不改回退与布局，也不宣称自定义sheet已全输入安全。独立motion-ui宿主若未安装日志/panic hook不由desktop保证 |
+| desktop/ui/src/widgets/composite.rs:89 | 功能边界 | 这些checkbox/label.small/调用方anchor/popup/row/button.icon并非compile强制类，手工host sheet可在resolve(...).unwrap时panic；桌面已有panic hook记录文件/行号/强制backtrace，默认sheet包含这些类，但本批不扩展编译必需类、不改回退与布局，也不宣称自定义sheet已全输入安全。独立motion-ui宿主若未安装日志/panic hook不由desktop保证 |
+| desktop/ui/src/widgets/composite.rs:897 | 核实保留 | 评分左键盘操作在0下界饱和是合法值范围；右方向另min(max)，保留键盘交互，不把正常下界当作静默失败 |
+| desktop/ui/src/workspace.rs:282 | 新增观测 | §67 框架Workspace::load分别记录read/size/json/validation阶段，固定进程连续降级报告首Warn/60Error/抑制，成功或正常NotFound复位；路径和原因各≤256字符。保留读全文件后16KiB过滤、默认布局返回与不重写坏文件；此处不同于desktop/app自有Workspace loader，不重复借用其旧观测证明。真实目录读失败/超限/JSON/重复所有权回归 |
+| desktop/ui/src/workspace.rs:283 | 新增观测 | §67 框架Workspace::load分别记录read/size/json/validation阶段，固定进程连续降级报告首Warn/60Error/抑制，成功或正常NotFound复位；路径和原因各≤256字符。保留读全文件后16KiB过滤、默认布局返回与不重写坏文件；此处不同于desktop/app自有Workspace loader，不重复借用其旧观测证明。真实目录读失败/超限/JSON/重复所有权回归 |
+| desktop/ui/src/workspace.rs:284 | 新增观测 | §67 框架Workspace::load分别记录read/size/json/validation阶段，固定进程连续降级报告首Warn/60Error/抑制，成功或正常NotFound复位；路径和原因各≤256字符。保留读全文件后16KiB过滤、默认布局返回与不重写坏文件；此处不同于desktop/app自有Workspace loader，不重复借用其旧观测证明。真实目录读失败/超限/JSON/重复所有权回归 |
+| desktop/ui/src/workspace.rs:285 | 新增观测 | §67 框架Workspace::load分别记录read/size/json/validation阶段，固定进程连续降级报告首Warn/60Error/抑制，成功或正常NotFound复位；路径和原因各≤256字符。保留读全文件后16KiB过滤、默认布局返回与不重写坏文件；此处不同于desktop/app自有Workspace loader，不重复借用其旧观测证明。真实目录读失败/超限/JSON/重复所有权回归 |
+| desktop/ui/src/workspace.rs:286 | 新增观测 | §67 框架Workspace::load分别记录read/size/json/validation阶段，固定进程连续降级报告首Warn/60Error/抑制，成功或正常NotFound复位；路径和原因各≤256字符。保留读全文件后16KiB过滤、默认布局返回与不重写坏文件；此处不同于desktop/app自有Workspace loader，不重复借用其旧观测证明。真实目录读失败/超限/JSON/重复所有权回归 |
 
 ## B7 · motion-graph / motion-model
 

@@ -1120,3 +1120,16 @@ DESIGN.md §0.7 逐项状态均为 retained with reason：本批只接入观测�
 - 完整复验通过：host 53 passed（含doc-test）、desktop 367 passed，均0 failed/ignored，含三个新回归与worker API/FileLogger回归；cargo check/build -p motion-desktop通过。新二进制默认Info运行可见129条普通start、0条Present start，健康host三个站点安静；轮转、Error文件/stderr、stdout隔离、Debug Present阈值、fatal参数及shutdown失败验证通过。样式门、provenance 1382 tracked paths、局部格式及diff检查通过；证据 b66-host-final.log、b66-desktop-full.log、b66-desktop-check.log、b66-desktop-build.log、b66-runtime.log、b66-test-summary.json
 - 真实MCP进程默认Info附加故障验收：时间条件表达式在frame=15触发invalid sample time，之后rename仍返回成功、revision推进且名称持久在状态中，renderError保留；240次状态查询跨两个故障episode，文件恰有2条首Warn/2条第60次Error，恢复删除表达式后清零，undo后重新累计，redo恢复。两条升级Error同时出现在stderr，248条响应全部是合法JSON，未向stdout写日志；证据 b66-host-runtime.log、runtime-b66-host-failure/summary.json。此处没有用编译、模拟成功或捕获logger替代真实FileLogger输出
 - 未改变UI/布局/交互、panels、respond、两处MOTION_TRACE_UI、两份原始报告或用户无关文件；没有新依赖/第三方素材。DESIGN.md §0.7沿用§59 retained with reason，跨平台与真实驱动故障不在本机受控测试结论内
+
+
+## 67 · UI 框架绘制丢弃与工作区默认回退观测
+
+- 逐项关联B5全部30行：新增观测7、已有覆盖2、核实保留13、功能边界8；累计551/832，剩余281行待逐项关联。新增paint.order、paint.atlas、workspace.framework.load三个固定site，不把5行工作区链式回退重复算成5套计数；证据 b67-mechanical-mapping.json
+- Painter对显式order中的越界glyph/缺失shape范围按本次render计数，记录无效op数量及首类型/索引；只在真实glyph draw batch因缺atlas而丢弃时记录atlas站点。两个episode按Painter独立首Warn/连续第60次Error/抑制，健康render分别复位，新Painter单独计数；正常无文字与legacy raw-buffer顺序兼容分支安静。保持原skip、batch顺序和solid绘制，不修复无效绘制输入或代建atlas
+- 计数为普通私有字段，无业务/观测Mutex或动态key表；健康render不增加文件IO、原因分配或Instant计时。atlas已存在时不额外遍历batches；缺atlas时才检查是否有真正待绘制glyph batch。elapsed_ms表示整个退化episode跨度，不等于单次GPU耗时或60次约一秒
+- 框架Workspace::load分别标read/size/json/validation阶段，固定进程连续失败首Warn/第60次Error/抑制，任何成功或正常NotFound复位；路径与原因分别最多256字符，不记录原始JSON。保留读全文件再按16KiB过滤、默认布局返回及不重写坏文件，不声称限制了大文件读取内存。这与desktop/app自有Workspace loader是两个站点，框架当前仅示例调用不能借用应用旧观测冒充覆盖
+- 新增两个Rust回归、六个隔离子进程：真实GPU/Painter构造无效glyph/shape索引和缺atlas批次，逐帧读回像素验证120次失败不改变原白色solid结果、每render限频/阈值、其他Painter健康不影响本实例、正常render复位、上传atlas后红色glyph恢复、legacy顺序保持。GPU adapter缺失明确失败，未用提前return掩盖验收。工作区实际目录读失败/超限文件/非法JSON/重复所有权四类均返回原默认布局、不改坏文件，验证阈值/抑制、正常缺失与成功复位及超长Unicode路径截断；清理前核实测试自建目录的绝对父路径
+- 保留数值输入dirty文本作为拖拽起点的有限/范围回退，真正Commit错误仍由TextEdit.error呈现；不记录用户临时文本。保留tab/caret/高亮/滚动/评分合法边界及不足三点裁剪的空triangle fan，不将正常导航和空几何误报为资源失败。原caret行实际为Key::Left而非原报告所称backspace
+- 8行自定义样式功能边界单列：checkbox/label.small/调用方anchor/popup/row/button.icon不在compile必需类清单，手工host sheet仍可能在unwrap处panic。桌面既有panic hook提供行号与强制backtrace，不代表独立motion-ui宿主也已安装；本批没有扩展必需类、改样式fallback或宣布自定义sheet全输入安全。既有颜色/字体观测关联已有证据，未声称本机自然缺失全部CJK字体
+- 完整复验通过：UI 82 passed（13组，含实际GPU与两项新回归）、desktop 367 passed，均0 failed/ignored，包含worker阻塞API/FileLogger；cargo check/build -p motion-desktop通过。新二进制隔离启动，默认Info可见129条普通start、0条Present start，健康绘制/工作区无新增降级记录；轮转、Error文件/stderr、CLI/MCP stdout隔离、Debug Present阈值、fatal参数、MCP UI正常EOF及shutdown失败原因均通过。样式门、provenance 1386 tracked paths、局部格式及diff检查通过；证据 b67-ui-full.log、b67-desktop-full.log、b67-desktop-check.log、b67-desktop-build.log、b67-runtime.log、b67-test-summary.json
+- 未改panels、UI视觉/交互/返回值、respond、两处MOTION_TRACE_UI、两份原始报告、依赖或第三方素材；DESIGN.md §0.7沿用§59 retained with reason。像素回归与原生冒烟不代表完成所有视觉、平台或驱动故障验收
