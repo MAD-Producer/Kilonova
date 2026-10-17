@@ -417,3 +417,21 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - 没有为符合报告而把这类尚不能编译的图禁止加载或禁止修复；保留既有图编辑策略
 - 本批只修改 node_editor/view，不扩大到未经本次授权的其他 panels 生产文件
 - 关联辅助清单：2.2；证据：node-inspector-batch27.log、desktop-inspector-full.log、inspector-check.log、inspector-build.log
+
+## 28 · 合成包 ABI 与部分数值转换的保留结论
+
+状态：已核实下表范围；motion-render 的 compositions 5 项真实 GPU/序列化集成回归通过，未修改生产编码。
+
+| 全集位置 | 源码边界与结论 |
+| --- | --- |
+| composition_plan.rs parent as u32 | root 的 parent 以 usize::MAX 初始化，序列化为 u32::MAX 是无父节点哨兵；普通 parent 为后序节点索引，活跃节点上限 64。直接改 checked conversion 会错误拒绝根节点 |
+| composition_plan.rs slot / order casts | slot 定义为 i32，按 -(layer.order+1) 编码，再以 u32 保存位型；有效模型每个合成 MAX_LAYERS=128，不是把越界序号默默降级 |
+| composition_plan.rs 偏移/长度/数量 | 写入前检查总包 MAX_BYTES=32 MiB，节点上限 64，节点/视频记录固定 80/40 字节；对应 header、start、size、videos.len 和 root 的数值均在 u32 范围内 |
+| effect_plan.rs input/source/resource_input、compositing matte as u32 | 有符号纹理/遮罩 token 作为 32 位记录位型保存；effect_gpu 的 view(id:i32) 和 resource_input 分支明确区分负资产 token 与非负暂存/绘制槽位，不能把负数当成非法转换统一拒绝 |
+| effect_plan.rs scratch_budget as u32 | 正规 PlanBuilder 设置范围受 MAX_SCRATCH_BUDGET=384 MiB 限制；本条仅说明受支持构建路径，不为任意外部伪造 plan 背书 |
+| layer_gpu.rs mesh.vertices.len as u32 | 正规 tessellation 的 BoundedGeometry 在增长前执行共享顶点预算，MAX_TRIANGLE_VERTICES=262144；实际 draw count 的收窄不丢失这些合法值 |
+| compositing_gpu.rs 等 usize/u32 as u64 | 当前受支持桌面目标为 64 位，列出的索引、字节数到 u64 属于等宽/拓宽；未标 no-loss 不等于真实失败 |
+
+- 已有测试实际验证嵌套像素、后序父索引与程序绑定、随机 seek、重复 scene/plan 一致性，以及活跃实例超限拒绝
+- 证据：target/silent-failure-validation/composition-abi-review.log
+- effect_plan 的其他浮点尺寸、长期缓存 program 索引等候选未被本表一并关闭；不以单个 GPU 回归通过替代所有 104 行的逐项核实
