@@ -1,6 +1,6 @@
 # Issue #262: lossless XYZ merge API
 
-Scope: backend portion of [#262](https://github.com/MAD-Producer/Kilonova/issues/262), also contributing to the shared API coverage in #86. At the user's request, branch `feat/262-merge-dimensions` now stacks on [PR #307](https://github.com/MAD-Producer/Kilonova/pull/307), head `97a3797f25ab6327c0c9e86b0fe2bb6c18f16b3c` (`fix/silent-failure-paths`). The original main-based implementation was preserved as local commit `3814949` on `backup/262-before-pr307-stack`. The previous workspace-performance work remains in its existing worktree.
+Scope: backend portion of [#262](https://github.com/MAD-Producer/Kilonova/issues/262), also contributing to the shared API coverage in #86. At the user's request, branch `feat/merge-dimensions` now stacks on [PR #307](https://github.com/MAD-Producer/Kilonova/pull/307), head `97a3797f25ab6327c0c9e86b0fe2bb6c18f16b3c` (`fix/silent-failure-paths`). The original main-based implementation was preserved as local commit `3814949` on `backup/merge-dimensions-before-pr307`. The previous workspace-performance work remains in its existing worktree.
 
 ## Implemented contract
 
