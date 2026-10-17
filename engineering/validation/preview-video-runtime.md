@@ -27,6 +27,11 @@
 - `preview-video-tools-tests-complete.log`：CI 工具 50 项通过、1 项已有 Rust 效果验证器用例因未指定可执行文件而跳过（共 51 项）；包含下载缓存损坏及校验失败不发布的真实文件用例，以及 Windows 用户链接参数保留、Linux/macOS 相对库加载参数用例。
 - `preview-video-package-final.log`：发布工具专项 15 项通过，覆盖 shell 构建拒绝、缺失组件/许可证/来源、哈希不符、路径越界、架构错误、归档内清单复核、macOS 签名失败及上传前验证顺序。
 - `preview-video-prepare-monthly.log`：Windows 固定下载 SHA-256 验证、解压、原文许可证、7 个 DLL 清单和实际 `-buildconf` 验证通过；拒绝 enable-gpl / enable-nonfree 的非预期分发包。
-- Windows 实际构建、归档解压解码和故障日志结果在完成后追加。Linux 与两种 macOS 原生构建及加载验证需等待四平台 CI，不能用本地 Windows 结果代替。
+- Windows `tools/build_desktop.py --task build --ffmpeg` 的正式 Release 构建通过，保留 thin LTO、单 codegen unit 和行号调试信息，耗时 18 分 13 秒；22 条现有警告仍保留。日志为 `preview-video-release-build.log`。
+- `preview-video-build/desktop-build.json` 确认 `release=true`、`ffmpeg=true`。归档 `preview-video-release/MotionStudio-validation-windows-x86_64.zip` 为 83,434,108 字节，SHA-256 为 `9632736f09893e439b782c0a0b666dbb7334d2ab9dcf777079f28daf3b1d0dbd`，包含 7 个运行库 DLL 及来源/许可证记录。
+- 实际运行 `verify_desktop_video.py` 通过：从归档解压，清除 FFmpeg 构建路径，三种素材各向前/向后解码 4 帧并转换 RGBA；旋转素材输出 144×256。结果保存在 `preview-video-runtime-verification/video-runtime.json`。
+- 同一次归档验收访问真实不存在文件，非零退出、stdout 为空，默认 info 下文件与 stderr 均保留 `video.runtime`、`phase=probe`、源路径及 `cannot open video: No such file or directory` 原因。证据为 `failure.file.log` 和 `failure.stderr.log`。
+- 解压后的正式程序还完成实际隐藏窗口 smoke，包含共享设备、浮窗、窗口 resize/redock、工程保存重开和工作区切换，两个报告均为 `ok=true`。传入 WGPU_BACKEND 的两次运行不证明窗口后端受该环境变量控制；只将其记为正式程序的实际窗口验收。DX12 单独 GPU 用例证据见 `wgpu-upgrade.md`。
+- Linux 与两种 macOS 原生构建及加载验证需等待四平台 CI，不能用本地 Windows 结果代替。
 
 本次不实现视频编码器，不恢复 Android 发布或 UI issue。已有 Windows BtbN 分发包含的依赖沿用上游 LGPL shared 配置；精确构建脚本与对应 FFmpeg 源码地址均保留在清单中。
