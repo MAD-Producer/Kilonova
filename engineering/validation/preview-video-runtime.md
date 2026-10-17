@@ -35,3 +35,11 @@
 - Linux 与两种 macOS 原生构建及加载验证需等待四平台 CI，不能用本地 Windows 结果代替。
 
 本次不实现视频编码器，不恢复 Android 发布或 UI issue。已有 Windows BtbN 分发包含的依赖沿用上游 LGPL shared 配置；精确构建脚本与对应 FFmpeg 源码地址均保留在清单中。
+
+## Linux 压缩头 MOV 回归跟进
+
+运行 `39030952934` 的 Linux 任务 `117391114323` 在归档之前的原生 libav 回归阶段失败：`fragmented_compressed_and_fractional_short_tail_use_exact_sample_intervals` 中，`video-tail-cmov.mov` 报 `this file requires zlib support compiled in`，随后返回 `cannot open video: Function not implemented`。其余 4 项通过，原日志保存在 `preview-video-linux-ci-job.log`。这是 Unix 依赖自动探测关闭后遗漏显式启用 zlib 的构建缺陷，不是缺失 DLL，也不是 flaky 测试。
+
+Unix 构建现先从官方固定 SHA-256 源码编译 zlib 1.3.2 static PIC，运行其 `make check`，再显式启用 FFmpeg zlib，并指定该前缀的头文件、链接目录和 pkg-config 路径。configure 输出未实际启用 `CONFIG_ZLIB` 时立即失败。原文许可证、作者、来源、版本、哈希、无源码修改及静态链接范围进入归档和 ATTRIBUTION。依赖自动探测/GPL/nonfree 仍关闭，不引入构建机 Homebrew libz 运行路径。
+
+解压归档验收增加相同 `video-tail-cmov.mov`，因此不仅原生测试需要通过，最终应用也必须实际探测并前后解码压缩头 MOV。Windows 正式归档补跑四种素材各 4 帧及真实缺失文件错误信道均通过，日志为 `preview-video-cmov-runtime.log`；工具测试仍为 50 项通过、1 项已有跳过，日志为 `preview-video-zlib-tools-tests.log`。官方 zlib 压缩包哈希已本地验证；Windows 不能证明 Unix static PIC 构建，Linux/macOS 新提交 CI 仍待验证，不将旧失败记为通过。
