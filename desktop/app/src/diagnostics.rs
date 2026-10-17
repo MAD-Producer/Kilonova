@@ -288,14 +288,19 @@ fn reporter(
     dsn: Option<sentry::types::Dsn>,
     transport: Option<Arc<dyn sentry::TransportFactory>>,
 ) {
+    log::info!("diagnostics reporter started");
+    crate::logging::flush();
     let mut client: Option<sentry::Client> = None;
     let mut last_upload: Option<Instant> = None;
     let mut uploads = 0;
     let mut uploaded_stalls=0;
     let mut request = 0u64;
-    while let Ok(job) = receive.recv() {
+    let stop_reason = loop {
+        let Ok(job) = receive.recv() else {
+            break "channel_closed";
+        };
         let Some(owner) = owner.upgrade() else {
-            break;
+            break "owner_dropped";
         };
         let (destination, reply, auto, operation) = match job {
             Job::Export(p, r) => (Some(p), Some(r), false, "export"),
@@ -371,10 +376,17 @@ fn reporter(
             Ok(()) => log::debug!("diagnostics done #{request} {operation} {}ms path={target}", began.elapsed().as_millis()),
             Err(error) => log::error!("diagnostics failed #{request} {operation} {}ms path={target} reason={error}", began.elapsed().as_millis()),
         }
-    }
+    };
+    log::info!("diagnostics reporter stopping reason={stop_reason}");
+    crate::logging::flush();
     if let Some(client) = client {
-        client.flush(Some(Duration::from_millis(500)));
+        let began = Instant::now();
+        if !client.flush(Some(Duration::from_millis(500))) {
+            log::warn!("diagnostics reporter upload flush incomplete wait_limit_ms=500 elapsed_ms={}", began.elapsed().as_millis());
+        }
     }
+    log::info!("diagnostics reporter stopped");
+    crate::logging::flush();
 }
 fn sentry_report(
     report: &Value,

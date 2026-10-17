@@ -112,6 +112,55 @@ impl sentry::Transport for Recording {
         let mut bytes=vec![];envelope.to_writer(&mut bytes).unwrap();self.0.lock().unwrap().push(bytes);
     }
 }
+
+#[test]
+fn reporter_shutdown_logs_incomplete_sdk_flush_without_calling_it_an_error() {
+    const CHILD: &str = "MOTION_DIAGNOSTICS_SHUTDOWN_LOG_CHILD";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = PathBuf::from(root);
+        let _logger = crate::logging::init(root.join("logs")).unwrap();
+        struct Unflushed;
+        impl sentry::Transport for Unflushed {
+            fn send_envelope(&self, _: sentry::Envelope) {}
+            fn flush(&self, _: Duration) -> bool { false }
+        }
+        // Exercise the real SDK's false return with a controlled transport;
+        // no network request or timing-dependent network timeout is needed.
+        let factory: Arc<dyn sentry::TransportFactory> = Arc::new(Arc::new(Unflushed));
+        let d = Diagnostics::with_transport(None,
+            Some("https://public-key@invalid.example/7".into()), Some(factory));
+        d.set_enabled(true).unwrap();
+        slow(&d);
+        d.checkpoint().unwrap().recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+        assert_eq!(d.status()["queuedUploads"], 1);
+        drop(d);
+        let path = root.join("logs/motion-studio.log");
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while !std::fs::read_to_string(&path).unwrap().contains("diagnostics reporter stopped") {
+            assert!(Instant::now() < deadline, "reporter did not finish shutdown");
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "diagnostics::tests::reporter_shutdown_logs_incomplete_sdk_flush_without_calling_it_an_error"])
+        .env(CHILD, root.path()).env_remove("MOTION_LOG").output().unwrap();
+    assert!(output.status.success(), "{}\n{}",
+        String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+    let text = std::fs::read_to_string(root.path().join("logs/motion-studio.log")).unwrap();
+    let started = text.find("diagnostics reporter started").unwrap();
+    let stopping = text.find("diagnostics reporter stopping reason=").unwrap();
+    let failed = text.find("diagnostics reporter upload flush incomplete wait_limit_ms=500 elapsed_ms=").unwrap();
+    let stopped = text.find("diagnostics reporter stopped").unwrap();
+    assert!(started < stopping && stopping < failed && failed < stopped);
+    assert!(text.lines().any(|line| line.contains("WARN [motion-diagnostics]") && line.contains("upload flush incomplete")));
+    assert!(!text.contains("ERROR"));
+    assert!(!String::from_utf8_lossy(&output.stderr).contains("diagnostics reporter"));
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("diagnostics reporter"));
+    assert!(!text.contains("public-key"));
+}
+
 #[test]
 fn consent_gates_real_sdk_envelopes_and_attachments_and_upload_is_rate_limited() {
     let output=Arc::new(Recording::default());

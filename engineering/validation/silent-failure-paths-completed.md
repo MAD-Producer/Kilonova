@@ -461,7 +461,7 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - cargo tree 未发现会在 release 静态屏蔽 Info 的 log max_level/release_max_level feature；未据此宣称已运行 release 二进制
 - 证据：desktop-debug-filter-full.log、debug-filter-check.log、debug-filter-build.log、debug-filter-runtime.log、runtime/runtime-summary.json、log-features.log
 
-当前观测补齐及核实分批记录到 41；后续实施范围限定为可观测性，功能与算法问题单独登记。原始两份清单保留原样，未覆盖条目仍待审，不将 832 个候选当作已确认或已关闭缺陷。
+当前观测补齐及核实分批记录到 42；后续实施范围限定为可观测性，功能与算法问题单独登记。原始两份清单保留原样，未覆盖条目仍待审，不将 832 个候选当作已确认或已关闭缺陷。
 
 ## 31 · 控制台反压时优先保全错误文件
 
@@ -657,3 +657,21 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - 负对照只将 start 移到 report() 之后，保留同一断言，Cargo 实际退出 101；finally 恢复源码原字节后再执行完整验收
 - 本节只补日志与回归，未修改 panels；DESIGN.md §0.7 既有视觉项继续保留，不把测试通过表述为 §12 全量人工视觉验收
 - 证据：b41-reporter-test.log、b41-reporter-negative.log、b41-desktop-full.log、b41-desktop-check.log
+
+## 42 · 诊断服务生命周期与退出发送未完成
+
+状态：已完成；桌面完整测试 353 passed、0 failed、0 ignored，cargo check 通过
+
+- 诊断服务 started、stopping、stopped 使用默认 Info 并 flush，停止原因区分 channel_closed 与 owner_dropped；正常关闭不记为 Error
+- 观察 Sentry Client::flush 的返回值，false 时记录 Warn，包含既有 wait_limit_ms=500 与实际 elapsed_ms；保留原有等待上限、上传同意、上传预算与退出流程
+- 新增独立进程回归，使用真实 SDK 配合受控 transport 返回 false，验证从开始、停止、未完成警告到结束的日志顺序，以及默认 Warn 仅写文件、stdout/stderr 不增加诊断文本、日志不含 DSN；不声称复现了真实网络超时
+- 此批仍只增加观测，不新增重试、worker 重启、UI 数据结构或算法修复
+- 关联辅助清单：10.16；证据：b42-desktop-full.log、b42-desktop-check.log
+
+### 第 41–42 批可选功能验证边界
+
+- 带 ffmpeg 的功能与集成测试实际 11 + 5 项通过；随后同一完整命令的文档测试报 E0463，无法找到 motion_core/host/media/render/effects 依赖，整条命令未通过
+- 单独文档重试曾通过，不能据此覆盖完整命令的失败；原因尚未核定，不将共享目录里同时存在其他编译任务直接认定为根因
+- 另一次完整重跑被磁盘空间不足中止；释放旧构建符号文件后重跑，仍为 16 项功能测试通过、文档阶段 E0463，未修改断言、忽略项或产品代码绕过
+- 本轮保持可观测性范围，不把可选功能元数据排查扩展成产品逻辑修复；桌面验收与可选功能的结果分别登记
+- 证据：b40-desktop-media-ffmpeg.log、b40-doc-retry.log、b41-desktop-media-ffmpeg.log、b41-desktop-media-ffmpeg-retry.log
