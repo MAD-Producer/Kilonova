@@ -626,10 +626,20 @@ impl Renderer {
             .is_some_and(|i| i.video_stamp == Some((source, pts)) && i.size == (width, height))
             && self.video_gpu.as_ref().is_none_or(|v| v.ready(object))
         {
+            // A completed conversion already supplies these pixels. RGBA
+            // handoff needs neither another upload nor the old YUV inputs.
+            if let Some(video) = &mut self.video_gpu { video.remove(object); }
             return Ok(());
         }
-        self.upload_pixels(TextureKey::Video(object), width, height, rgba, false)?;
-        if let Some(video) = &mut self.video_gpu { video.clear_completion(object); }
+        self.upload_pixels(TextureKey::Video(object), width, height, rgba, false)
+            .map_err(|mut error| {
+                if let RenderError::Resource { rejection, message } = &mut error {
+                    *message = format!("video object={object} source={source} pts_us={pts} phase=rgba_upload rejection={rejection:?}: {message}");
+                }
+                error
+            })?;
+        // Keep cancellation/completion state until replacement succeeds.
+        if let Some(video) = &mut self.video_gpu { video.remove(object); }
         self.video_uploads += 1;
         self.video_upload_bytes += rgba.len() as u64;
         self.images
@@ -849,15 +859,21 @@ impl Renderer {
             ));
         }
         let previous = self.images.get(&id).map_or(0, |t| t.bytes);
-        self.trim_image_cache_except(bytes.saturating_sub(previous), Some(id));
-        if self.texture_bytes - previous
+        // RGBA replaces this object's conversion inputs on successful commit.
+        // Credit only its planes; other live objects still consume the budget.
+        let retiring_planes = match id {
+            TextureKey::Video(object) => self.video_gpu.as_ref().map_or(0, |v| v.input_bytes(object)),
+            _ => 0,
+        };
+        self.trim_image_cache_except(bytes.saturating_sub(previous), Some(id), retiring_planes);
+        let required = self.texture_bytes - previous
             + bytes
-            + self.video_plane_bytes()
-            + self.effect_gpu.state.resource_bytes
-            > self.effect_gpu.builder.source_texture_budget
+            + self.video_plane_bytes() - retiring_planes
+            + self.effect_gpu.state.resource_bytes;
+        if required > self.effect_gpu.builder.source_texture_budget
         {
             return Err(RenderError::budget(ResourceBudgetScope::SourceTextures,
-                self.texture_bytes - previous + bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes,
+                required,
                 self.effect_gpu.builder.source_texture_budget, "decoded preview textures exceed configured source texture budget"));
         }
         let mut premultiplied = if premultiply {
@@ -1089,7 +1105,7 @@ impl Renderer {
     /// Idle textures are expendable, and share (rather than extend) the source
     /// texture budget with videos, nested compositions and plugin resources.
     fn trim_image_cache(&mut self, additional: u64) {
-        self.trim_image_cache_except(additional, None);
+        self.trim_image_cache_except(additional, None, 0);
     }
     fn check_texture_accounting(&self) {
         use std::sync::atomic::Ordering;
@@ -1107,10 +1123,10 @@ impl Renderer {
             }
         }
     }
-    fn trim_image_cache_except(&mut self, additional: u64, replacing: Option<TextureKey>) {
+    fn trim_image_cache_except(&mut self, additional: u64, replacing: Option<TextureKey>, retiring_bytes: u64) {
         let limit = if self.image_cache_enabled { crate::image_resources::IDLE_TEXTURE_BYTES } else { 0 };
         let mut idle = self.image_idle_bytes();
-        let mut total = self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes + additional;
+        let mut total = self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes + additional - retiring_bytes;
         if idle <= limit && total <= self.effect_gpu.builder.source_texture_budget {
             self.check_texture_accounting();
             return;

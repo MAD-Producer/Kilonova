@@ -3,6 +3,108 @@ use super::*;
 use motion_core::composition::{Composition, MAX_COMPOSITIONS};
 
 #[test]
+fn video_handoff_budget_failure_reaches_reply_file_and_stderr_at_default_level() {
+    const CHILD: &str = "MOTION_VIDEO_HANDOFF_LOG_CHILD";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let _logger = crate::logging::init(PathBuf::from(root)).unwrap();
+        let mut renderer = pollster::block_on(motion_render::Renderer::headless()).unwrap();
+        let frame = motion_render::Yuv420Frame {
+            width: 16,
+            height: 16,
+            rotation: 0,
+            standard: 1,
+            range: 2,
+            phase: [0, 0],
+            chroma_layout: motion_render::ChromaLayout::Uv,
+            y: vec![128; 256],
+            uv: vec![128; 128],
+        };
+        renderer.upload_video_yuv(1, 1, 0, &frame).unwrap();
+        let before = renderer.texture_memory_breakdown();
+        renderer
+            .set_memory_policy(motion_render::resource_policy::MemoryPolicy {
+                source_texture_budget_bytes: 4,
+                ..Default::default()
+            })
+            .unwrap();
+        let failure = renderer
+            .upload_video_frame(1, 1, 1, 32, 16, &[255; 2048])
+            .unwrap_err();
+        assert!(matches!(
+            failure.resource_rejection(),
+            Some(motion_render::ResourceRejection::Budget {
+                scope: motion_render::ResourceBudgetScope::SourceTextures,
+                required_bytes: 2052,
+                budget_bytes: 4,
+            })
+        ));
+        assert_eq!(renderer.texture_memory_breakdown(), before);
+        let original = failure.to_string();
+        for context in [
+            "object=1",
+            "source=1",
+            "pts_us=1",
+            "phase=rgba_upload",
+            "required_bytes: 2052",
+            "budget_bytes: 4",
+        ] {
+            assert!(original.contains(context), "missing {context}: {original}");
+        }
+        let (reply, receive) = channel::<Result<Value, String>>();
+        // Exercise an actual GPU allocation-budget refusal through the existing
+        // process sink/reply boundary with a controlled origin request.
+        CURRENT_COMMAND.set(Some(Flight {
+            request: 200,
+            operation: "present",
+            started: Instant::now(),
+        }));
+        respond(reply, Err(original.clone()));
+        CURRENT_COMMAND.set(None);
+        assert_eq!(
+            receive
+                .recv_timeout(Duration::from_secs(5))
+                .unwrap()
+                .unwrap_err(),
+            original
+        );
+        renderer.set_memory_policy(Default::default()).unwrap();
+        renderer
+            .upload_video_frame(1, 1, 1, 32, 16, &[255; 2048])
+            .unwrap();
+        assert_eq!(renderer.texture_memory_breakdown().video_planes, 0);
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "engine::failure::composition_tests::video_handoff_budget_failure_reaches_reply_file_and_stderr_at_default_level"])
+        .env(CHILD,root.path()).env_remove("MOTION_LOG").output().unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let file = std::fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let cause = "decoded preview textures exceed configured source texture budget";
+    let error = file
+        .lines()
+        .find(|line| line.contains("error #200 present "))
+        .unwrap();
+    assert!(error.contains(cause) && error.contains("ms:"));
+    assert!(stderr.contains(error.split("motion_studio::engine: ").nth(1).unwrap()));
+    assert_eq!(stderr.matches(cause).count(), 1);
+    assert!(file.contains("logging initialized level=INFO"));
+    for marker in [cause, "error #200", "logging initialized"] {
+        assert!(
+            !stdout.contains(marker),
+            "log output leaked to stdout: {stdout}"
+        );
+    }
+}
+
+#[test]
 fn source_time_failures_reach_reply_file_and_stderr_at_default_level() {
     const CHILD: &str = "MOTION_SOURCE_TIME_LOG_CHILD";
     if let Some(root) = std::env::var_os(CHILD) {
