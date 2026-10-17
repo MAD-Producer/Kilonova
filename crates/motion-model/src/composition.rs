@@ -260,6 +260,14 @@ impl Project {
         })
     }
     pub fn audio_voices(&self) -> Result<Vec<AudioVoice>> {
+        if self.fps == 0 {
+            return fail(
+                &self.composition_id,
+                "invalid_frame_rate",
+                "Audio composition frame rate must be positive",
+                json!({"fps":self.fps}),
+            );
+        }
         // Preserve fractions until each absolute sample boundary is evaluated.
         // Dividing 48 kHz by fps first loses samples at e.g. 59 or 144 fps.
         #[derive(Clone, Copy)]
@@ -852,6 +860,14 @@ impl Project {
                     json!({"target":e.target}),
                 );
             }
+        }
+        if self.compositions.len() + 1 >= MAX_COMPOSITIONS {
+            return fail(
+                &source,
+                "resource_limit",
+                "Composition limit exceeded",
+                json!({}),
+            );
         }
         let child_id = self.new_composition_id()?;
         let insert = indices[0];
