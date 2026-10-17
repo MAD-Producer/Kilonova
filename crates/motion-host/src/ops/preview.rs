@@ -143,7 +143,7 @@ pub fn start_profiling(id: i64, limit: i32) -> Result<serde_json::Value> {
             return Err("invalid frame recording limit".into());
         }
         let g = s.graphics.as_mut().ok_or("no preview surface")?;
-        g.renderer.device.poll(wgpu::Maintain::Wait);
+        g.renderer.device.poll(wgpu::PollType::wait_indefinitely()).map_err(|e| format!("profiling GPU wait: {e}"))?;
         g.timer = GpuTimer::new(&g.renderer.device, &g.renderer.queue);
         s.recorder = Some(FrameRecorder::new(s.presented + 1, limit as usize));
         s.update_submission_tracking();
@@ -155,7 +155,7 @@ pub fn start_profiling(id: i64, limit: i32) -> Result<serde_json::Value> {
 pub fn stop_profiling(id: i64) -> Result<serde_json::Value> {
     crate::session::with_session(id, |s| {
         if let Some(g) = &mut s.graphics {
-            g.renderer.device.poll(wgpu::Maintain::Wait);
+            g.renderer.device.poll(wgpu::PollType::wait_indefinitely()).map_err(|e| format!("profiling GPU wait: {e}"))?;
             if let Some(timer) = &mut g.timer {
                 for t in timer.collect().into_iter().flatten() {
                     if let Some(r) = &mut s.recorder {

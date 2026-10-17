@@ -12,7 +12,6 @@ members = [
     "desktop/ui",
     "desktop/app",
 ]
-exclude = ["vendor/naga"]
 resolver = "2"
 
 [workspace.package]
@@ -26,7 +25,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 glam = { version = "0.29", features = ["serde"] }
 thiserror = "2.0"
-wgpu = "24.0.5"
+wgpu = { version = "30.0.1", default-features = false, features = ["std", "parking_lot", "vulkan", "dx12", "metal", "wgsl"] }
 pollster = "0.4"
 bytemuck = { version = "1.21", features = ["derive"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
@@ -38,6 +37,3 @@ codegen-units = 1
 
 [profile.release.package.motion-effects]
 overflow-checks = true
-
-[patch.crates-io]
-naga = { path = "vendor/naga" }

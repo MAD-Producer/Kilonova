@@ -1076,7 +1076,7 @@ impl Engine {
     }
     pub fn attach_async(
         &self,
-        window: Arc<dyn wgpu::WindowHandle + Send + Sync>,
+        window: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         width: u32,
         height: u32,
     ) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
@@ -1113,7 +1113,7 @@ impl Engine {
     pub fn float_window(
         &self,
         key: u64,
-        window: Arc<dyn wgpu::WindowHandle + Send + Sync>,
+        window: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         width: u32,
         height: u32,
     ) -> Result<Value, String> {
@@ -1172,8 +1172,10 @@ impl Drop for Engine {
 
 fn clear_target(encoder: &mut wgpu::CommandEncoder, view: &wgpu::TextureView) {
     let _pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+        multiview_mask: None,
         label: Some("floating panel background"),
         color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+            depth_slice: None,
             view,
             resolve_target: None,
             ops: wgpu::Operations {
@@ -1502,22 +1504,23 @@ fn handle(
                     result
                 }else{
                     let output=match g.surface.get_current_texture(){
-                        Ok(output)=>{PRESENT_SURFACE_FAILURES.success();output},
-                        Err(error @ (wgpu::SurfaceError::Lost|wgpu::SurfaceError::Outdated))=>{
+                        wgpu::CurrentSurfaceTexture::Success(output)|wgpu::CurrentSurfaceTexture::Suboptimal(output)=>{PRESENT_SURFACE_FAILURES.success();output},
+                        error @ (wgpu::CurrentSurfaceTexture::Lost|wgpu::CurrentSurfaceTexture::Outdated)=>{
                             PRESENT_SURFACE_FAILURES.failure("desktop.present.surface",format_args!("state={error:?} window={}",ui.window));
                             g.surface.configure(&g.renderer.device,&g.config);return Ok(false)
                         },
-                        Err(wgpu::SurfaceError::Timeout)=>{
+                        wgpu::CurrentSurfaceTexture::Timeout=>{
                             PRESENT_SURFACE_FAILURES.failure("desktop.present.surface",format_args!("state=Timeout window={}",ui.window));
                             return Ok(false)
-                        },Err(e)=>return Err(e.to_string()),
+                        },wgpu::CurrentSurfaceTexture::Occluded=>{PRESENT_SURFACE_FAILURES.success();return Ok(false)},
+                        wgpu::CurrentSurfaceTexture::Validation=>return Err("surface acquisition validation failed".into()),
                     };
                     let view=output.texture.create_view(&Default::default());
                     let mut encoder=g.renderer.device.create_command_encoder(&Default::default());
                     clear_target(&mut encoder,&view);
                     painter.render_scaled(&g.renderer.device,&g.renderer.queue,&mut encoder,&view,&ui.paint,ui.logical_size,[g.config.width as f32/ui.logical_size[0],g.config.height as f32/ui.logical_size[1]]);
                     if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){preview.encode(&g.renderer.device,&g.renderer.queue,&mut encoder,&view,viewport,g.config.format);}
-                    g.renderer.queue.submit(Some(encoder.finish()));output.present();Ok(true)
+                    g.renderer.queue.submit(Some(encoder.finish()));g.renderer.queue.present(output);Ok(true)
                 }
             })();
             if let (Some(w),Some(g))=(floating.as_mut(),s.graphics.as_mut()) {

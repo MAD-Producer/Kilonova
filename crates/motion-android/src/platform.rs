@@ -38,7 +38,7 @@ impl AndroidPlatform {
         width: u32,
         height: u32,
     ) -> Result<SurfaceTarget> {
-        let handle: Arc<dyn wgpu::WindowHandle + Send + Sync> =
+        let handle: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync> =
             Arc::new(AndroidWindow(window.clone()));
         self.attach_surface(handle, width, height)
     }
@@ -85,7 +85,7 @@ impl Platform for AndroidPlatform {
 
     fn attach_surface(
         &self,
-        window: Arc<dyn wgpu::WindowHandle + Send + Sync>,
+        window: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         width: u32,
         height: u32,
     ) -> Result<SurfaceTarget> {
@@ -93,10 +93,10 @@ impl Platform for AndroidPlatform {
         // when no Vulkan adapter exists, so only one backend's surface may stay
         // alive or the GLES fallback cannot connect to the same window.
         let mut failures = Vec::new();
-        for backend in [wgpu::Backends::VULKAN, wgpu::Backends::GL] {
-            let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+        for backend in [wgpu::Backends::VULKAN] {
+            let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
                 backends: backend,
-                ..Default::default()
+                ..wgpu::InstanceDescriptor::new_without_display_handle()
             });
             let surface = match instance.create_surface(window.clone()) {
                 Ok(surface) => surface,
@@ -120,7 +120,7 @@ impl Platform for AndroidPlatform {
                         .find(|f| f.is_srgb())
                         .or_else(|| caps.formats.first().copied())
                         .ok_or("no supported surface pixel format")?;
-                    let config = wgpu::SurfaceConfiguration {
+                    let config = wgpu::SurfaceConfiguration { color_space: wgpu::SurfaceColorSpace::Auto,
                         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
                         format,
                         width,

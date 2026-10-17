@@ -708,8 +708,8 @@ impl Painter {
         let layout_for = |label: &str, bind: &wgpu::BindGroupLayout| {
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some(label),
-                bind_group_layouts: &[bind],
-                push_constant_ranges: &[],
+                bind_group_layouts: &[Some(bind)],
+                immediate_size: 0,
             })
         };
         let solid_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -718,11 +718,11 @@ impl Painter {
             vertex: wgpu::VertexState {
                 module: &module,
                 entry_point: Some("solid_vs"),
-                buffers: &[wgpu::VertexBufferLayout {
+                buffers: &[Some(wgpu::VertexBufferLayout {
                     array_stride: std::mem::size_of::<SolidVertex>() as u64,
                     step_mode: wgpu::VertexStepMode::Vertex,
                     attributes: &wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x4, 2=>Float32x4, 3=>Float32x4, 4=>Float32x4, 5=>Float32x4],
-                }],
+                })],
                 compilation_options: Default::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -741,7 +741,7 @@ impl Painter {
             },
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
         let glyph_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -750,7 +750,7 @@ impl Painter {
             vertex: wgpu::VertexState {
                 module: &module,
                 entry_point: Some("glyph_vs"),
-                buffers: &[wgpu::VertexBufferLayout {
+                buffers: &[Some(wgpu::VertexBufferLayout {
                     array_stride: std::mem::size_of::<GlyphVertex>() as u64,
                     step_mode: wgpu::VertexStepMode::Vertex,
                     attributes: &wgpu::vertex_attr_array![
@@ -758,7 +758,7 @@ impl Painter {
                         1 => Float32x2,
                         2 => Float32x4,
                     ],
-                }],
+                })],
                 compilation_options: Default::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -777,7 +777,7 @@ impl Painter {
             },
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
         let uniform_bytes = bytemuck::bytes_of(&[0.0f32, 0.0, 1.0, 1.0]);
@@ -1120,8 +1120,10 @@ impl Painter {
             })
         });
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            multiview_mask: None,
             label: Some("panels"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                depth_slice: None,
                 view: target,
                 resolve_target: None,
                 ops: wgpu::Operations {

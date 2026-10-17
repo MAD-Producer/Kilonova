@@ -76,8 +76,10 @@ impl Renderer {
                 bytemuck::bytes_of(&u),
             );
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                multiview_mask: None,
                 label: Some("projected track matte"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    depth_slice: None,
                     view: &target.view,
                     resolve_target: None,
                     ops: wgpu::Operations {

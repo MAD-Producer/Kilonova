@@ -112,7 +112,7 @@ fn sixty_clip_traversals_and_reverse_seeks_keep_one_live_video_and_release_the_g
     renderer.retain_video_instances(&scene);
     assert_eq!(renderer.texture_bytes(), baseline);
     assert_eq!(renderer.image_count(), 1);
-    renderer.device.poll(wgpu::Maintain::Wait);
+    renderer.device.poll(wgpu::PollType::wait_indefinitely()).expect("GPU poll failed");
     renderer.check_health().unwrap();
     eprintln!(
         "video logical texture baseline={baseline}, peak={peak}, gap={}",
@@ -180,7 +180,7 @@ fn standalone_input_switches_do_not_accumulate_planes_or_rgba_sources() {
     }
     input.transparent().unwrap();
     assert_eq!(input.memory_bytes(), 4);
-    renderer.device.poll(wgpu::Maintain::Wait);
+    renderer.device.poll(wgpu::PollType::wait_indefinitely()).expect("GPU poll failed");
     renderer.check_health().unwrap();
 }
 
@@ -242,7 +242,7 @@ fn rgba_handoff_releases_only_its_planes_and_preserves_both_instances_pixels() {
     renderer.clear_assets();
     assert_eq!(renderer.texture_memory_breakdown().video_planes, 0);
     assert_eq!(renderer.texture_memory_breakdown().video_rgba, 0);
-    renderer.device.poll(wgpu::Maintain::Wait);
+    renderer.device.poll(wgpu::PollType::wait_indefinitely()).expect("GPU poll failed");
     renderer.check_health().unwrap();
 }
 
@@ -325,7 +325,7 @@ fn rgba_replacement_cannot_borrow_another_live_instances_plane_budget() {
         renderer.video_uploads, uploads,
         "peer conversion was replaced"
     );
-    renderer.device.poll(wgpu::Maintain::Wait);
+    renderer.device.poll(wgpu::PollType::wait_indefinitely()).expect("GPU poll failed");
     renderer.check_health().unwrap();
 }
 

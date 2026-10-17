@@ -180,7 +180,7 @@ fn measure(
         let cpu_us = started.elapsed().as_secs_f64() * 1_000_000.0;
         // Benchmark synchronization only. Runtime's frame loop uses nonblocking
         // Poll and skips busy slots; it never waits for these measurements.
-        renderer.device.poll(wgpu::Maintain::Wait);
+        renderer.device.poll(wgpu::PollType::wait_indefinitely()).map_err(|e| e.to_string())?;
         let timing = timer
             .collect()
             .into_iter()
@@ -222,7 +222,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .ok_or("usage: effect_preview_probe <ignored-artifact-directory>")?;
     let dir = Path::new(&dir);
     std::fs::create_dir_all(dir)?;
-    let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
     let mut renderer = pollster::block_on(Renderer::new_profiled(
         &instance,
         None,

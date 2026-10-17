@@ -118,7 +118,7 @@ impl crate::platform::Platform for Backend {
     }
     fn attach_surface(
         &self,
-        _: Arc<dyn wgpu::WindowHandle + Send + Sync>,
+        _: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         _: u32,
         _: u32,
     ) -> Result<crate::platform::SurfaceTarget> {

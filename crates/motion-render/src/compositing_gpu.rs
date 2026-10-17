@@ -68,8 +68,8 @@ impl CompositingGpu {
         });
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("layer matte inputs"),
-            bind_group_layouts: &[uniform, image, image, image],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(uniform), Some(image), Some(image), Some(image)],
+            immediate_size: 0,
         });
         let make = |entry: &str, target, blend| {
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -79,11 +79,11 @@ impl CompositingGpu {
                     module: &shader,
                     entry_point: Some("vertex_main"),
                     compilation_options: Default::default(),
-                    buffers: &[wgpu::VertexBufferLayout {
+                    buffers: &[Some(wgpu::VertexBufferLayout {
                         array_stride: 20,
                         step_mode: wgpu::VertexStepMode::Vertex,
                         attributes: &wgpu::vertex_attr_array![0=>Float32x3,1=>Float32x2],
-                    }],
+                    })],
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
@@ -101,7 +101,7 @@ impl CompositingGpu {
                 },
                 depth_stencil: None,
                 multisample: Default::default(),
-                multiview: None,
+                multiview_mask: None,
                 cache: None,
             })
         };
@@ -176,8 +176,8 @@ impl CompositingGpu {
             layout: Some(
                 &device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: None,
-                    bind_group_layouts: &[&blend_uniform, &blend_layout],
-                    push_constant_ranges: &[],
+                    bind_group_layouts: &[Some(&blend_uniform), Some(&blend_layout)],
+                    immediate_size: 0,
                 }),
             ),
             vertex: wgpu::VertexState {
@@ -199,7 +199,7 @@ impl CompositingGpu {
             primitive: Default::default(),
             depth_stencil: None,
             multisample: Default::default(),
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
         let blend_stride = motion_effects::shader::UNIFORM_BYTES

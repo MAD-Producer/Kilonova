@@ -475,7 +475,7 @@ impl GpuState {
             };
             let key = (p.program, target_kind);
             if !self.pipelines.contains_key(&key) {
-                device.push_error_scope(wgpu::ErrorFilter::Validation);
+                let error_scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
                 let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
                     label: Some("effect WGSL"),
                     source: wgpu::ShaderSource::Wgsl(
@@ -488,22 +488,18 @@ impl GpuState {
                 });
                 let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: None,
-                    bind_group_layouts: &[
-                        &self.uniform_layout,
-                        &self.input_layout,
-                        &self.resource_layout,
-                    ],
-                    push_constant_ranges: &[],
+                    bind_group_layouts: &[Some(&self.uniform_layout), Some(&self.input_layout), Some(&self.resource_layout)],
+                    immediate_size: 0,
                 });
                 let sprite = builder.programs[p.program as usize].shader.sprite;
                 let additive = builder.programs[p.program as usize].shader.additive;
                 const ATTRIBUTES: [wgpu::VertexAttribute; 3] =
                     wgpu::vertex_attr_array![0=>Float32x4,1=>Float32x4,2=>Float32x4];
-                let vertex_layout = wgpu::VertexBufferLayout {
+                let vertex_layout = Some(wgpu::VertexBufferLayout {
                     array_stride: 48,
                     step_mode: wgpu::VertexStepMode::Instance,
                     attributes: &ATTRIBUTES,
-                };
+                });
                 let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                     label: Some("effect fullscreen pass"),
                     layout: Some(&layout),
@@ -551,18 +547,24 @@ impl GpuState {
                             write_mask: wgpu::ColorWrites::ALL,
                         })],
                     }),
-                    multiview: None,
+                    multiview_mask: None,
                     cache: None,
                 });
-                device.poll(wgpu::Maintain::Wait);
-                if let Some(e) = pollster::block_on(device.pop_error_scope()) {
+                let validation = error_scope.pop();
+                let polled = device.poll(wgpu::PollType::wait_indefinitely());
+                if let Some(e) = pollster::block_on(validation) {
                     let message = format!(
                         "effect program {}: {e}",
                         builder.programs[p.program as usize].key
                     );
+                    let message = match &polled {
+                        Err(error) => format!("{message}; GPU wait also failed: {error}"),
+                        Ok(_) => message,
+                    };
                     self.failed_program = Some((p.program, message.clone()));
                     return Err(RenderError::Invalid(message));
                 }
+                polled?;
                 self.pipelines.insert(key, pipeline);
                 self.pipeline_builds += 1;
             }
@@ -783,7 +785,6 @@ impl GpuState {
                     resource: wgpu::BindingResource::Sampler(&self.sampler),
                 },
             ];
-            drop(view);
             let binding_slot = self
                 .bindings
                 .get_mut(index)
@@ -872,8 +873,10 @@ impl GpuState {
                 ))
             })?;
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            multiview_mask: None,
             label: Some("motion-studio effect"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                depth_slice: None,
                 view: target,
                 resolve_target: None,
                 ops: wgpu::Operations {
