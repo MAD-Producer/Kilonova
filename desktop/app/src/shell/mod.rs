@@ -6,6 +6,7 @@ mod media;
 pub(crate) mod audio_analysis;
 mod nodes;
 mod presentation;
+pub(crate) mod presentation_observation;
 
 pub(crate) mod styles;
 

@@ -362,6 +362,9 @@ impl Shell {
             || self.resizing.is_some()
             || !self.resize_queue.is_empty()
         {
+            if !self.actions.is_empty() && !self.present_due {
+                self.observe_action_deferral(0, "before_draw");
+            }
             return Ok(());
         }
         let Some(size) = self.size() else {
@@ -378,6 +381,7 @@ impl Shell {
             self.actions.extend(actions);
             let ui = self.ui_frame(paint, size, false);
             self.rendering.insert(0, self.engine.present_async(ui)?);
+            self.present_deferrals.submitted(0);
             self.present_due = false;
             self.dirty = true;
             return Ok(());
@@ -451,13 +455,24 @@ impl Shell {
         let (paint, actions) = self.draw_commands(size);
         self.actions.extend(actions);
         if !self.actions.is_empty() {
+            self.observe_action_deferral(0, "after_draw");
             self.engine.recycle_paint(paint);
             return Ok(());
         }
         let ui = self.ui_frame(paint, size, false);
         self.rendering.insert(0, self.engine.present_async(ui)?);
+        self.present_deferrals.submitted(0);
         self.dirty = false;
         Ok(())
+    }
+    fn observe_action_deferral(&mut self, window: u64, phase: &str) {
+        self.present_deferrals.deferred(
+            window,
+            phase,
+            self.actions.len(),
+            self.editing.is_some(),
+            self.engine.queue_depth(),
+        );
     }
     fn draw_acknowledged(&mut self, size: [f32; 2]) -> (PaintList, Vec<panels::Action>) {
         // Preserve the last consumed pointer/key state. New movement, release
@@ -571,6 +586,7 @@ impl Shell {
             .map(|(id, _)| *id)
         {
             if let Some(f) = self.floating.remove(&id) {
+                self.present_deferrals.closed(f.key);
                 self.resize_queue.remove(&f.key);
                 self.engine.close_window(f.key)?;
             }
@@ -600,6 +616,11 @@ impl Shell {
             || self.resizing.is_some()
             || !self.resize_queue.is_empty()
         {
+            if !self.actions.is_empty() && !self.present_due {
+                if let Some(window) = self.floating.get(&id).map(|f| f.key) {
+                    self.observe_action_deferral(window, "before_draw");
+                }
+            }
             return Ok(());
         }
         let project_modal = self.project_modal();
@@ -651,6 +672,7 @@ impl Shell {
             f.paint_input = f.input.clone();
         }
         if !self.actions.is_empty() && !acknowledged {
+            self.observe_action_deferral(key, "after_draw");
             self.engine.recycle_paint(paint);
             return Ok(());
         }
@@ -686,6 +708,7 @@ impl Shell {
                 node_preview: self.node_viewport(panels::floating_node_view_bound(panel,size,self.panels.node_editor.layer_target.is_some()), scale),
             })?,
         );
+        self.present_deferrals.submitted(key);
         if acknowledged {
             self.present_due = false;
             self.dirty = true;
