@@ -447,3 +447,18 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - 保留音频 stop 的非阻塞策略：磁盘 IO 未完成时不在 UI 线程 join
 - 辅助 1.7 的“永久杀死音频输出”表述不准确：latch 属于单个 AudioOutput，Shell::stop 会 take/drop，下一次播放创建新的输出；不清除当前坏流的保护闩锁
 - 关联辅助清单：1.7、10.11–10.14；证据：desktop-audio-failure-full.log、audio-failure-check.log；随后日志过滤批次的完整构建覆盖本节生产源码
+
+## 30 · Debug 依赖日志刷帧的实测修复
+
+状态：已完成；桌面全套 347 passed，0 failed，0 ignored；check/build、最新二进制日志/MCP/GUI 冒烟通过。
+
+- 真实验收发现即使已过滤 Motion Present start/done，wgpu 的 Debug 描述符仍把同一冒烟路径日志写到 80,425,613 字节，掩盖应用诊断
+- MOTION_LOG=debug 现在保留 motion_* 模块的 Debug，第三方保留 Info/Warn/Error；MOTION_LOG=trace 显式保留完整依赖细节
+- 默认 Info、Error 文件/stderr 双输出、原 panic try_lock 策略、用户显式 MOTION_TRACE_UI 均保持
+- 新回归验证 Motion dispatch Debug 保留、依赖逐帧 Debug 在 debug 模式过滤、adapter Info/Warn 保留、trace 模式仍可见依赖细节
+- 最新实际同一路径 Debug 日志为 82,891 文件字节（读为文本后 81,954 UTF-8 字节，差异为换行归一化），此为本机两次冒烟观测，不是跨机器性能承诺
+- 实际验证 Motion attach dispatch Debug 存在，wgpu/naga Debug 不存在；默认 123 条普通 start、0 条 Present start，健康 Present 无逐帧 done；Error 双输出、内存回退标记、轮转及 stdout JSON 纯净均通过
+- cargo tree 未发现会在 release 静态屏蔽 Info 的 log max_level/release_max_level feature；未据此宣称已运行 release 二进制
+- 证据：desktop-debug-filter-full.log、debug-filter-check.log、debug-filter-build.log、debug-filter-runtime.log、runtime/runtime-summary.json、log-features.log
+
+当前核实/修复分批记录到 30；原始两份清单保留原样，未覆盖条目仍待审，不将 832 个候选当作已确认或已关闭缺陷。

@@ -55,6 +55,11 @@ impl FileLogger {
 impl log::Log for FileLogger {
     fn enabled(&self, metadata: &log::Metadata<'_>) -> bool {
         metadata.level() <= self.level
+            // Wgpu emits per-frame descriptors at Debug. Keep ordinary debug
+            // sessions focused on Motion; Trace explicitly includes dependencies.
+            && (self.level != log::LevelFilter::Debug
+                || metadata.level() <= log::Level::Info
+                || metadata.target().starts_with("motion_"))
     }
     fn log(&self, record: &log::Record<'_>) {
         if !self.enabled(record.metadata()) {
@@ -181,6 +186,30 @@ mod tests {
         assert!(text.contains("start #7 test_wait"));
         assert!(text.contains("timeout #7"));
         assert!(!text.contains("hidden"));
+    }
+
+    #[test]
+    fn debug_preserves_motion_details_and_dependency_signals_without_frame_descriptor_flooding() {
+        let root = tempfile::tempdir().unwrap();
+        for level in [log::LevelFilter::Debug, log::LevelFilter::Trace] {
+            let path = root.path().join(format!("{level}.log"));
+            let logger = FileLogger {
+                writer:Mutex::new(BufWriter::new(File::create(&path).unwrap())),
+                level,
+            };
+            logger.log(&log::Record::builder().level(log::Level::Debug)
+                .target("motion_studio::engine").args(format_args!("dispatch #7 state")).build());
+            logger.log(&log::Record::builder().level(log::Level::Debug)
+                .target("wgpu_core::command").args(format_args!("dependency frame descriptor")).build());
+            logger.log(&log::Record::builder().level(log::Level::Info)
+                .target("wgpu_core::instance").args(format_args!("adapter context")).build());
+            logger.log(&log::Record::builder().level(log::Level::Warn)
+                .target("wgpu_hal::vulkan").args(format_args!("dependency warning")).build());
+            let text=fs::read_to_string(path).unwrap();
+            assert!(text.contains("dispatch #7 state"));
+            assert!(text.contains("adapter context") && text.contains("dependency warning"));
+            assert_eq!(text.contains("dependency frame descriptor"), level == log::LevelFilter::Trace);
+        }
     }
 
     #[test]
