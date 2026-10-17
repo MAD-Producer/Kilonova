@@ -154,9 +154,7 @@ pub(super) fn render(
                 (
                     locale.t(T::NewCamera).into(),
                     Action::Edit(Command::CreateCamera),
-                    !state["project"]["camera"]["created"]
-                        .as_bool()
-                        .unwrap_or(false),
+                    true,
                 ),
                 (
                     locale.t(T::NewRectangle).into(),

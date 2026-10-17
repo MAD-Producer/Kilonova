@@ -7,6 +7,7 @@ use std::hash::{Hash, Hasher};
 
 pub(super) struct Row {
     pub(super) spatial: bool,
+    pub(super) camera: bool,
     pub(super) effects: usize,
     pub(super) audio: usize,
     pub(super) masks: Vec<motion_core::masks::LayerMask>,
@@ -185,7 +186,24 @@ fn property_rows_for(layer: Option<&Value>, timeline: Option<&Value>) -> Vec<Pro
         return vec![];
     }
     let mut rows = vec![];
-    for (property, key, title, axes) in [
+    let camera = layer.filter(|l| l["content"]["kind"] == "camera").map(|l| &l["content"]["camera"]);
+    let properties = if let Some(camera) = camera {
+        let mut rows = vec![
+            (Property::Target, "target", T::CameraTarget, vec![0, 1, 2]),
+            (Property::Roll, "roll", T::CameraRoll, vec![0]),
+            (Property::Fov, "fov", T::CameraFov, vec![0]),
+        ];
+        if camera["mode"] == "orbit" {
+            rows.extend([
+                (Property::Radius, "radius", T::CameraRadius, vec![0]),
+                (Property::Azimuth, "azimuth", T::CameraAzimuth, vec![0]),
+                (Property::Elevation, "elevation", T::CameraElevation, vec![0]),
+            ]);
+        } else {
+            rows.insert(0, (Property::Position, "position", T::Position, vec![0, 1, 2]));
+        }
+        rows
+    } else { vec![
         (
             Property::Position,
             "position",
@@ -205,7 +223,8 @@ fn property_rows_for(layer: Option<&Value>, timeline: Option<&Value>) -> Vec<Pro
             if three_d { vec![0, 1, 2] } else { vec![2] },
         ),
         (Property::Opacity, "opacity", T::Opacity, vec![0]),
-    ] {
+    ] };
+    for (property, key, title, axes) in properties {
         let track = timeline
             .map(|t| &t["properties"][key])
             .unwrap_or(&Value::Null);
@@ -256,7 +275,7 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
             let properties = property_rows_for(Some(l), t);
             let mut keys = Vec::new();
             if let Some(t) = t {
-                for property in ["position", "rotation", "scale", "opacity"] {
+                for property in ["position", "rotation", "scale", "opacity", "target", "roll", "fov", "radius", "azimuth", "elevation"] {
                     let track = &t["properties"][property];
                     for k in track["keys"].as_array().into_iter().flatten() {
                         if let Some(f) = k["frame"].as_f64() {
@@ -316,6 +335,7 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
                 .collect();
             Row {
                 spatial: l["content"]["kind"] != "audio",
+                camera: l["content"]["kind"] == "camera",
                 effects: l["effects"].as_array().map_or(0, Vec::len),
                 audio: if super::audio::is_audio(l) {
                     super::audio::rows(l)
@@ -364,6 +384,7 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
             0,
             Row {
                 spatial: false,
+                camera: true,
                 effects: 0,
                 audio: 0,
                 vector: None,
@@ -1078,6 +1099,7 @@ pub(super) fn render(
             Some("image") => motion_ui::icons::Icon::Image,
             Some("video") => motion_ui::icons::Icon::Video,
             Some("audio") => motion_ui::icons::Icon::Audio,
+            Some("camera") => motion_ui::icons::Icon::Camera,
             _ if row.id == 0 => motion_ui::icons::Icon::Camera,
             _ => motion_ui::icons::Icon::Shape,
         };
@@ -1115,7 +1137,7 @@ pub(super) fn render(
             );
             let blend_supported = !matches!(
                 owner["content"]["kind"].as_str(),
-                Some("null" | "audio" | "adjustment")
+                Some("null" | "camera" | "audio" | "adjustment")
             ) && row.id != 0;
             let blend_enabled = blend_supported && !row.locked;
             let matte_enabled = blend_enabled && gutter >= 500.;
@@ -1990,7 +2012,7 @@ pub(super) fn render_layer_properties(
                         .unwrap_or(100.)
                 } else {
                     sample
-                        .map(|s| s[property.key][*component].as_f64().unwrap_or(0.))
+                        .map(|s| s[property.key].as_f64().or_else(|| s[property.key][*component].as_f64()).unwrap_or(0.))
                         .unwrap_or(0.)
                 };
                 let field = property_layout(

@@ -103,7 +103,7 @@ pub const MAX_MATTE_DEPTH: usize = 8;
 pub fn visual(layer: &Layer) -> bool {
     !matches!(
         layer.content,
-        Content::Null | Content::Audio { .. } | Content::Adjustment
+        Content::Null | Content::Camera { .. } | Content::Audio { .. } | Content::Adjustment
     )
 }
 /// References are local to one composition. Visibility does not break a matte.

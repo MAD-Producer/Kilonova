@@ -261,6 +261,7 @@ mod tests {
         let before = engine
             .edit(serde_json::to_string(&Command::CreateCamera).unwrap())
             .unwrap();
+        let object = before["project"]["layers"].as_array().unwrap().last().unwrap()["id"].as_u64().unwrap();
         let mut controls = camera_controls::Controls::default();
         let mut atlas = TextAtlas::from_system(12.).unwrap();
         let mut draw = |controls: &mut camera_controls::Controls, input: &Input| {
@@ -273,22 +274,27 @@ mod tests {
                 Rect::new(0., 0., 400., 1000.),
                 &mut y,
                 &state,
+                object,
                 input,
                 Locale::En,
                 &mut actions,
             );
             actions
         };
-        assert!(draw(&mut controls, &input(100., 65., true, false)).is_empty());
+        let styles = PaintList::default().styles();
+        let rect = super::super::properties::inspector_layout(&styles, Rect::new(0., 0., 400., 1000.), styles.metric("camera.row.height", 28.), 0, 3).number;
+        let x = (rect.min[0] + rect.max[0]) * 0.5;
+        let y = styles.metric("camera.row.height", 28.) * 1.5;
+        assert!(draw(&mut controls, &input(x, y, true, false)).is_empty());
         run(
             &engine,
-            draw(&mut controls, &input(120., 65., false, false)),
+            draw(&mut controls, &input(x + 20., y, false, false)),
         );
         assert!(controls.drag_readout.is_some());
-        run(&engine, draw(&mut controls, &input(130., 65., false, true)));
+        run(&engine, draw(&mut controls, &input(x + 30., y, false, true)));
         let after = engine.state().unwrap();
-        let a = &after["sampledCamera"]["position"];
-        let b = &before["sampledCamera"]["position"];
+        let a = &after["sampledLayers"].as_array().unwrap().iter().find(|l| l["id"] == object).unwrap()["position"];
+        let b = &before["sampledLayers"].as_array().unwrap().iter().find(|l| l["id"] == object).unwrap()["position"];
         assert_ne!(a[0], b[0]);
         assert_eq!(a[1], b[1]);
         assert_eq!(a[2], b[2]);

@@ -116,3 +116,23 @@ fn shared_host_reports_policy_applies_command_and_preserves_state_when_rejected(
         saved
     );
 }
+
+#[test]
+fn camera_snapshot_exposes_legacy_presence_and_independent_layer_tracks() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut session = Session::new(Project::demo(), directory.path().into(), Arc::new(NoMedia)).unwrap();
+    assert_eq!(session.snapshot()["project"]["camera"]["created"], true);
+    let old = session.engine.project().camera.clone();
+    let first = session.apply_commands(r#"{"op":"create_camera"}"#).unwrap();
+    let a = first["edit_result"]["object"].as_u64().unwrap();
+    let second = session.apply_commands(r#"{"op":"create_camera"}"#).unwrap();
+    let b = second["edit_result"]["object"].as_u64().unwrap();
+    assert_ne!(a, b);
+    let state = session.apply_commands(&json!({"op":"set_scalar","object":a,"property":"fov","frame":0,"value":60}).to_string()).unwrap();
+    let sample = |id| state["sampledLayers"].as_array().unwrap().iter().find(|l|l["id"]==id).unwrap();
+    assert_eq!(sample(a)["fov"], 60.);
+    assert_eq!(sample(b)["fov"], 45.);
+    assert_eq!(session.engine.project().camera, old);
+    assert!(state["timeline_layers"].as_array().unwrap().iter().any(|l|l["object"]==a && l["properties"]["target"].is_object()));
+    assert_eq!(state["capabilities"]["camera_layers"]["supported"], true);
+}

@@ -108,7 +108,7 @@ fn check<'a>(
     }
     if matches!(
         layer.content,
-        motion_core::Content::Null | motion_core::Content::Audio { .. }
+        motion_core::Content::Null | motion_core::Content::Camera { .. } | motion_core::Content::Audio { .. }
     ) {
         return Err("select a visual layer for a node effect".into());
     }

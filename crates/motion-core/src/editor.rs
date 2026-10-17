@@ -82,9 +82,8 @@ impl Channel<'_> {
 }
 
 fn channel(project: &mut Project, object: u64, property: Property) -> Result<Channel<'_>> {
-    if object == 0 {
-        let c = &mut project.camera;
-        ensure(c.created, "camera does not exist")?;
+    if object == 0 || project.layers.iter().any(|l| l.id == object && l.camera_data().is_some()) {
+        let c = project.camera_for_mut(object)?;
         return Ok(match property {
             Property::Position => {
                 ensure(
@@ -694,8 +693,13 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             project.layers.push(layer);
         }
         Command::CreateCamera => {
-            ensure(!project.camera.created, "camera already exists")?;
-            project.camera = crate::Camera::new(project.width, project.height);
+            let object = project.layers.iter().map(|l| l.id).max().unwrap_or(0)
+                .checked_add(1).ok_or_else(|| Error::Invalid("layer ID space exhausted".into()))?;
+            let mut layer = Layer::camera(object, &format!("Camera {object}"), project.width, project.height);
+            layer.timeline = Some(crate::LayerTimeline::full(project.frames));
+            project.layers.push(layer);
+            project.version = project.version.max(19);
+            result = Some(EditResult::CreateCamera { object });
         }
         Command::Remove { object, frame } => {
             ensure(!project.layers.iter().any(|l|l.track_matte.is_some_and(|m|m.source==object)),"layer is referenced as a track matte; clear dependent references before deletion")?;
@@ -779,39 +783,51 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             let layer = project.layers.remove(from);
             project.layers.insert(index, layer);
         }
-        Command::CameraMode { mode } => {
-            ensure(project.camera.created, "camera does not exist")?;
-            project.camera.convert_mode(mode, project.frames)?;
+        Command::CameraMode { object, mode } => {
+            let (start, end) = if object == 0 { (0, project.frames as i32) } else {
+                let frames = project.frames;
+                let clip = project.layer_mut(object)?.clip(frames);
+                (clip.in_frame - clip.offset_frame, clip.out_frame - clip.offset_frame)
+            };
+            project.camera_for_mut(object)?.convert_mode_range(mode, start, end)?;
         }
-        Command::Dolly { frame, amount } => {
+        Command::Dolly { object, frame, amount } => {
             valid_frame(frame)?;
-            ensure(project.camera.created, "camera does not exist")?;
+            let local = if object == 0 { frame as i32 } else {
+                let frames = project.frames;
+                let layer = project.layer_mut(object)?;
+                frame as i32 - layer.clip(frames).offset_frame
+            };
+            let camera = project.camera_for_mut(object)?;
             ensure(amount.is_finite(), "invalid dolly movement")?;
-            if project.camera.mode == CameraMode::Orbit {
-                let radius = project.camera.radius.sample(f64::from(frame));
-                project
-                    .camera
+            if camera.mode == CameraMode::Orbit {
+                let radius = camera.radius.sample(f64::from(local));
+                camera
                     .radius
-                    .set_at(frame, (radius - amount).max(1.0))?;
+                    .set_at(local, (radius - amount).max(1.0))?;
             } else {
-                let eye = Vec3::from_array(project.camera.position.sample(f64::from(frame)));
-                let target = Vec3::from_array(project.camera.target.sample(f64::from(frame)));
+                let eye = Vec3::from_array(camera.position.sample(f64::from(local)));
+                let target = Vec3::from_array(camera.target.sample(f64::from(local)));
                 let distance = eye.distance(target);
                 ensure(distance >= 1.0, "camera is too close to its target")?;
                 let step = amount.min(distance - 1.0);
-                project
-                    .camera
+                camera
                     .position
-                    .set_at(frame, (eye + (target - eye).normalize() * step).to_array())?;
+                    .set_at(local, (eye + (target - eye).normalize() * step).to_array())?;
             }
         }
-        Command::Pan { frame, x, y } => {
+        Command::Pan { object, frame, x, y } => {
             valid_frame(frame)?;
-            ensure(project.camera.created, "camera does not exist")?;
+            let local = if object == 0 { frame as i32 } else {
+                let frames = project.frames;
+                let layer = project.layer_mut(object)?;
+                frame as i32 - layer.clip(frames).offset_frame
+            };
+            let (width, height) = (project.width, project.height);
+            let camera = project.camera_for_mut(object)?;
             ensure(x.is_finite() && y.is_finite(), "invalid camera pan")?;
-            let pose = project
-                .camera
-                .pose(f64::from(frame), project.width, project.height);
+            let pose = camera
+                .pose(f64::from(local), width, height);
             let forward = (pose.target - pose.eye).normalize();
             let basis_up = if forward.dot(Vec3::Y).abs() > 0.999 {
                 Vec3::Z
@@ -820,19 +836,19 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             };
             let rolled_up = Quat::from_axis_angle(
                 forward,
-                project.camera.roll.sample(f64::from(frame)).to_radians(),
+                camera.roll.sample(f64::from(local)).to_radians(),
             ) * basis_up;
             let right = forward.cross(rolled_up).normalize();
             let up = right.cross(forward).normalize();
             let delta_world = right * x + up * y;
             let delta = [delta_world.x, -delta_world.y, -delta_world.z];
-            let pos = project.camera.position.sample(f64::from(frame));
-            let target = project.camera.target.sample(f64::from(frame));
+            let pos = camera.position.sample(f64::from(local));
+            let target = camera.target.sample(f64::from(local));
             let sum = |v: [f32; 3]| std::array::from_fn(|i| v[i] + delta[i]);
-            if project.camera.mode == CameraMode::Position {
-                project.camera.position.set_at(frame, sum(pos))?;
+            if camera.mode == CameraMode::Position {
+                camera.position.set_at(local, sum(pos))?;
             }
-            project.camera.target.set_at(frame, sum(target))?;
+            camera.target.set_at(local, sum(target))?;
         }
         Command::Anchor { object, anchor } => {
             ensure(
