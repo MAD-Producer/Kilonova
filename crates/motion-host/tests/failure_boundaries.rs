@@ -6,6 +6,57 @@ use std::{path::Path, sync::Arc};
 // Registration checks managed files and metadata without probing or decoding
 // them again. Any unexpected platform media/surface work fails these tests.
 struct Stub;
+
+#[test]
+fn precompose_capacity_error_reaches_structured_reply_without_session_changes() {
+    let mut project = Project::new(64, 64, 30, 120).unwrap();
+    project.layers.push(Layer::solid(
+        1,
+        "Selected",
+        [32.; 2],
+        [32., 32., 0.],
+        [1.; 4],
+    ));
+    project.compositions = (1..MAX_COMPOSITIONS)
+        .map(|id| Composition {
+            id: format!("comp-{id}"),
+            name: format!("Library {id}"),
+            width: 64,
+            height: 64,
+            fps: 30,
+            frames: 120,
+            background: [0.; 4],
+            camera: Camera::new(64, 64),
+            layers: vec![],
+            expressions: vec![],
+        })
+        .collect();
+    let before = project.clone();
+    let directory = tempfile::tempdir().unwrap();
+    let mut session = Session::new(project, directory.path().into(), Arc::new(Stub)).unwrap();
+    let history = session.engine.history_diagnostics();
+    let reply = motion_host::ops::dispatch(|| {
+        session.apply_commands(
+            r#"[{"op":"rename","object":1,"name":"Must roll back"},
+        {"op":"composition","composition":"comp-main",
+         "action":{"kind":"precompose","objects":[1],"name":"Nested"}}]"#,
+        )
+    });
+    assert_eq!(reply["ok"], false, "{reply}");
+    assert_eq!(reply["error_detail"]["code"], "resource_limit", "{reply}");
+    assert_eq!(reply["error_detail"]["composition"], MAIN_COMPOSITION);
+    assert!(reply["error"]
+        .as_str()
+        .unwrap()
+        .contains("Composition limit"));
+    assert!(
+        session.engine.project() == &before,
+        "failed request changed the session"
+    );
+    assert_eq!(session.engine.revision(), 0);
+    assert_eq!(session.engine.history_diagnostics(), history);
+}
+
 impl Platform for Stub {
     fn name(&self) -> &'static str {
         "asset-registration-test"
