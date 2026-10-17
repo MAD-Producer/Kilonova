@@ -138,3 +138,41 @@ fn snapshot_exposes_history_pressure_without_persisting_it_into_the_project() {
     assert_eq!(snapshot["history"]["undoEntries"], 128);
     assert!(snapshot["project"].get("history").is_none());
 }
+
+#[test]
+fn keyframe_collision_reaches_command_reply_without_changing_session() {
+    for separated in [false, true] {
+        let directory = tempfile::tempdir().unwrap();
+        let mut project = Project::demo();
+        let track = &mut project.layers[1].transform.position;
+        track.upsert(0, [0.0; 3], motion_core::Ease::Linear).unwrap();
+        track.upsert(60, [1.0; 3], motion_core::Ease::Out).unwrap();
+        if separated {
+            track.separate().unwrap();
+        }
+        let before = project.clone();
+        let id =
+            motion_host::session::open(directory.path().into(), project, Arc::new(Stub)).unwrap();
+        let axes = if separated { &["", ",\"axis\":\"x\""][..] } else { &[""][..] };
+        for axis in axes {
+            for op in ["move_key", "copy_key"] {
+                let error = motion_host::ops::editing::command(
+                    id,
+                    &format!(
+                        r#"{{"op":"{op}","object":2,"property":"position","from":0,"to":60{axis}}}"#
+                    ),
+                )
+                .unwrap_err();
+                assert!(error.contains("occupied"), "{error}");
+                motion_host::session::with_session(id, |session| {
+                    assert_eq!(session.engine.project(), &before);
+                    assert_eq!(session.engine.revision(), 0);
+                    assert!(!session.engine.can_undo());
+                    Ok(())
+                })
+                .unwrap();
+            }
+        }
+        motion_host::session::close(id);
+    }
+}

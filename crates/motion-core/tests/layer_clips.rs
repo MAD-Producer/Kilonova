@@ -203,19 +203,32 @@ fn key_commands_convert_composition_time_and_keep_negative_local_keys() {
         value: [5.0; 3],
     })
     .unwrap();
-    e.apply(Command::CopyKey {
+    // Composition frame 10 is the fixture's existing local key at -10.
+    let before = e.snapshot();
+    let revision = e.revision();
+    let error = e.apply(Command::CopyKey {
         axis: None,
         object: 2,
         property: Property::Position,
         from: 5,
         to: 10,
+    }).unwrap_err();
+    assert!(error.to_string().contains("occupied"), "{error}");
+    assert_eq!(e.project(), &before);
+    assert_eq!(e.revision(), revision);
+    e.apply(Command::CopyKey {
+        axis: None,
+        object: 2,
+        property: Property::Position,
+        from: 5,
+        to: 11,
     })
     .unwrap();
     e.apply(Command::MoveKey {
         axis: None,
         object: 2,
         property: Property::Position,
-        from: 10,
+        from: 11,
         to: 15,
     })
     .unwrap();
@@ -232,6 +245,7 @@ fn key_commands_convert_composition_time_and_keep_negative_local_keys() {
     .unwrap();
     let t = &e.project().timeline_layers(15.0)[1].properties.position;
     assert!(t.keys.iter().any(|k| k.frame == 5 && k.local_frame == -15));
+    assert!(t.keys.iter().any(|k| k.frame == 10 && k.local_frame == -10 && k.ease == Ease::Hold));
     assert!(t
         .keys
         .iter()
