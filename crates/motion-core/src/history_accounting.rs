@@ -57,6 +57,7 @@ impl Changes {
             | Command::SetScalar { object, .. }
             | Command::SetComponent { object, .. }
             | Command::SeparateDimensions { object, .. }
+            | Command::MergeDimensions { object, .. }
             | Command::Curve { object, .. }
             | Command::Spatial { object, .. }
             | Command::CopyKey { object, .. }

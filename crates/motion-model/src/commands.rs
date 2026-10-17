@@ -79,6 +79,10 @@ pub enum Command {
         object: u64,
         property: Property,
     },
+    MergeDimensions {
+        object: u64,
+        property: Property,
+    },
     SetComponent {
         object: u64,
         property: Property,

@@ -55,6 +55,7 @@ fn command_directory_has_unique_machine_readable_schemas_and_no_internal_wrapper
     for id in [
         "duplicate",
         "separate_dimensions",
+        "merge_dimensions",
         "split_layer_clip",
         "parent",
         "effect",
