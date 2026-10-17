@@ -401,6 +401,13 @@ pub(super) struct TimelineViewport {
     fitted: bool,
 }
 
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) enum ScrubRuler {
+    #[default]
+    Timeline,
+    Graph,
+}
+
 #[derive(Clone, Default)]
 pub(crate) struct TimelineState {
     pub(crate) graph_box: super::graph_box::Controls,
@@ -433,6 +440,8 @@ pub(crate) struct TimelineState {
     pub zoom: f32,
     pub offset: f32,
     pub scrubbing: bool,
+    /// Only the ruler where the pointer was pressed may seek until release.
+    pub scrub_ruler: ScrubRuler,
     pub last_seek: Option<f64>,
     pub snap_guide: Option<f64>,
     pub moving: Option<MovingLayers>,
