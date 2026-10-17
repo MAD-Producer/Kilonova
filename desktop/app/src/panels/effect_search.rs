@@ -1,7 +1,7 @@
 //! Modal catalogue search using the same plugin command as the effects panel.
 use crate::{
     i18n::Locale,
-    panels::{Action, FxConsole},
+    panels::{Action, EffectSearch},
 };
 use motion_ui::{
     input::{Input, Key, Rect},
@@ -33,11 +33,11 @@ fn entries(catalogue: &Value, query: &str, locale: Locale, object: u64) -> Vec<E
     result
 }
 
-pub fn render_fx_console(
+pub fn render_effect_search(
     list: &mut PaintList,
     atlas: &mut TextAtlas,
     size: [f32; 2],
-    console: &mut FxConsole,
+    console: &mut EffectSearch,
     catalogue: &Value,
     input: &Input,
     locale: Locale,
@@ -168,7 +168,7 @@ mod tests {
         let catalogue = json!({"packages":[{"hash":"abc", "manifest":{"id":"builtin","version":"1","name":"内置",
             "effects":[{"id":"blur","name":"高斯模糊","english_name":"Gaussian Blur"}]}}]});
         let mut atlas = TextAtlas::from_system(13.).unwrap();
-        let mut console = FxConsole {
+        let mut console = EffectSearch {
             position: [400., 250.],
             query: "Gaussian".into(),
             selected_index: 0,
@@ -179,7 +179,7 @@ mod tests {
             keys: vec![(Key::Enter, Default::default())],
             ..Default::default()
         };
-        assert!(render_fx_console(
+        assert!(render_effect_search(
             &mut PaintList::default(),
             &mut atlas,
             [900., 600.],
@@ -192,7 +192,7 @@ mod tests {
         ));
         assert!(out.is_empty());
         input.key_repeats = vec![true];
-        assert!(render_fx_console(
+        assert!(render_effect_search(
             &mut PaintList::default(),
             &mut atlas,
             [900., 600.],
@@ -205,7 +205,7 @@ mod tests {
         ));
         assert!(out.is_empty());
         input.key_repeats.clear();
-        assert!(!render_fx_console(
+        assert!(!render_effect_search(
             &mut PaintList::default(),
             &mut atlas,
             [900., 600.],
@@ -221,7 +221,7 @@ mod tests {
         );
         out.clear();
         console.query = "missing".into();
-        assert!(render_fx_console(
+        assert!(render_effect_search(
             &mut PaintList::default(),
             &mut atlas,
             [900., 600.],

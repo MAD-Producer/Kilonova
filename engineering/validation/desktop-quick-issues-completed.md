@@ -71,3 +71,11 @@
 - 本地默认构建未启用 FFmpeg；导出命令可达性测试按编译特性区分可用与既有不可用状态，实际视频编码链不属于本批新增实现。
 - 保持 PR #321 的时间尺 Seek 修复独立，本批未修改时间尺拖动/Seek 算法；未处理 PR #322 的工程打开提示。
 - 完成记录只证明该分支本地实现和上述验收，不等同于远端 issue 已关闭或主分支已合并。
+
+## 后续：效果搜索命名独立化
+
+- 将快捷键常量、状态类型、字段、模块与绘制入口统一为 `EFFECT_SEARCH`、`EffectSearch`、`effect_search` 和 `render_effect_search`，产品文档统一称为“效果搜索”，同步设计说明和观测台账中的源码路径
+- 保留 Ctrl+空格及原有输入路由；未加入备用快捷键、原生监听或动态挂载，也未改动布局、样式、命令载荷和工程格式
+- 核对六个 Rust 文件的完整内容，确认差异仅为对应标识符及注释替换；搜索原命名无残留，保留原有测试断言
+- 重新运行 `cargo check -p motion-desktop --offline --locked -j2` 和完整桌面测试（含 ignored）：404 项通过、0 失败、0 忽略；日志为 `.tools/effect-search-rename-check.log`、`.tools/effect-search-rename-tests.log`
+- panels 样式扫描、来源校验和 diff 检查通过；DESIGN §0.7 各项延续上表处置，本补丁仅重命名，未再次运行原生截图或增加视觉验收结论

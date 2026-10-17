@@ -38,7 +38,7 @@ mod curves;
 pub(crate) mod effect_controls;
 mod effects;
 mod expressions;
-pub(crate) mod fx_console;
+pub(crate) mod effect_search;
 mod graph_box;
 pub(crate) mod graph_handles;
 pub(crate) mod graph_keys;
@@ -83,7 +83,7 @@ use properties::render as properties;
 use timeline::render as timeline;
 #[cfg(test)]
 use timeline::rows;
-pub use types::{Action, Frame, FxConsole, Panels};
+pub use types::{Action, Frame, EffectSearch, Panels};
 use types::{Field, ScrubState};
 
 pub const CHROME_HEIGHT: f32 = metrics::TITLE_BAR + metrics::MENU_BAR + metrics::TOOL_BAR;
@@ -277,7 +277,7 @@ pub fn chrome(
     let node_modal = panels.node_editor.popup_open();
     let timeline_dropdown = panels.timeline_columns.editing();
     if let Some((_, point)) = input.pressed.filter(|_| {
-        !panels.fx_console_in(None)
+        !panels.effect_search_in(None)
             && !node_modal
             && !timeline_dropdown
             && !layer_modal
@@ -321,8 +321,8 @@ pub fn chrome(
     {
         out.extend(cancel_interaction(panels));
     }
-    if !panels.fx_console_in(None)
-        && !(panels.fx_console.is_some() && keyboard::console_close_pressed(input))
+    if !panels.effect_search_in(None)
+        && !(panels.effect_search.is_some() && keyboard::effect_search_close_pressed(input))
         && !node_modal
         && matches!(
             panels.focused,
@@ -339,7 +339,7 @@ pub fn chrome(
             styles.metric("motion.drag_threshold", 3.),
         );
     }
-    if panels.fx_console.is_none()
+    if panels.effect_search.is_none()
         && input
             .key_presses()
             .any(|(k, _, repeat)| k == Key::Escape && !repeat)
@@ -349,7 +349,7 @@ pub fn chrome(
         panels.panel_menu = None;
         panels.project.search = false;
         panels.timeline.timeline_search = false;
-        panels.fx_console = None;
+        panels.effect_search = None;
         panels.timeline.timeline_context_menu = None;
         panels.project.context_menu = None;
     }
@@ -376,7 +376,7 @@ pub fn chrome(
         || shortcut_modal
         || panels.menu.is_some()
         || panels.panel_menu.is_some()
-        || panels.fx_console_in(None)
+        || panels.effect_search_in(None)
         || panels.timeline.timeline_context_menu.is_some()
         || timeline_dropdown
         || panels.project.context_menu.is_some()
@@ -691,12 +691,12 @@ pub fn chrome(
     }
 
     if panels
-        .fx_console
+        .effect_search
         .as_ref()
         .is_some_and(|c| c.owner.is_none())
     {
-        if let Some(mut console) = panels.fx_console.take() {
-            let open = crate::panels::fx_console::render_fx_console(
+        if let Some(mut console) = panels.effect_search.take() {
+            let open = crate::panels::effect_search::render_effect_search(
                 list,
                 atlas,
                 size,
@@ -708,7 +708,7 @@ pub fn chrome(
                 &mut out,
             );
             if open {
-                panels.fx_console = Some(console);
+                panels.effect_search = Some(console);
             }
         }
     }
@@ -865,8 +865,8 @@ pub fn floating_chrome(
             && !panels.expressions.editing(),
         &mut out,
     );
-    if !panels.fx_console_in(Some(panel))
-        && !(panels.fx_console.is_some() && keyboard::console_close_pressed(input))
+    if !panels.effect_search_in(Some(panel))
+        && !(panels.effect_search.is_some() && keyboard::effect_search_close_pressed(input))
         && matches!(
             panel,
             Panel::Masks | Panel::Properties | Panel::Vector | Panel::Timeline | Panel::Curves
@@ -882,7 +882,7 @@ pub fn floating_chrome(
     }
     let body = Rect::new(0.0, 30.0, size[0], (size[1] - 52.0).max(1.0));
     let mut content = list.child();
-    if !panels.fx_console_in(Some(panel))
+    if !panels.effect_search_in(Some(panel))
         && (input.pressed.is_some() || !input.keys.is_empty() || !input.text.is_empty())
     {
         if panels.focused != Some(panel) {
@@ -975,13 +975,13 @@ pub fn floating_chrome(
         true,
     );
     if panels
-        .fx_console
+        .effect_search
         .as_ref()
         .is_some_and(|c| c.owner == Some(panel))
     {
-        if let Some(mut console) = panels.fx_console.take() {
+        if let Some(mut console) = panels.effect_search.take() {
             let selected = panels.editable_selection(state).first().copied();
-            if fx_console::render_fx_console(
+            if effect_search::render_effect_search(
                 list,
                 atlas,
                 size,
@@ -992,7 +992,7 @@ pub fn floating_chrome(
                 selected,
                 &mut out,
             ) {
-                panels.fx_console = Some(console);
+                panels.effect_search = Some(console);
             }
         }
     }
@@ -1286,7 +1286,7 @@ mod tests {
     #[test]
     fn floating_console_does_not_block_main_menu_pointer_input() {
         let mut panels = Panels {
-            fx_console: Some(FxConsole {
+            effect_search: Some(EffectSearch {
                 position: [20., 20.],
                 query: "glow".into(),
                 selected_index: 0,
@@ -1314,7 +1314,7 @@ mod tests {
         );
         assert_eq!(panels.menu, Some(0));
         assert_eq!(
-            panels.fx_console.as_ref().unwrap().owner,
+            panels.effect_search.as_ref().unwrap().owner,
             Some(Panel::NodeProperties)
         );
     }
@@ -1416,7 +1416,7 @@ mod tests {
     #[test]
     fn main_console_does_not_block_floating_window_shortcuts() {
         let mut panels = Panels {
-            fx_console: Some(FxConsole {
+            effect_search: Some(EffectSearch {
                 position: [20., 20.],
                 query: "glow".into(),
                 selected_index: 0,
@@ -1446,7 +1446,7 @@ mod tests {
             &input,
         );
         assert!(matches!(out.as_slice(), [Action::Save]));
-        assert!(panels.fx_console_in(None));
+        assert!(panels.effect_search_in(None));
     }
     #[test]
     fn node_popup_owns_file_keys_and_outside_panel_click_without_switching_tabs() {

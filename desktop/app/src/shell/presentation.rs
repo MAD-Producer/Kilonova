@@ -416,7 +416,7 @@ impl Shell {
             || self.panels.layer_actions.text_in(Some(Panel::Timeline))
             || self.panels.panel_menu.is_some()
             || self.panels.menu.is_some()
-            || self.panels.fx_console_in(None)
+            || self.panels.effect_search_in(None)
             || self.panels.node_editor.popup_open()
             || self.dialog.is_some()
             || self.project_modal()
@@ -568,11 +568,11 @@ impl Shell {
     pub(crate) fn redock_panel(&mut self, panel: dock::DockId) -> Result<(), String> {
         if self
             .panels
-            .fx_console
+            .effect_search
             .as_ref()
             .is_some_and(|c| c.owner.is_some_and(|owner| owner.dock() == panel))
         {
-            self.panels.fx_console = None;
+            self.panels.effect_search = None;
         }
         if panel == dock::Panel::Nodes.dock() {
             if self.panels.node_editor.cancel_interaction() {

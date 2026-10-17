@@ -62,7 +62,7 @@ pub enum Command {
     ToggleKey(motion_core::Property),
 }
 
-pub const FX_CONSOLE: KeyChord = KeyChord::new(Key::Space, true, false, false);
+pub const EFFECT_SEARCH: KeyChord = KeyChord::new(Key::Space, true, false, false);
 
 /// Modifiers match exactly. Only navigation and micro-movement accept OS repeat.
 pub fn resolve(scope: Scope, key: Key, m: Modifiers, repeat: bool) -> Option<Command> {

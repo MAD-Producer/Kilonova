@@ -18,7 +18,7 @@
 | Ctrl+Alt+Shift+T | 新建文字图层 | 工程 |
 | Ctrl+Alt+Shift+Y / Ctrl+Alt+Y | 新建空对象 / 调整图层 | 工程 |
 | Space | 播放切换 | 工程；Nodes、NodeProperties、NodePreview 聚焦时切换节点预览，不切换工程播放 |
-| Ctrl+Space | 打开 / 再次关闭 FX Console | 主窗或浮窗；输入框、拖动及已有菜单占用时优先处理原交互 |
+| Ctrl+Space | 打开 / 再次关闭效果搜索 | 主窗或浮窗；输入框、拖动及已有菜单占用时优先处理原交互 |
 | PageUp / PageDown、Ctrl+← / Ctrl+→ | 前 / 后一帧；加 Shift 为 10 帧 | 工程 |
 | ← / → | 前 / 后一帧；加 Shift 为 10 帧 | 时间轴 |
 | + / = / − | 放大 / 缩小时间轴 | 时间轴；鼠标在轨道内以鼠标时间为锚点，否则保持播放头位置 |
@@ -88,7 +88,7 @@
 | PageUp/Down、Ctrl+左右、End | 导航工程时间；导航接受系统重复 |
 | Home、普通方向键 | 保留节点适配/微移语义，不导航工程时间 |
 | Ctrl+Shift+D | 节点上下文屏蔽图层分割；返回时间轴操作 |
-| Ctrl+Space | 应用级 FX Console，目标仍是工程图层 |
+| Ctrl+Space | 应用级效果搜索，目标仍是工程图层 |
 
 ## 接入规则
 

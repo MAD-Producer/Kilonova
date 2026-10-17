@@ -134,7 +134,7 @@ pub struct Panels {
     pub(crate) panel_menu: Option<(dock::DockId, [f32; 2])>,
     pub(crate) header_hits: Vec<HeaderHit>,
     pub(crate) header_size: Option<[f32; 2]>,
-    pub fx_console: Option<FxConsole>,
+    pub effect_search: Option<EffectSearch>,
     pub effect_controls: crate::panels::effect_controls::Controls,
     pub timeline_anchor: super::properties::AnchorControls,
     pub animation_controls: crate::panels::animation_controls::Controls,
@@ -294,8 +294,8 @@ impl Panels {
         self.styles = Some(std::sync::Arc::new(sheet));
     }
 
-    pub(crate) fn fx_console_in(&self, owner: Option<motion_ui::dock::Panel>) -> bool {
-        self.fx_console
+    pub(crate) fn effect_search_in(&self, owner: Option<motion_ui::dock::Panel>) -> bool {
+        self.effect_search
             .as_ref()
             .is_some_and(|console| console.owner == owner)
     }
@@ -306,9 +306,9 @@ pub(crate) struct HeaderHit {
     pub action: bool,
 }
 
-/// FX Console quick search overlay (Ctrl+Space)
+/// Effect search overlay (Ctrl+Space)
 #[derive(Clone, Debug)]
-pub struct FxConsole {
+pub struct EffectSearch {
     pub position: [f32; 2],
     pub query: String,
     pub selected_index: usize,

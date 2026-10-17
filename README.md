@@ -58,7 +58,7 @@ py tools/build_android.py --task assembleDebug
 - `Space` 播放，`Ctrl+左右方向键` 或 `PageUp/PageDown` 逐帧。
 - `P/S/R/T` 显示位置、缩放、旋转和不透明度；`U` 显示动画属性。
 - `Shift+F3` 在时间轴中切换值曲线；`F9` 应用平滑缓动。
-- `Ctrl+Space` 打开 FX Console；`Shift+A` 在节点画布中添加节点。
+- `Ctrl+Space` 打开效果搜索；`Shift+A` 在节点画布中添加节点。
 - 节点画布使用中键平移，`Ctrl+滚轮` 以鼠标位置为中心缩放，`Home` 适配全部节点。
 
 完整快捷键见[快捷键列表](desktop/KEYBOARD-SHORTCUTS.md)，节点交互见[节点编辑器交互说明](desktop/NODE-INTERACTIONS.md)。
