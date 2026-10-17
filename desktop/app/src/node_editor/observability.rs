@@ -27,3 +27,12 @@ impl NodeEditor {
         log::debug!("node no-op operation={operation} epoch={} revision={} editing={} selected={} depth={} reason={reason}", self.epoch, self.revision, self.editing(), self.selected.len(), self.parents.len());
     }
 }
+
+impl NodeEditor {
+    pub(super) fn observed<T>(&self, site: &'static str, node: &str, result: motion_graph::Result<T>) -> motion_graph::Result<T> {
+        if let Err(error) = &result {
+            self.observe_failure(site, format_args!("node={} reason={} policy=preserve_caller_fallback", node.chars().take(128).collect::<String>(), error.to_string().chars().take(384).collect::<String>()));
+        }
+        result
+    }
+}

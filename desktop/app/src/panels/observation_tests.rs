@@ -195,3 +195,27 @@ fn retained_clip_gestures_log_lost_release_and_routing_without_closing_history()
         .contains("persistent panel degradation site=timeline.trim_release"));
     assert!(!String::from_utf8_lossy(&output.stdout).contains("panel degradation"));
 }
+
+#[test]
+fn malformed_blend_mode_reports_but_optional_mode_remains_quiet() {
+    const CHILD: &str = "MOTION_BLEND_FALLBACK_CHILD";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = std::path::PathBuf::from(root);
+        let _logger = crate::logging::init(root.clone()).unwrap();
+        let path = root.join("motion-studio.log");
+        let normal = serde_json::json!({"id":7});
+        for _ in 0..120 { assert_eq!(timeline_columns::blend(&normal),motion_core::compositing::BlendMode::default()); }
+        assert!(std::fs::read_to_string(&path).unwrap().is_empty());
+        let bad = serde_json::json!({"id":7,"blend":{"mode":"unknown_mode"}});
+        for _ in 0..120 { assert_eq!(timeline_columns::blend(&bad),motion_core::compositing::BlendMode::default()); timeline_columns::blend(&normal); }
+        let text = std::fs::read_to_string(path).unwrap();
+        let records = text.lines().filter(|l| l.contains("site=timeline.blend ")).collect::<Vec<_>>();
+        assert_eq!(records.len(),2);
+        assert!(records[1].contains("ERROR") && records[1].contains("object=7"));
+        return;
+    }
+    let temp = tempfile::tempdir().unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap()).args(["--exact","panels::observation_tests::malformed_blend_mode_reports_but_optional_mode_remains_quiet"]).env_remove("MOTION_LOG").env(CHILD,temp.path()).output().unwrap();
+    assert!(output.status.success(),"{}\n{}",String::from_utf8_lossy(&output.stdout),String::from_utf8_lossy(&output.stderr));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("site=timeline.blend"));
+}

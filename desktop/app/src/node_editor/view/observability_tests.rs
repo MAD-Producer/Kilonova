@@ -115,3 +115,45 @@ fn real_popup_and_inspector_degradations_are_bounded_and_keep_their_context() {
     );
     assert!(!String::from_utf8_lossy(&output.stdout).contains("node degradation"));
 }
+
+#[test]
+fn malformed_ports_and_rejected_requests_log_once_per_site_without_editing() {
+    const CHILD: &str = "MOTION_NODE_PORT_FALLBACK_CHILD";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = std::path::PathBuf::from(root);
+        let _logger = crate::logging::init(root.clone()).unwrap();
+        let mut editor = simple();
+        editor.document.nodes.iter_mut().find(|n| n.id == "number").unwrap().operation = NodeOp::Unsupported { feature: "controlled-missing-op".into() };
+        editor.select(Some("number"),false);
+        let original = editor.document.clone();
+        let revision = editor.revision;
+        let mut atlas = TextAtlas::from_system(13.).unwrap();
+        let area = Rect::new(0.,0.,900.,600.);
+        for _ in 0..120 {
+            editor.arrange_without_history();
+            let cards = editor.cards(area);
+            assert!(cards.iter().find(|c| c.id == "number").unwrap().sockets.is_empty());
+            editor.paint_canvas(&mut PaintList::default(),&mut atlas,&cards,area,&Input::default(),Language::English);
+            editor.draw_inspector(&mut PaintList::default(),&mut atlas,Rect::new(0.,0.,360.,600.),&Input::default(),Language::English);
+            editor.context_menu = Some(ContextMenu { kind: MenuKind::Node("number".into()), position: [10.;2], selected:0 });
+            editor.paint_context_menu(&mut PaintList::default(),&mut atlas,area,&Input::default(),Language::English);
+        }
+        editor.field = Some(Field { binding: Binding::Constant("number".into(),0), text:"invalid".into(),cursor:7,replace:false,error:None });
+        for _ in 0..120 { assert!(editor.request(Request::Save).is_err()); }
+        assert_eq!(editor.document,original);
+        assert_eq!(editor.revision,revision);
+        assert!(editor.field.as_ref().unwrap().error.is_some() && editor.notice.is_some());
+        let text = std::fs::read_to_string(root.join("motion-studio.log")).unwrap();
+        for site in ["canvas.sockets","canvas.labels","context.ports","inspector.ports","inspector.help_ports","request.field","layout.arrange"] {
+            let records = text.lines().filter(|l| l.contains(&format!("site={site} "))).collect::<Vec<_>>();
+            assert_eq!(records.len(),2,"{site}: {text}");
+            assert!(records[0].contains("WARN") && records[1].contains("ERROR"));
+        }
+        return;
+    }
+    let temp = tempfile::tempdir().unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap()).args(["--exact", "node_editor::view::observability_tests::malformed_ports_and_rejected_requests_log_once_per_site_without_editing"]).env_remove("MOTION_LOG").env(CHILD,temp.path()).output().unwrap();
+    assert!(output.status.success(),"{}\n{}",String::from_utf8_lossy(&output.stdout),String::from_utf8_lossy(&output.stderr));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("site=canvas.sockets"));
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("node degradation"));
+}

@@ -249,13 +249,13 @@ fn distance(a: [f32; 2], b: [f32; 2]) -> f32 {
     ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2)).sqrt()
 }
 fn layer(state: &Value, id: u64) -> Option<Layer> {
-    serde_json::from_value(
+    observe!("path.layer", serde_json::from_value(
         state["project"]["layers"]
             .as_array()?
             .iter()
             .find(|v| v["id"].as_u64() == Some(id))?
             .clone(),
-    )
+    ), "object={id} fallback=no_layer")
     .ok()
 }
 fn icons_pen_button(
@@ -1082,7 +1082,7 @@ impl Controls {
                 }
             }
         }
-        let layer = std::sync::Arc::new(serde_json::from_value::<Layer>(value.clone()).ok()?);
+        let layer = std::sync::Arc::new(observe!("path.inspector_layer", serde_json::from_value::<Layer>(value.clone()), "object={} revision={:?} fallback=no_layer", context.2, revision).ok()?);
         self.inspector_cache = Some(InspectorLayer {
             context,
             layer: layer.clone(),
@@ -1503,5 +1503,38 @@ mod numeric_tests {
                 assert!(controls.numeric_cursor().is_none());
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod fallback_tests {
+    use super::*;
+    #[test]
+    fn malformed_layers_keep_path_fallback_and_emit_bounded_evidence() {
+        const CHILD: &str = "MOTION_PATH_LAYER_FALLBACK_CHILD";
+        if let Some(root) = std::env::var_os(CHILD) {
+            let root = std::path::PathBuf::from(root);
+            let _logger = crate::logging::init(root.clone()).unwrap();
+            let value = serde_json::json!({"id":7,"content":17});
+            let state = serde_json::json!({"revision":1,"project":{"layers":[value.clone()]}});
+            let mut controls = Controls::default();
+            for _ in 0..120 {
+                assert!(layer(&state,7).is_none());
+                assert!(controls.inspector_layer(&state,&value).is_none());
+            }
+            let text = std::fs::read_to_string(root.join("motion-studio.log")).unwrap();
+            for site in ["path.layer","path.inspector_layer"] {
+                let records = text.lines().filter(|l| l.contains(&format!("site={site} "))).collect::<Vec<_>>();
+                assert_eq!(records.len(),2,"{site}: {text}");
+                assert!(records[1].contains("ERROR") && records[1].contains("object=7"));
+            }
+            assert!(controls.inspector_cache.is_none());
+            return;
+        }
+        let temp = tempfile::tempdir().unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap()).args(["--exact", "panels::path_controls::fallback_tests::malformed_layers_keep_path_fallback_and_emit_bounded_evidence"]).env_remove("MOTION_LOG").env(CHILD,temp.path()).output().unwrap();
+        assert!(output.status.success(),"{}\n{}",String::from_utf8_lossy(&output.stdout),String::from_utf8_lossy(&output.stderr));
+        assert!(String::from_utf8_lossy(&output.stderr).contains("site=path.layer"));
+        assert!(!String::from_utf8_lossy(&output.stdout).contains("panel degradation"));
     }
 }

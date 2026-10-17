@@ -1739,7 +1739,7 @@ impl Controls {
             .flatten()
             .find(|e| e["id"].as_u64() == Some(popup.effect))
             .and_then(|e| {
-                serde_json::from_value::<EffectParam>(e["params"][&popup.param].clone()).ok()
+                observe!("effect.color_track", serde_json::from_value::<EffectParam>(e["params"][&popup.param].clone()), "object={} effect={} param={} fallback=close_popup", popup.object, popup.effect, popup.param).ok()
             });
         let Some(track) = track else {
             self.color_popup = None;
@@ -2384,5 +2384,37 @@ mod tests {
             !panels.effect_controls.editing(),
             "clicking outside dismisses the popup"
         );
+    }
+}
+
+#[cfg(test)]
+mod color_observation_tests {
+    use super::*;
+    #[test]
+    fn invalid_color_track_still_closes_popup_and_reports_the_object() {
+        const CHILD: &str = "MOTION_EFFECT_COLOR_TRACK_CHILD";
+        if let Some(root) = std::env::var_os(CHILD) {
+            let root = std::path::PathBuf::from(root);
+            let _logger = crate::logging::init(root.clone()).unwrap();
+            let mut controls = Controls::default();
+            let mut atlas = TextAtlas::from_system(12.).unwrap();
+            let layer = serde_json::json!({"id":7,"effects":[{"id":11,"params":{"color":17}}]});
+            let state = serde_json::json!({"frame":0});
+            for _ in 0..120 {
+                controls.color_popup = Some(ColorPopup { object:7,effect:11,param:"color".into(),anchor:Rect::new(0.,0.,20.,20.),opened:false });
+                let mut actions = Vec::new();
+                controls.color_overlay(&mut PaintList::default(),&mut atlas,Rect::new(0.,0.,640.,480.),&layer,&state,&Input::default(),Locale::En,&mut actions);
+                assert!(controls.color_popup.is_none() && actions.is_empty());
+            }
+            let text = std::fs::read_to_string(root.join("motion-studio.log")).unwrap();
+            let records = text.lines().filter(|l| l.contains("site=effect.color_track ")).collect::<Vec<_>>();
+            assert_eq!(records.len(),2);
+            assert!(records[1].contains("ERROR") && records[1].contains("object=7 effect=11 param=color"));
+            return;
+        }
+        let temp = tempfile::tempdir().unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap()).args(["--exact","panels::effect_controls::color_observation_tests::invalid_color_track_still_closes_popup_and_reports_the_object"]).env_remove("MOTION_LOG").env(CHILD,temp.path()).output().unwrap();
+        assert!(output.status.success(),"{}\n{}",String::from_utf8_lossy(&output.stdout),String::from_utf8_lossy(&output.stderr));
+        assert!(String::from_utf8_lossy(&output.stderr).contains("site=effect.color_track"));
     }
 }

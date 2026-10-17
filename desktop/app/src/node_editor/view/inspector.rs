@@ -574,7 +574,7 @@ impl NodeEditor {
                 }
                 _ => {}
             }
-            if let Ok(ports) = node_ports(&node, &self.document.public_parameters) {
+            if let Ok(ports) = self.observed("inspector.ports", &node.id, node_ports(&node, &self.document.public_parameters)) {
                 y += 13.;
                 label(
                     &mut body,
@@ -800,7 +800,7 @@ impl NodeEditor {
                 colors.TEXT_MUTED,
                 4,
             );
-            if let Ok(specs) = motion_graph::node_port_specs(node, &self.document.public_parameters)
+            if let Ok(specs) = self.observed("inspector.help_ports", &node.id, motion_graph::node_port_specs(node, &self.document.public_parameters))
             {
                 for (heading, ports) in [
                     (language.text("输入端口", "INPUT PORTS"), specs.inputs),

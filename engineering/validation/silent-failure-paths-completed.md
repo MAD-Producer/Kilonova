@@ -1148,3 +1148,30 @@ DESIGN.md §0.7 逐项状态均为 retained with reason：本批只接入观测�
 - 工程切换后的remember_project、音频分析cancel/release派发、关闭node_expect、取消关闭后的compile、OS窗口拖动、诊断上传偏好拒绝现在保留原因；不改变返回值、清理顺序或用户操作。浮窗位置获取/保存失败继续使用None或内存中的geometry，并按阈值观测
 - 新增实际应用加载/样式修复、真实锁中毒与unwind日志探针、真实Engine缓存/终态锁、真实Diagnostics context/report、受控callback时间戳、真实preset恢复/选择和文件geometry持久化回归。probe在logger内try_lock业务锁，验证日志在解锁后发生；FileLogger子进程验证默认级别、阈值、抑制、复位、stderr和stdout隔离
 - 测试边界：callback None是受控输入，未自然制造CPAL驱动倒序；同一recovered helper验证所有锁的释放契约，但未自然诱发movie编码器/退出factory/GPU元数据中毒或系统modified/outer_position不支持。Engine夹具验证原始终态原因后恢复向活worker注入的终态值，再按真实Shutdown清理；不修改产品生命周期
+
+
+## 69 · 节点端口与面板解析降级
+
+- 节点编辑器新增七个固定站点：canvas.sockets、canvas.labels、context.ports、inspector.ports、inspector.help_ports、layout.arrange、request.field。端口/布局解析失败保留空端口、空帮助和原位置，字段提交失败保留原Err、Field.error、notice和未提交内容；不改文档或revision
+- 沿用每个NodeEditor实例内的固定site计数，首次Warn、第60次Error、之后抑制，实例重建清零、健康相邻节点不复位；记录epoch/revision、node和有界原因，不输出字段正文。新增observed只观察并原样返回motion_graph::Result，不更换错误类型
+- 四个panels生产文件新增五个解析站点：path.layer、path.inspector_layer、audio.level_track、timeline.blend、effect.color_track。保持None/空缓存、零音量轨道、默认混合模式、关闭颜色弹窗且无Action的既有回退；缺失/Null的可选音量与混合模式保持安静
+- 面板沿用固定进程site生命周期累计：首次Warn、第60次Error、之后抑制，健康相邻行不复位、进程重启清零；记录object、effect/param/control或revision和原始解析原因，复用既有有界输出，不增加对象级注册表
+- 新增五项真实入口回归：Unsupported节点经cards/paint_canvas/inspector/context解析，真实无效字段request与arrange，畸形Layer的两入口，畸形audio Track、blend模式与颜色EffectParam。每站点重复120次，验证首次/60阈值/抑制及原返回/状态；有效缺省穿插仍安静。隔离FileLogger子进程默认Info验证Error同时进入stderr，日志不进入stdout；最终379项完整测试见§70
+- panels修改属于用户明确批准的续审观测与测试范围；不修改布局、样式、颜色、控件、交互或dark.json，不把观测接入计作视觉整改。DESIGN.md §0.7逐行处置如下
+
+| §0.7基线 | 处置 | 原因与验收限制 |
+| --- | --- | --- |
+| path_controls六处字面量纵向步进 | retained | 仅包装解析，保留行高和纵向坐标，视觉整改另行处理 |
+| path_controls硬编码两列分割 | retained | 保留列宽与命中区域，本次未整改窄面板布局 |
+| path_controls混用按钮高度 | retained | 不改控件语义、尺寸或命中容差 |
+| path_controls自绘数值背景 | retained | 保留现有绘制和编辑行为，不宣称已接入原生field.number |
+| path_controls整行布尔按钮 | retained | 本次未替换控件或调整事件路由 |
+| effect_controls行高与步进 | retained | 观测包装不改滚动、裁剪或行密度 |
+| effect_controls布尔文本按钮 | retained | 本次未修改布尔控件呈现 |
+| effect_controls全宽枚举按钮 | retained | 本次未实现下拉替换 |
+| effect_controls手工hover alpha | retained | 本次不新增或修改颜色/token |
+| effect_controls缺层级缩进 | retained | 本次未调整树布局或展开命中区域 |
+| timeline坐标与11列标签gutter | retained | 按兼容基线保留坐标，不做主题重构 |
+| timeline snap guide颜色 | retained | 按基线保留拖动反馈，不引入新token |
+
+- 样式消费者门与原生GUI冒烟通过；它们不证明以上历史视觉问题已修复，也不代替完整视觉/跨平台验收

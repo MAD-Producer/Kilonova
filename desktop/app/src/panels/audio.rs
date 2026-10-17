@@ -269,7 +269,9 @@ fn key_times(track: &Track<f32>, offset: i64, frames: u64) -> Vec<u32> {
         .collect()
 }
 fn track(layer: &Value, control: Control) -> Track<f32> {
-    serde_json::from_value(layer["audio_levels"][control.name()].clone())
+    let value = &layer["audio_levels"][control.name()];
+    if value.is_null() { return Track::constant(0.); }
+    observe!("audio.level_track", serde_json::from_value(value.clone()), "object={} control={} fallback=zero", layer["id"].as_u64().unwrap_or(0), control.name())
         .unwrap_or_else(|_| Track::constant(0.))
 }
 pub(super) fn prepare(panels: &mut Panels, state: &Value, input: &Input, out: &mut Vec<Action>) {

@@ -325,7 +325,8 @@ pub(super) fn owner(state: &Value, object: u64) -> Option<&Value> {
     }
 }
 pub(super) fn blend(layer: &Value) -> BlendMode {
-    serde_json::from_value(layer["blend"]["mode"].clone()).unwrap_or_default()
+    if layer["blend"]["mode"].is_null() { return BlendMode::default(); }
+    observe!("timeline.blend", serde_json::from_value(layer["blend"]["mode"].clone()), "object={} fallback=normal", layer["id"].as_u64().unwrap_or(0)).unwrap_or_default()
 }
 /// One track matte menu row shared by the timeline dropdown and the layer
 /// menu: `matte == None` clears, otherwise applies the whole matte at once.

@@ -413,7 +413,10 @@ impl NodeEditor {
     /// document. The host may send this action to a worker without borrowing UI state.
     pub fn request(&mut self, request: Request) -> Result<Action, Diagnostic> {
         self.finish_nudge();
-        self.commit_field()?;
+        if let Err(error) = self.commit_field() {
+            self.observe_failure("request.field", format_args!("request={request:?} code={:?} fallback=retain_edit", error.code));
+            return Err(error);
+        }
         if let Some(Drag::Nodes { before, .. }) = self.drag.take() {
             if self.document != before.document {
                 self.finish_edit(before);
@@ -1209,7 +1212,7 @@ impl NodeEditor {
         ];
     }
     fn arrange_without_history(&mut self) {
-        if let Ok(plan) = motion_graph::validate(&self.document, &self.options) {
+        if let Ok(plan) = self.observed("layout.arrange", "document", motion_graph::validate(&self.document, &self.options)) {
             let mut depth: BTreeMap<String, usize> = BTreeMap::new();
             let mut rows: BTreeMap<usize, f32> = BTreeMap::new();
             for id in plan.topological_order {
