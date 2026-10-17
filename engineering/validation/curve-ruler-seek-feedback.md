@@ -16,7 +16,9 @@
 - 最小修复后同一回归通过，保留 curve-playback-fixed.log。
 - 最终扩展回归覆盖两条时间尺、跨时间尺拖动、最终释放坐标、连续确认帧不产生 seek、不吞待处理输入、空格启动播放、实际 worker 播放 tick、失焦/Escape 取消、工程数据保持。最终桌面全套 367 项通过、0 项失败，1 项既有真实音频设备测试忽略，用时 176.45 秒；记录 curve-playback-regression-final.log。现有 17 项编译警告未在本次更改。面板 style consumer 检查、独立新测试文件 rustfmt 与 git diff --check 通过。
 - 测试移到独立文件时首次编译因平级测试模块无法访问 draw_acknowledged 私有方法失败，随后改为 presentation 的测试子模块；不扩大产品方法可见性，未放宽断言。记录 curve-playback-regression.log。
-- 带 FFmpeg 的构建和窗口验证待记录；测试不等同于用户原工程的播放性能验收。
+- 代码提交 921a96d 的带 FFmpeg Release 构建完成（优化 + line tables、thin LTO），用时 10 分 31 秒，构建输出 22 项警告，记录 curve-playback-release-build-final.log。首次构建因本地临时覆盖 release debug 配置导致依赖全量重编译，已主动中断并恢复仓库原有 line-tables-only 配置；首次日志保留为 curve-playback-release-build.log，不算构建通过。
+- 用正式打包工具产出包含 7 个 FFmpeg DLL 和许可/来源清单的 Windows 包，在独立目录解压。tools/ci_desktop.py 对该解压版本完成中英文原生窗口、浮动窗口样式、节点 GPU 渲染和共享 MCP 验证，记录 curve-playback-native.log 与 curve-playback-native/；没有用测试可执行文件代替可运行程序。
+- 此处记录的本地构建对应代码提交 921a96d；之后的验收文档更新不修改 Rust 或资源。原工程连续播放性能仍需用户复测。完整右侧视图容器及全部输入路由的结构拆分不在此实现。
 
 ## 错误处理审计
 
