@@ -182,15 +182,27 @@ fn directories() -> PathBuf {
     std::env::temp_dir().join("motion-studio")
 }
 fn total_memory() -> u64 {
+    const FALLBACK_BYTES: u64 = 8 * 1024 * 1024 * 1024;
     std::fs::read_to_string("/proc/meminfo")
-        .ok()
-        .and_then(|text| {
-            text.lines()
-                .find(|l| l.starts_with("MemTotal:"))
-                .and_then(|l| l.split_whitespace().nth(1)?.parse::<u64>().ok())
-                .map(|v| v * 1024)
+        .map_err(|error| format!("read /proc/meminfo: {error}"))
+        .and_then(|text| memory_total_bytes(&text))
+        .unwrap_or_else(|reason| {
+            log::warn!("physical memory probe unavailable: platform={} fallback_bytes={FALLBACK_BYTES} reason={reason}", std::env::consts::OS);
+            FALLBACK_BYTES
         })
-        .unwrap_or(8 * 1024 * 1024 * 1024)
+}
+fn memory_total_bytes(text: &str) -> Result<u64, String> {
+    let line = text.lines().find_map(|line| line.strip_prefix("MemTotal:"))
+        .ok_or("MemTotal missing")?;
+    let mut fields = line.split_whitespace();
+    let kib = fields.next().ok_or("MemTotal value missing")?.parse::<u64>()
+        .map_err(|error| format!("invalid MemTotal: {error}"))?;
+    if fields.next() != Some("kB") || fields.next().is_some() {
+        return Err("MemTotal unit must be kB".into());
+    }
+    kib.checked_mul(1024)
+        .filter(|bytes| *bytes > 0 && *bytes <= i64::MAX as u64)
+        .ok_or_else(|| "MemTotal exceeds the positive signed 64-bit preview budget".into())
 }
 enum UserEvent {
     EngineChanged,
@@ -1322,5 +1334,25 @@ mod tests {
             translate_key(&WinitKey::Character("S".into())),
             Some(Key::S)
         );
+    }
+}
+
+#[cfg(test)]
+mod memory_probe_tests {
+    use super::memory_total_bytes;
+
+    #[test]
+    fn memory_probe_uses_the_total_and_validates_units() {
+        assert_eq!(memory_total_bytes("MemFree: 123 kB\nMemTotal:       8192 kB\n").unwrap(),8 * 1024 * 1024);
+        for text in ["MemFree: 123 kB","MemTotal:","MemTotal: nope kB","MemTotal: 8192 MB","MemTotal: 8192","MemTotal: 8192 kB extra"] {
+            assert!(memory_total_bytes(text).is_err(),"{text}");
+        }
+    }
+
+    #[test]
+    fn memory_probe_refuses_zero_overflow_and_signed_budget_wraparound() {
+        for text in ["MemTotal: 0 kB","MemTotal: -1 kB","MemTotal: 18446744073709551615 kB","MemTotal: 9007199254740992 kB"] {
+            assert!(memory_total_bytes(text).is_err(),"{text}");
+        }
     }
 }

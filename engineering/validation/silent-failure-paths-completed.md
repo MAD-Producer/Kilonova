@@ -383,3 +383,15 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - 不改变 Engine::in_flight 的含义，不把独立后台任务冒充为串行 worker 当前命令；不增加超时、线程重启或同步等待
 - 关联辅助清单：10.6–10.10；证据：async-movie-batch24.log、desktop-async-movie-full.log、desktop-mask-throttle-full.log、async-movie-check.log、async-movie-build.log
 - 本节验证了生产异步调度/错误传递 helper；未据此宣称运行了 feature=ffmpeg 的真实编码导出验收
+
+## 25 · 内存探测回退的默认可见原因
+
+状态：已完成观测修复；桌面全套 344 passed，0 failed，0 ignored；check/build 与最新进程日志/协议验收通过。
+
+- /proc/meminfo 读取或解析失败时，warn 明确记录平台、原始原因和实际使用的 fallback_bytes，不再把固定 8 GiB 当作无标记的实测值
+- 解析验证 MemTotal、单位、正数、乘法溢出与有符号预算范围；异常输入不 panic、不回绕
+- 两项新回归覆盖正常总量、缺失/错误字段、单位错误、零值、负数、溢出与符号边界
+- 实际 Windows 启动确认默认日志有 platform=windows 与 fallback_bytes=8589934592，Warn 没有泄漏到 stderr/stdout；Error 仍同时落文件和 stderr，MCP/命令目录 stdout 保持 JSON
+- 保留原有回退预算策略，不改变正常 UI 与预览策略；本节未新增 Windows/macOS 原生物理内存探测，不把回退值称为真实容量
+- 关联辅助清单尾部未编号 total_memory 项；全集中该项原标 no-loss，但回退不可观测的问题已核实
+- 证据：desktop-memory-probe-full.log、memory-probe-check.log、memory-probe-build.log、memory-probe-runtime.log、runtime/runtime-summary.json
