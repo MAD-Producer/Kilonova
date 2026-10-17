@@ -61,15 +61,15 @@ fn upcoming_clips_map_nested_time_without_sampling_or_loading_media() {
     source.source_start_frame = 15;
     nested.content = Content::Composition { clip: source };
     p.layers.push(nested);
-    assert_eq!(images::upcoming_assets(&p, 0.), [1, 3, 2]);
-    assert!(images::upcoming_assets(&p, f64::NAN).is_empty());
-    assert!(images::upcoming_assets(&p, 89.).is_empty());
+    assert_eq!(images::upcoming_assets(&p, 0.).unwrap(), [1, 3, 2]);
+    assert!(images::upcoming_assets(&p, f64::NAN).unwrap().is_empty());
+    assert!(images::upcoming_assets(&p, 89.).unwrap().is_empty());
     // A negative child offset does not prefetch its frame zero before it enters
     // the lookahead interval; a two-level reference preserves the same rule.
     if let Content::Composition { clip } = &mut p.layers.last_mut().unwrap().content {
         clip.source_start_frame = -60;
     }
-    assert_eq!(images::upcoming_assets(&p, 0.), [1, 2]);
+    assert_eq!(images::upcoming_assets(&p, 0.).unwrap(), [1, 2]);
 }
 
 #[test]

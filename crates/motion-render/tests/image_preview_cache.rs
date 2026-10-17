@@ -145,7 +145,7 @@ fn prefetched_clip_renders_immediately_and_invalid_future_source_only_fails_when
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
     r.configure_assets(&p, root.path()).unwrap();
     scene.sample(&p, 1., None, &motion_core::ExpressionEvaluator).unwrap();
-    r.set_image_prefetch(image_resources::upcoming_assets(&p, 1.));
+    r.set_image_prefetch(image_resources::upcoming_assets(&p, 1.).unwrap());
     r.prepare_scene_assets(&scene, Resolution::Preview(2048), false)
         .unwrap();
     r.prefetch_scene_assets(Resolution::Preview(2048)).unwrap();
@@ -159,7 +159,7 @@ fn prefetched_clip_renders_immediately_and_invalid_future_source_only_fails_when
     }
     let uploaded = r.image_upload_bytes;
     scene.sample(&p, 16., None, &motion_core::ExpressionEvaluator).unwrap();
-    r.set_image_prefetch(image_resources::upcoming_assets(&p, 16.));
+    r.set_image_prefetch(image_resources::upcoming_assets(&p, 16.).unwrap());
     assert!(r
         .prepare_scene_assets(&scene, Resolution::Preview(2048), true)
         .unwrap());
