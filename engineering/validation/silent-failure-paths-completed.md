@@ -594,3 +594,15 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - 新增邻接参数定义缺失回归，验证日志保留具体参数原因、既有不兼容连线提示仍在，Undo 完整恢复原图
 - 未修改 panels、布局、样式、控件或交互；本节未重新宣称 DESIGN.md 全量视觉验收通过
 - 关联辅助清单：2.3、2.6、2.26；证据：b36-desktop-full.log、b36-desktop-check.log
+
+## 37 · 取消任务前保留已经发生的原始失败
+
+状态：已完成；桌面完整测试 351 passed、0 failed、0 ignored；取消负对照确实失败
+
+- 将节点任务的错误观测放在完成结果被改为 Cancelled 之前，保留 request、operation、耗时、epoch/revision、可用目标路径、cancelled 标记及原始 IO/编译错误
+- 编译预览失败不再先被内部取消检查抹掉；已经取消且编译成功时仍跳过后续规范编译，不增加过期工作
+- 对外仍返回取消结果，generation、pending、preview stamp 的守卫继续丢弃过期结果，不把旧错误写入新文档
+- 新增独立进程回归：实际向被普通文件阻挡的目录保存，实际编译缺少输出的图，在执行结束和完成发布的确定性边界取消，验证原始错误落盘、Error 写 stderr、stdout 不被污染；成功后取消不制造假故障
+- 该测试控制完成交界，不宣称复现某个操作系统 IO 调用内部的竞争时序
+- 负对照临时在错误观测前返回 Cancelled，保留同一断言，Cargo 实际退出 101；随后恢复原字节并重跑完整桌面测试通过
+- 关联辅助清单：3.1；证据：b37-cancel-negative.log、b36-desktop-full.log、b39-desktop-full.log
