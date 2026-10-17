@@ -695,12 +695,12 @@ pub fn chrome(
         .as_ref()
         .is_some_and(|c| c.owner.is_none())
     {
-        if let Some(mut console) = panels.effect_search.take() {
+        if let Some(mut search) = panels.effect_search.take() {
             let open = crate::panels::effect_search::render_effect_search(
                 list,
                 atlas,
                 size,
-                &mut console,
+                &mut search,
                 &panels.effect_controls.catalogue,
                 input,
                 panels.locale,
@@ -708,7 +708,7 @@ pub fn chrome(
                 &mut out,
             );
             if open {
-                panels.effect_search = Some(console);
+                panels.effect_search = Some(search);
             }
         }
     }
@@ -979,20 +979,20 @@ pub fn floating_chrome(
         .as_ref()
         .is_some_and(|c| c.owner == Some(panel))
     {
-        if let Some(mut console) = panels.effect_search.take() {
+        if let Some(mut search) = panels.effect_search.take() {
             let selected = panels.editable_selection(state).first().copied();
             if effect_search::render_effect_search(
                 list,
                 atlas,
                 size,
-                &mut console,
+                &mut search,
                 &panels.effect_controls.catalogue,
                 input,
                 panels.locale,
                 selected,
                 &mut out,
             ) {
-                panels.effect_search = Some(console);
+                panels.effect_search = Some(search);
             }
         }
     }
@@ -1284,7 +1284,7 @@ pub fn floating_node_view_bound(panel: Panel, size: [f32; 2], bound: bool) -> Op
 mod tests {
     use super::*;
     #[test]
-    fn floating_console_does_not_block_main_menu_pointer_input() {
+    fn floating_effect_search_does_not_block_main_menu_pointer_input() {
         let mut panels = Panels {
             effect_search: Some(EffectSearch {
                 position: [20., 20.],
@@ -1414,7 +1414,7 @@ mod tests {
         assert!(panels.menu_scroll > 0);
     }
     #[test]
-    fn main_console_does_not_block_floating_window_shortcuts() {
+    fn main_effect_search_does_not_block_floating_window_shortcuts() {
         let mut panels = Panels {
             effect_search: Some(EffectSearch {
                 position: [20., 20.],

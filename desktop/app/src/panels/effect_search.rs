@@ -37,7 +37,7 @@ pub fn render_effect_search(
     list: &mut PaintList,
     atlas: &mut TextAtlas,
     size: [f32; 2],
-    console: &mut EffectSearch,
+    search: &mut EffectSearch,
     catalogue: &Value,
     input: &Input,
     locale: Locale,
@@ -51,27 +51,27 @@ pub fn render_effect_search(
         return false;
     }
     if !input.text.is_empty() {
-        console.query.push_str(&input.text);
-        console.selected_index = 0;
+        search.query.push_str(&input.text);
+        search.selected_index = 0;
     }
     if input.keys.iter().any(|(k, _)| *k == Key::Backspace) {
-        console.query.pop();
-        console.selected_index = 0;
+        search.query.pop();
+        search.selected_index = 0;
     }
     let items = entries(
         catalogue,
-        &console.query,
+        &search.query,
         locale,
         selected_layer.unwrap_or(0),
     );
-    console.selected_index = console.selected_index.min(items.len().saturating_sub(1));
+    search.selected_index = search.selected_index.min(items.len().saturating_sub(1));
     for (key, _) in &input.keys {
         match key {
             Key::Down => {
-                console.selected_index =
-                    (console.selected_index + 1).min(items.len().saturating_sub(1))
+                search.selected_index =
+                    (search.selected_index + 1).min(items.len().saturating_sub(1))
             }
-            Key::Up => console.selected_index = console.selected_index.saturating_sub(1),
+            Key::Up => search.selected_index = search.selected_index.saturating_sub(1),
             _ => {}
         }
     }
@@ -81,8 +81,8 @@ pub fn render_effect_search(
         .min(((size[1] - 116.).max(0.) / 32.) as usize);
     let width = 450f32.min((size[0] - 20.).max(1.));
     let height = (count as f32 * 32. + 96.).min((size[1] - 20.).max(1.));
-    let x = (console.position[0] - width * 0.5).clamp(0., (size[0] - width).max(0.));
-    let y = (console.position[1] - 60.).clamp(0., (size[1] - height).max(0.));
+    let x = (search.position[0] - width * 0.5).clamp(0., (size[0] - width).max(0.));
+    let y = (search.position[1] - 60.).clamp(0., (size[1] - height).max(0.));
     let area = Rect::new(x, y, width, height);
     list.glyphs.retain(|g| {
         g.position[0] + g.size[0] <= area.min[0]
@@ -103,15 +103,15 @@ pub fn render_effect_search(
         list,
         atlas,
         input_area.shrink(6.),
-        if console.query.is_empty() {
+        if search.query.is_empty() {
             placeholder
         } else {
-            &console.query
+            &search.query
         },
         colors.TEXT,
         Align::Left,
     );
-    let start = console
+    let start = search
         .selected_index
         .saturating_sub(count.saturating_sub(1));
     let enter = motion_ui::input::KeyChord::new(Key::Enter, false, false, false).pressed(input);
@@ -122,7 +122,7 @@ pub fn render_effect_search(
             (width - 16.).max(1.),
             30.,
         );
-        if i == console.selected_index || row.contains(input.mouse) {
+        if i == search.selected_index || row.contains(input.mouse) {
             paint::rect(list, row, colors.ACCENT.with_alpha(0.25));
         }
         ui::text(
@@ -136,7 +136,7 @@ pub fn render_effect_search(
         let click = input
             .pressed
             .is_some_and(|(b, p)| b == motion_ui::input::MouseButton::Left && row.contains(p));
-        if selected_layer.is_some() && (click || (enter && i == console.selected_index)) {
+        if selected_layer.is_some() && (click || (enter && i == search.selected_index)) {
             out.push(Action::Plugin(item.command.clone()));
             return false;
         }
@@ -164,11 +164,11 @@ pub fn render_effect_search(
 mod tests {
     use super::*;
     #[test]
-    fn console_applies_once_and_keeps_disabled_empty_or_repeated_enter_open() {
+    fn effect_search_applies_once_and_keeps_disabled_empty_or_repeated_enter_open() {
         let catalogue = json!({"packages":[{"hash":"abc", "manifest":{"id":"builtin","version":"1","name":"内置",
             "effects":[{"id":"blur","name":"高斯模糊","english_name":"Gaussian Blur"}]}}]});
         let mut atlas = TextAtlas::from_system(13.).unwrap();
-        let mut console = EffectSearch {
+        let mut search = EffectSearch {
             position: [400., 250.],
             query: "Gaussian".into(),
             selected_index: 0,
@@ -183,7 +183,7 @@ mod tests {
             &mut PaintList::default(),
             &mut atlas,
             [900., 600.],
-            &mut console,
+            &mut search,
             &catalogue,
             &input,
             Locale::Zh,
@@ -196,7 +196,7 @@ mod tests {
             &mut PaintList::default(),
             &mut atlas,
             [900., 600.],
-            &mut console,
+            &mut search,
             &catalogue,
             &input,
             Locale::Zh,
@@ -209,7 +209,7 @@ mod tests {
             &mut PaintList::default(),
             &mut atlas,
             [900., 600.],
-            &mut console,
+            &mut search,
             &catalogue,
             &input,
             Locale::Zh,
@@ -220,12 +220,12 @@ mod tests {
             matches!(out.as_slice(), [Action::Plugin(value)] if value["object"] == 42 && value["effect"] == "blur")
         );
         out.clear();
-        console.query = "missing".into();
+        search.query = "missing".into();
         assert!(render_effect_search(
             &mut PaintList::default(),
             &mut atlas,
             [900., 600.],
-            &mut console,
+            &mut search,
             &catalogue,
             &input,
             Locale::Zh,

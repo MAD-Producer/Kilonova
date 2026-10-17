@@ -79,3 +79,11 @@
 - 核对六个 Rust 文件的完整内容，确认差异仅为对应标识符及注释替换；搜索原命名无残留，保留原有测试断言
 - 重新运行 `cargo check -p motion-desktop --offline --locked -j2` 和完整桌面测试（含 ignored）：404 项通过、0 失败、0 忽略；日志为 `.tools/effect-search-rename-check.log`、`.tools/effect-search-rename-tests.log`
 - panels 样式扫描、来源校验和 diff 检查通过；DESIGN §0.7 各项延续上表处置，本补丁仅重命名，未再次运行原生截图或增加视觉验收结论
+
+## 后续：局部变量与 issue 命名同步
+
+- 补齐效果搜索内部的局部变量、参数、闭包和测试名称：状态变量使用 `search`，测试夹具使用 `search_state`，相关测试使用 `effect_search` 命名；继续保留 Ctrl+空格和既有行为
+- 更新 GitHub issue [#107](https://github.com/MAD-Producer/Kilonova/issues/107)、[#134](https://github.com/MAD-Producer/Kilonova/issues/134)、[#155](https://github.com/MAD-Producer/Kilonova/issues/155)、[#158](https://github.com/MAD-Producer/Kilonova/issues/158)、[#163](https://github.com/MAD-Producer/Kilonova/issues/163)、[#198](https://github.com/MAD-Producer/Kilonova/issues/198)、[#226](https://github.com/MAD-Producer/Kilonova/issues/226) 中的功能名称或命名说明，并同步 #226 标题；保留固定旧提交的摘录和链接作为历史证据，未改变 issue 状态与验收勾选
+- issue 更新逐条核对原标题与正文，写入后核验返回内容；原文、补丁和结果保存在根工作目录 `.tools/effect-search-issue-updates/`，命名说明明确记录此分支尚未合并
+- 重新运行编译检查及含 ignored 的完整桌面测试：404 项通过、0 失败、0 忽略；日志为 `.tools/effect-search-variables-check.log`、`.tools/effect-search-variables-tests.log`
+- 根工作目录原在旧分支，先前命名提交位于独立工作目录；交付时将根工作目录切到 `fix/desktop-quick-issues`，保留旧分支及用户原有未跟踪文件，不以独立工作目录的结果冒充根目录已更新

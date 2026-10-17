@@ -50,8 +50,8 @@ pub fn route(
     owner: Option<Panel>,
     out: &mut Vec<Action>,
 ) -> bool {
-    if let Some(console) = &panels.effect_search {
-        let owned = console.owner == owner;
+    if let Some(search) = &panels.effect_search {
+        let owned = search.owner == owner;
         if effect_search_close_pressed(input) || owned && input.focus_lost {
             panels.effect_search = None;
             return true;
@@ -370,7 +370,7 @@ fn handle_context_shortcuts(
 #[cfg(test)]
 mod tests {
     use super::*;
-    fn console(owner: Option<Panel>) -> EffectSearch {
+    fn search_state(owner: Option<Panel>) -> EffectSearch {
         EffectSearch {
             position: [20., 20.],
             query: "glow".into(),
@@ -379,13 +379,13 @@ mod tests {
         }
     }
     #[test]
-    fn console_blocks_only_its_owner_and_other_window_can_save() {
+    fn effect_search_blocks_only_its_owner_and_other_window_can_save() {
         for (owner, other) in [
             (Some(Panel::NodeProperties), None),
             (None, Some(Panel::Info)),
         ] {
             let mut panels = Panels {
-                effect_search: Some(console(owner)),
+                effect_search: Some(search_state(owner)),
                 ..Default::default()
             };
             let mut out = vec![];
@@ -435,7 +435,7 @@ mod tests {
         ] {
             for chord in [KeyChord::new(Key::Escape, false, false, false), EFFECT_SEARCH] {
                 let mut panels = Panels {
-                    effect_search: Some(console(owner)),
+                    effect_search: Some(search_state(owner)),
                     ..Default::default()
                 };
                 let input = Input {
@@ -460,10 +460,10 @@ mod tests {
         }
     }
     #[test]
-    fn unrelated_focus_loss_keeps_console_and_owner_focus_loss_closes_it() {
+    fn unrelated_focus_loss_keeps_effect_search_and_owner_focus_loss_closes_it() {
         let owner = Some(Panel::NodeProperties);
         let mut panels = Panels {
-            effect_search: Some(console(owner)),
+            effect_search: Some(search_state(owner)),
             ..Default::default()
         };
         let input = Input {

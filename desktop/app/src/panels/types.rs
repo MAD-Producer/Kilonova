@@ -297,7 +297,7 @@ impl Panels {
     pub(crate) fn effect_search_in(&self, owner: Option<motion_ui::dock::Panel>) -> bool {
         self.effect_search
             .as_ref()
-            .is_some_and(|console| console.owner == owner)
+            .is_some_and(|search| search.owner == owner)
     }
 }
 pub(crate) struct HeaderHit {
