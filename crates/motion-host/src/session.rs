@@ -453,6 +453,12 @@ impl Session {
         self.video_prepare_us = preparing.elapsed().as_micros() as u64;
         let Some(frames) = frames else {
             self.video_pending_attempts += 1;
+            // Decoder work is asynchronous. Keep editor chrome responsive over
+            // the last completed canvas (or an empty surface on first open),
+            // but leave this composition pending so the caller keeps polling.
+            let retained = g.scratch.valid().then_some(viewport);
+            let painted = present_chrome(g, retained, overlay)?;
+            self.presented += u64::from(painted);
             return Ok(false);
         };
         g.renderer.device.poll(wgpu::PollType::Poll).map_err(|e| format!("preview GPU poll: {e}"))?;
@@ -796,10 +802,25 @@ fn preview_viewport([x,y,w,h]: [f32; 4], [cw,ch]: [u32; 2]) -> [f32; 4] {
 fn present_held(g: &mut Graphics, viewport: [f32; 4],
     overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView)) -> Result<bool> {
     if !g.scratch.valid() { return Ok(false); }
+    present_chrome(g, Some(viewport), overlay)
+}
+fn present_chrome(g: &mut Graphics, retained_viewport: Option<[f32; 4]>,
+    overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView)) -> Result<bool> {
     let Some(output) = acquire_preview_surface(g)? else { return Ok(false); };
     let view = output.texture.create_view(&Default::default());
     let mut encoder = g.renderer.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Motion Studio retained preview") });
-    g.presenter.encode(&mut encoder, &view, None, Some(preview_viewport(viewport, g.last_canvas)), g.last_background);
+    if let Some(viewport) = retained_viewport {
+        g.presenter.encode(&mut encoder, &view, None, Some(preview_viewport(viewport, g.last_canvas)), g.last_background);
+    } else {
+        let _clear = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Motion Studio pending preview"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &view, depth_slice: None, resolve_target: None,
+                ops: wgpu::Operations {load: wgpu::LoadOp::Clear(wgpu::Color::BLACK), store: wgpu::StoreOp::Store},
+            })],
+            ..Default::default()
+        });
+    }
     overlay(&g.renderer, &mut encoder, &view);
     g.renderer.submit_tracked(encoder.finish(), |ledger| g.scratch.collect_texture_resources(ledger));
     g.renderer.check_health().map_err(|e| e.to_string())?;
