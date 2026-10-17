@@ -458,6 +458,15 @@ impl Engine {
         platform: std::sync::Arc<dyn Platform>,
         total_memory: u64,
     ) -> Result<Self, String> {
+        let total_memory = i64::try_from(total_memory).map_err(|_| {
+            let error = "physical memory exceeds the signed 64-bit preview budget".to_string();
+            log::error!("worker startup rejected: root={} reason={error}", root.display());
+            error
+        })?;
+        let startup_root = root.clone();
+        let startup_began = Instant::now();
+        log::info!("worker startup phase=lock root={}", startup_root.display());
+        crate::logging::flush();
         let desktop_platform = platform.clone();
         let diagnostics = crate::diagnostics::Diagnostics::new(
             if cfg!(test) {
@@ -498,6 +507,7 @@ impl Engine {
                 let mut guard = match ProjectGuard::acquire(&root) {
                     Ok(guard) => guard,
                     Err(e) => {
+                        log::error!("worker startup lock failed: root={} reason={e}", root.display());
                         let _ = ready.send(Err(e));
                         return;
                     }
@@ -510,9 +520,12 @@ impl Engine {
                     project.name = "Untitled Project".into();
                     serde_json::to_string(&project).expect("serializable default composition")
                 };
+                log::info!("worker startup phase=session root={}", root.display());
+                crate::logging::flush();
                 let id = match project::create(root, &initial, platform.clone()) {
                     Ok(id) => id,
                     Err(error) => {
+                        log::error!("worker startup session failed: {error}");
                         let _ = ready.send(Err(error));
                         return;
                     }
@@ -528,11 +541,15 @@ impl Engine {
                 };
                 // The scratch budget is a device property, so apply it before
                 // the first render rather than after a visible hitch.
-                if let Err(error) = preview::configure_memory(id, total_memory as i64, false) {
+                log::info!("worker startup phase=memory session={id}");
+                crate::logging::flush();
+                if let Err(error) = preview::configure_memory(id, total_memory, false) {
+                    log::error!("worker startup memory failed: session={id} reason={error}");
                     let _ = ready.send(Err(error));
                     return;
                 }
                 if ready.send(Ok(id)).is_err() {
+                    log::warn!("worker startup receiver closed; releasing session={id}");
                     return;
                 }
                 let mut painter = None;
@@ -577,7 +594,11 @@ impl Engine {
                         log::debug!("done #{} {} {}ms", request, operation, began.elapsed().as_millis());
                     }
                     match handled {
-                        Ok(true) => { channel_closed = false; break; },
+                        Ok(true) => {
+                            log::info!("worker shutdown requested: session={id}");
+                            channel_closed = false;
+                            break;
+                        },
                         Ok(false) => {},
                         Err(reason) => {
                             channel_closed = false;
@@ -601,12 +622,29 @@ impl Engine {
                 worker_factory.lock().unwrap_or_else(|error| error.into_inner()).take();
                 drop(lease);
                 drop(guard);
+                log::info!("worker resources released: session={id}");
                 if let Some((reply, error)) = failed_reply { reply.send(error); }
             })
-            .map_err(|e| e.to_string())?;
-        let _id = opened
-            .recv_timeout(std::time::Duration::from_secs(60))
-            .map_err(|_| "engine thread stopped during startup".to_string())??;
+            .map_err(|error| {
+                log::error!("worker spawn failed: root={} reason={error}", startup_root.display());
+                error.to_string()
+            })?;
+        let _id = match opened.recv_timeout(std::time::Duration::from_secs(60)) {
+            Ok(Ok(id)) => id,
+            result => {
+                let error = match result {
+                    Ok(Err(error)) => error,
+                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) =>
+                        "engine startup timed out; background initialization may still hold the project lock".into(),
+                    Err(std::sync::mpsc::RecvTimeoutError::Disconnected) =>
+                        "engine thread stopped during startup".into(),
+                    Ok(Ok(_)) => unreachable!(),
+                };
+                log::error!("worker startup failed: root={} {}ms reason={error}", startup_root.display(), startup_began.elapsed().as_millis());
+                return Err(error);
+            }
+        };
+        log::info!("worker ready: session={_id} root={} {}ms", startup_root.display(), startup_began.elapsed().as_millis());
         Ok(Self {
             sender,
             worker: Some(worker),
@@ -1056,7 +1094,9 @@ impl Drop for Engine {
         // Shutdown must use the same accounting gate as every other command.
         let _ = self.send(Command::Shutdown);
         if let Some(worker) = self.worker.take() {
-            let _ = worker.join();
+            if let Err(payload) = worker.join() {
+                log::error!("worker join failed: {}", motion_media::panic_reason(payload));
+            }
         }
     }
 }

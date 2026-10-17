@@ -298,3 +298,14 @@
 - 新增可控解码器的真实后台线程测试：当前必需帧成功而未来帧失败，状态仍 ready 且计数/原因可查；新 sequence 后解除故障可恢复未来帧，累计证据保留
 - 不把预取失败伪装成当前帧解码失败，不改变缓存大小和播放器交互
 - 关联辅助清单：10.37 的视频两处；日志：target/silent-failure-validation/video-prefetch-batch20.log
+
+## 21 · 引擎启动与退出阶段的定位
+
+状态：已完成；桌面全套 339 passed，0 failed，0 ignored；cargo check/build 通过。
+
+- 启动时在工程锁、session 创建、内存配置之前记录阶段并 flush；ready 记录工程根、session 和总耗时，启动前的挂起也有最后阶段证据
+- 明确记录锁、创建、配置与线程 spawn 失败；既有 60 秒启动等待区分 Timeout 和 Disconnected，超时说明后台初始化仍可能持有工程锁
+- ready 接收端已关闭时记录正在释放 session；记录正常 Shutdown 与资源释放完成，join panic 保留有界 payload
+- u64 内存输入先检查有符号预算上限，拒绝回绕；新回归验证拒绝时未创建/锁住工程，正常预算仍可启动和重开
+- 保持原有等待、线程所有权和退出策略，不添加命令超时、强制取消、跨线程释放或 worker 重启；真正卡住的原生初始化仍需外部诊断，日志只提高可定位性
+- 关联辅助清单：10.1–10.5；全集 engine total_memory as i64 候选；日志：desktop-startup-full.log、final-check.log、final-build.log

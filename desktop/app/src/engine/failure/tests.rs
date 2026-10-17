@@ -324,3 +324,19 @@ fn reply_poll_distinguishes_pending_success_failure_and_disconnection() {
     }
     assert!(!engine.failed());
 }
+
+#[test]
+fn impossible_memory_budget_is_rejected_before_creating_or_locking_the_project() {
+    let root = tempfile::tempdir().unwrap();
+    let project = root.path().join("not-created");
+    let error = match Engine::start(project.clone(),motion_desktop_media::platform(),u64::MAX) {
+        Ok(_) => panic!("out-of-range memory budget was accepted"),
+        Err(error) => error,
+    };
+    assert!(error.contains("signed 64-bit preview budget"));
+    assert!(!project.exists());
+    let engine = Engine::start(project.clone(),motion_desktop_media::platform(),8<<30).unwrap();
+    assert!(engine.state().is_ok());
+    drop(engine);
+    assert!(Engine::start(project,motion_desktop_media::platform(),8<<30).is_ok());
+}
