@@ -1058,3 +1058,21 @@ DESIGN.md §0.7 逐项状态均为 retained with reason：本批只接入观测�
 - 最终完整验证：cargo test -p motion-media --offline -j 2 -- --test-threads=2 为 79 passed、0 failed、2 项原有大型媒体测试 ignored；cargo test -p motion-desktop --offline -j 2 -- --include-ignored --test-threads=2 为 367 passed、0 failed、0 ignored，包含 worker API 阻塞回归和既有实际 FileLogger 提交失败双输出回归；cargo check/build -p motion-desktop 均通过。证据 b62-media-final.log、b62-desktop-full.log、b62-desktop-check.log、b62-desktop-build.log、b62-test-summary.json
 - panels 递归样式门与 provenance 1370 tracked paths 检查通过；新增锁中毒站点使用默认 Info 的内存 Log 捕获验证实际恢复分支，文件/stderr 路由另外由既有真实 FileLogger 回归验证，不声称正常 UI 启动人为制造了 registry 中毒。证据 b62-style-gate.log、b62-provenance.log
 - 新二进制在隔离 LOCALAPPDATA 下实际启动，生成 directories()/logs/motion-studio.log；移除 MOTION_LOG 后有 129 条普通命令 start、0 条 Present start，健康路径没有新增 poison/registry 恢复日志；Debug 无 Present start/dispatch，done 仍至少 100ms。Error 文件/stderr 双输出、日志轮转、CLI/MCP stdout JSON、fatal 参数错误、MCP UI 正常 EOF 和 shutdown checkpoint 失败原因均通过；证据 b62-runtime.log、runtime-b62/runtime-summary.json 及各进程原始输出。未重新执行全套跨平台/原生设计或感知图像验收
+
+## 63 · GPU 提交台账恢复与首批渲染边界复核
+
+- 按原始 path:line 逐项复核 B1 的 14 个文件、77 个候选：新增观测 3、已有覆盖 2、核实保留 69、功能边界 3；不包括 effect_plan 的 104 行和 renderer 的 73 行。机械台账累计映射 192/832 行，新增观测关联 27、已有覆盖 54、核实保留 108、功能边界 3，另有 640 行尚未逐项关联，不等于 640 个缺陷；证据 b63-mechanical-mapping.json、b63-mapping-check.log
+- 补齐 SubmissionLedger 的 begin、complete、info 三处中毒锁恢复，仍使用原 into_inner，不清除 poison 或修改原始提交/完成/资源统计。保留恢复前 submitted、completed、tracked/untracked pending、known bytes、skipped 快照以及可用 submission id，不能以该快照证明半更新台账已修复或统计可信
+- 三个固定站点按进程生命周期累计，首次 Warn、第 60 次 Error，之后抑制；健康 ledger、tracking 开关和调用方 clear_poison 均不复位，仅进程重启清零。不是连续失败、帧数或一秒钟；证据只含固定站点和数值，没有动态键、原因缓存或完整用户内容
+- Recovery 在业务 guard 之前声明，反向析构在正常返回、提前返回和 unwind 时先释放 ledger guard 再输出。健康路径不读取时钟、不分配日志字符串、不写日志；恢复也只在两个阈值保留证据。recovery_elapsed_ms 从取得中毒 guard 后开始，不代表锁等待或完整命令耗时
+- 释放锁后的恢复日志不能替代挂起前信号；作用域永不退出时不保证该恢复记录出现。既有非 Present Info start、flush 和 in-flight API 保持承担卡住命令定位，没有增加逐帧 Present 日志、worker 超时或重启
+- 新增一个测试，分三个独立进程执行 threshold/unwind/gpu：真实 Mutex 中毒、健康 120 次安静、每站点 120 次恢复只输出首次和第 60 次，交错健康 ledger 及开关/清除再中毒不复位，默认 Info 仍能捕获 Warn/Error。logger 回调以 try_lock 检查业务 guard 已释放，原 poison 和返回统计保留
+- GPU 用例实际创建 headless Renderer、纹理和 command encoder，向真实 queue 提交并 poll 完成，由 on_submitted_work_done 执行中毒 complete 路径，再核实 pending/known bytes 归零、峰值和 renderer health；不是仅直接调用完成 helper。新站点使用默认级别内存 Log 验证实际失败分支，真实文件/stderr 路由由桌面既有 FileLogger 回归及进程启动验证分别覆盖，不声称正常 UI 人为制造了台账中毒
+- 核实保留 32/64 位 usize→u64 等宽/拓宽、最多 128 层偏移、64 活跃合成及 32 MiB bundle 的受限 u32 字段、无父节点/负纹理 token 位型、id/fingerprint 高低字、GPU 浮点坐标、量化 LUT 和有意保守的冷却/预算饱和。measurement 微秒 u128→u64 实为收窄，原报告 widened 标签不准确，但超限需要约 58 万年连续运行，没有据此修改时钟契约
+- layer_gpu/mask_gpu 的共享 texture_bytes 饱和减法由既有 renderer trim 实测比对观测覆盖，并非本批在减法处新增即时日志，也不代表已修复记账根因。独立 MaskCache 的非有限尺寸/scale 和 mask_plan::write 的任意外部 offset 三行仍保留功能边界，不声称全输入安全；手工 Scene 的 sampled reference/其他 expect 不由本批关闭，issue #133 未作全项验收
+- 可选原图探针使用仓库外独立程序生成的 2049×33 PNG，设置真实 MOTION_IMAGE_SOURCE，实际解码与两次 2048×33 预览缓存探测通过；不是依靠环境变量缺失直接返回取得绿灯。证据 b63-local-source.json、b63-original-image-probe.log；无新增依赖、第三方素材或产品资产
+- 保留失败证据：初次新增 GPU 夹具误用了 RenderTarget 不存在的方法，改用生产 collect_texture_resources；完整渲染链接曾因 E 盘空间耗尽报 LNK1180，用户清理构建缓存后重新执行验收。未修改产品 API 或任何既有断言来通过测试；证据 b63-submission-initial-fixture.log、b63-render-disk-full.log
+- 本批不修改 panels、布局、样式、交互、返回值、取消/发布/回滚策略、respond、两处 MOTION_TRACE_UI 输出、原始两份报告或用户无关文件；DESIGN.md §0.7 沿用 §59 retained with reason，未将日志接入视为视觉整改、跨平台验收或中毒根因修复
+- cargo test -p motion-render --offline -j 2 -- --include-ignored --test-threads=2 完整通过：183 passed、0 failed、0 ignored，含真实 GPU 锁恢复、既有 submission_memory/像素测试、设置外部原图后的可选探针和 doc-test；证据 b63-render-full.log、b63-render-summary.json。桌面完整测试 367 passed、0 failed、0 ignored，包含 worker 阻塞 API 和真实 FileLogger 回归；cargo check/build -p motion-desktop 均通过。证据 b63-desktop-full.log、b63-desktop-check.log、b63-desktop-build.log、b63-test-summary.json
+- 新二进制在隔离 LOCALAPPDATA 下实际启动，默认 Info 记录 130 条普通 start、0 条 Present start，健康场景无新增提交台账恢复告警；Debug 无 Present start/dispatch，done 只允许至少 100ms。Error 文件/stderr 双输出、日志轮转、CLI/MCP stdout JSON、fatal 参数错误、MCP UI 正常 EOF 与 shutdown checkpoint 失败原因均通过；证据 b63-runtime.log、runtime-b63/runtime-summary.json 及各进程原始输出
+- panels 样式门、provenance 1372 tracked paths、格式与 git diff --check 通过；未重跑全套跨平台/原生设计或感知图像验收，不据此声明全量视觉规范合规。证据 b63-style-gate.log、b63-provenance.log
