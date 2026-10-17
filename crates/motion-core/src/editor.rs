@@ -787,7 +787,9 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             let (start, end) = if object == 0 { (0, project.frames as i32) } else {
                 let frames = project.frames;
                 let clip = project.layer_mut(object)?.clip(frames);
-                (clip.in_frame - clip.offset_frame, clip.out_frame - clip.offset_frame)
+                let local = |frame: i32| frame.checked_sub(clip.offset_frame)
+                    .ok_or_else(|| Error::Invalid("local camera time overflow".into()));
+                (local(clip.in_frame)?, local(clip.out_frame)?)
             };
             project.camera_for_mut(object)?.convert_mode_range(mode, start, end)?;
         }
@@ -796,7 +798,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             let local = if object == 0 { frame as i32 } else {
                 let frames = project.frames;
                 let layer = project.layer_mut(object)?;
-                frame as i32 - layer.clip(frames).offset_frame
+                layer.clip(frames).edit_frame(frame)?
             };
             let camera = project.camera_for_mut(object)?;
             ensure(amount.is_finite(), "invalid dolly movement")?;
@@ -821,7 +823,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             let local = if object == 0 { frame as i32 } else {
                 let frames = project.frames;
                 let layer = project.layer_mut(object)?;
-                frame as i32 - layer.clip(frames).offset_frame
+                layer.clip(frames).edit_frame(frame)?
             };
             let (width, height) = (project.width, project.height);
             let camera = project.camera_for_mut(object)?;
