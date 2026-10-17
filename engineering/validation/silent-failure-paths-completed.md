@@ -632,3 +632,15 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - 实际默认 Info 有 124 条普通 start、0 条 Present start，CLI/MCP stdout JSON、错误双输出和日志轮转均通过；Debug 日志 82,088 字节，Motion Debug 保留而依赖逐帧 Debug 被过滤
 - 使用独立二进制和 LOCALAPPDATA 目录验收，未覆盖用户正在运行的程序或日志；已查看实际主窗口截图，内容区正常绘制，保留 §0.7 既有视觉整改项，不宣称完成 §12 全部人工验收
 - 关联辅助清单：10.18、10.22；证据：b39-desktop-full.log、b39-desktop-build-ffmpeg.log、b39-runtime.log、runtime-b39/runtime-summary.json
+
+## 40 · 音频缓存错误保留资产、阶段和原始原因
+
+状态：已完成；motion-media 全套 69 passed、0 failed、2 项原有大型媒体 ignored；桌面 352 passed、0 failed、0 ignored，cargo check 通过
+
+- 缓存路径解析不再丢弃原始 IO 错误并统一报成 missing，记录资产 ID、缓存路径、IO kind 与 reason，继续提示 prepare_audio
+- 缓存打开/metadata/seek/read 的错误带上对应阶段及资产；长度不符同时给出 expected_bytes/actual_bytes，越工程路径仍明确拒绝
+- 非有限缓存样本带上源资产、绝对源 sample 和 channel，区别于第 38 批的混音运算产生 NaN
+- 新增真实文件回归：构造成功后截断已打开的缓存，验证 UnexpectedEof；删除缓存后重新构造验证 NotFound 和具体路径；等长缓存内写入 NaN，验证源样本定位
+- 不把权限错误伪装成 NotFound，不使用平台 ACL 桩声称实际复现了权限错误；open/metadata/seek 的上下文由代码路径核对，当前新增真实故障覆盖 read/路径解析/坏样本
+- 保留既有 Err 调用链，由后台 watchdog/导出失败日志观测；不在实时回调或逐采样循环写文件/stderr，不改变成功 PCM、缓存预算或模型格式
+- 证据：b40-media-full.log、b40-desktop-full.log、b40-desktop-check.log

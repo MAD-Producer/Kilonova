@@ -41,19 +41,24 @@ impl AudioMixer {
             if !voices.iter().any(|voice|voice.asset==a.id) {
                 continue;
             }
-            let path = cache_path(&root, a)?.canonicalize().map_err(|_| {
-                format!("audio cache missing for asset {}; call prepare_audio", a.id)
+            let cache = cache_path(&root, a)?;
+            let path = cache.canonicalize().map_err(|error| {
+                format!("audio cache unavailable: asset={} path={} kind={:?} reason={error}; call prepare_audio", a.id, cache.display(), error.kind())
             })?;
             if !path.starts_with(&root) {
-                return Err("audio cache outside project".into());
+                return Err(format!("audio cache outside project: asset={} path={}", a.id, path.display()));
             }
-            let file = File::open(path).map_err(|e| e.to_string())?;
-            if file.metadata().map_err(|e| e.to_string())?.len()
-                != a.sample_frames * u64::from(a.channels) * 4
-            {
+            let file = File::open(&path).map_err(|error| {
+                format!("audio cache open failed: asset={} path={} reason={error}", a.id, path.display())
+            })?;
+            let actual_bytes = file.metadata().map_err(|error| {
+                format!("audio cache metadata failed: asset={} path={} reason={error}", a.id, path.display())
+            })?.len();
+            let expected_bytes = a.sample_frames * u64::from(a.channels) * 4;
+            if actual_bytes != expected_bytes {
                 return Err(format!(
-                    "audio cache invalid for asset {}; call prepare_audio",
-                    a.id
+                    "audio cache invalid for asset {}: path={} expected_bytes={expected_bytes} actual_bytes={actual_bytes}; call prepare_audio",
+                    a.id, path.display()
                 ));
             }
             sources.push(Source {
@@ -126,16 +131,16 @@ impl AudioMixer {
             source
                 .file
                 .seek(SeekFrom::Start(first * ch as u64 * 4))
-                .map_err(|e| e.to_string())?;
+                .map_err(|error| format!("audio cache seek failed: asset={} first_sample={first} reason={error}", asset.id))?;
             source
                 .file
                 .read_exact(&mut self.bytes)
-                .map_err(|e| e.to_string())?;
+                .map_err(|error| format!("audio cache read failed: asset={} first_sample={first} sample_frames={} kind={:?} reason={error}", asset.id, last - first, error.kind()))?;
             self.samples.clear();
-            for b in self.bytes.chunks_exact(4) {
+            for (index, b) in self.bytes.chunks_exact(4).enumerate() {
                 let v = f32::from_le_bytes(b.try_into().unwrap());
                 if !v.is_finite() {
-                    return Err("audio cache contains a non-finite sample".into());
+                    return Err(format!("audio cache contains a non-finite sample: asset={} sample={} channel={}", asset.id, first + (index / ch) as u64, index % ch));
                 }
                 self.samples.push(v);
             }
@@ -532,6 +537,41 @@ mod source_interval_tests {
         }
         project.validate().unwrap();
         project
+    }
+
+    #[test]
+    fn cache_failures_keep_the_asset_and_original_filesystem_cause() {
+        let root = tempfile::tempdir().unwrap();
+        let project = project_with_pcm(root.path(), &[0.25]);
+        let cache = cache_path(root.path(), &project.audio_assets[0]).unwrap();
+        let mut mixer = AudioMixer::new(project.clone(), root.path()).unwrap();
+        std::fs::write(&cache, 0.25f32.to_le_bytes().repeat(4)).unwrap();
+        let error = mixer.mix(8, &mut [0.; 8]).unwrap_err();
+        assert!(error.contains("audio cache read failed: asset=1"), "{error}");
+        assert!(error.contains("kind=UnexpectedEof reason="), "{error}");
+        drop(mixer);
+        std::fs::remove_file(&cache).unwrap();
+        let error = match AudioMixer::new(project, root.path()) {
+            Ok(_) => panic!("a missing cache must fail preparation"),
+            Err(error) => error,
+        };
+        assert!(error.contains("audio cache unavailable: asset=1 path="), "{error}");
+        assert!(error.contains("kind=NotFound reason="), "{error}");
+        assert!(error.contains(cache.file_name().unwrap().to_str().unwrap()), "{error}");
+    }
+
+    #[test]
+    fn corrupt_pcm_reports_the_source_sample_and_channel() {
+        let root = tempfile::tempdir().unwrap();
+        let project = project_with_pcm(root.path(), &[0.25]);
+        let cache = cache_path(root.path(), &project.audio_assets[0]).unwrap();
+        let mut samples = [0.25f32; 16];
+        samples[6] = f32::NAN;
+        let bytes: Vec<_> = samples.into_iter().flat_map(f32::to_le_bytes).collect();
+        std::fs::write(cache, bytes).unwrap();
+        let mut mixer = AudioMixer::new(project, root.path()).unwrap();
+        let error = mixer.mix(8, &mut [0.; 8]).unwrap_err();
+        assert!(error.contains("non-finite sample: asset=1 sample=6 channel=0"), "{error}");
     }
 
     #[test]
