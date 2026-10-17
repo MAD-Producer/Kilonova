@@ -1,6 +1,10 @@
 use crate::*;
 use motion_ui::dock::Panel;
 
+#[cfg(test)]
+#[path = "curve_playback_tests.rs"]
+mod curve_playback_tests;
+
 impl Shell {
     pub(crate) fn accept_edit_state(&mut self, state: Value) {
         self.state = state;
