@@ -1,4 +1,4 @@
-//! File-only process logging. stdout belongs to the CLI/MCP protocol.
+//! File process logging with console stderr for errors; stdout belongs to CLI/MCP.
 use std::{
     backtrace::Backtrace,
     cell::Cell,
@@ -60,7 +60,12 @@ impl log::Log for FileLogger {
         if !self.enabled(record.metadata()) {
             return;
         }
+        if record.level() == log::Level::Error && !IN_PANIC_HOOK.get() {
+            // stdout is reserved for command-list and MCP JSON-RPC transport.
+            let _ = writeln!(io::stderr(), "ERROR {}: {}", record.target(), record.args());
+        }
         if IN_PANIC_HOOK.get() {
+            // The previous panic hook already preserves console stderr output.
             // The panic may have originated while this very thread held writer.
             match self.writer.try_lock() {
                 Ok(mut writer) => self.write(record, &mut *writer),
@@ -176,6 +181,30 @@ mod tests {
         assert!(text.contains("start #7 test_wait"));
         assert!(text.contains("timeout #7"));
         assert!(!text.contains("hidden"));
+    }
+
+    #[test]
+    fn errors_reach_file_and_stderr_without_leaking_log_records_to_stdout() {
+        if let Some(root) = std::env::var_os("MOTION_LOG_CONSOLE_TEST_CHILD") {
+            let _guard = init(PathBuf::from(root)).unwrap();
+            log::error!(target:"console_test", "dual-error-marker");
+            log::warn!(target:"console_test", "file-only-warning-marker");
+            return;
+        }
+        let root = tempfile::tempdir().unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "logging::tests::errors_reach_file_and_stderr_without_leaking_log_records_to_stdout"])
+            .env("MOTION_LOG_CONSOLE_TEST_CHILD",root.path())
+            .env_remove("MOTION_LOG")
+            .output().unwrap();
+        assert!(output.status.success(),"{}",String::from_utf8_lossy(&output.stderr));
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        assert!(stderr.contains("ERROR console_test: dual-error-marker"));
+        assert!(!stderr.contains("file-only-warning-marker"));
+        let stdout = String::from_utf8(output.stdout).unwrap();
+        assert!(!stdout.contains("dual-error-marker") && !stdout.contains("file-only-warning-marker"));
+        let file = fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
+        assert!(file.contains("dual-error-marker") && file.contains("file-only-warning-marker"));
     }
 
     #[test]

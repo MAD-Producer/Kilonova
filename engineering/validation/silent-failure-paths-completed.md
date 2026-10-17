@@ -242,3 +242,15 @@
 - 图层替换视频源时先退役旧 stream，再解释新源时间，避免把旧源时间基准的错误误施加到新源
 - 新增 4 项回归覆盖真实 Mutex 中毒、同帧复用及无效时间基准、更换源与计数耗尽
 - 验证：cargo test -p motion-host --offline；日志：target/silent-failure-validation/video-generation-batch16.log
+
+## 17 · Error 同时输出文件与控制台
+
+状态：按用户后续要求完成；桌面全套 333 passed，0 failed，0 ignored；cargo check/build 通过；真实进程验收通过。
+
+- 普通 Error 同时写日志文件和控制台 stderr，Warn/Info/Debug 保持原文件策略；stdout 继续用于命令目录和 MCP JSON-RPC
+- panic 的控制台输出由原 hook 保留，文件分支继续只用 try_lock；持锁 panic 不会等待自身的 sink
+- 新增独立进程回归验证 Error 双输出、Warn 只落文件、两种记录均不泄漏到 stdout；既有 panic 与日志锁中毒回归通过
+- 实际启动默认 Info 桌面程序，普通命令 start 默认可见且 Present start 为 0；轮转正常
+- 实际 MCP 无效命令的同一 request/operation/ms 错误同时存在于日志和 stderr，stdout 三条响应均能独立解析为 JSON-RPC；--command-list 仍为纯 JSON
+- 本节按用户新要求调整了最初仅写文件的约束，不添加控制台窗口或 UI 交互
+- 证据：desktop-console-full.log、console-check.log、console-build.log、console-runtime.log、runtime/runtime-summary.json，均位于 target/silent-failure-validation/
