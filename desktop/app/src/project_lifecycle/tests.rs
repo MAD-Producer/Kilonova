@@ -363,3 +363,170 @@ fn modal_escape_routes_cancel_and_blocks_underlying_edit_actions() {
     shell.choose_project_change(CloseChoice::Cancel).unwrap();
     assert_eq!(before["project"], shell.engine.state().unwrap()["project"]);
 }
+
+#[test]
+fn missing_recent_projects_show_an_acknowledgement_on_home_and_preserve_the_current_project() {
+    use motion_ui::input::{Event, Key, Modifiers};
+    for moved in [false, true] {
+        let folder = tempfile::tempdir().unwrap();
+        let mut shell = shell(folder.path());
+        shell.home = Some(crate::home::Home::default());
+        shell.action(Action::Save, None).unwrap();
+        let before = shell.engine.state().unwrap();
+        let current = PathBuf::from(before["root"].as_str().unwrap());
+        let bytes = fs::read(current.join("project.json")).unwrap();
+        let missing = destination(folder.path());
+        if moved {
+            fs::rename(&missing, folder.path().join("moved")).unwrap();
+        } else {
+            fs::remove_file(missing.join("project.json")).unwrap();
+            fs::remove_dir(&missing).unwrap();
+        }
+        shell
+            .action(Action::OpenPath(missing.clone()), None)
+            .unwrap();
+        drain(&mut shell);
+        let prompt = shell
+            .project_prompt
+            .as_ref()
+            .expect("open failure must be visible");
+        assert!(matches!(&prompt.target, Target::Open(path) if path == &missing));
+        assert!(!prompt.ticket.dirty);
+        let error = prompt.error.as_ref().unwrap();
+        assert!(
+            error.contains("os error") && error.contains(&missing.display().to_string()),
+            "{error}"
+        );
+        assert!(shell.project_modal() && shell.home.is_some());
+        shell.action(Action::AddSolid, None).unwrap();
+        shell.translate(Event::KeyPressed {
+            key: Key::N,
+            modifiers: Modifiers {
+                control: true,
+                ..Default::default()
+            },
+        });
+        assert!(shell.draw_commands([900., 600.]).1.is_empty());
+        assert!(
+            shell.actions.is_empty(),
+            "background shortcut leaked through the error notice"
+        );
+        for key in ["root", "project", "revision", "canUndo", "canRedo"] {
+            assert_eq!(before[key], shell.engine.state().unwrap()[key]);
+        }
+        assert_eq!(bytes, fs::read(current.join("project.json")).unwrap());
+        shell.translate(Event::KeyPressed {
+            key: if moved { Key::Escape } else { Key::Enter },
+            modifiers: Modifiers::default(),
+        });
+        assert!(shell.draw_commands([900., 600.]).1.is_empty());
+        assert!(matches!(
+            shell.actions.pop_front(),
+            Some(Action::ProjectChoice(CloseChoice::Cancel))
+        ));
+        shell.choose_project_change(CloseChoice::Cancel).unwrap();
+        assert!(!shell.project_modal() && shell.home.is_some());
+        let restored = destination(folder.path());
+        shell.action(Action::OpenPath(restored), None).unwrap();
+        drain(&mut shell);
+        assert_eq!(shell.state["project"]["name"], "Other");
+        assert!(shell.home.is_none());
+    }
+}
+
+#[test]
+fn invalid_clean_project_and_missing_package_use_error_notices_without_implicit_retry() {
+    for package in [false, true] {
+        let folder = tempfile::tempdir().unwrap();
+        let mut shell = shell(folder.path());
+        shell.action(Action::Save, None).unwrap();
+        let before = shell.engine.state().unwrap();
+        let path = if package {
+            folder.path().join("missing.msproj")
+        } else {
+            let root = destination(folder.path());
+            fs::write(root.join("project.json"), b"invalid JSON").unwrap();
+            root
+        };
+        shell.action(Action::OpenPath(path), None).unwrap();
+        drain(&mut shell);
+        assert!(shell.project_prompt.as_ref().unwrap().error.is_some());
+        assert!(shell.project_modal());
+        // A queued choice from an earlier prompt must only acknowledge this
+        // notice, never resubmit a failed open or save the clean current project.
+        shell.choose_project_change(CloseChoice::Save).unwrap();
+        assert!(!shell.project_modal() && shell.project_pending.is_none());
+        assert_eq!(before["project"], shell.engine.state().unwrap()["project"]);
+        assert_eq!(before["root"], shell.state["root"]);
+    }
+}
+
+#[test]
+fn missing_project_notice_preserves_the_default_file_and_stderr_error_channels() {
+    const CHILD: &str = "MOTION_MISSING_PROJECT_NOTICE_CHILD";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = PathBuf::from(root);
+        let _logger = crate::logging::init(root.clone()).unwrap();
+        let mut shell = shell(&root);
+        shell.home = Some(crate::home::Home::default());
+        shell.action(Action::Save, None).unwrap();
+        let missing = root.join("消失的工程");
+        let expected = format!(
+            "open project {}: {}",
+            missing.display(),
+            missing.canonicalize().unwrap_err()
+        );
+        shell.action(Action::OpenPath(missing), None).unwrap();
+        drain(&mut shell);
+        assert!(shell
+            .project_prompt
+            .as_ref()
+            .unwrap()
+            .error
+            .as_ref()
+            .unwrap()
+            .contains(&expected));
+        assert!(shell.project_modal());
+        for _ in 0..3 {
+            assert!(shell.draw_commands([900., 600.]).1.is_empty());
+            assert!(shell.actions.is_empty());
+        }
+        fs::write(root.join("expected.txt"), &expected).unwrap();
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "project_lifecycle::tests::missing_project_notice_preserves_the_default_file_and_stderr_error_channels"])
+        .env(CHILD, root.path()).env_remove("MOTION_LOG").output().unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let expected = fs::read_to_string(root.path().join("expected.txt")).unwrap();
+    let file = fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(file.contains("logging initialized level=INFO"));
+    let errors: Vec<_> = file
+        .lines()
+        .filter(|line| line.contains("ERROR") && line.contains(" change_project "))
+        .collect();
+    assert_eq!(errors.len(), 1, "{file}");
+    assert!(errors[0].contains(&expected), "{}", errors[0]);
+    assert!(stderr.contains(&expected));
+    assert!(!stdout.contains(&expected) && !stdout.contains("logging initialized"));
+    let request = errors[0]
+        .split("error #")
+        .nth(1)
+        .unwrap()
+        .split_whitespace()
+        .next()
+        .unwrap();
+    assert!(
+        file.find(&format!("start #{request} change_project"))
+            .unwrap()
+            < file.find(errors[0]).unwrap()
+    );
+}
