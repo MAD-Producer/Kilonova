@@ -182,6 +182,18 @@ struct Draft {
     frame: f64,
     selection: Option<u64>,
     root: String,
+    placing: bool,
+}
+
+// Alt leaves the opposite handle unchanged, for both new and existing nodes.
+fn move_handle(geometry: &mut [f32; 6], axis: usize, delta: [f32; 2], independent: bool) {
+    geometry[axis] = delta[0];
+    geometry[axis + 1] = delta[1];
+    if !independent {
+        let other = if axis == 2 { 4 } else { 2 };
+        geometry[other] = -delta[0];
+        geometry[other + 1] = -delta[1];
+    }
 }
 struct Drag {
     target: Target,
@@ -492,6 +504,7 @@ impl Controls {
             frame: state["frame"].as_f64().unwrap_or(0.),
             selection: selected,
             root: state["root"].as_str().unwrap_or("").into(),
+            placing: false,
         });
         Some(())
     }
@@ -572,6 +585,7 @@ impl Controls {
                 if mods.control && matches!(*key, Key::Z | Key::Y) {
                     if let Some(d) = self.draft.as_mut() {
                         d.path.nodes.pop();
+                        d.placing = false;
                     } else if self.drag.is_none() {
                         out.push(Action::History(if *key == Key::Y || mods.shift {
                             1
@@ -594,6 +608,7 @@ impl Controls {
             {
                 if let Some(d) = self.draft.as_mut() {
                     d.path.nodes.pop();
+                    d.placing = false;
                 } else if let (Some(l), Some((path, node))) = (target.as_ref(), self.selected) {
                     self.remove_node(l, path, node, out);
                     self.selected = None;
@@ -731,6 +746,7 @@ impl Controls {
                                         0.,
                                     ]),
                                 });
+                                d.placing = true;
                             }
                         }
                     } else {
@@ -765,13 +781,8 @@ impl Controls {
                         g[0] += p[0] - drag.start[0];
                         g[1] += p[1] - drag.start[1];
                     } else {
-                        g[drag.axis] = p[0] + drag.offset[0] - g[0];
-                        g[drag.axis + 1] = p[1] + drag.offset[1] - g[1];
-                        if !input.modifiers.alt {
-                            let other = if drag.axis == 2 { 4 } else { 2 };
-                            g[other] = -g[drag.axis];
-                            g[other + 1] = -g[drag.axis + 1];
-                        }
+                        let delta = [p[0] + drag.offset[0] - g[0], p[1] + drag.offset[1] - g[1]];
+                        move_handle(&mut g, drag.axis, delta, input.modifiers.alt);
                     }
                     if g != drag.last_geometry
                         && g.iter().all(|v| v.is_finite() && v.abs() <= 32768.)
@@ -816,7 +827,8 @@ impl Controls {
             }
         }
         if let Some(d) = self.draft.as_mut() {
-            if input.dragging() || input.released.is_some_and(|(b, _)| b == MouseButton::Left) {
+            let released = input.released.is_some_and(|(b, _)| b == MouseButton::Left);
+            if d.placing && (input.dragging() || released) {
                 if let (Some(local), Some(n)) =
                     (d.projection.local(input.mouse), d.path.nodes.last_mut())
                 {
@@ -824,12 +836,12 @@ impl Controls {
                     let dx = local[0] + d.offset[0] - g[0];
                     let dy = local[1] + d.offset[1] - g[1];
                     if dx.abs() <= 32768. && dy.abs() <= 32768. {
-                        g[2] = -dx;
-                        g[3] = -dy;
-                        g[4] = dx;
-                        g[5] = dy;
+                        move_handle(g, 4, [dx, dy], input.modifiers.alt);
                     }
                 }
+            }
+            if released || input.focus_lost {
+                d.placing = false;
             }
         }
         if let Some(p) = projection {
@@ -1373,6 +1385,9 @@ fn paint_path(
         }
     }
 }
+
+#[cfg(test)]
+mod pen_tests;
 
 #[cfg(test)]
 mod numeric_tests {

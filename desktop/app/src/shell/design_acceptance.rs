@@ -22,6 +22,7 @@ impl Shell {
             "info-panel",
             "preview-panel",
             "character-panel",
+            "expression-inline",
             "effect-controls",
             "effect-controls-narrow",
             "effect-controls-bottom",
@@ -134,6 +135,24 @@ impl Shell {
                         screen,
                     )?;
                     output.insert(screen.into(), serde_json::json!(path));
+                    continue;
+                }
+                "expression-inline" => {
+                    for mode in ["enabled", "disabled", "locked"] {
+                        for (suffix, panel_size) in [("", [900., 520.]), ("-narrow", [600., 360.])]
+                        {
+                            let name = format!("expression-inline-{mode}{suffix}");
+                            let path = report.with_extension(format!("{name}.png"));
+                            self.capture_auxiliary_panel(
+                                dock::Panel::Timeline,
+                                panel_size,
+                                size,
+                                &path,
+                                &name,
+                            )?;
+                            output.insert(name, serde_json::json!(path));
+                        }
+                    }
                     continue;
                 }
                 "info-panel" | "preview-panel" | "character-panel" => {
@@ -305,9 +324,62 @@ impl Shell {
         } else {
             None
         };
+        let old_expression = pose
+            .starts_with("expression-inline")
+            .then(|| std::mem::take(&mut self.panels.expressions));
         let mut created_text = false;
         let mut effect_gesture = false;
         let captured = (|| {
+            if pose.starts_with("expression-inline") {
+                let object = before["project"]["layers"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|l| l["id"].as_u64())
+                    .max()
+                    .unwrap_or(0)
+                    + 1;
+                self.state = self.engine.edit(
+                    serde_json::to_string(&vec![
+                        Command::Add {
+                            layer: Layer::solid(object, "Expression", [100.; 2], [0.; 3], [1.; 4]),
+                        },
+                        Command::SetExpression {
+                            expression: motion_core::PropertyExpression {
+                                target: motion_core::ExpressionTarget::Property {
+                                    object,
+                                    property: motion_core::Property::Position,
+                                    axis: None,
+                                },
+                                source: "[100, 200, 0]".into(),
+                                enabled: !pose.contains("disabled"),
+                                seed: 42,
+                                profile: motion_core::EXPRESSION_PROFILE.into(),
+                            },
+                            frame: before["frame"].as_f64().unwrap_or(0.).floor() as u32,
+                        },
+                        Command::Flags {
+                            object,
+                            visible: true,
+                            locked: pose.contains("locked"),
+                        },
+                    ])
+                    .map_err(|e| e.to_string())?,
+                )?;
+                created_text = true;
+                self.panels.select_only(Some(object));
+                self.panels.focused = Some(panel);
+                self.panels.timeline.expanded.insert(object);
+                self.panels.expressions.open(
+                    &self.state,
+                    motion_core::ExpressionTarget::Property {
+                        object,
+                        property: motion_core::Property::Position,
+                        axis: None,
+                    },
+                    dock::Panel::Timeline,
+                );
+            }
             if panel == dock::Panel::Character {
                 self.state = self.engine.create_text("Title".into(), 64., 1024, None)?;
                 created_text = true;
@@ -321,10 +393,12 @@ impl Shell {
                     .ok_or("character capture requires a real text layer")?;
                 self.panels.select_only(Some(object));
             }
-            if matches!(
-                panel,
-                dock::Panel::EffectControls | dock::Panel::Properties | dock::Panel::Timeline
-            ) {
+            if !pose.starts_with("expression-inline")
+                && matches!(
+                    panel,
+                    dock::Panel::EffectControls | dock::Panel::Properties | dock::Panel::Timeline
+                )
+            {
                 self.engine.history(2)?;
                 effect_gesture = true;
                 let object = before["project"]["layers"]
@@ -399,6 +473,15 @@ impl Shell {
                 if panel == dock::Panel::Timeline {
                     self.panels.timeline.expanded.clear();
                     self.panels.timeline.expanded.insert(object);
+                    self.panels.expressions.open(
+                        &self.state,
+                        motion_core::ExpressionTarget::Property {
+                            object,
+                            property: motion_core::Property::Position,
+                            axis: None,
+                        },
+                        dock::Panel::Timeline,
+                    );
                     self.panels.timeline.collapsed_geometry.insert(object);
                     self.panels.focused = Some(dock::Panel::Timeline);
                 }
@@ -453,6 +536,9 @@ impl Shell {
         self.panels.timeline = old_timeline;
         self.panels.timeline_anchor = old_anchor;
         self.panels.auxiliary.scroll = old_scroll;
+        if let Some(old) = old_expression {
+            self.panels.expressions = old;
+        }
         if let Some(old) = old_controls {
             self.panels.effect_controls = old;
         }

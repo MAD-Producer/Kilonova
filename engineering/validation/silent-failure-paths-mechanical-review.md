@@ -643,12 +643,12 @@
 | desktop/app/src/panels/effect_controls/library.rs:475 | 核实保留 | 无选中effect或未提供说明时显示既定帮助文字是正常空状态/可选元数据，不是反序列化或安装失败；真实目录/manifest加载失败独立有日志 |
 | desktop/app/src/panels/expressions.rs:56 | 已有覆盖 | ExpressionTarget的非空serde失败由expressions.target观测，表达式validate也包装；保留忽略坏项及原原因，固定site限频，已有实际坏target回归 |
 | desktop/app/src/panels/expressions.rs:97 | 核实保留 | 正常snapshot的frame由host ops/preview.rs验证有限、>=0且<project.frames，Project.frames是受模型校验的正u32；这里floor/max(0)后转u32生成现有编辑命令或缓存上下文，不截断正规时间范围。不为手工伪造JSON/NaN UI状态提供全输入保证，不更改取帧与交互 |
-| desktop/app/src/panels/fx_console.rs:116 | 核实保留 | 搜索候选高亮和start偏移用饱和/min约束列表边界与滚动窗口，空候选已有处理；正常键盘导航，不把首项/尾项视为失败 |
-| desktop/app/src/panels/fx_console.rs:67 | 核实保留 | 搜索候选高亮和start偏移用饱和/min约束列表边界与滚动窗口，空候选已有处理；正常键盘导航，不把首项/尾项视为失败 |
-| desktop/app/src/panels/fx_console.rs:72 | 核实保留 | 搜索候选高亮和start偏移用饱和/min约束列表边界与滚动窗口，空候选已有处理；正常键盘导航，不把首项/尾项视为失败 |
-| desktop/app/src/panels/fx_console.rs:74 | 核实保留 | 搜索候选高亮和start偏移用饱和/min约束列表边界与滚动窗口，空候选已有处理；正常键盘导航，不把首项/尾项视为失败 |
-| desktop/app/src/panels/fx_console.rs:75 | 核实保留 | 控制台只消费导航/确认/退出，其他输入用于搜索文本或忽略；非Result错误，不改快捷键/焦点 |
-| desktop/app/src/panels/fx_console.rs:81 | 核实保留 | 可见候选数先min(items.len)及min(10)，再按非负窗口高度计算；结果受候选数限制，不产生超大索引/分配。小窗口0行是既有视觉边界，未改布局 |
+| desktop/app/src/panels/effect_search.rs:116 | 核实保留 | 搜索候选高亮和start偏移用饱和/min约束列表边界与滚动窗口，空候选已有处理；正常键盘导航，不把首项/尾项视为失败 |
+| desktop/app/src/panels/effect_search.rs:67 | 核实保留 | 搜索候选高亮和start偏移用饱和/min约束列表边界与滚动窗口，空候选已有处理；正常键盘导航，不把首项/尾项视为失败 |
+| desktop/app/src/panels/effect_search.rs:72 | 核实保留 | 搜索候选高亮和start偏移用饱和/min约束列表边界与滚动窗口，空候选已有处理；正常键盘导航，不把首项/尾项视为失败 |
+| desktop/app/src/panels/effect_search.rs:74 | 核实保留 | 搜索候选高亮和start偏移用饱和/min约束列表边界与滚动窗口，空候选已有处理；正常键盘导航，不把首项/尾项视为失败 |
+| desktop/app/src/panels/effect_search.rs:75 | 核实保留 | 控制台只消费导航/确认/退出，其他输入用于搜索文本或忽略；非Result错误，不改快捷键/焦点 |
+| desktop/app/src/panels/effect_search.rs:81 | 核实保留 | 可见候选数先min(items.len)及min(10)，再按非负窗口高度计算；结果受候选数限制，不产生超大索引/分配。小窗口0行是既有视觉边界，未改布局 |
 | desktop/app/src/panels/graph_box.rs:259 | 核实保留 | 没选择override时用默认StyleSheet读取motion.drag_threshold是正常语义token回退，未写颜色/尺寸字面量或新增style名 |
 | desktop/app/src/panels/graph_box.rs:327 | 核实保留 | transform先拒绝非有限dx/dy，并把左右frame bounds夹到0..total-1，按相对比例产生有序key后验证严格递增；正规total来自u32项目帧数，round cast在界内，保留原拒绝重复帧行为 |
 | desktop/app/src/panels/graph_box.rs:534 | 核实保留 | last_frame是合法project.frames-1，转u64再+1用来筛选区间key；u32帧范围可在u64精确表示，既有范围过滤，不丢整数身份 |
