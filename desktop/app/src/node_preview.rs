@@ -375,7 +375,7 @@ impl NodePreview {
     ) -> Result<Self, String> {
         let device = &context.device;
         let queue = &context.queue;
-        device.push_error_scope(wgpu::ErrorFilter::Validation);
+        let error_scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
         let result = (|| {
             let uniform_layout =
                 device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -499,8 +499,8 @@ impl NodePreview {
             });
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("SDK node pipeline"),
-                bind_group_layouts: &[&uniform_layout, &input, &resources],
-                push_constant_ranges: &[],
+                bind_group_layouts: &[Some(&uniform_layout), Some(&input), Some(&resources)],
+                immediate_size: 0,
             });
             let pipeline = pipeline(
                 device,
@@ -541,7 +541,7 @@ impl NodePreview {
                 cached_seconds: None,
             })
         })();
-        let error = pollster::block_on(device.pop_error_scope());
+        let error = pollster::block_on(error_scope.pop());
         if let Some(error) = error {
             return Err(error.to_string());
         }
@@ -562,8 +562,10 @@ impl NodePreview {
             queue.write_buffer(&self.buffer, 0, bytemuck::bytes_of(&self.uniform));
             {
                 let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    multiview_mask: None,
                     label: Some("N1 live graph"),
                     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        depth_slice: None,
                         view: &self.view,
                         resolve_target: None,
                         ops: wgpu::Operations {
@@ -591,8 +593,10 @@ impl NodePreview {
         let [x, y, w, h] = viewport.rect;
         if w > 0. && h > 0. {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                multiview_mask: None,
                 label: Some("GPU node preview presentation"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    depth_slice: None,
                     view: target,
                     resolve_target: None,
                     ops: wgpu::Operations {
@@ -643,7 +647,7 @@ fn pipeline(
                 write_mask: wgpu::ColorWrites::ALL,
             })],
         }),
-        multiview: None,
+        multiview_mask: None,
         cache: None,
     })
 }
@@ -719,8 +723,8 @@ impl Display {
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: None,
-            bind_group_layouts: &[&layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&layout)],
+            immediate_size: 0,
         });
         Self {
             pipeline: pipeline(

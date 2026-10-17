@@ -24,8 +24,10 @@ static TEXTURE_ACCOUNTING_MISMATCHES: std::sync::atomic::AtomicUsize = std::sync
 
 #[derive(Debug, thiserror::Error)]
 pub enum RenderError {
-    #[error("no compatible GPU adapter")]
-    Adapter,
+    #[error("no compatible GPU adapter: {0}")]
+    Adapter(#[from] wgpu::RequestAdapterError),
+    #[error("GPU poll failed: {0}")]
+    Poll(#[from] wgpu::PollError),
     #[error(transparent)]
     Device(#[from] wgpu::RequestDeviceError),
     #[error(transparent)]
@@ -204,9 +206,9 @@ impl Renderer {
                 power_preference: wgpu::PowerPreference::HighPerformance,
                 compatible_surface: surface,
                 force_fallback_adapter: false,
+                ..Default::default()
             })
-            .await
-            .ok_or(RenderError::Adapter)?;
+            .await?;
         let adapter_info = adapter.get_info();
         let supported = adapter.limits();
         let base = if supported.max_compute_workgroups_per_dimension == 0 {
@@ -224,8 +226,8 @@ impl Renderer {
                     },
                     required_limits: limits,
                     memory_hints: wgpu::MemoryHints::Performance,
+                    ..Default::default()
                 },
-                None,
             )
             .await?;
         let gpu_failure = Arc::new(Mutex::new(None));
@@ -234,7 +236,7 @@ impl Renderer {
         device.set_device_lost_callback(move |reason, message| {
             lost.device_lost(reason, message);
         });
-        device.on_uncaptured_error(Box::new(move |error| {
+        device.on_uncaptured_error(Arc::new(move |error| {
             observer.uncaptured(error);
         }));
         let alignment = device.limits().min_uniform_buffer_offset_alignment as usize;
@@ -311,8 +313,8 @@ impl Renderer {
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Motion Studio planar pipeline"),
-            bind_group_layouts: &[&uniform_layout, &image_layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&uniform_layout), Some(&image_layout)],
+            immediate_size: 0,
         });
         let create_pipeline = |blend| {
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -322,11 +324,11 @@ impl Renderer {
                     module: &shader,
                     entry_point: Some("vertex_main"),
                     compilation_options: Default::default(),
-                    buffers: &[wgpu::VertexBufferLayout {
+                    buffers: &[Some(wgpu::VertexBufferLayout {
                         array_stride: std::mem::size_of::<GeometryVertex>() as u64,
                         step_mode: wgpu::VertexStepMode::Vertex,
                         attributes: &wgpu::vertex_attr_array![0=>Float32x3,1=>Float32x2],
-                    }],
+                    })],
                 },
                 primitive: wgpu::PrimitiveState {
                     cull_mode: None,
@@ -344,7 +346,7 @@ impl Renderer {
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
                 }),
-                multiview: None,
+                multiview_mask: None,
                 cache: None,
             })
         };
@@ -359,10 +361,10 @@ impl Renderer {
         });
         let mask_shader=device.create_shader_module(wgpu::ShaderModuleDescriptor {label:Some("masked source composite"),source:wgpu::ShaderSource::Wgsl(include_str!("plane_mask.wgsl").into())});
         let masked_pipeline=device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label:Some("masked layer without effects"),layout:Some(&device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {label:None,bind_group_layouts:&[&uniform_layout,&image_layout,&image_layout],push_constant_ranges:&[]})),
-            vertex:wgpu::VertexState {module:&mask_shader,entry_point:Some("vertex_main"),compilation_options:Default::default(),buffers:&[wgpu::VertexBufferLayout {array_stride:std::mem::size_of::<GeometryVertex>() as u64,step_mode:wgpu::VertexStepMode::Vertex,attributes:&wgpu::vertex_attr_array![0=>Float32x3,1=>Float32x2]}]},
+            label:Some("masked layer without effects"),layout:Some(&device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {label:None,bind_group_layouts:&[Some(&uniform_layout), Some(&image_layout), Some(&image_layout)],immediate_size: 0})),
+            vertex:wgpu::VertexState {module:&mask_shader,entry_point:Some("vertex_main"),compilation_options:Default::default(),buffers:&[Some(wgpu::VertexBufferLayout {array_stride:std::mem::size_of::<GeometryVertex>() as u64,step_mode:wgpu::VertexStepMode::Vertex,attributes:&wgpu::vertex_attr_array![0=>Float32x3,1=>Float32x2]})]},
             fragment:Some(wgpu::FragmentState {module:&mask_shader,entry_point:Some("fragment_main"),compilation_options:Default::default(),targets:&[Some(wgpu::ColorTargetState {format,blend:Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING),write_mask:wgpu::ColorWrites::ALL})]}),
-            primitive:wgpu::PrimitiveState {cull_mode:None,..Default::default()},depth_stencil:None,multisample:Default::default(),multiview:None,cache:None});
+            primitive:wgpu::PrimitiveState {cull_mode:None,..Default::default()},depth_stencil:None,multisample:Default::default(),multiview_mask:None,cache:None});
         let effect_gpu = crate::effect_gpu::EffectGpu::new(&device, &queue, &image_layout)?;
         let layer_gpu =
             crate::layer_gpu::LayerGpu::new(&device, &uniform_layout, &image_layout, format);
@@ -425,7 +427,7 @@ impl Renderer {
         Ok(renderer)
     }
     pub async fn headless() -> Result<Self> {
-        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::from_env_or_default());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
         Self::new(&instance, None, TARGET_FORMAT).await
     }
     pub fn effect_plan_builds(&self) -> u64 {
@@ -1536,8 +1538,10 @@ impl Renderer {
         };
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                multiview_mask: None,
                 label: Some("Motion Studio composition"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    depth_slice: None,
                     view,
                     resolve_target: None,
                     ops: wgpu::Operations {
@@ -1803,8 +1807,10 @@ impl Renderer {
                     end_of_pass_write_index: None,
                 });
             let _pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                multiview_mask: None,
                 label: Some("effect composition clear"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    depth_slice: None,
                     view: if has_accumulator {
                         &self.layer_gpu.accumulators[0].view
                     } else {
@@ -1885,8 +1891,10 @@ impl Renderer {
                 let next = 1 - accumulator;
                 {
                     let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                        multiview_mask: None,
                         label: Some("adjust lower composite"),
                         color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                            depth_slice: None,
                             view: &self.layer_gpu.accumulators[next].view,
                             resolve_target: None,
                             ops: wgpu::Operations {
@@ -1933,8 +1941,10 @@ impl Renderer {
                 None
             };
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                multiview_mask: None,
                 label: Some("effect composition layer"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    depth_slice: None,
                     view: if transfer {
                         &self.compositing_gpu.as_ref().unwrap().source.as_ref().unwrap().view
                     } else if has_accumulator {
@@ -2000,8 +2010,8 @@ impl Renderer {
             composition_draws += 1;
             if transfer {
                 let gpu=self.compositing_gpu.as_ref().unwrap();let next=1-accumulator;
-                let mut pass=encoder.begin_render_pass(&wgpu::RenderPassDescriptor{label:Some("layer blend transfer"),
-                    color_attachments:&[Some(wgpu::RenderPassColorAttachment{view:&self.layer_gpu.accumulators[next].view,resolve_target:None,
+                let mut pass=encoder.begin_render_pass(&wgpu::RenderPassDescriptor{ multiview_mask: None,label:Some("layer blend transfer"),
+                    color_attachments:&[Some(wgpu::RenderPassColorAttachment{ depth_slice: None,view:&self.layer_gpu.accumulators[next].view,resolve_target:None,
                         ops:wgpu::Operations{load:wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),store:wgpu::StoreOp::Store}})],
                     depth_stencil_attachment:None,timestamp_writes:None,occlusion_query_set:None});
                 pass.set_pipeline(&gpu.blend);pass.set_bind_group(0,&gpu.blend_group,&[gpu.blend_offset(i)]);
@@ -2018,8 +2028,10 @@ impl Renderer {
                     end_of_pass_write_index: t.end_of_pass_write_index,
                 });
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                multiview_mask: None,
                 label: Some("present adjusted composition"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    depth_slice: None,
                     view,
                     resolve_target: None,
                     ops: wgpu::Operations {
@@ -2165,13 +2177,13 @@ impl Renderer {
             .map_async(wgpu::MapMode::Read, move |result| {
                 let _ = send.send(result);
             });
-        self.device.poll(wgpu::Maintain::Wait);
+        self.device.poll(wgpu::PollType::wait_indefinitely())?;
         recv.recv()
             .map_err(|e| RenderError::Readback(e.to_string()))?
             .map_err(|e| RenderError::Readback(e.to_string()))?;
         let mut pixels = Vec::with_capacity((target.width * target.height * 4) as usize);
         {
-            let mapped = target.buffer.slice(..).get_mapped_range();
+            let mapped = target.buffer.slice(..).get_mapped_range().map_err(|e| RenderError::Readback(e.to_string()))?;
             for row in mapped.chunks_exact(target.row_stride as usize) {
                 pixels.extend_from_slice(&row[..target.width as usize * 4]);
             }

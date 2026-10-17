@@ -38,8 +38,10 @@ fn capture(
     let mut encoder = device.create_command_encoder(&Default::default());
     {
         let _pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            multiview_mask: None,
             label: None,
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                depth_slice: None,
                 view: &view,
                 resolve_target: None,
                 ops: wgpu::Operations {
@@ -87,19 +89,19 @@ fn capture(
     buffer.slice(..).map_async(wgpu::MapMode::Read, move |r| {
         let _ = tx.send(r);
     });
-    device.poll(wgpu::Maintain::Wait);
+    device.poll(wgpu::PollType::wait_indefinitely()).expect("GPU poll failed");
     rx.recv().unwrap().unwrap();
-    let mapped = buffer.slice(..).get_mapped_range();
+    let mapped = buffer.slice(..).get_mapped_range().expect("GPU mapped range unavailable");
     mapped
         .chunks(row as usize)
         .flat_map(|r| r[..width as usize * 4].iter().copied())
         .collect()
 }
 fn gpu() -> (wgpu::Device, wgpu::Queue) {
-    let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
     let adapter = pollster::block_on(instance.request_adapter(&Default::default()))
         .expect("Path antialiasing regression requires a GPU adapter");
-    pollster::block_on(adapter.request_device(&Default::default(), None)).unwrap()
+    pollster::block_on(adapter.request_device(&Default::default())).unwrap()
 }
 
 #[test]

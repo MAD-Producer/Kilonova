@@ -51,8 +51,8 @@ struct V{@builtin(position) p:vec4<f32>,@location(0) uv:vec2<f32>}
 "#.into())});
     let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: None,
-        bind_group_layouts: &[&layout],
-        push_constant_ranges: &[],
+        bind_group_layouts: &[Some(&layout)],
+        immediate_size: 0,
     });
     let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
         label: None,
@@ -76,14 +76,16 @@ struct V{@builtin(position) p:vec4<f32>,@location(0) uv:vec2<f32>}
                 write_mask: wgpu::ColorWrites::ALL,
             })],
         }),
-        multiview: None,
+        multiview_mask: None,
         cache: None,
     });
     let mut encoder = device.create_command_encoder(&Default::default());
     {
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            multiview_mask: None,
             label: None,
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                depth_slice: None,
                 view: &target.view,
                 resolve_target: None,
                 ops: wgpu::Operations {

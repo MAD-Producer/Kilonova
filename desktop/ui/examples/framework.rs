@@ -788,7 +788,7 @@ fn config(
     height: u32,
 ) -> wgpu::SurfaceConfiguration {
     let caps = surface.get_capabilities(adapter);
-    wgpu::SurfaceConfiguration {
+    wgpu::SurfaceConfiguration { color_space: wgpu::SurfaceColorSpace::Auto,
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
         format,
         width: width.max(1),
@@ -801,8 +801,10 @@ fn config(
 }
 fn clear(encoder: &mut wgpu::CommandEncoder, view: &wgpu::TextureView) {
     let _pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+        multiview_mask: None,
         label: None,
         color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+            depth_slice: None,
             view,
             resolve_target: None,
             ops: wgpu::Operations {

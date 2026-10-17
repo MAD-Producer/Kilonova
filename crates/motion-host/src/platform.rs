@@ -103,7 +103,7 @@ pub trait Platform: Send + Sync {
     /// on the requested GPU API; the host decides which backends to try.
     fn attach_surface(
         &self,
-        window: std::sync::Arc<dyn wgpu::WindowHandle + Send + Sync>,
+        window: std::sync::Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         width: u32,
         height: u32,
     ) -> Result<SurfaceTarget>;

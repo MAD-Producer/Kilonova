@@ -26,12 +26,12 @@ impl GroupGpu {
             }],
         });
         let shader=device.create_shader_module(wgpu::ShaderModuleDescriptor {label:Some("vector group copy"),source:wgpu::ShaderSource::Wgsl(include_str!("../group_copy.wgsl").into())});
-        let layout=device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {label:None,bind_group_layouts:&[image,&uniform],push_constant_ranges:&[]});
+        let layout=device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {label:None,bind_group_layouts:&[Some(image), Some(&uniform)],immediate_size: 0});
         let pipeline=|samples,format,blend| device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label:Some("vector group composite"),layout:Some(&layout),
             vertex:wgpu::VertexState {module:&shader,entry_point:Some("vs"),compilation_options:Default::default(),buffers:&[]},
             fragment:Some(wgpu::FragmentState {module:&shader,entry_point:Some("fs"),compilation_options:Default::default(),targets:&[Some(wgpu::ColorTargetState {format,blend,write_mask:wgpu::ColorWrites::ALL})]}),
-            primitive:Default::default(),depth_stencil:None,multisample:wgpu::MultisampleState {count:samples,..Default::default()},multiview:None,cache:None,
+            primitive:Default::default(),depth_stencil:None,multisample:wgpu::MultisampleState {count:samples,..Default::default()},multiview_mask:None,cache:None,
         });
         Self {targets:HashMap::new(),composite:pipeline(4,wgpu::TextureFormat::Rgba8Unorm,Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING)),
             encode:pipeline(1,wgpu::TextureFormat::Rgba8UnormSrgb,None),uniform}
@@ -53,7 +53,9 @@ impl GroupGpu {
         // enclosing group can sample a completed child at its closing command.
         let view=target.multisample.create_view(&Default::default());
         encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            multiview_mask: None,
             label:Some("ordered vector group paint"),color_attachments:&[Some(wgpu::RenderPassColorAttachment {
+                depth_slice: None,
                 view:&view,resolve_target:Some(&target.resolved.view),
                 ops:wgpu::Operations {load:if clear {wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT)}else{wgpu::LoadOp::Load},store:wgpu::StoreOp::Store},
             })],depth_stencil_attachment:None,timestamp_writes:None,occlusion_query_set:None,
@@ -86,8 +88,8 @@ impl GroupGpu {
         }
         if depth!=0{return Err(RenderError::Invalid("unclosed vector group raster scope".into()));}
         let group=self.opacity(device,mesh.root_opacity);
-        let mut pass=encoder.begin_render_pass(&wgpu::RenderPassDescriptor {label:Some("encode vector root once"),
-            color_attachments:&[Some(wgpu::RenderPassColorAttachment {view:output,resolve_target:None,
+        let mut pass=encoder.begin_render_pass(&wgpu::RenderPassDescriptor { multiview_mask: None,label:Some("encode vector root once"),
+            color_attachments:&[Some(wgpu::RenderPassColorAttachment { depth_slice: None,view:output,resolve_target:None,
                 ops:wgpu::Operations {load:wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),store:wgpu::StoreOp::Store}})],
             depth_stencil_attachment:None,timestamp_writes:None,occlusion_query_set:None});
         pass.set_pipeline(&self.encode);pass.set_bind_group(0,&target(0).resolved.composite,&[]);pass.set_bind_group(1,&group,&[]);pass.draw(0..3,0..1);

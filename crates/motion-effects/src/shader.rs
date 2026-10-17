@@ -7,6 +7,7 @@ use naga::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+mod legacy_select;
 
 pub const UNIFORM_BYTES: usize = 7 * 16 + 32 * 16;
 pub const HEADER: &str = r#"
@@ -217,6 +218,7 @@ fn compile_internal(
     } else {
         format!("{HEADER}\n{source}\n@fragment fn sdk_fragment(input:EffectVertex)->@location(0) vec4<f32>{{let p=fx.region.xy+input.uv*fx.region.zw;return mix(sample_source(p),{entry}(p),fx.output_mode.z);}}\n")
     };
+    let wgsl = legacy_select::normalize(&wgsl).into_owned();
     let module =
         naga::front::wgsl::parse_str(&wgsl).map_err(|e| Error::Invalid(e.emit_to_string(&wgsl)))?;
     ensure(

@@ -10,7 +10,7 @@ fn an_actual_device_destruction_is_reported_and_a_new_device_can_render() {
     let target = renderer.capture_target(64, 64).unwrap();
     renderer.draw(&scene, &target.view, 64, 64).unwrap();
     renderer.device.destroy();
-    renderer.device.poll(wgpu::Maintain::Wait);
+    renderer.device.poll(wgpu::PollType::wait_indefinitely()).expect("GPU poll failed");
     assert!(renderer.gpu_error().is_some());
     assert!(renderer.draw(&scene, &target.view, 64, 64).is_err());
     drop(target);

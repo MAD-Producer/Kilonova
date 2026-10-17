@@ -42,18 +42,18 @@ impl LayerGpu {
                 &device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: None,
                     bind_group_layouts: &[],
-                    push_constant_ranges: &[],
+                    immediate_size: 0,
                 }),
             ),
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs"),
                 compilation_options: Default::default(),
-                buffers: &[wgpu::VertexBufferLayout {
+                buffers: &[Some(wgpu::VertexBufferLayout {
                     array_stride: 24,
                     step_mode: wgpu::VertexStepMode::Vertex,
                     attributes: &wgpu::vertex_attr_array![0=>Float32x2,1=>Float32x4],
-                }],
+                })],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -71,7 +71,7 @@ impl LayerGpu {
                 count: 4,
                 ..Default::default()
             },
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
         let vector=make_vector(Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING));
@@ -83,13 +83,13 @@ impl LayerGpu {
         let vector_resolve = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("linear vector resolve to sRGB"),
             layout: Some(&device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: None, bind_group_layouts: &[image], push_constant_ranges: &[],
+                label: None, bind_group_layouts: &[Some(image)], immediate_size: 0,
             })),
             vertex: wgpu::VertexState { module: &copy_shader, entry_point: Some("vs"), compilation_options: Default::default(), buffers: &[] },
             fragment: Some(wgpu::FragmentState { module: &copy_shader, entry_point: Some("fs"), compilation_options: Default::default(), targets: &[Some(wgpu::ColorTargetState {
                 format: wgpu::TextureFormat::Rgba8UnormSrgb, blend: None, write_mask: wgpu::ColorWrites::ALL,
             })] }),
-            primitive: Default::default(), depth_stencil: None, multisample: Default::default(), multiview: None, cache: None,
+            primitive: Default::default(), depth_stencil: None, multisample: Default::default(), multiview_mask: None, cache: None,
         });
         let clear_vertices=device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label:Some("transparent vector scratch clear"),
@@ -104,14 +104,14 @@ impl LayerGpu {
             label: Some("adjustment and present"),
             source: wgpu::ShaderSource::Wgsl(include_str!("adjustment.wgsl").into()),
         });
-        let make = |entry, blend, layouts: &[&wgpu::BindGroupLayout]| {
+        let make = |entry, blend, layouts: &[Option<&wgpu::BindGroupLayout>]| {
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some(entry),
                 layout: Some(
                     &device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                         label: None,
                         bind_group_layouts: layouts,
-                        push_constant_ranges: &[],
+                        immediate_size: 0,
                     }),
                 ),
                 vertex: wgpu::VertexState {
@@ -133,7 +133,7 @@ impl LayerGpu {
                 primitive: Default::default(),
                 depth_stencil: None,
                 multisample: Default::default(),
-                multiview: None,
+                multiview_mask: None,
                 cache: None,
             })
         };
@@ -142,11 +142,11 @@ impl LayerGpu {
             vector_clear,
             vector_resolve,
             clear_vertices,
-            adjustment: make("adjust", None, &[uniform, image, image]),
+            adjustment: make("adjust", None, &[Some(uniform), Some(image), Some(image)]),
             present: make(
                 "present",
                 Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING),
-                &[uniform, image],
+                &[Some(uniform), Some(image)],
             ),
             accumulators: Vec::new(),
             size: [0; 2],
@@ -369,8 +369,10 @@ impl LayerGpu {
             });
             {
                 let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    multiview_mask: None,
                     label: Some("materialize vector source"),
                     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        depth_slice: None,
                         view: &view,
                         resolve_target: Some(&resolved.view),
                         ops: wgpu::Operations {
@@ -395,8 +397,10 @@ impl LayerGpu {
             }
             {
                 let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    multiview_mask: None,
                     label: Some("encode resolved vector color"),
                     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        depth_slice: None,
                         view: &images[&key].view, resolve_target: None,
                         ops: wgpu::Operations { load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT), store: wgpu::StoreOp::Store },
                     })],

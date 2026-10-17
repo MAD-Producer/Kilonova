@@ -40,7 +40,7 @@ impl Platform for Stub {
     }
     fn attach_surface(
         &self,
-        _: Arc<dyn wgpu::WindowHandle + Send + Sync>,
+        _: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         _: u32,
         _: u32,
     ) -> Result<motion_host::SurfaceTarget> {
@@ -146,7 +146,7 @@ fn resource_tracking_is_runtime_only_and_profiling_keeps_it_enabled() {
     assert!(info["gpuRetirementBytes"].is_null());
     let renderer = session.editor_renderer.as_ref().unwrap();
     renderer.submit_tracked(renderer.device.create_command_encoder(&Default::default()).finish(), |_| {});
-    renderer.device.poll(wgpu::Maintain::Wait);
+    renderer.device.poll(wgpu::PollType::wait_indefinitely()).expect("GPU poll failed");
     let info = session.plugin_request(query).unwrap();
     assert_eq!(info["submissionTracking"]["editor"]["submitted"], 1);
     assert_eq!(info["submissionTracking"]["editor"]["completed"], 1);

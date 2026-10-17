@@ -82,8 +82,8 @@ impl VideoGpu {
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("video conversion layout"),
-            bind_group_layouts: &[&layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&layout)],
+            immediate_size: 0,
         });
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("video GPU YUV conversion"),
@@ -111,7 +111,7 @@ impl VideoGpu {
             primitive: Default::default(),
             depth_stencil: None,
             multisample: Default::default(),
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
         Self {
@@ -311,8 +311,10 @@ impl VideoGpu {
         queue.write_buffer(&input.uniform, 0, bytemuck::cast_slice(&params));
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                multiview_mask: None,
                 label: Some("video YUV to RGB"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    depth_slice: None,
                     view: target,
                     resolve_target: None,
                     ops: wgpu::Operations {
