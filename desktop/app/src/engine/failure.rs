@@ -74,26 +74,20 @@ pub(super) fn recovery(id: i64) -> Result<PathBuf, String> {
             ".motion-recovery-{}.json",
             motion_host::ops::stamp()?
         ));
-        let mut file = std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&path)
+        let mut file = crate::owned_file::OwnedFile::create(&path)
             .map_err(|error| error.to_string())?;
         let result = (|| {
             let mut writer = RecoveryWriter {
-                file: &mut file,
+                file: file.file(),
                 remaining: MAX_RECOVERY_BYTES,
             };
             serde_json::to_writer(&mut writer, session.engine.project())
                 .map_err(|error| error.to_string())?;
             writer.flush().map_err(|error| error.to_string())?;
-            file.sync_all().map_err(|error| error.to_string())
+            file.file().sync_all().map_err(|error| error.to_string())
         })();
-        drop(file);
-        if let Err(error) = result {
-            let _ = std::fs::remove_file(&path); // Only the create_new file owned by this call.
-            return Err(error);
-        }
+        result?;
+        file.keep();
         Ok(path)
     })
 }

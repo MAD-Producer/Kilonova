@@ -226,20 +226,13 @@ pub fn apply(
         .map_err(|e| e.to_string())?
         .as_nanos();
     let staged = s.root.join(format!(".node-runtime-{stamp}.msfx"));
-    let mut file = std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&staged)
+    let mut file = crate::owned_file::OwnedFile::create(&staged)
         .map_err(|e| e.to_string())?;
     use std::io::Write;
-    let written = file.write_all(&bytes);
-    drop(file);
-    if let Err(error) = written {
-        let _ = std::fs::remove_file(&staged);
-        return Err(error.to_string());
-    }
+    file.file().write_all(&bytes).map_err(|error| error.to_string())?;
+    file.close();
     let install = s.plugin_request(&serde_json::json!({"op":"install","path":staged}).to_string());
-    let _ = std::fs::remove_file(&staged);
+    drop(file);
     install?;
     s.apply_command_batch(vec![Command::Effect {
         object: target.object,

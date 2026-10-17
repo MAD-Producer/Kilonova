@@ -56,18 +56,15 @@ pub fn import_image(session: &mut Session, source: &Path) -> Result<Value, Strin
     let mut input = fs::File::open(source)
         .map_err(|e| e.to_string())?
         .take(maximum + 1);
-    let mut output = fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&destination)
+    let mut output = crate::owned_file::OwnedFile::create(&destination)
         .map_err(|e| e.to_string())?;
     let result = (|| {
-        let copied = std::io::copy(&mut input, &mut output).map_err(|e| e.to_string())?;
-        output.flush().map_err(|e| e.to_string())?;
+        let copied = std::io::copy(&mut input, output.file()).map_err(|e| e.to_string())?;
+        output.file().flush().map_err(|e| e.to_string())?;
         if copied > maximum {
             return Err("image exceeds source byte budget".into());
         }
-        drop(output);
+        output.close();
         let validated =
             motion_host::ops::images::prepare_image(session.root.clone(), relative.clone())?;
         if validated["width"] != source_info["width"]
@@ -104,8 +101,8 @@ pub fn import_image(session: &mut Session, source: &Path) -> Result<Value, Strin
             Command::Add { layer },
         ])
     })();
-    if result.is_err() {
-        let _ = fs::remove_file(destination);
+    if result.is_ok() {
+        output.keep();
     }
     result
 }

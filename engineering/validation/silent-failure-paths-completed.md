@@ -254,3 +254,15 @@
 - 实际 MCP 无效命令的同一 request/operation/ms 错误同时存在于日志和 stderr，stdout 三条响应均能独立解析为 JSON-RPC；--command-list 仍为纯 JSON
 - 本节按用户新要求调整了最初仅写文件的约束，不添加控制台窗口或 UI 交互
 - 证据：desktop-console-full.log、console-check.log、console-build.log、console-runtime.log、runtime/runtime-summary.json，均位于 target/silent-failure-validation/
+
+## 18 · 桌面导入、节点安装与恢复文件清理
+
+状态：已修复；桌面全套 336 passed，0 failed，0 ignored。
+
+- 仅在 create_new 成功后认领文件，错误返回和 unwind 都先关闭文件再删除；清理失败记录路径与 IO 原因，不覆盖主错误
+- 图片导入成功保留源文件，失败或 panic 尝试删除本次创建的文件；节点运行包在写入、安装失败或 unwind 后清理
+- 引擎恢复 JSON 只有写入、flush 和 sync 全部成功才保留；恢复过程失败仍传播原始错误
+- 新增 3 项真实文件系统回归覆盖拒绝认领既有文件、错误和 panic 的关闭/清理、成功保留及已清理文件；已有真实图片导入/节点安装/worker 恢复测试通过
+- 本机 Windows 下验证文件已关闭才删除；强杀进程不会执行 Drop，仍属后续启动清扫议题，不宣称本次解决
+- 关联辅助清单：11.1、11.3–11.5；日志：target/silent-failure-validation/desktop-cleanup-full.log
+- 11.2 所述代理缓存并非永久孤儿：缓存按内容哈希与字节预算管理，可由后续解码/裁剪回收；不把每次源导入回滚升级为清空共享缓存
