@@ -22,10 +22,13 @@ pub const MAX_PREFETCH_IMAGES: usize = 2;
 
 /// Inspect clip dependencies without sampling expressions or animation. Times
 /// are mapped through nested clips in seconds, including mixed frame rates.
-pub fn upcoming_assets(project: &motion_model::Project, frame: f64) -> Vec<u64> {
+/// Invalid rates/mappings propagate as errors. Negative or non-finite query
+/// positions retain their normal empty-lookahead behavior.
+pub fn upcoming_assets(project: &motion_model::Project, frame: f64) -> motion_model::Result<Vec<u64>> {
     fn visit(
         document: &motion_model::Project,
         layers: &[motion_model::Layer],
+        composition: &str,
         fps: u32,
         frames: u32,
         begin: f64,
@@ -33,9 +36,9 @@ pub fn upcoming_assets(project: &motion_model::Project, frame: f64) -> Vec<u64> 
         delay: f64,
         depth: usize,
         found: &mut std::collections::BTreeMap<u64, f64>,
-    ) {
+    ) -> motion_model::Result<()> {
         if depth >= motion_model::composition::MAX_COMPOSITION_DEPTH {
-            return;
+            return Ok(());
         }
         for layer in layers.iter().filter(|l| l.visible) {
             let clip = layer.interval(frames);
@@ -65,27 +68,40 @@ pub fn upcoming_assets(project: &motion_model::Project, frame: f64) -> Vec<u64> 
                         visit(
                             document,
                             &child.layers,
+                            &child.id,
                             child.fps,
                             child.frames,
-                            clip.source_frame(layer.local_frame(start), fps, child.fps),
-                            clip.source_frame(layer.local_frame(finish), fps, child.fps),
+                            crate::scene::composition_source_frame(clip, layer.local_frame(start), fps,
+                                child.fps, composition, layer.id, "image_prefetch")?,
+                            crate::scene::composition_source_frame(clip, layer.local_frame(finish), fps,
+                                child.fps, composition, layer.id, "image_prefetch")?,
                             wait,
                             depth + 1,
                             found,
-                        );
+                        )?;
                     }
                 }
                 _ => {}
             }
         }
+        Ok(())
     }
     if !frame.is_finite() || frame < 0. {
-        return vec![];
+        return Ok(vec![]);
+    }
+    if project.fps == 0 {
+        return motion_model::composition::fail(
+            &project.composition_id,
+            "invalid_frame_rate",
+            "Composition frame rate must be positive",
+            serde_json::json!({"fps":project.fps,"phase":"image_prefetch"}),
+        );
     }
     let mut found = std::collections::BTreeMap::new();
     visit(
         project,
         &project.layers,
+        &project.composition_id,
         project.fps,
         project.frames,
         frame,
@@ -93,10 +109,10 @@ pub fn upcoming_assets(project: &motion_model::Project, frame: f64) -> Vec<u64> 
         0.,
         0,
         &mut found,
-    );
+    )?;
     let mut ordered: Vec<_> = found.into_iter().collect();
     ordered.sort_by(|a, b| a.1.total_cmp(&b.1).then(a.0.cmp(&b.0)));
-    ordered.into_iter().map(|(id, _)| id).collect()
+    Ok(ordered.into_iter().map(|(id, _)| id).collect())
 }
 
 pub(crate) const CANCELLED: &str = "image decode superseded";
