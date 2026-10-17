@@ -46,7 +46,7 @@ def verify(archive, platform, output):
                 bundle.extractall(root)
         binary = root / PLATFORMS[platform][0]
         binary.chmod(0o755)
-        for name in ("silent-24fps.mp4", "variable.mp4", "rotated-90.mp4"):
+        for name in ("silent-24fps.mp4", "variable.mp4", "rotated-90.mp4", "video-tail-cmov.mov"):
             result = subprocess.run([str(binary), "--video-smoke", str(fixtures / name)], cwd=root,
                                     env=env, capture_output=True, text=True, encoding="utf-8", timeout=60)
             (output / (name + ".stderr.log")).write_text(result.stderr, encoding="utf-8")
