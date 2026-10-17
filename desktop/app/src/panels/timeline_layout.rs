@@ -12,6 +12,8 @@ pub(super) struct LayerRows {
     pub expanded: bool,
     pub transform_open: bool,
     pub properties: Vec<usize>,
+    pub property_offsets: Vec<usize>,
+    pub expression_offsets: Vec<Option<usize>>,
     pub transform: Range<usize>,
     pub anchor: Option<usize>,
     pub audio: Range<usize>,
@@ -111,10 +113,31 @@ impl LayerRows {
             .collect::<Vec<_>>();
         let anchor =
             (transform_open && matches!(filter, super::types::PropertyFilter::All)).then_some(2);
-        let transform = 1..1
-            + usize::from(expanded && row.spatial)
-            + usize::from(anchor.is_some())
-            + properties.len();
+        let mut next = 1 + usize::from(expanded && row.spatial) + usize::from(anchor.is_some());
+        let mut property_offsets = Vec::new();
+        let mut expression_offsets = Vec::new();
+        for index in &properties {
+            property_offsets.push(next);
+            next += 1;
+            let p = &row.properties[*index];
+            let target = motion_core::ExpressionTarget::Property {
+                object: row.id,
+                property: p.property,
+                axis: p.axis.map(|a| {
+                    [
+                        motion_core::Axis::X,
+                        motion_core::Axis::Y,
+                        motion_core::Axis::Z,
+                    ][a]
+                }),
+            };
+            expression_offsets.push(t.expression_rows.contains(&target).then(|| {
+                let r = next;
+                next += 1;
+                r
+            }));
+        }
+        let transform = 1..next;
         let audio = transform.end
             ..transform.end
                 + if expanded && row.audio > 0 {
@@ -158,6 +181,8 @@ impl LayerRows {
             expanded,
             transform_open,
             properties,
+            property_offsets,
+            expression_offsets,
             transform,
             anchor,
             audio,

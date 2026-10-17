@@ -27,6 +27,7 @@ fn text_active(panels: &Panels) -> bool {
         || panels.properties.effects.editing()
         || panels.properties.anchor.editing()
         || panels.timeline_anchor.editing()
+        || panels.expressions.editing()
         || panels.auxiliary.editing()
         || panels.animation_controls.editing()
         || panels.camera_controls.editing()

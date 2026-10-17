@@ -29,6 +29,11 @@ def verify_design_screens(snapshot: dict, locale: str) -> None:
         for suffix, size in (("", (360, 520)), ("-narrow", (220, 360)))
     }
     auxiliary.update({
+        f"expression-inline-{mode}{suffix}": size
+        for mode in ("enabled", "disabled", "locked")
+        for suffix, size in (("", (900, 520)), ("-narrow", (600, 360)))
+    })
+    auxiliary.update({
         "effect-controls": (360, 560), "effect-controls-narrow": (220, 560),
         "effect-controls-bottom": (360, 360), "effect-curve-inline": (360, 560),
         "layer-properties-tree": (360, 560), "layer-properties-effects": (360, 560),
@@ -73,7 +78,7 @@ def verify_style_overrides(binary: Path, output: Path) -> None:
         if not style["overrideActive"] or style["rowHeight"] != 32 or style["dragThreshold"] != 12 or style["easing"] != "linear":
             raise RuntimeError(f"{locale} ignored style/density/motion overrides")
         # Masks now belong to Properties; legacy dock ID 6 stays readable.
-        if {panel["id"] for panel in snapshot["panels"]} != set(range(1, 22)) - {6}:
+        if {panel["id"] for panel in snapshot["panels"]} != set(range(1, 22)) - {6, 9}:
             raise RuntimeError(f"{locale} did not render every floating panel with overrides")
         properties = next(panel for panel in snapshot["panels"] if panel["id"] == 11)
         mask_timeline = properties.get("maskTimelineScreenshot")

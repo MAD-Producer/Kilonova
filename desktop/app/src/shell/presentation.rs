@@ -487,7 +487,7 @@ impl Shell {
         id: dock::DockId,
         event_loop: &ActiveEventLoop,
     ) -> Result<(), String> {
-        if id == dock::Panel::Masks.dock() {
+        if id == dock::Panel::Masks.dock() || id == dock::Panel::Expression.dock() {
             return self.float_panel(dock::Panel::Properties.dock(), event_loop);
         }
         if self.floating.values().any(|f| f.panel.dock() == id) {

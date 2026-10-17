@@ -66,9 +66,9 @@ mod timeline_columns_tests;
 mod timeline_graph;
 mod timeline_layout;
 mod timeline_shortcuts;
-mod timeline_zoom;
 #[cfg(test)]
 mod timeline_shortcuts_tests;
+mod timeline_zoom;
 pub(crate) mod titlebar;
 mod toolbar;
 pub(crate) mod transform_controls;
@@ -156,6 +156,7 @@ pub(crate) fn observe_interaction_boundary(panels: &Panels, operation: &str) {
 pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     let node_changed = panels.node_editor.cancel_interaction();
     panels.layer_actions.cancel();
+    panels.expressions.cancel();
     panels.timeline.timeline_context_menu = None;
     panels.parent_controls.open = false;
     panels.timeline_columns.cancel();
@@ -268,14 +269,19 @@ pub fn chrome(
             && panels.properties.field.is_none()
             && !panels.audio_controls.editing()
             && !panels.path_controls.editing()
-            && !panels.timeline.timeline_search,
+            && !panels.timeline.timeline_search
+            && !panels.expressions.editing(),
         &mut out,
     );
     panels.node_editor.external_inspector = layout.find(Panel::NodeProperties.dock()).is_some();
     let node_modal = panels.node_editor.popup_open();
     let timeline_dropdown = panels.timeline_columns.editing();
     if let Some((_, point)) = input.pressed.filter(|_| {
-        !panels.fx_console_in(None) && !node_modal && !timeline_dropdown && !layer_modal
+        !panels.fx_console_in(None)
+            && !node_modal
+            && !timeline_dropdown
+            && !layer_modal
+            && !panels.expressions.menu_open()
     }) {
         let focused = frames(layout, size)
             .into_iter()
@@ -353,14 +359,18 @@ pub fn chrome(
     let node_keyboard = matches!(
         panels.focused,
         Some(Panel::Nodes | Panel::NodeProperties | Panel::NodePreview)
-    ) || panels.focused.is_none() && nodes_frame.as_ref().is_some_and(|f| {
-        if let Some((_, point)) = input.pressed {
-            f.content.contains(point)
-        } else {
-            panels.node_editor.focused()
-        }
-    }) && panels.menu.is_none();
-    let shortcut_modal = keyboard::route(input, panels, state, node_keyboard, None, &mut out);
+    ) || panels.focused.is_none()
+        && nodes_frame.as_ref().is_some_and(|f| {
+            if let Some((_, point)) = input.pressed {
+                f.content.contains(point)
+            } else {
+                panels.node_editor.focused()
+            }
+        })
+        && panels.menu.is_none();
+    let expression_modal = panels.expressions.menu_open();
+    let shortcut_modal =
+        expression_modal || keyboard::route(input, panels, state, node_keyboard, None, &mut out);
     let menu_modal = layer_modal
         || panels.layer_actions.modal_in(Some(Panel::Timeline))
         || shortcut_modal
@@ -777,6 +787,20 @@ pub fn chrome(
             &mut out,
         );
     }
+    if frames(layout, size)
+        .iter()
+        .any(|f| Some(f.panel) == panels.expressions.owner)
+    {
+        panels.expressions.finish_menu(
+            list,
+            atlas,
+            Rect::new(0., 0., size[0], size[1]),
+            state,
+            input,
+            panels.locale,
+            &mut out,
+        );
+    }
     finish_project_context_menu(
         list,
         atlas,
@@ -837,7 +861,8 @@ pub fn floating_chrome(
             && panels.properties.field.is_none()
             && !panels.audio_controls.editing()
             && !panels.path_controls.editing()
-            && !panels.timeline.timeline_search,
+            && !panels.timeline.timeline_search
+            && !panels.expressions.editing(),
         &mut out,
     );
     if !panels.fx_console_in(Some(panel))
@@ -889,7 +914,8 @@ pub fn floating_chrome(
         &mut out,
     );
     let neutral = Input::default();
-    let body_input = if layer_modal
+    let body_input = if panels.expressions.menu_open()
+        || layer_modal
         || panels.layer_actions.modal_in(Some(panel))
         || shortcut_modal
         || timeline_dropdown && !dropdown_owned
@@ -999,6 +1025,17 @@ pub fn floating_chrome(
     );
     if panel == Panel::Properties {
         panels.properties.effects.finish_context_menu(
+            list,
+            atlas,
+            Rect::new(0., 0., size[0], size[1]),
+            state,
+            input,
+            panels.locale,
+            &mut out,
+        );
+    }
+    if panels.expressions.owner == Some(panel) {
+        panels.expressions.finish_menu(
             list,
             atlas,
             Rect::new(0., 0., size[0], size[1]),
@@ -1824,7 +1861,7 @@ fn render_panel(
         }
         Panel::Audio => audio::render(list, atlas, area, panels, state, input, out),
         Panel::Align => align::render(list, atlas, area, panels, state, input, out),
-        Panel::Expression => expressions::render(list, atlas, area, panels, state, input, out),
+        Panel::Expression => properties::render(list, atlas, area, panels, state, input, out),
         _ => auxiliary::render(panel, list, atlas, area, panels, state, input, out),
     }
 }

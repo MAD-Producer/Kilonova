@@ -84,6 +84,7 @@ impl SavedLayout {
                 }
             };
         layout.close(Panel::Masks.dock());
+        layout.close(Panel::Expression.dock());
         Some(layout)
     }
     pub fn valid(&self) -> bool {
@@ -181,7 +182,6 @@ fn layout(preset: Preset) -> motion_ui::workspace::Workspace {
                     Panel::NodeProperties,
                     Panel::Effects,
                     Panel::Vector,
-                    Panel::Expression,
                 ]),
             ),
             tabs(&[
@@ -233,6 +233,7 @@ impl Workspace {
     }
     pub fn migrate_design(&mut self) {
         self.layout.close(Panel::Masks.dock());
+        self.layout.close(Panel::Expression.dock());
         if self.design_revision == 1 {
             // Preserve custom workspaces. Only upgrade the former Nodes default,
             // which lacks a Composition panel, and retain it as a named layout.
@@ -297,6 +298,37 @@ mod tests {
         }
         assert!(!Panel::available().any(|panel| panel == Panel::Masks));
         assert_eq!(Panel::from_dock(Panel::Masks.dock()), Some(Panel::Masks));
+    }
+    #[test]
+    fn legacy_expression_layouts_redirect_to_properties_without_touching_project_data() {
+        for floating in [false, true] {
+            let root = tempfile::tempdir().unwrap();
+            let path = root.path().join("legacy-expression-layout.json");
+            let mut workspace = Workspace::default();
+            workspace.layout.redock(Panel::Expression.dock());
+            if floating {
+                assert!(workspace.layout.float(Panel::Expression.dock()));
+            }
+            workspace
+                .preset_layouts
+                .insert(Preset::All, SavedLayout::capture(&workspace.layout));
+            workspace.save(&path).unwrap();
+            let mut loaded = Workspace::load(&path);
+            for preset in Preset::ALL {
+                loaded.select_preset(preset);
+                assert!(loaded.valid());
+                assert!(loaded.root.find(Panel::Expression.dock()).is_none());
+                assert!(!loaded.floating.contains(&Panel::Expression.dock()));
+            }
+            loaded.redock(Panel::Expression.dock());
+            assert!(loaded.root.find(Panel::Expression.dock()).is_none());
+            assert!(loaded.root.find(Panel::Properties.dock()).is_some());
+        }
+        assert!(!Panel::available().any(|p| p == Panel::Expression));
+        assert_eq!(
+            Panel::from_dock(Panel::Expression.dock()),
+            Some(Panel::Expression)
+        );
     }
     #[test]
     fn presets_remember_docks_and_floating_geometry_without_duplicate_owners() {
