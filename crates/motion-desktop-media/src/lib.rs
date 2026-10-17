@@ -15,6 +15,8 @@ use std::{path::Path, sync::Arc};
 pub mod av;
 #[cfg(feature = "ffmpeg")]
 pub mod encode;
+#[cfg(feature = "ffmpeg")]
+mod frame_layout;
 pub mod movie;
 
 /// Presentation backends tried in order.

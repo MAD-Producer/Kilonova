@@ -481,11 +481,31 @@ fn convert(frame: &frame::Video, asset: &VideoAsset) -> Result<VideoPixels> {
     if (standard, range) != (asset.color_standard, asset.color_range) {
         return Err("video changed color space".into());
     }
+    // ffmpeg-next's data() constructs a slice using native stride/height. Check
+    // every required plane before calling it, including the full padded span.
+    let chroma_width = asset.width.div_ceil(2) as usize;
+    let chroma_row_bytes = match frame.format() {
+        format::Pixel::YUV420P | format::Pixel::YUVJ420P => chroma_width,
+        format::Pixel::NV12 | format::Pixel::NV21 => chroma_width * 2,
+        _ => {
+            return Err(format!(
+                "unsupported video pixels {:?}; requires 8-bit 4:2:0 SDR",
+                frame.format()
+            ));
+        }
+    };
+    let y_stride = crate::frame_layout::checked_stride(frame, 0, asset.width as usize)?;
+    let chroma_stride = crate::frame_layout::checked_stride(frame, 1, chroma_row_bytes)?;
+    let v_stride = if matches!(frame.format(), format::Pixel::YUV420P | format::Pixel::YUVJ420P) {
+        crate::frame_layout::checked_stride(frame, 2, chroma_row_bytes)?
+    } else {
+        chroma_stride
+    };
     let (u, v, stride, pixel_stride) = match frame.format() {
         format::Pixel::YUV420P | format::Pixel::YUVJ420P if frame.planes() >= 3 => (
             frame.data(1),
             frame.data(2),
-            [frame.stride(1), frame.stride(2)],
+            [chroma_stride, v_stride],
             1,
         ),
         format::Pixel::NV12 | format::Pixel::NV21 if frame.planes() >= 2 => {
@@ -496,7 +516,7 @@ fn convert(frame: &frame::Video, asset: &VideoAsset) -> Result<VideoPixels> {
             } else {
                 (other, chroma)
             };
-            (u, v, [frame.stride(1); 2], 2)
+            (u, v, [chroma_stride; 2], 2)
         }
         _ => {
             return Err(format!(
@@ -515,7 +535,7 @@ fn convert(frame: &frame::Video, asset: &VideoAsset) -> Result<VideoPixels> {
         [
             VideoPlane {
                 data: frame.data(0),
-                row_stride: frame.stride(0),
+                row_stride: y_stride,
                 pixel_stride: 1,
             },
             VideoPlane {
@@ -548,6 +568,125 @@ impl EncoderSettings {
 }
 pub const OUTPUT_SAMPLE_RATE: u32 = 48_000;
 pub const OUTPUT_LAYOUT: av::ChannelLayout = av::ChannelLayout::STEREO;
+
+#[cfg(test)]
+mod plane_conversion_tests {
+    use super::*;
+
+    fn fixture(pixel: format::Pixel, width: u32, height: u32) -> (frame::Video, VideoAsset) {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../motion-media/tests/fixtures/video/silent-24fps.mp4");
+        let mut asset = probe(&path, None, Some(u32::MAX), &|| Ok(()))
+            .unwrap()
+            .asset;
+        let mut frame = frame::Video::new(pixel, width, height);
+        frame.set_color_space(color::Space::SMPTE170M);
+        frame.set_color_range(color::Range::MPEG);
+        for index in 0..frame.planes() {
+            let stride = frame.stride(index);
+            let data = frame.data_mut(index);
+            data.fill(0xa5);
+            for (y, row) in data.chunks_exact_mut(stride).enumerate() {
+                if index == 0 {
+                    for (x, value) in row[..width as usize].iter_mut().enumerate() {
+                        *value = (30 + x + y * 3) as u8;
+                    }
+                } else if matches!(pixel, format::Pixel::NV12 | format::Pixel::NV21) {
+                    let uv = if pixel == format::Pixel::NV12 {
+                        [73, 181]
+                    } else {
+                        [181, 73]
+                    };
+                    for pair in row[..width.div_ceil(2) as usize * 2].chunks_exact_mut(2) {
+                        pair.copy_from_slice(&uv);
+                    }
+                } else {
+                    row[..width.div_ceil(2) as usize].fill(if index == 1 { 73 } else { 181 });
+                }
+            }
+        }
+        asset.width = width;
+        asset.height = height;
+        asset.display_width = width;
+        asset.display_height = height;
+        (asset.color_standard, asset.color_range) = colors(&frame).unwrap();
+        (frame, asset)
+    }
+
+    #[test]
+    fn planar_and_interleaved_pixels_remain_equal_for_odd_sizes_and_rotations() {
+        for (width, height) in [(18, 10), (17, 9)] {
+            for rotation in [0, 90, 180, 270] {
+                let mut reference = None;
+                for pixel in [
+                    format::Pixel::YUV420P,
+                    format::Pixel::NV12,
+                    format::Pixel::NV21,
+                ] {
+                    let (frame, mut asset) = fixture(pixel, width, height);
+                    asset.rotation = rotation;
+                    let converted = convert(&frame, &asset).unwrap();
+                    let VideoPixels::Yuv(yuv) = converted else {
+                        panic!("expected packed YUV")
+                    };
+                    assert_eq!(yuv.rotation, rotation);
+                    let expected_y: Vec<_> = (0..height)
+                        .flat_map(|y| (0..width).map(move |x| (30 + x + y * 3) as u8))
+                        .collect();
+                    assert_eq!(yuv.y, expected_y);
+                    let cw = width.div_ceil(2) as usize;
+                    let row = match pixel {
+                        format::Pixel::YUV420P => [vec![73; cw], vec![181; cw]].concat(),
+                        format::Pixel::NV12 => [73, 181].repeat(cw),
+                        format::Pixel::NV21 => [181, 73].repeat(cw),
+                        _ => unreachable!(),
+                    };
+                    assert_eq!(yuv.uv, row.repeat(height.div_ceil(2) as usize));
+                    let rgba = yuv.to_rgba().unwrap();
+                    assert_eq!(rgba.len(), (width * height * 4) as usize);
+                    if let Some(expected) = &reference {
+                        assert_eq!(&rgba, expected);
+                    } else {
+                        reference = Some(rgba);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn decoded_plane_errors_are_returned_by_the_conversion_entry_point() {
+        let (mut frame, asset) = fixture(format::Pixel::YUV420P, 18, 10);
+        for index in 0..3 {
+            // SAFETY: Modify metadata on the owned frame and restore it before
+            // inspecting the result. convert must reject it before data().
+            let stride = frame.stride(index);
+            unsafe {
+                (*frame.as_mut_ptr()).linesize[index] = -1;
+            }
+            let result = convert(&frame, &asset);
+            unsafe {
+                (*frame.as_mut_ptr()).linesize[index] = stride as i32;
+            }
+            let error = result
+                .err()
+                .expect("conversion must reject negative stride");
+            assert!(error.contains(&format!("video plane {index}:")), "{error}");
+
+            let pointer = unsafe { (*frame.as_ptr()).data[index] };
+            unsafe {
+                (*frame.as_mut_ptr()).data[index] = std::ptr::null_mut();
+            }
+            let result = convert(&frame, &asset);
+            unsafe {
+                (*frame.as_mut_ptr()).data[index] = pointer;
+            }
+            let error = result.err().expect("conversion must reject null data");
+            assert!(error.contains(&format!("video plane {index}:")), "{error}");
+        }
+        assert!(convert(&frame, &asset).is_ok());
+    }
+}
 
 #[cfg(test)]
 mod timestamp_arithmetic_tests {
