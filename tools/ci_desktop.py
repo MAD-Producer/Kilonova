@@ -34,7 +34,7 @@ def verify_design_screens(snapshot: dict, locale: str) -> None:
         "layer-properties-tree": (360, 560), "layer-properties-effects": (360, 560),
         "timeline-properties-tree": (720, 520),
     })
-    for name in ("home", "composition-settings", "workspace-manager", "effect-library", "timeline-parent-menu", "timeline-blend-menu", "timeline-graph", "value-graph", "speed-graph", *auxiliary):
+    for name in ("home", "project-open-error", "composition-settings", "workspace-manager", "effect-library", "timeline-parent-menu", "timeline-blend-menu", "timeline-graph", "value-graph", "speed-graph", *auxiliary):
         if name not in screens:
             raise RuntimeError(f"{locale} did not capture {name}")
         data = Path(screens[name]).read_bytes()

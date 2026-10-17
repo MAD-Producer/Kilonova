@@ -114,7 +114,10 @@
       "tree.separator.width": 0.5,
       "tree.separator.opacity": 0.75,
       "property.geometry.switch_width": 64,
-      "property.anchor.step": 0.5
+      "property.anchor.step": 0.5,
+      "dialog.notice.width": 480,
+      "dialog.notice.max_height": 320,
+      "dialog.notice.button_width": 96
     },
     "motion": {
       "easing": "cubic-out"

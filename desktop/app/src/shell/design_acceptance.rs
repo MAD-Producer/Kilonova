@@ -11,6 +11,7 @@ impl Shell {
         let styles = self.panels.styles.clone();
         for screen in [
             "home",
+            "project-open-error",
             "composition-settings",
             "workspace-manager",
             "effect-library",
@@ -48,6 +49,19 @@ impl Shell {
                         &Input::default(),
                         self.workspace.locale,
                     );
+                }
+                "project-open-error" => {
+                    let mut home = home::Home::default();
+                    home.draw(&mut paint, &mut self.atlas, size,
+                        &self.workspace.recent_projects, &Input::default(), self.workspace.locale);
+                    let missing = report.with_extension("moved-project");
+                    let error = match missing.canonicalize() {
+                        Err(error) => self.workspace.locale.error(&error.to_string()),
+                        Ok(_) => return Err("error-notice capture requires an absent fixture path".into()),
+                    };
+                    project_lifecycle::error_notice::render(&mut paint, &mut self.atlas,
+                        size, &Input::default(), self.workspace.locale,
+                        &project_lifecycle::Target::Open(missing), &error, &mut Default::default());
                 }
                 "composition-settings" => {
                     let mut dialog = dialogs::Dialog::new_composition(1920, 1080);
