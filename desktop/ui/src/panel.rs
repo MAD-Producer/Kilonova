@@ -67,6 +67,7 @@ pub trait PanelView {
     }
 }
 pub struct PanelHost<A> {
+    observations: crate::observability::Failures,
     styles: std::sync::Arc<StyleSheet>,
     registry: PanelRegistry,
     views: BTreeMap<DockId, Box<dyn PanelView<Action = A>>>,
@@ -74,6 +75,7 @@ pub struct PanelHost<A> {
 impl<A> Default for PanelHost<A> {
     fn default() -> Self {
         Self {
+            observations: Default::default(),
             styles: crate::style::default_stylesheet_arc(),
             registry: Default::default(),
             views: Default::default(),
@@ -107,9 +109,18 @@ impl<A> PanelHost<A> {
                 self.views
                     .get(&layout.panel)
                     .map(|v| v.hit_regions(*layout))
-                    .unwrap_or_default()
+                    .unwrap_or_else(|| {
+                        self.observations.record("panel.unregistered_hit_regions", &format!("{:?}", layout.panel), format_args!("window={}", layout.window));
+                        Vec::new()
+                    })
                     .into_iter()
-                    .filter(|r| r.target.window == layout.window && r.target.panel == layout.panel)
+                    .filter(|r| {
+                        let matches = r.target.window == layout.window && r.target.panel == layout.panel;
+                        if !matches {
+                            self.observations.record("panel.hit_region_scope", &format!("{:?}", layout.panel), format_args!("window={} returned_target={:?}", layout.window, r.target));
+                        }
+                        matches
+                    })
                     .map(|mut r| {
                         r.clip = r.clip.intersection(layout.bounds.intersection(layout.clip));
                         r
@@ -127,6 +138,7 @@ impl<A> PanelHost<A> {
         atlas: &mut TextAtlas,
     ) -> Vec<A> {
         let Some(view) = self.views.get_mut(&layout.panel) else {
+            self.observations.record("panel.unregistered_draw", &format!("{:?}", layout.panel), format_args!("window={}", layout.window));
             return vec![];
         };
         let mut content = PaintList::with_styles(self.styles.clone());
