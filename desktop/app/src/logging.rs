@@ -65,10 +65,6 @@ impl log::Log for FileLogger {
         if !self.enabled(record.metadata()) {
             return;
         }
-        if record.level() == log::Level::Error && !IN_PANIC_HOOK.get() {
-            // stdout is reserved for command-list and MCP JSON-RPC transport.
-            let _ = writeln!(io::stderr(), "ERROR {}: {}", record.target(), record.args());
-        }
         if IN_PANIC_HOOK.get() {
             // The previous panic hook already preserves console stderr output.
             // The panic may have originated while this very thread held writer.
@@ -81,6 +77,12 @@ impl log::Log for FileLogger {
         } else {
             let mut writer = self.lock_writer();
             self.write(record, &mut *writer);
+        }
+        if record.level() == log::Level::Error && !IN_PANIC_HOOK.get() {
+            // Flush the file and release its mutex before console IO: an MCP
+            // client may pipe stderr without draining it. Keep the cause on disk.
+            // stdout remains the command-list / JSON-RPC transport.
+            let _ = writeln!(io::stderr(), "ERROR {}: {}", record.target(), record.args());
         }
     }
     fn flush(&self) {
@@ -234,6 +236,39 @@ mod tests {
         assert!(!stdout.contains("dual-error-marker") && !stdout.contains("file-only-warning-marker"));
         let file = fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
         assert!(file.contains("dual-error-marker") && file.contains("file-only-warning-marker"));
+    }
+
+    #[test]
+    fn error_is_flushed_to_disk_before_an_undrained_console_pipe_can_block() {
+        const CHILD: &str = "MOTION_BLOCKED_CONSOLE_TEST_CHILD";
+        if let Some(root) = std::env::var_os(CHILD) {
+            let _logger = init(PathBuf::from(root)).unwrap();
+            let fill = "x".repeat(2 * 1024 * 1024);
+            log::error!("blocked-console-begin {fill} durable-error-end");
+            return;
+        }
+        let root = tempfile::tempdir().unwrap();
+        let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "logging::tests::error_is_flushed_to_disk_before_an_undrained_console_pipe_can_block"])
+            .env(CHILD,root.path()).env_remove("MOTION_LOG")
+            .stdout(std::process::Stdio::null()).stderr(std::process::Stdio::piped())
+            .spawn().unwrap();
+        let deadline = std::time::Instant::now()+Duration::from_secs(5);
+        let mut persisted = false;
+        while std::time::Instant::now()<deadline {
+            if fs::read_to_string(root.path().join("motion-studio.log"))
+                .is_ok_and(|text| text.contains("durable-error-end")) {
+                persisted = true;
+                break;
+            }
+            if child.try_wait().unwrap().is_some() { break; }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        // This test alone owns the deliberately blocked subprocess. Always reap
+        // it before asserting so a failing negative case cannot leave it behind.
+        let _ = child.kill();
+        child.wait().unwrap();
+        assert!(persisted,"stderr blocked before the error reached the file");
     }
 
     #[test]

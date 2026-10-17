@@ -462,3 +462,14 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - 证据：desktop-debug-filter-full.log、debug-filter-check.log、debug-filter-build.log、debug-filter-runtime.log、runtime/runtime-summary.json、log-features.log
 
 当前核实/修复分批记录到 30；原始两份清单保留原样，未覆盖条目仍待审，不将 832 个候选当作已确认或已关闭缺陷。
+
+## 31 · 控制台反压时优先保全错误文件
+
+状态：已完成；桌面全套 348 passed，0 failed，0 ignored；check/build 与最新 CLI/MCP 实测通过。
+
+- 普通 Error 先写文件并 flush，释放文件 Mutex 后再写 stderr；stdout 仍完全不参与日志
+- 新增独立进程回归，故意不读取子进程 stderr 并输出足以填满管道的 Error；控制台可能阻塞之前，完整错误尾标记已能从日志文件读取
+- 测试只终止并回收自己创建的阻塞子进程，不对产品 worker 增加超时、取消或重启；产品 stderr 仍是同步输出，本节不宣称解决任意阻塞终端
+- 原 panic hook 仍只 try_lock，原 stderr hook 与锁中毒恢复回归均通过
+- 最新二进制实际验证 CLI 命令目录 JSON、MCP 三条 JSON-RPC 响应、Error 文件/stderr 双输出及日志轮转通过
+- 证据：desktop-console-order-full.log、console-order-check.log、console-order-build.log、console-order-protocol.log
