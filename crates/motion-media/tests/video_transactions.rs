@@ -86,6 +86,36 @@ fn wait(jobs: &VideoJobs, id: &str) -> motion_media::VideoTaskStatus {
 }
 
 #[test]
+fn blocked_thumbnail_keeps_old_video_index_and_retry_rebuilds_both_files() {
+    let _guard = TEST_LOCK.lock().unwrap();
+    let root = tempfile::tempdir().unwrap();
+    let jobs = VideoJobs::new(root.path().into()).unwrap();
+    let mut engine = Engine::new(Project::new(256, 144, 60, 240).unwrap()).unwrap();
+    start(&jobs, "cache-source");
+    assert_eq!(wait(&jobs, "cache-source").state, "ready");
+    assert_eq!(jobs.commit("cache-source", &mut engine).unwrap().state, "succeeded");
+    let before = engine.snapshot();
+    let asset = before.video_assets[0].clone();
+    let index = motion_media::video_cache_path(root.path(), &asset).unwrap();
+    let thumbnail = index.with_extension("png");
+    let original = std::fs::read(&index).unwrap();
+    std::fs::remove_file(&thumbnail).unwrap();
+    std::fs::create_dir(&thumbnail).unwrap();
+    jobs.prepare_cache("cache-blocked", asset.clone(), probe_stub()).unwrap();
+    let failed = wait(&jobs, "cache-blocked");
+    assert_eq!(failed.state, "failed");
+    assert!(failed.error.unwrap().contains("not a regular file"));
+    assert_eq!(std::fs::read(&index).unwrap(), original);
+    assert_eq!(engine.snapshot(), before);
+    std::fs::remove_dir(&thumbnail).unwrap();
+    jobs.prepare_cache("cache-retry", asset.clone(), probe_stub()).unwrap();
+    assert_eq!(wait(&jobs, "cache-retry").state, "succeeded");
+    assert_eq!(std::fs::read(&index).unwrap(), original);
+    assert_eq!(motion_media::load_video_index(root.path(), &asset).unwrap().len(), 72);
+    assert!(thumbnail.is_file());
+}
+
+#[test]
 fn source_and_original_audio_share_one_owned_file_and_one_history_entry() {
     let _guard=TEST_LOCK.lock().unwrap();
     let root = tempfile::tempdir().unwrap();

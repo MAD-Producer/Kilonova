@@ -1,6 +1,22 @@
 use crate::GpuTiming;
 use serde_json::{json, Value};
 use std::time::Instant;
+/// Samples at successful frame boundaries, not transient/driver VRAM peaks.
+#[derive(Clone, Copy, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FrameResources {
+    pub textures: crate::TextureMemoryBreakdown,
+    pub preview_target_bytes: u64,
+    pub cpu_video_cache_bytes: u64,
+    pub cpu_video_proxy_bytes: u64,
+    pub video_prepare_us: u64,
+    pub video_upload_us: u64,
+    pub image_upload_bytes_total: u64,
+    pub video_upload_bytes_total: u64,
+    pub pipeline_builds_total: u64,
+    pub memory_quality_level: u8,
+    pub resource_refusals_total: u64,
+}
 #[derive(Clone, Copy, Debug)]
 pub struct FrameMeasurement {
     pub sequence: u64,
@@ -15,6 +31,7 @@ pub struct FrameMeasurement {
     pub render_height: u32,
     pub preview_fps: u32,
     pub gpu: Option<GpuTiming>,
+    pub resources: Option<FrameResources>,
 }
 pub struct FrameRecorder {
     start: Instant,
@@ -58,15 +75,24 @@ impl FrameRecorder {
         let metric = |field: fn(&FrameMeasurement) -> Option<f64>| {
             distribution(self.frames.iter().filter_map(field))
         };
+        let resource_count = self.frames.iter().filter(|f| f.resources.is_some()).count();
         json!({"metadata":metadata,"durationSeconds":self.start.elapsed().as_secs_f64(),"frameCount":self.frames.len(),"overflowFrames":self.overflow,
             "gpuSampleCount":gpu_count,"gpuSampleCoverage":if self.frames.is_empty(){0.0}else{gpu_count as f64/self.frames.len() as f64},
             "cpuPrepareUs":metric(|f|Some(f.cpu_prepare_us as f64)),"acquireUs":metric(|f|Some(f.acquire_us as f64)),
             "submitUs":metric(|f|Some(f.submit_us as f64)),"presentCallUs":metric(|f|Some(f.present_call_us as f64)),"renderWallUs":metric(|f|Some(f.render_wall_us as f64)),
             "gpuTotalUs":metric(|f|f.gpu.map(|g|g.total_us)),"gpuCompositionUs":metric(|f|f.gpu.map(|g|g.composition_us)),"gpuPresentationUs":metric(|f|f.gpu.map(|g|g.presentation_us)),
-            "presentationScope":"Native present() calls and GPU pass timestamps. Actual display deadlines require SurfaceFlinger FrameTimeline evidence.",
+            "resourceSampleCount":resource_count,
+            "resourceSampleScope":"Successful frame boundaries; logical application texture capacity and separate CPU video caches. Excludes transient peaks, buffers, decoder external allocations and driver residency. Upload and pipeline counters are cumulative, not per-frame bytes/counts.",
+            "logicalTextureBytes":metric(|f|f.resources.map(|r| (r.textures.total_bytes()+r.preview_target_bytes) as f64)),
+            "cpuVideoCacheBytes":metric(|f|f.resources.map(|r|r.cpu_video_cache_bytes as f64)),
+            "cpuVideoProxyBytes":metric(|f|f.resources.map(|r|r.cpu_video_proxy_bytes as f64)),
+            "videoPrepareUs":metric(|f|f.resources.map(|r|r.video_prepare_us as f64)),
+            "videoUploadUs":metric(|f|f.resources.map(|r|r.video_upload_us as f64)),
+            "presentationScope":"Native present() calls and GPU pass timestamps. Actual display deadlines require platform presentation tracing (for example PresentMon or FrameTimeline).",
             "frames":self.frames.iter().map(|f|json!({"sequence":f.sequence,"frame":f.frame,"elapsedUs":f.elapsed_us,"cpuPrepareUs":f.cpu_prepare_us,
                 "acquireUs":f.acquire_us,"submitUs":f.submit_us,"presentCallUs":f.present_call_us,"renderWallUs":f.render_wall_us,
                 "renderWidth":f.render_width,"renderHeight":f.render_height,"previewFps":f.preview_fps,
+                "resources":f.resources,
                 "gpuCompositionUs":f.gpu.map(|g|g.composition_us),"gpuPresentationUs":f.gpu.map(|g|g.presentation_us),"gpuTotalUs":f.gpu.map(|g|g.total_us)})).collect::<Vec<_>>()})
     }
 }
