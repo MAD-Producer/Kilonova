@@ -2332,6 +2332,7 @@ dependencies = [
  "bytemuck",
  "fontdb",
  "image",
+ "log",
  "lyon_tessellation",
  "pollster",
  "raw-window-handle",

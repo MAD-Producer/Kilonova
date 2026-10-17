@@ -9,6 +9,7 @@ description = "Immediate-mode widget and dock layout library on winit and wgpu"
 crate-type = ["rlib"]
 
 [dependencies]
+log.workspace = true
 wgpu.workspace = true
 bytemuck.workspace = true
 serde.workspace = true

@@ -916,3 +916,15 @@ T10 共 39 个编号均已给出处置，其中 27 项观测完成、1 项观测
 - 本批相对 ad4360e 的 panels 差异为空；PR 相对 main 的 panels 差异仍仅为 §12/23 已获准的测试夹具、蒙版拒绝观测与拖拽推进及对应测试
 - 按用户要求在此停止新增审计实施并收为 PR，后续候选另起 PR；保留 §53 的 161 个待核对编号及线程/协议边界，不声明整份审计完成
 - 证据：b52-render-final.log、b52-desktop-check.log、b52-desktop-full.log、b52-desktop-build.log、b52-runtime.log、runtime-b52/runtime-summary.json、b52-native-ci.log、native-b52/、b52-tools.log、b52-tools-all.log（首次环境失败）、b52-tools-clean.log
+
+## 54 · 样式、缺字与字体图集压力
+
+- 样式缺少 color/metric 时保留透明色/调用方 fallback，首次 Warn、同一 token 第 60 次 Error 一次；健康查找不加锁、不记录日志
+- 每个不可变样式表共享一份观测状态，clone 不重置计数，重新编译样式表才重置；TextAtlas 按实例记录缺字码点和图集 repack，包含字体、尺寸、像素倍率与容量上下文
+- 计数是同一实例内同一失败键的累计次数，不冒充连续失败帧数；正常字体/其他 token 的成功不能证明某个缺失 token 或码点已经恢复，因此不清零；未改变 fallback 字体选择、字形 UV、缓存清空或重排策略
+- 每个实例最多保留 128 个失败键及一个 overflow 槽，键截取 128 字符，容量外仅共享首次/第 60 次事件；日志在释放观测锁后输出，避免缺失名字制造无限内存增长或每帧日志
+- 系统 fallback 字体加载失败与 Windows GDI 初始化失败记录 Warn；原有返回值、outline 回退和字体策略保持不变
+- 新增真实主题/系统字体子进程测试，默认 Info 验证 clone 共享、替换重置、缓存缺字持续升级、真实小图集反复填满及 1000 个失败键的容量限制，正常 token、正常字形和空格无失败日志
+- 首次编译发现测试跨模块调用私有 to_json，改为重新加载同一公开主题 JSON；未扩大产品 API 或更改断言
+- 专项 1 passed；全套 motion-ui 79 passed、0 failed、0 ignored，含真实 GPU/framework/工作区集成；关联 6.1、6.2、6.5、6.6、6.8、6.9、7.6、7.7，仅补观测与真实路径验证，不声称解决 stale UV、CJK 覆盖策略、整形/bidi 或引用完整性 CI 缺口
+- 证据：target/silent-failure-validation/b54-ui-observation.log、b54-ui-full.log；panels、主题 token 和 UI 行为均未修改

@@ -149,6 +149,7 @@ pub struct StyleSheet {
     document: Document,
     compiled: BTreeMap<String, [ResolvedStyle; 64]>,
     colors: BTreeMap<String, Color>,
+    observations: std::sync::Arc<crate::observability::Failures>,
 }
 impl StyleSheet {
     pub fn from_json(bytes: &[u8]) -> Result<Self, String> {
@@ -208,7 +209,10 @@ impl StyleSheet {
         self.colors
             .get(name)
             .copied()
-            .unwrap_or(Color::rgba(0, 0, 0, 0.))
+            .unwrap_or_else(|| {
+                self.observations.record("style.color", name, format_args!("fallback=transparent"));
+                Color::rgba(0, 0, 0, 0.)
+            })
     }
     pub fn easing(&self) -> crate::motion::Easing {
         self.document.tokens.motion.easing
@@ -223,7 +227,10 @@ impl StyleSheet {
             .get(name)
             .copied()
             .filter(|v| v.is_finite())
-            .unwrap_or(fallback)
+            .unwrap_or_else(|| {
+                self.observations.record("style.metric", name, format_args!("fallback={fallback}"));
+                fallback
+            })
     }
     /// Retains the current compiled sheet if the replacement fails to load or validate.
     pub fn reload(&mut self, path: &Path) -> Result<(), String> {
@@ -299,6 +306,7 @@ impl StyleSheet {
                 .collect::<Result<_, String>>()?,
             document,
             compiled: BTreeMap::new(),
+            observations: Default::default(),
         };
         for name in sheet.document.styles.keys() {
             valid_name(name)?;
