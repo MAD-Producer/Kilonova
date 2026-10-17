@@ -232,3 +232,13 @@
 - host 集成测试验证快照可读取计数且 project 不含历史诊断字段
 - 大文档测量原测试的等价性断言通过；测量日志保留，不将一次本机耗时当成性能保证
 - 关联辅助：0.7；日志：history-batch15.log、history-batch15-measurement.log
+
+## 16 · 视频帧代次分配的错误传播
+
+状态：已修复；motion-host 全套 46 passed，0 failed，0 ignored。
+
+- 同一源的视频状态锁中毒、PTS 索引缺失和超出可见时间范围明确返回原始错误，不再转成一次新的 generation
+- 相同帧继续复用既有 generation；分配失败不推进计数，计数上限遵守解码器的有符号 sequence 契约
+- 图层替换视频源时先退役旧 stream，再解释新源时间，避免把旧源时间基准的错误误施加到新源
+- 新增 4 项回归覆盖真实 Mutex 中毒、同帧复用及无效时间基准、更换源与计数耗尽
+- 验证：cargo test -p motion-host --offline；日志：target/silent-failure-validation/video-generation-batch16.log

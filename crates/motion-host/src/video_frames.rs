@@ -349,31 +349,32 @@ impl VideoFrames {
                 json!({"state":"outside","sequence":sequence,"source_time_us":source,"bytes":0,"object":object}),
             );
         }
-        let generation = self.generation(object, source as u64)?;
+        let generation = self.generation(asset, object, source as u64)?;
         let mut result =
             self.request_source(root, asset, object, source as u64, generation, false)?;
         self.sequences.insert(object, (sequence, frame, generation));
         result["sequence"] = json!(sequence);
         Ok(result)
     }
-    fn generation(&mut self, object: u64, time: u64) -> Result<u64> {
-        if let Some(r) = self
-            .streams
-            .get(&object)
-            .and_then(|s| s.shared.0.lock().ok()?.desired)
-            .filter(|r| {
-                self.streams[&object]
-                    .key(time)
-                    .is_ok_and(|(t, _)| r.time == t)
-            })
-        {
-            return Ok(r.sequence);
+    fn generation(&mut self, asset: &VideoAsset, object: u64, time: u64) -> Result<u64> {
+        // A layer can change sources while retaining its object id. Retire that
+        // stream before interpreting its old timebase or poisoned state.
+        if self.streams.get(&object).is_some_and(|stream| stream.asset != *asset) {
+            self.streams.remove(&object);
         }
-        self.counter = self
-            .counter
-            .checked_add(1)
+        if let Some(stream) = self.streams.get(&object) {
+            let desired = stream.shared.0.lock()
+                .map_err(|_| format!("video frame state poisoned: object={object}"))?.desired;
+            if let Some(request) = desired {
+                let (target, _) = stream.key(time)?;
+                if request.time == target { return Ok(request.sequence); }
+            }
+        }
+        let next = self.counter.checked_add(1)
+            .filter(|value| *value <= i64::MAX as u64)
             .ok_or("video generation exhausted")?;
-        Ok(self.counter)
+        self.counter = next;
+        Ok(next)
     }
     fn request_source(
         &mut self,
@@ -478,7 +479,7 @@ impl VideoFrames {
                 .iter()
                 .find(|a| a.id == source.asset)
                 .ok_or("video asset missing")?;
-            let generation = self.generation(layer.id, source.source_time_us)?;
+            let generation = self.generation(asset, layer.id, source.source_time_us)?;
             let r = self.request_source(
                 root,
                 asset,
@@ -525,5 +526,80 @@ impl VideoFrames {
         }
         json!({"cacheBytes":bytes,"cacheFrames":frames,"cacheBudgetBytes":budget,"maxCacheBudgetBytes":4 * crate::video_cache::MAX_CACHE_BYTES,
             "cacheHits":hits,"cacheMisses":misses,"decodedFrames":decoded,"cancelledFrames":cancelled,"decoderSeeks":seeks,"lookaheadFrames":LOOKAHEAD,"streams":self.streams.len()})
+    }
+}
+
+#[cfg(test)]
+mod generation_failure_tests {
+    use super::*;
+
+    fn asset() -> VideoAsset {
+        serde_json::from_value(json!({
+            "id":1,"path":"assets/test.mp4","bytes":4,"mime":"video/avc","track":0,
+            "width":2,"height":2,"rotation":0,"display_width":2,"display_height":2,
+            "video_start_us":0,"video_end_us":66666,"duration_us":66666,
+            "frame_count":2,"variable_frame_rate":false,"nominal_frame_rate":30.0,
+            "color_standard":1,"color_range":1,"audio_asset":null
+        })).unwrap()
+    }
+
+    fn frames(asset: &VideoAsset) -> VideoFrames {
+        let mut frames = VideoFrames {counter:10,..Default::default()};
+        let stream = Stream {
+            asset:asset.clone(),
+            pts:Arc::new(vec![0,33333]),
+            shared:Arc::new((Mutex::new(State {
+                desired:Some(Request {time:0,source_time:0,index:0,sequence:10}),
+                cache:FrameCache::new(),error:None,stop:false,prefetch:false,failed_prefetch:None,
+                hits:0,misses:0,decoded:0,cancelled:0,seeks:0,
+            }),Condvar::new())),
+        };
+        frames.streams.insert(7,stream);
+        frames
+    }
+
+    #[test]
+    fn poisoned_video_state_is_an_error_without_fabricating_a_new_generation() {
+        let asset = asset();
+        let mut frames = frames(&asset);
+        let shared = frames.streams[&7].shared.clone();
+        assert!(std::panic::catch_unwind(|| {
+            let _guard = shared.0.lock().unwrap();
+            panic!("injected frame-state poison");
+        }).is_err());
+        let error = frames.generation(&asset,7,0).unwrap_err();
+        assert!(error.contains("state poisoned") && error.contains("object=7"));
+        assert_eq!(frames.counter,10);
+    }
+
+    #[test]
+    fn same_source_reuses_frame_generation_but_bad_timebase_does_not_advance_it() {
+        let asset = asset();
+        let mut frames = frames(&asset);
+        assert_eq!(frames.generation(&asset,7,1000).unwrap(),10);
+        assert!(frames.generation(&asset,7,90000).unwrap_err().contains("outside visible video"));
+        assert_eq!(frames.counter,10);
+        frames.streams.get_mut(&7).unwrap().pts=Arc::new(vec![]);
+        assert!(frames.generation(&asset,7,0).unwrap_err().contains("PTS index missing"));
+        assert_eq!(frames.counter,10);
+    }
+
+    #[test]
+    fn changed_source_retires_the_old_timebase_before_allocating_a_generation() {
+        let original = asset();
+        let mut frames = frames(&original);
+        let mut next = original.clone();
+        next.id=2;
+        next.video_start_us=100000;
+        next.video_end_us=200000;
+        assert_eq!(frames.generation(&next,7,100000).unwrap(),11);
+        assert!(!frames.streams.contains_key(&7));
+    }
+
+    #[test]
+    fn generation_exhaustion_respects_the_decoders_signed_sequence_contract() {
+        let mut frames=VideoFrames {counter:i64::MAX as u64,..Default::default()};
+        assert_eq!(frames.generation(&asset(),7,0).unwrap_err(),"video generation exhausted");
+        assert_eq!(frames.counter,i64::MAX as u64);
     }
 }
