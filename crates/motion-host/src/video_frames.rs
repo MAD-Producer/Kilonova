@@ -794,7 +794,7 @@ mod generation_failure_tests {
         }
         fn decode_audio(&self, _: &Path, _: &Path, _: Option<u32>, _: u64, _: &mut dyn FnMut(f64) -> Result<()>) -> Result<motion_core::AudioAsset> { Err("not used".into()) }
         fn media_capabilities(&self, _: Option<&crate::platform::VideoQuery>) -> Result<Value> { Err("not used".into()) }
-        fn attach_surface(&self, _: Arc<dyn wgpu::WindowHandle + Send + Sync>, _: u32, _: u32) -> Result<crate::platform::SurfaceTarget> { Err("not used".into()) }
+        fn attach_surface(&self, _: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>, _: u32, _: u32) -> Result<crate::platform::SurfaceTarget> { Err("not used".into()) }
     }
     struct PrefetchDecoder(Arc<std::sync::atomic::AtomicBool>);
     impl VideoDecoder for PrefetchDecoder {

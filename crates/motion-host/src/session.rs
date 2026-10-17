@@ -308,7 +308,9 @@ impl Session {
         self.preview_inputs.cancel();
         self.video_frames.clear();
         if let Some(g) = self.graphics.take() {
-            g.renderer.device.poll(wgpu::Maintain::Wait);
+            if let Err(error) = g.renderer.device.poll(wgpu::PollType::wait_indefinitely()) {
+                log::error!("[motion-gpu] session detach phase=wait: {error}");
+            }
             drop(g);
         }
     }
@@ -453,7 +455,7 @@ impl Session {
             self.video_pending_attempts += 1;
             return Ok(false);
         };
-        g.renderer.device.poll(wgpu::Maintain::Poll);
+        g.renderer.device.poll(wgpu::PollType::Poll).map_err(|e| format!("preview GPU poll: {e}"))?;
         g.renderer.check_health().map_err(|e| e.to_string())?;
         let mut gpu_work_us = None;
         if let Some(timer) = &mut g.timer {
@@ -649,7 +651,7 @@ impl Session {
             g.last_canvas = [self.scene.width, self.scene.height];
             g.last_background = self.scene.background;
             let presenting = Instant::now();
-            output.present();
+            g.renderer.queue.present(output);
             let present_call_us = presenting.elapsed().as_micros() as u64;
             self.presented += 1;
             let render_wall_us = began.elapsed().as_micros() as u64;
@@ -775,16 +777,17 @@ static PREVIEW_SURFACE_FAILURES: motion_render::observability::FailureCounter =
     motion_render::observability::FailureCounter::new();
 fn acquire_preview_surface(g: &mut Graphics) -> Result<Option<wgpu::SurfaceTexture>> {
     match g.surface.get_current_texture() {
-        Ok(output) => { PREVIEW_SURFACE_FAILURES.success(); Ok(Some(output)) },
-        Err(error @ (wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated)) => {
+        wgpu::CurrentSurfaceTexture::Success(output) | wgpu::CurrentSurfaceTexture::Suboptimal(output) => { PREVIEW_SURFACE_FAILURES.success(); Ok(Some(output)) },
+        error @ (wgpu::CurrentSurfaceTexture::Lost | wgpu::CurrentSurfaceTexture::Outdated) => {
             PREVIEW_SURFACE_FAILURES.failure("host.acquire_preview_surface", format_args!("state={error:?}"));
             g.surface.configure(&g.renderer.device, &g.config); Ok(None)
         }
-        Err(wgpu::SurfaceError::Timeout) => {
+        wgpu::CurrentSurfaceTexture::Timeout => {
             PREVIEW_SURFACE_FAILURES.failure("host.acquire_preview_surface", format_args!("state=Timeout"));
             Ok(None)
         },
-        Err(error) => Err(format!("surface rendering failed: {error}")),
+        wgpu::CurrentSurfaceTexture::Occluded => { PREVIEW_SURFACE_FAILURES.success(); Ok(None) },
+        wgpu::CurrentSurfaceTexture::Validation => Err("surface acquisition validation failed".into()),
     }
 }
 fn preview_viewport([x,y,w,h]: [f32; 4], [cw,ch]: [u32; 2]) -> [f32; 4] {
@@ -800,7 +803,7 @@ fn present_held(g: &mut Graphics, viewport: [f32; 4],
     overlay(&g.renderer, &mut encoder, &view);
     g.renderer.submit_tracked(encoder.finish(), |ledger| g.scratch.collect_texture_resources(ledger));
     g.renderer.check_health().map_err(|e| e.to_string())?;
-    output.present();
+    g.renderer.queue.present(output);
     Ok(true)
 }
 

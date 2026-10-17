@@ -45,13 +45,13 @@ impl App {
             );
         }
         let frame = match window.surface.get_current_texture() {
-            Ok(f) => f,
-            Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+            wgpu::CurrentSurfaceTexture::Success(f) | wgpu::CurrentSurfaceTexture::Suboptimal(f) => f,
+            wgpu::CurrentSurfaceTexture::Lost | wgpu::CurrentSurfaceTexture::Outdated => {
                 window.surface.configure(&gpu.device, &window.config);
                 return Ok(());
             }
-            Err(wgpu::SurfaceError::Timeout) => return Ok(()),
-            Err(e) => return Err(e.to_string()),
+            wgpu::CurrentSurfaceTexture::Timeout | wgpu::CurrentSurfaceTexture::Occluded => return Ok(()),
+            wgpu::CurrentSurfaceTexture::Validation => return Err("surface acquisition validation failed".into()),
         };
         let view = frame.texture.create_view(&Default::default());
         let mut encoder = gpu.device.create_command_encoder(&Default::default());
@@ -59,7 +59,7 @@ impl App {
         gpu.painter
             .render(&gpu.device, &gpu.queue, &mut encoder, &view, &paint, size);
         gpu.queue.submit(Some(encoder.finish()));
-        frame.present();
+        gpu.queue.present(frame);
         window.frames += 1;
         if let Some(panel) = float {
             if window.panel.is_some() {
@@ -166,9 +166,9 @@ impl ApplicationHandler for App {
                     .map_err(|e| e.to_string())?,
             );
             window.set_ime_allowed(true);
-            let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
-                backends: wgpu::Backends::VULKAN | wgpu::Backends::DX12 | wgpu::Backends::GL,
-                ..Default::default()
+            let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+                backends: wgpu::Backends::VULKAN | wgpu::Backends::DX12 | wgpu::Backends::METAL,
+                ..wgpu::InstanceDescriptor::new_without_display_handle()
             });
             let surface = instance
                 .create_surface(window.clone())
@@ -178,7 +178,7 @@ impl ApplicationHandler for App {
                     compatible_surface: Some(&surface),
                     ..Default::default()
                 }))
-                .ok_or("no GPU adapter")?;
+                .map_err(|e| e.to_string())?;
             let (device, queue) = pollster::block_on(adapter.request_device(
                 &wgpu::DeviceDescriptor {
                     label: Some("UI framework"),
@@ -186,8 +186,8 @@ impl ApplicationHandler for App {
                     required_limits:
                         wgpu::Limits::downlevel_defaults().using_resolution(adapter.limits()),
                     memory_hints: wgpu::MemoryHints::MemoryUsage,
+                    ..Default::default()
                 },
-                None,
             ))
             .map_err(|e| e.to_string())?;
             let caps = surface.get_capabilities(&adapter);

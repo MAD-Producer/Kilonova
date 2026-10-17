@@ -253,6 +253,6 @@ fn preview_candidates_swap_ownership_and_aliases_count_once() {
     assert_eq!(discarded.total_known_bytes(), initial.total_known_bytes() - 32*32*4 + 16*16*4);
     assert!(targets.prepare(&renderer, u32::MAX, u32::MAX).is_err());
     assert_eq!(discarded, snapshot(&targets));
-    renderer.device.poll(wgpu::Maintain::Wait);
+    renderer.device.poll(wgpu::PollType::wait_indefinitely()).expect("GPU poll failed");
     renderer.check_health().unwrap();
 }

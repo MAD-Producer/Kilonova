@@ -22,13 +22,12 @@ pub mod movie;
 /// Presentation backends tried in order.
 ///
 /// Vulkan first because it gives the compositor the widest effect support and
-/// the best multi-queue behaviour; GL is the fallback that always works on
-/// older drivers. Only one backend's surface may stay alive for a window.
-pub const SURFACE_BACKENDS: [wgpu::Backends; 4] = [
+/// the best multi-queue behaviour. Only Vulkan, Metal and DX12 are supported;
+/// only one backend's surface may stay alive for a window.
+pub const SURFACE_BACKENDS: [wgpu::Backends; 3] = [
     wgpu::Backends::VULKAN,
     wgpu::Backends::METAL,
     wgpu::Backends::DX12,
-    wgpu::Backends::GL,
 ];
 
 pub struct DesktopPlatform {
@@ -132,15 +131,15 @@ impl Platform for DesktopPlatform {
 
     fn attach_surface(
         &self,
-        window: Arc<dyn wgpu::WindowHandle + Send + Sync>,
+        window: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         width: u32,
         height: u32,
     ) -> Result<SurfaceTarget> {
         let mut failures = Vec::new();
         for backend in &self.surface_backends {
-            let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+            let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
                 backends: *backend,
-                ..Default::default()
+                ..wgpu::InstanceDescriptor::new_without_display_handle()
             });
             let surface = match instance.create_surface(window.clone()) {
                 Ok(surface) => surface,
@@ -171,7 +170,7 @@ impl Platform for DesktopPlatform {
                     } else {
                         wgpu::PresentMode::Fifo
                     };
-                    let config = wgpu::SurfaceConfiguration {
+                    let config = wgpu::SurfaceConfiguration { color_space: wgpu::SurfaceColorSpace::Auto,
                         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
                         format,
                         width,
