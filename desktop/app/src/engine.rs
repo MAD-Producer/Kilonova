@@ -24,6 +24,8 @@ use std::{
 };
 mod diagnostic_names;
 mod failure;
+#[cfg(test)]
+mod fallback_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod scope_tests;
 use failure::{ErrorReply, Failure, SessionLease};
@@ -86,6 +88,20 @@ struct PresentationState {
 
 /// Everything the worker can be asked to do.
 ///
+// Poison still discards the cache entry, matching the original policy.
+fn recycle_paint_pool(pool: &std::sync::Mutex<Vec<motion_ui::paint::PaintList>>, paint: motion_ui::paint::PaintList, worker: bool) {
+    static UI: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+    static WORKER: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+    let poisoned = match pool.lock() {
+        Ok(mut pool) => { if pool.len() < 8 { pool.push(paint); } false }
+        Err(_) => true,
+    };
+    if poisoned {
+        let (counter, site) = if worker { (&WORKER, "engine.paint.worker_recycle") } else { (&UI, "engine.paint.recycle") };
+        counter.failure(site, format_args!("reason=mutex_poisoned fallback=discard_cache_entry"));
+    }
+}
+
 /// Commands are a closed enum rather than a string channel so a typo in the UI
 /// cannot become a runtime error, and so adding a host operation is a
 /// compile-time change on both platforms.
@@ -405,19 +421,17 @@ impl Engine {
         &self.diagnostics
     }
     pub fn take_paint(&self) -> motion_ui::paint::PaintList {
-        self.paint_pool
-            .lock()
-            .ok()
-            .and_then(|mut p| p.pop())
-            .unwrap_or_default()
+        static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+        let (paint, poisoned) = match self.paint_pool.lock() {
+            Ok(mut pool) => (pool.pop().unwrap_or_default(), false),
+            Err(_) => (motion_ui::paint::PaintList::default(), true),
+        };
+        if poisoned { FAILURES.failure("engine.paint.take", format_args!("reason=mutex_poisoned fallback=empty_paint")); }
+        paint
     }
     pub fn recycle_paint(&self, mut paint: motion_ui::paint::PaintList) {
         paint.clear();
-        if let Ok(mut pool) = self.paint_pool.lock() {
-            if pool.len() < 8 {
-                pool.push(paint);
-            }
-        }
+        recycle_paint_pool(&self.paint_pool, paint, false);
     }
     pub fn node_preview_available(&self) -> Result<(), String> {
         self.check_running()?;
@@ -609,7 +623,10 @@ impl Engine {
                             };
                             let message = format!("engine session closed after native panic: {reason}; {recovery}; reopen the project");
                             log::error!("[motion-engine] {message}");
-                            *worker_failure.lock().unwrap_or_else(|error| error.into_inner()) = Some(message.clone());
+                            {
+                                static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+                                crate::fallback_observation::recovered(&worker_failure, &FAILURES, "engine.failure.publish", |value| *value = Some(message.clone()));
+                            }
                             failed_reply = on_panic.map(|reply| (reply, message));
                             break;
                         }
@@ -619,7 +636,10 @@ impl Engine {
                 drop(windows);
                 drop(painter);
                 drop(node_preview);
-                worker_factory.lock().unwrap_or_else(|error| error.into_inner()).take();
+                {
+                    static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+                    crate::fallback_observation::recovered(&worker_factory, &FAILURES, "engine.surface.shutdown", |factory| { factory.take(); });
+                }
                 drop(lease);
                 drop(guard);
                 log::info!("worker resources released: session={id}");
@@ -665,16 +685,13 @@ impl Engine {
         self.check_running()?;
         let request = self.diagnostics.next_request();
         let operation = command.diagnostic_name();
-        let _gate = self.in_flight.lock().unwrap_or_else(|e| e.into_inner());
-        self.sender
-            .send(QueuedCommand {
-                command,
-                queued: std::time::Instant::now(),
-                request,
-                context: self.diagnostics.context(),
-            })
-            .map_err(|_| self.stopped_error())?;
-        let depth = self.queue_depth.fetch_add(1, Ordering::AcqRel) + 1;
+        let context = self.diagnostics.context();
+        static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+        let depth = crate::fallback_observation::recovered(&self.in_flight, &FAILURES, "engine.flight.dispatch", |_| {
+            self.sender.send(QueuedCommand {
+                command, queued: std::time::Instant::now(), request, context,
+            }).map(|()| self.queue_depth.fetch_add(1, Ordering::AcqRel) + 1)
+        }).map_err(|_| self.stopped_error())?;
         // Present shares this queue; keep its healthy per-frame path silent.
         if operation != "present" {
             log::debug!("dispatch #{} {} queue_depth={}", request, operation, depth);
@@ -1469,7 +1486,7 @@ fn handle(
             result
         });
         let mut paint=ui.paint;paint.clear();
-        if let Ok(mut pool)=paints.lock(){if pool.len()<8 {pool.push(paint);}}
+        recycle_paint_pool(paints, paint, true);
         respond(reply,result);
         },
         Command::OpenDirectory { directory, reply } => respond(reply,(||{

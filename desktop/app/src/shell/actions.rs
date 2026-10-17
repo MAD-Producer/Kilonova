@@ -477,7 +477,7 @@ impl Shell {
             }
             Action::WindowDrag => {
                 if let Some(window) = &self.window {
-                    let _ = window.drag_window();
+                    if let Err(error) = window.drag_window() { log::warn!("window drag rejected reason={error}"); }
                 }
             }
             Action::WindowClose => self.request_close(),

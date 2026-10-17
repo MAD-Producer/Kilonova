@@ -291,3 +291,37 @@ fn oversized_report_replies_with_failure_and_reporter_remains_usable() {
     d.export(path.clone()).unwrap().recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
     assert!(path.exists());
 }
+
+#[test]
+fn poisoned_diagnostic_state_preserves_context_and_snapshot_with_visible_recovery() {
+    const CHILD: &str = "MOTION_DIAGNOSTICS_POISON_CHILD";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = PathBuf::from(root);
+        let _logger = crate::logging::init(root.clone()).unwrap();
+        let diagnostics = Diagnostics::new(None,None);
+        for target in [0,1] {
+            let d = diagnostics.clone();
+            assert!(std::thread::spawn(move || {
+                if target == 0 { let _guard = d.context.lock().unwrap(); panic!("controlled context poison"); }
+                else { let _guard = d.state.lock().unwrap(); panic!("controlled state poison"); }
+            }).join().is_err());
+        }
+        for _ in 0..120 {
+            diagnostics.set_context(Context { action:"observed_test",frame:7.,..Default::default() });
+            assert_eq!(diagnostics.context().frame,7.);
+            assert_eq!(diagnostics.context().action,"observed_test");
+            assert_eq!(diagnostics.report()["schemaVersion"],1);
+        }
+        let text = std::fs::read_to_string(root.join("motion-studio.log")).unwrap();
+        for site in ["diagnostics.context.read","diagnostics.context.write","diagnostics.state.report"] {
+            let records = text.lines().filter(|l| l.contains(&format!("site={site} "))).collect::<Vec<_>>();
+            assert_eq!(records.len(),2,"{site}: {text}");
+            assert!(records[0].contains("WARN") && records[1].contains("ERROR"));
+        }
+        return;
+    }
+    let temp = tempfile::tempdir().unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap()).args(["--exact","diagnostics::tests::poisoned_diagnostic_state_preserves_context_and_snapshot_with_visible_recovery"]).env_remove("MOTION_LOG").env(CHILD,temp.path()).output().unwrap();
+    assert!(output.status.success(),"{}\n{}",String::from_utf8_lossy(&output.stdout),String::from_utf8_lossy(&output.stderr));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("site=diagnostics.state.report"));
+}

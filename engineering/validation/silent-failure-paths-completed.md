@@ -1133,3 +1133,18 @@ DESIGN.md §0.7 逐项状态均为 retained with reason：本批只接入观测�
 - 8行自定义样式功能边界单列：checkbox/label.small/调用方anchor/popup/row/button.icon不在compile必需类清单，手工host sheet仍可能在unwrap处panic。桌面既有panic hook提供行号与强制backtrace，不代表独立motion-ui宿主也已安装；本批没有扩展必需类、改样式fallback或宣布自定义sheet全输入安全。既有颜色/字体观测关联已有证据，未声称本机自然缺失全部CJK字体
 - 完整复验通过：UI 82 passed（13组，含实际GPU与两项新回归）、desktop 367 passed，均0 failed/ignored，包含worker阻塞API/FileLogger；cargo check/build -p motion-desktop通过。新二进制隔离启动，默认Info可见129条普通start、0条Present start，健康绘制/工作区无新增降级记录；轮转、Error文件/stderr、CLI/MCP stdout隔离、Debug Present阈值、fatal参数、MCP UI正常EOF及shutdown失败原因均通过。样式门、provenance 1386 tracked paths、局部格式及diff检查通过；证据 b67-ui-full.log、b67-desktop-full.log、b67-desktop-check.log、b67-desktop-build.log、b67-runtime.log、b67-test-summary.json
 - 未改panels、UI视觉/交互/返回值、respond、两处MOTION_TRACE_UI、两份原始报告、依赖或第三方素材；DESIGN.md §0.7沿用§59 retained with reason。像素回归与原生冒烟不代表完成所有视觉、平台或驱动故障验收
+
+
+## 68 · 应用回退、业务锁恢复与音频回调时间戳
+
+状态：本轮仅补可观测性；机械候选对应原始B3位置见逐项台账，最终整体测试/实际启动证据见§70
+
+- 新增固定site的Counter/recovered工具，首Warn、第60次Error、之后抑制，格式化写入时限制总上下文768字符、路径单独256字符并移除控制符；没有用户对象键注册表。Workspace加载、styles stamp/reload、floating geometry连续episode成功复位；缓存中毒、状态锁恢复、SavedLayout恢复/校验按固定进程site生命周期累计，正常访问不掩盖同列表中另一个坏对象，进程重启清零。60次是发生次数，不宣称固定一秒
+- 应用Workspace保留读全文件后的64KiB限制、JSON/ownership检查、migrate_design和默认返回；NotFound安静且复位，其他失败区分read/size/json/validation，坏文件不重写。样式保留原250ms poll、stamp更新时机、旧sheet/font和既有Panels.message；reload的Info start/flush先于解析/字体操作，未增加重试或改变提示结构
+- SavedLayout的反序列化失败与存在但面板归属非法分别观测，未保存preset本身仍安静；select_preset的filter/default回退原样保留。真实负尺寸、重复面板布局通过restore和select_preset验证，正常布局交错不会使坏布局每次Warn或永远达不到60
+- paint_pool中毒仍让take返回空PaintList、recycle丢弃条目，不恢复原本被丢弃的缓存；UI回收与worker回收分别计数。终态failure、退出surface factory、Diagnostics context/GPU/report和MovieExport status的into_inner策略保持；recovered的证据先于guard声明，正常及unwind时先释放业务锁，再输出日志
+- dispatch保持send和queue_depth增加受同一InFlight锁保护，将context读取、stopped_error和dispatch日志移到锁外；不改respond、worker命令顺序或超时策略。既有TestWait回归继续验证handler前可读in_flight、积压深度和完成后清零；healthy Present依旧没有无条件start/done/dispatch
+- CPAL回调遇到playback早于callback时仍回退零延迟，仅更新固定原子计数和首/60阈值位；watchdog在循环/退出时排空后Warn/Error，带playback ID、reason和fallback，成功时间戳复位。一个poll间的多个episode会合并成至多两条阈值证据，不能把它当逐callback事件流。error锁中毒同样只在回调发布原子证据，首个业务错误仍保留；没有新增实时IO/格式化
+- 工程切换后的remember_project、音频分析cancel/release派发、关闭node_expect、取消关闭后的compile、OS窗口拖动、诊断上传偏好拒绝现在保留原因；不改变返回值、清理顺序或用户操作。浮窗位置获取/保存失败继续使用None或内存中的geometry，并按阈值观测
+- 新增实际应用加载/样式修复、真实锁中毒与unwind日志探针、真实Engine缓存/终态锁、真实Diagnostics context/report、受控callback时间戳、真实preset恢复/选择和文件geometry持久化回归。probe在logger内try_lock业务锁，验证日志在解锁后发生；FileLogger子进程验证默认级别、阈值、抑制、复位、stderr和stdout隔离
+- 测试边界：callback None是受控输入，未自然制造CPAL驱动倒序；同一recovered helper验证所有锁的释放契约，但未自然诱发movie编码器/退出factory/GPU元数据中毒或系统modified/outer_position不支持。Engine夹具验证原始终态原因后恢复向活worker注入的终态值，再按真实Shutdown清理；不修改产品生命周期

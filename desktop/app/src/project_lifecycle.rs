@@ -100,7 +100,7 @@ impl Shell {
                 self.state = state;
                 if !matches!(prompt.target, Target::Close) {
                     self.home = None;
-                    let _ = self.remember_project();
+                    if let Err(error) = self.remember_project() { log::error!("project change remember failed operation=remember_project changed=true reason={error}"); }
                 }
                 if matches!(prompt.target, Target::Close) {
                     self.finish_close();

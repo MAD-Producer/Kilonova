@@ -4,6 +4,7 @@ mod cursors;
 mod diagnostics;
 mod dialogs;
 mod effect_import;
+mod fallback_observation;
 mod engine;
 mod home;
 mod i18n;
@@ -325,7 +326,9 @@ impl Shell {
             .map(PathBuf::from)
             .unwrap_or_else(|| directories().join("desktop-layout-v2.json"));
         let mut workspace = workspace::Workspace::load(&layout_path);
-        let _ = engine.diagnostics().set_enabled(workspace.send_diagnostics);
+        if let Err(error) = engine.diagnostics().set_enabled(workspace.send_diagnostics) {
+            log::warn!("diagnostics preference rejected enabled={} reason={error}", workspace.send_diagnostics);
+        }
         if let Some(locale) = locale {
             workspace.locale = locale;
         }

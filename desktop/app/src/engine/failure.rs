@@ -114,11 +114,8 @@ impl Engine {
         self.check_running().is_err()
     }
     pub(super) fn check_running(&self) -> Result<(), String> {
-        if let Some(error) = self
-            .failure
-            .lock()
-            .unwrap_or_else(|error| error.into_inner())
-            .clone()
+        static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+        if let Some(error) = crate::fallback_observation::recovered(&self.failure, &FAILURES, "engine.failure.check", |value| value.clone())
         {
             return Err(error);
         }
@@ -132,10 +129,8 @@ impl Engine {
         Ok(())
     }
     pub(super) fn stopped_error(&self) -> String {
-        self.failure
-            .lock()
-            .unwrap_or_else(|error| error.into_inner())
-            .clone()
+        static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+        crate::fallback_observation::recovered(&self.failure, &FAILURES, "engine.failure.stopped", |value| value.clone())
             .unwrap_or_else(|| "engine session has stopped; reopen the project".into())
     }
 }
