@@ -50,6 +50,7 @@ fn atomic_write(destination: &Path, bytes: &[u8]) -> Result<()> {
 const MAX_PACKAGE: usize = 16 * 1024 * 1024;
 const MAX_MANIFEST: usize = 512 * 1024;
 const MAX_SHADER: usize = 256 * 1024;
+const MAX_DISABLED: usize = 512 * 1024;
 fn resource_limit(name: &str) -> Result<usize> {
     if name == "manifest.json" { Ok(MAX_MANIFEST) }
     else if name.starts_with("shaders/") && name.ends_with(".wgsl") { Ok(MAX_SHADER) }
@@ -374,8 +375,15 @@ impl Registry {
                 }
             }
         }
-        if directory.join("disabled.json").exists() {
-            r.disabled = serde_json::from_slice(&fs::read(directory.join("disabled.json"))?)?;
+        match read_file_bounded(&directory.join("disabled.json"), MAX_DISABLED, "disabled.json")
+            .and_then(|data| serde_json::from_slice(&data).map_err(Error::from))
+        {
+            Ok(disabled) => r.disabled = disabled,
+            Err(Error::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => {},
+            Err(error) => r.diagnostics.push(format!(
+                "{}: disabled plugin settings could not be loaded ({error}); disabled settings were not applied. The file was preserved; repair it or remove it to reset these settings.",
+                directory.join("disabled.json").display()
+            )),
         }
         Ok(r)
     }
