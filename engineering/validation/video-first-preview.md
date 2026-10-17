@@ -32,6 +32,10 @@
 - 实际用户媒体只读验证：2560×1440、386 帧、约 12.87 秒、7,088,952 字节。最初旧 Release 的 `--video-smoke` 成功，总共约 2062ms，包含完整探测与四个位置的解码和 CPU RGBA 转换，不能当作首帧延迟。
 - 临时分阶段 harness 未提交产品代码。固定 Windows FFmpeg `n8.1.3-9-g29e619e767-20260930` 下，探测约 477.25ms、解码器打开约 33.68ms、首帧解码约 14.29ms、进程首次 YUV 上传约 9.72ms、第二次约 2.08ms；Renderer 初始化另计约 9527.74ms。这是未优化 harness、已有系统驱动缓存且 Release 编译并行期间的单次测量，不代表用户完整工程、冷驱动缓存或播放帧率。先前本机 SDK `n8.1.3-16-ge0a878dd70` 的测量另存，不冒充固定构建输入。
 - 原 FFmpeg SDK 和旧交付目录在本次调查期间已不可用。恢复过程中保留网络超时、缺失头文件的首次 harness 构建失败记录；最终源码归档与 Windows 运行库均重新取得并通过仓库固定 SHA-256 校验，使用现有 `prepare_ffmpeg.py` 生成许可、来源和逐文件清单，没有修改下载校验或依赖版本。
-- 为预编译依赖而启动的临时本机 SDK Release 构建，在固定 SDK 恢复后主动中止链接；不计为完成构建。最终固定 SDK 构建、打包和原生验收结果随后补充。
+- 为预编译依赖而启动的临时本机 SDK Release 构建，在固定 SDK 恢复后主动中止链接；不计为完成构建。代码提交 `6b572221275756bd02cdf62675194d29f7d521b6` 的最终固定 SDK Release 构建通过，保留仓库的 line tables、thin LTO 和单 codegen unit，用时 7 分 9 秒，22 项既有警告；记录 `release-build.log`。后续文档提交没有修改 Rust 或资源。
+- 正式打包工具生成本地 validation 包 `package/MotionStudio-validation-windows-x86_64.zip`，83,442,068 字节，SHA-256 `a018e35daec1df9d55dbc170b5d6a724ba303c9d3ec1dbffa48f7e3c9c15f245`；包含 7 个 FFmpeg DLL 和来源/许可清单。归档与独立 `runnable/` 解压目录的运行库哈希均验证通过；本地 run 标识明确为 `local-video-first-preview`，不冒充 GitHub 自动发布。
+- 针对独立解压程序运行 `tools/ci_desktop.py` 通过：中英文窗口与面板截图、五种工作区布局、浮动窗口样式、节点实际 GPU 渲染、共享 MCP 和样式覆盖；记录 `native-acceptance.log` 与 `native/`。使用独立 LOCALAPPDATA 和 MOTION_DIAGNOSTICS_PATH，避免覆盖用户诊断文件。本次未改面板外观，未宣称修复既有最小窗口或视觉基线问题。
+- 独立解压程序的实际用户视频 `--video-smoke` 通过，约 719ms 总耗时，检查首帧、中间、尾帧、回到首帧四处解码及 RGBA 数据；保留 `video-smoke.stdout.log` 和包含三条原始 UDTA 警告的 stderr。测试移除了 PATH 中的 FFmpeg 开发目录并清除 FFMPEG_DIR，由程序旁的打包 DLL 供给运行库。该总耗时包含探测且受系统缓存影响，不能与先前 2062ms 直接作因果性能比较。
+- `git merge-tree --write-tree --messages origin/main HEAD` 验证与当前本地 main 跟踪提交可自动合并，未更改 worktree 或分支。堆叠父 PR 的最新 CI 与合并状态仍以 GitHub 为准。
 
 本次没有新增资产或依赖，未修改 `desktop/app/src/panels`；DESIGN.md §0.7 的既有面板基线均保留，不能据此宣布既有视觉问题已修复。
