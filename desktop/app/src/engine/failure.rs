@@ -147,3 +147,5 @@ impl Engine {
 mod tests;
 #[cfg(test)]
 mod composition_tests;
+#[cfg(test)]
+mod project_tests;
