@@ -77,7 +77,7 @@ def verify_style_overrides(binary: Path, output: Path) -> None:
         style = snapshot["style"]
         if not style["overrideActive"] or style["rowHeight"] != 32 or style["dragThreshold"] != 12 or style["easing"] != "linear":
             raise RuntimeError(f"{locale} ignored style/density/motion overrides")
-        # Masks now belong to Properties; legacy dock ID 6 stays readable.
+        # Masks and expressions are property-owned; legacy IDs 6 and 9 stay readable.
         if {panel["id"] for panel in snapshot["panels"]} != set(range(1, 22)) - {6, 9}:
             raise RuntimeError(f"{locale} did not render every floating panel with overrides")
         properties = next(panel for panel in snapshot["panels"] if panel["id"] == 11)

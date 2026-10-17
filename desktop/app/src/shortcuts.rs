@@ -206,3 +206,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "shortcuts_documentation_tests.rs"]
+mod documentation_tests;
