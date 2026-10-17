@@ -2,6 +2,27 @@ use motion_model::{to_world, ensure, CameraPose, Content, Layer, Observer, Proje
 use glam::{Mat4, Vec3};
 use serde::Serialize;
 
+/// Add the reference site while preserving the model's original error code,
+/// target composition, message and time/rate details.
+pub(crate) fn composition_source_frame(
+    clip: &motion_model::CompositionClip,
+    local_frame: f64,
+    parent_fps: u32,
+    child_fps: u32,
+    parent: &str,
+    reference: u64,
+    phase: &str,
+) -> Result<f64> {
+    clip.source_frame(local_frame, parent_fps, child_fps).map_err(|mut error| {
+        if let motion_model::Error::Composition(detail) = &mut error {
+            detail.details["parent_composition"] = parent.into();
+            detail.details["reference"] = reference.into();
+            detail.details["phase"] = phase.into();
+        }
+        error
+    })
+}
+
 #[derive(Clone, Debug, Serialize)]
 pub struct HitCandidate {
     pub id: u64,
@@ -308,7 +329,8 @@ impl Scene {
             let center = self.node_world[order].w_axis.truncate();
             if let Content::Composition { clip } = &layer.content {
                 let child=document.composition_frame_view(&clip.composition)?;
-                let source=clip.source_frame(layer.local_frame(frame),project.fps,child.fps);
+                let source=composition_source_frame(clip,layer.local_frame(frame),project.fps,child.fps,
+                    &project.composition_id,layer.id,"scene_sample")?;
                 if source<0.||source>=f64::from(child.frames) {continue;}
                 let mut node = if let Some(index) = previous_nested.iter().position(|n| n.layer == layer.id && n.composition == clip.composition) {
                     previous_nested.swap_remove(index)

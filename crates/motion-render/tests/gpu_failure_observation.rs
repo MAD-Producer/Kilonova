@@ -59,7 +59,7 @@ fn real_validation_callbacks_leave_default_level_evidence_before_health_polling(
                 })
         };
         drop(invalid("controlled-first-validation"));
-        renderer.device.poll(wgpu::Maintain::Wait);
+        renderer.device.poll(wgpu::PollType::wait_indefinitely()).expect("GPU poll failed");
         // No gpu_error(), check_health() or further draw is allowed to be the
         // producer of this evidence: the actual callback must flush it itself.
         let first = fs::read_to_string(&path).unwrap();
@@ -81,7 +81,7 @@ fn real_validation_callbacks_leave_default_level_evidence_before_health_polling(
         for _ in 0..120 {
             drop(invalid("controlled-followup-validation"));
         }
-        renderer.device.poll(wgpu::Maintain::Wait);
+        renderer.device.poll(wgpu::PollType::wait_indefinitely()).expect("GPU poll failed");
         let observed = fs::read_to_string(&path).unwrap();
         assert_eq!(
             observed
@@ -106,7 +106,7 @@ fn real_validation_callbacks_leave_default_level_evidence_before_health_polling(
         assert!(!cause.contains("controlled-followup-validation"), "{cause}");
         assert!(renderer.draw(&scene, &target.view, 64, 64).is_err());
         renderer.device.destroy();
-        renderer.device.poll(wgpu::Maintain::Wait);
+        renderer.device.poll(wgpu::PollType::wait_indefinitely()).expect("GPU poll failed");
         assert!(renderer
             .gpu_error()
             .unwrap()

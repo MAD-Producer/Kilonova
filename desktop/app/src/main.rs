@@ -64,7 +64,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
     if args.iter().any(|a| a == "--help" || a == "-h") {
-        eprintln!("Motion Studio\n  --project <directory>  open an existing project or create one\n  --command-list         print the registered command catalogue\n  --commands <file.json> run/save an atomic command batch without a window\n  --mcp                  serve editor tools over MCP stdio (no window)\n  --mcp-ui               serve MCP and open the shared editor window\n  --style <file.json>     style overrides; auto reload or Ctrl+R\n  --locale <zh|en>        UI language override\n  --diagnostics-report <file.json>  export timing diagnostics when the editor exits\n  --smoke <report.json>  hidden-window GPU acceptance with screenshot\n  --node-smoke <report.json>  node graph GPU/UI acceptance with screenshots");
+        eprintln!("Motion Studio\n  --project <directory>  open an existing project or create one\n  --command-list         print the registered command catalogue\n  --commands <file.json> run/save an atomic command batch without a window\n  --mcp                  serve editor tools over MCP stdio (no window)\n  --mcp-ui               serve MCP and open the shared editor window\n  --style <file.json>     style overrides; auto reload or Ctrl+R\n  --locale <zh|en>        UI language override\n  --diagnostics-report <file.json>  export timing diagnostics when the editor exits\n  --smoke <report.json>  hidden-window GPU acceptance with screenshot\n  --video-smoke <video>  verify video decoding without a window\n  --node-smoke <report.json>  node graph GPU/UI acceptance with screenshots");
         return Ok(());
     }
     let argument = |flag: &str| -> Result<Option<PathBuf>, String> {
@@ -77,6 +77,14 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             Ok(None)
         }
     };
+    if let Some(source) = argument("--video-smoke")? {
+        log::info!("video.runtime start source={}", source.display());
+        let began = Instant::now();
+        let report = motion_desktop_media::verify_video_runtime(&source)
+            .map_err(|error| format!("video.runtime source={} elapsed={}ms cause={error}", source.display(), began.elapsed().as_millis()))?;
+        println!("{report}");
+        return Ok(());
+    }
     let smoke = argument("--smoke")?
         .or(argument("--node-smoke")?)
         .or(argument("--panels-smoke")?);
@@ -161,7 +169,12 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 logging::flush();
             })?;
     }
-    event_loop.run_app(&mut app)?;
+    let event_loop_result = event_loop.run_app(&mut app);
+    let shutdown_result = app.engine.request_shutdown();
+    if let Err(error) = &shutdown_result {
+        log::error!("engine shutdown request failed: {error}");
+    }
+    event_loop_result?;
     if let Some(path) = argument("--diagnostics-report")? {
         app.engine
             .diagnostics()
@@ -180,6 +193,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(error) = app.fatal {
         return Err(error.into());
     }
+    shutdown_result?;
     Ok(())
 }
 fn directories() -> PathBuf {

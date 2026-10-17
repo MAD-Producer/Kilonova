@@ -211,6 +211,33 @@ fn engine() -> Engine {
     Engine::new(Project::new(256, 256, 30, 180).unwrap()).unwrap()
 }
 #[test]
+fn cache_rebuild_rejects_blocked_wave_destination_without_replacing_pcm() {
+    let _guard = TEST_LOCK.lock().unwrap();
+    let root = tempfile::tempdir().unwrap();
+    let jobs = AudioJobs::new(root.path().into(), Limits::default()).unwrap();
+    let mut e = engine();
+    import(&jobs, &mut e, "cache-import", "tone-stereo-48000.wav", 0);
+    let project = e.snapshot();
+    let asset = project.audio_assets[0].clone();
+    let pcm = motion_media::cache_path(root.path(), &asset).unwrap();
+    let wave = pcm.with_extension("wave");
+    let original = fs::read(&pcm).unwrap();
+    fs::remove_file(&wave).unwrap();
+    fs::create_dir(&wave).unwrap();
+    jobs.prepare_cache("cache-blocked", asset.clone()).unwrap();
+    let failed = wait(&jobs, "cache-blocked");
+    assert_eq!(failed.state, "failed");
+    assert!(failed.error.unwrap().contains("not a regular file"));
+    assert_eq!(fs::read(&pcm).unwrap(), original);
+    assert_eq!(e.snapshot(), project);
+    fs::remove_dir(&wave).unwrap();
+    jobs.prepare_cache("cache-retry", asset).unwrap();
+    assert_eq!(wait(&jobs, "cache-retry").state, "succeeded");
+    assert_eq!(fs::read(&pcm).unwrap(), original);
+    assert!(wave.is_file());
+    AudioMixer::new(project, root.path()).unwrap();
+}
+#[test]
 fn two_level_precomposition_preserves_pcm_and_offsets_with_shared_assets() {
     let _guard=TEST_LOCK.lock().unwrap();let root=tempfile::tempdir().unwrap();let jobs=AudioJobs::new(root.path().into(),Limits::default()).unwrap();let mut e=engine();
     let a=import(&jobs,&mut e,"first-nested","tone-stereo-48000.wav",7);

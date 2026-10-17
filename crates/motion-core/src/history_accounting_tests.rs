@@ -119,6 +119,14 @@ fn history_accounting_matches_json_through_payload_changes_and_undo_redo() {
             object: 1,
             property: Property::Position,
         },
+        Command::MergeDimensions {
+            object: 1,
+            property: Property::Position,
+        },
+        Command::SeparateDimensions {
+            object: 1,
+            property: Property::Position,
+        },
         Command::SetComponent {
             object: 1,
             property: Property::Position,

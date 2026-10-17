@@ -72,7 +72,7 @@ fn a1_motion_easing_holds_and_unwrapped_rotation() {
 }
 
 #[test]
-fn a2_key_collision_move_undo_and_redo_restore_both_keys() {
+fn a2_key_collision_rejects_batch_and_preserves_redo() {
     let mut engine = Engine::new(Project::demo()).unwrap();
     engine
         .apply(Command::Animate {
@@ -86,25 +86,48 @@ fn a2_key_collision_move_undo_and_redo_restore_both_keys() {
     engine.apply(set(60, [640.0, 960.0, 0.0])).unwrap();
     engine.apply(set(60, [740.0, 960.0, 0.0])).unwrap();
     assert_eq!(engine.project().layers[1].transform.position.keys.len(), 2);
+    assert!(engine.undo().unwrap());
     let before = engine.snapshot();
-    engine
-        .apply(Command::MoveKey {
+    let revision = engine.revision();
+    let history = engine.history_diagnostics();
+    for command in [
+        Command::MoveKey {
             axis: None,
             object: 2,
             property: Property::Position,
             from: 60,
             to: 0,
-        })
-        .unwrap();
-    assert_eq!(engine.project().layers[1].transform.position.keys.len(), 1);
+        },
+        Command::CopyKey {
+            axis: None,
+            object: 2,
+            property: Property::Position,
+            from: 0,
+            to: 60,
+        },
+    ] {
+        let error = engine
+            .apply_batch(vec![
+                Command::Rename {
+                    object: 2,
+                    name: "must roll back".into(),
+                },
+                command,
+            ])
+            .unwrap_err();
+        assert!(error.to_string().contains("occupied"), "{error}");
+        assert_eq!(engine.project(), &before);
+        assert_eq!(engine.revision(), revision);
+        assert_eq!(engine.history_diagnostics(), history);
+    }
+    assert!(engine.redo().unwrap());
+    assert_eq!(engine.project().layers[1].transform.position.keys.len(), 2);
     close(
-        engine.project().layers[1].transform.position.sample(0.0)[0],
+        engine.project().layers[1].transform.position.sample(60.0)[0],
         740.0,
     );
     assert!(engine.undo().unwrap());
     assert_eq!(engine.project(), &before);
-    assert!(engine.redo().unwrap());
-    assert_eq!(engine.project().layers[1].transform.position.keys.len(), 1);
 }
 
 #[test]

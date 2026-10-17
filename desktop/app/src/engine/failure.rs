@@ -119,6 +119,9 @@ impl Engine {
         {
             return Err(error);
         }
+        if self.shutdown.load(Ordering::Acquire) {
+            return Err("engine shutdown requested; new commands are not accepted".into());
+        }
         if self
             .worker
             .as_ref()
@@ -137,3 +140,7 @@ impl Engine {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod composition_tests;
+#[cfg(test)]
+mod project_tests;

@@ -13,7 +13,6 @@ impl Command {
             TestWait {..}=>"test_wait",
             ProjectTicket(_) => "project_ticket",
             ChangeProject { .. } => "change_project",
-            NodeExpect { .. } => "node_expect",
             NodeSource { .. } => "node_source",
             NodeInstall { .. } => "node_install",
             NodeCapture { .. } => "node_capture",

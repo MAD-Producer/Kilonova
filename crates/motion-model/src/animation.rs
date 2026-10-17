@@ -104,6 +104,14 @@ pub struct Keyframe<T> {
     pub spatial: Option<SpatialTangents<T>>,
 }
 
+/// Find the insertion point before an edit removes or changes its source key.
+/// Value-setting APIs deliberately keep their separate upsert semantics.
+pub(crate) fn vacant_key_index<T>(keys: &[Keyframe<T>], frame: i32) -> Result<usize> {
+    keys.binary_search_by_key(&frame, |key| key.frame)
+        .err()
+        .ok_or_else(|| crate::Error::Invalid("keyframe destination is occupied".into()))
+}
+
 #[derive(Clone, Debug)]
 pub struct Track<T> {
     pub value: T,
@@ -452,9 +460,12 @@ impl<T: Tween> Track<T> {
             .keys
             .binary_search_by_key(&from, |k| k.frame)
             .map_err(|_| crate::Error::Invalid("keyframe not found".into()))?;
+        let destination = vacant_key_index(&self.keys, to)?;
         let mut key = self.keys.remove(index);
         key.frame = to;
-        self.insert_key(key);
+        // Removing a source before the destination shifts its insertion point.
+        self.keys
+            .insert(destination - usize::from(index < destination), key);
         Ok(())
     }
     pub fn delete_key(&mut self, frame: i32) -> Result<()> {
@@ -484,9 +495,11 @@ impl<T: Tween> Track<T> {
             .find(|k| k.frame == from)
             .ok_or_else(|| crate::Error::Invalid("keyframe not found".into()))?
             .clone();
+        if from == to {
+            return Ok(());
+        }
         key.frame = to;
-        self.insert_key(key);
-        Ok(())
+        self.insert_key(key)
     }
     pub fn set_ease(&mut self, frame: i32, ease: Ease) -> Result<()> {
         if self.edit_axes(|t| t.set_ease(frame, ease))? {
@@ -500,11 +513,10 @@ impl<T: Tween> Track<T> {
         self.keys[index].curve = None;
         Ok(())
     }
-    fn insert_key(&mut self, key: Keyframe<T>) {
-        match self.keys.binary_search_by_key(&key.frame, |k| k.frame) {
-            Ok(index) => self.keys[index] = key,
-            Err(index) => self.keys.insert(index, key),
-        }
+    fn insert_key(&mut self, key: Keyframe<T>) -> Result<()> {
+        let index = vacant_key_index(&self.keys, key.frame)?;
+        self.keys.insert(index, key);
+        Ok(())
     }
     pub fn set_curve(&mut self, frame: i32, easing: Easing) -> Result<()> {
         if self.edit_axes(|t| t.set_curve(frame, easing))? {
@@ -585,6 +597,52 @@ impl<T: Tween> Track<T> {
         self.axes.as_mut().map(|a| a.get_mut(axis)).ok_or_else(|| {
             crate::Error::Invalid("separate dimensions before editing an axis".into())
         })
+    }
+    /// Recombine aligned scalar tracks without resampling or changing their
+    /// arithmetic. Different key grids or segment timing require an explicit
+    /// conversion policy; this command leaves them intact instead of baking.
+    pub fn merge_dimensions(&mut self) -> Result<()> {
+        let vector = |values| T::from_components(values).ok_or_else(|| {
+            crate::Error::Invalid("only vector properties can merge dimensions".into())
+        });
+        vector([0.; 3])?;
+        let Some(axes) = &self.axes else {
+            return Ok(());
+        };
+        self.validate_local()?;
+        ensure(
+            axes.x.keys.len() == axes.y.keys.len() && axes.x.keys.len() == axes.z.keys.len(),
+            "cannot merge dimensions: X/Y/Z must have matching key times",
+        )?;
+        let value = vector([axes.x.value, axes.y.value, axes.z.value])?;
+        let mut keys = Vec::with_capacity(axes.x.keys.len());
+        for (index, ((x, y), z)) in axes.x.keys.iter().zip(&axes.y.keys).zip(&axes.z.keys).enumerate() {
+            ensure(
+                x.frame == y.frame && x.frame == z.frame,
+                "cannot merge dimensions: X/Y/Z must have matching key times",
+            )?;
+            // The final key has no outgoing segment. A custom curve overrides
+            // its key's ease, so only effective timing needs to match.
+            if index + 1 < axes.x.keys.len() {
+                ensure(
+                    x.curve == y.curve && x.curve == z.curve
+                        && (x.curve.is_some() || (x.ease == y.ease && x.ease == z.ease)),
+                    "cannot merge dimensions: X/Y/Z must share each segment's interpolation",
+                )?;
+            }
+            keys.push(Keyframe {
+                frame: x.frame,
+                value: vector([x.value, y.value, z.value])?,
+                ease: x.ease,
+                curve: x.curve,
+                spatial: None,
+            });
+        }
+        // Install only after every check; model callers get atomic rejection too.
+        self.value = value;
+        self.keys = keys;
+        self.axes = None;
+        Ok(())
     }
     pub fn validate_bound(&self, bound: f32) -> Result<()> {
         if let Some(axes) = &self.axes {

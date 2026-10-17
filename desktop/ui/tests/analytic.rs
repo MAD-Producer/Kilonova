@@ -38,8 +38,10 @@ fn capture(
     let mut encoder = device.create_command_encoder(&Default::default());
     {
         let _pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            multiview_mask: None,
             label: None,
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                depth_slice: None,
                 view: &view,
                 resolve_target: None,
                 ops: wgpu::Operations {
@@ -89,9 +91,9 @@ fn capture(
         .map_async(wgpu::MapMode::Read, move |result| {
             let _ = send.send(result);
         });
-    device.poll(wgpu::Maintain::Wait);
+    device.poll(wgpu::PollType::wait_indefinitely()).expect("GPU poll failed");
     receive.recv().unwrap().unwrap();
-    let bytes = buffer.slice(..).get_mapped_range();
+    let bytes = buffer.slice(..).get_mapped_range().expect("GPU mapped range unavailable");
     let mut pixels = vec![];
     for data in bytes.chunks(row as usize) {
         pixels.extend_from_slice(&data[..width as usize * 4]);
@@ -100,15 +102,15 @@ fn capture(
 }
 #[test]
 fn procedural_patterns_and_fractional_dpi_borders_render_actual_pixels() {
-    let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
-    let Some(adapter) =
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+    let Ok(adapter) =
         pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))
     else {
         eprintln!("No UI test GPU adapter");
         return;
     };
     let (device, queue) =
-        pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default(), None))
+        pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default()))
             .unwrap();
     let mut painter = Painter::new(&device, wgpu::TextureFormat::Rgba8Unorm);
     let mut list = PaintList::default();
@@ -159,14 +161,14 @@ fn procedural_patterns_and_fractional_dpi_borders_render_actual_pixels() {
 #[test]
 fn mixed_paint_order_covers_old_glyphs_and_keeps_new_glyphs_after_clip_and_append() {
     use motion_ui::paint::{Glyph, PaintOp};
-    let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
-    let Some(adapter) =
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+    let Ok(adapter) =
         pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))
     else {
         panic!("UI paint-order regression requires a GPU adapter");
     };
     let (device, queue) =
-        pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default(), None))
+        pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default()))
             .unwrap();
     let mut painter = Painter::new(&device, wgpu::TextureFormat::Rgba8Unorm);
     // A deterministic coverage atlas exercises the actual glyph pipeline without
@@ -241,11 +243,11 @@ fn mixed_paint_order_covers_old_glyphs_and_keeps_new_glyphs_after_clip_and_appen
 #[test]
 fn stylesheet_radius_and_shadow_render_distinct_clipped_pixels_at_fractional_dpi() {
     use motion_ui::style::{box_style, default_stylesheet, States};
-    let instance = wgpu::Instance::new(&Default::default());
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
     let adapter = pollster::block_on(instance.request_adapter(&Default::default()))
         .expect("UI pixel regression requires GPU");
     let (device, queue) =
-        pollster::block_on(adapter.request_device(&Default::default(), None)).unwrap();
+        pollster::block_on(adapter.request_device(&Default::default())).unwrap();
     let mut painter = Painter::new(&device, wgpu::TextureFormat::Rgba8Unorm);
     let square = default_stylesheet()
         .with_overrides(

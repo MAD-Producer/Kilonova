@@ -271,7 +271,7 @@ fn timing_report_contention_cannot_erase_context_or_gpu_identity() {
     assert_eq!(d.context().layers, 7);
     d.set_gpu(wgpu::AdapterInfo { name: "test adapter".into(), vendor: 0, device: 0,
         device_type: wgpu::DeviceType::Other, driver: String::new(), driver_info: String::new(),
-        backend: wgpu::Backend::Empty });
+        backend: wgpu::Backend::Noop, ..wgpu::AdapterInfo::new(wgpu::DeviceType::Other, wgpu::Backend::Noop) });
     drop(held);
     assert_eq!(d.report()["gpu"]["name"], "test adapter");
 }

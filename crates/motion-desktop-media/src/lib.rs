@@ -15,18 +15,19 @@ use std::{path::Path, sync::Arc};
 pub mod av;
 #[cfg(feature = "ffmpeg")]
 pub mod encode;
+#[cfg(feature = "ffmpeg")]
+mod frame_layout;
 pub mod movie;
 
 /// Presentation backends tried in order.
 ///
 /// Vulkan first because it gives the compositor the widest effect support and
-/// the best multi-queue behaviour; GL is the fallback that always works on
-/// older drivers. Only one backend's surface may stay alive for a window.
-pub const SURFACE_BACKENDS: [wgpu::Backends; 4] = [
+/// the best multi-queue behaviour. Only Vulkan, Metal and DX12 are supported;
+/// only one backend's surface may stay alive for a window.
+pub const SURFACE_BACKENDS: [wgpu::Backends; 3] = [
     wgpu::Backends::VULKAN,
     wgpu::Backends::METAL,
     wgpu::Backends::DX12,
-    wgpu::Backends::GL,
 ];
 
 pub struct DesktopPlatform {
@@ -130,15 +131,15 @@ impl Platform for DesktopPlatform {
 
     fn attach_surface(
         &self,
-        window: Arc<dyn wgpu::WindowHandle + Send + Sync>,
+        window: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         width: u32,
         height: u32,
     ) -> Result<SurfaceTarget> {
         let mut failures = Vec::new();
         for backend in &self.surface_backends {
-            let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+            let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
                 backends: *backend,
-                ..Default::default()
+                ..wgpu::InstanceDescriptor::new_without_display_handle()
             });
             let surface = match instance.create_surface(window.clone()) {
                 Ok(surface) => surface,
@@ -169,7 +170,7 @@ impl Platform for DesktopPlatform {
                     } else {
                         wgpu::PresentMode::Fifo
                     };
-                    let config = wgpu::SurfaceConfiguration {
+                    let config = wgpu::SurfaceConfiguration { color_space: wgpu::SurfaceColorSpace::Auto,
                         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
                         format,
                         width,
@@ -269,4 +270,28 @@ fn video_decoders() -> Value {
 /// Shared handle used by the desktop shell.
 pub fn platform() -> Arc<DesktopPlatform> {
     Arc::new(DesktopPlatform::new())
+}
+
+/// Acceptance entry point for an extracted release, without a window or GPU.
+/// Exercise the application's actual backend, including backward seeks and RGBA
+/// conversion; a feature flag or an inventory response alone is insufficient.
+pub fn verify_video_runtime(path: &Path) -> Result<Value> {
+    let backend = platform();
+    let probed = backend.probe_video(path, None, Some(u32::MAX), &|| Ok(())).map_err(|e| format!("phase=probe cause={e}"))?;
+    probed.asset.validate().map_err(|e| e.to_string())?;
+    let count = probed.timestamps.len();
+    if count == 0 { return Err("video runtime probe returned no frame timestamps".into()); }
+    let mut decoder = backend.open_decoder(path, probed.asset.clone(), probed.timestamps.clone()).map_err(|e| format!("phase=open cause={e}"))?;
+    let mut frames = Vec::new();
+    for index in [0, count / 2, count - 1, 0] {
+        let pts = probed.timestamps[index];
+        let frame = decoder.frame(pts, &|| Ok(())).map_err(|e| format!("phase=decode index={index} pts={pts} cause={e}"))?;
+        let rgba = frame.rgba().map_err(|e| format!("phase=rgba index={index} pts={pts} cause={e}"))?;
+        if frame.pts != pts || frame.end <= pts || rgba.len() != frame.width as usize * frame.height as usize * 4 {
+            return Err(format!("video runtime frame {index} has an invalid timestamp interval or pixel span"));
+        }
+        frames.push(json!({"pts":frame.pts,"end":frame.end,"width":frame.width,
+            "height":frame.height,"rgbaBytes":rgba.len(),"decoder":frame.decoder_name}));
+    }
+    Ok(json!({"backend":"libav","decoded":true,"sourceFrames":count,"frames":frames}))
 }

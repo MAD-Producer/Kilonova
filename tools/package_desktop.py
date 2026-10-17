@@ -68,10 +68,46 @@ def notes(platform):
     }[platform]
     return (
         f"Motion Studio 桌面预览版\n\n{opening}\n\n"
-        "此包沿用已验收的桌面构建。FFmpeg 视频导入/解码后端未包含；"
+        "此包包含 FFmpeg 视频导入/解码后端及共享运行库；"
         "工程编辑、图片与可用音频格式、效果、节点及 MCP 使用共享后端。"
         "构建能力以 build-info.json 为准。\n"
     )
+
+
+def runtime_payload(manifest_path, platform):
+    """Verify every bundled runtime file, including architecture and provenance."""
+    manifest_path = Path(manifest_path)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("schemaVersion") != 1 or manifest.get("platform") != platform:
+        raise ValueError("FFmpeg runtime platform mismatch")
+    provenance = manifest.get("provenance", {})
+    if not all(provenance.get(k) for k in ("url", "sha256", "source", "revision", "license")):
+        raise ValueError("FFmpeg runtime provenance is incomplete")
+    if not manifest.get("author") or not manifest.get("modifications"):
+        raise ValueError("FFmpeg runtime attribution is incomplete")
+    files, names = [], set()
+    for key in ("files", "licenses"):
+        entries = manifest.get(key, [])
+        if not entries:
+            raise ValueError("FFmpeg runtime files or licenses are missing")
+        for entry in entries:
+            relative = Path(entry["path"])
+            if relative.is_absolute() or ".." in relative.parts or "\\" in entry["path"]:
+                raise ValueError("Invalid FFmpeg runtime path")
+            source = manifest_path.parent / relative
+            if not source.is_file() or digest(source) != entry.get("sha256"):
+                raise ValueError("FFmpeg runtime file checksum mismatch")
+            if source.name in names:
+                raise ValueError("Duplicate FFmpeg runtime filename")
+            names.add(source.name)
+            if key == "files":
+                verify_binary(source, platform)
+            files.append((source, key))
+    required = ("avcodec", "avformat", "avutil", "swscale")
+    library_names = [Path(e["path"]).name for e in manifest["files"]]
+    if not all(any(n.startswith(component + "-") or n.startswith("lib" + component + ".") for n in library_names) for component in required):
+        raise ValueError("FFmpeg decoder library set is incomplete")
+    return manifest, files
 
 
 def package(binary, platform, build_report, output, *, sign=True):
@@ -81,10 +117,13 @@ def package(binary, platform, build_report, output, *, sign=True):
         raise ValueError("Desktop executable is missing")
     verify_binary(binary, platform)
     build = json.loads(Path(build_report).read_text(encoding="utf-8"))
-    if build.get("task") != "build" or build.get("release") is not True or build.get("ffmpeg") is not False:
-        raise ValueError("Release packaging requires the validated standalone release build")
+    if build.get("task") != "build" or build.get("release") is not True or build.get("ffmpeg") is not True:
+        raise ValueError("Release packaging requires an FFmpeg-enabled release build")
     if Path(build.get("executable", "")).resolve() != binary:
         raise ValueError("Build report does not describe this executable")
+    if not build.get("ffmpeg_runtime"):
+        raise ValueError("FFmpeg-enabled release has no runtime manifest")
+    runtime, runtime_files = runtime_payload(build["ffmpeg_runtime"], platform)
     kind = build_kind(os.environ["GITHUB_EVENT_NAME"], os.environ["GITHUB_REF"])
     base_version = (release_kind(os.environ["GITHUB_REF"])[1] if kind != "validation"
                     else tomllib.loads((ROOT / "Cargo.toml").read_text())["workspace"]["package"]["version"])
@@ -94,7 +133,7 @@ def package(binary, platform, build_report, output, *, sign=True):
     info = {
         "schemaVersion": 1, "platform": platform, "kind": kind, "versionName": version,
         "commit": os.environ["GITHUB_SHA"], "ref": os.environ["GITHUB_REF"],
-        "run": os.environ["GITHUB_RUN_ID"], "capabilities": {"ffmpeg": False, "videoEncoder": False},
+        "run": os.environ["GITHUB_RUN_ID"], "capabilities": {"ffmpeg": True, "videoEncoder": False},
         "archive": archive_name(platform, kind, version),
     }
     output = Path(output).resolve()
@@ -108,6 +147,18 @@ def package(binary, platform, build_report, output, *, sign=True):
         (staging / "README.txt").write_text(notes(platform), encoding="utf-8")
         shutil.copy2(ROOT / "LICENSE", staging / "LICENSE")
         shutil.copy2(ROOT / "crates/motion-effects/motion-library/LICENSE.shaders.txt", staging / "LICENSE.shaders.txt")
+        shutil.copy2(ROOT / "ATTRIBUTION.md", staging / "ATTRIBUTION.md")
+        shutil.copy2(ROOT / "NOTICE", staging / "NOTICE")
+        native_dir = (target.parent if platform == "windows-x86_64" else
+                      staging / "MotionStudio.app/Contents/Frameworks" if platform.startswith("macos-") else staging / "lib")
+        native_dir.mkdir(parents=True, exist_ok=True)
+        bundled = []
+        for source, kind in runtime_files:
+            destination = native_dir / source.name if kind == "files" else staging / "licenses/ffmpeg" / source.name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
+            bundled.append(destination)
+        (staging / "FFmpeg-SOURCE.json").write_text(json.dumps(runtime, indent=2) + "\n", encoding="utf-8")
         if platform.startswith("macos-"):
             app = staging / "MotionStudio.app"
             plist = {
@@ -121,10 +172,14 @@ def package(binary, platform, build_report, output, *, sign=True):
             if sign:
                 if sys.platform != "darwin":
                     raise ValueError("macOS app signing requires the macOS runner")
+                for library in sorted(native_dir.glob("*.dylib")):
+                    subprocess.run(["codesign", "--force", "--sign", "-", "--timestamp=none", str(library)], check=True)
                 subprocess.run(["codesign", "--force", "--sign", "-", "--timestamp=none", str(app)], check=True)
                 subprocess.run(["codesign", "--verify", "--strict", str(app)], check=True)
             info["signing"] = "ad-hoc" if sign else "test-only-unsigned"
             info["notarised"] = False
+        info["runtimeFiles"] = [{"path": p.relative_to(staging).as_posix(), "sha256": digest(p)} for p in bundled]
+        info["ffmpeg"] = runtime["provenance"]
         archive = Path(temporary) / info["archive"]
         if platform == "linux-x86_64":
             with tarfile.open(archive, "w:gz") as bundle:
@@ -178,13 +233,29 @@ def collect_desktop_assets(folder, release):
         name = archive_name(platform, release["kind"], release["versionName"])
         if info.get("schemaVersion") != 1 or info.get("platform") != platform or info.get("archive") != name:
             raise ValueError("Desktop platform/archive mismatch")
-        if info.get("capabilities") != {"ffmpeg": False, "videoEncoder": False}:
+        if info.get("capabilities") != {"ffmpeg": True, "videoEncoder": False}:
             raise ValueError("Unverified desktop runtime dependencies")
         if platform.startswith("macos-") and info.get("signing") != "ad-hoc":
             raise ValueError("macOS app bundle was not signed")
         path = folder / name
         if digest(path) != info.get("sha256") or path.stat().st_size != info.get("bytes"):
             raise ValueError("Desktop artifact checksum or size mismatch")
+        runtime = info.get("runtimeFiles", [])
+        if len(runtime) < 5 or not info.get("ffmpeg", {}).get("source"):
+            raise ValueError("Desktop FFmpeg runtime evidence is missing")
+        with (tarfile.open(path) if platform == "linux-x86_64" else zipfile.ZipFile(path)) as bundle:
+            for entry in runtime:
+                member = entry["path"]
+                if Path(member).is_absolute() or ".." in Path(member).parts or "\\" in member:
+                    raise ValueError("Invalid bundled FFmpeg runtime path")
+                if platform == "linux-x86_64":
+                    with bundle.extractfile(member) as contents:
+                        actual = hashlib.file_digest(contents, "sha256").hexdigest()
+                else:
+                    with bundle.open(member) as contents:
+                        actual = hashlib.file_digest(contents, "sha256").hexdigest()
+                if actual != entry["sha256"]:
+                    raise ValueError("Bundled FFmpeg runtime checksum mismatch")
         assets.append({"platform": platform, "name": name, "sha256": info["sha256"], "bytes": info["bytes"], "capabilities": info["capabilities"]})
     return assets
 

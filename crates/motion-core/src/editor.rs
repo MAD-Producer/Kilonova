@@ -386,6 +386,12 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
                 }
             }
         }
+        Command::MergeDimensions { object, property } => {
+            match channel(project, object, property)? {
+                Channel::Vector(t) => t.merge_dimensions()?,
+                _ => return Err(Error::Invalid("only vector properties can merge dimensions".into())),
+            }
+        }
         Command::SetComponent {
             object,
             property,

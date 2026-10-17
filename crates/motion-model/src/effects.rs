@@ -712,11 +712,11 @@ pub fn apply(layer: &mut Layer, action: EffectAction, frames: u32) -> Result<()>
                     .iter()
                     .position(|k| k.frame == from)
                     .ok_or_else(|| Error::Invalid("curve key not found".into()))?;
-                let mut key = c.keys.remove(i);
-                key.frame = to;
-                match c.keys.binary_search_by_key(&to, |k| k.frame) {
-                    Ok(i) => c.keys[i] = key,
-                    Err(i) => c.keys.insert(i, key),
+                if from != to {
+                    let destination = crate::animation::vacant_key_index(&c.keys, to)?;
+                    let mut key = c.keys.remove(i);
+                    key.frame = to;
+                    c.keys.insert(destination - usize::from(i < destination), key);
                 }
             } else {
                 p.track.move_key(from, to)?;
@@ -738,10 +738,10 @@ pub fn apply(layer: &mut Layer, action: EffectAction, frames: u32) -> Result<()>
                     .find(|k| k.frame == from)
                     .cloned()
                     .ok_or_else(|| Error::Invalid("curve key not found".into()))?;
-                key.frame = to;
-                match c.keys.binary_search_by_key(&to, |k| k.frame) {
-                    Ok(i) => c.keys[i] = key,
-                    Err(i) => c.keys.insert(i, key),
+                if from != to {
+                    let destination = crate::animation::vacant_key_index(&c.keys, to)?;
+                    key.frame = to;
+                    c.keys.insert(destination, key);
                 }
             } else {
                 p.track.copy_key(from, to)?;

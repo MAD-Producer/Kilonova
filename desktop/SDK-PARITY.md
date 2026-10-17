@@ -17,6 +17,7 @@ the current desktop route and keeps unfinished UI work explicit.
 | Composition creation | Composition → New Composition and Ctrl+N | Composition organisation and project-panel folders |
 | Five-channel colour curves | Engine API; effect curve rows currently show a placeholder | Interactive effect colour-curve editor |
 | Layer copy/paste | Engine command surface | Desktop layer clipboard and Edit menu |
+| Merge separated XYZ | `merge_dimensions` via shared API/MCP; aligned keys and shared interpolation | Property/menu entry; broader equivalence policies remain pending (#262) |
 | Native plugin editors | Generic effect parameters and source/bind controls | Complete declarative slot layouts |
 | Preview/memory policies | Shared API and runtime diagnostics | Preferences and full preview-settings UI |
 
@@ -28,6 +29,7 @@ the current desktop route and keeps unfinished UI work explicit.
 | Undo, redo, gestures, coalescing | yes | Shared (`motion_core::editor`) |
 | Bezier and elastic curves | yes | Shared (`motion_core::curve`) |
 | Axis separation (XYZ) | yes | Shared (`Command::SeparateDimensions`) |
+| Merge separated XYZ | partial | Shared `Command::MergeDimensions`; conservative lossless subset, no editor entry yet |
 | Camera: position and orbit paths | yes | Shared (`motion_core::camera`) |
 | Observer, top and side views | yes | Shared |
 | Layer clips: move, trim, split | yes | Shared |

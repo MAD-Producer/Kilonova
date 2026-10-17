@@ -105,15 +105,42 @@ layer_properties、当前模式允许的 camera_properties 和 axes。每个派�
 共享缓动的合成向量键。`sampledLayers` 和 `sampledCamera` 继续返回组合 XYZ。
 摄影机派生向量轨道位于 `timeline_camera.position/target`。
 
-请求可省略 composition，也可明确 `composition:"comp-main"`；其他 ID 报错。
-当前只有一个主合成；capabilities 明确标记 multiple_compositions、video_import、
-audio_import、model_import、prerender 为 false。分离轨道纳入现有 revision、
-手势历史、时间编辑、父子关系、保存/备份和冻结输出；未来合成库与预渲染缓存
-尚未提供，不能以此宣称相关验收已完成。
+请求可省略 composition（表示 `comp-main`），也可明确指定现有的 `comp-*` ID；
+目标由命令指定，不依赖界面当前激活的合成。无效或不存在的 ID 报错。
+分离轨道纳入现有 revision、手势历史、时间编辑、父子关系、保存/备份和冻结输出；
+其他导入、合成及预渲染能力应查询实际 capabilities，不能由 XYZ 支持状态推断。
 
 检查：`separate_dimensions.rs` 验证独立数据、无损转换与历史；`hot_path.rs`
 验证分离后 20 图层逐半帧求值零分配；Android `SeparateDimensionsApiTest`
 验证真实 JNI、协议能力、单轴曲线历史及实际 H.264/PNG 比对。
+
+## 无重采样合并 XYZ（API）
+
+```json
+{"op":"merge_dimensions","composition":"comp-main","object":2,"property":"rotation"}
+```
+
+支持与 `separate_dimensions` 相同的图层/摄影机向量属性、锁定和摄影机模式限制。
+统一命令目录会列出 `merge_dimensions`；状态中的
+`capabilities.separate_dimensions.merge` 给出实际策略
+`aligned_keys_shared_interpolation`。这是底层 API，桌面属性面板/菜单入口尚未接入。
+
+第一阶段采用可直接证明保持采样的保守子集：三轴均无键，或三轴键时刻完全一致且
+每个有效区间的插值相同。自定义 curve 覆盖 ease，因此有相同 curve 时允许 ease
+不同；末键没有后续区间，其 ease/curve 不参与限制。合并后的公共键采用 X 轴的
+时间元数据，所有 XYZ 值逐项保留，且不生成额外关键帧。多圈旋转、负局部键时间、
+片段 offset、表达式目标/源码/enabled/seed 均保留。已经整体存储的向量调用为 no-op，
+不增加 revision 或历史；无新工程格式，输出仍是既有 `value/keys` 表示。
+
+不同键数量/时刻、不同有效插值均返回明确错误并保留完整原轴轨道，命令批原子回滚。
+这也会保守拒绝某些可数学简化的情况，例如一个无键静态轴配合另外两个动画轴、
+冗余键或不同编码但等价的曲线；当前不进行函数等价求解、关键帧消除或自动烘焙。
+任何失败都不会删除表达式或覆盖用户已有轨道。单轴表达式在整体轨道上继续使用
+既有分量求值，键集合不变，`numKeys`、`key` 和 `valueAtTime` 语义随之保留。
+
+回归：`motion-core --test merge_dimensions` 覆盖采样、表达式、保存/包重开、撤销与
+合成路由；`motion-host --test merge_dimensions` 覆盖真实共享状态/命令入口；
+`motion-render --test merge_dimensions` 比较实际 GPU 像素及冻结 render-plan 字节。
 
 ## 显式开启图层 3D 与交叉遮挡
 

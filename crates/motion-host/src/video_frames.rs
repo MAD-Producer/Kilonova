@@ -10,11 +10,12 @@ use std::{
     collections::HashMap,
     path::{Path, PathBuf},
     sync::{Arc, Condvar, Mutex},
+    thread::JoinHandle,
     time::Instant,
 };
+const MAX_DECODER_WORKERS: usize = 4;
 static PREFETCH_FAILURES: motion_render::observability::FailureCounter =
     motion_render::observability::FailureCounter::new();
-
 #[derive(Clone, Copy)]
 struct Request {
     time: u64,
@@ -67,6 +68,7 @@ struct Stream {
     asset: VideoAsset,
     pts: Arc<Vec<u64>>,
     shared: Arc<(Mutex<State>, Condvar)>,
+    worker: Option<JoinHandle<()>>,
 }
 fn job(s: &State, pts: &[u64]) -> Option<(u64, bool)> {
     let r = s.desired?;
@@ -119,7 +121,7 @@ impl Stream {
         let times = pts.clone();
         let media = asset.clone();
         let backend = platform.clone();
-        std::thread::Builder::new()
+        let worker = std::thread::Builder::new()
             .name("motion-video-frames".into())
             .spawn(move || {
                 let mut observation = worker_observation::WorkerObservation::new(object, media.id, copy.clone());
@@ -263,7 +265,7 @@ impl Stream {
                 }
             })
             .map_err(|e| e.to_string())?;
-        Ok(Self { object, asset, pts, shared })
+        Ok(Self { object, asset, pts, shared, worker: Some(worker) })
     }
     fn key(&self, time: u64) -> Result<(u64, usize)> {
         if time < self.asset.video_start_us || time >= self.asset.video_end_us {
@@ -354,13 +356,22 @@ impl Stream {
         }
         s.cache.find(r.time).ok_or("video frame pending".into())
     }
-}
-impl Drop for Stream {
-    fn drop(&mut self) {
-        let mut s = self.shared.0.lock().unwrap_or_else(|e| e.into_inner());
+    fn stop(&self) -> Result<()> {
+        let mut poisoned = false;
+        let mut s = self.shared.0.lock().unwrap_or_else(|e| { poisoned = true; e.into_inner() });
         s.stop = true;
         s.cache = FrameCache::new();
         self.shared.1.notify_one();
+        if poisoned { Err("video frame state poisoned while stopping decoder".into()) } else { Ok(()) }
+    }
+    fn retire(mut self) -> (Option<JoinHandle<()>>, Result<()>) {
+        let stopped = self.stop();
+        (self.worker.take(), stopped)
+    }
+}
+impl Drop for Stream {
+    fn drop(&mut self) {
+        if let Err(error) = self.stop() { log::error!("video stream cleanup: {error}"); }
     }
 }
 fn status(s: &State) -> Value {
@@ -388,6 +399,9 @@ pub struct VideoFrames {
     sequences: HashMap<u64, (u64, f64, u64)>,
     counter: u64,
     platform: Option<Arc<dyn crate::platform::Platform>>,
+    retiring: Vec<JoinHandle<()>>,
+    retirement_error: Option<String>,
+    pending_retirement_error: Option<String>,
 }
 impl VideoFrames {
     pub fn new(platform: Arc<dyn crate::platform::Platform>) -> Self {
@@ -402,8 +416,42 @@ impl VideoFrames {
             .ok_or_else(|| "video frames require a host platform".to_owned())
     }
     pub fn clear(&mut self) {
-        self.streams.clear();
+        for (_, stream) in self.streams.drain() {
+            let (worker, stopped) = stream.retire();
+            if let Some(worker) = worker { self.retiring.push(worker); }
+            if let Err(error) = stopped {
+                self.retirement_error = Some(error.clone());
+                self.pending_retirement_error = Some(error);
+            }
+        }
         self.sequences.clear();
+    }
+    fn retire(&mut self, object: u64) {
+        if let Some(stream) = self.streams.remove(&object) {
+            let (worker, stopped) = stream.retire();
+            if let Some(worker) = worker { self.retiring.push(worker); }
+            if let Err(error) = stopped {
+                self.retirement_error = Some(error.clone());
+                self.pending_retirement_error = Some(error);
+            }
+        }
+    }
+    /// Join only completed workers. A slow native decoder never blocks this
+    /// caller and still consumes its slot until it actually releases resources.
+    fn reap_retired(&mut self) -> Result<()> {
+        if let Some(error) = self.pending_retirement_error.take() { return Err(error); }
+        let mut index = 0;
+        while index < self.retiring.len() {
+            if self.retiring[index].is_finished() {
+                if let Err(payload) = self.retiring.swap_remove(index).join() {
+                    let error = format!("video decoder retirement failed: {}", motion_media::panic_reason(payload));
+                    log::error!("{error}");
+                    self.retirement_error = Some(error.clone());
+                    return Err(error);
+                }
+            } else { index += 1; }
+        }
+        Ok(())
     }
     pub fn request(
         &mut self,
@@ -448,7 +496,7 @@ impl VideoFrames {
             || source >= asset.video_end_us as i64
         {
             self.sequences.insert(object, (sequence, frame, 0));
-            self.streams.remove(&object);
+            self.retire(object);
             return Ok(
                 json!({"state":"outside","sequence":sequence,"source_time_us":source,"bytes":0,"object":object}),
             );
@@ -464,7 +512,7 @@ impl VideoFrames {
         // A layer can change sources while retaining its object id. Retire that
         // stream before interpreting its old timebase or poisoned state.
         if self.streams.get(&object).is_some_and(|stream| stream.asset != *asset) {
-            self.streams.remove(&object);
+            self.retire(object);
         }
         if let Some(stream) = self.streams.get(&object) {
             let desired = stream.shared.0.lock()
@@ -489,12 +537,18 @@ impl VideoFrames {
         generation: u64,
         prefetch: bool,
     ) -> Result<Value> {
+        self.reap_retired()?;
         if self.streams.get(&object).is_some_and(|s| s.asset != *asset) {
-            self.streams.remove(&object);
+            self.retire(object);
         }
         if !self.streams.contains_key(&object) {
-            if self.streams.len() >= 4 {
+            if self.streams.len() >= MAX_DECODER_WORKERS {
                 return Err("at most four video instances per reader; release idle frames".into());
+            }
+            if self.streams.len() + self.retiring.len() >= MAX_DECODER_WORKERS {
+                // A pending state is explicit, retryable scheduling backpressure.
+                return Ok(json!({"state":"pending","reason":"decoder_retirement", "sequence":generation,
+                    "object":object,"width":asset.display_width,"height":asset.display_height}));
             }
             self.streams.insert(
                 object,
@@ -570,7 +624,9 @@ impl VideoFrames {
         prefetch: bool,
     ) -> Result<Option<Vec<(u64, Arc<DecodedFrame>)>>> {
         let layers=scene.video_layers();
-        self.streams.retain(|object,_|layers.iter().any(|l|l.id==*object));
+        let inactive: Vec<_> = self.streams.keys().filter(|object| !layers.iter().any(|l| l.id == **object)).copied().collect();
+        for object in inactive { self.retire(object); }
+        self.reap_retired()?;
         let mut frames = Vec::new();
         let mut pending = false;
         for layer in layers {
@@ -608,6 +664,12 @@ impl VideoFrames {
             Ok(Some(frames))
         }
     }
+    pub fn cache_bytes(&self) -> Result<usize> {
+        self.streams.values().try_fold(0usize, |total, stream| {
+            let state = stream.shared.0.lock().map_err(|_| "video frame state poisoned while measuring cache")?;
+            total.checked_add(state.cache.bytes()).ok_or_else(|| "video frame cache accounting overflow".into())
+        })
+    }
     pub fn metrics(&self) -> Value {
         let mut bytes = 0;
         let mut budget = 0;
@@ -640,7 +702,9 @@ impl VideoFrames {
             }
         }
         json!({"cacheBytes":bytes,"cacheFrames":frames,"cacheBudgetBytes":budget,"maxCacheBudgetBytes":4 * crate::video_cache::MAX_CACHE_BYTES,
-            "cacheHits":hits,"cacheMisses":misses,"decodedFrames":decoded,"cancelledFrames":cancelled,"decoderSeeks":seeks,"prefetchFailures":prefetch_failures,"lookaheadFrames":LOOKAHEAD,"streams":self.streams.len(),"decodeInFlight":in_flight,"decodeWorkersStopped":stopped_workers})
+            "cacheHits":hits,"cacheMisses":misses,"decodedFrames":decoded,"cancelledFrames":cancelled,"decoderSeeks":seeks,"prefetchFailures":prefetch_failures,"lookaheadFrames":LOOKAHEAD,"streams":self.streams.len(),"decodeInFlight":in_flight,"decodeWorkersStopped":stopped_workers,
+            "retiringStreams":self.retiring.iter().filter(|worker| !worker.is_finished()).count(),
+            "maxDecoderWorkers":MAX_DECODER_WORKERS,"retirementError":self.retirement_error})
     }
 }
 
@@ -661,6 +725,7 @@ mod generation_failure_tests {
     fn frames(asset: &VideoAsset) -> VideoFrames {
         let mut frames = VideoFrames {counter:10,..Default::default()};
         let stream = Stream {
+            worker: None,
             object:7,
             asset:asset.clone(),
             pts:Arc::new(vec![0,33333]),
@@ -729,7 +794,7 @@ mod generation_failure_tests {
         }
         fn decode_audio(&self, _: &Path, _: &Path, _: Option<u32>, _: u64, _: &mut dyn FnMut(f64) -> Result<()>) -> Result<motion_core::AudioAsset> { Err("not used".into()) }
         fn media_capabilities(&self, _: Option<&crate::platform::VideoQuery>) -> Result<Value> { Err("not used".into()) }
-        fn attach_surface(&self, _: Arc<dyn wgpu::WindowHandle + Send + Sync>, _: u32, _: u32) -> Result<crate::platform::SurfaceTarget> { Err("not used".into()) }
+        fn attach_surface(&self, _: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>, _: u32, _: u32) -> Result<crate::platform::SurfaceTarget> { Err("not used".into()) }
     }
     struct PrefetchDecoder(Arc<std::sync::atomic::AtomicBool>);
     impl VideoDecoder for PrefetchDecoder {
@@ -784,6 +849,22 @@ mod generation_failure_tests {
         let mut frames = VideoFrames::default();
         frames.streams.insert(7,stream);
         assert_eq!(frames.metrics()["prefetchFailures"],1);
+    }
+
+    #[test]
+    fn retired_worker_panic_preserves_the_cause_in_result_and_metrics() {
+        let mut frames = VideoFrames::default();
+        let worker = std::thread::spawn(|| panic!("injected retirement cause"));
+        let deadline = Instant::now() + std::time::Duration::from_secs(5);
+        while !worker.is_finished() {
+            assert!(Instant::now() < deadline);
+            std::thread::yield_now();
+        }
+        frames.retiring.push(worker);
+        let error = frames.reap_retired().unwrap_err();
+        assert!(error.contains("injected retirement cause"), "{error}");
+        assert_eq!(frames.metrics()["retirementError"], error);
+        assert_eq!(frames.metrics()["retiringStreams"], 0);
     }
 }
 

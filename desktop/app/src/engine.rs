@@ -15,8 +15,8 @@ use serde_json::Value;
 use std::{
     path::PathBuf,
     sync::{
-        mpsc::{channel, Sender},
-        atomic::{AtomicUsize, Ordering},
+        mpsc::{channel, sync_channel, Sender, SyncSender, TrySendError},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
         Arc, Mutex,
     },
     thread::JoinHandle,
@@ -26,6 +26,8 @@ mod diagnostic_names;
 mod failure;
 #[cfg(test)]
 mod fallback_tests;
+#[cfg(test)]
+mod queue_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod scope_tests;
 use failure::{ErrorReply, Failure, SessionLease};
@@ -33,6 +35,7 @@ use failure::{ErrorReply, Failure, SessionLease};
 /// Maximum JSON payload accepted from the UI. Matches the Android bridge limit
 /// so a request that works on one platform works on both.
 pub const REQUEST_LIMIT: usize = 256 * 1024;
+pub const COMMAND_QUEUE_CAPACITY: usize = 128;
 
 /// CPU draw commands only. All GPU objects stay with the session worker.
 pub struct UiFrame {
@@ -130,9 +133,6 @@ pub enum Command {
         ticket: crate::project_lifecycle::Ticket,
         save: bool,
         reply: Sender<Result<Value, String>>,
-    },
-    NodeExpect {
-        stamp: (u64, u64),
     },
     NodeSource {snapshot:crate::node_editor::EditorSnapshot,reply:Sender<Result<Value,String>>},
     NodeInstall {
@@ -354,7 +354,7 @@ impl Command {
             TestPanic { reply, .. } | TestRecoveryPanic { reply, .. } | TestDelay { reply, .. } | TestWait {reply,..} => {
                 ErrorReply::Value(reply.clone())
             }
-            NodeExpect { .. } | Shutdown => return None,
+            Shutdown => return None,
         };
         Some(reply)
     }
@@ -376,7 +376,7 @@ impl std::ops::Deref for ArcFrame {
 
 /// Handle used by the UI thread to talk to the engine.
 pub struct Engine {
-    sender: Sender<QueuedCommand>,
+    sender: SyncSender<QueuedCommand>,
     worker: Option<JoinHandle<()>>,
     platform: Arc<dyn Platform>,
     factory: Arc<std::sync::Mutex<Option<SurfaceFactory>>>,
@@ -385,6 +385,8 @@ pub struct Engine {
     diagnostics: Arc<crate::diagnostics::Diagnostics>,
     in_flight: Arc<Mutex<Option<Flight>>>,
     queue_depth: Arc<AtomicUsize>,
+    shutdown: Arc<AtomicBool>,
+    pending_node_expect: Arc<Mutex<Option<(u64, u64)>>>,
 }
 #[derive(Clone, Copy)]
 struct Flight {
@@ -443,7 +445,42 @@ impl Engine {
         Ok(())
     }
     pub fn node_expect(&self, stamp: (u64, u64)) -> Result<(), String> {
-        self.send(Command::NodeExpect { stamp })
+        self.check_running()?;
+        *self.pending_node_expect.lock().map_err(|_| "node expectation lock poisoned")? = Some(stamp);
+        Ok(())
+    }
+    /// Stop accepting work and drain accepted commands. This also works while
+    /// an MCP reader still owns an Arc; it does not interrupt a native GPU call.
+    pub fn request_shutdown(&self) -> Result<(), String> {
+        let context = self.diagnostics.context();
+        let mut gate_error = None;
+        let queued = {
+            let _gate = self.in_flight.lock().unwrap_or_else(|e| {
+                gate_error = Some("engine dispatch lock poisoned during shutdown".to_owned());
+                e.into_inner()
+            });
+            if self.shutdown.swap(true, Ordering::AcqRel) {
+                return gate_error.map_or(Ok(()), Err);
+            }
+            // Wake an idle worker. A full queue already wakes it; after draining
+            // it observes the flag without requiring another free queue slot.
+            let queued = self.sender.try_send(QueuedCommand {
+                command: Command::Shutdown,
+                queued: Instant::now(),
+                request: self.diagnostics.next_request(),
+                context,
+            });
+            if queued.is_ok() { self.queue_depth.fetch_add(1, Ordering::AcqRel); }
+            queued
+        };
+        match queued {
+            Ok(()) => {},
+            Err(TrySendError::Full(_)) => {
+                log::debug!("shutdown will follow the accepted full command queue");
+            },
+            Err(TrySendError::Disconnected(_)) => return Err(self.stopped_error()),
+        }
+        gate_error.map_or(Ok(()), Err)
     }
     pub fn node_install(
         &self,
@@ -513,7 +550,11 @@ impl Engine {
         let worker_flight = in_flight.clone();
         let queue_depth = Arc::new(AtomicUsize::new(0));
         let worker_depth = queue_depth.clone();
-        let (sender, receiver) = channel::<QueuedCommand>();
+        let shutdown = Arc::new(AtomicBool::new(false));
+        let worker_shutdown = shutdown.clone();
+        let pending_node_expect = Arc::new(Mutex::new(None));
+        let worker_node_expect = pending_node_expect.clone();
+        let (sender, receiver) = sync_channel::<QueuedCommand>(COMMAND_QUEUE_CAPACITY);
         let (ready, opened) = channel::<Result<i64, String>>();
         let worker = std::thread::Builder::new()
             .name("motion-engine".into())
@@ -572,7 +613,27 @@ impl Engine {
                 let mut windows = std::collections::HashMap::new();
                 let mut failed_reply = None;
                 let mut channel_closed = true;
-                while let Ok(QueuedCommand {command,queued,request,context}) = receiver.recv() {
+                loop {
+                    let drained = {
+                        let _gate = match worker_flight.lock() {
+                            Ok(gate) => gate,
+                            Err(poisoned) => {
+                                drop(poisoned);
+                                let error = "engine dispatch lock poisoned while checking shutdown";
+                                log::error!("{error}");
+                                static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+                                crate::fallback_observation::recovered(&worker_failure, &FAILURES, "engine.failure.shutdown", |value| *value = Some(error.into()));
+                                channel_closed = false;
+                                break;
+                            }
+                        };
+                        worker_shutdown.load(Ordering::Acquire) && worker_depth.load(Ordering::Acquire) == 0
+                    };
+                    if drained {
+                        channel_closed = false;
+                        break;
+                    }
+                    let Ok(QueuedCommand {command,queued,request,context}) = receiver.recv() else { break; };
                     let began=std::time::Instant::now();
                     let operation=command.diagnostic_name();
                     let flight = Flight { request, operation, started: began };
@@ -589,7 +650,13 @@ impl Engine {
                         crate::logging::flush();
                     }
                     let on_panic = command.panic_reply();
-                    let handled=motion_host::ops::catch_panic(|| handle(
+                    let handled=motion_host::ops::catch_panic(|| {
+                        // Keep this inside the existing panic/reply boundary.
+                        let pending = worker_node_expect.lock().map_err(|_| "node expectation lock poisoned")?;
+                        let mut pending = pending;
+                        if let Some(stamp) = pending.take() { node_preview.desired = stamp; }
+                        drop(pending);
+                        Ok(handle(
                         id,
                         &platform,
                         &mut painter,
@@ -600,7 +667,7 @@ impl Engine {
                         &worker_paints,
                         &worker_diagnostics,
                         command,
-                    ));
+                    ))}).and_then(|result| result);
                     worker_diagnostics.record(request,"worker",operation,queued.elapsed(),Some(began.duration_since(queued)),Some(began.elapsed()),context);
                     *worker_flight.lock().unwrap_or_else(|e| e.into_inner()) = None;
                     CURRENT_COMMAND.set(None);
@@ -633,6 +700,7 @@ impl Engine {
                     }
                 }
                 if channel_closed { log::error!("worker channel closed"); }
+                worker_depth.store(0, Ordering::Release);
                 drop(windows);
                 drop(painter);
                 drop(node_preview);
@@ -675,6 +743,8 @@ impl Engine {
             diagnostics,
             in_flight,
             queue_depth,
+            shutdown,
+            pending_node_expect,
         })
     }
 
@@ -686,12 +756,40 @@ impl Engine {
         let request = self.diagnostics.next_request();
         let operation = command.diagnostic_name();
         let context = self.diagnostics.context();
+        enum Rejected {
+            Stopped(String),
+            Finished,
+            Send(TrySendError<QueuedCommand>),
+        }
+        let mut failure_poisoned = false;
         static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
-        let depth = crate::fallback_observation::recovered(&self.in_flight, &FAILURES, "engine.flight.dispatch", |_| {
-            self.sender.send(QueuedCommand {
-                command, queued: std::time::Instant::now(), request, context,
-            }).map(|()| self.queue_depth.fetch_add(1, Ordering::AcqRel) + 1)
-        }).map_err(|_| self.stopped_error())?;
+        let queued = crate::fallback_observation::recovered(&self.in_flight, &FAILURES, "engine.flight.dispatch", |_| {
+            // Repeat the running check under the shutdown gate, but defer all
+            // logging (including poisoned failure-state evidence) until unlock.
+            let failure = self.failure.lock().unwrap_or_else(|error| {
+                failure_poisoned = true;
+                error.into_inner()
+            }).clone();
+            if let Some(error) = failure { return Err(Rejected::Stopped(error)); }
+            if self.shutdown.load(Ordering::Acquire) {
+                return Err(Rejected::Stopped("engine shutdown requested; new commands are not accepted".into()));
+            }
+            if self.worker.as_ref().is_some_and(|worker| worker.is_finished()) {
+                return Err(Rejected::Finished);
+            }
+            self.sender.try_send(QueuedCommand {
+                command, queued: Instant::now(), request, context,
+            }).map(|()| self.queue_depth.fetch_add(1, Ordering::AcqRel) + 1).map_err(Rejected::Send)
+        });
+        if failure_poisoned {
+            static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+            FAILURES.failure("engine.failure.dispatch", format_args!("reason=mutex_poisoned policy=into_inner"));
+        }
+        let depth = queued.map_err(|error| match error {
+            Rejected::Stopped(error) => error,
+            Rejected::Finished | Rejected::Send(TrySendError::Disconnected(_)) => self.stopped_error(),
+            Rejected::Send(TrySendError::Full(_)) => format!("engine command queue is full (capacity {COMMAND_QUEUE_CAPACITY}); command was not queued"),
+        })?;
         // Present shares this queue; keep its healthy per-frame path silent.
         if operation != "present" {
             log::debug!("dispatch #{} {} queue_depth={}", request, operation, depth);
@@ -1027,7 +1125,7 @@ impl Engine {
     }
     pub fn attach_async(
         &self,
-        window: Arc<dyn wgpu::WindowHandle + Send + Sync>,
+        window: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         width: u32,
         height: u32,
     ) -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
@@ -1064,7 +1162,7 @@ impl Engine {
     pub fn float_window(
         &self,
         key: u64,
-        window: Arc<dyn wgpu::WindowHandle + Send + Sync>,
+        window: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         width: u32,
         height: u32,
     ) -> Result<Value, String> {
@@ -1108,11 +1206,14 @@ impl Engine {
 
 impl Drop for Engine {
     fn drop(&mut self) {
-        // Shutdown must use the same accounting gate as every other command.
-        let _ = self.send(Command::Shutdown);
+        if let Err(error) = self.request_shutdown() {
+            log::error!("engine shutdown: {error}");
+        }
         if let Some(worker) = self.worker.take() {
             if let Err(payload) = worker.join() {
-                log::error!("worker join failed: {}", motion_media::panic_reason(payload));
+                let error = format!("engine shutdown failed: worker panicked outside its command boundary: {}", motion_media::panic_reason(payload));
+                *self.failure.lock().unwrap_or_else(|e| e.into_inner()) = Some(error.clone());
+                log::error!("{error}");
             }
         }
     }
@@ -1120,8 +1221,10 @@ impl Drop for Engine {
 
 fn clear_target(encoder: &mut wgpu::CommandEncoder, view: &wgpu::TextureView) {
     let _pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+        multiview_mask: None,
         label: Some("floating panel background"),
         color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+            depth_slice: None,
             view,
             resolve_target: None,
             ops: wgpu::Operations {
@@ -1331,7 +1434,6 @@ fn handle(
             }
         })()),
         Command::NodeSource{snapshot,reply}=>respond(reply,motion_host::session::with_session(id,|s|crate::node_layer::persist(s,&snapshot))),
-        Command::NodeExpect{stamp}=>node_preview.desired=stamp,
         Command::NodeInstall { snapshot, compiled, canonical,reply } => respond(reply, (|| {
             // All pipeline creation and scope push/pop stay on this worker,
             // alongside effects and presentation. Reject stale CPU work first.
@@ -1457,22 +1559,23 @@ fn handle(
                     result
                 }else{
                     let output=match g.surface.get_current_texture(){
-                        Ok(output)=>{PRESENT_SURFACE_FAILURES.success();output},
-                        Err(error @ (wgpu::SurfaceError::Lost|wgpu::SurfaceError::Outdated))=>{
+                        wgpu::CurrentSurfaceTexture::Success(output)|wgpu::CurrentSurfaceTexture::Suboptimal(output)=>{PRESENT_SURFACE_FAILURES.success();output},
+                        error @ (wgpu::CurrentSurfaceTexture::Lost|wgpu::CurrentSurfaceTexture::Outdated)=>{
                             PRESENT_SURFACE_FAILURES.failure("desktop.present.surface",format_args!("state={error:?} window={}",ui.window));
                             g.surface.configure(&g.renderer.device,&g.config);return Ok(false)
                         },
-                        Err(wgpu::SurfaceError::Timeout)=>{
+                        wgpu::CurrentSurfaceTexture::Timeout=>{
                             PRESENT_SURFACE_FAILURES.failure("desktop.present.surface",format_args!("state=Timeout window={}",ui.window));
                             return Ok(false)
-                        },Err(e)=>return Err(e.to_string()),
+                        },wgpu::CurrentSurfaceTexture::Occluded=>{PRESENT_SURFACE_FAILURES.success();return Ok(false)},
+                        wgpu::CurrentSurfaceTexture::Validation=>return Err("surface acquisition validation failed".into()),
                     };
                     let view=output.texture.create_view(&Default::default());
                     let mut encoder=g.renderer.device.create_command_encoder(&Default::default());
                     clear_target(&mut encoder,&view);
                     painter.render_scaled(&g.renderer.device,&g.renderer.queue,&mut encoder,&view,&ui.paint,ui.logical_size,[g.config.width as f32/ui.logical_size[0],g.config.height as f32/ui.logical_size[1]]);
                     if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){preview.encode(&g.renderer.device,&g.renderer.queue,&mut encoder,&view,viewport,g.config.format);}
-                    g.renderer.queue.submit(Some(encoder.finish()));output.present();Ok(true)
+                    g.renderer.queue.submit(Some(encoder.finish()));g.renderer.queue.present(output);Ok(true)
                 }
             })();
             if let (Some(w),Some(g))=(floating.as_mut(),s.graphics.as_mut()) {
