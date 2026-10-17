@@ -386,6 +386,7 @@ fn unsupported_axes_modes_or_targets_fail_without_silent_activation() {
     )
     .is_err());
     e.apply(Command::CameraMode {
+        object: 0,
         mode: motion_core::CameraMode::Orbit,
     })
     .unwrap();

@@ -7,6 +7,11 @@ mod curve_playback_tests;
 
 impl Shell {
     pub(crate) fn accept_edit_state(&mut self, state: Value) {
+        if state["edit_result"]["op"] == "create_camera" {
+            if let Some(object) = state["edit_result"]["object"].as_u64() {
+                self.panels.select_only(Some(object));
+            }
+        }
         self.state = state;
         // Finish the commands emitted by one interaction pass before presenting.
         // Begin/change/commit do not need GPU round trips between each step.

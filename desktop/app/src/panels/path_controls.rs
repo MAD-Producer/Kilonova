@@ -387,7 +387,7 @@ impl Controls {
             if l.locked
                 || matches!(
                     l.content,
-                    Content::Null | Content::Audio { .. } | Content::Adjustment
+                    Content::Null | Content::Camera { .. } | Content::Audio { .. } | Content::Adjustment
                 )
             {
                 return None;

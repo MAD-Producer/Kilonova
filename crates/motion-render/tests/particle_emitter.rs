@@ -61,6 +61,29 @@ fn xs(b: &PlanBuilder) -> Vec<f32> {
         .map(|s| (s.rect[0] + 1.) * 64.)
         .collect()
 }
+
+#[test]
+fn particle_birth_history_retains_camera_layer_ancestry_and_invalidates_on_camera_edits() {
+    let mut p = project();
+    p.version = 19;
+    let mut camera = Layer::camera(2, "Camera rig", p.width, p.height);
+    camera.visible = false;
+    p.layers.push(camera);
+    p.layers[0].three_d = true;
+    p.layers[0].parent = Some(ParentLink { object: Some(2), bind: glam::Mat4::IDENTITY.to_cols_array_2d() });
+    p.validate().unwrap();
+    let emitter = &p.layers[0];
+    let history = motion_core::particle_history::ParticleHistory::capture(&p, emitter, &emitter.effects[0], None).unwrap();
+    let actual = history.matrix_at(0.5, &mut vec![], &mut vec![]).unwrap();
+    let mut scene = Scene::new(&p);
+    scene.sample(&p, 15., None, &motion_core::ExpressionEvaluator).unwrap();
+    assert!(actual.abs_diff_eq(scene.world_matrix(1).unwrap(), 1e-5));
+    p.camera_for_mut(2).unwrap().position.value[0] += 50.;
+    let emitter = &p.layers[0];
+    let changed = motion_core::particle_history::ParticleHistory::capture(&p, emitter, &emitter.effects[0], Some(&history)).unwrap();
+    assert!(!std::sync::Arc::ptr_eq(&history, &changed));
+    assert!(!changed.matrix_at(0.5, &mut vec![], &mut vec![]).unwrap().abs_diff_eq(actual, 1e-3));
+}
 #[test]
 fn moving_emitter_leaves_old_births_and_reuses_their_poses() {
     let p = project();

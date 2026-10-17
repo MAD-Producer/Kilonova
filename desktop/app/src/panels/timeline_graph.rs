@@ -104,7 +104,7 @@ pub(super) fn render(
     };
     let root = &timeline["properties"][data::name(property)];
     let separated = root["separated"].as_bool() == Some(true);
-    let visible_axes = if property == Property::Opacity {
+    let visible_axes = if property.is_scalar() {
         vec![0]
     } else if layer["three_d"].as_bool() == Some(true) {
         vec![0, 1, 2]
@@ -131,14 +131,16 @@ pub(super) fn render(
         Property::Position => T::Position,
         Property::Scale => T::Scale,
         Property::Rotation => T::Rotation,
-        _ => T::Opacity,
+        Property::Opacity => T::Opacity, Property::Target => T::CameraTarget,
+        Property::Roll => T::CameraRoll, Property::Fov => T::CameraFov,
+        Property::Radius => T::CameraRadius, Property::Azimuth => T::CameraAzimuth, Property::Elevation => T::CameraElevation,
     };
     let axis = panels.animation_controls.axis;
     let Some(source) = data::channel(state, object, property, axis) else {
         return;
     };
     let layer_offset = timeline["offset_frame"].as_i64().unwrap_or(0);
-    let samples = if property == Property::Opacity || axis.is_some() {
+    let samples = if property.is_scalar() || axis.is_some() {
         data::track::<f32>(source, layer_offset).map(Samples::Scalar)
     } else {
         data::track::<[f32; 3]>(source, layer_offset).map(Samples::Vector)
@@ -159,7 +161,7 @@ pub(super) fn render(
         list.append(graph);
         return;
     };
-    let components = if axis.is_some() || property == Property::Opacity {
+    let components = if axis.is_some() || property.is_scalar() {
         vec![0]
     } else {
         let component = visible_axes
@@ -267,14 +269,14 @@ pub(super) fn render(
         );
     }
     let unit = match property {
-        Property::Position => {
+        Property::Position | Property::Target | Property::Radius => {
             if panels.timeline.speed_graph {
                 "px/s"
             } else {
                 "px"
             }
         }
-        Property::Rotation => {
+        Property::Rotation | Property::Roll | Property::Fov | Property::Azimuth | Property::Elevation => {
             if panels.timeline.speed_graph {
                 "°/s"
             } else {

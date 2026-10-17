@@ -36,6 +36,7 @@ impl Default for Locale {
 }
 #[derive(Clone, Copy)]
 pub enum Text {
+    CameraTarget, CameraRoll, CameraFov, CameraRadius, CameraAzimuth, CameraElevation,
     File,
     Edit,
     Composition,
@@ -194,6 +195,12 @@ impl Locale {
     pub fn t(self, key: Text) -> &'static str {
         use Text::*;
         let (zh, en) = match key {
+            CameraTarget => ("目标点", "Target"),
+            CameraRoll => ("倾斜", "Roll"),
+            CameraFov => ("视场角", "Field of View"),
+            CameraRadius => ("半径", "Radius"),
+            CameraAzimuth => ("方位角", "Azimuth"),
+            CameraElevation => ("仰角", "Elevation"),
             File => ("文件", "File"),
             Edit => ("编辑", "Edit"),
             Composition => ("合成", "Composition"),

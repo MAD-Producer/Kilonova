@@ -151,7 +151,7 @@ pub(super) fn update(
                         frame: drag.current,
                         value,
                     }
-                } else if drag.property == Property::Opacity {
+                } else if drag.property.is_scalar() {
                     Command::SetScalar {
                         object: drag.object,
                         property: drag.property,

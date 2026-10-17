@@ -33,6 +33,7 @@ def verify_design_screens(snapshot: dict, locale: str) -> None:
         "effect-controls-bottom": (360, 360), "effect-curve-inline": (360, 560),
         "layer-properties-tree": (360, 560), "layer-properties-effects": (360, 560),
         "timeline-properties-tree": (720, 520),
+        "camera-properties": (360, 560), "timeline-cameras": (720, 520),
     })
     for name in ("home", "project-open-error", "composition-settings", "workspace-manager", "effect-library", "timeline-parent-menu", "timeline-blend-menu", "timeline-graph", "value-graph", "speed-graph", *auxiliary):
         if name not in screens:

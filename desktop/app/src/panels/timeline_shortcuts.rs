@@ -298,7 +298,7 @@ fn toggle_key(
                 frame,
                 enabled: true,
             });
-            edits.push(if property == Property::Opacity {
+            edits.push(if property.is_scalar() {
                 Command::SetScalar {
                     object,
                     property,

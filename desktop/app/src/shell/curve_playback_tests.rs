@@ -176,3 +176,23 @@ fn graph_ruler_scrubbing_cannot_feed_back_through_acknowledged_frames_or_starve_
         }
     }
 }
+
+#[test]
+fn creating_multiple_cameras_selects_the_new_layer_and_errors_keep_the_previous_state() {
+    let folder = tempfile::tempdir().unwrap();
+    let mut shell = Shell::new(folder.path().join("project"), None, Some(Locale::En)).unwrap();
+    let mut objects = vec![];
+    for _ in 0..3 {
+        shell.actions.push_back(panels::Action::Edit(Command::CreateCamera));
+        finish_actions(&mut shell);
+        let object = shell.state["edit_result"]["object"].as_u64().unwrap();
+        assert_eq!(shell.panels.selected, Some(object));
+        assert!(!objects.contains(&object));
+        objects.push(object);
+        assert!(shell.state["renderError"].is_null());
+    }
+    let state = shell.state.clone();
+    let error = shell.engine.edit(serde_json::json!({"op":"camera_mode","object":u64::MAX,"mode":"orbit"}).to_string()).unwrap_err();
+    assert!(error.contains("18446744073709551615"));
+    assert_eq!(shell.engine.state().unwrap()["project"], state["project"]);
+}
