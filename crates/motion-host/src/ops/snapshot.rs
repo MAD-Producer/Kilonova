@@ -302,6 +302,10 @@ impl Session {
                 "adapter":g.renderer.adapter_info.name,
                 "backend":format!("{:?}",g.renderer.adapter_info.backend),
                 "textureBytes":g.renderer.texture_bytes()}))});
+        snapshot["capabilities"]["separate_dimensions"]["merge"] = json!({
+            "supported":true,"command":"merge_dimensions","policy":"aligned_keys_shared_interpolation",
+            "resampling":false,"on_mismatch":"error_preserves_axes","expressions":"preserved",
+            "already_coupled":"no_change","project_format_change":false});
         snapshot["capabilities"]["composition_api"]["project_format"]=json!(16);
         snapshot["capabilities"]["layer_3d"]["rotation_order"]=json!({"supported":true,"project_format":16,"command":"set_rotation_order",
             "default":"fixed_xyz","missing_field":"local_xyz","orders":["local_xyz","fixed_xyz"],"fixed_xyz":"apply_x_then_y_then_z_about_parent_axes",

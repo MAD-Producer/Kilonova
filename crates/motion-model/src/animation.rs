@@ -580,6 +580,52 @@ impl<T: Tween> Track<T> {
             crate::Error::Invalid("separate dimensions before editing an axis".into())
         })
     }
+    /// Recombine aligned scalar tracks without resampling or changing their
+    /// arithmetic. Different key grids or segment timing require an explicit
+    /// conversion policy; this command leaves them intact instead of baking.
+    pub fn merge_dimensions(&mut self) -> Result<()> {
+        let vector = |values| T::from_components(values).ok_or_else(|| {
+            crate::Error::Invalid("only vector properties can merge dimensions".into())
+        });
+        vector([0.; 3])?;
+        let Some(axes) = &self.axes else {
+            return Ok(());
+        };
+        self.validate_local()?;
+        ensure(
+            axes.x.keys.len() == axes.y.keys.len() && axes.x.keys.len() == axes.z.keys.len(),
+            "cannot merge dimensions: X/Y/Z must have matching key times",
+        )?;
+        let value = vector([axes.x.value, axes.y.value, axes.z.value])?;
+        let mut keys = Vec::with_capacity(axes.x.keys.len());
+        for (index, ((x, y), z)) in axes.x.keys.iter().zip(&axes.y.keys).zip(&axes.z.keys).enumerate() {
+            ensure(
+                x.frame == y.frame && x.frame == z.frame,
+                "cannot merge dimensions: X/Y/Z must have matching key times",
+            )?;
+            // The final key has no outgoing segment. A custom curve overrides
+            // its key's ease, so only effective timing needs to match.
+            if index + 1 < axes.x.keys.len() {
+                ensure(
+                    x.curve == y.curve && x.curve == z.curve
+                        && (x.curve.is_some() || (x.ease == y.ease && x.ease == z.ease)),
+                    "cannot merge dimensions: X/Y/Z must share each segment's interpolation",
+                )?;
+            }
+            keys.push(Keyframe {
+                frame: x.frame,
+                value: vector([x.value, y.value, z.value])?,
+                ease: x.ease,
+                curve: x.curve,
+                spatial: None,
+            });
+        }
+        // Install only after every check; model callers get atomic rejection too.
+        self.value = value;
+        self.keys = keys;
+        self.axes = None;
+        Ok(())
+    }
     pub fn validate_bound(&self, bound: f32) -> Result<()> {
         if let Some(axes) = &self.axes {
             for t in axes.tracks() {
