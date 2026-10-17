@@ -128,15 +128,15 @@ def main() -> int:
         env = ffmpeg_environment(args)
         # Keep the installed decoder libraries relocatable in the release archive.
         # Unit tests use the prefix through LD_LIBRARY_PATH/DYLD_LIBRARY_PATH.
-        flags = (env["CARGO_ENCODED_RUSTFLAGS"].split("\x1f") if env.get("CARGO_ENCODED_RUSTFLAGS")
-                 else shlex.split(env.get("RUSTFLAGS", "")))
-        if sys.platform == "darwin":
-            flags += ["-C", "link-arg=-Wl,-rpath,@executable_path/../Frameworks"]
-        elif sys.platform.startswith("linux"):
-            # DT_RPATH also covers libav's transitive shared dependencies;
-            # executable-only DT_RUNPATH would not locate those siblings.
-            flags += ["-C", "link-arg=-Wl,--disable-new-dtags,-rpath,$ORIGIN/lib"]
-        if flags:
+        if sys.platform == "darwin" or sys.platform.startswith("linux"):
+            flags = (env["CARGO_ENCODED_RUSTFLAGS"].split("\x1f") if env.get("CARGO_ENCODED_RUSTFLAGS")
+                     else shlex.split(env.get("RUSTFLAGS", "")))
+            if sys.platform == "darwin":
+                flags += ["-C", "link-arg=-Wl,-rpath,@executable_path/../Frameworks"]
+            else:
+                # DT_RPATH also covers libav's transitive shared dependencies;
+                # executable-only DT_RUNPATH would not locate those siblings.
+                flags += ["-C", "link-arg=-Wl,--disable-new-dtags,-rpath,$ORIGIN/lib"]
             env["CARGO_ENCODED_RUSTFLAGS"] = "\x1f".join(flags)
 
     binary = "motion-studio"

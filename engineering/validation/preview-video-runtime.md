@@ -24,7 +24,7 @@
 
 ## 验证与边界
 
-- `preview-video-tools-tests-complete.log`：CI 工具 49 项通过、1 项已有 Rust 效果验证器用例因未指定可执行文件而跳过（共 50 项）；包含下载缓存损坏及校验失败不发布的真实文件用例。
+- `preview-video-tools-tests-complete.log`：CI 工具 50 项通过、1 项已有 Rust 效果验证器用例因未指定可执行文件而跳过（共 51 项）；包含下载缓存损坏及校验失败不发布的真实文件用例，以及 Windows 用户链接参数保留、Linux/macOS 相对库加载参数用例。
 - `preview-video-package-final.log`：发布工具专项 15 项通过，覆盖 shell 构建拒绝、缺失组件/许可证/来源、哈希不符、路径越界、架构错误、归档内清单复核、macOS 签名失败及上传前验证顺序。
 - `preview-video-prepare-monthly.log`：Windows 固定下载 SHA-256 验证、解压、原文许可证、7 个 DLL 清单和实际 `-buildconf` 验证通过；拒绝 enable-gpl / enable-nonfree 的非预期分发包。
 - Windows 实际构建、归档解压解码和故障日志结果在完成后追加。Linux 与两种 macOS 原生构建及加载验证需等待四平台 CI，不能用本地 Windows 结果代替。
