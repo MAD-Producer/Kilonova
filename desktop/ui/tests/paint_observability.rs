@@ -48,8 +48,10 @@ fn draw(
     let mut encoder = device.create_command_encoder(&Default::default());
     {
         let _pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            multiview_mask: None,
             label: None,
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                depth_slice: None,
                 view: &view,
                 resolve_target: None,
                 ops: wgpu::Operations {
@@ -91,9 +93,9 @@ fn draw(
         .map_async(wgpu::MapMode::Read, move |result| {
             send.send(result).unwrap()
         });
-    device.poll(wgpu::Maintain::Wait);
+    device.poll(wgpu::PollType::wait_indefinitely()).expect("GPU poll failed");
     receive.recv().unwrap().unwrap();
-    let mapped = buffer.slice(..).get_mapped_range();
+    let mapped = buffer.slice(..).get_mapped_range().expect("GPU mapped range unavailable");
     mapped
         .chunks(256)
         .flat_map(|row| row[..128].iter().copied())
@@ -126,11 +128,11 @@ fn actual_painter_reports_discarded_work_once_per_render_and_recovers_without_pi
     let capture = Box::leak(Box::new(Capture(Mutex::new(Vec::new()))));
     log::set_logger(capture).unwrap();
     log::set_max_level(log::LevelFilter::Info);
-    let instance = wgpu::Instance::new(&Default::default());
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
     let adapter = pollster::block_on(instance.request_adapter(&Default::default()))
         .expect("real GPU required for paint observation acceptance");
     let (device, queue) =
-        pollster::block_on(adapter.request_device(&Default::default(), None)).unwrap();
+        pollster::block_on(adapter.request_device(&Default::default())).unwrap();
     let mut painter = Painter::new(&device, wgpu::TextureFormat::Rgba8Unorm);
     let mut list = PaintList::default();
     paint::rect(&mut list, Rect::new(0., 0., 32., 32.), Color([1.; 4]));

@@ -94,7 +94,7 @@ fn poisoned_submission_sites_are_bounded_visible_and_emit_after_unlock() {
         target.collect_texture_resources(&mut owned, "test/target", crate::TextureState::Retained);
         let encoder = renderer.device.create_command_encoder(&Default::default());
         tracker.submit(&renderer.queue, encoder.finish(), owned.clone());
-        renderer.device.poll(wgpu::Maintain::Wait);
+        renderer.device.poll(wgpu::PollType::wait_indefinitely()).expect("GPU poll failed");
         let info = tracker.info(&owned);
         assert_eq!(info.submitted, 121);
         assert_eq!(info.completed, 121);
