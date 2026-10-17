@@ -265,6 +265,7 @@ fn decode_cancellable(
 pub const PROXY_CACHE_BYTES: u64 = 64 * 1024 * 1024;
 static CACHE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 static PROXY_WRITES: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
+static PROXY_READS: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
 static PROXY_DIRECTORY: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
 static PROXY_CLEANUP_WARNED: AtomicBool = AtomicBool::new(false);
 
@@ -337,29 +338,54 @@ fn proxy_path(source: &Source, w: u32, h: u32, cancel: Option<&AtomicBool>) -> O
     Some(directory.join(format!("{:x}.rgba", hash.finalize())))
 }
 fn read_proxy(path: &Path, w: u32, h: u32) -> Option<Vec<u8>> {
+    // Keep file IO serialized, but release the cache lock before logging.
+    let result = {
+        let _guard = proxy_cache_lock();
+        read_proxy_inner(path, w, h)
+    };
+    match result {
+        Ok(rgba) => {
+            // NotFound is an expected cache miss, not a failed cache read.
+            PROXY_READS.success();
+            rgba
+        }
+        Err(error) => {
+            PROXY_READS.failure("image_proxy.read", format_args!(
+                "path={} width={w} height={h} error={error}", path.display()));
+            None
+        }
+    }
+}
+fn read_proxy_inner(path: &Path, w: u32, h: u32) -> std::io::Result<Option<Vec<u8>>> {
     use sha2::{Digest, Sha256};
-    let _guard = proxy_cache_lock();
-    let mut file = File::open(path).ok()?;
+    use std::io::{Error, ErrorKind};
+    let mut file = match File::open(path) {
+        Ok(file) => file,
+        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(error),
+    };
     let cost = u64::from(w) * u64::from(h) * 4;
-    if file.metadata().ok()?.len() != cost + 44 {
-        return None;
+    let actual = file.metadata()?.len();
+    if actual != cost + 44 {
+        return Err(Error::new(ErrorKind::InvalidData,
+            format!("proxy length mismatch: expected={} actual={actual}", cost + 44)));
     }
     let mut header = [0u8; 12];
-    file.read_exact(&mut header).ok()?;
+    file.read_exact(&mut header)?;
     if &header[..4] != b"MSIP"
         || header[4..8] != w.to_le_bytes()
         || header[8..12] != h.to_le_bytes()
     {
-        return None;
+        return Err(Error::new(ErrorKind::InvalidData, "proxy header or dimensions mismatch"));
     }
     let mut rgba = vec![0; cost as usize];
-    file.read_exact(&mut rgba).ok()?;
+    file.read_exact(&mut rgba)?;
     let mut digest = [0u8; 32];
-    file.read_exact(&mut digest).ok()?;
+    file.read_exact(&mut digest)?;
     if Sha256::digest(&rgba).as_slice() != digest {
-        return None;
+        return Err(Error::new(ErrorKind::InvalidData, "proxy checksum mismatch"));
     }
-    Some(rgba)
+    Ok(Some(rgba))
 }
 fn write_proxy(path: &Path, pixels: &Pixels) {
     let _guard = proxy_cache_lock();
@@ -826,3 +852,6 @@ mod proxy_failure_tests {
         assert_eq!(fs::read_dir(root.path()).unwrap().count(),1);
     }
 }
+
+#[cfg(test)]
+mod proxy_read_observation_tests;

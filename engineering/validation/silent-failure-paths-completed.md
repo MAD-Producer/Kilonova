@@ -461,7 +461,7 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - cargo tree 未发现会在 release 静态屏蔽 Info 的 log max_level/release_max_level feature；未据此宣称已运行 release 二进制
 - 证据：desktop-debug-filter-full.log、debug-filter-check.log、debug-filter-build.log、debug-filter-runtime.log、runtime/runtime-summary.json、log-features.log
 
-当前观测补齐及核实分批记录到 51；后续实施范围限定为可观测性，功能与算法问题单独登记。原始两份清单保留原样，未覆盖条目仍待审，不将 832 个候选当作已确认或已关闭缺陷。
+当前观测补齐及核实分批记录到 53；后续实施范围限定为可观测性，功能与算法问题单独登记。原始两份清单保留原样，未覆盖条目仍待审，不将 832 个候选当作已确认或已关闭缺陷。
 
 ## 31 · 控制台反压时优先保全错误文件
 
@@ -850,7 +850,7 @@ T10 共 39 个编号均已给出处置，其中 27 项观测完成、1 项观测
 
 ## 51 · 动作队列持续推迟呈现的窗口隔离观测
 
-状态：默认 Info 与 Debug 独立进程专项通过；最新完整集成结果随后补记
+状态：默认 Info 与 Debug 专项、桌面 357 项完整测试及原生集成验收通过
 
 - 主窗及浮窗的 before_draw 动作闸门与 after_draw 回收 paint 分支增加连续延期计数；按引擎窗口 key 隔离，记录 phase、queued_actions、editing、worker_queue_depth 与累计耗时
 - 同一窗口首次 Debug、第 60 次只记一次 Error，后续不刷屏；默认 Info 可见 Error，并沿真实桌面日志层立即写文件和控制台 stderr，stdout 不输出日志
@@ -860,3 +860,59 @@ T10 共 39 个编号均已给出处置，其中 27 项观测完成、1 项观测
 - 该专项直接验证计数器与真实日志层，不声称使用真实原生窗口构造了动作风暴；既有编辑确认、拖拽、播放回归及原生验收另记
 - 不改原有呈现分支条件、输入消费、动作顺序、present_due/draw_acknowledged、panels 或两处 MOTION_TRACE_UI eprintln；没有增加 watchdog、超时或重启
 - 关联辅助清单：1.13；专项证据：b51-deferral.log
+
+
+## 52 · 图片代理缓存读取降级的原因与连续阈值
+
+状态：默认 Info 与 Debug 专项、渲染 25 项、桌面 357 项及原生集成验收通过
+
+- read_proxy 对外仍返回 Option；正常 NotFound 仍是安静的缓存未命中，缓存读取失败仍回退原图解码，不把可恢复缓存问题改成产品 Err
+- 新增进程级 image_proxy.read 计数，记录代理路径、目标尺寸和原始 IO 或长度/header/尺寸/hash 校验原因；首次 Debug、连续第 60 次仅一次 Error，后续抑制，成功或正常未命中清零
+- 缓存文件操作仍使用原锁串行，读结果在释放缓存锁后才计数及写日志；不增加文件格式、修改像素、变更淘汰预算或引入依赖
+- 新增真实磁盘回归：截断、错误 magic、错误尺寸、错误摘要和目录读取失败，每种持续 120 次只产生一次升级；健康读取和 NotFound 打断连续失败，文件日志包含路径与尺寸，logger try_lock 验证未持缓存锁
+- 使用真实 PNG 和公开 decode API 验证损坏代理回退原图、像素一致、代理重新写入并在下次命中；没有用 mock 的 decode 结果代替回退验证
+- 第一次专项失败在新增夹具放置 source.png 于工程根，违反既有 assets/ 路径约束；仅将夹具放入 assets/source.png 后重跑通过，未修改断言、模型校验或产品行为
+- 关联全集：image_resources.rs 原 301/303/307/315/317 的读取降级，补充 §09 的缓存失效证据；证据：b52-proxy-read.log（夹具失败）、b52-proxy-read-final.log（通过）
+
+## 53 · 当前可核对的编号覆盖与待复核数量
+
+这是处置证据的关联覆盖，不是缺陷修复率。按原始辅助清单的 285 个唯一编号去重，目前 124 个能明确关联已有处置，161 个尚未逐项完成关联。后者可能已由代码处理、属于正常回退或受修改边界限制，不能将其宣称为“还缺 161 处日志”。全集 832 个候选仍没有全量逐项状态映射，继续不报完成率。
+
+| 类别 | 原始编号数 | 已有明确处置关联 | 待逐项核对归档 |
+| --- | ---: | ---: | ---: |
+| T0 | 9 | 6 | 3 |
+| T1 | 13 | 13 | 0 |
+| T2 | 31 | 12 | 19 |
+| T3 | 12 | 12 | 0 |
+| T4 | 17 | 9 | 8 |
+| T5 | 23 | 4 | 19 |
+| T6 | 26 | 2 | 24 |
+| T7 | 10 | 0 | 10 |
+| T8 | 30 | 0 | 30 |
+| T9 | 30 | 1 | 29 |
+| T10 | 39 | 39 | 0 |
+| T11 | 28 | 25 | 3 |
+| T12 | 17 | 1 | 16 |
+| 合计 | 285 | 124 | 161 |
+
+- 从第 35 批已有 102 个唯一编号出发，新增 §36 的 2.3/2.6/2.26、§37 的 3.1、§38 的 4.16/12.16，以及 §48/50 的 T10/T1 全编号处置，去重为 124
+- 第 35 批的 102/285 是历史快照，不能继续当作最新进度；本表也没有将“已有处置”全部等同于代码修复或问题关闭
+- T1 的 1.8 保留独立线程存活探测边界，T10 的 10.7/10.36 保留字符串取消歧义；它们计入已有处置，未计作功能问题已解决
+- T7/T8 等当前明确关联数为零，只代表尚未建立完整编号映射，不能据此否定 §05 等已有改动与零尺寸入口核实结论
+- 不改原始报告；统计中没有新开 panels 修改许可，也不将功能、算法、布局、线程重启或 per-command 超时混入后续观测范围
+- 去重编号与待关联编号证据：target/silent-failure-validation/b53-disposition-count.json
+
+
+### 第 49–53 批最终验证与 PR 收口
+
+- cargo check/build -p motion-desktop --offline -j 2 均退出 0；桌面完整测试使用 --include-ignored --test-threads=2，357 passed、0 failed、0 ignored
+- 渲染侧 20 项单元及 5 项集成测试全部通过，包含本批真实 GPU 回调、真实损坏缓存回退、原有设备失效/图片缓存/预览管线回归
+- 最新二进制运行 runtime52.py 退出 0：隔离 LOCALAPPDATA 与临时工程，默认 Info 普通命令 start 129 条、Present start 0 条，Error 文件/stderr 双输出、stdout JSON 隔离、日志轮转、MCP UI 退出及失败 checkpoint 均通过
+- 最新二进制运行 tools/ci_desktop.py 退出 0，中英文、浮窗、节点 GPU、工作区、样式覆盖及共享 MCP 全部通过；实际查看中英文主窗口截图，合成内容正常绘制
+- DESIGN.md §0.7 既有视觉整改项继续保留，本批未新增布局、样式或控件改动，不宣称完成 §12 所有人工视觉验收
+- 新增专项工具测试 5 项通过；扩大本地全量工具检查时首次因缺少 PyYAML 和无关未跟踪 tools/package_macos.py 导致 3 errors，保留该失败日志与无关文件
+- 按 CI 已有版本将 PyYAML 6.0.3 放入忽略的验证目录，在独立已跟踪工作树运行相同工具源码，全量 46 项运行、45 passed、1 项既有条件 skipped（未设置 MOTION_EFFECT_VALIDATOR 的真实 loader 验证），0 failed；未修改断言、清单或未跟踪工具以规避错误
+- 工具验证工作树为 8e35591，该提交至本批最终代码的 tools/.github 差异为空；该结果只作为工具代码验证，不冒充工作树中已运行本批新增 Rust 测试
+- 本批相对 ad4360e 的 panels 差异为空；PR 相对 main 的 panels 差异仍仅为 §12/23 已获准的测试夹具、蒙版拒绝观测与拖拽推进及对应测试
+- 按用户要求在此停止新增审计实施并收为 PR，后续候选另起 PR；保留 §53 的 161 个待核对编号及线程/协议边界，不声明整份审计完成
+- 证据：b52-render-final.log、b52-desktop-check.log、b52-desktop-full.log、b52-desktop-build.log、b52-runtime.log、runtime-b52/runtime-summary.json、b52-native-ci.log、native-b52/、b52-tools.log、b52-tools-all.log（首次环境失败）、b52-tools-clean.log
