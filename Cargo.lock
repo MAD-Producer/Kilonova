@@ -2294,6 +2294,7 @@ name = "motion-model"
 version = "0.1.0"
 dependencies = [
  "glam",
+ "log",
  "motion-effects",
  "serde",
  "serde_json",

@@ -250,12 +250,30 @@ impl<T: Tween> Track<T> {
             axes: None,
         }
     }
-    /// Sampling copies only scalars/arrays and allocates no memory. NaN falls
-    /// back to static values; hosts accepting time input must reject it first.
+    /// Healthy sampling copies only scalars/arrays and allocates no memory.
+    /// Non-finite results retain their value and produce bounded diagnostics.
+    /// NaN time falls back to static values; hosts must reject it first.
     pub fn sample(&self, frame: f64) -> T {
+        let value = self.sample_value(frame);
+        if !value.finite() {
+            static FAILURES: crate::observability::Failures = crate::observability::Failures::new();
+            FAILURES.record("track.sample", || {
+                format!(
+                    "frame={frame} first_key={:?} last_key={:?} keys={} value_type={} reason=non_finite_sample",
+                    self.keys.first().map(|k| k.frame),
+                    self.keys.last().map(|k| k.frame),
+                    self.keys.len(),
+                    std::any::type_name::<T>().chars().take(128).collect::<String>(),
+                )
+            });
+        }
+        value
+    }
+    fn sample_value(&self, frame: f64) -> T {
         if let Some(a) = &self.axes {
-            return T::from_components([a.x.sample(frame), a.y.sample(frame), a.z.sample(frame)])
-                .expect("validated vector dimensions");
+            return T::from_components([
+                a.x.sample_value(frame), a.y.sample_value(frame), a.z.sample_value(frame),
+            ]).expect("validated vector dimensions");
         }
         if frame.is_nan() {
             return self.value;

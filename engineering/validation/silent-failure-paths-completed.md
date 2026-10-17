@@ -94,7 +94,8 @@
 
 - #305：0d5b5bd，修复工作区切换黑屏与视口越界
 - #306：1750d8d，补齐引擎命令与静默降级观测
-- 两个 PR 均在 CI 全绿后，按用户授权以中文标题和正文 squash 合并
+- #307：8af99dc，补齐引擎与媒体静默失败诊断；2026-10-17 按用户本轮授权合并，head=97a3797 的 Rust/GPU、各平台构建与 libav 检查全部通过，发布任务按 PR 场景跳过，无未解决的审核讨论
+- 三个 PR 均在 CI 通过后，按用户授权以中文标题和正文 squash 合并
 
 ## 06 · host 导出与音频状态的真实失败
 
@@ -1003,3 +1004,22 @@ DESIGN.md §0.7 逐项状态均为 retained with reason：本批只接入观测�
 | effect_controls indent/depth | retained with reason：不做层级视觉重构 |
 | timeline 11 列坐标 | retained with reason：保留兼容坐标 |
 | timeline snap guide 颜色 | retained with reason：按基线保留当前反馈 |
+
+## 60 · 模型非有限采样、路径裁切与大小估算回退
+
+- 继续机械全集而非重复关闭 161 项编号：新建 silent-failure-paths-mechanical-review.md，按原始路径/行号精确关联 B7 全部 33 项、B8 全部 14 项、B9 全部 12 项；新增观测关联 9 行、已有覆盖 25 行、核实保留 25 行，9 行实际对应 3 个站点
+- Track::sample 在返回前观察非有限结果，携带 frame、首尾 key、数量、值类型及 non_finite_sample 原因；有限端点及合法过冲曲线仍可能产生 Infinity，新增测试先 validate 轨道，再实际采样验证，不以编译通过替代失败复现
+- path_ops::cut 对生成的节点坐标/切线统一观察 finite，携带裁切范围、路径长度、输入/输出节点数及 non_finite_cut 原因；以有限 f32::MAX 节点与切线实际裁切出非有限坐标，覆盖原清单 7 处收窄，并保留原 Ok/Some 结果
+- serialized_bytes 保留 usize::MAX 的 fail-closed 行为，首次失败也能在默认级别看到已写字节、类型及原始 serde 原因；类型最多 128 字符、原因最多 256 字符，没有序列化整个用户文档到日志
+- 三个固定进程级原子计数器分别首次 Warn、第 60 次 Error，之后抑制，进程重启清零；计数为 lifetime_count，不是连续失败或帧数。正常属性/路径/组件穿插成功不清除另一坏值的证据，没有动态键、原因缓存、正常路径文件 IO 或新增 Present start/done/dispatch
+- 分离轴采样仍调用同一计算逻辑，仅由外层 sample 观察结果，避免一次向量采样按三个轴重复记账；NaN 时间的既有静态值回退、普通插值、首/末 key 持有及所有返回值不变
+- 新增模型独立进程回归，真实执行三类失败及各 120 次正常/异常交错，检查默认 Info 下首次/阈值、之后抑制、上下文、非有限返回值和 usize::MAX；新增桌面真实 FileLogger 回归，移除 MOTION_LOG 后检查 Warn/Error 文件、仅 Error stderr 及 stdout 无日志
+- 复用工作区已存在的 log 依赖，只为 motion-model 增加依赖边并更新 Cargo.lock；已核对 PROVENANCE.md、ATTRIBUTION.md、NOTICE，无新增包版本、素材或第三方实现
+- B8 复核关联 §07/34/35 的既有事务、旋转、音轨原因及 ffmpeg 验收；本批没有重新修改这些文件或声称重跑可选 ffmpeg 全套。重复器/着色器的饱和乘法后均有预算拒绝，关闭 mask、离散参数持首 key、JSON 叶节点和独立随机种子属于保留语义
+- 机械台账另有 773 行尚未建立逐行映射，其中包含此前已覆盖的站点；这不是 773 处已确认缺陷或缺失观测，也不改变功能/协议/跨平台验收的既有边界。映射一致性已自动对照原始 59 个 path:line 集合，证据 b60-mechanical-mapping.json
+- 本批未修改任何 panels 文件、布局、样式、交互、respond、两处 MOTION_TRACE_UI 输出、两份原始审计报告或其他用户未跟踪文件；DESIGN.md §0.7 基线保持 §59 的 retained with reason 状态
+- cargo test -p motion-desktop -p motion-core -p motion-model --offline -j 2 -- --include-ignored --test-threads=2 最终完整通过：desktop 366、core 213、model 4，共 583 passed、0 failed、0 ignored；core/model doc-test 正常结束，未跳过 worker in_flight/queue_depth 回归。cargo check -p motion-desktop 通过，Python 静默失败专项 5 passed，panels 样式门与 provenance 1362 tracked paths 检查通过；证据 b60-integrated-coherent.log、b60-test-summary.json、b60-desktop-check.log、b60-tools-observation.log
+- 保留验收失败证据：b60-integrated-full.log 中新增桌面夹具误用了未直接依赖的 motion_model 路径，改用既有 motion_core 重导出；b60-integrated-final.log 的 583 项执行通过后，doc-test 报 E0463 依赖不匹配，当时有并行 ffmpeg 构建更新共享产物。随后完整重跑得到上述最终通过结果，没有跳过 doc-test 或修改既有断言
+- cargo build -p motion-desktop 通过，新二进制在隔离 LOCALAPPDATA 实际启动并生成 directories()/logs/motion-studio.log；MOTION_LOG 未设置时有 129 条普通 start、0 条 Present start，健康 UI 没有新增 model degradation。Debug 仍无 Present start/dispatch，done 只允许达到既有 100ms 阈值；证据 b60-desktop-build.log、b60-runtime.log、runtime-b60/runtime-summary.json
+- 新二进制进程级验证 Error 文件/stderr 双输出、轮转、CLI 目录/MCP stdout 纯 JSON、fatal 参数错误、MCP UI 正常 EOF 与 shutdown checkpoint 失败原因，全部通过；runtime-b60 保存各进程 stdout/stderr/log，不以默认级别只看到空日志通过验收
+- 对照 §59 的相同运行时截图：24 张中 21 张逐像素一致；另 3 张的差异是 Info 缓存/呈现运行统计及播放头位置，已查看裁剪并保留 b60-runtime-screen-comparison.json、b60-runtime-changed-crops.png。未声明全部静态像素一致或重新完成全部原生/跨平台设计验收
