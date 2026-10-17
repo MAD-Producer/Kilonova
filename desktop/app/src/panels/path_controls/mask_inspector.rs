@@ -677,7 +677,7 @@ mod tests {
     use super::*;
     #[test]
     fn compact_mask_controls_stay_inside_narrow_panels_and_do_not_overlap() {
-        let styles = motion_ui::style::default_stylesheet();
+        let styles = PaintList::default().styles();
         for width in [160., 180., 220., 286., 400., 720.] {
             let area = Rect::new(17., 31., width, 600.);
             for text in [24., 40.] {

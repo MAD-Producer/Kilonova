@@ -305,3 +305,82 @@ fn attached_hidden_surface_and_factory_release_after_worker_panic() {
     assert_eq!(resources["graphics"], 0);
     assert!(engine.factory.lock().unwrap().is_none());
 }
+
+#[test]
+fn reply_poll_distinguishes_pending_success_failure_and_disconnection() {
+    let folder = tempfile::tempdir().unwrap();
+    let engine = Engine::start(folder.path().join("project"), motion_desktop_media::platform(), 8 << 30).unwrap();
+    for operation in ["attach", "present", "resize", "freeze_movie"] {
+        let (send, receive) = channel::<Result<u64, String>>();
+        assert!(engine.poll_reply(&receive, operation).is_none());
+        send.send(Ok(7)).unwrap();
+        assert_eq!(engine.poll_reply(&receive, operation), Some(Ok(7)));
+        send.send(Err("original failure".into())).unwrap();
+        assert_eq!(engine.poll_reply(&receive, operation), Some(Err("original failure".into())));
+        drop(send);
+        let error = engine.poll_reply(&receive, operation).unwrap().unwrap_err();
+        assert!(error.contains(operation));
+        assert!(error.contains("disconnected"));
+    }
+    assert!(!engine.failed());
+}
+
+#[test]
+fn impossible_memory_budget_is_rejected_before_creating_or_locking_the_project() {
+    let root = tempfile::tempdir().unwrap();
+    let project = root.path().join("not-created");
+    let error = match Engine::start(project.clone(),motion_desktop_media::platform(),u64::MAX) {
+        Ok(_) => panic!("out-of-range memory budget was accepted"),
+        Err(error) => error,
+    };
+    assert!(error.contains("signed 64-bit preview budget"));
+    assert!(!project.exists());
+    let engine = Engine::start(project.clone(),motion_desktop_media::platform(),8<<30).unwrap();
+    assert!(engine.state().is_ok());
+    drop(engine);
+    assert!(Engine::start(project,motion_desktop_media::platform(),8<<30).is_ok());
+}
+
+
+#[test]
+fn asynchronous_movie_freeze_keeps_command_context_before_completion_and_during_panic() {
+    const CHILD: &str = "MOTION_FREEZE_LOG_TEST_CHILD";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = PathBuf::from(root);
+        let _logger = crate::logging::init(root.clone()).unwrap();
+        let (entered, entry) = channel();
+        let (release, released) = channel();
+        let (reply, receive) = channel::<Result<(),String>>();
+        CURRENT_COMMAND.set(Some(Flight {request:21,operation:"freeze_movie",started:Instant::now()}));
+        spawn_movie_freeze(reply, move || {
+            entered.send(()).unwrap();
+            released.recv().unwrap();
+            Err("controlled freeze IO failure".into())
+        }).unwrap();
+        CURRENT_COMMAND.set(None);
+        entry.recv_timeout(Duration::from_secs(5)).unwrap();
+        let text=fs::read_to_string(root.join("motion-studio.log")).unwrap();
+        assert!(text.contains("async start #21 freeze_movie"));
+        assert!(!text.contains("controlled freeze IO failure"));
+        release.send(()).unwrap();
+        assert_eq!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err(),"controlled freeze IO failure");
+
+        let (reply, receive) = channel::<Result<(),String>>();
+        CURRENT_COMMAND.set(Some(Flight {request:22,operation:"freeze_movie",started:Instant::now()}));
+        spawn_movie_freeze(reply, || panic!("controlled freeze panic payload")).unwrap();
+        CURRENT_COMMAND.set(None);
+        assert!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err().contains("controlled freeze panic payload"));
+        return;
+    }
+    let root=tempfile::tempdir().unwrap();
+    let output=std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact","engine::failure::tests::asynchronous_movie_freeze_keeps_command_context_before_completion_and_during_panic"])
+        .env(CHILD,root.path()).env_remove("MOTION_LOG").output().unwrap();
+    assert!(output.status.success(),"{}",String::from_utf8_lossy(&output.stderr));
+    let text=fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
+    assert!(text.contains("error #21 freeze_movie ") && text.contains("controlled freeze IO failure"));
+    assert!(text.contains("panic command=Some((22, \"freeze_movie\","));
+    assert!(text.contains("error #22 freeze_movie ") && text.contains("controlled freeze panic payload"));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("controlled freeze IO failure"));
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("controlled freeze IO failure"));
+}

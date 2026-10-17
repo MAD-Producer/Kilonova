@@ -10,6 +10,8 @@ mod mixer;
 mod onsets;
 pub use onsets::audio_references;
 mod packages;
+mod publication;
+mod task_logging;
 pub use packages::{PackageJobs, PackageTaskStatus};
 mod mp4;
 mod mp4_timing;
@@ -31,6 +33,16 @@ pub use video::{
     VideoProbe, VideoTaskStatus,
 };
 pub use video_metadata::{hevc_metadata, vp9_metadata};
+/// Bounded native panic detail, shared by asynchronous media and host adapters.
+pub fn panic_reason(payload: Box<dyn std::any::Any + Send>) -> String {
+    panic_reason_ref(payload.as_ref())
+}
+pub(crate) fn panic_reason_ref(payload: &(dyn std::any::Any + Send)) -> String {
+    let reason = payload.downcast_ref::<String>().map(String::as_str)
+        .or_else(|| payload.downcast_ref::<&str>().copied())
+        .unwrap_or("unknown native error");
+    reason.chars().take(2048).collect()
+}
 pub type Result<T> = std::result::Result<T, String>;
 pub const OUTPUT_RATE: u64 = 48_000;
 pub const MAX_BLOCK_FRAMES: usize = 48_000;

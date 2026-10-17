@@ -18,7 +18,13 @@ fn save_previous(s: &crate::session::Session, choice: Option<PreviousProject>) -
     let save = match choice {
         Some(PreviousProject::Save) => true,
         Some(PreviousProject::Discard) => false,
-        None => motion_core::storage::validate_assets(&s.root, s.engine.project()).is_ok(),
+        None => match motion_core::storage::validate_assets(&s.root, s.engine.project()) {
+            Ok(()) => true,
+            Err(error) => {
+                log::warn!("skip saving previous project: root={} reason={error}", s.root.display());
+                false
+            }
+        },
     };
     if save {
         motion_core::storage::save(&s.root, s.engine.project()).map_err(|e| e.to_string())?;
@@ -125,9 +131,7 @@ pub fn open_project(id: i64, name: &str) -> Result<Value> {
         }
         let project = motion_core::storage::load(&destination).map_err(|e| e.to_string())?;
         let engine = motion_core::Engine::new(project).map_err(|e| e.to_string())?;
-        if motion_core::storage::validate_assets(&s.root, s.engine.project()).is_ok() {
-            motion_core::storage::save(&s.root, s.engine.project()).map_err(|e| e.to_string())?;
-        }
+        save_previous(s, None)?;
         s.replace_project(engine, destination)?;
         Ok(s.snapshot())
     })

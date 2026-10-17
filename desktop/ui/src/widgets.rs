@@ -53,11 +53,11 @@ impl TextEditor {
             return None;
         }
         let before = self.text.clone();
-        if input.focus_lost || input.keys.iter().any(|(k, _)| *k == Key::Escape) {
+        if input.focus_lost || input.key_presses().any(|(k, _, repeat)| k == Key::Escape && !repeat) {
             self.cancel();
             return Some(TextEvent::Cancel);
         }
-        for (key, mods) in &input.keys {
+        for (key, mods, _) in input.key_presses() {
             match key {
                 Key::A if mods.control => {
                     self.select_all = true;
@@ -84,12 +84,12 @@ impl TextEditor {
                         self.text.clear();
                         self.cursor = 0;
                         self.select_all = false;
-                    } else if *key == Key::Backspace && self.cursor > 0 {
+                    } else if key == Key::Backspace && self.cursor > 0 {
                         let end = self.byte_index();
                         self.cursor -= 1;
                         let start = self.byte_index();
                         self.text.replace_range(start..end, "");
-                    } else if *key == Key::Delete && self.cursor < self.text.chars().count() {
+                    } else if key == Key::Delete && self.cursor < self.text.chars().count() {
                         let start = self.byte_index();
                         let end = self.text[start..]
                             .chars()
@@ -114,7 +114,7 @@ impl TextEditor {
             self.error = None;
         }
         self.dirty |= self.text != before;
-        if input.keys.iter().any(|(k, _)| *k == Key::Enter) {
+        if input.key_presses().any(|(k, _, repeat)| k == Key::Enter && !repeat) {
             return Some(TextEvent::Commit(self.text.clone()));
         }
         None
@@ -257,7 +257,7 @@ impl NumberEditor {
         area: Rect,
     ) -> Vec<NumberEvent> {
         let mut events = vec![];
-        if input.focus_lost || input.keys.iter().any(|(k, _)| *k == Key::Escape) {
+        if input.focus_lost || input.key_presses().any(|(k, _, repeat)| k == Key::Escape && !repeat) {
             return self.cancel();
         }
         if options.min.is_nan()
@@ -265,8 +265,9 @@ impl NumberEditor {
             || options.min > options.max
             || !current.is_finite()
         {
+            let cancelled = self.cancel();
             self.text.error = Some("Invalid numeric field configuration".into());
-            return events;
+            return cancelled;
         }
         if self.drag.is_none()
             && !input.composing
@@ -474,7 +475,7 @@ impl Button {
         class: &str,
         states: crate::style::States,
     ) -> Response {
-        if input.focus_lost || !enabled || input.keys.iter().any(|(k, _)| *k == Key::Escape) {
+        if input.focus_lost || !enabled || input.key_presses().any(|(k, _, repeat)| k == Key::Escape && !repeat) {
             self.armed = false;
         }
         if enabled
@@ -499,10 +500,8 @@ impl Button {
         );
         response.clicked = clicked
             || enabled
-                && input
-                    .keys
-                    .iter()
-                    .any(|(k, _)| matches!(k, Key::Enter | Key::Space));
+                && input.key_presses()
+                    .any(|(k, _, repeat)| !repeat && matches!(k, Key::Enter | Key::Space));
         response.active = self.armed;
         response
     }

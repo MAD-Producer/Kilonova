@@ -81,7 +81,7 @@ impl Stage {
 }
 impl Drop for Stage {
     fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.path);
+        crate::publication::cleanup_stage(&self.path);
     }
 }
 struct Prepared {
@@ -254,11 +254,14 @@ impl AudioJobs {
         let limits = self.limits;
         let decode = self.decode.clone();
         let initial = task.lock().unwrap().status.clone();
+        let task_log = crate::task_logging::TaskLog::new(&initial.request_id, &initial.operation);
+        let worker_log = task_log.clone();
         let spawn_task = task.clone();
         let spawn = std::thread::Builder::new()
             .name("motion-audio-import".into())
             .spawn(move || {
                 let _worker = worker;
+                worker_log.start();
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
                     || -> Result<Prepared> {
                         update(&spawn_task, "opening", 0.0)?;
@@ -342,6 +345,9 @@ impl AudioJobs {
                 ));
                 let mut t = spawn_task.lock().unwrap_or_else(|e| e.into_inner());
                 if t.cancel.load(Ordering::Acquire) {
+                    drop(t);
+                    let error = crate::task_logging::cancelled_error(&result, &["audio task cancelled"]);
+                    worker_log.finish("cancelled", error.as_deref());
                     return;
                 }
                 match result {
@@ -362,14 +368,19 @@ impl AudioJobs {
                         t.status.phase = "failed".into();
                         t.status.error = Some(error);
                     }
-                    Err(_) => {
+                    Err(payload) => {
                         t.status.state = "failed".into();
                         t.status.phase = "failed".into();
-                        t.status.error = Some("audio worker failed".into());
+                        t.status.error = Some(format!("audio worker failed: {}", crate::panic_reason(payload)));
                     }
                 }
+                let phase = t.status.phase.clone();
+                let error = t.status.error.clone();
+                drop(t);
+                worker_log.finish(&phase, error.as_deref());
             });
         if let Err(error) = spawn {
+            task_log.finish("spawn", Some(&error.to_string()));
             let mut t = task.lock().unwrap();
             t.status.state = "failed".into();
             t.status.error = Some(error.to_string());
@@ -444,16 +455,13 @@ impl AudioJobs {
             contained_dir(&self.root, cache.parent().unwrap())?;
             fs::rename(prepared.stage.path.join("source"), &source).map_err(|e| e.to_string())?;
             if let Err(error) = fs::rename(prepared.stage.path.join("decoded.pcm"), &cache) {
-                let _ = fs::remove_file(&source);
-                return Err(error.to_string());
+                return Err(crate::publication::rollback_files(error, &[&source]));
             }
             if let Err(error) = fs::rename(
                 prepared.stage.path.join("decoded.wave"),
                 cache.with_extension("wave"),
             ) {
-                let _ = fs::remove_file(&source);
-                let _ = fs::remove_file(&cache);
-                return Err(error.to_string());
+                return Err(crate::publication::rollback_files(error, &[&source, &cache]));
             }
             let commands = vec![
                 Command::RegisterAudioAsset {
@@ -462,10 +470,7 @@ impl AudioJobs {
                 Command::Add { layer },
             ];
             if let Err(error) = engine.apply_batch_saved(commands, &self.root) {
-                let _ = fs::remove_file(&source);
-                let _ = fs::remove_file(&cache);
-                let _ = fs::remove_file(cache.with_extension("wave"));
-                return Err(error.to_string());
+                return Err(crate::publication::rollback_files(error, &[&source, &cache, &cache.with_extension("wave")]));
             }
             Ok(
                 json!({"op":"import_media", "kind":"audio", "asset":asset_id,"object":object,"in_frame":in_frame,"out_frame":out_frame,
@@ -494,11 +499,14 @@ impl AudioJobs {
         let root = self.root.clone();
         let limit = self.limits.cache_bytes;
         let decode = self.decode.clone();
+        let task_log = crate::task_logging::TaskLog::new(&initial.request_id, &initial.operation);
+        let worker_log = task_log.clone();
         let spawn_task = task.clone();
         let spawn = std::thread::Builder::new()
             .name("motion-audio-cache".into())
             .spawn(move || {
                 let _worker = worker;
+                worker_log.start();
                 let result =
                     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<Stage> {
                         let stage = Stage::new(&root)?;
@@ -549,18 +557,22 @@ impl AudioJobs {
                     }));
                 let mut t = spawn_task.lock().unwrap_or_else(|e| e.into_inner());
                 if t.cancel.load(Ordering::Acquire) {
+                    drop(t);
+                    let error = crate::task_logging::cancelled_error(&result, &["audio task cancelled"]);
+                    worker_log.finish("cancelled", error.as_deref());
                     return;
                 }
                 let result = match result {
                     Ok(result) => result,
-                    Err(_) => Err("audio cache worker failed".into()),
+                    Err(payload) => Err(format!("audio cache worker failed: {}", crate::panic_reason(payload))),
                 };
                 match result.and_then(|stage| {
                     let dest = cache_path(&root, &asset)?;
                     contained_dir(&root, dest.parent().unwrap())?;
-                    fs::rename(stage.path.join("decoded.wave"), dest.with_extension("wave"))
-                        .map_err(|e| e.to_string())?;
-                    fs::rename(stage.path.join("decoded.pcm"), dest).map_err(|e| e.to_string())
+                    crate::publication::publish_cache_pair(
+                        (&stage.path.join("decoded.wave"), &dest.with_extension("wave")),
+                        (&stage.path.join("decoded.pcm"), &dest),
+                    )
                 }) {
                     Ok(()) => {
                         t.status.state = "succeeded".into();
@@ -574,8 +586,13 @@ impl AudioJobs {
                         t.status.error = Some(e);
                     }
                 }
+                let phase = t.status.phase.clone();
+                let error = t.status.error.clone();
+                drop(t);
+                worker_log.finish(&phase, error.as_deref());
             });
         if let Err(error) = spawn {
+            task_log.finish("spawn", Some(&error.to_string()));
             let mut t = task.lock().unwrap();
             t.status.state = "failed".into();
             t.status.error = Some(error.to_string());
@@ -586,12 +603,10 @@ impl AudioJobs {
 }
 impl Drop for AudioJobs {
     fn drop(&mut self) {
-        if let Ok(tasks) = self.tasks.lock() {
-            for task in tasks.values() {
-                let mut t = task.lock().unwrap_or_else(|e| e.into_inner());
-                t.cancel.store(true, Ordering::Release);
-                t.prepared.take();
-            }
+        for task in self.tasks.get_mut().unwrap_or_else(|e| e.into_inner()).values() {
+            let mut t = task.lock().unwrap_or_else(|e| e.into_inner());
+            t.cancel.store(true, Ordering::Release);
+            t.prepared.take();
         }
     }
 }
@@ -605,4 +620,33 @@ fn update(task: &Arc<Mutex<Task>>, phase: &str, progress: f64) -> Result<()> {
     }
     t.status.progress = progress.clamp(0.0, 1.0);
     Ok(())
+}
+
+#[cfg(test)]
+mod drop_failure_tests {
+    use super::*;
+
+    #[test]
+    fn poisoned_registry_drop_still_cancels_a_blocked_source_worker() {
+        let directory = tempfile::tempdir().unwrap();
+        let jobs = AudioJobs::new(directory.path().into(), Limits::default()).unwrap();
+        let (entered, waiting) = std::sync::mpsc::channel();
+        let (release, released) = std::sync::mpsc::channel();
+        jobs.start_with_source(move || {
+            entered.send(()).unwrap();
+            released.recv_timeout(Duration::from_secs(5)).unwrap();
+            Ok((Box::new(std::io::Cursor::new(Vec::<u8>::new())) as Box<dyn Read + Send>, None))
+        }, ImportOptions {request_id:"drop".into(),at_frame:0,track:None,name:"test".into()}, false).unwrap();
+        waiting.recv_timeout(Duration::from_secs(5)).unwrap();
+        let task = jobs.tasks.lock().unwrap().get("drop").unwrap().clone();
+        let cancel = task.lock().unwrap().cancel.clone();
+        let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _guard = jobs.tasks.lock().unwrap();
+            panic!("injected task registry poison");
+        }));
+        assert!(panic.is_err());
+        drop(jobs);
+        release.send(()).unwrap();
+        assert!(cancel.load(Ordering::Acquire), "Drop skipped cancellation of a poisoned registry");
+    }
 }

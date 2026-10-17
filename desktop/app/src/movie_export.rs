@@ -39,6 +39,10 @@ impl MovieExport {
         }));
         let update = status.clone();
         let cancel = control.clone();
+        let revision = snapshot.revision;
+        let began = std::time::Instant::now();
+        log::info!("movie export start: revision={revision} path={}", output.display());
+        crate::logging::flush();
         std::thread::Builder::new()
             .name("motion-movie-export".into())
             .spawn(move || {
@@ -47,7 +51,12 @@ impl MovieExport {
                         update.lock().unwrap_or_else(|e| e.into_inner()).progress = progress;
                     })
                 }))
-                .unwrap_or_else(|_| Err("movie export worker failed".into()));
+                .unwrap_or_else(|payload| Err(format!("movie export worker failed: {}",motion_media::panic_reason(payload))));
+                match &result {
+                    Ok(result) => log::info!("movie export saved: revision={revision} path={} bytes={} {}ms", result.path.display(), result.bytes, began.elapsed().as_millis()),
+                    Err(error) if error == "movie export cancelled" => log::info!("movie export cancelled: revision={revision} path={} {}ms", output.display(), began.elapsed().as_millis()),
+                    Err(error) => log::error!("movie export failed: revision={revision} path={} {}ms reason={error}", output.display(), began.elapsed().as_millis()),
+                }
                 let mut state = update.lock().unwrap_or_else(|e| e.into_inner());
                 match result {
                     Ok(result) => {
@@ -65,7 +74,10 @@ impl MovieExport {
                     }
                 }
             })
-            .map_err(|e| e.to_string())?;
+            .map_err(|error| {
+                log::error!("movie export spawn failed: revision={revision} reason={error}");
+                error.to_string()
+            })?;
         Ok(Self { control, status })
     }
     pub fn status(&self) -> ExportStatus {

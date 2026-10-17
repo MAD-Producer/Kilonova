@@ -4,9 +4,7 @@ use crate::{
     i18n::{Locale, Text as T},
     node_editor::{Action, EditorSnapshot, NodeEditor},
 };
-use motion_graph::{
-    CompiledGraph, Diagnostic, ErrorCode, ExportReport, GraphDocument, ValidationReport,
-};
+use motion_graph::{CompiledGraph, Diagnostic, ExportReport, GraphDocument, ValidationReport};
 use std::{
     collections::BTreeMap,
     path::PathBuf,
@@ -206,24 +204,47 @@ impl NodeTasks {
                 .name(name.into())
                 .spawn(move || {
                     while let Ok(job) = receive.recv() {
-                        let outcome = if generation.load(Ordering::Acquire) != job.generation
-                            || job.kind == Kind::Compile
-                                && latest_compile.load(Ordering::Acquire) != job.id
-                        {
+                        let began = std::time::Instant::now();
+                        let outcome = if job_cancelled(&job, &generation, &latest_compile) {
                             Outcome::Cancelled
                         } else {
+                            log::info!(
+                                "node start #{} {:?} epoch={} revision={}",
+                                job.id,
+                                job.kind,
+                                job.snapshot.epoch,
+                                job.snapshot.revision
+                            );
+                            crate::logging::flush();
                             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                                 execute(&job, &generation, &latest_compile)
                             }))
-                            .unwrap_or_else(|_| Outcome::Failed("node worker failed".into()))
+                            .unwrap_or_else(|payload| {
+                                Outcome::Failed(format!(
+                                    "node worker failed: {}",
+                                    motion_media::panic_reason(payload)
+                                ))
+                            })
                         };
-                        let _ = reply.send(Completion {
-                            id: job.id,
-                            generation: job.generation,
-                            snapshot: job.snapshot,
+                        let outcome = finish(
+                            &job,
                             outcome,
-                        });
+                            began,
+                            job_cancelled(&job, &generation, &latest_compile),
+                        );
+                        if reply
+                            .send(Completion {
+                                id: job.id,
+                                generation: job.generation,
+                                snapshot: job.snapshot,
+                                outcome,
+                            })
+                            .is_err()
+                        {
+                            log::debug!("node response receiver closed #{} {:?}", job.id, job.kind);
+                        }
                     }
+                    log::debug!("node worker channel closed: {name}");
                 })
                 .map_err(|e| e.to_string())?;
         }
@@ -409,14 +430,56 @@ impl NodeTasks {
 }
 impl Drop for NodeTasks {
     fn drop(&mut self) {
+        if !self.pending.is_empty() {
+            log::debug!("node tasks closing: cancelling {} pending job(s)", self.pending.len());
+        }
         self.generation.fetch_add(1, Ordering::AcqRel);
     }
 }
+fn job_cancelled(job: &Job, generation: &AtomicU64, latest_compile: &AtomicU64) -> bool {
+    generation.load(Ordering::Acquire) != job.generation
+        || job.kind == Kind::Compile && latest_compile.load(Ordering::Acquire) != job.id
+}
+
+fn finish(job: &Job, outcome: Outcome, began: std::time::Instant, cancelled: bool) -> Outcome {
+    // Preserve the failure before replacing the UI completion with cancellation.
+    // The generation and preview guards must still discard stale results.
+    match &outcome {
+        Outcome::Failed(error) => log::error!(
+            "node error #{} {:?} {}ms epoch={} revision={} path={:?} cancelled={cancelled}: {error}",
+            job.id,
+            job.kind,
+            began.elapsed().as_millis(),
+            job.snapshot.epoch,
+            job.snapshot.revision,
+            job.path.as_ref().or(job.snapshot.source_path.as_ref())
+        ),
+        Outcome::Validated(Err(error)) | Outcome::Compiled(Err(error)) => log::warn!(
+            "node rejected #{} {:?} {}ms epoch={} revision={} path={:?} cancelled={cancelled}: {error}",
+            job.id,
+            job.kind,
+            began.elapsed().as_millis(),
+            job.snapshot.epoch,
+            job.snapshot.revision,
+            job.path.as_ref().or(job.snapshot.source_path.as_ref())
+        ),
+        _ => {}
+    }
+    log::debug!(
+        "node done #{} {:?} {}ms",
+        job.id,
+        job.kind,
+        began.elapsed().as_millis()
+    );
+    if cancelled {
+        Outcome::Cancelled
+    } else {
+        outcome
+    }
+}
+
 fn execute(job: &Job, generation: &AtomicU64, latest_compile: &AtomicU64) -> Outcome {
-    let cancelled = || {
-        generation.load(Ordering::Acquire) != job.generation
-            || job.kind == Kind::Compile && latest_compile.load(Ordering::Acquire) != job.id
-    };
+    let cancelled = || job_cancelled(job, generation, latest_compile);
     let result = (|| -> Result<Outcome, String> {
         if job.kind == Kind::Validate {
             return Ok(Outcome::Validated(
@@ -424,19 +487,11 @@ fn execute(job: &Job, generation: &AtomicU64, latest_compile: &AtomicU64) -> Out
             ));
         }
         if job.kind == Kind::Compile {
-            let result = job
-                .snapshot
-                .compile_preview()
-                .map_err(|e| e.diagnostic())
-                .and_then(|compiled| {
-                    if cancelled() {
-                        return Err(Diagnostic {
-                            code: ErrorCode::Io,
-                            node: None,
-                            port: None,
-                            message: "node compilation cancelled".into(),
-                        });
-                    }
+            let result = job.snapshot.compile_preview().map_err(|e| e.diagnostic());
+            return Ok(match result {
+                Err(error) => Outcome::Compiled(Err(error)),
+                Ok(_) if cancelled() => Outcome::Cancelled,
+                Ok(compiled) => Outcome::Compiled((|| {
                     let canonical = if job.snapshot.layer_target.is_some()
                         && job.snapshot.preview_target.is_some()
                     {
@@ -445,11 +500,7 @@ fn execute(job: &Job, generation: &AtomicU64, latest_compile: &AtomicU64) -> Out
                         None
                     };
                     Ok((compiled, canonical))
-                });
-            return Ok(if cancelled() {
-                Outcome::Cancelled
-            } else {
-                Outcome::Compiled(result)
+                })()),
             });
         }
         if job.kind == Kind::Open
@@ -510,19 +561,33 @@ fn execute(job: &Job, generation: &AtomicU64, latest_compile: &AtomicU64) -> Out
             )),
             Kind::Save | Kind::SaveAs => {
                 job.snapshot.save(&path).map_err(|e| e.to_string())?;
+                // Record the disk side effect even when the editor is replaced
+                // or cancellation arrives before the completion is consumed.
+                log::info!(
+                    "node saved #{} epoch={} revision={} path={}",
+                    job.id,
+                    job.snapshot.epoch,
+                    job.snapshot.revision,
+                    path.display()
+                );
                 Ok(Outcome::Saved(path))
             }
-            Kind::Export => Ok(Outcome::Exported(
-                job.snapshot.export_msfx(&path).map_err(|e| e.to_string())?,
-            )),
+            Kind::Export => {
+                let report = job.snapshot.export_msfx(&path).map_err(|e| e.to_string())?;
+                log::info!(
+                    "node exported #{} epoch={} revision={} path={} source={}",
+                    job.id,
+                    job.snapshot.epoch,
+                    job.snapshot.revision,
+                    report.path.display(),
+                    report.source_path.display()
+                );
+                Ok(Outcome::Exported(report))
+            }
             _ => unreachable!(),
         }
     })();
-    if cancelled() {
-        Outcome::Cancelled
-    } else {
-        result.unwrap_or_else(Outcome::Failed)
-    }
+    result.unwrap_or_else(Outcome::Failed)
 }
 
 #[cfg(test)]
@@ -621,5 +686,169 @@ mod tests {
         assert!(ready.is_empty());
         assert_eq!(editor.snapshot().epoch, snapshot.epoch);
         assert!(!tasks.busy());
+    }
+}
+
+#[cfg(test)]
+mod observability_tests {
+    use super::*;
+    use crate::node_editor::Request;
+
+    #[test]
+    fn cancelled_completions_log_real_failures_before_discarding_results() {
+        const CHILD: &str = "MOTION_NODE_CANCEL_LOG_TEST_CHILD";
+        if let Some(root) = std::env::var_os(CHILD) {
+            let root = PathBuf::from(root);
+            let _logger = crate::logging::init(root.join("logs")).unwrap();
+            let editor = NodeEditor::default();
+            let generation = AtomicU64::new(1);
+            let latest = AtomicU64::new(0);
+            std::fs::write(root.join("blocked"), b"not a directory").unwrap();
+            let mut job = Job {
+                id: 41,
+                generation: 1,
+                kind: Kind::SaveAs,
+                snapshot: editor.snapshot(),
+                locale: Locale::En,
+                dirty: false,
+                path: Some(root.join("blocked/failure.msgraph")),
+            };
+            let began = std::time::Instant::now();
+            let outcome = execute(&job, &generation, &latest);
+            assert!(
+                matches!(&outcome, Outcome::Failed(error) if error.contains("graph I/O"))
+            );
+            // Cancel at the boundary after the real operation has failed and
+            // before publishing its completion, without relying on a sleep.
+            generation.store(2, Ordering::Release);
+            assert!(matches!(
+                finish(
+                    &job,
+                    outcome,
+                    began,
+                    job_cancelled(&job, &generation, &latest)
+                ),
+                Outcome::Cancelled
+            ));
+
+            job.id = 42;
+            job.generation = 2;
+            job.kind = Kind::Compile;
+            job.snapshot.document.nodes.clear();
+            job.snapshot.document.connections.clear();
+            latest.store(42, Ordering::Release);
+            let began = std::time::Instant::now();
+            let outcome = execute(&job, &generation, &latest);
+            assert!(
+                matches!(&outcome, Outcome::Compiled(Err(error)) if error.code == motion_graph::ErrorCode::MissingOutput)
+            );
+            latest.store(0, Ordering::Release);
+            assert!(matches!(
+                finish(
+                    &job,
+                    outcome,
+                    began,
+                    job_cancelled(&job, &generation, &latest)
+                ),
+                Outcome::Cancelled
+            ));
+
+            job.id = 43;
+            job.snapshot = editor.snapshot();
+            latest.store(43, Ordering::Release);
+            let began = std::time::Instant::now();
+            let outcome = execute(&job, &generation, &latest);
+            assert!(matches!(&outcome, Outcome::Compiled(Ok(_))));
+            latest.store(0, Ordering::Release);
+            assert!(matches!(
+                finish(
+                    &job,
+                    outcome,
+                    began,
+                    job_cancelled(&job, &generation, &latest)
+                ),
+                Outcome::Cancelled
+            ));
+            return;
+        }
+        let root = tempfile::tempdir().unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "node_tasks::observability_tests::cancelled_completions_log_real_failures_before_discarding_results"])
+            .env(CHILD, root.path()).env_remove("MOTION_LOG").output().unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let text = std::fs::read_to_string(root.path().join("logs/motion-studio.log")).unwrap();
+        let io = text
+            .lines()
+            .find(|line| line.contains("node error #41 SaveAs "))
+            .unwrap();
+        assert!(
+            io.contains(" ERROR ")
+                && io.contains("ms epoch=")
+                && io.contains("cancelled=true:")
+                && io.contains("failure.msgraph"),
+            "{io}"
+        );
+        let compile = text
+            .lines()
+            .find(|line| line.contains("node rejected #42 Compile "))
+            .unwrap();
+        assert!(
+            compile.contains(" WARN ")
+                && compile.contains("cancelled=true:")
+                && compile.contains("MissingOutput"),
+            "{compile}"
+        );
+        assert!(!text.contains("node error #43") && !text.contains("node rejected #43"));
+        assert!(String::from_utf8_lossy(&output.stderr).contains("node error #41 SaveAs "));
+        assert!(!String::from_utf8_lossy(&output.stdout).contains("node error #"));
+    }
+
+    #[test]
+    fn source_side_effects_and_failures_are_logged_even_after_editor_replacement() {
+        const CHILD: &str = "MOTION_NODE_LOG_TEST_CHILD";
+        if let Some(root) = std::env::var_os(CHILD) {
+            let root = PathBuf::from(root);
+            let _logger = crate::logging::init(root.join("logs")).unwrap();
+            let mut editor = NodeEditor::default();
+            let mut tasks = NodeTasks::start().unwrap();
+            std::fs::write(root.join("absent"), b"file blocks output directory").unwrap();
+            tasks.submit_to(editor.request(Request::SaveAs).unwrap(), root.join("absent/failure.msgraph"), Locale::En).unwrap();
+            drain(&mut tasks, &mut editor);
+            let expected = editor.snapshot().document;
+            tasks.submit_to(editor.request(Request::SaveAs).unwrap(), root.join("saved.msgraph"), Locale::En).unwrap();
+            editor.replace_document(motion_graph::demo_graph(), None);
+            drain(&mut tasks, &mut editor);
+            assert_eq!(GraphDocument::load(&root.join("saved.msgraph")).unwrap(), expected);
+            assert!(editor.snapshot().source_path.is_none());
+            tasks.submit(editor.request(Request::Compile).unwrap(), Locale::En, false).unwrap();
+            drain(&mut tasks, &mut editor);
+            return;
+        }
+        let root = tempfile::tempdir().unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "node_tasks::observability_tests::source_side_effects_and_failures_are_logged_even_after_editor_replacement"])
+            .env(CHILD,root.path()).env_remove("MOTION_LOG")
+            .output().unwrap();
+        assert!(output.status.success(),"{}",String::from_utf8_lossy(&output.stderr));
+        let text = std::fs::read_to_string(root.path().join("logs/motion-studio.log")).unwrap();
+        assert!(text.contains("node start #1 SaveAs epoch="));
+        assert!(text.contains("node error #1 SaveAs ") && text.contains("ms epoch="));
+        assert!(text.contains("node saved #2 epoch=") && text.contains("saved.msgraph"));
+        assert!(text.lines().any(|line| line.contains(" INFO ") && line.contains("node start #3 Compile")));
+        assert!(String::from_utf8_lossy(&output.stderr).contains("node error #1 SaveAs "));
+        assert!(!String::from_utf8_lossy(&output.stdout).contains("node saved #"));
+    }
+
+    fn drain(tasks: &mut NodeTasks, editor: &mut NodeEditor) {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        while tasks.busy() {
+            assert!(std::time::Instant::now() < deadline);
+            tasks.poll(editor, Locale::En);
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
     }
 }

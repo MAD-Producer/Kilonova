@@ -2150,6 +2150,7 @@ name = "motion-core"
 version = "0.1.0"
 dependencies = [
  "glam",
+ "log",
  "motion-effects",
  "motion-model",
  "motion-render",
@@ -2218,6 +2219,7 @@ name = "motion-effects"
 version = "0.1.0"
 dependencies = [
  "image",
+ "log",
  "naga",
  "regex",
  "semver",
@@ -2234,6 +2236,7 @@ name = "motion-graph"
 version = "0.1.0"
 dependencies = [
  "image",
+ "log",
  "motion-core",
  "motion-effects",
  "motion-render",
@@ -2274,6 +2277,7 @@ dependencies = [
  "fontdue",
  "fs2",
  "image",
+ "log",
  "motion-core",
  "motion-model",
  "motion-render",

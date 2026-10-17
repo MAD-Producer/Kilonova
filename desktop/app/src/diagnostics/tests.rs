@@ -43,6 +43,68 @@ fn export_replaces_the_file_atomically_and_reports_write_failure_without_stoppin
     slow(&d);assert!(d.report()["totalStalls"].as_u64().unwrap()>=2);
     assert_eq!(std::fs::read_dir(root.path()).unwrap().count(),2);
 }
+
+#[test]
+fn reporter_logs_before_snapshot_and_preserves_unobserved_write_failures() {
+    const CHILD: &str = "MOTION_DIAGNOSTICS_WRITE_LOG_CHILD";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = PathBuf::from(root);
+        let _logger = crate::logging::init(root.join("logs")).unwrap();
+        let blocked = root.join("occupied");
+        std::fs::write(&blocked, b"keep existing bytes").unwrap();
+        let d = Diagnostics::new(Some(blocked.join("report.json")), None);
+        // Stop the actual reporter inside report(), before serialization/IO.
+        // Its start record must already be flushed at the default Info level.
+        let held = d.state.lock().unwrap();
+        let first = d.checkpoint().unwrap();
+        let path = root.join("logs/motion-studio.log");
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let observed = loop {
+            if std::fs::read_to_string(&path).unwrap()
+                .contains("diagnostics start #1 checkpoint") {
+                break true;
+            }
+            if Instant::now() >= deadline { break false; }
+            std::thread::sleep(Duration::from_millis(5));
+        };
+        // Always release before asserting, including a failing negative control.
+        drop(held);
+        assert!(observed, "reporter start was not flushed before snapshot");
+        assert!(first.recv_timeout(Duration::from_secs(5)).unwrap().is_err());
+        // Unlike the first job, automatic checkpoints have no reply recipient.
+        slow(&d);
+        let healthy = root.join("healthy.json");
+        d.export(healthy.clone()).unwrap().recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+        assert_eq!(d.status()["localWriteErrors"], 2);
+        assert_eq!(std::fs::read(&blocked).unwrap(), b"keep existing bytes");
+        let report: Value = serde_json::from_slice(&std::fs::read(&healthy).unwrap()).unwrap();
+        assert_eq!(report["schemaVersion"], 1);
+        assert_eq!(report["reporting"]["localWriteErrors"], 2);
+        // A following serial job proves both failure logs have completed and
+        // the successful export did not terminate the reporter.
+        d.export(healthy).unwrap().recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "diagnostics::tests::reporter_logs_before_snapshot_and_preserves_unobserved_write_failures"])
+        .env(CHILD, root.path()).env_remove("MOTION_LOG").output().unwrap();
+    assert!(output.status.success(), "{}\n{}",
+        String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+    let text = std::fs::read_to_string(root.path().join("logs/motion-studio.log")).unwrap();
+    assert!(text.contains("INFO [motion-diagnostics]"));
+    for request in [1, 2] {
+        let marker = format!("diagnostics failed #{request} checkpoint ");
+        let line = text.lines().find(|line| line.contains(&marker)).unwrap();
+        assert!(line.contains("ERROR [motion-diagnostics]"));
+        assert!(line.contains(&format!("path={} reason=", root.path().join("occupied").join("report.json").display())));
+        assert!(line.split(&marker).nth(1).unwrap().split("ms ").next().unwrap().parse::<u128>().is_ok());
+        assert!(String::from_utf8_lossy(&output.stderr).contains(&marker));
+        assert!(!String::from_utf8_lossy(&output.stdout).contains(&marker));
+    }
+    assert!(!text.contains("diagnostics failed #3 export"));
+    assert!(!text.contains("diagnostics done"), "Debug must remain filtered by default");
+}
 #[derive(Default)]
 struct Recording(Mutex<Vec<Vec<u8>>>);
 impl sentry::Transport for Recording {
@@ -50,6 +112,55 @@ impl sentry::Transport for Recording {
         let mut bytes=vec![];envelope.to_writer(&mut bytes).unwrap();self.0.lock().unwrap().push(bytes);
     }
 }
+
+#[test]
+fn reporter_shutdown_logs_incomplete_sdk_flush_without_calling_it_an_error() {
+    const CHILD: &str = "MOTION_DIAGNOSTICS_SHUTDOWN_LOG_CHILD";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = PathBuf::from(root);
+        let _logger = crate::logging::init(root.join("logs")).unwrap();
+        struct Unflushed;
+        impl sentry::Transport for Unflushed {
+            fn send_envelope(&self, _: sentry::Envelope) {}
+            fn flush(&self, _: Duration) -> bool { false }
+        }
+        // Exercise the real SDK's false return with a controlled transport;
+        // no network request or timing-dependent network timeout is needed.
+        let factory: Arc<dyn sentry::TransportFactory> = Arc::new(Arc::new(Unflushed));
+        let d = Diagnostics::with_transport(None,
+            Some("https://public-key@invalid.example/7".into()), Some(factory));
+        d.set_enabled(true).unwrap();
+        slow(&d);
+        d.checkpoint().unwrap().recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+        assert_eq!(d.status()["queuedUploads"], 1);
+        drop(d);
+        let path = root.join("logs/motion-studio.log");
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while !std::fs::read_to_string(&path).unwrap().contains("diagnostics reporter stopped") {
+            assert!(Instant::now() < deadline, "reporter did not finish shutdown");
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "diagnostics::tests::reporter_shutdown_logs_incomplete_sdk_flush_without_calling_it_an_error"])
+        .env(CHILD, root.path()).env_remove("MOTION_LOG").output().unwrap();
+    assert!(output.status.success(), "{}\n{}",
+        String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+    let text = std::fs::read_to_string(root.path().join("logs/motion-studio.log")).unwrap();
+    let started = text.find("diagnostics reporter started").unwrap();
+    let stopping = text.find("diagnostics reporter stopping reason=").unwrap();
+    let failed = text.find("diagnostics reporter upload flush incomplete wait_limit_ms=500 elapsed_ms=").unwrap();
+    let stopped = text.find("diagnostics reporter stopped").unwrap();
+    assert!(started < stopping && stopping < failed && failed < stopped);
+    assert!(text.lines().any(|line| line.contains("WARN [motion-diagnostics]") && line.contains("upload flush incomplete")));
+    assert!(!text.contains("ERROR"));
+    assert!(!String::from_utf8_lossy(&output.stderr).contains("diagnostics reporter"));
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("diagnostics reporter"));
+    assert!(!text.contains("public-key"));
+}
+
 #[test]
 fn consent_gates_real_sdk_envelopes_and_attachments_and_upload_is_rate_limited() {
     let output=Arc::new(Recording::default());
@@ -149,4 +260,34 @@ fn in_flight_and_queue_depth_track_a_blocked_worker() {
     }
     assert_eq!(engine.queue_depth(), 0);
     assert!(engine.in_flight().is_none());
+}
+
+#[test]
+fn timing_report_contention_cannot_erase_context_or_gpu_identity() {
+    let d = Diagnostics::new(None, None);
+    let held = d.state.lock().unwrap();
+    d.set_context(Context { action: "edit", layers: 7, frame: 12.5, ..Default::default() });
+    assert_eq!(d.context().action, "edit");
+    assert_eq!(d.context().layers, 7);
+    d.set_gpu(wgpu::AdapterInfo { name: "test adapter".into(), vendor: 0, device: 0,
+        device_type: wgpu::DeviceType::Other, driver: String::new(), driver_info: String::new(),
+        backend: wgpu::Backend::Empty });
+    drop(held);
+    assert_eq!(d.report()["gpu"]["name"], "test adapter");
+}
+
+#[test]
+fn oversized_report_replies_with_failure_and_reporter_remains_usable() {
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("report.json");
+    let d = Diagnostics::new(None, None);
+    let huge: &'static str = Box::leak("x".repeat(MAX_REPORT_BYTES).into_boxed_str());
+    d.record(1, "worker", huge, Duration::from_millis(1), None, None, Default::default());
+    let error = d.export(path.clone()).unwrap().recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err();
+    assert!(error.contains("byte budget"));
+    assert_eq!(d.status()["localWriteErrors"], 1);
+    assert!(!path.exists());
+    d.state.lock().unwrap().recent.clear();
+    d.export(path.clone()).unwrap().recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+    assert!(path.exists());
 }

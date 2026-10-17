@@ -458,6 +458,15 @@ impl Engine {
         platform: std::sync::Arc<dyn Platform>,
         total_memory: u64,
     ) -> Result<Self, String> {
+        let total_memory = i64::try_from(total_memory).map_err(|_| {
+            let error = "physical memory exceeds the signed 64-bit preview budget".to_string();
+            log::error!("worker startup rejected: root={} reason={error}", root.display());
+            error
+        })?;
+        let startup_root = root.clone();
+        let startup_began = Instant::now();
+        log::info!("worker startup phase=lock root={}", startup_root.display());
+        crate::logging::flush();
         let desktop_platform = platform.clone();
         let diagnostics = crate::diagnostics::Diagnostics::new(
             if cfg!(test) {
@@ -498,6 +507,7 @@ impl Engine {
                 let mut guard = match ProjectGuard::acquire(&root) {
                     Ok(guard) => guard,
                     Err(e) => {
+                        log::error!("worker startup lock failed: root={} reason={e}", root.display());
                         let _ = ready.send(Err(e));
                         return;
                     }
@@ -510,22 +520,36 @@ impl Engine {
                     project.name = "Untitled Project".into();
                     serde_json::to_string(&project).expect("serializable default composition")
                 };
+                log::info!("worker startup phase=session root={}", root.display());
+                crate::logging::flush();
                 let id = match project::create(root, &initial, platform.clone()) {
                     Ok(id) => id,
                     Err(error) => {
+                        log::error!("worker startup session failed: {error}");
                         let _ = ready.send(Err(error));
                         return;
                     }
                 };
                 let lease = SessionLease(id);
-                guard.initial = motion_host::session::with_session(id, |s| Ok(s.engine.snapshot())).ok();
+                guard.initial = match motion_host::session::with_session(id, |s| Ok(s.engine.snapshot())) {
+                    Ok(snapshot) => Some(snapshot),
+                    Err(error) => {
+                        log::error!("worker initial snapshot failed: {error}");
+                        let _ = ready.send(Err(error));
+                        return;
+                    }
+                };
                 // The scratch budget is a device property, so apply it before
                 // the first render rather than after a visible hitch.
-                if let Err(error) = preview::configure_memory(id, total_memory as i64, false) {
+                log::info!("worker startup phase=memory session={id}");
+                crate::logging::flush();
+                if let Err(error) = preview::configure_memory(id, total_memory, false) {
+                    log::error!("worker startup memory failed: session={id} reason={error}");
                     let _ = ready.send(Err(error));
                     return;
                 }
                 if ready.send(Ok(id)).is_err() {
+                    log::warn!("worker startup receiver closed; releasing session={id}");
                     return;
                 }
                 let mut painter = None;
@@ -570,7 +594,11 @@ impl Engine {
                         log::debug!("done #{} {} {}ms", request, operation, began.elapsed().as_millis());
                     }
                     match handled {
-                        Ok(true) => { channel_closed = false; break; },
+                        Ok(true) => {
+                            log::info!("worker shutdown requested: session={id}");
+                            channel_closed = false;
+                            break;
+                        },
                         Ok(false) => {},
                         Err(reason) => {
                             channel_closed = false;
@@ -594,12 +622,29 @@ impl Engine {
                 worker_factory.lock().unwrap_or_else(|error| error.into_inner()).take();
                 drop(lease);
                 drop(guard);
+                log::info!("worker resources released: session={id}");
                 if let Some((reply, error)) = failed_reply { reply.send(error); }
             })
-            .map_err(|e| e.to_string())?;
-        let _id = opened
-            .recv_timeout(std::time::Duration::from_secs(60))
-            .map_err(|_| "engine thread stopped during startup".to_string())??;
+            .map_err(|error| {
+                log::error!("worker spawn failed: root={} reason={error}", startup_root.display());
+                error.to_string()
+            })?;
+        let _id = match opened.recv_timeout(std::time::Duration::from_secs(60)) {
+            Ok(Ok(id)) => id,
+            result => {
+                let error = match result {
+                    Ok(Err(error)) => error,
+                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) =>
+                        "engine startup timed out; background initialization may still hold the project lock".into(),
+                    Err(std::sync::mpsc::RecvTimeoutError::Disconnected) =>
+                        "engine thread stopped during startup".into(),
+                    Ok(Ok(_)) => unreachable!(),
+                };
+                log::error!("worker startup failed: root={} {}ms reason={error}", startup_root.display(), startup_began.elapsed().as_millis());
+                return Err(error);
+            }
+        };
+        log::info!("worker ready: session={_id} root={} {}ms", startup_root.display(), startup_began.elapsed().as_millis());
         Ok(Self {
             sender,
             worker: Some(worker),
@@ -1049,7 +1094,9 @@ impl Drop for Engine {
         // Shutdown must use the same accounting gate as every other command.
         let _ = self.send(Command::Shutdown);
         if let Some(worker) = self.worker.take() {
-            let _ = worker.join();
+            if let Err(payload) = worker.join() {
+                log::error!("worker join failed: {}", motion_media::panic_reason(payload));
+            }
         }
     }
 }
@@ -1074,6 +1121,31 @@ fn clear_target(encoder: &mut wgpu::CommandEncoder, view: &wgpu::TextureView) {
         timestamp_writes: None,
         occlusion_query_set: None,
     });
+}
+
+
+/// Carry the originating command into the detached freeze worker. The engine's
+/// in_flight still describes only its serial worker, not this background task.
+fn spawn_movie_freeze<T: Send + 'static>(
+    reply: Sender<Result<T, String>>,
+    freeze: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> Result<(), String> {
+    let flight = CURRENT_COMMAND.get();
+    std::thread::Builder::new().name("motion-freeze-movie".into()).spawn(move || {
+        CURRENT_COMMAND.set(flight);
+        let began = Instant::now();
+        if let Some(flight) = flight {
+            log::info!("async start #{} {}", flight.request, flight.operation);
+            crate::logging::flush();
+        }
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(freeze))
+            .unwrap_or_else(|payload| Err(format!("movie freeze worker failed: {}", motion_media::panic_reason(payload))));
+        respond(reply, result);
+        if let Some(flight) = flight {
+            log::debug!("async done #{} {} {}ms", flight.request, flight.operation, began.elapsed().as_millis());
+        }
+        CURRENT_COMMAND.set(None);
+    }).map(|_| ()).map_err(|error| error.to_string())
 }
 
 fn respond<T>(reply: Sender<Result<T, String>>, value: Result<T, String>) {
@@ -1422,7 +1494,11 @@ fn handle(
             let plan=motion_host::session::with_session(id,|s|motion_desktop_media::movie::FrozenMovie::capture_plan(s,&control));
             match plan {
                 Err(error)=>respond(reply,Err(error)),
-                Ok(plan)=> {let failed=reply.clone();match std::thread::Builder::new().name("motion-freeze-movie".into()).spawn(move||{let result=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||plan.freeze(&control))).unwrap_or_else(|_|Err("movie freeze worker failed".into()));let _=reply.send(result);}) {Ok(_)=>(),Err(error)=>respond(failed,Err(error.to_string()))}}
+                Ok(plan) => {
+                    if let Err(error) = spawn_movie_freeze(reply.clone(), move || plan.freeze(&control)) {
+                        respond(reply, Err(error));
+                    }
+                }
             }
         },
         Command::RenderPreview {frame,reply}=>respond(reply,(||{if let Some(frame)=frame {preview::seek(id,frame)?;}export::capture(id)})()),
@@ -1506,22 +1582,35 @@ fn media_request(id: i64, text: &str) -> Result<Value, String> {
 
 /// Capability queries need no session, so they answer from the platform alone.
 fn capabilities_request(platform: &Arc<dyn Platform>, text: &str) -> Result<Value, String> {
-    let query = motion_host::ops::parse_request(text, 16 * 1024, "media request")
-        .ok()
-        .and_then(|value| {
-            serde_json::from_value::<media::Request>(value)
-                .ok()
-                .and_then(|request| match request {
-                    media::Request::MediaCapabilities { video_query } => video_query,
-                    _ => None,
-                })
-        });
+    let value = motion_host::ops::parse_request(text, 16 * 1024, "media request")?;
+    let request = serde_json::from_value::<media::Request>(value)
+        .map_err(|error| format!("media request: {error}"))?;
+    let media::Request::MediaCapabilities { video_query: query } = request else {
+        return Err("expected media_capabilities request".into());
+    };
     platform.media_capabilities(query.as_ref())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn capability_queries_reject_bad_requests_instead_of_answering_defaults() {
+        let platform: Arc<dyn Platform> = motion_desktop_media::platform();
+        for text in [
+            "{",
+            r#"{"op":"unknown"}"#,
+            r#"{"op":"media_status","request_id":"wrong-command"}"#,
+            r#"{"op":"media_capabilities","video_query":{"width":"not-a-number"}}"#,
+            r#"{"op":"media_capabilities","unexpected":1}"#,
+        ] {
+            assert!(capabilities_request(&platform, text).is_err(), "accepted {text}");
+        }
+        let oversized = format!("{}{}", " ".repeat(16 * 1024), r#"{"op":"media_capabilities"}"#);
+        assert!(capabilities_request(&platform, &oversized).is_err());
+        assert!(capabilities_request(&platform, r#"{"op":"media_capabilities"}"#).unwrap().is_object());
+    }
+
     #[test]
     fn asynchronous_edit_replies_preserve_one_transaction_and_undo() {
         let folder = tempfile::tempdir().unwrap();

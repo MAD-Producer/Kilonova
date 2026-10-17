@@ -712,7 +712,6 @@ impl Controls {
                     if g != drag.last_geometry
                         && g.iter().all(|v| v.is_finite() && v.abs() <= 32768.)
                     {
-                        drag.last_geometry = g;
                         let edit = match drag.target {
                             Target::Vector { object } => Some(Action::Edit(Command::Vector {
                                 object,
@@ -737,7 +736,10 @@ impl Controls {
                             }),
                             Target::New => unreachable!(),
                         };
-                        out.extend(edit);
+                        if let Some(edit) = edit {
+                            drag.last_geometry = g;
+                            out.push(edit);
+                        }
                     }
                 }
             }

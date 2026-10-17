@@ -792,10 +792,7 @@ pub fn accumulate(input: &mut Input, event: Event) {
 
 /// Key chords the shell reacts to globally.
 pub fn matches(input: &Input, key: Key, control: bool) -> bool {
-    input
-        .keys
-        .iter()
-        .any(|(k, m)| *k == key && m.control == control)
+    input.key_presses().any(|(k, m, repeat)| !repeat && k == key && m.control == control)
 }
 
 impl Default for Response {

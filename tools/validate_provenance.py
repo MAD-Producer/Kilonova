@@ -22,6 +22,9 @@ PROPRIETARY_FONT_PREFIXES = (
 )
 PUBLIC_TEXT_ROOTS = ("README.md", "packaging", "website")
 PUBLIC_MARKERS = ("Adobe", "After Effects")
+# Binary artwork/font payloads are governed by asset provenance, not UTF-8 text
+# scanning. Unknown or textual release inputs must decode successfully.
+PUBLIC_BINARY_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".ico", ".icns", ".woff", ".woff2", ".ttf", ".ttc", ".otf"}
 
 
 def tracked_paths() -> list[Path]:
@@ -53,11 +56,12 @@ def main() -> int:
     for path in paths:
         if not any(is_under(path, root) for root in PUBLIC_TEXT_ROOTS):
             continue
-        if path.name == "NOTICE":
+        if path.name == "NOTICE" or path.suffix.lower() in PUBLIC_BINARY_SUFFIXES:
             continue
         try:
             text = (ROOT / path).read_text(encoding="utf-8")
         except UnicodeDecodeError:
+            errors.append(f"release-facing text is not valid UTF-8: {path}")
             continue
         for marker in PUBLIC_MARKERS:
             if marker in text:

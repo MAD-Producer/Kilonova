@@ -4,6 +4,8 @@ use std::sync::{
     mpsc, Arc,
 };
 
+mod worker;
+
 pub(crate) struct Analysis {
     object: u64,
     request: String,
@@ -380,7 +382,7 @@ impl Shell {
             );
             return Ok(());
         };
-        match status["state"].as_str().unwrap_or("") {
+        match super::media::checked_task_state(&status, &task.request)? {
             "ready" | "succeeded" => {
                 let text = serde_json::json!({"op":"release_media_task","request_id":task.request})
                     .to_string();
@@ -398,40 +400,35 @@ impl Shell {
                     task.end,
                     task.fps,
                 );
-                let (tx, rx) = mpsc::channel();
-                std::thread::Builder::new()
-                    .name("audio-reference-analysis".into())
-                    .spawn(move || {
-                        let result = motion_media::audio_references(
-                            &root,
-                            &asset,
-                            source + (begin - offset) / f64::from(fps),
-                            source + (end - offset) / f64::from(fps),
-                            &mut |_| {
-                                if cancel.load(Ordering::Relaxed) {
-                                    Err("cancelled".into())
-                                } else {
-                                    Ok(())
-                                }
-                            },
-                        )
-                        .and_then(|times| {
-                            let mut frames: Vec<_> = times
-                                .into_iter()
-                                .map(|t| ((t - source) * f64::from(fps) + offset).round())
-                                .filter(|f| *f >= begin && *f < end)
-                                .map(|f| f as u32)
-                                .collect();
-                            frames.sort_unstable();
-                            frames.dedup();
-                            if frames.len() > motion_core::audio_edit::MAX_AUDIO_MARKERS {
-                                return Err("too many references; analyze a shorter clip".into());
+                let rx = worker::spawn(task.request.clone(), task.object, asset.id, move || {
+                    motion_media::audio_references(
+                        &root,
+                        &asset,
+                        source + (begin - offset) / f64::from(fps),
+                        source + (end - offset) / f64::from(fps),
+                        &mut |_| {
+                            if cancel.load(Ordering::Relaxed) {
+                                Err("cancelled".into())
+                            } else {
+                                Ok(())
                             }
-                            Ok(frames)
-                        });
-                        let _ = tx.send(result);
+                        },
+                    )
+                    .and_then(|times| {
+                        let mut frames: Vec<_> = times
+                            .into_iter()
+                            .map(|t| ((t - source) * f64::from(fps) + offset).round())
+                            .filter(|f| *f >= begin && *f < end)
+                            .map(|f| f as u32)
+                            .collect();
+                        frames.sort_unstable();
+                        frames.dedup();
+                        if frames.len() > motion_core::audio_edit::MAX_AUDIO_MARKERS {
+                            return Err("too many references; analyze a shorter clip".into());
+                        }
+                        Ok(frames)
                     })
-                    .map_err(|e| e.to_string())?;
+                })?;
                 task.worker = Some(rx);
             }
             "failed" | "cancelled" => {
@@ -442,7 +439,13 @@ impl Shell {
                 self.cancel_audio_analysis();
                 return Err(error);
             }
-            _ => {}
+            "running" => {}
+            state => {
+                return Err(format!(
+                    "unexpected audio preparation state: request={} state={state}",
+                    task.request
+                ))
+            }
         }
         Ok(())
     }

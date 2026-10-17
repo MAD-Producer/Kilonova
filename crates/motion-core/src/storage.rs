@@ -93,6 +93,17 @@ pub fn load(root: &Path) -> Result<Project> {
     validate_assets(root, &project)?;
     Ok(project)
 }
+fn cleanup_temporary_file(path: &Path) {
+    if let Err(error) = fs::remove_file(path) {
+        if error.kind() != std::io::ErrorKind::NotFound {
+            log::warn!("project temporary cleanup failed: path={} reason={error}", path.display());
+        }
+    }
+}
+struct ProjectTemporary(PathBuf);
+impl Drop for ProjectTemporary {
+    fn drop(&mut self) { cleanup_temporary_file(&self.0); }
+}
 pub fn save(root: &Path, project: &Project) -> Result<()> {
     let canonical = project.composition(crate::MAIN_COMPOSITION)?;
     let project = &canonical;
@@ -105,11 +116,14 @@ pub fn save(root: &Path, project: &Project) -> Result<()> {
         "project JSON exceeds the size limit",
     )?;
     let temp = root.join("project.json.tmp");
-    let mut file = File::create(&temp)?;
+    let (temporary, mut file) = {
+        let file = File::create(&temp)?;
+        (ProjectTemporary(temp), file)
+    };
     file.write_all(&bytes)?;
     file.sync_all()?;
     drop(file);
-    fs::rename(temp, root.join("project.json"))?;
+    fs::rename(&temporary.0, root.join("project.json"))?;
     Ok(())
 }
 struct PackageSource {
@@ -132,7 +146,7 @@ pub struct PreparedPackage {
 impl Drop for PreparedPackage {
     fn drop(&mut self) {
         // This exact temporary file was exclusively created by this transaction.
-        let _ = fs::remove_file(&self.temporary);
+        cleanup_temporary_file(&self.temporary);
     }
 }
 impl PreparedPackage {
@@ -440,13 +454,25 @@ struct StageCleanup {
 impl Drop for StageCleanup {
     fn drop(&mut self) {
         // Only remove this importer-owned staging directory after resolving it.
-        if let Ok(path) = self.stage.canonicalize() {
-            let owned_name = path
-                .file_name()
-                .is_some_and(|n| n.to_string_lossy().starts_with(".motion-import-"));
-            if path.starts_with(&self.base) && path != self.base && owned_name {
-                let _ = fs::remove_dir_all(path);
+        let path = match self.stage.canonicalize() {
+            Ok(path) => path,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return,
+            Err(error) => {
+                log::warn!("import staging cleanup cannot resolve: path={} reason={error}", self.stage.display());
+                return;
             }
+        };
+        let owned_name = path
+            .file_name()
+            .is_some_and(|n| n.to_string_lossy().starts_with(".motion-import-"));
+        if path.starts_with(&self.base) && path != self.base && owned_name {
+            if let Err(error) = fs::remove_dir_all(&path) {
+                if error.kind() != std::io::ErrorKind::NotFound {
+                    log::warn!("import staging cleanup failed: path={} reason={error}", path.display());
+                }
+            }
+        } else {
+            log::warn!("import staging cleanup refused unsafe path: path={} base={}", path.display(), self.base.display());
         }
     }
 }
@@ -461,4 +487,53 @@ impl motion_model::PackageExportSource for PackageSnapshot {
 }
 impl motion_model::PackagePublication for PreparedPackage {
     fn publish(self) -> Result<PathBuf> { PreparedPackage::publish(self) }
+}
+
+#[cfg(test)]
+mod staging_cleanup_tests {
+    use super::*;
+    struct Capture(std::sync::Mutex<Vec<String>>);
+    static LOGS: Capture = Capture(std::sync::Mutex::new(Vec::new()));
+    impl log::Log for Capture {
+        fn enabled(&self, _: &log::Metadata<'_>) -> bool { true }
+        fn log(&self, record: &log::Record<'_>) {
+            let text = record.args().to_string();
+            if [".motion-import-blocked", ".motion-import-foreign", ".motion-import-owned"].iter().any(|marker| text.contains(marker)) {
+                self.0.lock().unwrap().push(text);
+            }
+        }
+        fn flush(&self) {}
+    }
+
+    #[test]
+    fn staging_cleanup_reports_resolution_and_boundary_refusal_without_deleting_foreign_files() {
+        log::set_logger(&LOGS).unwrap();
+        log::set_max_level(log::LevelFilter::Warn);
+        let root = tempfile::tempdir().unwrap();
+        let base = root.path().join("base");
+        fs::create_dir(&base).unwrap();
+        let base = base.canonicalize().unwrap();
+        let blocker = base.join("blocker");
+        fs::write(&blocker,b"keep blocking file").unwrap();
+        drop(StageCleanup {stage:base.join(".motion-import-blocked\0"),base:base.clone()});
+        assert_eq!(fs::read(&blocker).unwrap(),b"keep blocking file");
+
+        let foreign=root.path().join(".motion-import-foreign");
+        fs::create_dir(&foreign).unwrap();
+        fs::write(foreign.join("keep"),b"foreign bytes").unwrap();
+        drop(StageCleanup {stage:foreign.clone(),base:base.clone()});
+        assert_eq!(fs::read(foreign.join("keep")).unwrap(),b"foreign bytes");
+
+        let owned=base.join(".motion-import-owned");
+        fs::create_dir(&owned).unwrap();
+        fs::write(owned.join("partial"),b"partial").unwrap();
+        drop(StageCleanup {stage:owned.clone(),base:base.clone()});
+        assert!(!owned.exists());
+        let count=LOGS.0.lock().unwrap().len();
+        drop(StageCleanup {stage:owned,base});
+        assert_eq!(LOGS.0.lock().unwrap().len(),count);
+        let logs=LOGS.0.lock().unwrap();
+        assert!(logs.iter().any(|line| line.contains("cleanup cannot resolve:") && line.contains(".motion-import-blocked")));
+        assert!(logs.iter().any(|line| line.contains("cleanup refused unsafe path:") && line.contains(".motion-import-foreign")));
+    }
 }

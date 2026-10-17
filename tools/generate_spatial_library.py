@@ -2,6 +2,11 @@
 import json
 import math
 from pathlib import Path
+
+try:
+    from .source_templates import replace_required
+except ImportError:
+    from source_templates import replace_required
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -78,12 +83,12 @@ def build():
     effects['polar_coordinates']['known_differences'].append(
         '使用当前效果输入矩形；极坐标到直角坐标输出覆盖一周角度和输入对角半径，可延伸到原图层下方。插值仍为反向坐标近似，未经 AE 像素验收。')
 
-    shaders['shaders/shake.wgsl'] = shaders['shaders/shake.wgsl'].replace(
+    shaders['shaders/shake.wgsl'] = replace_required(shaders['shaders/shake.wgsl'],
         'return sample_input(fx.params[5].xy+turn(p-fx.params[5].xy-shift,-angle)/zoom);',
         'let q = fx.params[5].xy+turn(p-fx.params[5].xy-shift,-angle)/zoom;\n'
         'if any(q<fx.input_region.xy)||any(q>fx.input_region.xy+fx.input_region.zw) {return vec4(0.0);}\n'
         'return sample_input(q);')
-    shaders['shaders/transform_blur.wgsl'] = shaders['shaders/transform_blur.wgsl'].replace(
+    shaders['shaders/transform_blur.wgsl'] = replace_required(shaders['shaders/transform_blur.wgsl'],
         'sum += sample_input(fx.params[0].xy+turn(p-fx.params[0].xy-shift,-angle)/zoom);',
         'let q = fx.params[0].xy+turn(p-fx.params[0].xy-shift,-angle)/zoom;\n'
         '    if all(q>=fx.input_region.xy)&&all(q<=fx.input_region.xy+fx.input_region.zw) {sum += sample_input(q);}')
@@ -106,7 +111,7 @@ return sample_input(mix(p,q,fx.params[1].x));
         block = json.dumps(effects[id]['output_bounds'], ensure_ascii=False, indent=2)
         indented = '\n'.join('      ' + line if i else line for i, line in enumerate(block.splitlines()))
         compact = json.dumps(effects[id]['output_bounds'], separators=(',', ':'))
-        text = text.replace('"output_bounds": ' + indented, '"output_bounds": ' + compact)
+        text = replace_required(text,'"output_bounds": ' + indented, '"output_bounds": ' + compact)
     encoded = (text + '\n').encode('utf-8')
     if not (len(encoded) <= 256 * 1024): raise RuntimeError(len(encoded))
     (LIB / 'manifest.json').write_bytes(encoded)

@@ -514,3 +514,27 @@ fn history_accounting_large_document_measurement() {
         legacy_time, legacy_bytes.len(), legacy_peak, cached_time, cached_peak, cached_visits, committed_time);
     assert_exact(&engine);
 }
+
+#[test]
+fn history_evictions_count_real_unavailable_undo_entries_and_budget_pressure() {
+    let mut engine = Engine::new(Project::demo()).unwrap();
+    assert_eq!(engine.history_diagnostics()["evictions"],0);
+    for index in 0..200 { engine.apply(rename(&format!("history-{index:03}"))).unwrap(); }
+    assert_eq!(engine.history_diagnostics()["evictions"],72);
+    assert_eq!(engine.history_diagnostics()["undoEntries"],128);
+    let mut undone = 0;
+    while engine.undo().unwrap() { undone += 1; }
+    assert_eq!(undone,128);
+    assert_eq!(engine.project.layers[0].name,"history-071");
+    assert_eq!(engine.history_diagnostics()["evictions"],72);
+    assert_eq!(engine.history_diagnostics()["redoEntries"],128);
+    while engine.redo().unwrap() {}
+    assert_eq!(engine.history_diagnostics()["evictions"],72);
+
+    let mut engine = Engine::new(Project::demo()).unwrap();
+    engine.history_budget = exact(engine.project())-1;
+    engine.apply(rename("budget-trimmed")).unwrap();
+    assert_eq!(engine.history_diagnostics()["evictions"],1);
+    assert_eq!(engine.history_diagnostics()["undoEntries"],0);
+    assert!(!engine.undo().unwrap());
+}

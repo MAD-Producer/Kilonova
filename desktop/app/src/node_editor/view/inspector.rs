@@ -1,5 +1,11 @@
 use super::*;
 
+fn record_inspector_edit(result: Result<(), Diagnostic>, revision: u64) {
+    if let Err(error) = result {
+        log::warn!("node inspector edit rejected: revision={revision} reason={error}");
+    }
+}
+
 impl NodeEditor {
     pub(crate) fn draw_inspector(
         &mut self,
@@ -178,7 +184,7 @@ impl NodeEditor {
                     )
                     .clicked
                     {
-                        let _ = self.set_operation(&node.id, NodeOp::Bool { value });
+                        record_inspector_edit(self.set_operation(&node.id, NodeOp::Bool { value }), self.revision);
                     }
                     y += 31.;
                 }
@@ -226,13 +232,13 @@ impl NodeEditor {
                         let next =
                             allowed[(allowed.iter().position(|o| o == operation).unwrap_or(0) + 1)
                                 % allowed.len()];
-                        let _ = self.set_operation(
+                        record_inspector_edit(self.set_operation(
                             &node.id,
                             NodeOp::Math {
                                 operation: next,
                                 value_type: *value_type,
                             },
-                        );
+                        ), self.revision);
                     }
                     let types =
                         if matches!(operation, MathOp::Dot | MathOp::Length | MathOp::Normalize) {
@@ -252,13 +258,13 @@ impl NodeEditor {
                         let ty = types[(types.iter().position(|t| t == value_type).unwrap_or(0)
                             + 1)
                             % types.len()];
-                        let _ = self.set_operation(
+                        record_inspector_edit(self.set_operation(
                             &node.id,
                             NodeOp::Math {
                                 operation: *operation,
                                 value_type: ty,
                             },
-                        );
+                        ), self.revision);
                     }
                 }
                 NodeOp::ColorMath { operation } => {
@@ -283,7 +289,7 @@ impl NodeEditor {
                             operations[(operations.iter().position(|o| o == operation).unwrap()
                                 + 1)
                                 % operations.len()];
-                        let _ = self.set_operation(&node.id, NodeOp::ColorMath { operation: next });
+                        record_inspector_edit(self.set_operation(&node.id, NodeOp::ColorMath { operation: next }), self.revision);
                     }
                 }
                 NodeOp::Splat { value_type } => {
@@ -296,7 +302,7 @@ impl NodeEditor {
                         type_label(*value_type),
                         input,
                     ) {
-                        let _ = self.set_operation(
+                        record_inspector_edit(self.set_operation(
                             &node.id,
                             NodeOp::Splat {
                                 value_type: if *value_type == ValueType::Vec2 {
@@ -305,7 +311,7 @@ impl NodeEditor {
                                     ValueType::Vec2
                                 },
                             },
-                        );
+                        ), self.revision);
                     }
                 }
                 NodeOp::Select { value_type } => {
@@ -329,7 +335,7 @@ impl NodeEditor {
                         let next = types[(types.iter().position(|t| t == value_type).unwrap_or(0)
                             + 1)
                             % types.len()];
-                        let _ = self.set_operation(&node.id, NodeOp::Select { value_type: next });
+                        record_inspector_edit(self.set_operation(&node.id, NodeOp::Select { value_type: next }), self.revision);
                     }
                 }
                 NodeOp::Image { source } => {
@@ -346,7 +352,7 @@ impl NodeEditor {
                         },
                         input,
                     ) {
-                        let _ = self.set_operation(
+                        record_inspector_edit(self.set_operation(
                             &node.id,
                             NodeOp::Image {
                                 source: if *source == ImageSource::Input {
@@ -355,7 +361,7 @@ impl NodeEditor {
                                     ImageSource::Input
                                 },
                             },
-                        );
+                        ), self.revision);
                     }
                     label(
                         &mut body,
@@ -381,7 +387,7 @@ impl NodeEditor {
                         },
                         input,
                     ) {
-                        let _ = self.set_operation(
+                        record_inspector_edit(self.set_operation(
                             &node.id,
                             NodeOp::SampleImage {
                                 coordinates: if *coordinates == SampleCoordinates::Pixels {
@@ -390,7 +396,7 @@ impl NodeEditor {
                                     SampleCoordinates::Pixels
                                 },
                             },
-                        );
+                        ), self.revision);
                     }
                 }
                 NodeOp::Parameter { parameter } => {
@@ -421,8 +427,8 @@ impl NodeEditor {
                                     [(index + 1) % self.document.public_parameters.len()]
                                 .id
                                 .clone();
-                                let _ = self
-                                    .set_operation(&node.id, NodeOp::Parameter { parameter: next });
+                                record_inspector_edit(self
+                                    .set_operation(&node.id, NodeOp::Parameter { parameter: next }), self.revision);
                             }
                         }
                         label(
@@ -471,11 +477,11 @@ impl NodeEditor {
                                 )
                                 .clicked
                                 {
-                                    let _ = self.set_parameter_default(
+                                    record_inspector_edit(self.set_parameter_default(
                                         &p.id,
                                         0,
                                         if checked { 1. } else { 0. },
-                                    );
+                                    ), self.revision);
                                 }
                                 y += 30.;
                             } else {

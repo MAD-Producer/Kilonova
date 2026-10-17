@@ -32,19 +32,38 @@ impl Task {
         match self.receiver.try_recv() {
             Err(TryRecvError::Empty) => Progress::Pending,
             Err(TryRecvError::Disconnected) => {
-                Progress::Failed("Effect package import worker disconnected".into())
+                self.failed("Effect package import worker disconnected".into())
             }
-            Ok(Err(error)) => Progress::Failed(error),
+            Ok(Err(error)) => self.failed(error),
             Ok(Ok(value)) if self.catalogue => Progress::Ready(value),
-            Ok(Ok(_)) => match engine.plugin_async("{\"op\":\"catalogue\"}".into()) {
-                Ok(receiver) => {
-                    self.receiver = receiver;
-                    self.catalogue = true;
-                    Progress::LoadingCatalogue
+            Ok(Ok(_)) => {
+                log::info!("effect package installed: path={}", self.path.display());
+                crate::logging::flush();
+                // Installation has already committed. Retain this phase even if
+                // dispatching or receiving the catalogue refresh fails.
+                self.catalogue = true;
+                match engine.plugin_async("{\"op\":\"catalogue\"}".into()) {
+                    Ok(receiver) => {
+                        self.receiver = receiver;
+                        Progress::LoadingCatalogue
+                    }
+                    Err(error) => self.failed(error),
                 }
-                Err(error) => Progress::Failed(error),
-            },
+            }
         }
+    }
+    fn failed(&self, error: String) -> Progress {
+        log::error!(
+            "effect package import failed: path={} installed={} phase={} reason={error}",
+            self.path.display(),
+            self.catalogue,
+            if self.catalogue {
+                "catalogue"
+            } else {
+                "install"
+            }
+        );
+        Progress::Failed(error)
     }
     pub fn name(&self) -> String {
         self.path
@@ -195,5 +214,63 @@ mod tests {
             catalogue["packages"]
         );
         assert_eq!(engine.state().unwrap()["project"], before);
+    }
+
+    #[test]
+    fn installed_package_is_logged_before_a_failed_catalogue_refresh() {
+        const CHILD: &str = "MOTION_EFFECT_REFRESH_TEST_CHILD";
+        if let Some(root) = std::env::var_os(CHILD) {
+            let root = PathBuf::from(root);
+            let _logger = crate::logging::init(root.join("logs")).unwrap();
+            let path = package(&root);
+            let project = root.join("project");
+            let engine =
+                Engine::start(project.clone(), motion_desktop_media::platform(), 8 << 30).unwrap();
+            let mut task = Task::start(&engine, path).unwrap();
+            // The serial State request proves that the installation committed;
+            // leave its successful reply unpolled until the worker is stopped.
+            engine.state().unwrap();
+            let catalogue = engine.plugin("{\"op\":\"catalogue\"}".into()).unwrap();
+            assert!(catalogue["packages"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|p| p["manifest"]["id"] == "test.effect.library"));
+            let panic = engine
+                .request(|reply| crate::engine::Command::TestPanic {
+                    during_prepare: false,
+                    reply,
+                })
+                .unwrap();
+            assert!(panic.recv_timeout(Duration::from_secs(5)).unwrap().is_err());
+            assert!(matches!(task.poll(&engine), Progress::Failed(_)));
+            drop(engine);
+            let reopened =
+                Engine::start(project, motion_desktop_media::platform(), 8 << 30).unwrap();
+            assert!(
+                reopened.plugin("{\"op\":\"catalogue\"}".into()).unwrap()["packages"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|p| p["manifest"]["id"] == "test.effect.library")
+            );
+            return;
+        }
+        let root = tempfile::tempdir().unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "effect_import::tests::installed_package_is_logged_before_a_failed_catalogue_refresh"])
+            .env(CHILD, root.path()).env_remove("MOTION_LOG").output().unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let text = std::fs::read_to_string(root.path().join("logs/motion-studio.log")).unwrap();
+        let installed = text.find("effect package installed: path=").unwrap();
+        let failed = text.find("installed=true phase=catalogue reason=").unwrap();
+        assert!(installed < failed);
+        assert!(String::from_utf8_lossy(&output.stderr)
+            .contains("installed=true phase=catalogue reason="));
+        assert!(!String::from_utf8_lossy(&output.stdout).contains("effect package installed:"));
     }
 }

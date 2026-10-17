@@ -102,7 +102,14 @@ mod tests {
         let mut power = 0.0;
         let mut read = |decoder: &mut codec::decoder::Audio| {
             let mut decoded = frame::Audio::empty();
-            while decoder.receive_frame(&mut decoded).is_ok() {
+            loop {
+                match decoder.receive_frame(&mut decoded) {
+                    Ok(()) => {}
+                    Err(ffmpeg_next::Error::Eof) => break,
+                    Err(ffmpeg_next::Error::Other { errno })
+                        if errno == ffmpeg_next::util::error::EAGAIN => break,
+                    Err(error) => panic!("decode exported AAC: {error}"),
+                }
                 assert_eq!(decoded.rate(), 48_000);
                 assert_eq!(decoded.channels(), 2);
                 for sample in decoded.plane::<f32>(0) {
@@ -546,8 +553,14 @@ impl MovieFreezePlan {
         let mut done_bytes = 0u64;
         for (relative, _source, mut file, before) in sources {
             control.check()?;
+            let before_modified = before.modified().map_err(|e| {
+                format!("freeze {} capture modification time: {e}", relative.display())
+            })?;
             let current = file.metadata().map_err(|e| e.to_string())?;
-            if current.len() != before.len() || current.modified().ok() != before.modified().ok() {
+            let current_modified = current.modified().map_err(|e| {
+                format!("freeze {} read modification time before copy: {e}", relative.display())
+            })?;
+            if current.len() != before.len() || current_modified != before_modified {
                 return Err("source changed before freezing movie; retry export".into());
             }
             let destination = assets.path().join(&relative);
@@ -574,9 +587,12 @@ impl MovieFreezePlan {
                 control.set_progress(done_bytes as f64 / total_bytes.max(1) as f64 * 0.1);
             }
             let after = file.metadata().map_err(|e| e.to_string())?;
+            let after_modified = after.modified().map_err(|e| {
+                format!("freeze {} read modification time after copy: {e}", relative.display())
+            })?;
             if copied != before.len()
                 || before.len() != after.len()
-                || before.modified().ok() != after.modified().ok()
+                || before_modified != after_modified
             {
                 return Err("source changed while freezing movie; retry export".into());
             }
@@ -685,19 +701,7 @@ impl FrozenMovie {
             control.set_progress(value);
             progress(value);
         };
-        let parent = output
-            .parent()
-            .filter(|p| !p.as_os_str().is_empty())
-            .unwrap_or(Path::new("."));
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-        let output = parent
-            .canonicalize()
-            .map_err(|e| e.to_string())?
-            .join(output.file_name().ok_or("invalid export destination")?);
-        let existing = output.canonicalize().unwrap_or_else(|_| output.clone());
-        if self.source_paths.contains(&existing) {
-            return Err("MP4 export must not replace a project source".into());
-        }
+        let output = export_destination(output, &self.source_paths)?;
         let temporary = tempfile::Builder::new()
             .prefix(".motion-movie-")
             .suffix(".mp4")
@@ -837,5 +841,94 @@ impl FrozenMovie {
             video_encoder: encoder_name,
             audio_codec: "aac",
         })
+    }
+}
+
+/// Resolve existing destinations before checking protected sources. An absent
+/// destination is expected; a permission/path error must retain its cause.
+#[cfg(any(feature = "ffmpeg", test))]
+fn export_destination(output: &Path, source_paths: &BTreeSet<PathBuf>) -> Result<PathBuf> {
+    let parent = output
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    let output = parent
+        .canonicalize()
+        .map_err(|e| e.to_string())?
+        .join(output.file_name().ok_or("invalid export destination")?);
+    let existing = match output.canonicalize() {
+        Ok(existing) => existing,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => output.clone(),
+        Err(error) => {
+            return Err(format!("resolve MP4 export destination {}: {error}", output.display()));
+        }
+    };
+    if source_paths.contains(&existing) {
+        return Err("MP4 export must not replace a project source".into());
+    }
+    Ok(output)
+}
+
+#[cfg(test)]
+mod freeze_integrity_tests {
+    use super::*;
+    use std::time::{Duration, SystemTime};
+
+    fn project() -> Project {
+        let mut project = Project::new(64, 64, 30, 6).unwrap();
+        project.assets.push(motion_core::Asset {
+            id: 1,
+            path: "assets/image.png".into(),
+            width: 1,
+            height: 1,
+        });
+        project
+    }
+    fn plan(root: &Path) -> MovieFreezePlan {
+        MovieFreezePlan::new(
+            project(), root, Registry::new_with_builtins().unwrap(),
+            MemoryPolicy::default(), 17, &ExportControl::default(),
+        ).unwrap()
+    }
+
+    #[test]
+    fn frozen_source_preserves_bytes_and_rejects_same_size_modified_source() {
+        let root = tempfile::tempdir().unwrap();
+        fs::create_dir(root.path().join("assets")).unwrap();
+        let source = root.path().join("assets/image.png");
+        fs::write(&source, [1, 2, 3, 4]).unwrap();
+        let original = SystemTime::UNIX_EPOCH + Duration::from_secs(1_600_000_000);
+        fs::File::options().write(true).open(&source).unwrap()
+            .set_times(fs::FileTimes::new().set_modified(original)).unwrap();
+        let frozen = plan(root.path()).freeze(&ExportControl::default()).unwrap();
+        assert_eq!(frozen.revision, 17);
+        assert_eq!(fs::read(frozen.assets.path().join("assets/image.png")).unwrap(), [1, 2, 3, 4]);
+
+        let pending = plan(root.path());
+        fs::write(&source, [4, 3, 2, 1]).unwrap();
+        fs::File::options().write(true).open(&source).unwrap()
+            .set_times(fs::FileTimes::new().set_modified(original + Duration::from_secs(60))).unwrap();
+        assert_eq!(pending.freeze(&ExportControl::default()).err().as_deref(),
+            Some("source changed before freezing movie; retry export"));
+        assert_eq!(fs::read(frozen.assets.path().join("assets/image.png")).unwrap(), [1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn export_path_distinguishes_new_destination_protected_source_and_resolution_error() {
+        let root = tempfile::tempdir().unwrap();
+        let source = root.path().join("source.mp4");
+        fs::write(&source, b"original source").unwrap();
+        let protected = BTreeSet::from([source.canonicalize().unwrap()]);
+        assert_eq!(export_destination(&source, &protected).err().as_deref(),
+            Some("MP4 export must not replace a project source"));
+        let new = root.path().join("new.mp4");
+        assert_eq!(export_destination(&new, &protected).unwrap(),
+            root.path().canonicalize().unwrap().join("new.mp4"));
+        assert!(!new.exists());
+        let invalid = root.path().join("invalid\0.mp4");
+        let error = export_destination(&invalid, &protected).unwrap_err();
+        assert!(error.contains("resolve MP4 export destination"), "{error}");
+        assert_eq!(fs::read(&source).unwrap(), b"original source");
     }
 }

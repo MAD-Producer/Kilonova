@@ -30,13 +30,14 @@ pub type Opener =
 
 pub fn file_opener(path: PathBuf) -> Opener {
     Box::new(move || {
-        let file = File::open(&path).map_err(|e| e.to_string())?;
-        let bytes = file
-            .metadata()
-            .ok()
-            .filter(|m| m.is_file())
-            .map(|m| m.len());
-        Ok((Box::new(file), bytes))
+        let file = File::open(&path)
+            .map_err(|e| format!("open media {}: {e}", path.display()))?;
+        let metadata = file.metadata()
+            .map_err(|e| format!("inspect media {}: {e}", path.display()))?;
+        if !metadata.is_file() {
+            return Err(format!("media source is not a regular file: {}", path.display()));
+        }
+        Ok((Box::new(file), Some(metadata.len())))
     })
 }
 
@@ -763,6 +764,22 @@ mod request_tests {
         }
         let duplicate=serde_json::json!({"op":"import_media","request_id":"selected","kind":"audio","uri":"content://one","path":"/two"});
         assert!(serde_json::from_value::<Request>(duplicate).is_err());
+    }
+    #[test]
+    fn file_opener_requires_a_regular_file_and_preserves_length_and_path_errors() {
+        use std::io::Read;
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("selected.wav");
+        std::fs::write(&path, b"media").unwrap();
+        let (mut reader, bytes) = super::file_opener(path.clone())().unwrap();
+        assert_eq!(bytes, Some(5));
+        let mut content = Vec::new();
+        reader.read_to_end(&mut content).unwrap();
+        assert_eq!(content, b"media");
+        assert!(super::file_opener(directory.path().to_path_buf())().is_err());
+        let missing = directory.path().join("missing.wav");
+        let error = super::file_opener(missing)().err().unwrap();
+        assert!(error.contains("missing.wav"));
     }
     #[test]
     fn pixel_readback_reports_rgba_bytes_instead_of_native_yuv_cache_bytes() {

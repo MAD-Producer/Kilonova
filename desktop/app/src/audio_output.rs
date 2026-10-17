@@ -20,6 +20,7 @@ const QUEUE_FRAMES: usize = 8192;
 const MIX_FRAMES: usize = 4096;
 const CALLBACK_TIMEOUT_NS: u64 = 2_000_000_000;
 const CLOCK_READ_ATTEMPTS: usize = 32;
+static NEXT_OBSERVATION: AtomicU64 = AtomicU64::new(1);
 struct Ring {
     samples: Vec<[AtomicU32; 2]>,
     read: AtomicUsize,
@@ -61,6 +62,7 @@ impl Ring {
     }
 }
 struct Shared {
+    observation: u64,
     ring: Ring,
     stop: AtomicBool,
     done: AtomicBool,
@@ -79,6 +81,7 @@ struct Shared {
 impl Shared {
     fn new() -> Self {
         Self {
+            observation: NEXT_OBSERVATION.fetch_add(1, Ordering::Relaxed),
             ring: Ring::new(),
             stop: AtomicBool::new(false),
             done: AtomicBool::new(false),
@@ -299,7 +302,9 @@ impl AudioOutput {
         {
             worker.thread().unpark();
             if worker.is_finished() {
-                let _ = worker.join();
+                if let Err(payload) = worker.join() {
+                    log::error!("audio worker join failed: {}", motion_media::panic_reason(payload));
+                }
             }
         }
     }
@@ -317,13 +322,16 @@ fn spawn_producer(
     std::thread::Builder::new()
         .name("motion-audio-mix".into())
         .spawn(move || {
+            let mut observation = producer_observation::Observation::new(shared.observation);
             let mut primed = 0;
             while !shared.stop.load(Ordering::Acquire) {
                 let result = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| next()))
                 {
                     Ok(result) => result,
-                    Err(_) => {
-                        shared.fail("audio mixer worker panicked".into());
+                    Err(payload) => {
+                        let error = format!("audio mixer worker panicked: {}",motion_media::panic_reason(payload));
+                        shared.fail(error.clone());
+                        observation.failed("panic", &error);
                         return;
                     }
                 };
@@ -332,10 +340,13 @@ fn spawn_producer(
                     Ok(None) => {
                         shared.done.store(true, Ordering::Release);
                         shared.ready.store(true, Ordering::Release);
+                        observation.stopped("eof");
                         return;
                     }
                     Err(error) => {
-                        shared.fail(format!("audio mix: {error}"));
+                        let error = format!("audio mix: {error}");
+                        shared.fail(error.clone());
+                        observation.failed("mix_error", &error);
                         return;
                     }
                 };
@@ -343,6 +354,7 @@ fn spawn_producer(
                     // Check cancellation after disk IO, including when the
                     // queue still has room. A stopped output must not refill.
                     if shared.stop.load(Ordering::Acquire) {
+                        observation.stopped("stop_after_read");
                         return;
                     }
                     if shared.ring.push(frame) {
@@ -356,9 +368,15 @@ fn spawn_producer(
                     shared.ready.store(true, Ordering::Release);
                 }
             }
+            observation.stopped("stop");
         })
-        .map_err(|e| format!("start audio mixer: {e}"))
+        .map_err(|error| {
+            log::error!("start audio mixer failed: {error}");
+            format!("start audio mixer: {error}")
+        })
 }
+
+mod producer_observation;
 
 fn spawn_monitor(shared: Arc<Shared>) -> Result<JoinHandle<()>, String> {
     std::thread::Builder::new()
@@ -370,13 +388,23 @@ fn spawn_monitor(shared: Arc<Shared>) -> Result<JoinHandle<()>, String> {
                 let underruns = shared.underruns.load(Ordering::Relaxed);
                 if underruns != reported {
                     // Diagnostic IO stays off the realtime callback and UI.
-                    log::warn!("[motion-audio] underruns={underruns}");
+                    log::warn!("[motion-audio] underruns={underruns} playback={}", shared.observation);
                     reported = underruns;
                 }
                 std::thread::park_timeout(Duration::from_millis(250));
             }
+            // Device callbacks only publish state. Observe the latched failure
+            // here, outside the realtime callback and after releasing its mutex.
+            let error = shared.error.lock().unwrap_or_else(|e| e.into_inner()).clone();
+            if let Some(error) = error {
+                log::error!("[motion-audio] output stopped: {error} playback={}", shared.observation);
+            }
+            log::debug!("audio watchdog stopped playback={}", shared.observation);
         })
-        .map_err(|e| format!("start audio watchdog: {e}"))
+        .map_err(|error| {
+            log::error!("start audio watchdog failed: {error}");
+            format!("start audio watchdog: {error}")
+        })
 }
 
 fn build<T: SizedSample + FromSample<f32>>(
@@ -696,6 +724,7 @@ mod tests {
             assert_eq!(pcm, [0.0, 0.0]);
             assert_eq!(consumed, 0);
             assert!(output.error().unwrap().contains("mixer worker panicked"));
+            assert!(output.error().unwrap().contains("injected mixer failure"));
             assert!(shared.stop.load(Ordering::Acquire));
         }
     }
@@ -887,5 +916,51 @@ mod tests {
             output.error()
         );
         output.stop();
+    }
+}
+
+
+#[cfg(test)]
+mod failure_log_tests {
+    use super::*;
+
+    #[test]
+    fn watchdog_logs_the_first_device_failure_once_without_callback_io_or_normal_stop_errors() {
+        const CHILD: &str = "MOTION_AUDIO_FAILURE_LOG_TEST_CHILD";
+        if let Some(root) = std::env::var_os(CHILD) {
+            let root = std::path::PathBuf::from(root);
+            let _logger = crate::logging::init(root.clone()).unwrap();
+            let shared=Arc::new(Shared::new());
+            shared.fail("audio output: controlled device disconnection".into());
+            shared.fail("audio mix: secondary cancellation".into());
+            // Publishing failure is suitable for the device callback: no log IO.
+            assert!(!std::fs::read_to_string(root.join("motion-studio.log")).unwrap().contains("controlled device disconnection"));
+            let monitor=spawn_monitor(shared).unwrap();
+            wait_finished(monitor);
+            let clean=Arc::new(Shared::new());
+            clean.stop.store(true,Ordering::Release);
+            wait_finished(spawn_monitor(clean).unwrap());
+            return;
+        }
+        let root=tempfile::tempdir().unwrap();
+        let output=std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact","audio_output::failure_log_tests::watchdog_logs_the_first_device_failure_once_without_callback_io_or_normal_stop_errors"])
+            .env(CHILD,root.path()).env_remove("MOTION_LOG").output().unwrap();
+        assert!(output.status.success(),"{}",String::from_utf8_lossy(&output.stderr));
+        let text=std::fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
+        assert_eq!(text.lines().filter(|line| line.contains(" ERROR ") && line.contains("[motion-audio] output stopped:")).count(),1);
+        assert!(text.contains("controlled device disconnection"));
+        assert!(!text.contains("secondary cancellation"));
+        assert_eq!(String::from_utf8_lossy(&output.stderr).matches("[motion-audio] output stopped:").count(),1);
+        assert!(!String::from_utf8_lossy(&output.stdout).contains("controlled device disconnection"));
+    }
+
+    fn wait_finished(worker: JoinHandle<()>) {
+        let deadline=Instant::now()+Duration::from_secs(5);
+        while !worker.is_finished() {
+            assert!(Instant::now()<deadline);
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        worker.join().unwrap();
     }
 }

@@ -545,3 +545,87 @@ fn path_key_menu_add_delete_collision_and_disabling_preserve_sampled_shape() {
     let reopened: motion_core::Project = serde_json::from_slice(&serialized).unwrap();
     assert_eq!(&reopened, engine.project());
 }
+
+
+#[test]
+fn rejected_mask_path_command_retains_object_mask_and_cause_in_the_log() {
+    const CHILD: &str = "MOTION_MASK_PATH_LOG_TEST_CHILD";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let _logger = crate::logging::init(std::path::PathBuf::from(root)).unwrap();
+        let engine = engine();
+        let mask = &engine.project().layers[0].masks[0];
+        for _ in 0..70 {
+            assert!(mask_path::command(7,mask,12,MaskAction::CopyKey {
+                mask:1,property:MaskProperty::Node(1),from:21,to:30,
+            }).is_none());
+        }
+        assert!(mask_path::command(7,mask,12,MaskAction::Animate {
+            mask:1,property:MaskProperty::Node(1),frame:21,enabled:true,
+        }).is_some());
+        assert!(mask_path::command(7,mask,12,MaskAction::CopyKey {
+            mask:1,property:MaskProperty::Node(1),from:21,to:30,
+        }).is_none());
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "panels::path_controls::mask_keys::path_tests::rejected_mask_path_command_retains_object_mask_and_cause_in_the_log"])
+        .env(CHILD,root.path()).env_remove("MOTION_LOG")
+        .output().unwrap();
+    assert!(output.status.success(),"{}",String::from_utf8_lossy(&output.stderr));
+    let text = std::fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
+    assert!(text.contains("mask path edit rejected: object=7 mask=1 reason="));
+    assert!(text.contains("path key missing or destination occupied"));
+    assert_eq!(text.lines().filter(|line| line.contains(" WARN ") && line.contains("mask path edit rejected:")).count(),2);
+    assert_eq!(text.lines().filter(|line| line.contains(" ERROR ") && line.contains("site=mask_path_edit count=60")).count(),1);
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("mask path edit rejected:"));
+}
+
+#[test]
+fn mask_drag_retries_the_same_geometry_when_the_previous_snapshot_had_no_target() {
+    let mut atlas = TextAtlas::from_system(12.).unwrap();
+    let mut engine = engine();
+    let mut controls = super::super::Controls::default();
+    controls.tool = Tool::Mask;
+    controls.mask = Some(1);
+    let view = Rect::new(0.,0.,640.,360.);
+    let matrix = glam::DMat4::from_scale(glam::DVec3::new(2./640.,2./360.,1.)).to_cols_array();
+    let snapshot = |project: &motion_core::Project| {
+        let masks: Vec<_> = project.layers[0].masks.iter().map(|mask| {
+            let nodes: Vec<_> = mask.path.nodes.iter().map(|node| serde_json::json!({
+                "id":node.id,"geometry":node.geometry.sample(48.)
+            })).collect();
+            serde_json::json!({"id":mask.id,"path":{"id":mask.path.id,"closed":true,"nodes":nodes}})
+        }).collect();
+        serde_json::json!({"root":"fixture","composition":motion_core::composition::MAIN_COMPOSITION,
+            "project":project,"frame":60,"revision":0,"source_transforms":[{"id":7,"mvp":matrix}],
+            "mask_layers":[{"id":7,"masks":masks}]})
+    };
+    let original = snapshot(engine.project());
+    let mut removed = engine.project().clone();
+    removed.layers[0].masks.clear();
+    removed.validate().unwrap();
+    let removed = snapshot(&removed);
+    let mut render = |controls: &mut super::super::Controls, state: &Value, input: &Input| {
+        let mut out = Vec::new();
+        controls.draw(&mut PaintList::default(),&mut atlas,view,state,Some(7),input,Locale::En,&mut out);
+        out
+    };
+    let initial = render(&mut controls,&original,&press(MouseButton::Left,270.,130.));
+    assert!(!initial.iter().any(|action| matches!(action,Action::Edit(_))));
+    let before = controls.drag.as_ref().unwrap().last_geometry;
+    let held = Input { mouse:[300.,150.], held:Some(MouseButton::Left), ..Default::default() };
+    let rejected = render(&mut controls,&removed,&held);
+    assert!(!rejected.iter().any(|action| matches!(action,Action::Edit(_))));
+    assert_eq!(controls.drag.as_ref().unwrap().last_geometry,before);
+    let retried = render(&mut controls,&original,&held);
+    assert_ne!(controls.drag.as_ref().unwrap().last_geometry,before);
+    let mut commands = retried.into_iter().filter_map(|action| match action {
+        Action::Edit(command) => Some(command), _ => None
+    });
+    let command = commands.next().expect("the same held geometry must be retried");
+    assert!(commands.next().is_none());
+    engine.apply(command).unwrap();
+    let geometry = engine.project().layers[0].masks[0].path.nodes[0].geometry.sample(48.);
+    assert!((geometry[0]-30.).abs()<0.001 && (geometry[1]-20.).abs()<0.001);
+}

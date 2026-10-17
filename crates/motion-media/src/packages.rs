@@ -152,11 +152,14 @@ impl PackageJobs {
             cancel: false,
         }));
         tasks.insert(id.into(), task.clone());
+        let task_log = crate::task_logging::TaskLog::new(&initial.request_id, &initial.operation);
+        let worker_log = task_log.clone();
         let spawn_task = task.clone();
         let spawned = std::thread::Builder::new()
             .name("motion-package-export".into())
             .spawn(move || {
                 let _worker = worker;
+                worker_log.start();
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     let parent = output.parent().ok_or_else(|| {
                         motion_model::Error::Invalid("invalid package destination".into())
@@ -186,16 +189,19 @@ impl PackageJobs {
                 }));
                 let mut task = spawn_task.lock().unwrap_or_else(|e| e.into_inner());
                 if task.cancel {
+                    let error = crate::task_logging::cancelled_error(&result, &["package export cancelled"]);
                     // Drop/close the prepared archive before advertising terminal cancellation.
                     drop(result);
                     task.status.state = "cancelled".into();
                     task.status.phase = "cancelled".into();
+                    drop(task);
+                    worker_log.finish("cancelled", error.as_deref());
                     return;
                 }
                 let published = match result {
                     Ok(Ok(prepared)) => prepared.publish().map_err(|e| e.to_string()),
                     Ok(Err(error)) => Err(error.to_string()),
-                    Err(_) => Err("package worker failed".into()),
+                    Err(payload) => Err(format!("package worker failed: {}",crate::panic_reason(payload))),
                 };
                 match published {
                     Ok(path) => {
@@ -210,8 +216,13 @@ impl PackageJobs {
                         task.status.error = Some(error);
                     }
                 }
+                let phase = task.status.phase.clone();
+                let error = task.status.error.clone();
+                drop(task);
+                worker_log.finish(&phase, error.as_deref());
             });
         if let Err(error) = spawned {
+            task_log.finish("spawn", Some(&error.to_string()));
             let mut task = task.lock().unwrap_or_else(|e| e.into_inner());
             task.status.state = "failed".into();
             task.status.phase = "failed".into();

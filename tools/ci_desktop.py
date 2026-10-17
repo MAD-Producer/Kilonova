@@ -14,9 +14,9 @@ import tempfile
 import threading
 
 
-def verify_style_consumers() -> None:
-    panels = Path(__file__).resolve().parents[1] / "desktop/app/src/panels"
-    for source in panels.glob("*.rs"):
+def verify_style_consumers(panel_root: Path | None = None) -> None:
+    panels = panel_root if panel_root is not None else Path(__file__).resolve().parents[1] / "desktop/app/src/panels"
+    for source in panels.rglob("*.rs"):
         if re.search(r"\bpalette::|\bdefault_stylesheet\s*\(", source.read_text(encoding="utf-8")):
             raise RuntimeError(f"{source.name} bypasses its window's style context")
 

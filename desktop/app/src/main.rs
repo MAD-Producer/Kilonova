@@ -15,6 +15,7 @@ mod node_layer;
 mod node_examples;
 mod node_preview;
 mod node_tasks;
+mod owned_file;
 mod panels;
 mod project_lifecycle;
 mod shell;
@@ -47,6 +48,15 @@ use winit::{
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let _logging = logging::init(directories().join("logs"))?;
+    let began = Instant::now();
+    let result = run();
+    if let Err(error) = &result {
+        log::error!("desktop failed: {}ms reason={error}", began.elapsed().as_millis());
+    }
+    result
+}
+
+fn run() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.iter().any(|a| a == "--command-list") {
         println!("{}", motion_core::CommandRegistry::catalogue());
@@ -136,6 +146,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::thread::Builder::new()
             .name("motion-mcp".into())
             .spawn(move || {
+                log::info!("MCP UI service started");
+                logging::flush();
                 if let Err(e) = mcp::serve(
                     engine,
                     Some(Box::new(move || {
@@ -144,6 +156,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 ) {
                     log::error!("MCP: {e}");
                 }
+                log::info!("MCP UI service stopped");
+                logging::flush();
             })?;
     }
     event_loop.run_app(&mut app)?;
@@ -152,8 +166,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .diagnostics()
             .export(path)?
             .recv_timeout(Duration::from_secs(5))??;
-    } else if let Ok(receive) = app.engine.diagnostics().checkpoint() {
-        let _ = receive.recv_timeout(Duration::from_secs(1));
+    } else {
+        let began = Instant::now();
+        let result = app.engine.diagnostics().checkpoint().and_then(|receive| {
+            receive.recv_timeout(Duration::from_secs(1))
+                .map_err(|error| format!("waiting for checkpoint: {error}"))?
+        });
+        if let Err(error) = result {
+            log::warn!("shutdown diagnostics checkpoint incomplete: {}ms reason={error}", began.elapsed().as_millis());
+        }
     }
     if let Some(error) = app.fatal {
         return Err(error.into());
@@ -181,15 +202,27 @@ fn directories() -> PathBuf {
     std::env::temp_dir().join("motion-studio")
 }
 fn total_memory() -> u64 {
+    const FALLBACK_BYTES: u64 = 8 * 1024 * 1024 * 1024;
     std::fs::read_to_string("/proc/meminfo")
-        .ok()
-        .and_then(|text| {
-            text.lines()
-                .find(|l| l.starts_with("MemTotal:"))
-                .and_then(|l| l.split_whitespace().nth(1)?.parse::<u64>().ok())
-                .map(|v| v * 1024)
+        .map_err(|error| format!("read /proc/meminfo: {error}"))
+        .and_then(|text| memory_total_bytes(&text))
+        .unwrap_or_else(|reason| {
+            log::warn!("physical memory probe unavailable: platform={} fallback_bytes={FALLBACK_BYTES} reason={reason}", std::env::consts::OS);
+            FALLBACK_BYTES
         })
-        .unwrap_or(8 * 1024 * 1024 * 1024)
+}
+fn memory_total_bytes(text: &str) -> Result<u64, String> {
+    let line = text.lines().find_map(|line| line.strip_prefix("MemTotal:"))
+        .ok_or("MemTotal missing")?;
+    let mut fields = line.split_whitespace();
+    let kib = fields.next().ok_or("MemTotal value missing")?.parse::<u64>()
+        .map_err(|error| format!("invalid MemTotal: {error}"))?;
+    if fields.next() != Some("kB") || fields.next().is_some() {
+        return Err("MemTotal unit must be kB".into());
+    }
+    kib.checked_mul(1024)
+        .filter(|bytes| *bytes > 0 && *bytes <= i64::MAX as u64)
+        .ok_or_else(|| "MemTotal exceeds the positive signed 64-bit preview budget".into())
 }
 enum UserEvent {
     EngineChanged,
@@ -254,6 +287,7 @@ struct Shell {
     actions: std::collections::VecDeque<panels::Action>,
     editing: Option<(Instant, std::sync::mpsc::Receiver<Result<Value, String>>)>,
     present_due: bool,
+    present_deferrals: shell::presentation_observation::ActionDeferrals,
     diagnostics_export: Option<std::sync::mpsc::Receiver<Result<(), String>>>,
     closing: bool,
     next_redraw: Instant,
@@ -352,6 +386,7 @@ impl Shell {
             actions: Default::default(),
             editing: None,
             present_due: false,
+            present_deferrals: Default::default(),
             diagnostics_export: None,
             closing: false,
             next_redraw: Instant::now(),
@@ -606,7 +641,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             self.dirty = true;
         }
         if let Some((receive, path, control)) = &self.freezing_movie {
-            if let Ok(result) = receive.try_recv() {
+            if let Some(result) = self.engine.poll_reply(receive, "freeze_movie") {
                 let output = path.clone();
                 let control = control.clone();
                 self.freezing_movie = None;
@@ -669,7 +704,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             return;
         }
         if let Some(receive) = &self.attaching {
-            if let Ok(result) = receive.try_recv() {
+            if let Some(result) = self.engine.poll_reply(receive, "attach") {
                 self.attaching = None;
                 match result {
                     Ok(state) => {
@@ -696,7 +731,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
         let mut completed = vec![];
         for (key, receive) in &self.rendering {
-            if let Ok(result) = receive.try_recv() {
+            if let Some(result) = self.engine.poll_reply(receive, "present") {
                 completed.push((*key, result));
             }
         }
@@ -726,7 +761,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             }
         }
         if let Some(receive) = &self.resizing {
-            if let Ok(result) = receive.try_recv() {
+            if let Some(result) = self.engine.poll_reply(receive, "resize") {
                 self.resizing = None;
                 match result {
                     Ok(state) => self.state = state,
@@ -1321,5 +1356,25 @@ mod tests {
             translate_key(&WinitKey::Character("S".into())),
             Some(Key::S)
         );
+    }
+}
+
+#[cfg(test)]
+mod memory_probe_tests {
+    use super::memory_total_bytes;
+
+    #[test]
+    fn memory_probe_uses_the_total_and_validates_units() {
+        assert_eq!(memory_total_bytes("MemFree: 123 kB\nMemTotal:       8192 kB\n").unwrap(),8 * 1024 * 1024);
+        for text in ["MemFree: 123 kB","MemTotal:","MemTotal: nope kB","MemTotal: 8192 MB","MemTotal: 8192","MemTotal: 8192 kB extra"] {
+            assert!(memory_total_bytes(text).is_err(),"{text}");
+        }
+    }
+
+    #[test]
+    fn memory_probe_refuses_zero_overflow_and_signed_budget_wraparound() {
+        for text in ["MemTotal: 0 kB","MemTotal: -1 kB","MemTotal: 18446744073709551615 kB","MemTotal: 9007199254740992 kB"] {
+            assert!(memory_total_bytes(text).is_err(),"{text}");
+        }
     }
 }

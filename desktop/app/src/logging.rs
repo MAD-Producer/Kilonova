@@ -1,4 +1,4 @@
-//! File-only process logging. stdout belongs to the CLI/MCP protocol.
+//! File process logging with console stderr for errors; stdout belongs to CLI/MCP.
 use std::{
     backtrace::Backtrace,
     cell::Cell,
@@ -19,6 +19,19 @@ thread_local! {
 }
 
 impl FileLogger {
+    fn lock_writer(&self) -> std::sync::MutexGuard<'_, BufWriter<File>> {
+        match self.writer.lock() {
+            Ok(writer) => writer,
+            Err(poisoned) => {
+                let mut writer = poisoned.into_inner();
+                // A formatter can panic after writing part of a record.
+                // Separate the next record and keep this file sink usable.
+                let _ = writer.write_all(b"\n");
+                self.writer.clear_poison();
+                writer
+            }
+        }
+    }
     fn write(&self, record: &log::Record<'_>, writer: &mut impl Write) {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -42,12 +55,18 @@ impl FileLogger {
 impl log::Log for FileLogger {
     fn enabled(&self, metadata: &log::Metadata<'_>) -> bool {
         metadata.level() <= self.level
+            // Wgpu emits per-frame descriptors at Debug. Keep ordinary debug
+            // sessions focused on Motion; Trace explicitly includes dependencies.
+            && (self.level != log::LevelFilter::Debug
+                || metadata.level() <= log::Level::Info
+                || metadata.target().starts_with("motion_"))
     }
     fn log(&self, record: &log::Record<'_>) {
         if !self.enabled(record.metadata()) {
             return;
         }
         if IN_PANIC_HOOK.get() {
+            // The previous panic hook already preserves console stderr output.
             // The panic may have originated while this very thread held writer.
             match self.writer.try_lock() {
                 Ok(mut writer) => self.write(record, &mut *writer),
@@ -55,14 +74,19 @@ impl log::Log for FileLogger {
                     let _ = writeln!(io::stderr(), "{}: {}", record.level(), record.args());
                 }
             }
-        } else if let Ok(mut writer) = self.writer.lock() {
+        } else {
+            let mut writer = self.lock_writer();
             self.write(record, &mut *writer);
+        }
+        if record.level() == log::Level::Error && !IN_PANIC_HOOK.get() {
+            // Flush the file and release its mutex before console IO: an MCP
+            // client may pipe stderr without draining it. Keep the cause on disk.
+            // stdout remains the command-list / JSON-RPC transport.
+            let _ = writeln!(io::stderr(), "ERROR {}: {}", record.target(), record.args());
         }
     }
     fn flush(&self) {
-        if let Ok(mut writer) = self.writer.lock() {
-            let _ = writer.flush();
-        }
+        let _ = self.lock_writer().flush();
     }
 }
 
@@ -164,6 +188,114 @@ mod tests {
         assert!(text.contains("start #7 test_wait"));
         assert!(text.contains("timeout #7"));
         assert!(!text.contains("hidden"));
+    }
+
+    #[test]
+    fn debug_preserves_motion_details_and_dependency_signals_without_frame_descriptor_flooding() {
+        let root = tempfile::tempdir().unwrap();
+        for level in [log::LevelFilter::Debug, log::LevelFilter::Trace] {
+            let path = root.path().join(format!("{level}.log"));
+            let logger = FileLogger {
+                writer:Mutex::new(BufWriter::new(File::create(&path).unwrap())),
+                level,
+            };
+            logger.log(&log::Record::builder().level(log::Level::Debug)
+                .target("motion_studio::engine").args(format_args!("dispatch #7 state")).build());
+            logger.log(&log::Record::builder().level(log::Level::Debug)
+                .target("wgpu_core::command").args(format_args!("dependency frame descriptor")).build());
+            logger.log(&log::Record::builder().level(log::Level::Info)
+                .target("wgpu_core::instance").args(format_args!("adapter context")).build());
+            logger.log(&log::Record::builder().level(log::Level::Warn)
+                .target("wgpu_hal::vulkan").args(format_args!("dependency warning")).build());
+            let text=fs::read_to_string(path).unwrap();
+            assert!(text.contains("dispatch #7 state"));
+            assert!(text.contains("adapter context") && text.contains("dependency warning"));
+            assert_eq!(text.contains("dependency frame descriptor"), level == log::LevelFilter::Trace);
+        }
+    }
+
+    #[test]
+    fn errors_reach_file_and_stderr_without_leaking_log_records_to_stdout() {
+        if let Some(root) = std::env::var_os("MOTION_LOG_CONSOLE_TEST_CHILD") {
+            let _guard = init(PathBuf::from(root)).unwrap();
+            log::error!(target:"console_test", "dual-error-marker");
+            log::warn!(target:"console_test", "file-only-warning-marker");
+            return;
+        }
+        let root = tempfile::tempdir().unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "logging::tests::errors_reach_file_and_stderr_without_leaking_log_records_to_stdout"])
+            .env("MOTION_LOG_CONSOLE_TEST_CHILD",root.path())
+            .env_remove("MOTION_LOG")
+            .output().unwrap();
+        assert!(output.status.success(),"{}",String::from_utf8_lossy(&output.stderr));
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        assert!(stderr.contains("ERROR console_test: dual-error-marker"));
+        assert!(!stderr.contains("file-only-warning-marker"));
+        let stdout = String::from_utf8(output.stdout).unwrap();
+        assert!(!stdout.contains("dual-error-marker") && !stdout.contains("file-only-warning-marker"));
+        let file = fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
+        assert!(file.contains("dual-error-marker") && file.contains("file-only-warning-marker"));
+    }
+
+    #[test]
+    fn error_is_flushed_to_disk_before_an_undrained_console_pipe_can_block() {
+        const CHILD: &str = "MOTION_BLOCKED_CONSOLE_TEST_CHILD";
+        if let Some(root) = std::env::var_os(CHILD) {
+            let _logger = init(PathBuf::from(root)).unwrap();
+            let fill = "x".repeat(2 * 1024 * 1024);
+            log::error!("blocked-console-begin {fill} durable-error-end");
+            return;
+        }
+        let root = tempfile::tempdir().unwrap();
+        let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "logging::tests::error_is_flushed_to_disk_before_an_undrained_console_pipe_can_block"])
+            .env(CHILD,root.path()).env_remove("MOTION_LOG")
+            .stdout(std::process::Stdio::null()).stderr(std::process::Stdio::piped())
+            .spawn().unwrap();
+        let deadline = std::time::Instant::now()+Duration::from_secs(5);
+        let mut persisted = false;
+        while std::time::Instant::now()<deadline {
+            if fs::read_to_string(root.path().join("motion-studio.log"))
+                .is_ok_and(|text| text.contains("durable-error-end")) {
+                persisted = true;
+                break;
+            }
+            if child.try_wait().unwrap().is_some() { break; }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        // This test alone owns the deliberately blocked subprocess. Always reap
+        // it before asserting so a failing negative case cannot leave it behind.
+        let _ = child.kill();
+        child.wait().unwrap();
+        assert!(persisted,"stderr blocked before the error reached the file");
+    }
+
+    #[test]
+    fn formatter_panic_does_not_disable_subsequent_file_logging() {
+        struct BrokenDisplay;
+        impl std::fmt::Display for BrokenDisplay {
+            fn fmt(&self, _: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                panic!("injected formatter panic");
+            }
+        }
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("sink.log");
+        let logger = FileLogger {
+            writer: Mutex::new(BufWriter::new(File::create(&path).unwrap())),
+            level: log::LevelFilter::Info,
+        };
+        let caught = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            logger.log(&log::Record::builder().level(log::Level::Info)
+                .args(format_args!("broken record {BrokenDisplay}")).build());
+        }));
+        assert!(caught.is_err());
+        assert!(logger.writer.is_poisoned());
+        logger.log(&log::Record::builder().level(log::Level::Warn)
+            .args(format_args!("logging survived formatter panic")).build());
+        assert!(!logger.writer.is_poisoned());
+        let text = fs::read_to_string(path).unwrap();
+        assert!(text.lines().any(|line| line.contains(" WARN ") && line.ends_with("logging survived formatter panic")));
     }
 
     #[test]

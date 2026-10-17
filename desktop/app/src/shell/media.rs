@@ -37,6 +37,20 @@ impl Shell {
         Ok(())
     }
     pub(crate) fn poll_import(&mut self) -> Result<(), String> {
+        let result = self.poll_import_inner();
+        if result.is_err() {
+            if let Some((request, _)) = self.importing_media.take() {
+                for op in ["cancel_media_task", "release_media_task"] {
+                    let text = serde_json::json!({"op":op,"request_id":request}).to_string();
+                    if let Err(error) = self.engine.request(|reply| engine::Command::Media {text,reply}) {
+                        log::warn!("media import cleanup dispatch failed: request={request} op={op} reason={error}");
+                    }
+                }
+            }
+        }
+        result
+    }
+    fn poll_import_inner(&mut self) -> Result<(), String> {
         if let Some(receiver) = &self.importing_image {
             match receiver.try_recv() {
                 Ok(result) => {
@@ -66,17 +80,19 @@ impl Shell {
             let status = self
                 .engine
                 .media(serde_json::json!({"op":"media_status","request_id":request}).to_string())?;
-            match status["state"].as_str().unwrap_or("") {
+            match checked_task_state(&status, &request)? {
                 "ready" => {
                     let result = self.engine.media(
                         serde_json::json!({"op":"finish_media_import","request_id":request})
                             .to_string(),
                     );
                     self.importing_media = None;
-                    self.engine.media(
+                    if let Err(error) = self.engine.media(
                         serde_json::json!({"op":"release_media_task","request_id":request})
                             .to_string(),
-                    )?;
+                    ) {
+                        log::warn!("media import task release failed: request={request} reason={error}");
+                    }
                     self.state = result?["state"].clone();
                     let selected = self.state["project"]["layers"]
                         .as_array()
@@ -88,16 +104,18 @@ impl Shell {
                 }
                 "failed" | "cancelled" => {
                     self.importing_media = None;
-                    self.engine.media(
+                    if let Err(error) = self.engine.media(
                         serde_json::json!({"op":"release_media_task","request_id":request})
                             .to_string(),
-                    )?;
+                    ) {
+                        log::warn!("media import task release failed: request={request} reason={error}");
+                    }
                     return Err(status["error"]
                         .as_str()
                         .unwrap_or("media import cancelled")
                         .into());
                 }
-                _ => {
+                "running" => {
                     self.panels.message = Some(format!(
                         "{} {:.0}%",
                         self.workspace.locale.t(T::Importing),
@@ -105,8 +123,65 @@ impl Shell {
                     ));
                     self.dirty = true;
                 }
+                state => return Err(format!("unexpected media import task state: request={request} state={state}")),
             }
         }
         Ok(())
+    }
+}
+
+pub(super) fn checked_task_state<'a>(status: &'a Value, request: &str) -> Result<&'a str, String> {
+    match status["state"].as_str() {
+        Some(state @ ("running" | "ready" | "succeeded" | "failed" | "cancelled")) => Ok(state),
+        state => Err(format!("invalid media task state: request={request} state={state:?}")),
+    }
+}
+
+#[cfg(test)]
+mod failure_tests {
+    use super::*;
+
+    #[test]
+    fn invalid_task_states_are_terminal_protocol_errors() {
+        for state in [Value::Null, serde_json::json!(3),serde_json::json!("unexpected")] {
+            let status = serde_json::json!({"state":state});
+            let error = checked_task_state(&status,"test-request").unwrap_err();
+            assert!(error.contains("test-request"));
+            assert!(error.contains("invalid media task state"));
+        }
+    }
+
+    #[test]
+    fn failed_status_query_clears_import_slot_instead_of_blocking_future_imports() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut shell = Shell::new(directory.path().join("project"),None,Some(Locale::En)).unwrap();
+        let before = shell.state["project"].clone();
+        shell.importing_media = Some(("missing-task".into(),Instant::now()-Duration::from_secs(1)));
+        assert!(shell.poll_import().is_err());
+        assert!(shell.importing_media.is_none());
+        assert!(shell.poll_import().is_ok());
+        assert_eq!(shell.state["project"],before);
+    }
+
+    #[test]
+    fn actual_failed_import_releases_its_slot_and_preserves_the_project() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut shell = Shell::new(directory.path().join("project"),None,Some(Locale::En)).unwrap();
+        let before = shell.state["project"].clone();
+        let selected = directory.path().join("broken.wav");
+        std::fs::write(&selected,b"invalid audio").unwrap();
+        shell.import_file(selected).unwrap();
+        let deadline = Instant::now()+Duration::from_secs(5);
+        loop {
+            if let Err(error) = shell.poll_import() {
+                assert!(!error.contains("media import cancelled"),"{error}");
+                break;
+            }
+            assert!(Instant::now()<deadline,"import did not report failure");
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(shell.importing_media.is_none());
+        assert_eq!(shell.state["project"],before);
+        assert!(shell.poll_import().is_ok());
     }
 }
