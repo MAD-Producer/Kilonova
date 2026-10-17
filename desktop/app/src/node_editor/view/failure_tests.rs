@@ -136,3 +136,35 @@ fn file_shortcut_rejection_already_retains_the_invalid_field_and_visible_error()
     assert_eq!(editor.notice.as_deref(),Some(error));
     assert_eq!(editor.field.as_ref().unwrap().text,"not a number");
 }
+
+
+#[test]
+fn inspector_rejection_is_logged_without_mutating_the_node_or_its_history() {
+    const CHILD: &str = "MOTION_INSPECTOR_LOG_TEST_CHILD";
+    if let Some(root)=std::env::var_os(CHILD) {
+        let _logger=crate::logging::init(std::path::PathBuf::from(root)).unwrap();
+        let mut graph=motion_graph::demo_graph();
+        graph.nodes.push(Node::new("extra_output",NodeOp::ColorOutput));
+        graph.nodes.push(Node::new("toggle",NodeOp::Bool {value:false}));
+        let mut editor=NodeEditor::new(graph);
+        editor.select(Some("toggle"),false);
+        let before=editor.snapshot();
+        let history=editor.undo.len();
+        let mut atlas=TextAtlas::from_system(13.).unwrap();
+        editor.draw_inspector(&mut PaintList::default(),&mut atlas,Rect::new(0.,0.,360.,600.),
+            &press([20.,140.],MouseButton::Left),Language::English);
+        assert_eq!(editor.document,before.document);
+        assert_eq!(editor.revision,before.revision);
+        assert_eq!(editor.undo.len(),history);
+        return;
+    }
+    let root=tempfile::tempdir().unwrap();
+    let output=std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact","node_editor::view::failure_tests::inspector_rejection_is_logged_without_mutating_the_node_or_its_history"])
+        .env(CHILD,root.path()).env_remove("MOTION_LOG").output().unwrap();
+    assert!(output.status.success(),"{}",String::from_utf8_lossy(&output.stderr));
+    let text=std::fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
+    assert!(text.contains("node inspector edit rejected: revision="));
+    assert!(text.contains("MultipleOutputs at node toggle"));
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("node inspector edit rejected:"));
+}

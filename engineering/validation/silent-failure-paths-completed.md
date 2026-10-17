@@ -406,3 +406,14 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - 新增真实文件系统回归验证：不可解析的路径给出原因、边界外同名前缀目录保留并告警、正常认领目录可删除、重复清理不误报；测试捕获日志只匹配独有夹具名称，避免并行测试互相干扰
 - 首次不限制并发编译全 core 测试触发本机 Windows 页面文件不足；随后使用 -j 2 完整重跑通过，没有改测试断言或系统页面文件配置
 - 关联辅助清单：11.8；证据：staging-cleanup-batch26-serial.log、core-batch26-full.log；保留首次资源不足日志 staging-cleanup-batch26.log
+
+## 27 · 节点属性检查器的编辑拒绝日志
+
+状态：已完成；当前桌面全套 345 passed，0 failed，0 ignored；check/build 通过。
+
+- 当前 inspector 实际有 10 个丢弃 set_operation / set_parameter_default 结果的调用，统一记录 revision 与完整 Diagnostic，不再默默吞掉拒绝
+- 只在用户操作确实被拒绝时 warn；成功绘制与 Present 路径不新增日志，不改变文档、历史、布局、控件或既有 notice 结构
+- 新回归在子进程中实际绘制并点击 Bool 检查框，使用可编辑但有两个 Color Output 的图触发 MultipleOutputs，验证节点/版本/历史均未变化，日志包含 node toggle 与真实原因，stdout 未受污染
+- 没有为符合报告而把这类尚不能编译的图禁止加载或禁止修复；保留既有图编辑策略
+- 本批只修改 node_editor/view，不扩大到未经本次授权的其他 panels 生产文件
+- 关联辅助清单：2.2；证据：node-inspector-batch27.log、desktop-inspector-full.log、inspector-check.log、inspector-build.log
