@@ -400,6 +400,34 @@ mod tests {
         assert!(read.call("render_preview", json!({"frame":0})).is_err());
     }
     #[test]
+    fn merge_dimensions_uses_registered_mcp_permissions_revisions_and_history() {
+        let folder = tempfile::tempdir().unwrap();
+        let engine = Engine::start(folder.path().join("merge"), motion_desktop_media::platform(), 8 << 30).unwrap();
+        let edit = ToolRouter { engine: &engine, access: Access::Edit };
+        let read = ToolRouter { engine: &engine, access: Access::ReadOnly };
+        let initial = engine.state().unwrap();
+        let before = edit.call("command_batch", json!({"expectedRevision":initial["revision"],"commands":[
+            {"op":"add_shape","id":1,"name":"Card","shape":"rectangle","size":[20,20],"position":[32,32,0]},
+            {"op":"separate_dimensions","object":1,"property":"position"}
+        ]})).unwrap();
+        let directory = read.call("command_list", json!({})).unwrap();
+        assert!(directory["commands"].as_array().unwrap().iter().any(|c| c["id"] == "merge_dimensions"));
+        assert_eq!(before["capabilities"]["separate_dimensions"]["merge"]["resampling"], false);
+        let request = json!({"expectedRevision":before["revision"],"command":{
+            "op":"merge_dimensions","object":1,"property":"position"
+        }});
+        assert!(read.call("command_run", request.clone()).is_err());
+        assert_eq!(engine.state().unwrap()["project"], before["project"]);
+        let after = edit.call("command_run", request.clone()).unwrap();
+        assert!(after["project"]["layers"][0]["transform"]["position"].get("axes").is_none());
+        assert!(edit.call("command_run", request).is_err());
+        assert_eq!(engine.state().unwrap()["project"], after["project"]);
+        engine.history(0).unwrap();
+        assert_eq!(engine.state().unwrap()["project"], before["project"]);
+        engine.history(1).unwrap();
+        assert_eq!(engine.state().unwrap()["project"], after["project"]);
+    }
+    #[test]
     fn initialization_and_live_notifications_keep_the_shared_engine_consistent() {
         let folder = tempfile::tempdir().unwrap();
         let engine = Engine::start(

@@ -113,6 +113,7 @@ registry! {
     Command::RemoveExpression { .. } => "remove_expression" [("target","crate::ExpressionTarget",true)];
     Command::Effect { .. } => "effect" [("object","u64",true), ("action","crate::EffectAction",true)];
     Command::SeparateDimensions { .. } => "separate_dimensions" [("object","u64",true), ("property","Property",true)];
+    Command::MergeDimensions { .. } => "merge_dimensions" [("object","u64",true), ("property","Property",true)];
     Command::SetComponent { .. } => "set_component" [("object","u64",true), ("property","Property",true), ("axis","crate::Axis",true), ("frame","u32",true), ("value","f32",true)];
     Command::MoveLayerClip { .. } => "move_layer_clip" [("object","u64",true), ("in_frame","i32",true)];
     Command::TrimLayerClip { .. } => "trim_layer_clip" [("object","u64",true), ("in_frame","i32",true), ("out_frame","i32",true)];
