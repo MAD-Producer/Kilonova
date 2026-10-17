@@ -928,3 +928,78 @@ T10 共 39 个编号均已给出处置，其中 27 项观测完成、1 项观测
 - 首次编译发现测试跨模块调用私有 to_json，改为重新加载同一公开主题 JSON；未扩大产品 API 或更改断言
 - 专项 1 passed；全套 motion-ui 79 passed、0 failed、0 ignored，含真实 GPU/framework/工作区集成；关联 6.1、6.2、6.5、6.6、6.8、6.9、7.6、7.7，仅补观测与真实路径验证，不声称解决 stale UV、CJK 覆盖策略、整形/bidi 或引用完整性 CI 缺口
 - 证据：target/silent-failure-validation/b54-ui-observation.log、b54-ui-full.log；panels、主题 token 和 UI 行为均未修改
+
+## 55 · 事务主错误与活跃时长
+
+- plugin editor 在关闭 gesture 前记录操作原始错误；关闭也失败时将两条原因关联到 object/instance/revision，panic 在回滚前记录原因，回滚失败另记；保留原有返回错误的优先级与 catch 边界
+- create_text 同样先保留字体导入/栅格化等主错误，再记录事务关闭次生失败；不增加自动关闭、重试或 worker 重启，不记录用户全文
+- history 快照新增运行时 gestureElapsedMs，未开启时为 null；begin/close、活跃事务阻止 undo/redo 的拒绝包含 revision/age，正常空 undo/redo 仅 Debug
+- 不将长事务本身认定为错误；允许用户长按，只有实际拒绝才 Warn；不改变 undo/redo 的可用条件、事务配对或工程持久化结构
+- 新增可控二次 close 回归，确认对外仍返回 Gesture，但默认日志同时保留原始字体错误；真实 panic 回归保留 operation/context。另新增活跃年龄/历史阻止/关闭后清零验证，以及真实缺失字体的桌面回归
+- core 单元 18 passed，含 2 项新增；联合完整验证 core 213、desktop 360、ui 80 passed，零失败、零忽略，包含真实缺失字体专项。证据 b55-core-full.log、b57-full.log
+- 关联 5.19、9.24–9.28，仅补观测；原有 panic 退出 worker、悬置 gesture 的自动恢复均未实现
+
+## 56 · 节点空操作、绑定降级与工程状态回退
+
+- 节点拖拽中已识别快捷键的推迟、group/ungroup/enter/leave/expose/delete/disconnect/collapse 的无操作原因与空历史记录 Debug；保持快捷键、保护节点、最大嵌套深度和 false 返回契约
+- 真实颜色弹窗缺失 binding 回落 0、Unsupported 节点无专用控件、文档相同但 options 不同的 history 跳过、仍有改动的 number 快照提前丢弃均提供固定站点的有界证据
+- 同一编辑器同一站点首次 Warn、累计第 60 次 Error 一次；计数是实例累计而非连续帧，替换编辑器后从零开始，普通成功帧不复位；固定源码站点不能随任意文档 id 无限增长，释放观测锁后才写日志
+- 悬空参数字段在原有 unwrap 之前记录具体 binding/id/epoch/revision；保留 panic 行为，由全局 hook 捕获栈，不冒称已修复字段生命周期
+- node task 显式取消在清 pending 前逐条 Info 记录 id/kind/epoch/revision/已知 source_path；非 worker Action、重复 Compile 合并、过期安装与零尺寸 resize 仅 Debug，避免正常替代/最小化变为 Error
+- 命中响应区分正常空数组与畸形 candidates/首项 id，坏响应 Warn；ticket 刷新失败记录旧 revision 与原始操作错误，缺失 frame 回落零 Warn；node_standalone.take 是移回当前编辑器，缺槽默认重建只记 Debug
+- 新增真实弹窗/检查器/悬空字段子进程与命中协议专项，均在 b57-full.log 的完整桌面 360 passed 中通过。关联 2.27–2.30、5.1/5.7–5.10/5.18/5.19/5.22/5.23、8.14–8.18、9.6/9.7/9.28/9.29、12.14
+- panels、原有返回值、布局、样式、历史/输入/编译策略和两处 MOTION_TRACE_UI eprintln 均未修改
+
+## 57 · 同帧指针事件覆盖与框架注册缺口
+
+- ui::accumulate 同帧 pressed/released 被新事件覆盖时记录旧/新按键及位置；保留最后一个事件的原有消费策略，不新增事件队列或事务取消行为
+- PanelHost 在布局引用未注册视图、视图返回错误 window/panel 的 hit region、绘制时找不到 view 的分支记录具体 panel/window/target，保留默认包级区域和空返回
+- 复用 §54 有界实例观测；指针覆盖按进程对应站点累计，PanelHost 按实例/键累计，首次 Warn、第 60 次 Error 一次，健康事件与健康注册路径不记录。不是连续失败帧计数，不宣称严格一秒
+- 新增真实 accumulate 和 PanelHost 公开 API 回归，正常 120 次事件安静、覆盖保持原有 Right 最终状态、120 次异常只两条事件、错域区域仍被过滤；b57-full.log 的 UI 完整 80 passed，零失败、零忽略
+- 关联 6.11/6.22/7.6/7.10，不把接入日志等同于完成焦点、Tab、模态或输入批次模型的功能整改
+
+## 58 · 161 个续审编号的独立台账
+
+- 新建 silent-failure-paths-followup.md，逐项列出 §53 的 161 个编号，原始报告不变；285 个编号均已有关联记录，不代表 285 个缺陷都已修复
+- 经 §59 授权与续审后，当前分类为新增观测 40、核实并补观测 13、已有覆盖 11、核实保留 54、部分覆盖 25、功能边界 13、验收边界 5；本表待补观测为零，不代表所有候选功能缺陷已修复
+- 初次台账有 41 项受 panels 修改限制待补；用户随后明确批准“允许台账中的 panels 观测与测试”，§59 依此接入观测并核实过时前提，没有扩大为 UI 功能或样式整改许可
+- 另保留每项部分覆盖和功能/验收边界，包括 stale UV、CJK/shaping/bidi、悬空字段 panic、隐藏手势、token 静态门、跨平台原生 GUI 和感知图像对照，不能将这些项算为已关闭
+- 修正原报告若干前提：Error::Expression.target 并非表达式体；animation_controls 宽度最小 1 且 graph 高固定 130、bounds 有 margin；Pose::new 拒绝零尺寸；PreviewDrag 经 host 调用真实 apply_batch(Position)，并非零模型编辑
+- timeline track 宽度已有 max(1)；Layer.masks/track_matte/curve 的缺失可能由 skip_serializing_if 正常产生，非 vector Content 也没有 vector 子字段，后续仅应观察格式错误，不能把合法缺省值变为每帧故障
+- 机械全集 832 个候选仍未全量建立处置台账，本表只覆盖辅助编号。证据 target/silent-failure-validation/b58-dispositions.json，专项/完整验证结果以 §54–57 为准
+
+## 59 · 经授权的面板静默降级与事务路由观测
+
+- 记录 expressions target/source、选中层 sampled/timeline、effect definition/parameter/curve track/channel、animation track/key/frame、timeline masks/vector/size/matte 与 paths Layer 的真实解析失败；保留原有空面板、Linear/None/空集合/100×100/禁用菜单等结果
+- 统一 panel 观测使用固定源码站点、进程累计次数，首次 Warn、第 60 次 Error 一次，上下文最多 4096 字符；计数不是连续帧或严格一秒，进程重启清零，健康条目不复位相邻坏条目的次数，避免混合列表每帧重报且永不升级
+- 缺失可选 masks/track_matte/curve、旧数据省略默认 ease、非 vector 内容、面板空闲且未选择图层不记故障；RGB/R/G/B/A 合法通道 1–5 均保留，不记录表达式或数值输入全文
+- 记录 anchor/size 回退、无效文本开始 scrub、audio marker 坏 frame/id 及 local_offset、非法 easing 拖拽与 effect curve 零/非有限尺寸；不改除法、坐标、钳制、排序或编辑算法
+- 记录 path begin 的具体失败点、scrub 推进后无命令、transform 开事务后投影失败；clip/path/curve 没有 held/release 却保留事务时限频报告；graph 六个早退仅在已有 begun 手势时记录原因，切 graph mode 与 workspace/show/close/tab 请求记录活跃类型
+- 保留所有 Begin/Edit/Commit/Cancel 及返回值；不补自动事务闭合、watchdog、重启、超时、字段生命周期或缺失能力。无 ffmpeg 的 Export 快捷键首次 Warn 说明能力边界，正常空 graph 删除仅 Debug
+- 核实两项报告前提已过时：auxiliary 已实现 Paragraph/Media/RenderQueue 的三个独立分支，groups/parameters 已实现 Repeater 参数；animation_controls 当前也没有报告所称的 anchor/size 解析，此站点实际在 properties
+- 新增 5 项真实子进程回归：健康与坏 easing 交错、真实 rows/matte_choices/track/curves render、clip 丢失 release、anchor/scrub、curve 零尺寸与实际点击拖拽。默认 Info 下检查 Warn/Error、120 次抑制、Error stderr、stdout 安静，以及既有返回值、动作和释放后闭合
+- 验证 cargo check -p motion-desktop、cargo test -p motion-desktop -- --include-ignored --test-threads=2、cargo build -p motion-desktop，全部通过；desktop 365 passed、0 failed、0 ignored，包含 in_flight_and_queue_depth_track_a_blocked_worker 回归。证据 b59-check-final.log、b59-desktop-full.log、b59-build.log
+- 初次 observation 专项 6 passed/1 failed：新增 curve 测试把点击放在 Rect 的排除边界，未开始拖拽；改用合法内部控制点修正新夹具，保留原有产品逻辑与断言，最终完整 365 项通过。未修改任何既有断言
+- panels 递归样式门与 clean-room provenance 检查通过，无新依赖、素材、主题 token 或 UI 错误结构
+- Windows 原生 tools/ci_desktop.py 完整通过，覆盖英文/中文、styled floating windows、live node rendering、workspace presentation 和共享 MCP；证据 b59-native.log、native-b59/*.json
+- 与 §52 原生设计截图逐像素比较，英文/中文各 22 张中均有 20 张完全一致；另外两张都是 Info 面板，差异仅为 Last present 实时毫秒数字，已检查对应图像，不代表全量人工视觉规范验收；证据 b59-screenshot-comparison.json
+- 实际新二进制在隔离 LOCALAPPDATA 下经 directories()/logs 产生 motion-studio.log；MOTION_LOG 未设置时有 129 条普通命令 start、0 条 Present start，健康场景没有新增 panel 降级告警；Debug 下也无 Present start/dispatch，只有达到阈值才允许 done
+- 进程级复验日志轮转、坏 MCP 命令及 CLI fatal 的 Error 同时落文件/stderr、命令目录/MCP stdout 纯 JSON、正常 MCP UI EOF 与 shutdown checkpoint 失败原因，全部通过；证据 b59-runtime.log、runtime-b59/runtime-summary.json 及对应 stdout/stderr/log 文件
+- 提交按 core 事务、UI 框架、节点/工程、panels 与完成文档拆分，使用中文提交信息；AGENTS.md 规则正文保持英文。未改两份用户原始审计报告、无关未跟踪文件、respond best-effort 发送或两处 MOTION_TRACE_UI 输出
+
+DESIGN.md §0.7 逐项状态均为 retained with reason：本批只接入观测，未授权更改既有视觉/命中策略，不把原生冒烟通过视为全量视觉整改完成。
+
+| 基线位置 | 状态与原因 |
+| --- | --- |
+| path_controls 六处纵向步进 | retained with reason：保留行高与布局 |
+| path_controls 两列分割 | retained with reason：保留分栏与窄屏行为 |
+| path_controls 按钮高度 | retained with reason：保留控件尺寸与命中区 |
+| path_controls 自定义数值背景 | retained with reason：保留绘制和编辑语义 |
+| path_controls 全宽布尔按钮 | retained with reason：不替换控件 |
+| effect_controls 行高与步进 | retained with reason：保留属性树高度 |
+| effect_controls fx/— 布尔表示 | retained with reason：不改显示文案与事件 |
+| effect_controls 全宽枚举 | retained with reason：不改控件类型 |
+| effect_controls hover alpha | retained with reason：不改颜色与状态解析 |
+| effect_controls indent/depth | retained with reason：不做层级视觉重构 |
+| timeline 11 列坐标 | retained with reason：保留兼容坐标 |
+| timeline snap guide 颜色 | retained with reason：按基线保留当前反馈 |
