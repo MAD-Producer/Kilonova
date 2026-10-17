@@ -52,12 +52,13 @@ fn micros(pts: i64, base: Rational) -> Result<u64> {
     u64::try_from(n / i128::from(base.denominator())).map_err(|_| "video timestamp overflow".into())
 }
 fn rotation(stream: &format::stream::Stream<'_>) -> Result<u32> {
-    let mut degrees = stream
+    let metadata_degrees = stream
         .metadata()
         .get("rotate")
-        .and_then(|s| s.parse::<f64>().ok())
-        .unwrap_or(0.0);
-    if let Some(data) = stream
+        .map(|text| text.parse::<f64>()
+            .map_err(|error| format!("invalid video rotate metadata {text:?}: {error}")))
+        .transpose();
+    let degrees = if let Some(data) = stream
         .side_data()
         .find(|d| d.kind() == codec::packet::side_data::Type::DisplayMatrix)
     {
@@ -74,13 +75,19 @@ fn rotation(stream: &format::stream::Stream<'_>) -> Result<u32> {
             return Err("mirrored video display matrix unsupported".into());
         }
         // FFmpeg's angle is counterclockwise; the renderer uses clockwise.
-        degrees = -unsafe { av::ffi::av_display_rotation_get(matrix.as_ptr()) };
-    }
-    let quarter = (degrees / 90.0).round();
-    if !degrees.is_finite() || (degrees - quarter * 90.0).abs() > 0.01 {
+        -unsafe { av::ffi::av_display_rotation_get(matrix.as_ptr()) }
+    } else {
+        metadata_degrees?.unwrap_or(0.0)
+    };
+    if !degrees.is_finite() {
         return Err("unsupported video rotation".into());
     }
-    Ok(((quarter as i64).rem_euclid(4) * 90) as u32)
+    let degrees = degrees.rem_euclid(360.0);
+    let quarter = (degrees / 90.0).round();
+    if (degrees - quarter * 90.0).abs() > 0.01 {
+        return Err("unsupported video rotation".into());
+    }
+    Ok(((quarter as u32) % 4) * 90)
 }
 fn audio_tracks(
     input: &format::context::Input,
@@ -103,16 +110,23 @@ fn audio_tracks(
         if supported && chosen.is_none() && selected.is_none_or(|n| n == index) {
             chosen = Some(index);
         }
-        tracks.push(serde_json::json!({"track":index,"codec":format!("{:?}",stream.parameters().id()),"sample_rate":rate,"channels":channels,"supported":supported}));
+        let decoder_error = decoder.as_ref().err().map(ToString::to_string);
+        tracks.push(serde_json::json!({"track":index,"codec":format!("{:?}",stream.parameters().id()),"sample_rate":rate,"channels":channels,"supported":supported,"error":decoder_error}));
     }
     if selected == Some(u32::MAX) {
         chosen = None;
     } else if (!tracks.is_empty() && chosen.is_none())
         || selected.is_some_and(|n| Some(n) != chosen)
     {
-        return Err(
-            "selected audio track unavailable; use with_audio:false to discard audio".into(),
-        );
+        let details: Vec<_> = tracks.iter().filter_map(|track| {
+            track["error"].as_str().map(|error| format!("track {}: {error}", track["track"]))
+        }).collect();
+        let detail = if details.is_empty() { String::new() } else {
+            format!(" ({})", details.join("; "))
+        };
+        return Err(format!(
+            "selected audio track unavailable; use with_audio:false to discard audio{detail}"
+        ));
     }
     Ok((chosen, serde_json::json!(tracks)))
 }
@@ -376,10 +390,10 @@ impl Decoder {
                 continue;
             }
             let time = micros(pts, self.base)?;
-            self.last_decoded = Some(time as i64);
             if time > wanted {
                 return Err("decoded frame does not match presentation index".into());
             }
+            self.last_decoded = Some(i64::try_from(time).map_err(|_| "decoded timestamp overflow")?);
             if time == wanted {
                 check()?;
                 return Ok(frame);
@@ -551,5 +565,57 @@ mod timestamp_arithmetic_tests {
         assert!(micros(-1, Rational(1, 1)).is_err());
         assert!(micros(1, Rational(0, 1)).is_err());
         assert!(micros(1, Rational(1, 0)).is_err());
+    }
+}
+
+#[cfg(test)]
+mod metadata_failure_tests {
+    use super::*;
+    fn fixture(name: &str) -> std::path::PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../motion-media/tests/fixtures/video").join(name)
+    }
+    fn set_rotation(input: &mut format::context::Input, index: usize, text: &str) {
+        let mut metadata = av::Dictionary::new();
+        metadata.set("rotate", text);
+        input.stream_mut(index).unwrap().set_metadata(metadata);
+    }
+
+    #[test]
+    fn malformed_rotation_is_rejected_without_overriding_a_valid_display_matrix() {
+        let mut plain = input(&fixture("silent-24fps.mp4")).unwrap();
+        let index = video_stream(&plain, None).unwrap().index();
+        assert_eq!(rotation(&video_stream(&plain, None).unwrap()).unwrap(), 0);
+        set_rotation(&mut plain, index, "broken");
+        let error = rotation(&video_stream(&plain, None).unwrap()).unwrap_err();
+        assert!(error.contains("invalid video rotate metadata") && error.contains("broken"), "{error}");
+        for text in ["NaN", "inf", "45", ""] {
+            set_rotation(&mut plain, index, text);
+            assert!(rotation(&video_stream(&plain, None).unwrap()).is_err(), "{text}");
+        }
+        for (text, expected) in [("-90", 270), ("450", 90), ("360", 0), ("270", 270)] {
+            set_rotation(&mut plain, index, text);
+            assert_eq!(rotation(&video_stream(&plain, None).unwrap()).unwrap(), expected, "{text}");
+        }
+
+        let mut matrix = input(&fixture("rotated-90.mp4")).unwrap();
+        let index = video_stream(&matrix, None).unwrap().index();
+        set_rotation(&mut matrix, index, "broken");
+        assert_eq!(rotation(&video_stream(&matrix, None).unwrap()).unwrap(), 90);
+    }
+
+    #[test]
+    fn unsupported_audio_retains_decoder_cause_in_metadata_and_selection_error() {
+        let mut media = input(&fixture("sound-24fps.mp4")).unwrap();
+        let index = media.streams().best(media::Type::Audio).unwrap().index();
+        let mut parameters = media.stream(index).unwrap().parameters().clone();
+        parameters.set_id(codec::Id::None);
+        media.stream_mut(index).unwrap().set_parameters(parameters);
+        let (_, tracks) = audio_tracks(&media, Some(u32::MAX)).unwrap();
+        let error = tracks[0]["error"].as_str().expect("decoder failure cause");
+        assert!(!error.is_empty());
+        assert_eq!(tracks[0]["supported"], false);
+        let selection = audio_tracks(&media, None).unwrap_err();
+        assert!(selection.contains(error) && selection.contains(&format!("track {index}")), "{selection}");
     }
 }

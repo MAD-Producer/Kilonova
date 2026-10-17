@@ -461,7 +461,7 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - cargo tree 未发现会在 release 静态屏蔽 Info 的 log max_level/release_max_level feature；未据此宣称已运行 release 二进制
 - 证据：desktop-debug-filter-full.log、debug-filter-check.log、debug-filter-build.log、debug-filter-runtime.log、runtime/runtime-summary.json、log-features.log
 
-当前核实/修复分批记录到 34；原始两份清单保留原样，未覆盖条目仍待审，不将 832 个候选当作已确认或已关闭缺陷。
+当前核实/修复分批记录到 35；原始两份清单保留原样，未覆盖条目仍待审，不将 832 个候选当作已确认或已关闭缺陷。
 
 ## 31 · 控制台反压时优先保全错误文件
 
@@ -511,3 +511,19 @@ DESIGN §0.7 基线逐项处理范围（本次不是视觉整改）：
 - 带 ffmpeg 验收实际执行 MP4 编码、AAC 回读、取消保留既有输出与临时文件清理，以及嵌套视频/效果/表达式/PCM 的冻结导出，不再仅用默认功能编译代替可选功能验证
 - 时间戳 API 错误传播已由代码路径检查确认；本机真实文件系统支持 modified()，未宣称复现了“不支持修改时间查询”的文件系统
 - 关联全集 B8：movie.rs 原 105、550、579、697；证据：movie-integrity-full.log、ffmpeg-availability-check.log、desktop-media-ffmpeg-final.log
+
+
+## 35 · 视频旋转与不可用音轨的原始原因
+
+状态：已完成；motion-desktop-media 的 ffmpeg 全套 16 passed、0 failed、0 ignored，包含 4 项本轮新增回归；本机离线编译使用仓库已有 FFmpeg/libclang 开发工具
+
+- 无显示矩阵时，rotate 标签解析错误保留原值和原因，不再默认为 0；缺省标签仍表示 0 度，合法显示矩阵仍优先，不因冗余坏标签拒绝可正确显示的视频
+- 在有限性验证后先把角度归一化到一圈，再转为四分之一圈编号，避免有限但过大角度先收窄到整数时饱和
+- 为每条音轨保留 error 原因字段；无法选择音轨时的错误包含轨道编号与解码器原因，显式 with_audio:false 仍可放弃音频
+- 保留 rate/channels=0 作为原有不可用能力标记，supported=false 与 error 同时给出，不把它当作实测音轨格式，也不改变任务状态结构
+- 将解码时间戳的索引一致性检查提前到保存 last_decoded 之前，并使用 checked conversion；合法模型本来已限制一小时以内，本节不夸大为合法视频必然发生的整数回绕
+- 新增真实 FFmpeg 流回归：坏 rotate/NaN/inf/非直角/空值拒绝，负角与整圈正确归一化，rotated-90 夹具的有效矩阵覆盖坏标签；真实音频流换成不可用解码器，验证 metadata 和选择错误都保留原因
+- 核实 B8 av.rs 原 398：Decoder::open 验证首个 PTS 等于 video_start_us、索引严格递增；frame 拒绝 target 小于 video_start_us，partition_point 的下溢回退在合法索引上不可达，不机械改动
+- 核实 B8 shader.rs 原 148：饱和乘积立即与 65536 比较，溢出必拒绝，保留保守预算检查
+- 保留取消锁中毒恢复的停止语义；check 与最终发布仍拒绝中毒，原始 panic 由既有 hook 记录，不把恢复停止标志视为成功恢复导出
+- 关联全集 B8：av.rs 原 58、83、100、379、398；证据：desktop-media-ffmpeg-final.log、ffmpeg-availability-check.log
