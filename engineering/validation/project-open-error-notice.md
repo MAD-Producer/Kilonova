@@ -26,7 +26,12 @@
 - 首轮编译因新测试从错误的 motion_ui 根模块导入 Event/Modifiers 失败，已改为 input 模块；记录 project-open-error-tests.log。
 - 第二轮样式校验拒绝新增的 560px token（既有限制为 512），14 项 Shell 初始化因此失败；将 token 与 fallback 一起改为 480，不放宽校验或断言。失败记录 project-open-error-tests-final.log。
 - project-open-error-desktop-regression.log：完整桌面回归 371 通过、1 项需要实际音频设备而忽略、0 失败；123.77s。project-open-error-style-tests.log：6 项样式回归通过。
-- 带 FFmpeg 构建、原生窗口截图待记录。外观截图使用独立的缺失路径真实 IO 原因；该截图 fixture 不冒充完整 worker 交互验证，worker 和 UI 交互另由上述真实用例覆盖。
+- CI Python 工具共 50 项通过、1 项需要外部 Rust 效果验证器而跳过。初跑 34 项中的两个模块因本地 Python 缺 PyYAML 而未加载；使用已有固定版本 python-ci-deps 后，仅重跑这两个模块，19 项通过。分别保留 project-open-error-ci-tools-tests.log 和 project-open-error-ci-tools-dependencies-fixed.log，没有放宽断言。
+- 代码提交 c52d894 的带 FFmpeg Release 构建完成（仓库原有优化 + line tables、thin LTO），8 分 19 秒，22 项既有编译警告；记录 project-open-error-release-build.log。为复用同绝对路径下的依赖缓存，将已提交的分支切换到 curve-playback-pacing worktree 构建；project-open-error-notice worktree 保留相同代码提交的干净 detached 快照，没有移动或覆盖其他工作。
+- 正式打包工具生成含 7 个 FFmpeg DLL、许可与来源清单的 Windows 包，并在独立 project-open-error-runnable 目录解压。tools/ci_desktop.py 针对该解压程序完成中英文原生窗口、全部面板与五种布局、样式覆盖、节点 GPU 与共享 MCP 验收，记录 project-open-error-native.log；新增截图已纳入必需清单。
+- 目视核对 project-open-error-native/ 下默认 1600×1000 中英文及最小 900×600 中英文提示，标题、原始原因、换行和确定按钮没有裁切；英文最小窗口同时使用 row.height=32 等样式覆盖。测试系统实际 DPI 为 96（100%），更高 DPI 未作本机实测。原有键盘与焦点回归保留，新增真实 Shell 用例另验证模态优先级、Enter/Escape 确认及关闭后重选。
+- 最小尺寸的普通 --smoke 在既有 workspace_presentation_probe 的“未呈现独立 node overlay”检查处失败；用父提交 921a96d 的解压程序相同参数复现。没有改检查或算作通过；记录 project-open-error-minimum-native.log 与 baseline-minimum.stderr.log。随后使用既有 --node-smoke 绑定图层节点场景完成两语言的 900×600 原生截图与验收，记录 project-open-error-minimum-native-followup.log；此结果不代表普通最小窗口节点布局已修复。
+- 外观截图使用独立缺失路径产生的真实 IO 原因；该截图 fixture 不冒充完整 worker 交互验证，worker 和 UI 交互另由上述真实用例覆盖。之后的文档提交不修改 Rust/资源，交付程序对应代码提交 c52d894。
 
 ## 样式来源与 DESIGN.md 基线
 
