@@ -420,3 +420,23 @@ fn camera_id_exhaustion_and_layer_limit_are_atomic() {
         .contains("layer limit"));
     assert_eq!(e.project(), &before);
 }
+
+#[test]
+fn extreme_camera_clip_offset_returns_error_without_mutation() {
+    let mut e = empty();
+    let a = create(&mut e);
+    let mut p = e.snapshot();
+    p.layers.iter_mut().find(|layer| layer.id == a).unwrap().timeline =
+        Some(motion_core::LayerTimeline {
+            in_frame: 0,
+            out_frame: 121,
+            offset_frame: 120 - i32::MAX,
+        });
+    let mut e = Engine::new(p).unwrap();
+    let before = e.snapshot();
+    assert!(e.apply(Command::CameraMode {
+        object: a,
+        mode: CameraMode::Orbit,
+    }).unwrap_err().to_string().contains("overflow"));
+    assert_eq!(e.project(), &before);
+}
