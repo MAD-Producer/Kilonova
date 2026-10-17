@@ -51,3 +51,14 @@ On the stacked base, `cargo test --locked --offline -j1 -p motion-core -p motion
 `cargo test --locked --offline -j1 -p motion-desktop merge_dimensions_uses_registered_mcp_permissions_revisions_and_history -- --test-threads=1` also passed: 1 MCP test, 357 filtered. Log: `E:/Dev/aem/artifacts/workspace-stall/issue262-stack-mcp.log`. The final stacked verification therefore passed 11 targeted tests, with no failed or ignored tests. Vendor and existing desktop warnings remain; this is not a warning-free build.
 
 `git diff --check` and `python tools/validate_provenance.py` also passed. No issue is automatically closed by this partial implementation. Local commits and the PR draft are prepared; no push, PR creation, merge or issue state change was performed during this preparation.
+
+## CI follow-up after opening PR #308
+
+The first Linux Rust/GPU job failed in the existing dependency-boundary test:
+offline all-target Cargo metadata needed an uncached `android-activity` package.
+The checks job now prefetches locked source dependencies with `cargo fetch
+--locked`; it still excludes Android builds and retains every boundary assertion.
+The CI Python suite passed 45 tests with 1 existing Rust-validator test skipped
+against the same workflow change on the sibling stability branch. The previous
+failed CI does not count as full-workspace validation; the updated head requires
+new CI results. The Rust implementation and its 11 targeted results are unchanged.
