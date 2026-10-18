@@ -310,6 +310,9 @@ def main() -> None:
         for check in ("wireUniqueBodyChangedPixels", "wireChoiceDeferredAndCancelled", "wireChoiceRestoredPixels", "wireRewireCancelPreservedEdges", "wireInvalidBodyPreservedEdges", "wireSourceReopened", "wireNearestSocketChangedPixels", "wireUndoRestoredPixels"):
             if preview.get(check) is not True:
                 raise RuntimeError(f"{locale} node wire targeting did not verify {check}")
+        for check in ("diagnosticDrawerOpened", "diagnosticLocatedWithoutMutation", "diagnosticDrawerKeptValidPixels", "diagnosticDrawerClosed"):
+            if preview.get(check) is not True:
+                raise RuntimeError(f"{locale} node diagnostic drawer did not verify {check}")
     verify_mcp(binary, output)
     verify_property_followups(binary, output)
     verify_style_overrides(binary, output)

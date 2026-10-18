@@ -1,4 +1,5 @@
 use crate::*;
+mod node_diagnostics;
 mod node_wires;
 mod retained;
 
@@ -1012,6 +1013,11 @@ impl Shell {
                 )
                 .map_err(|e| e.to_string())?;
             self.smoke_node_report["inputDefaultsVectorNode"] = vector.into();
+            // The native fixture must not depend on a previously saved canvas view.
+            self.panels.node_editor.view = node_editor::CanvasView {
+                pan: [8., 16.],
+                zoom: 0.5,
+            };
             self.schedule_node_compile()?;
             self.smoke_stage = 24;
         } else if self.smoke_stage == 24
@@ -1219,6 +1225,7 @@ impl Shell {
             std::fs::copy(screenshot, &path).map_err(|error| error.to_string())?;
             self.smoke_node_report["requiredInputEditorScreenshot"] =
                 serde_json::to_value(path).map_err(|error| error.to_string())?;
+            self.node_diagnostic_smoke()?;
             self.smoke_node_report["projectUntouched"] = Value::Bool(true);
             self.redock_panel(dock::Panel::Nodes.dock())?;
             let home_path = directory.join("home-after-node-preview.png");

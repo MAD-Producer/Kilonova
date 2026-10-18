@@ -169,6 +169,10 @@ impl NodeEditor {
         control_rows(node, &self.document, Language::English).into_iter()
             .find(|(_, control)| matches!(control, Control::InputDefault { port: key, .. } if key == port))
             .map(|(row, _)| screen_rect(input_value_rect(row, styles), &card, self.view.zoom))
+            .filter(|rect| self.last_canvas.contains([
+                (rect.min[0] + rect.max[0]) * 0.5,
+                (rect.min[1] + rect.max[1]) * 0.5,
+            ]))
     }
     pub(super) fn paint_input_default(
         &self,

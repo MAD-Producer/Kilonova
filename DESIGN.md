@@ -382,6 +382,15 @@ These are **only** behaviors evidenced in the supplied audit, **not** an exhaust
 
 ---
 
+### 10.2 Node diagnostic details
+
+- Keep the current validation diagnostic available from a Details toggle in the footer. The bottom drawer shows the original cause in full, with explicit code, node and port fields; wrap paths and IDs and scroll overflow without changing graph content
+- Locate node resolves the qualified node ID through nested groups, selects it, and centers it above the drawer. Navigation preserves source, collapsed state and graph history. Disable location for missing/stale targets, active edits and menus
+- On the diagnostic node, mark each input lacking both a connection and a stored default with a hollow ring using the existing error token. Keep valid defaults and other draft nodes unmarked
+- The drawer owns its pointer region and focused scrolling keys; Esc closes it and Enter locates the node. Never route destructive canvas keys or a wire drop through the drawer. Successful validation removes the current diagnostic; this drawer does not imply multi-error collection
+
+---
+
 ## 11. Existing project model and Project panel
 
 - Project model: `crates/motion-model`, Rust + serde; project format `.msproj`. **Do not introduce TypeScript `Project`, `Keyframe<T>`, `AnimatedProperty<T>`, or `EditorState` types** in this design document.

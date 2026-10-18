@@ -247,6 +247,14 @@ struct AddMenu {
     scroll: f32,
 }
 
+#[derive(Default)]
+struct DiagnosticDrawer {
+    open: bool,
+    focused: bool,
+    scroll: motion_ui::input::Scroll,
+    key: u64,
+}
+
 pub struct NodeEditor {
     observations: observability::Observations,
     pub layer_target: Option<crate::node_layer::Target>,
@@ -283,10 +291,12 @@ pub struct NodeEditor {
     search: String,
     search_focus: bool,
     diagnostic: Option<Diagnostic>,
+    diagnostic_drawer: DiagnosticDrawer,
     notice: Option<String>,
     compiled: Option<(u64, CompileReport)>,
     pending_compile: Option<u64>,
     last_canvas: Rect,
+    last_area: Rect,
     first_frame: bool,
     context_menu: Option<ContextMenu>,
     add_menu: Option<AddMenu>,
@@ -372,10 +382,12 @@ impl NodeEditor {
             search: String::new(),
             search_focus: false,
             diagnostic,
+            diagnostic_drawer: Default::default(),
             notice: None,
             compiled: None,
             pending_compile: None,
             last_canvas: Rect::default(),
+            last_area: Rect::default(),
             first_frame: true,
             context_menu: None,
             add_menu: None,

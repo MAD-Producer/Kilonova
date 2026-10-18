@@ -180,7 +180,7 @@ impl NodeEditor {
             let invalid = self
                 .diagnostic
                 .as_ref()
-                .is_some_and(|d| d.node.as_deref() == Some(&card.id));
+                .is_some_and(|d| d.node.as_deref() == Some(self.qualified_node(&card.id).as_str()));
             paint::rect(
                 &mut canvas,
                 Rect::new(
@@ -208,7 +208,7 @@ impl NodeEditor {
                 if selected {
                     colors.ACCENT
                 } else if invalid {
-                    Color::rgb(218, 118, 91)
+                    styles.color("error")
                 } else {
                     colors.BORDER
                 },
@@ -330,7 +330,28 @@ impl NodeEditor {
             controls::transform_content(&mut content, card.rect.min, self.view.zoom);
             content.clip_to(card.rect);
             canvas.append(content);
+            let missing = self.diagnostic_missing_inputs(node);
             for socket in &card.sockets {
+                if !socket.output && missing.contains(&socket.port.port) {
+                    let radius =
+                        wires::socket_radius(self.view.zoom) + styles.metric("border", 1.) * 2.;
+                    let points = (0..=24)
+                        .map(|i| {
+                            let angle = std::f32::consts::TAU * i as f32 / 24.;
+                            [
+                                socket.point[0] + radius * angle.cos(),
+                                socket.point[1] + radius * angle.sin(),
+                            ]
+                        })
+                        .collect();
+                    paint::line_with_width(
+                        &mut canvas,
+                        points,
+                        styles.color("error"),
+                        styles.metric("border", 1.),
+                    );
+                    continue;
+                }
                 if !socket.connectable {
                     continue;
                 }

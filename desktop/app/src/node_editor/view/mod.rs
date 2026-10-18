@@ -8,6 +8,9 @@ mod control_popup;
 mod control_tests;
 mod controls;
 #[cfg(test)]
+mod diagnostic_tests;
+mod diagnostics;
+#[cfg(test)]
 mod failure_tests;
 #[cfg(test)]
 mod group_tests;
@@ -315,6 +318,7 @@ impl NodeEditor {
         let styles = list.styles();
         let colors = styles.colors();
 
+        self.last_area = area;
         let revision = self.revision;
         let semantic = self.semantic_revision;
         let preview_revision = self.preview_revision;
@@ -371,7 +375,8 @@ impl NodeEditor {
             self.focus = false;
         }
         let had_menu = self.popup_open();
-        if !had_menu {
+        let diagnostic_input = self.diagnostics_input(area, input, &styles);
+        if !had_menu && !diagnostic_input {
             self.keyboard(input, &mut response.actions);
         }
         layout = self.layout(area);
@@ -402,8 +407,11 @@ impl NodeEditor {
             local.key_repeats.push(false);
             local
         });
-        let controls_consumed = if self.add_menu.is_none() && self.context_menu.is_none()
-            && (self.inline.busy() || !self.minimap_captures(layout.canvas, input, &styles)) {
+        let controls_consumed = if !diagnostic_input
+            && self.add_menu.is_none()
+            && self.context_menu.is_none()
+            && (self.inline.busy() || !self.minimap_captures(layout.canvas, input, &styles))
+        {
             self.inline_input(
                 &cards,
                 layout.canvas,
@@ -421,7 +429,7 @@ impl NodeEditor {
             }
         }
         let neutral = Input::default();
-        let body_input = if had_menu || self.popup_open() || controls_consumed {
+        let body_input = if had_menu || self.popup_open() || controls_consumed || diagnostic_input {
             &neutral
         } else {
             input
@@ -514,12 +522,19 @@ impl NodeEditor {
             Rect::new(
                 layout.footer.min[0] + 9.,
                 layout.footer.min[1],
-                (layout.footer.width() - 75.).max(0.),
+                (layout.footer.width()
+                    - 75.
+                    - if self.diagnostic.is_some() {
+                        self.diagnostic_toggle(layout.footer, &styles).width()
+                    } else {
+                        0.
+                    })
+                .max(0.),
                 27.,
             ),
             &status,
             if self.diagnostic.is_some() {
-                Color::rgb(235, 167, 102)
+                styles.color("error")
             } else {
                 colors.TEXT_MUTED
             },
@@ -535,6 +550,13 @@ impl NodeEditor {
         );
         footer.clip_to(layout.footer);
         list.append(footer);
+        self.paint_diagnostics(
+            list,
+            atlas,
+            area,
+            if had_menu { &neutral } else { input },
+            language,
+        );
         self.paint_add_menu(
             list,
             atlas,

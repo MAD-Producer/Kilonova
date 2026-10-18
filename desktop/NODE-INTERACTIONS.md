@@ -192,3 +192,9 @@ Ctrl+T 按现有 UV、图像采样及端口语义建立贴图链；用户参考�
 代码入口：`desktop/app/src/shortcuts.rs`、`desktop/app/src/node_editor.rs`、`desktop/app/src/node_editor/editing.rs`、`desktop/app/src/node_editor/view/interaction.rs`、`desktop/app/src/node_editor/view/add_menu.rs`、`desktop/app/src/node_editor/view/canvas.rs`、`desktop/app/src/node_editor/tests.rs`、`crates/motion-graph/src/ports.rs`。
 
 参考：[Blender Node Wrangler](https://docs.blender.org/manual/en/latest/addons/node_wrangler.html)。其中 Shift+= 是对齐节点，按本项目需求扩展为分层自动排版；临时预览的“再次点击恢复”和 Alt+右键划线采用用户指定的 Motion Studio 语义。
+
+## Current diagnostic details
+
+The footer Details button opens the current error drawer. It shows the error code, qualified node ID, port and complete original cause, with wrapping and wheel or keyboard scrolling. Enter / Locate node navigates through nested groups and centers the node above the drawer; Esc closes the drawer. Location preserves source, collapsed state and undo history.
+
+Missing inputs on that node use hollow error rings; connected inputs and saved defaults remain valid. Focused drawer keys do not delete canvas nodes, menus and active edits keep priority, and releasing a drag over the drawer cancels it instead of connecting through the overlay. The validator still returns one diagnostic; multi-error collection remains pending.
