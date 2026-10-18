@@ -128,12 +128,24 @@ pub fn composition_view(layout: &Node, size: [f32; 2]) -> Rect {
         .unwrap_or_default()
 }
 fn viewer(area: Rect) -> Rect {
-    Rect::new(
-        area.min[0] + 8.0,
-        area.min[1] + 8.0,
-        (area.width() - 16.0).max(1.0),
-        (area.height() - 42.0).max(1.0),
-    )
+    // Compatibility geometry for existing callers/tests using the default theme.
+    Rect::new(area.min[0]+8., area.min[1]+8., (area.width()-16.).max(1.), (area.height()-42.).max(1.))
+}
+fn styled_viewer(area: Rect, styles: &motion_ui::style::StyleSheet) -> Rect {
+    let padding = styles.metric("padding.panel", 8.);
+    let bottom = styles.metric("viewer.canvas.bottom", 6.);
+    let controls = styles.metric("viewer.controls.height", 28.);
+    Rect::new(area.min[0]+padding, area.min[1]+padding,
+        (area.width()-padding*2.).max(1.), (area.height()-padding-bottom-controls).max(1.))
+}
+pub fn composition_view_styled(layout: &Node, size: [f32; 2], styles: &motion_ui::style::StyleSheet) -> Rect {
+    frames(layout, size).into_iter().find(|f| f.panel == Panel::Composition)
+        .map(|f| styled_viewer(f.content, styles)).unwrap_or_default()
+}
+pub fn floating_view_styled(panel: Panel, size: [f32; 2], styles: &motion_ui::style::StyleSheet) -> Option<Rect> {
+    let top = styles.metric("viewer.floating.top",30.);
+    let bottom = styles.metric("viewer.floating.bottom",22.);
+    (panel == Panel::Composition).then(|| styled_viewer(Rect::new(0.,top,size[0],(size[1]-top-bottom).max(1.)),styles))
 }
 /// Evidence before visibility/routing changes; no gesture is cancelled here.
 pub(crate) fn observe_interaction_boundary(panels: &Panels, operation: &str) {
@@ -183,6 +195,13 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     let path = panels.path_controls.cancel();
     let transform = panels.transform_controls.cancel();
     panels.composition.orbit = None;
+    if let Some((_, before)) = panels.composition.pan.take() {
+        panels.composition.navigation = before;
+    }
+    panels.composition.zoom.cancel();
+    if let Some(before) = panels.composition.zoom_before.take() {
+        panels.composition.navigation = before;
+    }
     let mut actions = if moving
         || trimming
         || numeric
@@ -816,6 +835,7 @@ pub fn chrome(
 pub fn panel(id: dock::DockId) -> Option<Panel> {
     Panel::from_dock(id)
 }
+#[cfg(test)]
 pub fn floating_view(panel: Panel, size: [f32; 2]) -> Option<Rect> {
     if panel == Panel::Composition {
         Some(viewer(Rect::new(

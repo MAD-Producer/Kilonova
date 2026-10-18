@@ -292,11 +292,12 @@ impl Shell {
             if !screen.ends_with("graph") && !screen.ends_with("menu") && screen != "effect-library"
             {
                 ui.composition = None;
+                ui.composition_image = None;
                 ui.node_preview = None;
             } else {
-                let view = panels::composition_view(
-                    &workspace::Workspace::design_layout(graph_preset),
-                    size,
+                let view = panels::composition_view_styled(
+                    &workspace::Workspace::design_layout(graph_preset), size,
+                    &self.panels.styles.clone().unwrap_or_else(motion_ui::style::default_stylesheet_arc),
                 );
                 ui.composition = Some([
                     view.min[0] * self.scale,
@@ -304,13 +305,60 @@ impl Shell {
                     view.width() * self.scale,
                     view.height() * self.scale,
                 ]);
+                ui.composition_image = self.viewer_image(view, self.scale);
                 ui.node_preview = None;
             }
             let path = report.with_extension(format!("{screen}.png"));
             self.engine.capture_ui(ui, path.clone())?;
             output.insert(screen.into(), serde_json::json!(path));
         }
+        let navigation_screens = self.capture_viewer_navigation(size)?;
+        output.extend(navigation_screens);
         Ok(Value::Object(output))
+    }
+
+    fn capture_viewer_navigation(&mut self, size: [f32; 2]) -> Result<serde_json::Map<String, Value>, String> {
+        let saved = std::mem::take(&mut self.panels.composition);
+        let before = self.engine.state()?;
+        let captured = (|| {
+            let mut screens = serde_json::Map::new();
+            let view = panels::composition_view_styled(&self.workspace.root, size,
+                &self.panels.styles.clone().unwrap_or_else(motion_ui::style::default_stylesheet_arc));
+            let canvas = [self.state["project"]["width"].as_f64().ok_or("viewer width missing")?,
+                self.state["project"]["height"].as_f64().ok_or("viewer height missing")?];
+            let anchor = [(view.min[0]+view.max[0])*0.5,(view.min[1]+view.max[1])*0.5];
+            // Initialize the same project identity as real input, before changing navigation.
+            let (_, actions) = self.draw_commands(size);
+            if !actions.is_empty() { return Err("viewer initial draw emitted actions".into()); }
+            for name in ["viewer-fit", "viewer-zoom", "viewer-pan"] {
+                match name {
+                    "viewer-fit" => self.panels.composition.navigation.fit(),
+                    "viewer-zoom" => {
+                        if !self.panels.composition.navigation.zoom_at(view, canvas, anchor, 1.) {
+                            return Err("viewer zoom fixture rejected".into());
+                        }
+                    }
+                    _ => {
+                        if !self.panels.composition.navigation.pan(view, canvas, [120., -60.]) {
+                            return Err("viewer pan fixture rejected".into());
+                        }
+                    }
+                }
+                let (paint, actions) = self.draw_commands(size);
+                if !actions.is_empty() { return Err("viewer navigation edited the project".into()); }
+                let ui = self.ui_frame(paint, size, true);
+                let path = self.smoke.as_ref().ok_or("viewer report missing")?.with_extension(format!("{name}.png"));
+                self.engine.capture_ui(ui, path.clone())?;
+                screens.insert(name.into(), serde_json::json!(path));
+            }
+            let after = self.engine.state()?;
+            if after["project"] != before["project"] || after["revision"] != before["revision"] {
+                return Err("viewer navigation changed project data or history".into());
+            }
+            Ok(screens)
+        })();
+        self.panels.composition = saved;
+        captured
     }
 
     fn capture_auxiliary_panel(

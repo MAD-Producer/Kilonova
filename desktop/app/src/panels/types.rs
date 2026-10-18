@@ -153,6 +153,12 @@ pub struct Panels {
 pub(crate) struct CompositionState {
     /// Last pointer position of an in-progress right-drag orbit gesture.
     pub orbit: Option<[f32; 2]>,
+    pub navigation: crate::viewer_navigation::Navigation,
+    pub pan: Option<([f32; 2], crate::viewer_navigation::Navigation)>,
+    pub zoom: motion_ui::widgets::NumberEditor,
+    pub zoom_before: Option<crate::viewer_navigation::Navigation>,
+    pub context: Option<u64>,
+    pub mapping_failures: u8,
 }
 
 impl Panels {
