@@ -420,7 +420,10 @@ fn nested_shape_navigation_keeps_complete_watch_slots_clear_of_values() {
         for width in [220., 360., 720.] { for depth in [0, 1, 4, 16, 32] { for axes in [1, 2, 4] {
             let area = Rect::new(17., 31., width, 600.);
             let f = layout(&styles, area, 120., depth, 0, axes, host);
-            assert_eq!(f.watch.width(), styles.metric("icon.slot", 20.));
+            let watch_width = if host == Panel::Timeline {
+                styles.metric("timeline.property.watch_width", 14.)
+            } else { styles.metric("icon.slot", 20.) };
+            assert_eq!(f.watch.width(), watch_width);
             assert!(f.watch.max[0] <= f.caption.min[0]);
             assert!(f.caption.max[0] <= f.number.min[0], "{host:?}/{width}/{depth}/{axes}");
         }}}

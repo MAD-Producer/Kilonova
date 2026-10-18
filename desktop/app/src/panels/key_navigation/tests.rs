@@ -253,6 +253,45 @@ fn mutations(actions: &[Action]) -> usize {
         .count()
 }
 
+fn assert_row_cancellation_and_readonly(
+    panels: &mut Panels,
+    state: &Value,
+    row: Rect,
+    panel: Panel,
+    floating: bool,
+    atlas: &mut TextAtlas,
+) {
+    for escape in [false, true] {
+        let mut input = click_slot(row, 1);
+        if escape {
+            input.keys.push((Key::Escape, Default::default()));
+        } else {
+            input.focus_lost = true;
+        }
+        assert_eq!(
+            mutations(&draw_host(panels, state, &input, panel, floating, atlas)),
+            0
+        );
+    }
+    let mut readonly = state.clone();
+    readonly["observing"] = true.into();
+    let mut locked = state.clone();
+    locked["project"]["layers"][0]["locked"] = true.into();
+    for snapshot in [&readonly, &locked] {
+        assert_eq!(
+            mutations(&draw_host(
+                panels,
+                snapshot,
+                &click_slot(row, 1),
+                panel,
+                floating,
+                atlas
+            )),
+            0
+        );
+    }
+}
+
 #[test]
 fn actual_property_hosts_add_remove_and_navigate_one_separated_axis_without_cross_channel_edits() {
     let mut authored = fixture();
@@ -598,6 +637,14 @@ fn camera_rows_keep_axis_targets_and_cancellation_in_both_native_hosts() {
                         }
                     })
                     .expect("camera row emits one channel edit");
+                assert_row_cancellation_and_readonly(
+                    &mut panels,
+                    &state,
+                    row,
+                    panel,
+                    floating,
+                    &mut atlas,
+                );
                 assert!(
                     matches!(commands.as_slice(), [Command::Animate { object: target, property: Property::Position, axis: Some(Axis::X), frame: 24, enabled: true }, Command::SetComponent { object: target2, property: Property::Position, axis: Axis::X, frame: 24, .. }] if *target == object && *target2 == object),
                     "{commands:?}"
@@ -757,6 +804,14 @@ fn effect_navigation_uses_the_actual_instance_and_preserves_curve_samples_in_bot
                         0.
                     };
                     let row = Rect::new(origin, value.min[1], 1000. - origin, value.height());
+                    assert_row_cancellation_and_readonly(
+                        &mut panels,
+                        &before,
+                        row,
+                        panel,
+                        floating,
+                        &mut atlas,
+                    );
                     let actions = draw_host(
                         &mut panels,
                         &before,

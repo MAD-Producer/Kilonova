@@ -50,8 +50,10 @@ def verify_design_screens(snapshot: dict, locale: str, *, property_followups: bo
     if property_followups:
         auxiliary = {
             "property-key-navigation": (360, 560),
+            "property-key-navigation-main": (360, 560),
             "property-key-navigation-narrow": (220, 560),
             "timeline-key-navigation": (900, 520),
+            "timeline-key-navigation-graph": (900, 520),
             "property-merge-menu": (360, 560), "property-merge-menu-narrow": (220, 560),
             "property-axis-expression": (360, 560), "layer-lock-menu": (900, 520),
             "property-mask-group": (360, 560), "timeline-mask-group": (900, 520),

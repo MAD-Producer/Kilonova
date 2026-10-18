@@ -105,8 +105,10 @@ impl Shell {
         let captured = (|| {
             for (name, panel, size) in [
                 ("property-key-navigation", Panel::Properties, [360., 560.]),
+                ("property-key-navigation-main", Panel::Properties, [360., 560.]),
                 ("property-key-navigation-narrow", Panel::Properties, [220., 560.]),
                 ("timeline-key-navigation", Panel::Timeline, [900., 520.]),
+                ("timeline-key-navigation-graph", Panel::Timeline, [900., 520.]),
                 ("property-merge-menu", Panel::Properties, [360., 560.]),
                 (
                     "property-merge-menu-narrow",
@@ -145,6 +147,8 @@ impl Shell {
                     object
                 }));
                 panels.timeline.expanded.insert(object);
+                if name == "timeline-key-navigation" { panels.timeline.set_graph_mode(false); }
+                if name == "timeline-key-navigation-graph" { panels.timeline.set_graph_mode(true); }
                 if name.starts_with("timeline-layer-columns") { panels.timeline.expanded.remove(&object); }
                 panels.properties.transform_collapsed =
                     name.starts_with("mask-") || name.contains("mask-group");
@@ -162,7 +166,7 @@ impl Shell {
                     |panels: &mut panels::Panels, input: &Input| -> Result<PaintList, String> {
                         let mut paint = PaintList::default();
                         paint.stylesheet = panels.styles.clone();
-                        let actions = if name == "layer-lock-main-menu" {
+                        let actions = if matches!(name, "layer-lock-main-menu" | "property-key-navigation-main") {
                             panels::chrome(
                                 &mut paint,
                                 &mut self.atlas,
@@ -281,7 +285,7 @@ impl Shell {
                     if !panels.path_controls.editing() {
                         return Err(format!("{name} did not open the mode dropdown"));
                     }
-                } else if !name.contains("mask-group") {
+                } else if !name.contains("mask-group") && name != "timeline-key-navigation" {
                     panels.timeline.set_graph_mode(true);
                     panels.animation_controls.select_key(
                         object,
@@ -291,6 +295,11 @@ impl Shell {
                     );
                 }
                 let paint = draw(&mut panels, &Input::default())?;
+                if name.starts_with("timeline-key-navigation")
+                    && panels.timeline.graph_mode != name.ends_with("-graph")
+                {
+                    return Err(format!("{name} captured the wrong timeline mode"));
+                }
                 if panel == Panel::Composition {
                     self.present_property_capture_scene(
                         window_size,
