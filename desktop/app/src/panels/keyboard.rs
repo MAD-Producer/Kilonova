@@ -12,6 +12,11 @@ use motion_ui::{
 use serde_json::Value;
 
 fn text_active(panels: &Panels) -> bool {
+    editor_active(panels)
+        || matches!(panels.focused, Some(Panel::Effects | Panel::Expression))
+}
+
+fn editor_active(panels: &Panels) -> bool {
     panels.composition.zoom.interacting()
         || panels.timeline_columns.editing()
         || panels.properties.field.is_some()
@@ -35,7 +40,28 @@ fn text_active(panels: &Panels) -> bool {
         || panels.audio_controls.editing()
         || panels.path_controls.wants_keyboard()
         || panels.node_editor.text_editing()
-        || matches!(panels.focused, Some(Panel::Effects | Panel::Expression))
+}
+
+/// Layout shortcuts must defer to the same editors as document shortcuts.
+pub(crate) fn layout_shortcuts_blocked(panels: &Panels) -> bool {
+    editor_active(panels)
+        || (panels.focused == Some(Panel::Effects) && panels.browser.library_search_editing())
+        || panels.transform_controls.gesture_active()
+        || panels.timeline.reorder.is_some()
+        || panels.composition.pan.is_some()
+        || panels.composition.orbit.is_some()
+        || panels.parent_controls.open
+        || panels.node_editor.editing()
+        || panels.node_editor.popup_open()
+        || panels.menu.is_some()
+        || panels.panel_menu.is_some()
+        || panels.project.context_menu.is_some()
+        || panels.timeline.timeline_context_menu.is_some()
+        || panels.effect_search.is_some()
+        || panels.layer_actions.modal_in(None)
+        || panels.layer_actions.modal_in(Some(Panel::Timeline))
+        || panels.layer_actions.text_in(None)
+        || panels.layer_actions.text_in(Some(Panel::Timeline))
 }
 
 /// The modal also owns its closing frame, preventing input from reaching the canvas.
