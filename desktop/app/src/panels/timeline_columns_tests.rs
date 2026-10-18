@@ -1,4 +1,5 @@
 use super::*;
+use super::types::ColumnGroup;
 use motion_core::compositing::{BlendMode, BlendSpace};
 use motion_core::{Content, Engine, Layer, Project};
 fn fixture() -> Engine {
@@ -240,6 +241,128 @@ fn parent_menu_keeps_disabled_self_and_descendants_and_keyboard_skips_them() {
             ..
         })]
     ));
+}
+
+#[test]
+fn column_layout_keeps_historical_pixels_when_everything_is_visible() {
+    let columns = timeline_columns::ColumnRects::new(0., 624., ColumnVisibility::default());
+    assert_eq!(
+        columns.matte,
+        Some(timeline_columns::Slot {
+            x: 344.,
+            width: 78.
+        })
+    );
+    assert_eq!(
+        columns.blend,
+        Some(timeline_columns::Slot {
+            x: 428.,
+            width: 76.
+        })
+    );
+    assert_eq!(
+        columns.link,
+        Some(timeline_columns::Slot {
+            x: 510.,
+            width: 14.
+        })
+    );
+    assert_eq!(
+        columns.parent,
+        Some(timeline_columns::Slot {
+            x: 530.,
+            width: 86.
+        })
+    );
+    assert_eq!(
+        columns.name,
+        timeline_columns::Slot {
+            x: 112.,
+            width: 226.
+        }
+    );
+}
+
+#[test]
+fn hidden_columns_stay_right_aligned_and_widen_the_name_column() {
+    let base = ColumnVisibility::default();
+    let cases = [
+        ColumnVisibility { matte: false, ..base },
+        ColumnVisibility { blend: false, ..base },
+        ColumnVisibility { parent: false, ..base },
+        ColumnVisibility {
+            blend: false,
+            matte: false,
+            ..base
+        },
+        ColumnVisibility {
+            blend: false,
+            parent: false,
+            matte: false,
+        },
+    ];
+    for visibility in cases {
+        let columns = timeline_columns::ColumnRects::new(0., 624., visibility);
+        let slots: Vec<_> = [columns.matte, columns.blend, columns.link, columns.parent]
+            .into_iter()
+            .flatten()
+            .collect();
+        for pair in slots.windows(2) {
+            assert_eq!(pair[1].x - pair[0].max_x(), 6.);
+        }
+        if let Some(first) = slots.first() {
+            assert_eq!(columns.name.max_x() + 6., first.x);
+            assert_eq!(slots.last().unwrap().max_x(), 616.);
+        } else {
+            assert_eq!(columns.name.max_x(), 616.);
+        }
+        assert!(columns.name.width > 226. || slots.is_empty());
+    }
+    let hidden = timeline_columns::ColumnRects::new(
+        0.,
+        624.,
+        ColumnVisibility {
+            blend: false,
+            parent: false,
+            matte: false,
+        },
+    );
+    assert_eq!(
+        hidden.name,
+        timeline_columns::Slot {
+            x: 112.,
+            width: 504.
+        }
+    );
+}
+
+#[test]
+fn matte_column_still_needs_room_for_its_header() {
+    let narrow = timeline_columns::ColumnRects::new(0., 480., ColumnVisibility::default());
+    assert!(narrow.matte.is_none());
+    assert!(narrow.blend.is_some());
+    assert!(narrow.parent.is_some());
+    let roomy = timeline_columns::ColumnRects::new(0., 500., ColumnVisibility::default());
+    assert_eq!(roomy.matte.unwrap().width, 78.);
+}
+
+#[test]
+fn composite_and_hierarchy_groups_toggle_together() {
+    let mut visibility = ColumnVisibility::default();
+    visibility.toggle_group(ColumnGroup::Composite);
+    assert_eq!(
+        visibility,
+        ColumnVisibility {
+            blend: false,
+            parent: true,
+            matte: false
+        }
+    );
+    visibility.toggle_group(ColumnGroup::Composite);
+    assert_eq!(visibility, ColumnVisibility::default());
+    visibility.toggle_group(ColumnGroup::Hierarchy);
+    assert!(!visibility.parent);
+    assert!(visibility.blend && visibility.matte);
 }
 
 #[test]
