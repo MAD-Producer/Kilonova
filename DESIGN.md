@@ -389,6 +389,14 @@ These are **only** behaviors evidenced in the supplied audit, **not** an exhaust
 - On the diagnostic node, mark each input lacking both a connection and a stored default with a hollow ring using the existing error token. Keep valid defaults and other draft nodes unmarked
 - The drawer owns its pointer region and focused scrolling keys; Esc closes it and Enter locates the node. Never route destructive canvas keys or a wire drop through the drawer. Successful validation removes the current diagnostic; this drawer does not imply multi-error collection
 
+### 10.3 Node first-use guidance
+
+- A fresh standalone demo identifies itself as an editable example and offers the example browser beside a Continue action. An empty standalone root offers the same starting point and the existing Shift+A shortcut
+- Reserve a separate strip above a fresh demo canvas; empty roots use their vacant canvas without changing drop coordinates. Do not cover nodes or draw a modal tutorial. Continue preserves source, selection, history, preview and node screen positions. Hide the strip when the dock cannot keep both instructions and a usable canvas
+- Opening non-empty saved documents, layer effects and nested groups must not introduce this welcome strip. Never replace an existing graph implicitly. Use the existing example browser, save/discard choices and stale-snapshot guard
+- Put the independently authored two-node Solid Color example first. Opening the browser and its default example takes two clicks; selecting Color exposes editable RGBA controls. Retain advanced examples as independent editable sources
+- Use existing panel, text, muted, row-height and padding tokens. Validate both languages, minimum and default windows, empty state, dismissal, real GPU output, source reopening and undo
+
 ---
 
 ## 11. Existing project model and Project panel

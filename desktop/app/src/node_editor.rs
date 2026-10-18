@@ -298,6 +298,7 @@ pub struct NodeEditor {
     last_canvas: Rect,
     last_area: Rect,
     first_frame: bool,
+    welcome: bool,
     context_menu: Option<ContextMenu>,
     add_menu: Option<AddMenu>,
     floating_mode: bool, // true=漂浮形态(有侧边栏), false=嵌入形态(无侧边栏)
@@ -326,6 +327,7 @@ enum MenuKind {
 impl Default for NodeEditor {
     fn default() -> Self {
         let mut editor = Self::new(demo_graph());
+        editor.welcome = true;
         editor.arrange_without_history();
         editor.primary = Some("circle".into());
         editor.selected.insert("circle".into());
@@ -389,6 +391,7 @@ impl NodeEditor {
             last_canvas: Rect::default(),
             last_area: Rect::default(),
             first_frame: true,
+            welcome: false,
             context_menu: None,
             add_menu: None,
             floating_mode: false, // 默认嵌入模式（无侧边栏）
@@ -396,6 +399,10 @@ impl NodeEditor {
     }
     pub fn document(&self) -> &GraphDocument {
         &self.document
+    }
+    /// The actual canvas from the last draw, including first-use guidance layout.
+    pub(crate) fn canvas_bounds(&self) -> Rect {
+        self.last_canvas
     }
     pub fn options(&self) -> &CompileOptions {
         &self.options

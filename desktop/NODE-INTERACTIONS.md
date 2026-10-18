@@ -198,3 +198,9 @@ Ctrl+T 按现有 UV、图像采样及端口语义建立贴图链；用户参考�
 The footer Details button opens the current error drawer. It shows the error code, qualified node ID, port and complete original cause, with wrapping and wheel or keyboard scrolling. Enter / Locate node navigates through nested groups and centers the node above the drawer; Esc closes the drawer. Location preserves source, collapsed state and undo history.
 
 Missing inputs on that node use hollow error rings; connected inputs and saved defaults remain valid. Focused drawer keys do not delete canvas nodes, menus and active edits keep priority, and releasing a drag over the drawer cancels it instead of connecting through the overlay. The validator still returns one diagnostic; multi-error collection remains pending.
+
+## First-use and empty canvas
+
+Fresh standalone demos show a separate welcome strip, explicitly identifying the editable example and linking to the existing browser. Continue dismisses it without moving nodes or changing source, selection, history or preview. Non-empty loaded documents, layer effects and nested groups retain their normal canvas. Empty standalone roots offer Examples and Shift+A in the vacant canvas without changing node drop coordinates; small docks retain the toolbar entry instead of crowding the canvas.
+
+Solid Color is the first recommended source: Color feeds Color Output through one wire. Click Examples, then Open example to render it; select Color to edit its swatch or RGBA controls. The browser retains save/discard and stale-document protections. No onboarding action silently replaces user work.

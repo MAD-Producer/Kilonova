@@ -313,6 +313,9 @@ def main() -> None:
         for check in ("diagnosticDrawerOpened", "diagnosticLocatedWithoutMutation", "diagnosticDrawerKeptValidPixels", "diagnosticDrawerClosed"):
             if preview.get(check) is not True:
                 raise RuntimeError(f"{locale} node diagnostic drawer did not verify {check}")
+        for check in ("onboardingDismissPreservedSource", "onboardingEmptyHasStartingPoint", "onboardingOpenedInTwoClicks", "onboardingEditChangedPixels", "onboardingSourceReopened", "onboardingUndoRestoredPixels"):
+            if preview.get(check) is not True:
+                raise RuntimeError(f"{locale} node onboarding did not verify {check}")
     verify_mcp(binary, output)
     verify_property_followups(binary, output)
     verify_style_overrides(binary, output)

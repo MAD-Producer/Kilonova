@@ -24,6 +24,9 @@ pub(super) mod minimap;
 mod nudge_tests;
 #[cfg(test)]
 mod observability_tests;
+mod onboarding;
+#[cfg(test)]
+mod onboarding_tests;
 #[cfg(test)]
 mod view_preferences_tests;
 #[cfg(test)]
@@ -347,7 +350,7 @@ impl NodeEditor {
             );
             return response;
         }
-        let mut layout = self.layout(area);
+        let mut layout = self.guided_layout(area, &styles);
         self.last_canvas = layout.canvas;
         if self.first_frame {
             if let Some(id) = &self.primary {
@@ -376,10 +379,12 @@ impl NodeEditor {
         }
         let had_menu = self.popup_open();
         let diagnostic_input = self.diagnostics_input(area, input, &styles);
-        if !had_menu && !diagnostic_input {
+        let welcome_input = !diagnostic_input
+            && self.welcome_input(area, input, &styles, &mut response.actions);
+        if !had_menu && !diagnostic_input && !welcome_input {
             self.keyboard(input, &mut response.actions);
         }
-        layout = self.layout(area);
+        layout = self.guided_layout(area, &styles);
         self.last_canvas = layout.canvas;
         let cards = self.cards(layout.canvas);
         let numeric_file = if self.inline.popup.is_none()
@@ -408,6 +413,7 @@ impl NodeEditor {
             local
         });
         let controls_consumed = if !diagnostic_input
+            && !welcome_input
             && self.add_menu.is_none()
             && self.context_menu.is_none()
             && (self.inline.busy() || !self.minimap_captures(layout.canvas, input, &styles))
@@ -429,7 +435,12 @@ impl NodeEditor {
             }
         }
         let neutral = Input::default();
-        let body_input = if had_menu || self.popup_open() || controls_consumed || diagnostic_input {
+        let body_input = if had_menu
+            || self.popup_open()
+            || controls_consumed
+            || diagnostic_input
+            || welcome_input
+        {
             &neutral
         } else {
             input
@@ -492,6 +503,7 @@ impl NodeEditor {
         let cards = self.cards(layout.canvas);
         self.paint_canvas(list, atlas, &cards, layout.canvas, input, language);
         self.paint_minimap(list, layout.canvas);
+        self.paint_welcome(list, atlas, area, input, language);
         let mut footer = list.child();
         paint::rect(&mut footer, layout.footer, colors.CHROME);
         paint::rect(

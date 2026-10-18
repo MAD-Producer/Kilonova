@@ -134,7 +134,7 @@ impl NodeEditor {
         let Some(node) = self.document.nodes.iter().find(|node| node.id == id) else {
             return false;
         };
-        let mut visible = self.layout(area).canvas;
+        let mut visible = self.guided_layout(area, styles).canvas;
         if let Some(drawer) = self.diagnostic_drawer_layout(area, styles) {
             visible.max[1] = visible.max[1].min(drawer.area.min[1]);
         }

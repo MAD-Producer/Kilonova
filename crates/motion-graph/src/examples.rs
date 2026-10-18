@@ -48,7 +48,7 @@ impl BuiltinExample {
 pub fn builtin_examples() -> &'static [BuiltinExample] {
     &EXAMPLES
 }
-const EXAMPLES: [BuiltinExample; 15] = [
+const EXAMPLES: [BuiltinExample; 16] = [
     BuiltinExample {
         id: "drifting_circle", name: "漂移圆形", english_name: "Drifting Circle",
         description: "公开半径、中心、颜色和速度参数，按局部时间移动半透明圆形。默认尺寸为 64×64。",
@@ -227,6 +227,17 @@ const EXAMPLES: [BuiltinExample; 15] = [
         english_limitations: "The spots are 2D analytic gradients, not camera depth of field, particle simulation, volumetric fog or subsurface scattering.",
         collection: ExampleCollection::GlowAtmosphere,
         source: include_str!("../examples/floating-lights.msgraph"),
+    },
+    BuiltinExample {
+        id: "solid_color", name: "纯色入门", english_name: "Solid Color",
+        description: "两个节点、一条连线：颜色常量直接连接颜色输出。无需素材，适合第一次编辑。",
+        english_description: "Two nodes and one wire: a color constant feeds Color Output. No source image is needed for your first edit.",
+        lesson: "先选择颜色节点，修改色块或 RGBA 分量，再查看预览。颜色必须连接到 Color Output 才会成为最终图像。",
+        english_lesson: "Select Color, change its swatch or RGBA components, then inspect the preview. Connect color to Color Output to make the final image.",
+        collection: ExampleCollection::Fundamentals,
+        limitations: "输出为均匀纯色，不包含图像素材或动画。",
+        english_limitations: "Produces a uniform solid color, without source images or animation.",
+        source: include_str!("../examples/solid-color.msgraph"),
     },
 ];
 

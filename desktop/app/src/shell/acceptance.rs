@@ -1,5 +1,6 @@
 use crate::*;
 mod node_diagnostics;
+mod node_onboarding;
 mod node_wires;
 mod retained;
 
@@ -1227,13 +1228,11 @@ impl Shell {
                 serde_json::to_value(path).map_err(|error| error.to_string())?;
             self.node_diagnostic_smoke()?;
             self.smoke_node_report["projectUntouched"] = Value::Bool(true);
-            self.redock_panel(dock::Panel::Nodes.dock())?;
-            let home_path = directory.join("home-after-node-preview.png");
-            self.capture_home_preview_smoke(home_path.clone())?;
-            self.smoke_node_report["homePreviewHidden"] = Value::Bool(true);
-            self.smoke_node_report["homeAfterNodeScreenshot"] = serde_json::to_value(home_path).map_err(|e|e.to_string())?;
-            self.smoke_stage = 7;
-            self.dirty = true;
+            self.start_node_onboarding_smoke()?;
+        } else if (32..=35).contains(&self.smoke_stage)
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            self.advance_node_onboarding_smoke(&directory)?;
         } else if self.smoke_stage == 7 && self.smoke_frames >= 8 {
             let snapshot = self.panels.node_editor.snapshot();
             let size = self.size().ok_or("node example smoke window missing")?;
