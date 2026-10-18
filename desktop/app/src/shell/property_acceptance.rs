@@ -104,6 +104,9 @@ impl Shell {
             .edit(serde_json::to_string(&commands).map_err(|e| e.to_string())?)?;
         let captured = (|| {
             for (name, panel, size) in [
+                ("property-key-navigation", Panel::Properties, [360., 560.]),
+                ("property-key-navigation-narrow", Panel::Properties, [220., 560.]),
+                ("timeline-key-navigation", Panel::Timeline, [900., 520.]),
                 ("property-merge-menu", Panel::Properties, [360., 560.]),
                 (
                     "property-merge-menu-narrow",
@@ -187,7 +190,7 @@ impl Shell {
                     };
                 draw(&mut panels, &Input::default())?;
                 if name.starts_with("property-merge-") {
-                    let point = [80., 30. + pad + row * 4.5];
+                    let point = [pad + styles.metric("icon.slot", 20.) * 3.5 + styles.metric("tree.indent", 14.), 30. + pad + row * 4.5];
                     draw(
                         &mut panels,
                         &Input {

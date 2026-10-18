@@ -190,9 +190,11 @@ pub(super) fn layout(
         f.caption.max[0] = f.caption.max[0].max(f.caption.min[0]);
         return f;
     }
-    let start = area.min[0] + pad + depth as f32 * pad;
+    let navigation = crate::panels::key_navigation::width(styles);
+    let base = area.min[0] + pad + navigation;
     let x = area.min[0]
-        + (pad + styles.metric("label.column", 72.) + slot * 2.).min(area.width() * 0.52);
+        + (pad + navigation + styles.metric("label.column", 72.) + slot * 2.).min(area.width() * 0.7);
+    let start = base + (depth as f32 * pad).min((x - base - slot - pad).max(0.));
     let field = styles.metric("field.height", 18.).min(row);
     let cell =
         ((area.max[0] - pad - x) / axes.max(1) as f32).min(styles.metric("value.min_width", 64.));
@@ -577,6 +579,7 @@ impl Controls {
         let styles = list.styles();
         let f = layout(styles.as_ref(), area, y, depth, 0, p.values.len(), host);
         let frame = state["frame"].as_f64().unwrap_or(0.).floor().max(0.) as u32;
+        self.keys.navigation(list, Rect::new(area.min[0], y, area.width(), styles.metric("row.height", 22.)), state, object, item, p, input, enabled, out);
         if matches!(host, Panel::Timeline | Panel::Curves) {
             crate::panels::timeline::property_branch(list, f.watch);
         }

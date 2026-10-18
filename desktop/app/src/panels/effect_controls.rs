@@ -16,6 +16,7 @@ use motion_ui::{
 use serde_json::Value;
 use std::collections::HashMap;
 mod curve;
+mod key_navigation;
 mod library;
 pub(super) use library::entries;
 
@@ -64,6 +65,7 @@ pub struct Controls {
     context_menu: Option<EffectContextMenu>,
     color_popup: Option<ColorPopup>,
     collapsed_curves: std::collections::HashSet<(u64, u64, String)>,
+    key_channel: Option<key_navigation::Channel>,
     /// component -2 = popup frame, -1 = swatch, 0.. = popup channel fields.
     #[cfg(test)]
     pub(crate) test_rects: HashMap<(u64, u64, String, i64), Rect>,
@@ -364,6 +366,9 @@ impl Controls {
         locale: Locale,
         out: &mut Vec<Action>,
     ) {
+        if input.pressed.is_some() {
+            self.clear_key_channel();
+        }
         self.render_mode(
             false, list, atlas, area, y, layer, state, input, locale, out,
         );
@@ -1332,7 +1337,7 @@ impl Controls {
                 let implemented = parameter["implemented"].as_bool().unwrap_or(true);
                 let name = parameter["name"].as_str().unwrap_or(param);
                 let watch_width = styles.metric("effect.watch.width", 24.);
-                let left = header_rect.min[0] + styles.metric("tree.indent", 14.);
+                let left = header_rect.min[0] + super::key_navigation::width(&styles) + styles.metric("tree.indent", 14.);
                 let caption_x = left + watch_width + gap;
                 let right = (area.max[0] - pad).max(caption_x);
                 let label_x = caption_x;
@@ -1392,6 +1397,15 @@ impl Controls {
                         opened: true,
                     });
                 }
+                let cache_key = (object, id, param.to_string());
+                if !self.tracks.contains_key(&cache_key) {
+                    let Ok(parameter) = observe!("effects.parameter", serde_json::from_value::<EffectParam>(effect["params"][param].clone()),
+                        "object={object} effect={id} param={param}") else { continue };
+                    self.tracks.insert(cache_key.clone(), parameter);
+                }
+                key_navigation::parameter_navigation(&mut self.key_channel, list,
+                    Rect::new(area.min[0], *y, area.width(), row), state, input, object, id, param,
+                    &self.tracks[&cache_key], local, locked, out);
                 if kind == "curve" {
                     let key = (object, id, param.to_string());
                     let open = !self.collapsed_curves.contains(&key);
@@ -1504,18 +1518,7 @@ impl Controls {
                     }
                     continue;
                 }
-                let key = (object, id, param.to_string());
-                if !self.tracks.contains_key(&key) {
-                    let Ok(parameter) = observe!(
-                        "effects.parameter",
-                        serde_json::from_value::<EffectParam>(effect["params"][param].clone()),
-                        "object={object} effect={id} param={param}"
-                    ) else {
-                        continue;
-                    };
-                    self.tracks.insert(key, parameter);
-                }
-                let track = &self.tracks[&(object, id, param.to_string())];
+                let track = &self.tracks[&cache_key];
                 let animated = !track.track.keys.is_empty();
                 let expression_supported = !track.kind.discrete()
                     && track.kind != motion_effects::ParamKind::Curve

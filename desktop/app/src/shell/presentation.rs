@@ -1407,8 +1407,12 @@ mod interaction_tests {
         let styles = motion_ui::style::default_stylesheet_arc();
         // Layer title, Masks, Transform and Anchor precede the Position row.
         let y = area.min[1] + 8. + 4. * styles.metric("row.height", 22.);
-        let columns = motion_ui::widgets::PropertyColumns::new(&styles, area, y, 64.);
-        let point = [columns.value.min[0] + 10., y + 10.];
+        // The key-navigation rail now precedes the property fields. Exercise
+        // the rendered Position X field while retaining the gesture assertions.
+        let value_x = area.min[0] + styles.metric("padding.panel", 8.) * 2.
+            + styles.metric("tree.indent", 14.) + styles.metric("icon.slot", 20.) * 4.
+            + styles.metric("label.column", 72.);
+        let point = [value_x + 10., y + 10.];
         shell.translate(Event::MousePressed { position: point, button: MouseButton::Left });
         assert!(shell.draw_commands([400., 1000.]).1.is_empty());
         shell.translate(Event::MouseMoved { position: [point[0] + 40., point[1]] });

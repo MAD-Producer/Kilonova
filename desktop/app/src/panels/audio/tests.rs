@@ -5,6 +5,52 @@ use motion_core::{
 };
 use motion_ui::input::Modifiers;
 
+#[test]
+fn audio_navigation_buttons_preserve_the_other_channel_in_both_native_hosts() {
+    for locale in [Locale::Zh, Locale::En] { for floating in [false, true] {
+        let mut h = Harness::new(floating, locale);
+        for frame in [10, 40] {
+            h.state = h.engine.edit(serde_json::to_string(&Command::AudioLevels {
+                object:7, action:AudioLevelsAction::Set { channel:AudioChannel::Left, frame, value:-6., animated:Some(true) }
+            }).unwrap()).unwrap();
+        }
+        h.state = h.engine.seek(22.).unwrap();
+        let before = h.state["project"].clone();
+        let fields = h.fields(Control::Left);
+        let styles = PaintList::default().styles();
+        let point = |slot:usize| [h.area().min[0] + styles.metric("padding.panel",8.) + (slot as f32 + 0.5) * styles.metric("icon.slot",20.), fields.watch.min[1] + fields.watch.height() * 0.5];
+        let points = [point(0), point(1), point(2)];
+        let actions = h.draw(pointer(points[1],true,false));
+        assert!(matches!(actions.as_slice(), [Action::Edit(Command::AudioLevels { object:7, action:AudioLevelsAction::Set { channel:AudioChannel::Left, frame:22, animated:Some(true), .. } })]), "{actions:?}");
+        h.run(actions);
+        let added = h.state["project"].clone();
+        assert_eq!(added["layers"][0]["audio_levels"]["right"], before["layers"][0]["audio_levels"]["right"]);
+        assert_eq!(h.engine.history(0).unwrap()["project"], before);
+        assert_eq!(h.engine.history(1).unwrap()["project"], added);
+        h.engine.save().unwrap();
+        let reopened = motion_core::storage::load(&h._folder.path().join("project")).unwrap();
+        assert_eq!(serde_json::to_value(reopened).unwrap(), added);
+        for (slot, expected) in [(0,10.),(2,40.)] {
+            let actions = h.draw(pointer(points[slot],true,false));
+            assert!(matches!(actions.as_slice(), [Action::Seek(frame)] if *frame == expected), "{actions:?}");
+        }
+        let actions = h.draw(pointer(points[1],true,false));
+        assert!(matches!(actions.as_slice(), [Action::Edit(Command::AudioLevels { action:AudioLevelsAction::DeleteKey { channel:AudioChannel::Left, frame:22 }, .. })]), "{actions:?}");
+        h.run(actions);
+        assert_eq!(h.state["project"], before);
+        h.state = h.engine.seek(10.).unwrap();
+        assert!(h.draw(pointer(points[0],true,false)).is_empty());
+        for cancel in [false, true] {
+            let mut input = pointer(points[1],true,false);
+            if cancel { input.keys.push((Key::Escape, Modifiers::default())); }
+            else { input.focus_lost = true; }
+            assert!(h.draw(input).is_empty());
+        }
+        h.state = h.engine.edit(serde_json::to_string(&Command::Flags { object:7, visible:true, locked:true }).unwrap()).unwrap();
+        assert!(h.draw(pointer(points[1],true,false)).is_empty());
+    }}
+}
+
 struct Harness {
     _folder: tempfile::TempDir,
     engine: Engine,
