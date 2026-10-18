@@ -329,6 +329,7 @@ impl Shell {
         } else {
             let navigation_screens = self.capture_viewer_navigation(size)?;
             output.extend(navigation_screens);
+            output.extend(self.capture_interaction_regressions(size)?);
         }
         Ok(Value::Object(output))
     }

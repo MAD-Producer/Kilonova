@@ -630,10 +630,8 @@ pub(super) fn render(
     if owns_scrub && input.released.is_some() {
         panels.timeline.scrubbing = false;
     }
-    let footer_row = styles.metric("row.height", 22.);
-    super::graph_notice::draw(&mut graph, atlas,
-        Rect::new(plot.min[0], area.max[1] - footer_row - styles.metric("border", 1.) * 2., plot.width(), footer_row),
-        panels.locale, super::graph_notice::has_negative(source));
+    // The shared footer puts the authored-value notice in the label gutter
+    // and navigation in the time region, leaving the lower ruler unchanged.
     graph.clip_to(area);
     list.append(graph);
 }

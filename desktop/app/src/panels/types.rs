@@ -63,6 +63,8 @@ pub enum Action {
     About,
     ExportDiagnostics,
     ToggleDiagnostics,
+    /// Replace the optional timeline column visibility (view state only).
+    TimelineColumnVisibility(ColumnVisibility),
     PreviewMode(i32),
     /// Switch the composition viewer between camera and observation views.
     ViewKind(i32),
@@ -411,8 +413,43 @@ pub(crate) enum ScrubRuler {
     Graph,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ColumnVisibility {
+    pub blend: bool,
+    pub parent: bool,
+    pub matte: bool,
+}
+impl Default for ColumnVisibility {
+    fn default() -> Self {
+        Self {
+            blend: true,
+            parent: true,
+            matte: true,
+        }
+    }
+}
+/// Column groups that toggle together (the composite group shares a header).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ColumnGroup {
+    Composite,
+    Hierarchy,
+}
+impl ColumnVisibility {
+    pub fn toggle_group(&mut self, group: ColumnGroup) {
+        match group {
+            ColumnGroup::Composite => {
+                let visible = !(self.blend && self.matte);
+                self.blend = visible;
+                self.matte = visible;
+            }
+            ColumnGroup::Hierarchy => self.parent = !self.parent,
+        }
+    }
+}
+
 #[derive(Clone, Default)]
 pub(crate) struct TimelineState {
+    pub(crate) column_visibility: ColumnVisibility,
     pub(crate) graph_box: super::graph_box::Controls,
     pub rows_cache: Option<(
         (String, String, u64),
@@ -441,6 +478,11 @@ pub(crate) struct TimelineState {
     pub scroll_extent_cache: Option<(u64, f32)>,
     pub zoom: f32,
     pub offset: f32,
+    pub horizontal_drag: Option<f32>,
+    pub edge_pan_at: Option<std::time::Instant>,
+    /// Acknowledged frames repaint the consumed pointer without advancing navigation.
+    pub navigation_paint_only: bool,
+    pub playhead_view: Option<(Rect, f32, f32)>,
     pub expression_rows: Vec<motion_core::ExpressionTarget>,
     pub zoom_track: Option<Rect>,
     pub scrubbing: bool,
@@ -522,6 +564,8 @@ impl TimelineState {
         } else if enabled {
             self.graph_fitted = false;
         }
+        self.horizontal_drag = None;
+        self.edge_pan_at = None;
         self.graph_mode = enabled;
         self.scrubbing = false;
         self.last_seek = None;

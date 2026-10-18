@@ -2,7 +2,7 @@
 use super::*;
 use super::{
     animation_data as data,
-    types::{property_bit, KeySelection, PropertyFilter},
+    types::{property_bit, ColumnGroup, KeySelection, PropertyFilter},
 };
 use crate::shortcuts::Command as Shortcut;
 use motion_core::{Axis, Curve, CurveShape, CurveSpace, Ease, Easing};
@@ -17,6 +17,21 @@ fn visual_layer<'a>(state: &'a Value, object: u64) -> Option<&'a Value> {
 }
 fn keys(source: &Value) -> &[Value] {
     source["keys"].as_array().map(Vec::as_slice).unwrap_or(&[])
+}
+/// Exact layer interval from the same timeline snapshot the context menu reads.
+fn layer_range(state: &Value, object: u64) -> Option<[f64; 2]> {
+    let timeline = state["timeline_layers"]
+        .as_array()?
+        .iter()
+        .find(|t| t["object"].as_u64() == Some(object))?;
+    let in_frame = timeline["subframe_range"]["in_frame"]
+        .as_f64()
+        .or_else(|| timeline["in_frame"].as_f64())?;
+    let out_frame = timeline["subframe_range"]["out_frame"]
+        .as_f64()
+        .or_else(|| timeline["out_frame"].as_f64())?;
+    (in_frame.is_finite() && out_frame.is_finite() && in_frame < out_frame)
+        .then_some([in_frame, out_frame])
 }
 fn selection(panels: &mut Panels, state: &Value) -> Option<KeySelection> {
     let key = panels.animation_controls.user_key()?;
@@ -315,6 +330,7 @@ pub(super) fn handle(
     }
     if panels.timeline.moving.is_some()
         || panels.timeline.trimming.is_some()
+        || panels.timeline.horizontal_drag.is_some()
         || panels.timeline.scrubbing
     {
         return true;
@@ -396,8 +412,98 @@ pub(super) fn handle(
                 out.push(Action::Seek(next));
             }
         }
+        Shortcut::ToggleCompositeColumns | Shortcut::ToggleParentColumns => {
+            let group = if command == Shortcut::ToggleCompositeColumns {
+                ColumnGroup::Composite
+            } else {
+                ColumnGroup::Hierarchy
+            };
+            let mut visibility = panels.timeline.column_visibility;
+            visibility.toggle_group(group);
+            out.push(Action::TimelineColumnVisibility(visibility));
+        }
         Shortcut::EaseBoth | Shortcut::EaseIncoming | Shortcut::EaseOutgoing => {
             quick_ease(panels, state, command, out)
+        }
+        Shortcut::GoToIn | Shortcut::GoToOut => {
+            let Some(object) = panels.selected else {
+                return true;
+            };
+            let Some([in_frame, out_frame]) = layer_range(state, object) else {
+                return true;
+            };
+            let target = if command == Shortcut::GoToIn {
+                in_frame
+            } else {
+                (out_frame - 1.).max(in_frame)
+            }
+            .clamp(0., last_frame(state));
+            *frame = target;
+            out.push(Action::Seek(target));
+        }
+        Shortcut::MoveInToPlayhead
+        | Shortcut::MoveOutToPlayhead
+        | Shortcut::TrimInToPlayhead
+        | Shortcut::TrimOutToPlayhead => {
+            if state["observing"] == true {
+                return true;
+            }
+            let playhead = frame.floor();
+            let mut edits = vec![];
+            for object in panels.editable_selection(state) {
+                let Some([in_frame, out_frame]) = layer_range(state, object) else {
+                    continue;
+                };
+                match command {
+                    Shortcut::MoveInToPlayhead | Shortcut::MoveOutToPlayhead => {
+                        // Matches the exact-integer contract of MoveLayerClip in the layer menu.
+                        if in_frame.fract() != 0. || out_frame.fract() != 0. {
+                            continue;
+                        }
+                        let duration = out_frame - in_frame;
+                        let next = if command == Shortcut::MoveInToPlayhead {
+                            playhead
+                        } else {
+                            playhead + 1. - duration
+                        };
+                        if next == in_frame
+                            || !next.is_finite()
+                            || next < -f64::from(motion_core::MAX_FRAMES)
+                            || next + duration > f64::from(motion_core::MAX_FRAMES)
+                        {
+                            continue;
+                        }
+                        edits.push(Command::MoveLayerClip {
+                            object,
+                            in_frame: next as i32,
+                        });
+                    }
+                    Shortcut::TrimInToPlayhead => {
+                        if playhead <= in_frame || playhead >= out_frame {
+                            continue;
+                        }
+                        edits.push(Command::SetLayerRange {
+                            object,
+                            in_frame: playhead,
+                            out_frame,
+                        });
+                    }
+                    _ => {
+                        let next = playhead + 1.;
+                        if next <= in_frame || next >= out_frame {
+                            continue;
+                        }
+                        edits.push(Command::SetLayerRange {
+                            object,
+                            in_frame,
+                            out_frame: next,
+                        });
+                    }
+                }
+            }
+            if !edits.is_empty() {
+                out.push(Action::EditBatch(edits));
+            }
         }
         Shortcut::ToggleKey(property) => {
             if let Some(object) = object {
