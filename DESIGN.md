@@ -136,6 +136,7 @@ There are exactly **five** existing workspace presets. Preserve IDs, behavior, a
 | `all` | All Panels | Bottom `0.35` → Right `0.25` → Left `0.25` |
 
 - Workspace persistence already uses `root`, `floating`, `hidden`, and `window_geometry` in `desktop/ui/src/workspace.rs`. Preserve docking, floating, hiding, and geometry serialization.
+- Backquote temporarily expands the dock under the pointer to the main content area; when the pointer is outside the docks, use the focused visible main-window panel. Repeat the command to restore the full layout. Keep the dock's tab stack, ownership and split ratios intact. This is a transient display projection and must never enter saved layouts or project history. Text/IME, popups and active gestures take priority. Workspace changes and panel show/close/float/redock restore the full layout first. Native floating windows already contain one full-size panel; Backquote leaves their geometry and the main layout unchanged.
 - Changes to panel internals are allowed; do not replace workspace state with a React-style tab container or parallel layout state.
 
 ---
@@ -170,6 +171,8 @@ Visual layout only — does not define new shortcuts or data fields:
 Curve-kind properties may disclose an inline graph detail below their single caption row. Keep its channel selector above the graph; this exception is for the graph editor, not for splitting scalar, boolean, enum, color, or vector fields across rows.
 
 Expressions are contextual child details, not a standalone dock panel. Keep the property itself on its existing row. The source editor is collapsed by default, including for saved expressions. Right-click a property and choose Edit expression, or Alt-click its stopwatch, to open a single child row immediately below that property. Put the enabled checkbox in the label column and the source field in the value/time lane; reuse `row.height`, `icon.slot`, and `field.number`. Idle sources stay transparent; focused editing uses the existing field state. Enter commits through `SetExpression`; Escape or the close icon discards the uncommitted draft and collapses the detail. Closing the editor never deletes the expression; Remove expression is a separate context action. Toggle only `enabled`, preserving source, target, seed, and profile. The timeline row plan must reserve the detail before rendering or hit testing so following rows cannot overlap. Legacy panel ID 9 remains readable but is redirected to Properties and omitted from panel menus/presets.
+
+Animatable rows expose a leading previous-key / current-key / next-key rail using three complete `icon.slot` hit regions and the existing icon button states. The centre is selected only at an authored key and disabled for locked/observing targets, unsupported parameters, or non-integral edit times. Missing neighbours disable their individual arrows. Keep this rail inline; it does not replace the stopwatch, add another row, or reduce existing field hit tolerances. Nested inspector hosts retain their existing tree origin; timeline rails remain before the property-tree branch. Values follow the reserved rail without overlapping the stopwatch, including narrow mask panels. Navigation changes view time only and does not write undo history; toggles use the existing typed key commands and one atomic edit.
 
 ### 5.3 Component-state matrix and precedence
 
@@ -369,6 +372,13 @@ These are **only** behaviors evidenced in the supplied audit, **not** an exhaust
 - The Info panel already displays `state.desktop.uiPerformance`: composition render count, texture reuse rate, and last presentation time in milliseconds (`panels/auxiliary.rs`). **Verify any redraw optimization against these counters**; do not claim no panel redraw without measurement.
 - New UI painting must respect existing GPU batching, clipping, caching, and dirty flags. Do not turn lists, video frames, or keyframes into unnecessary numbers of independent draw primitives for appearance alone.
 - This specification does not prescribe a replacement rendering engine or GPU pipeline.
+
+### 10.1 Node canvas view controls
+
+- The node toolbar's View menu and canvas context menu expose native checked grid/minimap choices, with the same semantics in Chinese and English. Keep the grid visible and minimap hidden for a new workspace; persist these preferences in workspace state only.
+- The minimap sits inside the canvas at its bottom-right edge. Read its dimensions, margin, padding, world padding and viewport opacity from `node.minimap.*` metrics in `dark.json`; reuse existing chrome, border, muted text and accent colors.
+- Fit node bounds and the visible canvas into one aspect-preserving projection. Show the current viewport distinctly; click/drag navigation changes only canvas pan. Cancel an unfinished drag on Esc or focus loss, and capture input above underlying nodes. Hide the overlay when there is insufficient room, retaining its enabled preference.
+- Grid/minimap visibility and minimap navigation must leave graph source, compilation stamps, permanent output and both history stacks unchanged. Text, IME, menus and active gestures retain priority over G/N; Ctrl+G keeps its grouping behavior.
 
 ---
 

@@ -142,7 +142,13 @@
       "property.anchor.step": 0.5,
       "dialog.notice.width": 480,
       "dialog.notice.max_height": 320,
-      "dialog.notice.button_width": 96
+      "dialog.notice.button_width": 96,
+      "node.minimap.width": 180,
+      "node.minimap.height": 112,
+      "node.minimap.margin": 8,
+      "node.minimap.padding": 6,
+      "node.minimap.world_padding": 32,
+      "node.minimap.viewport_opacity": 0.10
     },
     "motion": {
       "easing": "cubic-out"

@@ -62,7 +62,7 @@ fn capture(
         list,
         logical,
         [ratio; 2],
-    );
+    ).expect("UI frame must fit GPU buffers");
     encoder.copy_texture_to_buffer(
         wgpu::TexelCopyTextureInfo {
             texture: &texture,

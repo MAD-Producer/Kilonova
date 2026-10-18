@@ -1,5 +1,5 @@
 //! Rebuild read-only tracks from timeline snapshots using composition/local time.
-use motion_core::{Axis, Keyframe, Property, Track, Tween};
+use motion_core::{Axis, Command, Keyframe, Property, Track, Tween};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
@@ -127,4 +127,53 @@ pub(super) fn sample(
             track::<[f32; 3]>(source, offset)?.sample(local)
         ))
     }
+}
+
+/// Build an atomic edit for exactly one authored channel. Snapshot key times
+/// are composition times; `sample` performs the layer-local conversion.
+pub(super) fn key_commands(
+    state: &Value,
+    object: u64,
+    property: Property,
+    axis: Option<Axis>,
+    frame: u32,
+    remove: bool,
+) -> Option<Vec<Command>> {
+    let layer = state["project"]["layers"].as_array()?.iter()
+        .find(|layer| layer["id"].as_u64() == Some(object))?;
+    if state["observing"] == true || layer["locked"] == true
+        || u64::from(frame) >= state["project"]["frames"].as_u64()?
+    {
+        return None;
+    }
+    let source = channel(state, object, property, axis)?;
+    let present = source["keys"].as_array().into_iter().flatten()
+        .any(|key| key["frame"].as_i64() == Some(i64::from(frame)));
+    if remove {
+        return present.then(|| vec![Command::DeleteKey { object, property, axis, frame }]);
+    }
+    if present {
+        return Some(vec![]);
+    }
+    let sampled = sample(state, object, property, axis, f64::from(frame))?;
+    let value = if property.is_scalar() || axis.is_some() {
+        let value = observe!("animation.key_scalar", serde_json::from_value::<f32>(sampled),
+            "object={object} property={property:?} axis={axis:?} frame={frame}").ok()?;
+        if let Some(axis) = axis {
+            Command::SetComponent { object, property, axis, frame, value }
+        } else {
+            Command::SetScalar { object, property, frame, value }
+        }
+    } else {
+        let value = if property == Property::Anchor {
+            let anchor = observe!("animation.key_anchor", serde_json::from_value::<[f32; 2]>(sampled),
+                "object={object} frame={frame}").ok()?;
+            [anchor[0], anchor[1], 0.]
+        } else {
+            observe!("animation.key_vector", serde_json::from_value::<[f32; 3]>(sampled),
+                "object={object} property={property:?} frame={frame}").ok()?
+        };
+        Command::SetVector { object, property, frame, value }
+    };
+    Some(vec![Command::Animate { object, property, axis, frame, enabled: true }, value])
 }

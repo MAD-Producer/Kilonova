@@ -1,5 +1,68 @@
 //! Mask keys use composition time and the shared timeline's viewport.
 use super::*;
+
+#[cfg(test)]
+mod navigation_tests {
+    use super::*;
+
+    fn draw(controls: &mut Controls, engine: &motion_core::Engine, frame: u32, index: u8, slot: usize, cancel: bool, readonly: bool) -> Vec<Action> {
+        let layer = &engine.project().layers[0];
+        let state = serde_json::json!({"root":"fixture", "composition":"main", "project":engine.project(), "frame":frame, "observing":readonly});
+        let mut list = PaintList::default();
+        let styles = list.styles();
+        let p = [styles.metric("padding.panel", 8.) + (slot as f32 + 0.5) * styles.metric("icon.slot", 20.), styles.metric("row.height", 22.) * 0.5];
+        let input = Input { mouse:p, pressed:Some((MouseButton::Left,p)), focus_lost:cancel, ..Default::default() };
+        let mut out = Vec::new();
+        controls.navigation(&mut list, Rect::new(0., 0., 220., styles.metric("row.height", 22.)), &state, Owner::from(layer), &layer.masks[0], index, &input, &mut out);
+        out
+    }
+
+    #[test]
+    fn navigation_buttons_preserve_mask_channels_and_local_path_poses_with_one_undo() {
+        for index in mask_path::CHANNELS {
+            let mut engine = tests::engine();
+            let mut controls = Controls::default();
+            let original = engine.project().clone();
+            for frame in [12, 42] {
+                let actions = draw(&mut controls, &engine, frame, index, 1, false, false);
+                assert_eq!(actions.len(), 1);
+                tests::apply(&mut engine, actions);
+            }
+            let before = engine.project().clone();
+            for (slot, expected) in [(0, 12.), (2, 42.)] {
+                let actions = draw(&mut controls, &engine, 24, index, slot, false, false);
+                assert!(matches!(actions.as_slice(), [Action::Seek(frame)] if *frame == expected), "{actions:?}");
+                assert_eq!(engine.project(), &before);
+            }
+            assert!(draw(&mut controls, &engine, 12, index, 0, false, false).is_empty());
+            let actions = draw(&mut controls, &engine, 24, index, 1, false, false);
+            tests::apply(&mut engine, actions);
+            let added = engine.project().clone();
+            let mask = &added.layers[0].masks[0];
+            assert_eq!(frames(mask, index), vec![0, 12, 30]);
+            for other in mask_path::CHANNELS.into_iter().filter(|other| *other != index) {
+                assert_eq!(frames(mask, other), frames(&original.layers[0].masks[0], other));
+            }
+            let folder = tempfile::tempdir().unwrap();
+            motion_core::storage::save(folder.path(), &added).unwrap();
+            assert_eq!(motion_core::storage::load(folder.path()).unwrap(), added);
+            engine.undo().unwrap();
+            assert_eq!(engine.project(), &before);
+            engine.redo().unwrap();
+            assert_eq!(engine.project(), &added);
+            let actions = draw(&mut controls, &engine, 24, index, 1, false, false);
+            tests::apply(&mut engine, actions);
+            assert_eq!(frames(&engine.project().layers[0].masks[0], index), vec![0, 30]);
+            for (cancel, readonly) in [(true, false), (false, true)] {
+                assert!(draw(&mut controls, &engine, 24, index, 1, cancel, readonly).is_empty());
+            }
+            engine.apply(Command::Flags { object:7, visible:true, locked:true }).unwrap();
+            let locked = engine.project().clone();
+            assert!(draw(&mut controls, &engine, 24, index, 1, false, false).is_empty());
+            assert_eq!(engine.project(), &locked);
+        }
+    }
+}
 use motion_core::{Ease, Easing};
 use motion_ui::{
     icons::Icon,
@@ -225,6 +288,51 @@ impl Controls {
             property: index,
         });
         self.selected = None;
+    }
+    pub(super) fn navigation(
+        &mut self,
+        list: &mut PaintList,
+        row: Rect,
+        state: &Value,
+        owner: Owner,
+        mask: &LayerMask,
+        index: u8,
+        input: &Input,
+        out: &mut Vec<Action>,
+    ) -> bool {
+        use crate::panels::key_navigation::{self as navigation, Choice};
+        let at = state["frame"].as_f64().unwrap_or(0.);
+        let last = crate::panels::last_frame(state);
+        let adjacent = navigation::neighbours(frames(mask, index).into_iter()
+            .map(|frame| f64::from(frame) + f64::from(owner.offset)), at, last);
+        let frame = navigation::editable_frame(at, last);
+        let editable = !owner.locked && state["observing"] != true && frame.is_some()
+            && (index != mask_path::CHANNEL || !mask.path.nodes.is_empty());
+        let rect = navigation::rail(&list.styles(), row);
+        let Some(choice) = navigation::draw(list, rect, input, adjacent, editable) else { return false };
+        self.choose(state, owner, mask.id, index, out);
+        let channel = Channel { object: owner.object, mask: mask.id, property: index };
+        match choice {
+            Choice::Seek(frame) => {
+                self.selected = Some((channel, frame as u32));
+                out.push(Action::Seek(frame));
+            }
+            Choice::Toggle => {
+                let Some(frame) = frame.filter(|_| editable) else { return false };
+                let action = if adjacent.current {
+                    MaskAction::DeleteKey { mask: mask.id, property: property(index), frame }
+                } else {
+                    MaskAction::Set {
+                        mask: mask.id, property: property(index), frame,
+                        value: values(mask, index, f64::from(frame) - f64::from(owner.offset)),
+                        animated: Some(true),
+                    }
+                };
+                emit(out, &channel, mask, owner.offset, action);
+                self.selected = (!adjacent.current).then_some((channel, frame));
+            }
+        }
+        true
     }
     pub(super) fn watch(
         &mut self,
@@ -479,13 +587,10 @@ impl Controls {
         {
             let _ = mods;
             consumed = true;
-            let target = if key == Key::J {
-                keys.iter().copied().filter(|f| (*f as f64) < at).max()
-            } else {
-                keys.iter().copied().find(|f| (*f as f64) > at)
-            };
+            let adjacent = crate::panels::key_navigation::neighbours(keys.iter().map(|f| *f as f64), at, (total - 1) as f64);
+            let target = if key == Key::J { adjacent.previous } else { adjacent.next };
             if let Some(frame) = target {
-                at = frame as f64;
+                at = frame;
                 self.selected = Some((channel.clone(), frame as u32));
                 out.push(Action::Seek(at));
             }

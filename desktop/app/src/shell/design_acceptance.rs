@@ -343,7 +343,7 @@ impl Shell {
         let before = self.engine.state()?;
         let captured = (|| {
             let mut screens = serde_json::Map::new();
-            let view = panels::composition_view_styled(&self.workspace.root, size,
+            let view = panels::composition_view_styled(self.workspace.display_root(), size,
                 &self.panels.styles.clone().unwrap_or_else(motion_ui::style::default_stylesheet_arc));
             let canvas = [self.state["project"]["width"].as_f64().ok_or("viewer width missing")?,
                 self.state["project"]["height"].as_f64().ok_or("viewer height missing")?];
@@ -615,7 +615,9 @@ impl Shell {
             let mut input = Input::default();
             if pose == "effect-expression-unavailable-menu" {
                 let styles = paint.styles();
-                let point = [80., 30. + styles.metric("padding.panel", 8.)
+                let point = [styles.metric("padding.panel", 8.) + styles.metric("icon.slot", 20.) * 3.
+                    + styles.metric("tree.indent", 14.) + styles.metric("effect.watch.width", 24.)
+                    + styles.metric("padding", 5.), 30. + styles.metric("padding.panel", 8.)
                     + styles.metric("effect.toolbar.height", 28.)
                     + styles.metric("effect.toolbar.gap", 6.)
                     + styles.metric("effect.group.gap", 8.)

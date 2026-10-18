@@ -73,7 +73,7 @@ impl NodeEditor {
         while major < 24. {
             major *= 5.;
         }
-        paint::grid(
+        if self.view_preferences.grid { paint::grid(
             &mut canvas,
             area,
             colors.BORDER.with_alpha(0.15),
@@ -81,10 +81,10 @@ impl NodeEditor {
             world_origin,
             if minor >= 8. { minor } else { 0. },
             major,
-        );
+        ); }
 
         // 绘制原点标记（十字）
-        if area.contains(world_origin) {
+        if self.view_preferences.grid && area.contains(world_origin) {
             let cross_size = 10.;
             paint::line(
                 &mut canvas,

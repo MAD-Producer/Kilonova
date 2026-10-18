@@ -64,7 +64,7 @@ fn draw(
             occlusion_query_set: None,
         });
     }
-    painter.render(device, queue, &mut encoder, &view, list, [32.; 2]);
+    painter.render(device, queue, &mut encoder, &view, list, [32.; 2]).expect("UI frame must fit GPU buffers");
     encoder.copy_texture_to_buffer(
         wgpu::TexelCopyTextureInfo {
             texture: &texture,

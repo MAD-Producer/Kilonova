@@ -80,6 +80,7 @@ impl Shell {
         })
     }
     pub(crate) fn draw_commands(&mut self, size: [f32; 2]) -> (PaintList, Vec<panels::Action>) {
+        self.panel_maximize_shortcut(size);
         self.atlas.set_pixel_ratio(self.scale);
         let mut paint = self.engine.take_paint();
         paint.stylesheet = self.panels.styles.clone();
@@ -104,7 +105,7 @@ impl Shell {
                 &mut paint,
                 &mut self.atlas,
                 size,
-                &self.workspace.root,
+                self.workspace.display_root(),
                 &mut self.panels,
                 &self.state,
                 if self.dialog.is_some()
@@ -348,14 +349,14 @@ impl Shell {
         } else {
             None
         };
-        let view = panels::composition_view_styled(&self.workspace.root, size, &paint.styles());
+        let view = panels::composition_view_styled(self.workspace.display_root(), size, &paint.styles());
         UiFrame {
             paint,
             atlas,
             logical_size: size,
             window: 0,
             node_preview: if self.home.is_none() {
-                self.node_viewport(panels::node_view_bound(&self.workspace.root,size,self.panels.node_editor.layer_target.is_some()), self.scale)
+                self.node_viewport(panels::node_view_bound(self.workspace.display_root(),size,self.panels.node_editor.layer_target.is_some()), self.scale)
             } else { None },
             composition_image: self.viewer_image(view, self.scale),
             composition: if self.home.is_none() && view.width() > 0.0 && view.height() > 0.0 {
@@ -513,6 +514,7 @@ impl Shell {
             return Ok(());
         }
         let panel = panels::panel(id).ok_or("invalid panel")?;
+        self.workspace.restore_panel();
         if panel == dock::Panel::Nodes {
             if self.panels.node_editor.cancel_interaction() {
                 self.schedule_node_compile()?;
@@ -1413,8 +1415,12 @@ mod interaction_tests {
         let styles = motion_ui::style::default_stylesheet_arc();
         // Layer title, Masks, Transform and Anchor precede the Position row.
         let y = area.min[1] + 8. + 4. * styles.metric("row.height", 22.);
-        let columns = motion_ui::widgets::PropertyColumns::new(&styles, area, y, 64.);
-        let point = [columns.value.min[0] + 10., y + 10.];
+        // The key-navigation rail now precedes the property fields. Exercise
+        // the rendered Position X field while retaining the gesture assertions.
+        let value_x = area.min[0] + styles.metric("padding.panel", 8.) * 2.
+            + styles.metric("tree.indent", 14.) + styles.metric("icon.slot", 20.) * 4.
+            + styles.metric("label.column", 72.);
+        let point = [value_x + 10., y + 10.];
         shell.translate(Event::MousePressed { position: point, button: MouseButton::Left });
         assert!(shell.draw_commands([400., 1000.]).1.is_empty());
         shell.translate(Event::MouseMoved { position: [point[0] + 40., point[1]] });

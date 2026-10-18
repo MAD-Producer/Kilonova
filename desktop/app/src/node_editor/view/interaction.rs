@@ -50,7 +50,7 @@ impl NodeEditor {
                 self.add_menu = None;
                 continue;
             }
-            if self.drag.is_some() {
+            if self.drag.is_some() || self.minimap_drag.is_some() {
                 if let Some(command) = shortcuts::resolve(Scope::Nodes, key, modifiers, repeat) {
                     log::debug!("node shortcut deferred during drag command={command:?} epoch={} revision={}", self.epoch, self.revision);
                 }
@@ -60,6 +60,12 @@ impl NodeEditor {
                 continue;
             };
             match command {
+                Command::ToggleNodeGrid if !self.inline.busy() => {
+                    self.view_preferences.grid = !self.view_preferences.grid;
+                }
+                Command::ToggleNodeMinimap if !self.inline.busy() => {
+                    self.view_preferences.minimap = !self.view_preferences.minimap;
+                }
                 Command::Group => {
                     if let Err(error) = self.group_selected() {
                         self.notice = Some(error.to_string());

@@ -428,6 +428,7 @@ impl Shell {
         shell.panels.locale = chosen;
         shell.panels.workspace_preset = shell.workspace.preset;
         shell.panels.browser.favorites = shell.workspace.favorites.clone();
+        shell.panels.node_editor.view_preferences = shell.workspace.node_view;
         shell.panels.effect_controls.catalogue =
             shell.engine.plugin("{\"op\":\"catalogue\"}".into())?.into();
         if shell.smoke.is_some() {
@@ -719,6 +720,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             self.dirty = true;
         }
         if self.smoke.is_some()
+            && self.smoke_stage != 4 // Completed capture may be followed by one final native callback.
             && self.started.elapsed()
                 > Duration::from_secs(if self.smoke_panels||self.smoke_nodes||self.smoke_properties { 120 } else { 30 })
         {
@@ -858,6 +860,7 @@ impl ApplicationHandler<UserEvent> for Shell {
                     } else if self.smoke_stage == 2
                         && self.smoke_float_frames.get(&3).copied().unwrap_or(0) >= 2
                     {
+                        self.panel_maximize_float_probe(event_loop)?;
                         self.redock_panel(dock::DockId(2))?;
                         self.redock_panel(dock::DockId(3))?;
                         let locale = self.workspace.locale;
@@ -973,7 +976,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             || self.node_compile_due.is_some();
         let busy = busy || self.project_pending.is_some();
         let node_playing = self.panels.node_preview.playing
-            && (panels::node_view(&self.workspace.root, self.size().unwrap_or([0., 0.])).is_some()
+            && (panels::node_view(self.workspace.display_root(), self.size().unwrap_or([0., 0.])).is_some()
                 || self
                     .floating
                     .values()
@@ -1058,6 +1061,7 @@ fn translate_key(key: &WinitKey) -> Option<Key> {
             "=" | "+" => Key::Equal,
             "-" => Key::Minus,
             ";" | ":" => Key::Semicolon,
+            "`" => Key::Backquote,
             "," => Key::Comma,
             "." => Key::Period,
             "[" | "{" => Key::BracketLeft,

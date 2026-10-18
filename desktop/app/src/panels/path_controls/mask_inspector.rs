@@ -56,13 +56,14 @@ pub(super) fn property_row(
     let padding = styles.metric("padding.panel", 8.);
     let slot = styles.metric("icon.slot", 20.);
     let field = styles.metric("field.height", 18.).min(row);
-    let start = area.min[0] + padding + indent * 2.;
+    let navigation = crate::panels::key_navigation::width(styles);
+    let start = area.min[0] + padding + navigation + indent * 2.;
     let value = if host == Panel::Properties {
         area.min[0]
-            + (padding + styles.metric("label.column", 72.) + slot * 2.).min(area.width() * 0.52)
+            + (padding + navigation + styles.metric("label.column", 72.) + slot * 2.).min(area.width() * 0.7)
     } else {
         area.min[0] + area.width() * 0.52
-    };
+    }.max(start + slot + padding);
     let cell = ((area.max[0] - padding - value) / axes.max(1) as f32)
         .min(styles.metric("value.min_width", 64.));
     crate::panels::timeline::PropertyLayout {
@@ -619,6 +620,9 @@ impl Controls {
                     mask_keys::values(mask, index, local)
                 };
                 let fields = property_row(styles.as_ref(), area, *y, 0, values.len(), host);
+                if self.keys.navigation(list, Rect::new(area.min[0], *y, area.width(), row), state, owner, mask, index, input, out) {
+                    self.groups.keys.clear_selection();
+                }
                 self.keys
                     .watch(list, fields.watch, state, owner, mask, index, input, out);
                 label(list, atlas, fields.caption, title, colors.TEXT_MUTED);
@@ -671,12 +675,16 @@ mod tests {
                 assert!(layout.invert.max[0] <= area.max[0]);
                 assert!(layout.mode.width() >= styles.metric("icon.slot", 20.));
             }
-            let x = property_row(&styles, area, 120., 0, 2, Panel::Properties);
-            let y = property_row(&styles, area, 120., 1, 2, Panel::Properties);
+            for host in [Panel::Properties, Panel::Masks] {
+            let x = property_row(&styles, area, 120., 0, 2, host);
+            let y = property_row(&styles, area, 120., 1, 2, host);
+            let rail = crate::panels::key_navigation::rail(&styles, Rect::new(area.min[0], 120., width, styles.metric("row.height", 22.)));
+            assert!(rail.max[0] <= x.watch.min[0]);
             assert!(x.watch.max[0] <= x.caption.min[0]);
             assert!(x.caption.max[0] <= x.number.min[0]);
             assert!(x.number.max[0] <= y.number.min[0]);
             assert!(y.number.max[0] <= area.max[0]);
+            }
         }
     }
 }
