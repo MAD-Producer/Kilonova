@@ -57,7 +57,7 @@ impl App {
         let mut encoder = gpu.device.create_command_encoder(&Default::default());
         clear(&mut encoder, &view);
         gpu.painter
-            .render(&gpu.device, &gpu.queue, &mut encoder, &view, &paint, size);
+            .render(&gpu.device, &gpu.queue, &mut encoder, &view, &paint, size).map_err(|error|error.to_string())?;
         gpu.queue.submit(Some(encoder.finish()));
         gpu.queue.present(frame);
         window.frames += 1;
