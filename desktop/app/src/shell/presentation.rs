@@ -494,7 +494,10 @@ impl Shell {
         // Preserve the last consumed pointer/key state. New movement, release
         // and IME events remain queued for the next real interaction pass.
         let input = std::mem::replace(&mut self.input, self.paint_input.clone());
+        let navigation = self.panels.timeline.navigation_paint_only;
+        self.panels.timeline.navigation_paint_only = true;
         let frame = self.draw_commands(size);
+        self.panels.timeline.navigation_paint_only = navigation;
         self.input = input;
         frame
     }
@@ -669,6 +672,8 @@ impl Shell {
             || self.dialog.is_some()
             || self.node_examples.is_some()
             || self.node_close_prompt.is_some();
+        let navigation = self.panels.timeline.navigation_paint_only;
+        self.panels.timeline.navigation_paint_only = acknowledged;
         let actions = panels::floating_chrome(
             &mut paint,
             &mut self.atlas,
@@ -678,6 +683,7 @@ impl Shell {
             &self.state,
             if blocked { &neutral } else { &f.input },
         );
+        self.panels.timeline.navigation_paint_only = navigation;
         f.window.set_cursor(
             self.cursors
                 .get(self.panels.cursor.unwrap_or_default(), scale),

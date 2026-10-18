@@ -37,7 +37,8 @@ pub(super) fn shortcut(
     {
         return false;
     }
-    if panels.timeline.scrubbing
+    if panels.timeline.horizontal_drag.is_some()
+        || panels.timeline.scrubbing
         || panels.timeline.reorder.is_some()
         || panels.timeline.moving.is_some()
         || panels.timeline.trimming.is_some()

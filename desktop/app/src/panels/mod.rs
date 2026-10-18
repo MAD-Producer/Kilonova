@@ -69,6 +69,7 @@ mod timeline_shortcuts;
 #[cfg(test)]
 mod timeline_shortcuts_tests;
 mod timeline_zoom;
+mod timeline_navigation;
 pub(crate) mod titlebar;
 mod toolbar;
 pub(crate) mod transform_controls;
@@ -187,6 +188,8 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
         .take()
         .is_some_and(|field| field.scrubbing.is_some_and(|s| s.begun));
     panels.timeline.scrubbing = false;
+    panels.timeline.horizontal_drag = None;
+    panels.timeline.edge_pan_at = None;
     let moving = panels.timeline.moving.take().is_some();
     let trimming = panels.timeline.trimming.take().is_some();
     panels.timeline.reorder = None;

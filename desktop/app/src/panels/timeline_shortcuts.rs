@@ -376,6 +376,7 @@ pub(super) fn handle(
     }
     if panels.timeline.moving.is_some()
         || panels.timeline.trimming.is_some()
+        || panels.timeline.horizontal_drag.is_some()
         || panels.timeline.scrubbing
     {
         return true;

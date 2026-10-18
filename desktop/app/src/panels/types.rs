@@ -483,6 +483,10 @@ pub(crate) struct TimelineState {
     pub scroll_extent_cache: Option<(u64, f32)>,
     pub zoom: f32,
     pub offset: f32,
+    pub horizontal_drag: Option<f32>,
+    pub edge_pan_at: Option<std::time::Instant>,
+    /// Acknowledged frames repaint the consumed pointer without advancing navigation.
+    pub navigation_paint_only: bool,
     pub expression_rows: Vec<motion_core::ExpressionTarget>,
     pub zoom_track: Option<Rect>,
     pub scrubbing: bool,
@@ -564,6 +568,8 @@ impl TimelineState {
         } else if enabled {
             self.graph_fitted = false;
         }
+        self.horizontal_drag = None;
+        self.edge_pan_at = None;
         self.graph_mode = enabled;
         self.scrubbing = false;
         self.last_seek = None;

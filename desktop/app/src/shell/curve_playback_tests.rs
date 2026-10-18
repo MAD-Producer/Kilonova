@@ -1,5 +1,45 @@
 use crate::*;
 
+#[test]
+fn acknowledged_layer_drag_cannot_advance_edge_pan_or_starve_a_pending_release() {
+    let folder = tempfile::tempdir().unwrap();
+    let mut shell = Shell::new(folder.path().join("project"), None, Some(Locale::En)).unwrap();
+    shell.home = None;
+    let layer = Layer::solid(7, "Moving", [100.; 2], [100., 200., 0.], [1.; 4]);
+    shell.state = shell.engine.edit(serde_json::to_string(&Command::Add { layer }).unwrap()).unwrap();
+    shell.workspace.root = dock::Node::dock(dock::Panel::Timeline.dock());
+    shell.panels.select_only(Some(7));
+    shell.panels.focused = Some(dock::Panel::Timeline);
+    shell.panels.timeline.zoom = 4.;
+    shell.panels.timeline.offset = 60.;
+    let size = [1200., 900.];
+    shell.draw_commands(size);
+    let area = panels::frames(&shell.workspace.root, size)[0].content;
+    let left = shell.panels.timeline.zoom_track.unwrap().min[0];
+    shell.translate(Event::MousePressed { position: [left + 60., area.min[1] + 75.], button: MouseButton::Left });
+    let actions = shell.draw_commands(size).1;
+    shell.actions.extend(actions);
+    finish_actions(&mut shell);
+    let edge = [left - 10., area.min[1] + 75.];
+    shell.translate(Event::MouseMoved { position: edge });
+    let actions = shell.draw_commands(size).1;
+    shell.actions.extend(actions);
+    finish_actions(&mut shell);
+    assert!(shell.panels.timeline.moving.is_some());
+    shell.panels.timeline.edge_pan_at = Some(Instant::now() - Duration::from_millis(40));
+    let before = shell.panels.timeline.offset;
+    shell.translate(Event::MouseReleased { position: edge, button: MouseButton::Left });
+    for _ in 0..8 {
+        assert!(shell.draw_acknowledged(size).1.is_empty());
+        assert_eq!(shell.panels.timeline.offset, before);
+        assert!(shell.input.pending && shell.input.released.is_some());
+    }
+    let actions = shell.draw_commands(size).1;
+    assert!(actions.iter().any(|a| matches!(a, panels::Action::History(3))));
+    assert!(shell.panels.timeline.moving.is_none());
+    assert!(shell.panels.timeline.edge_pan_at.is_none());
+}
+
 fn finish_actions(shell: &mut Shell) -> usize {
     let mut frames = 0;
     while let Some(action) = shell::actions::pop_action(&mut shell.actions) {
