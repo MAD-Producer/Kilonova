@@ -24,6 +24,7 @@ use std::{
 };
 mod diagnostic_names;
 mod failure;
+mod ui_paint;
 #[cfg(test)]
 mod fallback_tests;
 #[cfg(test)]
@@ -1495,7 +1496,7 @@ fn handle(
                 presenter.encode_view(&g.renderer.queue, &mut encoder, &target.view, None,
                     if ui.composition_image.is_some() { [x,y,w,h] } else { [x+(w-vw)*0.5,y+(h-vh)*0.5,vw,vh] }, ui.composition_image, s.scene.background);
             } else {clear_target(&mut encoder,&target.view);}
-            chrome.render_scaled(&g.renderer.device,&g.renderer.queue,&mut encoder,&target.view,&ui.paint,ui.logical_size,[width as f32/ui.logical_size[0],height as f32/ui.logical_size[1]]);
+            chrome.render_scaled(&g.renderer.device,&g.renderer.queue,&mut encoder,&target.view,&ui.paint,ui.logical_size,[width as f32/ui.logical_size[0],height as f32/ui.logical_size[1]]).map_err(|e|format!("capture_ui window={}: {e}",ui.window))?;
             if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview) {preview.encode(&g.renderer.device,&g.renderer.queue,&mut encoder,&target.view,viewport,wgpu::TextureFormat::Rgba8UnormSrgb);}
             g.renderer.queue.submit(Some(encoder.finish()));
             let pixels = g.renderer.read_target(&target).map_err(|e| e.to_string())?;
@@ -1547,8 +1548,12 @@ fn handle(
                     let pixel_ratio=[g.config.width as f32/ui.logical_size[0],g.config.height as f32/ui.logical_size[1]];
                     // The overlay targets the swapchain, not the composition scratch texture.
                     let surface_format=g.config.format;
+                    let mut paint_error=None;
                     let overlay=|r:&motion_render::Renderer,encoder:&mut wgpu::CommandEncoder,target:&wgpu::TextureView|{
-                        painter.render_scaled(&r.device,&r.queue,encoder,target,&ui.paint,ui.logical_size,pixel_ratio);
+                        if let Err(error)=painter.render_scaled(&r.device,&r.queue,encoder,target,&ui.paint,ui.logical_size,pixel_ratio) {
+                            paint_error=Some(error);
+                            return;
+                        }
                         if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){preview.encode(&r.device,&r.queue,encoder,target,viewport,surface_format);}
                     };
                     let result=if reuse {
@@ -1558,6 +1563,7 @@ fn handle(
                         presentation.composition_renders+=1;
                         s.render_with_view(frame,Some(viewport),ui.composition_image,overlay)
                     };
+                    let result=ui_paint::finish(result,paint_error,ui.window);
                     presentation.retained=if result.as_ref().is_ok_and(|v|*v)
                         && !s.preview_memory_held && s.last_error.is_none()
                         && stamp==CompositionStamp::new(s,&ui,viewport)
@@ -1579,7 +1585,7 @@ fn handle(
                     let view=output.texture.create_view(&Default::default());
                     let mut encoder=g.renderer.device.create_command_encoder(&Default::default());
                     clear_target(&mut encoder,&view);
-                    painter.render_scaled(&g.renderer.device,&g.renderer.queue,&mut encoder,&view,&ui.paint,ui.logical_size,[g.config.width as f32/ui.logical_size[0],g.config.height as f32/ui.logical_size[1]]);
+                    painter.render_scaled(&g.renderer.device,&g.renderer.queue,&mut encoder,&view,&ui.paint,ui.logical_size,[g.config.width as f32/ui.logical_size[0],g.config.height as f32/ui.logical_size[1]]).map_err(|e|format!("present window={}: {e}",ui.window))?;
                     if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){preview.encode(&g.renderer.device,&g.renderer.queue,&mut encoder,&view,viewport,g.config.format);}
                     g.renderer.queue.submit(Some(encoder.finish()));g.renderer.queue.present(output);Ok(true)
                 }
