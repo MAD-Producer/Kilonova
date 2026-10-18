@@ -1,6 +1,8 @@
 //! Native UI component gallery. No project, media, JS or editor session is loaded.
 #[path = "framework/acceptance.rs"]
 mod acceptance;
+#[path = "framework/input_acceptance.rs"]
+mod input_acceptance;
 #[path = "framework/native.rs"]
 mod native;
 

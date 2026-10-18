@@ -296,6 +296,9 @@ impl NumberEditor {
         }
         if let Some(drag) = &mut self.drag {
             let delta = input.mouse[0] - drag.mouse;
+            let released = input
+                .released
+                .is_some_and(|(button, _)| button == MouseButton::Left);
             if !drag.begun
                 && numeric_behavior::started(
                     delta,
@@ -304,7 +307,7 @@ impl NumberEditor {
                         crate::style::default_stylesheet().metric("motion.drag_threshold", 3.)
                     }),
                 )
-                && (input.dragging() || input.released.is_some())
+                && (input.dragging() || released)
             {
                 drag.begun = true;
                 self.text.cancel();
@@ -312,7 +315,7 @@ impl NumberEditor {
                     value: drag.original,
                 });
             }
-            if drag.begun && (input.dragging() || input.released.is_some()) {
+            if drag.begun && (input.dragging() || released) {
                 let fine = numeric_behavior::step(input);
                 let speed = if options.speed.is_finite() {
                     options.speed
@@ -327,7 +330,7 @@ impl NumberEditor {
                     events.push(NumberEvent::Change { value: next });
                 }
             }
-            if input.released.is_some() {
+            if released {
                 if drag.begun {
                     events.push(NumberEvent::Commit { value: drag.value });
                 } else if input.released.is_some_and(|(button, point)| {
@@ -490,7 +493,10 @@ impl Button {
             && input
                 .released
                 .is_some_and(|(b, p)| b == MouseButton::Left && area.contains(p));
-        if input.released.is_some() {
+        if input
+            .released
+            .is_some_and(|(button, _)| button == MouseButton::Left)
+        {
             self.armed = false;
         }
         let mut visual = input.clone();
