@@ -126,7 +126,7 @@ pub struct Panels {
     /// active object.
     pub(crate) selected_layers: Vec<u64>,
     pub(crate) selection_anchor: Option<u64>,
-    pub(crate) selection_composition: Option<String>,
+    pub(crate) selection_context: Option<(String, String)>,
     pub playing: bool,
     pub message: Option<String>,
     pub(crate) menu: Option<usize>,
@@ -252,16 +252,18 @@ impl Panels {
 
     pub(crate) fn normalize_selection(&mut self, state: &serde_json::Value) -> bool {
         let mut context_changed = false;
-        if let Some(composition) = state["project"]["composition_id"].as_str() {
-            if self
-                .selection_composition
-                .as_deref()
-                .is_some_and(|old| old != composition)
-            {
+        let root = state["root"].as_str().unwrap_or("");
+        if let Some(composition) = state["composition"].as_str()
+            .or_else(|| state["project"]["composition_id"].as_str()) {
+            if self.selection_context.as_ref().is_some_and(|old|
+                old.0 != root || old.1 != composition) {
                 context_changed = true;
                 self.select_only(None);
             }
-            self.selection_composition = Some(composition.to_owned());
+            if self.selection_context.as_ref().is_none_or(|old|
+                old.0 != root || old.1 != composition) {
+                self.selection_context = Some((root.to_owned(), composition.to_owned()));
+            }
         }
         let valid = |id: &u64| {
             *id != 0
@@ -474,6 +476,7 @@ pub(crate) struct TimelineState {
     pub graph_grid: bool,
     pub(crate) graph_drag: Option<super::graph_handles::Drag>,
     pub(crate) key_drag: Option<super::graph_keys::Drag>,
+    pub(crate) timing_drag: Option<super::timeline_key_drag::Drag>,
     pub graph_y_zoom: f32,
     pub graph_y_offset: f32,
     pub scroll: f32,
@@ -543,6 +546,7 @@ impl TimelineState {
         }
         if self.graph_drag.as_ref().is_some_and(|d| d.begun())
             || self.key_drag.as_ref().is_some_and(|d| d.begun())
+              || self.timing_drag.as_ref().is_some_and(|d| d.begun())
         {
             log::warn!("graph mode changed with active gesture enabled={enabled} handle_drag={} key_drag={}", self.graph_drag.is_some(), self.key_drag.is_some());
         }

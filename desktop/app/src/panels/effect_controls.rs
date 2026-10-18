@@ -67,6 +67,9 @@ pub struct Controls {
     color_popup: Option<ColorPopup>,
     collapsed_curves: std::collections::HashSet<(u64, u64, String)>,
     key_channel: Option<key_navigation::Channel>,
+    // Display projection only; key commands remain with the controller selected
+    // by the last real input, even when both effect hosts are visible.
+    mirrored_channel: Option<key_navigation::Channel>,
     selection_intent: bool,
     /// component -2 = popup frame, -1 = swatch, 0.. = popup channel fields.
     #[cfg(test)]
@@ -799,15 +802,16 @@ impl Controls {
         self.cursor = false;
         self.drag_readout = None;
         let object = layer["id"].as_u64().unwrap();
-        let locked = layer["locked"].as_bool().unwrap_or(false);
-        for ((owner, effect, _), editor) in &mut self.curve_editors {
+        let locked = layer["locked"].as_bool().unwrap_or(false) || state["observing"] == true;
+        for ((owner, effect, parameter), editor) in &mut self.curve_editors {
             if (locked
                 || *owner != object
                 || !layer["effects"]
                     .as_array()
                     .into_iter()
                     .flatten()
-                    .any(|item| item["id"].as_u64() == Some(*effect)))
+                    .any(|item| item["id"].as_u64() == Some(*effect)
+                        && item["params"].get(parameter).is_some()))
                 && editor.cancel()
             {
                 out.push(Action::History(4));
@@ -817,7 +821,11 @@ impl Controls {
         let local = state["frame"].as_f64().unwrap_or(0.0)
             - layer["timeline"]["offset_frame"].as_f64().unwrap_or(0.0);
         if self.field.as_ref().is_some_and(|f| {
-            f.object != object || locked || input.pressed.is_some_and(|(_, p)| !f.rect.contains(p))
+            f.object != object || locked
+                || !layer["effects"].as_array().into_iter().flatten()
+                    .any(|effect| effect["id"].as_u64() == Some(f.effect)
+                        && effect["params"].get(&f.param).is_some())
+                || input.pressed.is_some_and(|(_, p)| !f.rect.contains(p))
         }) {
             if self.cancel() {
                 out.push(Action::History(4));

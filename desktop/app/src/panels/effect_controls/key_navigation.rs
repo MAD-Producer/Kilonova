@@ -88,7 +88,7 @@ mod tests {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub(super) struct Channel {
     object: u64,
     effect: u64,
@@ -115,14 +115,15 @@ fn times(parameter: &EffectParam, offset: f64) -> Vec<f64> {
 
 impl Controls {
     pub(super) fn choose_parameter(&mut self, state: &Value, object: u64, effect: u64, parameter: &str) {
+        self.mirrored_channel = None;
         self.key_channel = Some(Channel { object, effect, parameter: parameter.into(),
             context: (state["root"].as_str().unwrap_or("").into(),
                 state["composition"].as_str().unwrap_or("").into()) });
         self.selection_intent = true;
     }
 
-    pub(super) fn parameter_selected(&self, state: &Value, object: u64, effect: u64, parameter: &str) -> bool {
-        self.key_channel.as_ref().is_some_and(|channel|
+    pub(in crate::panels) fn parameter_selected(&self, state: &Value, object: u64, effect: u64, parameter: &str) -> bool {
+        self.key_channel.as_ref().or(self.mirrored_channel.as_ref()).is_some_and(|channel|
             channel.object == object && channel.effect == effect && channel.parameter == parameter
                 && channel.context.0 == state["root"].as_str().unwrap_or("")
                 && channel.context.1 == state["composition"].as_str().unwrap_or(""))
@@ -138,7 +139,16 @@ impl Controls {
 
     pub(in crate::panels) fn clear_key_channel(&mut self) {
         self.key_channel = None;
+        self.mirrored_channel = None;
         self.selection_intent = false;
+    }
+
+    pub(in crate::panels) fn mirror_selection_from(&mut self, source: &Self) {
+        if self.key_channel.is_none() && self.mirrored_channel == source.key_channel {
+            return;
+        }
+        self.clear_key_channel();
+        self.mirrored_channel = source.key_channel.clone();
     }
 
     pub(in crate::panels) fn navigate_keys(

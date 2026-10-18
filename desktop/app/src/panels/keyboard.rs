@@ -25,6 +25,7 @@ fn editor_active(panels: &Panels) -> bool {
         || panels.timeline.moving.is_some()
         || panels.timeline.trimming.is_some()
         || panels.timeline.key_drag.is_some()
+        || panels.timeline.timing_drag.is_some()
         || panels.timeline.graph_drag.is_some()
         || panels.timeline.graph_box.editing()
         || panels.timeline.horizontal_drag.is_some()

@@ -730,6 +730,7 @@ pub(super) fn render(
     let wheel = input.wheel[1];
     let gesture = panels.timeline.graph_box.editing()
         || panels.timeline.key_drag.is_some()
+        || panels.timeline.timing_drag.is_some()
         || panels.timeline.graph_drag.is_some()
         || panels.timeline.moving.is_some()
         || panels.timeline.trimming.is_some()
@@ -1354,6 +1355,23 @@ pub(super) fn render(
         if graph_mode {
             continue;
         }
+        // A collapsed summary diamond takes precedence over the layer bar and
+        // its edge handles. Its drag moves authored keys, never the clip.
+        let key_hit = (!expanded).then(|| {
+            row.keys.iter().copied().find(|frame| {
+                let x = x_of(*frame);
+                let hit = styles.metric("timeline.key.hit_radius", 5.);
+                let radius = styles.metric("timeline.key.radius", 4.);
+                *frame >= 0. && *frame < total && x >= track.min[0] + radius
+                    && x < track.max[0] - radius
+                    && clicked(input, Rect::new(x - hit, y, hit * 2., row_height))
+            })
+        }).flatten();
+        if let Some(frame) = key_hit {
+            super::timeline_key_drag::begin(
+                panels, state, row, frame as u32, None, ppf, offset, input, out,
+            );
+        }
         let left = x_of(row.range[0]).max(track.min[0]);
         let right = x_of(row.range[1]).min(track.max[0]);
         if right > left {
@@ -1383,7 +1401,7 @@ pub(super) fn render(
                     if handle.contains(input.mouse) {
                         panels.cursor = Some(motion_ui::cursor::Cursor::ResizeEW);
                     }
-                    if clicked(input, handle) {
+                    if key_hit.is_none() && clicked(input, handle) {
                         panels.timeline.trimming = Some((
                             row.id,
                             row.range[0],
@@ -1395,7 +1413,7 @@ pub(super) fn render(
                     }
                 }
             }
-            if clicked(input, bar) && panels.timeline.trimming.is_none() {
+            if key_hit.is_none() && clicked(input, bar) && panels.timeline.trimming.is_none() {
                 if input.modifiers.control
                     || input.modifiers.shift
                     || !panels.selection_contains(row.id)
@@ -1444,11 +1462,16 @@ pub(super) fn render(
         }
         for f in row.keys.iter().filter(|_| !expanded) {
             let x = x_of(*f);
-            if x >= track.min[0] + 4.0 && x < track.max[0] - 4.0 {
-                paint::diamond(list, [x, y + row_height * 0.5], 4.0, colors.KEYFRAME);
+            let radius = styles.metric("timeline.key.radius", 4.);
+            if x >= track.min[0] + radius && x < track.max[0] - radius {
+                paint::diamond(list, [x, y + row_height * 0.5], radius, colors.KEYFRAME);
             }
         }
     }
+    super::timeline_key_drag::update(
+        panels, state, &all_rows, ppf, offset, input, out,
+        styles.metric("motion.drag_threshold", 3.),
+    );
     super::path_controls::timeline::process(
         list, &all_rows, body, ppf, offset, panels, state, input, out,
     );
@@ -2199,23 +2222,19 @@ pub(super) fn render_layer_properties(
                     paint::diamond(
                         list,
                         [x, py + row_height * 0.5],
-                        4.,
+                        list.styles().metric("timeline.key.radius", 4.),
                         if current {
                             colors.KEYFRAME
                         } else {
                             colors.ACCENT
                         },
                     );
-                    if clicked(input, Rect::new(x - 5., py, 10., row_height)) {
-                        panels.select_only(Some(row.id));
-                        panels.animation_controls.select_key_in(
-                            state,
-                            row.id,
-                            property.property,
-                            axis,
-                            *frame as i64,
+                    let hit = list.styles().metric("timeline.key.hit_radius", 5.);
+                    if clicked(input, Rect::new(x - hit, py, hit * 2., row_height)) {
+                        super::timeline_key_drag::begin(
+                            panels, state, row, frame.clamp(0., total - 1.) as u32,
+                            Some((property.property, axis)), ppf, offset, input, out,
                         );
-                        out.push(Action::Seek(frame.clamp(0., total - 1.)));
                     }
                 }
             }

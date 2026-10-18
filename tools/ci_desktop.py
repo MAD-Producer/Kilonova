@@ -84,6 +84,11 @@ def verify_design_screens(snapshot: dict, locale: str, *, property_followups: bo
             "mask-handles-selected": (900, 520),
             "rectangle-resize-before": (900, 520), "rectangle-resize-after": (900, 520),
             "rectangle-resize-properties": (360, 560),
+            **{f"timeline-key-drag-{row}-{phase}": (900, 520)
+               for row in ("property", "summary") for phase in ("before", "after")},
+            **{f"effect-selection-from-{owner}-{host}": (width, 560)
+               for owner in ("controls", "inspector")
+               for host, width in (("controls", 360), ("inspector", 360), ("narrow", 220))},
         }
     names = tuple(auxiliary) if property_followups else ("home", "project-open-error", "composition-settings", "workspace-manager", "effect-library", "timeline-parent-menu", "timeline-blend-menu", "timeline-graph", "value-graph", "speed-graph", "viewer-fit", "viewer-zoom", "viewer-pan", *auxiliary)
     for name in names:

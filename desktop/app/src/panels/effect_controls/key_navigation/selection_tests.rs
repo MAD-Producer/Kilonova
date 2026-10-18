@@ -78,6 +78,11 @@ fn property_focus_replaces_effect_and_transform_owners_and_consumes_repeated_sta
                             .choose_parameter(&original, 7, 1, "amount")
                     }
                     property_focus::settle(&mut panels);
+                    for controls in [&panels.effect_controls, &panels.properties.effects] {
+                        assert!(controls.parameter_selected(&original, 7, 1, "amount"));
+                    }
+                    assert_eq!(panels.effect_controls.has_key_channel(), !inspector);
+                    assert_eq!(panels.properties.effects.has_key_channel(), inspector);
                     assert_eq!(
                         panels
                             .animation_controls
@@ -137,6 +142,9 @@ fn property_focus_replaces_effect_and_transform_owners_and_consumes_repeated_sta
                         !panels.effect_controls.has_key_channel()
                             && !panels.properties.effects.has_key_channel()
                     );
+                    for controls in [&panels.effect_controls, &panels.properties.effects] {
+                        assert!(!controls.parameter_selected(&original, 7, 1, "amount"));
+                    }
                 }
                 for case in 0..4 {
                     if inspector {
@@ -173,6 +181,11 @@ fn property_focus_replaces_effect_and_transform_owners_and_consumes_repeated_sta
                             );
                             assert!(out.is_empty(),"inspector={inspector} floating={floating} case={case} key={key:?}: {out:?}");
                         }
+                    }
+                    property_focus::settle(&mut panels);
+                    for controls in [&panels.effect_controls, &panels.properties.effects] {
+                        assert!(!controls.parameter_selected(&original, 7, 1, "amount"),
+                            "restoring the old snapshot must not revive a mirrored selection");
                     }
                 }
             }

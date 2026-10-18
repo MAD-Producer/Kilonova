@@ -75,6 +75,7 @@ pub(super) fn settle(panels: &mut Panels) {
         ),
     ];
     let Some((owner, _)) = intents.into_iter().rev().find(|(_, chosen)| *chosen) else {
+        mirror_effect_selection(panels);
         return;
     };
     if owner != Domain::Transform {
@@ -89,10 +90,25 @@ pub(super) fn settle(panels: &mut Panels) {
     if owner != Domain::Audio {
         panels.audio_controls.clear_selection();
     }
-    if owner != Domain::Effects {
+    if !matches!(owner, Domain::Effects | Domain::InspectorEffects) {
         panels.effect_controls.clear_key_channel();
+        panels.properties.effects.clear_key_channel();
+    } else if owner == Domain::Effects {
+        panels.properties.effects.mirror_selection_from(&panels.effect_controls);
+    } else {
+        panels.effect_controls.mirror_selection_from(&panels.properties.effects);
     }
-    if owner != Domain::InspectorEffects {
+}
+
+fn mirror_effect_selection(panels: &mut Panels) {
+    if panels.effect_controls.has_key_channel() {
+        panels.properties.effects.mirror_selection_from(&panels.effect_controls);
+    } else if panels.properties.effects.has_key_channel() {
+        panels.effect_controls.mirror_selection_from(&panels.properties.effects);
+    } else {
+        // Invalidating the real owner must also retire its visual projection;
+        // undo or a reused object ID must not turn the mirror into an owner.
+        panels.effect_controls.clear_key_channel();
         panels.properties.effects.clear_key_channel();
     }
 }

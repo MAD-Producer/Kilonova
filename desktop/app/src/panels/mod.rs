@@ -70,6 +70,9 @@ mod timeline_3d_tests;
 #[cfg(test)]
 mod selection_tests;
 mod timeline;
+mod timeline_key_drag;
+#[cfg(test)]
+mod timeline_key_drag_tests;
 mod timeline_columns;
 #[cfg(test)]
 mod timeline_columns_tests;
@@ -168,7 +171,8 @@ pub(crate) fn observe_interaction_boundary(panels: &Panels, operation: &str) {
         .graph_drag
         .as_ref()
         .is_some_and(|d| d.begun())
-        || panels.timeline.key_drag.as_ref().is_some_and(|d| d.begun());
+        || panels.timeline.key_drag.as_ref().is_some_and(|d| d.begun())
+        || panels.timeline.timing_drag.as_ref().is_some_and(|d| d.begun());
     let path = panels.path_controls.gesture_active();
     let curve = panels.effect_controls.curve_gesture_active()
         || panels.properties.effects.curve_gesture_active();
@@ -207,7 +211,8 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     panels.timeline.reorder = None;
     let animation = panels.animation_controls.cancel();
     let graph = panels.timeline.graph_drag.take().is_some_and(|d| d.begun())
-        | panels.timeline.key_drag.take().is_some_and(|d| d.begun());
+        | panels.timeline.key_drag.take().is_some_and(|d| d.begun())
+        | panels.timeline.timing_drag.take().is_some_and(|d| d.begun());
     let path = panels.path_controls.cancel();
     let transform = panels.transform_controls.cancel();
     panels.composition.orbit = None;

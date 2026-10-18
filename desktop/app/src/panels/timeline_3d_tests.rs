@@ -15,6 +15,9 @@ fn three_d_switch_is_editable_in_observation_views_without_changing_the_view() {
         let mut shell = crate::Shell::new(root.clone(), None, Some(locale)).unwrap();
         shell.home = None;
         shell.workspace.root = Node::dock(Panel::Timeline.dock());
+        // This fixture calculates its click from the default column plan.
+        // User workspace preferences may hide columns and shift the switch.
+        shell.panels.timeline.column_visibility = Default::default();
         let styles = PaintList::default().styles();
         for kind in [1, 2, 3] {
             shell.action(Action::ViewKind(kind), None).unwrap();
