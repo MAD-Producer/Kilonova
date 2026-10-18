@@ -39,6 +39,11 @@ def verify_design_screens(snapshot: dict, locale: str, *, property_followups: bo
         "layer-properties-tree": (360, 560), "layer-properties-effects": (360, 560),
         "timeline-properties-tree": (720, 520),
         "camera-properties": (360, 560), "timeline-cameras": (720, 520),
+        "path-hover-incoming": (900, 520), "path-hover-outgoing": (900, 520),
+        "path-hover-locked": (900, 520), "timeline-translated": (900, 520),
+        "timeline-navigation": (900, 520), "timeline-navigation-end": (900, 520),
+        "timeline-navigation-graph": (900, 520), "timeline-navigation-hover": (900, 520),
+        "timeline-navigation-drag": (900, 520),
         "layer-anchor-animation": (360, 560), "timeline-anchor-animation": (720, 520),
         "timeline-anchor-graph": (720, 520),
     })
