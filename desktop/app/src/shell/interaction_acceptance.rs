@@ -85,6 +85,43 @@ impl Shell {
             self.engine.capture_ui(frame, path.clone())?;
             Self::crop_interaction_capture(&path, size, window_size)?;
             screens.insert("timeline-translated".into(), serde_json::json!(path));
+            // Exercise the real footer control after zooming; both captures use
+            // the same engine range and layer list, with no alternate painter.
+            self.state = self.engine.edit(serde_json::to_string(&Command::Flags { object, visible: true, locked: false }).map_err(|e| e.to_string())?)?;
+            self.state = self.engine.edit(serde_json::to_string(&Command::SetLayerRange { object, in_frame: 30., out_frame: 120. }).map_err(|e| e.to_string())?)?;
+            self.workspace.root = dock::Node::dock(dock::Panel::Timeline.dock());
+            self.panels.timeline.expanded.insert(object);
+            self.panels.timeline.zoom = 4.;
+            self.panels.timeline.offset = 60.;
+            for name in ["timeline-navigation", "timeline-navigation-end", "timeline-navigation-graph"] {
+                if name == "timeline-navigation-graph" {
+                    self.panels.timeline.set_graph_mode(true);
+                    self.panels.timeline.offset = 60.;
+                }
+                let mut paint = PaintList::default();
+                let actions = panels::chrome(&mut paint, &mut self.atlas, size, &self.workspace.root,
+                    &mut self.panels, &self.state, &Input::default());
+                if !actions.is_empty() { return Err(format!("{name} capture unexpectedly edited data")); }
+                let frame = self.ui_frame(paint, window_size, true);
+                let path = self.smoke.as_ref().ok_or("interaction report missing")?.with_extension(format!("{name}.png"));
+                self.engine.capture_ui(frame, path.clone())?;
+                Self::crop_interaction_capture(&path, size, window_size)?;
+                screens.insert(name.into(), serde_json::json!(path));
+                if name == "timeline-navigation" {
+                    let track = self.panels.timeline.zoom_track.ok_or("navigation fixture track missing")?;
+                    let mouse = [track.max[0] - styles.metric("padding",5.), track.max[1] - styles.metric("field.height",18.) * 0.5];
+                    for input in [Input { mouse, pressed: Some((motion_ui::MouseButton::Left,mouse)), held: Some(motion_ui::MouseButton::Left), ..Default::default() },
+                        Input { mouse, released: Some((motion_ui::MouseButton::Left,mouse)), ..Default::default() }] {
+                        let actions = panels::chrome(&mut PaintList::default(), &mut self.atlas, size, &self.workspace.root,
+                            &mut self.panels, &self.state, &input);
+                        if !actions.is_empty() { return Err("footer navigation unexpectedly edited data".into()); }
+                    }
+                    let total = self.state["project"]["frames"].as_f64().ok_or("navigation fixture duration missing")? as f32;
+                    if (self.panels.timeline.offset - total * 0.75).abs() > f32::EPSILON * total {
+                        return Err("footer navigation did not reach composition end".into());
+                    }
+                }
+            }
             Ok(screens)
         })();
         let restored = self.engine.history(4);

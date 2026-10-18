@@ -626,25 +626,8 @@ pub(super) fn render(
     if owns_scrub && input.released.is_some() {
         panels.timeline.scrubbing = false;
     }
-    label(
-        &mut graph,
-        atlas,
-        Rect::new(plot.min[0], area.max[1] - 24., plot.width(), 22.),
-        if panels.timeline.speed_graph {
-            if panels.locale == Locale::Zh {
-                "速度图表：显示属性每秒的变化速率"
-            } else {
-                "Speed graph: property change per second"
-            }
-        } else {
-            if panels.locale == Locale::Zh {
-                "数值图表：通过手柄控制属性随时间的变化"
-            } else {
-                "Value graph: adjust property changes over time"
-            }
-        },
-        true,
-    );
+    // The shared timeline footer now contains navigation. Keep the graph ruler
+    // at its established position and put its explanatory text in the gutter.
     graph.clip_to(area);
     list.append(graph);
 }
