@@ -18,7 +18,7 @@ Reviewed all 147 local worktrees, recent branch heads, the issue timeline and al
 
 ## Validation
 
-Final complete serial desktop suite: **431 passed, 0 failed, 1 existing native-audio test ignored**, 369.26 seconds. All eight added tests passed. Python tools: **51 passed, 1 existing skip**. Final build and check passed. All four native cases exited successfully with empty stdout, valid GPU captures and unchanged persistent layout/project assertions. Provenance and panel style guards passed.
+Final complete serial desktop suite: **431 passed, 0 failed, 1 existing native-audio test ignored**, 369.26 seconds. All eight added tests passed. Python tools: **51 tests run, 1 existing skip**. Final build and check passed. All four native cases exited successfully with empty stdout, valid GPU captures and unchanged persistent layout/project assertions. Provenance and panel style guards passed.
 
 Commands (portable MSVC environment loaded, `CARGO_BUILD_JOBS=2`):
 
