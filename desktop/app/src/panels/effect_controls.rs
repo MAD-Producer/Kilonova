@@ -38,6 +38,7 @@ fn context_row(card: Rect, width: f32, row: f32, index: usize) -> Rect {
 
 #[derive(Default)]
 pub struct Controls {
+    pub(super) expressions: super::expressions::Controls,
     pub catalogue: std::sync::Arc<Value>,
     pub cursor: bool,
     pub drag_readout: Option<([f32; 2], String)>,
@@ -83,6 +84,7 @@ struct EffectContextMenu {
     category: Option<String>,
     instance: Option<(u64, usize)>,
     catalogue: bool,
+    expression: Option<motion_core::ExpressionTarget>,
     opened: bool,
 }
 struct Field {
@@ -208,7 +210,8 @@ fn dimensions(kind: &str) -> usize {
 }
 impl Controls {
     pub fn editing(&self) -> bool {
-        self.field.is_some()
+        self.expressions.editing()
+            || self.field.is_some()
             || self.choosing
             || self.enum_owner.is_some()
             || self.context_menu.is_some()
@@ -222,6 +225,7 @@ impl Controls {
         self.curve_editors.values().any(|editor| editor.dragging())
     }
     pub fn cancel(&mut self) -> bool {
+        self.expressions.cancel();
         let mut begun = self.field.take().is_some_and(|mut f| f.number.cancel());
         for editor in self.curve_editors.values_mut() {
             begun |= editor.cancel();
@@ -388,6 +392,7 @@ impl Controls {
         };
         let opened = std::mem::take(&mut menu.opened);
         let instance = menu.instance;
+        let expression = menu.expression.clone();
         let neutral = Input::default();
         let input = if opened { &neutral } else { input };
         let anchor = menu.anchor;
@@ -399,7 +404,9 @@ impl Controls {
         let row = styles.metric("context.row.height", 20.).clamp(18., 24.);
         let width = 250f32.min(bounds.width());
         let action_count = if instance.is_some() { 3 } else { 0 };
-        let height = (4 + action_count + categories.len()) as f32 * row + 6.;
+        let height =
+            (4 + action_count + categories.len() + usize::from(expression.is_some())) as f32 * row
+                + 6.;
         let card = Rect::new(
             anchor[0].clamp(bounds.min[0], (bounds.max[0] - width).max(bounds.min[0])),
             (anchor[1] - height).clamp(bounds.min[1], (bounds.max[1] - height).max(bounds.min[1])),
@@ -457,6 +464,11 @@ impl Controls {
         }
         let clear_index = header.len();
         header.push((clear_effects, !locked, None));
+        let expression_index = expression.as_ref().map(|_| {
+            let index = header.len();
+            header.push((word(locale, "编辑表达式", "Edit expression"), !locked, None));
+            index
+        });
         let header_count = header.len();
         for (index, (label, enabled, _)) in header.iter().enumerate() {
             let area = context_row(card, width, row, index);
@@ -551,7 +563,14 @@ impl Controls {
         if let Some(menu) = self.context_menu.as_mut() {
             menu.category = active_category;
         }
-        if let Some(operation) = chosen.and_then(|index| header[index].2.clone()) {
+        if chosen.is_some() && chosen == expression_index {
+            self.expressions.open(
+                state,
+                expression.unwrap(),
+                motion_ui::dock::Panel::EffectControls,
+            );
+            self.context_menu = None;
+        } else if let Some(operation) = chosen.and_then(|index| header[index].2.clone()) {
             out.push(Action::Edit(Command::Effect {
                 object,
                 action: operation,
@@ -1164,6 +1183,7 @@ impl Controls {
                     category: None,
                     instance: Some((id, index)),
                     catalogue: true,
+                    expression: None,
                     opened: true,
                 });
             }
@@ -1246,6 +1266,7 @@ impl Controls {
                     category: None,
                     instance: Some((id, index)),
                     catalogue: false,
+                    expression: None,
                     opened: true,
                 });
             }
@@ -1353,6 +1374,14 @@ impl Controls {
                         category: None,
                         instance: Some((id, index)),
                         catalogue: true,
+                        expression: (!matches!(kind, "bool" | "enum" | "curve")
+                            && implemented
+                            && parameter["animatable"] == true)
+                            .then(|| motion_core::ExpressionTarget::Effect {
+                                object,
+                                effect: id,
+                                param: param.into(),
+                            }),
                         opened: true,
                     });
                 }
@@ -1481,6 +1510,15 @@ impl Controls {
                 }
                 let track = &self.tracks[&(object, id, param.to_string())];
                 let animated = !track.track.keys.is_empty();
+                let expression_supported = !track.kind.discrete()
+                    && track.kind != motion_effects::ParamKind::Curve
+                    && track.animatable
+                    && track.implemented;
+                let expression_target = motion_core::ExpressionTarget::Effect {
+                    object,
+                    effect: id,
+                    param: param.into(),
+                };
                 let mut value = track.sample(local);
                 let animate = Rect::new(left, *y, watch_width, row);
                 let mut watch_state = States::default();
@@ -1493,15 +1531,25 @@ impl Controls {
                 if icons::button(list, animate, Icon::Stopwatch, input, &styles, watch_state)
                     .clicked
                 {
-                    out.push(Action::Edit(Command::Effect {
-                        object,
-                        action: EffectAction::Animate {
-                            effect: id,
-                            param: param.into(),
-                            frame,
-                            enabled: !animated,
-                        },
-                    }));
+                    if input.modifiers.alt {
+                        if expression_supported {
+                            self.expressions.open(
+                                state,
+                                expression_target.clone(),
+                                motion_ui::dock::Panel::EffectControls,
+                            );
+                        }
+                    } else {
+                        out.push(Action::Edit(Command::Effect {
+                            object,
+                            action: EffectAction::Animate {
+                                effect: id,
+                                param: param.into(),
+                                frame,
+                                enabled: !animated,
+                            },
+                        }));
+                    }
                 }
                 if kind == "color" {
                     self.color_row(
@@ -1518,6 +1566,25 @@ impl Controls {
                         out,
                     );
                     *y += row;
+                    if self.expressions.visible(
+                        state,
+                        &expression_target,
+                        motion_ui::dock::Panel::EffectControls,
+                    ) {
+                        self.expressions.row(
+                            list,
+                            atlas,
+                            Rect::new(label_x, *y, (value_x - label_x).max(0.), row),
+                            Rect::new(value_x, *y, values.width(), row),
+                            state,
+                            expression_target.clone(),
+                            input,
+                            locale,
+                            !locked && implemented && state["observing"] != true,
+                            out,
+                        );
+                        *y += row;
+                    }
                     continue;
                 }
                 for component in 0..dimensions(kind) {
@@ -1641,6 +1708,25 @@ impl Controls {
                     }
                 }
                 *y += row;
+                if self.expressions.visible(
+                    state,
+                    &expression_target,
+                    motion_ui::dock::Panel::EffectControls,
+                ) {
+                    self.expressions.row(
+                        list,
+                        atlas,
+                        Rect::new(label_x, *y, (value_x - label_x).max(0.), row),
+                        Rect::new(value_x, *y, values.width(), row),
+                        state,
+                        expression_target.clone(),
+                        input,
+                        locale,
+                        !locked && implemented && state["observing"] != true,
+                        out,
+                    );
+                    *y += row;
+                }
             }
         }
         self.color_overlay(

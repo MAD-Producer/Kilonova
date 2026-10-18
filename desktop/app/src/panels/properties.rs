@@ -441,7 +441,27 @@ pub(super) fn render(
                 animated,
                 !locked,
             );
-            if clicked(input, fields.watch) && !locked {
+            let expression_target = motion_core::ExpressionTarget::Property {
+                object,
+                property,
+                axis: None,
+            };
+            panels.expressions.context(
+                expression_target.clone(),
+                Rect::new(
+                    fields.watch.min[0],
+                    y,
+                    (area.max[0] - fields.watch.min[0]).max(0.),
+                    row,
+                ),
+                input,
+                Panel::Properties,
+            );
+            if clicked(input, fields.watch) && !locked && input.modifiers.alt {
+                panels
+                    .expressions
+                    .open(state, expression_target.clone(), Panel::Properties);
+            } else if clicked(input, fields.watch) && !locked {
                 let commands = matching
                     .iter()
                     .map(|track| Command::Animate {
@@ -479,6 +499,30 @@ pub(super) fn render(
                 );
             }
             y += row;
+            if panels
+                .expressions
+                .visible(state, &expression_target, Panel::Properties)
+            {
+                let split = (area.min[0] + area.width() * 0.4).max(fields.caption.min[0]);
+                panels.expressions.row(
+                    list,
+                    atlas,
+                    Rect::new(
+                        fields.caption.min[0],
+                        y,
+                        (split - fields.caption.min[0]).max(0.),
+                        row,
+                    ),
+                    Rect::new(split, y, (area.max[0] - split - pad).max(0.), row),
+                    state,
+                    expression_target,
+                    input,
+                    locale,
+                    !locked,
+                    out,
+                );
+                y += row;
+            }
         }
     }
     if input.key_presses().any(|(key, _, _)| key == Key::Tab) {
