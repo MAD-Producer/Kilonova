@@ -22,8 +22,11 @@
 
 - 开发构建通过，2m28s，22 条既有警告；原生总 smoke 在仍持续生成场景时超过既有 40 秒预算，记录于 `native.log`。未放宽任何预算，改用优化构建复核。
 - 本地优化构建仅为 motion-desktop 设置 16 个 codegen units，以缩短迭代编译；opt-level 和 thin LTO 保持 release 设置，仓库/CI 编译策略不变。命令和覆盖记录在 `release-build.log` 与 `release/build.json`。不是新运行模式或失败重试策略。
-- 修正点击坐标后的完整桌面测试通过：435 passed / 0 failed / 1 ignored，205.93 秒，`full-final-tests.log`。原生优化构建和截图仍待完成，不能据此称总验收通过。
+- 修正点击坐标后的完整桌面测试通过：435 passed / 0 failed / 1 ignored，205.93 秒，`full-final-tests.log`。
 - 主线整合后的核心回归通过：Anchor 动画 4 项、维度合并 8 项；宿主维度合并 2 项通过（含实际命令和拒绝后状态）。真实 GPU 表达式 2 项与维度合并 1 项通过，分别比较预览像素、冻结输出计划及独立显式值参考，覆盖分数时间、图层偏移、分离轴和效果实例目标。日志为 `core-integration.log`、`host-integration.log`、`render-integration.log`。
+- 工具测试首次在默认 Python 下因缺少 CI 固定依赖 PyYAML 而有两项导入错误，`tool-tests.log`。切换已有 `ui-pr-validation-env`（PyYAML 6.0.3）后完整通过：54 项，1 项跳过，38.84 秒，`tool-tests-final.log`；没有修改断言或项目依赖。
+- 最终带 FFmpeg 优化构建通过，15m57s、22 条既有警告。整合后的完整原生验收通过，`release-native.log`：中英文普通窗口、实时节点、共享 MCP、默认/覆盖主题属性截图、覆盖主题浮窗；沿用原有 40/90/125 秒预算。
+- 目视检查 `release/screens/property-panels-zh.timeline-layer-columns{,-minimum}.png` 和 `smoke-zh.layer-anchor-animation.png`：720/360 宽的名称与 3D 开关不重叠，360 宽不再绘制父级列；锚点以真实可动画属性行出现。360 宽的历史顶部播放/缩放工具仍拥挤，此次未修改，不据列修复宣称整个窄面板视觉合规。这组截图尚不含独立 PR #330 的底部滚动条。
 
 ## DESIGN §0.7 逐项处置
 
