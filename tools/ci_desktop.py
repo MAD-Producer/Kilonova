@@ -21,7 +21,7 @@ def verify_style_consumers(panel_root: Path | None = None) -> None:
             raise RuntimeError(f"{source.name} bypasses its window's style context")
 
 
-def verify_design_screens(snapshot: dict, locale: str) -> None:
+def verify_design_screens(snapshot: dict, locale: str, *, property_followups: bool = False) -> None:
     screens = snapshot.get("designScreens", {})
     auxiliary = {
         f"{panel}{suffix}": size
@@ -42,7 +42,22 @@ def verify_design_screens(snapshot: dict, locale: str) -> None:
         "layer-anchor-animation": (360, 560), "timeline-anchor-animation": (720, 520),
         "timeline-anchor-graph": (720, 520),
     })
-    for name in ("home", "project-open-error", "composition-settings", "workspace-manager", "effect-library", "timeline-parent-menu", "timeline-blend-menu", "timeline-graph", "value-graph", "speed-graph", "viewer-fit", "viewer-zoom", "viewer-pan", *auxiliary):
+    if property_followups:
+        auxiliary = {
+            "property-merge-menu": (360, 560), "property-merge-menu-narrow": (220, 560),
+            "property-axis-expression": (360, 560), "layer-lock-menu": (900, 520),
+            "property-mask-group": (360, 560), "timeline-mask-group": (900, 520),
+            "timeline-mask-group-narrow": (720, 520),
+            "timeline-layer-columns": (720, 520), "timeline-layer-columns-minimum": (360, 520),
+            "timeline-mask-add-menu": (900, 520), "timeline-mask-add-menu-narrow": (720, 520),
+            "layer-unlock-menu": (900, 520), "layer-lock-main-menu": (900, 520),
+            "mask-mode-menu": (360, 560), "mask-mode-menu-narrow": (220, 560),
+            "graph-raw-readonly": (900, 520),
+            "effect-expression-unavailable-menu": (360, 560),
+            "mask-handles-selected": (900, 520),
+        }
+    names = tuple(auxiliary) if property_followups else ("home", "project-open-error", "composition-settings", "workspace-manager", "effect-library", "timeline-parent-menu", "timeline-blend-menu", "timeline-graph", "value-graph", "speed-graph", "viewer-fit", "viewer-zoom", "viewer-pan", *auxiliary)
+    for name in names:
         if name not in screens:
             raise RuntimeError(f"{locale} did not capture {name}")
         data = Path(screens[name]).read_bytes()
@@ -55,6 +70,29 @@ def verify_design_screens(snapshot: dict, locale: str) -> None:
                 raise RuntimeError(f"{locale} {name} has stretched panel dimensions: {width}x{height}")
     if snapshot.get("designCaptureProjectUntouched") is not True:
         raise RuntimeError(f"{locale} design screenshots did not restore the project")
+
+
+def verify_property_followups(binary: Path, output: Path, *, style: Path | None = None) -> None:
+    for locale in ("en", "zh"):
+        prefix = "property-styled" if style else "property-panels"
+        report = output / f"{prefix}-{locale}.json"
+        result = subprocess.run(
+            [str(binary), "--property-smoke", str(report), "--locale", locale, *(["--style", str(style)] if style else [])],
+            capture_output=True, text=True, encoding="utf-8", timeout=90,
+        )
+        (output / f"{prefix}-{locale}.stderr.log").write_text(result.stderr, encoding="utf-8")
+        if result.returncode:
+            raise RuntimeError(f"{locale} property panel acceptance failed: {result.stderr}")
+        snapshot = json.loads(report.read_text(encoding="utf-8"))
+        verify_design_screens(snapshot, locale, property_followups=True)
+        if style:
+            actual = snapshot["style"]
+            if not actual["overrideActive"] or actual["rowHeight"] != 32 or actual["dragThreshold"] != 12 or actual["easing"] != "linear":
+                raise RuntimeError(f"{locale} property captures ignored style overrides")
+            baseline = json.loads((output / f"property-panels-{locale}.json").read_text(encoding="utf-8"))
+            for name in ("property-mask-group", "timeline-mask-group"):
+                if Path(snapshot["designScreens"][name]).read_bytes() == Path(baseline["designScreens"][name]).read_bytes():
+                    raise RuntimeError(f"{locale} {name} style override did not change rendered pixels")
 
 
 def verify_style_overrides(binary: Path, output: Path) -> None:
@@ -77,6 +115,7 @@ def verify_style_overrides(binary: Path, output: Path) -> None:
         if result.returncode:
             raise RuntimeError(f"{locale} styled window acceptance failed: {result.stderr}")
         snapshot = json.loads(report.read_text(encoding="utf-8"))
+        verify_design_screens(snapshot, locale)
         style = snapshot["style"]
         if not style["overrideActive"] or style["rowHeight"] != 32 or style["dragThreshold"] != 12 or style["easing"] != "linear":
             raise RuntimeError(f"{locale} ignored style/density/motion overrides")
@@ -231,7 +270,9 @@ def main() -> None:
         if node_snapshot["locale"] != locale or node_snapshot["floatingFrames"].get("10", 0) < 3:
             raise RuntimeError(f"{locale} did not validate the floating node workspace")
     verify_mcp(binary, output)
+    verify_property_followups(binary, output)
     verify_style_overrides(binary, output)
+    verify_property_followups(binary, output, style=output / "acceptance.override.json")
     print("Desktop languages, styled floating windows, live node rendering and shared MCP passed.")
 
 

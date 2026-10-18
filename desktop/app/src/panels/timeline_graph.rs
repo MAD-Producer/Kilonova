@@ -407,7 +407,7 @@ pub(super) fn render(
                 Rect::new(point[0] - 9., point[1] - 9., 18., 18.),
             ) {
                 clicked_key = Some(frame);
-                if layer["locked"].as_bool() != Some(true) && panels.timeline.graph_drag.is_none() {
+                if layer["locked"] != true && state["observing"] != true && panels.timeline.graph_drag.is_none() {
                     super::graph_keys::begin(
                         panels,
                         state,
@@ -447,7 +447,7 @@ pub(super) fn render(
             scale,
         },
         curve_input,
-        layer["locked"].as_bool().unwrap_or(false),
+        layer["locked"] == true || state["observing"] == true,
         out,
     );
     super::graph_keys::update(panels, state, plot, ppf, scale, source, curve_input, out);
@@ -630,25 +630,10 @@ pub(super) fn render(
     if owns_scrub && input.released.is_some() {
         panels.timeline.scrubbing = false;
     }
-    label(
-        &mut graph,
-        atlas,
-        Rect::new(plot.min[0], area.max[1] - 24., plot.width(), 22.),
-        if panels.timeline.speed_graph {
-            if panels.locale == Locale::Zh {
-                "速度图表：显示属性每秒的变化速率"
-            } else {
-                "Speed graph: property change per second"
-            }
-        } else {
-            if panels.locale == Locale::Zh {
-                "数值图表：通过手柄控制属性随时间的变化"
-            } else {
-                "Value graph: adjust property changes over time"
-            }
-        },
-        true,
-    );
+    let footer_row = styles.metric("row.height", 22.);
+    super::graph_notice::draw(&mut graph, atlas,
+        Rect::new(plot.min[0], area.max[1] - footer_row - styles.metric("border", 1.) * 2., plot.width(), footer_row),
+        panels.locale, super::graph_notice::has_negative(source));
     graph.clip_to(area);
     list.append(graph);
 }
