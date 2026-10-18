@@ -38,7 +38,7 @@ impl ColumnRects {
     /// 78/76/14/86 widths. Hiding a column widens the name column instead of
     /// leaving a hole. The track-matte column also needs room for its label.
     pub fn new(origin: f32, gutter: f32, visibility: ColumnVisibility) -> Self {
-        let mut right = gutter - 8.;
+        let mut right = origin + gutter - 8.;
         let mut take = |width: f32| {
             let x = right - width;
             right = x - 6.;
@@ -52,7 +52,7 @@ impl ColumnRects {
             .or(blend)
             .or(link)
             .or(parent)
-            .map_or(gutter - 8., |slot| slot.x - 6.);
+            .map_or(origin + gutter - 8., |slot| slot.x - 6.);
         let name_x = origin + 112.;
         Self {
             name: Slot {
