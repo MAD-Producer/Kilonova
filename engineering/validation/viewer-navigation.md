@@ -18,6 +18,7 @@
 | OBS-02 | 既有覆盖 | 非法 GPU 映射返回原始 invalid composition canvas image，沿既有 Present 错误信道写文件和 stderr；没有清错、重试、重启或修改返回值。受控视频解码阻塞时带导航的保留画面继续绘制编辑器，未就绪仍返回 Ok(false)。 |
 | OBS-03 | 正常分支 | 空视口、无附着图形表面、正常预览等待、取消、无位移/编辑对象均非故障。非法数值由原生字段显示错误，不记为运行故障。健康 Present 不新增 Info、文件读取或逐帧告警。 |
 | OBS-04 | 功能边界 | 本次新增导航/裁切，不修改工程/历史/导出协议，不引入线程或阻塞操作。Presenter 复用固定 uniform/bind group；纹理复用键不含平移/缩放，视图重绘不重新执行合成效果。 |
+| OBS-05 | 既有覆盖 / 待处理 | 默认主题 19 浮窗验收触发既有时间轴 U+2194 缺字 Error（timeline.rs 的箭头文本，本次未改）。原始 stderr 保存在 viewer-final-default-floats.log；本次不把该记录清除或宣称完整字体状态合格。查看器截图文字已逐张复核。 |
 
 ## 验证记录
 
@@ -26,8 +27,11 @@
 - 实际引擎手柄测试：25.137%、111.7%、313.33% 的投影/拖动、一次撤销还原、屏幕外手柄不能捕获面板外输入。1 项通过。
 - 原生输入专项：中英文滚轮、中键、失焦取消、Fit 点击、合成切换、拾取换算；不发出摄影机/工程编辑动作。2 项通过。
 - 默认 Info 子进程已通过：覆盖 60 次阈值、抑制、恢复后第二次升级，验证 Error 文件+stderr、stdout 隔离；受控原生解码覆盖非法映射原始信道和阻塞期间带导航呈现。通过。
-- 新增错误路径后的桌面全套 418 通过、1 项既有音频设备测试忽略（142.13 秒）；原生优化包验收待补充。
-- 开发构建已产生真实主窗 Fit/100%/平移截图，随后触发既有 smoke 总时限，保留失败记录且未放宽阈值。截图复核发现文字裁切，已在样式 token 中把字段/按钮分别设为 26/22 高，待最终截图复验。
+- 新增错误路径后的桌面全套 418 通过、1 项既有音频设备测试忽略（142.13 秒）；最终边界测试 3 项、输入/日志专项 3 项通过。
+- 最终 FFmpeg 优化构建通过（14 分 10 秒，22 项既有编译警告）。从发布 ZIP 解压后的程序运行完整 ci_desktop.py：中英文主窗、节点、共享 MCP、19 类样式覆盖浮窗全部通过；另以默认主题运行中文 19 浮窗，退出 0，确认 overrideActive=false。
+- 开发构建触发既有 smoke 总时限；首轮优化验收发现截图辅助代码错误要求外部样式，已修复为正常默认回退。保留原失败记录，未放宽阈值。最终默认配置验收通过，26/22 高的倍率字段/按钮文字完整。
+- 真实截图已逐张复核：final/screens/ 下的 smoke-zh.viewer-fit.png、smoke-zh.viewer-zoom.png、smoke-zh.viewer-pan.png，以及 default-panels-zh.panel-3-zoom.png、default-panels-zh.panel-3-pan.png。主窗/浮窗裁切、倍率文字、手柄随图像对齐均通过；本机 OS 非默认 DPI 的人工验收仍待完成。
+- 可运行 ZIP：final/package/MotionStudio-validation-windows-x86_64.zip；83,615,994 字节；SHA-256 44f44c43f3bccb4a8c2652b5b3968000b6723ec25da18b013a733d24acc437a1。二进制源码 c792018cd52fb4386ecc8b9bfb9013d5ec0de10c（后续仅更新本验收文档）。包内 FFmpeg 及许可证共 12 个文件逐项哈希通过。
 - 本机截图/构建：E:/Dev/aem/artifacts/viewer-navigation/；日志：E:/Dev/aem/artifacts/multiple-camera-layers/viewer-*.log。
 - 已检查 PROVENANCE.md、ATTRIBUTION.md、NOTICE；无新增第三方依赖/资产，着色器变换和测试图案为独立实现。
 
