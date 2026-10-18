@@ -42,7 +42,8 @@ def verify_design_screens(snapshot: dict, locale: str) -> None:
         "path-hover-incoming": (900, 520), "path-hover-outgoing": (900, 520),
         "path-hover-locked": (900, 520), "timeline-translated": (900, 520),
         "timeline-navigation": (900, 520), "timeline-navigation-end": (900, 520),
-        "timeline-navigation-graph": (900, 520),
+        "timeline-navigation-graph": (900, 520), "timeline-navigation-hover": (900, 520),
+        "timeline-navigation-drag": (900, 520),
     })
     for name in ("home", "project-open-error", "composition-settings", "workspace-manager", "effect-library", "timeline-parent-menu", "timeline-blend-menu", "timeline-graph", "value-graph", "speed-graph", "viewer-fit", "viewer-zoom", "viewer-pan", *auxiliary):
         if name not in screens:

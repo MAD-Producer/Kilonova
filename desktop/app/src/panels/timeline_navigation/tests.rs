@@ -2,6 +2,61 @@ use super::*;
 use std::time::Duration;
 
 #[test]
+fn viewport_changes_place_the_playhead_at_its_current_time_without_pixel_easing() {
+    let mut atlas = TextAtlas::from_system(12.).unwrap();
+    let area = Rect::new(0., 0., 1200., 500.);
+    let mut state = scene();
+    state["frame"] = serde_json::json!(150);
+    let mut panels = Panels::default();
+    let mut render = |panels: &mut Panels| {
+        let mut paint = PaintList::default();
+        timeline::render(
+            &mut paint,
+            &mut atlas,
+            area,
+            panels,
+            &state,
+            &Input::default(),
+            &mut vec![],
+        );
+        paint
+    };
+    render(&mut panels);
+    panels.timeline.zoom = 4.;
+    panels.timeline.offset = 100.;
+    let paint = render(&mut panels);
+    let track = panels.timeline.zoom_track.unwrap();
+    let expected = track.min[0] + 50. * track.width() / 1200. * 4.;
+    let line_x = |paint: &PaintList| {
+        paint
+            .shapes
+            .iter()
+            .zip(&paint.colors)
+            .find_map(|(shape, color)| {
+                if *color != paint.styles().color("focus") {
+                    return None;
+                }
+                match shape {
+                    motion_ui::paint::Shape::Procedural { area, .. }
+                        if (area.width() - 1.).abs() < 0.001
+                            && area.min[1] == 36.
+                            && area.max[1] == 482. =>
+                    {
+                        Some(area.min[0])
+                    }
+                    _ => None,
+                }
+            })
+    };
+    assert!((line_x(&paint).unwrap() - expected).abs() < 0.001);
+    panels.timeline.offset = 400.;
+    assert!(
+        line_x(&render(&mut panels)).is_none(),
+        "offscreen time must not leave a stale visible playhead"
+    );
+}
+
+#[test]
 fn edge_pan_is_time_based_bounded_and_keeps_layer_drag_anchor() {
     let styles = motion_ui::style::default_stylesheet_arc();
     let track = Rect::new(600., 100., 600., 400.);

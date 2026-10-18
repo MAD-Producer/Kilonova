@@ -93,15 +93,29 @@ impl Shell {
             self.panels.timeline.expanded.insert(object);
             self.panels.timeline.zoom = 4.;
             self.panels.timeline.offset = 60.;
-            for name in ["timeline-navigation", "timeline-navigation-end", "timeline-navigation-graph"] {
+            for name in ["timeline-navigation", "timeline-navigation-end", "timeline-navigation-graph", "timeline-navigation-hover", "timeline-navigation-drag"] {
                 if name == "timeline-navigation-graph" {
                     self.panels.timeline.set_graph_mode(true);
                     self.panels.timeline.offset = 60.;
                 }
+                let mut input = Input::default();
+                if name == "timeline-navigation-hover" || name == "timeline-navigation-drag" {
+                    let track = self.panels.timeline.zoom_track.ok_or("scrollbar state fixture track missing")?;
+                    let total = self.state["project"]["frames"].as_f64().ok_or("scrollbar state fixture duration missing")? as f32;
+                    input.mouse = [track.min[0] + track.width() * (self.panels.timeline.offset / total + 0.5 / self.panels.timeline.zoom),
+                        track.max[1] - styles.metric("field.height",18.) * 0.5];
+                    if name == "timeline-navigation-drag" {
+                        input.pressed = Some((motion_ui::MouseButton::Left,input.mouse));
+                        input.held = Some(motion_ui::MouseButton::Left);
+                    }
+                }
                 let mut paint = PaintList::default();
                 let actions = panels::chrome(&mut paint, &mut self.atlas, size, &self.workspace.root,
-                    &mut self.panels, &self.state, &Input::default());
+                    &mut self.panels, &self.state, &input);
                 if !actions.is_empty() { return Err(format!("{name} capture unexpectedly edited data")); }
+                if name == "timeline-navigation-drag" && self.panels.timeline.horizontal_drag.is_none() {
+                    return Err("scrollbar state fixture did not grab the real thumb".into());
+                }
                 let frame = self.ui_frame(paint, window_size, true);
                 let path = self.smoke.as_ref().ok_or("interaction report missing")?.with_extension(format!("{name}.png"));
                 self.engine.capture_ui(frame, path.clone())?;
