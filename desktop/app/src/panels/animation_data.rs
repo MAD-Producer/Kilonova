@@ -42,16 +42,34 @@ pub(super) fn channel(
     }
 }
 pub(super) fn track<T: Tween + DeserializeOwned>(source: &Value, offset: i64) -> Option<Track<T>> {
-    let value = serde_json::from_value(source["value"].clone()).ok()?;
+    let value = observe!(
+        "animation.track_value",
+        serde_json::from_value(source["value"].clone()),
+        "offset={offset} value_type={}",
+        std::any::type_name::<T>()
+    )
+    .ok()?;
     let mut keys = vec![];
     for key in source["keys"].as_array().into_iter().flatten() {
         let frame = key["local_frame"]
             .as_i64()
-            .or_else(|| key["frame"].as_i64().map(|f| f - offset))?;
+            .or_else(|| key["frame"].as_i64().map(|f| f - offset));
+        let frame = observe!(
+            "animation.key_frame",
+            frame.ok_or("missing or noninteger frame"),
+            "offset={offset} key_index={}",
+            keys.len()
+        )
+        .ok()?;
         let mut entry = serde_json::Map::new();
         entry.insert(
             "frame".into(),
-            serde_json::json!(i32::try_from(frame).ok()?),
+            serde_json::json!(observe!(
+                "animation.key_range",
+                i32::try_from(frame),
+                "offset={offset} frame={frame}"
+            )
+            .ok()?),
         );
         entry.insert("value".into(), key["value"].clone());
         for field in ["ease", "curve", "spatial"] {
@@ -59,7 +77,16 @@ pub(super) fn track<T: Tween + DeserializeOwned>(source: &Value, offset: i64) ->
                 entry.insert(field.into(), value.clone());
             }
         }
-        keys.push(serde_json::from_value::<Keyframe<T>>(Value::Object(entry)).ok()?);
+        keys.push(
+            observe!(
+                "animation.key_decode",
+                serde_json::from_value::<Keyframe<T>>(Value::Object(entry)),
+                "offset={offset} frame={frame} key_index={} value_type={}",
+                keys.len(),
+                std::any::type_name::<T>()
+            )
+            .ok()?,
+        );
     }
     keys.sort_by_key(|k| k.frame);
     keys.dedup_by_key(|k| k.frame);

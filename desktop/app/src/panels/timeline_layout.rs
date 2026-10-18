@@ -12,6 +12,8 @@ pub(super) struct LayerRows {
     pub expanded: bool,
     pub transform_open: bool,
     pub properties: Vec<usize>,
+    pub property_offsets: Vec<usize>,
+    pub expression_offsets: Vec<Option<usize>>,
     pub transform: Range<usize>,
     pub anchor: Option<usize>,
     pub audio: Range<usize>,
@@ -111,10 +113,31 @@ impl LayerRows {
             .collect::<Vec<_>>();
         let anchor =
             (transform_open && !row.camera && matches!(filter, super::types::PropertyFilter::All)).then_some(2);
-        let transform = 1..1
-            + usize::from(expanded && row.spatial)
-            + usize::from(anchor.is_some())
-            + properties.len();
+        let mut next = 1 + usize::from(expanded && row.spatial) + usize::from(anchor.is_some());
+        let mut property_offsets = Vec::new();
+        let mut expression_offsets = Vec::new();
+        for index in &properties {
+            property_offsets.push(next);
+            next += 1;
+            let p = &row.properties[*index];
+            let target = motion_core::ExpressionTarget::Property {
+                object: row.id,
+                property: p.property,
+                axis: p.axis.map(|a| {
+                    [
+                        motion_core::Axis::X,
+                        motion_core::Axis::Y,
+                        motion_core::Axis::Z,
+                    ][a]
+                }),
+            };
+            expression_offsets.push(t.expression_rows.contains(&target).then(|| {
+                let r = next;
+                next += 1;
+                r
+            }));
+        }
+        let transform = 1..next;
         let audio = transform.end
             ..transform.end
                 + if expanded && row.audio > 0 {
@@ -158,6 +181,8 @@ impl LayerRows {
             expanded,
             transform_open,
             properties,
+            property_offsets,
+            expression_offsets,
             transform,
             anchor,
             audio,
@@ -234,6 +259,27 @@ mod tests {
             .vector_open
             .extend([(7, 0, 0), (7, 1, 0), (7, 3, 2)]);
         panels
+    }
+    #[test]
+    fn camera_inline_expression_preserves_following_property_rows_without_anchor() {
+        let layer = Layer::camera(7, "Camera", 1920, 1080);
+        let state = serde_json::json!({"project":{"frames":120,"fps":30,"layers":[layer]}});
+        let rows = timeline::rows(&state);
+        let mut timeline = TimelineState::default();
+        timeline.expanded.insert(7);
+        timeline.expression_rows.push(motion_core::ExpressionTarget::Property {
+            object: 7,
+            property: motion_core::Property::Target,
+            axis: None,
+        });
+        let plan = LayerRows::new(&rows[0], &timeline, 0., Locale::En);
+        assert!(plan.anchor.is_none(), "camera has no source anchor row");
+        assert_eq!(rows[0].properties[1].property, motion_core::Property::Target);
+        assert_eq!(plan.property_offsets, vec![2, 3, 5, 6]);
+        assert_eq!(plan.expression_offsets, vec![None, Some(4), None, None]);
+        assert_eq!(plan.transform.end, 7);
+        assert!(plan.geometry.is_empty());
+        assert!(plan.effects.is_empty());
     }
     #[test]
     fn folding_masks_does_not_move_following_shape_rows_until_next_frame() {

@@ -708,6 +708,10 @@ pub fn accumulate(input: &mut Input, event: Event) {
             input.mouse = position;
         }
         Event::MousePressed { position, button } => {
+            if let Some(previous) = input.pressed {
+                static OVERWRITES: std::sync::OnceLock<crate::observability::Failures> = std::sync::OnceLock::new();
+                OVERWRITES.get_or_init(Default::default).record("input.pressed_overwrite", "pending", format_args!("previous={previous:?} next=({button:?},{position:?})"));
+            }
             input.mouse = position;
             input.held = Some(button);
             input.pressed = Some((button, position));
@@ -715,6 +719,10 @@ pub fn accumulate(input: &mut Input, event: Event) {
             input.pointer_travel = 0.;
         }
         Event::MouseReleased { position, button } => {
+            if let Some(previous) = input.released {
+                static OVERWRITES: std::sync::OnceLock<crate::observability::Failures> = std::sync::OnceLock::new();
+                OVERWRITES.get_or_init(Default::default).record("input.released_overwrite", "pending", format_args!("previous={previous:?} next=({button:?},{position:?})"));
+            }
             input.mouse = position;
             input.held = None;
             input.released = Some((button, position));

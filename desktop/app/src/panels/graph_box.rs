@@ -542,6 +542,8 @@ pub(super) fn delete(panels: &mut Panels, state: &Value, out: &mut Vec<Action>) 
         .collect::<Vec<_>>();
     if !edits.is_empty() {
         out.push(Action::EditBatch(edits));
+    } else {
+        log::debug!("graph delete cleared selection object={} property={:?} axis={:?} reason=no_deletable_keys", ctx.object, ctx.property, ctx.axis);
     }
     panels.timeline.graph_box.selected = false;
     panels.animation_controls.clear_key();

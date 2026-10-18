@@ -155,7 +155,10 @@ impl Shell {
         self.flush_bound_source()?;
         self.node_tasks.cancel(&mut self.panels.node_editor);
         self.node_compile_due = None;
-        self.panels.node_editor = self.node_standalone.take().unwrap_or_default();
+        self.panels.node_editor = self.node_standalone.take().unwrap_or_else(|| {
+            log::debug!("node standalone draft unavailable reason=no_saved_standalone fallback=default");
+            node_editor::NodeEditor::default()
+        });
         self.schedule_node_compile()?;
         self.dirty = true;
         Ok(())
@@ -180,7 +183,10 @@ impl Shell {
         {
             self.node_tasks.cancel(&mut self.panels.node_editor);
             self.node_compile_due = None;
-            self.panels.node_editor = self.node_standalone.take().unwrap_or_default();
+            self.panels.node_editor = self.node_standalone.take().unwrap_or_else(|| {
+                log::debug!("node standalone draft unavailable reason=bound_target_invalidated fallback=default");
+                node_editor::NodeEditor::default()
+            });
             self.schedule_node_compile()?;
             return Ok(());
         }

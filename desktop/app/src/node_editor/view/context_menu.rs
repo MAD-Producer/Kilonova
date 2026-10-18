@@ -112,7 +112,7 @@ impl NodeEditor {
                 }
                 if let Some(node) = self.document.nodes.iter().find(|n| n.id == *id) {
                     if let Ok(ports) =
-                        motion_graph::node_port_specs(node, &self.document.public_parameters)
+                        self.observed("context.ports", &node.id, motion_graph::node_port_specs(node, &self.document.public_parameters))
                     {
                         if !self.parents.is_empty() && !grouping::boundary(&node.operation) {
                             for (output, specs) in [(false, &ports.inputs), (true, &ports.outputs)]

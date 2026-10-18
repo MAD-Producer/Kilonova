@@ -1,5 +1,17 @@
 use crate::*;
 
+fn selected_candidate(result: &Value) -> Option<u64> {
+    let Some(candidates) = result["candidates"].as_array() else {
+        log::warn!("hit selection response invalid reason=candidates_not_array");
+        return None;
+    };
+    let candidate = candidates.first()?; // Empty means no hit, which is normal.
+    candidate["id"].as_u64().or_else(|| {
+        log::warn!("hit selection response invalid reason=first_candidate_id_not_unsigned");
+        None
+    })
+}
+
 // Absolute seeks can replace consecutive pending seeks. Never cross an edit,
 // save or transaction boundary, and never drop relative numeric edits.
 pub(crate) fn pop_action(
@@ -17,6 +29,54 @@ pub(crate) fn pop_action(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn hit_response_distinguishes_no_hit_from_malformed_data_in_default_logs() {
+        const CHILD: &str = "MOTION_HIT_RESPONSE_OBSERVATION_CHILD";
+        if let Some(root) = std::env::var_os(CHILD) {
+            let root = PathBuf::from(root);
+            let _logger = crate::logging::init(root.clone()).unwrap();
+            assert_eq!(
+                selected_candidate(&serde_json::json!({"candidates":[]})),
+                None
+            );
+            assert_eq!(
+                selected_candidate(&serde_json::json!({"candidates":[{"id":17}]})),
+                Some(17)
+            );
+            assert!(std::fs::read_to_string(root.join("motion-studio.log"))
+                .unwrap()
+                .is_empty());
+            for response in [
+                serde_json::json!({}),
+                serde_json::json!({"candidates":{}}),
+                serde_json::json!({"candidates":[{"id":"17"}]}),
+            ] {
+                assert_eq!(selected_candidate(&response), None);
+            }
+            let text = std::fs::read_to_string(root.join("motion-studio.log")).unwrap();
+            assert_eq!(
+                text.lines()
+                    .filter(|line| line.contains("hit selection response invalid"))
+                    .count(),
+                3
+            );
+            assert!(
+                text.contains("candidates_not_array")
+                    && text.contains("first_candidate_id_not_unsigned")
+            );
+            return;
+        }
+        let temp = tempfile::tempdir().unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "shell::actions::tests::hit_response_distinguishes_no_hit_from_malformed_data_in_default_logs"])
+            .env_remove("MOTION_LOG").env(CHILD, temp.path()).output().unwrap();
+        assert!(
+            output.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
     #[test]
     fn seek_coalescing_preserves_edit_save_and_history_boundaries() {
         use panels::Action;
@@ -90,6 +150,19 @@ impl Shell {
             _ => "menu_action",
         };
         self.engine.diagnostics().set_context(context);
+        let boundary = match &action {
+            Action::ApplyWorkspace { .. } => Some("apply_workspace"),
+            Action::Workspace(_) => Some("workspace"),
+            Action::ResetWorkspace => Some("reset_workspace"),
+            Action::ShowPanel(_) => Some("show_panel"),
+            Action::ClosePanel(_) => Some("close_panel"),
+            Action::Activate { .. } => Some("activate_tab"),
+            _ => None,
+        };
+        if let Some(operation) = boundary {
+            panels::observe_interaction_boundary(&self.panels, operation);
+        }
+
         if self.project_modal() && !matches!(&action, Action::ProjectChoice(_)) {
             return Ok(());
         }
@@ -404,7 +477,7 @@ impl Shell {
             }
             Action::WindowDrag => {
                 if let Some(window) = &self.window {
-                    let _ = window.drag_window();
+                    if let Err(error) = window.drag_window() { log::warn!("window drag rejected reason={error}"); }
                 }
             }
             Action::WindowClose => self.request_close(),
@@ -434,9 +507,12 @@ impl Shell {
                 self.action(Action::ShowPanel(dock::Panel::Timeline.dock()), event_loop)?;
             }
             Action::ShowPanel(id) => {
-                let id = if id == dock::Panel::Masks.dock() {
+                let id = if id == dock::Panel::Masks.dock() || id == dock::Panel::Expression.dock()
+                {
                     dock::Panel::Properties.dock()
-                } else { id };
+                } else {
+                    id
+                };
                 self.panels.node_editor.cancel_interaction();
                 if let Some(f) = self.floating.values().find(|f| f.panel.dock() == id) {
                     f.window.focus_window();
@@ -498,10 +574,7 @@ impl Shell {
             Action::SelectAt(point) => {
                 self.stop();
                 let result = self.engine.hit_candidates(point[0], point[1])?;
-                let selected = result["candidates"]
-                    .as_array()
-                    .and_then(|c| c.first())
-                    .and_then(|c| c["id"].as_u64());
+                let selected = selected_candidate(&result);
                 self.panels.select_only(selected);
             }
             Action::PreviewDrag {

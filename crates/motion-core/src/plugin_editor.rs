@@ -168,17 +168,37 @@ impl PluginEditorSession {
         let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| operation(self, engine)));
         match outcome {
             Ok(result) => {
-                if automatic { engine.end_gesture(result.is_ok())?; }
+                if let Err(error) = &result {
+                    log::warn!("plugin editor operation rejected object={} instance={} revision={} automatic={automatic} reason={error}", self.object, self.instance, engine.revision());
+                }
+                if automatic {
+                    engine.end_gesture(result.is_ok()).map_err(|error| {
+                        log::error!("plugin editor gesture close failed object={} instance={} revision={} operation_error={:?} reason={error}", self.object, self.instance, engine.revision(), result.as_ref().err());
+                        error
+                    })?;
+                }
                 result
             }
             Err(payload) => {
-                if (automatic || starting || self.gesture) && engine.gesture_active() { engine.end_gesture(false)?; }
+                let reason = payload
+                    .downcast_ref::<String>()
+                    .map(String::as_str)
+                    .or_else(|| payload.downcast_ref::<&str>().copied())
+                    .unwrap_or("unknown panic");
+                let reason = reason.chars().take(2048).collect::<String>();
+                log::error!("plugin editor operation panicked object={} instance={} revision={} automatic={automatic} starting={starting} reason={reason}", self.object, self.instance, engine.revision());
+                if (automatic || starting || self.gesture) && engine.gesture_active() {
+                    engine.end_gesture(false).map_err(|error| {
+                        log::error!("plugin editor panic rollback failed object={} instance={} revision={} panic={reason:?} reason={error}", self.object, self.instance, engine.revision());
+                        error
+                    })?;
+                }
                 self.gesture = false;
                 self.color_edit = None;
                 self.parameter_edit = None;
-                let reason = payload.downcast_ref::<String>().map(String::as_str)
-                    .or_else(||payload.downcast_ref::<&str>().copied()).unwrap_or("unknown panic");
-                Err(Error::Invalid(format!("plugin editor request panicked: {}", reason.chars().take(2048).collect::<String>())))
+                Err(Error::Invalid(format!(
+                    "plugin editor request panicked: {reason}"
+                )))
             }
         }
     }
@@ -363,6 +383,66 @@ impl PluginEditorSession {
 #[cfg(test)]
 mod request_panic_tests {
     use super::*;
+    #[test]
+    fn rejected_operation_evidence_survives_a_gesture_close_error() {
+        const CHILD: &str = "MOTION_PLUGIN_BOUNDARY_OBSERVATION_CHILD";
+        if let Some(path) = std::env::var_os(CHILD) {
+            struct Capture(std::sync::Mutex<std::fs::File>);
+            impl log::Log for Capture {
+                fn enabled(&self, _: &log::Metadata<'_>) -> bool {
+                    true
+                }
+                fn log(&self, record: &log::Record<'_>) {
+                    use std::io::Write;
+                    let mut file = self.0.lock().unwrap();
+                    writeln!(file, "{} {}", record.level(), record.args()).unwrap();
+                    file.flush().unwrap();
+                }
+                fn flush(&self) {}
+            }
+            log::set_logger(Box::leak(Box::new(Capture(std::sync::Mutex::new(
+                std::fs::File::create(&path).unwrap(),
+            )))))
+            .unwrap();
+            log::set_max_level(log::LevelFilter::Info);
+            let (mut engine, mut editor) = setup();
+            let original = engine.snapshot();
+            let result = editor.request_boundary(&mut engine, true, false, |_, engine| {
+                // Exercise the real close API twice so the outer close fails.
+                engine.end_gesture(false)?;
+                Err(Error::Invalid("original font import failure".into()))
+            });
+            assert!(matches!(result, Err(Error::Gesture)));
+            assert_eq!(engine.snapshot(), original);
+            let text = std::fs::read_to_string(path).unwrap();
+            let rejection = text.find("plugin editor operation rejected").unwrap();
+            let closure = text.find("plugin editor gesture close failed").unwrap();
+            assert!(rejection < closure);
+            assert!(text[rejection..closure].contains("original font import failure"));
+            assert!(text[closure..].contains("original font import failure"));
+            assert!(text.contains("object=1 instance=1 revision=0"));
+            let result = editor.request_boundary(&mut engine, true, false, |_, _| {
+                panic!("caught operation panic evidence")
+            });
+            assert!(result
+                .unwrap_err()
+                .to_string()
+                .contains("caught operation panic evidence"));
+            assert!(!engine.gesture_active());
+            assert!(std::fs::read_to_string(std::env::var_os(CHILD).unwrap()).unwrap().contains("operation panicked object=1 instance=1 revision=0 automatic=true starting=false reason=caught operation panic evidence"));
+            return;
+        }
+        let temp = tempfile::tempdir().unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "plugin_editor::request_panic_tests::rejected_operation_evidence_survives_a_gesture_close_error"])
+            .env(CHILD, temp.path().join("events.log")).output().unwrap();
+        assert!(
+            output.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
     fn setup() -> (Engine, PluginEditorSession) {
         let package = motion_effects::builtin::particle_package().unwrap();
         let registry = motion_effects::Registry::new_with_builtins().unwrap();

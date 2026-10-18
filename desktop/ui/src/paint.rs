@@ -634,8 +634,11 @@ fn push_batch(batches: &mut Vec<DrawBatch>, glyph: bool, vertices: std::ops::Ran
     batches.push(DrawBatch { glyph, vertices });
 }
 
+mod observation;
+
 /// Two vertex buffers and one render pass; only adjacent compatible draws merge.
 pub struct Painter {
+    observation: observation::Observation,
     solid_cpu: Vec<SolidVertex>,
     glyph_cpu: Vec<GlyphVertex>,
     shape_ranges: Vec<std::ops::Range<u32>>,
@@ -783,6 +786,7 @@ impl Painter {
         let uniform_bytes = bytemuck::bytes_of(&[0.0f32, 0.0, 1.0, 1.0]);
         Self {
             srgb_target: format.is_srgb(),
+            observation: Default::default(),
             solid_cpu: Vec::new(),
             glyph_cpu: Vec::new(),
             shape_ranges: Vec::new(),
@@ -1054,6 +1058,8 @@ impl Painter {
         self.last_glyph_vertices = glyphs.len();
         self.last_draw_calls = 0;
         self.draw_batches.clear();
+        let mut invalid_ops = 0usize;
+        let mut first_invalid = None;
         if list.order.len() != list.shapes.len() + list.glyphs.len() {
             // Preserve compatibility with legacy lists assembled from raw buffers.
             push_batch(&mut self.draw_batches, false, 0..solids.len() as u32);
@@ -1064,16 +1070,24 @@ impl Painter {
                     PaintOp::Shape(index) => {
                         if let Some(range) = self.shape_ranges.get(index) {
                             push_batch(&mut self.draw_batches, false, range.clone());
+                        } else {
+                            invalid_ops += 1;
+                            first_invalid.get_or_insert(*op);
                         }
                     }
                     PaintOp::Glyph(index) if index < list.glyphs.len() => {
                         let start = (index * 6) as u32;
                         push_batch(&mut self.draw_batches, true, start..start + 6);
                     }
-                    _ => {}
+                    _ => {
+                        invalid_ops += 1;
+                        first_invalid.get_or_insert(*op);
+                    }
                 }
             }
         }
+        self.observation.order(invalid_ops, first_invalid, list.shapes.len(), list.glyphs.len());
+        self.observation.atlas(self.atlas_view.is_none() && self.draw_batches.iter().any(|batch| batch.glyph), list.glyphs.len());
         if !solids.is_empty() {
             queue.write_buffer(&self.solid_buffer, 0, bytemuck::cast_slice(&solids));
         }

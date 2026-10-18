@@ -1285,8 +1285,13 @@ fn entries_for(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
             }
         }
         Page::Matte => {
-            let current: Option<motion_core::compositing::TrackMatte> =
-                serde_json::from_value(l["track_matte"].clone()).ok().flatten();
+            let current: Option<motion_core::compositing::TrackMatte> = observe!(
+                "layer_menu.matte",
+                serde_json::from_value(l["track_matte"].clone()),
+                "object={id}"
+            )
+            .ok()
+            .flatten();
             let (choices, groups, _) = super::timeline_columns::matte_choices(state, id, locale);
             for (index, choice) in choices.into_iter().enumerate() {
                 let unchanged = choice.matte == current;

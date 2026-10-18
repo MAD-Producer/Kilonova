@@ -527,6 +527,16 @@ impl NodeEditor {
     }
     pub(super) fn finish_inline_history(&mut self, before: History, commit: bool) {
         if self.document == before.document {
+            if self.options.plugin_id != before.options.plugin_id
+                || self.options.version != before.options.version
+                || self.options.author != before.options.author
+                || self.options.license != before.options.license
+            {
+                self.observe_failure(
+                    "inline.history_options",
+                    format_args!("commit={commit} reason=document_unchanged_options_differ"),
+                );
+            }
             return;
         }
         if commit {

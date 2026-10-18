@@ -14,7 +14,7 @@
 | #167 | Checkbox、Dropdown、ScrollArea、ListView/树行、SearchField、StarRating；属性 3D／时间轴开关共用 Checkbox；项目搜索和素材列表、效果搜索／枚举／收藏／长库滚动接入 | 双语交互、禁用与焦点、100 项列表末项、原生面板呈现 |
 | #168 | shared numeric_behavior：阈值、步进和光标；Shift 精细／Ctrl 粗调；拖动用 Grabbing；样式路径持久化后可持续保存阈值偏好 | 0/12px 阈值，属性／路径的一次 begin/commit，取消后工程字节一致 |
 
-保持已确认的桌面约定：节点画布 Ctrl+滚轮、Ctrl+Space FX Console、图层／时间轴／曲线联动；轨道区不添加参考竖线，不添加斑马纹；属性分隔线整行覆盖，0.5px、低透明度。默认色板已按 Ardot 当前稿统一为 app #1D1D1D、panel #232323、header #1C1C1E、focus #61A8F5。字体保留 Microsoft YaHei 及平台回退。
+保持已确认的桌面约定：节点画布 Ctrl+滚轮、Ctrl+Space 效果搜索、图层／时间轴／曲线联动；轨道区不添加参考竖线，不添加斑马纹；属性分隔线整行覆盖，0.5px、低透明度。默认色板已按 Ardot 当前稿统一为 app #1D1D1D、panel #232323、header #1C1C1E、focus #61A8F5。字体保留 Microsoft YaHei 及平台回退。
 
 核验纠正：现有 Motion 已使用 cubic-out，此次加入选项，而非从线性改为缓动。旧对比报告将 palette 字面量视为权威；本批完成后唯一色值来源是 `desktop/ui/styles/dark.json`。
 

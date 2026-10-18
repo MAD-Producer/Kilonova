@@ -13,9 +13,15 @@ pub(super) fn render(
     let colors = styles.colors();
 
     paint::rect(list, area, colors.PANEL);
-    let Some(layer) = auxiliary::selected(panels, state)
-        .and_then(|l| serde_json::from_value::<motion_core::Layer>(l.clone()).ok())
-    else {
+    let Some(layer) = auxiliary::selected(panels, state).and_then(|l| {
+        observe!(
+            "paths.layer",
+            serde_json::from_value::<motion_core::Layer>(l.clone()),
+            "object={} panel={panel:?}",
+            l["id"]
+        )
+        .ok()
+    }) else {
         label(
             list,
             atlas,

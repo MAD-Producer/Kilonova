@@ -8,6 +8,8 @@ pub(crate) struct StyleSource {
     stamp: Option<(std::time::SystemTime, u64)>,
     error: Option<String>,
     pub next_poll: Option<Instant>,
+    stamp_failures: crate::fallback_observation::Counter,
+    reload_failures: crate::fallback_observation::Counter,
 }
 impl Shell {
     pub(crate) fn install_styles(&mut self, sheet: StyleSheet) -> Result<(), String> {
@@ -59,21 +61,39 @@ impl Shell {
         Ok(())
     }
     fn style_stamp(&self) -> Option<(std::time::SystemTime, u64)> {
-        let metadata = std::fs::metadata(self.style_source.path.as_ref()?).ok()?;
-        Some((metadata.modified().ok()?, metadata.len()))
+        let Some(path) = self.style_source.path.as_ref() else {
+            self.style_source.stamp_failures.success();
+            return None;
+        };
+        let result = std::fs::metadata(path).map_err(|e| ("metadata", e)).and_then(|m|
+            m.modified().map(|stamp| (stamp, m.len())).map_err(|e| ("modified", e)));
+        match result {
+            Ok(stamp) => { self.style_source.stamp_failures.success(); Some(stamp) }
+            Err((phase, error)) => {
+                self.style_source.stamp_failures.failure("styles.stamp", format_args!("phase={phase} path={} reason={error} fallback=no_stamp", crate::fallback_observation::short(path.display())));
+                None
+            }
+        }
     }
+
     pub(crate) fn reload_styles(&mut self) -> Result<(), String> {
         let Some(path) = self.style_source.path.clone() else {
             return Ok(());
         };
+        let began = Instant::now();
+        log::info!("style reload start path={}", path.display().to_string().chars().take(256).collect::<String>());
+        crate::logging::flush();
         let result = default_stylesheet()
             .load_overrides(&path)
             .and_then(|sheet| self.install_styles(sheet));
         if let Err(error) = &result {
+            self.style_source.reload_failures.failure("styles.reload", format_args!("path={} elapsed_ms={} reason={error} fallback=previous_sheet", crate::fallback_observation::short(path.display()), began.elapsed().as_millis()));
             self.style_source.error = Some(error.clone());
             self.panels.message = Some(error.clone());
             self.dirty = true;
         }
+        if result.is_ok() { self.style_source.reload_failures.success(); }
+        log::debug!("style reload done elapsed_ms={} ok={}", began.elapsed().as_millis(), result.is_ok());
         result
     }
     pub(crate) fn poll_styles(&mut self) {

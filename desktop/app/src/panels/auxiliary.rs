@@ -9,9 +9,6 @@ use std::collections::BTreeMap;
 #[derive(Default)]
 pub(crate) struct State {
     pub scroll: BTreeMap<u32, f32>,
-    pub expression: String,
-    pub expression_object: Option<u64>,
-    pub expression_property: usize,
     color_popup: Option<ColorPopup>,
     preview_quality: Dropdown,
     #[cfg(test)]

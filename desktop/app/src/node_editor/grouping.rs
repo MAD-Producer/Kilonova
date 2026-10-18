@@ -119,6 +119,7 @@ impl NodeEditor {
     }
     pub fn enter_group(&mut self, id: &str) -> bool {
         if self.editing() || self.parents.len() >= 16 {
+            self.trace_noop("enter_group", "editing_or_depth_limit");
             return false;
         }
         let Some(Node {
@@ -126,6 +127,7 @@ impl NodeEditor {
             ..
         }) = self.document.nodes.iter().find(|node| node.id == id)
         else {
+            self.trace_noop("enter_group", "target_is_not_a_group");
             return false;
         };
         let graph = graph.clone();
@@ -163,9 +165,11 @@ impl NodeEditor {
     }
     pub fn leave_group(&mut self) -> bool {
         if self.editing() {
+            self.trace_noop("leave_group", "editing");
             return false;
         }
         let Some(parent) = self.parents.pop() else {
+            self.trace_noop("leave_group", "already_at_root");
             return false;
         };
         let mut outer = parent.document;
@@ -222,6 +226,7 @@ impl NodeEditor {
     }
     pub fn group_selected(&mut self) -> Result<bool, Diagnostic> {
         if self.editing() {
+            self.trace_noop("group_selected", "editing");
             return Ok(false);
         }
         let mut members: Vec<_> = self
@@ -232,6 +237,7 @@ impl NodeEditor {
             .cloned()
             .collect();
         if members.is_empty() {
+            self.trace_noop("group_selected", "no_eligible_selection");
             return Ok(false);
         }
         if members.iter().any(|node| boundary(&node.operation)) {
@@ -377,6 +383,7 @@ impl NodeEditor {
     }
     pub fn ungroup_selected(&mut self) -> Result<bool, Diagnostic> {
         if self.editing() {
+            self.trace_noop("ungroup_selected", "editing");
             return Ok(false);
         }
         let groups: Vec<_> = self
@@ -389,6 +396,7 @@ impl NodeEditor {
             .cloned()
             .collect();
         if groups.is_empty() {
+            self.trace_noop("ungroup_selected", "no_selected_group");
             return Ok(false);
         }
         let mut candidate = self.document.clone();
@@ -500,9 +508,11 @@ impl NodeEditor {
     }
     pub fn toggle_collapsed(&mut self, id: &str) -> bool {
         if self.editing() {
+            self.trace_noop("toggle_collapsed", "editing");
             return false;
         }
         let Some(index) = self.document.nodes.iter().position(|node| node.id == id) else {
+            self.trace_noop("toggle_collapsed", "node_missing");
             return false;
         };
         let before = self.state(false);
@@ -512,6 +522,7 @@ impl NodeEditor {
     }
     pub fn expose_group_port(&mut self, port: PortRef, output: bool) -> Result<bool, Diagnostic> {
         if self.parents.is_empty() || self.editing() {
+            self.trace_noop("expose_group_port", "root_or_editing");
             return Ok(false);
         }
         let node = self
@@ -569,6 +580,7 @@ impl NodeEditor {
                 edge.to == port && edge.from.node == boundary_id
             }
         }) {
+            self.trace_noop("expose_group_port", "already_exposed");
             return Ok(false);
         }
         let mut candidate = self.document.clone();
