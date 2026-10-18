@@ -519,13 +519,27 @@ impl Controls {
         locale: Locale,
         out: &mut Vec<Action>,
     ) -> bool {
+        self.draw_in_viewport(list, atlas, view, view, state, selected, input, locale, out)
+    }
+    pub fn draw_in_viewport(
+        &mut self,
+        list: &mut PaintList,
+        atlas: &mut TextAtlas,
+        clip: Rect,
+        view: Rect,
+        state: &Value,
+        selected: Option<u64>,
+        input: &Input,
+        locale: Locale,
+        out: &mut Vec<Action>,
+    ) -> bool {
         let styles = list.styles();
         let colors = styles.colors();
 
         if self.tool == Tool::Select {
             return false;
         }
-        if input.pressed.is_some_and(|(_, p)| view.contains(p)) {
+        if input.pressed.is_some_and(|(_, p)| clip.contains(p)) {
             self.focus = true;
         } else if input.pressed.is_some() && !self.editing() {
             self.focus = false;
@@ -639,7 +653,7 @@ impl Controls {
                 }
             }
         }
-        if let Some((MouseButton::Left, point)) = input.pressed.filter(|(_, p)| view.contains(*p)) {
+        if let Some((MouseButton::Left, point)) = input.pressed.filter(|(_, p)| clip.contains(*p)) {
             let hit = hits
                 .into_iter()
                 .filter(|h| h.0 <= 7.)
@@ -876,19 +890,16 @@ impl Controls {
                 draft_color,
             );
         }
+        let padding = styles.metric("padding.panel", 8.);
         label(
             list,
             atlas,
-            Rect::new(
-                view.min[0] + 10.,
-                view.min[1] + 8.,
-                (view.width() - 20.).max(1.),
-                22.,
-            ),
+            Rect::new(clip.min[0]+padding, clip.min[1]+padding,
+                (clip.width()-padding*2.).max(1.), styles.metric("row.height",22.)),
             self.notice.as_deref().unwrap_or(locale.t(T::DrawingHint)),
             colors.TEXT_MUTED,
         );
-        view.contains(input.mouse) || self.editing()
+        clip.contains(input.mouse) || self.editing()
     }
     fn remove_node(&self, l: &Layer, path: u64, node: u64, out: &mut Vec<Action>) {
         if l.locked {
