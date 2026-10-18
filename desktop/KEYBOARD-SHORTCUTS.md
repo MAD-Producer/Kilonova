@@ -18,6 +18,7 @@
 | Ctrl+Alt+Shift+T | 新建文字图层 | 工程 |
 | Ctrl+Alt+Shift+Y / Ctrl+Alt+Y | 新建空对象 / 调整图层 | 工程 |
 | Space | 播放切换 | 工程；Nodes、NodeProperties、NodePreview 聚焦时切换节点预览，不切换工程播放 |
+| A / Shift+A | 显示锚点 / 追加或移除锚点筛选 | 时间轴和属性面板；二维图层锚点支持秒表、关键帧及撤销，文本编辑优先 |
 | Ctrl+Space | 打开 / 再次关闭效果搜索 | 主窗或浮窗；输入框、拖动及已有菜单占用时优先处理原交互 |
 | PageUp / PageDown、Ctrl+← / Ctrl+→ | 前 / 后一帧；加 Shift 为 10 帧 | 工程 |
 | ← / → | 前 / 后一帧；加 Shift 为 10 帧 | 时间轴 |

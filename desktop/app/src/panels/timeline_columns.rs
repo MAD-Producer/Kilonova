@@ -28,6 +28,7 @@ impl Slot {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) struct ColumnRects {
     pub name: Slot,
+    pub three_d: Option<Slot>,
     pub matte: Option<Slot>,
     pub blend: Option<Slot>,
     pub link: Option<Slot>,
@@ -59,11 +60,40 @@ impl ColumnRects {
                 x: name_x,
                 width: (end - name_x).max(1.),
             },
+            three_d: None,
             matte,
             blend,
             link,
             parent,
         }
+    }
+
+    /// Reserve the complete layer-switch target before allocating optional
+    /// columns. User visibility preferences are retained when width hides one.
+    pub fn styled(
+        styles: &motion_ui::style::StyleSheet,
+        origin: f32,
+        gutter: f32,
+        mut visibility: ColumnVisibility,
+    ) -> Self {
+        let slot = styles.metric("icon.slot", 20.);
+        let minimum = styles.metric("value.min_width", 64.);
+        let mut plan = Self::new(origin, gutter, visibility);
+        if plan.name.width - slot < minimum {
+            visibility.blend = false;
+            plan = Self::new(origin, gutter, visibility);
+        }
+        if plan.name.width - slot < minimum {
+            visibility.parent = false;
+            plan = Self::new(origin, gutter, visibility);
+        }
+        if gutter >= styles.metric("timeline.layer.name_offset", 112.)
+            + slot + styles.metric("padding.panel", 8.)
+        {
+            plan.name.width = (plan.name.width - slot).max(0.);
+            plan.three_d = Some(Slot { x: plan.name.max_x(), width: slot });
+        }
+        plan
     }
 }
 struct Popup {

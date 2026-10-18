@@ -56,6 +56,7 @@ impl<T: Tween> Track<T> {
 }
 #[derive(Debug, Serialize)]
 pub struct TimelineProperties {
+    pub anchor: TimelineTrack<[f32; 2]>,
     #[serde(skip_serializing_if="Option::is_none")] pub target: Option<TimelineTrack<[f32; 3]>>,
     #[serde(skip_serializing_if="Option::is_none")] pub roll: Option<TimelineTrack<f32>>,
     #[serde(skip_serializing_if="Option::is_none")] pub fov: Option<TimelineTrack<f32>>,
@@ -178,6 +179,7 @@ impl Project {
                         None
                     },
                     properties: TimelineProperties {
+                        anchor: t.anchor.timeline(clip.offset_frame),
                         position: l.camera_data().map_or(&t.position, |c| &c.position).timeline(clip.offset_frame),
                         target: l.camera_data().map(|c| c.target.timeline(clip.offset_frame)),
                         roll: l.camera_data().map(|c| c.roll.timeline(clip.offset_frame)),

@@ -77,6 +77,7 @@ pub fn resolve(scope: Scope, key: Key, m: Modifiers, repeat: bool) -> Option<Com
     use Command::*;
     use Scope::*;
     let command = match (scope, key, m.control, m.shift, m.alt) {
+        (Animation, Key::A, false, _, false) => Reveal(motion_core::Property::Anchor),
         (Animation, Key::P, false, _, false) => Reveal(motion_core::Property::Position),
         (Animation, Key::S, false, _, false) => Reveal(motion_core::Property::Scale),
         (Animation, Key::R, false, _, false) => Reveal(motion_core::Property::Rotation),

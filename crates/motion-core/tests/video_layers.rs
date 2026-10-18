@@ -86,6 +86,8 @@ fn format_four_migrates_in_memory_and_unknown_future_versions_are_rejected() {
     old.version = 18;
     old.validate().unwrap();
     old.version = 20;
+    old.validate().unwrap();
+    old.version = 21;
     assert!(old.validate().is_err());
 }
 

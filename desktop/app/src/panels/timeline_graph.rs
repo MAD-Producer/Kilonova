@@ -5,12 +5,14 @@ use super::*;
 use motion_core::{Axis, Track};
 
 enum Samples {
+    Anchor(Track<[f32; 2]>),
     Scalar(Track<f32>),
     Vector(Track<[f32; 3]>),
 }
 impl Samples {
     fn velocity(&self, frame: f64, component: usize, fps: f64) -> f32 {
         match self {
+            Self::Anchor(track) => super::graph_sampling::velocity(track,frame,fps,|v|v[component] as f64) as f32,
             Self::Scalar(track) => {
                 super::graph_sampling::velocity(track, frame, fps, |v| v as f64) as f32
             }
@@ -22,6 +24,7 @@ impl Samples {
 
     fn value(&self, frame: f64, component: usize) -> f32 {
         match self {
+            Self::Anchor(track) => track.sample(frame)[component],
             Self::Scalar(track) => track.sample(frame),
             Self::Vector(track) => track.sample(frame)[component],
         }
@@ -131,6 +134,8 @@ pub(super) fn render(
     let separated = root["separated"].as_bool() == Some(true);
     let visible_axes = if property.is_scalar() {
         vec![0]
+    } else if property == Property::Anchor {
+        vec![0, 1]
     } else if layer["three_d"].as_bool() == Some(true) {
         vec![0, 1, 2]
     } else if property == Property::Rotation {
@@ -153,6 +158,7 @@ pub(super) fn render(
         .animation_controls
         .choose_track(object, property, axis);
     let title = match property {
+        Property::Anchor => T::Anchor,
         Property::Position => T::Position,
         Property::Scale => T::Scale,
         Property::Rotation => T::Rotation,
@@ -168,6 +174,8 @@ pub(super) fn render(
     let layer_offset = timeline["offset_frame"].as_i64().unwrap_or(0);
     let samples = if property.is_scalar() || axis.is_some() {
         data::track::<f32>(source, layer_offset).map(Samples::Scalar)
+    } else if property == Property::Anchor {
+        data::track::<[f32; 2]>(source, layer_offset).map(Samples::Anchor)
     } else {
         data::track::<[f32; 3]>(source, layer_offset).map(Samples::Vector)
     };
@@ -206,11 +214,7 @@ pub(super) fn render(
         (area.height() - 102.).max(1.),
     );
     let end = (offset + plot.width() as f64 / ppf.max(1e-6) as f64).min(last_frame(state));
-    let scale = if property == Property::Opacity {
-        100.
-    } else {
-        1.
-    };
+    let scale = data::display_scale(state,object,property,components[0]);
     let points: Vec<Vec<(f64, f32)>> = components
         .iter()
         .map(|component| {
@@ -296,7 +300,7 @@ pub(super) fn render(
         );
     }
     let unit = match property {
-        Property::Position | Property::Target | Property::Radius => {
+        Property::Anchor | Property::Position | Property::Target | Property::Radius => {
             if panels.timeline.speed_graph {
                 "px/s"
             } else {
@@ -403,7 +407,7 @@ pub(super) fn render(
                 Rect::new(point[0] - 9., point[1] - 9., 18., 18.),
             ) {
                 clicked_key = Some(frame);
-                if layer["locked"].as_bool() != Some(true) && panels.timeline.graph_drag.is_none() {
+                if layer["locked"] != true && state["observing"] != true && panels.timeline.graph_drag.is_none() {
                     super::graph_keys::begin(
                         panels,
                         state,
@@ -443,7 +447,7 @@ pub(super) fn render(
             scale,
         },
         curve_input,
-        layer["locked"].as_bool().unwrap_or(false),
+        layer["locked"] == true || state["observing"] == true,
         out,
     );
     super::graph_keys::update(panels, state, plot, ppf, scale, source, curve_input, out);
@@ -626,8 +630,8 @@ pub(super) fn render(
     if owns_scrub && input.released.is_some() {
         panels.timeline.scrubbing = false;
     }
-    // The shared timeline footer now contains navigation. Keep the graph ruler
-    // at its established position and put its explanatory text in the gutter.
+    // The shared footer puts the authored-value notice in the label gutter
+    // and navigation in the time region, leaving the lower ruler unchanged.
     graph.clip_to(area);
     list.append(graph);
 }

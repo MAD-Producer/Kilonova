@@ -411,7 +411,7 @@ fn transform(
                 object: ctx.object,
                 property: ctx.property,
                 frame: current[i],
-                value: std::array::from_fn(|axis| next[axis].as_f64().unwrap() as f32),
+                value: std::array::from_fn(|axis| if ctx.property==Property::Anchor && axis==2 {0.} else {next[axis].as_f64().unwrap() as f32}),
             }
         });
     }
@@ -587,6 +587,48 @@ pub(super) fn select_all(panels: &mut Panels, state: &Value) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn anchor_curve_drag_converts_pixels_without_inventing_a_third_axis() {
+        let ctx = Context {
+            root: "anchor".into(),
+            composition: "main".into(),
+            object: 7,
+            property: Property::Anchor,
+            axis: None,
+            component: 0,
+        };
+        let seeds = vec![
+            serde_json::json!({"frame": 0, "value": [0.2, 0.3]}),
+            serde_json::json!({"frame": 10, "value": [0.8, 0.7]}),
+        ];
+        let drag = Drag {
+            plot: Plot {
+                area: Rect::new(0., 0., 100., 100.),
+                offset: 0., ppf: 10., low: 0., high: 100.,
+                speed: false, fps: 30., scale: 100.,
+            },
+            mouse: [50., 50.],
+            mode: [0, 0],
+            bounds: [0., 10., 20., 80.],
+            current: vec![0, 10],
+            values: seeds.iter().map(|key| key["value"].clone()).collect(),
+            expected: seeds.clone(), seeds, begun: true,
+        };
+        let (edits, frames, values, _) = transform(&ctx, &drag, [50., 40.], 60.).unwrap();
+        assert_eq!(frames, [0, 10]);
+        assert_eq!(edits.len(), 2);
+        for (i, command) in edits.iter().enumerate() {
+            let Command::SetVector { object: 7, property: Property::Anchor, frame, value } = command else {
+                panic!("expected an anchor value edit, got {command:?}");
+            };
+            assert_eq!(*frame, frames[i]);
+            assert!((value[0] - [0.3, 0.9][i]).abs() < 0.00001);
+            assert!((value[1] - [0.3, 0.7][i]).abs() < 0.00001);
+            assert_eq!(value[2], 0.);
+            assert_eq!(values[i].as_array().unwrap().len(), 2);
+        }
+    }
 
     #[test]
     fn selection_geometry_uses_theme_sizes_and_preserves_the_six_pixel_hit_radius() {

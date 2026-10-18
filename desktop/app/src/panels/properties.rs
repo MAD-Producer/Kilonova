@@ -10,6 +10,14 @@ struct AnchorField {
     rect: Rect,
     number: super::numeric::Field,
 }
+pub(super) fn anchor_command(state: &Value, object: u64, anchor: [f32;2]) -> Command {
+    let animated = state["project"]["layers"].as_array().into_iter().flatten()
+        .find(|l|l["id"].as_u64()==Some(object))
+        .is_some_and(|l|l["transform"]["anchor"]["keys"].as_array().is_some_and(|k|!k.is_empty()));
+    if animated {
+        Command::AnchorAt { object, anchor, frame: state["frame"].as_f64().unwrap_or(0.).floor() as u32 }
+    } else { Command::Anchor { object, anchor } }
+}
 impl AnchorControls {
     pub fn editing(&self) -> bool {
         self.field.is_some()
@@ -28,11 +36,14 @@ impl AnchorControls {
         }
     }
     fn values(layer: &Value) -> ([f32; 2], [f32; 2]) {
+        Self::values_with_anchor(layer,&layer["transform"]["anchor"])
+    }
+    fn values_with_anchor(layer: &Value, anchor: &Value) -> ([f32;2],[f32;2]) {
         (
             std::array::from_fn(|axis| {
                 observe!(
                     "properties.anchor",
-                    layer["transform"]["anchor"][axis]
+                    anchor[axis]
                         .as_f64()
                         .ok_or("missing or nonnumeric anchor"),
                     "object={} axis={axis}",
@@ -52,6 +63,18 @@ impl AnchorControls {
                 size.unwrap_or(1.).max(1.) as f32
             }),
         )
+    }
+    fn values_at(state: &Value, layer: &Value) -> ([f32;2],[f32;2]) {
+        // The host's sampled anchor uses the same composition/local clock as its
+        // model matrices. Legacy fixtures and static anchors retain their array.
+        if layer["transform"]["anchor"].is_object() {
+            let sampled = state["sampledLayers"].as_array().into_iter().flatten()
+                .find(|l| l["id"]==layer["id"]).map(|l|&l["anchor"]);
+            if let Some(anchor) = observe!("properties.anchor_sample",sampled.ok_or("animated layer anchor sample missing"),"object={}",layer["id"]).ok() {
+                return Self::values_with_anchor(layer,anchor);
+            } else { return Self::values_with_anchor(layer,&layer["transform"]["anchor"]["value"]); }
+        }
+        Self::values(layer)
     }
     pub fn process(
         &mut self,
@@ -80,19 +103,20 @@ impl AnchorControls {
             }
             return;
         }
-        self.process_layer(styles, layer, input, out);
+        self.process_layer(styles, layer, state, input, out);
     }
     fn process_layer(
         &mut self,
         styles: &motion_ui::style::StyleSheet,
         layer: &Value,
+        state: &Value,
         input: &Input,
         out: &mut Vec<Action>,
     ) {
         let Some(mut field) = self.field.take() else {
             return;
         };
-        let (anchor, size) = Self::values(layer);
+        let (anchor, size) = Self::values_at(state,layer);
         field.number.editor.drag_threshold = Some(styles.metric("motion.drag_threshold", 3.));
         let events = field.number.editor.update(
             f64::from(anchor[field.axis] * size[field.axis]),
@@ -103,10 +127,7 @@ impl AnchorControls {
         let finished = super::numeric::apply(events, out, |value| {
             let mut next = anchor;
             next[field.axis] = value / size[field.axis];
-            Command::Anchor {
-                object: field.object,
-                anchor: next,
-            }
+            anchor_command(state,field.object,next)
         });
         if !finished {
             self.field = Some(field);
@@ -120,13 +141,14 @@ impl AnchorControls {
         y: f32,
         host: Panel,
         layer: &Value,
+        state: &Value,
         input: &Input,
         locked: bool,
         out: &mut Vec<Action>,
     ) {
         let object = layer["id"].as_u64().unwrap_or(0);
         let styles = list.styles();
-        let (anchor, size) = Self::values(layer);
+        let (anchor, size) = Self::values_at(state,layer);
         for axis in 0..2 {
             let rect = if host == Panel::Timeline {
                 super::timeline::property_layout(
@@ -155,7 +177,7 @@ impl AnchorControls {
                     rect,
                     number: Default::default(),
                 });
-                self.process_layer(&styles, layer, input, out);
+                self.process_layer(&styles, layer, state, input, out);
             }
             let value = f64::from(anchor[axis] * size[axis]);
             if let Some(field) = self
@@ -335,7 +357,6 @@ pub(super) fn render(
     };
     let locale = panels.locale;
     let locked = layer["locked"] == true || state["observing"] == true;
-    let three_d = layer["three_d"] == true;
     label(
         list,
         atlas,
@@ -344,6 +365,31 @@ pub(super) fn render(
         false,
     );
     y += row;
+    if !matches!(
+        layer["content"]["kind"].as_str(),
+        Some("audio" | "null" | "adjustment")
+    ) {
+        if let Some(typed) = panels.path_controls.inspector_layer(state, layer) {
+            panels.path_controls.masks_in_properties(
+                list,
+                atlas,
+                area,
+                &mut y,
+                &typed,
+                state,
+                if parent_modal
+                    || effect_modal
+                    || panels.path_controls.groups.menu_in(Panel::Properties)
+                {
+                    &neutral
+                } else {
+                    original
+                },
+                locale,
+                out,
+            );
+        }
+    }
     if group(
         list,
         atlas,
@@ -361,82 +407,18 @@ pub(super) fn render(
     }
     y += row;
     if !panels.properties.transform_collapsed {
-        let anchor = inspector_layout(&styles, area, y, 0, 2);
-        super::timeline::property_branch(list, anchor.watch);
-        motion_ui::icons::draw(
-            list,
-            anchor.watch,
-            motion_ui::icons::Icon::Anchor,
-            styles.metric("icon.small.size", 14.),
-            colors.TEXT_MUTED,
-        );
-        label(
-            list,
-            atlas,
-            anchor.caption,
-            if locale == Locale::Zh {
-                "锚点"
-            } else {
-                "Anchor"
-            },
-            true,
-        );
-        panels.properties.anchor.draw(
-            list,
-            atlas,
-            area,
-            y,
-            Panel::Properties,
-            layer,
-            input,
-            locked,
-            out,
-        );
-        y += row;
-        let mut rows = vec![
-            (
-                Property::Position,
-                "position",
-                locale.t(T::Position),
-                if three_d { vec![0, 1, 2] } else { vec![0, 1] },
-            ),
-            (
-                Property::Scale,
-                "scale",
-                locale.t(T::Scale),
-                if three_d { vec![0, 1, 2] } else { vec![0, 1] },
-            ),
-        ];
-        if three_d {
-            for axis in [0, 1, 2] {
-                rows.push((
-                    Property::Rotation,
-                    "rotation",
-                    locale.t(T::Rotation),
-                    vec![axis],
-                ));
-            }
-        } else {
-            rows.push((
-                Property::Rotation,
-                "rotation",
-                locale.t(T::Rotation),
-                vec![2],
-            ));
-        }
-        rows.push((Property::Opacity, "opacity", locale.t(T::Opacity), vec![0]));
-        for (property, key, name, axes) in rows {
+        let rows = super::timeline::property_rows(state, object);
+        for track in rows {
+            let property = track.property;
+            let key = track.key;
+            let name = locale.t(track.title);
+            let axes = &track.axes;
             if !super::timeline::property_visible(panels, state, object, property) {
                 continue;
             }
             let fields = inspector_layout(&styles, area, y, 0, axes.len());
             super::timeline::property_branch(list, fields.watch);
-            let tracks = super::timeline::property_rows(state, object);
-            let matching: Vec<_> = tracks
-                .iter()
-                .filter(|track| track.property == property)
-                .collect();
-            let animated = matching.iter().any(|track| !track.keys.is_empty());
+            let animated = !track.keys.is_empty();
             super::timeline::property_icon(
                 list,
                 fields.watch,
@@ -447,9 +429,15 @@ pub(super) fn render(
             let expression_target = motion_core::ExpressionTarget::Property {
                 object,
                 property,
-                axis: None,
+                axis: track.axis.map(|a| {
+                    [
+                        motion_core::Axis::X,
+                        motion_core::Axis::Y,
+                        motion_core::Axis::Z,
+                    ][a]
+                }),
             };
-            panels.expressions.context(
+            if property != Property::Anchor { panels.expressions.context(
                 expression_target.clone(),
                 Rect::new(
                     fields.watch.min[0],
@@ -459,36 +447,34 @@ pub(super) fn render(
                 ),
                 input,
                 Panel::Properties,
-            );
-            if clicked(input, fields.watch) && !locked && input.modifiers.alt {
+            ); }
+            if clicked(input, fields.watch) && !locked && input.modifiers.alt && property != Property::Anchor {
                 panels
                     .expressions
                     .open(state, expression_target.clone(), Panel::Properties);
             } else if clicked(input, fields.watch) && !locked {
-                let commands = matching
-                    .iter()
-                    .map(|track| Command::Animate {
-                        object,
-                        property,
-                        axis: track.axis.map(|axis| {
-                            [
-                                motion_core::Axis::X,
-                                motion_core::Axis::Y,
-                                motion_core::Axis::Z,
-                            ][axis]
-                        }),
-                        frame: state["frame"].as_f64().unwrap_or(0.).floor() as u32,
-                        enabled: !animated,
-                    })
-                    .collect();
-                out.push(Action::EditBatch(commands));
+                out.push(Action::Edit(Command::Animate {
+                    object,
+                    property,
+                    axis: track.axis.map(|a| {
+                        [
+                            motion_core::Axis::X,
+                            motion_core::Axis::Y,
+                            motion_core::Axis::Z,
+                        ][a]
+                    }),
+                    frame: state["frame"].as_f64().unwrap_or(0.).floor() as u32,
+                    enabled: !animated,
+                }));
             }
-            let caption = if three_d && property == Property::Rotation {
-                format!("{name} {}", ["X", "Y", "Z"][axes[0]])
-            } else {
-                name.into()
-            };
+            let caption = track.axis.map_or_else(
+                || name.into(),
+                |axis| format!("{name} {}", ["X", "Y", "Z"][axis]),
+            );
             label(list, atlas, fields.caption, &caption, true);
+            if property == Property::Anchor {
+                panels.properties.anchor.draw(list,atlas,area,y,Panel::Properties,layer,state,input,locked,out);
+            } else {
             for (index, axis) in axes.iter().copied().enumerate() {
                 let value = if property == Property::Opacity {
                     sample[key].as_f64().unwrap_or(1.) * 100.
@@ -500,6 +486,7 @@ pub(super) fn render(
                     list, atlas, rect, panels, state, input, object, property, axis, value, locked,
                     false, out,
                 );
+            }
             }
             y += row;
             if panels
@@ -528,140 +515,60 @@ pub(super) fn render(
             }
         }
     }
-    if input.key_presses().any(|(key, _, _)| key == Key::Tab) {
-        panels.properties.geometry_collapsed = false;
-    }
-    let geometry_title = if locale == Locale::Zh {
-        "几何设置"
-    } else {
-        "Geometry"
-    };
-    if group(
-        list,
-        atlas,
-        area,
-        y,
-        geometry_title,
-        !panels.properties.geometry_collapsed,
-        input,
-    ) {
-        out.extend(super::cancel_interaction(panels));
-        panels.properties.geometry_collapsed = !panels.properties.geometry_collapsed;
-    }
-    y += row;
     let child = Rect::new(
         area.min[0] + indent,
         area.min[1],
         (area.width() - indent).max(0.),
         area.height(),
     );
-    if !panels.properties.geometry_collapsed {
-        if input.key_presses().any(|(key, _, _)| key == Key::Tab) {
-            panels.properties.checkbox_focused = true;
-        }
-        if input.pressed.is_some() {
-            panels.properties.checkbox_focused = false;
-        }
-        let fields = inspector_layout(&styles, area, y, 0, 1);
-        label(list, atlas, fields.caption, "3D", true);
-        if motion_ui::widgets::Checkbox::draw(
-            list,
-            atlas,
-            Rect::new(
-                fields.number.min[0],
-                y,
-                styles.metric("property.geometry.switch_width", 64.),
-                row,
-            ),
-            "",
-            three_d,
-            input,
-            !locked,
-            panels.properties.checkbox_focused,
-            None,
-        )
-        .clicked
-        {
-            out.push(Action::Edit(Command::SetLayer3d {
-                object,
-                enabled: !three_d,
-            }));
-        }
-        y += row;
-        if !matches!(
-            layer["content"]["kind"].as_str(),
-            Some("audio" | "null" | "adjustment")
-        ) {
-            if let Some(typed) = panels.path_controls.inspector_layer(state, layer) {
-                panels.path_controls.masks_in_properties(
-                    list,
-                    atlas,
-                    child,
-                    &mut y,
-                    &typed,
-                    state,
-                    if parent_modal
-                        || effect_modal
-                        || panels.path_controls.groups.menu_in(Panel::Properties)
-                    {
-                        &neutral
-                    } else {
-                        original
-                    },
-                    locale,
-                    out,
-                );
-            }
-        }
-        panels.parent_controls.render(
-            list,
-            atlas,
-            child,
-            &mut y,
-            object,
-            layer,
-            state,
-            if mask_modal || effect_modal {
-                &neutral
-            } else {
-                original
-            },
-            locale,
-            out,
-        );
-        if layer["content"]["kind"] == "vector" {
-            if let Some(layer) = panels.path_controls.inspector_layer(state, layer) {
-                panels.path_controls.groups.render(
-                    list,
-                    atlas,
-                    child,
-                    &mut y,
-                    &layer,
-                    state,
-                    if panels.path_controls.groups.menu_in(Panel::Properties) {
-                        original
-                    } else {
-                        input
-                    },
-                    locale,
-                    Panel::Properties,
-                    out,
-                );
-                panels.path_controls.groups.finish_paint(
-                    list,
-                    atlas,
-                    area,
-                    state,
-                    if parent_modal || effect_modal {
-                        &neutral
-                    } else {
-                        original
-                    },
-                    locale,
-                    Panel::Properties,
-                    out,
-                );
-            }
+    panels.parent_controls.render(
+        list,
+        atlas,
+        area,
+        &mut y,
+        object,
+        layer,
+        state,
+        if mask_modal || effect_modal {
+            &neutral
+        } else {
+            original
+        },
+        locale,
+        out,
+    );
+    if layer["content"]["kind"] == "vector" {
+        if let Some(layer) = panels.path_controls.inspector_layer(state, layer) {
+            panels.path_controls.groups.render(
+                list,
+                atlas,
+                area,
+                &mut y,
+                &layer,
+                state,
+                if panels.path_controls.groups.menu_in(Panel::Properties) {
+                    original
+                } else {
+                    input
+                },
+                locale,
+                Panel::Properties,
+                out,
+            );
+            panels.path_controls.groups.finish_paint(
+                list,
+                atlas,
+                area,
+                state,
+                if parent_modal || effect_modal {
+                    &neutral
+                } else {
+                    original
+                },
+                locale,
+                Panel::Properties,
+                out,
+            );
         }
     }
     if let Some((rect, dragging)) = panels
@@ -729,6 +636,7 @@ pub(super) fn render(
         }
     }
     panels.properties.content_height = y - area.min[1] + panels.properties.properties_scroll + pad;
+    panels.path_controls.append_inspector_overlays(list);
 }
 
 pub(super) fn draw_value(

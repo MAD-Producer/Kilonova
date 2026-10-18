@@ -28,12 +28,22 @@ impl Shell {
             "effect-controls-narrow",
             "effect-controls-bottom",
             "effect-curve-inline",
+            "effect-expression-unavailable-menu",
             "layer-properties-tree",
             "layer-properties-effects",
             "timeline-properties-tree",
             "camera-properties",
             "timeline-cameras",
+            "layer-anchor-animation",
+            "timeline-anchor-animation",
+            "timeline-anchor-graph",
         ] {
+            if self.smoke_properties && screen != "effect-expression-unavailable-menu" {
+                continue;
+            }
+            if screen == "effect-expression-unavailable-menu" && !self.smoke_properties {
+                continue;
+            }
             let graph_preset = if screen.starts_with("timeline-") || screen == "effect-library" {
                 workspace::Preset::Default
             } else {
@@ -108,6 +118,7 @@ impl Shell {
                         return Err("effect library capture must not edit the project".into());
                     }
                 }
+                "layer-anchor-animation" | "timeline-anchor-animation" | "timeline-anchor-graph" |
                 "camera-properties" | "timeline-cameras" |
                 "layer-properties-tree"
                 | "layer-properties-effects"
@@ -130,7 +141,8 @@ impl Shell {
                 "effect-controls"
                 | "effect-controls-narrow"
                 | "effect-controls-bottom"
-                | "effect-curve-inline" => {
+                | "effect-curve-inline"
+                | "effect-expression-unavailable-menu" => {
                     let panel_size = [
                         if screen.ends_with("narrow") {
                             220.
@@ -312,9 +324,13 @@ impl Shell {
             self.engine.capture_ui(ui, path.clone())?;
             output.insert(screen.into(), serde_json::json!(path));
         }
-        let navigation_screens = self.capture_viewer_navigation(size)?;
-        output.extend(navigation_screens);
-        output.extend(self.capture_interaction_regressions(size)?);
+        if self.smoke_properties {
+            self.capture_property_followup_screens(size, &report, &mut output)?;
+        } else {
+            let navigation_screens = self.capture_viewer_navigation(size)?;
+            output.extend(navigation_screens);
+            output.extend(self.capture_interaction_regressions(size)?);
+        }
         Ok(Value::Object(output))
     }
 
@@ -511,7 +527,8 @@ impl Shell {
                 let catalogue = self.panels.effect_controls.catalogue.clone();
                 for name in ["drop_shadow", "curves", "brightness_contrast"]
                     .into_iter()
-                    .filter(|name| pose != "effect-curve-inline" || *name == "curves")
+                    .filter(|name| !pose.contains("anchor") && (pose != "effect-curve-inline" || *name == "curves"))
+                    .filter(|name| pose != "effect-expression-unavailable-menu" || *name == "brightness_contrast")
                 {
                     let package = catalogue["packages"]
                         .as_array()
@@ -547,6 +564,12 @@ impl Shell {
                         .map_err(|error| error.to_string())?,
                     )?;
                 }
+                if pose.contains("anchor") {
+                    self.engine.edit(serde_json::json!([
+                        {"op":"animate","object":object,"property":"anchor","frame":0,"enabled":true},
+                        {"op":"set_vector","object":object,"property":"anchor","frame":60,"value":[0.2,0.8,0.]}
+                    ]).to_string())?;
+                }
                 self.state = self.engine.history(3)?;
                 effect_gesture = false;
                 created_text = true;
@@ -567,8 +590,14 @@ impl Shell {
                         },
                         dock::Panel::Timeline,
                     );
-                    self.panels.timeline.collapsed_geometry.insert(object);
                     self.panels.focused = Some(dock::Panel::Timeline);
+                }
+                if pose.contains("anchor") {
+                    self.panels.expressions.cancel();
+                    self.panels.timeline.expression_rows.clear();
+                    self.panels.animation_controls.choose_track(object,motion_core::Property::Anchor,None);
+                    self.panels.timeline.set_graph_mode(pose.ends_with("graph"));
+                    self.panels.focused=Some(panel);
                 }
                 if pose == "effect-controls-bottom" {
                     self.panels
@@ -579,6 +608,18 @@ impl Shell {
             }
             let mut paint = PaintList::default();
             paint.stylesheet = self.panels.styles.clone();
+            let mut input = Input::default();
+            if pose == "effect-expression-unavailable-menu" {
+                let styles = paint.styles();
+                let point = [80., 30. + styles.metric("padding.panel", 8.)
+                    + styles.metric("effect.toolbar.height", 28.)
+                    + styles.metric("effect.toolbar.gap", 6.)
+                    + styles.metric("effect.group.gap", 8.)
+                    + styles.metric("effect.header.height", 30.).max(styles.metric("row.height", 22.))
+                    + styles.metric("effect.row.height", 26.).max(styles.metric("row.height", 22.)) * 3.5];
+                input.mouse = point;
+                input.pressed = Some((motion_ui::input::MouseButton::Right, point));
+            }
             let actions = panels::floating_chrome(
                 &mut paint,
                 &mut self.atlas,
@@ -586,10 +627,13 @@ impl Shell {
                 panel_size,
                 &mut self.panels,
                 &self.state,
-                &Input::default(),
+                &input,
             );
             if !actions.is_empty() {
                 return Err("auxiliary panel capture must not emit edits".into());
+            }
+            if pose == "effect-expression-unavailable-menu" && !self.panels.effect_controls.editing() {
+                return Err("discrete effect capture did not open the parameter menu".into());
             }
             // Capture at the window's real pixel ratio, then crop. Changing only
             // logical_size would stretch this panel across the main surface.
