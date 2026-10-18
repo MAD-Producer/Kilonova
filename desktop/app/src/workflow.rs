@@ -154,10 +154,16 @@ pub fn create_text(
         session.apply_command_batch(vec![Command::Add { layer }])?;
         Ok::<_, String>(())
     })();
+    if let Err(error) = &result {
+        log::warn!("create text operation failed revision={} size={size} width={width} reason={error}", session.engine.revision());
+    }
     session
         .engine
         .end_gesture(result.is_ok())
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| {
+            log::error!("create text gesture close failed revision={} operation_error={:?} reason={e}", session.engine.revision(), result.as_ref().err());
+            e.to_string()
+        })?;
     result?;
     session.sample()?;
     Ok(session.snapshot())
@@ -183,6 +189,32 @@ pub fn null_layer(state: &Value, name: &str) -> Result<Command, String> {
 mod tests {
     use super::*;
     use crate::engine::Engine;
+    #[test]
+    fn text_import_error_keeps_original_reason_and_closes_gesture() {
+        const CHILD: &str = "MOTION_TEXT_ERROR_OBSERVATION_CHILD";
+        if let Some(root) = std::env::var_os(CHILD) {
+            let root = std::path::PathBuf::from(root);
+            let _logger = crate::logging::init(root.join("logs")).unwrap();
+            let engine = Engine::start(root.join("project"), motion_desktop_media::platform(), 8 << 30).unwrap();
+            let original = engine.state().unwrap()["project"].clone();
+            let reason = engine.create_text("failure".into(), 48., 320, Some((root.join("missing-font.ttf"), 0))).unwrap_err();
+            let state = engine.state().unwrap();
+            assert_eq!(state["project"], original);
+            assert_eq!(state["history"]["gestureActive"], false);
+            assert!(state["history"]["gestureElapsedMs"].is_null());
+            let log = fs::read_to_string(root.join("logs/motion-studio.log")).unwrap();
+            let event = log.lines().find(|line|line.contains("create text operation failed")).unwrap();
+            assert!(event.contains(&reason), "{event}\n{reason}");
+            assert!(event.contains("revision=0 size=48 width=320"));
+            assert!(!event.contains("gesture close failed"));
+            return;
+        }
+        let temp = tempfile::tempdir().unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "workflow::tests::text_import_error_keeps_original_reason_and_closes_gesture"])
+            .env_remove("MOTION_LOG").env(CHILD, temp.path()).output().unwrap();
+        assert!(output.status.success(), "{}\n{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+    }
     #[test]
     fn text_creation_uses_shared_fonts_and_rolls_back_as_one_command_group() {
         let temp = tempfile::tempdir().unwrap();

@@ -61,8 +61,27 @@ impl Ring {
         Some(result)
     }
 }
+// Realtime callbacks publish only atomics. The watchdog drains these two bits;
+// multiple episodes between polls coalesce, without losing escalation evidence.
+#[derive(Default)]
+struct CallbackEvidence { count: AtomicUsize, pending: AtomicUsize }
+impl CallbackEvidence {
+    fn failed(&self) {
+        let previous = self.count.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| Some(n.saturating_add(1))).unwrap_or_else(|n| n);
+        let bit = match previous { 0 => 1, 59 => 2, _ => 0 };
+        if bit != 0 { self.pending.fetch_or(bit, Ordering::Release); }
+    }
+    fn success(&self) { self.count.store(0, Ordering::Relaxed); }
+    fn drain(&self, site: &'static str, playback: u64, reason: &'static str, fallback: &'static str) {
+        let flags = self.pending.swap(0, Ordering::AcqRel);
+        if flags & 1 != 0 { log::warn!("audio degradation site={site} count=1 playback={playback} reason={reason} fallback={fallback}"); }
+        if flags & 2 != 0 { log::error!("persistent audio degradation site={site} count=60 playback={playback} reason={reason} fallback={fallback}"); }
+    }
+}
 struct Shared {
     observation: u64,
+    latency_evidence: CallbackEvidence,
+    error_poison_evidence: CallbackEvidence,
     ring: Ring,
     stop: AtomicBool,
     done: AtomicBool,
@@ -82,6 +101,8 @@ impl Shared {
     fn new() -> Self {
         Self {
             observation: NEXT_OBSERVATION.fetch_add(1, Ordering::Relaxed),
+            latency_evidence: CallbackEvidence::default(),
+            error_poison_evidence: CallbackEvidence::default(),
             ring: Ring::new(),
             stop: AtomicBool::new(false),
             done: AtomicBool::new(false),
@@ -98,11 +119,21 @@ impl Shared {
             last_callback_ns: AtomicU64::new(0),
         }
     }
+    fn callback_latency(&self, latency: Option<Duration>) -> u64 {
+        match latency {
+            Some(duration) => { self.latency_evidence.success(); duration.as_nanos().min(u128::from(u64::MAX)) as u64 }
+            None => { self.latency_evidence.failed(); 0 }
+        }
+    }
+    fn drain_callback_evidence(&self) {
+        self.latency_evidence.drain("audio.callback.timestamp_order", self.observation, "playback_before_callback", "zero_latency");
+        self.error_poison_evidence.drain("audio.error.publish", self.observation, "mutex_poisoned", "into_inner");
+    }
     fn now_ns(&self) -> u64 {
         self.epoch.elapsed().as_nanos().min(u128::from(u64::MAX)) as u64
     }
     fn fail(&self, message: String) {
-        let mut error = self.error.lock().unwrap_or_else(|e| e.into_inner());
+        let mut error = self.error.lock().unwrap_or_else(|e| { self.error_poison_evidence.failed(); e.into_inner() });
         if error.is_none() {
             *error = Some(message);
         }
@@ -281,11 +312,8 @@ impl AudioOutput {
     }
     pub fn error(&self) -> Option<String> {
         self.shared.check_callback_at(self.shared.now_ns());
-        self.shared
-            .error
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .clone()
+        static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+        crate::fallback_observation::recovered(&self.shared.error, &FAILURES, "audio.error.read", |value| value.clone())
     }
     pub fn underruns(&self) -> u64 {
         self.shared.underruns.load(Ordering::Relaxed)
@@ -385,6 +413,7 @@ fn spawn_monitor(shared: Arc<Shared>) -> Result<JoinHandle<()>, String> {
             let mut reported = 0;
             while !shared.stop.load(Ordering::Acquire) {
                 shared.check_callback_at(shared.now_ns());
+                shared.drain_callback_evidence();
                 let underruns = shared.underruns.load(Ordering::Relaxed);
                 if underruns != reported {
                     // Diagnostic IO stays off the realtime callback and UI.
@@ -395,7 +424,8 @@ fn spawn_monitor(shared: Arc<Shared>) -> Result<JoinHandle<()>, String> {
             }
             // Device callbacks only publish state. Observe the latched failure
             // here, outside the realtime callback and after releasing its mutex.
-            let error = shared.error.lock().unwrap_or_else(|e| e.into_inner()).clone();
+            let error = shared.error.lock().unwrap_or_else(|e| { shared.error_poison_evidence.failed(); e.into_inner() }).clone();
+            shared.drain_callback_evidence();
             if let Some(error) = error {
                 log::error!("[motion-audio] output stopped: {error} playback={}", shared.observation);
             }
@@ -421,12 +451,7 @@ fn build<T: SizedSample + FromSample<f32>>(
             move |data: &mut [T], info: &cpal::OutputCallbackInfo| {
                 let now = shared.now_ns();
                 let timestamp = info.timestamp();
-                let latency = timestamp
-                    .playback
-                    .duration_since(&timestamp.callback)
-                    .unwrap_or_default()
-                    .as_nanos()
-                    .min(u128::from(u64::MAX)) as u64;
+                let latency = shared.callback_latency(timestamp.playback.duration_since(&timestamp.callback));
                 render_callback(&shared, data, channels, &mut consumed, now, latency);
             },
             move |error| {
@@ -962,5 +987,39 @@ mod failure_log_tests {
             std::thread::sleep(Duration::from_millis(1));
         }
         worker.join().unwrap();
+    }
+}
+
+#[cfg(test)]
+mod callback_observation_tests {
+    use super::*;
+    #[test]
+    fn invalid_timestamps_are_deferred_until_watchdog_and_reset_after_valid_callback() {
+        const CHILD: &str = "MOTION_CALLBACK_TIMESTAMP_CHILD";
+        if let Some(root) = std::env::var_os(CHILD) {
+            let root = std::path::PathBuf::from(root);
+            let _logger = crate::logging::init(root.clone()).unwrap();
+            let shared = Shared::new();
+            for _ in 0..120 { assert_eq!(shared.callback_latency(None),0); }
+            let path = root.join("motion-studio.log");
+            assert!(std::fs::read_to_string(&path).unwrap().is_empty());
+            shared.drain_callback_evidence(); shared.drain_callback_evidence();
+            assert_eq!(shared.callback_latency(Some(Duration::from_millis(3))),3_000_000);
+            for _ in 0..60 { shared.callback_latency(None); }
+            shared.drain_callback_evidence();
+            assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| { let _guard = shared.error.lock().unwrap(); panic!("controlled audio poison"); })).is_err());
+            for _ in 0..120 { shared.fail("keep first failure".into()); }
+            shared.drain_callback_evidence();
+            assert_eq!(shared.error.lock().unwrap_err().into_inner().as_deref(),Some("keep first failure"));
+            let text = std::fs::read_to_string(path).unwrap();
+            assert_eq!(text.lines().filter(|l| l.contains("site=audio.callback.timestamp_order ")).count(),4);
+            assert_eq!(text.lines().filter(|l| l.contains("site=audio.error.publish ")).count(),2);
+            return;
+        }
+        let temp = tempfile::tempdir().unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap()).args(["--exact", "audio_output::callback_observation_tests::invalid_timestamps_are_deferred_until_watchdog_and_reset_after_valid_callback"]).env_remove("MOTION_LOG").env(CHILD,temp.path()).output().unwrap();
+        assert!(output.status.success(), "{}\n{}",String::from_utf8_lossy(&output.stdout),String::from_utf8_lossy(&output.stderr));
+        assert!(String::from_utf8_lossy(&output.stderr).contains("persistent audio degradation"));
+        assert!(!String::from_utf8_lossy(&output.stdout).contains("audio degradation"));
     }
 }

@@ -271,13 +271,13 @@ impl Shell {
                 let snapshot = self.node_close_prompt.take().unwrap();
                 match choice {
                     node_tasks::CloseChoice::Cancel => {
-                        let _ = self.schedule_node_compile();
+                        if let Err(error) = self.schedule_node_compile() { log::error!("node close recovery compile failed operation=schedule_node_compile reason={error}"); }
                     }
                     _ if !self.node_close_current(&snapshot) => {
                         self.panels
                             .node_editor
                             .report_error(self.workspace.locale.t(T::NodeStaleClose));
-                        let _ = self.schedule_node_compile();
+                        if let Err(error) = self.schedule_node_compile() { log::error!("node close recovery compile failed operation=schedule_node_compile reason={error}"); }
                     }
                     node_tasks::CloseChoice::Discard => self.begin_close(),
                     node_tasks::CloseChoice::Save => {
@@ -425,7 +425,7 @@ impl Shell {
             || self.panels.layer_actions.text_in(Some(Panel::Timeline))
             || self.panels.panel_menu.is_some()
             || self.panels.menu.is_some()
-            || self.panels.fx_console_in(None)
+            || self.panels.effect_search_in(None)
             || self.panels.node_editor.popup_open()
             || self.dialog.is_some()
             || self.project_modal()
@@ -496,7 +496,7 @@ impl Shell {
         id: dock::DockId,
         event_loop: &ActiveEventLoop,
     ) -> Result<(), String> {
-        if id == dock::Panel::Masks.dock() {
+        if id == dock::Panel::Masks.dock() || id == dock::Panel::Expression.dock() {
             return self.float_panel(dock::Panel::Properties.dock(), event_loop);
         }
         if self.floating.values().any(|f| f.panel.dock() == id) {
@@ -577,11 +577,11 @@ impl Shell {
     pub(crate) fn redock_panel(&mut self, panel: dock::DockId) -> Result<(), String> {
         if self
             .panels
-            .fx_console
+            .effect_search
             .as_ref()
             .is_some_and(|c| c.owner.is_some_and(|owner| owner.dock() == panel))
         {
-            self.panels.fx_console = None;
+            self.panels.effect_search = None;
         }
         if panel == dock::Panel::Nodes.dock() {
             if self.panels.node_editor.cancel_interaction() {
@@ -750,7 +750,11 @@ impl Shell {
                 return;
             }
             WindowEvent::Resized(size) => {
-                let position = f.window.outer_position().ok().map(|p| [p.x, p.y]);
+                static POSITION_FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+                let position = match f.window.outer_position() {
+                    Ok(p) => { POSITION_FAILURES.success(); Some([p.x, p.y]) }
+                    Err(error) => { POSITION_FAILURES.failure("window.geometry.position", format_args!("window={} reason={error} fallback=no_position", f.key)); None }
+                };
                 self.workspace.window_geometry.insert(
                     f.panel.dock().0,
                     workspace::WindowGeometry {
@@ -762,7 +766,7 @@ impl Shell {
                     },
                 );
                 if self.smoke.is_none() {
-                    let _ = self.workspace.save(&self.layout_path);
+                    observe_geometry_save(self.workspace.save(&self.layout_path), &self.layout_path);
                 }
                 let key = f.key;
                 if size.width > 0 && size.height > 0 {
@@ -792,7 +796,7 @@ impl Shell {
                     },
                 );
                 if self.smoke.is_none() {
-                    let _ = self.workspace.save(&self.layout_path);
+                    observe_geometry_save(self.workspace.save(&self.layout_path), &self.layout_path);
                 }
                 return;
             }
@@ -1445,5 +1449,45 @@ impl Shell {
             .clamp(1., 120.);
         self.next_composition = Instant::now() + Duration::from_secs_f64(1. / rate);
         Ok(())
+    }
+}
+
+// One process-wide consecutive episode shared by move/resize persistence.
+fn observe_geometry_save(result: Result<(), String>, path: &std::path::Path) {
+    static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+    match result {
+        Ok(()) => FAILURES.success(),
+        Err(error) => FAILURES.failure("window.geometry.save", format_args!("path={} reason={error} fallback=memory_only", crate::fallback_observation::short(path.display()))),
+    }
+}
+
+#[cfg(test)]
+mod geometry_observation_tests {
+    use super::*;
+    #[test]
+    fn failed_geometry_persistence_is_bounded_and_success_resets_episode() {
+        const CHILD: &str = "MOTION_GEOMETRY_SAVE_CHILD";
+        if let Some(root) = std::env::var_os(CHILD) {
+            let root = std::path::PathBuf::from(root);
+            let _logger = crate::logging::init(root.clone()).unwrap();
+            let workspace = workspace::Workspace::default();
+            let bad = root.join("directory");
+            std::fs::create_dir(&bad).unwrap();
+            for _ in 0..120 { observe_geometry_save(workspace.save(&bad), &bad); }
+            let good = root.join("layout.json");
+            observe_geometry_save(workspace.save(&good), &good);
+            for _ in 0..120 { observe_geometry_save(workspace.save(&bad), &bad); }
+            assert!(workspace::Workspace::load(&good).valid());
+            assert!(bad.is_dir());
+            let text = std::fs::read_to_string(root.join("motion-studio.log")).unwrap();
+            let records = text.lines().filter(|l| l.contains("site=window.geometry.save ")).collect::<Vec<_>>();
+            assert_eq!(records.len(),4);
+            assert_eq!(records.iter().filter(|l| l.contains("ERROR") && l.contains("count=60 ")).count(),2);
+            return;
+        }
+        let temp = tempfile::tempdir().unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap()).args(["--exact","shell::presentation::geometry_observation_tests::failed_geometry_persistence_is_bounded_and_success_resets_episode"]).env_remove("MOTION_LOG").env(CHILD,temp.path()).output().unwrap();
+        assert!(output.status.success(),"{}\n{}",String::from_utf8_lossy(&output.stdout),String::from_utf8_lossy(&output.stderr));
+        assert!(String::from_utf8_lossy(&output.stderr).contains("site=window.geometry.save"));
     }
 }

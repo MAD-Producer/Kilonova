@@ -28,6 +28,27 @@ impl Samples {
     }
 }
 
+fn observe_early_return(panels: &Panels, reason: &'static str) {
+    let active = panels
+        .timeline
+        .graph_drag
+        .as_ref()
+        .is_some_and(|d| d.begun())
+        || panels.timeline.key_drag.as_ref().is_some_and(|d| d.begun());
+    if active {
+        let _ = observe!(
+            "timeline.graph_early_return",
+            Err::<(), _>(reason),
+            "selected={:?} property={:?} axis={:?} handle_drag={} key_drag={}",
+            panels.selected,
+            panels.animation_controls.property,
+            panels.animation_controls.axis,
+            panels.timeline.graph_drag.is_some(),
+            panels.timeline.key_drag.is_some()
+        );
+    }
+}
+
 pub(super) fn render(
     list: &mut PaintList,
     atlas: &mut TextAtlas,
@@ -73,12 +94,14 @@ pub(super) fn render(
         );
         graph.clip_to(area);
         list.append(graph);
+        observe_early_return(panels, "no_selection");
         return;
     };
     let Some(layer) = state["project"]["layers"]
         .as_array()
         .and_then(|ls| ls.iter().find(|l| l["id"].as_u64() == Some(object)))
     else {
+        observe_early_return(panels, "missing_layer");
         return;
     };
     let property = panels
@@ -97,9 +120,11 @@ pub(super) fn render(
         );
         graph.clip_to(area);
         list.append(graph);
+        observe_early_return(panels, "property_hidden_or_audio");
         return;
     }
     let Some(timeline) = data::timeline(state, object) else {
+        observe_early_return(panels, "missing_timeline");
         return;
     };
     let root = &timeline["properties"][data::name(property)];
@@ -137,6 +162,7 @@ pub(super) fn render(
     };
     let axis = panels.animation_controls.axis;
     let Some(source) = data::channel(state, object, property, axis) else {
+        observe_early_return(panels, "missing_channel");
         return;
     };
     let layer_offset = timeline["offset_frame"].as_i64().unwrap_or(0);
@@ -159,6 +185,7 @@ pub(super) fn render(
         );
         graph.clip_to(area);
         list.append(graph);
+        observe_early_return(panels, "unreadable_track");
         return;
     };
     let components = if axis.is_some() || property.is_scalar() {

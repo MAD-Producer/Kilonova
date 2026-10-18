@@ -60,10 +60,9 @@ impl PackageJobs {
             .ok_or_else(|| "package task does not exist".into())
     }
     pub fn contains(&self, id: &str) -> bool {
-        self.tasks
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .contains_key(id)
+        static OBSERVATION: crate::registry_observation::RegistryObservation =
+            crate::registry_observation::RegistryObservation::new();
+        OBSERVATION.contains(&self.tasks, id, "package.registry.contains")
     }
     pub fn status(&self, id: &str) -> Result<PackageTaskStatus> {
         Ok(self
@@ -106,6 +105,9 @@ impl PackageJobs {
         output: PathBuf,
         frozen_revision: u64,
     ) -> Result<PackageTaskStatus> {
+        use crate::poison_observation::{RecoveryScope, RecoverySite};
+        static ACTIVE: RecoverySite = RecoverySite::new("package.start.active_task");
+        let mut recoveries = RecoveryScope::new();
         if id.is_empty() || id.len() > 128 {
             return Err("invalid package request id".into());
         }
@@ -116,9 +118,9 @@ impl PackageJobs {
         if tasks.len() >= 64 {
             return Err("release completed package tasks before creating more".into());
         }
-        if tasks.values().any(|t| {
-            !t.lock()
-                .unwrap_or_else(|e| e.into_inner())
+        if tasks.iter().any(|(request, t)| {
+            !recoveries
+                .recover(t.lock(), &ACTIVE, request, "export_project")
                 .status
                 .terminal()
         }) {
@@ -175,7 +177,12 @@ impl PackageJobs {
                         ));
                     }
                     snapshot.prepare(&output, |done, total| {
-                        let mut task = spawn_task.lock().unwrap_or_else(|e| e.into_inner());
+                        static PROGRESS: RecoverySite =
+                            RecoverySite::new("package.worker.progress_task");
+                        let mut recoveries = RecoveryScope::new();
+                        let mut task = recoveries.recover(
+                            spawn_task.lock(), &PROGRESS, worker_log.request_id(), "export_project",
+                        );
                         if task.cancel {
                             return Err(motion_model::Error::Invalid(
                                 "package export cancelled".into(),
@@ -187,7 +194,11 @@ impl PackageJobs {
                         Ok(())
                     })
                 }));
-                let mut task = spawn_task.lock().unwrap_or_else(|e| e.into_inner());
+                static PUBLISH: RecoverySite = RecoverySite::new("package.worker.result_task");
+                let mut recoveries = RecoveryScope::new();
+                let mut task = recoveries.recover(
+                    spawn_task.lock(), &PUBLISH, worker_log.request_id(), "export_project",
+                );
                 if task.cancel {
                     let error = crate::task_logging::cancelled_error(&result, &["package export cancelled"]);
                     // Drop/close the prepared archive before advertising terminal cancellation.
@@ -222,29 +233,95 @@ impl PackageJobs {
                 worker_log.finish(&phase, error.as_deref());
             });
         if let Err(error) = spawned {
-            task_log.finish("spawn", Some(&error.to_string()));
-            let mut task = task.lock().unwrap_or_else(|e| e.into_inner());
-            task.status.state = "failed".into();
-            task.status.phase = "failed".into();
-            task.status.error = Some(error.to_string());
-            return Err(error.to_string());
+            return Err(mark_spawn_failed(&mut recoveries, &task, id, task_log, error));
         }
         Ok(initial)
     }
 }
+
+fn mark_spawn_failed(
+    recoveries: &mut crate::poison_observation::RecoveryScope,
+    task: &Mutex<Task>,
+    id: &str,
+    task_log: crate::task_logging::TaskLog,
+    error: std::io::Error,
+) -> String {
+    static SPAWN: crate::poison_observation::RecoverySite =
+        crate::poison_observation::RecoverySite::new("package.start.spawn_failure_task");
+    let reason = error.to_string();
+    recoveries.defer_spawn_error(task_log, reason.clone());
+    let mut task = recoveries.recover(task.lock(), &SPAWN, id, "export_project");
+    task.status.state = "failed".into();
+    task.status.phase = "failed".into();
+    task.status.error = Some(reason.clone());
+    reason
+}
+
 impl Drop for PackageJobs {
     fn drop(&mut self) {
-        for task in self
-            .tasks
-            .get_mut()
-            .unwrap_or_else(|e| e.into_inner())
-            .values()
+        use crate::poison_observation::{RecoveryScope, RecoverySite};
+        static REGISTRY: RecoverySite = RecoverySite::new("package.drop.registry");
+        static TASK: RecoverySite = RecoverySite::new("package.drop.task");
+        let mut recoveries = RecoveryScope::new();
+        for (id, task) in recoveries
+            .recover(self.tasks.get_mut(), &REGISTRY, "session", "drop_package")
+            .iter()
         {
-            let mut task = task.lock().unwrap_or_else(|e| e.into_inner());
+            let mut task = recoveries.recover(task.lock(), &TASK, id, "drop_package");
             if !task.status.terminal() {
                 task.cancel = true;
                 task.status.phase = "cancelling".into();
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod poison_tests;
+
+#[cfg(test)]
+mod registry_tests {
+    use super::*;
+
+    #[test]
+    fn poisoned_package_registry_membership_is_observed_after_unlock() {
+        use crate::registry_observation::tests::{check, child};
+        if !child(
+            "packages::registry_tests::poisoned_package_registry_membership_is_observed_after_unlock",
+        ) {
+            return;
+        }
+        let jobs = Box::leak(Box::new(PackageJobs::default()));
+        jobs.tasks.lock().unwrap().insert(
+            "present".into(),
+            Arc::new(Mutex::new(Task {
+                status: PackageTaskStatus {
+                    schema_version: 1,
+                    request_id: "present".into(),
+                    operation: "export_project".into(),
+                    state: "succeeded".into(),
+                    phase: "complete".into(),
+                    progress: 1.,
+                    bytes_processed: 0,
+                    total_bytes: 0,
+                    source_count: 0,
+                    frozen_revision: 0,
+                    path: None,
+                    error: None,
+                },
+                cancel: false,
+            })),
+        );
+        let healthy = PackageJobs::default();
+        check(
+            &jobs.tasks,
+            "package.registry.contains",
+            |id| jobs.contains(id),
+            |id| healthy.contains(id),
+        );
+        assert_eq!(
+            jobs.status("present").unwrap_err(),
+            "package registry poisoned"
+        );
     }
 }

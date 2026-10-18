@@ -1,8 +1,8 @@
 # 静默失败路径处理完成记录
 
-审计源：`silent-failure-paths-exhaustive.md`；辅助定位：`silent-failure-paths.md`。分支：`fix/silent-failure-paths`，当前基线为合并 #305/#306 后的 main `1750d8d`。原始清单保留，本文只登记已核实的结论。
+审计源：`silent-failure-paths-exhaustive.md`；辅助定位：`silent-failure-paths.md`。初批分支：`fix/silent-failure-paths`，初批基线为合并 #305/#306 后的 main `1750d8d`；本轮续审分支为 `fix/silent-failure-followup`。原始清单保留，本文只登记已核实的结论。
 
-全集机械枚举共 4443 行，其中 832 行未标记 no-loss/test-only/guarded。这个数量是待审候选数，不等于已确认缺陷数；既有标签也不能替代源码核对。以下记录未覆盖的条目仍待审，不声明全量完成。
+全集机械枚举共4443行，其中832行未标记no-loss/test-only/guarded。截至§70，这832个候选已全部逐行复核、唯一关联原始path:line，未映射0项：新增观测98、已有覆盖138、核实保留542、功能边界54。候选数不等于缺陷数；54行功能边界仍保留，不声明所有功能问题均已修复，非候选3611行不在本轮复核完成的分母内。历史章节中的剩余计数为当时进度，当前总账以§70和逐项台账为准。
 
 ## 01 · worker 响应断开与启动快照
 
@@ -94,7 +94,8 @@
 
 - #305：0d5b5bd，修复工作区切换黑屏与视口越界
 - #306：1750d8d，补齐引擎命令与静默降级观测
-- 两个 PR 均在 CI 全绿后，按用户授权以中文标题和正文 squash 合并
+- #307：8af99dc，补齐引擎与媒体静默失败诊断；2026-10-17 按用户本轮授权合并，head=97a3797 的 Rust/GPU、各平台构建与 libav 检查全部通过，发布任务按 PR 场景跳过，无未解决的审核讨论
+- 三个 PR 均在 CI 通过后，按用户授权以中文标题和正文 squash 合并
 
 ## 06 · host 导出与音频状态的真实失败
 
@@ -916,3 +917,281 @@ T10 共 39 个编号均已给出处置，其中 27 项观测完成、1 项观测
 - 本批相对 ad4360e 的 panels 差异为空；PR 相对 main 的 panels 差异仍仅为 §12/23 已获准的测试夹具、蒙版拒绝观测与拖拽推进及对应测试
 - 按用户要求在此停止新增审计实施并收为 PR，后续候选另起 PR；保留 §53 的 161 个待核对编号及线程/协议边界，不声明整份审计完成
 - 证据：b52-render-final.log、b52-desktop-check.log、b52-desktop-full.log、b52-desktop-build.log、b52-runtime.log、runtime-b52/runtime-summary.json、b52-native-ci.log、native-b52/、b52-tools.log、b52-tools-all.log（首次环境失败）、b52-tools-clean.log
+
+## 54 · 样式、缺字与字体图集压力
+
+- 样式缺少 color/metric 时保留透明色/调用方 fallback，首次 Warn、同一 token 第 60 次 Error 一次；健康查找不加锁、不记录日志
+- 每个不可变样式表共享一份观测状态，clone 不重置计数，重新编译样式表才重置；TextAtlas 按实例记录缺字码点和图集 repack，包含字体、尺寸、像素倍率与容量上下文
+- 计数是同一实例内同一失败键的累计次数，不冒充连续失败帧数；正常字体/其他 token 的成功不能证明某个缺失 token 或码点已经恢复，因此不清零；未改变 fallback 字体选择、字形 UV、缓存清空或重排策略
+- 每个实例最多保留 128 个失败键及一个 overflow 槽，键截取 128 字符，容量外仅共享首次/第 60 次事件；日志在释放观测锁后输出，避免缺失名字制造无限内存增长或每帧日志
+- 系统 fallback 字体加载失败与 Windows GDI 初始化失败记录 Warn；原有返回值、outline 回退和字体策略保持不变
+- 新增真实主题/系统字体子进程测试，默认 Info 验证 clone 共享、替换重置、缓存缺字持续升级、真实小图集反复填满及 1000 个失败键的容量限制，正常 token、正常字形和空格无失败日志
+- 首次编译发现测试跨模块调用私有 to_json，改为重新加载同一公开主题 JSON；未扩大产品 API 或更改断言
+- 专项 1 passed；全套 motion-ui 79 passed、0 failed、0 ignored，含真实 GPU/framework/工作区集成；关联 6.1、6.2、6.5、6.6、6.8、6.9、7.6、7.7，仅补观测与真实路径验证，不声称解决 stale UV、CJK 覆盖策略、整形/bidi 或引用完整性 CI 缺口
+- 证据：target/silent-failure-validation/b54-ui-observation.log、b54-ui-full.log；panels、主题 token 和 UI 行为均未修改
+
+## 55 · 事务主错误与活跃时长
+
+- plugin editor 在关闭 gesture 前记录操作原始错误；关闭也失败时将两条原因关联到 object/instance/revision，panic 在回滚前记录原因，回滚失败另记；保留原有返回错误的优先级与 catch 边界
+- create_text 同样先保留字体导入/栅格化等主错误，再记录事务关闭次生失败；不增加自动关闭、重试或 worker 重启，不记录用户全文
+- history 快照新增运行时 gestureElapsedMs，未开启时为 null；begin/close、活跃事务阻止 undo/redo 的拒绝包含 revision/age，正常空 undo/redo 仅 Debug
+- 不将长事务本身认定为错误；允许用户长按，只有实际拒绝才 Warn；不改变 undo/redo 的可用条件、事务配对或工程持久化结构
+- 新增可控二次 close 回归，确认对外仍返回 Gesture，但默认日志同时保留原始字体错误；真实 panic 回归保留 operation/context。另新增活跃年龄/历史阻止/关闭后清零验证，以及真实缺失字体的桌面回归
+- core 单元 18 passed，含 2 项新增；联合完整验证 core 213、desktop 360、ui 80 passed，零失败、零忽略，包含真实缺失字体专项。证据 b55-core-full.log、b57-full.log
+- 关联 5.19、9.24–9.28，仅补观测；原有 panic 退出 worker、悬置 gesture 的自动恢复均未实现
+
+## 56 · 节点空操作、绑定降级与工程状态回退
+
+- 节点拖拽中已识别快捷键的推迟、group/ungroup/enter/leave/expose/delete/disconnect/collapse 的无操作原因与空历史记录 Debug；保持快捷键、保护节点、最大嵌套深度和 false 返回契约
+- 真实颜色弹窗缺失 binding 回落 0、Unsupported 节点无专用控件、文档相同但 options 不同的 history 跳过、仍有改动的 number 快照提前丢弃均提供固定站点的有界证据
+- 同一编辑器同一站点首次 Warn、累计第 60 次 Error 一次；计数是实例累计而非连续帧，替换编辑器后从零开始，普通成功帧不复位；固定源码站点不能随任意文档 id 无限增长，释放观测锁后才写日志
+- 悬空参数字段在原有 unwrap 之前记录具体 binding/id/epoch/revision；保留 panic 行为，由全局 hook 捕获栈，不冒称已修复字段生命周期
+- node task 显式取消在清 pending 前逐条 Info 记录 id/kind/epoch/revision/已知 source_path；非 worker Action、重复 Compile 合并、过期安装与零尺寸 resize 仅 Debug，避免正常替代/最小化变为 Error
+- 命中响应区分正常空数组与畸形 candidates/首项 id，坏响应 Warn；ticket 刷新失败记录旧 revision 与原始操作错误，缺失 frame 回落零 Warn；node_standalone.take 是移回当前编辑器，缺槽默认重建只记 Debug
+- 新增真实弹窗/检查器/悬空字段子进程与命中协议专项，均在 b57-full.log 的完整桌面 360 passed 中通过。关联 2.27–2.30、5.1/5.7–5.10/5.18/5.19/5.22/5.23、8.14–8.18、9.6/9.7/9.28/9.29、12.14
+- panels、原有返回值、布局、样式、历史/输入/编译策略和两处 MOTION_TRACE_UI eprintln 均未修改
+
+## 57 · 同帧指针事件覆盖与框架注册缺口
+
+- ui::accumulate 同帧 pressed/released 被新事件覆盖时记录旧/新按键及位置；保留最后一个事件的原有消费策略，不新增事件队列或事务取消行为
+- PanelHost 在布局引用未注册视图、视图返回错误 window/panel 的 hit region、绘制时找不到 view 的分支记录具体 panel/window/target，保留默认包级区域和空返回
+- 复用 §54 有界实例观测；指针覆盖按进程对应站点累计，PanelHost 按实例/键累计，首次 Warn、第 60 次 Error 一次，健康事件与健康注册路径不记录。不是连续失败帧计数，不宣称严格一秒
+- 新增真实 accumulate 和 PanelHost 公开 API 回归，正常 120 次事件安静、覆盖保持原有 Right 最终状态、120 次异常只两条事件、错域区域仍被过滤；b57-full.log 的 UI 完整 80 passed，零失败、零忽略
+- 关联 6.11/6.22/7.6/7.10，不把接入日志等同于完成焦点、Tab、模态或输入批次模型的功能整改
+
+## 58 · 161 个续审编号的独立台账
+
+- 新建 silent-failure-paths-followup.md，逐项列出 §53 的 161 个编号，原始报告不变；285 个编号均已有关联记录，不代表 285 个缺陷都已修复
+- 经 §59 授权与续审后，当前分类为新增观测 40、核实并补观测 13、已有覆盖 11、核实保留 54、部分覆盖 25、功能边界 13、验收边界 5；本表待补观测为零，不代表所有候选功能缺陷已修复
+- 初次台账有 41 项受 panels 修改限制待补；用户随后明确批准“允许台账中的 panels 观测与测试”，§59 依此接入观测并核实过时前提，没有扩大为 UI 功能或样式整改许可
+- 另保留每项部分覆盖和功能/验收边界，包括 stale UV、CJK/shaping/bidi、悬空字段 panic、隐藏手势、token 静态门、跨平台原生 GUI 和感知图像对照，不能将这些项算为已关闭
+- 修正原报告若干前提：Error::Expression.target 并非表达式体；animation_controls 宽度最小 1 且 graph 高固定 130、bounds 有 margin；Pose::new 拒绝零尺寸；PreviewDrag 经 host 调用真实 apply_batch(Position)，并非零模型编辑
+- timeline track 宽度已有 max(1)；Layer.masks/track_matte/curve 的缺失可能由 skip_serializing_if 正常产生，非 vector Content 也没有 vector 子字段，后续仅应观察格式错误，不能把合法缺省值变为每帧故障
+- 机械全集 832 个候选仍未全量建立处置台账，本表只覆盖辅助编号。证据 target/silent-failure-validation/b58-dispositions.json，专项/完整验证结果以 §54–57 为准
+
+## 59 · 经授权的面板静默降级与事务路由观测
+
+- 记录 expressions target/source、选中层 sampled/timeline、effect definition/parameter/curve track/channel、animation track/key/frame、timeline masks/vector/size/matte 与 paths Layer 的真实解析失败；保留原有空面板、Linear/None/空集合/100×100/禁用菜单等结果
+- 统一 panel 观测使用固定源码站点、进程累计次数，首次 Warn、第 60 次 Error 一次，上下文最多 4096 字符；计数不是连续帧或严格一秒，进程重启清零，健康条目不复位相邻坏条目的次数，避免混合列表每帧重报且永不升级
+- 缺失可选 masks/track_matte/curve、旧数据省略默认 ease、非 vector 内容、面板空闲且未选择图层不记故障；RGB/R/G/B/A 合法通道 1–5 均保留，不记录表达式或数值输入全文
+- 记录 anchor/size 回退、无效文本开始 scrub、audio marker 坏 frame/id 及 local_offset、非法 easing 拖拽与 effect curve 零/非有限尺寸；不改除法、坐标、钳制、排序或编辑算法
+- 记录 path begin 的具体失败点、scrub 推进后无命令、transform 开事务后投影失败；clip/path/curve 没有 held/release 却保留事务时限频报告；graph 六个早退仅在已有 begun 手势时记录原因，切 graph mode 与 workspace/show/close/tab 请求记录活跃类型
+- 保留所有 Begin/Edit/Commit/Cancel 及返回值；不补自动事务闭合、watchdog、重启、超时、字段生命周期或缺失能力。无 ffmpeg 的 Export 快捷键首次 Warn 说明能力边界，正常空 graph 删除仅 Debug
+- 核实两项报告前提已过时：auxiliary 已实现 Paragraph/Media/RenderQueue 的三个独立分支，groups/parameters 已实现 Repeater 参数；animation_controls 当前也没有报告所称的 anchor/size 解析，此站点实际在 properties
+- 新增 5 项真实子进程回归：健康与坏 easing 交错、真实 rows/matte_choices/track/curves render、clip 丢失 release、anchor/scrub、curve 零尺寸与实际点击拖拽。默认 Info 下检查 Warn/Error、120 次抑制、Error stderr、stdout 安静，以及既有返回值、动作和释放后闭合
+- 验证 cargo check -p motion-desktop、cargo test -p motion-desktop -- --include-ignored --test-threads=2、cargo build -p motion-desktop，全部通过；desktop 365 passed、0 failed、0 ignored，包含 in_flight_and_queue_depth_track_a_blocked_worker 回归。证据 b59-check-final.log、b59-desktop-full.log、b59-build.log
+- 初次 observation 专项 6 passed/1 failed：新增 curve 测试把点击放在 Rect 的排除边界，未开始拖拽；改用合法内部控制点修正新夹具，保留原有产品逻辑与断言，最终完整 365 项通过。未修改任何既有断言
+- panels 递归样式门与 clean-room provenance 检查通过，无新依赖、素材、主题 token 或 UI 错误结构
+- Windows 原生 tools/ci_desktop.py 完整通过，覆盖英文/中文、styled floating windows、live node rendering、workspace presentation 和共享 MCP；证据 b59-native.log、native-b59/*.json
+- 与 §52 原生设计截图逐像素比较，英文/中文各 22 张中均有 20 张完全一致；另外两张都是 Info 面板，差异仅为 Last present 实时毫秒数字，已检查对应图像，不代表全量人工视觉规范验收；证据 b59-screenshot-comparison.json
+- 实际新二进制在隔离 LOCALAPPDATA 下经 directories()/logs 产生 motion-studio.log；MOTION_LOG 未设置时有 129 条普通命令 start、0 条 Present start，健康场景没有新增 panel 降级告警；Debug 下也无 Present start/dispatch，只有达到阈值才允许 done
+- 进程级复验日志轮转、坏 MCP 命令及 CLI fatal 的 Error 同时落文件/stderr、命令目录/MCP stdout 纯 JSON、正常 MCP UI EOF 与 shutdown checkpoint 失败原因，全部通过；证据 b59-runtime.log、runtime-b59/runtime-summary.json 及对应 stdout/stderr/log 文件
+- 提交按 core 事务、UI 框架、节点/工程、panels 与完成文档拆分，使用中文提交信息；AGENTS.md 规则正文保持英文。未改两份用户原始审计报告、无关未跟踪文件、respond best-effort 发送或两处 MOTION_TRACE_UI 输出
+
+DESIGN.md §0.7 逐项状态均为 retained with reason：本批只接入观测，未授权更改既有视觉/命中策略，不把原生冒烟通过视为全量视觉整改完成。
+
+| 基线位置 | 状态与原因 |
+| --- | --- |
+| path_controls 六处纵向步进 | retained with reason：保留行高与布局 |
+| path_controls 两列分割 | retained with reason：保留分栏与窄屏行为 |
+| path_controls 按钮高度 | retained with reason：保留控件尺寸与命中区 |
+| path_controls 自定义数值背景 | retained with reason：保留绘制和编辑语义 |
+| path_controls 全宽布尔按钮 | retained with reason：不替换控件 |
+| effect_controls 行高与步进 | retained with reason：保留属性树高度 |
+| effect_controls fx/— 布尔表示 | retained with reason：不改显示文案与事件 |
+| effect_controls 全宽枚举 | retained with reason：不改控件类型 |
+| effect_controls hover alpha | retained with reason：不改颜色与状态解析 |
+| effect_controls indent/depth | retained with reason：不做层级视觉重构 |
+| timeline 11 列坐标 | retained with reason：保留兼容坐标 |
+| timeline snap guide 颜色 | retained with reason：按基线保留当前反馈 |
+
+## 60 · 模型非有限采样、路径裁切与大小估算回退
+
+- 继续机械全集而非重复关闭 161 项编号：新建 silent-failure-paths-mechanical-review.md，按原始路径/行号精确关联 B7 全部 33 项、B8 全部 14 项、B9 全部 12 项；新增观测关联 9 行、已有覆盖 25 行、核实保留 25 行，9 行实际对应 3 个站点
+- Track::sample 在返回前观察非有限结果，携带 frame、首尾 key、数量、值类型及 non_finite_sample 原因；有限端点及合法过冲曲线仍可能产生 Infinity，新增测试先 validate 轨道，再实际采样验证，不以编译通过替代失败复现
+- path_ops::cut 对生成的节点坐标/切线统一观察 finite，携带裁切范围、路径长度、输入/输出节点数及 non_finite_cut 原因；以有限 f32::MAX 节点与切线实际裁切出非有限坐标，覆盖原清单 7 处收窄，并保留原 Ok/Some 结果
+- serialized_bytes 保留 usize::MAX 的 fail-closed 行为，首次失败也能在默认级别看到已写字节、类型及原始 serde 原因；类型最多 128 字符、原因最多 256 字符，没有序列化整个用户文档到日志
+- 三个固定进程级原子计数器分别首次 Warn、第 60 次 Error，之后抑制，进程重启清零；计数为 lifetime_count，不是连续失败或帧数。正常属性/路径/组件穿插成功不清除另一坏值的证据，没有动态键、原因缓存、正常路径文件 IO 或新增 Present start/done/dispatch
+- 分离轴采样仍调用同一计算逻辑，仅由外层 sample 观察结果，避免一次向量采样按三个轴重复记账；NaN 时间的既有静态值回退、普通插值、首/末 key 持有及所有返回值不变
+- 新增模型独立进程回归，真实执行三类失败及各 120 次正常/异常交错，检查默认 Info 下首次/阈值、之后抑制、上下文、非有限返回值和 usize::MAX；新增桌面真实 FileLogger 回归，移除 MOTION_LOG 后检查 Warn/Error 文件、仅 Error stderr 及 stdout 无日志
+- 复用工作区已存在的 log 依赖，只为 motion-model 增加依赖边并更新 Cargo.lock；已核对 PROVENANCE.md、ATTRIBUTION.md、NOTICE，无新增包版本、素材或第三方实现
+- B8 复核关联 §07/34/35 的既有事务、旋转、音轨原因及 ffmpeg 验收；本批没有重新修改这些文件或声称重跑可选 ffmpeg 全套。重复器/着色器的饱和乘法后均有预算拒绝，关闭 mask、离散参数持首 key、JSON 叶节点和独立随机种子属于保留语义
+- 机械台账另有 773 行尚未建立逐行映射，其中包含此前已覆盖的站点；这不是 773 处已确认缺陷或缺失观测，也不改变功能/协议/跨平台验收的既有边界。映射一致性已自动对照原始 59 个 path:line 集合，证据 b60-mechanical-mapping.json
+- 本批未修改任何 panels 文件、布局、样式、交互、respond、两处 MOTION_TRACE_UI 输出、两份原始审计报告或其他用户未跟踪文件；DESIGN.md §0.7 基线保持 §59 的 retained with reason 状态
+- cargo test -p motion-desktop -p motion-core -p motion-model --offline -j 2 -- --include-ignored --test-threads=2 最终完整通过：desktop 366、core 213、model 4，共 583 passed、0 failed、0 ignored；core/model doc-test 正常结束，未跳过 worker in_flight/queue_depth 回归。cargo check -p motion-desktop 通过，Python 静默失败专项 5 passed，panels 样式门与 provenance 1362 tracked paths 检查通过；证据 b60-integrated-coherent.log、b60-test-summary.json、b60-desktop-check.log、b60-tools-observation.log
+- 保留验收失败证据：b60-integrated-full.log 中新增桌面夹具误用了未直接依赖的 motion_model 路径，改用既有 motion_core 重导出；b60-integrated-final.log 的 583 项执行通过后，doc-test 报 E0463 依赖不匹配，当时有并行 ffmpeg 构建更新共享产物。随后完整重跑得到上述最终通过结果，没有跳过 doc-test 或修改既有断言
+- cargo build -p motion-desktop 通过，新二进制在隔离 LOCALAPPDATA 实际启动并生成 directories()/logs/motion-studio.log；MOTION_LOG 未设置时有 129 条普通 start、0 条 Present start，健康 UI 没有新增 model degradation。Debug 仍无 Present start/dispatch，done 只允许达到既有 100ms 阈值；证据 b60-desktop-build.log、b60-runtime.log、runtime-b60/runtime-summary.json
+- 新二进制进程级验证 Error 文件/stderr 双输出、轮转、CLI 目录/MCP stdout 纯 JSON、fatal 参数错误、MCP UI 正常 EOF 与 shutdown checkpoint 失败原因，全部通过；runtime-b60 保存各进程 stdout/stderr/log，不以默认级别只看到空日志通过验收
+- 对照 §59 的相同运行时截图：24 张中 21 张逐像素一致；另 3 张的差异是 Info 缓存/呈现运行统计及播放头位置，已查看裁剪并保留 b60-runtime-screen-comparison.json、b60-runtime-changed-crops.png。未声明全部静态像素一致或重新完成全部原生/跨平台设计验收
+
+## 61 · 媒体注册表恢复与最终提交的 Ok 失败
+
+- 逐行复核 B6 全部 56 个机械候选：新增观测 3、已有覆盖 27、核实保留 14、部分覆盖 12；与 B7/B8/B9 合计映射 115/832 行，另外 717 行尚未逐行关联，其中包含此前已覆盖的站点，不能称为 717 个缺陷
+- AudioJobs、VideoJobs、PackageJobs 的 contains 在 registry 中毒时仍恢复 into_inner 并返回原布尔值，但释放 guard 后新增固定站点观测，包含 request、entries、contains 和 poisoned_registry 原因；不清除中毒标记、不更改任务路由
+- 三个站点分别按进程生命周期累计，首次 Warn、第 60 次 Error，之后抑制；其他 session 的健康查询和调用方 clear_poison 不复位计数，重启才清零。不声称连续失败或一秒；request 截取 128 字符，无动态键、原因缓存或健康查询日志 IO
+- 新增三个真实 registry 中毒的独立进程回归：正常 present/missing 各 120 次安静，查询结果和严格 status 的原 poisoned Err 不变；交错健康 session，检查首次/阈值/抑制、超长 Unicode request 截断、清除再中毒后的进程累计策略。日志回调内用 try_lock 直接验证业务 registry 已释放
+- 进一步核实 FinishMediaImport：宿主只是将 audio/video commit 的返回值序列化，方法将提交失败放进 status.error 后仍返回 Ok，后台 worker 此前已在 awaiting_commit 结束，不能由 §32 的后台完成日志覆盖最终提交主错误
+- 在这两个 commit 方法取得 registry/任务锁及进入文件发布之前新增并 flush Info start，携带 request、operation=commit_audio/commit_video；返回后在业务 guard 释放后记录耗时和真实错误。只为实际 ready 提交产生的新失败记录 Error；重读原失败终态保留相同状态且不重复报 Error。外层 Err 仍原样返回并记录
+- 新增桌面真实 FileLogger 子进程回归：移除 MOTION_LOG，真实音频解码/波形准备及视频缓存暂存后，用普通文件阻挡 assets 目录，实际 commit 返回 Ok(failed status)。默认文件和 stderr 各有一次主 IO 失败、stdout 安静；120 次终态读取不重复 Error，工程和 undo 不变，阻挡文件原字节保留。移除外部阻挡后以全新任务正常导入成功，不重试原失败任务
+- 视频回归仅提供受控 ProbeVideo 元数据；实际 staging、cache、commit 和 IO 失败执行生产实现，不宣称完成原生视频解码验收。音频使用仓内既有 WAV 夹具和真实 decode_audio，没有引入素材、依赖或改变既有断言
+- 核实保留正常 MP4 preroll/overlap/剩余编辑帧钳制、音频参考窗口边缘、容器元数据子集提取及无 trex 但由 tfhd/trun 提供数据的分支；预算饱和后仍拒绝超限。source_frame_rate 的两个仓内调用方均先排序去重 PTS，不能把公开 fallback 一律当成真实倒序故障
+- 12 个部分覆盖行仍缺少独立的锁恢复站点计数；已有 panic hook/后台 Error 不等于逐站点恢复观测，尤其部分位置仍持有外层业务锁。本批明确保留这些待补项，没有为追求闭合数量在持锁区调用 logger
+- 与用户提到的 [issue #133](https://github.com/MAD-Producer/Kilonova/issues/133) 有范围重叠：既有 #292/#294/#295/#296/#297 负责多组受检错误，本系列补诊断证据；当前 compositor 平面 expect 和 Android reader unwrap 等还需结合不变量/故障注入核实，源码出现 unwrap 不等于已复现可达崩溃。本批未据此关闭 issue，也不声称满足“所有内容驱动 panic 消除”的验收
+- 本批未修改 panels、布局/样式/交互、UI 错误结构、respond、两处 MOTION_TRACE_UI 输出、原始两份审计报告或用户无关文件；DESIGN.md §0.7 保持 §59 retained with reason，不把日志接入等同于功能或视觉整改
+- 最终完整验证：cargo test -p motion-media --offline -j 2 -- --test-threads=2 为 74 passed、0 failed、2 项原有大型媒体验收 ignored；cargo test -p motion-desktop --offline -j 2 -- --include-ignored --test-threads=2 为 367 passed、0 failed、0 ignored，含 worker in_flight/queue_depth 及新增 commit 默认日志回归。cargo check/build -p motion-desktop 均通过；证据 b61-media-final.log、b61-desktop-full.log、b61-desktop-check.log、b61-desktop-build.log、b61-test-summary.json
+- 新二进制实际启动验证通过：隔离 LOCALAPPDATA 下生成 directories()/logs/motion-studio.log，MOTION_LOG 未设置时 129 条普通 start、0 条 Present start，健康场景没有新增 registry 降级；Debug 仍无 Present start/dispatch，done 保持至少 100ms 门限。Error 文件/stderr、轮转、CLI/MCP stdout JSON、MCP UI 正常 EOF、fatal 参数错误及 shutdown checkpoint 失败原因均通过；证据 b61-runtime.log、runtime-b61/runtime-summary.json 及各进程原始 stdout/stderr/log
+- panels 样式门、provenance 1365 tracked paths 检查及 git diff --check 通过，原始 832 个候选与本表 115 个唯一 path:line 的包含关系已自动核对；证据 b61-style-gate.log、b61-provenance.log、b61-mechanical-mapping.json、b61-test-summary.json。本批未重跑全部跨平台/原生设计专项，不宣称全量视觉整改验收
+
+## 62 · 媒体任务锁恢复的释放锁后观测
+
+- 补齐 §61 留下的 12 行独立恢复观测：audio import/cache result、audio Drop task、package active/progress/result/spawn failure/Drop registry/Drop task、video cache result/Drop registry/Drop task；另补相邻 audio Drop registry 和 video import result，共 14 个固定源码站点
+- 锁中毒时仍返回原 into_inner，不清除中毒标记、不改严格 status 的 poisoned Err；首次 Warn、进程累计第 60 次 Error，之后抑制。健康调用、其他 session 和 clear_poison 不复位，进程重启清零；不是连续失败、帧数或一秒钟
+- RecoveryScope 在业务 guard 之前声明，仅在阈值时保留最多四条有界证据，反向析构保证嵌套业务 guard 释放后再调用宿主 logger；覆盖普通完成、提前返回、取消和 unwind。当前每个 scope 最多两个固定站点，每站点最多两条阈值事件；未来误用超出固定容量时另有丢弃计数 Error
+- 每条证据包含固定 site、lifetime_count、request、operation、scope_elapsed_ms 和 poisoned_mutex/into_inner；request 最多 128 字符，无动态键、无原因缓存，健康路径不分配事件字符串或写日志。scope_elapsed_ms 表示本作用域经过时间，不冒充 mutex 等待时长或整个媒体任务耗时
+- 这类恢复证据有意延迟到释放锁后输出；若作用域永不退出，不保证恢复日志已经出现。既有非 Present 引擎/媒体 Info start、flush 和 in-flight 状态仍承担挂起前定位，完成或恢复日志不能替代开始信号
+- 工程打包线程创建失败原来在外层 registry 持锁期间记录主 Error；现经生产 mark_spawn_failed 更新同样的 failed 状态和原错误，再在外层 registry 释放后输出，日志原因最多 2048 字符，返回值及 status.error 保留完整原因
+- 新增五项测试、24 个独立进程用例：真实 Mutex 中毒后覆盖音频/视频 import、probe、cache 的失败和取消，三类 Drop、打包 admission、实际工程包 prepare/publish 的成功/取消及真实 IO 失败。默认 Info 捕获 Warn/Error，logger 回调以 try_lock 验证可访问相应状态锁，打包 admission/spawn 另验证外层 registry 已释放；成功包实际生成，取消包不发布，原主错误和 poisoned Err 均保留
+- 独立恢复器用例覆盖健康 120 次安静、两个站点各 120 次恢复仅首次/60 次、清除再中毒不复位、128 字符 Unicode request、unwind 解锁和四槽容量溢出；spawn 用例覆盖 2048 字符日志上界及完整状态原因。线程创建失败只向生产状态发布 helper 注入受控 IO 错误，没有耗尽 OS 线程资源，不声称复现真实系统资源耗尽
+- 首次专项编译暴露新夹具的 Duration 导入、Project 构造方式和 VideoTaskStatus 无 Debug 三处问题，修正新增夹具后专项九项通过；不修改产品类型或任何既有断言来通过验收。证据 b62-poison-special.log，最终新增长原因用例也由完整媒体测试覆盖
+- B6 的 56 行当前为新增观测 15、已有覆盖 27、核实保留 14、部分覆盖 0；与 B7/B8/B9 仍合计 115 个已映射候选，新增观测关联 24 行、已有覆盖 52 行、核实保留 39 行。原始 832 候选按真实 path:line 过滤并验证，剩余 717 行尚未逐行关联，不等于 717 个缺陷；证据 b62-mechanical-mapping.json
+- 不修改 panels、布局、样式、交互、返回值、取消/发布/回滚策略、worker 超时或重启、respond、两处 MOTION_TRACE_UI 输出、两份原始报告及用户无关文件；DESIGN.md §0.7 沿用 §59 retained with reason，不把日志接入等同于中毒根因修复或 issue #133 的全项验收
+- 最终完整验证：cargo test -p motion-media --offline -j 2 -- --test-threads=2 为 79 passed、0 failed、2 项原有大型媒体测试 ignored；cargo test -p motion-desktop --offline -j 2 -- --include-ignored --test-threads=2 为 367 passed、0 failed、0 ignored，包含 worker API 阻塞回归和既有实际 FileLogger 提交失败双输出回归；cargo check/build -p motion-desktop 均通过。证据 b62-media-final.log、b62-desktop-full.log、b62-desktop-check.log、b62-desktop-build.log、b62-test-summary.json
+- panels 递归样式门与 provenance 1370 tracked paths 检查通过；新增锁中毒站点使用默认 Info 的内存 Log 捕获验证实际恢复分支，文件/stderr 路由另外由既有真实 FileLogger 回归验证，不声称正常 UI 启动人为制造了 registry 中毒。证据 b62-style-gate.log、b62-provenance.log
+- 新二进制在隔离 LOCALAPPDATA 下实际启动，生成 directories()/logs/motion-studio.log；移除 MOTION_LOG 后有 129 条普通命令 start、0 条 Present start，健康路径没有新增 poison/registry 恢复日志；Debug 无 Present start/dispatch，done 仍至少 100ms。Error 文件/stderr 双输出、日志轮转、CLI/MCP stdout JSON、fatal 参数错误、MCP UI 正常 EOF 和 shutdown checkpoint 失败原因均通过；证据 b62-runtime.log、runtime-b62/runtime-summary.json 及各进程原始输出。未重新执行全套跨平台/原生设计或感知图像验收
+
+## 63 · GPU 提交台账恢复与首批渲染边界复核
+
+- 按原始 path:line 逐项复核 B1 的 14 个文件、77 个候选：新增观测 3、已有覆盖 2、核实保留 69、功能边界 3；不包括 effect_plan 的 104 行和 renderer 的 73 行。机械台账累计映射 192/832 行，新增观测关联 27、已有覆盖 54、核实保留 108、功能边界 3，另有 640 行尚未逐项关联，不等于 640 个缺陷；证据 b63-mechanical-mapping.json、b63-mapping-check.log
+- 补齐 SubmissionLedger 的 begin、complete、info 三处中毒锁恢复，仍使用原 into_inner，不清除 poison 或修改原始提交/完成/资源统计。保留恢复前 submitted、completed、tracked/untracked pending、known bytes、skipped 快照以及可用 submission id，不能以该快照证明半更新台账已修复或统计可信
+- 三个固定站点按进程生命周期累计，首次 Warn、第 60 次 Error，之后抑制；健康 ledger、tracking 开关和调用方 clear_poison 均不复位，仅进程重启清零。不是连续失败、帧数或一秒钟；证据只含固定站点和数值，没有动态键、原因缓存或完整用户内容
+- Recovery 在业务 guard 之前声明，反向析构在正常返回、提前返回和 unwind 时先释放 ledger guard 再输出。健康路径不读取时钟、不分配日志字符串、不写日志；恢复也只在两个阈值保留证据。recovery_elapsed_ms 从取得中毒 guard 后开始，不代表锁等待或完整命令耗时
+- 释放锁后的恢复日志不能替代挂起前信号；作用域永不退出时不保证该恢复记录出现。既有非 Present Info start、flush 和 in-flight API 保持承担卡住命令定位，没有增加逐帧 Present 日志、worker 超时或重启
+- 新增一个测试，分三个独立进程执行 threshold/unwind/gpu：真实 Mutex 中毒、健康 120 次安静、每站点 120 次恢复只输出首次和第 60 次，交错健康 ledger 及开关/清除再中毒不复位，默认 Info 仍能捕获 Warn/Error。logger 回调以 try_lock 检查业务 guard 已释放，原 poison 和返回统计保留
+- GPU 用例实际创建 headless Renderer、纹理和 command encoder，向真实 queue 提交并 poll 完成，由 on_submitted_work_done 执行中毒 complete 路径，再核实 pending/known bytes 归零、峰值和 renderer health；不是仅直接调用完成 helper。新站点使用默认级别内存 Log 验证实际失败分支，真实文件/stderr 路由由桌面既有 FileLogger 回归及进程启动验证分别覆盖，不声称正常 UI 人为制造了台账中毒
+- 核实保留 32/64 位 usize→u64 等宽/拓宽、最多 128 层偏移、64 活跃合成及 32 MiB bundle 的受限 u32 字段、无父节点/负纹理 token 位型、id/fingerprint 高低字、GPU 浮点坐标、量化 LUT 和有意保守的冷却/预算饱和。measurement 微秒 u128→u64 实为收窄，原报告 widened 标签不准确，但超限需要约 58 万年连续运行，没有据此修改时钟契约
+- layer_gpu/mask_gpu 的共享 texture_bytes 饱和减法由既有 renderer trim 实测比对观测覆盖，并非本批在减法处新增即时日志，也不代表已修复记账根因。独立 MaskCache 的非有限尺寸/scale 和 mask_plan::write 的任意外部 offset 三行仍保留功能边界，不声称全输入安全；手工 Scene 的 sampled reference/其他 expect 不由本批关闭，issue #133 未作全项验收
+- 可选原图探针使用仓库外独立程序生成的 2049×33 PNG，设置真实 MOTION_IMAGE_SOURCE，实际解码与两次 2048×33 预览缓存探测通过；不是依靠环境变量缺失直接返回取得绿灯。证据 b63-local-source.json、b63-original-image-probe.log；无新增依赖、第三方素材或产品资产
+- 保留失败证据：初次新增 GPU 夹具误用了 RenderTarget 不存在的方法，改用生产 collect_texture_resources；完整渲染链接曾因 E 盘空间耗尽报 LNK1180，用户清理构建缓存后重新执行验收。未修改产品 API 或任何既有断言来通过测试；证据 b63-submission-initial-fixture.log、b63-render-disk-full.log
+- 本批不修改 panels、布局、样式、交互、返回值、取消/发布/回滚策略、respond、两处 MOTION_TRACE_UI 输出、原始两份报告或用户无关文件；DESIGN.md §0.7 沿用 §59 retained with reason，未将日志接入视为视觉整改、跨平台验收或中毒根因修复
+- cargo test -p motion-render --offline -j 2 -- --include-ignored --test-threads=2 完整通过：183 passed、0 failed、0 ignored，含真实 GPU 锁恢复、既有 submission_memory/像素测试、设置外部原图后的可选探针和 doc-test；证据 b63-render-full.log、b63-render-summary.json。桌面完整测试 367 passed、0 failed、0 ignored，包含 worker 阻塞 API 和真实 FileLogger 回归；cargo check/build -p motion-desktop 均通过。证据 b63-desktop-full.log、b63-desktop-check.log、b63-desktop-build.log、b63-test-summary.json
+- 新二进制在隔离 LOCALAPPDATA 下实际启动，默认 Info 记录 130 条普通 start、0 条 Present start，健康场景无新增提交台账恢复告警；Debug 无 Present start/dispatch，done 只允许至少 100ms。Error 文件/stderr 双输出、日志轮转、CLI/MCP stdout JSON、fatal 参数错误、MCP UI 正常 EOF 与 shutdown checkpoint 失败原因均通过；证据 b63-runtime.log、runtime-b63/runtime-summary.json 及各进程原始输出
+- panels 样式门、provenance 1372 tracked paths、格式与 git diff --check 通过；未重跑全套跨平台/原生设计或感知图像验收，不据此声明全量视觉规范合规。证据 b63-style-gate.log、b63-provenance.log
+
+
+## 64 · GPU 错误状态锁恢复与渲染计划编码边界
+
+- 逐行关联 B1 的 renderer 73、compositing 4、effect_plan 104，共 181 个机械候选：新增观测 3、已有覆盖 8、核实保留 146、功能边界 24；累计关联 373/832，剩余 459 行待逐行复核。候选和边界不是已确认缺陷，也不把已有观测重复计作新修复；证据 b64-mechanical-mapping.json 和机械台账对应原始 path:line
+- gpu_failure.uncaptured、gpu_failure.device_lost、gpu_failure.read 三个真实 Mutex 中毒恢复入口新增有界观测；保留 into_inner、首个 uncaptured 原因、device_lost 替换原因以及中毒 None 仍返回 None/健康检查仍成功的原语义，不清除中毒或伪造 GPU 错误
+- 每个固定站点按进程生命周期累计，首次 Warn、第 60 次 Error，之后抑制；健康调用、其他 renderer 与调用方 clear_poison 均不复位，进程重启清零。记录站点、可用 renderer ID、次数、恢复耗时、原原因是否存在及字节数，不复制或缓存原因文本；新增观测上下文有界，不声称既有 GPU 回调原始原因输出也已截断
+- Recovery 先于业务 guard 声明，正常退出及 unwind 时在释放业务锁后记录；健康路径无日志 IO、计时或原因分配。恢复耗时从获得中毒 guard 后开始，不包含等待锁或整个命令耗时，仍在执行且不返回的命令依赖已有 start/in_flight 证据
+- 新增一个 Rust 回归、三个隔离子进程：真实 headless Renderer 与真实中毒锁，调用生产 getter/回调验证首次/阈值/抑制、健康调用安静、长 Unicode 原因不泄露、解锁后日志、unwind、中毒 None 和原健康语义。回调输入为受控 wgpu 错误及设备丢失原因，没有实际触发驱动重置或显存耗尽；证据 b64-latch-special.log
+- 8 行 texture_bytes/trim 关联已有账面与实测检查，不声称每次 saturating_sub 都立即输出或自动修复；替换资源的饱和差值、图像时钟、YUV 已就绪 None、GPU 有符号 token 位型、指纹高低位、有限范围 LUT 量化和着色器 f32 ABI 保留原语义。时长 u128→u64、长时间/大 seed 的 f32 精度限制如实列出，不统称无损
+- 明确保留 24 行功能边界：手工 Scene/nested size、17 处公开 writer 偏移/长度、公开 scratch_budget、长期 program cache 索引、非有限 vector 尺寸和 snapshot 区域。正规模型预算/组合 bundle 32 MiB 上界不证明任意公开可变对象都安全；未修改返回值、编码或有限性校验，也未为验证边界申请数十亿缓存项
+- cargo test -p motion-render --offline -j 2 -- --include-ignored --test-threads=2 完整通过：184 passed、0 failed、0 ignored，含真实 GPU、缓存/像素、doc-test；设置外部独立生成 PNG 的 MOTION_IMAGE_SOURCE 后执行可选原图探针，没有依靠环境变量缺失提前返回。桌面完整测试 367 passed、0 failed、0 ignored，含阻塞 worker API 和真实 FileLogger 回归；cargo check/build -p motion-desktop 通过，未修改既有断言。证据 b64-render-full.log、b64-desktop-full.log、b64-desktop-check.log、b64-desktop-build.log、b64-test-summary.json
+- 新二进制隔离 LOCALAPPDATA 实际启动：未设置 MOTION_LOG 时 129 条普通 start、0 条 Present start，健康 GPU latch/提交台账无新增恢复告警。Debug 的 Present start/dispatch 保持安静，done 仍受 100ms 阈值；Error 文件/stderr、轮转、CLI/MCP stdout JSON、fatal 参数错误、MCP UI 正常 EOF、shutdown checkpoint 失败原因验证通过，证据 b64-runtime.log、runtime-b64/runtime-summary.json
+- panels 样式门、provenance 1374 tracked paths、局部格式及 git diff --check 通过；没有新增依赖/素材，没有修改 panels、交互、布局、respond、两处 MOTION_TRACE_UI 输出、两份原始报告或用户无关文件。DESIGN.md §0.7 维持 §59 retained with reason；本批原生冒烟不等于完成全量视觉、跨平台或驱动故障验收
+
+
+## 65 · 图片代理缓存解锁后观测与渲染侧机械复核收尾
+
+- 逐项关联 B1 剩余107行：核实保留94、已有覆盖2、功能边界11。B1全部365行已复核，累计480/832，剩余352行待逐项关联；累计38行功能边界不等于已修复，也不把原报告误标的拓宽、随机位型、正常缓存复用计作新缺陷；证据 b65-mechanical-mapping.json
+- 修正既有代理缓存观测的三个持锁出口：锁中毒恢复、写入失败、临时文件清理失败均在缓存锁释放后输出；磁盘读取/驱逐/写入/rename/自有临时文件清理仍保留原串行顺序和返回值，没有将文件操作移到锁外。清理失败不替换主写入错误
+- 锁恢复按固定进程级计数：首次Warn、第60次Error、之后抑制，健康读写与clear_poison不复位、进程重启清零；仍恢复into_inner并clear_poison，读取仍校验长度/header/hash。这是多次中毒恢复的累计，不是连续帧失败或60次约一秒
+- 写入失败沿用首次Debug/连续60次Error、成功复位；清理失败沿用首次Warn、成功删除或NotFound复位的原策略。新增待输出上下文按调用栈保存，路径和原因分别最多256字符，避免长路径吃掉整个原因；健康路径不分配日志上下文、不增加文件IO
+- 新增一个Rust回归、Info/Debug/unwind三个隔离子进程，实际执行120次健康文件往返、真实锁中毒与读回、缺失父目录写入失败、真实rename失败，验证阈值/抑制/成功复位和目的文件/自有临时文件保持。直接用目录触发清理guard的真实remove_file失败并验证限频/复位，未声称系统已自然发生此种writer清理竞争；日志回调try_lock确认已解锁，包含unwind后仍中毒的情况。另检验超长Unicode路径/错误分别截断，证据 b65-proxy-special.log
+- 原3项代理夹具仅增加私有Events参数和锁前初始化，预期值及失败断言不变；没有为通过验收削弱碰撞保留foreign文件、rename失败保留目的与清理自有文件的检查
+- 复核两处旧代理磁盘饱和减法：§09已移除先删目的再减独立metadata的分支；当前checked_add快照总量与逐项删除减法对应，并非GPU texture_bytes驻留账本，不新增正常驱逐告警，也不声称跟踪外部并发改变后的磁盘实值
+- 保留预览ceil尺寸、RGB565/YUV色域量化、受检视频平面长度、粒子输出预算、hash低32位/负prewarm、选择窗口饱和减和Lyon预算增长语义。YUV preview_proxy 的None表示原帧已满足尺寸、可直接复用，不是持续未就绪。原始报告将scene_generator粒子id误称usize，台账注明实际i64
+- 11行功能边界为公开AlphaImage/手工generate输入、两类粒子极值时间及区间算术、shake i32历元、独立探针时间戳逆序/回绕；正规模型/参数预算不证明这些手工或长时间输入全安全，未修改数值算法、返回值、随机分布、命中容差或渲染编码。4行测试内部数值转换明确标为非产品分支，不修改其既有断言
+- 保留验收失败证据：初次命令未加载本机MSVC环境导致cl/ml64不可用，随后加载已有env.ps1；共享target完整构建又遇无具体原因的link.exe退出1，磁盘约40GB可用，另有不同特性的构建并发使用该缓存，未断言并发就是根因。没有停止其他构建，转用独立 .tools/observability-validation-build 复验，dev/test仅由命令环境设line-tables-only，源码Cargo配置不变；证据 b65-initial-env-failure.log、b65-shared-target-link-failure.log
+- 独立target完整复验通过：render 185 passed、desktop 367 passed，均0 failed/ignored，包含doc-test、真实GPU、外部原创PNG探针、阻塞worker API和FileLogger回归；cargo check/build -p motion-desktop通过，未削弱既有断言。新二进制隔离启动，默认Info可见130条普通start、0条Present start，健康代理无告警；Error文件/stderr、轮转、CLI/MCP stdout隔离、fatal参数错误及shutdown失败原因验证通过。样式门、provenance 1376 tracked paths、局部格式和diff检查通过；证据 b65-render-full.log、b65-desktop-full.log、b65-desktop-check.log、b65-desktop-build.log、b65-runtime.log、runtime-b65/runtime-summary.json、b65-test-summary.json
+- 本批不修改panels、UI视觉/交互、last_error结构、respond、两处MOTION_TRACE_UI、两份原始报告或用户无关文件；DESIGN.md §0.7沿用§59 retained with reason。未添加依赖、第三方素材或声明完成跨平台/全量视觉验收
+
+
+## 66 · Host 成功返回中的错误锁存与资源/mtime降级观测
+
+- 逐项关联B2全部41行：新增观测9、已有覆盖10、核实保留20、功能边界2；累计521/832行，剩余311行待逐项关联。新增三个固定站点，中央session出口覆盖7处last_error赋值，不重复算成7套计数器；证据 b66-mechanical-mapping.json
+- with_session在操作/插件恢复返回后读取既有last_error，按Session累计带错误锁存的调用：首次Warn、第60次Error、随后抑制，出口无错误复位；提供session/frame/composition/有界原因与入口到出口耗时（含等待registry）。释放registry后输出，不改last_error结构、编辑提交、主Err或Ok(snapshot)/Ok(false)。计数不是新采样失败数；独立Session直接调用、出口前被清除的错误及尚未返回的handler不在此出口观测范围，挂起仍靠worker start/in_flight
+- resource_info保留原有聚合字段和排除无法canonicalize根目录的结果，补无法解析数量、首session/有界路径/系统原因/耗时。按进程统计存在无法解析根的报告，首Warn/第60次Error/抑制，全部根解析成功才复位，单个健康或其他请求scope不掩盖故障；明确requested_scope_membership=unknown，不假定坏根属于查询目录。解锁后输出，不自动修复计数
+- 图片mtime不可用继续返回None，保留length-only缓存比较；固定进程生命周期累计首Warn/第60次Error/抑制，健康文件不复位，进程重启清零。记录source ID、路径及原因各最多256字符；with_session内最多两个阈值事件存在线程局部作用域，registry释放后输出（含unwind），作用域外直接输出，不新增文件查询、线程、动态路径表或正常帧日志。deferred_elapsed_ms指失败记录到输出时间，不是metadata系统调用耗时
+- 新增三个Rust回归、八个隔离故障场景：真实编辑先提交再因frame=1000重采样失败，验证Ok(snapshot)/错误字段/编辑不回滚、主Err保留、owner约束、阈值抑制/健康替换复位；真实目录canonicalize失败验证原聚合结果/未知scope/长Unicode上下文；mtime健康路径读取真实文件，失败向生产helper注入Unsupported IO结果，验证None、生命周期不被健康文件复位、错误出口及unwind解锁后输出。未声称NTFS已自然重现mtime失败；日志捕获回调try_lock确认没有持有业务registry，包含unwind中仍中毒的锁
+- 保留JSON预算饱和上界、合法无附加结果的Ok(None)、JS成员赋值副作用/完成值类型错误、可选字体和导入名缺省、串行计时夹限、精确FrameCache字节对应及wanted<=last提前分流。ExpressionTarget派生Serialize仅有可序列化enum/u64/string，不把OOM终止当作可恢复to_string错误；composition_view遍历同一不可变Project自有ID，不假造遗漏composition
+- 另列2行功能/协议边界：内部未知视频状态或缺少error仍落通用错误，公开VideoDecoder实现递减/回绕seeks仍会把差值夹0；没有新增这两个独立异常站点，也不声称全部第三方后端遵约。既有snapshot音频错误日志仍位于RefCell/Session锁内，本批未改，不能概称全部host日志已解锁
+- 完整复验通过：host 53 passed（含doc-test）、desktop 367 passed，均0 failed/ignored，含三个新回归与worker API/FileLogger回归；cargo check/build -p motion-desktop通过。新二进制默认Info运行可见129条普通start、0条Present start，健康host三个站点安静；轮转、Error文件/stderr、stdout隔离、Debug Present阈值、fatal参数及shutdown失败验证通过。样式门、provenance 1382 tracked paths、局部格式及diff检查通过；证据 b66-host-final.log、b66-desktop-full.log、b66-desktop-check.log、b66-desktop-build.log、b66-runtime.log、b66-test-summary.json
+- 真实MCP进程默认Info附加故障验收：时间条件表达式在frame=15触发invalid sample time，之后rename仍返回成功、revision推进且名称持久在状态中，renderError保留；240次状态查询跨两个故障episode，文件恰有2条首Warn/2条第60次Error，恢复删除表达式后清零，undo后重新累计，redo恢复。两条升级Error同时出现在stderr，248条响应全部是合法JSON，未向stdout写日志；证据 b66-host-runtime.log、runtime-b66-host-failure/summary.json。此处没有用编译、模拟成功或捕获logger替代真实FileLogger输出
+- 未改变UI/布局/交互、panels、respond、两处MOTION_TRACE_UI、两份原始报告或用户无关文件；没有新依赖/第三方素材。DESIGN.md §0.7沿用§59 retained with reason，跨平台与真实驱动故障不在本机受控测试结论内
+
+
+## 67 · UI 框架绘制丢弃与工作区默认回退观测
+
+- 逐项关联B5全部30行：新增观测7、已有覆盖2、核实保留13、功能边界8；累计551/832，剩余281行待逐项关联。新增paint.order、paint.atlas、workspace.framework.load三个固定site，不把5行工作区链式回退重复算成5套计数；证据 b67-mechanical-mapping.json
+- Painter对显式order中的越界glyph/缺失shape范围按本次render计数，记录无效op数量及首类型/索引；只在真实glyph draw batch因缺atlas而丢弃时记录atlas站点。两个episode按Painter独立首Warn/连续第60次Error/抑制，健康render分别复位，新Painter单独计数；正常无文字与legacy raw-buffer顺序兼容分支安静。保持原skip、batch顺序和solid绘制，不修复无效绘制输入或代建atlas
+- 计数为普通私有字段，无业务/观测Mutex或动态key表；健康render不增加文件IO、原因分配或Instant计时。atlas已存在时不额外遍历batches；缺atlas时才检查是否有真正待绘制glyph batch。elapsed_ms表示整个退化episode跨度，不等于单次GPU耗时或60次约一秒
+- 框架Workspace::load分别标read/size/json/validation阶段，固定进程连续失败首Warn/第60次Error/抑制，任何成功或正常NotFound复位；路径与原因分别最多256字符，不记录原始JSON。保留读全文件再按16KiB过滤、默认布局返回及不重写坏文件，不声称限制了大文件读取内存。这与desktop/app自有Workspace loader是两个站点，框架当前仅示例调用不能借用应用旧观测冒充覆盖
+- 新增两个Rust回归、六个隔离子进程：真实GPU/Painter构造无效glyph/shape索引和缺atlas批次，逐帧读回像素验证120次失败不改变原白色solid结果、每render限频/阈值、其他Painter健康不影响本实例、正常render复位、上传atlas后红色glyph恢复、legacy顺序保持。GPU adapter缺失明确失败，未用提前return掩盖验收。工作区实际目录读失败/超限文件/非法JSON/重复所有权四类均返回原默认布局、不改坏文件，验证阈值/抑制、正常缺失与成功复位及超长Unicode路径截断；清理前核实测试自建目录的绝对父路径
+- 保留数值输入dirty文本作为拖拽起点的有限/范围回退，真正Commit错误仍由TextEdit.error呈现；不记录用户临时文本。保留tab/caret/高亮/滚动/评分合法边界及不足三点裁剪的空triangle fan，不将正常导航和空几何误报为资源失败。原caret行实际为Key::Left而非原报告所称backspace
+- 8行自定义样式功能边界单列：checkbox/label.small/调用方anchor/popup/row/button.icon不在compile必需类清单，手工host sheet仍可能在unwrap处panic。桌面既有panic hook提供行号与强制backtrace，不代表独立motion-ui宿主也已安装；本批没有扩展必需类、改样式fallback或宣布自定义sheet全输入安全。既有颜色/字体观测关联已有证据，未声称本机自然缺失全部CJK字体
+- 完整复验通过：UI 82 passed（13组，含实际GPU与两项新回归）、desktop 367 passed，均0 failed/ignored，包含worker阻塞API/FileLogger；cargo check/build -p motion-desktop通过。新二进制隔离启动，默认Info可见129条普通start、0条Present start，健康绘制/工作区无新增降级记录；轮转、Error文件/stderr、CLI/MCP stdout隔离、Debug Present阈值、fatal参数、MCP UI正常EOF及shutdown失败原因均通过。样式门、provenance 1386 tracked paths、局部格式及diff检查通过；证据 b67-ui-full.log、b67-desktop-full.log、b67-desktop-check.log、b67-desktop-build.log、b67-runtime.log、b67-test-summary.json
+- 未改panels、UI视觉/交互/返回值、respond、两处MOTION_TRACE_UI、两份原始报告、依赖或第三方素材；DESIGN.md §0.7沿用§59 retained with reason。像素回归与原生冒烟不代表完成所有视觉、平台或驱动故障验收
+
+
+## 68 · 应用回退、业务锁恢复与音频回调时间戳
+
+状态：本轮仅补可观测性；机械候选对应原始B3位置见逐项台账，最终整体测试/实际启动证据见§70
+
+- 新增固定site的Counter/recovered工具，首Warn、第60次Error、之后抑制，格式化写入时限制总上下文768字符、路径单独256字符并移除控制符；没有用户对象键注册表。Workspace加载、styles stamp/reload、floating geometry连续episode成功复位；缓存中毒、状态锁恢复、SavedLayout恢复/校验按固定进程site生命周期累计，正常访问不掩盖同列表中另一个坏对象，进程重启清零。60次是发生次数，不宣称固定一秒
+- 应用Workspace保留读全文件后的64KiB限制、JSON/ownership检查、migrate_design和默认返回；NotFound安静且复位，其他失败区分read/size/json/validation，坏文件不重写。样式保留原250ms poll、stamp更新时机、旧sheet/font和既有Panels.message；reload的Info start/flush先于解析/字体操作，未增加重试或改变提示结构
+- SavedLayout的反序列化失败与存在但面板归属非法分别观测，未保存preset本身仍安静；select_preset的filter/default回退原样保留。真实负尺寸、重复面板布局通过restore和select_preset验证，正常布局交错不会使坏布局每次Warn或永远达不到60
+- paint_pool中毒仍让take返回空PaintList、recycle丢弃条目，不恢复原本被丢弃的缓存；UI回收与worker回收分别计数。终态failure、退出surface factory、Diagnostics context/GPU/report和MovieExport status的into_inner策略保持；recovered的证据先于guard声明，正常及unwind时先释放业务锁，再输出日志
+- dispatch保持send和queue_depth增加受同一InFlight锁保护，将context读取、stopped_error和dispatch日志移到锁外；不改respond、worker命令顺序或超时策略。既有TestWait回归继续验证handler前可读in_flight、积压深度和完成后清零；healthy Present依旧没有无条件start/done/dispatch
+- CPAL回调遇到playback早于callback时仍回退零延迟，仅更新固定原子计数和首/60阈值位；watchdog在循环/退出时排空后Warn/Error，带playback ID、reason和fallback，成功时间戳复位。一个poll间的多个episode会合并成至多两条阈值证据，不能把它当逐callback事件流。error锁中毒同样只在回调发布原子证据，首个业务错误仍保留；没有新增实时IO/格式化
+- 工程切换后的remember_project、音频分析cancel/release派发、关闭node_expect、取消关闭后的compile、OS窗口拖动、诊断上传偏好拒绝现在保留原因；不改变返回值、清理顺序或用户操作。浮窗位置获取/保存失败继续使用None或内存中的geometry，并按阈值观测
+- 新增实际应用加载/样式修复、真实锁中毒与unwind日志探针、真实Engine缓存/终态锁、真实Diagnostics context/report、受控callback时间戳、真实preset恢复/选择和文件geometry持久化回归。probe在logger内try_lock业务锁，验证日志在解锁后发生；FileLogger子进程验证默认级别、阈值、抑制、复位、stderr和stdout隔离
+- 测试边界：callback None是受控输入，未自然制造CPAL驱动倒序；同一recovered helper验证所有锁的释放契约，但未自然诱发movie编码器/退出factory/GPU元数据中毒或系统modified/outer_position不支持。Engine夹具验证原始终态原因后恢复向活worker注入的终态值，再按真实Shutdown清理；不修改产品生命周期
+
+
+## 69 · 节点端口与面板解析降级
+
+- 节点编辑器新增七个固定站点：canvas.sockets、canvas.labels、context.ports、inspector.ports、inspector.help_ports、layout.arrange、request.field。端口/布局解析失败保留空端口、空帮助和原位置，字段提交失败保留原Err、Field.error、notice和未提交内容；不改文档或revision
+- 沿用每个NodeEditor实例内的固定site计数，首次Warn、第60次Error、之后抑制，实例重建清零、健康相邻节点不复位；记录epoch/revision、node和有界原因，不输出字段正文。新增observed只观察并原样返回motion_graph::Result，不更换错误类型
+- 四个panels生产文件新增五个解析站点：path.layer、path.inspector_layer、audio.level_track、timeline.blend、effect.color_track。保持None/空缓存、零音量轨道、默认混合模式、关闭颜色弹窗且无Action的既有回退；缺失/Null的可选音量与混合模式保持安静
+- 面板沿用固定进程site生命周期累计：首次Warn、第60次Error、之后抑制，健康相邻行不复位、进程重启清零；记录object、effect/param/control或revision和原始解析原因，复用既有有界输出，不增加对象级注册表
+- 新增五项真实入口回归：Unsupported节点经cards/paint_canvas/inspector/context解析，真实无效字段request与arrange，畸形Layer的两入口，畸形audio Track、blend模式与颜色EffectParam。每站点重复120次，验证首次/60阈值/抑制及原返回/状态；有效缺省穿插仍安静。隔离FileLogger子进程默认Info验证Error同时进入stderr，日志不进入stdout；最终379项完整测试见§70
+- panels修改属于用户明确批准的续审观测与测试范围；不修改布局、样式、颜色、控件、交互或dark.json，不把观测接入计作视觉整改。DESIGN.md §0.7逐行处置如下
+
+| §0.7基线 | 处置 | 原因与验收限制 |
+| --- | --- | --- |
+| path_controls六处字面量纵向步进 | retained | 仅包装解析，保留行高和纵向坐标，视觉整改另行处理 |
+| path_controls硬编码两列分割 | retained | 保留列宽与命中区域，本次未整改窄面板布局 |
+| path_controls混用按钮高度 | retained | 不改控件语义、尺寸或命中容差 |
+| path_controls自绘数值背景 | retained | 保留现有绘制和编辑行为，不宣称已接入原生field.number |
+| path_controls整行布尔按钮 | retained | 本次未替换控件或调整事件路由 |
+| effect_controls行高与步进 | retained | 观测包装不改滚动、裁剪或行密度 |
+| effect_controls布尔文本按钮 | retained | 本次未修改布尔控件呈现 |
+| effect_controls全宽枚举按钮 | retained | 本次未实现下拉替换 |
+| effect_controls手工hover alpha | retained | 本次不新增或修改颜色/token |
+| effect_controls缺层级缩进 | retained | 本次未调整树布局或展开命中区域 |
+| timeline坐标与11列标签gutter | retained | 按兼容基线保留坐标，不做主题重构 |
+| timeline snap guide颜色 | retained | 按基线保留拖动反馈，不引入新token |
+
+- 样式消费者门与原生GUI冒烟通过；它们不证明以上历史视觉问题已修复，也不代替完整视觉/跨平台验收
+
+
+## 70 · 剩余281项复核完成与整体验收
+
+状态：本轮281/281已复核，机械全集832/832已唯一映射，未映射0项；功能边界如实保留，不等于所有功能缺陷关闭
+
+| 范围 | 新增观测 | 已有覆盖 | 核实保留 | 功能边界 | 待关联 |
+| --- | --- | --- | --- | --- | --- |
+| 本轮B3桌面122项与B4面板/节点159项 | 52 | 62 | 161 | 6 | 0 |
+| B1–B9机械候选全集832项 | 98 | 138 | 542 | 54 | 0 |
+
+- 数量按原始候选行计，不按新增日志站点、counter或已修复缺陷计。用原始报告832个稳定path:line与逐项台账做集合相等、行数、唯一性验证：832行、832唯一键、漏项0、重复0；证据b70-mechanical-mapping.json，新增B3/B4的逐行证据见silent-failure-paths-mechanical-review.md。161项辅助编号单独维护，本轮同步12.1–12.3和旧未完成声明，不与832混算
+- 新增应用日志/锁/回调观测见§68，节点/面板观测及12项DESIGN基线保留原因见§69；两批共新增12个Rust回归，没有修改既有断言。正常缓存缺失、可选字段为空、编辑中间态、音频预滚延迟和异步WM尺寸返回不按失败刷日志；60次表示发生次数，不能推断固定一秒
+- 本轮六行功能边界：engine.rs:68手工UiFrame非有限viewport缓存键；node_preview.rs:608手工非有限/越界viewport与scissor转换；node_preview.rs:560、561长时shader f32秒/帧精度；node_editor/view/canvas.rs:289悬空Parameter标签回退ID；panels/effect_controls.rs:1553枚举采样非整数/极值到usize转换。均以原始报告行号标识，未改数值、返回值或校验契约；正常host预览frame已校验有限且位于正项目帧范围，不为任意伪造JSON/公开对象背书
+- 验证环境加载.tools/msvc-portable/env.ps1，独立CARGO_TARGET_DIR=.tools/observability-validation-build；仅命令环境将dev/test debug设为line-tables-only，未改源码编译配置。cargo test -p motion-desktop --offline -j2 -- --include-ignored --test-threads=2：379 passed、0 failed、0 ignored，64.33秒，包含阻塞worker API、默认FileLogger和上述真实失败入口；cargo check/build -p motion-desktop --offline -j2均成功。日志b70-desktop-tests.log、b70-desktop-check.log、b70-desktop-build.log；build仍有22条warning，不宣称无警告
+- 使用新二进制及隔离LOCALAPPDATA实际启动，未设置MOTION_LOG：普通start 130条、Present start 0条；默认健康应用/面板/音频无新增降级，Debug Present start/dispatch安静，done仍受100ms门控。CLI command-list与MCP仅输出JSON；Error文件与stderr、日志轮转、fatal参数、MCP UI正常EOF及shutdown checkpoint失败原因均验证通过
+- 另以真实坏MOTION_UI_STYLE文件启动，验证style reload Info start先于失败、styles.reload原因及fatal Error文件/stderr；以真实坏MOTION_UI_LAYOUT文件运行GUI，验证workspace.load phase=json且原默认布局回退仍可完成冒烟。证据b70-runtime.log、runtime-b68/runtime-summary.json、runtime-b68/ui-smoke.json；隔离日志位于runtime-b68/local-app-data/MotionStudio/logs/motion-studio.log，不改用户现有日志或项目
+- 最终panels样式消费者门通过，provenance guard通过1389 tracked paths，git diff --check通过。没有新增依赖/第三方资源、UI视觉/交互调整、respond契约变更、per-command超时或重启；两处MOTION_TRACE_UI stderr及两份原始审计报告未修改。用户批准的panels观测仅涉及§69四个生产文件与对应测试
+- 真实文件失败、锁中毒和受控挂起/回调已验证；未声称自然发生GPU设备丢失、CPAL时间戳倒序、FFmpeg状态锁中毒或所有平台OS元数据失败。原生冒烟/样式门不代表全量视觉、感知图像门或跨平台验收；54行功能边界与辅助台账中的协议/验收边界继续保留
+- 代码提交：4d01d63（应用回退与业务锁恢复）、60d9c4c（节点端口与面板解析）。本节与完整逐项映射另作文档提交；本轮未推送或新建PR，CI状态未作为本地验收结论

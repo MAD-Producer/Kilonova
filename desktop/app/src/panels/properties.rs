@@ -30,9 +30,27 @@ impl AnchorControls {
     fn values(layer: &Value) -> ([f32; 2], [f32; 2]) {
         (
             std::array::from_fn(|axis| {
-                layer["transform"]["anchor"][axis].as_f64().unwrap_or(0.5) as f32
+                observe!(
+                    "properties.anchor",
+                    layer["transform"]["anchor"][axis]
+                        .as_f64()
+                        .ok_or("missing or nonnumeric anchor"),
+                    "object={} axis={axis}",
+                    layer["id"]
+                )
+                .unwrap_or(0.5) as f32
             }),
-            std::array::from_fn(|axis| layer["size"][axis].as_f64().unwrap_or(1.).max(1.) as f32),
+            std::array::from_fn(|axis| {
+                let size = layer["size"][axis].as_f64();
+                let _ = observe!(
+                    "properties.anchor_size",
+                    size.filter(|v| v.is_finite() && *v >= 1.)
+                        .ok_or("missing, nonfinite or clamped size"),
+                    "object={} axis={axis} size={size:?}",
+                    layer["id"]
+                );
+                size.unwrap_or(1.).max(1.) as f32
+            }),
         )
     }
     pub fn process(
@@ -301,11 +319,18 @@ pub(super) fn render(
     }) else {
         return;
     };
-    let Some(sample) = state["sampledLayers"].as_array().and_then(|layers| {
+    let sample = state["sampledLayers"].as_array().and_then(|layers| {
         layers
             .iter()
             .find(|layer| layer["id"].as_u64() == Some(object))
-    }) else {
+    });
+    let Some(sample) = observe!(
+        "properties.sample",
+        sample.ok_or("selected layer has no sampled data"),
+        "object={object} revision={}",
+        state["revision"]
+    )
+    .ok() else {
         return;
     };
     let locale = panels.locale;
@@ -419,7 +444,27 @@ pub(super) fn render(
                 animated,
                 !locked,
             );
-            if clicked(input, fields.watch) && !locked {
+            let expression_target = motion_core::ExpressionTarget::Property {
+                object,
+                property,
+                axis: None,
+            };
+            panels.expressions.context(
+                expression_target.clone(),
+                Rect::new(
+                    fields.watch.min[0],
+                    y,
+                    (area.max[0] - fields.watch.min[0]).max(0.),
+                    row,
+                ),
+                input,
+                Panel::Properties,
+            );
+            if clicked(input, fields.watch) && !locked && input.modifiers.alt {
+                panels
+                    .expressions
+                    .open(state, expression_target.clone(), Panel::Properties);
+            } else if clicked(input, fields.watch) && !locked {
                 let commands = matching
                     .iter()
                     .map(|track| Command::Animate {
@@ -457,6 +502,30 @@ pub(super) fn render(
                 );
             }
             y += row;
+            if panels
+                .expressions
+                .visible(state, &expression_target, Panel::Properties)
+            {
+                let split = (area.min[0] + area.width() * 0.4).max(fields.caption.min[0]);
+                panels.expressions.row(
+                    list,
+                    atlas,
+                    Rect::new(
+                        fields.caption.min[0],
+                        y,
+                        (split - fields.caption.min[0]).max(0.),
+                        row,
+                    ),
+                    Rect::new(split, y, (area.max[0] - split - pad).max(0.), row),
+                    state,
+                    expression_target,
+                    input,
+                    locale,
+                    !locked,
+                    out,
+                );
+                y += row;
+            }
         }
     }
     if input.key_presses().any(|(key, _, _)| key == Key::Tab) {
@@ -864,6 +933,7 @@ pub(super) fn process_field(
                 .ok()
                 .filter(|value| value.is_finite())
                 .unwrap_or_else(|| {
+                    log::warn!("property scrub fallback object={} property={:?} axis={} reason=invalid_numeric_text", field.object, field.property, field.axis);
                     let sample = state["sampledLayers"]
                         .as_array()
                         .into_iter()
@@ -922,7 +992,16 @@ pub(super) fn process_field(
             if value.is_finite() && value != scrub.last_value {
                 scrub.last_value = value;
                 field.text = format!("{value:.2}");
-                if let Some(command) = numeric_command(&field, value, state) {
+                if let Some(command) = observe!(
+                    "properties.scrub_command",
+                    numeric_command(&field, value, state).ok_or("no command after scrub advanced"),
+                    "object={} property={:?} axis={} phase=scrubbing value={value}",
+                    field.object,
+                    field.property,
+                    field.axis
+                )
+                .ok()
+                {
                     out.push(Action::Edit(command));
                 }
             }
@@ -978,6 +1057,105 @@ pub(super) fn process_field(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn anchor_and_scrub_fallback_evidence_preserves_values_and_empty_gestures() {
+        const CHILD: &str = "MOTION_PROPERTY_FALLBACK_OBSERVATION_CHILD";
+        if let Some(root) = std::env::var_os(CHILD) {
+            let root = std::path::PathBuf::from(root);
+            let _logger = crate::logging::init(root.clone()).unwrap();
+            let healthy =
+                serde_json::json!({"id":7,"transform":{"anchor":[0.5,0.5]},"size":[100,200]});
+            assert_eq!(AnchorControls::values(&healthy), ([0.5; 2], [100., 200.]));
+            assert!(std::fs::read_to_string(root.join("motion-studio.log"))
+                .unwrap()
+                .is_empty());
+            let broken =
+                serde_json::json!({"id":7,"transform":{"anchor":["bad",0.5]},"size":[0,200]});
+            for _ in 0..120 {
+                assert_eq!(AnchorControls::values(&broken), ([0.5; 2], [1., 200.]));
+                AnchorControls::values(&healthy);
+            }
+            let mut p = panels();
+            let field = p.properties.field.as_mut().unwrap();
+            field.scrubbing = None;
+            field.text = "private invalid input".into();
+            let mut actions = Vec::new();
+            process_field(
+                &mut p,
+                &state(),
+                &Input {
+                    mouse: [100., 15.],
+                    pressed: Some((MouseButton::Left, [100., 15.])),
+                    ..Default::default()
+                },
+                &mut actions,
+            );
+            assert_eq!(
+                p.properties
+                    .field
+                    .as_ref()
+                    .unwrap()
+                    .scrubbing
+                    .as_ref()
+                    .unwrap()
+                    .start_value,
+                10.
+            );
+            assert!(actions.is_empty());
+            let mut missing = state();
+            missing["sampledLayers"] = serde_json::json!([]);
+            missing["timeline_layers"] = serde_json::json!([]);
+            for _ in 0..120 {
+                let mut p = panels();
+                let mut actions = Vec::new();
+                process_field(&mut p, &missing, &drag(120.), &mut actions);
+                assert!(matches!(actions.as_slice(), [Action::History(2)]));
+                let scrub = p
+                    .properties
+                    .field
+                    .as_ref()
+                    .unwrap()
+                    .scrubbing
+                    .as_ref()
+                    .unwrap();
+                assert!(scrub.begun);
+                assert_eq!(scrub.last_value, 20.);
+            }
+            let text = std::fs::read_to_string(root.join("motion-studio.log")).unwrap();
+            for site in [
+                "properties.anchor",
+                "properties.anchor_size",
+                "properties.scrub_command",
+            ] {
+                assert_eq!(
+                    text.lines()
+                        .filter(|line| line.contains(&format!("site={site} ")))
+                        .count(),
+                    2,
+                    "{text}"
+                );
+            }
+            assert!(
+                text.contains("reason=invalid_numeric_text")
+                    && text.contains("object=7 property=Position axis=0")
+            );
+            assert!(!text.contains("private invalid input"));
+            return;
+        }
+        let temp = tempfile::tempdir().unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "panels::properties::tests::anchor_and_scrub_fallback_evidence_preserves_values_and_empty_gestures"])
+            .env_remove("MOTION_LOG").env(CHILD,temp.path()).output().unwrap();
+        assert!(
+            output.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(String::from_utf8_lossy(&output.stderr)
+            .contains("persistent panel degradation site=properties.scrub_command"));
+        assert!(!String::from_utf8_lossy(&output.stdout).contains("panel degradation"));
+    }
     fn state() -> Value {
         serde_json::json!({"frame":21,"project":{"layers":[{"id":7}]},
             "sampledLayers":[{"id":7,"position":[10,20,0],"rotation":[0,0,0],"scale":[100,100,100],"opacity":1}],

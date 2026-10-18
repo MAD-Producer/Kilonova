@@ -590,10 +590,7 @@ impl Renderer {
         Ok(())
     }
     pub fn gpu_error(&self) -> Option<String> {
-        self.gpu_failure
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .clone()
+        gpu_failure::read(&self.gpu_failure)
     }
     pub fn check_health(&self) -> Result<()> {
         if let Some(error) = self.gpu_error() {

@@ -1,4 +1,7 @@
 //! File process logging with console stderr for errors; stdout belongs to CLI/MCP.
+#[cfg(test)]
+mod media_commit_tests;
+
 use std::{
     backtrace::Backtrace,
     cell::Cell,
@@ -236,6 +239,40 @@ mod tests {
         assert!(!stdout.contains("dual-error-marker") && !stdout.contains("file-only-warning-marker"));
         let file = fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
         assert!(file.contains("dual-error-marker") && file.contains("file-only-warning-marker"));
+    }
+
+    #[test]
+    fn model_failures_reach_default_file_and_error_console_without_stdout_logs() {
+        const CHILD: &str = "MOTION_MODEL_FILE_TEST_CHILD";
+        if let Some(root) = std::env::var_os(CHILD) {
+            let _guard = init(PathBuf::from(root)).unwrap();
+            let invalid = motion_core::Track::constant(f32::INFINITY);
+            let healthy = motion_core::Track::constant(3.0_f32);
+            for _ in 0..120 {
+                assert!(invalid.sample(5.0).is_infinite());
+                assert_eq!(healthy.sample(5.0), 3.0);
+            }
+            return;
+        }
+        let root = tempfile::tempdir().unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "logging::tests::model_failures_reach_default_file_and_error_console_without_stdout_logs"])
+            .env(CHILD, root.path())
+            .env_remove("MOTION_LOG")
+            .output().unwrap();
+        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+        let file = fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
+        assert!(file.contains("logging initialized level=INFO"));
+        let lines: Vec<_> = file.lines().filter(|line| line.contains("site=track.sample")).collect();
+        assert_eq!(lines.len(), 2);
+        assert!(lines[0].contains(" WARN ") && lines[0].contains("lifetime_count=1 "));
+        assert!(lines[1].contains(" ERROR ") && lines[1].contains("lifetime_count=60 "));
+        assert!(lines.iter().all(|line| line.contains("frame=5") && line.contains("value_type=f32")));
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        assert_eq!(stderr.lines().filter(|line| line.contains("site=track.sample")).count(), 1);
+        assert!(stderr.contains("lifetime_count=60 "));
+        assert!(!stderr.contains("lifetime_count=1 "));
+        assert!(!String::from_utf8(output.stdout).unwrap().contains("site=track.sample"));
     }
 
     #[test]

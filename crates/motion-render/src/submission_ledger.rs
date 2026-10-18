@@ -9,6 +9,9 @@ use std::{
     },
 };
 
+mod observation;
+use observation::{Recovery, Site};
+
 pub const MAX_SUBMISSION_SNAPSHOTS: usize = 8;
 
 #[derive(Default)]
@@ -63,9 +66,11 @@ impl SubmissionLedger {
         self.enabled.load(Ordering::Relaxed)
     }
     fn begin(&self, resources: TextureResourceLedger) -> Ticket {
-        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        let mut recovery = Recovery::new(Site::Begin, None);
+        let mut state = recovery.lock(self.state.lock());
         state.submitted += 1;
         let id = state.submitted;
+        recovery.submission = Some(id);
         let tracked = state.pending.len() < MAX_SUBMISSION_SNAPSHOTS;
         if tracked {
             for resource in resources.resources() {
@@ -91,7 +96,8 @@ impl SubmissionLedger {
         Ticket { id, tracked }
     }
     fn complete(state: &Mutex<State>, ticket: Ticket) {
-        let mut state = state.lock().unwrap_or_else(|e| e.into_inner());
+        let mut recovery = Recovery::new(Site::Complete, Some(ticket.id));
+        let mut state = recovery.lock(state.lock());
         let resources = if ticket.tracked {
             state.pending.remove(&ticket.id)
         } else {
@@ -134,7 +140,8 @@ impl SubmissionLedger {
         index
     }
     pub fn info(&self, current: &TextureResourceLedger) -> SubmissionMemoryInfo {
-        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        let mut recovery = Recovery::new(Site::Info, None);
+        let state = recovery.lock(self.state.lock());
         let active = current
             .resources()
             .map(|r| r.id.as_str())
@@ -160,6 +167,9 @@ impl SubmissionLedger {
         }
     }
 }
+
+#[cfg(test)]
+mod observation_tests;
 
 #[cfg(test)]
 mod tests {

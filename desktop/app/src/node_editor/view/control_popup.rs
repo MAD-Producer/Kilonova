@@ -62,6 +62,17 @@ fn paint_popup(list: &mut PaintList, rect: Rect) {
     paint::stroke(list, rect, colors.BORDER, 1.);
 }
 impl NodeEditor {
+    fn popup_color_values(&self, bindings: &[Binding; 4]) -> [f32; 4] {
+        std::array::from_fn(|i| {
+            self.binding_value(&bindings[i]).unwrap_or_else(|| {
+                self.observe_failure(
+                    "popup.color_binding",
+                    format_args!("component={i} binding={:?} fallback=0", bindings[i]),
+                );
+                0.
+            })
+        })
+    }
     pub(super) fn paint_control_popup(
         &mut self,
         list: &mut PaintList,
@@ -205,8 +216,7 @@ impl NodeEditor {
                 }
                 let row_y = form_top - scroll;
                 let had_number = self.inline.number.is_some();
-                let mut color =
-                    std::array::from_fn(|i| self.binding_value(&bindings[i]).unwrap_or(0.));
+                let mut color = self.popup_color_values(&bindings);
                 let mut panel = list.child();
                 paint_popup(&mut panel, rect);
                 label(
@@ -234,6 +244,15 @@ impl NodeEditor {
                         if (input.dragging() || input.released.is_some())
                             && input.mouse.iter().all(|v| v.is_finite())
                         {
+                            if !square.width().is_finite()
+                                || square.width() <= 0.
+                                || !square.height().is_finite()
+                                || square.height() <= 0.
+                                || !hue_rect.height().is_finite()
+                                || hue_rect.height() <= 0.
+                            {
+                                self.observe_failure("popup.color_geometry", format_args!("square={square:?} hue_rect={hue_rect:?} hue_drag={hue_drag}"));
+                            }
                             let next = if hue_drag {
                                 hue = ((input.mouse[1] - hue_rect.min[1]) / hue_rect.height())
                                     .clamp(0., 1.);
@@ -259,9 +278,7 @@ impl NodeEditor {
                                     self.notice = Some(error.to_string());
                                 }
                             }
-                            color = std::array::from_fn(|i| {
-                                self.binding_value(&bindings[i]).unwrap_or(0.)
-                            });
+                            color = self.popup_color_values(&bindings);
                         }
                         if input.held != Some(MouseButton::Left) {
                             drag = None;

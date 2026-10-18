@@ -291,8 +291,17 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
                     }
                 }
             }
-            let masks: Vec<motion_core::masks::LayerMask> =
-                serde_json::from_value(l["masks"].clone()).unwrap_or_default();
+            let masks: Vec<motion_core::masks::LayerMask> = if l["masks"].is_null() {
+                Vec::new()
+            } else {
+                observe!(
+                    "timeline.masks",
+                    serde_json::from_value(l["masks"].clone()),
+                    "object={}",
+                    l["id"]
+                )
+                .unwrap_or_default()
+            };
             let mask_offset = l["timeline"]["offset_frame"].as_i64().unwrap_or(0) as i32;
             for mask in &masks {
                 for index in 0..4 {
@@ -302,8 +311,24 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
                 }
             }
             let vector: Option<motion_core::vector::VectorContent> =
-                serde_json::from_value(l["content"]["vector"].clone()).ok();
-            let vector_size = serde_json::from_value(l["size"].clone()).unwrap_or([100.; 2]);
+                if l["content"]["vector"].is_null() && l["content"]["kind"] != "vector" {
+                    None
+                } else {
+                    observe!(
+                        "timeline.vector",
+                        serde_json::from_value(l["content"]["vector"].clone()),
+                        "object={}",
+                        l["id"]
+                    )
+                    .ok()
+                };
+            let vector_size = observe!(
+                "timeline.vector_size",
+                serde_json::from_value(l["size"].clone()),
+                "object={}",
+                l["id"]
+            )
+            .unwrap_or([100.; 2]);
             if let Some(v) = &vector {
                 for frame in super::path_controls::groups::timeline::key_frames(v, vector_size) {
                     keys.push(f64::from(frame) + f64::from(mask_offset));
@@ -459,6 +484,7 @@ fn scroll_extent_signature(
     for item in &timeline.vector_open {
         item.hash(&mut hash);
     }
+    format!("{:?}", timeline.expression_rows).hash(&mut hash);
     timeline.filters.len().hash(&mut hash);
     for entry in &timeline.filters {
         entry.hash(&mut hash);
@@ -615,6 +641,12 @@ pub(super) fn render(
         .iter()
         .filter(|row| query.is_empty() || row.name_lower.contains(&query))
         .collect();
+    panels.timeline.expression_rows.clear();
+    if panels.expressions.owner == Some(Panel::Timeline) {
+        if let Some(target) = panels.expressions.draft.clone() {
+            panels.timeline.expression_rows.push(target);
+        }
+    }
     let layouts: Vec<_> = rows
         .iter()
         .map(|row| {
@@ -655,6 +687,7 @@ pub(super) fn render(
         area.height(),
     );
     let ruler = Rect::new(track.min[0], area.min[1] + 36.0, track.width(), 28.0);
+    panels.timeline.zoom_track = Some(track);
     let wheel = input.wheel[1];
     let gesture = panels.timeline.graph_box.editing()
         || panels.timeline.key_drag.is_some()
@@ -674,10 +707,8 @@ pub(super) fn render(
         if input.modifiers.control && !input.modifiers.alt || graph_wheel {
             let old_zoom = panels.timeline.zoom.max(1.);
             let fraction = ((input.mouse[0] - track.min[0]) / track.width()).clamp(0., 1.);
-            let anchor = panels.timeline.offset + total as f32 / old_zoom * fraction;
-            let next = (old_zoom * (-wheel * 0.005).clamp(-8., 8.).exp()).clamp(1., 100.);
-            panels.timeline.zoom = next;
-            panels.timeline.offset = (anchor - total as f32 / next * fraction).max(0.);
+            let next = old_zoom * (-wheel * 0.005).clamp(-8., 8.).exp();
+            super::timeline_zoom::zoom_at(&mut panels.timeline, total as f32, next, fraction);
         } else if input.modifiers.control && input.modifiers.alt && graph_mode {
             // The graph owns vertical scaling; one wheel event has one owner.
         } else if input.modifiers.shift {
@@ -826,7 +857,8 @@ pub(super) fn render(
     )
     .clicked
     {
-        panels.timeline.zoom = (panels.timeline.zoom.max(1.) / 1.25).max(1.);
+        let next = panels.timeline.zoom.max(1.) / 1.25;
+        super::timeline_zoom::zoom_at(&mut panels.timeline, total as f32, next, 0.5);
     }
     label(
         list,
@@ -845,7 +877,8 @@ pub(super) fn render(
     )
     .clicked
     {
-        panels.timeline.zoom = (panels.timeline.zoom.max(1.) * 1.25).min(100.);
+        let next = panels.timeline.zoom.max(1.) * 1.25;
+        super::timeline_zoom::zoom_at(&mut panels.timeline, total as f32, next, 0.5);
     }
     if ui::button(
         list,
@@ -1377,6 +1410,13 @@ pub(super) fn render(
         );
     }
     if let Some((object, start, end, head, last)) = panels.timeline.trimming.as_mut() {
+        let _ = observe!(
+            "timeline.trim_release",
+            (input.dragging() || input.released.is_some())
+                .then_some(())
+                .ok_or("gesture retained without held button or release"),
+            "object={object} phase=trimming"
+        );
         let position = ((input.mouse[0] - track.min[0]) / ppf + offset) as f64;
         let position = if input.modifiers.alt {
             position
@@ -1418,6 +1458,15 @@ pub(super) fn render(
         }
     }
     if let Some(moving) = panels.timeline.moving.as_mut() {
+        let _ = observe!(
+            "timeline.move_release",
+            (input.dragging() || input.released.is_some())
+                .then_some(())
+                .ok_or("gesture retained without held button or release"),
+            "phase=moving layer_count={} initial={}",
+            moving.layers.len(),
+            moving.initial
+        );
         let (_, _, duration) = moving.layers[0];
         let raw = moving.initial as f64 + (input.mouse[0] - moving.start_mouse) as f64 / ppf as f64;
         let mut candidates = vec![0., total, state["frame"].as_f64().unwrap_or(0.)];
@@ -1601,6 +1650,7 @@ pub(super) fn render(
     if right_clicked(input, body)
         && !panels.layer_actions.editing()
         && !panels.path_controls.mask_menu()
+        && !panels.expressions.menu_open()
     {
         panels.layer_actions.open(None, input.mouse, state);
     }
@@ -1954,9 +2004,7 @@ pub(super) fn render_layer_properties(
             .and_then(|ls| ls.iter().find(|l| l["id"].as_u64() == Some(row.id)));
         for (i, property_index) in layout.properties.iter().enumerate() {
             let property = &row.properties[*property_index];
-            let py = y
-                + (i + layout.transform.start + 1 + usize::from(layout.anchor.is_some())) as f32
-                    * row_height;
+            let py = y + layout.property_offsets[i] as f32 * row_height;
             if py < body.min[1] || py + row_height > body.max[1] {
                 continue;
             }
@@ -1984,14 +2032,55 @@ pub(super) fn render_layer_properties(
                 !property.keys.is_empty(),
                 !row.locked,
             );
-            if clicked(input, fields.watch) && !row.locked {
-                out.push(Action::Edit(Command::Animate {
-                    object: row.id,
-                    property: property.property,
-                    axis,
-                    frame: state["frame"].as_f64().unwrap_or(0.).floor() as u32,
-                    enabled: property.keys.is_empty(),
-                }));
+            let expression_target = motion_core::ExpressionTarget::Property {
+                object: row.id,
+                property: property.property,
+                axis,
+            };
+            if let Some(index) = layout.expression_offsets[i] {
+                let ey = y + index as f32 * row_height;
+                if ey >= body.min[1] && ey + row_height <= body.max[1] {
+                    panels.expressions.row(
+                        list,
+                        atlas,
+                        Rect::new(
+                            fields.caption.min[0],
+                            ey,
+                            (track.min[0] - fields.caption.min[0]).max(0.),
+                            row_height,
+                        ),
+                        Rect::new(track.min[0], ey, track.width(), row_height),
+                        state,
+                        expression_target.clone(),
+                        input,
+                        locale,
+                        !row.locked && state["observing"] != true,
+                        out,
+                    );
+                }
+            }
+            if panels.expressions.context(
+                expression_target.clone(),
+                property_area,
+                input,
+                Panel::Timeline,
+            ) {
+                panels.layer_actions.cancel();
+            }
+            if clicked(input, fields.watch) && !row.locked && state["observing"] != true {
+                if input.modifiers.alt {
+                    panels
+                        .expressions
+                        .open(state, expression_target, Panel::Timeline);
+                } else {
+                    out.push(Action::Edit(Command::Animate {
+                        object: row.id,
+                        property: property.property,
+                        axis,
+                        frame: state["frame"].as_f64().unwrap_or(0.).floor() as u32,
+                        enabled: property.keys.is_empty(),
+                    }));
+                }
             }
             let text = property
                 .axis

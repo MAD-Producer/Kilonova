@@ -15,3 +15,7 @@ __pycache__/
 /tools/plugin-editor-tests/node_modules/
 refer/
 reference/
+
+# Local reference material; shared project documentation lives in engineering/.
+/docs/
+/design/

@@ -182,6 +182,18 @@ struct Draft {
     frame: f64,
     selection: Option<u64>,
     root: String,
+    placing: bool,
+}
+
+// Alt leaves the opposite handle unchanged, for both new and existing nodes.
+fn move_handle(geometry: &mut [f32; 6], axis: usize, delta: [f32; 2], independent: bool) {
+    geometry[axis] = delta[0];
+    geometry[axis + 1] = delta[1];
+    if !independent {
+        let other = if axis == 2 { 4 } else { 2 };
+        geometry[other] = -delta[0];
+        geometry[other + 1] = -delta[1];
+    }
 }
 struct Drag {
     target: Target,
@@ -249,13 +261,13 @@ fn distance(a: [f32; 2], b: [f32; 2]) -> f32 {
     ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2)).sqrt()
 }
 fn layer(state: &Value, id: u64) -> Option<Layer> {
-    serde_json::from_value(
+    observe!("path.layer", serde_json::from_value(
         state["project"]["layers"]
             .as_array()?
             .iter()
             .find(|v| v["id"].as_u64() == Some(id))?
             .clone(),
-    )
+    ), "object={id} fallback=no_layer")
     .ok()
 }
 fn icons_pen_button(
@@ -314,6 +326,10 @@ impl Controls {
             || self.groups.editing()
             || self.add_mask_menu.open
             || self.mode_dropdowns.values().any(|d| d.open)
+    }
+    pub(crate) fn gesture_active(&self) -> bool {
+        self.drag.as_ref().is_some_and(|d| d.begun)
+            || self.parameter.as_ref().is_some_and(|p| p.begun)
     }
     pub fn wants_keyboard(&self) -> bool {
         self.editing() || (self.tool != Tool::Select && self.focus)
@@ -383,13 +399,28 @@ impl Controls {
         let mut base_paths = vec![];
         let mut id = 1;
         let projection = if self.tool == Tool::Mask {
-            let l = layer(state, selected?)?;
+            let selected = observe!(
+                "path.begin_selection",
+                selected.ok_or("no selected layer"),
+                "tool=mask"
+            )
+            .ok()?;
+            let l = observe!(
+                "path.begin_layer",
+                layer(state, selected).ok_or("selected layer missing or malformed"),
+                "object={selected} tool=mask"
+            )
+            .ok()?;
             if l.locked
                 || matches!(
                     l.content,
                     Content::Null | Content::Camera { .. } | Content::Audio { .. } | Content::Adjustment
                 )
             {
+                log::debug!(
+                    "path begin refused object={} reason=locked_or_nonvisual_layer",
+                    l.id
+                );
                 return None;
             }
             let mask = l
@@ -398,10 +429,20 @@ impl Controls {
                 .map(|m| m.id)
                 .max()
                 .unwrap_or(0)
-                .checked_add(1)?;
+                .checked_add(1)
+                .or_else(|| {
+                    log::error!("path begin refused reason=id_overflow selected={selected:?}");
+                    None
+                })?;
             target = Target::Mask { object: l.id, mask };
             offset = l.size.map(|v| v * 0.5);
-            layer_projection(state, l.id, view)?
+            observe!(
+                "path.begin_projection",
+                layer_projection(state, l.id, view).ok_or("layer projection unavailable"),
+                "object={} view={view:?}",
+                l.id
+            )
+            .ok()?
         } else if let Some(l) = selected
             .and_then(|id| layer(state, id))
             .filter(|l| !l.locked)
@@ -419,15 +460,35 @@ impl Controls {
                     .map(|p| p.id)
                     .max()
                     .unwrap_or(0)
-                    .checked_add(1)?;
+                    .checked_add(1)
+                    .or_else(|| {
+                        log::error!("path begin refused reason=id_overflow selected={selected:?}");
+                        None
+                    })?;
                 target = Target::Vector { object: l.id };
                 base_paths = paths;
-                layer_projection(state, l.id, view)?
+                observe!(
+                    "path.begin_projection",
+                    layer_projection(state, l.id, view).ok_or("layer projection unavailable"),
+                    "object={} view={view:?}",
+                    l.id
+                )
+                .ok()?
             } else {
-                identity_projection(state, view)?
+                observe!(
+                    "path.begin_identity",
+                    identity_projection(state, view).ok_or("composition projection unavailable"),
+                    "selected={selected:?} view={view:?}"
+                )
+                .ok()?
             }
         } else {
-            identity_projection(state, view)?
+            observe!(
+                "path.begin_identity",
+                identity_projection(state, view).ok_or("composition projection unavailable"),
+                "selected={selected:?} view={view:?}"
+            )
+            .ok()?
         };
         self.draft = Some(Draft {
             target,
@@ -443,6 +504,7 @@ impl Controls {
             frame: state["frame"].as_f64().unwrap_or(0.),
             selection: selected,
             root: state["root"].as_str().unwrap_or("").into(),
+            placing: false,
         });
         Some(())
     }
@@ -523,6 +585,7 @@ impl Controls {
                 if mods.control && matches!(*key, Key::Z | Key::Y) {
                     if let Some(d) = self.draft.as_mut() {
                         d.path.nodes.pop();
+                        d.placing = false;
                     } else if self.drag.is_none() {
                         out.push(Action::History(if *key == Key::Y || mods.shift {
                             1
@@ -545,6 +608,7 @@ impl Controls {
             {
                 if let Some(d) = self.draft.as_mut() {
                     d.path.nodes.pop();
+                    d.placing = false;
                 } else if let (Some(l), Some((path, node))) = (target.as_ref(), self.selected) {
                     self.remove_node(l, path, node, out);
                     self.selected = None;
@@ -647,7 +711,9 @@ impl Controls {
                     }));
                 } else {
                     if self.draft.is_none() {
-                        let _ = self.begin(state, selected, view);
+                        if self.begin(state, selected, view).is_none() {
+                            log::debug!("path begin produced no draft selected={selected:?} tool={:?} revision={}", self.tool, state["revision"]);
+                        }
                         if self.draft.is_some() {
                             out.push(Action::Seek(state["frame"].as_f64().unwrap_or(0.)));
                         }
@@ -680,6 +746,7 @@ impl Controls {
                                         0.,
                                     ]),
                                 });
+                                d.placing = true;
                             }
                         }
                     } else {
@@ -689,6 +756,19 @@ impl Controls {
             }
         }
         if let Some(mut drag) = self.drag.take() {
+            if drag.begun {
+                let _ = observe!(
+                    "path.drag_release",
+                    (input.dragging()
+                        || input.released.is_some_and(|(b, _)| b == MouseButton::Left))
+                    .then_some(())
+                    .ok_or("path gesture retained without held button or release"),
+                    "path={} node={} frame={} phase=dragging",
+                    drag.path,
+                    drag.node,
+                    drag.frame
+                );
+            }
             let release = input.released.is_some_and(|(b, _)| b == MouseButton::Left);
             if let Some(p) = drag.projection.local(input.mouse) {
                 if (input.dragging() || release) && (distance(p, drag.start) > 0.1 || drag.begun) {
@@ -701,13 +781,8 @@ impl Controls {
                         g[0] += p[0] - drag.start[0];
                         g[1] += p[1] - drag.start[1];
                     } else {
-                        g[drag.axis] = p[0] + drag.offset[0] - g[0];
-                        g[drag.axis + 1] = p[1] + drag.offset[1] - g[1];
-                        if !input.modifiers.alt {
-                            let other = if drag.axis == 2 { 4 } else { 2 };
-                            g[other] = -g[drag.axis];
-                            g[other + 1] = -g[drag.axis + 1];
-                        }
+                        let delta = [p[0] + drag.offset[0] - g[0], p[1] + drag.offset[1] - g[1]];
+                        move_handle(&mut g, drag.axis, delta, input.modifiers.alt);
                     }
                     if g != drag.last_geometry
                         && g.iter().all(|v| v.is_finite() && v.abs() <= 32768.)
@@ -752,7 +827,8 @@ impl Controls {
             }
         }
         if let Some(d) = self.draft.as_mut() {
-            if input.dragging() || input.released.is_some_and(|(b, _)| b == MouseButton::Left) {
+            let released = input.released.is_some_and(|(b, _)| b == MouseButton::Left);
+            if d.placing && (input.dragging() || released) {
                 if let (Some(local), Some(n)) =
                     (d.projection.local(input.mouse), d.path.nodes.last_mut())
                 {
@@ -760,12 +836,12 @@ impl Controls {
                     let dx = local[0] + d.offset[0] - g[0];
                     let dy = local[1] + d.offset[1] - g[1];
                     if dx.abs() <= 32768. && dy.abs() <= 32768. {
-                        g[2] = -dx;
-                        g[3] = -dy;
-                        g[4] = dx;
-                        g[5] = dy;
+                        move_handle(g, 4, [dx, dy], input.modifiers.alt);
                     }
                 }
+            }
+            if released || input.focus_lost {
+                d.placing = false;
             }
         }
         if let Some(p) = projection {
@@ -1018,7 +1094,7 @@ impl Controls {
                 }
             }
         }
-        let layer = std::sync::Arc::new(serde_json::from_value::<Layer>(value.clone()).ok()?);
+        let layer = std::sync::Arc::new(observe!("path.inspector_layer", serde_json::from_value::<Layer>(value.clone()), "object={} revision={:?} fallback=no_layer", context.2, revision).ok()?);
         self.inspector_cache = Some(InspectorLayer {
             context,
             layer: layer.clone(),
@@ -1311,6 +1387,9 @@ fn paint_path(
 }
 
 #[cfg(test)]
+mod pen_tests;
+
+#[cfg(test)]
 mod numeric_tests {
     use super::*;
     #[test]
@@ -1439,5 +1518,38 @@ mod numeric_tests {
                 assert!(controls.numeric_cursor().is_none());
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod fallback_tests {
+    use super::*;
+    #[test]
+    fn malformed_layers_keep_path_fallback_and_emit_bounded_evidence() {
+        const CHILD: &str = "MOTION_PATH_LAYER_FALLBACK_CHILD";
+        if let Some(root) = std::env::var_os(CHILD) {
+            let root = std::path::PathBuf::from(root);
+            let _logger = crate::logging::init(root.clone()).unwrap();
+            let value = serde_json::json!({"id":7,"content":17});
+            let state = serde_json::json!({"revision":1,"project":{"layers":[value.clone()]}});
+            let mut controls = Controls::default();
+            for _ in 0..120 {
+                assert!(layer(&state,7).is_none());
+                assert!(controls.inspector_layer(&state,&value).is_none());
+            }
+            let text = std::fs::read_to_string(root.join("motion-studio.log")).unwrap();
+            for site in ["path.layer","path.inspector_layer"] {
+                let records = text.lines().filter(|l| l.contains(&format!("site={site} "))).collect::<Vec<_>>();
+                assert_eq!(records.len(),2,"{site}: {text}");
+                assert!(records[1].contains("ERROR") && records[1].contains("object=7"));
+            }
+            assert!(controls.inspector_cache.is_none());
+            return;
+        }
+        let temp = tempfile::tempdir().unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap()).args(["--exact", "panels::path_controls::fallback_tests::malformed_layers_keep_path_fallback_and_emit_bounded_evidence"]).env_remove("MOTION_LOG").env(CHILD,temp.path()).output().unwrap();
+        assert!(output.status.success(),"{}\n{}",String::from_utf8_lossy(&output.stdout),String::from_utf8_lossy(&output.stderr));
+        assert!(String::from_utf8_lossy(&output.stderr).contains("site=path.layer"));
+        assert!(!String::from_utf8_lossy(&output.stdout).contains("panel degradation"));
     }
 }

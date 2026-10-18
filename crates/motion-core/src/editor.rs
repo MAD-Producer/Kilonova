@@ -930,6 +930,7 @@ struct History {
 struct Gesture {
     before: History,
     changes: crate::history_accounting::Changes,
+    started: std::time::Instant,
 }
 pub struct Engine {
     project: Project,
@@ -978,7 +979,8 @@ impl Engine {
     pub fn history_diagnostics(&self) -> serde_json::Value {
         serde_json::json!({"undoEntries":self.undo.len(),"redoEntries":self.redo.len(),
             "budgetBytes":self.history_budget,"evictions":self.history_evictions,
-            "gestureActive":self.gesture.is_some()})
+            "gestureActive":self.gesture.is_some(),
+            "gestureElapsedMs":self.gesture.as_ref().map(|g|g.started.elapsed().as_millis().min(u64::MAX as u128) as u64)})
     }
     pub fn can_undo(&self) -> bool {
         !self.undo.is_empty() && self.gesture.is_none()
@@ -988,6 +990,11 @@ impl Engine {
     }
     pub fn begin_gesture(&mut self) -> Result<()> {
         if self.gesture.is_some() {
+            log::warn!(
+                "gesture begin rejected revision={} history={}",
+                self.revision,
+                self.history_diagnostics()
+            );
             return Err(Error::Gesture);
         }
         self.gesture = Some(Gesture {
@@ -996,12 +1003,26 @@ impl Engine {
                 size: self.size.clone(),
             },
             changes: crate::history_accounting::Changes::default(),
+            started: std::time::Instant::now(),
         });
+        log::debug!("gesture began revision={}", self.revision);
         Ok(())
     }
     pub fn end_gesture(&mut self, commit: bool) -> Result<()> {
-        let gesture = self.gesture.take().ok_or(Error::Gesture)?;
+        let gesture = self.gesture.take().ok_or_else(|| {
+            log::warn!(
+                "gesture close rejected revision={} commit={commit} reason=no_active_gesture",
+                self.revision
+            );
+            Error::Gesture
+        })?;
         let before = gesture.before;
+        log::debug!(
+            "gesture closing revision={} commit={commit} changed={} elapsed_ms={}",
+            self.revision,
+            before.project != self.project,
+            gesture.started.elapsed().as_millis()
+        );
         if before.project != self.project {
             if commit {
                 self.size = self.size.updated(&self.project, &gesture.changes);
@@ -1112,9 +1133,15 @@ impl Engine {
     }
     pub fn undo(&mut self) -> Result<bool> {
         if self.gesture.is_some() {
+            log::warn!(
+                "undo blocked revision={} history={}",
+                self.revision,
+                self.history_diagnostics()
+            );
             return Err(Error::Gesture);
         }
         let Some(entry) = self.undo.pop_back() else {
+            log::debug!("undo no-op revision={} reason=history_empty", self.revision);
             return Ok(false);
         };
         let previous = std::mem::replace(&mut self.project, entry.project);
@@ -1129,9 +1156,15 @@ impl Engine {
     }
     pub fn redo(&mut self) -> Result<bool> {
         if self.gesture.is_some() {
+            log::warn!(
+                "redo blocked revision={} history={}",
+                self.revision,
+                self.history_diagnostics()
+            );
             return Err(Error::Gesture);
         }
         let Some(entry) = self.redo.pop_back() else {
+            log::debug!("redo no-op revision={} reason=history_empty", self.revision);
             return Ok(false);
         };
         let previous = std::mem::replace(&mut self.project, entry.project);

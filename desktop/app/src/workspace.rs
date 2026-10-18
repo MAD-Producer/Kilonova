@@ -84,17 +84,28 @@ impl Workspace {
             && (1..=4).all(|id| self.owned_panels().contains(&DockId(id)))
     }
     pub fn load(path: &Path) -> Self {
-        std::fs::read(path)
-            .ok()
-            .filter(|bytes| bytes.len() <= 64 * 1024)
-            .and_then(|bytes| serde_json::from_slice::<Self>(&bytes).ok())
-            .filter(|w| w.valid())
-            .map(|mut w| {
-                w.migrate_design();
-                w
-            })
-            .unwrap_or_default()
+        static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+        let began = std::time::Instant::now();
+        let result = (|| {
+            let bytes = std::fs::read(path).map_err(|e| (if e.kind() == std::io::ErrorKind::NotFound { "missing" } else { "read" }, e.to_string()))?;
+            if bytes.len() > 64 * 1024 { return Err(("size", format!("bytes={} limit=65536", bytes.len()))); }
+            let mut workspace: Self = serde_json::from_slice(&bytes).map_err(|e| ("json", e.to_string()))?;
+            if !workspace.valid() { return Err(("validation", "invalid application workspace ownership".into())); }
+            workspace.migrate_design();
+            Ok(workspace)
+        })();
+        match result {
+            Ok(workspace) => { FAILURES.success(); workspace }
+            Err(("missing", _)) => {
+                FAILURES.success(); Self::default()
+            }
+            Err((phase, reason)) => {
+                FAILURES.failure("workspace.load", format_args!("phase={phase} elapsed_ms={} path={} reason={reason} fallback=default", began.elapsed().as_millis(), crate::fallback_observation::short(path.display())));
+                Self::default()
+            }
+        }
     }
+
     pub fn save(&self, path: &Path) -> Result<(), String> {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
@@ -106,9 +117,12 @@ impl Workspace {
         .map_err(|e| e.to_string())
     }
     pub fn redock(&mut self, panel: DockId) {
-        let panel = if panel == dock::Panel::Masks.dock() {
+        let panel = if matches!(panel, id if id == dock::Panel::Masks.dock() || id == dock::Panel::Expression.dock())
+        {
             dock::Panel::Properties.dock()
-        } else { panel };
+        } else {
+            panel
+        };
         if self.layout.root.find(panel).is_some() {
             return;
         }

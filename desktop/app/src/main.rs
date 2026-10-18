@@ -4,6 +4,7 @@ mod cursors;
 mod diagnostics;
 mod dialogs;
 mod effect_import;
+mod fallback_observation;
 mod engine;
 mod home;
 mod i18n;
@@ -339,7 +340,9 @@ impl Shell {
             .map(PathBuf::from)
             .unwrap_or_else(|| directories().join("desktop-layout-v2.json"));
         let mut workspace = workspace::Workspace::load(&layout_path);
-        let _ = engine.diagnostics().set_enabled(workspace.send_diagnostics);
+        if let Err(error) = engine.diagnostics().set_enabled(workspace.send_diagnostics) {
+            log::warn!("diagnostics preference rejected enabled={} reason={error}", workspace.send_diagnostics);
+        }
         if let Some(locale) = locale {
             workspace.locale = locale;
         }
@@ -1047,6 +1050,8 @@ fn translate_key(key: &WinitKey) -> Option<Key> {
             "m" => Key::M,
             "x" => Key::X,
             "=" | "+" => Key::Equal,
+            "-" => Key::Minus,
+            ";" | ":" => Key::Semicolon,
             "," => Key::Comma,
             "." => Key::Period,
             _ => return None,
@@ -1366,6 +1371,14 @@ mod tests {
     }
     #[test]
     fn keyboard_chords_use_character_keys() {
+        for (text, key) in [
+            ("+", Key::Equal),
+            ("=", Key::Equal),
+            ("-", Key::Minus),
+            (";", Key::Semicolon),
+        ] {
+            assert_eq!(translate_key(&WinitKey::Character(text.into())), Some(key));
+        }
         assert_eq!(
             translate_key(&WinitKey::Character("S".into())),
             Some(Key::S)

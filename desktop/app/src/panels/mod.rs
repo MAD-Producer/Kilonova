@@ -11,6 +11,21 @@ use motion_ui::{
 };
 use serde_json::Value;
 
+// Each expansion owns one process-lifetime site counter (see observation).
+// Context is formatted only when the bounded counter emits a record.
+macro_rules! observe {
+    ($site:literal, $result:expr, $($context:tt)*) => {{
+        static COUNTER: $crate::panels::observation::Counter = $crate::panels::observation::Counter::new();
+        match $result {
+            Ok(value) => Ok(value),
+            Err(error) => {
+                COUNTER.failure($site, format_args!("{} reason={error}", format_args!($($context)*)));
+                Err(error)
+            }
+        }
+    }};
+}
+
 mod align;
 pub(crate) mod animation_controls;
 mod animation_data;
@@ -23,7 +38,7 @@ mod curves;
 pub(crate) mod effect_controls;
 mod effects;
 mod expressions;
-pub(crate) mod fx_console;
+pub(crate) mod effect_search;
 mod graph_box;
 pub(crate) mod graph_handles;
 pub(crate) mod graph_keys;
@@ -34,6 +49,9 @@ mod keyboard;
 mod layer_actions;
 mod menus;
 pub(crate) mod numeric;
+mod observation;
+#[cfg(test)]
+mod observation_tests;
 pub(crate) mod parent_controls;
 pub(crate) mod path_controls;
 mod paths;
@@ -50,6 +68,7 @@ mod timeline_layout;
 mod timeline_shortcuts;
 #[cfg(test)]
 mod timeline_shortcuts_tests;
+mod timeline_zoom;
 pub(crate) mod titlebar;
 mod toolbar;
 pub(crate) mod transform_controls;
@@ -64,7 +83,7 @@ use properties::render as properties;
 use timeline::render as timeline;
 #[cfg(test)]
 use timeline::rows;
-pub use types::{Action, Frame, FxConsole, Panels};
+pub use types::{Action, Frame, EffectSearch, Panels};
 use types::{Field, ScrubState};
 
 pub const CHROME_HEIGHT: f32 = metrics::TITLE_BAR + metrics::MENU_BAR + metrics::TOOL_BAR;
@@ -116,9 +135,28 @@ fn viewer(area: Rect) -> Rect {
         (area.height() - 42.0).max(1.0),
     )
 }
+/// Evidence before visibility/routing changes; no gesture is cancelled here.
+pub(crate) fn observe_interaction_boundary(panels: &Panels, operation: &str) {
+    let graph = panels
+        .timeline
+        .graph_drag
+        .as_ref()
+        .is_some_and(|d| d.begun())
+        || panels.timeline.key_drag.as_ref().is_some_and(|d| d.begun());
+    let path = panels.path_controls.gesture_active();
+    let curve = panels.effect_controls.curve_gesture_active()
+        || panels.properties.effects.curve_gesture_active();
+    let moving = panels.timeline.moving.is_some();
+    let trimming = panels.timeline.trimming.is_some();
+    if graph || path || curve || moving || trimming {
+        log::warn!("panel routing boundary with active gesture operation={operation} selected={:?} graph={graph} path={path} curve={curve} moving={moving} trimming={trimming}", panels.selected);
+    }
+}
+
 pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     let node_changed = panels.node_editor.cancel_interaction();
     panels.layer_actions.cancel();
+    panels.expressions.cancel();
     panels.timeline.timeline_context_menu = None;
     panels.parent_controls.open = false;
     panels.timeline_columns.cancel();
@@ -231,14 +269,19 @@ pub fn chrome(
             && panels.properties.field.is_none()
             && !panels.audio_controls.editing()
             && !panels.path_controls.editing()
-            && !panels.timeline.timeline_search,
+            && !panels.timeline.timeline_search
+            && !panels.expressions.editing(),
         &mut out,
     );
     panels.node_editor.external_inspector = layout.find(Panel::NodeProperties.dock()).is_some();
     let node_modal = panels.node_editor.popup_open();
     let timeline_dropdown = panels.timeline_columns.editing();
     if let Some((_, point)) = input.pressed.filter(|_| {
-        !panels.fx_console_in(None) && !node_modal && !timeline_dropdown && !layer_modal
+        !panels.effect_search_in(None)
+            && !node_modal
+            && !timeline_dropdown
+            && !layer_modal
+            && !panels.expressions.menu_open()
     }) {
         let focused = frames(layout, size)
             .into_iter()
@@ -278,8 +321,8 @@ pub fn chrome(
     {
         out.extend(cancel_interaction(panels));
     }
-    if !panels.fx_console_in(None)
-        && !(panels.fx_console.is_some() && keyboard::console_close_pressed(input))
+    if !panels.effect_search_in(None)
+        && !(panels.effect_search.is_some() && keyboard::effect_search_close_pressed(input))
         && !node_modal
         && matches!(
             panels.focused,
@@ -296,7 +339,7 @@ pub fn chrome(
             styles.metric("motion.drag_threshold", 3.),
         );
     }
-    if panels.fx_console.is_none()
+    if panels.effect_search.is_none()
         && input
             .key_presses()
             .any(|(k, _, repeat)| k == Key::Escape && !repeat)
@@ -306,7 +349,7 @@ pub fn chrome(
         panels.panel_menu = None;
         panels.project.search = false;
         panels.timeline.timeline_search = false;
-        panels.fx_console = None;
+        panels.effect_search = None;
         panels.timeline.timeline_context_menu = None;
         panels.project.context_menu = None;
     }
@@ -316,20 +359,24 @@ pub fn chrome(
     let node_keyboard = matches!(
         panels.focused,
         Some(Panel::Nodes | Panel::NodeProperties | Panel::NodePreview)
-    ) || nodes_frame.as_ref().is_some_and(|f| {
-        if let Some((_, point)) = input.pressed {
-            f.content.contains(point)
-        } else {
-            panels.node_editor.focused()
-        }
-    }) && panels.menu.is_none();
-    let shortcut_modal = keyboard::route(input, panels, state, node_keyboard, None, &mut out);
+    ) || panels.focused.is_none()
+        && nodes_frame.as_ref().is_some_and(|f| {
+            if let Some((_, point)) = input.pressed {
+                f.content.contains(point)
+            } else {
+                panels.node_editor.focused()
+            }
+        })
+        && panels.menu.is_none();
+    let expression_modal = panels.expressions.menu_open();
+    let shortcut_modal =
+        expression_modal || keyboard::route(input, panels, state, node_keyboard, None, &mut out);
     let menu_modal = layer_modal
         || panels.layer_actions.modal_in(Some(Panel::Timeline))
         || shortcut_modal
         || panels.menu.is_some()
         || panels.panel_menu.is_some()
-        || panels.fx_console_in(None)
+        || panels.effect_search_in(None)
         || panels.timeline.timeline_context_menu.is_some()
         || timeline_dropdown
         || panels.project.context_menu.is_some()
@@ -644,16 +691,16 @@ pub fn chrome(
     }
 
     if panels
-        .fx_console
+        .effect_search
         .as_ref()
         .is_some_and(|c| c.owner.is_none())
     {
-        if let Some(mut console) = panels.fx_console.take() {
-            let open = crate::panels::fx_console::render_fx_console(
+        if let Some(mut search) = panels.effect_search.take() {
+            let open = crate::panels::effect_search::render_effect_search(
                 list,
                 atlas,
                 size,
-                &mut console,
+                &mut search,
                 &panels.effect_controls.catalogue,
                 input,
                 panels.locale,
@@ -661,7 +708,7 @@ pub fn chrome(
                 &mut out,
             );
             if open {
-                panels.fx_console = Some(console);
+                panels.effect_search = Some(search);
             }
         }
     }
@@ -740,6 +787,20 @@ pub fn chrome(
             &mut out,
         );
     }
+    if frames(layout, size)
+        .iter()
+        .any(|f| Some(f.panel) == panels.expressions.owner)
+    {
+        panels.expressions.finish_menu(
+            list,
+            atlas,
+            Rect::new(0., 0., size[0], size[1]),
+            state,
+            input,
+            panels.locale,
+            &mut out,
+        );
+    }
     finish_project_context_menu(
         list,
         atlas,
@@ -800,11 +861,12 @@ pub fn floating_chrome(
             && panels.properties.field.is_none()
             && !panels.audio_controls.editing()
             && !panels.path_controls.editing()
-            && !panels.timeline.timeline_search,
+            && !panels.timeline.timeline_search
+            && !panels.expressions.editing(),
         &mut out,
     );
-    if !panels.fx_console_in(Some(panel))
-        && !(panels.fx_console.is_some() && keyboard::console_close_pressed(input))
+    if !panels.effect_search_in(Some(panel))
+        && !(panels.effect_search.is_some() && keyboard::effect_search_close_pressed(input))
         && matches!(
             panel,
             Panel::Masks | Panel::Properties | Panel::Vector | Panel::Timeline | Panel::Curves
@@ -820,7 +882,7 @@ pub fn floating_chrome(
     }
     let body = Rect::new(0.0, 30.0, size[0], (size[1] - 52.0).max(1.0));
     let mut content = list.child();
-    if !panels.fx_console_in(Some(panel))
+    if !panels.effect_search_in(Some(panel))
         && (input.pressed.is_some() || !input.keys.is_empty() || !input.text.is_empty())
     {
         if panels.focused != Some(panel) {
@@ -852,7 +914,8 @@ pub fn floating_chrome(
         &mut out,
     );
     let neutral = Input::default();
-    let body_input = if layer_modal
+    let body_input = if panels.expressions.menu_open()
+        || layer_modal
         || panels.layer_actions.modal_in(Some(panel))
         || shortcut_modal
         || timeline_dropdown && !dropdown_owned
@@ -912,24 +975,24 @@ pub fn floating_chrome(
         true,
     );
     if panels
-        .fx_console
+        .effect_search
         .as_ref()
         .is_some_and(|c| c.owner == Some(panel))
     {
-        if let Some(mut console) = panels.fx_console.take() {
+        if let Some(mut search) = panels.effect_search.take() {
             let selected = panels.editable_selection(state).first().copied();
-            if fx_console::render_fx_console(
+            if effect_search::render_effect_search(
                 list,
                 atlas,
                 size,
-                &mut console,
+                &mut search,
                 &panels.effect_controls.catalogue,
                 input,
                 panels.locale,
                 selected,
                 &mut out,
             ) {
-                panels.fx_console = Some(console);
+                panels.effect_search = Some(search);
             }
         }
     }
@@ -962,6 +1025,17 @@ pub fn floating_chrome(
     );
     if panel == Panel::Properties {
         panels.properties.effects.finish_context_menu(
+            list,
+            atlas,
+            Rect::new(0., 0., size[0], size[1]),
+            state,
+            input,
+            panels.locale,
+            &mut out,
+        );
+    }
+    if panels.expressions.owner == Some(panel) {
+        panels.expressions.finish_menu(
             list,
             atlas,
             Rect::new(0., 0., size[0], size[1]),
@@ -1148,13 +1222,6 @@ fn node_panel(
     } else {
         crate::node_preview::regions(area)
     };
-    if target.is_none()
-        && panels.node_editor.focused()
-        && !panels.node_editor.editing()
-        && motion_ui::input::KeyChord::new(Key::Space, false, false, false).pressed(input)
-    {
-        panels.node_preview.toggle();
-    }
     let response = panels
         .node_editor
         .draw(list, atlas, editor, input, language);
@@ -1217,9 +1284,9 @@ pub fn floating_node_view_bound(panel: Panel, size: [f32; 2], bound: bool) -> Op
 mod tests {
     use super::*;
     #[test]
-    fn floating_console_does_not_block_main_menu_pointer_input() {
+    fn floating_effect_search_does_not_block_main_menu_pointer_input() {
         let mut panels = Panels {
-            fx_console: Some(FxConsole {
+            effect_search: Some(EffectSearch {
                 position: [20., 20.],
                 query: "glow".into(),
                 selected_index: 0,
@@ -1247,7 +1314,7 @@ mod tests {
         );
         assert_eq!(panels.menu, Some(0));
         assert_eq!(
-            panels.fx_console.as_ref().unwrap().owner,
+            panels.effect_search.as_ref().unwrap().owner,
             Some(Panel::NodeProperties)
         );
     }
@@ -1347,9 +1414,9 @@ mod tests {
         assert!(panels.menu_scroll > 0);
     }
     #[test]
-    fn main_console_does_not_block_floating_window_shortcuts() {
+    fn main_effect_search_does_not_block_floating_window_shortcuts() {
         let mut panels = Panels {
-            fx_console: Some(FxConsole {
+            effect_search: Some(EffectSearch {
                 position: [20., 20.],
                 query: "glow".into(),
                 selected_index: 0,
@@ -1379,7 +1446,7 @@ mod tests {
             &input,
         );
         assert!(matches!(out.as_slice(), [Action::Save]));
-        assert!(panels.fx_console_in(None));
+        assert!(panels.effect_search_in(None));
     }
     #[test]
     fn node_popup_owns_file_keys_and_outside_panel_click_without_switching_tabs() {
@@ -1794,7 +1861,7 @@ fn render_panel(
         }
         Panel::Audio => audio::render(list, atlas, area, panels, state, input, out),
         Panel::Align => align::render(list, atlas, area, panels, state, input, out),
-        Panel::Expression => expressions::render(list, atlas, area, panels, state, input, out),
+        Panel::Expression => properties::render(list, atlas, area, panels, state, input, out),
         _ => auxiliary::render(panel, list, atlas, area, panels, state, input, out),
     }
 }

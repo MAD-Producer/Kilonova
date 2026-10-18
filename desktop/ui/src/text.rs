@@ -3,6 +3,8 @@
 //! shaping and bidirectional layout are not yet supported.
 
 use ab_glyph::{Font, FontArc, PxScale, PxScaleFont, ScaleFont};
+#[cfg(test)]
+mod observation_tests;
 #[cfg(target_os = "windows")]
 mod windows;
 
@@ -59,6 +61,7 @@ pub struct TextAtlas {
     dirty: bool,
     /// Families discovered on this machine, for the diagnostics panel.
     pub families: Vec<String>,
+    observations: crate::observability::Failures,
 }
 
 impl TextAtlas {
@@ -78,11 +81,13 @@ impl TextAtlas {
         let mut atlas = Self::new(font, scale, families);
         atlas.configure_family(selected);
         if atlas.font.font.glyph_id('中').0 == 0 {
-            if let Ok((fallback, _, _)) = load_system_font(true) {
-                atlas.fallback = Some(PxScaleFont {
-                    scale: em_scale(&fallback, scale),
-                    font: fallback,
-                });
+            match load_system_font(true) {
+                Ok((fallback, _, _)) => {
+                    atlas.fallback = Some(PxScaleFont { scale: em_scale(&fallback, scale), font: fallback });
+                }
+                Err(error) => {
+                    log::warn!("UI font fallback unavailable family={:?} reason={error}", atlas.selected_family);
+                }
             }
         }
         Ok(atlas)
@@ -94,6 +99,9 @@ impl TextAtlas {
         #[cfg(target_os = "windows")]
         {
             self.hinted = windows::Rasterizer::new(&family);
+            if self.hinted.is_none() {
+                log::warn!("UI font hinting unavailable family={family:?} reason=CreateCompatibleDC_returned_null fallback=outline");
+            }
         }
         self.selected_family = family;
     }
@@ -134,6 +142,7 @@ impl TextAtlas {
             ascent,
             dirty: true,
             families,
+            observations: Default::default(),
         }
     }
 
@@ -205,6 +214,9 @@ impl TextAtlas {
     pub fn glyph_at(&mut self, character: char, size: f32) -> GlyphEntry {
         let key = (character, size.to_bits(), self.pixel_ratio.to_bits());
         if let Some(entry) = self.entries.get(&key) {
+            if entry.uv == [0.; 4] && !character.is_whitespace() && !self.supports(character) {
+                self.observe_missing_glyph(character, size);
+            }
             return *entry;
         }
         let ratio = size / self.font_size;
@@ -217,6 +229,7 @@ impl TextAtlas {
         let font = self.face(character);
         let id = font.glyph_id(character);
         if id.0 == 0 {
+            self.observe_missing_glyph(character, size);
             self.entries.insert(key, blank);
             return blank;
         }
@@ -264,6 +277,9 @@ impl TextAtlas {
             self.row_height = 0;
         }
         if self.cursor[1] + height as f32 + padding as f32 > self.config.height as f32 {
+            self.observations.record("text.atlas_full", "repack", format_args!(
+                "family={:?} width={} height={} entries={} glyph=U+{:04X} size={size} pixel_ratio={}",
+                self.selected_family, self.config.width, self.config.height, self.entries.len(), character as u32, self.pixel_ratio));
             // Atlas full. Panel text is short, so this only happens with an
             // unusual font or a very large UI scale; repacking is cheaper than
             // growing the atlas at runtime.
@@ -309,6 +325,12 @@ impl TextAtlas {
         self.entries.insert(key, entry);
         self.dirty = true;
         entry
+    }
+
+    fn observe_missing_glyph(&self, character: char, size: f32) {
+        self.observations.record("text.missing_glyph", &format!("U+{:04X}", character as u32),
+            format_args!("family={:?} size={size} pixel_ratio={} fallback_available={}",
+                self.selected_family, self.pixel_ratio, self.fallback.is_some()));
     }
 
     /// Total advance width of a string in logical pixels.

@@ -75,18 +75,29 @@ impl SavedLayout {
     fn restore(&self) -> Option<motion_ui::workspace::Workspace> {
         // Reuse the framework deserializer and its geometry checks; no gesture survives a switch.
         let mut layout: motion_ui::workspace::Workspace =
-            serde_json::from_value(serde_json::to_value(self).expect("layout serializes")).ok()?;
+            match serde_json::from_value(serde_json::to_value(self).expect("layout serializes")) {
+                Ok(layout) => layout,
+                Err(error) => {
+                    static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+                    FAILURES.failure("workspace.preset.restore", format_args!("reason={error} fallback=no_saved_layout"));
+                    return None;
+                }
+            };
         layout.close(Panel::Masks.dock());
+        layout.close(Panel::Expression.dock());
         Some(layout)
     }
     pub fn valid(&self) -> bool {
-        self.restore().is_some_and(|layout| {
-            layout.valid()
-                && layout
-                    .owned_panels()
-                    .iter()
-                    .all(|id| Panel::from_dock(*id).is_some())
-        })
+        let Some(layout) = self.restore() else { return false; };
+        let valid = layout.valid()
+            && layout.owned_panels().iter().all(|id| Panel::from_dock(*id).is_some());
+        if !valid {
+            // Lifetime, fixed process site: healthy presets must not conceal
+            // a different malformed saved layout in the same selection menu.
+            static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+            FAILURES.failure("workspace.preset.validate", format_args!("reason=invalid_panel_ownership fallback=preset_default"));
+        }
+        valid
     }
 }
 fn split(edge: Edge, ratio: f32, a: Node, b: Node) -> Node {
@@ -171,7 +182,6 @@ fn layout(preset: Preset) -> motion_ui::workspace::Workspace {
                     Panel::NodeProperties,
                     Panel::Effects,
                     Panel::Vector,
-                    Panel::Expression,
                 ]),
             ),
             tabs(&[
@@ -223,6 +233,7 @@ impl Workspace {
     }
     pub fn migrate_design(&mut self) {
         self.layout.close(Panel::Masks.dock());
+        self.layout.close(Panel::Expression.dock());
         if self.design_revision == 1 {
             // Preserve custom workspaces. Only upgrade the former Nodes default,
             // which lacks a Composition panel, and retain it as a named layout.
@@ -289,6 +300,37 @@ mod tests {
         assert_eq!(Panel::from_dock(Panel::Masks.dock()), Some(Panel::Masks));
     }
     #[test]
+    fn legacy_expression_layouts_redirect_to_properties_without_touching_project_data() {
+        for floating in [false, true] {
+            let root = tempfile::tempdir().unwrap();
+            let path = root.path().join("legacy-expression-layout.json");
+            let mut workspace = Workspace::default();
+            workspace.layout.redock(Panel::Expression.dock());
+            if floating {
+                assert!(workspace.layout.float(Panel::Expression.dock()));
+            }
+            workspace
+                .preset_layouts
+                .insert(Preset::All, SavedLayout::capture(&workspace.layout));
+            workspace.save(&path).unwrap();
+            let mut loaded = Workspace::load(&path);
+            for preset in Preset::ALL {
+                loaded.select_preset(preset);
+                assert!(loaded.valid());
+                assert!(loaded.root.find(Panel::Expression.dock()).is_none());
+                assert!(!loaded.floating.contains(&Panel::Expression.dock()));
+            }
+            loaded.redock(Panel::Expression.dock());
+            assert!(loaded.root.find(Panel::Expression.dock()).is_none());
+            assert!(loaded.root.find(Panel::Properties.dock()).is_some());
+        }
+        assert!(!Panel::available().any(|p| p == Panel::Expression));
+        assert_eq!(
+            Panel::from_dock(Panel::Expression.dock()),
+            Some(Panel::Expression)
+        );
+    }
+    #[test]
     fn presets_remember_docks_and_floating_geometry_without_duplicate_owners() {
         let folder = tempfile::tempdir().unwrap();
         let path = folder.path().join("workspace.json");
@@ -343,5 +385,48 @@ mod tests {
             .find(|p| p.id == Panel::Properties.dock())
             .unwrap();
         assert!(props.area.min[0] > 1200.);
+    }
+}
+
+#[cfg(test)]
+mod restore_observation_tests {
+    use super::*;
+    #[test]
+    fn invalid_saved_geometry_is_reported_and_does_not_replace_the_layout() {
+        const CHILD: &str = "MOTION_SAVED_LAYOUT_FALLBACK_CHILD";
+        if let Some(root) = std::env::var_os(CHILD) {
+            let root = std::path::PathBuf::from(root);
+            let _logger = crate::logging::init(root.clone()).unwrap();
+            let normal = SavedLayout::capture(&motion_ui::workspace::Workspace::default());
+            let mut bad = normal.clone();
+            bad.window_geometry.insert(2,WindowGeometry { size:[-1.,200.],position:None });
+            for _ in 0..120 { assert!(bad.restore().is_none()); assert!(normal.restore().is_some()); }
+            let text = std::fs::read_to_string(root.join("motion-studio.log")).unwrap();
+            let records = text.lines().filter(|l| l.contains("site=workspace.preset.restore ")).collect::<Vec<_>>();
+            assert_eq!(records.len(),2);
+            assert!(records[1].contains("ERROR") && records[1].contains("invalid floating window size"));
+            assert_eq!(bad.window_geometry[&2].size,[-1.,200.]);
+            let mut invalid = normal.clone();
+            invalid.root = Node::Dock { id:DockId(1),tabs:vec![DockId(1),DockId(1)],active:0 };
+            assert!(invalid.restore().is_some());
+            let mut workspace = Workspace::default();
+            for _ in 0..120 {
+                workspace.select_preset(Preset::Default);
+                workspace.preset_layouts.insert(Preset::Nodes,invalid.clone());
+                workspace.select_preset(Preset::Nodes);
+                assert!(workspace.valid());
+                assert!(normal.valid());
+                assert_eq!(serde_json::to_value(&workspace.layout.root).unwrap(),serde_json::to_value(layout(Preset::Nodes).root).unwrap());
+            }
+            let text = std::fs::read_to_string(root.join("motion-studio.log")).unwrap();
+            let records = text.lines().filter(|l| l.contains("site=workspace.preset.validate ")).collect::<Vec<_>>();
+            assert_eq!(records.len(),2);
+            assert!(records[1].contains("ERROR") && records[1].contains("reason=invalid_panel_ownership"));
+            return;
+        }
+        let temp = tempfile::tempdir().unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap()).args(["--exact","workspace::presets::restore_observation_tests::invalid_saved_geometry_is_reported_and_does_not_replace_the_layout"]).env_remove("MOTION_LOG").env(CHILD,temp.path()).output().unwrap();
+        assert!(output.status.success(),"{}\n{}",String::from_utf8_lossy(&output.stdout),String::from_utf8_lossy(&output.stderr));
+        assert!(String::from_utf8_lossy(&output.stderr).contains("site=workspace.preset.restore"));
     }
 }

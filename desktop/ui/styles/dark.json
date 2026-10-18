@@ -63,6 +63,7 @@
       "checkbox.size": 14,
       "radius.control": 2,
       "radius.popup": 4,
+      "context.menu.width": 220,
       "context.row.height": 20,
       "shadow.blur": 8,
       "shadow.offset_y": 3,

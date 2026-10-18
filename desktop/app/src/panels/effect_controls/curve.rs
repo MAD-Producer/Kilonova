@@ -19,6 +19,122 @@ pub fn height(styles: &motion_ui::style::StyleSheet, width: f32) -> f32 {
 const POINT_LIMIT: usize = 64;
 const CHANNELS: [&str; 5] = ["RGB", "R", "G", "B", "A"];
 
+#[cfg(test)]
+mod observation_tests {
+    use super::*;
+    #[test]
+    fn zero_extent_and_retained_curve_drag_emit_bounded_real_draw_evidence() {
+        const CHILD: &str = "MOTION_CURVE_DRAW_OBSERVATION_CHILD";
+        if let Some(root) = std::env::var_os(CHILD) {
+            let root = std::path::PathBuf::from(root);
+            let mut atlas = TextAtlas::from_system(12.).unwrap();
+            let _logger = crate::logging::init(root.clone()).unwrap();
+            let mut editor = Editor::default();
+            let mut current = CurveObject::default();
+            current.channels[0] = vec![[0., 0.], [0.5, 0.5], [1., 1.]];
+            let command = |value| Command::Effect {
+                object: 7,
+                action: motion_core::EffectAction::SetCurveObject {
+                    effect: 1,
+                    param: "curve".into(),
+                    frame: 0,
+                    value,
+                },
+            };
+            let rect = Rect::new(0., 0., 300., height(&PaintList::default().styles(), 300.));
+            let mut draw = |editor: &mut Editor, rect: Rect, input: &Input| {
+                let mut actions = Vec::new();
+                editor.draw(
+                    &mut PaintList::default(),
+                    &mut atlas,
+                    rect,
+                    rect,
+                    None,
+                    input,
+                    true,
+                    &current,
+                    command,
+                    &mut actions,
+                    &mut None,
+                );
+                actions
+            };
+            assert!(draw(&mut editor, rect, &Input::default()).is_empty());
+            assert!(std::fs::read_to_string(root.join("motion-studio.log"))
+                .unwrap()
+                .is_empty());
+            for _ in 0..120 {
+                assert!(
+                    draw(&mut editor, Rect::new(0., 0., 0., 100.), &Input::default()).is_empty()
+                );
+                assert!(!editor.dragging());
+            }
+            draw(&mut editor, rect, &Input::default());
+            let graph = editor.test_graph.unwrap();
+            let point = [(graph.min[0] + graph.max[0]) * 0.5, (graph.min[1] + graph.max[1]) * 0.5];
+            let actions = draw(
+                &mut editor,
+                rect,
+                &Input {
+                    mouse: point,
+                    pressed: Some((MouseButton::Left, point)),
+                    held: Some(MouseButton::Left),
+                    ..Default::default()
+                },
+            );
+            assert!(actions.iter().any(|a| matches!(a, Action::History(2))));
+            assert!(editor.dragging());
+            for _ in 0..120 {
+                assert!(draw(
+                    &mut editor,
+                    rect,
+                    &Input {
+                        mouse: point,
+                        ..Default::default()
+                    }
+                )
+                .is_empty());
+                assert!(editor.dragging());
+            }
+            let text = std::fs::read_to_string(root.join("motion-studio.log")).unwrap();
+            for site in ["effects.curve_geometry", "effects.curve_release"] {
+                assert_eq!(
+                    text.lines()
+                        .filter(|line| line.contains(&format!("site={site} ")))
+                        .count(),
+                    2,
+                    "{text}"
+                );
+            }
+            let actions = draw(
+                &mut editor,
+                rect,
+                &Input {
+                    mouse: point,
+                    released: Some((MouseButton::Left, point)),
+                    ..Default::default()
+                },
+            );
+            assert!(matches!(actions.as_slice(), [Action::History(3)]));
+            assert!(!editor.dragging());
+            return;
+        }
+        let temp = tempfile::tempdir().unwrap();
+        let output=std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact","panels::effect_controls::curve::observation_tests::zero_extent_and_retained_curve_drag_emit_bounded_real_draw_evidence"])
+            .env_remove("MOTION_LOG").env(CHILD,temp.path()).output().unwrap();
+        assert!(
+            output.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(String::from_utf8_lossy(&output.stderr)
+            .contains("persistent panel degradation site=effects.curve_geometry"));
+        assert!(!String::from_utf8_lossy(&output.stdout).contains("panel degradation"));
+    }
+}
+
 #[derive(Default)]
 pub struct Editor {
     channel: usize,
@@ -171,11 +287,38 @@ impl Editor {
         {
             self.test_graph = Some(graph);
         }
+        let _ = observe!(
+            "effects.curve_geometry",
+            (graph.width().is_finite()
+                && graph.width() > 0.
+                && graph.height().is_finite()
+                && graph.height() > 0.)
+                .then_some(())
+                .ok_or("invalid graph extent before coordinate division"),
+            "width={} height={} phase={}",
+            graph.width(),
+            graph.height(),
+            if self.drag.is_some() {
+                "dragging"
+            } else {
+                "idle"
+            }
+        );
         let gx = |x: f32| ((x - graph.min[0]) / graph.width()).clamp(0., 1.);
         let gy = |y: f32| ((graph.max[1] - y) / graph.height()).clamp(0., 1.);
         let px = |x: f32| graph.min[0] + x * graph.width();
         let py = |y: f32| graph.max[1] - y * graph.height();
 
+        if self.drag.is_some() {
+            let _ = observe!(
+                "effects.curve_release",
+                (input.dragging() || input.released.is_some_and(|(b, _)| b == MouseButton::Left))
+                    .then_some(())
+                    .ok_or("curve gesture retained without held button or release"),
+                "phase=dragging channel={}",
+                self.channel
+            );
+        }
         let value = self
             .drag
             .as_ref()

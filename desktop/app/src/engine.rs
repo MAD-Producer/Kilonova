@@ -25,6 +25,8 @@ use std::{
 mod diagnostic_names;
 mod failure;
 #[cfg(test)]
+mod fallback_tests;
+#[cfg(test)]
 mod queue_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod scope_tests;
@@ -91,6 +93,20 @@ struct PresentationState {
 
 /// Everything the worker can be asked to do.
 ///
+// Poison still discards the cache entry, matching the original policy.
+fn recycle_paint_pool(pool: &std::sync::Mutex<Vec<motion_ui::paint::PaintList>>, paint: motion_ui::paint::PaintList, worker: bool) {
+    static UI: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+    static WORKER: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+    let poisoned = match pool.lock() {
+        Ok(mut pool) => { if pool.len() < 8 { pool.push(paint); } false }
+        Err(_) => true,
+    };
+    if poisoned {
+        let (counter, site) = if worker { (&WORKER, "engine.paint.worker_recycle") } else { (&UI, "engine.paint.recycle") };
+        counter.failure(site, format_args!("reason=mutex_poisoned fallback=discard_cache_entry"));
+    }
+}
+
 /// Commands are a closed enum rather than a string channel so a typo in the UI
 /// cannot become a runtime error, and so adding a host operation is a
 /// compile-time change on both platforms.
@@ -409,19 +425,17 @@ impl Engine {
         &self.diagnostics
     }
     pub fn take_paint(&self) -> motion_ui::paint::PaintList {
-        self.paint_pool
-            .lock()
-            .ok()
-            .and_then(|mut p| p.pop())
-            .unwrap_or_default()
+        static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+        let (paint, poisoned) = match self.paint_pool.lock() {
+            Ok(mut pool) => (pool.pop().unwrap_or_default(), false),
+            Err(_) => (motion_ui::paint::PaintList::default(), true),
+        };
+        if poisoned { FAILURES.failure("engine.paint.take", format_args!("reason=mutex_poisoned fallback=empty_paint")); }
+        paint
     }
     pub fn recycle_paint(&self, mut paint: motion_ui::paint::PaintList) {
         paint.clear();
-        if let Ok(mut pool) = self.paint_pool.lock() {
-            if pool.len() < 8 {
-                pool.push(paint);
-            }
-        }
+        recycle_paint_pool(&self.paint_pool, paint, false);
     }
     pub fn node_preview_available(&self) -> Result<(), String> {
         self.check_running()?;
@@ -440,23 +454,29 @@ impl Engine {
     /// Stop accepting work and drain accepted commands. This also works while
     /// an MCP reader still owns an Arc; it does not interrupt a native GPU call.
     pub fn request_shutdown(&self) -> Result<(), String> {
+        let context = self.diagnostics.context();
         let mut gate_error = None;
-        let _gate = self.in_flight.lock().unwrap_or_else(|e| {
-            gate_error = Some("engine dispatch lock poisoned during shutdown".to_owned());
-            e.into_inner()
-        });
-        if self.shutdown.swap(true, Ordering::AcqRel) {
-            return gate_error.map_or(Ok(()), Err);
-        }
-        // Wake an idle worker. A full queue already wakes it; after draining it
-        // observes the flag without requiring another free queue slot.
-        match self.sender.try_send(QueuedCommand {
-            command: Command::Shutdown,
-            queued: Instant::now(),
-            request: self.diagnostics.next_request(),
-            context: self.diagnostics.context(),
-        }) {
-            Ok(()) => { self.queue_depth.fetch_add(1, Ordering::AcqRel); },
+        let queued = {
+            let _gate = self.in_flight.lock().unwrap_or_else(|e| {
+                gate_error = Some("engine dispatch lock poisoned during shutdown".to_owned());
+                e.into_inner()
+            });
+            if self.shutdown.swap(true, Ordering::AcqRel) {
+                return gate_error.map_or(Ok(()), Err);
+            }
+            // Wake an idle worker. A full queue already wakes it; after draining
+            // it observes the flag without requiring another free queue slot.
+            let queued = self.sender.try_send(QueuedCommand {
+                command: Command::Shutdown,
+                queued: Instant::now(),
+                request: self.diagnostics.next_request(),
+                context,
+            });
+            if queued.is_ok() { self.queue_depth.fetch_add(1, Ordering::AcqRel); }
+            queued
+        };
+        match queued {
+            Ok(()) => {},
             Err(TrySendError::Full(_)) => {
                 log::debug!("shutdown will follow the accepted full command queue");
             },
@@ -599,10 +619,12 @@ impl Engine {
                     let drained = {
                         let _gate = match worker_flight.lock() {
                             Ok(gate) => gate,
-                            Err(_) => {
+                            Err(poisoned) => {
+                                drop(poisoned);
                                 let error = "engine dispatch lock poisoned while checking shutdown";
                                 log::error!("{error}");
-                                *worker_failure.lock().unwrap_or_else(|e| e.into_inner()) = Some(error.into());
+                                static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+                                crate::fallback_observation::recovered(&worker_failure, &FAILURES, "engine.failure.shutdown", |value| *value = Some(error.into()));
                                 channel_closed = false;
                                 break;
                             }
@@ -670,7 +692,10 @@ impl Engine {
                             };
                             let message = format!("engine session closed after native panic: {reason}; {recovery}; reopen the project");
                             log::error!("[motion-engine] {message}");
-                            *worker_failure.lock().unwrap_or_else(|error| error.into_inner()) = Some(message.clone());
+                            {
+                                static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+                                crate::fallback_observation::recovered(&worker_failure, &FAILURES, "engine.failure.publish", |value| *value = Some(message.clone()));
+                            }
                             failed_reply = on_panic.map(|reply| (reply, message));
                             break;
                         }
@@ -681,7 +706,10 @@ impl Engine {
                 drop(windows);
                 drop(painter);
                 drop(node_preview);
-                worker_factory.lock().unwrap_or_else(|error| error.into_inner()).take();
+                {
+                    static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+                    crate::fallback_observation::recovered(&worker_factory, &FAILURES, "engine.surface.shutdown", |factory| { factory.take(); });
+                }
                 drop(lease);
                 drop(guard);
                 log::info!("worker resources released: session={id}");
@@ -729,20 +757,41 @@ impl Engine {
         self.check_running()?;
         let request = self.diagnostics.next_request();
         let operation = command.diagnostic_name();
-        let _gate = self.in_flight.lock().unwrap_or_else(|e| e.into_inner());
-        self.check_running()?;
-        self.sender
-            .try_send(QueuedCommand {
-                command,
-                queued: std::time::Instant::now(),
-                request,
-                context: self.diagnostics.context(),
-            })
-            .map_err(|error| match error {
-                TrySendError::Full(_) => format!("engine command queue is full (capacity {COMMAND_QUEUE_CAPACITY}); command was not queued"),
-                TrySendError::Disconnected(_) => self.stopped_error(),
-            })?;
-        let depth = self.queue_depth.fetch_add(1, Ordering::AcqRel) + 1;
+        let context = self.diagnostics.context();
+        enum Rejected {
+            Stopped(String),
+            Finished,
+            Send(TrySendError<QueuedCommand>),
+        }
+        let mut failure_poisoned = false;
+        static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+        let queued = crate::fallback_observation::recovered(&self.in_flight, &FAILURES, "engine.flight.dispatch", |_| {
+            // Repeat the running check under the shutdown gate, but defer all
+            // logging (including poisoned failure-state evidence) until unlock.
+            let failure = self.failure.lock().unwrap_or_else(|error| {
+                failure_poisoned = true;
+                error.into_inner()
+            }).clone();
+            if let Some(error) = failure { return Err(Rejected::Stopped(error)); }
+            if self.shutdown.load(Ordering::Acquire) {
+                return Err(Rejected::Stopped("engine shutdown requested; new commands are not accepted".into()));
+            }
+            if self.worker.as_ref().is_some_and(|worker| worker.is_finished()) {
+                return Err(Rejected::Finished);
+            }
+            self.sender.try_send(QueuedCommand {
+                command, queued: Instant::now(), request, context,
+            }).map(|()| self.queue_depth.fetch_add(1, Ordering::AcqRel) + 1).map_err(Rejected::Send)
+        });
+        if failure_poisoned {
+            static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+            FAILURES.failure("engine.failure.dispatch", format_args!("reason=mutex_poisoned policy=into_inner"));
+        }
+        let depth = queued.map_err(|error| match error {
+            Rejected::Stopped(error) => error,
+            Rejected::Finished | Rejected::Send(TrySendError::Disconnected(_)) => self.stopped_error(),
+            Rejected::Send(TrySendError::Full(_)) => format!("engine command queue is full (capacity {COMMAND_QUEUE_CAPACITY}); command was not queued"),
+        })?;
         // Present shares this queue; keep its healthy per-frame path silent.
         if operation != "present" {
             log::debug!("dispatch #{} {} queue_depth={}", request, operation, depth);
@@ -1392,7 +1441,10 @@ fn handle(
         Command::NodeInstall { snapshot, compiled, canonical,reply } => respond(reply, (|| {
             // All pipeline creation and scope push/pop stay on this worker,
             // alongside effects and presentation. Reject stale CPU work first.
-            if snapshot.preview_stamp() != node_preview.desired { return Ok(false); }
+            if snapshot.preview_stamp() != node_preview.desired {
+                log::debug!("node install superseded received={:?} desired={:?} revision={}", snapshot.preview_stamp(), node_preview.desired, snapshot.revision);
+                return Ok(false);
+            }
             let preview = motion_host::session::with_session(id, |session| {
                 let graphics = session.graphics.as_ref().ok_or("node GPU not attached")?;
                 let context = crate::node_preview::GpuContext {
@@ -1462,7 +1514,10 @@ fn handle(
         })),
         Command::CloseWindow {key,reply} => {windows.remove(&key);respond(reply,project::state(id));},
         Command::Resize { window, width, height, reply } => respond(reply,motion_host::session::with_session(id, |s| {
-            if width == 0 || height == 0 { return Ok(s.snapshot()); }
+            if width == 0 || height == 0 {
+                log::debug!("surface resize deferred width={width} height={height} reason=zero_extent");
+                return Ok(s.snapshot());
+            }
             if let Some(g) = &mut s.graphics {
                 if window==0 {g.config.width=width;g.config.height=height;g.surface.configure(&g.renderer.device,&g.config);}
                 else if let Some(w)=windows.get_mut(&window){w.config.width=width;w.config.height=height;w.surface.configure(&g.renderer.device,&w.config);}
@@ -1538,7 +1593,7 @@ fn handle(
             result
         });
         let mut paint=ui.paint;paint.clear();
-        if let Ok(mut pool)=paints.lock(){if pool.len()<8 {pool.push(paint);}}
+        recycle_paint_pool(paints, paint, true);
         respond(reply,result);
         },
         Command::OpenDirectory { directory, reply } => respond(reply,(||{

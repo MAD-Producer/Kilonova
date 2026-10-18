@@ -133,16 +133,19 @@ impl Diagnostics {
         self.sequence.fetch_add(1, Ordering::Relaxed)
     }
     pub fn context(&self) -> Context {
-        self.context.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        { static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+        crate::fallback_observation::recovered(&self.context, &FAILURES, "diagnostics.context.read", |value| value.clone()) }
     }
     pub fn set_context(&self, context: Context) {
-        *self.context.lock().unwrap_or_else(|e| e.into_inner()) = context;
+        static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+        crate::fallback_observation::recovered(&self.context, &FAILURES, "diagnostics.context.write", |value| *value = context);
     }
     pub fn set_gpu(&self, info: wgpu::AdapterInfo) {
         let gpu = json!({"name":info.name.chars().take(128).collect::<String>(),
             "backend":format!("{:?}",info.backend),"deviceType":format!("{:?}",info.device_type),"vendor":info.vendor,
             "driver":info.driver.chars().take(128).collect::<String>()});
-        *self.gpu.lock().unwrap_or_else(|e| e.into_inner()) = Some(gpu);
+        static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+        crate::fallback_observation::recovered(&self.gpu, &FAILURES, "diagnostics.gpu.write", |value| *value = Some(gpu));
     }
     pub fn record(
         &self,
@@ -205,14 +208,17 @@ impl Diagnostics {
         "droppedRecords":self.dropped_records.load(Ordering::Relaxed),"droppedJobs":self.dropped_jobs.load(Ordering::Relaxed),"localWriteErrors":self.io_errors.load(Ordering::Relaxed)})
     }
     pub fn report(&self) -> Value {
-        let gpu = self.gpu.lock().unwrap_or_else(|e| e.into_inner()).clone();
-        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        static GPU_FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+        static STATE_FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+        let gpu = crate::fallback_observation::recovered(&self.gpu, &GPU_FAILURES, "diagnostics.gpu.report", |value| value.clone());
+        crate::fallback_observation::recovered(&self.state, &STATE_FAILURES, "diagnostics.state.report", |state| {
         json!({"schemaVersion":1,"application":{"name":"Motion Studio","version":env!("CARGO_PKG_VERSION"),
             "build":if cfg!(debug_assertions){"debug"}else{"release"},"os":std::env::consts::OS,"architecture":std::env::consts::ARCH,
             "commit":build_commit()},
             "startedUnixMs":self.started_unix_ms,"elapsedUs":micros(self.began.elapsed()),"gpu":gpu,
             "timingContract":"CPU wall clock; surface timings include driver/queue waiting, not GPU timestamp measurements",
             "stallThresholdUs":STALL_US,"totalStalls":state.total_stalls,"recent":state.recent,"stalls":state.stalls,"reporting":self.status()})
+        })
     }
     pub fn export(&self, path: PathBuf) -> Result<Receiver<Result<(), String>>, String> {
         let (reply, receive) = std::sync::mpsc::channel();

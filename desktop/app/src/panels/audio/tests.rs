@@ -970,3 +970,27 @@ fn audio_narrow_main_and_floating_rows_keep_numeric_input_and_release_reachable(
         assert_eq!(h.engine.history(0).unwrap()["project"], original);
     }
 }
+
+#[test]
+fn malformed_audio_level_tracks_report_and_preserve_zero_fallback() {
+    const CHILD: &str = "MOTION_AUDIO_TRACK_FALLBACK_CHILD";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = std::path::PathBuf::from(root);
+        let _logger = crate::logging::init(root.clone()).unwrap();
+        let path = root.join("motion-studio.log");
+        let normal = serde_json::json!({"id":7});
+        for _ in 0..120 { assert_eq!(track(&normal,Control::Left).sample(0.),0.); }
+        assert!(std::fs::read_to_string(&path).unwrap().is_empty());
+        let bad = serde_json::json!({"id":7,"audio_levels":{"left":17}});
+        for _ in 0..120 { assert_eq!(track(&bad,Control::Left).sample(0.),0.); track(&normal,Control::Left); }
+        let text = std::fs::read_to_string(path).unwrap();
+        let records = text.lines().filter(|l| l.contains("site=audio.level_track ")).collect::<Vec<_>>();
+        assert_eq!(records.len(),2);
+        assert!(records[1].contains("ERROR") && records[1].contains("object=7 control=left"));
+        return;
+    }
+    let temp = tempfile::tempdir().unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap()).args(["--exact","panels::audio::tests::malformed_audio_level_tracks_report_and_preserve_zero_fallback"]).env_remove("MOTION_LOG").env(CHILD,temp.path()).output().unwrap();
+    assert!(output.status.success(),"{}\n{}",String::from_utf8_lossy(&output.stdout),String::from_utf8_lossy(&output.stderr));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("site=audio.level_track"));
+}

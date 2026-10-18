@@ -14,7 +14,7 @@
 
 ## 0. Scope and highest-priority rules
 
-1. Motion Studio is an existing **Windows-native** Rust motion-graphics editor. It uses the in-house `motion-ui` / `PaintList` drawing system and already contains 21 panels and five workspace presets. This specification targets the **Windows desktop UI only**.
+1. Motion Studio is an existing **Windows-native** Rust motion-graphics editor. It uses the in-house `motion-ui` / `PaintList` drawing system and retains 21 historical panel IDs and five workspace presets. Masks and expressions are now property-owned; 19 panels remain available. This specification targets the **Windows desktop UI only**.
 2. The authoritative UI styling source is `desktop/ui/styles/dark.json`, loaded using `include_str!` in `desktop/ui/src/style.rs`. Reuse existing tokens for colors, sizes, fonts, and component states. Do not introduce CSS `:root`, CSS Variables, WebView, React, Vue, Electron, Tauri, Node, or a parallel theme system.
 3. Consult `desktop/ui/src/ui.rs` and `desktop/ui/src/paint.rs` for native controls/drawing, and `desktop/ui/src/workspace.rs` and the existing dock implementation for layout and docking.
 4. Existing shortcuts, undo, subframes, snapping, preview dragging, workspaces, and serialization contracts **outrank this specification**. Only their visual presentation is in scope. Never silently change behavior for visual consistency.
@@ -168,6 +168,8 @@ Visual layout only — does not define new shortcuts or data fields:
 - Distinguish color wells, numbers, dropdowns, and icon buttons by actual control semantics. Separate destructive actions such as delete from routine editing controls.
 
 Curve-kind properties may disclose an inline graph detail below their single caption row. Keep its channel selector above the graph; this exception is for the graph editor, not for splitting scalar, boolean, enum, color, or vector fields across rows.
+
+Expressions are contextual child details, not a standalone dock panel. Keep the property itself on its existing row. The source editor is collapsed by default, including for saved expressions. Right-click a property and choose Edit expression, or Alt-click its stopwatch, to open a single child row immediately below that property. Put the enabled checkbox in the label column and the source field in the value/time lane; reuse `row.height`, `icon.slot`, and `field.number`. Idle sources stay transparent; focused editing uses the existing field state. Enter commits through `SetExpression`; Escape or the close icon discards the uncommitted draft and collapses the detail. Closing the editor never deletes the expression; Remove expression is a separate context action. Toggle only `enabled`, preserving source, target, seed, and profile. The timeline row plan must reserve the detail before rendering or hit testing so following rows cannot overlap. Legacy panel ID 9 remains readable but is redirected to Properties and omitted from panel menus/presets.
 
 ### 5.3 Component-state matrix and precedence
 
@@ -378,7 +380,7 @@ These are **only** behaviors evidenced in the supplied audit, **not** an exhaust
 
 - [ ] `dark.json` remains the normative single styling source. No CSS/parallel theme is introduced. Verify each §0.7 hardcoding issue; **do not pretend existing literals have already disappeared**.
 - [ ] No new frontend stack, state model, project format, or history system.
-- [ ] All 21 existing panels and five workspace presets work; default sizing/docking remains stable.
+- [ ] All 19 available panels and five workspace presets work; legacy Masks/Expression layouts migrate without losing project data or other panel ownership.
 - [ ] `f64` timeline values, `Alt` subframe trim, and existing snap/clamp behavior are unchanged.
 - [ ] Shortcut, IME, focus, menu, drag, and Undo precedence is unchanged.
 - [ ] Windows desktop presentation has no incorrect clipping, pointer offsets, or focus drift across supported DPI/window sizes.
