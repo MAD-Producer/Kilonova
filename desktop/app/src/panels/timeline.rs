@@ -902,15 +902,16 @@ pub(super) fn render(
             out,
         );
     }
+    let header_columns = super::layer_switches::columns(
+        &list.styles(),
+        Rect::new(area.min[0], ruler.min[1], gutter, ruler.height()),
+        gutter,
+    );
+    label(list, atlas, header_columns.three_d, "3D", true);
     label(
         list,
         atlas,
-        Rect::new(
-            area.min[0] + 90.0,
-            ruler.min[1],
-            (gutter - 320.0).max(1.0),
-            28.0,
-        ),
+        header_columns.name,
         locale.t(T::SourceName),
         true,
     );
@@ -927,13 +928,15 @@ pub(super) fn render(
             true,
         );
     }
-    label(
-        list,
-        atlas,
-        Rect::new(area.min[0] + gutter - 196., ruler.min[1], 76., 28.),
-        locale.t(T::BlendMode),
-        true,
-    );
+    if header_columns.blend_visible {
+        label(
+            list,
+            atlas,
+            Rect::new(area.min[0] + gutter - 196., ruler.min[1], 76., 28.),
+            locale.t(T::BlendMode),
+            true,
+        );
+    }
     label(
         list,
         atlas,
@@ -1047,12 +1050,12 @@ pub(super) fn render(
         if y < body.min[1] || y + row_height > body.max[1] {
             continue;
         }
-        let name = Rect::new(
-            area.min[0] + 112.0,
-            y,
-            (gutter - if gutter >= 500. { 398. } else { 320. }).max(1.0),
-            row_height,
+        let columns = super::layer_switches::columns(
+            &list.styles(),
+            Rect::new(area.min[0], y, gutter, row_height),
+            gutter,
         );
+        let name = columns.name;
         let selected = panels.selection_contains(row.id);
         let expand = Rect::new(area.min[0] + 75., y, 14., row_height);
         if expandable {
@@ -1072,7 +1075,6 @@ pub(super) fn render(
                     panels.timeline.expanded.remove(&row.id);
                 } else {
                     panels.timeline.expanded.insert(row.id);
-                    panels.timeline.collapsed_geometry.insert(row.id);
                     panels.timeline.reopen_properties(row.id);
                 }
             }
@@ -1106,6 +1108,27 @@ pub(super) fn render(
         let layer = state["project"]["layers"]
             .as_array()
             .and_then(|ls| ls.iter().find(|l| l["id"].as_u64() == Some(row.id)));
+        if let Some(layer) = layer.filter(|_| row.id != 0 && row.spatial) {
+            if motion_ui::widgets::Checkbox::draw(
+                list,
+                atlas,
+                columns.three_d,
+                "",
+                layer["three_d"] == true,
+                input,
+                !row.locked && state["observing"] != true,
+                false,
+                None,
+            )
+            .clicked
+            {
+                out.extend(super::cancel_interaction(panels));
+                out.push(Action::Edit(Command::SetLayer3d {
+                    object: row.id,
+                    enabled: layer["three_d"] != true,
+                }));
+            }
+        }
         let icon = match layer.map(|l| l["content"]["kind"].as_str().unwrap_or("")) {
             Some("text") => motion_ui::icons::Icon::Text,
             Some("image") => motion_ui::icons::Icon::Image,
@@ -1150,7 +1173,7 @@ pub(super) fn render(
                 owner["content"]["kind"].as_str(),
                 Some("null" | "audio" | "adjustment")
             ) && row.id != 0;
-            let blend_enabled = blend_supported && !row.locked;
+            let blend_enabled = blend_supported && columns.blend_visible && !row.locked;
             let matte_enabled = blend_enabled && gutter >= 500.;
             let parent_enabled = row.id == 0 || !row.locked && row.spatial;
             if (blend_enabled && clicked(input, blend))
@@ -1186,7 +1209,7 @@ pub(super) fn render(
                     input,
                     matte_enabled,
                 );
-            let opened_blend = if blend_supported {
+            let opened_blend = if blend_supported && columns.blend_visible {
                 panels.timeline_columns.cell(
                     list,
                     atlas,
@@ -2186,63 +2209,6 @@ pub(super) fn render_layer_properties(
             );
         }
     }
-    if !layout.geometry.is_empty() {
-        let gy = y + layout.geometry.start as f32 * row_height;
-        if gy >= body.min[1] && gy + row_height <= body.max[1] {
-            let heading = property_group(
-                list,
-                atlas,
-                area,
-                gy,
-                row_height,
-                if locale == Locale::Zh {
-                    "几何设置"
-                } else {
-                    "Geometry"
-                },
-                layout.geometry_open,
-            );
-            if clicked(input, heading) {
-                if !panels.timeline.collapsed_geometry.remove(&row.id) {
-                    panels.timeline.collapsed_geometry.insert(row.id);
-                }
-            }
-        }
-        if layout.geometry_open {
-            let py = gy + row_height;
-            if py >= body.min[1] && py + row_height <= body.max[1] {
-                let fields = property_layout(&list.styles(), area, py, row_height, 0, 1);
-                property_branch(list, fields.watch);
-                label(list, atlas, fields.caption, "3D", true);
-                if let Some(layer) = state["project"]["layers"]
-                    .as_array()
-                    .into_iter()
-                    .flatten()
-                    .find(|layer| layer["id"].as_u64() == Some(row.id))
-                {
-                    let enabled = !row.locked && state["observing"] != true;
-                    if motion_ui::widgets::Checkbox::draw(
-                        list,
-                        atlas,
-                        fields.number,
-                        "",
-                        layer["three_d"] == true,
-                        input,
-                        enabled,
-                        false,
-                        None,
-                    )
-                    .clicked
-                    {
-                        out.push(Action::Edit(Command::SetLayer3d {
-                            object: row.id,
-                            enabled: layer["three_d"] != true,
-                        }));
-                    }
-                }
-            }
-        }
-    }
     let start = y + layout.masks.start as f32 * row_height;
     super::path_controls::timeline::render(
         list,
@@ -2302,8 +2268,12 @@ pub(super) fn render_layer_properties(
             }
         }
         if layout.effects_open {
-            let effects = state["project"]["layers"].as_array().into_iter().flatten()
-                .find(|layer| layer["id"].as_u64() == Some(row.id)).and_then(|layer| layer["effects"].as_array());
+            let effects = state["project"]["layers"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .find(|layer| layer["id"].as_u64() == Some(row.id))
+                .and_then(|layer| layer["effects"].as_array());
             for (index, effect) in effects.into_iter().flatten().enumerate() {
                 let py = ey + (index + 1) as f32 * row_height;
                 if py < body.min[1] || py + row_height > body.max[1] {

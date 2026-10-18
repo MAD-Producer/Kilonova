@@ -17,9 +17,7 @@ pub(super) struct LayerRows {
     pub transform: Range<usize>,
     pub anchor: Option<usize>,
     pub audio: Range<usize>,
-    pub geometry: Range<usize>,
     pub effects: Range<usize>,
-    pub geometry_open: bool,
     pub effects_open: bool,
     pub masks: Range<usize>,
     pub vectors: Range<usize>,
@@ -111,9 +109,16 @@ impl LayerRows {
             .filter(|(_, p)| transform_open && filter.admits(p.property, !p.keys.is_empty()))
             .map(|(i, _)| i)
             .collect::<Vec<_>>();
-        let anchor =
-            (transform_open && matches!(filter, super::types::PropertyFilter::All)).then_some(2);
-        let mut next = 1 + usize::from(expanded && row.spatial) + usize::from(anchor.is_some());
+        let mask_rows = if expanded {
+            path_controls::timeline::Rows::new(row, t)
+        } else {
+            Default::default()
+        };
+        let masks = 1..1 + mask_rows.len();
+        let anchor = (transform_open && matches!(filter, super::types::PropertyFilter::All))
+            .then_some(masks.end + 1);
+        let mut next =
+            masks.end + usize::from(expanded && row.spatial) + usize::from(anchor.is_some());
         let mut property_offsets = Vec::new();
         let mut expression_offsets = Vec::new();
         for index in &properties {
@@ -137,7 +142,7 @@ impl LayerRows {
                 r
             }));
         }
-        let transform = 1..next;
+        let transform = masks.end..next;
         let audio = transform.end
             ..transform.end
                 + if expanded && row.audio > 0 {
@@ -149,27 +154,13 @@ impl LayerRows {
                 } else {
                     0
                 };
-        let geometry_open = expanded && !t.collapsed_geometry.contains(&row.id);
         let effects_open = expanded && t.expanded_effects.contains(&row.id);
-        let mask_rows = if geometry_open {
-            path_controls::timeline::Rows::new(row, t)
-        } else {
-            Default::default()
-        };
-        let vector_rows = if geometry_open {
+        let vector_rows = if expanded {
             path_controls::groups::timeline::Rows::new(row, t, frame, locale)
         } else {
             Default::default()
         };
-        let geometry = audio.end
-            ..audio.end
-                + if expanded && row.spatial {
-                    1 + usize::from(geometry_open)
-                } else {
-                    0
-                };
-        let masks = geometry.end..geometry.end + mask_rows.len();
-        let vectors = masks.end..masks.end + vector_rows.len();
+        let vectors = audio.end..audio.end + vector_rows.len();
         let effects = vectors.end
             ..vectors.end
                 + if expanded && row.id != 0 {
@@ -186,9 +177,7 @@ impl LayerRows {
             transform,
             anchor,
             audio,
-            geometry,
             effects,
-            geometry_open,
             effects_open,
             masks,
             vectors,
@@ -334,7 +323,7 @@ mod tests {
             let mut panels = panels();
             let rows = timeline::rows(&state);
             let plan = LayerRows::new(&rows[0], &panels.timeline, 21., Locale::En);
-            panels.timeline.scroll = 37. + plan.geometry.len() as f32 * height;
+            panels.timeline.scroll = 37.;
             panels.timeline.zoom = 2.;
             panels.timeline.offset = 10.;
             timeline::render(

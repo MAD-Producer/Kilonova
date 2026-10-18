@@ -43,10 +43,13 @@ mod graph_box;
 pub(crate) mod graph_handles;
 pub(crate) mod graph_keys;
 mod graph_sampling;
+mod graph_notice;
 mod graph_workspace;
 mod helpers;
 mod keyboard;
 mod layer_actions;
+mod layer_locks;
+mod layer_switches;
 mod menus;
 pub(crate) mod numeric;
 mod observation;
@@ -57,6 +60,8 @@ pub(crate) mod path_controls;
 mod paths;
 mod project;
 mod properties;
+#[cfg(test)]
+mod property_followup_tests;
 #[cfg(test)]
 mod selection_tests;
 mod timeline;
@@ -214,14 +219,12 @@ pub(crate) fn reveal_mask_keys(
 ) -> Vec<Action> {
     let actions = cancel_interaction(panels);
     path_controls::timeline::reveal(panels, state, object, mask);
-    panels.timeline.collapsed_geometry.remove(&object);
     actions
 }
 pub(crate) fn reveal_shape_keys(panels: &mut Panels, state: &Value, object: u64) -> Vec<Action> {
     let actions = cancel_interaction(panels);
     panels.select_only(Some(object));
     panels.timeline.expanded.insert(object);
-    panels.timeline.collapsed_geometry.remove(&object);
     panels
         .timeline
         .filters

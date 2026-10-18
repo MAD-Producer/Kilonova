@@ -14,7 +14,6 @@ use serde_json::Value;
 fn text_active(panels: &Panels) -> bool {
     panels.timeline_columns.editing()
         || panels.properties.field.is_some()
-        || (panels.focused == Some(Panel::Properties) && panels.properties.checkbox_focused)
         || panels.project.search
         || panels.timeline.timeline_search
         || panels.timeline.moving.is_some()

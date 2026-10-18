@@ -273,6 +273,7 @@ The timeline layer gutter contains **11** existing columns. **Do not invent `sol
 | 5 | Disclosure triangle | `+75` / `14` |
 | 6 | Layer-type icon | `+91` / `18` |
 | 7 | Name | `+112` / `gutter - 398` |
+| — | 3D layer switch | one `$sizes.icon.slot` at the right edge of the name allocation; subtract that slot from the name's text rectangle |
 | 8 | Track matte | `gutter - 280` / `78` |
 | 9 | Blend mode | `gutter - 196` / `76` |
 | 10 | Parent-link icon | `gutter - 114` / `14` |
@@ -280,12 +281,14 @@ The timeline layer gutter contains **11** existing columns. **Do not invent `sol
 
 `gutter = min(640, area.width() * 0.52)` — declared as `const GUTTER: f32 = 640.0` at `desktop/app/src/panels/mod.rs:69`.
 
+The name/switch allocation reads `timeline.layer.*` tokens. Below `timeline.layer.wide_threshold`, use the compact allocation; hide the blend column if keeping it would leave less than `value.min_width` for the name after reserving the 3D slot. Existing visibility, lock, disclosure and time-lane hit regions stay unchanged.
+
 Header band total height `64`; ruler at `+36`, height `28`; rows begin at `+64`; layer row height `$sizes.row.height = 22`. **Zoom control sits on the ruler's top-right, not in a new bottom zoom bar.** Keyframe diamonds are directly drawn primitives, not component-style instances (see §5.3).
 
 ### 7.2 Property subrows
 
 - Group headers use the existing header surface and primary text; child rows retain explicit indentation and subtle tree guides. All values of one property stay inline; do not spend space on redundant X/Y labels for a two-value offset.
-- Layer properties use the same Transform / Geometry / Effects group order in the inspector and the timeline. Anchor is a real static source-space property; position and scale components share a row. Geometry holds existing mask/vector settings; effect-instance rows preserve their native editor entry.
+- Layer properties show Masks before Transform in both the inspector and the timeline. Masks and vector contents own their disclosures; there is no extra Geometry wrapper. The 3D Checkbox belongs directly to each spatial layer's timeline row, with a matching column header; it preserves locking, observation-only mode and undo. At narrow widths the blend column is hidden before compressing the layer name to make room for the switch. Anchor is a real static source-space property; position and scale components share a row. Existing vector contents and effect-instance rows preserve their native editors.
 - A hairline horizontal separator spans each timeline property row into its keyframe lane, using `tree.separator.width` and `tree.separator.opacity`.
 - Time ticks and labels belong to the ruler. Do not extend a vertical grid line at each second through the layer/property body. Preserve the playhead, keyframe marks, snap feedback, and the label/lane boundary.
 

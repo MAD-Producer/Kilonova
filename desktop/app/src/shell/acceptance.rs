@@ -185,7 +185,6 @@ impl Shell {
                 self.panels.select_only(Some(object));
                 self.panels.path_controls.masks_open = true;
                 self.panels.properties.transform_collapsed = true;
-                self.panels.properties.geometry_collapsed = false;
                 self.panels.properties.properties_scroll = 0.;
                 self.state = self.engine.seek(0.)?;
                 let sheet = self.panels.styles.clone()
@@ -211,7 +210,7 @@ impl Shell {
                     .and_then(|m| m["id"].as_u64())
                     .ok_or("mask panel rectangle entry produced no mask")?;
                 for index in 0..4 {
-                    self.feature_panel_click(panel, [padding * 3. + slot * 0.5 + sheet.metric("tree.indent", 14.),
+                    self.feature_panel_click(panel, [padding * 3. + slot * 0.5,
                         top + row * (3.5 + index as f32)], event_loop)?;
                 }
                 let masks = self.state["project"]["layers"].as_array().into_iter().flatten()

@@ -142,7 +142,8 @@ pub(super) fn draw(
         else {
             continue;
         };
-        if end <= start
+        if start < 0.
+            || end <= start
             || (selected.frame as f64 != start && selected.frame as f64 != end)
             || selected.object != object
             || selected.property != property
