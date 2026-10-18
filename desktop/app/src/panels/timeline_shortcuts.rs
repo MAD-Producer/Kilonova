@@ -1,5 +1,6 @@
 //! Property visibility and edits on explicitly selected composition-time keys.
 use super::*;
+use super::animation_controls::{SelectedTrack, TrackSelection};
 use super::{
     animation_data as data,
     types::{property_bit, ColumnGroup, KeySelection, PropertyFilter},
@@ -87,7 +88,7 @@ fn reveal(
         };
         panels
             .animation_controls
-            .choose_track(object, property, None);
+            .choose_track_in(state, object, property, None);
         PropertyFilter::Properties(mask)
     } else if expanded && old == PropertyFilter::Animated {
         PropertyFilter::Properties(0)
@@ -110,7 +111,7 @@ fn reveal(
         if let Some(first) = timeline::filtered_properties(state, object, next).first() {
             panels
                 .animation_controls
-                .choose_track(object, first.property, first.axis.map(axis));
+                .display_track(object, first.property, first.axis.map(axis));
         }
     }
 }
@@ -357,6 +358,14 @@ pub(super) fn handle(
             if panels.selected.is_some() && object.is_none() {
                 return true;
             }
+            let explicit: Option<SelectedTrack> = match panels
+                .animation_controls
+                .track_selection(state, panels.selected)
+            {
+                TrackSelection::Unselected => None,
+                TrackSelection::Current(track) => Some(track),
+                TrackSelection::Invalid => return true,
+            };
             let mut times = vec![];
             for row in timeline::rows(state) {
                 if object.is_some_and(|id| id != row.id)
@@ -367,7 +376,7 @@ pub(super) fn handle(
                 {
                     continue;
                 }
-                if panels.timeline.expanded.contains(&row.id)
+                if explicit.is_some() || panels.timeline.expanded.contains(&row.id)
                     || panels.timeline.graph_mode
                     || panels.focused == Some(Panel::Curves)
                 {
@@ -381,6 +390,12 @@ pub(super) fn handle(
                             .copied()
                             .unwrap_or_default(),
                     ) {
+                        if explicit.is_some_and(|track| {
+                            track.object != row.id || track.property != property.property
+                                || track.axis.map(Axis::index) != property.axis
+                        }) {
+                            continue;
+                        }
                         if (panels.timeline.graph_mode || panels.focused == Some(Panel::Curves))
                             && (property.property
                                 != panels

@@ -2117,7 +2117,7 @@ pub(super) fn render_layer_properties(
                 panels.select_only(Some(row.id));
                 panels
                     .animation_controls
-                    .choose_track(row.id, property.property, axis);
+                    .choose_track_in(state, row.id, property.property, axis);
                 panels.animation_controls.clear_key();
             }
             if property.property == Property::Anchor {
@@ -2149,7 +2149,7 @@ pub(super) fn render_layer_properties(
                     panels.select_only(Some(row.id));
                     panels
                         .animation_controls
-                        .choose_track(row.id, property.property, axis);
+                        .choose_track_in(state, row.id, property.property, axis);
                     panels.timeline.graph_component = *component;
                 }
                 super::properties::draw_value(
@@ -2185,7 +2185,8 @@ pub(super) fn render_layer_properties(
                     );
                     if clicked(input, Rect::new(x - 5., py, 10., row_height)) {
                         panels.select_only(Some(row.id));
-                        panels.animation_controls.select_key(
+                        panels.animation_controls.select_key_in(
+                            state,
                             row.id,
                             property.property,
                             axis,

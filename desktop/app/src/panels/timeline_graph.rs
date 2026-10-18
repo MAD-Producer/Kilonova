@@ -107,6 +107,16 @@ pub(super) fn render(
         observe_early_return(panels, "missing_layer");
         return;
     };
+    if panels.animation_controls.track_selection(state, Some(object))
+        == super::animation_controls::TrackSelection::Invalid
+    {
+        label(&mut graph, atlas, area.shrink(styles.metric("padding.panel", 8.)),
+            if panels.locale == Locale::Zh { "请选择属性" } else { "Select a property" }, true);
+        graph.clip_to(area);
+        list.append(graph);
+        observe_early_return(panels, "invalid_property_selection");
+        return;
+    }
     let property = panels
         .animation_controls
         .property
@@ -156,7 +166,7 @@ pub(super) fn render(
     };
     panels
         .animation_controls
-        .choose_track(object, property, axis);
+        .display_track(object, property, axis);
     let title = match property {
         Property::Anchor => T::Anchor,
         Property::Position => T::Position,
@@ -478,7 +488,7 @@ pub(super) fn render(
     if let Some(frame) = clicked_key {
         panels
             .animation_controls
-            .select_key(object, property, axis, frame);
+            .select_key_in(state, object, property, axis, frame);
         out.push(Action::Seek(frame as f64));
     } else if !box_owned
         && !box_selected

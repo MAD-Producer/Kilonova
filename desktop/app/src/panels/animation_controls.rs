@@ -12,6 +12,8 @@ use motion_ui::{
     ui::{self, Align},
 };
 use serde_json::Value;
+mod selection;
+pub(super) use selection::{SelectedTrack, TrackSelection};
 
 #[derive(Default)]
 pub struct Controls {
@@ -21,6 +23,8 @@ pub struct Controls {
     selected_key: Option<i64>,
     key_context: Option<(u64, Property, Option<Axis>)>,
     key_explicit: bool,
+    track_explicit: bool,
+    track_scope: Option<(String, String)>,
     clipboard: Option<Easing>,
     dragging: Option<(usize, Easing, [f64; 2])>,
 }
@@ -76,6 +80,11 @@ fn button(
 }
 impl Controls {
     pub(crate) fn choose_track(&mut self, object: u64, property: Property, axis: Option<Axis>) {
+        self.track_explicit = true;
+        self.track_scope = None;
+        self.display_track_inner(object, property, axis);
+    }
+    fn display_track_inner(&mut self, object: u64, property: Property, axis: Option<Axis>) {
         let context = (object, property, axis);
         if self.key_context != Some(context) {
             self.selected_key = None;

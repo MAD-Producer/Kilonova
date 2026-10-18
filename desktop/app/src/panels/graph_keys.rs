@@ -168,7 +168,8 @@ pub(super) fn update(
                 drag.last_value = value;
             }
         }
-        panels.animation_controls.select_key(
+        panels.animation_controls.select_key_in(
+            state,
             drag.object,
             drag.property,
             drag.axis,
