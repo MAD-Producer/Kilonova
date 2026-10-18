@@ -2038,6 +2038,10 @@ pub(super) fn render_layer_properties(
                 ][a]
             });
             let property_area = Rect::new(area.min[0], py, gutter, row_height);
+            super::key_navigation::property_row(
+                list, property_area, panels, state, input, row.id, property.property, axis,
+                &property.keys, out,
+            );
             let fields = property_layout(
                 list.styles().as_ref(),
                 property_area,

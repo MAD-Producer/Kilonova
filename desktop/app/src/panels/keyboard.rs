@@ -139,6 +139,14 @@ pub fn route(
     if text_active(panels) || input.composing || input.ime_consumed {
         return false;
     }
+    let effects_navigated = match panels.focused {
+        Some(Panel::Properties) => panels.properties.effects.navigate_keys(state, panels.selected, input, out),
+        Some(Panel::EffectControls) => panels.effect_controls.navigate_keys(state, panels.selected, input, out),
+        _ => false,
+    };
+    if effects_navigated {
+        return true;
+    }
     if matches!(
         panels.focused,
         Some(Panel::Masks | Panel::Properties | Panel::Vector | Panel::Timeline | Panel::Curves)

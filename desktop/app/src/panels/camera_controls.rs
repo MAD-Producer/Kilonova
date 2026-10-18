@@ -62,7 +62,7 @@ impl Controls {
         self.mode.open = false;
         self.field.take().is_some_and(|mut f| f.number.cancel())
     }
-    pub fn render(
+    pub(in crate::panels) fn render(
         &mut self,
         list: &mut PaintList,
         atlas: &mut TextAtlas,
@@ -73,7 +73,7 @@ impl Controls {
         input: &Input,
         locale: Locale,
         out: &mut Vec<Action>,
-    ) {
+    ) -> Option<(Property, Option<Axis>, super::key_navigation::Choice)> {
         let styles = list.styles();
         let colors = styles.colors();
         let height = styles.metric("camera.row.height", 28.);
@@ -179,14 +179,30 @@ impl Controls {
         } else {
             properties.insert(0, (Property::Position, "position", T::Position, 3));
         }
-        for (property, key, title, dimensions) in properties {
+        let tracks = if object == 0 {
+            properties.into_iter().map(|(property, key, title, dimensions)| super::timeline::PropertyRow {
+                property, key, title, axis: None, axes: (0..dimensions).collect(), keys: vec![],
+            }).collect()
+        } else {
+            super::timeline::property_rows(state, object)
+        };
+        let mut choice = None;
+        for track in tracks {
+            let super::timeline::PropertyRow { property, key, title, axis: selected_axis, axes, keys } = track;
+            let dimensions = axes.len();
+            let axis = selected_axis.map(|index| [Axis::X, Axis::Y, Axis::Z][index]);
+            let row = Rect::new(area.min[0], *y, area.width(), height);
+            if let Some(intent) = super::key_navigation::property_intent(list, row, state, input, object, property, axis, &keys) {
+                choice = Some((property, axis, intent));
+            }
             let layout = layout_at(*y, 0, dimensions);
             super::timeline::property_branch(list, layout.watch);
-            let animated = c[key]["keys"]
+            let source = selected_axis.map_or(&c[key], |index| &c[key]["axes"][["x", "y", "z"][index]]);
+            let animated = source["keys"]
                 .as_array()
                 .is_some_and(|keys| !keys.is_empty())
                 || ["x", "y", "z"].iter().any(|axis| {
-                    c[key]["axes"][axis]["keys"]
+                    source["axes"][axis]["keys"]
                         .as_array()
                         .is_some_and(|keys| !keys.is_empty())
                 });
@@ -201,22 +217,23 @@ impl Controls {
                 out.push(Action::Edit(Command::Animate {
                     object,
                     property,
-                    axis: None,
+                    axis,
                     frame: state["frame"].as_f64().unwrap_or(0.).floor() as u32,
                     enabled: !animated,
                 }));
             }
+            let caption = selected_axis.map_or_else(|| locale.t(title).to_owned(), |axis| format!("{} {}", locale.t(title), ["X", "Y", "Z"][axis]));
             ui::text(
                 list,
                 atlas,
                 layout.caption,
-                locale.t(title),
+                &caption,
                 colors.TEXT_MUTED,
                 Align::Left,
             );
-            for axis in 0..dimensions {
-                let rect = layout_at(*y, axis, dimensions).number;
-                let value = if dimensions == 1 {
+            for (component, axis) in axes.into_iter().enumerate() {
+                let rect = layout_at(*y, component, dimensions).number;
+                let value = if property.is_scalar() {
                     sampled[key].as_f64().unwrap_or(0.)
                 } else {
                     sampled[key][axis].as_f64().unwrap_or(0.)
@@ -279,6 +296,7 @@ impl Controls {
             *y += height;
         }
         list.append(overlay);
+        choice
     }
 }
 fn camera_command(
