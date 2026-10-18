@@ -45,6 +45,7 @@ def verify_design_screens(snapshot: dict, locale: str, *, property_followups: bo
             "property-axis-expression": (360, 560), "layer-lock-menu": (900, 520),
             "property-mask-group": (360, 560), "timeline-mask-group": (900, 520),
             "timeline-mask-group-narrow": (720, 520),
+            "timeline-mask-add-menu": (900, 520), "timeline-mask-add-menu-narrow": (720, 520),
             "layer-unlock-menu": (900, 520), "layer-lock-main-menu": (900, 520),
             "mask-mode-menu": (360, 560), "mask-mode-menu-narrow": (220, 560),
             "graph-raw-readonly": (900, 520),

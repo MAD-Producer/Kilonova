@@ -20,9 +20,11 @@
 
 本批截图复核后，用户明确调整层级：属性面板和时间线均把蒙版放在变换前面，取消“几何设置”外壳，矢量内容继续使用已有分组；3D 直接放到时间线空间图层行，用 Checkbox 与表头表达当前状态。窄时间线优先隐藏混合模式列以给名称和开关留出空间。对应规范已同步到 `DESIGN.md` §7.1/§7.2，尺寸先定义于 `dark.json`。`masks_precede_transforms_and_layer_row_3d_is_undoable_in_both_windows` 验证双语、两种行高、主窗/浮窗、真实命令、保存、锁定/只读禁用与撤销。
 
+用户继续要求时间线显示蒙版标题行的完整操作。本批追加启用 Checkbox、路径编辑、定位并展开蒙版时间线、删除，以及组标题的“＋”菜单（钢笔蒙版、矩形蒙版）。两处标题复用操作实现；菱形保留现有定位语义，不添加关键帧。时间线菜单只有一个有界状态，验证工程/合成/对象归属，并在对象消失、锁定、只读、滚出视区、失焦或取消时关闭。名称和展开点击区预留操作槽，窄视图先缩进让位，不缩小点击容差。新增真实回归 `timeline_mask_header_actions_and_add_menu_preserve_targets_locking_and_undo` 覆盖三种宽度（含 360 浮窗最小宽度）、双语、两种行高、主窗/浮窗、保存撤销、菜单取消与关闭帧输入隔离；已纳入最终 420 项完整测试。实际回归捕获的跨面板菜单关闭问题通过修正事件路由处理，保留原有断言。
+
 ## 原生样式验收
 
-截图来自 `PaintList`、真实面板控件、系统字体和已附着的 GPU 渲染器，没有另画菜单示意图。14 个新增场景放在独立的 `--property-smoke`，由 `tools/ci_desktop.py` 分别运行默认样式双语与样式覆盖双语；原有普通 smoke 和 19 面板 smoke 的检查及超时预算保持不变。
+截图来自 `PaintList`、真实面板控件、系统字体和已附着的 GPU 渲染器，没有另画菜单示意图。16 个新增场景放在独立的 `--property-smoke`，由 `tools/ci_desktop.py` 分别运行默认样式双语与样式覆盖双语；原有普通 smoke 和 19 面板 smoke 的检查及超时预算保持不变。
 
 `artifacts/property-followups/property-panels-zh.json` / `property-panels-en.json` 引用这些新增截图：
 
@@ -31,6 +33,7 @@
 | `property-merge-menu` / `property-merge-menu-narrow` | 360 / 220 宽属性右键菜单，显示合并与表达式入口 |
 | `property-axis-expression` | 分离 X 轴的内联编辑，其他轴保持原行 |
 | `property-mask-group` / `timeline-mask-group` / `timeline-mask-group-narrow` | 蒙版位于变换前，取消几何外壳；时间线图层行直接显示 3D 开关，720 宽下为名称让出混合模式列 |
+| `timeline-mask-add-menu` / `timeline-mask-add-menu-narrow` | 900 / 720 宽时间线中的同一行四个蒙版操作和“＋”添加菜单；菜单覆盖后绘制内容，关闭帧不穿透 |
 | `layer-lock-menu` / `layer-unlock-menu` | 图层右键“开关”子菜单，两种真实锁状态 |
 | `layer-lock-main-menu` | 顶部 Layer 菜单，所选层锁定及全部解锁 |
 | `mask-mode-menu` / `mask-mode-menu-narrow` | 七态蒙版下拉、当前项标记和同行反转复选框 |
@@ -48,19 +51,21 @@
 
 | 检查 | 记录 |
 | --- | --- |
-| `cargo check -p motion-desktop --offline --locked -j2` | 通过；最终生产逻辑 `.tools/property-followup-check-layer-3d.log` |
-| 桌面完整测试，包含 ignored | 最终实现与独立截图 CLI 版本完整通过：419 项通过、0 失败、0 忽略；`.tools/property-followup-tests-latest.log`，194.47 秒；不修改原有断言 |
+| `cargo check -p motion-desktop --offline --locked -j1` | 通过；包含追加的时间线蒙版控件；`.tools/property-followup-mask-header-check.log` |
+| 桌面完整测试，包含 ignored | 最终实现完整通过：420 项通过、0 失败、0 忽略；`.tools/property-followup-mask-header-full-tests.log`，149.62 秒；不修改原有断言 |
 | 合并 XYZ 核心、宿主、渲染测试 | 8 + 1 + 1 项通过；`.tools/property-followup-merge.log` |
 | UI 完整测试，包含 ignored | 82 项通过；`.tools/property-followup-ui.log` |
-| 工具脚本完整测试 | 最终脚本版本完整 54 项通过；`.tools/property-followup-python-latest.log`；脚本守卫单独 5 项也通过，见 `.tools/property-followup-python-ci-rerun.log`；使用干净源码快照，避免把用户未跟踪的 `tools/package_macos.py` 纳入此次变更；复用本地已有 PyYAML 与实际 `effect_tool.exe` |
+| 工具脚本完整测试 | 最终脚本版本完整 54 项通过；`.tools/property-followup-mask-header-python-full.log`，44.373 秒；脚本守卫单独 5 项也通过，见 `.tools/property-followup-mask-header-python.log`；使用干净源码快照，避免把用户未跟踪的 `tools/package_macos.py` 纳入此次变更；复用本地已有 PyYAML 与实际 `effect_tool.exe` |
 | 渲染表达式像素/冻结计划 | `.tools/property-followup-render.log`；2 项通过 |
 | 蒙版菜单遮挡回归 | 通过；`.tools/property-followup-mask-overlay.log`；绘制顺序检查排除透明焦点边框，防止将边框误判为遮盖菜单的填充 |
-| 最终桌面构建 | 通过；`.tools/property-followup-build-final.log` |
-| 原生总验收 | 尚未通过；新一轮英文普通窗口与节点检查通过，中文普通 `--smoke` 超过原有 40 秒外部时限，见 `.tools/property-followup-native-rerun.log`；没有扩大超时或把过期报告当作本轮通过证据 |
-| 独立双语属性场景与样式覆盖 | 默认与覆盖样式、中英文各 14 个新场景全部通过，共 56 张场景截图；检查行高/拖拽阈值/缓动覆盖、工程还原和同姿态主题像素变化；`.tools/property-followup-property-final.log`；产物 `artifacts/property-followups/property-{panels,styled}-{en,zh}.json` |
-| 原有 19 面板与 MCP | 总验收在中文普通 smoke 阶段退出，本轮尚未到达这些阶段；不能以新属性截图替代原有验收 |
+| 最终桌面构建 | 通过；`.tools/property-followup-mask-header-build.log` |
+| 原生总验收 | 最终完整通过；`.tools/property-followup-native-complete.log`；`tools/ci_desktop.py` 验证双语普通窗口、双语节点、共享 MCP、双语新增属性场景及双语默认/覆盖主题；产物 `artifacts/property-followups/complete/`；保留原有超时预算 |
+| 独立双语属性场景与样式覆盖 | 最终默认与覆盖样式、中英文各 16 个新场景全部通过，共 64 张场景截图；检查行高/拖拽阈值/缓动覆盖、工程还原和同姿态主题像素变化；`.tools/property-followup-mask-header-native.log`；产物 `artifacts/property-followups/property-{panels,styled}-{en,zh}.json` |
+| 原有 19 面板与 MCP | 最终完整通过；`complete/styled-panels-{en,zh}.json` 验证 19 面板及原有截图/交互检查，`complete/mcp-ui-smoke.json` 验证共享工程、时钟、保存和 GPU 设备；新属性截图没有替代原有验收 |
 
 中间截图夹具曾错误要求显式样式，而默认样式由绘制层提供；修正为复用绘制上下文。夹具撤销后需要同步 Shell 快照版本，现保留工程不变与菜单打开不改版本的双重检查。新增截图最初与普通 smoke 共用 30 秒预算，随后与 19 面板共享预算，均在本机遇到超时；现独立为属性截图阶段，原有检查保留，未增加其超时或跳过检查。
+
+中间完整验收也曾遇到中文普通窗口 40 秒超时及资源紧张时的引擎启动 60 秒超时，保留原始失败日志 `.tools/property-followup-native-rerun.log` / `.tools/property-followup-panels-final.log`。最终使用同一构建、原有时限完成全部阶段；没有终止其他任务的编译进程，也没有将中间报告当作最终通过证据。
 
 用户确认的层级变更需要同步蒙版删键/拖拽、矢量拖拽、属性拖拽、快捷键展开和原生秒表夹具的点击位置，以及旧几何行的滚动补偿；保留原有选择、拖拽、关键帧生成、历史和工程数据断言。属性拖拽夹具现在明确点击 Position 行。新属性场景的主题像素对比使用同一 `--property-smoke` 夹具的默认/覆盖样式；原有 19 面板主题阶段继续使用原有基线，避免把不同工作区姿态造成的差异当作主题变化。
 
@@ -89,5 +94,6 @@
 - SDK 当前没有资源引用参数类型可供构造真实资源表达式案例；连续数值白名单会禁用新增未知类型，不宣称已实现资源表达式。
 - 曲线继续展示作者数据；本批没有新增求值后表达式/约束曲线，也不转换、删除已有负时间键。
 - Windows 当前显示环境、主窗/浮窗、两种语言与标准/窄面板可复验；没有声称全部硬件、DPI 档位、macOS/Linux 或持续性能对照已验收。
+- 360 宽的新增回归限定于蒙版标题操作、展开命中和菜单输入；时间线历史固定列在极窄布局下的整体重排仍属于 §0.7 保留基线，不据此宣称最小浮窗全部列已经适配。
 - 字体缺字及本机失效 Vulkan overlay 注册项仍由现有日志报告；没有把外部系统配置修改算入这五项修复。
 - GitHub issue 勾选、PR 发布与合并不属于本文本地结果的证明范围。
