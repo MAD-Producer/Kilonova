@@ -1335,3 +1335,160 @@ fn shared_graph_wheel_keeps_mouse_time_and_separates_time_and_value_scaling() {
     assert_eq!(panels.timeline.graph_y_zoom,vertical);
     assert!(actions.is_empty());
 }
+
+#[test]
+fn in_out_shortcuts_seek_to_the_selected_clip_without_editing() {
+    let mut engine = engine();
+    engine
+        .apply(Command::SetLayerRange {
+            object: 7,
+            in_frame: 12.,
+            out_frame: 60.,
+        })
+        .unwrap();
+    let before = engine.project().clone();
+    let mut panels = panels();
+    let base = state(&engine, 30.);
+    let out = invoke(&mut panels, &base, Key::I, Modifiers::default());
+    assert!(matches!(out.as_slice(), [Action::Seek(t)] if (t - 12.).abs() < 1e-9));
+    let out = invoke(&mut panels, &base, Key::O, Modifiers::default());
+    assert!(matches!(out.as_slice(), [Action::Seek(t)] if (t - 59.).abs() < 1e-9));
+    assert_eq!(engine.project(), &before);
+}
+
+#[test]
+fn bracket_shortcuts_move_and_trim_clips_as_single_undoable_edits() {
+    let mut engine = engine();
+    engine
+        .apply(Command::SetLayerRange {
+            object: 7,
+            in_frame: 12.,
+            out_frame: 60.,
+        })
+        .unwrap();
+    let before = engine.project().clone();
+    let mut panels = panels();
+
+    let out = invoke(
+        &mut panels,
+        &state(&engine, 30.),
+        Key::BracketLeft,
+        Modifiers::default(),
+    );
+    assert!(matches!(out.as_slice(), [Action::EditBatch(v)] if v.len() == 1));
+    apply(&mut engine, out);
+    let clip = engine.project().layers[0].clip(120);
+    assert_eq!((clip.in_frame, clip.out_frame), (30, 78));
+    engine.undo().unwrap();
+    assert_eq!(engine.project(), &before);
+
+    let out = invoke(
+        &mut panels,
+        &state(&engine, 30.),
+        Key::BracketLeft,
+        Modifiers {
+            alt: true,
+            ..Default::default()
+        },
+    );
+    apply(&mut engine, out);
+    let clip = engine.project().layers[0].clip(120);
+    assert_eq!((clip.in_frame, clip.out_frame), (30, 60));
+    engine.undo().unwrap();
+
+    let out = invoke(
+        &mut panels,
+        &state(&engine, 30.),
+        Key::BracketRight,
+        Modifiers {
+            alt: true,
+            ..Default::default()
+        },
+    );
+    apply(&mut engine, out);
+    let clip = engine.project().layers[0].clip(120);
+    assert_eq!((clip.in_frame, clip.out_frame), (12, 31));
+    engine.undo().unwrap();
+    assert_eq!(engine.project(), &before);
+}
+
+#[test]
+fn in_out_edits_skip_locked_or_empty_selection_and_batch_all_selected_layers() {
+    let mut locked_engine = engine();
+    locked_engine
+        .apply(Command::Flags {
+            object: 7,
+            visible: true,
+            locked: true,
+        })
+        .unwrap();
+    let mut panels = panels();
+    assert!(invoke(
+        &mut panels,
+        &state(&locked_engine, 30.),
+        Key::BracketLeft,
+        Modifiers::default(),
+    )
+    .is_empty());
+    let observing = invoke(
+        &mut Panels {
+            selected: Some(7),
+            focused: Some(Panel::Timeline),
+            ..Default::default()
+        },
+        &serde_json::json!({
+            "frame": 30.,
+            "project": locked_engine.project(),
+            "timeline_layers": locked_engine.project().timeline_layers(30.),
+            "observing": true,
+        }),
+        Key::BracketLeft,
+        Modifiers::default(),
+    );
+    assert!(observing.is_empty());
+
+    let mut doubled = engine();
+    doubled.apply(Command::Duplicate { object: 7 }).unwrap();
+    let ids: Vec<u64> = doubled.project().layers.iter().map(|l| l.id).collect();
+    assert_eq!(ids.len(), 2);
+    panels.selected = ids.last().copied();
+    panels.selected_layers = ids.clone();
+    let out = invoke(
+        &mut panels,
+        &state(&doubled, 30.),
+        Key::BracketLeft,
+        Modifiers::default(),
+    );
+    assert!(matches!(out.as_slice(), [Action::EditBatch(v)] if v.len() == 2));
+    apply(&mut doubled, out);
+    for layer in &doubled.project().layers {
+        let clip = layer.clip(120);
+        assert_eq!((clip.in_frame, clip.out_frame), (30, 150));
+    }
+}
+
+#[test]
+fn f4_toggles_composite_columns_and_shift_f4_toggles_parent() {
+    let engine = engine();
+    let mut panels = panels();
+    let base = state(&engine, 30.);
+    let out = invoke(&mut panels, &base, Key::F4, Modifiers::default());
+    assert!(matches!(
+        out.as_slice(),
+        [Action::TimelineColumnVisibility(v)] if !v.blend && !v.matte && v.parent
+    ));
+    let out = invoke(
+        &mut panels,
+        &base,
+        Key::F4,
+        Modifiers {
+            shift: true,
+            ..Default::default()
+        },
+    );
+    assert!(matches!(
+        out.as_slice(),
+        [Action::TimelineColumnVisibility(v)] if v.blend && v.matte && !v.parent
+    ));
+    assert_eq!(panels.timeline.column_visibility, ColumnVisibility::default());
+}
