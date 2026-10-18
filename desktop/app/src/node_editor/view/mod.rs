@@ -13,10 +13,13 @@ mod group_tests;
 mod inspector;
 mod interaction;
 mod library;
+pub(super) mod minimap;
 #[cfg(test)]
 mod nudge_tests;
 #[cfg(test)]
 mod observability_tests;
+#[cfg(test)]
+mod view_preferences_tests;
 #[cfg(test)]
 mod tests;
 mod toolbar;
@@ -34,7 +37,7 @@ pub(super) const NODE_WIDTH: f32 = 204.;
 const HEADER: f32 = 29.;
 const ROW: f32 = 23.;
 const INVALID_WIRE: Color = Color::rgb(240, 101, 106);
-const TOOLBAR: [(usize, f32, &str, &str); 12] = [
+const TOOLBAR: [(usize, f32, &str, &str); 13] = [
     (0, 41., "添加", "Add"),
     (1, 58., "属性", "Props"),
     (2, 56., "打开", "Open"),
@@ -45,6 +48,7 @@ const TOOLBAR: [(usize, f32, &str, &str); 12] = [
     (6, 70., "编译", "Compile"),
     (7, 82., "导出FX", "Export FX"),
     (8, 45., "全览", "Frame"),
+    (12, 56., "视图", "View"),
     (9, 48., "撤销", "Undo"),
     (10, 48., "重做", "Redo"),
 ];
@@ -272,6 +276,7 @@ impl NodeEditor {
         let revision = self.revision;
         let semantic = self.semantic_revision;
         let preview_revision = self.preview_revision;
+        let preferences = self.view_preferences;
         let mut response = FrameResponse::default();
         self.settle_nudge(input);
         if area.width() < 320. || area.height() < self.layout(area).toolbar.height() + 77. {
@@ -317,7 +322,7 @@ impl NodeEditor {
         }
         if self.inline.busy() || input.pressed.is_some_and(|(_, p)| area.contains(p)) {
             self.focus = true;
-        } else if input.pressed.is_some() && self.drag.is_none() {
+        } else if input.pressed.is_some() && self.drag.is_none() && self.minimap_drag.is_none() {
             self.finish_nudge();
             let _ = self.commit_field();
             self.search_focus = false;
@@ -355,7 +360,8 @@ impl NodeEditor {
             local.key_repeats.push(false);
             local
         });
-        let controls_consumed = if self.add_menu.is_none() && self.context_menu.is_none() {
+        let controls_consumed = if self.add_menu.is_none() && self.context_menu.is_none()
+            && (self.inline.busy() || !self.minimap_captures(layout.canvas, input, &styles)) {
             self.inline_input(
                 &cards,
                 layout.canvas,
@@ -429,9 +435,12 @@ impl NodeEditor {
             self.inspector(list, atlas, inspector, body_input, language);
         }
         let cards = self.cards(layout.canvas);
-        self.canvas_input(&cards, layout.canvas, body_input);
+        if !self.minimap_input(layout.canvas, body_input, &styles) {
+            self.canvas_input(&cards, layout.canvas, body_input);
+        }
         let cards = self.cards(layout.canvas);
         self.paint_canvas(list, atlas, &cards, layout.canvas, input, language);
+        self.paint_minimap(list, layout.canvas);
         let mut footer = list.child();
         paint::rect(&mut footer, layout.footer, colors.CHROME);
         paint::rect(
@@ -497,7 +506,7 @@ impl NodeEditor {
             if had_menu { input } else { &neutral },
             language,
         );
-        response.wants_pointer = area.contains(input.mouse) || self.drag.is_some();
+        response.wants_pointer = area.contains(input.mouse) || self.drag.is_some() || self.minimap_drag.is_some();
         self.paint_control_popup(
             list,
             atlas,
@@ -517,6 +526,9 @@ impl NodeEditor {
         }
         if preview_revision != self.preview_revision && !response.semantic_changed {
             response.actions.push(Action::PreviewChanged);
+        }
+        if preferences != self.view_preferences {
+            response.actions.push(Action::ViewPreferencesChanged(self.view_preferences));
         }
         response
     }

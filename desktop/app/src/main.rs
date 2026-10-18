@@ -424,6 +424,7 @@ impl Shell {
         shell.panels.locale = chosen;
         shell.panels.workspace_preset = shell.workspace.preset;
         shell.panels.browser.favorites = shell.workspace.favorites.clone();
+        shell.panels.node_editor.view_preferences = shell.workspace.node_view;
         shell.panels.effect_controls.catalogue =
             shell.engine.plugin("{\"op\":\"catalogue\"}".into())?.into();
         if shell.smoke.is_some() {

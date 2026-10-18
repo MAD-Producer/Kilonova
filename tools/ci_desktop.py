@@ -225,6 +225,15 @@ def main() -> None:
             raise RuntimeError(f"{locale} node acceptance failed: {node_result.stderr}")
         node_snapshot = json.loads(node_report.read_text(encoding="utf-8"))
         preview = node_snapshot.get("nodePreview", {})
+        for window in ("viewMain", "viewFloat"):
+            view = preview.get(window, {})
+            for check in ("projectAndCompileUnchanged", "workspaceReload", "menuCancelled", "menuToggled"):
+                if view.get(check) is not True:
+                    raise RuntimeError(f"{locale} {window} did not verify {check}")
+            for screen in ("overview", "noGrid", "contextMenu"):
+                data = Path(view[screen]).read_bytes()
+                if len(data) < 1024 or not data.startswith(b"\x89PNG\r\n\x1a\n"):
+                    raise RuntimeError(f"{locale} {window} did not render {screen}")
         for check in ("clockPixelsChanged", "parameterPixelsChanged", "groupPixelsPreserved", "ungroupPixelsPreserved", "groupSourceReopened", "invalidGraphKeptValidPixels", "projectUntouched", "exampleOpenedAndRendered", "layerIdentityPreservedPixels", "layerGraphChangedPixels", "layerPublicParameterChangedPixels", "layerProjectUndoRedoRestoresSourceAndPixels", "layerPortPreviewIsObservational", "layerInvalidGraphKeptValidPixels", "layerSourceAndRuntimePackedAndReopened", "layerOfflinePackageRestoresPixels"):
             if preview.get(check) is not True:
                 raise RuntimeError(f"{locale} node preview did not verify {check}")
