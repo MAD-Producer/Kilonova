@@ -215,6 +215,7 @@ impl Workspace {
         layout(preset).root
     }
     pub fn select_preset(&mut self, preset: Preset) {
+        self.restore_panel();
         self.preset_layouts
             .insert(self.preset, SavedLayout::capture(&self.layout));
         self.layout = self
@@ -227,6 +228,7 @@ impl Workspace {
         self.design_revision = 2;
     }
     pub fn reset_preset(&mut self) {
+        self.restore_panel();
         self.layout = layout(self.preset);
         self.design_revision = 2;
         self.preset_layouts.remove(&self.preset);

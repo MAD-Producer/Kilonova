@@ -136,6 +136,7 @@ There are exactly **five** existing workspace presets. Preserve IDs, behavior, a
 | `all` | All Panels | Bottom `0.35` → Right `0.25` → Left `0.25` |
 
 - Workspace persistence already uses `root`, `floating`, `hidden`, and `window_geometry` in `desktop/ui/src/workspace.rs`. Preserve docking, floating, hiding, and geometry serialization.
+- Backquote temporarily expands the dock under the pointer to the main content area; when the pointer is outside the docks, use the focused visible main-window panel. Repeat the command to restore the full layout. Keep the dock's tab stack, ownership and split ratios intact. This is a transient display projection and must never enter saved layouts or project history. Text/IME, popups and active gestures take priority. Workspace changes and panel show/close/float/redock restore the full layout first. Native floating windows already contain one full-size panel; Backquote leaves their geometry and the main layout unchanged.
 - Changes to panel internals are allowed; do not replace workspace state with a React-style tab container or parallel layout state.
 
 ---

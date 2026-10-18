@@ -326,7 +326,7 @@ impl Shell {
         let before = self.engine.state()?;
         let captured = (|| {
             let mut screens = serde_json::Map::new();
-            let view = panels::composition_view_styled(&self.workspace.root, size,
+            let view = panels::composition_view_styled(self.workspace.display_root(), size,
                 &self.panels.styles.clone().unwrap_or_else(motion_ui::style::default_stylesheet_arc));
             let canvas = [self.state["project"]["width"].as_f64().ok_or("viewer width missing")?,
                 self.state["project"]["height"].as_f64().ok_or("viewer height missing")?];

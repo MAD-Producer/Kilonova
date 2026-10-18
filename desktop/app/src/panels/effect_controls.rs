@@ -221,6 +221,9 @@ impl Controls {
                 .values()
                 .any(|editor| editor.dragging() || editor.modal())
     }
+    pub(crate) fn library_search_editing(&self) -> bool {
+        self.search.editor.active()
+    }
     pub(crate) fn curve_gesture_active(&self) -> bool {
         self.curve_editors.values().any(|editor| editor.dragging())
     }
