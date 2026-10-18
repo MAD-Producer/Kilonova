@@ -26,6 +26,7 @@ pub struct Controls {
 }
 fn key(property: Property) -> &'static str {
     match property {
+        Property::Anchor => "anchor",
         Property::Rotation => "rotation",
         Property::Scale => "scale",
         Property::Opacity => "opacity",
@@ -162,10 +163,7 @@ impl Controls {
             (Property::Rotation, T::Rotation),
             (Property::Scale, T::Scale),
             (Property::Opacity, T::Opacity),
-        ]
-        .into_iter()
-        .enumerate()
-        {
+        ].into_iter().enumerate() {
             if button(
                 list,
                 atlas,
@@ -202,7 +200,7 @@ impl Controls {
             }
         } else {
             self.axis = None;
-            if property != Property::Opacity
+            if !matches!(property,Property::Opacity | Property::Anchor)
                 && button(
                     list,
                     atlas,

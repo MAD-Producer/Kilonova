@@ -5,12 +5,14 @@ use super::*;
 use motion_core::{Axis, Track};
 
 enum Samples {
+    Anchor(Track<[f32; 2]>),
     Scalar(Track<f32>),
     Vector(Track<[f32; 3]>),
 }
 impl Samples {
     fn velocity(&self, frame: f64, component: usize, fps: f64) -> f32 {
         match self {
+            Self::Anchor(track) => super::graph_sampling::velocity(track,frame,fps,|v|v[component] as f64) as f32,
             Self::Scalar(track) => {
                 super::graph_sampling::velocity(track, frame, fps, |v| v as f64) as f32
             }
@@ -22,6 +24,7 @@ impl Samples {
 
     fn value(&self, frame: f64, component: usize) -> f32 {
         match self {
+            Self::Anchor(track) => track.sample(frame)[component],
             Self::Scalar(track) => track.sample(frame),
             Self::Vector(track) => track.sample(frame)[component],
         }
@@ -131,6 +134,8 @@ pub(super) fn render(
     let separated = root["separated"].as_bool() == Some(true);
     let visible_axes = if property.is_scalar() {
         vec![0]
+    } else if property == Property::Anchor {
+        vec![0, 1]
     } else if layer["three_d"].as_bool() == Some(true) {
         vec![0, 1, 2]
     } else if property == Property::Rotation {
@@ -153,6 +158,7 @@ pub(super) fn render(
         .animation_controls
         .choose_track(object, property, axis);
     let title = match property {
+        Property::Anchor => T::Anchor,
         Property::Position => T::Position,
         Property::Scale => T::Scale,
         Property::Rotation => T::Rotation,
@@ -168,6 +174,8 @@ pub(super) fn render(
     let layer_offset = timeline["offset_frame"].as_i64().unwrap_or(0);
     let samples = if property.is_scalar() || axis.is_some() {
         data::track::<f32>(source, layer_offset).map(Samples::Scalar)
+    } else if property == Property::Anchor {
+        data::track::<[f32; 2]>(source, layer_offset).map(Samples::Anchor)
     } else {
         data::track::<[f32; 3]>(source, layer_offset).map(Samples::Vector)
     };
@@ -206,11 +214,7 @@ pub(super) fn render(
         (area.height() - 102.).max(1.),
     );
     let end = (offset + plot.width() as f64 / ppf.max(1e-6) as f64).min(last_frame(state));
-    let scale = if property == Property::Opacity {
-        100.
-    } else {
-        1.
-    };
+    let scale = data::display_scale(state,object,property,components[0]);
     let points: Vec<Vec<(f64, f32)>> = components
         .iter()
         .map(|component| {
@@ -296,7 +300,7 @@ pub(super) fn render(
         );
     }
     let unit = match property {
-        Property::Position | Property::Target | Property::Radius => {
+        Property::Anchor | Property::Position | Property::Target | Property::Radius => {
             if panels.timeline.speed_graph {
                 "px/s"
             } else {

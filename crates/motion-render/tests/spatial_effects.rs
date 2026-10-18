@@ -194,7 +194,7 @@ fn asymmetric_rectangle_origin_retains_three_d_transform_and_resource_errors_are
     // A noncentered custom output rectangle is transformed around the original
     // anchor, including the 3D rotation, rather than the output texture's center.
     p.layers[0].three_d = true;
-    p.layers[0].transform.anchor = [0.2, 0.8];
+    p.layers[0].transform.anchor = motion_model::Track::constant([0.2, 0.8]);
     p.layers[0].transform.rotation.value = [15., 35., 12.];
     p.layers[0].transform.scale.value = [130., 80., 100.];
     let sampled = scene(&p, 0.);

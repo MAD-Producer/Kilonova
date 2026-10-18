@@ -5,6 +5,7 @@ use serde_json::Value;
 
 pub(super) fn name(property: Property) -> &'static str {
     match property {
+        Property::Anchor => "anchor",
         Property::Position => "position",
         Property::Rotation => "rotation",
         Property::Scale => "scale",
@@ -16,6 +17,14 @@ pub(super) fn name(property: Property) -> &'static str {
         Property::Azimuth => "azimuth",
         Property::Elevation => "elevation",
     }
+}
+pub(super) fn display_scale(state: &Value, object: u64, property: Property, component: usize) -> f32 {
+    if property == Property::Opacity { return 100.; }
+    if property != Property::Anchor { return 1.; }
+    let size=state["project"]["layers"].as_array().into_iter().flatten()
+        .find(|l| l["id"].as_u64()==Some(object))
+        .and_then(|l| l["size"][component].as_f64());
+    observe!("animation.anchor_display_scale",size.filter(|v|v.is_finite()&&*v>=1.).ok_or("anchor source size unavailable"),"object={object} component={component}").unwrap_or(1.) as f32
 }
 pub(super) fn timeline(state: &Value, object: u64) -> Option<&Value> {
     state["timeline_layers"]
@@ -111,6 +120,8 @@ pub(super) fn sample(
         Some(serde_json::json!(
             track::<f32>(source, offset)?.sample(local)
         ))
+    } else if property == Property::Anchor {
+        Some(serde_json::json!(track::<[f32; 2]>(source, offset)?.sample(local)))
     } else {
         Some(serde_json::json!(
             track::<[f32; 3]>(source, offset)?.sample(local)

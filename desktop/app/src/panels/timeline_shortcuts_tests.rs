@@ -43,6 +43,30 @@ fn panels() -> Panels {
         ..Default::default()
     }
 }
+#[test]
+fn a_reveals_the_real_layer_anchor_in_both_locales_and_property_hosts() {
+    let mut e=engine();
+    e.apply(Command::Animate{object:7,property:Property::Anchor,axis:None,frame:12,enabled:true}).unwrap();
+    e.apply(Command::SetVector{object:7,property:Property::Anchor,frame:52,value:[0.1,0.9,0.]}).unwrap();
+    for locale in [Locale::Zh,Locale::En] {
+        for host in [Panel::Timeline,Panel::Properties] {
+            let mut p=panels();p.locale=locale;p.focused=Some(host);
+            let s=state(&e,32.);
+            assert!(invoke(&mut p,&s,Key::A,Modifiers::default()).is_empty());
+            let rows=timeline::filtered_properties(&s,7,p.timeline.filters[&7]);
+            assert_eq!(rows.len(),1);assert_eq!(rows[0].property,Property::Anchor);
+            assert_eq!(rows[0].keys,vec![12.,52.]);
+            assert_eq!(p.animation_controls.property,Some(Property::Anchor));
+            let sampled=animation_data::sample(&s,7,Property::Anchor,None,32.).unwrap();
+            assert!((sampled[0].as_f64().unwrap()-0.3).abs()<1e-6);
+            assert_eq!(animation_data::display_scale(&s,7,Property::Anchor,0),100.);
+            assert!(invoke(&mut p,&s,Key::A,Modifiers::default()).is_empty());
+            assert!(!p.timeline.expanded.contains(&7));
+            let camera=serde_json::json!({"project":{"layers":[motion_core::Layer::camera(7,"Camera",640,480)]}});
+            assert!(timeline::property_rows(&camera,7).iter().all(|r|r.property!=Property::Anchor));
+        }
+    }
+}
 fn invoke(panels: &mut Panels, state: &Value, key: Key, modifiers: Modifiers) -> Vec<Action> {
     let mut out = vec![];
     keyboard::route(
@@ -1110,6 +1134,33 @@ fn curve_pointer(point:[f32;2],pressed:bool,released:bool) -> Input {
     Input { mouse:point,pressed:pressed.then_some((MouseButton::Left,point)),
         held:(!released).then_some(MouseButton::Left),released:released.then_some((MouseButton::Left,point)),
         ..Default::default() }
+}
+#[test]
+fn three_dimensional_layer_anchor_graph_has_only_two_pixel_components() {
+    let mut project = engine().snapshot();
+    project.layers[0].size = [200., 100.];
+    let mut engine = Engine::new(project).unwrap();
+    engine.apply(Command::Animate {
+        object: 7, property: Property::Anchor, axis: None, frame: 12, enabled: true,
+    }).unwrap();
+    engine.apply(Command::SetVector {
+        object: 7, property: Property::Anchor, frame: 52, value: [0.2, 0.8, 0.],
+    }).unwrap();
+    let before = engine.snapshot();
+    let mut panels = panels();
+    panels.timeline.graph_mode = true;
+    panels.timeline.graph_component = 2;
+    panels.animation_controls.choose_track(7, Property::Anchor, None);
+    let snapshot = state(&engine, 32.);
+    assert_eq!(animation_data::display_scale(&snapshot, 7, Property::Anchor, 0), 200.);
+    assert_eq!(animation_data::display_scale(&snapshot, 7, Property::Anchor, 1), 100.);
+    let mut atlas = TextAtlas::from_system(12.).unwrap();
+    assert!(curve_box_draw(&mut panels, &engine, &mut atlas, Input::default()).is_empty());
+    assert_eq!(panels.timeline.graph_component, 0);
+    panels.timeline.graph_component = 1;
+    assert!(curve_box_draw(&mut panels, &engine, &mut atlas, Input::default()).is_empty());
+    assert_eq!(panels.timeline.graph_component, 1);
+    assert_eq!(engine.project(), &before);
 }
 #[test]
 fn curve_selection_box_translates_and_scales_as_one_undo_without_changing_other_axes() {

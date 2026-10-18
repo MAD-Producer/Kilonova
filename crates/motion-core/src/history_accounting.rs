@@ -68,6 +68,7 @@ impl Changes {
             | Command::Rename { object, .. }
             | Command::Flags { object, .. }
             | Command::Anchor { object, .. }
+            | Command::AnchorAt { object, .. }
             | Command::SetAudio { object, .. }
             | Command::AudioLevels { object, .. }
             | Command::AudioMarkers { object, .. }
