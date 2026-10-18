@@ -262,7 +262,7 @@ Targets pending source verification — report conflicts instead of guessing:
 
 ### 7.1 Tracks and columns
 
-The timeline layer gutter contains **11** existing columns. **Do not invent `solo` / `shy` columns.** Offsets below are from `desktop/app/src/panels/timeline.rs`:
+The timeline layer gutter preserves the **11** existing columns and adds a 3D switch within the name allocation. The compact layout may hide blend mode as specified below. **Do not invent `solo` / `shy` columns.** Offsets below are from `desktop/app/src/panels/timeline.rs`:
 
 | # | Column | X offset / width |
 |---:|---|---|
@@ -397,7 +397,7 @@ These are **only** behaviors evidenced in the supplied audit, **not** an exhaust
 - [ ] Reduced Motion applies only to editor UI transitions, not preview/export of authored animation; mark OS integration missing if unimplemented.
 - [ ] Hover/selected/focused/disabled/editing/keyframed are visually distinguishable, without layout jitter.
 - [ ] Long names, narrow panels, minimum `900×600`, default `1600×1000`, and Windows DPI scaling lay out correctly.
-- [ ] Timeline retains 11 columns and top-side zoom; property subrows stay in the name-gutter region.
+- [ ] Timeline preserves the existing columns, adds the layer-row 3D switch, and follows §7.1's compact blend-column rule; zoom stays on top and property subrows stay in the name-gutter region.
 - [ ] Text baselines, icon centers, and value-field edges align across panels.
 
 ### Interaction and performance acceptance
