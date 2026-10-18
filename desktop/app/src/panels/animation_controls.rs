@@ -26,6 +26,7 @@ pub struct Controls {
     track_explicit: bool,
     track_scope: Option<(String, String)>,
     row_probe: Option<selection::RowProbe>,
+    selection_intent: bool,
     clipboard: Option<Easing>,
     dragging: Option<(usize, Easing, [f64; 2])>,
 }
@@ -81,6 +82,7 @@ fn button(
 }
 impl Controls {
     pub(crate) fn choose_track(&mut self, object: u64, property: Property, axis: Option<Axis>) {
+        self.selection_intent = true;
         self.track_explicit = true;
         self.track_scope = None;
         self.display_track_inner(object, property, axis);

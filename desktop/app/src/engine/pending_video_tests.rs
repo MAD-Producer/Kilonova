@@ -206,6 +206,15 @@ fn pending_video_presents_chrome_without_acknowledging_an_unready_composition() 
                 let error = engine.present_async(invalid).unwrap()
                     .recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err();
                 assert!(error.contains("invalid composition canvas image"),"{error}");
+                for viewport in [[-1.,0.,8.,8.],[0.,0.,0.,8.],[60.,0.,8.,8.],[f32::NAN,0.,8.,8.]] {
+                    let mut invalid = ui();
+                    invalid.composition = Some(viewport);
+                    let error = engine.present_async(invalid).unwrap()
+                        .recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err();
+                    for context in ["invalid composition viewport", "viewport=", "surface=64x64", "phase=render", "window=0", "logical_size=[64.0, 64.0]"] {
+                        assert!(error.contains(context), "missing {context}: {error}");
+                    }
+                }
                 let after = engine.state().unwrap();
                 assert_eq!(before["project"],after["project"]);
                 assert_eq!(before["revision"],after["revision"]);
@@ -281,4 +290,9 @@ fn pending_video_presents_chrome_without_acknowledging_an_unready_composition() 
     assert!(file.contains(invalid));
     assert!(String::from_utf8_lossy(&output.stderr).contains(invalid));
     assert!(!String::from_utf8_lossy(&output.stdout).contains(invalid));
+    for context in ["invalid composition viewport", "surface=64x64", "window=0", "phase=render"] {
+        assert!(file.contains(context));
+        assert!(String::from_utf8_lossy(&output.stderr).contains(context));
+        assert!(!String::from_utf8_lossy(&output.stdout).contains(context));
+    }
 }

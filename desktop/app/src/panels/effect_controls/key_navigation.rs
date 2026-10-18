@@ -1,5 +1,7 @@
 use super::*;
 use crate::panels::key_navigation::{self as navigation, Choice};
+#[cfg(test)]
+mod selection_tests;
 
 #[cfg(test)]
 mod tests {
@@ -112,8 +114,31 @@ fn times(parameter: &EffectParam, offset: f64) -> Vec<f64> {
 }
 
 impl Controls {
+    pub(super) fn choose_parameter(&mut self, state: &Value, object: u64, effect: u64, parameter: &str) {
+        self.key_channel = Some(Channel { object, effect, parameter: parameter.into(),
+            context: (state["root"].as_str().unwrap_or("").into(),
+                state["composition"].as_str().unwrap_or("").into()) });
+        self.selection_intent = true;
+    }
+
+    pub(super) fn parameter_selected(&self, state: &Value, object: u64, effect: u64, parameter: &str) -> bool {
+        self.key_channel.as_ref().is_some_and(|channel|
+            channel.object == object && channel.effect == effect && channel.parameter == parameter
+                && channel.context.0 == state["root"].as_str().unwrap_or("")
+                && channel.context.1 == state["composition"].as_str().unwrap_or(""))
+    }
+
+    pub(in crate::panels) fn take_selection_intent(&mut self) -> bool {
+        std::mem::take(&mut self.selection_intent)
+    }
+
+    pub(in crate::panels) fn has_key_channel(&self) -> bool {
+        self.key_channel.is_some()
+    }
+
     pub(in crate::panels) fn clear_key_channel(&mut self) {
         self.key_channel = None;
+        self.selection_intent = false;
     }
 
     pub(in crate::panels) fn navigate_keys(
@@ -203,7 +228,7 @@ pub(super) fn parameter_navigation(
     local: f64,
     locked: bool,
     out: &mut Vec<Action>,
-) {
+) -> bool {
     let at = state["frame"].as_f64().unwrap_or(0.);
     let last = crate::panels::last_frame(state);
     let adjacent = navigation::neighbours(times(parameter, at - local), at, last);
@@ -214,9 +239,10 @@ pub(super) fn parameter_navigation(
         && parameter.implemented
         && frame.is_some();
     let rect = navigation::rail(&list.styles(), row);
-    let Some(choice) = navigation::draw(list, rect, input, adjacent, editable) else {
-        return;
-    };
+    let choice = navigation::draw(list, rect, input, adjacent, editable);
+    let picked = input.pressed.is_some_and(|(button, point)|
+        button == MouseButton::Left && row.contains(point));
+    if choice.is_none() && !picked { return false; }
     *key_channel = Some(Channel {
         object,
         effect,
@@ -226,11 +252,12 @@ pub(super) fn parameter_navigation(
             state["composition"].as_str().unwrap_or("").into(),
         ),
     });
+    let Some(choice) = choice else { return true; };
     match choice {
         Choice::Seek(frame) => out.push(Action::Seek(frame)),
         Choice::Toggle => {
             let Some(frame) = frame.filter(|_| editable) else {
-                return;
+                return true;
             };
             if adjacent.current {
                 out.push(Action::Edit(Command::Effect {
@@ -277,4 +304,5 @@ pub(super) fn parameter_navigation(
             }
         }
     }
+    true
 }

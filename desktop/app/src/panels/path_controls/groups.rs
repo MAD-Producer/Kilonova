@@ -130,6 +130,7 @@ struct Menu {
 }
 #[derive(Default)]
 pub(in crate::panels) struct Controls {
+    pub(in crate::panels) selection_probe: crate::panels::property_focus::HitProbe,
     context: Option<(String, String, u64, u32)>,
     field: Option<Field>,
     color: Option<color::Popup>,
@@ -578,7 +579,18 @@ impl Controls {
     ) {
         let styles = list.styles();
         let f = layout(styles.as_ref(), area, y, depth, 0, p.values.len(), host);
+        self.selection_probe.record(f.caption, area);
         let frame = state["frame"].as_f64().unwrap_or(0.).floor().max(0.) as u32;
+        let picked = click(input, f.caption) || click(input, f.watch)
+            || (0..p.values.len()).any(|axis|
+                click(input, layout(styles.as_ref(), area, y, depth, axis, p.values.len(), host).number));
+        if picked {
+            self.keys.prepare(state, input, out);
+            self.keys.choose(object, item, p);
+        }
+        crate::panels::animation_controls::highlight_row(list,
+            Rect::new(area.min[0], y, area.width(), styles.metric("row.height", 22.)),
+            self.keys.selected_in(state, object, item, &p.id));
         self.keys.navigation(list, Rect::new(area.min[0], y, area.width(), styles.metric("row.height", 22.)), state, object, item, p, input, enabled, out);
         if matches!(host, Panel::Timeline | Panel::Curves) {
             crate::panels::timeline::property_branch(list, f.watch);

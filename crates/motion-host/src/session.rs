@@ -401,7 +401,7 @@ impl Session {
         if !viewport.iter().all(|v| v.is_finite()) || x < 0. || y < 0.
             || w <= 0. || h <= 0. || x + w > g.config.width as f32 + 0.01
             || y + h > g.config.height as f32 + 0.01
-        { return Err("invalid composition viewport".into()); }
+        { return Err(format!("invalid composition viewport viewport={viewport:?} surface={}x{} phase=retained", g.config.width, g.config.height)); }
         let rendered = present_held(g, viewport, image, overlay)?;
         self.presented += u64::from(rendered);
         Ok(rendered)
@@ -438,7 +438,7 @@ impl Session {
             || vx + vw > g.config.width as f32 + 0.01
             || vy + vh > g.config.height as f32 + 0.01
         {
-            return Err("invalid composition viewport".into());
+            return Err(format!("invalid composition viewport viewport={viewport:?} surface={}x{} phase=render", g.config.width, g.config.height));
         }
         let context = (
             self.engine.revision(),

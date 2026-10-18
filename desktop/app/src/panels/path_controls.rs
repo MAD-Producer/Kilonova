@@ -23,6 +23,8 @@ pub(in crate::panels) mod mask_header;
 mod mask_inspector;
 mod mask_keys;
 mod mask_path;
+#[cfg(test)]
+mod property_focus_tests;
 pub(in crate::panels) mod timeline;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -212,6 +214,7 @@ struct Drag {
 }
 #[derive(Default)]
 pub struct Controls {
+    pub(crate) selection_probe: crate::panels::property_focus::HitProbe,
     pub tool: Tool,
     pub mask: Option<u64>,
     draft: Option<Draft>,
@@ -1260,6 +1263,8 @@ impl Controls {
             .filter(|(owner, _)| *owner == host)
             .map(|(_, rect)| rect)
     }
+    pub(crate) fn begin_shape_probe(&mut self) { self.groups.selection_probe.start(); }
+    pub(crate) fn shape_probe_rect(&self) -> Option<Rect> { self.groups.selection_probe.rect() }
     pub(super) fn append_inspector_overlays(&mut self, list: &mut PaintList) {
         if let Some(overlays) = self.inspector_overlays.take() {
             list.append(overlays);
@@ -1285,6 +1290,18 @@ impl Controls {
     }
     pub(super) fn clear_mask_selection(&mut self) {
         self.keys.clear_selection();
+        self.groups.keys.clear_selection();
+    }
+    pub(super) fn take_mask_selection_intent(&mut self) -> bool {
+        self.keys.take_selection_intent()
+    }
+    pub(super) fn take_shape_selection_intent(&mut self) -> bool {
+        self.groups.keys.take_selection_intent()
+    }
+    pub(super) fn clear_mask_channel(&mut self) {
+        self.keys.clear_selection();
+    }
+    pub(super) fn clear_shape_channel(&mut self) {
         self.groups.keys.clear_selection();
     }
     pub(super) fn numeric_owner(&self) -> Option<motion_ui::dock::Panel> {

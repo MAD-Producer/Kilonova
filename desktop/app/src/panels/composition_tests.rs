@@ -1,5 +1,27 @@
 use super::*;
 
+#[test]
+fn collapsed_viewers_never_submit_a_fabricated_pixel_outside_the_window() {
+    let styles = PaintList::default().styles();
+    for width in [1.,8.,16.,17.,64.,900.,1600.] {
+        for height in [1.,30.,52.,53.,80.,100.,101.,130.,600.,1000.] {
+            let size = [width,height];
+            let bounds = Rect::new(0.,0.,width,height);
+            for root in [Node::dock(Panel::Composition.dock()),dock::editor_layout()] {
+                let view = composition_view_styled(&root,size,&styles);
+                if view.width() > 0. && view.height() > 0. {
+                    assert!(bounds.contains_rect(view), "size={size:?} view={view:?}");
+                }
+            }
+            if let Some(view) = floating_view_styled(Panel::Composition,size,&styles) {
+                assert!(view.width() > 0. && view.height() > 0.);
+                assert!(bounds.contains_rect(view), "floating size={size:?} view={view:?}");
+            }
+        }
+    }
+    assert!(floating_view_styled(Panel::Timeline,[900.,600.],&styles).is_none());
+}
+
 fn state() -> Value {
     serde_json::json!({"root":"navigation-fixture","revision":7,"frame":0,
         "project":{"composition_id":"main","width":1920,"height":1080,"fps":30,"layers":[]}})

@@ -620,6 +620,17 @@ impl Controls {
                     mask_keys::values(mask, index, local)
                 };
                 let fields = property_row(styles.as_ref(), area, *y, 0, values.len(), host);
+                self.selection_probe.record(fields.caption, area);
+                let picked = click(input, fields.caption) || click(input, fields.watch)
+                    || (0..values.len()).any(|axis|
+                        click(input, property_row(styles.as_ref(), area, *y, axis, values.len(), host).number));
+                if picked {
+                    self.keys.choose(state, owner, mask.id, index, out);
+                    self.groups.keys.clear_selection();
+                }
+                crate::panels::animation_controls::highlight_row(list,
+                    Rect::new(area.min[0], *y, area.width(), row),
+                    self.keys.selected_in(state, owner.object, mask.id, index));
                 if self.keys.navigation(list, Rect::new(area.min[0], *y, area.width(), row), state, owner, mask, index, input, out) {
                     self.groups.keys.clear_selection();
                 }

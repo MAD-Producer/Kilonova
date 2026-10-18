@@ -510,6 +510,14 @@ pub(super) fn delete(panels: &mut Panels, state: &Value, out: &mut Vec<Action>) 
     let Some(ctx) = panels.timeline.graph_box.context.clone() else {
         return false;
     };
+    use super::animation_controls::TrackSelection;
+    let track = panels.animation_controls.track_selection(state, panels.selected);
+    if track == TrackSelection::Invalid || matches!(track, TrackSelection::Current(track)
+        if track.object != ctx.object || track.property != ctx.property || track.axis != ctx.axis)
+    {
+        panels.timeline.graph_box.selected = false;
+        return true;
+    }
     if state["root"].as_str().unwrap_or("") != ctx.root
         || state["composition"].as_str().unwrap_or("") != ctx.composition
         || panels.selected != Some(ctx.object)
@@ -556,6 +564,10 @@ pub(super) fn select_all(panels: &mut Panels, state: &Value) -> bool {
     {
         return false;
     }
+    if panels.animation_controls.track_selection(state, panels.selected)
+        == super::animation_controls::TrackSelection::Invalid {
+        return true;
+    }
     let Some(object) = panels.selected else {
         return false;
     };
@@ -579,6 +591,7 @@ pub(super) fn select_all(panels: &mut Panels, state: &Value) -> bool {
     }
     panels.timeline.graph_box.context = Some(ctx);
     panels.timeline.graph_box.selected = true;
+    panels.animation_controls.choose_track_in(state, object, property, axis);
     panels.audio_controls.clear_selection();
     panels.animation_controls.clear_key();
     true

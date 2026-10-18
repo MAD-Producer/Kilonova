@@ -225,7 +225,6 @@ pub(super) fn render(
             )],
             6 => {
                 let columns = panels.timeline.column_visibility;
-                let mark = |visible: bool| if visible { "✓" } else { "  " };
                 vec![
                     (
                         locale.t(T::ShowComposition).into(),
@@ -233,7 +232,7 @@ pub(super) fn render(
                         true,
                     ),
                     (
-                        format!("{} {}", mark(columns.matte), locale.t(T::MatteColumn)),
+                        locale.t(T::MatteColumn).into(),
                         Action::TimelineColumnVisibility(ColumnVisibility {
                             matte: !columns.matte,
                             ..columns
@@ -241,7 +240,7 @@ pub(super) fn render(
                         true,
                     ),
                     (
-                        format!("{} {}", mark(columns.blend), locale.t(T::BlendColumn)),
+                        locale.t(T::BlendColumn).into(),
                         Action::TimelineColumnVisibility(ColumnVisibility {
                             blend: !columns.blend,
                             ..columns
@@ -249,7 +248,7 @@ pub(super) fn render(
                         true,
                     ),
                     (
-                        format!("{} {}", mark(columns.parent), locale.t(T::ParentColumn)),
+                        locale.t(T::ParentColumn).into(),
                         Action::TimelineColumnVisibility(ColumnVisibility {
                             parent: !columns.parent,
                             ..columns
@@ -279,18 +278,7 @@ pub(super) fn render(
                     true,
                 ),
                 (
-                    format!(
-                        "{} {}",
-                        if state["desktop"]["diagnostics"]["enabled"]
-                            .as_bool()
-                            .unwrap_or(false)
-                        {
-                            "✓"
-                        } else {
-                            "  "
-                        },
-                        locale.t(T::SendDiagnostics)
-                    ),
+                    locale.t(T::SendDiagnostics).into(),
                     Action::ToggleDiagnostics,
                     state["desktop"]["diagnostics"]["configured"]
                         .as_bool()
@@ -354,10 +342,29 @@ pub(super) fn render(
             if r.contains(input.mouse) {
                 paint::rect(&mut popup_list, r, colors.SUNKEN);
             }
+            let checked = match &action {
+                Action::TimelineColumnVisibility(next) => {
+                    let current = panels.timeline.column_visibility;
+                    if next.matte != current.matte { current.matte }
+                    else if next.blend != current.blend { current.blend }
+                    else { current.parent }
+                }
+                Action::ToggleDiagnostics => state["desktop"]["diagnostics"]["enabled"] == true,
+                _ => false,
+            };
+            let slot = if matches!(&action, Action::TimelineColumnVisibility(_) | Action::ToggleDiagnostics) {
+                styles.metric("icon.slot", 20.)
+            } else { 0. };
+            if checked {
+                motion_ui::icons::draw(&mut popup_list,
+                    Rect::new(r.max[0] - slot, r.min[1], slot, r.height()),
+                    motion_ui::icons::Icon::Check, styles.metric("checkbox.size", 14.),
+                    if enabled { colors.TEXT } else { styles.color("disabled") });
+            }
             label(
                 &mut popup_list,
                 atlas,
-                Rect::new(r.min[0] + 8.0, r.min[1], r.width() - 16.0, r.height()),
+                Rect::new(r.min[0] + 8.0, r.min[1], r.width() - 16.0 - slot, r.height()),
                 &text,
                 !enabled,
             );

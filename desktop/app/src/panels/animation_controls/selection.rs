@@ -33,6 +33,31 @@ fn scope(state: &Value) -> (&str, &str) {
 }
 
 impl Controls {
+    pub(crate) fn foreign_track_selected(&self) -> bool {
+        self.track_explicit && self.key_context.is_none()
+    }
+
+    pub(in crate::panels) fn take_selection_intent(&mut self) -> bool {
+        std::mem::take(&mut self.selection_intent)
+    }
+
+    /// An explicit layer choice releases property ownership. Display defaults
+    /// remain projections and never capture another property's commands.
+    pub(in crate::panels) fn clear_track(&mut self) {
+        self.clear_key();
+        self.key_context = None;
+        self.track_scope = None;
+        self.track_explicit = false;
+        self.selection_intent = false;
+    }
+
+    /// Typed channels keep their own targets. Retain explicit ownership here so
+    /// a cleared or stale typed channel cannot fall back to a transform/layer.
+    pub(in crate::panels) fn yield_track(&mut self) {
+        self.clear_track();
+        self.track_explicit = true;
+    }
+
     pub(crate) fn begin_row_probe(&mut self, object: u64, property: Property, axis: Option<Axis>) {
         self.row_probe = Some(RowProbe {
             target: SelectedTrack {

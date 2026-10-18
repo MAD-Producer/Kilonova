@@ -169,7 +169,9 @@ impl Panels {
         self.audio_controls.clear_selection();
         self.selected = object;
         self.selection_anchor = object.filter(|id| *id != 0);
-        self.animation_controls.clear_key();
+        self.animation_controls.clear_track();
+        self.effect_controls.clear_key_channel();
+        self.properties.effects.clear_key_channel();
         self.selected_layers.clear();
         if let Some(object) = object.filter(|id| *id != 0) {
             self.selected_layers.push(object);
@@ -482,6 +484,7 @@ pub(crate) struct TimelineState {
     pub edge_pan_at: Option<std::time::Instant>,
     /// Acknowledged frames repaint the consumed pointer without advancing navigation.
     pub navigation_paint_only: bool,
+    pub three_d_probe: super::property_focus::HitProbe,
     pub playhead_view: Option<(Rect, f32, f32)>,
     pub expression_rows: Vec<motion_core::ExpressionTarget>,
     pub zoom_track: Option<Rect>,

@@ -325,10 +325,11 @@ pub(super) fn handle(
     frame: &mut f64,
     out: &mut Vec<Action>,
 ) -> bool {
-    if !matches!(
+    if !(matches!(
         panels.focused,
         Some(Panel::Timeline | Panel::Curves | Panel::Properties | Panel::Composition)
-    ) {
+    ) || super::property_focus::navigation_scope(panels.focused)
+        && matches!(command, Shortcut::PreviousKey | Shortcut::NextKey)) {
         return false;
     }
     if panels.timeline.moving.is_some()
@@ -535,6 +536,9 @@ pub(super) fn handle(
             }
         }
         Shortcut::Delete if matches!(panels.focused, Some(Panel::Timeline | Panel::Curves)) => {
+            if panels.animation_controls.track_selection(state, panels.selected) == TrackSelection::Invalid {
+                return true;
+            }
             if let Some(key) = selection(panels, state) {
                 if visual_layer(state, key.object)
                     .is_some_and(|l| l["locked"].as_bool() != Some(true))

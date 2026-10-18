@@ -904,11 +904,10 @@ pub(super) fn render(
         let next = panels.timeline.zoom.max(1.) * 1.25;
         super::timeline_zoom::zoom_at(&mut panels.timeline, total as f32, next, 0.5);
     }
-    if ui::button(
+    if ui::button_icon(
         list,
-        atlas,
         Rect::new(zoom_x + 117., toolbar_top, toolbar_height, toolbar_height),
-        "↔",
+        motion_ui::icons::Icon::Expand,
         input,
         true,
     )
@@ -1171,6 +1170,9 @@ pub(super) fn render(
             .as_array()
             .and_then(|ls| ls.iter().find(|l| l["id"].as_u64() == Some(row.id)));
         if let (Some(layer), Some(switch)) = (layer.filter(|_| row.id != 0 && row.spatial && !row.camera), columns.three_d) {
+            if panels.selected == Some(row.id) {
+                panels.timeline.three_d_probe.record(switch.rect(y, row_height), body);
+            }
             if motion_ui::widgets::Checkbox::draw(
                 list,
                 atlas,
@@ -1178,7 +1180,9 @@ pub(super) fn render(
                 "",
                 layer["three_d"] == true,
                 input,
-                !row.locked && state["observing"] != true,
+                // Observation changes the preview camera, not layer ownership.
+                // Switching dimensions is independent of viewport coordinates.
+                !row.locked,
                 false,
                 None,
             )

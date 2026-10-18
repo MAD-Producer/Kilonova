@@ -10,7 +10,77 @@ use motion_ui::{
     input::{Key, Modifiers, MouseButton, Rect},
 };
 
+#[cfg(test)]
+#[test]
+fn typed_capture_fixtures_paint_clickable_properties_without_media_io() {
+    for locale in [i18n::Locale::En,i18n::Locale::Zh] {
+        for (audio,panel) in [(false,Panel::Properties),(false,Panel::Timeline),(true,Panel::Timeline)] {
+            let state = Shell::typed_selection_capture_state(
+                &serde_json::json!({"root":"capture-fixture","composition":"comp-main","revision":1,"frame":40}),7,audio).unwrap();
+            let mut panels = panels::Panels {locale,focused:Some(panel),..Default::default()};
+            panels.select_only(Some(7));
+            panels.properties.transform_collapsed=true;
+            panels.timeline.expanded.insert(7);
+            panels.timeline.collapsed_transforms.insert(7);
+            if audio {panels.audio_controls.selection_probe.start();} else {
+                panels.path_controls.begin_shape_probe();
+                panels.path_controls.reveal_vector_item(&state,7,2);
+                panels.timeline.vector_open.extend([(7,0,0),(7,1,0),(7,2,2)]);
+            }
+            let mut atlas=TextAtlas::from_system(18.).unwrap();
+            let size=if panel==Panel::Properties {[360.,560.]} else {[900.,520.]};
+            let actions=panels::floating_chrome(&mut PaintList::default(),&mut atlas,panel,size,
+                &mut panels,&state,&Input::default());
+            assert!(actions.is_empty(),"{actions:?}");
+            let hit=if audio {panels.audio_controls.selection_probe.rect()}
+                else {panels.path_controls.shape_probe_rect()}.expect("visible typed property caption");
+            let point=[(hit.min[0]+hit.max[0])*0.5,(hit.min[1]+hit.max[1])*0.5];
+            let actions=panels::floating_chrome(&mut PaintList::default(),&mut atlas,panel,size,
+                &mut panels,&state,&Input {mouse:point,pressed:Some((MouseButton::Left,point)),..Default::default()});
+            assert!(actions.is_empty(),"{actions:?}");
+            assert!(panels.animation_controls.foreign_track_selected());
+        }
+    }
+}
+
 impl Shell {
+    fn typed_selection_capture_state(state: &Value, object: u64, audio: bool) -> Result<Value, String> {
+        let mut project = motion_core::Project::new(640, 360, 30, 120).map_err(|e| e.to_string())?;
+        project.version = 20;
+        let mut layer = Layer::solid(object, "Selection fixture", [100.;2], [100.,100.,0.], [1.;4]);
+        if audio {
+            layer.size = [0.;2];
+            layer.transform = motion_core::Transform::new([0.;3]);
+            project.audio_assets.push(motion_core::AudioAsset {id:1,path:"assets/selection-fixture.wav".into(),
+                mime:"audio/wav".into(),bytes:768044,track:0,sample_rate:48000,channels:2,
+                sample_frames:192000,duration_us:4_000_000});
+            layer.content = motion_core::Content::Audio {audio:motion_core::AudioClip::new(1)};
+        } else {
+            use motion_core::vector::{VectorContent, VectorSource, FillRule, groups::{VectorGroup,GroupItem,Composite}};
+            layer.content = motion_core::Content::Vector {vector:VectorContent {
+                source:VectorSource::Group {group:Box::new(VectorGroup {id:1,name:"Group".into(),
+                    transform:Default::default(),items:vec![GroupItem::Fill {id:2,name:"Fill".into(),
+                        color:Track::constant([0.4,0.6,0.9,1.]),fill_rule:FillRule::NonZero,composite:Composite::Below}]})},
+                fill:None,fill_rule:FillRule::NonZero,stroke:None,trim:None}};
+        }
+        project.layers.push(layer);
+        // Validate authored data, then render its view snapshot only. This visual
+        // fixture performs no media IO and does not claim audio decoding coverage.
+        let engine = motion_core::Engine::new(project).map_err(|e| e.to_string())?;
+        let mut view = state.clone();
+        view["project"] = serde_json::to_value(engine.project()).map_err(|e| e.to_string())?;
+        view["timeline_layers"] = serde_json::to_value(engine.project().timeline_layers(40.)).map_err(|e| e.to_string())?;
+        view["sampledLayers"] = engine.project().layers.iter().map(|l| {
+            let local = l.local_frame(40.);
+            serde_json::json!({"id":l.id,"position":l.transform.position.sample(local),
+                "rotation":l.transform.rotation.sample(local),"scale":l.transform.scale.sample(local),
+                "anchor":l.transform.anchor.sample(local),"opacity":l.transform.opacity.sample(local),
+                "active":l.active(40.,engine.project().frames),"three_d":l.three_d})
+        }).collect::<Vec<_>>().into();
+        view["revision"] = (state["revision"].as_u64().unwrap_or(0).saturating_add(1)).into();
+        Ok(view)
+    }
+
     pub(crate) fn capture_property_followup_screens(
         &mut self,
         window_size: [f32; 2],
@@ -117,6 +187,11 @@ impl Shell {
                 ("selection-timeline-main", Panel::Timeline, [900., 520.]),
                 ("selection-timeline-float", Panel::Timeline, [900., 520.]),
                 ("selection-timeline-graph", Panel::Timeline, [900., 520.]),
+                ("typed-selection-mask-property", Panel::Properties, [360., 560.]),
+                ("typed-selection-mask-timeline", Panel::Timeline, [900., 520.]),
+                ("typed-selection-shape-property", Panel::Properties, [360., 560.]),
+                ("typed-selection-shape-timeline", Panel::Timeline, [900., 520.]),
+                ("typed-selection-audio-timeline", Panel::Timeline, [900., 520.]),
                 ("property-merge-menu", Panel::Properties, [360., 560.]),
                 (
                     "property-merge-menu-narrow",
@@ -138,11 +213,18 @@ impl Shell {
                 ("layer-lock-menu", Panel::Timeline, [900., 520.]),
                 ("layer-unlock-menu", Panel::Timeline, [900., 520.]),
                 ("layer-lock-main-menu", Panel::Timeline, [900., 520.]),
+                ("layer-matte-menu", Panel::Timeline, [900., 520.]),
+                ("layer-matte-menu-narrow", Panel::Timeline, [720., 520.]),
+                ("timeline-columns-main-menu", Panel::Timeline, [900., 520.]),
+                ("diagnostics-main-menu", Panel::Timeline, [900., 520.]),
                 ("mask-mode-menu", Panel::Properties, [360., 560.]),
                 ("mask-mode-menu-narrow", Panel::Properties, [220., 560.]),
                 ("graph-raw-readonly", Panel::Timeline, [900., 520.]),
                 ("mask-handles-selected", Panel::Composition, [900., 520.]),
             ] {
+                let state = if name.starts_with("typed-selection-shape") || name.starts_with("typed-selection-audio") {
+                    Self::typed_selection_capture_state(&state, object, name.contains("audio"))?
+                } else {state.clone()};
                 let mut panels = panels::Panels {
                     styles: self.panels.styles.clone(),
                     locale: self.workspace.locale,
@@ -172,6 +254,20 @@ impl Shell {
                 }
                 panels.path_controls.masks_open =
                     name.starts_with("mask-") || name.contains("mask-group");
+                if name.starts_with("typed-selection-") {
+                    panels.properties.transform_collapsed = true;
+                    panels.timeline.collapsed_transforms.insert(object);
+                    if name.contains("mask") {
+                        panels.path_controls.masks_open = true;
+                        panels.path_controls.selection_probe.start();
+                    } else if name.contains("shape") {
+                        panels.path_controls.begin_shape_probe();
+                        panels.path_controls.reveal_vector_item(&state, object, 2);
+                        panels.timeline.vector_open.extend([(object,0,0),(object,1,0),(object,2,2)]);
+                    } else {
+                        panels.audio_controls.selection_probe.start();
+                    }
+                }
                 let mut style_context = PaintList::default();
                 style_context.stylesheet = panels.styles.clone();
                 let styles = style_context.styles();
@@ -181,7 +277,7 @@ impl Shell {
                     |panels: &mut panels::Panels, input: &Input| -> Result<PaintList, String> {
                         let mut paint = PaintList::default();
                         paint.stylesheet = panels.styles.clone();
-                        let actions = if matches!(name, "layer-lock-main-menu" | "property-key-navigation-main") || name.starts_with("selection-") && name.ends_with("-main") {
+                        let actions = if name.ends_with("-main-menu") || name == "property-key-navigation-main" || name.starts_with("selection-") && name.ends_with("-main") {
                             panels::chrome(
                                 &mut paint,
                                 &mut self.atlas,
@@ -208,7 +304,17 @@ impl Shell {
                         Ok(paint)
                     };
                 draw(&mut panels, &Input::default())?;
-                if name.starts_with("selection-") {
+                if name.starts_with("typed-selection-") {
+                    let hit = if name.contains("mask") {panels.path_controls.selection_probe.rect()}
+                        else if name.contains("shape") {panels.path_controls.shape_probe_rect()}
+                        else {panels.audio_controls.selection_probe.rect()}
+                        .ok_or_else(|| format!("{name} did not paint a visible typed property"))?;
+                    let point = [(hit.min[0]+hit.max[0])*0.5,(hit.min[1]+hit.max[1])*0.5];
+                    draw(&mut panels, &Input {mouse:point,pressed:Some((MouseButton::Left,point)),..Default::default()})?;
+                    if !panels.animation_controls.foreign_track_selected() {
+                        return Err(format!("{name} click did not capture typed property ownership"));
+                    }
+                } else if name.starts_with("selection-") {
                     let anchor = name == "selection-anchor-main";
                     let component = name.ends_with("-number").then_some(0);
                     // Read actual painted hit geometry, including mask rows and
@@ -255,11 +361,20 @@ impl Shell {
                     );
                 } else if name == "layer-lock-main-menu" {
                     panels.menu = Some(3);
+                } else if name == "timeline-columns-main-menu" {
+                    panels.menu = Some(6);
+                } else if name == "diagnostics-main-menu" {
+                    panels.menu = Some(8);
                 } else if name.starts_with("layer-") {
                     panels
                         .layer_actions
                         .open(panels.selected, [100., 400.], &state);
                     draw(&mut panels, &Input::default())?;
+                    if name.starts_with("layer-matte-menu") {
+                        for _ in 0..3 {
+                            draw(&mut panels, &Input {keys:vec![(Key::Down,Modifiers::default())],..Default::default()})?;
+                        }
+                    }
                     draw(
                         &mut panels,
                         &Input {
@@ -365,6 +480,7 @@ impl Shell {
                     .map_err(|e| e.to_string())?;
                 output.insert(name.into(), serde_json::json!(path));
             }
+            self.capture_observation_three_d_screens(window_size, report, output, object)?;
             Ok(())
         })();
         if let Err(cause) = &captured {
@@ -392,6 +508,85 @@ impl Shell {
             }
             (Err(cause), _) | (_, Err(cause)) => Err(cause),
             _ => Ok(()),
+        }
+    }
+
+    fn capture_observation_three_d_screens(
+        &mut self,
+        window_size: [f32; 2],
+        report: &std::path::Path,
+        output: &mut serde_json::Map<String, Value>,
+        object: u64,
+    ) -> Result<(), String> {
+        fn draw(atlas: &mut TextAtlas, panels: &mut panels::Panels, state: &Value, input: &Input)
+            -> (PaintList, Vec<panels::Action>) {
+            let mut paint = PaintList::default();
+            paint.stylesheet = panels.styles.clone();
+            let actions = panels::floating_chrome(&mut paint, atlas, Panel::Timeline,
+                [900., 520.], panels, state, input);
+            (paint, actions)
+        }
+        let before = self.engine.state()?;
+        let original_view = if before["observing"] != true {0} else {match before["observationView"].as_str() {
+            Some("top")=>2, Some("side")=>3, _=>1,
+        }};
+        let mut changed = false;
+        let captured = (|| {
+            let mut state = self.engine.view(2)?;
+            let mut panels = panels::Panels {locale:self.workspace.locale,styles:self.panels.styles.clone(),
+                focused:Some(Panel::Timeline),..Default::default()};
+            panels.select_only(Some(object));
+            panels.timeline.three_d_probe.start();
+            for enabled in [false,true] {
+                let (_, actions) = draw(&mut self.atlas, &mut panels, &state, &Input::default());
+                if !actions.is_empty() {return Err(format!("3D observation idle emitted actions: {actions:?}"));}
+                if enabled {
+                    let hit=panels.timeline.three_d_probe.rect().ok_or("3D observation switch not visible")?;
+                    let point=[(hit.min[0]+hit.max[0])*0.5,(hit.min[1]+hit.max[1])*0.5];
+                    let (_,actions)=draw(&mut self.atlas,&mut panels,&state,
+                        &Input {mouse:point,pressed:Some((MouseButton::Left,point)),..Default::default()});
+                    let [panels::Action::Edit(command @ Command::SetLayer3d {object:target,enabled:true})]=actions.as_slice() else {
+                        return Err(format!("3D observation click emitted unexpected actions: {actions:?}"));
+                    };
+                    if *target!=object {return Err("3D observation click targeted another layer".into());}
+                    state=self.engine.edit(serde_json::to_string(command).map_err(|e|e.to_string())?)?;
+                    changed=true;
+                }
+                let layer=state["project"]["layers"].as_array().and_then(|layers|
+                    layers.iter().find(|layer|layer["id"].as_u64()==Some(object))).ok_or("3D capture layer missing")?;
+                if layer["three_d"]!=enabled || state["observing"]!=true || state["observationView"]!="top" {
+                    return Err("3D observation click changed the view or did not update the model".into());
+                }
+                let (paint,actions)=draw(&mut self.atlas,&mut panels,&state,&Input::default());
+                if !actions.is_empty() {return Err(format!("3D observation repaint emitted actions: {actions:?}"));}
+                let name=if enabled {"timeline-3d-observation-on"} else {"timeline-3d-observation-off"};
+                let path=report.with_extension(format!("{name}.png"));
+                let mut ui=self.ui_frame(paint,window_size,true);
+                ui.composition=None;
+                ui.node_preview=None;
+                self.engine.capture_ui(ui,path.clone())?;
+                let pixels=image::open(&path).map_err(|e|e.to_string())?;
+                let width=(900.*pixels.width() as f32/window_size[0]).round() as u32;
+                let height=(520.*pixels.height() as f32/window_size[1]).round() as u32;
+                pixels.crop_imm(0,0,width,height).save(&path).map_err(|e|e.to_string())?;
+                output.insert(name.into(),serde_json::json!(path));
+            }
+            Ok(())
+        })();
+        // Restore both authored history and the independent preview camera even
+        // when capture fails. The enclosing fixture still owns one undo entry.
+        let undo = if changed {self.engine.history(0).map(|_|())} else {Ok(())};
+        let view = self.engine.view(original_view).and_then(|state| {
+            if state["project"]==before["project"] {Ok(())}
+            else {Err("3D observation capture did not restore the project".into())}
+        });
+        let cleanup=match (undo,view) {
+            (Err(a),Err(b))=>Err(format!("{a}; view restore failed: {b}")),
+            (Err(a),_)|(_,Err(a))=>Err(a),_=>Ok(()),
+        };
+        match (captured,cleanup) {
+            (Err(a),Err(b))=>Err(format!("{a}; 3D capture cleanup failed: {b}")),
+            (Err(a),_)|(_,Err(a))=>Err(a),_=>Ok(()),
         }
     }
 
