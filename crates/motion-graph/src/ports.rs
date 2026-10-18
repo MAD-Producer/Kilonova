@@ -131,6 +131,7 @@ fn semantic(
     }
     match (op, id) {
         (NodeOp::Gradient { .. }, "coordinate" | "start" | "end") => Uv,
+        (NodeOp::Noise { .. }, "coordinate" | "offset") => Uv,
         (
             NodeOp::SampleImage {
                 coordinates: SampleCoordinates::Pixels,
@@ -259,6 +260,16 @@ pub(crate) fn check_specs(
 
 type Help = (&'static str, &'static str, &'static str, &'static str);
 fn help(op: &NodeOp, id: &str, output: bool, semantic: PortSemantic) -> Help {
+    if matches!(op, NodeOp::Noise { .. }) {
+        return match (output, id) {
+            (false, "coordinate") => ("坐标", "Coordinate", "连接归一化 UV；噪声域限制为正负一百万以保证整数安全。", "Connect normalized UV. Each octave's noise domain is clamped to +/-1,000,000 for integer safety."),
+            (false, "offset") => ("偏移", "Offset", "缩放前加入坐标的 UV 偏移，可连接动画。", "UV offset added before scale; may be animated by a connection."),
+            (false, "scale") => ("缩放", "Scale", "每单位 UV 的频率，限制为 0..4096；数值越大图案越细。", "Frequency per UV unit, clamped to 0..4096. Higher values produce finer detail."),
+            (false, "seed") => ("种子", "Seed", "限制为 0..65535 后向下取整；相同种子与坐标得到相同结果。", "Clamped to 0..65535, then floored. Equal seed and coordinates produce equal results."),
+            (true, "factor") => ("因子", "Factor", "归一化到 0..1；层数 1..4，频率逐层翻倍、权重逐层减半。", "0..1 factor. One to four octaves, doubling frequency and halving weight, normalized by total weight."),
+            _ => ("颜色", "Color", "工作空间中的不透明灰度颜色，可直接连接颜色输出。", "Opaque grayscale in the graph working space; connect directly to Color Output."),
+        };
+    }
     if matches!(op, NodeOp::Gradient { .. }) {
         return match (output, id) {
             (false, "coordinate") => ("坐标", "Coordinate", "连接 UV；X 向右、Y 向下，按归一化坐标计算，不自动校正宽高比。", "Connect UV; X right, Y down. Uses normalized coordinates without automatic aspect correction."),
@@ -358,6 +369,7 @@ fn help(op: &NodeOp, id: &str, output: bool, semantic: PortSemantic) -> Help {
 
 pub fn node_description(operation: &NodeOp) -> (&'static str, &'static str) {
     match operation {
+        NodeOp::Noise { .. } => ("生成二维值噪声或梯度噪声，支持 1..4 层；显式 UV，可调缩放、偏移和种子，同时输出因子与灰度颜色。", "Generates 2D Value or Perlin gradient noise with 1..4 octaves. Explicit UV, adjustable scale/offset/seed, factor and grayscale outputs."),
         NodeOp::Gradient { .. } => ("在线性、径向和顺时针角向模式中生成双色渐变与 0..1 因子；需要显式 UV，衰减指数可调。", "Generates a two-color gradient and 0..1 factor in linear, radial or clockwise conic mode; requires explicit UV and supports adjustable falloff."),
         NodeOp::Group { .. } => ("双击或 Tab 进入子图；Ctrl+Tab 返回；Alt+G 解包。分组保留端口类型、单位和原始计算结果。", "Double-click or Tab to enter; Ctrl+Tab returns; Alt+G ungroups. Boundaries preserve types, units and computation."),
         NodeOp::GroupInput { .. } => ("从父图读取节点组输入；边界节点不可删除。", "Reads the group inputs from its parent graph. This boundary node cannot be deleted."),

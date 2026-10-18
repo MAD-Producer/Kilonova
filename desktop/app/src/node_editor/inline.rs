@@ -84,7 +84,7 @@ pub(super) fn control_count(node: &Node, document: &GraphDocument) -> usize {
         | NodeOp::Select { .. }
         | NodeOp::Image { .. }
         | NodeOp::SampleImage { .. } => 1,
-        NodeOp::Vec2 { .. } | NodeOp::Math { .. } => 2,
+        NodeOp::Vec2 { .. } | NodeOp::Math { .. } | NodeOp::Noise { .. } => 2,
         NodeOp::Vec3 { .. } => 3,
         NodeOp::Color { .. } => 5,
         NodeOp::Parameter { parameter } => document
@@ -342,6 +342,22 @@ pub(super) fn controls(node: &Node, document: &GraphDocument, language: Language
                 language,
                 true,
             ));
+        }
+        NodeOp::Noise { mode, octaves } => {
+            out.push(choices(
+                language.text("模式", "Mode"), &node.operation,
+                [NoiseMode::Value, NoiseMode::Perlin].into_iter()
+                    .map(|mode| NodeOp::Noise { mode, octaves: *octaves }).collect(),
+                language, false,
+            ));
+            out.push(Control::Choice {
+                label: language.text("层数", "Octaves").into(),
+                value: octaves.to_string(),
+                items: (1..=4).map(|octaves| Choice {
+                    label: octaves.to_string(),
+                    operation: NodeOp::Noise { mode: *mode, octaves },
+                }).collect(),
+            });
         }
         NodeOp::Gradient { .. } => out.push(choices(
             language.text("模式", "Mode"),

@@ -326,6 +326,78 @@ fn gradient_catalog_creation_needs_only_uv_and_keeps_wired_fallbacks() {
 }
 
 #[test]
+fn noise_mode_and_octave_choices_preserve_each_other_and_undo_independently() {
+    for language in [Language::Chinese, Language::English] {
+        let graph = GraphDocument::from_json(include_str!(
+            "../../../../../crates/motion-graph/examples/compact-noise.msgraph"
+        )).unwrap();
+        let mut editor = NodeEditor::new(graph);
+        editor.inspector_open = false;
+        editor.view.zoom = 0.85;
+        editor.view.pan = [20.; 2];
+        let before = editor.snapshot().document;
+        let mut atlas = TextAtlas::from_system(13.).unwrap();
+        frame(&mut editor, &mut atlas, Input::default());
+        for (index, downs, expected) in [
+            (1, 3, NodeOp::Noise { mode: NoiseMode::Value, octaves: 4 }),
+            (0, 1, NodeOp::Noise { mode: NoiseMode::Perlin, octaves: 4 }),
+        ] {
+            let node = editor.document.nodes.iter().find(|n| n.id == "noise").unwrap();
+            let choices: Vec<_> = controls::control_rows(node, &editor.document, language)
+                .into_iter().filter(|(_, c)| matches!(c, Control::Choice { .. })).collect();
+            if index == 1 {
+                let Control::Choice { value, items, .. } = &choices[1].1 else { panic!() };
+                assert_eq!(value, "1");
+                assert_eq!(items.iter().map(|i| i.label.as_str()).collect::<Vec<_>>(), ["1", "2", "3", "4"]);
+            }
+            let point = center(editor.choice_bounds_at("noise", index).unwrap());
+            frame(&mut editor, &mut atlas, press(point, MouseButton::Left));
+            assert!(matches!(editor.inline.popup, Some(Popup::Choice { .. })));
+            frame(&mut editor, &mut atlas, release(point, MouseButton::Left));
+            for _ in 0..downs { frame(&mut editor, &mut atlas, key(Key::Down)); }
+            frame(&mut editor, &mut atlas, key(Key::Enter));
+            assert_eq!(editor.document.nodes[1].operation, expected);
+            assert_eq!(editor.document.connections, before.connections);
+            assert_eq!(editor.document.nodes[1].input_defaults, before.nodes[1].input_defaults);
+            editor.snapshot().compile().unwrap();
+        }
+        assert!(editor.undo());
+        assert_eq!(editor.document.nodes[1].operation, NodeOp::Noise { mode: NoiseMode::Value, octaves: 4 });
+        assert!(editor.undo());
+        assert_eq!(editor.snapshot().document, before);
+        assert!(editor.redo());
+        assert!(editor.redo());
+        editor.set_input_default("noise", "offset", InputValue::Vec2([-0.5, 0.25])).unwrap();
+        editor.set_input_default("noise", "scale", InputValue::Float(16.)).unwrap();
+        editor.set_input_default("noise", "seed", InputValue::Float(32.)).unwrap();
+        let snapshot = editor.snapshot();
+        snapshot.compile().unwrap();
+        assert_eq!(GraphDocument::from_json(&snapshot.document.to_json().unwrap()).unwrap(), snapshot.document);
+    }
+}
+
+#[test]
+fn noise_catalog_defaults_require_only_uv_and_respect_wire_precedence() {
+    let variants: Vec<_> = catalog().into_iter().filter(|i| matches!(i.operation, NodeOp::Noise { .. })).collect();
+    assert_eq!(variants.len(), 2);
+    for item in variants {
+        let mut editor = simple();
+        let id = editor.add_node(item.operation, [120., 100.]).unwrap();
+        let uv = editor.add_node(NodeOp::Uv, [0.; 2]).unwrap();
+        editor.connect_ports(PortRef::new(&id, "color"), PortRef::new("output", "color")).unwrap();
+        assert_eq!(editor.diagnostic().unwrap().port.as_deref(), Some("coordinate"));
+        editor.connect_ports(PortRef::new(&uv, "value"), PortRef::new(&id, "coordinate")).unwrap();
+        assert!(editor.diagnostic().is_none());
+        editor.connect_ports(PortRef::new("number", "value"), PortRef::new(&id, "seed")).unwrap();
+        assert!(editor.set_input_default(&id, "seed", InputValue::Float(7.)).is_err());
+        assert_eq!(editor.input_default(&id, "seed").unwrap(), &InputValue::Float(0.));
+        assert!(editor.undo());
+        editor.set_input_default(&id, "seed", InputValue::Float(7.)).unwrap();
+        editor.snapshot().compile().unwrap();
+    }
+}
+
+#[test]
 fn numeric_live_drag_preserves_positions_multiselection_and_one_history_step() {
     for zoom in [0.5, 1., 2.] {
         let mut editor = simple();

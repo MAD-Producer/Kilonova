@@ -124,6 +124,9 @@ pub fn catalog() -> Vec<LibraryItem> {
     for mode in [GradientMode::Linear, GradientMode::Radial, GradientMode::Conic] {
         add(Category::Color, NodeOp::Gradient { mode });
     }
+    for mode in [NoiseMode::Value, NoiseMode::Perlin] {
+        add(Category::Color, NodeOp::Noise { mode, octaves: 1 });
+    }
     for op in [NodeOp::CombineColor, NodeOp::SplitColor, NodeOp::ApplyMask] {
         add(Category::Color, op);
     }
@@ -212,6 +215,10 @@ pub(super) fn operation_title(op: &NodeOp, language: Language) -> String {
             MathOp::Dot => ("点积", "Dot"),
             MathOp::Length => ("长度", "Length"),
             MathOp::Normalize => ("归一化", "Normalize"),
+        },
+        NodeOp::Noise { mode, .. } => match mode {
+            NoiseMode::Value => ("值噪声", "Value Noise"),
+            NoiseMode::Perlin => ("柏林噪声", "Perlin Noise"),
         },
         NodeOp::Gradient { mode } => match mode {
             GradientMode::Linear => ("线性渐变", "Linear Gradient"),

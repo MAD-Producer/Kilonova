@@ -48,7 +48,7 @@ impl BuiltinExample {
 pub fn builtin_examples() -> &'static [BuiltinExample] {
     &EXAMPLES
 }
-const EXAMPLES: [BuiltinExample; 17] = [
+const EXAMPLES: [BuiltinExample; 18] = [
     BuiltinExample {
         id: "drifting_circle", name: "漂移圆形", english_name: "Drifting Circle",
         description: "公开半径、中心、颜色和速度参数，按局部时间移动半透明圆形。默认尺寸为 64×64。",
@@ -249,6 +249,17 @@ const EXAMPLES: [BuiltinExample; 17] = [
         limitations: "使用归一化 UV，径向不自动校正宽高比；只有双色，无多色标编辑器。",
         english_limitations: "Uses normalized UV without radial aspect correction. Two colors only; no multi-stop editor.",
         source: include_str!("../examples/compact-gradient.msgraph"),
+    },
+    BuiltinExample {
+        id: "compact_noise", name: "三节点噪声", english_name: "Three-node Noise",
+        description: "UV、噪声和输出三个节点；切换值噪声与柏林噪声，调节层数、缩放、偏移和种子。",
+        english_description: "Three nodes: UV, Noise and Output. Switch Value/Perlin modes and adjust octaves, scale, offset and seed.",
+        lesson: "直接输出灰度颜色，或把 0..1 因子连接到颜色混合；最多四层，无需图片素材。",
+        english_lesson: "Use grayscale directly, or connect the 0..1 factor to Color Mix. Up to four octaves; no image is required.",
+        collection: ExampleCollection::Fundamentals,
+        limitations: "二维单 pass 噪声，不是三维体积或随时间自动演变；坐标域受限，种子按整数处理。",
+        english_limitations: "2D single-pass noise, not volumetric or automatically time-varying. Bounded coordinate domain and integer-like seeds.",
+        source: include_str!("../examples/compact-noise.msgraph"),
     },
 ];
 

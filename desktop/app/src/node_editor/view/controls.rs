@@ -156,6 +156,10 @@ pub(super) fn transform_content(content: &mut PaintList, origin: [f32; 2], zoom:
 impl NodeEditor {
     /// Read the same choice rectangle used by painting and native pointer input.
     pub(crate) fn choice_bounds(&self, id: &str) -> Option<Rect> {
+        self.choice_bounds_at(id, 0)
+    }
+
+    pub(crate) fn choice_bounds_at(&self, id: &str, index: usize) -> Option<Rect> {
         let card = self
             .cards(self.last_canvas)
             .into_iter()
@@ -163,7 +167,8 @@ impl NodeEditor {
         let node = self.document.nodes.iter().find(|node| node.id == id)?;
         control_rows(node, &self.document, Language::English)
             .into_iter()
-            .find(|(_, control)| matches!(control, Control::Choice { .. }))
+            .filter(|(_, control)| matches!(control, Control::Choice { .. }))
+            .nth(index)
             .map(|(row, _)| screen_rect(number_rect(row, false), &card, self.view.zoom))
             .filter(|rect| {
                 self.last_canvas.contains([

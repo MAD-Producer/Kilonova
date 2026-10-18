@@ -284,6 +284,19 @@ pub fn node_ports(node: &Node, parameters: &[PublicParameter]) -> Result<NodePor
             };
             (inputs, vec![("color", ValueType::Color)])
         }
+        NodeOp::Noise { octaves, .. } => {
+            if !(1..=4).contains(octaves) {
+                return Err(Error::invalid(
+                    ErrorCode::InvalidValue, Some(&node.id), None,
+                    "noise octaves must be in 1..=4",
+                ));
+            }
+            (
+                vec![("coordinate", ValueType::Vec2), ("offset", ValueType::Vec2),
+                    ("scale", ValueType::Float), ("seed", ValueType::Float)],
+                vec![("factor", ValueType::Float), ("color", ValueType::Color)],
+            )
+        }
         NodeOp::Gradient { .. } => (
             vec![
                 ("coordinate", ValueType::Vec2),
@@ -867,6 +880,9 @@ fn compile_plan(
         builder.input(&plan.output_node, "color").expr
     };
     let mut support = helpers(document.alpha_mode);
+    if plan.reachable_nodes.iter().any(|id| matches!(nodes[id.as_str()].operation, NodeOp::Noise { .. })) {
+        support.push_str(include_str!("noise.wgsl"));
+    }
     if plan.reachable_nodes.iter().any(|id| matches!(nodes[id.as_str()].operation, NodeOp::Gradient { .. })) {
         support.push_str(include_str!("gradient.wgsl"));
     }
@@ -1372,6 +1388,25 @@ impl<'a> Builder<'a> {
                     }
                 };
                 self.put(node, "color", ValueType::Color, expr, None, false);
+            }
+            Noise { mode, octaves } => {
+                let mode = u32::from(*mode == NoiseMode::Perlin);
+                let position = format!("(({}+{})*clamp({},0.0,4096.0))",
+                    input("coordinate").expr, input("offset").expr, input("scale").expr);
+                let seed = format!("u32(floor(clamp({},0.0,65535.0)))", input("seed").expr);
+                // Statically bounded work: no dynamic octave loop in exported shaders.
+                let terms: Vec<_> = (0..*octaves).map(|i| {
+                    let frequency = 1u32 << i;
+                    let weight = 1. / frequency as f32;
+                    format!("ng_noise({position}*{frequency}.0,({seed}+{}u),{mode}u)*{weight:?}",
+                        u32::from(i) * 7919)
+                }).collect();
+                let total: f32 = (0..*octaves).map(|i| 1. / (1u32 << i) as f32).sum();
+                self.put(node, "factor", ValueType::Float,
+                    format!("(({})/{total:?})", terms.join("+")), None, false);
+                let factor = self.symbols[&PortRef::new(&node.id, "factor")].expr.clone();
+                self.put(node, "color", ValueType::Color,
+                    format!("vec4<f32>(vec3<f32>({factor}),1.0)"), None, false);
             }
             Gradient { mode } => {
                 let mode = match mode {

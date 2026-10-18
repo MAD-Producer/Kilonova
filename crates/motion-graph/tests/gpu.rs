@@ -8,6 +8,8 @@ use std::sync::Arc;
 mod group_fixture;
 #[path = "support/gradient_fixture.rs"]
 mod gradient_fixture;
+#[path = "support/noise_gpu.rs"]
+mod noise_gpu;
 
 #[test]
 fn gradient_replaces_a_seven_node_color_mix_chain_without_changing_pixels() {

@@ -191,8 +191,7 @@ impl Shell {
                     return Err("gradient undo did not restore GPU pixels".into());
                 }
                 self.smoke_node_report["gradientUndoRestoredPixels"] = true.into();
-                self.finish_node_starter_smoke(directory)?;
-                self.smoke_node_report["gradientProjectUntouched"] = true.into();
+                self.start_node_noise_smoke()?;
             }
             _ => return Err("unexpected gradient acceptance stage".into()),
         }

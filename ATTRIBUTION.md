@@ -31,3 +31,8 @@ System fonts selected by a user are not redistributed by Motion Studio. A projec
 在需要标识来源或兼容性边界时，Adobe 产品名可以出现在内部参考记录中。Motion Studio 资产不包含 Adobe logo、产品图标、截图、二进制文件、插件、预设或字体。商标免责见 [NOTICE](NOTICE)。
 
 Adobe product names may appear in internal reference notes when identifying a source or compatibility boundary. No Adobe logo, product icon, screenshot, binary, plug-in, preset, or font is included as a Motion Studio asset. See [NOTICE](NOTICE) for the trademark disclaimer.
+
+
+## Noise mathematical reference
+
+Ken Perlin, *Improving Noise*, SIGGRAPH 2002, [author-hosted paper](https://mrl.cs.nyu.edu/~perlin/paper445.pdf), is a mathematical reference for quintic interpolation and gradient noise. No paper text, reference source code, permutation tables or third-party assets are redistributed. The 2D lattice hash, eight-direction gradients, bounded octave contract, WGSL kernel, CPU oracle and editable example are independently authored Motion Studio code under this repository's MIT license. This entry records a mathematical reference rather than an adapted or bundled third-party implementation.

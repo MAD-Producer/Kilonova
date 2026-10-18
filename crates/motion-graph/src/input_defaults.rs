@@ -17,6 +17,11 @@ pub fn authoring_input_defaults(operation: &NodeOp) -> BTreeMap<String, InputVal
         values.insert(port.into(), value);
     };
     match operation {
+        NodeOp::Noise { .. } => {
+            add("offset", InputValue::Vec2([0.; 2]));
+            add("scale", InputValue::Float(8.));
+            add("seed", InputValue::Float(0.));
+        }
         NodeOp::Gradient { mode } => {
             add("start", InputValue::Vec2(if *mode == GradientMode::Linear {
                 [0., 0.5]

@@ -1,6 +1,7 @@
 use crate::*;
 mod node_diagnostics;
 mod node_gradient;
+mod node_noise;
 mod node_onboarding;
 mod node_wires;
 mod retained;
@@ -1238,6 +1239,10 @@ impl Shell {
             && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
         {
             self.advance_node_gradient_smoke(&directory)?;
+        } else if (41..=45).contains(&self.smoke_stage)
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            self.advance_node_noise_smoke(&directory)?;
         } else if self.smoke_stage == 7 && self.smoke_frames >= 8 {
             let snapshot = self.panels.node_editor.snapshot();
             let size = self.size().ok_or("node example smoke window missing")?;

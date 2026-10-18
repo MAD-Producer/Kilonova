@@ -66,3 +66,8 @@ cargo run -p motion-graph --example render_learning_examples -- target/sphere-mo
 相关后端规划：[专业合成路线](https://github.com/Yukk1o/motion-studio/issues/77)、[深度输入与推理](https://github.com/Yukk1o/motion-studio/issues/74)、[执行 DAG](https://github.com/Yukk1o/motion-studio/issues/78)。
 
 All examples are original, editable teaching graphs. The reference canvas is 64×64. Soft shadows, transparency and halos in this first collection are explicit 2D approximations, not physical materials, depth rendering or volumetric light. The bilingual runtime catalogue contains a lesson and limitations for every example.
+
+
+## Three-node Noise
+
+`compact_noise` ([source](compact-noise.msgraph)) contains UV, Noise and Color Output. Switch Value/Perlin and 1..4 octaves in their individual dropdowns; edit Scale, Offset and Seed inline. Factor can instead drive Color Mix. The example is an independently authored 2D texture, with no source images or automatic animation. Seeds are floored after clamping; domain/frequency bounds and high-frequency aliasing are documented in `desktop/NODE-CATALOG.md`.

@@ -92,6 +92,13 @@ pub enum GradientMode {
     Conic,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NoiseMode {
+    Value,
+    Perlin,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum NodeOp {
@@ -150,6 +157,10 @@ pub enum NodeOp {
     Gradient {
         mode: GradientMode,
     },
+    Noise {
+        mode: NoiseMode,
+        octaves: u8,
+    },
     ApplyMask,
     Select {
         value_type: ValueType,
@@ -197,6 +208,7 @@ impl NodeOp {
             Self::SplitColor => "split_color",
             Self::ColorMath { .. } => "color_math",
             Self::Gradient { .. } => "gradient",
+            Self::Noise { .. } => "noise",
             Self::ApplyMask => "apply_mask",
             Self::Select { .. } => "select",
             Self::SdfCircle => "sdf_circle",
@@ -239,6 +251,7 @@ impl NodeOp {
             Self::SplitColor => ("拆分颜色", "Split Color"),
             Self::ColorMath { .. } => ("颜色运算", "Color Math"),
             Self::Gradient { .. } => ("渐变", "Gradient"),
+            Self::Noise { .. } => ("噪声", "Noise"),
             Self::ApplyMask => ("应用覆盖率", "Apply Mask"),
             Self::Select { .. } => ("选择", "Select"),
             Self::SdfCircle => ("SDF圆", "SDF Circle"),
@@ -515,6 +528,7 @@ impl GraphDocument {
                         "split_color",
                         "color_math",
                         "gradient",
+                        "noise",
                         "apply_mask",
                         "select",
                         "sdf_circle",

@@ -12,7 +12,7 @@
 | **弹性几何 · Graphic Motion** | 将时间变成阻尼回弹，再用布尔裁切组织图形 | 挤压拉伸、动态图形差集 |
 | **发光氛围 · Glow Atmosphere** | 从径向距离得到柔和光晕，通过相位差组织运动 | 脉动光环、漂浮光斑 |
 
-内置库共 **17 个独立、可导出的节点图**。每个案例提供中文与英文的简介、连线教学和能力边界。具体参数与学习顺序见[示例指南](examples/README.md)。
+内置库共 **18 个独立、可导出的节点图**。每个案例提供中文与英文的简介、连线教学和能力边界。具体参数与学习顺序见[示例指南](examples/README.md)。
 
 这些案例是原创的技术练习，不包含第三方作品、素材或作者署名授权。它们展示二维程序化近似；真实深度、物理软阴影、图像 Bloom、景深和体积光需要后续渲染能力。
 
@@ -66,10 +66,15 @@ cargo run -p motion-graph --locked --example export_demo -- target/node-demo/dri
 cargo run -p motion-graph --locked --example render_learning_examples -- target/node-learning
 ```
 
-最后一个命令需要可用的 WGPU 适配器，输出六个风格案例在第 0 与 15.5 帧的 PNG、可编辑源码、效果包、目录和编译报告。测试检查全部 17 个案例的类型、连线、导出与重新加载，并通过真实宿主 GPU 路径检查动画、透明度和公开参数。
+最后一个命令需要可用的 WGPU 适配器，输出六个风格案例在第 0 与 15.5 帧的 PNG、可编辑源码、效果包、目录和编译报告。测试检查全部 18 个案例的类型、连线、导出与重新加载，并通过真实宿主 GPU 路径检查动画、透明度和公开参数。
 
 ## Gradient primitive
 
-`NodeOp::Gradient` supports Linear, Radial and Conic modes, with explicit normalized UV input, stored endpoint/color/falloff defaults and separate factor/color outputs. `compact-gradient.msgraph` uses three nodes and two wires. See the implemented contract in `desktop/NODE-CATALOG.md` for units, degenerate inputs, alpha interpolation and mobile validation limits. The other five proposed primitives remain pending.
+`NodeOp::Gradient` supports Linear, Radial and Conic modes, with explicit normalized UV input, stored endpoint/color/falloff defaults and separate factor/color outputs. `compact-gradient.msgraph` uses three nodes and two wires. See the implemented contract in `desktop/NODE-CATALOG.md` for units, degenerate inputs, alpha interpolation and mobile validation limits. Noise is also implemented; generalized Blend, HSV Adjust, Color Ramp and UV Transform remain pending.
 
 参考画布为 **64×64**。部分案例使用固定像素坐标，不能直接把它们当作适配任意画幅的成品预设。改变画布时，应同时调整像素中心、尺寸和 UV 到像素的比例。移动端持续性能与兼容性仍需真机验收。
+
+
+## Noise primitive
+
+`NodeOp::Noise` supports Value and Perlin modes with 1..4 octaves. `compact-noise.msgraph` uses UV, Noise and Color Output with two wires. Explicit UV, offset, frequency scale and integer-like seed feed factor and opaque grayscale outputs. See `desktop/NODE-CATALOG.md` for numerical bounds, determinism and mobile validation limits.
