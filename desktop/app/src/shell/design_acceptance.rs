@@ -297,7 +297,7 @@ impl Shell {
             } else {
                 let view = panels::composition_view_styled(
                     &workspace::Workspace::design_layout(graph_preset), size,
-                    self.panels.styles.as_deref().ok_or("design viewer styles missing")?,
+                    &self.panels.styles.clone().unwrap_or_else(motion_ui::style::default_stylesheet_arc),
                 );
                 ui.composition = Some([
                     view.min[0] * self.scale,
@@ -323,7 +323,7 @@ impl Shell {
         let captured = (|| {
             let mut screens = serde_json::Map::new();
             let view = panels::composition_view_styled(&self.workspace.root, size,
-                self.panels.styles.as_deref().ok_or("viewer styles missing")?);
+                &self.panels.styles.clone().unwrap_or_else(motion_ui::style::default_stylesheet_arc));
             let canvas = [self.state["project"]["width"].as_f64().ok_or("viewer width missing")?,
                 self.state["project"]["height"].as_f64().ok_or("viewer height missing")?];
             let anchor = [(view.min[0]+view.max[0])*0.5,(view.min[1]+view.max[1])*0.5];

@@ -28,7 +28,7 @@ impl Shell {
                     let f = self.floating.values().find(|f| f.panel == panel).ok_or("viewer window missing")?;
                     let physical = f.window.inner_size();
                     let size = [physical.width as f32/f.scale, physical.height as f32/f.scale];
-                    let styles = self.panels.styles.as_deref().ok_or("viewer styles missing")?;
+                    let styles = &self.panels.styles.clone().unwrap_or_else(motion_ui::style::default_stylesheet_arc);
                     let view = panels::floating_view_styled(panel,size,styles).ok_or("floating viewer missing")?;
                     let canvas = [self.state["project"]["width"].as_f64().ok_or("viewer width missing")?,
                         self.state["project"]["height"].as_f64().ok_or("viewer height missing")?];
