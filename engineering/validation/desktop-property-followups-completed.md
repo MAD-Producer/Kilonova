@@ -69,6 +69,20 @@
 
 用户确认的层级变更需要同步蒙版删键/拖拽、矢量拖拽、属性拖拽、快捷键展开和原生秒表夹具的点击位置，以及旧几何行的滚动补偿；保留原有选择、拖拽、关键帧生成、历史和工程数据断言。属性拖拽夹具现在明确点击 Position 行。新属性场景的主题像素对比使用同一 `--property-smoke` 夹具的默认/覆盖样式；原有 19 面板主题阶段继续使用原有基线，避免把不同工作区姿态造成的差异当作主题变化。
 
+## 提交前主线整合
+
+提交 PR 前整合 `origin/main` / `bc60998`（新增摄影机与视图导航提交）。保留摄影机专用属性、无源锚点行规则及视图缩放/平移截图验收；时间线 3D 开关只用于普通空间图层，不对摄影机显示。
+
+主线新增的摄影机测试曾引用已移除的 `LayerRows.geometry` 字段，首次整合测试因此编译失败，记录 `.tools/property-followup-main-tests.log`。改用蒙版/矢量/音频/效果为空及总行数等于变换结束行的断言，继续检查没有额外内容行；原有属性坐标、表达式偏移和变换结束行断言全部保留。没有为通过验收放宽预期。
+
+- 整合后 `cargo check` 通过：`.tools/property-followup-main-check.log`
+- 整合后完整桌面测试含 ignored：429 项通过、0 失败、0 忽略，187.10 秒；`.tools/property-followup-main-tests-final.log`
+- 整合后干净跟踪源码快照的工具脚本测试：51 项通过，51.478 秒；`.tools/property-followup-main-python.log`
+- 整合后样式消费者检查与来源检查通过（1320 个跟踪路径）
+- 整合后最终构建通过：`.tools/property-followup-main-build.log`
+- 整合后完整原生验收两次在英文普通窗口阶段触发既有 40 秒超时，后续阶段尚未由总流程执行，不标记整合后总验收通过：`.tools/property-followup-main-native.log` / `.tools/property-followup-main-native-final.log`。未增加超时或停止其他应用；运行时本机空闲内存约 1.5 GB，但未据此认定唯一原因。上文整合前完整通过的记录保留，不能替代本轮结果；需由远端 release CI 继续复核
+- 整合后独立属性截图验收通过：中英文、默认/覆盖主题各 16 个场景，共 64 张截图；`.tools/property-followup-main-properties.log`，产物 `artifacts/property-followups/main-properties/`。按既有 90 秒阶段时限执行，验证主题覆盖、工程还原及同姿态像素变化；再次目视复核中文窄时间线蒙版操作与添加菜单。此独立结果不等于完整原生总流程通过
+
 ## DESIGN §0.7 基线处置
 
 下表按规范中的历史位置逐条核对。已有整改不算本批新修复；保留表示没有借本任务扩大为全文件视觉重排。

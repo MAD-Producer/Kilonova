@@ -115,7 +115,7 @@ impl LayerRows {
             Default::default()
         };
         let masks = 1..1 + mask_rows.len();
-        let anchor = (transform_open && matches!(filter, super::types::PropertyFilter::All))
+        let anchor = (transform_open && !row.camera && matches!(filter, super::types::PropertyFilter::All))
             .then_some(masks.end + 1);
         let mut next =
             masks.end + usize::from(expanded && row.spatial) + usize::from(anchor.is_some());
@@ -163,7 +163,7 @@ impl LayerRows {
         let vectors = audio.end..audio.end + vector_rows.len();
         let effects = vectors.end
             ..vectors.end
-                + if expanded && row.id != 0 {
+                + if expanded && row.id != 0 && !row.camera {
                     1 + if effects_open { row.effects } else { 0 }
                 } else {
                     0
@@ -250,6 +250,30 @@ mod tests {
         panels
     }
     #[test]
+    fn camera_inline_expression_preserves_following_property_rows_without_anchor() {
+        let layer = Layer::camera(7, "Camera", 1920, 1080);
+        let state = serde_json::json!({"project":{"frames":120,"fps":30,"layers":[layer]}});
+        let rows = timeline::rows(&state);
+        let mut timeline = TimelineState::default();
+        timeline.expanded.insert(7);
+        timeline.expression_rows.push(motion_core::ExpressionTarget::Property {
+            object: 7,
+            property: motion_core::Property::Target,
+            axis: None,
+        });
+        let plan = LayerRows::new(&rows[0], &timeline, 0., Locale::En);
+        assert!(plan.anchor.is_none(), "camera has no source anchor row");
+        assert_eq!(rows[0].properties[1].property, motion_core::Property::Target);
+        assert_eq!(plan.property_offsets, vec![2, 3, 5, 6]);
+        assert_eq!(plan.expression_offsets, vec![None, Some(4), None, None]);
+        assert_eq!(plan.transform.end, 7);
+        assert!(plan.masks.is_empty());
+        assert!(plan.vectors.is_empty());
+        assert!(plan.audio.is_empty());
+        assert!(plan.effects.is_empty());
+        assert_eq!(plan.len(), plan.transform.end, "camera has no extra content rows");
+    }
+    #[test]
     fn folding_masks_does_not_move_following_shape_rows_until_next_frame() {
         let state = fixture();
         let mut panels = panels();
@@ -321,8 +345,6 @@ mod tests {
                 .unwrap();
             let mut list = PaintList::with_styles(std::sync::Arc::new(sheet));
             let mut panels = panels();
-            let rows = timeline::rows(&state);
-            let plan = LayerRows::new(&rows[0], &panels.timeline, 21., Locale::En);
             panels.timeline.scroll = 37.;
             panels.timeline.zoom = 2.;
             panels.timeline.offset = 10.;

@@ -7,6 +7,11 @@ mod curve_playback_tests;
 
 impl Shell {
     pub(crate) fn accept_edit_state(&mut self, state: Value) {
+        if state["edit_result"]["op"] == "create_camera" {
+            if let Some(object) = state["edit_result"]["object"].as_u64() {
+                self.panels.select_only(Some(object));
+            }
+        }
         self.state = state;
         // Finish the commands emitted by one interaction pass before presenting.
         // Begin/change/commit do not need GPU round trips between each step.
@@ -321,6 +326,12 @@ impl Shell {
         }
         (paint, actions)
     }
+    pub(crate) fn viewer_image(&self, view: motion_ui::Rect, scale: f32) -> Option<[f32; 4]> {
+        let canvas = [self.state["project"]["width"].as_f64()?, self.state["project"]["height"].as_f64()?];
+        let mapping = self.panels.composition.navigation.mapping(view, canvas)?;
+        let r = mapping.image;
+        Some([r.min[0]*scale, r.min[1]*scale, r.width()*scale, r.height()*scale])
+    }
     pub(crate) fn ui_frame(
         &mut self,
         paint: PaintList,
@@ -337,7 +348,7 @@ impl Shell {
         } else {
             None
         };
-        let view = panels::composition_view(&self.workspace.root, size);
+        let view = panels::composition_view_styled(&self.workspace.root, size, &paint.styles());
         UiFrame {
             paint,
             atlas,
@@ -346,6 +357,7 @@ impl Shell {
             node_preview: if self.home.is_none() {
                 self.node_viewport(panels::node_view_bound(&self.workspace.root,size,self.panels.node_editor.layer_target.is_some()), self.scale)
             } else { None },
+            composition_image: self.viewer_image(view, self.scale),
             composition: if self.home.is_none() && view.width() > 0.0 && view.height() > 0.0 {
                 Some([
                     view.min[0] * self.scale,
@@ -693,7 +705,8 @@ impl Shell {
         } else {
             None
         };
-        let composition = panels::floating_view(panel, size).map(|v| {
+        let viewer = panels::floating_view_styled(panel, size, &paint.styles());
+        let composition = viewer.map(|v| {
             [
                 v.min[0] * scale,
                 v.min[1] * scale,
@@ -708,6 +721,7 @@ impl Shell {
                 atlas,
                 logical_size: size,
                 composition,
+                composition_image: viewer.and_then(|v| self.viewer_image(v, scale)),
                 window: key,
                 node_preview: self.node_viewport(panels::floating_node_view_bound(panel,size,self.panels.node_editor.layer_target.is_some()), scale),
             })?,

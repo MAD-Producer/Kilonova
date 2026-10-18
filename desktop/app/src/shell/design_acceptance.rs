@@ -32,6 +32,8 @@ impl Shell {
             "layer-properties-tree",
             "layer-properties-effects",
             "timeline-properties-tree",
+            "camera-properties",
+            "timeline-cameras",
         ] {
             if self.smoke_properties && screen != "effect-expression-unavailable-menu" {
                 continue;
@@ -113,6 +115,7 @@ impl Shell {
                         return Err("effect library capture must not edit the project".into());
                     }
                 }
+                "camera-properties" | "timeline-cameras" |
                 "layer-properties-tree"
                 | "layer-properties-effects"
                 | "timeline-properties-tree" => {
@@ -297,11 +300,12 @@ impl Shell {
             if !screen.ends_with("graph") && !screen.ends_with("menu") && screen != "effect-library"
             {
                 ui.composition = None;
+                ui.composition_image = None;
                 ui.node_preview = None;
             } else {
-                let view = panels::composition_view(
-                    &workspace::Workspace::design_layout(graph_preset),
-                    size,
+                let view = panels::composition_view_styled(
+                    &workspace::Workspace::design_layout(graph_preset), size,
+                    &self.panels.styles.clone().unwrap_or_else(motion_ui::style::default_stylesheet_arc),
                 );
                 ui.composition = Some([
                     view.min[0] * self.scale,
@@ -309,6 +313,7 @@ impl Shell {
                     view.width() * self.scale,
                     view.height() * self.scale,
                 ]);
+                ui.composition_image = self.viewer_image(view, self.scale);
                 ui.node_preview = None;
             }
             let path = report.with_extension(format!("{screen}.png"));
@@ -317,8 +322,55 @@ impl Shell {
         }
         if self.smoke_properties {
             self.capture_property_followup_screens(size, &report, &mut output)?;
+        } else {
+            let navigation_screens = self.capture_viewer_navigation(size)?;
+            output.extend(navigation_screens);
         }
         Ok(Value::Object(output))
+    }
+
+    fn capture_viewer_navigation(&mut self, size: [f32; 2]) -> Result<serde_json::Map<String, Value>, String> {
+        let saved = std::mem::take(&mut self.panels.composition);
+        let before = self.engine.state()?;
+        let captured = (|| {
+            let mut screens = serde_json::Map::new();
+            let view = panels::composition_view_styled(&self.workspace.root, size,
+                &self.panels.styles.clone().unwrap_or_else(motion_ui::style::default_stylesheet_arc));
+            let canvas = [self.state["project"]["width"].as_f64().ok_or("viewer width missing")?,
+                self.state["project"]["height"].as_f64().ok_or("viewer height missing")?];
+            let anchor = [(view.min[0]+view.max[0])*0.5,(view.min[1]+view.max[1])*0.5];
+            // Initialize the same project identity as real input, before changing navigation.
+            let (_, actions) = self.draw_commands(size);
+            if !actions.is_empty() { return Err("viewer initial draw emitted actions".into()); }
+            for name in ["viewer-fit", "viewer-zoom", "viewer-pan"] {
+                match name {
+                    "viewer-fit" => self.panels.composition.navigation.fit(),
+                    "viewer-zoom" => {
+                        if !self.panels.composition.navigation.zoom_at(view, canvas, anchor, 1.) {
+                            return Err("viewer zoom fixture rejected".into());
+                        }
+                    }
+                    _ => {
+                        if !self.panels.composition.navigation.pan(view, canvas, [120., -60.]) {
+                            return Err("viewer pan fixture rejected".into());
+                        }
+                    }
+                }
+                let (paint, actions) = self.draw_commands(size);
+                if !actions.is_empty() { return Err("viewer navigation edited the project".into()); }
+                let ui = self.ui_frame(paint, size, true);
+                let path = self.smoke.as_ref().ok_or("viewer report missing")?.with_extension(format!("{name}.png"));
+                self.engine.capture_ui(ui, path.clone())?;
+                screens.insert(name.into(), serde_json::json!(path));
+            }
+            let after = self.engine.state()?;
+            if after["project"] != before["project"] || after["revision"] != before["revision"] {
+                return Err("viewer navigation changed project data or history".into());
+            }
+            Ok(screens)
+        })();
+        self.panels.composition = saved;
+        captured
     }
 
     fn capture_auxiliary_panel(
@@ -339,6 +391,7 @@ impl Shell {
         let focus = self.panels.focused;
         let old_animation = std::mem::take(&mut self.panels.animation_controls);
         let old_properties = std::mem::take(&mut self.panels.properties);
+        let old_camera = std::mem::take(&mut self.panels.camera_controls);
         let old_timeline = self.panels.timeline.clone();
         let old_anchor = std::mem::take(&mut self.panels.timeline_anchor);
         let old_scroll = self.panels.auxiliary.scroll.clone();
@@ -418,12 +471,30 @@ impl Shell {
                     .ok_or("character capture requires a real text layer")?;
                 self.panels.select_only(Some(object));
             }
-            if !pose.starts_with("expression-inline")
-                && matches!(
-                    panel,
-                    dock::Panel::EffectControls | dock::Panel::Properties | dock::Panel::Timeline
-                )
-            {
+            if matches!(pose, "camera-properties" | "timeline-cameras") {
+                self.engine.history(2)?;
+                effect_gesture = true;
+                self.engine.edit(serde_json::json!([{"op":"create_camera"},{"op":"create_camera"}]).to_string())?;
+                self.state = self.engine.state()?;
+                let object = self.state["project"]["layers"].as_array().into_iter().flatten()
+                    .rev().find(|l| l["content"]["kind"] == "camera")
+                    .and_then(|l| l["id"].as_u64()).ok_or("camera capture requires a real camera layer")?;
+                self.engine.edit(serde_json::json!([
+                    {"op":"animate","object":object,"property":"fov","frame":0,"enabled":true},
+                    {"op":"set_scalar","object":object,"property":"fov","frame":60,"value":65.}
+                ]).to_string())?;
+                self.state = self.engine.history(3)?;
+                effect_gesture = false;
+                created_text = true;
+                self.panels.select_only(Some(object));
+                self.panels.timeline.expanded.clear();
+                self.panels.timeline.expanded.insert(object);
+                self.panels.timeline.scroll = 0.;
+                self.panels.focused = Some(panel);
+            } else if !pose.starts_with("expression-inline") && matches!(
+                panel,
+                dock::Panel::EffectControls | dock::Panel::Properties | dock::Panel::Timeline
+            ) {
                 self.engine.history(2)?;
                 effect_gesture = true;
                 let object = before["project"]["layers"]
@@ -573,6 +644,7 @@ impl Shell {
         self.panels.focused = focus;
         self.panels.animation_controls = old_animation;
         self.panels.properties = old_properties;
+        self.panels.camera_controls = old_camera;
         self.panels.timeline = old_timeline;
         self.panels.timeline_anchor = old_anchor;
         self.panels.auxiliary.scroll = old_scroll;

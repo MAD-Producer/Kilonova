@@ -131,7 +131,7 @@ pub(super) fn draw(
     };
     let keys = source["keys"].as_array().map(Vec::as_slice).unwrap_or(&[]);
     let key_value = |key: &Value| -> f64 {
-        if property == Property::Opacity || axis.is_some() {
+        if property.is_scalar() || axis.is_some() {
             key["value"].as_f64().unwrap_or(0.) * plot.scale as f64
         } else {
             key["value"][component].as_f64().unwrap_or(0.) * plot.scale as f64

@@ -345,7 +345,7 @@ impl Controls {
         let allowed = !layer.locked
             && !matches!(
                 layer.content,
-                Content::Adjustment | Content::Null | Content::Audio { .. }
+                Content::Adjustment | Content::Null | Content::Camera { .. } | Content::Audio { .. }
             )
             && state["observing"] != true;
         let heading = Rect::new(

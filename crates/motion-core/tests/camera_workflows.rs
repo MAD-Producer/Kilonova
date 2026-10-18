@@ -5,6 +5,7 @@ fn static_mode_conversion_does_not_create_a_dense_keyframe_track() {
     let mut e = Engine::new(Project::demo()).unwrap();
     let initial = e.project().camera.position_at(0.0);
     e.apply(Command::CameraMode {
+        object: 0,
         mode: CameraMode::Orbit,
     })
     .unwrap();
@@ -30,6 +31,7 @@ fn static_mode_conversion_does_not_create_a_dense_keyframe_track() {
     e.undo().unwrap();
     e.undo().unwrap();
     e.apply(Command::CameraMode {
+        object: 0,
         mode: CameraMode::Position,
     })
     .unwrap();

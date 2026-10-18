@@ -103,11 +103,18 @@ fn write(
             property,
             axis,
         } => {
-            if *object == 0 {
-                let c = &mut project.camera;
+            if *object == 0 || project.layers.iter().any(|l| l.id == *object && l.camera_data().is_some()) {
+                let local = project.layers.iter().find(|l| l.id == *object).map_or(frame, |l| l.local_frame(frame));
+                let frames = project.frames;
+                let c = if *object == 0 { &mut project.camera } else {
+                    match &mut project.layer_mut(*object)?.content {
+                        crate::Content::Camera { camera } => camera,
+                        _ => return Err(Error::Invalid("object is not a camera".into())),
+                    }
+                };
                 match property {
-                    Property::Position => vec(&mut c.position, *axis, frame, result)?,
-                    Property::Target => vec(&mut c.target, *axis, frame, result)?,
+                    Property::Position => vec(&mut c.position, *axis, local, result)?,
+                    Property::Target => vec(&mut c.target, *axis, local, result)?,
                     Property::Roll => scalar(&mut c.roll, result)?,
                     Property::Fov => scalar(&mut c.fov, result)?,
                     Property::Radius => scalar(&mut c.radius, result)?,
@@ -115,7 +122,7 @@ fn write(
                     Property::Elevation => scalar(&mut c.elevation, result)?,
                     _ => unreachable!(),
                 }
-                c.validate(project.frames)?;
+                if *object == 0 { c.validate(frames)?; } else { c.validate_local()?; }
             } else {
                 let l = project.layer_mut(*object)?;
                 let f = l.local_frame(frame);

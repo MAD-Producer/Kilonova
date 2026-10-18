@@ -21,6 +21,7 @@ mod panels;
 mod project_lifecycle;
 mod shell;
 mod shortcuts;
+mod viewer_navigation;
 mod workflow;
 mod workspace;
 use i18n::{Locale, Text as T};

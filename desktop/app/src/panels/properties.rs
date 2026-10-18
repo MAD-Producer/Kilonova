@@ -291,10 +291,13 @@ pub(super) fn render(
         (panels.properties.content_height - area.height()).max(0.),
     );
     let mut y = area.min[1] + pad - panels.properties.properties_scroll;
-    if panels.selected == Some(0) && state["project"]["camera"]["created"] == true {
+    if let Some(object) = panels.selected.filter(|id| {
+        let camera = super::camera_controls::camera(state, *id);
+        !camera.is_null() && camera["created"].as_bool().unwrap_or(true)
+    }) {
         panels
             .camera_controls
-            .render(list, atlas, area, &mut y, state, input, panels.locale, out);
+            .render(list, atlas, area, &mut y, state, object, input, panels.locale, out);
         panels.properties.content_height =
             y - area.min[1] + panels.properties.properties_scroll + pad;
         return;
@@ -764,6 +767,9 @@ pub(super) fn draw_value(
 
 fn numeric_command(field: &Field, value: f32, state: &Value) -> Option<Command> {
     let frame = state["frame"].as_f64().unwrap_or(0.).floor() as u32;
+    if matches!(field.property, Property::Roll | Property::Fov | Property::Radius | Property::Azimuth | Property::Elevation) {
+        return Some(Command::SetScalar { object: field.object, property: field.property, frame, value });
+    }
     if field.property == Property::Opacity {
         return Some(Command::SetScalar {
             object: field.object,
@@ -774,6 +780,7 @@ fn numeric_command(field: &Field, value: f32, state: &Value) -> Option<Command> 
     }
     let key = match field.property {
         Property::Position => "position",
+        Property::Target => "target",
         Property::Rotation => "rotation",
         _ => "scale",
     };
@@ -854,7 +861,12 @@ pub(super) fn process_field(
                         Property::Rotation => {
                             sample["rotation"][field.axis].as_f64().unwrap_or(0.) as f32
                         }
-                        _ => sample["scale"][field.axis].as_f64().unwrap_or(1.) as f32,
+                        Property::Scale => sample["scale"][field.axis].as_f64().unwrap_or(1.) as f32,
+                        Property::Target => sample["target"][field.axis].as_f64().unwrap_or(0.) as f32,
+                        property => sample[match property {
+                            Property::Roll => "roll", Property::Fov => "fov", Property::Radius => "radius",
+                            Property::Azimuth => "azimuth", _ => "elevation",
+                        }].as_f64().unwrap_or(0.) as f32,
                     })
                 });
             field.scrubbing = Some(ScrubState {
@@ -890,9 +902,7 @@ pub(super) fn process_field(
             }
             let step = motion_ui::widgets::numeric_behavior::step(input) as f32;
             let mut value = scrub.start_value + delta * 0.5 * step;
-            if field.property == Property::Opacity {
-                value = value.clamp(0., 100.);
-            }
+            if field.property == Property::Opacity { value = value.clamp(0., 100.); }
             if value.is_finite() && value != scrub.last_value {
                 scrub.last_value = value;
                 field.text = format!("{value:.2}");
