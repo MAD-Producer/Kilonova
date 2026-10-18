@@ -87,7 +87,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     }
     let smoke = argument("--smoke")?
         .or(argument("--node-smoke")?)
-        .or(argument("--panels-smoke")?);
+        .or(argument("--panels-smoke")?)
+        .or(argument("--property-smoke")?);
     let locale = argument("--locale")?
         .map(|p| Locale::parse(&p.to_string_lossy()).ok_or("locale must be zh or en"))
         .transpose()?;
@@ -147,6 +148,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         app.home = Some(home::Home::default());
     }
     app.smoke_panels = args.iter().any(|a| a == "--panels-smoke");
+    app.smoke_properties = args.iter().any(|a| a == "--property-smoke");
     app.smoke_nodes = args
         .iter()
         .any(|a| a == "--node-smoke" || a == "--smoke-nodes");
@@ -312,6 +314,7 @@ struct Shell {
     smoke_stage: u8,
     smoke_nodes: bool,
     smoke_panels: bool,
+    smoke_properties: bool,
     smoke_panel_index: usize,
     smoke_panel_current: Option<dock::Panel>,
     smoke_panel_records: Vec<Value>,
@@ -413,6 +416,7 @@ impl Shell {
             smoke_stage: 0,
             smoke_nodes: false,
             smoke_panels: false,
+            smoke_properties: false,
             smoke_panel_index: 0,
             smoke_panel_current: None,
             smoke_panel_records: vec![],
@@ -714,7 +718,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
         if self.smoke.is_some()
             && self.started.elapsed()
-                > Duration::from_secs(if self.smoke_panels||self.smoke_nodes { 120 } else { 30 })
+                > Duration::from_secs(if self.smoke_panels||self.smoke_nodes||self.smoke_properties { 120 } else { 30 })
         {
             self.fatal = Some("desktop smoke timed out".into());
             event_loop.exit();

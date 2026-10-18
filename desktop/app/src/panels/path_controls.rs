@@ -223,6 +223,9 @@ pub struct Controls {
     inspector_context: Option<(String, String, u64, motion_ui::dock::Panel)>,
     inspector_cache: Option<InspectorLayer>,
     inspector_add: Option<(motion_ui::dock::Panel, Rect)>,
+    inspector_overlays: Option<PaintList>,
+    #[cfg(test)]
+    pub(in crate::panels) inspector_modes: std::collections::HashMap<(u64, u64), Rect>,
     add_mask_menu: motion_ui::widgets::Dropdown,
     mode_dropdowns: std::collections::HashMap<(u64, u64), motion_ui::widgets::Dropdown>,
     collapsed_mask_cards: std::collections::HashSet<(u64, u64)>,
@@ -852,13 +855,18 @@ impl Controls {
                     .flatten()
                     .filter_map(geometry)
                     .collect();
+                // Node IDs survive deletion/reordering; they are not array indices.
+                let selected = self.selected.filter(|(id, _)| Some(*id) == path["id"].as_u64())
+                    .and_then(|(_, node)| path["nodes"].as_array()?.iter()
+                        .filter(|n| geometry(n).is_some()).position(|n| n["id"].as_u64() == Some(node)));
                 paint_path(
                     list,
                     &p,
                     &nodes,
                     path["closed"].as_bool().unwrap_or(false),
                     offset,
-                    self.selected.map(|v| v.1),
+                    selected,
+                    self.tool == Tool::Mask,
                     colors.ACCENT,
                 );
             }
@@ -873,6 +881,7 @@ impl Controls {
                 false,
                 d.offset,
                 None,
+                true,
                 draft_color,
             );
         }
@@ -1138,6 +1147,11 @@ impl Controls {
             .filter(|(owner, _)| *owner == host)
             .map(|(_, rect)| rect)
     }
+    pub(super) fn append_inspector_overlays(&mut self, list: &mut PaintList) {
+        if let Some(overlays) = self.inspector_overlays.take() {
+            list.append(overlays);
+        }
+    }
     pub(crate) fn vector_add_rect(&self, host: motion_ui::dock::Panel) -> Option<Rect> {
         self.groups
             .add_rect
@@ -1333,7 +1347,8 @@ fn paint_path(
     nodes: &[[f32; 6]],
     closed: bool,
     offset: [f32; 2],
-    selected: Option<u64>,
+    selected: Option<usize>,
+    show_all_handles: bool,
     color: Color,
 ) {
     let edges = nodes.len().saturating_sub(1) + usize::from(closed && nodes.len() > 2);
@@ -1369,7 +1384,7 @@ fn paint_path(
             0.,
             0.,
         );
-        if selected == Some(i as u64 + 1) || selected.is_none() {
+        if show_all_handles || selected == Some(i) || selected.is_none() {
             for axis in [2, 4] {
                 if g[axis].abs() + g[axis + 1].abs() < 0.01 {
                     continue;
@@ -1377,9 +1392,12 @@ fn paint_path(
                 if let Some(h) =
                     projection.screen([g[0] + g[axis] - offset[0], g[1] + g[axis + 1] - offset[1]])
                 {
-                    let connector=color.with_alpha(list.styles().metric("path.handle.opacity",0.7));
+                    let handle_color = if selected.is_some() && selected != Some(i) {
+                        color.with_alpha(list.styles().metric("path.handle.opacity", 0.7))
+                    } else { color };
+                    let connector=handle_color.with_alpha(list.styles().metric("path.handle.opacity",0.7));
                     paint::line(list, vec![p, h], connector);
-                    paint::diamond(list, h, 3., color);
+                    paint::diamond(list, h, 3., handle_color);
                 }
             }
         }
@@ -1388,6 +1406,8 @@ fn paint_path(
 
 #[cfg(test)]
 mod pen_tests;
+#[cfg(test)]
+mod handle_visibility_tests;
 
 #[cfg(test)]
 mod numeric_tests {

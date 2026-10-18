@@ -90,12 +90,7 @@ pub(in crate::panels) fn render(
         let heading = property_group(
             list,
             atlas,
-            Rect::new(
-                area.min[0] + list.styles().metric("tree.indent", 14.),
-                area.min[1],
-                (area.width() - list.styles().metric("tree.indent", 14.)).max(0.),
-                area.height(),
-            ),
+            area,
             y,
             height,
             if locale == Locale::Zh {
@@ -127,9 +122,9 @@ pub(in crate::panels) fn render(
                 list,
                 atlas,
                 Rect::new(
-                    area.min[0] + indent * 2.,
+                    area.min[0] + indent,
                     area.min[1],
-                    area.width() - indent * 2.,
+                    (area.width() - indent).max(0.),
                     area.height(),
                 ),
                 y,
