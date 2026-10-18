@@ -620,12 +620,18 @@ impl Shell {
                     e.eq_ignore_ascii_case("msproj") || e.eq_ignore_ascii_case("aem")
                 }) {
                     project_lifecycle::Target::Import(path)
-                } else {
+                } else if path.is_file()
+                    || path.extension().is_some_and(|e| e.eq_ignore_ascii_case("json"))
+                {
                     project_lifecycle::Target::Open(
                         path.parent()
                             .ok_or("project file has no parent")?
                             .to_path_buf(),
                     )
+                } else {
+                    // A stale recent-project directory is still a directory
+                    // target; failed metadata must not turn it into its parent.
+                    project_lifecycle::Target::Open(path)
                 };
                 self.request_project_change(target)?;
             }
