@@ -39,6 +39,8 @@
 | Application | Right | true | true | false | NextFrame | true |
 | Application | Home | false | false | false | FirstFrame | false |
 | Application | End | false | false | false | LastFrame | false |
+| Animation | A | false | false | false | Reveal(Anchor) | false |
+| Animation | A | false | true | false | Reveal(Anchor) | false |
 | Animation | T | false | false | false | Reveal(Opacity) | false |
 | Animation | T | false | true | false | Reveal(Opacity) | false |
 | Animation | T | false | true | true | ToggleKey(Opacity) | false |
