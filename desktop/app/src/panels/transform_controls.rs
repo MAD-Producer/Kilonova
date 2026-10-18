@@ -404,6 +404,7 @@ impl Controls {
         }
         self.tool = tool;
     }
+    #[cfg(test)]
     pub fn draw(
         &mut self,
         list: &mut PaintList,

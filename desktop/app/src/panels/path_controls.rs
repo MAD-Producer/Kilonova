@@ -508,6 +508,7 @@ impl Controls {
         });
         Some(())
     }
+    #[cfg(test)]
     pub fn draw(
         &mut self,
         list: &mut PaintList,
