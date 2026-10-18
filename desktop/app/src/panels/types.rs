@@ -540,6 +540,7 @@ impl TimelineState {
 }
 pub(crate) fn property_bit(property: Property) -> u8 {
     match property {
+        Property::Anchor => 16,
         Property::Position => 1,
         Property::Scale => 2,
         Property::Rotation => 4,

@@ -241,7 +241,7 @@ fn color_effect_keeps_expanded_vector_source_and_original_anchor_in_place() {
     let mut vector = VectorContent::shape(ShapeKind::Line);
     vector.stroke.as_mut().unwrap().width.value = 12.;
     l.content = Content::Vector { vector };
-    l.transform.anchor = [0.25, 0.75];
+    l.transform.anchor = motion_model::Track::constant([0.25, 0.75]);
     l.transform.rotation.value[2] = 15.;
     p.layers.push(l);
     let mut r = pollster::block_on(Renderer::headless()).unwrap();

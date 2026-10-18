@@ -22,6 +22,35 @@ impl Shell {
             }
             let revision = self.state["revision"].clone();
             let screenshot = self.capture_panel_float(panel)?;
+            let anchor_animation = if matches!(panel,dock::Panel::Timeline | dock::Panel::Properties) {
+                let object=self.panels.selected.ok_or("anchor fixture selection missing")?;
+                let timeline=self.panels.timeline.clone();
+                let animation=std::mem::take(&mut self.panels.animation_controls);
+                let collapsed=self.panels.properties.transform_collapsed;
+                let scroll=self.panels.properties.properties_scroll;
+                let focus=self.panels.focused;
+                let captured=(|| {
+                    self.panels.focused=Some(panel);
+                    self.panels.properties.transform_collapsed=false;
+                    self.panels.properties.properties_scroll=0.;
+                    self.panels.timeline.expanded.clear();self.panels.timeline.expanded.insert(object);
+                    self.panels.timeline.collapsed_transforms.remove(&object);
+                    self.panels.timeline.filters.remove(&object);
+                    self.panels.timeline.expression_rows.clear();
+                    self.panels.timeline.scroll=0.;self.panels.timeline.set_graph_mode(false);
+                    self.panels.animation_controls.choose_track(object,motion_core::Property::Anchor,None);
+                    let keys=self.capture_panel_float_named(panel,"-anchor-keys")?;
+                    let graph=if panel==dock::Panel::Timeline {
+                        self.panels.timeline.set_graph_mode(true);
+                        Some(self.capture_panel_float_named(panel,"-anchor-graph")?)
+                    }else{None};
+                    Ok::<_,String>(serde_json::json!({"keys":keys,"graph":graph}))
+                })();
+                self.panels.timeline=timeline;self.panels.animation_controls=animation;
+                self.panels.properties.transform_collapsed=collapsed;self.panels.properties.properties_scroll=scroll;
+                self.panels.focused=focus;
+                captured?
+            }else{Value::Null};
             let viewer_navigation = if panel == dock::Panel::Composition {
                 let saved = self.panels.composition.navigation;
                 let captured = (|| {
@@ -142,7 +171,7 @@ impl Shell {
             if self.state["revision"] != revision {
                 return Err("layout change edited the project".into());
             }
-            self.smoke_panel_records.push(serde_json::json!({"id":panel as u32,"title":self.workspace.locale.panel(panel.dock()),"frames":self.smoke_float_frames[&(panel as u32)],"screenshot":screenshot,"viewerNavigationScreenshots":viewer_navigation,"valueGraphScreenshot":value_graph,"audioMenuScreenshot":audio_menu,"markerMenuScreenshot":marker_menu,"maskTimelineScreenshot":mask_timeline,"shapeTimelineScreenshot":shape_timeline,"shapeOperatorScreenshots":shape_operators,"projectRevision":revision}));
+            self.smoke_panel_records.push(serde_json::json!({"id":panel as u32,"title":self.workspace.locale.panel(panel.dock()),"frames":self.smoke_float_frames[&(panel as u32)],"screenshot":screenshot,"anchorAnimationScreenshots":anchor_animation,"viewerNavigationScreenshots":viewer_navigation,"valueGraphScreenshot":value_graph,"audioMenuScreenshot":audio_menu,"markerMenuScreenshot":marker_menu,"maskTimelineScreenshot":mask_timeline,"shapeTimelineScreenshot":shape_timeline,"shapeOperatorScreenshots":shape_operators,"projectRevision":revision}));
             if matches!(panel, dock::Panel::Timeline | dock::Panel::Audio) {
                 // Subsequent parent/blend captures require a visual target.
                 let visual = self.state["project"]["layers"].as_array().into_iter().flatten().rev()
@@ -282,6 +311,15 @@ impl Shell {
                 self.state = self
                     .engine
                     .edit(serde_json::to_string(&commands).map_err(|e| e.to_string())?)?;
+            }
+            if matches!(panel,dock::Panel::Timeline | dock::Panel::Properties) {
+                let object=self.state["project"]["layers"].as_array().into_iter().flatten().rev()
+                    .find(|l|l["content"]["kind"]=="solid").and_then(|l|l["id"].as_u64()).ok_or("anchor capture solid missing")?;
+                self.state=self.engine.edit(serde_json::json!([
+                    {"op":"animate","object":object,"property":"anchor","frame":0,"enabled":true},
+                    {"op":"set_vector","object":object,"property":"anchor","frame":60,"value":[0.2,0.8,0.]}
+                ]).to_string())?;
+                self.panels.select_only(Some(object));
             }
             self.float_panel(panel.dock(), event_loop)?;
             self.smoke_float_frames.insert(panel as u32, 0);
