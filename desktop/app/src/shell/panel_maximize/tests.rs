@@ -23,6 +23,14 @@ fn idle_panels_do_not_block_layout_shortcuts_just_because_they_have_search_field
 fn backquote_remains_text_in_an_active_search_field() {
     let folder = tempfile::tempdir().unwrap();
     let mut shell = Shell::new(folder.path().join("project"), None, Some(Locale::En)).unwrap();
+    // Shell::new loads user preferences; this input fixture needs a visible Project tab.
+    shell.workspace = workspace::Workspace::default();
+    assert!(
+        panels::frames(&shell.workspace.root, [1600., 1000.])
+            .iter()
+            .any(|frame| frame.panel == Panel::Project),
+        "search fixture must expose the Project panel"
+    );
     shell.panels.focused = Some(Panel::Project);
     shell.panels.project.search = true;
     shell.panels.project.search_field.editor.begin("");
