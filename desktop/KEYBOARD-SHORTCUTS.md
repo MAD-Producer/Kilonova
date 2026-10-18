@@ -8,6 +8,7 @@
 
 | 快捷键 | 当前行为 | 范围 |
 | --- | --- | --- |
+| Backquote (U+0060) | Temporarily maximize / restore the dock under the pointer; use the focused visible panel when outside the docks | Main window; text, IME, menus and gestures take priority. Floating windows retain their geometry. Temporary state is not saved. |
 | Ctrl+Alt+N / Ctrl+N | 新建工程 / 合成 | 工程与三个节点面板；文本编辑优先 |
 | Ctrl+O / Ctrl+S | 打开 / 保存当前文档 | 工程或节点；节点属性和预览浮窗也保存节点文档 |
 | Ctrl+Shift+S | 另存节点文档 | 节点 |
@@ -33,6 +34,7 @@
 | 中键 / Shift+中键拖动 / Alt+左键拖动 | 平移画布 | 节点 |
 | 普通滚轮 / Shift+滚轮 | 滚动 / 水平滚动 | 节点 |
 | Home / F / Ctrl+0 | 适配全部 / 适配选中 / 100% | 节点 |
+| G / N | Toggle grid / minimap | Focused node canvas; text, IME, menus and active gestures take precedence |
 | 方向键 / Shift+方向键 | 微移 1 / 10 画布单位 | 节点 |
 | Ctrl+A / Ctrl+Shift+A | 全选 / 清空选择 | 节点 |
 | Ctrl+D | 复制选中节点及内部连线，向右下偏移 | 节点；不复制外部连线，整体可撤销 |
@@ -75,7 +77,6 @@
 | UU 已修改属性筛选 | #213 |
 | 节点子图剪贴板 Ctrl+C/X/V | #229 |
 | Ctrl+T 贴图链、Ctrl+Shift+T 材质组 | #228、#266 |
-| 节点 G/N 网格与小地图开关 | #267 |
 | 改键、冲突检测和预设 | #277 |
 | 反引号临时最大化停靠面板 | #278 |
 
@@ -94,6 +95,12 @@
 | Home、普通方向键 | 保留节点适配/微移语义，不导航工程时间 |
 | Ctrl+Shift+D | 节点上下文屏蔽图层分割；返回时间轴操作 |
 | Ctrl+Space | 应用级效果搜索，目标仍是工程图层 |
+
+## Node canvas view preferences
+
+The node toolbar's View menu and the canvas context menu expose checked grid and minimap options. The grid is initially visible; the minimap is initially hidden. G/N use no modifiers and do not repeat; Ctrl+G still groups nodes.
+
+The minimap fits the current viewport and all nodes. Click or drag inside it to navigate; Esc, focus loss or a lost release cancels an unfinished drag. Small canvases hide the overlay until there is enough room. Both options are stored in the workspace layout, shared by docked and native floating editors, and retained when opening or switching graphs. They do not change graph source, compilation stamps, permanent output or undo history.
 
 ## 接入规则
 

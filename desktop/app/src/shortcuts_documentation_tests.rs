@@ -27,6 +27,7 @@ fn default_binding_reference_matches_live_resolver() {
         Key::Equal,
         Key::Minus,
         Key::Semicolon,
+        Key::Backquote,
         Key::PageUp,
         Key::PageDown,
         Key::Escape,
