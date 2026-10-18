@@ -286,6 +286,10 @@ Header, name, 3D switch and optional cells share `ColumnRects::styled`; retain t
 
 Header band total height `64`; ruler at `+36`, height `28`; rows begin at `+64`; layer row height `$sizes.row.height = 22`. **Zoom control sits on the ruler's top-right, not in a new bottom zoom bar.** Keyframe diamonds are directly drawn primitives, not component-style instances (see §5.3).
 
+A horizontal scrollbar occupies the bottom of the time lane. Preserve a full `field.height` pointer target; the centered visible pill uses `timeline.scrollbar.thumb.height`, `.radius`, `.min_width` and `timeline.scrollbar.inset` from `dark.json`. Use the panel background, a border-token top separator, and border/disabled/muted/focus colors for inactive/idle/hovered/dragging states. Its thumb represents the same zoom and offset as the ruler and clip/curve lane. Dragging it changes view state only; it must not seek, edit layers, change selection, or enter undo history. The label/property gutter remains fixed. The graph's existing lower ruler stays in place; its mode caption uses the left footer so the scrollbar does not cover a seeking target. At 100% the full-width thumb is inactive.
+
+While a layer move, trim or ruler scrub is held near either horizontal edge, pan the view using elapsed time and preserve the gesture's composition-time anchor. Stop on release, Escape or focus loss. Offscreen clip endpoints must neither paint nor accept edits in the property gutter. Changes to zoom must update the ruler and clip coordinates in the same frame.
+
 ### 7.2 Property subrows
 
 - Group headers use the existing header surface and primary text; child rows retain explicit indentation and subtle tree guides. All values of one property stay inline; do not spend space on redundant X/Y labels for a two-value offset.

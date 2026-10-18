@@ -22,6 +22,7 @@ fn text_active(panels: &Panels) -> bool {
         || panels.timeline.key_drag.is_some()
         || panels.timeline.graph_drag.is_some()
         || panels.timeline.graph_box.editing()
+        || panels.timeline.horizontal_drag.is_some()
         || panels.timeline.scrubbing
         || panels.effect_controls.editing()
         || panels.properties.effects.editing()
