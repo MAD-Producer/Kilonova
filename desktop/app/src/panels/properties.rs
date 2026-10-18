@@ -209,7 +209,7 @@ pub(super) fn inspector_layout(
     let slot = styles.metric("icon.slot", 20.);
     let row = styles.metric("row.height", 22.);
     let field = styles.metric("field.height", 18.).min(row);
-    let left = area.min[0] + pad + indent;
+    let left = area.min[0] + pad + super::key_navigation::width(styles) + indent;
     let caption = left + slot;
     let value = (caption + styles.metric("label.column", 72.) + pad)
         .min(area.max[0] - pad - axes.max(1) as f32 * styles.metric("value.min_width", 64.))
@@ -305,6 +305,9 @@ pub(super) fn render(
         ..input.clone()
     };
     let input = &filtered;
+    if input.pressed.is_some() {
+        panels.properties.effects.clear_key_channel();
+    }
     if area.contains(input.mouse) {
         panels.properties.properties_scroll += input.wheel[1];
     }
@@ -317,9 +320,12 @@ pub(super) fn render(
         let camera = super::camera_controls::camera(state, *id);
         !camera.is_null() && camera["created"].as_bool().unwrap_or(true)
     }) {
-        panels
+        let navigation = panels
             .camera_controls
             .render(list, atlas, area, &mut y, state, object, input, panels.locale, out);
+        if let Some((property, axis, choice)) = navigation {
+            super::key_navigation::apply_property_choice(panels, state, object, property, axis, choice, out);
+        }
         panels.properties.content_height =
             y - area.min[1] + panels.properties.properties_scroll + pad;
         return;
@@ -410,12 +416,17 @@ pub(super) fn render(
         let rows = super::timeline::property_rows(state, object);
         for track in rows {
             let property = track.property;
+            let axis = track.axis.map(|axis| [motion_core::Axis::X, motion_core::Axis::Y, motion_core::Axis::Z][axis]);
             let key = track.key;
             let name = locale.t(track.title);
             let axes = &track.axes;
             if !super::timeline::property_visible(panels, state, object, property) {
                 continue;
             }
+            super::key_navigation::property_row(
+                list, Rect::new(area.min[0], y, area.width(), row), panels, state, input,
+                object, property, axis, &track.keys, out,
+            );
             let fields = inspector_layout(&styles, area, y, 0, axes.len());
             super::timeline::property_branch(list, fields.watch);
             let animated = !track.keys.is_empty();

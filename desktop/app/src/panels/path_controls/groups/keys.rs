@@ -97,6 +97,49 @@ fn command(c: &Channel, edit: KeyEdit) -> Action {
     })
 }
 impl Controls {
+    pub(super) fn navigation(
+        &mut self,
+        list: &mut PaintList,
+        row: Rect,
+        state: &Value,
+        object: u64,
+        item: u64,
+        parameter: &parameters::Parameter,
+        input: &Input,
+        enabled: bool,
+        out: &mut Vec<Action>,
+    ) {
+        use crate::panels::key_navigation::{self as navigation, Choice};
+        let Some(layer) = cached_layer(state, object, &self.cache) else { return };
+        let offset = layer.timeline.map_or(0, |timeline| timeline.offset_frame);
+        let at = state["frame"].as_f64().unwrap_or(0.);
+        let last = crate::panels::last_frame(state);
+        let adjacent = navigation::neighbours(parameter.keys.iter()
+            .map(|(frame, _)| f64::from(*frame) + f64::from(offset)), at, last);
+        let frame = navigation::editable_frame(at, last);
+        let editable = enabled && !layer.locked && state["observing"] != true
+            && !parameter.static_value && frame.is_some();
+        let rect = navigation::rail(&list.styles(), row);
+        let Some(choice) = navigation::draw(list, rect, input, adjacent, editable) else { return };
+        self.prepare(state, input, out);
+        self.choose(object, item, parameter);
+        let channel = Channel { object, item, parameter: parameter.id.clone() };
+        match choice {
+            Choice::Seek(frame) => {
+                self.selected = Some((channel, frame as u32));
+                out.push(Action::Seek(frame));
+            }
+            Choice::Toggle => {
+                let Some(frame) = frame.filter(|_| editable) else { return };
+                out.push(if adjacent.current {
+                    command(&channel, KeyEdit::Delete { frame })
+                } else {
+                    Action::Edit(parameter.set(object, item, frame, Some(true)))
+                });
+                self.selected = (!adjacent.current).then_some((channel, frame));
+            }
+        }
+    }
     pub(in crate::panels) fn editing(&self) -> bool {
         self.drag.is_some() || self.menu.is_some()
     }
@@ -430,13 +473,10 @@ impl Controls {
                 .iter()
                 .map(|(f, _)| i64::from(*f) + i64::from(l.timeline.map_or(0, |t| t.offset_frame)))
                 .filter(|f| *f >= 0 && *f < total);
-            let target = if k == Key::J {
-                keys.filter(|f| (*f as f64) < at).max()
-            } else {
-                keys.filter(|f| (*f as f64) > at).min()
-            };
+            let adjacent = crate::panels::key_navigation::neighbours(keys.map(|f| f as f64), at, (total - 1) as f64);
+            let target = if k == Key::J { adjacent.previous } else { adjacent.next };
             if let Some(f) = target {
-                at = f as f64;
+                at = f;
                 self.selected = Some((c.clone(), f as u32));
                 out.push(Action::Seek(at));
             }

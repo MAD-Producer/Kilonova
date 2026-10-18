@@ -298,9 +298,10 @@ pub(in crate::panels) fn render(
                 }
                 Entry::Parameter(item, p, depth) => {
                     let fields = layout(styles.as_ref(), area, y, *depth, 0, p.values.len(), host);
+                    let navigation = crate::panels::key_navigation::rail(&styles, Rect::new(area.min[0], y, area.width(), height));
                     let lane = Rect::new(track.min[0], y, track.width(), height);
                     let hit = normal.pressed.is_some_and(|(_, point)| {
-                        fields.caption.contains(point)
+                        navigation.contains(point) || fields.caption.contains(point)
                             || fields.watch.contains(point)
                             || lane.contains(point)
                             || (0..p.values.len()).any(|a| {
