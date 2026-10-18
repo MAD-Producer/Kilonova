@@ -1,6 +1,7 @@
 //! Application preferences wrap the reusable UI workspace; no editor state is stored here.
 mod manager;
 mod presets;
+mod maximize;
 pub use manager::{Manager, ManagerEvent};
 pub use motion_ui::workspace::{Change, WindowGeometry};
 use motion_ui::{
@@ -22,6 +23,9 @@ pub struct RecentProject {
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct Workspace {
+    /// Temporary display projection; the owned layout remains complete.
+    #[serde(skip)]
+    maximized: Option<DockId>,
     #[serde(default)]
     pub locale: crate::i18n::Locale,
     #[serde(default)]
@@ -42,6 +46,8 @@ pub struct Workspace {
     pub favorites: std::collections::BTreeSet<String>,
     #[serde(default)]
     pub send_diagnostics: bool,
+    #[serde(default)]
+    pub node_view: crate::node_editor::ViewPreferences,
     #[serde(default = "visible_column")]
     pub timeline_column_blend: bool,
     #[serde(default = "visible_column")]
@@ -54,6 +60,7 @@ pub struct Workspace {
 impl Default for Workspace {
     fn default() -> Self {
         Self {
+            maximized: None,
             locale: Default::default(),
             preset: Default::default(),
             recent_projects: vec![],
@@ -63,6 +70,7 @@ impl Default for Workspace {
             named_layouts: Default::default(),
             favorites: Default::default(),
             send_diagnostics: false,
+            node_view: Default::default(),
             timeline_column_blend: true,
             timeline_column_parent: true,
             timeline_column_matte: true,
@@ -141,6 +149,7 @@ impl Workspace {
         .map_err(|e| e.to_string())
     }
     pub fn redock(&mut self, panel: DockId) {
+        self.restore_panel();
         let panel = if matches!(panel, id if id == dock::Panel::Masks.dock() || id == dock::Panel::Expression.dock())
         {
             dock::Panel::Properties.dock()
@@ -181,6 +190,10 @@ impl Workspace {
         }
     }
     pub fn interact(&mut self, input: &Input, size: [f32; 2]) -> Option<Change> {
+        // The projected dock has no splitters or other docks to drag into.
+        if self.maximized_panel().is_some() {
+            return None;
+        }
         self.layout.interact_with_header_actions(
             input,
             Rect::new(
@@ -196,6 +209,21 @@ impl Workspace {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn node_view_preferences_save_reopen_and_accept_legacy_workspace() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("workspace.json");
+        let mut workspace = Workspace::default();
+        workspace.node_view = crate::node_editor::ViewPreferences { grid:false, minimap:true };
+        workspace.save(&path).unwrap();
+        let reopened = Workspace::load(&path);
+        assert!(reopened.valid());
+        assert_eq!(reopened.node_view, workspace.node_view);
+        let mut legacy: serde_json::Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        legacy.as_object_mut().unwrap().remove("node_view");
+        std::fs::write(&path, serde_json::to_vec(&legacy).unwrap()).unwrap();
+        assert_eq!(Workspace::load(&path).node_view, crate::node_editor::ViewPreferences::default());
+    }
     #[test]
     fn timeline_column_visibility_defaults_visible_for_legacy_json_and_round_trips() {
         let mut legacy = serde_json::to_value(Workspace::default()).unwrap();

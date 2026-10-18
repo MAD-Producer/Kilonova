@@ -92,6 +92,7 @@ use timeline::render as timeline;
 #[cfg(test)]
 use timeline::rows;
 pub use types::{Action, Frame, EffectSearch, Panels};
+pub(crate) use keyboard::layout_shortcuts_blocked;
 pub(crate) use types::ColumnVisibility;
 use types::{Field, ScrubState};
 
