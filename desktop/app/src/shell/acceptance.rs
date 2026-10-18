@@ -848,6 +848,82 @@ impl Shell {
             self.smoke_node_report["ungroupPixelsPreserved"] = Value::Bool(true);
             self.panels
                 .node_editor
+                .add_node(
+                    motion_graph::NodeOp::ColorMath {
+                        operation: motion_graph::ColorOp::Invert,
+                    },
+                    [720., 180.],
+                )
+                .map_err(|error| error.to_string())?;
+            self.schedule_node_compile()?;
+            self.smoke_stage = 21;
+        } else if self.smoke_stage == 21
+            && self.node_compile_due.is_none()
+            && self.node_installing.is_empty()
+            && !self.node_tasks.busy()
+        {
+            if let Some(diagnostic) = self.panels.node_editor.diagnostic() {
+                return Err(format!(
+                    "unused incomplete node blocked live validation: {diagnostic}"
+                ));
+            }
+            if self.panels.node_preview.active != Some(self.panels.node_editor.stamp()) {
+                return Ok(());
+            }
+            let draft = self
+                .engine
+                .node_capture(0., directory.join("node-unused-draft.png"))?;
+            if draft["fingerprint"] != self.smoke_node_report["parameter"]["fingerprint"] {
+                return Err("unused incomplete node changed actual GPU pixels".into());
+            }
+            self.smoke_node_report["unusedDraft"] = draft;
+            self.panels.node_preview.playing = false;
+            let screenshot = self.capture_node_float()?;
+            let path = self
+                .smoke
+                .as_ref()
+                .unwrap()
+                .with_extension("unused-draft.png");
+            std::fs::copy(screenshot, &path).map_err(|error| error.to_string())?;
+            self.smoke_node_report["unusedDraftEditorScreenshot"] =
+                serde_json::to_value(path).map_err(|error| error.to_string())?;
+            self.panels
+                .node_editor
+                .set_parameter_default("color", 0, 0.25)
+                .map_err(|error| error.to_string())?;
+            self.schedule_node_compile()?;
+            self.smoke_stage = 22;
+        } else if self.smoke_stage == 22
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            let changed = self
+                .engine
+                .node_capture(0., directory.join("node-unused-draft-edited.png"))?;
+            if changed["fingerprint"] == self.smoke_node_report["unusedDraft"]["fingerprint"] {
+                return Err(
+                    "unused draft retained stale pixels instead of compiling a parameter edit"
+                        .into(),
+                );
+            }
+            self.smoke_node_report["unusedDraftParameterEdit"] = changed;
+            self.smoke_node_report["unusedDraftKeptLivePreview"] = Value::Bool(true);
+            if !self.panels.node_editor.undo() {
+                return Err("draft acceptance could not undo its parameter edit".into());
+            }
+            self.schedule_node_compile()?;
+            self.smoke_stage = 23;
+        } else if self.smoke_stage == 23
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            let restored = self
+                .engine
+                .node_capture(0., directory.join("node-unused-draft-restored.png"))?;
+            if restored["fingerprint"] != self.smoke_node_report["parameter"]["fingerprint"] {
+                return Err("undo with an unused draft did not restore GPU pixels".into());
+            }
+            self.smoke_node_report["unusedDraftUndoRestoredPixels"] = Value::Bool(true);
+            self.panels
+                .node_editor
                 .disconnect_input(&motion_graph::PortRef::new("output", "color"));
             self.schedule_node_compile()?;
             self.smoke_stage = 6;
@@ -871,6 +947,15 @@ impl Shell {
             }
             self.smoke_node_report["retained"] = retained;
             self.smoke_node_report["invalidGraphKeptValidPixels"] = Value::Bool(true);
+            let screenshot = self.capture_node_float()?;
+            let path = self
+                .smoke
+                .as_ref()
+                .unwrap()
+                .with_extension("required-input.png");
+            std::fs::copy(screenshot, &path).map_err(|error| error.to_string())?;
+            self.smoke_node_report["requiredInputEditorScreenshot"] =
+                serde_json::to_value(path).map_err(|error| error.to_string())?;
             self.smoke_node_report["projectUntouched"] = Value::Bool(true);
             self.redock_panel(dock::Panel::Nodes.dock())?;
             let home_path = directory.join("home-after-node-preview.png");

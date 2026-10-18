@@ -274,6 +274,9 @@ def main() -> None:
                 raise RuntimeError(f"{locale} node preview did not verify {check}")
         if node_snapshot["locale"] != locale or node_snapshot["floatingFrames"].get("10", 0) < 3:
             raise RuntimeError(f"{locale} did not validate the floating node workspace")
+        for check in ("unusedDraftKeptLivePreview", "unusedDraftUndoRestoredPixels"):
+            if preview.get(check) is not True:
+                raise RuntimeError(f"{locale} node draft did not verify {check}")
     verify_mcp(binary, output)
     verify_property_followups(binary, output)
     verify_style_overrides(binary, output)

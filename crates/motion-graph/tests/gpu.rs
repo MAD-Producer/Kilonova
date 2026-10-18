@@ -8,6 +8,38 @@ use std::sync::Arc;
 mod group_fixture;
 
 #[test]
+fn unused_incomplete_nodes_preserve_gpu_pixels_and_allow_live_parameter_changes() {
+    let dir = tempfile::tempdir().unwrap();
+    let plain = demo_graph();
+    let mut draft = plain.clone();
+    draft.nodes.push(Node::new(
+        "unfinished",
+        NodeOp::ColorMath {
+            operation: ColorOp::Invert,
+        },
+    ));
+    let (project, mut renderer, target) = setup(&plain, &dir.path().join("plain.msfx"));
+    let (mut edited, mut edited_renderer, edited_target) =
+        setup(&draft, &dir.path().join("draft.msfx"));
+    for frame in [0., 15.5, 29.] {
+        assert_eq!(
+            render(&project, &mut renderer, &target, frame),
+            render(&edited, &mut edited_renderer, &edited_target, frame)
+        );
+    }
+    edited.layers[0].effects[0]
+        .params
+        .get_mut("color")
+        .unwrap()
+        .track
+        .value = [0.8, 0.1, 0.35, 0.45];
+    assert_ne!(
+        render(&project, &mut renderer, &target, 15.5),
+        render(&edited, &mut edited_renderer, &edited_target, 15.5)
+    );
+}
+
+#[test]
 fn nested_groups_export_pixel_identically_and_keep_public_parameter_animation() {
     let dir = tempfile::tempdir().unwrap();
     let plain = demo_graph();

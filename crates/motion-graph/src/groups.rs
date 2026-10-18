@@ -70,6 +70,8 @@ pub(crate) struct FlatGraph {
     ids: BTreeMap<String, String>,
     aliases: BTreeMap<PortRef, PortRef>,
     incoming: BTreeMap<PortRef, PortRef>,
+    /// Missing boundary connections deferred until a dependent leaf is required.
+    missing_inputs: BTreeMap<PortRef, Diagnostic>,
     reserved: BTreeSet<String>,
     nodes: usize,
     edges: usize,
@@ -117,6 +119,13 @@ impl FlatGraph {
     }
     pub fn describe(&self, error: Error) -> Error {
         if let Error::Invalid(mut diagnostic) = error {
+            if diagnostic.code == ErrorCode::MissingInput {
+                if let (Some(node), Some(port)) = (&diagnostic.node, &diagnostic.port) {
+                    if let Some(boundary) = self.missing_inputs.get(&PortRef::new(node, port)) {
+                        return Error::Invalid(boundary.clone());
+                    }
+                }
+            }
             if let Some(id) = &diagnostic.node {
                 if let Some((qualified, _)) = self.ids.iter().find(|(_, value)| *value == id) {
                     diagnostic.node = Some(qualified.clone());
@@ -223,17 +232,6 @@ impl FlatGraph {
                     "node layout must be finite",
                 ));
             }
-            let ports = &specs[&node.id];
-            for port in ports.inputs.keys() {
-                if !self.incoming.contains_key(&PortRef::new(&q, port)) {
-                    return Err(Error::invalid(
-                        ErrorCode::MissingInput,
-                        Some(&q),
-                        Some(port),
-                        "required group/scope input is not connected",
-                    ));
-                }
-            }
             match &node.operation {
                 NodeOp::Group { graph } => {
                     if graph.name.is_empty()
@@ -337,6 +335,7 @@ pub(crate) fn flatten(document: &GraphDocument, options: &CompileOptions) -> Res
         ids: BTreeMap::new(),
         aliases: BTreeMap::new(),
         incoming: BTreeMap::new(),
+        missing_inputs: BTreeMap::new(),
         reserved: document.nodes.iter().map(|node| node.id.clone()).collect(),
         nodes: 0,
         edges: 0,
@@ -344,16 +343,26 @@ pub(crate) fn flatten(document: &GraphDocument, options: &CompileOptions) -> Res
     flat.collect(document, "", 0, options)?;
     for (target, source) in &flat.incoming {
         if let Some(id) = flat.ids.get(&target.node) {
-            flat.document.connections.push(Connection {
-                from: flat.resolve(source)?,
-                to: PortRef::new(id, &target.port),
-            });
+            let to = PortRef::new(id, &target.port);
+            match flat.resolve(source) {
+                Ok(from) => flat.document.connections.push(Connection { from, to }),
+                Err(Error::Invalid(diagnostic)) if diagnostic.code == ErrorCode::MissingInput => {
+                    // Keep the leaf input missing. Reachability validation will
+                    // reject it if used, with the original group boundary cause.
+                    flat.missing_inputs.insert(to, diagnostic);
+                }
+                Err(error) => return Err(error),
+            }
         }
     }
-    // Resolve all exposed outputs, including unused ones, so incomplete interfaces
-    // and cycles never disappear merely because the final image does not use them.
+    // Inspect every alias for malformed structure/cycles, but an unconnected
+    // boundary is a draft until an output or an explicit preview depends on it.
     for port in flat.aliases.keys() {
-        flat.resolve(port)?;
+        match flat.resolve(port) {
+            Ok(_) => {}
+            Err(Error::Invalid(diagnostic)) if diagnostic.code == ErrorCode::MissingInput => {}
+            Err(error) => return Err(error),
+        }
     }
     Ok(flat)
 }

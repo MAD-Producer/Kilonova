@@ -370,6 +370,9 @@ pub fn node_ports(node: &Node, parameters: &[PublicParameter]) -> Result<NodePor
     Ok(p)
 }
 
+/// Validate every node, edge and cycle, then require complete inputs only in the
+/// color output's dependency chain. Supported, structurally valid unused nodes
+/// may remain unfinished; they are retained in source and omitted from execution.
 pub fn validate(document: &GraphDocument, options: &CompileOptions) -> Result<ValidationReport> {
     if crate::groups::structured(document) {
         let flat = crate::groups::flatten(document, options)?;
@@ -650,18 +653,6 @@ fn validate_root(
             .or_default()
             .push(edge.to.node.clone());
     }
-    for (id, spec) in &ports {
-        for port in spec.inputs.keys() {
-            if !incoming.contains_key(&PortRef::new(id, port)) {
-                return Err(Error::invalid(
-                    ErrorCode::MissingInput,
-                    Some(id),
-                    Some(port),
-                    "required input is not connected",
-                ));
-            }
-        }
-    }
     let mut ready: BTreeSet<String> = degrees
         .iter()
         .filter(|(_, degree)| **degree == 0)
@@ -701,7 +692,17 @@ fn validate_root(
             continue;
         }
         for port in ports[&id].inputs.keys() {
-            pending.push(incoming[&PortRef::new(&id, port)].node.clone());
+            // Incomplete nodes outside this output's dependency chain are drafts.
+            // Structural, value, edge and cycle validation above still covers them.
+            let source = incoming.get(&PortRef::new(&id, port)).ok_or_else(|| {
+                Error::invalid(
+                    ErrorCode::MissingInput,
+                    Some(&id),
+                    Some(port),
+                    "required input is not connected",
+                )
+            })?;
+            pending.push(source.node.clone());
         }
     }
     Ok(ValidationReport {
