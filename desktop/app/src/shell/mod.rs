@@ -11,6 +11,8 @@ pub(crate) mod presentation_observation;
 pub(crate) mod styles;
 
 mod workspaces;
+mod panel_maximize;
+mod panel_maximize_acceptance;
 mod workspace_acceptance;
 
 mod design_acceptance;

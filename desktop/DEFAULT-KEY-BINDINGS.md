@@ -22,6 +22,7 @@
 | Application | K | true | false | false | Settings | false |
 | Application | R | true | false | false | ReloadStyle | false |
 | Application | M | true | false | true | Export | false |
+| Application | Backquote | false | false | false | TogglePanelMaximize | false |
 | Application | PageUp | false | false | false | PreviousFrame | true |
 | Application | PageUp | false | true | false | PreviousFrame | true |
 | Application | PageDown | false | false | false | NextFrame | true |

@@ -11,6 +11,7 @@ pub enum Scope {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Command {
     ReloadStyle,
+    TogglePanelMaximize,
     NewProject,
     NewComposition,
     Open,
@@ -89,6 +90,7 @@ pub fn resolve(scope: Scope, key: Key, m: Modifiers, repeat: bool) -> Option<Com
         (Animation, Key::R, false, true, true) => ToggleKey(motion_core::Property::Rotation),
         (Animation, Key::T, false, true, true) => ToggleKey(motion_core::Property::Opacity),
         (Application, Key::R, true, false, false) => ReloadStyle,
+        (Application, Key::Backquote, false, false, false) => TogglePanelMaximize,
         (_, Key::O, true, false, false) => Open,
         (_, Key::S, true, false, false) => Save,
         (_, Key::Z, true, false, false) => Undo,
