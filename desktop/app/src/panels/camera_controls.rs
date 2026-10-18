@@ -62,7 +62,7 @@ impl Controls {
         self.mode.open = false;
         self.field.take().is_some_and(|mut f| f.number.cancel())
     }
-    pub fn render(
+    pub(in crate::panels) fn render(
         &mut self,
         list: &mut PaintList,
         atlas: &mut TextAtlas,
