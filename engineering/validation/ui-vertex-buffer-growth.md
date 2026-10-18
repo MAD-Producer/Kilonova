@@ -22,7 +22,10 @@
 
 - 最终 `cargo test --locked -p motion-ui --all-targets -- --test-threads=1` 通过：87 项，0 失败，含 5 个新增容量回归及原有真实像素、绘制观测、路径、样式、停靠和 framework 示例编译。`ui-tests.log`。
 - 带 FFmpeg 完整桌面测试通过：469 passed / 0 failed / 1 ignored，124.41 秒，`desktop-tests.log`。包含新增真实 GPU 容量拒绝的默认日志/回复测试；没有改变既有值、像素、撤销或超时断言。
-- 优化构建、完整原生验收及远端 CI 待验证，不把上述 GPU 像素测试算作完整原生窗口检查通过。
+- Python 工具回归运行 54 项、1 项原有跳过，30.573 秒，`tools.log`。
+- 带 FFmpeg 的优化构建通过，8 分 36 秒、21 项既有编译警告；构建报告 `release/build.json`、日志 `release-build.log`。本机验证仅将 release package codegen-units 设为 16，保留优化和 thin LTO；不修改仓库构建配置。
+- 完整 `tools/ci_desktop.py` 原生验收通过，退出码 0，`release-native.log` 记录 `Desktop languages, styled floating windows, live node rendering and shared MCP passed.`。真实主窗、原生浮窗、中英文、样式覆盖、节点渲染及共享 MCP 的报告与像素捕获见 `release/screens/`；沿用原验收超时预算，未以容量单元测试代替原生窗口检查。
+- 最新提交的远端 CI 独立跟踪，不把本机结果算作远端通过。
 
 ## DESIGN §0.7 / §12
 
