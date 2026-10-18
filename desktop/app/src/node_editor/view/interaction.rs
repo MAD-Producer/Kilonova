@@ -141,7 +141,13 @@ impl NodeEditor {
             }
         }
     }
-    pub(super) fn canvas_input(&mut self, cards: &[Card], canvas: Rect, input: &Input) {
+    pub(super) fn canvas_input(
+        &mut self,
+        cards: &[Card],
+        canvas: Rect,
+        input: &Input,
+        language: Language,
+    ) {
         if canvas.contains(input.mouse) && self.drag.is_none() && input.wheel != [0.; 2] {
             if input.modifiers.control && !input.modifiers.alt && !input.modifiers.shift {
                 self.view.zoom_at(
@@ -156,17 +162,8 @@ impl NodeEditor {
                 self.view.pan[1] -= input.wheel[1];
             }
         }
-        let socket = |point: [f32; 2]| {
-            cards
-                .iter()
-                .rev()
-                .flat_map(|c| c.sockets.iter())
-                .filter(|socket| socket.connectable)
-                .find(|s| {
-                    (s.point[0] - point[0]).abs() <= 8. && (s.point[1] - point[1]).abs() <= 8.
-                })
-                .cloned()
-        };
+        let zoom = self.view.zoom;
+        let socket = |point: [f32; 2]| wires::socket_at(cards, canvas, point, zoom).cloned();
         if let Some((button, point)) = input.pressed.filter(|(_, p)| canvas.contains(*p)) {
             if self.commit_field().is_err() {
                 return;
@@ -445,38 +442,13 @@ impl NodeEditor {
                         self.restore_node_drag(before);
                     }
                 }
-                Drag::Wire { source, old_input } => {
+                drag @ (Drag::Wire { .. } | Drag::WireInput { .. }) => {
                     if let Some((MouseButton::Left, point)) = input.released {
-                        if canvas.contains(point) {
-                            if let Some(target) = socket(point) {
-                                if target.output {
-                                    self.notice = Some("Connect to an input port".into());
-                                } else if let Err(error) =
-                                    self.connect_replacing(source, target.port, old_input.as_ref())
-                                {
-                                    self.notice = Some(error.to_string());
-                                }
-                            } else if !cards.iter().any(|c| c.rect.contains(point)) {
-                                if let Some(input) = old_input {
-                                    self.disconnect_input(&input);
-                                }
-                            }
-                        }
+                        self.drag = Some(drag);
+                        self.finish_wire_drop(cards, canvas, point, language);
+                        self.drag = None;
                     } else if input.held == Some(MouseButton::Left) {
-                        self.drag = Some(Drag::Wire { source, old_input });
-                    }
-                }
-                Drag::WireInput { target } => {
-                    if let Some((MouseButton::Left, point)) = input.released {
-                        if let Some(source) =
-                            socket(point).filter(|s| s.output && canvas.contains(point))
-                        {
-                            if let Err(error) = self.connect_ports(source.port, target) {
-                                self.notice = Some(error.to_string());
-                            }
-                        }
-                    } else if input.held == Some(MouseButton::Left) {
-                        self.drag = Some(Drag::WireInput { target });
+                        self.drag = Some(drag);
                     }
                 }
             }

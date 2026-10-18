@@ -75,6 +75,14 @@ Shift+A 在鼠标位置打开分类添加菜单；菜单显示在窗口范围内
 
 ## 6. 连线
 
+### Port targeting and body drops
+
+Hover, press and release choose the nearest visible socket in screen space. The hit area preserves the existing hover tolerance and covers the visible diamond at high zoom. Sockets hidden by a front card or completely outside the canvas cannot intercept a gesture.
+
+Dragging onto a node body highlights compatible ports. One valid port connects on release; multiple valid ports open a nearest-first input/output chooser. Up/Down, Home/End, Enter, mouse and wheel work in the chooser. It stays inside the current window after resizing. The graph and undo history remain unchanged until a choice succeeds; Escape, focus loss or an outside click cancels it. Existing input wires stay present until an atomic replacement commits, including when dragging backwards from an unconnected input. One successful replacement is one undo step.
+
+Preview and commit share type, semantic unit, cycle and connection-budget checks, including nested groups. An explicit socket target is checked as that socket; an invalid socket does not silently fall back to a different input on its card. A node with no compatible port reports the cause; collapsed nodes ask to be expanded. A new wire released over empty canvas is cancelled with a brief notice. Dropping an existing input wire on empty canvas retains the deliberate disconnect behavior; dropping outside the canvas cancels it. No implicit conversions are inserted.
+
 ### Stored input defaults
 
 New numeric nodes expose typed defaults directly on input rows. Scalar values support dragging and click-to-type; vector components use comma-separated numbers on one row; Bool uses a checkbox and Color opens the existing picker. A connected input shows its saved fallback disabled. The wire takes precedence, and disconnecting restores the saved value. There are no implicit casts or coordinate/image sources. Escape cancels the current edit, and each committed gesture is one undo step. Loading old source does not silently supply new defaults; saved source using defaults requires `.msgraph` version 2. Internal group nodes support defaults; group boundary defaults remain pending.

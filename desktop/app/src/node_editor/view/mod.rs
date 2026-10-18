@@ -1,6 +1,7 @@
 //! Node view layout and shared geometry; each editor region is a reusable component.
 mod add_menu;
 mod canvas;
+mod connection_menu;
 mod context_menu;
 mod control_popup;
 #[cfg(test)]
@@ -23,6 +24,9 @@ mod observability_tests;
 mod tests;
 mod toolbar;
 mod wires;
+mod wire_offer;
+#[cfg(test)]
+mod wire_target_tests;
 use super::catalog::{operation_title, type_label};
 use super::*;
 use motion_ui::{
@@ -191,6 +195,27 @@ fn distance_segment(p: [f32; 2], a: [f32; 2], b: [f32; 2]) -> f32 {
 }
 
 impl NodeEditor {
+    /// Visible screen geometry from the most recent layout, also used by native acceptance.
+    pub(crate) fn port_position(&self, node: &str, port: &str, output: bool) -> Option<[f32; 2]> {
+        self.cards(self.last_canvas)
+            .iter()
+            .flat_map(|card| &card.sockets)
+            .find(|socket| socket.port == PortRef::new(node, port) && socket.output == output)
+            .filter(|socket| self.last_canvas.contains(socket.point))
+            .map(|socket| socket.point)
+    }
+    pub(crate) fn node_header_center(&self, id: &str) -> Option<[f32; 2]> {
+        self.cards(self.last_canvas)
+            .iter()
+            .find(|card| card.id == id)
+            .map(|card| {
+                [
+                    (card.rect.min[0] + card.rect.max[0]) * 0.5,
+                    card.rect.min[1] + HEADER * self.view.zoom * 0.5,
+                ]
+            })
+            .filter(|point| self.last_canvas.contains(*point))
+    }
     fn toolbar_items(&self)->impl Iterator<Item=(usize,f32,&'static str,&'static str)> {
         let bound=self.layer_target.is_some();
         TOOLBAR.into_iter().filter(move |(id,_,_,_)|!bound||!matches!(id,4|5|6|7))
@@ -447,7 +472,7 @@ impl NodeEditor {
             self.inspector(list, atlas, inspector, body_input, language);
         }
         let cards = self.cards(layout.canvas);
-        self.canvas_input(&cards, layout.canvas, body_input);
+        self.canvas_input(&cards, layout.canvas, body_input, language);
         let cards = self.cards(layout.canvas);
         self.paint_canvas(list, atlas, &cards, layout.canvas, input, language);
         let mut footer = list.child();

@@ -1,4 +1,5 @@
 use crate::*;
+mod node_wires;
 mod retained;
 
 impl Shell {
@@ -618,6 +619,9 @@ impl Shell {
         Ok(())
     }
     pub(crate) fn capture_node_float(&mut self) -> Result<PathBuf, String> {
+        self.capture_node_float_input(&Input::default())
+    }
+    fn capture_node_float_input(&mut self, input: &Input) -> Result<PathBuf, String> {
         let f = self
             .floating
             .values()
@@ -638,7 +642,7 @@ impl Shell {
             size,
             &mut self.panels,
             &self.state,
-            &Input::default(),
+            input,
         );
         let atlas = self.atlas.config();
         let ui = UiFrame {
@@ -1158,6 +1162,23 @@ impl Shell {
                 return Err("undoing native defaults did not restore original GPU pixels".into());
             }
             self.smoke_node_report["inputDefaultsUndoRestoredPixels"] = true.into();
+            self.start_node_wire_smoke()?;
+            self.schedule_node_compile()?;
+            self.smoke_stage = 28;
+        } else if (28..=30).contains(&self.smoke_stage)
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            self.advance_node_wire_smoke(&directory)?;
+        } else if self.smoke_stage == 31
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            let restored = self
+                .engine
+                .node_capture(0., directory.join("node-wires-restored.png"))?;
+            if restored["fingerprint"] != self.smoke_node_report["parameter"]["fingerprint"] {
+                return Err("undoing native wire gestures did not restore GPU pixels".into());
+            }
+            self.smoke_node_report["wireUndoRestoredPixels"] = true.into();
             self.panels
                 .node_editor
                 .disconnect_input(&motion_graph::PortRef::new("output", "color"));

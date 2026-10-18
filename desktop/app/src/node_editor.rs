@@ -287,6 +287,12 @@ struct ContextMenu {
 }
 #[derive(Clone, Debug)]
 enum MenuKind {
+    Connect {
+        connections: Vec<Connection>,
+        old_input: Option<PortRef>,
+        scroll: f32,
+        pointer: [f32; 2],
+    },
     Canvas,
     Node(String),
     Wire(PortRef),

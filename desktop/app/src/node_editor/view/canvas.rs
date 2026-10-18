@@ -134,20 +134,25 @@ impl NodeEditor {
                 }
             }
         }
-        let feedback = self.wire_feedback(cards, area, input.mouse);
-        let rubber_color = if feedback.as_ref().is_some_and(|(_, result)| result.is_err()) {
+        let offer = self.wire_offer(cards, area, input.mouse);
+        let rubber_color = if offer.as_ref().is_some_and(|offer| offer.error.is_some()) {
             INVALID_WIRE
         } else {
             colors.ACCENT
         };
+        let endpoint = offer
+            .as_ref()
+            .filter(|offer| offer.targets.len() == 1 && offer.error.is_none())
+            .and_then(|offer| offer.targets.first())
+            .map_or(input.mouse, |socket| socket.point);
         if let Some(Drag::Wire { source, .. }) = &self.drag {
             if let Some(a) = find(source, true) {
-                paint::line(&mut canvas, curve(a.point, input.mouse), rubber_color);
+                paint::line(&mut canvas, curve(a.point, endpoint), rubber_color);
             }
         }
         if let Some(Drag::WireInput { target }) = &self.drag {
             if let Some(b) = find(target, false) {
-                paint::line(&mut canvas, curve(input.mouse, b.point), rubber_color);
+                paint::line(&mut canvas, curve(endpoint, b.point), rubber_color);
             }
         }
         for card in cards {
@@ -329,7 +334,7 @@ impl NodeEditor {
                 if !socket.connectable {
                     continue;
                 }
-                let radius = (4.5 * self.view.zoom).max(2.5);
+                let radius = wires::socket_radius(self.view.zoom);
                 if self.preview_target.as_ref() == Some(&socket.port) && socket.output {
                     paint::diamond(&mut canvas, socket.point, radius + 3., colors.ACCENT);
                 }
@@ -352,63 +357,11 @@ impl NodeEditor {
                 }
             }
         }
-        if let Some((socket, result)) = feedback {
-            let color = if result.is_err() {
-                INVALID_WIRE
-            } else {
-                colors.ACCENT
-            };
-            let radius = (4.5 * self.view.zoom).max(2.5);
-            paint::diamond(&mut canvas, socket.point, radius + 3., color);
-            paint::diamond(&mut canvas, socket.point, radius, type_color(socket.ty));
-            let width = 280f32.min((area.width() - 12.).max(1.));
-            let height = 58f32.min((area.height() - 12.).max(1.));
-            let tooltip = Rect::new(
-                (input.mouse[0] + 14.).clamp(area.min[0] + 6., area.max[0] - width - 6.),
-                (input.mouse[1] + 16.).clamp(area.min[1] + 6., area.max[1] - height - 6.),
-                width,
-                height,
-            );
-            canvas.retain_glyphs(|g| {
-                !intersects(
-                    tooltip,
-                    Rect::new(g.position[0], g.position[1], g.size[0], g.size[1]),
-                )
-            });
-            paint::rect(&mut canvas, tooltip, colors.CHROME);
-            paint::stroke(&mut canvas, tooltip, color, 1.);
-            let message = match &result {
-                Ok(()) => language.text("松开鼠标连接", "Release to connect"),
-                Err(error) => wires::reason(error, language),
-            };
-            label(
-                &mut canvas,
-                atlas,
-                Rect::new(tooltip.min[0] + 8., tooltip.min[1] + 3., width - 16., 24.),
-                message,
-                color,
-                Align::Left,
-            );
-            let (zh, en) = socket.spec.semantic.label();
-            label(
-                &mut canvas,
-                atlas,
-                Rect::new(tooltip.min[0] + 8., tooltip.min[1] + 28., width - 16., 24.),
-                language.text(zh, en),
-                colors.TEXT_MUTED,
-                Align::Left,
-            );
+        if let Some(offer) = offer {
+            self.paint_wire_offer(&mut canvas, atlas, area, input.mouse, &offer, language);
         }
         if self.drag.is_none() && area.contains(input.mouse) {
-            if let Some(socket) = cards
-                .iter()
-                .flat_map(|card| &card.sockets)
-                .filter(|socket| socket.connectable)
-                .find(|socket| {
-                    (socket.point[0] - input.mouse[0]).abs() <= 9.
-                        && (socket.point[1] - input.mouse[1]).abs() <= 9.
-                })
-            {
+            if let Some(socket) = wires::socket_at(cards, area, input.mouse, self.view.zoom) {
                 let width = 330_f32.min(area.width() - 12.);
                 let height = 128_f32.min(area.height() - 12.);
                 let tooltip = Rect::new(

@@ -280,6 +280,9 @@ def main() -> None:
         for check in ("inputDefaultsWirePrecedence", "inputDefaultsDisconnectRestoresValue", "inputDefaultsNativeEditChangedPixels", "inputDefaultsNativeVectorEdit", "inputDefaultsSourceReopened", "inputDefaultsUndoRestoredPixels"):
             if preview.get(check) is not True:
                 raise RuntimeError(f"{locale} node input defaults did not verify {check}")
+        for check in ("wireUniqueBodyChangedPixels", "wireChoiceDeferredAndCancelled", "wireChoiceRestoredPixels", "wireRewireCancelPreservedEdges", "wireInvalidBodyPreservedEdges", "wireSourceReopened", "wireNearestSocketChangedPixels", "wireUndoRestoredPixels"):
+            if preview.get(check) is not True:
+                raise RuntimeError(f"{locale} node wire targeting did not verify {check}")
     verify_mcp(binary, output)
     verify_property_followups(binary, output)
     verify_style_overrides(binary, output)
