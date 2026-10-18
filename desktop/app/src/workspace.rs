@@ -39,6 +39,8 @@ pub struct Workspace {
     pub favorites: std::collections::BTreeSet<String>,
     #[serde(default)]
     pub send_diagnostics: bool,
+    #[serde(default)]
+    pub node_view: crate::node_editor::ViewPreferences,
     #[serde(flatten)]
     layout: motion_ui::workspace::Workspace,
 }
@@ -54,6 +56,7 @@ impl Default for Workspace {
             named_layouts: Default::default(),
             favorites: Default::default(),
             send_diagnostics: false,
+            node_view: Default::default(),
             style_path: None,
             layout: Default::default(),
         }
@@ -172,6 +175,21 @@ impl Workspace {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn node_view_preferences_save_reopen_and_accept_legacy_workspace() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("workspace.json");
+        let mut workspace = Workspace::default();
+        workspace.node_view = crate::node_editor::ViewPreferences { grid:false, minimap:true };
+        workspace.save(&path).unwrap();
+        let reopened = Workspace::load(&path);
+        assert!(reopened.valid());
+        assert_eq!(reopened.node_view, workspace.node_view);
+        let mut legacy: serde_json::Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        legacy.as_object_mut().unwrap().remove("node_view");
+        std::fs::write(&path, serde_json::to_vec(&legacy).unwrap()).unwrap();
+        assert_eq!(Workspace::load(&path).node_view, crate::node_editor::ViewPreferences::default());
+    }
     #[test]
     fn all_registered_panels_keep_unique_ownership_through_close_float_and_reopen() {
         let dir = tempfile::tempdir().unwrap();

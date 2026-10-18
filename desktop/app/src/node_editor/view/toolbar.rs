@@ -41,6 +41,11 @@ impl NodeEditor {
             .clicked
             {
                 match index {
+                    12 => self.context_menu = Some(ContextMenu {
+                        position: [rect.min[0], rect.max[1]],
+                        kind: MenuKind::View,
+                        selected: 0,
+                    }),
                     0 => {
                         self.library_open = !self.library_open;
                         self.search_focus = false;

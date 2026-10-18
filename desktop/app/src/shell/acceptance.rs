@@ -744,6 +744,9 @@ impl Shell {
                 panels::Action::ShowPanel(dock::Panel::Nodes.dock()),
                 Some(event_loop),
             )?;
+            self.switch_workspace(workspace::Preset::Nodes, Some(event_loop))?;
+            let node_view_main = self.node_view_acceptance(false)?;
+            self.switch_workspace(workspace::Preset::Default, Some(event_loop))?;
             self.float_panel(dock::Panel::Nodes.dock(), event_loop)?;
             let before = self.engine.state()?;
             let first = self
@@ -756,6 +759,7 @@ impl Shell {
                 return Err("node Time did not change actual GPU pixels".into());
             }
             self.smoke_node_report = serde_json::json!({"initial":first,"later":later,"projectRevision":before["revision"],"projectEffects":before["project"]["layers"],"clockPixelsChanged":true});
+            self.smoke_node_report["viewMain"] = node_view_main;
             self.panels
                 .node_editor
                 .set_parameter_default("color", 0, 0.9)
@@ -774,6 +778,7 @@ impl Shell {
             }
             self.smoke_node_report["parameter"] = changed.clone();
             self.smoke_node_report["parameterPixelsChanged"] = Value::Bool(true);
+            self.smoke_node_report["viewFloat"] = self.node_view_acceptance(true)?;
             self.smoke_node_report["floatingScreenshot"] =
                 serde_json::to_value(self.capture_node_float()?).map_err(|e| e.to_string())?;
             self.panels.node_editor.select(Some("circle"), false);
