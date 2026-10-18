@@ -20,7 +20,7 @@ impl Geometry {
         let zoom = view.zoom.max(1.);
         let max_offset = (total - total / zoom).max(0.);
         let width = (lane.width() / zoom)
-            .max(styles.metric("icon.slot", 20.))
+            .max(styles.metric("timeline.scrollbar.thumb.min_width", 24.))
             .min(lane.width());
         let fraction = if max_offset > 0. {
             view.offset / max_offset
@@ -138,20 +138,43 @@ pub(super) fn paint(
 ) {
     let styles = list.styles();
     let g = Geometry::new(track, height, total, view, &styles);
-    paint::rect(list, g.lane, styles.color("well"));
+    paint::rect(list, g.lane, styles.color("panel"));
+    paint::rect(
+        list,
+        Rect::new(
+            g.lane.min[0],
+            g.lane.min[1],
+            g.lane.width(),
+            styles.metric("border", 1.),
+        ),
+        styles.color("border"),
+    );
     let color = if g.max_offset <= 0. {
         "border"
     } else if view.horizontal_drag.is_some() {
         "focus"
     } else if g.thumb.contains(input.mouse) {
-        "hover"
-    } else {
         "muted"
+    } else {
+        "disabled"
     };
-    paint::rect(
+    // The slim visible pill retains the full footer's pointer target.
+    let inset = styles.metric("timeline.scrollbar.inset", 4.);
+    let thumb_height = styles
+        .metric("timeline.scrollbar.thumb.height", 6.)
+        .min(height);
+    paint::box_rect(
         list,
-        g.thumb.shrink(styles.metric("border", 1.)),
+        Rect::new(
+            g.thumb.min[0] + inset,
+            g.thumb.min[1] + (height - thumb_height) * 0.5,
+            (g.thumb.width() - inset * 2.).max(0.),
+            thumb_height,
+        ),
         styles.color(color),
+        styles.color("transparent"),
+        0.,
+        styles.metric("timeline.scrollbar.thumb.radius", 3.),
     );
 }
 

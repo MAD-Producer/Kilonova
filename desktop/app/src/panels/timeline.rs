@@ -1636,14 +1636,17 @@ pub(super) fn render(
         state["frame"].as_f64().unwrap_or(0.)
     };
     let target = x_of(frame);
+    let playhead_view = (track, panels.timeline.zoom.max(1.), offset);
+    let view_changed = panels.timeline.playhead_view != Some(playhead_view);
+    panels.timeline.playhead_view = Some(playhead_view);
     let x = panels.motion.value(
         (0, 2),
         target,
         target,
         styles.as_ref().metric("motion.seek_ms", 90.),
-        panels.timeline.scrubbing || panels.playing,
+        panels.timeline.scrubbing || panels.playing || view_changed,
     );
-    if x >= track.min[0] && x < track.max[0] {
+    if target >= track.min[0] && target < track.max[0] && x >= track.min[0] && x < track.max[0] {
         paint::rect(
             list,
             Rect::new(x, ruler.min[1], 1.0, body.max[1] - ruler.min[1]),
