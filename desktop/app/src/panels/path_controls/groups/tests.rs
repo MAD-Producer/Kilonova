@@ -184,26 +184,32 @@ fn repeater_eight_parameter_rows_animate_scrub_and_preserve_vector_components_wi
             let actions = draw(&mut controls, &engine, &press(378., 12.), host, &mut atlas);
             apply(&mut engine, actions);
             let row_y = 110. + index as f32 * 22.;
+            draw_raw(&mut controls, &engine, &Input::default(), host, &mut atlas);
+            let parameter = ["copies", "offset", "position", "anchor", "scale", "rotation", "start_opacity", "end_opacity"][index];
+            // Resolve the rendered fields: the navigation rail changes their
+            // horizontal positions, not the value/gesture contract below.
+            let (watch, number) = row(&controls, host, 3, parameter, 0);
             let actions = draw(
                 &mut controls,
                 &engine,
-                &press(34., row_y + 12.),
+                &at(watch),
                 host,
                 &mut atlas,
             );
             apply(&mut engine, actions);
             let before = engine.project().clone();
             let sign = if index >= 6 { -1. } else { 1. };
+            let start = center(number);
             for input in [
-                press(130., row_y + 12.),
+                press(start[0], row_y + 12.),
                 Input {
-                    mouse: [130. + sign * 12., row_y + 12.],
+                    mouse: [start[0] + sign * 12., row_y + 12.],
                     held: Some(MouseButton::Left),
                     ..Default::default()
                 },
                 Input {
-                    mouse: [130. + sign * 20., row_y + 12.],
-                    released: Some((MouseButton::Left, [130. + sign * 20., row_y + 12.])),
+                    mouse: [start[0] + sign * 20., row_y + 12.],
+                    released: Some((MouseButton::Left, [start[0] + sign * 20., row_y + 12.])),
                     ..Default::default()
                 },
             ] {
@@ -267,10 +273,12 @@ fn repeater_drag_cancels_on_escape_and_collapsing_group_and_other_host_cannot_co
         );
         apply(&mut engine, actions);
         let before = engine.project().clone();
+        draw_raw(&mut controls, &engine, &Input::default(), Panel::Vector, &mut atlas);
+        let start = center(row(&controls, Panel::Vector, 3, "copies", 0).1);
         let actions = draw(
             &mut controls,
             &engine,
-            &press(130., 122.),
+            &press(start[0], 122.),
             Panel::Vector,
             &mut atlas,
         );
@@ -279,7 +287,7 @@ fn repeater_drag_cancels_on_escape_and_collapsing_group_and_other_host_cannot_co
             &mut controls,
             &engine,
             &Input {
-                mouse: [142., 122.],
+                mouse: [start[0] + 12., 122.],
                 held: Some(MouseButton::Left),
                 ..Default::default()
             },
@@ -292,8 +300,8 @@ fn repeater_drag_cancels_on_escape_and_collapsing_group_and_other_host_cannot_co
             &mut controls,
             &engine,
             &Input {
-                mouse: [170., 122.],
-                released: Some((MouseButton::Left, [170., 122.])),
+                mouse: [start[0] + 40., 122.],
+                released: Some((MouseButton::Left, [start[0] + 40., 122.])),
                 ..Default::default()
             },
             Panel::Properties,
@@ -328,10 +336,12 @@ fn removing_repeater_finishes_its_value_gesture_and_undo_restores_each_step() {
     );
     apply(&mut engine, actions);
     let before = engine.project().clone();
+    draw_raw(&mut controls, &engine, &Input::default(), Panel::Properties, &mut atlas);
+    let start = center(row(&controls, Panel::Properties, 3, "copies", 0).1);
     for input in [
-        press(130., 122.),
+        press(start[0], 122.),
         Input {
-            mouse: [142., 122.],
+            mouse: [start[0] + 12., 122.],
             held: Some(MouseButton::Left),
             ..Default::default()
         },
@@ -402,6 +412,71 @@ fn at(r: Rect) -> Input {
 }
 fn row(c: &Controls, host: Panel, item: u64, name: &str, axis: usize) -> (Rect, Rect) {
     c.rects[&(host as u32, 7, item, name.into(), axis)]
+}
+#[test]
+fn nested_shape_navigation_keeps_complete_watch_slots_clear_of_values() {
+    let styles = PaintList::default().styles();
+    for host in [Panel::Properties, Panel::Vector, Panel::Timeline] {
+        for width in [220., 360., 720.] { for depth in [0, 1, 4, 16, 32] { for axes in [1, 2, 4] {
+            let area = Rect::new(17., 31., width, 600.);
+            let f = layout(&styles, area, 120., depth, 0, axes, host);
+            assert_eq!(f.watch.width(), styles.metric("icon.slot", 20.));
+            assert!(f.watch.max[0] <= f.caption.min[0]);
+            assert!(f.caption.max[0] <= f.number.min[0], "{host:?}/{width}/{depth}/{axes}");
+        }}}
+    }
+}
+#[test]
+fn shape_navigation_buttons_key_only_the_named_parameter_and_keep_local_time_and_undo() {
+    let mut atlas = TextAtlas::from_system(12.).unwrap();
+    for host in [Panel::Properties, Panel::Vector] {
+        for (item, name) in [(1, "position"), (3, "color"), (4, "width"), (5, "start")] {
+            let mut engine = engine();
+            install_contents(&mut engine);
+            let tree = parameters::tree(source(&engine), [100.; 2], 21., Locale::Zh);
+            let parameter = parameters::lookup(&tree, item, name).unwrap();
+            for frame in [12, 63] {
+                engine.apply(parameter.set(7, item, frame, Some(true))).unwrap();
+            }
+            let mut controls = Controls::default();
+            expand_all(&mut controls);
+            draw_raw(&mut controls, &engine, &Input::default(), host, &mut atlas);
+            let watch = row(&controls, host, item, name, 0).0;
+            let slot = PaintList::default().styles().metric("icon.slot", 20.);
+            let point = [PaintList::default().styles().metric("padding.panel", 8.) + slot * 1.5, watch.min[1] + watch.height() * 0.5];
+            let before = engine.project().clone();
+            let actions = draw_raw(&mut controls, &engine, &press(point[0], point[1]), host, &mut atlas);
+            assert_eq!(actions.len(), 1, "{host:?}/{name}: {actions:?}");
+            apply(&mut engine, actions);
+            let tree = parameters::tree(source(&engine), [100.; 2], 21., Locale::Zh);
+            let current = parameters::lookup(&tree, item, name).unwrap();
+            assert_eq!(current.keys.iter().map(|(frame, _)| *frame).collect::<Vec<_>>(), vec![0, 21, 51]);
+            let added = engine.project().clone();
+            let folder = tempfile::tempdir().unwrap();
+            motion_core::storage::save(folder.path(), engine.project()).unwrap();
+            assert_eq!(motion_core::storage::load(folder.path()).unwrap(), added);
+            engine.undo().unwrap();
+            assert_eq!(engine.project(), &before);
+            engine.redo().unwrap();
+            assert_eq!(engine.project(), &added);
+            for (slot, expected) in [(0, 12.), (2, 63.)] {
+                let x = PaintList::default().styles().metric("padding.panel", 8.) + (slot as f32 + 0.5) * PaintList::default().styles().metric("icon.slot", 20.);
+                let actions = draw_raw(&mut controls, &engine, &press(x, point[1]), host, &mut atlas);
+                assert!(matches!(actions.as_slice(), [Action::Seek(frame)] if *frame == expected), "{host:?}/{name}: {actions:?}");
+                assert_eq!(engine.project(), &added);
+            }
+            let actions = draw_raw(&mut controls, &engine, &press(point[0], point[1]), host, &mut atlas);
+            assert_eq!(actions.len(), 1);
+            apply(&mut engine, actions);
+            assert_eq!(parameters::lookup(&parameters::tree(source(&engine), [100.; 2], 21., Locale::Zh), item, name).unwrap().keys.iter().map(|(frame, _)| *frame).collect::<Vec<_>>(), vec![0, 51]);
+            engine.undo().unwrap();
+            assert_eq!(engine.project(), &added);
+            for input in [Input { focus_lost: true, ..press(point[0], point[1]) }, Input { keys: vec![(Key::Escape, Default::default())], ..press(point[0], point[1]) }] {
+                assert!(draw_raw(&mut controls, &engine, &input, host, &mut atlas).is_empty());
+            }
+            assert_eq!(engine.project(), &added);
+        }
+    }
 }
 #[test]
 fn shape_content_rows_edit_fill_stroke_trim_and_group_values_in_both_inspector_hosts() {

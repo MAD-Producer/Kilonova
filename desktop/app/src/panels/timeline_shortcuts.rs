@@ -286,54 +286,10 @@ fn toggle_key(
         });
     let mut edits = vec![];
     for axis in axes {
-        let Some(source) = data::channel(state, object, property, axis) else {
-            continue;
+        let Some(commands) = data::key_commands(state, object, property, axis, frame, all_present) else {
+            return;
         };
-        let present = keys(source)
-            .iter()
-            .any(|k| k["frame"].as_u64() == Some(frame as u64));
-        if all_present {
-            edits.push(Command::DeleteKey {
-                object,
-                property,
-                axis,
-                frame,
-            });
-        } else if !present {
-            let Some(value) = data::sample(state, object, property, axis, frame as f64) else {
-                return;
-            };
-            edits.push(Command::Animate {
-                object,
-                property,
-                axis,
-                frame,
-                enabled: true,
-            });
-            edits.push(if property.is_scalar() {
-                Command::SetScalar {
-                    object,
-                    property,
-                    frame,
-                    value: value.as_f64().unwrap() as f32,
-                }
-            } else if let Some(axis) = axis {
-                Command::SetComponent {
-                    object,
-                    property,
-                    axis,
-                    frame,
-                    value: value.as_f64().unwrap() as f32,
-                }
-            } else {
-                Command::SetVector {
-                    object,
-                    property,
-                    frame,
-                    value: std::array::from_fn(|i| value[i].as_f64().unwrap() as f32),
-                }
-            });
-        }
+        edits.extend(commands);
     }
     if !edits.is_empty() {
         out.push(Action::EditBatch(edits));
@@ -428,24 +384,15 @@ pub(super) fn handle(
                     times.extend(row.keys);
                 }
             }
-            times.retain(|t| t.is_finite() && *t >= 0. && *t <= last_frame(state));
-            times.sort_by(f64::total_cmp);
-            times.dedup();
+            let neighbours = super::key_navigation::neighbours(times, *frame, last_frame(state));
             let next = if command == Shortcut::NextKey {
-                times.into_iter().find(|t| *t > *frame + 1e-6)
+                neighbours.next
             } else {
-                times.into_iter().rev().find(|t| *t < *frame - 1e-6)
+                neighbours.previous
             };
             if let Some(next) = next {
                 *frame = next;
-                let span = (last_frame(state) + 1.) / panels.timeline.zoom.max(1.) as f64;
-                if next < panels.timeline.offset as f64
-                    || next > panels.timeline.offset as f64 + span
-                {
-                    panels.timeline.offset = (next - span * 0.5)
-                        .clamp(0., (last_frame(state) + 1. - span).max(0.))
-                        as f32;
-                }
+                super::key_navigation::follow(&mut panels.timeline, last_frame(state) + 1., next);
                 out.push(Action::Seek(next));
             }
         }

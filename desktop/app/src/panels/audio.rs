@@ -432,6 +432,31 @@ pub(super) fn render_rows(
             continue;
         }
         let keys = key_times(&track(layer, control), local_offset, frames);
+        let at = state["frame"].as_f64().unwrap_or(0.);
+        let last = last_frame(state);
+        let adjacent = super::key_navigation::neighbours(keys.iter().map(|frame| f64::from(*frame)), at, last);
+        let editable = enabled && supported && super::key_navigation::editable_frame(at, last).is_some();
+        let navigation = super::key_navigation::rail(&list.styles(), Rect::new(gutter.min[0], py, gutter.width(), height));
+        if let Some(choice) = super::key_navigation::draw(list, navigation, input, adjacent, editable) {
+            panels.select_only(Some(object));
+            panels.audio_controls.active_channel = Some(control.channel());
+            match choice {
+                super::key_navigation::Choice::Seek(frame) => {
+                    panels.audio_controls.selection = Some(Selection { object, item: Item::Key(control.channel()), frame: frame as u32 });
+                    super::key_navigation::follow(&mut panels.timeline, frames as f64, frame);
+                    out.push(Action::Seek(frame));
+                }
+                super::key_navigation::Choice::Toggle => {
+                    let action = if adjacent.current {
+                        AudioLevelsAction::DeleteKey { channel: control.channel(), frame: current }
+                    } else {
+                        AudioLevelsAction::Set { channel: control.channel(), frame: current, value: value as f32, animated: Some(true) }
+                    };
+                    panels.audio_controls.selection = (!adjacent.current).then_some(Selection { object, item: Item::Key(control.channel()), frame: current });
+                    out.push(Action::Edit(Command::AudioLevels { object, action }));
+                }
+            }
+        }
         let animated = !keys.is_empty();
         super::timeline::property_icon(
             list,
@@ -984,13 +1009,11 @@ pub(super) fn shortcut(
             }
         }
         let now = state["frame"].as_f64().unwrap_or(0.);
-        let next = if command == Shortcut::NextKey {
-            times.into_iter().filter(|f| f64::from(*f) > now).min()
-        } else {
-            times.into_iter().filter(|f| f64::from(*f) < now).max()
-        };
+        let adjacent = super::key_navigation::neighbours(times.into_iter().map(f64::from), now, (frames.saturating_sub(1)) as f64);
+        let next = if command == Shortcut::NextKey { adjacent.next } else { adjacent.previous };
         if let Some(frame) = next {
-            out.push(Action::Seek(f64::from(frame)));
+            super::key_navigation::follow(&mut panels.timeline, frames as f64, frame);
+            out.push(Action::Seek(frame));
         }
         return true;
     }
