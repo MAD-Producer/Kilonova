@@ -15,18 +15,68 @@ pub(in crate::panels) enum TrackSelection {
     Invalid,
 }
 
-fn scope(state: &Value) -> (String, String) {
+/// Opt-in acceptance geometry for one target; normal editor frames retain none.
+pub(super) struct RowProbe {
+    target: SelectedTrack,
+    caption: Option<Rect>,
+    numbers: Vec<(usize, Rect)>,
+}
+
+fn scope(state: &Value) -> (&str, &str) {
     (
-        state["root"].as_str().unwrap_or("").to_owned(),
+        state["root"].as_str().unwrap_or(""),
         state["composition"]
             .as_str()
             .or_else(|| state["project"]["composition_id"].as_str())
-            .unwrap_or(motion_core::composition::MAIN_COMPOSITION)
-            .to_owned(),
+            .unwrap_or(motion_core::composition::MAIN_COMPOSITION),
     )
 }
 
 impl Controls {
+    pub(crate) fn begin_row_probe(&mut self, object: u64, property: Property, axis: Option<Axis>) {
+        self.row_probe = Some(RowProbe {
+            target: SelectedTrack {
+                object,
+                property,
+                axis,
+            },
+            caption: None,
+            numbers: vec![],
+        });
+    }
+
+    pub(crate) fn probed_row(&self, component: Option<usize>) -> Option<Rect> {
+        let probe = self.row_probe.as_ref()?;
+        if let Some(component) = component {
+            probe
+                .numbers
+                .iter()
+                .find(|(index, _)| *index == component)
+                .map(|(_, rect)| *rect)
+        } else {
+            probe.caption
+        }
+    }
+
+    pub(in crate::panels) fn record_row(
+        &mut self,
+        target: SelectedTrack,
+        caption: Rect,
+        numbers: impl Iterator<Item = (usize, Rect)>,
+    ) {
+        if let Some(probe) = self
+            .row_probe
+            .as_mut()
+            .filter(|probe| probe.target == target)
+        {
+            probe.caption = Some(caption);
+            probe.numbers.clear();
+            // Property tracks expose at most three components. Bound the probe
+            // independently of any malformed provider without retaining payloads.
+            probe.numbers.extend(numbers.take(3));
+        }
+    }
+
     pub(in crate::panels) fn choose_track_in(
         &mut self,
         state: &Value,
@@ -35,11 +85,15 @@ impl Controls {
         axis: Option<Axis>,
     ) {
         let next = scope(state);
-        if self.track_scope.as_ref().is_some_and(|old| old != &next) {
+        if self
+            .track_scope
+            .as_ref()
+            .is_some_and(|old| (old.0.as_str(), old.1.as_str()) != next)
+        {
             self.clear_key();
         }
         self.choose_track(object, property, axis);
-        self.track_scope = Some(next);
+        self.track_scope = Some((next.0.to_owned(), next.1.to_owned()));
     }
 
     pub(in crate::panels) fn select_key_in(
@@ -86,15 +140,8 @@ impl Controls {
             || self
                 .track_scope
                 .as_ref()
-                .is_some_and(|old| old != &scope(state))
-            || !state["project"]["layers"]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .any(|layer| layer["id"].as_u64() == Some(object))
-            || !crate::panels::timeline::property_rows(state, object)
-                .iter()
-                .any(|row| row.property == property && row.axis == axis.map(Axis::index))
+                .is_some_and(|old| (old.0.as_str(), old.1.as_str()) != scope(state))
+            || !crate::panels::timeline::property_row_exists(state, object, property, axis)
         {
             return TrackSelection::Invalid;
         }
@@ -103,5 +150,46 @@ impl Controls {
             property,
             axis,
         })
+    }
+
+    /// Read-only validation keeps an invalid key's keyboard ownership intact.
+    /// Callers must not turn a stale key gesture into a layer-level operation.
+    pub(in crate::panels) fn user_key_in(
+        &self,
+        state: &Value,
+        selected: Option<u64>,
+    ) -> Option<KeySelection> {
+        let key = self.user_key()?;
+        if !matches!(
+            self.track_selection(state, selected),
+            TrackSelection::Current(_)
+        ) {
+            return None;
+        }
+        crate::panels::animation_data::channel(state, key.object, key.property, key.axis)?["keys"]
+            .as_array()?
+            .iter()
+            .any(|entry| entry["frame"].as_u64() == Some(u64::from(key.frame)))
+            .then_some(key)
+    }
+}
+
+/// Reuse the row state without filling numeric fields or changing hit geometry.
+pub(in crate::panels) fn highlight_row(list: &mut PaintList, area: Rect, selected: bool) {
+    if selected {
+        let styles = list.styles();
+        let style = styles
+            .resolve(
+                "row",
+                motion_ui::style::States::default().with(motion_ui::style::State::Selected),
+            )
+            .unwrap_or_else(|| {
+                // Row is an optional semantic class in custom themes. Selection is
+                // required by StyleSheet::from_json and supplies the same contract.
+                styles
+                    .resolve("selection", motion_ui::style::States::default())
+                    .expect("validated framework selection style")
+            });
+        motion_ui::style::box_style(list, area, style);
     }
 }

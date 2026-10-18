@@ -109,6 +109,14 @@ impl Shell {
                 ("property-key-navigation-narrow", Panel::Properties, [220., 560.]),
                 ("timeline-key-navigation", Panel::Timeline, [900., 520.]),
                 ("timeline-key-navigation-graph", Panel::Timeline, [900., 520.]),
+                ("selection-property-main", Panel::Properties, [360., 560.]),
+                ("selection-property-float", Panel::Properties, [360., 560.]),
+                ("selection-property-narrow", Panel::Properties, [220., 560.]),
+                ("selection-property-number", Panel::Properties, [360., 560.]),
+                ("selection-anchor-main", Panel::Properties, [360., 560.]),
+                ("selection-timeline-main", Panel::Timeline, [900., 520.]),
+                ("selection-timeline-float", Panel::Timeline, [900., 520.]),
+                ("selection-timeline-graph", Panel::Timeline, [900., 520.]),
                 ("property-merge-menu", Panel::Properties, [360., 560.]),
                 (
                     "property-merge-menu-narrow",
@@ -147,6 +155,13 @@ impl Shell {
                     object
                 }));
                 panels.timeline.expanded.insert(object);
+                if name.starts_with("selection-") {
+                    let anchor = name == "selection-anchor-main";
+                    panels.animation_controls.begin_row_probe(object,
+                        if anchor { Property::Anchor } else { Property::Position },
+                        if anchor { None } else { Some(Axis::X) });
+                    panels.timeline.set_graph_mode(name.ends_with("-graph"));
+                }
                 if name == "timeline-key-navigation" { panels.timeline.set_graph_mode(false); }
                 if name == "timeline-key-navigation-graph" { panels.timeline.set_graph_mode(true); }
                 if name.starts_with("timeline-layer-columns") { panels.timeline.expanded.remove(&object); }
@@ -166,7 +181,7 @@ impl Shell {
                     |panels: &mut panels::Panels, input: &Input| -> Result<PaintList, String> {
                         let mut paint = PaintList::default();
                         paint.stylesheet = panels.styles.clone();
-                        let actions = if matches!(name, "layer-lock-main-menu" | "property-key-navigation-main") {
+                        let actions = if matches!(name, "layer-lock-main-menu" | "property-key-navigation-main") || name.starts_with("selection-") && name.ends_with("-main") {
                             panels::chrome(
                                 &mut paint,
                                 &mut self.atlas,
@@ -193,7 +208,29 @@ impl Shell {
                         Ok(paint)
                     };
                 draw(&mut panels, &Input::default())?;
-                if name.starts_with("property-merge-") {
+                if name.starts_with("selection-") {
+                    let anchor = name == "selection-anchor-main";
+                    let component = name.ends_with("-number").then_some(0);
+                    // Read actual painted hit geometry, including mask rows and
+                    // clipping. Scroll normally if styled rows move it offscreen.
+                    for _ in 0..4 {
+                        if panels.animation_controls.probed_row(component).is_some() { break; }
+                        draw(&mut panels, &Input {mouse:[size[0] * 0.25, size[1] * 0.5],
+                            wheel:[0., row * 3.], ..Default::default()})?;
+                    }
+                    let hit = panels.animation_controls.probed_row(component)
+                        .ok_or_else(|| format!("{name} rendered property target is not visible"))?;
+                    let point = [(hit.min[0] + hit.max[0]) * 0.5, (hit.min[1] + hit.max[1]) * 0.5];
+                    draw(&mut panels, &Input {mouse:point, pressed:Some((MouseButton::Left, point)), ..Default::default()})?;
+                    if panels.animation_controls.property != Some(if anchor { Property::Anchor } else { Property::Position })
+                        || panels.animation_controls.axis != if anchor { None } else { Some(Axis::X) }
+                    {
+                        return Err(format!("{name} actual click did not select the expected property/axis"));
+                    }
+                    if name.ends_with("-number") {
+                        draw(&mut panels, &Input {keys:vec![(Key::Escape, Modifiers::default())], ..Default::default()})?;
+                    }
+                } else if name.starts_with("property-merge-") {
                     let point = [pad + styles.metric("icon.slot", 20.) * 3.5 + styles.metric("tree.indent", 14.), 30. + pad + row * 4.5];
                     draw(
                         &mut panels,

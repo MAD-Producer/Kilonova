@@ -66,6 +66,19 @@ pub(super) fn render(
     let styles = list.styles();
     let colors = styles.colors();
 
+    // A project/selection/channel transition cancels the old transaction once.
+    // It must not leave a live drag behind a normal empty-selection projection.
+    if panels.animation_controls.track_selection(state, panels.selected)
+        == super::animation_controls::TrackSelection::Invalid
+    {
+        let begun = panels.timeline.graph_drag.take().is_some_and(|drag| drag.begun())
+            | panels.timeline.key_drag.take().is_some_and(|drag| drag.begun())
+            | panels.timeline.graph_box.cancel();
+        if begun {
+            out.push(Action::History(4));
+        }
+    }
+
     if input.pressed.is_some() {
         if panels
             .timeline
@@ -368,7 +381,7 @@ pub(super) fn render(
     let curve_input = if box_owned { &neutral_curve } else { input };
     let mut lines = list.child();
     let mut clicked_key = None;
-    let selected = panels.animation_controls.user_key();
+    let selected = panels.animation_controls.user_key_in(state, panels.selected);
     for (index, curve) in points.iter().enumerate() {
         let color = if index == 0 {
             styles.color("curve")

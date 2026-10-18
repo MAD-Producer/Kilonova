@@ -1,6 +1,7 @@
 use super::*;
 use crate::panels::animation_data as data;
 use motion_core::{Axis, Engine, Keyframe, Layer, Project};
+mod property_selection;
 
 fn key<T>(frame: i32, value: T) -> Keyframe<T> {
     Keyframe {

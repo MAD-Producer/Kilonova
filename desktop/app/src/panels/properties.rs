@@ -322,7 +322,8 @@ pub(super) fn render(
     }) {
         let navigation = panels
             .camera_controls
-            .render(list, atlas, area, &mut y, state, object, input, panels.locale, out);
+            .render(list, atlas, area, &mut y, state, object, input, panels.locale,
+                &mut panels.animation_controls, &mut panels.timeline.graph_component, out);
         if let Some((property, axis, choice)) = navigation {
             super::key_navigation::apply_property_choice(panels, state, object, property, axis, choice, out);
         }
@@ -414,6 +415,7 @@ pub(super) fn render(
     y += row;
     if !panels.properties.transform_collapsed {
         let rows = super::timeline::property_rows(state, object);
+        let mut selection = panels.animation_controls.track_selection(state, panels.selected);
         for track in rows {
             let property = track.property;
             let axis = track.axis.map(|axis| [motion_core::Axis::X, motion_core::Axis::Y, motion_core::Axis::Z][axis]);
@@ -423,11 +425,35 @@ pub(super) fn render(
             if !super::timeline::property_visible(panels, state, object, property) {
                 continue;
             }
+            let fields = inspector_layout(&styles, area, y, 0, axes.len());
+            panels.animation_controls.record_row(
+                super::animation_controls::SelectedTrack {object, property, axis}, fields.caption,
+                axes.iter().enumerate().map(|(index, component)| (*component,
+                    inspector_layout(&styles, area, y, index, axes.len()).number)),
+            );
+            let component = axes.iter().enumerate().find_map(|(index, component)| {
+                clicked(input, inspector_layout(&styles, area, y, index, axes.len()).number)
+                    .then_some(*component)
+            });
+            if clicked(input, fields.caption) || component.is_some() {
+                panels.select_only(Some(object));
+                panels.animation_controls.choose_track_in(state, object, property, axis);
+                if let Some(component) = component {
+                    panels.timeline.graph_component = component;
+                } else {
+                    panels.animation_controls.clear_key();
+                }
+                selection = panels.animation_controls.track_selection(state, panels.selected);
+            }
+            super::animation_controls::highlight_row(
+                list, Rect::new(area.min[0], y, area.width(), row),
+                selection == super::animation_controls::TrackSelection::Current(
+                    super::animation_controls::SelectedTrack { object, property, axis }),
+            );
             super::key_navigation::property_row(
                 list, Rect::new(area.min[0], y, area.width(), row), panels, state, input,
                 object, property, axis, &track.keys, out,
             );
-            let fields = inspector_layout(&styles, area, y, 0, axes.len());
             super::timeline::property_branch(list, fields.watch);
             let animated = !track.keys.is_empty();
             super::timeline::property_icon(

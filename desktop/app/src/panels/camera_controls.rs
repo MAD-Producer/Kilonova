@@ -72,6 +72,8 @@ impl Controls {
         object: u64,
         input: &Input,
         locale: Locale,
+        selection: &mut super::animation_controls::Controls,
+        graph_component: &mut usize,
         out: &mut Vec<Action>,
     ) -> Option<(Property, Option<Axis>, super::key_navigation::Choice)> {
         let styles = list.styles();
@@ -187,15 +189,34 @@ impl Controls {
             super::timeline::property_rows(state, object)
         };
         let mut choice = None;
+        let mut selected_track = selection.track_selection(state, Some(object));
         for track in tracks {
             let super::timeline::PropertyRow { property, key, title, axis: selected_axis, axes, keys } = track;
             let dimensions = axes.len();
             let axis = selected_axis.map(|index| [Axis::X, Axis::Y, Axis::Z][index]);
             let row = Rect::new(area.min[0], *y, area.width(), height);
+            let layout = layout_at(*y, 0, dimensions);
+            selection.record_row(super::animation_controls::SelectedTrack {object, property, axis},
+                layout.caption, axes.iter().enumerate().map(|(index, component)|
+                    (*component, layout_at(*y, index, dimensions).number)));
+            let component = axes.iter().enumerate().find_map(|(index, component)| {
+                clicked(input, layout_at(*y, index, dimensions).number).then_some(*component)
+            });
+            if clicked(input, layout.caption) || component.is_some() {
+                selection.choose_track_in(state, object, property, axis);
+                if let Some(component) = component {
+                    *graph_component = component;
+                } else {
+                    selection.clear_key();
+                }
+                selected_track = selection.track_selection(state, Some(object));
+            }
+            super::animation_controls::highlight_row(list, row,
+                selected_track == super::animation_controls::TrackSelection::Current(
+                    super::animation_controls::SelectedTrack { object, property, axis }));
             if let Some(intent) = super::key_navigation::property_intent(list, row, state, input, object, property, axis, &keys) {
                 choice = Some((property, axis, intent));
             }
-            let layout = layout_at(*y, 0, dimensions);
             super::timeline::property_branch(list, layout.watch);
             let source = selected_axis.map_or(&c[key], |index| &c[key]["axes"][["x", "y", "z"][index]]);
             let animated = source["keys"]

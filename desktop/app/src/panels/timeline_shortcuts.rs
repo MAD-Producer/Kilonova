@@ -35,7 +35,7 @@ fn layer_range(state: &Value, object: u64) -> Option<[f64; 2]> {
         .then_some([in_frame, out_frame])
 }
 fn selection(panels: &mut Panels, state: &Value) -> Option<KeySelection> {
-    let key = panels.animation_controls.user_key()?;
+    let key = panels.animation_controls.user_key_in(state, panels.selected)?;
     if panels.selected != Some(key.object)
         || !data::channel(state, key.object, key.property, key.axis).is_some_and(|s| {
             keys(s)
@@ -86,9 +86,11 @@ fn reveal(
         } else {
             bit
         };
+        let selected_axis = timeline::property_rows(state, object).iter()
+            .find(|row| row.property == property).and_then(|row| row.axis).map(axis);
         panels
             .animation_controls
-            .choose_track_in(state, object, property, None);
+            .choose_track_in(state, object, property, selected_axis);
         PropertyFilter::Properties(mask)
     } else if expanded && old == PropertyFilter::Animated {
         PropertyFilter::Properties(0)
