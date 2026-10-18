@@ -1159,7 +1159,6 @@ mod tests {
             panels.focused = Some(Panel::Properties);
             panels.properties.transform_collapsed = true;
             panels.path_controls.masks_open = true;
-            panels.properties.geometry_collapsed = false;
             let layout = Node::dock(Panel::Properties.dock());
             let mut atlas = TextAtlas::from_system(12.).unwrap();
             let mut render = |engine: &motion_core::Engine,
@@ -1353,7 +1352,7 @@ mod tests {
             };
             let point = [
                 640. + 21. / 120. * 632.,
-                top + 64. + (if path { 6. } else { 7. }) * 22. + 11.,
+                top + 64. + (if path { 3. } else { 4. }) * 22. + 11.,
             ];
             let mut render = |panels: &mut crate::panels::Panels, input: &Input| {
                 if floating {

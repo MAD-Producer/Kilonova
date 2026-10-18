@@ -43,10 +43,14 @@ mod graph_box;
 pub(crate) mod graph_handles;
 pub(crate) mod graph_keys;
 mod graph_sampling;
+mod graph_notice;
 mod graph_workspace;
 mod helpers;
 mod keyboard;
 mod layer_actions;
+mod layer_locks;
+#[cfg(test)]
+mod layer_switches;
 mod menus;
 pub(crate) mod numeric;
 mod observation;
@@ -57,6 +61,8 @@ pub(crate) mod path_controls;
 mod paths;
 mod project;
 mod properties;
+#[cfg(test)]
+mod property_followup_tests;
 #[cfg(test)]
 mod selection_tests;
 mod timeline;
@@ -69,6 +75,7 @@ mod timeline_shortcuts;
 #[cfg(test)]
 mod timeline_shortcuts_tests;
 mod timeline_zoom;
+mod timeline_navigation;
 pub(crate) mod titlebar;
 mod toolbar;
 pub(crate) mod transform_controls;
@@ -84,6 +91,7 @@ use timeline::render as timeline;
 #[cfg(test)]
 use timeline::rows;
 pub use types::{Action, Frame, EffectSearch, Panels};
+pub(crate) use types::ColumnVisibility;
 use types::{Field, ScrubState};
 
 pub const CHROME_HEIGHT: f32 = metrics::TITLE_BAR + metrics::MENU_BAR + metrics::TOOL_BAR;
@@ -186,6 +194,8 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
         .take()
         .is_some_and(|field| field.scrubbing.is_some_and(|s| s.begun));
     panels.timeline.scrubbing = false;
+    panels.timeline.horizontal_drag = None;
+    panels.timeline.edge_pan_at = None;
     let moving = panels.timeline.moving.take().is_some();
     let trimming = panels.timeline.trimming.take().is_some();
     panels.timeline.reorder = None;
@@ -233,14 +243,12 @@ pub(crate) fn reveal_mask_keys(
 ) -> Vec<Action> {
     let actions = cancel_interaction(panels);
     path_controls::timeline::reveal(panels, state, object, mask);
-    panels.timeline.collapsed_geometry.remove(&object);
     actions
 }
 pub(crate) fn reveal_shape_keys(panels: &mut Panels, state: &Value, object: u64) -> Vec<Action> {
     let actions = cancel_interaction(panels);
     panels.select_only(Some(object));
     panels.timeline.expanded.insert(object);
-    panels.timeline.collapsed_geometry.remove(&object);
     panels
         .timeline
         .filters
@@ -295,10 +303,12 @@ pub fn chrome(
     panels.node_editor.external_inspector = layout.find(Panel::NodeProperties.dock()).is_some();
     let node_modal = panels.node_editor.popup_open();
     let timeline_dropdown = panels.timeline_columns.editing();
+    let mask_header_modal = panels.path_controls.timeline_mask_add_open();
     if let Some((_, point)) = input.pressed.filter(|_| {
         !panels.effect_search_in(None)
             && !node_modal
             && !timeline_dropdown
+            && !mask_header_modal
             && !layer_modal
             && !panels.expressions.menu_open()
     }) {
@@ -410,7 +420,13 @@ pub fn chrome(
     let auxiliary_owner = panels.auxiliary.owner();
     let auxiliary_modal = auxiliary_owner.is_some();
     let neutral = Input::default();
-    let body_input = if menu_modal || node_modal || effect_modal || audio_modal || auxiliary_modal {
+    let body_input = if menu_modal
+        || node_modal
+        || effect_modal
+        || audio_modal
+        || auxiliary_modal
+        || mask_header_modal
+    {
         &neutral
     } else {
         input
@@ -519,6 +535,10 @@ pub fn chrome(
                 if (node_modal && f.panel == Panel::Nodes && !menu_modal)
                     || (effect_modal && f.panel == effect_owner && !menu_modal && !node_modal)
                     || (audio_modal && f.panel == Panel::Timeline && !menu_modal && !node_modal)
+                    || (mask_header_modal
+                        && f.panel == Panel::Timeline
+                        && !menu_modal
+                        && !node_modal)
                     || (timeline_popup && f.panel == Panel::Timeline)
                     || (auxiliary_modal && Some(f.panel) == auxiliary_owner && !menu_modal)
                 {
@@ -857,6 +877,16 @@ pub fn floating_chrome(
     state: &Value,
     input: &Input,
 ) -> Vec<Action> {
+    let mask_header_modal = panels.path_controls.timeline_mask_add_open();
+    let mask_header_neutral = Input::default();
+    let input = if mask_header_modal && panel != Panel::Timeline {
+        if input.pressed.is_some() || input.focus_lost {
+            panels.path_controls.dismiss_timeline_mask_add();
+        }
+        &mask_header_neutral
+    } else {
+        input
+    };
     if let Some(styles) = &panels.styles {
         list.stylesheet = Some(styles.clone());
     }
@@ -970,7 +1000,7 @@ pub fn floating_chrome(
         atlas,
         Rect::new(size[0] - 78.0, 4.0, 72.0, 22.0),
         panels.locale.t(T::Dock),
-        if timeline_dropdown {
+        if timeline_dropdown || mask_header_modal {
             &neutral
         } else {
             body_input
@@ -1832,7 +1862,9 @@ fn render_panel(
     out: &mut Vec<Action>,
 ) {
     let mut local = input.clone();
-    if panel != Panel::Nodes || !panels.node_editor.popup_open() {
+    let owns_popup = panel == Panel::Nodes && panels.node_editor.popup_open()
+        || panel == Panel::Timeline && panels.path_controls.timeline_mask_add_open();
+    if !owns_popup {
         local.pressed = local.pressed.filter(|(_, p)| area.contains(*p));
     }
     if panels.focused != Some(panel) {

@@ -74,6 +74,12 @@ pub(super) fn render(
     if let Some(menu) = panels.menu {
         let selected = panels.selected.filter(|id| *id != 0);
         let frame = state["frame"].as_f64().unwrap_or(0.0).floor() as u32;
+        let (lock_selection, lock_commands) = super::layer_locks::selection(state, panels);
+        let unlock_commands = super::layer_locks::changes(state, None, false);
+        let can_lock = !lock_commands.is_empty();
+        let can_unlock = !unlock_commands.is_empty();
+        let editable = selected.is_some_and(|id| state["project"]["layers"].as_array().into_iter().flatten()
+            .any(|layer| layer["id"] == id && layer["locked"] != true)) && state["observing"] != true;
         let entries: Vec<(String, Action, bool)> = match menu {
             0 => vec![
                 (
@@ -172,21 +178,33 @@ pub(super) fn render(
                         object: selected.unwrap_or(0),
                         frame,
                     }),
-                    selected.is_some(),
+                    editable,
                 ),
                 (
                     format!("{}    Ctrl+D", locale.t(T::Duplicate)),
                     Action::Edit(Command::Duplicate {
                         object: selected.unwrap_or(0),
                     }),
-                    selected.is_some(),
+                    editable,
                 ),
                 (
                     locale.t(T::Delete).into(),
                     Action::Edit(Command::Delete {
                         object: selected.unwrap_or(0),
                     }),
-                    selected.is_some(),
+                    editable,
+                ),
+                (
+                    auxiliary::localized(locale,
+                        if lock_selection { "锁定所选图层" } else { "解锁所选图层" },
+                        if lock_selection { "Lock Selected Layers" } else { "Unlock Selected Layers" }).into(),
+                    Action::EditBatch(lock_commands),
+                    can_lock,
+                ),
+                (
+                    auxiliary::localized(locale, "全部解锁", "Unlock All Layers").into(),
+                    Action::EditBatch(unlock_commands),
+                    can_unlock,
                 ),
             ],
             4 => vec![(
@@ -203,13 +221,43 @@ pub(super) fn render(
                     frame,
                     enabled: true,
                 }),
-                selected.is_some(),
+                editable,
             )],
-            6 => vec![(
-                locale.t(T::ShowComposition).into(),
-                Action::ShowPanel(dock::DockId(3)),
-                true,
-            )],
+            6 => {
+                let columns = panels.timeline.column_visibility;
+                let mark = |visible: bool| if visible { "✓" } else { "  " };
+                vec![
+                    (
+                        locale.t(T::ShowComposition).into(),
+                        Action::ShowPanel(dock::DockId(3)),
+                        true,
+                    ),
+                    (
+                        format!("{} {}", mark(columns.matte), locale.t(T::MatteColumn)),
+                        Action::TimelineColumnVisibility(ColumnVisibility {
+                            matte: !columns.matte,
+                            ..columns
+                        }),
+                        true,
+                    ),
+                    (
+                        format!("{} {}", mark(columns.blend), locale.t(T::BlendColumn)),
+                        Action::TimelineColumnVisibility(ColumnVisibility {
+                            blend: !columns.blend,
+                            ..columns
+                        }),
+                        true,
+                    ),
+                    (
+                        format!("{} {}", mark(columns.parent), locale.t(T::ParentColumn)),
+                        Action::TimelineColumnVisibility(ColumnVisibility {
+                            parent: !columns.parent,
+                            ..columns
+                        }),
+                        true,
+                    ),
+                ]
+            }
             7 => Panel::available()
                 .map(|panel| {
                     (
