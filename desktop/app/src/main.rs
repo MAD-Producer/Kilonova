@@ -438,6 +438,7 @@ impl Shell {
                 }
             }
         }
+        shell.panels.timeline.column_visibility = shell.workspace.column_visibility();
         Ok(shell)
     }
 }
@@ -1055,6 +1056,8 @@ fn translate_key(key: &WinitKey) -> Option<Key> {
             ";" | ":" => Key::Semicolon,
             "," => Key::Comma,
             "." => Key::Period,
+            "[" | "{" => Key::BracketLeft,
+            "]" | "}" => Key::BracketRight,
             _ => return None,
         },
         WinitKey::Named(k) => match k {
@@ -1073,6 +1076,7 @@ fn translate_key(key: &WinitKey) -> Option<Key> {
             NamedKey::PageUp => Key::PageUp,
             NamedKey::PageDown => Key::PageDown,
             NamedKey::F3 => Key::F3,
+            NamedKey::F4 => Key::F4,
             NamedKey::F9 => Key::F9,
             NamedKey::Shift => Key::Shift,
             NamedKey::Control => Key::Control,

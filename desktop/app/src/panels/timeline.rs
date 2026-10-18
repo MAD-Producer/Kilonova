@@ -680,6 +680,11 @@ pub(super) fn render(
         max
     };
     let gutter = GUTTER.min(area.width() * 0.52);
+    let columns = super::timeline_columns::ColumnRects::new(
+        area.min[0],
+        gutter,
+        panels.timeline.column_visibility,
+    );
     let track = Rect::new(
         area.min[0] + gutter,
         area.min[1],
@@ -929,17 +934,17 @@ pub(super) fn render(
         Rect::new(
             area.min[0] + 90.0,
             ruler.min[1],
-            (gutter - 320.0).max(1.0),
+            (columns.name.max_x() - (area.min[0] + 90.0)).max(1.0),
             28.0,
         ),
         locale.t(T::SourceName),
         true,
     );
-    if gutter >= 500. {
+    if let Some(matte) = columns.matte {
         label(
             list,
             atlas,
-            Rect::new(area.min[0] + gutter - 280., ruler.min[1], 78., 28.),
+            matte.rect(ruler.min[1], 28.0),
             if locale == Locale::Zh {
                 "遮罩"
             } else {
@@ -948,20 +953,29 @@ pub(super) fn render(
             true,
         );
     }
-    label(
-        list,
-        atlas,
-        Rect::new(area.min[0] + gutter - 196., ruler.min[1], 76., 28.),
-        locale.t(T::BlendMode),
-        true,
-    );
-    label(
-        list,
-        atlas,
-        Rect::new(area.min[0] + gutter - 112.0, ruler.min[1], 104.0, 28.0),
-        locale.t(T::ParentLink),
-        true,
-    );
+    if let Some(blend) = columns.blend {
+        label(
+            list,
+            atlas,
+            blend.rect(ruler.min[1], 28.0),
+            locale.t(T::BlendMode),
+            true,
+        );
+    }
+    if let (Some(link), Some(parent)) = (columns.link, columns.parent) {
+        label(
+            list,
+            atlas,
+            Rect::new(
+                link.x + 2.0,
+                ruler.min[1],
+                parent.max_x() - link.x - 2.0,
+                28.0,
+            ),
+            locale.t(T::ParentLink),
+            true,
+        );
+    }
     ui::icon(
         list,
         Rect::new(area.min[0] + 10.0, ruler.min[1] + 3.0, 16.0, 24.0),
@@ -1069,9 +1083,9 @@ pub(super) fn render(
             continue;
         }
         let name = Rect::new(
-            area.min[0] + 112.0,
+            columns.name.x,
             y,
-            (gutter - if gutter >= 500. { 398. } else { 320. }).max(1.0),
+            columns.name.width,
             row_height,
         );
         let selected = panels.selection_contains(row.id);
@@ -1144,94 +1158,87 @@ pub(super) fn render(
             colors.TEXT_MUTED,
         );
         if let Some(owner) = super::timeline_columns::owner(state, row.id) {
-            let matte = Rect::new(
-                area.min[0] + gutter - 280.,
-                y + 2.,
-                78.,
-                (row_height - 4.).max(1.),
-            );
-            let blend = Rect::new(
-                area.min[0] + gutter - 196.,
-                y + 2.,
-                76.,
-                (row_height - 4.).max(1.),
-            );
-            let parent = Rect::new(
-                area.min[0] + gutter - 94.,
-                y + 2.,
-                86.,
-                (row_height - 4.).max(1.),
-            );
-            let link = Rect::new(
-                area.min[0] + gutter - 114.,
-                y + 4.,
-                14.,
-                (row_height - 8.).max(1.),
-            );
+            let cell_height = (row_height - 4.).max(1.);
+            let matte = columns.matte.map(|slot| slot.rect(y + 2., cell_height));
+            let blend = columns.blend.map(|slot| slot.rect(y + 2., cell_height));
+            let parent = columns.parent.map(|slot| slot.rect(y + 2., cell_height));
+            let link = columns
+                .link
+                .map(|slot| slot.rect(y + 4., (row_height - 8.).max(1.)));
             let blend_supported = !matches!(
                 owner["content"]["kind"].as_str(),
                 Some("null" | "camera" | "audio" | "adjustment")
             ) && row.id != 0;
             let blend_enabled = blend_supported && !row.locked;
-            let matte_enabled = blend_enabled && gutter >= 500.;
+            let matte_enabled = blend_enabled && matte.is_some();
             let parent_enabled = row.id == 0 || !row.locked && row.spatial;
-            if (blend_enabled && clicked(input, blend))
-                || (matte_enabled && clicked(input, matte))
-                || (parent_enabled && (clicked(input, parent) || clicked(input, link)))
+            if (blend_enabled && blend.is_some_and(|rect| clicked(input, rect)))
+                || (matte_enabled && matte.is_some_and(|rect| clicked(input, rect)))
+                || (parent_enabled
+                    && (parent.is_some_and(|rect| clicked(input, rect))
+                        || link.is_some_and(|rect| clicked(input, rect))))
             {
                 out.extend(super::cancel_interaction(panels));
             }
-            motion_ui::icons::draw(
-                list,
-                link,
-                motion_ui::icons::Icon::Link,
-                14.,
-                if parent_enabled {
-                    colors.TEXT_MUTED
-                } else {
-                    colors.TEXT_MUTED.with_alpha(0.4)
-                },
-            );
-            let mut link_input = input.clone();
-            if parent_enabled && clicked(input, link) {
-                link_input.pressed =
-                    Some((MouseButton::Left, [parent.min[0] + 1., parent.min[1] + 1.]));
+            if let Some(link) = link {
+                motion_ui::icons::draw(
+                    list,
+                    link,
+                    motion_ui::icons::Icon::Link,
+                    14.,
+                    if parent_enabled {
+                        colors.TEXT_MUTED
+                    } else {
+                        colors.TEXT_MUTED.with_alpha(0.4)
+                    },
+                );
             }
-            let opened_matte = gutter >= 500.
-                && panels.timeline_columns.cell(
+            let mut link_input = input.clone();
+            if parent_enabled && link.is_some_and(|rect| clicked(input, rect)) {
+                if let Some(parent) = parent {
+                    link_input.pressed =
+                        Some((MouseButton::Left, [parent.min[0] + 1., parent.min[1] + 1.]));
+                }
+            }
+            let opened_matte = match matte {
+                Some(rect) => panels.timeline_columns.cell(
                     list,
                     atlas,
-                    matte,
+                    rect,
                     row.id,
                     super::timeline_columns::Column::Matte,
                     &super::timeline_columns::matte_name(owner, state, locale),
                     input,
                     matte_enabled,
-                );
-            let opened_blend = if blend_supported {
-                panels.timeline_columns.cell(
+                ),
+                _ => false,
+            };
+            let opened_blend = match blend {
+                Some(rect) if blend_supported => panels.timeline_columns.cell(
                     list,
                     atlas,
-                    blend,
+                    rect,
                     row.id,
                     super::timeline_columns::Column::Blend,
                     super::timeline_columns::blend_name(owner, locale),
                     input,
                     blend_enabled,
-                )
-            } else {
-                false
+                ),
+                _ => false,
             };
-            let opened_parent = panels.timeline_columns.cell(
-                list,
-                atlas,
-                parent,
-                row.id,
-                super::timeline_columns::Column::Parent,
-                &super::timeline_columns::parent_name(owner, state, locale),
-                &link_input,
-                parent_enabled,
-            );
+            let opened_parent = match parent {
+                Some(rect) => panels.timeline_columns.cell(
+                    list,
+                    atlas,
+                    rect,
+                    row.id,
+                    super::timeline_columns::Column::Parent,
+                    &super::timeline_columns::parent_name(owner, state, locale),
+                    &link_input,
+                    parent_enabled,
+                ),
+                None => false,
+            };
             if opened_blend || opened_parent || opened_matte {
                 panels.select_only(Some(row.id));
             }

@@ -1,5 +1,6 @@
 //! Editable timeline cells with one modal dropdown and typed core commands.
 use super::*;
+use super::types::ColumnVisibility;
 use motion_core::compositing::{BlendMode, MatteMode, TrackMatte};
 use motion_ui::widgets::{Dropdown, DropdownItem};
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -7,6 +8,63 @@ pub(super) enum Column {
     Blend,
     Parent,
     Matte,
+}
+/// Horizontal extent of one optional timeline column. Callers own the vertical
+/// insets so the header and the layer rows always share x and width.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(super) struct Slot {
+    pub x: f32,
+    pub width: f32,
+}
+impl Slot {
+    pub fn rect(self, y: f32, height: f32) -> Rect {
+        Rect::new(self.x, y, self.width, height)
+    }
+    pub fn max_x(self) -> f32 {
+        self.x + self.width
+    }
+}
+/// Name and optional column slots for one timeline gutter width.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(super) struct ColumnRects {
+    pub name: Slot,
+    pub matte: Option<Slot>,
+    pub blend: Option<Slot>,
+    pub link: Option<Slot>,
+    pub parent: Option<Slot>,
+}
+impl ColumnRects {
+    /// Right-align visible columns with the historical 8px margin, 6px gaps and
+    /// 78/76/14/86 widths. Hiding a column widens the name column instead of
+    /// leaving a hole. The track-matte column also needs room for its label.
+    pub fn new(origin: f32, gutter: f32, visibility: ColumnVisibility) -> Self {
+        let mut right = gutter - 8.;
+        let mut take = |width: f32| {
+            let x = right - width;
+            right = x - 6.;
+            Slot { x, width }
+        };
+        let parent = visibility.parent.then(|| take(86.));
+        let link = parent.map(|_| take(14.));
+        let blend = visibility.blend.then(|| take(76.));
+        let matte = (visibility.matte && gutter >= 500.).then(|| take(78.));
+        let end = matte
+            .or(blend)
+            .or(link)
+            .or(parent)
+            .map_or(gutter - 8., |slot| slot.x - 6.);
+        let name_x = origin + 112.;
+        Self {
+            name: Slot {
+                x: name_x,
+                width: (end - name_x).max(1.),
+            },
+            matte,
+            blend,
+            link,
+            parent,
+        }
+    }
 }
 struct Popup {
     object: u64,
