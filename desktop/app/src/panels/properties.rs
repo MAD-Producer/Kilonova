@@ -10,6 +10,14 @@ struct AnchorField {
     rect: Rect,
     number: super::numeric::Field,
 }
+pub(super) fn anchor_command(state: &Value, object: u64, anchor: [f32;2]) -> Command {
+    let animated = state["project"]["layers"].as_array().into_iter().flatten()
+        .find(|l|l["id"].as_u64()==Some(object))
+        .is_some_and(|l|l["transform"]["anchor"]["keys"].as_array().is_some_and(|k|!k.is_empty()));
+    if animated {
+        Command::AnchorAt { object, anchor, frame: state["frame"].as_f64().unwrap_or(0.).floor() as u32 }
+    } else { Command::Anchor { object, anchor } }
+}
 impl AnchorControls {
     pub fn editing(&self) -> bool {
         self.field.is_some()
@@ -28,11 +36,14 @@ impl AnchorControls {
         }
     }
     fn values(layer: &Value) -> ([f32; 2], [f32; 2]) {
+        Self::values_with_anchor(layer,&layer["transform"]["anchor"])
+    }
+    fn values_with_anchor(layer: &Value, anchor: &Value) -> ([f32;2],[f32;2]) {
         (
             std::array::from_fn(|axis| {
                 observe!(
                     "properties.anchor",
-                    layer["transform"]["anchor"][axis]
+                    anchor[axis]
                         .as_f64()
                         .ok_or("missing or nonnumeric anchor"),
                     "object={} axis={axis}",
@@ -52,6 +63,18 @@ impl AnchorControls {
                 size.unwrap_or(1.).max(1.) as f32
             }),
         )
+    }
+    fn values_at(state: &Value, layer: &Value) -> ([f32;2],[f32;2]) {
+        // The host's sampled anchor uses the same composition/local clock as its
+        // model matrices. Legacy fixtures and static anchors retain their array.
+        if layer["transform"]["anchor"].is_object() {
+            let sampled = state["sampledLayers"].as_array().into_iter().flatten()
+                .find(|l| l["id"]==layer["id"]).map(|l|&l["anchor"]);
+            if let Some(anchor) = observe!("properties.anchor_sample",sampled.ok_or("animated layer anchor sample missing"),"object={}",layer["id"]).ok() {
+                return Self::values_with_anchor(layer,anchor);
+            } else { return Self::values_with_anchor(layer,&layer["transform"]["anchor"]["value"]); }
+        }
+        Self::values(layer)
     }
     pub fn process(
         &mut self,
@@ -80,19 +103,20 @@ impl AnchorControls {
             }
             return;
         }
-        self.process_layer(styles, layer, input, out);
+        self.process_layer(styles, layer, state, input, out);
     }
     fn process_layer(
         &mut self,
         styles: &motion_ui::style::StyleSheet,
         layer: &Value,
+        state: &Value,
         input: &Input,
         out: &mut Vec<Action>,
     ) {
         let Some(mut field) = self.field.take() else {
             return;
         };
-        let (anchor, size) = Self::values(layer);
+        let (anchor, size) = Self::values_at(state,layer);
         field.number.editor.drag_threshold = Some(styles.metric("motion.drag_threshold", 3.));
         let events = field.number.editor.update(
             f64::from(anchor[field.axis] * size[field.axis]),
@@ -103,10 +127,7 @@ impl AnchorControls {
         let finished = super::numeric::apply(events, out, |value| {
             let mut next = anchor;
             next[field.axis] = value / size[field.axis];
-            Command::Anchor {
-                object: field.object,
-                anchor: next,
-            }
+            anchor_command(state,field.object,next)
         });
         if !finished {
             self.field = Some(field);
@@ -120,13 +141,14 @@ impl AnchorControls {
         y: f32,
         host: Panel,
         layer: &Value,
+        state: &Value,
         input: &Input,
         locked: bool,
         out: &mut Vec<Action>,
     ) {
         let object = layer["id"].as_u64().unwrap_or(0);
         let styles = list.styles();
-        let (anchor, size) = Self::values(layer);
+        let (anchor, size) = Self::values_at(state,layer);
         for axis in 0..2 {
             let rect = if host == Panel::Timeline {
                 super::timeline::property_layout(
@@ -155,7 +177,7 @@ impl AnchorControls {
                     rect,
                     number: Default::default(),
                 });
-                self.process_layer(&styles, layer, input, out);
+                self.process_layer(&styles, layer, state, input, out);
             }
             let value = f64::from(anchor[axis] * size[axis]);
             if let Some(field) = self
@@ -385,38 +407,6 @@ pub(super) fn render(
     }
     y += row;
     if !panels.properties.transform_collapsed {
-        let anchor = inspector_layout(&styles, area, y, 0, 2);
-        super::timeline::property_branch(list, anchor.watch);
-        motion_ui::icons::draw(
-            list,
-            anchor.watch,
-            motion_ui::icons::Icon::Anchor,
-            styles.metric("icon.small.size", 14.),
-            colors.TEXT_MUTED,
-        );
-        label(
-            list,
-            atlas,
-            anchor.caption,
-            if locale == Locale::Zh {
-                "锚点"
-            } else {
-                "Anchor"
-            },
-            true,
-        );
-        panels.properties.anchor.draw(
-            list,
-            atlas,
-            area,
-            y,
-            Panel::Properties,
-            layer,
-            input,
-            locked,
-            out,
-        );
-        y += row;
         let rows = super::timeline::property_rows(state, object);
         for track in rows {
             let property = track.property;
@@ -447,7 +437,7 @@ pub(super) fn render(
                     ][a]
                 }),
             };
-            panels.expressions.context(
+            if property != Property::Anchor { panels.expressions.context(
                 expression_target.clone(),
                 Rect::new(
                     fields.watch.min[0],
@@ -457,8 +447,8 @@ pub(super) fn render(
                 ),
                 input,
                 Panel::Properties,
-            );
-            if clicked(input, fields.watch) && !locked && input.modifiers.alt {
+            ); }
+            if clicked(input, fields.watch) && !locked && input.modifiers.alt && property != Property::Anchor {
                 panels
                     .expressions
                     .open(state, expression_target.clone(), Panel::Properties);
@@ -482,6 +472,9 @@ pub(super) fn render(
                 |axis| format!("{name} {}", ["X", "Y", "Z"][axis]),
             );
             label(list, atlas, fields.caption, &caption, true);
+            if property == Property::Anchor {
+                panels.properties.anchor.draw(list,atlas,area,y,Panel::Properties,layer,state,input,locked,out);
+            } else {
             for (index, axis) in axes.iter().copied().enumerate() {
                 let value = if property == Property::Opacity {
                     sample[key].as_f64().unwrap_or(1.) * 100.
@@ -493,6 +486,7 @@ pub(super) fn render(
                     list, atlas, rect, panels, state, input, object, property, axis, value, locked,
                     false, out,
                 );
+            }
             }
             y += row;
             if panels

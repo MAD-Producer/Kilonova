@@ -39,6 +39,8 @@ def verify_design_screens(snapshot: dict, locale: str, *, property_followups: bo
         "layer-properties-tree": (360, 560), "layer-properties-effects": (360, 560),
         "timeline-properties-tree": (720, 520),
         "camera-properties": (360, 560), "timeline-cameras": (720, 520),
+        "layer-anchor-animation": (360, 560), "timeline-anchor-animation": (720, 520),
+        "timeline-anchor-graph": (720, 520),
     })
     if property_followups:
         auxiliary = {
@@ -125,6 +127,11 @@ def verify_style_overrides(binary: Path, output: Path) -> None:
         if set(navigation) != {"zoom", "pan"} or not all(Path(p).is_file() for p in navigation.values()):
             raise RuntimeError(f"{locale} did not render floating viewer zoom and pan")
         properties = next(panel for panel in snapshot["panels"] if panel["id"] == 11)
+        for panel_id in (4, 11):
+            record = next(panel for panel in snapshot["panels"] if panel["id"] == panel_id)
+            anchor = record.get("anchorAnimationScreenshots", {})
+            if not Path(anchor.get("keys", "")).is_file() or (panel_id == 4 and not Path(anchor.get("graph", "")).is_file()):
+                raise RuntimeError(f"{locale} did not capture real floating anchor animation")
         mask_timeline = properties.get("maskTimelineScreenshot")
         if not mask_timeline or not Path(mask_timeline).is_file():
             raise RuntimeError(f"{locale} did not render masks in layer properties and the shared timeline")

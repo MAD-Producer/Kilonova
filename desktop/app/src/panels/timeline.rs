@@ -221,6 +221,7 @@ fn property_rows_for(layer: Option<&Value>, timeline: Option<&Value>) -> Vec<Pro
         }
         rows
     } else { vec![
+        (Property::Anchor, "anchor", T::Anchor, vec![0, 1]),
         (
             Property::Position,
             "position",
@@ -292,7 +293,7 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
             let properties = property_rows_for(Some(l), t);
             let mut keys = Vec::new();
             if let Some(t) = t {
-                for property in ["position", "rotation", "scale", "opacity", "target", "roll", "fov", "radius", "azimuth", "elevation"] {
+                for property in ["anchor", "position", "rotation", "scale", "opacity", "target", "roll", "fov", "radius", "azimuth", "elevation"] {
                     let track = &t["properties"][property];
                     for k in track["keys"].as_array().into_iter().flatten() {
                         if let Some(f) = k["frame"].as_f64() {
@@ -1874,6 +1875,10 @@ mod property_tests {
     #[test]
     fn separated_rows_use_their_own_key_times_and_static_axis_stays_empty() {
         let rows = property_rows(&fixture(), 7);
+        assert_eq!(rows[0].property, Property::Anchor);
+        assert!(rows[0].keys.is_empty());
+        let rows: Vec<_> = rows.iter().filter(|row| row.property == Property::Position).collect();
+        assert_eq!(rows.len(), 3);
         assert_eq!(rows[0].keys, vec![0., 60.]);
         assert_eq!(rows[1].keys, vec![15., 90.]);
         assert!(rows[2].keys.is_empty());
@@ -2003,49 +2008,6 @@ pub(super) fn render_layer_properties(
                 }
             }
         }
-        if let Some(index) = layout.anchor {
-            let py = y + index as f32 * row_height;
-            if py >= body.min[1] && py + row_height <= body.max[1] {
-                let fields = property_layout(&list.styles(), area, py, row_height, 0, 2);
-                property_branch(list, fields.watch);
-                property_icon(
-                    list,
-                    fields.watch,
-                    motion_ui::icons::Icon::Anchor,
-                    false,
-                    !row.locked,
-                );
-                label(
-                    list,
-                    atlas,
-                    fields.caption,
-                    if locale == Locale::Zh {
-                        "锚点"
-                    } else {
-                        "Anchor"
-                    },
-                    true,
-                );
-                if let Some(layer) = state["project"]["layers"]
-                    .as_array()
-                    .into_iter()
-                    .flatten()
-                    .find(|layer| layer["id"].as_u64() == Some(row.id))
-                {
-                    panels.timeline_anchor.draw(
-                        list,
-                        atlas,
-                        area,
-                        py,
-                        Panel::Timeline,
-                        layer,
-                        input,
-                        row.locked,
-                        out,
-                    );
-                }
-            }
-        }
         let sample = state["sampledLayers"]
             .as_array()
             .and_then(|ls| ls.iter().find(|l| l["id"].as_u64() == Some(row.id)));
@@ -2106,7 +2068,7 @@ pub(super) fn render_layer_properties(
                     );
                 }
             }
-            if panels.expressions.context(
+            if property.property != Property::Anchor && panels.expressions.context(
                 expression_target.clone(),
                 property_area,
                 input,
@@ -2115,7 +2077,7 @@ pub(super) fn render_layer_properties(
                 panels.layer_actions.cancel();
             }
             if clicked(input, fields.watch) && !row.locked && state["observing"] != true {
-                if input.modifiers.alt {
+                if input.modifiers.alt && property.property != Property::Anchor {
                     panels
                         .expressions
                         .open(state, expression_target, Panel::Timeline);
@@ -2141,6 +2103,12 @@ pub(super) fn render_layer_properties(
                     .choose_track(row.id, property.property, axis);
                 panels.animation_controls.clear_key();
             }
+            if property.property == Property::Anchor {
+                if let Some(layer) = state["project"]["layers"].as_array().into_iter().flatten()
+                    .find(|l| l["id"].as_u64()==Some(row.id)) {
+                    panels.timeline_anchor.draw(list,atlas,property_area,py,Panel::Timeline,layer,state,input,row.locked || state["observing"]==true,out);
+                }
+            } else {
             for (j, component) in property.axes.iter().enumerate() {
                 let value = if property.property == Property::Opacity {
                     sample
@@ -2182,6 +2150,7 @@ pub(super) fn render_layer_properties(
                     true,
                     out,
                 );
+            }
             }
             for frame in property.keys.iter().filter(|_| !graph_mode) {
                 let x = x_of(*frame);
