@@ -45,6 +45,7 @@ pub struct UiFrame {
     pub atlas: Option<AtlasUpload>,
     pub logical_size: [f32; 2],
     pub composition: Option<[f32; 4]>,
+    pub composition_image: Option<[f32; 4]>,
     pub window: u64,
     pub node_preview: Option<crate::node_preview::Viewport>,
 }
@@ -1491,7 +1492,8 @@ fn handle(
             if let Some([x,y,w,h])=ui.composition {
                 let scale = (w / s.scene.width as f32).min(h / s.scene.height as f32);
                 let vw = s.scene.width as f32 * scale; let vh = s.scene.height as f32 * scale;
-                presenter.encode(&mut encoder, &target.view, None, Some([x+(w-vw)*0.5,y+(h-vh)*0.5,vw,vh]), s.scene.background);
+                presenter.encode_view(&g.renderer.queue, &mut encoder, &target.view, None,
+                    if ui.composition_image.is_some() { [x,y,w,h] } else { [x+(w-vw)*0.5,y+(h-vh)*0.5,vw,vh] }, ui.composition_image, s.scene.background);
             } else {clear_target(&mut encoder,&target.view);}
             chrome.render_scaled(&g.renderer.device,&g.renderer.queue,&mut encoder,&target.view,&ui.paint,ui.logical_size,[width as f32/ui.logical_size[0],height as f32/ui.logical_size[1]]);
             if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview) {preview.encode(&g.renderer.device,&g.renderer.queue,&mut encoder,&target.view,viewport,wgpu::TextureFormat::Rgba8UnormSrgb);}
@@ -1551,10 +1553,10 @@ fn handle(
                     };
                     let result=if reuse {
                         presentation.composition_reuses+=1;
-                        s.present_retained_with_overlay(viewport,overlay)
+                        s.present_retained_with_view(viewport,ui.composition_image,overlay)
                     }else {
                         presentation.composition_renders+=1;
-                        s.render_with_overlay(frame,Some(viewport),overlay)
+                        s.render_with_view(frame,Some(viewport),ui.composition_image,overlay)
                     };
                     presentation.retained=if result.as_ref().is_ok_and(|v|*v)
                         && !s.preview_memory_held && s.last_error.is_none()
