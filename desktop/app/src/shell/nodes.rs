@@ -104,6 +104,7 @@ impl Shell {
         self.node_tasks.cancel(&mut self.panels.node_editor);
         if !use_current {
             let mut next = node_editor::NodeEditor::new(crate::node_layer::identity());
+            next.view_preferences = self.workspace.node_view;
             if let Some(source) = &source {
                 next.load_layer_source(source, target.clone())?;
             } else {
@@ -159,6 +160,7 @@ impl Shell {
             log::debug!("node standalone draft unavailable reason=no_saved_standalone fallback=default");
             node_editor::NodeEditor::default()
         });
+        self.panels.node_editor.view_preferences = self.workspace.node_view;
         self.schedule_node_compile()?;
         self.dirty = true;
         Ok(())
@@ -187,6 +189,7 @@ impl Shell {
                 log::debug!("node standalone draft unavailable reason=bound_target_invalidated fallback=default");
                 node_editor::NodeEditor::default()
             });
+            self.panels.node_editor.view_preferences = self.workspace.node_view;
             self.schedule_node_compile()?;
             return Ok(());
         }
@@ -239,6 +242,14 @@ impl Shell {
     }
     pub(crate) fn node_action(&mut self, action: node_editor::Action) -> Result<(), String> {
         if self.closing {
+            return Ok(());
+        }
+        if let node_editor::Action::ViewPreferencesChanged(preferences) = action {
+            self.workspace.node_view = preferences;
+            self.dirty = true;
+            self.workspace.save(&self.layout_path).map_err(|reason| {
+                format!("save node view preferences path={} reason={reason}", self.layout_path.display())
+            })?;
             return Ok(());
         }
         if matches!(action, node_editor::Action::ShowProperties) {

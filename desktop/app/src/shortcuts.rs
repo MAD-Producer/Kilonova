@@ -11,6 +11,7 @@ pub enum Scope {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Command {
     ReloadStyle,
+    TogglePanelMaximize,
     NewProject,
     NewComposition,
     Open,
@@ -50,6 +51,8 @@ pub enum Command {
     ZoomIn,
     ZoomOut,
     ToggleFrameView,
+    ToggleNodeGrid,
+    ToggleNodeMinimap,
     MoveLeft,
     MoveRight,
     MoveUp,
@@ -105,6 +108,7 @@ pub fn resolve(scope: Scope, key: Key, m: Modifiers, repeat: bool) -> Option<Com
         (Animation, Key::R, false, true, true) => ToggleKey(motion_core::Property::Rotation),
         (Animation, Key::T, false, true, true) => ToggleKey(motion_core::Property::Opacity),
         (Application, Key::R, true, false, false) => ReloadStyle,
+        (Application, Key::Backquote, false, false, false) => TogglePanelMaximize,
         (_, Key::O, true, false, false) => Open,
         (_, Key::S, true, false, false) => Save,
         (_, Key::Z, true, false, false) => Undo,
@@ -142,6 +146,8 @@ pub fn resolve(scope: Scope, key: Key, m: Modifiers, repeat: bool) -> Option<Com
         (Nodes, Key::Num0, true, false, false) => ResetZoom,
         (Nodes, Key::Equal, false, true, false) => Arrange,
         (Nodes, Key::G, true, false, false) => Group,
+        (Nodes, Key::G, false, false, false) => ToggleNodeGrid,
+        (Nodes, Key::N, false, false, false) => ToggleNodeMinimap,
         (Nodes, Key::G, false, false, true) => Ungroup,
         (Nodes, Key::Tab, false, false, false) => EnterGroup,
         (Nodes, Key::Tab, true, false, false) => LeaveGroup,
