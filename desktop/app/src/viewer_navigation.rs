@@ -55,8 +55,14 @@ impl Navigation {
         {
             return None;
         }
+        let image = Rect::new(origin[0] as f32, origin[1] as f32, size[0], size[1]);
+        // Finite inputs can still collapse the f32 rectangle after a huge pan.
+        // Reject the candidate before publishing an unusable view to the GPU.
+        if !image.max.iter().all(|v| v.is_finite())
+            || image.width() <= 0. || image.height() <= 0.
+        { return None; }
         Some(Mapping {
-            image: Rect::new(origin[0] as f32, origin[1] as f32, size[0], size[1]),
+            image,
             scale,
             origin,
         })
@@ -159,6 +165,7 @@ mod tests {
         let view = Rect::new(0., 0., 100., 100.);
         assert!(!nav.zoom_at(view, [100., 100.], [20., 20.], f64::NAN));
         assert!(!nav.pan(view, [100., 100.], [f32::INFINITY, 0.]));
+        assert!(!nav.pan(view, [100., 100.], [f32::MAX, 0.]));
         assert!(!nav.pan(Rect::default(), [100., 100.], [1., 1.]));
         assert!(nav.mapping(view, [0., 100.]).is_none());
         assert_eq!(nav, initial);
