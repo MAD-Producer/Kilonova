@@ -4,7 +4,9 @@ use super::*;
 pub(super) struct Columns {
     pub name: Rect,
     pub three_d: Rect,
+    pub three_d_visible: bool,
     pub blend_visible: bool,
+    pub parent_visible: bool,
 }
 
 pub(super) fn columns(styles: &motion_ui::style::StyleSheet, area: Rect, gutter: f32) -> Columns {
@@ -21,13 +23,21 @@ pub(super) fn columns(styles: &motion_ui::style::StyleSheet, area: Rect, gutter:
     );
     let width = gutter - reserved - slot;
     let blend_visible = wide || width >= styles.metric("value.min_width", 64.);
-    let width = (width
+    let mut width = (width
         + if blend_visible {
             0.
         } else {
             styles.metric("timeline.layer.blend_width", 76.)
         })
     .max(0.);
+    let parent_visible = wide || width >= styles.metric("value.min_width", 64.);
+    let padding = styles.metric("padding.panel", 8.);
+    let three_d_visible = gutter >= offset + slot + padding;
+    if !parent_visible {
+        // Optional columns must leave room for the fixed leading controls and
+        // the entire switch target; zero-width names cannot absorb overlap.
+        width = (gutter - offset - padding - if three_d_visible { slot } else { 0. }).max(0.);
+    }
     Columns {
         name: Rect::new(area.min[0] + offset, area.min[1], width, area.height()),
         three_d: Rect::new(
@@ -36,6 +46,8 @@ pub(super) fn columns(styles: &motion_ui::style::StyleSheet, area: Rect, gutter:
             slot,
             area.height(),
         ),
+        three_d_visible,
         blend_visible,
+        parent_visible,
     }
 }

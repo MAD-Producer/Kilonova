@@ -282,7 +282,7 @@ The timeline layer gutter preserves the **11** existing columns and adds a 3D sw
 
 `gutter = min(640, area.width() * 0.52)` — declared as `const GUTTER: f32 = 640.0` at `desktop/app/src/panels/mod.rs:69`.
 
-The name/switch allocation reads `timeline.layer.*` tokens. Below `timeline.layer.wide_threshold`, use the compact allocation; hide the blend column if keeping it would leave less than `value.min_width` for the name after reserving the 3D slot. Existing visibility, lock, disclosure and time-lane hit regions stay unchanged.
+The name/switch allocation reads `timeline.layer.*` tokens. Below `timeline.layer.wide_threshold`, use the compact allocation; hide the blend column if keeping it would leave less than `value.min_width` for the name after reserving the 3D slot. If the name still cannot retain `value.min_width`, hide the Parent & Link header, icon and cell together and reclaim their allocation; parenting remains available in the inspector. Never keep overlapping invisible hit regions. Preserve the full `icon.slot` 3D target at supported minimum floating widths; if even that slot cannot fit beyond the fixed leading controls, hide its header and control together. A dropdown whose column becomes hidden must close without committing. Existing visibility, lock, disclosure and time-lane hit regions stay unchanged.
 
 Header band total height `64`; ruler at `+36`, height `28`; rows begin at `+64`; layer row height `$sizes.row.height = 22`. **Zoom control sits on the ruler's top-right, not in a new bottom zoom bar.** Keyframe diamonds are directly drawn primitives, not component-style instances (see §5.3).
 
