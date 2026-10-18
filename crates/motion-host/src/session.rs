@@ -391,13 +391,18 @@ impl Session {
         viewport: [f32; 4],
         overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView),
     ) -> Result<bool> {
+        self.present_retained_with_view(viewport, None, overlay)
+    }
+    pub fn present_retained_with_view(&mut self, viewport: [f32; 4], image: Option<[f32; 4]>,
+        overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView)) -> Result<bool> {
+        validate_canvas_image(image)?;
         let Some(g) = &mut self.graphics else { return Ok(false); };
         let [x, y, w, h] = viewport;
         if !viewport.iter().all(|v| v.is_finite()) || x < 0. || y < 0.
             || w <= 0. || h <= 0. || x + w > g.config.width as f32 + 0.01
             || y + h > g.config.height as f32 + 0.01
         { return Err("invalid composition viewport".into()); }
-        let rendered = present_held(g, viewport, overlay)?;
+        let rendered = present_held(g, viewport, image, overlay)?;
         self.presented += u64::from(rendered);
         Ok(rendered)
     }
@@ -409,6 +414,11 @@ impl Session {
         viewport: Option<[f32; 4]>,
         overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView),
     ) -> Result<bool> {
+        self.render_with_view(frame, viewport, None, overlay)
+    }
+    pub fn render_with_view(&mut self, frame: f64, viewport: Option<[f32; 4]>, image: Option<[f32; 4]>,
+        overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView)) -> Result<bool> {
+        validate_canvas_image(image)?;
         use motion_render::preview_memory::PREVIEW_MEMORY_LEVELS;
         let began = Instant::now();
         self.render_attempts += 1;
@@ -444,7 +454,7 @@ impl Session {
         self.preview_memory_held = false;
         if !self.preview_memory.begin(now_ms) {
             self.preview_memory_held = g.scratch.valid();
-            let held = present_held(g, viewport, overlay)?;
+            let held = present_held(g, viewport, image, overlay)?;
             self.presented += u64::from(held);
             return Ok(held);
         }
@@ -469,7 +479,7 @@ impl Session {
             // the last completed canvas (or an empty surface on first open),
             // but leave this composition pending so the caller keeps polling.
             let retained = g.scratch.valid().then_some(viewport);
-            let painted = present_chrome(g, retained, overlay)?;
+            let painted = present_chrome(g, retained, image, overlay)?;
             self.presented += u64::from(painted);
             return Ok(false);
         };
@@ -637,15 +647,11 @@ impl Session {
             let acquire_us = acquiring.elapsed().as_micros() as u64;
             g.presenter.set_source(&g.renderer.device, &candidate_view);
             let view = output.texture.create_view(&Default::default());
-            g.presenter.encode(
-                &mut encoder,
-                &view,
+            g.presenter.encode_view(
+                &g.renderer.queue, &mut encoder, &view,
                 slot.map(|i| g.timer.as_ref().unwrap().writes(i, 1)),
-                Some(preview_viewport(
-                    viewport,
-                    [self.scene.width, self.scene.height],
-                )),
-                self.scene.background,
+                if image.is_some() { viewport } else { preview_viewport(viewport, [self.scene.width, self.scene.height]) },
+                image, self.scene.background,
             );
             overlay.take().unwrap()(&g.renderer, &mut encoder, &view);
             if let Some(i) = slot {
@@ -727,7 +733,7 @@ impl Session {
             return Ok(true);
         }
         self.preview_memory_held = g.scratch.valid();
-        let held = present_held(g, viewport, overlay.take().unwrap())?;
+        let held = present_held(g, viewport, image, overlay.take().unwrap())?;
         self.presented += u64::from(held);
         Ok(held)
     }
@@ -808,21 +814,28 @@ fn acquire_preview_surface(g: &mut Graphics) -> Result<Option<wgpu::SurfaceTextu
         wgpu::CurrentSurfaceTexture::Validation => Err("surface acquisition validation failed".into()),
     }
 }
+fn validate_canvas_image(image: Option<[f32; 4]>) -> Result<()> {
+    if image.is_some_and(|v| !v.iter().all(|v| v.is_finite()) || v[2] <= 0. || v[3] <= 0.) {
+        return Err("invalid composition canvas image".into());
+    }
+    Ok(())
+}
 fn preview_viewport([x,y,w,h]: [f32; 4], [cw,ch]: [u32; 2]) -> [f32; 4] {
     motion_render::fit_viewport([x, y, w, h], [cw, ch])
 }
-fn present_held(g: &mut Graphics, viewport: [f32; 4],
+fn present_held(g: &mut Graphics, viewport: [f32; 4], image: Option<[f32; 4]>,
     overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView)) -> Result<bool> {
     if !g.scratch.valid() { return Ok(false); }
-    present_chrome(g, Some(viewport), overlay)
+    present_chrome(g, Some(viewport), image, overlay)
 }
-fn present_chrome(g: &mut Graphics, retained_viewport: Option<[f32; 4]>,
+fn present_chrome(g: &mut Graphics, retained_viewport: Option<[f32; 4]>, image: Option<[f32; 4]>,
     overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView)) -> Result<bool> {
     let Some(output) = acquire_preview_surface(g)? else { return Ok(false); };
     let view = output.texture.create_view(&Default::default());
     let mut encoder = g.renderer.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Motion Studio retained preview") });
     if let Some(viewport) = retained_viewport {
-        g.presenter.encode(&mut encoder, &view, None, Some(preview_viewport(viewport, g.last_canvas)), g.last_background);
+        g.presenter.encode_view(&g.renderer.queue, &mut encoder, &view, None,
+            if image.is_some() { viewport } else { preview_viewport(viewport, g.last_canvas) }, image, g.last_background);
     } else {
         let _clear = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Motion Studio pending preview"),

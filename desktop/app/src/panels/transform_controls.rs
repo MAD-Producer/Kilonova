@@ -249,13 +249,17 @@ impl Drag {
                     input.mouse[1] - self.last_pointer[1],
                 ];
                 if delta[0].abs() + delta[1].abs() > 0.01 {
+                    // Host drag works in a canonical composition-sized viewport.
+                    // Convert logical displacement with the same image mapping as
+                    // the handles; rounding a zoomed viewport would accumulate drift.
+                    let size = [state["project"]["width"].as_i64().unwrap_or(1) as i32,
+                        state["project"]["height"].as_i64().unwrap_or(1) as i32];
+                    let scale = (self.pose.projection.image.width()/size[0] as f32)
+                        .min(self.pose.projection.image.height()/size[1] as f32);
                     out.push(Action::PreviewDrag {
                         object: self.pose.object,
-                        delta,
-                        size: [
-                            self.seed.view.width().round().max(1.) as i32,
-                            self.seed.view.height().round().max(1.) as i32,
-                        ],
+                        delta: delta.map(|v| v/scale),
+                        size,
                     });
                     self.last_pointer = input.mouse;
                 }
@@ -387,6 +391,9 @@ pub struct Controls {
     pub cursor: Option<motion_ui::cursor::Cursor>,
 }
 impl Controls {
+    pub fn gesture_active(&self) -> bool {
+        self.drag.is_some() || self.pick.is_some()
+    }
     pub fn cancel(&mut self) -> bool {
         self.pick = None;
         self.drag.take().is_some_and(|d| d.begun)
@@ -400,6 +407,18 @@ impl Controls {
     pub fn draw(
         &mut self,
         list: &mut PaintList,
+        view: Rect,
+        state: &Value,
+        selected: Option<u64>,
+        input: &Input,
+        out: &mut Vec<Action>,
+    ) -> bool {
+        self.draw_in_viewport(list, view, view, state, selected, input, out)
+    }
+    pub fn draw_in_viewport(
+        &mut self,
+        list: &mut PaintList,
+        clip: Rect,
         view: Rect,
         state: &Value,
         selected: Option<u64>,
@@ -427,7 +446,7 @@ impl Controls {
             .as_ref()
             .map(|d| d.handle)
             .or_else(|| {
-                pose.as_ref()
+                pose.as_ref().filter(|_| clip.contains(input.mouse))
                     .and_then(|p| p.handle(input.mouse, self.tool, input.modifiers.alt))
             })
             .map(|h| match h {
@@ -460,7 +479,7 @@ impl Controls {
         let mut consumed = self.drag.is_some();
         if self.drag.is_none() {
             if let Some((MouseButton::Left, point)) =
-                input.pressed.filter(|(_, p)| view.contains(*p))
+                input.pressed.filter(|(_, p)| clip.contains(*p))
             {
                 let seed = Seed::new(point, state, view);
                 if let Some((p, handle)) = pose.clone().and_then(|p| {
@@ -546,6 +565,46 @@ mod tests {
             held: (!release).then_some(MouseButton::Left),
             released: release.then_some((MouseButton::Left, point)),
             ..Default::default()
+        }
+    }
+    #[test]
+    fn zoomed_panned_handles_move_exactly_and_offscreen_handles_do_not_capture_input() {
+        for zoom in [0.25137, 1.117, 3.1333] {
+            let (_folder, engine, state, _) = fixture(false);
+            let clip = Rect::new(20.,30.,600.,400.);
+            let mut nav = crate::viewer_navigation::Navigation::default();
+            assert!(nav.zoom_at(clip,[1920.,1080.],[320.,230.],zoom));
+            assert!(nav.pan(clip,[1920.,1080.],[30.,-20.]));
+            let image = nav.mapping(clip,[1920.,1080.]).unwrap().image;
+            let pose = Pose::new(&state,7,image).unwrap();
+            let point = pose.pivot;
+            assert!(clip.contains(point));
+            let before_local = pose.projection.local(point).unwrap();
+            let moved = pose.projection.local([point[0]+20.,point[1]+10.]).unwrap();
+            assert!((moved[0]-before_local[0]-20./zoom as f32).abs()<0.02);
+            let mut controls = Controls::default();
+            let mut actions = vec![];
+            controls.draw_in_viewport(&mut PaintList::default(),clip,image,&state,Some(7),
+                &Input { pressed:Some((MouseButton::Left,point)), ..pointer(point,false) },&mut actions);
+            assert!(actions.is_empty());
+            controls.draw_in_viewport(&mut PaintList::default(),clip,image,&state,Some(7),
+                &pointer([point[0]+20.,point[1]+10.],false),&mut actions);
+            apply(&engine,actions);
+            engine.history(3).unwrap();
+            let after = engine.state().unwrap();
+            let moved_pose = Pose::new(&after,7,image).unwrap();
+            assert!((moved_pose.pivot[0]-point[0]-20.).abs()<0.03);
+            assert!((moved_pose.pivot[1]-point[1]-10.).abs()<0.03);
+            assert_eq!(engine.history(0).unwrap()["project"],state["project"]);
+            controls.cancel();
+            let outside = Rect::new(-2000.,-1000.,image.width(),image.height());
+            let point = Pose::new(&state,7,outside).unwrap().pivot;
+            assert!(!clip.contains(point));
+            let mut actions = vec![];
+            assert!(!controls.draw_in_viewport(&mut PaintList::default(),clip,outside,&state,Some(7),
+                &Input { pressed:Some((MouseButton::Left,point)), ..pointer(point,false) },&mut actions));
+            assert!(!controls.gesture_active());
+            assert!(actions.is_empty());
         }
     }
     #[test]

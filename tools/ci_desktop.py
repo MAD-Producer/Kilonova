@@ -40,7 +40,7 @@ def verify_design_screens(snapshot: dict, locale: str) -> None:
         "timeline-properties-tree": (720, 520),
         "camera-properties": (360, 560), "timeline-cameras": (720, 520),
     })
-    for name in ("home", "project-open-error", "composition-settings", "workspace-manager", "effect-library", "timeline-parent-menu", "timeline-blend-menu", "timeline-graph", "value-graph", "speed-graph", *auxiliary):
+    for name in ("home", "project-open-error", "composition-settings", "workspace-manager", "effect-library", "timeline-parent-menu", "timeline-blend-menu", "timeline-graph", "value-graph", "speed-graph", "viewer-fit", "viewer-zoom", "viewer-pan", *auxiliary):
         if name not in screens:
             raise RuntimeError(f"{locale} did not capture {name}")
         data = Path(screens[name]).read_bytes()
@@ -81,6 +81,10 @@ def verify_style_overrides(binary: Path, output: Path) -> None:
         # Masks and expressions are property-owned; legacy IDs 6 and 9 stay readable.
         if {panel["id"] for panel in snapshot["panels"]} != set(range(1, 22)) - {6, 9}:
             raise RuntimeError(f"{locale} did not render every floating panel with overrides")
+        viewer = next(panel for panel in snapshot["panels"] if panel["id"] == 3)
+        navigation = viewer.get("viewerNavigationScreenshots", {})
+        if set(navigation) != {"zoom", "pan"} or not all(Path(p).is_file() for p in navigation.values()):
+            raise RuntimeError(f"{locale} did not render floating viewer zoom and pan")
         properties = next(panel for panel in snapshot["panels"] if panel["id"] == 11)
         mask_timeline = properties.get("maskTimelineScreenshot")
         if not mask_timeline or not Path(mask_timeline).is_file():

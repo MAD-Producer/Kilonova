@@ -12,7 +12,8 @@ use motion_ui::{
 use serde_json::Value;
 
 fn text_active(panels: &Panels) -> bool {
-    panels.timeline_columns.editing()
+    panels.composition.zoom.interacting()
+        || panels.timeline_columns.editing()
         || panels.properties.field.is_some()
         || (panels.focused == Some(Panel::Properties) && panels.properties.checkbox_focused)
         || panels.project.search

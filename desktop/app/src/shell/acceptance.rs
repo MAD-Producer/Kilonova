@@ -22,6 +22,30 @@ impl Shell {
             }
             let revision = self.state["revision"].clone();
             let screenshot = self.capture_panel_float(panel)?;
+            let viewer_navigation = if panel == dock::Panel::Composition {
+                let saved = self.panels.composition.navigation;
+                let captured = (|| {
+                    let f = self.floating.values().find(|f| f.panel == panel).ok_or("viewer window missing")?;
+                    let physical = f.window.inner_size();
+                    let size = [physical.width as f32/f.scale, physical.height as f32/f.scale];
+                    let styles = self.panels.styles.as_deref().ok_or("viewer styles missing")?;
+                    let view = panels::floating_view_styled(panel,size,styles).ok_or("floating viewer missing")?;
+                    let canvas = [self.state["project"]["width"].as_f64().ok_or("viewer width missing")?,
+                        self.state["project"]["height"].as_f64().ok_or("viewer height missing")?];
+                    let anchor = [(view.min[0]+view.max[0])*0.5,(view.min[1]+view.max[1])*0.5];
+                    if !self.panels.composition.navigation.zoom_at(view,canvas,anchor,1.) {
+                        return Err("floating viewer zoom rejected".to_string());
+                    }
+                    let zoom = self.capture_panel_float_named(panel,"-zoom")?;
+                    if !self.panels.composition.navigation.pan(view,canvas,[80.,-40.]) {
+                        return Err("floating viewer pan rejected".into());
+                    }
+                    let pan = self.capture_panel_float_named(panel,"-pan")?;
+                    Ok(serde_json::json!({"zoom":zoom,"pan":pan}))
+                })();
+                self.panels.composition.navigation = saved;
+                captured?
+            } else { Value::Null };
             let value_graph = if panel == dock::Panel::Timeline {
                 let previous = self.panels.timeline.clone();
                 let selected = self.panels.selected;
@@ -118,7 +142,7 @@ impl Shell {
             if self.state["revision"] != revision {
                 return Err("layout change edited the project".into());
             }
-            self.smoke_panel_records.push(serde_json::json!({"id":panel as u32,"title":self.workspace.locale.panel(panel.dock()),"frames":self.smoke_float_frames[&(panel as u32)],"screenshot":screenshot,"valueGraphScreenshot":value_graph,"audioMenuScreenshot":audio_menu,"markerMenuScreenshot":marker_menu,"maskTimelineScreenshot":mask_timeline,"shapeTimelineScreenshot":shape_timeline,"shapeOperatorScreenshots":shape_operators,"projectRevision":revision}));
+            self.smoke_panel_records.push(serde_json::json!({"id":panel as u32,"title":self.workspace.locale.panel(panel.dock()),"frames":self.smoke_float_frames[&(panel as u32)],"screenshot":screenshot,"viewerNavigationScreenshots":viewer_navigation,"valueGraphScreenshot":value_graph,"audioMenuScreenshot":audio_menu,"markerMenuScreenshot":marker_menu,"maskTimelineScreenshot":mask_timeline,"shapeTimelineScreenshot":shape_timeline,"shapeOperatorScreenshots":shape_operators,"projectRevision":revision}));
             if matches!(panel, dock::Panel::Timeline | dock::Panel::Audio) {
                 // Subsequent parent/blend captures require a visual target.
                 let visual = self.state["project"]["layers"].as_array().into_iter().flatten().rev()
@@ -376,6 +400,7 @@ impl Shell {
             &self.state,
             &Input::default(),
         );
+        let viewer = panels::floating_view_styled(panel, size, &paint.styles());
         let atlas = self.atlas.config();
         let ui = UiFrame {
             paint,
@@ -385,7 +410,8 @@ impl Shell {
                 height: atlas.height,
             }),
             logical_size: size,
-            composition: panels::floating_view(panel, size).map(|r| {
+            composition_image: viewer.and_then(|v| self.viewer_image(v, scale)),
+            composition: viewer.map(|r| {
                 [
                     r.min[0] * scale,
                     r.min[1] * scale,
@@ -615,6 +641,7 @@ impl Shell {
                 height: atlas.height,
             }),
             logical_size: size,
+            composition_image: None,
             composition: None,
             window: key,
             node_preview: self
@@ -837,6 +864,7 @@ impl Shell {
                         height: config.height,
                     }),
                     logical_size: size,
+                    composition_image: None,
                     composition: None,
                     window: 0,
                     node_preview: None,

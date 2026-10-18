@@ -1,6 +1,7 @@
 @group(0) @binding(0) var source: texture_2d<f32>;
 @group(0) @binding(1) var source_sampler: sampler;
-@group(0) @binding(2) var<uniform> mode: vec4<u32>;
+struct Presentation { mode: vec4<u32>, uv: vec4<f32> };
+@group(0) @binding(2) var<uniform> presentation: Presentation;
 struct Out {
     @builtin(position) position: vec4<f32>,
     @location(0) uv: vec2<f32>,
@@ -17,7 +18,9 @@ fn encode(v:vec3<f32>)->vec3<f32> {
         12.92*v,v<=vec3(0.0031308));
 }
 @fragment fn fragment_main(input:Out)->@location(0) vec4<f32> {
-    let c=textureSample(source,source_sampler,input.uv);
-    if mode.x==1u { return c; }
+    let uv=presentation.uv.xy+input.uv*presentation.uv.zw;
+    let c=textureSample(source,source_sampler,uv);
+    if any(uv<vec2(0.0)) || any(uv>vec2(1.0)) { discard; }
+    if presentation.mode.x==1u { return c; }
     return vec4(encode(c.rgb),c.a);
 }
