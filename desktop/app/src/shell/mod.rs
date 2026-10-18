@@ -14,3 +14,4 @@ mod workspaces;
 mod workspace_acceptance;
 
 mod design_acceptance;
+mod property_acceptance;

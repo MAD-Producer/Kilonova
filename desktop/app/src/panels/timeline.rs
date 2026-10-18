@@ -110,10 +110,27 @@ pub(super) fn property_group(
     title: &str,
     open: bool,
 ) -> Rect {
+    property_group_reserved(list, atlas, area, y, height, title, open, 0.)
+}
+pub(super) fn property_group_reserved(
+    list: &mut PaintList,
+    atlas: &mut TextAtlas,
+    area: Rect,
+    y: f32,
+    height: f32,
+    title: &str,
+    open: bool,
+    reserved: f32,
+) -> Rect {
     let styles = list.styles();
     let pad = styles.metric("padding", 5.);
     let slot = styles.metric("icon.slot", 20.);
-    let start = styles.metric("timeline.property.group_offset", 78.);
+    let preferred_start = styles.metric("timeline.property.group_offset", 78.);
+    let start = if reserved > 0. {
+        preferred_start.min((area.width() - pad - reserved - slot).max(0.))
+    } else {
+        preferred_start
+    };
     let group = Rect::new(
         area.min[0] + start,
         y,
@@ -147,13 +164,13 @@ pub(super) fn property_group(
         Rect::new(
             group.min[0] + slot,
             y,
-            (group.width() - slot - pad).max(0.),
+            (group.width() - slot - pad - reserved).max(0.),
             height,
         ),
         title,
         false,
     );
-    group
+    Rect::new(group.min[0], y, (group.width() - reserved).max(0.), height)
 }
 pub(super) fn property_branch(list: &mut PaintList, watch: Rect) {
     let styles = list.styles();
@@ -601,6 +618,7 @@ pub(super) fn render(
 
     panels.timeline_columns.begin(state);
     let context_input = input;
+    panels.path_controls.begin_timeline_mask_headers();
     panels.path_controls.groups.begin_frame(list, context_input);
     panels
         .path_controls
@@ -681,7 +699,8 @@ pub(super) fn render(
         max
     };
     let gutter = GUTTER.min(area.width() * 0.52);
-    let columns = super::timeline_columns::ColumnRects::new(
+    let columns = super::timeline_columns::ColumnRects::styled(
+        &list.styles(),
         area.min[0],
         gutter,
         panels.timeline.column_visibility,
@@ -929,15 +948,13 @@ pub(super) fn render(
             out,
         );
     }
+    if let Some(switch) = columns.three_d {
+        label(list, atlas, switch.rect(ruler.min[1], ruler.height()), "3D", true);
+    }
     label(
         list,
         atlas,
-        Rect::new(
-            area.min[0] + 90.0,
-            ruler.min[1],
-            (columns.name.max_x() - (area.min[0] + 90.0)).max(1.0),
-            28.0,
-        ),
+        columns.name.rect(ruler.min[1], ruler.height()),
         locale.t(T::SourceName),
         true,
     );
@@ -1108,7 +1125,6 @@ pub(super) fn render(
                     panels.timeline.expanded.remove(&row.id);
                 } else {
                     panels.timeline.expanded.insert(row.id);
-                    panels.timeline.collapsed_geometry.insert(row.id);
                     panels.timeline.reopen_properties(row.id);
                 }
             }
@@ -1142,6 +1158,27 @@ pub(super) fn render(
         let layer = state["project"]["layers"]
             .as_array()
             .and_then(|ls| ls.iter().find(|l| l["id"].as_u64() == Some(row.id)));
+        if let (Some(layer), Some(switch)) = (layer.filter(|_| row.id != 0 && row.spatial && !row.camera), columns.three_d) {
+            if motion_ui::widgets::Checkbox::draw(
+                list,
+                atlas,
+                switch.rect(y, row_height),
+                "",
+                layer["three_d"] == true,
+                input,
+                !row.locked && state["observing"] != true,
+                false,
+                None,
+            )
+            .clicked
+            {
+                out.extend(super::cancel_interaction(panels));
+                out.push(Action::Edit(Command::SetLayer3d {
+                    object: row.id,
+                    enabled: layer["three_d"] != true,
+                }));
+            }
+        }
         let icon = match layer.map(|l| l["content"]["kind"].as_str().unwrap_or("")) {
             Some("text") => motion_ui::icons::Icon::Text,
             Some("image") => motion_ui::icons::Icon::Image,
@@ -2184,63 +2221,6 @@ pub(super) fn render_layer_properties(
             );
         }
     }
-    if !layout.geometry.is_empty() {
-        let gy = y + layout.geometry.start as f32 * row_height;
-        if gy >= body.min[1] && gy + row_height <= body.max[1] {
-            let heading = property_group(
-                list,
-                atlas,
-                area,
-                gy,
-                row_height,
-                if locale == Locale::Zh {
-                    "几何设置"
-                } else {
-                    "Geometry"
-                },
-                layout.geometry_open,
-            );
-            if clicked(input, heading) {
-                if !panels.timeline.collapsed_geometry.remove(&row.id) {
-                    panels.timeline.collapsed_geometry.insert(row.id);
-                }
-            }
-        }
-        if layout.geometry_open {
-            let py = gy + row_height;
-            if py >= body.min[1] && py + row_height <= body.max[1] {
-                let fields = property_layout(&list.styles(), area, py, row_height, 0, 1);
-                property_branch(list, fields.watch);
-                label(list, atlas, fields.caption, "3D", true);
-                if let Some(layer) = state["project"]["layers"]
-                    .as_array()
-                    .into_iter()
-                    .flatten()
-                    .find(|layer| layer["id"].as_u64() == Some(row.id))
-                {
-                    let enabled = !row.locked && state["observing"] != true;
-                    if motion_ui::widgets::Checkbox::draw(
-                        list,
-                        atlas,
-                        fields.number,
-                        "",
-                        layer["three_d"] == true,
-                        input,
-                        enabled,
-                        false,
-                        None,
-                    )
-                    .clicked
-                    {
-                        out.push(Action::Edit(Command::SetLayer3d {
-                            object: row.id,
-                            enabled: layer["three_d"] != true,
-                        }));
-                    }
-                }
-            }
-        }
-    }
     let start = y + layout.masks.start as f32 * row_height;
     super::path_controls::timeline::render(
         list,
@@ -2300,8 +2280,12 @@ pub(super) fn render_layer_properties(
             }
         }
         if layout.effects_open {
-            let effects = state["project"]["layers"].as_array().into_iter().flatten()
-                .find(|layer| layer["id"].as_u64() == Some(row.id)).and_then(|layer| layer["effects"].as_array());
+            let effects = state["project"]["layers"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .find(|layer| layer["id"].as_u64() == Some(row.id))
+                .and_then(|layer| layer["effects"].as_array());
             for (index, effect) in effects.into_iter().flatten().enumerate() {
                 let py = ey + (index + 1) as f32 * row_height;
                 if py < body.min[1] || py + row_height > body.max[1] {
