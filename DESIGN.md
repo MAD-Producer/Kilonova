@@ -370,6 +370,13 @@ These are **only** behaviors evidenced in the supplied audit, **not** an exhaust
 - New UI painting must respect existing GPU batching, clipping, caching, and dirty flags. Do not turn lists, video frames, or keyframes into unnecessary numbers of independent draw primitives for appearance alone.
 - This specification does not prescribe a replacement rendering engine or GPU pipeline.
 
+### 10.1 Node canvas view controls
+
+- The node toolbar's View menu and canvas context menu expose native checked grid/minimap choices, with the same semantics in Chinese and English. Keep the grid visible and minimap hidden for a new workspace; persist these preferences in workspace state only.
+- The minimap sits inside the canvas at its bottom-right edge. Read its dimensions, margin, padding, world padding and viewport opacity from `node.minimap.*` metrics in `dark.json`; reuse existing chrome, border, muted text and accent colors.
+- Fit node bounds and the visible canvas into one aspect-preserving projection. Show the current viewport distinctly; click/drag navigation changes only canvas pan. Cancel an unfinished drag on Esc or focus loss, and capture input above underlying nodes. Hide the overlay when there is insufficient room, retaining its enabled preference.
+- Grid/minimap visibility and minimap navigation must leave graph source, compilation stamps, permanent output and both history stacks unchanged. Text, IME, menus and active gestures retain priority over G/N; Ctrl+G keeps its grouping behavior.
+
 ---
 
 ## 11. Existing project model and Project panel

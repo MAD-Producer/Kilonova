@@ -83,9 +83,11 @@
 | Nodes | A | true | false | false | SelectAll | false |
 | Nodes | A | true | true | false | DeselectAll | false |
 | Nodes | F | false | false | false | FitSelection | false |
+| Nodes | G | false | false | false | ToggleNodeGrid | false |
 | Nodes | G | false | false | true | Ungroup | false |
 | Nodes | G | true | false | false | Group | false |
 | Nodes | Num0 | true | false | false | ResetZoom | false |
+| Nodes | N | false | false | false | ToggleNodeMinimap | false |
 | Nodes | O | true | false | false | Open | false |
 | Nodes | S | true | false | false | Save | false |
 | Nodes | S | true | true | false | SaveAs | false |
