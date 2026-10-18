@@ -56,7 +56,7 @@ fn reveal(
         let mask = if append {
             if expanded {
                 (match old {
-                    PropertyFilter::All => 15,
+                    PropertyFilter::All => 31,
                     PropertyFilter::Properties(mask) => mask,
                     PropertyFilter::Animated => timeline::filtered_properties(state, object, old)
                         .iter()

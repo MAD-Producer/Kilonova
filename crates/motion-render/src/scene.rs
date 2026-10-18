@@ -425,7 +425,7 @@ impl Scene {
                 if let Some(mut bounds) = crate::vector_mesh::group_bounds(v) {
                     let dependencies = project.layers.iter().any(|l| l.effects.iter().any(|e|
                         e.enabled && e.image_input.and_then(motion_model::EffectImageInput::layer)==Some(layer.id)));
-                    let world = self.node_world[order] * geometry_offset(layer);
+                    let world = self.node_world[order] * geometry_offset(layer, frame);
                     let m = glam::Mat3::from_cols(world.x_axis.truncate().truncate().extend(0.),
                         world.y_axis.truncate().truncate().extend(0.),world.w_axis.truncate().truncate().extend(1.));
                     let spatial_input = layer.effects.iter().any(|e|e.enabled) || !layer.masks.is_empty() || dependencies;
@@ -471,7 +471,7 @@ impl Scene {
             let screen_overlay = self.is_screen_overlay(layer.id);
             self.layers.push(DrawLayer {
                 id: layer.id,
-                model: self.node_world[order] * geometry_offset(layer) * Mat4::from_translation(vector_center),
+                model: self.node_world[order] * geometry_offset(layer, frame) * Mat4::from_translation(vector_center),
                 size,
                 source_size: layer.size,
                 source_rect: [
@@ -703,10 +703,11 @@ impl Scene {
     }
 }
 
-pub(crate) fn geometry_offset(layer: &Layer) -> Mat4 {
+pub(crate) fn geometry_offset(layer: &Layer, frame: f64) -> Mat4 {
+    let anchor = layer.transform.anchor.sample(layer.local_frame(frame));
     Mat4::from_translation(Vec3::new(
-        (0.5 - layer.transform.anchor[0]) * layer.size[0],
-        (layer.transform.anchor[1] - 0.5) * layer.size[1],
+        (0.5 - anchor[0]) * layer.size[0],
+        (anchor[1] - 0.5) * layer.size[1],
         0.0,
     ))
 }
