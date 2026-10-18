@@ -19,7 +19,9 @@
 
 最终完整桌面测试通过：457 passed / 0 failed / 1 ignored，212.02 秒，`combined-tests-final.log`。包含新列组合真实点击及既有主窗/浮窗、保存、撤销、锁定、下时间尺、回执、默认日志输出和阻塞观测回归。工具测试也通过：54 项，1 项跳过，43.51 秒，`combined-tool-tests.log`。
 
-组合后的带 FFmpeg 优化构建与实际截图待验证；此前 #330 和 #329 各自通过的构建不代替组合后的验证。
+组合后的带 FFmpeg 优化构建通过：15 分钟，21 条既有警告，记录见 `artifacts/timeline-video-review/integrated-build.log` 和 `integrated/build.json`。本地验证仅将 motion-desktop 的 codegen-units 设为 16，保留 release 优化及 thin LTO，不修改 CI 构建策略。
+
+完整原生检查通过，记录见 `integrated-native.log`：中英文、样式浮窗、实时节点及共享 MCP，未放宽超时。目视检查 `integrated/screens/smoke-zh.timeline-navigation.png` 及 `-hover.png`、`-drag.png`：滚动条默认灰色、悬停变亮、拖动使用 focus 色；6px 可见滑块保留 18px 命中区域。曲线说明位于左侧底栏，右侧滚动条未遮挡下时间尺。上述结果为组合后的实际构建；远端 CI、多 DPI 和其他平台仍需独立验证。
 
 ## DESIGN §0.7 处置
 
