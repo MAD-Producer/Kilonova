@@ -1,5 +1,6 @@
 //! Shell orchestrators. Panels emit actions; only the shell owns windows and workers.
 mod acceptance;
+mod node_view_acceptance;
 pub(crate) mod actions;
 mod lifecycle;
 mod media;
@@ -16,3 +17,5 @@ mod panel_maximize_acceptance;
 mod workspace_acceptance;
 
 mod design_acceptance;
+mod interaction_acceptance;
+mod property_acceptance;

@@ -81,7 +81,7 @@ pub(super) fn property_row(
         ),
     }
 }
-fn icon(
+pub(super) fn icon(
     list: &mut PaintList,
     input: &Input,
     rect: Rect,
@@ -249,7 +249,12 @@ impl Controls {
             out.push(Action::Seek(state["frame"].as_f64().unwrap_or(0.)));
         }
     }
-    fn add_rectangle_mask(&mut self, layer: &Layer, locale: Locale, out: &mut Vec<Action>) {
+    pub(super) fn add_rectangle_mask(
+        &mut self,
+        layer: &Layer,
+        locale: Locale,
+        out: &mut Vec<Action>,
+    ) {
         if self.cancel() {
             out.push(Action::History(4));
         }
@@ -301,9 +306,14 @@ impl Controls {
             host,
         );
         if self.inspector_context.as_ref() != Some(&context) {
+            let timeline_add = self
+                .timeline_add_mask_menu
+                .take()
+                .filter(|menu| menu.belongs_to(state, layer.id));
             if self.cancel() {
                 out.push(Action::History(4));
             }
+            self.timeline_add_mask_menu = timeline_add;
             self.mode_dropdowns.clear();
             self.inspector_context = Some(context);
         }
@@ -344,6 +354,20 @@ impl Controls {
             (area.width() - padding * 2. - slot).max(0.),
             row,
         );
+        if host == Panel::Properties {
+            motion_ui::style::box_style(
+                list,
+                Rect::new(
+                    area.min[0] + padding,
+                    *y,
+                    (area.width() - padding * 2.).max(0.),
+                    row,
+                ),
+                styles
+                    .resolve("effect.header", motion_ui::style::States::default())
+                    .unwrap(),
+            );
+        }
         icons::draw(
             list,
             Rect::new(heading.min[0], *y, slot, row),
@@ -352,7 +376,7 @@ impl Controls {
             } else {
                 Icon::ChevronRight
             },
-            slot,
+            styles.metric("icon.small.size", 14.),
             colors.TEXT_MUTED,
         );
         label(
@@ -364,7 +388,15 @@ impl Controls {
                 (heading.width() - slot).max(0.),
                 row,
             ),
-            &format!("{} ({})", locale.t(T::Mask), layer.masks.len()),
+            &format!(
+                "{} ({})",
+                if locale == Locale::Zh {
+                    "蒙版"
+                } else {
+                    "Masks"
+                },
+                layer.masks.len()
+            ),
             colors.TEXT,
         );
         if click(input, heading) {
@@ -469,61 +501,7 @@ impl Controls {
                     self.collapsed_mask_cards.insert((layer.id, mask.id));
                 }
             }
-            for (index, kind) in [Icon::Eye, Icon::Pen, Icon::Key, Icon::Close]
-                .into_iter()
-                .enumerate()
-            {
-                let rect = Rect::new(
-                    area.max[0] - padding - slot * (4 - index) as f32,
-                    *y,
-                    slot,
-                    row,
-                );
-                let pressed = if index == 0 {
-                    Checkbox::draw(
-                        list,
-                        atlas,
-                        rect,
-                        "",
-                        mask.enabled,
-                        input,
-                        allowed,
-                        false,
-                        None,
-                    )
-                    .clicked
-                } else {
-                    icon(list, input, rect, kind, false, allowed)
-                };
-                if pressed {
-                    match index {
-                        0 => out.push(Action::Edit(Command::Mask {
-                            object: layer.id,
-                            action: MaskAction::Options {
-                                mask: mask.id,
-                                mode: None,
-                                inverted: None,
-                                enabled: Some(!mask.enabled),
-                            },
-                        })),
-                        1 => {
-                            if self.cancel() {
-                                out.push(Action::History(4));
-                            }
-                            self.tool = Tool::Mask;
-                            self.mask = Some(mask.id);
-                        }
-                        2 => out.push(Action::MaskTimeline {
-                            object: layer.id,
-                            mask: mask.id,
-                        }),
-                        _ => out.push(Action::Edit(Command::Mask {
-                            object: layer.id,
-                            action: MaskAction::Remove { mask: mask.id },
-                        })),
-                    }
-                }
-            }
+            self.mask_header_actions(list, atlas, area, *y, row, owner, mask, input, out);
             *y += row;
             if closed {
                 *y += gap;
@@ -569,6 +547,8 @@ impl Controls {
                 colors.TEXT_MUTED,
             );
             let cell = mode_layout.mode;
+            #[cfg(test)]
+            self.inspector_modes.insert((layer.id, mask.id), cell);
             let items: Vec<_> = labels
                 .iter()
                 .map(|label| DropdownItem {
@@ -668,7 +648,11 @@ impl Controls {
             }
             *y += gap;
         }
-        list.append(overlays);
+        if host == Panel::Properties {
+            self.inspector_overlays = Some(overlays);
+        } else {
+            list.append(overlays);
+        }
     }
 }
 

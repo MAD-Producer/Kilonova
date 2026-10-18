@@ -553,6 +553,13 @@ impl Shell {
                 self.workspace.save(&self.layout_path)?;
                 self.state["desktop"]["diagnostics"] = self.engine.diagnostics().status();
             }
+            Action::TimelineColumnVisibility(visibility) => {
+                self.panels.timeline.column_visibility = visibility;
+                self.workspace.set_column_visibility(visibility);
+                if self.smoke.is_none() {
+                    self.workspace.save(&self.layout_path)?;
+                }
+            }
             Action::PreviewMode(mode) => {
                 self.state["preview"] = self.engine.preview_mode(mode, 0)?
             }

@@ -769,6 +769,12 @@ fn disabled_hint(
 }
 
 fn disabled_reason(choice: &Choice, layer: &Value, state: &Value, locale: Locale) -> String {
+    if state["observing"] == true {
+        return word(locale, "当前处于只读模式", "This session is read-only");
+    }
+    if matches!(choice, Choice::New(Action::EditBatch(_))) {
+        return word(locale, "所有图层均已解锁", "All layers are already unlocked");
+    }
     if layer["locked"] == true {
         return word(
             locale,
@@ -1161,7 +1167,7 @@ fn entries_for(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
                 } else {
                     "Hide Layer"
                 },
-                true,
+                state["observing"] != true,
                 Choice::Edit(Command::Flags {
                     object: id,
                     visible: l["visible"] == false,
@@ -1169,23 +1175,25 @@ fn entries_for(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
                 }),
             );
             add(
-                if unlocked {
+                if l["locked"] != true {
                     "锁定图层"
                 } else {
                     "解锁图层"
                 },
-                if unlocked {
+                if l["locked"] != true {
                     "Lock Layer"
                 } else {
                     "Unlock Layer"
                 },
-                true,
+                state["observing"] != true,
                 Choice::Edit(Command::Flags {
                     object: id,
                     visible: l["visible"] != false,
-                    locked: unlocked,
+                    locked: l["locked"] != true,
                 }),
             );
+            let unlock = super::layer_locks::changes(state, None, false);
+            add("全部解锁", "Unlock All Layers", !unlock.is_empty(), Choice::New(Action::EditBatch(unlock)));
         }
         Page::Order => {
             for (zh, en, dest) in [
@@ -2051,4 +2059,55 @@ mod tests {
             assert_eq!(engine.project(), &after);
         }
     }
+    #[test]
+    fn lock_switch_and_unlock_all_work_in_both_window_routes_without_empty_history() {
+        let mut atlas = TextAtlas::from_system(12.).unwrap();
+        for floating in [false, true] {
+            for locale in [Locale::Zh, Locale::En] {
+                let fixture = engine();
+                let root = tempfile::tempdir().unwrap();
+                motion_core::storage::save(root.path(), fixture.project()).unwrap();
+                let host = crate::engine::Engine::start(root.path().into(), motion_desktop_media::platform(), 8 << 30).unwrap();
+                let initial = host.state().unwrap();
+                let mut panels = Panels { selected: Some(9), focused: Some(Panel::Timeline), locale, ..Default::default() };
+                let mut render = |panels: &mut Panels, state: &Value, input: &Input| {
+                    if floating {
+                        floating_chrome(&mut PaintList::default(), &mut atlas, Panel::Timeline, [1280.,700.], panels, state, input)
+                    } else {
+                        chrome(&mut PaintList::default(), &mut atlas, [1280.,700.], &dock::Node::dock(Panel::Timeline.dock()), panels, state, input)
+                    }
+                };
+                render(&mut panels, &initial, &Input::default());
+                let mut choose = |panels: &mut Panels, state: &Value, index: usize| {
+                    panels.layer_actions.open(Some(9), [400.,600.], state);
+                    let popup = panels.layer_actions.popup.as_mut().unwrap();
+                    popup.page = Page::Switch;
+                    popup.highlighted = 0;
+                    popup.opened = false;
+                    // The child page uses its own highlight, after the root Switches row.
+                    render(panels, state, &Input::default());
+                    panels.layer_actions.popup.as_mut().unwrap().highlighted = index;
+                    render(panels, state, &Input { keys:vec![(Key::Enter,Default::default())], ..Default::default() })
+                };
+                let actions = choose(&mut panels, &initial, 1);
+                let locked = host.edit(serde_json::to_string(&edit(actions)).unwrap()).unwrap();
+                assert_eq!(locked["project"]["layers"][1]["locked"], true);
+                let actions = choose(&mut panels, &locked, 2);
+                let [Action::EditBatch(commands)] = actions.as_slice() else { panic!("one unlock batch"); };
+                let unlocked = host.edit(serde_json::to_string(commands).unwrap()).unwrap();
+                assert_eq!(unlocked["project"], initial["project"]);
+                assert_eq!(host.history(0).unwrap()["project"], locked["project"]);
+                host.history(1).unwrap();
+                host.save().unwrap();
+                assert_eq!(motion_core::storage::load(root.path()).unwrap(), *fixture.project());
+                let unchanged_revision = host.state().unwrap()["revision"].clone();
+                // Escape abandons a live menu without any project command.
+                panels.layer_actions.open(Some(9), [400.,600.], &unlocked);
+                render(&mut panels, &unlocked, &Input::default());
+                assert!(render(&mut panels, &unlocked, &Input { keys:vec![(Key::Escape,Default::default())], ..Default::default() }).is_empty());
+                assert_eq!(host.state().unwrap()["revision"], unchanged_revision);
+            }
+        }
+    }
+
 }

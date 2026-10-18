@@ -110,10 +110,27 @@ pub(super) fn property_group(
     title: &str,
     open: bool,
 ) -> Rect {
+    property_group_reserved(list, atlas, area, y, height, title, open, 0.)
+}
+pub(super) fn property_group_reserved(
+    list: &mut PaintList,
+    atlas: &mut TextAtlas,
+    area: Rect,
+    y: f32,
+    height: f32,
+    title: &str,
+    open: bool,
+    reserved: f32,
+) -> Rect {
     let styles = list.styles();
     let pad = styles.metric("padding", 5.);
     let slot = styles.metric("icon.slot", 20.);
-    let start = styles.metric("timeline.property.group_offset", 78.);
+    let preferred_start = styles.metric("timeline.property.group_offset", 78.);
+    let start = if reserved > 0. {
+        preferred_start.min((area.width() - pad - reserved - slot).max(0.))
+    } else {
+        preferred_start
+    };
     let group = Rect::new(
         area.min[0] + start,
         y,
@@ -147,13 +164,13 @@ pub(super) fn property_group(
         Rect::new(
             group.min[0] + slot,
             y,
-            (group.width() - slot - pad).max(0.),
+            (group.width() - slot - pad - reserved).max(0.),
             height,
         ),
         title,
         false,
     );
-    group
+    Rect::new(group.min[0], y, (group.width() - reserved).max(0.), height)
 }
 pub(super) fn property_branch(list: &mut PaintList, watch: Rect) {
     let styles = list.styles();
@@ -598,9 +615,11 @@ pub(super) fn render(
         out.extend(super::cancel_interaction(panels));
     }
     let colors = styles.colors();
+    let footer_height = styles.metric("field.height", 18.).min(area.height());
 
     panels.timeline_columns.begin(state);
     let context_input = input;
+    panels.path_controls.begin_timeline_mask_headers();
     panels.path_controls.groups.begin_frame(list, context_input);
     panels
         .path_controls
@@ -665,7 +684,7 @@ pub(super) fn render(
             rows_key,
             &panels.timeline,
             &query,
-            area.height(),
+            area.height() - footer_height,
             row_height,
         )
     };
@@ -676,11 +695,17 @@ pub(super) fn render(
     {
         panels.timeline.scroll_extent_cache.unwrap().1
     } else {
-        let max = calculate_scroll_max(&layouts, area.height(), row_height);
+        let max = calculate_scroll_max(&layouts, area.height() - footer_height, row_height);
         panels.timeline.scroll_extent_cache = Some((extent_signature, max));
         max
     };
     let gutter = GUTTER.min(area.width() * 0.52);
+    let columns = super::timeline_columns::ColumnRects::styled(
+        &list.styles(),
+        area.min[0],
+        gutter,
+        panels.timeline.column_visibility,
+    );
     let track = Rect::new(
         area.min[0] + gutter,
         area.min[1],
@@ -696,6 +721,7 @@ pub(super) fn render(
         || panels.timeline.moving.is_some()
         || panels.timeline.trimming.is_some()
         || panels.timeline.scrubbing
+        || panels.timeline.horizontal_drag.is_some()
         || panels.properties.field.is_some()
         || panels.audio_controls.editing()
         || panels.path_controls.editing();
@@ -723,8 +749,6 @@ pub(super) fn render(
         .timeline
         .offset
         .min((total as f32 - total as f32 / panels.timeline.zoom.max(1.0)).max(0.0));
-    let ppf = track.width() / total as f32 * panels.timeline.zoom.max(1.0);
-    let offset = panels.timeline.offset;
     let candidates_for = |exclude: Option<u64>, include_playhead: bool| {
         let mut candidates = vec![0., total];
         if include_playhead {
@@ -743,13 +767,6 @@ pub(super) fn render(
         candidates
     };
     let seek_candidates = candidates_for(None, false);
-    let x_of = |f: f64| track.min[0] + (f as f32 - offset) * ppf;
-    super::audio::process_drag(panels, state, input, ppf, out);
-    let frame_of = |x: f32| {
-        ((x - track.min[0]) / ppf + offset)
-            .round()
-            .clamp(0.0, (total - 1.0) as f32) as f64
-    };
     paint::rect(
         list,
         Rect::new(area.min[0], area.min[1], area.width(), 64.0),
@@ -861,13 +878,6 @@ pub(super) fn render(
         let next = panels.timeline.zoom.max(1.) / 1.25;
         super::timeline_zoom::zoom_at(&mut panels.timeline, total as f32, next, 0.5);
     }
-    label(
-        list,
-        atlas,
-        Rect::new(zoom_x + 29., toolbar_top, 58., toolbar_height),
-        &format!("{:.0}%", panels.timeline.zoom.max(1.) * 100.),
-        true,
-    );
     if ui::button(
         list,
         atlas,
@@ -894,6 +904,19 @@ pub(super) fn render(
         panels.timeline.zoom = 1.;
         panels.timeline.offset = 0.;
     }
+    label(
+        list,
+        atlas,
+        Rect::new(zoom_x + 29., toolbar_top, 58., toolbar_height),
+        &format!("{:.0}%", panels.timeline.zoom.max(1.) * 100.),
+        true,
+    );
+    let navigation = super::timeline_navigation::Geometry::new(track, footer_height, total as f32, &panels.timeline, &styles);
+    super::timeline_navigation::update(&navigation, &mut panels.timeline, input, total as f32, gesture);
+    let ppf = track.width() / total as f32 * panels.timeline.zoom.max(1.0);
+    let offset = panels.timeline.offset;
+    let x_of = |f: f64| track.min[0] + (f as f32 - offset) * ppf;
+    super::audio::process_drag(panels, state, input, ppf, out);
     for (i, (tool, action)) in [
         (Tool::First, Action::Seek(0.0)),
         (
@@ -924,23 +947,21 @@ pub(super) fn render(
             out,
         );
     }
+    if let Some(switch) = columns.three_d {
+        label(list, atlas, switch.rect(ruler.min[1], ruler.height()), "3D", true);
+    }
     label(
         list,
         atlas,
-        Rect::new(
-            area.min[0] + 90.0,
-            ruler.min[1],
-            (gutter - 320.0).max(1.0),
-            28.0,
-        ),
+        columns.name.rect(ruler.min[1], ruler.height()),
         locale.t(T::SourceName),
         true,
     );
-    if gutter >= 500. {
+    if let Some(matte) = columns.matte {
         label(
             list,
             atlas,
-            Rect::new(area.min[0] + gutter - 280., ruler.min[1], 78., 28.),
+            matte.rect(ruler.min[1], 28.0),
             if locale == Locale::Zh {
                 "遮罩"
             } else {
@@ -949,20 +970,29 @@ pub(super) fn render(
             true,
         );
     }
-    label(
-        list,
-        atlas,
-        Rect::new(area.min[0] + gutter - 196., ruler.min[1], 76., 28.),
-        locale.t(T::BlendMode),
-        true,
-    );
-    label(
-        list,
-        atlas,
-        Rect::new(area.min[0] + gutter - 112.0, ruler.min[1], 104.0, 28.0),
-        locale.t(T::ParentLink),
-        true,
-    );
+    if let Some(blend) = columns.blend {
+        label(
+            list,
+            atlas,
+            blend.rect(ruler.min[1], 28.0),
+            locale.t(T::BlendMode),
+            true,
+        );
+    }
+    if let (Some(link), Some(parent)) = (columns.link, columns.parent) {
+        label(
+            list,
+            atlas,
+            Rect::new(
+                link.x + 2.0,
+                ruler.min[1],
+                parent.max_x() - link.x - 2.0,
+                28.0,
+            ),
+            locale.t(T::ParentLink),
+            true,
+        );
+    }
     ui::icon(
         list,
         Rect::new(area.min[0] + 10.0, ruler.min[1] + 3.0, 16.0, 24.0),
@@ -989,7 +1019,7 @@ pub(super) fn render(
         area.min[0],
         ruler.max[1],
         area.width(),
-        (area.max[1] - ruler.max[1]).max(0.0),
+        (area.max[1] - footer_height - ruler.max[1]).max(0.0),
     );
     let mut row_offset = 0;
     let mut timeline_hit = false;
@@ -1070,9 +1100,9 @@ pub(super) fn render(
             continue;
         }
         let name = Rect::new(
-            area.min[0] + 112.0,
+            columns.name.x,
             y,
-            (gutter - if gutter >= 500. { 398. } else { 320. }).max(1.0),
+            columns.name.width,
             row_height,
         );
         let selected = panels.selection_contains(row.id);
@@ -1094,7 +1124,6 @@ pub(super) fn render(
                     panels.timeline.expanded.remove(&row.id);
                 } else {
                     panels.timeline.expanded.insert(row.id);
-                    panels.timeline.collapsed_geometry.insert(row.id);
                     panels.timeline.reopen_properties(row.id);
                 }
             }
@@ -1128,6 +1157,27 @@ pub(super) fn render(
         let layer = state["project"]["layers"]
             .as_array()
             .and_then(|ls| ls.iter().find(|l| l["id"].as_u64() == Some(row.id)));
+        if let (Some(layer), Some(switch)) = (layer.filter(|_| row.id != 0 && row.spatial && !row.camera), columns.three_d) {
+            if motion_ui::widgets::Checkbox::draw(
+                list,
+                atlas,
+                switch.rect(y, row_height),
+                "",
+                layer["three_d"] == true,
+                input,
+                !row.locked && state["observing"] != true,
+                false,
+                None,
+            )
+            .clicked
+            {
+                out.extend(super::cancel_interaction(panels));
+                out.push(Action::Edit(Command::SetLayer3d {
+                    object: row.id,
+                    enabled: layer["three_d"] != true,
+                }));
+            }
+        }
         let icon = match layer.map(|l| l["content"]["kind"].as_str().unwrap_or("")) {
             Some("text") => motion_ui::icons::Icon::Text,
             Some("image") => motion_ui::icons::Icon::Image,
@@ -1145,94 +1195,87 @@ pub(super) fn render(
             colors.TEXT_MUTED,
         );
         if let Some(owner) = super::timeline_columns::owner(state, row.id) {
-            let matte = Rect::new(
-                area.min[0] + gutter - 280.,
-                y + 2.,
-                78.,
-                (row_height - 4.).max(1.),
-            );
-            let blend = Rect::new(
-                area.min[0] + gutter - 196.,
-                y + 2.,
-                76.,
-                (row_height - 4.).max(1.),
-            );
-            let parent = Rect::new(
-                area.min[0] + gutter - 94.,
-                y + 2.,
-                86.,
-                (row_height - 4.).max(1.),
-            );
-            let link = Rect::new(
-                area.min[0] + gutter - 114.,
-                y + 4.,
-                14.,
-                (row_height - 8.).max(1.),
-            );
+            let cell_height = (row_height - 4.).max(1.);
+            let matte = columns.matte.map(|slot| slot.rect(y + 2., cell_height));
+            let blend = columns.blend.map(|slot| slot.rect(y + 2., cell_height));
+            let parent = columns.parent.map(|slot| slot.rect(y + 2., cell_height));
+            let link = columns
+                .link
+                .map(|slot| slot.rect(y + 4., (row_height - 8.).max(1.)));
             let blend_supported = !matches!(
                 owner["content"]["kind"].as_str(),
                 Some("null" | "camera" | "audio" | "adjustment")
             ) && row.id != 0;
             let blend_enabled = blend_supported && !row.locked;
-            let matte_enabled = blend_enabled && gutter >= 500.;
+            let matte_enabled = blend_enabled && matte.is_some();
             let parent_enabled = row.id == 0 || !row.locked && row.spatial;
-            if (blend_enabled && clicked(input, blend))
-                || (matte_enabled && clicked(input, matte))
-                || (parent_enabled && (clicked(input, parent) || clicked(input, link)))
+            if (blend_enabled && blend.is_some_and(|rect| clicked(input, rect)))
+                || (matte_enabled && matte.is_some_and(|rect| clicked(input, rect)))
+                || (parent_enabled
+                    && (parent.is_some_and(|rect| clicked(input, rect))
+                        || link.is_some_and(|rect| clicked(input, rect))))
             {
                 out.extend(super::cancel_interaction(panels));
             }
-            motion_ui::icons::draw(
-                list,
-                link,
-                motion_ui::icons::Icon::Link,
-                14.,
-                if parent_enabled {
-                    colors.TEXT_MUTED
-                } else {
-                    colors.TEXT_MUTED.with_alpha(0.4)
-                },
-            );
-            let mut link_input = input.clone();
-            if parent_enabled && clicked(input, link) {
-                link_input.pressed =
-                    Some((MouseButton::Left, [parent.min[0] + 1., parent.min[1] + 1.]));
+            if let Some(link) = link {
+                motion_ui::icons::draw(
+                    list,
+                    link,
+                    motion_ui::icons::Icon::Link,
+                    14.,
+                    if parent_enabled {
+                        colors.TEXT_MUTED
+                    } else {
+                        colors.TEXT_MUTED.with_alpha(0.4)
+                    },
+                );
             }
-            let opened_matte = gutter >= 500.
-                && panels.timeline_columns.cell(
+            let mut link_input = input.clone();
+            if parent_enabled && link.is_some_and(|rect| clicked(input, rect)) {
+                if let Some(parent) = parent {
+                    link_input.pressed =
+                        Some((MouseButton::Left, [parent.min[0] + 1., parent.min[1] + 1.]));
+                }
+            }
+            let opened_matte = match matte {
+                Some(rect) => panels.timeline_columns.cell(
                     list,
                     atlas,
-                    matte,
+                    rect,
                     row.id,
                     super::timeline_columns::Column::Matte,
                     &super::timeline_columns::matte_name(owner, state, locale),
                     input,
                     matte_enabled,
-                );
-            let opened_blend = if blend_supported {
-                panels.timeline_columns.cell(
+                ),
+                _ => false,
+            };
+            let opened_blend = match blend {
+                Some(rect) if blend_supported => panels.timeline_columns.cell(
                     list,
                     atlas,
-                    blend,
+                    rect,
                     row.id,
                     super::timeline_columns::Column::Blend,
                     super::timeline_columns::blend_name(owner, locale),
                     input,
                     blend_enabled,
-                )
-            } else {
-                false
+                ),
+                _ => false,
             };
-            let opened_parent = panels.timeline_columns.cell(
-                list,
-                atlas,
-                parent,
-                row.id,
-                super::timeline_columns::Column::Parent,
-                &super::timeline_columns::parent_name(owner, state, locale),
-                &link_input,
-                parent_enabled,
-            );
+            let opened_parent = match parent {
+                Some(rect) => panels.timeline_columns.cell(
+                    list,
+                    atlas,
+                    rect,
+                    row.id,
+                    super::timeline_columns::Column::Parent,
+                    &super::timeline_columns::parent_name(owner, state, locale),
+                    &link_input,
+                    parent_enabled,
+                ),
+                None => false,
+            };
             if opened_blend || opened_parent || opened_matte {
                 panels.select_only(Some(row.id));
             }
@@ -1296,87 +1339,89 @@ pub(super) fn render(
         }
         let left = x_of(row.range[0]).max(track.min[0]);
         let right = x_of(row.range[1]).min(track.max[0]);
-        let bar = Rect::new(left, y + 5.0, (right - left).max(0.0), row_height - 10.0);
-        paint::rect(
-            list,
-            bar,
-            colors.TRACKS[index % colors.TRACKS.len()].with_alpha(if row.visible {
-                0.7
-            } else {
-                0.2
-            }),
-        );
-        if selected {
-            paint::stroke(list, bar, colors.ACCENT, 1.0);
-        }
-        if !row.locked && bar.contains(input.mouse) {
-            panels.cursor = Some(motion_ui::cursor::Cursor::Grab);
-        }
-        for (head, x, visible) in [
-            (true, left, x_of(row.range[0]) >= track.min[0]),
-            (false, right, x_of(row.range[1]) <= track.max[0]),
-        ] {
-            let handle = Rect::new(x - 4.0, y + 4.0, 8.0, row_height - 8.0);
-            if selected && visible && !row.locked {
-                paint::rect(list, handle, colors.ACCENT);
-                if handle.contains(input.mouse) {
-                    panels.cursor = Some(motion_ui::cursor::Cursor::ResizeEW);
+        if right > left {
+            let bar = Rect::new(left, y + 5.0, (right - left).max(0.0), row_height - 10.0);
+            paint::rect(
+                list,
+                bar,
+                colors.TRACKS[index % colors.TRACKS.len()].with_alpha(if row.visible {
+                    0.7
+                } else {
+                    0.2
+                }),
+            );
+            if selected {
+                paint::stroke(list, bar, colors.ACCENT, 1.0);
+            }
+            if !row.locked && bar.contains(input.mouse) {
+                panels.cursor = Some(motion_ui::cursor::Cursor::Grab);
+            }
+            for (head, x) in [
+                (true, x_of(row.range[0])),
+                (false, x_of(row.range[1])),
+            ] {
+                let handle = Rect::new(x - 4.0, y + 4.0, 8.0, row_height - 8.0);
+                if selected && x >= track.min[0] && x <= track.max[0] && !row.locked {
+                    paint::rect(list, handle, colors.ACCENT);
+                    if handle.contains(input.mouse) {
+                        panels.cursor = Some(motion_ui::cursor::Cursor::ResizeEW);
+                    }
+                    if clicked(input, handle) {
+                        panels.timeline.trimming = Some((
+                            row.id,
+                            row.range[0],
+                            row.range[1],
+                            head,
+                            if head { row.range[0] } else { row.range[1] },
+                        ));
+                        out.push(Action::History(2));
+                    }
                 }
-                if clicked(input, handle) {
-                    panels.timeline.trimming = Some((
+            }
+            if clicked(input, bar) && panels.timeline.trimming.is_none() {
+                if input.modifiers.control
+                    || input.modifiers.shift
+                    || !panels.selection_contains(row.id)
+                {
+                    select_row(
+                        panels,
+                        &rows,
+                        index,
                         row.id,
-                        row.range[0],
-                        row.range[1],
-                        head,
-                        if head { row.range[0] } else { row.range[1] },
-                    ));
-                    out.push(Action::History(2));
+                        input.modifiers.control,
+                        input.modifiers.shift,
+                    );
                 }
-            }
-        }
-        if clicked(input, bar) && panels.timeline.trimming.is_none() {
-            if input.modifiers.control
-                || input.modifiers.shift
-                || !panels.selection_contains(row.id)
-            {
-                select_row(
-                    panels,
-                    &rows,
-                    index,
-                    row.id,
-                    input.modifiers.control,
-                    input.modifiers.shift,
-                );
-            }
-            if !row.locked && !input.modifiers.control && !input.modifiers.shift {
-                panels.selected = Some(row.id);
-                panels.selection_anchor = Some(row.id).filter(|id| *id != 0);
-                panels.animation_controls.clear_key();
-                let ids = panels.selection_ids();
-                let moving = ids
-                    .into_iter()
-                    .filter_map(|id| {
-                        all_rows
-                            .iter()
-                            .find(|candidate| candidate.id == id)
-                            .filter(|candidate| !candidate.locked)
-                            .map(|candidate| {
-                                (
-                                    candidate.id,
-                                    candidate.clip[0],
-                                    candidate.clip[1] - candidate.clip[0],
-                                )
-                            })
-                    })
-                    .collect::<Vec<_>>();
-                if !moving.is_empty() {
-                    panels.timeline.moving = Some(super::types::MovingLayers {
-                        start_mouse: input.mouse[0],
-                        initial: moving[0].1,
-                        last: moving[0].1,
-                        layers: moving,
-                    });
-                    out.push(Action::History(2));
+                if !row.locked && !input.modifiers.control && !input.modifiers.shift {
+                    panels.selected = Some(row.id);
+                    panels.selection_anchor = Some(row.id).filter(|id| *id != 0);
+                    panels.animation_controls.clear_key();
+                    let ids = panels.selection_ids();
+                    let moving = ids
+                        .into_iter()
+                        .filter_map(|id| {
+                            all_rows
+                                .iter()
+                                .find(|candidate| candidate.id == id)
+                                .filter(|candidate| !candidate.locked)
+                                .map(|candidate| {
+                                    (
+                                        candidate.id,
+                                        candidate.clip[0],
+                                        candidate.clip[1] - candidate.clip[0],
+                                    )
+                                })
+                        })
+                        .collect::<Vec<_>>();
+                    if !moving.is_empty() {
+                        panels.timeline.moving = Some(super::types::MovingLayers {
+                            start_mouse: input.mouse[0],
+                            initial: moving[0].1,
+                            last: moving[0].1,
+                            layers: moving,
+                        });
+                        out.push(Action::History(2));
+                    }
                 }
             }
         }
@@ -1401,7 +1446,7 @@ pub(super) fn render(
         super::timeline_graph::render(
             list,
             atlas,
-            Rect::new(track.min[0], body.min[1], track.width(), body.height()),
+            Rect::new(track.min[0], body.min[1], track.width(), body.height() + footer_height),
             panels,
             state,
             input,
@@ -1629,22 +1674,37 @@ pub(super) fn render(
         state["frame"].as_f64().unwrap_or(0.)
     };
     let target = x_of(frame);
+    let playhead_view = (track, panels.timeline.zoom.max(1.), offset);
+    let view_changed = panels.timeline.playhead_view != Some(playhead_view);
+    panels.timeline.playhead_view = Some(playhead_view);
     let x = panels.motion.value(
         (0, 2),
         target,
         target,
         styles.as_ref().metric("motion.seek_ms", 90.),
-        panels.timeline.scrubbing || panels.playing,
+        panels.timeline.scrubbing || panels.playing || view_changed,
     );
-    if x >= track.min[0] && x < track.max[0] {
+    if target >= track.min[0] && target < track.max[0] && x >= track.min[0] && x < track.max[0] {
         paint::rect(
             list,
-            Rect::new(x, ruler.min[1], 1.0, area.height()),
+            Rect::new(x, ruler.min[1], 1.0, body.max[1] - ruler.min[1]),
             colors.ACCENT,
         );
         paint::diamond(list, [x, ruler.min[1] + 6.0], 6.0, colors.ACCENT);
     }
 
+    if graph_mode {
+        let source = panels.selected.and_then(|object| super::animation_data::channel(
+            state, object, panels.animation_controls.property.unwrap_or(Property::Position),
+            panels.animation_controls.axis,
+        ));
+        super::graph_notice::draw(
+            list, atlas,
+            Rect::new(area.min[0], area.max[1] - footer_height, gutter, footer_height),
+            locale, source.is_some_and(super::graph_notice::has_negative),
+        );
+    }
+    super::timeline_navigation::paint(list, track, footer_height, total as f32, &panels.timeline, input);
     panels
         .timeline_columns
         .overlay(list, atlas, area, state, context_input, locale, out);
@@ -2177,63 +2237,6 @@ pub(super) fn render_layer_properties(
             );
         }
     }
-    if !layout.geometry.is_empty() {
-        let gy = y + layout.geometry.start as f32 * row_height;
-        if gy >= body.min[1] && gy + row_height <= body.max[1] {
-            let heading = property_group(
-                list,
-                atlas,
-                area,
-                gy,
-                row_height,
-                if locale == Locale::Zh {
-                    "几何设置"
-                } else {
-                    "Geometry"
-                },
-                layout.geometry_open,
-            );
-            if clicked(input, heading) {
-                if !panels.timeline.collapsed_geometry.remove(&row.id) {
-                    panels.timeline.collapsed_geometry.insert(row.id);
-                }
-            }
-        }
-        if layout.geometry_open {
-            let py = gy + row_height;
-            if py >= body.min[1] && py + row_height <= body.max[1] {
-                let fields = property_layout(&list.styles(), area, py, row_height, 0, 1);
-                property_branch(list, fields.watch);
-                label(list, atlas, fields.caption, "3D", true);
-                if let Some(layer) = state["project"]["layers"]
-                    .as_array()
-                    .into_iter()
-                    .flatten()
-                    .find(|layer| layer["id"].as_u64() == Some(row.id))
-                {
-                    let enabled = !row.locked && state["observing"] != true;
-                    if motion_ui::widgets::Checkbox::draw(
-                        list,
-                        atlas,
-                        fields.number,
-                        "",
-                        layer["three_d"] == true,
-                        input,
-                        enabled,
-                        false,
-                        None,
-                    )
-                    .clicked
-                    {
-                        out.push(Action::Edit(Command::SetLayer3d {
-                            object: row.id,
-                            enabled: layer["three_d"] != true,
-                        }));
-                    }
-                }
-            }
-        }
-    }
     let start = y + layout.masks.start as f32 * row_height;
     super::path_controls::timeline::render(
         list,
@@ -2293,8 +2296,12 @@ pub(super) fn render_layer_properties(
             }
         }
         if layout.effects_open {
-            let effects = state["project"]["layers"].as_array().into_iter().flatten()
-                .find(|layer| layer["id"].as_u64() == Some(row.id)).and_then(|layer| layer["effects"].as_array());
+            let effects = state["project"]["layers"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .find(|layer| layer["id"].as_u64() == Some(row.id))
+                .and_then(|layer| layer["effects"].as_array());
             for (index, effect) in effects.into_iter().flatten().enumerate() {
                 let py = ey + (index + 1) as f32 * row_height;
                 if py < body.min[1] || py + row_height > body.max[1] {

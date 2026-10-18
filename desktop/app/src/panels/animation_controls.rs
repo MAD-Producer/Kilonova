@@ -140,7 +140,7 @@ impl Controls {
         let colors = styles.colors();
 
         let object = layer["id"].as_u64().unwrap();
-        let locked = layer["locked"].as_bool().unwrap_or(false);
+        let locked = layer["locked"] == true || state["observing"] == true;
         let frame = state["frame"].as_f64().unwrap_or(0.0).floor() as u32;
         let start = area.min[0] + 16.;
         let width = (area.width() - 32.).max(1.);
@@ -512,6 +512,9 @@ impl Controls {
             changed = true;
         }
         *y += 30.;
+        *y += super::graph_notice::draw(list, atlas,
+            Rect::new(start, *y, width, styles.metric("row.height", 22.)), locale,
+            super::graph_notice::has_negative(track));
         let graph = Rect::new(start, *y, width, 130.);
         paint::rect(list, graph, colors.SUNKEN);
         paint::stroke(list, graph, colors.BORDER, 1.);

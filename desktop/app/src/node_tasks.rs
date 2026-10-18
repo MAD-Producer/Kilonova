@@ -297,6 +297,7 @@ impl NodeTasks {
             Action::Compile(s) => (Kind::Compile, s),
             Action::ExportMsfx(s) => (Kind::Export, s),
             Action::ShowProperties
+            | Action::ViewPreferencesChanged(_)
             | Action::Changed { .. }
             | Action::Examples(_)
             | Action::PreviewChanged => {
