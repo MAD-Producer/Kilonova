@@ -69,6 +69,29 @@ mod tests {
         assert_eq!(frozen.memory_policy, policy);
         assert_eq!(session.effects.memory_policy(), MemoryPolicy::default());
     }
+    #[test]
+    fn frozen_movie_samples_animated_layer_anchor_after_live_edits() {
+        let dir=tempfile::tempdir().unwrap();
+        let root=dir.path().join("project");fs::create_dir_all(&root).unwrap();
+        let mut p=Project::new(64,64,30,6).unwrap();
+        p.layers.push(Layer::solid(7,"Anchor card",[16.;2],[32.,32.,0.],[1.;4]));
+        let mut session=Session::new(p,root,crate::platform()).unwrap();
+        session.engine.apply(Command::Animate{object:7,property:Property::Anchor,axis:None,frame:0,enabled:true}).unwrap();
+        for (frame,value) in [(0,[0.,0.,0.]),(5,[1.,1.,0.])] {
+            session.engine.apply(Command::SetVector{object:7,property:Property::Anchor,frame,value}).unwrap();
+        }
+        let frozen=FrozenMovie::from_session(&session).unwrap();
+        let track=frozen.project.layers[0].transform.anchor.clone();
+        session.engine.apply(Command::Anchor{object:7,anchor:[0.5;2]}).unwrap();
+        assert!(!session.engine.project().layers[0].transform.anchor.is_animated());
+        assert_eq!(frozen.project.layers[0].transform.anchor,track);
+        let out=dir.path().join("anchor.mp4");
+        let result=frozen.export(&out,&ExportControl::default(),|_|{}).unwrap();
+        assert!(result.bytes>0);
+        let (first,last)=decoded_pixels(&out);
+        assert!(pixel(&first,44,44)[0]>220 && pixel(&last,44,44)[0]<40);
+        assert!(pixel(&first,20,20)[0]<40 && pixel(&last,20,20)[0]>220);
+    }
     fn source_movie(path: &Path) {
         let mut encode = crate::encode::Mp4Encoder::new(path, 64, 64, 30).unwrap();
         for frame in 0..6 {

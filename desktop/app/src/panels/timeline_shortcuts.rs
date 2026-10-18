@@ -71,7 +71,7 @@ fn reveal(
         let mask = if append {
             if expanded {
                 (match old {
-                    PropertyFilter::All => 15,
+                    PropertyFilter::All => 31,
                     PropertyFilter::Properties(mask) => mask,
                     PropertyFilter::Animated => timeline::filtered_properties(state, object, old)
                         .iter()
@@ -106,8 +106,6 @@ fn reveal(
     panels.properties.transform_collapsed = hidden;
     panels.properties.properties_scroll = 0.;
     if next == PropertyFilter::Animated {
-        panels.timeline.collapsed_geometry.remove(&object);
-        panels.properties.geometry_collapsed = false;
         super::path_controls::groups::timeline::reveal_animated(panels,state,object);
         if let Some(first) = timeline::filtered_properties(state, object, next).first() {
             panels

@@ -39,42 +39,49 @@ pub fn parse_commands(text: &str) -> Result<Vec<Command>> {
 }
 
 enum Channel<'a> {
+    Anchor(&'a mut Track<[f32; 2]>),
     Scalar(&'a mut Track<f32>),
     Vector(&'a mut Track<[f32; 3]>),
 }
 impl Channel<'_> {
     fn curve(self, frame: i32, easing: Easing) -> Result<()> {
         match self {
+            Self::Anchor(t) => t.set_curve(frame, easing),
             Self::Scalar(t) => t.set_curve(frame, easing),
             Self::Vector(t) => t.set_curve(frame, easing),
         }
     }
     fn copy_key(self, from: i32, to: i32) -> Result<()> {
         match self {
+            Self::Anchor(t) => t.copy_key(from, to),
             Self::Scalar(t) => t.copy_key(from, to),
             Self::Vector(t) => t.copy_key(from, to),
         }
     }
     fn animate(self, frame: i32, enabled: bool) -> Result<()> {
         match self {
+            Self::Anchor(t) => t.set_animated(frame, enabled),
             Self::Scalar(t) => t.set_animated(frame, enabled),
             Self::Vector(t) => t.set_animated(frame, enabled),
         }
     }
     fn move_key(self, from: i32, to: i32) -> Result<()> {
         match self {
+            Self::Anchor(t) => t.move_key(from, to),
             Self::Scalar(t) => t.move_key(from, to),
             Self::Vector(t) => t.move_key(from, to),
         }
     }
     fn delete_key(self, frame: i32) -> Result<()> {
         match self {
+            Self::Anchor(t) => t.delete_key(frame),
             Self::Scalar(t) => t.delete_key(frame),
             Self::Vector(t) => t.delete_key(frame),
         }
     }
     fn ease(self, frame: i32, ease: Ease) -> Result<()> {
         match self {
+            Self::Anchor(t) => t.set_ease(frame, ease),
             Self::Scalar(t) => t.set_ease(frame, ease),
             Self::Vector(t) => t.set_ease(frame, ease),
         }
@@ -114,6 +121,7 @@ fn channel(project: &mut Project, object: u64, property: Property) -> Result<Cha
         return Err(Error::Locked(object));
     }
     Ok(match property {
+        Property::Anchor => Channel::Anchor(&mut layer.transform.anchor),
         Property::Position => Channel::Vector(&mut layer.transform.position),
         Property::Rotation => Channel::Vector(&mut layer.transform.rotation),
         Property::Scale => Channel::Vector(&mut layer.transform.scale),
@@ -133,6 +141,7 @@ fn axis_channel(
 ) -> Result<Channel<'_>> {
     let c = channel(project, object, property)?;
     match (c, axis) {
+        (Channel::Anchor(_), Some(_)) => Err(Error::Invalid("anchor does not support separated axes".into())),
         (Channel::Vector(t), Some(axis)) => Ok(Channel::Scalar(t.axis_mut(axis)?)),
         (Channel::Scalar(_), Some(_)) => {
             Err(Error::Invalid("scalar property has no XYZ axis".into()))
@@ -540,6 +549,10 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             valid_frame(frame)?;
             let frame = project.edit_frame(object, frame)?;
             match channel(project, object, property)? {
+                Channel::Anchor(t) => {
+                    ensure(value[2] == 0., "anchor requires two components; Z must be zero")?;
+                    t.set_at(frame, [value[0], value[1]])?;
+                }
                 Channel::Vector(t) => t.set_at(frame, value)?,
                 _ => return Err(Error::Invalid("expected a scalar property".into())),
             }
@@ -863,12 +876,10 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             if old.locked {
                 return Err(Error::Locked(object));
             }
-            let local_delta = Vec3::new(
-                (anchor[0] - old.transform.anchor[0]) * old.size[0],
-                (old.transform.anchor[1] - anchor[1]) * old.size[1],
-                0.0,
-            );
             let compensate = |frame: f64| {
+                let previous = old.transform.anchor.sample(frame);
+                let local_delta = Vec3::new((anchor[0]-previous[0])*old.size[0],
+                    (previous[1]-anchor[1])*old.size[1],0.);
                 let mut r = old.transform.rotation.sample(frame);
                 if !old.three_d {
                     r[0] = 0.0;
@@ -881,6 +892,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
                 [pos[0] + delta.x, pos[1] - delta.y, pos[2] - delta.z]
             };
             let animated = old.transform.position.is_animated()
+                || old.transform.anchor.is_animated()
                 || old.transform.rotation.is_animated()
                 || old.transform.scale.is_animated();
             let mut position = Track::constant(compensate(0.0));
@@ -891,6 +903,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
                     .transform
                     .position
                     .key_frames()
+                    .chain(old.transform.anchor.key_frames())
                     .chain(old.transform.rotation.key_frames())
                     .chain(old.transform.scale.key_frames());
                 let (first, last) =
@@ -908,10 +921,27 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             }
             let layer = project.layer_mut(object)?;
             layer.transform.position = position;
-            layer.transform.anchor = anchor;
+            layer.transform.anchor = Track::constant(anchor);
+        }
+        Command::AnchorAt { object, frame, anchor } => {
+            let local = project.edit_frame(object, frame)?;
+            ensure(anchor.iter().all(|v|v.is_finite() && v.abs()<=1000.), "invalid anchor")?;
+            let layer = project.layer_mut(object)?;
+            ensure(layer.camera_data().is_none() && !matches!(layer.content, Content::Audio { .. }), "object has no layer anchor")?;
+            if layer.locked { return Err(Error::Locked(object)); }
+            let previous = layer.transform.anchor.sample(f64::from(local));
+            let mut rotation = layer.transform.rotation.sample(f64::from(local));
+            if !layer.three_d { rotation[0]=0.; rotation[1]=0.; }
+            let delta = motion_model::geometry::rotation_quaternion(rotation,layer.rotation_order)
+                * (Vec3::from_array(layer.transform.scale.sample(f64::from(local)))/100.
+                    * Vec3::new((anchor[0]-previous[0])*layer.size[0],(previous[1]-anchor[1])*layer.size[1],0.));
+            let position = layer.transform.position.sample(f64::from(local));
+            layer.transform.position.set_at(local,[position[0]+delta.x,position[1]-delta.y,position[2]-delta.z])?;
+            layer.transform.anchor.set_at(local,anchor)?;
         }
     }
     for layer in &project.layers {
+        if layer.transform.anchor.is_animated() { project.version=project.version.max(20); }
         if let Content::Vector { vector } = &layer.content { project.version = project.version.max(vector.required_format()); }
         if layer.clip(project.frames).extends_composition(project.frames) { project.version = project.version.max(13); }
         if layer.audio_levels.is_some() {project.version=project.version.max(14);}

@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Property {
+    Anchor,
     Position,
     Rotation,
     Scale,
@@ -223,6 +224,8 @@ pub enum Command {
         object: u64,
         anchor: [f32; 2],
     },
+    /// Move the sampled anchor with position compensation at composition time.
+    AnchorAt { object: u64, frame: u32, anchor: [f32; 2] },
     CameraMode {
         #[serde(default)]
         object: u64,

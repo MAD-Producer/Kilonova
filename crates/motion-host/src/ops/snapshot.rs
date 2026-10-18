@@ -152,7 +152,7 @@ impl Session {
                     "roll":c.roll.sample(local),"fov":c.fov.sample(local),"radius":c.radius.sample(local),
                     "azimuth":c.azimuth.sample(local),"elevation":c.elevation.sample(local)}));
                 let mut sample = json!({"id":l.id,"position":l.transform.position.sample(local),
-            "rotation":l.transform.rotation.sample(local),"scale":l.transform.scale.sample(local),
+            "rotation":l.transform.rotation.sample(local),"scale":l.transform.scale.sample(local),"anchor":l.transform.anchor.sample(local),
             "opacity":l.transform.opacity.sample(local).clamp(0.0,1.0),"active":l.active(f,p.frames),"three_d":l.three_d,
             "audio_levels":l.audio_levels.as_ref().map(|levels|{let v=levels.sample(local);json!({"left":v[0],"right":v[1]})})});
                 if let Some(camera) = camera {
@@ -244,11 +244,12 @@ impl Session {
                     glam::Mat4::orthographic_rh(-(p.width as f32)*0.5,p.width as f32*0.5,
                         -(p.height as f32)*0.5,p.height as f32*0.5,-1.,1.)
                 });
+            let anchor=layer.transform.anchor.sample(layer.local_frame(f));
             let offset=glam::Mat4::from_translation(glam::Vec3::new(
-                (0.5-layer.transform.anchor[0])*layer.size[0],
-                (layer.transform.anchor[1]-0.5)*layer.size[1],0.));
+                (0.5-anchor[0])*layer.size[0],
+                (anchor[1]-0.5)*layer.size[1],0.));
             Some(json!({"id":layer.id,"mvp":(vp*world*offset).to_cols_array(),
-                "size":layer.size,"anchor":layer.transform.anchor,"coordinates":"source_centered_pixels"}))
+                "size":layer.size,"anchor":anchor,"coordinates":"source_centered_pixels"}))
         }).collect();
         let camera_properties: Vec<&str> = if !p.camera.created {
             vec![]

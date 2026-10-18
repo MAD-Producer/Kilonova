@@ -19,6 +19,7 @@ use motion_ui::{
 };
 use serde_json::Value;
 pub(in crate::panels) mod groups;
+pub(in crate::panels) mod mask_header;
 mod mask_inspector;
 mod mask_keys;
 mod mask_path;
@@ -223,7 +224,11 @@ pub struct Controls {
     inspector_context: Option<(String, String, u64, motion_ui::dock::Panel)>,
     inspector_cache: Option<InspectorLayer>,
     inspector_add: Option<(motion_ui::dock::Panel, Rect)>,
+    inspector_overlays: Option<PaintList>,
+    #[cfg(test)]
+    pub(in crate::panels) inspector_modes: std::collections::HashMap<(u64, u64), Rect>,
     add_mask_menu: motion_ui::widgets::Dropdown,
+    timeline_add_mask_menu: Option<mask_header::AddMenu>,
     mode_dropdowns: std::collections::HashMap<(u64, u64), motion_ui::widgets::Dropdown>,
     collapsed_mask_cards: std::collections::HashSet<(u64, u64)>,
     pub masks_open: bool,
@@ -382,6 +387,7 @@ impl Controls {
             || self.keys.editing()
             || self.groups.editing()
             || self.add_mask_menu.open
+            || self.timeline_add_mask_menu.is_some()
             || self.mode_dropdowns.values().any(|d| d.open)
     }
     pub(crate) fn gesture_active(&self) -> bool {
@@ -398,6 +404,7 @@ impl Controls {
         self.parameter_context = None;
         self.focus = false;
         self.add_mask_menu.open = false;
+        self.timeline_add_mask_menu = None;
         for dropdown in self.mode_dropdowns.values_mut() {
             dropdown.open = false;
         }
@@ -960,13 +967,18 @@ impl Controls {
                     .flatten()
                     .filter_map(geometry)
                     .collect();
+                // Node IDs survive deletion/reordering; they are not array indices.
+                let selected = self.selected.filter(|(id, _)| Some(*id) == path["id"].as_u64())
+                    .and_then(|(_, node)| path["nodes"].as_array()?.iter()
+                        .filter(|n| geometry(n).is_some()).position(|n| n["id"].as_u64() == Some(node)));
                 paint_path(
                     list,
                     &p,
                     &nodes,
                     path["closed"].as_bool().unwrap_or(false),
                     offset,
-                    self.selected.map(|v| v.1),
+                    selected,
+                    self.tool == Tool::Mask,
                     colors.ACCENT,
                     hovered
                         .filter(|h| h.path == id)
@@ -984,6 +996,7 @@ impl Controls {
                 false,
                 d.offset,
                 None,
+                true,
                 draft_color,
                 None,
             );
@@ -1247,6 +1260,11 @@ impl Controls {
             .filter(|(owner, _)| *owner == host)
             .map(|(_, rect)| rect)
     }
+    pub(super) fn append_inspector_overlays(&mut self, list: &mut PaintList) {
+        if let Some(overlays) = self.inspector_overlays.take() {
+            list.append(overlays);
+        }
+    }
     pub(crate) fn vector_add_rect(&self, host: motion_ui::dock::Panel) -> Option<Rect> {
         self.groups
             .add_rect
@@ -1274,6 +1292,7 @@ impl Controls {
     }
     pub(super) fn mask_menu(&self) -> bool {
         self.keys.modal()
+            || self.timeline_add_mask_menu.is_some()
             || self.groups.menu_in(motion_ui::dock::Panel::Timeline)
             || self.groups.keys.modal()
     }
@@ -1287,6 +1306,7 @@ impl Controls {
         locale: Locale,
         out: &mut Vec<Action>,
     ) {
+        self.timeline_mask_add_overlay(list, atlas, area, state, input, locale, out);
         self.keys.overlay(list, atlas, area, input, locale, out);
         self.groups.append_overlays(list);
         self.groups
@@ -1442,7 +1462,8 @@ fn paint_path(
     nodes: &[[f32; 6]],
     closed: bool,
     offset: [f32; 2],
-    selected: Option<u64>,
+    selected: Option<usize>,
+    show_all_handles: bool,
     color: Color,
     hovered: Option<(usize, Option<usize>)>,
 ) {
@@ -1478,7 +1499,7 @@ fn paint_path(
         } else {
             paint::box_rect(list, node, color, Color([0.; 4]), 0., 0.);
         }
-        if selected == Some(i as u64 + 1) || selected.is_none() {
+        if show_all_handles || selected == Some(i) || selected.is_none() {
             for axis in [2, 4] {
                 if g[axis].abs() + g[axis + 1].abs() < 0.01 {
                     continue;
@@ -1486,14 +1507,16 @@ fn paint_path(
                 if let Some(h) =
                     projection.screen([g[0] + g[axis] - offset[0], g[1] + g[axis + 1] - offset[1]])
                 {
-                    let connector =
-                        color.with_alpha(list.styles().metric("path.handle.opacity", 0.7));
+                    let handle_color = if selected.is_some() && selected != Some(i) {
+                        color.with_alpha(list.styles().metric("path.handle.opacity", 0.7))
+                    } else { color };
+                    let connector = handle_color.with_alpha(list.styles().metric("path.handle.opacity", 0.7));
                     paint::line(list, vec![p, h], connector);
                     if hovered == Some((i, Some(axis))) {
                         paint::diamond(list, h, 4., colors.TEXT);
                         paint::diamond(list, h, 2.6, colors.ACCENT);
                     } else {
-                        paint::diamond(list, h, 3., color);
+                        paint::diamond(list, h, 3., handle_color);
                     }
                 }
             }
@@ -1503,6 +1526,8 @@ fn paint_path(
 
 #[cfg(test)]
 mod pen_tests;
+#[cfg(test)]
+mod handle_visibility_tests;
 
 #[cfg(test)]
 mod hover_tests {
@@ -1765,7 +1790,7 @@ mod review327_regressions {
             let hover = hovered_target(&p, &[(1, &nodes)], [0.;2], [x,50.], Some(1)).unwrap();
             let mut list = PaintList::default();
             let color = list.styles().colors().ACCENT;
-            paint_path(&mut list, &p, &nodes, false, [0.;2], Some(1), color, Some((hover.node, hover.handle)));
+            paint_path(&mut list, &p, &nodes, false, [0.;2], Some(0), false, color, Some((hover.node, hover.handle)));
             let highlighted: Vec<_> = list.shapes.iter().filter_map(|s| match s {
                 Shape::Procedural { area, kind: Pattern::Diamond, .. } if (area.width()-8.).abs()<0.01 => Some(*area),
                 _ => None,

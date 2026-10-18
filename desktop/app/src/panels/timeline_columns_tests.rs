@@ -452,3 +452,45 @@ fn review327_columns_translate_with_panel_origin() {
         }
     }
 }
+
+#[test]
+fn visible_column_preferences_never_share_the_3d_switch_hit_target() {
+    let engine = fixture();
+    let state = snapshot(&engine);
+    let mut atlas = TextAtlas::from_system(12.).unwrap();
+    let styles = PaintList::default().styles();
+    // Display order is the reverse of storage order; target the intended
+    // object rather than assuming it is the first visible layer.
+    let target_row = timeline::rows(&state).iter().position(|row| row.id == 7).unwrap();
+    let target_y = 40. + 64. + (target_row as f32 + 0.5) * styles.metric("row.height", 22.);
+    for locale in [Locale::Zh, Locale::En] {
+        for width in [360_f32, 500., 720., 1280.] {
+            for bits in 0..8 {
+                let visibility = ColumnVisibility {
+                    blend: bits & 1 != 0,
+                    parent: bits & 2 != 0,
+                    matte: bits & 4 != 0,
+                };
+                let gutter = (width * 0.52).min(640.);
+                let plan = timeline_columns::ColumnRects::styled(&styles, 350., gutter, visibility);
+                let switch = plan.three_d.expect("supported floating width retains the full switch");
+                assert_eq!(switch.width, styles.metric("icon.slot", 20.));
+                assert!(plan.name.max_x() <= switch.x);
+                for other in [plan.matte, plan.blend, plan.link, plan.parent].into_iter().flatten() {
+                    assert!(switch.max_x() <= other.x);
+                }
+                let mut panels = Panels { locale, focused: Some(Panel::Timeline), ..Default::default() };
+                panels.timeline.column_visibility = visibility;
+                let mut actions = vec![];
+                timeline::render(
+                    &mut PaintList::default(), &mut atlas, Rect::new(350., 40., width, 400.),
+                    &mut panels, &state, &click(switch.x + switch.width * 0.5, target_y), &mut actions,
+                );
+                assert!(matches!(actions.as_slice(), [Action::Edit(Command::SetLayer3d { object: 7, enabled: true })]),
+                    "width={width} visibility={visibility:?}");
+                assert!(!panels.timeline_columns.editing());
+                assert_eq!(panels.timeline.column_visibility, visibility, "width adaptation must retain user preferences");
+            }
+        }
+    }
+}
