@@ -150,6 +150,7 @@ fn ui() -> UiFrame {
         paint,
         atlas: None,
         logical_size: [64., 64.],
+        composition_image: Some([-16., -8., 96., 192.]),
         composition: Some([8., 8., 48., 48.]),
         window: 0,
         node_preview: None,
@@ -198,6 +199,17 @@ fn pending_video_presents_chrome_without_acknowledging_an_unready_composition() 
                 .recv_timeout(Duration::from_secs(30))
                 .unwrap()
                 .unwrap();
+            if !delayed {
+                let before = engine.state().unwrap();
+                let mut invalid = ui();
+                invalid.composition_image = Some([0.,0.,0.,1.]);
+                let error = engine.present_async(invalid).unwrap()
+                    .recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err();
+                assert!(error.contains("invalid composition canvas image"),"{error}");
+                let after = engine.state().unwrap();
+                assert_eq!(before["project"],after["project"]);
+                assert_eq!(before["revision"],after["revision"]);
+            }
             let deadline = Instant::now() + Duration::from_secs(5);
             if delayed {
                 while !present(&engine).unwrap() {
@@ -265,4 +277,8 @@ fn pending_video_presents_chrome_without_acknowledging_an_unready_composition() 
     assert!(file.contains("logging initialized level=INFO") && file.contains(error));
     assert!(String::from_utf8_lossy(&output.stderr).contains(error));
     assert!(!String::from_utf8_lossy(&output.stdout).contains(error));
+    let invalid = "invalid composition canvas image";
+    assert!(file.contains(invalid));
+    assert!(String::from_utf8_lossy(&output.stderr).contains(invalid));
+    assert!(!String::from_utf8_lossy(&output.stdout).contains(invalid));
 }

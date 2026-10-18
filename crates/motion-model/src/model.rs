@@ -27,6 +27,8 @@ pub struct FontAsset {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Content {
+    /// Independent, non-pixel camera in the composition layer stack.
+    Camera { camera: Box<Camera> },
     Adjustment,
     Vector {
         vector: crate::vector::VectorContent,
@@ -174,6 +176,15 @@ impl Layer {
             audio_markers: Vec::new(),
             audio_source_channel: Default::default(),
         }
+    }
+    pub fn camera(id: u64, name: &str, width: u32, height: u32) -> Self {
+        let mut layer = Self::solid(id, name, [1.; 2], [0.; 3], [0.; 4]);
+        layer.content = Content::Camera { camera: Box::new(Camera::new(width, height)) };
+        layer.three_d = true;
+        layer
+    }
+    pub fn camera_data(&self) -> Option<&Camera> {
+        match &self.content { Content::Camera { camera } => Some(camera), _ => None }
     }
     pub fn clip(&self, frames: u32) -> LayerTimeline {
         self.timeline.unwrap_or_else(|| LayerTimeline::full(frames))
@@ -325,7 +336,7 @@ impl Project {
             crate::storage::validate_relative_path(&font.path)?;
             ensure(font.path.starts_with("assets/fonts/")&&font.path.ends_with(".ttf"),"invalid managed font path")?;
         }
-        ensure((1..=18).contains(&self.version), "unsupported project format")?;
+        ensure((1..=19).contains(&self.version), "unsupported project format")?;
         ensure(self.plugin_dependencies == self.composition_dependencies(),
                "plugin dependency list does not match effect instances")?;
         self.validate_one(self)?;
@@ -334,7 +345,7 @@ impl Project {
     pub(crate) fn validate_one(&self, document: &Project) -> Result<()> {
         crate::effects::validate_image_graph(self)?;
         ensure(
-            (1..=18).contains(&self.version),
+            (1..=19).contains(&self.version),
             "unsupported project format",
         )?;
         let spatial = [&self.camera.position, &self.camera.target].iter().any(|t| t.keys.iter().any(|k| k.spatial.is_some()))
@@ -468,7 +479,7 @@ impl Project {
             ensure(self.version>=10||layer.track_matte.is_none()&&layer.blend==crate::compositing::LayerBlend::default(),"layer compositing requires project format ten")?;
             ensure(self.version >= 8 || layer.masks.is_empty(), "layer masks require project format eight")?;
             crate::masks::validate(&layer.masks).map_err(|e| crate::Error::Invalid(format!("layer {}: {e}",layer.id)))?;
-            ensure(layer.masks.is_empty() || !matches!(layer.content, Content::Null | Content::Audio {..} | Content::Adjustment),
+            ensure(layer.masks.is_empty() || !matches!(layer.content, Content::Null | Content::Camera { .. } | Content::Audio {..} | Content::Adjustment),
                 "source masks require an ordinary visual layer; adjustment masks require composition compositing")?;
             ensure(
                 layer.id != 0 && ids.insert(layer.id),
@@ -501,8 +512,8 @@ impl Project {
                 "too many layer effects",
             )?;
             ensure(
-                !matches!(layer.content, Content::Null) || layer.effects.is_empty(),
-                "null layers cannot contain effects",
+                !matches!(layer.content, Content::Null | Content::Camera { .. }) || layer.effects.is_empty(),
+                "null and camera layers cannot contain effects",
             )?;
             let mut effect_ids = HashSet::new();
             for e in &layer.effects {
@@ -513,7 +524,7 @@ impl Project {
                         crate::EffectImageInput::Layer { layer: source, .. } => {
                             let source = self.layers.iter().find(|l| l.id == source)
                                 .ok_or_else(|| crate::Error::Invalid("effect image source must belong to the same composition".into()))?;
-                            ensure(!matches!(source.content, Content::Null | Content::Audio { .. } | Content::Adjustment),
+                            ensure(!matches!(source.content, Content::Null | Content::Camera { .. } | Content::Audio { .. } | Content::Adjustment),
                                 "effect image source has no independent pixels")?;
                         }
                         crate::EffectImageInput::Asset { asset } => ensure(document.assets.iter().any(|a| a.id == asset), "effect image asset missing")?,
@@ -595,6 +606,13 @@ impl Project {
                     }else{
                         ensure(start >= 0 && last < i128::from(asset.duration_us) * i128::from(self.fps),"audio clip exceeds recoverable source interval")?;
                     }
+                }
+                Content::Camera { camera } => {
+                    ensure(self.version >= 19, "camera layers require project format nineteen")?;
+                    ensure(camera.created && camera.parent.is_none(), "camera layers use their layer parent")?;
+                    ensure(layer.three_d && layer.transform == Transform::new([0.; 3]),
+                        "camera spatial properties belong to the camera tracks")?;
+                    camera.validate_local()?;
                 }
                 Content::Null => {}
                 Content::Solid { color } => validate_color(*color)?,
