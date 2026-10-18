@@ -946,7 +946,9 @@ pub(super) fn render(
         Rect::new(area.min[0], ruler.min[1], gutter, ruler.height()),
         gutter,
     );
-    label(list, atlas, header_columns.three_d, "3D", true);
+    if header_columns.three_d_visible {
+        label(list, atlas, header_columns.three_d, "3D", true);
+    }
     label(
         list,
         atlas,
@@ -976,13 +978,15 @@ pub(super) fn render(
             true,
         );
     }
-    label(
-        list,
-        atlas,
-        Rect::new(area.min[0] + gutter - 112.0, ruler.min[1], 104.0, 28.0),
-        locale.t(T::ParentLink),
-        true,
-    );
+    if header_columns.parent_visible {
+        label(
+            list,
+            atlas,
+            Rect::new(area.min[0] + gutter - 112.0, ruler.min[1], 104.0, 28.0),
+            locale.t(T::ParentLink),
+            true,
+        );
+    }
     ui::icon(
         list,
         Rect::new(area.min[0] + 10.0, ruler.min[1] + 3.0, 16.0, 24.0),
@@ -1147,7 +1151,7 @@ pub(super) fn render(
         let layer = state["project"]["layers"]
             .as_array()
             .and_then(|ls| ls.iter().find(|l| l["id"].as_u64() == Some(row.id)));
-        if let Some(layer) = layer.filter(|_| row.id != 0 && row.spatial && !row.camera) {
+        if let Some(layer) = layer.filter(|_| columns.three_d_visible && row.id != 0 && row.spatial && !row.camera) {
             if motion_ui::widgets::Checkbox::draw(
                 list,
                 atlas,
@@ -1215,24 +1219,26 @@ pub(super) fn render(
             ) && row.id != 0;
             let blend_enabled = blend_supported && columns.blend_visible && !row.locked;
             let matte_enabled = blend_enabled && gutter >= 500.;
-            let parent_enabled = row.id == 0 || !row.locked && row.spatial;
+            let parent_enabled = columns.parent_visible && (row.id == 0 || !row.locked && row.spatial);
             if (blend_enabled && clicked(input, blend))
                 || (matte_enabled && clicked(input, matte))
                 || (parent_enabled && (clicked(input, parent) || clicked(input, link)))
             {
                 out.extend(super::cancel_interaction(panels));
             }
-            motion_ui::icons::draw(
-                list,
-                link,
-                motion_ui::icons::Icon::Link,
-                14.,
-                if parent_enabled {
-                    colors.TEXT_MUTED
-                } else {
-                    colors.TEXT_MUTED.with_alpha(0.4)
-                },
-            );
+            if columns.parent_visible {
+                motion_ui::icons::draw(
+                    list,
+                    link,
+                    motion_ui::icons::Icon::Link,
+                    14.,
+                    if parent_enabled {
+                        colors.TEXT_MUTED
+                    } else {
+                        colors.TEXT_MUTED.with_alpha(0.4)
+                    },
+                );
+            }
             let mut link_input = input.clone();
             if parent_enabled && clicked(input, link) {
                 link_input.pressed =
@@ -1263,7 +1269,7 @@ pub(super) fn render(
             } else {
                 false
             };
-            let opened_parent = panels.timeline_columns.cell(
+            let opened_parent = columns.parent_visible && panels.timeline_columns.cell(
                 list,
                 atlas,
                 parent,

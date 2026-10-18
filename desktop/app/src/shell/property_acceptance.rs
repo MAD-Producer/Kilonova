@@ -114,6 +114,8 @@ impl Shell {
                 ("property-mask-group", Panel::Properties, [360., 560.]),
                 ("timeline-mask-group", Panel::Timeline, [900., 520.]),
                 ("timeline-mask-group-narrow", Panel::Timeline, [720., 520.]),
+                ("timeline-layer-columns", Panel::Timeline, [720., 520.]),
+                ("timeline-layer-columns-minimum", Panel::Timeline, [360., 520.]),
                 ("timeline-mask-add-menu", Panel::Timeline, [900., 520.]),
                 (
                     "timeline-mask-add-menu-narrow",
@@ -140,6 +142,7 @@ impl Shell {
                     object
                 }));
                 panels.timeline.expanded.insert(object);
+                if name.starts_with("timeline-layer-columns") { panels.timeline.expanded.remove(&object); }
                 panels.properties.transform_collapsed =
                     name.starts_with("mask-") || name.contains("mask-group");
                 if name.starts_with("timeline-mask-") {

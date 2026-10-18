@@ -71,6 +71,215 @@ fn project() -> motion_core::Project {
 }
 
 #[test]
+fn narrow_timeline_3d_click_does_not_open_parent_menu() {
+    let root = tempfile::tempdir().unwrap();
+    motion_core::storage::save(root.path(), &project()).unwrap();
+    let host = crate::engine::Engine::start(
+        root.path().into(),
+        motion_desktop_media::platform(),
+        8 << 30,
+    )
+    .unwrap();
+    let state = host.state().unwrap();
+    let mut panels = Panels {
+        selected: Some(7),
+        focused: Some(Panel::Timeline),
+        ..Default::default()
+    };
+    let mut atlas = TextAtlas::from_system(12.).unwrap();
+    let mut render = |panels: &mut Panels, input: &Input| {
+        floating_chrome(
+            &mut PaintList::default(),
+            &mut atlas,
+            Panel::Timeline,
+            [360., 700.],
+            panels,
+            &state,
+            input,
+        )
+    };
+    render(&mut panels, &Input::default());
+    let styles = PaintList::default().styles();
+    let gutter = GUTTER.min(360. * 0.52);
+    let columns = layer_switches::columns(&styles, Rect::new(0., 30. + 64., gutter, 22.), gutter);
+    let actions = render(&mut panels, &click(columns.three_d, MouseButton::Left));
+    assert!(actions.iter().any(|action| matches!(
+        action,
+        Action::Edit(Command::SetLayer3d {
+            object: 7,
+            enabled: true
+        })
+    )));
+    assert!(
+        !panels.timeline_columns.editing(),
+        "the 3D checkbox click must not also open Parent & Link"
+    );
+}
+
+#[test]
+fn timeline_switch_columns_stay_disjoint_and_route_edits_through_resize() {
+    let root = tempfile::tempdir().unwrap();
+    motion_core::storage::save(root.path(), &project()).unwrap();
+    let host = crate::engine::Engine::start(
+        root.path().into(),
+        motion_desktop_media::platform(),
+        8 << 30,
+    )
+    .unwrap();
+    let initial = host.state().unwrap();
+    let mut atlas = TextAtlas::from_system(12.).unwrap();
+    for floating in [false, true] {
+        for locale in [Locale::Zh, Locale::En] {
+            for height in [22., 32.] {
+                let styles = std::sync::Arc::new(
+                    PaintList::default()
+                        .styles()
+                        .with_overrides(
+                            serde_json::json!({"tokens":{"sizes":{"row.height":height}}})
+                                .to_string()
+                                .as_bytes(),
+                        )
+                        .unwrap(),
+                );
+                for width in [360., 500., 720., 1280.] {
+                    let mut panels = Panels {
+                        selected: Some(7),
+                        focused: Some(Panel::Timeline),
+                        locale,
+                        styles: Some(styles.clone()),
+                        ..Default::default()
+                    };
+                    let mut render =
+                        |panels: &mut Panels, state: &Value, input: &Input, width: f32| {
+                            if floating {
+                                floating_chrome(
+                                    &mut PaintList::default(),
+                                    &mut atlas,
+                                    Panel::Timeline,
+                                    [width, 700.],
+                                    panels,
+                                    state,
+                                    input,
+                                )
+                            } else {
+                                chrome(
+                                    &mut PaintList::default(),
+                                    &mut atlas,
+                                    [width, 700.],
+                                    &dock::Node::dock(Panel::Timeline.dock()),
+                                    panels,
+                                    state,
+                                    input,
+                                )
+                            }
+                        };
+                    render(&mut panels, &initial, &Input::default(), width);
+                    let top = if floating {
+                        30.
+                    } else {
+                        frames(&dock::Node::dock(Panel::Timeline.dock()), [width, 700.])[0]
+                            .content
+                            .min[1]
+                    };
+                    let gutter = GUTTER.min(width * 0.52);
+                    let columns = layer_switches::columns(
+                        &styles,
+                        Rect::new(0., top + 64., gutter, height),
+                        gutter,
+                    );
+                    assert!(columns.three_d_visible);
+                    assert!(columns.name.width() > 0.);
+                    assert!(columns.name.max[0] <= columns.three_d.min[0]);
+                    assert!(columns.three_d.max[0] <= gutter);
+                    assert_eq!(columns.three_d.width(), styles.metric("icon.slot", 20.));
+                    if columns.parent_visible {
+                        assert!(columns.three_d.max[0] <= gutter - 114.);
+                    }
+                    if columns.blend_visible {
+                        assert!(columns.three_d.max[0] <= gutter - 196.);
+                    }
+                    let action = command(render(
+                        &mut panels,
+                        &initial,
+                        &click(columns.three_d, MouseButton::Left),
+                        width,
+                    ));
+                    assert!(matches!(
+                        action,
+                        Command::SetLayer3d {
+                            object: 7,
+                            enabled: true
+                        }
+                    ));
+                    assert!(
+                        !panels.timeline_columns.editing(),
+                        "3D must not open a second control"
+                    );
+                    let changed = host.edit(serde_json::to_string(&action).unwrap()).unwrap();
+                    host.save().unwrap();
+                    assert!(motion_core::storage::load(root.path()).unwrap().layers[0].three_d);
+                    assert_eq!(host.history(0).unwrap()["project"], initial["project"]);
+                    assert_eq!(host.history(1).unwrap()["project"], changed["project"]);
+                    host.history(0).unwrap();
+                    for observing in [false, true] {
+                        // Lock through the real engine so the revision-keyed row cache
+                        // sees an actual model change, not a mutated stale snapshot.
+                        let mut blocked = if observing {
+                            host.state().unwrap()
+                        } else {
+                            host.edit(
+                                serde_json::to_string(&Command::Flags {
+                                    object: 7,
+                                    visible: true,
+                                    locked: true,
+                                })
+                                .unwrap(),
+                            )
+                            .unwrap()
+                        };
+                        blocked["observing"] = observing.into();
+                        let actions = render(
+                            &mut panels,
+                            &blocked,
+                            &click(columns.three_d, MouseButton::Left),
+                            width,
+                        );
+                        assert!(!actions.iter().any(|a| matches!(a,Action::Edit(_) | Action::EditBatch(_))),
+                            "blocked click: floating={floating} locale={locale:?} height={height} width={width} observing={observing}: {actions:?}");
+                        assert!(!panels.timeline_columns.editing());
+                        if !observing {
+                            host.history(0).unwrap();
+                        }
+                    }
+                    let parent = Rect::new(gutter - 94., top + 66., 86., height - 4.);
+                    let actions = render(
+                        &mut panels,
+                        &initial,
+                        &click(parent, MouseButton::Left),
+                        width,
+                    );
+                    assert!(!actions
+                        .iter()
+                        .any(|a| matches!(a, Action::Edit(_) | Action::EditBatch(_))));
+                    assert_eq!(panels.timeline_columns.editing(), columns.parent_visible);
+                    if columns.parent_visible {
+                        let resized = render(&mut panels, &initial, &Input::default(), 360.);
+                        assert!(!resized
+                            .iter()
+                            .any(|a| matches!(a, Action::Edit(_) | Action::EditBatch(_))));
+                        assert!(
+                            !panels.timeline_columns.editing(),
+                            "a hidden parent cell must close its popup"
+                        );
+                    }
+                }
+            }
+        }
+    }
+    assert_eq!(host.state().unwrap()["project"], initial["project"]);
+}
+
+#[test]
 fn timeline_mask_header_actions_and_add_menu_preserve_targets_locking_and_undo() {
     use motion_core::{
         masks::{LayerMask, MaskAction},
