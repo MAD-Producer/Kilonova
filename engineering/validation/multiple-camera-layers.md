@@ -17,10 +17,12 @@
 
 ## 验证
 
-- 多摄影机专项：8 项通过；覆盖连续创建、旧格式显式 presence、保存重开、撤销重做、复制、边界帧、禁用、重排、移除、局部时间、模式转换、拆分、父子关系、表达式、锁定、错误原子性、隐藏键与资源上限。
+- 多摄影机专项：9 项通过；覆盖连续创建、旧格式显式 presence、保存重开、撤销重做、复制、边界帧、禁用、重排、移除、局部时间、模式转换、拆分、父子关系、表达式、锁定、错误原子性、隐藏键与资源上限。额外验证合法但极端的图层偏移：模式转换超出 i32 局部时间时返回错误且工程不变，pan / dolly 复用检查过的局部时间转换。旧摄影机工作流 2 项通过。
 - 桌面全套：373 通过，1 项既有手动性能测试忽略；新 shell 回归验证连续新建与选择、非法对象返回错误且保留工程。
 - 首轮核心全套发现 3 处把 19 当作未来版本的旧断言，以及旧 singleton 创建假设；相应迁移测试改为拒绝 20，旧 object=0 专项使用明确旧格式 fixture，新图层行为由新增测试独立验证。修正后受影响目标均复测，不删除原断言的拒绝/原子性含义。
-- 待补充：共享 Host 测试、粒子摄影机祖先测试、最终桌面针对性复测、带 FFmpeg 的优化构建和原生验收。
+- 共享 Host 2 项、粒子渲染 11 项通过；最终桌面摄影机交互复测 4 项通过。日志位于 `artifacts/multiple-camera-layers/` 的 `core-final-boundaries.log`、`host-tests.log`、`particle-tests.log`、`desktop-camera-tests.log`。
+- 首次优化构建 `550d442` 的原生验收通过：中英文窗口、样式覆盖、浮动面板、节点预览和共享 MCP 均通过。人工查看 `native/smoke-zh.camera-properties.png` 与 `native/smoke-zh.timeline-cameras.png`，确认两台独立摄影机、所选摄影机参数和独立关键帧，行内向量、秒表与属性列对齐。窄列中的长数值、图层名称仍按既有省略规则显示，不声称整个 DESIGN §12 完成；D01–D12 处置见下表。
+- 最终边界修复 `369e0f9` 的带 FFmpeg 优化构建通过（6 分 49 秒，22 项既有警告）；正式打包并独立解压，7 个运行库逐项 SHA-256 核对通过。Windows 包 `artifacts/multiple-camera-layers/package/MotionStudio-validation-windows-x86_64.zip`：83,503,185 字节，SHA-256 `aca689faddf2c1e8dd17e96234bac33522d82175eaa95350ac5cf7642ada3cee`。解压程序再次通过完整原生验收，日志 `native-final-acceptance.log`，截图和报告在 `native-final/`，使用独立工程与诊断目录。
 
 ## DESIGN §0.7 基线逐项处置
 
