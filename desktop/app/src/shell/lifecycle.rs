@@ -68,6 +68,7 @@ impl Shell {
                 .is_some_and(|e| e.dirty() && e.snapshot().revision > 0)
             {
                 self.panels.node_editor = self.node_standalone.take().unwrap();
+                self.panels.node_editor.view_preferences = self.workspace.node_view;
                 self.request_close();
                 return;
             }

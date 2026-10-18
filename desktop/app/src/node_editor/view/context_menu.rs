@@ -3,6 +3,8 @@
 use super::*;
 
 enum Choice {
+    ToggleGrid,
+    ToggleMinimap,
     Group,
     Ungroup,
     Enter(String),
@@ -42,6 +44,7 @@ impl NodeEditor {
         }
         let mut entries: Vec<(String, Choice)> = vec![];
         match &menu.kind {
+            MenuKind::View => {}
             MenuKind::Wire(port) => {
                 if !self.parents.is_empty() {
                     entries.push((
@@ -147,7 +150,11 @@ impl NodeEditor {
                 }
             }
         }
-        if self.preview_target.is_some() {
+        if matches!(menu.kind, MenuKind::Canvas | MenuKind::View) {
+            entries.push((language.text("显示网格 · G", "Show grid · G").into(), Choice::ToggleGrid));
+            entries.push((language.text("显示小地图 · N", "Show minimap · N").into(), Choice::ToggleMinimap));
+        }
+        if self.preview_target.is_some() && !matches!(menu.kind, MenuKind::View) {
             entries.push((
                 language.text("恢复永久输出", "Restore final output").into(),
                 Choice::Restore,
@@ -184,19 +191,26 @@ impl NodeEditor {
         let mut popup = list.child();
         paint::rect(&mut popup, area, colors.CHROME);
         paint::stroke(&mut popup, area, colors.BORDER, 1.);
-        for (i, (title, _)) in entries.iter().enumerate().skip(start).take(rows) {
+        for (i, (title, choice)) in entries.iter().enumerate().skip(start).take(rows) {
             let row = Rect::new(x + 6., y + 8. + (i - start) as f32 * 28., width - 12., 26.);
             if i == menu.selected || row.contains(input.mouse) {
                 paint::rect(&mut popup, row, colors.ACCENT.with_alpha(0.2));
             }
-            label(
+            let checked = match choice {
+                Choice::ToggleGrid => Some(self.view_preferences.grid),
+                Choice::ToggleMinimap => Some(self.view_preferences.minimap),
+                _ => None,
+            };
+            if let Some(mut checked) = checked {
+                ui::checkbox(&mut popup, atlas, row.shrink(4.), title, &mut checked, &Input::default());
+            } else { label(
                 &mut popup,
                 atlas,
                 row.shrink(4.),
                 title,
                 colors.TEXT,
                 Align::Left,
-            );
+            ); }
             if hit(input, row) || (enter && i == menu.selected) {
                 chosen = Some(i);
             }
@@ -211,6 +225,8 @@ impl NodeEditor {
         list.append(popup);
         if let Some(i) = chosen {
             match entries.into_iter().nth(i).unwrap().1 {
+                Choice::ToggleGrid => self.view_preferences.grid = !self.view_preferences.grid,
+                Choice::ToggleMinimap => self.view_preferences.minimap = !self.view_preferences.minimap,
                 Choice::Expose(port, output) => match self.expose_group_port(port, output) {
                     Ok(true) => {
                         if !output {
