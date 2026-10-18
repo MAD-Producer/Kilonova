@@ -45,7 +45,7 @@ impl App {
             &view,
             &paint,
             logical,
-        );
+        ).map_err(|error|error.to_string())?;
         encoder.copy_texture_to_buffer(
             wgpu::TexelCopyTextureInfo {
                 texture: &texture,

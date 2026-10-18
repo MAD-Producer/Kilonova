@@ -464,6 +464,45 @@ struct GlyphVertex {
 const SOLID_CAPACITY: usize = 1 << 16;
 const GLYPH_CAPACITY: usize = 1 << 17;
 
+/// A frame cannot fit the device's vertex-buffer or draw-index limits.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PaintError {
+    pub kind: &'static str,
+    pub vertices: usize,
+    pub required_bytes: u64,
+    pub limit_bytes: u64,
+}
+impl std::fmt::Display for PaintError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "UI vertex buffer capacity exceeded: kind={} vertices={} required_bytes={} limit_bytes={}",
+            self.kind, self.vertices, self.required_bytes, self.limit_bytes)
+    }
+}
+impl std::error::Error for PaintError {}
+
+fn vertex_buffer_size<T>(kind: &'static str, vertices: usize, limit: u64) -> Result<u64, PaintError> {
+    let required = (vertices as u64).saturating_mul(std::mem::size_of::<T>() as u64);
+    if required > limit || vertices > u32::MAX as usize {
+        return Err(PaintError { kind, vertices, required_bytes: required, limit_bytes: limit });
+    }
+    Ok(required)
+}
+
+fn grow_vertex_buffer(device: &wgpu::Device, buffer: &mut wgpu::Buffer, required: u64, label: &'static str) {
+    if required <= buffer.size() {
+        return;
+    }
+    // Retain capacity across frames and grow geometrically, within the actual
+    // device limit. Vertex contents are replaced by this frame's full upload.
+    let size = required.checked_next_power_of_two().unwrap_or(required)
+        .min(device.limits().max_buffer_size);
+    *buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some(label), size,
+        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
+}
+
 /// Draw a filled rectangle.
 pub fn rect(list: &mut PaintList, area: Rect, color: Color) {
     if area.width() <= 0.0 || area.height() <= 0.0 || color.0[3] <= 0.0 {
@@ -635,6 +674,8 @@ fn push_batch(batches: &mut Vec<DrawBatch>, glyph: bool, vertices: std::ops::Ran
 }
 
 mod observation;
+#[cfg(test)]
+mod buffer_tests;
 
 /// Two vertex buffers and one render pass; only adjacent compatible draws merge.
 pub struct Painter {
@@ -890,8 +931,8 @@ impl Painter {
         target: &wgpu::TextureView,
         list: &PaintList,
         viewport: [f32; 2],
-    ) {
-        self.render_scaled(device, queue, encoder, target, list, viewport, [1., 1.]);
+    ) -> Result<(), PaintError> {
+        self.render_scaled(device, queue, encoder, target, list, viewport, [1., 1.])
     }
     pub fn render_scaled(
         &mut self,
@@ -902,7 +943,7 @@ impl Painter {
         list: &PaintList,
         viewport: [f32; 2],
         scale: [f32; 2],
-    ) {
+    ) -> Result<(), PaintError> {
         let mut solids = std::mem::take(&mut self.solid_cpu);
         solids.clear();
         self.shape_ranges.clear();
@@ -1058,6 +1099,21 @@ impl Painter {
         self.last_glyph_vertices = glyphs.len();
         self.last_draw_calls = 0;
         self.draw_batches.clear();
+        let sizes = (|| {
+            let limit = device.limits().max_buffer_size;
+            Ok((vertex_buffer_size::<SolidVertex>("solid", solids.len(), limit)?,
+                vertex_buffer_size::<GlyphVertex>("glyph", glyphs.len(), limit)?))
+        })();
+        let (solid_bytes, glyph_bytes) = match sizes {
+            Ok(sizes) => sizes,
+            Err(error) => {
+                self.solid_cpu = solids;
+                self.glyph_cpu = glyphs;
+                return Err(error);
+            }
+        };
+        grow_vertex_buffer(device, &mut self.solid_buffer, solid_bytes, "UI solid vertices");
+        grow_vertex_buffer(device, &mut self.glyph_buffer, glyph_bytes, "UI glyph vertices");
         let mut invalid_ops = 0usize;
         let mut first_invalid = None;
         if list.order.len() != list.shapes.len() + list.glyphs.len() {
@@ -1152,7 +1208,7 @@ impl Painter {
         if solids.is_empty() && glyphs.is_empty() {
             self.solid_cpu = solids;
             self.glyph_cpu = glyphs;
-            return;
+            return Ok(());
         }
         for batch in &self.draw_batches {
             if batch.glyph {
@@ -1171,6 +1227,7 @@ impl Painter {
         drop(pass);
         self.solid_cpu = solids;
         self.glyph_cpu = glyphs;
+        Ok(())
     }
 }
 
