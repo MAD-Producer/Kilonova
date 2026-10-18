@@ -34,6 +34,7 @@
 | 中键 / Shift+中键拖动 / Alt+左键拖动 | 平移画布 | 节点 |
 | 普通滚轮 / Shift+滚轮 | 滚动 / 水平滚动 | 节点 |
 | Home / F / Ctrl+0 | 适配全部 / 适配选中 / 100% | 节点 |
+| G / N | Toggle grid / minimap | Focused node canvas; text, IME, menus and active gestures take precedence |
 | 方向键 / Shift+方向键 | 微移 1 / 10 画布单位 | 节点 |
 | Ctrl+A / Ctrl+Shift+A | 全选 / 清空选择 | 节点 |
 | Ctrl+D | 复制选中节点及内部连线，向右下偏移 | 节点；不复制外部连线，整体可撤销 |
@@ -44,6 +45,10 @@
 | Shift+P/S/R/T | 追加或移除该属性的显示，保留其他属性 | 图层选择 |
 | U | 显示已打关键帧的属性，再按收起 | 支持分离 XYZ；静态轴不显示 |
 | J / K | 跳到上一个 / 下一个显示属性的关键帧 | 尊重图层搜索、属性筛选和图层时间偏移，自动滚动到目标 |
+| I / O | 跳到主选图层的入点 / 出点 | 时间轴或属性面板；出点按排除语义回退一帧并夹到合成末帧，不修改工程 |
+| [ / ] | 把入点 / 出点移到播放头，保持时长 | 多选批量、锁定跳过；只生成一次 `EditBatch`，可单步撤销 |
+| Alt+[ / Alt+] | 把入点 / 出点裁剪到播放头 | 只收紧不扩展现有区间；零长度、负偏移或越界时保留原数据 |
+| F4 / Shift+F4 | 切换模式+遮罩列组 / 父级列 | 时间轴；只改视图并写入工作区偏好，不写工程历史 |
 | Shift+F3 | 同一时间轴面板内切换片段 / 值曲线 | 保留左侧图层与属性、播放头和关键帧选择 |
 | F9 / Shift+F9 / Ctrl+Shift+F9 | 平滑两侧 / 入段 / 出段 | 只修改明确选中的关键帧，保留另一侧贝塞尔手柄，单步撤销 |
 | Alt+Shift+P/S/R/T | 在播放头添加 / 移除该属性关键帧 | 保留其他关键帧，不切换整个动画轨道；分离轴优先使用当前轴 |
@@ -72,7 +77,6 @@
 | UU 已修改属性筛选 | #213 |
 | 节点子图剪贴板 Ctrl+C/X/V | #229 |
 | Ctrl+T 贴图链、Ctrl+Shift+T 材质组 | #228、#266 |
-| 节点 G/N 网格与小地图开关 | #267 |
 | 改键、冲突检测和预设 | #277 |
 | 反引号临时最大化停靠面板 | #278 |
 
@@ -91,6 +95,12 @@
 | Home、普通方向键 | 保留节点适配/微移语义，不导航工程时间 |
 | Ctrl+Shift+D | 节点上下文屏蔽图层分割；返回时间轴操作 |
 | Ctrl+Space | 应用级效果搜索，目标仍是工程图层 |
+
+## Node canvas view preferences
+
+The node toolbar's View menu and the canvas context menu expose checked grid and minimap options. The grid is initially visible; the minimap is initially hidden. G/N use no modifiers and do not repeat; Ctrl+G still groups nodes.
+
+The minimap fits the current viewport and all nodes. Click or drag inside it to navigate; Esc, focus loss or a lost release cancels an unfinished drag. Small canvases hide the overlay until there is enough room. Both options are stored in the workspace layout, shared by docked and native floating editors, and retained when opening or switching graphs. They do not change graph source, compilation stamps, permanent output or undo history.
 
 ## 接入规则
 

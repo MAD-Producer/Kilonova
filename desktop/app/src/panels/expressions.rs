@@ -76,6 +76,7 @@ impl Controls {
         if let Some((MouseButton::Right, point)) = input.pressed.filter(|(_, p)| rect.contains(*p))
         {
             self.owner = Some(owner);
+            self.menu = motion_ui::widgets::Dropdown::default();
             self.menu.open = true;
             self.menu_opened = true;
             self.menu_target = Some((
@@ -117,7 +118,17 @@ impl Controls {
         } else {
             input
         };
-        let items = [
+        let dimension = match target {
+            ExpressionTarget::Property { object, property, .. }
+                if matches!(property, Property::Position | Property::Rotation | Property::Scale) =>
+            {
+                let separated = super::animation_data::timeline(state, object)
+                    .is_some_and(|t| t["properties"][super::animation_data::name(property)]["separated"] == true);
+                Some((separated, object, property))
+            }
+            _ => None,
+        };
+        let mut items = vec![
             motion_ui::widgets::DropdownItem {
                 label: auxiliary::localized(locale, "编辑表达式", "Edit expression"),
                 enabled,
@@ -127,6 +138,16 @@ impl Controls {
                 enabled: enabled && find(state, &target).is_some(),
             },
         ];
+        if let Some((separated, _, _)) = dimension {
+            items.push(motion_ui::widgets::DropdownItem {
+                label: if separated {
+                    auxiliary::localized(locale, "合并 XYZ（相同键与插值）", "Merge XYZ (same keys/easing)")
+                } else {
+                    auxiliary::localized(locale, "分离 XYZ", "Separate XYZ")
+                },
+                enabled,
+            });
+        }
         match self
             .menu
             .draw_menu(list, atlas, anchor, bounds, &items, input, true)
@@ -135,6 +156,16 @@ impl Controls {
             Some(1) => {
                 out.push(Action::Edit(Command::RemoveExpression { target }));
                 self.cancel();
+            }
+            Some(2) => {
+                if let Some((separated, object, property)) = dimension {
+                    out.push(Action::Edit(if separated {
+                        Command::MergeDimensions { object, property }
+                    } else {
+                        Command::SeparateDimensions { object, property }
+                    }));
+                    self.cancel();
+                }
             }
             _ => {}
         }

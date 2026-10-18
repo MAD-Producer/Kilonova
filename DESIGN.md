@@ -264,7 +264,7 @@ Targets pending source verification — report conflicts instead of guessing:
 
 ### 7.1 Tracks and columns
 
-The timeline layer gutter contains **11** existing columns. **Do not invent `solo` / `shy` columns.** Offsets below are from `desktop/app/src/panels/timeline.rs`:
+The timeline layer gutter preserves the **11** existing columns and adds a 3D switch within the name allocation. The compact layout may hide blend mode as specified below. **Do not invent `solo` / `shy` columns.** Offsets below are from `desktop/app/src/panels/timeline.rs`:
 
 | # | Column | X offset / width |
 |---:|---|---|
@@ -275,6 +275,7 @@ The timeline layer gutter contains **11** existing columns. **Do not invent `sol
 | 5 | Disclosure triangle | `+75` / `14` |
 | 6 | Layer-type icon | `+91` / `18` |
 | 7 | Name | `+112` / `gutter - 398` |
+| — | 3D layer switch | one `$sizes.icon.slot` at the right edge of the name allocation; subtract that slot from the name's text rectangle |
 | 8 | Track matte | `gutter - 280` / `78` |
 | 9 | Blend mode | `gutter - 196` / `76` |
 | 10 | Parent-link icon | `gutter - 114` / `14` |
@@ -282,12 +283,19 @@ The timeline layer gutter contains **11** existing columns. **Do not invent `sol
 
 `gutter = min(640, area.width() * 0.52)` — declared as `const GUTTER: f32 = 640.0` at `desktop/app/src/panels/mod.rs:69`.
 
+Header, name, 3D switch and optional cells share `ColumnRects::styled`; retain the historical optional-column widths and gaps above. Reserve the `icon.slot` 3D target before allocating name text. Hide the blend column if keeping it would leave less than `value.min_width` for the name. If the name still cannot retain `value.min_width`, hide the Parent & Link header, icon and cell together and reclaim their allocation; parenting remains available in the inspector. Width-based hiding must preserve the user's column visibility preferences, so wider panels restore the requested columns. Never keep overlapping invisible hit regions. Preserve the full 3D target at supported minimum floating widths; if even that slot cannot fit beyond the fixed leading controls, hide its header and control together. A dropdown whose column becomes hidden must close without committing. Existing visibility, lock, disclosure and time-lane hit regions stay unchanged.
+
 Header band total height `64`; ruler at `+36`, height `28`; rows begin at `+64`; layer row height `$sizes.row.height = 22`. **Zoom control sits on the ruler's top-right, not in a new bottom zoom bar.** Keyframe diamonds are directly drawn primitives, not component-style instances (see §5.3).
+
+A horizontal scrollbar occupies the bottom of the time lane. Preserve a full `field.height` pointer target; the centered visible pill uses `timeline.scrollbar.thumb.height`, `.radius`, `.min_width` and `timeline.scrollbar.inset` from `dark.json`. Use the panel background, a border-token top separator, and border/disabled/muted/focus colors for inactive/idle/hovered/dragging states. Its thumb represents the same zoom and offset as the ruler and clip/curve lane. Dragging it changes view state only; it must not seek, edit layers, change selection, or enter undo history. The label/property gutter remains fixed. The graph's existing lower ruler stays in place; its mode caption uses the left footer so the scrollbar does not cover a seeking target. At 100% the full-width thumb is inactive.
+
+While a layer move, trim or ruler scrub is held near either horizontal edge, pan the view using elapsed time and preserve the gesture's composition-time anchor. Stop on release, Escape or focus loss. Offscreen clip endpoints must neither paint nor accept edits in the property gutter. Changes to zoom must update the ruler and clip coordinates in the same frame.
 
 ### 7.2 Property subrows
 
 - Group headers use the existing header surface and primary text; child rows retain explicit indentation and subtle tree guides. All values of one property stay inline; do not spend space on redundant X/Y labels for a two-value offset.
-- Layer properties use the same Transform / Geometry / Effects group order in the inspector and the timeline. Anchor is a real static source-space property; position and scale components share a row. Geometry holds existing mask/vector settings; effect-instance rows preserve their native editor entry.
+- Layer properties show Masks before Transform in both the inspector and the timeline. Masks and vector contents own their disclosures; there is no extra Geometry wrapper. The 3D Checkbox belongs directly to each spatial layer's timeline row, with a matching column header; it preserves locking, observation-only mode and undo. At narrow widths the blend column is hidden before compressing the layer name to make room for the switch. Anchor is a real static source-space property; position and scale components share a row. Existing vector contents and effect-instance rows preserve their native editors.
+- The timeline Masks group exposes the same add menu as the inspector. Each mask header reserves four inline action slots for enabled state, path editing, revealing its timeline channels, and removal. Reserve these slots before clipping the name and disclosure hit region; at minimum floating widths, reduce the group's leading inset before clipping the name, keeping the disclosure and action hit regions intact. Preserve row height and disable edits for locked or observation-only layers.
 - A hairline horizontal separator spans each timeline property row into its keyframe lane, using `tree.separator.width` and `tree.separator.opacity`.
 - Time ticks and labels belong to the ruler. Do not extend a vertical grid line at each second through the layer/property body. Preserve the playhead, keyframe marks, snap feedback, and the label/lane boundary.
 
@@ -363,6 +371,13 @@ These are **only** behaviors evidenced in the supplied audit, **not** an exhaust
 - New UI painting must respect existing GPU batching, clipping, caching, and dirty flags. Do not turn lists, video frames, or keyframes into unnecessary numbers of independent draw primitives for appearance alone.
 - This specification does not prescribe a replacement rendering engine or GPU pipeline.
 
+### 10.1 Node canvas view controls
+
+- The node toolbar's View menu and canvas context menu expose native checked grid/minimap choices, with the same semantics in Chinese and English. Keep the grid visible and minimap hidden for a new workspace; persist these preferences in workspace state only.
+- The minimap sits inside the canvas at its bottom-right edge. Read its dimensions, margin, padding, world padding and viewport opacity from `node.minimap.*` metrics in `dark.json`; reuse existing chrome, border, muted text and accent colors.
+- Fit node bounds and the visible canvas into one aspect-preserving projection. Show the current viewport distinctly; click/drag navigation changes only canvas pan. Cancel an unfinished drag on Esc or focus loss, and capture input above underlying nodes. Hide the overlay when there is insufficient room, retaining its enabled preference.
+- Grid/minimap visibility and minimap navigation must leave graph source, compilation stamps, permanent output and both history stacks unchanged. Text, IME, menus and active gestures retain priority over G/N; Ctrl+G keeps its grouping behavior.
+
 ---
 
 ## 11. Existing project model and Project panel
@@ -396,7 +411,7 @@ These are **only** behaviors evidenced in the supplied audit, **not** an exhaust
 - [ ] Reduced Motion applies only to editor UI transitions, not preview/export of authored animation; mark OS integration missing if unimplemented.
 - [ ] Hover/selected/focused/disabled/editing/keyframed are visually distinguishable, without layout jitter.
 - [ ] Long names, narrow panels, minimum `900×600`, default `1600×1000`, and Windows DPI scaling lay out correctly.
-- [ ] Timeline retains 11 columns and top-side zoom; property subrows stay in the name-gutter region.
+- [ ] Timeline preserves the existing columns, adds the layer-row 3D switch, and follows §7.1's compact blend-column rule; zoom stays on top and property subrows stay in the name-gutter region.
 - [ ] Text baselines, icon centers, and value-field edges align across panels.
 
 ### Interaction and performance acceptance

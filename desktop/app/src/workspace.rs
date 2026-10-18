@@ -10,6 +10,9 @@ use motion_ui::{
 };
 pub use presets::{Preset, SavedLayout};
 use std::path::Path;
+fn visible_column() -> bool {
+    true
+}
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct RecentProject {
     pub root: std::path::PathBuf,
@@ -43,6 +46,14 @@ pub struct Workspace {
     pub favorites: std::collections::BTreeSet<String>,
     #[serde(default)]
     pub send_diagnostics: bool,
+    #[serde(default)]
+    pub node_view: crate::node_editor::ViewPreferences,
+    #[serde(default = "visible_column")]
+    pub timeline_column_blend: bool,
+    #[serde(default = "visible_column")]
+    pub timeline_column_parent: bool,
+    #[serde(default = "visible_column")]
+    pub timeline_column_matte: bool,
     #[serde(flatten)]
     layout: motion_ui::workspace::Workspace,
 }
@@ -59,6 +70,10 @@ impl Default for Workspace {
             named_layouts: Default::default(),
             favorites: Default::default(),
             send_diagnostics: false,
+            node_view: Default::default(),
+            timeline_column_blend: true,
+            timeline_column_parent: true,
+            timeline_column_matte: true,
             style_path: None,
             layout: Default::default(),
         }
@@ -76,6 +91,18 @@ impl std::ops::DerefMut for Workspace {
     }
 }
 impl Workspace {
+    pub fn column_visibility(&self) -> crate::panels::ColumnVisibility {
+        crate::panels::ColumnVisibility {
+            blend: self.timeline_column_blend,
+            parent: self.timeline_column_parent,
+            matte: self.timeline_column_matte,
+        }
+    }
+    pub fn set_column_visibility(&mut self, visibility: crate::panels::ColumnVisibility) {
+        self.timeline_column_blend = visibility.blend;
+        self.timeline_column_parent = visibility.parent;
+        self.timeline_column_matte = visibility.matte;
+    }
     pub fn valid(&self) -> bool {
         self.layout.valid()
             && self
@@ -182,6 +209,58 @@ impl Workspace {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn node_view_preferences_save_reopen_and_accept_legacy_workspace() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("workspace.json");
+        let mut workspace = Workspace::default();
+        workspace.node_view = crate::node_editor::ViewPreferences { grid:false, minimap:true };
+        workspace.save(&path).unwrap();
+        let reopened = Workspace::load(&path);
+        assert!(reopened.valid());
+        assert_eq!(reopened.node_view, workspace.node_view);
+        let mut legacy: serde_json::Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        legacy.as_object_mut().unwrap().remove("node_view");
+        std::fs::write(&path, serde_json::to_vec(&legacy).unwrap()).unwrap();
+        assert_eq!(Workspace::load(&path).node_view, crate::node_editor::ViewPreferences::default());
+    }
+    #[test]
+    fn timeline_column_visibility_defaults_visible_for_legacy_json_and_round_trips() {
+        let mut legacy = serde_json::to_value(Workspace::default()).unwrap();
+        for key in [
+            "timeline_column_blend",
+            "timeline_column_parent",
+            "timeline_column_matte",
+        ] {
+            legacy.as_object_mut().unwrap().remove(key);
+        }
+        let parsed: Workspace = serde_json::from_value(legacy).unwrap();
+        assert_eq!(
+            parsed.column_visibility(),
+            crate::panels::ColumnVisibility::default()
+        );
+        let mut explicit = serde_json::to_value(Workspace::default()).unwrap();
+        explicit["timeline_column_blend"] = serde_json::Value::Bool(false);
+        explicit["timeline_column_matte"] = serde_json::Value::Bool(false);
+        let parsed: Workspace = serde_json::from_value(explicit).unwrap();
+        assert_eq!(
+            parsed.column_visibility(),
+            crate::panels::ColumnVisibility {
+                blend: false,
+                parent: true,
+                matte: false,
+            }
+        );
+        let mut workspace = Workspace::default();
+        workspace.set_column_visibility(crate::panels::ColumnVisibility {
+            blend: false,
+            parent: true,
+            matte: false,
+        });
+        let json = serde_json::to_string(&workspace).unwrap();
+        let loaded: Workspace = serde_json::from_str(&json).unwrap();
+        assert_eq!(loaded.column_visibility(), workspace.column_visibility());
+    }
     #[test]
     fn all_registered_panels_keep_unique_ownership_through_close_float_and_reopen() {
         let dir = tempfile::tempdir().unwrap();
