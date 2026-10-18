@@ -1050,6 +1050,8 @@ fn translate_key(key: &WinitKey) -> Option<Key> {
             "m" => Key::M,
             "x" => Key::X,
             "=" | "+" => Key::Equal,
+            "-" => Key::Minus,
+            ";" | ":" => Key::Semicolon,
             "," => Key::Comma,
             "." => Key::Period,
             _ => return None,
@@ -1369,6 +1371,14 @@ mod tests {
     }
     #[test]
     fn keyboard_chords_use_character_keys() {
+        for (text, key) in [
+            ("+", Key::Equal),
+            ("=", Key::Equal),
+            ("-", Key::Minus),
+            (";", Key::Semicolon),
+        ] {
+            assert_eq!(translate_key(&WinitKey::Character(text.into())), Some(key));
+        }
         assert_eq!(
             translate_key(&WinitKey::Character("S".into())),
             Some(Key::S)

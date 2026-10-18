@@ -113,6 +113,7 @@ pub struct Panels {
     pub(crate) layer_actions: super::layer_actions::Controls,
     pub locale: Locale,
     pub(crate) focused: Option<dock::Panel>,
+    pub(crate) expressions: super::expressions::Controls,
     pub(crate) auxiliary: super::auxiliary::State,
     pub(crate) library_scroll: motion_ui::widgets::ScrollArea,
     pub(crate) library_height: f32,
@@ -133,7 +134,7 @@ pub struct Panels {
     pub(crate) panel_menu: Option<(dock::DockId, [f32; 2])>,
     pub(crate) header_hits: Vec<HeaderHit>,
     pub(crate) header_size: Option<[f32; 2]>,
-    pub fx_console: Option<FxConsole>,
+    pub effect_search: Option<EffectSearch>,
     pub effect_controls: crate::panels::effect_controls::Controls,
     pub timeline_anchor: super::properties::AnchorControls,
     pub animation_controls: crate::panels::animation_controls::Controls,
@@ -293,10 +294,10 @@ impl Panels {
         self.styles = Some(std::sync::Arc::new(sheet));
     }
 
-    pub(crate) fn fx_console_in(&self, owner: Option<motion_ui::dock::Panel>) -> bool {
-        self.fx_console
+    pub(crate) fn effect_search_in(&self, owner: Option<motion_ui::dock::Panel>) -> bool {
+        self.effect_search
             .as_ref()
-            .is_some_and(|console| console.owner == owner)
+            .is_some_and(|search| search.owner == owner)
     }
 }
 pub(crate) struct HeaderHit {
@@ -305,9 +306,9 @@ pub(crate) struct HeaderHit {
     pub action: bool,
 }
 
-/// FX Console quick search overlay (Ctrl+Space)
+/// Effect search overlay (Ctrl+Space)
 #[derive(Clone, Debug)]
-pub struct FxConsole {
+pub struct EffectSearch {
     pub position: [f32; 2],
     pub query: String,
     pub selected_index: usize,
@@ -432,6 +433,8 @@ pub(crate) struct TimelineState {
     pub scroll_extent_cache: Option<(u64, f32)>,
     pub zoom: f32,
     pub offset: f32,
+    pub expression_rows: Vec<motion_core::ExpressionTarget>,
+    pub zoom_track: Option<Rect>,
     pub scrubbing: bool,
     pub last_seek: Option<f64>,
     pub snap_guide: Option<f64>,

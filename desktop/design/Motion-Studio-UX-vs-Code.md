@@ -232,7 +232,7 @@ assert_eq!(e.project(), &original);  // 一次撤销回滚全部 50 步
 
 | 能力 | 代码位置 | 快捷键 |
 |------|---------|--------|
-| **FX Console 效果搜索浮层** | `panels/fx_console.rs` | `Ctrl+Space` |
+| **效果搜索浮层** | `panels/effect_search.rs` | `Ctrl+Space` |
 | **表达式引擎**（QuickJS） | `motion-core` + `crates/motion-core/src/README.md` | — |
 | 效果包管理（安装/启用/卸载 `.msfx`） | `Registry` | — |
 | 轨道遮罩 / 15 种混合模式 | `host-compositing.md` | — |
@@ -303,7 +303,7 @@ assert_eq!(e.project(), &original);  // 一次撤销回滚全部 50 步
 
 | # | 补充项 |
 |---|------|
-| 11 | FX Console（`Ctrl+Space`）浮层 —— 代码已有，设计稿无 |
+| 11 | 效果搜索（`Ctrl+Space`）浮层 —— 代码已有，设计稿无 |
 | 12 | 表达式工作区 —— 代码有 QuickJS，设计稿只在"建议"里提 |
 | 13 | `Shift+F3` 时间轴↔值曲线同面板切换 |
 | 14 | `P/S/R/T` 属性筛选交互 |
@@ -328,7 +328,7 @@ assert_eq!(e.project(), &original);  // 一次撤销回滚全部 50 步
 | §5.8.4-B 修饰键矩阵 | 4 条建议 | 标注"代码均未实现"，并加 `F9`/`Shift+F9`/`Ctrl+Shift+F9` 三档 |
 | §5.8.4-D 影响权重 | 档位建议 | **待你拍板**，先不写死 |
 | §5.8.4-E 插值类型 | 6 平级 | 改为 `Ease`(5) + `CurveShape`(3) 两层 |
-| §8 实现优先级 | — | 补「FX Console / 表达式 / 3D 摄影机已在代码中」 |
+| §8 实现优先级 | — | 补「效果搜索 / 表达式 / 3D 摄影机已在代码中」 |
 
 ---
 

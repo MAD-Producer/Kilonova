@@ -117,9 +117,12 @@ impl Workspace {
         .map_err(|e| e.to_string())
     }
     pub fn redock(&mut self, panel: DockId) {
-        let panel = if panel == dock::Panel::Masks.dock() {
+        let panel = if matches!(panel, id if id == dock::Panel::Masks.dock() || id == dock::Panel::Expression.dock())
+        {
             dock::Panel::Properties.dock()
-        } else { panel };
+        } else {
+            panel
+        };
         if self.layout.root.find(panel).is_some() {
             return;
         }

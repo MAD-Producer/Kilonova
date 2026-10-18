@@ -39,6 +39,9 @@ pub enum Command {
     FitSelection,
     AddNode,
     ResetZoom,
+    ZoomIn,
+    ZoomOut,
+    ToggleFrameView,
     MoveLeft,
     MoveRight,
     MoveUp,
@@ -59,7 +62,7 @@ pub enum Command {
     ToggleKey(motion_core::Property),
 }
 
-pub const FX_CONSOLE: KeyChord = KeyChord::new(Key::Space, true, false, false);
+pub const EFFECT_SEARCH: KeyChord = KeyChord::new(Key::Space, true, false, false);
 
 /// Modifiers match exactly. Only navigation and micro-movement accept OS repeat.
 pub fn resolve(scope: Scope, key: Key, m: Modifiers, repeat: bool) -> Option<Command> {
@@ -71,6 +74,9 @@ pub fn resolve(scope: Scope, key: Key, m: Modifiers, repeat: bool) -> Option<Com
         (Animation, Key::R, false, _, false) => Reveal(motion_core::Property::Rotation),
         (Animation, Key::T, false, _, false) => Reveal(motion_core::Property::Opacity),
         (Animation, Key::U, false, false, false) => AnimatedProperties,
+        (Animation, Key::Equal, false, _, false) => ZoomIn,
+        (Animation, Key::Minus, false, false, false) => ZoomOut,
+        (Animation, Key::Semicolon, false, false, false) => ToggleFrameView,
         (Animation, Key::J, false, false, false) => PreviousKey,
         (Animation, Key::K, false, false, false) => NextKey,
         (Animation, Key::F3, false, true, false) => ToggleGraph,
@@ -200,3 +206,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "shortcuts_documentation_tests.rs"]
+mod documentation_tests;

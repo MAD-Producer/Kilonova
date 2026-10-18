@@ -507,9 +507,12 @@ impl Shell {
                 self.action(Action::ShowPanel(dock::Panel::Timeline.dock()), event_loop)?;
             }
             Action::ShowPanel(id) => {
-                let id = if id == dock::Panel::Masks.dock() {
+                let id = if id == dock::Panel::Masks.dock() || id == dock::Panel::Expression.dock()
+                {
                     dock::Panel::Properties.dock()
-                } else { id };
+                } else {
+                    id
+                };
                 self.panels.node_editor.cancel_interaction();
                 if let Some(f) = self.floating.values().find(|f| f.panel.dock() == id) {
                     f.window.focus_window();

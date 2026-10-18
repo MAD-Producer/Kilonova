@@ -1,9 +1,9 @@
 //! Focus routing and application shortcut actions.
 use super::{
     helpers::last_frame,
-    types::{Action, FxConsole, Panels},
+    types::{Action, EffectSearch, Panels},
 };
-use crate::shortcuts::{self, Command, Scope, FX_CONSOLE};
+use crate::shortcuts::{self, Command, Scope, EFFECT_SEARCH};
 use motion_core::Command as Edit;
 use motion_ui::{
     dock::Panel,
@@ -27,6 +27,7 @@ fn text_active(panels: &Panels) -> bool {
         || panels.properties.effects.editing()
         || panels.properties.anchor.editing()
         || panels.timeline_anchor.editing()
+        || panels.expressions.editing()
         || panels.auxiliary.editing()
         || panels.animation_controls.editing()
         || panels.camera_controls.editing()
@@ -37,8 +38,8 @@ fn text_active(panels: &Panels) -> bool {
 }
 
 /// The modal also owns its closing frame, preventing input from reaching the canvas.
-pub fn console_close_pressed(input: &Input) -> bool {
-    FX_CONSOLE.pressed(input) || KeyChord::new(Key::Escape, false, false, false).pressed(input)
+pub fn effect_search_close_pressed(input: &Input) -> bool {
+    EFFECT_SEARCH.pressed(input) || KeyChord::new(Key::Escape, false, false, false).pressed(input)
 }
 
 pub fn route(
@@ -49,10 +50,10 @@ pub fn route(
     owner: Option<Panel>,
     out: &mut Vec<Action>,
 ) -> bool {
-    if let Some(console) = &panels.fx_console {
-        let owned = console.owner == owner;
-        if console_close_pressed(input) || owned && input.focus_lost {
-            panels.fx_console = None;
+    if let Some(search) = &panels.effect_search {
+        let owned = search.owner == owner;
+        if effect_search_close_pressed(input) || owned && input.focus_lost {
+            panels.effect_search = None;
             return true;
         }
         if owned {
@@ -143,8 +144,8 @@ pub fn route(
             return true;
         }
     }
-    if FX_CONSOLE.pressed(input) && !panels.node_editor.editing() {
-        panels.fx_console = Some(FxConsole {
+    if EFFECT_SEARCH.pressed(input) && !panels.node_editor.editing() {
+        panels.effect_search = Some(EffectSearch {
             position: input.mouse,
             query: String::new(),
             selected_index: 0,
@@ -152,19 +153,63 @@ pub fn route(
         });
         return true;
     }
-    if !node_context
-        && panels.menu.is_none()
+    if panels.menu.is_none()
         && panels.panel_menu.is_none()
         && panels.timeline.timeline_context_menu.is_none()
     {
-        handle_shortcuts(input, panels, state, out);
+        if node_context {
+            if !panels.node_editor.editing() {
+                if KeyChord::new(Key::Space, false, false, false).pressed(input) {
+                    panels.node_preview.toggle();
+                    return true;
+                }
+                handle_context_shortcuts(input, panels, state, out, true);
+            }
+        } else {
+            handle_shortcuts(input, panels, state, out);
+        }
     }
     false
 }
 
 pub fn handle_shortcuts(input: &Input, panels: &mut Panels, state: &Value, out: &mut Vec<Action>) {
+    handle_context_shortcuts(input, panels, state, out, false);
+}
+
+fn handle_context_shortcuts(
+    input: &Input,
+    panels: &mut Panels,
+    state: &Value,
+    out: &mut Vec<Action>,
+    node_context: bool,
+) {
     let mut frame = state["frame"].as_f64().unwrap_or(0.0);
     for (key, modifiers, repeat) in input.key_presses() {
+        // Document edits and canvas navigation remain owned by the node scope.
+        // These application actions have no competing node action.
+        if node_context {
+            let allowed = match shortcuts::resolve(Scope::Application, key, modifiers, repeat) {
+                Some(
+                    Command::NewProject
+                    | Command::NewComposition
+                    | Command::Import
+                    | Command::Settings
+                    | Command::Export
+                    | Command::Solid
+                    | Command::Text
+                    | Command::Null
+                    | Command::Adjustment
+                    | Command::LastFrame,
+                ) => true,
+                Some(Command::PreviousFrame | Command::NextFrame) => {
+                    !matches!(key, Key::Left | Key::Right) || modifiers.control
+                }
+                _ => false,
+            };
+            if !allowed {
+                continue;
+            }
+        }
         if key == Key::A
             && modifiers.control
             && !modifiers.alt
@@ -177,6 +222,9 @@ pub fn handle_shortcuts(input: &Input, panels: &mut Panels, state: &Value, out: 
         let key_owned = matches!(panels.focused, Some(Panel::Timeline | Panel::Curves))
             && panels.animation_controls.user_key().is_some();
         if let Some(command) = shortcuts::resolve(Scope::Animation, key, modifiers, repeat) {
+            if super::timeline_zoom::shortcut(command, input, panels, state) {
+                continue;
+            }
             if super::audio::shortcut(command, panels, state, out) {
                 continue;
             }
@@ -322,8 +370,8 @@ pub fn handle_shortcuts(input: &Input, panels: &mut Panels, state: &Value, out: 
 #[cfg(test)]
 mod tests {
     use super::*;
-    fn console(owner: Option<Panel>) -> FxConsole {
-        FxConsole {
+    fn search_state(owner: Option<Panel>) -> EffectSearch {
+        EffectSearch {
             position: [20., 20.],
             query: "glow".into(),
             selected_index: 0,
@@ -331,13 +379,13 @@ mod tests {
         }
     }
     #[test]
-    fn console_blocks_only_its_owner_and_other_window_can_save() {
+    fn effect_search_blocks_only_its_owner_and_other_window_can_save() {
         for (owner, other) in [
             (Some(Panel::NodeProperties), None),
             (None, Some(Panel::Info)),
         ] {
             let mut panels = Panels {
-                fx_console: Some(console(owner)),
+                effect_search: Some(search_state(owner)),
                 ..Default::default()
             };
             let mut out = vec![];
@@ -376,7 +424,7 @@ mod tests {
                 &mut out
             ));
             assert!(matches!(out.as_slice(), [Action::Save]));
-            assert_eq!(panels.fx_console.as_ref().unwrap().owner, owner);
+            assert_eq!(panels.effect_search.as_ref().unwrap().owner, owner);
         }
     }
     #[test]
@@ -385,9 +433,9 @@ mod tests {
             (Some(Panel::NodeProperties), None),
             (None, Some(Panel::Info)),
         ] {
-            for chord in [KeyChord::new(Key::Escape, false, false, false), FX_CONSOLE] {
+            for chord in [KeyChord::new(Key::Escape, false, false, false), EFFECT_SEARCH] {
                 let mut panels = Panels {
-                    fx_console: Some(console(owner)),
+                    effect_search: Some(search_state(owner)),
                     ..Default::default()
                 };
                 let input = Input {
@@ -406,16 +454,16 @@ mod tests {
                     other,
                     &mut out
                 ));
-                assert!(panels.fx_console.is_none());
+                assert!(panels.effect_search.is_none());
                 assert!(out.is_empty());
             }
         }
     }
     #[test]
-    fn unrelated_focus_loss_keeps_console_and_owner_focus_loss_closes_it() {
+    fn unrelated_focus_loss_keeps_effect_search_and_owner_focus_loss_closes_it() {
         let owner = Some(Panel::NodeProperties);
         let mut panels = Panels {
-            fx_console: Some(console(owner)),
+            effect_search: Some(search_state(owner)),
             ..Default::default()
         };
         let input = Input {
@@ -431,7 +479,7 @@ mod tests {
             None,
             &mut out
         ));
-        assert!(panels.fx_console.is_some());
+        assert!(panels.effect_search.is_some());
         assert!(route(
             &input,
             &mut panels,
@@ -440,7 +488,7 @@ mod tests {
             owner,
             &mut out
         ));
-        assert!(panels.fx_console.is_none());
+        assert!(panels.effect_search.is_none());
         assert!(out.is_empty());
     }
     #[test]
@@ -630,7 +678,7 @@ mod tests {
         ));
         out.clear();
         let input = Input {
-            keys: vec![(Key::Space, FX_CONSOLE.modifiers)],
+            keys: vec![(Key::Space, EFFECT_SEARCH.modifiers)],
             ..Default::default()
         };
         route(
@@ -642,11 +690,11 @@ mod tests {
             &mut out,
         );
         assert_eq!(
-            panels.fx_console.as_ref().unwrap().owner,
+            panels.effect_search.as_ref().unwrap().owner,
             Some(Panel::NodeProperties)
         );
         route(&input, &mut panels, &Value::Null, true, None, &mut out);
-        assert!(panels.fx_console.is_none());
+        assert!(panels.effect_search.is_none());
         assert!(out.is_empty());
     }
     #[test]
@@ -654,7 +702,7 @@ mod tests {
         let mut panels = Panels::default();
         panels.node_editor.focus_panel();
         let input = Input {
-            keys: vec![(Key::Space, FX_CONSOLE.modifiers)],
+            keys: vec![(Key::Space, EFFECT_SEARCH.modifiers)],
             ..Default::default()
         };
         let mut out = vec![];
@@ -666,7 +714,7 @@ mod tests {
             None,
             &mut out
         ));
-        assert!(panels.fx_console.is_some());
+        assert!(panels.effect_search.is_some());
         assert!(route(
             &input,
             &mut panels,
@@ -675,7 +723,7 @@ mod tests {
             None,
             &mut out
         ));
-        assert!(panels.fx_console.is_none());
+        assert!(panels.effect_search.is_none());
         assert!(out.is_empty());
     }
     #[test]
@@ -684,7 +732,7 @@ mod tests {
         panels.project.search = true;
         let mut out = vec![];
         let mut input = Input {
-            keys: vec![(Key::Space, FX_CONSOLE.modifiers)],
+            keys: vec![(Key::Space, EFFECT_SEARCH.modifiers)],
             ..Default::default()
         };
         assert!(!route(
@@ -695,11 +743,15 @@ mod tests {
             None,
             &mut out
         ));
-        assert!(panels.fx_console.is_none());
+        assert!(panels.effect_search.is_none());
         panels.project.search = false;
         input.key_repeats = vec![true];
         route(&input, &mut panels, &Value::Null, false, None, &mut out);
-        assert!(panels.fx_console.is_none());
+        assert!(panels.effect_search.is_none());
         assert!(out.is_empty());
     }
 }
+
+#[cfg(test)]
+#[path = "keyboard_node_tests.rs"]
+mod node_scope_tests;

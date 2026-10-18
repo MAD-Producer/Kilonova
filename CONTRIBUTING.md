@@ -41,3 +41,21 @@
 - 行业公开资料、标准、论文和社区讨论。
 
 参考资料只用于理解公开行为，不得复制 Adobe 资源或暗示 Adobe 认可 Motion Studio。新资产必须先更新 `PROVENANCE.md` 和 `ATTRIBUTION.md`；CI 会拦截已知的二进制、字体和产品文案风险。
+
+## 文档归属与验证
+
+受版本控制的公共文档放在 `engineering/`、`desktop/`、`sdk/` 及各 crate 目录；文档改动使用 `docs/` 分支前缀，这与目录名无关。
+
+仓库根 `docs/` 与 `design/` 是本地参考目录，不随克隆分发，不作为产品能力、测试通过数量或效果数量的权威来源。CI 保持这两个目录的既有归属；不要将个人参考资料批量加入仓库。共享排除规则在 `.gitignore` 中可见，无须依赖本机 `.git/info/exclude`。
+
+效果能力与边界以 [内置效果与字体 API](engineering/host-api/official-motion-effects.md)、`crates/motion-effects/*-library/manifest.json` 及真实加载器为准；历史本地 `docs/effects` 的旧计数、旧 crate 名和测试数量不适用于当前版本。验收数量应附具体提交和运行记录，不能作为永久能力声明。
+
+默认快捷键目录由实际 Rust 解析器生成并核对：
+
+```powershell
+$env:MOTION_UPDATE_SHORTCUT_DOCS='1'
+cargo test -p motion-desktop default_binding_reference_matches_live_resolver -- --exact shortcuts::documentation_tests::default_binding_reference_matches_live_resolver
+Remove-Item Env:MOTION_UPDATE_SHORTCUT_DOCS
+```
+
+正常 `cargo test -p motion-desktop` 会检查目录与解析器一致，节点焦点可达性和文本/IME 保护另由交互测试验证。
