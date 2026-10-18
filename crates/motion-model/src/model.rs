@@ -63,7 +63,8 @@ pub struct Transform {
     pub scale: Track<[f32; 3]>,
     pub opacity: Track<f32>,
     /// Normalized anchor in the layer's source rectangle, with Y pointing down.
-    pub anchor: [f32; 2],
+    #[serde(with = "anchor_serde")]
+    pub anchor: Track<[f32; 2]>,
 }
 impl Transform {
     pub fn new(position: [f32; 3]) -> Self {
@@ -72,7 +73,7 @@ impl Transform {
             rotation: Track::constant([0.0; 3]),
             scale: Track::constant([100.0; 3]),
             opacity: Track::constant(1.0),
-            anchor: [0.5; 2],
+            anchor: Track::constant([0.5; 2]),
         }
     }
     pub fn validate(&self, frames: u32) -> Result<()> {
@@ -87,18 +88,16 @@ impl Transform {
             self.rotation.validate(frames)?;
             self.scale.validate(frames)?;
             self.opacity.validate(frames)?;
+            self.anchor.validate(frames)?;
         } else {
             self.position.validate_local()?;
             self.rotation.validate_local()?;
             self.scale.validate_local()?;
             self.opacity.validate_local()?;
+            self.anchor.validate_local()?;
         }
-        ensure(
-            self.anchor
-                .into_iter()
-                .all(|v| v.is_finite() && v.abs() <= 1000.0),
-            "invalid anchor",
-        )?;
+        self.anchor.validate_bound(1000.)?;
+        ensure(self.anchor.axes.is_none(), "anchor does not support separated axes")?;
         for (track, bound) in [
             (&self.position, 10_000_000.0),
             (&self.rotation, 1_000_000.0),
@@ -115,6 +114,25 @@ impl Transform {
             )?;
         }
         Ok(())
+    }
+}
+
+// Static anchors keep the legacy array representation byte-for-value. Animated
+// anchors use the normal Track schema, gated by project format twenty.
+mod anchor_serde {
+    use super::*;
+    pub fn serialize<S: serde::Serializer>(value: &Track<[f32; 2]>, s: S) -> std::result::Result<S::Ok, S::Error> {
+        if !value.is_animated() && value.axes.is_none() { value.value.serialize(s) }
+        else { value.serialize(s) }
+    }
+    pub fn deserialize<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<Track<[f32; 2]>, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Stored { Legacy([f32; 2]), Animated(Track<[f32; 2]>) }
+        Ok(match Stored::deserialize(d)? {
+            Stored::Legacy(value) => Track::constant(value),
+            Stored::Animated(track) => track,
+        })
     }
 }
 
@@ -336,7 +354,7 @@ impl Project {
             crate::storage::validate_relative_path(&font.path)?;
             ensure(font.path.starts_with("assets/fonts/")&&font.path.ends_with(".ttf"),"invalid managed font path")?;
         }
-        ensure((1..=19).contains(&self.version), "unsupported project format")?;
+        ensure((1..=20).contains(&self.version), "unsupported project format")?;
         ensure(self.plugin_dependencies == self.composition_dependencies(),
                "plugin dependency list does not match effect instances")?;
         self.validate_one(self)?;
@@ -345,7 +363,7 @@ impl Project {
     pub(crate) fn validate_one(&self, document: &Project) -> Result<()> {
         crate::effects::validate_image_graph(self)?;
         ensure(
-            (1..=19).contains(&self.version),
+            (1..=20).contains(&self.version),
             "unsupported project format",
         )?;
         let spatial = [&self.camera.position, &self.camera.target].iter().any(|t| t.keys.iter().any(|k| k.spatial.is_some()))
@@ -466,6 +484,7 @@ impl Project {
         crate::compositing::validate(&self.layers)?;
         ensure(self.version>=17||self.layers.iter().all(|l|l.effects.iter().all(|e|e.node_graph.is_none())),"editable node effects require project format seventeen")?;
         for layer in &self.layers {
+            ensure(self.version >= 20 || !layer.transform.anchor.is_animated(), "animated layer anchors require project format twenty")?;
             ensure(self.version >= 18 || layer.audio_markers.is_empty()
                 && crate::audio_edit::stereo(&layer.audio_source_channel), "audio references require project format eighteen")?;
             crate::audio_edit::validate(layer)?;

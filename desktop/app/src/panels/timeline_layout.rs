@@ -15,7 +15,6 @@ pub(super) struct LayerRows {
     pub property_offsets: Vec<usize>,
     pub expression_offsets: Vec<Option<usize>>,
     pub transform: Range<usize>,
-    pub anchor: Option<usize>,
     pub audio: Range<usize>,
     pub geometry: Range<usize>,
     pub effects: Range<usize>,
@@ -111,9 +110,7 @@ impl LayerRows {
             .filter(|(_, p)| transform_open && filter.admits(p.property, !p.keys.is_empty()))
             .map(|(i, _)| i)
             .collect::<Vec<_>>();
-        let anchor =
-            (transform_open && !row.camera && matches!(filter, super::types::PropertyFilter::All)).then_some(2);
-        let mut next = 1 + usize::from(expanded && row.spatial) + usize::from(anchor.is_some());
+        let mut next = 1 + usize::from(expanded && row.spatial);
         let mut property_offsets = Vec::new();
         let mut expression_offsets = Vec::new();
         for index in &properties {
@@ -184,7 +181,6 @@ impl LayerRows {
             property_offsets,
             expression_offsets,
             transform,
-            anchor,
             audio,
             geometry,
             effects,
@@ -273,7 +269,7 @@ mod tests {
             axis: None,
         });
         let plan = LayerRows::new(&rows[0], &timeline, 0., Locale::En);
-        assert!(plan.anchor.is_none(), "camera has no source anchor row");
+        assert!(!plan.properties.iter().any(|i| rows[0].properties[*i].property == motion_core::Property::Anchor), "camera has no source anchor row");
         assert_eq!(rows[0].properties[1].property, motion_core::Property::Target);
         assert_eq!(plan.property_offsets, vec![2, 3, 5, 6]);
         assert_eq!(plan.expression_offsets, vec![None, Some(4), None, None]);

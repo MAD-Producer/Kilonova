@@ -19,7 +19,7 @@ pub(crate) struct Drag {
 }
 pub(super) fn begin(
     panels: &mut Panels,
-    _state: &Value,
+    state: &Value,
     object: u64,
     property: Property,
     axis: Option<Axis>,
@@ -46,11 +46,7 @@ pub(super) fn begin(
         original: frame,
         current: frame,
         seed: value,
-        last_value: if property == Property::Opacity {
-            value / 100.
-        } else {
-            value
-        },
+        last_value: value / super::animation_data::display_scale(state,object,property,component),
         mouse: input.pressed.map_or(point, |(_, p)| p),
         bounds,
         vector,

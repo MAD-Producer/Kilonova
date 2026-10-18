@@ -33,6 +33,9 @@ impl Shell {
             "timeline-properties-tree",
             "camera-properties",
             "timeline-cameras",
+            "layer-anchor-animation",
+            "timeline-anchor-animation",
+            "timeline-anchor-graph",
         ] {
             let graph_preset = if screen.starts_with("timeline-") || screen == "effect-library" {
                 workspace::Preset::Default
@@ -108,6 +111,7 @@ impl Shell {
                         return Err("effect library capture must not edit the project".into());
                     }
                 }
+                "layer-anchor-animation" | "timeline-anchor-animation" | "timeline-anchor-graph" |
                 "camera-properties" | "timeline-cameras" |
                 "layer-properties-tree"
                 | "layer-properties-effects"
@@ -510,7 +514,7 @@ impl Shell {
                 let catalogue = self.panels.effect_controls.catalogue.clone();
                 for name in ["drop_shadow", "curves", "brightness_contrast"]
                     .into_iter()
-                    .filter(|name| pose != "effect-curve-inline" || *name == "curves")
+                    .filter(|name| !pose.contains("anchor") && (pose != "effect-curve-inline" || *name == "curves"))
                 {
                     let package = catalogue["packages"]
                         .as_array()
@@ -546,6 +550,12 @@ impl Shell {
                         .map_err(|error| error.to_string())?,
                     )?;
                 }
+                if pose.contains("anchor") {
+                    self.engine.edit(serde_json::json!([
+                        {"op":"animate","object":object,"property":"anchor","frame":0,"enabled":true},
+                        {"op":"set_vector","object":object,"property":"anchor","frame":60,"value":[0.2,0.8,0.]}
+                    ]).to_string())?;
+                }
                 self.state = self.engine.history(3)?;
                 effect_gesture = false;
                 created_text = true;
@@ -568,6 +578,13 @@ impl Shell {
                     );
                     self.panels.timeline.collapsed_geometry.insert(object);
                     self.panels.focused = Some(dock::Panel::Timeline);
+                }
+                if pose.contains("anchor") {
+                    self.panels.expressions.cancel();
+                    self.panels.timeline.expression_rows.clear();
+                    self.panels.animation_controls.choose_track(object,motion_core::Property::Anchor,None);
+                    self.panels.timeline.set_graph_mode(pose.ends_with("graph"));
+                    self.panels.focused=Some(panel);
                 }
                 if pose == "effect-controls-bottom" {
                     self.panels

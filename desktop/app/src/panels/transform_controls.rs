@@ -79,7 +79,7 @@ impl Pose {
         if size.iter().any(|s| *s <= 0.) {
             return None;
         }
-        let anchor = array::<2>(&l["transform"]["anchor"])?;
+        let anchor = array::<2>(&s["anchor"]).or_else(|| array::<2>(&l["transform"]["anchor"]))?;
         let projection = layer_projection(state, object, view)?;
         let w = size[0] * 0.5;
         let h = size[1] * 0.5;
@@ -330,10 +330,7 @@ impl Drag {
                             && value.iter().all(|v| v.is_finite() && v.abs() <= 1000.)
                         {
                             self.last_anchor = value;
-                            out.push(Action::Edit(Command::Anchor {
-                                object: self.pose.object,
-                                anchor: value,
-                            }));
+                            out.push(Action::Edit(super::properties::anchor_command(state,self.pose.object,value)));
                         }
                     }
                     _ => {}
