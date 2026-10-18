@@ -5,7 +5,7 @@ use std::{collections::BTreeSet, sync::Arc};
 #[test]
 fn embedded_examples_are_independent_complete_n1_documents() {
     let examples = builtin_examples();
-    assert_eq!(examples.len(), 16);
+    assert_eq!(examples.len(), 17);
     let mut ids = BTreeSet::new();
     for example in examples {
         assert!(ids.insert(example.id));
@@ -102,7 +102,7 @@ fn style_collections_have_stable_bilingual_metadata_without_source_payloads() {
     let catalogue = builtin_example_catalogue();
     assert_eq!(catalogue["version"], 1);
     assert_eq!(catalogue["collections"].as_array().unwrap().len(), 4);
-    assert_eq!(catalogue["examples"].as_array().unwrap().len(), 16);
+    assert_eq!(catalogue["examples"].as_array().unwrap().len(), 17);
     for collection in [
         ExampleCollection::SoftSpace,
         ExampleCollection::GraphicMotion,

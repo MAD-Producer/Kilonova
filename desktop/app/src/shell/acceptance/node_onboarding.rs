@@ -54,7 +54,7 @@ impl Shell {
         }
         Ok(())
     }
-    fn onboarding_screenshot(&mut self, name: &str, key: &str) -> Result<(), String> {
+    pub(super) fn onboarding_screenshot(&mut self, name: &str, key: &str) -> Result<(), String> {
         let screenshot = self.capture_node_float()?;
         let path = self
             .smoke
@@ -249,23 +249,30 @@ impl Shell {
                     return Err("starter undo did not restore GPU pixels".into());
                 }
                 self.smoke_node_report["onboardingUndoRestoredPixels"] = true.into();
-                let state = self.engine.state()?;
-                if state["revision"] != self.smoke_node_report["projectRevision"]
-                    || state["project"]["layers"] != self.smoke_node_report["projectEffects"]
-                {
-                    return Err("onboarding changed the user project".into());
-                }
-                self.redock_panel(dock::Panel::Nodes.dock())?;
-                let path = directory.join("home-after-node-preview.png");
-                self.capture_home_preview_smoke(path.clone())?;
-                self.smoke_node_report["homePreviewHidden"] = true.into();
-                self.smoke_node_report["homeAfterNodeScreenshot"] =
-                    serde_json::to_value(path).map_err(|e| e.to_string())?;
-                self.smoke_stage = 7;
-                self.dirty = true;
+                self.start_node_gradient_smoke()?;
             }
             _ => return Err("unexpected onboarding acceptance stage".into()),
         }
+        Ok(())
+    }
+    pub(super) fn finish_node_starter_smoke(
+        &mut self,
+        directory: &std::path::Path,
+    ) -> Result<(), String> {
+        let state = self.engine.state()?;
+        if state["revision"] != self.smoke_node_report["projectRevision"]
+            || state["project"]["layers"] != self.smoke_node_report["projectEffects"]
+        {
+            return Err("onboarding changed the user project".into());
+        }
+        self.redock_panel(dock::Panel::Nodes.dock())?;
+        let path = directory.join("home-after-node-preview.png");
+        self.capture_home_preview_smoke(path.clone())?;
+        self.smoke_node_report["homePreviewHidden"] = true.into();
+        self.smoke_node_report["homeAfterNodeScreenshot"] =
+            serde_json::to_value(path).map_err(|e| e.to_string())?;
+        self.smoke_stage = 7;
+        self.dirty = true;
         Ok(())
     }
 }

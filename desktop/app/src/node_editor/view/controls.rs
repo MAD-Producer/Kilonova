@@ -154,6 +154,25 @@ pub(super) fn transform_content(content: &mut PaintList, origin: [f32; 2], zoom:
 }
 
 impl NodeEditor {
+    /// Read the same choice rectangle used by painting and native pointer input.
+    pub(crate) fn choice_bounds(&self, id: &str) -> Option<Rect> {
+        let card = self
+            .cards(self.last_canvas)
+            .into_iter()
+            .find(|card| card.id == id)?;
+        let node = self.document.nodes.iter().find(|node| node.id == id)?;
+        control_rows(node, &self.document, Language::English)
+            .into_iter()
+            .find(|(_, control)| matches!(control, Control::Choice { .. }))
+            .map(|(row, _)| screen_rect(number_rect(row, false), &card, self.view.zoom))
+            .filter(|rect| {
+                self.last_canvas.contains([
+                    (rect.min[0] + rect.max[0]) * 0.5,
+                    (rect.min[1] + rect.max[1]) * 0.5,
+                ])
+            })
+    }
+
     /// Screen geometry shared by native input automation and the painted card.
     pub(crate) fn input_default_bounds(
         &self,
@@ -566,8 +585,8 @@ impl NodeEditor {
                     .position(|item| item.operation == node.operation)
                     .unwrap_or(0);
                 self.inline.popup = Some(Popup::Choice {
-                    position: point,
                     node: node.id,
+                    field: number_rect(row, false),
                     items,
                     selected,
                     scroll: 0.,

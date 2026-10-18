@@ -48,7 +48,7 @@ impl BuiltinExample {
 pub fn builtin_examples() -> &'static [BuiltinExample] {
     &EXAMPLES
 }
-const EXAMPLES: [BuiltinExample; 16] = [
+const EXAMPLES: [BuiltinExample; 17] = [
     BuiltinExample {
         id: "drifting_circle", name: "漂移圆形", english_name: "Drifting Circle",
         description: "公开半径、中心、颜色和速度参数，按局部时间移动半透明圆形。默认尺寸为 64×64。",
@@ -238,6 +238,17 @@ const EXAMPLES: [BuiltinExample; 16] = [
         limitations: "输出为均匀纯色，不包含图像素材或动画。",
         english_limitations: "Produces a uniform solid color, without source images or animation.",
         source: include_str!("../examples/solid-color.msgraph"),
+    },
+    BuiltinExample {
+        id: "compact_gradient", name: "三节点渐变", english_name: "Three-node Gradient",
+        description: "UV、渐变和输出三个节点，直接调节两端颜色、方向与衰减。",
+        english_description: "Three nodes: UV, Gradient and Output. Edit colors, direction and falloff directly.",
+        lesson: "渐变同时输出颜色和因子；切换线性、径向或角向模式，使用端口行内默认值，不再铺设常量与混色链。",
+        english_lesson: "Gradient outputs both color and factor. Switch linear, radial or conic modes and edit socket defaults instead of adding constant and color-mix chains.",
+        collection: ExampleCollection::Fundamentals,
+        limitations: "使用归一化 UV，径向不自动校正宽高比；只有双色，无多色标编辑器。",
+        english_limitations: "Uses normalized UV without radial aspect correction. Two colors only; no multi-stop editor.",
+        source: include_str!("../examples/compact-gradient.msgraph"),
     },
 ];
 

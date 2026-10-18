@@ -22,8 +22,8 @@ pub(super) struct NumericEdit {
 }
 pub(super) enum Popup {
     Choice {
-        position: [f32; 2],
         node: String,
+        field: Rect,
         items: Vec<Choice>,
         selected: usize,
         scroll: f32,
@@ -77,6 +77,7 @@ pub(super) const CONTROL_ROW: f32 = 28.;
 pub(super) fn control_count(node: &Node, document: &GraphDocument) -> usize {
     match &node.operation {
         NodeOp::Float { .. }
+        | NodeOp::Gradient { .. }
         | NodeOp::Bool { .. }
         | NodeOp::ColorMath { .. }
         | NodeOp::Splat { .. }
@@ -342,6 +343,14 @@ pub(super) fn controls(node: &Node, document: &GraphDocument, language: Language
                 true,
             ));
         }
+        NodeOp::Gradient { .. } => out.push(choices(
+            language.text("模式", "Mode"),
+            &node.operation,
+            [GradientMode::Linear, GradientMode::Radial, GradientMode::Conic]
+                .into_iter().map(|mode| NodeOp::Gradient { mode }).collect(),
+            language,
+            false,
+        )),
         NodeOp::ColorMath { .. } => out.push(choices(
             language.text("运算", "Op"),
             &node.operation,

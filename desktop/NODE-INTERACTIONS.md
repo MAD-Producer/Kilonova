@@ -204,3 +204,9 @@ Missing inputs on that node use hollow error rings; connected inputs and saved d
 Fresh standalone demos show a separate welcome strip, explicitly identifying the editable example and linking to the existing browser. Continue dismisses it without moving nodes or changing source, selection, history or preview. Non-empty loaded documents, layer effects and nested groups retain their normal canvas. Empty standalone roots offer Examples and Shift+A in the vacant canvas without changing node drop coordinates; small docks retain the toolbar entry instead of crowding the canvas.
 
 Solid Color is the first recommended source: Color feeds Color Output through one wire. Click Examples, then Open example to render it; select Color to edit its swatch or RGBA controls. The browser retains save/discard and stale-document protections. No onboarding action silently replaces user work.
+
+## Gradient primitive
+
+Add Linear, Radial or Conic Gradient from the Color category; these are searchable variants of the same node. Connect UV to Coordinate, and connect Color to Color Output. Endpoint colors, start/end and falloff are editable on their input rows. The Mode dropdown explicitly selects Linear, Radial or Conic; switching preserves the existing endpoints, colors and wires. Undo restores the previous mode or value. Factor is a separate Float output for masks or further math. Open Three-node Gradient from Examples for a complete editable source.
+
+Choice menus attach to the value field rather than the click position. Their width follows the field and measured option text. Text, pointer rows, padding, borders and shadows share the card's canvas zoom, retaining their logical sizes at 100%. Near the canvas bottom they open upward; long lists retain scrolling and keyboard navigation. Escape or clicking outside cancels the menu without adding history.

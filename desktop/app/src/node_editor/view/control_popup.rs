@@ -1,5 +1,6 @@
 use super::super::inline::{NumericEdit, Popup};
 use super::*;
+use motion_ui::style::{box_style, text_style, State, States};
 use motion_ui::widgets::{NumberEditor, NumberOptions};
 
 pub(super) fn rgb_to_hsv(color: [f32; 4]) -> [f32; 3] {
@@ -42,6 +43,25 @@ pub(super) fn popup_rect(position: [f32; 2], area: Rect, size: [f32; 2]) -> Rect
         position[1].clamp(area.min[1], area.max[1] - height),
         width,
         height,
+    )
+}
+/// Keep choice menus attached to their field, including when the canvas is zoomed.
+pub(super) fn choice_popup_rect(anchor: Rect, area: Rect, size: [f32; 2]) -> Rect {
+    let below = (area.max[1] - anchor.max[1]).max(0.);
+    let above = (anchor.min[1] - area.min[1]).max(0.);
+    let down = below >= size[1] || below >= above;
+    let height = size[1].min(if down { below } else { above });
+    popup_rect(
+        [
+            anchor.min[0],
+            if down {
+                anchor.max[1]
+            } else {
+                anchor.min[1] - height
+            },
+        ],
+        area,
+        [size[0], height],
     )
 }
 fn paint_popup(list: &mut PaintList, rect: Rect) {
@@ -93,8 +113,8 @@ impl NodeEditor {
                 .any(|(key, _, repeat)| key == Key::Escape && !repeat);
         match popup {
             Popup::Choice {
-                position,
                 node,
+                field,
                 items,
                 mut selected,
                 mut scroll,
@@ -102,18 +122,52 @@ impl NodeEditor {
                 if escape || !self.document.nodes.iter().any(|n| n.id == node) {
                     return;
                 }
-                let rect = popup_rect(
-                    position,
+                let Some(card) = self
+                    .cards(self.last_canvas)
+                    .into_iter()
+                    .find(|card| card.id == node)
+                else {
+                    return;
+                };
+                let anchor = controls::screen_rect(field, &card, self.view.zoom);
+                if !intersects(anchor, area) {
+                    return;
+                }
+                let zoom = self.view.zoom;
+                let padding = styles.metric("padding", 5.) * zoom;
+                let row_height = styles.metric("node.dropdown.row.height", 28.) * zoom;
+                let mut row_style = styles.resolve("row", States::default()).expect("row style");
+                row_style.font_size = styles.metric("font.body", 12.) * zoom;
+                let width = items
+                    .iter()
+                    .map(|item| {
+                        atlas.measure(&item.label) * row_style.font_size / atlas.font_size()
+                            + padding * 4.
+                    })
+                    .fold(anchor.width(), f32::max)
+                    .min(styles.metric("dropdown.max_width", 320.) * zoom);
+                let rect = choice_popup_rect(
+                    anchor,
                     area,
-                    [246., (items.len() as f32 * 27. + 8.).min(340.)],
+                    [width, items.len() as f32 * row_height + padding * 2.],
                 );
+                if rect.height() < row_height + padding * 2. {
+                    return;
+                }
                 if input
                     .pressed
-                    .is_some_and(|(_, point)| !rect.contains(point))
+                    .is_some_and(|(_, point)| !rect.contains(point) && !anchor.contains(point))
                 {
                     return;
                 }
-                let max_scroll = (items.len() as f32 * 27. + 8. - rect.height()).max(0.);
+                let content = Rect::new(
+                    rect.min[0] + padding,
+                    rect.min[1] + padding,
+                    (rect.width() - padding * 2.).max(0.),
+                    rect.height() - padding * 2.,
+                );
+                let max_scroll = (items.len() as f32 * row_height - content.height()).max(0.);
+                scroll = scroll.clamp(0., max_scroll);
                 if rect.contains(input.mouse) {
                     scroll = (scroll + input.wheel[1]).clamp(0., max_scroll);
                 }
@@ -128,42 +182,68 @@ impl NodeEditor {
                         Key::Enter if !repeat => apply = Some(selected),
                         _ => continue,
                     }
-                    let top = selected as f32 * 27.;
+                    let top = selected as f32 * row_height;
                     if top < scroll {
                         scroll = top;
-                    } else if top + 27. > scroll + rect.height() - 8. {
-                        scroll = top + 27. - (rect.height() - 8.);
+                    } else if top + row_height > scroll + content.height() {
+                        scroll = top + row_height - content.height();
                     }
                     scroll = scroll.clamp(0., max_scroll);
                 }
                 let mut menu = list.child();
-                paint_popup(&mut menu, rect);
+                let mut popup_style = styles
+                    .resolve("popup", States::default())
+                    .expect("popup style");
+                popup_style.border_width *= zoom;
+                popup_style.radius *= zoom;
+                popup_style.shadow_blur *= zoom;
+                popup_style.shadow_offset_y *= zoom;
+                box_style(&mut menu, rect, popup_style);
+                let mut rows = list.child();
                 for (index, item) in items.iter().enumerate() {
                     let row = Rect::new(
-                        rect.min[0] + 4.,
-                        rect.min[1] + 4. + index as f32 * 27. - scroll,
-                        rect.width() - 8.,
-                        27.,
+                        content.min[0],
+                        content.min[1] + index as f32 * row_height - scroll,
+                        content.width(),
+                        row_height,
                     );
-                    if !intersects(row, rect) {
+                    if !intersects(row, content) {
                         continue;
                     }
-                    if index == selected || row.contains(input.mouse) {
-                        paint::rect(&mut menu, row, colors.ACCENT.with_alpha(0.12));
+                    let mut states = States::default();
+                    if index == selected {
+                        states = states.with(State::Selected);
                     }
-                    label(
-                        &mut menu,
+                    if row.contains(input.mouse) && content.contains(input.mouse) {
+                        states = states.with(State::Hovered);
+                    }
+                    let mut style = styles.resolve("row", states).expect("row style");
+                    style.font_size = row_style.font_size;
+                    box_style(&mut rows, row, style);
+                    text_style(
+                        &mut rows,
                         atlas,
-                        row.shrink(5.),
+                        Rect::new(
+                            row.min[0] + padding,
+                            row.min[1],
+                            (row.width() - padding * 2.).max(0.),
+                            row.height(),
+                        ),
                         &item.label,
-                        colors.TEXT,
+                        style,
                         Align::Left,
                     );
-                    if hit(input, row) && rect.contains(input.pressed.unwrap().1) {
+                    if hit(input, row)
+                        && input
+                            .pressed
+                            .is_some_and(|(_, point)| content.contains(point))
+                    {
                         apply = Some(index);
                     }
                 }
-                menu.clip_to(rect);
+                rows.clip_to(content);
+                menu.append(rows);
+                menu.clip_to(area);
                 list.append(menu);
                 if let Some(index) = apply {
                     if let Some(item) = items.get(index) {
@@ -173,8 +253,8 @@ impl NodeEditor {
                     }
                 } else {
                     self.inline.popup = Some(Popup::Choice {
-                        position,
                         node,
+                        field,
                         items,
                         selected,
                         scroll,

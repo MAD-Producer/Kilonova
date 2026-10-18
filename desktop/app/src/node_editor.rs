@@ -2,7 +2,7 @@
 //! Drawing emits owned N1 snapshots; it never touches an editing Session or GPU queue.
 use motion_graph::{
     demo_graph, node_ports, ColorOp, CompileOptions, CompileReport, Connection, Diagnostic,
-    ErrorCode, GraphDocument, ImageSource, InputValue, MathOp, Node, NodeOp, PortRef,
+    ErrorCode, GradientMode, GraphDocument, ImageSource, InputValue, MathOp, Node, NodeOp, PortRef,
     PublicParameter, SampleCoordinates, ValueType,
 };
 use motion_ui::{Input, PaintList, Rect, TextAtlas};

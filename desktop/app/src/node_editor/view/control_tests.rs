@@ -52,6 +52,280 @@ fn held(point: [f32; 2]) -> Input {
 }
 
 #[test]
+fn choice_popup_attaches_to_field_and_flips_inside_canvas() {
+    let area = Rect::new(20., 30., 400., 300.);
+    let anchor = Rect::new(60., 80., 90., 18.);
+    let down = control_popup::choice_popup_rect(anchor, area, [120., 94.]);
+    assert_eq!(down.min, [anchor.min[0], anchor.max[1]]);
+    assert_eq!([down.width(), down.height()], [120., 94.]);
+    let low = Rect::new(375., 290., 40., 18.);
+    let up = control_popup::choice_popup_rect(low, area, [120., 94.]);
+    assert_eq!(up.max, [area.max[0], low.min[1]]);
+    let tall = control_popup::choice_popup_rect(anchor, area, [1000., 1000.]);
+    assert_eq!(tall.min, [area.min[0], anchor.max[1]]);
+    assert_eq!(tall.max, area.max);
+}
+
+#[test]
+fn choice_popup_tracks_the_clicked_field_on_multi_choice_nodes() {
+    let mut editor = simple();
+    editor.inspector_open = false;
+    let mut atlas = TextAtlas::from_system(13.).unwrap();
+    frame(&mut editor, &mut atlas, Input::default());
+    let rows = controls::control_rows(
+        &editor.document.nodes[3],
+        &editor.document,
+        Language::English,
+    );
+    assert_eq!(rows.len(), 2);
+    for (index, (local, _)) in rows.into_iter().enumerate() {
+        let point = center(row(&editor, "math", index, false));
+        frame(&mut editor, &mut atlas, press(point, MouseButton::Left));
+        let Some(Popup::Choice { field, .. }) = &editor.inline.popup else {
+            panic!("choice did not open")
+        };
+        assert_eq!(*field, controls::number_rect(local, false));
+        frame(&mut editor, &mut atlas, key(Key::Escape));
+        assert!(editor.inline.popup.is_none());
+        assert!(editor.undo.is_empty());
+    }
+}
+
+#[test]
+fn choice_popup_pointer_selection_and_cancel_work_at_canvas_zooms() {
+    for zoom in [0.48, 1., 1.75] {
+        let graph = GraphDocument::from_json(include_str!(
+            "../../../../../crates/motion-graph/examples/compact-gradient.msgraph"
+        ))
+        .unwrap();
+        let mut editor = NodeEditor::new(graph);
+        editor.first_frame = false;
+        editor.inspector_open = false;
+        editor.library_open = false;
+        editor.view.zoom = zoom;
+        editor.view.pan = [20.; 2];
+        let mut atlas = TextAtlas::from_system(13.).unwrap();
+        frame(&mut editor, &mut atlas, Input::default());
+        let original = editor.snapshot().document;
+        let field = editor.choice_bounds("gradient").unwrap();
+        frame(
+            &mut editor,
+            &mut atlas,
+            press(center(field), MouseButton::Left),
+        );
+        assert!(matches!(editor.inline.popup, Some(Popup::Choice { .. })));
+        frame(
+            &mut editor,
+            &mut atlas,
+            release(center(field), MouseButton::Left),
+        );
+        let list = PaintList::default();
+        let styles = list.styles();
+        let padding = styles.metric("padding", 5.) * zoom;
+        let base_row_height = styles.metric("node.dropdown.row.height", 28.);
+        assert!(
+            base_row_height >= 27.,
+            "retain the logical pointer row height"
+        );
+        let row_height = base_row_height * zoom;
+        let mut painted = PaintList::default();
+        let canvas = editor.last_canvas;
+        editor.paint_control_popup(
+            &mut painted,
+            &mut atlas,
+            canvas,
+            &Input::default(),
+            Language::English,
+        );
+        let rect = painted
+            .shapes
+            .iter()
+            .find_map(|shape| match shape {
+                motion_ui::paint::Shape::Procedural {
+                    area,
+                    kind: motion_ui::paint::Pattern::Box { .. },
+                    ..
+                } => Some(*area),
+                _ => None,
+            })
+            .expect("painted choice menu");
+        assert!(
+            (rect.height() - (row_height * 3. + padding * 2.)).abs() < 0.01,
+            "menu rows and padding must scale with the card: {zoom}"
+        );
+        assert!((rect.width() - field.width()).abs() < 0.01);
+        assert!(!painted.glyphs.is_empty());
+        let max_glyph_height = painted
+            .glyphs
+            .iter()
+            .map(|glyph| glyph.size[1])
+            .fold(0., f32::max);
+        assert!(max_glyph_height <= styles.metric("font.body", 12.) * zoom + 1.,
+            "menu text stayed at screen size instead of canvas zoom: {zoom}, glyph={max_glyph_height}");
+        // Click the last row with real pointer input, including at reduced node zoom.
+        let point = [
+            rect.min[0] + padding * 2.,
+            rect.min[1] + padding + row_height * 2.5,
+        ];
+        frame(&mut editor, &mut atlas, press(point, MouseButton::Left));
+        assert!(editor.inline.popup.is_none());
+        assert_eq!(
+            editor.document.nodes[1].operation,
+            NodeOp::Gradient {
+                mode: GradientMode::Conic
+            }
+        );
+        assert_eq!(editor.document.connections, original.connections);
+        assert_eq!(
+            editor.document.nodes[1].input_defaults,
+            original.nodes[1].input_defaults
+        );
+        assert_eq!(editor.undo.len(), 1);
+        let committed = editor.snapshot().document;
+        frame(&mut editor, &mut atlas, release(point, MouseButton::Left));
+        frame(
+            &mut editor,
+            &mut atlas,
+            press(center(field), MouseButton::Left),
+        );
+        frame(&mut editor, &mut atlas, key(Key::Down));
+        frame(&mut editor, &mut atlas, key(Key::Escape));
+        assert!(editor.inline.popup.is_none());
+        assert_eq!(editor.snapshot().document, committed);
+        assert_eq!(editor.undo.len(), 1);
+        frame(
+            &mut editor,
+            &mut atlas,
+            press(center(field), MouseButton::Left),
+        );
+        let outside = editor.last_canvas.min;
+        frame(&mut editor, &mut atlas, press(outside, MouseButton::Left));
+        assert!(editor.inline.popup.is_none());
+        assert_eq!(editor.snapshot().document, committed);
+        assert!(editor.undo());
+        assert_eq!(editor.snapshot().document, original);
+    }
+}
+
+#[test]
+fn gradient_mode_dropdown_preserves_defaults_and_wires_and_is_undoable() {
+    for language in [Language::Chinese, Language::English] {
+        let graph = GraphDocument::from_json(include_str!(
+            "../../../../../crates/motion-graph/examples/compact-gradient.msgraph"
+        ))
+        .unwrap();
+        let mut editor = NodeEditor::new(graph);
+        editor.inspector_open = false;
+        editor.view.zoom = 0.85;
+        editor.view.pan = [20.; 2];
+        let before = editor.snapshot().document;
+        let mut atlas = TextAtlas::from_system(13.).unwrap();
+        frame(&mut editor, &mut atlas, Input::default());
+        let node = editor
+            .document
+            .nodes
+            .iter()
+            .find(|n| n.id == "gradient")
+            .unwrap();
+        let index = controls::control_rows(node, &editor.document, language)
+            .iter()
+            .position(|(_, control)| matches!(control, Control::Choice { .. }))
+            .unwrap();
+        let point = center(row(&editor, "gradient", index, false));
+        frame(&mut editor, &mut atlas, press(point, MouseButton::Left));
+        assert!(matches!(editor.inline.popup, Some(Popup::Choice { .. })));
+        frame(&mut editor, &mut atlas, key(Key::Down));
+        frame(&mut editor, &mut atlas, key(Key::Enter));
+        assert!(matches!(
+            editor
+                .document
+                .nodes
+                .iter()
+                .find(|n| n.id == "gradient")
+                .unwrap()
+                .operation,
+            NodeOp::Gradient {
+                mode: GradientMode::Radial
+            }
+        ));
+        assert_eq!(editor.document.connections, before.connections);
+        assert_eq!(
+            editor.document.nodes[1].input_defaults,
+            before.nodes[1].input_defaults
+        );
+        assert!(editor.diagnostic().is_none());
+        assert_eq!(editor.undo.len(), 1);
+        assert!(editor.undo());
+        assert_eq!(editor.snapshot().document, before);
+        assert!(editor.redo());
+        editor
+            .set_input_default("gradient", "falloff", InputValue::Float(2.))
+            .unwrap();
+        let snapshot = editor.snapshot();
+        assert_eq!(
+            GraphDocument::from_json(&snapshot.document.to_json().unwrap()).unwrap(),
+            snapshot.document
+        );
+        snapshot.compile().unwrap();
+        assert!(editor.undo());
+        assert_eq!(
+            editor.document.nodes[1].input_defaults["falloff"],
+            InputValue::Float(1.)
+        );
+    }
+}
+
+#[test]
+fn gradient_catalog_creation_needs_only_uv_and_keeps_wired_fallbacks() {
+    let mut editor = simple();
+    let operation = catalog()
+        .into_iter()
+        .find(|item| matches!(item.operation, NodeOp::Gradient { .. }))
+        .unwrap()
+        .operation;
+    let gradient = editor.add_node(operation, [120., 100.]).unwrap();
+    let uv = editor.add_node(NodeOp::Uv, [0.; 2]).unwrap();
+    editor
+        .connect_ports(
+            PortRef::new(&gradient, "color"),
+            PortRef::new("output", "color"),
+        )
+        .unwrap();
+    assert_eq!(
+        editor.diagnostic().unwrap().port.as_deref(),
+        Some("coordinate")
+    );
+    editor
+        .connect_ports(
+            PortRef::new(&uv, "value"),
+            PortRef::new(&gradient, "coordinate"),
+        )
+        .unwrap();
+    assert!(editor.diagnostic().is_none());
+    editor
+        .connect_ports(
+            PortRef::new("number", "value"),
+            PortRef::new(&gradient, "falloff"),
+        )
+        .unwrap();
+    assert!(editor
+        .set_input_default(&gradient, "falloff", InputValue::Float(2.))
+        .is_err());
+    assert_eq!(
+        editor.input_default(&gradient, "falloff").unwrap(),
+        &InputValue::Float(1.)
+    );
+    assert!(editor.undo());
+    editor
+        .set_input_default(&gradient, "falloff", InputValue::Float(2.))
+        .unwrap();
+    assert_eq!(
+        editor.input_default(&gradient, "falloff").unwrap(),
+        &InputValue::Float(2.)
+    );
+}
+
+#[test]
 fn numeric_live_drag_preserves_positions_multiselection_and_one_history_step() {
     for zoom in [0.5, 1., 2.] {
         let mut editor = simple();

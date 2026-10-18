@@ -84,6 +84,15 @@
 
 大半径高斯模糊可以通过可分离、降采样或多级算法控制成本。v1 可提供受限移动预设；不自动将任意大半径替换成小半径。
 
+### Implemented Gradient contract
+
+`gradient` implements Linear, Radial and Conic modes. Diamond remains pending.
+Connect an explicit UV source to `coordinate`; `start` and `end` use the same normalized coordinate space. The linear factor is the clamped projection from start to end. Radial uses start as center and the endpoint distance as radius. Conic starts in the endpoint direction and increases clockwise because UV Y points down. UV distance does not automatically correct the layer aspect ratio.
+
+`falloff` is an exponent applied after clamping the factor to 0..1, bounded to 0.001..1000. Endpoint separation of at most 1e-6 UV returns factor zero; conic coordinates within 1e-6 UV of the center also return zero. The node outputs both `factor` and `color`. Color interpolation follows the graph working space and alpha contract, matching Color Mix; color literals remain straight RGBA authoring values. All five configurable inputs have editable socket defaults; the coordinate source stays explicit. Mode changes preserve defaults and wires and create one undo step.
+
+The Three-node Gradient example contains UV → Gradient → Color Output, with two wires. It complements the existing nine-node UV Component Gradient teaching graph. Compilation produces one image pass with no graph texture samples or added resources and validated GLSL ES 300. Android device validation remains pending; this is an M candidate, not a claim of device acceptance. Noise, generalized Blend, HSV Adjust, Color Ramp and UV Transform remain unimplemented.
+
 ### 2D SDF：有符号距离场
 
 优先实现，标记 M；重采样或大量重复组合时升级为 B。距离端口携带坐标单位，约定内侧为负、边界为零、外侧为正。

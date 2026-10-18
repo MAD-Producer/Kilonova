@@ -284,6 +284,17 @@ pub fn node_ports(node: &Node, parameters: &[PublicParameter]) -> Result<NodePor
             };
             (inputs, vec![("color", ValueType::Color)])
         }
+        NodeOp::Gradient { .. } => (
+            vec![
+                ("coordinate", ValueType::Vec2),
+                ("start", ValueType::Vec2),
+                ("end", ValueType::Vec2),
+                ("falloff", ValueType::Float),
+                ("a", ValueType::Color),
+                ("b", ValueType::Color),
+            ],
+            vec![("factor", ValueType::Float), ("color", ValueType::Color)],
+        ),
         NodeOp::ApplyMask => (
             vec![("color", ValueType::Color), ("coverage", ValueType::Float)],
             vec![("color", ValueType::Color)],
@@ -855,7 +866,11 @@ fn compile_plan(
     } else {
         builder.input(&plan.output_node, "color").expr
     };
-    let source=format!("// Motion Studio .msgraph format 1; SDK 6 single-pass image target.\n{}\nfn graph_fx(p:vec2<f32>)->vec4<f32>{{\n{}    return {};\n}}\n",helpers(document.alpha_mode),builder.code,output);
+    let mut support = helpers(document.alpha_mode);
+    if plan.reachable_nodes.iter().any(|id| matches!(nodes[id.as_str()].operation, NodeOp::Gradient { .. })) {
+        support.push_str(include_str!("gradient.wgsl"));
+    }
+    let source=format!("// Motion Studio .msgraph format 1; SDK 6 single-pass image target.\n{}\nfn graph_fx(p:vec2<f32>)->vec4<f32>{{\n{}    return {};\n}}\n",support,builder.code,output);
     if source.len() > options.max_shader_bytes {
         return Err(Error::invalid(
             ErrorCode::Budget,
@@ -1357,6 +1372,26 @@ impl<'a> Builder<'a> {
                     }
                 };
                 self.put(node, "color", ValueType::Color, expr, None, false);
+            }
+            Gradient { mode } => {
+                let mode = match mode {
+                    GradientMode::Linear => 0,
+                    GradientMode::Radial => 1,
+                    GradientMode::Conic => 2,
+                };
+                let factor = format!(
+                    "ng_gradient({},{},{},{},{mode}u)",
+                    input("coordinate").expr,
+                    input("start").expr,
+                    input("end").expr,
+                    input("falloff").expr,
+                );
+                let a = input("a").expr;
+                let b = input("b").expr;
+                self.put(node, "factor", ValueType::Float, factor, None, false);
+                let factor = self.symbols[&PortRef::new(&node.id, "factor")].expr.clone();
+                self.put(node, "color", ValueType::Color,
+                    format!("mix({a},{b},{factor})"), None, false);
             }
             ApplyMask => {
                 let c = input("color").expr;

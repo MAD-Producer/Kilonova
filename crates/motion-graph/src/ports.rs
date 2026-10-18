@@ -130,6 +130,7 @@ fn semantic(
         };
     }
     match (op, id) {
+        (NodeOp::Gradient { .. }, "coordinate" | "start" | "end") => Uv,
         (
             NodeOp::SampleImage {
                 coordinates: SampleCoordinates::Pixels,
@@ -258,6 +259,18 @@ pub(crate) fn check_specs(
 
 type Help = (&'static str, &'static str, &'static str, &'static str);
 fn help(op: &NodeOp, id: &str, output: bool, semantic: PortSemantic) -> Help {
+    if matches!(op, NodeOp::Gradient { .. }) {
+        return match (output, id) {
+            (false, "coordinate") => ("坐标", "Coordinate", "连接 UV；X 向右、Y 向下，按归一化坐标计算，不自动校正宽高比。", "Connect UV; X right, Y down. Uses normalized coordinates without automatic aspect correction."),
+            (false, "start") => ("起点", "Start", "线性渐变起点，或径向/角向渐变中心；UV 坐标。", "Linear start or radial/conic center, in UV coordinates."),
+            (false, "end") => ("终点", "End", "线性终点；径向半径由两点距离确定；角向零度由起点指向终点确定。", "Linear end; radial radius is the endpoint distance; conic zero points from start to end."),
+            (false, "falloff") => ("衰减指数", "Falloff", "因子取 0..1 后乘幂；指数限制在 0.001..1000，1 为原始渐变。", "Exponent applied to the clamped factor; bounded to 0.001..1000, with 1 preserving the gradient."),
+            (false, "a") => ("起始颜色", "Start color", "因子为零时的颜色，遵循图的工作空间和 Alpha 模式。", "Color at factor zero, in the graph working space and alpha mode."),
+            (false, "b") => ("结束颜色", "End color", "因子为一时的颜色，遵循图的工作空间和 Alpha 模式。", "Color at factor one, in the graph working space and alpha mode."),
+            (true, "factor") => ("因子", "Factor", "0..1 渐变因子；角向沿顺时针增加，中心和重合端点返回零。", "0..1 gradient factor; conic increases clockwise. The conic center and coincident endpoints return zero."),
+            _ => ("颜色", "Color", "按因子混合起始/结束颜色，可直接连接颜色输出。", "Mixes the endpoint colors by the factor; connect directly to Color Output."),
+        };
+    }
     if output {
         if matches!(op, NodeOp::SplitColor) {
             return match id {
@@ -345,6 +358,7 @@ fn help(op: &NodeOp, id: &str, output: bool, semantic: PortSemantic) -> Help {
 
 pub fn node_description(operation: &NodeOp) -> (&'static str, &'static str) {
     match operation {
+        NodeOp::Gradient { .. } => ("在线性、径向和顺时针角向模式中生成双色渐变与 0..1 因子；需要显式 UV，衰减指数可调。", "Generates a two-color gradient and 0..1 factor in linear, radial or clockwise conic mode; requires explicit UV and supports adjustable falloff."),
         NodeOp::Group { .. } => ("双击或 Tab 进入子图；Ctrl+Tab 返回；Alt+G 解包。分组保留端口类型、单位和原始计算结果。", "Double-click or Tab to enter; Ctrl+Tab returns; Alt+G ungroups. Boundaries preserve types, units and computation."),
         NodeOp::GroupInput { .. } => ("从父图读取节点组输入；边界节点不可删除。", "Reads the group inputs from its parent graph. This boundary node cannot be deleted."),
         NodeOp::GroupOutput { .. } => ("把内部结果交给父图的组输出；边界节点不可删除。", "Routes internal values to the parent group outputs. This boundary node cannot be deleted."),

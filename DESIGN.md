@@ -379,6 +379,7 @@ These are **only** behaviors evidenced in the supplied audit, **not** an exhaust
 - The minimap sits inside the canvas at its bottom-right edge. Read its dimensions, margin, padding, world padding and viewport opacity from `node.minimap.*` metrics in `dark.json`; reuse existing chrome, border, muted text and accent colors.
 - Fit node bounds and the visible canvas into one aspect-preserving projection. Show the current viewport distinctly; click/drag navigation changes only canvas pan. Cancel an unfinished drag on Esc or focus loss, and capture input above underlying nodes. Hide the overlay when there is insufficient room, retaining its enabled preference.
 - Grid/minimap visibility and minimap navigation must leave graph source, compilation stamps, permanent output and both history stacks unchanged. Text, IME, menus and active gestures retain priority over G/N; Ctrl+G keeps its grouping behavior.
+- Node choice menus align to the value field, open below it when space permits and above it near the canvas bottom, and remain inside the canvas. Measure option text for width, bounded by the field and `dropdown.max_width`. Use existing popup/row states, body font and padding; retain the logical pointer row size with `node.dropdown.row.height`. At the user's explicit request, canvas-owned choice menus follow the same zoom as their card, including text, row height, padding, border and shadow. Hit regions follow the painted rows with no overlap. Escape or an outside click cancels without changing source or history.
 
 ---
 

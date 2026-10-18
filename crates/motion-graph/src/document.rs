@@ -84,6 +84,14 @@ pub enum ColorOp {
     SrgbDecode,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GradientMode {
+    Linear,
+    Radial,
+    Conic,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum NodeOp {
@@ -139,6 +147,9 @@ pub enum NodeOp {
     ColorMath {
         operation: ColorOp,
     },
+    Gradient {
+        mode: GradientMode,
+    },
     ApplyMask,
     Select {
         value_type: ValueType,
@@ -185,6 +196,7 @@ impl NodeOp {
             Self::CombineColor => "combine_color",
             Self::SplitColor => "split_color",
             Self::ColorMath { .. } => "color_math",
+            Self::Gradient { .. } => "gradient",
             Self::ApplyMask => "apply_mask",
             Self::Select { .. } => "select",
             Self::SdfCircle => "sdf_circle",
@@ -226,6 +238,7 @@ impl NodeOp {
             Self::CombineColor => ("组合颜色", "Combine Color"),
             Self::SplitColor => ("拆分颜色", "Split Color"),
             Self::ColorMath { .. } => ("颜色运算", "Color Math"),
+            Self::Gradient { .. } => ("渐变", "Gradient"),
             Self::ApplyMask => ("应用覆盖率", "Apply Mask"),
             Self::Select { .. } => ("选择", "Select"),
             Self::SdfCircle => ("SDF圆", "SDF Circle"),
@@ -501,6 +514,7 @@ impl GraphDocument {
                         "combine_color",
                         "split_color",
                         "color_math",
+                        "gradient",
                         "apply_mask",
                         "select",
                         "sdf_circle",

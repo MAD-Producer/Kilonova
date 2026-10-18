@@ -17,6 +17,17 @@ pub fn authoring_input_defaults(operation: &NodeOp) -> BTreeMap<String, InputVal
         values.insert(port.into(), value);
     };
     match operation {
+        NodeOp::Gradient { mode } => {
+            add("start", InputValue::Vec2(if *mode == GradientMode::Linear {
+                [0., 0.5]
+            } else {
+                [0.5, 0.5]
+            }));
+            add("end", InputValue::Vec2([1., 0.5]));
+            add("falloff", InputValue::Float(1.));
+            add("a", InputValue::Color([0., 0., 0., 1.]));
+            add("b", InputValue::Color([1.; 4]));
+        }
         NodeOp::Math {
             operation,
             value_type,

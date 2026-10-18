@@ -148,6 +148,7 @@ fn category_color(op: &NodeOp) -> Color {
         // 颜色操作 - 金橙色系（更饱和）
         NodeOp::Color { .. }
         | NodeOp::ColorMath { .. }
+        | NodeOp::Gradient { .. }
         | NodeOp::CombineColor
         | NodeOp::SplitColor
         | NodeOp::ApplyMask => Color::rgb(73, 62, 39), // 金橙 #DC963C (原: 92,81,45)
