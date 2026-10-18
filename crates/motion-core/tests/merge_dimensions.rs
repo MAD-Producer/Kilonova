@@ -348,9 +348,10 @@ fn invalid_targets_locked_layers_and_camera_mode_are_checked_before_merging() {
         assert_eq!(e.snapshot(), before);
         assert!(!e.can_undo());
     }
-    let mut e = Engine::new(project()).unwrap();
+    let mut p = project();
+    p.camera.created = true;
+    let mut e = Engine::new(p).unwrap();
     assert!(e.apply(merge(1, Property::Opacity)).is_err());
-    e.apply(Command::CreateCamera).unwrap();
     e.apply(Command::SeparateDimensions {
         object: 0,
         property: Property::Position,
@@ -361,6 +362,7 @@ fn invalid_targets_locked_layers_and_camera_mode_are_checked_before_merging() {
     e.undo().unwrap();
     assert_eq!(e.snapshot(), before);
     e.apply(Command::CameraMode {
+        object: 0,
         mode: CameraMode::Orbit,
     })
     .unwrap();

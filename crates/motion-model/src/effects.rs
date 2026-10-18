@@ -531,8 +531,8 @@ fn param_mut<'a>(layer: &'a mut Layer, id: u64, param: &str) -> Result<&'a mut E
 pub fn apply(layer: &mut Layer, action: EffectAction, frames: u32) -> Result<()> {
     ensure(!layer.locked, "object is locked")?;
     ensure(
-        !matches!(layer.content, crate::Content::Null),
-        "null objects do not have image effects",
+        !matches!(layer.content, crate::Content::Null | crate::Content::Camera { .. }),
+        "null and camera objects do not have image effects",
     )?;
     let clip = layer.clip(frames);
     let local = |f| {

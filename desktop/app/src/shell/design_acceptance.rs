@@ -31,6 +31,8 @@ impl Shell {
             "layer-properties-tree",
             "layer-properties-effects",
             "timeline-properties-tree",
+            "camera-properties",
+            "timeline-cameras",
         ] {
             let graph_preset = if screen.starts_with("timeline-") || screen == "effect-library" {
                 workspace::Preset::Default
@@ -106,6 +108,7 @@ impl Shell {
                         return Err("effect library capture must not edit the project".into());
                     }
                 }
+                "camera-properties" | "timeline-cameras" |
                 "layer-properties-tree"
                 | "layer-properties-effects"
                 | "timeline-properties-tree" => {
@@ -328,6 +331,7 @@ impl Shell {
         let focus = self.panels.focused;
         let old_animation = std::mem::take(&mut self.panels.animation_controls);
         let old_properties = std::mem::take(&mut self.panels.properties);
+        let old_camera = std::mem::take(&mut self.panels.camera_controls);
         let old_timeline = self.panels.timeline.clone();
         let old_anchor = std::mem::take(&mut self.panels.timeline_anchor);
         let old_scroll = self.panels.auxiliary.scroll.clone();
@@ -407,12 +411,30 @@ impl Shell {
                     .ok_or("character capture requires a real text layer")?;
                 self.panels.select_only(Some(object));
             }
-            if !pose.starts_with("expression-inline")
-                && matches!(
-                    panel,
-                    dock::Panel::EffectControls | dock::Panel::Properties | dock::Panel::Timeline
-                )
-            {
+            if matches!(pose, "camera-properties" | "timeline-cameras") {
+                self.engine.history(2)?;
+                effect_gesture = true;
+                self.engine.edit(serde_json::json!([{"op":"create_camera"},{"op":"create_camera"}]).to_string())?;
+                self.state = self.engine.state()?;
+                let object = self.state["project"]["layers"].as_array().into_iter().flatten()
+                    .rev().find(|l| l["content"]["kind"] == "camera")
+                    .and_then(|l| l["id"].as_u64()).ok_or("camera capture requires a real camera layer")?;
+                self.engine.edit(serde_json::json!([
+                    {"op":"animate","object":object,"property":"fov","frame":0,"enabled":true},
+                    {"op":"set_scalar","object":object,"property":"fov","frame":60,"value":65.}
+                ]).to_string())?;
+                self.state = self.engine.history(3)?;
+                effect_gesture = false;
+                created_text = true;
+                self.panels.select_only(Some(object));
+                self.panels.timeline.expanded.clear();
+                self.panels.timeline.expanded.insert(object);
+                self.panels.timeline.scroll = 0.;
+                self.panels.focused = Some(panel);
+            } else if !pose.starts_with("expression-inline") && matches!(
+                panel,
+                dock::Panel::EffectControls | dock::Panel::Properties | dock::Panel::Timeline
+            ) {
                 self.engine.history(2)?;
                 effect_gesture = true;
                 let object = before["project"]["layers"]
@@ -547,6 +569,7 @@ impl Shell {
         self.panels.focused = focus;
         self.panels.animation_controls = old_animation;
         self.panels.properties = old_properties;
+        self.panels.camera_controls = old_camera;
         self.panels.timeline = old_timeline;
         self.panels.timeline_anchor = old_anchor;
         self.panels.auxiliary.scroll = old_scroll;

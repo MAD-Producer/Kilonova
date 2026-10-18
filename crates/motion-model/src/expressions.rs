@@ -91,9 +91,8 @@ pub fn raw(project: &Project, target: &ExpressionTarget) -> Result<RawTrack> {
             property,
             axis,
         } => {
-            let result = if *object == 0 {
-                ensure(project.camera.created, "camera does not exist")?;
-                let c = &project.camera;
+            let result = if *object == 0 || project.layers.iter().any(|l| l.id == *object && l.camera_data().is_some()) {
+                let c = project.camera_for(*object)?;
                 match property {
                     Property::Position => {
                         ensure(

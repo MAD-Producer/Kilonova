@@ -20,6 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         (
             "dolly",
             Some(Command::Dolly {
+        object: 0,
                 frame: 0,
                 amount: 400.0,
             }),
@@ -27,6 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         (
             "pan",
             Some(Command::Pan {
+        object: 0,
                 frame: 0,
                 x: 160.0,
                 y: 0.0,

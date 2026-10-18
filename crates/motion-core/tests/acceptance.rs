@@ -190,6 +190,7 @@ fn a3_dolly_changes_near_scale_more_without_moving_layers_or_changing_fov() {
     let near_before = measure(&scene, -500.0);
     let far_before = measure(&scene, 500.0);
     e.apply(Command::Dolly {
+        object: 0,
         frame: 0,
         amount: 200.0,
     })
@@ -210,6 +211,7 @@ fn a4_pan_keeps_direction_and_produces_depth_dependent_parallax() {
     let near = scene.project_point([540.0, 960.0, -500.0])[0];
     let far = scene.project_point([540.0, 960.0, 500.0])[0];
     e.apply(Command::Pan {
+        object: 0,
         frame: 0,
         x: 100.0,
         y: 20.0,

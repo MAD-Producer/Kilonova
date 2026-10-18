@@ -56,6 +56,12 @@ impl<T: Tween> Track<T> {
 }
 #[derive(Debug, Serialize)]
 pub struct TimelineProperties {
+    #[serde(skip_serializing_if="Option::is_none")] pub target: Option<TimelineTrack<[f32; 3]>>,
+    #[serde(skip_serializing_if="Option::is_none")] pub roll: Option<TimelineTrack<f32>>,
+    #[serde(skip_serializing_if="Option::is_none")] pub fov: Option<TimelineTrack<f32>>,
+    #[serde(skip_serializing_if="Option::is_none")] pub radius: Option<TimelineTrack<f32>>,
+    #[serde(skip_serializing_if="Option::is_none")] pub azimuth: Option<TimelineTrack<f32>>,
+    #[serde(skip_serializing_if="Option::is_none")] pub elevation: Option<TimelineTrack<f32>>,
     pub position: TimelineTrack<[f32; 3]>,
     pub rotation: TimelineTrack<[f32; 3]>,
     pub scale: TimelineTrack<[f32; 3]>,
@@ -172,7 +178,13 @@ impl Project {
                         None
                     },
                     properties: TimelineProperties {
-                        position: t.position.timeline(clip.offset_frame),
+                        position: l.camera_data().map_or(&t.position, |c| &c.position).timeline(clip.offset_frame),
+                        target: l.camera_data().map(|c| c.target.timeline(clip.offset_frame)),
+                        roll: l.camera_data().map(|c| c.roll.timeline(clip.offset_frame)),
+                        fov: l.camera_data().map(|c| c.fov.timeline(clip.offset_frame)),
+                        radius: l.camera_data().map(|c| c.radius.timeline(clip.offset_frame)),
+                        azimuth: l.camera_data().map(|c| c.azimuth.timeline(clip.offset_frame)),
+                        elevation: l.camera_data().map(|c| c.elevation.timeline(clip.offset_frame)),
                         rotation: t.rotation.timeline(clip.offset_frame),
                         scale: t.scale.timeline(clip.offset_frame),
                         opacity: t.opacity.timeline(clip.offset_frame),

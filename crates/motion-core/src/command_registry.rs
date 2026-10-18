@@ -140,7 +140,7 @@ registry! {
     Command::Reorder { .. } => "reorder" [("object","u64",true), ("index","usize",true)];
     Command::Flags { .. } => "flags" [("object","u64",true), ("visible","bool",true), ("locked","bool",true)];
     Command::Anchor { .. } => "anchor" [("object","u64",true), ("anchor","[f32; 2]",true)];
-    Command::CameraMode { .. } => "camera_mode" [("mode","CameraMode",true)];
-    Command::Dolly { .. } => "dolly" [("frame","u32",true), ("amount","f32",true)];
-    Command::Pan { .. } => "pan" [("frame","u32",true), ("x","f32",true), ("y","f32",true)];
+    Command::CameraMode { .. } => "camera_mode" [("object","u64",false), ("mode","CameraMode",true)];
+    Command::Dolly { .. } => "dolly" [("object","u64",false), ("frame","u32",true), ("amount","f32",true)];
+    Command::Pan { .. } => "pan" [("object","u64",false), ("frame","u32",true), ("x","f32",true), ("y","f32",true)];
 }

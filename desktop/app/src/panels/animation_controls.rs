@@ -29,7 +29,9 @@ fn key(property: Property) -> &'static str {
         Property::Rotation => "rotation",
         Property::Scale => "scale",
         Property::Opacity => "opacity",
-        _ => "position",
+        Property::Target => "target", Property::Roll => "roll", Property::Fov => "fov",
+        Property::Radius => "radius", Property::Azimuth => "azimuth", Property::Elevation => "elevation",
+        Property::Position => "position",
     }
 }
 fn pressed(input: &Input, rect: Rect) -> bool {
