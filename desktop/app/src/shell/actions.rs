@@ -473,6 +473,7 @@ impl Shell {
                 }
             }
             Action::ManageWorkspace => {
+                self.workspace.restore_panel();
                 self.workspace_manager = Some(workspace::Manager::new(&self.workspace));
             }
             Action::WindowDrag => {
@@ -507,6 +508,7 @@ impl Shell {
                 self.action(Action::ShowPanel(dock::Panel::Timeline.dock()), event_loop)?;
             }
             Action::ShowPanel(id) => {
+                self.workspace.restore_panel();
                 let id = if id == dock::Panel::Masks.dock() || id == dock::Panel::Expression.dock()
                 {
                     dock::Panel::Properties.dock()
@@ -599,6 +601,7 @@ impl Shell {
                 self.float_panel(panel, event_loop.ok_or("window event loop is unavailable")?)?;
             }
             Action::ClosePanel(panel) => {
+                self.workspace.restore_panel();
                 for action in panels::cancel_interaction(&mut self.panels) {
                     self.action(action, event_loop)?;
                 }

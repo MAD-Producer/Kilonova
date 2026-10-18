@@ -37,6 +37,7 @@ pub enum Key {
     Equal,
     Minus,
     Semicolon,
+    Backquote,
     PageUp,
     PageDown,
     Escape,

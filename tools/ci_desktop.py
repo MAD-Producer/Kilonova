@@ -252,6 +252,19 @@ def main() -> None:
         snapshot = json.loads(report.read_text(encoding="utf-8"))
         verify_design_screens(snapshot, locale)
         workspace_probe = snapshot["workspacePresentationProbe"]
+        maximize = snapshot["panelMaximizeProbe"]
+        if maximize["restored"] is not True or maximize["layoutAndProjectUntouched"] is not True:
+            raise RuntimeError(f"{locale} temporary panel maximize changed persistent state")
+        if len(maximize["screenshots"]) != 4:
+            raise RuntimeError(f"{locale} missing panel maximize and restore captures")
+        for screenshot in maximize["screenshots"]:
+            data = Path(screenshot).read_bytes()
+            if len(data) < 1024 or not data.startswith(b"\x89PNG\r\n\x1a\n"):
+                raise RuntimeError(f"{locale} invalid panel maximize capture: {screenshot}")
+        floating_maximize = report.with_suffix(".panel-3-backquote.png")
+        data = floating_maximize.read_bytes()
+        if len(data) < 1024 or not data.startswith(b"\x89PNG\r\n\x1a\n"):
+            raise RuntimeError(f"{locale} missing native floating Backquote evidence")
         presentations = workspace_probe["presentations"]
         if (workspace_probe["projectUntouched"] is not True or len(presentations) != 6
                 or {record["preset"] for record in presentations}
@@ -274,6 +287,15 @@ def main() -> None:
             raise RuntimeError(f"{locale} node acceptance failed: {node_result.stderr}")
         node_snapshot = json.loads(node_report.read_text(encoding="utf-8"))
         preview = node_snapshot.get("nodePreview", {})
+        for window in ("viewMain", "viewFloat"):
+            view = preview.get(window, {})
+            for check in ("projectAndCompileUnchanged", "workspaceReload", "menuCancelled", "menuToggled"):
+                if view.get(check) is not True:
+                    raise RuntimeError(f"{locale} {window} did not verify {check}")
+            for screen in ("overview", "noGrid", "contextMenu"):
+                data = Path(view[screen]).read_bytes()
+                if len(data) < 1024 or not data.startswith(b"\x89PNG\r\n\x1a\n"):
+                    raise RuntimeError(f"{locale} {window} did not render {screen}")
         for check in ("clockPixelsChanged", "parameterPixelsChanged", "groupPixelsPreserved", "ungroupPixelsPreserved", "groupSourceReopened", "invalidGraphKeptValidPixels", "projectUntouched", "exampleOpenedAndRendered", "layerIdentityPreservedPixels", "layerGraphChangedPixels", "layerPublicParameterChangedPixels", "layerProjectUndoRedoRestoresSourceAndPixels", "layerPortPreviewIsObservational", "layerInvalidGraphKeptValidPixels", "layerSourceAndRuntimePackedAndReopened", "layerOfflinePackageRestoresPixels"):
             if preview.get(check) is not True:
                 raise RuntimeError(f"{locale} node preview did not verify {check}")

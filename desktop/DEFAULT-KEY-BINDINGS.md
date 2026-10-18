@@ -22,6 +22,7 @@
 | Application | K | true | false | false | Settings | false |
 | Application | R | true | false | false | ReloadStyle | false |
 | Application | M | true | false | true | Export | false |
+| Application | Backquote | false | false | false | TogglePanelMaximize | false |
 | Application | PageUp | false | false | false | PreviousFrame | true |
 | Application | PageUp | false | true | false | PreviousFrame | true |
 | Application | PageDown | false | false | false | NextFrame | true |
@@ -83,9 +84,11 @@
 | Nodes | A | true | false | false | SelectAll | false |
 | Nodes | A | true | true | false | DeselectAll | false |
 | Nodes | F | false | false | false | FitSelection | false |
+| Nodes | G | false | false | false | ToggleNodeGrid | false |
 | Nodes | G | false | false | true | Ungroup | false |
 | Nodes | G | true | false | false | Group | false |
 | Nodes | Num0 | true | false | false | ResetZoom | false |
+| Nodes | N | false | false | false | ToggleNodeMinimap | false |
 | Nodes | O | true | false | false | Open | false |
 | Nodes | S | true | false | false | Save | false |
 | Nodes | S | true | true | false | SaveAs | false |

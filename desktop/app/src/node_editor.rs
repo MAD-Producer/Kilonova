@@ -87,6 +87,7 @@ impl EditorSnapshot {
 }
 #[derive(Clone, Debug)]
 pub enum Action {
+    ViewPreferencesChanged(ViewPreferences),
     ShowProperties,
     Examples(EditorSnapshot),
     Open(EditorSnapshot),
@@ -120,6 +121,17 @@ pub struct FrameResponse {
     pub wants_keyboard: bool,
     pub changed: bool,
     pub semantic_changed: bool,
+}
+
+/// Application workspace preferences; never part of a graph or compiled output.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
+pub struct ViewPreferences {
+    pub grid: bool,
+    pub minimap: bool,
+}
+impl Default for ViewPreferences {
+    fn default() -> Self { Self { grid: true, minimap: false } }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -242,6 +254,8 @@ pub struct NodeEditor {
     saved_document: Option<GraphDocument>,
     saved_revision: Option<u64>,
     pub view: CanvasView,
+    pub view_preferences: ViewPreferences,
+    minimap_drag: Option<view::minimap::NavigationDrag>,
     selected: BTreeSet<String>,
     primary: Option<String>,
     undo: Vec<History>,
@@ -284,6 +298,7 @@ struct ContextMenu {
 #[derive(Clone, Debug)]
 enum MenuKind {
     Canvas,
+    View,
     Node(String),
     Wire(PortRef),
     Preview(String),
@@ -322,6 +337,8 @@ impl NodeEditor {
             saved_document: None,
             saved_revision: None,
             view: Default::default(),
+            view_preferences: Default::default(),
+            minimap_drag: None,
             selected: BTreeSet::new(),
             primary: None,
             undo: vec![],
@@ -380,7 +397,7 @@ impl NodeEditor {
         self.focus = true;
     }
     pub fn editing(&self) -> bool {
-        self.drag.is_some() || self.nudge_before.is_some() || self.text_editing()
+        self.drag.is_some() || self.minimap_drag.is_some() || self.nudge_before.is_some() || self.text_editing()
     }
     pub fn diagnostic(&self) -> Option<&Diagnostic> {
         self.diagnostic.as_ref()
@@ -454,7 +471,9 @@ impl NodeEditor {
     }
     pub fn replace_document(&mut self, document: GraphDocument, path: Option<PathBuf>) {
         let options = self.options.clone();
+        let preferences = self.view_preferences;
         *self = Self::new(document);
+        self.view_preferences = preferences;
         self.options = options;
         self.source_path = path;
         self.saved_document = Some(self.document.clone());
@@ -668,6 +687,7 @@ impl NodeEditor {
         }
     }
     fn cancel_canvas_interaction(&mut self) {
+        if let Some(drag) = self.minimap_drag.take() { self.view.pan = drag.before; }
         self.cancel_inline();
         if let Some(before) = self.nudge_before.take() {
             self.document = before.document;
