@@ -16,6 +16,12 @@ pub enum Property {
     Elevation,
 }
 
+impl Property {
+    pub fn is_scalar(self) -> bool {
+        matches!(self, Self::Opacity | Self::Roll | Self::Fov | Self::Radius | Self::Azimuth | Self::Elevation)
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Command {
@@ -218,13 +224,19 @@ pub enum Command {
         anchor: [f32; 2],
     },
     CameraMode {
+        #[serde(default)]
+        object: u64,
         mode: CameraMode,
     },
     Dolly {
+        #[serde(default)]
+        object: u64,
         frame: u32,
         amount: f32,
     },
     Pan {
+        #[serde(default)]
+        object: u64,
         frame: u32,
         x: f32,
         y: f32,
@@ -252,6 +264,7 @@ impl Command {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(tag = "op", rename_all = "snake_case")]
 pub enum EditResult {
+    CreateCamera { object: u64 },
     SplitLayerClip { left_object: u64, right_object: u64 },
     Composition { result: serde_json::Value },
 }

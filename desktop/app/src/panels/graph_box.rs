@@ -67,7 +67,7 @@ fn keys(source: &Value) -> Vec<Value> {
     source["keys"].as_array().cloned().unwrap_or_default()
 }
 fn value(key: &Value, context: &Context) -> f64 {
-    if context.axis.is_some() || context.property == Property::Opacity {
+    if context.axis.is_some() || context.property.is_scalar() {
         key["value"].as_f64().unwrap_or(0.)
     } else {
         key["value"][context.component].as_f64().unwrap_or(0.)
@@ -348,7 +348,7 @@ fn transform(
             return None;
         }
         let mut v = key["value"].clone();
-        if ctx.axis.is_some() || ctx.property == Property::Opacity {
+        if ctx.axis.is_some() || ctx.property.is_scalar() {
             v = serde_json::json!(next);
         } else {
             v[ctx.component] = serde_json::json!(next);
@@ -399,7 +399,7 @@ fn transform(
                 frame: current[i],
                 value: next.as_f64().unwrap() as f32,
             }
-        } else if ctx.property == Property::Opacity {
+        } else if ctx.property.is_scalar() {
             Command::SetScalar {
                 object: ctx.object,
                 property: ctx.property,

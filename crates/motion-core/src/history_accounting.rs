@@ -82,10 +82,9 @@ impl Changes {
             | Command::Mask { object, .. } => *object,
             Command::SetColor { object: 0, .. } | Command::Reorder { .. } => return,
             Command::SetColor { object, .. } => *object,
-            Command::CameraMode { .. }
-            | Command::Dolly { .. }
-            | Command::Pan { .. }
-            | Command::CreateCamera => 0,
+            Command::CameraMode { object, .. }
+            | Command::Dolly { object, .. }
+            | Command::Pan { object, .. } => *object,
             // Hierarchy, expressions, effects, assets and composition graph
             // transactions can change several payloads. New commands safely
             // rebuild until their mutation scope is explicitly reviewed here.

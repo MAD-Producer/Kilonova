@@ -20,12 +20,13 @@ fn cameras_are_created_explicitly_and_legacy_projects_keep_their_camera() {
         object: 0, property: Property::Position, frame: 0, value: [0.0; 3]
     }).is_err());
     e.apply(Command::CreateCamera).unwrap();
-    assert!(e.project().camera.created);
-    assert!(e.project().camera.position.keys.is_empty());
+    assert!(!e.project().camera.created);
+    assert_eq!(e.project().layers.len(), 1);
+    assert!(e.project().layers[0].camera_data().unwrap().position.keys.is_empty());
     e.undo().unwrap();
     assert!(!e.project().camera.created);
     e.redo().unwrap();
-    assert!(e.project().camera.created);
+    assert_eq!(e.project().layers.len(), 1);
     let mut legacy = serde_json::to_value(Project::demo()).unwrap();
     legacy["camera"].as_object_mut().unwrap().remove("created");
     let loaded: Project = serde_json::from_value(legacy).unwrap();

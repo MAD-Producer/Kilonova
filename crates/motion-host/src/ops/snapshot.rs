@@ -148,10 +148,19 @@ impl Session {
             .iter()
             .map(|l| {
                 let local = l.local_frame(f);
-                json!({"id":l.id,"position":l.transform.position.sample(local),
+                let camera = l.camera_data().map(|c| json!({"position":c.position_at(local),"target":c.target.sample(local),
+                    "roll":c.roll.sample(local),"fov":c.fov.sample(local),"radius":c.radius.sample(local),
+                    "azimuth":c.azimuth.sample(local),"elevation":c.elevation.sample(local)}));
+                let mut sample = json!({"id":l.id,"position":l.transform.position.sample(local),
             "rotation":l.transform.rotation.sample(local),"scale":l.transform.scale.sample(local),
             "opacity":l.transform.opacity.sample(local).clamp(0.0,1.0),"active":l.active(f,p.frames),"three_d":l.three_d,
-            "audio_levels":l.audio_levels.as_ref().map(|levels|{let v=levels.sample(local);json!({"left":v[0],"right":v[1]})})})
+            "audio_levels":l.audio_levels.as_ref().map(|levels|{let v=levels.sample(local);json!({"left":v[0],"right":v[1]})})});
+                if let Some(camera) = camera {
+                    for (key, value) in camera.as_object().into_iter().flatten() {
+                        sample[key] = value.clone();
+                    }
+                }
+                sample
             })
             .collect();
         let mut projected: Vec<_> = self
@@ -228,7 +237,7 @@ impl Session {
         // Logical source plane, before vector/effect output bounds expansion.
         // Hosts use this same evaluated matrix for transform and path gestures.
         let source_transforms: Vec<_> = p.layers.iter().filter_map(|layer| {
-            if !layer.active(f,p.frames) || matches!(layer.content,motion_core::Content::Audio{..}) {return None;}
+            if !layer.active(f,p.frames) || matches!(layer.content,motion_core::Content::Audio{..} | motion_core::Content::Camera { .. }) {return None;}
             let world=self.scene.world_matrix(layer.id)?;
             let vp=self.scene.layers.iter().find(|l|l.id==layer.id).map(|l|l.view_projection)
                 .unwrap_or_else(||if layer.three_d {self.scene.camera.view_projection}else{
@@ -267,7 +276,7 @@ impl Session {
             "composition_context":self.composition_context_snapshot(),
             "vector_layers":vector_layers,"mask_layers":mask_layers,"source_transforms":source_transforms,
             "platform":{"name":self.platform().name(),"graphics":"wgpu"},
-            "capabilities":{"spatial_paths":{"supported":true,"version":1,"query":"position_path","command":"spatial","parameter_scope":true,"max_visible_keys":512,"max_trace_samples":257,"coordinates":"property_local","temporal_easing":"independent","separated_axes":"trace_only"},"adjustment_layers":{"supported":true,"command":"add_adjustment","composite":"lower_layers","mask":"transformed_rectangle","background":"excluded","three_d":false},"vector_drawing":{"supported":true,"protocol":1,"command":"vector","coordinates":"centered_canvas_pixels_y_down","max_paths":motion_core::vector::MAX_PATHS,"max_nodes":motion_core::vector::MAX_NODES,"fill_rules":["non_zero","even_odd"],"stroke_caps":["butt","round","square"],"stroke_joins":["miter","round","bevel"],"shape_catalog":motion_core::vector::shape_catalog()},"scene_effects":{"sdk_version":motion_effects::SDK_VERSION,"plugin_editor_protocol":1,"max_particles_per_effect":20000,"max_sprites_per_frame":65536,"occlusion":"source_alpha_planes","simulation":"analytic_world_birth_or_legacy_local_space","particle_birth_history":true,"particle_history_expressions":false,"particle_rate_animation":false},"native_plugin_ui":{"supported":true,"protocol":1,"slots":["preview","timeline","parameters","layer_source","image_sprite","seed","transform","note"],"preview":"shared_wgpu_surface","timeline":"shared_composition_clock"},"property_expressions":{"supported":true,"profile":motion_core::EXPRESSION_PROFILE,"engine":"QuickJS-NG","source_max_bytes":8192,"max_expressions":motion_core::MAX_EXPRESSIONS,"cross_property_references":false,"opacity_unit":"percent"},"layer_clips":true,"layer_3d":{"supported":true,"default":false,"activation":"explicit","command":"set_layer_3d"},
+            "capabilities":{"spatial_paths":{"supported":true,"version":1,"query":"position_path","command":"spatial","parameter_scope":true,"max_visible_keys":512,"max_trace_samples":257,"coordinates":"property_local","temporal_easing":"independent","separated_axes":"trace_only"},"adjustment_layers":{"supported":true,"command":"add_adjustment","composite":"lower_layers","mask":"transformed_rectangle","background":"excluded","three_d":false},"vector_drawing":{"supported":true,"protocol":1,"command":"vector","coordinates":"centered_canvas_pixels_y_down","max_paths":motion_core::vector::MAX_PATHS,"max_nodes":motion_core::vector::MAX_NODES,"fill_rules":["non_zero","even_odd"],"stroke_caps":["butt","round","square"],"stroke_joins":["miter","round","bevel"],"shape_catalog":motion_core::vector::shape_catalog()},"scene_effects":{"sdk_version":motion_effects::SDK_VERSION,"plugin_editor_protocol":1,"max_particles_per_effect":20000,"max_sprites_per_frame":65536,"occlusion":"source_alpha_planes","simulation":"analytic_world_birth_or_legacy_local_space","particle_birth_history":true,"particle_history_expressions":false,"particle_rate_animation":false},"native_plugin_ui":{"supported":true,"protocol":1,"slots":["preview","timeline","parameters","layer_source","image_sprite","seed","transform","note"],"preview":"shared_wgpu_surface","timeline":"shared_composition_clock"},"property_expressions":{"supported":true,"profile":motion_core::EXPRESSION_PROFILE,"engine":"QuickJS-NG","source_max_bytes":8192,"max_expressions":motion_core::MAX_EXPRESSIONS,"cross_property_references":false,"opacity_unit":"percent"},"camera_layers":{"supported":true,"project_format":19,"activation":"topmost_enabled_in_range","legacy_object":0},"layer_clips":true,"layer_3d":{"supported":true,"default":false,"activation":"explicit","command":"set_layer_3d"},
                 "planar_intersections":{"supported":true,"method":"bsp","geometry_api":"sampleGeometryInto","max_batches":8192,"max_vertices":65536},
                 "separate_dimensions":{"supported":true,"activation":"explicit",
                 "layer_properties":["position","rotation","scale"],"camera_properties":camera_properties,"axes":["x","y","z"]},

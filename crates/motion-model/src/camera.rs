@@ -13,7 +13,7 @@ pub enum CameraMode {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Camera {
-    #[serde(default = "legacy_created", skip_serializing_if = "is_created")]
+    #[serde(default = "legacy_created")]
     pub created: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<crate::ParentLink>,
@@ -28,9 +28,6 @@ pub struct Camera {
 }
 fn legacy_created() -> bool {
     true
-}
-fn is_created(value: &bool) -> bool {
-    *value
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -80,8 +77,19 @@ impl Camera {
         }
     }
     pub fn validate(&self, frames: u32) -> Result<()> {
-        self.position.validate(frames)?;
-        self.target.validate(frames)?;
+        self.validate_tracks(Some(frames))
+    }
+    pub fn validate_local(&self) -> Result<()> {
+        self.validate_tracks(None)
+    }
+    fn validate_tracks(&self, frames: Option<u32>) -> Result<()> {
+        for track in [&self.position, &self.target] {
+            if let Some(frames) = frames {
+                track.validate(frames)?;
+            } else {
+                track.validate_local()?;
+            }
+        }
         for track in [&self.position, &self.target] {
             track.validate_bound(10_000_000.0)?;
         }
@@ -92,7 +100,11 @@ impl Camera {
             &self.azimuth,
             &self.elevation,
         ] {
-            track.validate(frames)?;
+            if let Some(frames) = frames {
+                track.validate(frames)?;
+            } else {
+                track.validate_local()?;
+            }
         }
         for value in std::iter::once(self.fov.value).chain(self.fov.keys.iter().map(|k| k.value)) {
             ensure(
@@ -190,6 +202,16 @@ impl Camera {
     }
     /// Bake on integer frames to preserve an existing animation when modes change.
     pub fn convert_mode(&mut self, mode: CameraMode, frames: u32) -> Result<()> {
+        let end = i32::try_from(frames)
+            .map_err(|_| crate::Error::Invalid("camera bake time overflow".into()))?;
+        self.convert_mode_range(mode, 0, end)
+    }
+    pub fn convert_mode_range(
+        &mut self,
+        mode: CameraMode,
+        mut start: i32,
+        mut end: i32,
+    ) -> Result<()> {
         fn keep_static<T: crate::Tween>(track: &mut Track<T>) {
             if let Some(first) = track.keys.first() {
                 let value = first.value;
@@ -202,9 +224,30 @@ impl Camera {
         if self.mode == mode {
             return Ok(());
         }
+        // Trimmed-out keys remain recoverable. Include their local time in the
+        // integer bake, and reject oversized bakes before doing work.
+        for frame in self
+            .position
+            .key_frames()
+            .chain(self.target.key_frames())
+            .chain(self.radius.key_frames())
+            .chain(self.azimuth.key_frames())
+            .chain(self.elevation.key_frames())
+        {
+            start = start.min(frame);
+            end = end.max(
+                frame
+                    .checked_add(1)
+                    .ok_or_else(|| crate::Error::Invalid("camera bake time overflow".into()))?,
+            );
+        }
+        ensure(
+            (1..=i64::from(crate::MAX_FRAMES)).contains(&(i64::from(end) - i64::from(start))),
+            "camera mode conversion exceeds the keyframe budget",
+        )?;
         if mode == CameraMode::Position {
-            let mut positions = Track::constant(self.position_at(0.0));
-            for frame in 0..frames {
+            let mut positions = Track::constant(self.position_at(f64::from(start)));
+            for frame in start..end {
                 positions.upsert(
                     frame,
                     self.position_at(f64::from(frame)),
@@ -218,7 +261,7 @@ impl Camera {
             let mut azimuth = Track::constant(0.0);
             let mut elevation = Track::constant(0.0);
             let mut previous_azimuth: Option<f32> = None;
-            for frame in 0..frames {
+            for frame in start..end {
                 let pos = Vec3::from_array(self.position_at(f64::from(frame)));
                 let target = Vec3::from_array(self.target.sample(f64::from(frame)));
                 let delta = pos - target;
@@ -334,5 +377,41 @@ impl Observer {
         ensure(ratio.is_finite() && ratio > 0.0, "invalid observation zoom")?;
         self.camera.radius.value = (self.camera.radius.value / ratio).clamp(1.0, 10_000_000.0);
         Ok(())
+    }
+}
+
+impl crate::Project {
+    pub fn camera_for(&self, object: u64) -> Result<&Camera> {
+        if object == 0 {
+            ensure(self.camera.created, "camera does not exist")?;
+            return Ok(&self.camera);
+        }
+        self.layers
+            .iter()
+            .find(|l| l.id == object)
+            .ok_or(crate::Error::Missing(object))?
+            .camera_data()
+            .ok_or_else(|| crate::Error::Invalid("object is not a camera".into()))
+    }
+    pub fn camera_for_mut(&mut self, object: u64) -> Result<&mut Camera> {
+        if object == 0 {
+            ensure(self.camera.created, "camera does not exist")?;
+            return Ok(&mut self.camera);
+        }
+        let layer = self.layer_mut(object)?;
+        if layer.locked {
+            return Err(crate::Error::Locked(object));
+        }
+        match &mut layer.content {
+            crate::Content::Camera { camera } => Ok(camera),
+            _ => Err(crate::Error::Invalid("object is not a camera".into())),
+        }
+    }
+    /// Storage order is bottom to top, matching drawing and the reversed timeline.
+    pub fn active_camera_layer(&self, frame: f64) -> Option<&crate::Layer> {
+        self.layers
+            .iter()
+            .rev()
+            .find(|l| l.camera_data().is_some() && l.active(frame, self.frames))
     }
 }

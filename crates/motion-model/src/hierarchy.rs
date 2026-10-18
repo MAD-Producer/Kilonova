@@ -110,13 +110,16 @@ fn node(
     } else {
         Mat4::IDENTITY
     };
-    let value = if index == p.layers.len() {
+    let camera_layer = p.layers.get(index).filter(|l| l.camera_data().is_some());
+    let value = if index == p.layers.len() || camera_layer.is_some() {
         let implicit;
-        let camera = if p.camera.created {
-            &p.camera
+        let (camera, frame) = if let Some(layer) = camera_layer {
+            (layer.camera_data().ok_or_else(|| Error::Invalid("camera data missing".into()))?, layer.local_frame(frame))
+        } else if p.camera.created {
+            (&p.camera, frame)
         } else {
             implicit = crate::Camera::new(p.width, p.height);
-            &implicit
+            (&implicit, frame)
         };
         let pose = camera.pose_parented(frame, p.width, p.height, prefix);
         // Recover the camera's orthonormal world basis from its projection/view.

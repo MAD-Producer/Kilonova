@@ -5,14 +5,17 @@ use crate::{
 use motion_core::{Axis, CameraMode, Command, Property};
 use motion_ui::{
     input::{Input, MouseButton, Rect},
-    paint::{self, PaintList},
+    paint::PaintList,
     text::TextAtlas,
     ui::{self, Align},
 };
 use serde_json::Value;
+
 #[derive(Default)]
 pub struct Controls {
+    object: Option<u64>,
     field: Option<Field>,
+    mode: motion_ui::widgets::Dropdown,
     pub cursor: bool,
     pub drag_readout: Option<([f32; 2], String)>,
 }
@@ -27,14 +30,36 @@ fn clicked(input: &Input, rect: Rect) -> bool {
         .pressed
         .is_some_and(|(b, p)| b == MouseButton::Left && rect.contains(p))
 }
-fn local(locale: Locale, zh: &str, en: &str) -> String {
-    if locale == Locale::Zh { zh } else { en }.into()
+pub(super) fn camera<'a>(state: &'a Value, object: u64) -> &'a Value {
+    if object == 0 {
+        &state["project"]["camera"]
+    } else {
+        state["project"]["layers"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .find(|l| l["id"].as_u64() == Some(object))
+            .map_or(&Value::Null, |l| &l["content"]["camera"])
+    }
+}
+fn sample<'a>(state: &'a Value, object: u64) -> &'a Value {
+    if object == 0 {
+        &state["sampledCamera"]
+    } else {
+        state["sampledLayers"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .find(|l| l["id"].as_u64() == Some(object))
+            .unwrap_or(&Value::Null)
+    }
 }
 impl Controls {
     pub fn editing(&self) -> bool {
-        self.field.is_some()
+        self.field.is_some() || self.mode.open
     }
     pub fn cancel(&mut self) -> bool {
+        self.mode.open = false;
         self.field.take().is_some_and(|mut f| f.number.cancel())
     }
     pub fn render(
@@ -44,148 +69,163 @@ impl Controls {
         area: Rect,
         y: &mut f32,
         state: &Value,
+        object: u64,
         input: &Input,
         locale: Locale,
         out: &mut Vec<Action>,
     ) {
         let styles = list.styles();
         let colors = styles.colors();
-
+        let height = styles.metric("camera.row.height", 28.);
+        let field_height = styles.metric("camera.field.height", 26.);
+        let layout_at = |y, axis, dimensions| {
+            let mut layout =
+                super::properties::inspector_layout(&styles, area, y, axis, dimensions);
+            layout.watch.max[1] = y + height;
+            layout.caption.max[1] = y + height;
+            layout.number.min[1] = y + (height - field_height) * 0.5;
+            layout.number.max[1] = layout.number.min[1] + field_height;
+            layout
+        };
         self.cursor = false;
         self.drag_readout = None;
-        if self
-            .field
-            .as_ref()
-            .is_some_and(|f| input.pressed.is_some_and(|(_, p)| !f.rect.contains(p)))
+        let locked = state["observing"] == true
+            || state["project"]["layers"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .any(|l| l["id"].as_u64() == Some(object) && l["locked"] == true);
+        if self.object != Some(object)
+            || locked
+            || self
+                .field
+                .as_ref()
+                .is_some_and(|f| input.pressed.is_some_and(|(_, p)| !f.rect.contains(p)))
         {
             if self.cancel() {
                 out.push(Action::History(4));
             }
         }
-        let camera = &state["project"]["camera"];
-        let sample = &state["sampledCamera"];
-        let orbit = camera["mode"] == "orbit";
-        let mode = Rect::new(area.min[0] + 16., *y, area.width() - 32., 28.);
-        paint::rect(list, mode, colors.SUNKEN);
+        self.object = Some(object);
+        let c = camera(state, object);
+        let sampled = sample(state, object);
+        let orbit = c["mode"] == "orbit";
+        let caption = layout_at(*y, 0, 1);
         ui::text(
             list,
             atlas,
-            mode.shrink(5.),
-            &local(
-                locale,
-                if orbit {
-                    "摄影机模式：环绕"
-                } else {
-                    "摄影机模式：位置"
-                },
-                if orbit {
-                    "Camera Mode: Orbit"
-                } else {
-                    "Camera Mode: Position"
-                },
-            ),
-            colors.ACCENT,
+            caption.caption,
+            if locale == Locale::Zh {
+                "模式"
+            } else {
+                "Mode"
+            },
+            colors.TEXT_MUTED,
             Align::Left,
         );
-        if clicked(input, mode) {
+        let labels = if locale == Locale::Zh {
+            ["位置", "环绕"]
+        } else {
+            ["Position", "Orbit"]
+        };
+        let items = labels.map(|label| motion_ui::widgets::DropdownItem {
+            label,
+            enabled: true,
+        });
+        // Menus append last, above the subsequent property rows.
+        let mode_was_open = self.mode.open;
+        let mut overlay = list.child();
+        if let Some(mode) = self.mode.draw(
+            &mut overlay,
+            atlas,
+            caption.number,
+            area,
+            &items,
+            usize::from(orbit),
+            input,
+            !locked,
+            false,
+        ) {
             if self.cancel() {
                 out.push(Action::History(4));
             }
             out.push(Action::Edit(Command::CameraMode {
-                mode: if orbit {
+                object,
+                mode: if mode == 0 {
                     CameraMode::Position
                 } else {
                     CameraMode::Orbit
                 },
             }));
-            self.field = None;
         }
-        *y += 36.;
+        let neutral = Input::default();
+        let input = if mode_was_open || self.mode.open {
+            &neutral
+        } else {
+            input
+        };
+        *y += height;
         let mut properties = vec![
-            (
-                Property::Target,
-                "target",
-                local(locale, "目标点", "Target"),
-                3,
-            ),
-            (Property::Roll, "roll", local(locale, "倾斜", "Roll"), 1),
-            (
-                Property::Fov,
-                "fov",
-                local(locale, "视场角", "Field of View"),
-                1,
-            ),
+            (Property::Target, "target", T::CameraTarget, 3),
+            (Property::Roll, "roll", T::CameraRoll, 1),
+            (Property::Fov, "fov", T::CameraFov, 1),
         ];
         if orbit {
             properties.extend([
-                (
-                    Property::Radius,
-                    "radius",
-                    local(locale, "半径", "Radius"),
-                    1,
-                ),
-                (
-                    Property::Azimuth,
-                    "azimuth",
-                    local(locale, "方位角", "Azimuth"),
-                    1,
-                ),
-                (
-                    Property::Elevation,
-                    "elevation",
-                    local(locale, "仰角", "Elevation"),
-                    1,
-                ),
+                (Property::Radius, "radius", T::CameraRadius, 1),
+                (Property::Azimuth, "azimuth", T::CameraAzimuth, 1),
+                (Property::Elevation, "elevation", T::CameraElevation, 1),
             ]);
         } else {
-            properties.insert(
-                0,
-                (
-                    Property::Position,
-                    "position",
-                    locale.t(T::Position).into(),
-                    3,
-                ),
-            );
+            properties.insert(0, (Property::Position, "position", T::Position, 3));
         }
-        for (property, key, name, dimensions) in properties {
+        for (property, key, title, dimensions) in properties {
+            let layout = layout_at(*y, 0, dimensions);
+            super::timeline::property_branch(list, layout.watch);
+            let animated = c[key]["keys"]
+                .as_array()
+                .is_some_and(|keys| !keys.is_empty())
+                || ["x", "y", "z"].iter().any(|axis| {
+                    c[key]["axes"][axis]["keys"]
+                        .as_array()
+                        .is_some_and(|keys| !keys.is_empty())
+                });
+            super::timeline::property_icon(
+                list,
+                layout.watch,
+                motion_ui::icons::Icon::Stopwatch,
+                animated,
+                !locked,
+            );
+            if clicked(input, layout.watch) && !locked {
+                out.push(Action::Edit(Command::Animate {
+                    object,
+                    property,
+                    axis: None,
+                    frame: state["frame"].as_f64().unwrap_or(0.).floor() as u32,
+                    enabled: !animated,
+                }));
+            }
             ui::text(
                 list,
                 atlas,
-                Rect::new(area.min[0] + 16., *y, area.width() - 32., 22.),
-                &name,
+                layout.caption,
+                locale.t(title),
                 colors.TEXT_MUTED,
                 Align::Left,
             );
-            *y += 22.;
             for axis in 0..dimensions {
+                let rect = layout_at(*y, axis, dimensions).number;
                 let value = if dimensions == 1 {
-                    sample[key].as_f64().unwrap_or(0.)
+                    sampled[key].as_f64().unwrap_or(0.)
                 } else {
-                    sample[key][axis].as_f64().unwrap_or(0.)
+                    sampled[key][axis].as_f64().unwrap_or(0.)
                 };
-                let inset = if dimensions > 1 { 20. } else { 0. };
-                if dimensions > 1 {
-                    ui::text(
-                        list,
-                        atlas,
-                        Rect::new(area.min[0] + 30., *y, 18., 26.),
-                        ["X", "Y", "Z"][axis],
-                        colors.TEXT_MUTED,
-                        Align::Left,
-                    );
-                }
-                let rect = Rect::new(
-                    area.min[0] + 30. + inset,
-                    *y,
-                    area.width() - 50. - inset,
-                    26.,
-                );
                 let active = self
                     .field
                     .as_ref()
                     .is_some_and(|f| f.property == property && f.axis == axis);
-                if clicked(input, rect) && !active {
+                if clicked(input, rect) && !active && !locked {
                     if self.cancel() {
                         out.push(Action::History(4));
                     }
@@ -207,6 +247,7 @@ impl Controls {
                         Property::Fov => (10., 120., 0.5),
                         Property::Radius => (1., 10_000_000., 1.),
                         Property::Elevation => (-89., 89., 0.5),
+                        Property::Roll | Property::Azimuth => (-1_000_000., 1_000_000., 0.5),
                         _ => (-10_000_000., 10_000_000., 0.5),
                     };
                     let events = field.number.draw(
@@ -226,34 +267,37 @@ impl Controls {
                         self.drag_readout = Some((input.mouse, note));
                     }
                     if super::numeric::apply(events, out, |v| {
-                        camera_command(state, property, axis, v)
+                        camera_command(state, object, property, axis, v)
                     }) {
                         self.field = None;
                     }
                 } else {
-                    self.cursor |= rect.contains(input.mouse);
-                    super::numeric::passive(list, atlas, rect, value, input, true);
+                    self.cursor |= !locked && rect.contains(input.mouse);
+                    super::numeric::passive(list, atlas, rect, value, input, !locked);
                 }
-                *y += 28.;
             }
+            *y += height;
         }
+        list.append(overlay);
     }
 }
-fn camera_command(state: &Value, property: Property, axis: usize, value: f32) -> Command {
+fn camera_command(
+    state: &Value,
+    object: u64,
+    property: Property,
+    axis: usize,
+    value: f32,
+) -> Command {
     let frame = state["frame"].as_f64().unwrap_or(0.).floor() as u32;
-    let key = match property {
-        Property::Position => "position",
-        Property::Target => "target",
-        Property::Roll => "roll",
-        Property::Fov => "fov",
-        Property::Radius => "radius",
-        Property::Azimuth => "azimuth",
-        _ => "elevation",
-    };
     if matches!(property, Property::Position | Property::Target) {
-        if state["project"]["camera"][key]["axes"].is_object() {
+        let key = if property == Property::Position {
+            "position"
+        } else {
+            "target"
+        };
+        if camera(state, object)[key]["axes"].is_object() {
             Command::SetComponent {
-                object: 0,
+                object,
                 property,
                 axis: [Axis::X, Axis::Y, Axis::Z][axis],
                 frame,
@@ -261,11 +305,11 @@ fn camera_command(state: &Value, property: Property, axis: usize, value: f32) ->
             }
         } else {
             let mut xyz = std::array::from_fn(|i| {
-                state["sampledCamera"][key][i].as_f64().unwrap_or(0.) as f32
+                sample(state, object)[key][i].as_f64().unwrap_or(0.) as f32
             });
             xyz[axis] = value;
             Command::SetVector {
-                object: 0,
+                object,
                 property,
                 frame,
                 value: xyz,
@@ -273,7 +317,7 @@ fn camera_command(state: &Value, property: Property, axis: usize, value: f32) ->
         }
     } else {
         Command::SetScalar {
-            object: 0,
+            object,
             property,
             frame,
             value,

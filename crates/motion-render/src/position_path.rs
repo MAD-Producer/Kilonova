@@ -154,7 +154,15 @@ pub fn sample(
                 matches!(property, Property::Position | Property::Target),
                 "not a position property",
             )?;
-            let (stored, sampled, spatial) = if let Some(l) = layer {
+            let (stored, sampled, spatial) = if object == 0 || layer.is_some_and(|l| l.camera_data().is_some()) {
+                let c = project.camera_for(object)?;
+                let current = evaluated.camera_for(object)?;
+                if *property == Property::Position {
+                    (&c.position, current.position.sample(local), true)
+                } else {
+                    (&c.target, current.target.sample(local), true)
+                }
+            } else if let Some(l) = layer {
                 ensure(
                     *property == Property::Position,
                     "layer has no target property",
