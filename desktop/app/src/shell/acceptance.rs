@@ -1,4 +1,5 @@
 use crate::*;
+mod retained;
 
 impl Shell {
     pub(crate) fn panel_smoke_step(&mut self, event_loop: &ActiveEventLoop) -> Result<(), String> {
@@ -547,6 +548,10 @@ impl Shell {
         Ok(())
     }
     pub(crate) fn finish_smoke(&mut self) -> Result<(), String> {
+        // A queued event after exit() must not overwrite a failed run with a success report.
+        if let Some(error) = &self.fatal {
+            return Err(error.clone());
+        }
         let path = self.smoke.as_ref().ok_or("no smoke report path")?.clone();
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
@@ -561,41 +566,7 @@ impl Shell {
         // repaint must reuse the submitted composition without executing effects.
         let view = panels::composition_view(&self.workspace.root, size);
         let reuse_probe = if view.width() > 0. && view.height() > 0. {
-            let mut reuse_times = vec![];
-            let before = self.engine.state()?;
-            for index in 0..9 {
-                let (paint, _) = self.draw_commands(size);
-                let ui = self.ui_frame(paint, size, false);
-                let began = Instant::now();
-                if !self
-                    .engine
-                    .present_async(ui)?
-                    .recv_timeout(Duration::from_secs(10))
-                    .map_err(|e| e.to_string())??
-                {
-                    return Err("retained UI presentation failed".into());
-                }
-                if index > 0 {
-                    reuse_times.push(began.elapsed().as_micros() as u64);
-                }
-            }
-            let state = self.engine.state()?;
-            let reuse_delta = state["desktop"]["uiPerformance"]["compositionReuses"]
-                .as_u64()
-                .unwrap_or(0)
-                - before["desktop"]["uiPerformance"]["compositionReuses"]
-                    .as_u64()
-                    .unwrap_or(0);
-            let render_delta = state["desktop"]["uiPerformance"]["compositionRenders"]
-                .as_u64()
-                .unwrap_or(0)
-                - before["desktop"]["uiPerformance"]["compositionRenders"]
-                    .as_u64()
-                    .unwrap_or(0);
-            if reuse_delta != 8 || render_delta != 1 {
-                return Err("UI repaint re-executed the composition".into());
-            }
-            serde_json::json!({"reuses":reuse_delta,"renders":render_delta,"roundTripUs":reuse_times})
+            self.retained_ui_probe(size)?
         } else {
             Value::Null
         };
