@@ -437,3 +437,18 @@ fn link_icon_opens_parent_menu_and_blend_popup_can_overlay_the_preview_safely() 
         })]
     ));
 }
+
+
+#[test]
+fn review327_columns_translate_with_panel_origin() {
+    for visibility in [ColumnVisibility::default(), ColumnVisibility { blend: false, parent: false, matte: false }] {
+        let base = timeline_columns::ColumnRects::new(0., 624., visibility);
+        let shifted = timeline_columns::ColumnRects::new(350., 624., visibility);
+        assert_eq!(shifted.name.width, base.name.width, "moving a panel must preserve its name width");
+        for (a,b) in [(base.matte, shifted.matte), (base.blend, shifted.blend), (base.link, shifted.link), (base.parent, shifted.parent)] {
+            if let (Some(a), Some(b)) = (a,b) {
+                assert_eq!(b.x, a.x + 350., "optional column must move with its panel");
+            }
+        }
+    }
+}
