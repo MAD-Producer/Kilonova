@@ -18,11 +18,14 @@ pub enum Tool {
     Scale,
     Anchor,
 }
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Handle {
     Move,
     Rotate,
-    Scale(bool, bool),
+    /// Axis flags plus an identity for hover: `Some(0..4)` is a corner,
+    /// `Some(4..8)` an edge midpoint, and `None` when the gesture started from
+    /// the tool rather than from one of the eight grips.
+    Scale(bool, bool, Option<usize>),
     Anchor,
 }
 #[derive(Clone)]
@@ -125,19 +128,19 @@ impl Pose {
         if distance(p, self.rotate) < 9. {
             return Some(Handle::Rotate);
         }
-        for point in self.corners {
-            if distance(p, point) < 8. {
-                return Some(Handle::Scale(true, true));
+        for (i, point) in self.corners.iter().enumerate() {
+            if distance(p, *point) < 8. {
+                return Some(Handle::Scale(true, true, Some(i)));
             }
         }
         for i in 0..4 {
             if distance(p, mid(self.corners[i], self.corners[(i + 1) % 4])) < 7. {
-                return Some(Handle::Scale(i % 2 == 1, i % 2 == 0));
+                return Some(Handle::Scale(i % 2 == 1, i % 2 == 0, Some(4 + i)));
             }
         }
         None
     }
-    fn paint(&self, list: &mut PaintList) {
+    fn paint(&self, list: &mut PaintList, hovered: Option<Handle>) {
         let styles = list.styles();
         let colors = styles.colors();
 
@@ -146,26 +149,49 @@ impl Pose {
         } else {
             colors.ACCENT
         };
+        let hovered = hovered.filter(|_| !self.locked);
         let mut outline = self.corners.to_vec();
         outline.push(self.corners[0]);
         paint::line(list, outline, color);
+        let grip_style = |hovered: bool| {
+            if hovered {
+                (colors.ACCENT, colors.TEXT)
+            } else {
+                (colors.SUNKEN, color)
+            }
+        };
         for i in 0..4 {
-            for p in [
-                self.corners[i],
-                mid(self.corners[i], self.corners[(i + 1) % 4]),
+            for (p, handle) in [
+                (self.corners[i], Handle::Scale(true, true, Some(i))),
+                (
+                    mid(self.corners[i], self.corners[(i + 1) % 4]),
+                    Handle::Scale(i % 2 == 1, i % 2 == 0, Some(4 + i)),
+                ),
             ] {
+                let (fill, border) = grip_style(hovered == Some(handle));
                 let r = Rect::new(p[0] - 3., p[1] - 3., 6., 6.);
-                paint::rect(list, r, colors.SUNKEN);
-                paint::stroke(list, r, color, 1.);
+                paint::rect(list, r, fill);
+                paint::stroke(list, r, border, 1.);
             }
         }
         let top = mid(self.corners[0], self.corners[1]);
         paint::line(list, vec![top, self.rotate], color);
-        paint::diamond(list, self.rotate, 4., color);
+        if hovered == Some(Handle::Rotate) {
+            paint::diamond(list, self.rotate, 4., colors.TEXT);
+            paint::diamond(list, self.rotate, 2.6, colors.ACCENT);
+        } else {
+            paint::diamond(list, self.rotate, 4., color);
+        }
         let [x, y] = self.pivot;
-        paint::line(list, vec![[x - 7., y], [x + 7., y]], color);
-        paint::line(list, vec![[x, y - 7.], [x, y + 7.]], color);
-        paint::stroke(list, Rect::new(x - 3., y - 3., 6., 6.), color, 1.);
+        let anchor_hovered = hovered == Some(Handle::Anchor);
+        let pivot_color = if anchor_hovered { colors.TEXT } else { color };
+        paint::line(list, vec![[x - 7., y], [x + 7., y]], pivot_color);
+        paint::line(list, vec![[x, y - 7.], [x, y + 7.]], pivot_color);
+        let box_ = Rect::new(x - 3., y - 3., 6., 6.);
+        if anchor_hovered {
+            paint::rect(list, box_, colors.ACCENT);
+        }
+        paint::stroke(list, box_, pivot_color, 1.);
     }
 }
 struct Seed {
@@ -295,7 +321,7 @@ impl Drag {
                         }
                         out.extend(self.vector(Property::Rotation, value, state));
                     }
-                    Handle::Scale(x, y) => {
+                    Handle::Scale(x, y, _) => {
                         let start = [
                             self.local_start[0] - pivot[0],
                             self.local_start[1] - pivot[1],
@@ -467,15 +493,24 @@ impl Controls {
                     let kind = match self.tool {
                         Tool::Move => Handle::Move,
                         Tool::Rotate => Handle::Rotate,
-                        Tool::Scale => Handle::Scale(true, true),
+                        Tool::Scale => Handle::Scale(true, true, None),
                         Tool::Anchor => Handle::Anchor,
                     };
                     self.drag = Drag::new(seed, p, kind);
                 }
             }
         }
+        let hovered = if self.drag.is_some() {
+            // While dragging, the highlight follows the grip actually held.
+            self.drag.as_ref().map(|d| d.handle)
+        } else if view.contains(input.mouse) {
+            pose.as_ref()
+                .and_then(|p| p.handle(input.mouse, self.tool, input.modifiers.alt))
+        } else {
+            None
+        };
         if let Some(p) = &pose {
-            p.paint(list);
+            p.paint(list, hovered);
         }
         let mut consumed = self.drag.is_some();
         if self.drag.is_none() {
@@ -626,6 +661,36 @@ mod tests {
         }
     }
     #[test]
+    fn hovered_grip_identity_matches_hit_test_and_lock_disables_it() {
+        let (_folder, _engine, state, view) = fixture(false);
+        let mut p = Pose::new(&state, 7, view).unwrap();
+        // Every grip reports its own identity so hover highlights exactly one box.
+        for i in 0..4 {
+            assert_eq!(
+                p.handle(p.corners[i], Tool::Move, false),
+                Some(Handle::Scale(true, true, Some(i)))
+            );
+            assert_eq!(
+                p.handle(mid(p.corners[i], p.corners[(i + 1) % 4]), Tool::Move, false),
+                Some(Handle::Scale(i % 2 == 1, i % 2 == 0, Some(4 + i)))
+            );
+        }
+        assert_eq!(p.handle(p.rotate, Tool::Move, false), Some(Handle::Rotate));
+        assert_eq!(p.handle(p.pivot, Tool::Move, true), Some(Handle::Anchor));
+        // The anchor only answers to the anchor tool or Alt, as before.
+        assert_ne!(p.handle(p.pivot, Tool::Move, false), Some(Handle::Anchor));
+        // A locked pose offers no hover target, matching its muted paint.
+        p.locked = true;
+        for point in [
+            p.rotate,
+            p.corners[0],
+            mid(p.corners[1], p.corners[2]),
+            p.pivot,
+        ] {
+            assert_eq!(p.handle(point, Tool::Anchor, true), None);
+        }
+    }
+    #[test]
     fn uniform_scale_preserves_ratio_and_one_undo_restores_tracks() {
         let (_folder, engine, state, view) = fixture(false);
         let p = Pose::new(&state, 7, view).unwrap();
@@ -635,7 +700,7 @@ mod tests {
             p.pivot[1] + 2. * (start[1] - p.pivot[1]),
         ];
         let mut d =
-            Drag::new(Seed::new(start, &state, view), p, Handle::Scale(true, true)).unwrap();
+            Drag::new(Seed::new(start, &state, view), p, Handle::Scale(true, true, None)).unwrap();
         apply(&engine, d.commands(&state, &pointer(end, false)));
         assert!(d
             .commands(&engine.state().unwrap(), &pointer(end, false))
@@ -664,7 +729,7 @@ mod tests {
         let mut d = Drag::new(
             Seed::new(start, &state, view),
             p,
-            Handle::Scale(true, false),
+            Handle::Scale(true, false, None),
         )
         .unwrap();
         let actions = d.commands(&state, &pointer(end, false));
