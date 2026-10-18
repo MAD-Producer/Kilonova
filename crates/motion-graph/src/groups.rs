@@ -349,6 +349,15 @@ pub(crate) fn flatten(document: &GraphDocument, options: &CompileOptions) -> Res
                 Err(Error::Invalid(diagnostic)) if diagnostic.code == ErrorCode::MissingInput => {
                     // Keep the leaf input missing. Reachability validation will
                     // reject it if used, with the original group boundary cause.
+                    // An authored wire still overrides the stored default even
+                    // when its upstream group boundary is incomplete.
+                    flat.document
+                        .nodes
+                        .iter_mut()
+                        .find(|node| node.id == to.node)
+                        .unwrap()
+                        .input_defaults
+                        .remove(&to.port);
                     flat.missing_inputs.insert(to, diagnostic);
                 }
                 Err(error) => return Err(error),

@@ -94,6 +94,7 @@ impl NodeEditor {
             outer.public_parameters = current.public_parameters;
             current = outer;
         }
+        current.format_version = current.format_version.max(current.minimum_format_version());
         current
     }
     pub(super) fn restore_history(&mut self, history: &History) {

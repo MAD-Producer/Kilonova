@@ -45,6 +45,11 @@ pub(super) struct Choice {
 }
 #[derive(Clone)]
 pub(super) enum Control {
+    InputDefault {
+        port: String,
+        value: InputValue,
+        connected: bool,
+    },
     Number {
         label: String,
         binding: Binding,
@@ -432,6 +437,16 @@ impl NodeEditor {
                 .find(|p| p.id == *id)
                 .and_then(|p| p.default.get(*i))
                 .copied(),
+            Binding::InputDefault(id, port, component) => self
+                .document
+                .nodes
+                .iter()
+                .find(|node| node.id == *id)
+                .and_then(|node| node.input_defaults.get(port))
+                .and_then(|value| match value {
+                    InputValue::Bool(value) if *component == 0 => Some(u8::from(*value) as f32),
+                    _ => value.components().get(*component).copied(),
+                }),
             _ => None,
         }
     }
@@ -453,6 +468,18 @@ impl NodeEditor {
             ));
         }
         match binding {
+            Binding::InputDefault(id, port, component) => {
+                let mut next = self.input_default(id, port)?.clone();
+                if !next.set_component(*component, value) {
+                    return Err(diag(
+                        ErrorCode::InvalidValue,
+                        Some(id),
+                        Some(port),
+                        "Invalid input component",
+                    ));
+                }
+                self.replace_input_default(id, port, next)?;
+            }
             Binding::Constant(id, component) => {
                 let mut candidate = self
                     .document

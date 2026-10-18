@@ -2,8 +2,8 @@
 //! Drawing emits owned N1 snapshots; it never touches an editing Session or GPU queue.
 use motion_graph::{
     demo_graph, node_ports, ColorOp, CompileOptions, CompileReport, Connection, Diagnostic,
-    ErrorCode, GraphDocument, ImageSource, MathOp, Node, NodeOp, PortRef, PublicParameter,
-    SampleCoordinates, ValueType,
+    ErrorCode, GraphDocument, ImageSource, InputValue, MathOp, Node, NodeOp, PortRef,
+    PublicParameter, SampleCoordinates, ValueType,
 };
 use motion_ui::{Input, PaintList, Rect, TextAtlas};
 use std::{
@@ -19,6 +19,8 @@ mod editing;
 mod grouping;
 #[path = "node_editor/inline.rs"]
 mod inline;
+#[path = "node_editor/input_defaults.rs"]
+mod input_defaults;
 #[path = "node_editor/nudge.rs"]
 mod nudge;
 #[path = "node_editor/observability.rs"]
@@ -169,6 +171,8 @@ struct History {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Binding {
+    InputValue(String, String),
+    InputDefault(String, String, usize),
     Constant(String, usize),
     ParamDefault(String, usize),
     ParamName(String, bool),
@@ -602,6 +606,10 @@ impl NodeEditor {
             .map(|e| e.diagnostic());
     }
     fn finish_edit(&mut self, before: History) {
+        self.document.format_version = self
+            .document
+            .format_version
+            .max(self.document.minimum_format_version());
         self.finish_nudge();
         self.undo.push(before.clone());
         if self.undo.len() > 64 {
@@ -732,6 +740,7 @@ impl NodeEditor {
         }
         let id = self.id(operation.kind());
         let mut node = Node::new(id.clone(), operation);
+        node.input_defaults = motion_graph::authoring_input_defaults(&node.operation);
         node.position = position;
         self.check_node(&node)?;
         let mut candidate = self.document.clone();
@@ -1000,6 +1009,17 @@ impl NodeEditor {
             .cloned()
             .ok_or_else(|| diag(ErrorCode::UnknownNode, Some(id), None, "Node is missing"))?;
         candidate.operation = operation;
+        let mut shape = candidate.clone();
+        shape.input_defaults.clear();
+        let inputs = node_ports(&shape, &self.document.public_parameters)
+            .map_err(|error| error.diagnostic())?
+            .inputs;
+        candidate
+            .input_defaults
+            .retain(|port, value| inputs.get(port) == Some(&value.value_type()));
+        for (port, value) in motion_graph::authoring_input_defaults(&candidate.operation) {
+            candidate.input_defaults.entry(port).or_insert(value);
+        }
         self.check_node(&candidate)?;
         if self
             .document

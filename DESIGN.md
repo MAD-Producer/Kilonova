@@ -416,6 +416,14 @@ These are **only** behaviors evidenced in the supplied audit, **not** an exhaust
 
 ---
 
+### Node input defaults
+
+- Keep each stored default on its input socket row. Use the existing numeric editor for scalar dragging and text entry, a comma-separated field for vector components, a checkbox for Bool, and the existing color picker for Color.
+- Use existing semantic field, label, padding, border, selection, error, and disabled tokens. Idle numeric/vector values have no field background; editing reveals focus and validation state. Preserve socket hit tolerances.
+- Wired inputs keep their stored fallback visible in a disabled state. The wire determines execution; disconnecting restores the saved value. Read-only controls cannot start an edit.
+- Cards with stored defaults put outputs after the input rows so value controls cannot overlap output labels or sockets. These are actual port rows, not spacer rows. Cards without defaults retain their existing layout.
+- Numeric drags and color gestures create one history entry; Escape restores the starting value. Vector text owns select-all, navigation and deletion keys and does not commit during IME composition. Input changes refresh the live preview without editing the user's composition.
+
 ## 13. Execution rules for coding agents
 
 1. **Inspect before editing.** Read `desktop/ui/styles/dark.json`, `style.rs`, `theme.rs`, `ui.rs`, `paint.rs`, and the affected panel sources. Identify each visual defect, its drawing code, and existing tokens that will be reused.

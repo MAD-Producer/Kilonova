@@ -8,6 +8,82 @@ use std::sync::Arc;
 mod group_fixture;
 
 #[test]
+fn typed_defaults_match_explicit_constants_on_gpu_and_survive_export() {
+    let dir = tempfile::tempdir().unwrap();
+    for alpha_mode in [AlphaMode::Straight, AlphaMode::Premultiplied] {
+        let mut explicit = demo_graph();
+        explicit.alpha_mode = alpha_mode;
+        // Cover Float, Vec2 and straight RGBA storage in a real animated SDF.
+        let mut defaults = explicit.clone();
+        defaults.format_version = INPUT_DEFAULTS_FORMAT_VERSION;
+        for (node, port, constant, value, operation) in [
+            (
+                "circle",
+                "radius",
+                "radius_literal",
+                InputValue::Float(18.),
+                NodeOp::Float { value: 18. },
+            ),
+            (
+                "circle",
+                "center",
+                "center_literal",
+                InputValue::Vec2([32., 32.]),
+                NodeOp::Vec2 { value: [32., 32.] },
+            ),
+            (
+                "masked",
+                "color",
+                "color_literal",
+                InputValue::Color([0.8, 0.2, 0.4, 0.6]),
+                NodeOp::Color {
+                    value: [0.8, 0.2, 0.4, 0.6],
+                },
+            ),
+        ] {
+            explicit
+                .connections
+                .retain(|edge| edge.to != PortRef::new(node, port));
+            explicit.nodes.push(Node::new(constant, operation));
+            explicit
+                .connections
+                .push(Connection::new(constant, "value", node, port));
+            defaults
+                .connections
+                .retain(|edge| edge.to != PortRef::new(node, port));
+            defaults
+                .nodes
+                .iter_mut()
+                .find(|n| n.id == node)
+                .unwrap()
+                .input_defaults
+                .insert(port.into(), value);
+        }
+        let name = format!("{alpha_mode:?}");
+        let (p, mut renderer, target) =
+            setup(&explicit, &dir.path().join(format!("explicit-{name}.msfx")));
+        let default_path = dir.path().join(format!("defaults-{name}.msfx"));
+        let (q, mut other, other_target) = setup(&defaults, &default_path);
+        let report = export_msfx(
+            &defaults,
+            &CompileOptions::default(),
+            &dir.path().join(format!("reopen-{name}.msfx")),
+        )
+        .unwrap();
+        assert_eq!(GraphDocument::load(&report.source_path).unwrap(), defaults);
+        for frame in [0., 15.5, 29.] {
+            let expected = render(&p, &mut renderer, &target, frame);
+            let actual = render(&q, &mut other, &other_target, frame);
+            assert_eq!(actual, expected, "{alpha_mode:?} frame={frame}");
+            assert!(
+                actual.chunks_exact(4).any(|pixel| pixel[3] > 0),
+                "comparison must contain visible pixels"
+            );
+        }
+    }
+}
+
+#[test]
 fn unused_incomplete_nodes_preserve_gpu_pixels_and_allow_live_parameter_changes() {
     let dir = tempfile::tempdir().unwrap();
     let plain = demo_graph();

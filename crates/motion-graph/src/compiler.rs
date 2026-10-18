@@ -84,6 +84,19 @@ pub struct CompiledGraph {
 }
 
 pub fn node_ports(node: &Node, parameters: &[PublicParameter]) -> Result<NodePorts> {
+    if !node.input_defaults.is_empty()
+        && matches!(
+            node.operation,
+            NodeOp::Group { .. } | NodeOp::GroupInput { .. } | NodeOp::GroupOutput { .. }
+        )
+    {
+        return Err(Error::invalid(
+            ErrorCode::InvalidValue,
+            Some(&node.id),
+            None,
+            "group boundary defaults must be authored on the internal value inputs",
+        ));
+    }
     let mut p = NodePorts {
         inputs: BTreeMap::new(),
         outputs: BTreeMap::new(),
@@ -367,6 +380,37 @@ pub fn node_ports(node: &Node, parameters: &[PublicParameter]) -> Result<NodePor
         .extend(inputs.into_iter().map(|(n, t)| (n.into(), t)));
     p.outputs
         .extend(outputs.into_iter().map(|(n, t)| (n.into(), t)));
+    for (port, value) in &node.input_defaults {
+        let ty = p.inputs.get(port).ok_or_else(|| {
+            Error::invalid(
+                ErrorCode::UnknownPort,
+                Some(&node.id),
+                Some(port),
+                "default refers to an unknown input",
+            )
+        })?;
+        if *ty != value.value_type() {
+            return Err(Error::invalid(
+                ErrorCode::TypeMismatch,
+                Some(&node.id),
+                Some(port),
+                "input default must have the input's exact storage type",
+            ));
+        }
+        if value
+            .components()
+            .iter()
+            .any(|v| !v.is_finite() || v.abs() > 1.0e6)
+            || matches!(value, InputValue::Color(rgba) if rgba.iter().any(|v| !(0.0..=1.0).contains(v)))
+        {
+            return Err(Error::invalid(
+                ErrorCode::InvalidValue,
+                Some(&node.id),
+                Some(port),
+                "input defaults must be finite (±1e6); straight RGBA must be normalized",
+            ));
+        }
+    }
     Ok(p)
 }
 
@@ -387,12 +431,14 @@ fn validate_root(
     options: &CompileOptions,
     root: Option<&PortRef>,
 ) -> Result<ValidationReport> {
-    if document.format_version != GRAPH_FORMAT_VERSION {
+    if !(GRAPH_FORMAT_VERSION..=INPUT_DEFAULTS_FORMAT_VERSION).contains(&document.format_version)
+        || document.format_version < document.minimum_format_version()
+    {
         return Err(Error::invalid(
             ErrorCode::DocumentVersion,
             None,
             None,
-            "only .msgraph format version 1 is implemented",
+            "supported .msgraph versions are 1 and 2; input defaults require version 2",
         ));
     }
     if options.target_sdk != 6 {
@@ -694,15 +740,16 @@ fn validate_root(
         for port in ports[&id].inputs.keys() {
             // Incomplete nodes outside this output's dependency chain are drafts.
             // Structural, value, edge and cycle validation above still covers them.
-            let source = incoming.get(&PortRef::new(&id, port)).ok_or_else(|| {
-                Error::invalid(
+            if let Some(source) = incoming.get(&PortRef::new(&id, port)) {
+                pending.push(source.node.clone());
+            } else if !nodes[&id].input_defaults.contains_key(port) {
+                return Err(Error::invalid(
                     ErrorCode::MissingInput,
                     Some(&id),
                     Some(port),
                     "required input is not connected",
-                )
-            })?;
-            pending.push(source.node.clone());
+                ));
+            }
         }
     }
     Ok(ValidationReport {
@@ -987,7 +1034,36 @@ impl<'a> Builder<'a> {
         }
     }
     fn input(&self, node: &str, port: &str) -> Symbol {
-        self.symbols[&self.incoming[&PortRef::new(node, port)]].clone()
+        if let Some(source) = self.incoming.get(&PortRef::new(node, port)) {
+            return self.symbols[source].clone();
+        }
+        let value = &self
+            .document
+            .nodes
+            .iter()
+            .find(|n| n.id == node)
+            .unwrap()
+            .input_defaults[port];
+        if let InputValue::Bool(value) = value {
+            return Symbol {
+                expr: value.to_string(),
+                constant: None,
+                image: None,
+            };
+        }
+        let mut components = value.components().to_vec();
+        if value.value_type() == ValueType::Color
+            && self.document.alpha_mode == AlphaMode::Premultiplied
+        {
+            for index in 0..3 {
+                components[index] *= components[3];
+            }
+        }
+        Symbol {
+            expr: literal(value.value_type(), &components),
+            constant: Some(components),
+            image: None,
+        }
     }
     fn put(
         &mut self,

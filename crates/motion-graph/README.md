@@ -31,7 +31,7 @@ let compiled = compile(&graph, &CompileOptions::default())?;
 # Ok::<(), motion_graph::Error>(())
 ```
 
-- `GraphDocument::{load,from_json,save,to_json}`：读写版本 1 的 `.msgraph` 文档
+- `GraphDocument::{load,from_json,save,to_json}`: read/write `.msgraph` versions 1 and 2; typed input defaults require version 2
 - `node_ports`：获取引脚的 WGSL 数据类型
 - `node_port_specs` / `node_description`：获取双语引脚说明、像素位置、UV、距离、颜色、秒等语义
 - `check_connection` / `validate`：检查连线、必须输入、单一颜色输出、循环依赖、参数与预算
@@ -39,6 +39,14 @@ let compiled = compile(&graph, &CompileOptions::default())?;
 - `export_msfx`：导出可由 `EffectPackage` 和 `Registry` 加载的包，并保留同名可编辑 `.msgraph`
 
 `CompileReport` 区分图内采样点、宿主采样点、绑定数、循环工作量和单 pass 输出大小。它不是 GPU 耗时或总显存测量。
+
+### Stored input defaults
+
+`Node::input_defaults` maps input port IDs to exact typed literals (`InputValue`). A wire takes precedence; removing it restores the saved literal. Missing upstream wires still produce diagnostics, including wires through group boundaries. Values are finite within ±1e6; colors use normalized straight RGBA and follow the graph's alpha contract during compilation. No numeric casts or implicit image/coordinate inputs are introduced.
+
+Existing constructors and examples remain version 1 with an omitted empty map. Authors using stored defaults must set `format_version` to `INPUT_DEFAULTS_FORMAT_VERSION`; the desktop editor upgrades the root automatically, including edits inside groups. Version 1 files containing defaults and unsupported future versions are rejected. Exported SDK 6 effects keep their existing manifest and execution ABI. Defaults on group boundary nodes are not yet supported; internal leaf defaults are supported.
+
+`authoring_input_defaults` supplies independently authored initial values for common numeric inputs. New desktop nodes use these values; loading an older unfinished node does not silently fill its required inputs. Existing examples retain their explicit constant nodes.
 
 ## 节点范围
 

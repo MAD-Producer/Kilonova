@@ -277,6 +277,9 @@ def main() -> None:
         for check in ("unusedDraftKeptLivePreview", "unusedDraftUndoRestoredPixels"):
             if preview.get(check) is not True:
                 raise RuntimeError(f"{locale} node draft did not verify {check}")
+        for check in ("inputDefaultsWirePrecedence", "inputDefaultsDisconnectRestoresValue", "inputDefaultsNativeEditChangedPixels", "inputDefaultsNativeVectorEdit", "inputDefaultsSourceReopened", "inputDefaultsUndoRestoredPixels"):
+            if preview.get(check) is not True:
+                raise RuntimeError(f"{locale} node input defaults did not verify {check}")
     verify_mcp(binary, output)
     verify_property_followups(binary, output)
     verify_style_overrides(binary, output)

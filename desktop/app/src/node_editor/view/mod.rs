@@ -10,6 +10,8 @@ mod controls;
 mod failure_tests;
 #[cfg(test)]
 mod group_tests;
+#[cfg(test)]
+mod input_default_tests;
 mod inspector;
 mod interaction;
 mod library;
@@ -75,7 +77,7 @@ pub(super) fn node_height(node: &Node, document: &GraphDocument) -> f32 {
         return HEADER;
     }
     let rows = node_ports(node, &document.public_parameters)
-        .map(|p| p.inputs.len().max(p.outputs.len()))
+        .map(|p| port_row_count(node, p.inputs.len(), p.outputs.len()))
         .unwrap_or(1);
     let count = inline::control_count(node, document);
     HEADER
@@ -84,6 +86,21 @@ pub(super) fn node_height(node: &Node, document: &GraphDocument) -> f32 {
             27.
         } else {
             14. + count as f32 * inline::CONTROL_ROW
+        }
+}
+fn port_row_count(node: &Node, inputs: usize, outputs: usize) -> usize {
+    if node.input_defaults.is_empty() {
+        inputs.max(outputs)
+    } else {
+        inputs + outputs
+    }
+}
+fn port_row_index(node: &Node, inputs: usize, output: bool, index: usize) -> usize {
+    index
+        + if output && !node.input_defaults.is_empty() {
+            inputs
+        } else {
+            0
         }
 }
 fn type_color(ty: ValueType) -> Color {
@@ -361,6 +378,7 @@ impl NodeEditor {
                 layout.canvas,
                 commit_input.as_ref().unwrap_or(input),
                 language,
+                styles.as_ref(),
             )
         } else {
             false
@@ -559,6 +577,7 @@ impl NodeEditor {
                 .ok_or_else(|| diag(ErrorCode::InvalidValue, None, None, "Enter a finite number"))
         };
         match &binding {
+            Binding::InputValue(id, port) => return self.set_input_text(id, port, text),
             Binding::Constant(id, component) => {
                 return self.set_constant(id, *component, number()?)
             }

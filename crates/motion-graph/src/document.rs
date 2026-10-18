@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fs, path::Path};
 
 pub const GRAPH_FORMAT_VERSION: u32 = 1;
+pub const INPUT_DEFAULTS_FORMAT_VERSION: u32 = 2;
 pub const MAX_DOCUMENT_BYTES: usize = 4 * 1024 * 1024;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -253,6 +254,8 @@ pub struct Node {
     pub position: [f32; 2],
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub collapsed: bool,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub input_defaults: BTreeMap<String, InputValue>,
 }
 impl Node {
     pub fn new(id: impl Into<String>, operation: NodeOp) -> Self {
@@ -262,6 +265,67 @@ impl Node {
             operation,
             position: [0.0; 2],
             collapsed: false,
+            input_defaults: BTreeMap::new(),
+        }
+    }
+}
+
+/// Stored fallback values. Connections always take precedence; values stay in
+/// authoring space (straight RGBA for Color), just like constant nodes.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(
+    tag = "type",
+    content = "value",
+    rename_all = "snake_case",
+    deny_unknown_fields
+)]
+pub enum InputValue {
+    Float(f32),
+    Vec2([f32; 2]),
+    Vec3([f32; 3]),
+    Color([f32; 4]),
+    Bool(bool),
+    DistancePixels(f32),
+}
+impl InputValue {
+    pub fn value_type(&self) -> ValueType {
+        match self {
+            Self::Float(_) => ValueType::Float,
+            Self::Vec2(_) => ValueType::Vec2,
+            Self::Vec3(_) => ValueType::Vec3,
+            Self::Color(_) => ValueType::Color,
+            Self::Bool(_) => ValueType::Bool,
+            Self::DistancePixels(_) => ValueType::DistancePixels,
+        }
+    }
+    pub fn components(&self) -> &[f32] {
+        match self {
+            Self::Float(v) | Self::DistancePixels(v) => std::slice::from_ref(v),
+            Self::Vec2(v) => v,
+            Self::Vec3(v) => v,
+            Self::Color(v) => v,
+            Self::Bool(_) => &[],
+        }
+    }
+    pub fn set_component(&mut self, component: usize, value: f32) -> bool {
+        let values: &mut [f32] = match self {
+            Self::Float(v) | Self::DistancePixels(v) => std::slice::from_mut(v),
+            Self::Vec2(v) => v,
+            Self::Vec3(v) => v,
+            Self::Color(v) => v,
+            Self::Bool(v) => {
+                if component != 0 || !matches!(value, 0.0 | 1.0) {
+                    return false;
+                }
+                *v = value == 1.0;
+                return true;
+            }
+        };
+        if let Some(slot) = values.get_mut(component) {
+            *slot = value;
+            true
+        } else {
+            false
         }
     }
 }
@@ -376,6 +440,17 @@ pub struct GraphDocument {
     pub public_parameters: Vec<PublicParameter>,
 }
 impl GraphDocument {
+    pub fn minimum_format_version(&self) -> u32 {
+        fn uses_defaults(nodes: &[Node]) -> bool {
+            nodes.iter().any(|node| !node.input_defaults.is_empty()
+                || matches!(&node.operation, NodeOp::Group { graph } if uses_defaults(&graph.nodes)))
+        }
+        if uses_defaults(&self.nodes) {
+            INPUT_DEFAULTS_FORMAT_VERSION
+        } else {
+            GRAPH_FORMAT_VERSION
+        }
+    }
     pub fn from_json(text: &str) -> Result<Self> {
         if text.len() > MAX_DOCUMENT_BYTES {
             return Err(Error::invalid(
@@ -386,6 +461,18 @@ impl GraphDocument {
             ));
         }
         let value: serde_json::Value = serde_json::from_str(text)?;
+        if let Some(version) = value.get("format_version").and_then(|v| v.as_u64()) {
+            if !(GRAPH_FORMAT_VERSION as u64..=INPUT_DEFAULTS_FORMAT_VERSION as u64)
+                .contains(&version)
+            {
+                return Err(Error::invalid(
+                    ErrorCode::DocumentVersion,
+                    None,
+                    None,
+                    "supported .msgraph versions are 1 and 2 (typed input defaults)",
+                ));
+            }
+        }
         if let Some(nodes) = value.get("nodes").and_then(|v| v.as_array()) {
             for node in nodes {
                 let id = node.get("id").and_then(|v| v.as_str());
@@ -441,7 +528,16 @@ impl GraphDocument {
                 }
             }
         }
-        Ok(serde_json::from_value(value)?)
+        let document: Self = serde_json::from_value(value)?;
+        if document.format_version < document.minimum_format_version() {
+            return Err(Error::invalid(
+                ErrorCode::DocumentVersion,
+                None,
+                None,
+                "stored input defaults require .msgraph version 2",
+            ));
+        }
+        Ok(document)
     }
     pub fn load(path: &Path) -> Result<Self> {
         if fs::metadata(path)?.len() > MAX_DOCUMENT_BYTES as u64 {

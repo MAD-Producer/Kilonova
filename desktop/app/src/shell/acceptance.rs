@@ -688,6 +688,73 @@ impl Shell {
         self.engine.capture_ui(ui, path.clone())?;
         Ok(path)
     }
+    fn node_float_input(&mut self, input: Input) -> Result<(), String> {
+        let f = self
+            .floating
+            .values()
+            .find(|f| f.panel == dock::Panel::Nodes)
+            .ok_or("node floating window missing during input")?;
+        let physical = f.window.inner_size();
+        let size = [
+            physical.width as f32 / f.scale,
+            physical.height as f32 / f.scale,
+        ];
+        let actions = panels::floating_chrome(
+            &mut PaintList::default(),
+            &mut self.atlas,
+            dock::Panel::Nodes,
+            size,
+            &mut self.panels,
+            &self.state,
+            &input,
+        );
+        for action in actions {
+            match action {
+                panels::Action::Node(action @ node_editor::Action::Changed { .. }) => {
+                    self.node_action(action)?
+                }
+                unexpected => {
+                    return Err(format!(
+                        "unexpected native default-edit action: {unexpected:?}"
+                    ))
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn edit_node_default_smoke(&mut self, id: &str, port: &str, text: &str) -> Result<(), String> {
+        let styles = PaintList::default().styles();
+        let bounds = self
+            .panels
+            .node_editor
+            .input_default_bounds(id, port, &styles)
+            .ok_or("native default field bounds missing")?;
+        let point = [
+            (bounds.min[0] + bounds.max[0]) * 0.5,
+            (bounds.min[1] + bounds.max[1]) * 0.5,
+        ];
+        self.node_float_input(Input {
+            mouse: point,
+            pressed: Some((MouseButton::Left, point)),
+            held: Some(MouseButton::Left),
+            ..Default::default()
+        })?;
+        self.node_float_input(Input {
+            mouse: point,
+            released: Some((MouseButton::Left, point)),
+            ..Default::default()
+        })?;
+        self.node_float_input(Input {
+            text: text.into(),
+            ..Default::default()
+        })?;
+        self.node_float_input(Input {
+            keys: vec![(Key::Enter, Default::default())],
+            ..Default::default()
+        })?;
+        Ok(())
+    }
     fn capture_home_preview_smoke(&mut self, path: PathBuf) -> Result<(), String> {
         if self.panels.node_preview.active.is_none() { return Err("home smoke requires a live GPU node preview".into()); }
         let previous_home = self.home.take();
@@ -922,6 +989,204 @@ impl Shell {
                 return Err("undo with an unused draft did not restore GPU pixels".into());
             }
             self.smoke_node_report["unusedDraftUndoRestoredPixels"] = Value::Bool(true);
+            let id = self
+                .panels
+                .node_editor
+                .add_node(
+                    motion_graph::NodeOp::Math {
+                        operation: motion_graph::MathOp::Add,
+                        value_type: motion_graph::ValueType::Float,
+                    },
+                    [960., 190.],
+                )
+                .map_err(|e| e.to_string())?;
+            self.panels
+                .node_editor
+                .set_input_default(&id, "a", motion_graph::InputValue::Float(7.))
+                .map_err(|e| e.to_string())?;
+            self.panels
+                .node_editor
+                .connect_ports(
+                    motion_graph::PortRef::new("radius", "value"),
+                    motion_graph::PortRef::new(&id, "a"),
+                )
+                .map_err(|e| e.to_string())?;
+            self.panels
+                .node_editor
+                .connect_ports(
+                    motion_graph::PortRef::new(&id, "value"),
+                    motion_graph::PortRef::new("circle", "radius"),
+                )
+                .map_err(|e| e.to_string())?;
+            self.smoke_node_report["inputDefaultsNode"] = id.into();
+            let vector = self
+                .panels
+                .node_editor
+                .add_node(
+                    motion_graph::NodeOp::Math {
+                        operation: motion_graph::MathOp::Add,
+                        value_type: motion_graph::ValueType::Vec2,
+                    },
+                    [1210., 190.],
+                )
+                .map_err(|e| e.to_string())?;
+            self.smoke_node_report["inputDefaultsVectorNode"] = vector.into();
+            self.schedule_node_compile()?;
+            self.smoke_stage = 24;
+        } else if self.smoke_stage == 24
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            let wired = self
+                .engine
+                .node_capture(0., directory.join("node-defaults-wired.png"))?;
+            if wired["fingerprint"] != self.smoke_node_report["parameter"]["fingerprint"] {
+                return Err("wired input did not take precedence over its stored default".into());
+            }
+            let screenshot = self.capture_node_float()?;
+            let path = self
+                .smoke
+                .as_ref()
+                .unwrap()
+                .with_extension("defaults-wired.png");
+            std::fs::copy(screenshot, &path).map_err(|e| e.to_string())?;
+            self.smoke_node_report["inputDefaultsWiredScreenshot"] =
+                serde_json::to_value(path).map_err(|e| e.to_string())?;
+            self.smoke_node_report["inputDefaultsWirePrecedence"] = true.into();
+            let id = self.smoke_node_report["inputDefaultsNode"]
+                .as_str()
+                .ok_or("default node missing")?
+                .to_string();
+            self.panels
+                .node_editor
+                .disconnect_input(&motion_graph::PortRef::new(&id, "a"));
+            self.schedule_node_compile()?;
+            self.smoke_stage = 25;
+        } else if self.smoke_stage == 25
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            let fallback = self
+                .engine
+                .node_capture(0., directory.join("node-defaults-fallback.png"))?;
+            if fallback["fingerprint"] == self.smoke_node_report["parameter"]["fingerprint"] {
+                return Err("disconnect did not activate the stored input default".into());
+            }
+            self.smoke_node_report["inputDefaultsFallback"] = fallback;
+            self.smoke_node_report["inputDefaultsDisconnectRestoresValue"] = true.into();
+            let screenshot = self.capture_node_float()?;
+            let path = self
+                .smoke
+                .as_ref()
+                .unwrap()
+                .with_extension("defaults-fallback.png");
+            std::fs::copy(screenshot, &path).map_err(|e| e.to_string())?;
+            self.smoke_node_report["inputDefaultsFallbackScreenshot"] =
+                serde_json::to_value(path).map_err(|e| e.to_string())?;
+            let id = self.smoke_node_report["inputDefaultsNode"]
+                .as_str()
+                .ok_or("default node missing")?
+                .to_string();
+            self.edit_node_default_smoke(&id, "b", "5")?;
+            let vector = self.smoke_node_report["inputDefaultsVectorNode"]
+                .as_str()
+                .ok_or("vector default node missing")?
+                .to_string();
+            self.edit_node_default_smoke(&vector, "a", "12, 24")?;
+            let snapshot = self.panels.node_editor.snapshot();
+            if snapshot
+                .document
+                .nodes
+                .iter()
+                .find(|n| n.id == id)
+                .and_then(|n| n.input_defaults.get("b"))
+                != Some(&motion_graph::InputValue::Float(5.))
+            {
+                return Err("native pointer/text input did not edit the default field".into());
+            }
+            if snapshot
+                .document
+                .nodes
+                .iter()
+                .find(|n| n.id == vector)
+                .and_then(|n| n.input_defaults.get("a"))
+                != Some(&motion_graph::InputValue::Vec2([12., 24.]))
+            {
+                return Err("native vector input did not commit both components".into());
+            }
+            self.smoke_node_report["inputDefaultsNativeVectorEdit"] = true.into();
+            let path = self
+                .smoke
+                .as_ref()
+                .unwrap()
+                .with_extension("defaults.msgraph");
+            snapshot.save(&path).map_err(|e| e.to_string())?;
+            if motion_graph::GraphDocument::load(&path).map_err(|e| e.to_string())?
+                != snapshot.document
+                || snapshot.document.format_version != 2
+            {
+                return Err("native defaults source round trip lost typed values/version".into());
+            }
+            self.smoke_node_report["inputDefaultsSourceReopened"] = true.into();
+            self.schedule_node_compile()?;
+            self.smoke_stage = 26;
+        } else if self.smoke_stage == 26
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            let edited = self
+                .engine
+                .node_capture(0., directory.join("node-defaults-edited.png"))?;
+            if edited["fingerprint"]
+                == self.smoke_node_report["inputDefaultsFallback"]["fingerprint"]
+            {
+                return Err("native input default edit retained stale GPU pixels".into());
+            }
+            self.smoke_node_report["inputDefaultsNativeEditChangedPixels"] = true.into();
+            let screenshot = self.capture_node_float()?;
+            let path = self
+                .smoke
+                .as_ref()
+                .unwrap()
+                .with_extension("defaults-edited.png");
+            std::fs::copy(screenshot, &path).map_err(|e| e.to_string())?;
+            self.smoke_node_report["inputDefaultsEditedScreenshot"] =
+                serde_json::to_value(path).map_err(|e| e.to_string())?;
+            let properties = [80., 76.];
+            self.node_float_input(Input {
+                mouse: properties,
+                pressed: Some((MouseButton::Left, properties)),
+                ..Default::default()
+            })?;
+            let screenshot = self.capture_node_float()?;
+            let path = self
+                .smoke
+                .as_ref()
+                .unwrap()
+                .with_extension("defaults-inspector.png");
+            std::fs::copy(screenshot, &path).map_err(|e| e.to_string())?;
+            self.smoke_node_report["inputDefaultsInspectorScreenshot"] =
+                serde_json::to_value(path).map_err(|e| e.to_string())?;
+            let library = [26., 76.];
+            self.node_float_input(Input {
+                mouse: library,
+                pressed: Some((MouseButton::Left, library)),
+                ..Default::default()
+            })?;
+            for _ in 0..8 {
+                if !self.panels.node_editor.undo() {
+                    return Err("native input-default history was not reversible".into());
+                }
+            }
+            self.schedule_node_compile()?;
+            self.smoke_stage = 27;
+        } else if self.smoke_stage == 27
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            let restored = self
+                .engine
+                .node_capture(0., directory.join("node-defaults-restored.png"))?;
+            if restored["fingerprint"] != self.smoke_node_report["parameter"]["fingerprint"] {
+                return Err("undoing native defaults did not restore original GPU pixels".into());
+            }
+            self.smoke_node_report["inputDefaultsUndoRestoredPixels"] = true.into();
             self.panels
                 .node_editor
                 .disconnect_input(&motion_graph::PortRef::new("output", "color"));

@@ -75,6 +75,10 @@ Shift+A 在鼠标位置打开分类添加菜单；菜单显示在窗口范围内
 
 ## 6. 连线
 
+### Stored input defaults
+
+New numeric nodes expose typed defaults directly on input rows. Scalar values support dragging and click-to-type; vector components use comma-separated numbers on one row; Bool uses a checkbox and Color opens the existing picker. A connected input shows its saved fallback disabled. The wire takes precedence, and disconnecting restores the saved value. There are no implicit casts or coordinate/image sources. Escape cancels the current edit, and each committed gesture is one undo step. Loading old source does not silently supply new defaults; saved source using defaults requires `.msgraph` version 2. Internal group nodes support defaults; group boundary defaults remain pending.
+
 左侧为输入、右侧为输出。连线使用水平出入端口的三次贝塞尔曲线：控制点沿源端口向右、目标端口向左延伸，再根据两端距离调整弯曲程度。命中与切线使用同一条绘制曲线。
 
 ### 新建与替换

@@ -6,6 +6,7 @@ mod error;
 mod examples;
 mod export;
 mod groups;
+mod input_defaults;
 mod ports;
 pub use compiler::{
     compile, compile_preview, node_ports, validate, CompileOptions, CompileReport, CompiledGraph,
@@ -19,6 +20,7 @@ pub use examples::{
 };
 pub use export::{compiled_package_bytes, export_msfx, ExportReport};
 pub use groups::scope_topological_order;
+pub use input_defaults::authoring_input_defaults;
 pub use ports::{
     check_connection, node_description, node_port_specs, port_semantics_compatible,
     ports_compatible, PortSemantic, PortSpec, PortSpecs,

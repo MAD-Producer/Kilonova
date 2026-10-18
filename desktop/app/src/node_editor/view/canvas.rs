@@ -17,6 +17,7 @@ impl NodeEditor {
                 if let Ok(ports) =
                     self.observed("canvas.sockets", &node.id, motion_graph::node_port_specs(node, &self.document.public_parameters))
                 {
+                    let inputs = ports.inputs.len();
                     for (output, entries) in [(false, ports.inputs), (true, ports.outputs)] {
                         for (index, (port, spec)) in entries.into_iter().enumerate() {
                             sockets.push(Socket {
@@ -31,7 +32,12 @@ impl NodeEditor {
                                         + if node.collapsed {
                                             HEADER * 0.5 * self.view.zoom
                                         } else {
-                                            (HEADER + ROW * (index as f32 + 0.5)) * self.view.zoom
+                                            (HEADER
+                                                + ROW
+                                                    * (port_row_index(node, inputs, output, index)
+                                                        as f32
+                                                        + 0.5))
+                                                * self.view.zoom
                                         },
                                 ],
                             });
@@ -236,6 +242,7 @@ impl NodeEditor {
                 if let Ok(ports) =
                     self.observed("canvas.labels", &node.id, motion_graph::node_port_specs(node, &self.document.public_parameters))
                 {
+                    let inputs = ports.inputs.len();
                     for (output, entries) in [(false, ports.inputs), (true, ports.outputs)] {
                         for (index, (port, spec)) in entries.into_iter().enumerate() {
                             let compatible = match &self.drag {
@@ -253,8 +260,20 @@ impl NodeEditor {
                                 atlas,
                                 Rect::new(
                                     if output { NODE_WIDTH * 0.5 } else { 12. },
-                                    HEADER + index as f32 * ROW,
-                                    NODE_WIDTH * 0.5 - 14.,
+                                    HEADER
+                                        + port_row_index(node, inputs, output, index) as f32 * ROW,
+                                    if !output && node.input_defaults.contains_key(&port) {
+                                        (controls::input_value_rect(
+                                            Rect::new(0., 0., NODE_WIDTH, ROW),
+                                            &styles,
+                                        )
+                                        .min[0]
+                                            - styles.metric("padding.panel", 8.)
+                                            - 12.)
+                                            .max(0.)
+                                    } else {
+                                        NODE_WIDTH * 0.5 - 14.
+                                    },
                                     ROW,
                                 ),
                                 motion_graph::group_port(&node.operation, &port, output)
