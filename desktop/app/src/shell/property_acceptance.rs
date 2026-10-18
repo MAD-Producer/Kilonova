@@ -114,6 +114,12 @@ impl Shell {
                 ("property-mask-group", Panel::Properties, [360., 560.]),
                 ("timeline-mask-group", Panel::Timeline, [900., 520.]),
                 ("timeline-mask-group-narrow", Panel::Timeline, [720., 520.]),
+                ("timeline-mask-add-menu", Panel::Timeline, [900., 520.]),
+                (
+                    "timeline-mask-add-menu-narrow",
+                    Panel::Timeline,
+                    [720., 520.],
+                ),
                 ("layer-lock-menu", Panel::Timeline, [900., 520.]),
                 ("layer-unlock-menu", Panel::Timeline, [900., 520.]),
                 ("layer-lock-main-menu", Panel::Timeline, [900., 520.]),
@@ -136,7 +142,7 @@ impl Shell {
                 panels.timeline.expanded.insert(object);
                 panels.properties.transform_collapsed =
                     name.starts_with("mask-") || name.contains("mask-group");
-                if name.starts_with("timeline-mask-group") {
+                if name.starts_with("timeline-mask-") {
                     panels.timeline.collapsed_transforms.insert(object);
                 }
                 panels.path_controls.masks_open =
@@ -216,6 +222,26 @@ impl Shell {
                     )?;
                     if !panels.layer_actions.editing() {
                         return Err(format!("{name} did not open the layer menu"));
+                    }
+                } else if name.starts_with("timeline-mask-add-menu") {
+                    let add = panels
+                        .path_controls
+                        .mask_add_rect(Panel::Timeline)
+                        .ok_or("timeline mask add control missing")?;
+                    let point = [
+                        (add.min[0] + add.max[0]) * 0.5,
+                        (add.min[1] + add.max[1]) * 0.5,
+                    ];
+                    draw(
+                        &mut panels,
+                        &Input {
+                            mouse: point,
+                            pressed: Some((MouseButton::Left, point)),
+                            ..Default::default()
+                        },
+                    )?;
+                    if !panels.path_controls.editing() {
+                        return Err(format!("{name} did not open the add menu"));
                     }
                 } else if name == "mask-handles-selected" {
                     panels.path_controls.tool = panels::path_controls::Tool::Mask;

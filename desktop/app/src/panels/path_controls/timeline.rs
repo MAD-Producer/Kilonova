@@ -1,6 +1,6 @@
 //! Mask properties share layer rows, columns and time mapping with transforms.
 use super::*;
-use crate::panels::timeline::{property_group, Row};
+use crate::panels::timeline::{property_group_reserved, Row};
 use crate::panels::{
     types::{PropertyFilter, TimelineState},
     Panels,
@@ -86,8 +86,11 @@ pub(in crate::panels) fn render(
         offset: row.mask_offset,
     };
     let open = rows.open;
+    let styles = list.styles();
+    let slot = styles.metric("icon.slot", 20.);
+    let padding = styles.metric("padding.panel", 8.);
     if y >= body.min[1] && y + height <= body.max[1] {
-        let heading = property_group(
+        let heading = property_group_reserved(
             list,
             atlas,
             area,
@@ -99,6 +102,7 @@ pub(in crate::panels) fn render(
                 "Masks"
             },
             open,
+            slot + padding,
         );
         if click(input, heading) {
             if panels.path_controls.cancel() {
@@ -107,6 +111,28 @@ pub(in crate::panels) fn render(
             if !panels.timeline.collapsed_masks.remove(&row.id) {
                 panels.timeline.collapsed_masks.insert(row.id);
             }
+        }
+        let add = Rect::new(area.max[0] - padding - slot, y, slot, height);
+        let allowed = !owner.locked
+            && state["project"]["layers"]
+                .as_array()
+                .and_then(|layers| layers.iter().find(|l| l["id"].as_u64() == Some(row.id)))
+                .is_some_and(|l| {
+                    !matches!(
+                        l["content"]["kind"].as_str(),
+                        Some("null" | "adjustment" | "audio")
+                    )
+                });
+        if allowed && click(input, add) {
+            out.extend(crate::panels::cancel_interaction(panels));
+            panels.select_only(Some(row.id));
+        }
+        if panels
+            .path_controls
+            .timeline_mask_add_button(list, add, row.id, state, input, allowed, out)
+        {
+            panels.select_only(Some(row.id));
+            panels.timeline.collapsed_masks.remove(&row.id);
         }
     }
     y += height;
@@ -118,7 +144,7 @@ pub(in crate::panels) fn render(
         let mask = &row.masks[*mask_index];
         let open = *open;
         if y >= body.min[1] && y + height <= body.max[1] {
-            let heading = property_group(
+            let heading = property_group_reserved(
                 list,
                 atlas,
                 Rect::new(
@@ -131,6 +157,7 @@ pub(in crate::panels) fn render(
                 height,
                 &mask.name,
                 open,
+                slot * 4. + padding,
             );
             if click(input, heading) {
                 if panels.path_controls.cancel() {
@@ -147,6 +174,17 @@ pub(in crate::panels) fn render(
                         .insert((row.id, mask.id));
                 }
             }
+            if !owner.locked
+                && super::mask_header::action_rects(&styles, area, y, height)
+                    .iter()
+                    .any(|rect| click(input, *rect))
+            {
+                out.extend(crate::panels::cancel_interaction(panels));
+                panels.select_only(Some(row.id));
+            }
+            panels
+                .path_controls
+                .mask_header_actions(list, atlas, area, y, height, owner, mask, input, out);
         }
         y += height;
         if !open {

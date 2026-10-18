@@ -71,6 +71,319 @@ fn project() -> motion_core::Project {
 }
 
 #[test]
+fn timeline_mask_header_actions_and_add_menu_preserve_targets_locking_and_undo() {
+    use motion_core::{
+        masks::{LayerMask, MaskAction},
+        vector::{PathNode, VectorPath},
+        Track,
+    };
+    let mut project = project();
+    let mut mask = LayerMask::new(
+        11,
+        VectorPath {
+            id: 1,
+            closed: true,
+            nodes: [[0., 0.], [100., 0.], [0., 100.]]
+                .into_iter()
+                .enumerate()
+                .map(|(i, p)| PathNode {
+                    id: i as u64 + 1,
+                    geometry: Track::constant([p[0], p[1], 0., 0., 0., 0.]),
+                })
+                .collect(),
+        },
+    );
+    mask.name = "Long mask name / 很长的蒙版名称，不得覆盖操作区".into();
+    project.layers[0].masks.push(mask);
+    let root = tempfile::tempdir().unwrap();
+    motion_core::storage::save(root.path(), &project).unwrap();
+    let host = crate::engine::Engine::start(
+        root.path().into(),
+        motion_desktop_media::platform(),
+        8 << 30,
+    )
+    .unwrap();
+    let mut atlas = TextAtlas::from_system(12.).unwrap();
+    for floating in [false, true] {
+        for locale in [Locale::Zh, Locale::En] {
+            for width in [360., 720., 1000.] {
+                for height in [22., 32.] {
+                    let before = host.state().unwrap();
+                    let styles = std::sync::Arc::new(
+                        PaintList::default()
+                            .styles()
+                            .with_overrides(
+                                serde_json::json!({"tokens":{"sizes":{"row.height":height}}})
+                                    .to_string()
+                                    .as_bytes(),
+                            )
+                            .unwrap(),
+                    );
+                    let mut panels = Panels {
+                        focused: Some(Panel::Timeline),
+                        locale,
+                        styles: Some(styles.clone()),
+                        ..Default::default()
+                    };
+                    panels.timeline.expanded.insert(7);
+                    panels.timeline.collapsed_transforms.insert(7);
+                    let layout = dock::Node::dock(Panel::Timeline.dock());
+                    let top = if floating {
+                        30.
+                    } else {
+                        frames(&layout, [width, 800.])[0].content.min[1]
+                    };
+                    let mut render = |panels: &mut Panels, state: &Value, input: &Input| {
+                        let mut paint = PaintList::default();
+                        if floating {
+                            floating_chrome(
+                                &mut paint,
+                                &mut atlas,
+                                Panel::Timeline,
+                                [width, 800.],
+                                panels,
+                                state,
+                                input,
+                            )
+                        } else {
+                            chrome(
+                                &mut paint,
+                                &mut atlas,
+                                [width, 800.],
+                                &layout,
+                                panels,
+                                state,
+                                input,
+                            )
+                        }
+                    };
+                    assert!(render(&mut panels, &before, &Input::default()).is_empty());
+                    let gutter = GUTTER.min(width * 0.52);
+                    let area = Rect::new(0., top, gutter, 800. - top);
+                    let rects = path_controls::mask_header::action_rects(
+                        &styles,
+                        area,
+                        top + 64. + height * 2.,
+                        height,
+                    );
+                    assert!(rects
+                        .windows(2)
+                        .all(|pair| pair[0].max[0] <= pair[1].min[0]));
+                    assert!(rects[3].max[0] < gutter);
+                    let heading = timeline::property_group_reserved(
+                        &mut PaintList::default(),
+                        &mut TextAtlas::from_system(12.).unwrap(),
+                        Rect::new(
+                            styles.metric("tree.indent", 14.),
+                            top,
+                            gutter - styles.metric("tree.indent", 14.),
+                            800. - top,
+                        ),
+                        rects[0].min[1],
+                        height,
+                        "Long mask name",
+                        true,
+                        styles.metric("icon.slot", 20.) * 4. + styles.metric("padding.panel", 8.),
+                    );
+                    assert!(heading.max[0] <= rects[0].min[0]);
+                    let add = panels.path_controls.mask_add_rect(Panel::Timeline).unwrap();
+
+                    let edit = command(render(
+                        &mut panels,
+                        &before,
+                        &click(rects[0], MouseButton::Left),
+                    ));
+                    assert!(matches!(
+                        edit,
+                        Command::Mask {
+                            object: 7,
+                            action: MaskAction::Options {
+                                mask: 11,
+                                enabled: Some(false),
+                                ..
+                            }
+                        }
+                    ));
+                    let disabled = host.edit(serde_json::to_string(&edit).unwrap()).unwrap();
+                    assert_eq!(
+                        disabled["project"]["layers"][0]["masks"][0]["enabled"],
+                        false
+                    );
+                    assert!(!panels.timeline.collapsed_mask_items.contains(&(7, 11)));
+                    host.save().unwrap();
+                    assert!(
+                        !motion_core::storage::load(root.path()).unwrap().layers[0].masks[0]
+                            .enabled
+                    );
+                    assert_eq!(host.history(0).unwrap()["project"], before["project"]);
+
+                    assert!(
+                        render(&mut panels, &before, &click(rects[1], MouseButton::Left))
+                            .is_empty()
+                    );
+                    assert_eq!(panels.selected, Some(7));
+                    assert_eq!(panels.path_controls.tool, path_controls::Tool::Mask);
+                    assert_eq!(panels.path_controls.mask, Some(11));
+                    let actions = render(&mut panels, &before, &click(rects[2], MouseButton::Left));
+                    assert!(matches!(
+                        actions.as_slice(),
+                        [Action::MaskTimeline {
+                            object: 7,
+                            mask: 11
+                        }]
+                    ));
+                    assert_eq!(host.state().unwrap()["project"], before["project"]);
+
+                    let edit = command(render(
+                        &mut panels,
+                        &before,
+                        &click(rects[3], MouseButton::Left),
+                    ));
+                    assert!(matches!(
+                        edit,
+                        Command::Mask {
+                            object: 7,
+                            action: MaskAction::Remove { mask: 11 }
+                        }
+                    ));
+                    let removed = host.edit(serde_json::to_string(&edit).unwrap()).unwrap();
+                    let removed_project: motion_core::Project =
+                        serde_json::from_value(removed["project"].clone()).unwrap();
+                    assert!(removed_project.layers[0].masks.is_empty());
+                    host.save().unwrap();
+                    assert!(motion_core::storage::load(root.path()).unwrap().layers[0]
+                        .masks
+                        .is_empty());
+                    assert_eq!(host.history(0).unwrap()["project"], before["project"]);
+
+                    for observing in [false, true] {
+                        let mut blocked = before.clone();
+                        blocked["observing"] = Value::Bool(observing);
+                        blocked["project"]["layers"][0]["locked"] = Value::Bool(!observing);
+                        blocked["revision"] = Value::from(
+                            before["revision"].as_u64().unwrap() + 1 + u64::from(observing),
+                        );
+                        panels.path_controls.tool = path_controls::Tool::Select;
+                        for rect in rects.into_iter().chain([add]) {
+                            assert!(
+                                render(&mut panels, &blocked, &click(rect, MouseButton::Left))
+                                    .is_empty()
+                            );
+                        }
+                        assert!(!panels.path_controls.mask_menu());
+                        assert_eq!(panels.path_controls.tool, path_controls::Tool::Select);
+                    }
+
+                    assert!(render(&mut panels, &before, &click(add, MouseButton::Left)).is_empty());
+                    assert!(panels.path_controls.mask_menu());
+                    // Dismiss over a stopwatch: the obscured row must not consume the click.
+                    assert!(render(
+                        &mut panels,
+                        &before,
+                        &click(
+                            Rect::new(126., add.max[1] + height, 14., height),
+                            MouseButton::Left
+                        )
+                    )
+                    .is_empty());
+                    assert!(!panels.path_controls.mask_menu());
+                    assert!(render(&mut panels, &before, &click(add, MouseButton::Left)).is_empty());
+                    assert!(render(&mut panels, &before, &key(Key::Escape)).is_empty());
+                    assert!(!panels.path_controls.mask_menu());
+
+                    assert!(render(&mut panels, &before, &click(add, MouseButton::Left)).is_empty());
+                    assert!(render(&mut panels, &before, &key(Key::Down)).is_empty());
+                    let edit = command(render(&mut panels, &before, &key(Key::Enter)));
+                    assert!(
+                        matches!(&edit,Command::Mask { object:7,action:MaskAction::Add { mask } } if mask.id==12)
+                    );
+                    let added = host.edit(serde_json::to_string(&edit).unwrap()).unwrap();
+                    assert_eq!(
+                        added["project"]["layers"][0]["masks"]
+                            .as_array()
+                            .unwrap()
+                            .len(),
+                        2
+                    );
+                    host.save().unwrap();
+                    assert_eq!(
+                        motion_core::storage::load(root.path()).unwrap().layers[0]
+                            .masks
+                            .len(),
+                        2
+                    );
+                    assert_eq!(host.history(0).unwrap()["project"], before["project"]);
+
+                    assert!(render(&mut panels, &before, &click(add, MouseButton::Left)).is_empty());
+                    assert!(render(&mut panels, &before, &key(Key::Enter)).is_empty());
+                    assert_eq!(panels.path_controls.tool, path_controls::Tool::Mask);
+                    assert_eq!(panels.path_controls.mask, None);
+                    assert!(!panels.path_controls.mask_menu());
+                    assert!(!panels.timeline.collapsed_mask_items.contains(&(7, 11)));
+
+                    assert!(render(&mut panels, &before, &click(add, MouseButton::Left)).is_empty());
+                    if floating {
+                        // A dismissing click must not redock the floating timeline.
+                        assert!(render(
+                            &mut panels,
+                            &before,
+                            &click(Rect::new(width - 78., 4., 72., 22.), MouseButton::Left,)
+                        )
+                        .is_empty());
+                    } else {
+                        let split = dock::Node::Split {
+                            edge: dock::Edge::Left,
+                            split: 0.7,
+                            first: Box::new(dock::Node::dock(Panel::Timeline.dock())),
+                            second: Box::new(dock::Node::dock(Panel::Properties.dock())),
+                        };
+                        let other = frames(&split, [width, 800.])
+                            .into_iter()
+                            .find(|f| f.panel == Panel::Properties)
+                            .unwrap();
+                        let obscured_toggle = path_controls::mask_header::action_rects(
+                            &styles,
+                            other.content,
+                            other.content.min[1] + styles.metric("padding.panel", 8.) + height * 2.,
+                            height,
+                        )[0];
+                        let mut split_atlas = TextAtlas::from_system(12.).unwrap();
+                        assert!(chrome(
+                            &mut PaintList::default(),
+                            &mut split_atlas,
+                            [width, 800.],
+                            &split,
+                            &mut panels,
+                            &before,
+                            &Input::default()
+                        )
+                        .is_empty());
+                        assert!(
+                            panels.path_controls.mask_menu(),
+                            "inspector initialization must preserve the timeline-owned menu"
+                        );
+                        // Keep the closing frame modal even when the other panel is drawn later.
+                        assert!(chrome(
+                            &mut PaintList::default(),
+                            &mut split_atlas,
+                            [width, 800.],
+                            &split,
+                            &mut panels,
+                            &before,
+                            &click(obscured_toggle, MouseButton::Left)
+                        )
+                        .is_empty());
+                        assert_eq!(panels.focused, Some(Panel::Timeline));
+                    }
+                    assert!(!panels.path_controls.mask_menu(), "dismissal: floating={floating} width={width} height={height} locale={locale:?}");
+                    assert_eq!(host.state().unwrap()["project"], before["project"]);
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn masks_precede_transforms_and_layer_row_3d_is_undoable_in_both_windows() {
     use motion_core::{
         masks::LayerMask,

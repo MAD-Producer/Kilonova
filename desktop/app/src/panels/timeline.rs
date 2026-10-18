@@ -109,10 +109,27 @@ pub(super) fn property_group(
     title: &str,
     open: bool,
 ) -> Rect {
+    property_group_reserved(list, atlas, area, y, height, title, open, 0.)
+}
+pub(super) fn property_group_reserved(
+    list: &mut PaintList,
+    atlas: &mut TextAtlas,
+    area: Rect,
+    y: f32,
+    height: f32,
+    title: &str,
+    open: bool,
+    reserved: f32,
+) -> Rect {
     let styles = list.styles();
     let pad = styles.metric("padding", 5.);
     let slot = styles.metric("icon.slot", 20.);
-    let start = styles.metric("timeline.property.group_offset", 78.);
+    let preferred_start = styles.metric("timeline.property.group_offset", 78.);
+    let start = if reserved > 0. {
+        preferred_start.min((area.width() - pad - reserved - slot).max(0.))
+    } else {
+        preferred_start
+    };
     let group = Rect::new(
         area.min[0] + start,
         y,
@@ -146,13 +163,13 @@ pub(super) fn property_group(
         Rect::new(
             group.min[0] + slot,
             y,
-            (group.width() - slot - pad).max(0.),
+            (group.width() - slot - pad - reserved).max(0.),
             height,
         ),
         title,
         false,
     );
-    group
+    Rect::new(group.min[0], y, (group.width() - reserved).max(0.), height)
 }
 pub(super) fn property_branch(list: &mut PaintList, watch: Rect) {
     let styles = list.styles();
@@ -579,6 +596,7 @@ pub(super) fn render(
 
     panels.timeline_columns.begin(state);
     let context_input = input;
+    panels.path_controls.begin_timeline_mask_headers();
     panels.path_controls.groups.begin_frame(list, context_input);
     panels
         .path_controls

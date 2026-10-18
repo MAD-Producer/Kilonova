@@ -19,6 +19,7 @@ use motion_ui::{
 };
 use serde_json::Value;
 pub(in crate::panels) mod groups;
+pub(in crate::panels) mod mask_header;
 mod mask_inspector;
 mod mask_keys;
 mod mask_path;
@@ -227,6 +228,7 @@ pub struct Controls {
     #[cfg(test)]
     pub(in crate::panels) inspector_modes: std::collections::HashMap<(u64, u64), Rect>,
     add_mask_menu: motion_ui::widgets::Dropdown,
+    timeline_add_mask_menu: Option<mask_header::AddMenu>,
     mode_dropdowns: std::collections::HashMap<(u64, u64), motion_ui::widgets::Dropdown>,
     collapsed_mask_cards: std::collections::HashSet<(u64, u64)>,
     pub masks_open: bool,
@@ -328,6 +330,7 @@ impl Controls {
             || self.keys.editing()
             || self.groups.editing()
             || self.add_mask_menu.open
+            || self.timeline_add_mask_menu.is_some()
             || self.mode_dropdowns.values().any(|d| d.open)
     }
     pub(crate) fn gesture_active(&self) -> bool {
@@ -344,6 +347,7 @@ impl Controls {
         self.parameter_context = None;
         self.focus = false;
         self.add_mask_menu.open = false;
+        self.timeline_add_mask_menu = None;
         for dropdown in self.mode_dropdowns.values_mut() {
             dropdown.open = false;
         }
@@ -1179,6 +1183,7 @@ impl Controls {
     }
     pub(super) fn mask_menu(&self) -> bool {
         self.keys.modal()
+            || self.timeline_add_mask_menu.is_some()
             || self.groups.menu_in(motion_ui::dock::Panel::Timeline)
             || self.groups.keys.modal()
     }
@@ -1192,6 +1197,7 @@ impl Controls {
         locale: Locale,
         out: &mut Vec<Action>,
     ) {
+        self.timeline_mask_add_overlay(list, atlas, area, state, input, locale, out);
         self.keys.overlay(list, atlas, area, input, locale, out);
         self.groups.append_overlays(list);
         self.groups

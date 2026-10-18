@@ -81,7 +81,7 @@ pub(super) fn property_row(
         ),
     }
 }
-fn icon(
+pub(super) fn icon(
     list: &mut PaintList,
     input: &Input,
     rect: Rect,
@@ -249,7 +249,12 @@ impl Controls {
             out.push(Action::Seek(state["frame"].as_f64().unwrap_or(0.)));
         }
     }
-    fn add_rectangle_mask(&mut self, layer: &Layer, locale: Locale, out: &mut Vec<Action>) {
+    pub(super) fn add_rectangle_mask(
+        &mut self,
+        layer: &Layer,
+        locale: Locale,
+        out: &mut Vec<Action>,
+    ) {
         if self.cancel() {
             out.push(Action::History(4));
         }
@@ -301,9 +306,14 @@ impl Controls {
             host,
         );
         if self.inspector_context.as_ref() != Some(&context) {
+            let timeline_add = self
+                .timeline_add_mask_menu
+                .take()
+                .filter(|menu| menu.belongs_to(state, layer.id));
             if self.cancel() {
                 out.push(Action::History(4));
             }
+            self.timeline_add_mask_menu = timeline_add;
             self.mode_dropdowns.clear();
             self.inspector_context = Some(context);
         }
@@ -491,64 +501,7 @@ impl Controls {
                     self.collapsed_mask_cards.insert((layer.id, mask.id));
                 }
             }
-            for (index, kind) in [Icon::Eye, Icon::Pen, Icon::Key, Icon::Close]
-                .into_iter()
-                .enumerate()
-            {
-                let rect = Rect::new(
-                    area.max[0] - padding - slot * (4 - index) as f32,
-                    *y,
-                    slot,
-                    row,
-                );
-                let pressed = if index == 0 {
-                    Checkbox::draw(
-                        list,
-                        atlas,
-                        rect,
-                        "",
-                        mask.enabled,
-                        input,
-                        allowed,
-                        false,
-                        None,
-                    )
-                    .clicked
-                } else {
-                    icon(list, input, rect, kind, false, allowed)
-                };
-                if pressed {
-                    match index {
-                        0 => out.push(Action::Edit(Command::Mask {
-                            object: layer.id,
-                            action: MaskAction::Options {
-                                mask: mask.id,
-                                mode: None,
-                                inverted: None,
-                                enabled: Some(!mask.enabled),
-                            },
-                        })),
-                        1 => {
-                            if self.cancel() {
-                                out.push(Action::History(4));
-                            }
-                            self.tool = Tool::Mask;
-                            if self.mask != Some(mask.id) {
-                                self.selected = None;
-                            }
-                            self.mask = Some(mask.id);
-                        }
-                        2 => out.push(Action::MaskTimeline {
-                            object: layer.id,
-                            mask: mask.id,
-                        }),
-                        _ => out.push(Action::Edit(Command::Mask {
-                            object: layer.id,
-                            action: MaskAction::Remove { mask: mask.id },
-                        })),
-                    }
-                }
-            }
+            self.mask_header_actions(list, atlas, area, *y, row, owner, mask, input, out);
             *y += row;
             if closed {
                 *y += gap;
