@@ -28,6 +28,14 @@
 - 最终带 FFmpeg 优化构建通过，15m57s、22 条既有警告。整合后的完整原生验收通过，`release-native.log`：中英文普通窗口、实时节点、共享 MCP、默认/覆盖主题属性截图、覆盖主题浮窗；沿用原有 40/90/125 秒预算。
 - 目视检查 `release/screens/property-panels-zh.timeline-layer-columns{,-minimum}.png` 和 `smoke-zh.layer-anchor-animation.png`：720/360 宽的名称与 3D 开关不重叠，360 宽不再绘制父级列；锚点以真实可动画属性行出现。360 宽的历史顶部播放/缩放工具仍拥挤，此次未修改，不据列修复宣称整个窄面板视觉合规。这组截图尚不含独立 PR #330 的底部滚动条。
 
+## PR #327 合并后的主线整合
+
+主线 `8d6698a` 已包含 #327 的入出点快捷键、列显隐及悬停反馈。整合时解决时间轴与路径绘制冲突，保留已有功能及断言：列显隐偏好与 3D 开关使用同一 `ColumnRects::styled` 计划；路径选中节点按真实索引定位，并同时保留淡显和手柄悬停。补入已在 #330 组合版本验证过的移位原点、单个手柄悬停与锁定/只读保护。没有引入 #330 的滚动条或边缘滚动。
+
+整合后的完整桌面测试为 451 passed / 0 failed / 1 ignored，199.04 秒，`artifacts/timeline-switch-columns/main327-integration-tests.log`；工具测试 54 项、1 项跳过，42.22 秒，`main327-tool-tests.log`。原生构建及远端 CI 待该整合提交验证，前述 435 项和截图记录仍仅证明其原提交。
+
+原提交 `9d606f2` 的 Linux Rust/GPU CI 在 `particle_emitter` 的普通表达式采样处返回执行预算超限；没有验证到本批代码缺陷。本地以原预算和原断言运行同一 11 项粒子测试全部通过，19.32 秒，`particle-ci-recheck.log`。请求单独重跑时 GitHub 因同轮 macOS 任务尚在运行而拒绝，未启动重跑。本次不放宽预算、不改断言、不在业务代码增加重试；新整合提交的 CI 继续验证此路径。
+
 ## DESIGN §0.7 逐项处置
 
 | 历史基线 | 处置 |

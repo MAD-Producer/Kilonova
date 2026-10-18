@@ -265,6 +265,63 @@ fn click(input: &Input, r: Rect) -> bool {
 fn distance(a: [f32; 2], b: [f32; 2]) -> f32 {
     ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2)).sqrt()
 }
+/// Screen-space grip radius shared by picking and hover, so the highlight never
+/// promises a grab that the press would miss.
+const HIT_RADIUS: f32 = 7.;
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct HoverTarget {
+    path: u64,
+    node: usize,
+    handle: Option<usize>,
+}
+/// Nearest visible node or Bezier handle under the pointer, mirroring the paint
+/// rules: handles are only reachable for the selected node (or for all nodes
+/// while nothing is selected).
+fn hovered_target(
+    projection: &Projection,
+    paths: &[(u64, &[[f32; 6]])],
+    offset: [f32; 2],
+    mouse: [f32; 2],
+    selected: Option<u64>,
+) -> Option<HoverTarget> {
+    let mut best: Option<(f32, HoverTarget)> = None;
+    for (path, nodes) in paths {
+        for (index, g) in nodes.iter().enumerate() {
+            let node = HoverTarget {
+                path: *path,
+                node: index,
+                handle: None,
+            };
+            let Some(point) = projection.screen([g[0] - offset[0], g[1] - offset[1]]) else {
+                continue;
+            };
+            consider(&mut best, distance(mouse, point), node);
+            if selected.is_some() && selected != Some(index as u64 + 1) {
+                continue;
+            }
+            for axis in [2, 4] {
+                if g[axis].abs() + g[axis + 1].abs() < 0.01 {
+                    continue;
+                }
+                if let Some(h) = projection
+                    .screen([g[0] + g[axis] - offset[0], g[1] + g[axis + 1] - offset[1]])
+                {
+                    let handle = HoverTarget {
+                        handle: Some(axis),
+                        ..node
+                    };
+                    consider(&mut best, distance(mouse, h), handle);
+                }
+            }
+        }
+    }
+    best.map(|(_, target)| target)
+}
+fn consider(best: &mut Option<(f32, HoverTarget)>, d: f32, target: HoverTarget) {
+    if d <= HIT_RADIUS && best.map_or(true, |(nearest, _)| d < nearest) {
+        *best = Some((d, target));
+    }
+}
 fn layer(state: &Value, id: u64) -> Option<Layer> {
     observe!("path.layer", serde_json::from_value(
         state["project"]["layers"]
@@ -664,7 +721,7 @@ impl Controls {
         if let Some((MouseButton::Left, point)) = input.pressed.filter(|(_, p)| clip.contains(*p)) {
             let hit = hits
                 .into_iter()
-                .filter(|h| h.0 <= 7.)
+                .filter(|h| h.0 <= HIT_RADIUS)
                 .min_by(|a, b| a.0.total_cmp(&b.0));
             if let (Some((_, path, node, axis, value)), Some(l), Some(p)) = (
                 hit,
@@ -866,8 +923,44 @@ impl Controls {
                 d.placing = false;
             }
         }
+        let hovered = projection.as_ref().and_then(|p| {
+            // A drag keeps its own node visible; hover only decorates idle nodes.
+            if self.drag.is_some()
+                || !view.contains(input.mouse)
+                || state["observing"] == true
+                || target.as_ref().is_none_or(|layer| layer.locked)
+            {
+                return None;
+            }
+            let paths: Vec<(u64, Vec<[f32; 6]>)> = sampled
+                .iter()
+                .map(|path| {
+                    (
+                        path["id"].as_u64().unwrap_or(1),
+                        path["nodes"]
+                            .as_array()
+                            .into_iter()
+                            .flatten()
+                            .filter_map(geometry)
+                            .collect(),
+                    )
+                })
+                .collect();
+            let paths: Vec<(u64, &[[f32; 6]])> = paths
+                .iter()
+                .map(|(id, nodes)| (*id, nodes.as_slice()))
+                .collect();
+            hovered_target(
+                p,
+                &paths,
+                offset,
+                input.mouse,
+                self.selected.map(|v| v.1),
+            )
+        });
         if let Some(p) = projection {
             for path in &sampled {
+                let id = path["id"].as_u64().unwrap_or(1);
                 let nodes: Vec<_> = path["nodes"]
                     .as_array()
                     .into_iter()
@@ -887,6 +980,9 @@ impl Controls {
                     selected,
                     self.tool == Tool::Mask,
                     colors.ACCENT,
+                    hovered
+                        .filter(|h| h.path == id)
+                        .map(|h| (h.node, h.handle)),
                 );
             }
         }
@@ -902,6 +998,7 @@ impl Controls {
                 None,
                 true,
                 draft_color,
+                None,
             );
         }
         let padding = styles.metric("padding.panel", 8.);
@@ -1368,7 +1465,9 @@ fn paint_path(
     selected: Option<usize>,
     show_all_handles: bool,
     color: Color,
+    hovered: Option<(usize, Option<usize>)>,
 ) {
+    let colors = list.styles().colors();
     let edges = nodes.len().saturating_sub(1) + usize::from(closed && nodes.len() > 2);
     for i in 0..edges {
         let a = nodes[i];
@@ -1394,14 +1493,12 @@ fn paint_path(
         let Some(p) = projection.screen([g[0] - offset[0], g[1] - offset[1]]) else {
             continue;
         };
-        paint::box_rect(
-            list,
-            Rect::new(p[0] - 3., p[1] - 3., 6., 6.),
-            color,
-            Color([0.; 4]),
-            0.,
-            0.,
-        );
+        let node = Rect::new(p[0] - 3., p[1] - 3., 6., 6.);
+        if hovered == Some((i, None)) {
+            paint::box_rect(list, node, colors.ACCENT, colors.TEXT, 1., 0.);
+        } else {
+            paint::box_rect(list, node, color, Color([0.; 4]), 0., 0.);
+        }
         if show_all_handles || selected == Some(i) || selected.is_none() {
             for axis in [2, 4] {
                 if g[axis].abs() + g[axis + 1].abs() < 0.01 {
@@ -1413,9 +1510,14 @@ fn paint_path(
                     let handle_color = if selected.is_some() && selected != Some(i) {
                         color.with_alpha(list.styles().metric("path.handle.opacity", 0.7))
                     } else { color };
-                    let connector=handle_color.with_alpha(list.styles().metric("path.handle.opacity",0.7));
+                    let connector = handle_color.with_alpha(list.styles().metric("path.handle.opacity", 0.7));
                     paint::line(list, vec![p, h], connector);
-                    paint::diamond(list, h, 3., handle_color);
+                    if hovered == Some((i, Some(axis))) {
+                        paint::diamond(list, h, 4., colors.TEXT);
+                        paint::diamond(list, h, 2.6, colors.ACCENT);
+                    } else {
+                        paint::diamond(list, h, 3., handle_color);
+                    }
                 }
             }
         }
@@ -1426,6 +1528,83 @@ fn paint_path(
 mod pen_tests;
 #[cfg(test)]
 mod handle_visibility_tests;
+
+#[cfg(test)]
+mod hover_tests {
+    use super::*;
+
+    /// Identity-ish matrix that maps local units to one screen pixel around the
+    /// composition centre, so the expectations below stay readable.
+    fn projection() -> Projection {
+        let mut m = [0.; 16];
+        m[0] = 0.01;
+        m[5] = 0.02;
+        m[10] = 1.;
+        m[15] = 1.;
+        Projection::new(m, Rect::new(0., 0., 200., 100.), [200., 100.]).unwrap()
+    }
+    fn nodes() -> Vec<[f32; 6]> {
+        vec![
+            [0., 0., 0., 0., 0., 0.],
+            [20., 0., 8., 0., 0., 0.],
+            [40., 0., 0., 0., 0., 0.],
+        ]
+    }
+
+    #[test]
+    fn hover_reports_only_the_nearest_grip_within_tolerance() {
+        let p = projection();
+        let nodes = nodes();
+        let paths = [(1, nodes.as_slice())];
+        assert_eq!(
+            hovered_target(&p, &paths, [0., 0.], [121., 50.], None),
+            Some(HoverTarget {
+                path: 1,
+                node: 1,
+                handle: None
+            })
+        );
+        // Outside the shared grip radius nothing is hovered.
+        assert_eq!(hovered_target(&p, &paths, [0., 0.], [112., 50.], None), None);
+        // The second path wins when it owns the closer node.
+        let other = vec![[0., 10., 0., 0., 0., 0.]];
+        assert_eq!(
+            hovered_target(
+                &p,
+                &[(1, nodes.as_slice()), (2, other.as_slice())],
+                [0., 0.],
+                [100.5, 59.5],
+                None
+            ),
+            Some(HoverTarget {
+                path: 2,
+                node: 0,
+                handle: None
+            })
+        );
+    }
+    #[test]
+    fn hover_reaches_handles_only_where_paint_draws_them() {
+        let p = projection();
+        let nodes = nodes();
+        let paths = [(1, nodes.as_slice())];
+        let handle = HoverTarget {
+            path: 1,
+            node: 1,
+            handle: Some(2),
+        };
+        // Node 2 is selected, so its bezier handle is visible and hoverable.
+        assert_eq!(
+            hovered_target(&p, &paths, [0., 0.], [128., 50.], Some(2)),
+            Some(handle)
+        );
+        // Node 1 selected: node 2's handle is not painted, so it cannot win.
+        assert_eq!(
+            hovered_target(&p, &paths, [0., 0.], [128., 50.], Some(1)),
+            None
+        );
+    }
+}
 
 #[cfg(test)]
 mod numeric_tests {
@@ -1589,5 +1768,64 @@ mod fallback_tests {
         assert!(output.status.success(),"{}\n{}",String::from_utf8_lossy(&output.stdout),String::from_utf8_lossy(&output.stderr));
         assert!(String::from_utf8_lossy(&output.stderr).contains("site=path.layer"));
         assert!(!String::from_utf8_lossy(&output.stdout).contains("panel degradation"));
+    }
+}
+
+
+#[cfg(test)]
+mod review327_regressions {
+    use super::*;
+    use motion_ui::paint::{Shape, Pattern};
+
+    fn projection() -> Projection {
+        let mut m = [0.; 16]; m[0] = 0.01; m[5] = 0.02; m[10] = 1.; m[15] = 1.;
+        Projection::new(m, Rect::new(0., 0., 200., 100.), [200., 100.]).unwrap()
+    }
+
+    #[test]
+    fn review327_only_the_hovered_bezier_handle_is_highlighted() {
+        let p = projection();
+        let nodes = [[0., 0., -20., 0., 20., 0.]];
+        for x in [80., 120.] {
+            let hover = hovered_target(&p, &[(1, &nodes)], [0.;2], [x,50.], Some(1)).unwrap();
+            let mut list = PaintList::default();
+            let color = list.styles().colors().ACCENT;
+            paint_path(&mut list, &p, &nodes, false, [0.;2], Some(0), false, color, Some((hover.node, hover.handle)));
+            let highlighted: Vec<_> = list.shapes.iter().filter_map(|s| match s {
+                Shape::Procedural { area, kind: Pattern::Diamond, .. } if (area.width()-8.).abs()<0.01 => Some(*area),
+                _ => None,
+            }).collect();
+            assert_eq!(highlighted.len(), 1, "one hovered handle must not highlight its opposite handle");
+            assert!(((highlighted[0].min[0] + highlighted[0].max[0]) * 0.5 - x).abs() < 0.01);
+        }
+    }
+
+    #[test]
+    fn review327_locked_path_does_not_advertise_hover() {
+        let mut project = motion_core::Project::new(640, 480, 30, 120).unwrap();
+        let mut layer = Layer::solid(7, "Locked path", [100.;2], [0.;3], [1.;4]);
+        layer.content = Content::Vector { vector: new_vector(VectorPath { id: 1, closed: false, nodes: vec![
+            PathNode { id: 1, geometry: Track::constant([0.;6]) },
+            PathNode { id: 2, geometry: Track::constant([60.,0.,0.,0.,0.,0.]) },
+        ] }) };
+        layer.locked = true;
+        project.layers.push(layer);
+        let engine = motion_core::Engine::new(project).unwrap();
+        let project = engine.project();
+        let mut state = serde_json::json!({"root":"review327", "revision":0, "frame":0, "project":project,
+            "source_transforms":[{"id":7, "mvp":DMat4::from_scale(glam::DVec3::new(2./640., 2./480., 1.)).to_cols_array()}],
+            "vector_layers":[{"id":7,"paths":[{"id":1,"closed":false,"nodes":[{"id":1,"geometry":[0.,0.,0.,0.,0.,0.]}]}]}]});
+        let mut atlas = TextAtlas::from_system(12.).unwrap();
+        for observing in [false, true] {
+            state["project"]["layers"][0]["locked"] = (!observing).into();
+            state["observing"] = observing.into();
+            let mut controls = Controls::default(); controls.tool = Tool::Pen;
+            let mut list = PaintList::default();
+            let mut actions = vec![];
+            controls.draw(&mut list, &mut atlas, Rect::new(0.,0.,640.,480.), &state, Some(7), &Input { mouse:[320.,240.], ..Default::default() }, Locale::En, &mut actions);
+            let highlighted = list.shapes.iter().filter(|s| matches!(s, Shape::Procedural { area, kind: Pattern::Box { width, .. }, .. } if (area.min[0]-317.).abs()<0.01 && (area.min[1]-237.).abs()<0.01 && *width > 0.)).count();
+            assert_eq!(highlighted, 0, "locked or read-only path must not promise an editable grip");
+            assert!(actions.is_empty());
+        }
     }
 }

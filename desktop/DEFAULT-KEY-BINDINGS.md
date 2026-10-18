@@ -44,7 +44,9 @@
 | Animation | T | false | false | false | Reveal(Opacity) | false |
 | Animation | T | false | true | false | Reveal(Opacity) | false |
 | Animation | T | false | true | true | ToggleKey(Opacity) | false |
+| Animation | O | false | false | false | GoToOut | false |
 | Animation | O | true | false | false | Open | false |
+| Animation | I | false | false | false | GoToIn | false |
 | Animation | S | false | false | false | Reveal(Scale) | false |
 | Animation | S | false | true | false | Reveal(Scale) | false |
 | Animation | S | false | true | true | ToggleKey(Scale) | false |
@@ -71,6 +73,12 @@
 | Animation | Semicolon | false | false | false | ToggleFrameView | false |
 | Animation | Delete | false | false | false | Delete | false |
 | Animation | Backspace | false | false | false | Delete | false |
+| Animation | BracketLeft | false | false | false | MoveInToPlayhead | false |
+| Animation | BracketLeft | false | false | true | TrimInToPlayhead | false |
+| Animation | BracketRight | false | false | false | MoveOutToPlayhead | false |
+| Animation | BracketRight | false | false | true | TrimOutToPlayhead | false |
+| Animation | F4 | false | false | false | ToggleCompositeColumns | false |
+| Animation | F4 | false | true | false | ToggleParentColumns | false |
 | Nodes | A | false | true | false | AddNode | false |
 | Nodes | A | true | false | false | SelectAll | false |
 | Nodes | A | true | true | false | DeselectAll | false |

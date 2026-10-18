@@ -699,6 +699,12 @@ pub(super) fn render(
         max
     };
     let gutter = GUTTER.min(area.width() * 0.52);
+    let columns = super::timeline_columns::ColumnRects::styled(
+        &list.styles(),
+        area.min[0],
+        gutter,
+        panels.timeline.column_visibility,
+    );
     let track = Rect::new(
         area.min[0] + gutter,
         area.min[1],
@@ -942,26 +948,21 @@ pub(super) fn render(
             out,
         );
     }
-    let header_columns = super::layer_switches::columns(
-        &list.styles(),
-        Rect::new(area.min[0], ruler.min[1], gutter, ruler.height()),
-        gutter,
-    );
-    if header_columns.three_d_visible {
-        label(list, atlas, header_columns.three_d, "3D", true);
+    if let Some(switch) = columns.three_d {
+        label(list, atlas, switch.rect(ruler.min[1], ruler.height()), "3D", true);
     }
     label(
         list,
         atlas,
-        header_columns.name,
+        columns.name.rect(ruler.min[1], ruler.height()),
         locale.t(T::SourceName),
         true,
     );
-    if gutter >= 500. {
+    if let Some(matte) = columns.matte {
         label(
             list,
             atlas,
-            Rect::new(area.min[0] + gutter - 280., ruler.min[1], 78., 28.),
+            matte.rect(ruler.min[1], 28.0),
             if locale == Locale::Zh {
                 "遮罩"
             } else {
@@ -970,20 +971,25 @@ pub(super) fn render(
             true,
         );
     }
-    if header_columns.blend_visible {
+    if let Some(blend) = columns.blend {
         label(
             list,
             atlas,
-            Rect::new(area.min[0] + gutter - 196., ruler.min[1], 76., 28.),
+            blend.rect(ruler.min[1], 28.0),
             locale.t(T::BlendMode),
             true,
         );
     }
-    if header_columns.parent_visible {
+    if let (Some(link), Some(parent)) = (columns.link, columns.parent) {
         label(
             list,
             atlas,
-            Rect::new(area.min[0] + gutter - 112.0, ruler.min[1], 104.0, 28.0),
+            Rect::new(
+                link.x + 2.0,
+                ruler.min[1],
+                parent.max_x() - link.x - 2.0,
+                28.0,
+            ),
             locale.t(T::ParentLink),
             true,
         );
@@ -1094,12 +1100,12 @@ pub(super) fn render(
         if y < body.min[1] || y + row_height > body.max[1] {
             continue;
         }
-        let columns = super::layer_switches::columns(
-            &list.styles(),
-            Rect::new(area.min[0], y, gutter, row_height),
-            gutter,
+        let name = Rect::new(
+            columns.name.x,
+            y,
+            columns.name.width,
+            row_height,
         );
-        let name = columns.name;
         let selected = panels.selection_contains(row.id);
         let expand = Rect::new(area.min[0] + 75., y, 14., row_height);
         if expandable {
@@ -1152,11 +1158,11 @@ pub(super) fn render(
         let layer = state["project"]["layers"]
             .as_array()
             .and_then(|ls| ls.iter().find(|l| l["id"].as_u64() == Some(row.id)));
-        if let Some(layer) = layer.filter(|_| columns.three_d_visible && row.id != 0 && row.spatial && !row.camera) {
+        if let (Some(layer), Some(switch)) = (layer.filter(|_| row.id != 0 && row.spatial && !row.camera), columns.three_d) {
             if motion_ui::widgets::Checkbox::draw(
                 list,
                 atlas,
-                columns.three_d,
+                switch.rect(y, row_height),
                 "",
                 layer["three_d"] == true,
                 input,
@@ -1190,44 +1196,29 @@ pub(super) fn render(
             colors.TEXT_MUTED,
         );
         if let Some(owner) = super::timeline_columns::owner(state, row.id) {
-            let matte = Rect::new(
-                area.min[0] + gutter - 280.,
-                y + 2.,
-                78.,
-                (row_height - 4.).max(1.),
-            );
-            let blend = Rect::new(
-                area.min[0] + gutter - 196.,
-                y + 2.,
-                76.,
-                (row_height - 4.).max(1.),
-            );
-            let parent = Rect::new(
-                area.min[0] + gutter - 94.,
-                y + 2.,
-                86.,
-                (row_height - 4.).max(1.),
-            );
-            let link = Rect::new(
-                area.min[0] + gutter - 114.,
-                y + 4.,
-                14.,
-                (row_height - 8.).max(1.),
-            );
+            let cell_height = (row_height - 4.).max(1.);
+            let matte = columns.matte.map(|slot| slot.rect(y + 2., cell_height));
+            let blend = columns.blend.map(|slot| slot.rect(y + 2., cell_height));
+            let parent = columns.parent.map(|slot| slot.rect(y + 2., cell_height));
+            let link = columns
+                .link
+                .map(|slot| slot.rect(y + 4., (row_height - 8.).max(1.)));
             let blend_supported = !matches!(
                 owner["content"]["kind"].as_str(),
                 Some("null" | "camera" | "audio" | "adjustment")
             ) && row.id != 0;
-            let blend_enabled = blend_supported && columns.blend_visible && !row.locked;
-            let matte_enabled = blend_enabled && gutter >= 500.;
-            let parent_enabled = columns.parent_visible && (row.id == 0 || !row.locked && row.spatial);
-            if (blend_enabled && clicked(input, blend))
-                || (matte_enabled && clicked(input, matte))
-                || (parent_enabled && (clicked(input, parent) || clicked(input, link)))
+            let blend_enabled = blend_supported && !row.locked;
+            let matte_enabled = blend_enabled && matte.is_some();
+            let parent_enabled = row.id == 0 || !row.locked && row.spatial;
+            if (blend_enabled && blend.is_some_and(|rect| clicked(input, rect)))
+                || (matte_enabled && matte.is_some_and(|rect| clicked(input, rect)))
+                || (parent_enabled
+                    && (parent.is_some_and(|rect| clicked(input, rect))
+                        || link.is_some_and(|rect| clicked(input, rect))))
             {
                 out.extend(super::cancel_interaction(panels));
             }
-            if columns.parent_visible {
+            if let Some(link) = link {
                 motion_ui::icons::draw(
                     list,
                     link,
@@ -1241,45 +1232,51 @@ pub(super) fn render(
                 );
             }
             let mut link_input = input.clone();
-            if parent_enabled && clicked(input, link) {
-                link_input.pressed =
-                    Some((MouseButton::Left, [parent.min[0] + 1., parent.min[1] + 1.]));
+            if parent_enabled && link.is_some_and(|rect| clicked(input, rect)) {
+                if let Some(parent) = parent {
+                    link_input.pressed =
+                        Some((MouseButton::Left, [parent.min[0] + 1., parent.min[1] + 1.]));
+                }
             }
-            let opened_matte = gutter >= 500.
-                && panels.timeline_columns.cell(
+            let opened_matte = match matte {
+                Some(rect) => panels.timeline_columns.cell(
                     list,
                     atlas,
-                    matte,
+                    rect,
                     row.id,
                     super::timeline_columns::Column::Matte,
                     &super::timeline_columns::matte_name(owner, state, locale),
                     input,
                     matte_enabled,
-                );
-            let opened_blend = if blend_supported && columns.blend_visible {
-                panels.timeline_columns.cell(
+                ),
+                _ => false,
+            };
+            let opened_blend = match blend {
+                Some(rect) if blend_supported => panels.timeline_columns.cell(
                     list,
                     atlas,
-                    blend,
+                    rect,
                     row.id,
                     super::timeline_columns::Column::Blend,
                     super::timeline_columns::blend_name(owner, locale),
                     input,
                     blend_enabled,
-                )
-            } else {
-                false
+                ),
+                _ => false,
             };
-            let opened_parent = columns.parent_visible && panels.timeline_columns.cell(
-                list,
-                atlas,
-                parent,
-                row.id,
-                super::timeline_columns::Column::Parent,
-                &super::timeline_columns::parent_name(owner, state, locale),
-                &link_input,
-                parent_enabled,
-            );
+            let opened_parent = match parent {
+                Some(rect) => panels.timeline_columns.cell(
+                    list,
+                    atlas,
+                    rect,
+                    row.id,
+                    super::timeline_columns::Column::Parent,
+                    &super::timeline_columns::parent_name(owner, state, locale),
+                    &link_input,
+                    parent_enabled,
+                ),
+                None => false,
+            };
             if opened_blend || opened_parent || opened_matte {
                 panels.select_only(Some(row.id));
             }

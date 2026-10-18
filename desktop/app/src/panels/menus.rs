@@ -223,11 +223,41 @@ pub(super) fn render(
                 }),
                 editable,
             )],
-            6 => vec![(
-                locale.t(T::ShowComposition).into(),
-                Action::ShowPanel(dock::DockId(3)),
-                true,
-            )],
+            6 => {
+                let columns = panels.timeline.column_visibility;
+                let mark = |visible: bool| if visible { "✓" } else { "  " };
+                vec![
+                    (
+                        locale.t(T::ShowComposition).into(),
+                        Action::ShowPanel(dock::DockId(3)),
+                        true,
+                    ),
+                    (
+                        format!("{} {}", mark(columns.matte), locale.t(T::MatteColumn)),
+                        Action::TimelineColumnVisibility(ColumnVisibility {
+                            matte: !columns.matte,
+                            ..columns
+                        }),
+                        true,
+                    ),
+                    (
+                        format!("{} {}", mark(columns.blend), locale.t(T::BlendColumn)),
+                        Action::TimelineColumnVisibility(ColumnVisibility {
+                            blend: !columns.blend,
+                            ..columns
+                        }),
+                        true,
+                    ),
+                    (
+                        format!("{} {}", mark(columns.parent), locale.t(T::ParentColumn)),
+                        Action::TimelineColumnVisibility(ColumnVisibility {
+                            parent: !columns.parent,
+                            ..columns
+                        }),
+                        true,
+                    ),
+                ]
+            }
             7 => Panel::available()
                 .map(|panel| {
                     (
