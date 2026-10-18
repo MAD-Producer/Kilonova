@@ -49,6 +49,7 @@ mod helpers;
 mod keyboard;
 mod layer_actions;
 mod layer_locks;
+#[cfg(test)]
 mod layer_switches;
 mod menus;
 pub(crate) mod numeric;
@@ -89,6 +90,7 @@ use timeline::render as timeline;
 #[cfg(test)]
 use timeline::rows;
 pub use types::{Action, Frame, EffectSearch, Panels};
+pub(crate) use types::ColumnVisibility;
 use types::{Field, ScrubState};
 
 pub const CHROME_HEIGHT: f32 = metrics::TITLE_BAR + metrics::MENU_BAR + metrics::TOOL_BAR;
