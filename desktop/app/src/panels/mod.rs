@@ -835,6 +835,7 @@ pub fn chrome(
 pub fn panel(id: dock::DockId) -> Option<Panel> {
     Panel::from_dock(id)
 }
+#[cfg(test)]
 pub fn floating_view(panel: Panel, size: [f32; 2]) -> Option<Rect> {
     if panel == Panel::Composition {
         Some(viewer(Rect::new(
