@@ -23,6 +23,7 @@ pub(in crate::panels) mod mask_header;
 mod mask_inspector;
 mod mask_keys;
 mod mask_path;
+mod source_geometry;
 #[cfg(test)]
 mod property_focus_tests;
 pub(in crate::panels) mod timeline;
@@ -211,15 +212,21 @@ struct Drag {
     animated: bool,
     frame: u32,
     begun: bool,
+    item: Option<u64>,
+    bounds: Option<source_geometry::Bounds>,
+    root: String,
+    composition: String,
 }
 #[derive(Default)]
 pub struct Controls {
+    geometry_failures: motion_render::observability::FailureCounter,
     pub(crate) selection_probe: crate::panels::property_focus::HitProbe,
     pub tool: Tool,
     pub mask: Option<u64>,
     draft: Option<Draft>,
     drag: Option<Drag>,
     selected: Option<(u64, u64)>,
+    selected_item: Option<u64>,
     focus: bool,
     pub notice: Option<String>,
     parameter: Option<Parameter>,
@@ -421,6 +428,7 @@ impl Controls {
         }
         self.tool = tool;
         self.selected = None;
+        self.selected_item = None;
         self.mask = None;
         self.notice = None;
         if tool == Tool::Mask {
@@ -638,6 +646,7 @@ impl Controls {
             [0., 0.]
         };
         let sampled = if self.tool == Tool::Mask {
+            self.geometry_failures.success();
             state["mask_layers"]
                 .as_array()
                 .and_then(|v| v.iter().find(|v| v["id"].as_u64() == selected))
@@ -646,12 +655,16 @@ impl Controls {
                 .map(|v| vec![v["path"].clone()])
                 .unwrap_or_default()
         } else {
-            state["vector_layers"]
-                .as_array()
-                .and_then(|v| v.iter().find(|v| v["id"].as_u64() == selected))
-                .and_then(|v| v["paths"].as_array())
-                .cloned()
-                .unwrap_or_default()
+            match target.as_ref().map(|layer| (layer.id,
+                source_geometry::paths(layer,state["frame"].as_f64().unwrap_or(0.)))) {
+                Some((_,Ok(paths))) => {self.geometry_failures.success();paths},
+                Some((object,Err(error))) => {
+                    self.geometry_failures.failure("path.source_geometry",
+                        format_args!("object={object} frame={} phase=authored_grips reason={error}",state["frame"]));
+                    vec![]
+                },
+                None => {self.geometry_failures.success();vec![]},
+            }
         };
         if self.focus && self.parameter.is_none() {
             for (key, mods) in &input.keys {
@@ -700,12 +713,14 @@ impl Controls {
         let mut hits = vec![];
         if let Some(p) = &projection {
             for path in &sampled {
+                let Some(p) = source_geometry::projection(p,path) else {continue};
                 for n in path["nodes"].as_array().into_iter().flatten() {
                     if let Some(g) = geometry(n) {
                         let pid = path["id"].as_u64().unwrap_or(1);
                         let nid = n["id"].as_u64().unwrap_or(1);
                         for axis in [0, 2, 4] {
-                            if axis != 0 && self.selected != Some((pid, nid)) {
+                            if axis != 0 && (path["bounds_size"].is_array()
+                                || self.selected != Some((pid, nid)) || self.selected_item != path["item"].as_u64()) {
                                 continue;
                             }
                             let local = if axis == 0 {
@@ -714,7 +729,9 @@ impl Controls {
                                 [g[0] + g[axis] - offset[0], g[1] + g[axis + 1] - offset[1]]
                             };
                             if let Some(screen) = p.screen(local) {
-                                hits.push((distance(input.mouse, screen), pid, nid, axis, g));
+                                let point = input.pressed.map_or(input.mouse, |(_, point)| point);
+                                hits.push((distance(point, screen), pid, nid, axis, g,
+                                    path, n["animated"].as_bool().unwrap_or(false)));
                             }
                         }
                     }
@@ -725,11 +742,15 @@ impl Controls {
             let hit = hits
                 .into_iter()
                 .filter(|h| h.0 <= HIT_RADIUS)
-                .min_by(|a, b| a.0.total_cmp(&b.0));
-            if let (Some((_, path, node, axis, value)), Some(l), Some(p)) = (
+                .min_by(|a, b| a.0.total_cmp(&b.0))
+                .and_then(|(distance,path,node,axis,value,source,animated)| {
+                    let p=source_geometry::projection(projection.as_ref()?,source)?;
+                    Some((distance,path,node,axis,value,p,source["item"].as_u64(),
+                        source_geometry::Bounds::from_path(source,node),animated))
+                });
+            if let (Some((_, path, node, axis, value, p, item, bounds, animated)), Some(l)) = (
                 hit,
                 target.as_ref().filter(|l| !l.locked),
-                projection.as_ref(),
             ) {
                 if let Some(start) = p.local(point) {
                     let t = if self.tool == Tool::Mask {
@@ -740,22 +761,6 @@ impl Controls {
                     } else {
                         Target::Vector { object: l.id }
                     };
-                    let animated = if let Content::Vector {
-                        vector:
-                            VectorContent {
-                                source: VectorSource::Paths { paths },
-                                ..
-                            },
-                    } = &l.content
-                    {
-                        paths
-                            .iter()
-                            .find(|p| p.id == path)
-                            .and_then(|p| p.nodes.iter().find(|n| n.id == node))
-                            .is_some_and(|n| n.geometry.is_animated())
-                    } else {
-                        false
-                    };
                     self.drag = Some(Drag {
                         target: t,
                         path,
@@ -764,13 +769,18 @@ impl Controls {
                         value,
                         last_geometry: value,
                         start,
-                        projection: p.clone(),
+                        projection: p,
                         offset,
                         animated,
                         frame: state["frame"].as_f64().unwrap_or(0.).floor() as u32,
                         begun: false,
+                        item,
+                        bounds,
+                        root: state["root"].as_str().unwrap_or("").into(),
+                        composition: state["composition"].as_str().unwrap_or("").into(),
                     });
                     self.selected = Some((path, node));
+                    self.selected_item = item;
                 }
             } else {
                 if target.as_ref().is_some_and(|l| {
@@ -785,12 +795,8 @@ impl Controls {
                     )
                 }) && self.tool == Tool::Pen
                 {
-                    out.push(Action::Edit(Command::Vector {
-                        object: target.as_ref().unwrap().id,
-                        action: VectorAction::ConvertToPath {
-                            frame: state["frame"].as_f64().unwrap_or(0.).floor() as u32,
-                        },
-                    }));
+                    self.notice=Some(if locale==Locale::Zh {"拖动角点调整宽高；自由编辑节点请先在属性中转换为路径"}
+                        else {"Drag a corner to resize; use Convert to path in Properties for free node editing"}.into());
                 } else {
                     if self.draft.is_none() {
                         if self.begin(state, selected, view).is_none() {
@@ -838,81 +844,109 @@ impl Controls {
             }
         }
         if let Some(mut drag) = self.drag.take() {
-            if drag.begun {
-                let _ = observe!(
-                    "path.drag_release",
-                    (input.dragging()
-                        || input.released.is_some_and(|(b, _)| b == MouseButton::Left))
-                    .then_some(())
-                    .ok_or("path gesture retained without held button or release"),
-                    "path={} node={} frame={} phase=dragging",
-                    drag.path,
-                    drag.node,
-                    drag.frame
-                );
-            }
-            let release = input.released.is_some_and(|(b, _)| b == MouseButton::Left);
-            if let Some(p) = drag.projection.local(input.mouse) {
-                if (input.dragging() || release) && (distance(p, drag.start) > 0.1 || drag.begun) {
-                    if !drag.begun {
-                        out.push(Action::History(2));
-                        drag.begun = true;
-                    }
-                    let mut g = drag.value;
-                    if drag.axis == 0 {
-                        g[0] += p[0] - drag.start[0];
-                        g[1] += p[1] - drag.start[1];
-                    } else {
-                        let delta = [p[0] + drag.offset[0] - g[0], p[1] + drag.offset[1] - g[1]];
-                        move_handle(&mut g, drag.axis, delta, input.modifiers.alt);
-                    }
-                    if g != drag.last_geometry
-                        && g.iter().all(|v| v.is_finite() && v.abs() <= 32768.)
-                    {
-                        let edit = match drag.target {
-                            Target::Vector { object } => Some(Action::Edit(Command::Vector {
-                                object,
-                                action: VectorAction::SetNode {
-                                    path: drag.path,
-                                    node: drag.node,
-                                    frame: drag.frame,
-                                    value: g,
-                                    animated: drag.animated,
-                                },
-                            })),
-                            Target::Mask { object, mask } => target.as_ref().and_then(|layer| {
-                                let source = layer.masks.iter().find(|m| m.id == mask)?;
-                                mask_path::node_command(
-                                    object,
-                                    source,
-                                    layer.timeline.map_or(0, |t| t.offset_frame),
-                                    drag.node,
+            let released = input.released.filter(|(b, _)| *b == MouseButton::Left);
+            let release = released.is_some();
+            let object = match drag.target {
+                Target::Vector { object } | Target::Mask { object, .. } => object,
+                Target::New => unreachable!(),
+            };
+            let cancelled = input.focus_lost
+                || input.keys.iter().any(|(k, _)| *k == Key::Escape)
+                || selected != Some(object)
+                || target.as_ref().is_none_or(|l| l.locked)
+                || drag.frame != state["frame"].as_f64().unwrap_or(0.).floor() as u32
+                || drag.root != state["root"].as_str().unwrap_or("")
+                || drag.composition != state["composition"].as_str().unwrap_or("");
+            let lost_button = !input.dragging()
+                && !release
+                && !input.pressed.is_some_and(|(b, _)| b == MouseButton::Left);
+            // Release can wait behind an engine reply while later motion is
+            // coalesced. Its own point, not the newest mouse position, ends it.
+            let point = released.map_or(input.mouse, |(_, point)| point);
+            if !cancelled && !lost_button {
+                if let Some(p) = drag.projection.local(point) {
+                    if (input.dragging() || release) && (distance(p, drag.start) > 0.1 || drag.begun) {
+                        if !drag.begun {
+                            out.push(Action::History(2));
+                            drag.begun = true;
+                        }
+                        let mut g = drag.value;
+                        if drag.axis == 0 {
+                            g[0] += p[0] - drag.start[0];
+                            g[1] += p[1] - drag.start[1];
+                        } else {
+                            let delta = [p[0] + drag.offset[0] - g[0], p[1] + drag.offset[1] - g[1]];
+                            move_handle(&mut g, drag.axis, delta, input.modifiers.alt);
+                        }
+                        if g != drag.last_geometry
+                            && g.iter().all(|v| v.is_finite() && v.abs() <= 32768.)
+                        {
+                            if let (Target::Vector { object }, Some(bounds)) =
+                                (&drag.target, &drag.bounds)
+                            {
+                                if let Some(edits) = bounds.edit(
+                                    *object,
+                                    drag.item,
                                     drag.frame,
-                                    g,
-                                )
-                            }),
-                            Target::New => unreachable!(),
-                        };
-                        if let Some(edit) = edit {
-                            drag.last_geometry = g;
-                            out.push(edit);
+                                    [p[0] - drag.start[0], p[1] - drag.start[1]],
+                                ) {
+                                    drag.last_geometry = g;
+                                    out.extend(edits);
+                                }
+                            } else {
+                                let edit = match drag.target {
+                                    Target::Vector { object } => {
+                                        let action = if let Some(item) = drag.item {
+                                            VectorAction::SetGroupParameter {
+                                                item,
+                                                parameter: format!("node:{}:{}", drag.path, drag.node),
+                                                frame: drag.frame,
+                                                value: motion_core::vector::groups::ParameterValue::Geometry(g),
+                                                animated: None,
+                                            }
+                                        } else {
+                                            VectorAction::SetNode {
+                                                path: drag.path,
+                                                node: drag.node,
+                                                frame: drag.frame,
+                                                value: g,
+                                                animated: drag.animated,
+                                            }
+                                        };
+                                        Some(Action::Edit(Command::Vector { object, action }))
+                                    }
+                                    Target::Mask { object, mask } => target.as_ref().and_then(|layer| {
+                                        let source = layer.masks.iter().find(|m| m.id == mask)?;
+                                        mask_path::node_command(
+                                            object, source,
+                                            layer.timeline.map_or(0, |t| t.offset_frame),
+                                            drag.node, drag.frame, g,
+                                        )
+                                    }),
+                                    Target::New => unreachable!(),
+                                };
+                                if let Some(edit) = edit {
+                                    drag.last_geometry = g;
+                                    out.push(edit);
+                                }
+                            }
                         }
                     }
                 }
             }
-            if release {
+            if cancelled || lost_button || release {
                 if drag.begun {
-                    out.push(Action::History(3));
+                    out.push(Action::History(if cancelled { 4 } else { 3 }));
                 }
             } else {
                 self.drag = Some(drag);
             }
         }
         if let Some(d) = self.draft.as_mut() {
-            let released = input.released.is_some_and(|(b, _)| b == MouseButton::Left);
-            if d.placing && (input.dragging() || released) {
+            let released = input.released.filter(|(b, _)| *b == MouseButton::Left);
+            if d.placing && !input.focus_lost && (input.dragging() || released.is_some()) {
                 if let (Some(local), Some(n)) =
-                    (d.projection.local(input.mouse), d.path.nodes.last_mut())
+                    (d.projection.local(released.map_or(input.mouse, |(_, point)| point)), d.path.nodes.last_mut())
                 {
                     let g = &mut n.geometry.value;
                     let dx = local[0] + d.offset[0] - g[0];
@@ -922,7 +956,7 @@ impl Controls {
                     }
                 }
             }
-            if released || input.focus_lost {
+            if released.is_some() || input.focus_lost || !input.dragging() {
                 d.placing = false;
             }
         }
@@ -935,34 +969,30 @@ impl Controls {
             {
                 return None;
             }
-            let paths: Vec<(u64, Vec<[f32; 6]>)> = sampled
-                .iter()
-                .map(|path| {
-                    (
-                        path["id"].as_u64().unwrap_or(1),
-                        path["nodes"]
-                            .as_array()
-                            .into_iter()
-                            .flatten()
-                            .filter_map(geometry)
-                            .collect(),
-                    )
-                })
-                .collect();
-            let paths: Vec<(u64, &[[f32; 6]])> = paths
-                .iter()
-                .map(|(id, nodes)| (*id, nodes.as_slice()))
-                .collect();
-            hovered_target(
-                p,
-                &paths,
-                offset,
-                input.mouse,
-                self.selected.map(|v| v.1),
-            )
+            sampled.iter().find_map(|path| {
+                let p = source_geometry::projection(p, path)?;
+                let nodes: Vec<_> = path["nodes"]
+                    .as_array()?
+                    .iter()
+                    .filter_map(geometry)
+                    .collect();
+                hovered_target(
+                    &p,
+                    &[(path["id"].as_u64()?, nodes.as_slice())],
+                    offset,
+                    input.mouse,
+                    if self.selected_item == path["item"].as_u64() {
+                        self.selected.map(|v| v.1)
+                    } else {
+                        None
+                    },
+                )
+                .map(|hit| (path["item"].as_u64(), hit))
+            })
         });
         if let Some(p) = projection {
             for path in &sampled {
+                let Some(p)=source_geometry::projection(&p,path) else {continue};
                 let id = path["id"].as_u64().unwrap_or(1);
                 let nodes: Vec<_> = path["nodes"]
                     .as_array()
@@ -971,7 +1001,7 @@ impl Controls {
                     .filter_map(geometry)
                     .collect();
                 // Node IDs survive deletion/reordering; they are not array indices.
-                let selected = self.selected.filter(|(id, _)| Some(*id) == path["id"].as_u64())
+                let selected = self.selected.filter(|(id, _)| Some(*id) == path["id"].as_u64() && self.selected_item==path["item"].as_u64())
                     .and_then(|(_, node)| path["nodes"].as_array()?.iter()
                         .filter(|n| geometry(n).is_some()).position(|n| n["id"].as_u64() == Some(node)));
                 paint_path(
@@ -984,8 +1014,8 @@ impl Controls {
                     self.tool == Tool::Mask,
                     colors.ACCENT,
                     hovered
-                        .filter(|h| h.path == id)
-                        .map(|h| (h.node, h.handle)),
+                        .filter(|(item,h)| h.path == id && *item==path["item"].as_u64())
+                        .map(|(_,h)| (h.node, h.handle)),
                 );
             }
         }
@@ -1010,7 +1040,12 @@ impl Controls {
             atlas,
             Rect::new(clip.min[0]+padding, clip.min[1]+padding,
                 (clip.width()-padding*2.).max(1.), styles.metric("row.height",22.)),
-            self.notice.as_deref().unwrap_or(locale.t(T::DrawingHint)),
+            self.notice.as_deref().unwrap_or_else(|| {
+                if self.tool==Tool::Pen && sampled.iter().any(|path|path["bounds_size"].is_array()) {
+                    if locale==Locale::Zh {"拖动角点调整宽高 · 对角固定 · Esc取消"}
+                    else {"Drag corners to resize · Opposite corner stays fixed · Esc cancels"}
+                } else {locale.t(T::DrawingHint)}
+            }),
             colors.TEXT_MUTED,
         );
         clip.contains(input.mouse) || self.editing()
@@ -1543,6 +1578,10 @@ fn paint_path(
 
 #[cfg(test)]
 mod pen_tests;
+#[cfg(test)]
+mod drag_lifecycle_tests;
+#[cfg(test)]
+mod resize_tests;
 #[cfg(test)]
 mod handle_visibility_tests;
 

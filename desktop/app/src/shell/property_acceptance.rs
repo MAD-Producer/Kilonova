@@ -481,6 +481,7 @@ impl Shell {
                 output.insert(name.into(), serde_json::json!(path));
             }
             self.capture_observation_three_d_screens(window_size, report, output, object)?;
+            self.capture_shape_resize_screens(window_size, report, output)?;
             Ok(())
         })();
         if let Err(cause) = &captured {
@@ -590,7 +591,7 @@ impl Shell {
         }
     }
 
-    fn present_property_capture_scene(
+    pub(super) fn present_property_capture_scene(
         &mut self,
         size: [f32; 2],
         viewport: [f32; 4],

@@ -82,6 +82,8 @@ def verify_design_screens(snapshot: dict, locale: str, *, property_followups: bo
             "graph-raw-readonly": (900, 520),
             "effect-expression-unavailable-menu": (360, 560),
             "mask-handles-selected": (900, 520),
+            "rectangle-resize-before": (900, 520), "rectangle-resize-after": (900, 520),
+            "rectangle-resize-properties": (360, 560),
         }
     names = tuple(auxiliary) if property_followups else ("home", "project-open-error", "composition-settings", "workspace-manager", "effect-library", "timeline-parent-menu", "timeline-blend-menu", "timeline-graph", "value-graph", "speed-graph", "viewer-fit", "viewer-zoom", "viewer-pan", *auxiliary)
     for name in names:
