@@ -1,4 +1,5 @@
 use super::*;
+use super::types::ColumnGroup;
 use motion_core::compositing::{BlendMode, BlendSpace};
 use motion_core::{Content, Engine, Layer, Project};
 fn fixture() -> Engine {
@@ -243,6 +244,128 @@ fn parent_menu_keeps_disabled_self_and_descendants_and_keyboard_skips_them() {
 }
 
 #[test]
+fn column_layout_keeps_historical_pixels_when_everything_is_visible() {
+    let columns = timeline_columns::ColumnRects::new(0., 624., ColumnVisibility::default());
+    assert_eq!(
+        columns.matte,
+        Some(timeline_columns::Slot {
+            x: 344.,
+            width: 78.
+        })
+    );
+    assert_eq!(
+        columns.blend,
+        Some(timeline_columns::Slot {
+            x: 428.,
+            width: 76.
+        })
+    );
+    assert_eq!(
+        columns.link,
+        Some(timeline_columns::Slot {
+            x: 510.,
+            width: 14.
+        })
+    );
+    assert_eq!(
+        columns.parent,
+        Some(timeline_columns::Slot {
+            x: 530.,
+            width: 86.
+        })
+    );
+    assert_eq!(
+        columns.name,
+        timeline_columns::Slot {
+            x: 112.,
+            width: 226.
+        }
+    );
+}
+
+#[test]
+fn hidden_columns_stay_right_aligned_and_widen_the_name_column() {
+    let base = ColumnVisibility::default();
+    let cases = [
+        ColumnVisibility { matte: false, ..base },
+        ColumnVisibility { blend: false, ..base },
+        ColumnVisibility { parent: false, ..base },
+        ColumnVisibility {
+            blend: false,
+            matte: false,
+            ..base
+        },
+        ColumnVisibility {
+            blend: false,
+            parent: false,
+            matte: false,
+        },
+    ];
+    for visibility in cases {
+        let columns = timeline_columns::ColumnRects::new(0., 624., visibility);
+        let slots: Vec<_> = [columns.matte, columns.blend, columns.link, columns.parent]
+            .into_iter()
+            .flatten()
+            .collect();
+        for pair in slots.windows(2) {
+            assert_eq!(pair[1].x - pair[0].max_x(), 6.);
+        }
+        if let Some(first) = slots.first() {
+            assert_eq!(columns.name.max_x() + 6., first.x);
+            assert_eq!(slots.last().unwrap().max_x(), 616.);
+        } else {
+            assert_eq!(columns.name.max_x(), 616.);
+        }
+        assert!(columns.name.width > 226. || slots.is_empty());
+    }
+    let hidden = timeline_columns::ColumnRects::new(
+        0.,
+        624.,
+        ColumnVisibility {
+            blend: false,
+            parent: false,
+            matte: false,
+        },
+    );
+    assert_eq!(
+        hidden.name,
+        timeline_columns::Slot {
+            x: 112.,
+            width: 504.
+        }
+    );
+}
+
+#[test]
+fn matte_column_still_needs_room_for_its_header() {
+    let narrow = timeline_columns::ColumnRects::new(0., 480., ColumnVisibility::default());
+    assert!(narrow.matte.is_none());
+    assert!(narrow.blend.is_some());
+    assert!(narrow.parent.is_some());
+    let roomy = timeline_columns::ColumnRects::new(0., 500., ColumnVisibility::default());
+    assert_eq!(roomy.matte.unwrap().width, 78.);
+}
+
+#[test]
+fn composite_and_hierarchy_groups_toggle_together() {
+    let mut visibility = ColumnVisibility::default();
+    visibility.toggle_group(ColumnGroup::Composite);
+    assert_eq!(
+        visibility,
+        ColumnVisibility {
+            blend: false,
+            parent: true,
+            matte: false
+        }
+    );
+    visibility.toggle_group(ColumnGroup::Composite);
+    assert_eq!(visibility, ColumnVisibility::default());
+    visibility.toggle_group(ColumnGroup::Hierarchy);
+    assert!(!visibility.parent);
+    assert!(visibility.blend && visibility.matte);
+}
+
+#[test]
 fn link_icon_opens_parent_menu_and_blend_popup_can_overlay_the_preview_safely() {
     let engine = fixture();
     let state = snapshot(&engine);
@@ -313,4 +436,61 @@ fn link_icon_opens_parent_menu_and_blend_popup_can_overlay_the_preview_safely() 
             ..
         })]
     ));
+}
+
+
+#[test]
+fn review327_columns_translate_with_panel_origin() {
+    for visibility in [ColumnVisibility::default(), ColumnVisibility { blend: false, parent: false, matte: false }] {
+        let base = timeline_columns::ColumnRects::new(0., 624., visibility);
+        let shifted = timeline_columns::ColumnRects::new(350., 624., visibility);
+        assert_eq!(shifted.name.width, base.name.width, "moving a panel must preserve its name width");
+        for (a,b) in [(base.matte, shifted.matte), (base.blend, shifted.blend), (base.link, shifted.link), (base.parent, shifted.parent)] {
+            if let (Some(a), Some(b)) = (a,b) {
+                assert_eq!(b.x, a.x + 350., "optional column must move with its panel");
+            }
+        }
+    }
+}
+
+#[test]
+fn visible_column_preferences_never_share_the_3d_switch_hit_target() {
+    let engine = fixture();
+    let state = snapshot(&engine);
+    let mut atlas = TextAtlas::from_system(12.).unwrap();
+    let styles = PaintList::default().styles();
+    // Display order is the reverse of storage order; target the intended
+    // object rather than assuming it is the first visible layer.
+    let target_row = timeline::rows(&state).iter().position(|row| row.id == 7).unwrap();
+    let target_y = 40. + 64. + (target_row as f32 + 0.5) * styles.metric("row.height", 22.);
+    for locale in [Locale::Zh, Locale::En] {
+        for width in [360_f32, 500., 720., 1280.] {
+            for bits in 0..8 {
+                let visibility = ColumnVisibility {
+                    blend: bits & 1 != 0,
+                    parent: bits & 2 != 0,
+                    matte: bits & 4 != 0,
+                };
+                let gutter = (width * 0.52).min(640.);
+                let plan = timeline_columns::ColumnRects::styled(&styles, 350., gutter, visibility);
+                let switch = plan.three_d.expect("supported floating width retains the full switch");
+                assert_eq!(switch.width, styles.metric("icon.slot", 20.));
+                assert!(plan.name.max_x() <= switch.x);
+                for other in [plan.matte, plan.blend, plan.link, plan.parent].into_iter().flatten() {
+                    assert!(switch.max_x() <= other.x);
+                }
+                let mut panels = Panels { locale, focused: Some(Panel::Timeline), ..Default::default() };
+                panels.timeline.column_visibility = visibility;
+                let mut actions = vec![];
+                timeline::render(
+                    &mut PaintList::default(), &mut atlas, Rect::new(350., 40., width, 400.),
+                    &mut panels, &state, &click(switch.x + switch.width * 0.5, target_y), &mut actions,
+                );
+                assert!(matches!(actions.as_slice(), [Action::Edit(Command::SetLayer3d { object: 7, enabled: true })]),
+                    "width={width} visibility={visibility:?}");
+                assert!(!panels.timeline_columns.editing());
+                assert_eq!(panels.timeline.column_visibility, visibility, "width adaptation must retain user preferences");
+            }
+        }
+    }
 }

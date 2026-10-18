@@ -494,7 +494,10 @@ impl Shell {
         // Preserve the last consumed pointer/key state. New movement, release
         // and IME events remain queued for the next real interaction pass.
         let input = std::mem::replace(&mut self.input, self.paint_input.clone());
+        let navigation = self.panels.timeline.navigation_paint_only;
+        self.panels.timeline.navigation_paint_only = true;
         let frame = self.draw_commands(size);
+        self.panels.timeline.navigation_paint_only = navigation;
         self.input = input;
         frame
     }
@@ -669,6 +672,8 @@ impl Shell {
             || self.dialog.is_some()
             || self.node_examples.is_some()
             || self.node_close_prompt.is_some();
+        let navigation = self.panels.timeline.navigation_paint_only;
+        self.panels.timeline.navigation_paint_only = acknowledged;
         let actions = panels::floating_chrome(
             &mut paint,
             &mut self.atlas,
@@ -678,6 +683,7 @@ impl Shell {
             &self.state,
             if blocked { &neutral } else { &f.input },
         );
+        self.panels.timeline.navigation_paint_only = navigation;
         f.window.set_cursor(
             self.cursors
                 .get(self.panels.cursor.unwrap_or_default(), scale),
@@ -1232,7 +1238,7 @@ mod interaction_tests {
             let point = |frame: f32| {
                 [
                     640. + frame * 632. / 300.,
-                    area.min[1] + 64. + (if path { 6. } else { 7. }) * 22. + 11.,
+                    area.min[1] + 64. + (if path { 3. } else { 4. }) * 22. + 11.,
                 ]
             };
             shell.translate(Event::MousePressed {
@@ -1348,7 +1354,7 @@ mod interaction_tests {
         let point = |frame: f32| {
             [
                 640. + frame * 632. / 300.,
-                area.min[1] + 64. + 7. * 22. + 11.,
+                area.min[1] + 64. + 5. * 22. + 11.,
             ]
         };
         shell.translate(Event::MousePressed {
@@ -1405,7 +1411,8 @@ mod interaction_tests {
         shell.workspace.root = dock::Node::Dock { id, tabs: vec![id], active: 0 };
         let area = panels::frames(&shell.workspace.root, [400., 1000.])[0].content;
         let styles = motion_ui::style::default_stylesheet_arc();
-        let y = area.min[1] + 8. + 2. * styles.metric("row.height", 22.);
+        // Layer title, Masks, Transform and Anchor precede the Position row.
+        let y = area.min[1] + 8. + 4. * styles.metric("row.height", 22.);
         let columns = motion_ui::widgets::PropertyColumns::new(&styles, area, y, 64.);
         let point = [columns.value.min[0] + 10., y + 10.];
         shell.translate(Event::MousePressed { position: point, button: MouseButton::Left });

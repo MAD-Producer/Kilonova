@@ -16,7 +16,7 @@ Existing axis expressions already support a coupled vector component. Keeping id
 
 ## Boundaries and issue status
 
-**#262 remains open.** Its property/menu entry is explicitly deferred by the user's instruction to leave visible UI issues alone. Broader symbolic equivalence is also pending: mismatched key grids, an unkeyed static axis beside animated axes, redundant keys and differently encoded equivalent curves are conservatively rejected, even when a mathematical reduction might exist. No approximate conversion or baking option is supplied. No UI, shortcut, theme token, hit target, dependency or third-party asset changes are included.
+**Historical backend-only scope:** at the time of this delivery, #262 remained open and the property/menu entry was deferred by the user's instruction to leave visible UI issues alone. The later desktop entry and acceptance are tracked in [desktop-property-followups-completed.md](desktop-property-followups-completed.md). Broader symbolic equivalence is still outside the conservative merge contract: mismatched key grids, an unkeyed static axis beside animated axes, redundant keys and differently encoded equivalent curves are rejected, even when a mathematical reduction might exist. No approximate conversion or baking option is supplied. This original backend delivery did not change UI, shortcuts, theme tokens, hit targets, dependencies or third-party assets.
 
 ## Original main-based verification
 

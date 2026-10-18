@@ -85,6 +85,7 @@ struct EffectContextMenu {
     instance: Option<(u64, usize)>,
     catalogue: bool,
     expression: Option<motion_core::ExpressionTarget>,
+    expression_supported: bool,
     opened: bool,
 }
 struct Field {
@@ -393,6 +394,7 @@ impl Controls {
         let opened = std::mem::take(&mut menu.opened);
         let instance = menu.instance;
         let expression = menu.expression.clone();
+        let expression_supported = menu.expression_supported;
         let neutral = Input::default();
         let input = if opened { &neutral } else { input };
         let anchor = menu.anchor;
@@ -466,7 +468,11 @@ impl Controls {
         header.push((clear_effects, !locked, None));
         let expression_index = expression.as_ref().map(|_| {
             let index = header.len();
-            header.push((word(locale, "编辑表达式", "Edit expression"), !locked, None));
+            header.push((if expression_supported {
+                word(locale, "编辑表达式", "Edit expression")
+            } else {
+                word(locale, "表达式不可用：需连续可动画参数", "Expressions: continuous params only")
+            }, !locked && expression_supported, None));
             index
         });
         let header_count = header.len();
@@ -1184,6 +1190,7 @@ impl Controls {
                     instance: Some((id, index)),
                     catalogue: true,
                     expression: None,
+                    expression_supported: false,
                     opened: true,
                 });
             }
@@ -1267,6 +1274,7 @@ impl Controls {
                     instance: Some((id, index)),
                     catalogue: false,
                     expression: None,
+                    expression_supported: false,
                     opened: true,
                 });
             }
@@ -1374,14 +1382,13 @@ impl Controls {
                         category: None,
                         instance: Some((id, index)),
                         catalogue: true,
-                        expression: (!matches!(kind, "bool" | "enum" | "curve")
-                            && implemented
-                            && parameter["animatable"] == true)
-                            .then(|| motion_core::ExpressionTarget::Effect {
+                        expression: Some(motion_core::ExpressionTarget::Effect {
                                 object,
                                 effect: id,
                                 param: param.into(),
                             }),
+                        expression_supported: matches!(kind, "float" | "vec2" | "vec3" | "color")
+                            && implemented && parameter["animatable"] == true,
                         opened: true,
                     });
                 }

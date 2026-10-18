@@ -16,9 +16,7 @@ pub(super) struct LayerRows {
     pub expression_offsets: Vec<Option<usize>>,
     pub transform: Range<usize>,
     pub audio: Range<usize>,
-    pub geometry: Range<usize>,
     pub effects: Range<usize>,
-    pub geometry_open: bool,
     pub effects_open: bool,
     pub masks: Range<usize>,
     pub vectors: Range<usize>,
@@ -110,7 +108,13 @@ impl LayerRows {
             .filter(|(_, p)| transform_open && filter.admits(p.property, !p.keys.is_empty()))
             .map(|(i, _)| i)
             .collect::<Vec<_>>();
-        let mut next = 1 + usize::from(expanded && row.spatial);
+        let mask_rows = if expanded {
+            path_controls::timeline::Rows::new(row, t)
+        } else {
+            Default::default()
+        };
+        let masks = 1..1 + mask_rows.len();
+        let mut next = masks.end + usize::from(expanded && row.spatial);
         let mut property_offsets = Vec::new();
         let mut expression_offsets = Vec::new();
         for index in &properties {
@@ -134,7 +138,7 @@ impl LayerRows {
                 r
             }));
         }
-        let transform = 1..next;
+        let transform = masks.end..next;
         let audio = transform.end
             ..transform.end
                 + if expanded && row.audio > 0 {
@@ -146,27 +150,13 @@ impl LayerRows {
                 } else {
                     0
                 };
-        let geometry_open = expanded && !t.collapsed_geometry.contains(&row.id);
         let effects_open = expanded && t.expanded_effects.contains(&row.id);
-        let mask_rows = if geometry_open {
-            path_controls::timeline::Rows::new(row, t)
-        } else {
-            Default::default()
-        };
-        let vector_rows = if geometry_open {
+        let vector_rows = if expanded {
             path_controls::groups::timeline::Rows::new(row, t, frame, locale)
         } else {
             Default::default()
         };
-        let geometry = audio.end
-            ..audio.end
-                + if expanded && row.spatial && !row.camera {
-                    1 + usize::from(geometry_open)
-                } else {
-                    0
-                };
-        let masks = geometry.end..geometry.end + mask_rows.len();
-        let vectors = masks.end..masks.end + vector_rows.len();
+        let vectors = audio.end..audio.end + vector_rows.len();
         let effects = vectors.end
             ..vectors.end
                 + if expanded && row.id != 0 && !row.camera {
@@ -182,9 +172,7 @@ impl LayerRows {
             expression_offsets,
             transform,
             audio,
-            geometry,
             effects,
-            geometry_open,
             effects_open,
             masks,
             vectors,
@@ -274,8 +262,11 @@ mod tests {
         assert_eq!(plan.property_offsets, vec![2, 3, 5, 6]);
         assert_eq!(plan.expression_offsets, vec![None, Some(4), None, None]);
         assert_eq!(plan.transform.end, 7);
-        assert!(plan.geometry.is_empty());
+        assert!(plan.masks.is_empty());
+        assert!(plan.vectors.is_empty());
+        assert!(plan.audio.is_empty());
         assert!(plan.effects.is_empty());
+        assert_eq!(plan.len(), plan.transform.end, "camera has no extra content rows");
     }
     #[test]
     fn folding_masks_does_not_move_following_shape_rows_until_next_frame() {
@@ -349,9 +340,7 @@ mod tests {
                 .unwrap();
             let mut list = PaintList::with_styles(std::sync::Arc::new(sheet));
             let mut panels = panels();
-            let rows = timeline::rows(&state);
-            let plan = LayerRows::new(&rows[0], &panels.timeline, 21., Locale::En);
-            panels.timeline.scroll = 37. + plan.geometry.len() as f32 * height;
+            panels.timeline.scroll = 37.;
             panels.timeline.zoom = 2.;
             panels.timeline.offset = 10.;
             timeline::render(
