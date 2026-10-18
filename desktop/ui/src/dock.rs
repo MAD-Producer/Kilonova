@@ -33,7 +33,8 @@ pub struct DockId(pub u32);
 /// A layout node.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum Node {
-    /// Two children sharing the parent along `edge`, sized by `split` in 0.05..0.95.
+    /// Two children sharing the parent along `edge`, sized by `split` in 0..1.
+    /// Interactive resizing applies [`clamp_split`]'s pixel minimum.
     Split {
         edge: Edge,
         split: f32,
@@ -60,13 +61,11 @@ impl Node {
     }
 
     /// Split `self` into two docks along `edge`, keeping the existing content
-    /// as the first child. Returns the new second dock.
+    /// as the first child. Returns whether the split was created. A rejected
+    /// request leaves the existing tree, including its ratios, unchanged.
     pub fn split(&mut self, edge: Edge, new: DockId) -> bool {
         match self {
-            Node::Split { split, .. } => {
-                *split = split.clamp(0.05, 0.95);
-                false
-            }
+            Node::Split { .. } => false,
             Node::Dock { id, tabs, active } => {
                 let id = *id;
                 let tabs = tabs.clone();
@@ -227,7 +226,7 @@ fn take(edge: Edge, area: Rect, size: f32) -> Rect {
     }
 }
 
-fn divide(edge: Edge, area: Rect, split: f32) -> (Rect, Rect) {
+pub(crate) fn divide(edge: Edge, area: Rect, split: f32) -> (Rect, Rect) {
     match edge {
         Edge::Left => {
             let width = area.width() * split;
@@ -507,7 +506,9 @@ pub fn hit(placements: &[Placement], point: [f32; 2]) -> Option<DockId> {
 }
 
 /// Clamp a proposed split ratio so no dock can be collapsed or pushed off
-/// screen. The minimum is expressed in pixels, so it holds at any window size.
+/// screen. The minimum is expressed in logical pixels, without an additional
+/// percentage floor on large windows. On undersized parents, reserve 45% for
+/// either child so both retain usable space. Invalid inputs use an even split.
 pub fn clamp_split(edge: Edge, split: f32, area: Rect) -> f32 {
     let minimum = if edge.is_horizontal() {
         metrics::MIN_DOCK
@@ -519,10 +520,10 @@ pub fn clamp_split(edge: Edge, split: f32, area: Rect) -> f32 {
     } else {
         area.height()
     };
-    if extent <= 0.0 {
+    if !extent.is_finite() || extent <= 0.0 || !split.is_finite() {
         return 0.5;
     }
-    let floor = (minimum / extent).clamp(0.05, 0.45);
+    let floor = (minimum / extent).min(0.45);
     split.clamp(floor, 1.0 - floor)
 }
 

@@ -197,6 +197,8 @@ impl App {
                 if !self.workspace.valid_for(self.host.registry()) || !self.verified_undo {
                     return Err("workspace or undo validation failed".into());
                 }
+                let dock_checks = self.verify_dock_resize(main, event_loop, &path)?;
+                std::fs::write(path.with_extension("dock.json"), serde_json::to_vec_pretty(&dock_checks).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
                 self.workspace.save(&path.with_extension("layout.json"))?;
                 let reopened = Workspace::load(&path.with_extension("layout.json"));
                 if !reopened.valid_for(self.host.registry()) {

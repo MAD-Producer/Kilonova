@@ -59,3 +59,17 @@ cargo run -p motion-ui --example framework --locked -- --smoke artifacts/ui/fram
 ```
 
 `--smoke` 检查真实窗口与 Vulkan/GPU 呈现、数值事务、撤销、浮窗和布局保存恢复，并输出主窗口及浮窗截图。
+
+Dock resizing shares `dock::clamp_split` between the public API and workspace
+interaction. Limits use existing logical-pixel metrics, without a percentage
+floor on large windows. An undersized parent reserves up to 45% for each child.
+Stored split ratios must be finite and strictly between zero and one; the JSON
+schema is unchanged. Rendering and nested splitter hit testing share the same
+division geometry. Rejected split requests leave the original tree unchanged.
+
+The independent gallery accepts `--size WIDTHxHEIGHT`. Its native smoke probe
+drags a splitter to the pixel minimum, presents and captures both states, checks
+that rejected splitting and disk round-tripping preserve that layout, then
+restores the gallery without editing its model or undo history. The separate
+`.dock.json` report records the actual logical size, scale factor and
+resulting width.
