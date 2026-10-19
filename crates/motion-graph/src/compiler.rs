@@ -284,6 +284,11 @@ pub fn node_ports(node: &Node, parameters: &[PublicParameter]) -> Result<NodePor
             };
             (inputs, vec![("color", ValueType::Color)])
         }
+        NodeOp::Blend { .. } => (
+            vec![("backdrop", ValueType::Color), ("source", ValueType::Color),
+                ("factor", ValueType::Float)],
+            vec![("color", ValueType::Color)],
+        ),
         NodeOp::Noise { octaves, .. } => {
             if !(1..=4).contains(octaves) {
                 return Err(Error::invalid(
@@ -880,6 +885,9 @@ fn compile_plan(
         builder.input(&plan.output_node, "color").expr
     };
     let mut support = helpers(document.alpha_mode);
+    if plan.reachable_nodes.iter().any(|id| matches!(nodes[id.as_str()].operation, NodeOp::Blend { .. })) {
+        support.push_str(include_str!("blend.wgsl"));
+    }
     if plan.reachable_nodes.iter().any(|id| matches!(nodes[id.as_str()].operation, NodeOp::Noise { .. })) {
         support.push_str(include_str!("noise.wgsl"));
     }
@@ -1388,6 +1396,12 @@ impl<'a> Builder<'a> {
                     }
                 };
                 self.put(node, "color", ValueType::Color, expr, None, false);
+            }
+            Blend { mode } => {
+                self.put(node, "color", ValueType::Color,
+                    format!("ng_blend({}u,{},{},{})", *mode as u32,
+                        input("backdrop").expr, input("source").expr, input("factor").expr),
+                    None, false);
             }
             Noise { mode, octaves } => {
                 let mode = u32::from(*mode == NoiseMode::Perlin);

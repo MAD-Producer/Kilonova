@@ -127,6 +127,7 @@ pub fn catalog() -> Vec<LibraryItem> {
     for mode in [NoiseMode::Value, NoiseMode::Perlin] {
         add(Category::Color, NodeOp::Noise { mode, octaves: 1 });
     }
+    add(Category::Color, NodeOp::Blend { mode: ColorBlendMode::Normal });
     for op in [NodeOp::CombineColor, NodeOp::SplitColor, NodeOp::ApplyMask] {
         add(Category::Color, op);
     }

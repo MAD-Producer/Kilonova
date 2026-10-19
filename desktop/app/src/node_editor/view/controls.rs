@@ -594,7 +594,7 @@ impl NodeEditor {
                     field: number_rect(row, false),
                     items,
                     selected,
-                    scroll: 0.,
+                    scroll: selected as f32 * styles.metric("node.dropdown.row.height", 28.) * self.view.zoom,
                 });
             }
         }

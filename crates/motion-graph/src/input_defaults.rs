@@ -17,6 +17,11 @@ pub fn authoring_input_defaults(operation: &NodeOp) -> BTreeMap<String, InputVal
         values.insert(port.into(), value);
     };
     match operation {
+        NodeOp::Blend { .. } => {
+            add("backdrop", InputValue::Color([0.1, 0.3, 0.8, 1.]));
+            add("source", InputValue::Color([0.95, 0.45, 0.15, 1.]));
+            add("factor", InputValue::Float(1.));
+        }
         NodeOp::Noise { .. } => {
             add("offset", InputValue::Vec2([0.; 2]));
             add("scale", InputValue::Float(8.));

@@ -1,4 +1,4 @@
-use crate::{Error, ErrorCode, Result};
+use crate::{ColorBlendMode, Error, ErrorCode, Result};
 use motion_effects::{AlphaMode, WorkingSpace};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fs, path::Path};
@@ -161,6 +161,9 @@ pub enum NodeOp {
         mode: NoiseMode,
         octaves: u8,
     },
+    Blend {
+        mode: ColorBlendMode,
+    },
     ApplyMask,
     Select {
         value_type: ValueType,
@@ -209,6 +212,7 @@ impl NodeOp {
             Self::ColorMath { .. } => "color_math",
             Self::Gradient { .. } => "gradient",
             Self::Noise { .. } => "noise",
+            Self::Blend { .. } => "blend",
             Self::ApplyMask => "apply_mask",
             Self::Select { .. } => "select",
             Self::SdfCircle => "sdf_circle",
@@ -252,6 +256,7 @@ impl NodeOp {
             Self::ColorMath { .. } => ("颜色运算", "Color Math"),
             Self::Gradient { .. } => ("渐变", "Gradient"),
             Self::Noise { .. } => ("噪声", "Noise"),
+            Self::Blend { .. } => ("颜色合成", "Blend"),
             Self::ApplyMask => ("应用覆盖率", "Apply Mask"),
             Self::Select { .. } => ("选择", "Select"),
             Self::SdfCircle => ("SDF圆", "SDF Circle"),
@@ -529,6 +534,7 @@ impl GraphDocument {
                         "color_math",
                         "gradient",
                         "noise",
+                        "blend",
                         "apply_mask",
                         "select",
                         "sdf_circle",

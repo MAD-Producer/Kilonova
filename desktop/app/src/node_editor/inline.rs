@@ -78,6 +78,7 @@ pub(super) fn control_count(node: &Node, document: &GraphDocument) -> usize {
     match &node.operation {
         NodeOp::Float { .. }
         | NodeOp::Gradient { .. }
+        | NodeOp::Blend { .. }
         | NodeOp::Bool { .. }
         | NodeOp::ColorMath { .. }
         | NodeOp::Splat { .. }
@@ -342,6 +343,17 @@ pub(super) fn controls(node: &Node, document: &GraphDocument, language: Language
                 language,
                 true,
             ));
+        }
+        NodeOp::Blend { mode } => {
+            let titles = mode.title();
+            out.push(Control::Choice {
+                label: language.text("模式", "Mode").into(),
+                value: language.text(titles.0, titles.1).into(),
+                items: ColorBlendMode::ALL.into_iter().map(|mode| {
+                    let titles = mode.title();
+                    Choice { label: language.text(titles.0, titles.1).into(), operation: NodeOp::Blend { mode } }
+                }).collect(),
+            });
         }
         NodeOp::Noise { mode, octaves } => {
             out.push(choices(

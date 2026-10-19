@@ -1,4 +1,5 @@
 //! N1 effect graphs: typed documents, checked DAGs, one image pass and real .msfx.
+mod blend;
 mod compiler;
 mod demo;
 mod document;
@@ -8,6 +9,7 @@ mod export;
 mod groups;
 mod input_defaults;
 mod ports;
+pub use blend::ColorBlendMode;
 pub use compiler::{
     compile, compile_preview, node_ports, validate, CompileOptions, CompileReport, CompiledGraph,
     NodePorts, ValidationReport,

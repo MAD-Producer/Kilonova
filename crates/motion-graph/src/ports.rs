@@ -260,6 +260,14 @@ pub(crate) fn check_specs(
 
 type Help = (&'static str, &'static str, &'static str, &'static str);
 fn help(op: &NodeOp, id: &str, output: bool, semantic: PortSemantic) -> Help {
+    if matches!(op, NodeOp::Blend { .. }) {
+        return match (output, id) {
+            (false, "backdrop") => ("底色", "Backdrop", "被覆盖的颜色，遵循图的工作空间与 Alpha 模式；运算限制在 0..1。", "Color below the source, in the graph working space and alpha mode; bounded to 0..1."),
+            (false, "source") => ("源颜色", "Source", "叠加在底色上的颜色；透明部分保留底色，不读取其他图层。", "Color over the backdrop. Transparent regions preserve it; does not read other layers."),
+            (false, "factor") => ("强度", "Strength", "限制为 0..1 并乘到源 Alpha；零保留底色，一使用完整源不透明度。", "Clamped to 0..1 and multiplied by source alpha. Zero keeps the backdrop; one uses full source opacity."),
+            _ => ("颜色", "Color", "按当前混合模式进行 source-over 合成；输出遵循图的 Alpha 模式。", "Source-over result using the selected transfer; output follows the graph alpha mode."),
+        };
+    }
     if matches!(op, NodeOp::Noise { .. }) {
         return match (output, id) {
             (false, "coordinate") => ("坐标", "Coordinate", "连接归一化 UV；噪声域限制为正负一百万以保证整数安全。", "Connect normalized UV. Each octave's noise domain is clamped to +/-1,000,000 for integer safety."),
@@ -369,6 +377,7 @@ fn help(op: &NodeOp, id: &str, output: bool, semantic: PortSemantic) -> Help {
 
 pub fn node_description(operation: &NodeOp) -> (&'static str, &'static str) {
     match operation {
+        NodeOp::Blend { .. } => ("使用 15 种可分离模式合成两个颜色；强度控制源不透明度，遵循图的工作空间，数值限制在 0..1。", "Composites two colors with 15 separable modes. Strength controls source opacity in the graph working space; values bounded to 0..1."),
         NodeOp::Noise { .. } => ("生成二维值噪声或梯度噪声，支持 1..4 层；显式 UV，可调缩放、偏移和种子，同时输出因子与灰度颜色。", "Generates 2D Value or Perlin gradient noise with 1..4 octaves. Explicit UV, adjustable scale/offset/seed, factor and grayscale outputs."),
         NodeOp::Gradient { .. } => ("在线性、径向和顺时针角向模式中生成双色渐变与 0..1 因子；需要显式 UV，衰减指数可调。", "Generates a two-color gradient and 0..1 factor in linear, radial or clockwise conic mode; requires explicit UV and supports adjustable falloff."),
         NodeOp::Group { .. } => ("双击或 Tab 进入子图；Ctrl+Tab 返回；Alt+G 解包。分组保留端口类型、单位和原始计算结果。", "Double-click or Tab to enter; Ctrl+Tab returns; Alt+G ungroups. Boundaries preserve types, units and computation."),

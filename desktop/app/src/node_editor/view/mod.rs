@@ -150,6 +150,7 @@ fn category_color(op: &NodeOp) -> Color {
         | NodeOp::ColorMath { .. }
         | NodeOp::Gradient { .. }
         | NodeOp::Noise { .. }
+        | NodeOp::Blend { .. }
         | NodeOp::CombineColor
         | NodeOp::SplitColor
         | NodeOp::ApplyMask => Color::rgb(73, 62, 39), // 金橙 #DC963C (原: 92,81,45)

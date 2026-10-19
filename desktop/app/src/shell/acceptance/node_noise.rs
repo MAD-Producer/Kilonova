@@ -184,9 +184,7 @@ impl Shell {
                     return Err("noise undo did not restore GPU pixels".into());
                 }
                 self.smoke_node_report["noiseUndoRestoredPixels"] = true.into();
-                self.finish_node_starter_smoke(directory)?;
-                self.smoke_node_report["gradientProjectUntouched"] = true.into();
-                self.smoke_node_report["noiseProjectUntouched"] = true.into();
+                self.start_node_blend_smoke()?;
             }
             _ => return Err("unexpected noise acceptance stage".into()),
         }

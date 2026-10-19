@@ -398,6 +398,60 @@ fn noise_catalog_defaults_require_only_uv_and_respect_wire_precedence() {
 }
 
 #[test]
+fn blend_dropdown_keeps_wires_defaults_and_history_in_both_languages() {
+    for language in [Language::Chinese, Language::English] {
+        for zoom in [0.5, 1., 2.5] {
+            let mut graph = GraphDocument::from_json(include_str!("../../../../../crates/motion-graph/examples/compact-blend.msgraph")).unwrap();
+            for node in &mut graph.nodes { node.position = [40., 40.]; }
+            // Keep the selected card above overlapping fixtures at high zoom.
+            let index = graph.nodes.iter().position(|n|n.id=="blend").unwrap();
+            let blend = graph.nodes.remove(index); graph.nodes.push(blend);
+            let mut editor = NodeEditor::new(graph);
+            editor.inspector_open = false; editor.view.zoom = zoom; editor.view.pan = [20.;2];
+            let frame = |editor: &mut NodeEditor, atlas: &mut TextAtlas, input: Input| {
+                editor.draw(&mut PaintList::default(), atlas, Rect::new(0.,0.,1440.,900.), &input, language)
+            };
+            let before = editor.snapshot().document;
+            let mut atlas = TextAtlas::from_system(13.).unwrap();
+            frame(&mut editor,&mut atlas,Input::default());
+            let point = center(editor.choice_bounds("blend").unwrap());
+            frame(&mut editor,&mut atlas,press(point,MouseButton::Left));
+            frame(&mut editor,&mut atlas,release(point,MouseButton::Left));
+            let Some(Popup::Choice{items,selected,scroll,..})=&editor.inline.popup else {panic!("blend choice did not open")};
+            assert_eq!(*selected,14); assert_eq!(items.len(),15);
+            assert!(items.iter().all(|i|!i.label.is_empty()));
+            if zoom>1. { assert!(*scroll>0.,"opening a long menu must reveal its selected mode"); }
+            for _ in 0..11 {frame(&mut editor,&mut atlas,key(Key::Up));}
+            frame(&mut editor,&mut atlas,key(Key::Enter));
+            let node=editor.document.nodes.iter().find(|n|n.id=="blend").unwrap();
+            assert_eq!(node.operation,NodeOp::Blend{mode:ColorBlendMode::Screen});
+            let old=before.nodes.iter().find(|n|n.id=="blend").unwrap();
+            assert_eq!(node.input_defaults,old.input_defaults);
+            assert_eq!(editor.document.connections,before.connections);
+            editor.snapshot().compile().unwrap();
+            assert!(editor.undo());assert_eq!(editor.snapshot().document,before);
+            assert!(editor.redo());editor.snapshot().compile().unwrap();
+        }
+    }
+}
+
+#[test]
+fn blend_catalog_defaults_compile_immediately_and_keep_wire_precedence() {
+    let variants:Vec<_>=catalog().into_iter().filter(|i|matches!(i.operation,NodeOp::Blend{..})).collect();
+    assert_eq!(variants.len(),1);
+    let mut editor=simple();
+    let id=editor.add_node(variants[0].operation.clone(),[120.,100.]).unwrap();
+    editor.connect_ports(PortRef::new(&id,"color"),PortRef::new("output","color")).unwrap();
+    assert!(editor.diagnostic().is_none());
+    let initial=editor.input_default(&id,"factor").unwrap().clone();
+    editor.connect_ports(PortRef::new("number","value"),PortRef::new(&id,"factor")).unwrap();
+    assert!(editor.set_input_default(&id,"factor",InputValue::Float(0.25)).is_err());
+    assert_eq!(editor.input_default(&id,"factor").unwrap(),&initial);
+    editor.set_operation(&id,NodeOp::Blend{mode:ColorBlendMode::ColorBurn}).unwrap();
+    editor.snapshot().compile().unwrap();
+}
+
+#[test]
 fn numeric_live_drag_preserves_positions_multiselection_and_one_history_step() {
     for zoom in [0.5, 1., 2.] {
         let mut editor = simple();

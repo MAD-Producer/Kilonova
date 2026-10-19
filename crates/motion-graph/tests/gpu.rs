@@ -10,6 +10,8 @@ mod group_fixture;
 mod gradient_fixture;
 #[path = "support/noise_gpu.rs"]
 mod noise_gpu;
+#[path = "support/blend_gpu.rs"]
+mod blend_gpu;
 
 #[test]
 fn gradient_replaces_a_seven_node_color_mix_chain_without_changing_pixels() {

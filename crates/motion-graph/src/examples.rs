@@ -48,7 +48,7 @@ impl BuiltinExample {
 pub fn builtin_examples() -> &'static [BuiltinExample] {
     &EXAMPLES
 }
-const EXAMPLES: [BuiltinExample; 18] = [
+const EXAMPLES: [BuiltinExample; 19] = [
     BuiltinExample {
         id: "drifting_circle", name: "漂移圆形", english_name: "Drifting Circle",
         description: "公开半径、中心、颜色和速度参数，按局部时间移动半透明圆形。默认尺寸为 64×64。",
@@ -260,6 +260,17 @@ const EXAMPLES: [BuiltinExample; 18] = [
         limitations: "二维单 pass 噪声，不是三维体积或随时间自动演变；坐标域受限，种子按整数处理。",
         english_limitations: "2D single-pass noise, not volumetric or automatically time-varying. Bounded coordinate domain and integer-like seeds.",
         source: include_str!("../examples/compact-noise.msgraph"),
+    },
+    BuiltinExample {
+        id: "compact_blend", name: "渐变与噪声混合", english_name: "Gradient and Noise Blend",
+        description: "五个节点，把噪声与双色渐变合成为纹理；切换混合模式并调节强度。",
+        english_description: "Five nodes combine noise and a two-color gradient into a texture. Switch blend modes and adjust strength.",
+        lesson: "底色来自渐变，源颜色来自噪声；强度乘到源 Alpha，透明源保留底色。模式切换保留连线与输入默认值。",
+        english_lesson: "The gradient is the backdrop and noise is the source. Strength multiplies source alpha; transparent sources preserve the backdrop. Switching modes retains wires and defaults.",
+        collection: ExampleCollection::Fundamentals,
+        limitations: "单 pass 颜色合成，不采样其他图层；使用图的工作空间，数值限制在 0..1。",
+        english_limitations: "Single-pass color composition without other-layer sampling. Uses the graph working space with values bounded to 0..1.",
+        source: include_str!("../examples/compact-blend.msgraph"),
     },
 ];
 

@@ -1,7 +1,7 @@
 //! Standalone N2 node panel. The host owns dialogs, workers and preview routing.
 //! Drawing emits owned N1 snapshots; it never touches an editing Session or GPU queue.
 use motion_graph::{
-    demo_graph, node_ports, ColorOp, CompileOptions, CompileReport, Connection, Diagnostic,
+    demo_graph, node_ports, ColorBlendMode, ColorOp, CompileOptions, CompileReport, Connection, Diagnostic,
     ErrorCode, GradientMode, GraphDocument, ImageSource, InputValue, MathOp, Node, NodeOp, NoiseMode, PortRef,
     PublicParameter, SampleCoordinates, ValueType,
 };
@@ -1053,9 +1053,15 @@ impl NodeEditor {
             .find(|n| n.id == id)
             .cloned()
             .ok_or_else(|| diag(ErrorCode::UnknownNode, Some(id), None, "Node is missing"))?;
-        candidate.operation = operation;
         let mut shape = candidate.clone();
         shape.input_defaults.clear();
+        // A mode change with the same typed inputs must preserve absent
+        // fallbacks too, including connected inputs from saved source. An
+        // invalid old schema may still be replaced with a valid operation.
+        let previous_inputs = node_ports(&shape, &self.document.public_parameters)
+            .ok().map(|ports| ports.inputs);
+        candidate.operation = operation;
+        shape.operation = candidate.operation.clone();
         let inputs = node_ports(&shape, &self.document.public_parameters)
             .map_err(|error| error.diagnostic())?
             .inputs;
@@ -1063,7 +1069,9 @@ impl NodeEditor {
             .input_defaults
             .retain(|port, value| inputs.get(port) == Some(&value.value_type()));
         for (port, value) in motion_graph::authoring_input_defaults(&candidate.operation) {
-            candidate.input_defaults.entry(port).or_insert(value);
+            if previous_inputs.as_ref().and_then(|inputs| inputs.get(&port)) != Some(&value.value_type()) {
+                candidate.input_defaults.entry(port).or_insert(value);
+            }
         }
         self.check_node(&candidate)?;
         if self
