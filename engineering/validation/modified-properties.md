@@ -44,6 +44,16 @@
 
 ## 错误与正常边界审计
 
+本仓库原生程序生成的截图摘录（完整 16 张与报告保留在上述本地产物目录；不是外部产品素材）：
+
+| U：仅关键帧 | UU：静态修改及关键帧 |
+| --- | --- |
+| ![时间轴 U](screenshots/modified-properties/timeline-u-zh.png) | ![时间轴 UU](screenshots/modified-properties/timeline-uu-zh.png) |
+
+| 中文属性入口 | 英文属性入口 |
+| --- | --- |
+| ![中文 UU](screenshots/modified-properties/properties-uu-zh.png) | ![英文 UU](screenshots/modified-properties/properties-uu-en.png) |
+
 | 项目 | 分类与证据 | 剩余边界 |
 | --- | --- | --- |
 | MP-OBS-01 `properties.modified_value` | 新增变换 authored 数值读取观察；坏字段保持可见；子进程实际验证默认文件、60 次 Error stderr、stdout 隔离、后续抑制 | 进程存续期累计，采用上文已说明的既有 counter；不宣称连续失败或成功重置 |
