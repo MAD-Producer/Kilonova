@@ -1,6 +1,6 @@
 # 图层渲染采样：契约与实施证据
 
-Issue：#255。本工作最初基于 `f32c64de`，已同步到包含 PR #336 的 `80da4087`，保留在 `feat/layer-render-sampling`。三个采样开关现已接入时间轴，支持范围见下表及能力声明。本文保留各阶段证据；旧阶段的“待接入”不代表最新状态。最新 main 的渲染集成和剩余性能/失败验收尚未完成，不能据此关闭 issue。
+Issue：#255。本工作最初基于 `f32c64de`，已合入 `452f659` 主线（合并提交 `ef59c82`），保留在 `feat/layer-render-sampling`。三个采样开关现已接入时间轴，支持范围见下表及能力声明。本文保留各阶段证据；旧阶段的“待接入”不代表最新状态。main 渲染集成与桌面回归已完成；剩余 DPI、播放成本及新增坐标拒绝的默认失败信道验收尚未完成，不能据此关闭 issue。
 
 ## 当前要求与状态
 
@@ -461,3 +461,18 @@ DESIGN §12 的开关状态、菜单优先级、中文/英文、主/浮窗、最
 组合回归最终为 **88 通过、0 失败**（9 个 suite），覆盖 32 项库测试、2 项连续栅格化、6 项曝光累积、8 项持久曝光任务、8 项曝光 Scene、7 项层混合、12 项局部图像、5 项 main 放大效果密度、8 项嵌套曝光。原像素/容量/取消断言保留。`sampling-main-desktop-check.log` 带 FFmpeg 桌面检查通过（37.02 秒、21 条既有警告）。来源守卫（1,484 tracked paths）、样式消费者、暂存差异检查通过；末轮 ls-remote 仍为 `452f659`。PR #341 已承接 ui-atlas-lifetime 字体修复，本分支没有重复修改其 UI 库文件；#340 仍独立。
 
 本次合并确认 main 的抗锯齿/节点工作与 #255 渲染组合已通过上述范围验证。尚需合并后的桌面原生输入/预览与导出回归、可运行构建、DPI、完整播放成本及新坐标拒绝的默认失败信道；这不是关闭 #255 或发布版本的验收结论。
+
+
+### 合并后桌面与独立程序验收（2026-10-19）
+
+代码提交 `ef59c8256deda91a4dc457ca4a76316323eacfb1` 的完整 FFmpeg 桌面回归 `sampling-main-desktop-full.log` 为 **606 通过、0 失败、1 项既有忽略**（488.57 秒）。与前述 88 项渲染组合验证分开记录。新增 main 节点用例、#255 主/浮窗曝光预览、正式 PNG、取消、默认故障信道、时间轴开关和旧 3D/属性操作都在本轮实际执行。未放宽旧像素或交互断言。合并后控件截图存 `timeline-main-integrated/`，中英文各四张；已目视查看新的中文主窗行/视图菜单裁切图。
+
+`sampling-main-desktop-build.log` 的 FFmpeg dev 构建成功（2m07s，21 条原有警告）。独立目录为 `E:/Dev/aem/artifacts/layer-render-sampling/build-ef59c82/`，包含 EXE、经现有 runtime_payload 校验 SHA/平台/来源的共享运行库、FFmpeg 来源清单、应用 NOTICE/归属说明、shader 与内置字体许可证。build-info 明确 profile=dev、release=false、ffmpeg=true 和代码 commit；EXE SHA-256 为 `53afb44817927baecb1ce33d5a67c8f8394f4f1d2e544f1e9971a123698acc1b`。没有把开发构建伪称 GitHub release 或优化性能包。
+
+将 PATH 限制为 Windows/System32 与 Windows 后，从独立目录执行 --video-smoke，`sampling-main-standalone-video.log` 确认 backend=libav、decoded=true、sourceFrames=6，顺序/跳转/返回首帧四次解码均有真实 PTS、尺寸和 RGBA 字节数。素材为此前自制曝光输出 `nested-movie-shared-final/linear-video-exposure.mp4`，没有引入第三方素材。
+
+相同受限 PATH 下执行中英文 --smoke，两次均 exit 0、报告 ok=true；各有 29 个主窗呈现及两个浮窗的 4/2 次呈现。实际覆盖建层、动画、seek、保存重开、合成预览、chrome、属性/合成浮窗、resize、redock 和原有图层菜单。原生截图尺寸/状态通过现有 verify_design_screens，designCaptureProjectUntouched=true。对应 `build-ef59c82/smoke-zh.json`、`smoke-en.json` 及同名前缀 PNG；日志为 `sampling-main-standalone-smoke[-en].log`。这些既有右键菜单截图是验证产物，本阶段未修改右键菜单。
+
+中文 smoke 同一份报告的工作区切换往返约 48–118ms；retained UI 为一次 render、八次 reuse。它们仅是该 dev 构建在本机并行回归期间的样本，未替代正式播放性能验证。两语言启动日志仍包含本机 Epic Vulkan overlay JSON 缺失；程序成功完成验收。没有删除注册表、屏蔽日志、禁用用户覆盖层或将此环境记录宣称为已修复。
+
+当前状态：时间轴入口、main 集成、694 个上述桌面/渲染用例、独立带 FFmpeg 构建已有证据；#255 仍 OPEN。DPI 扩展、稳定播放成本、连续栅格化相机平面及新坐标拒绝的默认日志/前端端到端注入仍待完成。当前没有发布该分支的 PR；102 个文件的功能链路需要结合剩余验收组织审阅，不把本轮验证记录当作 issue 完成声明。
