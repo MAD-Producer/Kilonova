@@ -1636,6 +1636,9 @@ fn handle(
             let result=project::open_directory(id,&directory)?;*guard=next;Ok(result)
         })()),
         Command::State(reply) => respond(reply,project::state(id).map(|mut state|{
+            state["capabilities"]["layer_sampling"]["desktop_png"]=serde_json::json!({"exposure_renderer":true});
+            state["capabilities"]["layer_sampling"]["desktop_movie"]=serde_json::json!({
+                "exposure_renderer":cfg!(feature="ffmpeg"),"codec_check":"export_start","requires":["h264","aac"]});
             state["desktop"]=serde_json::json!({"headless":painter.is_none(),"panelWindows":if painter.is_some(){windows.len()+1}else{0},"sharedGpuDevice":painter.is_some(),"agentToolProtocol":1,
                 "uiPerformance":{"compositionRenders":presentation.composition_renders,"compositionReuses":presentation.composition_reuses,"lastPresentUs":presentation.last_present_us},
                 "diagnostics":diagnostics.status(),"frameExport":frame_capture.status(),

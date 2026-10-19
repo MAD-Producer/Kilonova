@@ -451,6 +451,7 @@ impl Shell {
             }
         }
         shell.panels.timeline.column_visibility = shell.workspace.column_visibility();
+        shell.panels.timeline.sampling_visibility = shell.workspace.timeline_sampling_columns;
         Ok(shell)
     }
 }

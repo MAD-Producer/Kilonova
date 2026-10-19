@@ -4,6 +4,35 @@ use motion_core::Project;
 use motion_render::{image_resources::Resolution, RenderError, Renderer, Scene};
 use std::path::Path;
 
+/// Renderer contracts, separate from a platform's available video decoders.
+pub fn capabilities() -> serde_json::Value {
+    use motion_core::render_sampling::{MAX_SHUTTER_SAMPLES, PREVIEW_SHUTTER_SAMPLES};
+    serde_json::json!({
+        "version":1,"project_format":21,"command":"set_layer_sampling","animated":false,
+        "wgpu_preview":true,
+        "frame_blend":{"sources":["video"],"modes":["hold","linear"],
+            "clock":"actual_source_pts","space":"linear_premultiplied"},
+        "motion_blur":{"sources":["solid","image","text","vector","video","composition"],
+            "shutter":"centered_midpoints","frames_min_exclusive":0,"frames_max":2,
+            "samples_min":2,"samples_max":MAX_SHUTTER_SAMPLES,
+            "preview_samples_max":PREVIEW_SHUTTER_SAMPLES,"frozen_samples":"authored",
+            "outside_interval":"transparent_without_weight_renormalization","nested":"independent_composition_clocks"},
+        "continuous_rasterization":{"sources":["vector"],"density":"projected_source_plane",
+            "text":false,"collapse_composition_transforms":false,"over_budget":"error"},
+        "legacy_frame_plans":{"motion_blur":false,"on_unsupported":"error_before_output"},
+        "legacy_capture":{"motion_blur":false}
+    })
+}
+
+/// A single-time packed plan cannot encode a multi-time exposure. Reject it
+/// before changing session time or touching caller-owned output buffers.
+pub fn require_single_time(project: &Project, operation: &str) -> crate::Result<()> {
+    if needs_exposure(project)? {
+        return Err(format!("operation={operation} composition={}: motion blur requires the exposure renderer; single-time plans cannot represent it", project.composition_id));
+    }
+    Ok(())
+}
+
 #[derive(Clone, Copy)]
 pub struct ExposureMediaPolicy {
     pub image_resolution: Resolution,

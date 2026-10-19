@@ -558,6 +558,11 @@ impl Shell {
                     self.workspace.save(&self.layout_path)?;
                 }
             }
+            Action::SamplingColumnVisibility(visibility) => {
+                self.panels.timeline.sampling_visibility = visibility;
+                self.workspace.timeline_sampling_columns = visibility;
+                if self.smoke.is_none() { self.workspace.save(&self.layout_path)?; }
+            }
             Action::PreviewMode(mode) => {
                 self.state["preview"] = self.engine.preview_mode(mode, 0)?
             }

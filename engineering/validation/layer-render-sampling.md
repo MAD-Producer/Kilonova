@@ -1,18 +1,18 @@
 # 图层渲染采样：契约与实施证据
 
-Issue：#255。本工作最初基于 `f32c64de`，已同步到包含 PR #336 的 `80da4087`，保留在 `feat/layer-render-sampling`。本文是进行中的交付记录，不能据此关闭 issue，也不表示三个开关都已支持。
+Issue：#255。本工作最初基于 `f32c64de`，已同步到包含 PR #336 的 `80da4087`，保留在 `feat/layer-render-sampling`。三个采样开关现已接入时间轴，支持范围见下表及能力声明。本文保留各阶段证据；旧阶段的“待接入”不代表最新状态。最新 main 的渲染集成和剩余性能/失败验收尚未完成，不能据此关闭 issue。
 
 ## 当前要求与状态
 
 | 要求 | 当前证据 | 状态 |
 | --- | --- | --- |
 | 模型存储、旧工程迁移、撤销 | LayerSampling、SetLayerSampling、格式 21；真实核心命令、保存/重开、undo/redo、手势取消测试 | 已实现并测试 |
-| 连续栅格化实际像素 | 原创圆形在 256×256 输出中放大八倍；真实 GPU capture、透明边界、覆盖面积、反复切换和冻结模型重开 | 矢量已实现；其他来源仍需逐项能力界定 |
+| 连续栅格化实际像素 | 原创圆形在 256×256 输出中放大八倍；真实 GPU capture、透明边界、覆盖面积、反复切换和冻结模型重开 | 矢量已实现；能力明确拒绝 text 和 composition，未宣称折叠合成变换 |
 | 连续栅格化预算和预览 | 投影密度影响实际源纹理尺寸及 mesh/cache 身份；默认与预览计划一致；低预算拒绝且恢复预算可继续渲染 | 已实现并测试 |
-| 帧混合 | 解码器要求真实相邻 PTS 双帧；GPU 在线性预乘空间混合；预览代理、桌面捕获与冻结组合读帧接入；实际 VFR、YUV、取消、冻结协议和默认日志用例 | 已实现核心链路；最终能力声明、UI 及原生界面验收待完成 |
-| 运动模糊 | 中心快门和逐层有理数阶段调度；逐接收层的真实 Scene/父级/相机/表达式/效果输入求值；独立局部效果图像与投影 matte；逐阶段调整图层；线性 FP16 累积；持久 GPU 帧任务、递归嵌套独立曝光、稳定媒体身份和真实冻结 MP4；Session 主窗/浮窗预览保留进度及请求身份；桌面 PNG 使用冻结后台任务 | 核心、冻结 MP4、桌面预览与正式 PNG 已接入；实际像素、取消与默认失败信道已有定向验证。旧组合读帧协议边界、性能与最终能力/UI 待完成 |
-| 能力检查及 UI | 模型拒绝对非视频帧混合、对非矢量连续栅格化、对非像素来源运动模糊 | 最终 host 能力声明和实际支持开关待接入；未加入空开关 |
-| 双语、主/浮窗、焦点失效 | PNG 导出沿用既有状态栏和文件菜单，补中英文运行截图；预览主/浮窗像素已验证 | 渲染开关的主/浮窗、失焦、右键菜单仍待接入后验收 |
+| 帧混合 | 解码器要求真实相邻 PTS 双帧；GPU 在线性预乘空间混合；预览代理、桌面捕获与冻结组合读帧接入；实际 VFR、YUV、取消、冻结协议和默认日志用例 | 已接能力声明及时间轴开关；仅 video 支持 |
+| 运动模糊 | 中心快门和逐层有理数阶段调度；逐接收层的真实 Scene/父级/相机/表达式/效果输入求值；独立局部效果图像与投影 matte；逐阶段调整图层；线性 FP16 累积；持久 GPU 帧任务、递归嵌套独立曝光、稳定媒体身份和真实冻结 MP4；Session 主窗/浮窗预览保留进度及请求身份；桌面 PNG 使用冻结后台任务 | 核心、冻结 MP4、桌面预览、PNG 和时间轴已接入；单时刻旧协议在修改状态/输出前拒绝曝光。实际长时间播放性能仍待验收 |
+| 能力检查及 UI | host 公布来源、时钟、预览采样上限、冻结质量及旧协议边界；时间轴原生 Checkbox 发送真实 SetLayerSampling | 已接入；图层行 3D 旁三列，视图菜单显隐；不适用/锁定/观察状态禁用 |
+| 双语、主/浮窗、焦点失效 | 原生 1600×1000 主窗及 900×600 浮窗实际 GPU 截图/输入，真实引擎命令、保存重开和撤销；释放及失焦输入不编辑 | 七项专项通过；完整桌面回归运行中。此轮修改视图菜单，没有修改右键菜单；DPI 扩展验收仍待完成 |
 
 ## 已实现的连续栅格化语义
 
@@ -387,3 +387,57 @@ FrozenMovie::export 对需要曝光的冻结工程共享一次验证的不可变
 最终带/不带 FFmpeg 桌面编译检查均通过，见 `png-desktop-ffmpeg-final.log`（7.40 秒）和 `png-desktop-noffmpeg.log`（14.67 秒）。保留既有 21 条普通构建警告、19 条测试构建警告。本阶段没有生成新的 release 分发包。去重计 610 项通过、1 项既有忽略，含五个新增测试及两个既有视频用例的 PNG 扩展；不把多次运行相加。
 
 暂存差异空白检查、来源守卫（1,410 tracked paths）和样式消费者检查通过。#255 仍为 OPEN；本提交完成正式桌面 PNG 这一段，不代表能力/UI、旧协议边界和完整性能验收已完成。
+
+### 时间轴采样开关、能力声明与单时刻协议边界（2026-10-19）
+
+按用户反馈，最终入口为时间轴图层行：在 3D 列旁增加帧混合、运动模糊、连续栅格化三列，默认显示。属性栏中的试验入口已撤回；`controls-first/third/final/complete` 图像和对应测试日志仅保留过程证据，不是最终 UI 验收。列显隐复用“视图”菜单，保存到 workspace，既不写工程历史也不改变采样值。表头短标签配完整名称提示；现有“＋”仍是音频标记入口。没有新增右键菜单、主题 token、依赖或第三方资产。
+
+列布局复用原 ColumnRects 和 `icon.slot`/`value.min_width`，不缩小开关点击范围。窄窗先回收可选混合/父级/遮罩文字列，再按完整槽位显示能容纳的采样列；用户的列偏好保持不变。全部关闭采样列后，位置与原布局一致。控件使用原生 Checkbox，关闭的参数保持模型默认值；不适用来源、锁定和观察状态禁止编辑。命令带 revision，非主合成显式包装 InComposition，走同一引擎错误回复及撤销历史。
+
+| 记录 | 分类 | 证据及限制 |
+| --- | --- | --- |
+| SAM-FUNC-16 | 功能/UI | 七项专项覆盖实际视频/矢量开关命令、保存重开、undo/redo、两语言、原生主/浮窗输入、视图菜单开关及退出菜单。UI 视频夹具仅是索引和不参与解码的占位文件，截图没有合成预览；实际视频像素证据沿用前述真实 VFR/YUV/PNG 用例，不能用控件截图代替。 |
+| SAM-FUNC-17 | 能力声明 | host sources 与模型十种 Content 的 validate_content 逐项一致。帧混合仅视频，连续栅格化仅矢量，运动模糊覆盖六种可绘制来源。desktop_movie 的 exposure_renderer 是编译链路声明；实际 h264/aac 能力在 export_start 检查，不把 FFmpeg feature 等同于编码器可用。 |
+| SAM-BOUND-03 | 显式协议边界 | render_plan_info、sample_render_plan、sample_planes、sample_geometry、frame_bundle、legacy_capture 不支持多时刻曝光，在写时间、观察状态、调用者缓冲或文件前拒绝。真实 session 测试验证拒绝不改变状态、a5/5a 缓冲、输出目录和 picking。仅不可达子合成有快门不阻断主工程；可达子合成阻断。单独连续栅格化仍能生成旧计划，未扩大拒绝范围。 |
+| SAM-OBS-17 | 新观测/既有错误信道 | malformed sampling 使用现有 observe 生命周期计数，站点/上下文有界；真实 UI 绘制重复 120 次，默认文件首条 Warn、第 60 次一次 Error，健康值不重置该生命周期计数。真实 EditChecked 非法样本数经 engine 回复，保留原因和 revision；Error 文件及 stderr、stdout 隔离均有子进程证据。此处不新增重试、线程或逐帧 Info。 |
+| SAM-NORMAL-13 | 正常交互/边界 | 未定义 sampling 是旧模型正常默认，不报错；不支持、锁定、观察、仅释放、失焦后的按住输入不修改项目。列显隐只改 workspace。开关是即时命令，没有持续拖动事务；项目撤销由既有命令历史处理。 |
+| SAM-PENDING-02 | 待验收 | 新 main 抗锯齿与采样合并、组合后的 GPU 像素、长时间播放性能、连续栅格化相机平面错误的默认端到端信道、扩展 DPI、正式可运行包。不得以专项或完整桌面测试绿灯直接关闭 #255。 |
+
+`sampling-controls-complete.log` 是属性入口阶段的完整验证：桌面 539 通过、1 项既有忽略，宿主/媒体及集成合计去重 651 通过。改用时间轴后，`sampling-timeline-tests-first.log` 七项全部通过（27.88 秒）。图像 `timeline-switches-first/` 每语言四张：主窗开关、视图菜单、隐藏模糊列、原生浮窗开关；已目视检查中文主窗、菜单、浮窗和英文浮窗。完整新回归另记结果，不把旧属性截图算最终验收。
+
+早期用例的失败分别为存储夹具缺根目录/素材、子合成 ID 不符合格式、测试字体未使用产品中文回退；均修正夹具并保留失败日志，没有改生产校验或削弱像素断言。既有 timeline_3d_tests 仅改为用生产 with_sampling 布局计算点击坐标，其 3D 状态、滚动、浮窗和撤销断言保持不变。
+
+DESIGN §0.7 逐项处置：
+
+| 基线位置 | 状态与理由 |
+| --- | --- |
+| path_controls 六处纵向步长 | retained：本轮没有修改路径面板 |
+| path_controls 双列分配 | retained：不属于图层采样入口 |
+| path_controls 混合按钮高度 | retained：不改变路径交互 |
+| path_controls 数字字段自绘 | retained：本轮不编辑数值字段 |
+| path_controls 全宽布尔按钮 | retained：原缺陷不归本次；新增开关使用 Checkbox |
+| effect_controls 行高/步长 | retained：本轮未编辑效果行 |
+| effect_controls 布尔文字按钮 | retained：不复用该模式 |
+| effect_controls 枚举按钮 | retained：本轮不增加或循环枚举 |
+| effect_controls 手工 hover alpha | retained：本轮未编辑效果 hover |
+| effect_controls 层级 | retained：属性树布局未改 |
+| timeline 既有列坐标 | retained with reason：未整体重构历史坐标，新增独立经测试的采样槽；六种宽度×八种显隐组合验证无相交、完整 hit slot、隐藏后原坐标一致，原生 3D 回归使用生产列布局 |
+| timeline 吸附指示颜色 | retained：没有改色、拖动容差或吸附行为 |
+
+DESIGN §12 的开关状态、菜单优先级、中文/英文、主/浮窗、最小/默认窗口、保存/撤销有直接证据；未宣称所有面板、OS Reduced Motion、全部 DPI 或整套八乘七控件矩阵通过。功能模型格式 21 来自 #255 已实现的功能契约，不是因视觉调整引入的新模型。
+
+### 并行分支检查与集成边界（2026-10-19）
+
+接续前已检查 worktree、相关近期分支、未提交变更及开放 PR；没有把只读审查写成对全部历史分支的穷尽证明。
+
+- `node-gestures` 有 node_editor 与 shell 输入/呈现的未提交修改；本分支不复制或重置它们。
+- `ui-atlas-lifetime` 有 paint/text/ui 和 atlas 测试修改；本轮沿用生产字体装载，不重复修复图集寿命。
+- `codex/node-library-layers` 为节点库简化，涉及 main/shell/style；未发现另一个图层采样开关实现。后续集成保留其功能。
+- PR #340（`fix/render-compositor-plane-check`）负责 compositor 缺失平面的受检错误与 #133；本轮不重复实现。
+- 最新 origin/main 为 `452f659`，包含已合并的节点工作及平面抗锯齿/放大效果密度。只读 `git merge-tree --write-tree --name-only HEAD origin/main` 发现八个渲染文件冲突：compositing_gpu.rs、compositing_plan.rs、compositor.rs、lib.rs、renderer.rs 和三份 plane shader。该命令未修改工作树；后续必须结合双方语义解决，不能选整份 ours/theirs。合并前先保存并验证本阶段，合并后重验 GPU 覆盖、源密度和曝光。
+
+完整时间轴回归 `sampling-timeline-complete.log` 首轮为 538 通过、2 失败、1 项原有忽略（452.32 秒）。失败均来自旧测试专用 `layer_switches::columns` 仍用未分配采样列的布局计算 3D 点击目标；实际生产 3D 滚动/切窗测试和七项采样用例通过。将该测试辅助函数改为生产 with_sampling 路径（这些真实 host 夹具使用默认可见采样列）；没有改变原保存重开、undo/redo、readonly、菜单互斥或列不相交断言。修正后的整个 property_followup_tests suite 单独重跑，结果另记。
+
+最终控件截图在 `timeline-switches-final/`，另有从真实主窗截取的 `zh-timeline-row-detail.png` 与 `zh-columns-menu-detail.png`，只裁切不重绘。已目视检查两张细节图及完整主窗菜单。来源守卫（1,412 tracked paths）、样式消费者和暂存差异空白检查通过。截图裁切首次用 Python PIL 失败（环境未安装）；改用系统 System.Drawing 完成，没有安装依赖或修改产品。
+
+修正辅助坐标后，`sampling-timeline-existing-targets.log` 的整个 property_followup_tests 为 10 通过、0 失败（18.44 秒），包含前述两项失败。最终桌面用例去重 540 通过、1 项原有忽略；完整轮次有两项失败、后续定向重跑修复，不把它描述为一次完整全绿运行。修正只涉及测试辅助坐标，生产语义与完整轮次一致（其后列布局仅做排版格式化）。
