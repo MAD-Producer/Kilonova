@@ -109,6 +109,7 @@ impl Session {
             info["gpuConversions"] = json!(g.renderer.video_gpu_conversions);
             info["standaloneConversionSubmissions"] = json!(g.renderer.video_conversion_submissions);
             info["encodedConversions"] = json!(g.renderer.video_encoded_conversions);
+            info["frameBlendSubmissions"] = json!(g.renderer.video_blend_submissions);
         }
         info
     }

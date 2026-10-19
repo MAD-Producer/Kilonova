@@ -3,6 +3,7 @@ use motion_model::{Project, MAX_LAYERS};
 use crate::{PlaneCompositor, ResourceBudgetScope, ResourceRejection, Scene};
 mod compositing;
 mod gpu_failure;
+mod frame_blend;
 use bytemuck::{Pod, Zeroable};
 use image::ImageReader;
 use std::{
@@ -92,6 +93,7 @@ pub(crate) struct GpuImage {
 pub(crate) enum TextureKey {
     Static(u64),
     Video(u64),
+    VideoBlendSource(u64, u8),
     Vector(u64),
     Mask(u64),
     EffectInput(u64),
@@ -163,6 +165,9 @@ pub struct Renderer {
     compositing_gpu: Option<crate::compositing_gpu::CompositingGpu>,
     compositing_pipeline_set_builds: u64,
     video_gpu: Option<crate::video_gpu::VideoGpu>,
+    video_blend: Option<frame_blend::FrameBlendGpu>,
+    /// Source-cache copies and linear mixtures submitted over this renderer's lifetime.
+    pub video_blend_submissions: u64,
     pub video_upload_bytes: u64,
     pub video_uploads: u64,
     pub video_gpu_conversions: u64,
@@ -398,6 +403,8 @@ impl Renderer {
             layer_gpu,
             mask_gpu,
             video_gpu: None,
+            video_blend: None,
+            video_blend_submissions: 0,
             video_upload_bytes: 0,
             video_uploads: 0,
             video_gpu_conversions: 0,
@@ -466,6 +473,7 @@ impl Renderer {
             }
         }
         if let Some(video) = &mut self.video_gpu { video.clear(); }
+        self.video_blend = None;
         self.composition_images.clear();
         self.mask_gpu.clear();
         self.layer_gpu.release();
@@ -517,7 +525,7 @@ impl Renderer {
                 TextureKey::Mask(_) => MaskOutputs,
                 TextureKey::EffectInput(_) => EffectInputSnapshots,
                 TextureKey::Video(id) if self.composition_images.contains(id) => NestedCompositions,
-                TextureKey::Video(_) => VideoRgba,
+                TextureKey::Video(_) | TextureKey::VideoBlendSource(..) => VideoRgba,
             };
             ledger.retained(&image._texture, category, format!("images/{key:?}"));
         }
@@ -551,7 +559,7 @@ impl Renderer {
                 TextureKey::EffectInput(_) => memory.effect_input_snapshots += image.bytes,
                 TextureKey::Video(id) if self.composition_images.contains(id) =>
                     memory.nested_compositions += image.bytes,
-                TextureKey::Video(_) => memory.video_rgba += image.bytes,
+                TextureKey::Video(_) | TextureKey::VideoBlendSource(..) => memory.video_rgba += image.bytes,
             }
         }
         memory
@@ -645,6 +653,7 @@ impl Renderer {
             .get_mut(&TextureKey::Video(object))
             .unwrap()
             .video_stamp = Some((source, pts));
+        self.invalidate_video_blend(object);
         Ok(())
     }
     pub fn upload_video_yuv(
@@ -806,6 +815,7 @@ impl Renderer {
             None
         };
         self.images.get_mut(&key).unwrap().video_stamp = Some((source, pts));
+        self.invalidate_video_blend(object);
         self.video_uploads += 1;
         self.video_upload_bytes += frame.bytes() as u64;
         self.video_gpu_conversions += 1;
@@ -836,6 +846,7 @@ impl Renderer {
             self.effect_gpu.invalidate();
         }
         self.composition_images.retain(|id|compositions.contains(id));
+        self.retain_video_blend_sources(scene);
     }
     fn upload_pixels(
         &mut self,
@@ -1019,7 +1030,7 @@ impl Renderer {
             .copied()
             .filter(|id| match id {
                 TextureKey::Static(id) => *id != 0 && !project.assets.iter().any(|a| a.id == *id),
-                TextureKey::Video(_) => true,
+                TextureKey::Video(_) | TextureKey::VideoBlendSource(..) => true,
                 TextureKey::Vector(id) => !project
                     .layers
                     .iter()
@@ -1045,6 +1056,7 @@ impl Renderer {
             }
             self.effect_gpu.invalidate();
         }
+        self.video_blend = None;
         Ok(())
     }
     /// Register the complete, stable asset table without decoding/uploading
@@ -1274,6 +1286,7 @@ impl Renderer {
         Ok(())
     }
     pub fn clear_assets(&mut self) {
+        self.video_blend = None;
         self.layer_gpu.release();
         if let Some(gpu)=&mut self.compositing_gpu{gpu.release();}
         self.image_decode.cancel();
@@ -1299,6 +1312,7 @@ impl Renderer {
     /// separate cache and keep the visible project's resources on failure.
     pub fn replace_assets(&mut self, project: &Project, root: &Path) -> Result<()> {
         let previous_video_gpu = self.video_gpu.take();
+        let previous_video_blend = self.video_blend.take();
         let mut previous = std::mem::take(&mut self.images);
         let previous_alpha = std::mem::take(&mut self.effect_gpu.builder.alpha_images);
         let previous_bytes = self.texture_bytes;
@@ -1321,6 +1335,7 @@ impl Renderer {
             );
             self.images = previous;
             self.video_gpu = previous_video_gpu;
+            self.video_blend = previous_video_blend;
             self.effect_gpu.builder.alpha_images = previous_alpha;
             self.texture_bytes = previous_bytes;
             self.asset_order = previous_order;

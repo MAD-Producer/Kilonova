@@ -557,7 +557,7 @@ impl Session {
                     .as_ref()
                     .unwrap()
                     .asset;
-                match self.preview_video.upload(
+                match self.preview_video.upload_prepared(
                     &mut g.renderer,
                     *object,
                     source,
