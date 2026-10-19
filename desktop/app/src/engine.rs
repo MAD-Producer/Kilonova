@@ -34,6 +34,8 @@ mod queue_tests;
 mod scope_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod pending_video_tests;
+#[cfg(all(test, target_os = "windows"))]
+mod sampling_playback_tests;
 use failure::{ErrorReply, Failure, SessionLease};
 
 /// Maximum JSON payload accepted from the UI. Matches the Android bridge limit

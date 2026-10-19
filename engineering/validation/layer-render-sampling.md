@@ -496,3 +496,24 @@ SAM-FUNC-19（功能恢复验证，无生产修复）：失败不改工程、rev
 最终 `sampling-camera-failure-verified.log` 为 1 通过、0 失败（13.20 秒），独立于此前全量回归；`camera-failure-verified/` 保留两语言状态文本、恢复后的 PNG、文件日志、stderr 和 stdout。测试仍可见本机既有 Epic Vulkan overlay JSON 缺失，未将它混作目标故障。此用例验证的是连续栅格化相机平面拒绝；新增 plane_coordinates 的逆矩阵/精度范围拒绝、正常背面裁切，以及真实播放成本仍需各自证据，不能相互替代。#255 保持 OPEN。
 
 随后收紧相同请求号的观测断言：两个独立 Engine 都从相同编号开始，因此每次失败必须在上一次失败之后找到新的 serial start 和 async start，且顺序正确，不能匹配前一个 Engine 的记录。`sampling-camera-failure-scoped.log` 再次 1 通过、0 失败（12.44 秒），对应保留产物 `camera-failure-scoped/`；不是新增测试数量。来源守卫（1,485 tracked paths）、样式消费者及暂存差异检查通过。本阶段只修改测试及验证文档，没有新增生产观测、功能改动或资源。
+
+### 默认预览策略的连续播放成本（2026-10-19）
+
+SAM-PERF-04：新增原生窗口成本用例，使用真实 Shell TogglePlay、playback_ready、advance_playback、引擎 seek/present 回复与曝光完成屏障。1280×800 隐藏主窗内播放 640×360、30 fps 工程的四个放大六倍矢量圆，比较关闭采样、仅运动模糊、仅连续栅格化及两者同时开启。运动模糊存储八样本，默认预览实际四相位；每组五次预热及六十次完整呈现。每次均核对 lastPresentedFrame 与请求相同、时间前进、曝光未完成时不开始下一次 seek；停止后工程不变，四组均实际捕获原生窗口 PNG。
+
+计时包含 UI 构建、原生 surface 呈现、引擎回复和每完成帧一次状态读取，不包含操作系统事件分发、物理输入、音视频解码；没有逐帧 CPU 像素回读。测试驱动调用生产方法，但没有运行完整 ApplicationHandler 事件循环，因此它是节拍控制下的真实渲染成本样本，不是任意工程的应用帧率保证或长时间稳定性认证。不设硬件相关的最低 FPS 断言；失败、永不完成或错误帧仍使测试失败。
+
+首轮 `sampling-playback-dev-first.log` 通过（26.40 秒），夹具用三千帧完成位移动画；随后将终点提前到三百帧，增加这一段播放的实际位移。首轮数据仅保留调查记录，不与最终 release 作直接比较。最终同一夹具的 dev/release 均通过，分别为 `sampling-playback-dev-final.log`（23.02 秒）和 `sampling-playback-release.log`（13.37 秒，编译 10m10s）。release 使用仓库原配置、优化开启及 thin LTO，报告 debug_assertions=false；没有覆写优化级别。
+
+| 默认自动预览模式 | dev 完成帧/秒 | release 完成帧/秒 | release 帧间隔中位数 / P95 ms | release 最终实际尺寸 | release 预览所持纹理容量 bytes |
+| --- | ---: | ---: | --- | --- | ---: |
+| 关闭采样 | 29.31 | 29.26 | 33.86 / 37.12 | 591×332 | 1,591,464 |
+| 运动模糊 | 15.97 | 29.22 | 34.29 / 36.62 | 394×221 | 1,753,776 |
+| 连续栅格化 | 29.17 | 29.24 | 34.24 / 36.03 | 591×332 | 2,327,628 |
+| 两者同时开启 | 18.16 | 29.25 | 34.04 / 37.90 | 394×221 | 2,156,508 |
+
+P95 为排序后第 57/60 个完成间隔。dev 四组均保持 394×221；release 中自动预览把不含曝光的两组提升到 high，曝光两组保持 balanced，所有组 memoryAdaptation.held=false。这是既有默认自适应行为，不是本次新增降级或隐藏错误。不同分辨率不能当成同画质 GPU 基准，数字也不是显卡驱动驻留显存：使用 memoryBreakdown.previewOwnedTextureBytes 的逻辑纹理容量，排除 GPU buffer、staging、交换链、UI 与独立预览等，具体类别与排除项保留在 JSON。当前报告没有采集所选适配器身份，不将其作为跨设备基线。
+
+release 同时开启两项时，平均 seek 回复约 0.93ms、UI 构建约 2.77ms、呈现回复约 6.20ms，每个完成帧一次 present；dev 初轮出现多次曝光轮询及重复 UI 构建开销。当前证据支持该小场景在默认策略下按目标节拍完成，不支持承诺复杂效果、高清视频、浮窗并发或固定高分辨率的实时性能。`playback-release/` 与 `playback-dev-final/` 保存完整逐帧 costs.json、四幅真实截图和日志；已目视检查 release 同时开启图。此处没有生产性能修复，也没有以测试构建代替可分发 release EXE。
+
+分支复核期间，#340 经实际 diff、测试范围及全绿 CI 检查后合并为 `c46ce88`，#133 随之关闭；#341 经图集/UV 代码、真实 GPU 对照和全绿 CI 检查后合并为 `afaf8d1`，#129 保持 OPEN。#342 此时仍等待 Intel Mac CI，未合并。当前采样性能样本仍基于 `e2c8147` 的产品代码，未将已合入 main 的两项修复伪称为本分支已完成组合验证；静态 merge-tree 无冲突仅说明可合并。
