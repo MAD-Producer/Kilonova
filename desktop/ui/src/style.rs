@@ -544,9 +544,8 @@ pub fn text_style(
     style: ResolvedStyle,
     align: Align,
 ) {
-    let mut content = list.child();
-    ui::text_sized(
-        &mut content,
+    ui::text_clipped(
+        list,
         atlas,
         area,
         text,
@@ -554,6 +553,4 @@ pub fn text_style(
         align,
         style.font_size,
     );
-    content.clip_to(area);
-    list.append(content);
 }

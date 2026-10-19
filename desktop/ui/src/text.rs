@@ -397,25 +397,35 @@ impl TextAtlas {
 
     /// Truncate to fit `width`, appending an ellipsis when characters are lost.
     pub fn ellipsize(&mut self, text: &str, width: f32) -> String {
-        if self.measure(text) <= width {
-            return text.to_owned();
+        let (prefix, ellipsis) = self.fitted_text(text, width);
+        let mut result = prefix.to_owned();
+        if ellipsis {
+            result.push('\u{2026}');
+        }
+        result
+    }
+
+    /// Borrow the visible prefix and report whether to emit an ellipsis.
+    /// Drawing can iterate this pair without allocating an intermediate string.
+    pub(crate) fn fitted_text<'a>(&self, text: &'a str, width: f32) -> (&'a str, bool) {
+        if text.chars().map(|c| self.advance(c)).sum::<f32>() <= width {
+            return (text, false);
         }
         let ellipsis_width = self.advance('\u{2026}');
         if !width.is_finite() || width < ellipsis_width {
-            return String::new();
+            return ("", false);
         }
-        let mut result = String::new();
+        let mut end = 0;
         let mut used = 0.0;
-        for character in text.chars() {
+        for (index, character) in text.char_indices() {
             let advance = self.advance(character);
             if used + advance + ellipsis_width > width {
                 break;
             }
-            result.push(character);
+            end = index + character.len_utf8();
             used += advance;
         }
-        result.push('\u{2026}');
-        result
+        (&text[..end], true)
     }
 }
 

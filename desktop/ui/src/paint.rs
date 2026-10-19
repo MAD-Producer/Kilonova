@@ -227,22 +227,10 @@ impl PaintList {
         self.glyphs.retain_mut(|glyph| {
             let old = old_glyph;
             old_glyph += 1;
-            let left = glyph.position[0].max(area.min[0]);
-            let top = glyph.position[1].max(area.min[1]);
-            let right = (glyph.position[0] + glyph.size[0]).min(area.max[0]);
-            let bottom = (glyph.position[1] + glyph.size[1]).min(area.max[1]);
-            if right <= left || bottom <= top {
+            let Some(clipped) = glyph.clipped(area) else {
                 return false;
-            }
-            let [u0, v0, u1, v1] = glyph.uv;
-            glyph.uv = [
-                u0 + (u1 - u0) * (left - glyph.position[0]) / glyph.size[0],
-                v0 + (v1 - v0) * (top - glyph.position[1]) / glyph.size[1],
-                u0 + (u1 - u0) * (right - glyph.position[0]) / glyph.size[0],
-                v0 + (v1 - v0) * (bottom - glyph.position[1]) / glyph.size[1],
-            ];
-            glyph.position = [left, top];
-            glyph.size = [right - left, bottom - top];
+            };
+            *glyph = clipped;
             glyph_map[old] = Some(new_glyph);
             new_glyph += 1;
             true
@@ -363,6 +351,29 @@ pub struct Glyph {
     pub position: [f32; 2],
     pub size: [f32; 2],
     pub color: Color,
+}
+
+impl Glyph {
+    /// Crop one glyph before insertion, preserving its texture coordinates.
+    pub(crate) fn clipped(mut self, area: Rect) -> Option<Self> {
+        let left = self.position[0].max(area.min[0]);
+        let top = self.position[1].max(area.min[1]);
+        let right = (self.position[0] + self.size[0]).min(area.max[0]);
+        let bottom = (self.position[1] + self.size[1]).min(area.max[1]);
+        if right <= left || bottom <= top {
+            return None;
+        }
+        let [u0, v0, u1, v1] = self.uv;
+        self.uv = [
+            u0 + (u1 - u0) * (left - self.position[0]) / self.size[0],
+            v0 + (v1 - v0) * (top - self.position[1]) / self.size[1],
+            u0 + (u1 - u0) * (right - self.position[0]) / self.size[0],
+            v0 + (v1 - v0) * (bottom - self.position[1]) / self.size[1],
+        ];
+        self.position = [left, top];
+        self.size = [right - left, bottom - top];
+        Some(self)
+    }
 }
 
 #[repr(C)]
