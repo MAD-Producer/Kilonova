@@ -30,7 +30,10 @@ fn check_refusal(camera: bool, test_name: &str) {
         "object=7 phase=plane_coordinates: projection exceeds GPU coordinate range"
     };
     if let Some(root) = std::env::var_os(CHILD) {
-        let root = PathBuf::from(root);
+        // Export publication resolves the parent directory before reporting its
+        // path. Use that same physical fixture directory from the start: Windows
+        // runners may provide TEMP through an 8.3 alias such as RUNNER~1.
+        let root = PathBuf::from(root).canonicalize().unwrap();
         let _logger = crate::logging::init(root.clone()).unwrap();
         for (language, locale) in [("zh", Locale::Zh), ("en", Locale::En)] {
             let mut project = Project::new(64, 64, 30, 60).unwrap();
