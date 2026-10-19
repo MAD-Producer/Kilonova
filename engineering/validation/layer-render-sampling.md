@@ -567,3 +567,7 @@ SAM-FUNC-23：`7258338` 的 Linux Rust/GPU job 118111668971 已通过此前的 h
 SAM-DELIVERY-03：上一提交 `7258338` 的 release 构建成功（`sampling-release-exposure-build.log`），`release-7258338/` 带经现有 manifest 校验的七个 FFmpeg DLL 与许可证，EXE SHA-256 `7b7a7d3b809421cc2669256d8d15a513fbe39d4c29eb01f2a7ae626ee404079d`。受限 PATH 下 libav 四次真实解码、中英文各 29 次主窗呈现与两个浮窗 4/2 次呈现通过，工程不变，见 `sampling-release-exposure-native.log` / `release-native-7258338-verified/summary.json`。该包不含本次 UNORM16 改动；新 release 编译另记 `sampling-release-unorm-build.log`，得到终态前不视为通过。
 
 本轮工作开始前复核本地工作树、近期分支与开放 PR：#349 负责共享 U/UU 筛选；#345 负责文字边界；#347 负责借用输入；#348 负责菱形边界；#346 图标缓存已合并主线，node-gestures 仍有未提交路由修改。本次仅修改 renderer 设备 feature、曝光格式和本记录，不重做上述内容，也未将未合入的分支称为组合验收。新增拒绝复用已有错误传播，未新增日志设施、重试或重启；不改变任何面板样式与交互。
+
+SAM-DELIVERY-04：`4b898ea` 的带 FFmpeg 优化构建最终成功（12m11s，21 条既有警告）。`release-4b898ea/` 已独立打包七个运行库及现有来源/许可证，EXE SHA-256 `9dc60870f427187d16ba578fc13a0ecc9b4cd4219903502cba86925d5b68f414`，build-info 对应实际代码提交。`sampling-release-unorm-package.log` / `sampling-release-unorm-native.log` 与 `release-native-4b898ea-verified/summary.json` 确认受限 PATH 下 libav 顺序/跳转/返回首帧四次真实解码，中英文主窗各 29 次呈现、两个浮窗各 4/2 次呈现，截图必需状态检查及工程不变通过。该包包含 UNORM16 功能修复，未作为 GitHub 正式版本发布；这份文档追加不改变已编译程序。Linux/Metal CI 尚未完成，PR #344 保持草稿。
+
+等待上述编译期间，在核对近期分支后从 main `92a2327` 单独建立 `test/multiple-camera-compositions`，提交 PR #350，补齐既有多摄影机的嵌套与实际冻结视频输出回归；没有把该测试分支的内容合进采样包。#349 同样保持独立，不能把三个 PR 的验证数量相加当作一次组合验收。
