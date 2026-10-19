@@ -2,6 +2,50 @@
 use super::*;
 
 impl App {
+    pub(super) fn secondary_owner_probe(
+        &mut self,
+        id: WindowId,
+        event_loop: &ActiveEventLoop,
+    ) -> Result<(), String> {
+        use motion_ui::{input::Event, MouseButton};
+        let area = self.layouts(&self.windows[&id])[0].bounds;
+        let field = field_rect(area, 0);
+        let start = [field.min[0] + 10., field.min[1] + 10.];
+        let end = [start[0] + 20., start[1]];
+        let before = self.model.borrow().clone();
+        let focus = self.router.focus();
+        for owner in [MouseButton::Right, MouseButton::Middle] {
+            for event in [
+                Event::MousePressed {
+                    position: start,
+                    button: owner,
+                },
+                Event::MousePressed {
+                    position: start,
+                    button: MouseButton::Left,
+                },
+                Event::MouseMoved { position: end },
+                Event::MouseReleased {
+                    position: end,
+                    button: MouseButton::Left,
+                },
+                Event::MouseReleased {
+                    position: end,
+                    button: owner,
+                },
+            ] {
+                self.input_frame(id, event, event_loop)?;
+                if *self.model.borrow() != before
+                    || self.router.captured().is_some()
+                    || self.router.focus() != focus
+                {
+                    return Err("left press stole an existing secondary-button gesture".into());
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub(super) fn input_frame(
         &mut self,
         id: WindowId,
@@ -131,6 +175,7 @@ impl App {
         event_loop: &ActiveEventLoop,
         path: &std::path::Path,
     ) -> Result<(), String> {
+        self.secondary_owner_probe(id, event_loop)?;
         let area = self.layouts(&self.windows[&id])[0].bounds;
         let r = field_rect(area, 0);
         use motion_ui::{input::Event, MouseButton};

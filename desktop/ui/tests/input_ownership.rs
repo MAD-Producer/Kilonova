@@ -468,3 +468,58 @@ fn event_accumulation_preserves_the_first_held_button_and_its_drag_origin() {
         }
     }
 }
+
+#[test]
+fn an_existing_secondary_owner_cannot_arm_primary_controls_or_capture() {
+    let mut atlas =
+        TextAtlas::from_system(12.).expect("system font required for primary ownership test");
+    for window in [0, 2] {
+        for owner in [MouseButton::Right, MouseButton::Middle] {
+            let area = region(window, 1);
+            let mut input = Input::default();
+            let mut router = Router::default();
+            let mut field = NumberEditor::default();
+            let mut button = Button::default();
+            let mut paint = PaintList::default();
+            for event in [
+                Event::MousePressed {
+                    position: [10., 10.],
+                    button: owner,
+                },
+                Event::MousePressed {
+                    position: [10., 10.],
+                    button: MouseButton::Left,
+                },
+                Event::MouseMoved {
+                    position: [30., 10.],
+                },
+                Event::MouseReleased {
+                    position: [30., 10.],
+                    button: MouseButton::Left,
+                },
+                Event::MouseReleased {
+                    position: [30., 10.],
+                    button: owner,
+                },
+            ] {
+                accumulate(&mut input, event);
+                router.begin_frame(window, &input, &[area]);
+                let routed = router.input_for(area.target, &input);
+                assert!(field
+                    .update(25., NumberOptions::default(), &routed, area.rect)
+                    .is_empty());
+                assert!(
+                    !field.interacting(),
+                    "left press must not steal {owner:?} ownership"
+                );
+                let response = button.draw(&mut paint, &mut atlas, area.rect, "Run", &routed, true);
+                assert!(!response.active && !response.clicked);
+                assert_eq!(router.captured(), None);
+                assert_eq!(router.focus(), None);
+                router.end_frame(&input);
+                input.begin_frame();
+            }
+            assert_eq!(input.held, None);
+        }
+    }
+}

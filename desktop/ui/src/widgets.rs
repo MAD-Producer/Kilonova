@@ -272,6 +272,7 @@ impl NumberEditor {
         if self.drag.is_none()
             && !input.composing
             && !input.ime_consumed
+            && input.held.is_none_or(|button| button == MouseButton::Left)
             && input
                 .pressed
                 .is_some_and(|(b, p)| b == MouseButton::Left && area.contains(p))
@@ -482,6 +483,7 @@ impl Button {
             self.armed = false;
         }
         if enabled
+            && input.held.is_none_or(|button| button == MouseButton::Left)
             && input
                 .pressed
                 .is_some_and(|(b, p)| b == MouseButton::Left && area.contains(p))

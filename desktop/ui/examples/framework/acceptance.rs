@@ -121,6 +121,7 @@ impl App {
             .find(|p| p.panel == DockId(2));
         match self.stage {
             0 => {
+                self.secondary_owner_probe(main, event_loop)?;
                 let r = field_rect(layout.unwrap().bounds, 0);
                 let p = [r.min[0] + 10., r.min[1] + 10.];
                 ui::accumulate(
@@ -219,7 +220,7 @@ impl App {
                 }
                 self.capture(main, &path.with_extension("png"))?;
                 let info = self.gpu.as_ref().unwrap().adapter.get_info();
-                std::fs::write(&path,serde_json::to_vec_pretty(&serde_json::json!({"styles":style_checks,"ok":true,"adapter":info.name,"backend":format!("{:?}",info.backend),"independentUiOnly":true,"numericDragOneUndo":true,"undoRestored":true,"floatingPresented":true,"layoutRoundtrip":true,"secondaryButtonsPreservedGesture":true,"floatingCancellationRestored":true,"tabNavigationGuarded":true,"language":if self.language==Language::Chinese{"zh"}else{"en"},"screenshot":path.with_extension("png")})).unwrap()).map_err(|e|e.to_string())?;
+                std::fs::write(&path,serde_json::to_vec_pretty(&serde_json::json!({"styles":style_checks,"ok":true,"adapter":info.name,"backend":format!("{:?}",info.backend),"independentUiOnly":true,"numericDragOneUndo":true,"undoRestored":true,"floatingPresented":true,"layoutRoundtrip":true,"secondaryButtonsPreservedGesture":true,"secondaryOwnerGuarded":true,"floatingCancellationRestored":true,"tabNavigationGuarded":true,"language":if self.language==Language::Chinese{"zh"}else{"en"},"screenshot":path.with_extension("png")})).unwrap()).map_err(|e|e.to_string())?;
                 event_loop.exit();
             }
             _ => {}

@@ -28,7 +28,7 @@ def main():
         data = json.loads(report.read_text(encoding="utf-8"))
         if args.style and data.get("styles")!={"reloadPreservedModel":True,"invalidReloadKeptStyle":True}:
             raise RuntimeError(f"{locale} did not verify stylesheet reload")
-        for key in ("ok", "independentUiOnly", "numericDragOneUndo", "undoRestored", "floatingPresented", "layoutRoundtrip", "secondaryButtonsPreservedGesture", "floatingCancellationRestored", "tabNavigationGuarded"):
+        for key in ("ok", "independentUiOnly", "numericDragOneUndo", "undoRestored", "floatingPresented", "layoutRoundtrip", "secondaryButtonsPreservedGesture", "secondaryOwnerGuarded", "floatingCancellationRestored", "tabNavigationGuarded"):
             if data.get(key) is not True:
                 raise RuntimeError(f"{locale} did not verify {key}")
         if data.get("language") != locale or not report.with_suffix(".png").exists():

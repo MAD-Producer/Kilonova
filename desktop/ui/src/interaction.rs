@@ -81,7 +81,9 @@ impl Router {
             }
             return;
         }
-        if let Some((MouseButton::Left, point)) = input.pressed {
+        if let Some((MouseButton::Left, point)) = input.pressed.filter(|_| {
+            input.held.is_none_or(|button| button == MouseButton::Left)
+        }) {
             let owner = hit(point);
             self.capture = owner.map(|r| r.target);
             self.focus = owner.filter(|r| r.keyboard).map(|r| r.target);
