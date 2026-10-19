@@ -279,6 +279,9 @@ impl NodeOp {
 #[serde(deny_unknown_fields)]
 pub struct Node {
     pub id: String,
+    /// Optional author-facing title; never used as a node or socket identity.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub display_name: String,
     pub version: u32,
     pub operation: NodeOp,
     #[serde(default)]
@@ -292,6 +295,7 @@ impl Node {
     pub fn new(id: impl Into<String>, operation: NodeOp) -> Self {
         Self {
             id: id.into(),
+            display_name: String::new(),
             version: 1,
             operation,
             position: [0.0; 2],
