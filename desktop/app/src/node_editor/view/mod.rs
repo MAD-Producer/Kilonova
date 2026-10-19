@@ -8,6 +8,8 @@ mod control_popup;
 mod control_tests;
 mod controls;
 #[cfg(test)]
+mod compact_example_tests;
+#[cfg(test)]
 mod diagnostic_tests;
 mod diagnostics;
 #[cfg(test)]

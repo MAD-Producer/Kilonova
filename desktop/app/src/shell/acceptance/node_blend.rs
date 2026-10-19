@@ -186,7 +186,6 @@ impl Shell {
                     return Err("blend redo did not restore pixels".into());
                 }
                 self.smoke_node_report["blendRedoRestoredPixels"] = true.into();
-                self.finish_node_starter_smoke(directory)?;
                 for key in [
                     "gradientProjectUntouched",
                     "noiseProjectUntouched",
@@ -194,6 +193,7 @@ impl Shell {
                 ] {
                     self.smoke_node_report[key] = true.into();
                 }
+                self.start_compact_example_smoke(0)?;
             }
             _ => return Err("unexpected blend acceptance stage".into()),
         }

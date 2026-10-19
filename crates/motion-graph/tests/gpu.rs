@@ -12,6 +12,8 @@ mod gradient_fixture;
 mod noise_gpu;
 #[path = "support/blend_gpu.rs"]
 mod blend_gpu;
+#[path = "support/compact_examples_gpu.rs"]
+mod compact_examples_gpu;
 
 #[test]
 fn gradient_replaces_a_seven_node_color_mix_chain_without_changing_pixels() {

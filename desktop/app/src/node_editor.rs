@@ -13,6 +13,8 @@ use std::{
 
 #[path = "node_editor/catalog.rs"]
 mod catalog;
+#[cfg(test)]
+mod compact_example_tests;
 #[path = "node_editor/editing.rs"]
 mod editing;
 #[path = "node_editor/grouping.rs"]
