@@ -32,6 +32,7 @@ fn editor_active(panels: &Panels) -> bool {
         || panels.timeline.scrubbing
         || panels.effect_controls.editing()
         || panels.properties.effects.editing()
+        || panels.effect_timeline.editing()
         || panels.properties.anchor.editing()
         || panels.timeline_anchor.editing()
         || panels.expressions.editing()

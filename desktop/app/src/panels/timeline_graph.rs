@@ -63,6 +63,11 @@ pub(super) fn render(
     ppf: f32,
     out: &mut Vec<Action>,
 ) {
+    if super::effect_timeline::graph::render(
+        list, atlas, area, panels, state, input, offset, ppf, out,
+    ) {
+        return;
+    }
     let styles = list.styles();
     let colors = styles.colors();
 
