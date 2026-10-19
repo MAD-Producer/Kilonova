@@ -12,15 +12,19 @@ struct Out { @builtin(position) position:vec4<f32>, @location(0) uv:vec2<f32> };
 }
 fn pixel(o:Out)->vec4<f32> {
     let flags=u32(draw.extent_opacity.w);
-    var coverage=1.0;
-    if (flags&1u)!=0u {coverage*=textureSample(mask,mask_sampler,o.uv).r;}
+    var coverage=plane_coverage(o.uv,draw.uv_scale.xy);
+    let source_uv=plane_sample_uv(o.uv,draw.uv_scale.xy,textureDimensions(image));
+    if (flags&1u)!=0u {
+        let mask_uv=plane_sample_uv(o.uv,draw.uv_scale.xy,textureDimensions(mask));
+        coverage*=textureSample(mask,mask_sampler,mask_uv).r;
+    }
     if (flags&2u)!=0u {
         var uv=(o.position.xy-draw.extent_opacity.xy)/draw.uv_scale.zw;
         if (flags&8u)!=0u {uv.y=1.0-uv.y;}
         var value=textureSample(matte,matte_sampler,uv).r;
         if (flags&4u)!=0u {value=1.0-value;}coverage*=value;
     }
-    let c=textureSample(image,image_sampler,o.uv);let opacity=draw.color.a*draw.extent_opacity.z*coverage;
+    let c=textureSample(image,image_sampler,source_uv);let opacity=draw.color.a*draw.extent_opacity.z*coverage;
     return vec4(c.rgb*draw.color.rgb*opacity,c.a*opacity);
 }
 @fragment fn fragment_main(o:Out)->@location(0) vec4<f32>{return pixel(o);}

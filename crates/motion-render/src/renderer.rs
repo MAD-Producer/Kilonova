@@ -309,7 +309,7 @@ impl Renderer {
         });
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Motion Studio own planar compositor"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("plane.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(crate::plane_coverage::shader(include_str!("plane.wgsl"), true).into()),
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Motion Studio planar pipeline"),
@@ -359,7 +359,7 @@ impl Renderer {
             },
             alpha: wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING.alpha,
         });
-        let mask_shader=device.create_shader_module(wgpu::ShaderModuleDescriptor {label:Some("masked source composite"),source:wgpu::ShaderSource::Wgsl(include_str!("plane_mask.wgsl").into())});
+        let mask_shader=device.create_shader_module(wgpu::ShaderModuleDescriptor {label:Some("masked source composite"),source:wgpu::ShaderSource::Wgsl(crate::plane_coverage::shader(include_str!("plane_mask.wgsl"), true).into())});
         let masked_pipeline=device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label:Some("masked layer without effects"),layout:Some(&device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {label:None,bind_group_layouts:&[Some(&uniform_layout), Some(&image_layout), Some(&image_layout)],immediate_size: 0})),
             vertex:wgpu::VertexState {module:&mask_shader,entry_point:Some("vertex_main"),compilation_options:Default::default(),buffers:&[Some(wgpu::VertexBufferLayout {array_stride:std::mem::size_of::<GeometryVertex>() as u64,step_mode:wgpu::VertexStepMode::Vertex,attributes:&wgpu::vertex_attr_array![0=>Float32x3,1=>Float32x2]})]},
@@ -1486,6 +1486,9 @@ impl Renderer {
             self.target_format,
             None,
         );
+        let [_, _, viewport_width, viewport_height] = crate::fit_viewport(
+            [0., 0., width as f32, height as f32], [scene.width, scene.height]);
+        self.compositor.set_coverage_viewport(Some([viewport_width, viewport_height]));
         self.compositor
             .prepare(scene)
             .map_err(|e| RenderError::Invalid(e.to_string()))?;
@@ -1632,6 +1635,7 @@ impl Renderer {
         preview: bool,
     ) -> Result<RenderStats> {
         let started = Instant::now();
+        self.effect_gpu.builder.enable_plane_coverage();
         let image_input_order = loop {
             if self.preview_resource_guard {
                 self.effect_gpu.builder.build_preview_guarded(scene, &self.asset_order, width, height, preview)

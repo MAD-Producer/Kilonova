@@ -16,7 +16,7 @@ Implementation: `73c856afff4659edff2b3a1c8cdb5df9cdb2a089` on `codex/node-noise`
 - The original Three-node Noise example contains UV, Noise and Color Output, two wires, one pass, no texture samples or added resources; existing catalogue order is preserved and its count increases from 17 to 18
 - Sources roundtrip, packages reopen through the actual effect host and GLSL ES 300 validates; Android device comparison and sustained performance remain pending
 
-Equal inputs are deterministic on the tested implementation, without a cross-device bit-identity promise. Variation requires an explicit animated connection; there is no hidden clock. This is not 3D/volumetric, Simplex, filtered or guaranteed seamless noise. High frequencies can alias. The user's subsequent output-antialiasing report is a separate pending task; Noise delivery does not claim to resolve it.
+Equal inputs are deterministic on the tested implementation, without a cross-device bit-identity promise. Variation requires an explicit animated connection; there is no hidden clock. This is not 3D/volumetric, Simplex, filtered or guaranteed seamless noise. High frequencies can alias. The user's subsequent output-antialiasing report was handled separately in [Node output antialiasing](node-output-antialiasing-completed.md); Noise delivery itself does not claim to resolve it, nor does plane-edge coverage filter arbitrary high-frequency noise.
 
 ## Verified evidence
 
