@@ -25,6 +25,7 @@ use std::{
 mod diagnostic_names;
 mod failure;
 mod ui_paint;
+mod frame_capture;
 #[cfg(test)]
 mod fallback_tests;
 #[cfg(test)]
@@ -300,7 +301,11 @@ pub enum Command {
         reply: Sender<Result<Value, String>>,
     },
     MediaPackageLimits(Sender<Result<Value, String>>),
-    Capture(Sender<Result<Value, String>>),
+    Capture {
+        output: Option<PathBuf>,
+        control: motion_desktop_media::movie::ExportControl,
+        reply: Sender<Result<Value, String>>,
+    },
     Pack(Sender<Result<Value, String>>),
     ImageInfo {
         path: String,
@@ -340,7 +345,7 @@ impl Command {
             FreezeMovie { reply, .. } => ErrorReply::Movie(reply.clone()),
             VideoFrame { reply, .. } => ErrorReply::Frame(reply.clone()),
             State(reply) | Save(reply) | PreviewInfo(reply) | MediaPackageLimits(reply)
-            | Capture(reply) | Pack(reply)
+            | Pack(reply) | Capture { reply, .. }
             | ChangeProject { reply, .. } | NodeCapture { reply, .. }
             | EditChecked { reply, .. } | CaptureUi { reply, .. }
             | Attach { reply, .. } | Resize { reply, .. } | OpenDirectory { reply, .. }
@@ -388,6 +393,7 @@ pub struct Engine {
     paint_pool: Arc<std::sync::Mutex<Vec<motion_ui::paint::PaintList>>>,
     diagnostics: Arc<crate::diagnostics::Diagnostics>,
     in_flight: Arc<Mutex<Option<Flight>>>,
+    frame_flight: Arc<Mutex<Option<Flight>>>,
     queue_depth: Arc<AtomicUsize>,
     shutdown: Arc<AtomicBool>,
     pending_node_expect: Arc<Mutex<Option<(u64, u64)>>>,
@@ -419,6 +425,12 @@ impl Engine {
     pub fn in_flight(&self) -> Option<(String, Duration)> {
         self.in_flight.lock().unwrap_or_else(|e| e.into_inner()).as_ref()
             .map(|flight| (flight.operation.to_owned(), flight.started.elapsed()))
+    }
+    /// Independent export work remains inspectable while the serial worker is free.
+    pub fn frame_capture_in_flight(&self) -> Option<(u64, Duration)> {
+        static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+        crate::fallback_observation::recovered(&self.frame_flight, &FAILURES, "frame.flight.read", |flight|
+            flight.map(|flight| (flight.request, flight.started.elapsed())))
     }
     pub fn queue_depth(&self) -> usize {
         self.queue_depth.load(Ordering::Acquire)
@@ -551,6 +563,8 @@ impl Engine {
         let factory = Arc::new(std::sync::Mutex::new(None));
         let worker_factory = factory.clone();
         let in_flight = Arc::new(Mutex::new(None));
+        let frame_flight = Arc::new(Mutex::new(None));
+        let worker_frame_flight = frame_flight.clone();
         let worker_flight = in_flight.clone();
         let queue_depth = Arc::new(AtomicUsize::new(0));
         let worker_depth = queue_depth.clone();
@@ -614,6 +628,7 @@ impl Engine {
                 let mut painter = None;
                 let mut node_preview = NodePreviewState::default();
                 let mut presentation = PresentationState::default();
+                let mut frame_capture = frame_capture::Worker::new(worker_frame_flight);
                 let mut windows = std::collections::HashMap::new();
                 let mut failed_reply = None;
                 let mut channel_closed = true;
@@ -668,6 +683,7 @@ impl Engine {
                         &mut guard,
                         &mut node_preview,
                         &mut presentation,
+                        &mut frame_capture,
                         &worker_paints,
                         &worker_diagnostics,
                         command,
@@ -708,6 +724,7 @@ impl Engine {
                 drop(windows);
                 drop(painter);
                 drop(node_preview);
+                drop(frame_capture);
                 {
                     static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
                     crate::fallback_observation::recovered(&worker_factory, &FAILURES, "engine.surface.shutdown", |factory| { factory.take(); });
@@ -746,6 +763,7 @@ impl Engine {
             paint_pool,
             diagnostics,
             in_flight,
+            frame_flight,
             queue_depth,
             shutdown,
             pending_node_expect,
@@ -1069,7 +1087,12 @@ impl Engine {
         self.call(|reply| Command::MediaCapabilities { text, reply })
     }
     pub fn capture(&self) -> Result<Value, String> {
-        self.call(Command::Capture)
+        self.call(|reply| Command::Capture { output: None,
+            control: motion_desktop_media::movie::ExportControl::default(), reply })
+    }
+    pub fn capture_async(&self, output: PathBuf, control: motion_desktop_media::movie::ExportControl)
+        -> Result<std::sync::mpsc::Receiver<Result<Value, String>>, String> {
+        self.request(|reply| Command::Capture { output: Some(output), control, reply })
     }
     pub fn render_preview(&self, frame: Option<f64>) -> Result<Value, String> {
         self.call(|reply| Command::RenderPreview { frame, reply })
@@ -1369,6 +1392,7 @@ fn handle(
     guard: &mut ProjectGuard,
     node_preview: &mut NodePreviewState,
     presentation: &mut PresentationState,
+    frame_capture: &mut frame_capture::Worker,
     paints: &Arc<std::sync::Mutex<Vec<motion_ui::paint::PaintList>>>,
     diagnostics: &crate::diagnostics::Diagnostics,
     command: Command,
@@ -1377,7 +1401,7 @@ fn handle(
     // scratch texture. A read-only state request leaves it reusable.
     if !matches!(
         &command,
-        Command::Present { .. } | Command::State(_) | Command::PreviewInfo(_)
+        Command::Present { .. } | Command::State(_) | Command::PreviewInfo(_) | Command::Capture { .. }
     ) {
         presentation.retained = None;
     }
@@ -1614,7 +1638,7 @@ fn handle(
         Command::State(reply) => respond(reply,project::state(id).map(|mut state|{
             state["desktop"]=serde_json::json!({"headless":painter.is_none(),"panelWindows":if painter.is_some(){windows.len()+1}else{0},"sharedGpuDevice":painter.is_some(),"agentToolProtocol":1,
                 "uiPerformance":{"compositionRenders":presentation.composition_renders,"compositionReuses":presentation.composition_reuses,"lastPresentUs":presentation.last_present_us},
-                "diagnostics":diagnostics.status(),
+                "diagnostics":diagnostics.status(),"frameExport":frame_capture.status(),
                 "nodePreview":{"active":node_preview.active.as_ref().map(|p|p.stamp),"frames":node_preview.active.as_ref().map_or(0,|p|p.frames),"shaderRenders":node_preview.active.as_ref().map_or(0,|p|p.renders),"installs":node_preview.installs,"logicalSize":crate::node_preview::LOGICAL_SIZE,"rasterSize":crate::node_preview::RASTER_SIZE,"perFrameCpuReadbacks":0}});state
         })),
         Command::Save(reply) => respond(reply,project::save(id)),
@@ -1686,7 +1710,11 @@ fn handle(
         Command::Composition { text, reply } => respond(reply,composition::request(id, &text)),
         Command::Media { text, reply } => respond(reply,media_request(id, &text)),
         Command::MediaPackageLimits(reply) => respond(reply,Ok(media::package_limits())),
-        Command::Capture(reply) => respond(reply,export::capture(id)),
+        Command::Capture { output, control, reply } => {
+            if let Err(error) = frame_capture.start(id, output, control, reply.clone()) {
+                frame_capture::respond_frame(reply, Err(error));
+            }
+        },
         Command::Pack(reply) => respond(reply,export::pack(id)),
         Command::ImageInfo { path, reply } => respond(reply,images::image_info(&path)),
         Command::PrepareImage { root, path, reply } => respond(reply,images::prepare_image(root, path)),

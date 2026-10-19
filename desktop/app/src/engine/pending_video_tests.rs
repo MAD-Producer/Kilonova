@@ -165,6 +165,97 @@ fn present(engine: &Engine) -> Result<bool, String> {
 }
 
 #[test]
+fn png_export_freezes_frame_without_blocking_engine_and_observes_failure_and_cancel() {
+    const CHILD: &str = "MOTION_PNG_EXPORT_CHILD";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = PathBuf::from(root);
+        let _logger = crate::logging::init(root.clone()).unwrap();
+        for (blur, fail, cancel) in [(false, false, false), (true, false, false), (true, true, false), (true, false, true)] {
+            let directory = root.join(format!("png-{blur}-{fail}-{cancel}"));
+            fixture(&directory, false);
+            if blur {
+                let mut project = motion_core::storage::load(&directory).unwrap();
+                project.version = 21;
+                project.layers[0].sampling.motion_blur = Some(motion_core::render_sampling::Shutter { frames:0.5, samples:8 });
+                motion_core::storage::save(&directory, &project).unwrap();
+            }
+            let (entered, waiting) = channel();
+            let gate = Arc::new(Gate { released:Mutex::new(false), ready:Condvar::new(), entered, fail });
+            let engine = Engine::start(directory.clone(), Arc::new(Backend(gate.clone())), 8 << 30).unwrap();
+            engine.seek(1.).unwrap();
+            let before = engine.state().unwrap();
+            let output = directory.join("previous.png");
+            std::fs::write(&output, b"previous file").unwrap();
+            let control = motion_desktop_media::movie::ExportControl::default();
+            let capture = engine.capture_async(output.clone(), control.clone()).unwrap();
+            waiting.recv_timeout(Duration::from_secs(30)).unwrap();
+            let flight = engine.frame_capture_in_flight().expect("publish in-flight before decoder enters");
+            let log = std::fs::read_to_string(root.join("motion-studio.log")).unwrap();
+            assert!(log.contains(&format!("async start #{} capture", flight.0)));
+            let pending = engine.request(Command::State).unwrap().recv_timeout(Duration::from_secs(2)).unwrap().unwrap();
+            assert_eq!(pending["desktop"]["frameExport"]["request"], flight.0);
+            assert!(!pending["desktop"]["frameExport"]["workerFinished"].as_bool().unwrap());
+            assert_eq!(pending["lastPresentedFrame"], before["lastPresentedFrame"]);
+            let seek = engine.request(|reply| Command::Seek { frame:1.5, reply }).unwrap();
+            seek.recv_timeout(Duration::from_secs(2)).unwrap().unwrap();
+            assert!(capture.try_recv().is_err(), "blocked decoder must not publish a partial PNG");
+            let duplicate = engine.capture_async(directory.join("duplicate.png"), Default::default()).unwrap();
+            assert!(duplicate.recv_timeout(Duration::from_secs(2)).unwrap().unwrap_err().contains("still running"));
+            if cancel {
+                assert!(control.cancel());
+                std::thread::sleep(Duration::from_millis(40));
+                assert!(capture.try_recv().is_err(), "retain export slot until native decoder closes");
+                assert!(engine.frame_capture_in_flight().is_some());
+            }
+            *gate.released.lock().unwrap() = true;
+            gate.ready.notify_all();
+            let result = capture.recv_timeout(Duration::from_secs(30)).unwrap();
+            if cancel {
+                assert_eq!(result.unwrap_err(), "PNG export cancelled");
+            } else if fail {
+                let error = result.unwrap_err();
+                assert!(error.contains("controlled first video frame failure") && error.contains("PNG export revision=") && error.contains("frame=1"), "{error}");
+            } else {
+                let result = result.unwrap();
+                assert_eq!(result["frame"], 1.);
+                let pixels = image::open(&output).unwrap().into_rgba8();
+                assert_eq!(pixels.dimensions(), (32,32));
+                assert_eq!(pixels.get_pixel(16,16).0, [255;4]);
+                assert!(!control.cancel());
+            }
+            if fail || cancel { assert_eq!(std::fs::read(&output).unwrap(), b"previous file"); }
+            assert!(!directory.join("duplicate.png").exists());
+            assert_eq!(engine.state().unwrap()["frame"], 1.5);
+            let deadline = Instant::now() + Duration::from_secs(2);
+            while engine.frame_capture_in_flight().is_some() {
+                assert!(Instant::now() < deadline);
+                std::thread::yield_now();
+            }
+            assert!(engine.state().unwrap()["desktop"]["frameExport"].is_null());
+            let cancelled = motion_desktop_media::movie::ExportControl::default();
+            assert!(cancelled.cancel());
+            let reply = engine.capture_async(directory.join("cancelled-before-start.png"), cancelled).unwrap();
+            assert_eq!(reply.recv_timeout(Duration::from_secs(2)).unwrap().unwrap_err(), "PNG export cancelled");
+            assert!(!directory.join("cancelled-before-start.png").exists());
+        }
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "engine::pending_video_tests::png_export_freezes_frame_without_blocking_engine_and_observes_failure_and_cancel"])
+        .env(CHILD, root.path()).env_remove("MOTION_LOG").output().unwrap();
+    assert!(output.status.success(), "{}\n{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+    let log = std::fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for cause in ["controlled first video frame failure", "PNG export revision=", "PNG export is still running"] {
+        assert!(log.contains(cause) && stderr.contains(cause) && !stdout.contains(cause), "{cause}");
+    }
+    assert!(log.contains("logging initialized level=INFO") && log.contains("cancelled #"));
+    assert!(!stderr.contains("PNG export cancelled"));
+}
+
+#[test]
 fn pending_video_presents_chrome_without_acknowledging_an_unready_composition() {
     const CHILD: &str = "MOTION_PENDING_VIDEO_CHROME_CHILD";
     if let Some(root) = std::env::var_os(CHILD) {

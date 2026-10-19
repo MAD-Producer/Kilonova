@@ -16,6 +16,8 @@ use std::{
     },
 };
 
+pub mod frame;
+
 #[cfg_attr(not(feature = "ffmpeg"), allow(dead_code))]
 pub struct FrozenMovie {
     project: Project,
@@ -165,7 +167,9 @@ mod tests {
             p.layers.push(parent);
         } else {p.layers.push(l);}
         p.video_assets.push(asset);
-        let session = Session::new(p,root,crate::platform()).unwrap();
+        let mut session = Session::new(p,root,crate::platform()).unwrap();
+        session.frame = 2.;
+        let png_plan = frame::FrameFreezePlan::capture(&session, None, &ExportControl::default()).unwrap();
         let frozen = FrozenMovie::from_session(&session).unwrap();
         let name=if nested {"nested-video-exposure"} else {"linear-video-exposure"};
         let output = dir.path().join(format!("{name}.mp4"));
@@ -187,6 +191,21 @@ mod tests {
         let blue_weight=if nested {0.15625} else {0.25};
         let expected:Vec<_> = (0..3).map(|c|srgb(linear(pixel(&red,32,32)[c])*(1.-blue_weight)+linear(pixel(&blue,32,32)[c])*blue_weight)).collect();
         for c in 0..3 {assert!(actual[c].abs_diff(expected[c])<=12,"channel={c} decoded={actual:?} linear expected={expected:?}");}
+        let png_started = std::time::Instant::now();
+        let png = png_plan.export(&ExportControl::default()).unwrap();
+        let png_us = png_started.elapsed().as_micros();
+        let png_pixels = image::open(png["path"].as_str().unwrap()).unwrap().into_rgba8();
+        let png_actual = png_pixels.get_pixel(32,32).0;
+        for c in 0..3 { assert!(png_actual[c].abs_diff(expected[c]) <= 2, "PNG channel={c} actual={png_actual:?} expected={expected:?}"); }
+        if let Some(directory) = std::env::var_os("MOTION_FRAME_EXPORT_ARTIFACTS") {
+            let directory = PathBuf::from(directory);
+            fs::create_dir_all(&directory).unwrap();
+            fs::copy(png["path"].as_str().unwrap(),directory.join(format!("{name}.png"))).unwrap();
+            fs::write(directory.join(format!("{name}.json")),serde_json::to_vec_pretty(&serde_json::json!({
+                "result":png,"exportUs":png_us,"expected":expected,"actual":png_actual,
+                "scope":"frozen PNG export including source copy, GPU initialization, decode, all samples, readback, encode, verification and publication"
+            })).unwrap()).unwrap();
+        }
         retain_exposure_artifacts(name, &output, &result, export_us,
             &[("frame-2",&pixels)]);
     }
@@ -604,6 +623,7 @@ pub struct MovieFreezePlan {
     sources: Vec<(PathBuf, PathBuf, fs::File, fs::Metadata)>,
     source_paths: BTreeSet<PathBuf>,
     total_bytes: u64,
+    include_audio: bool,
 }
 impl MovieFreezePlan {
     fn new(
@@ -613,6 +633,13 @@ impl MovieFreezePlan {
         memory_policy: MemoryPolicy,
         revision: u64,
         control: &ExportControl,
+    ) -> Result<Self> {
+        Self::new_with_audio(project, root, registry, memory_policy, revision, control, true)
+    }
+
+    fn new_with_audio(
+        project: Project, root: &Path, registry: Registry, memory_policy: MemoryPolicy,
+        revision: u64, control: &ExportControl, include_audio: bool,
     ) -> Result<Self> {
         control.check()?;
         project.validate().map_err(|e| e.to_string())?;
@@ -631,10 +658,10 @@ impl MovieFreezePlan {
             .iter()
             .map(|a| PathBuf::from(&a.path))
             .chain(project.fonts.iter().map(|a| PathBuf::from(&a.path)))
-            .chain(project.audio_assets.iter().map(|a| PathBuf::from(&a.path)))
+            .chain(project.audio_assets.iter().filter(|_| include_audio).map(|a| PathBuf::from(&a.path)))
             .chain(project.video_assets.iter().map(|a| PathBuf::from(&a.path)))
             .collect();
-        let voices = project.audio_voices().map_err(|e| e.to_string())?;
+        let voices = if include_audio { project.audio_voices().map_err(|e| e.to_string())? } else { Vec::new() };
         for asset in &project.audio_assets {
             if voices.iter().any(|v| v.asset == asset.id) {
                 let pcm = motion_media::cache_path(&root, asset)?;
@@ -654,6 +681,16 @@ impl MovieFreezePlan {
             );
         }
         let mut source_paths = BTreeSet::new();
+        // Visual exports need no PCM, but must still protect audio source files.
+        for asset in &project.audio_assets {
+            let path = root.join(&asset.path);
+            let protected = match path.canonicalize() {
+                Ok(path) => path,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => path,
+                Err(error) => return Err(format!("resolve protected source {}: {error}", path.display())),
+            };
+            source_paths.insert(protected);
+        }
         let mut sources = Vec::new();
         let mut total_bytes = 0u64;
         for relative in paths {
@@ -692,6 +729,7 @@ impl MovieFreezePlan {
             sources,
             source_paths,
             total_bytes,
+            include_audio,
         })
     }
 
@@ -706,6 +744,7 @@ impl MovieFreezePlan {
             sources,
             mut source_paths,
             total_bytes,
+            include_audio,
         } = self;
         let assets = tempfile::Builder::new()
             .prefix("motion-movie-snapshot-")
@@ -761,7 +800,7 @@ impl MovieFreezePlan {
         }
         control.check()?;
         // Validate every referenced PCM and PTS cache before accepting the task.
-        motion_media::AudioMixer::new(project.clone(), assets.path())?;
+        if include_audio { motion_media::AudioMixer::new(project.clone(), assets.path())?; }
         for asset in &project.video_assets {
             motion_media::load_video_index(assets.path(), asset)?;
         }
@@ -905,7 +944,7 @@ impl FrozenMovie {
             control.check()?;
             let pixels = if let Some(document) = &document {
                 render_exposure_frame(&mut renderer, &mut videos, &mut proxies, p,
-                    document.clone(), self.assets.path(), frame, control)?
+                    document.clone(), self.assets.path(), f64::from(frame), control)?
             } else {
                 // Scene::sample performs the same animated, expression and recursive
                 // composition evaluation used by the editing host.
@@ -1019,16 +1058,15 @@ impl FrozenMovie {
 /// One frozen request retains its GPU phase while media is pending. The
 /// existing decode deadline applies to each unchanged pending stage; no task
 /// restart is performed on a poll or observation timeout.
-#[cfg(feature = "ffmpeg")]
 fn render_exposure_frame(renderer: &mut motion_render::Renderer,
     videos: &mut motion_host::video_frames::VideoFrames,
     proxies: &mut motion_host::preview_video::PreviewVideoCache,
     project: &Project, document: motion_render::exposure_scene::ExposureDocument,
-    root: &Path, frame: u32, control: &ExportControl) -> Result<Vec<u8>> {
+    root: &Path, frame: f64, control: &ExportControl) -> Result<Vec<u8>> {
     use motion_host::render_sampling::{ExposureMedia, ExposureMediaPolicy};
     use motion_render::{exposure_scene::ExposureScenes, ExposureFrame, ExposurePoll};
     use std::time::{Duration, Instant};
-    let scenes = ExposureScenes::new(document, &project.composition_id, f64::from(frame),
+    let scenes = ExposureScenes::new(document, &project.composition_id, frame,
         false, None, motion_core::ExpressionEvaluator).map_err(|error| error.to_string())?;
     let mut task = ExposureFrame::new(renderer, scenes, project.width, project.height)
         .map_err(|error| format!("export frame={frame} phase=exposure_init: {error}"))?;
@@ -1056,6 +1094,10 @@ fn render_exposure_frame(renderer: &mut motion_render::Renderer,
 /// destination is expected; a permission/path error must retain its cause.
 #[cfg(any(feature = "ffmpeg", test))]
 fn export_destination(output: &Path, source_paths: &BTreeSet<PathBuf>) -> Result<PathBuf> {
+    export_destination_for(output, source_paths, "MP4")
+}
+
+fn export_destination_for(output: &Path, source_paths: &BTreeSet<PathBuf>, format: &str) -> Result<PathBuf> {
     let parent = output
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
@@ -1069,11 +1111,11 @@ fn export_destination(output: &Path, source_paths: &BTreeSet<PathBuf>) -> Result
         Ok(existing) => existing,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => output.clone(),
         Err(error) => {
-            return Err(format!("resolve MP4 export destination {}: {error}", output.display()));
+            return Err(format!("resolve {format} export destination {}: {error}", output.display()));
         }
     };
     if source_paths.contains(&existing) {
-        return Err("MP4 export must not replace a project source".into());
+        return Err(format!("{format} export must not replace a project source"));
     }
     Ok(output)
 }

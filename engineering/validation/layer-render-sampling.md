@@ -10,9 +10,9 @@ Issue：#255。本工作最初基于 `f32c64de`，已同步到包含 PR #336 的
 | 连续栅格化实际像素 | 原创圆形在 256×256 输出中放大八倍；真实 GPU capture、透明边界、覆盖面积、反复切换和冻结模型重开 | 矢量已实现；其他来源仍需逐项能力界定 |
 | 连续栅格化预算和预览 | 投影密度影响实际源纹理尺寸及 mesh/cache 身份；默认与预览计划一致；低预算拒绝且恢复预算可继续渲染 | 已实现并测试 |
 | 帧混合 | 解码器要求真实相邻 PTS 双帧；GPU 在线性预乘空间混合；预览代理、桌面捕获与冻结组合读帧接入；实际 VFR、YUV、取消、冻结协议和默认日志用例 | 已实现核心链路；最终能力声明、UI 及原生界面验收待完成 |
-| 运动模糊 | 中心快门和逐层有理数阶段调度；逐接收层的真实 Scene/父级/相机/表达式/效果输入求值；独立局部效果图像与投影 matte；逐阶段调整图层；线性 FP16 累积；持久 GPU 帧任务、递归嵌套独立曝光、稳定媒体身份和真实冻结 MP4；Session 主窗/浮窗预览保留进度及请求身份 | 核心、冻结 MP4 和桌面预览已接入；实际预览像素、取消与默认失败信道已定向验证；本轮完整回归见文末。正式帧 capture、冻结组合读帧协议、性能与最终能力/UI 待完成 |
+| 运动模糊 | 中心快门和逐层有理数阶段调度；逐接收层的真实 Scene/父级/相机/表达式/效果输入求值；独立局部效果图像与投影 matte；逐阶段调整图层；线性 FP16 累积；持久 GPU 帧任务、递归嵌套独立曝光、稳定媒体身份和真实冻结 MP4；Session 主窗/浮窗预览保留进度及请求身份；桌面 PNG 使用冻结后台任务 | 核心、冻结 MP4、桌面预览与正式 PNG 已接入；实际像素、取消与默认失败信道已有定向验证。旧组合读帧协议边界、性能与最终能力/UI 待完成 |
 | 能力检查及 UI | 模型拒绝对非视频帧混合、对非矢量连续栅格化、对非像素来源运动模糊 | 最终 host 能力声明和实际支持开关待接入；未加入空开关 |
-| 双语、主/浮窗、焦点失效 | 本轮没有修改 UI | 待真实开关接入后验收与截图 |
+| 双语、主/浮窗、焦点失效 | PNG 导出沿用既有状态栏和文件菜单，补中英文运行截图；预览主/浮窗像素已验证 | 渲染开关的主/浮窗、失焦、右键菜单仍待接入后验收 |
 
 ## 已实现的连续栅格化语义
 
@@ -88,7 +88,10 @@ PreviewVideoCache 对左右输入应用同一现有 video_edge 策略，分辨�
 | SAM-OBS-14 | 新上下文/既有信道 | 首次渲染失败带 composition/revision/frame/size/view/surface、原始 cause 与 typed 预算拒绝；同一请求保留至多 2,048 字符，不因下一次 Present 重启。清理失败追加到主错误；维持原 respond/引擎日志/错误回复。实际主窗/浮窗受控解码失败验证默认文件、Error stderr、stdout 隔离及阻塞前 decode in-flight。 |
 | SAM-OBS-15 | 新诊断数据 | preview.exposure 提供状态、阶段、对象、采样时刻、完成单元、跨 poll CPU 及媒体准备/上传合计；Session ledger 合并递归任务所有者。快照与 FrameRecorder 分开记录 exposureTargetBytes，并加入逻辑纹理总容量；曝光没有收集多提交 GPU 时间戳，gpuTimingActive=false，不将最后一次提交时间冒充全部 GPU 时间。 |
 | SAM-NORMAL-11 | 正常分支/已有策略 | 切片用完、媒体 Pending、被取代请求和正常取消不新增每帧日志。沿用原四级预览内存降级/冷却探测；该显式策略可建立不同质量候选，普通错误终态不自动重试。没有新增 worker、超时期限或重启；8ms 是批次之间的让出检查，不能抢占同步 evaluator/driver。 |
-| SAM-PENDING-01 | 待完成 | 正式帧 capture、冻结组合读帧协议、全链路默认故障信道及实际长时间播放性能。连续栅格化相机平面错误仍缺少默认文件/Error stderr 的端到端验收；不能将函数 Err 用例等同于完成。UI 开关及其失焦/撤销、双语和主/浮窗截图仍待接入。 |
+| SAM-FUNC-15 | 新功能 | 桌面 Capture/导出 PNG 在串行 worker 捕获版本、帧、注册表、预算及源文件句柄，独立任务复制素材并以完整质量渲染；曝光复用冻结 MP4 的任务驱动，保留小数帧。输出验证后发布，不再把视频 Pending 当导出失败，也不复用/覆盖预览 renderer。 |
+| SAM-OBS-16 | 新观测及既有信道 | PNG 后台任务继承原 request ID，Info start 在复制/渲染前写入；独立 frame flight 和 desktop.frameExport 可在串行引擎空闲时读取。错误经原 respond 进入文件/Error stderr；新增 revision/frame/path 上下文。受控 native 阻塞、解码失败、排队前取消和解码中取消验证正常结果、失败信道与 stdout 隔离。 |
+| SAM-NORMAL-12 | 正常取消/资源边界 | 每引擎至多一个 PNG worker，直到原生 decoder 真正退出才允许下一个任务。取消不重启 worker、不覆盖旧文件；正常取消返回明确结果并记 Info，不记 Error。PNG 不要求 PCM 或音频源文件，仍保护它们不被覆盖；无 FFmpeg 的图像/图形输出可用，视频仍由实际平台能力决定。 |
+| SAM-PENDING-01 | 待完成 | 旧冻结组合读帧协议的显式能力边界、全链路默认故障信道及实际长时间播放性能。连续栅格化相机平面错误仍缺少默认文件/Error stderr 的端到端验收；不能将函数 Err 用例等同于完成。UI 开关及其失焦/撤销、双语和主/浮窗截图仍待接入。 |
 
 ## 本地验证
 
@@ -354,3 +357,33 @@ FrozenMovie::export 对需要曝光的冻结工程共享一次验证的不可变
 `sampling-preview-host-initialization-final.log` 为最后初始化/清理实现的完整宿主测试，49 项全部通过（78.82 秒）；最终 FFmpeg 与无 FFmpeg 桌面 cargo check 都通过，分别见 `sampling-preview-initialization-ffmpeg-check.log` / `sampling-preview-initialization-noffmpeg-check.log`。总计 582 项通过、1 项既有忽略，含七项新增用例；专项和重复全套不重复计数。最终主窗/浮窗 PNG 的 SHA-256 相同：f27c5946b2ea9fe4d5cafe7cb83f6de96e2bf0db29e3acb4237c9424b67f18ab。已目视查看实际 32×32 输出；它是预览像素验证夹具，不是最终开关样式或完整产品界面截图。来源检查（1,406 tracked paths）、样式消费者和暂存差异空白检查通过。
 
 当前不关闭 #255：正式帧 capture、冻结组合读帧、多种 GPU/求值拒绝的默认前端信道、长时间实际播放性能、深层上下文/重复准备优化、最终能力和 UI 开关仍未完成。没有第三方依赖或素材、面板布局、产品文案、右键菜单或主题 token 变更；DESIGN §0.7 十二项面板基线均 retained（本轮不编辑面板），§12 的新开关验收仍待实现。
+
+### 桌面正式 PNG 导出
+
+此节更新前一阶段的正式 capture 待办。桌面 Engine::Capture 不再调用会复用预览 renderer 的 host::ops::export::capture，而是捕获 FrameFreezePlan，在独立 worker 冻结、渲染、校验和发布。普通 PNG 同样等待必要视频帧；运动模糊 PNG 复用 FrozenMovie 的持久 ExposureFrame 驱动，使用 full 模式、作者样本数和完整图像分辨率，保留小数帧。预览仍有最多四个曝光样本的既有质量策略；不声称降级预览与完整八样本输出逐像素相同。
+
+冻结复用原 MovieFreezePlan 的源文件句柄、复制前/后长度与修改时间检查、私有目录和效果注册表快照。新增 visual 模式跳过音频源和 PCM 的读取与验证；仍将音频路径纳入目的文件保护。实际带音频图层、音频源及 PCM 均不存在的图像工程可导出 PNG。视频索引和素材仍在冻结范围内，无 FFmpeg 构建不假称支持视频。`image` 只是复用 workspace 已锁定的 PNG 编解码依赖，未引入新版本、源码补丁、外部图像或其他第三方资产；PROVENANCE/ATTRIBUTION/NOTICE 已核对。
+
+输出先写同目录临时 PNG，同步文件并解码比对尺寸/全部 RGBA 后才发布。发布和取消共享原 ExportControl 锁，成功取消不能再覆盖已有目的文件；发布成功后 cancel 返回 false。失败含原 cause、revision、frame、path；实际 decode 错误沿用 object/source/PTS 的原媒体上下文。新后台 worker 继承 originating request ID，Info async start 和独立 in-flight 在进入复制/渲染前发布；正常 done 为 Debug。`desktop.frameExport` 提供 request、operation、elapsedMs、progress 和真实 worker 终止状态。它与串行 engine in-flight 分开，不将空闲引擎描述成仍在处理 Present。
+
+每引擎仅保留一个 PNG worker。VideoFrames::finish 在后台停止并 join 所有解码器，冻结源目录和 worker 名额保留到 native 调用实际退出。取消不靠 detach 后马上开始新线程来绕过额度；既有 30 秒解码进展期限不等于能抢占 native 调用。若 native 永不返回，该 export 保持 in-flight 且拒绝新的 PNG，界面和串行引擎继续工作；不重启或重试。渲染 panic 经过原 panic hook 后转为带原因的失败，随后执行 decoder cleanup；清理失败追加到主失败。回收失败、GPU 驱动永久阻塞的实际端到端注入仍待补充，不能据现有解码 gate 用例宣称所有外部阻塞都已覆盖。
+
+界面先选择目的路径再启动任务，状态栏使用既有样式显示导出/保存/取消；“取消视频导出”改为通用“取消导出”，PNG 不再经过错误的“正在导出视频”文案。排队前取消与运行中取消均为正常结果，保留返回信道并记录 Info，不走 Error 或“操作失败”。正常文件菜单不是右键菜单；本轮没有新增渲染开关或修改面板布局、行密度、点击容差和主题 token。DESIGN §0.7 十二项均 retained，理由为未编辑其列出的面板；这不表示旧违规已修复。§12 的开关及原生浮窗交互仍待后续实现。
+
+验证记录（日志均在 `artifacts/property-selection-context/`，图像在 `artifacts/layer-render-sampling/`）：
+
+- `png-capture-first.log` 保留测试误用 Content::Asset 的编译失败；改为模型真实的 Content::Image。`png-capture-second.log` 保留夹具遗漏版本 21、资产未放 assets 目录的校验失败；修正夹具，不改模型校验或输出断言。`png-capture-fixtures.log` 无 FFmpeg 的三个用例通过：独立八时刻普通 Scene oracle、冻结版本及 1.25 小数帧、源路径被替换后仍使用原句柄、未启用模糊的同级保持清晰、缺失音频不妨碍 PNG、预算失败/取消不改已有文件、保护工程源。
+- `png-native-first.log` / `png-native-build.log` 是误把二进制名当 package、误用不存在 desktop/Cargo.toml 的命令错误；正式命令使用根 workspace 的 `-p motion-desktop`。`png-native-test.log` 的真实原生 decoder gate 子进程通过：普通/曝光成功、曝光失败、取消四种组合，等待时状态查询/Seek 能返回，in-flight 和 Info start 已可读取，不发布部分输出；重复提交拒绝；取消仍等待 native 关闭。实际错误同时进入默认日志和 Error stderr，不泄漏 stdout。
+- `png-media-full.log` 带 FFmpeg 的媒体 crate 全部 28 项通过。真实相邻 PTS 的 PNG 独立线性 oracle 为 RGB [225,1,137]，实际完全一致；父子快门在 30/60fps 下的 oracle [237,1,110]，实际 [237,1,111]。原 MP4 断言不变，在其用例中增加 PNG 对照。原始 PNG/JSON 存 `png-real-video/`，两次完整 PNG 任务耗时 692,801us / 740,683us；含素材复制、独立 GPU 初始化、媒体解码、所有阶段、回读、PNG 编码验证及发布，不是纯 GPU 时间、播放 FPS 或 VRAM 峰值。32×32 独立小数帧夹具该轮 927,090us，早期 `png-fixtures/` 成本也保留，不以快轮次覆盖旧值。
+- `png-native-ui.log` 两项专项通过，包含两语言实际原生窗口/GPU 截图。第一次截图 `png-ui-first/` 目视检查后发现通用 Exporting 翻译仍含“视频”；保留该轮图像，随后改为通用文案并加入真实排队取消/状态栏断言。
+- `png-desktop-host-complete.log` 全量桌面为 532 通过、1 失败、1 原有忽略；失败是新截图测试在既有测试创建原生事件循环后再次创建，触发 winit RecreationAttempt。改为子进程隔离，不改产品窗口逻辑，不忽略测试或弱化截图/交互断言。该失败导致同一 cargo 命令未运行宿主 suite；最终重跑结果另记于后。
+
+旧 host::ops::export::capture 的直接使用方经检索为 Android JNI；本轮只替换桌面入口，不宣称旧 SDK / 冻结组合读帧协议已经获得运动模糊。#255 的下一阶段必须先明确这些接口的支持/拒绝边界，再完成 host 能力及真正支持的 UI 开关、主/浮窗/焦点和保存撤销验收。
+
+最终重跑 `png-desktop-host-final.log` 为桌面 533 通过、0 失败、1 项原有音频设备忽略（350.31 秒），宿主 49 通过（61.04 秒）。截图用例已在子进程实际运行，并通过生产 start/poll/CancelExport 路由验证取消回复、未发布文件以及中英文“导出已取消／Export cancelled”；没有用静态文案替代工作流。实际截图保存在 `png-ui-final/`，每语言包含文件菜单及初始导出状态、保存完成、取消完成三张原生 1280×800 图；另有正式输出的 64×64 PNG。已目视查看中文菜单和英文取消图，原有面板窄列截断属于保留的基线问题，不据此宣称面板样式已全面验收。
+
+此后仅收紧公开 FrameFreezePlan 的非法帧入口，与 Seek 的半开范围一致（负数、NaN、Infinity、等于合成末尾都拒绝）。`png-media-final.log` 在最终守卫上重跑全部 28 项（22.49 秒），新增非法帧断言未削弱原像素或文件保护断言；`png-noffmpeg-final.log` 五项全部通过（10.68 秒），与 FFmpeg suite 重叠，不重复计数。最终媒体产物保留在 `png-media-final/`：相邻视频 PNG 710,962us、嵌套视频 PNG 817,054us、小数帧图形 PNG 621,357us；像素 oracle 仍相同，成本范围同前，旧轮次全部保留。
+
+最终带/不带 FFmpeg 桌面编译检查均通过，见 `png-desktop-ffmpeg-final.log`（7.40 秒）和 `png-desktop-noffmpeg.log`（14.67 秒）。保留既有 21 条普通构建警告、19 条测试构建警告。本阶段没有生成新的 release 分发包。去重计 610 项通过、1 项既有忽略，含五个新增测试及两个既有视频用例的 PNG 扩展；不把多次运行相加。
+
+暂存差异空白检查、来源守卫（1,410 tracked paths）和样式消费者检查通过。#255 仍为 OPEN；本提交完成正式桌面 PNG 这一段，不代表能力/UI、旧协议边界和完整性能验收已完成。

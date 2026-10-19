@@ -4,6 +4,7 @@ mod node_view_acceptance;
 pub(crate) mod actions;
 mod lifecycle;
 mod media;
+mod frame_export;
 pub(crate) mod audio_analysis;
 mod nodes;
 mod presentation;

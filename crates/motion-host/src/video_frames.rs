@@ -462,6 +462,26 @@ impl VideoFrames {
         self.sequences.clear();
         self.sampling_recent.clear();
     }
+    /// Stop and join every owned decoder. Only call on an independent export
+    /// worker: native decoder closure can block. Retain that worker's slot and
+    /// frozen sources until this returns instead of detaching cancelled work.
+    pub fn finish(&mut self) -> Result<()> {
+        self.clear();
+        let mut error = self.pending_retirement_error.take();
+        for worker in self.retiring.drain(..) {
+            if let Err(payload) = worker.join() {
+                let reason: String = format!("video decoder retirement failed: {}", motion_media::panic_reason(payload))
+                    .chars().take(1024).collect();
+                if let Some(primary) = &mut error {
+                    if primary.len() < 2048 { primary.push_str(&format!("; cleanup: {reason}")); }
+                } else { error = Some(reason); }
+            }
+        }
+        if let Some(error) = error {
+            self.retirement_error = Some(error.clone());
+            Err(error)
+        } else { Ok(()) }
+    }
     /// Supersede unfinished exposure reads without discarding completed caches
     /// or restarting failed decoders. Retiring native calls retain their worker
     /// slots until they actually return, just as ordinary scene eviction does.

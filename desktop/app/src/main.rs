@@ -292,6 +292,10 @@ struct Shell {
         motion_desktop_media::movie::ExportControl,
     )>,
     exporting_movie: Option<movie_export::MovieExport>,
+    exporting_frame: Option<(
+        std::sync::mpsc::Receiver<Result<Value, String>>,
+        motion_desktop_media::movie::ExportControl,
+    )>,
     export_notified: bool,
     importing_image: Option<std::sync::mpsc::Receiver<Result<Value, String>>>,
     importing_media: Option<(String, Instant)>,
@@ -395,6 +399,7 @@ impl Shell {
             audio: None,
             freezing_movie: None,
             exporting_movie: None,
+            exporting_frame: None,
             export_notified: false,
             importing_image: None,
             importing_media: None,
@@ -666,6 +671,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             self.panels.node_editor.report_error(error);
             self.dirty = true;
         }
+        self.poll_frame_export();
         if let Some((receive, path, control)) = &self.freezing_movie {
             if let Some(result) = self.engine.poll_reply(receive, "freeze_movie") {
                 let output = path.clone();
@@ -997,6 +1003,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             || self.audio_analysis.is_some()
             || self.importing_effect.is_some()
             || self.freezing_movie.is_some()
+            || self.exporting_frame.is_some()
             || self.exporting_movie.as_ref().is_some_and(|e| !e.finished())
         {
             if self.attached

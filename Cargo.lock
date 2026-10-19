@@ -2089,6 +2089,7 @@ name = "motion-desktop-media"
 version = "0.1.0"
 dependencies = [
  "ffmpeg-next",
+ "image",
  "motion-core",
  "motion-effects",
  "motion-host",
