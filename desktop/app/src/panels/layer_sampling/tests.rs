@@ -548,246 +548,300 @@ fn sampling_switches_use_native_main_and_floating_routes_with_bilingual_screens(
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|| directory.path().join("screens"));
     std::fs::create_dir_all(&screenshots).unwrap();
-    for (language, locale) in [("zh", Locale::Zh), ("en", Locale::En)] {
-        let root = directory.path().join(language);
-        prepare_files(&root, true);
-        let mut project = fixture(true);
-        project.layers[0].name = if locale == Locale::Zh {
-            "视频图层"
-        } else {
-            "Video layer"
-        }
-        .into();
-        let mut vector = fixture(false).layers.remove(0);
-        vector.id = 8;
-        vector.name = if locale == Locale::Zh {
-            "矢量图层"
-        } else {
-            "Vector layer"
-        }
-        .into();
-        project.layers.push(vector);
-        motion_core::storage::save(&root, &project).unwrap();
-        let engine =
-            crate::engine::Engine::start(root, motion_desktop_media::platform(), 8 << 30).unwrap();
-        #[allow(deprecated)]
-        let window = Arc::new(
-            event_loop
-                .create_window(
-                    winit::window::Window::default_attributes()
-                        .with_visible(false)
-                        .with_inner_size(winit::dpi::PhysicalSize::new(1600, 1000)),
-                )
-                .unwrap(),
-        );
-        engine
-            .attach_async(window, 1600, 1000)
-            .unwrap()
-            .recv_timeout(Duration::from_secs(30))
-            .unwrap()
-            .unwrap();
-        for floating in [false, true] {
-            let size = if floating {
-                [900., 600.]
+    for (base_language, locale) in [("zh", Locale::Zh), ("en", Locale::En)] {
+        for ratio in [1f32, 1.25, 1.5, 2.] {
+            let language = if ratio == 1. {
+                base_language.to_owned()
             } else {
-                [1600., 1000.]
+                format!("{base_language}-dpi{}", (ratio * 100.) as u32)
             };
-            if floating {
-                #[allow(deprecated)]
-                let window = Arc::new(
-                    event_loop
-                        .create_window(
-                            winit::window::Window::default_attributes()
-                                .with_visible(false)
-                                .with_inner_size(winit::dpi::PhysicalSize::new(900, 600)),
-                        )
-                        .unwrap(),
-                );
-                engine.float_window(1, window, 900, 600).unwrap();
+            let root = directory.path().join(&language);
+            prepare_files(&root, true);
+            let mut project = fixture(true);
+            project.layers[0].name = if locale == Locale::Zh {
+                "视频图层"
+            } else {
+                "Video layer"
             }
-            let mut state = engine.state().unwrap();
-            let before = state["project"].clone();
-            let mut panels = Panels::default();
-            panels.locale = locale;
-            panels.focused = Some(Panel::Timeline);
-            panels.select_only(Some(7));
-            let sheet = PaintList::default().styles();
-            let mut atlas = TextAtlas::from_family(
-                sheet.font_family(),
-                sheet.base_font_size(),
-                locale == Locale::Zh,
-            )
-            .unwrap();
-            let layout = dock::editor_layout();
-            let body = if floating {
-                Rect::new(0., 30., size[0], size[1] - 52.)
+            .into();
+            let mut vector = fixture(false).layers.remove(0);
+            vector.id = 8;
+            vector.name = if locale == Locale::Zh {
+                "矢量图层"
             } else {
-                crate::panels::frames(&layout, size)
-                    .into_iter()
-                    .find(|f| f.panel == Panel::Timeline)
-                    .unwrap()
-                    .content
-            };
-            let render = |panels: &mut Panels,
-                          atlas: &mut TextAtlas,
-                          state: &Value,
-                          input: &Input| {
-                let mut paint = PaintList::default();
-                let actions = if floating {
-                    crate::panels::floating_chrome(
-                        &mut paint,
-                        atlas,
-                        Panel::Timeline,
-                        size,
-                        panels,
-                        state,
-                        input,
-                    )
-                } else {
-                    crate::panels::chrome(&mut paint, atlas, size, &layout, panels, state, input)
-                };
-                (paint, actions)
-            };
-            let capture = |paint: PaintList, atlas: &TextAtlas, suffix: &str| {
-                let config = atlas.config();
-                engine
-                    .capture_ui(
-                        crate::engine::UiFrame {
-                            paint,
-                            atlas: Some(crate::engine::AtlasUpload {
-                                pixels: atlas.pixel_data().to_vec(),
-                                width: config.width,
-                                height: config.height,
-                            }),
-                            logical_size: size,
-                            composition: None,
-                            composition_image: None,
-                            window: u64::from(floating),
-                            node_preview: None,
-                        },
-                        screenshots.join(format!(
-                            "{language}-timeline-{}-{suffix}.png",
-                            if floating { "floating" } else { "main" }
-                        )),
-                    )
+                "Vector layer"
+            }
+            .into();
+            project.layers.push(vector);
+            motion_core::storage::save(&root, &project).unwrap();
+            let engine =
+                crate::engine::Engine::start(root, motion_desktop_media::platform(), 8 << 30)
                     .unwrap();
-            };
-            for (object, index) in [(7, 0), (7, 1), (8, 1), (8, 2)] {
-                let (paint, actions) = render(&mut panels, &mut atlas, &state, &Input::default());
-                assert!(actions.is_empty());
-                let columns = ColumnRects::with_sampling(
-                    &paint.styles(),
-                    body.min[0],
-                    640f32.min(body.width() * 0.52),
-                    panels.timeline.column_visibility,
-                    panels.timeline.sampling_visibility,
-                    true,
-                );
-                let slot = columns.sampling[index].unwrap();
-                let rows = crate::panels::timeline::rows(&state);
-                let position = rows.iter().position(|r| r.id == object).unwrap();
-                let at = [
-                    slot.x + slot.width * 0.5,
-                    body.min[1] + 64. + sheet.metric("row.height", 22.) * (position as f32 + 0.5),
-                ];
-                let (_, actions) = render(&mut panels, &mut atlas, &state, &press(at));
-                assert_eq!(
-                    actions.len(),
-                    1,
-                    "{language} floating={floating} object={object} index={index}"
-                );
-                for action in actions {
-                    let Action::EditChecked { command, revision } = action else {
-                        panic!("unexpected action: {action:?}")
-                    };
-                    state = engine
-                        .edit_at_revision(serde_json::to_string(&command).unwrap(), revision)
+            #[allow(deprecated)]
+            let window = Arc::new(
+                event_loop
+                    .create_window(
+                        winit::window::Window::default_attributes()
+                            .with_visible(false)
+                            .with_inner_size(winit::dpi::PhysicalSize::new(
+                                (1600. * ratio) as u32,
+                                (1000. * ratio) as u32,
+                            )),
+                    )
+                    .unwrap(),
+            );
+            engine
+                .attach_async(window, (1600. * ratio) as u32, (1000. * ratio) as u32)
+                .unwrap()
+                .recv_timeout(Duration::from_secs(30))
+                .unwrap()
+                .unwrap();
+            for floating in [false, true] {
+                let size = if floating {
+                    [900., 600.]
+                } else {
+                    [1600., 1000.]
+                };
+                if floating {
+                    #[allow(deprecated)]
+                    let window = Arc::new(
+                        event_loop
+                            .create_window(
+                                winit::window::Window::default_attributes()
+                                    .with_visible(false)
+                                    .with_inner_size(winit::dpi::PhysicalSize::new(
+                                        (900. * ratio) as u32,
+                                        (600. * ratio) as u32,
+                                    )),
+                            )
+                            .unwrap(),
+                    );
+                    engine
+                        .float_window(1, window, (900. * ratio) as u32, (600. * ratio) as u32)
                         .unwrap();
                 }
-                assert!(render(
-                    &mut panels,
-                    &mut atlas,
-                    &state,
-                    &Input {
-                        mouse: at,
-                        released: Some((MouseButton::Left, at)),
-                        ..Default::default()
-                    }
+                let mut state = engine.state().unwrap();
+                let before = state["project"].clone();
+                let mut panels = Panels::default();
+                panels.locale = locale;
+                panels.focused = Some(Panel::Timeline);
+                panels.select_only(Some(7));
+                let sheet = PaintList::default().styles();
+                let mut atlas = TextAtlas::from_family(
+                    sheet.font_family(),
+                    sheet.base_font_size(),
+                    locale == Locale::Zh,
                 )
-                .1
-                .is_empty());
-            }
-            for (object, index) in [(7, 0), (7, 1), (8, 1), (8, 2)] {
-                let layer = state["project"]["layers"]
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .find(|l| l["id"] == object)
-                    .unwrap();
-                let setting: LayerSampling =
-                    serde_json::from_value(layer["sampling"].clone()).unwrap();
-                assert!(match index {
-                    0 => setting.frame_blend == FrameBlend::Linear,
-                    1 => setting.motion_blur.is_some(),
-                    _ => setting.continuous_rasterization,
-                });
-            }
-            let (paint, actions) = render(&mut panels, &mut atlas, &state, &Input::default());
-            assert!(actions.is_empty());
-            capture(paint, &atlas, "enabled");
-            if !floating {
-                panels.menu = Some(6);
-                let (paint, actions) = render(&mut panels, &mut atlas, &state, &Input::default());
-                assert!(actions.is_empty());
-                capture(paint, &atlas, "columns-menu");
-                assert!(render(&mut panels, &mut atlas, &state, &key(Key::Escape))
+                .unwrap();
+                atlas.set_pixel_ratio(ratio);
+                let layout = dock::editor_layout();
+                let body = if floating {
+                    Rect::new(0., 30., size[0], size[1] - 52.)
+                } else {
+                    crate::panels::frames(&layout, size)
+                        .into_iter()
+                        .find(|f| f.panel == Panel::Timeline)
+                        .unwrap()
+                        .content
+                };
+                let render =
+                    |panels: &mut Panels, atlas: &mut TextAtlas, state: &Value, input: &Input| {
+                        let mut paint = PaintList::default();
+                        let actions = if floating {
+                            crate::panels::floating_chrome(
+                                &mut paint,
+                                atlas,
+                                Panel::Timeline,
+                                size,
+                                panels,
+                                state,
+                                input,
+                            )
+                        } else {
+                            crate::panels::chrome(
+                                &mut paint, atlas, size, &layout, panels, state, input,
+                            )
+                        };
+                        (paint, actions)
+                    };
+                let capture = |paint: PaintList, atlas: &TextAtlas, suffix: &str| {
+                    let config = atlas.config();
+                    let path = screenshots.join(format!(
+                        "{language}-timeline-{}-{suffix}.png",
+                        if floating { "floating" } else { "main" }
+                    ));
+                    let report = engine
+                        .capture_ui(
+                            crate::engine::UiFrame {
+                                paint,
+                                atlas: Some(crate::engine::AtlasUpload {
+                                    pixels: atlas.pixel_data().to_vec(),
+                                    width: config.width,
+                                    height: config.height,
+                                }),
+                                logical_size: size,
+                                composition: None,
+                                composition_image: None,
+                                window: u64::from(floating),
+                                node_preview: None,
+                            },
+                            path.clone(),
+                        )
+                        .unwrap();
+                    let physical = [(size[0] * ratio) as u32, (size[1] * ratio) as u32];
+                    assert_eq!(report["width"], physical[0]);
+                    assert_eq!(report["height"], physical[1]);
+                    let pixels = image::open(path).unwrap().into_rgba8();
+                    assert_eq!(pixels.dimensions(), (physical[0], physical[1]));
+                    pixels
+                };
+                let initial_pixels = capture(
+                    render(&mut panels, &mut atlas, &state, &Input::default()).0,
+                    &atlas,
+                    "disabled",
+                );
+                let mut clicked_cells = Vec::new();
+                for (object, index) in [(7, 0), (7, 1), (8, 1), (8, 2)] {
+                    let (paint, actions) =
+                        render(&mut panels, &mut atlas, &state, &Input::default());
+                    assert!(actions.is_empty());
+                    let columns = ColumnRects::with_sampling(
+                        &paint.styles(),
+                        body.min[0],
+                        640f32.min(body.width() * 0.52),
+                        panels.timeline.column_visibility,
+                        panels.timeline.sampling_visibility,
+                        true,
+                    );
+                    let slot = columns.sampling[index].unwrap();
+                    let rows = crate::panels::timeline::rows(&state);
+                    let position = rows.iter().position(|r| r.id == object).unwrap();
+                    let at = [
+                        slot.x + slot.width * 0.5,
+                        body.min[1]
+                            + 64.
+                            + sheet.metric("row.height", 22.) * (position as f32 + 0.5),
+                    ];
+                    clicked_cells.push(slot.rect(
+                        body.min[1] + 64. + sheet.metric("row.height", 22.) * position as f32,
+                        sheet.metric("row.height", 22.),
+                    ));
+                    let (_, actions) = render(&mut panels, &mut atlas, &state, &press(at));
+                    assert_eq!(
+                        actions.len(),
+                        1,
+                        "{language} floating={floating} object={object} index={index}"
+                    );
+                    for action in actions {
+                        let Action::EditChecked { command, revision } = action else {
+                            panic!("unexpected action: {action:?}")
+                        };
+                        state = engine
+                            .edit_at_revision(serde_json::to_string(&command).unwrap(), revision)
+                            .unwrap();
+                    }
+                    assert!(render(
+                        &mut panels,
+                        &mut atlas,
+                        &state,
+                        &Input {
+                            mouse: at,
+                            released: Some((MouseButton::Left, at)),
+                            ..Default::default()
+                        }
+                    )
                     .1
                     .is_empty());
-                assert!(panels.menu.is_none());
-                panels.menu = Some(6);
-                let x = 8.
-                    + [
-                        T::File,
-                        T::Edit,
-                        T::Composition,
-                        T::Layer,
-                        T::Effect,
-                        T::Animation,
-                    ]
-                    .into_iter()
-                    .map(|name| atlas.measure(locale.t(name)) + 22.)
-                    .sum::<f32>()
-                    + 20.;
-                let (_, actions) = render(
-                    &mut panels,
-                    &mut atlas,
-                    &state,
-                    &press([
-                        x,
-                        metrics::TITLE_BAR + metrics::MENU_BAR + 4. + 5. * 32. + 15.,
-                    ]),
-                );
-                assert_eq!(actions.len(), 1);
-                let Action::SamplingColumnVisibility(next) = actions[0] else {
-                    panic!("wrong menu command")
-                };
-                assert_eq!(next, Visibility([true, false, true]));
-                panels.timeline.sampling_visibility = next;
+                }
+                for (object, index) in [(7, 0), (7, 1), (8, 1), (8, 2)] {
+                    let layer = state["project"]["layers"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .find(|l| l["id"] == object)
+                        .unwrap();
+                    let setting: LayerSampling =
+                        serde_json::from_value(layer["sampling"].clone()).unwrap();
+                    assert!(match index {
+                        0 => setting.frame_blend == FrameBlend::Linear,
+                        1 => setting.motion_blur.is_some(),
+                        _ => setting.continuous_rasterization,
+                    });
+                }
                 let (paint, actions) = render(&mut panels, &mut atlas, &state, &Input::default());
                 assert!(actions.is_empty());
-                capture(paint, &atlas, "blur-column-hidden");
-                assert_eq!(
-                    engine.state().unwrap()["project"],
-                    state["project"],
-                    "column visibility must not edit the project"
-                );
+                let enabled_pixels = capture(paint, &atlas, "enabled");
+                for cell in clicked_cells {
+                    let mut changed = 0;
+                    for y in
+                        (cell.min[1] * ratio).ceil() as u32..(cell.max[1] * ratio).floor() as u32
+                    {
+                        for x in (cell.min[0] * ratio).ceil() as u32
+                            ..(cell.max[0] * ratio).floor() as u32
+                        {
+                            changed += usize::from(
+                                initial_pixels.get_pixel(x, y) != enabled_pixels.get_pixel(x, y),
+                            );
+                        }
+                    }
+                    assert!(changed > 0, "native checkbox must visibly update: {language} floating={floating} cell={cell:?}");
+                }
+                if !floating {
+                    panels.menu = Some(6);
+                    let (paint, actions) =
+                        render(&mut panels, &mut atlas, &state, &Input::default());
+                    assert!(actions.is_empty());
+                    capture(paint, &atlas, "columns-menu");
+                    assert!(render(&mut panels, &mut atlas, &state, &key(Key::Escape))
+                        .1
+                        .is_empty());
+                    assert!(panels.menu.is_none());
+                    panels.menu = Some(6);
+                    let x = 8.
+                        + [
+                            T::File,
+                            T::Edit,
+                            T::Composition,
+                            T::Layer,
+                            T::Effect,
+                            T::Animation,
+                        ]
+                        .into_iter()
+                        .map(|name| atlas.measure(locale.t(name)) + 22.)
+                        .sum::<f32>()
+                        + 20.;
+                    let (_, actions) = render(
+                        &mut panels,
+                        &mut atlas,
+                        &state,
+                        &press([
+                            x,
+                            metrics::TITLE_BAR + metrics::MENU_BAR + 4. + 5. * 32. + 15.,
+                        ]),
+                    );
+                    assert_eq!(actions.len(), 1);
+                    let Action::SamplingColumnVisibility(next) = actions[0] else {
+                        panic!("wrong menu command")
+                    };
+                    assert_eq!(next, Visibility([true, false, true]));
+                    panels.timeline.sampling_visibility = next;
+                    let (paint, actions) =
+                        render(&mut panels, &mut atlas, &state, &Input::default());
+                    assert!(actions.is_empty());
+                    capture(paint, &atlas, "blur-column-hidden");
+                    assert_eq!(
+                        engine.state().unwrap()["project"],
+                        state["project"],
+                        "column visibility must not edit the project"
+                    );
+                }
+                for _ in 0..4 {
+                    state = engine
+                        .history(motion_host::ops::editing::HISTORY_UNDO)
+                        .unwrap();
+                }
+                assert_eq!(state["project"], before);
             }
-            for _ in 0..4 {
-                state = engine
-                    .history(motion_host::ops::editing::HISTORY_UNDO)
-                    .unwrap();
-            }
-            assert_eq!(state["project"], before);
         }
     }
 }
