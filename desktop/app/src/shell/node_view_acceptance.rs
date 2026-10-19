@@ -8,6 +8,16 @@ impl Shell {
         input: Input,
         suffix: &str,
     ) -> Result<PathBuf, String> {
+        self.node_search_frame(floating, input, suffix, false)
+    }
+
+    pub(super) fn node_search_frame(
+        &mut self,
+        floating: bool,
+        input: Input,
+        suffix: &str,
+        permit_search_edit: bool,
+    ) -> Result<PathBuf, String> {
         let (size, scale, key) = if floating {
             let f = self
                 .floating
@@ -46,6 +56,12 @@ impl Shell {
                 panels::Action::Node(action @ node_editor::Action::ViewPreferencesChanged(_)) => {
                     self.node_action(action)?
                 }
+                panels::Action::Node(action @ node_editor::Action::RecentNodesChanged(_))
+                    if permit_search_edit => self.node_action(action)?,
+                // Search acceptance edits an isolated editor and checks its
+                // source and project revision explicitly before restoring it.
+                panels::Action::Node(node_editor::Action::Changed { .. })
+                    if permit_search_edit => {}
                 _ => return Err("node view input emitted a graph or project action".into()),
             }
         }

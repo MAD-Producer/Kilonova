@@ -291,7 +291,9 @@ impl NodeEditor {
                     self.add_menu = Some(AddMenu {
                         position: menu.position,
                         world: self.view.screen_to_world(menu.position, self.last_canvas),
-                        query: String::new(),
+                        query: SearchQuery::default(),
+                        recent: false,
+                        category_scroll: 0.,
                         category: None,
                         selected: 0,
                         scroll: 0.,

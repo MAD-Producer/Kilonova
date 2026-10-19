@@ -398,6 +398,14 @@ These are **only** behaviors evidenced in the supplied audit, **not** an exhaust
 - Put the independently authored two-node Solid Color example first. Opening the browser and its default example takes two clicks; selecting Color exposes editable RGBA controls. Retain advanced examples as independent editable sources
 - Use existing panel, text, muted, row-height and padding tokens. Validate both languages, minimum and default windows, empty state, dismissal, real GPU output, source reopening and undo
 
+### 10.2 Node catalogue search
+
+- The Add popup and library share one catalogue matcher. A nonblank query searches all categories; blank browsing preserves category order. Match English and Chinese titles, independently authored aliases, pinyin/initials and short descriptions. Require every query token and rank title matches first.
+- Use the native text editor for caret movement, selection, deletion and IME commits. Up/Down selects a result, Enter adds it, and Esc exits search. IME confirmation must never add a node. Keep the popup's opening world position when adding; empty results and cancellation leave the graph unchanged.
+- Show a title and short description per result, with actual input/output types for the selected or hovered entry in a fixed footer. Read popup dimensions and result/footer heights from `node.add_menu.*` and `node.search.*`; reuse existing text, inset, hover and selection tokens. Clamp the popup to its panel and clip rows and details independently.
+- In a short dock, remove the popup's redundant scope heading to retain a complete result and input/output footer, and scroll categories separately. In a short library, remove its redundant title and search-results heading first; omit the details footer only when a complete result would otherwise be hidden. The Add popup remains available for port details.
+- Record only successful catalogue choices in a bounded, deduplicated list of 16 recent keys. Persist it in workspace state, retain it across graph undo/new/open, and ignore unknown or oversized saved keys. Browsing and failed additions do not update recents or graph history.
+
 ---
 
 ## 11. Existing project model and Project panel
