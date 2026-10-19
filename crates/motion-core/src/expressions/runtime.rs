@@ -1,6 +1,8 @@
 use super::transpile::transpile;
 use crate::{Error, Result};
-use rquickjs::{Context, Ctx, Function, Module, Runtime, Value, WriteOptions};
+use rquickjs::{
+    context::intrinsic, Context, Ctx, Function, Module, Runtime, Undefined, Value, WriteOptions,
+};
 use std::{
     cell::RefCell,
     collections::HashMap,
@@ -69,7 +71,7 @@ impl JsEngine {
             stop
         })));
         let result = (|| {
-            let context = Context::full(&self.runtime).map_err(js_error)?;
+            let context = evaluation_context(&self.runtime)?;
             context.with(|ctx| {
                 let operation = || -> rquickjs::Result<Vec<f32>> {
                     ctx.globals().set("__msData", data)?;
@@ -81,8 +83,6 @@ impl JsEngine {
                         }
                         Ok(sample(time))
                     })?)?;
-                    // No external clocks, module loader, timers, native IO or async host APIs.
-                    ctx.eval::<(), _>("globalThis.Date=undefined; globalThis.Promise=undefined; globalThis.SharedArrayBuffer=undefined; globalThis.Atomics=undefined;")?;
                     // SAFETY: only bytecode produced above by this exact runtime is loaded.
                     // Its allocation remains pinned until the runtime is dropped.
                     let module = unsafe { Module::load(ctx.clone(), &self.code[source]) }?;
@@ -124,6 +124,50 @@ impl JsEngine {
         Ok(result)
     }
 }
+
+fn evaluation_context(runtime: &Runtime) -> Result<Context> {
+    // Omit Eval itself: hiding its global names cannot stop constructor chains.
+    // Date and Performance are external clocks. Promise is required internally
+    // to evaluate a precompiled module; its user-facing bindings stay hidden.
+    let context = Context::custom::<(
+        intrinsic::RegExp,
+        intrinsic::Json,
+        intrinsic::Proxy,
+        intrinsic::MapSet,
+        intrinsic::TypedArrays,
+        intrinsic::Promise,
+        intrinsic::WeakRef,
+    )>(runtime)
+    .map_err(js_error)?;
+    context.with(|ctx| {
+        let operation = || -> rquickjs::Result<()> {
+            // Preserve the existing full context's pure Base64 helpers. rquickjs
+            // 0.14 has no intrinsic marker for this public QuickJS initializer.
+            // SAFETY: ctx is live and its runtime lock is held by Context::with;
+            // no raw pointer or JavaScript value escapes this scope.
+            if unsafe { rquickjs::qjs::JS_AddIntrinsicAToB(ctx.as_raw().as_ptr()) } < 0 {
+                return Err(rquickjs::Error::Exception);
+            }
+            let globals = ctx.globals();
+            for name in [
+                "Date",
+                "performance",
+                "Promise",
+                "queueMicrotask",
+                "SharedArrayBuffer",
+                "Atomics",
+                "eval",
+                "Function",
+            ] {
+                globals.set(name, Undefined)?;
+            }
+            Ok(())
+        };
+        operation().map_err(|error| caught(&ctx, error))
+    })?;
+    Ok(context)
+}
+
 fn js_error(e: rquickjs::Error) -> Error {
     Error::Invalid(format!("JavaScript: {e}"))
 }
