@@ -331,6 +331,9 @@ fn clip_triangles(points: &[[f32; 2]], area: Rect) -> Vec<[f32; 2]> {
 #[derive(Clone, Copy, Debug)]
 pub struct Glyph {
     pub uv: [f32; 4],
+    /// Dimensions used to normalize `uv`. None uses the currently uploaded
+    /// texture. Retained text supplies a size so atlas growth preserves its UVs.
+    pub atlas_size: Option<[u32; 2]>,
     pub position: [f32; 2],
     pub size: [f32; 2],
     pub color: Color,
@@ -1074,6 +1077,13 @@ impl Painter {
         let mut glyphs = std::mem::take(&mut self.glyph_cpu);
         glyphs.clear();
         glyphs.extend(list.glyphs.iter().flat_map(|glyph| {
+            let mut uv = glyph.uv;
+            if let Some(size) = glyph.atlas_size {
+                for i in 0..4 {
+                    let axis = i % 2;
+                    uv[i] *= size[axis] as f32 / self.atlas_size[axis].max(1) as f32;
+                }
+            }
             let rgba = upload_color(glyph.color.0, self.srgb_target);
             let min = glyph.position;
             let max = [
@@ -1081,12 +1091,12 @@ impl Painter {
                 glyph.position[1] + glyph.size[1],
             ];
             [
-                (min, [glyph.uv[0], glyph.uv[1]]),
-                ([max[0], min[1]], [glyph.uv[2], glyph.uv[1]]),
-                (max, [glyph.uv[2], glyph.uv[3]]),
-                (min, [glyph.uv[0], glyph.uv[1]]),
-                (max, [glyph.uv[2], glyph.uv[3]]),
-                ([min[0], max[1]], [glyph.uv[0], glyph.uv[3]]),
+                (min, [uv[0], uv[1]]),
+                ([max[0], min[1]], [uv[2], uv[1]]),
+                (max, [uv[2], uv[3]]),
+                (min, [uv[0], uv[1]]),
+                (max, [uv[2], uv[3]]),
+                ([min[0], max[1]], [uv[0], uv[3]]),
             ]
             .into_iter()
             .map(move |(position, uv)| GlyphVertex {
@@ -1243,6 +1253,7 @@ mod tests {
             Color::grey(30),
         );
         list.glyphs.push(Glyph {
+            atlas_size: None,
             uv: [0.0, 0.0, 1.0, 1.0],
             position: [-5.0, 0.0],
             size: [20.0, 10.0],

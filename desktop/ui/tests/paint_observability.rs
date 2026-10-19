@@ -141,6 +141,7 @@ fn actual_painter_reports_discarded_work_once_per_render_and_recovers_without_pi
     }
     assert!(capture.0.lock().unwrap().is_empty());
     list.push_glyph(Glyph {
+        atlas_size: None,
         uv: [0., 0., 1., 1.],
         position: [4.; 2],
         size: [8.; 2],

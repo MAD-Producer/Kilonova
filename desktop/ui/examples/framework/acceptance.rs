@@ -121,23 +121,37 @@ impl App {
             .find(|p| p.panel == DockId(2));
         match self.stage {
             0 => {
+                self.secondary_owner_probe(main, event_loop)?;
                 let r = field_rect(layout.unwrap().bounds, 0);
                 let p = [r.min[0] + 10., r.min[1] + 10.];
-                self.windows.get_mut(&main).unwrap().input = Input {
-                    mouse: p,
-                    pressed: Some((motion_ui::MouseButton::Left, p)),
-                    held: Some(motion_ui::MouseButton::Left),
-                    ..Default::default()
-                };
+                ui::accumulate(
+                    &mut self.windows.get_mut(&main).unwrap().input,
+                    motion_ui::input::Event::MousePressed {
+                        position: p,
+                        button: motion_ui::MouseButton::Left,
+                    },
+                );
             }
             1 => {
                 let r = field_rect(layout.unwrap().bounds, 0);
-                self.windows.get_mut(&main).unwrap().input.mouse[0] = r.min[0] + 30.;
+                ui::accumulate(
+                    &mut self.windows.get_mut(&main).unwrap().input,
+                    motion_ui::input::Event::MouseMoved {
+                        position: [r.min[0] + 30., r.min[1] + 10.],
+                    },
+                );
             }
             2 => {
+                self.secondary_buttons_probe(main, event_loop, &path.with_extension("input-main.png"))?;
                 let input = &mut self.windows.get_mut(&main).unwrap().input;
-                input.released = Some((motion_ui::MouseButton::Left, input.mouse));
-                input.held = None;
+                let position = input.mouse;
+                ui::accumulate(
+                    input,
+                    motion_ui::input::Event::MouseReleased {
+                        position,
+                        button: motion_ui::MouseButton::Left,
+                    },
+                );
             }
             3 => {
                 if self.model.borrow().undo.len() != 1 || self.model.borrow().value != 35. {
@@ -145,6 +159,7 @@ impl App {
                 }
                 self.apply(vec![Action::Undo]);
                 self.verified_undo = self.model.borrow().value == 25.;
+                self.tab_probe(main, event_loop)?;
                 self.detach(DockId(2), event_loop)?;
             }
             4 => {
@@ -156,6 +171,7 @@ impl App {
                 else {
                     return Ok(());
                 };
+                self.floating_input_probe(id, event_loop, &path)?;
                 self.capture(id, &path.with_extension("floating.png"))?;
                 self.redock(DockId(2))?;
             }
@@ -204,7 +220,7 @@ impl App {
                 }
                 self.capture(main, &path.with_extension("png"))?;
                 let info = self.gpu.as_ref().unwrap().adapter.get_info();
-                std::fs::write(&path,serde_json::to_vec_pretty(&serde_json::json!({"styles":style_checks,"ok":true,"adapter":info.name,"backend":format!("{:?}",info.backend),"independentUiOnly":true,"numericDragOneUndo":true,"undoRestored":true,"floatingPresented":true,"layoutRoundtrip":true,"language":if self.language==Language::Chinese{"zh"}else{"en"},"screenshot":path.with_extension("png")})).unwrap()).map_err(|e|e.to_string())?;
+                std::fs::write(&path,serde_json::to_vec_pretty(&serde_json::json!({"styles":style_checks,"ok":true,"adapter":info.name,"backend":format!("{:?}",info.backend),"independentUiOnly":true,"numericDragOneUndo":true,"undoRestored":true,"floatingPresented":true,"layoutRoundtrip":true,"secondaryButtonsPreservedGesture":true,"secondaryOwnerGuarded":true,"floatingCancellationRestored":true,"tabNavigationGuarded":true,"language":if self.language==Language::Chinese{"zh"}else{"en"},"screenshot":path.with_extension("png")})).unwrap()).map_err(|e|e.to_string())?;
                 event_loop.exit();
             }
             _ => {}

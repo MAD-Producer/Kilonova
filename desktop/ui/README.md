@@ -35,6 +35,8 @@ SVG 源文件、生成与更新方法见 [图标库](icons/README.md)。`framewo
 
 ## 交互约定
 
+The first held pointer button owns the accumulated gesture and its origin until its matching release, pointer exit or focus loss. Secondary button events remain visible without replacing that owner. Numeric scrubbing and button arming end only on the primary button's release; routed capture is released only by its owning native window. Widget navigation accepts initial Tab / Shift+Tab presses, visits each visible target once in registration order, and defers to IME and Ctrl/Alt chords. The direction comes from the key event's modifiers.
+
 - 单击数值保留并选中原值，未修改按 Enter 保留完整精度
 - 拖动超过 3 个逻辑像素开始事务，释放提交，Esc 或失焦取消并恢复起点
 - Shift 精细调整，Ctrl 粗调整；空输入、非有限数值和越界输入不写入数据

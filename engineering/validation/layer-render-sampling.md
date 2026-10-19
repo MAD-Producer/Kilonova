@@ -1,6 +1,6 @@
 # 图层渲染采样：契约与实施证据
 
-Issue：#255。本工作最初基于 `f32c64de`，已合入 `452f659` 主线（合并提交 `ef59c82`），保留在 `feat/layer-render-sampling`。三个采样开关现已接入时间轴，支持范围见下表及能力声明。本文保留各阶段证据；旧阶段的“待接入”不代表最新状态。main 渲染集成、桌面回归与四档固定比例截图/逻辑输入验证已完成；操作系统 DPI 切换、播放成本及新增坐标拒绝的默认失败信道验收尚未完成，不能据此关闭 issue。
+Issue：#255。本工作最初基于 `f32c64de`，先合入 `452f659` 主线（`ef59c82`），本轮继续整合到 `be043255`，保留在 `feat/layer-render-sampling`。三个采样开关现已接入时间轴，支持范围见下表及能力声明。本文保留各阶段证据；旧阶段的“待接入”不代表最新状态。main 渲染集成、桌面回归、四档固定比例截图/逻辑输入、默认策略播放成本及新增坐标拒绝的真实错误信道已验证。当前正在准备组合版本的可运行 release 包及 PR 验收，issue 仍 OPEN；操作系统 DPI 切换、物理输入、长时间压力与跨设备性能不在现有证据覆盖内。
 
 ## 当前要求与状态
 
@@ -517,3 +517,15 @@ P95 为排序后第 57/60 个完成间隔。dev 四组均保持 394×221；relea
 release 同时开启两项时，平均 seek 回复约 0.93ms、UI 构建约 2.77ms、呈现回复约 6.20ms，每个完成帧一次 present；dev 初轮出现多次曝光轮询及重复 UI 构建开销。当前证据支持该小场景在默认策略下按目标节拍完成，不支持承诺复杂效果、高清视频、浮窗并发或固定高分辨率的实时性能。`playback-release/` 与 `playback-dev-final/` 保存完整逐帧 costs.json、四幅真实截图和日志；已目视检查 release 同时开启图。此处没有生产性能修复，也没有以测试构建代替可分发 release EXE。
 
 分支复核期间，#340 经实际 diff、测试范围及全绿 CI 检查后合并为 `c46ce88`，#133 随之关闭；#341 经图集/UV 代码、真实 GPU 对照和全绿 CI 检查后合并为 `afaf8d1`，#129 保持 OPEN。#342 此时仍等待 Intel Mac CI，未合并。当前采样性能样本仍基于 `e2c8147` 的产品代码，未将已合入 main 的两项修复伪称为本分支已完成组合验证；静态 merge-tree 无冲突仅说明可合并。
+
+### 主线输入/图集集成与坐标拒绝（2026-10-19）
+
+#342 的 12 项 CI 检查通过、两项发布步骤按预期跳过后，复核 head 未变，合并为 `be043255`。本分支随后合入包含 #340/#341/#342 的 main，未修改 node-gestures 工作树中的未提交输入/路由代码；另有 fix/dock-split-boundaries 在进行分隔条验收，也没有重复处理。
+
+`sampling-integrated-ui-desktop.log` 完整 FFmpeg 桌面及 UI 回归为 **608 桌面 + 101 UI 通过，0 失败、1 项既有忽略**，桌面耗时 373.14 秒。先前进度消息把 UI 口算成 104，已按日志更正；统计脚本读取每个 suite 的终态。四档主/浮窗截图保存在 `integrated-input-atlas/`。后续渲染编译首轮失败：#340 的 Polygon 测试初始化缺少采样分支新增的 split 字段；修正夹具，并对 false/true 都保留缺失/越界平面及输出不变断言。`sampling-integrated-render.log` 保留该失败，`sampling-integrated-render-final.log` 为七个 suite **63 通过、0 失败**，覆盖库、相交/正交平面、连续栅格化、持久曝光及嵌套曝光。没有将文本自动合并等同于验证完成。
+
+SAM-OBS-19（既有信道的真实新拒绝验证）：用此前独立程序的 MCP 实际创建正常可保存的图层，在位置 X=10,000,000、缩放 X=1e-39 时触发 `object=7 phase=plane_coordinates: projection exceeds GPU coordinate range`。原始原因从 render_preview 回复返回，默认文件与 stderr 有同一 request 的 Error；修复位置和缩放后成功生成 PNG。产物 `coordinate-probe-dihrnbs2/` 含完整协议、文件日志、stderr 和恢复图像。首次 `coordinate-probe-41o82u_j/` 忘记 initialize，被协议正常拒绝，未到达渲染；保留记录，不记为产品故障。
+
+随后把合法极小缩放夹具加入真实 Shell 冻结 PNG 测试，与既有相机平面用例共用完整消息、工程/历史不变、旧文件保护、默认日志/stderr/stdout 隔离、在途终止及修复后再次输出断言；没有手造渲染 Err 或调用 respond。`sampling-integrated-projection-failure.log` 两项通过（17.81 秒），每项覆盖中英文，`integrated-projection-failure/{camera,coordinates}/` 保留消息、恢复 PNG 和日志。既有相机用例是重跑，坐标用例是新增；不把两项全部重复加到全量数量中。
+
+SAM-BOUND-04：非有限逆矩阵仍是 plane_coordinates 函数边界的防御性拒绝，由真实 CPU 边界用例验证；不把它描述为已复现的合法工程路径。零面积不可逆映射属于正常退化，原测试保持零映射结果。实际可达的有限坐标精度拒绝已通过上述正常工程/渲染/桌面信道验证。当前生产实现未因此新增日志、重试、清错或降级；本轮新增仅为集成夹具修正和失败回归。
