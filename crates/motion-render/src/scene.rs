@@ -56,6 +56,7 @@ pub struct DrawLayer {
     /// The generated raster is already in composition pixels. Logical model,
     /// node transforms and three_d remain available for editing/emitter poses.
     pub screen_overlay: bool,
+    pub sampling: motion_model::render_sampling::LayerSampling,
     /// 2D layers use a fixed composition projection; 3D layers use the camera.
     pub view_projection: Mat4,
 }
@@ -494,6 +495,7 @@ impl Scene {
                 order,
                 three_d: layer.three_d,
                 screen_overlay,
+                sampling: layer.sampling,
                 view_projection: if layer.three_d {
                     self.camera.view_projection
                 } else {

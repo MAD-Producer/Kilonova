@@ -955,6 +955,7 @@ impl PlanBuilder {
                 scale
             };
             if let Some(vector) = &layer.vector {
+                let scale = crate::raster_density::vector_scale(layer, width, height, scale)?;
                 let dirty = self
                     .vector_cache
                     .get(&layer.id)
@@ -964,8 +965,6 @@ impl PlanBuilder {
                 if dirty {
                     let origin = [layer.source_rect[0]+layer.size[0]*0.5-layer.source_size[0]*0.5,
                         layer.source_rect[1]+layer.size[1]*0.5-layer.source_size[1]*0.5];
-                    let geometry = crate::vector_mesh::rasterize_with_limit(vector, layer.size, scale, origin, vector_remaining)
-                        .map_err(|e| format!("layer {}: {e}", layer.id))?;
                     let (w, h) = (
                         (layer.size[0] * scale).ceil() as u32,
                         (layer.size[1] * scale).ceil() as u32,
@@ -977,6 +976,8 @@ impl PlanBuilder {
                             layer.id
                         ));
                     }
+                    let geometry = crate::vector_mesh::rasterize_with_limit(vector, layer.size, scale, origin, vector_remaining)
+                        .map_err(|e| format!("layer {}: {e}", layer.id))?;
                     use std::hash::{Hash, Hasher};
                     let mut hash = std::collections::hash_map::DefaultHasher::new();
                     bytemuck::cast_slice::<_, u8>(&geometry.vertices).hash(&mut hash);

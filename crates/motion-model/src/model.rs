@@ -149,6 +149,8 @@ pub struct Layer {
     /// New layers are flat until the user explicitly enables spatial transforms.
     #[serde(default)]
     pub three_d: bool,
+    #[serde(default, skip_serializing_if = "crate::render_sampling::LayerSampling::is_default")]
+    pub sampling: crate::render_sampling::LayerSampling,
     #[serde(default,skip_serializing_if="crate::geometry::default_rotation_order")]
     pub rotation_order:crate::geometry::RotationOrder,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -183,6 +185,7 @@ impl Layer {
             visible: true,
             locked: false,
             three_d: false,
+            sampling: Default::default(),
             rotation_order:Default::default(),
             parent: None,
             effects: Vec::new(),
@@ -354,7 +357,7 @@ impl Project {
             crate::storage::validate_relative_path(&font.path)?;
             ensure(font.path.starts_with("assets/fonts/")&&font.path.ends_with(".ttf"),"invalid managed font path")?;
         }
-        ensure((1..=20).contains(&self.version), "unsupported project format")?;
+        ensure((1..=21).contains(&self.version), "unsupported project format")?;
         ensure(self.plugin_dependencies == self.composition_dependencies(),
                "plugin dependency list does not match effect instances")?;
         self.validate_one(self)?;
@@ -363,7 +366,7 @@ impl Project {
     pub(crate) fn validate_one(&self, document: &Project) -> Result<()> {
         crate::effects::validate_image_graph(self)?;
         ensure(
-            (1..=20).contains(&self.version),
+            (1..=21).contains(&self.version),
             "unsupported project format",
         )?;
         let spatial = [&self.camera.position, &self.camera.target].iter().any(|t| t.keys.iter().any(|k| k.spatial.is_some()))
@@ -484,6 +487,8 @@ impl Project {
         crate::compositing::validate(&self.layers)?;
         ensure(self.version>=17||self.layers.iter().all(|l|l.effects.iter().all(|e|e.node_graph.is_none())),"editable node effects require project format seventeen")?;
         for layer in &self.layers {
+            layer.sampling.validate_content(&layer.content)?;
+            ensure(self.version >= 21 || layer.sampling.is_default(), "layer sampling requires project format twenty-one")?;
             ensure(self.version >= 20 || !layer.transform.anchor.is_animated(), "animated layer anchors require project format twenty")?;
             ensure(self.version >= 18 || layer.audio_markers.is_empty()
                 && crate::audio_edit::stereo(&layer.audio_source_channel), "audio references require project format eighteen")?;

@@ -21,6 +21,7 @@ mod presenter;
 mod viewport;
 pub use viewport::fit_viewport;
 mod quality;
+mod raster_density;
 mod renderer;
 pub mod image_resources;
 pub mod preview_input;
