@@ -580,3 +580,71 @@ fn exposure_required_decoder_error_is_terminal_and_new_explicit_reader_can_recov
     let pixels = renderer.capture_exposure(fresh.target()).unwrap();
     assert!(pixels.chunks_exact(4).all(|p|p[0].abs_diff(188)<=1 && p[3]==255));
 }
+
+#[test]
+fn nested_exposure_reuses_stable_video_instances_across_parent_visits_and_new_frames() {
+    use crate::render_sampling::ExposureMediaPolicy;
+    use motion_render::ExposurePoll;
+    let dir=tempfile::tempdir().unwrap();
+    let mut p=fixture(dir.path());
+    let mut video=p.layers.remove(0);
+    video.sampling.motion_blur=Some(motion_core::render_sampling::Shutter {frames:1.,samples:4});
+    p.compositions.push(motion_core::Composition {id:"comp-exposure-video".into(),name:"video clocks".into(),
+        width:16,height:16,fps:p.fps,frames:p.frames,background:[0.;4],camera:motion_core::Camera::new(16,16),
+        layers:vec![video],expressions:vec![]});
+    for id in 1..=3 {
+        let mut reference=Layer::solid(id,"video reference",[16.;2],[8.,8.,0.],[1.;4]);
+        reference.content=Content::Composition {clip:motion_core::CompositionClip::new("comp-exposure-video".into())};
+        p.layers.push(reference);
+    }
+    p.validate().unwrap();
+    let mut scene=Scene::new(&p);
+    scene.sample(&p,13.5,None,&motion_core::ExpressionEvaluator).unwrap();
+    let expected:std::collections::HashSet<_>=scene.video_layers().into_iter().map(|layer|layer.id).collect();
+    assert_eq!(expected.len(),3);
+    let control=control();
+    let mut reader=VideoFrames::new(Arc::new(Backend(control.clone())));
+    let mut proxies=crate::preview_video::PreviewVideoCache::default();
+    let mut renderer=pollster::block_on(Renderer::headless()).unwrap();
+    let deadline=Instant::now()+Duration::from_secs(15);
+    for _ in 0..3 {
+        let mut task=exposure_task(&mut renderer,&p,false);
+        loop {
+            if matches!(poll_exposure(&mut task,&mut renderer,&mut reader,&mut proxies,&p,dir.path(),ExposureMediaPolicy::FULL).unwrap(),ExposurePoll::Ready(_)) {break;}
+            assert!(Instant::now()<deadline);
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        assert_eq!(reader.streams.keys().copied().collect::<std::collections::HashSet<_>>(),expected);
+        let pixels=renderer.capture_exposure(task.target()).unwrap();
+        assert!(pixels.chunks_exact(4).all(|pixel|pixel[0].abs_diff(188)<=1 && pixel[3]==255));
+        assert_eq!(&*control.calls.lock().unwrap(),&[100_000,170_000,100_000,170_000,100_000,170_000]);
+        assert_eq!(reader.metrics()["retiringStreams"],0);
+    }
+    reader.clear();
+    assert!(reader.sampling_recent.is_empty());
+}
+
+#[test]
+fn sampling_idle_cache_evicts_oldest_without_exceeding_four_live_or_retiring_workers() {
+    let dir=tempfile::tempdir().unwrap();
+    let p=fixture(dir.path());
+    let mut source=Scene::new(&p);
+    source.sample(&p,13.5,None,&motion_core::ExpressionEvaluator).unwrap();
+    let control=control();
+    let mut reader=VideoFrames::new(Arc::new(Backend(control.clone())));
+    let deadline=Instant::now()+Duration::from_secs(10);
+    for id in [7,8,9,10,7,11,12] {
+        let mut scene=source.clone();scene.layers[0].id=id;
+        loop {
+            let result=reader.prepare_scene_sampling_exact(&p,dir.path(),&scene).unwrap();
+            assert!(reader.streams.len()+reader.retiring.len()<=MAX_DECODER_WORKERS);
+            assert!(reader.sampling_recent.len()<=MAX_DECODER_WORKERS);
+            if result.is_some() {break;}
+            assert!(Instant::now()<deadline);
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        if id==11 {assert_eq!(reader.streams.keys().copied().collect::<std::collections::HashSet<_>>(),[7,9,10,11].into_iter().collect());}
+    }
+    assert_eq!(reader.sampling_recent,vec![10,7,11,12]);
+    assert_eq!(control.calls.lock().unwrap().len(),12);
+}

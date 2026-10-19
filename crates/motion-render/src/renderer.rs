@@ -8,6 +8,7 @@ mod exposure;
 mod layer_raster;
 mod phase_adjustment;
 mod exposure_frame;
+mod nested_exposure;
 pub use exposure_frame::{ExposureFrame, ExposurePoll, ExposureProgress, ExposureStage};
 pub use layer_raster::LayerRaster;
 pub use exposure::ExposureTarget;

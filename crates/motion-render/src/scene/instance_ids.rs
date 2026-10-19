@@ -54,7 +54,7 @@ struct Path {
     ordinal: u64,
 }
 #[derive(Clone, Debug, Default)]
-pub(super) struct InstanceIds {
+pub(crate) struct InstanceIds {
     nodes: Vec<Node>,
     paths: HashMap<Vec<u64>, Path>,
     base: u64,
@@ -272,7 +272,7 @@ fn fault<T>(composition: &str, message: &str, mut details: serde_json::Value) ->
     details["phase"] = "instance_alias".into();
     composition::fail(composition, "sample_failed", message, details)
 }
-pub(super) fn alias(mapping: &HashMap<u64, u64>, composition: &str, object: u64) -> Result<u64> {
+pub(crate) fn alias(mapping: &HashMap<u64, u64>, composition: &str, object: u64) -> Result<u64> {
     match mapping.get(&object).copied() {
         Some(alias) => Ok(alias),
         None => composition::fail(

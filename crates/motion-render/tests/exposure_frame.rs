@@ -320,7 +320,8 @@ fn center_evaluation_failure_is_contextual_and_allocates_no_exposure_gpu_targets
 }
 
 #[test]
-fn authored_child_shutter_is_rejected_even_outside_center_clip_and_unused_children_are_allowed() {
+fn authored_child_shutter_outside_its_whole_exposure_is_transparent_and_unused_children_are_allowed(
+) {
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
     let mut p = project(false);
     let mut child = p.layers[0].clone();
@@ -358,15 +359,24 @@ fn authored_child_shutter_is_rejected_even_outside_center_clip_and_unused_childr
         Recorded::default(),
     )
     .unwrap();
-    let error = ExposureFrame::new(&mut r, scenes, 32, 32)
-        .err()
+    let mut nested = ExposureFrame::new(&mut r, scenes, 32, 32).unwrap();
+    for _ in 0..100 {
+        if matches!(
+            nested
+                .poll(&mut r, Duration::from_secs(1), |_, _| Ok(true))
+                .unwrap(),
+            ExposurePoll::Ready(_)
+        ) {
+            break;
+        }
+    }
+    assert_eq!(nested.progress().stage, ExposureStage::Complete);
+    assert!(r
+        .capture_exposure(nested.target())
         .unwrap()
-        .to_string();
-    assert!(
-        error.contains("comp-shutter-child") && error.contains("nested_sampling"),
-        "{error}"
-    );
-    assert!(error.contains("object=3"), "{error}");
+        .iter()
+        .all(|byte| *byte == 0));
+    drop(nested);
     assert_eq!(r.exposure_texture_bytes(), 0);
     p.layers[0].content = Content::Solid {
         color: [1., 0., 0., 1.],

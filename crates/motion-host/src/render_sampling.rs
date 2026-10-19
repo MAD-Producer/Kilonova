@@ -67,7 +67,7 @@ impl ExposureMedia<'_> {
         // receiver clocks. Repeated pending polls keep this exact generation.
         let Some(frames) = self
             .videos
-            .prepare_scene_exact(self.project, self.root, scene)
+            .prepare_scene_sampling_exact(self.project, self.root, scene)
             .map_err(|error| {
                 RenderError::Invalid(format!(
                     "exposure composition={} sample_frame={} phase=media_prepare: {error}",

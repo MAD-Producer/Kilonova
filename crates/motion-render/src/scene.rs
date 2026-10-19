@@ -1,7 +1,7 @@
 use motion_model::{to_world, ensure, CameraPose, Content, Layer, Observer, Project, Result};
 use glam::{Mat4, Vec3};
 use serde::Serialize;
-mod instance_ids;
+pub(crate) mod instance_ids;
 
 /// Add the reference site while preserving the model's original error code,
 /// target composition, message and time/rate details.
@@ -135,6 +135,21 @@ impl Scene {
         context.layers = layers;
         context
     }
+    /// Render-ready local context after the caller has independently prepared
+    /// every nested image. Keep evaluated world/source data used by generators,
+    /// but do not let the ordinary nested pass overwrite those GPU images.
+    pub(crate) fn local_context(&self) -> Self {
+        let mut context = self.plane_context(self.layers.clone());
+        context.effects = self.effects.clone();
+        context.curve_luts = self.curve_luts.clone();
+        context.sprite_assets = self.sprite_assets.clone();
+        context.node_world = self.node_world.clone();
+        context.node_ids = self.node_ids.clone();
+        context.node_states = self.node_states.clone();
+        context.node_spatial = self.node_spatial.clone();
+        context.source_objects = self.source_objects.clone();
+        context
+    }
     fn empty(camera: CameraPose, background: [f32; 4], width: u32, height: u32, fps: u32, composition_id: String) -> Self {
         Self {
             camera,
@@ -182,6 +197,20 @@ impl Scene {
         for node in &mut self.nested {
             path.push(node.layer);
             let result = node.scene.assign_instance_ids(aliases, &mut path);
+            path.pop();
+            result?;
+        }
+        Ok(())
+    }
+    pub(crate) fn sample_exposure_instance(&mut self, document:&Project, project:&Project,
+        frame:f64, observer:Option<&Observer>, evaluator:&dyn motion_model::FrameEvaluator,
+        registry:&instance_ids::InstanceIds, path:&[u64]) -> Result<()> {
+        self.sample_inner(document,project,frame,observer,0,&mut 0,evaluator)?;
+        let mut path = path.to_vec();
+        if !path.is_empty() { return self.assign_instance_ids(registry,&mut path); }
+        for node in &mut self.nested {
+            path.push(node.layer);
+            let result=node.scene.assign_instance_ids(registry,&mut path);
             path.pop();
             result?;
         }

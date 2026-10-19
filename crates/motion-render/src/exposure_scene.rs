@@ -64,7 +64,7 @@ pub struct ExposureScenes<E> {
     document: ExposureDocument,
     /// A sampling view only; never validate or save it as a standalone project.
     root: Option<Project>,
-    evaluator: E,
+    evaluator: Arc<E>,
     observer: Option<Observer>,
     clock: ExposureClock,
     objects: Vec<u64>,
@@ -78,6 +78,23 @@ pub struct ExposureScenes<E> {
     center: f64,
     center_scene: Option<Box<Scene>>,
     preview: bool,
+    scope: ExposureScope,
+}
+
+#[derive(Clone)]
+pub(crate) struct ExposureScope {
+    registry: Arc<crate::scene::instance_ids::InstanceIds>,
+    path: Vec<u64>,
+}
+impl ExposureScope {
+    pub(crate) fn child(&self, reference: u64) -> Self {
+        let mut path = self.path.clone();
+        path.push(reference);
+        Self {
+            registry: self.registry.clone(),
+            path,
+        }
+    }
 }
 impl<E: FrameEvaluator> ExposureScenes<E> {
     /// The caller retains one immutable document snapshot for the task. A new
@@ -90,12 +107,65 @@ impl<E: FrameEvaluator> ExposureScenes<E> {
         observer: Option<Observer>,
         evaluator: E,
     ) -> Result<Self> {
+        Self::new_shared(
+            document,
+            composition,
+            frame,
+            preview,
+            observer,
+            Arc::new(evaluator),
+            None,
+        )
+    }
+    pub(crate) fn new_shared(
+        document: ExposureDocument,
+        composition: &str,
+        frame: f64,
+        preview: bool,
+        observer: Option<Observer>,
+        evaluator: Arc<E>,
+        scope: Option<ExposureScope>,
+    ) -> Result<Self> {
         let root = if composition == document.composition_id {
             None
         } else {
             Some(document.composition_frame_view(composition)?)
         };
         let project = root.as_ref().unwrap_or(&document);
+        let scope = match scope {
+            Some(scope) => scope,
+            None => {
+                let mut registry = crate::scene::instance_ids::InstanceIds::default();
+                registry.prepare_composition(&document, project)?;
+                ExposureScope {
+                    registry: Arc::new(registry),
+                    path: vec![],
+                }
+            }
+        };
+        let mapping = if scope.path.is_empty() {
+            None
+        } else {
+            Some(
+                scope.registry.mapping(
+                    &scope.path,
+                    &project.composition_id,
+                    &project
+                        .layers
+                        .iter()
+                        .map(|layer| layer.id)
+                        .collect::<Vec<_>>(),
+                )?,
+            )
+        };
+        let alias = |object| -> Result<u64> {
+            match &mapping {
+                Some(mapping) => {
+                    crate::scene::instance_ids::alias(mapping, &project.composition_id, object)
+                }
+                None => Ok(object),
+            }
+        };
         if !frame.is_finite() || frame < 0. || frame >= f64::from(project.frames) {
             return composition::fail(
                 &project.composition_id,
@@ -114,13 +184,17 @@ impl<E: FrameEvaluator> ExposureScenes<E> {
                     Content::Null | Content::Camera { .. } | Content::Audio { .. }
                 )
             })
-            .map(|l| l.id)
-            .collect();
+            .map(|l| alias(l.id))
+            .collect::<Result<Vec<_>>>()?;
         let shutters: Vec<_> = project
             .layers
             .iter()
-            .filter_map(|l| l.sampling.motion_blur.map(|s| (l.id, s)))
-            .collect();
+            .filter_map(|l| {
+                l.sampling
+                    .motion_blur
+                    .map(|s| alias(l.id).map(|id| (id, s)))
+            })
+            .collect::<Result<Vec<_>>>()?;
         let clock = ExposureClock::new(frame, &shutters, preview)?;
         let scene = Scene::new(project);
         let mut task = Self {
@@ -140,12 +214,20 @@ impl<E: FrameEvaluator> ExposureScenes<E> {
             center: frame,
             center_scene: None,
             preview,
+            scope,
         };
         task.schedule_phase()?;
         Ok(task)
     }
     pub fn document(&self) -> &Arc<Project> {
         self.document.source()
+    }
+    pub(crate) fn child_factory(&self) -> (ExposureDocument, Arc<E>, ExposureScope) {
+        (
+            self.document.clone(),
+            self.evaluator.clone(),
+            self.scope.clone(),
+        )
     }
     pub fn project(&self) -> &Project {
         self.root.as_ref().unwrap_or(&self.document)
@@ -223,12 +305,14 @@ impl<E: FrameEvaluator> ExposureScenes<E> {
             } else {
                 &mut self.scene
             };
-            if let Err(mut error) = scene.sample_root(
+            if let Err(mut error) = scene.sample_exposure_instance(
                 &self.document,
                 root,
                 frame,
                 self.observer.as_ref(),
-                &self.evaluator,
+                self.evaluator.as_ref(),
+                &self.scope.registry,
+                &self.scope.path,
             ) {
                 self.failed = true;
                 let context = serde_json::json!({"phase":"exposure_scene","exposure_phase":self.phase,

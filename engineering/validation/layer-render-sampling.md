@@ -10,7 +10,7 @@ Issue：#255。本工作最初基于 `f32c64de`，已同步到包含 PR #336 的
 | 连续栅格化实际像素 | 原创圆形在 256×256 输出中放大八倍；真实 GPU capture、透明边界、覆盖面积、反复切换和冻结模型重开 | 矢量已实现；其他来源仍需逐项能力界定 |
 | 连续栅格化预算和预览 | 投影密度影响实际源纹理尺寸及 mesh/cache 身份；默认与预览计划一致；低预算拒绝且恢复预算可继续渲染 | 已实现并测试 |
 | 帧混合 | 解码器要求真实相邻 PTS 双帧；GPU 在线性预乘空间混合；预览代理、桌面捕获与冻结组合读帧接入；实际 VFR、YUV、取消、冻结协议和默认日志用例 | 已实现核心链路；最终能力声明、UI 及原生界面验收待完成 |
-| 运动模糊 | 中心快门和逐层有理数阶段调度；逐接收层的真实 Scene/父级/相机/表达式/效果输入求值；独立局部效果图像与投影 matte；逐阶段调整图层；实际线性 FP16 GPU 累积；持久 GPU 帧任务、精确相邻媒体准备与真实冻结 MP4 输出 | 核心链路和冻结 MP4 已接入并测试；嵌套独立曝光、桌面预览/capture、冻结组合读帧协议及最终能力/UI 仍待接入 |
+| 运动模糊 | 中心快门和逐层有理数阶段调度；逐接收层的真实 Scene/父级/相机/表达式/效果输入求值；独立局部效果图像与投影 matte；逐阶段调整图层；线性 FP16 累积；持久 GPU 帧任务、递归嵌套独立曝光、稳定媒体身份和真实冻结 MP4 | 核心和冻结 MP4 已接入并测试，包含父子混合帧率快门；桌面预览/capture、冻结组合读帧协议、性能与最终能力/UI 待完成 |
 | 能力检查及 UI | 模型拒绝对非视频帧混合、对非矢量连续栅格化、对非像素来源运动模糊 | 最终 host 能力声明和实际支持开关待接入；未加入空开关 |
 | 双语、主/浮窗、焦点失效 | 本轮没有修改 UI | 待真实开关接入后验收与截图 |
 
@@ -77,9 +77,13 @@ PreviewVideoCache 对左右输入应用同一现有 video_edge 策略，分辨�
 | SAM-FUNC-10 | 新功能及协议边界 | ExposureFrame 持久保存阶段、局部图像及失败状态；ExposureMedia 按当前 Scene 的真实相邻 PTS 准备并提交媒体，等待不改写请求 generation。FrozenMovie 使用不可变 ExposureDocument，并在全部阶段完成后才编码；普通无快门路径保留原实现。8ms poll、每次最多 128 工作单元是操作之间的预算，不能抢占同步 evaluator/driver/callback。冻结输出沿用 30 秒解码期限，按不变的 pending progress 计时，推进后重置；无自动重试或任务重启。 |
 | SAM-OBS-12 | 新错误上下文、既有覆盖扩展 | 实际素材上传/解码/求值错误保留原始原因和 typed ResourceRejection，附加 composition、sample_frame、phase 及可用 object/source/PTS。任务失败终态清除保留局部图像，首次 Err 保留原因；每任务最多保留 2,048 字符供后续轮询返回。真实默认 FileLogger 子进程验证新媒体路径复用原 decoder open Info、阻塞前 in-flight、Error 文件/stderr、stdout 隔离及第 60 次一次性升级。没有新增逐帧 Info 或日志基础设施；GPU/求值错误的完整前端信道验收仍待完成。 |
 | SAM-NORMAL-09 | 正常路径/资源边界 | 媒体未就绪、有限切片耗尽、透明接收层均为正常 Pending/跳过；不会丢弃已完成接收层或阶段。失败任务后续轮询不再调用媒体，显式丢弃释放 temporal 容量；换新任务/reader 是调用者显式动作。进度和统计限于一帧，工作计数饱和相加、资源/粒子取峰值；cpu_prepare_us 计 poll 内实际墙钟，排除两次 poll 间等待。没有新增后台线程、日志计数或健康热路径文件 IO。 |
-| SAM-BOUND-02 | 临时显式拒绝，仍待实现 | 普通嵌套图像可在接收时刻渲染；子合成自己的独立快门尚未接入。新帧任务在 GPU 分配前检查整个可达源图，包含中心范围外的已存储子层，并附加 composition/object/nested_sampling 拒绝；不把它静默画成普通图像。未引用的子合成不影响输出。这个边界不是最终缩减 #255 的支持范围，嵌套曝光仍必须继续实现。 |
+| SAM-BOUND-02 | 原临时边界已消除 | 最初拒绝独立子合成快门，现由 SAM-FUNC-11 的递归任务实现；原拒绝用例改为真正完成且透明的输出断言，并新增子层跨入快门、父子混合帧率和独立 readback oracle。不是删除拒绝断言后仅宣称支持。 |
+| SAM-FUNC-11 | 新功能/所有权边界 | 每个嵌套引用在其实际源帧上运行独立 ExposureFrame，子级完成后 GPU resolve 为 4WH 图像；父级接收层/中心调整使用 local_context，不再调用普通嵌套绘制覆盖该结果。父快门采样子级源帧，子快门使用自身 fps/范围，形成真实递归组合。每父任务同时只推进一个子任务；完成兄弟保留解出的图像。所有快照/局部图像/未导入解出图像共享 temporal 额度，转入 renderer 后沿用源预算；同一 allocation 身份转移，无 CPU 像素复制。 |
+| SAM-FUNC-12 | 媒体生命周期修复 | 曝光子根共享原根的静态引用路径布局，根对象、shutter、父级/matte/效果源与后代别名一致，不为每次进入子根重新编号。新 sampling_exact 路径保留最多四个解码器，按最近使用淘汰非当前作用域实例；live+retiring 沿用四 worker 上限。普通 prepare/exact 仍按旧语义释放 inactive。失败流不重启；容量腾退和媒体等待是正常调度，显式 clear/项目替换仍释放所有流。 |
+| SAM-OBS-13 | 新上下文/实际模块拒绝 | 递归错误保留子合成/reference/source frame/nested_exposure 与原始 cause，最终仍由父任务进入失败终态；typed 源预算/共享 temporal 拒绝保留。work_units 是每帧饱和的完成计数，真实子级推进才增加，媒体等待保持不变，冻结期限因此能识别子级进度；不是日志频率计数或时间单位。默认 decoder 日志沿用既有基础设施，嵌套 GPU/求值拒绝的完整前端信道仍待验收。 |
+| SAM-NORMAL-10 | 正常分支与范围 | 单个子层中心 clip 外但自身快门内可贡献像素，未模糊同级层保持中心时刻；整个子合成源时间外仍按原 clip 语义透明。factory 共享 immutable 文档、evaluator 和有界引用布局；源图遵守原 16 深度、1,024 静态路径和每 Scene 64 活跃实例限制。递归各作用域仍持有上下文，不能把 64 说成全部存活上下文总数；没有额外线程、自动重试、后台解码预取或每帧日志。 |
 
-| SAM-PENDING-01 | 待完成 | 持久任务等待/终态和冻结 MP4 已有实际验证；仍需桌面请求 revision/被取代取消、独立嵌套曝光、冻结组合读帧协议、全链路默认故障信道及实际播放性能。新增连续栅格化相机平面错误仍缺少默认文件/Error stderr 的端到端验收；不能将函数 Err 用例等同于完成。 |
+| SAM-PENDING-01 | 待完成 | 持久/递归任务等待、终态/释放及嵌套冻结 MP4 已有实际验证；仍需桌面请求 revision/被取代取消、冻结组合读帧协议、全链路默认故障信道及实际播放性能。连续栅格化相机平面错误仍缺少默认文件/Error stderr 的端到端验收；不能将函数 Err 用例等同于完成。 |
 
 ## 本地验证
 
@@ -280,3 +284,36 @@ FrozenMovie::export 对需要曝光的冻结工程共享一次验证的不可变
 目录保存两段原始 MP4、解码出的 RGBA8、对应 PNG 和各自成本 JSON；PNG 仅做 RGBA/BGRA 通道布局转换。`frozen-movie-comparison.png` 仅给原始解码图加四倍最近邻放大、间距和文字，未修改效果像素，也不是产品 UI 截图。该轮六帧输出分别耗时 568,560us（receiver）与 601,826us（video），文件分别为 2,767 / 2,064 字节，编码器 libopenh264。计时包含 FrozenMovie::export 的 renderer 初始化、媒体准备、GPU、音频、编码、容器验证及发布，排除此前 freeze、事后解码验证和产物写盘；不是播放 FPS、纯 GPU 时间或所有工程的性能承诺。每次测量使用独立目录，没有覆盖先前阶段的慢值。
 
 待继续：递归嵌套独立曝光；Session 桌面预览/capture 的持久任务与 revision/质量/视口身份；被取代和失焦取消；冻结组合读帧协议；GPU/求值故障默认日志和前端信道；真实播放成本与 UI 能力开关、双语主/浮窗/右键菜单截图。当前没有依赖、第三方资产、面板、主题 token 或产品文案变更，DESIGN §0.7 的面板处置保持原状态，§12 的新 UI 验收仍待接入。#255 保持开放。
+
+### 递归嵌套曝光与解码器复用
+
+此节更新上一阶段的临时 nested_sampling 拒绝。ExposureFrame 现在依次运行子引用的独立曝光任务，源帧由原始 Scene 的精确 CompositionClip/fps 映射取得；每个子级按自己的快门和帧率采样。父快门改变子级中心源帧，再组合子级自己的曝光，未用普通嵌套图像或整幅中心帧平均替代。子级完成后 GPU resolve 到一幅 4WH 图像，不回读像素。父级 materialize/中心调整使用保留原世界矩阵、效果、LUT、源映射与素材表的 local_context，去掉已经独立处理的嵌套绘制入口，防止普通 prepare_nested 覆盖结果。旧普通 Renderer API 语义没有改变，尚未接入的桌面预览也不能因此声称支持运动模糊。
+
+每个父任务只保留一个正在推进的子任务；完成的兄弟保留解出的 GPU 图像。子目标的 12WH、局部图像和待导入的 4WH 输出共同使用现有 temporal 额度。4WH 在分配前预留；父媒体就绪后，将同一个 OwnedTexture 转移给 renderer 的 NestedCompositions 源缓存，先检查原源预算，再释放 temporal reservation。没有像素复制，也没有预算外幸存的纹理所有者。新任务 ledger 合并全部活跃子级、未导入结果、局部图像与累积目标；同 allocation 的身份在导入前后保持一致，提交时仍由既有 ledger 记录异步退休。源码中的 source 与 temporal 是不同 allowance，不等于总显存限制。
+
+所有递归作用域共用一次顶层 poll 的时间和 128 个工作单元预算。子任务构造、子级 resolve、接收层准备/物化及阶段合成分别使用额度；一个接收层批次内部仍可能编码多次 GPU 操作。遍历等待中的父级不先消耗第一个动作额度，因此极小的正切片也会逐步抵达最深的可操作节点；测试验证 1ns 与 1s 切片的完成图像逐字节一致，单次轮询全部子级合计最多 128 个完成单位/准备回调。它不是 evaluator、driver 或 callback 的抢占式超时。work_units 只随真实构造/完成推进而饱和增加，媒体等待不增加，作用域间的推进会向上传播以供冻结输出期限判定。
+
+子任务共享 immutable 文档、同一个 evaluator 和以原求值根建立的引用路径布局。root 对象保持原 ID；子根的 receiver/shutter、节点、matte/效果源及后代映射到原全路径别名，保持与普通 Scene 的同一实例身份。不能把每个子合成重新当作独立根编号，否则重复引用/不同视频会互相覆盖。Scene 构造继续保留原深度/实例校验；各作用域仍保留有界的完整场景，累积的 CPU 上下文数量大于单个 Scene 的 64 活跃实例限制。本轮没有实现最小依赖求值、跨阶段图像复用或 CPU 内存峰值测量，不能据预算测试声称全部进程内存有统一上限。
+
+仅保留 ID 还不够：旧 VideoFrames.prepare 会在进入没有本地视频的父层时释放子流，后续阶段又打开素材。新增 sampling_exact 准备路径只淘汰需要腾出容量的最久未用非当前实例，最多保留四个流，live + retiring 仍不得超过原四 worker 上限。每流缓存预算、必要双帧与失败终态规则保留，没有后台预取、失败重试或 worker 重启。普通 prepare_scene / prepare_scene_exact 沿用旧 inactive 释放协议。最近使用列表最多四个数字，retire/clear 时移除；项目替换和显式 reader 清理仍释放全部流。这是功能与生命周期修复，不包装成仅加日志。
+
+证据与保留的失败：
+
+- `sampling-nested-task-check.log` 保留抽取饱和统计 helper 时遗漏多行 self.stats 的编译失败；修正参数引用，未放宽统计类型。`sampling-nested-task-existing.log` 的七项旧持久任务通过，剩余一项按原临时合同要求拒绝子级快门而失败。实现此功能后明确替换该临时拒绝用例：现在必须真正完成且范围外图像全透明；还保留未引用源不参与渲染、释放容量等断言，并新增中心之外跨入快门的真实像素验证。没有把旧预算、错误或取消断言删掉以求通过。
+- `sampling-nested-task-tests.log` / `sampling-nested-scopes.log` 最初四个新 GPU 用例及既有三组通过；`sampling-nested-effects.log` 六项通过，补充效果、父 matte/调整、预览、BGRA 和 2048² 子结果的共享预算拒绝。实际低源预算错误随后增加 child composition、reference、source frame / nested_install 上下文；`sampling-nested-error-context.log` 通过，typed ResourceRejection 和失败终态不重试断言保留。
+- `sampling-nested-final.log` 保留命令误写 video_instance_ids 测试目标的失败，未运行测试；按实际文件 video_instances 修正。`sampling-nested-final-targets.log` 九组 66 项通过：当时嵌套曝光 7、持久任务 8、接收场景 8、阶段调整 9、普通嵌套 5、局部图像 12、矢量/调整 9、双帧 5、视频实例 3。`sampling-nested-layout-final.log` 四项原布局边界单元测试通过。
+- 递归时间/工作单元改为顶层共享后，`sampling-nested-shared-budget.log` 的持久任务 8、当时嵌套 7 通过。增加精确单次总额度、1ns 最终完成与 1s 输出一致性，以及后续无效零切片不能覆盖已存首要错误的断言后，`sampling-nested-shared-final.log` 四组 33 项通过：嵌套 8、持久任务 8、接收场景 8、阶段调整 9。新取消用例在最深媒体未就绪时读出三层目标的完整 ledger，连续 60 次没有推进，丢弃父任务释放全部 temporal 所有权；这不是尚未接入的桌面失焦/被取代请求取消验收。
+- `sampling-nested-host-final.log` 及共享预算后的 `sampling-nested-host-shared-final.log` host 全部 45 项通过，含两项新实际 worker 用例。三个嵌套视频引用的 Scene 普通别名与曝光任务保留流集合一致，连续三次新建帧任务只发生各自必需的两次解码（合计六次），没有父层访问导致的重复解码；第五/第六实例按最近使用驱逐，live + retiring 每轮都不超过四，清理后最近使用列表为空。旧阻塞、失效、原始原因、默认观测、reader 退休及双帧协议测试仍通过。
+- `sampling-nested-movie-final.log`、最终 `sampling-nested-movie-shared-final.log` 的真实 Movie 13 项通过。新用例在原相邻视频夹具上增加 30fps 父级两样本快门、60fps 子级八样本快门；根帧 2 映射到子中心 3.5 / 4.5，独立手算累计蓝色权重 0.15625，实际 H.264 回读通道误差不超过原有 12 档编码容差。无嵌套旧夹具仍要求原 0.25 权重，不改变原像素容差。
+- `sampling-nested-default-logs.log`、最终 `sampling-nested-default-shared-final.log` 两项实际默认 FileLogger 子进程通过：原 decoder open Info / 先发布 in-flight、Error 文件和 stderr、stdout 隔离、第 60 次一次升级、恢复重置及失败终态抑制。它验证新 sampling_exact 经既有解码观测，未新增日志机制；不将函数里的嵌套 GPU/求值拒绝称为默认文件和前端信道全部验收。
+- 上述独立用例共 131 项：renderer 67（含八项新嵌套）、布局 4、host 45、Movie 13、默认日志 2；十一项新用例，其余包括一项按已实现功能更新合同的旧用例，重复运行不累加。最终共享预算后的 FFmpeg 桌面 cargo check 与不启用 FFmpeg 的媒体库 cargo check 通过，分别见 `sampling-nested-desktop-shared-check.log` / `sampling-nested-without-ffmpeg-shared.log`。仍保留既有 21 条桌面警告及测试配置的 19 条警告，未添加 allow 隐藏新警告；不是新的 release 包。
+
+真实 GPU 原图和成本位于 `nested-shared-final/`。三层/重复引用夹具经真实 model、Scene、GPU 局部物化、递归 resolve、父级阶段合成和 FP16 累积输出；独立 oracle 用公开下层协议递归捕获子图，反预乘后重新上传为普通图像，再合成父图，故测试 oracle 有 CPU 往返，生产路径没有。每通道最大两档容差覆盖 oracle 额外 RGBA8 读写舍入；另一个效果夹具覆盖父级 matte/调整，BGRA/RGBA 原生路径以一档比较。夹具验证半透明图形及父子快门，另有中心 clip 外的子层在自身曝光里贡献像素、未模糊同级绿色条逐字节保持中心帧的测试。
+
+该轮 RTX 4070 Laptop / Vulkan、64×64、278 个递归完成单位、168 次效果/平面 draw、245,764 字节已跟踪纹理峰值、112,349us poll 加最终回读；不含此前顶层初始化、oracle 和写盘。之前 `nested-task-final/` 同图轮次为 319,361us，原图 PNG SHA-256 与最终共享预算轮次一致（930c87a955761394d248cf14c47df98f523b37be1829f18877d944e6f0679a40）。所有阶段目录保留各轮数值，不以快值覆盖慢值，也不据此声称播放 FPS、纯 GPU 时间或总 VRAM。`nested-task-final/nested-comparison.png` 仅用于显示这两幅原始输出，做四倍最近邻放大及线性透明棋盘合成、加标签；原 PNG/成本不被改写。这不是产品 UI 截图。父级也开启快门时整个子组随父级源帧变化，所以该图绿色也有父级拖影；这与只启用子层快门时绿色同级保持清晰的专门用例不同。
+
+`nested-movie-shared-final/nested-video-exposure.mp4` 是六帧、64×64、30fps 的实际 H.264/AAC 输出，另保留解码 RGBA 与成本 JSON。最终该轮 export 耗时 682,547us、2,074 字节、libopenh264；计时包含 renderer 初始化、媒体、GPU、音频、编码、容器检查和发布，排除 freeze、事后解码和产物写盘。前一完整轮 743,418us 仍在独立目录保留。原始 Movie 容器/PCM/动画锚点、冻结后编辑不影响输出及取消保留目的文件的测试也通过。
+
+暂存差异空白检查、来源检查（1,404 个受版本控制路径）及样式消费者检查通过。
+
+仍待 #255：Session 播放/capture 的持久任务和 revision/质量/视口身份，被取代/失焦取消与实际媒体 worker 生命周期，冻结组合读帧协议，完整默认故障信道，真实播放成本与深层上下文/重复准备优化，以及最终能力/UI、双语主/浮窗/右键菜单截图。独立嵌套曝光核心与冻结 MP4 已接入，不能据此将整个 issue 标为完成。没有依赖、第三方素材、面板或 token 变更；DESIGN §0.7 的既有面板基线保留，§12 的 UI 验收仍待接入。

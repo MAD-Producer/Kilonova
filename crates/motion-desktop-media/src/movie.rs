@@ -128,6 +128,13 @@ mod tests {
     }
     #[test]
     fn frozen_movie_integrates_real_adjacent_video_samples_in_linear_exposure() {
+        assert_real_video_exposure(false);
+    }
+    #[test]
+    fn frozen_movie_integrates_parent_and_child_shutters_at_different_rates_with_real_video() {
+        assert_real_video_exposure(true);
+    }
+    fn assert_real_video_exposure(nested:bool) {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().join("project");
         fs::create_dir_all(root.join("assets")).unwrap();
@@ -148,11 +155,20 @@ mod tests {
         l.content = Content::Video {video:VideoClip::new(1)};
         l.sampling.frame_blend = motion_core::render_sampling::FrameBlend::Linear;
         l.sampling.motion_blur = Some(motion_core::render_sampling::Shutter {frames:2.,samples:8});
-        p.layers.push(l);
+        if nested {
+            p.compositions.push(motion_core::Composition {id:"comp-movie-shutter".into(),name:"60 fps child".into(),
+                width:64,height:64,fps:60,frames:12,background:[0.;4],camera:motion_core::Camera::new(64,64),
+                layers:vec![l],expressions:vec![]});
+            let mut parent=Layer::solid(1,"parent shutter",[64.;2],[32.,32.,0.],[1.;4]);
+            parent.content=Content::Composition {clip:motion_core::CompositionClip::new("comp-movie-shutter".into())};
+            parent.sampling.motion_blur=Some(motion_core::render_sampling::Shutter {frames:1.,samples:2});
+            p.layers.push(parent);
+        } else {p.layers.push(l);}
         p.video_assets.push(asset);
         let session = Session::new(p,root,crate::platform()).unwrap();
         let frozen = FrozenMovie::from_session(&session).unwrap();
-        let output = dir.path().join("linear-video-exposure.mp4");
+        let name=if nested {"nested-video-exposure"} else {"linear-video-exposure"};
+        let output = dir.path().join(format!("{name}.mp4"));
         let started = std::time::Instant::now();
         let result = frozen.export(&output,&ExportControl::default(),|_|{}).unwrap();
         let export_us = started.elapsed().as_micros();
@@ -166,9 +182,12 @@ mod tests {
         // into blue with weights .125/.375/.625/.875: integrated blue is .25.
         let linear = |v:u8| {let s=f32::from(v)/255.;if s<=0.04045{s/12.92}else{((s+0.055)/1.055).powf(2.4)}};
         let srgb = |v:f32| {let s=if v<=0.0031308{v*12.92}else{1.055*v.powf(1./2.4)-0.055};(s*255.).round() as u8};
-        let expected:Vec<_> = (0..3).map(|c|srgb(linear(pixel(&red,32,32)[c])*0.75+linear(pixel(&blue,32,32)[c])*0.25)).collect();
+        // Parent midpoints 1.75/2.25 map to child centers 3.5/4.5.
+        // Averaging eight child bins at each center integrates blue to .15625.
+        let blue_weight=if nested {0.15625} else {0.25};
+        let expected:Vec<_> = (0..3).map(|c|srgb(linear(pixel(&red,32,32)[c])*(1.-blue_weight)+linear(pixel(&blue,32,32)[c])*blue_weight)).collect();
         for c in 0..3 {assert!(actual[c].abs_diff(expected[c])<=12,"channel={c} decoded={actual:?} linear expected={expected:?}");}
-        retain_exposure_artifacts("linear-video-exposure", &output, &result, export_us,
+        retain_exposure_artifacts(name, &output, &result, export_us,
             &[("frame-2",&pixels)]);
     }
     fn retain_exposure_artifacts(name:&str, output:&Path, result:&MovieResult, export_us:u128,

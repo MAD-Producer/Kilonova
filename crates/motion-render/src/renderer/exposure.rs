@@ -480,7 +480,7 @@ impl Renderer {
         Ok(stats)
     }
 
-    fn resolve_exposure_view(
+    pub(super) fn resolve_exposure_view(
         &self,
         target: &ExposureTarget,
         view: &wgpu::TextureView,

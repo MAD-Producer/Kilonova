@@ -434,6 +434,9 @@ pub struct VideoFrames {
     retiring: Vec<JoinHandle<()>>,
     retirement_error: Option<String>,
     pending_retirement_error: Option<String>,
+    // Exposure visits one local composition at a time. Keep at most the same
+    // four workers, oldest idle first, instead of reopening at every parent.
+    sampling_recent: Vec<u64>,
 }
 impl VideoFrames {
     pub fn new(platform: Arc<dyn crate::platform::Platform>) -> Self {
@@ -457,8 +460,10 @@ impl VideoFrames {
             }
         }
         self.sequences.clear();
+        self.sampling_recent.clear();
     }
     fn retire(&mut self, object: u64) {
+        self.sampling_recent.retain(|id| *id != object);
         if let Some(stream) = self.streams.remove(&object) {
             let (worker, stopped) = stream.retire();
             if let Some(worker) = worker { self.retiring.push(worker); }
@@ -639,7 +644,7 @@ impl VideoFrames {
         scene: &Scene,
         _frame: f64,
     ) -> Result<Option<Vec<(u64, PreparedVideoFrame)>>> {
-        self.prepare(project, root, scene, true)
+        self.prepare(project, root, scene, true, false)
     }
     pub fn prepare_scene_exact(
         &mut self,
@@ -647,7 +652,14 @@ impl VideoFrames {
         root: &Path,
         scene: &Scene,
     ) -> Result<Option<Vec<(u64, PreparedVideoFrame)>>> {
-        self.prepare(project, root, scene, false)
+        self.prepare(project, root, scene, false, false)
+    }
+    /// Exact local-composition sampling. Inactive cached decoders survive a
+    /// visit to another scope; eviction still respects the existing four-worker
+    /// limit including retiring workers. This does not restart failed streams.
+    pub fn prepare_scene_sampling_exact(&mut self, project:&Project, root:&Path,
+        scene:&Scene) -> Result<Option<Vec<(u64,PreparedVideoFrame)>>> {
+        self.prepare(project,root,scene,false,true)
     }
     fn prepare(
         &mut self,
@@ -655,10 +667,22 @@ impl VideoFrames {
         root: &Path,
         scene: &Scene,
         prefetch: bool,
+        retain_idle: bool,
     ) -> Result<Option<Vec<(u64, PreparedVideoFrame)>>> {
         let layers=scene.video_layers();
         let inactive: Vec<_> = self.streams.keys().filter(|object| !layers.iter().any(|l| l.id == **object)).copied().collect();
-        for object in inactive { self.retire(object); }
+        if retain_idle {
+            let missing=layers.iter().filter(|layer| !self.streams.contains_key(&layer.id)).count();
+            let allowed=MAX_DECODER_WORKERS.saturating_sub(missing);
+            let mut inactive=inactive;
+            inactive.sort_unstable_by_key(|object|self.sampling_recent.iter().position(|id|id==object));
+            for object in inactive {
+                if self.streams.len()<=allowed {break;}
+                self.retire(object);
+            }
+        } else {
+            for object in inactive { self.retire(object); }
+        }
         self.reap_retired()?;
         let mut frames = Vec::new();
         let mut pending = false;
@@ -682,6 +706,12 @@ impl VideoFrames {
                 prefetch,
                 layer.sampling.frame_blend == motion_core::render_sampling::FrameBlend::Linear,
             )?;
+            if retain_idle {
+                self.sampling_recent.retain(|id|*id!=layer.id && self.streams.contains_key(id));
+                if self.streams.contains_key(&layer.id) && self.sampling_recent.len()<MAX_DECODER_WORKERS {
+                    self.sampling_recent.push(layer.id);
+                }
+            }
             match r["state"].as_str() {
                 Some("ready") => {
                     frames.push((layer.id, self.streams[&layer.id].prepared(generation)?))
