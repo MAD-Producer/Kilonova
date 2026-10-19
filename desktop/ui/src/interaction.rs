@@ -121,8 +121,8 @@ impl Router {
             }
         }
     }
-    pub fn input_for(&self, target: Target, input: &Input) -> Input {
-        let mut routed = input.clone();
+    pub fn input_for<'a>(&self, target: Target, input: &'a Input) -> crate::InputView<'a> {
+        let mut routed = crate::InputSource::input_view(input);
         let permitted = self.window == Some(target.window)
             && self
                 .modal
@@ -138,8 +138,8 @@ impl Router {
             routed.long_press = None;
         }
         if !permitted || self.focus != Some(target) {
-            routed.keys.clear();
-            routed.text.clear();
+            routed.keys = &[];
+            routed.text = "";
         }
         routed.focus_lost = (input.focus_lost && self.window == Some(target.window))
             || (self.previous_focus == Some(target) && self.focus != Some(target))

@@ -5,7 +5,7 @@
 use crate::{
     paint::{PaintList, Shape},
     style::{State, States, StyleSheet},
-    Color, Input, Rect,
+    Color, Rect,
 };
 use lyon_tessellation::{
     math::point, path::Path, BuffersBuilder, FillOptions, FillRule, FillTessellator, FillVertex,
@@ -214,10 +214,12 @@ pub fn button(
     list: &mut PaintList,
     area: Rect,
     icon: Icon,
-    input: &Input,
+    input: &impl crate::InputSource,
     sheet: &StyleSheet,
     mut states: States,
 ) -> crate::ui::Response {
+    let view = input.input_view();
+    let input = &view;
     let enabled = !states.contains(State::Disabled);
     let hovered = enabled && area.contains(input.mouse);
     let clicked = hovered
@@ -249,6 +251,7 @@ pub fn button(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Input;
     #[test]
     fn registry_covers_all_bundled_sources_and_compiles_finite_meshes() {
         let manifest: serde_json::Value =

@@ -977,3 +977,31 @@ fn numeric_save_commits_valid_text_and_invalid_text_blocks_the_request() {
         |action| matches!(action,Action::Save(snapshot) if snapshot.document == editor.document)
     ));
 }
+
+
+#[test]
+fn inspector_clip_borrows_payloads_and_keeps_legacy_pointer_mask() {
+    let area = Rect::new(10., 10., 100., 30.);
+    for mouse in [[20., 20.], [150., 20.]] {
+        let input = Input {
+            mouse,
+            pressed: Some((MouseButton::Left, [20., 20.])),
+            released: Some((MouseButton::Left, [150., 20.])),
+            held: Some(MouseButton::Left),
+            wheel: [1., 2.],
+            text: "中文确认".into(),
+            keys: vec![(Key::Enter, Modifiers::default())],
+            key_repeats: vec![false],
+            ..Default::default()
+        };
+        let view = clipped_input(&input, area);
+        assert_eq!(view.text.as_ptr(), input.text.as_ptr());
+        assert_eq!(view.keys.as_ptr(), input.keys.as_ptr());
+        assert_eq!(view.key_repeats.as_ptr(), input.key_repeats.as_ptr());
+        assert_eq!(view.pressed, if area.contains(mouse) { input.pressed } else { None });
+        assert_eq!(view.released, input.released);
+        assert_eq!(view.held, input.held);
+        assert_eq!(view.wheel, input.wheel);
+        assert_eq!(input.text, "中文确认");
+    }
+}

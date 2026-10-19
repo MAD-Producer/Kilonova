@@ -31,7 +31,7 @@ pub mod ui;
 pub mod widgets;
 pub mod workspace;
 
-pub use input::{Input, Key, MouseButton, Rect};
+pub use input::{Input, InputSource, InputView, Key, MouseButton, Rect};
 pub use paint::{PaintList, Painter};
 pub use text::TextAtlas;
 pub use theme::{Color, Scale};
