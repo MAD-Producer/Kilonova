@@ -15,15 +15,26 @@
 - 保存重开后，用独立显式选定的旧式单相机作为父/子参考，不调用 active_camera_layer 选择参考视图。真实 GPU 图像逐字节比较；版本化 composition export plan 同样逐字节比较。主动换错父相机、子相机均须改变真实像素，防止无效夹具带来假通过。
 - 子相机全部禁用时，分别验证既有旧相机及隐式默认相机，父视图不受影响；往返切换不污染场景。
 
-这里的 export plan 对照不是 MP4 编码、异步冻结或实际窗口输入验收。没有给 #249 添加自动关闭指令；其关闭仍需结合原有证据和实际冻结输出覆盖审阅。
+这里的 export plan 对照不是 MP4 编码或实际窗口输入验收。后续另加真实 FrozenMovie 验证：父/子各两台相机、不同帧率，冻结两份独立快照后修改实时摄影机并移除子合成引用，再分别导出三份 MP4。原冻结快照与控制快照的首/尾帧解码像素逐字节一致；实时工程重新冻结后的输出必须不同，切换范围前后图像必须不同，首/尾帧均须保留子绿色与父红色几何；导出不改变实时工程。调用实际 capture_plan/freeze/export/libav 编解码，没有手工返回成功。
 
 ## 中间失败记录
 
 1. 首先将 GPU 测试放在 motion-core 集成目录，编译发现该 crate 没有 pollster；移动到已具备真实 GPU 测试依赖的 motion-render，不新增依赖。
 2. 原始夹具直接添加相机却保留 Project::new 的基础版本，被格式校验拒绝；显式使用既有格式 19。随后 precise range 与整数 timeline 的 floor/ceil 不一致也被正常拒绝；修正为与公开命令相同的覆盖边界。原断言没有更改。
 3. 第一版参考删除了相机层，真实像素断言通过，但 export plan 因对象顺序标识变化而不同。改为保留对象并禁用相机以走旧式视图，保留 plan 的逐字节断言；不能将两个身份不同的文档当成相同协议字节。
+4. FrozenMovie 用例首轮编译发现 timeline 使用有符号帧数、export 消费快照所有权。修正测试类型和消费方式，在导出前比较快照、导出后比较实时工程；没有改生产 API 或为测试新增 Clone。
 
 日志保存在 `artifacts/property-selection-context/multiple-camera-compositions*.log`。最终 `multiple-camera-compositions-oracle-final.log` 为新增 **3 通过、0 失败**（Windows Vulkan，12.39 秒）；`multiple-camera-compositions-core.log` 为既有 camera_workflows **2 通过**、multiple_cameras **9 通过**，没有修改它们的断言。编译与测试只使用既有依赖。
+
+`multiple-camera-frozen-export-final.log` 为新增真实 FFmpeg 冻结输出 **1 通过、0 失败**（11.89 秒），分别写出并重新解码三份六帧 MP4。正常完成的编码器仍报告既有 OpenH264 profile/码率模式警告，未屏蔽日志或改编码策略。产物由临时目录随测试结束回收；断言与日志可按下述命令重现。
+
+```powershell
+cargo test -p motion-render --locked --test multiple_camera_compositions -- --test-threads=1
+cargo test -p motion-core --locked --test multiple_cameras --test camera_workflows -- --test-threads=1
+cargo test -p motion-desktop-media --features ffmpeg --locked --lib movie::camera_tests -- --test-threads=1
+```
+
+结合既有主线功能与原生界面记录，新增测试补足 #249 的嵌套和实际冻结输出证据；PR 通过 CI 并合并后关闭该 issue。未把本机验证称为 Linux/Metal CI 已通过。
 
 ## 错误处理与来源
 
@@ -32,6 +43,6 @@
 | MCC-EXIST-01 | 既有模型校验实际拒绝不合法的测试格式与区间；没有清错、放宽规则或更改返回值 |
 | MCC-NORMAL-01 | 没有活动相机、旧/隐式视图、正常随机寻帧属于正常分支；没有新增逐帧日志 |
 | MCC-BOUND-01 | 本次只增加同步测试，没有新 worker、IO 协议、恢复机制或 UI 反馈；不能声称新增错误信道覆盖 |
-| MCC-PENDING-01 | 不把单机 Vulkan 的像素/导出计划对照等同于 Linux/Metal、实际异步冻结 MP4 或物理窗口交互 |
+| MCC-PENDING-01 | 新增真实冻结/编码/解码成功证据；没有新增 UI、取消或错误处理，既有相关覆盖见多摄影机记录；跨平台 CI 和物理窗口输入不在此次测试范围 |
 
 无新依赖、第三方资产或兼容名称；没有改面板或设计 token。既有观察和默认日志策略不变。
