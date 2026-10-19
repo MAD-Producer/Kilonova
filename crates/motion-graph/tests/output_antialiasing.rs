@@ -180,6 +180,14 @@ fn magnified_sdf_output_is_rasterized_at_display_density() {
 
 #[test]
 fn rotated_graph_output_has_pixel_coverage_instead_of_a_binary_quad_edge() {
+    // Exercise the limiting one-dimensional integral as well as diagonal edges.
+    // The expected coverage remains independent pixel/polygon clipping.
+    for angle in [0., 0.000001, -0.000001, 3.7, 45., 89.99999] {
+        check_rotated_graph_output_coverage(angle);
+    }
+}
+
+fn check_rotated_graph_output_coverage(angle: f32) {
     let folder = tempfile::tempdir().unwrap();
     let graph = GraphDocument::from_json(include_str!("../examples/solid-color.msgraph")).unwrap();
     let report = export_msfx(
@@ -201,7 +209,7 @@ fn rotated_graph_output_has_pixel_coverage_instead_of_a_binary_quad_edge() {
         [128.25, 96.25, 0.],
         [1.; 4],
     );
-    layer.transform.rotation.value = [0., 0., 3.7];
+    layer.transform.rotation.value = [0., 0., angle];
     layer.effects.push(EffectInstance::new(
         1,
         &package.manifest.id,
@@ -240,7 +248,11 @@ fn rotated_graph_output_has_pixel_coverage_instead_of_a_binary_quad_edge() {
         let directory = std::path::PathBuf::from(directory);
         std::fs::create_dir_all(&directory).unwrap();
         image::save_buffer(
-            directory.join("rotated-node-output.png"),
+            directory.join(if angle == 3.7 {
+                "rotated-node-output.png".into()
+            } else {
+                format!("rotated-node-output-{angle}.png")
+            }),
             &pixels,
             256,
             192,
@@ -260,7 +272,9 @@ fn rotated_graph_output_has_pixel_coverage_instead_of_a_binary_quad_edge() {
             binary_error += ((if expected >= 0.5 { 1. } else { 0. }) - expected).abs();
         }
     }
-    eprintln!("partial={partial}, coverage error={error}, binary error={binary_error}");
+    eprintln!(
+        "angle={angle}, partial={partial}, coverage error={error}, binary error={binary_error}"
+    );
     assert!(
         partial > 200,
         "rotated node output still has hard single-sample edges: {partial}"
