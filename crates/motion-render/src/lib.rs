@@ -47,6 +47,7 @@ pub use renderer::{CaptureTarget, ExposureTarget, RenderError, RenderStats, Rend
 pub use timing::{GpuTimer, GpuTiming};
 
 mod scene;
+pub mod exposure_scene;
 mod compositor;
 mod plane_sampling;
 pub mod selection_geometry;

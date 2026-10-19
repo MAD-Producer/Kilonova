@@ -60,25 +60,47 @@ pub(super) struct InstanceIds {
     base: u64,
 }
 impl InstanceIds {
+    #[cfg(test)]
     pub fn prepare(&mut self, project: &Project) -> Result<()> {
-        if self.nodes.len() == project.compositions.len() + 1
+        self.prepare_composition(project, project)
+    }
+    pub fn prepare_composition(&mut self, document: &Project, root: &Project) -> Result<()> {
+        let sources = || {
+            std::iter::once((root.composition_id.as_str(), root.layers.as_slice()))
+                .chain(
+                    std::iter::once((document.composition_id.as_str(), document.layers.as_slice()))
+                        .filter(|(id, _)| *id != root.composition_id),
+                )
+                .chain(
+                    document
+                        .compositions
+                        .iter()
+                        .filter(|c| {
+                            root.composition_id == document.composition_id
+                                || c.id != root.composition_id
+                        })
+                        .map(|c| (c.id.as_str(), c.layers.as_slice())),
+                )
+        };
+        if self.nodes.len() == document.compositions.len() + 1
             && self
                 .nodes
-                .first()
-                .is_some_and(|n| n.matches(&project.composition_id, &project.layers))
-            && self.nodes[1..]
                 .iter()
-                .zip(&project.compositions)
-                .all(|(n, c)| n.matches(&c.id, &c.layers))
+                .zip(sources())
+                .all(|(n, (id, layers))| n.matches(id, layers))
         {
             return Ok(());
         }
         // Build off to the side: invalid edits cannot leave a partial layout.
-        let candidate = Self::build(project)?;
+        let candidate = Self::build(document, root, sources())?;
         *self = candidate;
         Ok(())
     }
-    fn build(project: &Project) -> Result<Self> {
+    fn build<'a>(
+        project: &Project,
+        root: &Project,
+        sources: impl Iterator<Item = (&'a str, &'a [Layer])>,
+    ) -> Result<Self> {
         if project.compositions.len() >= composition::MAX_COMPOSITIONS {
             return limit(
                 &project.composition_id,
@@ -86,9 +108,8 @@ impl InstanceIds {
             );
         }
         let mut nodes = Vec::with_capacity(project.compositions.len() + 1);
-        nodes.push(Node::new(&project.composition_id, &project.layers)?);
-        for node in &project.compositions {
-            nodes.push(Node::new(&node.id, &node.layers)?);
+        for (id, layers) in sources {
+            nodes.push(Node::new(id, layers)?);
         }
         let mut indices = HashMap::with_capacity(nodes.len());
         for (index, node) in nodes.iter().enumerate() {
@@ -125,18 +146,18 @@ impl InstanceIds {
                     continue;
                 }
                 let Some(end) = base.checked_add(span - 1) else {
-                    return limit(&project.composition_id, "Instance alias range exhausted");
+                    return limit(&root.composition_id, "Instance alias range exhausted");
                 };
                 if id > end {
                     break;
                 }
                 let Some(next) = id.checked_add(1) else {
-                    return limit(&project.composition_id, "Instance alias range exhausted");
+                    return limit(&root.composition_id, "Instance alias range exhausted");
                 };
                 base = next;
             }
             if base.checked_add(span - 1).is_none() {
-                return limit(&project.composition_id, "Instance alias range exhausted");
+                return limit(&root.composition_id, "Instance alias range exhausted");
             }
         }
         Ok(Self { nodes, paths, base })
@@ -456,6 +477,8 @@ mod tests {
         assert_eq!(failure.details["object"], 0);
         bad = p.clone();
         bad.compositions.push(bad.compositions[0].clone());
+        error(ids.prepare(&bad), "sample_failed");
+        bad.compositions.last_mut().unwrap().id = bad.composition_id.clone();
         error(ids.prepare(&bad), "sample_failed");
         p.compositions[0].layers = (1..=MAX_LAYERS as u64)
             .map(|id| Layer::solid(id, "source", [1.; 2], [0.; 3], [1.; 4]))

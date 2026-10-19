@@ -157,9 +157,15 @@ impl Scene {
         observer: Option<&Observer>,
         evaluator: &dyn motion_model::FrameEvaluator,
     ) -> Result<()> {
-        self.sample_inner(project, project, frame, observer, 0, &mut 0, evaluator)?;
+        self.sample_root(project, project, frame, observer, evaluator)
+    }
+    /// A composition sampling view resolves resources and nested references
+    /// against its immutable owning document, never as an independent project.
+    pub(crate) fn sample_root(&mut self, document: &Project, project: &Project, frame: f64,
+        observer: Option<&Observer>, evaluator: &dyn motion_model::FrameEvaluator) -> Result<()> {
+        self.sample_inner(document, project, frame, observer, 0, &mut 0, evaluator)?;
         if self.nested.is_empty() { return Ok(()); }
-        self.instance_ids.prepare(project)?;
+        self.instance_ids.prepare_composition(document, project)?;
         let aliases = &self.instance_ids;
         let mut path = Vec::with_capacity(motion_model::composition::MAX_COMPOSITION_DEPTH);
         for node in &mut self.nested {
