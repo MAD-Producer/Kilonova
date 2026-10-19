@@ -28,13 +28,18 @@ def main():
         data = json.loads(report.read_text(encoding="utf-8"))
         if args.style and data.get("styles")!={"reloadPreservedModel":True,"invalidReloadKeptStyle":True}:
             raise RuntimeError(f"{locale} did not verify stylesheet reload")
-        for key in ("ok", "independentUiOnly", "numericDragOneUndo", "undoRestored", "floatingPresented", "layoutRoundtrip"):
+        for key in ("ok", "independentUiOnly", "numericDragOneUndo", "undoRestored", "floatingPresented", "layoutRoundtrip", "secondaryButtonsPreservedGesture", "secondaryOwnerGuarded", "floatingCancellationRestored", "tabNavigationGuarded"):
             if data.get(key) is not True:
                 raise RuntimeError(f"{locale} did not verify {key}")
         if data.get("language") != locale or not report.with_suffix(".png").exists():
             raise RuntimeError(f"{locale} did not produce its localized screenshot")
         if not report.with_suffix(".floating.png").exists():
             raise RuntimeError(f"{locale} did not capture its native floating panel")
+        for suffix in (".input-main.png", ".input-floating.png"):
+            capture = report.with_suffix(suffix)
+            data = capture.read_bytes()
+            if len(data) < 1024 or not data.startswith(b"\x89PNG\r\n\x1a\n"):
+                raise RuntimeError(f"{locale} invalid input ownership capture: {capture}")
     print("Independent UI framework, languages, numeric undo and native floating windows passed.")
 
 

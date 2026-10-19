@@ -81,12 +81,17 @@ impl Router {
             }
             return;
         }
-        if let Some((MouseButton::Left, point)) = input.pressed {
+        if let Some((MouseButton::Left, point)) = input.pressed.filter(|_| {
+            input.held.is_none_or(|button| button == MouseButton::Left)
+        }) {
             let owner = hit(point);
             self.capture = owner.map(|r| r.target);
             self.focus = owner.filter(|r| r.keyboard).map(|r| r.target);
         }
-        if input.keys.iter().any(|(key, _)| *key == crate::Key::Tab) {
+        let tab = input.key_presses().find(|(key, modifiers, repeat)| {
+            *key == crate::Key::Tab && !repeat && !modifiers.control && !modifiers.alt
+        });
+        if let Some((_, modifiers, _)) = tab {
             let mut targets: Vec<_> = regions
                 .iter()
                 .filter(|r| {
@@ -98,12 +103,14 @@ impl Router {
                 })
                 .map(|r| r.target)
                 .collect();
-            targets.dedup();
+            // A widget can contribute several non-adjacent hit regions.
+            let mut seen = std::collections::HashSet::with_capacity(targets.len());
+            targets.retain(|target| seen.insert(*target));
             if !targets.is_empty() {
                 let current = self
                     .focus
                     .and_then(|t| targets.iter().position(|p| *p == t));
-                let next = if input.modifiers.shift {
+                let next = if modifiers.shift {
                     current.map_or(targets.len() - 1, |i| {
                         (i + targets.len() - 1) % targets.len()
                     })
@@ -140,7 +147,10 @@ impl Router {
         routed
     }
     pub fn end_frame(&mut self, input: &Input) {
-        if input.released.is_some() || input.focus_lost {
+        if self.capture.is_some_and(|target| Some(target.window) == self.window)
+            && (input.released.is_some_and(|(button, _)| button == MouseButton::Left)
+                || input.focus_lost)
+        {
             self.capture = None;
         }
         let window = self.window;
