@@ -18,8 +18,10 @@ mod tests {
     #[test]
     fn shared_filter_keeps_all_portable_plane_programs_compilable() {
         for source in [super::BASIC, super::MASK, super::MATTE] {
+            // Packed plans retain the unexpanded geometry contract.
+            let source = crate::plane_coverage::shader(source, false);
             let program = motion_effects::shader::compile_host_program(
-                source,
+                &source,
                 "vertex_main",
                 "fragment_main",
             )

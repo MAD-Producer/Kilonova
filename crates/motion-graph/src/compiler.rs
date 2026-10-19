@@ -84,10 +84,34 @@ pub struct CompiledGraph {
 }
 
 pub fn node_ports(node: &Node, parameters: &[PublicParameter]) -> Result<NodePorts> {
+    if !node.input_defaults.is_empty()
+        && matches!(
+            node.operation,
+            NodeOp::Group { .. } | NodeOp::GroupInput { .. } | NodeOp::GroupOutput { .. }
+        )
+    {
+        return Err(Error::invalid(
+            ErrorCode::InvalidValue,
+            Some(&node.id),
+            None,
+            "group boundary defaults must be authored on the internal value inputs",
+        ));
+    }
     let mut p = NodePorts {
         inputs: BTreeMap::new(),
         outputs: BTreeMap::new(),
     };
+    if node.display_name.len() > 120
+        || node.display_name.chars().any(char::is_control)
+        || (!node.display_name.is_empty() && node.display_name.trim().is_empty())
+    {
+        return Err(Error::invalid(
+            ErrorCode::InvalidValue,
+            Some(&node.id),
+            Some("display_name"),
+            "node display names must be visible text of at most 120 UTF-8 bytes",
+        ));
+    }
     let group_ports = |ports: &BTreeMap<String, GroupPort>| -> Result<BTreeMap<String, ValueType>> {
         for (id, port) in ports {
             use crate::PortSemantic::*;
@@ -271,6 +295,35 @@ pub fn node_ports(node: &Node, parameters: &[PublicParameter]) -> Result<NodePor
             };
             (inputs, vec![("color", ValueType::Color)])
         }
+        NodeOp::Blend { .. } => (
+            vec![("backdrop", ValueType::Color), ("source", ValueType::Color),
+                ("factor", ValueType::Float)],
+            vec![("color", ValueType::Color)],
+        ),
+        NodeOp::Noise { octaves, .. } => {
+            if !(1..=4).contains(octaves) {
+                return Err(Error::invalid(
+                    ErrorCode::InvalidValue, Some(&node.id), None,
+                    "noise octaves must be in 1..=4",
+                ));
+            }
+            (
+                vec![("coordinate", ValueType::Vec2), ("offset", ValueType::Vec2),
+                    ("scale", ValueType::Float), ("seed", ValueType::Float)],
+                vec![("factor", ValueType::Float), ("color", ValueType::Color)],
+            )
+        }
+        NodeOp::Gradient { .. } => (
+            vec![
+                ("coordinate", ValueType::Vec2),
+                ("start", ValueType::Vec2),
+                ("end", ValueType::Vec2),
+                ("falloff", ValueType::Float),
+                ("a", ValueType::Color),
+                ("b", ValueType::Color),
+            ],
+            vec![("factor", ValueType::Float), ("color", ValueType::Color)],
+        ),
         NodeOp::ApplyMask => (
             vec![("color", ValueType::Color), ("coverage", ValueType::Float)],
             vec![("color", ValueType::Color)],
@@ -367,9 +420,43 @@ pub fn node_ports(node: &Node, parameters: &[PublicParameter]) -> Result<NodePor
         .extend(inputs.into_iter().map(|(n, t)| (n.into(), t)));
     p.outputs
         .extend(outputs.into_iter().map(|(n, t)| (n.into(), t)));
+    for (port, value) in &node.input_defaults {
+        let ty = p.inputs.get(port).ok_or_else(|| {
+            Error::invalid(
+                ErrorCode::UnknownPort,
+                Some(&node.id),
+                Some(port),
+                "default refers to an unknown input",
+            )
+        })?;
+        if *ty != value.value_type() {
+            return Err(Error::invalid(
+                ErrorCode::TypeMismatch,
+                Some(&node.id),
+                Some(port),
+                "input default must have the input's exact storage type",
+            ));
+        }
+        if value
+            .components()
+            .iter()
+            .any(|v| !v.is_finite() || v.abs() > 1.0e6)
+            || matches!(value, InputValue::Color(rgba) if rgba.iter().any(|v| !(0.0..=1.0).contains(v)))
+        {
+            return Err(Error::invalid(
+                ErrorCode::InvalidValue,
+                Some(&node.id),
+                Some(port),
+                "input defaults must be finite (±1e6); straight RGBA must be normalized",
+            ));
+        }
+    }
     Ok(p)
 }
 
+/// Validate every node, edge and cycle, then require complete inputs only in the
+/// color output's dependency chain. Supported, structurally valid unused nodes
+/// may remain unfinished; they are retained in source and omitted from execution.
 pub fn validate(document: &GraphDocument, options: &CompileOptions) -> Result<ValidationReport> {
     if crate::groups::structured(document) {
         let flat = crate::groups::flatten(document, options)?;
@@ -384,12 +471,14 @@ fn validate_root(
     options: &CompileOptions,
     root: Option<&PortRef>,
 ) -> Result<ValidationReport> {
-    if document.format_version != GRAPH_FORMAT_VERSION {
+    if !(GRAPH_FORMAT_VERSION..=INPUT_DEFAULTS_FORMAT_VERSION).contains(&document.format_version)
+        || document.format_version < document.minimum_format_version()
+    {
         return Err(Error::invalid(
             ErrorCode::DocumentVersion,
             None,
             None,
-            "only .msgraph format version 1 is implemented",
+            "supported .msgraph versions are 1 and 2; input defaults require version 2",
         ));
     }
     if options.target_sdk != 6 {
@@ -650,18 +739,6 @@ fn validate_root(
             .or_default()
             .push(edge.to.node.clone());
     }
-    for (id, spec) in &ports {
-        for port in spec.inputs.keys() {
-            if !incoming.contains_key(&PortRef::new(id, port)) {
-                return Err(Error::invalid(
-                    ErrorCode::MissingInput,
-                    Some(id),
-                    Some(port),
-                    "required input is not connected",
-                ));
-            }
-        }
-    }
     let mut ready: BTreeSet<String> = degrees
         .iter()
         .filter(|(_, degree)| **degree == 0)
@@ -701,7 +778,18 @@ fn validate_root(
             continue;
         }
         for port in ports[&id].inputs.keys() {
-            pending.push(incoming[&PortRef::new(&id, port)].node.clone());
+            // Incomplete nodes outside this output's dependency chain are drafts.
+            // Structural, value, edge and cycle validation above still covers them.
+            if let Some(source) = incoming.get(&PortRef::new(&id, port)) {
+                pending.push(source.node.clone());
+            } else if !nodes[&id].input_defaults.contains_key(port) {
+                return Err(Error::invalid(
+                    ErrorCode::MissingInput,
+                    Some(&id),
+                    Some(port),
+                    "required input is not connected",
+                ));
+            }
         }
     }
     Ok(ValidationReport {
@@ -807,7 +895,17 @@ fn compile_plan(
     } else {
         builder.input(&plan.output_node, "color").expr
     };
-    let source=format!("// Motion Studio .msgraph format 1; SDK 6 single-pass image target.\n{}\nfn graph_fx(p:vec2<f32>)->vec4<f32>{{\n{}    return {};\n}}\n",helpers(document.alpha_mode),builder.code,output);
+    let mut support = helpers(document.alpha_mode);
+    if plan.reachable_nodes.iter().any(|id| matches!(nodes[id.as_str()].operation, NodeOp::Blend { .. })) {
+        support.push_str(include_str!("blend.wgsl"));
+    }
+    if plan.reachable_nodes.iter().any(|id| matches!(nodes[id.as_str()].operation, NodeOp::Noise { .. })) {
+        support.push_str(include_str!("noise.wgsl"));
+    }
+    if plan.reachable_nodes.iter().any(|id| matches!(nodes[id.as_str()].operation, NodeOp::Gradient { .. })) {
+        support.push_str(include_str!("gradient.wgsl"));
+    }
+    let source=format!("// Motion Studio .msgraph format 1; SDK 6 single-pass image target.\n{}\nfn graph_fx(p:vec2<f32>)->vec4<f32>{{\n{}    return {};\n}}\n",support,builder.code,output);
     if source.len() > options.max_shader_bytes {
         return Err(Error::invalid(
             ErrorCode::Budget,
@@ -986,7 +1084,36 @@ impl<'a> Builder<'a> {
         }
     }
     fn input(&self, node: &str, port: &str) -> Symbol {
-        self.symbols[&self.incoming[&PortRef::new(node, port)]].clone()
+        if let Some(source) = self.incoming.get(&PortRef::new(node, port)) {
+            return self.symbols[source].clone();
+        }
+        let value = &self
+            .document
+            .nodes
+            .iter()
+            .find(|n| n.id == node)
+            .unwrap()
+            .input_defaults[port];
+        if let InputValue::Bool(value) = value {
+            return Symbol {
+                expr: value.to_string(),
+                constant: None,
+                image: None,
+            };
+        }
+        let mut components = value.components().to_vec();
+        if value.value_type() == ValueType::Color
+            && self.document.alpha_mode == AlphaMode::Premultiplied
+        {
+            for index in 0..3 {
+                components[index] *= components[3];
+            }
+        }
+        Symbol {
+            expr: literal(value.value_type(), &components),
+            constant: Some(components),
+            image: None,
+        }
     }
     fn put(
         &mut self,
@@ -1280,6 +1407,51 @@ impl<'a> Builder<'a> {
                     }
                 };
                 self.put(node, "color", ValueType::Color, expr, None, false);
+            }
+            Blend { mode } => {
+                self.put(node, "color", ValueType::Color,
+                    format!("ng_blend({}u,{},{},{})", *mode as u32,
+                        input("backdrop").expr, input("source").expr, input("factor").expr),
+                    None, false);
+            }
+            Noise { mode, octaves } => {
+                let mode = u32::from(*mode == NoiseMode::Perlin);
+                let position = format!("(({}+{})*clamp({},0.0,4096.0))",
+                    input("coordinate").expr, input("offset").expr, input("scale").expr);
+                let seed = format!("u32(floor(clamp({},0.0,65535.0)))", input("seed").expr);
+                // Statically bounded work: no dynamic octave loop in exported shaders.
+                let terms: Vec<_> = (0..*octaves).map(|i| {
+                    let frequency = 1u32 << i;
+                    let weight = 1. / frequency as f32;
+                    format!("ng_noise({position}*{frequency}.0,({seed}+{}u),{mode}u)*{weight:?}",
+                        u32::from(i) * 7919)
+                }).collect();
+                let total: f32 = (0..*octaves).map(|i| 1. / (1u32 << i) as f32).sum();
+                self.put(node, "factor", ValueType::Float,
+                    format!("(({})/{total:?})", terms.join("+")), None, false);
+                let factor = self.symbols[&PortRef::new(&node.id, "factor")].expr.clone();
+                self.put(node, "color", ValueType::Color,
+                    format!("vec4<f32>(vec3<f32>({factor}),1.0)"), None, false);
+            }
+            Gradient { mode } => {
+                let mode = match mode {
+                    GradientMode::Linear => 0,
+                    GradientMode::Radial => 1,
+                    GradientMode::Conic => 2,
+                };
+                let factor = format!(
+                    "ng_gradient({},{},{},{},{mode}u)",
+                    input("coordinate").expr,
+                    input("start").expr,
+                    input("end").expr,
+                    input("falloff").expr,
+                );
+                let a = input("a").expr;
+                let b = input("b").expr;
+                self.put(node, "factor", ValueType::Float, factor, None, false);
+                let factor = self.symbols[&PortRef::new(&node.id, "factor")].expr.clone();
+                self.put(node, "color", ValueType::Color,
+                    format!("mix({a},{b},{factor})"), None, false);
             }
             ApplyMask => {
                 let c = input("color").expr;

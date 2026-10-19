@@ -1,0 +1,29 @@
+{
+  "format_version": 2,
+  "id": "compact_gradient",
+  "name": "三节点渐变",
+  "english_name": "Three-node Gradient",
+  "working_space": "srgb",
+  "alpha_mode": "straight",
+  "nodes": [
+    { "id": "uv", "version": 1, "operation": { "kind": "uv" }, "position": [0, 0] },
+    {
+      "id": "gradient", "version": 1,
+      "operation": { "kind": "gradient", "mode": "linear" },
+      "position": [280, 0],
+      "input_defaults": {
+        "start": { "type": "vec2", "value": [0, 0.5] },
+        "end": { "type": "vec2", "value": [1, 0.5] },
+        "falloff": { "type": "float", "value": 1 },
+        "a": { "type": "color", "value": [0.1, 0.3, 0.8, 1] },
+        "b": { "type": "color", "value": [0.95, 0.45, 0.15, 1] }
+      }
+    },
+    { "id": "output", "version": 1, "operation": { "kind": "color_output" }, "position": [560, 0] }
+  ],
+  "connections": [
+    { "from": { "node": "uv", "port": "value" }, "to": { "node": "gradient", "port": "coordinate" } },
+    { "from": { "node": "gradient", "port": "color" }, "to": { "node": "output", "port": "color" } }
+  ],
+  "public_parameters": []
+}

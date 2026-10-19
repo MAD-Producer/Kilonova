@@ -298,6 +298,7 @@ impl NodeTasks {
             Action::ExportMsfx(s) => (Kind::Export, s),
             Action::ShowProperties
             | Action::ViewPreferencesChanged(_)
+            | Action::RecentNodesChanged(_)
             | Action::Changed { .. }
             | Action::Examples(_)
             | Action::PreviewChanged => {

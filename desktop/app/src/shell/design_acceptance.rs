@@ -208,6 +208,13 @@ impl Shell {
                     self.panels.timeline.scroll = 0.;
                     // This fixture locates layers by ordinal, so property rows stay collapsed.
                     self.panels.timeline.expanded.clear();
+                    // Narrow timelines intentionally hide optional columns to preserve
+                    // the layer name and 3D target. Exercise the requested menu as the
+                    // rightmost visible column instead of clicking a hidden old slot.
+                    self.panels.timeline.column_visibility.parent =
+                        screen == "timeline-parent-menu";
+                    self.panels.timeline.column_visibility.blend = screen == "timeline-blend-menu";
+                    self.panels.timeline.column_visibility.matte = false;
                     let layout = workspace::Workspace::design_layout(workspace::Preset::Default);
                     let frame = panels::frames(&layout, size)
                         .into_iter()
@@ -224,11 +231,8 @@ impl Shell {
                         .ok_or("missing smoke selection")?;
                     let point = [
                         frame.content.min[0] + gutter
-                            - if screen == "timeline-parent-menu" {
-                                58.
-                            } else {
-                                158.
-                            },
+                            - paint.styles().metric("padding.panel", 8.)
+                            - paint.styles().metric("icon.slot", 20.),
                         frame.content.min[1]
                             + 64.
                             + ordinal as f32 * paint.styles().metric("row.height", 22.)

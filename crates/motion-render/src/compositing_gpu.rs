@@ -65,7 +65,7 @@ impl CompositingGpu {
         );
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("layer and matte plane"),
-            source: wgpu::ShaderSource::Wgsl(crate::plane_sampling::MATTE.into()),
+            source: wgpu::ShaderSource::Wgsl(crate::plane_coverage::shader(crate::plane_sampling::MATTE, true).into()),
         });
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("layer matte inputs"),

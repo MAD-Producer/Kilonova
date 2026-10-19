@@ -105,6 +105,9 @@ pub struct PlannedDraw {
 }
 #[derive(Default, Debug)]
 pub struct EffectFramePlan {
+    /// Canonical UV-to-clip homographies for native drawing. CPU-only metadata;
+    /// deliberately excluded from the portable packed-plan ABI.
+    pub uv_maps: Vec<glam::DMat3>,
     pub scratch_budget: u64,
     pub draws: Vec<PlannedDraw>,
     pub passes: Vec<EffectPass>,
@@ -372,6 +375,7 @@ pub struct PlanBuilder {
     /// Refusal responsible for the current failed build; never a stale diagnostic.
     pub last_resource_rejection: Option<ResourceRejection>,
     geometry: crate::PlaneCompositor,
+    plane_coverage: bool,
     sizes: Vec<[f32; 2]>,
     origins: Vec<[f32; 2]>,
     overlays: Vec<bool>,
@@ -619,6 +623,7 @@ impl PlanBuilder {
             last_scratch_request: None,
             last_resource_rejection: None,
             geometry: crate::PlaneCompositor::new(),
+            plane_coverage: false,
             origins: Vec::with_capacity(motion_model::MAX_LAYERS),
             sizes: Vec::with_capacity(motion_model::MAX_LAYERS),
             overlays: Vec::with_capacity(motion_model::MAX_LAYERS),
@@ -633,6 +638,12 @@ impl PlanBuilder {
             preview_cache_hits: 0,
             preview_plan_builds: 0,
         })
+    }
+    pub(crate) fn enable_plane_coverage(&mut self) {
+        if !self.plane_coverage {
+            self.plane_coverage = true;
+            self.preview_inputs = None;
+        }
     }
     pub fn set_registry(&mut self, registry: Registry) {
         self.registry = registry;
@@ -837,8 +848,9 @@ impl PlanBuilder {
     pub fn invalidate_preview_plan(&mut self) {
         self.preview_inputs = None;
     }
-    /// Preview-only density reduction. Formal plans keep published full-size
-    /// passes and package hashes, including legacy effects.
+    /// Preview may reduce minified image-effect density. Preview and formal
+    /// plans both increase density for magnified image effects; shader packages,
+    /// logical coordinates and effect parameter values remain unchanged.
     pub fn build_preview(
         &mut self,
         scene: &Scene,
@@ -981,6 +993,8 @@ impl PlanBuilder {
             .min(height as f32 / scene.height as f32)
             .min(1.0)
             .max(0.001);
+        let [_, _, viewport_width, viewport_height] = crate::fit_viewport(
+            [0., 0., width as f32, height as f32], [scene.width, scene.height]);
         self.frame.masks=self.mask_cache.build(scene,scale,preview)?;
         self.frame.compositing=scene.layers.iter().map(|l|LayerComposite {blend:l.blend.mode.code(),space:u32::from(l.blend.space==motion_model::compositing::BlendSpace::Srgb),matte:l.track_matte.and_then(|m|scene.layers.iter().position(|s|s.id==m.source)).map_or(-1,|i|i as i32),mode:l.track_matte.map_or(0,|m|m.mode.code()),visible:l.composite_visible}).collect();
         for mask in &self.frame.masks {
@@ -1007,6 +1021,13 @@ impl PlanBuilder {
             } else {
                 scale
             };
+            let image_effects_only = !layer.adjustment && !layer.composition
+                && scene.effects.iter().enumerate().filter(|(_, e)| e.layer == layer.id && e.enabled)
+                    .all(|(i, _)| self.resolved[i].as_ref().is_some_and(|r|
+                        r.definition.renderer == motion_effects::RendererKind::Image));
+            let scale = if image_effects_only && scene.effects.iter().any(|e|e.layer==layer.id&&e.enabled) {
+                crate::quality::magnified_effect_scale(layer, [viewport_width, viewport_height], scale)
+            } else { scale };
             if let Some(vector) = &layer.vector {
                 let scale = crate::raster_density::vector_scale(layer, width, height, scale)?;
                 let dirty = self
@@ -1565,10 +1586,20 @@ impl PlanBuilder {
                     pass.uniform.region[1] - layer.source_rect[1],
                 ])
         }));
+        // Transfer/adjustment layers first composite into the working canvas.
+        // Its pixels, rather than a potentially magnified final target, define
+        // the fringe needed by the plane fragment shader.
+        let accumulated = self.frame.draws.iter().any(|d|d.words[31]==2.&&d.pass_start<d.pass_end)
+            || self.frame.compositing.iter().any(|c|c.visible&&(c.blend!=0||c.space!=0));
+        let coverage_viewport = if accumulated {
+            [(scene.width as f32*scale).ceil(),(scene.height as f32*scale).ceil()]
+        } else { [viewport_width, viewport_height] };
+        self.geometry.set_coverage_viewport(self.plane_coverage.then_some(coverage_viewport));
         self.geometry
             .prepare_with_bounds_and_overlays(scene, &self.sizes, &self.origins, &self.overlays)
             .map_err(|e| e.to_string())?;
         self.frame.vertices.clone_from(&self.geometry.vertices);
+        self.frame.uv_maps.clone_from(&self.geometry.uv_maps);
         self.frame.batches.clone_from(&self.geometry.batches);
         let vector_bytes = self
             .frame

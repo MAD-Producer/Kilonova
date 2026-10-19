@@ -55,6 +55,7 @@ struct Node {
 pub struct PlaneCompositor {
     pub vertices: Vec<PlaneVertex>,
     pub batches: Vec<PlaneBatch>,
+    pub(crate) uv_maps: Vec<glam::DMat3>,
     arena: Vec<Vertex>,
     nodes: Vec<Node>,
     tasks: Vec<(Polygon, usize)>,
@@ -62,6 +63,7 @@ pub struct PlaneCompositor {
     coplanar: Vec<usize>,
     planes: [Option<Plane>; MAX_LAYERS],
     projected: projected::ProjectedGeometry,
+    coverage_viewport: Option<[f32; 2]>,
 }
 impl Default for PlaneCompositor {
     fn default() -> Self {
@@ -73,6 +75,7 @@ impl PlaneCompositor {
         Self {
             vertices: Vec::with_capacity(MAX_LAYERS * 12),
             batches: Vec::with_capacity(MAX_LAYERS * 2),
+            uv_maps: Vec::with_capacity(MAX_LAYERS),
             arena: Vec::with_capacity(MAX_LAYERS * 16),
             nodes: Vec::with_capacity(MAX_LAYERS * 4),
             tasks: Vec::with_capacity(MAX_LAYERS * 4),
@@ -80,7 +83,13 @@ impl PlaneCompositor {
             coplanar: Vec::with_capacity(MAX_LAYERS),
             planes: [None; MAX_LAYERS],
             projected: Default::default(),
+            coverage_viewport: None,
         }
+    }
+    // Only renderers whose fragment shaders consume out-of-range UV coverage
+    // opt in. The shared mobile frame-plan ABI keeps its original geometry.
+    pub(crate) fn set_coverage_viewport(&mut self, viewport: Option<[f32; 2]>) {
+        self.coverage_viewport = viewport;
     }
     pub fn prepare(&mut self, scene: &Scene) -> Result<()> {
         self.prepare_with_sizes(scene, &[])
@@ -109,6 +118,8 @@ impl PlaneCompositor {
         self.projected.prepare(scene, overlays)?;
         self.vertices.clear();
         self.batches.clear();
+        self.uv_maps.clear();
+        self.uv_maps.resize(scene.layers.len(), glam::DMat3::ZERO);
         self.arena.clear();
         self.nodes.clear();
         self.tasks.clear();
@@ -157,14 +168,25 @@ impl PlaneCompositor {
             ])
         };
         let model = crate::scene::plane_model(l, overlay).as_dmat4();
+        self.uv_maps[layer] = crate::plane_coordinates::clip_map(
+            crate::scene::plane_projection(scene, l, overlay).as_dmat4() * model, size, offset);
+        let margin = self.coverage_viewport.map_or(DVec2::ZERO, |viewport|
+            crate::plane_coverage::margin(
+                crate::scene::plane_projection(scene, l, overlay).as_dmat4() * model,
+                size, offset, viewport));
         let start = self.arena.len();
         if self.projected.active {
-            let vertices = self.projected.quad(scene, layer, size, offset, overlay)?;
+            let vertices = self.projected.quad(scene, layer, size, offset, overlay, margin)?;
             ensure(start + vertices.len() <= MAX_ARENA, "intersection geometry budget exceeded")?;
             self.arena.extend_from_slice(vertices);
             self.planes[layer] = projected::plane(&self.arena[start..]);
         } else {
-            for [x, y] in [[-0.5, 0.5], [-0.5, -0.5], [0.5, -0.5], [0.5, 0.5]] {
+            // Expand before BSP splitting; internal edges share the same UV field.
+            for uv in [DVec2::new(-margin.x, -margin.y),
+                DVec2::new(-margin.x, 1.0 + margin.y),
+                DVec2::new(1.0 + margin.x, 1.0 + margin.y),
+                DVec2::new(1.0 + margin.x, -margin.y)] {
+                let [x, y] = [uv.x - 0.5, 0.5 - uv.y];
                 let position = model.transform_point3(DVec3::new(
                     x * f64::from(size[0]) + f64::from(offset[0]),
                     y * f64::from(size[1]) + f64::from(offset[1]),
@@ -173,7 +195,7 @@ impl PlaneCompositor {
                 ensure(position.is_finite(), "invalid plane geometry")?;
                 self.arena.push(Vertex {
                     position,
-                    uv: DVec2::new(x + 0.5, 0.5 - y),
+                    uv,
                     reciprocal_w: 1.,
                 });
             }

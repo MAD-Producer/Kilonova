@@ -436,6 +436,7 @@ impl Shell {
         shell.panels.workspace_preset = shell.workspace.preset;
         shell.panels.browser.favorites = shell.workspace.favorites.clone();
         shell.panels.node_editor.view_preferences = shell.workspace.node_view;
+        shell.panels.node_editor.recent_nodes = shell.workspace.node_recents.clone();
         shell.panels.effect_controls.catalogue =
             shell.engine.plugin("{\"op\":\"catalogue\"}".into())?.into();
         if shell.smoke.is_some() {
@@ -1207,6 +1208,27 @@ mod tests {
             shell.engine.state().unwrap()["revision"],
             before["revision"]
         );
+    }
+    #[test]
+    fn beginner_example_keeps_existing_unsaved_and_stale_document_guards() {
+        let folder = tempfile::tempdir().unwrap();
+        let mut shell = Shell::new(folder.path().join("project"), None, Some(Locale::Zh)).unwrap();
+        shell.panels.node_editor
+            .add_node(motion_graph::NodeOp::Float { value: 3. }, [0., 0.])
+            .unwrap();
+        let before = shell.panels.node_editor.snapshot();
+        let action = shell.panels.node_editor
+            .request(node_editor::Request::Examples).unwrap();
+        shell.node_action(action).unwrap();
+        let browser = shell.node_examples.take().unwrap();
+        assert!(browser.needs_save);
+        assert_eq!(shell.panels.node_editor.snapshot().document, before.document);
+        shell.panels.node_editor
+            .add_node(motion_graph::NodeOp::Float { value: 4. }, [50., 50.])
+            .unwrap();
+        let edited = shell.panels.node_editor.snapshot().document;
+        assert!(shell.open_node_example(&browser.snapshot, "solid_color").is_err());
+        assert_eq!(shell.panels.node_editor.snapshot().document, edited);
     }
     #[test]
     fn adjustment_layer_ui_action_uses_shared_history_and_survives_reopen() {

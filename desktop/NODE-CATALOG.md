@@ -84,6 +84,15 @@
 
 大半径高斯模糊可以通过可分离、降采样或多级算法控制成本。v1 可提供受限移动预设；不自动将任意大半径替换成小半径。
 
+### Implemented Gradient contract
+
+`gradient` implements Linear, Radial and Conic modes. Diamond remains pending.
+Connect an explicit UV source to `coordinate`; `start` and `end` use the same normalized coordinate space. The linear factor is the clamped projection from start to end. Radial uses start as center and the endpoint distance as radius. Conic starts in the endpoint direction and increases clockwise because UV Y points down. UV distance does not automatically correct the layer aspect ratio.
+
+`falloff` is an exponent applied after clamping the factor to 0..1, bounded to 0.001..1000. Endpoint separation of at most 1e-6 UV returns factor zero; conic coordinates within 1e-6 UV of the center also return zero. The node outputs both `factor` and `color`. Color interpolation follows the graph working space and alpha contract, matching Color Mix; color literals remain straight RGBA authoring values. All five configurable inputs have editable socket defaults; the coordinate source stays explicit. Mode changes preserve defaults and wires and create one undo step.
+
+The Three-node Gradient example contains UV → Gradient → Color Output, with two wires. It complements the existing nine-node UV Component Gradient teaching graph. Compilation produces one image pass with no graph texture samples or added resources and validated GLSL ES 300. Android device validation remains pending; this is an M candidate, not a claim of device acceptance. Generalized Blend, HSV Adjust, Color Ramp and UV Transform remain unimplemented.
+
 ### 2D SDF：有符号距离场
 
 优先实现，标记 M；重采样或大量重复组合时升级为 B。距离端口携带坐标单位，约定内侧为负、边界为零、外侧为正。
@@ -179,3 +188,12 @@ UV 链可驱动 SDF 和纹理；不能把每个 UV 运算生成为独立纹理 p
 - **PC 扩展**：SSS、体积、光线步进与高阶分形等，各自验证后开放；不阻塞首批移动效果。
 
 节点标题与说明从第一批开始提供中英文；节点 ID、端口 ID、参数 ID、WGSL 和包协议保持语言无关。MCP / 内置 agent 使用同一节点文档与编译接口，用户可继续在图中修改生成结果。
+
+
+### Implemented Noise contract
+
+`NodeOp::Noise { mode, octaves }` implements 2D Value and Perlin gradient noise with one to four octaves. Invalid octave counts fail validation with the node ID; shader work is statically unrolled. Coordinates require explicit normalized UV. Offset is applied before scale, which is clamped to 0..4096 (higher means finer patterns). Each octave doubles frequency and halves weight; the sum is normalized by total weight. Seeds are Float inputs clamped to 0..65535 then floored; octave seeds advance by 7919. A deterministic independently authored wrapping-u32 lattice hash produces Value samples or eight unit gradient directions. Both modes use quintic interpolation. This is an independent 2D gradient-noise contract, not the reference 3D permutation-table implementation.
+
+Each octave clamps its domain to +/-1,000,000 before integer conversion. The factor is 0..1; color is opaque grayscale in the graph working space. Animated variation requires a connection to offset/scale/seed; no automatic clock or hidden resource is used. Equal seed and coordinates are deterministic on a given implementation; cross-device bit identity is not promised. High frequencies can alias; no filtering, seamless-tiling guarantee, 3D volume, Simplex or resource sampler is included.
+
+The original Three-node Noise example is UV → Noise → Color Output. Mode and Octaves have separate explicit, undoable dropdowns. Scale, UV offset and seed are editable socket defaults and may be wired. Compilation produces one image pass, no texture samples or resources, and validated GLSL ES 300. Android device and sustained performance acceptance remain pending.

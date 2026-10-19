@@ -8,6 +8,7 @@ use std::time::Instant;
 fn hardware_pipeline(renderer: &Renderer) -> wgpu::RenderPipeline {
     let source = format!("{}\n{}", include_str!("../plane.wgsl"),
         "fn sample_plane_texture(source:texture_2d<f32>, linear_sampler:sampler, uv:vec2<f32>)->vec4<f32>{return textureSample(source,linear_sampler,uv);}");
+    let source = crate::plane_coverage::shader(&source, true);
     let shader = renderer
         .device
         .create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -126,7 +127,19 @@ fn perspective_filter_preserves_split_pixels_without_additional_texture_capacity
     let hardware_split = renderer.capture(&scene, &target).unwrap().0;
     assert_eq!(renderer.texture_bytes(), bytes);
     let improved = max_difference(&precise_reference, &precise_split);
-    assert!(improved <= 3, "perspective split difference {improved}");
+    let worst = precise_reference.iter().zip(&precise_split).enumerate()
+        .max_by_key(|(_, (a, b))| a.abs_diff(**b)).unwrap().0 / 4;
+    if let Some(folder) = std::env::var_os("MOTION_SAMPLING_ARTIFACT_DIR") {
+        let folder = std::path::PathBuf::from(folder);
+        std::fs::create_dir_all(&folder).unwrap();
+        for (name, pixels) in [("projected-reference.png", &precise_reference),
+            ("projected-split.png", &precise_split)] {
+            image::RgbaImage::from_raw(256, 256, pixels.clone()).unwrap()
+                .save(folder.join(name)).unwrap();
+        }
+    }
+    assert!(improved <= 3, "perspective split difference {improved} pixel=({}, {}) reference={:?} split={:?}",
+        worst % 256, worst / 256, &precise_reference[worst*4..worst*4+4], &precise_split[worst*4..worst*4+4]);
     let baseline = max_difference(&hardware_reference, &hardware_split);
     // Drivers may have higher precision than the observed reference device;
     // do not require a driver defect or a particular speed ratio to pass.

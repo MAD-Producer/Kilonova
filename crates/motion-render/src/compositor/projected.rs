@@ -18,6 +18,7 @@ struct SourceQuad {
     model: DMat4,
     size: [f32; 2],
     offset: [f32; 2],
+    margin: DVec2,
 }
 
 #[derive(Default)]
@@ -60,6 +61,7 @@ impl ProjectedGeometry {
         size: [f32; 2],
         offset: [f32; 2],
         overlay: bool,
+        margin: DVec2,
     ) -> Result<&[Vertex]> {
         let l = &scene.layers[layer];
         self.sources[layer] = SourceQuad {
@@ -67,13 +69,18 @@ impl ProjectedGeometry {
             model: crate::scene::plane_model(l, overlay).as_dmat4(),
             size,
             offset,
+            margin,
         };
         let matrix = crate::scene::plane_projection(scene, l, overlay).as_dmat4()
             * self.sources[layer].model;
         self.clip.clear();
         self.spare.clear();
         self.vertices.clear();
-        for [x, y] in [[-0.5, 0.5], [-0.5, -0.5], [0.5, -0.5], [0.5, 0.5]] {
+        for uv in [DVec2::new(-margin.x, -margin.y),
+            DVec2::new(-margin.x, 1. + margin.y),
+            DVec2::new(1. + margin.x, 1. + margin.y),
+            DVec2::new(1. + margin.x, -margin.y)] {
+            let [x, y] = [uv.x - 0.5, 0.5 - uv.y];
             let position = matrix
                 * DVec4::new(
                     x * f64::from(size[0]) + f64::from(offset[0]),
@@ -86,7 +93,7 @@ impl ProjectedGeometry {
             }
             self.clip.push(ClipVertex {
                 position,
-                uv: DVec2::new(x + 0.5, 0.5 - y),
+                uv,
             });
         }
         // Clip in homogeneous coordinates before dividing, including the eye
@@ -148,7 +155,9 @@ impl ProjectedGeometry {
         self.world_vertex(layer, uv)
     }
     pub fn original(&self, layer: usize, corner: usize) -> Result<PlaneVertex> {
-        let uv = [[0., 0.], [0., 1.], [1., 1.], [1., 0.]][corner];
+        let margin = self.sources[layer].margin;
+        let uv = [[-margin.x, -margin.y], [-margin.x, 1. + margin.y],
+            [1. + margin.x, 1. + margin.y], [1. + margin.x, -margin.y]][corner];
         let (position, uv) = self.world_vertex(layer, DVec2::from_array(uv))?;
         Ok(PlaneVertex {
             position: position.as_vec3().to_array(),

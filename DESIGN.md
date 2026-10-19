@@ -103,7 +103,7 @@ Do not create a CSS `:root` token table or a second theme constants layer. Mappi
 - `PaintList` produces visible drawing. A hit area **must not be smaller** than its visible control, but **may be intentionally larger** for pointer precision. Enlarged hit regions must not overlap actionable hit regions of adjacent controls. Focus, scroll clipping, IME, and hovered/pressed/disabled feedback must correspond to the real interaction target.
 - **Separate logical dimensions from physical pixels.** Window scaling must not mutate logical control geometry; convert at drawing time. Align 1px separators to the device-pixel grid under existing conventions to avoid blurry lines.
 - Reuse native fields, rows, and headers; use common margin, row-spacing, and baseline calculations rather than arbitrary new constants per panel.
-- **Preserve existing generous hit tolerances**: Bézier handle visible radius 4 / hit `18×18` (`graph_handles.rs:197`); keyframe diamond visible radius 4 / hit width 10 (`timeline.rs:1875,1227`); graph-box handle per-axis tolerance ≤6px (`graph_box.rs:205`); node socket per-axis tolerance ≤8px (`interaction.rs:163`). Do not shrink hit regions in the name of density.
+- **Preserve existing generous hit tolerances**: Bézier handle visible radius 4 / hit `18×18` (`graph_handles.rs:197`); keyframe diamond visible radius 4 / hit width 10 (`timeline.rs:1875,1227`); graph-box handle per-axis tolerance ≤6px (`graph_box.rs:205`). Node sockets share nearest-point picking for hover, press and release: preserve the existing 9px hover extent and expand it to cover the visible outer diamond at high zoom (`node_editor/view/wires.rs`, `socket_at`). Do not shrink hit regions in the name of density.
 - When width is insufficient, first shrink flexible value regions, then truncate names with a full-text tooltip, then use existing scrolling/folding. **Never let controls overlap or clip a close button.**
 - Separate scrollable content from fixed top tool rows and bottom status bars. Unused panel space should simply remain background, not be filled with oversized empty controls.
 - **A new visual grouping is not a new feature.** Groups, alignment, compact rows, and helper text change presentation only; they must not create a second state model.
@@ -379,8 +379,42 @@ These are **only** behaviors evidenced in the supplied audit, **not** an exhaust
 - The minimap sits inside the canvas at its bottom-right edge. Read its dimensions, margin, padding, world padding and viewport opacity from `node.minimap.*` metrics in `dark.json`; reuse existing chrome, border, muted text and accent colors.
 - Fit node bounds and the visible canvas into one aspect-preserving projection. Show the current viewport distinctly; click/drag navigation changes only canvas pan. Cancel an unfinished drag on Esc or focus loss, and capture input above underlying nodes. Hide the overlay when there is insufficient room, retaining its enabled preference.
 - Grid/minimap visibility and minimap navigation must leave graph source, compilation stamps, permanent output and both history stacks unchanged. Text, IME, menus and active gestures retain priority over G/N; Ctrl+G keeps its grouping behavior.
+- Node choice menus align to the value field, open below it when space permits and above it near the canvas bottom, and remain inside the canvas. Measure option text for width, bounded by the field and `dropdown.max_width`. Use existing popup/row states, body font and padding; retain the logical pointer row size with `node.dropdown.row.height`. At the user's explicit request, canvas-owned choice menus follow the same zoom as their card, including text, row height, padding, border and shadow. Hit regions follow the painted rows with no overlap. Escape or an outside click cancels without changing source or history.
 
 ---
+
+### 10.2 Node diagnostic details
+
+- Keep the current validation diagnostic available from a Details toggle in the footer. The bottom drawer shows the original cause in full, with explicit code, node and port fields; wrap paths and IDs and scroll overflow without changing graph content
+- Locate node resolves the qualified node ID through nested groups, selects it, and centers it above the drawer. Navigation preserves source, collapsed state and graph history. Disable location for missing/stale targets, active edits and menus
+- On the diagnostic node, mark each input lacking both a connection and a stored default with a hollow ring using the existing error token. Keep valid defaults and other draft nodes unmarked
+- The drawer owns its pointer region and focused scrolling keys; Esc closes it and Enter locates the node. Never route destructive canvas keys or a wire drop through the drawer. Successful validation removes the current diagnostic; this drawer does not imply multi-error collection
+
+### 10.3 Node first-use guidance
+
+- A fresh standalone demo identifies itself as an editable example and offers the example browser beside a Continue action. An empty standalone root offers the same starting point and the existing Shift+A shortcut
+- Reserve a separate strip above a fresh demo canvas; empty roots use their vacant canvas without changing drop coordinates. Do not cover nodes or draw a modal tutorial. Continue preserves source, selection, history, preview and node screen positions. Hide the strip when the dock cannot keep both instructions and a usable canvas
+- Opening non-empty saved documents, layer effects and nested groups must not introduce this welcome strip. Never replace an existing graph implicitly. Use the existing example browser, save/discard choices and stale-snapshot guard
+- Put the independently authored two-node Solid Color example first. Opening the browser and its default example takes two clicks; selecting Color exposes editable RGBA controls. Retain advanced examples as independent editable sources
+- Use existing panel, text, muted, row-height and padding tokens. Validate both languages, minimum and default windows, empty state, dismissal, real GPU output, source reopening and undo
+
+### 10.2 Node catalogue search
+
+- The Add popup and library share one catalogue matcher. A nonblank query searches all categories; blank browsing preserves category order. Match English and Chinese titles, independently authored aliases, pinyin/initials and short descriptions. Require every query token and rank title matches first.
+- Use the native text editor for caret movement, selection, deletion and IME commits. Up/Down selects a result, Enter adds it, and Esc exits search. IME confirmation must never add a node. Keep the popup's opening world position when adding; empty results and cancellation leave the graph unchanged.
+- Show a title and short description per result, with actual input/output types for the selected or hovered entry in a fixed footer. Read popup dimensions and result/footer heights from `node.add_menu.*` and `node.search.*`; reuse existing text, inset, hover and selection tokens. Clamp the popup to its panel and clip rows and details independently.
+- In a short dock, remove the popup's redundant scope heading to retain a complete result and input/output footer, and scroll categories separately. In a short library, remove its redundant title and search-results heading first; omit the details footer only when a complete result would otherwise be hidden. The Add popup remains available for port details.
+- Record only successful catalogue choices in a bounded, deduplicated list of 16 recent keys. Persist it in workspace state, retain it across graph undo/new/open, and ignore unknown or oversized saved keys. Browsing and failed additions do not update recents or graph history.
+
+---
+
+### 10.2 Node and group names
+
+- Node context menus expose Rename. A group or boundary node also exposes Rename ports, followed by a separate input/output selection menu. Keep names separate from stable node IDs, socket keys, types, units and connections.
+- Use the native text editor in a bounded popup. Read dimensions from `node.rename.*` in `dark.json`; reuse existing chrome, border, field and muted text colors. Confirm with Enter or Apply; Escape, focus loss and outside clicks cancel without a graph edit. IME confirmation must remain in the editor.
+- Save ordinary titles in the optional `display_name` field. An empty ordinary title restores its operation or public-parameter name. Group and port renames update their existing bilingual metadata; parameter labels retain their existing bilingual inspector fields. Limit names to visible text of at most 120 UTF-8 bytes.
+- These context-menu rename commands produce one undoable source edit, without a semantic or preview revision change. Default group and public-parameter names are readable, numbered and distinct in both UI languages. Exposed port labels use readable node titles, while their socket keys stay stable.
+- This naming layer does not implement reusable group definitions or per-instance parameter bindings. Those remain a separate group-encapsulation task.
 
 ## 11. Existing project model and Project panel
 
@@ -425,6 +459,14 @@ These are **only** behaviors evidenced in the supplied audit, **not** an exhaust
 - [ ] Compare Info-panel rendering counts, texture reuse rates, and presentation milliseconds with the baseline; no unexplained regression.
 
 ---
+
+### Node input defaults
+
+- Keep each stored default on its input socket row. Use the existing numeric editor for scalar dragging and text entry, a comma-separated field for vector components, a checkbox for Bool, and the existing color picker for Color.
+- Use existing semantic field, label, padding, border, selection, error, and disabled tokens. Idle numeric/vector values have no field background; editing reveals focus and validation state. Preserve socket hit tolerances.
+- Wired inputs keep their stored fallback visible in a disabled state. The wire determines execution; disconnecting restores the saved value. Read-only controls cannot start an edit.
+- Cards with stored defaults put outputs after the input rows so value controls cannot overlap output labels or sockets. These are actual port rows, not spacer rows. Cards without defaults retain their existing layout.
+- Numeric drags and color gestures create one history entry; Escape restores the starting value. Vector text owns select-all, navigation and deletion keys and does not commit during IME composition. Input changes refresh the live preview without editing the user's composition.
 
 ## 13. Execution rules for coding agents
 

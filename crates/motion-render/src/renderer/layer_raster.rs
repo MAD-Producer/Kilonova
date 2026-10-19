@@ -536,12 +536,6 @@ impl Renderer {
         let scene =
             context.plane_context(ordered.iter().map(|layer| layer.plane().clone()).collect());
         let sizes: Vec<_> = scene.layers.iter().map(|layer| layer.size).collect();
-        let mut geometry = PlaneCompositor::new();
-        geometry
-            .prepare_with_sizes(&scene, &sizes)
-            .map_err(|error| {
-                RenderError::Invalid(format!("exposure phase=local_composite geometry: {error}"))
-            })?;
         let transfer = scene
             .layers
             .iter()
@@ -556,6 +550,24 @@ impl Renderer {
             (scene.width as f32 * scale).ceil() as u32,
             (scene.height as f32 * scale).ceil() as u32,
         ];
+        let [vx, vy, vw, vh] = crate::fit_viewport(
+            [0., 0., width as f32, height as f32],
+            [scene.width, scene.height],
+        );
+        let viewport = if has_accumulator {
+            [0., 0., size[0] as f32, size[1] as f32]
+        } else {
+            [vx, vy, vw, vh]
+        };
+        let mut geometry = PlaneCompositor::new();
+        // Exposure phases use the same physical-pixel fringe as ordinary
+        // drawing, including when transfer/adjustment uses a working canvas.
+        geometry.set_coverage_viewport(Some([viewport[2], viewport[3]]));
+        geometry
+            .prepare_with_sizes(&scene, &sizes)
+            .map_err(|error| {
+                RenderError::Invalid(format!("exposure phase=local_composite geometry: {error}"))
+            })?;
         // Apply the existing independent composite/source allowances before
         // allocating accumulators, including after a policy reduction.
         let source_bytes =
@@ -647,15 +659,6 @@ impl Renderer {
                 bytemuck::cast_slice(&self.geometry_upload),
             );
         }
-        let [vx, vy, vw, vh] = crate::fit_viewport(
-            [0., 0., width as f32, height as f32],
-            [scene.width, scene.height],
-        );
-        let viewport = if has_accumulator {
-            [0., 0., size[0] as f32, size[1] as f32]
-        } else {
-            [vx, vy, vw, vh]
-        };
         for (i, entry) in ordered.iter().enumerate() {
             let uniform = match entry {
                 PhaseLayer::Adjustment(_, index) => {
@@ -665,6 +668,7 @@ impl Renderer {
                         color: std::array::from_fn(|j| w[16 + j]),
                         extent_opacity: [w[20], w[21], w[22], 0.],
                         uv_scale: [w[25], w[26], context.width as f32, context.height as f32],
+                        screen_uv: crate::plane_coordinates::screen_map(geometry.uv_maps[i], viewport, ordered[i].plane().id)?,
                     }
                 }
                 PhaseLayer::Raster(raster) => {
@@ -687,6 +691,7 @@ impl Renderer {
                             flags as f32,
                         ],
                         uv_scale: [1., 1., viewport[2], viewport[3]],
+                        screen_uv: crate::plane_coordinates::screen_map(geometry.uv_maps[i], viewport, ordered[i].plane().id)?,
                     }
                 }
             };

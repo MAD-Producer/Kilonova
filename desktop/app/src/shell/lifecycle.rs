@@ -70,6 +70,7 @@ impl Shell {
             {
                 self.panels.node_editor = self.node_standalone.take().unwrap();
                 self.panels.node_editor.view_preferences = self.workspace.node_view;
+                self.panels.node_editor.recent_nodes = self.workspace.node_recents.clone();
                 self.request_close();
                 return;
             }

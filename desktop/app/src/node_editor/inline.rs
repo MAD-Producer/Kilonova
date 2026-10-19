@@ -22,8 +22,8 @@ pub(super) struct NumericEdit {
 }
 pub(super) enum Popup {
     Choice {
-        position: [f32; 2],
         node: String,
+        field: Rect,
         items: Vec<Choice>,
         selected: usize,
         scroll: f32,
@@ -45,6 +45,11 @@ pub(super) struct Choice {
 }
 #[derive(Clone)]
 pub(super) enum Control {
+    InputDefault {
+        port: String,
+        value: InputValue,
+        connected: bool,
+    },
     Number {
         label: String,
         binding: Binding,
@@ -72,13 +77,15 @@ pub(super) const CONTROL_ROW: f32 = 28.;
 pub(super) fn control_count(node: &Node, document: &GraphDocument) -> usize {
     match &node.operation {
         NodeOp::Float { .. }
+        | NodeOp::Gradient { .. }
+        | NodeOp::Blend { .. }
         | NodeOp::Bool { .. }
         | NodeOp::ColorMath { .. }
         | NodeOp::Splat { .. }
         | NodeOp::Select { .. }
         | NodeOp::Image { .. }
         | NodeOp::SampleImage { .. } => 1,
-        NodeOp::Vec2 { .. } | NodeOp::Math { .. } => 2,
+        NodeOp::Vec2 { .. } | NodeOp::Math { .. } | NodeOp::Noise { .. } => 2,
         NodeOp::Vec3 { .. } => 3,
         NodeOp::Color { .. } => 5,
         NodeOp::Parameter { parameter } => document
@@ -337,6 +344,41 @@ pub(super) fn controls(node: &Node, document: &GraphDocument, language: Language
                 true,
             ));
         }
+        NodeOp::Blend { mode } => {
+            let titles = mode.title();
+            out.push(Control::Choice {
+                label: language.text("模式", "Mode").into(),
+                value: language.text(titles.0, titles.1).into(),
+                items: ColorBlendMode::ALL.into_iter().map(|mode| {
+                    let titles = mode.title();
+                    Choice { label: language.text(titles.0, titles.1).into(), operation: NodeOp::Blend { mode } }
+                }).collect(),
+            });
+        }
+        NodeOp::Noise { mode, octaves } => {
+            out.push(choices(
+                language.text("模式", "Mode"), &node.operation,
+                [NoiseMode::Value, NoiseMode::Perlin].into_iter()
+                    .map(|mode| NodeOp::Noise { mode, octaves: *octaves }).collect(),
+                language, false,
+            ));
+            out.push(Control::Choice {
+                label: language.text("层数", "Octaves").into(),
+                value: octaves.to_string(),
+                items: (1..=4).map(|octaves| Choice {
+                    label: octaves.to_string(),
+                    operation: NodeOp::Noise { mode: *mode, octaves },
+                }).collect(),
+            });
+        }
+        NodeOp::Gradient { .. } => out.push(choices(
+            language.text("模式", "Mode"),
+            &node.operation,
+            [GradientMode::Linear, GradientMode::Radial, GradientMode::Conic]
+                .into_iter().map(|mode| NodeOp::Gradient { mode }).collect(),
+            language,
+            false,
+        )),
         NodeOp::ColorMath { .. } => out.push(choices(
             language.text("运算", "Op"),
             &node.operation,
@@ -432,6 +474,16 @@ impl NodeEditor {
                 .find(|p| p.id == *id)
                 .and_then(|p| p.default.get(*i))
                 .copied(),
+            Binding::InputDefault(id, port, component) => self
+                .document
+                .nodes
+                .iter()
+                .find(|node| node.id == *id)
+                .and_then(|node| node.input_defaults.get(port))
+                .and_then(|value| match value {
+                    InputValue::Bool(value) if *component == 0 => Some(u8::from(*value) as f32),
+                    _ => value.components().get(*component).copied(),
+                }),
             _ => None,
         }
     }
@@ -453,6 +505,18 @@ impl NodeEditor {
             ));
         }
         match binding {
+            Binding::InputDefault(id, port, component) => {
+                let mut next = self.input_default(id, port)?.clone();
+                if !next.set_component(*component, value) {
+                    return Err(diag(
+                        ErrorCode::InvalidValue,
+                        Some(id),
+                        Some(port),
+                        "Invalid input component",
+                    ));
+                }
+                self.replace_input_default(id, port, next)?;
+            }
             Binding::Constant(id, component) => {
                 let mut candidate = self
                     .document

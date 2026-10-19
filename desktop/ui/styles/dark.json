@@ -98,6 +98,7 @@
       "graph.selection.fill_opacity": 0.05,
       "dropdown.max_width": 320,
       "dropdown.menu_min_width": 160,
+      "node.dropdown.row.height": 28,
       "effect.row.height": 26,
       "effect.header.height": 30,
       "effect.watch.width": 24,
@@ -149,12 +150,24 @@
       "dialog.notice.width": 480,
       "dialog.notice.max_height": 320,
       "dialog.notice.button_width": 96,
+      "node.add_menu.width": 512,
+      "node.add_menu.height": 440,
+      "node.add_menu.category_width": 128,
+      "node.search.result_height": 44,
+      "node.search.detail_height": 76,
+      "node.search.compact_detail_height": 58,
       "node.minimap.width": 180,
       "node.minimap.height": 112,
       "node.minimap.margin": 8,
       "node.minimap.padding": 6,
       "node.minimap.world_padding": 32,
-      "node.minimap.viewport_opacity": 0.10
+      "node.minimap.viewport_opacity": 0.10,
+      "node.rename.width": 360,
+      "node.rename.height": 172,
+      "node.rename.padding": 12,
+      "node.rename.row": 28,
+      "node.rename.gap": 8,
+      "node.rename.button_width": 90
     },
     "motion": {
       "easing": "cubic-out"

@@ -1,31 +1,50 @@
 //! Node view layout and shared geometry; each editor region is a reusable component.
 mod add_menu;
 mod canvas;
+mod connection_menu;
 mod context_menu;
 mod control_popup;
 #[cfg(test)]
 mod control_tests;
 mod controls;
 #[cfg(test)]
+mod compact_example_tests;
+#[cfg(test)]
+mod diagnostic_tests;
+mod diagnostics;
+#[cfg(test)]
 mod failure_tests;
 #[cfg(test)]
 mod group_tests;
+#[cfg(test)]
+mod input_default_tests;
 mod inspector;
+mod rename;
 mod interaction;
 mod library;
+mod search;
+#[cfg(test)]
+mod search_tests;
 pub(super) mod minimap;
 #[cfg(test)]
 mod nudge_tests;
 #[cfg(test)]
 mod observability_tests;
+mod onboarding;
+#[cfg(test)]
+mod onboarding_tests;
 #[cfg(test)]
 mod view_preferences_tests;
 #[cfg(test)]
 mod tests;
 mod toolbar;
 mod wires;
+mod wire_offer;
+#[cfg(test)]
+mod wire_target_tests;
 use super::catalog::{operation_title, type_label};
 use super::*;
+use super::catalog::node_title;
 use motion_ui::{
     input::{Key, MouseButton},
     paint,
@@ -79,7 +98,7 @@ pub(super) fn node_height(node: &Node, document: &GraphDocument) -> f32 {
         return HEADER;
     }
     let rows = node_ports(node, &document.public_parameters)
-        .map(|p| p.inputs.len().max(p.outputs.len()))
+        .map(|p| port_row_count(node, p.inputs.len(), p.outputs.len()))
         .unwrap_or(1);
     let count = inline::control_count(node, document);
     HEADER
@@ -88,6 +107,21 @@ pub(super) fn node_height(node: &Node, document: &GraphDocument) -> f32 {
             27.
         } else {
             14. + count as f32 * inline::CONTROL_ROW
+        }
+}
+fn port_row_count(node: &Node, inputs: usize, outputs: usize) -> usize {
+    if node.input_defaults.is_empty() {
+        inputs.max(outputs)
+    } else {
+        inputs + outputs
+    }
+}
+fn port_row_index(node: &Node, inputs: usize, output: bool, index: usize) -> usize {
+    index
+        + if output && !node.input_defaults.is_empty() {
+            inputs
+        } else {
+            0
         }
 }
 fn type_color(ty: ValueType) -> Color {
@@ -121,6 +155,9 @@ fn category_color(op: &NodeOp) -> Color {
         // 颜色操作 - 金橙色系（更饱和）
         NodeOp::Color { .. }
         | NodeOp::ColorMath { .. }
+        | NodeOp::Gradient { .. }
+        | NodeOp::Noise { .. }
+        | NodeOp::Blend { .. }
         | NodeOp::CombineColor
         | NodeOp::SplitColor
         | NodeOp::ApplyMask => Color::rgb(73, 62, 39), // 金橙 #DC963C (原: 92,81,45)
@@ -178,6 +215,27 @@ fn distance_segment(p: [f32; 2], a: [f32; 2], b: [f32; 2]) -> f32 {
 }
 
 impl NodeEditor {
+    /// Visible screen geometry from the most recent layout, also used by native acceptance.
+    pub(crate) fn port_position(&self, node: &str, port: &str, output: bool) -> Option<[f32; 2]> {
+        self.cards(self.last_canvas)
+            .iter()
+            .flat_map(|card| &card.sockets)
+            .find(|socket| socket.port == PortRef::new(node, port) && socket.output == output)
+            .filter(|socket| self.last_canvas.contains(socket.point))
+            .map(|socket| socket.point)
+    }
+    pub(crate) fn node_header_center(&self, id: &str) -> Option<[f32; 2]> {
+        self.cards(self.last_canvas)
+            .iter()
+            .find(|card| card.id == id)
+            .map(|card| {
+                [
+                    (card.rect.min[0] + card.rect.max[0]) * 0.5,
+                    card.rect.min[1] + HEADER * self.view.zoom * 0.5,
+                ]
+            })
+            .filter(|point| self.last_canvas.contains(*point))
+    }
     fn toolbar_items(&self)->impl Iterator<Item=(usize,f32,&'static str,&'static str)> {
         let bound=self.layer_target.is_some();
         TOOLBAR.into_iter().filter(move |(id,_,_,_)|!bound||!matches!(id,4|5|6|7))
@@ -273,6 +331,7 @@ impl NodeEditor {
         let styles = list.styles();
         let colors = styles.colors();
 
+        self.last_area = area;
         let revision = self.revision;
         let semantic = self.semantic_revision;
         let preview_revision = self.preview_revision;
@@ -301,7 +360,7 @@ impl NodeEditor {
             );
             return response;
         }
-        let mut layout = self.layout(area);
+        let mut layout = self.guided_layout(area, &styles);
         self.last_canvas = layout.canvas;
         if self.first_frame {
             if let Some(id) = &self.primary {
@@ -329,10 +388,13 @@ impl NodeEditor {
             self.focus = false;
         }
         let had_menu = self.popup_open();
-        if !had_menu {
+        let diagnostic_input = self.diagnostics_input(area, input, &styles);
+        let welcome_input = !diagnostic_input
+            && self.welcome_input(area, input, &styles, &mut response.actions);
+        if !had_menu && !diagnostic_input && !welcome_input {
             self.keyboard(input, &mut response.actions);
         }
-        layout = self.layout(area);
+        layout = self.guided_layout(area, &styles);
         self.last_canvas = layout.canvas;
         let cards = self.cards(layout.canvas);
         let numeric_file = if self.inline.popup.is_none()
@@ -360,13 +422,18 @@ impl NodeEditor {
             local.key_repeats.push(false);
             local
         });
-        let controls_consumed = if self.add_menu.is_none() && self.context_menu.is_none()
-            && (self.inline.busy() || !self.minimap_captures(layout.canvas, input, &styles)) {
+        let controls_consumed = if !diagnostic_input
+            && !welcome_input
+            && self.add_menu.is_none()
+            && self.context_menu.is_none()
+            && (self.inline.busy() || !self.minimap_captures(layout.canvas, input, &styles))
+        {
             self.inline_input(
                 &cards,
                 layout.canvas,
                 commit_input.as_ref().unwrap_or(input),
                 language,
+                styles.as_ref(),
             )
         } else {
             false
@@ -378,7 +445,12 @@ impl NodeEditor {
             }
         }
         let neutral = Input::default();
-        let body_input = if had_menu || self.popup_open() || controls_consumed {
+        let body_input = if had_menu
+            || self.popup_open()
+            || controls_consumed
+            || diagnostic_input
+            || welcome_input
+        {
             &neutral
         } else {
             input
@@ -436,11 +508,12 @@ impl NodeEditor {
         }
         let cards = self.cards(layout.canvas);
         if !self.minimap_input(layout.canvas, body_input, &styles) {
-            self.canvas_input(&cards, layout.canvas, body_input);
+            self.canvas_input(&cards, layout.canvas, body_input, language);
         }
         let cards = self.cards(layout.canvas);
         self.paint_canvas(list, atlas, &cards, layout.canvas, input, language);
         self.paint_minimap(list, layout.canvas);
+        self.paint_welcome(list, atlas, area, input, language);
         let mut footer = list.child();
         paint::rect(&mut footer, layout.footer, colors.CHROME);
         paint::rect(
@@ -471,12 +544,19 @@ impl NodeEditor {
             Rect::new(
                 layout.footer.min[0] + 9.,
                 layout.footer.min[1],
-                (layout.footer.width() - 75.).max(0.),
+                (layout.footer.width()
+                    - 75.
+                    - if self.diagnostic.is_some() {
+                        self.diagnostic_toggle(layout.footer, &styles).width()
+                    } else {
+                        0.
+                    })
+                .max(0.),
                 27.,
             ),
             &status,
             if self.diagnostic.is_some() {
-                Color::rgb(235, 167, 102)
+                styles.color("error")
             } else {
                 colors.TEXT_MUTED
             },
@@ -492,6 +572,13 @@ impl NodeEditor {
         );
         footer.clip_to(layout.footer);
         list.append(footer);
+        self.paint_diagnostics(
+            list,
+            atlas,
+            area,
+            if had_menu { &neutral } else { input },
+            language,
+        );
         self.paint_add_menu(
             list,
             atlas,
@@ -514,6 +601,7 @@ impl NodeEditor {
             if had_menu { input } else { &neutral },
             language,
         );
+        self.paint_rename(list, atlas, area, input, language);
         response.wants_keyboard = self.focus;
         response.changed = revision != self.revision;
         response.semantic_changed = semantic != self.semantic_revision;
@@ -529,6 +617,9 @@ impl NodeEditor {
         }
         if preferences != self.view_preferences {
             response.actions.push(Action::ViewPreferencesChanged(self.view_preferences));
+        }
+        if std::mem::take(&mut self.recent_dirty) {
+            response.actions.push(Action::RecentNodesChanged(self.recent_nodes.clone()));
         }
         response
     }
@@ -571,6 +662,7 @@ impl NodeEditor {
                 .ok_or_else(|| diag(ErrorCode::InvalidValue, None, None, "Enter a finite number"))
         };
         match &binding {
+            Binding::InputValue(id, port) => return self.set_input_text(id, port, text),
             Binding::Constant(id, component) => {
                 return self.set_constant(id, *component, number()?)
             }

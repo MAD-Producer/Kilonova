@@ -1,9 +1,9 @@
 //! Standalone N2 node panel. The host owns dialogs, workers and preview routing.
 //! Drawing emits owned N1 snapshots; it never touches an editing Session or GPU queue.
 use motion_graph::{
-    demo_graph, node_ports, ColorOp, CompileOptions, CompileReport, Connection, Diagnostic,
-    ErrorCode, GraphDocument, ImageSource, MathOp, Node, NodeOp, PortRef, PublicParameter,
-    SampleCoordinates, ValueType,
+    demo_graph, node_ports, ColorBlendMode, ColorOp, CompileOptions, CompileReport, Connection, Diagnostic,
+    ErrorCode, GradientMode, GraphDocument, ImageSource, InputValue, MathOp, Node, NodeOp, NoiseMode, PortRef,
+    PublicParameter, SampleCoordinates, ValueType,
 };
 use motion_ui::{Input, PaintList, Rect, TextAtlas};
 use std::{
@@ -13,16 +13,31 @@ use std::{
 
 #[path = "node_editor/catalog.rs"]
 mod catalog;
+#[cfg(test)]
+mod compact_example_tests;
 #[path = "node_editor/editing.rs"]
 mod editing;
 #[path = "node_editor/grouping.rs"]
 mod grouping;
 #[path = "node_editor/inline.rs"]
 mod inline;
+#[path = "node_editor/input_defaults.rs"]
+mod input_defaults;
 #[path = "node_editor/nudge.rs"]
 mod nudge;
+#[path = "node_editor/naming.rs"]
+mod naming;
+#[cfg(test)]
+#[path = "node_editor/naming_tests.rs"]
+mod naming_tests;
 #[path = "node_editor/observability.rs"]
 mod observability;
+#[path = "node_editor/search.rs"]
+mod search;
+#[path = "node_editor/search_input.rs"]
+mod search_input;
+pub use search::RecentNodes;
+use search_input::SearchQuery;
 #[path = "node_editor/preview.rs"]
 mod preview;
 #[path = "node_editor/view/mod.rs"]
@@ -88,6 +103,7 @@ impl EditorSnapshot {
 #[derive(Clone, Debug)]
 pub enum Action {
     ViewPreferencesChanged(ViewPreferences),
+    RecentNodesChanged(RecentNodes),
     ShowProperties,
     Examples(EditorSnapshot),
     Open(EditorSnapshot),
@@ -181,6 +197,8 @@ struct History {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Binding {
+    InputValue(String, String),
+    InputDefault(String, String, usize),
     Constant(String, usize),
     ParamDefault(String, usize),
     ParamName(String, bool),
@@ -237,10 +255,20 @@ enum Drag {
 struct AddMenu {
     position: [f32; 2],
     world: [f32; 2],
-    query: String,
+    query: SearchQuery,
+    recent: bool,
+    category_scroll: f32,
     category: Option<catalog::Category>,
     selected: usize,
     scroll: f32,
+}
+
+#[derive(Default)]
+struct DiagnosticDrawer {
+    open: bool,
+    focused: bool,
+    scroll: motion_ui::input::Scroll,
+    key: u64,
 }
 
 pub struct NodeEditor {
@@ -276,16 +304,23 @@ pub struct NodeEditor {
     pub external_inspector: bool,
     library_scroll: f32,
     inspector_scroll: f32,
-    search: String,
+    search: SearchQuery,
+    library_selected: usize,
+    pub recent_nodes: RecentNodes,
+    recent_dirty: bool,
     search_focus: bool,
     diagnostic: Option<Diagnostic>,
+    diagnostic_drawer: DiagnosticDrawer,
     notice: Option<String>,
     compiled: Option<(u64, CompileReport)>,
     pending_compile: Option<u64>,
     last_canvas: Rect,
+    last_area: Rect,
     first_frame: bool,
+    welcome: bool,
     context_menu: Option<ContextMenu>,
     add_menu: Option<AddMenu>,
+    rename: Option<naming::NameEdit>,
     floating_mode: bool, // true=漂浮形态(有侧边栏), false=嵌入形态(无侧边栏)
 }
 
@@ -297,15 +332,23 @@ struct ContextMenu {
 }
 #[derive(Clone, Debug)]
 enum MenuKind {
+    Connect {
+        connections: Vec<Connection>,
+        old_input: Option<PortRef>,
+        scroll: f32,
+        pointer: [f32; 2],
+    },
     Canvas,
     View,
     Node(String),
     Wire(PortRef),
     Preview(String),
+    RenamePorts(String),
 }
 impl Default for NodeEditor {
     fn default() -> Self {
         let mut editor = Self::new(demo_graph());
+        editor.welcome = true;
         editor.arrange_without_history();
         editor.primary = Some("circle".into());
         editor.selected.insert("circle".into());
@@ -359,21 +402,45 @@ impl NodeEditor {
             external_inspector: false,
             library_scroll: 0.,
             inspector_scroll: 0.,
-            search: String::new(),
+            search: SearchQuery::default(),
+            library_selected: 0,
+            recent_nodes: Default::default(),
+            recent_dirty: false,
             search_focus: false,
             diagnostic,
+            diagnostic_drawer: Default::default(),
             notice: None,
             compiled: None,
             pending_compile: None,
             last_canvas: Rect::default(),
+            last_area: Rect::default(),
             first_frame: true,
+            welcome: false,
             context_menu: None,
             add_menu: None,
+            rename: None,
             floating_mode: false, // 默认嵌入模式（无侧边栏）
         }
     }
+    fn add_catalogue_entry(
+        &mut self,
+        entry: &search::Entry,
+        position: [f32; 2],
+    ) -> Result<String, Diagnostic> {
+        let id = if let Some(ty) = entry.item.parameter_type {
+            self.add_public_parameter(ty, position)?
+        } else {
+            self.add_node(entry.item.operation.clone(), position)?
+        };
+        self.recent_dirty |= self.recent_nodes.record(&entry.key);
+        Ok(id)
+    }
     pub fn document(&self) -> &GraphDocument {
         &self.document
+    }
+    /// The actual canvas from the last draw, including first-use guidance layout.
+    pub(crate) fn canvas_bounds(&self) -> Rect {
+        self.last_canvas
     }
     pub fn options(&self) -> &CompileOptions {
         &self.options
@@ -391,7 +458,7 @@ impl NodeEditor {
         self.field.is_some() || self.search_focus || self.popup_open()
     }
     pub fn popup_open(&self) -> bool {
-        self.add_menu.is_some() || self.context_menu.is_some() || self.inline.busy()
+        self.add_menu.is_some() || self.context_menu.is_some() || self.rename.is_some() || self.inline.busy()
     }
     pub fn focus_panel(&mut self) {
         self.focus = true;
@@ -472,7 +539,9 @@ impl NodeEditor {
     pub fn replace_document(&mut self, document: GraphDocument, path: Option<PathBuf>) {
         let options = self.options.clone();
         let preferences = self.view_preferences;
+        let recent = self.recent_nodes.clone();
         *self = Self::new(document);
+        self.recent_nodes = recent;
         self.view_preferences = preferences;
         self.options = options;
         self.source_path = path;
@@ -621,6 +690,10 @@ impl NodeEditor {
             .map(|e| e.diagnostic());
     }
     fn finish_edit(&mut self, before: History) {
+        self.document.format_version = self
+            .document
+            .format_version
+            .max(self.document.minimum_format_version());
         self.finish_nudge();
         self.undo.push(before.clone());
         if self.undo.len() > 64 {
@@ -706,6 +779,7 @@ impl NodeEditor {
         self.cancel_canvas_interaction();
         self.add_menu = None;
         self.context_menu = None;
+        self.rename = None;
         self.field = None;
         self.search_focus = false;
     }
@@ -752,6 +826,7 @@ impl NodeEditor {
         }
         let id = self.id(operation.kind());
         let mut node = Node::new(id.clone(), operation);
+        node.input_defaults = motion_graph::authoring_input_defaults(&node.operation);
         node.position = position;
         self.check_node(&node)?;
         let mut candidate = self.document.clone();
@@ -812,6 +887,7 @@ impl NodeEditor {
         let before = self.state(true);
         let parameter = self.id("parameter");
         let id = self.id("parameter_node");
+        let (name, english_name) = self.next_parameter_names(value_type);
         let (default, min, max, step) = match value_type {
             ValueType::Color => ([0.12, 0.65, 1., 1.], 0., 1., 0.01),
             ValueType::Bool => ([0.; 4], 0., 1., 1.),
@@ -820,8 +896,8 @@ impl NodeEditor {
         };
         self.document.public_parameters.push(PublicParameter {
             id: parameter.clone(),
-            name: parameter.clone(),
-            english_name: parameter.clone(),
+            name,
+            english_name,
             value_type,
             default,
             min,
@@ -1019,7 +1095,26 @@ impl NodeEditor {
             .find(|n| n.id == id)
             .cloned()
             .ok_or_else(|| diag(ErrorCode::UnknownNode, Some(id), None, "Node is missing"))?;
+        let mut shape = candidate.clone();
+        shape.input_defaults.clear();
+        // A mode change with the same typed inputs must preserve absent
+        // fallbacks too, including connected inputs from saved source. An
+        // invalid old schema may still be replaced with a valid operation.
+        let previous_inputs = node_ports(&shape, &self.document.public_parameters)
+            .ok().map(|ports| ports.inputs);
         candidate.operation = operation;
+        shape.operation = candidate.operation.clone();
+        let inputs = node_ports(&shape, &self.document.public_parameters)
+            .map_err(|error| error.diagnostic())?
+            .inputs;
+        candidate
+            .input_defaults
+            .retain(|port, value| inputs.get(port) == Some(&value.value_type()));
+        for (port, value) in motion_graph::authoring_input_defaults(&candidate.operation) {
+            if previous_inputs.as_ref().and_then(|inputs| inputs.get(&port)) != Some(&value.value_type()) {
+                candidate.input_defaults.entry(port).or_insert(value);
+            }
+        }
         self.check_node(&candidate)?;
         if self
             .document

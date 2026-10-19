@@ -313,10 +313,22 @@ def main() -> None:
             capture_output=True, text=True, encoding="utf-8", timeout=125,
         )
         (output / f"node-smoke-{locale}.stderr.log").write_text(node_result.stderr, encoding="utf-8")
+        (output / f"node-smoke-{locale}.stdout.log").write_text(node_result.stdout, encoding="utf-8")
         if node_result.returncode:
             raise RuntimeError(f"{locale} node acceptance failed: {node_result.stderr}")
+        if node_result.stdout:
+            raise RuntimeError(f"{locale} node acceptance wrote to stdout")
         node_snapshot = json.loads(node_report.read_text(encoding="utf-8"))
         preview = node_snapshot.get("nodePreview", {})
+        for window in ("searchMain", "searchFloat"):
+            search = preview.get(window, {})
+            for check in ("latchedPlacement", "imeConfirmation", "emptySearchSafe", "sourceRestored", "projectUntouched", "workspaceReload"):
+                if search.get(check) is not True:
+                    raise RuntimeError(f"{locale} {window} did not verify {check}")
+            for screen in ("browse", "query", "recent", "empty", "libraryQuery", "libraryRecent"):
+                data = Path(search[screen]).read_bytes()
+                if len(data) < 1024 or not data.startswith(b"\x89PNG\r\n\x1a\n"):
+                    raise RuntimeError(f"{locale} {window} did not render {screen}")
         for window in ("viewMain", "viewFloat"):
             view = preview.get(window, {})
             for check in ("projectAndCompileUnchanged", "workspaceReload", "menuCancelled", "menuToggled"):
@@ -329,8 +341,42 @@ def main() -> None:
         for check in ("clockPixelsChanged", "parameterPixelsChanged", "groupPixelsPreserved", "ungroupPixelsPreserved", "groupSourceReopened", "invalidGraphKeptValidPixels", "projectUntouched", "exampleOpenedAndRendered", "layerIdentityPreservedPixels", "layerGraphChangedPixels", "layerPublicParameterChangedPixels", "layerProjectUndoRedoRestoresSourceAndPixels", "layerPortPreviewIsObservational", "layerInvalidGraphKeptValidPixels", "layerSourceAndRuntimePackedAndReopened", "layerOfflinePackageRestoresPixels"):
             if preview.get(check) is not True:
                 raise RuntimeError(f"{locale} node preview did not verify {check}")
+        for window in ("namingMain", "namingFloat"):
+            naming = preview.get(window, {})
+            for check in ("imeConfirmation", "keysAndWiresPreserved", "previewUnchanged", "saveReopen", "projectUntouched", "sourceRestored"):
+                if naming.get(check) is not True:
+                    raise RuntimeError(f"{locale} {window} did not verify {check}")
+            for screen in ("nodeMenu", "nodeEdit", "renamedNode", "groupMenu", "portMenu", "portEdit", "renamedGroup"):
+                data = Path(naming[screen]).read_bytes()
+                if len(data) < 1024 or not data.startswith(b"\x89PNG\r\n\x1a\n"):
+                    raise RuntimeError(f"{locale} {window} did not render {screen}")
         if node_snapshot["locale"] != locale or node_snapshot["floatingFrames"].get("10", 0) < 3:
             raise RuntimeError(f"{locale} did not validate the floating node workspace")
+        for check in ("unusedDraftKeptLivePreview", "unusedDraftUndoRestoredPixels"):
+            if preview.get(check) is not True:
+                raise RuntimeError(f"{locale} node draft did not verify {check}")
+        for check in ("inputDefaultsWirePrecedence", "inputDefaultsDisconnectRestoresValue", "inputDefaultsNativeEditChangedPixels", "inputDefaultsNativeVectorEdit", "inputDefaultsSourceReopened", "inputDefaultsUndoRestoredPixels"):
+            if preview.get(check) is not True:
+                raise RuntimeError(f"{locale} node input defaults did not verify {check}")
+        for check in ("wireUniqueBodyChangedPixels", "wireChoiceDeferredAndCancelled", "wireChoiceRestoredPixels", "wireRewireCancelPreservedEdges", "wireInvalidBodyPreservedEdges", "wireSourceReopened", "wireNearestSocketChangedPixels", "wireUndoRestoredPixels"):
+            if preview.get(check) is not True:
+                raise RuntimeError(f"{locale} node wire targeting did not verify {check}")
+        for check in ("diagnosticDrawerOpened", "diagnosticLocatedWithoutMutation", "diagnosticDrawerKeptValidPixels", "diagnosticDrawerClosed"):
+            if preview.get(check) is not True:
+                raise RuntimeError(f"{locale} node diagnostic drawer did not verify {check}")
+        for check in ("onboardingDismissPreservedSource", "onboardingEmptyHasStartingPoint", "onboardingOpenedInTwoClicks", "onboardingEditChangedPixels", "onboardingSourceReopened", "onboardingUndoRestoredPixels"):
+            if preview.get(check) is not True:
+                raise RuntimeError(f"{locale} node onboarding did not verify {check}")
+        for check in ("gradientThreeNodes", "gradientModesChangedPixels", "gradientNativeFalloffChangedPixels", "gradientSourceReopened", "gradientUndoRestoredPixels", "gradientProjectUntouched", "noiseThreeNodes", "noiseModesChangedPixels", "noiseOctavesChangedPixels", "noiseNativeSeedChangedPixels", "noiseSourceReopened", "noiseUndoRestoredPixels", "noiseProjectUntouched", "blendFiveNodes", "blendModesChangedPixels", "blendNativeStrengthChangedPixels", "blendSourceReopened", "blendUndoRestoredPixels", "blendRedoRestoredPixels", "blendProjectUntouched", "compactExamplesProjectUntouched"):
+            if preview.get(check) is not True:
+                raise RuntimeError(f"{locale} node primitive/example did not verify {check}")
+        for example in ("soft_sphere", "soft_sphere_motion", "floating_lights"):
+            if preview.get(example, {}).get("groupEditUndoAndReopen") is not True:
+                raise RuntimeError(f"{locale} compact example did not verify {example}")
+            for suffix in ("RootScreenshot", "InternalScreenshot", "EditedScreenshot"):
+                data = Path(preview[example + suffix]).read_bytes()
+                if len(data) < 1024 or not data.startswith(b"\x89PNG\r\n\x1a\n"):
+                    raise RuntimeError(f"{locale} compact example did not render {example} {suffix}")
     verify_mcp(binary, output)
     verify_property_followups(binary, output)
     verify_style_overrides(binary, output)

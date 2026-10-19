@@ -1,4 +1,4 @@
-struct Draw { mvp:mat4x4<f32>, color:vec4<f32>, extent_opacity:vec4<f32>, uv_scale:vec4<f32> };
+struct Draw { mvp:mat4x4<f32>, color:vec4<f32>, extent_opacity:vec4<f32>, uv_scale:vec4<f32>, screen_uv:mat3x4<f32>, };
 @group(0) @binding(0) var<uniform> draw:Draw;
 @group(1) @binding(0) var image:texture_2d<f32>;
 @group(1) @binding(1) var image_sampler:sampler;
@@ -9,7 +9,11 @@ struct VertexOutput { @builtin(position) position:vec4<f32>, @location(0) uv:vec
     var out:VertexOutput;out.position=draw.mvp*vec4(position,1.0);out.uv=uv*draw.uv_scale.xy;return out;
 }
 @fragment fn fragment_main(input:VertexOutput)->@location(0) vec4<f32> {
-    let c=sample_plane_texture(image,image_sampler,input.uv);let coverage=sample_plane_texture(mask,mask_sampler,input.uv).r;
+    let coords=plane_coordinates(input.position,input.uv,dpdx(input.uv),dpdy(input.uv));
+    let edge=plane_coverage(coords.uv,draw.uv_scale.xy,coords.dx,coords.dy);
+    let uv=plane_sample_uv(coords.uv,draw.uv_scale.xy,textureDimensions(image));
+    let mask_uv=plane_sample_uv(coords.uv,draw.uv_scale.xy,textureDimensions(mask));
+    let c=sample_plane_texture(image,image_sampler,uv);let coverage=sample_plane_texture(mask,mask_sampler,mask_uv).r*edge;
     let opacity=draw.color.a*draw.extent_opacity.z;
     return vec4(c.rgb*draw.color.rgb*opacity,c.a*opacity)*coverage;
 }

@@ -105,6 +105,7 @@ impl Shell {
         if !use_current {
             let mut next = node_editor::NodeEditor::new(crate::node_layer::identity());
             next.view_preferences = self.workspace.node_view;
+            next.recent_nodes = self.workspace.node_recents.clone();
             if let Some(source) = &source {
                 next.load_layer_source(source, target.clone())?;
             } else {
@@ -161,6 +162,7 @@ impl Shell {
             node_editor::NodeEditor::default()
         });
         self.panels.node_editor.view_preferences = self.workspace.node_view;
+        self.panels.node_editor.recent_nodes = self.workspace.node_recents.clone();
         self.schedule_node_compile()?;
         self.dirty = true;
         Ok(())
@@ -190,6 +192,7 @@ impl Shell {
                 node_editor::NodeEditor::default()
             });
             self.panels.node_editor.view_preferences = self.workspace.node_view;
+            self.panels.node_editor.recent_nodes = self.workspace.node_recents.clone();
             self.schedule_node_compile()?;
             return Ok(());
         }
@@ -242,6 +245,14 @@ impl Shell {
     }
     pub(crate) fn node_action(&mut self, action: node_editor::Action) -> Result<(), String> {
         if self.closing {
+            return Ok(());
+        }
+        if let node_editor::Action::RecentNodesChanged(recent) = action {
+            self.workspace.node_recents = recent;
+            self.dirty = true;
+            self.workspace.save(&self.layout_path).map_err(|reason| {
+                format!("save recent node choices path={} reason={reason}", self.layout_path.display())
+            })?;
             return Ok(());
         }
         if let node_editor::Action::ViewPreferencesChanged(preferences) = action {

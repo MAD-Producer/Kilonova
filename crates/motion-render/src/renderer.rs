@@ -84,6 +84,7 @@ pub(crate) struct DrawUniform {
     color: [f32; 4],
     extent_opacity: [f32; 4],
     uv_scale: [f32; 4],
+    screen_uv: [[f32; 4]; 3],
 }
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -326,7 +327,7 @@ impl Renderer {
         });
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Motion Studio own planar compositor"),
-            source: wgpu::ShaderSource::Wgsl(crate::plane_sampling::BASIC.into()),
+            source: wgpu::ShaderSource::Wgsl(crate::plane_coverage::shader(crate::plane_sampling::BASIC, true).into()),
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Motion Studio planar pipeline"),
@@ -376,7 +377,7 @@ impl Renderer {
             },
             alpha: wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING.alpha,
         });
-        let mask_shader=device.create_shader_module(wgpu::ShaderModuleDescriptor {label:Some("masked source composite"),source:wgpu::ShaderSource::Wgsl(crate::plane_sampling::MASK.into())});
+        let mask_shader=device.create_shader_module(wgpu::ShaderModuleDescriptor {label:Some("masked source composite"),source:wgpu::ShaderSource::Wgsl(crate::plane_coverage::shader(crate::plane_sampling::MASK, true).into())});
         let masked_pipeline=device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label:Some("masked layer without effects"),layout:Some(&device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {label:None,bind_group_layouts:&[Some(&uniform_layout), Some(&image_layout), Some(&image_layout)],immediate_size: 0})),
             vertex:wgpu::VertexState {module:&mask_shader,entry_point:Some("vertex_main"),compilation_options:Default::default(),buffers:&[Some(wgpu::VertexBufferLayout {array_stride:std::mem::size_of::<GeometryVertex>() as u64,step_mode:wgpu::VertexStepMode::Vertex,attributes:&wgpu::vertex_attr_array![0=>Float32x3,1=>Float32x2]})]},
@@ -1523,6 +1524,9 @@ impl Renderer {
             self.target_format,
             None,
         );
+        let [_, _, viewport_width, viewport_height] = crate::fit_viewport(
+            [0., 0., width as f32, height as f32], [scene.width, scene.height]);
+        self.compositor.set_coverage_viewport(Some([viewport_width, viewport_height]));
         self.compositor
             .prepare(scene)
             .map_err(|e| RenderError::Invalid(e.to_string()))?;
@@ -1553,6 +1557,8 @@ impl Renderer {
                 color,
                 extent_opacity: [layer.size[0], layer.size[1], layer.opacity, 0.0],
                 uv_scale: [1.0, 1.0, 0.0, 0.0],
+                screen_uv: crate::plane_coordinates::screen_map(self.compositor.uv_maps[index],
+                    crate::fit_viewport([0., 0., width as f32, height as f32], [scene.width, scene.height]), layer.id)?,
             };
             let offset = index * self.uniform_stride;
             self.upload[offset..offset + DRAW_SIZE as usize]
@@ -1671,6 +1677,7 @@ impl Renderer {
         prepare_only: bool,
     ) -> Result<RenderStats> {
         let started = Instant::now();
+        self.effect_gpu.builder.enable_plane_coverage();
         let image_input_order = loop {
             if let Some((receiver, _)) = &materialize {
                 self.effect_gpu.builder.build_materialized_checked(scene, &self.asset_order, width, height, *receiver, preview)
@@ -1823,6 +1830,8 @@ impl Renderer {
                 color: w[16..20].try_into().unwrap(),
                 extent_opacity: if has_compositing&&!scene.layers[i].adjustment {[viewport_origin[0],viewport_origin[1],w[22],flags as f32]}else{[w[20],w[21],w[22],0.]},
                 uv_scale: [w[25], w[26], if has_compositing&&!scene.layers[i].adjustment{viewport[0]}else{scene.width as f32}, if has_compositing&&!scene.layers[i].adjustment{viewport[1]}else{scene.height as f32}],
+                screen_uv: crate::plane_coordinates::screen_map(frame.uv_maps[i],
+                    [viewport_origin[0], viewport_origin[1], viewport[0], viewport[1]], draw.layer)?,
             };
             self.upload[i * self.uniform_stride..i * self.uniform_stride + DRAW_SIZE as usize]
                 .copy_from_slice(bytemuck::bytes_of(&uniform));
