@@ -462,6 +462,24 @@ impl VideoFrames {
         self.sequences.clear();
         self.sampling_recent.clear();
     }
+    /// Supersede unfinished exposure reads without discarding completed caches
+    /// or restarting failed decoders. Retiring native calls retain their worker
+    /// slots until they actually return, just as ordinary scene eviction does.
+    pub(crate) fn cancel_pending_sampling(&mut self) -> Result<()> {
+        let mut pending = Vec::new();
+        for object in &self.sampling_recent {
+            let Some(stream) = self.streams.get(object) else { continue; };
+            let state = stream.shared.0.lock().map_err(|_| "video frame state poisoned while canceling exposure")?;
+            if state.error.is_none() && state.desired.is_some_and(|request| {
+                state.in_flight.is_some() || state.cache.find(request.time).is_none()
+                    || request.next.is_some_and(|pts| state.cache.find(pts).is_none())
+            }) {
+                pending.push(*object);
+            }
+        }
+        for object in pending { self.retire(object); }
+        self.reap_retired()
+    }
     fn retire(&mut self, object: u64) {
         self.sampling_recent.retain(|id| *id != object);
         if let Some(stream) = self.streams.remove(&object) {

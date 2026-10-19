@@ -300,6 +300,7 @@ struct Shell {
     attaching: Option<std::sync::mpsc::Receiver<Result<Value, String>>>,
     attached: bool,
     rendering: std::collections::HashMap<u64, std::sync::mpsc::Receiver<Result<bool, String>>>,
+    exposure_presentations: std::collections::HashSet<u64>,
     resizing: Option<std::sync::mpsc::Receiver<Result<Value, String>>>,
     resize_queue: std::collections::HashMap<u64, [u32; 2]>,
     actions: std::collections::VecDeque<panels::Action>,
@@ -402,6 +403,7 @@ impl Shell {
             attaching: None,
             attached: false,
             rendering: Default::default(),
+            exposure_presentations: Default::default(),
             resizing: None,
             resize_queue: Default::default(),
             actions: Default::default(),
@@ -762,6 +764,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
         for (key, result) in completed {
             self.rendering.remove(&key);
+            self.finish_exposure_present(key, &result);
             match result {
                 Ok(rendered) => {
                     self.pending = !rendered;
@@ -982,10 +985,11 @@ impl ApplicationHandler<UserEvent> for Shell {
                     .values()
                     .any(|f| f.panel == dock::Panel::Nodes));
         let ui_animating = self.panels.motion.active() || self.panels.timeline.edge_pan_at.is_some();
+        let presentation_pending = self.presentation_pending();
         if busy
             || node_playing
             || ui_animating
-            || self.pending
+            || presentation_pending
             || self.playback.is_some()
             || self.dirty
             || self.importing_image.is_some()
@@ -998,7 +1002,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             if self.attached
                 && self.resizing.is_none()
                 && self.resize_queue.is_empty()
-                && (self.dirty || ui_animating || node_playing || self.pending)
+                && (self.dirty || ui_animating || node_playing || presentation_pending)
                 && Instant::now() >= self.next_redraw
             {
                 self.redraw();

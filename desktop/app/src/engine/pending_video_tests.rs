@@ -296,3 +296,132 @@ fn pending_video_presents_chrome_without_acknowledging_an_unready_composition() 
         assert!(!String::from_utf8_lossy(&output.stdout).contains(context));
     }
 }
+
+#[test]
+fn exposure_preview_keeps_progress_across_native_windows_and_cancels_on_explicit_seek() {
+    const CHILD:&str="MOTION_NATIVE_EXPOSURE_PREVIEW_CHILD";
+    if let Some(root)=std::env::var_os(CHILD) {
+        use winit::platform::windows::EventLoopBuilderExtWindows;
+        let root=PathBuf::from(root);
+        let _logger=crate::logging::init(root.clone()).unwrap();
+        let event_loop=winit::event_loop::EventLoop::builder().with_any_thread(true).build().unwrap();
+        for (floating,fail) in [(false,false),(true,false),(false,true),(true,true)] {
+            #[allow(deprecated)]
+            let window=Arc::new(event_loop.create_window(winit::window::Window::default_attributes().with_visible(false)).unwrap());
+            let directory=root.join(format!("exposure-{floating}-{fail}"));
+            fixture(&directory,false);
+            let mut project=motion_core::storage::load(&directory).unwrap();
+            project.version=21;
+            project.layers[0].sampling.motion_blur=Some(motion_core::render_sampling::Shutter {frames:0.5,samples:4});
+            for (frame,x) in [(0,8.),(2,24.)] {project.layers[0].transform.position.upsert(frame,[x,16.,0.],motion_core::Ease::Linear).unwrap();}
+            motion_core::storage::save(&directory,&project).unwrap();
+            let (entered,waiting)=channel();
+            let gate=Arc::new(Gate {released:Mutex::new(false),ready:Condvar::new(),entered,fail});
+            let engine=Engine::start(directory,Arc::new(Backend(gate.clone())),8<<30).unwrap();
+            assert_eq!(engine.state().unwrap()["preview"]["exposureRequired"],true);
+            engine.attach_async(window,64,64).unwrap().recv_timeout(Duration::from_secs(30)).unwrap().unwrap();
+            assert_eq!(engine.state().unwrap()["preview"]["exposureRequired"],true);
+            let key=if floating {
+                #[allow(deprecated)]
+                let window=Arc::new(event_loop.create_window(winit::window::Window::default_attributes().with_visible(false)).unwrap());
+                engine.float_window(11,window,64,64).unwrap();11
+            } else {0};
+            let draw=|| {let mut frame=ui();frame.window=key;engine.present_async(frame).unwrap().recv_timeout(Duration::from_secs(10)).unwrap()};
+            let state=engine.seek(1.).unwrap();
+            assert_eq!(state["preview"]["exposureRequired"],true);
+            let before=engine.state().unwrap();
+            assert!(!draw().unwrap());
+            waiting.recv_timeout(Duration::from_secs(5)).unwrap();
+            let pending=engine.state().unwrap();
+            assert_eq!(pending["preview"]["exposure"]["state"],"pending");
+            assert!(pending["preview"]["memoryBreakdown"]["exposureTargetBytes"].as_u64().unwrap()>0);
+            let flight=pending["preview"]["video"]["decodeInFlight"].clone();
+            for _ in 0..4 {
+                assert!(!draw().unwrap());
+                if floating {
+                    let mut chrome=ui();chrome.composition=None;chrome.composition_image=None;
+                    engine.present_async(chrome).unwrap().recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+                }
+                let state=engine.state().unwrap();
+                assert_eq!(state["lastPresentedFrame"],before["lastPresentedFrame"]);
+                assert_eq!(state["preview"]["exposure"]["workUnits"],pending["preview"]["exposure"]["workUnits"]);
+                assert_eq!(state["project"],before["project"]);
+            }
+            // Actual decoder state is published before the blocking native call.
+            let logs=std::fs::read_to_string(root.join("motion-studio.log")).unwrap();
+            assert!(logs.contains("video decoder open start object=1 source=1"));
+            assert_eq!(flight.as_array().unwrap().len(),1);
+            assert_eq!(flight[0]["object"],1);assert_eq!(flight[0]["source"],1);
+            assert_eq!(flight[0]["pts_us"],0);assert_eq!(flight[0]["phase"],"decode");
+            let expected=if fail {1.} else {
+                let changed=engine.seek(1.25).unwrap();
+                assert!(changed["preview"]["exposure"].is_null());
+                assert_eq!(changed["preview"]["memoryBreakdown"]["exposureTargetBytes"],0);
+                1.25
+            };
+            *gate.released.lock().unwrap()=true;gate.ready.notify_all();
+            let deadline=Instant::now()+Duration::from_secs(10);
+            loop {
+                match draw() {
+                    Ok(false)=>assert!(Instant::now()<deadline,"{}",engine.state().unwrap()["preview"]),
+                    Ok(true)=>{assert!(!fail);break;},
+                    Err(error)=>{
+                        assert!(fail && error.contains("controlled first video frame failure") && error.contains("preview exposure") && error.contains("media_prepare"),"{error}");
+                        let failed=engine.state().unwrap();assert_eq!(failed["preview"]["exposure"]["state"],"failed");
+                        let cpu=failed["preview"]["exposure"]["cpuPollUs"].clone();
+                        assert!(draw().unwrap_err().contains("controlled first video frame failure"));
+                        assert_eq!(engine.state().unwrap()["preview"]["exposure"]["cpuPollUs"],cpu);
+                        break;
+                    }
+                }
+            }
+            if !fail {
+                let complete=engine.state().unwrap();
+                assert_eq!(complete["lastPresentedFrame"],expected);
+                assert_eq!(complete["preview"]["exposure"]["state"],"ready");
+                // Read the actual committed preview through the same screenshot
+                // presenter used by desktop acceptance, at one output pixel per
+                // composition pixel. The independent oracle uses four ordinary
+                // scenes with an authored constant white source.
+                let path=root.join(format!("native-exposure-{floating}.png"));
+                engine.capture_ui(UiFrame {paint:Default::default(),atlas:Some(AtlasUpload {pixels:vec![255;4],width:1,height:1}),
+                    logical_size:[64.,64.],composition:Some([0.,0.,32.,32.]),composition_image:None,window:key,node_preview:None},path.clone()).unwrap();
+                let screenshot=image::open(&path).unwrap().to_rgba8();
+                let actual=image::imageops::crop_imm(&screenshot,0,0,32,32).to_image().into_raw();
+                let mut reference=project.clone();reference.layers[0].content=Content::Solid {color:[1.;4]};
+                let mut renderer=pollster::block_on(motion_render::Renderer::headless()).unwrap();
+                let mut target=renderer.exposure_target(32,32,&[0.25;4]).unwrap();
+                for offset in [-0.1875,-0.0625,0.0625,0.1875] {
+                    let mut scene=motion_render::Scene::new(&reference);
+                    scene.sample(&reference,expected+offset,None,&motion_core::ExpressionEvaluator).unwrap();
+                    renderer.accumulate_exposure(&mut target,Some(&scene),true).unwrap();
+                }
+                let oracle=renderer.capture_exposure(&target).unwrap();
+                let difference=actual.iter().zip(&oracle).map(|(a,b)|a.abs_diff(*b)).max().unwrap();
+                assert!(difference<=1,"native preview pixels differ from ordinary-scene oracle: {difference}");
+                if let Some(output)=std::env::var_os("MOTION_EXPOSURE_NATIVE_ARTIFACTS") {
+                    let output=PathBuf::from(output);std::fs::create_dir_all(&output).unwrap();
+                    image::save_buffer(output.join(format!("preview-{floating}.png")),&actual,32,32,image::ColorType::Rgba8).unwrap();
+                    std::fs::write(output.join(format!("preview-{floating}.json")),serde_json::to_vec_pretty(&complete["preview"]).unwrap()).unwrap();
+                }
+                engine.seek(1.5).unwrap();
+                while !draw().unwrap() {assert!(Instant::now()<deadline);}
+                assert_eq!(engine.state().unwrap()["lastPresentedFrame"],1.5);
+            }
+            if floating {engine.close_window(key).unwrap();}
+        }
+        return;
+    }
+    let root=tempfile::tempdir().unwrap();
+    let output=std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact","engine::pending_video_tests::exposure_preview_keeps_progress_across_native_windows_and_cancels_on_explicit_seek"])
+        .env(CHILD,root.path()).env_remove("MOTION_LOG").output().unwrap();
+    assert!(output.status.success(),"{}\n{}",String::from_utf8_lossy(&output.stdout),String::from_utf8_lossy(&output.stderr));
+    let logs=std::fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
+    let stderr=String::from_utf8_lossy(&output.stderr);let stdout=String::from_utf8_lossy(&output.stdout);
+    for marker in ["controlled first video frame failure","preview exposure","phase=media_prepare"] {
+        assert!(logs.contains(marker));assert!(stderr.contains(marker));assert!(!stdout.contains(marker));
+    }
+    assert!(logs.contains("logging initialized level=INFO"));
+    assert!(!stderr.contains("video decoder open start"));
+}

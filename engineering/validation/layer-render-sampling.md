@@ -10,7 +10,7 @@ Issue：#255。本工作最初基于 `f32c64de`，已同步到包含 PR #336 的
 | 连续栅格化实际像素 | 原创圆形在 256×256 输出中放大八倍；真实 GPU capture、透明边界、覆盖面积、反复切换和冻结模型重开 | 矢量已实现；其他来源仍需逐项能力界定 |
 | 连续栅格化预算和预览 | 投影密度影响实际源纹理尺寸及 mesh/cache 身份；默认与预览计划一致；低预算拒绝且恢复预算可继续渲染 | 已实现并测试 |
 | 帧混合 | 解码器要求真实相邻 PTS 双帧；GPU 在线性预乘空间混合；预览代理、桌面捕获与冻结组合读帧接入；实际 VFR、YUV、取消、冻结协议和默认日志用例 | 已实现核心链路；最终能力声明、UI 及原生界面验收待完成 |
-| 运动模糊 | 中心快门和逐层有理数阶段调度；逐接收层的真实 Scene/父级/相机/表达式/效果输入求值；独立局部效果图像与投影 matte；逐阶段调整图层；线性 FP16 累积；持久 GPU 帧任务、递归嵌套独立曝光、稳定媒体身份和真实冻结 MP4 | 核心和冻结 MP4 已接入并测试，包含父子混合帧率快门；桌面预览/capture、冻结组合读帧协议、性能与最终能力/UI 待完成 |
+| 运动模糊 | 中心快门和逐层有理数阶段调度；逐接收层的真实 Scene/父级/相机/表达式/效果输入求值；独立局部效果图像与投影 matte；逐阶段调整图层；线性 FP16 累积；持久 GPU 帧任务、递归嵌套独立曝光、稳定媒体身份和真实冻结 MP4；Session 主窗/浮窗预览保留进度及请求身份 | 核心、冻结 MP4 和桌面预览已接入；实际预览像素、取消与默认失败信道已定向验证；本轮完整回归见文末。正式帧 capture、冻结组合读帧协议、性能与最终能力/UI 待完成 |
 | 能力检查及 UI | 模型拒绝对非视频帧混合、对非矢量连续栅格化、对非像素来源运动模糊 | 最终 host 能力声明和实际支持开关待接入；未加入空开关 |
 | 双语、主/浮窗、焦点失效 | 本轮没有修改 UI | 待真实开关接入后验收与截图 |
 
@@ -83,7 +83,12 @@ PreviewVideoCache 对左右输入应用同一现有 video_edge 策略，分辨�
 | SAM-OBS-13 | 新上下文/实际模块拒绝 | 递归错误保留子合成/reference/source frame/nested_exposure 与原始 cause，最终仍由父任务进入失败终态；typed 源预算/共享 temporal 拒绝保留。work_units 是每帧饱和的完成计数，真实子级推进才增加，媒体等待保持不变，冻结期限因此能识别子级进度；不是日志频率计数或时间单位。默认 decoder 日志沿用既有基础设施，嵌套 GPU/求值拒绝的完整前端信道仍待验收。 |
 | SAM-NORMAL-10 | 正常分支与范围 | 单个子层中心 clip 外但自身快门内可贡献像素，未模糊同级层保持中心时刻；整个子合成源时间外仍按原 clip 语义透明。factory 共享 immutable 文档、evaluator 和有界引用布局；源图遵守原 16 深度、1,024 静态路径和每 Scene 64 活跃实例限制。递归各作用域仍持有上下文，不能把 64 说成全部存活上下文总数；没有额外线程、自动重试、后台解码预取或每帧日志。 |
 
-| SAM-PENDING-01 | 待完成 | 持久/递归任务等待、终态/释放及嵌套冻结 MP4 已有实际验证；仍需桌面请求 revision/被取代取消、冻结组合读帧协议、全链路默认故障信道及实际播放性能。连续栅格化相机平面错误仍缺少默认文件/Error stderr 的端到端验收；不能将函数 Err 用例等同于完成。 |
+| SAM-FUNC-13 | 新功能 | Session 使用按 revision/合成缓存的 immutable 文档，持久请求比较帧、输出尺寸、质量、视图版本、观察矩阵、surface epoch/尺寸、viewport 和 image 区域。Pending 保留阶段/图像，成功 resolve 后才提交候选画面；主窗与浮窗使用同一入口。 |
+| SAM-FUNC-14 | 播放及取消 | 自动播放按正在绘制合成的窗口等待完整曝光，其他窗口只画 chrome 的回复不能解除等待；完成后按既有墙钟/音频时钟跳到最新帧。用户 Seek 立即取消旧任务，GPU 所有权释放；只退休未完成解码，完成缓存和失败终态保留，live + retiring 四 worker 上限不变。 |
+| SAM-OBS-14 | 新上下文/既有信道 | 首次渲染失败带 composition/revision/frame/size/view/surface、原始 cause 与 typed 预算拒绝；同一请求保留至多 2,048 字符，不因下一次 Present 重启。清理失败追加到主错误；维持原 respond/引擎日志/错误回复。实际主窗/浮窗受控解码失败验证默认文件、Error stderr、stdout 隔离及阻塞前 decode in-flight。 |
+| SAM-OBS-15 | 新诊断数据 | preview.exposure 提供状态、阶段、对象、采样时刻、完成单元、跨 poll CPU 及媒体准备/上传合计；Session ledger 合并递归任务所有者。快照与 FrameRecorder 分开记录 exposureTargetBytes，并加入逻辑纹理总容量；曝光没有收集多提交 GPU 时间戳，gpuTimingActive=false，不将最后一次提交时间冒充全部 GPU 时间。 |
+| SAM-NORMAL-11 | 正常分支/已有策略 | 切片用完、媒体 Pending、被取代请求和正常取消不新增每帧日志。沿用原四级预览内存降级/冷却探测；该显式策略可建立不同质量候选，普通错误终态不自动重试。没有新增 worker、超时期限或重启；8ms 是批次之间的让出检查，不能抢占同步 evaluator/driver。 |
+| SAM-PENDING-01 | 待完成 | 正式帧 capture、冻结组合读帧协议、全链路默认故障信道及实际长时间播放性能。连续栅格化相机平面错误仍缺少默认文件/Error stderr 的端到端验收；不能将函数 Err 用例等同于完成。UI 开关及其失焦/撤销、双语和主/浮窗截图仍待接入。 |
 
 ## 本地验证
 
@@ -317,3 +322,35 @@ FrozenMovie::export 对需要曝光的冻结工程共享一次验证的不可变
 暂存差异空白检查、来源检查（1,404 个受版本控制路径）及样式消费者检查通过。
 
 仍待 #255：Session 播放/capture 的持久任务和 revision/质量/视口身份，被取代/失焦取消与实际媒体 worker 生命周期，冻结组合读帧协议，完整默认故障信道，真实播放成本与深层上下文/重复准备优化，以及最终能力/UI、双语主/浮窗/右键菜单截图。独立嵌套曝光核心与冻结 MP4 已接入，不能据此将整个 issue 标为完成。没有依赖、第三方素材、面板或 token 变更；DESIGN §0.7 的既有面板基线保留，§12 的 UI 验收仍待接入。
+
+### Session 桌面预览、播放等待与取消
+
+此节更新上一节的桌面预览待办。Session 创建时即按工程 revision/活动合成缓存一份已验证的 ExposureDocument，sample 时按身份同步；未需要曝光的工程只缓存判断，不复制完整工程。同一曝光请求的后续 Present 共用 ExposureFrame。请求同时比较帧、渲染尺寸、preview/full 模式、内存质量、view revision、surface epoch/尺寸、viewport、canvas image 和观察矩阵。工程替换清理文档与请求，detach 仅释放 GPU 请求、保留不可变文档；编辑/切换合成重新建立文档。这样初次打开和重新 attach 返回的 exposureRequired 也准确，无需先 Seek 才知道预览需要等待曝光。未完成结果保留在任务内，完整 GPU resolve 写入 PreviewFrameTargets 的候选，只有实际成功提交才交换 front；等待期间使用现有 present_chrome 绘制原画面和界面，返回 false，不更新 lastPresentedFrame。
+
+自动播放曾在每次 Present 返回 false 后继续提交新 Seek，这会让跨轮询曝光一直从头开始。Shell 现在按有合成内容的窗口记录尚未确认的曝光帧；普通 chrome-only 窗口回复不能清掉另一窗口的等待。重绘/唤醒判断也读取这份窗口等待集合，防止其他窗口把旧的全局 pending 清成 false 后，曝光再也没有机会继续推进。实际完成后继续按既有音频/墙钟计算下一帧，允许丢帧追上时间，不改变播放速度或增加 Seek 队列。手动 Seek 的 action 路由仍正常执行，并明确取消旧宿主请求。关闭/回停靠浮窗和 worker 关闭清理对应等待，隐藏合成后的 chrome-only 提交解除该窗口等待。
+
+取消不清空所有已解码帧：VideoFrames 仅退休 sampling 最近作用域中仍在 native 调用或缺少必要帧、且尚未失败的流。已完成缓存和失败流保留；一个失败流不能因取消而隐式重新打开。退休线程仍占原四 worker 额度，只有实际结束才 reap。原始取消与 decoder 的 superseded 检查保留，native 调用取消后返回的其他实际错误仍由既有 worker 日志记录。取消/清理错误继续返回，失败请求不在下一次 Present 重建；若清理也失败，追加原因并保留首要失败和 typed ResourceRejection。
+
+内存不足继续使用现有四档预览策略和 30 秒冷却探测。每次策略明确放弃的任务先释放 owned temporal 资源，再回收 renderer 工作集；有旧 front 时保持旧画面。首次渲染/媒体/GPU 错误带 composition、revision、frame、size、view、surface 及底层阶段/对象，后续同请求仅保留 2,048 字符诊断；不捕获吞掉 panic，不改 respond，不新增失败重试或线程重启。
+
+诊断现在区分合并的媒体准备/上传耗时与普通视频路径的分别计时；跨 poll CPU 累加包括任务初始化、callback、GPU 编码和 resolve，排除轮询间等待。成功帧 FrameRecorder 与快照加入 task-owned exposure 容量，Session ledger 包括全部递归任务。曝光包含多次独立 GPU 提交，本轮没有收集覆盖全部提交的时间戳，故 gpuTimingActive=false、gpu sample 保持空；不以呈现 pass 或 CPU 墙钟代替纯 GPU 时间。8ms 只在有界批次间检查，首次管线编译、表达式和 native 调用仍不可抢占。
+
+证据与失败记录：
+
+- `sampling-preview-first.log` 保留初版误用跨 crate 私有 with_diagnostic/texture、测试误读 Layer.color 的编译失败；改用公开 typed error/ledger 和 Content::Solid。`sampling-preview-gpu.log` / `sampling-preview-gpu-final.log` 记录测试 ledger ID 的 String 类型与 iterator 尾表达式生命周期错误；修正夹具访问，未公开 GPU 内部字段或删除像素/身份断言。
+- `sampling-preview-candidate-tests.log` 三项真实 headless GPU 用例通过：极小切片不会提前提交 front；与独立普通逐时刻 Scene oracle 比较；同 revision 文档 Arc 身份不变；帧/视口/质量等切换释放旧任务；真实尺寸预算拒绝在 60 次相同请求后保持终态和 typed cause，显式内存策略处置后才允许新任务。
+- `sampling-preview-host-full.log` 保留新增取消测试对不实现 Debug 的成功返回类型调用 unwrap_err 的编译失败；改为读取同一 Err，未修改生产类型或失败预期。`sampling-preview-host-final.log` 全部 49 项通过，含三项预览 GPU 与一项新的真实解码取消测试；后者验证 pending 退休、完成缓存/generation 保留及失败流在 60 次取消/准备后不重启。
+- `sampling-preview-native-first.log` 的首次原生测试误读根级 video，而实际字段是 preview.video，因 in-flight 断言失败；改为实际协议路径，并检查 object/source/PTS/decode 阶段。`sampling-preview-native-correct-snapshot.log` 隐藏原生主窗/浮窗 × 成功/失败四种组合通过。阻塞期真实 Present 继续绘制 chrome，不确认合成，不改阶段；实际 Seek 释放曝光资源；失败回复含原 cause，默认文件与 Error stderr 有证据、stdout 无泄漏，第二次失败请求不增加 CPU 工作。
+- `sampling-preview-native-pixels.log` 在上述矩阵加入动画位置与真实截图回读后通过。CaptureUi 从已提交的 g.scratch 经实际 Presenter 输出，32×32 一比一裁切；独立 oracle 把 authored 白色视频替换为常量白色平面，以四个普通 Scene 在 1.25 帧附近采样再累计。主窗/浮窗像素通道误差都不超过一档，证明实际 front/格式/呈现链路，不只检查任务内部结果。截图路径没有调用尚未支持曝光的正式 export::capture。
+- `sampling-preview-playback.log` 六项播放/曲线/拖动测试通过，含新窗口等待用例；普通指针移动、已确认输入帧、手动 action 路由、其他窗口回复及错误/隐藏后的释放都保留断言。没有修改既有播放测试来适应新行为。
+- `sampling-preview-desktop-check.log` 带 FFmpeg 桌面 cargo check 通过，保留原有 21 条警告；测试构建保留 19 条既有警告。当前不是新的 release 可运行包。
+
+本轮最初真实预览产物在 `preview-native-first/`：`preview-false.png` 为主窗，`preview-true.png` 为原生浮窗，均是实际已提交预览的 32×32 像素裁切。旁边 JSON 记录该轮状态：主窗 CPU poll 31,758us、媒体合计 2,115us；浮窗 20,658us / 1,742us；均四阶段、八完成单元、12,288 字节曝光容量、21,608 字节已跟踪预览纹理容量。这是原生测试中的单次样本，不是播放 FPS、纯 GPU 时间、峰值 VRAM 或跨设备保证。该轮 JSON 的 gpuTimingActive 仍报告 timer 对象存在，随后已修正曝光路径不收集完整 GPU 时序的声明；保留原始轮次，不覆写成本和旧状态。
+
+完整桌面回归 `sampling-preview-desktop-full.log` 为 531 通过、0 失败、1 项原有忽略（232.96 秒）。此后复核补齐多窗口等待的重绘/唤醒条件，`sampling-preview-redraw-tests.log` 六项播放测试通过；再补齐初始 Session/attach 的 exposureRequired。最终实现的 `sampling-preview-desktop-complete.log` 完整带 FFmpeg 串行桌面回归为 531 通过、0 失败、1 项原有忽略（203.26 秒），包含主窗/浮窗实际预览像素、取消和默认失败日志测试。`sampling-preview-measurement.log` 两项通过，旧容量分布断言保持不变，新增独立曝光容量/合计媒体时间与空 GPU 样本校验。
+
+最终真实图像与该轮 JSON 在 `preview-native-complete/`；主窗 CPU poll 17,645us、媒体合计 1,421us，浮窗 21,265us / 1,880us，gpuTimingActive 均为 false。维度、阶段、逻辑容量与上轮一致。中间 `preview-native-final/` 的 21,841us / 1,631us 和 21,589us / 2,217us 也保留。成本含实际请求初始化/poll/提交 resolve，排除轮询间等待及事后截图回读；不把较快轮次替代旧值，不声称稳定播放性能。
+
+`sampling-preview-host-initialization-final.log` 为最后初始化/清理实现的完整宿主测试，49 项全部通过（78.82 秒）；最终 FFmpeg 与无 FFmpeg 桌面 cargo check 都通过，分别见 `sampling-preview-initialization-ffmpeg-check.log` / `sampling-preview-initialization-noffmpeg-check.log`。总计 582 项通过、1 项既有忽略，含七项新增用例；专项和重复全套不重复计数。最终主窗/浮窗 PNG 的 SHA-256 相同：f27c5946b2ea9fe4d5cafe7cb83f6de96e2bf0db29e3acb4237c9424b67f18ab。已目视查看实际 32×32 输出；它是预览像素验证夹具，不是最终开关样式或完整产品界面截图。来源检查（1,406 tracked paths）、样式消费者和暂存差异空白检查通过。
+
+当前不关闭 #255：正式帧 capture、冻结组合读帧、多种 GPU/求值拒绝的默认前端信道、长时间实际播放性能、深层上下文/重复准备优化、最终能力和 UI 开关仍未完成。没有第三方依赖或素材、面板布局、产品文案、右键菜单或主题 token 变更；DESIGN §0.7 十二项面板基线均 retained（本轮不编辑面板），§12 的新开关验收仍待实现。

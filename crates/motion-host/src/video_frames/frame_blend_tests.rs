@@ -648,3 +648,37 @@ fn sampling_idle_cache_evicts_oldest_without_exceeding_four_live_or_retiring_wor
     assert_eq!(reader.sampling_recent,vec![10,7,11,12]);
     assert_eq!(control.calls.lock().unwrap().len(),12);
 }
+
+#[test]
+fn exposure_cancellation_retires_only_pending_reads_and_preserves_ready_and_failed_streams() {
+    let dir=tempfile::tempdir().unwrap();let p=fixture(dir.path());let scope=scene(&p,13.5);
+    let (entered,waiting)=mpsc::channel();let (release,released)=mpsc::channel();
+    let control=Arc::new(Control {fail_right:AtomicBool::new(false),calls:Mutex::new(vec![]),entered:Some(entered),release:Mutex::new(Some(released))});
+    let mut reader=VideoFrames::new(Arc::new(Backend(control.clone())));
+    assert!(reader.prepare_scene_sampling_exact(&p,dir.path(),&scope).unwrap().is_none());
+    waiting.recv_timeout(Duration::from_secs(5)).unwrap();
+    reader.cancel_pending_sampling().unwrap();
+    assert!(reader.streams.is_empty());assert_eq!(reader.retiring.len(),1);
+    assert!(reader.sampling_recent.is_empty());
+    release.send(()).unwrap();
+    let deadline=Instant::now()+Duration::from_secs(5);
+    while !reader.retiring.is_empty() {reader.reap_retired().unwrap();assert!(Instant::now()<deadline);std::thread::sleep(Duration::from_millis(2));}
+    loop {if reader.prepare_scene_sampling_exact(&p,dir.path(),&scope).unwrap().is_some(){break;}assert!(Instant::now()<deadline);std::thread::sleep(Duration::from_millis(2));}
+    let generation=reader.streams[&7].shared.0.lock().unwrap().desired.unwrap().sequence;
+    let calls=control.calls.lock().unwrap().len();
+    reader.cancel_pending_sampling().unwrap();
+    assert_eq!(reader.streams[&7].shared.0.lock().unwrap().desired.unwrap().sequence,generation);
+    assert!(reader.prepare_scene_sampling_exact(&p,dir.path(),&scope).unwrap().is_some());
+    assert_eq!(control.calls.lock().unwrap().len(),calls);
+    reader.clear();
+    control.fail_right.store(true,Ordering::Release);
+    let error=loop {match reader.prepare_scene_sampling_exact(&p,dir.path(),&scope) {Err(e)=>break e,Ok(_)=>{assert!(Instant::now()<deadline);std::thread::sleep(Duration::from_millis(2));}}};
+    assert!(error.contains("controlled required-right decode failure"));
+    let calls=control.calls.lock().unwrap().len();
+    control.fail_right.store(false,Ordering::Release);
+    for _ in 0..60 {
+        reader.cancel_pending_sampling().unwrap();
+        assert!(reader.prepare_scene_sampling_exact(&p,dir.path(),&scope).err().unwrap().contains("controlled required-right decode failure"));
+    }
+    assert_eq!(control.calls.lock().unwrap().len(),calls);
+}
