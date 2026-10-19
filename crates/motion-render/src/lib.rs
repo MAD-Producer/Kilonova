@@ -48,6 +48,7 @@ pub use timing::{GpuTimer, GpuTiming};
 
 mod scene;
 mod compositor;
+mod plane_sampling;
 pub mod selection_geometry;
 pub mod position_path;
 pub use scene::{DrawLayer, HitCandidate, NestedScene, Scene};

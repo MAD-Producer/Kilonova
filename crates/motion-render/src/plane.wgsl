@@ -23,7 +23,7 @@ fn vertex_main(@location(0) position: vec3<f32>, @location(1) uv: vec2<f32>) -> 
 
 @fragment
 fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
-    let texel = textureSample(image, image_sampler, input.uv);
+    let texel = sample_plane_texture(image, image_sampler, input.uv);
     let alpha = texel.a * draw.color.a * draw.extent_opacity.z;
     // Image RGB was premultiplied in linear space before texture upload, so
     // filtering transparent source texels cannot introduce white/black fringes.

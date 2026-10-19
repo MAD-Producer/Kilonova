@@ -53,7 +53,7 @@ pub fn plane_programs() -> Result<&'static Vec<motion_effects::shader::GlslShade
                 .into_iter()
                 .map(|entry| {
                     motion_effects::shader::compile_host_program(
-                        include_str!("plane_matte.wgsl"),
+                        crate::plane_sampling::MATTE,
                         "vertex_main",
                         entry,
                     )

@@ -20,6 +20,8 @@ use std::{
 pub(crate) const TEXTURE_BUDGET: u64 = crate::resource_policy::DEFAULT_SOURCE_TEXTURE_BUDGET;
 const CAPTURE_PIXEL_LIMIT: u64 = 16 * 1024 * 1024;
 const DRAW_SIZE: u64 = std::mem::size_of::<DrawUniform>() as u64;
+#[cfg(test)]
+mod plane_sampling_tests;
 const TARGET_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 static PREFETCH_FAILURES: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
 static IMAGE_PENDING: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
@@ -318,7 +320,7 @@ impl Renderer {
         });
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Motion Studio own planar compositor"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("plane.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(crate::plane_sampling::BASIC.into()),
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Motion Studio planar pipeline"),
@@ -368,7 +370,7 @@ impl Renderer {
             },
             alpha: wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING.alpha,
         });
-        let mask_shader=device.create_shader_module(wgpu::ShaderModuleDescriptor {label:Some("masked source composite"),source:wgpu::ShaderSource::Wgsl(include_str!("plane_mask.wgsl").into())});
+        let mask_shader=device.create_shader_module(wgpu::ShaderModuleDescriptor {label:Some("masked source composite"),source:wgpu::ShaderSource::Wgsl(crate::plane_sampling::MASK.into())});
         let masked_pipeline=device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label:Some("masked layer without effects"),layout:Some(&device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {label:None,bind_group_layouts:&[Some(&uniform_layout), Some(&image_layout), Some(&image_layout)],immediate_size: 0})),
             vertex:wgpu::VertexState {module:&mask_shader,entry_point:Some("vertex_main"),compilation_options:Default::default(),buffers:&[Some(wgpu::VertexBufferLayout {array_stride:std::mem::size_of::<GeometryVertex>() as u64,step_mode:wgpu::VertexStepMode::Vertex,attributes:&wgpu::vertex_attr_array![0=>Float32x3,1=>Float32x2]})]},
