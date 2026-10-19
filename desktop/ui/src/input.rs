@@ -93,7 +93,9 @@ impl KeyChord {
         self.key == key && self.modifiers == modifiers
     }
 
-    pub fn pressed(self, input: &Input) -> bool {
+    pub fn pressed(self, input: &impl crate::InputSource) -> bool {
+        let view = input.input_view();
+        let input = &view;
         input
             .key_presses()
             .any(|(key, modifiers, repeat)| !repeat && self.matches(key, modifiers))
@@ -178,6 +180,116 @@ pub struct Input {
     pub text: String,
 }
 
+/// A frame snapshot with borrowed payloads and independently maskable scalar fields.
+/// Views never own events and cannot outlive their source input. Routing and
+/// clipping copy this bounded value while sharing the text and key slices.
+/// A view cannot be retained after its event source is dropped:
+/// ```compile_fail
+/// use motion_ui::{Input, InputSource};
+/// let view = {
+///     let input = Input::default();
+///     input.input_view()
+/// };
+/// assert!(view.text.is_empty());
+/// ```
+#[derive(Clone, Copy, Debug, Default)]
+pub struct InputView<'a> {
+    pub pending: bool,
+    pub focus_lost: bool,
+    pub held: Option<MouseButton>,
+    pub mouse: [f32; 2],
+    pub pointer_origin: Option<[f32; 2]>,
+    pub pointer_travel: f32,
+    pub pressed: Option<(MouseButton, [f32; 2])>,
+    pub released: Option<(MouseButton, [f32; 2])>,
+    pub wheel: [f32; 2],
+    pub modifiers: Modifiers,
+    pub long_press: Option<[f32; 2]>,
+    pub keys: &'a [(Key, Modifiers)],
+    pub key_repeats: &'a [bool],
+    pub held_keys: &'a [Key],
+    pub released_keys: &'a [Key],
+    pub composing: bool,
+    pub ime_consumed: bool,
+    pub text: &'a str,
+}
+
+/// Read-only input accepted by shared controls. Event accumulation stays in Input.
+pub trait InputSource {
+    fn input_view(&self) -> InputView<'_>;
+}
+impl InputSource for Input {
+    fn input_view(&self) -> InputView<'_> {
+        InputView {
+            pending: self.pending,
+            focus_lost: self.focus_lost,
+            held: self.held,
+            mouse: self.mouse,
+            pointer_origin: self.pointer_origin,
+            pointer_travel: self.pointer_travel,
+            pressed: self.pressed,
+            released: self.released,
+            wheel: self.wheel,
+            modifiers: self.modifiers,
+            long_press: self.long_press,
+            keys: &self.keys,
+            key_repeats: &self.key_repeats,
+            held_keys: &self.held_keys,
+            released_keys: &self.released_keys,
+            composing: self.composing,
+            ime_consumed: self.ime_consumed,
+            text: &self.text,
+        }
+    }
+}
+impl InputSource for InputView<'_> {
+    fn input_view(&self) -> InputView<'_> { *self }
+}
+impl<'a> InputView<'a> {
+    /// Explicit ownership boundary for callers retaining a frame snapshot.
+    /// Routing and per-control filtering should keep the borrowed view instead.
+    pub fn to_owned(self) -> Input {
+        Input {
+            pending: self.pending,
+            focus_lost: self.focus_lost,
+            held: self.held,
+            mouse: self.mouse,
+            pointer_origin: self.pointer_origin,
+            pointer_travel: self.pointer_travel,
+            pressed: self.pressed,
+            released: self.released,
+            wheel: self.wheel,
+            modifiers: self.modifiers,
+            long_press: self.long_press,
+            keys: self.keys.to_owned(),
+            key_repeats: self.key_repeats.to_owned(),
+            held_keys: self.held_keys.to_owned(),
+            released_keys: self.released_keys.to_owned(),
+            composing: self.composing,
+            ime_consumed: self.ime_consumed,
+            text: self.text.to_owned(),
+        }
+    }
+
+    pub fn dragging(&self) -> bool {
+        self.held == Some(MouseButton::Left)
+    }
+    /// Shortcut input excludes IME confirmation keys, including the commit frame.
+    pub fn key_presses(self) -> impl Iterator<Item = (Key, Modifiers, bool)> + 'a {
+        self.keys
+            .iter()
+            .enumerate()
+            .filter(move |_| !self.composing && !self.ime_consumed)
+            .map(move |(i, (key, modifiers))| {
+                (
+                    *key,
+                    *modifiers,
+                    self.key_repeats.get(i).copied().unwrap_or(false),
+                )
+            })
+    }
+}
+
 impl Input {
     pub fn begin_frame(&mut self) {
         self.pending = false;
@@ -200,17 +312,7 @@ impl Input {
 
     /// Shortcut input excludes IME confirmation keys, including the commit frame.
     pub fn key_presses(&self) -> impl Iterator<Item = (Key, Modifiers, bool)> + '_ {
-        self.keys
-            .iter()
-            .enumerate()
-            .filter(|_| !self.composing && !self.ime_consumed)
-            .map(|(i, (key, modifiers))| {
-                (
-                    *key,
-                    *modifiers,
-                    self.key_repeats.get(i).copied().unwrap_or(false),
-                )
-            })
+        self.input_view().key_presses()
     }
 }
 

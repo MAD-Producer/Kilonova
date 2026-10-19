@@ -5,7 +5,7 @@ use crate::{
     paint,
     style::States,
     ui::{self, Align},
-    Color, Input, PaintList, Rect, TextAtlas,
+    Color, PaintList, Rect, TextAtlas,
 };
 
 pub struct Tab<'a> {
@@ -81,9 +81,11 @@ pub fn draw(
     area: Rect,
     tabs: &[Tab<'_>],
     active: usize,
-    input: &Input,
+    input: &impl crate::InputSource,
     underline: bool,
 ) -> Option<Event> {
+    let view = input.input_view();
+    let input = &view;
     let styles = list.styles();
     let colors = styles.colors();
 
@@ -182,6 +184,8 @@ pub fn draw(
     }
     event
 }
-fn pressed(input: &Input, area: Rect) -> bool {
+fn pressed(input: &impl crate::InputSource, area: Rect) -> bool {
+    let view = input.input_view();
+    let input = &view;
     matches!(input.pressed,Some((MouseButton::Left,p)) if area.contains(p))
 }

@@ -32,9 +32,11 @@ pub fn button(
     atlas: &mut crate::text::TextAtlas,
     area: Rect,
     label: &str,
-    input: &Input,
+    input: &impl crate::InputSource,
     enabled: bool,
 ) -> Response {
+    let view = input.input_view();
+    let input = &view;
     let styles = list.styles();
 
     button_styled(
@@ -53,9 +55,11 @@ pub fn button_icon(
     list: &mut PaintList,
     area: Rect,
     icon: crate::icons::Icon,
-    input: &Input,
+    input: &impl crate::InputSource,
     enabled: bool,
 ) -> Response {
+    let view = input.input_view();
+    let input = &view;
     let styles = list.styles();
     let states = if enabled {
         crate::style::States::default()
@@ -69,11 +73,13 @@ pub fn button_styled(
     atlas: &mut crate::text::TextAtlas,
     area: Rect,
     label: &str,
-    input: &Input,
+    input: &impl crate::InputSource,
     enabled: bool,
     sheet: &crate::style::StyleSheet,
     class: &str,
 ) -> Response {
+    let view = input.input_view();
+    let input = &view;
     button_with_states(
         list,
         atlas,
@@ -91,12 +97,14 @@ pub fn button_with_states(
     atlas: &mut crate::text::TextAtlas,
     area: Rect,
     label: &str,
-    input: &Input,
+    input: &impl crate::InputSource,
     enabled: bool,
     sheet: &crate::style::StyleSheet,
     class: &str,
     mut states: crate::style::States,
 ) -> Response {
+    let view = input.input_view();
+    let input = &view;
     use crate::style::{box_style, text_style, State};
     let hovered = enabled && area.contains(input.mouse);
     let clicked = hovered
@@ -236,8 +244,10 @@ pub fn scrub_field(
     label: &str,
     value: f32,
     field: &mut ScrubField,
-    input: &Input,
+    input: &impl crate::InputSource,
 ) -> Response {
+    let view = input.input_view();
+    let input = &view;
     let styles = list.styles();
     let colors = styles.colors();
 
@@ -306,8 +316,10 @@ pub fn tab_strip(
     area: Rect,
     titles: &[&str],
     active: usize,
-    input: &Input,
+    input: &impl crate::InputSource,
 ) -> Option<usize> {
+    let view = input.input_view();
+    let input = &view;
     let styles = list.styles();
     let colors = styles.colors();
 
@@ -374,8 +386,10 @@ pub fn checkbox(
     area: Rect,
     label: &str,
     value: &mut bool,
-    input: &Input,
+    input: &impl crate::InputSource,
 ) -> Response {
+    let view = input.input_view();
+    let input = &view;
     let styles = list.styles();
     let colors = styles.colors();
 
@@ -454,8 +468,10 @@ pub fn layer_list(
     area: Rect,
     rows: &[LayerRow],
     offset: f32,
-    input: &Input,
+    input: &impl crate::InputSource,
 ) -> LayerListHit {
+    let view = input.input_view();
+    let input = &view;
     let styles = list.styles();
     let colors = styles.colors();
 
@@ -805,7 +821,9 @@ pub fn accumulate(input: &mut Input, event: Event) {
 }
 
 /// Key chords the shell reacts to globally.
-pub fn matches(input: &Input, key: Key, control: bool) -> bool {
+pub fn matches(input: &impl crate::InputSource, key: Key, control: bool) -> bool {
+    let view = input.input_view();
+    let input = &view;
     input.key_presses().any(|(k, m, repeat)| !repeat && k == key && m.control == control)
 }
 

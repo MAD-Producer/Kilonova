@@ -1,26 +1,32 @@
 //! Reusable composites. Focus is supplied by the host; widgets never take global keys.
-use super::{clipped_input, TextEditor, TextEvent};
+use super::{TextEditor, TextEvent};
 use crate::{
     icons::{self, Icon},
     paint,
     style::{box_style, text_style, State, States},
     ui::{Align, Response},
-    Input, Key, MouseButton, PaintList, Rect, TextAtlas,
+    Key, MouseButton, PaintList, Rect, TextAtlas,
 };
 
-fn press(input: &Input, area: Rect) -> bool {
+fn press(input: &impl crate::InputSource, area: Rect) -> bool {
+    let view = input.input_view();
+    let input = &view;
     input
         .pressed
         .is_some_and(|(button, p)| button == MouseButton::Left && area.contains(p))
 }
-fn key(input: &Input, wanted: Key) -> bool {
+fn key(input: &impl crate::InputSource, wanted: Key) -> bool {
+    let view = input.input_view();
+    let input = &view;
     !input.composing
         && !input.ime_consumed
         && input
             .key_presses()
             .any(|(k, m, _)| k == wanted && !m.control && !m.alt)
 }
-fn states(input: &Input, area: Rect, enabled: bool, focused: bool) -> States {
+fn states(input: &impl crate::InputSource, area: Rect, enabled: bool, focused: bool) -> States {
+    let view = input.input_view();
+    let input = &view;
     let mut s = States::default();
     if focused {
         s = s.with(State::Focused);
@@ -43,11 +49,13 @@ impl Checkbox {
         area: Rect,
         label: &str,
         checked: bool,
-        input: &Input,
+        input: &impl crate::InputSource,
         enabled: bool,
         focused: bool,
         icon: Option<Icon>,
     ) -> Response {
+        let view = input.input_view();
+        let input = &view;
         Self::draw_with_states(
             list,
             atlas,
@@ -67,12 +75,14 @@ impl Checkbox {
         area: Rect,
         label: &str,
         checked: bool,
-        input: &Input,
+        input: &impl crate::InputSource,
         enabled: bool,
         focused: bool,
         icon: Option<Icon>,
         extra: States,
     ) -> Response {
+        let view = input.input_view();
+        let input = &view;
         let sheet = list.styles();
         let enabled = enabled && !extra.contains(State::Disabled);
         let focused = focused || extra.contains(State::Focused);
@@ -154,9 +164,11 @@ impl SearchField {
         area: Rect,
         query: &mut String,
         placeholder: &str,
-        input: &Input,
+        input: &impl crate::InputSource,
         enabled: bool,
     ) -> SearchResponse {
+        let view = input.input_view();
+        let input = &view;
         let sheet = list.styles();
         let before = query.clone();
         let icon_edge = area.height().min(20.);
@@ -192,9 +204,9 @@ impl SearchField {
         }
         let mut submitted = false;
         if enabled {
-            let mut editing_input = input.clone();
+            let mut editing_input = *input;
             if input.composing || input.ime_consumed {
-                editing_input.keys.clear();
+                editing_input.keys = &[];
             }
             let event = self.editor.input(&editing_input);
             if self.editor.active() {
@@ -248,20 +260,40 @@ pub struct ScrollArea {
     pub offset: f32,
     dragging: Option<(f32, f32)>,
 }
-pub struct ScrollFrame {
+pub struct ScrollFrame<I = crate::Input> {
     pub viewport: Rect,
     pub content: Rect,
-    pub input: Input,
+    pub input: I,
 }
 impl ScrollArea {
+    /// Owned compatibility boundary for panel consumers retaining the snapshot.
+    /// Shared per-control composites use begin_view to avoid cloning payloads.
     pub fn begin(
         &mut self,
         list: &mut PaintList,
         area: Rect,
         height: f32,
-        input: &Input,
+        input: &impl crate::InputSource,
         focused: bool,
     ) -> ScrollFrame {
+        let frame = self.begin_view(list, area, height, input, focused);
+        ScrollFrame {
+            viewport: frame.viewport,
+            content: frame.content,
+            input: frame.input.to_owned(),
+        }
+    }
+
+    pub fn begin_view<'a>(
+        &mut self,
+        list: &mut PaintList,
+        area: Rect,
+        height: f32,
+        input: &'a impl crate::InputSource,
+        focused: bool,
+    ) -> ScrollFrame<crate::InputView<'a>> {
+        let view = input.input_view();
+        let input = &view;
         let sheet = list.styles();
         let max = (height - area.height()).max(0.);
         if area.contains(input.mouse) {
@@ -332,7 +364,11 @@ impl ScrollArea {
                 2.,
             );
         }
-        let mut child_input = clipped_input(input, viewport);
+        let mut child_input = *input;
+        child_input.pressed = child_input.pressed.filter(|(_, p)| viewport.contains(*p));
+        if !viewport.contains(child_input.mouse) {
+            child_input.wheel = [0.; 2];
+        }
         child_input.wheel = [0.; 2];
         if self.dragging.is_some() {
             child_input.pressed = None;
@@ -372,10 +408,12 @@ impl Dropdown {
         bounds: Rect,
         items: &[DropdownItem<'_>],
         selected: usize,
-        input: &Input,
+        input: &impl crate::InputSource,
         enabled: bool,
         focused: bool,
     ) -> Option<usize> {
+        let view = input.input_view();
+        let input = &view;
         self.draw_grouped(
             list,
             atlas,
@@ -399,12 +437,14 @@ impl Dropdown {
         bounds: Rect,
         items: &[DropdownItem<'_>],
         selected: usize,
-        input: &Input,
+        input: &impl crate::InputSource,
         enabled: bool,
         focused: bool,
         group_starts: &[usize],
         marked: bool,
     ) -> Option<usize> {
+        let view = input.input_view();
+        let input = &view;
         self.draw_grouped_styled(
             list,
             atlas,
@@ -429,10 +469,12 @@ impl Dropdown {
         bounds: Rect,
         items: &[DropdownItem<'_>],
         selected: usize,
-        input: &Input,
+        input: &impl crate::InputSource,
         enabled: bool,
         focused: bool,
     ) -> Option<usize> {
+        let view = input.input_view();
+        let input = &view;
         self.draw_grouped_styled(
             list,
             atlas,
@@ -456,9 +498,11 @@ impl Dropdown {
         anchor: Rect,
         bounds: Rect,
         items: &[DropdownItem<'_>],
-        input: &Input,
+        input: &impl crate::InputSource,
         enabled: bool,
     ) -> Option<usize> {
+        let view = input.input_view();
+        let input = &view;
         self.draw_grouped_styled(
             list,
             atlas,
@@ -482,13 +526,15 @@ impl Dropdown {
         bounds: Rect,
         items: &[DropdownItem<'_>],
         selected: usize,
-        input: &Input,
+        input: &impl crate::InputSource,
         enabled: bool,
         focused: bool,
         group_starts: &[usize],
         marked: bool,
         anchor_style: Option<&str>,
     ) -> Option<usize> {
+        let view = input.input_view();
+        let input = &view;
         let enabled = enabled && !items.is_empty();
         self.highlighted = self.highlighted.min(items.len().saturating_sub(1));
         let sheet = list.styles();
@@ -742,9 +788,11 @@ impl ListView {
         atlas: &mut TextAtlas,
         area: Rect,
         items: &[ListItem<'_>],
-        input: &Input,
+        input: &impl crate::InputSource,
         focused: bool,
     ) -> ListResponse {
+        let view = input.input_view();
+        let input = &view;
         let sheet = list.styles();
         let row = sheet.metric("row.height", 22.).max(1.);
         self.selected = self.selected.filter(|i| *i < items.len());
@@ -788,7 +836,7 @@ impl ListView {
         }
         let frame = self
             .scroll
-            .begin(list, area, items.len() as f32 * row, input, focused);
+            .begin_view(list, area, items.len() as f32 * row, input, focused);
         let mut child = list.child();
         let first = (self.scroll.offset / row).floor() as usize;
         for (i, item) in items
@@ -863,10 +911,12 @@ impl StarRating {
         area: Rect,
         value: usize,
         max: usize,
-        input: &Input,
+        input: &impl crate::InputSource,
         enabled: bool,
         focused: bool,
     ) -> Option<usize> {
+        let view = input.input_view();
+        let input = &view;
         let sheet = list.styles();
         let max = max.clamp(1, 5);
         let step = area.width() / max as f32;

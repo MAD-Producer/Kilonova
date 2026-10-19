@@ -790,8 +790,8 @@ fn selection_rect(origin: [f32; 2], current: [f32; 2]) -> Rect {
         (origin[1] - current[1]).abs(),
     )
 }
-fn clipped_input(input: &Input, area: Rect) -> Input {
-    let mut input = input.clone();
+fn clipped_input(input: &Input, area: Rect) -> motion_ui::InputView<'_> {
+    let mut input = motion_ui::InputSource::input_view(input);
     if !area.contains(input.mouse) {
         input.pressed = None;
     }
