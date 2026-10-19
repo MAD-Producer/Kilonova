@@ -793,6 +793,7 @@ impl Shell {
                 Some(event_loop),
             )?;
             self.switch_workspace(workspace::Preset::Nodes, Some(event_loop))?;
+            let naming_main = self.node_naming_acceptance(false)?;
             let node_view_main = self.node_view_acceptance(false)?;
             let node_search_main = self.node_search_acceptance(false)?;
             self.switch_workspace(workspace::Preset::Default, Some(event_loop))?;
@@ -808,6 +809,7 @@ impl Shell {
                 return Err("node Time did not change actual GPU pixels".into());
             }
             self.smoke_node_report = serde_json::json!({"initial":first,"later":later,"projectRevision":before["revision"],"projectEffects":before["project"]["layers"],"clockPixelsChanged":true});
+            self.smoke_node_report["namingMain"] = naming_main;
             self.smoke_node_report["viewMain"] = node_view_main;
             self.smoke_node_report["searchMain"] = node_search_main;
             self.panels
@@ -828,6 +830,7 @@ impl Shell {
             }
             self.smoke_node_report["parameter"] = changed.clone();
             self.smoke_node_report["parameterPixelsChanged"] = Value::Bool(true);
+            self.smoke_node_report["namingFloat"] = self.node_naming_acceptance(true)?;
             self.smoke_node_report["viewFloat"] = self.node_view_acceptance(true)?;
             self.smoke_node_report["searchFloat"] = self.node_search_acceptance(true)?;
             self.smoke_node_report["floatingScreenshot"] =

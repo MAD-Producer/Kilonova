@@ -1,5 +1,6 @@
 //! Shell orchestrators. Panels emit actions; only the shell owns windows and workers.
 mod acceptance;
+mod node_naming_acceptance;
 mod node_view_acceptance;
 mod node_search_acceptance;
 pub(crate) mod actions;

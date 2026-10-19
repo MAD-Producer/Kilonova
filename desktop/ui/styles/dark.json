@@ -161,7 +161,13 @@
       "node.minimap.margin": 8,
       "node.minimap.padding": 6,
       "node.minimap.world_padding": 32,
-      "node.minimap.viewport_opacity": 0.10
+      "node.minimap.viewport_opacity": 0.10,
+      "node.rename.width": 360,
+      "node.rename.height": 172,
+      "node.rename.padding": 12,
+      "node.rename.row": 28,
+      "node.rename.gap": 8,
+      "node.rename.button_width": 90
     },
     "motion": {
       "easing": "cubic-out"

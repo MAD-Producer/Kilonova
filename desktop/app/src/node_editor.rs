@@ -25,6 +25,11 @@ mod inline;
 mod input_defaults;
 #[path = "node_editor/nudge.rs"]
 mod nudge;
+#[path = "node_editor/naming.rs"]
+mod naming;
+#[cfg(test)]
+#[path = "node_editor/naming_tests.rs"]
+mod naming_tests;
 #[path = "node_editor/observability.rs"]
 mod observability;
 #[path = "node_editor/search.rs"]
@@ -315,6 +320,7 @@ pub struct NodeEditor {
     welcome: bool,
     context_menu: Option<ContextMenu>,
     add_menu: Option<AddMenu>,
+    rename: Option<naming::NameEdit>,
     floating_mode: bool, // true=漂浮形态(有侧边栏), false=嵌入形态(无侧边栏)
 }
 
@@ -337,6 +343,7 @@ enum MenuKind {
     Node(String),
     Wire(PortRef),
     Preview(String),
+    RenamePorts(String),
 }
 impl Default for NodeEditor {
     fn default() -> Self {
@@ -411,6 +418,7 @@ impl NodeEditor {
             welcome: false,
             context_menu: None,
             add_menu: None,
+            rename: None,
             floating_mode: false, // 默认嵌入模式（无侧边栏）
         }
     }
@@ -450,7 +458,7 @@ impl NodeEditor {
         self.field.is_some() || self.search_focus || self.popup_open()
     }
     pub fn popup_open(&self) -> bool {
-        self.add_menu.is_some() || self.context_menu.is_some() || self.inline.busy()
+        self.add_menu.is_some() || self.context_menu.is_some() || self.rename.is_some() || self.inline.busy()
     }
     pub fn focus_panel(&mut self) {
         self.focus = true;
@@ -771,6 +779,7 @@ impl NodeEditor {
         self.cancel_canvas_interaction();
         self.add_menu = None;
         self.context_menu = None;
+        self.rename = None;
         self.field = None;
         self.search_focus = false;
     }
@@ -878,6 +887,7 @@ impl NodeEditor {
         let before = self.state(true);
         let parameter = self.id("parameter");
         let id = self.id("parameter_node");
+        let (name, english_name) = self.next_parameter_names(value_type);
         let (default, min, max, step) = match value_type {
             ValueType::Color => ([0.12, 0.65, 1., 1.], 0., 1., 0.01),
             ValueType::Bool => ([0.; 4], 0., 1., 1.),
@@ -886,8 +896,8 @@ impl NodeEditor {
         };
         self.document.public_parameters.push(PublicParameter {
             id: parameter.clone(),
-            name: parameter.clone(),
-            english_name: parameter.clone(),
+            name,
+            english_name,
             value_type,
             default,
             min,
