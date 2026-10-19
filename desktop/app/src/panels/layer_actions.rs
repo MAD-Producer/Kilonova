@@ -25,6 +25,7 @@ enum Choice {
 }
 struct Entry {
     label: String,
+    checked: bool,
     enabled: bool,
     disabled_reason: Option<String>,
     choice: Choice,
@@ -690,6 +691,12 @@ fn draw_menu(
         if matches!(entry.choice, Choice::Page(_)) {
             submenu_arrow(list, area, style.foreground);
         }
+        if entry.checked {
+            let slot = styles.metric("icon.slot", 20.);
+            motion_ui::icons::draw(list,
+                Rect::new(area.max[0] - slot, area.min[1], slot, area.height()),
+                motion_ui::icons::Icon::Check, styles.metric("checkbox.size", 14.), style.foreground);
+        }
         if entry.divider_after {
             paint::line(
                 list,
@@ -898,10 +905,12 @@ fn audio_asset<'a>(state: &'a Value, layer: &Value) -> Option<&'a Value> {
 fn entries_for(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
     let mut result = vec![];
     let mut divider_indices = vec![];
+    let mut checked_indices = vec![];
     let mut add = |zh: &str, en: &str, enabled: bool, choice: Choice| {
         let index = result.len();
         result.push(Entry {
             label: word(locale, zh, en),
+            checked: false,
             enabled,
             disabled_reason: None,
             choice,
@@ -1303,10 +1312,7 @@ fn entries_for(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
             let (choices, groups, _) = super::timeline_columns::matte_choices(state, id, locale);
             for (index, choice) in choices.into_iter().enumerate() {
                 let unchanged = choice.matte == current;
-                let mut label = choice.label;
-                if unchanged {
-                    label.push_str(" ✓");
-                }
+                let label = choice.label;
                 let added = add(
                     &label,
                     &label,
@@ -1316,6 +1322,7 @@ fn entries_for(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
                         matte: choice.matte,
                     }),
                 );
+                if unchanged { checked_indices.push(added); }
                 if groups.contains(&(index + 1)) {
                     divider_indices.push(added);
                 }
@@ -1323,6 +1330,7 @@ fn entries_for(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
         }
     }
     drop(add);
+    for index in checked_indices { result[index].checked = true; }
     for entry in &mut result {
         if !entry.enabled {
             entry.disabled_reason = Some(disabled_reason(&entry.choice, l, state, locale));

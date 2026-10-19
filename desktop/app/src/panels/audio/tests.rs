@@ -4,6 +4,7 @@ use motion_core::{
     AudioAsset, AudioClip, Content, Layer, LayerTimeline, Project, VideoAsset, VideoClip,
 };
 use motion_ui::input::Modifiers;
+mod property_focus_tests;
 
 #[test]
 fn audio_navigation_buttons_preserve_the_other_channel_in_both_native_hosts() {

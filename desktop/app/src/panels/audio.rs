@@ -64,23 +64,33 @@ struct Field {
 }
 #[derive(Default)]
 pub(crate) struct Controls {
+    pub(crate) selection_probe: super::property_focus::HitProbe,
+    selection_intent: bool,
     batch: Option<(u64, Vec<u64>)>,
     field: Option<Field>,
     context: Option<(String, String)>,
     pub cursor: bool,
     pub drag_readout: Option<([f32; 2], String)>,
     selection: Option<Selection>,
-    active_channel: Option<AudioChannel>,
+    active_control: Option<Control>,
+    active_object: Option<u64>,
     drag: Option<Drag>,
 }
 impl Controls {
+    pub(super) fn take_selection_intent(&mut self) -> bool {
+        std::mem::take(&mut self.selection_intent)
+    }
     pub fn clear_selection(&mut self) {
+        self.selection_intent = false;
         self.batch = None;
         self.selection = None;
-        self.active_channel = None;
+        self.active_control = None;
+        self.active_object = None;
     }
     pub fn select_generated(&mut self, object: u64, state: &Value) {
         self.clear_selection();
+        self.selection_intent = true;
+        self.active_object = Some(object);
         let ids = state["project"]["layers"]
             .as_array()
             .into_iter()
@@ -298,7 +308,7 @@ pub(super) fn prepare(panels: &mut Panels, state: &Value, input: &Input, out: &m
             out.push(Action::History(4));
         }
     }
-    if context_changed {
+    if context_changed || controls.active_object.is_some_and(|object| panels.selected != Some(object)) {
         controls.clear_selection();
     }
     controls.context = Some(context);
@@ -356,6 +366,7 @@ pub(super) fn render_rows(
             continue;
         }
         let fields = row(list.styles().as_ref(), gutter, py, height);
+        panels.audio_controls.selection_probe.record(fields.caption, body);
         let gain = control == Control::Gain;
         let value = if gain {
             gain_db(source(layer)["volume"].as_f64().unwrap_or(1.))
@@ -378,11 +389,19 @@ pub(super) fn render_rows(
                 Control::Right => "Right (dB)",
             },
         );
+        super::animation_controls::highlight_row(list, Rect::new(gutter.min[0], py, track_area.max[0] - gutter.min[0], height),
+            panels.audio_controls.active_object == Some(object)
+                && panels.audio_controls.active_control == Some(control)
+                && panels.audio_controls.context.as_ref().is_some_and(|(root, composition)|
+                    root == state["root"].as_str().unwrap_or("")
+                        && composition == state["composition"].as_str().unwrap_or("")));
         super::timeline::property_branch(list, fields.watch);
         label(list, atlas, fields.caption, &caption, true);
         if clicked(input, fields.caption) || clicked(input, fields.number) {
             panels.select_only(Some(object));
-            panels.audio_controls.active_channel = (!gain).then_some(control.channel());
+            panels.audio_controls.active_control = Some(control);
+            panels.audio_controls.active_object = Some(object);
+            panels.audio_controls.selection_intent = true;
             panels.audio_controls.selection = None;
         }
         let range = &state["capabilities"]["audio"]["levels"]["range"];
@@ -439,7 +458,9 @@ pub(super) fn render_rows(
         let navigation = super::key_navigation::rail(&list.styles(), Rect::new(gutter.min[0], py, gutter.width(), height));
         if let Some(choice) = super::key_navigation::draw(list, navigation, input, adjacent, editable) {
             panels.select_only(Some(object));
-            panels.audio_controls.active_channel = Some(control.channel());
+            panels.audio_controls.active_control = Some(control);
+            panels.audio_controls.active_object = Some(object);
+            panels.audio_controls.selection_intent = true;
             match choice {
                 super::key_navigation::Choice::Seek(frame) => {
                     panels.audio_controls.selection = Some(Selection { object, item: Item::Key(control.channel()), frame: frame as u32 });
@@ -467,7 +488,9 @@ pub(super) fn render_rows(
         );
         if enabled && supported && clicked(input, fields.watch) {
             panels.select_only(Some(object));
-            panels.audio_controls.active_channel = Some(control.channel());
+            panels.audio_controls.active_control = Some(control);
+            panels.audio_controls.active_object = Some(object);
+            panels.audio_controls.selection_intent = true;
             out.push(Action::Edit(Command::AudioLevels {
                 object,
                 action: AudioLevelsAction::Animate {
@@ -806,9 +829,11 @@ fn select_reference(
     out: &mut Vec<Action>,
 ) {
     panels.select_only(Some(selection.object));
+    panels.audio_controls.selection_intent = true;
     panels.audio_controls.selection = Some(selection);
-    panels.audio_controls.active_channel = if let Item::Key(channel) = selection.item {
-        Some(channel)
+    panels.audio_controls.active_object = Some(selection.object);
+    panels.audio_controls.active_control = if let Item::Key(channel) = selection.item {
+        Some(if channel == AudioChannel::Left { Control::Left } else { Control::Right })
     } else {
         None
     };
@@ -907,8 +932,19 @@ pub(super) fn shortcut(
     out: &mut Vec<Action>,
 ) -> bool {
     use crate::shortcuts::Command as Shortcut;
-    if panels.focused != Some(Panel::Timeline) {
+    if panels.focused != Some(Panel::Timeline) && !(super::property_focus::navigation_scope(panels.focused)
+        && panels.audio_controls.active_object.is_some()
+        && matches!(command, Shortcut::PreviousKey | Shortcut::NextKey)) {
         return false;
+    }
+    let context_matches = panels.audio_controls.context.as_ref().is_some_and(|(root, composition)|
+        root == state["root"].as_str().unwrap_or("")
+            && composition == state["composition"].as_str().unwrap_or(""));
+    if (!context_matches || panels.audio_controls.active_object.is_some_and(|object| panels.selected != Some(object)))
+        && (panels.audio_controls.active_control.is_some()
+        || panels.audio_controls.selection.is_some() || panels.audio_controls.batch.is_some())
+    {
+        return matches!(command, Shortcut::PreviousKey | Shortcut::NextKey | Shortcut::Delete);
     }
     let Some(object) = panels.selected else {
         return false;
@@ -994,7 +1030,7 @@ pub(super) fn shortcut(
         }
     }
     if matches!(command, Shortcut::PreviousKey | Shortcut::NextKey)
-        && (layer["content"]["kind"] == "audio" || panels.audio_controls.active_channel.is_some())
+        && (layer["content"]["kind"] == "audio" || panels.audio_controls.active_control.is_some())
     {
         let offset = layer["timeline"]["offset_frame"].as_i64().unwrap_or(0);
         let frames = state["project"]["frames"].as_u64().unwrap_or(1);
@@ -1002,8 +1038,8 @@ pub(super) fn shortcut(
         for control in controls(layer).into_iter().filter(|c| *c != Control::Gain) {
             if panels
                 .audio_controls
-                .active_channel
-                .is_none_or(|c| c == control.channel())
+                .active_control
+                .is_none_or(|c| c == control)
             {
                 times.extend(key_times(&track(layer, control), offset, frames));
             }

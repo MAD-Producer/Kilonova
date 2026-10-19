@@ -34,6 +34,7 @@ struct Menu {
 }
 #[derive(Default)]
 pub(in crate::panels) struct Controls {
+    selection_intent: bool,
     context: Option<(String, String)>,
     pub(super) cache: SourceCache,
     active: Option<Channel>,
@@ -97,6 +98,17 @@ fn command(c: &Channel, edit: KeyEdit) -> Action {
     })
 }
 impl Controls {
+    pub(in crate::panels) fn selected_in(&self, state: &Value, object: u64, item: u64, parameter: &str) -> bool {
+        self.active.as_ref().is_some_and(|channel|
+            channel.object == object && channel.item == item && channel.parameter == parameter)
+            && self.context.as_ref().is_some_and(|(root, composition)|
+                root == state["root"].as_str().unwrap_or("")
+                    && composition == state["composition"].as_str().unwrap_or(""))
+    }
+
+    pub(in crate::panels) fn take_selection_intent(&mut self) -> bool {
+        std::mem::take(&mut self.selection_intent)
+    }
     pub(super) fn navigation(
         &mut self,
         list: &mut PaintList,
@@ -147,6 +159,7 @@ impl Controls {
         self.menu.is_some()
     }
     pub(in crate::panels) fn clear_selection(&mut self) {
+        self.selection_intent = false;
         self.active = None;
         self.selected = None;
     }
@@ -156,6 +169,7 @@ impl Controls {
         self.drag.take().is_some_and(|d| d.begun)
     }
     pub(in crate::panels) fn choose(&mut self, object: u64, item: u64, p: &parameters::Parameter) {
+        self.selection_intent = true;
         self.active = Some(Channel {
             object,
             item,
@@ -276,6 +290,7 @@ impl Controls {
         list.append(paint);
         if let Some((button, point)) = input.pressed.filter(|(_, point)| lane.contains(*point)) {
             self.active = Some(c.clone());
+            self.selection_intent = true;
             self.selected = hit.map(|f| (c.clone(), f));
             if button == MouseButton::Left {
                 if let Some(frame) = hit.filter(|_| !locked) {
@@ -423,10 +438,13 @@ impl Controls {
         );
         if self.context.as_ref() != Some(&context) {
             let had_key = self.selected.is_some();
+            let had_track = self.active.is_some();
             if self.cancel() {
                 out.push(Action::History(4));
             }
-            return had_key
+            return had_track && input.key_presses().any(|(k, m, _)|
+                matches!(k, Key::J | Key::K) && !m.control && !m.alt && !m.shift)
+                || had_key
                 && input
                     .key_presses()
                     .any(|(k, _, _)| matches!(k, Key::Delete | Key::Backspace));

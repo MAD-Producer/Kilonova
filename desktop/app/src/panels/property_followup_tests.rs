@@ -224,10 +224,9 @@ fn timeline_switch_columns_stay_disjoint_and_route_edits_through_resize() {
                     for observing in [false, true] {
                         // Lock through the real engine so the revision-keyed row cache
                         // sees an actual model change, not a mutated stale snapshot.
-                        let mut blocked = if observing {
-                            host.state().unwrap()
-                        } else {
-                            host.edit(
+                        // A preview camera no longer disables the dimension switch;
+                        // locked layers must remain protected in every view.
+                        let mut blocked = host.edit(
                                 serde_json::to_string(&Command::Flags {
                                     object: 7,
                                     visible: true,
@@ -235,8 +234,7 @@ fn timeline_switch_columns_stay_disjoint_and_route_edits_through_resize() {
                                 })
                                 .unwrap(),
                             )
-                            .unwrap()
-                        };
+                            .unwrap();
                         blocked["observing"] = observing.into();
                         let actions = render(
                             &mut panels,
@@ -247,9 +245,7 @@ fn timeline_switch_columns_stay_disjoint_and_route_edits_through_resize() {
                         assert!(!actions.iter().any(|a| matches!(a,Action::Edit(_) | Action::EditBatch(_))),
                             "blocked click: floating={floating} locale={locale:?} height={height} width={width} observing={observing}: {actions:?}");
                         assert!(!panels.timeline_columns.editing());
-                        if !observing {
-                            host.history(0).unwrap();
-                        }
+                        host.history(0).unwrap();
                     }
                     let parent = Rect::new(gutter - 94., top + 66., 86., height - 4.);
                     let actions = render(
@@ -722,10 +718,12 @@ fn masks_precede_transforms_and_layer_row_3d_is_undoable_in_both_windows() {
                 assert_eq!(after["project"]["layers"][0]["three_d"], true);
                 host.save().unwrap();
                 assert!(motion_core::storage::load(root.path()).unwrap().layers[0].three_d);
+                let locked = host.edit(serde_json::to_string(&Command::Flags {
+                    object: 7, visible: true, locked: true,
+                }).unwrap()).unwrap();
                 for observing in [false, true] {
-                    let mut blocked = after.clone();
+                    let mut blocked = locked.clone();
                     blocked["observing"] = Value::Bool(observing);
-                    blocked["project"]["layers"][0]["locked"] = Value::Bool(!observing);
                     assert!(draw(
                         &mut panels,
                         &blocked,
@@ -736,6 +734,7 @@ fn masks_precede_transforms_and_layer_row_3d_is_undoable_in_both_windows() {
                     )
                     .is_empty());
                 }
+                assert_eq!(host.history(0).unwrap()["project"], after["project"]);
                 assert_eq!(host.history(0).unwrap()["project"], before["project"]);
             }
         }

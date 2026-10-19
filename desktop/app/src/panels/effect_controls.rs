@@ -39,6 +39,7 @@ fn context_row(card: Rect, width: f32, row: f32, index: usize) -> Rect {
 
 #[derive(Default)]
 pub struct Controls {
+    pub(crate) selection_probe: super::property_focus::HitProbe,
     pub(super) expressions: super::expressions::Controls,
     pub catalogue: std::sync::Arc<Value>,
     pub cursor: bool,
@@ -66,6 +67,10 @@ pub struct Controls {
     color_popup: Option<ColorPopup>,
     collapsed_curves: std::collections::HashSet<(u64, u64, String)>,
     key_channel: Option<key_navigation::Channel>,
+    // Display projection only; key commands remain with the controller selected
+    // by the last real input, even when both effect hosts are visible.
+    mirrored_channel: Option<key_navigation::Channel>,
+    selection_intent: bool,
     /// component -2 = popup frame, -1 = swatch, 0.. = popup channel fields.
     #[cfg(test)]
     pub(crate) test_rects: HashMap<(u64, u64, String, i64), Rect>,
@@ -797,15 +802,16 @@ impl Controls {
         self.cursor = false;
         self.drag_readout = None;
         let object = layer["id"].as_u64().unwrap();
-        let locked = layer["locked"].as_bool().unwrap_or(false);
-        for ((owner, effect, _), editor) in &mut self.curve_editors {
+        let locked = layer["locked"].as_bool().unwrap_or(false) || state["observing"] == true;
+        for ((owner, effect, parameter), editor) in &mut self.curve_editors {
             if (locked
                 || *owner != object
                 || !layer["effects"]
                     .as_array()
                     .into_iter()
                     .flatten()
-                    .any(|item| item["id"].as_u64() == Some(*effect)))
+                    .any(|item| item["id"].as_u64() == Some(*effect)
+                        && item["params"].get(parameter).is_some()))
                 && editor.cancel()
             {
                 out.push(Action::History(4));
@@ -815,7 +821,11 @@ impl Controls {
         let local = state["frame"].as_f64().unwrap_or(0.0)
             - layer["timeline"]["offset_frame"].as_f64().unwrap_or(0.0);
         if self.field.as_ref().is_some_and(|f| {
-            f.object != object || locked || input.pressed.is_some_and(|(_, p)| !f.rect.contains(p))
+            f.object != object || locked
+                || !layer["effects"].as_array().into_iter().flatten()
+                    .any(|effect| effect["id"].as_u64() == Some(f.effect)
+                        && effect["params"].get(&f.param).is_some())
+                || input.pressed.is_some_and(|(_, p)| !f.rect.contains(p))
         }) {
             if self.cancel() {
                 out.push(Action::History(4));
@@ -1355,6 +1365,13 @@ impl Controls {
                     .min((right - label_x - gap - minimum_value).max(0.));
                 let value_x = (label_x + label_width + gap).min(right);
                 let values = Rect::new(value_x, *y, (right - value_x).max(0.), row);
+                self.selection_probe.record(Rect::new(label_x, *y, label_width, row), area);
+                if clicked(input, Rect::new(label_x, *y, (right - label_x).max(0.), row)) {
+                    self.choose_parameter(state, object, id, param);
+                }
+                crate::panels::animation_controls::highlight_row(list,
+                    Rect::new(area.min[0], *y, area.width(), row),
+                    self.parameter_selected(state, object, id, param));
                 text(
                     list,
                     atlas,
@@ -1406,7 +1423,7 @@ impl Controls {
                         "object={object} effect={id} param={param}") else { continue };
                     self.tracks.insert(cache_key.clone(), parameter);
                 }
-                key_navigation::parameter_navigation(&mut self.key_channel, list,
+                self.selection_intent |= key_navigation::parameter_navigation(&mut self.key_channel, list,
                     Rect::new(area.min[0], *y, area.width(), row), state, input, object, id, param,
                     &self.tracks[&cache_key], local, locked, out);
                 if kind == "curve" {

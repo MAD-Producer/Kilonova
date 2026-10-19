@@ -78,6 +78,16 @@ fn matrix(
         * Mat3::from_scale(scale / 100.)
         * Mat3::from_translation(-anchor)
 }
+pub(super) fn sample_transform(t: &GroupTransform, f: f64) -> Result<Mat3> {
+    Ok(matrix(
+        vector(&t.position, f, -32768., 32768.)?,
+        vector(&t.anchor, f, -32768., 32768.)?,
+        vector(&t.scale, f, -10000., 10000.)?,
+        scalar(&t.rotation, f, -360000., 360000.)?,
+        scalar(&t.skew, f, -89., 89.)?,
+        scalar(&t.skew_axis, f, -360000., 360000.)?,
+    ))
+}
 fn empty_paint() -> SampledVector {
     SampledVector {
         paths: vec![],

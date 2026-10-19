@@ -231,6 +231,8 @@ pub(in crate::panels) fn render(
             let lane = Rect::new(track.min[0], py, track.width(), height);
             let key_hit = input.pressed.is_some_and(|(_, p)| lane.contains(p));
             let row_area = Rect::new(area.min[0], py, area.width(), height);
+            panels.path_controls.selection_probe.record(fields.caption,
+                Rect::new(area.min[0], body.min[1], area.width(), body.height()));
             let navigation_hit = click(input, crate::panels::key_navigation::rail(&list.styles(), row_area));
             if click(input, fields.caption) || click(input, fields.watch) || number_hit || key_hit || navigation_hit {
                 panels.select_only(Some(row.id));
@@ -242,6 +244,9 @@ pub(in crate::panels) fn render(
                     panels.timeline.set_graph_mode(false);
                 }
             }
+            crate::panels::animation_controls::highlight_row(list,
+                Rect::new(area.min[0], py, track.max[0] - area.min[0], height),
+                panels.path_controls.keys.selected_in(state, row.id, mask.id, index));
             crate::panels::timeline::property_branch(list, fields.watch);
             panels.path_controls.keys.navigation(list, row_area, state, owner, mask, index, input, out);
             panels.path_controls.keys.watch(
