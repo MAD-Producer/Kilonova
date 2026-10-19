@@ -9,7 +9,7 @@ struct VertexOutput { @builtin(position) position:vec4<f32>, @location(0) uv:vec
     var out:VertexOutput;out.position=draw.mvp*vec4(position,1.0);out.uv=uv*draw.uv_scale.xy;return out;
 }
 @fragment fn fragment_main(input:VertexOutput)->@location(0) vec4<f32> {
-    let edge=plane_coverage(input.uv,draw.uv_scale.xy);
+    let edge=plane_coverage(input.uv,draw.uv_scale.xy,dpdx(input.uv),dpdy(input.uv));
     let uv=plane_sample_uv(input.uv,draw.uv_scale.xy,textureDimensions(image));
     let mask_uv=plane_sample_uv(input.uv,draw.uv_scale.xy,textureDimensions(mask));
     let c=textureSample(image,image_sampler,uv);let coverage=textureSample(mask,mask_sampler,mask_uv).r*edge;

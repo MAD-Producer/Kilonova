@@ -23,7 +23,7 @@ fn vertex_main(@location(0) position: vec3<f32>, @location(1) uv: vec2<f32>) -> 
 
 @fragment
 fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
-    let coverage = plane_coverage(input.uv, draw.uv_scale.xy);
+    let coverage = plane_coverage(input.uv, draw.uv_scale.xy, dpdx(input.uv), dpdy(input.uv));
     let uv = plane_sample_uv(input.uv, draw.uv_scale.xy, textureDimensions(image));
     let texel = textureSample(image, image_sampler, uv);
     let alpha = texel.a * draw.color.a * draw.extent_opacity.z;

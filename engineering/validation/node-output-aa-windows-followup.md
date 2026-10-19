@@ -71,3 +71,29 @@ to the assertion message so another Windows result can distinguish color
 conversion from plane coverage. Keep the comparison and tolerance unchanged.
 The complete local `preview_memory` target passes all three tests. The
 Windows pixel discrepancy and overall PR CI result remain unresolved.
+
+## Odd-viewport coverage candidate
+
+The diagnostic run at `433d09e` (Windows job `117894375159`) reports expected
+RGBA `[197, 65, 0, 255]` but background `[13, 15, 23, 255]` at indices
+4, 9, 14, 19, 24, 29, 30 and 31 of the 5x7 target. The first six are the
+rightmost column; the last two begin the bottom row. Interior pixels satisfy
+the unchanged comparison. The adapter is Microsoft Basic Render Driver
+`10.0.20348.5386`, DX12. This points to coverage at partial derivative quads,
+rather than a uniform video color conversion offset; it does not by itself
+identify the driver's internal defect.
+
+Move UV derivatives to each fragment entry point, directly on the incoming
+interpolator, and pass them into the shared coverage function. Divide by the
+uniform UV scale afterward. This is algebraically equivalent, keeps the
+same box integral, and avoids differentiating normalized helper-function
+temporaries. Cover plain, masked, alpha-matted, luma-matted and blended
+planes at nine small even/odd extents, including 1x1 and the failing 5x7.
+The new regression checks every RGBA channel against the fully covered
+opaque reference. All six antialiasing integration tests pass locally.
+
+Add the complete antialiasing integration target to the Windows job before
+the existing desktop tests. Windows previously ran host/desktop tests but
+not this target; Linux's software Vulkan result cannot cover this driver.
+Keep all existing test steps and assertions. The candidate still requires
+the old Windows driver result before being described as a confirmed repair.

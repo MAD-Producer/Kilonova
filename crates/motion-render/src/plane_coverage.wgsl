@@ -18,10 +18,14 @@ fn plane_half_coverage(distance:f32, gradient:vec2<f32>)->f32 {
     let regular=select(integrated,linear,b<a*1.0e-5);
     return select(regular,select(0.0,1.0,distance>=0.0),a<1.0e-12);
 }
-fn plane_coverage(uv:vec2<f32>,scale:vec2<f32>)->f32 {
+fn plane_coverage(uv:vec2<f32>,scale:vec2<f32>,uv_dx:vec2<f32>,uv_dy:vec2<f32>)->f32 {
     if !PLANE_ANTIALIAS {return 1.0;}
-    let p=uv/max(scale,vec2(1.0e-12));
-    let dx=dpdx(p);let dy=dpdy(p);
+    let safe_scale=max(scale,vec2(1.0e-12));
+    let p=uv/safe_scale;
+    // Differentiate the incoming interpolator at the fragment entry point.
+    // Normalize afterward: scale is uniform, and this avoids derivatives of
+    // helper-function temporaries on partial quads at an odd viewport edge.
+    let dx=uv_dx/safe_scale;let dy=uv_dy/safe_scale;
     let u=vec2(dx.x,dy.x);let v=vec2(dx.y,dy.y);
     let x=plane_half_coverage(p.x,u)-plane_half_coverage(p.x-1.0,u);
     let y=plane_half_coverage(p.y,v)-plane_half_coverage(p.y-1.0,v);

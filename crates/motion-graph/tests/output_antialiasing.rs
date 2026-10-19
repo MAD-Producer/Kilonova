@@ -50,6 +50,95 @@ fn area_in_pixel(quad: &[[f64; 2]], x: usize, y: usize) -> f64 {
 }
 
 #[test]
+fn aligned_planes_preserve_the_last_row_and_column_of_odd_viewports() {
+    use motion_core::{
+        compositing::*,
+        masks::LayerMask,
+        vector::{PathNode, VectorPath},
+        Track,
+    };
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    for (width, height) in [
+        (1, 1),
+        (1, 3),
+        (2, 3),
+        (3, 2),
+        (5, 7),
+        (7, 5),
+        (8, 8),
+        (9, 6),
+        (6, 9),
+    ] {
+        for case in ["plain", "mask", "alpha_matte", "luma_matte", "blend"] {
+            let mut project = Project::new(width, height, 30, 60).unwrap();
+            project.version = 10;
+            project.camera.created = false;
+            project.background = [0.; 4];
+            let size = [width as f32, height as f32];
+            let center = [size[0] / 2., size[1] / 2., 0.];
+            let mut layer = Layer::solid(1, "Aligned edge", size, center, [1.; 4]);
+            if case == "mask" {
+                layer.masks.push(LayerMask::new(
+                    1,
+                    VectorPath {
+                        id: 1,
+                        closed: true,
+                        nodes: [[0., 0.], [size[0], 0.], size, [0., size[1]]]
+                            .into_iter()
+                            .enumerate()
+                            .map(|(i, p)| PathNode {
+                                id: i as u64 + 1,
+                                geometry: Track::constant([p[0], p[1], 0., 0., 0., 0.]),
+                            })
+                            .collect(),
+                    },
+                ));
+            }
+            if case.ends_with("matte") {
+                let mut source = Layer::solid(2, "Opaque matte", size, center, [1.; 4]);
+                source.visible = false;
+                project.layers.push(source);
+                layer.track_matte = Some(TrackMatte {
+                    source: 2,
+                    hide_source: true,
+                    mode: if case == "alpha_matte" {
+                        MatteMode::Alpha
+                    } else {
+                        MatteMode::Luma
+                    },
+                });
+            }
+            if case == "blend" {
+                layer.blend = LayerBlend {
+                    mode: BlendMode::Multiply,
+                    space: BlendSpace::Linear,
+                };
+            }
+            project.layers.push(layer);
+            let mut scene = Scene::new(&project);
+            scene
+                .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
+                .unwrap();
+            let target = renderer.capture_target(width, height).unwrap();
+            let pixels = renderer.capture(&scene, &target).unwrap().0;
+            assert_eq!(pixels.len(), width as usize * height as usize * 4);
+            for (i, pixel) in pixels.chunks_exact(4).enumerate() {
+                // Every pixel box is fully inside the aligned opaque plane.
+                // This includes partial 2x2 derivative quads at odd extents.
+                assert!(
+                    pixel.iter().all(|&v| v.abs_diff(255) <= 1),
+                    "{case} {width}x{height} ({},{}): {pixel:?}; adapter={:?}",
+                    i % width as usize,
+                    i / width as usize,
+                    renderer.adapter_info
+                );
+            }
+            assert!(renderer.gpu_error().is_none());
+        }
+    }
+}
+
+#[test]
 fn magnified_sdf_output_is_rasterized_at_display_density() {
     let folder = tempfile::tempdir().unwrap();
     let mut graph =
