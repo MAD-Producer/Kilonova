@@ -7,8 +7,17 @@ use crate::{
 use std::collections::{HashMap, HashSet};
 use wgpu::util::DeviceExt;
 
+#[cfg(test)]
+mod reuse_tests;
+
 struct Uniform {
     buffer: wgpu::Buffer,
+    group: wgpu::BindGroup,
+    inputs: Option<InputBinding>,
+}
+struct InputBinding {
+    input: wgpu::TextureView,
+    source: wgpu::TextureView,
     group: wgpu::BindGroup,
 }
 pub(crate) struct MaskGpu {
@@ -18,11 +27,14 @@ pub(crate) struct MaskGpu {
     input_layout: wgpu::BindGroupLayout,
     sampler: wgpu::Sampler,
     uniforms: Vec<Uniform>,
+    inputs_cached: bool,
     scratch: Vec<FxTexture>,
     scratch_size: (u32, u32),
     fingerprints: HashMap<u64, u64>,
     meshes: HashMap<(u64,u64),(u64,wgpu::Buffer)>,
     pub uploads: u64,
+    #[cfg(test)]
+    input_binding_observations: Vec<wgpu::BindGroup>,
 }
 fn texture(
     device: &wgpu::Device,
@@ -170,21 +182,35 @@ impl MaskGpu {
             input_layout,
             sampler,
             uniforms: vec![],
+            inputs_cached: false,
             scratch: vec![],
             scratch_size: (0, 0),
             fingerprints: HashMap::new(),
             meshes: HashMap::new(),
             uploads: 0,
+            #[cfg(test)]
+            input_binding_observations: Vec::new(),
         })
     }
     pub fn scratch_bytes(&self) -> u64 {
         u64::from(self.scratch_size.0) * u64::from(self.scratch_size.1) * self.scratch.len() as u64
     }
     pub fn clear(&mut self) {
+        self.clear_inputs();
         self.scratch.clear();
         self.scratch_size = (0, 0);
         self.fingerprints.clear();
         self.meshes.clear();
+    }
+    fn clear_inputs(&mut self) {
+        // Cached views refer to the current scratch pool. Release them before
+        // retiring that pool, including bindings in currently unused slots.
+        if self.inputs_cached {
+            for slot in &mut self.uniforms {
+                slot.inputs = None;
+            }
+            self.inputs_cached = false;
+        }
     }
     fn filter(
         &mut self,
@@ -213,33 +239,56 @@ impl MaskGpu {
                     resource: buffer.as_entire_binding(),
                 }],
             });
-            self.uniforms.push(Uniform { buffer, group });
+            self.uniforms.push(Uniform {
+                buffer,
+                group,
+                inputs: None,
+            });
         }
-        let slot = &self.uniforms[*index];
+        let slot = &mut self.uniforms[*index];
         *index += 1;
         queue.write_buffer(&slot.buffer, 0, bytemuck::bytes_of(&u));
-        let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("mask pass inputs"),
-            layout: &self.input_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(input),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&self.sampler),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: wgpu::BindingResource::TextureView(source),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 3,
-                    resource: wgpu::BindingResource::Sampler(&self.sampler),
-                },
-            ],
-        });
+        // Layout and sampler are immutable here. Match actual view identities,
+        // not dimensions: equal-sized replacement textures must rebind.
+        if slot
+            .inputs
+            .as_ref()
+            .is_some_and(|cached| cached.input != *input || cached.source != *source)
+        {
+            slot.inputs = None;
+        }
+        let group = &slot
+            .inputs
+            .get_or_insert_with(|| InputBinding {
+                input: input.clone(),
+                source: source.clone(),
+                group: device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some("mask pass inputs"),
+                    layout: &self.input_layout,
+                    entries: &[
+                        wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: wgpu::BindingResource::TextureView(input),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 1,
+                            resource: wgpu::BindingResource::Sampler(&self.sampler),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 2,
+                            resource: wgpu::BindingResource::TextureView(source),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 3,
+                            resource: wgpu::BindingResource::Sampler(&self.sampler),
+                        },
+                    ],
+                }),
+            })
+            .group;
+        self.inputs_cached = true;
+        #[cfg(test)]
+        self.input_binding_observations.push(group.clone());
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             multiview_mask: None,
             label: Some("mask feather/combine"),
@@ -259,7 +308,7 @@ impl MaskGpu {
         pass.set_viewport(0., 0., u.size[0], u.size[1], 0., 1.);
         pass.set_pipeline(&self.filters[pipeline]);
         pass.set_bind_group(0, &slot.group, &[]);
-        pass.set_bind_group(1, &group, &[]);
+        pass.set_bind_group(1, group, &[]);
         pass.draw(0..3, 0..1);
     }
     pub fn prepare(
@@ -275,6 +324,8 @@ impl MaskGpu {
         other: u64,
         source_budget: u64,
     ) -> Result<bool, RenderError> {
+        #[cfg(test)]
+        self.input_binding_observations.clear();
         let active: HashSet<_> = masks.iter().map(|m| scene.layers[m.layer].id).collect();
         let active_meshes:HashSet<_>=masks.iter().map(|m|(scene.layers[m.layer].id,m.id)).collect();
         self.meshes.retain(|key,_|active_meshes.contains(key));
@@ -297,6 +348,7 @@ impl MaskGpu {
         }
         let (w, h, slots) = mask_plan::scratch_dimensions(masks);
         if (w, h) != self.scratch_size || slots != self.scratch.len() {
+            self.clear_inputs();
             self.scratch = (0..slots)
                 .map(|_| texture(device, image_layout, &self.sampler, w, h))
                 .collect();
