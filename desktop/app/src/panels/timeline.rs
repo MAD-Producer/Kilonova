@@ -197,14 +197,13 @@ pub(super) fn property_rows(state: &Value, object: u64) -> Vec<PropertyRow> {
         .and_then(|ts| ts.iter().find(|t| t["object"].as_u64() == Some(object)));
     property_rows_for(layer, timeline)
 }
-fn property_rows_for(layer: Option<&Value>, timeline: Option<&Value>) -> Vec<PropertyRow> {
+fn property_descriptors(layer: Option<&Value>) -> Vec<(Property, &'static str, T, Vec<usize>)> {
     let three_d = layer.is_some_and(|l| l["three_d"].as_bool() == Some(true));
     if layer.is_some_and(|l| l["content"]["kind"].as_str() == Some("audio")) {
         return vec![];
     }
-    let mut rows = vec![];
     let camera = layer.filter(|l| l["content"]["kind"] == "camera").map(|l| &l["content"]["camera"]);
-    let properties = if let Some(camera) = camera {
+    if let Some(camera) = camera {
         let mut rows = vec![
             (Property::Target, "target", T::CameraTarget, vec![0, 1, 2]),
             (Property::Roll, "roll", T::CameraRoll, vec![0]),
@@ -241,8 +240,22 @@ fn property_rows_for(layer: Option<&Value>, timeline: Option<&Value>) -> Vec<Pro
             if three_d { vec![0, 1, 2] } else { vec![2] },
         ),
         (Property::Opacity, "opacity", T::Opacity, vec![0]),
-    ] };
-    for (property, key, title, axes) in properties {
+    ] }
+}
+
+/// Selection checks need channel metadata, never copies of every authored key.
+pub(super) fn property_row_exists(state: &Value, object: u64, property: Property, axis: Option<motion_core::Axis>) -> bool {
+    let layer = state["project"]["layers"].as_array().and_then(|layers|
+        layers.iter().find(|layer| layer["id"].as_u64() == Some(object)));
+    layer.is_some()
+        && super::animation_data::channel(state, object, property, axis).is_some_and(|source| !source.is_null())
+        && property_descriptors(layer).iter().any(|(candidate, _, _, axes)|
+            *candidate == property && axis.is_none_or(|axis| axes.contains(&axis.index())))
+}
+
+fn property_rows_for(layer: Option<&Value>, timeline: Option<&Value>) -> Vec<PropertyRow> {
+    let mut rows = vec![];
+    for (property, key, title, axes) in property_descriptors(layer) {
         let track = timeline
             .map(|t| &t["properties"][key])
             .unwrap_or(&Value::Null);
@@ -717,6 +730,7 @@ pub(super) fn render(
     let wheel = input.wheel[1];
     let gesture = panels.timeline.graph_box.editing()
         || panels.timeline.key_drag.is_some()
+        || panels.timeline.timing_drag.is_some()
         || panels.timeline.graph_drag.is_some()
         || panels.timeline.moving.is_some()
         || panels.timeline.trimming.is_some()
@@ -891,11 +905,10 @@ pub(super) fn render(
         let next = panels.timeline.zoom.max(1.) * 1.25;
         super::timeline_zoom::zoom_at(&mut panels.timeline, total as f32, next, 0.5);
     }
-    if ui::button(
+    if ui::button_icon(
         list,
-        atlas,
         Rect::new(zoom_x + 117., toolbar_top, toolbar_height, toolbar_height),
-        "↔",
+        motion_ui::icons::Icon::Expand,
         input,
         true,
     )
@@ -1158,6 +1171,9 @@ pub(super) fn render(
             .as_array()
             .and_then(|ls| ls.iter().find(|l| l["id"].as_u64() == Some(row.id)));
         if let (Some(layer), Some(switch)) = (layer.filter(|_| row.id != 0 && row.spatial && !row.camera), columns.three_d) {
+            if panels.selected == Some(row.id) {
+                panels.timeline.three_d_probe.record(switch.rect(y, row_height), body);
+            }
             if motion_ui::widgets::Checkbox::draw(
                 list,
                 atlas,
@@ -1165,7 +1181,9 @@ pub(super) fn render(
                 "",
                 layer["three_d"] == true,
                 input,
-                !row.locked && state["observing"] != true,
+                // Observation changes the preview camera, not layer ownership.
+                // Switching dimensions is independent of viewport coordinates.
+                !row.locked,
                 false,
                 None,
             )
@@ -1337,6 +1355,23 @@ pub(super) fn render(
         if graph_mode {
             continue;
         }
+        // A collapsed summary diamond takes precedence over the layer bar and
+        // its edge handles. Its drag moves authored keys, never the clip.
+        let key_hit = (!expanded).then(|| {
+            row.keys.iter().copied().find(|frame| {
+                let x = x_of(*frame);
+                let hit = styles.metric("timeline.key.hit_radius", 5.);
+                let radius = styles.metric("timeline.key.radius", 4.);
+                *frame >= 0. && *frame < total && x >= track.min[0] + radius
+                    && x < track.max[0] - radius
+                    && clicked(input, Rect::new(x - hit, y, hit * 2., row_height))
+            })
+        }).flatten();
+        if let Some(frame) = key_hit {
+            super::timeline_key_drag::begin(
+                panels, state, row, frame as u32, None, ppf, offset, input, out,
+            );
+        }
         let left = x_of(row.range[0]).max(track.min[0]);
         let right = x_of(row.range[1]).min(track.max[0]);
         if right > left {
@@ -1366,7 +1401,7 @@ pub(super) fn render(
                     if handle.contains(input.mouse) {
                         panels.cursor = Some(motion_ui::cursor::Cursor::ResizeEW);
                     }
-                    if clicked(input, handle) {
+                    if key_hit.is_none() && clicked(input, handle) {
                         panels.timeline.trimming = Some((
                             row.id,
                             row.range[0],
@@ -1378,7 +1413,7 @@ pub(super) fn render(
                     }
                 }
             }
-            if clicked(input, bar) && panels.timeline.trimming.is_none() {
+            if key_hit.is_none() && clicked(input, bar) && panels.timeline.trimming.is_none() {
                 if input.modifiers.control
                     || input.modifiers.shift
                     || !panels.selection_contains(row.id)
@@ -1427,11 +1462,16 @@ pub(super) fn render(
         }
         for f in row.keys.iter().filter(|_| !expanded) {
             let x = x_of(*f);
-            if x >= track.min[0] + 4.0 && x < track.max[0] - 4.0 {
-                paint::diamond(list, [x, y + row_height * 0.5], 4.0, colors.KEYFRAME);
+            let radius = styles.metric("timeline.key.radius", 4.);
+            if x >= track.min[0] + radius && x < track.max[0] - radius {
+                paint::diamond(list, [x, y + row_height * 0.5], radius, colors.KEYFRAME);
             }
         }
     }
+    super::timeline_key_drag::update(
+        panels, state, &all_rows, ppf, offset, input, out,
+        styles.metric("motion.drag_threshold", 3.),
+    );
     super::path_controls::timeline::process(
         list, &all_rows, body, ppf, offset, panels, state, input, out,
     );
@@ -2024,6 +2064,7 @@ pub(super) fn render_layer_properties(
         let sample = state["sampledLayers"]
             .as_array()
             .and_then(|ls| ls.iter().find(|l| l["id"].as_u64() == Some(row.id)));
+        let mut selection = panels.animation_controls.track_selection(state, panels.selected);
         for (i, property_index) in layout.properties.iter().enumerate() {
             let property = &row.properties[*property_index];
             let py = y + layout.property_offsets[i] as f32 * row_height;
@@ -2038,17 +2079,36 @@ pub(super) fn render_layer_properties(
                 ][a]
             });
             let property_area = Rect::new(area.min[0], py, gutter, row_height);
+            let fields = property_layout(&list.styles(), property_area, py, row_height, 0, property.axes.len());
+            panels.animation_controls.record_row(
+                super::animation_controls::SelectedTrack {object: row.id, property: property.property, axis}, fields.caption,
+                property.axes.iter().enumerate().map(|(index, component)| (*component,
+                    property_layout(&list.styles(), property_area, py, row_height, index, property.axes.len()).number)),
+            );
+            let component = property.axes.iter().enumerate().find_map(|(index, component)| {
+                clicked(input, property_layout(&list.styles(), property_area, py, row_height, index, property.axes.len()).number)
+                    .then_some(*component)
+            });
+            if clicked(input, fields.caption) || component.is_some() {
+                panels.select_only(Some(row.id));
+                panels.animation_controls.choose_track_in(state, row.id, property.property, axis);
+                if let Some(component) = component {
+                    panels.timeline.graph_component = component;
+                } else {
+                    panels.animation_controls.clear_key();
+                }
+                selection = panels.animation_controls.track_selection(state, panels.selected);
+            }
+            // Leave the existing separator and the graph's independent background visible.
+            let highlight = Rect::new(area.min[0], py,
+                if graph_mode { gutter } else { track.max[0] - area.min[0] },
+                (row_height - list.styles().metric("tree.separator.width", 0.5)).max(0.));
+            super::animation_controls::highlight_row(list, highlight,
+                selection == super::animation_controls::TrackSelection::Current(
+                    super::animation_controls::SelectedTrack { object: row.id, property: property.property, axis }));
             super::key_navigation::property_row(
                 list, property_area, panels, state, input, row.id, property.property, axis,
                 &property.keys, out,
-            );
-            let fields = property_layout(
-                list.styles().as_ref(),
-                property_area,
-                py,
-                row_height,
-                0,
-                property.axes.len(),
             );
             property_branch(list, fields.watch);
             property_icon(
@@ -2113,13 +2173,6 @@ pub(super) fn render_layer_properties(
                 .map(|a| format!("{} {}", locale.t(property.title), ["X", "Y", "Z"][a]))
                 .unwrap_or_else(|| locale.t(property.title).into());
             label(list, atlas, fields.caption, &text, true);
-            if clicked(input, fields.caption) {
-                panels.select_only(Some(row.id));
-                panels
-                    .animation_controls
-                    .choose_track(row.id, property.property, axis);
-                panels.animation_controls.clear_key();
-            }
             if property.property == Property::Anchor {
                 if let Some(layer) = state["project"]["layers"].as_array().into_iter().flatten()
                     .find(|l| l["id"].as_u64()==Some(row.id)) {
@@ -2145,13 +2198,6 @@ pub(super) fn render_layer_properties(
                     property.axes.len(),
                 )
                 .number;
-                if clicked(input, field) {
-                    panels.select_only(Some(row.id));
-                    panels
-                        .animation_controls
-                        .choose_track(row.id, property.property, axis);
-                    panels.timeline.graph_component = *component;
-                }
                 super::properties::draw_value(
                     list,
                     atlas,
@@ -2176,22 +2222,19 @@ pub(super) fn render_layer_properties(
                     paint::diamond(
                         list,
                         [x, py + row_height * 0.5],
-                        4.,
+                        list.styles().metric("timeline.key.radius", 4.),
                         if current {
                             colors.KEYFRAME
                         } else {
                             colors.ACCENT
                         },
                     );
-                    if clicked(input, Rect::new(x - 5., py, 10., row_height)) {
-                        panels.select_only(Some(row.id));
-                        panels.animation_controls.select_key(
-                            row.id,
-                            property.property,
-                            axis,
-                            *frame as i64,
+                    let hit = list.styles().metric("timeline.key.hit_radius", 5.);
+                    if clicked(input, Rect::new(x - hit, py, hit * 2., row_height)) {
+                        super::timeline_key_drag::begin(
+                            panels, state, row, frame.clamp(0., total - 1.) as u32,
+                            Some((property.property, axis)), ppf, offset, input, out,
                         );
-                        out.push(Action::Seek(frame.clamp(0., total - 1.)));
                     }
                 }
             }

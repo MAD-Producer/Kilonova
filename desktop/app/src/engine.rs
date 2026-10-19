@@ -1598,7 +1598,7 @@ fn handle(
             if presentation.last_present_us>=30_000 {
                 log::debug!("[motion-timing] surface {} present: {} us, composition renders={}, reuses={}",ui.window,presentation.last_present_us,presentation.composition_renders,presentation.composition_reuses);
             }
-            result
+            result.map_err(|error| format!("{error}; window={} logical_size={:?}", ui.window, ui.logical_size))
         });
         let mut paint=ui.paint;paint.clear();
         recycle_paint_pool(paints, paint, true);

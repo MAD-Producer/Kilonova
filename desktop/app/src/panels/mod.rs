@@ -62,11 +62,17 @@ pub(crate) mod path_controls;
 mod paths;
 mod project;
 mod properties;
+mod property_focus;
 #[cfg(test)]
 mod property_followup_tests;
 #[cfg(test)]
+mod timeline_3d_tests;
+#[cfg(test)]
 mod selection_tests;
 mod timeline;
+mod timeline_key_drag;
+#[cfg(test)]
+mod timeline_key_drag_tests;
 mod timeline_columns;
 #[cfg(test)]
 mod timeline_columns_tests;
@@ -146,7 +152,7 @@ fn styled_viewer(area: Rect, styles: &motion_ui::style::StyleSheet) -> Rect {
     let bottom = styles.metric("viewer.canvas.bottom", 6.);
     let controls = styles.metric("viewer.controls.height", 28.);
     Rect::new(area.min[0]+padding, area.min[1]+padding,
-        (area.width()-padding*2.).max(1.), (area.height()-padding-bottom-controls).max(1.))
+        (area.width()-padding*2.).max(0.), (area.height()-padding-bottom-controls).max(0.))
 }
 pub fn composition_view_styled(layout: &Node, size: [f32; 2], styles: &motion_ui::style::StyleSheet) -> Rect {
     frames(layout, size).into_iter().find(|f| f.panel == Panel::Composition)
@@ -155,7 +161,8 @@ pub fn composition_view_styled(layout: &Node, size: [f32; 2], styles: &motion_ui
 pub fn floating_view_styled(panel: Panel, size: [f32; 2], styles: &motion_ui::style::StyleSheet) -> Option<Rect> {
     let top = styles.metric("viewer.floating.top",30.);
     let bottom = styles.metric("viewer.floating.bottom",22.);
-    (panel == Panel::Composition).then(|| styled_viewer(Rect::new(0.,top,size[0],(size[1]-top-bottom).max(1.)),styles))
+    (panel == Panel::Composition).then(|| styled_viewer(Rect::new(0.,top,size[0],(size[1]-top-bottom).max(0.)),styles))
+        .filter(|view| view.width() > 0. && view.height() > 0.)
 }
 /// Evidence before visibility/routing changes; no gesture is cancelled here.
 pub(crate) fn observe_interaction_boundary(panels: &Panels, operation: &str) {
@@ -164,7 +171,8 @@ pub(crate) fn observe_interaction_boundary(panels: &Panels, operation: &str) {
         .graph_drag
         .as_ref()
         .is_some_and(|d| d.begun())
-        || panels.timeline.key_drag.as_ref().is_some_and(|d| d.begun());
+        || panels.timeline.key_drag.as_ref().is_some_and(|d| d.begun())
+        || panels.timeline.timing_drag.as_ref().is_some_and(|d| d.begun());
     let path = panels.path_controls.gesture_active();
     let curve = panels.effect_controls.curve_gesture_active()
         || panels.properties.effects.curve_gesture_active();
@@ -203,7 +211,8 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     panels.timeline.reorder = None;
     let animation = panels.animation_controls.cancel();
     let graph = panels.timeline.graph_drag.take().is_some_and(|d| d.begun())
-        | panels.timeline.key_drag.take().is_some_and(|d| d.begun());
+        | panels.timeline.key_drag.take().is_some_and(|d| d.begun())
+        | panels.timeline.timing_drag.take().is_some_and(|d| d.begun());
     let path = panels.path_controls.cancel();
     let transform = panels.transform_controls.cancel();
     panels.composition.orbit = None;
@@ -1918,4 +1927,5 @@ fn render_panel(
         Panel::Expression => properties::render(list, atlas, area, panels, state, input, out),
         _ => auxiliary::render(panel, list, atlas, area, panels, state, input, out),
     }
+    property_focus::settle(panels);
 }

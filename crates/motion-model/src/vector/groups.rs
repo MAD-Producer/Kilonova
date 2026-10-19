@@ -190,6 +190,10 @@ fn vector_valid(t: &Track<[f32; 2]>, min: f32, max: f32) -> Result<()> {
     )
 }
 impl GroupTransform {
+    /// Authored geometry and rendering share one validated local-to-parent basis.
+    pub fn sample_matrix(&self, frame: f64) -> Result<Mat3> {
+        sampling::sample_transform(self, frame)
+    }
     fn validate(&self) -> Result<()> {
         vector_valid(&self.position, -32768., 32768.)?;
         vector_valid(&self.anchor, -32768., 32768.)?;
