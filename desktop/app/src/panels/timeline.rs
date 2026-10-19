@@ -8,7 +8,7 @@ use std::hash::{Hash, Hasher};
 pub(super) struct Row {
     pub(super) spatial: bool,
     pub(super) camera: bool,
-    pub(super) effects: usize,
+    pub(super) effects: Vec<Value>,
     pub(super) audio: usize,
     pub(super) masks: Vec<motion_core::masks::LayerMask>,
     pub(super) mask_offset: i32,
@@ -392,7 +392,7 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
             Row {
                 spatial: l["content"]["kind"] != "audio",
                 camera: l["content"]["kind"] == "camera",
-                effects: l["effects"].as_array().map_or(0, Vec::len),
+                effects: l["effects"].as_array().cloned().unwrap_or_default(),
                 audio: if super::audio::is_audio(l) {
                     super::audio::rows(l)
                 } else {
@@ -441,7 +441,7 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
             Row {
                 spatial: false,
                 camera: true,
-                effects: 0,
+                effects: vec![],
                 audio: 0,
                 vector: None,
                 vector_size: [0.; 2],
@@ -498,6 +498,12 @@ fn scroll_extent_signature(
         id.hash(&mut hash);
     }
     timeline.collapsed_transforms.len().hash(&mut hash);
+    for id in &timeline.expanded_effects {
+        id.hash(&mut hash);
+    }
+    for id in &timeline.collapsed_effect_items {
+        id.hash(&mut hash);
+    }
     for id in &timeline.collapsed_audio {
         id.hash(&mut hash);
     }
@@ -610,6 +616,7 @@ pub(super) fn render(
     input: &Input,
     out: &mut Vec<Action>,
 ) {
+    super::effect_timeline::prepare(panels, state, input, out);
     super::audio::prepare(panels, state, input, out);
     if panels.focused == Some(Panel::Timeline) {
         super::properties::process_field(panels, state, input, out);
@@ -643,6 +650,8 @@ pub(super) fn render(
         || panels.timeline_columns.editing()
         || panels.layer_actions.editing()
         || panels.path_controls.mask_menu()
+        || panels.effect_timeline.menu_open()
+        || panels.effect_timeline.dropdown_open()
     {
         &neutral
     } else {
@@ -729,6 +738,7 @@ pub(super) fn render(
     panels.timeline.zoom_track = Some(track);
     let wheel = input.wheel[1];
     let gesture = panels.timeline.graph_box.editing()
+        || panels.effect_timeline.editing()
         || panels.timeline.key_drag.is_some()
         || panels.timeline.timing_drag.is_some()
         || panels.timeline.graph_drag.is_some()
@@ -1106,6 +1116,7 @@ pub(super) fn render(
                 panels,
                 state,
                 input,
+                context_input,
                 out,
             );
         }
@@ -1468,6 +1479,7 @@ pub(super) fn render(
             }
         }
     }
+    super::effect_timeline::update(panels, state, input, ppf, offset as f64, out);
     super::timeline_key_drag::update(
         panels, state, &all_rows, ppf, offset, input, out,
         styles.metric("motion.drag_threshold", 3.),
@@ -1745,6 +1757,7 @@ pub(super) fn render(
         );
     }
     super::timeline_navigation::paint(list, track, footer_height, total as f32, &panels.timeline, input);
+    super::effect_timeline::overlay(list, atlas, area, panels, state, context_input, out);
     panels
         .timeline_columns
         .overlay(list, atlas, area, state, context_input, locale, out);
@@ -1752,6 +1765,7 @@ pub(super) fn render(
         && !panels.layer_actions.editing()
         && !panels.path_controls.mask_menu()
         && !panels.expressions.menu_open()
+        && !panels.effect_timeline.menu_open()
     {
         panels.layer_actions.open(None, input.mouse, state);
     }
@@ -2031,6 +2045,7 @@ pub(super) fn render_layer_properties(
     panels: &mut Panels,
     state: &Value,
     input: &Input,
+    context_input: &Input,
     out: &mut Vec<Action>,
 ) {
     let colors = list.styles().colors();
@@ -2343,111 +2358,10 @@ pub(super) fn render_layer_properties(
             }
         }
         if layout.effects_open {
-            let effects = state["project"]["layers"]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .find(|layer| layer["id"].as_u64() == Some(row.id))
-                .and_then(|layer| layer["effects"].as_array());
-            for (index, effect) in effects.into_iter().flatten().enumerate() {
-                let py = ey + (index + 1) as f32 * row_height;
-                if py < body.min[1] || py + row_height > body.max[1] {
-                    continue;
-                }
-                let fields = property_layout(&list.styles(), area, py, row_height, 0, 1);
-                property_branch(list, fields.watch);
-                if motion_ui::widgets::Checkbox::draw(
-                    list,
-                    atlas,
-                    fields.watch,
-                    "",
-                    effect["enabled"] != false,
-                    input,
-                    !row.locked && state["observing"] != true,
-                    false,
-                    None,
-                )
-                .clicked
-                {
-                    if let Some(id) = effect["id"].as_u64() {
-                        out.push(Action::Edit(Command::Effect {
-                            object: row.id,
-                            action: motion_core::EffectAction::Enable {
-                                effect: id,
-                                enabled: effect["enabled"] == false,
-                            },
-                        }));
-                    }
-                }
-                let definition = panels.effect_controls.definition(effect);
-                let title = definition
-                    .as_ref()
-                    .and_then(|definition| {
-                        definition[if locale == Locale::Zh {
-                            "name"
-                        } else {
-                            "english_name"
-                        }]
-                        .as_str()
-                    })
-                    .unwrap_or_else(|| effect["effect"].as_str().unwrap_or("Effect"));
-                label(list, atlas, fields.caption, title, false);
-                let edit = ui::button_styled(
-                    list,
-                    atlas,
-                    fields.number,
-                    if locale == Locale::Zh {
-                        "编辑"
-                    } else {
-                        "Edit"
-                    },
-                    input,
-                    true,
-                    &list.styles(),
-                    "button.icon",
-                )
-                .clicked;
-                if clicked(input, fields.caption) || edit {
-                    panels.select_only(Some(row.id));
-                    out.push(Action::ShowPanel(Panel::EffectControls.dock()));
-                }
-                let mut frames = vec![];
-                for parameter in effect["params"]
-                    .as_object()
-                    .into_iter()
-                    .flat_map(|params| params.values())
-                {
-                    for track in [&parameter["track"], &parameter["curve"]] {
-                        frames.extend(
-                            track["keys"]
-                                .as_array()
-                                .into_iter()
-                                .flatten()
-                                .filter_map(|key| key["frame"].as_f64())
-                                .map(|frame| frame + f64::from(row.mask_offset)),
-                        );
-                    }
-                }
-                frames.sort_by(f64::total_cmp);
-                frames.dedup();
-                for frame in frames {
-                    let x = x_of(frame);
-                    if x < track.min[0] || x >= track.max[0] {
-                        continue;
-                    }
-                    let radius = list.styles().metric("graph.key_radius", 5.);
-                    paint::diamond(
-                        list,
-                        [x, py + row_height * 0.5],
-                        list.styles().metric("graph.handle_radius", 4.),
-                        colors.KEYFRAME,
-                    );
-                    if clicked(input, Rect::new(x - radius, py, radius * 2., row_height)) {
-                        panels.select_only(Some(row.id));
-                        out.push(Action::Seek(frame.clamp(0., total - 1.)));
-                    }
-                }
-            }
+            super::effect_timeline::render(
+                list, atlas, area, body, track, ey + row_height, row_height, ppf, offset,
+                row, &layout.effect_rows, panels, state, input, context_input, out,
+            );
         }
     }
 }

@@ -37,6 +37,7 @@ mod composition;
 mod curves;
 pub(crate) mod effect_controls;
 mod effects;
+mod effect_timeline;
 mod expressions;
 pub(crate) mod effect_search;
 mod graph_box;
@@ -173,6 +174,7 @@ pub(crate) fn observe_interaction_boundary(panels: &Panels, operation: &str) {
         .is_some_and(|d| d.begun())
         || panels.timeline.key_drag.as_ref().is_some_and(|d| d.begun())
         || panels.timeline.timing_drag.as_ref().is_some_and(|d| d.begun());
+    let graph = graph || panels.effect_timeline.gesture_active();
     let path = panels.path_controls.gesture_active();
     let curve = panels.effect_controls.curve_gesture_active()
         || panels.properties.effects.curve_gesture_active();
@@ -184,6 +186,7 @@ pub(crate) fn observe_interaction_boundary(panels: &Panels, operation: &str) {
 }
 
 pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
+    let effect_timeline = panels.effect_timeline.cancel();
     let node_changed = panels.node_editor.cancel_interaction();
     panels.layer_actions.cancel();
     panels.expressions.cancel();
@@ -193,7 +196,7 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
     let camera = panels.camera_controls.cancel();
     let audio = panels.audio_controls.cancel();
     let graph_box = panels.timeline.graph_box.cancel();
-    let effect = panels.effect_controls.cancel()
+    let effect = effect_timeline | panels.effect_controls.cancel()
         | panels.properties.effects.cancel()
         | panels.properties.anchor.cancel()
         | panels.timeline_anchor.cancel();
@@ -421,12 +424,16 @@ pub fn chrome(
         || timeline_dropdown
         || panels.project.context_menu.is_some()
         || panels.timeline.timeline_context_menu.is_some();
-    let effect_owner = if panels.properties.effects.editing() {
+    let effect_owner = if panels.effect_timeline.editing() {
+        Panel::Timeline
+    } else if panels.properties.effects.editing() {
         Panel::Properties
     } else {
         Panel::EffectControls
     };
-    let effect_modal = panels.effect_controls.editing() || panels.properties.effects.editing();
+    let effect_modal = panels.effect_controls.editing()
+        || panels.properties.effects.editing()
+        || panels.effect_timeline.editing();
     let audio_modal = panels.audio_controls.editing();
     let auxiliary_owner = panels.auxiliary.owner();
     let auxiliary_modal = auxiliary_owner.is_some();
