@@ -1,6 +1,7 @@
 use motion_model::{to_world, ensure, CameraPose, Content, Layer, Observer, Project, Result};
 use glam::{Mat4, Vec3};
 use serde::Serialize;
+mod instance_ids;
 
 /// Add the reference site while preserving the model's original error code,
 /// target composition, message and time/rate details.
@@ -100,6 +101,7 @@ pub struct Scene {
     node_ids: Vec<u64>,
     node_spatial: Vec<bool>,
     source_objects:Vec<(u64,u64)>,
+    instance_ids: instance_ids::InstanceIds,
     evaluated_project: Option<Project>,
     vector_cache: std::collections::HashMap<
         u64,
@@ -142,6 +144,7 @@ impl Scene {
             node_ids: Vec::with_capacity(motion_model::MAX_LAYERS + 1),
             node_spatial: Vec::with_capacity(motion_model::MAX_LAYERS + 1),
             source_objects:Vec::new(),
+            instance_ids: Default::default(),
             evaluated_project: None,
             vector_cache: Default::default(),
             mask_cache: Default::default(),
@@ -155,11 +158,15 @@ impl Scene {
         evaluator: &dyn motion_model::FrameEvaluator,
     ) -> Result<()> {
         self.sample_inner(project, project, frame, observer, 0, &mut 0, evaluator)?;
-        if !self.nested.is_empty() {
-            let mut used: std::collections::HashSet<_> = project.layers.iter().map(|l|l.id)
-                .chain(project.compositions.iter().flat_map(|c|c.layers.iter().map(|l|l.id))).collect();
-            let mut next=1u64<<40;
-            for node in &mut self.nested { node.scene.assign_instance_ids(&mut used,&mut next); }
+        if self.nested.is_empty() { return Ok(()); }
+        self.instance_ids.prepare(project)?;
+        let aliases = &self.instance_ids;
+        let mut path = Vec::with_capacity(motion_model::composition::MAX_COMPOSITION_DEPTH);
+        for node in &mut self.nested {
+            path.push(node.layer);
+            let result = node.scene.assign_instance_ids(aliases, &mut path);
+            path.pop();
+            result?;
         }
         Ok(())
     }
@@ -527,20 +534,26 @@ impl Scene {
         };
         Ok(())
     }
-    fn assign_instance_ids(&mut self, used:&mut std::collections::HashSet<u64>, next:&mut u64) {
-        let mut mapping=std::collections::HashMap::new();
-        for id in &mut self.node_ids { if *id!=0 {
-            while used.contains(next) {*next+=1;}
-            let target=*next;*next+=1;used.insert(target);mapping.insert(*id,target);*id=target;
-        }}
+    fn assign_instance_ids(&mut self, registry: &instance_ids::InstanceIds,
+        path: &mut Vec<u64>) -> Result<()> {
+        let mapping = registry.mapping(path, &self.composition_id, &self.node_ids)?;
+        let alias = |object| instance_ids::alias(&mapping, &self.composition_id, object);
+        for id in &mut self.node_ids { if *id!=0 { *id=alias(*id)?; } }
         self.source_objects.extend(mapping.iter().map(|(source,alias)|(*alias,*source)));
-        for l in &mut self.layers {l.id=mapping[&l.id];if let Some(m)=&mut l.track_matte{m.source=mapping[&m.source];}}
+        for l in &mut self.layers {l.id=alias(l.id)?;if let Some(m)=&mut l.track_matte{m.source=alias(m.source)?;}}
         for e in &mut self.effects {
-            e.layer=mapping[&e.layer];
-            if let Some(motion_model::EffectImageInput::Layer { layer, .. }) = &mut e.image_input { *layer=mapping[layer]; }
-            if let Some(source)=e.scene.as_mut().and_then(|s|s.source_layer.as_mut()) { *source=mapping[source]; }
+            e.layer=alias(e.layer)?;
+            if let Some(motion_model::EffectImageInput::Layer { layer, .. }) = &mut e.image_input { *layer=alias(*layer)?; }
+            if let Some(source)=e.scene.as_mut().and_then(|s|s.source_layer.as_mut()) { *source=alias(*source)?; }
         }
-        for n in &mut self.nested {n.layer=mapping[&n.layer];n.scene.assign_instance_ids(used,next);}
+        for n in &mut self.nested {
+            path.push(n.layer);
+            n.layer=alias(n.layer)?;
+            let result=n.scene.assign_instance_ids(registry,path);
+            path.pop();
+            result?;
+        }
+        Ok(())
     }
     pub fn video_layers(&self) -> Vec<&DrawLayer> {
         let mut layers:Vec<_>=self.layers.iter().filter(|l|l.video.is_some()).collect();
