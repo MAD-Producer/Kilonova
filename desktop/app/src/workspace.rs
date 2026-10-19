@@ -48,6 +48,8 @@ pub struct Workspace {
     pub send_diagnostics: bool,
     #[serde(default)]
     pub node_view: crate::node_editor::ViewPreferences,
+    #[serde(default)]
+    pub node_recents: crate::node_editor::RecentNodes,
     #[serde(default = "visible_column")]
     pub timeline_column_blend: bool,
     #[serde(default = "visible_column")]
@@ -71,6 +73,7 @@ impl Default for Workspace {
             favorites: Default::default(),
             send_diagnostics: false,
             node_view: Default::default(),
+            node_recents: Default::default(),
             timeline_column_blend: true,
             timeline_column_parent: true,
             timeline_column_matte: true,

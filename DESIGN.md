@@ -380,6 +380,14 @@ These are **only** behaviors evidenced in the supplied audit, **not** an exhaust
 - Fit node bounds and the visible canvas into one aspect-preserving projection. Show the current viewport distinctly; click/drag navigation changes only canvas pan. Cancel an unfinished drag on Esc or focus loss, and capture input above underlying nodes. Hide the overlay when there is insufficient room, retaining its enabled preference.
 - Grid/minimap visibility and minimap navigation must leave graph source, compilation stamps, permanent output and both history stacks unchanged. Text, IME, menus and active gestures retain priority over G/N; Ctrl+G keeps its grouping behavior.
 
+### 10.2 Node catalogue search
+
+- The Add popup and library share one catalogue matcher. A nonblank query searches all categories; blank browsing preserves category order. Match English and Chinese titles, independently authored aliases, pinyin/initials and short descriptions. Require every query token and rank title matches first.
+- Use the native text editor for caret movement, selection, deletion and IME commits. Up/Down selects a result, Enter adds it, and Esc exits search. IME confirmation must never add a node. Keep the popup's opening world position when adding; empty results and cancellation leave the graph unchanged.
+- Show a title and short description per result, with actual input/output types for the selected or hovered entry in a fixed footer. Read popup dimensions and result/footer heights from `node.add_menu.*` and `node.search.*`; reuse existing text, inset, hover and selection tokens. Clamp the popup to its panel and clip rows and details independently.
+- In a short dock, remove the popup's redundant scope heading to retain a complete result and input/output footer, and scroll categories separately. In a short library, remove its redundant title and search-results heading first; omit the details footer only when a complete result would otherwise be hidden. The Add popup remains available for port details.
+- Record only successful catalogue choices in a bounded, deduplicated list of 16 recent keys. Persist it in workspace state, retain it across graph undo/new/open, and ignore unknown or oversized saved keys. Browsing and failed additions do not update recents or graph history.
+
 ---
 
 ## 11. Existing project model and Project panel

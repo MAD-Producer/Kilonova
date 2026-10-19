@@ -24,17 +24,21 @@ impl NodeEditor {
             }
         }
         if self.search_focus {
-            if !input.text.is_empty() {
-                self.search.push_str(&input.text);
+            let (changed, event) = self.search.input(input);
+            if changed {
                 self.library_scroll = 0.;
+                self.library_selected = 0;
             }
-            for (key, _) in &input.keys {
+            if matches!(event, Some(motion_ui::widgets::TextEvent::Cancel)) {
+                self.search_focus = false;
+            }
+            for (key, modifiers, _) in input.key_presses() {
+                if modifiers.control || modifiers.alt {
+                    continue;
+                }
                 match key {
-                    Key::Backspace => {
-                        self.search.pop();
-                        self.library_scroll = 0.;
-                    }
-                    Key::Escape | Key::Enter => self.search_focus = false,
+                    Key::Down => self.library_selected = self.library_selected.saturating_add(1),
+                    Key::Up => self.library_selected = self.library_selected.saturating_sub(1),
                     _ => {}
                 }
             }
@@ -122,7 +126,9 @@ impl NodeEditor {
                     self.add_menu = Some(AddMenu {
                         position,
                         world: self.view.screen_to_world(position, self.last_canvas),
-                        query: String::new(),
+                        query: SearchQuery::default(),
+                        recent: false,
+                        category_scroll: 0.,
                         category: None,
                         selected: 0,
                         scroll: 0.,

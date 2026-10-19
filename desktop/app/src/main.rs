@@ -429,6 +429,7 @@ impl Shell {
         shell.panels.workspace_preset = shell.workspace.preset;
         shell.panels.browser.favorites = shell.workspace.favorites.clone();
         shell.panels.node_editor.view_preferences = shell.workspace.node_view;
+        shell.panels.node_editor.recent_nodes = shell.workspace.node_recents.clone();
         shell.panels.effect_controls.catalogue =
             shell.engine.plugin("{\"op\":\"catalogue\"}".into())?.into();
         if shell.smoke.is_some() {

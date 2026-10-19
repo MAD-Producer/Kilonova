@@ -13,6 +13,9 @@ mod group_tests;
 mod inspector;
 mod interaction;
 mod library;
+mod search;
+#[cfg(test)]
+mod search_tests;
 pub(super) mod minimap;
 #[cfg(test)]
 mod nudge_tests;
@@ -529,6 +532,9 @@ impl NodeEditor {
         }
         if preferences != self.view_preferences {
             response.actions.push(Action::ViewPreferencesChanged(self.view_preferences));
+        }
+        if std::mem::take(&mut self.recent_dirty) {
+            response.actions.push(Action::RecentNodesChanged(self.recent_nodes.clone()));
         }
         response
     }
