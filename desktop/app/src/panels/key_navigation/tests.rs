@@ -1,6 +1,8 @@
 use super::*;
 use crate::panels::animation_data as data;
 use motion_core::{Axis, Engine, Keyframe, Layer, Project};
+mod property_selection;
+mod effect_scope;
 
 fn key<T>(frame: i32, value: T) -> Keyframe<T> {
     Keyframe {
@@ -798,6 +800,43 @@ fn effect_navigation_uses_the_actual_instance_and_preserves_curve_samples_in_bot
                         &panels.effect_controls
                     };
                     let value = controls.test_rects[&(7, effect, param.into(), -4)];
+                    let caption = controls.test_rects[&(7, effect, param.into(), -7)];
+                    for rect in [caption, value] {
+                        let point = [(rect.min[0] + rect.max[0])*0.5,
+                            (rect.min[1] + rect.max[1])*0.5];
+                        let actions = draw_host(&mut panels, &before,
+                            &Input {mouse:point, pressed:Some((MouseButton::Left,point)),
+                                ..Default::default()}, panel, floating, &mut atlas);
+                        // Numeric fields may begin a gesture, while captions
+                        // only select. Execute the real boundary and cancellation.
+                        for action in actions {
+                            match action {
+                                Action::History(index) => {host.history(index).unwrap();}
+                                other => panic!("selection unexpectedly edited data: {other:?}"),
+                            }
+                        }
+                        for controls in [&panels.effect_controls, &panels.properties.effects] {
+                            assert!(controls.parameter_selected(&before, 7, effect, param));
+                        }
+                        assert_eq!(panels.effect_controls.has_key_channel(), panel==Panel::EffectControls);
+                        assert_eq!(panels.properties.effects.has_key_channel(), panel==Panel::Properties);
+                        let actions = draw_host(&mut panels, &before,
+                            &Input {keys:vec![(Key::Escape,Default::default())],..Default::default()},
+                            panel, floating, &mut atlas);
+                        for action in actions {
+                            match action {
+                                Action::History(index) => {host.history(index).unwrap();}
+                                other => panic!("cancel unexpectedly edited data: {other:?}"),
+                            }
+                        }
+                        assert_eq!(host.state().unwrap()["project"], before["project"]);
+                        let other = if panel==Panel::Properties {Panel::EffectControls} else {Panel::Properties};
+                        assert!(draw_host(&mut panels, &before, &Input::default(),
+                            other, floating, &mut atlas).is_empty());
+                        for controls in [&panels.effect_controls, &panels.properties.effects] {
+                            assert!(controls.parameter_selected(&before, 7, effect, param));
+                        }
+                    }
                     let origin = if panel == Panel::Properties {
                         PaintList::default().styles().metric("tree.indent", 14.)
                     } else {

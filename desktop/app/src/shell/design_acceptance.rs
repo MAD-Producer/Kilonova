@@ -613,6 +613,9 @@ impl Shell {
             let mut paint = PaintList::default();
             paint.stylesheet = self.panels.styles.clone();
             let mut input = Input::default();
+            if matches!(pose,"effect-controls" | "effect-controls-narrow") {
+                self.panels.effect_controls.selection_probe.start();
+            }
             if pose == "effect-expression-unavailable-menu" {
                 let styles = paint.styles();
                 let point = [styles.metric("padding.panel", 8.) + styles.metric("icon.slot", 20.) * 3.
@@ -637,6 +640,21 @@ impl Shell {
             );
             if !actions.is_empty() {
                 return Err("auxiliary panel capture must not emit edits".into());
+            }
+            if matches!(pose,"effect-controls" | "effect-controls-narrow") {
+                let hit = self.panels.effect_controls.selection_probe.rect()
+                    .ok_or("effect capture did not paint a visible property")?;
+                let point = [(hit.min[0]+hit.max[0])*0.5,(hit.min[1]+hit.max[1])*0.5];
+                let mut selected = PaintList::default();
+                selected.stylesheet = self.panels.styles.clone();
+                let actions = panels::floating_chrome(&mut selected,&mut self.atlas,panel,panel_size,
+                    &mut self.panels,&self.state,&Input {mouse:point,
+                        pressed:Some((motion_ui::input::MouseButton::Left,point)),..Default::default()});
+                if !actions.is_empty() {return Err("effect property selection capture emitted edits".into());}
+                if !self.panels.animation_controls.foreign_track_selected() {
+                    return Err("effect caption did not capture property ownership".into());
+                }
+                paint = selected;
             }
             if pose == "effect-expression-unavailable-menu" && !self.panels.effect_controls.editing() {
                 return Err("discrete effect capture did not open the parameter menu".into());

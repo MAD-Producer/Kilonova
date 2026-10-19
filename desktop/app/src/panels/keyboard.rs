@@ -25,6 +25,7 @@ fn editor_active(panels: &Panels) -> bool {
         || panels.timeline.moving.is_some()
         || panels.timeline.trimming.is_some()
         || panels.timeline.key_drag.is_some()
+        || panels.timeline.timing_drag.is_some()
         || panels.timeline.graph_drag.is_some()
         || panels.timeline.graph_box.editing()
         || panels.timeline.horizontal_drag.is_some()
@@ -77,6 +78,7 @@ pub fn route(
     owner: Option<Panel>,
     out: &mut Vec<Action>,
 ) -> bool {
+    super::property_focus::settle(panels);
     if let Some(search) = &panels.effect_search {
         let owned = search.owner == owner;
         if effect_search_close_pressed(input) || owned && input.focus_lost {
@@ -139,18 +141,22 @@ pub fn route(
     if text_active(panels) || input.composing || input.ime_consumed {
         return false;
     }
-    let effects_navigated = match panels.focused {
-        Some(Panel::Properties) => panels.properties.effects.navigate_keys(state, panels.selected, input, out),
-        Some(Panel::EffectControls) => panels.effect_controls.navigate_keys(state, panels.selected, input, out),
-        _ => false,
-    };
-    if effects_navigated {
+    let effects_owned = super::property_focus::navigation_scope(panels.focused)
+        && (panels.effect_controls.has_key_channel() || panels.properties.effects.has_key_channel());
+    let effects_navigated = effects_owned && if panels.effect_controls.has_key_channel() {
+        panels.effect_controls.navigate_keys(state, panels.selected, input, out)
+    } else {panels.properties.effects.navigate_keys(state, panels.selected, input, out)};
+    if effects_navigated || effects_owned && input.key_presses().any(|(key, modifiers, _)|
+        matches!(key, Key::J | Key::K) && !modifiers.control && !modifiers.alt && !modifiers.shift) {
         return true;
     }
-    if matches!(
+    let property_navigation = super::property_focus::navigation_scope(panels.focused)
+        && input.key_presses().any(|(key, modifiers, _)| matches!(key, Key::J | Key::K)
+            && !modifiers.control && !modifiers.alt && !modifiers.shift);
+    if (property_navigation || matches!(
         panels.focused,
         Some(Panel::Masks | Panel::Properties | Panel::Vector | Panel::Timeline | Panel::Curves)
-    ) && panels
+    )) && panels
         .path_controls
         .mask_key_shortcuts(state, panels.selected, input, out)
     {
@@ -255,7 +261,11 @@ fn handle_context_shortcuts(
             continue;
         }
         let key_owned = matches!(panels.focused, Some(Panel::Timeline | Panel::Curves))
-            && panels.animation_controls.user_key().is_some();
+            && panels.animation_controls.user_key().is_some()
+            || matches!(panels.focused, Some(Panel::Timeline | Panel::Curves | Panel::Properties
+                | Panel::EffectControls | Panel::Masks | Panel::Vector | Panel::Audio))
+                && panels.animation_controls.track_selection(state, panels.selected)
+                    == super::animation_controls::TrackSelection::Invalid;
         if let Some(command) = shortcuts::resolve(Scope::Animation, key, modifiers, repeat) {
             if super::timeline_zoom::shortcut(command, input, panels, state) {
                 continue;

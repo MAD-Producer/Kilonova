@@ -145,6 +145,7 @@ struct Menu {
 }
 #[derive(Default)]
 pub(super) struct Controls {
+    selection_intent: bool,
     context: Option<(String, String, u64)>,
     active: Option<Channel>,
     selected: Option<(Channel, u32)>,
@@ -171,6 +172,18 @@ fn emit(
     }
 }
 impl Controls {
+    pub(super) fn take_selection_intent(&mut self) -> bool {
+        std::mem::take(&mut self.selection_intent)
+    }
+
+    pub(super) fn selected_in(&self, state: &Value, object: u64, mask: u64, property: u8) -> bool {
+        self.active.as_ref().is_some_and(|channel|
+            channel.object == object && channel.mask == mask && channel.property == property)
+            && self.context.as_ref().is_some_and(|(root, composition, owner)|
+                *owner == object && root == state["root"].as_str().unwrap_or("")
+                    && composition == state["composition"].as_str().unwrap_or(""))
+    }
+
     pub(super) fn editing(&self) -> bool {
         self.drag.is_some() || self.menu.is_some()
     }
@@ -178,6 +191,7 @@ impl Controls {
         self.menu.is_some()
     }
     pub(super) fn clear_selection(&mut self) {
+        self.selection_intent = false;
         self.active = None;
         self.selected = None;
     }
@@ -287,6 +301,7 @@ impl Controls {
             mask,
             property: index,
         });
+        self.selection_intent = true;
         self.selected = None;
     }
     pub(super) fn navigation(
@@ -428,6 +443,7 @@ impl Controls {
         list.append(keys);
         if let Some((button, point)) = input.pressed.filter(|(_, p)| lane.contains(*p)) {
             self.active = Some(channel.clone());
+            self.selection_intent = true;
             if let Some(time) = hit {
                 self.selected = Some((channel.clone(), time));
                 if button == MouseButton::Left && !owner.locked {
@@ -563,14 +579,21 @@ impl Controls {
         input: &Input,
         out: &mut Vec<Action>,
     ) -> bool {
-        let Some(channel) = self.active.clone().filter(|c| Some(c.object) == selected) else {
+        let navigation = input.key_presses().any(|(k, m, _)|
+            matches!(k, Key::J | Key::K) && !m.control && !m.alt && !m.shift);
+        let Some(channel) = self.active.clone() else {
             return false;
         };
+        let valid = self.context.as_ref().is_some_and(|(root, composition, object)|
+            root == state["root"].as_str().unwrap_or("")
+                && composition == state["composition"].as_str().unwrap_or("")
+                && *object == channel.object && selected == Some(channel.object));
+        if !valid { return navigation; }
         let Some(layer) = super::layer(state, channel.object) else {
-            return false;
+            return navigation;
         };
         let Some(mask) = layer.masks.iter().find(|m| m.id == channel.mask) else {
-            return false;
+            return navigation;
         };
         let offset = i64::from(Owner::from(&layer).offset);
         let total = state["project"]["frames"].as_u64().unwrap_or(1) as i64;

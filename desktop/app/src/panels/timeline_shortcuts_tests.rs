@@ -3,6 +3,7 @@ use motion_core::{
     Axis, Curve, CurveShape, CurveSpace, Ease, Easing, Engine, Keyframe, Layer, Project,
 };
 use motion_ui::input::Modifiers;
+mod property_context_tests;
 
 fn key<T>(frame: i32, value: T) -> Keyframe<T> {
     Keyframe {

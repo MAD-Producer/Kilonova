@@ -19,3 +19,6 @@ mod workspace_acceptance;
 mod design_acceptance;
 mod interaction_acceptance;
 mod property_acceptance;
+mod shape_resize_acceptance;
+mod effect_selection_acceptance;
+mod timeline_key_drag_acceptance;

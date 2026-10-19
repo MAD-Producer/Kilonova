@@ -188,7 +188,7 @@ pub(super) fn apply_property_choice(
             panels.select_only(Some(object));
             panels
                 .animation_controls
-                .select_key(object, property, axis, frame as i64);
+                .select_key_in(state, object, property, axis, frame as i64);
             follow(&mut panels.timeline, last + 1., frame);
             out.push(Action::Seek(frame));
         }
@@ -210,11 +210,12 @@ pub(super) fn apply_property_choice(
                     panels.select_only(Some(object));
                     panels
                         .animation_controls
-                        .choose_track(object, property, axis);
+                        .choose_track_in(state, object, property, axis);
                     if present {
                         panels.animation_controls.clear_key();
                     } else {
-                        panels.animation_controls.select_key(
+                        panels.animation_controls.select_key_in(
+                            state,
                             object,
                             property,
                             axis,

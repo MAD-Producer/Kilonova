@@ -54,6 +54,21 @@ def verify_design_screens(snapshot: dict, locale: str, *, property_followups: bo
             "property-key-navigation-narrow": (220, 560),
             "timeline-key-navigation": (900, 520),
             "timeline-key-navigation-graph": (900, 520),
+            "selection-property-main": (360, 560),
+            "selection-property-float": (360, 560),
+            "selection-property-narrow": (220, 560),
+            "selection-property-number": (360, 560),
+            "selection-anchor-main": (360, 560),
+            "selection-timeline-main": (900, 520),
+            "selection-timeline-float": (900, 520),
+            "selection-timeline-graph": (900, 520),
+            "typed-selection-mask-property": (360, 560),
+            "typed-selection-mask-timeline": (900, 520),
+            "typed-selection-shape-property": (360, 560),
+            "typed-selection-shape-timeline": (900, 520),
+            "typed-selection-audio-timeline": (900, 520),
+            "timeline-3d-observation-off": (900, 520),
+            "timeline-3d-observation-on": (900, 520),
             "property-merge-menu": (360, 560), "property-merge-menu-narrow": (220, 560),
             "property-axis-expression": (360, 560), "layer-lock-menu": (900, 520),
             "property-mask-group": (360, 560), "timeline-mask-group": (900, 520),
@@ -61,10 +76,19 @@ def verify_design_screens(snapshot: dict, locale: str, *, property_followups: bo
             "timeline-layer-columns": (720, 520), "timeline-layer-columns-minimum": (360, 520),
             "timeline-mask-add-menu": (900, 520), "timeline-mask-add-menu-narrow": (720, 520),
             "layer-unlock-menu": (900, 520), "layer-lock-main-menu": (900, 520),
+            "layer-matte-menu": (900, 520), "layer-matte-menu-narrow": (720, 520),
+            "timeline-columns-main-menu": (900, 520), "diagnostics-main-menu": (900, 520),
             "mask-mode-menu": (360, 560), "mask-mode-menu-narrow": (220, 560),
             "graph-raw-readonly": (900, 520),
             "effect-expression-unavailable-menu": (360, 560),
             "mask-handles-selected": (900, 520),
+            "rectangle-resize-before": (900, 520), "rectangle-resize-after": (900, 520),
+            "rectangle-resize-properties": (360, 560),
+            **{f"timeline-key-drag-{row}-{phase}": (900, 520)
+               for row in ("property", "summary") for phase in ("before", "after")},
+            **{f"effect-selection-from-{owner}-{host}": (width, 560)
+               for owner in ("controls", "inspector")
+               for host, width in (("controls", 360), ("inspector", 360), ("narrow", 220))},
         }
     names = tuple(auxiliary) if property_followups else ("home", "project-open-error", "composition-settings", "workspace-manager", "effect-library", "timeline-parent-menu", "timeline-blend-menu", "timeline-graph", "value-graph", "speed-graph", "viewer-fit", "viewer-zoom", "viewer-pan", *auxiliary)
     for name in names:
@@ -93,6 +117,9 @@ def verify_property_followups(binary: Path, output: Path, *, style: Path | None 
         (output / f"{prefix}-{locale}.stderr.log").write_text(result.stderr, encoding="utf-8")
         if result.returncode:
             raise RuntimeError(f"{locale} property panel acceptance failed: {result.stderr}")
+        for codepoint in ("U+2194", "U+2713"):
+            if any("site=text.missing_glyph" in line and codepoint in line for line in result.stderr.splitlines()):
+                raise RuntimeError(f"{locale} property captures regressed UI symbol rendering: {result.stderr}")
         snapshot = json.loads(report.read_text(encoding="utf-8"))
         verify_design_screens(snapshot, locale, property_followups=True)
         if style:

@@ -277,6 +277,8 @@ mod tests {
                 object,
                 input,
                 Locale::En,
+                &mut Default::default(),
+                &mut 0,
                 &mut actions,
             );
             actions
