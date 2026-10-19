@@ -115,6 +115,48 @@ fn actual_gpu_blend_is_linear_and_caches_weights_without_stale_hold_pixels() {
 }
 
 #[test]
+fn opaque_blend_quantizes_srgb_bytes_in_both_temporal_directions() {
+    let (_, scene) = fixture();
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    // Endpoint channels decode exactly. The expected bytes are calculated from
+    // the transfer function in f64, independently of GPU attachment encoding.
+    for (index, (left, right)) in [([255; 4], [255, 0, 0, 255]), ([255, 0, 0, 255], [255; 4])]
+        .into_iter()
+        .enumerate()
+    {
+        let left_pts = index as u64 * 200 + 100;
+        let right_pts = left_pts + 100;
+        cache(&mut renderer, 0, left_pts, left);
+        cache(&mut renderer, 1, right_pts, right);
+        for weight in [0.0f32, 0.25, 0.499, 0.5, 0.501, 0.75, 1.0] {
+            renderer
+                .blend_video_sources(1, 1, left_pts, right_pts, weight)
+                .unwrap();
+            let expected = std::array::from_fn(|channel| {
+                if channel == 3 {
+                    return 255;
+                }
+                let value = f64::from(left[channel]) / 255.0 * (1.0 - f64::from(weight))
+                    + f64::from(right[channel]) / 255.0 * f64::from(weight);
+                let encoded = if value <= 0.0031308 {
+                    value * 12.92
+                } else {
+                    1.055 * value.powf(1.0 / 2.4) - 0.055
+                };
+                (encoded * 255.0).round() as u8
+            });
+            assert_eq!(
+                pixel(&mut renderer, &scene),
+                expected,
+                "left={left:?} right={right:?} weight={weight} adapter={:?}",
+                renderer.adapter_info
+            );
+        }
+    }
+    renderer.check_health().unwrap();
+}
+
+#[test]
 fn alpha_budget_refusal_recovery_and_invalid_sources_do_not_alias_objects() {
     let (_, scene) = fixture();
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
@@ -128,7 +170,9 @@ fn alpha_budget_refusal_recovery_and_invalid_sources_do_not_alias_objects() {
         .unwrap();
     let failure = renderer.cache_video_blend_source(1, 1, 200, 1).unwrap_err();
     assert!(failure.resource_rejection().is_some(), "{failure}");
-    assert!(failure.to_string().contains("target=VideoBlendSource(1, 1) source=1 phase=blend_allocate"));
+    assert!(failure
+        .to_string()
+        .contains("target=VideoBlendSource(1, 1) source=1 phase=blend_allocate"));
     assert!(renderer.video_blend_source_ready(1, 1, 100, 0));
     assert!(!renderer.video_blend_source_ready(1, 1, 200, 1));
     renderer.set_memory_policy(original).unwrap();

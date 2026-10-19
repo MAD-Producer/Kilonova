@@ -10,7 +10,7 @@ pub(super) struct FrameBlendGpu {
 }
 
 impl FrameBlendGpu {
-    fn new(device: &wgpu::Device) -> Self {
+    fn new(device: &wgpu::Device, format: wgpu::TextureFormat) -> Self {
         let texture = |binding| wgpu::BindGroupLayoutEntry {
             binding,
             visibility: wgpu::ShaderStages::FRAGMENT,
@@ -58,10 +58,14 @@ impl FrameBlendGpu {
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
-                entry_point: Some("fragment_main"),
+                entry_point: Some(if format == wgpu::TextureFormat::Rgba8Unorm {
+                    "fragment_main"
+                } else {
+                    "fragment_srgb"
+                }),
                 compilation_options: Default::default(),
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: TARGET_FORMAT,
+                    format,
                     blend: None,
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
@@ -239,7 +243,24 @@ impl Renderer {
         Ok(())
     }
 
-    fn ensure_video_blend_image(&mut self, key: TextureKey, size: (u32, u32), source: u64) -> Result<()> {
+    fn ensure_video_blend_image(
+        &mut self,
+        key: TextureKey,
+        size: (u32, u32),
+        source: u64,
+    ) -> Result<()> {
+        // Write explicitly encoded bytes, then sample through the usual sRGB
+        // view. This is the same format contract as GPU video conversion.
+        let reinterpret = self
+            .adapter
+            .get_downlevel_capabilities()
+            .flags
+            .contains(wgpu::DownlevelFlags::VIEW_FORMATS);
+        let format = if reinterpret {
+            wgpu::TextureFormat::Rgba8Unorm
+        } else {
+            TARGET_FORMAT
+        };
         let bytes = u64::from(size.0) * u64::from(size.1) * 4;
         let previous = self.images.get(&key).map_or(0, |i| i.bytes);
         self.trim_image_cache(bytes.saturating_sub(previous));
@@ -254,7 +275,7 @@ impl Renderer {
         }
         if self.images.get(&key).is_some_and(|i| {
             i.size == size
-                && i._texture.format() == TARGET_FORMAT
+                && i._texture.format() == format
                 && i._texture
                     .usage()
                     .contains(wgpu::TextureUsages::RENDER_ATTACHMENT)
@@ -271,13 +292,16 @@ impl Renderer {
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: TARGET_FORMAT,
-            view_formats: &[],
+            format,
+            view_formats: if reinterpret { &[TARGET_FORMAT] } else { &[] },
             usage: wgpu::TextureUsages::TEXTURE_BINDING
                 | wgpu::TextureUsages::RENDER_ATTACHMENT
                 | wgpu::TextureUsages::COPY_DST,
         });
-        let view = texture.create_view(&Default::default());
+        let view = texture.create_view(&wgpu::TextureViewDescriptor {
+            format: Some(TARGET_FORMAT),
+            ..Default::default()
+        });
         let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("video frame blend image"),
             layout: &self.image_layout,
@@ -315,9 +339,12 @@ impl Renderer {
         output: TextureKey,
         weight: f32,
     ) -> Result<()> {
+        let output_image = &self.images[&output];
+        let format = output_image._texture.format();
+        let output_view = output_image._texture.create_view(&Default::default());
         let gpu = self
             .video_blend
-            .get_or_insert_with(|| FrameBlendGpu::new(&self.device));
+            .get_or_insert_with(|| FrameBlendGpu::new(&self.device, format));
         self.queue.write_buffer(
             &gpu.uniform,
             0,
@@ -350,7 +377,7 @@ impl Renderer {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("video frame blend"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &self.images[&output].view,
+                    view: &output_view,
                     depth_slice: None,
                     resolve_target: None,
                     ops: wgpu::Operations {

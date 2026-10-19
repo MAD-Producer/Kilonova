@@ -1,6 +1,6 @@
 # 图层渲染采样：契约与实施证据
 
-Issue：#255。本工作最初基于 `f32c64de`，先合入 `452f659` 主线（`ef59c82`），本轮继续整合到 `be043255`，保留在 `feat/layer-render-sampling`。三个采样开关现已接入时间轴，支持范围见下表及能力声明。本文保留各阶段证据；旧阶段的“待接入”不代表最新状态。main 渲染集成、桌面回归、四档固定比例截图/逻辑输入、默认策略播放成本及新增坐标拒绝的真实错误信道已验证。当前正在准备组合版本的可运行 release 包及 PR 验收，issue 仍 OPEN；操作系统 DPI 切换、物理输入、长时间压力与跨设备性能不在现有证据覆盖内。
+Issue：#255。本工作最初基于 `f32c64de`，先合入 `452f659` 主线（`ef59c82`），本轮继续整合到 `be043255`，保留在 `feat/layer-render-sampling`。三个采样开关现已接入时间轴，支持范围见下表及能力声明。本文保留各阶段证据；旧阶段的“待接入”不代表最新状态。main 渲染集成、桌面回归、四档固定比例截图/逻辑输入、默认策略播放成本及新增坐标拒绝的真实错误信道已验证。组合版本 `29a75cb` 的独立 release 包与原生验收已通过；草稿 PR #344 的跨平台 CI 暴露新的帧混合取整差异，当前修复仍待 CI 验证，issue 保持 OPEN。操作系统 DPI 切换、物理输入、长时间压力与跨设备性能不在现有证据覆盖内。
 
 ## 当前要求与状态
 
@@ -529,3 +529,15 @@ SAM-OBS-19（既有信道的真实新拒绝验证）：用此前独立程序的 
 随后把合法极小缩放夹具加入真实 Shell 冻结 PNG 测试，与既有相机平面用例共用完整消息、工程/历史不变、旧文件保护、默认日志/stderr/stdout 隔离、在途终止及修复后再次输出断言；没有手造渲染 Err 或调用 respond。`sampling-integrated-projection-failure.log` 两项通过（17.81 秒），每项覆盖中英文，`integrated-projection-failure/{camera,coordinates}/` 保留消息、恢复 PNG 和日志。既有相机用例是重跑，坐标用例是新增；不把两项全部重复加到全量数量中。
 
 SAM-BOUND-04：非有限逆矩阵仍是 plane_coordinates 函数边界的防御性拒绝，由真实 CPU 边界用例验证；不把它描述为已复现的合法工程路径。零面积不可逆映射属于正常退化，原测试保持零映射结果。实际可达的有限坐标精度拒绝已通过上述正常工程/渲染/桌面信道验证。当前生产实现未因此新增日志、重试、清错或降级；本轮新增仅为集成夹具修正和失败回归。
+
+### 独立 release 与跨平台取整调查（2026-10-19）
+
+SAM-DELIVERY-02：`29a75cb` 使用 `cargo build --release -p motion-desktop --features ffmpeg --locked` 成功（6m27s，21 条既有警告），日志 `sampling-release-integrated-build.log`。`release-29a75cb/` 包含实际 EXE、经现有 manifest 校验的七个 FFmpeg DLL 及来源/许可证；EXE SHA-256 为 `20dd1ea90dfa7574b4da3fa6756db0b2e54b3a698c3dc9f85efcb4ec2fd26ceb`。这是本地验证包，未发布为 GitHub release。
+
+原生验证脚本首次在启动程序前因 Python 环境键名 SystemRoot 大小写失败，记录于 `sampling-release-native.log`；改为系统实际键 SYSTEMROOT 后，`sampling-release-native-verified.log` 和 `release-native-29a75cb-verified/summary.json` 确认受限 PATH 下 libav 视频四次真实解码、中英文主窗各 29 次呈现、两个浮窗各 4/2 次呈现，以及截图尺寸/必需状态检查通过。designCaptureProjectUntouched=true。这些证据只对应该提交，不覆盖后续帧混合改动。
+
+SAM-FUNC-21：草稿 PR #344 的两次 Linux CI（39248452056 / 39248604903）在 host VFR 实际 GPU 测试失败：白色与红色按 0.5 混合的输出为 [255,187,187,255]，原断言要求 [255,188,188,255]；CPU 冻结读帧得到 188。Rust/GPU job 同样停在这一断言。保留全部断言，不以 ±1 容差掩盖失败。
+
+功能修复将帧混合输出的 sRGB 编码及最近字节量化显式放在 shader 内，支持 view-format 的设备写入 UNORM attachment，并继续经 sRGB view 采样；无 view-format 的既有兼容路径对已量化颜色线性化后写入 sRGB attachment。混合仍在线性预乘空间，alpha 不走颜色传递函数，内存预算和缓存身份未改。公式按 [Khronos Data Format sRGB 传递函数](https://registry.khronos.org/DataFormat/specs/1.4/dataformat.1.4.html) 独立编写，无资产或依赖新增。当前没有在 Linux 本地复现驱动细节，因此具体后端误差来源仍是推断，待 CI 对同一原断言验证。
+
+`sampling-frame-blend-quantization.log` 既有五项渲染测试、`sampling-host-blend-quantization.log` 十一项 host 测试均通过。新增黑白端点之外的红白双向精确字节回归，用独立 f64 公式检查七个权重，包含 0.499/0.5/0.501，失败上下文记录适配器；原断言未变。`sampling-blend-vulkan.log` 在 WGPU_BACKEND=vulkan 下六项帧混合、八项视频生命周期、七项 YUV 测试通过，共 21 项。该结果是 Windows Vulkan，不能代替 Linux CI。Windows 和 Intel Mac 的旧 CI 也失败，日志下载暂遇 blob 连接错误，仍需追查，尚未宣称草稿验收完成。
