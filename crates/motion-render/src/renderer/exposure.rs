@@ -72,17 +72,17 @@ impl ExposureGpu {
                 cache: None,
             })
         };
-        let additive = wgpu::BlendComponent {
-            src_factor: wgpu::BlendFactor::One,
-            dst_factor: wgpu::BlendFactor::One,
+        let mean = wgpu::BlendComponent {
+            src_factor: wgpu::BlendFactor::Constant,
+            dst_factor: wgpu::BlendFactor::OneMinusConstant,
             operation: wgpu::BlendOperation::Add,
         };
         let accumulate = pipeline(
             "accumulate",
             ACCUMULATION_FORMAT,
             Some(wgpu::BlendState {
-                color: additive,
-                alpha: additive,
+                color: mean,
+                alpha: mean,
             }),
         );
         let resolve = pipeline("resolve", output, None);
@@ -104,7 +104,7 @@ impl Drop for Reservation {
     }
 }
 
-/// One reusable sRGB sample and one FP16 linear sum: twelve bytes per pixel.
+/// One reusable sRGB sample and one FP16 linear weighted mean: twelve bytes per pixel.
 /// Drop cancels the exposure; no partial result can be resolved. Queued work may
 /// outlive ownership, as represented by the renderer's submission ledger.
 pub struct ExposureTarget {
@@ -114,7 +114,8 @@ pub struct ExposureTarget {
     uniform: wgpu::Buffer,
     sample_group: wgpu::BindGroup,
     resolve_group: wgpu::BindGroup,
-    weights: Vec<f32>,
+    weights: Vec<f64>,
+    total_weight: f64,
     phase: usize,
     poisoned: bool,
     reservation: Reservation,
@@ -145,7 +146,7 @@ impl ExposureTarget {
         ledger.retained(
             &self.accumulation,
             crate::TextureCategory::ExposureTargets,
-            "exposure/linear-sum".into(),
+            "exposure/linear-mean".into(),
         );
         ledger
     }
@@ -245,7 +246,7 @@ impl Renderer {
         let reservation = self.reserve_exposure_bytes(bytes, &format!("exposure {width}x{height} phase=allocate"))?;
         let sample = self.render_target(width, height)?;
         let accumulation = self.device.create_owned_texture(&wgpu::TextureDescriptor {
-            label: Some("linear floating-point exposure sum"),
+            label: Some("linear floating-point exposure mean"),
             size: wgpu::Extent3d {
                 width,
                 height,
@@ -294,7 +295,8 @@ impl Renderer {
             uniform,
             sample_group,
             resolve_group,
-            weights: weights.iter().map(|w| *w as f32).collect(),
+            weights: weights.to_vec(),
+            total_weight: 0.,
             phase: 0,
             poisoned: false,
             reservation,
@@ -420,11 +422,16 @@ impl Renderer {
     fn accumulate_exposure_encoded(&mut self, target: &mut ExposureTarget, mut encoder: wgpu::CommandEncoder,
         mut stats: Option<RenderStats>, has_sample: bool) -> Result<Option<RenderStats>> {
         let weight = target.weights[target.phase];
-        if has_sample || target.phase == 0 {
+        let total_weight = target.total_weight + weight;
+        // A normalized running mean is algebraically the same weighted linear
+        // exposure, but avoids repeatedly adding small values to an FP16 sum.
+        // In particular, an opaque constant must remain opaque at 80 phases.
+        let fraction = weight / total_weight;
+        {
             self.queue.write_buffer(
                 &target.uniform,
                 0,
-                bytemuck::cast_slice(&[weight, 0., 0., 0.]),
+                bytemuck::cast_slice(&[if has_sample { 1.0f32 } else { 0.0 }, 0., 0., 0.]),
             );
             let started = Instant::now();
             {
@@ -448,7 +455,7 @@ impl Renderer {
                     occlusion_query_set: None,
                     multiview_mask: None,
                 });
-                if has_sample {
+                {
                     pass.set_pipeline(
                         &self
                             .exposure_gpu
@@ -457,6 +464,7 @@ impl Renderer {
                             .accumulate,
                     );
                     pass.set_bind_group(0, &target.sample_group, &[]);
+                    pass.set_blend_constant(wgpu::Color {r:fraction,g:fraction,b:fraction,a:fraction});
                     pass.draw(0..3, 0..1);
                 }
             }
@@ -476,6 +484,7 @@ impl Renderer {
                 stats.cpu_prepare_us += started.elapsed().as_micros() as u64;
             }
         }
+        target.total_weight = total_weight;
         target.phase += 1;
         Ok(stats)
     }

@@ -129,15 +129,17 @@ fn finish(
 }
 fn close(actual: &[u8], expected: &[u8], tolerance: u8) {
     assert_eq!(actual.len(), expected.len());
-    let max = actual
+    let (index, max) = actual
         .iter()
         .zip(expected)
-        .map(|(a, b)| a.abs_diff(*b))
-        .max()
+        .enumerate()
+        .map(|(index,(a, b))| (index,a.abs_diff(*b)))
+        .max_by_key(|(_,difference)| *difference)
         .unwrap();
     assert!(
         max <= tolerance,
-        "maximum channel difference {max} exceeds {tolerance}"
+        "maximum channel difference {max} exceeds {tolerance} pixel={} actual={:?} expected={:?}",
+        index/4, &actual[index/4*4..index/4*4+4], &expected[index/4*4..index/4*4+4]
     );
 }
 
@@ -210,7 +212,7 @@ fn oracle_context(
     let mut result = scene.clone();
     result.nested.clear();
     for node in &scene.nested {
-        let mut pixels = oracle(
+        let pixels = oracle(
             renderer,
             document,
             &node.composition,
@@ -218,30 +220,8 @@ fn oracle_context(
             preview,
             serial,
         );
-        // Capture is linear-premultiplied sRGB. upload_image expects straight
-        // sRGB; undo premultiplication before the independent upload path.
-        for pixel in pixels.chunks_exact_mut(4) {
-            let alpha = f32::from(pixel[3]) / 255.;
-            for channel in &mut pixel[..3] {
-                let s = f32::from(*channel) / 255.;
-                let linear = if s <= 0.04045 {
-                    s / 12.92
-                } else {
-                    ((s + 0.055) / 1.055).powf(2.4)
-                };
-                let value = if alpha == 0. {
-                    0.
-                } else {
-                    (linear / alpha).min(1.)
-                };
-                let s = if value <= 0.0031308 {
-                    12.92 * value
-                } else {
-                    1.055 * value.powf(1. / 2.4) - 0.055
-                };
-                *channel = (s * 255.).round() as u8;
-            }
-        }
+        // read_target already returns straight-alpha sRGB, which upload_image
+        // accepts. A second unpremultiplication brightens translucent colors.
         *serial += 1;
         renderer.upload_image(*serial, 64, 64, &pixels).unwrap();
         let layer = result
@@ -253,6 +233,25 @@ fn oracle_context(
         layer.asset = Some(*serial);
     }
     result
+}
+
+#[test]
+fn independent_oracle_uploads_straight_alpha_capture_without_brightening_the_child() {
+    let mut project = fixture(false);
+    let red = &mut project.compositions[0].layers[0];
+    red.content = Content::Solid {color:[0.15,0.35,0.65,0.4]};
+    red.transform.position = Track::constant([32.,16.,0.]);
+    red.sampling.motion_blur = None;
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    let mut scene = Scene::new(&project);
+    scene.sample(&project,6.5,None,&ExpressionEvaluator).unwrap();
+    let target = renderer.capture_target(64,64).unwrap();
+    let expected = renderer.capture(&scene,&target).unwrap().0;
+    assert!(expected.chunks_exact(4).any(|pixel|pixel[0]>0 && pixel[2]>pixel[0] && pixel[3]>0 && pixel[3]<255));
+    let mut oracle_renderer = pollster::block_on(Renderer::headless()).unwrap();
+    let document = ExposureDocument::new(Arc::new(project.clone())).unwrap();
+    let actual = oracle(&mut oracle_renderer,&document,&project.composition_id,6.5,false,&mut 1000);
+    close(&actual,&expected,2);
 }
 
 #[test]

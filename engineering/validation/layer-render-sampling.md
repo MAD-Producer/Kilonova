@@ -543,3 +543,15 @@ SAM-FUNC-21：草稿 PR #344 的两次 Linux CI（39248452056 / 39248604903）�
 `sampling-frame-blend-quantization.log` 既有五项渲染测试、`sampling-host-blend-quantization.log` 十一项 host 测试均通过。新增黑白端点之外的红白双向精确字节回归，用独立 f64 公式检查七个权重，包含 0.499/0.5/0.501，失败上下文记录适配器；原断言未变。`sampling-blend-vulkan.log` 在 WGPU_BACKEND=vulkan 下六项帧混合、八项视频生命周期、七项 YUV 测试通过，共 21 项。该结果是 Windows Vulkan，不能代替 Linux CI。Windows 和 Intel Mac 的旧 CI 也失败，日志下载暂遇 blob 连接错误，仍需追查，尚未宣称草稿验收完成。
 
 SAM-TEST-03：后续成功取回 Windows/Intel Mac 旧 CI 的完整日志（`sampling-ci-{windows,mac-intel}-failure-retry.log`）。Intel Mac 与 Linux 在相同 host 像素断言失败。Windows 则是两个真实错误信道用例的恢复成功路径：原失败原因/日志检查已经通过，恢复 PNG 也实际生成，但 fixture 的 TEMP 使用 RUNNER~1 短路径，发布结果按既有协议规范化父目录为长路径，造成字符串断言失败。测试从规范化 fixture 根目录开始，其余完整错误、成功路径、旧文件保护及输出像素断言全部保留；生产路径和显示行为未改。`sampling-canonical-path-failure.log` 两项通过（20.90 秒），每项中英文；`canonical-path-failure/` 保存原因提示、恢复 PNG、默认文件与 stderr/stdout。该修正只处理夹具路径表示差异，尚待 Windows CI 复核；未声称增加产品错误观察或修复渲染功能。
+
+### Linux 曝光累积与透明边界（2026-10-19）
+
+SAM-FUNC-22：`358ab4c` 的 Linux Rust/GPU job 118093836526 已通过原 host VFR 精确字节断言，后续曝光测试暴露两个新失败：80 相位恒定白色的 alpha=252，以及半曝光红色的 straight RGB=[254,0,0]（原断言 [255,0,0]）。日志 `sampling-ci-quantized-gpu-failure.log`；不把这些归为已修复的帧混合问题。
+
+功能修复仍用原 FP16 纹理和每像素 12 字节预算，将逐项小权重相加改为数学等价的运行加权平均：当前权重 / 累计权重，由现有 blend constant 完成 RGB/alpha 同权平均。权重保留 f64，未量化快门时刻或权重。空相位也以零颜色参与，不能读取上一相位的残留样本。输出先量化 alpha，再使 RGB 与可存储的 alpha 重新关联，最后明确 sRGB 最近字节编码；零 alpha 不保留隐藏 RGB。这是精度/透明度的功能修复，没有新增日志、重试或掩盖错误。
+
+中间尝试与限度保留：首条命令误写不存在的 exposure_frames target，在编译前退出（`sampling-exposure-mean.log`）；更正为 exposure_frame。仅使用加权平均及独立 RGB/alpha 量化时，原嵌套对照仍失败，最大差 10，定位在 pixel=1264、alpha=1 的 [248,0,0,1] / [238,0,0,1]（`sampling-exposure-mean-final.log`、`sampling-exposure-mean-oracle-final.log`、`sampling-mean-nested-location.log`）。最终关联量化 alpha 与 RGB 后，保持原 tolerance=2 断言通过，未删除或扩大断言。
+
+SAM-TEST-04：同时确认独立嵌套 oracle 将 capture_exposure 的 straight-alpha sRGB 再做了一遍反预乘。read_target 已完成该转换，因此旧 oracle 会抬亮半透明非纯色。先新增独立用例，用普通渲染器直接捕获静态半透明彩色子合成，与 oracle 上传路径比较：旧 oracle 最大差 84，tolerance=2 下失败（`sampling-oracle-straight-before.log`）。移除重复转换后，新用例及原嵌套断言一起通过。修改的是错误的参考数据变换，未更改断言或精度阈值；纯红/绿旧夹具未充分揭示该错误。
+
+`sampling-exposure-alpha-final.log` 在 Windows Vulkan 下共 **32 通过、0 失败**：曝光累积 7、持久任务 8、场景 8、嵌套 9。新增 80 个非均匀权重的颜色对照和正反透明空段，及上述非纯色 oracle 对照。既有预算、取消/错误、冻结/预览、跨帧和嵌套断言保留。该证据不能替代 Linux/Metal CI；跨平台 CI 需对新提交重跑。此前 `release-358ab4c` 的真实 EXE 验收仍有效，但它不包含这项后续曝光修复，不能标为最新产品。

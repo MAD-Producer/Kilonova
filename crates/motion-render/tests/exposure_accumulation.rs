@@ -101,6 +101,41 @@ fn linear_weights_transparency_and_uniform_submission_order_reach_real_pixels() 
 }
 
 #[test]
+fn eighty_nonuniform_phases_preserve_weighted_colors_and_transparent_gaps() {
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    let weights: Vec<_> = (1..=80).map(|index| f64::from(index) / 3240.).collect();
+    let scenes = [background([1.,0.,0.,1.]),background([0.,1.,0.,1.]),background([0.,0.,1.,1.])];
+    for reverse in [false,true] {
+        let mut target = renderer.exposure_target(16,16,&weights).unwrap();
+        let mut linear = [0.0f64;3];
+        for (phase,weight) in weights.iter().enumerate() {
+            let channel = if reverse { (79-phase)%3 } else { phase%3 };
+            renderer.accumulate_exposure(&mut target,Some(&scenes[channel]),false).unwrap();
+            linear[channel] += weight;
+        }
+        let actual = pixel(&renderer,&target);
+        for (channel,value) in linear.into_iter().enumerate() {
+            let expected = ((1.055*value.powf(1./2.4)-0.055)*255.).round() as u8;
+            assert!(actual[channel].abs_diff(expected)<=1,"nonuniform phase color={actual:?} expected={expected} channel={channel} reverse={reverse}");
+        }
+        assert_eq!(actual[3],255);
+    }
+    // The reusable sample contains the previous color when a phase is absent.
+    // Missing phases must contribute zero, including after the final real one.
+    for reverse in [false,true] {
+        let mut target = renderer.exposure_target(16,16,&[0.0125;80]).unwrap();
+        for phase in 0..80 {
+            let present = if reverse { phase>=48 } else { phase<32 };
+            renderer.accumulate_exposure(&mut target,present.then_some(&scenes[0]),false).unwrap();
+        }
+        let actual = pixel(&renderer,&target);
+        assert!(actual[0]>=254 && actual[1]==0 && actual[2]==0 && actual[3].abs_diff(102)<=1,
+            "transparent gaps={actual:?} reverse={reverse}");
+    }
+    renderer.check_health().unwrap();
+}
+
+#[test]
 fn maximal_clock_preserves_constant_layers_and_drop_cancels_without_leaking_the_next_result() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     renderer.set_submission_tracking(true);
