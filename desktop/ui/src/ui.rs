@@ -714,10 +714,13 @@ pub fn accumulate(input: &mut Input, event: Event) {
                 OVERWRITES.get_or_init(Default::default).record("input.pressed_overwrite", "pending", format_args!("previous={previous:?} next=({button:?},{position:?})"));
             }
             input.mouse = position;
-            input.held = Some(button);
             input.pressed = Some((button, position));
-            input.pointer_origin = Some(position);
-            input.pointer_travel = 0.;
+            // A secondary button must not steal an ongoing pointer gesture.
+            if input.held.is_none() {
+                input.held = Some(button);
+                input.pointer_origin = Some(position);
+                input.pointer_travel = 0.;
+            }
         }
         Event::MouseReleased { position, button } => {
             if let Some(previous) = input.released {
@@ -725,14 +728,16 @@ pub fn accumulate(input: &mut Input, event: Event) {
                 OVERWRITES.get_or_init(Default::default).record("input.released_overwrite", "pending", format_args!("previous={previous:?} next=({button:?},{position:?})"));
             }
             input.mouse = position;
-            input.held = None;
             input.released = Some((button, position));
             if let Some(origin) = input.pointer_origin {
                 input.pointer_travel = input
                     .pointer_travel
                     .max((position[0] - origin[0]).hypot(position[1] - origin[1]));
             }
-            input.pointer_origin = None;
+            if input.held == Some(button) {
+                input.held = None;
+                input.pointer_origin = None;
+            }
         }
         Event::MouseWheel { delta } => {
             input.wheel[0] += delta[0];
