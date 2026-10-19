@@ -160,7 +160,7 @@ impl ApplicationHandler for App {
                     .create_window(
                         Window::default_attributes()
                             .with_title("Motion Studio · UI Framework")
-                            .with_inner_size(winit::dpi::LogicalSize::new(1280., 800.))
+                            .with_inner_size(winit::dpi::LogicalSize::new(self.initial_size[0], self.initial_size[1]))
                             .with_visible(self.smoke.is_none()),
                     )
                     .map_err(|e| e.to_string())?,

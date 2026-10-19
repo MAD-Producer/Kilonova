@@ -155,42 +155,6 @@ fn insert(node: &mut Node, panel: DockId, target: DockId, edge: Option<Edge>) ->
         _ => false,
     }
 }
-fn split_rect(edge: Edge, area: Rect, ratio: f32) -> (Rect, Rect) {
-    let ratio = ratio.clamp(0.05, 0.95);
-    if edge.is_horizontal() {
-        let first = if edge == Edge::Right {
-            1.0 - ratio
-        } else {
-            ratio
-        };
-        let w = area.width() * first;
-        (
-            Rect::new(area.min[0], area.min[1], w, area.height()),
-            Rect::new(
-                area.min[0] + w,
-                area.min[1],
-                area.width() - w,
-                area.height(),
-            ),
-        )
-    } else {
-        let first = if edge == Edge::Bottom {
-            1.0 - ratio
-        } else {
-            ratio
-        };
-        let h = area.height() * first;
-        (
-            Rect::new(area.min[0], area.min[1], area.width(), h),
-            Rect::new(
-                area.min[0],
-                area.min[1] + h,
-                area.width(),
-                area.height() - h,
-            ),
-        )
-    }
-}
 fn handles(node: &Node, area: Rect, path: &mut Vec<bool>, out: &mut Vec<Handle>) {
     if let Node::Split {
         edge,
@@ -199,7 +163,7 @@ fn handles(node: &Node, area: Rect, path: &mut Vec<bool>, out: &mut Vec<Handle>)
         second,
     } = node
     {
-        let (a, b) = split_rect(*edge, area, *split);
+        let (a, b) = dock::divide(*edge, area, *split);
         let hit = if edge.is_horizontal() {
             Rect::new(a.max[0] - 3.0, area.min[1], 6.0, area.height())
         } else {
@@ -230,7 +194,8 @@ fn set_ratio(node: &mut Node, path: &[bool], value: f32) {
         if let Some((branch, tail)) = path.split_first() {
             set_ratio(if *branch { second } else { first }, tail, value)
         } else {
-            *split = value.clamp(0.05, 0.95);
+            // The caller applies the shared pixel limit using this node's area.
+            *split = value;
         }
     }
 }
@@ -333,7 +298,7 @@ impl Workspace {
                     ..
                 } => {
                     split.is_finite()
-                        && (0.05..=0.95).contains(split)
+                        && *split > 0.0 && *split < 1.0
                         && sane(first)
                         && sane(second)
                 }
@@ -472,18 +437,13 @@ impl Workspace {
             } else {
                 input.mouse[1] - area.min[1]
             };
-            let minimum = if edge.is_horizontal() {
-                metrics::MIN_DOCK
-            } else {
-                metrics::MIN_TIMELINE
-            };
-            let low = (minimum / size.max(1.0)).min(0.45);
-            let ratio = (coordinate / size.max(1.0)).clamp(low, 1.0 - low);
+            let ratio = coordinate / size.max(1.0);
             let ratio = if matches!(edge, Edge::Right | Edge::Bottom) {
                 1.0 - ratio
             } else {
                 ratio
             };
+            let ratio = dock::clamp_split(*edge, ratio, *area);
             let path = path.clone();
             set_ratio(&mut self.root, &path, ratio);
             if input.released.is_some() {
