@@ -3,8 +3,13 @@
 //! shaping and bidirectional layout are not yet supported.
 
 use ab_glyph::{Font, FontArc, PxScale, PxScaleFont, ScaleFont};
+// Fits the minimum texture dimension supported by the desktop's downlevel
+// devices. RGBA coverage is bounded to 16 MiB on both CPU and GPU.
+const MAX_ATLAS_DIMENSION: u32 = 2048;
 #[cfg(test)]
 mod observation_tests;
+#[cfg(test)]
+mod lifetime_tests;
 #[cfg(target_os = "windows")]
 mod windows;
 
@@ -47,6 +52,7 @@ pub struct TextAtlas {
     font_size: f32,
     fallback: Option<PxScaleFont<FontArc>>,
     config: AtlasConfig,
+    max_dimension: u32,
     pixels: Vec<u8>,
     entries: std::collections::HashMap<(char, u32, u32), GlyphEntry>,
     pixel_ratio: f32,
@@ -130,6 +136,7 @@ impl TextAtlas {
             font_size: scale,
             fallback: None,
             config,
+            max_dimension: MAX_ATLAS_DIMENSION,
             pixels,
             entries: std::collections::HashMap::new(),
             pixel_ratio: 1.,
@@ -168,6 +175,57 @@ impl TextAtlas {
         self.cursor = [0.0, 0.0];
         self.row_height = 0;
         self.dirty = true;
+    }
+
+    /// Reserve without moving existing texels or clearing previously emitted
+    /// glyphs. Failed reservations leave the shelf cursor unchanged.
+    fn reserve(&mut self, width: u32, height: u32) -> bool {
+        let Some(width) = width.checked_add(self.config.padding) else { return false; };
+        let Some(height) = height.checked_add(self.config.padding) else { return false; };
+        if width > self.max_dimension || height > self.max_dimension { return false; }
+        loop {
+            let mut cursor = self.cursor;
+            let mut row_height = self.row_height;
+            if cursor[0] + width as f32 > self.config.width as f32 {
+                cursor[0] = 0.;
+                cursor[1] += row_height as f32;
+                row_height = 0;
+            }
+            if width <= self.config.width && cursor[1] + height as f32 <= self.config.height as f32 {
+                self.cursor = cursor;
+                self.row_height = row_height.max(height);
+                return true;
+            }
+            let old = self.config;
+            let new_width = old.width.saturating_mul(2).min(self.max_dimension);
+            let new_height = old.height.saturating_mul(2).min(self.max_dimension);
+            if new_width == old.width && new_height == old.height { return false; }
+            let mut pixels = vec![0; new_width as usize * new_height as usize * 4];
+            for (from, to) in self.pixels.chunks_exact(old.width as usize * 4)
+                .zip(pixels.chunks_exact_mut(new_width as usize * 4)) {
+                to[..from.len()].copy_from_slice(from);
+            }
+            for entry in self.entries.values_mut() {
+                for i in 0..4 {
+                    entry.uv[i] *= if i % 2 == 0 { old.width as f32 / new_width as f32 }
+                        else { old.height as f32 / new_height as f32 };
+                }
+            }
+            self.config.width = new_width;
+            self.config.height = new_height;
+            self.pixels = pixels;
+            self.dirty = true;
+            log::debug!("UI glyph atlas grew from={}x{} to={new_width}x{new_height} entries={}", old.width, old.height, self.entries.len());
+        }
+    }
+
+    fn observe_capacity(&self, character: char, size: f32) {
+        // Lifetime pressure counter, reset only when this atlas is replaced.
+        // A refusal must not clear or overwrite retained glyphs.
+        self.observations.record("text.atlas_full", "capacity", format_args!(
+            "family={:?} width={} height={} max_dimension={} entries={} glyph=U+{:04X} size={size} pixel_ratio={} fallback=advance_without_bitmap",
+            self.selected_family, self.config.width, self.config.height, self.max_dimension,
+            self.entries.len(), character as u32, self.pixel_ratio));
     }
 
     pub fn pixel_data(&self) -> &[u8] {
@@ -212,6 +270,10 @@ impl TextAtlas {
     }
     /// Rasterize at the requested em size rather than enlarging a small bitmap.
     pub fn glyph_at(&mut self, character: char, size: f32) -> GlyphEntry {
+        if !size.is_finite() || size <= 0. || !self.font_size.is_finite() || self.font_size <= 0. {
+            self.observe_capacity(character, size);
+            return GlyphEntry { uv: [0.; 4], offset: [0.; 2], advance: 0. };
+        }
         let key = (character, size.to_bits(), self.pixel_ratio.to_bits());
         if let Some(entry) = self.entries.get(&key) {
             if entry.uv == [0.; 4] && !character.is_whitespace() && !self.supports(character) {
@@ -226,6 +288,12 @@ impl TextAtlas {
             offset: [0.0, 0.0],
             advance,
         };
+        // Bound rasterization before passing extreme sizes to the outline or
+        // platform rasterizer, as well as checking actual bitmap bounds below.
+        if size * self.pixel_ratio > self.max_dimension as f32 {
+            self.observe_capacity(character, size);
+            return blank;
+        }
         let font = self.face(character);
         let id = font.glyph_id(character);
         if id.0 == 0 {
@@ -271,21 +339,10 @@ impl TextAtlas {
             return blank;
         }
         let padding = self.config.padding;
-        if self.cursor[0] + width as f32 + padding as f32 > self.config.width as f32 {
-            self.cursor[0] = 0.0;
-            self.cursor[1] += self.row_height as f32;
-            self.row_height = 0;
+        if !self.reserve(width, height) {
+            self.observe_capacity(character, size);
+            return blank;
         }
-        if self.cursor[1] + height as f32 + padding as f32 > self.config.height as f32 {
-            self.observations.record("text.atlas_full", "repack", format_args!(
-                "family={:?} width={} height={} entries={} glyph=U+{:04X} size={size} pixel_ratio={}",
-                self.selected_family, self.config.width, self.config.height, self.entries.len(), character as u32, self.pixel_ratio));
-            // Atlas full. Panel text is short, so this only happens with an
-            // unusual font or a very large UI scale; repacking is cheaper than
-            // growing the atlas at runtime.
-            self.clear();
-        }
-        self.row_height = self.row_height.max(height + padding);
         let x = self.cursor[0] as u32;
         let y = self.cursor[1] as u32;
         let stride = self.config.width as usize;

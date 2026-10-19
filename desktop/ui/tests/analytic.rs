@@ -175,6 +175,7 @@ fn mixed_paint_order_covers_old_glyphs_and_keeps_new_glyphs_after_clip_and_appen
     // depending on platform font shape, hinting or font installation.
     painter.upload_atlas(&device, &queue, &[255; 4], 1, 1);
     let glyph = |position, color| Glyph {
+        atlas_size: None,
         position,
         size: [8., 8.],
         uv: [0., 0., 1., 1.],

@@ -217,14 +217,15 @@ fn real_style_and_glyph_fallbacks_leave_bounded_default_level_evidence() {
         assert_eq!(glyph_events.len(), 2, "{missing_log}");
         assert!(glyph_events[1].starts_with("ERROR") && glyph_events[1].contains("count=60"));
         assert!(glyph_events[1].contains(&format!("U+{:04X}", missing as u32)));
-        // A real, small atlas fills repeatedly while rasterizing installed-font
-        // glyphs. Keep the existing clear/repack policy and expose its pressure.
+        // Force a small capacity ceiling, so actual rasterized glyphs exercise
+        // refusal rather than succeeding through the production growth path.
         let w = atlas.glyph('W');
         let width = ((w.uv[2] - w.uv[0]) * atlas.config.width as f32).round() as u32;
         let height = ((w.uv[3] - w.uv[1]) * atlas.config.height as f32).round() as u32;
         assert!(width > 0 && height > 0);
         atlas.config.width = (width + 2) * 2;
         atlas.config.height = height + 2;
+        atlas.max_dimension = atlas.config.width.max(atlas.config.height);
         atlas.pixels = vec![0; (atlas.config.width * atlas.config.height * 4) as usize];
         atlas.clear();
         for i in 1..=240 {
