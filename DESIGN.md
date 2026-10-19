@@ -125,6 +125,8 @@ Do not create a CSS `:root` token table or a second theme constants layer. Mappi
 | Upper section / timeline | `56.8%` / `43.2%` | `dock.rs` |
 | Left / right columns | `17.7%` / `20%` (default view) | `dock.rs` |
 
+Splitter resizing uses `dock::clamp_split` with the existing logical-pixel minima (`metrics::MIN_DOCK` horizontally and `metrics::MIN_TIMELINE` vertically). Do not add a percentage floor on large windows. When the parent cannot fit both minima, retain the existing 45% per-side limit. Drawing and hit testing must use the same division geometry; saved ratios strictly between zero and one remain valid. A rejected split request must leave the tree unchanged.
+
 There are exactly **five** existing workspace presets. Preserve IDs, behavior, and dock-tree structure from `desktop/app/src/workspace/presets.rs`.
 
 | ID | Display name | Existing layout |

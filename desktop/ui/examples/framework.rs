@@ -5,6 +5,8 @@ mod acceptance;
 mod input_acceptance;
 #[path = "framework/native.rs"]
 mod native;
+#[path = "framework/dock_acceptance.rs"]
+mod dock_acceptance;
 
 use motion_ui::{
     dock::{self, DockId, Edge},
@@ -475,6 +477,7 @@ struct Gpu {
     format: wgpu::TextureFormat,
 }
 struct App {
+    initial_size: [u32; 2],
     windows: HashMap<WindowId, NativeWindow>,
     gpu: Option<Gpu>,
     atlas: TextAtlas,
@@ -545,6 +548,7 @@ impl App {
         )
         .unwrap();
         Self {
+            initial_size: [1280, 800],
             windows: Default::default(),
             gpu: None,
             atlas,
@@ -839,6 +843,15 @@ fn main() {
     };
     let event_loop = EventLoop::new().unwrap();
     let mut app = App::new(smoke, language);
+    if let Some(index) = args.iter().position(|arg| arg == "--size") {
+        let size = args.get(index + 1).and_then(|s| s.split_once('x'))
+            .and_then(|(w, h)| Some([w.parse::<u32>().ok()?, h.parse::<u32>().ok()?]));
+        let Some(size) = size.filter(|s| s.iter().all(|v| (600..=8192).contains(v))) else {
+            eprintln!("--size requires WIDTHxHEIGHT, with both dimensions in 600..=8192");
+            std::process::exit(1);
+        };
+        app.initial_size = size;
+    }
     if let Some(index) = args.iter().position(|arg| arg == "--style") {
         let Some(path) = args.get(index + 1).filter(|p| !p.starts_with("--")) else {
             eprintln!("--style requires a JSON file");
