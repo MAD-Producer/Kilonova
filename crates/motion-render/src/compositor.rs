@@ -201,7 +201,15 @@ impl PlaneCompositor {
             "intersection fragment budget exceeded",
         )?;
         let index = self.nodes.len();
-        let plane = self.planes[polygon.layer].expect("nondegenerate spatial plane");
+        // prepare skips degenerate quads before insertion, and clip preserves
+        // each fragment's original layer. Keep that invariant fallible here so
+        // a future construction path cannot panic the render worker.
+        let plane = self.planes.get(polygon.layer).copied().flatten().ok_or_else(|| {
+            motion_model::Error::Invalid(format!(
+                "spatial compositor node missing nondegenerate plane: layer_index={}",
+                polygon.layer,
+            ))
+        })?;
         self.nodes.push(Node {
             polygon,
             plane,
@@ -385,3 +393,6 @@ impl PlaneCompositor {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests;
