@@ -1,4 +1,12 @@
 use crate::*;
+mod node_diagnostics;
+mod node_blend;
+mod node_compact_examples;
+mod node_gradient;
+mod node_noise;
+mod node_onboarding;
+mod node_wires;
+mod retained;
 
 impl Shell {
     pub(crate) fn panel_smoke_step(&mut self, event_loop: &ActiveEventLoop) -> Result<(), String> {
@@ -547,6 +555,10 @@ impl Shell {
         Ok(())
     }
     pub(crate) fn finish_smoke(&mut self) -> Result<(), String> {
+        // A queued event after exit() must not overwrite a failed run with a success report.
+        if let Some(error) = &self.fatal {
+            return Err(error.clone());
+        }
         let path = self.smoke.as_ref().ok_or("no smoke report path")?.clone();
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
@@ -562,41 +574,7 @@ impl Shell {
         // repaint must reuse the submitted composition without executing effects.
         let view = panels::composition_view(self.workspace.display_root(), size);
         let reuse_probe = if view.width() > 0. && view.height() > 0. {
-            let mut reuse_times = vec![];
-            let before = self.engine.state()?;
-            for index in 0..9 {
-                let (paint, _) = self.draw_commands(size);
-                let ui = self.ui_frame(paint, size, false);
-                let began = Instant::now();
-                if !self
-                    .engine
-                    .present_async(ui)?
-                    .recv_timeout(Duration::from_secs(10))
-                    .map_err(|e| e.to_string())??
-                {
-                    return Err("retained UI presentation failed".into());
-                }
-                if index > 0 {
-                    reuse_times.push(began.elapsed().as_micros() as u64);
-                }
-            }
-            let state = self.engine.state()?;
-            let reuse_delta = state["desktop"]["uiPerformance"]["compositionReuses"]
-                .as_u64()
-                .unwrap_or(0)
-                - before["desktop"]["uiPerformance"]["compositionReuses"]
-                    .as_u64()
-                    .unwrap_or(0);
-            let render_delta = state["desktop"]["uiPerformance"]["compositionRenders"]
-                .as_u64()
-                .unwrap_or(0)
-                - before["desktop"]["uiPerformance"]["compositionRenders"]
-                    .as_u64()
-                    .unwrap_or(0);
-            if reuse_delta != 8 || render_delta != 1 {
-                return Err("UI repaint re-executed the composition".into());
-            }
-            serde_json::json!({"reuses":reuse_delta,"renders":render_delta,"roundTripUs":reuse_times})
+            self.retained_ui_probe(size)?
         } else {
             Value::Null
         };
@@ -648,6 +626,9 @@ impl Shell {
         Ok(())
     }
     pub(crate) fn capture_node_float(&mut self) -> Result<PathBuf, String> {
+        self.capture_node_float_input(&Input::default())
+    }
+    fn capture_node_float_input(&mut self, input: &Input) -> Result<PathBuf, String> {
         let f = self
             .floating
             .values()
@@ -668,7 +649,7 @@ impl Shell {
             size,
             &mut self.panels,
             &self.state,
-            &Input::default(),
+            input,
         );
         let atlas = self.atlas.config();
         let ui = UiFrame {
@@ -688,6 +669,73 @@ impl Shell {
         let path = self.smoke.as_ref().unwrap().with_extension("nodes.png");
         self.engine.capture_ui(ui, path.clone())?;
         Ok(path)
+    }
+    fn node_float_input(&mut self, input: Input) -> Result<(), String> {
+        let f = self
+            .floating
+            .values()
+            .find(|f| f.panel == dock::Panel::Nodes)
+            .ok_or("node floating window missing during input")?;
+        let physical = f.window.inner_size();
+        let size = [
+            physical.width as f32 / f.scale,
+            physical.height as f32 / f.scale,
+        ];
+        let actions = panels::floating_chrome(
+            &mut PaintList::default(),
+            &mut self.atlas,
+            dock::Panel::Nodes,
+            size,
+            &mut self.panels,
+            &self.state,
+            &input,
+        );
+        for action in actions {
+            match action {
+                panels::Action::Node(action @ node_editor::Action::Changed { .. }) => {
+                    self.node_action(action)?
+                }
+                unexpected => {
+                    return Err(format!(
+                        "unexpected native default-edit action: {unexpected:?}"
+                    ))
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn edit_node_default_smoke(&mut self, id: &str, port: &str, text: &str) -> Result<(), String> {
+        let styles = PaintList::default().styles();
+        let bounds = self
+            .panels
+            .node_editor
+            .input_default_bounds(id, port, &styles)
+            .ok_or("native default field bounds missing")?;
+        let point = [
+            (bounds.min[0] + bounds.max[0]) * 0.5,
+            (bounds.min[1] + bounds.max[1]) * 0.5,
+        ];
+        self.node_float_input(Input {
+            mouse: point,
+            pressed: Some((MouseButton::Left, point)),
+            held: Some(MouseButton::Left),
+            ..Default::default()
+        })?;
+        self.node_float_input(Input {
+            mouse: point,
+            released: Some((MouseButton::Left, point)),
+            ..Default::default()
+        })?;
+        self.node_float_input(Input {
+            text: text.into(),
+            ..Default::default()
+        })?;
+        self.node_float_input(Input {
+            keys: vec![(Key::Enter, Default::default())],
+            ..Default::default()
+        })?;
+        Ok(())
     }
     fn capture_home_preview_smoke(&mut self, path: PathBuf) -> Result<(), String> {
         if self.panels.node_preview.active.is_none() { return Err("home smoke requires a live GPU node preview".into()); }
@@ -854,6 +902,302 @@ impl Shell {
             self.smoke_node_report["ungroupPixelsPreserved"] = Value::Bool(true);
             self.panels
                 .node_editor
+                .add_node(
+                    motion_graph::NodeOp::ColorMath {
+                        operation: motion_graph::ColorOp::Invert,
+                    },
+                    [720., 180.],
+                )
+                .map_err(|error| error.to_string())?;
+            self.schedule_node_compile()?;
+            self.smoke_stage = 21;
+        } else if self.smoke_stage == 21
+            && self.node_compile_due.is_none()
+            && self.node_installing.is_empty()
+            && !self.node_tasks.busy()
+        {
+            if let Some(diagnostic) = self.panels.node_editor.diagnostic() {
+                return Err(format!(
+                    "unused incomplete node blocked live validation: {diagnostic}"
+                ));
+            }
+            if self.panels.node_preview.active != Some(self.panels.node_editor.stamp()) {
+                return Ok(());
+            }
+            let draft = self
+                .engine
+                .node_capture(0., directory.join("node-unused-draft.png"))?;
+            if draft["fingerprint"] != self.smoke_node_report["parameter"]["fingerprint"] {
+                return Err("unused incomplete node changed actual GPU pixels".into());
+            }
+            self.smoke_node_report["unusedDraft"] = draft;
+            self.panels.node_preview.playing = false;
+            let screenshot = self.capture_node_float()?;
+            let path = self
+                .smoke
+                .as_ref()
+                .unwrap()
+                .with_extension("unused-draft.png");
+            std::fs::copy(screenshot, &path).map_err(|error| error.to_string())?;
+            self.smoke_node_report["unusedDraftEditorScreenshot"] =
+                serde_json::to_value(path).map_err(|error| error.to_string())?;
+            self.panels
+                .node_editor
+                .set_parameter_default("color", 0, 0.25)
+                .map_err(|error| error.to_string())?;
+            self.schedule_node_compile()?;
+            self.smoke_stage = 22;
+        } else if self.smoke_stage == 22
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            let changed = self
+                .engine
+                .node_capture(0., directory.join("node-unused-draft-edited.png"))?;
+            if changed["fingerprint"] == self.smoke_node_report["unusedDraft"]["fingerprint"] {
+                return Err(
+                    "unused draft retained stale pixels instead of compiling a parameter edit"
+                        .into(),
+                );
+            }
+            self.smoke_node_report["unusedDraftParameterEdit"] = changed;
+            self.smoke_node_report["unusedDraftKeptLivePreview"] = Value::Bool(true);
+            if !self.panels.node_editor.undo() {
+                return Err("draft acceptance could not undo its parameter edit".into());
+            }
+            self.schedule_node_compile()?;
+            self.smoke_stage = 23;
+        } else if self.smoke_stage == 23
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            let restored = self
+                .engine
+                .node_capture(0., directory.join("node-unused-draft-restored.png"))?;
+            if restored["fingerprint"] != self.smoke_node_report["parameter"]["fingerprint"] {
+                return Err("undo with an unused draft did not restore GPU pixels".into());
+            }
+            self.smoke_node_report["unusedDraftUndoRestoredPixels"] = Value::Bool(true);
+            let id = self
+                .panels
+                .node_editor
+                .add_node(
+                    motion_graph::NodeOp::Math {
+                        operation: motion_graph::MathOp::Add,
+                        value_type: motion_graph::ValueType::Float,
+                    },
+                    [960., 190.],
+                )
+                .map_err(|e| e.to_string())?;
+            self.panels
+                .node_editor
+                .set_input_default(&id, "a", motion_graph::InputValue::Float(7.))
+                .map_err(|e| e.to_string())?;
+            self.panels
+                .node_editor
+                .connect_ports(
+                    motion_graph::PortRef::new("radius", "value"),
+                    motion_graph::PortRef::new(&id, "a"),
+                )
+                .map_err(|e| e.to_string())?;
+            self.panels
+                .node_editor
+                .connect_ports(
+                    motion_graph::PortRef::new(&id, "value"),
+                    motion_graph::PortRef::new("circle", "radius"),
+                )
+                .map_err(|e| e.to_string())?;
+            self.smoke_node_report["inputDefaultsNode"] = id.into();
+            let vector = self
+                .panels
+                .node_editor
+                .add_node(
+                    motion_graph::NodeOp::Math {
+                        operation: motion_graph::MathOp::Add,
+                        value_type: motion_graph::ValueType::Vec2,
+                    },
+                    [1210., 190.],
+                )
+                .map_err(|e| e.to_string())?;
+            self.smoke_node_report["inputDefaultsVectorNode"] = vector.into();
+            // The native fixture must not depend on a previously saved canvas view.
+            self.panels.node_editor.view = node_editor::CanvasView {
+                pan: [8., 16.],
+                zoom: 0.5,
+            };
+            self.schedule_node_compile()?;
+            self.smoke_stage = 24;
+        } else if self.smoke_stage == 24
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            let wired = self
+                .engine
+                .node_capture(0., directory.join("node-defaults-wired.png"))?;
+            if wired["fingerprint"] != self.smoke_node_report["parameter"]["fingerprint"] {
+                return Err("wired input did not take precedence over its stored default".into());
+            }
+            let screenshot = self.capture_node_float()?;
+            let path = self
+                .smoke
+                .as_ref()
+                .unwrap()
+                .with_extension("defaults-wired.png");
+            std::fs::copy(screenshot, &path).map_err(|e| e.to_string())?;
+            self.smoke_node_report["inputDefaultsWiredScreenshot"] =
+                serde_json::to_value(path).map_err(|e| e.to_string())?;
+            self.smoke_node_report["inputDefaultsWirePrecedence"] = true.into();
+            let id = self.smoke_node_report["inputDefaultsNode"]
+                .as_str()
+                .ok_or("default node missing")?
+                .to_string();
+            self.panels
+                .node_editor
+                .disconnect_input(&motion_graph::PortRef::new(&id, "a"));
+            self.schedule_node_compile()?;
+            self.smoke_stage = 25;
+        } else if self.smoke_stage == 25
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            let fallback = self
+                .engine
+                .node_capture(0., directory.join("node-defaults-fallback.png"))?;
+            if fallback["fingerprint"] == self.smoke_node_report["parameter"]["fingerprint"] {
+                return Err("disconnect did not activate the stored input default".into());
+            }
+            self.smoke_node_report["inputDefaultsFallback"] = fallback;
+            self.smoke_node_report["inputDefaultsDisconnectRestoresValue"] = true.into();
+            let screenshot = self.capture_node_float()?;
+            let path = self
+                .smoke
+                .as_ref()
+                .unwrap()
+                .with_extension("defaults-fallback.png");
+            std::fs::copy(screenshot, &path).map_err(|e| e.to_string())?;
+            self.smoke_node_report["inputDefaultsFallbackScreenshot"] =
+                serde_json::to_value(path).map_err(|e| e.to_string())?;
+            let id = self.smoke_node_report["inputDefaultsNode"]
+                .as_str()
+                .ok_or("default node missing")?
+                .to_string();
+            self.edit_node_default_smoke(&id, "b", "5")?;
+            let vector = self.smoke_node_report["inputDefaultsVectorNode"]
+                .as_str()
+                .ok_or("vector default node missing")?
+                .to_string();
+            self.edit_node_default_smoke(&vector, "a", "12, 24")?;
+            let snapshot = self.panels.node_editor.snapshot();
+            if snapshot
+                .document
+                .nodes
+                .iter()
+                .find(|n| n.id == id)
+                .and_then(|n| n.input_defaults.get("b"))
+                != Some(&motion_graph::InputValue::Float(5.))
+            {
+                return Err("native pointer/text input did not edit the default field".into());
+            }
+            if snapshot
+                .document
+                .nodes
+                .iter()
+                .find(|n| n.id == vector)
+                .and_then(|n| n.input_defaults.get("a"))
+                != Some(&motion_graph::InputValue::Vec2([12., 24.]))
+            {
+                return Err("native vector input did not commit both components".into());
+            }
+            self.smoke_node_report["inputDefaultsNativeVectorEdit"] = true.into();
+            let path = self
+                .smoke
+                .as_ref()
+                .unwrap()
+                .with_extension("defaults.msgraph");
+            snapshot.save(&path).map_err(|e| e.to_string())?;
+            if motion_graph::GraphDocument::load(&path).map_err(|e| e.to_string())?
+                != snapshot.document
+                || snapshot.document.format_version != 2
+            {
+                return Err("native defaults source round trip lost typed values/version".into());
+            }
+            self.smoke_node_report["inputDefaultsSourceReopened"] = true.into();
+            self.schedule_node_compile()?;
+            self.smoke_stage = 26;
+        } else if self.smoke_stage == 26
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            let edited = self
+                .engine
+                .node_capture(0., directory.join("node-defaults-edited.png"))?;
+            if edited["fingerprint"]
+                == self.smoke_node_report["inputDefaultsFallback"]["fingerprint"]
+            {
+                return Err("native input default edit retained stale GPU pixels".into());
+            }
+            self.smoke_node_report["inputDefaultsNativeEditChangedPixels"] = true.into();
+            let screenshot = self.capture_node_float()?;
+            let path = self
+                .smoke
+                .as_ref()
+                .unwrap()
+                .with_extension("defaults-edited.png");
+            std::fs::copy(screenshot, &path).map_err(|e| e.to_string())?;
+            self.smoke_node_report["inputDefaultsEditedScreenshot"] =
+                serde_json::to_value(path).map_err(|e| e.to_string())?;
+            let properties = [80., 76.];
+            self.node_float_input(Input {
+                mouse: properties,
+                pressed: Some((MouseButton::Left, properties)),
+                ..Default::default()
+            })?;
+            let screenshot = self.capture_node_float()?;
+            let path = self
+                .smoke
+                .as_ref()
+                .unwrap()
+                .with_extension("defaults-inspector.png");
+            std::fs::copy(screenshot, &path).map_err(|e| e.to_string())?;
+            self.smoke_node_report["inputDefaultsInspectorScreenshot"] =
+                serde_json::to_value(path).map_err(|e| e.to_string())?;
+            let library = [26., 76.];
+            self.node_float_input(Input {
+                mouse: library,
+                pressed: Some((MouseButton::Left, library)),
+                ..Default::default()
+            })?;
+            for _ in 0..8 {
+                if !self.panels.node_editor.undo() {
+                    return Err("native input-default history was not reversible".into());
+                }
+            }
+            self.schedule_node_compile()?;
+            self.smoke_stage = 27;
+        } else if self.smoke_stage == 27
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            let restored = self
+                .engine
+                .node_capture(0., directory.join("node-defaults-restored.png"))?;
+            if restored["fingerprint"] != self.smoke_node_report["parameter"]["fingerprint"] {
+                return Err("undoing native defaults did not restore original GPU pixels".into());
+            }
+            self.smoke_node_report["inputDefaultsUndoRestoredPixels"] = true.into();
+            self.start_node_wire_smoke()?;
+            self.schedule_node_compile()?;
+            self.smoke_stage = 28;
+        } else if (28..=30).contains(&self.smoke_stage)
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            self.advance_node_wire_smoke(&directory)?;
+        } else if self.smoke_stage == 31
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            let restored = self
+                .engine
+                .node_capture(0., directory.join("node-wires-restored.png"))?;
+            if restored["fingerprint"] != self.smoke_node_report["parameter"]["fingerprint"] {
+                return Err("undoing native wire gestures did not restore GPU pixels".into());
+            }
+            self.smoke_node_report["wireUndoRestoredPixels"] = true.into();
+            self.panels
+                .node_editor
                 .disconnect_input(&motion_graph::PortRef::new("output", "color"));
             self.schedule_node_compile()?;
             self.smoke_stage = 6;
@@ -877,14 +1221,38 @@ impl Shell {
             }
             self.smoke_node_report["retained"] = retained;
             self.smoke_node_report["invalidGraphKeptValidPixels"] = Value::Bool(true);
+            let screenshot = self.capture_node_float()?;
+            let path = self
+                .smoke
+                .as_ref()
+                .unwrap()
+                .with_extension("required-input.png");
+            std::fs::copy(screenshot, &path).map_err(|error| error.to_string())?;
+            self.smoke_node_report["requiredInputEditorScreenshot"] =
+                serde_json::to_value(path).map_err(|error| error.to_string())?;
+            self.node_diagnostic_smoke()?;
             self.smoke_node_report["projectUntouched"] = Value::Bool(true);
-            self.redock_panel(dock::Panel::Nodes.dock())?;
-            let home_path = directory.join("home-after-node-preview.png");
-            self.capture_home_preview_smoke(home_path.clone())?;
-            self.smoke_node_report["homePreviewHidden"] = Value::Bool(true);
-            self.smoke_node_report["homeAfterNodeScreenshot"] = serde_json::to_value(home_path).map_err(|e|e.to_string())?;
-            self.smoke_stage = 7;
-            self.dirty = true;
+            self.start_node_onboarding_smoke()?;
+        } else if (32..=35).contains(&self.smoke_stage)
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            self.advance_node_onboarding_smoke(&directory)?;
+        } else if (36..=40).contains(&self.smoke_stage)
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            self.advance_node_gradient_smoke(&directory)?;
+        } else if (41..=45).contains(&self.smoke_stage)
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            self.advance_node_noise_smoke(&directory)?;
+        } else if (46..=50).contains(&self.smoke_stage)
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            self.advance_node_blend_smoke(&directory)?;
+        } else if (51..=59).contains(&self.smoke_stage)
+            && self.panels.node_preview.active == Some(self.panels.node_editor.stamp())
+        {
+            self.advance_compact_example_smoke(&directory)?;
         } else if self.smoke_stage == 7 && self.smoke_frames >= 8 {
             let snapshot = self.panels.node_editor.snapshot();
             let size = self.size().ok_or("node example smoke window missing")?;

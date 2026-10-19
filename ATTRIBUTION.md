@@ -31,3 +31,20 @@ System fonts selected by a user are not redistributed by Motion Studio. A projec
 在需要标识来源或兼容性边界时，Adobe 产品名可以出现在内部参考记录中。Motion Studio 资产不包含 Adobe logo、产品图标、截图、二进制文件、插件、预设或字体。商标免责见 [NOTICE](NOTICE)。
 
 Adobe product names may appear in internal reference notes when identifying a source or compatibility boundary. No Adobe logo, product icon, screenshot, binary, plug-in, preset, or font is included as a Motion Studio asset. See [NOTICE](NOTICE) for the trademark disclaimer.
+
+
+## Noise mathematical reference
+
+Ken Perlin, *Improving Noise*, SIGGRAPH 2002, [author-hosted paper](https://mrl.cs.nyu.edu/~perlin/paper445.pdf), is a mathematical reference for quintic interpolation and gradient noise. No paper text, reference source code, permutation tables or third-party assets are redistributed. The 2D lattice hash, eight-direction gradients, bounded octave contract, WGSL kernel, CPU oracle and editable example are independently authored Motion Studio code under this repository's MIT license. This entry records a mathematical reference rather than an adapted or bundled third-party implementation.
+
+## Color blending mathematical reference
+
+W3C, *Compositing and Blending Level 1*, Candidate Recommendation Draft dated
+2024-03-21, [fixed revision](https://www.w3.org/TR/2024/CRD-compositing-1-20240321/),
+sections 6 and 10, defines the source-over and separable transfer mathematics used
+as a reference for the node Blend operation. The document is under the W3C
+permissive document license; no document text, illustrations, sample assets or
+upstream implementation is bundled. Motion Studio's WGSL kernel, typed node,
+CPU oracle and example are independently authored under the repository MIT
+license. Bounded Add, Subtract and Divide transfers are arithmetic extensions,
+not claims of W3C blend-mode conformance. No layer compositing behavior is changed.

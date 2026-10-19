@@ -17,12 +17,38 @@ pub enum Event {
     Open { id: &'static str, save_first: bool },
 }
 impl Browser {
+    fn card(size: [f32; 2]) -> Rect {
+        let width = (size[0] - 48.).min(840.);
+        let height = (size[1] - 48.).min(690.);
+        Rect::new(
+            (size[0] - width) * 0.5,
+            (size[1] - height) * 0.5,
+            width,
+            height,
+        )
+    }
+    pub(crate) fn open_button(size: [f32; 2]) -> Rect {
+        let card = Self::card(size);
+        let width = (card.width() - 56.) / 3.;
+        Rect::new(
+            card.min[0] + 20. + width + 8.,
+            card.max[1] - 48.,
+            width,
+            30.,
+        )
+    }
     pub fn new(snapshot: EditorSnapshot, needs_save: bool) -> Self {
         Self {
             snapshot,
             needs_save,
-            selected: 0,
+            selected: Self::recommended(),
         }
+    }
+    fn recommended() -> usize {
+        motion_graph::builtin_examples()
+            .iter()
+            .position(|example| example.id == "solid_color")
+            .unwrap_or(0)
     }
     pub fn draw(
         &mut self,
@@ -40,14 +66,9 @@ impl Browser {
         if input.keys.iter().any(|(key, _)| *key == Key::Escape) {
             return Some(Event::Cancel);
         }
-        let width = (size[0] - 48.).min(840.);
-        let height = (size[1] - 48.).min(690.);
-        let card = Rect::new(
-            (size[0] - width) * 0.5,
-            (size[1] - height) * 0.5,
-            width,
-            height,
-        );
+        let card = Self::card(size);
+        let width = card.width();
+        let height = card.height();
         paint::rect(
             list,
             Rect::new(0., 0., size[0], size[1]),
@@ -82,10 +103,14 @@ impl Browser {
         let rows = entries.len().div_ceil(2).max(1);
         let row_height = (height - 282.) / rows as f32;
         let column_width = (width - 48.) * 0.5;
-        for (index, example) in entries.iter().enumerate() {
+        let recommended = Self::recommended();
+        let order = std::iter::once(recommended)
+            .chain((0..entries.len()).filter(|index| *index != recommended));
+        for (display_index, index) in order.enumerate() {
+            let example = &entries[index];
             let rect = Rect::new(
-                card.min[0] + 20. + (index % 2) as f32 * (column_width + 8.),
-                card.min[1] + 76. + (index / 2) as f32 * row_height,
+                card.min[0] + 20. + (display_index % 2) as f32 * (column_width + 8.),
+                card.min[1] + 76. + (display_index / 2) as f32 * row_height,
                 column_width,
                 row_height - 8.,
             );
@@ -184,12 +209,16 @@ impl Browser {
             if ui::button(
                 list,
                 atlas,
-                Rect::new(
-                    card.min[0] + 20. + index as f32 * (button_width + 8.),
-                    y,
-                    button_width,
-                    30.,
-                ),
+                if index == 1 {
+                    Self::open_button(size)
+                } else {
+                    Rect::new(
+                        card.min[0] + 20. + index as f32 * (button_width + 8.),
+                        y,
+                        button_width,
+                        30.,
+                    )
+                },
                 label,
                 input,
                 enabled,

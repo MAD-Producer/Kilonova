@@ -20,6 +20,24 @@ CPU worker 处理校验和编译；GPU 创建、验证和图层安装仍由 engi
 
 独立节点草稿仍可保存 `.msgraph` 或导出 `.msfx`；点击 **应用到当前图层**可把草稿加入当前图层的效果链。
 
+### Incomplete graph drafts
+
+Supported nodes outside the Color Output's dependency chain may have unconnected
+inputs. They remain editable and are saved with the source, but do not enter the
+compiled shader. Adding an unfinished node therefore leaves live compilation
+available, including subsequent parameter edits. This also applies inside nested
+groups and to unused group boundary ports.
+
+Connecting an unfinished branch to the output, or explicitly previewing that
+branch, requires its inputs to be complete. Missing group connections report the
+original group boundary and port. Failed compilation still retains the last valid
+runtime. IDs, versions, values, parameter metadata, connection endpoints, types,
+units, duplicate inputs, cycles and budgets remain checked across the full graph;
+unused unsupported nodes still block normal compilation/export.
+
+This is dependency-based draft tolerance, not implicit input defaults. It does not
+add conversions, repair wiring, or remove unfinished nodes from saved sources.
+
 ## 第一版范围
 
 先做效果节点，覆盖标量、向量、颜色和图像。节点包括素材输入、UV、时间、公开参数、数学、渐变、噪声、颜色处理、混合及输出。自定义 WGSL 作为高级节点接入。

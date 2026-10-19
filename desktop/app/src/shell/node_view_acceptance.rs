@@ -1,6 +1,5 @@
 //! Native main-window and floating-window checks, run by --node-smoke.
 use crate::*;
-use motion_ui::Rect;
 
 impl Shell {
     fn node_view_frame(
@@ -101,38 +100,7 @@ impl Shell {
             if self.panels.node_editor.view_preferences.grid {
                 return Err("G did not hide node grid in native node panel".into());
             }
-            let panel = if floating {
-                let f = self
-                    .floating
-                    .values()
-                    .find(|f| f.panel == dock::Panel::Nodes)
-                    .ok_or("node float missing")?;
-                let size = f.window.inner_size();
-                Rect::new(
-                    0.,
-                    30.,
-                    size.width as f32 / f.scale,
-                    (size.height as f32 / f.scale - 52.).max(1.),
-                )
-            } else {
-                panels::frames(&self.workspace.root, self.size().ok_or("window missing")?)
-                    .into_iter()
-                    .find(|f| f.panel == dock::Panel::Nodes)
-                    .ok_or("main node panel missing")?
-                    .content
-            };
-            let body = Rect::new(
-                panel.min[0],
-                panel.min[1] + 28.,
-                panel.width(),
-                panel.height() - 28.,
-            );
-            let editor = if self.panels.node_editor.layer_target.is_some() {
-                body
-            } else {
-                node_preview::regions(body).0
-            };
-            let canvas = self.panels.node_editor.layout(editor).canvas;
+            let canvas = self.panels.node_editor.canvas_bounds();
             // Make a genuinely empty canvas target, including in the minimum
             // window where the fitted nodes can cover the original test point.
             let minimum = graph

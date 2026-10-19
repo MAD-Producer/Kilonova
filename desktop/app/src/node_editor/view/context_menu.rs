@@ -42,8 +42,13 @@ impl NodeEditor {
         {
             return;
         }
+        if matches!(menu.kind, MenuKind::Connect { .. }) {
+            self.paint_connection_choices(list, atlas, bounds, input, language, menu);
+            return;
+        }
         let mut entries: Vec<(String, Choice)> = vec![];
         match &menu.kind {
+            MenuKind::Connect { .. } => return,
             MenuKind::View => {}
             MenuKind::Wire(port) => {
                 if !self.parents.is_empty() {

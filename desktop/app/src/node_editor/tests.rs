@@ -1,6 +1,50 @@
 use super::*;
 use motion_ui::input::{Key, Modifiers, MouseButton};
 
+#[test]
+fn incomplete_unused_nodes_keep_live_validation_and_history_reversible() {
+    let mut editor = simple();
+    assert!(editor.diagnostic().is_none());
+    let original = editor.snapshot().compile().unwrap();
+    editor
+        .connect_ports(PortRef::new("number", "value"), PortRef::new("math", "a"))
+        .unwrap();
+    assert!(editor.diagnostic().is_none());
+    assert_eq!(editor.snapshot().compile().unwrap().source, original.source);
+    let invert = editor
+        .add_node(
+            NodeOp::ColorMath {
+                operation: ColorOp::Invert,
+            },
+            [650., 260.],
+        )
+        .unwrap();
+    assert!(editor.diagnostic().is_none());
+    editor
+        .connect_ports(
+            PortRef::new(&invert, "color"),
+            PortRef::new("output", "color"),
+        )
+        .unwrap();
+    let diagnostic = editor.diagnostic().unwrap();
+    assert_eq!(diagnostic.code, ErrorCode::MissingInput);
+    assert_eq!(diagnostic.node.as_deref(), Some(invert.as_str()));
+    assert_eq!(diagnostic.port.as_deref(), Some("color"));
+    assert!(editor.undo());
+    assert!(editor.diagnostic().is_none());
+    assert_eq!(editor.snapshot().compile().unwrap().source, original.source);
+    assert!(editor.redo());
+    assert_eq!(editor.diagnostic().unwrap().code, ErrorCode::MissingInput);
+    editor
+        .connect_ports(
+            PortRef::new("color", "value"),
+            PortRef::new(&invert, "color"),
+        )
+        .unwrap();
+    assert!(editor.diagnostic().is_none());
+    assert_ne!(editor.snapshot().compile().unwrap().source, original.source);
+}
+
 pub(super) fn simple() -> NodeEditor {
     let mut graph = demo_graph();
     graph.public_parameters.clear();
