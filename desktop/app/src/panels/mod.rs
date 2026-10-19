@@ -48,6 +48,7 @@ mod graph_notice;
 mod graph_workspace;
 mod helpers;
 mod keyboard;
+mod modified_properties;
 mod key_navigation;
 mod layer_actions;
 mod layer_locks;
