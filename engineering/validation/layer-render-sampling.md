@@ -10,7 +10,7 @@ Issue：#255。本工作最初基于 `f32c64de`，已同步到包含 PR #336 的
 | 连续栅格化实际像素 | 原创圆形在 256×256 输出中放大八倍；真实 GPU capture、透明边界、覆盖面积、反复切换和冻结模型重开 | 矢量已实现；其他来源仍需逐项能力界定 |
 | 连续栅格化预算和预览 | 投影密度影响实际源纹理尺寸及 mesh/cache 身份；默认与预览计划一致；低预算拒绝且恢复预算可继续渲染 | 已实现并测试 |
 | 帧混合 | 解码器要求真实相邻 PTS 双帧；GPU 在线性预乘空间混合；预览代理、桌面捕获与冻结组合读帧接入；实际 VFR、YUV、取消、冻结协议和默认日志用例 | 已实现核心链路；最终能力声明、UI 及原生界面验收待完成 |
-| 运动模糊 | 中心快门和逐层有理数阶段调度；逐接收层的真实 Scene/父级/相机/表达式/效果输入求值；独立局部效果图像与投影 matte；逐阶段调整图层；实际线性 FP16 GPU 累积；逐层投影、透明边界、取消、预算、BGRA 与嵌套效果测试及独立图像 | 求值、调度、物化、调整图层、累积和逐层投影模块已实现；嵌套独立曝光、媒体 pending 的持久 GPU 任务、预览与冻结协议仍待接入 |
+| 运动模糊 | 中心快门和逐层有理数阶段调度；逐接收层的真实 Scene/父级/相机/表达式/效果输入求值；独立局部效果图像与投影 matte；逐阶段调整图层；实际线性 FP16 GPU 累积；持久 GPU 帧任务、精确相邻媒体准备与真实冻结 MP4 输出 | 核心链路和冻结 MP4 已接入并测试；嵌套独立曝光、桌面预览/capture、冻结组合读帧协议及最终能力/UI 仍待接入 |
 | 能力检查及 UI | 模型拒绝对非视频帧混合、对非矢量连续栅格化、对非像素来源运动模糊 | 最终 host 能力声明和实际支持开关待接入；未加入空开关 |
 | 双语、主/浮窗、焦点失效 | 本轮没有修改 UI | 待真实开关接入后验收与截图 |
 
@@ -28,7 +28,7 @@ Issue：#255。本工作最初基于 `f32c64de`，已同步到包含 PR #336 的
 
 LayerSampling 默认字段不序列化，旧工程默认重开保持字节等价。非默认设置要求格式 21；Set 和 Add 路径均提升格式。格式 22 仍拒绝。三个旧测试在保留未知格式失败断言的同时增加格式 21 成功断言，将未知格式用例改为 22；未删除或弱化旧格式、锁定、取消及源时间断言。
 
-快门单位为合成帧，曝光居中，范围 (0, 2]，2–16 次采样，默认 0.5 帧/8 次。预览与冻结时钟函数保持同一曝光范围和均匀权重，预览仅减少样本数。图层或合成范围外应贡献透明度，禁止用重归一化使入出点变亮。独立 GPU 累积验证透明阶段不重归一化；逐层 Scene 求值模块验证合成两端及精确 clip 的范围判断。真实预览和冻结多时钟任务仍未接入，不能将模块测试称为完整运动模糊。
+快门单位为合成帧，曝光居中，范围 (0, 2]，2–16 次采样，默认 0.5 帧/8 次。预览与冻结时钟函数保持同一曝光范围和均匀权重，预览仅减少样本数。图层或合成范围外应贡献透明度，禁止用重归一化使入出点变亮。独立 GPU 累积验证透明阶段不重归一化；逐层 Scene 求值模块验证合成两端及精确 clip 的范围判断。真实冻结 MP4 已调用多时钟任务并验证透明边界；桌面预览尚未调用，不能据此声称完整运动模糊已交付。
 
 帧混合依据导入的严格递增 PTS，而非 nominal fps；索引已有验证保证首项等于 video_start_us、末项小于 video_end_us。源有效区间外透明，尾部不循环。新的真实 worker 用例覆盖非零首 PTS 100ms、后续 170ms/400ms 的 VFR，135ms 的样本权重为 0.5，117.5ms 为 0.25；精确 PTS 只需单帧，最后一帧保持到 500ms 有效区间结束。还覆盖 clip 的 offset、in/out、源偏移和冻结保存重开。
 
@@ -74,8 +74,12 @@ PreviewVideoCache 对左右输入应用同一现有 video_edge 策略，分辨�
 | SAM-FUNC-09 | 新功能及独立兼容性修复 | draw_exposure_phase / accumulate_exposure_phase 将中心时刻的调整参数和引用素材作用到每阶段的下方合成，再进入曝光累积。复用现有效果、范围/opacity、混合及背景呈现；保留旧局部 API 的调整图层拒绝断言。真实 BGRA 组合测试发现混合中间纹理固定 RGBA 导致 pipeline 格式不匹配，现随 renderer 输出格式创建，容量仍为 4WH；这是功能修复。 |
 | SAM-OBS-11 | 新上下文/模块验证 | 中心依赖先严格预检，包含嵌套效果；不走预览的失败效果绕过路径。返回原始 cause、composition、sample_frame、adjustment_prepare / adjustment_effect 及已有对象信息，保留 typed ResourceRejection。真实失败、预算和策略拒绝后阶段不推进，未完成的累积不能捕获；调用者显式提供有效上下文后可继续。没有新增日志计数、吞错、自动重试或重启，默认文件/Error stderr/Info in-flight/前端信道仍待 host 接入验收。 |
 | SAM-NORMAL-08 | 正常路径/资源边界 | 空 backdrop、disabled 效果、零 opacity 和范围外接收层按既有语义处理；背景在最终呈现时合入，不被调整图层改色。中心依赖准备先提交，再上传阶段几何；有调整图层时通常为准备、阶段、累积三次有序提交，opt-in ledger 保留输入/输出容量。调整 accumulator 为独立 allowance 的 8WH，存在混合则为 12WH；没有提高预算、线程或每帧日志。 |
+| SAM-FUNC-10 | 新功能及协议边界 | ExposureFrame 持久保存阶段、局部图像及失败状态；ExposureMedia 按当前 Scene 的真实相邻 PTS 准备并提交媒体，等待不改写请求 generation。FrozenMovie 使用不可变 ExposureDocument，并在全部阶段完成后才编码；普通无快门路径保留原实现。8ms poll、每次最多 128 工作单元是操作之间的预算，不能抢占同步 evaluator/driver/callback。冻结输出沿用 30 秒解码期限，按不变的 pending progress 计时，推进后重置；无自动重试或任务重启。 |
+| SAM-OBS-12 | 新错误上下文、既有覆盖扩展 | 实际素材上传/解码/求值错误保留原始原因和 typed ResourceRejection，附加 composition、sample_frame、phase 及可用 object/source/PTS。任务失败终态清除保留局部图像，首次 Err 保留原因；每任务最多保留 2,048 字符供后续轮询返回。真实默认 FileLogger 子进程验证新媒体路径复用原 decoder open Info、阻塞前 in-flight、Error 文件/stderr、stdout 隔离及第 60 次一次性升级。没有新增逐帧 Info 或日志基础设施；GPU/求值错误的完整前端信道验收仍待完成。 |
+| SAM-NORMAL-09 | 正常路径/资源边界 | 媒体未就绪、有限切片耗尽、透明接收层均为正常 Pending/跳过；不会丢弃已完成接收层或阶段。失败任务后续轮询不再调用媒体，显式丢弃释放 temporal 容量；换新任务/reader 是调用者显式动作。进度和统计限于一帧，工作计数饱和相加、资源/粒子取峰值；cpu_prepare_us 计 poll 内实际墙钟，排除两次 poll 间等待。没有新增后台线程、日志计数或健康热路径文件 IO。 |
+| SAM-BOUND-02 | 临时显式拒绝，仍待实现 | 普通嵌套图像可在接收时刻渲染；子合成自己的独立快门尚未接入。新帧任务在 GPU 分配前检查整个可达源图，包含中心范围外的已存储子层，并附加 composition/object/nested_sampling 拒绝；不把它静默画成普通图像。未引用的子合成不影响输出。这个边界不是最终缩减 #255 的支持范围，嵌套曝光仍必须继续实现。 |
 
-| SAM-PENDING-01 | 待完成 | 运动模糊尚需逐项审计多时钟 pending、取消、被取代请求、采样失败与冻结读者释放。新增连续栅格化相机平面错误仍缺少默认文件/Error stderr 的端到端验收；不能将现有函数 Err 用例等同于完成。 |
+| SAM-PENDING-01 | 待完成 | 持久任务等待/终态和冻结 MP4 已有实际验证；仍需桌面请求 revision/被取代取消、独立嵌套曝光、冻结组合读帧协议、全链路默认故障信道及实际播放性能。新增连续栅格化相机平面错误仍缺少默认文件/Error stderr 的端到端验收；不能将函数 Err 用例等同于完成。 |
 
 ## 本地验证
 
@@ -248,3 +252,31 @@ GPU 原图位于 `E:/Dev/aem/artifacts/layer-render-sampling/local-raster-budget
 RTX 4070 Laptop / Vulkan 的该轮成本为 64×64、10 个共同阶段、190 次准备/效果/平面 draw、65,544 字节 caller-owned temporal 峰值、29,384us 捕获。draw 数不包括曝光累积和 resolve fullscreen draw；计时包含真实 Scene 求值、局部物化、中心依赖准备、GPU 阶段合成/累积及回读，排除此前建立文档、目标、普通参照和 oracle，以及后续 PNG 写盘。这是一轮捕获，不等于实际播放 FPS、纯 GPU 时间或总显存。早期各阶段目录保留各轮成本，没有以较快值覆盖本轮数据。
 
 边界仍然明确：调用者必须在新入口之前准备好精确中心时刻的依赖媒体。现有 ready 检查能拒绝未提交/已取消/缺失的转换，不能证明所有驻留视频纹理的 PTS 恰好等于当前中心请求；后续持久任务必须协调解码 stamp。当前准备仍使用完整有界中心 Scene/Plan，可能重复准备未使用或未变化的源，不宣称最小依赖或跨阶段复用完成。嵌套独立曝光、文档 revision/取消、生产播放/冻结协议、新路径默认日志及 UI 实际开关验收均未完成，#255 保持开放。本轮没有依赖、资产、面板或 token 改动。
+
+### 持久帧任务、精确媒体与冻结 MP4
+
+此节更新上一阶段的接入状态。ExposureFrame 现在把 ExposureScenes、ExposureTarget 和当前阶段 LayerRaster 保留在一个任务内。媒体 Pending 时停在当前接收层或中心准备阶段，不重新求值同一 Scene，不丢弃先前图像，也不重复累积已完成阶段。带调整图层的阶段会在合成前重新准备精确中心媒体，避免保留了别的接收时刻视频而误当作中心素材。时间切片在工作单元之间检查，每次最多 128 单元；它不是同步求值、驱动或外部 callback 的抢占式超时。
+
+ExposureMedia 复用现有素材准备、VideoFrames 与 PreviewVideoCache，不发推测预取；按实际相邻 PTS 和相同质量策略上传、提交转换后才允许局部物化。真实 VFR 阻塞用例证明反复等待不修改 generation，整个四阶段只解码 100ms/170ms 两帧，不误发 400ms；预览代理和完整素材生成同一原创常量夹具像素。这里验证的是 helper，不是尚未接入的 Session 播放器。
+
+FrozenMovie::export 对需要曝光的冻结工程共享一次验证的不可变文档，每输出帧建立持久任务并等待完整累积，再回读给原 H.264/AAC 编码器。未启用快门的工程继续走原普通路径；不为曝光路径多分配普通 capture target。取消仍由既有 ExportControl 检查，已有输出只有最终验证和发布后才替换。新增实际取消测试在首帧已编码后取消，原目的文件保持不变、临时 MP4 清理、没有最终成功进度。等待阶段沿用原有 30 秒解码期限，进度改变才重新计时，未增加任务重试、线程重启或隐式失败恢复。
+
+错误终态保留首要原因及 typed ResourceRejection，并清除部分局部图像，禁止捕获未完成目标。第一次返回保留完整 cause；后续仅保留该任务的至多 2,048 字符诊断，丢弃任务后释放。GPU 所有者不符及零时间切片属于调用参数错误，未调用媒体、不污染有效任务。已消费/失败的 Scene 调度拒绝再次用于构造新任务。资源/粒子统计取跨上下文峰值，工作计数在单帧内饱和相加；cpu_prepare_us 累加 poll 内真实墙钟，包含回调和求值，排除两次 poll 之间等待，不能解释为纯 CPU 准备或纯 GPU 计时。
+
+独立子合成快门仍未实现。构造前检查整个可达工程，包含当前 clip 外的子层，防止它在自己的快门范围内出现而绕过仅检查中心 Scene 的判断。遇到此情形保留子合成/对象和 nested_sampling phase 并明确拒绝，未引用的子合成正常忽略；普通嵌套图像仍可按接收时刻渲染。这是有待消除的实现边界，不能用来提前关闭 #255。
+
+验证及保留的失败记录：
+
+- `sampling-frame-task-check.log` 保留新 sibling 模块直接访问 ExposureTarget 私有尺寸的编译失败；通过只读 size() 使用尺寸，未公开内部纹理。`sampling-frame-task-tests.log` 保留新测试误从 motion_core 导入 FrameEvaluator 的编译失败；改为真实 motion_model trait，未修改生产类型或断言。
+- `sampling-frame-task-valid-import.log` 六项新 GPU 测试通过。随后增加部分消费调度拒绝、失败后局部图像释放及有界原因，并将嵌套检查提前到整个可达源图，覆盖中心范围外夹具；`sampling-frame-task-boundaries.log` 三组 25 项全部通过：新持久任务 8、既有接收 Scene 8、阶段调整 9。包含同一任务 60+60 次等待、极小正时间切片、实际低源预算上传拒绝、原始错误/typed 资源拒绝、终态不重试及显式新任务恢复。
+- `sampling-frame-task-media-tests.log` 两项新 host 测试通过；`sampling-frame-task-host-final.log` host 全部 43 项通过（含这两项），未把重复运行计为新增。覆盖必要右帧实际故障、generation、完整/代理 GPU 输出、错误后 60 次轮询不再解码、显式清理 reader 并新建任务才恢复。
+- `sampling-frame-task-movie-regressions.log` 保留第二个新真实媒体夹具没有先创建索引父目录导致的 os error 3；修正夹具目录，没有改 save_index 的失败协议。`sampling-frame-task-movie-final.log` 11 项通过。增加独立曝光取消用例和可选真实产物保留后，`sampling-frame-task-movie-artifacts.log` 12 项全部通过；原始普通导出、嵌套视频/效果/表达式/PCM、动画锚点、容器回读和取消用例未改断言。
+- `sampling-frame-task-default-logs.log` 保留新测试错误地要求不存在的逐次 `video decode start` Info 而失败。现有协议在 worker 打开源前记录一次 open Info，逐次实际 decode 在调用前发布 in-flight，健康 Present 不产生每帧 Info。新测试改为精确验证现存 open 的 object/source/sequence/PTS、恰好一次 open，以及被阻塞必要右帧的 Decode in-flight（PTS 33333、sequence 1、非 speculative）；未为满足断言添加逐帧日志。`sampling-frame-task-default-final.log` 两项真实 FileLogger 子进程通过，包含旧用例的成功/正常 miss 重置和第二轮升级，以及新曝光路径 120 次等待仅第 60 次一次 Error、实际 codec 失败一次 Error、Error 同写文件/stderr、Info 不写 stderr、stdout 隔离、失败终态 60 次不重试。这是既有 decoder 可观测性经新 helper 的验证，不是新增日志机制，也未宣称所有渲染错误已完成前端验收。
+- 上述最终用例合计 82 项：新用例 14、既有回归 68，重复执行不累加。`sampling-frame-task-desktop-check.log` 带 FFmpeg 的桌面 cargo check 成功，保留既有 21 条桌面警告；日志子进程测试构建保留其既有 19 条测试配置警告。没有通过 allow 隐藏新增模块警告。这些检查不是新的 release 可运行包。
+- `sampling-frame-task-without-ffmpeg.log` 未启用 FFmpeg 的媒体库编译检查通过，无新增警告；普通 export_destination 的原条件编译保留。暂存差异空白检查、来源检查（1,402 个受版本控制路径）和样式消费者检查通过。
+
+真实产物位于 `E:/Dev/aem/artifacts/layer-render-sampling/frame-task-final/`。`receiver-exposure.mp4` 和 `linear-video-exposure.mp4` 都是独立原创 64×64、30fps、六帧工程的实际 H.264/AAC 输出，测试重新用真实解码器读取，不以合成 PNG 代替编码验收。前者冻结后修改实时工程的 LayerSampling，输出仍保留红色运动层的八样本快门，绿色动画层保持中心时刻；首帧透明边界不重归一化。后者先编码红/蓝源视频，真实索引、相邻帧解码、GPU 线性混合与曝光后再编码输出，第二帧索引处独立按线性色彩空间计算 75% 红/25% 蓝；每通道允许 12 档编码误差，足以区分错误的 gamma 像素平均。
+
+目录保存两段原始 MP4、解码出的 RGBA8、对应 PNG 和各自成本 JSON；PNG 仅做 RGBA/BGRA 通道布局转换。`frozen-movie-comparison.png` 仅给原始解码图加四倍最近邻放大、间距和文字，未修改效果像素，也不是产品 UI 截图。该轮六帧输出分别耗时 568,560us（receiver）与 601,826us（video），文件分别为 2,767 / 2,064 字节，编码器 libopenh264。计时包含 FrozenMovie::export 的 renderer 初始化、媒体准备、GPU、音频、编码、容器验证及发布，排除此前 freeze、事后解码验证和产物写盘；不是播放 FPS、纯 GPU 时间或所有工程的性能承诺。每次测量使用独立目录，没有覆盖先前阶段的慢值。
+
+待继续：递归嵌套独立曝光；Session 桌面预览/capture 的持久任务与 revision/质量/视口身份；被取代和失焦取消；冻结组合读帧协议；GPU/求值故障默认日志和前端信道；真实播放成本与 UI 能力开关、双语主/浮窗/右键菜单截图。当前没有依赖、第三方资产、面板、主题 token 或产品文案变更，DESIGN §0.7 的面板处置保持原状态，§12 的新 UI 验收仍待接入。#255 保持开放。

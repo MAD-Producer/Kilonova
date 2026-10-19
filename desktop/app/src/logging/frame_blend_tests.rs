@@ -260,3 +260,79 @@ fn required_right_reports_default_file_stderr_and_pending_threshold_recovery() {
     assert!(stderr.contains("reason=controlled adjacent-frame cause"));
     assert!(!stderr.contains("video decoder open start"));
 }
+
+#[test]
+fn persistent_exposure_media_uses_default_decoder_logs_inflight_and_keeps_failure_terminal() {
+    use motion_host::{preview_video::PreviewVideoCache,render_sampling::{ExposureMedia,ExposureMediaPolicy}};
+    use motion_render::{exposure_scene::{ExposureDocument,ExposureScenes},ExposureFrame,ExposurePoll,ExposureStage,Renderer};
+    const CHILD:&str = "MOTION_EXPOSURE_FRAME_LOG_CHILD";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = PathBuf::from(root);
+        let _logger = init(root.clone()).unwrap();
+        let mut project = fixture(&root);
+        project.layers[0].sampling.motion_blur = Some(motion_core::render_sampling::Shutter {frames:0.5,samples:2});
+        let (entered,waiting) = mpsc::channel();
+        let (release,released) = mpsc::channel();
+        let gate = Arc::new(Gate {entered,released:Mutex::new(released),fail:AtomicBool::new(true)});
+        let mut videos = VideoFrames::new(Arc::new(Backend(gate)));
+        let mut proxies = PreviewVideoCache::default();
+        let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+        let document = ExposureDocument::new(Arc::new(project.clone())).unwrap();
+        let scenes = ExposureScenes::new(document,&project.composition_id,0.5,false,None,motion_core::ExpressionEvaluator).unwrap();
+        let mut task = ExposureFrame::new(&mut renderer,scenes,32,32).unwrap();
+        let mut tick = |task:&mut ExposureFrame<motion_core::ExpressionEvaluator>,videos:&mut VideoFrames| {
+            let mut media = ExposureMedia {project:&project,root:&root,videos,proxies:&mut proxies,policy:ExposureMediaPolicy::FULL};
+            task.poll(&mut renderer,Duration::from_millis(8),|renderer,scene|media.prepare(renderer,scene))
+        };
+        assert!(matches!(tick(&mut task,&mut videos).unwrap(),ExposurePoll::Pending(_)));
+        waiting.recv_timeout(Duration::from_secs(5)).unwrap();
+        let path = root.join("motion-studio.log");
+        let logs = fs::read_to_string(&path).unwrap();
+        assert!(logs.contains("video decoder open start object=7 source=1"));
+        assert!(logs.contains("video decoder open start object=7 source=1 sequence=1 pts_us=0"));
+        assert_eq!(logs.matches("video decoder open start object=7 source=1 ").count(),1);
+        let flight = videos.metrics();
+        assert_eq!(flight["decodeInFlight"][0]["pts_us"],33333);
+        assert_eq!(flight["decodeInFlight"][0]["phase"],"decode");
+        assert_eq!(flight["decodeInFlight"][0]["speculative"],false);
+        assert_eq!(flight["decodeInFlight"][0]["sequence"],1);
+        for _ in 0..120 {
+            assert!(matches!(tick(&mut task,&mut videos).unwrap(),ExposurePoll::Pending(_)));
+            assert_eq!(task.target().phase_index(),0);
+        }
+        let logs = fs::read_to_string(&path).unwrap();
+        assert_eq!(logs.matches("persistent video pending object=7 source=1 ").count(),1);
+        assert!(logs.contains("count=60 phase=decode"));
+        release.send(()).unwrap();
+        wait(||fs::read_to_string(&path).unwrap().contains("reason=controlled adjacent-frame cause"));
+        let error = tick(&mut task,&mut videos).unwrap_err().to_string();
+        assert!(error.contains("controlled adjacent-frame cause") && error.contains("media_prepare") && error.contains("sample_frame"),"{error}");
+        assert_eq!(task.progress().stage,ExposureStage::Failed);
+        for _ in 0..60 {
+            assert!(tick(&mut task,&mut videos).unwrap_err().to_string().contains("controlled adjacent-frame cause"));
+        }
+        drop(tick);
+        assert!(renderer.capture_exposure(task.target()).is_err());
+        drop(task);
+        assert_eq!(renderer.exposure_texture_bytes(),0);
+        drop(videos);
+        flush();
+        let logs = fs::read_to_string(path).unwrap();
+        assert_eq!(logs.matches("video decode failed object=7 source=1 ").count(),1);
+        assert_eq!(logs.matches("persistent video pending object=7 source=1 ").count(),1);
+        assert!(!logs.contains("DEBUG") && !logs.contains("video decode done"));
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact","logging::frame_blend_tests::persistent_exposure_media_uses_default_decoder_logs_inflight_and_keeps_failure_terminal"])
+        .env(CHILD,root.path()).env_remove("MOTION_LOG").output().unwrap();
+    assert!(output.status.success(),"{}\n{}",String::from_utf8_lossy(&output.stdout),String::from_utf8_lossy(&output.stderr));
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(!stdout.contains("persistent video pending") && !stdout.contains("video decode failed"));
+    assert_eq!(stderr.matches("persistent video pending object=7 source=1 ").count(),1);
+    assert_eq!(stderr.matches("video decode failed object=7 source=1 ").count(),1);
+    assert!(stderr.contains("reason=controlled adjacent-frame cause"));
+    assert!(!stderr.contains("video decode start") && !stderr.contains("video decoder open start"));
+}

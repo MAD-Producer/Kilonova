@@ -77,6 +77,7 @@ pub struct ExposureScenes<E> {
     scene_frame: Option<f64>,
     center: f64,
     center_scene: Option<Box<Scene>>,
+    preview: bool,
 }
 impl<E: FrameEvaluator> ExposureScenes<E> {
     /// The caller retains one immutable document snapshot for the task. A new
@@ -138,6 +139,7 @@ impl<E: FrameEvaluator> ExposureScenes<E> {
             scene_frame: None,
             center: frame,
             center_scene: None,
+            preview,
         };
         task.schedule_phase()?;
         Ok(task)
@@ -153,6 +155,34 @@ impl<E: FrameEvaluator> ExposureScenes<E> {
     }
     pub fn phase_count(&self) -> usize {
         self.clock.phases().len()
+    }
+
+    pub fn preview(&self) -> bool {
+        self.preview
+    }
+    pub(crate) fn at_start(&self) -> bool {
+        self.phase == 0 && self.receiver == 0 && !self.failed
+    }
+    pub fn phase_weights(&self) -> impl Iterator<Item = f64> + '_ {
+        self.clock.phases().iter().map(|phase| phase.weight)
+    }
+    pub fn receiver(&self) -> Option<(u64, f64)> {
+        (self.phase < self.phase_count())
+            .then(|| self.schedule.get(self.receiver))
+            .flatten()
+            .map(|r| (r.object, r.frame))
+    }
+    /// Evaluate the immutable center without changing receiver/phase progress.
+    /// Repeated calls reuse the same context, including across media polls.
+    pub fn center_scene(&mut self) -> Result<&Scene> {
+        if self.failed {
+            return self.protocol("Exposure evaluation has failed; discard this task");
+        }
+        self.prepare_context(self.center, None)?;
+        match self.center_scene.as_deref() {
+            Some(scene) => Ok(scene),
+            None => self.protocol("Exposure center context is missing"),
+        }
     }
 
     fn schedule_phase(&mut self) -> Result<()> {
@@ -177,6 +207,58 @@ impl<E: FrameEvaluator> ExposureScenes<E> {
                 "receiver":self.schedule.get(self.receiver).map(|r|r.object)}),
         )
     }
+    fn prepare_context(&mut self, frame: f64, receiver: Option<u64>) -> Result<()> {
+        let centered = frame.to_bits() == self.center.to_bits();
+        let cached = if centered {
+            self.center_scene.is_some()
+        } else {
+            self.scene_frame
+                .is_some_and(|cached| cached.to_bits() == frame.to_bits())
+        };
+        if !cached {
+            let root = self.root.as_ref().unwrap_or(&self.document);
+            let scene = if centered {
+                self.center_scene
+                    .get_or_insert_with(|| Box::new(Scene::new(root)))
+            } else {
+                &mut self.scene
+            };
+            if let Err(mut error) = scene.sample_root(
+                &self.document,
+                root,
+                frame,
+                self.observer.as_ref(),
+                &self.evaluator,
+            ) {
+                self.failed = true;
+                let context = serde_json::json!({"phase":"exposure_scene","exposure_phase":self.phase,
+                "receiver":receiver,"sample_frame":frame});
+                if let motion_model::Error::Composition(detail) = &mut error {
+                    // Preserve the primary code, message and source phase.
+                    // Providers can supply non-object details or an inner
+                    // exposure context; never panic or overwrite either.
+                    if !detail.details.is_object() || detail.details.get("exposure").is_some() {
+                        let cause = std::mem::take(&mut detail.details);
+                        detail.details =
+                            serde_json::json!({"exposure":context,"source_details":cause});
+                    } else {
+                        detail.details["exposure"] = context;
+                    }
+                    return Err(error);
+                }
+                return composition::fail(
+                    &root.composition_id,
+                    "sample_failed",
+                    &error.to_string(),
+                    context,
+                );
+            }
+            if !centered {
+                self.scene_frame = Some(frame);
+            }
+        }
+        Ok(())
+    }
     pub fn current(&mut self) -> Result<ExposureSceneStep<'_>> {
         if self.failed {
             return self.protocol("Exposure evaluation has failed; discard this task");
@@ -192,54 +274,8 @@ impl<E: FrameEvaluator> ExposureScenes<E> {
         };
         let in_range = receiver.frame >= 0. && receiver.frame < f64::from(self.project().frames);
         if !self.prepared {
-            let centered = receiver.frame.to_bits() == self.center.to_bits();
-            let cached = if centered {
-                self.center_scene.is_some()
-            } else {
-                self.scene_frame
-                    .is_some_and(|frame| frame.to_bits() == receiver.frame.to_bits())
-            };
-            if in_range && !cached {
-                let root = self.root.as_ref().unwrap_or(&self.document);
-                let scene = if centered {
-                    self.center_scene
-                        .get_or_insert_with(|| Box::new(Scene::new(root)))
-                } else {
-                    &mut self.scene
-                };
-                if let Err(mut error) = scene.sample_root(
-                    &self.document,
-                    root,
-                    receiver.frame,
-                    self.observer.as_ref(),
-                    &self.evaluator,
-                ) {
-                    self.failed = true;
-                    let context = serde_json::json!({"phase":"exposure_scene","exposure_phase":self.phase,
-                        "receiver":receiver.object,"sample_frame":receiver.frame});
-                    if let motion_model::Error::Composition(detail) = &mut error {
-                        // Preserve the primary code, message and source phase.
-                        // Providers can supply non-object details or an inner
-                        // exposure context; never panic or overwrite either.
-                        if !detail.details.is_object() || detail.details.get("exposure").is_some() {
-                            let cause = std::mem::take(&mut detail.details);
-                            detail.details =
-                                serde_json::json!({"exposure":context,"source_details":cause});
-                        } else {
-                            detail.details["exposure"] = context;
-                        }
-                        return Err(error);
-                    }
-                    return composition::fail(
-                        &root.composition_id,
-                        "sample_failed",
-                        &error.to_string(),
-                        context,
-                    );
-                }
-                if !centered {
-                    self.scene_frame = Some(receiver.frame);
-                }
+            if in_range {
+                self.prepare_context(receiver.frame, Some(receiver.object))?;
             }
             self.prepared = true;
         }

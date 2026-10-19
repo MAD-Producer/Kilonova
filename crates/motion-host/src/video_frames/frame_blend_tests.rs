@@ -477,3 +477,106 @@ fn frozen_composition_protocol_keeps_sampling_snapshot_and_rejects_stale_or_clos
     assert_eq!(&mixed.rgba().unwrap()[..4], &[188, 188, 188, 255]);
     crate::session::close(id);
 }
+
+fn exposure_task(renderer: &mut Renderer, p: &Project, preview: bool) -> motion_render::ExposureFrame<motion_core::ExpressionEvaluator> {
+    use motion_render::exposure_scene::{ExposureDocument, ExposureScenes};
+    let document = ExposureDocument::new(Arc::new(p.clone())).unwrap();
+    let scenes = ExposureScenes::new(document,&p.composition_id,13.5,preview,None,motion_core::ExpressionEvaluator).unwrap();
+    motion_render::ExposureFrame::new(renderer,scenes,16,16).unwrap()
+}
+fn poll_exposure(task:&mut motion_render::ExposureFrame<motion_core::ExpressionEvaluator>,
+    renderer:&mut Renderer, reader:&mut VideoFrames, proxies:&mut crate::preview_video::PreviewVideoCache,
+    p:&Project, root:&Path, policy:crate::render_sampling::ExposureMediaPolicy) -> std::result::Result<motion_render::ExposurePoll,motion_render::RenderError> {
+    let mut media = crate::render_sampling::ExposureMedia {project:p,root,videos:reader,proxies,policy};
+    task.poll(renderer,Duration::from_millis(8),|renderer,scene|media.prepare(renderer,scene))
+}
+
+#[test]
+fn exposure_media_pending_reuses_required_generation_and_exact_vfr_pair_across_all_phases_and_proxy() {
+    use crate::render_sampling::ExposureMediaPolicy;
+    use motion_render::ExposurePoll;
+    let dir = tempfile::tempdir().unwrap();
+    let mut p = fixture(dir.path());
+    p.layers[0].sampling.motion_blur = Some(motion_core::render_sampling::Shutter {frames:1.,samples:4});
+    let (entered,waiting) = mpsc::channel();
+    let (release,released) = mpsc::channel();
+    let control = Arc::new(Control {fail_right:AtomicBool::new(false),calls:Mutex::new(vec![]),entered:Some(entered),release:Mutex::new(Some(released))});
+    let mut reader = VideoFrames::new(Arc::new(Backend(control.clone())));
+    let mut proxies = crate::preview_video::PreviewVideoCache::default();
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    let mut task = exposure_task(&mut renderer,&p,false);
+    assert!(matches!(poll_exposure(&mut task,&mut renderer,&mut reader,&mut proxies,&p,dir.path(),ExposureMediaPolicy::FULL).unwrap(),ExposurePoll::Pending(_)));
+    waiting.recv_timeout(Duration::from_secs(5)).unwrap();
+    let generation = reader.streams[&7].shared.0.lock().unwrap().desired.unwrap().sequence;
+    for _ in 0..60 {
+        assert!(matches!(poll_exposure(&mut task,&mut renderer,&mut reader,&mut proxies,&p,dir.path(),ExposureMediaPolicy::FULL).unwrap(),ExposurePoll::Pending(_)));
+        let state = reader.streams[&7].shared.0.lock().unwrap();
+        assert_eq!(state.desired.unwrap().sequence,generation);
+        assert_eq!(state.in_flight.unwrap().time,170_000);
+        assert!(!state.in_flight.unwrap().speculative);
+        assert_eq!(task.target().phase_index(),0);
+    }
+    release.send(()).unwrap();
+    let deadline = Instant::now()+Duration::from_secs(5);
+    loop {
+        if matches!(poll_exposure(&mut task,&mut renderer,&mut reader,&mut proxies,&p,dir.path(),ExposureMediaPolicy::FULL).unwrap(),ExposurePoll::Ready(_)) { break; }
+        assert!(Instant::now()<deadline);
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    let pixels = renderer.capture_exposure(task.target()).unwrap();
+    assert!(pixels.chunks_exact(4).all(|pixel|pixel[0].abs_diff(188)<=1 && pixel[1].abs_diff(188)<=1 && pixel[2].abs_diff(188)<=1 && pixel[3]==255));
+    assert_eq!(&*control.calls.lock().unwrap(),&[100_000,170_000]);
+    drop(task);
+    assert_eq!(renderer.exposure_texture_bytes(),0);
+    let mut preview = exposure_task(&mut renderer,&p,true);
+    let policy = ExposureMediaPolicy {image_resolution:motion_render::image_resources::Resolution::Preview(8),asynchronous_images:true,video_edge:Some(8)};
+    loop {
+        if matches!(poll_exposure(&mut preview,&mut renderer,&mut reader,&mut proxies,&p,dir.path(),policy).unwrap(),ExposurePoll::Ready(_)) {break;}
+        assert!(Instant::now()<deadline);
+    }
+    assert_eq!(renderer.capture_exposure(preview.target()).unwrap(),pixels);
+    assert_eq!(&*control.calls.lock().unwrap(),&[100_000,170_000]);
+}
+
+#[test]
+fn exposure_required_decoder_error_is_terminal_and_new_explicit_reader_can_recover() {
+    use crate::render_sampling::ExposureMediaPolicy;
+    use motion_render::{ExposurePoll,ExposureStage};
+    let dir = tempfile::tempdir().unwrap();
+    let mut p = fixture(dir.path());
+    p.layers[0].sampling.motion_blur = Some(motion_core::render_sampling::Shutter {frames:1.,samples:4});
+    let control = control();
+    control.fail_right.store(true,Ordering::Release);
+    let mut reader = VideoFrames::new(Arc::new(Backend(control.clone())));
+    let mut proxies = crate::preview_video::PreviewVideoCache::default();
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    let mut task = exposure_task(&mut renderer,&p,false);
+    let deadline = Instant::now()+Duration::from_secs(5);
+    let error = loop {
+        if let Err(error) = poll_exposure(&mut task,&mut renderer,&mut reader,&mut proxies,&p,dir.path(),ExposureMediaPolicy::FULL) {break error.to_string();}
+        assert!(Instant::now()<deadline);
+        std::thread::sleep(Duration::from_millis(2));
+    };
+    assert!(error.contains("controlled required-right decode failure") && error.contains("media_prepare") && error.contains("object=Some(7)"),"{error}");
+    assert_eq!(task.progress().stage,ExposureStage::Failed);
+    assert_eq!(task.target().phase_index(),0);
+    assert_eq!(reader.metrics()["prefetchFailures"],0);
+    control.fail_right.store(false,Ordering::Release);
+    for _ in 0..60 {
+        assert!(poll_exposure(&mut task,&mut renderer,&mut reader,&mut proxies,&p,dir.path(),ExposureMediaPolicy::FULL).unwrap_err().to_string().contains("controlled required-right decode failure"));
+    }
+    assert_eq!(&*control.calls.lock().unwrap(),&[100_000,170_000]);
+    assert!(renderer.capture_exposure(task.target()).is_err());
+    drop(task);
+    assert_eq!(renderer.exposure_texture_bytes(),0);
+    reader.clear();
+    proxies.clear();
+    let mut fresh = exposure_task(&mut renderer,&p,false);
+    loop {
+        if matches!(poll_exposure(&mut fresh,&mut renderer,&mut reader,&mut proxies,&p,dir.path(),ExposureMediaPolicy::FULL).unwrap(),ExposurePoll::Ready(_)) {break;}
+        assert!(Instant::now()<deadline);
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    let pixels = renderer.capture_exposure(fresh.target()).unwrap();
+    assert!(pixels.chunks_exact(4).all(|p|p[0].abs_diff(188)<=1 && p[3]==255));
+}

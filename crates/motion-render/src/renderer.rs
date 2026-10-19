@@ -7,6 +7,8 @@ mod frame_blend;
 mod exposure;
 mod layer_raster;
 mod phase_adjustment;
+mod exposure_frame;
+pub use exposure_frame::{ExposureFrame, ExposurePoll, ExposureProgress, ExposureStage};
 pub use layer_raster::LayerRaster;
 pub use exposure::ExposureTarget;
 use bytemuck::{Pod, Zeroable};

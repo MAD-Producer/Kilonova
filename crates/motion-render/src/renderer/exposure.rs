@@ -120,6 +120,9 @@ pub struct ExposureTarget {
     reservation: Reservation,
 }
 impl ExposureTarget {
+    pub fn size(&self) -> [u32; 2] {
+        [self.sample.width, self.sample.height]
+    }
     pub fn phase_index(&self) -> usize {
         self.phase
     }
@@ -298,7 +301,7 @@ impl Renderer {
         })
     }
 
-    fn check_exposure(&self, target: &ExposureTarget, operation: &str) -> Result<()> {
+    pub(super) fn check_exposure(&self, target: &ExposureTarget, operation: &str) -> Result<()> {
         self.check_health()?;
         let context = || {
             format!(
