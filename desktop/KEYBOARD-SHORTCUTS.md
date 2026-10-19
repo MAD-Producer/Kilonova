@@ -11,6 +11,7 @@
 | Backquote (U+0060) | Temporarily maximize / restore the dock under the pointer; use the focused visible panel when outside the docks | Main window; text, IME, menus and gestures take priority. Floating windows retain their geometry. Temporary state is not saved. |
 | Ctrl+Alt+N / Ctrl+N | 新建工程 / 合成 | 工程与三个节点面板；文本编辑优先 |
 | Ctrl+O / Ctrl+S | 打开 / 保存当前文档 | 工程或节点；节点属性和预览浮窗也保存节点文档 |
+| Ctrl+, | 打开偏好设置 | 主窗与原生浮窗；文本、IME、弹层和交互优先，设置独立于工程保存 |
 | Ctrl+Shift+S | 另存节点文档 | 节点 |
 | Ctrl+I / Ctrl+K | 导入媒体 / 合成设置 | 工程 |
 | Ctrl+Alt+M | 导出视频 | 工程；需启用 FFmpeg 构建功能 |

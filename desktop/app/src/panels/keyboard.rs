@@ -236,6 +236,7 @@ fn handle_context_shortcuts(
                     | Command::NewComposition
                     | Command::Import
                     | Command::Settings
+                    | Command::Preferences
                     | Command::Export
                     | Command::Solid
                     | Command::Text
@@ -296,6 +297,7 @@ fn handle_context_shortcuts(
             Command::Save => Action::Save,
             Command::Import => Action::ImportMedia,
             Command::Settings => Action::CompositionSettings,
+            Command::Preferences => Action::Preferences,
             Command::Export if cfg!(feature = "ffmpeg") => Action::ExportMovie,
             Command::Export => {
                 static REPORTED: std::sync::Once = std::sync::Once::new();

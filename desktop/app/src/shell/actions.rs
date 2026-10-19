@@ -213,6 +213,7 @@ impl Shell {
                 self.stop();
                 self.dialog = Some(dialogs::Dialog::new_composition(w, h));
             }
+            Action::Preferences => self.open_preferences(),
             Action::CompositionSettings => {
                 self.stop();
                 self.dialog = Some(dialogs::Dialog::settings(&self.state));
@@ -561,7 +562,7 @@ impl Shell {
                 }
             }
             Action::PreviewMode(mode) => {
-                self.state["preview"] = self.engine.preview_mode(mode, 0)?
+                self.set_preview_preference(mode)?;
             }
             Action::ViewKind(kind) => {
                 self.editing = Some((Instant::now(), self.engine.view_async(kind)?));

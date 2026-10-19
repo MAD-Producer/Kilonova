@@ -128,6 +128,11 @@ pub(super) fn render(
                     Action::Plugin(serde_json::json!({"op":"cancel_plugin_gesture"})),
                     state["preview"]["pluginEditorRecovery"]["gesture"] == true && state["observing"] != true,
                 ),
+                (
+                    if locale == Locale::Zh { "偏好设置…    Ctrl+," } else { "Preferences…    Ctrl+," }.into(),
+                    Action::Preferences,
+                    true,
+                ),
             ],
             2 => vec![
                 (

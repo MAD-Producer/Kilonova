@@ -158,6 +158,22 @@ impl Shell {
                         dialogs::Event::Cancelled => {
                             self.dialog = None;
                         }
+                        dialogs::Event::Preferences(values) => {
+                            self.apply_preferences(values, true)?;
+                            self.dialog = None;
+                        }
+                        dialogs::Event::PreferencesStyle => {
+                            log::info!("preferences start operation=choose_style");
+                            crate::logging::flush();
+                            let began = Instant::now();
+                            let path = rfd::FileDialog::new().add_filter("JSON", &["json"]).pick_file();
+                            log::debug!("preferences done operation=choose_style elapsed_ms={} selected={}", began.elapsed().as_millis(), path.is_some());
+                            if let Some(path) = path {
+                                if let Some(editor) = self.dialog.as_mut().and_then(|dialog| dialog.preferences.as_mut()) {
+                                    editor.draft.style_path = Some(path);
+                                }
+                            }
+                        }
                         dialogs::Event::ImportFont => {
                             if let Some(path) = rfd::FileDialog::new()
                                 .add_filter("Fonts", &["ttf", "otf", "ttc"])
