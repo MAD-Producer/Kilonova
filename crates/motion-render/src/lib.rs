@@ -43,7 +43,7 @@ pub use memory::TextureMemoryBreakdown;
 pub use presenter::Presenter;
 pub use quality::{PreviewMode, PreviewPolicy, PreviewTier};
 pub use renderer::premultiply_pixels;
-pub use renderer::{CaptureTarget, RenderError, RenderStats, RenderTarget, Renderer};
+pub use renderer::{CaptureTarget, ExposureTarget, RenderError, RenderStats, RenderTarget, Renderer};
 pub use timing::{GpuTimer, GpuTiming};
 
 mod scene;

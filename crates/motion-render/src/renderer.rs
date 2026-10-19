@@ -4,6 +4,8 @@ use crate::{PlaneCompositor, ResourceBudgetScope, ResourceRejection, Scene};
 mod compositing;
 mod gpu_failure;
 mod frame_blend;
+mod exposure;
+pub use exposure::ExposureTarget;
 use bytemuck::{Pod, Zeroable};
 use image::ImageReader;
 use std::{
@@ -166,6 +168,8 @@ pub struct Renderer {
     compositing_pipeline_set_builds: u64,
     video_gpu: Option<crate::video_gpu::VideoGpu>,
     video_blend: Option<frame_blend::FrameBlendGpu>,
+    exposure_gpu: Option<exposure::ExposureGpu>,
+    exposure_bytes: Arc<std::sync::atomic::AtomicU64>,
     /// Source-cache copies and linear mixtures submitted over this renderer's lifetime.
     pub video_blend_submissions: u64,
     pub video_upload_bytes: u64,
@@ -404,6 +408,8 @@ impl Renderer {
             mask_gpu,
             video_gpu: None,
             video_blend: None,
+            exposure_gpu: None,
+            exposure_bytes: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             video_blend_submissions: 0,
             video_upload_bytes: 0,
             video_uploads: 0,

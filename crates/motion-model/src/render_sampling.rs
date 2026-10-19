@@ -2,6 +2,8 @@
 //! A temporal weight belongs to the shutter, even when its sample is transparent.
 use crate::{ensure, Result};
 use serde::{Deserialize, Serialize};
+mod exposure_clock;
+pub use exposure_clock::{ExposureClock, ExposurePhase, MAX_EXPOSURE_PHASES};
 
 pub const MAX_SHUTTER_SAMPLES: u8 = 16;
 pub const PREVIEW_SHUTTER_SAMPLES: u8 = 4;
