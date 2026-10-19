@@ -1,14 +1,17 @@
 //! Default desktop chords shared by application and node contexts.
 use motion_ui::input::{Key, KeyChord, Modifiers};
+pub(crate) mod bindings;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Scope {
     Application,
     Animation,
     Nodes,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Command {
     ReloadStyle,
     TogglePanelMaximize,
