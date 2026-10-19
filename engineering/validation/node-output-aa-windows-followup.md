@@ -43,7 +43,9 @@ locally, including the six-angle polygon-area oracle. Summed alpha error
 against the pixel-area oracle ranges from 0.486 to 0.765 pixel equivalents,
 versus 92.6 to 123.9 for the binary-edge reference. Original assertions and
 thresholds are unchanged. Source guard and provenance checks also pass.
-Full renderer and desktop suites and the updated remote results are pending.
+The local renderer suite passed 205 tests (one existing optional-image test
+ignored), and the desktop suite passed 566 tests (one existing native-audio
+test ignored).
 Original failure logs and local diagnostic runs are retained under
 `artifacts/node-compact-examples/ci-surface-regression/`.
 
@@ -51,3 +53,21 @@ The four native example runs and executable described in
 `node-compact-examples-completed.md` remain evidence for the original
 `4abb801` implementation. They are not rebuilt screenshots or binary
 acceptance for this follow-up. The broader node-editor audit remains open.
+
+## Subsequent Windows result
+
+At `85560a5`, pull-request job `117888987248` passed all 574 desktop tests
+(one existing test ignored), including both original failures. It then failed
+the host integration test
+`proxy_cache_survives_cancelled_upload_and_reclaim_without_retaining_the_decoded_frame`
+at its unchanged two-byte-per-channel pixel comparison. This later failure
+was not reached in the previous failing runs. The merge run includes newer
+main tests, which accounts for its larger desktop test count.
+
+The proxy test passes locally on the normal backend, hardware DX12, and
+DX12 with a temporary fallback-adapter override. The override was restored.
+Add adapter information, expected RGBA and up to eight mismatching pixels
+to the assertion message so another Windows result can distinguish color
+conversion from plane coverage. Keep the comparison and tolerance unchanged.
+The complete local `preview_memory` target passes all three tests. The
+Windows pixel discrepancy and overall PR CI result remain unresolved.
