@@ -555,3 +555,15 @@ SAM-FUNC-22：`358ab4c` 的 Linux Rust/GPU job 118093836526 已通过原 host VF
 SAM-TEST-04：同时确认独立嵌套 oracle 将 capture_exposure 的 straight-alpha sRGB 再做了一遍反预乘。read_target 已完成该转换，因此旧 oracle 会抬亮半透明非纯色。先新增独立用例，用普通渲染器直接捕获静态半透明彩色子合成，与 oracle 上传路径比较：旧 oracle 最大差 84，tolerance=2 下失败（`sampling-oracle-straight-before.log`）。移除重复转换后，新用例及原嵌套断言一起通过。修改的是错误的参考数据变换，未更改断言或精度阈值；纯红/绿旧夹具未充分揭示该错误。
 
 `sampling-exposure-alpha-final.log` 在 Windows Vulkan 下共 **32 通过、0 失败**：曝光累积 7、持久任务 8、场景 8、嵌套 9。新增 80 个非均匀权重的颜色对照和正反透明空段，及上述非纯色 oracle 对照。既有预算、取消/错误、冻结/预览、跨帧和嵌套断言保留。该证据不能替代 Linux/Metal CI；跨平台 CI 需对新提交重跑。此前 `release-358ab4c` 的真实 EXE 验收仍有效，但它不包含这项后续曝光修复，不能标为最新产品。
+
+### 规范化累积格式与跨分支复核（2026-10-19）
+
+SAM-FUNC-23：`7258338` 的 Linux Rust/GPU job 118111668971 已通过此前的 host 精确字节及恒定白色断言，继续发现 80 相位透明空段的 alpha 为 100，原断言要求 102±1；正向场景失败，日志 `sampling-ci-exposure-mean-failure-raw.log`。这说明运行平均仍未消除跨平台半精度累计误差；没有扩大容差。具体 FP16 转换机制仍为推断，未在本机 Linux 驱动复现。
+
+功能修复将归一化线性加权平均纹理改为 Rgba16Unorm，在 [0,1] 范围提供均匀的存储精度；运行平均、f64 权重、预乘及输出量化保持原语义。纹理仍每像素 8 字节，加上样本共 12 字节，未提高容量预算。设备创建仅请求适配器实际支持的 16-bit norm / adapter-specific format features；曝光分配前同时检查设备 feature、格式 render attachment/binding 与 blendable 能力，缺少能力明确返回原有 Result 信道，不能静默输出普通帧。普通渲染仍可在缺少这些可选能力的设备启动。该兼容边界与原 FP16 blending 要求不同；尚未在不支持 UNORM16 混合的实际设备完成端到端故障注入，不把既有错误信道测试当作该硬件场景的证据。能力规则参考 [wgpu Features](https://docs.rs/wgpu/30.0.0/wgpu/struct.Features.html) 与本地 wgpu-types 30.0.1 格式能力定义；无新依赖或素材。
+
+首次只启用 16-bit norm 时，七项曝光测试均在 create_texture 的 RENDER_ATTACHMENT 校验失败（`sampling-exposure-unorm.log`），未产生有效结果；补齐 adapter-specific format feature。随后命令误写 frame_blending target，在编译前退出（`sampling-exposure-unorm-features.log`）；更正为 frame_blend。最终 `sampling-exposure-unorm-features-final.log` 为 **38 通过、0 失败**：累积 7、持久任务 8、场景 8、帧混合 6、嵌套 9；原断言完整保留。`sampling-unorm-render-lib.log` 为 **34 通过、0 失败**，包括真实 GPU 错误观察、阈值恢复、资源预算与时间戳边界。结果为 Windows Vulkan，Linux/Metal CI 仍待新提交验证。
+
+SAM-DELIVERY-03：上一提交 `7258338` 的 release 构建成功（`sampling-release-exposure-build.log`），`release-7258338/` 带经现有 manifest 校验的七个 FFmpeg DLL 与许可证，EXE SHA-256 `7b7a7d3b809421cc2669256d8d15a513fbe39d4c29eb01f2a7ae626ee404079d`。受限 PATH 下 libav 四次真实解码、中英文各 29 次主窗呈现与两个浮窗 4/2 次呈现通过，工程不变，见 `sampling-release-exposure-native.log` / `release-native-7258338-verified/summary.json`。该包不含本次 UNORM16 改动；新 release 编译另记 `sampling-release-unorm-build.log`，得到终态前不视为通过。
+
+本轮工作开始前复核本地工作树、近期分支与开放 PR：#349 负责共享 U/UU 筛选；#345 负责文字边界；#347 负责借用输入；#348 负责菱形边界；#346 图标缓存已合并主线，node-gestures 仍有未提交路由修改。本次仅修改 renderer 设备 feature、曝光格式和本记录，不重做上述内容，也未将未合入的分支称为组合验收。新增拒绝复用已有错误传播，未新增日志设施、重试或重启；不改变任何面板样式与交互。

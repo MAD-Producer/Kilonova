@@ -2,7 +2,7 @@
 use super::*;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-const ACCUMULATION_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
+const ACCUMULATION_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Unorm;
 
 pub(super) struct ExposureGpu {
     layout: wgpu::BindGroupLayout,
@@ -104,7 +104,7 @@ impl Drop for Reservation {
     }
 }
 
-/// One reusable sRGB sample and one FP16 linear weighted mean: twelve bytes per pixel.
+/// One reusable sRGB sample and one UNORM16 linear weighted mean: twelve bytes per pixel.
 /// Drop cancels the exposure; no partial result can be resolved. Queued work may
 /// outlive ownership, as represented by the renderer's submission ledger.
 pub struct ExposureTarget {
@@ -230,6 +230,12 @@ impl Renderer {
         ) {
             return Err(invalid("requires an sRGB render target"));
         }
+        if !self.device.features().contains(
+            wgpu::Features::TEXTURE_FORMAT_16BIT_NORM
+                | wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES,
+        ) {
+            return Err(invalid("adapter lacks 16-bit normalized exposure accumulation"));
+        }
         let features = self
             .adapter
             .get_texture_format_features(ACCUMULATION_FORMAT);
@@ -240,13 +246,13 @@ impl Renderer {
                 .flags
                 .contains(wgpu::TextureFormatFeatureFlags::BLENDABLE)
         {
-            return Err(invalid("adapter lacks linear floating-point blending"));
+            return Err(invalid("adapter lacks linear 16-bit normalized blending"));
         }
         let bytes = u64::from(width) * u64::from(height) * 12;
         let reservation = self.reserve_exposure_bytes(bytes, &format!("exposure {width}x{height} phase=allocate"))?;
         let sample = self.render_target(width, height)?;
         let accumulation = self.device.create_owned_texture(&wgpu::TextureDescriptor {
-            label: Some("linear floating-point exposure mean"),
+            label: Some("linear normalized exposure mean"),
             size: wgpu::Extent3d {
                 width,
                 height,

@@ -237,11 +237,16 @@ impl Renderer {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: Some("Motion Studio GPU"),
-                    required_features: if timestamps {
-                        adapter.features() & wgpu::Features::TIMESTAMP_QUERY
-                    } else {
-                        wgpu::Features::empty()
-                    },
+                    // Exposure values stay in [0,1]. UNORM16 keeps a uniform
+                    // error bound across all 80 phases within the FP16 budget.
+                    required_features: (adapter.features()
+                        & (wgpu::Features::TEXTURE_FORMAT_16BIT_NORM
+                            | wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES))
+                        | if timestamps {
+                            adapter.features() & wgpu::Features::TIMESTAMP_QUERY
+                        } else {
+                            wgpu::Features::empty()
+                        },
                     required_limits: limits,
                     memory_hints: wgpu::MemoryHints::Performance,
                     ..Default::default()
