@@ -159,12 +159,42 @@ pub fn text_sized(
     align: Align,
     font_size: f32,
 ) {
+    draw_text(list, atlas, area, label, color, align, font_size, false);
+}
+
+pub(crate) fn text_clipped(
+    list: &mut PaintList,
+    atlas: &mut crate::text::TextAtlas,
+    area: Rect,
+    label: &str,
+    color: Color,
+    align: Align,
+    font_size: f32,
+) {
+    draw_text(list, atlas, area, label, color, align, font_size, true);
+}
+
+fn draw_text(
+    list: &mut PaintList,
+    atlas: &mut crate::text::TextAtlas,
+    area: Rect,
+    label: &str,
+    color: Color,
+    align: Align,
+    font_size: f32,
+    clip: bool,
+) {
     if area.width() <= 0.0 || label.is_empty() {
         return;
     }
     let scale = font_size / atlas.font_size();
-    let shown = atlas.ellipsize(label, area.width() / scale);
-    let width = atlas.measure(&shown) * scale;
+    let (shown, ellipsis) = atlas.fitted_text(label, area.width() / scale);
+    let width = (atlas.measure(shown)
+        + if ellipsis {
+            atlas.measure("\u{2026}")
+        } else {
+            0.
+        }) * scale;
     let origin = match align {
         Align::Left => area.min[0],
         Align::Center => area.min[0] + (area.width() - width).max(0.0) * 0.5,
@@ -173,14 +203,14 @@ pub fn text_sized(
     let baseline =
         area.min[1] + (area.height() + (atlas.ascent * 2. - atlas.line_height) * scale) * 0.5;
     let mut pen = origin;
-    for character in shown.chars() {
+    for character in shown.chars().chain(ellipsis.then_some('\u{2026}')) {
         let glyph = atlas.glyph_at(character, font_size);
         let width = (glyph.uv[2] - glyph.uv[0]) * atlas.config().width as f32 / atlas.pixel_ratio();
         let height =
             (glyph.uv[3] - glyph.uv[1]) * atlas.config().height as f32 / atlas.pixel_ratio();
         // Whitespace has no atlas rectangle and only advances the pen.
         if width > 0.0 && height > 0.0 {
-            list.push_glyph(paint::Glyph {
+            let glyph = paint::Glyph {
                 uv: glyph.uv,
                 atlas_size: Some([atlas.config().width, atlas.config().height]),
                 position: [
@@ -190,7 +220,11 @@ pub fn text_sized(
                 ],
                 size: [width, height],
                 color,
-            });
+            };
+            let glyph = if clip { glyph.clipped(area) } else { Some(glyph) };
+            if let Some(glyph) = glyph {
+                list.push_glyph(glyph);
+            }
         }
         pen += glyph.advance;
     }
@@ -257,14 +291,29 @@ pub fn scrub_field(
         area.width() * 0.55,
         area.height(),
     );
-    text(list, atlas, area, label, colors.TEXT_MUTED, Align::Left);
-    text(
+    let left = Rect::new(
+        area.min[0],
+        area.min[1],
+        right.min[0] - area.min[0],
+        area.height(),
+    );
+    text_clipped(
+        list,
+        atlas,
+        left,
+        label,
+        colors.TEXT_MUTED,
+        Align::Left,
+        atlas.font_size(),
+    );
+    text_clipped(
         list,
         atlas,
         right,
         &format_value(value),
         colors.TEXT,
         Align::Right,
+        atlas.font_size(),
     );
     Response {
         hovered,
