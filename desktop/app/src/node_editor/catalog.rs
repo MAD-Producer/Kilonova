@@ -1,4 +1,20 @@
 use super::*;
+/// Labels are presentation metadata; stable node and parameter IDs stay intact.
+pub(super) fn node_title(
+    node: &Node,
+    parameters: &[PublicParameter],
+    language: Language,
+) -> String {
+    if !node.display_name.is_empty() {
+        return node.display_name.clone();
+    }
+    if let NodeOp::Parameter { parameter } = &node.operation {
+        if let Some(parameter) = parameters.iter().find(|p| p.id == *parameter) {
+            return language.text(&parameter.name, &parameter.english_name).to_owned();
+        }
+    }
+    operation_title(&node.operation, language)
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Category {
     Input,

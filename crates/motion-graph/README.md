@@ -4,6 +4,18 @@
 
 这是共享后端。桌面编辑器可调用这些接口；Android 执行导出的效果包，无需节点编辑器。本 crate 不依赖界面、编辑会话或渲染器，GPU 集成只用于开发工具与测试。
 
+## Display names and compatibility
+
+Nodes may store an optional `display_name` containing visible text of at most
+120 UTF-8 bytes. An empty value is omitted from JSON and falls back to the
+operation or public-parameter label. It never replaces the node ID, socket
+keys or parameter IDs, and does not change generated shader code. Groups and
+their ports retain their existing bilingual name fields.
+
+Existing version-1 graphs without this field continue to load. Older binaries
+that reject unknown fields cannot open a graph containing a nonempty node
+display name; clear the alias before sharing with those builds.
+
 ## 三种创作方向
 
 | 示例集 | 先学什么 | 示例 |

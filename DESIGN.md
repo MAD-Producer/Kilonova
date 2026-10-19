@@ -382,6 +382,14 @@ These are **only** behaviors evidenced in the supplied audit, **not** an exhaust
 
 ---
 
+### 10.2 Node and group names
+
+- Node context menus expose Rename. A group or boundary node also exposes Rename ports, followed by a separate input/output selection menu. Keep names separate from stable node IDs, socket keys, types, units and connections.
+- Use the native text editor in a bounded popup. Read dimensions from `node.rename.*` in `dark.json`; reuse existing chrome, border, field and muted text colors. Confirm with Enter or Apply; Escape, focus loss and outside clicks cancel without a graph edit. IME confirmation must remain in the editor.
+- Save ordinary titles in the optional `display_name` field. An empty ordinary title restores its operation or public-parameter name. Group and port renames update their existing bilingual metadata; parameter labels retain their existing bilingual inspector fields. Limit names to visible text of at most 120 UTF-8 bytes.
+- These context-menu rename commands produce one undoable source edit, without a semantic or preview revision change. Default group and public-parameter names are readable, numbered and distinct in both UI languages. Exposed port labels use readable node titles, while their socket keys stay stable.
+- This naming layer does not implement reusable group definitions or per-instance parameter bindings. Those remain a separate group-encapsulation task.
+
 ## 11. Existing project model and Project panel
 
 - Project model: `crates/motion-model`, Rust + serde; project format `.msproj`. **Do not introduce TypeScript `Project`, `Keyframe<T>`, `AnimatedProperty<T>`, or `EditorState` types** in this design document.

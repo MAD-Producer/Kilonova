@@ -51,7 +51,11 @@ fn costs(nodes: &[Node], edges: &[Connection]) -> (usize, usize) {
     }
     total
 }
-fn named_port(node: &str, spec: &motion_graph::PortSpec) -> GroupPort {
+fn named_port(
+    node: &Node,
+    parameters: &[PublicParameter],
+    spec: &motion_graph::PortSpec,
+) -> GroupPort {
     let trim = |mut text: String| {
         while text.len() > 120 {
             text.pop();
@@ -59,8 +63,16 @@ fn named_port(node: &str, spec: &motion_graph::PortSpec) -> GroupPort {
         text
     };
     GroupPort {
-        name: trim(format!("{node} · {}", spec.name)),
-        english_name: trim(format!("{node} · {}", spec.english_name)),
+        name: trim(format!(
+            "{} · {}",
+            catalog::node_title(node, parameters, Language::Chinese),
+            spec.name
+        )),
+        english_name: trim(format!(
+            "{} · {}",
+            catalog::node_title(node, parameters, Language::English),
+            spec.english_name
+        )),
         value_type: spec.value_type,
         semantic: spec.semantic,
     }
@@ -290,7 +302,7 @@ impl NodeEditor {
                                 )
                             })?;
                     let key = format!("in_{:04}", inputs.len() + 1);
-                    inputs.insert(key.clone(), named_port(&node.id, &spec));
+                    inputs.insert(key.clone(), named_port(node, &self.document.public_parameters, &spec));
                     outer.push(Connection {
                         from: edge.from.clone(),
                         to: PortRef::new(&id, &key),
@@ -322,7 +334,7 @@ impl NodeEditor {
                                     )
                                 })?;
                         let key = format!("out_{:04}", outputs.len() + 1);
-                        outputs.insert(key.clone(), named_port(&node.id, &spec));
+                        outputs.insert(key.clone(), named_port(node, &self.document.public_parameters, &spec));
                         output_keys.insert(edge.from.clone(), key.clone());
                         inner.push(Connection {
                             from: edge.from.clone(),
@@ -354,9 +366,10 @@ impl NodeEditor {
         output.position = [right, 80.];
         members.push(input);
         members.push(output);
+        let (name, english_name) = self.next_group_names();
         let graph = NodeGroup {
-            name: "节点组".into(),
-            english_name: "Node Group".into(),
+            name,
+            english_name,
             nodes: members,
             connections: inner,
             input_node: input_id,
@@ -596,7 +609,7 @@ impl NodeEditor {
             }
             index += 1;
         };
-        ports.insert(key.clone(), named_port(&node.id, spec));
+        ports.insert(key.clone(), named_port(node, &self.document.public_parameters, spec));
         if output {
             candidate.connections.push(Connection {
                 from: port,

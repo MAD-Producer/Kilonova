@@ -86,7 +86,7 @@ impl NodeEditor {
                 &mut body,
                 atlas,
                 Rect::new(content.min[0], y, content.width(), 27.),
-                &operation_title(&node.operation, language),
+                &node_title(&node, &self.document.public_parameters, language),
                 colors.TEXT,
                 Align::Left,
             );

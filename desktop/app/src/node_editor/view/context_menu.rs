@@ -3,6 +3,9 @@
 use super::*;
 
 enum Choice {
+    Rename(String),
+    RenamePorts(String),
+    RenamePort(String, bool, String),
     ToggleGrid,
     ToggleMinimap,
     Group,
@@ -45,6 +48,34 @@ impl NodeEditor {
         let mut entries: Vec<(String, Choice)> = vec![];
         match &menu.kind {
             MenuKind::View => {}
+            MenuKind::RenamePorts(id) => {
+                if let Some(node) = self.document.nodes.iter().find(|n| n.id == *id) {
+                    if let Ok(ports) = self.observed(
+                        "rename.ports",
+                        id,
+                        motion_graph::node_port_specs(node, &self.document.public_parameters),
+                    ) {
+                        for (output, specs) in [(false, &ports.inputs), (true, &ports.outputs)] {
+                            for key in specs.keys() {
+                                if let Some(port) = motion_graph::group_port(&node.operation, key, output) {
+                                    entries.push((
+                                        format!(
+                                            "{} · {}",
+                                            if output {
+                                                language.text("输出", "Output")
+                                            } else {
+                                                language.text("输入", "Input")
+                                            },
+                                            language.text(&port.name, &port.english_name)
+                                        ),
+                                        Choice::RenamePort(id.clone(), output, key.clone()),
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             MenuKind::Wire(port) => {
                 if !self.parents.is_empty() {
                     entries.push((
@@ -80,10 +111,23 @@ impl NodeEditor {
             MenuKind::Node(id) | MenuKind::Preview(id) => {
                 if matches!(menu.kind, MenuKind::Node(_)) {
                     entries.push((
+                        language.text("重命名…", "Rename…").into(),
+                        Choice::Rename(id.clone()),
+                    ));
+                    entries.push((
                         language.text("分组 · Ctrl+G", "Group · Ctrl+G").into(),
                         Choice::Group,
                     ));
                     if let Some(node) = self.document.nodes.iter().find(|node| node.id == *id) {
+                        if matches!(
+                            node.operation,
+                            NodeOp::Group { .. } | NodeOp::GroupInput { .. } | NodeOp::GroupOutput { .. }
+                        ) {
+                            entries.push((
+                                language.text("重命名端口…", "Rename ports…").into(),
+                                Choice::RenamePorts(id.clone()),
+                            ));
+                        }
                         if matches!(node.operation, NodeOp::Group { .. }) {
                             entries.push((
                                 language.text("进入子图 · Tab", "Enter group · Tab").into(),
@@ -225,6 +269,18 @@ impl NodeEditor {
         list.append(popup);
         if let Some(i) = chosen {
             match entries.into_iter().nth(i).unwrap().1 {
+                Choice::Rename(id) => self.begin_rename(
+                    super::super::naming::RenameTarget::Node(id), menu.position, language,
+                ),
+                Choice::RenamePort(node, output, key) => self.begin_rename(
+                    super::super::naming::RenameTarget::Port { node, output, key },
+                    menu.position, language,
+                ),
+                Choice::RenamePorts(id) => self.context_menu = Some(ContextMenu {
+                    position: menu.position,
+                    kind: MenuKind::RenamePorts(id),
+                    selected: 0,
+                }),
                 Choice::ToggleGrid => self.view_preferences.grid = !self.view_preferences.grid,
                 Choice::ToggleMinimap => self.view_preferences.minimap = !self.view_preferences.minimap,
                 Choice::Expose(port, output) => match self.expose_group_port(port, output) {

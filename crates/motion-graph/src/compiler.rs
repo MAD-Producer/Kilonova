@@ -88,6 +88,17 @@ pub fn node_ports(node: &Node, parameters: &[PublicParameter]) -> Result<NodePor
         inputs: BTreeMap::new(),
         outputs: BTreeMap::new(),
     };
+    if node.display_name.len() > 120
+        || node.display_name.chars().any(char::is_control)
+        || (!node.display_name.is_empty() && node.display_name.trim().is_empty())
+    {
+        return Err(Error::invalid(
+            ErrorCode::InvalidValue,
+            Some(&node.id),
+            Some("display_name"),
+            "node display names must be visible text of at most 120 UTF-8 bytes",
+        ));
+    }
     let group_ports = |ports: &BTreeMap<String, GroupPort>| -> Result<BTreeMap<String, ValueType>> {
         for (id, port) in ports {
             use crate::PortSemantic::*;

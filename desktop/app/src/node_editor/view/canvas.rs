@@ -208,11 +208,11 @@ impl NodeEditor {
             let title = if previewing {
                 format!(
                     "{} · {}",
-                    operation_title(&node.operation, language),
+                    node_title(node, &self.document.public_parameters, language),
                     language.text("预览", "Preview")
                 )
             } else {
-                operation_title(&node.operation, language)
+                node_title(node, &self.document.public_parameters, language)
             };
             label(
                 &mut content,

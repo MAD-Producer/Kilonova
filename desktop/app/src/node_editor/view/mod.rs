@@ -11,6 +11,7 @@ mod failure_tests;
 #[cfg(test)]
 mod group_tests;
 mod inspector;
+mod rename;
 mod interaction;
 mod library;
 pub(super) mod minimap;
@@ -26,6 +27,7 @@ mod toolbar;
 mod wires;
 use super::catalog::{operation_title, type_label};
 use super::*;
+use super::catalog::node_title;
 use motion_ui::{
     input::{Key, MouseButton},
     paint,
@@ -514,6 +516,7 @@ impl NodeEditor {
             if had_menu { input } else { &neutral },
             language,
         );
+        self.paint_rename(list, atlas, area, input, language);
         response.wants_keyboard = self.focus;
         response.changed = revision != self.revision;
         response.semantic_changed = semantic != self.semantic_revision;
