@@ -7,6 +7,7 @@ use motion_ui::{
 #[test]
 fn removing_obscured_glyphs_keeps_shapes_text_and_clipping_in_creation_order() {
     let glyph = |x| Glyph {
+        atlas_size: None,
         uv: [0., 0., 1., 1.],
         position: [x, 0.],
         size: [8., 8.],

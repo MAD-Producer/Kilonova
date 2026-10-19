@@ -182,6 +182,7 @@ pub fn text_sized(
         if width > 0.0 && height > 0.0 {
             list.push_glyph(paint::Glyph {
                 uv: glyph.uv,
+                atlas_size: Some([atlas.config().width, atlas.config().height]),
                 position: [
                     (pen * atlas.pixel_ratio()).round() / atlas.pixel_ratio() + glyph.offset[0],
                     (baseline * atlas.pixel_ratio()).round() / atlas.pixel_ratio()
