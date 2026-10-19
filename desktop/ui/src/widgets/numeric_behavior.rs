@@ -1,5 +1,5 @@
 //! Shared scrubbing policy; preserve maximum gesture travel at low frame rates.
-use crate::{cursor::Cursor, Input};
+use crate::cursor::Cursor;
 
 pub fn started(delta: f32, travel: f32, threshold: f32) -> bool {
     let threshold = if threshold.is_finite() {
@@ -9,7 +9,9 @@ pub fn started(delta: f32, travel: f32, threshold: f32) -> bool {
     };
     delta.abs().max(travel) >= threshold
 }
-pub fn step(input: &Input) -> f64 {
+pub fn step(input: &impl crate::InputSource) -> f64 {
+    let view = input.input_view();
+    let input = &view;
     if input.modifiers.shift {
         0.1
     } else if input.modifiers.control {
@@ -18,7 +20,9 @@ pub fn step(input: &Input) -> f64 {
         1.
     }
 }
-pub fn cursor(input: &Input, dragging: bool) -> Cursor {
+pub fn cursor(input: &impl crate::InputSource, dragging: bool) -> Cursor {
+    let view = input.input_view();
+    let input = &view;
     if dragging {
         Cursor::Grabbing
     } else if input.modifiers.shift {

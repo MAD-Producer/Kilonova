@@ -33,11 +33,11 @@ pub struct PanelFrame<'a> {
     router: &'a Router,
     input: &'a Input,
 }
-impl PanelFrame<'_> {
+impl<'a> PanelFrame<'a> {
     pub fn is_focused(&self, widget: u64) -> bool {
         self.router.focus() == Some(self.layout.target(widget))
     }
-    pub fn input_for(&self, widget: u64) -> Input {
+    pub fn input_for(&self, widget: u64) -> crate::InputView<'a> {
         self.router
             .input_for(self.layout.target(widget), self.input)
     }

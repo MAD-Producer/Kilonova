@@ -6,7 +6,7 @@ mod composite;
 pub use composite::*;
 
 use crate::{
-    input::{Input, Key, MouseButton, Rect},
+    input::{Key, MouseButton, Rect},
     paint::{self, PaintList},
     text::TextAtlas,
     ui::{self, Align, Response},
@@ -48,7 +48,9 @@ impl TextEditor {
             .nth(self.cursor)
             .map_or(self.text.len(), |(i, _)| i)
     }
-    pub fn input(&mut self, input: &Input) -> Option<TextEvent> {
+    pub fn input(&mut self, input: &impl crate::InputSource) -> Option<TextEvent> {
+        let view = input.input_view();
+        let input = &view;
         if !self.active {
             return None;
         }
@@ -253,9 +255,11 @@ impl NumberEditor {
         &mut self,
         current: f64,
         options: NumberOptions,
-        input: &Input,
+        input: &impl crate::InputSource,
         area: Rect,
     ) -> Vec<NumberEvent> {
+        let view = input.input_view();
+        let input = &view;
         let mut events = vec![];
         if input.focus_lost || input.key_presses().any(|(k, _, repeat)| k == Key::Escape && !repeat) {
             return self.cancel();
@@ -428,9 +432,11 @@ impl Button {
         atlas: &mut TextAtlas,
         area: Rect,
         label: &str,
-        input: &Input,
+        input: &impl crate::InputSource,
         enabled: bool,
     ) -> Response {
+        let view = input.input_view();
+        let input = &view;
         let styles = list.styles();
 
         self.draw_styled(
@@ -450,11 +456,13 @@ impl Button {
         atlas: &mut TextAtlas,
         area: Rect,
         label: &str,
-        input: &Input,
+        input: &impl crate::InputSource,
         enabled: bool,
         sheet: &crate::style::StyleSheet,
         class: &str,
     ) -> Response {
+        let view = input.input_view();
+        let input = &view;
         self.draw_with_states(
             list,
             atlas,
@@ -473,12 +481,14 @@ impl Button {
         atlas: &mut TextAtlas,
         area: Rect,
         label: &str,
-        input: &Input,
+        input: &impl crate::InputSource,
         enabled: bool,
         sheet: &crate::style::StyleSheet,
         class: &str,
         states: crate::style::States,
     ) -> Response {
+        let view = input.input_view();
+        let input = &view;
         if input.focus_lost || !enabled || input.key_presses().any(|(k, _, repeat)| k == Key::Escape && !repeat) {
             self.armed = false;
         }
@@ -501,7 +511,7 @@ impl Button {
         {
             self.armed = false;
         }
-        let mut visual = input.clone();
+        let mut visual = *input;
         visual.pressed = None;
         let mut response = ui::button_with_states(
             list, atlas, area, label, &visual, enabled, sheet, class, states,
@@ -516,14 +526,15 @@ impl Button {
 }
 
 /// Child content and pointer hits share the same clip rectangle.
-pub fn clipped_input(input: &Input, clip: Rect) -> Input {
-    let mut input = input.clone();
+pub fn clipped_input<'a>(input: &'a impl crate::InputSource, clip: Rect) -> crate::InputView<'a> {
+    let mut input = input.input_view();
     input.pressed = input.pressed.filter(|(_, p)| clip.contains(*p));
     if !clip.contains(input.mouse) {
         input.wheel = [0.; 2];
     }
     input
 }
+
 pub fn append_clipped(list: &mut PaintList, mut child: PaintList, clip: Rect) {
     child.clip_to(clip);
     list.append(child);
