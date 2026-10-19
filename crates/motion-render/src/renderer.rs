@@ -5,6 +5,8 @@ mod compositing;
 mod gpu_failure;
 mod frame_blend;
 mod exposure;
+mod layer_raster;
+pub use layer_raster::LayerRaster;
 pub use exposure::ExposureTarget;
 use bytemuck::{Pod, Zeroable};
 use image::ImageReader;
@@ -1408,7 +1410,11 @@ impl Renderer {
         timestamps: Option<wgpu::RenderPassTimestampWrites<'_>>,
         preview: bool,
     ) -> Result<RenderStats> {
-        self.check_health()?;
+        let (child_stats, child_diagnostics) = self.prepare_nested(scene, width, height, preview)?;
+        let mut stats=self.encode_local(scene,view,width,height,encoder,timestamps,preview)?;
+        stats.add(child_stats);self.effect_diagnostics.extend(child_diagnostics);Ok(stats)
+    }
+    fn check_resident_sources(&mut self) -> Result<()> {
         // A reduced budget also applies to already-resident sources. It must
         // not be bypassed by a cached plan or a no-op upload.
         self.trim_image_cache(0);
@@ -1417,6 +1423,11 @@ impl Renderer {
             return Err(RenderError::budget(ResourceBudgetScope::SourceTextures, resident,
                 self.effect_gpu.builder.source_texture_budget, "resident sources exceed source texture budget"));
         }
+        Ok(())
+    }
+    fn prepare_nested(&mut self, scene: &Scene, width: u32, height: u32, preview: bool) -> Result<(RenderStats, Vec<String>)> {
+        self.check_health()?;
+        self.check_resident_sources()?;
         if !scene.nested.is_empty() && self.video_gpu.as_ref().is_some_and(|v| v.has_pending()) {
             return Err(RenderError::Invalid(
                 "nested video rendering requires standalone conversion submissions".into(),
@@ -1453,8 +1464,7 @@ impl Renderer {
             })?;
             child_stats.add(stats);child_diagnostics.extend(self.effect_diagnostics.iter().map(|v|node.scene.diagnostic(v)));
         }
-        let mut stats=self.encode_local(scene,view,width,height,encoder,timestamps,preview)?;
-        stats.add(child_stats);self.effect_diagnostics.extend(child_diagnostics);Ok(stats)
+        Ok((child_stats, child_diagnostics))
     }
     fn encode_local(&mut self,scene:&Scene,view:&wgpu::TextureView,width:u32,height:u32,encoder:&mut wgpu::CommandEncoder,timestamps:Option<wgpu::RenderPassTimestampWrites<'_>>,preview:bool)->Result<RenderStats> {
         if width == 0 || height == 0 || scene.layers.len() > MAX_LAYERS {
@@ -1470,7 +1480,7 @@ impl Renderer {
                 .any(|l| l.vector.is_some() || l.adjustment || l.track_matte.is_some()
                     || l.blend != motion_model::compositing::LayerBlend::default() || !l.composite_visible)
         {
-            return self.encode_effects(scene, view, width, height, encoder, timestamps, preview);
+            return self.encode_effects(scene, Some(view), width, height, encoder, timestamps, preview, None);
         }
         // Direct drawing consumes neither mask coverage nor effect-input snapshots.
         // Release both without discarding reusable compositing pipelines.
@@ -1647,16 +1657,19 @@ impl Renderer {
     fn encode_effects(
         &mut self,
         scene: &Scene,
-        view: &wgpu::TextureView,
+        view: Option<&wgpu::TextureView>,
         width: u32,
         height: u32,
         encoder: &mut wgpu::CommandEncoder,
         timestamps: Option<wgpu::RenderPassTimestampWrites<'_>>,
         preview: bool,
+        mut materialize: Option<(u64, &mut Option<LayerRaster>)>,
     ) -> Result<RenderStats> {
         let started = Instant::now();
         let image_input_order = loop {
-            if self.preview_resource_guard {
+            if let Some((receiver, _)) = &materialize {
+                self.effect_gpu.builder.build_materialized_checked(scene, &self.asset_order, width, height, *receiver, preview)
+            } else if self.preview_resource_guard {
                 self.effect_gpu.builder.build_preview_guarded(scene, &self.asset_order, width, height, preview)
             } else if preview {
                 self.effect_gpu.builder.build_preview_checked(scene, &self.asset_order, width, height)
@@ -1665,7 +1678,8 @@ impl Renderer {
             }
             ?;
             self.prepare_effect_images();
-            let input_order = crate::effect_plan::image_input_order(&self.effect_gpu.builder.frame)
+            let targets: Vec<_> = materialize.as_ref().map(|(id, _)| *id).into_iter().collect();
+            let input_order = crate::effect_plan::image_input_order_for(&self.effect_gpu.builder.frame, &targets)
                 .map_err(RenderError::Invalid)?;
             self.prepare_input_snapshots(&input_order)?;
             match self.effect_gpu.state.prepare(
@@ -1684,7 +1698,7 @@ impl Renderer {
                             .builder
                             .program_errors
                             .insert(program, message);
-                        if !self.preview_resource_guard { continue; }
+                        if !self.preview_resource_guard && materialize.is_none() { continue; }
                     }
                     self.effect_diagnostics = vec![error.to_string()];
                     return Err(error);
@@ -1721,11 +1735,11 @@ impl Renderer {
             vector_other,
             self.effect_gpu.builder.source_texture_budget,
         )?;
-        let has_adjustment = frame
+        let has_adjustment = materialize.is_none() && frame
             .draws
             .iter()
             .any(|d| d.words[31] == 2. && d.pass_start < d.pass_end);
-        let has_transfer = frame.compositing.iter().any(|c| c.visible && (c.blend != 0 || c.space != 0));
+        let has_transfer = materialize.is_none() && frame.compositing.iter().any(|c| c.visible && (c.blend != 0 || c.space != 0));
         let has_accumulator = has_adjustment || has_transfer;
         let has_compositing = has_transfer || frame.compositing.iter().any(|c| c.mode != 0);
         let render_scale = (width as f32 / scene.width as f32)
@@ -1818,7 +1832,7 @@ impl Renderer {
             b: (srgb_to_linear(scene.background[2]) * alpha) as f64,
             a: alpha as f64,
         };
-        {
+        if let Some(view) = view {
             let writes = timestamps
                 .as_ref()
                 .map(|t| wgpu::RenderPassTimestampWrites {
@@ -1871,6 +1885,24 @@ impl Renderer {
                 wgpu::Extent3d{width:output.width,height:output.height,depth_or_array_layers:1});
         }
         composition_draws += self.encode_track_mattes(encoder,composition_size)?;
+        if let Some((receiver, output)) = materialize.take() {
+            let raster = self.copy_layer_raster(scene, receiver, [width, height], composition_size, preview, encoder)?;
+            let stats = RenderStats {
+                cpu_prepare_us: started.elapsed().as_micros() as u64,
+                draw_calls: (composition_draws + executed_passes) as u32,
+                texture_bytes: self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.bytes()
+                    + self.layer_gpu.bytes() + self.compositing_gpu.as_ref().map_or(0, |g| g.bytes()) + self.exposure_texture_bytes(),
+                parameter_upload_bytes: (bytes + executed_passes * motion_effects::shader::UNIFORM_BYTES + frame.vertices.len() * 20) as u64,
+                instance_upload_bytes: (frame.sprites.len() * 48) as u64,
+                particles_alive: frame.generator_stats.alive,
+                particles_visible: frame.generator_stats.visible,
+                particles_culled: frame.generator_stats.culled,
+                parameter_resource_upload_bytes: std::mem::take(&mut self.effect_gpu.state.parameter_resource_upload_bytes),
+            };
+            *output = Some(raster);
+            return Ok(stats);
+        }
+        let view = view.ok_or_else(|| RenderError::Invalid("missing composition render destination".into()))?;
         for (batch_index, batch) in frame.batches.iter().enumerate() {
             let i = batch.layer;
             let draw = &frame.draws[i];

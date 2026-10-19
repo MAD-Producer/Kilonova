@@ -94,9 +94,9 @@ impl ExposureGpu {
     }
 }
 
-struct Reservation {
-    counter: Arc<AtomicU64>,
-    bytes: u64,
+pub(super) struct Reservation {
+    pub(super) counter: Arc<AtomicU64>,
+    pub(super) bytes: u64,
 }
 impl Drop for Reservation {
     fn drop(&mut self) {
@@ -149,8 +149,35 @@ impl ExposureTarget {
 }
 
 impl Renderer {
+    pub(super) fn reserve_exposure_bytes(&self, bytes: u64, context: &str) -> Result<Reservation> {
+        let budget = self.memory_policy().scratch_budget_bytes;
+        if let Err(active) = self.exposure_bytes.fetch_update(Ordering::Relaxed, Ordering::Relaxed,
+            |active| active.checked_add(bytes).filter(|required| *required <= budget)) {
+            return Err(RenderError::budget(ResourceBudgetScope::ExposureTargets, active.saturating_add(bytes), budget,
+                format!("{context} live={active} additional={bytes} exceeds exposure target budget")));
+        }
+        Ok(Reservation { counter: self.exposure_bytes.clone(), bytes })
+    }
+    pub(super) fn check_exposure_media(&self, scene: &Scene, context: &str) -> Result<()> {
+        for layer in &scene.layers {
+            if let Some(video) = &layer.video {
+                let pending = self.video_gpu.as_ref().is_some_and(|gpu| gpu.pending(layer.id));
+                let completed = self.images.contains_key(&TextureKey::Video(layer.id))
+                    && self.video_gpu.as_ref().is_none_or(|gpu| gpu.ready(layer.id));
+                if pending || !completed {
+                    return Err(RenderError::Invalid(format!(
+                        "{context} object={} source={} time_us={} phase=video_ready: {}",
+                        layer.id, video.asset, video.source_time_us,
+                        if pending { "unsubmitted conversion in another encoder" } else { "completed video source missing or canceled" })));
+                }
+            }
+        }
+        for child in &scene.nested { self.check_exposure_media(&child.scene, context)?; }
+        Ok(())
+    }
     /// Live caller-owned exposure capacity, separate from source and effect
-    /// scratch budgets. Includes every active target created by this renderer.
+    /// scratch budgets. Includes every active target and retained local raster
+    /// created by this renderer. This is logical capacity, not total GPU VRAM.
     pub fn exposure_texture_bytes(&self) -> u64 {
         self.exposure_bytes.load(Ordering::Relaxed)
     }
@@ -212,22 +239,7 @@ impl Renderer {
             return Err(invalid("adapter lacks linear floating-point blending"));
         }
         let bytes = u64::from(width) * u64::from(height) * 12;
-        let budget = self.memory_policy().scratch_budget_bytes;
-        if let Err(active) =
-            self.exposure_bytes
-                .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |active| {
-                    active
-                        .checked_add(bytes)
-                        .filter(|required| *required <= budget)
-                })
-        {
-            return Err(RenderError::budget(ResourceBudgetScope::ExposureTargets, active.saturating_add(bytes), budget,
-                format!("exposure {width}x{height} phase=allocate live={active} additional={bytes} exceeds exposure target budget")));
-        }
-        let reservation = Reservation {
-            counter: self.exposure_bytes.clone(),
-            bytes,
-        };
+        let reservation = self.reserve_exposure_bytes(bytes, &format!("exposure {width}x{height} phase=allocate"))?;
         let sample = self.render_target(width, height)?;
         let accumulation = self.device.create_owned_texture(&wgpu::TextureDescriptor {
             label: Some("linear floating-point exposure sum"),
@@ -332,7 +344,7 @@ impl Renderer {
         preview: bool,
     ) -> Result<Option<RenderStats>> {
         self.check_exposure(target, "accumulate")?;
-        let Some(weight) = target.weights.get(target.phase).copied() else {
+        let Some(_) = target.weights.get(target.phase).copied() else {
             return Err(RenderError::Invalid(format!(
                 "exposure phase=accumulate sample={}: already complete",
                 target.phase
@@ -340,40 +352,15 @@ impl Renderer {
         };
         // This method owns its encoder. A conversion encoded elsewhere cannot
         // be completed by our submission, even if a texture/stamp already exists.
-        fn ready(renderer: &Renderer, scene: &Scene, phase: usize) -> Result<()> {
-            for layer in &scene.layers {
-                if let Some(video) = &layer.video {
-                    let pending = renderer
-                        .video_gpu
-                        .as_ref()
-                        .is_some_and(|gpu| gpu.pending(layer.id));
-                    let completed = renderer.images.contains_key(&TextureKey::Video(layer.id))
-                        && renderer
-                            .video_gpu
-                            .as_ref()
-                            .is_none_or(|gpu| gpu.ready(layer.id));
-                    if pending || !completed {
-                        return Err(RenderError::Invalid(format!(
-                            "exposure sample={phase} object={} source={} time_us={} phase=video_ready: {}",
-                            layer.id, video.asset, video.source_time_us,
-                            if pending { "unsubmitted conversion in another encoder" } else { "completed video source missing or canceled" })));
-                    }
-                }
-            }
-            for child in &scene.nested {
-                ready(renderer, &child.scene, phase)?;
-            }
-            Ok(())
-        }
         if let Some(scene) = scene {
-            ready(self, scene, target.phase)?;
+            self.check_exposure_media(scene, &format!("exposure sample={}", target.phase))?;
         }
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("exposure phase"),
             });
-        let mut stats = if let Some(scene) = scene {
+        let stats = if let Some(scene) = scene {
             Some(
                 self.encode_internal(
                     scene,
@@ -396,7 +383,31 @@ impl Renderer {
         } else {
             None
         };
-        if scene.is_some() || target.phase == 0 {
+        self.accumulate_exposure_encoded(target, encoder, stats, scene.is_some())
+    }
+
+    /// Accumulate a phase assembled from independently timed local images.
+    /// The phase compositor and sum are ordered GPU submissions; rejection
+    /// leaves the phase index unchanged and exposes no partial resolved frame.
+    pub fn accumulate_layer_exposure(&mut self, target: &mut ExposureTarget, context: &Scene,
+        rasters: &[&super::LayerRaster]) -> Result<RenderStats> {
+        self.check_exposure(target, "local_accumulate")?;
+        if target.complete() {
+            return Err(RenderError::Invalid("exposure phase=local_accumulate: already complete".into()));
+        }
+        let stats = self.draw_layer_rasters_tracked(context, rasters, &target.sample.view,
+            target.sample.width, target.sample.height, |ledger| ledger.merge(target.texture_resource_ledger()))?;
+        let encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("retained phase exposure sum"),
+        });
+        self.accumulate_exposure_encoded(target, encoder, Some(stats), true)?
+            .ok_or_else(|| RenderError::Invalid("exposure phase=local_accumulate: missing phase statistics".into()))
+    }
+
+    fn accumulate_exposure_encoded(&mut self, target: &mut ExposureTarget, mut encoder: wgpu::CommandEncoder,
+        mut stats: Option<RenderStats>, has_sample: bool) -> Result<Option<RenderStats>> {
+        let weight = target.weights[target.phase];
+        if has_sample || target.phase == 0 {
             self.queue.write_buffer(
                 &target.uniform,
                 0,
@@ -424,7 +435,7 @@ impl Renderer {
                     occlusion_query_set: None,
                     multiview_mask: None,
                 });
-                if scene.is_some() {
+                if has_sample {
                     pass.set_pipeline(
                         &self
                             .exposure_gpu

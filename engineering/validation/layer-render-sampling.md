@@ -68,6 +68,10 @@ PreviewVideoCache 对左右输入应用同一现有 video_edge 策略，分辨�
 | SAM-FUNC-07 | 新功能模块 | ExposureScenes 持有不可变文档及逐层时钟，驱动真实 Scene 求值；父级、相机、表达式、参数、matte 与图像输入来自接收层时刻，未模糊层来自中心时刻。子合成可作为求值根，资源/引用仍从完整文档解析。当前输出是借用的接收层上下文，不是已物化的通用局部图像；不得直接把完整上下文整图累积。 |
 | SAM-OBS-09 | 新结构化错误/模块验证 | 求值失败保留原合成错误 code/message/源 phase，再追加 exposure phase、receiver、sample_frame；其他原因以原始 Display 保留。非对象 details 和内层 exposure 上下文包入 source_details，避免 JSON 字段索引 panic 或覆盖原始上下文。任务失败后不可继续求值，不重试，不推进阶段；非法推进显式 Err 且不改变位置。实际失败测试覆盖这些分支与释放文档所有权；默认日志/Info in-flight/Error 文件及 stderr/前端信道仍待 host 端到端验收，不把返回 Err 称为完成可观测性。 |
 | SAM-NORMAL-06 | 正常路径/资源边界 | 范围外、缺少可绘制接收层、空合成和等待媒体是正常状态；60 次重复 current 不重算或推进，不产生日志。每任务只保留中心与一个变化时刻的两个 Scene（各自仍受既有活跃实例限制）、最多 128 个接收层与最多 80 阶段的时钟；不保留全部阶段场景。+0/-0 缓存身份按位区分。ExposureDocument 只在不可变文档 revision 创建时校验一次，各帧/子任务可共享；本模块没有新 GPU 分配、文件 IO、后台线程、超时或重启。 |
+| SAM-FUNC-08 | 新功能模块 | 增加 caller-owned LayerRaster、逐层物化、阶段 BSP/混合及 accumulate_layer_exposure。接收时刻的局部效果输出与投影 matte 分开保留；纯色保留浮点颜色/alpha，用 1×1 常量源避免额外 RGBA8 舍入。普通路径、资源信道和 UI 未切换到新模块，不宣称 #255 完成。 |
+| SAM-OBS-10 | 新上下文/模块验证 | 物化拒绝失败效果、未提交/已取消的视频转换、尺寸/所有者/策略/重复接收层/预算错误；错误不推进曝光阶段，保留原始 cause 与 typed ResourceRejection。缺少效果定义增加最多 96 字符的效果标识。模块真实 GPU 拒绝与恢复不等于默认日志、Error stderr、Info in-flight 或前端信道验收，这些仍待 host 接入。 |
+| SAM-NORMAL-07 | 正常路径/资源边界 | 缺少接收层返回 None；范围外样本由调度方保持透明权重。每个保留局部 RGBA 为 4WH 字节，可选投影 R8 matte 为 viewport WH 字节，纯色源为 4 字节；与所有 ExposureTarget 合计使用同一有界 temporal 计数，独立于 effect scratch/source allowance。Drop 归还逻辑容量，提交 ledger 记录异步退休；这不是总显存上限。无新增线程、重试、重启、日志计数、文件 IO 或每帧日志。 |
+
 | SAM-PENDING-01 | 待完成 | 运动模糊尚需逐项审计多时钟 pending、取消、被取代请求、采样失败与冻结读者释放。新增连续栅格化相机平面错误仍缺少默认文件/Error stderr 的端到端验收；不能将现有函数 Err 用例等同于完成。 |
 
 ## 本地验证
@@ -188,3 +192,29 @@ ExposureDocument 对整份不可变文档校验一次，再由 Arc 在帧任务�
 仍待 #255 最终验收：嵌套组合内双帧混合的专门像素/成本用例、真实桌面播放与冻结导出的整段采样一致性、完整性能记录、最终能力边界、UI 开关、双语主/浮窗和焦点取消。上述小范围 GPU 与协议测试不能代替这些验收，也未用于提前关闭 issue。
 
 未新增依赖、第三方资产、UI 栈或主题 token；未读取 Adobe 二进制，也未把参考产品截图放入产品。本 issue 的最终 UI 仍需 DESIGN §0.7 逐项处置及 §12 验收。
+
+### 局部纹理保留与 GPU 阶段合成
+
+LayerRaster 独立拥有局部 RGBA8 sRGB 输出与可选的投影 R8 matte；保存接收层自身时间的平面、扩边偏移、投影、透明度、混合和生成器 additive 语义。效果源与 matte 源按既有依赖顺序先保留 GPU 快照；新的目标强制物化不会误用普通预览缓存，也不允许以跳过失败效果的方式产出局部图像。矢量源保持连续栅格化的投影密度，不能通过普通尺寸的 utility pass 再降采样。纯色使用 1×1 白色源加原始浮点 draw uniform，原始尺寸仍用于平面几何；含 matte 的纯色同样保留颜色精度。matte 独立保留在合成视口分辨率，避免烘进局部图像后发生第二次空间重采样；源离开 clip 后仍保留零覆盖及反转语义。
+
+后续采样、普通渲染和素材上传都不能覆盖 caller-owned 图像。draw_layer_rasters 恢复 authored order，再交给现有的平面/逐层相机 BSP；不使用调用数组或按时间求值的顺序代替层级。它沿用原有 normal/additive、matte 与 blend transfer shader，不新增 shader、公开计划字段或第三方依赖。纯色、图像、矢量、效果扩边、生成器和普通嵌套纹理均通过 GPU 重投影。普通嵌套场景仍在接收时刻渲染；这不等于子合成自身快门的独立曝光组合已经实现。
+
+accumulate_layer_exposure 将独立局部图像组成完整阶段，再进入同一 FP16 线性累积器。阶段合成与累积是有序的两个 GPU submission，成功后才推进阶段，不做 CPU 图像回读；用于测试的捕获在完成后单独执行。目标的输入、输出与保留 matte 通过现有 opt-in submission ledger 合并记录，容量随所有者释放而归还，GPU 退休仍异步完成。原始裸 TextureView 绘制 API 沿用既有调用方负责输出资源账本的边界，不能据此宣称所有外部纹理已跟踪。普通效果路径的时间戳起点保持在源快照和 matte pass 之前；没有将这些阶段从既有 GPU 时间测量中漏掉。
+
+明确尚未支持的边界：局部图像 API 拒绝 adjustment；阶段合成遇到可见 adjustment 也显式拒绝，不能静默略过。后续需要将其作为逐阶段 backdrop 操作接入，而非将 adjustment 当作独立图像。文档 revision、被取代请求取消、媒体 pending 的持久帧任务、未模糊层跨阶段纹理复用、子合成独立曝光、生产播放与冻结输出都仍由后续 host 任务接入。本轮接收层准备仍使用有界的完整 Scene/Plan 上下文，不宣称仅构建最小依赖集合，也未测量实际长段视频首次出现的延迟。
+
+验证及保留的失败记录：
+
+- `sampling-local-check.log` 记录新 helper 的模型错误到 RenderError 转换未显式处理；现保留原 Display 并追加 phase，不吞错。`sampling-local-tests.log`、`sampling-local-valid-fixtures.log` 记录新夹具误用了 Layer.color、Vector 元组、旧工程版本、阴影 distance 参数和低于允许下限的 scratch 策略。夹具改用真实模型字段、格式 21、offset 和有效的 64 MiB 策略；原有校验没有放宽。
+- `sampling-local-valid-contracts.log` 记录连续矢量的实际像素差异及生成器 extent 夹具没有产生可见样本。前者通过保留投影栅格密度修复，后者将原创星场范围设到画面中。`sampling-local-density.log` 六项通过，没有放宽逐通道一档的对照断言。
+- `sampling-local-constant-precision.log` 记录尝试从无 COPY_SRC 用途的普通缓存白纹理复制导致的真实 GPU Validation Error。改为独立常量目标的白色 clear，不改变所有静态素材的 usage。`sampling-local-constant-correct-usage.log` 九项通过，包括半透明纯色和原始 opacity 的逐字节对照、后续普通渲染后仍保留旧图像、所有 matte 模式及离开 clip 的零覆盖/反转。
+- `sampling-local-final.log` 记录新增拒绝用例发现缺少效果定义时上下文缺少效果标识。生产错误保留原始 cause 并附加最多 96 字符的标识，未删去该测试断言。随后 `sampling-local-complete.log` 十一组 67 项通过（当时新模块十项），包含嵌套、曝光、接收场景、matte、矢量/adjustment、3D 投影、生成器、双帧、资源拒绝及提交账本。
+- 恢复普通路径的时间戳原始范围、显式跟踪阶段绘制的曝光输出后，`sampling-local-ledger-final.log` 五组 34 项通过。新增 GPU 账本用例在累积前后检查恰好两次提交、全部完成、无丢弃快照及同次提交的局部输入/曝光输出容量峰值；不能只在后一次累积提交记录输出。新增可见 adjustment 明确拒绝，未修改旧渲染器的 adjustment 断言或行为。
+- 最后在 GPU 分配前检查混合缓冲 12WH 的既有独立 LayerCompositing allowance，并复用既有驻留源预算检查；`sampling-local-budget-final.log` 十二项新用例和三项资源回归通过，断言拒绝前后工作纹理账本容量不变、旧局部图像仍可在恢复策略后使用。上述联合为 12 项新用例及 57 项既有回归，共 69 项；重复执行不另计。
+- `sampling-local-desktop-check.log` 带 FFmpeg 的桌面 cargo check 成功，仍有既有 21 条桌面警告，无新增渲染模块警告。这不是新的 release 可运行包。暂存差异空白检查、样式消费者检查及来源检查（1,397 个受版本控制路径）通过；没有新增依赖、资产或面板样式。
+
+GPU 原图位于 `E:/Dev/aem/artifacts/layer-render-sampling/local-raster-budget-final/`。`local-effects-sharp.png` 与 `local-effects-exposure.png` 来自同一真实动画 Project，经 ExposureScenes、局部效果物化、阶段 BSP/混合和 FP16 累积；包含真实 gaussian_blur，未用手动改矩阵替代取样。上方红色运动层扩大覆盖，alpha 面积误差小于 3%；下方同样有运动关键帧但未启用模糊的绿色参考保持中心帧。对比图只增加棋盘格、四倍最近邻放大和标签，未修改原始 GPU 像素。
+
+`local-effects-cost.json` 记录 RTX 4070 Laptop/Vulkan、64×64、八阶段、56 次效果及平面 draw、49,732 字节 caller-owned temporal 峰值与该轮 14,832us 捕获耗时。56 不包含累积和 resolve 的 fullscreen draw。计时包括 Scene 求值、局部物化、GPU 合成/累积和回读，排除前面建立的文档/目标、普通参考捕获及 PNG 写盘；不等于纯 GPU 时间、实际播放 FPS 或总显存。其他阶段目录保留各轮原始成本值，没有用较快一轮覆盖慢值。
+
+新模块暂未由桌面播放器或冻结协议调用，不能将返回 Err 的测试称为新路径的默认日志端到端验收。最终 UI、双语主/浮窗、焦点与右键菜单验收仍未开始；本轮没有面板/token 修改，不改变 DESIGN 的处置基线。

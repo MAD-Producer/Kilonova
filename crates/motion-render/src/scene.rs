@@ -125,18 +125,29 @@ impl Scene {
         self.effects.iter().any(|effect| effect.layer == layer && effect_is_screen_generator(effect))
     }
     pub fn new(project: &Project) -> Self {
+        Self::empty(project.camera.pose(0.0, project.width, project.height), project.background,
+            project.width, project.height, project.fps, project.composition_id.clone())
+    }
+    pub(crate) fn plane_context(&self, layers: Vec<DrawLayer>) -> Self {
+        let mut context = Self::empty(self.camera, self.background, self.width, self.height,
+            self.fps, self.composition_id.clone());
+        context.frame = self.frame;
+        context.layers = layers;
+        context
+    }
+    fn empty(camera: CameraPose, background: [f32; 4], width: u32, height: u32, fps: u32, composition_id: String) -> Self {
         Self {
-            camera: project.camera.pose(0.0, project.width, project.height),
+            camera,
             layers: Vec::with_capacity(motion_model::MAX_LAYERS),
-            background: project.background,
-            width: project.width,
-            height: project.height,
+            background,
+            width,
+            height,
             effects: Vec::with_capacity(motion_model::MAX_LAYERS * motion_effects::MAX_EFFECTS_PER_LAYER),
             curve_luts: Vec::new(),
             frame: 0.0,
-            fps: project.fps,
+            fps,
             sprite_assets: Default::default(),
-            composition_id: project.composition_id.clone(),
+            composition_id,
             nested: Vec::new(),
             nested_spare: Vec::new(),
             node_world: Vec::with_capacity(motion_model::MAX_LAYERS + 1),
