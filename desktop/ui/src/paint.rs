@@ -9,6 +9,8 @@ use crate::input::Rect;
 use crate::theme::Color;
 use wgpu::util::DeviceExt;
 mod strokes;
+#[cfg(test)]
+mod triangle_clip_tests;
 
 /// One drawable shape.
 #[derive(Clone, Debug)]
@@ -281,50 +283,74 @@ fn clip_triangles(points: &[[f32; 2]], area: Rect) -> Vec<[f32; 2]> {
         return result;
     }
     for triangle in points.chunks_exact(3) {
-        if triangle.iter().all(|p| area.contains(*p)) {
-            result.extend_from_slice(triangle);
-            continue;
-        }
-        let mut polygon = triangle.to_vec();
-        for (axis, bound, keep_greater) in [
-            (0, area.min[0], true),
-            (0, area.max[0], false),
-            (1, area.min[1], true),
-            (1, area.max[1], false),
-        ] {
-            let mut clipped = Vec::with_capacity(polygon.len() + 1);
-            let Some(mut previous) = polygon.last().copied() else {
-                break;
-            };
-            let inside = |p: [f32; 2]| {
-                if keep_greater {
-                    p[axis] >= bound
-                } else {
-                    p[axis] <= bound
-                }
-            };
-            for current in polygon {
-                if inside(previous) != inside(current) {
-                    let t = (bound - previous[axis]) / (current[axis] - previous[axis]);
-                    let mut crossing = [
-                        previous[0] + (current[0] - previous[0]) * t,
-                        previous[1] + (current[1] - previous[1]) * t,
-                    ];
-                    crossing[axis] = bound;
-                    clipped.push(crossing);
-                }
-                if inside(current) {
-                    clipped.push(current);
-                }
-                previous = current;
-            }
-            polygon = clipped;
-        }
-        for i in 1..polygon.len().saturating_sub(1) {
-            result.extend_from_slice(&[polygon[0], polygon[i], polygon[i + 1]]);
-        }
+        clip_triangle([triangle[0], triangle[1], triangle[2]], area, |triangle| {
+            result.extend_from_slice(&triangle);
+        });
     }
     result
+}
+
+/// Clip one triangle without allocating polygon buffers. Each of four planes
+/// can emit at most two vertices per input vertex: 3 * 2^4 is a conservative
+/// bound even for degenerate or nonfinite input. Finite convex input needs at
+/// most seven vertices, but this public drawing path also accepts raw geometry.
+pub(crate) fn clip_triangle(
+    triangle: [[f32; 2]; 3],
+    area: Rect,
+    mut emit: impl FnMut([[f32; 2]; 3]),
+) {
+    if area.width() <= 0. || area.height() <= 0. {
+        return;
+    }
+    if triangle.iter().all(|p| area.contains(*p)) {
+        emit(triangle);
+        return;
+    }
+    let mut buffers = [[[0.; 2]; 3 << 4]; 2];
+    buffers[0][..3].copy_from_slice(&triangle);
+    let mut len = 3;
+    for (pass, (axis, bound, keep_greater)) in [
+        (0, area.min[0], true),
+        (0, area.max[0], false),
+        (1, area.min[1], true),
+        (1, area.max[1], false),
+    ].into_iter().enumerate() {
+        if len == 0 {
+            return;
+        }
+        let (left, right) = buffers.split_at_mut(1);
+        let (polygon, clipped) = if pass % 2 == 0 {
+            (&left[0], &mut right[0])
+        } else {
+            (&right[0], &mut left[0])
+        };
+        let mut previous = polygon[len - 1];
+        let inside = |p: [f32; 2]| {
+            if keep_greater { p[axis] >= bound } else { p[axis] <= bound }
+        };
+        let mut out = 0;
+        for &current in &polygon[..len] {
+            if inside(previous) != inside(current) {
+                let t = (bound - previous[axis]) / (current[axis] - previous[axis]);
+                let mut crossing = [
+                    previous[0] + (current[0] - previous[0]) * t,
+                    previous[1] + (current[1] - previous[1]) * t,
+                ];
+                crossing[axis] = bound;
+                clipped[out] = crossing;
+                out += 1;
+            }
+            if inside(current) {
+                clipped[out] = current;
+                out += 1;
+            }
+            previous = current;
+        }
+        len = out;
+    }
+    for i in 1..len.saturating_sub(1) {
+        emit([buffers[0][0], buffers[0][i], buffers[0][i + 1]]);
+    }
 }
 
 /// One positioned glyph.
