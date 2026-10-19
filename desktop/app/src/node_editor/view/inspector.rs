@@ -593,6 +593,25 @@ impl NodeEditor {
                         .iter()
                         .find(|c| c.to == input_ref)
                         .cloned();
+                    if edge.is_none() {
+                        if let Some(value) = node.input_defaults.get(&port) {
+                            let height = styles.metric("row.height", 22.);
+                            label(
+                                &mut body,
+                                atlas,
+                                Rect::new(content.min[0], y, content.width(), height),
+                                &format!(
+                                    "{port}: {} · {}",
+                                    super::super::input_defaults::value_text(value),
+                                    language.text("默认值", "default")
+                                ),
+                                colors.TEXT_MUTED,
+                                Align::Left,
+                            );
+                            y += height;
+                            continue;
+                        }
+                    }
                     label(
                         &mut body,
                         atlas,
@@ -988,9 +1007,29 @@ impl NodeEditor {
         *y += 31.;
     }
     pub(super) fn field_input(&mut self, input: &Input) {
+        if input.composing
+            && self
+                .field
+                .as_ref()
+                .is_some_and(|field| matches!(field.binding, Binding::InputValue(..)))
+        {
+            return;
+        }
         let mut commit = false;
         let mut cancel = false;
         if let Some(field) = &mut self.field {
+            if matches!(field.binding, Binding::InputValue(..))
+                && input.key_presses().any(|(key, modifiers, repeat)| {
+                    key == Key::A
+                        && modifiers.control
+                        && !modifiers.alt
+                        && !modifiers.shift
+                        && !repeat
+                })
+            {
+                field.replace = true;
+                field.cursor = field.text.len();
+            }
             if !input.text.is_empty() {
                 if field.replace {
                     field.text.clear();

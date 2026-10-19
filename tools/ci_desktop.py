@@ -331,6 +331,31 @@ def main() -> None:
                 raise RuntimeError(f"{locale} node preview did not verify {check}")
         if node_snapshot["locale"] != locale or node_snapshot["floatingFrames"].get("10", 0) < 3:
             raise RuntimeError(f"{locale} did not validate the floating node workspace")
+        for check in ("unusedDraftKeptLivePreview", "unusedDraftUndoRestoredPixels"):
+            if preview.get(check) is not True:
+                raise RuntimeError(f"{locale} node draft did not verify {check}")
+        for check in ("inputDefaultsWirePrecedence", "inputDefaultsDisconnectRestoresValue", "inputDefaultsNativeEditChangedPixels", "inputDefaultsNativeVectorEdit", "inputDefaultsSourceReopened", "inputDefaultsUndoRestoredPixels"):
+            if preview.get(check) is not True:
+                raise RuntimeError(f"{locale} node input defaults did not verify {check}")
+        for check in ("wireUniqueBodyChangedPixels", "wireChoiceDeferredAndCancelled", "wireChoiceRestoredPixels", "wireRewireCancelPreservedEdges", "wireInvalidBodyPreservedEdges", "wireSourceReopened", "wireNearestSocketChangedPixels", "wireUndoRestoredPixels"):
+            if preview.get(check) is not True:
+                raise RuntimeError(f"{locale} node wire targeting did not verify {check}")
+        for check in ("diagnosticDrawerOpened", "diagnosticLocatedWithoutMutation", "diagnosticDrawerKeptValidPixels", "diagnosticDrawerClosed"):
+            if preview.get(check) is not True:
+                raise RuntimeError(f"{locale} node diagnostic drawer did not verify {check}")
+        for check in ("onboardingDismissPreservedSource", "onboardingEmptyHasStartingPoint", "onboardingOpenedInTwoClicks", "onboardingEditChangedPixels", "onboardingSourceReopened", "onboardingUndoRestoredPixels"):
+            if preview.get(check) is not True:
+                raise RuntimeError(f"{locale} node onboarding did not verify {check}")
+        for check in ("gradientThreeNodes", "gradientModesChangedPixels", "gradientNativeFalloffChangedPixels", "gradientSourceReopened", "gradientUndoRestoredPixels", "gradientProjectUntouched", "noiseThreeNodes", "noiseModesChangedPixels", "noiseOctavesChangedPixels", "noiseNativeSeedChangedPixels", "noiseSourceReopened", "noiseUndoRestoredPixels", "noiseProjectUntouched", "blendFiveNodes", "blendModesChangedPixels", "blendNativeStrengthChangedPixels", "blendSourceReopened", "blendUndoRestoredPixels", "blendRedoRestoredPixels", "blendProjectUntouched", "compactExamplesProjectUntouched"):
+            if preview.get(check) is not True:
+                raise RuntimeError(f"{locale} node primitive/example did not verify {check}")
+        for example in ("soft_sphere", "soft_sphere_motion", "floating_lights"):
+            if preview.get(example, {}).get("groupEditUndoAndReopen") is not True:
+                raise RuntimeError(f"{locale} compact example did not verify {example}")
+            for suffix in ("RootScreenshot", "InternalScreenshot", "EditedScreenshot"):
+                data = Path(preview[example + suffix]).read_bytes()
+                if len(data) < 1024 or not data.startswith(b"\x89PNG\r\n\x1a\n"):
+                    raise RuntimeError(f"{locale} compact example did not render {example} {suffix}")
     verify_mcp(binary, output)
     verify_property_followups(binary, output)
     verify_style_overrides(binary, output)

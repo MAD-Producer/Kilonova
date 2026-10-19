@@ -98,6 +98,7 @@
       "graph.selection.fill_opacity": 0.05,
       "dropdown.max_width": 320,
       "dropdown.menu_min_width": 160,
+      "node.dropdown.row.height": 28,
       "effect.row.height": 26,
       "effect.header.height": 30,
       "effect.watch.width": 24,

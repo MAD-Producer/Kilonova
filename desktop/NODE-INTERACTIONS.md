@@ -75,6 +75,18 @@ Shift+A 在鼠标位置打开分类添加菜单；菜单显示在窗口范围内
 
 ## 6. 连线
 
+### Port targeting and body drops
+
+Hover, press and release choose the nearest visible socket in screen space. The hit area preserves the existing hover tolerance and covers the visible diamond at high zoom. Sockets hidden by a front card or completely outside the canvas cannot intercept a gesture.
+
+Dragging onto a node body highlights compatible ports. One valid port connects on release; multiple valid ports open a nearest-first input/output chooser. Up/Down, Home/End, Enter, mouse and wheel work in the chooser. It stays inside the current window after resizing. The graph and undo history remain unchanged until a choice succeeds; Escape, focus loss or an outside click cancels it. Existing input wires stay present until an atomic replacement commits, including when dragging backwards from an unconnected input. One successful replacement is one undo step.
+
+Preview and commit share type, semantic unit, cycle and connection-budget checks, including nested groups. An explicit socket target is checked as that socket; an invalid socket does not silently fall back to a different input on its card. A node with no compatible port reports the cause; collapsed nodes ask to be expanded. A new wire released over empty canvas is cancelled with a brief notice. Dropping an existing input wire on empty canvas retains the deliberate disconnect behavior; dropping outside the canvas cancels it. No implicit conversions are inserted.
+
+### Stored input defaults
+
+New numeric nodes expose typed defaults directly on input rows. Scalar values support dragging and click-to-type; vector components use comma-separated numbers on one row; Bool uses a checkbox and Color opens the existing picker. A connected input shows its saved fallback disabled. The wire takes precedence, and disconnecting restores the saved value. There are no implicit casts or coordinate/image sources. Escape cancels the current edit, and each committed gesture is one undo step. Loading old source does not silently supply new defaults; saved source using defaults requires `.msgraph` version 2. Internal group nodes support defaults; group boundary defaults remain pending.
+
 左侧为输入、右侧为输出。连线使用水平出入端口的三次贝塞尔曲线：控制点沿源端口向右、目标端口向左延伸，再根据两端距离调整弯曲程度。命中与切线使用同一条绘制曲线。
 
 ### 新建与替换
@@ -180,3 +192,21 @@ Ctrl+T 按现有 UV、图像采样及端口语义建立贴图链；用户参考�
 代码入口：`desktop/app/src/shortcuts.rs`、`desktop/app/src/node_editor.rs`、`desktop/app/src/node_editor/editing.rs`、`desktop/app/src/node_editor/view/interaction.rs`、`desktop/app/src/node_editor/view/add_menu.rs`、`desktop/app/src/node_editor/view/canvas.rs`、`desktop/app/src/node_editor/tests.rs`、`crates/motion-graph/src/ports.rs`。
 
 参考：[Blender Node Wrangler](https://docs.blender.org/manual/en/latest/addons/node_wrangler.html)。其中 Shift+= 是对齐节点，按本项目需求扩展为分层自动排版；临时预览的“再次点击恢复”和 Alt+右键划线采用用户指定的 Motion Studio 语义。
+
+## Current diagnostic details
+
+The footer Details button opens the current error drawer. It shows the error code, qualified node ID, port and complete original cause, with wrapping and wheel or keyboard scrolling. Enter / Locate node navigates through nested groups and centers the node above the drawer; Esc closes the drawer. Location preserves source, collapsed state and undo history.
+
+Missing inputs on that node use hollow error rings; connected inputs and saved defaults remain valid. Focused drawer keys do not delete canvas nodes, menus and active edits keep priority, and releasing a drag over the drawer cancels it instead of connecting through the overlay. The validator still returns one diagnostic; multi-error collection remains pending.
+
+## First-use and empty canvas
+
+Fresh standalone demos show a separate welcome strip, explicitly identifying the editable example and linking to the existing browser. Continue dismisses it without moving nodes or changing source, selection, history or preview. Non-empty loaded documents, layer effects and nested groups retain their normal canvas. Empty standalone roots offer Examples and Shift+A in the vacant canvas without changing node drop coordinates; small docks retain the toolbar entry instead of crowding the canvas.
+
+Solid Color is the first recommended source: Color feeds Color Output through one wire. Click Examples, then Open example to render it; select Color to edit its swatch or RGBA controls. The browser retains save/discard and stale-document protections. No onboarding action silently replaces user work.
+
+## Gradient primitive
+
+Add Linear, Radial or Conic Gradient from the Color category; these are searchable variants of the same node. Connect UV to Coordinate, and connect Color to Color Output. Endpoint colors, start/end and falloff are editable on their input rows. The Mode dropdown explicitly selects Linear, Radial or Conic; switching preserves the existing endpoints, colors and wires. Undo restores the previous mode or value. Factor is a separate Float output for masks or further math. Open Three-node Gradient from Examples for a complete editable source.
+
+Choice menus attach to the value field rather than the click position. Their width follows the field and measured option text. Text, pointer rows, padding, borders and shadows share the card's canvas zoom, retaining their logical sizes at 100%. Near the canvas bottom they open upward; long lists retain scrolling and keyboard navigation. Escape or clicking outside cancels the menu without adding history.

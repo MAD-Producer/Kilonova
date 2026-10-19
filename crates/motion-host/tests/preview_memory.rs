@@ -87,11 +87,13 @@ fn yuv_proxies_keep_rotation_matrix_range_and_absorb_all_native_chroma_layouts()
                         (proxy.rotation, proxy.standard, proxy.range),
                         (rotation, standard, range)
                     );
-                    assert!(proxy
-                        .to_rgba()
-                        .unwrap()
-                        .chunks_exact(4)
-                        .all(|p| p == &original[..4]));
+                    assert!(
+                        proxy
+                            .to_rgba()
+                            .unwrap()
+                            .chunks_exact(4)
+                            .all(|p| p == &original[..4])
+                    );
                     assert!(frame.preview_proxy(8).unwrap().is_none());
                 }
             }
@@ -137,16 +139,32 @@ fn proxy_cache_survives_cancelled_upload_and_reclaim_without_retaining_the_decod
     renderer.queue.submit(Some(encoder.finish()));
     token.mark_submitted();
     let actual = renderer.read_target(&target).unwrap();
-    assert!(actual.chunks_exact(4).all(|p| p
-        .iter()
-        .zip(&original[..4])
-        .all(|(a, b)| a.abs_diff(*b) <= 2)));
+    assert!(
+        actual.chunks_exact(4).all(|p| p
+            .iter()
+            .zip(&original[..4])
+            .all(|(a, b)| a.abs_diff(*b) <= 2)),
+        "video proxy pixels differ: adapter={:?}, size={w}x{h}, expected={:?}, first_bad_pixels={:?}",
+        renderer.adapter_info,
+        &original[..4],
+        actual
+            .chunks_exact(4)
+            .enumerate()
+            .filter(|(_, p)| p
+                .iter()
+                .zip(&original[..4])
+                .any(|(a, b)| a.abs_diff(*b) > 2))
+            .take(8)
+            .collect::<Vec<_>>()
+    );
     let uploads = renderer.video_uploads;
     let mut encoder = renderer.device.create_command_encoder(&Default::default());
-    assert!(cache
-        .upload(&mut renderer, 1, 1, &frame, Some(3), false, &mut encoder)
-        .unwrap()
-        .is_none());
+    assert!(
+        cache
+            .upload(&mut renderer, 1, 1, &frame, Some(3), false, &mut encoder)
+            .unwrap()
+            .is_none()
+    );
     assert_eq!(uploads, renderer.video_uploads);
     assert_eq!(bytes, cache.bytes());
     drop(frame);
@@ -165,11 +183,13 @@ fn rgba_preview_is_bounded_and_bad_pixels_are_not_a_memory_refusal() {
     assert_eq!(cache.bytes(), 3 * 3 * 4);
     assert_eq!(Arc::strong_count(&frame), 1);
     let broken = decoded(VideoPixels::Rgba(vec![]), 7, 5);
-    assert!(cache
-        .upload(&mut renderer, 1, 1, &broken, Some(3), false, &mut encoder)
-        .err()
-        .unwrap()
-        .resource_rejection()
-        .is_none());
+    assert!(
+        cache
+            .upload(&mut renderer, 1, 1, &broken, Some(3), false, &mut encoder)
+            .err()
+            .unwrap()
+            .resource_rejection()
+            .is_none()
+    );
     assert_eq!(cache.bytes(), 0);
 }

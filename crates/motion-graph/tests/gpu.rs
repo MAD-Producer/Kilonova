@@ -6,6 +6,274 @@ use motion_render::{CaptureTarget, Renderer};
 use std::sync::Arc;
 #[path = "support/group_fixture.rs"]
 mod group_fixture;
+#[path = "support/gradient_fixture.rs"]
+mod gradient_fixture;
+#[path = "support/noise_gpu.rs"]
+mod noise_gpu;
+#[path = "support/blend_gpu.rs"]
+mod blend_gpu;
+#[path = "support/compact_examples_gpu.rs"]
+mod compact_examples_gpu;
+
+#[test]
+fn gradient_replaces_a_seven_node_color_mix_chain_without_changing_pixels() {
+    let dir = tempfile::tempdir().unwrap();
+    let compact =
+        GraphDocument::from_json(include_str!("../examples/compact-gradient.msgraph")).unwrap();
+    let mut explicit = compact.clone();
+    explicit.nodes = vec![
+        Node::new("uv", NodeOp::Uv),
+        Node::new("axis", NodeOp::Vec2 { value: [1., 0.] }),
+        Node::new(
+            "component",
+            NodeOp::Math { operation: MathOp::Dot, value_type: ValueType::Vec2 },
+        ),
+        Node::new("a", NodeOp::Color { value: [0.1, 0.3, 0.8, 1.] }),
+        Node::new("b", NodeOp::Color { value: [0.95, 0.45, 0.15, 1.] }),
+        Node::new("mix", NodeOp::ColorMath { operation: ColorOp::Mix }),
+        Node::new("output", NodeOp::ColorOutput),
+    ];
+    explicit.connections = vec![
+        Connection::new("uv", "value", "component", "a"),
+        Connection::new("axis", "value", "component", "b"),
+        Connection::new("component", "value", "mix", "factor"),
+        Connection::new("a", "value", "mix", "a"),
+        Connection::new("b", "value", "mix", "b"),
+        Connection::new("mix", "color", "output", "color"),
+    ];
+    assert_eq!(explicit.nodes.len(), 7);
+    assert_eq!(compact.nodes.len(), 3);
+    let (p, mut r, t) = setup(&explicit, &dir.path().join("explicit-mix.msfx"));
+    let expected = render(&p, &mut r, &t, 0.);
+    let (p, mut r, t) = setup(&compact, &dir.path().join("compact-gradient.msfx"));
+    assert_eq!(render(&p, &mut r, &t, 0.), expected);
+}
+
+#[test]
+fn gradient_modes_match_independent_cpu_factors_across_the_image() {
+    let dir = tempfile::tempdir().unwrap();
+    for mode in [
+        GradientMode::Linear,
+        GradientMode::Radial,
+        GradientMode::Conic,
+    ] {
+        let mut graph = gradient_fixture::gradient(mode);
+        let node = graph.nodes.iter_mut().find(|n| n.id == "gradient").unwrap();
+        let start = [0.31_f64, 0.42_f64];
+        let end = [0.73_f64, 0.67_f64];
+        node.input_defaults
+            .insert("start".into(), InputValue::Vec2(start.map(|v| v as f32)));
+        node.input_defaults
+            .insert("end".into(), InputValue::Vec2(end.map(|v| v as f32)));
+        node.input_defaults
+            .insert("falloff".into(), InputValue::Float(1.8));
+        let (project, mut renderer, target) =
+            setup(&graph, &dir.path().join(format!("gradient-{mode:?}.msfx")));
+        let pixels = render(&project, &mut renderer, &target, 0.);
+        let dx = end[0] - start[0];
+        let dy = end[1] - start[1];
+        let radius = dx.hypot(dy);
+        for y in 0..64 {
+            for x in 0..64 {
+                let px = (x as f64 + 0.5) / 64. - start[0];
+                let py = (y as f64 + 0.5) / 64. - start[1];
+                let raw = match mode {
+                    GradientMode::Linear => (px * dx + py * dy) / radius.powi(2),
+                    GradientMode::Radial => px.hypot(py) / radius,
+                    GradientMode::Conic => {
+                        ((py.atan2(px) - dy.atan2(dx)) / std::f64::consts::TAU).rem_euclid(1.)
+                    }
+                };
+                let expected = (raw.clamp(0., 1.).powf(1.8) * 255.).round() as u8;
+                let actual = pixel(&pixels, x, y);
+                for channel in &actual[..3] {
+                    assert!(
+                        channel.abs_diff(expected) <= 2,
+                        "{mode:?} ({x},{y}): {actual:?}, expected {expected}"
+                    );
+                }
+                assert_eq!(actual[3], 255);
+            }
+        }
+    }
+}
+
+#[test]
+fn gradient_degenerate_span_and_conic_center_return_start_color() {
+    let dir = tempfile::tempdir().unwrap();
+    for (index, (mode, coordinate, end)) in [
+        (GradientMode::Linear, [0.8, 0.1], [0.5; 2]),
+        (GradientMode::Radial, [0.8, 0.1], [0.5; 2]),
+        (GradientMode::Conic, [0.8, 0.1], [0.5; 2]),
+        (GradientMode::Conic, [0.5; 2], [1., 0.5]),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let mut graph = gradient_fixture::gradient(mode);
+        graph.connections.remove(0);
+        let node = graph.nodes.iter_mut().find(|n| n.id == "gradient").unwrap();
+        node.input_defaults
+            .insert("coordinate".into(), InputValue::Vec2(coordinate));
+        node.input_defaults
+            .insert("start".into(), InputValue::Vec2([0.5; 2]));
+        node.input_defaults
+            .insert("end".into(), InputValue::Vec2(end));
+        let (project, mut renderer, target) =
+            setup(&graph, &dir.path().join(format!("degenerate-{index}.msfx")));
+        assert!(render(&project, &mut renderer, &target, 0.)
+            .chunks_exact(4)
+            .all(|pixel| pixel == [0, 0, 0, 255]));
+    }
+}
+
+#[test]
+fn gradient_color_interpolation_respects_each_alpha_contract() {
+    let dir = tempfile::tempdir().unwrap();
+    for alpha in [AlphaMode::Straight, AlphaMode::Premultiplied] {
+        let mut graph = gradient_fixture::gradient(GradientMode::Linear);
+        graph.alpha_mode = alpha;
+        graph.connections.remove(0);
+        let node = graph.nodes.iter_mut().find(|n| n.id == "gradient").unwrap();
+        node.input_defaults
+            .insert("coordinate".into(), InputValue::Vec2([0.5; 2]));
+        node.input_defaults
+            .insert("a".into(), InputValue::Color([1., 0., 0., 0.25]));
+        node.input_defaults
+            .insert("b".into(), InputValue::Color([0., 0., 1., 0.75]));
+        let mut expected = graph.clone();
+        expected.nodes = vec![
+            Node::new(
+                "color",
+                NodeOp::Color {
+                    value: if alpha == AlphaMode::Straight {
+                        [0.5, 0., 0.5, 0.5]
+                    } else {
+                        [0.25, 0., 0.75, 0.5]
+                    },
+                },
+            ),
+            Node::new("output", NodeOp::ColorOutput),
+        ];
+        expected.connections = vec![Connection::new("color", "value", "output", "color")];
+        let (p, mut r, t) = setup(&graph, &dir.path().join(format!("alpha-{alpha:?}.msfx")));
+        let actual = render(&p, &mut r, &t, 0.);
+        let (p, mut r, t) = setup(
+            &expected,
+            &dir.path().join(format!("expected-{alpha:?}.msfx")),
+        );
+        let expected = render(&p, &mut r, &t, 0.);
+        assert_eq!(actual, expected, "{alpha:?}");
+    }
+}
+
+#[test]
+fn typed_defaults_match_explicit_constants_on_gpu_and_survive_export() {
+    let dir = tempfile::tempdir().unwrap();
+    for alpha_mode in [AlphaMode::Straight, AlphaMode::Premultiplied] {
+        let mut explicit = demo_graph();
+        explicit.alpha_mode = alpha_mode;
+        // Cover Float, Vec2 and straight RGBA storage in a real animated SDF.
+        let mut defaults = explicit.clone();
+        defaults.format_version = INPUT_DEFAULTS_FORMAT_VERSION;
+        for (node, port, constant, value, operation) in [
+            (
+                "circle",
+                "radius",
+                "radius_literal",
+                InputValue::Float(18.),
+                NodeOp::Float { value: 18. },
+            ),
+            (
+                "circle",
+                "center",
+                "center_literal",
+                InputValue::Vec2([32., 32.]),
+                NodeOp::Vec2 { value: [32., 32.] },
+            ),
+            (
+                "masked",
+                "color",
+                "color_literal",
+                InputValue::Color([0.8, 0.2, 0.4, 0.6]),
+                NodeOp::Color {
+                    value: [0.8, 0.2, 0.4, 0.6],
+                },
+            ),
+        ] {
+            explicit
+                .connections
+                .retain(|edge| edge.to != PortRef::new(node, port));
+            explicit.nodes.push(Node::new(constant, operation));
+            explicit
+                .connections
+                .push(Connection::new(constant, "value", node, port));
+            defaults
+                .connections
+                .retain(|edge| edge.to != PortRef::new(node, port));
+            defaults
+                .nodes
+                .iter_mut()
+                .find(|n| n.id == node)
+                .unwrap()
+                .input_defaults
+                .insert(port.into(), value);
+        }
+        let name = format!("{alpha_mode:?}");
+        let (p, mut renderer, target) =
+            setup(&explicit, &dir.path().join(format!("explicit-{name}.msfx")));
+        let default_path = dir.path().join(format!("defaults-{name}.msfx"));
+        let (q, mut other, other_target) = setup(&defaults, &default_path);
+        let report = export_msfx(
+            &defaults,
+            &CompileOptions::default(),
+            &dir.path().join(format!("reopen-{name}.msfx")),
+        )
+        .unwrap();
+        assert_eq!(GraphDocument::load(&report.source_path).unwrap(), defaults);
+        for frame in [0., 15.5, 29.] {
+            let expected = render(&p, &mut renderer, &target, frame);
+            let actual = render(&q, &mut other, &other_target, frame);
+            assert_eq!(actual, expected, "{alpha_mode:?} frame={frame}");
+            assert!(
+                actual.chunks_exact(4).any(|pixel| pixel[3] > 0),
+                "comparison must contain visible pixels"
+            );
+        }
+    }
+}
+
+#[test]
+fn unused_incomplete_nodes_preserve_gpu_pixels_and_allow_live_parameter_changes() {
+    let dir = tempfile::tempdir().unwrap();
+    let plain = demo_graph();
+    let mut draft = plain.clone();
+    draft.nodes.push(Node::new(
+        "unfinished",
+        NodeOp::ColorMath {
+            operation: ColorOp::Invert,
+        },
+    ));
+    let (project, mut renderer, target) = setup(&plain, &dir.path().join("plain.msfx"));
+    let (mut edited, mut edited_renderer, edited_target) =
+        setup(&draft, &dir.path().join("draft.msfx"));
+    for frame in [0., 15.5, 29.] {
+        assert_eq!(
+            render(&project, &mut renderer, &target, frame),
+            render(&edited, &mut edited_renderer, &edited_target, frame)
+        );
+    }
+    edited.layers[0].effects[0]
+        .params
+        .get_mut("color")
+        .unwrap()
+        .track
+        .value = [0.8, 0.1, 0.35, 0.45];
+    assert_ne!(
+        render(&project, &mut renderer, &target, 15.5),
+        render(&edited, &mut edited_renderer, &edited_target, 15.5)
+    );
+}
 
 #[test]
 fn nested_groups_export_pixel_identically_and_keep_public_parameter_animation() {

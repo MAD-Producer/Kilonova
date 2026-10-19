@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "id": "solid_color",
+  "name": "纯色入门",
+  "english_name": "Solid Color",
+  "working_space": "srgb",
+  "alpha_mode": "straight",
+  "nodes": [
+    {
+      "id": "color",
+      "version": 1,
+      "operation": { "kind": "color", "value": [0.2, 0.55, 0.9, 1.0] },
+      "position": [0, 0]
+    },
+    {
+      "id": "output",
+      "version": 1,
+      "operation": { "kind": "color_output" },
+      "position": [280, 0]
+    }
+  ],
+  "connections": [
+    { "from": { "node": "color", "port": "value" }, "to": { "node": "output", "port": "color" } }
+  ],
+  "public_parameters": []
+}

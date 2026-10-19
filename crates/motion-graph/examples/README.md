@@ -19,15 +19,15 @@
 
 | ID / 文件 | 节点 / 参数 | 学习路线 |
 | --- | --- | --- |
-| `soft_sphere` · [柔光球体](soft-sphere.msgraph) | 54 / 5 | 像素位置 → 球面法线 → 漫反射近似 → 圆形填充；独立椭圆渐变模拟接触光影 |
-| `soft_sphere_motion` · [柔光球体 · 伪3D运动](soft-sphere-motion.msgraph) | 121 / 10 | 周期绕行与透视缩放 → 球面法线与细环旋转 → 漫反射近似；落点、高度和尺度驱动椭圆光影 |
+| `soft_sphere` · [柔光球体](soft-sphere.msgraph) | 9 (40) / 5 | 像素位置 → 球面法线 → 漫反射近似 → 圆形填充；独立椭圆渐变模拟接触光影 |
+| `soft_sphere_motion` · [柔光球体 · 伪3D运动](soft-sphere-motion.msgraph) | 15 (96) / 10 | 周期绕行与透视缩放 → 球面法线与细环旋转 → 漫反射近似；落点、高度和尺度驱动椭圆光影 |
 | `translucent_card` · [半透卡片](translucent-card.msgraph) | 31 / 5 | 圆角距离场 → 填充与描边 → 内置渐变背景混合 → 慢速漂浮 |
 
 调整球体光照方向与灰色调，观察相同轮廓如何产生不同的体积感；再改卡片的半尺寸、圆角与覆盖强度。
 
-原柔光球体示例保持不变，运动版作为独立示例提供。运动版公开“绕行幅度”“伪3D纵深”“抬起高度”和“球体旋转速度”。横移、纵深和抬落共享运动相位，透视尺度同时作用于轮廓、解析法线与阴影；抬起时阴影变宽、变淡，落下时收拢。斜轴细环在球面上旋转，使纯色球体的自转可见。漂浮速度和旋转速度可分别设为 0；细环强度设为 0 恢复纯色材质。速度单位为 rad/s，参考画布保持 64×64，大半径或大绕行幅度可能超出画布。
+柔光球体和运动版使用命名组展示实现，顶层仅保留公开参数、坐标、时间与输出。双击组即可进入内部；径向 Gradient 与 Normal Blend 生成原有阴影，常量改为输入默认值。表中括号内是展开后实际运算节点数（不含组边界），外部节点数与运算量分开计数。运动版作为独立示例提供。运动版公开“绕行幅度”“伪3D纵深”“抬起高度”和“球体旋转速度”。横移、纵深和抬落共享运动相位，透视尺度同时作用于轮廓、解析法线与阴影；抬起时阴影变宽、变淡，落下时收拢。斜轴细环在球面上旋转，使纯色球体的自转可见。漂浮速度和旋转速度可分别设为 0；细环强度设为 0 恢复纯色材质。速度单位为 rad/s，参考画布保持 64×64，大半径或大绕行幅度可能超出画布。
 
-The original sphere is preserved; the motion version is a separate example. It exposes orbit width, pseudo-3D depth, lift height and surface spin speed. Perspective scale applies consistently to the silhouette, analytic normals and shadow. Lift widens and fades the shadow; contact tightens it. A subtle tilted surface band makes spin visible. Orbit and spin can be paused independently with zero speed, and zero band strength restores the plain material.
+The sphere and its separate motion variant retain their original output and public controls. Named groups keep implementation details off the root canvas; double-click to inspect and edit them. Parenthesized counts are flattened operation counts, excluding group boundaries, rather than the visible root count. It exposes orbit width, pseudo-3D depth, lift height and surface spin speed. Perspective scale applies consistently to the silhouette, analytic normals and shadow. Lift widens and fades the shadow; contact tightens it. A subtle tilted surface band makes spin visible. Orbit and spin can be paused independently with zero speed, and zero band strength restores the plain material.
 
 运动版按画布短边等比缩放，并在任意长宽比画布中居中，保持球体圆形。参数中的 px 使用 64×64 教学坐标。可复现地导出运动版并生成 290 帧、384×384 的 GPU 渲染序列（30 fps）：
 
@@ -53,7 +53,9 @@ cargo run -p motion-graph --example render_learning_examples -- target/sphere-mo
 | ID / 文件 | 节点 / 参数 | 学习路线 |
 | --- | --- | --- |
 | `pulse_halo` · [脉动光环](pulse-halo.msgraph) | 36 / 4 | UV 径向距离 → 环带衰减 → SDF 亮核 → 慢速脉动 |
-| `floating_lights` · [漂浮光斑](floating-lights.msgraph) | 71 / 3 | 三路动态中心 → 距离与柔和覆盖 → 分层混合 |
+| `floating_lights` · [漂浮光斑](floating-lights.msgraph) | 7 (46) / 3 | 三路动态中心 → 距离与柔和覆盖 → 分层混合 |
+
+漂浮光斑的顶层为 7 个节点，展开为 46 个运算节点（原为 71 个）；Vec2 运算合并 XY 漂移，三个径向 Gradient 替代距离链。原有平滑衰减、三路相位与 Color Mix 的 Alpha 插值均保留。
 
 先调光晕宽度，区分亮核与宽光晕；再改变光斑速度和强度，观察相位差如何避免同步运动。
 
@@ -66,3 +68,8 @@ cargo run -p motion-graph --example render_learning_examples -- target/sphere-mo
 相关后端规划：[专业合成路线](https://github.com/Yukk1o/motion-studio/issues/77)、[深度输入与推理](https://github.com/Yukk1o/motion-studio/issues/74)、[执行 DAG](https://github.com/Yukk1o/motion-studio/issues/78)。
 
 All examples are original, editable teaching graphs. The reference canvas is 64×64. Soft shadows, transparency and halos in this first collection are explicit 2D approximations, not physical materials, depth rendering or volumetric light. The bilingual runtime catalogue contains a lesson and limitations for every example.
+
+
+## Three-node Noise
+
+`compact_noise` ([source](compact-noise.msgraph)) contains UV, Noise and Color Output. Switch Value/Perlin and 1..4 octaves in their individual dropdowns; edit Scale, Offset and Seed inline. Factor can instead drive Color Mix. The example is an independently authored 2D texture, with no source images or automatic animation. Seeds are floored after clamping; domain/frequency bounds and high-frequency aliasing are documented in `desktop/NODE-CATALOG.md`.

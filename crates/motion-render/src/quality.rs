@@ -197,3 +197,50 @@ pub(crate) fn preview_layer_scale(
     }
     scale * factor
 }
+
+/// Rasterize magnified image effects densely enough that derivative-based SDF
+/// coverage remains about one output pixel, rather than stretching a low-res
+/// texture. Logical effect coordinates, bounds and parameters stay unchanged.
+pub(crate) fn magnified_effect_scale(
+    layer: &crate::DrawLayer,
+    viewport: [f32; 2],
+    base: f32,
+) -> f32 {
+    let m = (layer.view_projection * layer.model).as_dmat4();
+    let screen = glam::DVec2::new(f64::from(viewport[0]), f64::from(viewport[1])) * 0.5;
+    let mut density = 0_f64;
+    for [u, v] in [[-0.5, -0.5], [-0.5, 0.5], [0.5, -0.5], [0.5, 0.5], [0., 0.]] {
+        let p = m * glam::DVec4::new(
+            u * f64::from(layer.size[0]),
+            v * f64::from(layer.size[1]),
+            0.,
+            1.,
+        );
+        if !p.is_finite() || p.w <= 1.0e-8 {
+            return base;
+        }
+        let derivative = |d: glam::DVec4| {
+            (glam::DVec2::new(d.x, d.y) * p.w - glam::DVec2::new(p.x, p.y) * d.w) / (p.w * p.w)
+                * screen
+        };
+        let x = derivative(m.x_axis);
+        let y = derivative(m.y_axis);
+        let a = x.length_squared();
+        let d = y.length_squared();
+        let b = x.dot(y);
+        // Largest singular value includes reflection, shear, anisotropy and
+        // perspective foreshortening. Sample corners as well as the center.
+        density = density.max(((a + d + ((a - d).powi(2) + 4. * b * b).sqrt()) * 0.5).sqrt());
+    }
+    if !density.is_finite() || density <= f64::from(base) * (1. + 1.0e-5) {
+        return base;
+    }
+    // Stable power-of-two buckets avoid reallocating on every animation frame.
+    // At most eight raster texels per logical pixel; existing dimension and
+    // scratch-budget guards still reject allocations that exceed policy.
+    [1_f32, 2., 4., 8.]
+        .into_iter()
+        .find(|&candidate| f64::from(candidate) >= density * (1. - 1.0e-5))
+        .unwrap_or(8.)
+        .max(base)
+}
