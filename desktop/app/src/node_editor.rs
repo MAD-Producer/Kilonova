@@ -27,6 +27,12 @@ mod input_defaults;
 mod nudge;
 #[path = "node_editor/observability.rs"]
 mod observability;
+#[path = "node_editor/search.rs"]
+mod search;
+#[path = "node_editor/search_input.rs"]
+mod search_input;
+pub use search::RecentNodes;
+use search_input::SearchQuery;
 #[path = "node_editor/preview.rs"]
 mod preview;
 #[path = "node_editor/view/mod.rs"]
@@ -92,6 +98,7 @@ impl EditorSnapshot {
 #[derive(Clone, Debug)]
 pub enum Action {
     ViewPreferencesChanged(ViewPreferences),
+    RecentNodesChanged(RecentNodes),
     ShowProperties,
     Examples(EditorSnapshot),
     Open(EditorSnapshot),
@@ -243,7 +250,9 @@ enum Drag {
 struct AddMenu {
     position: [f32; 2],
     world: [f32; 2],
-    query: String,
+    query: SearchQuery,
+    recent: bool,
+    category_scroll: f32,
     category: Option<catalog::Category>,
     selected: usize,
     scroll: f32,
@@ -290,7 +299,10 @@ pub struct NodeEditor {
     pub external_inspector: bool,
     library_scroll: f32,
     inspector_scroll: f32,
-    search: String,
+    search: SearchQuery,
+    library_selected: usize,
+    pub recent_nodes: RecentNodes,
+    recent_dirty: bool,
     search_focus: bool,
     diagnostic: Option<Diagnostic>,
     diagnostic_drawer: DiagnosticDrawer,
@@ -383,7 +395,10 @@ impl NodeEditor {
             external_inspector: false,
             library_scroll: 0.,
             inspector_scroll: 0.,
-            search: String::new(),
+            search: SearchQuery::default(),
+            library_selected: 0,
+            recent_nodes: Default::default(),
+            recent_dirty: false,
             search_focus: false,
             diagnostic,
             diagnostic_drawer: Default::default(),
@@ -398,6 +413,19 @@ impl NodeEditor {
             add_menu: None,
             floating_mode: false, // 默认嵌入模式（无侧边栏）
         }
+    }
+    fn add_catalogue_entry(
+        &mut self,
+        entry: &search::Entry,
+        position: [f32; 2],
+    ) -> Result<String, Diagnostic> {
+        let id = if let Some(ty) = entry.item.parameter_type {
+            self.add_public_parameter(ty, position)?
+        } else {
+            self.add_node(entry.item.operation.clone(), position)?
+        };
+        self.recent_dirty |= self.recent_nodes.record(&entry.key);
+        Ok(id)
     }
     pub fn document(&self) -> &GraphDocument {
         &self.document
@@ -503,7 +531,9 @@ impl NodeEditor {
     pub fn replace_document(&mut self, document: GraphDocument, path: Option<PathBuf>) {
         let options = self.options.clone();
         let preferences = self.view_preferences;
+        let recent = self.recent_nodes.clone();
         *self = Self::new(document);
+        self.recent_nodes = recent;
         self.view_preferences = preferences;
         self.options = options;
         self.source_path = path;
