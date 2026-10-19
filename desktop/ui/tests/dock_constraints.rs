@@ -180,3 +180,55 @@ fn nonfinite_split_proposals_and_degenerate_extents_have_a_finite_fallback() {
         }
     }
 }
+
+#[test]
+fn nested_splitters_do_not_capture_the_neighbour_of_any_narrow_edge() {
+    let area = Rect::new(100., 200., 4000., 4000.);
+    for edge in [Edge::Left, Edge::Right, Edge::Top, Edge::Bottom] {
+        // The first child is narrow for every orientation. Its nested handle
+        // must stop at the painted boundary, not the old hidden 5% boundary.
+        let ratio = if matches!(edge, Edge::Right | Edge::Bottom) {
+            0.96
+        } else {
+            0.04
+        };
+        let mut root = pair(edge, ratio);
+        let Node::Split { first, .. } = &mut root else {
+            unreachable!()
+        };
+        *first = Box::new(pair(
+            if edge.is_horizontal() {
+                Edge::Top
+            } else {
+                Edge::Left
+            },
+            0.5,
+        ));
+        // Give every leaf a distinct identity.
+        let Node::Split { second, .. } = &mut root else {
+            unreachable!()
+        };
+        *second = Box::new(Node::dock(DockId(3)));
+        let nested = dock::splitters(&root, area)[1].area;
+        let mut outside = center(nested);
+        let axis = usize::from(!edge.is_horizontal());
+        outside[axis] = nested.max[axis] + 20.;
+        let before = serde_json::to_value(&root).unwrap();
+        let mut workspace = Workspace::from_root(root);
+        assert!(
+            workspace
+                .interact(
+                    &Input {
+                        mouse: outside,
+                        pressed: Some((MouseButton::Left, outside)),
+                        held: Some(MouseButton::Left),
+                        ..Default::default()
+                    },
+                    area
+                )
+                .is_none(),
+            "invisible handle captured {edge:?} neighbour"
+        );
+        assert_eq!(serde_json::to_value(&workspace.root).unwrap(), before);
+    }
+}
