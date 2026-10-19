@@ -313,10 +313,22 @@ def main() -> None:
             capture_output=True, text=True, encoding="utf-8", timeout=125,
         )
         (output / f"node-smoke-{locale}.stderr.log").write_text(node_result.stderr, encoding="utf-8")
+        (output / f"node-smoke-{locale}.stdout.log").write_text(node_result.stdout, encoding="utf-8")
         if node_result.returncode:
             raise RuntimeError(f"{locale} node acceptance failed: {node_result.stderr}")
+        if node_result.stdout:
+            raise RuntimeError(f"{locale} node acceptance wrote to stdout")
         node_snapshot = json.loads(node_report.read_text(encoding="utf-8"))
         preview = node_snapshot.get("nodePreview", {})
+        for window in ("searchMain", "searchFloat"):
+            search = preview.get(window, {})
+            for check in ("latchedPlacement", "imeConfirmation", "emptySearchSafe", "sourceRestored", "projectUntouched", "workspaceReload"):
+                if search.get(check) is not True:
+                    raise RuntimeError(f"{locale} {window} did not verify {check}")
+            for screen in ("browse", "query", "recent", "empty", "libraryQuery", "libraryRecent"):
+                data = Path(search[screen]).read_bytes()
+                if len(data) < 1024 or not data.startswith(b"\x89PNG\r\n\x1a\n"):
+                    raise RuntimeError(f"{locale} {window} did not render {screen}")
         for window in ("viewMain", "viewFloat"):
             view = preview.get(window, {})
             for check in ("projectAndCompileUnchanged", "workspaceReload", "menuCancelled", "menuToggled"):
