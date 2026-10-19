@@ -104,6 +104,7 @@ pub enum Action {
 
 #[derive(Default)]
 pub struct Panels {
+    pub(crate) property_reveal: super::modified_properties::RevealSequence,
     pub workspace_preset: crate::workspace::Preset,
     pub styles: Option<std::sync::Arc<motion_ui::style::StyleSheet>>,
     pub(crate) cursor: Option<motion_ui::cursor::Cursor>,
@@ -166,6 +167,7 @@ pub(crate) struct CompositionState {
 
 impl Panels {
     pub(crate) fn select_only(&mut self, object: Option<u64>) {
+        self.property_reveal.interrupt();
         self.path_controls.clear_mask_selection();
         self.audio_controls.clear_selection();
         self.selected = object;
@@ -540,6 +542,7 @@ pub(crate) enum PropertyFilter {
     All,
     Properties(u8),
     Animated,
+    Modified,
 }
 impl TimelineState {
     pub fn set_graph_mode(&mut self, enabled: bool) {
@@ -597,11 +600,12 @@ pub(crate) fn property_bit(property: Property) -> u8 {
     }
 }
 impl PropertyFilter {
-    pub fn admits(self, property: Property, animated: bool) -> bool {
+    pub fn admits(self, property: Property, animated: bool, modified: bool) -> bool {
         match self {
             Self::All => true,
             Self::Properties(mask) => mask & property_bit(property) != 0,
             Self::Animated => animated,
+            Self::Modified => modified,
         }
     }
 }

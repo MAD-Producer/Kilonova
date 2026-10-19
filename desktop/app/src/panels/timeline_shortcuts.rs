@@ -74,7 +74,7 @@ fn reveal(
                 (match old {
                     PropertyFilter::All => 31,
                     PropertyFilter::Properties(mask) => mask,
-                    PropertyFilter::Animated => timeline::filtered_properties(state, object, old)
+                    PropertyFilter::Animated | PropertyFilter::Modified => timeline::filtered_properties(state, object, old)
                         .iter()
                         .fold(0, |bits, r| bits | property_bit(r.property)),
                 }) ^ bit
@@ -355,8 +355,27 @@ pub(super) fn handle(
             }
         }
         Shortcut::AnimatedProperties => {
-            if let Some(object) = object {
+            if let Some(object) = panels.selected.filter(|id|state["project"]["layers"].as_array().into_iter().flatten().any(|layer|layer["id"]==*id)) {
                 reveal(panels, state, object, None, false);
+            }
+        }
+        Shortcut::ModifiedProperties => {
+            if let Some(object) = panels.selected.filter(|id|state["project"]["layers"].as_array().into_iter().flatten().any(|layer|layer["id"]==*id)) {
+                panels.timeline.filters.insert(object, PropertyFilter::Modified);
+                panels.timeline.expanded.insert(object);
+                panels.timeline.collapsed_transforms.remove(&object);
+                panels.properties.transform_collapsed = false;
+                panels.properties.properties_scroll = 0.;
+                panels.animation_controls.clear_key();
+                super::path_controls::groups::timeline::reveal(panels, state, object, PropertyFilter::Modified);
+                panels.properties.effects_collapsed = false;
+                panels.timeline.expanded_effects.insert(object);
+                panels.timeline.collapsed_effect_items.retain(|(id,_)|*id!=object);
+                panels.properties.effects.reveal_properties(state, object);
+                panels.timeline.collapsed_masks.remove(&object);
+                panels.timeline.collapsed_mask_items.retain(|(id,_)|*id!=object);
+                panels.path_controls.reveal_masks(object);
+                panels.timeline.collapsed_audio.remove(&object);
             }
         }
         Shortcut::ToggleGraph => {

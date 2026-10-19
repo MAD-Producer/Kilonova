@@ -11,6 +11,7 @@ pub(in crate::panels) struct Parameter {
     pub id: String,
     pub name: String,
     pub values: Vec<f32>,
+    authored_values: [f32; 4],
     pub keys: Vec<(i32, Easing)>,
     pub range: [f64; 2],
     pub discrete: bool,
@@ -61,6 +62,7 @@ fn scalar(
         id: id.into(),
         name: if locale == Locale::Zh { zh } else { en }.into(),
         values: vec![t.sample(at)],
+        authored_values: [t.value, 0., 0., 0.],
         keys: t
             .keys
             .iter()
@@ -93,6 +95,7 @@ fn vector(
         id: id.into(),
         name: if locale == Locale::Zh { zh } else { en }.into(),
         values: t.sample(at).to_vec(),
+        authored_values: [t.value[0], t.value[1], 0., 0.],
         keys: t
             .keys
             .iter()
@@ -117,6 +120,7 @@ fn color(id: &str, zh: &str, en: &str, t: &Track<[f32; 4]>, at: f64, locale: Loc
         id: id.into(),
         name: if locale == Locale::Zh { zh } else { en }.into(),
         values: t.sample(at).to_vec(),
+        authored_values: t.value,
         keys: t
             .keys
             .iter()
@@ -272,6 +276,104 @@ impl Node {
     pub fn animated(&self) -> bool {
         self.parameters.iter().any(Parameter::animated) || self.children.iter().any(Node::animated)
     }
+}
+
+/// Use authored values, never playhead samples, for both native property trees.
+/// Operators and paths are authored additions; retain their headers even when
+/// every editable track is at its constructor default.
+pub(in crate::panels) fn filtered_tree(
+    vector: &VectorContent,
+    size: [f32; 2],
+    at: f64,
+    locale: Locale,
+    filter: crate::panels::types::PropertyFilter,
+) -> Option<Node> {
+    use crate::panels::types::PropertyFilter;
+    fn group_defaults(group: &VectorGroup, locale: Locale) -> VectorGroup {
+        VectorGroup {
+            id: group.id,
+            name: group.name.clone(),
+            transform: Default::default(),
+            items: group
+                .items
+                .iter()
+                .map(|item| match item {
+                    GroupItem::Group { group } => GroupItem::Group {
+                        group: Box::new(group_defaults(group, locale)),
+                    },
+                    GroupItem::Geometry {
+                        id, name, vector, ..
+                    } => GroupItem::Geometry {
+                        id: *id,
+                        name: name.clone(),
+                        vector: Box::new(defaults(vector, true, locale)),
+                        size: Track::constant([100.; 2]),
+                        position: Track::constant([0.; 2]),
+                    },
+                    GroupItem::Fill { .. } => super::new_item(item.id(), 1, locale),
+                    GroupItem::Stroke { .. } => super::new_item(item.id(), 2, locale),
+                    GroupItem::Trim { .. } => super::new_item(item.id(), 3, locale),
+                    GroupItem::Repeater { .. } => super::new_item(item.id(), 4, locale),
+                })
+                .collect(),
+        }
+    }
+    fn defaults(v: &VectorContent, embedded: bool, locale: Locale) -> VectorContent {
+        let mut value = match &v.source {
+            VectorSource::Group { group } => {
+                let mut value = VectorContent::shape(motion_core::vector::ShapeKind::Rectangle);
+                value.source = VectorSource::Group {
+                    group: Box::new(group_defaults(group, locale)),
+                };
+                value
+            }
+            VectorSource::Shape { shape, .. } => VectorContent::shape(*shape),
+            VectorSource::Paths { .. } => {
+                VectorContent::shape(motion_core::vector::ShapeKind::Rectangle)
+            }
+        };
+        if embedded {
+            value.fill = None;
+            value.stroke = None;
+        }
+        value
+    }
+    fn retain(n: &mut Node, default: Option<&Node>, filter: PropertyFilter) -> bool {
+        n.parameters.retain(|p| {
+            p.animated()
+                || filter == PropertyFilter::Modified
+                    && default
+                        .and_then(|n| n.parameters.iter().find(|d| d.id == p.id))
+                        .is_none_or(|d| p.authored_values != d.authored_values)
+        });
+        n.settings.retain(|s| {
+            filter == PropertyFilter::Modified
+                && default
+                    .and_then(|n| n.settings.iter().find(|d| d.kind == s.kind))
+                    .is_none_or(|d| s.selected != d.selected)
+        });
+        n.children.retain_mut(|c| {
+            retain(
+                c,
+                default.and_then(|d| d.children.iter().find(|d| d.id == c.id && d.tag == c.tag)),
+                filter,
+            )
+        });
+        !n.parameters.is_empty()
+            || !n.settings.is_empty()
+            || !n.children.is_empty()
+            || filter == PropertyFilter::Modified && n.tag == 2
+    }
+    if matches!(filter, PropertyFilter::Properties(_)) {
+        return None;
+    }
+    let mut node = tree(vector, size, at, locale);
+    if filter == PropertyFilter::All {
+        return Some(node);
+    }
+    let baseline = (filter == PropertyFilter::Modified)
+        .then(|| tree(&defaults(vector, false, locale), [100.; 2], 0., locale));
+    retain(&mut node, baseline.as_ref(), filter).then_some(node)
 }
 fn dashes(out: &mut Vec<Parameter>, d: &StrokeDashes, at: f64, locale: Locale) {
     out.push(scalar(
@@ -795,5 +897,89 @@ pub(in crate::panels) fn lookup_source(
         .into_iter()
         .find(|p| p.id == id),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod modified_tests {
+    use super::*;
+    use crate::panels::types::PropertyFilter as F;
+
+    #[test]
+    fn shared_tree_keeps_authored_operators_and_only_changed_or_keyed_values() {
+        let mut content = VectorContent::shape(motion_core::vector::ShapeKind::Rectangle);
+        let mut repeater = Repeater::default();
+        repeater.copies.value = 5.;
+        repeater
+            .rotation
+            .upsert(0, 0., motion_core::Ease::Linear)
+            .unwrap();
+        let mut group = VectorGroup {
+            id: 1,
+            name: "Root".into(),
+            transform: Default::default(),
+            items: vec![
+                super::super::new_item(2, 1, Locale::En),
+                GroupItem::Repeater {
+                    id: 3,
+                    name: "Repeat".into(),
+                    repeater,
+                },
+            ],
+        };
+        group.transform.position.value = [1., 0.];
+        content.source = VectorSource::Group {
+            group: Box::new(group),
+        };
+        let before = content.clone();
+        for at in [0., 40., 119.] {
+            let modified = filtered_tree(&content, [100.; 2], at, Locale::En, F::Modified).unwrap();
+            let transform = &modified.children[0];
+            assert_eq!(
+                transform
+                    .parameters
+                    .iter()
+                    .map(|p| p.id.as_str())
+                    .collect::<Vec<_>>(),
+                ["position"]
+            );
+            let fill = &modified.children[1];
+            assert_eq!(fill.id, 2);
+            assert!(fill.parameters.is_empty() && fill.settings.is_empty());
+            let repeat = &modified.children[2];
+            assert_eq!(
+                repeat
+                    .parameters
+                    .iter()
+                    .map(|p| p.id.as_str())
+                    .collect::<Vec<_>>(),
+                ["copies", "rotation"]
+            );
+            let animated = filtered_tree(&content, [100.; 2], at, Locale::En, F::Animated).unwrap();
+            assert_eq!(animated.children.len(), 1);
+            assert_eq!(animated.children[0].id, 3);
+            assert_eq!(
+                animated.children[0]
+                    .parameters
+                    .iter()
+                    .map(|p| p.id.as_str())
+                    .collect::<Vec<_>>(),
+                ["rotation"]
+            );
+        }
+        assert_eq!(content, before);
+        let VectorSource::Group { group } = &mut content.source else {
+            panic!()
+        };
+        group.transform.position.value = [0.; 2];
+        let GroupItem::Repeater { repeater, .. } = &mut group.items[1] else {
+            panic!()
+        };
+        repeater.copies.value = 3.;
+        repeater.rotation.keys.clear();
+        let reset = filtered_tree(&content, [100.; 2], 0., Locale::En, F::Modified).unwrap();
+        assert_eq!(reset.children.len(), 2);
+        assert!(reset.children.iter().all(|n| n.parameters.is_empty()));
+        assert!(filtered_tree(&content, [100.; 2], 0., Locale::En, F::Animated).is_none());
     }
 }

@@ -187,6 +187,7 @@ pub(crate) fn observe_interaction_boundary(panels: &Panels, operation: &str) {
 }
 
 pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
+    panels.property_reveal.interrupt();
     let effect_timeline = panels.effect_timeline.cancel();
     let node_changed = panels.node_editor.cancel_interaction();
     panels.layer_actions.cancel();
