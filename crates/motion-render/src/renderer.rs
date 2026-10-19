@@ -6,6 +6,7 @@ mod gpu_failure;
 mod frame_blend;
 mod exposure;
 mod layer_raster;
+mod phase_adjustment;
 pub use layer_raster::LayerRaster;
 pub use exposure::ExposureTarget;
 use bytemuck::{Pod, Zeroable};
@@ -1480,7 +1481,7 @@ impl Renderer {
                 .any(|l| l.vector.is_some() || l.adjustment || l.track_matte.is_some()
                     || l.blend != motion_model::compositing::LayerBlend::default() || !l.composite_visible)
         {
-            return self.encode_effects(scene, Some(view), width, height, encoder, timestamps, preview, None);
+            return self.encode_effects(scene, Some(view), width, height, encoder, timestamps, preview, None, false);
         }
         // Direct drawing consumes neither mask coverage nor effect-input snapshots.
         // Release both without discarding reusable compositing pipelines.
@@ -1664,11 +1665,14 @@ impl Renderer {
         timestamps: Option<wgpu::RenderPassTimestampWrites<'_>>,
         preview: bool,
         mut materialize: Option<(u64, &mut Option<LayerRaster>)>,
+        prepare_only: bool,
     ) -> Result<RenderStats> {
         let started = Instant::now();
         let image_input_order = loop {
             if let Some((receiver, _)) = &materialize {
                 self.effect_gpu.builder.build_materialized_checked(scene, &self.asset_order, width, height, *receiver, preview)
+            } else if prepare_only {
+                self.effect_gpu.builder.build_exposure_context_checked(scene, &self.asset_order, width, height, preview)
             } else if self.preview_resource_guard {
                 self.effect_gpu.builder.build_preview_guarded(scene, &self.asset_order, width, height, preview)
             } else if preview {
@@ -1698,7 +1702,7 @@ impl Renderer {
                             .builder
                             .program_errors
                             .insert(program, message);
-                        if !self.preview_resource_guard && materialize.is_none() { continue; }
+                        if !self.preview_resource_guard && materialize.is_none() && !prepare_only { continue; }
                     }
                     self.effect_diagnostics = vec![error.to_string()];
                     return Err(error);
@@ -1885,8 +1889,10 @@ impl Renderer {
                 wgpu::Extent3d{width:output.width,height:output.height,depth_or_array_layers:1});
         }
         composition_draws += self.encode_track_mattes(encoder,composition_size)?;
-        if let Some((receiver, output)) = materialize.take() {
-            let raster = self.copy_layer_raster(scene, receiver, [width, height], composition_size, preview, encoder)?;
+        if materialize.is_some() || prepare_only {
+            if let Some((receiver, output)) = materialize.take() {
+                *output = Some(self.copy_layer_raster(scene, receiver, [width, height], composition_size, preview, encoder)?);
+            }
             let stats = RenderStats {
                 cpu_prepare_us: started.elapsed().as_micros() as u64,
                 draw_calls: (composition_draws + executed_passes) as u32,
@@ -1899,7 +1905,6 @@ impl Renderer {
                 particles_culled: frame.generator_stats.culled,
                 parameter_resource_upload_bytes: std::mem::take(&mut self.effect_gpu.state.parameter_resource_upload_bytes),
             };
-            *output = Some(raster);
             return Ok(stats);
         }
         let view = view.ok_or_else(|| RenderError::Invalid("missing composition render destination".into()))?;
@@ -1940,42 +1945,7 @@ impl Renderer {
                 if draw.pass_start == draw.pass_end || draw.words[22] <= 0. {
                     continue;
                 }
-                let next = 1 - accumulator;
-                {
-                    let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                        multiview_mask: None,
-                        label: Some("adjust lower composite"),
-                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                            depth_slice: None,
-                            view: &self.layer_gpu.accumulators[next].view,
-                            resolve_target: None,
-                            ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                                store: wgpu::StoreOp::Store,
-                            },
-                        })],
-                        depth_stencil_attachment: None,
-                        timestamp_writes: None,
-                        occlusion_query_set: None,
-                    });
-                    pass.set_pipeline(&self.layer_gpu.adjustment);
-                    pass.set_bind_group(
-                        0,
-                        &self.uniform_group,
-                        &[(i * self.uniform_stride) as u32],
-                    );
-                    pass.set_bind_group(
-                        1,
-                        &self.layer_gpu.accumulators[accumulator].composite,
-                        &[],
-                    );
-                    pass.set_bind_group(
-                        2,
-                        &self.effect_gpu.state.pool[0].as_ref().unwrap().composite,
-                        &[],
-                    );
-                    pass.draw(0..3, 0..1);
-                }
+                let next = self.encode_adjusted_backdrop(encoder, i, accumulator)?;
                 composition_draws += 1;
                 accumulator = next;
                 continue;

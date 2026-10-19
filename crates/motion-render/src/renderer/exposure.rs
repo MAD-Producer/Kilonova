@@ -391,12 +391,22 @@ impl Renderer {
     /// leaves the phase index unchanged and exposes no partial resolved frame.
     pub fn accumulate_layer_exposure(&mut self, target: &mut ExposureTarget, context: &Scene,
         rasters: &[&super::LayerRaster]) -> Result<RenderStats> {
+        self.accumulate_exposure_phase_inner(target, context, rasters, None)
+    }
+    /// Apply center-time adjustments to each independently timed phase before
+    /// adding its weight. Exact center-time dependency media must be prepared.
+    pub fn accumulate_exposure_phase(&mut self, target: &mut ExposureTarget, context: &Scene,
+        rasters: &[&super::LayerRaster], preview: bool) -> Result<RenderStats> {
+        self.accumulate_exposure_phase_inner(target, context, rasters, Some(preview))
+    }
+    fn accumulate_exposure_phase_inner(&mut self, target: &mut ExposureTarget, context: &Scene,
+        rasters: &[&super::LayerRaster], adjustments: Option<bool>) -> Result<RenderStats> {
         self.check_exposure(target, "local_accumulate")?;
         if target.complete() {
             return Err(RenderError::Invalid("exposure phase=local_accumulate: already complete".into()));
         }
-        let stats = self.draw_layer_rasters_tracked(context, rasters, &target.sample.view,
-            target.sample.width, target.sample.height, |ledger| ledger.merge(target.texture_resource_ledger()))?;
+        let stats = self.draw_exposure_phase_tracked(context, rasters, &target.sample.view,
+            target.sample.width, target.sample.height, adjustments, |ledger| ledger.merge(target.texture_resource_ledger()))?;
         let encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("retained phase exposure sum"),
         });

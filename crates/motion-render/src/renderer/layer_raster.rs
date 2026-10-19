@@ -82,6 +82,19 @@ impl LayerRaster {
     }
 }
 
+enum PhaseLayer<'a> {
+    Raster(&'a LayerRaster),
+    Adjustment(&'a crate::DrawLayer, usize),
+}
+impl PhaseLayer<'_> {
+    fn plane(&self) -> &crate::DrawLayer {
+        match self {
+            Self::Raster(raster) => &raster.plane,
+            Self::Adjustment(layer, _) => layer,
+        }
+    }
+}
+
 impl Renderer {
     /// Materialize one receiver using its entire sampled dependency context.
     /// Assets and exact video samples must already be ready, as for draw().
@@ -189,6 +202,7 @@ impl Renderer {
                 None,
                 preview,
                 Some((receiver, &mut output)),
+                false,
             )
             .map_err(|error| {
                 let message = format!("{context}: {error}");
@@ -372,6 +386,47 @@ impl Renderer {
         height: u32,
         output_resources: impl FnOnce(&mut crate::TextureResourceLedger),
     ) -> Result<RenderStats> {
+        self.draw_exposure_phase_tracked(
+            context,
+            rasters,
+            view,
+            width,
+            height,
+            None,
+            output_resources,
+        )
+    }
+    /// Compose receiver-time images and center-time adjustments against each
+    /// phase's lower backdrop. Prepare exact center-time media before calling.
+    pub fn draw_exposure_phase(
+        &mut self,
+        context: &Scene,
+        rasters: &[&LayerRaster],
+        view: &wgpu::TextureView,
+        width: u32,
+        height: u32,
+        preview: bool,
+    ) -> Result<RenderStats> {
+        self.draw_exposure_phase_tracked(
+            context,
+            rasters,
+            view,
+            width,
+            height,
+            Some(preview),
+            |_| {},
+        )
+    }
+    pub(super) fn draw_exposure_phase_tracked(
+        &mut self,
+        context: &Scene,
+        rasters: &[&LayerRaster],
+        view: &wgpu::TextureView,
+        width: u32,
+        height: u32,
+        adjustments: Option<bool>,
+        output_resources: impl FnOnce(&mut crate::TextureResourceLedger),
+    ) -> Result<RenderStats> {
         self.check_health()?;
         let started = Instant::now();
         self.check_raster_extent(context, width, height)?;
@@ -389,10 +444,11 @@ impl Renderer {
                 "exposure phase=local_composite: too many receivers".into(),
             ));
         }
-        if context
-            .layers
-            .iter()
-            .any(|layer| layer.adjustment && layer.composite_visible)
+        if adjustments.is_none()
+            && context
+                .layers
+                .iter()
+                .any(|layer| layer.adjustment && layer.composite_visible)
         {
             return Err(RenderError::Invalid(
                 "exposure phase=local_composite: adjustment backdrop processing is not connected"
@@ -420,6 +476,7 @@ impl Renderer {
             if raster.composition != context.composition_id
                 || raster.composition_size != [context.width, context.height]
                 || raster.output_size != [width, height]
+                || adjustments.is_some_and(|preview| preview != raster.preview)
                 || rasters
                     .first()
                     .is_some_and(|first| first.preview != raster.preview)
@@ -434,10 +491,50 @@ impl Renderer {
             }
         }
         self.check_resident_sources()?;
-        let mut ordered = rasters.to_vec();
-        ordered.sort_by_key(|raster| raster.plane.order);
+        let mut ordered: Vec<_> = rasters
+            .iter()
+            .map(|raster| PhaseLayer::Raster(*raster))
+            .collect();
+        if adjustments.is_some() {
+            for (index, layer) in context
+                .layers
+                .iter()
+                .enumerate()
+                .filter(|(_, layer)| layer.adjustment)
+            {
+                if !seen.insert(layer.id) {
+                    return Err(RenderError::Invalid(format!(
+                        "exposure object={} phase=local_composite: duplicate adjustment receiver",
+                        layer.id
+                    )));
+                }
+                ordered.push(PhaseLayer::Adjustment(layer, index));
+            }
+        }
+        if ordered.len() > MAX_LAYERS {
+            return Err(RenderError::Invalid(
+                "exposure phase=local_composite: too many receivers and adjustments".into(),
+            ));
+        }
+        let prepare_adjustments = ordered
+            .iter()
+            .any(|layer| matches!(layer, PhaseLayer::Adjustment(..)));
+        let preparation = if prepare_adjustments {
+            self.prepare_phase_adjustments(context, width, height, adjustments.unwrap_or(false))?
+        } else {
+            RenderStats::default()
+        };
+        let has_adjustment = prepare_adjustments
+            && ordered.iter().any(|layer| match layer {
+                PhaseLayer::Adjustment(_, index) => {
+                    let draw = &self.effect_gpu.builder.frame.draws[*index];
+                    draw.pass_start < draw.pass_end
+                }
+                _ => false,
+            });
+        ordered.sort_by_key(|layer| layer.plane().order);
         let scene =
-            context.plane_context(ordered.iter().map(|raster| raster.plane.clone()).collect());
+            context.plane_context(ordered.iter().map(|layer| layer.plane().clone()).collect());
         let sizes: Vec<_> = scene.layers.iter().map(|layer| layer.size).collect();
         let mut geometry = PlaneCompositor::new();
         geometry
@@ -449,7 +546,8 @@ impl Renderer {
             .layers
             .iter()
             .any(|layer| layer.composite_visible && layer.blend != Default::default());
-        let compositing = transfer || ordered.iter().any(|raster| raster.matte_mode != 0);
+        let has_accumulator = transfer || has_adjustment;
+        let compositing = transfer || rasters.iter().any(|raster| raster.matte_mode != 0);
         let scale = (width as f32 / scene.width as f32)
             .min(height as f32 / scene.height as f32)
             .min(1.)
@@ -471,8 +569,9 @@ impl Renderer {
                 "exposure phase=local_composite: matte fallback exceeds source texture budget",
             ));
         }
-        let composite_bytes = u64::from(size[0]) * u64::from(size[1]) * 12;
-        if transfer && composite_bytes > source_budget {
+        let composite_bytes =
+            u64::from(size[0]) * u64::from(size[1]) * if transfer { 12 } else { 8 };
+        if has_accumulator && composite_bytes > source_budget {
             return Err(RenderError::budget(ResourceBudgetScope::LayerCompositing, composite_bytes, source_budget,
                 "exposure phase=local_composite: transfer accumulators exceed source texture budget"));
         }
@@ -481,7 +580,7 @@ impl Renderer {
             &self.image_layout,
             &self.sampler,
             self.target_format,
-            transfer.then_some(size),
+            has_accumulator.then_some(size),
         );
         if changed {
             self.effect_gpu.state.invalidate();
@@ -524,6 +623,17 @@ impl Renderer {
                 changed || source_changed,
             );
         }
+        if prepare_adjustments {
+            self.effect_gpu.state.prepare(
+                &self.device,
+                &self.queue,
+                &self.image_layout,
+                &self.effect_gpu.builder,
+                context,
+                self.texture_bytes + self.video_plane_bytes(),
+                self.effect_gpu.builder.source_texture_budget,
+            )?;
+        }
         self.geometry_upload.clear();
         self.geometry_upload
             .extend(geometry.vertices.iter().map(|vertex| GeometryVertex {
@@ -541,26 +651,44 @@ impl Renderer {
             [0., 0., width as f32, height as f32],
             [scene.width, scene.height],
         );
-        let viewport = if transfer {
+        let viewport = if has_accumulator {
             [0., 0., size[0] as f32, size[1] as f32]
         } else {
             [vx, vy, vw, vh]
         };
-        for (i, raster) in ordered.iter().enumerate() {
-            let flags = if raster.matte_mode != 0 {
-                2 + 4 * u32::from(raster.matte_mode == 2 || raster.matte_mode == 4)
-            } else {
-                0
-            };
-            let mut color = raster.plane.color;
-            for channel in &mut color[..3] {
-                *channel = srgb_to_linear(*channel);
-            }
-            let uniform = DrawUniform {
-                mvp: raster.plane.view_projection.to_cols_array_2d(),
-                color,
-                extent_opacity: [viewport[0], viewport[1], raster.plane.opacity, flags as f32],
-                uv_scale: [1., 1., viewport[2], viewport[3]],
+        for (i, entry) in ordered.iter().enumerate() {
+            let uniform = match entry {
+                PhaseLayer::Adjustment(_, index) => {
+                    let w = &self.effect_gpu.builder.frame.draws[*index].words;
+                    DrawUniform {
+                        mvp: std::array::from_fn(|col| std::array::from_fn(|row| w[col * 4 + row])),
+                        color: std::array::from_fn(|j| w[16 + j]),
+                        extent_opacity: [w[20], w[21], w[22], 0.],
+                        uv_scale: [w[25], w[26], context.width as f32, context.height as f32],
+                    }
+                }
+                PhaseLayer::Raster(raster) => {
+                    let flags = if raster.matte_mode != 0 {
+                        2 + 4 * u32::from(raster.matte_mode == 2 || raster.matte_mode == 4)
+                    } else {
+                        0
+                    };
+                    let mut color = raster.plane.color;
+                    for channel in &mut color[..3] {
+                        *channel = srgb_to_linear(*channel);
+                    }
+                    DrawUniform {
+                        mvp: raster.plane.view_projection.to_cols_array_2d(),
+                        color,
+                        extent_opacity: [
+                            viewport[0],
+                            viewport[1],
+                            raster.plane.opacity,
+                            flags as f32,
+                        ],
+                        uv_scale: [1., 1., viewport[2], viewport[3]],
+                    }
+                }
             };
             self.upload[i * self.uniform_stride..i * self.uniform_stride + DRAW_SIZE as usize]
                 .copy_from_slice(bytemuck::bytes_of(&uniform));
@@ -587,7 +715,7 @@ impl Renderer {
                 label: Some("retained phase clear"),
                 multiview_mask: None,
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: if transfer {
+                    view: if has_accumulator {
                         &self.layer_gpu.accumulators[0].view
                     } else {
                         view
@@ -595,7 +723,7 @@ impl Renderer {
                     depth_slice: None,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(if transfer {
+                        load: wgpu::LoadOp::Clear(if has_accumulator {
                             wgpu::Color::TRANSPARENT
                         } else {
                             clear
@@ -612,10 +740,45 @@ impl Renderer {
         let mut draws = 0;
         for batch in &geometry.batches {
             let i = batch.layer;
-            let raster = ordered[i];
-            if !raster.plane.composite_visible {
+            if !ordered[i].plane().composite_visible {
                 continue;
             }
+            let raster = match &ordered[i] {
+                PhaseLayer::Raster(raster) => *raster,
+                PhaseLayer::Adjustment(layer, index) => {
+                    let frame = &self.effect_gpu.builder.frame;
+                    let draw = &frame.draws[*index];
+                    if draw.pass_start == draw.pass_end || draw.words[22] <= 0. {
+                        continue;
+                    }
+                    for pass in draw.pass_start..draw.pass_end {
+                        self.effect_gpu
+                            .state
+                            .encode_pass(
+                                pass,
+                                frame,
+                                &self.asset_order,
+                                None,
+                                Some(&self.layer_gpu.accumulators[accumulator].view),
+                                &self.images,
+                                &self.device,
+                                &self.queue,
+                                &mut encoder,
+                            )
+                            .map_err(|error| {
+                                let message = format!(
+                                    "exposure object={} phase=adjustment_effect: {error}",
+                                    layer.id
+                                );
+                                error.with_diagnostic(message)
+                            })?;
+                        draws += 1;
+                    }
+                    accumulator = self.encode_adjusted_backdrop(&mut encoder, i, accumulator)?;
+                    draws += 1;
+                    continue;
+                }
+            };
             let layer_transfer = raster.plane.blend != Default::default();
             let target = if layer_transfer {
                 &self
@@ -626,7 +789,7 @@ impl Renderer {
                     .as_ref()
                     .unwrap()
                     .view
-            } else if transfer {
+            } else if has_accumulator {
                 &self.layer_gpu.accumulators[accumulator].view
             } else {
                 view
@@ -706,7 +869,7 @@ impl Renderer {
                 draws += 1;
             }
         }
-        if transfer {
+        if has_accumulator {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("retained phase present"),
                 multiview_mask: None,
@@ -737,7 +900,7 @@ impl Renderer {
             }
         });
         self.check_health()?;
-        Ok(RenderStats {
+        let mut stats = RenderStats {
             cpu_prepare_us: started.elapsed().as_micros() as u64,
             draw_calls: draws,
             texture_bytes: self.texture_bytes
@@ -747,7 +910,14 @@ impl Renderer {
                 + self.compositing_gpu.as_ref().map_or(0, |gpu| gpu.bytes())
                 + active,
             parameter_upload_bytes: (bytes + geometry.vertices.len() * 20) as u64,
+            parameter_resource_upload_bytes: std::mem::take(
+                &mut self.effect_gpu.state.parameter_resource_upload_bytes,
+            ),
             ..Default::default()
-        })
+        };
+        let total_us = stats.cpu_prepare_us;
+        stats.add(preparation);
+        stats.cpu_prepare_us = total_us;
+        Ok(stats)
     }
 }

@@ -790,6 +790,14 @@ impl PlanBuilder {
         result.map_err(|message| self.classify_error(message))?;
         Ok(&self.frame)
     }
+    /// Strict receiver-center dependencies used by phase-time adjustments.
+    pub(crate) fn build_exposure_context_checked(&mut self, scene: &Scene, assets: &[u64],
+        width: u32, height: u32, preview: bool) -> Result<&EffectFramePlan, RenderError> {
+        self.preview_inputs = None;
+        let result = self.build_internal(scene, assets, width, height, !preview, preview, true, &[]).map(|_| ());
+        result.map_err(|message| self.classify_error(message))?;
+        Ok(&self.frame)
+    }
     pub(crate) fn materialized_plane(&self, scene: &Scene, index: usize) -> crate::DrawLayer {
         let mut layer = scene.layers[index].clone();
         let draw = &self.frame.draws[index];

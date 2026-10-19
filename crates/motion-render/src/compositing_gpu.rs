@@ -20,6 +20,7 @@ pub(crate) struct CompositingGpu {
     blend_layout: wgpu::BindGroupLayout,
     blend_stride: usize,
     size: [u32; 2],
+    format: wgpu::TextureFormat,
 }
 
 impl CompositingGpu {
@@ -247,6 +248,7 @@ impl CompositingGpu {
             zero,
             source: None,
             size: [0; 2],
+            format,
             extract_buffer,
             extract_group,
             extract_stride,
@@ -346,7 +348,7 @@ impl CompositingGpu {
                 sampler,
                 self.size[0],
                 self.size[1],
-                wgpu::TextureFormat::Rgba8UnormSrgb,
+                self.format,
             ));
         }
         Ok(source_bytes > 0)

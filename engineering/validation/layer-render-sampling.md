@@ -10,7 +10,7 @@ Issue：#255。本工作最初基于 `f32c64de`，已同步到包含 PR #336 的
 | 连续栅格化实际像素 | 原创圆形在 256×256 输出中放大八倍；真实 GPU capture、透明边界、覆盖面积、反复切换和冻结模型重开 | 矢量已实现；其他来源仍需逐项能力界定 |
 | 连续栅格化预算和预览 | 投影密度影响实际源纹理尺寸及 mesh/cache 身份；默认与预览计划一致；低预算拒绝且恢复预算可继续渲染 | 已实现并测试 |
 | 帧混合 | 解码器要求真实相邻 PTS 双帧；GPU 在线性预乘空间混合；预览代理、桌面捕获与冻结组合读帧接入；实际 VFR、YUV、取消、冻结协议和默认日志用例 | 已实现核心链路；最终能力声明、UI 及原生界面验收待完成 |
-| 运动模糊 | 中心快门和逐层有理数阶段调度；逐接收层的真实 Scene/父级/相机/表达式/效果输入求值；实际线性 FP16 GPU 累积；不同逐层相机投影的交叉遮挡、透视 UV、透明边界、取消、预算、BGRA 与嵌套效果/遮罩测试及独立图像 | 求值、调度、累积和逐层投影模块已实现；通用局部纹理物化、嵌套曝光组合、媒体 pending 的持久 GPU 任务、预览与冻结协议仍待接入 |
+| 运动模糊 | 中心快门和逐层有理数阶段调度；逐接收层的真实 Scene/父级/相机/表达式/效果输入求值；独立局部效果图像与投影 matte；逐阶段调整图层；实际线性 FP16 GPU 累积；逐层投影、透明边界、取消、预算、BGRA 与嵌套效果测试及独立图像 | 求值、调度、物化、调整图层、累积和逐层投影模块已实现；嵌套独立曝光、媒体 pending 的持久 GPU 任务、预览与冻结协议仍待接入 |
 | 能力检查及 UI | 模型拒绝对非视频帧混合、对非矢量连续栅格化、对非像素来源运动模糊 | 最终 host 能力声明和实际支持开关待接入；未加入空开关 |
 | 双语、主/浮窗、焦点失效 | 本轮没有修改 UI | 待真实开关接入后验收与截图 |
 
@@ -71,6 +71,9 @@ PreviewVideoCache 对左右输入应用同一现有 video_edge 策略，分辨�
 | SAM-FUNC-08 | 新功能模块 | 增加 caller-owned LayerRaster、逐层物化、阶段 BSP/混合及 accumulate_layer_exposure。接收时刻的局部效果输出与投影 matte 分开保留；纯色保留浮点颜色/alpha，用 1×1 常量源避免额外 RGBA8 舍入。普通路径、资源信道和 UI 未切换到新模块，不宣称 #255 完成。 |
 | SAM-OBS-10 | 新上下文/模块验证 | 物化拒绝失败效果、未提交/已取消的视频转换、尺寸/所有者/策略/重复接收层/预算错误；错误不推进曝光阶段，保留原始 cause 与 typed ResourceRejection。缺少效果定义增加最多 96 字符的效果标识。模块真实 GPU 拒绝与恢复不等于默认日志、Error stderr、Info in-flight 或前端信道验收，这些仍待 host 接入。 |
 | SAM-NORMAL-07 | 正常路径/资源边界 | 缺少接收层返回 None；范围外样本由调度方保持透明权重。每个保留局部 RGBA 为 4WH 字节，可选投影 R8 matte 为 viewport WH 字节，纯色源为 4 字节；与所有 ExposureTarget 合计使用同一有界 temporal 计数，独立于 effect scratch/source allowance。Drop 归还逻辑容量，提交 ledger 记录异步退休；这不是总显存上限。无新增线程、重试、重启、日志计数、文件 IO 或每帧日志。 |
+| SAM-FUNC-09 | 新功能及独立兼容性修复 | draw_exposure_phase / accumulate_exposure_phase 将中心时刻的调整参数和引用素材作用到每阶段的下方合成，再进入曝光累积。复用现有效果、范围/opacity、混合及背景呈现；保留旧局部 API 的调整图层拒绝断言。真实 BGRA 组合测试发现混合中间纹理固定 RGBA 导致 pipeline 格式不匹配，现随 renderer 输出格式创建，容量仍为 4WH；这是功能修复。 |
+| SAM-OBS-11 | 新上下文/模块验证 | 中心依赖先严格预检，包含嵌套效果；不走预览的失败效果绕过路径。返回原始 cause、composition、sample_frame、adjustment_prepare / adjustment_effect 及已有对象信息，保留 typed ResourceRejection。真实失败、预算和策略拒绝后阶段不推进，未完成的累积不能捕获；调用者显式提供有效上下文后可继续。没有新增日志计数、吞错、自动重试或重启，默认文件/Error stderr/Info in-flight/前端信道仍待 host 接入验收。 |
+| SAM-NORMAL-08 | 正常路径/资源边界 | 空 backdrop、disabled 效果、零 opacity 和范围外接收层按既有语义处理；背景在最终呈现时合入，不被调整图层改色。中心依赖准备先提交，再上传阶段几何；有调整图层时通常为准备、阶段、累积三次有序提交，opt-in ledger 保留输入/输出容量。调整 accumulator 为独立 allowance 的 8WH，存在混合则为 12WH；没有提高预算、线程或每帧日志。 |
 
 | SAM-PENDING-01 | 待完成 | 运动模糊尚需逐项审计多时钟 pending、取消、被取代请求、采样失败与冻结读者释放。新增连续栅格化相机平面错误仍缺少默认文件/Error stderr 的端到端验收；不能将现有函数 Err 用例等同于完成。 |
 
@@ -201,7 +204,7 @@ LayerRaster 独立拥有局部 RGBA8 sRGB 输出与可选的投影 R8 matte；�
 
 accumulate_layer_exposure 将独立局部图像组成完整阶段，再进入同一 FP16 线性累积器。阶段合成与累积是有序的两个 GPU submission，成功后才推进阶段，不做 CPU 图像回读；用于测试的捕获在完成后单独执行。目标的输入、输出与保留 matte 通过现有 opt-in submission ledger 合并记录，容量随所有者释放而归还，GPU 退休仍异步完成。原始裸 TextureView 绘制 API 沿用既有调用方负责输出资源账本的边界，不能据此宣称所有外部纹理已跟踪。普通效果路径的时间戳起点保持在源快照和 matte pass 之前；没有将这些阶段从既有 GPU 时间测量中漏掉。
 
-明确尚未支持的边界：局部图像 API 拒绝 adjustment；阶段合成遇到可见 adjustment 也显式拒绝，不能静默略过。后续需要将其作为逐阶段 backdrop 操作接入，而非将 adjustment 当作独立图像。文档 revision、被取代请求取消、媒体 pending 的持久帧任务、未模糊层跨阶段纹理复用、子合成独立曝光、生产播放与冻结输出都仍由后续 host 任务接入。本轮接收层准备仍使用有界的完整 Scene/Plan 上下文，不宣称仅构建最小依赖集合，也未测量实际长段视频首次出现的延迟。
+这一阶段的边界：局部图像 API 拒绝 adjustment；旧 draw_layer_rasters / accumulate_layer_exposure 遇到可见 adjustment 仍显式拒绝。下一节的新入口将其作为逐阶段 backdrop 操作接入，没有改变这些已有拒绝断言。文档 revision、被取代请求取消、媒体 pending 的持久帧任务、未模糊层跨阶段纹理复用、子合成独立曝光、生产播放与冻结输出都仍由后续 host 任务接入。本轮接收层准备仍使用有界的完整 Scene/Plan 上下文，不宣称仅构建最小依赖集合，也未测量实际长段视频首次出现的延迟。
 
 验证及保留的失败记录：
 
@@ -218,3 +221,30 @@ GPU 原图位于 `E:/Dev/aem/artifacts/layer-render-sampling/local-raster-budget
 `local-effects-cost.json` 记录 RTX 4070 Laptop/Vulkan、64×64、八阶段、56 次效果及平面 draw、49,732 字节 caller-owned temporal 峰值与该轮 14,832us 捕获耗时。56 不包含累积和 resolve 的 fullscreen draw。计时包括 Scene 求值、局部物化、GPU 合成/累积和回读，排除前面建立的文档/目标、普通参考捕获及 PNG 写盘；不等于纯 GPU 时间、实际播放 FPS 或总显存。其他阶段目录保留各轮原始成本值，没有用较快一轮覆盖慢值。
 
 新模块暂未由桌面播放器或冻结协议调用，不能将返回 Err 的测试称为新路径的默认日志端到端验收。最终 UI、双语主/浮窗、焦点与右键菜单验收仍未开始；本轮没有面板/token 修改，不改变 DESIGN 的处置基线。
+
+### 曝光阶段中的调整图层
+
+新增 draw_exposure_phase / accumulate_exposure_phase，在每阶段的下方局部图像合成后运行调整效果。调整层本身没有独立可绘制源，不调用 materialize_layer；ExposureScenes 的调用者完成这一 receiver 后，使用中心 Scene 把调整操作插回作者顺序。调整参数、父级变换、范围、opacity 和引用素材保持请求的中心时刻；运动图层的已保留纹理与平面使用各自接收时刻。未启用模糊的动画层保持中心时刻。此设计不会把调整层以上的图像或项目背景一起模糊。
+
+中心上下文先严格预检，递归检查普通嵌套依赖，不允许预览绕过未知或编译失败的效果。源效果快照、矢量、遮罩和投影 matte 使用现有准备过程，准备 encoder 先提交；之后才能把独立阶段几何上传到共享 vertex/uniform buffer，避免已编码的源操作读到后写的顶点。阶段执行调整效果时，将当前下方 accumulator 作为输入，并复用现有调整范围/opacity shader。每个阶段完成绘制后再累积，通常三次有序 GPU 提交；不回读阶段像素，不隐式重试。嵌套子场景的实际准备还可能有既有提交，不能把三次称为全部工程的固定提交数。
+
+几何按作者顺序和既有 BSP 排序；调整层形成原有的 2D 边界。源图层在中心 clip 之外、但在某个曝光样本出现时，阶段仍加入该图层；若它新增混合 accumulator/source，则重新准备效果绑定，中心计划索引和阶段 uniform 索引分开处理。未出现的样本保持透明权重。空 backdrop、disabled 效果和零 opacity 保持原语义，背景在最后呈现时合入。旧 draw_layer_rasters / accumulate_layer_exposure 和 adjustment 不能物化为局部图像的拒绝断言均保留，只有新入口接受完整阶段。
+
+本轮 GPU 用例还发现 BGRA renderer 的混合 source 固定创建为 RGBA，导致普通渲染参照自身报 pipeline/attachment 格式不匹配。CompositingGpu 现在保存创建时的输出格式，用于创建 source；仍为同样的 4WH 字节，没有增加容量或修改 shader/计划 ABI。新的 BGRA/交叉 3D/matte/混合/叠加调整测试同时与 RGBA renderer 比较最终通道，既有 RGBA 混合用例保留原断言。
+
+资源仍受旧 allowance 限制：调整 accumulator 为 8WH，存在混合时连同 source 为 12WH；在新分配前检查，typed LayerCompositing 拒绝保留 required/budget。保留的局部图像、投影 matte 与 ExposureTarget 使用已有 temporal 计数；effect scratch 和素材预算单独计算，不将 temporal 峰值宣称为总显存。提交 ledger 测试检查中心准备、阶段平面与累积三次提交、回调完成、零遗漏快照及局部输入/曝光输出容量，不能只在累积提交记录目标。
+
+验证与保留的失败记录：
+
+- `sampling-adjustment-preparation-check.log` 保留尚未接调用入口时的两个未使用方法警告；完整接入后 `sampling-adjustment-phase-check.log` 编译通过且没有新增警告，未添加 allow。`sampling-adjustment-existing.log` 的既有局部图像 12 项及矢量/调整 9 项通过，旧拒绝断言未改。
+- `sampling-adjustment-tests.log` 保留新测试遗漏 TrackMatte.hide_source 字段的编译失败；夹具补齐真实字段后运行。`sampling-adjustment-valid-fixture.log` 为新增七项中的六项成功，BGRA 普通参照触发真实 GPU 格式校验错误；没有把用例改为只测 RGBA 或放宽断言。修正混合 source 格式后 `sampling-adjustment-format-fix.log` 的新增七项和既有混合七项全部通过。
+- `sampling-adjustment-boundaries.log` 新增九项全部通过，补充中心范围外接收层改变混合资源、嵌套失败效果拒绝/恢复，以及显式预览策略不符不推进阶段。
+- 最终 `sampling-adjustment-final.log` 十二组共 78 项通过：新阶段调整 9、局部图像 12、矢量/调整 9、混合/matte 7、场景效果 8、嵌套 5、曝光累积 6、接收场景 8、双帧 5、投影 4、资源拒绝 3、提交账本 2。包含新增 BGRA/RGBA 通道对照；重复执行不计为新增测试。
+- `sampling-adjustment-desktop-check.log` 带 FFmpeg 的桌面 cargo check 成功，保留既有 21 条桌面警告，无新增渲染模块警告。这是编译检查，尚未生成此阶段的 release 可运行包。
+- 暂存差异空白检查、样式消费者检查及来源检查（1,399 个受版本控制路径）通过；DESIGN §0.7 面板基线本轮无变更，§12 的新 UI 验收仍待实际开关接入。
+
+真实 GPU 原图及成本位于 `E:/Dev/aem/artifacts/layer-render-sampling/adjustment-phase-final/`：`adjustment-sharp.png` / `adjustment-exposure.png` / `adjustment-cost.json`。夹具的红色运动层位于 gaussian_blur + displacement_map 调整层下；调整参数和隐藏输入的 brightness 都有关键帧，隐藏源还独立启用三样本快门。实际 ExposureScenes / 局部物化 / 新阶段入口与独立普通渲染 oracle 对比：oracle 仅换入逐时刻接收平面，保留中心调整与引用素材；另有错误整图时间平均，断言其确实与正确结果不同。上方红色覆盖宽度增加两倍以上，alpha 面积差小于 3%；同样有运动关键帧的上层绿色参考条保持中心帧，最终像素按通道一档对照。`adjustment-comparison.png` 仅给两张原图增加棋盘、四倍最近邻放大及说明，未生成或改写原始效果像素。
+
+RTX 4070 Laptop / Vulkan 的该轮成本为 64×64、10 个共同阶段、190 次准备/效果/平面 draw、65,544 字节 caller-owned temporal 峰值、29,384us 捕获。draw 数不包括曝光累积和 resolve fullscreen draw；计时包含真实 Scene 求值、局部物化、中心依赖准备、GPU 阶段合成/累积及回读，排除此前建立文档、目标、普通参照和 oracle，以及后续 PNG 写盘。这是一轮捕获，不等于实际播放 FPS、纯 GPU 时间或总显存。早期各阶段目录保留各轮成本，没有以较快值覆盖本轮数据。
+
+边界仍然明确：调用者必须在新入口之前准备好精确中心时刻的依赖媒体。现有 ready 检查能拒绝未提交/已取消/缺失的转换，不能证明所有驻留视频纹理的 PTS 恰好等于当前中心请求；后续持久任务必须协调解码 stamp。当前准备仍使用完整有界中心 Scene/Plan，可能重复准备未使用或未变化的源，不宣称最小依赖或跨阶段复用完成。嵌套独立曝光、文档 revision/取消、生产播放/冻结协议、新路径默认日志及 UI 实际开关验收均未完成，#255 保持开放。本轮没有依赖、资产、面板或 token 改动。
