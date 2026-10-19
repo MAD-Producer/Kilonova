@@ -106,6 +106,56 @@ fn capture(
     pixels
 }
 
+// The clipping regression requires visible Chinese glyphs in its old-path
+// control. System UI font selection does not guarantee CJK coverage.
+// Select an installed face by actual coverage rather than weakening
+// the pixel assertion or treating missing glyphs as a successful render.
+fn covered_test_atlas() -> TextAtlas {
+    const REQUIRED: &str = "很长的属性名称需要限制在左侧标签区域内，不能覆盖右侧数值中文jW / labelA very long property that overlaps the numeric value25…";
+    let atlas = TextAtlas::from_system_language(12., false).expect("system UI font");
+    if REQUIRED.chars().all(|c| atlas.supports(c)) {
+        return atlas;
+    }
+    installed_covered_atlas(REQUIRED)
+}
+
+fn installed_covered_atlas(required: &str) -> TextAtlas {
+    use ab_glyph::Font;
+    let mut database = fontdb::Database::new();
+    database.load_system_fonts();
+    for face in database.faces() {
+        let candidate = database
+            .with_face_data(face.id, |data, index| {
+                ab_glyph::FontVec::try_from_vec_and_index(data.to_vec(), index)
+                    .ok()
+                    .filter(|font| required.chars().all(|c| font.glyph_id(c).0 != 0))
+                    .map(ab_glyph::FontArc::new)
+            })
+            .flatten();
+        if let Some(font) = candidate {
+            eprintln!(
+                "text bounds GPU fixture selected installed CJK face: {:?}",
+                face.families
+            );
+            return TextAtlas::new(font, 12., vec![]);
+        }
+    }
+    panic!("text bounds GPU fixture requires an installed rasterizable CJK font");
+}
+
+#[test]
+fn cjk_fixture_rasterizes_visible_chinese_glyphs() {
+    let mut atlas = installed_covered_atlas("中文很长的属性名称");
+    for c in "中文很长的属性名称".chars() {
+        assert!(atlas.supports(c), "fixture must cover {c}");
+        let glyph = atlas.glyph(c);
+        assert!(
+            glyph.uv[2] > glyph.uv[0] && glyph.uv[3] > glyph.uv[1],
+            "fixture must visibly rasterize {c}"
+        );
+    }
+}
+
 #[test]
 fn actual_gpu_keeps_values_isolated_and_styled_text_pixels_unchanged_at_five_dpi_scales() {
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
@@ -116,7 +166,7 @@ fn actual_gpu_keeps_values_isolated_and_styled_text_pixels_unchanged_at_five_dpi
         pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default()))
             .expect("text acceptance device");
     let mut painter = Painter::new(&device, wgpu::TextureFormat::Rgba8Unorm);
-    let mut atlas = TextAtlas::from_system_language(12., false).expect("system UI font");
+    let mut atlas = covered_test_atlas();
     let colors = default_stylesheet().colors();
     let logical = [280., 72.];
     let area = Rect::new(16., 16., 248., 30.);
