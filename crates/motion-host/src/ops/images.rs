@@ -4,7 +4,10 @@ use motion_core::Asset;
 use serde_json::json;
 use std::path::PathBuf;
 
-/// Encoded image metadata used before an asset is registered.
+/// Read-only, size-bounded metadata for a caller-selected import candidate.
+/// This pre-registration probe accepts external paths and has no session/root
+/// authority; it does not register an asset, create a proxy or copy source bytes.
+/// Registered asset access and `prepare_image` retain project-relative checks.
 pub fn image_info(path: &str) -> Result<serde_json::Value> {
     let (width, height, format, bytes) =
         motion_render::image_resources::inspect(std::path::Path::new(path))?;
