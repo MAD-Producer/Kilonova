@@ -86,6 +86,9 @@ def verify_design_screens(snapshot: dict, locale: str, *, property_followups: bo
             "rectangle-resize-properties": (360, 560),
             **{f"timeline-key-drag-{row}-{phase}": (900, 520)
                for row in ("property", "summary") for phase in ("before", "after")},
+            **{f"effect-timeline-{surface}-{mode}{menu}": (width, 760)
+               for surface, width in (("main", 1200), ("floating", 900))
+               for mode in ("parameters", "graph") for menu in ("", "-menu")},
             **{f"effect-selection-from-{owner}-{host}": (width, 560)
                for owner in ("controls", "inspector")
                for host, width in (("controls", 360), ("inspector", 360), ("narrow", 220))},

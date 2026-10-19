@@ -484,6 +484,7 @@ impl Shell {
             self.capture_shape_resize_screens(window_size, report, output)?;
             self.capture_effect_selection_screens(window_size, report, output, object)?;
             self.capture_timeline_key_drag_screens(window_size, report, output)?;
+            self.capture_effect_timeline_screens(window_size, report, output)?;
             Ok(())
         })();
         if let Err(cause) = &captured {

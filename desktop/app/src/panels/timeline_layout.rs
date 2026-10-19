@@ -18,6 +18,7 @@ pub(super) struct LayerRows {
     pub audio: Range<usize>,
     pub effects: Range<usize>,
     pub effects_open: bool,
+    pub effect_rows: Vec<super::effect_timeline::PlannedRow>,
     pub masks: Range<usize>,
     pub vectors: Range<usize>,
     pub mask_rows: path_controls::timeline::Rows,
@@ -157,10 +158,15 @@ impl LayerRows {
             Default::default()
         };
         let vectors = audio.end..audio.end + vector_rows.len();
+        let effect_rows = if effects_open {
+            super::effect_timeline::plan(row, t)
+        } else {
+            vec![]
+        };
         let effects = vectors.end
             ..vectors.end
                 + if expanded && row.id != 0 && !row.camera {
-                    1 + if effects_open { row.effects } else { 0 }
+                    1 + effect_rows.len()
                 } else {
                     0
                 };
@@ -174,6 +180,7 @@ impl LayerRows {
             audio,
             effects,
             effects_open,
+            effect_rows,
             masks,
             vectors,
             mask_rows,

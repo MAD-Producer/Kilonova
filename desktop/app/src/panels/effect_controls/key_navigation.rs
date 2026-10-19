@@ -114,7 +114,7 @@ fn times(parameter: &EffectParam, offset: f64) -> Vec<f64> {
 }
 
 impl Controls {
-    pub(super) fn choose_parameter(&mut self, state: &Value, object: u64, effect: u64, parameter: &str) {
+    pub(in crate::panels) fn choose_parameter(&mut self, state: &Value, object: u64, effect: u64, parameter: &str) {
         self.mirrored_channel = None;
         self.key_channel = Some(Channel { object, effect, parameter: parameter.into(),
             context: (state["root"].as_str().unwrap_or("").into(),
@@ -135,6 +135,13 @@ impl Controls {
 
     pub(in crate::panels) fn has_key_channel(&self) -> bool {
         self.key_channel.is_some()
+    }
+
+    pub(in crate::panels) fn selected_parameter(&self, state: &Value) -> Option<(u64, u64, &str)> {
+        let channel = self.key_channel.as_ref().or(self.mirrored_channel.as_ref())?;
+        (channel.context.0 == state["root"].as_str().unwrap_or("")
+            && channel.context.1 == state["composition"].as_str().unwrap_or(""))
+            .then_some((channel.object, channel.effect, channel.parameter.as_str()))
     }
 
     pub(in crate::panels) fn clear_key_channel(&mut self) {

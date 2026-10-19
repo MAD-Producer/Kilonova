@@ -131,6 +131,9 @@ fn cubic_ease(
         property,
         source["frame"].as_f64().unwrap_or(0.),
     );
+    ease_sides(easing, incoming, outgoing)
+}
+pub(super) fn ease_sides(easing: Easing, incoming: bool, outgoing: bool) -> Easing {
     let (mut a, mut b, start, end) = match easing.curve {
         Some(Curve {
             space: CurveSpace::Progress,
@@ -196,6 +199,9 @@ fn cubic_ease(
 }
 
 fn quick_ease(panels: &mut Panels, state: &Value, command: Shortcut, out: &mut Vec<Action>) {
+    if super::effect_timeline::ease(panels, state, command, out) {
+        return;
+    }
     let Some(key) = selection(panels, state) else {
         return;
     };
@@ -329,7 +335,7 @@ pub(super) fn handle(
         panels.focused,
         Some(Panel::Timeline | Panel::Curves | Panel::Properties | Panel::Composition)
     ) || super::property_focus::navigation_scope(panels.focused)
-        && matches!(command, Shortcut::PreviousKey | Shortcut::NextKey)) {
+        && matches!(command, Shortcut::PreviousKey | Shortcut::NextKey | Shortcut::EaseBoth | Shortcut::EaseIncoming | Shortcut::EaseOutgoing)) {
         return false;
     }
     if panels.timeline.moving.is_some()
@@ -536,6 +542,9 @@ pub(super) fn handle(
             }
         }
         Shortcut::Delete if matches!(panels.focused, Some(Panel::Timeline | Panel::Curves)) => {
+            if super::effect_timeline::delete(panels, state, out) {
+                return true;
+            }
             if panels.animation_controls.track_selection(state, panels.selected) == TrackSelection::Invalid {
                 return true;
             }
