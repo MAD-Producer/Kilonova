@@ -1,6 +1,6 @@
 use super::*;
 
-fn task() -> Arc<Mutex<Task>> {
+pub(super) fn task() -> Arc<Mutex<Task>> {
     Arc::new(Mutex::new(Task {
         status: VideoTaskStatus {
             request_id: "probe-cleanup-video".into(),
@@ -17,7 +17,7 @@ fn task() -> Arc<Mutex<Task>> {
     }))
 }
 
-fn prepared(path: PathBuf) -> Prepared {
+pub(super) fn prepared(path: PathBuf) -> Prepared {
     Prepared {
         stage: Stage(path),
         probe: VideoProbe {

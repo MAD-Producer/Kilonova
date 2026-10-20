@@ -274,3 +274,277 @@ fn media_teardown_cleanup_warnings_reach_default_file_without_console_noise() {
     assert!(!String::from_utf8_lossy(&output.stderr).contains("media "));
     assert!(!String::from_utf8_lossy(&output.stdout).contains("media "));
 }
+
+struct PanickingImportSink;
+impl motion_model::EditSink for PanickingImportSink {
+    fn project(&self) -> &Project {
+        panic!("controlled native import provider panic");
+    }
+    fn apply_batch_saved(
+        &mut self,
+        _: Vec<motion_core::Command>,
+        _: &Path,
+    ) -> motion_core::Result<Vec<motion_core::EditResult>> {
+        panic!("must not publish after a provider panic");
+    }
+}
+
+struct FailingImportSave(Project);
+impl motion_model::EditSink for FailingImportSave {
+    fn project(&self) -> &Project {
+        &self.0
+    }
+    fn apply_batch_saved(
+        &mut self,
+        _: Vec<motion_core::Command>,
+        root: &Path,
+    ) -> motion_core::Result<Vec<motion_core::EditResult>> {
+        let files: Vec<_> = fs::read_dir(root.join("assets"))
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .collect();
+        assert_eq!(files.len(), 1);
+        // A provider failure and a concurrent filesystem obstruction together
+        // exercise the real import rollback, including its secondary failure.
+        assert!(files[0]
+            .canonicalize()
+            .unwrap()
+            .starts_with(root.canonicalize().unwrap()));
+        fs::remove_file(&files[0]).unwrap();
+        fs::create_dir(&files[0]).unwrap();
+        Err(motion_core::Error::Invalid(
+            "controlled import save failure".into(),
+        ))
+    }
+}
+
+#[test]
+fn import_rollback_keeps_primary_and_secondary_causes_in_default_channels() {
+    const CHILD: &str = "MOTION_MEDIA_ROLLBACK_FILE_TEST_CHILD";
+    const TEST: &str = "logging::media_commit_tests::import_rollback_keeps_primary_and_secondary_causes_in_default_channels";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = PathBuf::from(root);
+        let _logger = init(root.join("logs")).unwrap();
+        for kind in ["audio", "video"] {
+            let project_root = root.join(kind);
+            fs::create_dir_all(&project_root).unwrap();
+            let mut sink = FailingImportSave(Project::new(64, 64, 30, 90).unwrap());
+            let before = serde_json::to_value(&sink.0).unwrap();
+            let id = format!("commit-observation-{kind}");
+            let error = if kind == "audio" {
+                audio(&project_root)
+                    .commit(&id, &mut sink)
+                    .unwrap()
+                    .error
+                    .unwrap()
+            } else {
+                video(&project_root)
+                    .commit(&id, &mut sink)
+                    .unwrap()
+                    .error
+                    .unwrap()
+            };
+            assert!(
+                error.starts_with("controlled import save failure; rollback remove "),
+                "{error}"
+            );
+            assert_eq!(serde_json::to_value(&sink.0).unwrap(), before);
+            let retained: Vec<_> = fs::read_dir(project_root.join("assets"))
+                .unwrap()
+                .map(|entry| entry.unwrap().path())
+                .collect();
+            assert_eq!(retained.len(), 1);
+            assert!(
+                retained[0].is_dir(),
+                "rollback must not delete a foreign directory"
+            );
+        }
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", TEST, "--nocapture"])
+        .env(CHILD, root.path())
+        .env_remove("MOTION_LOG")
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let text = fs::read_to_string(root.path().join("logs/motion-studio.log")).unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(text.contains("logging initialized level=INFO"));
+    let warnings: Vec<_> = text
+        .lines()
+        .filter(|line| line.contains(" WARN ") && line.contains("rollback remove "))
+        .collect();
+    assert_eq!(warnings.len(), 2);
+    for kind in ["audio", "video"] {
+        let marker = format!("operation=commit_{kind} phase=failed");
+        let errors: Vec<_> = text
+            .lines()
+            .filter(|line| line.contains(" ERROR ") && line.contains(&marker))
+            .collect();
+        assert_eq!(errors.len(), 1);
+        assert!(errors[0].contains("controlled import save failure; rollback remove "));
+        let console: Vec<_> = stderr
+            .lines()
+            .filter(|line| line.contains(&marker))
+            .collect();
+        assert_eq!(console.len(), 1);
+        assert!(console[0].contains("controlled import save failure; rollback remove "));
+    }
+    assert!(!stdout.contains("rollback remove ") && !stdout.contains("media "));
+}
+
+#[test]
+fn media_resource_cleanup_and_poisoned_reservation_preserve_default_channels() {
+    const CHILD: &str = "MOTION_MEDIA_RESOURCE_FILE_TEST_CHILD";
+    const TEST: &str = "logging::media_commit_tests::media_resource_cleanup_and_poisoned_reservation_preserve_default_channels";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = PathBuf::from(root);
+        let _logger = init(root.join("logs")).unwrap();
+        for mode in ["cancel", "commit", "panic"] {
+            for kind in ["audio", "video"] {
+                let project_root = root.join(format!("{mode}-{kind}"));
+                fs::create_dir_all(&project_root).unwrap();
+                let audio = (kind == "audio").then(|| audio(&project_root));
+                let video = (kind == "video").then(|| video(&project_root));
+                let id = format!("commit-observation-{kind}");
+                let audio_metadata = audio
+                    .as_ref()
+                    .map(|jobs| jobs.status(&id).unwrap().metadata.unwrap());
+                let video_metadata = video.as_ref().map(|jobs| {
+                    serde_json::from_value::<VideoAsset>(
+                        jobs.status(&id).unwrap().metadata.unwrap()["video"].clone(),
+                    )
+                    .unwrap()
+                });
+                let prefix = if kind == "audio" {
+                    ".media-import-"
+                } else {
+                    ".video-import-"
+                };
+                let stages: Vec<_> = fs::read_dir(&project_root)
+                    .unwrap()
+                    .map(|entry| entry.unwrap().path())
+                    .filter(|path| {
+                        path.file_name()
+                            .unwrap()
+                            .to_string_lossy()
+                            .starts_with(prefix)
+                    })
+                    .collect();
+                assert_eq!(stages.len(), 1);
+                let stage = &stages[0];
+                assert!(stage
+                    .canonicalize()
+                    .unwrap()
+                    .starts_with(project_root.canonicalize().unwrap()));
+                fs::remove_dir_all(stage).unwrap();
+                fs::write(stage, b"foreign file").unwrap();
+                if mode == "cancel" {
+                    let state = if let Some(jobs) = &audio {
+                        jobs.cancel(&id).unwrap().state
+                    } else {
+                        video.as_ref().unwrap().cancel(&id).unwrap().state
+                    };
+                    assert_eq!(state, "cancelled");
+                } else if mode == "commit" {
+                    let mut engine = Engine::new(Project::new(64, 64, 30, 90).unwrap()).unwrap();
+                    let (state, error) = if let Some(jobs) = &audio {
+                        let status = jobs.commit(&id, &mut engine).unwrap();
+                        (status.state, status.error)
+                    } else {
+                        let status = video.as_ref().unwrap().commit(&id, &mut engine).unwrap();
+                        (status.state, status.error)
+                    };
+                    assert_eq!(state, "failed");
+                    assert!(error.is_some());
+                    assert!(engine.project().layers.is_empty());
+                } else {
+                    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        if let Some(jobs) = &audio {
+                            let _ = jobs.commit(&id, &mut PanickingImportSink);
+                        } else {
+                            let _ = video
+                                .as_ref()
+                                .unwrap()
+                                .commit(&id, &mut PanickingImportSink);
+                        }
+                    }));
+                    assert_eq!(
+                        motion_media::panic_reason(result.unwrap_err()),
+                        "controlled native import provider panic"
+                    );
+                    let error = if let Some(jobs) = &audio {
+                        jobs.prepare_cache("next", audio_metadata.unwrap()).err()
+                    } else {
+                        video
+                            .as_ref()
+                            .unwrap()
+                            .prepare_cache(
+                                "next",
+                                video_metadata.unwrap(),
+                                Arc::new(|_, _, _, _| {
+                                    panic!("poisoned reservation must not invoke the decoder")
+                                }),
+                            )
+                            .err()
+                    };
+                    assert_eq!(
+                        error.as_deref(),
+                        Some(format!("{kind} task poisoned").as_str())
+                    );
+                }
+                drop(audio);
+                drop(video);
+                assert_eq!(fs::read(stage).unwrap(), b"foreign file");
+            }
+        }
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", TEST, "--nocapture"])
+        .env(CHILD, root.path())
+        .env_remove("MOTION_LOG")
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let text = fs::read_to_string(root.path().join("logs/motion-studio.log")).unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(text.contains("logging initialized level=INFO"));
+    assert_eq!(text.matches("media stage cleanup failed").count(), 6);
+    assert!(!stderr.contains("media stage cleanup failed"));
+    assert!(!stdout.contains("media "));
+    assert_eq!(
+        text.matches("controlled native import provider panic")
+            .count(),
+        2
+    );
+    assert_eq!(
+        stderr
+            .matches("controlled native import provider panic")
+            .count(),
+        2
+    );
+    assert!(!stdout.contains("controlled native import provider panic"));
+    assert!(!text.contains("PoisonError") && !stderr.contains("PoisonError"));
+    for kind in ["audio", "video"] {
+        let marker = format!("operation=commit_{kind} phase=failed");
+        assert_eq!(text.matches(&marker).count(), 1);
+        assert_eq!(stderr.matches(&marker).count(), 1);
+        assert!(!stdout.contains(&marker));
+    }
+}

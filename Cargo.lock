@@ -2071,6 +2071,7 @@ dependencies = [
  "motion-graph",
  "motion-host",
  "motion-media",
+ "motion-model",
  "motion-render",
  "motion-ui",
  "pollster",
