@@ -27,6 +27,7 @@ pub enum Action {
     AddShape(motion_core::vector::ShapeKind),
     NewText,
     CompositionSettings,
+    Preferences,
     NewComposition,
     CompositionPreset(u32, u32),
     Plugin(Value),
