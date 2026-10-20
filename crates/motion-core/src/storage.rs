@@ -159,9 +159,8 @@ impl Drop for PreparedPackage {
 impl PreparedPackage {
     /// Call under the task's cancellation lock to make publication atomic with
     /// cancellation. Until this point an existing output remains untouched.
-    pub fn publish(self) -> Result<PathBuf> {
-        fs::rename(&self.temporary, &self.output)?;
-        Ok(self.output.clone())
+    pub fn publish(mut self) -> Result<PathBuf> {
+        motion_model::PackagePublication::publish(&mut self)
     }
 }
 impl PackageSnapshot {
@@ -493,7 +492,10 @@ impl motion_model::PackageExportSource for PackageSnapshot {
     }
 }
 impl motion_model::PackagePublication for PreparedPackage {
-    fn publish(self) -> Result<PathBuf> { PreparedPackage::publish(self) }
+    fn publish(&mut self) -> Result<PathBuf> {
+        fs::rename(&self.temporary, &self.output)?;
+        Ok(self.output.clone())
+    }
 }
 
 #[cfg(test)]

@@ -19,6 +19,7 @@ fn fixture() -> Arc<Mutex<Task>> {
             error: None,
         },
         cancel: false,
+        completed: Arc::new(Condvar::new()),
     }))
 }
 

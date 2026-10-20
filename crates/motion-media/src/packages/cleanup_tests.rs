@@ -78,12 +78,12 @@ impl PackageExportSource for ControlledSource {
 }
 
 impl PackagePublication for ControlledPublication {
-    fn publish(mut self) -> motion_model::Result<PathBuf> {
+    fn publish(&mut self) -> motion_model::Result<PathBuf> {
         if matches!(self.gate.boundary, Boundary::Publication) {
             self.gate.wait();
         }
         self.publications.fetch_add(1, Ordering::AcqRel);
-        self.archive.take().unwrap().publish()
+        PackagePublication::publish(self.archive.as_mut().unwrap())
     }
 }
 

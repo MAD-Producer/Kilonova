@@ -8,7 +8,7 @@ use std::{
     path::PathBuf,
     sync::{
         atomic::{AtomicUsize, Ordering},
-        Arc, Mutex,
+        Arc, Condvar, Mutex,
     },
 };
 
@@ -45,6 +45,7 @@ impl PackageTaskStatus {
 struct Task {
     status: PackageTaskStatus,
     cancel: bool,
+    completed: Arc<Condvar>,
 }
 #[derive(Default)]
 pub struct PackageJobs {
@@ -74,9 +75,17 @@ impl PackageJobs {
     }
     /// Cancellation is acknowledged as running/cancelling until the worker has
     /// closed and removed its staging file. Publication and cancellation share a lock.
+    /// Finalizing follows the publication decision; cancellation cannot override it.
     pub fn cancel(&self, id: &str) -> Result<PackageTaskStatus> {
         let task = self.task(id)?;
         let mut task = task.lock().map_err(|_| "package task poisoned")?;
+        // Once publication begins, preserve the existing acknowledgement: a
+        // concurrent cancel observes its terminal decision after cleanup. Waiting
+        // releases the task mutex, so status/release/admission remain available.
+        let completed = task.completed.clone();
+        while task.status.phase == "finalizing" {
+            task = completed.wait(task).map_err(|_| "package task poisoned")?;
+        }
         if !task.status.terminal() {
             task.cancel = true;
             task.status.phase = "cancelling".into();
@@ -152,6 +161,7 @@ impl PackageJobs {
         let task = Arc::new(Mutex::new(Task {
             status: initial.clone(),
             cancel: false,
+            completed: Arc::new(Condvar::new()),
         }));
         tasks.insert(id.into(), task.clone());
         let task_log = crate::task_logging::TaskLog::new(&initial.request_id, &initial.operation);
@@ -162,7 +172,7 @@ impl PackageJobs {
             .spawn(move || {
                 let _worker = worker;
                 worker_log.start();
-                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let mut result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     let parent = output.parent().ok_or_else(|| {
                         motion_model::Error::Invalid("invalid package destination".into())
                     })?;
@@ -203,23 +213,61 @@ impl PackageJobs {
                     // Cleanup may do filesystem IO or call the provider's logger.
                     // Keep cancellation nonterminal while releasing the task lock.
                     drop(task);
-                    let error = crate::task_logging::cancelled_error(&result, &["package export cancelled"]);
+                    let primary = crate::task_logging::cancelled_error(
+                        &result,
+                        &["package export cancelled"],
+                    );
                     // Drop/close the prepared archive before advertising terminal cancellation.
-                    drop(result);
+                    let cleanup = cleanup_package(result).err();
+                    let cleanup_failed = cleanup.is_some();
+                    let error = match (primary, cleanup) {
+                        (Some(primary), Some(cleanup)) => Some(format!("{primary}; {cleanup}")),
+                        (primary, cleanup) => primary.or(cleanup),
+                    };
                     let mut task = recoveries.recover(
                         spawn_task.lock(), &PUBLISH, worker_log.request_id(), "export_project",
                     );
                     task.status.state = "cancelled".into();
                     task.status.phase = "cancelled".into();
+                    // Preserve existing cancellation status for preparation
+                    // errors; a new destructor fault also belongs in status.
+                    task.status.error = if cleanup_failed { error.clone() } else { None };
                     drop(task);
                     worker_log.finish("cancelled", error.as_deref());
                     return;
                 }
-                let published = match result {
-                    Ok(Ok(prepared)) => prepared.publish().map_err(|e| e.to_string()),
-                    Ok(Err(error)) => Err(error.to_string()),
-                    Err(payload) => Err(format!("package worker failed: {}",crate::panic_reason(payload))),
+                let published = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    match &mut result {
+                        Ok(Ok(prepared)) => prepared.publish().map_err(|e| e.to_string()),
+                        Ok(Err(error)) => Err(error.to_string()),
+                        Err(payload) => Err(format!(
+                            "package worker failed: {}",
+                            crate::panic_reason_ref(payload.as_ref())
+                        )),
+                    }
+                }))
+                .unwrap_or_else(|payload| {
+                    Err(format!(
+                        "package publication failed: {}",
+                        crate::panic_reason(payload)
+                    ))
+                });
+                // The publication decision is fixed under the cancellation lock.
+                // Keep the task active until archive cleanup has actually returned.
+                // Late cancellation must not override a completed publication.
+                task.status.phase = "finalizing".into();
+                drop(task);
+                let cleanup = cleanup_package(result);
+                let published = match cleanup {
+                    Ok(()) => published,
+                    Err(cleanup) => Err(match published {
+                        Ok(path) => format!("{cleanup}; archive published at {}", path.display()),
+                        Err(primary) => format!("{primary}; {cleanup}"),
+                    }),
                 };
+                let mut task = recoveries.recover(
+                    spawn_task.lock(), &PUBLISH, worker_log.request_id(), "export_project",
+                );
                 match published {
                     Ok(path) => {
                         task.status.state = "succeeded".into();
@@ -235,7 +283,9 @@ impl PackageJobs {
                 }
                 let phase = task.status.phase.clone();
                 let error = task.status.error.clone();
+                let completed = task.completed.clone();
                 drop(task);
+                completed.notify_all();
                 worker_log.finish(&phase, error.as_deref());
             });
         if let Err(error) = spawned {
@@ -243,6 +293,11 @@ impl PackageJobs {
         }
         Ok(initial)
     }
+}
+
+fn cleanup_package<T>(prepared: T) -> Result<()> {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| drop(prepared)))
+        .map_err(|payload| format!("package cleanup failed: {}", crate::panic_reason(payload)))
 }
 
 fn mark_spawn_failed(
@@ -274,7 +329,7 @@ impl Drop for PackageJobs {
             .iter()
         {
             let mut task = recoveries.recover(task.lock(), &TASK, id, "drop_package");
-            if !task.status.terminal() {
+            if !task.status.terminal() && task.status.phase != "finalizing" {
                 task.cancel = true;
                 task.status.phase = "cancelling".into();
             }
@@ -287,6 +342,9 @@ mod poison_tests;
 
 #[cfg(test)]
 mod cleanup_tests;
+
+#[cfg(test)]
+mod publication_tests;
 
 #[cfg(test)]
 mod registry_tests {
@@ -319,6 +377,7 @@ mod registry_tests {
                     error: None,
                 },
                 cancel: false,
+                completed: Arc::new(Condvar::new()),
             })),
         );
         let healthy = PackageJobs::default();
