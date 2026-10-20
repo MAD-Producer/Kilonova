@@ -1,0 +1,47 @@
+# #237 图层边界对齐验收
+
+## 范围与实现
+
+开始前核对工作树、开放 PR 和文件范围；避开快捷键、媒体清理、渲染采样与已修改属性分支。新增依赖、第三方素材及兼容名称均为零，已核对 PROVENANCE、ATTRIBUTION 和 NOTICE。
+
+六个方向（左、水平中心、右、顶、垂直中心、底）使用同一求值场景的现有 selection_geometry 边界，而不是图层位置或未旋转宽高。目标可选合成或全部所选图层的联合边界；主选不固定。边界沿用现有可选轮廓的保守范围，不宣称逐像素透明度包围盒。旋转、非中心锚点、缩放、父级变换及同时选中父子均补偿；父子顺序不影响结果。
+
+通过既有异步引擎信道执行，先完成整组规划，再一次批量提交。位置分离时只写改变的 X/Y；保留 Z、其他变换、时间偏移及无关关键帧，一步撤销/重做。播放先停止；属性写入使用整数帧，因此小数帧停止后在向下取整的同一帧求值和写入，成功后显示该帧，拒绝时保留原时钟和场景。已对齐时不添加历史。
+
+空、重复、缺失、过量选择，锁定、3D、不可见、不活动及非画面图层、位置表达式、屏幕叠加或不可逆父级等会明确拒绝整组，不部分移动。选区目标至少需要两层。面板提前显示常见禁用原因；工作线程仍独立验证最新工程。仅实现 #237，不包含 #238 分布功能。
+
+## 错误处理与正常边界
+
+| 编号 | 处置与证据 |
+| --- | --- |
+| ALIGN-01 现有观测 | 新命令名称 align_layers 接入原有 serial worker：进入 handler 前发布 in-flight 和 Info start，完成计时及清除状态沿用现有协议，Present 热路径不变。请求有界为 MAX_LAYERS；不记录用户文本或整个工程。 |
+| ALIGN-02 真实失败 | 实际 worker 请求包含不存在的图层 999，原始原因包含对象 ID，经回复进入既有 UI 错误通道；默认级别文件和 Error stderr 均含 operation 与原因，stdout 无日志。随后有效请求成功，失败前后的工程、revision、undo、redo、frame 均相同。 |
+| ALIGN-03 正常分支 | 弹层外点击取消、单层选区禁用、已对齐无命令属于正常输入/无操作，不增加错误或重试。没有新增计数器、重启、超时策略或 panic 吞没。 |
+| ALIGN-04 功能边界 | 真实批量提交和已有原子历史处理承载功能错误；未增加另一个回滚协议。原生截图夹具结束时撤销自己的临时批次并恢复呈现，清理错误与主失败同时发生时保留两者。 |
+
+## 已验证证据
+
+- host 定向 5 项通过：24 个方向/目标/分离位置组合，实际重新求值轮廓；父子不同选择顺序；拒绝和已对齐；有时间偏移的既有动画键；表达式与零缩放拒绝。实际工程保存重开、一次撤销和重做均比较完整数据。日志 `artifacts/layer-edge-alignment/host-verified-tests.log`。
+- desktop 定向 3 项通过：中英文、主窗/原生浮窗 chrome 的真实输入路由、一次 typed action、禁用及下拉取消；真实 worker 错误和恢复、小数帧、日志分流、保存重开；原有位置分量回归保留。日志 `artifacts/layer-edge-alignment/desktop-verified-tests.log`。
+- 带 FFmpeg 原生构建成功，21 条既有警告；中英文真实 GPU 截图通过：合成目标、实际目标下拉、选区对齐前和对齐后。每次截图先实际 present，比较工程和历史，夹具结束恢复原场景。证据 `artifacts/layer-edge-alignment/native/` 及 `capture-verified.log`。没有新增右键菜单。
+- 初次新增夹具错误使用 Engine::new_project 前的根目录重开，已改读实际 snapshot.root；初次截图还暴露夹具撤销后的 revision 未同步，以及只更新控制柄未 present 新画面，均修复后重跑。失败日志保留；没有放宽既有工程/历史断言，旧图不计作证据。
+- 整合当前主线后的完整回归及来源/样式守卫：待本次提交后补记实际结果，以上定向结果不冒充完整回归。
+
+## DESIGN §0.7 逐项处置及 §12 限制
+
+| 原基线 | 处置 |
+| --- | --- |
+| path_controls 六处行推进 | retained with reason：不改路径行排版。 |
+| path_controls 双列分配 | retained with reason：不改路径字段几何。 |
+| path_controls 混合按钮高度 | retained with reason：不缩小既有命中区。 |
+| path_controls 数值背景 | retained with reason：不改路径数值绘制。 |
+| path_controls 全宽布尔按钮 | retained with reason：不改路径布尔控件。 |
+| effect_controls 行高与推进 | retained with reason：不改效果行。 |
+| effect_controls 布尔文本按钮 | retained with reason：不改效果控件类型。 |
+| effect_controls 全宽枚举 | retained with reason：不改效果枚举；新对齐目标使用现有 Dropdown。 |
+| effect_controls with_alpha 悬停 | retained with reason：不改该分支。 |
+| effect_controls 树缩进 | retained with reason：不重写效果树。 |
+| timeline 列坐标 | retained with reason：保持既有列坐标与交互。 |
+| timeline 吸附线颜色 | retained with reason：不改拖动反馈。 |
+
+对齐面板所有颜色和尺寸从现有 semantic token 读取，使用原生动作按钮及 Dropdown；未新增虚构 token。已验证截图 DPI 1，中英文主窗及浮窗逻辑输入；高 DPI、其他 OS 的人工交互仍待验证，不声称 DESIGN 全项合规。六方向实际图像语义以重新求值边界测试为证，原生截图另验证可见呈现。

@@ -140,6 +140,7 @@ impl Shell {
         context.action = match &action {
             Action::Edit(command) => motion_core::CommandRegistry::id(command),
             Action::EditBatch(_) => "command_batch",
+            Action::AlignLayers { .. } => "align_layers",
             Action::Seek(_) => "seek",
             Action::History(_) => "history",
             Action::Plugin(_) => "plugin",
@@ -256,6 +257,10 @@ impl Shell {
                     self.engine
                         .edit_async(serde_json::to_string(&commands).map_err(|e| e.to_string())?)?,
                 ));
+            }
+            Action::AlignLayers {objects,edge,target} => {
+                self.stop();
+                self.editing=Some((Instant::now(),self.engine.align_layers_async(objects,edge,target)?));
             }
             Action::NewNodeEffect(object) => {
                 self.open_node_effect(object, None, false, event_loop)?
