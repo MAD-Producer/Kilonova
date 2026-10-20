@@ -24,6 +24,8 @@ mod shortcuts;
 mod viewer_navigation;
 mod workflow;
 mod workspace;
+#[cfg(test)]
+mod configuration_tests;
 use i18n::{Locale, Text as T};
 
 use engine::{AtlasUpload, Engine, UiFrame};
@@ -322,6 +324,9 @@ struct Shell {
     smoke_node_report: Value,
     smoke_float_frames: std::collections::HashMap<u32, u32>,
     started: Instant,
+    // Keep each unit-test Shell's preferences alive until all other fields drop.
+    #[cfg(test)]
+    _test_preferences: tempfile::TempDir,
 }
 struct FloatWindow {
     window: Arc<Window>,
@@ -334,12 +339,20 @@ struct FloatWindow {
 
 impl Shell {
     fn new(root: PathBuf, smoke: Option<PathBuf>, locale: Option<Locale>) -> Result<Self, String> {
+        #[cfg(test)]
+        let test_preferences = tempfile::tempdir()
+            .map_err(|error| format!("create test preferences directory: {error}"))?;
+        #[cfg(test)]
+        let locale = Some(locale.unwrap_or(Locale::En));
         let engine = Arc::new(Engine::start(
             root,
             motion_desktop_media::platform(),
             total_memory(),
         )?);
         let state = engine.state()?;
+        #[cfg(test)]
+        let layout_path = test_preferences.path().join("desktop-layout-v2.json");
+        #[cfg(not(test))]
         let layout_path = std::env::var_os("MOTION_UI_LAYOUT")
             .map(PathBuf::from)
             .unwrap_or_else(|| directories().join("desktop-layout-v2.json"));
@@ -424,6 +437,8 @@ impl Shell {
             smoke_node_report: Value::Null,
             smoke_float_frames: Default::default(),
             started: Instant::now(),
+            #[cfg(test)]
+            _test_preferences: test_preferences,
         };
         shell.panels.locale = chosen;
         shell.panels.workspace_preset = shell.workspace.preset;
