@@ -1,5 +1,5 @@
 //! Paced native presentation costs. This driver uses production playback and
-//! reply barriers, but does not measure OS event dispatch or physical input.
+//! reply barriers and native message pumping, but not application input dispatch.
 use super::*;
 use crate::{panels, workspace, Locale, Shell};
 use motion_core::{render_sampling::Shutter, vector::*, Content, Ease, Layer, Project};
@@ -10,7 +10,7 @@ use motion_core::{render_sampling::Shutter, vector::*, Content, Ease, Layer, Pro
 const FIXTURE_FPS: u32 = 30;
 const FIXTURE_FRAMES: u32 = motion_core::MAX_FRAMES;
 
-fn drive_frame(shell: &mut Shell) -> Value {
+fn drive_frame(shell: &mut Shell, event_loop: &mut winit::event_loop::EventLoop<()>) -> Value {
     let deadline = Instant::now() + Duration::from_secs(15);
     while !shell.playback_ready(Instant::now()) {
         assert!(Instant::now() < deadline, "playback admission stalled");
@@ -43,12 +43,12 @@ fn drive_frame(shell: &mut Shell) -> Value {
         ui_us += build.elapsed().as_micros();
         shell.track_exposure_present(0, true);
         let present = Instant::now();
-        let result = shell
-            .engine
-            .present_async(ui)
-            .unwrap()
-            .recv_timeout(Duration::from_secs(10))
-            .unwrap();
+        let result = crate::native_test_support::receive(
+            event_loop,
+            &shell.engine.present_async(ui).unwrap(),
+            Duration::from_secs(10),
+        )
+        .unwrap();
         present_us += present.elapsed().as_micros();
         shell.finish_exposure_present(0, &result);
         shell.present_due = false;
@@ -81,7 +81,7 @@ fn paced_sampling_playback_records_native_costs_without_starving_frames() {
         use winit::platform::windows::EventLoopBuilderExtWindows;
         let root = PathBuf::from(root);
         let _logger = crate::logging::init(root.clone()).unwrap();
-        let event_loop = winit::event_loop::EventLoop::builder()
+        let mut event_loop = winit::event_loop::EventLoop::builder()
             .with_any_thread(true)
             .build()
             .unwrap();
@@ -139,26 +139,26 @@ fn paced_sampling_playback_records_native_costs_without_starving_frames() {
                     )
                     .unwrap(),
             );
-            shell.state = shell
-                .engine
-                .attach_async(window.clone(), 1280, 800)
-                .unwrap()
-                .recv_timeout(Duration::from_secs(30))
-                .unwrap()
-                .unwrap();
+            shell.state = crate::native_test_support::receive(
+                &mut event_loop,
+                &shell.engine.attach_async(window.clone(), 1280, 800).unwrap(),
+                Duration::from_secs(30),
+            )
+            .unwrap()
+            .unwrap();
             shell.window = Some(window);
             shell.attached = true;
             let before = shell.state["project"].clone();
             shell.action(panels::Action::TogglePlay, None).unwrap();
             let mut warmup = Vec::new();
             for _ in 0..5 {
-                warmup.push(drive_frame(&mut shell));
+                warmup.push(drive_frame(&mut shell, &mut event_loop));
             }
             let began = Instant::now();
             let mut previous = began;
             let mut records = Vec::new();
             for _ in 0..60 {
-                let mut record = drive_frame(&mut shell);
+                let mut record = drive_frame(&mut shell, &mut event_loop);
                 let now = Instant::now();
                 record["completion_interval_us"] =
                     serde_json::json!(now.duration_since(previous).as_micros());
@@ -205,7 +205,7 @@ fn paced_sampling_playback_records_native_costs_without_starving_frames() {
             );
         }
         std::fs::write(root.join("costs.json"),serde_json::to_vec_pretty(&serde_json::json!({
-            "debug_assertions":cfg!(debug_assertions),"scope":"Paced production Shell playback, UI build, native surface presentation and one state observation per completed frame; excludes OS event dispatch, physical input, audio and video decoding. Five warmup plus sixty completions per mode; no per-frame CPU pixel readback. Cost sample, not a cross-device FPS guarantee.",
+            "debug_assertions":cfg!(debug_assertions),"scope":"Paced production Shell playback, UI build, native surface presentation and one state observation per completed frame; includes test-only native message pumping; excludes application input dispatch, physical input, audio and video decoding. Five warmup plus sixty completions per mode; no per-frame CPU pixel readback. Cost sample, not a cross-device FPS guarantee.",
             "runs":reports
         })).unwrap()).unwrap();
         return;

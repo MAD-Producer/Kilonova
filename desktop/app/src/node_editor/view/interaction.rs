@@ -1,5 +1,5 @@
 use super::*;
-use crate::shortcuts::{self, Command, Scope};
+use crate::shortcuts::{Command, Scope};
 
 impl NodeEditor {
     pub(super) fn keyboard(&mut self, input: &Input, actions: &mut Vec<Action>) {
@@ -9,8 +9,9 @@ impl NodeEditor {
         }
         // File shortcuts commit active text instead of silently swallowing the request.
         for (key, modifiers, repeat) in input.key_presses() {
+            if self.text_editing() && !modifiers.control {continue;}
             if let Some(command @ (Command::Open | Command::Save | Command::SaveAs)) =
-                shortcuts::resolve(Scope::Nodes, key, modifiers, repeat)
+                self.shortcut_bindings.resolve(Scope::Nodes, key, modifiers, repeat)
             {
                 let request = match command {
                     Command::Open => Request::Open,
@@ -55,12 +56,12 @@ impl NodeEditor {
                 continue;
             }
             if self.drag.is_some() || self.minimap_drag.is_some() {
-                if let Some(command) = shortcuts::resolve(Scope::Nodes, key, modifiers, repeat) {
+                if let Some(command) = self.shortcut_bindings.resolve(Scope::Nodes, key, modifiers, repeat) {
                     log::debug!("node shortcut deferred during drag command={command:?} epoch={} revision={}", self.epoch, self.revision);
                 }
                 continue;
             }
-            let Some(command) = shortcuts::resolve(Scope::Nodes, key, modifiers, repeat) else {
+            let Some(command) = self.shortcut_bindings.resolve(Scope::Nodes, key, modifiers, repeat) else {
                 continue;
             };
             match command {
