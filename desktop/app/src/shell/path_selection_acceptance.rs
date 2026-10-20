@@ -1,0 +1,417 @@
+//! Real main/floating panel routes, attached native surfaces and GPU captures.
+use crate::*;
+use motion_core::vector::{PathNode, VectorPath};
+use motion_ui::{
+    dock::Panel,
+    input::{Key, Modifiers},
+};
+
+const SIZE: [f32; 2] = [1280., 800.];
+fn render(shell: &mut Shell, floating: bool, input: &Input) -> (PaintList, Vec<panels::Action>) {
+    let mut paint = PaintList::default();
+    paint.stylesheet = shell.panels.styles.clone();
+    let actions = if floating {
+        panels::floating_chrome(
+            &mut paint,
+            &mut shell.atlas,
+            Panel::Composition,
+            SIZE,
+            &mut shell.panels,
+            &shell.state,
+            input,
+        )
+    } else {
+        panels::chrome(
+            &mut paint,
+            &mut shell.atlas,
+            SIZE,
+            shell.workspace.display_root(),
+            &mut shell.panels,
+            &shell.state,
+            input,
+        )
+    };
+    (paint, actions)
+}
+fn apply(shell: &mut Shell, actions: Vec<panels::Action>) -> Vec<i32> {
+    let mut history = vec![];
+    for action in actions {
+        match action {
+            panels::Action::Edit(command) => {
+                shell.state = shell
+                    .engine
+                    .edit(serde_json::to_string(&command).unwrap())
+                    .unwrap();
+            }
+            panels::Action::EditBatch(commands) => {
+                shell.state = shell
+                    .engine
+                    .edit(serde_json::to_string(&commands).unwrap())
+                    .unwrap();
+            }
+            panels::Action::History(h) => {
+                shell.state = shell.engine.history(h).unwrap();
+                history.push(h);
+            }
+            other => panic!("path input escaped into another domain: {other:?}"),
+        }
+    }
+    history
+}
+fn input(shell: &mut Shell, floating: bool, event: Input) -> Vec<i32> {
+    let (_, actions) = render(shell, floating, &event);
+    apply(shell, actions)
+}
+fn view(shell: &Shell, floating: bool) -> motion_ui::Rect {
+    let styles = shell
+        .panels
+        .styles
+        .clone()
+        .unwrap_or_else(motion_ui::style::default_stylesheet_arc);
+    if floating {
+        panels::floating_view_styled(Panel::Composition, SIZE, &styles).unwrap()
+    } else {
+        panels::composition_view_styled(shell.workspace.display_root(), SIZE, &styles)
+    }
+}
+fn capture(shell: &mut Shell, floating: bool, paint: PaintList, path: PathBuf) {
+    let view = view(shell, floating);
+    let mapping = shell
+        .panels
+        .composition
+        .navigation
+        .mapping(view, [640., 480.])
+        .unwrap();
+    let mut ui = shell.ui_frame(paint, SIZE, true);
+    ui.window = u64::from(floating);
+    ui.node_preview = None;
+    ui.composition = Some([view.min[0], view.min[1], view.width(), view.height()]);
+    ui.composition_image = Some([
+        mapping.image.min[0],
+        mapping.image.min[1],
+        mapping.image.width(),
+        mapping.image.height(),
+    ]);
+    let deadline = Instant::now() + Duration::from_secs(20);
+    loop {
+        let ready = shell
+            .engine
+            .present_async(crate::engine::UiFrame {
+                paint: PaintList::default(),
+                atlas: None,
+                logical_size: SIZE,
+                composition: ui.composition,
+                composition_image: ui.composition_image,
+                window: ui.window,
+                node_preview: None,
+            })
+            .unwrap()
+            .recv_timeout(Duration::from_secs(10))
+            .unwrap()
+            .unwrap();
+        if ready {
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "path capture presentation unavailable"
+        );
+    }
+    shell.engine.capture_ui(ui, path.clone()).unwrap();
+    let pixels = image::open(path).unwrap().into_rgba8();
+    assert_eq!(pixels.dimensions(), (1280, 800));
+    let first = pixels.get_pixel(0, 0);
+    assert!(pixels.pixels().any(|p| p != first));
+}
+
+#[test]
+fn point_selection_main_and_native_floating_routes_capture_and_restore() {
+    const CHILD: &str = "MOTION_POINT_SELECTION_NATIVE_CHILD";
+    const TEST:&str="shell::path_selection_acceptance::point_selection_main_and_native_floating_routes_capture_and_restore";
+    if let Some(root) = std::env::var_os(CHILD) {
+        use winit::platform::windows::EventLoopBuilderExtWindows;
+        let root = PathBuf::from(root);
+        let artifacts =
+            PathBuf::from(std::env::var_os("MOTION_POINT_SELECTION_ARTIFACTS").unwrap());
+        std::fs::create_dir_all(&artifacts).unwrap();
+        let _logger = crate::logging::init(artifacts.clone()).unwrap();
+        let event_loop = winit::event_loop::EventLoop::builder()
+            .with_any_thread(true)
+            .build()
+            .unwrap();
+        for (tag, locale) in [("zh", Locale::Zh), ("en", Locale::En)] {
+            for floating in [false, true] {
+                let label = format!("{tag}-{}", if floating { "floating" } else { "main" });
+                let project_root = root.join(&label);
+                let mut project = motion_core::Project::new(640, 480, 30, 120).unwrap();
+                let path = VectorPath {
+                    id: 3,
+                    closed: true,
+                    nodes: [
+                        (11, [-120., -80., -25., 0., 25., 0.]),
+                        (42, [120., -80., -25., 0., 25., 0.]),
+                        (99, [120., 80., 0., 0., 0., 0.]),
+                        (123, [-120., 80., 0., 0., 0., 0.]),
+                    ]
+                    .into_iter()
+                    .map(|(id, g)| PathNode {
+                        id,
+                        geometry: motion_core::Track::constant(g),
+                    })
+                    .collect(),
+                };
+                let mut layer =
+                    Layer::solid(7, "Editable path", [240., 160.], [320., 240., 0.], [1.; 4]);
+                layer.content = motion_core::Content::Vector {
+                    vector: panels::path_controls::new_vector(path),
+                };
+                project.layers.push(layer);
+                motion_core::storage::save(&project_root, &project).unwrap();
+                let mut shell = Shell::new(project_root.clone(), None, Some(locale)).unwrap();
+                shell.workspace = workspace::Workspace::default();
+                shell.workspace.locale = locale;
+                shell.panels.locale = locale;
+                shell.panels.focused = Some(Panel::Composition);
+                shell.panels.select_only(Some(7));
+                shell.panels.path_controls.tool = panels::path_controls::Tool::Pen;
+                #[allow(deprecated)]
+                let main = Arc::new(
+                    event_loop
+                        .create_window(
+                            winit::window::Window::default_attributes()
+                                .with_visible(false)
+                                .with_inner_size(winit::dpi::PhysicalSize::new(1280, 800)),
+                        )
+                        .unwrap(),
+                );
+                shell.state = shell
+                    .engine
+                    .attach_async(main.clone(), 1280, 800)
+                    .unwrap()
+                    .recv_timeout(Duration::from_secs(30))
+                    .unwrap()
+                    .unwrap();
+                shell.window = Some(main);
+                shell.attached = true;
+                let before = shell.state["project"].clone();
+                #[allow(deprecated)]
+                let floated = if floating {
+                    let window = Arc::new(
+                        event_loop
+                            .create_window(
+                                winit::window::Window::default_attributes()
+                                    .with_visible(false)
+                                    .with_inner_size(winit::dpi::PhysicalSize::new(1280, 800)),
+                            )
+                            .unwrap(),
+                    );
+                    shell.state = shell
+                        .engine
+                        .float_window(1, window.clone(), 1280, 800)
+                        .unwrap();
+                    Some(window)
+                } else {
+                    None
+                };
+                input(&mut shell, floating, Input::default());
+                let mapping = shell
+                    .panels
+                    .composition
+                    .navigation
+                    .mapping(view(&shell, floating), [640., 480.])
+                    .unwrap();
+                let projection =
+                    panels::path_controls::layer_projection(&shell.state, 7, mapping.image)
+                        .unwrap();
+                let a = projection.screen([-150., -110.]).unwrap();
+                let b = projection.screen([150., -50.]).unwrap();
+                input(
+                    &mut shell,
+                    floating,
+                    Input {
+                        mouse: a,
+                        pressed: Some((MouseButton::Left, a)),
+                        held: Some(MouseButton::Left),
+                        modifiers: Modifiers {
+                            control: true,
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                );
+                let (paint, actions) = render(
+                    &mut shell,
+                    floating,
+                    &Input {
+                        mouse: b,
+                        held: Some(MouseButton::Left),
+                        ..Default::default()
+                    },
+                );
+                assert!(actions.is_empty());
+                capture(
+                    &mut shell,
+                    floating,
+                    paint,
+                    artifacts.join(format!("{label}-marquee.png")),
+                );
+                assert!(input(
+                    &mut shell,
+                    floating,
+                    Input {
+                        mouse: b,
+                        released: Some((MouseButton::Left, b)),
+                        ..Default::default()
+                    }
+                )
+                .is_empty());
+                let start = projection.screen([-120., -80.]).unwrap();
+                let end = projection.screen([-85., -55.]).unwrap();
+                input(
+                    &mut shell,
+                    floating,
+                    Input {
+                        mouse: start,
+                        pressed: Some((MouseButton::Left, start)),
+                        held: Some(MouseButton::Left),
+                        ..Default::default()
+                    },
+                );
+                assert_eq!(
+                    input(
+                        &mut shell,
+                        floating,
+                        Input {
+                            mouse: end,
+                            held: Some(MouseButton::Left),
+                            ..Default::default()
+                        }
+                    ),
+                    vec![2]
+                );
+                assert_eq!(
+                    input(
+                        &mut shell,
+                        floating,
+                        Input {
+                            focus_lost: true,
+                            ..Default::default()
+                        }
+                    ),
+                    vec![4]
+                );
+                assert_eq!(shell.state["project"], before);
+                input(
+                    &mut shell,
+                    floating,
+                    Input {
+                        mouse: start,
+                        pressed: Some((MouseButton::Left, start)),
+                        held: Some(MouseButton::Left),
+                        ..Default::default()
+                    },
+                );
+                assert_eq!(
+                    input(
+                        &mut shell,
+                        floating,
+                        Input {
+                            mouse: [1200., 780.],
+                            released: Some((MouseButton::Left, end)),
+                            ..Default::default()
+                        }
+                    ),
+                    vec![2, 3]
+                );
+                let changed: motion_core::Project =
+                    serde_json::from_value(shell.state["project"].clone()).unwrap();
+                let motion_core::Content::Vector { vector } = &changed.layers[0].content else {
+                    panic!()
+                };
+                let motion_core::vector::VectorSource::Paths { paths } = &vector.source else {
+                    panic!()
+                };
+                for (i, expected) in [[-85., -55.], [155., -55.], [120., 80.], [-120., 80.]]
+                    .iter()
+                    .enumerate()
+                {
+                    for axis in 0..2 {
+                        assert!(
+                            (paths[0].nodes[i].geometry.value[axis] - expected[axis]).abs() < 0.01
+                        );
+                    }
+                }
+                let (paint, actions) = render(&mut shell, floating, &Input::default());
+                assert!(actions.is_empty());
+                capture(
+                    &mut shell,
+                    floating,
+                    paint,
+                    artifacts.join(format!("{label}-moved.png")),
+                );
+                let saved = root.join(format!("{label}-saved"));
+                motion_core::storage::save(&saved, &changed).unwrap();
+                assert_eq!(motion_core::storage::load(&saved).unwrap(), changed);
+                input(
+                    &mut shell,
+                    floating,
+                    Input {
+                        keys: vec![(
+                            Key::Z,
+                            Modifiers {
+                                control: true,
+                                ..Default::default()
+                            },
+                        )],
+                        ..Default::default()
+                    },
+                );
+                assert_eq!(shell.state["project"], before, "path undo must own Ctrl-Z");
+                input(
+                    &mut shell,
+                    floating,
+                    Input {
+                        keys: vec![(Key::Delete, Modifiers::default())],
+                        ..Default::default()
+                    },
+                );
+                assert_eq!(
+                    shell.state["project"]["layers"].as_array().unwrap().len(),
+                    1,
+                    "Delete must not delete the layer"
+                );
+                let value = &shell.state["project"]["layers"][0]["content"]["vector"]["source"]
+                    ["paths"][0]["nodes"];
+                assert_eq!(value.as_array().unwrap().len(), 2);
+                shell.state = shell.engine.history(0).unwrap();
+                assert_eq!(shell.state["project"], before);
+                if floating {
+                    shell.engine.close_window(1).unwrap();
+                }
+                drop(floated);
+            }
+        }
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let artifacts = std::env::var_os("MOTION_POINT_SELECTION_ARTIFACTS")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| root.path().join("artifacts"));
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", TEST])
+        .env(CHILD, root.path())
+        .env("MOTION_POINT_SELECTION_ARTIFACTS", &artifacts)
+        .env_remove("MOTION_LOG")
+        .output()
+        .unwrap();
+    std::fs::create_dir_all(&artifacts).unwrap();
+    std::fs::write(artifacts.join("stdout.log"), &output.stdout).unwrap();
+    std::fs::write(artifacts.join("stderr.log"), &output.stderr).unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("motion-engine"));
+}
