@@ -379,6 +379,10 @@ fn geometry(node: &Value) -> Option<[f32; 6]> {
     Some(g)
 }
 impl Controls {
+    pub(in crate::panels) fn reveal_masks(&mut self, object: u64) {
+        self.masks_open = true;
+        self.collapsed_mask_cards.retain(|(id,_)| *id != object);
+    }
     pub(super) fn mask_key_shortcuts(
         &mut self,
         state: &Value,
@@ -1124,6 +1128,7 @@ impl Controls {
         let colors = styles.colors();
 
         if vector_only {
+            self.groups.property_filter = super::types::PropertyFilter::All;
             self.groups.render(
                 list,
                 atlas,
@@ -1232,6 +1237,7 @@ impl Controls {
             input,
             locale,
             motion_ui::dock::Panel::Masks,
+            crate::panels::types::PropertyFilter::All,
             out,
         );
     }
@@ -1271,6 +1277,7 @@ impl Controls {
         state: &Value,
         input: &Input,
         locale: Locale,
+        filter: crate::panels::types::PropertyFilter,
         out: &mut Vec<Action>,
     ) {
         self.compact_masks(
@@ -1283,6 +1290,7 @@ impl Controls {
             input,
             locale,
             motion_ui::dock::Panel::Properties,
+            filter,
             out,
         );
     }

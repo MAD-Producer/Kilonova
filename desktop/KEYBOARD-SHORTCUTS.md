@@ -11,6 +11,7 @@
 | Backquote (U+0060) | Temporarily maximize / restore the dock under the pointer; use the focused visible panel when outside the docks | Main window; text, IME, menus and gestures take priority. Floating windows retain their geometry. Temporary state is not saved. |
 | Ctrl+Alt+N / Ctrl+N | 新建工程 / 合成 | 工程与三个节点面板；文本编辑优先 |
 | Ctrl+O / Ctrl+S | 打开 / 保存当前文档 | 工程或节点；节点属性和预览浮窗也保存节点文档 |
+| Ctrl+, | 打开偏好设置 | 主窗与原生浮窗；文本、IME、弹层和交互优先，设置独立于工程保存 |
 | Ctrl+Shift+S | 另存节点文档 | 节点 |
 | Ctrl+I / Ctrl+K | 导入媒体 / 合成设置 | 工程 |
 | Ctrl+Alt+M | 导出视频 | 工程；需启用 FFmpeg 构建功能 |
@@ -43,7 +44,8 @@
 | Shift+= | 对选中节点按依赖横向分层排版 | 节点；只改布局，单步撤销 |
 | P / S / R / T | 显示位置 / 缩放 / 旋转 / 不透明度，再按收起 | 图层选择；时间轴与属性面板共享筛选 |
 | Shift+P/S/R/T | 追加或移除该属性的显示，保留其他属性 | 图层选择 |
-| U | 显示已打关键帧的属性，再按收起 | 支持分离 XYZ；静态轴不显示 |
+| U | 立即显示已打关键帧的属性；间隔超过 350ms 再按收起 | 支持分离 XYZ；静态轴不显示 |
+| UU | 350ms 内连续新按两次，显示已修改属性 | 静态非默认值、关键帧和保留的表达式；时间轴与属性面板共享筛选 |
 | J / K | 跳到上一个 / 下一个显示属性的关键帧 | 尊重图层搜索、属性筛选和图层时间偏移，自动滚动到目标 |
 | I / O | 跳到主选图层的入点 / 出点 | 时间轴或属性面板；出点按排除语义回退一帧并夹到合成末帧，不修改工程 |
 | [ / ] | 把入点 / 出点移到播放头，保持时长 | 多选批量、锁定跳过；只生成一次 `EditBatch`，可单步撤销 |
@@ -74,7 +76,6 @@
 | 图层入出点导航、移动及裁剪键位 | #207 |
 | 图层导航、范围扩选、重排键位 | #208 |
 | 图层锁定切换与全部解锁键位 | #209 |
-| UU 已修改属性筛选 | #213 |
 | 节点子图剪贴板 Ctrl+C/X/V | #229 |
 | Ctrl+T 贴图链、Ctrl+Shift+T 材质组 | #228、#266 |
 | 改键、冲突检测和预设 | #277 |

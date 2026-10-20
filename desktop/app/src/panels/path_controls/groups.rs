@@ -130,6 +130,7 @@ struct Menu {
 }
 #[derive(Default)]
 pub(in crate::panels) struct Controls {
+    pub(in crate::panels) property_filter: crate::panels::types::PropertyFilter,
     pub(in crate::panels) selection_probe: crate::panels::property_focus::HitProbe,
     context: Option<(String, String, u64, u32)>,
     field: Option<Field>,
@@ -211,6 +212,11 @@ pub(super) fn layout(
     }
 }
 impl Controls {
+    pub(in crate::panels) fn reveal_tree(&mut self, object: u64, tree: &parameters::Node) {
+        self.initialized.insert(object);
+        self.open.insert((object, tree.id, tree.tag));
+        for child in &tree.children { self.reveal_tree(object, child); }
+    }
     pub(crate) fn reveal_item(&mut self, object: u64, root: u64, item: u64) {
         self.open.retain(|(owner, _, _)| *owner != object);
         self.open.insert((object, root, 0));
@@ -271,7 +277,7 @@ impl Controls {
         let Content::Vector { vector } = &layer.content else {
             return 0.;
         };
-        let tree = parameters::tree(vector, layer.size, 0., Locale::En);
+        let Some(tree) = parameters::filtered_tree(vector, layer.size, 0., Locale::En, self.property_filter) else { return 0.; };
         styles.metric("row.height", 22.) * (1 + count(&tree, layer.id, &self.open)) as f32
     }
     pub(in crate::panels) fn prepare(
@@ -359,6 +365,9 @@ impl Controls {
         let Content::Vector { vector } = &layer.content else {
             return;
         };
+        let Some(tree) = parameters::filtered_tree(vector, layer.size,
+            layer.local_frame(state["frame"].as_f64().unwrap_or(0.)), locale,
+            self.property_filter) else { return; };
         let styles = list.styles();
         let row = styles.metric("row.height", 22.);
         let pad = styles.metric("padding.panel", 8.);
@@ -390,12 +399,6 @@ impl Controls {
             self.open_menu(host, layer.id, group(vector, layer.size).id, None, add);
         }
         *y += row;
-        let tree = parameters::tree(
-            vector,
-            layer.size,
-            layer.local_frame(state["frame"].as_f64().unwrap_or(0.)),
-            locale,
-        );
         if self.initialized.insert(layer.id) {
             self.open.insert((layer.id, tree.id, tree.tag));
         }
