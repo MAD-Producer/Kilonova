@@ -236,8 +236,8 @@ fn run(outcome: Outcome) {
         assert_eq!(acknowledged.state, done.state);
         assert_eq!(acknowledged.phase, done.phase);
     }
-    assert_eq!(release, "wait for package task completion before release");
-    assert_eq!(next, "at most one package task may run per session");
+    assert_eq!(release.to_string(), "wait for package task completion before release");
+    assert_eq!(next.to_string(), "at most one package task may run per session");
     assert_eq!(
         task.lock().unwrap().cancel,
         cancelled,

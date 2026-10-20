@@ -57,8 +57,8 @@ fn find<'a>(b: &'a [u8], name: &[u8; 4]) -> Result<Option<&'a [u8]>> {
         .map(|(_, v)| v))
 }
 pub(crate) fn audio_edit(path: &Path, track: u32, rate: u32) -> Result<Edit> {
-    let mut f = File::open(path).map_err(|e| e.to_string())?;
-    let len = f.metadata().map_err(|e| e.to_string())?.len();
+    let mut f = File::open(path).map_err(crate::Error::from)?;
+    let len = f.metadata().map_err(crate::Error::from)?.len();
     let mut at = 0;
     for _ in 0..4096 {
         if at == len {
@@ -67,13 +67,13 @@ pub(crate) fn audio_edit(path: &Path, track: u32, rate: u32) -> Result<Edit> {
         if len.saturating_sub(at) < 8 {
             return Err("truncated MP4 header".into());
         }
-        f.seek(SeekFrom::Start(at)).map_err(|e| e.to_string())?;
+        f.seek(SeekFrom::Start(at)).map_err(crate::Error::from)?;
         let mut h = [0; 16];
-        f.read_exact(&mut h[..8]).map_err(|e| e.to_string())?;
+        f.read_exact(&mut h[..8]).map_err(crate::Error::from)?;
         let mut n = u64::from(u32be(&h)?);
         let mut header = 8;
         if n == 1 {
-            f.read_exact(&mut h[8..]).map_err(|e| e.to_string())?;
+            f.read_exact(&mut h[8..]).map_err(crate::Error::from)?;
             n = u64be(&h[8..])?;
             header = 16;
         }
@@ -88,7 +88,7 @@ pub(crate) fn audio_edit(path: &Path, track: u32, rate: u32) -> Result<Edit> {
                 return Err("MP4 metadata exceeds 16 MiB budget".into());
             }
             let mut moov = vec![0; (n - header) as usize];
-            f.read_exact(&mut moov).map_err(|e| e.to_string())?;
+            f.read_exact(&mut moov).map_err(crate::Error::from)?;
             let mvhd = find(&moov, b"mvhd")?.ok_or("missing movie header")?;
             let movie_rate = u32be(
                 mvhd.get(if mvhd.first() == Some(&1) { 20.. } else { 12.. })

@@ -6,6 +6,7 @@ license.workspace = true
 
 [dependencies]
 log.workspace = true
+thiserror.workspace = true
 image.workspace = true
 motion-model = { path = "../motion-model" }
 serde.workspace = true

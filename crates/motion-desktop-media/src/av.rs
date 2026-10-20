@@ -6,16 +6,19 @@ use motion_host::{
     platform::VideoDecoder,
     video_decode_policy,
     video_frame::{DecodedFrame, VideoPixels},
-    Result,
 };
-use motion_media::VideoProbe;
+use motion_media::{Error as MediaError, Result, VideoProbe};
 use motion_render::{VideoPlane, Yuv420Frame};
 use std::{path::Path, time::Instant};
 
+fn av_error(error: av::Error) -> MediaError {
+    MediaError::backend("ffmpeg", error)
+}
+
 fn input(path: &Path) -> Result<format::context::Input> {
-    av::init().map_err(|e| e.to_string())?;
+    av::init().map_err(av_error)?;
     // Sniff source bytes: owned imports need not retain their original extension.
-    format::input(path).map_err(|e| format!("cannot open video: {e}"))
+    format::input(path).map_err(|e| av_error(e).context("cannot open video".into()))
 }
 fn video_stream(
     input: &format::context::Input,
@@ -37,7 +40,7 @@ fn mime(id: codec::Id) -> Result<&'static str> {
         codec::Id::HEVC => Ok("video/hevc"),
         codec::Id::VP8 => Ok("video/x-vnd.on2.vp8"),
         codec::Id::VP9 => Ok("video/x-vnd.on2.vp9"),
-        _ => Err(format!("unsupported video codec: {id:?}")),
+        _ => Err(format!("unsupported video codec: {id:?}").into()),
     }
 }
 fn micros(pts: i64, base: Rational) -> Result<u64> {
@@ -56,7 +59,11 @@ fn rotation(stream: &format::stream::Stream<'_>) -> Result<u32> {
         .metadata()
         .get("rotate")
         .map(|text| text.parse::<f64>()
-            .map_err(|error| format!("invalid video rotate metadata {text:?}: {error}")))
+            .map_err(|error| {
+                let value: String = text.chars().take(128).collect();
+                MediaError::backend("video_metadata", error)
+                    .context(format!("invalid video rotate metadata {value:?}"))
+            }))
         .transpose();
     let degrees = if let Some(data) = stream
         .side_data()
@@ -126,7 +133,7 @@ fn audio_tracks(
         };
         return Err(format!(
             "selected audio track unavailable; use with_audio:false to discard audio{detail}"
-        ));
+        ).into());
     }
     Ok((chosen, serde_json::json!(tracks)))
 }
@@ -150,7 +157,7 @@ pub fn probe(
     let mime = mime(stream.parameters().id())?.to_string();
     let video = codec::context::Context::from_parameters(stream.parameters())
         .and_then(|c| c.decoder().video())
-        .map_err(|e| e.to_string())?;
+        .map_err(av_error)?;
     let (width, height) = (video.width(), video.height());
     let aspect = video.aspect_ratio();
     if aspect.numerator() > 0 && aspect.numerator() != aspect.denominator() {
@@ -168,7 +175,7 @@ pub fn probe(
     let rate = f64::from(stream.avg_frame_rate());
     let declared = micros(stream.duration().max(0), base)?;
     let (audio_track, tracks) = audio_tracks(&input, audio_selected)?;
-    let bytes = path.metadata().map_err(|e| e.to_string())?.len();
+    let bytes = path.metadata().map_err(MediaError::from)?.len();
     let began = Instant::now();
     let budget = motion_media::timestamp_scan_budget(bytes);
     let mut timestamps = Vec::new();
@@ -182,7 +189,7 @@ pub fn probe(
         match packet.read(&mut input) {
             Ok(()) => {}
             Err(Error::Eof) => break,
-            Err(e) => return Err(format!("read video index: {e}")),
+            Err(e) => return Err(av_error(e).context("read video index".into())),
         }
         if packet.stream() != track {
             continue;
@@ -282,13 +289,13 @@ pub fn probe(
         color_range: 2,
         audio_asset: None,
     };
-    asset.validate().map_err(|e| e.to_string())?;
+    asset.validate().map_err(MediaError::from)?;
     let mut decoder = Decoder::open(path, asset.clone(), timestamps.clone())?;
     let first_frame = decoder.decode_to(first, check)?;
     (asset.color_standard, asset.color_range) = colors(&first_frame)?;
     decoder.asset = asset.clone();
     let first_rgba = match convert(&first_frame, &asset)? {
-        VideoPixels::Yuv(p) => p.to_rgba().map_err(|e| e.to_string())?,
+        VideoPixels::Yuv(p) => p.to_rgba().map_err(|e| MediaError::backend("render", e))?,
         VideoPixels::Rgba(p) => p,
     };
     if timestamps.len() > 1 {
@@ -315,7 +322,7 @@ pub struct Decoder {
 }
 impl Decoder {
     pub fn open(path: &Path, asset: VideoAsset, timestamps: Vec<u64>) -> Result<Self> {
-        asset.validate().map_err(|e| e.to_string())?;
+        asset.validate().map_err(MediaError::from)?;
         if timestamps.len() != asset.frame_count as usize
             || timestamps.first() != Some(&asset.video_start_us)
             || timestamps.windows(2).any(|w| w[0] >= w[1])
@@ -328,7 +335,7 @@ impl Decoder {
         let base = stream.time_base();
         let video = codec::context::Context::from_parameters(stream.parameters())
             .and_then(|c| c.decoder().video())
-            .map_err(|e| e.to_string())?;
+            .map_err(av_error)?;
         Ok(Self {
             input,
             video,
@@ -348,7 +355,7 @@ impl Decoder {
                 Ok(()) => return Ok(Some(frame)),
                 Err(Error::Eof) => return Ok(None),
                 Err(Error::Other { errno }) if errno == av::util::error::EAGAIN => {}
-                Err(e) => return Err(format!("decode video: {e}")),
+                Err(e) => return Err(av_error(e).context("decode video".into())),
             }
             if self.draining {
                 return Err("video decoder did not drain at EOF".into());
@@ -358,13 +365,13 @@ impl Decoder {
                 Ok(()) if packet.stream() == self.asset.track as usize => self
                     .video
                     .send_packet(&packet)
-                    .map_err(|e| format!("submit video: {e}"))?,
+                    .map_err(|e| av_error(e).context("submit video".into()))?,
                 Ok(()) => {}
                 Err(Error::Eof) => {
-                    self.video.send_eof().map_err(|e| e.to_string())?;
+                    self.video.send_eof().map_err(av_error)?;
                     self.draining = true;
                 }
-                Err(e) => return Err(format!("read video: {e}")),
+                Err(e) => return Err(av_error(e).context("read video".into())),
             }
         }
     }
@@ -375,7 +382,7 @@ impl Decoder {
             // Input::seek uses AV_TIME_BASE (microseconds) with stream index -1.
             self.input
                 .seek(target, ..target)
-                .map_err(|e| format!("seek video: {e}"))?;
+                .map_err(|e| av_error(e).context("seek video".into()))?;
             self.video.flush();
             self.draining = false;
             self.last_decoded = None;
@@ -491,7 +498,7 @@ fn convert(frame: &frame::Video, asset: &VideoAsset) -> Result<VideoPixels> {
             return Err(format!(
                 "unsupported video pixels {:?}; requires 8-bit 4:2:0 SDR",
                 frame.format()
-            ));
+            ).into());
         }
     };
     let y_stride = crate::frame_layout::checked_stride(frame, 0, asset.width as usize)?;
@@ -522,7 +529,7 @@ fn convert(frame: &frame::Video, asset: &VideoAsset) -> Result<VideoPixels> {
             return Err(format!(
                 "unsupported video pixels {:?}; requires 8-bit 4:2:0 SDR",
                 frame.format()
-            ))
+            ).into())
         }
     };
     Yuv420Frame::pack(
@@ -551,7 +558,7 @@ fn convert(frame: &frame::Video, asset: &VideoAsset) -> Result<VideoPixels> {
         ],
     )
     .map(VideoPixels::Yuv)
-    .map_err(|e| e.to_string())
+    .map_err(|e| MediaError::backend("render", e))
 }
 
 #[derive(Clone, Copy)]
@@ -671,7 +678,7 @@ mod plane_conversion_tests {
             let error = result
                 .err()
                 .expect("conversion must reject negative stride");
-            assert!(error.contains(&format!("video plane {index}:")), "{error}");
+            assert!(error.to_string().contains(&format!("video plane {index}:")), "{error}");
 
             let pointer = unsafe { (*frame.as_ptr()).data[index] };
             unsafe {
@@ -682,7 +689,7 @@ mod plane_conversion_tests {
                 (*frame.as_mut_ptr()).data[index] = pointer;
             }
             let error = result.err().expect("conversion must reject null data");
-            assert!(error.contains(&format!("video plane {index}:")), "{error}");
+            assert!(error.to_string().contains(&format!("video plane {index}:")), "{error}");
         }
         assert!(convert(&frame, &asset).is_ok());
     }
@@ -727,7 +734,7 @@ mod metadata_failure_tests {
         assert_eq!(rotation(&video_stream(&plain, None).unwrap()).unwrap(), 0);
         set_rotation(&mut plain, index, "broken");
         let error = rotation(&video_stream(&plain, None).unwrap()).unwrap_err();
-        assert!(error.contains("invalid video rotate metadata") && error.contains("broken"), "{error}");
+        assert!(error.to_string().contains("invalid video rotate metadata") && error.to_string().contains("broken"), "{error}");
         for text in ["NaN", "inf", "45", ""] {
             set_rotation(&mut plain, index, text);
             assert!(rotation(&video_stream(&plain, None).unwrap()).is_err(), "{text}");
@@ -755,6 +762,6 @@ mod metadata_failure_tests {
         assert!(!error.is_empty());
         assert_eq!(tracks[0]["supported"], false);
         let selection = audio_tracks(&media, None).unwrap_err();
-        assert!(selection.contains(error) && selection.contains(&format!("track {index}")), "{selection}");
+        assert!(selection.to_string().contains(error) && selection.to_string().contains(&format!("track {index}")), "{selection}");
     }
 }

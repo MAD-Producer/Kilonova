@@ -497,7 +497,7 @@ fn media_resource_cleanup_and_poisoned_reservation_preserve_default_channels() {
                             .err()
                     };
                     assert_eq!(
-                        error.as_deref(),
+                        error.map(|error| error.to_string()).as_deref(),
                         Some(format!("{kind} task poisoned").as_str())
                     );
                 }

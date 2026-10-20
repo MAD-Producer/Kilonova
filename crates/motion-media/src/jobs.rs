@@ -71,11 +71,11 @@ impl Stage {
     fn new(root: &Path) -> Result<Self> {
         let stamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .map_err(|e| e.to_string())?
+            .map_err(crate::Error::from)?
             .as_nanos();
         let n = NONCE.fetch_add(1, Ordering::Relaxed);
         let path = root.join(format!(".media-import-{stamp}-{n}"));
-        fs::create_dir(&path).map_err(|e| e.to_string())?;
+        fs::create_dir(&path).map_err(crate::Error::from)?;
         Ok(Self { path })
     }
 }
@@ -161,7 +161,7 @@ fn finish_import(
         Ok(Err(error)) => {
             t.status.state = "failed".into();
             t.status.phase = "failed".into();
-            t.status.error = Some(error);
+            t.status.error = Some(error.to_string());
         }
         Err(payload) => {
             t.status.state = "failed".into();
@@ -216,10 +216,10 @@ fn finish_cache(
             )
         })(),
         Ok(Err(error)) => Err(error.clone()),
-        Err(payload) => Err(format!(
-            "audio cache worker failed: {}",
-            crate::panic_reason_ref(payload.as_ref())
-        )),
+        Err(payload) => Err(crate::Error::Panic {
+            operation: "audio cache worker",
+            reason: crate::panic_reason_ref(payload.as_ref()),
+        }),
     };
     match publication_result {
         Ok(()) => {
@@ -231,7 +231,7 @@ fn finish_cache(
         Err(e) => {
             t.status.state = "failed".into();
             t.status.phase = "failed".into();
-            t.status.error = Some(e);
+            t.status.error = Some(e.to_string());
         }
     }
     let phase = t.status.phase.clone();
@@ -253,7 +253,7 @@ impl AudioJobs {
             return Err("invalid audio resource limits".into());
         }
         Ok(Self {
-            root: root.canonicalize().map_err(|e| e.to_string())?,
+            root: root.canonicalize().map_err(crate::Error::from)?,
             limits,
             decode,
             tasks: Mutex::new(HashMap::new()),
@@ -406,14 +406,14 @@ impl AudioJobs {
                         if expected_bytes.is_some_and(|n| n > limits.source_bytes) {
                             return Err("audio source exceeds import size limit".into());
                         }
-                        if fs2::available_space(&root).map_err(|e| e.to_string())?
+                        if fs2::available_space(&root).map_err(crate::Error::from)?
                             < expected_bytes.unwrap_or(0).saturating_add(1024 * 1024)
                         {
                             return Err("insufficient free space for audio source".into());
                         }
                         let stage = Stage::new(&root)?;
                         let source = stage.path.join("source");
-                        let mut out = File::create(&source).map_err(|e| e.to_string())?;
+                        let mut out = File::create(&source).map_err(crate::Error::from)?;
                         let mut buffer = vec![0; motion_model::storage::TRANSFER_BUFFER_BYTES];
                         let mut bytes = 0u64;
                         loop {
@@ -422,7 +422,7 @@ impl AudioJobs {
                                 "copying",
                                 expected_bytes.map_or(0.0, |n| bytes as f64 / n.max(1) as f64),
                             )?;
-                            let n = reader.read(&mut buffer).map_err(|e| e.to_string())?;
+                            let n = reader.read(&mut buffer).map_err(crate::Error::from)?;
                             if n == 0 {
                                 break;
                             }
@@ -431,17 +431,17 @@ impl AudioJobs {
                                 return Err("audio source exceeds import size limit".into());
                             }
                             if bytes % (1024 * 1024) < n as u64
-                                && fs2::available_space(&root).map_err(|e| e.to_string())?
+                                && fs2::available_space(&root).map_err(crate::Error::from)?
                                     < 1024 * 1024
                             {
                                 return Err("insufficient free space for audio import".into());
                             }
-                            out.write_all(&buffer[..n]).map_err(|e| e.to_string())?;
+                            out.write_all(&buffer[..n]).map_err(crate::Error::from)?;
                         }
                         if bytes == 0 || expected_bytes.is_some_and(|n| n != bytes) {
                             return Err("audio source length mismatch".into());
                         }
-                        out.sync_all().map_err(|e| e.to_string())?;
+                        out.sync_all().map_err(crate::Error::from)?;
                         drop(out);
                         drop(reader);
                         let pcm = stage.path.join("decoded.pcm");
@@ -455,7 +455,7 @@ impl AudioJobs {
                                 update(&spawn_task, "decoding", progress)?;
                                 if last_space.elapsed() >= Duration::from_millis(100) {
                                     last_space = Instant::now();
-                                    if fs2::available_space(&root).map_err(|e| e.to_string())?
+                                    if fs2::available_space(&root).map_err(crate::Error::from)?
                                         < 1024 * 1024
                                     {
                                         return Err(
@@ -466,7 +466,7 @@ impl AudioJobs {
                                 Ok(())
                             },
                         )?;
-                        if fs::metadata(&pcm).map_err(|e| e.to_string())?.len() > limits.cache_bytes
+                        if fs::metadata(&pcm).map_err(crate::Error::from)?.len() > limits.cache_bytes
                         {
                             return Err("decoded audio cache exceeds limit".into());
                         }
@@ -487,7 +487,7 @@ impl AudioJobs {
             let mut t = task.lock().unwrap();
             t.status.state = "failed".into();
             t.status.error = Some(error.to_string());
-            return Err(error.to_string());
+            return Err(error.into());
         }
         Ok(initial)
     }
@@ -503,7 +503,7 @@ impl AudioJobs {
                 &status.phase,
                 if *attempted { status.error.as_deref() } else { None },
             ),
-            Err(error) => observation.finish("commit", Some(error)),
+            Err(error) => observation.finish("commit", Some(&error.to_string())),
         }
         result.map(|(status, _)| status)
     }
@@ -574,7 +574,7 @@ impl AudioJobs {
             let source = self.root.join(&prepared.asset.path);
             let cache = cache_path(&self.root, &prepared.asset)?;
             contained_dir(&self.root, cache.parent().unwrap())?;
-            fs::rename(prepared.stage.path.join("source"), &source).map_err(|e| e.to_string())?;
+            fs::rename(prepared.stage.path.join("source"), &source).map_err(crate::Error::from)?;
             if let Err(error) = fs::rename(prepared.stage.path.join("decoded.pcm"), &cache) {
                 return Err(publication.rollback_files(error, &[&source]));
             }
@@ -608,13 +608,13 @@ impl AudioJobs {
             Err(error) => {
                 t.status.state = "failed".into();
                 t.status.phase = "failed".into();
-                t.status.error = Some(error);
+                t.status.error = Some(error.to_string());
             }
         }
         Ok((t.status.clone(), true))
     }
     pub fn prepare_cache(&self, request_id: &str, asset: AudioAsset) -> Result<TaskStatus> {
-        asset.validate().map_err(|e| e.to_string())?;
+        asset.validate().map_err(crate::Error::from)?;
         let (task, worker) = self.reserve(request_id, "prepare_audio")?;
         let initial = task.lock().unwrap().status.clone();
         let root = self.root.clone();
@@ -635,7 +635,7 @@ impl AudioJobs {
                         let source = root
                             .join(&asset.path)
                             .canonicalize()
-                            .map_err(|e| e.to_string())?;
+                            .map_err(crate::Error::from)?;
                         if !source.starts_with(&root) {
                             return Err("audio source outside project".into());
                         }
@@ -645,7 +645,7 @@ impl AudioJobs {
                                 update(&spawn_task, "decoding", progress)?;
                                 if last_space.elapsed() >= Duration::from_millis(100) {
                                     last_space = Instant::now();
-                                    if fs2::available_space(&root).map_err(|e| e.to_string())?
+                                    if fs2::available_space(&root).map_err(crate::Error::from)?
                                         < 1024 * 1024
                                     {
                                         return Err("audio cache storage budget exceeded".into());
@@ -668,7 +668,7 @@ impl AudioJobs {
                         ) {
                             return Err("audio source no longer matches project metadata".into());
                         }
-                        if pcm.metadata().map_err(|e| e.to_string())?.len() > limit {
+                        if pcm.metadata().map_err(crate::Error::from)?.len() > limit {
                             return Err("audio cache budget exceeded".into());
                         }
                         crate::mixer::build_waveform(&pcm, &asset, || {
@@ -683,7 +683,7 @@ impl AudioJobs {
             let mut t = task.lock().unwrap();
             t.status.state = "failed".into();
             t.status.error = Some(error.to_string());
-            return Err(error.to_string());
+            return Err(error.into());
         }
         Ok(initial)
     }
@@ -747,7 +747,7 @@ mod drop_failure_tests {
             |id| healthy.contains(id),
         );
         assert_eq!(
-            jobs.status("present").unwrap_err(),
+            jobs.status("present").unwrap_err().to_string(),
             "audio task registry poisoned"
         );
     }

@@ -16,8 +16,8 @@ impl VideoDecoder for Decoder {
     fn frame(
         &mut self,
         _: u64,
-        check: &dyn Fn() -> Result<(), String>,
-    ) -> Result<DecodedFrame, String> {
+        check: &dyn Fn() -> Result<(), motion_media::Error>,
+    ) -> Result<DecodedFrame, motion_media::Error> {
         self.0.entered.send(()).map_err(|e| e.to_string())?;
         let gate = self.0.released.lock().unwrap();
         let (gate, timeout) = self
@@ -57,8 +57,8 @@ impl Platform for Backend {
         _: &Path,
         _: Option<u32>,
         _: Option<u32>,
-        _: &dyn Fn() -> Result<(), String>,
-    ) -> Result<motion_media::VideoProbe, String> {
+        _: &dyn Fn() -> Result<(), motion_media::Error>,
+    ) -> Result<motion_media::VideoProbe, motion_media::Error> {
         Err("unused".into())
     }
     fn open_decoder(
@@ -66,7 +66,7 @@ impl Platform for Backend {
         _: &Path,
         _: VideoAsset,
         _: Vec<u64>,
-    ) -> Result<Box<dyn VideoDecoder>, String> {
+    ) -> Result<Box<dyn VideoDecoder>, motion_media::Error> {
         Ok(Box::new(Decoder(self.0.clone())))
     }
     fn decode_audio(
@@ -75,11 +75,11 @@ impl Platform for Backend {
         _: &Path,
         _: Option<u32>,
         _: u64,
-        _: &mut dyn FnMut(f64) -> Result<(), String>,
-    ) -> Result<motion_core::AudioAsset, String> {
+        _: &mut dyn FnMut(f64) -> Result<(), motion_media::Error>,
+    ) -> Result<motion_core::AudioAsset, motion_media::Error> {
         Err("unused".into())
     }
-    fn media_capabilities(&self, _: Option<&motion_host::VideoQuery>) -> Result<Value, String> {
+    fn media_capabilities(&self, _: Option<&motion_host::VideoQuery>) -> Result<Value, motion_media::Error> {
         Ok(serde_json::json!({}))
     }
     fn attach_surface(

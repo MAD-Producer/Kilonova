@@ -24,7 +24,7 @@ pub fn source_extension(path: &Path) -> Result<&'static str> {
     let mut h = [0u8; 12];
     let n = File::open(path)
         .and_then(|mut f| f.read(&mut h))
-        .map_err(|e| e.to_string())?;
+        .map_err(crate::Error::from)?;
     Ok(if n >= 12 && &h[4..8] == b"ftyp" {
         if &h[8..12] == b"qt  " {
             "mov"

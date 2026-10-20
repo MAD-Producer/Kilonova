@@ -203,7 +203,7 @@ impl PackageJobs {
                         task.status.progress = done as f64 / total.max(1) as f64;
                         Ok(())
                     })
-                }));
+                })).map(|result| result.map_err(crate::Error::from));
                 static PUBLISH: RecoverySite = RecoverySite::new("package.worker.result_task");
                 let mut recoveries = RecoveryScope::new();
                 let mut task = recoveries.recover(
@@ -218,7 +218,7 @@ impl PackageJobs {
                         &["package export cancelled"],
                     );
                     // Drop/close the prepared archive before advertising terminal cancellation.
-                    let cleanup = cleanup_package(result).err();
+                    let cleanup = cleanup_package(result).err().map(|error| error.to_string());
                     let cleanup_failed = cleanup.is_some();
                     let error = match (primary, cleanup) {
                         (Some(primary), Some(cleanup)) => Some(format!("{primary}; {cleanup}")),
@@ -238,19 +238,19 @@ impl PackageJobs {
                 }
                 let published = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     match &mut result {
-                        Ok(Ok(prepared)) => prepared.publish().map_err(|e| e.to_string()),
-                        Ok(Err(error)) => Err(error.to_string()),
-                        Err(payload) => Err(format!(
-                            "package worker failed: {}",
-                            crate::panic_reason_ref(payload.as_ref())
-                        )),
+                        Ok(Ok(prepared)) => prepared.publish().map_err(crate::Error::from),
+                        Ok(Err(error)) => Err(error.clone()),
+                        Err(payload) => Err(crate::Error::Panic {
+                            operation: "package worker",
+                            reason: crate::panic_reason_ref(payload.as_ref()),
+                        }),
                     }
                 }))
                 .unwrap_or_else(|payload| {
-                    Err(format!(
-                        "package publication failed: {}",
-                        crate::panic_reason(payload)
-                    ))
+                    Err(crate::Error::Panic {
+                        operation: "package publication",
+                        reason: crate::panic_reason(payload),
+                    })
                 });
                 // The publication decision is fixed under the cancellation lock.
                 // Keep the task active until archive cleanup has actually returned.
@@ -261,8 +261,11 @@ impl PackageJobs {
                 let published = match cleanup {
                     Ok(()) => published,
                     Err(cleanup) => Err(match published {
-                        Ok(path) => format!("{cleanup}; archive published at {}", path.display()),
-                        Err(primary) => format!("{primary}; {cleanup}"),
+                        Ok(path) => crate::Error::Context {
+                            message: format!("{cleanup}; archive published at {}", path.display()),
+                            cause: Arc::new(cleanup),
+                        },
+                        Err(primary) => primary.rollback(vec![cleanup]),
                     }),
                 };
                 let mut task = recoveries.recover(
@@ -278,7 +281,7 @@ impl PackageJobs {
                     Err(error) => {
                         task.status.state = "failed".into();
                         task.status.phase = "failed".into();
-                        task.status.error = Some(error);
+                        task.status.error = Some(error.to_string());
                     }
                 }
                 let phase = task.status.phase.clone();
@@ -289,7 +292,7 @@ impl PackageJobs {
                 worker_log.finish(&phase, error.as_deref());
             });
         if let Err(error) = spawned {
-            return Err(mark_spawn_failed(&mut recoveries, &task, id, task_log, error));
+            return Err(mark_spawn_failed(&mut recoveries, &task, id, task_log, error).into());
         }
         Ok(initial)
     }
@@ -297,7 +300,9 @@ impl PackageJobs {
 
 fn cleanup_package<T>(prepared: T) -> Result<()> {
     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| drop(prepared)))
-        .map_err(|payload| format!("package cleanup failed: {}", crate::panic_reason(payload)))
+        .map_err(|payload| crate::Error::Panic {
+            operation: "package cleanup", reason: crate::panic_reason(payload),
+        })
 }
 
 fn mark_spawn_failed(
@@ -388,7 +393,7 @@ mod registry_tests {
             |id| healthy.contains(id),
         );
         assert_eq!(
-            jobs.status("present").unwrap_err(),
+            jobs.status("present").unwrap_err().to_string(),
             "package registry poisoned"
         );
     }

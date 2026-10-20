@@ -1759,7 +1759,7 @@ fn capabilities_request(platform: &Arc<dyn Platform>, text: &str) -> Result<Valu
     let media::Request::MediaCapabilities { video_query: query } = request else {
         return Err("expected media_capabilities request".into());
     };
-    platform.media_capabilities(query.as_ref())
+    platform.media_capabilities(query.as_ref()).map_err(Into::into)
 }
 
 #[cfg(test)]
