@@ -87,6 +87,8 @@ fn legacy_migration_is_in_memory_and_preserves_every_fractional_projection() {
     unknown.version = 20;
     assert!(Engine::new(unknown.clone()).is_ok());
     unknown.version = 21;
+    assert!(Engine::new(unknown.clone()).is_ok());
+    unknown.version = 22;
     assert!(Engine::new(unknown).is_err());
 }
 #[test]

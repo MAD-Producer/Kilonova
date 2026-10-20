@@ -230,7 +230,7 @@ pub(super) fn render(
             )],
             6 => {
                 let columns = panels.timeline.column_visibility;
-                vec![
+                let mut entries = vec![
                     (
                         locale.t(T::ShowComposition).into(),
                         Action::ShowPanel(dock::DockId(3)),
@@ -260,7 +260,17 @@ pub(super) fn render(
                         }),
                         true,
                     ),
-                ]
+                ];
+                if super::layer_sampling::available(state) {
+                    for index in 0..3 {
+                        let mut next = panels.timeline.sampling_visibility;
+                        next.0[index] = !next.0[index];
+                        let caption = super::layer_sampling::caption(locale,index);
+                        entries.push((if locale == Locale::Zh {format!("{caption}列")} else {format!("{caption} column")},
+                            Action::SamplingColumnVisibility(next),true));
+                    }
+                }
+                entries
             }
             7 => Panel::available()
                 .map(|panel| {
@@ -355,9 +365,11 @@ pub(super) fn render(
                     else { current.parent }
                 }
                 Action::ToggleDiagnostics => state["desktop"]["diagnostics"]["enabled"] == true,
+                Action::SamplingColumnVisibility(next) => panels.timeline.sampling_visibility.0.iter()
+                    .zip(next.0).find(|(current,next)| **current != *next).is_some_and(|(current,_)|*current),
                 _ => false,
             };
-            let slot = if matches!(&action, Action::TimelineColumnVisibility(_) | Action::ToggleDiagnostics) {
+            let slot = if matches!(&action, Action::TimelineColumnVisibility(_) | Action::SamplingColumnVisibility(_) | Action::ToggleDiagnostics) {
                 styles.metric("icon.slot", 20.)
             } else { 0. };
             if checked {

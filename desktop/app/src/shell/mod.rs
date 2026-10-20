@@ -6,6 +6,7 @@ mod node_search_acceptance;
 pub(crate) mod actions;
 mod lifecycle;
 mod media;
+mod frame_export;
 pub(crate) mod audio_analysis;
 mod nodes;
 mod presentation;

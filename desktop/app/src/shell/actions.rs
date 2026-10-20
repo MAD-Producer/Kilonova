@@ -220,6 +220,7 @@ impl Shell {
             }
             Action::ExportMovie => {
                 if self.freezing_movie.is_some()
+                    || self.exporting_frame.is_some()
                     || self.exporting_movie.as_ref().is_some_and(|e| !e.finished())
                 {
                     return Err(self.workspace.locale.t(T::Exporting).into());
@@ -239,6 +240,9 @@ impl Shell {
                 }
             }
             Action::CancelExport => {
+                if let Some((_, control)) = &self.exporting_frame {
+                    control.cancel();
+                }
                 if let Some(task) = &self.exporting_movie {
                     task.cancel();
                 }
@@ -397,24 +401,18 @@ impl Shell {
                 self.panels.select_only(Some(id));
             }
             Action::ExportPng => {
+                if self.exporting_frame.is_some() || self.freezing_movie.is_some()
+                    || self.exporting_movie.as_ref().is_some_and(|task| !task.finished()) {
+                    return Err(self.workspace.locale.t(T::Exporting).into());
+                }
                 self.stop();
-                let result = self.engine.capture()?;
                 if let Some(destination) = rfd::FileDialog::new()
                     .set_title(self.workspace.locale.t(T::ExportPng))
                     .add_filter("PNG", &["png"])
                     .set_file_name("frame.png")
                     .save_file()
                 {
-                    std::fs::copy(
-                        result["path"].as_str().ok_or("capture path missing")?,
-                        &destination,
-                    )
-                    .map_err(|e| e.to_string())?;
-                    self.panels.message = Some(format!(
-                        "{}: {}",
-                        self.workspace.locale.t(T::Saved),
-                        destination.display()
-                    ));
+                    self.start_frame_export(destination)?;
                 }
             }
             Action::Favorites(favorites) => {
@@ -560,6 +558,11 @@ impl Shell {
                 if self.smoke.is_none() {
                     self.workspace.save(&self.layout_path)?;
                 }
+            }
+            Action::SamplingColumnVisibility(visibility) => {
+                self.panels.timeline.sampling_visibility = visibility;
+                self.workspace.timeline_sampling_columns = visibility;
+                if self.smoke.is_none() { self.workspace.save(&self.layout_path)?; }
             }
             Action::PreviewMode(mode) => {
                 self.set_preview_preference(mode)?;

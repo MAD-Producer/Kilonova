@@ -27,11 +27,28 @@ impl Shell {
             && now >= self.next_composition
             && self.attached
             && self.rendering.is_empty()
+            && self.exposure_presentations.is_empty()
             && self.editing.is_none()
             && !self.present_due
             && self.actions.is_empty()
             && self.resizing.is_none()
             && self.resize_queue.is_empty()
+    }
+    // A chrome-only reply in another native window cannot acknowledge a
+    // partially accumulated composition. Explicit user seeks still supersede
+    // the host request; only the automatic playback clock waits here.
+    pub(crate) fn track_exposure_present(&mut self, window:u64, composition:bool) {
+        if composition && self.state["preview"]["exposureRequired"] == true {
+            self.exposure_presentations.insert(window);
+        } else {
+            self.exposure_presentations.remove(&window);
+        }
+    }
+    pub(crate) fn finish_exposure_present(&mut self, window:u64, result:&Result<bool,String>) {
+        if !matches!(result,Ok(false)) { self.exposure_presentations.remove(&window); }
+    }
+    pub(crate) fn presentation_pending(&self) -> bool {
+        self.pending || !self.exposure_presentations.is_empty()
     }
     pub(crate) fn lose_focus(&mut self) {
         self.workspace.cancel();
@@ -413,7 +430,9 @@ impl Shell {
             let (paint, actions) = self.draw_acknowledged(size);
             self.actions.extend(actions);
             let ui = self.ui_frame(paint, size, false);
+            let composition = ui.composition.is_some();
             self.rendering.insert(0, self.engine.present_async(ui)?);
+            self.track_exposure_present(0,composition);
             self.present_deferrals.submitted(0);
             self.present_due = false;
             self.dirty = true;
@@ -493,7 +512,9 @@ impl Shell {
             return Ok(());
         }
         let ui = self.ui_frame(paint, size, false);
+        let composition = ui.composition.is_some();
         self.rendering.insert(0, self.engine.present_async(ui)?);
+        self.track_exposure_present(0,composition);
         self.present_deferrals.submitted(0);
         self.dirty = false;
         Ok(())
@@ -623,6 +644,7 @@ impl Shell {
             .map(|(id, _)| *id)
         {
             if let Some(f) = self.floating.remove(&id) {
+                self.exposure_presentations.remove(&f.key);
                 self.present_deferrals.closed(f.key);
                 self.resize_queue.remove(&f.key);
                 self.engine.close_window(f.key)?;
@@ -750,6 +772,7 @@ impl Shell {
                 node_preview: self.node_viewport(panels::floating_node_view_bound(panel,size,self.panels.node_editor.layer_target.is_some()), scale),
             })?,
         );
+        self.track_exposure_present(key,composition.is_some());
         self.present_deferrals.submitted(key);
         if acknowledged {
             self.present_due = false;
@@ -929,6 +952,45 @@ fn playback_input_blocks(input: &Input) -> bool {
 #[cfg(test)]
 mod playback_tests {
     use super::*;
+
+    #[test]
+    fn incomplete_exposure_waits_for_its_canvas_reply_without_blocking_manual_seek() {
+        let folder=tempfile::tempdir().unwrap();
+        let mut shell=Shell::new(folder.path().join("project"),None,Some(Locale::En)).unwrap();
+        shell.attached=true;
+        shell.pending=false;
+        shell.playback=Some((Instant::now()-Duration::from_millis(200),0.));
+        shell.next_composition=Instant::now();
+        shell.state["preview"]["exposureRequired"]=serde_json::json!(true);
+        assert!(shell.playback_ready(Instant::now()));
+        for window in [0,9] {
+            shell.track_exposure_present(window,true);
+            shell.finish_exposure_present(window,&Ok(false));
+            assert!(!shell.playback_ready(Instant::now()));
+            assert!(shell.presentation_pending());
+            shell.track_exposure_present(3,false);
+            shell.finish_exposure_present(3,&Ok(true));
+            assert!(!shell.playback_ready(Instant::now()),"another window only painted chrome");
+            assert!(shell.presentation_pending(),"keep scheduling canvas redraws after chrome acknowledges");
+            shell.finish_exposure_present(window,&Ok(true));
+            assert!(shell.playback_ready(Instant::now()));
+            assert!(!shell.presentation_pending());
+        }
+        shell.track_exposure_present(9,true);
+        shell.finish_exposure_present(9,&Err("controlled failure".into()));
+        assert!(shell.exposure_presentations.is_empty());
+        shell.track_exposure_present(9,true);
+        shell.track_exposure_present(9,false); // Composition was hidden or redocked.
+        assert!(shell.playback_ready(Instant::now()));
+        shell.track_exposure_present(0,true);
+        shell.actions.push_back(panels::Action::Seek(4.));
+        assert!(!shell.playback_ready(Instant::now()));
+        // The barrier is consulted by automatic playback, not action dispatch.
+        assert!(matches!(crate::shell::actions::pop_action(&mut shell.actions),Some(panels::Action::Seek(4.))));
+        shell.state["preview"]["exposureRequired"]=serde_json::json!(false);
+        shell.track_exposure_present(0,true);
+        assert!(shell.playback_ready(Instant::now()));
+    }
 
     #[test]
     fn repeated_pointer_events_cannot_starve_composition_ticks() {
