@@ -92,3 +92,24 @@ The integration is held locally until #349 also reaches main, avoiding another
 CI restart merely for ancestor history. The full combined Release GUI suite
 has since passed with its original deadlines and 1,177 decoded PNGs; this is
 separate combined evidence and does not replace the final branch's checks.
+
+## Shared CI correction and current-main tools
+
+The local candidate integrates #374 `e57e84ce` with a clean merge matching
+preview tree `541828c0`. Six incoming files match that parent exactly; main.rs
+only adds the Windows test-helper declaration while retaining the existing
+preference and shortcut registration. The CI routes, native helper, fixture
+deadlines and assertions retain their independently reviewed behavior.
+
+After #353 reached main as `3dd45748`, its integration was also clean and
+matched preview tree `4e61560e`. The only four incoming files are the icon tool,
+its regression, tool inventory and validation document. No shortcut or panel
+source was altered by either integration.
+
+The resulting local candidate `8addf61` completed all 57 tool tests in 39.438
+seconds: 56 passed and one existing optional external-loader check skipped.
+Provenance (1,557 tracked paths), panel style-consumer and whitespace guards
+passed. Evidence: `artifacts/pr-queue/362-current-main-tools.log`. These checks
+include the combined trigger policy and icon failure regressions. They are
+not a new Rust or native GUI run. This candidate is still local, and #349's
+final Mac check and main integration remain prerequisites to publication.
