@@ -7,6 +7,22 @@ mod selection_tests;
 mod tests {
     use super::*;
     #[test]
+    fn custom_effect_key_navigation_disables_old_chord_and_uses_typed_parameter_times() {
+        use crate::shortcuts::{bindings::Bindings,Command,Scope};
+        let mut parameter=EffectParam {kind:motion_effects::ParamKind::Float,animatable:true,min:0.,max:100.,
+            implemented:true,default:[0.;4],track:motion_core::Track::constant([0.;4]),curve:None};
+        parameter.track.keys=vec![motion_core::Keyframe {frame:20,value:[1.;4],ease:motion_core::Ease::Linear,curve:None,spatial:None}];
+        let state=serde_json::json!({"root":"fixture","composition":"main","frame":12,"project":{"frames":120,"layers":[{"id":7,"effects":[{"id":1,"params":{"amount":parameter}}]}]}});
+        let mut bindings=Bindings::default();bindings.bind(Scope::Animation,Command::NextKey,Some(motion_ui::input::KeyChord::new(Key::B,true,false,false))).unwrap();
+        let mut panels=crate::panels::Panels {selected:Some(7),focused:Some(motion_ui::dock::Panel::EffectControls),shortcut_bindings:std::sync::Arc::new(bindings),..Default::default()};
+        panels.effect_controls.key_channel=Some(Channel {object:7,effect:1,parameter:"amount".into(),context:("fixture".into(),"main".into())});
+        let mut out=vec![];
+        crate::panels::keyboard::route(&Input {keys:vec![(Key::K,Default::default())],..Default::default()},&mut panels,&state,false,None,&mut out);
+        assert!(out.is_empty());
+        crate::panels::keyboard::route(&Input {keys:vec![(Key::B,motion_ui::input::Modifiers {control:true,..Default::default()})],..Default::default()},&mut panels,&state,false,None,&mut out);
+        assert!(matches!(out.as_slice(),[Action::Seek(frame)] if *frame==20.));
+    }
+    #[test]
     fn malformed_navigation_parameters_reach_default_file_and_error_stderr_without_stdout() {
         const CHILD: &str = "MOTION_EFFECT_KEY_NAV_OBSERVATION_CHILD";
         if let Some(root) = std::env::var_os(CHILD) {

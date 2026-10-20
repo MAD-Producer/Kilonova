@@ -74,6 +74,8 @@ pub fn imported_faces(path: &std::path::Path) -> Result<Vec<FontChoice>, String>
 pub enum Event {
     Preferences(crate::workspace::preferences::Preferences),
     PreferencesStyle,
+    PreferencesImportKeys,
+    PreferencesExportKeys,
     Settings(Value),
     CreateComposition(Value),
     Text {

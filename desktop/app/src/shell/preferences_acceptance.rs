@@ -34,7 +34,7 @@ impl Shell {
                 let compact = width < styles.metric("preferences.sidebar_breakpoint", 440.);
                 let point = if compact {
                     [
-                        size[0] * 0.75,
+                        size[0] * 0.5,
                         (size[1] - height) * 0.5
                             + pad
                             + row * 2.5
