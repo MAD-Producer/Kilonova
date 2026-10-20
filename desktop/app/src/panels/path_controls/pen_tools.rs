@@ -317,13 +317,15 @@ fn split(mut a: [f32; 6], mut b: [f32; 6], t: f32) -> ([f32; 6], [f32; 6], [f32;
     )
 }
 
-/// Matching temporal interpolation permits exact subdivision at every subframe.
-/// A static endpoint can share its neighbour's clock. Different clocks cannot
-/// represent their sum as one existing Track, so reject rather than lose animation.
+/// Matching temporal interpolation preserves every subframe. With independent
+/// clocks, preserve each authored path pose and the edit frame, then interpolate
+/// the new vertex with the existing linear-key semantics. Endpoint clocks stay intact.
 fn split_tracks(
     a: &Track<[f32; 6]>,
     b: &Track<[f32; 6]>,
     t: f32,
+    path: &VectorPath,
+    frame: i32,
 ) -> motion_core::Result<[Track<[f32; 6]>; 3]> {
     a.validate_local()?;
     b.validate_local()?;
@@ -331,18 +333,13 @@ fn split_tracks(
         return Err(invalid("pen subdivision requires coupled geometry tracks"));
     }
     let template = if a.keys.is_empty() { b } else { a };
-    if !a.keys.is_empty()
+    let independent = !a.keys.is_empty()
         && !b.keys.is_empty()
         && (a.keys.len() != b.keys.len()
             || a.keys
                 .iter()
                 .zip(&b.keys)
-                .any(|(a, b)| a.frame != b.frame || a.ease != b.ease || a.curve != b.curve))
-    {
-        return Err(invalid(
-            "pen subdivision requires matching endpoint key times and easing",
-        ));
-    }
+                .any(|(a, b)| a.frame != b.frame || a.ease != b.ease || a.curve != b.curve));
     let (av, nv, bv) = split(a.value, b.value, t);
     let mut left = a.clone();
     left.value = av;
@@ -355,6 +352,27 @@ fn split_tracks(
         key.value = split([0.; 6], key.value, t).2;
     }
     let mut middle = Track::constant(nv);
+    if independent {
+        let mut frames = std::collections::BTreeSet::from([frame]);
+        for key in path.nodes.iter().flat_map(|n| &n.geometry.keys) {
+            frames.insert(key.frame);
+            if frames.len() > motion_core::MAX_FRAMES as usize {
+                return Err(invalid(
+                    "pen subdivision exceeds the new vertex keyframe budget",
+                ));
+            }
+        }
+        for frame in frames {
+            middle.keys.push(motion_core::Keyframe {
+                frame,
+                value: split(a.sample(f64::from(frame)), b.sample(f64::from(frame)), t).1,
+                ease: motion_core::Ease::Linear,
+                curve: None,
+                spatial: None,
+            });
+        }
+        return Ok([left, middle, right]);
+    }
     for key in &template.keys {
         let (_, nv, _) = split(
             a.sample(f64::from(key.frame)),
@@ -394,8 +412,13 @@ fn edit_path(path: &mut VectorPath, node: u64, edit: Edit, frame: i32) -> motion
                 .checked_add(1)
                 .filter(|id| *id != 0)
                 .ok_or_else(|| invalid("pen node ID overflow"))?;
-            let [left, middle, right] =
-                split_tracks(&path.nodes[index].geometry, &path.nodes[j].geometry, t)?;
+            let [left, middle, right] = split_tracks(
+                &path.nodes[index].geometry,
+                &path.nodes[j].geometry,
+                t,
+                path,
+                frame,
+            )?;
             path.nodes[index].geometry = left;
             path.nodes[j].geometry = right;
             path.nodes.insert(
