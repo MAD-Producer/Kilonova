@@ -16,6 +16,7 @@ default = []
 diagnostics = []
 
 [dependencies]
+thiserror.workspace = true
 log.workspace = true
 motion-effects = { path = "../motion-effects" }
 motion-core = { path = "../motion-core" }
