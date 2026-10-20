@@ -22,6 +22,9 @@ struct FileLogger {
     writer: Mutex<BufWriter<File>>,
     level: log::LevelFilter,
 }
+
+#[cfg(test)]
+mod frozen_reader_tests;
 static LOGGER: OnceLock<FileLogger> = OnceLock::new();
 thread_local! {
     static IN_PANIC_HOOK: Cell<bool> = const { Cell::new(false) };
