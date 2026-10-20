@@ -22,7 +22,7 @@ WINDOWS_URL = "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild
 WINDOWS_SHA256 = "3e47bda1607740550141e37c0e49d1e5182b34699f15adfd137ee266d346811a"
 SOURCE_URL = "https://codeload.github.com/FFmpeg/FFmpeg/tar.gz/refs/tags/n8.1.3"
 SOURCE_SHA256 = "09f990289327d3ebfedf4fc15cae3f884a65dab7a5aac7bbb5b01ff83900efd9"
-ZLIB_URL = "https://zlib.net/fossils/zlib-1.3.2.tar.gz"
+ZLIB_URL = "https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz"
 ZLIB_SHA256 = "bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16"
 PLATFORMS = ("windows-x86_64", "linux-x86_64", "macos-arm64", "macos-x86_64")
 
