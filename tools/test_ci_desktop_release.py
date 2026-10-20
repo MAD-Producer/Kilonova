@@ -16,6 +16,7 @@ import yaml
 
 import ci_release
 import package_desktop as desktop
+from test_ci_workflow import expression_value
 
 
 class DesktopReleaseTest(unittest.TestCase):
@@ -349,7 +350,7 @@ class DesktopReleaseTest(unittest.TestCase):
 
     def test_workflow_packages_every_platform_and_downloads_them_before_publication(self):
         workflow=yaml.load((desktop.ROOT/".github/workflows/ci.yml").read_text(),Loader=yaml.BaseLoader)
-        matrix=workflow["jobs"]["desktop"]["strategy"]["matrix"]["include"]
+        matrix=expression_value(workflow["jobs"]["desktop"]["strategy"]["matrix"]["include"], {"github": {"event_name": "push"}})
         self.assertEqual({row["platform"] for row in matrix},set(desktop.PLATFORMS))
         for row in matrix:
             self.assertIn(row["platform"].split("-")[1], row["target"].replace("aarch64","arm64"))

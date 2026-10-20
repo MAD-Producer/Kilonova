@@ -5,14 +5,17 @@ Requires the same pinned PyYAML dependency installed by the checks job.
 """
 import ast
 import fnmatch
+import json
 import os
 import ntpath
 import posixpath
 from pathlib import Path
 import re
 import subprocess
+import shlex
 import sys
 import tempfile
+import tomllib
 import unittest
 
 import yaml
@@ -60,18 +63,26 @@ def expression_value(expression, context):
             return context[node.id]
         if isinstance(node, ast.Attribute):
             return visit(node.value)[node.attr]
+        if isinstance(node, ast.Subscript):
+            return visit(node.value)[visit(node.slice)]
         if isinstance(node, ast.Compare) and len(node.ops) == 1:
             left, right = visit(node.left), visit(node.comparators[0])
             if isinstance(node.ops[0], ast.Eq):
                 return left == right
             if isinstance(node.ops[0], ast.NotEq):
                 return left != right
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "fromJSON" and len(node.args) == 1 and not node.keywords:
+            return json.loads(visit(node.args[0]))
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "always" and not node.args and not node.keywords:
+            return True
         if isinstance(node, ast.BoolOp):
-            values = [bool(visit(value)) for value in node.values]
-            if isinstance(node.op, ast.And):
-                return all(values)
-            if isinstance(node.op, ast.Or):
-                return any(values)
+            for value in node.values:
+                result = visit(value)
+                if isinstance(node.op, ast.And) and not result:
+                    return result
+                if isinstance(node.op, ast.Or) and result:
+                    return result
+            return result
         raise AssertionError("Unsupported CI gate: " + ast.dump(node))
 
     return visit(tree.body)
@@ -97,7 +108,7 @@ class WorkflowPolicyTest(unittest.TestCase):
         desktop = self.workflow["jobs"]["desktop"]
         test = next(step for step in desktop["steps"] if step.get("name") == "Run desktop unit tests")
         upload = next(step for step in desktop["steps"] if step.get("with", {}).get("name") == "desktop-build-${{ matrix.platform }}")
-        self.assertEqual(upload["if"], "always()")
+        self.assertEqual(upload["if"], "always() && github.event_name != 'pull_request'")
         self.assertEqual(upload["with"]["path"], "artifacts/desktop/**")
         for paths, workspace in [(posixpath, "/runner/work/project/project"), (ntpath, r"D:\a\project\project")]:
             crate_cwd = paths.join(workspace, "desktop", "app")
@@ -168,20 +179,84 @@ class WorkflowPolicyTest(unittest.TestCase):
                     self.assertNotEqual(publication[0], route("pull_request", "refs/pull/375/merge", head)[0])
         self.assertNotEqual(route("push", "refs/heads/main")[0], route("push", "refs/tags/v1.2.3")[0])
 
-    def test_full_cross_platform_validation_remains_unconditional(self):
-        validation = self.step("cargo test --workspace --exclude motion-android --locked --features motion-host/diagnostics -- --test-threads=1")
+    def test_native_and_workspace_jobs_partition_all_supported_packages(self):
+        validation = next(step for step in self.checks["steps"] if step.get("name") == "Run Rust and software Vulkan tests")
         self.assertNotIn("if", validation)
         self.assertEqual(set(self.workflow["jobs"]), {"checks", "desktop", "desktop-media", "publish"})
         desktop = self.workflow["jobs"]["desktop"]
         self.assertNotIn("if", desktop)
-        self.assertEqual({entry["platform"] for entry in desktop["strategy"]["matrix"]["include"]},
-                         {"linux-x86_64", "windows-x86_64", "macos-arm64", "macos-x86_64"})
         tests = next(step for step in desktop["steps"] if step.get("name") == "Run desktop unit tests")
         self.assertNotIn("if", tests)
-        self.assertEqual(tests["run"], "cargo test -p motion-desktop -p motion-host -p motion-ui -p motion-desktop-media --locked -- --test-threads=1")
+        workspace = tomllib.loads((ROOT / "Cargo.toml").read_text(encoding="utf-8"))["workspace"]
+        members = {tomllib.loads((ROOT / member / "Cargo.toml").read_text(encoding="utf-8"))["package"]["name"] for member in workspace["members"]}
+        core_args, native_args = shlex.split(validation["run"]), shlex.split(tests["run"])
+        excluded = {core_args[i + 1] for i, arg in enumerate(core_args) if arg == "--exclude"}
+        native = {native_args[i + 1] for i, arg in enumerate(native_args) if arg == "-p"}
+        self.assertIn("--workspace", core_args)
+        self.assertEqual(excluded, native | {"motion-android"})
+        self.assertEqual((members - excluded) | native, members - {"motion-android"})
+        self.assertIn("motion-host/diagnostics", native_args)
+        for args in [core_args, native_args]:
+            self.assertIn("--locked", args)
+            self.assertIn("--test-threads=1", args)
+            self.assertNotIn("--skip", args)
         text = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
         for legacy in ("setup-java", "gradle/actions", "android-emulator-runner", "sdkmanager", "KEYSTORE", "motion-android/diagnostics", "tools/build_android.py", "tools/ci_android_ui.py", "tools/generate_editor_icons.py"):
             self.assertNotIn(legacy, text)
+
+    def test_prs_run_three_native_platforms_without_release_steps(self):
+        desktop = self.workflow["jobs"]["desktop"]
+        matrix = desktop["strategy"]["matrix"]["include"]
+        release_names = {
+            "Install portable libclang for FFmpeg bindings", "Prepare pinned shared LGPL FFmpeg runtime",
+            "Release desktop binary with video support", "Verify packaged-runtime video decoding",
+            "Package desktop release archive", "Verify video decoding from the extracted release archive",
+            "Build standalone UI framework gallery", "Verify native windows, language and shared MCP",
+            "Verify independent UI framework",
+        }
+        for event in ["pull_request", "push", "workflow_dispatch"]:
+            context = {"github": {"event_name": event}, "runner": {"os": "Linux"},
+                       "steps": {name: {"outputs": {"cache-hit": "false"}} for name in ["libclang_cache", "ffmpeg_cache"]}}
+            rows = expression_value(matrix, context)
+            expected = {"linux-x86_64", "windows-x86_64", "macos-x86_64"}
+            if event != "pull_request":
+                expected.add("macos-arm64")
+            self.assertEqual({row["platform"] for row in rows}, expected)
+            self.assertEqual(len(rows), len(expected))
+            active = [s for s in desktop["steps"] if expression_value(s.get("if"), context)]
+            active_names = {s.get("name") for s in active}
+            self.assertIn("Run desktop unit tests", active_names)
+            self.assertIn("Build the desktop shell", active_names)
+            self.assertEqual(active_names & release_names, set() if event == "pull_request" else release_names)
+            if event == "pull_request":
+                self.assertFalse(any(s.get("uses", "").startswith("actions/upload-artifact@") for s in active))
+                self.assertFalse(any("--ffmpeg" in s.get("run", "") or "prepare_ffmpeg.py" in s.get("run", "") for s in active))
+            self.assertEqual(expression_value(self.workflow["jobs"]["desktop-media"]["if"], context), event != "pull_request")
+        for runner, expected in [("Linux", "ubuntu-24.04"), ("Windows", "windows-2022"), ("macOS", "macos-15-intel")]:
+            rows = expression_value(matrix, {"github": {"event_name": "pull_request"}})
+            self.assertIn(expected, {row["os"] for row in rows}, runner)
+
+    def test_runtime_caches_are_pinned_partitioned_and_never_skip_verification(self):
+        steps = self.workflow["jobs"]["desktop"]["steps"]
+        for identity, required in [("libclang", ["runner.os", "runner.arch", "18.1.1"]),
+                                   ("ffmpeg", ["runner.os", "matrix.platform", "hashFiles('tools/prepare_ffmpeg.py')"])]:
+            restore = next(s for s in steps if s.get("id") == identity + "_cache")
+            save = next(s for s in steps if s.get("uses", "").startswith("actions/cache/save@") and s["with"]["key"] == restore["with"]["key"])
+            self.assertRegex(restore["uses"], r"actions/cache/restore@[0-9a-f]{40}$")
+            self.assertRegex(save["uses"], r"actions/cache/save@[0-9a-f]{40}$")
+            self.assertNotIn("restore-keys", restore["with"])
+            for token in required:
+                self.assertIn(token, restore["with"]["key"])
+            for event, hit, expected in [("pull_request", "false", False), ("workflow_dispatch", "false", False),
+                                         ("push", "false", True), ("push", "true", False)]:
+                context = {"github": {"event_name": event}, "steps": {identity + "_cache": {"outputs": {"cache-hit": hit}}}}
+                self.assertEqual(expression_value(save["if"], context), expected)
+        prepare = next(s for s in steps if s.get("name") == "Prepare pinned shared LGPL FFmpeg runtime")
+        self.assertIn("--reuse-verified", prepare["run"])
+        self.assertNotIn("cache-hit", prepare["if"])
+        for name in ["Verify packaged-runtime video decoding", "Verify video decoding from the extracted release archive"]:
+            step = next(s for s in steps if s.get("name") == name)
+            self.assertEqual(step["if"], "github.event_name != 'pull_request'")
 
     def test_policy_cli_runs_without_secrets_and_writes_step_outputs(self):
         script = ROOT / "tools/ci_release.py"
