@@ -5,19 +5,14 @@
 //! encodes with libav. Both reach this module through the same request enum, so
 //! the import pipeline, task state machine and cache layout are shared.
 use crate::session::Result;
-use motion_render::Scene;
 use motion_media::{AudioMixer, ImportOptions, MAX_BLOCK_FRAMES};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::{
-    collections::HashMap,
     fs::File,
     io::Read,
     path::PathBuf,
-    sync::{
-        atomic::{AtomicI64, Ordering},
-        Arc, Mutex, OnceLock,
-    },
+    sync::Arc,
 };
 
 /// Opens a user-selected media file.
@@ -465,66 +460,16 @@ fn probe_fn(platform: &Arc<dyn crate::platform::Platform>) -> motion_media::Prob
 // Frozen streams used by video export
 // ---------------------------------------------------------------------------
 
-struct FrozenAudio {
-    mixer: AudioMixer,
-    pcm: Vec<f32>,
-}
-
-static AUDIO_NEXT: AtomicI64 = AtomicI64::new(1);
-static FROZEN_AUDIO: OnceLock<Mutex<HashMap<i64, FrozenAudio>>> = OnceLock::new();
-fn frozen_audio() -> &'static Mutex<HashMap<i64, FrozenAudio>> {
-    FROZEN_AUDIO.get_or_init(|| Mutex::new(HashMap::new()))
-}
-
-struct FrozenVideo {
-    project: motion_core::Project,
-    root: PathBuf,
-    frames: crate::video_frames::VideoFrames,
-    prepared: HashMap<u64, crate::video_frame::PreparedVideoFrame>,
-    sequence: u64,
-    time: f64,
-}
-
-static VIDEO_NEXT: AtomicI64 = AtomicI64::new(1);
-static FROZEN_VIDEO: OnceLock<Mutex<HashMap<i64, FrozenVideo>>> = OnceLock::new();
-fn frozen_video() -> &'static Mutex<HashMap<i64, FrozenVideo>> {
-    FROZEN_VIDEO.get_or_init(|| Mutex::new(HashMap::new()))
-}
-
-/// Maximum concurrent frozen readers; a stuck exporter must release its handle.
-pub const MAX_FROZEN_AUDIO: usize = 8;
-pub const MAX_FROZEN_VIDEO: usize = 4;
+pub mod frozen;
+mod frozen_registry;
+pub use frozen::{MAX_FROZEN_AUDIO, MAX_FROZEN_VIDEO};
 
 pub fn freeze_audio(id: i64) -> Result<Value> {
-    crate::session::with_session(id, |s| {
-        let mut streams = frozen_audio()
-            .lock()
-            .map_err(|_| "audio stream registry poisoned")?;
-        if streams.len() >= MAX_FROZEN_AUDIO {
-            return Err("release frozen audio streams before creating more".into());
-        }
-        let mixer = AudioMixer::new(s.engine.snapshot(), &s.root)?;
-        let total = mixer.total_frames();
-        let handle = AUDIO_NEXT.fetch_add(1, Ordering::Relaxed);
-        streams.insert(
-            handle,
-            FrozenAudio {
-                mixer,
-                pcm: Vec::new(),
-            },
-        );
-        Ok(json!({"handle":handle,"total_frames":total,"sample_rate":48000,"channels":2,
-            "revision":s.engine.revision()}))
-    })
+    frozen::freeze_audio(id).map_err(|error| error.to_string())
 }
 
 pub fn release_frozen_audio(handle: i64) -> Result<Value> {
-    let removed = frozen_audio()
-        .lock()
-        .map_err(|_| "audio stream registry poisoned")?
-        .remove(&handle)
-        .is_some();
-    Ok(json!({"released":removed}))
+    frozen::release_frozen_audio(handle).map_err(|error| error.to_string())
 }
 
 /// Mix a block of 48 kHz stereo f32 PCM into `out` as little-endian floats.
@@ -559,17 +504,7 @@ pub fn read_frozen_pcm_into(
     frames: usize,
     out: &mut [u8],
 ) -> Result<Value> {
-    check_pcm_range(start, frames, out)?;
-    let mut streams = frozen_audio()
-        .lock()
-        .map_err(|_| "audio stream registry poisoned")?;
-    let stream = streams
-        .get_mut(&handle)
-        .ok_or("frozen audio stream is closed")?;
-    stream.pcm.resize(frames * 2, 0.0);
-    let count = stream.mixer.mix(start, &mut stream.pcm)?;
-    let total = stream.mixer.total_frames();
-    Ok(pcm_envelope(&stream.pcm, count, start, total, out))
+    frozen::read_frozen_pcm_into(handle, start, frames, out).map_err(|error| error.to_string())
 }
 
 fn check_pcm_range(start: u64, frames: usize, out: &[u8]) -> Result<()> {
@@ -593,36 +528,11 @@ fn pcm_envelope(pcm: &[f32], count: usize, start: u64, total: u64, out: &mut [u8
 }
 
 pub fn freeze_video(id: i64) -> Result<Value> {
-    let platform = crate::session::with_session(id, |s| Ok(s.platform().clone()))?;
-    crate::session::with_session(id, |s| {
-        let mut readers = frozen_video()
-            .lock()
-            .map_err(|_| "frozen video registry poisoned")?;
-        if readers.len() >= MAX_FROZEN_VIDEO {
-            return Err("at most four frozen video readers; release finished handles".into());
-        }
-        let handle = VIDEO_NEXT.fetch_add(1, Ordering::Relaxed);
-        readers.insert(
-            handle,
-            FrozenVideo {
-                project: s.engine.snapshot(),
-                root: s.root.clone(),
-                frames: crate::video_frames::VideoFrames::new(platform.clone()),
-                prepared: Default::default(),
-                sequence: 0,
-                time: -1.,
-            },
-        );
-        Ok(json!({"handle":handle,"revision":s.engine.revision(),"project":s.engine.snapshot()}))
-    })
+    frozen::freeze_video(id).map_err(|error| error.to_string())
 }
 
 pub fn release_frozen_video(handle: i64) -> Result<Value> {
-    Ok(json!({"released":frozen_video()
-        .lock()
-        .map_err(|_| "frozen video registry poisoned")?
-        .remove(&handle)
-        .is_some()}))
+    frozen::release_frozen_video(handle).map_err(|error| error.to_string())
 }
 
 /// Prepare every video layer of one composition frame for a frozen export.
@@ -631,35 +541,7 @@ pub fn request_frozen_composition_frame(
     frame: f64,
     sequence: u64,
 ) -> Result<Value> {
-    if sequence == 0 {
-        return Err("invalid frozen video sequence".into());
-    }
-    let mut readers = frozen_video()
-        .lock()
-        .map_err(|_| "frozen video registry poisoned")?;
-    let r = readers
-        .get_mut(&handle)
-        .ok_or("frozen video reader closed")?;
-    if sequence < r.sequence || (sequence == r.sequence && frame != r.time) {
-        return Err("frozen composition request superseded".into());
-    }
-    let mut scene = Scene::new(&r.project);
-    scene
-        .sample(&r.project, frame, None, &motion_core::ExpressionEvaluator)
-        .map_err(|e| e.to_string())?;
-    if sequence != r.sequence {
-        r.prepared.clear();
-        r.sequence = sequence;
-        r.time = frame;
-    }
-    match r.frames.prepare_scene_exact(&r.project, &r.root, &scene)? {
-        None => Ok(json!({"state":"pending","sequence":sequence})),
-        Some(frames) => {
-            r.prepared = frames.into_iter().collect();
-            Ok(json!({"state":"ready","sequence":sequence,
-                "instances":r.prepared.keys().collect::<Vec<_>>()}))
-        }
-    }
+    frozen::request_frozen_composition_frame(handle, frame, sequence).map_err(|error| error.to_string())
 }
 
 pub fn read_frozen_composition_video_into(
@@ -667,24 +549,7 @@ pub fn read_frozen_composition_video_into(
     object: u64,
     sequence: u64,
 ) -> Result<Arc<crate::video_frame::DecodedFrame>> {
-    let readers = frozen_video()
-        .lock()
-        .map_err(|_| "frozen video registry poisoned")?;
-    let r = readers
-        .get(&handle)
-        .ok_or("frozen video reader closed")?;
-    if sequence == 0 || r.sequence != sequence {
-        return Err("frozen composition video superseded".into());
-    }
-    let prepared = r.prepared
-        .get(&object)
-        .cloned()
-        .ok_or("frozen composition video is pending or absent")?;
-    // Pixel materialization can be expensive. Keep the snapshot alive through
-    // its immutable Arcs without blocking unrelated frozen readers/closure.
-    drop(readers);
-    prepared.decoded().map_err(|error| format!(
-        "frozen composition video handle={handle} object={object} sequence={sequence} phase=blend_read: {error}"))
+    frozen::read_frozen_composition_video_into(handle, object, sequence).map_err(|error| error.to_string())
 }
 
 pub fn request_frozen_video_frame(
@@ -693,18 +558,7 @@ pub fn request_frozen_video_frame(
     frame: f64,
     sequence: u64,
 ) -> Result<Value> {
-    if object == 0 || sequence == 0 {
-        return Err("invalid video object/sequence".into());
-    }
-    let mut readers = frozen_video()
-        .lock()
-        .map_err(|_| "frozen video registry poisoned")?;
-    let r = readers
-        .get_mut(&handle)
-        .ok_or("frozen video reader closed")?;
-    r.frames
-        .request(&r.project, &r.root, object, frame, sequence)
-        .map_err(Into::into)
+    frozen::request_frozen_video_frame(handle, object, frame, sequence).map_err(|error| error.to_string())
 }
 
 pub fn read_frozen_video_frame_into(
@@ -712,16 +566,7 @@ pub fn read_frozen_video_frame_into(
     object: u64,
     sequence: u64,
 ) -> Result<Arc<crate::video_frame::DecodedFrame>> {
-    if object == 0 || sequence == 0 {
-        return Err("invalid video object/sequence".into());
-    }
-    let readers = frozen_video()
-        .lock()
-        .map_err(|_| "frozen video registry poisoned")?;
-    let r = readers
-        .get(&handle)
-        .ok_or("frozen video reader closed")?;
-    r.frames.frame(&r.project, object, sequence).map_err(Into::into)
+    frozen::read_frozen_video_frame_into(handle, object, sequence).map_err(|error| error.to_string())
 }
 
 /// Decode metadata for a single video frame, used by pixel readback hosts.
