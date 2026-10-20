@@ -35,3 +35,13 @@ Runs use locked dependencies, portable MSVC, one build job and one test thread, 
 ## Remaining scope
 
 Issue #130 remains open. Global session registry scope around native/GPU work, per-project blocking IO, decoder/worker lifetime boundaries and UI responsiveness during long serial engine operations are not fixed by this cache change. No UI layout, interaction, assets, dependencies, timeouts, retries or restarts are in scope.
+
+## 主干集成与 Intel 验收预算
+
+旧 head `9e1aaa80` 的 push run 39352494410 中，Windows、Linux、ARM、Rust/GPU 和 libav 均成功；Intel job 118399664195 在 Post rust-cache 清理阶段被取消。check 注释明确为超过 `1h0m0s` 上限，不能把完成主要构建步骤或其他平台成功称作整个 PR 已通过。
+
+同步 main `34d1d7ad862b10205bf16e8a606b839206fd57eb`（含 #360 下载源修正与 #364 Intel 90 分钟预算），合并提交 `e7e305edee3e85862e2ff60b4a476b6a3e1885ea`。相对于新 main，仍只有原六个功能及验收文件；没有改变分片实现、锁范围、错误/日志阈值或既有测试断言。新增主干内容不是本 PR 的重复功能认领。
+
+集成后的工作流策略检查 4 项通过（4.428 秒）；来源检查通过（1,531 个受跟踪路径）、面板样式消费者及差异检查通过。完整渲染回归使用独立的原验证 target 及 locked 依赖，最终结果记录在后续条目；重新推送后的精确 head 仍需完整远程平台验证，合集 #130 继续保持打开。
+
+最终 `cargo test -p motion-render --locked -- --test-threads=1` 退出 0：**291 passed、0 failed、1 项既有外部图片探针 ignored**，含 doctest 共 63 组结果，测试执行时间合计 427.60 秒。证据为 `artifacts/pr-queue/cache-shards-main-integration-render.log`。本次测试覆盖集成后完整渲染代码，而不只是工作流 YAML；计数增加来自主干既有回归，不认领为本 PR 新测试。没有修改忽略条件或断言。
