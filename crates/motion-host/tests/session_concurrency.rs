@@ -1,5 +1,6 @@
 use motion_core::Project;
 use motion_host::{session, Platform, Result, SurfaceTarget, VideoDecoder, VideoQuery};
+use motion_media::Result as MediaResult;
 use serde_json::{json, Value};
 use std::{
     path::Path,
@@ -169,8 +170,8 @@ impl Platform for Stub {
         _: &Path,
         _: Option<u32>,
         _: Option<u32>,
-        _: &dyn Fn() -> Result<()>,
-    ) -> Result<motion_media::VideoProbe> {
+        _: &dyn Fn() -> MediaResult<()>,
+    ) -> MediaResult<motion_media::VideoProbe> {
         panic!("empty project must not probe media")
     }
     fn open_decoder(
@@ -178,7 +179,7 @@ impl Platform for Stub {
         _: &Path,
         _: motion_core::VideoAsset,
         _: Vec<u64>,
-    ) -> Result<Box<dyn VideoDecoder>> {
+    ) -> MediaResult<Box<dyn VideoDecoder>> {
         panic!("empty project must not decode video")
     }
     fn decode_audio(
@@ -187,11 +188,11 @@ impl Platform for Stub {
         _: &Path,
         _: Option<u32>,
         _: u64,
-        _: &mut dyn FnMut(f64) -> Result<()>,
-    ) -> Result<motion_core::AudioAsset> {
+        _: &mut dyn FnMut(f64) -> MediaResult<()>,
+    ) -> MediaResult<motion_core::AudioAsset> {
         panic!("empty project must not decode audio")
     }
-    fn media_capabilities(&self, _: Option<&VideoQuery>) -> Result<Value> {
+    fn media_capabilities(&self, _: Option<&VideoQuery>) -> MediaResult<Value> {
         Ok(json!({}))
     }
     fn attach_surface(

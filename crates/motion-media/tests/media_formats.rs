@@ -143,7 +143,7 @@ fn unsupported_sources_and_cancelled_platform_fallbacks_never_commit() {
         &mut |_| Ok(())
     )
     .unwrap_err()
-    .contains("source clock"));
+    .to_string().contains("source clock"));
     let root = tempfile::tempdir().unwrap();
     let mut e = Engine::new(project()).unwrap();
     let decoder: motion_media::DecodeAudio = std::sync::Arc::new(|_, _, _, _, check| {

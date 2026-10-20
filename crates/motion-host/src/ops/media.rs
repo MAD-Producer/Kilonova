@@ -26,16 +26,16 @@ use std::{
 /// absolute paths. Both hand back a plain reader so the shared import pipeline
 /// never learns which platform it is running on.
 pub type Opener =
-    Box<dyn FnOnce() -> Result<(Box<dyn Read + Send>, Option<u64>)> + Send + 'static>;
+    Box<dyn FnOnce() -> motion_media::Result<(Box<dyn Read + Send>, Option<u64>)> + Send + 'static>;
 
 pub fn file_opener(path: PathBuf) -> Opener {
     Box::new(move || {
         let file = File::open(&path)
-            .map_err(|e| format!("open media {}: {e}", path.display()))?;
+            .map_err(|e| motion_media::Error::from(e).context(format!("open media {}", path.display())))?;
         let metadata = file.metadata()
-            .map_err(|e| format!("inspect media {}: {e}", path.display()))?;
+            .map_err(|e| motion_media::Error::from(e).context(format!("inspect media {}", path.display())))?;
         if !metadata.is_file() {
-            return Err(format!("media source is not a regular file: {}", path.display()));
+            return Err(format!("media source is not a regular file: {}", path.display()).into());
         }
         Ok((Box::new(file), Some(metadata.len())))
     })
@@ -184,7 +184,7 @@ pub fn request(id: i64, mut value: Value, open: Option<Opener>) -> Result<Value>
     let request: Request = serde_json::from_value(value).map_err(|e| e.to_string())?;
     match request {
         Request::MediaCapabilities { video_query } => crate::session::with_session(id, |s| {
-            s.platform().media_capabilities(video_query.as_ref())
+            s.platform().media_capabilities(video_query.as_ref()).map_err(Into::into)
         }),
         Request::ExportProject { request_id } => crate::session::with_session(id, |s| {
             if s.audio_jobs.contains(&request_id)
@@ -439,6 +439,7 @@ pub fn request(id: i64, mut value: Value, open: Option<Opener>) -> Result<Value>
         } => crate::session::with_session(id, |s| {
             s.video_frames
                 .request(s.engine.project(), &s.root, object, frame, sequence)
+                .map_err(Into::into)
         }),
         Request::ReleaseVideoFrames => crate::session::with_session(id, |s| {
             s.video_frames.clear();
@@ -703,6 +704,7 @@ pub fn request_frozen_video_frame(
         .ok_or("frozen video reader closed")?;
     r.frames
         .request(&r.project, &r.root, object, frame, sequence)
+        .map_err(Into::into)
 }
 
 pub fn read_frozen_video_frame_into(
@@ -719,7 +721,7 @@ pub fn read_frozen_video_frame_into(
     let r = readers
         .get(&handle)
         .ok_or("frozen video reader closed")?;
-    r.frames.frame(&r.project, object, sequence)
+    r.frames.frame(&r.project, object, sequence).map_err(Into::into)
 }
 
 /// Decode metadata for a single video frame, used by pixel readback hosts.
@@ -734,6 +736,7 @@ pub fn read_video_frame_into(
     crate::session::with_session(id, |s| {
         s.video_frames
             .frame(s.engine.project(), object, sequence)
+            .map_err(Into::into)
     })
 }
 
@@ -784,7 +787,7 @@ mod request_tests {
         assert!(super::file_opener(directory.path().to_path_buf())().is_err());
         let missing = directory.path().join("missing.wav");
         let error = super::file_opener(missing)().err().unwrap();
-        assert!(error.contains("missing.wav"));
+        assert!(error.to_string().contains("missing.wav"));
     }
     #[test]
     fn pixel_readback_reports_rgba_bytes_instead_of_native_yuv_cache_bytes() {

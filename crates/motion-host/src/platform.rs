@@ -106,5 +106,5 @@ pub trait Platform: Send + Sync {
         window: std::sync::Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         width: u32,
         height: u32,
-    ) -> Result<SurfaceTarget>;
+    ) -> crate::Result<SurfaceTarget>;
 }
