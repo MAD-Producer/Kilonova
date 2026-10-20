@@ -58,3 +58,13 @@
 | timeline 吸附线颜色 | retained with reason：不改拖动反馈。 |
 
 新增侧边栏/设置布局使用已有语义尺寸与颜色，没有新 token 或面板字面量尺寸。已有右键菜单的布局、颜色和浅色层级菜单保留，未声称完成旧样式整改。实际截图为 DPI 1；高 DPI、macOS/Linux 人工交互仍待验证。局部通过不等于 DESIGN 全项合规。
+
+## CI 前置修复接入（2026-10-20）
+
+同步父分支 #357 `e19a49b2aff0b71420cf5eeb477e071b51baf9d9`，集成提交 `b546464`。合并预演无冲突，实际相对原快捷键 head 仅七个上游文件：工作流、两个原生测试及四项文档/工具更新；未改快捷键映射、偏好界面、菜单或 token。原有 634 项完整桌面回归及原生截图属于前一 head 的证据，本次没有将其冒充新 head 全套重跑。
+
+本次只对实际变化完成定向组合验收：原生采样播放 **1 通过，40.68 秒**；中英文 PNG 导出生命周期 **1 通过，16.53 秒**；工作流 **5 通过，8.547 秒**。原生采样四种模式、每种 5 次预热与 60 次完成、严格递增断言及原有截止时间均保留。来源检查（1543 个跟踪路径）、面板样式引用检查和差异检查通过。证据在 `artifacts/pr-queue/shortcuts-ci-integration-{sampling,frame-export,workflow-discover}.log`；本机测试产物位于 `artifacts/custom-shortcuts/ci-integration/`。
+
+首次以 `python -m unittest tools.test_ci_workflow` 调用时，工具目录没有加入模块搜索路径，报 `ModuleNotFoundError: ci_release`；保留 `shortcuts-ci-integration-workflow.log`。改用仓库现有工具发现方式 `unittest discover -s tools -p test_ci_workflow.py` 后通过，未改测试或断言。没有为本次仅上游测试/工作流集成重拍旧界面；高 DPI、其他平台人工操作和最终远程 CI 仍待验证。
+
+依赖顺序为 #368 → #357 → #362；父 PR 合入 main 后再核对并调整子 PR base。#349 已知 keyboard.rs/types.rs 集成冲突仍待处理，默认 U/UU 与改键后动画命令的组合不能靠机械选择冲突一侧完成。
