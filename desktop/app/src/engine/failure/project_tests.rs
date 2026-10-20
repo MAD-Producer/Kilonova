@@ -2,6 +2,124 @@
 use super::*;
 
 #[test]
+fn recovered_plugin_settings_reach_default_file_and_stderr_without_polling_noise() {
+    const CHILD: &str = "MOTION_PLUGIN_SETTINGS_LOG_CHILD";
+    const SITE: &str = "site=host.registry.load";
+    const TEST: &str = "engine::failure::project_tests::recovered_plugin_settings_reach_default_file_and_stderr_without_polling_noise";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = PathBuf::from(root);
+        let mode = std::env::var("MOTION_PLUGIN_SETTINGS_CASE").unwrap();
+        let _logger = crate::logging::init(root.clone()).unwrap();
+        let project = motion_core::Project::new(64, 64, 30, 120).unwrap();
+        let project_root = root.join("library/default");
+        let plugins = root.join("library/plugins");
+        let settings = plugins.join("disabled.json");
+        motion_core::storage::save(&project_root, &project).unwrap();
+        std::fs::create_dir(&plugins).unwrap();
+        let original = match mode.as_str() {
+            "missing" => None,
+            "valid" => Some(b"[]".to_vec()),
+            "damaged" => Some(b"[[\"unfinished settings".to_vec()),
+            "oversized" => Some(vec![b' '; 512 * 1024 + 1]),
+            "directory" => {
+                std::fs::create_dir(&settings).unwrap();
+                std::fs::write(settings.join("keep"), b"preserved").unwrap();
+                None
+            }
+            _ => panic!("unknown controlled fixture"),
+        };
+        if let Some(bytes) = &original {
+            std::fs::write(&settings, bytes).unwrap();
+        }
+        let engine = Engine::start(
+            project_root.clone(),
+            motion_desktop_media::platform(),
+            8 << 30,
+        )
+        .unwrap();
+        let catalogue = engine.plugin(r#"{"op":"catalogue"}"#.into()).unwrap();
+        let expected_errors = usize::from(!matches!(mode.as_str(), "missing" | "valid"));
+        assert_eq!(
+            catalogue["errors"].as_array().unwrap().len(),
+            expected_errors
+        );
+        assert!(!catalogue["packages"].as_array().unwrap().is_empty());
+        let before = engine.state().unwrap();
+        for _ in 0..120 {
+            assert_eq!(engine.state().unwrap()["project"], before["project"]);
+        }
+        assert!(!engine.failed());
+        assert_eq!(motion_core::storage::load(&project_root).unwrap(), project);
+        if let Some(bytes) = &original {
+            assert_eq!(std::fs::read(&settings).unwrap(), *bytes);
+        }
+        if mode == "missing" {
+            assert!(!settings.exists());
+        }
+        if mode == "directory" {
+            assert_eq!(std::fs::read(settings.join("keep")).unwrap(), b"preserved");
+        }
+        drop(engine);
+        // Explicitly repair only our fixture and reopen: no diagnostic is retained.
+        if mode == "directory" {
+            std::fs::remove_file(settings.join("keep")).unwrap();
+            std::fs::remove_dir(&settings).unwrap();
+        }
+        std::fs::write(&settings, b"[]").unwrap();
+        let repaired =
+            Engine::start(project_root, motion_desktop_media::platform(), 8 << 30).unwrap();
+        assert!(
+            repaired.plugin(r#"{"op":"catalogue"}"#.into()).unwrap()["errors"]
+                .as_array()
+                .unwrap()
+                .is_empty()
+        );
+        drop(repaired);
+        return;
+    }
+    for mode in ["missing", "valid", "damaged", "oversized", "directory"] {
+        let root = tempfile::tempdir().unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", TEST, "--nocapture", "--test-threads=1"])
+            .env(CHILD, root.path())
+            .env("MOTION_PLUGIN_SETTINGS_CASE", mode)
+            .env_remove("MOTION_LOG")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{mode}\n{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let file = std::fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        let stdout = String::from_utf8(output.stdout).unwrap();
+        assert!(file.contains("logging initialized level=INFO"));
+        let expected = usize::from(!matches!(mode, "missing" | "valid"));
+        assert_eq!(file.matches(SITE).count(), expected, "{mode}\n{file}");
+        assert_eq!(stderr.matches(SITE).count(), expected, "{mode}\n{stderr}");
+        assert!(!stdout.contains(SITE) && !stdout.contains("logging initialized"));
+        if expected != 0 {
+            let record = file.lines().find(|line| line.contains(SITE)).unwrap();
+            for field in [
+                "ERROR",
+                "operation=registry_load",
+                "elapsed_ms=",
+                "diagnostics=1",
+                "disabled.json",
+                "file was preserved",
+            ] {
+                assert!(record.contains(field), "{mode}: missing {field}: {record}");
+            }
+            assert!(record.len() < 4096);
+            assert!(file.find("worker startup phase=session").unwrap() < file.find(SITE).unwrap());
+            assert!(stderr.contains("disabled.json") && stderr.contains("file was preserved"));
+        }
+    }
+}
+
+#[test]
 fn real_save_publication_failure_reaches_reply_file_and_stderr() {
     const CHILD: &str = "MOTION_PROJECT_PUBLICATION_LOG_CHILD";
     if let Some(root) = std::env::var_os(CHILD) {

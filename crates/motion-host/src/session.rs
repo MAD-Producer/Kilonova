@@ -27,6 +27,7 @@ use std::{
 
 pub type Result<T> = std::result::Result<T, String>;
 
+mod registry_observation;
 mod last_error_observation;
 mod resource_observation;
 pub(crate) mod metadata_observation;
@@ -149,7 +150,7 @@ impl Session {
             .parent()
             .ok_or("project directory has no parent")?
             .join("plugins");
-        let mut registry=motion_effects::Registry::load(&plugin_root).map_err(|e|e.to_string())?;
+        let mut registry=registry_observation::load(&plugin_root).map_err(|e|e.to_string())?;
         crate::node_effects::restore(project,&mut registry)?;
         let effects = motion_render::effect_plan::PlanBuilder::new(registry)?;
         let video_jobs = VideoJobs::with_audio_decoder(root.clone(), audio_decoder(&platform))?;
@@ -871,6 +872,7 @@ fn audio_decoder(platform: &Arc<dyn Platform>) -> motion_media::DecodeAudio {
 pub fn with_session<T>(id: i64, operation: impl FnOnce(&mut Session) -> Result<T>) -> Result<T> {
     let began = Instant::now();
     let _metadata_scope = metadata_observation::Scope::enter();
+    let _registry_scope = registry_observation::Scope::enter(id);
     let mut registry = sessions().lock().unwrap_or_else(|e| e.into_inner());
     let session = registry.get_mut(&id).ok_or("native session is closed")?;
     session.check_thread()?;
