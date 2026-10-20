@@ -144,6 +144,9 @@ fn property_keys_filter_and_append_without_editing_and_u_omits_static_channels()
         rows.iter().map(|r| r.property).collect::<Vec<_>>(),
         [Property::Position, Property::Opacity]
     );
+    // This existing scenario covers a later independent single U, rather than
+    // the newly supported immediate UU pair. Keep its collapse assertion.
+    panels.property_reveal.interrupt();
     invoke(&mut panels, &state, Key::U, Modifiers::default());
     assert!(!panels.timeline.expanded.contains(&7));
     assert!(invoke(

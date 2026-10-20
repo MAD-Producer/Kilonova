@@ -53,16 +53,6 @@ fn entries(
         entries(n, object, t, animated, depth + 1, out);
     }
 }
-fn tree(row: &Row, frame: f64, locale: Locale) -> Option<parameters::Node> {
-    row.vector.as_ref().map(|v| {
-        parameters::tree(
-            v,
-            row.vector_size,
-            frame - f64::from(row.mask_offset),
-            locale,
-        )
-    })
-}
 pub(in crate::panels) fn key_frames(vector: &VectorContent, size: [f32; 2]) -> Vec<i32> {
     fn gather(n: &parameters::Node, out: &mut Vec<i32>) {
         for p in &n.parameters {
@@ -86,15 +76,11 @@ pub(in crate::panels) struct Rows {
 }
 impl Rows {
     pub fn new(row: &Row, t: &TimelineState, frame: f64, locale: Locale) -> Self {
-        let Some(tree) = tree(row, frame, locale) else {
+        let filter = t.filters.get(&row.id).copied().unwrap_or_default();
+        let Some(tree) = row.vector.as_ref().and_then(|v| parameters::filtered_tree(
+            v, row.vector_size, frame - f64::from(row.mask_offset), locale, filter)) else {
             return Self::default();
         };
-        let filter = t.filters.get(&row.id).copied().unwrap_or_default();
-        if matches!(filter, PropertyFilter::Properties(_))
-            || (filter == PropertyFilter::Animated && !tree.animated())
-        {
-            return Self::default();
-        }
         let mut rows = Self {
             root: Some(tree.id),
             open: t.vector_open.contains(&(row.id, 0, 0)),
@@ -105,7 +91,7 @@ impl Rows {
                 tree,
                 row.id,
                 t,
-                filter == PropertyFilter::Animated,
+                false,
                 0,
                 &mut rows.entries,
             );
@@ -121,32 +107,32 @@ pub(in crate::panels) fn row_count(row: &Row, t: &TimelineState) -> usize {
     Rows::new(row, t, 0., Locale::En).len()
 }
 pub(in crate::panels) fn reveal_animated(panels: &mut Panels, state: &Value, object: u64) {
+    reveal(panels, state, object, PropertyFilter::Animated);
+}
+pub(in crate::panels) fn reveal(panels: &mut Panels, state: &Value, object: u64, filter: PropertyFilter) {
     let Some(l) = super::super::layer(state, object) else {
         return;
     };
     let Content::Vector { vector } = &l.content else {
         return;
     };
-    let tree = parameters::tree(
+    let Some(tree) = parameters::filtered_tree(
         vector,
         l.size,
         l.local_frame(state["frame"].as_f64().unwrap_or(0.)),
         panels.locale,
-    );
+        filter,
+    ) else { return; };
     fn open(n: &parameters::Node, object: u64, t: &mut TimelineState) {
-        if !n.animated() {
-            return;
-        }
         t.vector_open.insert((object, n.id, n.tag));
         for c in &n.children {
             open(c, object, t);
         }
     }
-    if tree.animated() {
-        panels.timeline.vector_open.insert((object, 0, 0));
-        open(&tree, object, &mut panels.timeline);
-        panels.timeline.set_graph_mode(false);
-    }
+    panels.timeline.vector_open.insert((object, 0, 0));
+    open(&tree, object, &mut panels.timeline);
+    panels.path_controls.groups.reveal_tree(object, &tree);
+    panels.timeline.set_graph_mode(false);
 }
 pub(in crate::panels) fn render(
     list: &mut PaintList,
