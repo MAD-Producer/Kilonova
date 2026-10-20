@@ -81,3 +81,34 @@ results keep their original source scope. No new full-suite, native capture,
 packaged video or other-platform manual run is claimed. After #365 reaches
 main, recheck the real squash/main tree before updating this existing PR and
 requiring its own fresh remote checks. No remote head was changed in this step.
+
+## Actual main cache and registry integration — 2026-10-20
+
+Local source commit `76fb32ba1d811c822419482601ab3cc7a61c72a5` has tree
+`b359aeeb000a3ba067224e6b0ba57ee6efc0a39e` and incorporates actual main `44a5a0d2a9f8bc8d28ee66de786a17488c66cf33`.
+The clean preview and actual merge agree. Exactly fourteen inherited paths
+match the already merged cache, dependency-walk and session-registry blobs;
+every other blob matches the prior held candidate. No remote head changed.
+
+Fresh default-level acceptance passed 14 targeted cases:
+
+- host: 9 passed, zero failures/ignores, 7.01 seconds; `366-main-host.log`
+- desktop: 5 passed, zero failures/ignores, 18.73 seconds; `366-main-desktop.log`
+
+The nine host cases cover alignment/distribution geometry, whole-batch
+rejection, local-time animation and history/storage behavior. The five
+desktop cases cover bilingual controls in both hosts, actual worker
+failure/recovery and the position-component regression. No feature,
+layout, menu, token or assertion was changed by this integration.
+
+Provenance (1,566 tracked paths), style-consumer and whitespace guards
+passed on the source integration. Exact-head integration and acceptance
+records are `366-current-main-{integration,acceptance}.json` under
+`.tools/issue-closure-review`. Builds, temporary files and logs remain on E;
+`MOTION_LOG` was unset. This following commit changes only this document.
+
+The candidate is still unpublished. Actual parent squash reconciliation,
+final PR base/head verification and all six final-head checks remain
+required. Historical screenshots keep their original source scope; this
+update claims no new full-suite, physical-input/DPI, cross-platform manual
+or packaged-video execution.
