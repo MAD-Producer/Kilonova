@@ -4,24 +4,24 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-// Fixed process-lifetime counter: healthy IO and clear_poison do not reset it.
+// Fixed process-lifetime counter across all shards: healthy IO and clear_poison do not reset it.
 static RECOVERIES: AtomicUsize = AtomicUsize::new(0);
 
-/// Declare before CACHE_LOCK's guard so normal and unwinding drops log unlocked.
+/// Declare before the cache shard guard so normal and unwinding drops log unlocked.
 #[derive(Default)]
 pub(super) struct Events {
-    recovery: Option<usize>,
+    recovery: Option<(usize, usize)>,
     cleanup: Option<String>,
 }
 impl Events {
-    pub(super) fn recovered(&mut self) {
+    pub(super) fn recovered(&mut self, shard: usize) {
         let previous = RECOVERIES
             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| {
                 Some(n.saturating_add(1))
             })
             .unwrap_or_else(|n| n);
         if previous == 0 || previous == 59 {
-            self.recovery = Some(previous.saturating_add(1));
+            self.recovery = Some((previous.saturating_add(1), shard));
         }
     }
     pub(super) fn cleanup_failed(&mut self, path: &Path, error: &std::io::Error) {
@@ -30,8 +30,8 @@ impl Events {
 }
 impl Drop for Events {
     fn drop(&mut self) {
-        if let Some(count) = self.recovery {
-            let context = format_args!("image proxy cache lock recovered site=image_proxy.lock lifetime_count={count} reason=poisoned_mutex recovery=into_inner clear_poison=true cached_bytes=validated");
+        if let Some((count, shard)) = self.recovery {
+            let context = format_args!("image proxy cache lock recovered site=image_proxy.lock lifetime_count={count} shard={shard} reason=poisoned_mutex recovery=into_inner clear_poison=true cached_bytes=validated");
             if count == 1 {
                 log::warn!("{context}");
             } else {
