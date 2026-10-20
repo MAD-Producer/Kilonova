@@ -147,6 +147,188 @@ fn subdivision_preserves_matching_temporal_curves_at_fractional_frames() {
     }
 }
 #[test]
+fn independent_animation_clocks_preserve_all_authored_poses_and_endpoint_timing() {
+    for mask in [false, true] {
+        for closed in [false, true] {
+            for index in 0..if closed { 3 } else { 2 } {
+                let mut l = layer(mask, closed);
+                l.timeline = Some(motion_core::LayerTimeline {
+                    in_frame: 0,
+                    out_frame: 120,
+                    offset_frame: 12,
+                });
+                let mut animated = path(closed);
+                for (i, node) in animated.nodes.iter_mut().enumerate() {
+                    for (frame, delta) in [
+                        (-8 + i as i32, 0.),
+                        (13 + i as i32 * 2, 90.),
+                        (41 + i as i32 * 3, -50.),
+                    ] {
+                        let mut g = node.geometry.value;
+                        g[0] += delta;
+                        g[1] -= delta * 0.7;
+                        node.geometry
+                            .upsert(frame, g, if i == 1 { Ease::Hold } else { Ease::InOut })
+                            .unwrap();
+                    }
+                    if i == 2 {
+                        node.geometry.keys[0].curve = Some(motion_core::Curve {
+                            space: motion_core::CurveSpace::Progress,
+                            shape: motion_core::CurveShape::Cubic {
+                                control1: [0.2, 0.1],
+                                control2: [0.7, 0.9],
+                                start: 0.,
+                                end: 1.,
+                            },
+                        });
+                    }
+                }
+                if mask {
+                    l.masks[0].path = animated.clone();
+                } else {
+                    l.content = Content::Vector {
+                        vector: new_vector(animated.clone()),
+                    };
+                }
+                let mut project = Project::new(640, 480, 30, 120).unwrap();
+                project.layers.push(l);
+                let mut engine = Engine::new(project.clone()).unwrap();
+                let t = 0.37;
+                engine
+                    .apply(
+                        command(
+                            &engine.project().layers[0],
+                            point(mask, animated.nodes[index].id),
+                            Edit::Add {
+                                next: animated.nodes[(index + 1) % 3].id,
+                                t,
+                            },
+                            30,
+                        )
+                        .unwrap(),
+                    )
+                    .unwrap();
+                let after = target(&engine.project().layers[0], mask);
+                let expected: std::collections::BTreeSet<_> = animated
+                    .nodes
+                    .iter()
+                    .flat_map(|n| n.geometry.keys.iter().map(|k| k.frame))
+                    .chain([18])
+                    .collect();
+                let middle = &after.nodes[index + 1].geometry;
+                assert_eq!(
+                    middle
+                        .keys
+                        .iter()
+                        .map(|k| k.frame)
+                        .collect::<std::collections::BTreeSet<_>>(),
+                    expected
+                );
+                for frame in expected {
+                    shape_equal(&animated, after, index, t, f64::from(frame));
+                }
+                for old in &animated.nodes {
+                    let new = after.nodes.iter().find(|n| n.id == old.id).unwrap();
+                    if old.id != animated.nodes[index].id
+                        && old.id != animated.nodes[(index + 1) % 3].id
+                    {
+                        assert_eq!(new, old);
+                        continue;
+                    }
+                    assert_eq!(new.geometry.keys.len(), old.geometry.keys.len());
+                    let untouched = if old.id == animated.nodes[index].id {
+                        2..4
+                    } else {
+                        4..6
+                    };
+                    assert_eq!(
+                        new.geometry.value[untouched.clone()],
+                        old.geometry.value[untouched.clone()]
+                    );
+                    for (a, b) in old.geometry.keys.iter().zip(&new.geometry.keys) {
+                        assert_eq!(
+                            (a.frame, a.ease, a.curve, &a.spatial),
+                            (b.frame, b.ease, b.curve, &b.spatial)
+                        );
+                        assert_eq!(&a.value[..2], &b.value[..2]);
+                        assert_eq!(a.value[untouched.clone()], b.value[untouched.clone()]);
+                    }
+                }
+                for pair in middle.keys.windows(2) {
+                    assert_eq!(pair[0].ease, Ease::Linear);
+                    assert_eq!(pair[0].curve, None);
+                    let frame = f64::from(pair[0].frame)
+                        + (f64::from(pair[1].frame) - f64::from(pair[0].frame)) * 0.5;
+                    let actual = middle.sample(frame);
+                    for (axis, value) in actual.into_iter().enumerate() {
+                        assert!(
+                            (value - (pair[0].value[axis] + pair[1].value[axis]) * 0.5).abs()
+                                < 0.0001
+                        );
+                    }
+                }
+                // Adding again must accept the newly generated vertex's distinct clock.
+                let mut twice = after.clone();
+                edit_path(
+                    &mut twice,
+                    animated.nodes[index].id,
+                    Edit::Add { next: 100, t: 0.5 },
+                    18,
+                )
+                .unwrap();
+                for k in &middle.keys {
+                    shape_equal(after, &twice, index, 0.5, f64::from(k.frame));
+                }
+                let changed = engine.project().clone();
+                let dir = tempfile::tempdir().unwrap();
+                motion_core::storage::save(dir.path(), &changed).unwrap();
+                assert_eq!(motion_core::storage::load(dir.path()).unwrap(), changed);
+                assert!(engine.undo().unwrap());
+                assert_eq!(engine.project(), &project);
+                assert!(engine.redo().unwrap());
+                assert_eq!(engine.project(), &changed);
+            }
+        }
+    }
+}
+
+#[test]
+fn independent_clock_union_obeys_key_budget_without_partial_mutation() {
+    let mut l = layer(false, false);
+    let Content::Vector { vector } = &mut l.content else {
+        panic!()
+    };
+    let VectorSource::Paths { paths } = &mut vector.source else {
+        panic!()
+    };
+    let count = motion_core::MAX_FRAMES as i32;
+    for (i, node) in paths[0].nodes.iter_mut().take(2).enumerate() {
+        node.geometry.keys = (0..count)
+            .filter(|frame| frame % 2 == i as i32)
+            .map(|frame| motion_core::Keyframe {
+                frame,
+                value: node.geometry.value,
+                ease: Ease::Linear,
+                curve: None,
+                spatial: None,
+            })
+            .collect();
+        node.geometry.validate_local().unwrap();
+    }
+    // Each endpoint is valid; their union plus a new local edit frame exceeds one track.
+    let before = l.clone();
+    let error = command(
+        &l,
+        point(false, 11),
+        Edit::Add { next: 42, t: 0.5 },
+        motion_core::MAX_FRAMES,
+    )
+    .unwrap_err();
+    assert!(error.to_string().contains("new vertex keyframe budget"));
+    assert_eq!(l, before);
+}
+
+#[test]
 fn stale_or_unrepresentable_edits_are_rejected_without_mutating_authored_data() {
     let mut l = layer(false, false);
     let before = l.clone();
@@ -172,14 +354,10 @@ fn stale_or_unrepresentable_edits_are_rejected_without_mutating_authored_data() 
     let VectorSource::Paths { paths } = &mut vector.source else {
         panic!()
     };
-    for (i, node) in paths[0].nodes.iter_mut().take(2).enumerate() {
-        node.geometry
-            .upsert(i as i32, node.geometry.value, Ease::Linear)
-            .unwrap();
-    }
+    paths[0].nodes[2].id = u64::MAX;
     let before = l.clone();
     let error = command(&l, point(false, 11), Edit::Add { next: 42, t: 0.5 }, 0).unwrap_err();
-    assert!(error.to_string().contains("matching endpoint key times"));
+    assert!(error.to_string().contains("pen node ID overflow"));
     assert_eq!(l, before);
 }
 #[test]
@@ -614,11 +792,7 @@ fn rejection_reaches_default_file_and_error_stderr_with_threshold_suppression_an
         let VectorSource::Paths { paths } = &mut vector.source else {
             panic!()
         };
-        for (i, n) in paths[0].nodes.iter_mut().take(2).enumerate() {
-            n.geometry
-                .upsert(i as i32, n.geometry.value, Ease::Linear)
-                .unwrap();
-        }
+        paths[0].nodes[2].id = u64::MAX;
         h.engine = Engine::new(project.clone()).unwrap();
         h.controls.pen_tools.mode = Mode::Add;
         let path = target(&project.layers[0], false);
@@ -649,7 +823,7 @@ fn rejection_reaches_default_file_and_error_stderr_with_threshold_suppression_an
             .notice
             .as_deref()
             .unwrap()
-            .contains("matching endpoint key times"));
+            .contains("pen node ID overflow"));
         // A normal miss starts a fresh consecutive-attempt observation window.
         let blank = h.screen([160., 100.]);
         h.press(blank);
