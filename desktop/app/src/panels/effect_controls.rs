@@ -39,6 +39,7 @@ fn context_row(card: Rect, width: f32, row: f32, index: usize) -> Rect {
 
 #[derive(Default)]
 pub struct Controls {
+    pub(super) property_filter: super::types::PropertyFilter,
     pub(crate) selection_probe: super::property_focus::HitProbe,
     pub(super) expressions: super::expressions::Controls,
     pub catalogue: std::sync::Arc<Value>,
@@ -217,6 +218,13 @@ fn dimensions(kind: &str) -> usize {
     }
 }
 impl Controls {
+    pub(super) fn reveal_properties(&mut self, state: &Value, object: u64) {
+        for effect in state["project"]["layers"].as_array().into_iter().flatten()
+            .filter(|layer| layer["id"] == object)
+            .flat_map(|layer| layer["effects"].as_array().into_iter().flatten()) {
+            if let Some(id) = effect["id"].as_u64() { self.collapsed_effects.remove(&id); }
+        }
+    }
     pub fn editing(&self) -> bool {
         self.expressions.editing()
             || self.field.is_some()
@@ -1156,8 +1164,13 @@ impl Controls {
             .flatten()
             .enumerate()
         {
-            *y += styles.metric("effect.group.gap", 8.);
             let id = effect["id"].as_u64().unwrap();
+            if matches!(self.property_filter,super::types::PropertyFilter::Properties(_))
+                || self.property_filter == super::types::PropertyFilter::Animated
+                    && !effect["params"].as_object().into_iter().flatten().any(|(name,parameter)|
+                        super::modified_properties::effect_parameter_visible(self.property_filter,parameter,state,object,id,name))
+            { continue; }
+            *y += styles.metric("effect.group.gap", 8.);
             let Some(def) = observe!(
                 "effects.definition",
                 self.definition(effect).ok_or("no matching definition"),
@@ -1346,6 +1359,8 @@ impl Controls {
             parameters.sort_by_key(|parameter| parameter["kind"] == "curve");
             for parameter in parameters {
                 let param = parameter["id"].as_str().unwrap();
+                if !super::modified_properties::effect_parameter_visible(
+                    self.property_filter,&effect["params"][param],state,object,id,param) { continue; }
                 let kind = parameter["kind"].as_str().unwrap_or("float");
                 let implemented = parameter["implemented"].as_bool().unwrap_or(true);
                 let name = parameter["name"].as_str().unwrap_or(param);

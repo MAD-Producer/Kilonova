@@ -398,6 +398,7 @@ pub(crate) fn command_name(locale: Locale, command: Command) -> String {
         EnterGroup => ("进入节点组", "Enter group"),
         LeaveGroup => ("返回父图", "Leave group"),
         AnimatedProperties => ("显示动画属性", "Reveal animated properties"),
+        ModifiedProperties => ("显示已修改属性", "Reveal modified properties"),
         PreviousKey => ("上一个关键帧", "Previous keyframe"),
         NextKey => ("下一个关键帧", "Next keyframe"),
         ToggleGraph => ("切换值曲线", "Toggle value graph"),

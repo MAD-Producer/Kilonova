@@ -7,6 +7,34 @@ use motion_ui::input::Modifiers;
 mod property_focus_tests;
 
 #[test]
+fn modified_properties_audio_filter_keeps_layout_and_visible_controls_in_sync() {
+    use crate::panels::{timeline, timeline_layout::LayerRows, types::PropertyFilter};
+    for locale in [Locale::Zh, Locale::En] { for floating in [false,true] {
+        let mut h=Harness::new(floating,locale);
+        h.panels.focused=Some(Panel::Timeline);
+        for command in [
+            Command::SetAudio {object:7,volume:Some(0.5),muted:None},
+            Command::AudioLevels {object:7,action:AudioLevelsAction::Set {channel:AudioChannel::Left,frame:20,value:-6.,animated:Some(false)}},
+            Command::AudioLevels {object:7,action:AudioLevelsAction::Set {channel:AudioChannel::Right,frame:20,value:0.,animated:Some(true)}},
+        ] { h.state=h.engine.edit(serde_json::to_string(&command).unwrap()).unwrap(); }
+        let before=h.state["project"].clone();
+        assert!(h.draw(Input::default()).is_empty());
+        let input=Input {keys:vec![(Key::U,Default::default())],..Default::default()};
+        assert!(h.draw(input.clone()).is_empty());
+        assert_eq!(h.panels.timeline.filters[&7],PropertyFilter::Animated);
+        let row=timeline::rows(&h.state).into_iter().find(|r|r.id==7).unwrap();
+        assert_eq!(LayerRows::new(&row,&h.panels.timeline,20.,locale).audio.len(),2);
+        assert_eq!(filtered_controls(&h.state["project"]["layers"][0],PropertyFilter::Animated),[Control::Right]);
+        assert!(h.draw(input).is_empty());
+        assert_eq!(h.panels.timeline.filters[&7],PropertyFilter::Modified);
+        assert_eq!(LayerRows::new(&row,&h.panels.timeline,20.,locale).audio.len(),4);
+        assert_eq!(filtered_controls(&h.state["project"]["layers"][0],PropertyFilter::Modified),[Control::Gain,Control::Left,Control::Right]);
+        assert_eq!(h.state["project"],before);
+        assert_eq!(h.engine.state().unwrap()["project"],before);
+    }}
+}
+
+#[test]
 fn audio_navigation_buttons_preserve_the_other_channel_in_both_native_hosts() {
     for locale in [Locale::Zh, Locale::En] { for floating in [false, true] {
         let mut h = Harness::new(floating, locale);

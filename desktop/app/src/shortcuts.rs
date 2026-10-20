@@ -68,6 +68,7 @@ pub enum Command {
     LeaveGroup,
     Reveal(motion_core::Property),
     AnimatedProperties,
+    ModifiedProperties,
     PreviousKey,
     NextKey,
     ToggleGraph,

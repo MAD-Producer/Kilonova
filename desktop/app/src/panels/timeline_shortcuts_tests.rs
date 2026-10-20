@@ -70,6 +70,58 @@ fn custom_property_reveal_and_navigation_use_new_chords_and_keep_text_owner_prio
 }
 
 #[test]
+fn custom_animated_property_chords_preserve_double_press_and_input_ownership() {
+    use crate::shortcuts::{bindings::Bindings, Command as Shortcut, Scope};
+    use motion_ui::input::KeyChord;
+    let engine = engine();
+    let history = (engine.can_undo(), engine.can_redo());
+    let state = state(&engine, 32.);
+    for locale in [Locale::En, Locale::Zh] {
+        for host in [Panel::Timeline, Panel::Properties, Panel::Curves, Panel::Composition] {
+            for chord in [KeyChord::new(Key::Q, false, false, false),
+                KeyChord::new(Key::F4, true, false, false)] {
+                let mut panels = panels();
+                panels.locale = locale;
+                panels.focused = Some(host);
+                let mut bindings = Bindings::default();
+                bindings.bind(Scope::Animation, Shortcut::AnimatedProperties, Some(chord)).unwrap();
+                panels.shortcut_bindings = std::sync::Arc::new(bindings);
+                assert!(invoke(&mut panels, &state, Key::U, Modifiers::default()).is_empty());
+                assert!(!panels.timeline.filters.contains_key(&7));
+                assert!(invoke(&mut panels, &state, chord.key, chord.modifiers).is_empty());
+                assert_eq!(panels.timeline.filters[&7], types::PropertyFilter::Animated);
+                assert!(invoke(&mut panels, &state, chord.key, chord.modifiers).is_empty());
+                assert_eq!(panels.timeline.filters[&7], types::PropertyFilter::Modified,
+                    "the effective animated-property chord must retain UU semantics");
+
+                // An autorepeat interrupts a pair, as it does for the default U.
+                let mut out = Vec::new();
+                keyboard::route(&Input {
+                    keys: vec![(chord.key, chord.modifiers)],
+                    key_repeats: vec![true],
+                    ..Default::default()
+                }, &mut panels, &state, false, None, &mut out);
+                assert!(out.is_empty());
+                assert!(invoke(&mut panels, &state, chord.key, chord.modifiers).is_empty());
+                assert_eq!(panels.timeline.filters[&7], types::PropertyFilter::Animated);
+
+                // A text owner consumes this chord and cancels the pending pair.
+                panels.project.search = true;
+                assert!(invoke(&mut panels, &state, chord.key, chord.modifiers).is_empty());
+                assert_eq!(panels.timeline.filters[&7], types::PropertyFilter::Animated);
+                panels.project.search = false;
+                assert!(invoke(&mut panels, &state, chord.key, chord.modifiers).is_empty());
+                assert_eq!(panels.timeline.filters[&7], types::PropertyFilter::Properties(0),
+                    "a fresh single press toggles the existing animated filter closed");
+                assert!(invoke(&mut panels, &state, chord.key, chord.modifiers).is_empty());
+                assert_eq!(panels.timeline.filters[&7], types::PropertyFilter::Modified);
+                assert_eq!((engine.can_undo(), engine.can_redo()), history);
+            }
+        }
+    }
+}
+
+#[test]
 fn custom_select_all_routes_the_graph_selection_and_disables_its_old_chord() {
     use crate::shortcuts::{bindings::Bindings,Command as Shortcut,Scope};
     let engine=engine();let history=(engine.can_undo(),engine.can_redo());let state=state(&engine,32.);let mut panels=panels();
@@ -184,6 +236,9 @@ fn property_keys_filter_and_append_without_editing_and_u_omits_static_channels()
         rows.iter().map(|r| r.property).collect::<Vec<_>>(),
         [Property::Position, Property::Opacity]
     );
+    // This existing scenario covers a later independent single U, rather than
+    // the newly supported immediate UU pair. Keep its collapse assertion.
+    panels.property_reveal.interrupt();
     invoke(&mut panels, &state, Key::U, Modifiers::default());
     assert!(!panels.timeline.expanded.contains(&7));
     assert!(invoke(

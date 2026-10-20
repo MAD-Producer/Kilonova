@@ -79,6 +79,17 @@ pub fn route(
     owner: Option<Panel>,
     out: &mut Vec<Action>,
 ) -> bool {
+    if input.focus_lost || input.composing || input.ime_consumed
+        || input.pressed.is_some() || input.wheel != [0.; 2] || text_active(panels) || node_context
+        || panels.menu.is_some() || panels.panel_menu.is_some()
+        || panels.timeline.timeline_context_menu.is_some()
+        || panels.project.context_menu.is_some() || panels.effect_search.is_some()
+        || panels.node_editor.popup_open() || panels.layer_actions.modal_in(owner)
+        || panels.layer_actions.text_in(owner) || panels.layer_actions.modal_in(Some(Panel::Timeline))
+        || panels.layer_actions.text_in(Some(Panel::Timeline))
+    {
+        panels.property_reveal.interrupt();
+    }
     super::property_focus::settle(panels);
     if let Some(search) = &panels.effect_search {
         let owned = search.owner == owner;
@@ -211,17 +222,18 @@ pub fn route(
                     panels.node_preview.toggle();
                     return true;
                 }
-                handle_context_shortcuts(input, panels, state, out, true);
+                handle_context_shortcuts(input, panels, state, out, true, owner);
             }
         } else {
-            handle_shortcuts(input, panels, state, out);
+            handle_context_shortcuts(input, panels, state, out, false, owner);
         }
     }
     false
 }
 
+#[cfg(test)]
 pub fn handle_shortcuts(input: &Input, panels: &mut Panels, state: &Value, out: &mut Vec<Action>) {
-    handle_context_shortcuts(input, panels, state, out, false);
+    handle_context_shortcuts(input, panels, state, out, false, None);
 }
 
 fn handle_context_shortcuts(
@@ -230,9 +242,20 @@ fn handle_context_shortcuts(
     state: &Value,
     out: &mut Vec<Action>,
     node_context: bool,
+    owner: Option<Panel>,
 ) {
     let mut frame = state["frame"].as_f64().unwrap_or(0.0);
     for (key, modifiers, repeat) in input.key_presses() {
+        let property_reveal = panels.shortcut_bindings.resolve(
+            Scope::Animation, key, modifiers, false,
+        ) == Some(Command::AnimatedProperties);
+        if property_reveal && repeat {
+            panels.property_reveal.interrupt();
+            continue;
+        }
+        if !property_reveal {
+            panels.property_reveal.interrupt();
+        }
         // Document edits and canvas navigation remain owned by the node scope.
         // These application actions have no competing node action.
         if node_context {
@@ -271,7 +294,21 @@ fn handle_context_shortcuts(
                 | Panel::EffectControls | Panel::Masks | Panel::Vector | Panel::Audio))
                 && panels.animation_controls.track_selection(state, panels.selected)
                     == super::animation_controls::TrackSelection::Invalid;
-        if let Some(command) = panels.shortcut_bindings.resolve(Scope::Animation, key, modifiers, repeat) {
+        if let Some(mut command) = panels.shortcut_bindings.resolve(Scope::Animation, key, modifiers, repeat) {
+            if command == Command::AnimatedProperties && matches!(panels.focused,
+                Some(Panel::Timeline | Panel::Curves | Panel::Properties | Panel::Composition)) {
+                use std::hash::{Hash, Hasher};
+                let mut context = std::collections::hash_map::DefaultHasher::new();
+                state["root"].as_str().hash(&mut context);
+                state["composition"].as_str().hash(&mut context);
+                panels.selected.hash(&mut context);
+                panels.selected_layers.hash(&mut context);
+                panels.focused.map(|panel| panel.dock().0).hash(&mut context);
+                owner.map(|panel| panel.dock().0).hash(&mut context);
+                if panels.property_reveal.press(context.finish(), std::time::Instant::now()) {
+                    command = Command::ModifiedProperties;
+                }
+            }
             if super::timeline_zoom::shortcut(command, input, panels, state) {
                 continue;
             }

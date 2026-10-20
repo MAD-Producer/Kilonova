@@ -9,6 +9,7 @@ use motion_ui::{
     dock::Panel,
     input::{Key, Modifiers, MouseButton, Rect},
 };
+mod modified;
 
 #[cfg(test)]
 #[test]
