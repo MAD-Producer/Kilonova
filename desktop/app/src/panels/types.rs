@@ -6,6 +6,11 @@ use serde_json::Value;
 
 #[derive(Debug)]
 pub enum Action {
+    AlignLayers {
+        objects: Vec<u64>,
+        edge: motion_host::ops::alignment::Edge,
+        target: motion_host::ops::alignment::Target,
+    },
     Node(crate::node_editor::Action),
     New,
     Open,
