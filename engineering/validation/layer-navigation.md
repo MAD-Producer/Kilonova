@@ -77,3 +77,22 @@ This integration remains local. Remote #371 still has head `26d7557b` and
 requires its own final parent/main integration and six current-head checks.
 The earlier retained screenshots remain historical visual evidence; this
 update does not claim a new physical-input, DPI or complete GUI matrix run.
+
+
+## Published shortcut-parent reconciliation — 2026-10-20
+
+The held local candidate now incorporates the actual published #362 head
+`de8ff26f74fcfdd72dbbca80a50bc5dcf3d115db`, rather than its earlier local
+candidate. The clean merge changes exactly four inherited files: the three
+already merged #370 renderer/test/completion blobs and the parent's newer
+shortcut validation document. Each incoming blob matches the parent exactly.
+All other files, including every desktop source, navigation regression,
+shortcut guide and native test helper, match the previously tested local
+navigation candidate `fccfcbe78bc0d4e28d92cf9f7e236bfcf916eac6` byte for byte.
+
+This paragraph adds documentation only. The existing seven navigation and
+39 timeline shortcut test results retain their recorded source scope; no
+fresh execution is claimed here. #370's actual main integration and its six
+successful checks are separate evidence for the inherited renderer change.
+The navigation candidate remains unpublished until the actual #362 squash,
+main reconciliation, final PR targeting and current-head CI are verified.
