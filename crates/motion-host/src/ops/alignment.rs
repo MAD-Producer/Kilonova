@@ -23,6 +23,22 @@ pub enum Target {
     Composition,
     Selection,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Distribution {
+    HorizontalCenters,
+    VerticalCenters,
+    HorizontalGaps,
+    VerticalGaps,
+}
+impl Distribution {
+    fn axis(self) -> usize {
+        usize::from(matches!(self, Self::VerticalCenters | Self::VerticalGaps))
+    }
+    fn gaps(self) -> bool {
+        matches!(self, Self::HorizontalGaps | Self::VerticalGaps)
+    }
+}
 impl Edge {
     fn axis(self) -> usize {
         match self {
@@ -41,6 +57,25 @@ impl Edge {
 }
 
 pub fn align(id: i64, objects: Vec<u64>, edge: Edge, target: Target) -> Result<serde_json::Value> {
+    execute(id, |p, scene, registry, frame| {
+        plan(p, scene, registry, frame, &objects, edge, target)
+    })
+}
+
+pub fn distribute(
+    id: i64,
+    objects: Vec<u64>,
+    distribution: Distribution,
+) -> Result<serde_json::Value> {
+    execute(id, |p, scene, registry, frame| {
+        distribution_plan(p, scene, registry, frame, &objects, distribution)
+    })
+}
+
+fn execute(
+    id: i64,
+    planner: impl FnOnce(&Project, &Scene, &Registry, f64) -> Result<Vec<Command>>,
+) -> Result<serde_json::Value> {
     crate::session::with_session(id, |s| {
         // Property edits address integer frames. Evaluate and display that same
         // frame after a fractional playback stop; rejected plans keep the clock.
@@ -53,15 +88,7 @@ pub fn align(id: i64, objects: Vec<u64>, edge: Edge, target: Target) -> Result<s
         s.frame = s.frame.floor();
         let result = (|| {
             s.sample()?;
-            let commands = plan(
-                s.engine.project(),
-                &s.scene,
-                &s.effects.registry,
-                s.frame,
-                &objects,
-                edge,
-                target,
-            )?;
+            let commands = planner(s.engine.project(), &s.scene, &s.effects.registry, s.frame)?;
             if commands.is_empty() {
                 return Ok(s.snapshot());
             }
@@ -115,6 +142,40 @@ fn plan(
     edge: Edge,
     target: Target,
 ) -> Result<Vec<Command>> {
+    let rectangles = selected_bounds(project, scene, registry, frame, objects)?;
+    if target == Target::Selection && objects.len() < 2 {
+        return Err("align: selection target requires two layers".into());
+    }
+    let mut union = [[f32::INFINITY; 2], [f32::NEG_INFINITY; 2]];
+    for rectangle in rectangles.values() {
+        for axis in 0..2 {
+            union[0][axis] = union[0][axis].min(rectangle[0][axis]);
+            union[1][axis] = union[1][axis].max(rectangle[1][axis]);
+        }
+    }
+    let destination = edge.coordinate(if target == Target::Selection {
+        union
+    } else {
+        [[0.; 2], [project.width as f32, project.height as f32]]
+    });
+    let deltas = objects
+        .iter()
+        .map(|&object| {
+            let mut delta = [0.; 3];
+            delta[edge.axis()] = destination - edge.coordinate(rectangles[&object]);
+            (object, delta)
+        })
+        .collect();
+    position_commands(project, frame, objects, &deltas)
+}
+
+fn selected_bounds(
+    project: &Project,
+    scene: &Scene,
+    registry: &Registry,
+    frame: f64,
+    objects: &[u64],
+) -> Result<HashMap<u64, [[f32; 2]; 2]>> {
     if objects.is_empty()
         || objects.len() > motion_core::MAX_LAYERS
         || !frame.is_finite()
@@ -122,15 +183,11 @@ fn plan(
     {
         return Err("align: invalid selection or frame".into());
     }
-    if target == Target::Selection && objects.len() < 2 {
-        return Err("align: selection target requires two layers".into());
-    }
     let unique: HashSet<_> = objects.iter().copied().collect();
     if unique.len() != objects.len() {
         return Err("align: duplicate selected layer".into());
     }
     let mut rectangles = HashMap::new();
-    let mut union = [[f32::INFINITY; 2], [f32::NEG_INFINITY; 2]];
     for &object in objects {
         let layer = project
             .layers
@@ -157,25 +214,103 @@ fn plan(
             return Err(format!("align layer {object}: position is controlled by an expression"));
         }
         let rectangle = bounds(scene, registry, object)?;
-        for axis in 0..2 {
-            union[0][axis] = union[0][axis].min(rectangle[0][axis]);
-            union[1][axis] = union[1][axis].max(rectangle[1][axis]);
-        }
         rectangles.insert(object, rectangle);
     }
-    let destination = edge.coordinate(if target == Target::Selection {
-        union
+    Ok(rectangles)
+}
+
+fn distribution_plan(
+    project: &Project,
+    scene: &Scene,
+    registry: &Registry,
+    frame: f64,
+    objects: &[u64],
+    distribution: Distribution,
+) -> Result<Vec<Command>> {
+    if objects.len() < 3 {
+        return Err("distribute: at least three layers are required".into());
+    }
+    let rectangles = selected_bounds(project, scene, registry, frame, objects)
+        .map_err(|e| format!("distribute: {e}"))?;
+    let axis = distribution.axis();
+    let coordinate = |id: u64| {
+        let r = rectangles[&id];
+        if distribution.gaps() {
+            f64::from(r[0][axis])
+        } else {
+            (f64::from(r[0][axis]) + f64::from(r[1][axis])) * 0.5
+        }
+    };
+    let width = |id: u64| f64::from(rectangles[&id][1][axis]) - f64::from(rectangles[&id][0][axis]);
+    let mut ordered = objects.to_vec();
+    ordered.sort_by(|a, b| coordinate(*a).total_cmp(&coordinate(*b)).then(a.cmp(b)));
+    let first = ordered[0];
+    let last = ordered[ordered.len() - 1];
+    let intervals = (ordered.len() - 1) as f64;
+    let step = if distribution.gaps() {
+        (f64::from(rectangles[&last][0][axis])
+            - f64::from(rectangles[&first][1][axis])
+            - ordered[1..ordered.len() - 1]
+                .iter()
+                .map(|&id| width(id))
+                .sum::<f64>())
+            / intervals
     } else {
-        [[0.; 2], [project.width as f32, project.height as f32]]
-    });
-    let deltas: HashMap<u64, [f32; 3]> = objects
-        .iter()
-        .map(|&object| {
-            let mut delta = [0.; 3];
-            delta[edge.axis()] = destination - edge.coordinate(rectangles[&object]);
-            (object, delta)
-        })
-        .collect();
+        (coordinate(last) - coordinate(first)) / intervals
+    };
+    let mut cursor = if distribution.gaps() {
+        coordinate(first) + width(first) + step
+    } else {
+        coordinate(first) + step
+    };
+    let mut deltas = HashMap::new();
+    deltas.insert(first, [0.; 3]);
+    deltas.insert(last, [0.; 3]);
+    let mut previous = (first, coordinate(first));
+    for &id in &ordered[1..ordered.len() - 1] {
+        if distribution.gaps()
+            && cursor
+                .total_cmp(&previous.1)
+                .then(id.cmp(&previous.0))
+                .is_lt()
+        {
+            return Err(format!("distribute: fixed endpoints require reversed edge order between layers {} and {id}",previous.0));
+        }
+        let mut delta = [0.; 3];
+        delta[axis] = (cursor - coordinate(id)) as f32;
+        // Projected bounds are f32. Avoid writing another key/history entry
+        // when re-evaluation differs only by projection rounding.
+        let magnitude = rectangles[&id]
+            .iter()
+            .map(|p| p[axis].abs())
+            .fold(1., f32::max);
+        if delta[axis].abs() <= magnitude * f32::EPSILON * 4. {
+            delta[axis] = 0.;
+        }
+        deltas.insert(id, delta);
+        previous = (id, cursor);
+        cursor += step + if distribution.gaps() { width(id) } else { 0. };
+    }
+    if distribution.gaps()
+        && coordinate(last)
+            .total_cmp(&previous.1)
+            .then(last.cmp(&previous.0))
+            .is_lt()
+    {
+        return Err(format!(
+            "distribute: fixed endpoints require reversed edge order between layers {} and {last}",
+            previous.0
+        ));
+    }
+    position_commands(project, frame, objects, &deltas).map_err(|e| format!("distribute: {e}"))
+}
+
+fn position_commands(
+    project: &Project,
+    frame: f64,
+    objects: &[u64],
+    deltas: &HashMap<u64, [f32; 3]>,
+) -> Result<Vec<Command>> {
     let mut commands = vec![];
     for &object in objects {
         let layer = project
@@ -246,5 +381,7 @@ fn plan(
     Ok(commands)
 }
 
+#[cfg(test)]
+mod distribution_tests;
 #[cfg(test)]
 mod tests;

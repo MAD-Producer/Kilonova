@@ -121,6 +121,8 @@
       "auxiliary.gap": 6,
       "icon.small.size": 14,
       "path.handle.opacity": 0.7,
+      "path.selection.node_size": 8,
+      "path.selection.fill_opacity": 0.12,
       "effect.toolbar.height": 28,
       "effect.toolbar.gap": 6,
       "effect.secondary.height": 24,
