@@ -1,4 +1,23 @@
 use super::*;
+
+#[test]
+fn old_explicit_mapping_keeps_its_key_when_layer_defaults_are_introduced() {
+    let key = KeyChord::new(Key::Up,true,false,true);
+    // This was a valid version-1 override before layer ordering had a default.
+    let legacy = Bindings {overrides:vec![Override {
+        scope:Scope::Application,command:Command::Preferences,chord:Some(key)
+    }]};
+    let restored: Bindings = serde_json::from_slice(&serde_json::to_vec(&legacy).unwrap()).unwrap();
+    assert_eq!(restored.resolve(Scope::Application,key.key,key.modifiers,false),Some(Command::Preferences));
+    assert_eq!(restored.resolve(Scope::Animation,key.key,key.modifiers,false),None);
+    assert_eq!(restored.hint(Scope::Animation,Command::OrderLayersUp),"");
+    let again: Bindings = serde_json::from_slice(&serde_json::to_vec(&restored).unwrap()).unwrap();
+    assert_eq!(restored,again);
+    let mut defaults = Bindings::default();
+    assert!(defaults.bind(Scope::Application,Command::Preferences,Some(key)).is_err(),
+        "interactive edits must keep strict conflict checks");
+    assert!(defaults.bind(Scope::Animation,Command::OrderLayersUp,Some(KeyChord::new(Key::B,true,false,false))).is_ok());
+}
 fn chord(key: Key, control: bool, shift: bool, alt: bool) -> KeyChord {
     KeyChord::new(key, control, shift, alt)
 }

@@ -61,6 +61,12 @@ pub enum Command {
     MoveRight,
     MoveUp,
     MoveDown,
+    SelectLayerAbove,
+    SelectLayerBelow,
+    OrderLayersUp,
+    OrderLayersDown,
+    OrderLayersTop,
+    OrderLayersBottom,
     Arrange,
     Group,
     Ungroup,
@@ -85,6 +91,12 @@ pub fn resolve(scope: Scope, key: Key, m: Modifiers, repeat: bool) -> Option<Com
     use Command::*;
     use Scope::*;
     let command = match (scope, key, m.control, m.shift, m.alt) {
+        (Animation, Key::Up, true, _, false) => SelectLayerAbove,
+        (Animation, Key::Down, true, _, false) => SelectLayerBelow,
+        (Animation, Key::Up, true, false, true) => OrderLayersUp,
+        (Animation, Key::Down, true, false, true) => OrderLayersDown,
+        (Animation, Key::Up, true, true, true) => OrderLayersTop,
+        (Animation, Key::Down, true, true, true) => OrderLayersBottom,
         (Animation, Key::A, false, _, false) => Reveal(motion_core::Property::Anchor),
         (Animation, Key::P, false, _, false) => Reveal(motion_core::Property::Position),
         (Animation, Key::S, false, _, false) => Reveal(motion_core::Property::Scale),
@@ -175,6 +187,8 @@ pub fn resolve(scope: Scope, key: Key, m: Modifiers, repeat: bool) -> Option<Com
                 | MoveDown
                 | PreviousKey
                 | NextKey
+                | SelectLayerAbove
+                | SelectLayerBelow
         ))
     .then_some(command)
 }
