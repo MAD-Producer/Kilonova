@@ -233,6 +233,11 @@ pub enum Command {
         target: motion_host::ops::alignment::Target,
         reply: Sender<Result<Value, String>>,
     },
+    DistributeLayers {
+        objects: Vec<u64>,
+        distribution: motion_host::ops::alignment::Distribution,
+        reply: Sender<Result<Value, String>>,
+    },
     History {
         op: i32,
         reply: Sender<Result<Value, String>>,
@@ -360,7 +365,7 @@ impl Command {
             | FloatWindow { reply, .. } | CloseWindow { reply, .. }
             | NewProject { reply, .. } | OpenProject { reply, .. } | ImportProject { reply, .. }
             | ImportImage { reply, .. } | CreateText { reply, .. } | RenderPreview { reply, .. }
-            | Edit { reply, .. } | AlignLayers { reply, .. } | History { reply, .. } | Drag { reply, .. } | Seek { reply, .. }
+            | Edit { reply, .. } | AlignLayers { reply, .. } | DistributeLayers { reply, .. } | History { reply, .. } | Drag { reply, .. } | Seek { reply, .. }
             | View { reply, .. } | Observe { reply, .. } | Navigate { reply, .. }
             | ConfigureMemory { reply, .. } | PreviewMode { reply, .. } | CurveGraph { reply, .. }
             | HitCandidates { reply, .. } | Plugin { reply, .. } | NodeSource {reply,..} | ColorCurveGraph { reply, .. }
@@ -905,6 +910,11 @@ impl Engine {
         target:motion_host::ops::alignment::Target) -> Result<std::sync::mpsc::Receiver<Result<Value,String>>,String> {
         if objects.len()>motion_core::MAX_LAYERS {return Err("alignment selection exceeds layer limit".into());}
         self.request(|reply|Command::AlignLayers{objects,edge,target,reply})
+    }
+    pub fn distribute_layers_async(&self,objects:Vec<u64>,distribution:motion_host::ops::alignment::Distribution)
+        -> Result<std::sync::mpsc::Receiver<Result<Value,String>>,String> {
+        if objects.len()>motion_core::MAX_LAYERS {return Err("distribution selection exceeds layer limit".into());}
+        self.request(|reply|Command::DistributeLayers{objects,distribution,reply})
     }
     pub fn edit_async(
         &self,
@@ -1682,6 +1692,7 @@ fn handle(
         Command::RenderPreview {frame,reply}=>respond(reply,(||{if let Some(frame)=frame {preview::seek(id,frame)?;}export::capture(id)})()),
         Command::Edit { text, reply } => respond(reply,editing::command(id, &text)),
         Command::AlignLayers { objects, edge, target, reply } => respond(reply,motion_host::ops::alignment::align(id,objects,edge,target)),
+        Command::DistributeLayers { objects, distribution, reply } => respond(reply,motion_host::ops::alignment::distribute(id,objects,distribution)),
         Command::History { op, reply } => respond(reply,editing::history(id, op)),
         Command::Drag {
             object,
