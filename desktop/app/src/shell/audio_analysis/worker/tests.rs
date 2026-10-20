@@ -92,7 +92,7 @@ fn default_start_and_unobserved_analysis_failures_keep_request_context() {
             fs::create_dir_all(wave.parent().unwrap()).unwrap();
             fs::write(&wave, b"bad!").unwrap();
             let expected =
-                motion_media::audio_references(root, &asset, 0., 1., &mut |_| Ok(())).unwrap_err();
+                motion_media::audio_references(root, &asset, 0., 1., &mut |_| Ok(())).unwrap_err().to_string();
             assert_eq!(expected, "waveform cache invalid; call prepare_audio");
             let (entered, entry) = mpsc::channel();
             let (release, resume) = mpsc::channel();
@@ -106,7 +106,7 @@ fn default_start_and_unobserved_analysis_failures_keep_request_context() {
                     entered.send(()).unwrap();
                     resume.recv_timeout(Duration::from_secs(15)).unwrap();
                     motion_media::audio_references(&task_root, &asset, 0., 1., &mut |_| Ok(()))
-                        .map(|_| vec![])
+                        .map(|_| vec![]).map_err(Into::into)
                 },
             )
             .unwrap();

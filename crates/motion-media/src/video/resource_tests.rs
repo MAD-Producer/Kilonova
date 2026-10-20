@@ -114,11 +114,11 @@ fn poisoned_existing_task_rejects_reservation_without_another_panic() {
         .reserve("next", "import_video")
         .err()
         .expect("poisoned task must reject reservation");
-    assert_eq!(error, "video task poisoned");
+    assert_eq!(error.to_string(), "video task poisoned");
     assert_eq!(jobs.tasks.lock().unwrap().len(), 1);
     assert!(task.is_poisoned());
     assert_eq!(
-        jobs.status("poisoned").err().as_deref(),
+        jobs.status("poisoned").err().map(|error| error.to_string()).as_deref(),
         Some("video task poisoned")
     );
     let healthy = VideoJobs::new(directory.path().into()).unwrap();

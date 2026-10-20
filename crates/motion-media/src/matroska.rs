@@ -24,7 +24,7 @@ pub struct MatroskaMetadata {
 
 fn vint(read: &mut impl Read, id: bool) -> Result<(u64, usize, bool)> {
     let mut first = [0u8; 1];
-    read.read_exact(&mut first).map_err(|e| e.to_string())?;
+    read.read_exact(&mut first).map_err(crate::Error::from)?;
     let n = first[0].leading_zeros() as usize + 1;
     if n > if id { 4 } else { 8 } {
         return Err("invalid EBML integer".into());
@@ -36,7 +36,7 @@ fn vint(read: &mut impl Read, id: bool) -> Result<(u64, usize, bool)> {
     });
     for _ in 1..n {
         let mut b = [0u8; 1];
-        read.read_exact(&mut b).map_err(|e| e.to_string())?;
+        read.read_exact(&mut b).map_err(crate::Error::from)?;
         value = (value << 8) | u64::from(b[0]);
     }
     Ok((value, n, !id && value == (1u64 << (7 * n)) - 1))
@@ -112,20 +112,20 @@ fn tracks(bytes: &[u8]) -> Result<Vec<MatroskaTrack>> {
 }
 
 pub fn matroska_metadata(path: &Path) -> Result<MatroskaMetadata> {
-    let mut f = File::open(path).map_err(|e| e.to_string())?;
-    let size = f.metadata().map_err(|e| e.to_string())?.len();
+    let mut f = File::open(path).map_err(crate::Error::from)?;
+    let size = f.metadata().map_err(crate::Error::from)?.len();
     let mut end = size;
     let mut parsed_tracks = None;
     let mut scale = 1_000_000;
     let mut info = false;
     let mut in_segment = false;
     for _ in 0..4096 {
-        if f.stream_position().map_err(|e| e.to_string())? >= end {
+        if f.stream_position().map_err(crate::Error::from)? >= end {
             break;
         }
         let (id, _, _) = vint(&mut f, true)?;
         let (len, _, unknown) = vint(&mut f, false)?;
-        let start = f.stream_position().map_err(|e| e.to_string())?;
+        let start = f.stream_position().map_err(crate::Error::from)?;
         let stop = if unknown {
             end
         } else {
@@ -144,7 +144,7 @@ pub fn matroska_metadata(path: &Path) -> Result<MatroskaMetadata> {
                 return Err("Matroska metadata exceeds budget".into());
             }
             let mut bytes = vec![0u8; len as usize];
-            f.read_exact(&mut bytes).map_err(|e| e.to_string())?;
+            f.read_exact(&mut bytes).map_err(crate::Error::from)?;
             if id == 0x1654ae6b {
                 parsed_tracks = Some(tracks(&bytes)?);
             } else {
@@ -162,7 +162,7 @@ pub fn matroska_metadata(path: &Path) -> Result<MatroskaMetadata> {
         if unknown {
             break;
         }
-        f.seek(SeekFrom::Start(stop)).map_err(|e| e.to_string())?;
+        f.seek(SeekFrom::Start(stop)).map_err(crate::Error::from)?;
     }
     if scale == 0 || scale > 1_000_000_000 {
         return Err("unsupported Matroska timestamp precision".into());

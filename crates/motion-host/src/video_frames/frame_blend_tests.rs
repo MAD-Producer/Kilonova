@@ -26,11 +26,11 @@ impl crate::Platform for Backend {
         _: &Path,
         _: Option<u32>,
         _: Option<u32>,
-        _: &dyn Fn() -> Result<()>,
-    ) -> Result<motion_media::VideoProbe> {
+        _: &dyn Fn() -> motion_media::Result<()>,
+    ) -> motion_media::Result<motion_media::VideoProbe> {
         Err("unused".into())
     }
-    fn open_decoder(&self, _: &Path, _: VideoAsset, _: Vec<u64>) -> Result<Box<dyn VideoDecoder>> {
+    fn open_decoder(&self, _: &Path, _: VideoAsset, _: Vec<u64>) -> motion_media::Result<Box<dyn VideoDecoder>> {
         Ok(Box::new(Decoder(self.0.clone())))
     }
     fn decode_audio(
@@ -39,11 +39,11 @@ impl crate::Platform for Backend {
         _: &Path,
         _: Option<u32>,
         _: u64,
-        _: &mut dyn FnMut(f64) -> Result<()>,
-    ) -> Result<motion_core::AudioAsset> {
+        _: &mut dyn FnMut(f64) -> motion_media::Result<()>,
+    ) -> motion_media::Result<motion_core::AudioAsset> {
         Err("unused".into())
     }
-    fn media_capabilities(&self, _: Option<&crate::VideoQuery>) -> Result<Value> {
+    fn media_capabilities(&self, _: Option<&crate::VideoQuery>) -> motion_media::Result<Value> {
         Err("unused".into())
     }
     fn attach_surface(
@@ -51,12 +51,12 @@ impl crate::Platform for Backend {
         _: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         _: u32,
         _: u32,
-    ) -> Result<crate::SurfaceTarget> {
+    ) -> crate::Result<crate::SurfaceTarget> {
         Err("unused".into())
     }
 }
 impl VideoDecoder for Decoder {
-    fn frame(&mut self, time: u64, check: &dyn Fn() -> Result<()>) -> Result<DecodedFrame> {
+    fn frame(&mut self, time: u64, check: &dyn Fn() -> motion_media::Result<()>) -> motion_media::Result<DecodedFrame> {
         check()?;
         self.0.calls.lock().unwrap().push(time);
         if time == TIMES[1] {
@@ -305,7 +305,7 @@ fn blocked_right_is_published_and_required_errors_do_not_become_prefetch_failure
     let deadline = Instant::now() + Duration::from_secs(5);
     loop {
         if let Err(error) = reader.prepare_scene_exact(&p, dir.path(), &scene) {
-            assert_eq!(error, "controlled required-right decode failure");
+            assert_eq!(error.to_string(), "controlled required-right decode failure");
             break;
         }
         assert!(Instant::now() < deadline);
@@ -673,12 +673,12 @@ fn exposure_cancellation_retires_only_pending_reads_and_preserves_ready_and_fail
     reader.clear();
     control.fail_right.store(true,Ordering::Release);
     let error=loop {match reader.prepare_scene_sampling_exact(&p,dir.path(),&scope) {Err(e)=>break e,Ok(_)=>{assert!(Instant::now()<deadline);std::thread::sleep(Duration::from_millis(2));}}};
-    assert!(error.contains("controlled required-right decode failure"));
+    assert!(error.to_string().contains("controlled required-right decode failure"));
     let calls=control.calls.lock().unwrap().len();
     control.fail_right.store(false,Ordering::Release);
     for _ in 0..60 {
         reader.cancel_pending_sampling().unwrap();
-        assert!(reader.prepare_scene_sampling_exact(&p,dir.path(),&scope).err().unwrap().contains("controlled required-right decode failure"));
+        assert!(reader.prepare_scene_sampling_exact(&p,dir.path(),&scope).err().unwrap().to_string().contains("controlled required-right decode failure"));
     }
     assert_eq!(control.calls.lock().unwrap().len(),calls);
 }

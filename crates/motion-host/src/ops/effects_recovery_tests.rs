@@ -25,7 +25,7 @@ impl Platform for Stub {
         _: &Path,
         _: motion_core::VideoAsset,
         _: Vec<u64>,
-    ) -> Result<Box<dyn VideoDecoder>> {
+    ) -> motion_media::Result<Box<dyn VideoDecoder>> {
         Err("unused".into())
     }
     fn decode_audio(
@@ -38,7 +38,7 @@ impl Platform for Stub {
     ) -> MediaResult<motion_core::AudioAsset> {
         Err("unused".into())
     }
-    fn media_capabilities(&self, _: Option<&VideoQuery>) -> Result<serde_json::Value> {
+    fn media_capabilities(&self, _: Option<&VideoQuery>) -> motion_media::Result<serde_json::Value> {
         Ok(serde_json::json!({}))
     }
     fn attach_surface(
@@ -46,7 +46,7 @@ impl Platform for Stub {
         _: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         _: u32,
         _: u32,
-    ) -> Result<SurfaceTarget> {
+    ) -> crate::Result<SurfaceTarget> {
         Err("unused".into())
     }
 }

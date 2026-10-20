@@ -1,5 +1,5 @@
 //! Publish paired cache files with rollback of the previous pair.
-use crate::Result;
+use crate::{Error, Result};
 use std::{
     fs, io,
     path::{Path, PathBuf},
@@ -37,10 +37,9 @@ impl Publication {
                 }
                 Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
                 Err(error) => {
-                    return Err(format!(
-                        "create cache recovery directory {}: {error}",
-                        directory.display()
-                    ))
+                    return Err(Error::from(error).context(format!(
+                        "create cache recovery directory {}", directory.display()
+                    )))
                 }
             }
         }
@@ -54,15 +53,15 @@ impl Publication {
                     return Err(format!(
                         "cache destination is not a regular file: {}",
                         destination.display()
-                    ));
+                    ).into());
                 }
                 let backup = self.directory.join(format!("old-{}", self.entries.len()));
                 fs::rename(destination, &backup)
-                    .map_err(|e| format!("backup cache {}: {e}", destination.display()))?;
+                    .map_err(|e| Error::from(e).context(format!("backup cache {}", destination.display())))?;
                 Some(backup)
             }
             Err(error) if error.kind() == io::ErrorKind::NotFound => None,
-            Err(error) => return Err(format!("inspect cache {}: {error}", destination.display())),
+            Err(error) => return Err(Error::from(error).context(format!("inspect cache {}", destination.display()))),
         };
         self.entries.push(Entry {
             destination: destination.into(),
@@ -70,7 +69,7 @@ impl Publication {
             published: false,
         });
         fs::rename(source, destination)
-            .map_err(|e| format!("publish cache {}: {e}", destination.display()))?;
+            .map_err(|e| Error::from(e).context(format!("publish cache {}", destination.display())))?;
         self.entries
             .last_mut()
             .expect("entry just inserted")
@@ -78,42 +77,37 @@ impl Publication {
         Ok(())
     }
 
-    fn rollback(&mut self) -> Option<String> {
+    fn rollback(&mut self) -> Option<Error> {
         self.finished = true;
         let mut errors = Vec::new();
         for entry in self.entries.iter().rev() {
             if entry.published {
                 if let Err(error) = fs::remove_file(&entry.destination) {
                     if error.kind() != io::ErrorKind::NotFound {
-                        errors.push(format!(
-                            "remove new cache {}: {error}",
-                            entry.destination.display()
-                        ));
+                        errors.push(Error::from(error).context(format!(
+                            "remove new cache {}", entry.destination.display()
+                        )));
                     }
                 }
             }
             if let Some(backup) = &entry.backup {
                 if let Err(error) = fs::rename(backup, &entry.destination) {
-                    errors.push(format!(
-                        "restore cache {} from {}: {error}",
+                    errors.push(Error::from(error).context(format!(
+                        "restore cache {} from {}",
                         entry.destination.display(),
                         backup.display()
-                    ));
+                    )));
                 }
             }
         }
-        if errors.is_empty() {
-            None
-        } else {
-            self.preserve = true;
-            let error = format!(
-                "cache rollback failed; recovery directory={}: {}",
-                self.directory.display(),
-                errors.join("; ")
-            );
-            self.rollback_error = Some(error.chars().take(2048).collect());
-            Some(error)
-        }
+        let mut errors = errors.into_iter();
+        let primary = errors.next()?;
+        self.preserve = true;
+        let error = primary.rollback(errors.collect()).context(format!(
+            "cache rollback failed; recovery directory={}", self.directory.display()
+        ));
+        self.rollback_error = Some(error.to_string().chars().take(2048).collect());
+        Some(error)
     }
 }
 impl Drop for Publication {
@@ -192,24 +186,25 @@ impl PublicationCleanup {
             }
             Err(error) => match publication.rollback() {
                 None => Err(error),
-                Some(rollback) => Err(format!("{error}; {rollback}")),
+                Some(rollback) => Err(error.rollback(vec![rollback])),
             },
         }
     }
 
     pub(crate) fn rollback_files(
         &mut self,
-        primary: impl std::fmt::Display,
+        primary: impl Into<Error>,
         paths: &[&Path],
-    ) -> String {
-        let mut reason = primary.to_string();
+    ) -> Error {
+        let primary = primary.into();
+        let mut secondary = Vec::new();
         let mut warning = String::new();
         for path in paths.iter().rev() {
             if let Err(error) = fs::remove_file(path) {
                 if error.kind() != io::ErrorKind::NotFound {
-                    let detail = format!("rollback remove {}: {error}", path.display());
-                    reason.push_str("; ");
-                    reason.push_str(&detail);
+                    let error = Error::from(error).context(format!("rollback remove {}", path.display()));
+                    let detail = error.to_string();
+                    secondary.push(error);
                     // Each import calls rollback once and returns immediately;
                     // current audio/video transactions contain at most five files.
                     if !warning.is_empty() {
@@ -226,7 +221,7 @@ impl PublicationCleanup {
         if !warning.is_empty() {
             self.rollback_warning = Some(warning.chars().take(2048).collect());
         }
-        reason
+        primary.rollback(secondary)
     }
 }
 
@@ -257,7 +252,8 @@ mod tests {
         fs::write(&staged, b"new PCM").unwrap();
         let missing = directory.path().join("missing.wave");
         let error = publish_cache_pair((&staged, &first), (&missing, &second)).unwrap_err();
-        assert!(error.contains("audio.wave"), "{error}");
+        assert!(matches!(error.primary(), Error::Io(cause) if cause.kind() == io::ErrorKind::NotFound));
+        assert!(error.to_string().contains("audio.wave"), "{error}");
         assert_eq!(fs::read(first).unwrap(), b"old PCM");
         assert_eq!(fs::read(second).unwrap(), b"old waveform");
         assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 2);
@@ -275,7 +271,7 @@ mod tests {
         fs::create_dir(&second).unwrap();
         assert!(publish_cache_pair((&staged, &first), (&image, &second))
             .unwrap_err()
-            .contains("not a regular file"));
+            .to_string().contains("not a regular file"));
         assert!(!first.exists());
         assert!(second.is_dir());
         assert_eq!(fs::read(image).unwrap(), b"thumbnail");
@@ -289,9 +285,13 @@ mod tests {
         fs::create_dir(&blocked).unwrap();
         let missing = directory.path().join("already-removed");
         let error = rollback_files("save failed", &[&blocked, &missing]);
-        assert!(error.starts_with("save failed; rollback remove "));
-        assert!(error.contains("published.wav"));
-        assert!(!error.contains("already-removed"));
+        let Error::Rollback { primary, secondary, .. } = &error else { panic!("rollback causes lost: {error:?}"); };
+        assert!(matches!(primary.as_ref(), Error::Message(message) if message == "save failed"));
+        assert_eq!(secondary.len(), 1);
+        assert!(matches!(secondary[0].primary(), Error::Io(_)));
+        assert!(error.to_string().starts_with("save failed; rollback remove "));
+        assert!(error.to_string().contains("published.wav"));
+        assert!(!error.to_string().contains("already-removed"));
         assert!(blocked.is_dir());
     }
 
@@ -326,7 +326,7 @@ mod tests {
         fs::remove_file(&target).unwrap();
         fs::create_dir(&target).unwrap();
         let error = transaction.rollback().unwrap();
-        assert!(error.contains(&recovery.display().to_string()));
+        assert!(error.to_string().contains(&recovery.display().to_string()));
         drop(transaction);
         assert_eq!(fs::read(recovery.join("old-0")).unwrap(), b"old timestamps");
         assert!(target.is_dir());
@@ -367,7 +367,7 @@ pub(crate) fn cleanup_stage(path: &Path) {
 }
 
 #[cfg(test)]
-fn rollback_files(primary: impl std::fmt::Display, paths: &[&Path]) -> String {
+fn rollback_files(primary: impl Into<Error>, paths: &[&Path]) -> Error {
     PublicationCleanup::default().rollback_files(primary, paths)
 }
 

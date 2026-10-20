@@ -50,7 +50,7 @@ fn package_admission_spawn_failure_and_drop_emit_after_outer_registry_unlocks() 
                 motion_core::storage::PackageSnapshot::new(root.path(), &project).unwrap();
             assert_eq!(
                 jobs.start_export("new", snapshot, root.path().join("test.msproj"), 0)
-                    .unwrap_err(),
+                    .unwrap_err().to_string(),
                 "at most one package task may run per session"
             );
             capture.first("package.start.active_task", "poison-package");
@@ -106,7 +106,7 @@ fn package_admission_spawn_failure_and_drop_emit_after_outer_registry_unlocks() 
     assert!(task.is_poisoned());
     if mode != "drop" {
         assert_eq!(
-            jobs.status("poison-package").unwrap_err(),
+            jobs.status("poison-package").unwrap_err().to_string(),
             "package task poisoned"
         );
     }
@@ -171,7 +171,7 @@ fn package_worker_progress_and_result_recoveries_preserve_success_and_cancel() {
     }
     drop(state);
     assert_eq!(
-        jobs.status("poison-package").unwrap_err(),
+        jobs.status("poison-package").unwrap_err().to_string(),
         "package task poisoned"
     );
 }

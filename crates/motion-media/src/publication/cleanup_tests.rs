@@ -128,9 +128,9 @@ fn import_rollback_preserves_primary_and_bounds_deferred_evidence() {
     let mut cleanup = PublicationCleanup::default();
     let state = task.lock().unwrap();
     let error = cleanup.rollback_files("original save failure", &borrowed);
-    assert!(error.starts_with("original save failure; rollback remove "));
+    assert!(error.to_string().starts_with("original save failure; rollback remove "));
     for path in paths {
-        assert!(error.contains(&path.display().to_string()));
+        assert!(error.to_string().contains(&path.display().to_string()));
     }
     assert!(cleanup.rollback_warning.as_ref().unwrap().chars().count() <= 2048);
     assert!(capture.matching("rollback remove").is_empty());

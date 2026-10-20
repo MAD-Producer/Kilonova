@@ -213,7 +213,7 @@ fn run(boundary: Boundary) {
             assert_eq!(status.phase, "cancelling");
             assert!(release_refused);
             assert_eq!(
-                next_error.as_deref(),
+                next_error.map(|error| error.to_string()).as_deref(),
                 Some("at most one package task may run per session")
             );
             assert_eq!(publications.load(Ordering::Acquire), 0);
