@@ -1,7 +1,7 @@
 //! Exact PTS lookup with bounded forward prefetch, independent of render ticks.
 use crate::platform::VideoDecoder;
 use crate::video_cache::{FrameCache, LOOKAHEAD};
-use crate::video_frame::DecodedFrame;
+use crate::video_frame::{DecodedFrame, PreparedVideoFrame};
 use motion_core::{Content, Project, VideoAsset};
 use motion_render::Scene;
 use motion_media::Result;
@@ -19,6 +19,7 @@ static PREFETCH_FAILURES: motion_render::observability::FailureCounter =
 #[derive(Clone, Copy)]
 struct Request {
     time: u64,
+    next: Option<u64>,
     source_time: u64,
     index: usize,
     sequence: u64,
@@ -74,6 +75,9 @@ fn job(s: &State, pts: &[u64]) -> Option<(u64, bool)> {
     let r = s.desired?;
     if s.cache.find(r.time).is_none() {
         return s.error.is_none().then_some((r.time, false));
+    }
+    if let Some(next) = r.next.filter(|next| s.cache.find(*next).is_none()) {
+        return s.error.is_none().then_some((next, false));
     }
     if !s.prefetch || s.failed_prefetch.is_some() {
         return None;
@@ -154,6 +158,7 @@ impl Stream {
                         let s = copy.0.lock().map_err(|_| "video frame state poisoned")?;
                         let valid = s.desired.is_some_and(|r| {
                             target == r.time
+                                || Some(target) == r.next
                                 || (s.prefetch
                                     && target > r.time
                                     && target <= times[(r.index + LOOKAHEAD).min(times.len() - 1)])
@@ -215,10 +220,11 @@ impl Stream {
                         return;
                     }
                     let desired = s.desired.unwrap();
+                    let required = target == desired.time || Some(target) == desired.next;
                     let last = times[(desired.index + LOOKAHEAD).min(times.len() - 1)];
                     let phase = s.in_flight.map_or(flight.phase, |active| active.phase);
                     let mut failure = result.as_ref().err()
-                        .filter(|error| error.as_str() != "video target superseded" && (target == desired.time || !speculative))
+                        .filter(|error| error.as_str() != "video target superseded" && (required || !speculative))
                         .map(|error| (error.clone(), phase));
                     let frame_bytes = result.as_ref().ok().map(|frame| frame.bytes());
                     let cache_budget = s.cache.budget();
@@ -226,8 +232,9 @@ impl Stream {
                         Ok(frame) => {
                             s.decoded += 1;
                             if frame.pts >= desired.time && frame.pts <= last {
-                                if !s.cache.insert(frame, desired.time) {
-                                    if target == desired.time {
+                                let pinned = [desired.time, desired.next.unwrap_or(desired.time)];
+                                if !s.cache.insert_required(frame, &pinned) {
+                                    if required {
                                         let reason = "video source frame exceeds its stream cache budget";
                                         s.error = Some(reason.into());
                                         failure = Some((reason.into(), "cache"));
@@ -246,7 +253,7 @@ impl Stream {
                         }
                         Err(e) => {
                             decoder = None;
-                            if target == desired.time {
+                            if required {
                                 s.error = Some(e);
                             } else if speculative {
                                 s.prefetch_failed(media.id, target, &e);
@@ -256,7 +263,7 @@ impl Stream {
                     s.in_flight = None;
                     drop(s);
                     if let Some((error, phase)) = failure {
-                        log::error!("video decode failed object={object} source={} sequence={} pts_us={target} {}ms phase={phase} speculative={speculative} requested_sequence={} requested_pts_us={} discarded={} frame_bytes={frame_bytes:?} cache_budget_bytes={cache_budget} reason={error}", media.id, flight.sequence, flight.began.elapsed().as_millis(), desired.sequence, desired.time, target != desired.time);
+                        log::error!("video decode failed object={object} source={} sequence={} pts_us={target} {}ms phase={phase} speculative={speculative} requested_sequence={} requested_pts_us={} discarded={} frame_bytes={frame_bytes:?} cache_budget_bytes={cache_budget} reason={error}", media.id, flight.sequence, flight.began.elapsed().as_millis(), desired.sequence, desired.time, !required);
                     }
                     if flight.began.elapsed().as_millis() >= 100 {
                         log::debug!("video decode done object={object} source={} sequence={} pts_us={target} {}ms speculative={speculative}", media.id, flight.sequence, flight.began.elapsed().as_millis());
@@ -278,12 +285,18 @@ impl Stream {
             .ok_or("video PTS index missing")?;
         Ok((self.pts[index], index))
     }
+    #[cfg(test)]
     fn request(&self, time: u64, sequence: u64, prefetch: bool) -> Result<Value> {
+        self.request_blend(time, sequence, prefetch, false)
+    }
+    fn request_blend(&self, time: u64, sequence: u64, prefetch: bool, blend: bool) -> Result<Value> {
         if sequence == 0 || sequence > i64::MAX as u64 {
             return Err("video sequence must be a positive signed 64-bit value".into());
         }
         let source_time = time;
         let (time, index) = self.key(time)?;
+        let next = blend.then(|| self.pts.get(index + 1).copied()).flatten()
+            .filter(|next| source_time > time && *next < self.asset.video_end_us);
         let mut s = self
             .shared
             .0
@@ -300,6 +313,7 @@ impl Stream {
         if s.desired.is_none_or(|r| r.sequence != sequence) {
             s.desired = Some(Request {
                 time,
+                next,
                 source_time,
                 index,
                 sequence,
@@ -316,10 +330,18 @@ impl Stream {
         }
         if let Some(r) = &mut s.desired {
             r.source_time = source_time;
+            if r.next != next {
+                r.next = next;
+                s.error = None;
+                s.failed_prefetch = None;
+            }
         }
+        s.cache.require_pair(self.asset.display_width, self.asset.display_height, next.is_some(),
+            &[time, next.unwrap_or(time)]);
         s.prefetch = prefetch;
         self.shared.1.notify_one();
-        s.pending_polls = if s.error.is_none() && s.cache.find(time).is_none() {
+        s.pending_polls = if s.error.is_none() && (s.cache.find(time).is_none()
+            || next.is_some_and(|next| s.cache.find(next).is_none())) {
             s.pending_polls.saturating_add(1)
         } else { 0 };
         let count = s.pending_polls;
@@ -342,6 +364,9 @@ impl Stream {
         Ok(result)
     }
     fn ready(&self, sequence: u64) -> Result<Arc<DecodedFrame>> {
+        Ok(self.prepared(sequence)?.left)
+    }
+    fn prepared(&self, sequence: u64) -> Result<PreparedVideoFrame> {
         let s = self
             .shared
             .0
@@ -354,7 +379,13 @@ impl Stream {
         if let Some(e) = &s.error {
             return Err(e.clone());
         }
-        s.cache.find(r.time).ok_or("video frame pending".into())
+        let left = s.cache.find(r.time).ok_or("video frame pending")?;
+        let next = r.next.map(|next| {
+            let frame = s.cache.find(next).ok_or("adjacent video frame pending")?;
+            let weight = (r.source_time - r.time) as f64 / (next - r.time) as f64;
+            Ok::<_, String>((frame, weight as f32))
+        }).transpose()?;
+        Ok(PreparedVideoFrame { left, next })
     }
     fn stop(&self) -> Result<()> {
         let mut poisoned = false;
@@ -379,12 +410,13 @@ fn status(s: &State) -> Value {
     let frame = s.cache.find(r.time);
     let state = if s.error.is_some() {
         "failed"
-    } else if frame.is_some() {
+    } else if frame.is_some() && r.next.is_none_or(|next| s.cache.find(next).is_some()) {
         "ready"
     } else {
         "pending"
     };
     json!({"state":state,"sequence":r.sequence,"source_time_us":r.source_time,
+        "next_pts_us":r.next,"blend_weight":r.next.map(|next| (r.source_time - r.time) as f64 / (next - r.time) as f64),
         "pts_us":frame.as_ref().map(|f|f.pts),"end_us":frame.as_ref().map(|f|f.end),
         "decode_us":frame.as_ref().map(|f|f.decode_us),"codec_us":frame.as_ref().map(|f|f.codec_us),
         "transfer_us":frame.as_ref().map(|f|f.transfer_us),"pack_us":frame.as_ref().map(|f|f.pack_us),
@@ -402,6 +434,9 @@ pub struct VideoFrames {
     retiring: Vec<JoinHandle<()>>,
     retirement_error: Option<String>,
     pending_retirement_error: Option<String>,
+    // Exposure visits one local composition at a time. Keep at most the same
+    // four workers, oldest idle first, instead of reopening at every parent.
+    sampling_recent: Vec<u64>,
 }
 impl VideoFrames {
     pub fn new(platform: Arc<dyn crate::platform::Platform>) -> Self {
@@ -425,8 +460,48 @@ impl VideoFrames {
             }
         }
         self.sequences.clear();
+        self.sampling_recent.clear();
+    }
+    /// Stop and join every owned decoder. Only call on an independent export
+    /// worker: native decoder closure can block. Retain that worker's slot and
+    /// frozen sources until this returns instead of detaching cancelled work.
+    pub fn finish(&mut self) -> Result<()> {
+        self.clear();
+        let mut error = self.pending_retirement_error.take();
+        for worker in self.retiring.drain(..) {
+            if let Err(payload) = worker.join() {
+                let reason: String = format!("video decoder retirement failed: {}", motion_media::panic_reason(payload))
+                    .chars().take(1024).collect();
+                if let Some(primary) = &mut error {
+                    if primary.len() < 2048 { primary.push_str(&format!("; cleanup: {reason}")); }
+                } else { error = Some(reason); }
+            }
+        }
+        if let Some(error) = error {
+            self.retirement_error = Some(error.clone());
+            Err(error)
+        } else { Ok(()) }
+    }
+    /// Supersede unfinished exposure reads without discarding completed caches
+    /// or restarting failed decoders. Retiring native calls retain their worker
+    /// slots until they actually return, just as ordinary scene eviction does.
+    pub(crate) fn cancel_pending_sampling(&mut self) -> Result<()> {
+        let mut pending = Vec::new();
+        for object in &self.sampling_recent {
+            let Some(stream) = self.streams.get(object) else { continue; };
+            let state = stream.shared.0.lock().map_err(|_| "video frame state poisoned while canceling exposure")?;
+            if state.error.is_none() && state.desired.is_some_and(|request| {
+                state.in_flight.is_some() || state.cache.find(request.time).is_none()
+                    || request.next.is_some_and(|pts| state.cache.find(pts).is_none())
+            }) {
+                pending.push(*object);
+            }
+        }
+        for object in pending { self.retire(object); }
+        self.reap_retired()
     }
     fn retire(&mut self, object: u64) {
+        self.sampling_recent.retain(|id| *id != object);
         if let Some(stream) = self.streams.remove(&object) {
             let (worker, stopped) = stream.retire();
             if let Some(worker) = worker { self.retiring.push(worker); }
@@ -503,7 +578,7 @@ impl VideoFrames {
         }
         let generation = self.generation(asset, object, source as u64)?;
         let mut result =
-            self.request_source(root, asset, object, source as u64, generation, false)?;
+            self.request_source(root, asset, object, source as u64, generation, false, false)?;
         self.sequences.insert(object, (sequence, frame, generation));
         result["sequence"] = json!(sequence);
         Ok(result)
@@ -536,6 +611,7 @@ impl VideoFrames {
         source: u64,
         generation: u64,
         prefetch: bool,
+        blend: bool,
     ) -> Result<Value> {
         self.reap_retired()?;
         if self.streams.get(&object).is_some_and(|s| s.asset != *asset) {
@@ -555,7 +631,7 @@ impl VideoFrames {
                 Stream::new(root.into(), asset.clone(), self.backend()?, object)?,
             );
         }
-        let mut result = self.streams[&object].request(source, generation, prefetch)?;
+        let mut result = self.streams[&object].request_blend(source, generation, prefetch, blend)?;
         result["object"] = json!(object);
         result["width"] = json!(asset.display_width);
         result["height"] = json!(asset.display_height);
@@ -605,16 +681,23 @@ impl VideoFrames {
         root: &Path,
         scene: &Scene,
         _frame: f64,
-    ) -> Result<Option<Vec<(u64, Arc<DecodedFrame>)>>> {
-        self.prepare(project, root, scene, true)
+    ) -> Result<Option<Vec<(u64, PreparedVideoFrame)>>> {
+        self.prepare(project, root, scene, true, false)
     }
     pub fn prepare_scene_exact(
         &mut self,
         project: &Project,
         root: &Path,
         scene: &Scene,
-    ) -> Result<Option<Vec<(u64, Arc<DecodedFrame>)>>> {
-        self.prepare(project, root, scene, false)
+    ) -> Result<Option<Vec<(u64, PreparedVideoFrame)>>> {
+        self.prepare(project, root, scene, false, false)
+    }
+    /// Exact local-composition sampling. Inactive cached decoders survive a
+    /// visit to another scope; eviction still respects the existing four-worker
+    /// limit including retiring workers. This does not restart failed streams.
+    pub fn prepare_scene_sampling_exact(&mut self, project:&Project, root:&Path,
+        scene:&Scene) -> Result<Option<Vec<(u64,PreparedVideoFrame)>>> {
+        self.prepare(project,root,scene,false,true)
     }
     fn prepare(
         &mut self,
@@ -622,10 +705,22 @@ impl VideoFrames {
         root: &Path,
         scene: &Scene,
         prefetch: bool,
-    ) -> Result<Option<Vec<(u64, Arc<DecodedFrame>)>>> {
+        retain_idle: bool,
+    ) -> Result<Option<Vec<(u64, PreparedVideoFrame)>>> {
         let layers=scene.video_layers();
         let inactive: Vec<_> = self.streams.keys().filter(|object| !layers.iter().any(|l| l.id == **object)).copied().collect();
-        for object in inactive { self.retire(object); }
+        if retain_idle {
+            let missing=layers.iter().filter(|layer| !self.streams.contains_key(&layer.id)).count();
+            let allowed=MAX_DECODER_WORKERS.saturating_sub(missing);
+            let mut inactive=inactive;
+            inactive.sort_unstable_by_key(|object|self.sampling_recent.iter().position(|id|id==object));
+            for object in inactive {
+                if self.streams.len()<=allowed {break;}
+                self.retire(object);
+            }
+        } else {
+            for object in inactive { self.retire(object); }
+        }
         self.reap_retired()?;
         let mut frames = Vec::new();
         let mut pending = false;
@@ -647,10 +742,17 @@ impl VideoFrames {
                 source.source_time_us,
                 generation,
                 prefetch,
+                layer.sampling.frame_blend == motion_core::render_sampling::FrameBlend::Linear,
             )?;
+            if retain_idle {
+                self.sampling_recent.retain(|id|*id!=layer.id && self.streams.contains_key(id));
+                if self.streams.contains_key(&layer.id) && self.sampling_recent.len()<MAX_DECODER_WORKERS {
+                    self.sampling_recent.push(layer.id);
+                }
+            }
             match r["state"].as_str() {
                 Some("ready") => {
-                    frames.push((layer.id, self.streams[&layer.id].ready(generation)?))
+                    frames.push((layer.id, self.streams[&layer.id].prepared(generation)?))
                 }
                 Some("failed") => {
                     return Err(r["error"].as_str().unwrap_or("video decode failed").into())
@@ -701,7 +803,9 @@ impl VideoFrames {
                 in_flight.push(status);
             }
         }
-        json!({"cacheBytes":bytes,"cacheFrames":frames,"cacheBudgetBytes":budget,"maxCacheBudgetBytes":4 * crate::video_cache::MAX_CACHE_BYTES,
+        json!({"cacheBytes":bytes,"cacheFrames":frames,"cacheBudgetBytes":budget,
+            "maxCacheBudgetBytes":MAX_DECODER_WORKERS as u64 * motion_core::MAX_VIDEO_PIXELS * 8,
+            "holdMaxCacheBudgetBytes":MAX_DECODER_WORKERS * crate::video_cache::MAX_CACHE_BYTES,
             "cacheHits":hits,"cacheMisses":misses,"decodedFrames":decoded,"cancelledFrames":cancelled,"decoderSeeks":seeks,"prefetchFailures":prefetch_failures,"lookaheadFrames":LOOKAHEAD,"streams":self.streams.len(),"decodeInFlight":in_flight,"decodeWorkersStopped":stopped_workers,
             "retiringStreams":self.retiring.iter().filter(|worker| !worker.is_finished()).count(),
             "maxDecoderWorkers":MAX_DECODER_WORKERS,"retirementError":self.retirement_error})
@@ -730,7 +834,7 @@ mod generation_failure_tests {
             asset:asset.clone(),
             pts:Arc::new(vec![0,33333]),
             shared:Arc::new((Mutex::new(State {
-                desired:Some(Request {time:0,source_time:0,index:0,sequence:10}),
+                desired:Some(Request {time:0,next:None,source_time:0,index:0,sequence:10}),
                 cache:FrameCache::new(),error:None,stop:false,prefetch:false,failed_prefetch:None,prefetch_failures:0,last_prefetch_error:None,
                 hits:0,misses:0,decoded:0,cancelled:0,seeks:0,
                 in_flight:None,pending_polls:0,worker_stopped:false,
@@ -870,5 +974,7 @@ mod generation_failure_tests {
 
 #[cfg(test)]
 mod observability_tests;
+#[cfg(test)]
+mod frame_blend_tests;
 
 mod worker_observation;

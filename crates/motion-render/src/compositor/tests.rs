@@ -4,8 +4,9 @@ use motion_model::{Layer, Project};
 #[test]
 fn missing_and_out_of_range_planes_return_context_without_adding_nodes() {
     let mut compositor = PlaneCompositor::new();
-    for layer in [0, MAX_LAYERS, usize::MAX] {
-        let error = compositor.node(Polygon { layer, vertices: 0..4 }).unwrap_err();
+    for (layer, split) in [0, MAX_LAYERS, usize::MAX].into_iter()
+        .flat_map(|layer| [false, true].map(|split| (layer, split))) {
+        let error = compositor.node(Polygon { layer, vertices: 0..4, split }).unwrap_err();
         assert!(matches!(error, motion_model::Error::Invalid(_)));
         let reason = error.to_string();
         assert!(reason.contains("spatial compositor node missing nondegenerate plane"));

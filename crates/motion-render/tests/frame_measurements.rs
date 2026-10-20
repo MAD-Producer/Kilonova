@@ -27,6 +27,8 @@ fn resources_are_separate_sampled_distributions_and_recording_remains_bounded() 
                         ..Default::default()
                     },
                     preview_target_bytes: 32,
+                    exposure_target_bytes: 0,
+                    exposure_media_us: 0,
                     cpu_video_cache_bytes: sequence * 10,
                     cpu_video_proxy_bytes: sequence,
                     video_prepare_us: sequence * 2,
@@ -61,4 +63,23 @@ fn resources_are_separate_sampled_distributions_and_recording_remains_bounded() 
         .as_str()
         .unwrap()
         .contains("Excludes transient peaks"));
+}
+
+#[test]
+fn exposure_capacity_and_combined_media_time_are_reported_without_inventing_gpu_samples() {
+    let mut recorder=FrameRecorder::new(9,1);
+    recorder.record(FrameMeasurement {sequence:9,frame:1.25,elapsed_us:100,
+        cpu_prepare_us:25,acquire_us:2,submit_us:3,present_call_us:4,render_wall_us:20,
+        render_width:4,render_height:2,preview_fps:30,gpu:None,
+        resources:Some(FrameResources {textures:TextureMemoryBreakdown::default(),
+            preview_target_bytes:32,exposure_target_bytes:96,exposure_media_us:7,
+            cpu_video_cache_bytes:16,cpu_video_proxy_bytes:0,video_prepare_us:0,video_upload_us:0,
+            image_upload_bytes_total:0,video_upload_bytes_total:0,pipeline_builds_total:0,
+            memory_quality_level:0,resource_refusals_total:0})});
+    let report=recorder.report(json!({}));
+    assert_eq!(report["logicalTextureBytes"]["max"],128.);
+    assert_eq!(report["exposureTargetBytes"]["max"],96.);
+    assert_eq!(report["exposureMediaUs"]["max"],7.);
+    assert_eq!(report["frames"][0]["resources"]["exposureTargetBytes"],96);
+    assert_eq!(report["gpuSampleCount"],0);assert!(report["gpuTotalUs"].is_null());
 }

@@ -182,11 +182,13 @@ fn three_d_click_updates_the_shell_after_scrolling_and_switching_panel_focus() {
                 let index = (shell.panels.timeline.scroll / row_height).ceil() as usize;
                 let rows = timeline::rows(&shell.state);
                 let object = rows[index].id;
-                let columns = timeline_columns::ColumnRects::styled(
+                let columns = timeline_columns::ColumnRects::with_sampling(
                     &styles,
                     area.min[0],
                     GUTTER.min(area.width() * 0.52),
                     shell.panels.timeline.column_visibility,
+                    shell.panels.timeline.sampling_visibility,
+                    super::layer_sampling::available(&shell.state),
                 );
                 let switch = columns.three_d.unwrap();
                 let point = [
