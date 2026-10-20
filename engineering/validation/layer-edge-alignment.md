@@ -56,3 +56,29 @@
 本次真实组合定向验收：host 对齐 **5 通过，10.27 秒**；桌面对齐交互与真实 worker 故障/恢复 **2 通过，17.80 秒**；原生四模式采样 **1 通过，31.87 秒**；中英文 PNG 导出 **1 通过，26.23 秒**；工作流 **5 通过，6.389 秒**。日志为 `artifacts/pr-queue/alignment-native-ci-{host,desktop,sampling,frame-export,workflow}.log`，来源守卫（1535 跟踪路径）、面板样式消费者及差异检查也通过。未重跑完整桌面/渲染或 FFmpeg 发布构建，不能将旧 head 的全套结果当作本次新结果。
 
 本次没有用户可见界面变化，原生界面截图仍对应本文件前述正常对齐功能，不声称重拍或补齐高 DPI/其他 OS 人工交互。最终组合 CI 待完成。堆叠顺序为 #368 → #365 → #366，父 PR 合入 main 后再检查/调整子 PR 的 base。
+
+## Actual main integration after property reveal
+
+Candidate `3c407d5e` integrates real main `a3ca3bd9`, including preferences,
+grapheme editing, modified-property reveal and image-trim reuse. The sole
+conflict was the native screenshot entry point: both modified-property and
+alignment capture calls are retained. Relative to main, this remains the same
+fourteen-file alignment feature; the entry-point change is one additional
+alignment capture call after the existing modified-property call. Alignment
+product code, tokens, tests and assertions were not changed by the resolution.
+
+Fresh targeted tests: host alignment 5 passed (7.22 seconds), desktop alignment
+and real worker failure/recovery 3 (53.59), modified-property classification 11
+(0.16), and timeline shortcuts 36 (3.61): 55 cases, no failures or ignores.
+An initial desktop filter matched zero tests; its log is retained and is not
+counted as acceptance. Correct module selection ran both interaction cases
+and the existing position-component regression. Provenance (1,555 tracked
+paths), style-consumer and whitespace guards passed.
+
+Evidence: `.tools/issue-closure-review/365-actual-main-{integration,acceptance}.json`
+and `artifacts/pr-queue/365-actual-main-*.log`. The following documentation-only
+commit preserves this tested source. This is not a fresh full-suite, packaged
+video or native capture run. Existing screenshots keep their original source
+scope; there is no new UI styling or menu change. Current-head remote CI and
+the previously listed manual-platform limits remain pending. #366 must follow
+this updated parent after the parent reaches main.
