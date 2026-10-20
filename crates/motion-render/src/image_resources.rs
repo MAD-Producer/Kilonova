@@ -279,7 +279,23 @@ fn decode_cancellable(
 // Disposable cache, outside assets/ and project packages. Keys include a full
 // source SHA-256 and algorithm version; corrupt cache data is never trusted.
 pub const PROXY_CACHE_BYTES: u64 = 64 * 1024 * 1024;
-static CACHE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+// Canonical proxy directories select a fixed shard. All reads, writes and
+// eviction within one directory share its lock. Hash collisions conservatively
+// serialize unrelated directories; no path keys or per-project locks are retained.
+const PROXY_CACHE_SHARDS: usize = 64;
+static CACHE_LOCKS: [std::sync::Mutex<()>; PROXY_CACHE_SHARDS] =
+    [const { std::sync::Mutex::new(()) }; PROXY_CACHE_SHARDS];
+
+fn proxy_cache_shard(path: &Path) -> usize {
+    use std::hash::{Hash, Hasher};
+    let mut hash = std::collections::hash_map::DefaultHasher::new();
+    path.parent().hash(&mut hash);
+    (hash.finish() % PROXY_CACHE_SHARDS as u64) as usize
+}
+
+fn proxy_cache_mutex(path: &Path) -> &'static std::sync::Mutex<()> {
+    &CACHE_LOCKS[proxy_cache_shard(path)]
+}
 static PROXY_WRITES: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
 static PROXY_READS: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
 static PROXY_DIRECTORY: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
@@ -288,13 +304,14 @@ static PROXY_CLEANUP_WARNED: AtomicBool = AtomicBool::new(false);
 mod proxy_observation;
 use proxy_observation::Events as ProxyEvents;
 
-fn proxy_cache_lock(events: &mut ProxyEvents) -> std::sync::MutexGuard<'static, ()> {
-    CACHE_LOCK.lock().unwrap_or_else(|poisoned| {
+fn proxy_cache_lock(path: &Path, events: &mut ProxyEvents) -> std::sync::MutexGuard<'static, ()> {
+    let cache = proxy_cache_mutex(path);
+    cache.lock().unwrap_or_else(|poisoned| {
         // This mutex protects filesystem operations, not shared in-memory data.
         // Proxy reads still validate length/header/hash before accepting bytes.
         let guard = poisoned.into_inner();
-        CACHE_LOCK.clear_poison();
-        events.recovered();
+        cache.clear_poison();
+        events.recovered(proxy_cache_shard(path));
         guard
     })
 }
@@ -357,10 +374,10 @@ fn proxy_path(source: &Source, w: u32, h: u32, cancel: Option<&AtomicBool>) -> O
     Some(directory.join(format!("{:x}.rgba", hash.finalize())))
 }
 fn read_proxy(path: &Path, w: u32, h: u32) -> Option<Vec<u8>> {
-    // Keep file IO serialized, but release the cache lock before logging.
+    // Serialize IO within a directory shard; release it before logging.
     let mut events = ProxyEvents::default();
     let result = {
-        let _guard = proxy_cache_lock(&mut events);
+        let _guard = proxy_cache_lock(path, &mut events);
         read_proxy_inner(path, w, h)
     };
     match result {
@@ -410,7 +427,7 @@ fn read_proxy_inner(path: &Path, w: u32, h: u32) -> std::io::Result<Option<Vec<u
 fn write_proxy(path: &Path, pixels: &Pixels) {
     let mut events = ProxyEvents::default();
     let result = {
-        let _guard = proxy_cache_lock(&mut events);
+        let _guard = proxy_cache_lock(path, &mut events);
         write_proxy_inner(path, pixels, &mut events)
     };
     match result {
@@ -833,32 +850,49 @@ impl Drop for DecodeTask {
 mod proxy_failure_tests {
     use super::*;
 
+    fn isolate_temporary_serial() -> Vec<std::sync::MutexGuard<'static, ()>> {
+        // This fixture precreates the exact next process-wide temporary name.
+        // Other directories can now write concurrently, so exclude all writers
+        // only while injecting that collision. Never wait holding partial locks.
+        let began = std::time::Instant::now();
+        loop {
+            let attempt: std::result::Result<Vec<_>, _> =
+                CACHE_LOCKS.iter().map(std::sync::Mutex::try_lock).collect();
+            match attempt {
+                Ok(guards) => return guards,
+                Err(error) => drop(error),
+            }
+            assert!(began.elapsed() < std::time::Duration::from_secs(5));
+            std::thread::yield_now();
+        }
+    }
+
     fn pixels() -> Pixels {
         Pixels {width:2,height:1,rgba:vec![80;8],cached:false}
     }
 
     #[test]
     fn poisoned_cache_lock_recovers_and_still_roundtrips_verified_pixels() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join(format!("{:064x}.rgba",1));
         let caught = std::panic::catch_unwind(|| {
             let mut events = ProxyEvents::default();
-            let _guard = proxy_cache_lock(&mut events);
+            let _guard = proxy_cache_lock(&path, &mut events);
             panic!("injected proxy writer panic");
         });
         assert!(caught.is_err());
-        let root = tempfile::tempdir().unwrap();
-        let path = root.path().join(format!("{:064x}.rgba",1));
         let pixels = pixels();
         write_proxy(&path,&pixels);
-        assert!(!CACHE_LOCK.is_poisoned());
+        assert!(!proxy_cache_mutex(&path).is_poisoned());
         assert_eq!(read_proxy(&path,2,1).unwrap(),pixels.rgba);
     }
 
     #[test]
     fn exclusive_temp_collision_preserves_foreign_file_and_previous_cache() {
-        let mut events = ProxyEvents::default();
-        let _guard = proxy_cache_lock(&mut events);
         let root = tempfile::tempdir().unwrap();
         let path = root.path().join(format!("{:064x}.rgba",2));
+        let mut events = ProxyEvents::default();
+        let _guards = isolate_temporary_serial();
         fs::write(&path,b"previous cache").unwrap();
         let serial = CACHE_SERIAL.load(Ordering::Relaxed);
         let foreign = root.path().join(format!("proxy-{}-{serial}.tmp", std::process::id()));
@@ -870,10 +904,10 @@ mod proxy_failure_tests {
 
     #[test]
     fn rename_failure_preserves_destination_and_cleans_own_temp_file() {
-        let mut events = ProxyEvents::default();
-        let _guard = proxy_cache_lock(&mut events);
         let root = tempfile::tempdir().unwrap();
         let path = root.path().join(format!("{:064x}.rgba",3));
+        let mut events = ProxyEvents::default();
+        let _guard = proxy_cache_lock(&path, &mut events);
         fs::create_dir(&path).unwrap();
         assert!(write_proxy_inner(&path,&pixels(),&mut events).is_err());
         assert!(path.is_dir());
@@ -886,3 +920,6 @@ mod proxy_read_observation_tests;
 
 #[cfg(test)]
 mod proxy_lock_observation_tests;
+
+#[cfg(test)]
+mod proxy_directory_tests;
