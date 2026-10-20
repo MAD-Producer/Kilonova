@@ -42,3 +42,31 @@ The actual TextEditor, current stylesheet and UI GPU Painter render both origina
 The UI and desktop suites completed after source restoration and removal of the temporary capture entry. Remote CI remains required before merge. No full nineteen-panel compliance claim is made; this patch adds no panel or visual-style change. Native verification covers the available 1x monitor; the actual editor comparison captures use offscreen 2x rendering.
 
 Issue #129 remains open. Glyph positioning, complex-script shaping, bidirectional layout, font fallback and grapheme-based ellipsis are separate rendering concerns; this change does not claim to implement them. Caret measurement still uses the existing glyph advances. The captures expose that existing combining-mark positioning limit instead of claiming typographic correctness. This batch adds no restart, retry, error suppression or altered existing assertion.
+
+
+## Native CI integration refresh — 2026-10-20
+
+To clear the existing PR queue, this branch now includes the reviewed #368 head
+`1381cc1`, including the already merged #364 Intel budget. The PR's Rust
+implementation and regression files are byte-identical to the previous head;
+the incoming CI/test infrastructure changes are tracked in
+`native-ci-failure-evidence.md`. Main's zlib source attribution update is retained
+where applicable. No existing assertion, timeout or ignore policy is relaxed.
+
+This is a real baseline change, not a rerun of an unchanged failed head. The
+sampling fixture avoids crossing its original 100-second loop during a slow
+run while retaining strict adjacent-frame progress checks. PNG diagnostics
+publish in-flight, queue and GPU context on the original timeout; adding that
+evidence is not described as fixing the underlying PNG timeout. Evidence paths
+are absolute and fall inside the always-upload directory.
+
+The prior per-PR validation recorded above remains historical evidence. A local
+combined-tree acceptance run is in progress in `artifacts/pr-queue-complete-tests.log`;
+it is not claimed as a full successful run or a replacement for this head's CI.
+The local combined timeline-shortcut suite passed all 39 tests and the tools
+suite passed 54 of 55 checks with one existing optional external-loader skip.
+Those combined results include other PRs, not just this individual branch.
+
+The branch is prepared for stacking on #368, then returning to main after the
+parent merges. Actual publication and final remote checks must be verified
+separately. No new optimization PR, dependency, asset or visual change is added.
