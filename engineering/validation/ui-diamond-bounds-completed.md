@@ -137,3 +137,23 @@ The actual Cargo desktop binary also passed the new controlled-message test
 (1 passed, 613 filtered, 0.23s), after a default unoptimized debug-info build
 completed in 10m45s. This is separate from the fast standalone helper run.
 Evidence: `artifacts/pr-queue/348-native-message-control.log`.
+
+After cleanly integrating the already merged grapheme baseline and #374's CI
+routing, all three targeted Cargo tests passed on the actual final source:
+controlled native messages (0.27s), bilingual PNG shell (19.02s), and four-mode
+sampling (40.20s). Every sampling mode retained five warmup and sixty strictly
+advancing recorded frames. All twelve retained PNGs decoded successfully.
+Logs: `348-final-message-control.log`, `348-pumped-png.log` and
+`348-pumped-sampling.log` in `artifacts/pr-queue/`. Native files and full cost
+records are in `348-pumped-native/` there. Provenance (1,536 paths), panel style
+consumers, whitespace, and all seven workflow checks passed.
+
+These local windows use the normal Vulkan-first desktop backend sequence.
+Setting WGPU_BACKEND=dx12 did not override that native surface sequence; no
+local software-DX12 or WARP acceptance is claimed. The unchanged remote Windows
+job must verify that backend with this new head. Existing local Epic overlay
+loader errors remain in Error stderr and file logs; they are not suppressed.
+No full desktop suite was rerun for this fixture-only change; the earlier
+combined 1,196-case run and Release GUI acceptance remain separately scoped.
+The PR temporarily depends on #374 to avoid duplicating validation on its next
+push. Its original diamond implementation and regressions remain unchanged.
