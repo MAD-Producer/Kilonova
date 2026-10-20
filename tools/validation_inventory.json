@@ -179,6 +179,11 @@
       ],
       "reason": "Android is frozen; legacy build-entrypoint regressions are retained for explicit manual execution."
     },
+    "tools/test_ci_icon_generator.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Executed by test_ci_*.py discovery to reject unsupported icon styles before publication."
+    },
     "tools/test_ci_tools.py": {
       "mode": "ci",
       "runner": ".github/workflows/ci.yml",
