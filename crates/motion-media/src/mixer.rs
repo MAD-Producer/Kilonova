@@ -32,10 +32,10 @@ pub struct AudioMixer {
 }
 impl AudioMixer {
     pub fn new(project: Project, root: &Path) -> Result<Self> {
-        project.validate().map_err(|e| e.to_string())?;
-        let root = root.canonicalize().map_err(|e| e.to_string())?;
+        project.validate().map_err(crate::Error::from)?;
+        let root = root.canonicalize().map_err(crate::Error::from)?;
         let mut sources = Vec::new();
-        let voices=project.audio_voices().map_err(|e|e.to_string())?;
+        let voices=project.audio_voices().map_err(crate::Error::from)?;
         let mut tables = HashMap::new();
         for a in &project.audio_assets {
             if !voices.iter().any(|voice|voice.asset==a.id) {
@@ -43,23 +43,32 @@ impl AudioMixer {
             }
             let cache = cache_path(&root, a)?;
             let path = cache.canonicalize().map_err(|error| {
-                format!("audio cache unavailable: asset={} path={} kind={:?} reason={error}; call prepare_audio", a.id, cache.display(), error.kind())
+                crate::Error::Context {
+                    message: format!("audio cache unavailable: asset={} path={} kind={:?} reason={error}; call prepare_audio", a.id, cache.display(), error.kind()),
+                    cause: Arc::new(error.into()),
+                }
             })?;
             if !path.starts_with(&root) {
-                return Err(format!("audio cache outside project: asset={} path={}", a.id, path.display()));
+                return Err(format!("audio cache outside project: asset={} path={}", a.id, path.display()).into());
             }
             let file = File::open(&path).map_err(|error| {
-                format!("audio cache open failed: asset={} path={} reason={error}", a.id, path.display())
+                crate::Error::Context {
+                    message: format!("audio cache open failed: asset={} path={} reason={error}", a.id, path.display()),
+                    cause: Arc::new(error.into()),
+                }
             })?;
             let actual_bytes = file.metadata().map_err(|error| {
-                format!("audio cache metadata failed: asset={} path={} reason={error}", a.id, path.display())
+                crate::Error::Context {
+                    message: format!("audio cache metadata failed: asset={} path={} reason={error}", a.id, path.display()),
+                    cause: Arc::new(error.into()),
+                }
             })?.len();
             let expected_bytes = a.sample_frames * u64::from(a.channels) * 4;
             if actual_bytes != expected_bytes {
                 return Err(format!(
                     "audio cache invalid for asset {}: path={} expected_bytes={expected_bytes} actual_bytes={actual_bytes}; call prepare_audio",
                     a.id, path.display()
-                ));
+                ).into());
             }
             sources.push(Source {
                 id: a.id,
@@ -131,16 +140,22 @@ impl AudioMixer {
             source
                 .file
                 .seek(SeekFrom::Start(first * ch as u64 * 4))
-                .map_err(|error| format!("audio cache seek failed: asset={} first_sample={first} reason={error}", asset.id))?;
+                .map_err(|error| crate::Error::Context {
+                    message: format!("audio cache seek failed: asset={} first_sample={first} reason={error}", asset.id),
+                    cause: Arc::new(error.into()),
+                })?;
             source
                 .file
                 .read_exact(&mut self.bytes)
-                .map_err(|error| format!("audio cache read failed: asset={} first_sample={first} sample_frames={} kind={:?} reason={error}", asset.id, last - first, error.kind()))?;
+                .map_err(|error| crate::Error::Context {
+                    message: format!("audio cache read failed: asset={} first_sample={first} sample_frames={} kind={:?} reason={error}", asset.id, last - first, error.kind()),
+                    cause: Arc::new(error.into()),
+                })?;
             self.samples.clear();
             for (index, b) in self.bytes.chunks_exact(4).enumerate() {
                 let v = f32::from_le_bytes(b.try_into().unwrap());
                 if !v.is_finite() {
-                    return Err(format!("audio cache contains a non-finite sample: asset={} sample={} channel={}", asset.id, first + (index / ch) as u64, index % ch));
+                    return Err(format!("audio cache contains a non-finite sample: asset={} sample={} channel={}", asset.id, first + (index / ch) as u64, index % ch).into());
                 }
                 self.samples.push(v);
             }
@@ -194,7 +209,7 @@ impl AudioMixer {
                 return Err(format!(
                     "audio mix produced NaN at sample {sample}, frame {frame}, channel {}; finite PCM overflow or cancellation during mixing",
                     index % 2
-                ));
+                ).into());
             }
             *value = value.clamp(-1.0, 1.0);
         }
@@ -234,7 +249,7 @@ pub fn read_waveform(
         return Err("waveform range outside audio source".into());
     }
     let count = count.min((buckets - first_bucket) as usize);
-    let root = root.canonicalize().map_err(|e| e.to_string())?;
+    let root = root.canonicalize().map_err(crate::Error::from)?;
     let path = cache_path(&root, asset)?
         .with_extension("wave")
         .canonicalize()
@@ -242,14 +257,14 @@ pub fn read_waveform(
     if !path.starts_with(&root) {
         return Err("waveform cache outside project".into());
     }
-    let mut f = File::open(path).map_err(|e| e.to_string())?;
-    if f.metadata().map_err(|e| e.to_string())?.len() != buckets * 12 {
+    let mut f = File::open(path).map_err(crate::Error::from)?;
+    if f.metadata().map_err(crate::Error::from)?.len() != buckets * 12 {
         return Err("waveform cache invalid; call prepare_audio".into());
     }
     f.seek(SeekFrom::Start(first_bucket * 12))
-        .map_err(|e| e.to_string())?;
+        .map_err(crate::Error::from)?;
     let mut bytes = vec![0; count * 12];
-    f.read_exact(&mut bytes).map_err(|e| e.to_string())?;
+    f.read_exact(&mut bytes).map_err(crate::Error::from)?;
     bytes
         .chunks_exact(12)
         .map(|b| {
@@ -304,9 +319,9 @@ pub(crate) fn build_waveform(
     mut check: impl FnMut() -> Result<()>,
 ) -> Result<()> {
     validate_waveform_asset(asset)?;
-    let mut source = File::open(pcm).map_err(|e| e.to_string())?;
+    let mut source = File::open(pcm).map_err(crate::Error::from)?;
     let mut out = std::io::BufWriter::new(
-        File::create(pcm.with_extension("wave")).map_err(|e| e.to_string())?,
+        File::create(pcm.with_extension("wave")).map_err(crate::Error::from)?,
     );
     use std::io::Write;
     let bucket_samples = (asset.sample_rate.div_ceil(100) * asset.channels) as usize;
@@ -322,12 +337,12 @@ pub(crate) fn build_waveform(
             return Err(format!(
                 "audio asset {} waveform builder made no progress",
                 asset.id
-            ));
+            ).into());
         }
         bucket += 1;
         source
             .read_exact(&mut bytes[..count * 4])
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
         let mut min = f32::INFINITY;
         let mut max = f32::NEG_INFINITY;
         let mut squared = 0.0f64;
@@ -338,19 +353,19 @@ pub(crate) fn build_waveform(
             squared += f64::from(v) * f64::from(v);
         }
         for v in [min, max, (squared / count as f64).sqrt() as f32] {
-            out.write_all(&v.to_le_bytes()).map_err(|e| e.to_string())?;
+            out.write_all(&v.to_le_bytes()).map_err(crate::Error::from)?;
         }
         remaining -= count as u64;
     }
-    out.flush().map_err(|e| e.to_string())?;
-    out.get_ref().sync_all().map_err(|e| e.to_string())?;
+    out.flush().map_err(crate::Error::from)?;
+    out.get_ref().sync_all().map_err(crate::Error::from)?;
     Ok(())
 }
 
 fn validate_waveform_asset(asset: &AudioAsset) -> Result<()> {
     asset
         .validate()
-        .map_err(|error| format!("audio asset {}: {error}", asset.id))
+        .map_err(|error| crate::Error::from(error).context(format!("audio asset {}", asset.id)))
 }
 
 #[cfg(test)]
@@ -392,8 +407,8 @@ mod waveform_tests {
                 .recv_timeout(Duration::from_secs(1))
                 .expect("invalid waveform metadata must terminate")
                 .unwrap_err();
-            assert!(error.contains("audio asset 42"), "{sample_rate}: {error}");
-            assert!(error.contains("8–192 kHz"), "{sample_rate}: {error}");
+            assert!(error.to_string().contains("audio asset 42"), "{sample_rate}: {error}");
+            assert!(error.to_string().contains("8–192 kHz"), "{sample_rate}: {error}");
         }
     }
 
@@ -439,7 +454,7 @@ mod waveform_tests {
     fn public_waveform_reader_rejects_invalid_metadata_before_division_or_io() {
         let root = tempfile::tempdir().unwrap();
         let error = read_waveform(root.path(), &asset(0, 1), 0, 1).unwrap_err();
-        assert!(error.contains("audio asset 42"), "{error}");
+        assert!(error.to_string().contains("audio asset 42"), "{error}");
     }
 }
 
@@ -501,7 +516,7 @@ mod source_interval_tests {
             Err(error) => error,
         };
         assert!(
-            error.contains("audio clip exceeds recoverable source interval"),
+            error.to_string().contains("audio clip exceeds recoverable source interval"),
             "{error}"
         );
     }
@@ -547,17 +562,19 @@ mod source_interval_tests {
         let mut mixer = AudioMixer::new(project.clone(), root.path()).unwrap();
         std::fs::write(&cache, 0.25f32.to_le_bytes().repeat(4)).unwrap();
         let error = mixer.mix(8, &mut [0.; 8]).unwrap_err();
-        assert!(error.contains("audio cache read failed: asset=1"), "{error}");
-        assert!(error.contains("kind=UnexpectedEof reason="), "{error}");
+        assert!(matches!(error.primary(), crate::Error::Io(cause) if cause.kind() == std::io::ErrorKind::UnexpectedEof));
+        assert!(error.to_string().contains("audio cache read failed: asset=1"), "{error}");
+        assert!(error.to_string().contains("kind=UnexpectedEof reason="), "{error}");
         drop(mixer);
         std::fs::remove_file(&cache).unwrap();
         let error = match AudioMixer::new(project, root.path()) {
             Ok(_) => panic!("a missing cache must fail preparation"),
             Err(error) => error,
         };
-        assert!(error.contains("audio cache unavailable: asset=1 path="), "{error}");
-        assert!(error.contains("kind=NotFound reason="), "{error}");
-        assert!(error.contains(cache.file_name().unwrap().to_str().unwrap()), "{error}");
+        assert!(error.to_string().contains("audio cache unavailable: asset=1 path="), "{error}");
+        assert!(matches!(error.primary(), crate::Error::Io(cause) if cause.kind() == std::io::ErrorKind::NotFound));
+        assert!(error.to_string().contains("kind=NotFound reason="), "{error}");
+        assert!(error.to_string().contains(cache.file_name().unwrap().to_str().unwrap()), "{error}");
     }
 
     #[test]
@@ -571,7 +588,7 @@ mod source_interval_tests {
         std::fs::write(cache, bytes).unwrap();
         let mut mixer = AudioMixer::new(project, root.path()).unwrap();
         let error = mixer.mix(8, &mut [0.; 8]).unwrap_err();
-        assert!(error.contains("non-finite sample: asset=1 sample=6 channel=0"), "{error}");
+        assert!(error.to_string().contains("non-finite sample: asset=1 sample=6 channel=0"), "{error}");
     }
 
     #[test]
@@ -581,9 +598,9 @@ mod source_interval_tests {
         let mut mixer = AudioMixer::new(project, root.path()).unwrap();
         let mut output = [0.; 8];
         let error = mixer.mix(8, &mut output).unwrap_err();
-        assert!(error.contains("NaN"), "{error}");
-        assert!(error.contains("sample 8, frame 0, channel 0"), "{error}");
-        assert!(error.contains("overflow or cancellation"), "{error}");
+        assert!(error.to_string().contains("NaN"), "{error}");
+        assert!(error.to_string().contains("sample 8, frame 0, channel 0"), "{error}");
+        assert!(error.to_string().contains("overflow or cancellation"), "{error}");
     }
 
     #[test]

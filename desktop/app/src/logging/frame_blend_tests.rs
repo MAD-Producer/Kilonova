@@ -27,8 +27,8 @@ impl VideoDecoder for Decoder {
     fn frame(
         &mut self,
         time: u64,
-        check: &dyn Fn() -> Result<(), String>,
-    ) -> Result<DecodedFrame, String> {
+        check: &dyn Fn() -> Result<(), motion_media::Error>,
+    ) -> Result<DecodedFrame, motion_media::Error> {
         check()?;
         if time == 33333 {
             self.0.entered.send(()).map_err(|e| e.to_string())?;
@@ -67,8 +67,8 @@ impl Platform for Backend {
         _: &Path,
         _: Option<u32>,
         _: Option<u32>,
-        _: &dyn Fn() -> Result<(), String>,
-    ) -> Result<motion_media::VideoProbe, String> {
+        _: &dyn Fn() -> Result<(), motion_media::Error>,
+    ) -> Result<motion_media::VideoProbe, motion_media::Error> {
         Err("unused".into())
     }
     fn open_decoder(
@@ -76,7 +76,7 @@ impl Platform for Backend {
         _: &Path,
         _: VideoAsset,
         _: Vec<u64>,
-    ) -> Result<Box<dyn VideoDecoder>, String> {
+    ) -> Result<Box<dyn VideoDecoder>, motion_media::Error> {
         Ok(Box::new(Decoder(self.0.clone())))
     }
     fn decode_audio(
@@ -85,14 +85,14 @@ impl Platform for Backend {
         _: &Path,
         _: Option<u32>,
         _: u64,
-        _: &mut dyn FnMut(f64) -> Result<(), String>,
-    ) -> Result<motion_core::AudioAsset, String> {
+        _: &mut dyn FnMut(f64) -> Result<(), motion_media::Error>,
+    ) -> Result<motion_core::AudioAsset, motion_media::Error> {
         Err("unused".into())
     }
     fn media_capabilities(
         &self,
         _: Option<&motion_host::VideoQuery>,
-    ) -> Result<serde_json::Value, String> {
+    ) -> Result<serde_json::Value, motion_media::Error> {
         Err("unused".into())
     }
     fn attach_surface(
@@ -193,7 +193,7 @@ fn required_right_reports_default_file_stderr_and_pending_threshold_recovery() {
                     .prepare_scene_exact(&project, &root, &scene)
                     .err()
                     .unwrap();
-                assert_eq!(error, "controlled adjacent-frame cause");
+                assert_eq!(error.to_string(), "controlled adjacent-frame cause");
                 assert_eq!(frames.metrics()["prefetchFailures"], 0);
                 // No automatic retry: changing the user's requirement to Hold
                 // and back explicitly requests the right frame again.

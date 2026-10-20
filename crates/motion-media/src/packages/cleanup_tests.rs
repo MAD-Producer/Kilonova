@@ -78,12 +78,12 @@ impl PackageExportSource for ControlledSource {
 }
 
 impl PackagePublication for ControlledPublication {
-    fn publish(mut self) -> motion_model::Result<PathBuf> {
+    fn publish(&mut self) -> motion_model::Result<PathBuf> {
         if matches!(self.gate.boundary, Boundary::Publication) {
             self.gate.wait();
         }
         self.publications.fetch_add(1, Ordering::AcqRel);
-        self.archive.take().unwrap().publish()
+        PackagePublication::publish(self.archive.as_mut().unwrap())
     }
 }
 
@@ -213,7 +213,7 @@ fn run(boundary: Boundary) {
             assert_eq!(status.phase, "cancelling");
             assert!(release_refused);
             assert_eq!(
-                next_error.as_deref(),
+                next_error.map(|error| error.to_string()).as_deref(),
                 Some("at most one package task may run per session")
             );
             assert_eq!(publications.load(Ordering::Acquire), 0);
