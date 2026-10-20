@@ -105,6 +105,88 @@ fn gpu() -> (wgpu::Device, wgpu::Queue) {
 }
 
 #[test]
+fn valid_diamond_pixels_match_the_legacy_helper_across_dpi_and_clipping() {
+    fn legacy_diamond(list: &mut PaintList, center: [f32; 2], radius: f32, color: Color) {
+        let [x, y] = center;
+        list.push_shape(
+            paint::Shape::Procedural {
+                area: Rect::new(x - radius, y - radius, 2. * radius, 2. * radius),
+                clip: Rect::new(
+                    x - radius - 1.,
+                    y - radius - 1.,
+                    2. * radius + 2.,
+                    2. * radius + 2.,
+                ),
+                kind: paint::Pattern::Diamond,
+            },
+            color,
+        );
+    }
+    fn scene(draw: fn(&mut PaintList, [f32; 2], f32, Color)) -> PaintList {
+        let mut list = PaintList::default();
+        for (row, radius) in [0.5, 3., 9.75].into_iter().enumerate() {
+            for (column, alpha) in [0.25, 0.6, 1.].into_iter().enumerate() {
+                let center = [16.25 + column as f32 * 32., 16.4 + row as f32 * 32.];
+                draw(&mut list, center, radius, Color::rgba(80, 180, 240, alpha));
+                // Interleave another shape to verify paint order and blending.
+                paint::rect(
+                    &mut list,
+                    Rect::new(center[0], center[1], 2., 3.),
+                    Color::rgba(240, 100, 40, 0.4),
+                );
+            }
+        }
+        draw(&mut list, [-0.25, 50.25], 9.75, Color::grey(220));
+        draw(&mut list, [95.75, 50.25], 9.75, Color::grey(220));
+        list
+    }
+    let (device, queue) = gpu();
+    let mut painter = Painter::new(&device, wgpu::TextureFormat::Rgba8Unorm);
+    for ratio in [1., 1.25, 1.5, 1.75, 2.] {
+        for clipping in 0..3 {
+            let mut old = scene(legacy_diamond);
+            let mut new = scene(paint::diamond);
+            for clip in [
+                Rect::new(7.5, 9.25, 80., 77.5),
+                Rect::new(15.5, 14.75, 64., 62.5),
+            ]
+            .into_iter()
+            .take(clipping)
+            {
+                old.clip_to(clip);
+                new.clip_to(clip);
+            }
+            let before = capture(&device, &queue, &mut painter, &old, [96.; 2], ratio);
+            let after = capture(&device, &queue, &mut painter, &new, [96.; 2], ratio);
+            assert_eq!(before, after, "ratio={ratio}, clips={clipping}");
+            assert!(
+                after.chunks_exact(4).any(|p| p[3] > 0 && p[3] < 255),
+                "fractional coverage must remain visible"
+            );
+            assert!(
+                after.chunks_exact(4).any(|p| p[3] == 255),
+                "opaque diamond interiors must remain visible"
+            );
+            if let Some(directory) = std::env::var_os("MOTION_UI_DIAMOND_ARTIFACTS") {
+                let directory = std::path::PathBuf::from(directory);
+                std::fs::create_dir_all(&directory).unwrap();
+                let size = (96. * ratio).round() as u32;
+                for (name, pixels) in [("before", &before), ("after", &after)] {
+                    image::save_buffer(
+                        directory.join(format!("{name}-{ratio}-clip-{clipping}.png")),
+                        pixels,
+                        size,
+                        size,
+                        image::ColorType::Rgba8,
+                    )
+                    .unwrap();
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn diagonal_strokes_have_partial_coverage_and_stable_weight_at_five_dpi_scales() {
     let (device, queue) = gpu();
     let mut painter = Painter::new(&device, wgpu::TextureFormat::Rgba8Unorm);

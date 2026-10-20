@@ -105,6 +105,7 @@ impl Shell {
         if !use_current {
             let mut next = node_editor::NodeEditor::new(crate::node_layer::identity());
             next.view_preferences = self.workspace.node_view;
+            next.shortcut_bindings = self.panels.shortcut_bindings.clone();
             next.recent_nodes = self.workspace.node_recents.clone();
             if let Some(source) = &source {
                 next.load_layer_source(source, target.clone())?;
@@ -162,6 +163,7 @@ impl Shell {
             node_editor::NodeEditor::default()
         });
         self.panels.node_editor.view_preferences = self.workspace.node_view;
+        self.panels.node_editor.shortcut_bindings = self.panels.shortcut_bindings.clone();
         self.panels.node_editor.recent_nodes = self.workspace.node_recents.clone();
         self.schedule_node_compile()?;
         self.dirty = true;
@@ -192,6 +194,7 @@ impl Shell {
                 node_editor::NodeEditor::default()
             });
             self.panels.node_editor.view_preferences = self.workspace.node_view;
+        self.panels.node_editor.shortcut_bindings = self.panels.shortcut_bindings.clone();
             self.panels.node_editor.recent_nodes = self.workspace.node_recents.clone();
             self.schedule_node_compile()?;
             return Ok(());
