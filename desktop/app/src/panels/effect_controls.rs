@@ -50,6 +50,9 @@ pub struct Controls {
     library_scroll: motion_ui::widgets::ScrollArea,
     library_selected: Option<String>,
     library_last_click: Option<(String, std::time::Instant)>,
+    /// Synthetic input time; absent from production builds.
+    #[cfg(test)]
+    library_test_click_time: Option<std::time::Instant>,
     pub importing_package: bool,
     recent: Vec<String>,
     query: String,

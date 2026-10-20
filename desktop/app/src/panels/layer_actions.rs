@@ -60,6 +60,9 @@ pub(crate) struct Controls {
     name: Option<NameEdit>,
     owner: Option<Panel>,
     last_click: Option<(u64, Instant, [f32; 2])>,
+    /// Synthetic input time; real windows always use Instant::now().
+    #[cfg(test)]
+    test_click_time: Option<Instant>,
 }
 fn context(state: &Value) -> (String, String) {
     (
@@ -324,6 +327,8 @@ impl Controls {
             self.last_click = None;
         } else if clicked(input, name) && id != 0 {
             let now = Instant::now();
+            #[cfg(test)]
+            let now = self.test_click_time.unwrap_or(now);
             let double = self.last_click.as_ref().is_some_and(|(old, time, p)| {
                 *old == id
                     && now.duration_since(*time) < Duration::from_millis(400)
@@ -1388,6 +1393,17 @@ mod tests {
         motion_core::Engine::new(p).unwrap()
     }
     fn draw(panels: &mut Panels, state: &Value, input: &Input) -> Vec<Action> {
+        let now = panels
+            .layer_actions
+            .test_click_time
+            .unwrap_or_else(Instant::now)
+            + Duration::from_millis(100);
+        draw_at(panels, state, input, now)
+    }
+    fn draw_at(panels: &mut Panels, state: &Value, input: &Input, now: Instant) -> Vec<Action> {
+        // The fixture declares input intervals explicitly. Font discovery and
+        // the test runner's scheduling are not time between synthetic clicks.
+        panels.layer_actions.test_click_time = Some(now);
         let layout = dock::Node::dock(Panel::Timeline.dock());
         let mut atlas = TextAtlas::from_system(12.).unwrap();
         chrome(
@@ -1802,6 +1818,100 @@ mod tests {
         draw(&mut panels, &state, &click(MouseButton::Left, p));
         draw(&mut panels, &state, &click(MouseButton::Left, p));
         assert!(!panels.layer_actions.text_in(Some(Panel::Timeline)));
+    }
+    #[test]
+    fn double_click_interval_target_and_modifiers_preserve_the_original_window() {
+        let engine = engine();
+        let state = state(&engine);
+        let p = point();
+        for locale in [Locale::Zh, Locale::En] {
+            for interval in [399, 400, 401] {
+                let mut panels = Panels {
+                    locale,
+                    ..Default::default()
+                };
+                let now = Instant::now();
+                draw_at(&mut panels, &state, &click(MouseButton::Left, p), now);
+                draw_at(
+                    &mut panels,
+                    &state,
+                    &click(MouseButton::Left, p),
+                    now + Duration::from_millis(interval),
+                );
+                assert_eq!(
+                    panels.layer_actions.text_in(Some(Panel::Timeline)),
+                    interval < 400,
+                    "locale={locale:?} interval={interval}"
+                );
+                if interval >= 400 {
+                    draw_at(
+                        &mut panels,
+                        &state,
+                        &click(MouseButton::Left, p),
+                        now + Duration::from_millis(interval + 100),
+                    );
+                    assert!(panels.layer_actions.text_in(Some(Panel::Timeline)));
+                }
+            }
+            let mut panels = Panels {
+                locale,
+                ..Default::default()
+            };
+            let now = Instant::now();
+            draw_at(&mut panels, &state, &click(MouseButton::Left, p), now);
+            let other = [p[0], p[1] + 22.];
+            draw_at(
+                &mut panels,
+                &state,
+                &click(MouseButton::Left, other),
+                now + Duration::from_millis(100),
+            );
+            assert!(!panels.layer_actions.text_in(Some(Panel::Timeline)));
+            draw_at(
+                &mut panels,
+                &state,
+                &click(MouseButton::Left, other),
+                now + Duration::from_millis(200),
+            );
+            assert!(panels.layer_actions.text_in(Some(Panel::Timeline)));
+
+            let mut panels = Panels {
+                locale,
+                ..Default::default()
+            };
+            let mut modified = click(MouseButton::Left, p);
+            modified.modifiers.control = true;
+            draw_at(&mut panels, &state, &click(MouseButton::Left, p), now);
+            draw_at(
+                &mut panels,
+                &state,
+                &modified,
+                now + Duration::from_millis(100),
+            );
+            draw_at(
+                &mut panels,
+                &state,
+                &click(MouseButton::Left, p),
+                now + Duration::from_millis(200),
+            );
+            assert!(!panels.layer_actions.text_in(Some(Panel::Timeline)));
+        }
+    }
+    #[test]
+    fn delayed_fixture_work_does_not_change_declared_double_click_input_time() {
+        let engine = engine();
+        let state = state(&engine);
+        let mut panels = Panels::default();
+        let now = Instant::now();
+        draw_at(&mut panels, &state, &click(MouseButton::Left, point()), now);
+        std::thread::sleep(Duration::from_millis(450));
+        draw_at(
+            &mut panels,
+            &state,
+            &click(MouseButton::Left, point()),
+            now + Duration::from_millis(100),
+        );
+        assert!(panels.layer_actions.text_in(Some(Panel::Timeline)));
     }
     #[test]
     fn locked_menu_disables_editing_but_allows_unlock_and_checks_split_endpoints() {

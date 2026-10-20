@@ -37,6 +37,20 @@
 
 早期失败日志保留：首次编译误用了 Rust 2024 的 let-chain（仓库为 2021，已改正）；第一轮新夹具把开放路径的正常 Seek 当作异常；随后分组夹具缺少项目版本 20，均修正新测试数据/预期，未删改既有断言。C 盘曾满，导致 Cargo 缓存访问警告，测试临时目录改在 E 盘，不删除其他分支的工作和缓存。
 
+## 默认并发失败的后续修复
+
+低并发通过不能证明上面的两项失败已解决。回查发现两项夹具每次绘制都调用 `TextAtlas::from_system`，用真实 `Instant` 判断相邻合成点击是否小于 400ms。字体加载和调度可能吃掉这个窗口。为确认测试边界，先仅在两个旧夹具的绘制准备中插入 450ms 延迟，不改产品逻辑或原断言：3 个双击相关测试中原两项如预期失败，节点编辑器那项仍通过，2.03 秒。证据为 `artifacts/pr-queue/path-selection-failure-audit/controlled-baseline-msvc.log`；首次未加载 MSVC 环境而找不到 link.exe 的构建失败另保留 controlled-baseline.log，不作为产品/用例结果。
+
+最终移除临时延迟，在两项 Controls 中增加仅 `cfg(test)` 编译的实例时钟。夹具为合成输入显式指定间隔，默认连续绘制步进 100ms，不再把字体加载或测试线程暂停当作用户点击间隔；真实窗口继续读取 `Instant::now()`。效果库使用同一次读取判断间隔和记录点击，400ms 严格边界、目标/修饰键/锁定判断及实际编辑分支保持。没有扩大双击窗口、降低断言、忽略用例、改变 CI 并发或添加运行重试。
+
+原两项测试函数逐字比较保持不变。新增四项用真实 chrome/效果库路由验证 399ms 接受、400/401ms 拒绝、超时后下一次正常双击恢复、不同目标不串联、修饰键/中间空白点击中断及锁定图层无编辑；另在两项正例中真实暂停 450ms，同时显式合成点击仅间隔 100ms，确认判定取合成时间。7 项定向测试全部通过，2.24 秒，日志 deterministic-double-click.log。
+
+最终默认并发完整运行 `cargo test -p motion-desktop --bin motion-studio --locked --offline`，清除 RUST_TEST_THREADS 且不传 --test-threads：635 项通过、0 失败、1 项既有忽略，141.00 秒、退出 0。新增/原双击用例及原生主窗/浮窗路径用例全部通过，日志 `artifacts/pr-queue/path-selection-failure-audit/full-default-concurrency.log`。重新生成的中英文 8 张路径截图在 `artifacts/path-node-selection/default-concurrency-native`。此结果替代“低并发通过即完成”的判断，原始失败和控制负例继续保留；远端 CI 仍独立待验。
+
+非测试配置的 `cargo build -p motion-desktop --bin motion-studio --features ffmpeg --locked --offline` 随后通过，91 秒，验证测试专用字段被移除后的生产代码仍能编译；日志 production-ffmpeg-build.log。构建仍报告 21 项警告，本次未宣称警告清零。样式消费者、来源 1543 路径和 diff 检查再次通过。
+
+这部分是测试计时边界修复，不是新增产品错误观测；没有新的 worker、重试、错误吞噬、日志阈值或功能恢复声明。原路径错误信道及失败验证保持，属性树、效果行、菜单的尺寸/颜色/控件和命中均未改。
+
 ## DESIGN §0.7 基线处置
 
 本批修改查看器路径交互，不重绘属性行。以下均 retained with reason；不把其他 PR 已有的属性控件当作本批整改，也不声称整个 DESIGN 已验收。
@@ -48,11 +62,11 @@
 | path_controls 按钮/字段高度 | 保留原控件及命中，不靠缩小控件实现节点选择。 |
 | path_controls 自绘数值底色 | 当前 mask_inspector 已使用 field.number；不修改数值编辑和背景。 |
 | path_controls 布尔宽按钮 | 当前 mask_inspector 使用 Checkbox；不修改开关布局或状态。 |
-| effect_controls 行高/步距 | 当前使用 effect/row token；该文件不改。 |
-| effect_controls 布尔按钮 | 当前使用 Checkbox；该文件不改。 |
-| effect_controls 枚举按钮 | 当前使用 Dropdown；该文件不改。 |
-| effect_controls hover alpha | 当前可见项复用 Hovered 状态；该文件不改，不新增 hover 颜色。 |
-| effect_controls 缺少 depth | 当前存在 tree.indent；该文件不改，不宣称覆盖所有效果树层级。 |
+| effect_controls 行高/步距 | 当前使用 effect/row token；后续只加测试时钟，不改行布局。 |
+| effect_controls 布尔按钮 | 当前使用 Checkbox；不改布尔控件。 |
+| effect_controls 枚举按钮 | 当前使用 Dropdown；不改枚举控件。 |
+| effect_controls hover alpha | 当前可见项复用 Hovered 状态；不改 hover 颜色。 |
+| effect_controls 缺少 depth | 当前存在 tree.indent；不改属性树，不宣称覆盖所有效果树层级。 |
 | timeline 11 列坐标 | 按兼容基线保留，不改时间轴列。 |
 | timeline snap guide | 按兼容基线保留，不改吸附颜色。 |
 
