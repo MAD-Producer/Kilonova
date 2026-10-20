@@ -45,3 +45,13 @@ Issue #130 remains open. Global session registry scope around native/GPU work, p
 集成后的工作流策略检查 4 项通过（4.428 秒）；来源检查通过（1,531 个受跟踪路径）、面板样式消费者及差异检查通过。完整渲染回归使用独立的原验证 target 及 locked 依赖，最终结果记录在后续条目；重新推送后的精确 head 仍需完整远程平台验证，合集 #130 继续保持打开。
 
 最终 `cargo test -p motion-render --locked -- --test-threads=1` 退出 0：**291 passed、0 failed、1 项既有外部图片探针 ignored**，含 doctest 共 63 组结果，测试执行时间合计 427.60 秒。证据为 `artifacts/pr-queue/cache-shards-main-integration-render.log`。本次测试覆盖集成后完整渲染代码，而不只是工作流 YAML；计数增加来自主干既有回归，不认领为本 PR 新测试。没有修改忽略条件或断言。
+
+## 原生验收修复堆叠集成（2026-10-20）
+
+接入 #368 `1381cc133c3407d1f4af9eff8a0c2beeaa257eb1`，中文合并提交 `a4b19c6`。实际相对原 head 仅五个上游文件：工作流、采样/PNG 测试、诊断完成记录和工作流测试；本 PR 的六个代理缓存功能文件未变。原 291 通过、1 个既有忽略的完整渲染回归是上一 head 的证据，本次没有重新执行或将其冒充本次全套组合通过。
+
+本次新增工作流组合回归 **5 通过，9.241 秒**，日志 `artifacts/pr-queue/cache-shards-native-ci-workflow.log`；来源守卫（1532 跟踪路径）、面板样式消费者及差异检查通过。没有用户可见界面、素材或依赖改动，不重复截图；生产缓存路径和日志语义仍按本文件原有真实故障与恢复证据评估，最终远程组合 CI 待完成。
+
+预演树已无冲突；第一次将包含空行的命令输出直接传给 `git diff --stat` 时，Git 拒绝空 revision。该命令失败不作为差异审查证据。随后逐项核对实际五文件差异，并重新提取唯一哈希比较：实际树与 `merge-tree` 都为 `6bca64a7eb5cfba0f9e4ef379f05d4b9cd8c1a4c`。没有解决冲突或手工选择缓存代码。
+
+合并顺序为 #368 → #363；父 PR 进入 main 后再核对和调整 base。#130 等合集的其他边界仍开放，不能仅凭此子项关闭。
