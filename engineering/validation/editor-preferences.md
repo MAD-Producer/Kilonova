@@ -50,3 +50,13 @@
 | timeline 吸附线颜色 | retained with reason：本次不改时间轴反馈。 |
 
 DESIGN §12：中英文、选中/悬停、下拉输入所有权、取消/IME、窄窗裁剪滚动、错误保留草稿、主窗/浮窗路由已有测试和实际截图；未执行高 DPI 人工检查，未改右键菜单，不宣称属性树旧问题已经修复。
+
+## 积压 PR 的原生 CI 修复集成
+
+2026-10-20 用户要求优先清理积压 PR，暂停新增 issue 实施。开始前复核工作树干净、远程 #357 head 为 `8154b340`，无本工作树相关运行进程；接入 #368 精确 head `1381cc133c3407d1f4af9eff8a0c2beeaa257eb1`，同时继承 main `34d1d7ad` 的 #364 Intel 90 分钟预算。新增内容只有上游的采样夹具/失败证据、上传绝对目录和工作流检查；偏好设置功能、token、界面、错误回滚及既有断言未改。
+
+集成后完整 `cargo test -p motion-desktop --locked -- --test-threads=1` 退出 0：**619 passed、0 failed、1 项既有原生音频设备测试 ignored**，647.02 秒，证据 `artifacts/pr-queue/preferences-native-ci-integration-full.log`。采样四模式和 PNG 原生测试均在此次完整回归内通过；这不是仅专项测试或修改断言后的成功。使用既有 portable MSVC 与 `target/model-robustness-audit`，没有启用额外 FFmpeg feature，不冒称本次重新执行完整 FFmpeg 发布构建。
+
+工作流 5 项通过（6.280 秒），证据 `artifacts/pr-queue/preferences-native-ci-integration-tools.log`；来源检查（1,537 受跟踪路径）、样式消费者及差异检查通过。之前的 FFmpeg 构建和原生截图仍属于原验收，不改写为本次重新执行。
+
+#357 临时堆叠在 #368 分支；等 #368 合入 main 后重新核对基线并转回 main，再按 #357 → #362 → #371 → #373 的依赖顺序处理。另一个 #349 与快捷键分支的 keyboard.rs / types.rs 冲突已通过只读 merge-tree 确认，需要组合验证后处理，未把未接入的分支称作已完成。本批没有新增用户可见样式，原 DESIGN 基线 disposition 保持适用。最终远程 CI 和高 DPI 边界仍待验证。
