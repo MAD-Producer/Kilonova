@@ -113,3 +113,33 @@ passed. Evidence: `artifacts/pr-queue/362-current-main-tools.log`. These checks
 include the combined trigger policy and icon failure regressions. They are
 not a new Rust or native GUI run. This candidate is still local, and #349's
 final Mac check and main integration remain prerequisites to publication.
+
+## Actual main integration after #349 merged
+
+#349 passed all six checks and was squash merged as `a3ca3bd9` after the
+independent #370 merge. Candidate `3ab84dc0` integrates this real main. Only
+`keyboard.rs` and `types.rs` conflicted; their resolutions retain the previously
+tested candidate's complete bytes, including effective user bindings, immediate
+U, repeated UU, repeat interruption and text/IME ownership. The final tree
+`03c95f71` differs from tested candidate `57ff99cb` only in the three incoming
+#370 renderer/test/document files. No shortcut, preference, menu, layout or
+style source changed during this integration.
+
+Fresh current-source tests: timeline shortcuts 39 passed (1.73 seconds), modified
+property classification 11 (0.15), bindings/documentation 7 (0.09), native message
+pump control 1 (0.27), bilingual PNG export 1 (12.07), and four-mode sampling 1
+(22.38): 60 unique cases, no failures or ignores. The sampling artifact run
+retains five warmups and sixty strictly increasing finite frames in each mode;
+the root and per-mode records match. An earlier sampling invocation passed in
+25.85 seconds but did not retain its output because the artifact environment
+variable was mistyped. It is not counted as an additional unique case.
+
+All twelve native PNGs were fully decoded. Both retained logs were generated
+without MOTION_LOG and contain Info start records with no Present start records.
+Provenance (1,559 tracked paths), style-consumer and whitespace guards passed.
+Evidence: `.tools/issue-closure-review/362-actual-main-{integration,acceptance,
+png-verification}.json` and `artifacts/pr-queue/362-actual-main-*`. Historical
+full-suite and UI screenshots above retain their original source scope; this
+is a targeted new-source run, not a complete desktop rerun. The following
+documentation-only commit does not change the tested source. Current-head
+remote CI, high DPI and other-platform manual interactions remain pending.
