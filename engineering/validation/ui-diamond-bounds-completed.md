@@ -65,3 +65,31 @@ Fresh Windows acceptance, with the portable MSVC environment and inactive reusab
 Fresh logs: `artifacts/issue-348-ci-refresh-{ui,framework,native,desktop-check}.log`. GPU captures, RGBA hashes, native reports and captures: `artifacts/issue-129-diamond/ci-refresh/`. These refreshed results do not relabel the historical 593-test desktop run above as a run on the new base; current full desktop and cross-platform results remain subject to CI on the updated head.
 
 The scope still contains no panels, menus, tokens, UI interactions or layout changes. The original DESIGN disposition remains applicable. No aggregate issue is closed by refreshing the validation budget.
+
+
+## Native CI integration refresh — 2026-10-20
+
+To clear the existing PR queue, this branch now includes the reviewed #368 head
+`1381cc1`, including the already merged #364 Intel budget. The PR's Rust
+implementation and regression files are byte-identical to the previous head;
+the incoming CI/test infrastructure changes are tracked in
+`native-ci-failure-evidence.md`. Main's zlib source attribution update is retained
+where applicable. No existing assertion, timeout or ignore policy is relaxed.
+
+This is a real baseline change, not a rerun of an unchanged failed head. The
+sampling fixture avoids crossing its original 100-second loop during a slow
+run while retaining strict adjacent-frame progress checks. PNG diagnostics
+publish in-flight, queue and GPU context on the original timeout; adding that
+evidence is not described as fixing the underlying PNG timeout. Evidence paths
+are absolute and fall inside the always-upload directory.
+
+The prior per-PR validation recorded above remains historical evidence. A local
+combined-tree acceptance run is in progress in `artifacts/pr-queue-complete-tests.log`;
+it is not claimed as a full successful run or a replacement for this head's CI.
+The local combined timeline-shortcut suite passed all 39 tests and the tools
+suite passed 54 of 55 checks with one existing optional external-loader skip.
+Those combined results include other PRs, not just this individual branch.
+
+The branch is prepared for stacking on #368, then returning to main after the
+parent merges. Actual publication and final remote checks must be verified
+separately. No new optimization PR, dependency, asset or visual change is added.
