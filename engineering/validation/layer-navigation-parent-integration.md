@@ -14,7 +14,18 @@ context hashing are preserved. Navigation remains limited to its existing
 focus/modal guards. No layout, widget, style, return value, GPU resource or
 protocol change is introduced by this merge.
 
-Exact-branch timeline and navigation tests are pending. The combined Debug GUI
+Exact-branch timeline tests passed 39 cases in 1.63 seconds; the navigation
+suite passed seven cases in 12.59 seconds, including the bilingual native
+ordering/error-channel test. Re-running only that existing native test with
+`MOTION_LAYER_NAVIGATION_ARTIFACTS` set passed in 12.21 seconds and retained all
+eight 1000 by 700 PNGs under `artifacts/pr-queue-371-native`. It is one repeated
+case, not an additional unique test. PNG signatures, dimensions and file sizes
+were checked, and the Chinese context and ordering menus were visually
+inspected. The test checks default Info file output, Error stderr and stdout
+isolation. These are real attached-surface captures with routed input; they do
+not certify physical keyboard input or cross-display DPI.
+
+The combined Debug GUI
 smoke timed out at its existing 40-second deadline after 50 PNG captures; that
 failure is retained. A CI-style Release build is in progress with unchanged
 assertions and timeouts. Native screenshots, packaged FFmpeg verification and
