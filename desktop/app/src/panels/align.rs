@@ -119,7 +119,7 @@ pub(super) fn render(
     input: &Input,
     out: &mut Vec<Action>,
 ) {
-    use motion_host::ops::alignment::{Edge, Target};
+    use motion_host::ops::alignment::{Distribution, Edge, Target};
     use motion_ui::widgets::DropdownItem;
     let styles = list.styles();
     paint::rect(list, area, styles.color("panel"));
@@ -134,7 +134,7 @@ pub(super) fn render(
         &styles,
         Panel::Align,
         area,
-        row * 5. + control * 2. + gap * 5. + pad * 2.,
+        row * 8. + control * 4. + gap * 9. + pad * 2.,
         panels,
         controls,
     );
@@ -267,6 +267,82 @@ pub(super) fn render(
         ]
     } {
         label(list, atlas, Rect::new(x, y, width, row), text, true);
+        y += row;
+    }
+    y += gap;
+    label(
+        list,
+        atlas,
+        Rect::new(x, y, width, row),
+        auxiliary::localized(
+            panels.locale,
+            "分布（首末固定）",
+            "Distribute (fixed endpoints)",
+        ),
+        true,
+    );
+    y += row + gap;
+    let button_width = ((width - gap) / 2.).max(0.);
+    let enabled = reason.is_none() && panels.selection_ids().len() >= 3;
+    for entries in [
+        [
+            (
+                "水平位置",
+                "Horizontal centers",
+                Distribution::HorizontalCenters,
+            ),
+            ("水平间距", "Horizontal gaps", Distribution::HorizontalGaps),
+        ],
+        [
+            (
+                "垂直位置",
+                "Vertical centers",
+                Distribution::VerticalCenters,
+            ),
+            ("垂直间距", "Vertical gaps", Distribution::VerticalGaps),
+        ],
+    ] {
+        for (index, (zh, en, distribution)) in entries.into_iter().enumerate() {
+            if ui::button(
+                list,
+                atlas,
+                Rect::new(
+                    x + index as f32 * (button_width + gap),
+                    y,
+                    button_width,
+                    control,
+                ),
+                auxiliary::localized(panels.locale, zh, en),
+                controls,
+                enabled,
+            )
+            .clicked
+            {
+                out.push(Action::DistributeLayers {
+                    objects: panels.selection_ids(),
+                    distribution,
+                });
+            }
+        }
+        y += control + gap;
+    }
+    for (zh, en) in [
+        (
+            "位置按中心、间距按边缘排序。",
+            "Centers / gaps sort by center / edge.",
+        ),
+        (
+            "至少三个图层；负间距表示重叠。",
+            "Needs 3+ layers; negative gaps overlap.",
+        ),
+    ] {
+        label(
+            list,
+            atlas,
+            Rect::new(x, y, width, row),
+            auxiliary::localized(panels.locale, zh, en),
+            true,
+        );
         y += row;
     }
     list.append(overlay);
