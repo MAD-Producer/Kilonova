@@ -179,6 +179,8 @@ impl Shell {
                             self.apply_preferences(values, true)?;
                             self.dialog = None;
                         }
+                        dialogs::Event::PreferencesImportKeys => self.shortcut_preset_picker(false)?,
+                        dialogs::Event::PreferencesExportKeys => self.shortcut_preset_picker(true)?,
                         dialogs::Event::PreferencesStyle => {
                             log::info!("preferences start operation=choose_style");
                             crate::logging::flush();

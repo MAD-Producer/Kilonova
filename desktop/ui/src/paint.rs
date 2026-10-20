@@ -564,21 +564,39 @@ pub fn rect(list: &mut PaintList, area: Rect, color: Color) {
 }
 
 /// Filled analytic diamond; its diagonal edges retain fractional coverage.
+/// Invalid inputs and bounds that overflow or collapse emit no paint command.
 pub fn diamond(list: &mut PaintList, center: [f32; 2], radius: f32, color: Color) {
-    if !radius.is_finite() || radius <= 0. || color.0[3] <= 0. {
+    if !radius.is_finite()
+        || radius <= 0.
+        || color.0[3] <= 0.
+        || !center.into_iter().all(f32::is_finite)
+        || !color.0.into_iter().all(f32::is_finite)
+    {
         return;
     }
     let [x, y] = center;
     let area = Rect::new(x - radius, y - radius, 2. * radius, 2. * radius);
+    let clip = Rect::new(
+        x - radius - 1.,
+        y - radius - 1.,
+        2. * radius + 2.,
+        2. * radius + 2.,
+    );
+    // Finite operands can still overflow, or lose the whole width to rounding.
+    let valid_bounds = |bounds: Rect| {
+        bounds.min.into_iter().chain(bounds.max).all(f32::is_finite)
+            && bounds.width().is_finite()
+            && bounds.height().is_finite()
+            && bounds.width() > 0.
+            && bounds.height() > 0.
+    };
+    if !valid_bounds(area) || !valid_bounds(clip) {
+        return;
+    }
     list.push_shape(
         Shape::Procedural {
             area,
-            clip: Rect::new(
-                x - radius - 1.,
-                y - radius - 1.,
-                2. * radius + 2.,
-                2. * radius + 2.,
-            ),
+            clip,
             kind: Pattern::Diamond,
         },
         color,

@@ -405,8 +405,8 @@ impl NodeEditor {
                 .is_some_and(|edit| edit.editor.text.active())
         {
             input.key_presses().find_map(|(key, modifiers, repeat)| {
-                use crate::shortcuts::{self, Command, Scope};
-                match shortcuts::resolve(Scope::Nodes, key, modifiers, repeat) {
+                use crate::shortcuts::{Command, Scope};
+                match self.shortcut_bindings.resolve(Scope::Nodes, key, modifiers, repeat) {
                     Some(Command::Open) => Some(Request::Open),
                     Some(Command::Save) => Some(Request::Save),
                     Some(Command::SaveAs) => Some(Request::SaveAs),
@@ -531,12 +531,7 @@ impl NodeEditor {
             .clone()
             .or_else(|| self.diagnostic.as_ref().map(|d| d.to_string()))
             .unwrap_or_else(|| {
-                language
-                    .text(
-                        "空白框选 · 中键平移 · Ctrl+滚轮缩放 · Shift+A 添加",
-                        "Drag to select · MMB pan · Ctrl+wheel zoom · Shift+A add",
-                    )
-                    .into()
+                self.shortcut_bindings.label(language.text("空白框选 · 中键平移 · Ctrl+滚轮缩放 · 添加节点", "Drag to select · MMB pan · Ctrl+wheel zoom · Add node"),crate::shortcuts::Scope::Nodes,crate::shortcuts::Command::AddNode)
             });
         label(
             &mut footer,
