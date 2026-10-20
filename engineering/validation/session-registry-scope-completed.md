@@ -55,3 +55,20 @@ Local raw logs are `E:/Dev/aem/artifacts/issue-130-session-registry-*.log`; coor
 ## Remaining limits
 
 The owning worker still executes commands serially. An indefinitely blocked handler still prevents progress within that session; resource queries may wait for it. Same-session reentry remains unsupported. This batch does not establish device-driver cancellation, leak-free shutdown for every detached worker, or UI responsiveness throughout every slow operation. It does not close the aggregate #130. No panel, layout, style, command reply, public session signature, asset, or dependency changes are included.
+
+## Pending-queue native validation refresh — 2026-10-20
+
+This branch incorporates #368 at `1381cc1` and its main baseline without changing
+the registry implementation or its regressions. The shared sampling/PNG
+fixtures and CI upload paths match that parent byte for byte. Strict frame
+progress, existing waits, assertions and ignore policy are retained. No new
+feature PR is opened.
+
+The separate all-PR integration has completed 665 desktop tests with zero
+failures and one existing native-audio-device ignore in 770.24 seconds; host,
+render, UI and doctest execution is still continuing at this checkpoint. This
+is combined-tree evidence, not a fresh full run of this exact branch. The
+workflow policy, provenance, style-consumer and whitespace guards are checked
+for this refresh separately. Final exact-head cross-platform CI remains
+pending. No panel, layout, visual, interaction, dependency or asset change is
+introduced. This does not close the aggregate concurrency issue #130.
