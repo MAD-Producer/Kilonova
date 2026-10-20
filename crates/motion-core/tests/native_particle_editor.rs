@@ -1,10 +1,11 @@
+#[path = "../../motion-effects/tests/support/scene_packages.rs"]
+mod scene_fixtures;
 use motion_core::{
     plugin_editor::{EditorRequest, PluginEditorSession},
     EffectInstance, Engine, Layer, LayerTimeline, Project,
 };
-use motion_effects::{builtin, Registry};
 fn engine() -> Engine {
-    let package = builtin::particle_package().unwrap();
+    let package = scene_fixtures::particle_package().unwrap();
     let mut p = Project::new(128, 128, 30, 120).unwrap();
     let mut layer = Layer::solid(1, "Particles", [128., 128.], [64., 64., 0.], [0.; 4]);
     layer.timeline = Some(LayerTimeline {
@@ -28,7 +29,7 @@ fn engine() -> Engine {
 fn color_picker_restores_its_track_without_cancelling_other_page_edits() {
     let mut e = engine();
     let original = e.snapshot();
-    let mut session = PluginEditorSession::open(e.project(), &Registry::new_with_builtins().unwrap(), 1, 1).unwrap();
+    let mut session = PluginEditorSession::open(e.project(), &scene_fixtures::registry().unwrap(), 1, 1).unwrap();
     let revision = e.revision();
     session.request(&mut e, 30, EditorRequest::Begin { revision }).unwrap();
     let revision = e.revision();
@@ -65,7 +66,7 @@ fn color_picker_restores_its_track_without_cancelling_other_page_edits() {
 #[test]
 fn scoped_color_picker_rejects_stale_other_parameter_and_other_frame_writes() {
     let mut e = engine();
-    let mut session = PluginEditorSession::open(e.project(), &Registry::new_with_builtins().unwrap(), 1, 1).unwrap();
+    let mut session = PluginEditorSession::open(e.project(), &scene_fixtures::registry().unwrap(), 1, 1).unwrap();
     let revision = e.revision();
     assert!(session.request(&mut e, 30, EditorRequest::ColorBegin { revision, param: "color".into() }).is_err());
     session.request(&mut e, 30, EditorRequest::Begin { revision }).unwrap();
@@ -84,7 +85,7 @@ fn native_page_keys_use_the_same_tracks_and_cancel_or_commit_once() {
     let mut e = engine();
     let original = e.snapshot();
     let mut session =
-        PluginEditorSession::open(e.project(), &Registry::new_with_builtins().unwrap(), 1, 1)
+        PluginEditorSession::open(e.project(), &scene_fixtures::registry().unwrap(), 1, 1)
             .unwrap();
     let state = session.state(&e, 30).unwrap();
     assert_eq!(state["timeline_offset"], 30);

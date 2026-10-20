@@ -13,7 +13,7 @@ import zipfile
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "tools"))
+sys.path.insert(0, str(ROOT / "sdk/tests/support"))
 import generate_particle_library as particle
 import generate_scene_library as scene
 
@@ -112,23 +112,23 @@ class ScenePackageTest(unittest.TestCase):
     def test_generator_check_cli_detects_stale_bytes_without_changing_the_checkout(self):
         for module, name in [(scene, "scene"), (particle, "particle")]:
             env = os.environ | {"MOTION_EFFECT_VALIDATOR": str(self.validator)}
-            script = ROOT / "tools" / f"generate_{name}_library.py"
+            script = ROOT / "sdk/tests/support" / f"generate_{name}_library.py"
             before = (module.DEST / f"{name}-effects.msfx").read_bytes()
             result = subprocess.run([sys.executable, str(script), "--check"], env=env,
                                     check=True, capture_output=True, text=True, encoding="utf-8")
             self.assertTrue(json.loads(result.stdout)["checked"])
             self.assertEqual((module.DEST / f"{name}-effects.msfx").read_bytes(), before)
         clone = self.root / "clone"
-        for name in ["tools/generate_scene_library.py", "sdk/motion-studio-plugin/scripts/pack_msfx.py"]:
+        for name in ["sdk/tests/support/generate_scene_library.py", "sdk/motion-studio-plugin/scripts/pack_msfx.py"]:
             destination = clone / name
             destination.parent.mkdir(parents=True)
             shutil.copy2(ROOT / name, destination)
-        source = clone / "crates/motion-effects/scene-library"
+        source = clone / "crates/motion-effects/tests/fixtures/scene-library"
         shutil.copytree(scene.DEST, source)
         package = source / "scene-effects.msfx"
         before = package.read_bytes() + b"stale bytes"
         package.write_bytes(before)
-        result = subprocess.run([sys.executable, "-O", str(clone / "tools/generate_scene_library.py"), "--check"],
+        result = subprocess.run([sys.executable, "-O", str(clone / "sdk/tests/support/generate_scene_library.py"), "--check"],
                                 env=env, capture_output=True, text=True, encoding="utf-8")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("scene package is stale", result.stderr)

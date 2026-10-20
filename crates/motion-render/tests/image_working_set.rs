@@ -1,3 +1,5 @@
+#[path = "../../motion-effects/tests/support/scene_packages.rs"]
+mod scene_fixtures;
 use motion_core::{Asset, Composition, CompositionClip, Content, Layer, Project};
 use motion_render::Scene;
 use motion_render::{image_resources::Resolution, Renderer};
@@ -15,7 +17,7 @@ fn image_layer(id: u64, asset: u64) -> Layer {
 
 #[test]
 fn particle_sprite_is_demanded_without_an_image_layer_and_released_when_disabled() {
-    let package = motion_effects::builtin::particle_package().unwrap();
+    let package = scene_fixtures::particle_package().unwrap();
     let mut project = Project::new(1080, 1920, 30, 60).unwrap();
     project.assets.push(Asset {
         id: 7,
@@ -124,6 +126,7 @@ fn active_images_share_proxies_with_nested_instances_and_full_output_is_explicit
     let mut scene = Scene::new(&p);
     scene.sample(&p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
+    r.set_effect_registry(scene_fixtures::registry().unwrap());
     r.configure_assets(&p, root.path()).unwrap();
     assert_eq!(r.image_count(), 1);
     assert_eq!(r.asset_ids(), [0, 99, 7, 8]);

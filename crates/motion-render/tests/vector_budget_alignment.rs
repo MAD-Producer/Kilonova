@@ -1,3 +1,5 @@
+#[path = "../../motion-effects/tests/support/scene_packages.rs"]
+mod scene_fixtures;
 use motion_core::{Content,EffectInstance,Layer,Project,vector::{ShapeKind,VectorContent,VectorSource,groups::VectorGroup}};
 use motion_render::{Renderer,Scene,TextureCategory,ResourceBudgetScope,ResourceRejection,
     effect_plan::PlanBuilder,resource_policy::MemoryPolicy,PlaneCompositor,selection_geometry};
@@ -33,7 +35,8 @@ fn exact_actual_texture_budget_succeeds_and_one_byte_less_refuses_cached_and_unc
     for grouped in [false,true] {
         for second_size in [20.,24.] {
             let p=vector_project(grouped,second_size);let s=sample(&p);
-            let mut r=pollster::block_on(Renderer::headless()).unwrap();let target=r.capture_target(64,64).unwrap();
+            let mut r=pollster::block_on(Renderer::headless()).unwrap();
+    r.set_effect_registry(scene_fixtures::registry().unwrap());let target=r.capture_target(64,64).unwrap();
             let expected=r.capture(&s,&target).unwrap().0;
             let measured=working_bytes(&r);assert!(measured>4);
             let ledger=r.texture_resource_ledger();
@@ -57,7 +60,8 @@ fn exact_actual_texture_budget_succeeds_and_one_byte_less_refuses_cached_and_unc
             assert_eq!(error.resource_rejection(),Some(&ResourceRejection::Budget {scope:ResourceBudgetScope::VectorWorkingSet,required_bytes:measured,budget_bytes:measured-1}));
             assert_eq!(r.texture_resource_ledger(),ledger,"cached refusal must not replace textures");
             assert_eq!(r.read_target(&target).unwrap(),expected,"refusal must preserve the presented image");
-            let mut fresh=pollster::block_on(Renderer::headless()).unwrap();let fresh_target=fresh.capture_target(64,64).unwrap();
+            let mut fresh=pollster::block_on(Renderer::headless()).unwrap();
+    fresh.set_effect_registry(scene_fixtures::registry().unwrap());let fresh_target=fresh.capture_target(64,64).unwrap();
             let before=fresh.texture_resource_ledger();fresh.set_memory_policy(policy(measured-1)).unwrap();
             let error=fresh.draw(&s,&fresh_target.view,64,64).unwrap_err();
             assert_eq!(error.resource_rejection(),Some(&ResourceRejection::Budget {scope:ResourceBudgetScope::VectorWorkingSet,required_bytes:measured,budget_bytes:measured-1}));
@@ -68,7 +72,7 @@ fn exact_actual_texture_budget_succeeds_and_one_byte_less_refuses_cached_and_unc
 }
 
 fn generator_project()->Project {
-    let package=motion_effects::builtin::scene_package().unwrap();
+    let package=scene_fixtures::scene_package().unwrap();
     let def=package.manifest.effects.iter().find(|d|d.id=="starfield").unwrap();
     let mut p=Project::new(128,128,30,120).unwrap();p.background=[0.;4];p.camera.created=true;
     let mut l=Layer::solid(1,"generated",[8.;2],[88.,70.,30.],[0.;4]);l.three_d=true;
@@ -84,6 +88,7 @@ fn generator_project()->Project {
 fn cached_vector_working_set_includes_retained_yuv_planes() {
     let p=vector_project(false,20.);let s=sample(&p);
     let mut r=pollster::block_on(Renderer::headless()).unwrap();
+    r.set_effect_registry(scene_fixtures::registry().unwrap());
     r.upload_video_yuv(99,1,0,&motion_render::Yuv420Frame {width:8,height:8,rotation:0,standard:1,range:2,phase:[0,0],
         chroma_layout:motion_render::ChromaLayout::Uv,y:vec![128;64],uv:vec![128;32]}).unwrap();
     let target=r.capture_target(64,64).unwrap();r.capture(&s,&target).unwrap();
@@ -97,7 +102,7 @@ fn cached_vector_working_set_includes_retained_yuv_planes() {
 }
 #[test]
 fn spatial_generator_pixels_pick_with_the_rendered_uv_and_leave_logical_transforms_intact() {
-    let p=generator_project();let s=sample(&p);let registry=motion_effects::Registry::new_with_builtins().unwrap();
+    let p=generator_project();let s=sample(&p);let registry=scene_fixtures::registry().unwrap();
     assert!(s.layers[0].three_d&&s.layers[0].screen_overlay);
     let model=s.layers[0].model;let projection=s.layers[0].view_projection;let node=s.world_matrix(1).unwrap();
     assert_ne!(model,glam::Mat4::IDENTITY);
@@ -105,7 +110,8 @@ fn spatial_generator_pixels_pick_with_the_rendered_uv_and_leave_logical_transfor
     assert_eq!(outline,vec![[0.,0.],[128.,0.],[128.,128.],[0.,128.]]);
     let mut picker=s.clone();picker.layers[0]=selection_geometry::picking_layer(&s.layers[0],&s,&registry);
     let mut legacy=s.clone();legacy.layers[0].screen_overlay=false;
-    let mut r=pollster::block_on(Renderer::headless()).unwrap();let target=r.capture_target(128,128).unwrap();
+    let mut r=pollster::block_on(Renderer::headless()).unwrap();
+    r.set_effect_registry(scene_fixtures::registry().unwrap());let target=r.capture_target(128,128).unwrap();
     let pixels=r.capture(&s,&target).unwrap().0;
     let (i,_)=pixels.chunks_exact(4).enumerate().find(|(i,p)|p[3]>32&&legacy.hit_candidates([(*i%128) as f32+0.5,(*i/128) as f32+0.5]).unwrap().is_empty()).expect("generated pixels must extend beyond the old transformed 8px plane");
     let point=[(i%128) as f32+0.5,(i/128) as f32+0.5];
@@ -123,7 +129,7 @@ fn generator_is_a_compositing_boundary_and_disabled_generator_returns_to_camera_
     let mut back=front.clone();back.id=3;back.name="back".into();back.transform.position.value[2]=100.;
     p.layers.insert(0,front);p.layers.push(back);
     let s=sample(&p);assert_eq!(s.layers.iter().map(|l|l.id).collect::<Vec<_>>(),vec![2,1,3]);
-    let mut builder=PlanBuilder::new(motion_effects::Registry::new_with_builtins().unwrap()).unwrap();
+    let mut builder=PlanBuilder::new(scene_fixtures::registry().unwrap()).unwrap();
     builder.build(&s,&[0],128,128,true).unwrap();
     let mut compositor=PlaneCompositor::new();compositor.prepare(&s).unwrap();
     let generated=s.layers.iter().position(|l|l.id==1).unwrap();
@@ -145,7 +151,7 @@ fn zero_effect_opacity_is_the_original_plane_and_nonzero_generator_uses_screen_c
     // A valid SDK package declares the optional wrapper opacity parameter.
     // Builtin scene packages currently omit it; use a temporary source package
     // rather than manufacturing a mismatched registry definition or hash.
-    let original=motion_effects::builtin::scene_package().unwrap();
+    let original=scene_fixtures::scene_package().unwrap();
     let root=tempfile::tempdir().unwrap();
     for (name,bytes) in &original.files {
         let path=root.path().join(name);std::fs::create_dir_all(path.parent().unwrap()).unwrap();std::fs::write(path,bytes).unwrap();
@@ -161,7 +167,7 @@ fn zero_effect_opacity_is_the_original_plane_and_nonzero_generator_uses_screen_c
     let mut p=generator_project();
     p.layers[0].effects=vec![EffectInstance::new(1,&package.manifest.id,&package.manifest.version,&package.hash,def,[8.;2])];
     p.rebuild_plugin_dependencies();
-    let mut registry=motion_effects::Registry::new_with_builtins().unwrap();registry.insert(package.clone()).unwrap();
+    let mut registry=scene_fixtures::registry().unwrap();registry.insert(package.clone()).unwrap();
     let mut builder=PlanBuilder::new(registry.clone()).unwrap();
     p.layers[0].effects[0].params.get_mut("effect_opacity").unwrap().track.value=[0.;4];
     let zero=sample(&p);assert!(!zero.layers[0].screen_overlay);
