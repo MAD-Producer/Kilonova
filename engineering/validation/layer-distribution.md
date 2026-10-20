@@ -169,3 +169,21 @@ files and logs remain on E. These targeted results add no new full-suite,
 physical-input, DPI, packaged-video or other-platform manual claim.
 This candidate remains local pending reconciliation with the actual parent
 squashes and six successful checks on its final published head.
+
+
+## Final actual-parent reconciliation — 2026-10-20
+
+After #374, #365 and #362 were actually squash-merged, source
+`020aa0b7d36d8b469d5a1fccd3ade784c0e08063` integrated actual main
+`7bc153a7058e7b64331d8ab0a8e9f74dc24b4e53` with real two-parent ancestry.
+Eight conflicts caused by the parent squashes retain the exact tested
+combined candidate blobs. The entire tree is unchanged from the preceding
+documented candidate, and every non-validation blob matches source `6bc6997b`
+of the 53 passing selected cases above. No new implementation, interaction,
+assertion or test exemption was introduced during reconciliation.
+
+The final PR is retargeted to main before publishing this descendant of its
+original head. Its diff contains only distribution implementation, regressions
+and this completion document; aligned and shortcut parent changes are already
+on main. All six checks must succeed on the new head before merge. Historical
+green checks on `94591c8f` are not acceptance for this final head.
