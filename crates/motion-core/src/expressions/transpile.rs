@@ -128,6 +128,7 @@ impl VisitMut for Adapter {
         match expr {
             Expr::Await(_) => self.invalid = true,
             Expr::Arrow(a) if a.is_async => self.invalid = true,
+            Expr::Call(c) if matches!(&c.callee, Callee::Import(_)) => self.invalid = true,
             Expr::Bin(b) => {
                 let name = match b.op {
                     BinaryOp::Add => "__msAdd",
