@@ -59,17 +59,28 @@ impl Shell {
 fn png_shell_shows_export_and_completion_in_both_languages() {
     const CHILD: &str = "MOTION_PNG_SHELL_CAPTURE_CHILD";
     if std::env::var_os(CHILD).is_none() {
+        let root = tempfile::tempdir().unwrap();
+        let screenshots = std::env::var_os("MOTION_FRAME_UI_ARTIFACTS")
+            .map(PathBuf::from).unwrap_or_else(|| root.path().join("screens"));
         let output = std::process::Command::new(std::env::current_exe().unwrap())
             .args([
                 "--exact",
                 "shell::frame_export::png_shell_shows_export_and_completion_in_both_languages",
             ])
-            .env(CHILD, "1")
+            .env(CHILD, root.path())
+            .env_remove("MOTION_LOG")
             .output()
             .unwrap();
+        let log_tail = if output.status.success() { String::new() } else {
+            match std::fs::read_to_string(screenshots.join("motion-studio.log")) {
+                Ok(log) => log.lines().rev().take(32).collect::<Vec<_>>()
+                    .into_iter().rev().collect::<Vec<_>>().join("\n"),
+                Err(error) => format!("PNG test log unavailable: {error}"),
+            }
+        };
         assert!(
             output.status.success(),
-            "{}\n{}",
+            "{}\n{}\n{log_tail}",
             String::from_utf8_lossy(&output.stdout),
             String::from_utf8_lossy(&output.stderr)
         );
@@ -80,13 +91,14 @@ fn png_shell_shows_export_and_completion_in_both_languages() {
         .with_any_thread(true)
         .build()
         .unwrap();
-    let root = tempfile::tempdir().unwrap();
+    let root = PathBuf::from(std::env::var_os(CHILD).unwrap());
     let screenshots = std::env::var_os("MOTION_FRAME_UI_ARTIFACTS")
         .map(PathBuf::from)
-        .unwrap_or_else(|| root.path().join("screens"));
+        .unwrap_or_else(|| root.join("screens"));
     std::fs::create_dir_all(&screenshots).unwrap();
+    let _logger = crate::logging::init(screenshots.clone()).unwrap();
     for (language, locale) in [("zh", Locale::Zh), ("en", Locale::En)] {
-        let directory = root.path().join(language);
+        let directory = root.join(language);
         let mut project = Project::new(64, 64, 30, 60).unwrap();
         project.version = 21;
         let mut layer = Layer::solid(
@@ -147,7 +159,15 @@ fn png_shell_shows_export_and_completion_in_both_languages() {
                 .present_async(ui)
                 .unwrap()
                 .recv_timeout(Duration::from_secs(10))
-                .unwrap()
+                .unwrap_or_else(|error| {
+                    let report = shell.engine.diagnostics().report();
+                    let evidence = serde_json::to_vec_pretty(&report)
+                        .map_err(std::io::Error::other)
+                        .and_then(|bytes| std::fs::write(
+                            screenshots.join(format!("{language}-present-timeout.json")), bytes));
+                    panic!("PNG Present language={language} primary={error} in_flight={:?} queue_depth={} gpu={} evidence={evidence:?}",
+                        shell.engine.in_flight(), shell.engine.queue_depth(), report["gpu"]);
+                })
                 .unwrap()
             {
                 break;
