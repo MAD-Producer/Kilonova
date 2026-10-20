@@ -3,6 +3,8 @@
 mod media_commit_tests;
 #[cfg(test)]
 mod frame_blend_tests;
+#[cfg(test)]
+mod composition_bundle_tests;
 
 use std::{
     backtrace::Backtrace,
