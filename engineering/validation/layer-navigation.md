@@ -96,3 +96,37 @@ fresh execution is claimed here. #370's actual main integration and its six
 successful checks are separate evidence for the inherited renderer change.
 The navigation candidate remains unpublished until the actual #362 squash,
 main reconciliation, final PR targeting and current-head CI are verified.
+
+## Actual main cache and registry integration — 2026-10-20
+
+Local source commit `3747016b232d406ca6d5a220dfc117399b4df2b2` has tree
+`1213d6fc1b2b43d8821d0ad822df047cfc8db8aa` and incorporates actual main `44a5a0d2a9f8bc8d28ee66de786a17488c66cf33`.
+The clean preview and actual merge agree. Exactly fourteen inherited paths
+match the already merged cache, dependency-walk and session-registry blobs;
+every other blob matches the prior held candidate. No remote head changed.
+
+Fresh default-level acceptance passed 46 targeted cases:
+
+- navigation: 7 passed, zero failures/ignores, 11.80 seconds; `371-main-navigation-recovered.log`
+- shortcuts: 39 passed, zero failures/ignores, 2.75 seconds; `371-main-shortcuts.log`
+
+The navigation source remains unchanged. The seven navigation cases include
+native bilingual menu rendering and a real stale-revision worker failure;
+the other 39 cases exercise timeline shortcut routing. The first build
+stopped before any tests: Cargo marked an old `motion-ui` library fresh
+despite missing key variants present in this worktree. The failed build,
+verbose dependency diagnosis and package-only E-drive cache refresh are
+preserved in `371-main-{cache-diagnosis,ui-cache-refresh}.json` and the
+corresponding raw logs. No source or assertion changed during recovery.
+
+Provenance (1,571 tracked paths), style-consumer and whitespace guards
+passed on the source integration. Exact-head integration and acceptance
+records are `371-current-main-{integration,acceptance}.json` under
+`.tools/issue-closure-review`. Builds, temporary files and logs remain on E;
+`MOTION_LOG` was unset. This following commit changes only this document.
+
+The candidate is still unpublished. Actual parent squash reconciliation,
+final PR base/head verification and all six final-head checks remain
+required. Historical screenshots keep their original source scope; this
+update claims no new full-suite, physical-input/DPI, cross-platform manual
+or packaged-video execution.
