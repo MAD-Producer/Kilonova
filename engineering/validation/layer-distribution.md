@@ -112,3 +112,34 @@ final PR base/head verification and all six final-head checks remain
 required. Historical screenshots keep their original source scope; this
 update claims no new full-suite, physical-input/DPI, cross-platform manual
 or packaged-video execution.
+
+
+## Diamond main integration acceptance — 2026-10-20
+
+Actual main `c5f81223` is integrated in tested source `9b3b75ab4192507ec689bfaadf0ae04339cb11c7`.
+Compared with the previous held candidate, the only incoming code/test changes
+are the exact three already merged diamond files; their implementation and
+regressions match main byte for byte. Incoming completion documentation retains
+its own earlier evidence scope. Other feature code and assertions are unchanged.
+The complete shared CI document is retained when resolving its add/add conflict.
+This is a local candidate and has not been pushed to the published PR.
+
+With MOTION_LOG unset, 14 targeted tests passed with zero failures/ignores:
+- `366-main348-host.log`: 9 passed (5.05s)
+- `366-main348-desktop-recovered.log`: 5 passed (18.06s)
+
+The first desktop compile failed before tests because the reused non-test
+motion-host library lacked ops::alignment despite the source declaring it and
+the nine host cases passing. Verbose output marked that library Fresh and the
+old dependency record did not include alignment. The guarded package-only
+motion-host refresh removed 330 cache files (3.5 GiB); the unchanged source then
+passed all five panel cases. A brief compiler-activity guard deferred the first
+cleanup attempt rather than touching an active build. Failure, verbose and
+cache-refresh logs remain under `artifacts/pr-queue/366-main348-*`.
+
+Provenance (1,568 tracked paths), panel style-consumer and whitespace guards
+passed. Builds, temporary files and retained logs remain on E. The full suite
+and historical visual acceptance above keep their original source boundaries;
+no new complete application screenshot or full-suite run is claimed here.
+The following documentation-only commit does not change tested source. Actual
+parent squash reconciliation and all six final-head remote checks remain required.
