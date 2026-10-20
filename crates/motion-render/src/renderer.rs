@@ -56,6 +56,11 @@ pub enum RenderError {
     Resource { rejection: ResourceRejection, message: String },
     #[error("GPU readback failed: {0}")]
     Readback(String),
+    #[error(transparent)]
+    CompositionPlan(#[from] crate::composition_plan::CompositionPlanError),
+    // Keep protocol-facing text independent of the original boxed source.
+    #[error("{message}")]
+    Context { message: String, #[source] cause: Box<RenderError> },
 }
 pub(crate) type Result<T> = std::result::Result<T, RenderError>;
 
@@ -64,9 +69,13 @@ mod resource_rejection_tests;
 
 impl RenderError {
     pub fn resource_rejection(&self) -> Option<&ResourceRejection> {
-        match self {
-            Self::Resource { rejection, .. } => Some(rejection),
-            _ => None,
+        let mut error = self;
+        loop {
+            match error {
+                Self::Resource { rejection, .. } => return Some(rejection),
+                Self::Context { cause, .. } => error = cause,
+                _ => return None,
+            }
         }
     }
     pub(crate) fn budget(scope: ResourceBudgetScope, required_bytes: u64, budget_bytes: u64, message: impl Into<String>) -> Self {
