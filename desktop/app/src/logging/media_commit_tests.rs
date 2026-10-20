@@ -202,9 +202,15 @@ fn media_teardown_cleanup_warnings_reach_default_file_without_console_noise() {
     if let Some(root) = std::env::var_os(CHILD) {
         let root = PathBuf::from(root);
         let _logger = init(root.join("logs")).unwrap();
+        // Import jobs canonicalize their root. Exercise an alias explicitly so
+        // log matching does not depend on the runner's temporary-path spelling
+        // (for example, a Windows short name versus its canonical long name).
+        let alias = root.join("path-alias");
+        fs::create_dir_all(&alias).unwrap();
         for kind in ["audio", "video"] {
-            let project_root = root.join(kind);
+            let project_root = alias.join("..").join(kind);
             fs::create_dir_all(&project_root).unwrap();
+            let project_root = project_root.canonicalize().unwrap();
             let audio = (kind == "audio").then(|| audio(&project_root));
             let video = (kind == "video").then(|| video(&project_root));
             let prefix = if kind == "audio" {
@@ -246,7 +252,7 @@ fn media_teardown_cleanup_warnings_reach_default_file_without_console_noise() {
                         && line.contains(&stage.display().to_string())
                 })
                 .collect();
-            assert_eq!(warnings.len(), 1);
+            assert_eq!(warnings.len(), 1, "stage={} logs={text}", stage.display());
             assert!(warnings[0].contains(" WARN ") && warnings[0].contains("reason="));
         }
         return;
