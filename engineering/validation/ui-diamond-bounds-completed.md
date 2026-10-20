@@ -93,3 +93,47 @@ Those combined results include other PRs, not just this individual branch.
 The branch is prepared for stacking on #368, then returning to main after the
 parent merges. Actual publication and final remote checks must be verified
 separately. No new optimization PR, dependency, asset or visual change is added.
+
+## Native Windows reply-wait follow-up
+
+The refreshed current head failed Windows CI in run `39370955457`, job
+`118458782325`: 610 desktop tests passed, two failed and one existing test was
+ignored. Both failures used the unchanged 10-second Present reply deadline.
+The PNG failure snapshot identified Present in flight, an empty queue, and
+the DX12 Microsoft Basic Render Driver. Artifact `12243674330` was downloaded
+and its ZIP CRC checked. Raw logs and the original timeout snapshot are retained
+under `artifacts/pr-queue/`; this is distinct from the earlier playback-loop
+fixture defect and is not attributed to diamond bounds checking.
+
+Both hidden-window fixtures create a window on their test thread and then
+block that thread waiting for GPU-worker replies. They never pump the native
+window queue. [Microsoft's DXGI guidance](https://learn.microsoft.com/en-us/windows/win32/direct3darticles/dxgi-best-practices#multithreading-and-dxgi)
+documents that cross-thread Present can send synchronous window messages and
+wait for the owner thread. This is a concrete fixture defect; the archived
+remote evidence does not identify the exact worker call or prove this is its
+only cause.
+
+A Windows-only test helper pumps the hidden window's native event loop while
+polling the existing reply, using the original absolute deadline. It forwards
+success, timeout and disconnect without retrying engine commands. Only the two
+native fixtures use it for attach and Present waits. Production event handling,
+GPU resources, draw output and shutdown are unchanged; no timeout, progress
+assertion or pixel tolerance is increased. The sampling report now explicitly
+includes test-only native message pumping in its measured scope.
+
+The controlled regression sends harmless WM_NULL synchronously from a worker.
+A plain channel wait times out while that send is pending; the helper services
+the message and receives the original reply. It also checks a held sender's
+timeout, receiver disconnection and a ready reply with zero wait. Compiling the
+actual helper through an isolated native driver passed this test (0.61s).
+A separate copied-helper mutant replacing message pumping with sleep failed
+at the positive reply assertion (exit 101); production source was not mutated.
+The initial standalone link omitted the prebuilt Windows import-library path
+and failed; the corrected command linked and ran. Its failed attempt is not
+counted as a test execution. Cargo integration and the actual native fixtures
+remain pending at this checkpoint, as does updated remote Windows CI.
+
+The actual Cargo desktop binary also passed the new controlled-message test
+(1 passed, 613 filtered, 0.23s), after a default unoptimized debug-info build
+completed in 10m45s. This is separate from the fast standalone helper run.
+Evidence: `artifacts/pr-queue/348-native-message-control.log`.
