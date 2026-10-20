@@ -30,6 +30,16 @@
 - 原生重启与 OS 焦点测试读取实际已保存映射：旧 Ctrl+, 不打开设置，新 Ctrl+E 从真实属性浮窗转焦点到主窗；取消后工程与历史不变。分类点击帧修复后的最终复验通过，证据在 `artifacts/custom-shortcuts/native-restart-verified/summary.json` 与实际桌面截图；程序正常退出。
 - 验证过程保留了初轮默认文档漂移、截图辅助代码漏导入 Rect、旧测试点击坐标落入新增第三分类、新增测试误以为夹具没有初始撤销历史等失败记录。分别生成既有默认文档、补导入、调整新增布局下的点击坐标、对比真实历史基线；未删除或放宽既有断言。菜单截图初轮因初始化重置而未展开，修正夹具初始化顺序后重拍，不把旧截图计作菜单证据。
 
+## 最新主干与堆叠集成复验（2026-10-20）
+
+同步父分支 #357 `8154b34`，包含主干 `8dbd58c0` 的 #356、#359、#360，集成提交为 `bc22cc0`。完整桌面回归 **634 通过、0 失败、1 个既有音频设备测试忽略，502.70 秒**；带 FFmpeg 的最终原生构建通过（47.05 秒，21 条既有警告）。记录见 `artifacts/custom-shortcuts/main-integration-clean-ui-tests.log`、`main-integration-build.log`。
+
+首次编译曾复用共享 Cargo target 中较旧的 motion-ui 产物，产生 KeyB/KeyC/KeyV 等缺失错误；确认源码已有这些枚举后，仅清理本次使用 target 的 motion-ui 包并重建，未改产品代码或断言。保留初次失败日志 `main-integration-tests.log`，不将其计为成功。
+
+最终二进制完成实际保存、重启、原生浮窗与 OS 焦点复验：旧 Ctrl+, 不再打开设置，新 Ctrl+E 从浮窗转到主窗；取消保留工程和历史。证据为 `main-integration-restart/summary.json` 与两张原生桌面图。
+
+中英文全套原生属性、偏好设置、快捷键及两个真实右键菜单验收通过，证据为 `main-integration-native-serial/` 和 `main-integration-capture-serial.log`。首次并行执行的英文验收达到原有 90 秒截止点而失败，保留其部分截图、超时日志与 last-stalls；未将该次计为通过，也未延长预算。结束本次完整测试后，以同一二进制、相同每语言 90 秒预算串行执行，中英文均通过。尚不能只凭串行通过认定首次超时的根因。
+
 ## DESIGN §0.7 逐项处置与 §12 限制
 
 | 基线位置 | 处置 |
