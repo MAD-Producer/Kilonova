@@ -146,3 +146,5 @@ mod composition_tests;
 mod project_tests;
 #[cfg(test)]
 mod sampling_tests;
+#[cfg(test)]
+mod model_edit_tests;
