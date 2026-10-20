@@ -4,6 +4,12 @@ use super::*;
 use crate::{panels, workspace, Locale, Shell};
 use motion_core::{render_sampling::Shutter, vector::*, Content, Ease, Layer, Project};
 
+// This study asserts progress within one playback cycle. Use the largest
+// legal composition (20 minutes at 30fps), rather than a 100-second fixture
+// that can loop during 65 native completions on slower GPUs. Waits are unchanged.
+const FIXTURE_FPS: u32 = 30;
+const FIXTURE_FRAMES: u32 = motion_core::MAX_FRAMES;
+
 fn drive_frame(shell: &mut Shell) -> Value {
     let deadline = Instant::now() + Duration::from_secs(15);
     while !shell.playback_ready(Instant::now()) {
@@ -86,7 +92,7 @@ fn paced_sampling_playback_records_native_costs_without_starving_frames() {
             ("raster", false, true),
             ("combined", true, true),
         ] {
-            let mut project = Project::new(640, 360, 30, 3000).unwrap();
+            let mut project = Project::new(640, 360, FIXTURE_FPS, FIXTURE_FRAMES).unwrap();
             project.version = 21;
             project.background = [0., 0., 0., 1.];
             for id in 1..=4 {
@@ -160,13 +166,30 @@ fn paced_sampling_playback_records_native_costs_without_starving_frames() {
                 records.push(record);
             }
             let wall_us = began.elapsed().as_micros();
+            let playback_elapsed_us = shell.playback.unwrap().0.elapsed().as_micros();
             shell.action(panels::Action::TogglePlay, None).unwrap();
             assert!(shell.playback.is_none());
             let state = shell.engine.state().unwrap();
             assert_eq!(state["project"], before);
             assert!(!shell.engine.failed());
+            // Preserve the completed samples before an invariant can fail.
+            // Slow native runners may reach the composition's loop boundary.
+            std::fs::write(
+                root.join(format!("{name}-costs.json")),
+                serde_json::to_vec_pretty(&serde_json::json!({
+                    "mode":name,"frames":records,"wall_us":wall_us,
+                    "composition_frames":project.frames,"fps":project.fps,
+                    "clock_elapsed_us":playback_elapsed_us
+                })).unwrap(),
+            ).unwrap();
+            assert!(
+                playback_elapsed_us < u128::from(project.frames) * 1_000_000 / u128::from(project.fps),
+                "mode={name} exceeded the non-looping study horizon: clock_elapsed_us={playback_elapsed_us}"
+            );
             for pair in records.windows(2) {
-                assert!(pair[1]["frame"].as_f64().unwrap() > pair[0]["frame"].as_f64().unwrap());
+                assert!(pair[1]["frame"].as_f64().unwrap() > pair[0]["frame"].as_f64().unwrap(),
+                    "mode={name} completed frames did not advance: pair={pair:?} wall_us={wall_us} composition_frames={} fps={}",
+                    project.frames, project.fps);
             }
             let (paint, actions) = shell.draw_commands([1280., 800.]);
             assert!(actions.is_empty());
@@ -192,25 +215,38 @@ fn paced_sampling_playback_records_native_costs_without_starving_frames() {
         .args(["--exact","engine::sampling_playback_tests::paced_sampling_playback_records_native_costs_without_starving_frames"])
         .env(CHILD,root.path()).env("MOTION_UI_LAYOUT",root.path().join("layout.json"))
         .env_remove("MOTION_LOG").output().unwrap();
+    let evidence: std::io::Result<()> = (|| {
+        if let Some(directory) = std::env::var_os("MOTION_SAMPLING_PLAYBACK_ARTIFACTS") {
+            let directory = PathBuf::from(directory);
+            std::fs::create_dir_all(&directory)?;
+            for name in [
+                "costs.json",
+                "baseline.png",
+                "blur.png",
+                "raster.png",
+                "combined.png",
+                "motion-studio.log",
+                "baseline-costs.json",
+                "blur-costs.json",
+                "raster-costs.json",
+                "combined-costs.json",
+            ] {
+                let source = root.path().join(name);
+                // A failed child may not have reached later modes. A healthy
+                // child must still supply every required acceptance artifact.
+                if output.status.success() || source.try_exists()? {
+                    std::fs::copy(source, directory.join(name))?;
+                }
+            }
+            std::fs::write(directory.join("stderr.log"), &output.stderr)?;
+        }
+        Ok(())
+    })();
     assert!(
-        output.status.success(),
-        "{}\n{}",
+        output.status.success() && evidence.is_ok(),
+        "child={} evidence={evidence:?}\n{}\n{}",
+        output.status,
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
-    if let Some(directory) = std::env::var_os("MOTION_SAMPLING_PLAYBACK_ARTIFACTS") {
-        let directory = PathBuf::from(directory);
-        std::fs::create_dir_all(&directory).unwrap();
-        for name in [
-            "costs.json",
-            "baseline.png",
-            "blur.png",
-            "raster.png",
-            "combined.png",
-            "motion-studio.log",
-        ] {
-            std::fs::copy(root.path().join(name), directory.join(name)).unwrap();
-        }
-        std::fs::write(directory.join("stderr.log"), output.stderr).unwrap();
-    }
 }

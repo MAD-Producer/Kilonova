@@ -6,6 +6,8 @@ Requires the same pinned PyYAML dependency installed by the checks job.
 import ast
 import fnmatch
 import os
+import ntpath
+import posixpath
 from pathlib import Path
 import re
 import subprocess
@@ -90,6 +92,23 @@ class WorkflowPolicyTest(unittest.TestCase):
         matches = [step for step in self.checks["steps"] if step.get("run") == command]
         self.assertEqual(len(matches), 1, command)
         return matches[0]
+
+    def test_native_test_evidence_stays_under_upload_root_from_crate_cwd(self):
+        desktop = self.workflow["jobs"]["desktop"]
+        test = next(step for step in desktop["steps"] if step.get("name") == "Run desktop unit tests")
+        upload = next(step for step in desktop["steps"] if step.get("with", {}).get("name") == "desktop-build-${{ matrix.platform }}")
+        self.assertEqual(upload["if"], "always()")
+        self.assertEqual(upload["with"]["path"], "artifacts/desktop/**")
+        for paths, workspace in [(posixpath, "/runner/work/project/project"), (ntpath, r"D:\a\project\project")]:
+            crate_cwd = paths.join(workspace, "desktop", "app")
+            upload_root = paths.normpath(paths.join(workspace, "artifacts", "desktop"))
+            for name in ["MOTION_SAMPLING_PLAYBACK_ARTIFACTS", "MOTION_FRAME_UI_ARTIFACTS"]:
+                destination = test["env"][name].replace("${{ github.workspace }}", workspace)
+                # Cargo runs the binary from desktop/app; a relative path used
+                # to succeed locally yet silently miss the root upload glob.
+                self.assertTrue(paths.isabs(destination), (name, destination))
+                resolved = paths.normpath(paths.join(crate_cwd, destination))
+                self.assertEqual(paths.commonpath([upload_root, resolved]), upload_root)
 
     def test_pull_requests_replace_feature_pushes_including_stacked_bases(self):
         triggers = self.workflow["on"]

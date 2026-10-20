@@ -146,6 +146,9 @@ jobs:
         if: runner.os == 'Windows'
         run: cargo test -p motion-graph --test output_antialiasing --locked -- --test-threads=1
       - name: Run desktop unit tests
+        env:
+          MOTION_SAMPLING_PLAYBACK_ARTIFACTS: ${{ github.workspace }}/artifacts/desktop/sampling-playback
+          MOTION_FRAME_UI_ARTIFACTS: ${{ github.workspace }}/artifacts/desktop/frame-export
         run: cargo test -p motion-desktop -p motion-host -p motion-ui -p motion-desktop-media --locked -- --test-threads=1
       - name: Install portable libclang for FFmpeg bindings
         run: |
