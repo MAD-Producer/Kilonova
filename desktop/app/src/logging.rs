@@ -400,3 +400,6 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod vector_upload_tests;
