@@ -19,7 +19,7 @@ fn db_gain(db: f64) -> f32 {
         10f64.powf(db / 20.).clamp(0., 2.) as f32
     }
 }
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Control {
     Gain,
     Left,
@@ -251,6 +251,25 @@ fn source(layer: &Value) -> &Value {
 pub(super) fn rows(layer: &Value) -> usize {
     controls(layer).len()
 }
+pub(super) fn filtered_rows(layer: &Value, filter: super::types::PropertyFilter) -> usize {
+    filtered_controls(layer, filter).len()
+}
+fn filtered_controls(layer: &Value, filter: super::types::PropertyFilter) -> Vec<Control> {
+    use super::types::PropertyFilter;
+    controls(layer).into_iter().filter(|control| match filter {
+        PropertyFilter::All => true,
+        PropertyFilter::Properties(_) => false,
+        PropertyFilter::Animated | PropertyFilter::Modified => {
+            if *control == Control::Gain {
+                filter == PropertyFilter::Modified && (source(layer)["volume"].as_f64().unwrap_or(1.) != 1.
+                    || source(layer)["muted"] == true)
+            } else {
+                observed_track(layer, *control).map_or(true, |track|
+                    track.is_animated() || filter == PropertyFilter::Modified && track.value != 0.)
+            }
+        }
+    }).collect()
+}
 fn controls(layer: &Value) -> Vec<Control> {
     let mut rows = vec![];
     if matches!(layer["content"]["kind"].as_str(), Some("audio" | "video")) {
@@ -279,10 +298,12 @@ fn key_times(track: &Track<f32>, offset: i64, frames: u64) -> Vec<u32> {
         .collect()
 }
 fn track(layer: &Value, control: Control) -> Track<f32> {
+    observed_track(layer, control).unwrap_or_else(|_| Track::constant(0.))
+}
+fn observed_track(layer: &Value, control: Control) -> Result<Track<f32>, serde_json::Error> {
     let value = &layer["audio_levels"][control.name()];
-    if value.is_null() { return Track::constant(0.); }
+    if value.is_null() { return Ok(Track::constant(0.)); }
     observe!("audio.level_track", serde_json::from_value(value.clone()), "object={} control={} fallback=zero", layer["id"].as_u64().unwrap_or(0), control.name())
-        .unwrap_or_else(|_| Track::constant(0.))
 }
 pub(super) fn prepare(panels: &mut Panels, state: &Value, input: &Input, out: &mut Vec<Action>) {
     let context = (
@@ -359,7 +380,7 @@ pub(super) fn render_rows(
     let frames = state["project"]["frames"].as_u64().unwrap_or(1);
     let local_offset = layer["timeline"]["offset_frame"].as_i64().unwrap_or(0);
     let locale = panels.locale;
-    let controls_list = controls(layer);
+    let controls_list = filtered_controls(layer, panels.timeline.filters.get(&object).copied().unwrap_or_default());
     for (i, control) in controls_list.iter().copied().enumerate() {
         let py = y + i as f32 * height;
         if py < body.min[1] || py + height > body.max[1] {
