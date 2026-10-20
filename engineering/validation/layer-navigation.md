@@ -55,3 +55,25 @@
 本次没有重跑完整桌面或 FFmpeg 发布构建；旧 head 的 642 项完整回归、物理键盘验证与已展示截图保留其历史范围。本批没有用户可见样式改动，不追加视觉验收主张，也不以定向结果替代远程完整 CI。高 DPI、其他 OS 人工交互及最终组合 CI 仍待验证；父 PR 合入 main 后再核对/调整 base。
 
 常规 Git 传输连接失败后，本次通过 Git 数据接口发布。仅将两个未发布提交的日期时区表示统一为 UTC，并同步本段集成提交引用；作者、时刻、中文消息、父关系与已验证的产品文件内容保持一致。发布前逐项比较树和对象哈希，远程仅快进，不改已发布历史。网络失败和发布对象核对记录位于 artifacts/pr-queue/。
+
+## Local parent refresh after main squashes
+
+The local review candidate now incorporates #362 candidate `57ff99cb` at
+`1c1d186`. The clean preview and actual merge both produced tree
+`4512378d3da93069bb96c98128cd20df5686c60d`. Eighteen inherited files bring in
+the shared native test helper, CI routing, grapheme edit fix and icon validation.
+The layer navigation, keyboard router, panel fields and shortcut catalogue
+remain byte-identical to the previously tested navigation candidate.
+
+Fresh default-level local tests passed: seven layer-navigation cases in
+9.37 seconds, including native bilingual menus and stale-revision observation,
+and all 39 timeline shortcut cases in 2.43 seconds. Logs are
+`artifacts/pr-queue/371-current-navigation.log` and
+`artifacts/pr-queue/371-current-shortcuts.log`; the exact-head record is
+`.tools/issue-closure-review/371-current-parent-acceptance.json`. All build and
+temporary outputs use E. No production assertion, timeout or style was changed.
+
+This integration remains local. Remote #371 still has head `26d7557b` and
+requires its own final parent/main integration and six current-head checks.
+The earlier retained screenshots remain historical visual evidence; this
+update does not claim a new physical-input, DPI or complete GUI matrix run.
