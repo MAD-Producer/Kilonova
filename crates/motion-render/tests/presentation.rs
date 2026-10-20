@@ -47,38 +47,116 @@ fn canvas_zoom_pan_and_fit_crop_pixels_inside_a_valid_surface_viewport() {
 }
 #[test]
 fn android_presentation_shader_is_valid_on_an_actual_gpu() {
-    let mut r = pollster::block_on(Renderer::headless()).unwrap();
-    let mut p = Project::new(64, 64, 30, 180).unwrap();
-    p.layers.push(Layer::solid(
-        1,
-        "color",
-        [64.0; 2],
-        [32.0, 32.0, 0.0],
-        [0.4, 0.6, 0.8, 1.0],
-    ));
-    let mut scene = Scene::new(&p);
-    scene.sample(&p, 0.0, None, &motion_core::ExpressionEvaluator).unwrap();
-    let source = r.capture_target(64, 64).unwrap();
-    r.draw(&scene, &source.view, 64, 64).unwrap();
-    let output = r.device.create_texture(&wgpu::TextureDescriptor {
-        label: None,
-        size: wgpu::Extent3d {
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    let mut project = Project::new(64, 64, 30, 180).unwrap();
+    project.background = [0.; 4];
+    // Distinct quadrants detect flips, channel swaps, encoding and alpha loss.
+    for (id, center, color) in [
+        (1, [16., 16., 0.], [0.4, 0.6, 0.8, 1.]),
+        (2, [48., 16., 0.], [0.8, 0.2, 0.4, 1.]),
+        (3, [16., 48., 0.], [1., 0., 0., 0.5]),
+    ] {
+        project
+            .layers
+            .push(Layer::solid(id, "color", [32.; 2], center, color));
+    }
+    let mut scene = Scene::new(&project);
+    scene
+        .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
+        .unwrap();
+    let source = renderer.capture_target(64, 64).unwrap();
+    renderer.draw(&scene, &source.view, 64, 64).unwrap();
+    for format in [
+        wgpu::TextureFormat::Rgba8Unorm,
+        wgpu::TextureFormat::Rgba8UnormSrgb,
+        wgpu::TextureFormat::Bgra8Unorm,
+        wgpu::TextureFormat::Bgra8UnormSrgb,
+    ] {
+        let output = renderer.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("presentation pixel contract"),
+            size: wgpu::Extent3d {
+                width: 64,
+                height: 64,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+            view_formats: &[],
+        });
+        let view = output.create_view(&Default::default());
+        let presenter = Presenter::new(&renderer, &source.view, format);
+        presenter.draw(&renderer, &view);
+        let pixels = presentation_bytes(&renderer, &output);
+        for (x, y, expected) in [
+            (16, 16, [102, 153, 204, 255]),
+            (48, 16, [204, 51, 102, 255]),
+            // Raw surface bytes encode premultiplied linear red at half alpha.
+            (16, 48, [188, 0, 0, 128]),
+            (48, 48, [0, 0, 0, 0]),
+        ] {
+            let mut actual: [u8; 4] = pixels[(y * 64 + x) * 4..(y * 64 + x + 1) * 4]
+                .try_into()
+                .unwrap();
+            if matches!(
+                format,
+                wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Bgra8UnormSrgb
+            ) {
+                actual.swap(0, 2);
+            }
+            for channel in 0..4 {
+                assert!(
+                    actual[channel].abs_diff(expected[channel]) <= 3,
+                    "{format:?} at ({x}, {y}): {actual:?} != {expected:?}"
+                );
+            }
+        }
+        renderer.check_health().unwrap();
+    }
+}
+
+// Read raw surface bytes, without the renderer's straight-alpha PNG conversion.
+fn presentation_bytes(renderer: &Renderer, texture: &wgpu::Texture) -> Vec<u8> {
+    let buffer = renderer.device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("presentation pixel readback"),
+        size: 64 * 64 * 4,
+        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+        mapped_at_creation: false,
+    });
+    let mut encoder = renderer.device.create_command_encoder(&Default::default());
+    encoder.copy_texture_to_buffer(
+        texture.as_image_copy(),
+        wgpu::TexelCopyBufferInfo {
+            buffer: &buffer,
+            layout: wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(256),
+                rows_per_image: Some(64),
+            },
+        },
+        wgpu::Extent3d {
             width: 64,
             height: 64,
             depth_or_array_layers: 1,
         },
-        mip_level_count: 1,
-        sample_count: 1,
-        dimension: wgpu::TextureDimension::D2,
-        format: wgpu::TextureFormat::Rgba8Unorm,
-        usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-        view_formats: &[],
-    });
-    let view = output.create_view(&Default::default());
-    let presenter = Presenter::new(&r, &source.view, wgpu::TextureFormat::Rgba8Unorm);
-    presenter.draw(&r, &view);
-    r.device.poll(wgpu::PollType::wait_indefinitely()).expect("GPU poll failed");
-    r.check_health().unwrap();
+    );
+    renderer.submit_tracked(encoder.finish(), |_| {});
+    let (send, receive) = std::sync::mpsc::sync_channel(1);
+    buffer
+        .slice(..)
+        .map_async(wgpu::MapMode::Read, move |result| {
+            send.send(result).unwrap();
+        });
+    renderer
+        .device
+        .poll(wgpu::PollType::wait_indefinitely())
+        .expect("GPU poll failed");
+    receive.recv().unwrap().unwrap();
+    let pixels = buffer.slice(..).get_mapped_range().unwrap().to_vec();
+    buffer.unmap();
+    pixels
 }
 
 #[test]
