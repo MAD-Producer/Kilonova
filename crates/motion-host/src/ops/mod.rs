@@ -11,6 +11,7 @@ use serde_json::{json, Value};
 use std::sync::Arc;
 
 pub mod composition;
+pub mod alignment;
 pub mod editing;
 pub mod effects;
 pub mod export;
