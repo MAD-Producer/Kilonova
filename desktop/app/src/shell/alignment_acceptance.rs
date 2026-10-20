@@ -1,5 +1,6 @@
 //! Real dock controls and engine edits, captured through the native GPU renderer.
 use crate::*;
+use motion_core::Property;
 use motion_ui::{
     dock::{Edge as DockEdge, Node, Panel},
     MouseButton,
@@ -23,6 +24,9 @@ impl Shell {
             .checked_add(1)
             .ok_or("alignment fixture ID exhausted")?;
         let second = id.checked_add(1).ok_or("alignment fixture ID exhausted")?;
+        let third = second
+            .checked_add(1)
+            .ok_or("distribution fixture ID exhausted")?;
         let width = before["project"]["width"]
             .as_f64()
             .ok_or("alignment fixture width missing")? as f32;
@@ -95,7 +99,121 @@ impl Shell {
                 "align-target-menu",
                 "align-selection-before",
                 "align-selection-after",
+                "distribute-before",
+                "distribute-horizontal-centers",
+                "distribute-horizontal-gaps",
+                "distribute-vertical-centers",
+                "distribute-vertical-gaps",
             ] {
+                if name == "distribute-before" {
+                    let c = motion_core::Layer::solid(
+                        third,
+                        "Boundary C",
+                        [width * 0.08, height * 0.12],
+                        [width * 0.48, height * 0.78, 0.],
+                        [0.3, 0.8, 0.5, 1.],
+                    );
+                    let mut commands = vec![
+                        Command::SetVector {
+                            object: id,
+                            property: Property::Position,
+                            frame: state["frame"].as_f64().unwrap_or(0.).floor() as u32,
+                            value: [width * 0.35, height * 0.35, 0.],
+                        },
+                        Command::SetVector {
+                            object: second,
+                            property: Property::Position,
+                            frame: state["frame"].as_f64().unwrap_or(0.).floor() as u32,
+                            value: [width * 0.7, height * 0.65, 0.],
+                        },
+                        Command::Add { layer: c },
+                    ];
+                    for layer in before["project"]["layers"]
+                        .as_array()
+                        .ok_or("distribution fixture layers missing")?
+                    {
+                        commands.push(Command::Flags {
+                            object: layer["id"]
+                                .as_u64()
+                                .ok_or("distribution fixture layer ID missing")?,
+                            visible: false,
+                            locked: layer["locked"]
+                                .as_bool()
+                                .ok_or("distribution fixture lock state missing")?,
+                        });
+                    }
+                    state = self
+                        .engine
+                        .edit(serde_json::to_string(&commands).map_err(|e| e.to_string())?)?;
+                    panels.selected = Some(third);
+                    panels.selected_layers = vec![id, second, third];
+                }
+                let distribution = match name {
+                    "distribute-horizontal-centers" => Some((
+                        0,
+                        0,
+                        motion_host::ops::alignment::Distribution::HorizontalCenters,
+                    )),
+                    "distribute-horizontal-gaps" => Some((
+                        1,
+                        0,
+                        motion_host::ops::alignment::Distribution::HorizontalGaps,
+                    )),
+                    "distribute-vertical-centers" => Some((
+                        0,
+                        1,
+                        motion_host::ops::alignment::Distribution::VerticalCenters,
+                    )),
+                    "distribute-vertical-gaps" => Some((
+                        1,
+                        1,
+                        motion_host::ops::alignment::Distribution::VerticalGaps,
+                    )),
+                    _ => None,
+                };
+                if let Some((column, line, expected)) = distribution {
+                    let w = (area.width() - pad * 2. - gap) / 2.;
+                    let p = [
+                        area.min[0] + pad + column as f32 * (w + gap) + w * 0.5,
+                        area.min[1]
+                            + pad
+                            + row * 6.
+                            + button * 2.
+                            + gap * 7.
+                            + line as f32 * (button + gap)
+                            + button * 0.5,
+                    ];
+                    let actions = panels::chrome(
+                        &mut discarded,
+                        &mut self.atlas,
+                        size,
+                        &layout,
+                        &mut panels,
+                        &state,
+                        &Input {
+                            mouse: p,
+                            pressed: Some((MouseButton::Left, p)),
+                            ..Default::default()
+                        },
+                    );
+                    let [panels::Action::DistributeLayers {
+                        objects,
+                        distribution,
+                    }] = actions.as_slice()
+                    else {
+                        return Err(format!(
+                            "distribution click did not dispatch once: {actions:?}"
+                        ));
+                    };
+                    if *distribution != expected {
+                        return Err("distribution control dispatched a different operation".into());
+                    }
+                    state = self
+                        .engine
+                        .distribute_layers_async(objects.clone(), *distribution)?
+                        .recv_timeout(std::time::Duration::from_secs(30))
+                        .map_err(|e| e.to_string())??;
+                }
                 let input = if name == "align-target-menu" {
                     let p = [area.max[0] - pad - gap, area.min[1] + pad + row * 0.5];
                     Input {
