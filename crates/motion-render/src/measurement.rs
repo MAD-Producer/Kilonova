@@ -7,6 +7,9 @@ use std::time::Instant;
 pub struct FrameResources {
     pub textures: crate::TextureMemoryBreakdown,
     pub preview_target_bytes: u64,
+    pub exposure_target_bytes: u64,
+    /// Combined media preparation/upload wall time across exposure polls.
+    pub exposure_media_us: u64,
     pub cpu_video_cache_bytes: u64,
     pub cpu_video_proxy_bytes: u64,
     pub video_prepare_us: u64,
@@ -83,7 +86,9 @@ impl FrameRecorder {
             "gpuTotalUs":metric(|f|f.gpu.map(|g|g.total_us)),"gpuCompositionUs":metric(|f|f.gpu.map(|g|g.composition_us)),"gpuPresentationUs":metric(|f|f.gpu.map(|g|g.presentation_us)),
             "resourceSampleCount":resource_count,
             "resourceSampleScope":"Successful frame boundaries; logical application texture capacity and separate CPU video caches. Excludes transient peaks, buffers, decoder external allocations and driver residency. Upload and pipeline counters are cumulative, not per-frame bytes/counts.",
-            "logicalTextureBytes":metric(|f|f.resources.map(|r| (r.textures.total_bytes()+r.preview_target_bytes) as f64)),
+            "logicalTextureBytes":metric(|f|f.resources.map(|r| (r.textures.total_bytes()+r.preview_target_bytes+r.exposure_target_bytes) as f64)),
+            "exposureTargetBytes":metric(|f|f.resources.map(|r|r.exposure_target_bytes as f64)),
+            "exposureMediaUs":metric(|f|f.resources.map(|r|r.exposure_media_us as f64)),
             "cpuVideoCacheBytes":metric(|f|f.resources.map(|r|r.cpu_video_cache_bytes as f64)),
             "cpuVideoProxyBytes":metric(|f|f.resources.map(|r|r.cpu_video_proxy_bytes as f64)),
             "videoPrepareUs":metric(|f|f.resources.map(|r|r.video_prepare_us as f64)),

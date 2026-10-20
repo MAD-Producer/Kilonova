@@ -1,6 +1,7 @@
 use motion_model::{to_world, ensure, CameraPose, Content, Layer, Observer, Project, Result};
 use glam::{Mat4, Vec3};
 use serde::Serialize;
+pub(crate) mod instance_ids;
 
 /// Add the reference site while preserving the model's original error code,
 /// target composition, message and time/rate details.
@@ -56,6 +57,7 @@ pub struct DrawLayer {
     /// The generated raster is already in composition pixels. Logical model,
     /// node transforms and three_d remain available for editing/emitter poses.
     pub screen_overlay: bool,
+    pub sampling: motion_model::render_sampling::LayerSampling,
     /// 2D layers use a fixed composition projection; 3D layers use the camera.
     pub view_projection: Mat4,
 }
@@ -99,6 +101,7 @@ pub struct Scene {
     node_ids: Vec<u64>,
     node_spatial: Vec<bool>,
     source_objects:Vec<(u64,u64)>,
+    instance_ids: instance_ids::InstanceIds,
     evaluated_project: Option<Project>,
     vector_cache: std::collections::HashMap<
         u64,
@@ -122,18 +125,44 @@ impl Scene {
         self.effects.iter().any(|effect| effect.layer == layer && effect_is_screen_generator(effect))
     }
     pub fn new(project: &Project) -> Self {
+        Self::empty(project.camera.pose(0.0, project.width, project.height), project.background,
+            project.width, project.height, project.fps, project.composition_id.clone())
+    }
+    pub(crate) fn plane_context(&self, layers: Vec<DrawLayer>) -> Self {
+        let mut context = Self::empty(self.camera, self.background, self.width, self.height,
+            self.fps, self.composition_id.clone());
+        context.frame = self.frame;
+        context.layers = layers;
+        context
+    }
+    /// Render-ready local context after the caller has independently prepared
+    /// every nested image. Keep evaluated world/source data used by generators,
+    /// but do not let the ordinary nested pass overwrite those GPU images.
+    pub(crate) fn local_context(&self) -> Self {
+        let mut context = self.plane_context(self.layers.clone());
+        context.effects = self.effects.clone();
+        context.curve_luts = self.curve_luts.clone();
+        context.sprite_assets = self.sprite_assets.clone();
+        context.node_world = self.node_world.clone();
+        context.node_ids = self.node_ids.clone();
+        context.node_states = self.node_states.clone();
+        context.node_spatial = self.node_spatial.clone();
+        context.source_objects = self.source_objects.clone();
+        context
+    }
+    fn empty(camera: CameraPose, background: [f32; 4], width: u32, height: u32, fps: u32, composition_id: String) -> Self {
         Self {
-            camera: project.camera.pose(0.0, project.width, project.height),
+            camera,
             layers: Vec::with_capacity(motion_model::MAX_LAYERS),
-            background: project.background,
-            width: project.width,
-            height: project.height,
+            background,
+            width,
+            height,
             effects: Vec::with_capacity(motion_model::MAX_LAYERS * motion_effects::MAX_EFFECTS_PER_LAYER),
             curve_luts: Vec::new(),
             frame: 0.0,
-            fps: project.fps,
+            fps,
             sprite_assets: Default::default(),
-            composition_id: project.composition_id.clone(),
+            composition_id,
             nested: Vec::new(),
             nested_spare: Vec::new(),
             node_world: Vec::with_capacity(motion_model::MAX_LAYERS + 1),
@@ -141,6 +170,7 @@ impl Scene {
             node_ids: Vec::with_capacity(motion_model::MAX_LAYERS + 1),
             node_spatial: Vec::with_capacity(motion_model::MAX_LAYERS + 1),
             source_objects:Vec::new(),
+            instance_ids: Default::default(),
             evaluated_project: None,
             vector_cache: Default::default(),
             mask_cache: Default::default(),
@@ -153,12 +183,36 @@ impl Scene {
         observer: Option<&Observer>,
         evaluator: &dyn motion_model::FrameEvaluator,
     ) -> Result<()> {
-        self.sample_inner(project, project, frame, observer, 0, &mut 0, evaluator)?;
-        if !self.nested.is_empty() {
-            let mut used: std::collections::HashSet<_> = project.layers.iter().map(|l|l.id)
-                .chain(project.compositions.iter().flat_map(|c|c.layers.iter().map(|l|l.id))).collect();
-            let mut next=1u64<<40;
-            for node in &mut self.nested { node.scene.assign_instance_ids(&mut used,&mut next); }
+        self.sample_root(project, project, frame, observer, evaluator)
+    }
+    /// A composition sampling view resolves resources and nested references
+    /// against its immutable owning document, never as an independent project.
+    pub(crate) fn sample_root(&mut self, document: &Project, project: &Project, frame: f64,
+        observer: Option<&Observer>, evaluator: &dyn motion_model::FrameEvaluator) -> Result<()> {
+        self.sample_inner(document, project, frame, observer, 0, &mut 0, evaluator)?;
+        if self.nested.is_empty() { return Ok(()); }
+        self.instance_ids.prepare_composition(document, project)?;
+        let aliases = &self.instance_ids;
+        let mut path = Vec::with_capacity(motion_model::composition::MAX_COMPOSITION_DEPTH);
+        for node in &mut self.nested {
+            path.push(node.layer);
+            let result = node.scene.assign_instance_ids(aliases, &mut path);
+            path.pop();
+            result?;
+        }
+        Ok(())
+    }
+    pub(crate) fn sample_exposure_instance(&mut self, document:&Project, project:&Project,
+        frame:f64, observer:Option<&Observer>, evaluator:&dyn motion_model::FrameEvaluator,
+        registry:&instance_ids::InstanceIds, path:&[u64]) -> Result<()> {
+        self.sample_inner(document,project,frame,observer,0,&mut 0,evaluator)?;
+        let mut path = path.to_vec();
+        if !path.is_empty() { return self.assign_instance_ids(registry,&mut path); }
+        for node in &mut self.nested {
+            path.push(node.layer);
+            let result=node.scene.assign_instance_ids(registry,&mut path);
+            path.pop();
+            result?;
         }
         Ok(())
     }
@@ -494,6 +548,7 @@ impl Scene {
                 order,
                 three_d: layer.three_d,
                 screen_overlay,
+                sampling: layer.sampling,
                 view_projection: if layer.three_d {
                     self.camera.view_projection
                 } else {
@@ -525,20 +580,26 @@ impl Scene {
         };
         Ok(())
     }
-    fn assign_instance_ids(&mut self, used:&mut std::collections::HashSet<u64>, next:&mut u64) {
-        let mut mapping=std::collections::HashMap::new();
-        for id in &mut self.node_ids { if *id!=0 {
-            while used.contains(next) {*next+=1;}
-            let target=*next;*next+=1;used.insert(target);mapping.insert(*id,target);*id=target;
-        }}
+    fn assign_instance_ids(&mut self, registry: &instance_ids::InstanceIds,
+        path: &mut Vec<u64>) -> Result<()> {
+        let mapping = registry.mapping(path, &self.composition_id, &self.node_ids)?;
+        let alias = |object| instance_ids::alias(&mapping, &self.composition_id, object);
+        for id in &mut self.node_ids { if *id!=0 { *id=alias(*id)?; } }
         self.source_objects.extend(mapping.iter().map(|(source,alias)|(*alias,*source)));
-        for l in &mut self.layers {l.id=mapping[&l.id];if let Some(m)=&mut l.track_matte{m.source=mapping[&m.source];}}
+        for l in &mut self.layers {l.id=alias(l.id)?;if let Some(m)=&mut l.track_matte{m.source=alias(m.source)?;}}
         for e in &mut self.effects {
-            e.layer=mapping[&e.layer];
-            if let Some(motion_model::EffectImageInput::Layer { layer, .. }) = &mut e.image_input { *layer=mapping[layer]; }
-            if let Some(source)=e.scene.as_mut().and_then(|s|s.source_layer.as_mut()) { *source=mapping[source]; }
+            e.layer=alias(e.layer)?;
+            if let Some(motion_model::EffectImageInput::Layer { layer, .. }) = &mut e.image_input { *layer=alias(*layer)?; }
+            if let Some(source)=e.scene.as_mut().and_then(|s|s.source_layer.as_mut()) { *source=alias(*source)?; }
         }
-        for n in &mut self.nested {n.layer=mapping[&n.layer];n.scene.assign_instance_ids(used,next);}
+        for n in &mut self.nested {
+            path.push(n.layer);
+            n.layer=alias(n.layer)?;
+            let result=n.scene.assign_instance_ids(registry,path);
+            path.pop();
+            result?;
+        }
+        Ok(())
     }
     pub fn video_layers(&self) -> Vec<&DrawLayer> {
         let mut layers:Vec<_>=self.layers.iter().filter(|l|l.video.is_some()).collect();

@@ -3,6 +3,15 @@ use motion_model::{Project, MAX_LAYERS};
 use crate::{PlaneCompositor, ResourceBudgetScope, ResourceRejection, Scene};
 mod compositing;
 mod gpu_failure;
+mod frame_blend;
+mod exposure;
+mod layer_raster;
+mod phase_adjustment;
+mod exposure_frame;
+mod nested_exposure;
+pub use exposure_frame::{ExposureFrame, ExposurePoll, ExposureProgress, ExposureStage};
+pub use layer_raster::LayerRaster;
+pub use exposure::ExposureTarget;
 use bytemuck::{Pod, Zeroable};
 use image::ImageReader;
 use std::{
@@ -17,6 +26,8 @@ use std::{
 pub(crate) const TEXTURE_BUDGET: u64 = crate::resource_policy::DEFAULT_SOURCE_TEXTURE_BUDGET;
 const CAPTURE_PIXEL_LIMIT: u64 = 16 * 1024 * 1024;
 const DRAW_SIZE: u64 = std::mem::size_of::<DrawUniform>() as u64;
+#[cfg(test)]
+mod plane_sampling_tests;
 const TARGET_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 static PREFETCH_FAILURES: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
 static IMAGE_PENDING: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
@@ -73,6 +84,7 @@ pub(crate) struct DrawUniform {
     color: [f32; 4],
     extent_opacity: [f32; 4],
     uv_scale: [f32; 4],
+    screen_uv: [[f32; 4]; 3],
 }
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -92,6 +104,7 @@ pub(crate) struct GpuImage {
 pub(crate) enum TextureKey {
     Static(u64),
     Video(u64),
+    VideoBlendSource(u64, u8),
     Vector(u64),
     Mask(u64),
     EffectInput(u64),
@@ -163,6 +176,11 @@ pub struct Renderer {
     compositing_gpu: Option<crate::compositing_gpu::CompositingGpu>,
     compositing_pipeline_set_builds: u64,
     video_gpu: Option<crate::video_gpu::VideoGpu>,
+    video_blend: Option<frame_blend::FrameBlendGpu>,
+    exposure_gpu: Option<exposure::ExposureGpu>,
+    exposure_bytes: Arc<std::sync::atomic::AtomicU64>,
+    /// Source-cache copies and linear mixtures submitted over this renderer's lifetime.
+    pub video_blend_submissions: u64,
     pub video_upload_bytes: u64,
     pub video_uploads: u64,
     pub video_gpu_conversions: u64,
@@ -219,11 +237,16 @@ impl Renderer {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: Some("Motion Studio GPU"),
-                    required_features: if timestamps {
-                        adapter.features() & wgpu::Features::TIMESTAMP_QUERY
-                    } else {
-                        wgpu::Features::empty()
-                    },
+                    // Exposure values stay in [0,1]. UNORM16 keeps a uniform
+                    // error bound across all 80 phases within the FP16 budget.
+                    required_features: (adapter.features()
+                        & (wgpu::Features::TEXTURE_FORMAT_16BIT_NORM
+                            | wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES))
+                        | if timestamps {
+                            adapter.features() & wgpu::Features::TIMESTAMP_QUERY
+                        } else {
+                            wgpu::Features::empty()
+                        },
                     required_limits: limits,
                     memory_hints: wgpu::MemoryHints::Performance,
                     ..Default::default()
@@ -309,7 +332,7 @@ impl Renderer {
         });
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Motion Studio own planar compositor"),
-            source: wgpu::ShaderSource::Wgsl(crate::plane_coverage::shader(include_str!("plane.wgsl"), true).into()),
+            source: wgpu::ShaderSource::Wgsl(crate::plane_coverage::shader(crate::plane_sampling::BASIC, true).into()),
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Motion Studio planar pipeline"),
@@ -359,7 +382,7 @@ impl Renderer {
             },
             alpha: wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING.alpha,
         });
-        let mask_shader=device.create_shader_module(wgpu::ShaderModuleDescriptor {label:Some("masked source composite"),source:wgpu::ShaderSource::Wgsl(crate::plane_coverage::shader(include_str!("plane_mask.wgsl"), true).into())});
+        let mask_shader=device.create_shader_module(wgpu::ShaderModuleDescriptor {label:Some("masked source composite"),source:wgpu::ShaderSource::Wgsl(crate::plane_coverage::shader(crate::plane_sampling::MASK, true).into())});
         let masked_pipeline=device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label:Some("masked layer without effects"),layout:Some(&device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {label:None,bind_group_layouts:&[Some(&uniform_layout), Some(&image_layout), Some(&image_layout)],immediate_size: 0})),
             vertex:wgpu::VertexState {module:&mask_shader,entry_point:Some("vertex_main"),compilation_options:Default::default(),buffers:&[Some(wgpu::VertexBufferLayout {array_stride:std::mem::size_of::<GeometryVertex>() as u64,step_mode:wgpu::VertexStepMode::Vertex,attributes:&wgpu::vertex_attr_array![0=>Float32x3,1=>Float32x2]})]},
@@ -398,6 +421,10 @@ impl Renderer {
             layer_gpu,
             mask_gpu,
             video_gpu: None,
+            video_blend: None,
+            exposure_gpu: None,
+            exposure_bytes: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            video_blend_submissions: 0,
             video_upload_bytes: 0,
             video_uploads: 0,
             video_gpu_conversions: 0,
@@ -466,6 +493,7 @@ impl Renderer {
             }
         }
         if let Some(video) = &mut self.video_gpu { video.clear(); }
+        self.video_blend = None;
         self.composition_images.clear();
         self.mask_gpu.clear();
         self.layer_gpu.release();
@@ -517,7 +545,7 @@ impl Renderer {
                 TextureKey::Mask(_) => MaskOutputs,
                 TextureKey::EffectInput(_) => EffectInputSnapshots,
                 TextureKey::Video(id) if self.composition_images.contains(id) => NestedCompositions,
-                TextureKey::Video(_) => VideoRgba,
+                TextureKey::Video(_) | TextureKey::VideoBlendSource(..) => VideoRgba,
             };
             ledger.retained(&image._texture, category, format!("images/{key:?}"));
         }
@@ -551,7 +579,7 @@ impl Renderer {
                 TextureKey::EffectInput(_) => memory.effect_input_snapshots += image.bytes,
                 TextureKey::Video(id) if self.composition_images.contains(id) =>
                     memory.nested_compositions += image.bytes,
-                TextureKey::Video(_) => memory.video_rgba += image.bytes,
+                TextureKey::Video(_) | TextureKey::VideoBlendSource(..) => memory.video_rgba += image.bytes,
             }
         }
         memory
@@ -645,6 +673,7 @@ impl Renderer {
             .get_mut(&TextureKey::Video(object))
             .unwrap()
             .video_stamp = Some((source, pts));
+        self.invalidate_video_blend(object);
         Ok(())
     }
     pub fn upload_video_yuv(
@@ -806,6 +835,7 @@ impl Renderer {
             None
         };
         self.images.get_mut(&key).unwrap().video_stamp = Some((source, pts));
+        self.invalidate_video_blend(object);
         self.video_uploads += 1;
         self.video_upload_bytes += frame.bytes() as u64;
         self.video_gpu_conversions += 1;
@@ -836,6 +866,7 @@ impl Renderer {
             self.effect_gpu.invalidate();
         }
         self.composition_images.retain(|id|compositions.contains(id));
+        self.retain_video_blend_sources(scene);
     }
     fn upload_pixels(
         &mut self,
@@ -1019,7 +1050,7 @@ impl Renderer {
             .copied()
             .filter(|id| match id {
                 TextureKey::Static(id) => *id != 0 && !project.assets.iter().any(|a| a.id == *id),
-                TextureKey::Video(_) => true,
+                TextureKey::Video(_) | TextureKey::VideoBlendSource(..) => true,
                 TextureKey::Vector(id) => !project
                     .layers
                     .iter()
@@ -1045,6 +1076,7 @@ impl Renderer {
             }
             self.effect_gpu.invalidate();
         }
+        self.video_blend = None;
         Ok(())
     }
     /// Register the complete, stable asset table without decoding/uploading
@@ -1274,6 +1306,7 @@ impl Renderer {
         Ok(())
     }
     pub fn clear_assets(&mut self) {
+        self.video_blend = None;
         self.layer_gpu.release();
         if let Some(gpu)=&mut self.compositing_gpu{gpu.release();}
         self.image_decode.cancel();
@@ -1299,6 +1332,7 @@ impl Renderer {
     /// separate cache and keep the visible project's resources on failure.
     pub fn replace_assets(&mut self, project: &Project, root: &Path) -> Result<()> {
         let previous_video_gpu = self.video_gpu.take();
+        let previous_video_blend = self.video_blend.take();
         let mut previous = std::mem::take(&mut self.images);
         let previous_alpha = std::mem::take(&mut self.effect_gpu.builder.alpha_images);
         let previous_bytes = self.texture_bytes;
@@ -1321,6 +1355,7 @@ impl Renderer {
             );
             self.images = previous;
             self.video_gpu = previous_video_gpu;
+            self.video_blend = previous_video_blend;
             self.effect_gpu.builder.alpha_images = previous_alpha;
             self.texture_bytes = previous_bytes;
             self.asset_order = previous_order;
@@ -1385,7 +1420,11 @@ impl Renderer {
         timestamps: Option<wgpu::RenderPassTimestampWrites<'_>>,
         preview: bool,
     ) -> Result<RenderStats> {
-        self.check_health()?;
+        let (child_stats, child_diagnostics) = self.prepare_nested(scene, width, height, preview)?;
+        let mut stats=self.encode_local(scene,view,width,height,encoder,timestamps,preview)?;
+        stats.add(child_stats);self.effect_diagnostics.extend(child_diagnostics);Ok(stats)
+    }
+    fn check_resident_sources(&mut self) -> Result<()> {
         // A reduced budget also applies to already-resident sources. It must
         // not be bypassed by a cached plan or a no-op upload.
         self.trim_image_cache(0);
@@ -1394,6 +1433,11 @@ impl Renderer {
             return Err(RenderError::budget(ResourceBudgetScope::SourceTextures, resident,
                 self.effect_gpu.builder.source_texture_budget, "resident sources exceed source texture budget"));
         }
+        Ok(())
+    }
+    fn prepare_nested(&mut self, scene: &Scene, width: u32, height: u32, preview: bool) -> Result<(RenderStats, Vec<String>)> {
+        self.check_health()?;
+        self.check_resident_sources()?;
         if !scene.nested.is_empty() && self.video_gpu.as_ref().is_some_and(|v| v.has_pending()) {
             return Err(RenderError::Invalid(
                 "nested video rendering requires standalone conversion submissions".into(),
@@ -1430,8 +1474,7 @@ impl Renderer {
             })?;
             child_stats.add(stats);child_diagnostics.extend(self.effect_diagnostics.iter().map(|v|node.scene.diagnostic(v)));
         }
-        let mut stats=self.encode_local(scene,view,width,height,encoder,timestamps,preview)?;
-        stats.add(child_stats);self.effect_diagnostics.extend(child_diagnostics);Ok(stats)
+        Ok((child_stats, child_diagnostics))
     }
     fn encode_local(&mut self,scene:&Scene,view:&wgpu::TextureView,width:u32,height:u32,encoder:&mut wgpu::CommandEncoder,timestamps:Option<wgpu::RenderPassTimestampWrites<'_>>,preview:bool)->Result<RenderStats> {
         if width == 0 || height == 0 || scene.layers.len() > MAX_LAYERS {
@@ -1447,7 +1490,7 @@ impl Renderer {
                 .any(|l| l.vector.is_some() || l.adjustment || l.track_matte.is_some()
                     || l.blend != motion_model::compositing::LayerBlend::default() || !l.composite_visible)
         {
-            return self.encode_effects(scene, view, width, height, encoder, timestamps, preview);
+            return self.encode_effects(scene, Some(view), width, height, encoder, timestamps, preview, None, false);
         }
         // Direct drawing consumes neither mask coverage nor effect-input snapshots.
         // Release both without discarding reusable compositing pipelines.
@@ -1519,6 +1562,8 @@ impl Renderer {
                 color,
                 extent_opacity: [layer.size[0], layer.size[1], layer.opacity, 0.0],
                 uv_scale: [1.0, 1.0, 0.0, 0.0],
+                screen_uv: crate::plane_coordinates::screen_map(self.compositor.uv_maps[index],
+                    crate::fit_viewport([0., 0., width as f32, height as f32], [scene.width, scene.height]), layer.id)?,
             };
             let offset = index * self.uniform_stride;
             self.upload[offset..offset + DRAW_SIZE as usize]
@@ -1627,17 +1672,23 @@ impl Renderer {
     fn encode_effects(
         &mut self,
         scene: &Scene,
-        view: &wgpu::TextureView,
+        view: Option<&wgpu::TextureView>,
         width: u32,
         height: u32,
         encoder: &mut wgpu::CommandEncoder,
         timestamps: Option<wgpu::RenderPassTimestampWrites<'_>>,
         preview: bool,
+        mut materialize: Option<(u64, &mut Option<LayerRaster>)>,
+        prepare_only: bool,
     ) -> Result<RenderStats> {
         let started = Instant::now();
         self.effect_gpu.builder.enable_plane_coverage();
         let image_input_order = loop {
-            if self.preview_resource_guard {
+            if let Some((receiver, _)) = &materialize {
+                self.effect_gpu.builder.build_materialized_checked(scene, &self.asset_order, width, height, *receiver, preview)
+            } else if prepare_only {
+                self.effect_gpu.builder.build_exposure_context_checked(scene, &self.asset_order, width, height, preview)
+            } else if self.preview_resource_guard {
                 self.effect_gpu.builder.build_preview_guarded(scene, &self.asset_order, width, height, preview)
             } else if preview {
                 self.effect_gpu.builder.build_preview_checked(scene, &self.asset_order, width, height)
@@ -1646,7 +1697,8 @@ impl Renderer {
             }
             ?;
             self.prepare_effect_images();
-            let input_order = crate::effect_plan::image_input_order(&self.effect_gpu.builder.frame)
+            let targets: Vec<_> = materialize.as_ref().map(|(id, _)| *id).into_iter().collect();
+            let input_order = crate::effect_plan::image_input_order_for(&self.effect_gpu.builder.frame, &targets)
                 .map_err(RenderError::Invalid)?;
             self.prepare_input_snapshots(&input_order)?;
             match self.effect_gpu.state.prepare(
@@ -1665,7 +1717,7 @@ impl Renderer {
                             .builder
                             .program_errors
                             .insert(program, message);
-                        if !self.preview_resource_guard { continue; }
+                        if !self.preview_resource_guard && materialize.is_none() && !prepare_only { continue; }
                     }
                     self.effect_diagnostics = vec![error.to_string()];
                     return Err(error);
@@ -1702,11 +1754,11 @@ impl Renderer {
             vector_other,
             self.effect_gpu.builder.source_texture_budget,
         )?;
-        let has_adjustment = frame
+        let has_adjustment = materialize.is_none() && frame
             .draws
             .iter()
             .any(|d| d.words[31] == 2. && d.pass_start < d.pass_end);
-        let has_transfer = frame.compositing.iter().any(|c| c.visible && (c.blend != 0 || c.space != 0));
+        let has_transfer = materialize.is_none() && frame.compositing.iter().any(|c| c.visible && (c.blend != 0 || c.space != 0));
         let has_accumulator = has_adjustment || has_transfer;
         let has_compositing = has_transfer || frame.compositing.iter().any(|c| c.mode != 0);
         let render_scale = (width as f32 / scene.width as f32)
@@ -1783,6 +1835,8 @@ impl Renderer {
                 color: w[16..20].try_into().unwrap(),
                 extent_opacity: if has_compositing&&!scene.layers[i].adjustment {[viewport_origin[0],viewport_origin[1],w[22],flags as f32]}else{[w[20],w[21],w[22],0.]},
                 uv_scale: [w[25], w[26], if has_compositing&&!scene.layers[i].adjustment{viewport[0]}else{scene.width as f32}, if has_compositing&&!scene.layers[i].adjustment{viewport[1]}else{scene.height as f32}],
+                screen_uv: crate::plane_coordinates::screen_map(frame.uv_maps[i],
+                    [viewport_origin[0], viewport_origin[1], viewport[0], viewport[1]], draw.layer)?,
             };
             self.upload[i * self.uniform_stride..i * self.uniform_stride + DRAW_SIZE as usize]
                 .copy_from_slice(bytemuck::bytes_of(&uniform));
@@ -1799,7 +1853,7 @@ impl Renderer {
             b: (srgb_to_linear(scene.background[2]) * alpha) as f64,
             a: alpha as f64,
         };
-        {
+        if let Some(view) = view {
             let writes = timestamps
                 .as_ref()
                 .map(|t| wgpu::RenderPassTimestampWrites {
@@ -1852,6 +1906,25 @@ impl Renderer {
                 wgpu::Extent3d{width:output.width,height:output.height,depth_or_array_layers:1});
         }
         composition_draws += self.encode_track_mattes(encoder,composition_size)?;
+        if materialize.is_some() || prepare_only {
+            if let Some((receiver, output)) = materialize.take() {
+                *output = Some(self.copy_layer_raster(scene, receiver, [width, height], composition_size, preview, encoder)?);
+            }
+            let stats = RenderStats {
+                cpu_prepare_us: started.elapsed().as_micros() as u64,
+                draw_calls: (composition_draws + executed_passes) as u32,
+                texture_bytes: self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.bytes()
+                    + self.layer_gpu.bytes() + self.compositing_gpu.as_ref().map_or(0, |g| g.bytes()) + self.exposure_texture_bytes(),
+                parameter_upload_bytes: (bytes + executed_passes * motion_effects::shader::UNIFORM_BYTES + frame.vertices.len() * 20) as u64,
+                instance_upload_bytes: (frame.sprites.len() * 48) as u64,
+                particles_alive: frame.generator_stats.alive,
+                particles_visible: frame.generator_stats.visible,
+                particles_culled: frame.generator_stats.culled,
+                parameter_resource_upload_bytes: std::mem::take(&mut self.effect_gpu.state.parameter_resource_upload_bytes),
+            };
+            return Ok(stats);
+        }
+        let view = view.ok_or_else(|| RenderError::Invalid("missing composition render destination".into()))?;
         for (batch_index, batch) in frame.batches.iter().enumerate() {
             let i = batch.layer;
             let draw = &frame.draws[i];
@@ -1889,42 +1962,7 @@ impl Renderer {
                 if draw.pass_start == draw.pass_end || draw.words[22] <= 0. {
                     continue;
                 }
-                let next = 1 - accumulator;
-                {
-                    let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                        multiview_mask: None,
-                        label: Some("adjust lower composite"),
-                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                            depth_slice: None,
-                            view: &self.layer_gpu.accumulators[next].view,
-                            resolve_target: None,
-                            ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                                store: wgpu::StoreOp::Store,
-                            },
-                        })],
-                        depth_stencil_attachment: None,
-                        timestamp_writes: None,
-                        occlusion_query_set: None,
-                    });
-                    pass.set_pipeline(&self.layer_gpu.adjustment);
-                    pass.set_bind_group(
-                        0,
-                        &self.uniform_group,
-                        &[(i * self.uniform_stride) as u32],
-                    );
-                    pass.set_bind_group(
-                        1,
-                        &self.layer_gpu.accumulators[accumulator].composite,
-                        &[],
-                    );
-                    pass.set_bind_group(
-                        2,
-                        &self.effect_gpu.state.pool[0].as_ref().unwrap().composite,
-                        &[],
-                    );
-                    pass.draw(0..3, 0..1);
-                }
+                let next = self.encode_adjusted_backdrop(encoder, i, accumulator)?;
                 composition_draws += 1;
                 accumulator = next;
                 continue;

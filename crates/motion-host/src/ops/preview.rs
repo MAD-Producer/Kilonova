@@ -29,6 +29,7 @@ pub fn seek(id: i64, frame: f64) -> Result<serde_json::Value> {
         if !frame.is_finite() || frame < 0.0 || frame >= f64::from(s.engine.project().frames) {
             return Err("invalid frame".into());
         }
+        if s.frame != frame { s.cancel_pending_exposure()?; }
         s.frame = frame;
         s.sample()?;
         Ok(s.snapshot())

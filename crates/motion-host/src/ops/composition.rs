@@ -297,6 +297,7 @@ pub fn frame_bundle(
         if composition != s.engine.project().composition_id {
             return Err("composition context mismatch".into());
         }
+        crate::render_sampling::require_single_time(s.engine.project(), "frame_bundle")?;
         s.frame = frame;
         s.sample()?;
         let p = s.engine.project();

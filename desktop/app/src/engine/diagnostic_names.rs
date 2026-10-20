@@ -51,7 +51,7 @@ impl Command {
             Composition { .. } => "composition",
             Media { .. } => "media",
             MediaPackageLimits(_) => "media_package_limits",
-            Capture(_) => "capture",
+            Capture { .. } => "capture",
             Pack(_) => "pack",
             ImageInfo { .. } => "image_info",
             PrepareImage { .. } => "prepare_image",

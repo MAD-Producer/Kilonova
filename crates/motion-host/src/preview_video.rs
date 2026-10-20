@@ -1,5 +1,5 @@
 //! One bounded proxy per live instance, keyed by immutable decoded-frame identity.
-use crate::video_frame::{DecodedFrame, VideoPixels};
+use crate::video_frame::{DecodedFrame, PreparedVideoFrame, VideoPixels};
 use motion_render::{EncodedVideoUpload, RenderError, Renderer, Scene, Yuv420Frame};
 use std::{
     collections::HashMap,
@@ -25,6 +25,35 @@ pub struct PreviewVideoCache {
     entries: HashMap<u64, Entry>,
 }
 impl PreviewVideoCache {
+    pub fn upload_prepared(
+        &mut self, renderer: &mut Renderer, object: u64, source: u64,
+        sample: &PreparedVideoFrame, edge: Option<u32>, standalone: bool,
+        encoder: &mut wgpu::CommandEncoder,
+    ) -> Result<Option<EncodedVideoUpload>, RenderError> {
+        let Some((right, weight)) = &sample.next else {
+            return self.upload(renderer, object, source, &sample.left, edge, standalone, encoder);
+        };
+        let edge = edge.map(|e| e.clamp(1, motion_render::image_resources::MAX_PREVIEW_EDGE));
+        let sources = [(0, &sample.left), (1, right)].map(|(slot, frame)| {
+            let size = edge.map_or((frame.width, frame.height), |e|
+                motion_render::image_resources::Resolution::Preview(e).dimensions(frame.width, frame.height));
+            (slot, frame, size)
+        });
+        // Preserve a needed neighbor in either direction before a missing source
+        // replaces its old slot. A miss is filled below, never treated as a fault.
+        for (slot, frame, size) in sources {
+            renderer.reuse_video_blend_source(object, source, frame.pts, slot, size);
+        }
+        for (slot, frame, size) in sources {
+            if !renderer.reuse_video_blend_source(object, source, frame.pts, slot, size) {
+                // Each conversion must be submitted before the source-cache copy.
+                self.upload(renderer, object, source, frame, edge, true, encoder)?;
+                renderer.cache_video_blend_source(object, source, frame.pts, slot)?;
+            }
+        }
+        renderer.blend_video_sources(object, source, sample.left.pts, right.pts, *weight)?;
+        Ok(None)
+    }
     pub fn clear(&mut self) {
         self.entries.clear();
     }

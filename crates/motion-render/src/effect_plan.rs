@@ -105,6 +105,9 @@ pub struct PlannedDraw {
 }
 #[derive(Default, Debug)]
 pub struct EffectFramePlan {
+    /// Canonical UV-to-clip homographies for native drawing. CPU-only metadata;
+    /// deliberately excluded from the portable packed-plan ABI.
+    pub uv_maps: Vec<glam::DMat3>,
     pub scratch_budget: u64,
     pub draws: Vec<PlannedDraw>,
     pub passes: Vec<EffectPass>,
@@ -125,6 +128,9 @@ pub struct EffectFramePlan {
 pub struct LayerComposite {pub blend:u32,pub space:u32,pub matte:i32,pub mode:u32,pub visible:bool}
 /// GPU snapshots are evaluated once in dependency order, before compositing.
 pub fn image_input_order(frame: &EffectFramePlan) -> Result<Vec<usize>, String> {
+    image_input_order_for(frame, &[])
+}
+pub(crate) fn image_input_order_for(frame: &EffectFramePlan, targets: &[u64]) -> Result<Vec<usize>, String> {
     fn visit(
         frame: &EffectFramePlan,
         node: usize,
@@ -167,6 +173,11 @@ pub fn image_input_order(frame: &EffectFramePlan) -> Result<Vec<usize>, String> 
         if composite.matte >= 0 {
             visit(frame, composite.matte as usize, &mut marks, &mut order)?;
         }
+    }
+    for target in targets {
+        let index = frame.draws.iter().position(|draw| draw.layer == *target)
+            .ok_or_else(|| format!("materialized receiver {target} is absent"))?;
+        visit(frame, index, &mut marks, &mut order)?;
     }
     Ok(order)
 }
@@ -699,7 +710,8 @@ impl PlanBuilder {
                     .iter()
                     .find(|d| d.id == e.effect)
                     .cloned()
-                    .ok_or("effect definition is missing")?;
+                    .ok_or_else(|| format!("effect definition is missing ({})",
+                        e.effect.chars().take(96).collect::<String>()))?;
                 if (definition.renderer != motion_effects::RendererKind::Image) != e.scene.is_some() {
                     return Err("saved scene contract differs from plugin".into());
                 }
@@ -766,7 +778,7 @@ impl PlanBuilder {
         strict: bool,
     ) -> Result<&EffectFramePlan, String> {
         self.preview_inputs = None;
-        self.build_internal(scene, assets, width, height, strict, false, false)
+        self.build_internal(scene, assets, width, height, strict, false, false, &[])
     }
     /// Typed equivalent of `build`, preserving the existing plan and messages.
     pub fn build_checked(&mut self, scene: &Scene, assets: &[u64], width: u32, height: u32, strict: bool) -> Result<&EffectFramePlan, RenderError> {
@@ -779,6 +791,48 @@ impl PlanBuilder {
         let result = self.build_preview(scene, assets, width, height).map(|_| ());
         result.map_err(|message| self.classify_error(message))?;
         Ok(&self.frame)
+    }
+    /// Retained local images must not silently bypass failed effects or reuse
+    /// an ordinary preview plan that did not materialize the receiver.
+    pub(crate) fn build_materialized_checked(&mut self, scene: &Scene, assets: &[u64],
+        width: u32, height: u32, receiver: u64, preview: bool) -> Result<&EffectFramePlan, RenderError> {
+        self.preview_inputs = None;
+        let result = self.build_internal(scene, assets, width, height, !preview, preview, true, &[receiver]).map(|_| ());
+        result.map_err(|message| self.classify_error(message))?;
+        Ok(&self.frame)
+    }
+    /// Strict receiver-center dependencies used by phase-time adjustments.
+    pub(crate) fn build_exposure_context_checked(&mut self, scene: &Scene, assets: &[u64],
+        width: u32, height: u32, preview: bool) -> Result<&EffectFramePlan, RenderError> {
+        self.preview_inputs = None;
+        let result = self.build_internal(scene, assets, width, height, !preview, preview, true, &[]).map(|_| ());
+        result.map_err(|message| self.classify_error(message))?;
+        Ok(&self.frame)
+    }
+    pub(crate) fn materialized_plane(&self, scene: &Scene, index: usize) -> crate::DrawLayer {
+        let mut layer = scene.layers[index].clone();
+        let draw = &self.frame.draws[index];
+        let size = [draw.words[20], draw.words[21]];
+        let overlay = self.overlays[index];
+        let origin = self.origins[index];
+        layer.model = crate::scene::plane_model(&layer, overlay) * glam::Mat4::from_translation(
+            if overlay { glam::Vec3::ZERO } else { glam::Vec3::new(
+                origin[0] + (size[0] - layer.size[0]) * 0.5,
+                -origin[1] - (size[1] - layer.size[1]) * 0.5, 0.) });
+        layer.size = size;
+        layer.source_size = size;
+        layer.source_rect = [0., 0., size[0], size[1]];
+        layer.screen_overlay = overlay;
+        layer.view_projection = glam::Mat4::from_cols_array(&std::array::from_fn(|i| draw.words[i]));
+        layer.color = [1.; 4];
+        layer.asset = None;
+        layer.video = None;
+        layer.vector = None;
+        layer.masks = Default::default();
+        layer.track_matte = None;
+        layer.composition = false;
+        layer.sampling = Default::default();
+        layer
     }
     fn classify_error(&self, message: String) -> RenderError {
         match self.last_resource_rejection {
@@ -812,7 +866,7 @@ impl PlanBuilder {
             self.build_preview_internal(scene, assets, width, height, true).map(|_| ())
         } else {
             self.preview_inputs = None;
-            self.build_internal(scene, assets, width, height, false, false, true).map(|_| ())
+            self.build_internal(scene, assets, width, height, false, false, true, &[]).map(|_| ())
         };
         result.map_err(|message| self.classify_error(message))?;
         Ok(&self.frame)
@@ -839,7 +893,7 @@ impl PlanBuilder {
         }
         self.preview_inputs = None;
         self.preview_plan_builds += 1;
-        self.build_internal(scene, assets, width, height, false, true, guarded)?;
+        self.build_internal(scene, assets, width, height, false, true, guarded, &[])?;
         if eligible && self.frame.diagnostics.is_empty() {
             self.preview_inputs = Some(crate::effect_plan_cache::PreviewInputs::capture(
                 scene, assets, width, height, self.device_dimension, &self.registry, &self.program_errors));
@@ -855,6 +909,7 @@ impl PlanBuilder {
         strict: bool,
         preview: bool,
         guarded: bool,
+        materialize: &[u64],
     ) -> Result<&EffectFramePlan, String> {
         self.last_scratch_request = None;
         self.last_resource_rejection = None;
@@ -950,7 +1005,8 @@ impl PlanBuilder {
         }
         let post_sources:std::collections::HashSet<_>=scene.effects.iter().filter(|e|e.enabled&&scene.layers.iter().any(|l|l.id==e.layer))
             .filter_map(|e| match e.image_input {Some(motion_model::EffectImageInput::Layer{layer,stage:motion_model::EffectImageStage::Effects})=>Some(layer),_=>None})
-            .chain(scene.layers.iter().filter_map(|l|l.track_matte.map(|m|m.source))).collect();
+            .chain(scene.layers.iter().filter_map(|l|l.track_matte.map(|m|m.source)))
+            .chain(materialize.iter().copied()).collect();
         let image_sources:std::collections::HashSet<_>=scene.effects.iter().filter(|e|e.enabled)
             .filter_map(|e|e.image_input.and_then(motion_model::EffectImageInput::layer)).collect();
         for (layer_index, layer) in scene.layers.iter().enumerate() {
@@ -973,6 +1029,7 @@ impl PlanBuilder {
                 crate::quality::magnified_effect_scale(layer, [viewport_width, viewport_height], scale)
             } else { scale };
             if let Some(vector) = &layer.vector {
+                let scale = crate::raster_density::vector_scale(layer, width, height, scale)?;
                 let dirty = self
                     .vector_cache
                     .get(&layer.id)
@@ -982,8 +1039,6 @@ impl PlanBuilder {
                 if dirty {
                     let origin = [layer.source_rect[0]+layer.size[0]*0.5-layer.source_size[0]*0.5,
                         layer.source_rect[1]+layer.size[1]*0.5-layer.source_size[1]*0.5];
-                    let geometry = crate::vector_mesh::rasterize_with_limit(vector, layer.size, scale, origin, vector_remaining)
-                        .map_err(|e| format!("layer {}: {e}", layer.id))?;
                     let (w, h) = (
                         (layer.size[0] * scale).ceil() as u32,
                         (layer.size[1] * scale).ceil() as u32,
@@ -995,6 +1050,8 @@ impl PlanBuilder {
                             layer.id
                         ));
                     }
+                    let geometry = crate::vector_mesh::rasterize_with_limit(vector, layer.size, scale, origin, vector_remaining)
+                        .map_err(|e| format!("layer {}: {e}", layer.id))?;
                     use std::hash::{Hash, Hasher};
                     let mut hash = std::collections::hash_map::DefaultHasher::new();
                     bytemuck::cast_slice::<_, u8>(&geometry.vertices).hash(&mut hash);
@@ -1432,11 +1489,16 @@ impl PlanBuilder {
                 }
             }
             if post_sources.contains(&layer.id)&&!materialized {
-                let w=(region[2]*scale).ceil().max(1.) as u32;let h=(region[3]*scale).ceil().max(1.) as u32;
+                // A retained continuous vector must preserve its projected
+                // raster density instead of downsampling through a native utility pass.
+                let local_scale = if materialize.contains(&layer.id) && layer.vector.is_some() {
+                    crate::raster_density::vector_scale(layer, width, height, scale)?
+                } else { scale };
+                let w=(region[2]*local_scale).ceil().max(1.) as u32;let h=(region[3]*local_scale).ceil().max(1.) as u32;
                 reserve_scratch(&mut self.frame.scratch_sizes,0,w,h);
                 Self::check_scratch(&self.frame.scratch_sizes,self.device_dimension,self.scratch_budget,&mut self.last_scratch_request, &mut self.last_resource_rejection)?;
                 let mut u=crate::mask_plan::uniform(w,h);u.size=[source_size[0],source_size[1],w as f32,h as f32];
-                u.region=region;u.input_region=region;u.source_region=region;u.mode=[0.,0.,0.,1.];u.output_mode=[0.,0.,1.,scale];
+                u.region=region;u.input_region=region;u.source_region=region;u.mode=[0.,0.,0.,1.];u.output_mode=[0.,0.,1.,local_scale];
                 u.params[0]=[linear(layer.color[0]),linear(layer.color[1]),linear(layer.color[2]),layer.color[3]];
                 let masked=!layer.masks.is_empty();
                 self.frame.passes.push(EffectPass {resource_input:0,program:if masked{2}else{0},input:-(asset as i32)-1,
@@ -1537,6 +1599,7 @@ impl PlanBuilder {
             .prepare_with_bounds_and_overlays(scene, &self.sizes, &self.origins, &self.overlays)
             .map_err(|e| e.to_string())?;
         self.frame.vertices.clone_from(&self.geometry.vertices);
+        self.frame.uv_maps.clone_from(&self.geometry.uv_maps);
         self.frame.batches.clone_from(&self.geometry.batches);
         let vector_bytes = self
             .frame

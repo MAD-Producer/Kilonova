@@ -73,6 +73,7 @@ impl Changes {
             | Command::AudioLevels { object, .. }
             | Command::AudioMarkers { object, .. }
             | Command::SetLayer3d { object, .. }
+            | Command::SetLayerSampling { object, .. }
             | Command::SetRotationOrder { object, .. }
             | Command::MoveLayerClip { object, .. }
             | Command::TrimLayerClip { object, .. }
