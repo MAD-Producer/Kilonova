@@ -6,6 +6,10 @@ use serde_json::Value;
 
 #[derive(Debug)]
 pub enum Action {
+    DistributeLayers {
+        objects: Vec<u64>,
+        distribution: motion_host::ops::alignment::Distribution,
+    },
     AlignLayers {
         objects: Vec<u64>,
         edge: motion_host::ops::alignment::Edge,
