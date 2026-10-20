@@ -8,7 +8,7 @@ exhaustive command-label match incomplete and interrupts the reveal sequence
 whenever its effective chord differs from physical unmodified U.
 
 This compatibility change is prepared on #362 head `e2b491b`, which already
-contains #357 and #368, and merges #349 head `63e56d9`. It requires both #349 and
+contains #357 and #368, and merges #349 head `d5a38bb`. It requires both #349 and
 #357 before #362 is merged into main. It does not include the later layer
 navigation, alignment, distribution or camera PRs. No new feature PR is opened.
 
@@ -35,8 +35,14 @@ reveal modified properties. No existing assertion is changed.
 In the separate all-PR integration, all 39 timeline shortcut tests passed after
 this fix (`artifacts/pr-queue-timeline-shortcuts.log`). That tree also contains
 later PRs, so this is historical combined evidence, not a fresh test result for
-this smaller branch. The exact branch's targeted tests, full desktop regression,
-native screenshots and final remote CI remain pending.
+this smaller branch. The exact smaller branch at `907dc11` has now passed all
+39 timeline shortcut tests (2.61 seconds), 12 modified-property tests (16.74
+seconds), and seven binding/documentation tests (0.10 seconds). All commands
+exited successfully. The full combined tree passed 1,196 cases, zero failures
+and two existing ignores, including doctests; its code is unchanged by later
+documentation-only head refreshes. That is combined evidence, not a new full
+run of this smaller branch. Exact-head remote CI and native GUI acceptance
+remain pending.
 
 ## Acceptance boundaries
 
@@ -50,3 +56,18 @@ No dependency, asset, copied UI text or Adobe binary is added. All work is in a
 separate review worktree; other active branches are preserved. This compatibility
 fix will be published to the existing #362 only after exact-head checks and
 validation, not merged by substituting the all-PR integration branch.
+
+## Native acceptance and downstream boundary
+
+The first combined native GUI attempt used an unoptimized Debug binary. It
+produced 50 real PNG captures before the existing Python 40-second deadline
+expired. The failure log, default Info engine log and diagnostics snapshot are
+retained under `artifacts/pr-queue-native`; it is not counted as a passing run.
+The CI GUI check uses a Release binary. A fresh Release build is being prepared
+with unchanged timeouts and assertions. Local Release acceptance does not
+substitute for packaged FFmpeg or Mac verification.
+
+A merge-tree preflight against #371 head `f13dd68` identifies a keyboard-router
+conflict after this parent integration. The child must retain both configurable
+UU routing and layer navigation. No child PR is merged on the strength of the
+parent's tests. #349 and #357 must precede #362 on main.
