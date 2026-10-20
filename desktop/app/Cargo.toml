@@ -40,4 +40,5 @@ sentry = { version = "0.49.3", default-features = false, features = ["ureq", "ru
 winit = "0.30"
 
 [dev-dependencies]
+motion-model = { path = "../../crates/motion-model" }
 tempfile = "3"

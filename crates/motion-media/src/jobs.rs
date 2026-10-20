@@ -178,6 +178,68 @@ fn finish_import(
     worker_log.finish(&phase, error.as_deref());
 }
 
+fn finish_cache(
+    task: &Mutex<Task>,
+    root: &Path,
+    asset: AudioAsset,
+    result: std::thread::Result<Result<Stage>>,
+    worker_log: &crate::task_logging::TaskLog,
+) {
+    let mut publication = crate::publication::PublicationCleanup::default();
+    static RECOVERY: crate::poison_observation::RecoverySite =
+        crate::poison_observation::RecoverySite::new("audio.cache.result_lock");
+    let mut recoveries = crate::poison_observation::RecoveryScope::new();
+    let mut t = recoveries.recover(
+        task.lock(),
+        &RECOVERY,
+        worker_log.request_id(),
+        "prepare_audio",
+    );
+    if t.cancel.load(Ordering::Acquire) {
+        drop(t);
+        let error = crate::task_logging::cancelled_error(&result, &["audio task cancelled"]);
+        worker_log.finish("cancelled", error.as_deref());
+        return;
+    }
+    // The caught result owns Stage before the task guard. Borrow it so neither
+    // ordinary completion nor unwinding destroys the stage while locked.
+    let publication_result = match &result {
+        Ok(Ok(stage)) => (|| {
+            let dest = cache_path(root, &asset)?;
+            contained_dir(root, dest.parent().unwrap())?;
+            publication.publish_cache_pair(
+                (
+                    &stage.path.join("decoded.wave"),
+                    &dest.with_extension("wave"),
+                ),
+                (&stage.path.join("decoded.pcm"), &dest),
+            )
+        })(),
+        Ok(Err(error)) => Err(error.clone()),
+        Err(payload) => Err(format!(
+            "audio cache worker failed: {}",
+            crate::panic_reason_ref(payload.as_ref())
+        )),
+    };
+    match publication_result {
+        Ok(()) => {
+            t.status.state = "succeeded".into();
+            t.status.phase = "complete".into();
+            t.status.progress = 1.0;
+            t.status.metadata = Some(asset);
+        }
+        Err(e) => {
+            t.status.state = "failed".into();
+            t.status.phase = "failed".into();
+            t.status.error = Some(e);
+        }
+    }
+    let phase = t.status.phase.clone();
+    let error = t.status.error.clone();
+    drop(t);
+    worker_log.finish(&phase, error.as_deref());
+}
+
 impl AudioJobs {
     pub fn new(root: PathBuf, limits: Limits) -> Result<Self> {
         Self::with_decoder(root, limits, Arc::new(crate::decode_audio))
@@ -224,10 +286,10 @@ impl AudioJobs {
         if tasks.len() >= 64 {
             return Err("release completed media tasks before creating more".into());
         }
-        let active = tasks
-            .values()
-            .filter(|t| !t.lock().unwrap().status.terminal())
-            .count();
+        let active = tasks.values().try_fold(0, |active, task| -> Result<usize> {
+            let task = task.lock().map_err(|_| "audio task poisoned")?;
+            Ok(active + usize::from(!task.status.terminal()))
+        })?;
         if active >= 2 {
             return Err("at most two audio tasks may run per session".into());
         }
@@ -284,14 +346,18 @@ impl AudioJobs {
     }
     pub fn cancel(&self, id: &str) -> Result<TaskStatus> {
         let task = self.task(id)?;
+        let mut prepared = None;
         let mut t = task.lock().map_err(|_| "audio task poisoned")?;
         if !t.status.terminal() {
             t.cancel.store(true, Ordering::Release);
-            t.prepared.take();
+            prepared = t.prepared.take();
             t.status.state = "cancelled".into();
             t.status.phase = "cancelled".into();
         }
-        Ok(t.status.clone())
+        let status = t.status.clone();
+        drop(t);
+        drop(prepared);
+        Ok(status)
     }
     pub fn start(
         &self,
@@ -444,6 +510,9 @@ impl AudioJobs {
 
     fn commit_inner(&self, id: &str, engine: &mut impl EditSink) -> Result<(TaskStatus, bool)> {
         let task = self.task(id)?;
+        // Declare owned resources before the guard so unwind releases it first.
+        let mut prepared;
+        let mut publication = crate::publication::PublicationCleanup::default();
         let mut t = task.lock().map_err(|_| "audio task poisoned")?;
         if t.status.terminal() {
             return Ok((t.status.clone(), false));
@@ -451,7 +520,7 @@ impl AudioJobs {
         if t.status.state != "ready" {
             return Err("audio import is not ready".into());
         }
-        let mut prepared = t.prepared.take().ok_or("prepared audio missing")?;
+        prepared = t.prepared.take().ok_or("prepared audio missing")?;
         let result = (|| -> Result<Value> {
             let p = engine.project();
             if prepared.options.at_frame >= p.frames {
@@ -507,13 +576,13 @@ impl AudioJobs {
             contained_dir(&self.root, cache.parent().unwrap())?;
             fs::rename(prepared.stage.path.join("source"), &source).map_err(|e| e.to_string())?;
             if let Err(error) = fs::rename(prepared.stage.path.join("decoded.pcm"), &cache) {
-                return Err(crate::publication::rollback_files(error, &[&source]));
+                return Err(publication.rollback_files(error, &[&source]));
             }
             if let Err(error) = fs::rename(
                 prepared.stage.path.join("decoded.wave"),
                 cache.with_extension("wave"),
             ) {
-                return Err(crate::publication::rollback_files(error, &[&source, &cache]));
+                return Err(publication.rollback_files(error, &[&source, &cache]));
             }
             let commands = vec![
                 Command::RegisterAudioAsset {
@@ -522,7 +591,7 @@ impl AudioJobs {
                 Command::Add { layer },
             ];
             if let Err(error) = engine.apply_batch_saved(commands, &self.root) {
-                return Err(crate::publication::rollback_files(error, &[&source, &cache, &cache.with_extension("wave")]));
+                return Err(publication.rollback_files(error, &[&source, &cache, &cache.with_extension("wave")]));
             }
             Ok(
                 json!({"op":"import_media", "kind":"audio", "asset":asset_id,"object":object,"in_frame":in_frame,"out_frame":out_frame,
@@ -607,46 +676,7 @@ impl AudioJobs {
                         })?;
                         Ok(stage)
                     }));
-                static RECOVERY: crate::poison_observation::RecoverySite =
-                    crate::poison_observation::RecoverySite::new("audio.cache.result_lock");
-                let mut recoveries = crate::poison_observation::RecoveryScope::new();
-                let mut t = recoveries.recover(
-                    spawn_task.lock(), &RECOVERY, worker_log.request_id(), "prepare_audio",
-                );
-                if t.cancel.load(Ordering::Acquire) {
-                    drop(t);
-                    let error = crate::task_logging::cancelled_error(&result, &["audio task cancelled"]);
-                    worker_log.finish("cancelled", error.as_deref());
-                    return;
-                }
-                let result = match result {
-                    Ok(result) => result,
-                    Err(payload) => Err(format!("audio cache worker failed: {}", crate::panic_reason(payload))),
-                };
-                match result.and_then(|stage| {
-                    let dest = cache_path(&root, &asset)?;
-                    contained_dir(&root, dest.parent().unwrap())?;
-                    crate::publication::publish_cache_pair(
-                        (&stage.path.join("decoded.wave"), &dest.with_extension("wave")),
-                        (&stage.path.join("decoded.pcm"), &dest),
-                    )
-                }) {
-                    Ok(()) => {
-                        t.status.state = "succeeded".into();
-                        t.status.phase = "complete".into();
-                        t.status.progress = 1.0;
-                        t.status.metadata = Some(asset);
-                    }
-                    Err(e) => {
-                        t.status.state = "failed".into();
-                        t.status.phase = "failed".into();
-                        t.status.error = Some(e);
-                    }
-                }
-                let phase = t.status.phase.clone();
-                let error = t.status.error.clone();
-                drop(t);
-                worker_log.finish(&phase, error.as_deref());
+                finish_cache(&spawn_task, &root, asset, result, &worker_log);
             });
         if let Err(error) = spawn {
             task_log.finish("spawn", Some(&error.to_string()));
@@ -749,3 +779,6 @@ mod drop_failure_tests {
 
 #[cfg(test)]
 pub(crate) mod completion_tests;
+
+#[cfg(test)]
+pub(crate) mod resource_tests;

@@ -39,7 +39,7 @@ pub(crate) fn watch_cleanup(
     observation
 }
 
-fn task() -> Arc<Mutex<Task>> {
+pub(super) fn task() -> Arc<Mutex<Task>> {
     Arc::new(Mutex::new(Task {
         status: TaskStatus {
             request_id: "probe-cleanup-audio".into(),
@@ -56,7 +56,7 @@ fn task() -> Arc<Mutex<Task>> {
     }))
 }
 
-fn prepared(path: PathBuf) -> Prepared {
+pub(super) fn prepared(path: PathBuf) -> Prepared {
     Prepared {
         stage: Stage { path },
         asset: AudioAsset {

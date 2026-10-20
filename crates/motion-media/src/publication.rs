@@ -18,6 +18,7 @@ struct Publication {
     entries: Vec<Entry>,
     finished: bool,
     preserve: bool,
+    rollback_error: Option<String>,
 }
 impl Publication {
     fn new(parent: &Path) -> Result<Self> {
@@ -31,6 +32,7 @@ impl Publication {
                         entries: Vec::new(),
                         finished: false,
                         preserve: false,
+                        rollback_error: None,
                     })
                 }
                 Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
@@ -109,7 +111,7 @@ impl Publication {
                 self.directory.display(),
                 errors.join("; ")
             );
-            log::error!("{error}");
+            self.rollback_error = Some(error.chars().take(2048).collect());
             Some(error)
         }
     }
@@ -118,6 +120,9 @@ impl Drop for Publication {
     fn drop(&mut self) {
         if !self.finished {
             self.rollback();
+        }
+        if let Some(error) = &self.rollback_error {
+            log::error!("{error}");
         }
         if self.preserve {
             return;
@@ -142,25 +147,100 @@ impl Drop for Publication {
     }
 }
 
-pub(crate) fn publish_cache_pair(first: (&Path, &Path), second: (&Path, &Path)) -> Result<()> {
-    if first.1 == second.1 {
-        return Err("cache pair destinations must differ".into());
-    }
-    let parent = first.1.parent().ok_or("cache parent missing")?;
-    let mut publication = Publication::new(parent)?;
-    let result = publication
-        .publish(first.0, first.1)
-        .and_then(|()| publication.publish(second.0, second.1));
-    match result {
-        Ok(()) => {
-            publication.finished = true;
-            Ok(())
+/// Declare before business guards. Publication and rollback stay synchronous;
+/// only backup disposal and cleanup observations wait until those guards drop.
+#[derive(Default)]
+pub(crate) struct PublicationCleanup {
+    cache: Option<Publication>,
+    rollback_warning: Option<String>,
+}
+
+// An unwind between the two file moves still restores the pair while the
+// caller holds its publication/cancellation lock. Observation is deferred.
+struct Attempt<'a>(&'a mut Publication);
+impl Drop for Attempt<'_> {
+    fn drop(&mut self) {
+        if !self.0.finished {
+            self.0.rollback();
         }
-        Err(error) => match publication.rollback() {
-            None => Err(error),
-            Some(rollback) => Err(format!("{error}; {rollback}")),
-        },
     }
+}
+
+impl PublicationCleanup {
+    pub(crate) fn publish_cache_pair(
+        &mut self,
+        first: (&Path, &Path),
+        second: (&Path, &Path),
+    ) -> Result<()> {
+        if first.1 == second.1 {
+            return Err("cache pair destinations must differ".into());
+        }
+        if self.cache.is_some() {
+            return Err("cache publication cleanup already owns a transaction".into());
+        }
+        let parent = first.1.parent().ok_or("cache parent missing")?;
+        let publication = self.cache.insert(Publication::new(parent)?);
+        let attempt = Attempt(publication);
+        let publication = &mut *attempt.0;
+        let result = publication
+            .publish(first.0, first.1)
+            .and_then(|()| publication.publish(second.0, second.1));
+        match result {
+            Ok(()) => {
+                publication.finished = true;
+                Ok(())
+            }
+            Err(error) => match publication.rollback() {
+                None => Err(error),
+                Some(rollback) => Err(format!("{error}; {rollback}")),
+            },
+        }
+    }
+
+    pub(crate) fn rollback_files(
+        &mut self,
+        primary: impl std::fmt::Display,
+        paths: &[&Path],
+    ) -> String {
+        let mut reason = primary.to_string();
+        let mut warning = String::new();
+        for path in paths.iter().rev() {
+            if let Err(error) = fs::remove_file(path) {
+                if error.kind() != io::ErrorKind::NotFound {
+                    let detail = format!("rollback remove {}: {error}", path.display());
+                    reason.push_str("; ");
+                    reason.push_str(&detail);
+                    // Each import calls rollback once and returns immediately;
+                    // current audio/video transactions contain at most five files.
+                    if !warning.is_empty() {
+                        warning.push_str("; ");
+                    }
+                    warning.extend(
+                        detail
+                            .chars()
+                            .take(2048usize.saturating_sub(warning.chars().count())),
+                    );
+                }
+            }
+        }
+        if !warning.is_empty() {
+            self.rollback_warning = Some(warning.chars().take(2048).collect());
+        }
+        reason
+    }
+}
+
+impl Drop for PublicationCleanup {
+    fn drop(&mut self) {
+        if let Some(warning) = &self.rollback_warning {
+            log::warn!("{warning}");
+        }
+    }
+}
+
+#[cfg(test)]
+fn publish_cache_pair(first: (&Path, &Path), second: (&Path, &Path)) -> Result<()> {
+    PublicationCleanup::default().publish_cache_pair(first, second)
 }
 
 #[cfg(test)]
@@ -286,17 +366,10 @@ pub(crate) fn cleanup_stage(path: &Path) {
     }
 }
 
-pub(crate) fn rollback_files(primary: impl std::fmt::Display, paths: &[&Path]) -> String {
-    let mut reason = primary.to_string();
-    for path in paths.iter().rev() {
-        if let Err(error) = fs::remove_file(path) {
-            if error.kind() != io::ErrorKind::NotFound {
-                let detail = format!("rollback remove {}: {error}", path.display());
-                log::warn!("{detail}");
-                reason.push_str("; ");
-                reason.push_str(&detail);
-            }
-        }
-    }
-    reason
+#[cfg(test)]
+fn rollback_files(primary: impl std::fmt::Display, paths: &[&Path]) -> String {
+    PublicationCleanup::default().rollback_files(primary, paths)
 }
+
+#[cfg(test)]
+mod cleanup_tests;

@@ -212,12 +212,11 @@ impl VideoJobs {
         if tasks.contains_key(id) || tasks.len() >= 64 {
             return Err("duplicate request id or video task budget exceeded".into());
         }
-        if tasks
-            .values()
-            .filter(|t| !t.lock().unwrap().status.terminal())
-            .count()
-            >= 2
-        {
+        let active = tasks.values().try_fold(0, |active, task| -> Result<usize> {
+            let task = task.lock().map_err(|_| "video task poisoned")?;
+            Ok(active + usize::from(!task.status.terminal()))
+        })?;
+        if active >= 2 {
             return Err("at most two unfinished video tasks per session".into());
         }
         WORKERS
@@ -252,14 +251,18 @@ impl VideoJobs {
     }
     pub fn cancel(&self, id: &str) -> Result<VideoTaskStatus> {
         let task = self.task(id)?;
+        let mut prepared = None;
         let mut t = task.lock().map_err(|_| "video task poisoned")?;
         if !t.status.terminal() {
             t.cancel.store(true, Ordering::Release);
-            t.prepared.take();
+            prepared = t.prepared.take();
             t.status.state = "cancelled".into();
             t.status.phase = "cancelled".into();
         }
-        Ok(t.status.clone())
+        let status = t.status.clone();
+        drop(t);
+        drop(prepared);
+        Ok(status)
     }
     pub fn release(&self, id: &str) -> Result<()> {
         let mut tasks = self
@@ -360,6 +363,9 @@ impl VideoJobs {
 
     fn commit_inner(&self, id: &str, engine: &mut impl EditSink) -> Result<(VideoTaskStatus, bool)> {
         let task = self.task(id)?;
+        // Declare owned resources before the guard so unwind releases it first.
+        let mut p;
+        let mut publication = crate::publication::PublicationCleanup::default();
         let mut t = task.lock().map_err(|_| "video task poisoned")?;
         if t.status.terminal() {
             return Ok((t.status.clone(), false));
@@ -367,7 +373,7 @@ impl VideoJobs {
         if t.status.state != "ready" {
             return Err("video import is not ready".into());
         }
-        let mut p = t.prepared.take().ok_or("prepared video missing")?;
+        p = t.prepared.take().ok_or("prepared video missing")?;
         let mut published = Vec::new();
         let result = (|| -> Result<Value> {
             let project = engine.project();
@@ -473,7 +479,7 @@ impl VideoJobs {
             }
             Err(e) => {
                 let paths = published.iter().map(PathBuf::as_path).collect::<Vec<_>>();
-                let error = crate::publication::rollback_files(e, &paths);
+                let error = publication.rollback_files(e, &paths);
                 t.status.state = "failed".into();
                 t.status.phase = "failed".into();
                 t.status.error = Some(error);
@@ -530,11 +536,12 @@ impl VideoJobs {
                         .map_err(|e| e.to_string())?;
                         let cache = video_cache_path(&root, &expected)?;
                         contained_dir(&root, cache.parent().unwrap())?;
+                        let mut publication = crate::publication::PublicationCleanup::default();
                         let mut state = t.lock().map_err(|_| "video task poisoned")?;
                         if state.cancel.load(Ordering::Acquire) {
                             return Err("video cache cancelled".into());
                         }
-                        crate::publication::publish_cache_pair(
+                        publication.publish_cache_pair(
                             (&stage.0.join("index.pts"), &cache),
                             (&stage.0.join("thumbnail.png"), &cache.with_extension("png")),
                         )?;
@@ -701,3 +708,6 @@ mod registry_tests {
 
 #[cfg(test)]
 mod completion_tests;
+
+#[cfg(test)]
+mod resource_tests;
