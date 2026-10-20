@@ -6,6 +6,11 @@ use serde_json::Value;
 
 #[derive(Debug)]
 pub enum Action {
+    AlignLayers {
+        objects: Vec<u64>,
+        edge: motion_host::ops::alignment::Edge,
+        target: motion_host::ops::alignment::Target,
+    },
     Node(crate::node_editor::Action),
     New,
     Open,
@@ -106,6 +111,7 @@ pub enum Action {
 
 #[derive(Default)]
 pub struct Panels {
+    pub(crate) shortcut_bindings: std::sync::Arc<crate::shortcuts::bindings::Bindings>,
     pub(crate) property_reveal: super::modified_properties::RevealSequence,
     pub workspace_preset: crate::workspace::Preset,
     pub styles: Option<std::sync::Arc<motion_ui::style::StyleSheet>>,

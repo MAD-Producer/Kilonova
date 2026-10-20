@@ -13,10 +13,10 @@ impl log::Log for Capture {
         let text = record.args().to_string();
         if text.contains("image_proxy.") || text.starts_with("image proxy temporary cleanup") {
             assert!(
-                !matches!(
-                    CACHE_LOCK.try_lock(),
+                CACHE_LOCKS.iter().all(|cache| !matches!(
+                    cache.try_lock(),
                     Err(std::sync::TryLockError::WouldBlock)
-                ),
+                )),
                 "cache lock held during log"
             );
             self.0.lock().unwrap().push((record.level(), text));
@@ -24,9 +24,9 @@ impl log::Log for Capture {
     }
     fn flush(&self) {}
 }
-fn poison() {
+fn poison(path: &Path) {
     assert!(std::panic::catch_unwind(|| {
-        let _guard = CACHE_LOCK.lock().unwrap();
+        let _guard = proxy_cache_mutex(path).lock().unwrap();
         panic!("controlled cache poison");
     })
     .is_err());
@@ -75,10 +75,10 @@ fn proxy_failures_log_after_unlock_and_keep_filesystem_recovery() {
     }
     assert!(capture.0.lock().unwrap().is_empty());
     if mode == "unwind" {
-        poison();
+        poison(&path);
         assert!(std::panic::catch_unwind(|| {
             let mut events = ProxyEvents::default();
-            let _guard = proxy_cache_lock(&mut events);
+            let _guard = proxy_cache_lock(&path, &mut events);
             panic!("controlled recovery unwind");
         })
         .is_err());
@@ -86,13 +86,13 @@ fn proxy_failures_log_after_unlock_and_keep_filesystem_recovery() {
         assert_eq!(records.len(), 1);
         assert_eq!(records[0].0, log::Level::Warn);
         assert!(records[0].1.contains("lifetime_count=1 "));
-        assert!(CACHE_LOCK.is_poisoned());
+        assert!(proxy_cache_mutex(&path).is_poisoned());
         return;
     }
     for _ in 0..120 {
-        poison();
+        poison(&path);
         assert_eq!(read_proxy(&path, 2, 1).unwrap(), pixels.rgba);
-        assert!(!CACHE_LOCK.is_poisoned());
+        assert!(!proxy_cache_mutex(&path).is_poisoned());
         write_proxy(&path, &pixels);
     }
     {
@@ -162,7 +162,7 @@ fn proxy_failures_log_after_unlock_and_keep_filesystem_recovery() {
     fs::create_dir(&directory).unwrap();
     for _ in 0..120 {
         let mut events = ProxyEvents::default();
-        let _guard = proxy_cache_lock(&mut events);
+        let _guard = proxy_cache_lock(&path, &mut events);
         let _temporary = ProxyTemporary(directory.clone(), &mut events);
     }
     let cleanup_count = || {
@@ -177,12 +177,12 @@ fn proxy_failures_log_after_unlock_and_keep_filesystem_recovery() {
     assert_eq!(cleanup_count(), 1);
     {
         let mut events = ProxyEvents::default();
-        let _guard = proxy_cache_lock(&mut events);
+        let _guard = proxy_cache_lock(&path, &mut events);
         let _temporary = ProxyTemporary(root.path().join("absent.tmp"), &mut events);
     }
     {
         let mut events = ProxyEvents::default();
-        let _guard = proxy_cache_lock(&mut events);
+        let _guard = proxy_cache_lock(&path, &mut events);
         let _temporary = ProxyTemporary(directory.clone(), &mut events);
     }
     assert_eq!(cleanup_count(), 2);

@@ -38,16 +38,27 @@ mod metadata_observation_tests;
 mod resource_observation_tests;
 #[cfg(test)]
 mod last_error_observation_tests;
+#[cfg(test)]
+mod registry_scope_tests;
 
 static NEXT: AtomicI64 = AtomicI64::new(1);
-static SESSIONS: OnceLock<Mutex<HashMap<i64, Session>>> = OnceLock::new();
+type SessionRegistry = HashMap<i64, Arc<SessionSlot>>;
+static SESSIONS: OnceLock<Mutex<SessionRegistry>> = OnceLock::new();
+
+struct SessionSlot {
+    // Reject foreign callers before waiting behind an owning thread's handler.
+    owner: ThreadId,
+    // Owner-thread close takes the value even if a resource report retained the
+    // slot. The last Arc may then be dropped anywhere without moving GPU Drop.
+    session: Mutex<Option<Session>>,
+}
 
 /// Monotonic counter shared by session handles and plugin editor tokens.
 pub fn next_token() -> i64 {
     NEXT.fetch_add(1, Ordering::Relaxed)
 }
 
-fn sessions() -> &'static Mutex<HashMap<i64, Session>> {
+fn sessions() -> &'static Mutex<SessionRegistry> {
     SESSIONS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
@@ -886,32 +897,49 @@ pub fn with_session<T>(id: i64, operation: impl FnOnce(&mut Session) -> Result<T
     let began = Instant::now();
     let _metadata_scope = metadata_observation::Scope::enter();
     let _registry_scope = registry_observation::Scope::enter(id);
-    let mut registry = sessions().lock().unwrap_or_else(|e| e.into_inner());
-    let session = registry.get_mut(&id).ok_or("native session is closed")?;
+    let slot = {
+        let registry = sessions().lock().unwrap_or_else(|e| e.into_inner());
+        registry.get(&id).cloned().ok_or("native session is closed")?
+    };
+    if slot.owner != thread::current().id() {
+        return Err("native session must run on its owning worker thread".into());
+    }
+    let mut guard = slot.session.lock().unwrap_or_else(|e| e.into_inner());
+    let session = guard.as_mut().ok_or("native session is closed")?;
     session.check_thread()?;
     let result = session.recover_plugin_editor(Instant::now()).and_then(|()| operation(session));
     let event = session.last_error_observation.observe(
         session.last_error.as_deref(), session.frame,
         &session.engine.project().composition_id, began,
     );
-    // Logging can call host-owned sinks. Release the registry before any IO.
-    drop(registry);
+    // Logging can call host-owned sinks. Release the session before any IO.
+    drop(guard);
     if let Some(event) = event { event.emit(id); }
     result
 }
 
 /// Aggregate resource report for every session rooted under `directory`.
+/// Entries are sampled individually; concurrent edits or closes may change the
+/// report while it is collected. No registry lock spans filesystem or GPU work.
 pub fn resource_info(directory: &std::path::Path) -> Result<Value> {
     let began = Instant::now();
     let root = directory.canonicalize().map_err(|e| e.to_string())?;
-    let registry = sessions().lock().unwrap_or_else(|e| e.into_inner());
+    let entries: Vec<_> = {
+        let registry = sessions().lock().unwrap_or_else(|e| e.into_inner());
+        registry
+            .iter()
+            .map(|(&id, slot)| (id, Arc::clone(slot)))
+            .collect()
+    };
     let mut count = 0u64;
     let mut graphics = 0u64;
     let mut assets = 0u64;
     let mut targets = 0u64;
     let mut unresolved = 0usize;
     let mut first = None;
-    for (&id, session) in registry.iter() {
+    for (id, slot) in entries {
+        let guard = slot.session.lock().unwrap_or_else(|e| e.into_inner());
+        let Some(session) = guard.as_ref() else { continue; };
         match session.root.canonicalize() {
             Ok(path) if path.starts_with(&root) => {},
             Ok(_) => continue,
@@ -930,7 +958,6 @@ pub fn resource_info(directory: &std::path::Path) -> Result<Value> {
             targets += g.scratch.texture_bytes();
         }
     }
-    drop(registry);
     resource_observation::report(unresolved, first, began);
     Ok(
         json!({"sessions":count,"graphics":graphics,"assetTextureBytes":assets,"renderTargetBytes":targets,
@@ -942,11 +969,15 @@ pub fn resource_info(directory: &std::path::Path) -> Result<Value> {
 /// reason for [`creation_error`], matching the Android bridge contract.
 pub fn open(root: PathBuf, project: Project, platform: Arc<dyn Platform>) -> Result<i64> {
     let session = Session::new(project, root, platform)?;
+    let slot = Arc::new(SessionSlot {
+        owner: session.owner,
+        session: Mutex::new(Some(session)),
+    });
     let id = NEXT.fetch_add(1, Ordering::Relaxed);
     sessions()
         .lock()
         .unwrap_or_else(|e| e.into_inner())
-        .insert(id, session);
+        .insert(id, slot);
     Ok(id)
 }
 
@@ -965,13 +996,22 @@ pub fn set_creation_error(error: String) {
 
 /// Close a session and release its GPU resources.
 pub fn close(id: i64) {
-    let mut registry = sessions().lock().unwrap_or_else(|e| e.into_inner());
-    if registry
-        .get(&id)
-        .is_some_and(|s| s.owner == thread::current().id())
-    {
-        if let Some(mut s) = registry.remove(&id) {
-            s.detach();
+    let slot = {
+        let mut registry = sessions().lock().unwrap_or_else(|e| e.into_inner());
+        if !registry
+            .get(&id)
+            .is_some_and(|slot| slot.owner == thread::current().id())
+        {
+            return;
+        }
+        registry.remove(&id)
+    };
+    if let Some(slot) = slot {
+        let session = slot.session.lock().unwrap_or_else(|e| e.into_inner()).take();
+        // Detach, decoder cleanup and GPU destruction run on the owner thread
+        // after both guards have gone, even when another reader retains a slot.
+        if let Some(mut session) = session {
+            session.detach();
         }
     }
 }

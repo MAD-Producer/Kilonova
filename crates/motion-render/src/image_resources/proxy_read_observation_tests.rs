@@ -10,7 +10,10 @@ impl log::Log for Capture {
         if self.enabled(record.metadata())
             && record.args().to_string().contains("site=image_proxy.read ")
         {
-            assert!(CACHE_LOCK.try_lock().is_ok(), "logging held the cache lock");
+            assert!(
+                CACHE_LOCKS.iter().all(|cache| cache.try_lock().is_ok()),
+                "logging held a cache shard lock"
+            );
             let mut file = self.0.lock().unwrap();
             writeln!(file, "{} {}", record.level(), record.args()).unwrap();
             file.flush().unwrap();
