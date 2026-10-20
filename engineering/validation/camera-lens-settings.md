@@ -66,3 +66,30 @@ FOV 仍是唯一动画轨道，编辑派生数值会选择该轨道，不引入�
 错误与降级仍沿用上述 CAM-LENS 条目：这次重跑实际失败日志、阈值/恢复与 stdout 隔离，未新增生产观测点或改变正常取消/未实现景深边界。父链仍须依次合并，最终提交远程 CI、其他平台人工输入和后续父链集成继续待验。
 
 常规 Git 传输连接失败后，本次通过 Git 数据接口发布。仅将两个未发布提交的日期时区表示统一为 UTC，并同步本段集成提交引用；作者、时刻、中文消息、父关系与已验证的产品文件内容保持一致。发布前逐项比较树和对象哈希，远程仅快进，不改已发布历史。网络失败和发布对象核对记录位于 artifacts/pr-queue/。
+
+## Local parent refresh after main squashes
+
+Local candidate `23cf59e6` integrates the tested navigation parent `1c1d186`.
+Its actual tree equals clean preview `dee1dce23538403eb82f31fd4151026c8437ded4`.
+The eighteen incoming files contain shared native fixture/CI corrections and
+already merged grapheme/icon changes. Camera model, commands and lens controls
+are unchanged by this merge.
+
+Seven core lens cases passed in 0.06 seconds. The first desktop compilation
+failed because Cargo reported core/model as fresh while linking the old
+06:24 core library from the shared target. The current source exports the
+missing lens API and CameraLens command; the verbose command retained the
+exact stale library path. A guarded `cargo clean` limited to motion-core and
+motion-model in the resolved E target removed those package outputs. The
+unchanged source then rebuilt and all five panel lens cases passed in 39.14
+seconds, including native bilingual presets, default error sinks, recovery,
+stdout isolation, numeric gestures and popup ownership. No assertion, timeout
+or source was changed to obtain this result.
+
+Original failure, verbose diagnosis, limited cache refresh and recovered logs
+are retained as `artifacts/pr-queue/373-current-*.log`; exact-head evidence is
+`.tools/issue-closure-review/373-current-parent-acceptance.json`. MOTION_LOG was
+unset, and all build/temporary outputs were on E. This remains a local
+candidate, not a publication or completion of the remote head's six checks.
+Earlier retained screenshots and physical-input evidence keep their historical
+scope; no new full-suite, high-DPI or cross-platform GUI claim is made.
