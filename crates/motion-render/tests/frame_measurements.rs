@@ -21,7 +21,7 @@ fn resources_are_separate_sampled_distributions_and_recording_remains_bounded() 
             resources: if sequence == 2 {
                 None
             } else {
-                Some(FrameResources {
+                Some(FrameResources {vector_upload: Default::default(),
                     textures: TextureMemoryBreakdown {
                         video_planes: sequence * 100,
                         ..Default::default()
@@ -71,7 +71,7 @@ fn exposure_capacity_and_combined_media_time_are_reported_without_inventing_gpu_
     recorder.record(FrameMeasurement {sequence:9,frame:1.25,elapsed_us:100,
         cpu_prepare_us:25,acquire_us:2,submit_us:3,present_call_us:4,render_wall_us:20,
         render_width:4,render_height:2,preview_fps:30,gpu:None,
-        resources:Some(FrameResources {textures:TextureMemoryBreakdown::default(),
+        resources:Some(FrameResources {vector_upload: Default::default(),textures:TextureMemoryBreakdown::default(),
             preview_target_bytes:32,exposure_target_bytes:96,exposure_media_us:7,
             cpu_video_cache_bytes:16,cpu_video_proxy_bytes:0,video_prepare_us:0,video_upload_us:0,
             image_upload_bytes_total:0,video_upload_bytes_total:0,pipeline_builds_total:0,
@@ -82,4 +82,31 @@ fn exposure_capacity_and_combined_media_time_are_reported_without_inventing_gpu_
     assert_eq!(report["exposureMediaUs"]["max"],7.);
     assert_eq!(report["frames"][0]["resources"]["exposureTargetBytes"],96);
     assert_eq!(report["gpuSampleCount"],0);assert!(report["gpuTotalUs"].is_null());
+}
+
+#[test]
+fn vector_upload_capacity_is_separate_from_texture_capacity_and_gpu_timings() {
+    let mut recorder=FrameRecorder::new(1,1);
+    recorder.record(FrameMeasurement {sequence:1,frame:0.,elapsed_us:1,cpu_prepare_us:0,
+        acquire_us:0,submit_us:0,present_call_us:0,render_wall_us:0,
+        render_width:4,render_height:2,preview_fps:30,gpu:None,
+        resources:Some(FrameResources {textures:TextureMemoryBreakdown::default(),
+            vector_upload:motion_render::VectorUploadInfo {
+                vertex_capacity_bytes:16,opacity_capacity_bytes:16,pending_bytes:64,idle_bytes:128,
+                staging_buffers_created_total:3,destination_buffers_created_total:2,encoded_upload_bytes_total:256,completed_upload_bytes_total:128,
+                ..Default::default()
+            },
+            preview_target_bytes:32,exposure_target_bytes:0,exposure_media_us:0,
+            cpu_video_cache_bytes:0,cpu_video_proxy_bytes:0,video_prepare_us:0,video_upload_us:0,
+            image_upload_bytes_total:0,video_upload_bytes_total:0,pipeline_builds_total:0,
+            memory_quality_level:0,resource_refusals_total:0})});
+    let report=recorder.report(json!({}));
+    assert_eq!(report["logicalTextureBytes"]["max"],32.);
+    assert_eq!(report["vectorBufferCapacityBytes"]["max"],224.);
+    assert_eq!(report["vectorEncodedUploadBytesTotal"]["max"],256.);
+    assert_eq!(report["vectorCompletedUploadBytesTotal"]["max"],128.);
+    assert_eq!(report["vectorUploadBufferCreatesTotal"]["max"],5.);
+    assert_eq!(report["frames"][0]["resources"]["vectorUpload"]["pendingBytes"],64);
+    assert_eq!(report["gpuSampleCount"],0);
+    assert!(report["gpuTotalUs"].is_null());
 }

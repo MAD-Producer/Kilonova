@@ -49,6 +49,8 @@ pub enum RenderError {
     Image(#[from] image::ImageError),
     #[error(transparent)]
     Io(#[from] std::io::Error),
+    #[error(transparent)]
+    VectorUpload(#[from] crate::VectorUploadError),
     #[error("GPU validation: {0}")]
     Invalid(String),
     // Preserve the historical display text while callers inspect the refusal.
@@ -539,6 +541,9 @@ impl Renderer {
     }
     pub fn submission_memory_info(&self, current: &crate::TextureResourceLedger) -> crate::SubmissionMemoryInfo {
         self.submission_ledger.info(current)
+    }
+    pub fn vector_upload_info(&self) -> Result<crate::VectorUploadInfo> {
+        self.layer_gpu.upload_info()
     }
     /// Snapshot of application-owned textures; it does not keep GPU handles alive.
     pub fn texture_resource_ledger(&self) -> crate::TextureResourceLedger {
