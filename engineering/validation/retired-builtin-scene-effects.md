@@ -72,3 +72,11 @@ FFmpeg 开发构建通过（81 秒）；实际 libav 视频解码通过。使用
 | timeline snap guide | retained with reason：不修改吸附提示。 |
 
 本批未写入 panel 颜色/尺寸、token、布局或交互。§12 中本批相关的默认目录与搜索结果已通过实际中英文原生截图核验；其他面板基线、DPI、浮窗和跨平台人工输入不在本次复验范围，不能宣称整个 DESIGN 已整改。开发构建 CLI 超时单独保留为待查项，Release 基础截图验收结果见上。
+
+## CI 检查跟进
+
+旧提交 `186c4c6` 的 PR run `39386815863` 已完成并通过全部六个验证 job；同提交的 push run `39386808432` 被取消，旧检查列表同时显示两组记录。因此不能把取消记录当作产品断言失败，也不能仅凭其中一组绿色记录宣称检查列表已全部恢复。
+
+本轮合入已验证主线 `7bc153a`，直接继承其 CI 去重配置：所有目标分支的 PR（包括堆叠 PR）触发验证，push 只验证 main 与版本标签，手动验证独立分组；未新增另一套 CI 实现，未关闭验证 job、放宽断言或忽略失败。合并无冲突，没有额外设计或样式调整。
+
+合并后的独立目录 `target/effect-removal-ci-verified` 执行锁定离线 `cargo check --workspace --all-targets --exclude motion-android --features motion-host/diagnostics -j1` 成功，7 分 41 秒，`artifacts/remove-bundled-scene-effects-ci-check.log`。CI 工具运行 57 项，其中 56 通过、1 项既有 Rust loader 条件检查跳过（未设置 MOTION_EFFECT_VALIDATOR）；不把跳过项算通过，也不以编译代替完整 Rust 运行，后者由新提交的远端 CI 独立确认。日志为 `artifacts/remove-bundled-scene-effects-ci-tools.log`。首次本地工具运行缺少 CI 已固定的 PyYAML 6.0.3，失败输出保留，补齐隔离 Python 依赖后复测；没有改变仓库依赖版本。
