@@ -27,6 +27,9 @@ pub struct FrozenMovie {
 }
 
 #[cfg(all(test, feature = "ffmpeg"))]
+mod camera_tests;
+
+#[cfg(all(test, feature = "ffmpeg"))]
 mod tests {
     use super::*;
     use motion_core::{
