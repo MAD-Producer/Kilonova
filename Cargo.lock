@@ -2228,6 +2228,7 @@ dependencies = [
  "raw-window-handle",
  "serde",
  "serde_json",
+ "unicode-segmentation",
  "wgpu",
  "winit",
 ]
