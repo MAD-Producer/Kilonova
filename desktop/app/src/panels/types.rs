@@ -105,6 +105,7 @@ pub enum Action {
 
 #[derive(Default)]
 pub struct Panels {
+    pub(crate) shortcut_bindings: std::sync::Arc<crate::shortcuts::bindings::Bindings>,
     pub workspace_preset: crate::workspace::Preset,
     pub styles: Option<std::sync::Arc<motion_ui::style::StyleSheet>>,
     pub(crate) cursor: Option<motion_ui::cursor::Cursor>,

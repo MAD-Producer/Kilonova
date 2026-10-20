@@ -110,6 +110,7 @@ impl NodeEditor {
         let mut child = list.child();
         paint::rect(&mut child, layout.area, colors.PANEL);
         let empty = self.document.nodes.is_empty();
+        let add_hint=self.shortcut_bindings.label(language.text("自由添加节点", "Build your own graph"),crate::shortcuts::Scope::Nodes,crate::shortcuts::Command::AddNode);
         let lines = [
             if empty {
                 language.text(
@@ -120,10 +121,7 @@ impl NodeEditor {
                 language.text("从两个节点开始", "Start with two nodes")
             },
             if empty {
-                language.text(
-                    "也可以按 Shift+A，自由添加节点。",
-                    "Or press Shift+A to build your own graph.",
-                )
+                &add_hint
             } else {
                 language.text(
                     "当前是可编辑的动画示例。",

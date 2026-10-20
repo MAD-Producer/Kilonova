@@ -46,6 +46,8 @@ pub struct Workspace {
     #[serde(default)]
     pub(crate) preview_quality: preferences::PreviewQuality,
     #[serde(default)]
+    pub(crate) shortcut_bindings: crate::shortcuts::bindings::Bindings,
+    #[serde(default)]
     pub favorites: std::collections::BTreeSet<String>,
     #[serde(default)]
     pub send_diagnostics: bool,
@@ -82,6 +84,7 @@ impl Default for Workspace {
             timeline_column_matte: true,
             style_path: None,
             preview_quality: Default::default(),
+            shortcut_bindings: Default::default(),
             layout: Default::default(),
         }
     }
@@ -146,24 +149,8 @@ impl Workspace {
     }
 
     pub fn save(&self, path: &Path) -> Result<(), String> {
-        use std::{io::Write, sync::atomic::{AtomicU64, Ordering}};
-        static NEXT: AtomicU64 = AtomicU64::new(0);
-        let bytes = serde_json::to_vec_pretty(self).map_err(|e| e.to_string())?;
-        let phase = |phase, cause: std::io::Error| format!("save application settings phase={phase} path={} cause={cause}", path.display());
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| phase("create_directory", e))?;
-        }
-        let mut name = std::ffi::OsString::from(".");
-        name.push(path.file_name().ok_or("application settings path has no file name")?);
-        name.push(format!(".{}-{}.tmp", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
-        let temporary = path.with_file_name(name);
-        let mut owned = crate::owned_file::OwnedFile::create(&temporary).map_err(|e| phase("create_temporary", e))?;
-        owned.file().write_all(&bytes).map_err(|e| phase("write", e))?;
-        owned.file().sync_all().map_err(|e| phase("sync_file", e))?;
-        owned.close();
-        std::fs::rename(&temporary, path).map_err(|e| phase("publish", e))?;
-        owned.keep();
-        Ok(())
+        let bytes=serde_json::to_vec_pretty(self).map_err(|e|e.to_string())?;
+        write_atomic(path,&bytes)
     }
     pub fn redock(&mut self, panel: DockId) {
         self.restore_panel();
@@ -377,4 +364,25 @@ mod tests {
         std::fs::write(&path, b"{}").unwrap();
         assert!(Workspace::load(&path).valid());
     }
+}
+
+/// Same-directory publication shared by settings and shortcut preset export.
+pub(crate) fn write_atomic(path:&Path,bytes:&[u8])->Result<(),String> {
+        use std::{io::Write, sync::atomic::{AtomicU64, Ordering}};
+        static NEXT: AtomicU64 = AtomicU64::new(0);
+        let phase = |phase, cause: std::io::Error| format!("save application settings phase={phase} path={} cause={cause}", path.display());
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| phase("create_directory", e))?;
+        }
+        let mut name = std::ffi::OsString::from(".");
+        name.push(path.file_name().ok_or("application settings path has no file name")?);
+        name.push(format!(".{}-{}.tmp", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
+        let temporary = path.with_file_name(name);
+        let mut owned = crate::owned_file::OwnedFile::create(&temporary).map_err(|e| phase("create_temporary", e))?;
+        owned.file().write_all(bytes).map_err(|e| phase("write", e))?;
+        owned.file().sync_all().map_err(|e| phase("sync_file", e))?;
+        owned.close();
+        std::fs::rename(&temporary, path).map_err(|e| phase("publish", e))?;
+        owned.keep();
+        Ok(())
 }

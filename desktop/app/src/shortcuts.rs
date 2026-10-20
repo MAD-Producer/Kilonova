@@ -141,6 +141,7 @@ pub fn resolve(scope: Scope, key: Key, m: Modifiers, repeat: bool) -> Option<Com
         (Application, Key::Y, true, false, true) => Adjustment,
         (Application, Key::A, true, false, false) => SelectAll,
         (Application, Key::A, true, true, false) => DeselectAll,
+        (Nodes, Key::Space, false, false, false) => Play,
         (Nodes, Key::S, true, true, false) => SaveAs,
         (Nodes, Key::A, true, false, false) => SelectAll,
         (Nodes, Key::A, true, true, false) => DeselectAll,
