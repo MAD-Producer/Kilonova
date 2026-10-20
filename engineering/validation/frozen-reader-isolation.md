@@ -39,7 +39,7 @@
 
 依赖来源检查已阅读 PROVENANCE、ATTRIBUTION、NOTICE。仅让 motion-host 直接使用工作区已有锁定 `thiserror 2.0.21`，锁文件只增加这条依赖边，没有新增第三方包、版本或素材。
 
-最终验收使用已有便携 MSVC、锁定离线依赖、独立目标目录 `target/model-robustness-audit`、单构建任务，关闭调试符号与增量构建，调试断言仍启用。完整结果见 `verification-summary.json`：
+上一轮验收使用已有便携 MSVC、锁定离线依赖、共享目标目录 `target/model-robustness-audit`、单构建任务，关闭调试符号与增量构建，调试断言仍启用。该目录后来发现被多个同版本工作区分支共用，不能称为分支隔离构建；以下保留历史记录，本轮独立重编结果另列于后。历史结果见 `verification-summary.json`：
 
 1. `cargo test -p motion-host --features diagnostics --locked --offline -j1 -- --test-threads=1`：**89 通过、0 失败、0 忽略**，含 57 项库测试及集成/文档测试，11 组摘要，`host-serial.log`。该运行方式与现有 CI 一致；首次并行运行的崩溃仍未定位，没有修改 CI 来回避它。
 2. `cargo test -p motion-desktop --features ffmpeg logging:: --locked --offline -j1 -- --test-threads=1`：**16 通过、0 失败、0 忽略**，`logging-full.log`，不是完整桌面测试。与上项合计 **105 项不同测试**；聚焦复跑和保留日志的子进程不再累加。
@@ -49,3 +49,29 @@
 6. 五个新增 Rust 文件 `rustfmt --check`、暂存差异空白检查通过；来源检查覆盖 **1568 个跟踪路径**，桌面样式消费检查通过。原有生产文件未全量格式化，以避免无关修改。
 
 远程 CI 和跨平台验证尚待该 PR 的检查完成。并行原生访问冲突、会话及 blend 的文本边界、#130/#138 其余条目均为明确保留事项，不能用本次本地通过结果代替这些项的验收。
+
+## Windows 清理日志路径夹具回归
+
+Windows job `118648700488`（run `39428975246`、提交 `40bfa9f`）的桌面单元测试为 637 通过、1 失败、1 忽略。失败来自基线 #381 的 `media_teardown_cleanup_warnings_reach_default_file_without_console_noise`：预期的一条路径匹配记录为零；新增冻结读者用例通过。完整 job 日志保存在 `windows-ci-job.log`，没有取消、重启或修改其他分支的 CI。
+
+| ID | 分类 | 处置与证据 |
+| --- | --- | --- |
+| FR-08 路径匹配 | 测试夹具修复 | 导入任务规范化工程根目录，夹具却用原始路径拼写匹配日志。修复前原生程序以普通路径运行成功，以包含 `alias/..` 的等价路径运行失败，但日志实际已有一条清理 Warn。`teardown-alias-probe.json` 保存两个输入、退出码及真实警告。CI 的临时目录原始拼写未留存，不能进一步断言它一定使用了短文件名。 |
+| FR-09 别名覆盖 | 新增回归触发方式 | 夹具主动构造存在的 `path-alias/..` 路径，再按生产接口约定规范化根目录。仍实际导入音频及探测视频、将任务自己的暂存目录替换为文件、触发真实 OS 清理失败并保留该文件。原有逐路径数量、Warn 级别、原因、总数、无 Error 及控制台隔离断言均保留，仅补充断言失败上下文。 |
+| FR-10 负向对照 | 新增验证 | 临时只撤掉夹具的规范化步骤，原有数量断言实际以 `left: 0 / right: 1` 失败，退出 101；恢复原始字节后完整日志组 16 通过。`windows-fixture-negative.log`、`windows-fixture-final-logging.log`、`windows-fixture-verification.json` 留存对照及恢复后 SHA-256。没有提交变异实现。 |
+| FR-11 默认输出 | 既有观察的真实复核 | 最终程序分别以普通根目录、带 `alias/..` 的根目录启动，清理 Warn 文件/stderr/stdout 均为 **2/0/0**；默认 Info，无 Error。原始输出在 `teardown-final-mhk7ma04/`。生产清理逻辑、错误返回、日志级别和锁范围均未修改；本项不冒充新产品故障修复。 |
+
+开始修改前检查所有 worktree 的该夹具文件，没有未提交占用；记录在 `teardown-fixture-ownership.json`。先在 #384 验证同一夹具的修正。随后用户明确要求同时修复 #377/#378/#381/#384，故将共同修正集中提交到基线 #381（`30df4184860944c5c0601998b5ac78e168cebfa4`），本分支合入该提交而不重复维护补丁；同时继承主线 `7bc153a` 的单次 PR 验证及已验证功能。
+
+本轮使用全新分支专属目标目录 `target/frozen-reader-isolation-verified`、便携 MSVC、锁定离线依赖、两构建任务、单测试线程，关闭调试符号及增量构建，保留调试断言。首次冷编译 5 分 42 秒后日志组 16 通过（`windows-fixture-logging.log`）；负向对照后的完整日志组同样 16 通过，不重复累计测试数量。合入新基线前完整宿主 89 通过（`windows-fixture-host.log`），与日志组去重为 105 项；FFmpeg 构建 21.84 秒通过、保留 21 条既有警告（`windows-fixture-build.log`）。这些是合入新基线前的阶段记录，后续组合结果单列，不把旧结果冒充新组合验收。
+
+### 新基线最终组合结果
+
+合入 #381 的 `30df4184` 后，继续使用上述分支专属目标目录，重新验证与主线会话锁隔离、并发夹具和媒体错误类型的组合。清理夹具由父分支原样继承，SHA-256 仍为 `86d1f5256666e3e836d11ea21fff04cde3e7a6ecfec9edf4659614532e1f0cdb`；主线新增并发提供者的四个媒体方法适配也由父分支继承，没有放宽任何并发或错误断言。
+
+- 完整宿主（含集成及文档）**98 通过，0 失败/忽略**，12 组摘要，`ci-integrated-host.log`。覆盖冻结读者容量、锁隔离、panic、兼容 JSON，以及新主线的跨会话阻塞和析构边界。
+- 默认桌面日志组 **16 通过，0 失败/忽略**，13.60 秒，`ci-integrated-logging.log`。这仍是日志相关组，不冒充完整桌面测试。
+- CI 工作流规则 **7 通过**，`ci-integrated-workflow.log`，覆盖堆叠 PR 目标及防重复触发。
+- 工作区 all-targets/exclude Android/diagnostics 检查成功，2 分 07 秒，`ci-integrated-check.log`；FFmpeg 开发构建成功，28.84 秒，保留 21 条既有警告，`ci-integrated-build.log`。
+
+不同用例共 **121 项通过**（Rust 114、Python 7），前一阶段 105 项和重复原生捕获不再相加。新的远端 CI、跨平台结果及历史 Vulkan 原生崩溃根因仍待确认；本地组合通过不意味着这些保留项已解决。源码与依赖来源检查、diff 检查继续执行，未新增第三方包版本、UI 样式、重试或失败忽略。
