@@ -45,6 +45,14 @@ first mutation; its finally block restored the workflow. Normalizing only the
 driver's input text allowed all six controls to complete. This tooling error is
 not a product or CI failure.
 
+Before foundation integration, the complete tools suite ran 53 tests in 34.620
+seconds: 52 passed and one existing optional external-loader check was skipped.
+After integrating #368, all 54 tools tests completed in 30.345 seconds: 53 passed
+and the same optional check was skipped. The seventh workflow policy case keeps
+#368's absolute native-artifact upload paths covered. Its merge conflict was
+resolved by retaining that case and the new trigger/concurrency cases together.
+No Rust assertion, timeout, ignore annotation, or return value was changed.
+
 Local raw evidence is retained under `artifacts/pr-queue/ci-dedup-*` and
 `.tools/issue-closure-review/ci-dedup-mutants.json`. These local files are not
 part of the product or proof of remote CI success.
