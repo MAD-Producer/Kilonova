@@ -152,3 +152,31 @@ and historical visual acceptance above keep their original source boundaries;
 no new complete application screenshot or full-suite run is claimed here.
 The following documentation-only commit does not change tested source. Actual
 parent squash reconciliation and all six final-head remote checks remain required.
+
+
+## Combined distribution and navigation acceptance — 2026-10-20
+
+Unpublished source `c78ef6e94e3f228b6c30bc078e78fe4c7b133e60` integrates the final published distribution
+candidate and the actual main ancestry of the alignment and shortcut squashes.
+Its non-validation blobs exactly match reviewed navigation tree `ddbd2618`.
+The resolved action handler retains ordering, alignment and distribution;
+keyboard documentation retains all features without duplicated introductions.
+
+With MOTION_LOG unset, 51 selected cases passed with no failures or ignores:
+- `371-combined-parent-navigation.log`: 7 passed (10.44s)
+- `371-combined-parent-shortcuts.log`: 39 passed (3.38s)
+- `371-combined-parent-align.log`: 5 passed (18.03s)
+
+These groups cover layer navigation, atomic ordering and save/reopen, shortcut
+input ownership, bilingual main/floating-host alignment/distribution, and real
+worker failure/recovery with the default file/stderr/stdout channel contract.
+Provenance, panel style-consumer and whitespace checks passed. Source, assertion,
+timeout and ignore settings remained unchanged during validation; no cache was
+deleted in this run. Build output and logs remain on E. This selected execution
+does not add a new full-suite, complete native screenshot or other-platform
+manual claim to the historical evidence above.
+
+The candidate remains local while final distribution CI runs. Reconcile the
+actual distribution squash/main, publish a concrete main-based head and require
+six successful checks for that head before merging. Historical green checks on
+the earlier feature-parent branch are not final-head acceptance.
