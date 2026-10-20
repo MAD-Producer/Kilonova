@@ -670,7 +670,10 @@ impl Drop for AudioJobs {
         {
             let mut t = recoveries.recover(task.lock(), &TASK, id, "drop_audio");
             t.cancel.store(true, Ordering::Release);
-            t.prepared.take();
+            let prepared = t.prepared.take();
+            drop(t);
+            // Stage cleanup can delete a large tree or call the host logger.
+            drop(prepared);
         }
     }
 }
