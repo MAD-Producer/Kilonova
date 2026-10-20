@@ -194,3 +194,83 @@ fn media_commit_ok_failures_reach_default_file_and_console_without_replay_errors
     assert!(!stderr.contains("media start "));
     assert!(!String::from_utf8(output.stdout).unwrap().contains("media "));
 }
+
+#[test]
+fn media_teardown_cleanup_warnings_reach_default_file_without_console_noise() {
+    const CHILD: &str = "MOTION_MEDIA_TEARDOWN_FILE_TEST_CHILD";
+    const TEST: &str = "logging::media_commit_tests::media_teardown_cleanup_warnings_reach_default_file_without_console_noise";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = PathBuf::from(root);
+        let _logger = init(root.join("logs")).unwrap();
+        for kind in ["audio", "video"] {
+            let project_root = root.join(kind);
+            fs::create_dir_all(&project_root).unwrap();
+            let audio = (kind == "audio").then(|| audio(&project_root));
+            let video = (kind == "video").then(|| video(&project_root));
+            let prefix = if kind == "audio" {
+                ".media-import-"
+            } else {
+                ".video-import-"
+            };
+            let stages: Vec<_> = fs::read_dir(&project_root)
+                .unwrap()
+                .map(|entry| entry.unwrap().path())
+                .filter(|path| {
+                    path.file_name()
+                        .unwrap()
+                        .to_string_lossy()
+                        .starts_with(prefix)
+                })
+                .collect();
+            assert_eq!(stages.len(), 1);
+            let stage = &stages[0];
+            assert!(stage
+                .canonicalize()
+                .unwrap()
+                .starts_with(project_root.canonicalize().unwrap()));
+            // The actual import worker retained this tree for commit. Replace
+            // only that test-owned tree with a file to force a real OS failure.
+            fs::remove_dir_all(stage).unwrap();
+            fs::write(stage, b"foreign file that cleanup must preserve").unwrap();
+            drop(audio);
+            drop(video);
+            assert_eq!(
+                fs::read(stage).unwrap(),
+                b"foreign file that cleanup must preserve"
+            );
+            let text = fs::read_to_string(root.join("logs/motion-studio.log")).unwrap();
+            let warnings: Vec<_> = text
+                .lines()
+                .filter(|line| {
+                    line.contains("media stage cleanup failed")
+                        && line.contains(&stage.display().to_string())
+                })
+                .collect();
+            assert_eq!(warnings.len(), 1);
+            assert!(warnings[0].contains(" WARN ") && warnings[0].contains("reason="));
+        }
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", TEST, "--nocapture"])
+        .env(CHILD, root.path())
+        .env_remove("MOTION_LOG")
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stdout={} stderr={}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let text = fs::read_to_string(root.path().join("logs/motion-studio.log")).unwrap();
+    assert!(text.contains("logging initialized level=INFO"));
+    assert_eq!(text.matches("media stage cleanup failed").count(), 2);
+    assert!(
+        !text.contains(" ERROR "),
+        "cleanup remains best effort: {text}"
+    );
+    assert!(!String::from_utf8_lossy(&output.stderr).contains("media "));
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("media "));
+}
