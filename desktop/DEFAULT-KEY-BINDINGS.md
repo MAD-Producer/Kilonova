@@ -100,6 +100,7 @@
 | Nodes | Equal | false | true | false | Arrange | false |
 | Nodes | Tab | false | false | false | EnterGroup | false |
 | Nodes | Tab | true | false | false | LeaveGroup | false |
+| Nodes | Space | false | false | false | Play | false |
 | Nodes | Delete | false | false | false | Delete | false |
 | Nodes | Backspace | false | false | false | Delete | false |
 | Nodes | Left | false | false | false | MoveLeft | true |

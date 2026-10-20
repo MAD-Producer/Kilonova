@@ -11,13 +11,31 @@ pub enum MouseButton {
     Middle,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Key {
     A,
+    B,
+    C,
+    E,
+    H,
+    L,
+    Q,
+    V,
+    W,
     F,
     G,
     T,
     Num0,
+    Num1,
+    Num2,
+    Num3,
+    Num4,
+    Num5,
+    Num6,
+    Num7,
+    Num8,
+    Num9,
     N,
     O,
     I,
@@ -31,6 +49,15 @@ pub enum Key {
     U,
     J,
     F3,
+    F1,
+    F2,
+    F5,
+    F6,
+    F7,
+    F8,
+    F10,
+    F11,
+    F12,
     F9,
     M,
     X,
@@ -63,7 +90,8 @@ pub enum Key {
 }
 
 /// A key with its modifiers folded in.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Modifiers {
     pub shift: bool,
     pub control: bool,
@@ -71,7 +99,8 @@ pub struct Modifiers {
 }
 
 /// Exact chord matching prevents Alt/Shift variants from invoking another command.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct KeyChord {
     pub key: Key,
     pub modifiers: Modifiers,
