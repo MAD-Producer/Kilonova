@@ -56,6 +56,7 @@ struct NameEdit {
 #[derive(Default)]
 pub(crate) struct Controls {
     pub select_generated: Option<u64>,
+    pub(crate) shortcut_bindings: std::sync::Arc<crate::shortcuts::bindings::Bindings>,
     popup: Option<Popup>,
     name: Option<NameEdit>,
     owner: Option<Panel>,
@@ -156,7 +157,7 @@ impl Controls {
     pub fn open_audio(&mut self, target: u64, anchor: [f32; 2], state: &Value, locale: Locale) {
         self.open(Some(target), anchor, state);
         if let Some(popup) = &mut self.popup {
-            let root = entries(popup, state, locale);
+            let root = entries_with_bindings(popup, state, locale, &self.shortcut_bindings);
             if let Some(index) = root
                 .iter()
                 .position(|e| matches!(e.choice, Choice::Page(Page::Audio)))
@@ -434,7 +435,7 @@ impl Controls {
             Page::Root
         };
         popup.page = root_page;
-        let root_entries = entries(popup, state, locale);
+        let root_entries = entries_with_bindings(popup, state, locale, &self.shortcut_bindings);
         popup.page = page;
         if root_entries.is_empty() {
             self.popup = None;
@@ -531,7 +532,7 @@ impl Controls {
         let mut child_card = None;
         let mut child_choice = None;
         if popup.page != root_page {
-            let children = entries(popup, state, locale);
+            let children = entries_with_bindings(popup, state, locale, &self.shortcut_bindings);
             if !children.is_empty() {
                 let height = menu_count(children.len(), bounds, row) as f32 * row + 6.;
                 let parent_y =
@@ -886,6 +887,17 @@ fn disabled_reason(choice: &Choice, layer: &Value, state: &Value, locale: Locale
     }
 }
 
+fn entries_with_bindings(popup:&Popup,state:&Value,locale:Locale,bindings:&crate::shortcuts::bindings::Bindings)->Vec<Entry> {
+    let mut rows=entries(popup,state,locale);
+    for row in &mut rows {
+        let command=match &row.choice {Choice::Edit(Command::Duplicate {..})=>Some(crate::shortcuts::Command::Duplicate),Choice::Edit(Command::Remove {..})=>Some(crate::shortcuts::Command::Delete),_=>None};
+        if let Some(command)=command {
+            let label=row.label.split("    ").next().unwrap_or(&row.label).to_owned();
+            row.label=bindings.label(&label,crate::shortcuts::Scope::Application,command);
+        }
+    }
+    rows
+}
 fn entries(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
     entries_for(popup, state, locale)
 }
@@ -1375,6 +1387,21 @@ fn blend_modes() -> Vec<(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn custom_layer_menu_hints_follow_effective_mapping_without_changing_actions() {
+        use crate::shortcuts::{bindings::Bindings,Command as Shortcut,Scope};
+        let state=state(&engine());let mut controls=Controls::default();controls.open(Some(7),[100.,100.],&state);
+        let mut bindings=Bindings::default();bindings.bind(Scope::Application,Shortcut::Duplicate,Some(motion_ui::input::KeyChord::new(Key::B,true,false,false))).unwrap();
+        for locale in [Locale::Zh,Locale::En] {
+            let rows=entries_with_bindings(controls.popup.as_ref().unwrap(),&state,locale,&bindings);
+            let duplicate=rows.iter().find(|r|matches!(r.choice,Choice::Edit(Command::Duplicate {object:7}))).unwrap();
+            assert!(duplicate.label.ends_with("Ctrl+B") && !duplicate.label.contains("Ctrl+D"));
+            assert!(duplicate.enabled);
+        }
+        bindings.bind(Scope::Application,Shortcut::Duplicate,None).unwrap();
+        let rows=entries_with_bindings(controls.popup.as_ref().unwrap(),&state,Locale::En,&bindings);
+        assert_eq!(rows.iter().find(|r|matches!(r.choice,Choice::Edit(Command::Duplicate {object:7}))).unwrap().label,"Duplicate");
+    }
     fn state(engine: &motion_core::Engine) -> Value {
         let p = engine.project();
         serde_json::json!({"root":"project-a","composition":p.composition_id,"frame":21,"project":p,"timeline_layers":p.layers.iter().map(|l|{let clip=l.clip(p.frames);serde_json::json!({"object":l.id,"in_frame":clip.in_frame,"out_frame":clip.out_frame})}).collect::<Vec<_>>()})

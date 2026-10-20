@@ -25,9 +25,13 @@ use std::{
 #[cfg(test)]
 pub(crate) const TEXTURE_BUDGET: u64 = crate::resource_policy::DEFAULT_SOURCE_TEXTURE_BUDGET;
 const CAPTURE_PIXEL_LIMIT: u64 = 16 * 1024 * 1024;
+// Retain at most 16 KiB of CPU eviction scratch between trims.
+const MAX_IMAGE_TRIM_CANDIDATES: usize = 1024;
 const DRAW_SIZE: u64 = std::mem::size_of::<DrawUniform>() as u64;
 #[cfg(test)]
 mod plane_sampling_tests;
+#[cfg(test)]
+mod image_trim_tests;
 const TARGET_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 static PREFETCH_FAILURES: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
 static IMAGE_PENDING: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
@@ -192,6 +196,7 @@ pub struct Renderer {
     image_decode: crate::image_resources::DecodeTask,
     image_active: std::collections::BTreeSet<u64>,
     image_access: HashMap<u64, u64>,
+    image_trim_candidates: Vec<(u64, u64)>,
     image_clock: u64,
     image_prefetch: Vec<u64>,
     image_prefetch_failed: std::collections::HashSet<u64>,
@@ -435,6 +440,7 @@ impl Renderer {
             image_decode: Default::default(),
             image_active: Default::default(),
             image_access: Default::default(),
+            image_trim_candidates: Vec::new(),
             image_clock: 0,
             image_prefetch: Vec::new(),
             image_prefetch_failed: Default::default(),
@@ -484,6 +490,7 @@ impl Renderer {
         }
         self.image_decode.cancel();
         self.image_prefetch.clear();
+        self.image_trim_candidates = Vec::new();
         let idle: Vec<_> = self.image_access.keys().copied().filter(|id| !self.image_active.contains(id)).collect();
         for id in idle { self.remove_static_image(id); }
         let dynamic: Vec<_> = self.images.keys().copied().filter(|key| !matches!(key, TextureKey::Static(_))).collect();
@@ -1162,16 +1169,23 @@ impl Renderer {
             self.check_texture_accounting();
             return;
         }
-        let mut victims: Vec<_> = self.image_access.iter()
+        let mut victims = std::mem::take(&mut self.image_trim_candidates);
+        victims.extend(self.image_access.iter()
             .filter(|(id, _)| !self.image_active.contains(id) && replacing != Some(TextureKey::Static(**id)))
-            .map(|(id, time)| (*time, *id)).collect();
+            .map(|(id, time)| (*time, *id)));
         victims.sort_unstable();
-        for (_, id) in victims {
+        for &(_, id) in &victims {
             if idle <= limit && total <= self.effect_gpu.builder.source_texture_budget { break; }
             let bytes = self.images.get(&TextureKey::Static(id)).map_or(0, |i| i.bytes);
             self.remove_static_image(id);
             idle -= bytes;
             total = total.saturating_sub(bytes);
+        }
+        // Retain CPU storage, never textures or stale candidate IDs. Large
+        // working sets can still evict fully without pinning their peak scratch.
+        if victims.capacity() <= MAX_IMAGE_TRIM_CANDIDATES {
+            victims.clear();
+            self.image_trim_candidates = victims;
         }
         self.check_texture_accounting();
     }
@@ -1312,6 +1326,7 @@ impl Renderer {
         self.image_decode.cancel();
         self.image_active.clear();
         self.image_access.clear();
+        self.image_trim_candidates = Vec::new();
         self.image_prefetch.clear();
         self.image_prefetch_failed.clear();
         self.mask_gpu.clear();

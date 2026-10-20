@@ -6,10 +6,12 @@ use super::{
 use std::hash::{Hash, Hasher};
 
 pub(super) struct Row {
+    pub(super) effect_expressions: std::collections::HashSet<(u64,String)>,
     pub(super) spatial: bool,
     pub(super) camera: bool,
     pub(super) effects: Vec<Value>,
     pub(super) audio: usize,
+    pub(super) filtered_audio: [usize; 2],
     pub(super) masks: Vec<motion_core::masks::LayerMask>,
     pub(super) mask_offset: i32,
     pub(super) vector: Option<motion_core::vector::VectorContent>,
@@ -27,6 +29,7 @@ pub(super) struct Row {
 }
 
 pub(super) struct PropertyRow {
+    pub modified: bool,
     pub property: Property,
     pub key: &'static str,
     pub title: T,
@@ -195,7 +198,7 @@ pub(super) fn property_rows(state: &Value, object: u64) -> Vec<PropertyRow> {
     let timeline = state["timeline_layers"]
         .as_array()
         .and_then(|ts| ts.iter().find(|t| t["object"].as_u64() == Some(object)));
-    property_rows_for(layer, timeline)
+    property_rows_for(layer, timeline, state)
 }
 fn property_descriptors(layer: Option<&Value>) -> Vec<(Property, &'static str, T, Vec<usize>)> {
     let three_d = layer.is_some_and(|l| l["three_d"].as_bool() == Some(true));
@@ -253,7 +256,7 @@ pub(super) fn property_row_exists(state: &Value, object: u64, property: Property
             *candidate == property && axis.is_none_or(|axis| axes.contains(&axis.index())))
 }
 
-fn property_rows_for(layer: Option<&Value>, timeline: Option<&Value>) -> Vec<PropertyRow> {
+fn property_rows_for(layer: Option<&Value>, timeline: Option<&Value>, state: &Value) -> Vec<PropertyRow> {
     let mut rows = vec![];
     for (property, key, title, axes) in property_descriptors(layer) {
         let track = timeline
@@ -276,6 +279,9 @@ fn property_rows_for(layer: Option<&Value>, timeline: Option<&Value>) -> Vec<Pro
                 .filter_map(|k| k["frame"].as_f64())
                 .collect();
             rows.push(PropertyRow {
+                modified: super::modified_properties::transform_source(state, layer, source, property,
+                    axis.map(|index|[motion_core::Axis::X,motion_core::Axis::Y,motion_core::Axis::Z][index]),
+                    &axis.map(|index|vec![index]).unwrap_or_else(||axes.clone())),
                 property,
                 key,
                 title,
@@ -303,7 +309,7 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
         .map(|l| {
             let id = l["id"].as_u64().unwrap_or(0);
             let t = timeline_by_object.get(&id).copied();
-            let properties = property_rows_for(Some(l), t);
+            let properties = property_rows_for(Some(l), t, state);
             let mut keys = Vec::new();
             if let Some(t) = t {
                 for property in ["anchor", "position", "rotation", "scale", "opacity", "target", "roll", "fov", "radius", "azimuth", "elevation"] {
@@ -390,6 +396,12 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
                 .filter(|f| *f >= visible_begin.max(0.) && *f < visible_end.min(f64::from(total)))
                 .collect();
             Row {
+                effect_expressions: state["project"]["expressions"].as_array().into_iter().flatten()
+                    .filter_map(|expression| {
+                        let target = &expression["target"];
+                        (target["kind"]=="effect" && target["object"]==id).then(||
+                            Some((target["effect"].as_u64()?,target["param"].as_str()?.to_owned())))?
+                    }).collect(),
                 spatial: l["content"]["kind"] != "audio",
                 camera: l["content"]["kind"] == "camera",
                 effects: l["effects"].as_array().cloned().unwrap_or_default(),
@@ -398,6 +410,10 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
                 } else {
                     0
                 },
+                filtered_audio: if super::audio::is_audio(l) {
+                    [super::audio::filtered_rows(l,types::PropertyFilter::Animated),
+                     super::audio::filtered_rows(l,types::PropertyFilter::Modified)]
+                } else { [0;2] },
                 masks,
                 mask_offset,
                 vector,
@@ -439,10 +455,12 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
         rows.insert(
             0,
             Row {
+                effect_expressions: Default::default(),
                 spatial: false,
                 camera: true,
                 effects: vec![],
                 audio: 0,
+                filtered_audio: [0;2],
                 vector: None,
                 vector_size: [0.; 2],
                 masks: vec![],
@@ -546,7 +564,7 @@ pub(super) fn filtered_properties(
 ) -> Vec<PropertyRow> {
     property_rows(state, object)
         .into_iter()
-        .filter(|row| filter.admits(row.property, !row.keys.is_empty()))
+        .filter(|row| filter.admits(row.property, !row.keys.is_empty(), row.modified))
         .collect()
 }
 pub(super) fn property_visible(
@@ -555,16 +573,14 @@ pub(super) fn property_visible(
     object: u64,
     property: Property,
 ) -> bool {
-    let animated = property_rows(state, object)
-        .iter()
-        .any(|r| r.property == property && !r.keys.is_empty());
-    panels
+    let filter = panels
         .timeline
         .filters
         .get(&object)
         .copied()
-        .unwrap_or_default()
-        .admits(property, animated)
+        .unwrap_or_default();
+    property_rows(state, object).iter().any(|row| row.property == property
+        && filter.admits(property, !row.keys.is_empty(), row.modified))
 }
 
 fn select_row(

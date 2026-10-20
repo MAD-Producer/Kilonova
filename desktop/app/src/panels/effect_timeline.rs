@@ -14,13 +14,20 @@ pub(super) enum PlannedRow {
 }
 pub(super) fn plan(row: &timeline::Row, state: &types::TimelineState) -> Vec<PlannedRow> {
     let mut rows = vec![];
+    let filter = state.filters.get(&row.id).copied().unwrap_or_default();
     for (index, effect) in row.effects.iter().enumerate() {
+        let id = effect["id"].as_u64().unwrap_or(0);
+        let mut params: Vec<_> = effect["params"].as_object().into_iter().flatten()
+            .filter(|(name,parameter)|super::modified_properties::effect_value_visible(filter,parameter,row.id,id,name,
+                row.effect_expressions.iter().any(|(effect,param)|*effect==id && param==*name)))
+            .collect();
+        if matches!(filter,types::PropertyFilter::Properties(_))
+            || filter==types::PropertyFilter::Animated && params.is_empty() { continue; }
         let open = !state
             .collapsed_effect_items
             .contains(&(row.id, effect["id"].as_u64().unwrap_or(0)));
         rows.push(PlannedRow::Effect { index, open });
         if open {
-            let mut params: Vec<_> = effect["params"].as_object().into_iter().flatten().collect();
             params.sort_by_key(|(name, parameter)| (parameter["kind"] == "curve", *name));
             rows.extend(params.into_iter().map(|(param, _)| PlannedRow::Parameter {
                 index,

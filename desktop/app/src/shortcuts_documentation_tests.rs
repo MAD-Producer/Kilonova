@@ -3,6 +3,9 @@ use std::collections::BTreeSet;
 #[test]
 fn default_binding_reference_matches_live_resolver() {
     let keys = [
+        Key::B,Key::C,Key::E,Key::H,Key::L,Key::Q,Key::V,Key::W,
+        Key::Num1,Key::Num2,Key::Num3,Key::Num4,Key::Num5,Key::Num6,Key::Num7,Key::Num8,Key::Num9,
+        Key::F1,Key::F2,Key::F5,Key::F6,Key::F7,Key::F8,Key::F10,Key::F11,Key::F12,
         Key::A,
         Key::F,
         Key::G,

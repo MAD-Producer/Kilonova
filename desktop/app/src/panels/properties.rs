@@ -320,6 +320,7 @@ pub(super) fn render(
         let camera = super::camera_controls::camera(state, *id);
         !camera.is_null() && camera["created"].as_bool().unwrap_or(true)
     }) {
+        panels.camera_controls.filter = panels.timeline.filters.get(&object).copied().unwrap_or_default();
         let navigation = panels
             .camera_controls
             .render(list, atlas, area, &mut y, state, object, input, panels.locale,
@@ -393,6 +394,7 @@ pub(super) fn render(
                     original
                 },
                 locale,
+                panels.timeline.filters.get(&object).copied().unwrap_or_default(),
                 out,
             );
         }
@@ -414,7 +416,8 @@ pub(super) fn render(
     }
     y += row;
     if !panels.properties.transform_collapsed {
-        let rows = super::timeline::property_rows(state, object);
+        let rows = super::timeline::filtered_properties(state, object,
+            panels.timeline.filters.get(&object).copied().unwrap_or_default());
         let mut selection = panels.animation_controls.track_selection(state, panels.selected);
         for track in rows {
             let property = track.property;
@@ -422,9 +425,6 @@ pub(super) fn render(
             let key = track.key;
             let name = locale.t(track.title);
             let axes = &track.axes;
-            if !super::timeline::property_visible(panels, state, object, property) {
-                continue;
-            }
             let fields = inspector_layout(&styles, area, y, 0, axes.len());
             panels.animation_controls.record_row(
                 super::animation_controls::SelectedTrack {object, property, axis}, fields.caption,
@@ -576,6 +576,7 @@ pub(super) fn render(
     );
     if layer["content"]["kind"] == "vector" {
         if let Some(layer) = panels.path_controls.inspector_layer(state, layer) {
+            panels.path_controls.groups.property_filter = panels.timeline.filters.get(&object).copied().unwrap_or_default();
             panels.path_controls.groups.render(
                 list,
                 atlas,
@@ -644,6 +645,7 @@ pub(super) fn render(
     }
     y += row;
     if !panels.properties.effects_collapsed {
+        panels.properties.effects.property_filter = panels.timeline.filters.get(&object).copied().unwrap_or_default();
         panels.properties.effects.catalogue = panels.effect_controls.catalogue.clone();
         panels.properties.effects.importing_package = panels.effect_controls.importing_package;
         panels.properties.effects.favorites = panels.effect_controls.favorites.clone();
