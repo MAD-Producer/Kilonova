@@ -130,3 +130,25 @@ final PR base/head verification and all six final-head checks remain
 required. Historical screenshots keep their original source scope; this
 update claims no new full-suite, physical-input/DPI, cross-platform manual
 or packaged-video execution.
+
+
+## Diamond main integration acceptance — 2026-10-20
+
+Actual main `c5f81223` is integrated in tested source `854c569ba8c166f59516b0652da5730e77e77e68`.
+Compared with the previous held candidate, the only incoming code/test changes
+are the exact three already merged diamond files; their implementation and
+regressions match main byte for byte. Incoming completion documentation retains
+its own earlier evidence scope. Other feature code and assertions are unchanged.
+The complete shared CI document is retained when resolving its add/add conflict.
+This is a local candidate and has not been pushed to the published PR.
+
+With MOTION_LOG unset, 46 targeted tests passed with zero failures/ignores:
+- `371-main348-navigation.log`: 7 passed (7.19s)
+- `371-main348-shortcuts.log`: 39 passed (2.34s)
+
+Provenance (1,573 tracked paths), panel style-consumer and whitespace guards
+passed. Builds, temporary files and retained logs remain on E. The full suite
+and historical visual acceptance above keep their original source boundaries;
+no new complete application screenshot or full-suite run is claimed here.
+The following documentation-only commit does not change tested source. Actual
+parent squash reconciliation and all six final-head remote checks remain required.
