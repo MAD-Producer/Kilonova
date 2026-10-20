@@ -73,3 +73,17 @@
 测试开发中初版在两个原有行为边界上被既有断言拦住：并发取消提前看到 running，以及取消后的准备错误进入状态字段。实现已按原有行为修正，未放宽任何旧断言。新测试也修正了 Windows canonical 路径的前缀差异。初版包用例输出保留在 `package-publication-tests.log`；最终验收以本节列出的日志为准。
 
 后续错误类型与图集边界补入同一个媒体 PR，组合验收见 [媒体故障类型与图集边界验收](media-error-boundaries.md)。上文保留生命周期阶段的原始证据，不与后续完整回归重复累加。
+
+## Windows CI 清理日志与主线集成跟进
+
+Windows job `118624909860`（run `39414379104`、提交 `54b7f4b`）为 636 通过、1 失败、1 忽略；失败的清理日志夹具期望路径匹配数量 1，实际为 0。#384 的同一夹具也失败。导入任务规范化根目录，而夹具用原始路径匹配；同一原生程序使用普通目录成功、使用 `alias/..` 等价目录失败，但实际已有清理 Warn，原始证据在 `artifacts/frozen-reader-isolation/teardown-alias-probe.json`。CI 未留存临时目录原始拼写，不能断言一定由 Windows 短名称造成。
+
+| ID | 分类 | 修复与验证 |
+| --- | --- | --- |
+| MT-CI-01 清理路径夹具 | 测试修复 | 只在清理测试中构造实际存在的目录别名并规范化，仍以真实 OS 清理失败验证原路径、数量、Warn 原因、外来文件保留和默认信道。保留所有既有断言，仅增加失败上下文；生产清理行为和日志级别不变。 |
+| MT-CI-02 主线并发测试 | 接口集成 | 无冲突合入主线 `7bc153a` 后，all-targets 检查发现新增 session_concurrency 的四个媒体方法仍声明旧 String 结果。只将测试提供者及其回调签名适配为 MediaResult，保留会话/表面接口类型及全部并发、panic、资源断言。原失败 `ci-followup-check-before-adapter.log` 留存。 |
+| MT-CI-03 CI 触发 | 继承既有修复 | 直接继承主线的单次 PR 校验，覆盖非 main 目标的堆叠 PR；push 仅 main 与版本标签，保留完整 job。无新增 CI 实现、重试、忽略或断言放宽。 |
+
+共同夹具修正先在 #384 的独立构建中完成负向对照：只去掉规范化后同一数量断言退出 101，恢复后通过；真实默认 Warn 文件/stderr/stdout 为 2/0/0。最终夹具 SHA-256 为 `86d1f5256666e3e836d11ea21fff04cde3e7a6ecfec9edf4659614532e1f0cdb`，本分支逐字相同。随后按用户要求将修正集中放回 #381，由堆叠 #384 继承，避免两个分支各维护一份。
+
+本轮验证使用全新分支目标 `target/media-teardown-ci-verified`、便携 MSVC、锁定离线依赖、两构建任务、单测试线程、调试断言启用。最终桌面日志 **15 通过**（`ci-followup-logging.log`），会话并发 **3 通过**（`ci-followup-session.log`），CI 触发规则 **7 通过**（`ci-followup-workflow.log`）；不同用例合计 25，旧阶段结果不重复计数。工作区 all-targets/exclude Android/diagnostics 检查成功，40.91 秒（`ci-followup-check.log`）；FFmpeg 开发构建成功，23.22 秒、保留 21 条既有警告（`ci-followup-build.log`）。这些结果不冒充当前提交的完整 UI 或跨平台验收，远端新提交 CI 仍待完成。
