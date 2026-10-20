@@ -4,8 +4,10 @@ Run with: python -m unittest discover -s tools -p 'test_ci_*.py' -v
 Requires the same pinned PyYAML dependency installed by the checks job.
 """
 import ast
+import fnmatch
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
@@ -89,15 +91,75 @@ class WorkflowPolicyTest(unittest.TestCase):
         self.assertEqual(len(matches), 1, command)
         return matches[0]
 
-    def test_all_branch_pushes_and_main_pull_requests_run_validation(self):
+    def test_pull_requests_replace_feature_pushes_including_stacked_bases(self):
         triggers = self.workflow["on"]
-        self.assertEqual(triggers["push"]["branches"], ["**"])
+        self.assertEqual(triggers["push"]["branches"], ["main"])
         self.assertEqual(triggers["push"]["tags"], ["v*"])
-        self.assertEqual(triggers["pull_request"]["branches"], ["main"])
+        self.assertFalse(triggers["pull_request"])
         self.assertIn("workflow_dispatch", triggers)
+
+        def triggered(event, ref):
+            route = triggers.get(event)
+            if event not in triggers:
+                return False
+            if not route:
+                return True
+            prefix = "refs/tags/" if ref.startswith("refs/tags/") else "refs/heads/"
+            patterns = route.get("tags" if prefix == "refs/tags/" else "branches", ["**"])
+            return any(fnmatch.fnmatchcase(ref.removeprefix(prefix), pattern) for pattern in patterns)
+
+        for base in ["main", "fix/native-ci-diagnostics", "feat/editor-preferences", "feat/custom-shortcuts", "feat/layer-navigation"]:
+            with self.subTest(base=base):
+                self.assertTrue(triggered("pull_request", "refs/heads/" + base))
+        for head in ["feat/desktop", "feat/nested/work", "fix/native-ci-diagnostics", "ci/pr-validation-deduplication"]:
+            with self.subTest(head=head):
+                self.assertFalse(triggered("push", "refs/heads/" + head))
+                self.assertTrue(triggered("workflow_dispatch", "refs/heads/" + head))
+        self.assertTrue(triggered("push", "refs/heads/main"))
+        self.assertTrue(triggered("push", "refs/tags/v1.2.3"))
+        self.assertFalse(triggered("push", "refs/tags/experimental"))
+
+    def test_concurrency_cancels_superseded_validation_without_crossing_publication(self):
+        concurrency = self.workflow["concurrency"]
+
+        def route(event, ref, head="", workflow="CI", run_id="1"):
+            context = {"github": {"event_name": event, "ref": ref, "head_ref": head,
+                                  "workflow": workflow, "run_id": run_id}}
+            group = re.sub(r"\$\{\{(.*?)\}\}",
+                           lambda match: str(expression_value(match.group(), context)),
+                           concurrency["group"])
+            return group.lower(), expression_value(concurrency["cancel-in-progress"], context)
+
+        first = route("pull_request", "refs/pull/373/merge", "feat/camera-lens-settings")
+        newer = route("pull_request", "refs/pull/373/merge", "feat/camera-lens-settings", run_id="2")
+        self.assertEqual(first, newer)
+        self.assertTrue(newer[1])
+        fork = route("pull_request", "refs/pull/374/merge", "feat/camera-lens-settings")
+        self.assertNotEqual(first[0], fork[0])
+        self.assertNotEqual(first[0], route("pull_request", "refs/pull/373/merge", workflow="Other")[0])
+        for ref in ["refs/heads/main", "refs/tags/v1.2.3"]:
+            with self.subTest(ref=ref):
+                publication = route("push", ref)
+                manual = route("workflow_dispatch", ref)
+                self.assertNotEqual(publication[0], manual[0])
+                self.assertFalse(publication[1])
+                self.assertTrue(manual[1])
+                # A fork branch named main or v1.2.3 must not cancel a release.
+                for head in ["main", "v1.2.3"]:
+                    self.assertNotEqual(publication[0], route("pull_request", "refs/pull/375/merge", head)[0])
+        self.assertNotEqual(route("push", "refs/heads/main")[0], route("push", "refs/tags/v1.2.3")[0])
+
+    def test_full_cross_platform_validation_remains_unconditional(self):
         validation = self.step("cargo test --workspace --exclude motion-android --locked --features motion-host/diagnostics -- --test-threads=1")
         self.assertNotIn("if", validation)
         self.assertEqual(set(self.workflow["jobs"]), {"checks", "desktop", "desktop-media", "publish"})
+        desktop = self.workflow["jobs"]["desktop"]
+        self.assertNotIn("if", desktop)
+        self.assertEqual({entry["platform"] for entry in desktop["strategy"]["matrix"]["include"]},
+                         {"linux-x86_64", "windows-x86_64", "macos-arm64", "macos-x86_64"})
+        tests = next(step for step in desktop["steps"] if step.get("name") == "Run desktop unit tests")
+        self.assertNotIn("if", tests)
+        self.assertEqual(tests["run"], "cargo test -p motion-desktop -p motion-host -p motion-ui -p motion-desktop-media --locked -- --test-threads=1")
         text = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
         for legacy in ("setup-java", "gradle/actions", "android-emulator-runner", "sdkmanager", "KEYSTORE", "motion-android/diagnostics", "tools/build_android.py", "tools/ci_android_ui.py", "tools/generate_editor_icons.py"):
             self.assertNotIn(legacy, text)
