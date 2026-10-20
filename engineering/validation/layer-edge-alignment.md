@@ -25,7 +25,8 @@
 - desktop 定向 3 项通过：中英文、主窗/原生浮窗 chrome 的真实输入路由、一次 typed action、禁用及下拉取消；真实 worker 错误和恢复、小数帧、日志分流、保存重开；原有位置分量回归保留。日志 `artifacts/layer-edge-alignment/desktop-verified-tests.log`。
 - 带 FFmpeg 原生构建成功，21 条既有警告；中英文真实 GPU 截图通过：合成目标、实际目标下拉、选区对齐前和对齐后。每次截图先实际 present，比较工程和历史，夹具结束恢复原场景。证据 `artifacts/layer-edge-alignment/native/` 及 `capture-verified.log`。没有新增右键菜单。
 - 初次新增夹具错误使用 Engine::new_project 前的根目录重开，已改读实际 snapshot.root；初次截图还暴露夹具撤销后的 revision 未同步，以及只更新控制柄未 present 新画面，均修复后重跑。失败日志保留；没有放宽既有工程/历史断言，旧图不计作证据。
-- 整合当前主线后的完整回归及来源/样式守卫：待本次提交后补记实际结果，以上定向结果不冒充完整回归。
+- 整合主线 bc5c8b66 后，完整 host 库回归 40 通过、0 失败（58.39 秒，host-complete.log）。桌面首条命令误加 --lib，在编译前被拒绝，已按实际二进制 target 运行；终态另补记。该轮不包含随后合入的 #344，不能冒充采样功能的组合回归。
+- 新增测试最初直接读取 default_stylesheet，被面板样式守卫拒绝；改为从实际测试 PaintList 读取 styles 后通过。来源守卫检查 1,484 个 tracked paths 通过，差异检查通过。没有修改守卫、断言或实际主题值。
 
 ## DESIGN §0.7 逐项处置及 §12 限制
 

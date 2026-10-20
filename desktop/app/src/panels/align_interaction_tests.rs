@@ -75,7 +75,7 @@ fn alignment_controls_in_main_and_floating_windows_dispatch_one_typed_atomic_req
     let engine = fixture(root.path());
     let state = engine.state().unwrap();
     let mut atlas = TextAtlas::from_system(12.).unwrap();
-    let styles = motion_ui::style::default_stylesheet();
+    let styles = PaintList::default().styles();
     let pad = styles.metric("padding.panel", 8.);
     let row = styles.metric("row.height", 22.);
     let gap = styles.metric("auxiliary.gap", 6.);
