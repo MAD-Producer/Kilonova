@@ -445,7 +445,7 @@ pub fn import_package_with_progress(
     let resolved_destination = base.join(destination_name);
     ensure(
         stage.canonicalize()?.starts_with(&base)
-            && destination.parent().unwrap().canonicalize()? == base
+            && parent.canonicalize()? == base
             && resolved_destination.starts_with(&base)
             && resolved_destination != base,
         "import rename must remain in its selected parent directory",
