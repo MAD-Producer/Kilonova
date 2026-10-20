@@ -134,11 +134,16 @@ pub(crate) fn image_input_order_for(frame: &EffectFramePlan, targets: &[u64]) ->
     fn visit(
         frame: &EffectFramePlan,
         node: usize,
-        marks: &mut [u8],
+        marks: &mut Vec<u8>,
         order: &mut Vec<usize>,
     ) -> Result<(), String> {
-        if node >= marks.len() {
+        if node >= frame.draws.len() {
             return Err("effect image input index is invalid".into());
+        }
+        // Ordinary frames have no snapshot dependencies. Allocate traversal
+        // storage only when an effected input, matte or receiver needs it.
+        if marks.is_empty() {
+            marks.resize(frame.draws.len(), 0);
         }
         if marks[node] == 1 {
             return Err("effect image input cycle".into());
@@ -158,7 +163,7 @@ pub(crate) fn image_input_order_for(frame: &EffectFramePlan, targets: &[u64]) ->
         Ok(())
     }
     let mut order = Vec::new();
-    let mut marks = vec![0; frame.draws.len()];
+    let mut marks = Vec::new();
     for pass in &frame.passes {
         if pass.resource_input > 0 && pass.uniform.params[30][1] > 0.5 {
             visit(
