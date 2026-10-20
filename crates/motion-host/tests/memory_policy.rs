@@ -1,5 +1,5 @@
 use motion_core::{Command, Project};
-use motion_host::{Platform, Result, Session};
+use motion_host::{Platform, Session};
 use motion_render::{resource_policy::MemoryPolicy, Renderer};
 use std::{path::Path, sync::Arc};
 
@@ -13,8 +13,8 @@ impl Platform for Stub {
         _: &Path,
         _: Option<u32>,
         _: Option<u32>,
-        _: &dyn Fn() -> Result<()>,
-    ) -> Result<motion_media::VideoProbe> {
+        _: &dyn Fn() -> motion_media::Result<()>,
+    ) -> motion_media::Result<motion_media::VideoProbe> {
         Err("unused".into())
     }
     fn open_decoder(
@@ -22,7 +22,7 @@ impl Platform for Stub {
         _: &Path,
         _: motion_core::VideoAsset,
         _: Vec<u64>,
-    ) -> Result<Box<dyn motion_host::VideoDecoder>> {
+    ) -> motion_media::Result<Box<dyn motion_host::VideoDecoder>> {
         Err("unused".into())
     }
     fn decode_audio(
@@ -31,11 +31,11 @@ impl Platform for Stub {
         _: &Path,
         _: Option<u32>,
         _: u64,
-        _: &mut dyn FnMut(f64) -> Result<()>,
-    ) -> Result<motion_core::AudioAsset> {
+        _: &mut dyn FnMut(f64) -> motion_media::Result<()>,
+    ) -> motion_media::Result<motion_core::AudioAsset> {
         Err("unused".into())
     }
-    fn media_capabilities(&self, _: Option<&motion_host::VideoQuery>) -> Result<serde_json::Value> {
+    fn media_capabilities(&self, _: Option<&motion_host::VideoQuery>) -> motion_media::Result<serde_json::Value> {
         Ok(serde_json::json!({}))
     }
     fn attach_surface(
@@ -43,7 +43,7 @@ impl Platform for Stub {
         _: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         _: u32,
         _: u32,
-    ) -> Result<motion_host::SurfaceTarget> {
+    ) -> motion_host::Result<motion_host::SurfaceTarget> {
         Err("unused".into())
     }
 }

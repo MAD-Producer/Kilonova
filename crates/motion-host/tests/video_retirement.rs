@@ -2,7 +2,7 @@ use motion_core::{Content, Layer, Project, VideoAsset, VideoClip};
 use motion_host::{
     video_frame::{DecodedFrame, VideoPixels},
     video_frames::VideoFrames,
-    Platform, Result, VideoDecoder,
+    Platform, VideoDecoder,
 };
 use std::{
     path::Path,
@@ -29,7 +29,7 @@ impl Drop for Decoder {
     }
 }
 impl VideoDecoder for Decoder {
-    fn frame(&mut self, _: u64, check: &dyn Fn() -> Result<()>) -> Result<DecodedFrame> {
+    fn frame(&mut self, _: u64, check: &dyn Fn() -> motion_media::Result<()>) -> motion_media::Result<DecodedFrame> {
         self.0.entered.send(()).map_err(|e| e.to_string())?;
         let gate = self.0.open.lock().map_err(|_| "test gate poisoned")?;
         // Deliberately simulate a native call that cannot check cancellation.
@@ -67,11 +67,11 @@ impl Platform for Stub {
         _: &Path,
         _: Option<u32>,
         _: Option<u32>,
-        _: &dyn Fn() -> Result<()>,
-    ) -> Result<motion_media::VideoProbe> {
+        _: &dyn Fn() -> motion_media::Result<()>,
+    ) -> motion_media::Result<motion_media::VideoProbe> {
         Err("unused".into())
     }
-    fn open_decoder(&self, _: &Path, _: VideoAsset, _: Vec<u64>) -> Result<Box<dyn VideoDecoder>> {
+    fn open_decoder(&self, _: &Path, _: VideoAsset, _: Vec<u64>) -> motion_media::Result<Box<dyn VideoDecoder>> {
         let live = self.0.live.fetch_add(1, Ordering::AcqRel) + 1;
         self.0.peak.fetch_max(live, Ordering::AcqRel);
         Ok(Box::new(Decoder(self.0.clone())))
@@ -82,11 +82,11 @@ impl Platform for Stub {
         _: &Path,
         _: Option<u32>,
         _: u64,
-        _: &mut dyn FnMut(f64) -> Result<()>,
-    ) -> Result<motion_core::AudioAsset> {
+        _: &mut dyn FnMut(f64) -> motion_media::Result<()>,
+    ) -> motion_media::Result<motion_core::AudioAsset> {
         Err("unused".into())
     }
-    fn media_capabilities(&self, _: Option<&motion_host::VideoQuery>) -> Result<serde_json::Value> {
+    fn media_capabilities(&self, _: Option<&motion_host::VideoQuery>) -> motion_media::Result<serde_json::Value> {
         Ok(serde_json::json!({}))
     }
     fn attach_surface(
@@ -94,7 +94,7 @@ impl Platform for Stub {
         _: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         _: u32,
         _: u32,
-    ) -> Result<motion_host::SurfaceTarget> {
+    ) -> motion_host::Result<motion_host::SurfaceTarget> {
         Err("unused".into())
     }
 }

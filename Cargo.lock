@@ -2071,6 +2071,7 @@ dependencies = [
  "motion-graph",
  "motion-host",
  "motion-media",
+ "motion-model",
  "motion-render",
  "motion-ui",
  "pollster",
@@ -2175,6 +2176,7 @@ dependencies = [
  "sha2",
  "symphonia",
  "tempfile",
+ "thiserror 2.0.21",
  "zip",
 ]
 

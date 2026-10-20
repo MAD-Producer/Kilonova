@@ -105,7 +105,7 @@ fn audio_workers_and_drop_observe_real_poison_without_changing_outcomes() {
     assert!(state.prepared.is_none());
     drop(state);
     assert_eq!(
-        jobs.status("poison-audio").unwrap_err(),
+        jobs.status("poison-audio").unwrap_err().to_string(),
         "audio task poisoned"
     );
     let errors = capture.matching("media error request=poison-audio");

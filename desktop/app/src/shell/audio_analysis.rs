@@ -427,7 +427,7 @@ impl Shell {
                             return Err("too many references; analyze a shorter clip".into());
                         }
                         Ok(frames)
-                    })
+                    }).map_err(Into::into)
                 })?;
                 task.worker = Some(rx);
             }
