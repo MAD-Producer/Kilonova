@@ -40,6 +40,7 @@
 | Application | Right | true | true | false | NextFrame | true |
 | Application | Home | false | false | false | FirstFrame | false |
 | Application | End | false | false | false | LastFrame | false |
+| Application | Comma | true | false | false | Preferences | false |
 | Animation | A | false | false | false | Reveal(Anchor) | false |
 | Animation | A | false | true | false | Reveal(Anchor) | false |
 | Animation | T | false | false | false | Reveal(Opacity) | false |

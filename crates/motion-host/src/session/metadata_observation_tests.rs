@@ -99,6 +99,9 @@ fn unavailable_mtime_keeps_optional_fallback_and_logs_after_session_unlock() {
     if mode == "unwind" {
         let result = std::panic::catch_unwind(|| {
             with_session(id, |_| -> Result<()> {
+                // Inject registry poison explicitly: handlers no longer hold
+                // the global lock. Retain the existing poison/unwind contract.
+                let _registry = sessions().lock().unwrap_or_else(|e| e.into_inner());
                 assert_eq!(modified(failed(), 7, &path), None);
                 assert!(capture.0.lock().unwrap().is_empty());
                 panic!("controlled metadata unwind");

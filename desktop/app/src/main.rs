@@ -469,6 +469,7 @@ impl Shell {
             }
         }
         shell.panels.timeline.column_visibility = shell.workspace.column_visibility();
+        if shell.smoke.is_none() { shell.restore_preview_preference()?; }
         shell.panels.timeline.sampling_visibility = shell.workspace.timeline_sampling_columns;
         Ok(shell)
     }

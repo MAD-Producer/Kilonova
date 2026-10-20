@@ -12,6 +12,13 @@ pub(crate) struct StyleSource {
     reload_failures: crate::fallback_observation::Counter,
 }
 impl Shell {
+    pub(crate) fn remember_preference_style(&mut self, path: Option<PathBuf>) {
+        self.style_source = StyleSource { path, ..Default::default() };
+        self.style_source.stamp = self.style_stamp();
+        if self.style_source.path.is_some() {
+            self.style_source.next_poll = Some(Instant::now() + Duration::from_millis(250));
+        }
+    }
     pub(crate) fn install_styles(&mut self, sheet: StyleSheet) -> Result<(), String> {
         let mut atlas = TextAtlas::from_family(
             sheet.font_family(),
