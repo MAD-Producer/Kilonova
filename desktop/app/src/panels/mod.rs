@@ -60,6 +60,7 @@ mod observation;
 #[cfg(test)]
 mod observation_tests;
 pub(crate) mod parent_controls;
+pub(crate) mod layer_sampling;
 pub(crate) mod path_controls;
 mod paths;
 mod project;

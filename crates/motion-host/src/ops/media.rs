@@ -479,7 +479,7 @@ struct FrozenVideo {
     project: motion_core::Project,
     root: PathBuf,
     frames: crate::video_frames::VideoFrames,
-    prepared: HashMap<u64, Arc<crate::video_frame::DecodedFrame>>,
+    prepared: HashMap<u64, crate::video_frame::PreparedVideoFrame>,
     sequence: u64,
     time: f64,
 }
@@ -675,10 +675,15 @@ pub fn read_frozen_composition_video_into(
     if sequence == 0 || r.sequence != sequence {
         return Err("frozen composition video superseded".into());
     }
-    r.prepared
+    let prepared = r.prepared
         .get(&object)
         .cloned()
-        .ok_or("frozen composition video is pending or absent".into())
+        .ok_or("frozen composition video is pending or absent")?;
+    // Pixel materialization can be expensive. Keep the snapshot alive through
+    // its immutable Arcs without blocking unrelated frozen readers/closure.
+    drop(readers);
+    prepared.decoded().map_err(|error| format!(
+        "frozen composition video handle={handle} object={object} sequence={sequence} phase=blend_read: {error}"))
 }
 
 pub fn request_frozen_video_frame(

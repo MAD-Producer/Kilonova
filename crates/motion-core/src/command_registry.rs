@@ -108,6 +108,7 @@ registry! {
     Command::RegisterVideoAsset { .. } => "register_video_asset" [("asset","crate::VideoAsset",true)];
     Command::SetAudio { .. } => "set_audio" [("object","u64",true), ("volume","Option<f32>",false), ("muted","Option<bool>",false)];
     Command::SetLayer3d { .. } => "set_layer_3d" [("object","u64",true), ("enabled","bool",true)];
+    Command::SetLayerSampling { .. } => "set_layer_sampling" [("object","u64",true), ("sampling","crate::render_sampling::LayerSampling",true)];
     Command::SetRotationOrder { .. } => "set_rotation_order" [("object","u64",true), ("order","crate::geometry::RotationOrder",true)];
     Command::SetExpression { .. } => "set_expression" [("expression","crate::PropertyExpression",true), ("frame","u32",true)];
     Command::RemoveExpression { .. } => "remove_expression" [("target","crate::ExpressionTarget",true)];

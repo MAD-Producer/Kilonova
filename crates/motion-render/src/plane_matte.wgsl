@@ -1,4 +1,4 @@
-struct Draw { mvp:mat4x4<f32>, color:vec4<f32>, extent_opacity:vec4<f32>, uv_scale:vec4<f32> };
+struct Draw { mvp:mat4x4<f32>, color:vec4<f32>, extent_opacity:vec4<f32>, uv_scale:vec4<f32>, screen_uv:mat3x4<f32>, };
 @group(0) @binding(0) var<uniform> draw:Draw;
 @group(1) @binding(0) var image:texture_2d<f32>;
 @group(1) @binding(1) var image_sampler:sampler;
@@ -12,11 +12,12 @@ struct Out { @builtin(position) position:vec4<f32>, @location(0) uv:vec2<f32> };
 }
 fn pixel(o:Out,uv_dx:vec2<f32>,uv_dy:vec2<f32>)->vec4<f32> {
     let flags=u32(draw.extent_opacity.w);
-    var coverage=plane_coverage(o.uv,draw.uv_scale.xy,uv_dx,uv_dy);
-    let source_uv=plane_sample_uv(o.uv,draw.uv_scale.xy,textureDimensions(image));
+    let coords=plane_coordinates(o.position,o.uv,uv_dx,uv_dy);
+    var coverage=plane_coverage(coords.uv,draw.uv_scale.xy,coords.dx,coords.dy);
+    let source_uv=plane_sample_uv(coords.uv,draw.uv_scale.xy,textureDimensions(image));
     if (flags&1u)!=0u {
-        let mask_uv=plane_sample_uv(o.uv,draw.uv_scale.xy,textureDimensions(mask));
-        coverage*=textureSample(mask,mask_sampler,mask_uv).r;
+        let mask_uv=plane_sample_uv(coords.uv,draw.uv_scale.xy,textureDimensions(mask));
+        coverage*=sample_plane_texture(mask,mask_sampler,mask_uv).r;
     }
     if (flags&2u)!=0u {
         var uv=(o.position.xy-draw.extent_opacity.xy)/draw.uv_scale.zw;
@@ -24,7 +25,7 @@ fn pixel(o:Out,uv_dx:vec2<f32>,uv_dy:vec2<f32>)->vec4<f32> {
         var value=textureSample(matte,matte_sampler,uv).r;
         if (flags&4u)!=0u {value=1.0-value;}coverage*=value;
     }
-    let c=textureSample(image,image_sampler,source_uv);let opacity=draw.color.a*draw.extent_opacity.z*coverage;
+    let c=sample_plane_texture(image,image_sampler,source_uv);let opacity=draw.color.a*draw.extent_opacity.z*coverage;
     return vec4(c.rgb*draw.color.rgb*opacity,c.a*opacity);
 }
 @fragment fn fragment_main(o:Out)->@location(0) vec4<f32>{return pixel(o,dpdx(o.uv),dpdy(o.uv));}

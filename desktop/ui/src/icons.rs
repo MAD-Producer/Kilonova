@@ -5,7 +5,7 @@
 use crate::{
     paint::{PaintList, Shape},
     style::{State, States, StyleSheet},
-    Color, Input, Rect,
+    Color, Rect,
 };
 use lyon_tessellation::{
     math::point, path::Path, BuffersBuilder, FillOptions, FillRule, FillTessellator, FillVertex,
@@ -56,6 +56,9 @@ struct Primitive {
     cap: String,
     join: String,
 }
+#[cfg(test)]
+mod geometry_tests;
+
 type Mesh = Vec<[[f32; 2]; 3]>;
 static MESHES: OnceLock<HashMap<String, Mesh>> = OnceLock::new();
 fn meshes() -> &'static HashMap<String, Mesh> {
@@ -65,7 +68,15 @@ fn meshes() -> &'static HashMap<String, Mesh> {
                 .expect("checked SVG path data");
         sources
             .into_iter()
-            .map(|(id, source)| (id, compile(source)))
+            .map(|(id, source)| {
+                let mut clipped = Vec::new();
+                // The registry is immutable. Clip the normalized SVG viewport
+                // once instead of rebuilding a child PaintList on every draw.
+                for triangle in compile(source) {
+                    crate::paint::clip_triangle(triangle, Rect::new(0., 0., 28., 28.), |t| clipped.push(t));
+                }
+                (id, clipped)
+            })
             .collect()
     })
 }
@@ -179,18 +190,23 @@ pub fn draw(list: &mut PaintList, area: Rect, icon: Icon, size: f32, color: Colo
         area.min[0] + (area.width() - edge) * 0.5,
         area.min[1] + (area.height() - edge) * 0.5,
     ];
-    let points = meshes()[icon.id()]
-        .iter()
-        .flat_map(|t| {
-            t.iter()
-                .map(|p| [origin[0] + p[0] * scale, origin[1] + p[1] * scale])
-        })
-        .collect();
-    let mut content = PaintList::default();
-    content.push_shape(Shape::Triangles { points }, color);
-    // SVG viewport clipping and host clipping must not distort crossing triangles.
-    content.clip_to(Rect::new(origin[0], origin[1], edge, edge));
-    list.append(content);
+    let viewport = Rect::new(origin[0], origin[1], edge, edge);
+    // At extreme coordinates a positive edge may round to an empty viewport.
+    // The previous clipping path emitted nothing in that case.
+    if viewport.width() <= 0. || viewport.height() <= 0. {
+        return;
+    }
+    let mesh = &meshes()[icon.id()];
+    if mesh.is_empty() {
+        return;
+    }
+    // Preserve the public owned triangle representation with one allocation.
+    // Exact capacity avoids geometric growth in flat_map's collection.
+    let mut points = Vec::with_capacity(mesh.len() * 3);
+    points.extend(mesh.iter().flat_map(|t| {
+        t.iter().map(|p| [origin[0] + p[0] * scale, origin[1] + p[1] * scale])
+    }));
+    list.push_shape(Shape::Triangles { points }, color);
 }
 
 /// Shared style-state rendering; dispatch and pointer capture remain with widgets.
@@ -198,10 +214,12 @@ pub fn button(
     list: &mut PaintList,
     area: Rect,
     icon: Icon,
-    input: &Input,
+    input: &impl crate::InputSource,
     sheet: &StyleSheet,
     mut states: States,
 ) -> crate::ui::Response {
+    let view = input.input_view();
+    let input = &view;
     let enabled = !states.contains(State::Disabled);
     let hovered = enabled && area.contains(input.mouse);
     let clicked = hovered
@@ -233,6 +251,7 @@ pub fn button(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Input;
     #[test]
     fn registry_covers_all_bundled_sources_and_compiles_finite_meshes() {
         let manifest: serde_json::Value =
