@@ -84,3 +84,29 @@
 DESIGN §12：已有行的颜色、字段边缘、缩进与命中区保持；原生 U/UU 截图和既有面板交互回归验证筛选后的行对应关系。没有将本次局部验证描述为全部设计规范合规。
 
 这份记录区分实现、实际失败尝试、观察信道和待验证的 OS 边界；不将纯判定测试或编译成功等同于全平台验收。
+# Native CI integration refresh — 2026-10-20
+
+The existing PR now includes #368 head `1381cc1` and the already merged main
+changes it depends on, including the Intel budget. The original feature-specific
+classifier and capture files are retained; shared files also retain main's
+previously merged sampling and input changes. This is a baseline integration,
+not a new filter behavior or a rerun of an unchanged failed head.
+
+The PR is prepared for stacking on #368, then returning to main after that
+parent merges. Its diff against the parent remains the original 30 feature and
+acceptance files. No assertions, timeouts or skip policy are weakened. The
+absolute evidence-upload configuration and original PNG timeout diagnostics are
+described in `native-ci-failure-evidence.md`; diagnostics are not a claimed fix
+for the PNG timeout's underlying cause.
+
+The separate all-PR integration passed its complete desktop suite: 665 passed,
+0 failed and one existing native audio-device test ignored in 770.24 seconds
+(`artifacts/pr-queue-complete-tests.log`). It also passed all 39 timeline shortcut
+tests, including a real remapped double-press regression. That tree contains
+#362 and later PRs, so these results are not described as a fresh full test of
+this narrower branch. The #349/#362 conflict and its command-label/routing fix
+are prepared separately for #362, with a dedicated completion record.
+
+Existing screenshots and original per-feature acceptance below remain historical
+evidence. New-head cross-platform CI and final combined native screenshots remain
+pending. No new UI layout, style, dependency, asset or optimization PR is added.
