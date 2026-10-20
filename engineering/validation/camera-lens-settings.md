@@ -93,3 +93,23 @@ unset, and all build/temporary outputs were on E. This remains a local
 candidate, not a publication or completion of the remote head's six checks.
 Earlier retained screenshots and physical-input evidence keep their historical
 scope; no new full-suite, high-DPI or cross-platform GUI claim is made.
+
+
+## Current navigation-parent reconciliation — 2026-10-20
+
+The held local candidate integrates navigation candidate `e0356945`, which
+itself incorporates the actual published #362 head `de8ff26f`. The clean merge
+changes exactly five inherited files: the three already merged #370 renderer,
+test and completion blobs, and the newer navigation and shortcut validation
+documents. Every incoming blob matches its parent exactly. All other files,
+including camera model, commands, lens controls, regressions, desktop source,
+shortcut guides and native helpers, are byte-identical to previously tested
+camera candidate `ef1bfdb5c3051435ec1cd100ff8326bc6ac0b15b`.
+
+This section is an additional documentation change. Earlier core/panel lens
+test results retain their exact recorded source scope, and no fresh execution
+is claimed for this merge. The inherited renderer change has separate actual
+main integration and six successful #370 checks. The candidate is unpublished;
+actual #362 and #371 squash/main reconciliation, final PR targeting and all
+final-head checks remain required. Green checks on the older remote #373 head
+do not waive those requirements. No visual change or new screenshot is claimed.
