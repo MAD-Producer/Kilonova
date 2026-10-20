@@ -27,6 +27,7 @@ impl Slot {
 /// Name and optional column slots for one timeline gutter width.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) struct ColumnRects {
+    pub sampling: [Option<Slot>; 3],
     pub name: Slot,
     pub three_d: Option<Slot>,
     pub matte: Option<Slot>,
@@ -56,6 +57,7 @@ impl ColumnRects {
             .map_or(origin + gutter - 8., |slot| slot.x - 6.);
         let name_x = origin + 112.;
         Self {
+            sampling: [None; 3],
             name: Slot {
                 x: name_x,
                 width: (end - name_x).max(1.),
@@ -92,6 +94,47 @@ impl ColumnRects {
         {
             plan.name.width = (plan.name.width - slot).max(0.);
             plan.three_d = Some(Slot { x: plan.name.max_x(), width: slot });
+        }
+        plan
+    }
+
+    /// Sampling reserves full existing icon slots. At narrow widths, reclaim
+    /// optional text columns first; keep the user's visibility preferences intact.
+    pub fn with_sampling(
+        styles: &motion_ui::style::StyleSheet,
+        origin: f32,
+        gutter: f32,
+        mut visibility: ColumnVisibility,
+        sampling: super::layer_sampling::Visibility,
+        capable: bool,
+    ) -> Self {
+        let mut plan = Self::styled(styles, origin, gutter, visibility);
+        if !capable {
+            return plan;
+        }
+        let slot = styles.metric("icon.slot", 20.);
+        let minimum = styles.metric("value.min_width", 64.);
+        let desired = sampling.0.iter().filter(|v| **v).count() as f32 * slot;
+        for column in 0..3 {
+            if plan.name.width >= minimum + desired {
+                break;
+            }
+            match column {
+                0 => visibility.blend = false,
+                1 => visibility.parent = false,
+                _ => visibility.matte = false,
+            }
+            plan = Self::styled(styles, origin, gutter, visibility);
+        }
+        let count = ((plan.name.width - minimum).max(0.) / slot).floor() as usize;
+        let visible: Vec<_> = sampling.0.iter().enumerate()
+            .filter(|(_, v)| **v).take(count).map(|(i, _)| i).collect();
+        plan.name.width -= visible.len() as f32 * slot;
+        for (offset, index) in visible.into_iter().enumerate() {
+            plan.sampling[index] = Some(Slot {
+                x: plan.name.max_x() + offset as f32 * slot,
+                width: slot,
+            });
         }
         plan
     }

@@ -24,6 +24,7 @@ impl Shell {
             // Queued jobs lose their senders when the worker exits. They can
             // never acknowledge another frame and must not hold exit open.
             self.rendering.clear();
+            self.exposure_presentations.clear();
             self.editing = None;
             self.resizing = None;
             self.attaching = None;

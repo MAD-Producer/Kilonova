@@ -1,6 +1,8 @@
 //! Source-sized caches: small streams retain the existing 8 MiB budget.
 //! Prefetch reserves up to five frames, bounded at 36 MiB per stream.
 //! Actual YUV/RGBA byte counts determine how many frames fit.
+//! Linear frame blending pins two required frames. Its ceiling is two maximum
+//! supported RGBA frames (70,778,880 bytes); Hold keeps the original ceiling.
 //! Decoder/ImageReader buffers and an in-flight pack are counted separately.
 use crate::video_frame::DecodedFrame;
 use std::{collections::VecDeque, sync::Arc};
@@ -30,6 +32,18 @@ impl FrameCache {
     pub fn budget(&self) -> usize {
         self.budget
     }
+    pub fn require_pair(&mut self, width: u32, height: u32, pair: bool, required: &[u64]) {
+        let normal = Self::for_size(width, height).budget;
+        self.budget = if pair {
+            normal.max((u64::from(width) * u64::from(height) * 8)
+                .min(motion_core::MAX_VIDEO_PIXELS * 8) as usize)
+        } else { normal };
+        while self.bytes > self.budget {
+            let Some(i) = self.frames.iter().position(|f| !required.contains(&f.pts)) else { break; };
+            let frame = self.frames.remove(i).expect("cache eviction candidate exists");
+            self.bytes -= frame.bytes();
+        }
+    }
     pub fn bytes(&self) -> usize {
         self.bytes
     }
@@ -50,14 +64,18 @@ impl FrameCache {
         self.frames.len() < LOOKAHEAD + 1 && self.bytes + expected <= self.budget
     }
     pub fn insert(&mut self, frame: Arc<DecodedFrame>, required: u64) -> bool {
-        if frame.bytes() > self.budget {
+        self.insert_required(frame, &[required])
+    }
+    pub fn insert_required(&mut self, frame: Arc<DecodedFrame>, required: &[u64]) -> bool {
+        // The pair allowance must never turn into a doubled single-frame limit.
+        if frame.bytes() > self.budget || frame.bytes() as u64 > motion_core::MAX_VIDEO_PIXELS * 4 {
             return false;
         }
         if self.find(frame.pts).is_some() {
             return true;
         }
         while self.bytes + frame.bytes() > self.budget || self.frames.len() >= LOOKAHEAD + 1 {
-            let Some(i) = self.frames.iter().position(|f| f.pts != required) else {
+            let Some(i) = self.frames.iter().position(|f| !required.contains(&f.pts)) else {
                 return false;
             };
             let Some(removed) = self.frames.remove(i) else {
@@ -152,5 +170,22 @@ mod tests {
         assert!(!uhd.can_prefetch(bytes));
         assert_eq!(uhd.len(), 3);
         assert!(uhd.bytes() <= MAX_CACHE_BYTES);
+    }
+    #[test]
+    fn required_pair_pins_both_full_rgba_frames_and_hold_releases_the_extra_budget() {
+        let bytes = 4096 * 2160 * 4;
+        let mut cache = FrameCache::for_size(4096, 2160);
+        cache.require_pair(4096, 2160, true, &[0, 100]);
+        assert_eq!(cache.budget(), bytes * 2);
+        assert!(!cache.insert_required(frame(300, 400, bytes + 1), &[0, 100]));
+        assert!(cache.insert_required(frame(0, 100, bytes), &[0, 100]));
+        assert!(cache.insert_required(frame(100, 200, bytes), &[0, 100]));
+        assert!(!cache.can_prefetch(bytes));
+        assert!(!cache.insert_required(frame(200, 300, bytes), &[0, 100]));
+        assert!(cache.find(0).is_some() && cache.find(100).is_some());
+        cache.require_pair(4096, 2160, false, &[100]);
+        assert_eq!(cache.budget(), MAX_CACHE_BYTES);
+        assert!(cache.find(0).is_none() && cache.find(100).is_some());
+        assert_eq!(cache.bytes(), bytes);
     }
 }

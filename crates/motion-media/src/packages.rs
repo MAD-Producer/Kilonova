@@ -200,9 +200,15 @@ impl PackageJobs {
                     spawn_task.lock(), &PUBLISH, worker_log.request_id(), "export_project",
                 );
                 if task.cancel {
+                    // Cleanup may do filesystem IO or call the provider's logger.
+                    // Keep cancellation nonterminal while releasing the task lock.
+                    drop(task);
                     let error = crate::task_logging::cancelled_error(&result, &["package export cancelled"]);
                     // Drop/close the prepared archive before advertising terminal cancellation.
                     drop(result);
+                    let mut task = recoveries.recover(
+                        spawn_task.lock(), &PUBLISH, worker_log.request_id(), "export_project",
+                    );
                     task.status.state = "cancelled".into();
                     task.status.phase = "cancelled".into();
                     drop(task);
@@ -278,6 +284,9 @@ impl Drop for PackageJobs {
 
 #[cfg(test)]
 mod poison_tests;
+
+#[cfg(test)]
+mod cleanup_tests;
 
 #[cfg(test)]
 mod registry_tests {

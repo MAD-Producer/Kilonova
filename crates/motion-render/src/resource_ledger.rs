@@ -34,7 +34,7 @@ pub enum TextureCategory {
     EffectScratch, PluginResources, CurveLuts, VectorRasterScratch,
     VectorGroupScratch, LayerCompositingScratch, MaskScratch, MaskOutputs,
     EffectInputSnapshots, MatteBlendScratch, SystemTextures, PreviewTargets,
-    AuthoringInputs, CaptureTargets,
+    AuthoringInputs, CaptureTargets, ExposureTargets,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]

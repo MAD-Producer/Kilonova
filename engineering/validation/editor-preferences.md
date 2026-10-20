@@ -27,6 +27,8 @@
 - 生产程序实际重启读取中文和 Balanced 质量；从真实中文属性浮窗按 Ctrl+,，OS 焦点转到主窗并显示设置，Escape 后工程/revision/undo/redo/质量不变，正常退出。证据：`artifacts/editor-preferences/native-restart-focused/summary.json` 和 `preferences-from-native-float.png`。外部驱动先完成 MCP 初始化，并遵循 Windows 前台焦点限制；此前驱动两处协议/窗口等待错误与一次前台激活限制均保留日志，不计产品验收失败。
 - 原生 stderr 仍有本机 Epic Overlay 缺失 JSON 的 Vulkan Loader 既有报错；未屏蔽。设置应用测试的 Error 文件/stderr/stdout 分别保存，不混同正常原生启动的日志。
 - provenance 与样式消费者检查、`git diff --check` 通过。没有新增依赖、第三方资源或兼容名称。实际桌面检查为 DPI 1；其他 DPI 和各 OS 人工验收待补，不把编译称作完整 DESIGN 验收。
+- 2026-10-20 集成主干 `b31b828f`（包括 #344、#351、#356 等已合并改动）：唯一文本冲突为 Shell 初始化，保留偏好预览恢复和采样列可见性初始化。合并结果运行完整 `cargo test -p motion-desktop --locked -- --test-threads=1`，619 通过、0 失败、1 个既有音频设备测试忽略，436.27 秒。证据：`artifacts/editor-preferences/main-integration-tests.log`。原始提交另有精确 head `4856ffcc` 的远程运行 `39287179639`，六项跨平台检查全部成功；这不替代集成后提交的 CI。
+- 随后无冲突接入主干 `8dbd58c0` 的 #359 / #360：完整 motion-media 回归合计 87 通过、0 失败、2 个既有外部夹具测试忽略；偏好专项 18 通过（24.62 秒），包括真实文件失败及默认日志通道。带 FFmpeg 的原生构建通过（32.52 秒，21 条已有警告）。证据：`latest-main-media.log`、`latest-main-preferences.log`、`main-integration-build.log`，均在上述 artifacts 目录；未将本次专项称为完整桌面回归二次执行。
 
 ## DESIGN §0.7 逐项处置
 

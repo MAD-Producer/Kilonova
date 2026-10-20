@@ -71,6 +71,10 @@ pub enum Command {
         object: u64,
         enabled: bool,
     },
+    SetLayerSampling {
+        object: u64,
+        sampling: crate::render_sampling::LayerSampling,
+    },
     SetExpression {
         expression: crate::PropertyExpression,
         frame: u32,

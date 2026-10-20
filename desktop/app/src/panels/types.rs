@@ -66,6 +66,7 @@ pub enum Action {
     ToggleDiagnostics,
     /// Replace the optional timeline column visibility (view state only).
     TimelineColumnVisibility(ColumnVisibility),
+    SamplingColumnVisibility(super::layer_sampling::Visibility),
     PreviewMode(i32),
     /// Switch the composition viewer between camera and observation views.
     ViewKind(i32),
@@ -456,6 +457,7 @@ impl ColumnVisibility {
 
 #[derive(Clone, Default)]
 pub(crate) struct TimelineState {
+    pub sampling_visibility: super::layer_sampling::Visibility,
     pub(crate) column_visibility: ColumnVisibility,
     pub(crate) graph_box: super::graph_box::Controls,
     pub rows_cache: Option<(

@@ -32,6 +32,7 @@ pub mod video_decode_policy;
 pub mod video_frame;
 pub mod preview_video;
 pub mod video_frames;
+pub mod render_sampling;
 
 pub use platform::{Platform, SurfaceTarget, VideoDecoder, VideoQuery};
 pub use session::{Result, Session};
