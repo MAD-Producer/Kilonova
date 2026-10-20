@@ -180,3 +180,22 @@ The candidate remains local while final distribution CI runs. Reconcile the
 actual distribution squash/main, publish a concrete main-based head and require
 six successful checks for that head before merging. Historical green checks on
 the earlier feature-parent branch are not final-head acceptance.
+
+
+## Final actual-parent reconciliation — 2026-10-20
+
+Source `ae57060e21b91ced3964276443d49db022fd0510` integrates the verified actual parent squash/main
+`a133219b254825abff1d845d1087e4ca8d8f1140` with real two-parent ancestry. All application and Rust-test blobs remain
+identical to the 51-case tested source `c78ef6e94e3f228b6c30bc078e78fe4c7b133e60`
+above. Shared CI tooling follows reviewed policy `766b1e96b5d1aabed3334e3303b7cd07c9db7c90`; its six
+metadata/tool files and validation records are outside that product identity
+claim. The normal remote CI commits are retained through `008ecd80262557d8d0c8e116fdadde38a035926a`.
+The documented prospective squash rehearsal was rechecked against the actual
+commit. No implementation, interaction, assertion, timeout or ignore changed.
+
+This following documentation-only head is published directly against main.
+Its own four successful native-policy checks are required before merge; old feature-parent
+green results are historical evidence. Earlier full-suite, native screenshot,
+physical DPI and other-platform manual results retain their stated source
+boundaries. Exact reconciliation and publication proofs remain under
+`.tools/issue-closure-review/371-final-main-*.json`.

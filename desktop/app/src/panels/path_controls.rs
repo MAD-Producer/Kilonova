@@ -24,6 +24,7 @@ mod mask_inspector;
 mod mask_keys;
 mod mask_path;
 mod source_geometry;
+mod point_selection;
 #[cfg(test)]
 mod property_focus_tests;
 pub(in crate::panels) mod timeline;
@@ -225,6 +226,7 @@ pub struct Controls {
     pub mask: Option<u64>,
     draft: Option<Draft>,
     drag: Option<Drag>,
+    point_selection: point_selection::Selection,
     selected: Option<(u64, u64)>,
     selected_item: Option<u64>,
     focus: bool,
@@ -279,6 +281,7 @@ fn distance(a: [f32; 2], b: [f32; 2]) -> f32 {
 /// promises a grab that the press would miss.
 const HIT_RADIUS: f32 = 7.;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg(test)]
 struct HoverTarget {
     path: u64,
     node: usize,
@@ -287,6 +290,7 @@ struct HoverTarget {
 /// Nearest visible node or Bezier handle under the pointer, mirroring the paint
 /// rules: handles are only reachable for the selected node (or for all nodes
 /// while nothing is selected).
+#[cfg(test)]
 fn hovered_target(
     projection: &Projection,
     paths: &[(u64, &[[f32; 6]])],
@@ -294,43 +298,18 @@ fn hovered_target(
     mouse: [f32; 2],
     selected: Option<u64>,
 ) -> Option<HoverTarget> {
-    let mut best: Option<(f32, HoverTarget)> = None;
-    for (path, nodes) in paths {
-        for (index, g) in nodes.iter().enumerate() {
-            let node = HoverTarget {
-                path: *path,
-                node: index,
-                handle: None,
-            };
-            let Some(point) = projection.screen([g[0] - offset[0], g[1] - offset[1]]) else {
-                continue;
-            };
-            consider(&mut best, distance(mouse, point), node);
-            if selected.is_some() && selected != Some(index as u64 + 1) {
-                continue;
-            }
-            for axis in [2, 4] {
-                if g[axis].abs() + g[axis + 1].abs() < 0.01 {
-                    continue;
-                }
-                if let Some(h) = projection
-                    .screen([g[0] + g[axis] - offset[0], g[1] + g[axis + 1] - offset[1]])
-                {
-                    let handle = HoverTarget {
-                        handle: Some(axis),
-                        ..node
-                    };
-                    consider(&mut best, distance(mouse, h), handle);
-                }
-            }
+    let sampled: Vec<_> = paths.iter().map(|(id,nodes)| serde_json::json!({
+        "id":id,"nodes":nodes.iter().enumerate().map(|(i,g)|
+            serde_json::json!({"id":i+1,"geometry":g})).collect::<Vec<_>>()
+    })).collect();
+    let mut selection=point_selection::Selection::default();
+    if let Some(node)=selected {
+        for (path,_) in paths {
+            selection.points.insert(point_selection::Point {mask:None,item:None,path:*path,node});
         }
     }
-    best.map(|(_, target)| target)
-}
-fn consider(best: &mut Option<(f32, HoverTarget)>, d: f32, target: HoverTarget) {
-    if d <= HIT_RADIUS && best.map_or(true, |(nearest, _)| d < nearest) {
-        *best = Some((d, target));
-    }
+    selection.hovered(&sampled,projection,offset,mouse,None)
+        .map(|(point,node,handle)|HoverTarget {path:point.path,node,handle})
 }
 fn layer(state: &Value, id: u64) -> Option<Layer> {
     observe!("path.layer", serde_json::from_value(
@@ -397,6 +376,7 @@ impl Controls {
     pub fn editing(&self) -> bool {
         self.draft.is_some()
             || self.drag.is_some()
+            || self.point_selection.editing()
             || self.parameter.is_some()
             || self.keys.editing()
             || self.groups.editing()
@@ -406,6 +386,7 @@ impl Controls {
     }
     pub(crate) fn gesture_active(&self) -> bool {
         self.drag.as_ref().is_some_and(|d| d.begun)
+            || self.point_selection.begun()
             || self.parameter.as_ref().is_some_and(|p| p.begun)
     }
     pub fn wants_keyboard(&self) -> bool {
@@ -413,6 +394,7 @@ impl Controls {
     }
     pub fn cancel(&mut self) -> bool {
         let drag = self.drag.take().is_some_and(|d| d.begun);
+        let points = self.point_selection.cancel();
         let param = self.parameter.take().is_some_and(|p| p.begun);
         self.draft = None;
         self.parameter_context = None;
@@ -424,7 +406,7 @@ impl Controls {
         }
         let keys = self.keys.cancel();
         let group = self.groups.cancel();
-        drag || param || keys || group
+        drag || points || param || keys || group
     }
     pub fn choose(&mut self, tool: Tool, out: &mut Vec<Action>) {
         if self.cancel() {
@@ -433,6 +415,7 @@ impl Controls {
         self.tool = tool;
         self.selected = None;
         self.selected_item = None;
+        self.point_selection.clear();
         self.mask = None;
         self.notice = None;
         if tool == Tool::Mask {
@@ -655,8 +638,12 @@ impl Controls {
                 .as_array()
                 .and_then(|v| v.iter().find(|v| v["id"].as_u64() == selected))
                 .and_then(|v| v["masks"].as_array())
-                .and_then(|v| v.iter().find(|v| v["id"].as_u64() == self.mask))
-                .map(|v| vec![v["path"].clone()])
+                .filter(|_| self.mask.is_some())
+                .map(|masks| masks.iter().map(|mask| {
+                    let mut path = mask["path"].clone();
+                    path["mask"] = mask["id"].clone();
+                    path
+                }).collect())
                 .unwrap_or_default()
         } else {
             match target.as_ref().map(|layer| (layer.id,
@@ -670,7 +657,11 @@ impl Controls {
                 None => {self.geometry_failures.success();vec![]},
             }
         };
-        if self.focus && self.parameter.is_none() {
+        if self.point_selection.sync(state, selected, self.tool == Tool::Mask, &sampled, out) {
+            self.selected = None;
+            self.selected_item = None;
+        }
+        if self.focus && self.parameter.is_none() && !input.composing {
             for (key, mods) in &input.keys {
                 if mods.control && *key == Key::S {
                     self.finish(
@@ -685,7 +676,7 @@ impl Controls {
                     if let Some(d) = self.draft.as_mut() {
                         d.path.nodes.pop();
                         d.placing = false;
-                    } else if self.drag.is_none() {
+                    } else if self.drag.is_none() && !self.point_selection.editing() {
                         out.push(Action::History(if *key == Key::Y || mods.shift {
                             1
                         } else {
@@ -708,12 +699,29 @@ impl Controls {
                 if let Some(d) = self.draft.as_mut() {
                     d.path.nodes.pop();
                     d.placing = false;
-                } else if let (Some(l), Some((path, node))) = (target.as_ref(), self.selected) {
-                    self.remove_node(l, path, node, out);
-                    self.selected = None;
+                } else if self.drag.is_none() && !self.point_selection.editing()
+                    && !self.point_selection.points.is_empty() {
+                    if let Some(l) = target.as_ref().filter(|l| !l.locked && state["observing"] != true) {
+                        match self.point_selection.delete(l) {
+                            Ok(commands) if !commands.is_empty() => {
+                                out.push(Action::EditBatch(commands));
+                                self.point_selection.clear();
+                                self.selected = None;
+                            }
+                            Ok(_) => {}
+                            Err(error) => self.point_selection.report(l.id, "delete", &error),
+                        }
+                    }
+                } else if self.drag.is_none() && !self.point_selection.editing() {
+                    if let (Some(l), Some((path, node))) = (target.as_ref(), self.selected) {
+                        self.remove_node(l, path, node, out);
+                        self.selected = None;
+                    }
                 }
             }
         }
+        let selection_owned = self.point_selection.drive(&sampled, projection.as_ref(), offset,
+            target.as_ref(), state, input, out);
         let mut hits = vec![];
         if let Some(p) = &projection {
             for path in &sampled {
@@ -723,8 +731,11 @@ impl Controls {
                         let pid = path["id"].as_u64().unwrap_or(1);
                         let nid = n["id"].as_u64().unwrap_or(1);
                         for axis in [0, 2, 4] {
-                            if axis != 0 && (path["bounds_size"].is_array()
-                                || self.selected != Some((pid, nid)) || self.selected_item != path["item"].as_u64()) {
+                            if axis != 0 && (g[axis].abs()+g[axis+1].abs()<0.01 || path["bounds_size"].is_array()
+                                || !(self.point_selection.points.contains(&point_selection::Point::new(path,nid))
+                                    || self.selected.is_none() && self.point_selection.points.is_empty()
+                                    || self.selected == Some((pid,nid)) && self.selected_item==path["item"].as_u64()
+                                        && (self.tool!=Tool::Mask || self.mask==path["mask"].as_u64()))) {
                                 continue;
                             }
                             let local = if axis == 0 {
@@ -742,29 +753,46 @@ impl Controls {
                 }
             }
         }
-        if let Some((MouseButton::Left, point)) = input.pressed.filter(|(_, p)| clip.contains(*p)) {
+        if let Some((MouseButton::Left, point)) = input.pressed.filter(|(_, p)| clip.contains(*p)
+            && !selection_owned && self.drag.is_none() && state["observing"] != true) {
             let hit = hits
                 .into_iter()
                 .filter(|h| h.0 <= HIT_RADIUS)
                 .min_by(|a, b| a.0.total_cmp(&b.0))
                 .and_then(|(distance,path,node,axis,value,source,animated)| {
                     let p=source_geometry::projection(projection.as_ref()?,source)?;
-                    Some((distance,path,node,axis,value,p,source["item"].as_u64(),
+                    Some((distance,path,node,axis,value,p,source["item"].as_u64(),source["mask"].as_u64(),
                         source_geometry::Bounds::from_path(source,node),animated))
                 });
-            if let (Some((_, path, node, axis, value, p, item, bounds, animated)), Some(l)) = (
+            if let (Some((_, path, node, axis, value, p, item, mask, bounds, animated)), Some(l)) = (
                 hit,
                 target.as_ref().filter(|l| !l.locked),
             ) {
                 if let Some(start) = p.local(point) {
+                    let point_key = point_selection::Point {mask,item,path,node};
+                    if axis == 0 && bounds.is_some() { self.point_selection.clear(); }
+                    if axis != 0 { self.point_selection.points.insert(point_key); }
+                    let keep = axis != 0 || bounds.is_some()
+                        || self.point_selection.click(point_key,input.modifiers);
+                    let multiple = axis == 0 && bounds.is_none() && keep
+                        && self.point_selection.points.len() > 1;
+                    if self.tool == Tool::Mask { self.mask = mask; }
                     let t = if self.tool == Tool::Mask {
                         Target::Mask {
                             object: l.id,
-                            mask: self.mask.unwrap(),
+                            mask: mask.expect("sampled mask carries its owner"),
                         }
                     } else {
                         Target::Vector { object: l.id }
                     };
+                    if multiple {
+                        if let Some(base) = projection.as_ref() {
+                            if let Err(error) = self.point_selection.start_move(&sampled,base,offset,point,
+                                state["frame"].as_f64().unwrap_or(0.).floor() as u32) {
+                                self.point_selection.report(l.id,"node_press",&error);
+                            }
+                        }
+                    } else if keep {
                     self.drag = Some(Drag {
                         target: t,
                         path,
@@ -783,11 +811,21 @@ impl Controls {
                         root: state["root"].as_str().unwrap_or("").into(),
                         composition: state["composition"].as_str().unwrap_or("").into(),
                     });
-                    self.selected = Some((path, node));
-                    self.selected_item = item;
+                    }
+                    self.selected = keep.then_some((path, node));
+                    self.selected_item = keep.then_some(item).flatten();
                 }
             } else {
-                if target.as_ref().is_some_and(|l| {
+                self.selected = None;
+                self.selected_item = None;
+                let handled = self.draft.is_none() && target.as_ref().is_some_and(|l| !l.locked)
+                    && projection.as_ref().is_some_and(|base| self.point_selection.blank_press(
+                        &sampled,base,offset,point,input,state["frame"].as_f64().unwrap_or(0.).floor() as u32,
+                        selected.unwrap_or(0)));
+                if handled {
+                    self.selected = None;
+                    self.selected_item = None;
+                } else if target.as_ref().is_some_and(|l| {
                     matches!(
                         &l.content,
                         Content::Vector {
@@ -858,6 +896,7 @@ impl Controls {
                 || input.keys.iter().any(|(k, _)| *k == Key::Escape)
                 || selected != Some(object)
                 || target.as_ref().is_none_or(|l| l.locked)
+                || state["observing"] == true
                 || drag.frame != state["frame"].as_f64().unwrap_or(0.).floor() as u32
                 || drag.root != state["root"].as_str().unwrap_or("")
                 || drag.composition != state["composition"].as_str().unwrap_or("");
@@ -966,35 +1005,19 @@ impl Controls {
         }
         let hovered = projection.as_ref().and_then(|p| {
             // A drag keeps its own node visible; hover only decorates idle nodes.
-            if self.drag.is_some()
+            if self.drag.is_some() || self.point_selection.editing()
                 || !view.contains(input.mouse)
                 || state["observing"] == true
                 || target.as_ref().is_none_or(|layer| layer.locked)
             {
                 return None;
             }
-            sampled.iter().find_map(|path| {
-                let p = source_geometry::projection(p, path)?;
-                let nodes: Vec<_> = path["nodes"]
-                    .as_array()?
-                    .iter()
-                    .filter_map(geometry)
-                    .collect();
-                hovered_target(
-                    &p,
-                    &[(path["id"].as_u64()?, nodes.as_slice())],
-                    offset,
-                    input.mouse,
-                    if self.selected_item == path["item"].as_u64() {
-                        self.selected.map(|v| v.1)
-                    } else {
-                        None
-                    },
-                )
-                .map(|hit| (path["item"].as_u64(), hit))
-            })
+            self.point_selection.hovered(&sampled,p,offset,input.mouse,self.selected.map(|(path,node)|
+                point_selection::Point {path,node,item:self.selected_item,
+                    mask:if self.tool==Tool::Mask {self.mask}else{None}}))
         });
         if let Some(p) = projection {
+            let base = p.clone();
             for path in &sampled {
                 let Some(p)=source_geometry::projection(&p,path) else {continue};
                 let id = path["id"].as_u64().unwrap_or(1);
@@ -1005,9 +1028,12 @@ impl Controls {
                     .filter_map(geometry)
                     .collect();
                 // Node IDs survive deletion/reordering; they are not array indices.
-                let selected = self.selected.filter(|(id, _)| Some(*id) == path["id"].as_u64() && self.selected_item==path["item"].as_u64())
+                let selected = self.selected.filter(|(id, _)| Some(*id) == path["id"].as_u64() && self.selected_item==path["item"].as_u64()
+                    && (self.tool!=Tool::Mask || self.mask==path["mask"].as_u64()))
                     .and_then(|(_, node)| path["nodes"].as_array()?.iter()
-                        .filter(|n| geometry(n).is_some()).position(|n| n["id"].as_u64() == Some(node)));
+                        .filter(|n| geometry(n).is_some()).position(|n| n["id"].as_u64() == Some(node)))
+                    .filter(|_| self.point_selection.points.is_empty())
+                    .or_else(|| (!self.point_selection.points.is_empty()).then_some(usize::MAX));
                 paint_path(
                     list,
                     &p,
@@ -1018,10 +1044,12 @@ impl Controls {
                     self.tool == Tool::Mask,
                     colors.ACCENT,
                     hovered
-                        .filter(|(item,h)| h.path == id && *item==path["item"].as_u64())
-                        .map(|(_,h)| (h.node, h.handle)),
+                        .filter(|(key,_,_)| key.path == id && key.item==path["item"].as_u64()
+                            && key.mask==path["mask"].as_u64())
+                        .map(|(_,node,handle)| (node,handle)),
                 );
             }
+            self.point_selection.paint(list,&sampled,&base,offset,hovered);
         }
         if let Some(d) = &self.draft {
             let draft_color=list.styles().color("path.draft");
@@ -1048,6 +1076,9 @@ impl Controls {
                 if self.tool==Tool::Pen && sampled.iter().any(|path|path["bounds_size"].is_array()) {
                     if locale==Locale::Zh {"拖动角点调整宽高 · 对角固定 · Esc取消"}
                     else {"Drag corners to resize · Opposite corner stays fixed · Esc cancels"}
+                } else if !sampled.is_empty() {
+                    if locale==Locale::Zh {"Shift点选追加/切换 · Ctrl框选 · Shift框选追加 · 拖动路径段 · Esc取消"}
+                    else {"Shift-click toggles points · Ctrl-drag selects · Shift-drag adds · Drag segments · Esc cancels"}
                 } else {locale.t(T::DrawingHint)}
             }),
             colors.TEXT_MUTED,
