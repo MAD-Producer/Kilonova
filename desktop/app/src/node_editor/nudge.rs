@@ -2,12 +2,12 @@
 use super::*;
 use motion_ui::input::Key;
 
-fn arrow(key: Key) -> bool {
-    matches!(key, Key::Left | Key::Right | Key::Up | Key::Down)
-}
-
 impl NodeEditor {
     pub(super) fn settle_nudge(&mut self, input: &Input) {
+        let nudge = |key, modifiers| matches!(self.shortcut_bindings.resolve(
+            crate::shortcuts::Scope::Nodes, key, modifiers, false),
+            Some(crate::shortcuts::Command::MoveLeft | crate::shortcuts::Command::MoveRight
+                | crate::shortcuts::Command::MoveUp | crate::shortcuts::Command::MoveDown));
         if input
             .key_presses()
             .any(|(key, _, repeat)| key == Key::Escape && !repeat)
@@ -17,12 +17,12 @@ impl NodeEditor {
         if self.nudge_before.is_some()
             && (!self.focus
                 || input.pressed.is_some()
-                || input.released_keys.iter().copied().any(arrow)
-                || (!input.held_keys.iter().copied().any(arrow)
-                    && !input.key_presses().any(|(key, _, _)| arrow(key)))
+                || input.released_keys.iter().copied().any(|key|nudge(key,input.modifiers))
+                || (!input.held_keys.iter().copied().any(|key|nudge(key,input.modifiers))
+                    && !input.key_presses().any(|(key, modifiers, _)| nudge(key,modifiers)))
                 || input
                     .key_presses()
-                    .any(|(key, _, _)| !arrow(key) && key != Key::Escape))
+                    .any(|(key, modifiers, _)| !nudge(key,modifiers) && key != Key::Escape))
         {
             self.finish_nudge();
         }

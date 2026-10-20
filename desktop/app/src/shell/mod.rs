@@ -15,6 +15,7 @@ pub(crate) mod presentation_observation;
 pub(crate) mod styles;
 mod preferences;
 mod preferences_acceptance;
+mod shortcut_acceptance;
 
 mod workspaces;
 mod panel_maximize;

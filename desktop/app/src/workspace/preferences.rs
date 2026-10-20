@@ -138,6 +138,7 @@ pub(crate) struct Preferences {
     pub node_view: ViewPreferences,
     pub columns: ColumnVisibility,
     pub style_path: Option<PathBuf>,
+    pub shortcuts: crate::shortcuts::bindings::Bindings,
 }
 impl Workspace {
     pub(crate) fn preferences(&self) -> Preferences {
@@ -147,6 +148,7 @@ impl Workspace {
             node_view: self.node_view,
             columns: self.column_visibility(),
             style_path: self.style_path.clone(),
+            shortcuts: self.shortcut_bindings.clone(),
         }
     }
     pub(crate) fn set_preferences(&mut self, preferences: &Preferences) {
@@ -155,6 +157,7 @@ impl Workspace {
         self.node_view = preferences.node_view;
         self.set_column_visibility(preferences.columns);
         self.style_path.clone_from(&preferences.style_path);
+        self.shortcut_bindings.clone_from(&preferences.shortcuts);
     }
     pub(crate) fn save_preferences(
         &self,

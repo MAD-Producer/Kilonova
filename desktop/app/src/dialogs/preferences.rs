@@ -9,6 +9,7 @@ use crate::{
 };
 use motion_ui::widgets::{Checkbox, Dropdown, DropdownItem, ScrollArea};
 
+mod shortcuts;
 #[cfg(test)]
 mod tests;
 
@@ -18,12 +19,14 @@ pub(crate) struct Editor {
     language: Dropdown,
     preview: Dropdown,
     scroll: ScrollArea,
+    shortcuts: shortcuts::Shortcuts,
 }
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 enum Page {
     #[default]
     General,
     Interface,
+    Shortcuts,
 }
 impl Editor {
     fn new(workspace: &Workspace) -> Self {
@@ -33,7 +36,11 @@ impl Editor {
             language: Default::default(),
             preview: Default::default(),
             scroll: Default::default(),
+            shortcuts: Default::default(),
         }
+    }
+    pub(crate) fn import_shortcuts(&mut self, next: crate::shortcuts::bindings::Bindings) {
+        self.shortcuts.replace(&mut self.draft.shortcuts, next);
     }
     pub(super) fn draw(
         &mut self,
@@ -48,10 +55,13 @@ impl Editor {
         let closing = !input.composing
             && !input.ime_consumed
             && input.key_presses().any(|(key, _, _)| key == Key::Escape);
-        let input = if input.focus_lost || closing && (self.language.open || self.preview.open) {
+        let input = if input.focus_lost
+            || closing && (self.language.open || self.preview.open || self.shortcuts.owns_input())
+        {
             consumed.focus_lost = input.focus_lost;
             self.language.open = false;
             self.preview.open = false;
+            self.shortcuts.close();
             &consumed
         } else {
             input
@@ -123,20 +133,22 @@ impl Editor {
             right - x,
             (footer - hint.max[1] - section * 2. - row * 2.).max(0.),
         );
-        let dropdown_owned = self.language.open || self.preview.open;
+        let dropdown_owned = self.language.open || self.preview.open || self.shortcuts.owns_input();
         let neutral = Input::default();
         let nav_input = if dropdown_owned { &neutral } else { input };
         let compact = width < sheet.metric("preferences.sidebar_breakpoint", 440.);
         let nav_width = if compact {
-            (area.width() - gap) * 0.5
+            (area.width() - gap * 2.) / 3.
         } else {
             sheet.metric("preferences.sidebar_width", 100.)
         };
-        for (index, page, title) in [
+        let navigation = [
             (0, Page::General, word(locale, "常规", "General")),
             (1, Page::Interface, word(locale, "界面与编辑", "Interface")),
-        ] {
-            let nav = if compact {
+            (2, Page::Shortcuts, word(locale, "快捷键", "Shortcuts")),
+        ]
+        .map(|(index, page, title)| {
+            let rect = if compact {
                 Rect::new(
                     area.min[0] + index as f32 * (nav_width + gap),
                     area.min[1],
@@ -151,21 +163,37 @@ impl Editor {
                     row,
                 )
             };
-            let state = if self.page == page {
-                motion_ui::style::States::default().with(motion_ui::style::State::Selected)
-            } else {
-                Default::default()
-            };
-            if ui::button_with_states(
-                list, atlas, nav, &title, nav_input, true, &sheet, "row", state,
-            )
-            .clicked
-                && self.page != page
-            {
-                self.page = page;
-                self.scroll = Default::default();
+            (page, title, rect)
+        });
+        let draw_navigation = |paint: &mut PaintList, atlas: &mut TextAtlas, current: Page| {
+            let mut clicked = None;
+            for (page, title, rect) in &navigation {
+                let state = if current == *page {
+                    motion_ui::style::States::default().with(motion_ui::style::State::Selected)
+                } else {
+                    Default::default()
+                };
+                if ui::button_with_states(
+                    paint, atlas, *rect, title, nav_input, true, &sheet, "row", state,
+                )
+                .clicked
+                {
+                    clicked = Some(*page);
+                }
             }
+            clicked
+        };
+        let mut nav_paint = list.child();
+        if let Some(page) =
+            draw_navigation(&mut nav_paint, atlas, self.page).filter(|page| *page != self.page)
+        {
+            self.page = page;
+            self.scroll = Default::default();
+            // Category content and its selected row must agree in the click frame.
+            nav_paint = list.child();
+            draw_navigation(&mut nav_paint, atlas, self.page);
         }
+        list.append(nav_paint);
         if compact {
             area.min[1] += row + gap;
         } else {
@@ -182,7 +210,9 @@ impl Editor {
             area.min[0] += nav_width + section;
         }
         let x = area.min[0];
-        let content_height = if self.page == Page::General {
+        let content_height = if self.page == Page::Shortcuts {
+            row * 11. + gap * 6.
+        } else if self.page == Page::General {
             row * 2. + gap
         } else {
             row * 9. + gap * 8. + section
@@ -215,7 +245,22 @@ impl Editor {
             .metric("preferences.button_width", 96.)
             .min((viewport.width() - gap) * 0.5);
         let mut choose_style = false;
-        if self.page == Page::General {
+        let mut shortcut_event = None;
+        if self.page == Page::Shortcuts {
+            shortcut_event = self.shortcuts.draw(
+                &mut content,
+                atlas,
+                frame.content,
+                viewport,
+                if self.shortcuts.owns_input() {
+                    input
+                } else {
+                    &frame.input
+                },
+                locale,
+                &mut self.draft.shortcuts,
+            );
+        } else if self.page == Page::General {
             ui::text(
                 &mut content,
                 atlas,
@@ -419,7 +464,11 @@ impl Editor {
                 Align::Left,
             );
         }
-        let footer_input = if dropdown_owned || self.language.open || self.preview.open {
+        let footer_input = if dropdown_owned
+            || self.language.open
+            || self.preview.open
+            || self.shortcuts.owns_input()
+        {
             &neutral
         } else {
             input
@@ -438,7 +487,12 @@ impl Editor {
         )
         .clicked
         {
-            self.draft = Preferences::default();
+            let next = Preferences::default();
+            self.shortcuts
+                .replace(&mut self.draft.shortcuts, next.shortcuts.clone());
+            let shortcuts = self.draft.shortcuts.clone();
+            self.draft = next;
+            self.draft.shortcuts = shortcuts;
         }
         if ui::button(
             list,
@@ -464,7 +518,7 @@ impl Editor {
         {
             return Some(Event::Preferences(self.draft.clone()));
         }
-        choose_style.then_some(Event::PreferencesStyle)
+        shortcut_event.or_else(|| choose_style.then_some(Event::PreferencesStyle))
     }
 }
 
