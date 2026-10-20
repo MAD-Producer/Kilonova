@@ -44,6 +44,16 @@ FFmpeg 开发构建通过（81 秒）；实际 libav 视频解码通过。使用
 
 最终来源检查 1536 tracked paths、面板样式消费检查、差异检查及浏览器驱动语法检查通过。远程 CI 尚待完成；未将编译中或等待中的步骤视为通过。本批尚未重新执行历史 HTML 页的完整 Playwright 交互。
 
+## Release 补充验收与分支改名
+
+按用户要求，已发布的分支改名为 `refactor/remove-bundled-scene-effects`；旧 #375 因源分支改名关闭，由 #378 接续。两个 PR 的产品提交均为 d61923101655fc56adbd584eaed4dc9166e576ae，没有重写已发布历史。
+
+旧共享 Release 缓存的第一次链接缺少 libffmpeg_next rlib；仅清理该包后，第二次又缺少 thiserror 的生成文件，均为未能构建，保留 scene-removal-release-build.log 与 scene-removal-release-build-v2.log，不归因于某项未经证实的外部清理。随后使用本批独立 target 和 E 盘临时目录从现有锁定离线依赖完整构建，`cargo build -p motion-desktop --release --features ffmpeg --locked --offline` 通过，耗时 26 分 53 秒，日志 scene-removal-release-isolated.log。
+
+独立产物位于 `artifacts/retired-builtin-effects/release-run`。使用原打包校验器检查架构、运行库清单、哈希及来源，再复制 7 个共享 DLL 与许可证等共 12 个运行库载荷文件；只保留系统 PATH、移除 FFMPEG_DIR，实际 libav 解码通过。中文和英文各执行一次 CLI 冒烟，保留原 CI 的 40 秒限制：中文 5.766 秒、英文 3.485 秒，均退出 0；各生成 53 张实际 PNG，`verify_design_screens` 分别通过，产品 stdout 均为空。两份报告、stdout/stderr 和本地构建摘要与二进制同目录保留。
+
+此结果补齐本地优化构建的中英文基础 CLI 截图验收，不消除原开发构建两次 60 秒超时，也不证明它们的根因已修复。没有放宽超时、修改原断言或把原失败改成成功。节点/属性专用 CLI 的全量组合、跨平台 GPU、全部 DPI 以及远端 CI 仍按各自验收范围判断，不能由这两次基础冒烟替代。
+
 ## DESIGN §0.7 与 §12
 
 | 基线项 | 处置 |
@@ -61,4 +71,4 @@ FFmpeg 开发构建通过（81 秒）；实际 libav 视频解码通过。使用
 | timeline 11 列坐标 | retained with reason：不修改时间轴。 |
 | timeline snap guide | retained with reason：不修改吸附提示。 |
 
-本批未写入 panel 颜色/尺寸、token、布局或交互。§12 中本批相关的默认目录与搜索结果已通过实际中英文原生截图核验；其他面板基线、DPI、浮窗和跨平台人工输入不在本次复验范围，不能宣称整个 DESIGN 已整改。整套 CLI 截图验收的超时单独保留为待查项。
+本批未写入 panel 颜色/尺寸、token、布局或交互。§12 中本批相关的默认目录与搜索结果已通过实际中英文原生截图核验；其他面板基线、DPI、浮窗和跨平台人工输入不在本次复验范围，不能宣称整个 DESIGN 已整改。开发构建 CLI 超时单独保留为待查项，Release 基础截图验收结果见上。
