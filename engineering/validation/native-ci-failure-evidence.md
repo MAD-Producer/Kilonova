@@ -42,3 +42,13 @@
 - 最终来源检查通过（1,529 个既有受跟踪路径）、样式消费者检查及 `git diff --check` 通过。新提交仍需远程 CI 验证；没有忽略成本采样测试、放宽递增谓词或修改任何等待预算。
 
 本批未改任何用户可见界面、布局或样式，DESIGN §0.7 的属性树、效果列表和时间轴基线均 retained with reason：不属于测试证据改动范围。没有新增生产观测点；复用现有日志、in-flight 和诊断报告，健康 Present 路径仍保持安静。远程两个失败的实际根因及完整跨平台复验继续待办。
+
+## Windows 远程结果及上传目录修正
+
+精确 head `66c34ff2` 的 PR run 39360767261 / Windows job 118426446690 已 success。完整日志保存在本机 `artifacts/pr-queue/native-ci-windows-success.log`：采样与 PNG 均通过；桌面 612 passed / 0 failed / 1 existing ignored（771.53 秒），后续 FFmpeg、发布构建及解包视频验收均完成。Linux 整个作业、Rust/GPU、libav 也已成功；不能据此替代尚未结束的 Mac 检查。
+
+下载该 Windows artifact 12239216529 后发现只有 12 个构建/视频文件，没有采样和 PNG 诊断。工作流传入的是相对路径；Cargo 从 `desktop/app` 运行测试，写出的目录落在 crate 内而非仓库根的 always-upload glob。这是证据收集缺陷，不能把测试成功当作上传验收成功。工作流改用 `${{ github.workspace }}/artifacts/desktop/...`，不修改测试的调用者路径语义、采样/PNG 谓词或等待时间。
+
+新增工作流回归在 Windows 和 POSIX 路径语义下从 crate CWD 解析实际环境表达式，验证两类文件都位于 always-upload 根。此前已有绝对目录的本机正常/失败测试验证保留；修正配置后仍需新 head 的实际远程上传核对。没有声称取得远程相邻帧数值或确定旧失败的具体原因。
+
+首次 Python 检查因当前解释器未加载既有 PyYAML 而失败，未视为成功；通过现有 `.tools/build-validation-python` 中固定的 PyYAML 6.0.3 重跑，52 项中 51 通过、1 项既有外部 Rust loader 检查跳过（16.329 秒）。未安装新依赖。差异检查通过。
