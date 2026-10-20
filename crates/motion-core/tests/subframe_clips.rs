@@ -225,6 +225,8 @@ fn stored_cover_mismatch_unknown_formats_and_locked_targets_are_rejected() {
     p.version = 21;
     p.validate().unwrap();
     p.version = 22;
+    p.validate().unwrap();
+    p.version = 23;
     assert!(p.validate().is_err());
     p.version = 15;
     p.layers[0].locked = true;

@@ -10,12 +10,14 @@ use motion_ui::{
     ui::{self, Align},
 };
 use serde_json::Value;
+mod lens;
 
 #[derive(Default)]
 pub struct Controls {
     object: Option<u64>,
     field: Option<Field>,
     mode: motion_ui::widgets::Dropdown,
+    lens: lens::Controls,
     pub cursor: bool,
     pub drag_readout: Option<([f32; 2], String)>,
 }
@@ -56,11 +58,12 @@ fn sample<'a>(state: &'a Value, object: u64) -> &'a Value {
 }
 impl Controls {
     pub fn editing(&self) -> bool {
-        self.field.is_some() || self.mode.open
+        self.field.is_some() || self.mode.open || self.lens.editing()
     }
     pub fn cancel(&mut self) -> bool {
         self.mode.open = false;
-        self.field.take().is_some_and(|mut f| f.number.cancel())
+        let lens = self.lens.cancel();
+        self.field.take().is_some_and(|mut f| f.number.cancel()) || lens
     }
     pub(in crate::panels) fn render(
         &mut self,
@@ -97,6 +100,7 @@ impl Controls {
                 .into_iter()
                 .flatten()
                 .any(|l| l["id"].as_u64() == Some(object) && l["locked"] == true);
+        self.lens.prepare(state, object, input, locked, out);
         if self.object != Some(object)
             || locked
             || self
@@ -137,6 +141,12 @@ impl Controls {
         // Menus append last, above the subsequent property rows.
         let mode_was_open = self.mode.open;
         let mut overlay = list.child();
+        let neutral_mode = Input::default();
+        let mode_input = if self.lens.menu_open() {
+            &neutral_mode
+        } else {
+            input
+        };
         if let Some(mode) = self.mode.draw(
             &mut overlay,
             atlas,
@@ -144,7 +154,7 @@ impl Controls {
             area,
             &items,
             usize::from(orbit),
-            input,
+            mode_input,
             !locked,
             false,
         ) {
@@ -161,7 +171,12 @@ impl Controls {
             }));
         }
         let neutral = Input::default();
-        let input = if mode_was_open || self.mode.open {
+        let lens_input = if mode_was_open || self.mode.open {
+            &neutral
+        } else {
+            input
+        };
+        let input = if mode_was_open || self.mode.open || self.lens.menu_open() {
             &neutral
         } else {
             input
@@ -243,7 +258,10 @@ impl Controls {
                     enabled: !animated,
                 }));
             }
-            let caption = selected_axis.map_or_else(|| locale.t(title).to_owned(), |axis| format!("{} {}", locale.t(title), ["X", "Y", "Z"][axis]));
+            let title = if property == Property::Fov {
+                if locale == Locale::Zh { "垂直视角 °" } else { "V. FOV °" }
+            } else { locale.t(title) };
+            let caption = selected_axis.map_or_else(|| title.to_owned(), |axis| format!("{} {}", title, ["X", "Y", "Z"][axis]));
             ui::text(
                 list,
                 atlas,
@@ -315,6 +333,14 @@ impl Controls {
                 }
             }
             *y += height;
+        }
+        self.lens.render(
+            list, atlas, area, y, state, object, lens_input, locale, locked,
+            selection, graph_component, out,
+        );
+        self.cursor |= self.lens.cursor;
+        if self.lens.drag_readout.is_some() {
+            self.drag_readout = self.lens.drag_readout.clone();
         }
         list.append(overlay);
         choice
