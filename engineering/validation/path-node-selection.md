@@ -71,3 +71,13 @@
 | timeline snap guide | 按兼容基线保留，不改吸附颜色。 |
 
 §12 本批相关的命中、主窗/原生浮窗、zh/en、事务取消、撤销与持久化由上述实际路由/引擎用例覆盖。19 个面板全部状态、900×600 及全套 DPI/辅助功能/跨平台 GPU 人工检查未在本次重新验收，远端 CI 结果待补。
+
+## CI 触发与主线集成跟进
+
+旧提交 `4ebcff7` 的 PR run `39388257968` 已完成且六个验证 job 全部成功，同提交 push run `39388250531` 的检查列表还包含取消记录，不能把两组混在一起算成同一次运行。该旧 push run 本轮查询仍返回 queued，因此没有假定它已整体结束，也没有因观察结果不一致而重启任何运行。
+
+本轮无冲突合入已验证主线 `7bc153a`，直接继承其 CI 去重规则：所有目标分支的 PR（包括堆叠 PR）验证；push 只验证 main 与版本标签；手动验证独立分组。不新增另一套 CI 实现，不关闭 job、不放宽断言，也不额外调整样式或交互。
+
+合并后的分支使用全新独立目标 `target/path-selection-ci-verified`、便携 MSVC、锁定离线依赖及 FFmpeg，执行 `cargo test -p motion-desktop --bin motion-studio --features ffmpeg --locked --offline -j1 path_controls:: -- --test-threads=1`：**64 通过，0 失败/忽略**，运行 11.51 秒。证据为 `artifacts/path-node-selection/ci-followup-path-tests.log`；这是路径相关用例，不冒充当前提交的完整桌面验收。
+
+CI 工具运行 57 项，其中 56 通过、1 项既有 Rust loader 条件检查因未设置 MOTION_EFFECT_VALIDATOR 跳过，不将其算通过。日志 `ci-followup-tools.log`；首次本地缺少 CI 已固定的 PyYAML 6.0.3，失败保留在 `ci-followup-tools-without-yaml.log`，随后仅在隔离 Python 目录补齐同版本再复测，未更改仓库依赖。新提交的远端完整验证仍待完成，不能由旧提交的绿色记录代替。
