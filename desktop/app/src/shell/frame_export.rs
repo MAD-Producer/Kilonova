@@ -87,7 +87,7 @@ fn png_shell_shows_export_and_completion_in_both_languages() {
         return;
     }
     use winit::platform::windows::EventLoopBuilderExtWindows;
-    let event_loop = winit::event_loop::EventLoop::builder()
+    let mut event_loop = winit::event_loop::EventLoop::builder()
         .with_any_thread(true)
         .build()
         .unwrap();
@@ -140,13 +140,13 @@ fn png_shell_shows_export_and_completion_in_both_languages() {
                 )
                 .unwrap(),
         );
-        shell.state = shell
-            .engine
-            .attach_async(window, 1280, 800)
-            .unwrap()
-            .recv_timeout(Duration::from_secs(30))
-            .unwrap()
-            .unwrap();
+        shell.state = crate::native_test_support::receive(
+            &mut event_loop,
+            &shell.engine.attach_async(window, 1280, 800).unwrap(),
+            Duration::from_secs(30),
+        )
+        .unwrap()
+        .unwrap();
         shell.state = shell.engine.seek(1.).unwrap();
         let size = [1280., 800.];
         let deadline = Instant::now() + Duration::from_secs(30);
@@ -154,11 +154,11 @@ fn png_shell_shows_export_and_completion_in_both_languages() {
             let (paint, actions) = shell.draw_commands(size);
             assert!(actions.is_empty());
             let ui = shell.ui_frame(paint, size, true);
-            if shell
-                .engine
-                .present_async(ui)
-                .unwrap()
-                .recv_timeout(Duration::from_secs(10))
+            if crate::native_test_support::receive(
+                &mut event_loop,
+                &shell.engine.present_async(ui).unwrap(),
+                Duration::from_secs(10),
+            )
                 .unwrap_or_else(|error| {
                     let report = shell.engine.diagnostics().report();
                     let evidence = serde_json::to_vec_pretty(&report)
