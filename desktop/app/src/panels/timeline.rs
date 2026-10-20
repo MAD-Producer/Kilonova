@@ -1047,6 +1047,18 @@ pub(super) fn render(
         area.width(),
         (area.max[1] - footer_height - ruler.max[1]).max(0.0),
     );
+    if let Some(target) = panels.timeline.reveal_layer.take() {
+        if let Some(index) = rows.iter().position(|row| row.id == target) {
+            let top = layouts[..index].iter().map(|row| row.len()).sum::<usize>() as f32 * row_height;
+            let bottom = top + row_height;
+            if top < panels.timeline.scroll {
+                panels.timeline.scroll = top;
+            } else if bottom > panels.timeline.scroll + body.height() {
+                panels.timeline.scroll = bottom - body.height();
+            }
+            panels.timeline.scroll = panels.timeline.scroll.clamp(0., scroll_max);
+        }
+    }
     let mut row_offset = 0;
     let mut timeline_hit = false;
     let mut row_bounds: Vec<(u64, f32, f32)> = Vec::new();

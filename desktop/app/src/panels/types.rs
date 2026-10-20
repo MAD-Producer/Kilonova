@@ -102,6 +102,10 @@ pub enum Action {
         revision: u64,
     },
     EditBatch(Vec<Command>),
+    OrderLayers {
+        objects: Vec<u64>,
+        order: super::layer_navigation::Order,
+    },
 }
 
 #[derive(Default)]
@@ -302,6 +306,9 @@ impl Panels {
         if self.selection_anchor.is_some_and(|id| !valid(&id)) {
             self.selection_anchor = self.selected.filter(|id| *id != 0);
         }
+        if context_changed || invalid {
+            self.timeline.reveal_layer = None;
+        }
         context_changed || invalid
     }
 
@@ -457,6 +464,7 @@ impl ColumnVisibility {
 
 #[derive(Clone, Default)]
 pub(crate) struct TimelineState {
+    pub(crate) reveal_layer: Option<u64>,
     pub sampling_visibility: super::layer_sampling::Visibility,
     pub(crate) column_visibility: ColumnVisibility,
     pub(crate) graph_box: super::graph_box::Controls,

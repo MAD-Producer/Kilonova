@@ -51,6 +51,7 @@ mod keyboard;
 mod key_navigation;
 mod layer_actions;
 mod layer_locks;
+pub(crate) mod layer_navigation;
 #[cfg(test)]
 mod layer_switches;
 mod menus;
@@ -813,6 +814,7 @@ pub fn chrome(
         panels.locale,
         &mut out,
     );
+    panels.layer_actions.set_selection(panels.selection_ids());
     panels.layer_actions.finish_window(
         list,
         atlas,
@@ -1074,6 +1076,7 @@ pub fn floating_chrome(
         panels.locale,
         &mut out,
     );
+    panels.layer_actions.set_selection(panels.selection_ids());
     panels.layer_actions.finish_window(
         list,
         atlas,

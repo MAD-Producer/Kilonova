@@ -55,6 +55,7 @@ struct NameEdit {
 }
 #[derive(Default)]
 pub(crate) struct Controls {
+    selection: Vec<u64>,
     pub select_generated: Option<u64>,
     pub(crate) shortcut_bindings: std::sync::Arc<crate::shortcuts::bindings::Bindings>,
     popup: Option<Popup>,
@@ -118,6 +119,9 @@ fn submenu_arrow(list: &mut PaintList, area: Rect, color: motion_ui::theme::Colo
 }
 
 impl Controls {
+    pub(super) fn set_selection(&mut self, objects: Vec<u64>) {
+        self.selection = objects;
+    }
     pub fn editing(&self) -> bool {
         self.popup.is_some() || self.name.is_some()
     }
@@ -154,7 +158,7 @@ impl Controls {
     pub fn open_audio(&mut self, target: u64, anchor: [f32; 2], state: &Value, locale: Locale) {
         self.open(Some(target), anchor, state);
         if let Some(popup) = &mut self.popup {
-            let root = entries_with_bindings(popup, state, locale, &self.shortcut_bindings);
+            let root = entries_with_bindings(popup, state, locale, &self.shortcut_bindings, &self.selection);
             if let Some(index) = root
                 .iter()
                 .position(|e| matches!(e.choice, Choice::Page(Page::Audio)))
@@ -430,7 +434,7 @@ impl Controls {
             Page::Root
         };
         popup.page = root_page;
-        let root_entries = entries_with_bindings(popup, state, locale, &self.shortcut_bindings);
+        let root_entries = entries_with_bindings(popup, state, locale, &self.shortcut_bindings, &self.selection);
         popup.page = page;
         if root_entries.is_empty() {
             self.popup = None;
@@ -527,7 +531,7 @@ impl Controls {
         let mut child_card = None;
         let mut child_choice = None;
         if popup.page != root_page {
-            let children = entries_with_bindings(popup, state, locale, &self.shortcut_bindings);
+            let children = entries_with_bindings(popup, state, locale, &self.shortcut_bindings, &self.selection);
             if !children.is_empty() {
                 let height = menu_count(children.len(), bounds, row) as f32 * row + 6.;
                 let parent_y =
@@ -882,9 +886,27 @@ fn disabled_reason(choice: &Choice, layer: &Value, state: &Value, locale: Locale
     }
 }
 
-fn entries_with_bindings(popup:&Popup,state:&Value,locale:Locale,bindings:&crate::shortcuts::bindings::Bindings)->Vec<Entry> {
+fn entries_with_bindings(popup:&Popup,state:&Value,locale:Locale,bindings:&crate::shortcuts::bindings::Bindings,selection:&[u64])->Vec<Entry> {
     let mut rows=entries(popup,state,locale);
     for row in &mut rows {
+        if let Choice::New(Action::OrderLayers { objects, order }) = &mut row.choice {
+            if popup.target.is_some_and(|id| selection.contains(&id)) {
+                *objects = selection.to_vec();
+            }
+            row.label = bindings.label(order.label(locale), crate::shortcuts::Scope::Animation, order.shortcut());
+            match super::layer_navigation::plan(state, objects, *order) {
+                Ok(commands) => {
+                    row.enabled = !commands.is_empty();
+                    row.disabled_reason = (!row.enabled).then(|| word(locale,
+                        "所选图层已在该排列边界", "Selected layers are already at this ordering boundary"));
+                }
+                Err(reason) => {
+                    row.enabled = false;
+                    row.disabled_reason = Some(reason.message(locale).into());
+                }
+            }
+            continue;
+        }
         let command=match &row.choice {Choice::Edit(Command::Duplicate {..})=>Some(crate::shortcuts::Command::Duplicate),Choice::Edit(Command::Remove {..})=>Some(crate::shortcuts::Command::Delete),_=>None};
         if let Some(command)=command {
             let label=row.label.split("    ").next().unwrap_or(&row.label).to_owned();
@@ -979,7 +1001,6 @@ fn entries_for(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
     };
     let unlocked = l["locked"] != true && state["observing"] != true;
     let list = state["project"]["layers"].as_array().unwrap();
-    let index = list.iter().position(|l| l["id"] == id).unwrap();
     let timeline = state["timeline_layers"]
         .as_array()
         .into_iter()
@@ -1217,20 +1238,13 @@ fn entries_for(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
             add("全部解锁", "Unlock All Layers", !unlock.is_empty(), Choice::New(Action::EditBatch(unlock)));
         }
         Page::Order => {
-            for (zh, en, dest) in [
-                ("上移一层", "Move Up", (index + 1).min(list.len() - 1)),
-                ("下移一层", "Move Down", index.saturating_sub(1)),
-                ("置顶", "Move to Top", list.len() - 1),
-                ("置底", "Move to Bottom", 0),
-            ] {
+            use super::layer_navigation::Order;
+            for order in [Order::Up, Order::Down, Order::Top, Order::Bottom] {
                 add(
-                    zh,
-                    en,
-                    unlocked && dest != index,
-                    Choice::Edit(Command::Reorder {
-                        object: id,
-                        index: dest,
-                    }),
+                    order.label(Locale::Zh),
+                    order.label(Locale::En),
+                    unlocked,
+                    Choice::New(Action::OrderLayers { objects: vec![id], order }),
                 );
             }
         }
@@ -1388,13 +1402,13 @@ mod tests {
         let state=state(&engine());let mut controls=Controls::default();controls.open(Some(7),[100.,100.],&state);
         let mut bindings=Bindings::default();bindings.bind(Scope::Application,Shortcut::Duplicate,Some(motion_ui::input::KeyChord::new(Key::B,true,false,false))).unwrap();
         for locale in [Locale::Zh,Locale::En] {
-            let rows=entries_with_bindings(controls.popup.as_ref().unwrap(),&state,locale,&bindings);
+            let rows=entries_with_bindings(controls.popup.as_ref().unwrap(),&state,locale,&bindings,&[]);
             let duplicate=rows.iter().find(|r|matches!(r.choice,Choice::Edit(Command::Duplicate {object:7}))).unwrap();
             assert!(duplicate.label.ends_with("Ctrl+B") && !duplicate.label.contains("Ctrl+D"));
             assert!(duplicate.enabled);
         }
         bindings.bind(Scope::Application,Shortcut::Duplicate,None).unwrap();
-        let rows=entries_with_bindings(controls.popup.as_ref().unwrap(),&state,Locale::En,&bindings);
+        let rows=entries_with_bindings(controls.popup.as_ref().unwrap(),&state,Locale::En,&bindings,&[]);
         assert_eq!(rows.iter().find(|r|matches!(r.choice,Choice::Edit(Command::Duplicate {object:7}))).unwrap().label,"Duplicate");
     }
     fn state(engine: &motion_core::Engine) -> Value {

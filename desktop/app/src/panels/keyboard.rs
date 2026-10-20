@@ -272,6 +272,28 @@ fn handle_context_shortcuts(
                 && panels.animation_controls.track_selection(state, panels.selected)
                     == super::animation_controls::TrackSelection::Invalid;
         if let Some(command) = panels.shortcut_bindings.resolve(Scope::Animation, key, modifiers, repeat) {
+            if !input.focus_lost && !layout_shortcuts_blocked(panels)
+                && matches!(panels.focused, Some(Panel::Timeline | Panel::Composition)) {
+                use super::layer_navigation::Order;
+                let order = match command {
+                    Command::OrderLayersUp => Some(Order::Up),
+                    Command::OrderLayersDown => Some(Order::Down),
+                    Command::OrderLayersTop => Some(Order::Top),
+                    Command::OrderLayersBottom => Some(Order::Bottom),
+                    _ => None,
+                };
+                if let Some(order) = order {
+                    out.push(Action::OrderLayers { objects: panels.selection_ids(), order });
+                    continue;
+                }
+                if panels.focused == Some(Panel::Timeline)
+                    && matches!(command, Command::SelectLayerAbove | Command::SelectLayerBelow)
+                {
+                    super::layer_navigation::navigate(panels, state,
+                        command == Command::SelectLayerBelow, modifiers.shift);
+                    continue;
+                }
+            }
             if super::timeline_zoom::shortcut(command, input, panels, state) {
                 continue;
             }
