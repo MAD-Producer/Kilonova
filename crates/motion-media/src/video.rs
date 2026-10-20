@@ -99,6 +99,84 @@ pub struct VideoJobs {
     audio_decode: crate::DecodeAudio,
     tasks: Mutex<HashMap<String, Arc<Mutex<Task>>>>,
 }
+fn finish_import(
+    task: &Mutex<Task>,
+    result: std::thread::Result<Result<Prepared>>,
+    probe_only: bool,
+    worker_log: &crate::task_logging::TaskLog,
+) {
+    enum Completion {
+        Probe(Value),
+        Import(Prepared),
+    }
+    // Probe results retain only metadata. Delete their staging tree before
+    // acquiring the task mutex or publishing terminal success.
+    let result = result.map(|result| {
+        result.map(|prepared| {
+            if probe_only {
+                let metadata = json!({"video":prepared.probe.asset,"audio":prepared.audio,"audio_tracks":prepared.probe.tracks});
+                drop(prepared);
+                Completion::Probe(metadata)
+            } else {
+                Completion::Import(prepared)
+            }
+        })
+    });
+    static RECOVERY: crate::poison_observation::RecoverySite =
+        crate::poison_observation::RecoverySite::new("video.import.result_lock");
+    let mut recoveries = crate::poison_observation::RecoveryScope::new();
+    let mut t = recoveries.recover(
+        task.lock(),
+        &RECOVERY,
+        worker_log.request_id(),
+        if probe_only {
+            "probe_video"
+        } else {
+            "import_video"
+        },
+    );
+    if t.cancel.load(Ordering::Acquire) {
+        drop(t);
+        let error = crate::task_logging::cancelled_error(&result, &["video import cancelled"]);
+        worker_log.finish("cancelled", error.as_deref());
+        return;
+    }
+    match result {
+        Ok(Ok(Completion::Probe(metadata))) => {
+            t.status.metadata = Some(metadata);
+            t.status.progress = 1.0;
+            t.status.state = "succeeded".into();
+            t.status.phase = "complete".into();
+        }
+        Ok(Ok(Completion::Import(prepared))) => {
+            t.status.metadata = Some(
+                json!({"video":prepared.probe.asset,"audio":prepared.audio,"audio_tracks":prepared.probe.tracks}),
+            );
+            t.status.progress = 1.0;
+            t.prepared = Some(prepared);
+            t.status.state = "ready".into();
+            t.status.phase = "awaiting_commit".into();
+        }
+        Ok(Err(error)) => {
+            t.status.state = "failed".into();
+            t.status.phase = "failed".into();
+            t.status.error = Some(error);
+        }
+        Err(payload) => {
+            t.status.state = "failed".into();
+            t.status.phase = "failed".into();
+            t.status.error = Some(format!(
+                "video worker failed: {}",
+                crate::panic_reason(payload)
+            ));
+        }
+    }
+    let phase = t.status.phase.clone();
+    let error = t.status.error.clone();
+    drop(t);
+    worker_log.finish(&phase, error.as_deref());
+}
+
 impl VideoJobs {
     pub fn new(root: PathBuf) -> Result<Self> {
         Self::with_audio_decoder(root, Arc::new(crate::decode_audio))
@@ -254,26 +332,7 @@ impl VideoJobs {
                 image::save_buffer(stage.0.join("thumbnail.png"),&p.first_rgba,p.asset.display_width,p.asset.display_height,image::ColorType::Rgba8).map_err(|e|e.to_string())?;
                 Ok(Prepared{stage,probe:p,audio,options})
             }));
-            static RECOVERY: crate::poison_observation::RecoverySite =
-                crate::poison_observation::RecoverySite::new("video.import.result_lock");
-            let mut recoveries = crate::poison_observation::RecoveryScope::new();
-            let mut t = recoveries.recover(
-                t.lock(), &RECOVERY, worker_log.request_id(),
-                if probe_only { "probe_video" } else { "import_video" },
-            );
-            if t.cancel.load(Ordering::Acquire) {
-                drop(t);
-                let error = crate::task_logging::cancelled_error(&result, &["video import cancelled"]);
-                worker_log.finish("cancelled", error.as_deref());
-                return;
-            }
-            match result {Ok(Ok(p))=>{t.status.metadata=Some(json!({"video":p.probe.asset,"audio":p.audio,"audio_tracks":p.probe.tracks}));t.status.progress=1.0;
-                if probe_only{t.status.state="succeeded".into();t.status.phase="complete".into();}else{t.status.state="ready".into();t.status.phase="awaiting_commit".into();t.prepared=Some(p);}},
-                other=>{t.status.state="failed".into();t.status.phase="failed".into();t.status.error=Some(match other{Ok(Err(e))=>e,Err(payload)=>format!("video worker failed: {}",crate::panic_reason(payload)),Ok(Ok(_))=>unreachable!()});}}
-            let phase=t.status.phase.clone();
-            let error=t.status.error.clone();
-            drop(t);
-            worker_log.finish(&phase,error.as_deref());
+            finish_import(&t, result, probe_only, &worker_log);
         });
         if let Err(e) = spawn {
             task_log.finish("spawn", Some(&e.to_string()));
@@ -636,3 +695,6 @@ mod registry_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod completion_tests;
