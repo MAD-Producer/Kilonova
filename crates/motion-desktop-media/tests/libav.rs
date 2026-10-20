@@ -10,6 +10,22 @@ fn fixture(name: &str) -> PathBuf {
 }
 
 #[test]
+fn missing_video_keeps_original_ffmpeg_error_at_the_media_boundary() {
+    let root = tempfile::tempdir().unwrap();
+    let error = match probe(&root.path().join("missing.mp4"), None, None, &|| Ok(())) {
+        Ok(_) => panic!("missing video was accepted"),
+        Err(error) => error,
+    };
+    assert!(error.to_string().starts_with("cannot open video: "));
+    let motion_media::Error::Backend { backend, cause } = error.primary() else {
+        panic!("FFmpeg failure was flattened: {error:?}");
+    };
+    assert_eq!(*backend, "ffmpeg");
+    let native = cause.downcast_ref::<ffmpeg_next::Error>().unwrap();
+    assert!(matches!(native, ffmpeg_next::Error::Other { errno } if *errno == 2));
+}
+
+#[test]
 fn leading_edits_and_ctts_have_exact_tail_intervals_without_repeating_the_last_frame() {
     let manifest: serde_json::Value =
         serde_json::from_slice(&std::fs::read(fixture("manifest.json")).unwrap()).unwrap();
@@ -180,7 +196,7 @@ fn stream_selection_and_cancel_do_not_silently_fall_back() {
                 "video target superseded".into()
             ))
             .err()
-            .unwrap(),
+            .unwrap().to_string(),
         "video target superseded"
     );
     assert_eq!(

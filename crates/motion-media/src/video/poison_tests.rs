@@ -106,7 +106,7 @@ fn video_workers_and_drop_observe_real_poison_without_changing_outcomes() {
     assert!(state.prepared.is_none());
     drop(state);
     assert_eq!(
-        jobs.status("poison-video").err().as_deref(),
+        jobs.status("poison-video").err().map(|error| error.to_string()).as_deref(),
         Some("video task poisoned")
     );
     let errors = capture.matching("media error request=poison-video");

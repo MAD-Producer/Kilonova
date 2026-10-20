@@ -2,6 +2,10 @@
 #[cfg(test)]
 mod media_commit_tests;
 #[cfg(test)]
+mod media_error_tests;
+#[cfg(test)]
+mod package_publication_tests;
+#[cfg(test)]
 mod frame_blend_tests;
 
 use std::{
