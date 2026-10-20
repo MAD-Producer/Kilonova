@@ -149,3 +149,35 @@ final PR base/head verification and all six final-head checks remain
 required. Historical screenshots keep their original source scope; this
 update claims no new full-suite, physical-input/DPI, cross-platform manual
 or packaged-video execution.
+
+
+## Diamond main integration acceptance — 2026-10-20
+
+Actual main `c5f81223` is integrated in tested source `5fba4ab53deb15078211627526cdc6772a5895c5`.
+Compared with the previous held candidate, the only incoming code/test changes
+are the exact three already merged diamond files; their implementation and
+regressions match main byte for byte. Incoming completion documentation retains
+its own earlier evidence scope. Other feature code and assertions are unchanged.
+The complete shared CI document is retained when resolving its add/add conflict.
+This is a local candidate and has not been pushed to the published PR.
+
+With MOTION_LOG unset, 12 targeted tests passed with zero failures/ignores:
+- `373-main348-core.log`: 7 passed (0.06s)
+- `373-main348-panel-model-recovered.log`: 5 passed (24.99s)
+
+The seven core cases compiled their current source and passed. Desktop compilation
+initially reused another non-test core variant lacking lens/CameraLens; verbose
+output marked the incompatible dependency Fresh. A guarded core-only cache
+refresh removed 49 files (517.4 MiB), then exposed another cached model variant
+lacking film-width/CameraLens definitions. Refreshing that package removed 28
+files (267.1 MiB). The unchanged desktop source then compiled current model/core
+and passed all five panel cases. Initial, verbose, intermediate failed and final
+passing logs are retained separately under `artifacts/pr-queue/373-main348-*`.
+No failed compile is counted as a test execution or a passing acceptance run.
+
+Provenance (1,579 tracked paths), panel style-consumer and whitespace guards
+passed. Builds, temporary files and retained logs remain on E. The full suite
+and historical visual acceptance above keep their original source boundaries;
+no new complete application screenshot or full-suite run is claimed here.
+The following documentation-only commit does not change tested source. Actual
+parent squash reconciliation and all six final-head remote checks remain required.
