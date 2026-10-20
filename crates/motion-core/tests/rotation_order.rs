@@ -1,3 +1,5 @@
+#[path = "../../motion-effects/tests/support/scene_packages.rs"]
+mod scene_fixtures;
 use glam::{Mat4, Vec3};
 use motion_core::*;
 use motion_model::geometry::rotation_quaternion;
@@ -206,7 +208,7 @@ fn new_shapes_use_fixed_axes_and_legacy_add_payloads_keep_their_order() {
 fn particle_birth_poses_and_cache_follow_rotation_order_changes() {
     let mut p = project();
     p.version = 16;
-    let package = motion_effects::builtin::particle_package().unwrap();
+    let package = scene_fixtures::particle_package().unwrap();
     let effect = EffectInstance::new(
         1,
         &package.manifest.id,

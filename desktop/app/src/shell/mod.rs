@@ -26,3 +26,5 @@ mod shape_resize_acceptance;
 mod effect_selection_acceptance;
 mod effect_timeline_acceptance;
 mod timeline_key_drag_acceptance;
+#[cfg(all(test, target_os = "windows"))]
+mod retired_effect_tests;
