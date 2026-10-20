@@ -385,6 +385,7 @@ fn point_selection_main_and_native_floating_routes_capture_and_restore() {
                 assert_eq!(value.as_array().unwrap().len(), 2);
                 shell.state = shell.engine.history(0).unwrap();
                 assert_eq!(shell.state["project"], before);
+                exercise_pen_modes(&mut shell,floating,&label,&artifacts);
                 if floating {
                     shell.engine.close_window(1).unwrap();
                 }
@@ -414,4 +415,163 @@ fn point_selection_main_and_native_floating_routes_capture_and_restore() {
         String::from_utf8_lossy(&output.stderr)
     );
     assert!(!String::from_utf8_lossy(&output.stdout).contains("motion-engine"));
+}
+
+fn exercise_pen_modes(shell: &mut Shell, floating: bool, label: &str, artifacts: &std::path::Path) {
+    let styles = shell
+        .panels
+        .styles
+        .clone()
+        .unwrap_or_else(motion_ui::style::default_stylesheet_arc);
+    let v = view(shell, floating);
+    let pad = styles.metric("padding.panel", 8.);
+    let menu = [
+        v.min[0] + pad + styles.metric("path.tools.width", 176.) * 0.5,
+        v.min[1] + pad + styles.metric("field.height", 18.) * 0.5,
+    ];
+    let before = shell.state["project"].clone();
+    let mut current = 0;
+    for mode in 1..=4 {
+        input(
+            shell,
+            floating,
+            Input {
+                mouse: menu,
+                pressed: Some((MouseButton::Left, menu)),
+                held: Some(MouseButton::Left),
+                ..Default::default()
+            },
+        );
+        if mode == 1 {
+            let (paint, actions) = render(shell, floating, &Input::default());
+            assert!(actions.is_empty());
+            capture(
+                shell,
+                floating,
+                paint,
+                artifacts.join(format!("{label}-pen-menu.png")),
+            );
+        }
+        for _ in current..mode {
+            input(
+                shell,
+                floating,
+                Input {
+                    keys: vec![(Key::Down, Modifiers::default())],
+                    ..Default::default()
+                },
+            );
+        }
+        input(
+            shell,
+            floating,
+            Input {
+                keys: vec![(Key::Enter, Modifiers::default())],
+                ..Default::default()
+            },
+        );
+        current = mode;
+        let mapping = shell
+            .panels
+            .composition
+            .navigation
+            .mapping(v, [640., 480.])
+            .unwrap();
+        let p = panels::path_controls::layer_projection(&shell.state, 7, mapping.image).unwrap();
+        let anchor = match mode {
+            1 => [0., -80.],
+            3 => [120., 80.],
+            _ => [-120., -80.],
+        };
+        let mouse = p.screen(anchor).unwrap();
+        input(
+            shell,
+            floating,
+            Input {
+                mouse,
+                pressed: Some((MouseButton::Left, mouse)),
+                held: Some(MouseButton::Left),
+                ..Default::default()
+            },
+        );
+        assert_eq!(
+            shell.state["project"], before,
+            "press must not commit topology"
+        );
+        input(
+            shell,
+            floating,
+            Input {
+                focus_lost: true,
+                ..Default::default()
+            },
+        );
+        input(
+            shell,
+            floating,
+            Input {
+                mouse,
+                released: Some((MouseButton::Left, mouse)),
+                ..Default::default()
+            },
+        );
+        assert_eq!(
+            shell.state["project"], before,
+            "blur must cancel topology click"
+        );
+        input(
+            shell,
+            floating,
+            Input {
+                mouse,
+                pressed: Some((MouseButton::Left, mouse)),
+                held: Some(MouseButton::Left),
+                ..Default::default()
+            },
+        );
+        input(
+            shell,
+            floating,
+            Input {
+                mouse: [1., 1.],
+                released: Some((MouseButton::Left, mouse)),
+                ..Default::default()
+            },
+        );
+        assert_ne!(
+            shell.state["project"], before,
+            "mode={mode} must apply through the real panel route"
+        );
+        let changed: motion_core::Project =
+            serde_json::from_value(shell.state["project"].clone()).unwrap();
+        let saved = artifacts.join(format!("{label}-pen-{mode}-saved"));
+        motion_core::storage::save(&saved, &changed).unwrap();
+        assert_eq!(motion_core::storage::load(&saved).unwrap(), changed);
+        let (paint, actions) = render(shell, floating, &Input::default());
+        assert!(actions.is_empty());
+        capture(
+            shell,
+            floating,
+            paint,
+            artifacts.join(format!("{label}-pen-{mode}.png")),
+        );
+        input(
+            shell,
+            floating,
+            Input {
+                keys: vec![(
+                    Key::Z,
+                    Modifiers {
+                        control: true,
+                        ..Default::default()
+                    },
+                )],
+                ..Default::default()
+            },
+        );
+        assert_eq!(
+            shell.state["project"], before,
+            "one undo restores the entire path mode={mode}"
+        );
+    }
 }
