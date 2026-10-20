@@ -82,3 +82,25 @@ video or native capture run. Existing screenshots keep their original source
 scope; there is no new UI styling or menu change. Current-head remote CI and
 the previously listed manual-platform limits remain pending. #366 must follow
 this updated parent after the parent reaches main.
+
+## CI deduplication and Windows native wait integration
+
+The first updated remote head `587377a` still contained the old workflow and
+triggered both push and PR runs. This omission was corrected locally by cleanly
+merging reviewed #374 head `e57e84ce`, producing candidate `ebc16d21` and exact
+preview tree `77246c4a`. Only its seven CI/helper/test/document files changed;
+all six non-main files match #374 exactly, and main.rs only adds the existing
+Windows test-helper declaration. Alignment product code, styles, routing and
+the preceding fifty-five tested cases remain unchanged. No timeout, assertion
+or ignore policy was relaxed.
+
+Fresh helper-source validation: native pump control 1 passed (0.28 seconds),
+bilingual PNG export 1 (12.63), four-mode sampling 1 (25.63), and all seven
+workflow checks (6.684). All twelve retained PNGs were fully decoded. Each mode
+retains five warmups and sixty strictly progressing frames; root and mode
+reports match. Default Info start records are present and Present starts are
+absent. Evidence: `365-ci-helper-{integration,acceptance,png-verification}.json`
+under `.tools/issue-closure-review` and `artifacts/pr-queue/365-ci-helper-*`.
+The subsequent document-only commit preserves this tested source. Superseded
+runs are cancelled only after new-head check ownership is confirmed; final
+new-head remote CI is still required.
