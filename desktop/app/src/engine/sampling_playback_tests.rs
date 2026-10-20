@@ -4,6 +4,12 @@ use super::*;
 use crate::{panels, workspace, Locale, Shell};
 use motion_core::{render_sampling::Shutter, vector::*, Content, Ease, Layer, Project};
 
+// This study asserts progress within one playback cycle. Use the largest
+// legal composition (20 minutes at 30fps), rather than a 100-second fixture
+// that can loop during 65 native completions on slower GPUs. Waits are unchanged.
+const FIXTURE_FPS: u32 = 30;
+const FIXTURE_FRAMES: u32 = motion_core::MAX_FRAMES;
+
 fn drive_frame(shell: &mut Shell) -> Value {
     let deadline = Instant::now() + Duration::from_secs(15);
     while !shell.playback_ready(Instant::now()) {
@@ -86,7 +92,7 @@ fn paced_sampling_playback_records_native_costs_without_starving_frames() {
             ("raster", false, true),
             ("combined", true, true),
         ] {
-            let mut project = Project::new(640, 360, 30, 3000).unwrap();
+            let mut project = Project::new(640, 360, FIXTURE_FPS, FIXTURE_FRAMES).unwrap();
             project.version = 21;
             project.background = [0., 0., 0., 1.];
             for id in 1..=4 {
@@ -176,6 +182,10 @@ fn paced_sampling_playback_records_native_costs_without_starving_frames() {
                     "clock_elapsed_us":playback_elapsed_us
                 })).unwrap(),
             ).unwrap();
+            assert!(
+                playback_elapsed_us < u128::from(project.frames) * 1_000_000 / u128::from(project.fps),
+                "mode={name} exceeded the non-looping study horizon: clock_elapsed_us={playback_elapsed_us}"
+            );
             for pair in records.windows(2) {
                 assert!(pair[1]["frame"].as_f64().unwrap() > pair[0]["frame"].as_f64().unwrap(),
                     "mode={name} completed frames did not advance: pair={pair:?} wall_us={wall_us} composition_frames={} fps={}",
