@@ -44,6 +44,98 @@ fn panels() -> Panels {
         ..Default::default()
     }
 }
+
+#[test]
+fn custom_property_reveal_and_navigation_use_new_chords_and_keep_text_owner_priority() {
+    use crate::shortcuts::{bindings::Bindings,Command as Shortcut,Scope};
+    let e=engine();let state=state(&e,32.);
+    for locale in [Locale::En,Locale::Zh] {
+        for host in [Panel::Timeline,Panel::Properties] {
+            let mut p=panels();p.locale=locale;p.focused=Some(host);
+            let mut bindings=Bindings::default();
+            bindings.bind(Scope::Animation,Shortcut::Reveal(Property::Position),Some(motion_ui::input::KeyChord::new(Key::Q,false,false,false))).unwrap();
+            bindings.bind(Scope::Animation,Shortcut::NextKey,Some(motion_ui::input::KeyChord::new(Key::E,true,false,false))).unwrap();
+            p.shortcut_bindings=std::sync::Arc::new(bindings);
+            assert!(invoke(&mut p,&state,Key::P,Modifiers::default()).is_empty());
+            assert!(!p.timeline.filters.contains_key(&7));
+            assert!(invoke(&mut p,&state,Key::Q,Modifiers::default()).is_empty());
+            let rows=timeline::filtered_properties(&state,7,p.timeline.filters[&7]);
+            assert_eq!(rows.len(),1);assert_eq!(rows[0].property,Property::Position);
+            assert!(invoke(&mut p,&state,Key::K,Modifiers::default()).is_empty());
+            assert!(matches!(invoke(&mut p,&state,Key::E,Modifiers {control:true,..Default::default()}).as_slice(),[Action::Seek(frame)] if *frame==52.));
+            let before=p.timeline.filters.clone();p.timeline.timeline_search=true;
+            assert!(invoke(&mut p,&state,Key::Q,Modifiers::default()).is_empty());assert_eq!(p.timeline.filters,before);
+        }
+    }
+}
+
+#[test]
+fn custom_animated_property_chords_preserve_double_press_and_input_ownership() {
+    use crate::shortcuts::{bindings::Bindings, Command as Shortcut, Scope};
+    use motion_ui::input::KeyChord;
+    let engine = engine();
+    let history = (engine.can_undo(), engine.can_redo());
+    let state = state(&engine, 32.);
+    for locale in [Locale::En, Locale::Zh] {
+        for host in [Panel::Timeline, Panel::Properties, Panel::Curves, Panel::Composition] {
+            for chord in [KeyChord::new(Key::Q, false, false, false),
+                KeyChord::new(Key::F4, true, false, false)] {
+                let mut panels = panels();
+                panels.locale = locale;
+                panels.focused = Some(host);
+                let mut bindings = Bindings::default();
+                bindings.bind(Scope::Animation, Shortcut::AnimatedProperties, Some(chord)).unwrap();
+                panels.shortcut_bindings = std::sync::Arc::new(bindings);
+                assert!(invoke(&mut panels, &state, Key::U, Modifiers::default()).is_empty());
+                assert!(!panels.timeline.filters.contains_key(&7));
+                assert!(invoke(&mut panels, &state, chord.key, chord.modifiers).is_empty());
+                assert_eq!(panels.timeline.filters[&7], types::PropertyFilter::Animated);
+                assert!(invoke(&mut panels, &state, chord.key, chord.modifiers).is_empty());
+                assert_eq!(panels.timeline.filters[&7], types::PropertyFilter::Modified,
+                    "the effective animated-property chord must retain UU semantics");
+
+                // An autorepeat interrupts a pair, as it does for the default U.
+                let mut out = Vec::new();
+                keyboard::route(&Input {
+                    keys: vec![(chord.key, chord.modifiers)],
+                    key_repeats: vec![true],
+                    ..Default::default()
+                }, &mut panels, &state, false, None, &mut out);
+                assert!(out.is_empty());
+                assert!(invoke(&mut panels, &state, chord.key, chord.modifiers).is_empty());
+                assert_eq!(panels.timeline.filters[&7], types::PropertyFilter::Animated);
+
+                // A text owner consumes this chord and cancels the pending pair.
+                panels.project.search = true;
+                assert!(invoke(&mut panels, &state, chord.key, chord.modifiers).is_empty());
+                assert_eq!(panels.timeline.filters[&7], types::PropertyFilter::Animated);
+                panels.project.search = false;
+                assert!(invoke(&mut panels, &state, chord.key, chord.modifiers).is_empty());
+                assert_eq!(panels.timeline.filters[&7], types::PropertyFilter::Properties(0),
+                    "a fresh single press toggles the existing animated filter closed");
+                assert!(invoke(&mut panels, &state, chord.key, chord.modifiers).is_empty());
+                assert_eq!(panels.timeline.filters[&7], types::PropertyFilter::Modified);
+                assert_eq!((engine.can_undo(), engine.can_redo()), history);
+            }
+        }
+    }
+}
+
+#[test]
+fn custom_select_all_routes_the_graph_selection_and_disables_its_old_chord() {
+    use crate::shortcuts::{bindings::Bindings,Command as Shortcut,Scope};
+    let engine=engine();let history=(engine.can_undo(),engine.can_redo());let state=state(&engine,32.);let mut panels=panels();
+    panels.timeline.set_graph_mode(true);
+    let mut bindings=Bindings::default();bindings.bind(Scope::Application,Shortcut::SelectAll,
+        Some(motion_ui::input::KeyChord::new(Key::B,true,false,false))).unwrap();
+    panels.shortcut_bindings=std::sync::Arc::new(bindings);
+    let control=Modifiers {control:true,..Default::default()};
+    assert!(invoke(&mut panels,&state,Key::A,control).is_empty());
+    assert!(!panels.timeline.graph_box.has_selection());
+    assert!(invoke(&mut panels,&state,Key::B,control).is_empty());
+    assert!(panels.timeline.graph_box.has_selection());
+    assert_eq!((engine.can_undo(),engine.can_redo()),history,"selection must retain existing project history");
+}
 #[test]
 fn a_reveals_the_real_layer_anchor_in_both_locales_and_property_hosts() {
     let mut e=engine();
@@ -144,6 +236,9 @@ fn property_keys_filter_and_append_without_editing_and_u_omits_static_channels()
         rows.iter().map(|r| r.property).collect::<Vec<_>>(),
         [Property::Position, Property::Opacity]
     );
+    // This existing scenario covers a later independent single U, rather than
+    // the newly supported immediate UU pair. Keep its collapse assertion.
+    panels.property_reveal.interrupt();
     invoke(&mut panels, &state, Key::U, Modifiers::default());
     assert!(!panels.timeline.expanded.contains(&7));
     assert!(invoke(

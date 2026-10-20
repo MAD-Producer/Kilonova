@@ -6,6 +6,11 @@ use serde_json::Value;
 
 #[derive(Debug)]
 pub enum Action {
+    AlignLayers {
+        objects: Vec<u64>,
+        edge: motion_host::ops::alignment::Edge,
+        target: motion_host::ops::alignment::Target,
+    },
     Node(crate::node_editor::Action),
     New,
     Open,
@@ -27,6 +32,7 @@ pub enum Action {
     AddShape(motion_core::vector::ShapeKind),
     NewText,
     CompositionSettings,
+    Preferences,
     NewComposition,
     CompositionPreset(u32, u32),
     Plugin(Value),
@@ -105,6 +111,8 @@ pub enum Action {
 
 #[derive(Default)]
 pub struct Panels {
+    pub(crate) shortcut_bindings: std::sync::Arc<crate::shortcuts::bindings::Bindings>,
+    pub(crate) property_reveal: super::modified_properties::RevealSequence,
     pub workspace_preset: crate::workspace::Preset,
     pub styles: Option<std::sync::Arc<motion_ui::style::StyleSheet>>,
     pub(crate) cursor: Option<motion_ui::cursor::Cursor>,
@@ -167,6 +175,7 @@ pub(crate) struct CompositionState {
 
 impl Panels {
     pub(crate) fn select_only(&mut self, object: Option<u64>) {
+        self.property_reveal.interrupt();
         self.path_controls.clear_mask_selection();
         self.audio_controls.clear_selection();
         self.selected = object;
@@ -542,6 +551,7 @@ pub(crate) enum PropertyFilter {
     All,
     Properties(u8),
     Animated,
+    Modified,
 }
 impl TimelineState {
     pub fn set_graph_mode(&mut self, enabled: bool) {
@@ -599,11 +609,12 @@ pub(crate) fn property_bit(property: Property) -> u8 {
     }
 }
 impl PropertyFilter {
-    pub fn admits(self, property: Property, animated: bool) -> bool {
+    pub fn admits(self, property: Property, animated: bool, modified: bool) -> bool {
         match self {
             Self::All => true,
             Self::Properties(mask) => mask & property_bit(property) != 0,
             Self::Animated => animated,
+            Self::Modified => modified,
         }
     }
 }

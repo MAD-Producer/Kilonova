@@ -26,6 +26,8 @@ mod workflow;
 mod workspace;
 #[cfg(test)]
 mod configuration_tests;
+#[cfg(all(test, target_os = "windows"))]
+mod native_test_support;
 use i18n::{Locale, Text as T};
 
 use engine::{AtlasUpload, Engine, UiFrame};
@@ -467,6 +469,8 @@ impl Shell {
             }
         }
         shell.panels.timeline.column_visibility = shell.workspace.column_visibility();
+        shell.install_shortcut_bindings();
+        if shell.smoke.is_none() { shell.restore_preview_preference()?; }
         shell.panels.timeline.sampling_visibility = shell.workspace.timeline_sampling_columns;
         Ok(shell)
     }
@@ -1068,10 +1072,27 @@ fn translate_key(key: &WinitKey) -> Option<Key> {
     Some(match key {
         WinitKey::Character(s) => match s.to_ascii_lowercase().as_str() {
             "a" => Key::A,
+            "b" => Key::B,
+            "c" => Key::C,
+            "e" => Key::E,
+            "h" => Key::H,
+            "l" => Key::L,
+            "q" => Key::Q,
+            "v" => Key::V,
+            "w" => Key::W,
+            "1" | "!" => Key::Num1,
+            "2" | "@" => Key::Num2,
+            "3" | "#" => Key::Num3,
+            "4" | "$" => Key::Num4,
+            "5" | "%" => Key::Num5,
+            "6" | "^" => Key::Num6,
+            "7" | "&" => Key::Num7,
+            "8" | "*" => Key::Num8,
+            "9" | "(" => Key::Num9,
             "f" => Key::F,
             "g" => Key::G,
             "t" => Key::T,
-            "0" => Key::Num0,
+            "0" | ")" => Key::Num0,
             "n" => Key::N,
             "o" => Key::O,
             "i" => Key::I,
@@ -1087,11 +1108,11 @@ fn translate_key(key: &WinitKey) -> Option<Key> {
             "m" => Key::M,
             "x" => Key::X,
             "=" | "+" => Key::Equal,
-            "-" => Key::Minus,
+            "-" | "_" => Key::Minus,
             ";" | ":" => Key::Semicolon,
-            "`" => Key::Backquote,
-            "," => Key::Comma,
-            "." => Key::Period,
+            "`" | "~" => Key::Backquote,
+            "," | "<" => Key::Comma,
+            "." | ">" => Key::Period,
             "[" | "{" => Key::BracketLeft,
             "]" | "}" => Key::BracketRight,
             _ => return None,
@@ -1113,6 +1134,15 @@ fn translate_key(key: &WinitKey) -> Option<Key> {
             NamedKey::PageDown => Key::PageDown,
             NamedKey::F3 => Key::F3,
             NamedKey::F4 => Key::F4,
+            NamedKey::F1 => Key::F1,
+            NamedKey::F2 => Key::F2,
+            NamedKey::F5 => Key::F5,
+            NamedKey::F6 => Key::F6,
+            NamedKey::F7 => Key::F7,
+            NamedKey::F8 => Key::F8,
+            NamedKey::F10 => Key::F10,
+            NamedKey::F11 => Key::F11,
+            NamedKey::F12 => Key::F12,
             NamedKey::F9 => Key::F9,
             NamedKey::Shift => Key::Shift,
             NamedKey::Control => Key::Control,
@@ -1165,6 +1195,18 @@ fn translate_ime(ime: winit::event::Ime) -> Option<Event> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn configurable_chords_normalize_new_letters_digits_function_keys_and_shifted_symbols() {
+        for (text,key) in [("B",Key::B),("c",Key::C),("e",Key::E),("H",Key::H),("l",Key::L),("q",Key::Q),("v",Key::V),("w",Key::W),
+            ("1",Key::Num1),("!",Key::Num1),("@",Key::Num2),("#",Key::Num3),("$",Key::Num4),("%",Key::Num5),
+            ("^",Key::Num6),("&",Key::Num7),("*",Key::Num8),("(",Key::Num9),(")",Key::Num0),("<",Key::Comma),(">",Key::Period),("_",Key::Minus),("~",Key::Backquote)] {
+            assert_eq!(translate_key(&WinitKey::Character(text.into())),Some(key),"{text}");
+        }
+        for (named,key) in [(NamedKey::F1,Key::F1),(NamedKey::F2,Key::F2),(NamedKey::F5,Key::F5),(NamedKey::F6,Key::F6),(NamedKey::F7,Key::F7),
+            (NamedKey::F8,Key::F8),(NamedKey::F10,Key::F10),(NamedKey::F11,Key::F11),(NamedKey::F12,Key::F12)] {
+            assert_eq!(translate_key(&WinitKey::Named(named)),Some(key));
+        }
+    }
     #[test]
     fn losing_window_focus_cancels_input_without_stopping_playback() {
         let folder = tempfile::tempdir().unwrap();

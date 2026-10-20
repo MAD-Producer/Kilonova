@@ -283,6 +283,7 @@ pub struct NodeEditor {
     saved_revision: Option<u64>,
     pub view: CanvasView,
     pub view_preferences: ViewPreferences,
+    pub(crate) shortcut_bindings: std::sync::Arc<crate::shortcuts::bindings::Bindings>,
     minimap_drag: Option<view::minimap::NavigationDrag>,
     selected: BTreeSet<String>,
     primary: Option<String>,
@@ -381,6 +382,7 @@ impl NodeEditor {
             saved_revision: None,
             view: Default::default(),
             view_preferences: Default::default(),
+            shortcut_bindings: Default::default(),
             minimap_drag: None,
             selected: BTreeSet::new(),
             primary: None,
@@ -539,10 +541,12 @@ impl NodeEditor {
     pub fn replace_document(&mut self, document: GraphDocument, path: Option<PathBuf>) {
         let options = self.options.clone();
         let preferences = self.view_preferences;
+        let shortcuts = self.shortcut_bindings.clone();
         let recent = self.recent_nodes.clone();
         *self = Self::new(document);
         self.recent_nodes = recent;
         self.view_preferences = preferences;
+        self.shortcut_bindings = shortcuts;
         self.options = options;
         self.source_path = path;
         self.saved_document = Some(self.document.clone());

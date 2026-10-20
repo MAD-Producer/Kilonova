@@ -11,6 +11,42 @@ fn press(repeat: bool) -> Input {
 }
 
 #[test]
+fn remapped_movement_holds_repeat_until_release_and_undoes_in_one_step() {
+    use crate::shortcuts::{bindings::Bindings,Command,Scope};
+    let mut editor=NodeEditor::default();editor.focus_panel();
+    let mut bindings=Bindings::default();
+    bindings.bind(Scope::Nodes,Command::MoveRight,Some(motion_ui::input::KeyChord::new(Key::B,false,false,false))).unwrap();
+    editor.shortcut_bindings=std::sync::Arc::new(bindings);
+    let before=editor.document.clone();let history=editor.undo.len();let semantic=editor.semantic_revision;
+    let mut actions=vec![];
+    for repeat in [false,true,true,true] {
+        editor.keyboard(&Input {keys:vec![(Key::B,Modifiers::default())],key_repeats:vec![repeat],held_keys:vec![Key::B],..Default::default()},&mut actions);
+        assert_eq!(editor.undo.len(),history);
+        assert!(editor.nudge_before.is_some());
+    }
+    assert_ne!(editor.document,before);
+    editor.keyboard(&Input {released_keys:vec![Key::B],..Default::default()},&mut actions);
+    let moved=editor.document.clone();
+    assert_eq!(editor.undo.len(),history+1);assert_eq!(editor.semantic_revision,semantic);
+    assert!(editor.undo());assert_eq!(editor.document,before);
+    assert!(editor.redo());assert_eq!(editor.document,moved);
+    editor.keyboard(&press(false),&mut actions);assert_eq!(editor.document,moved,"old arrow binding is disabled");
+}
+
+#[test]
+fn unmodified_remapped_file_command_defers_to_node_search_text() {
+    use crate::shortcuts::{bindings::Bindings,Command,Scope};
+    let mut editor=NodeEditor::default();editor.focus_panel();
+    let mut bindings=Bindings::default();
+    bindings.bind(Scope::Nodes,Command::Save,Some(motion_ui::input::KeyChord::new(Key::Q,false,false,false))).unwrap();
+    editor.shortcut_bindings=std::sync::Arc::new(bindings);editor.search_focus=true;
+    let mut actions=vec![];
+    editor.keyboard(&Input {keys:vec![(Key::Q,Modifiers::default())],text:"q".into(),..Default::default()},&mut actions);
+    assert!(actions.is_empty(),"typing must not save a document");
+    assert_eq!(editor.search,"q");
+}
+
+#[test]
 fn repeated_arrows_keep_earlier_history_and_undo_in_one_step() {
     let mut editor = NodeEditor::default();
     editor.focus_panel();
