@@ -27,3 +27,9 @@ python -X utf8 -m unittest discover -s tools -p 'test_ci_*.py' -v
 ```
 
 工具全集首轮 `icon-generator-ci-tools.log` 发现新增工具没有登记 inventory，运行 54 项，1 error / 1 skip；补齐 `tools/validation_inventory.json` 的 CI 自动发现分类，没有修改检查器或既有断言。复跑 `icon-generator-ci-tools-final.log` 为 **53 通过、1 项既有可选检查跳过**（未设置 `MOTION_EFFECT_VALIDATOR`，没有执行 Rust 效果 schema/WGSL 加载），无失败。新增测试是 CI 自动发现项，不据本机成功推断其他平台结果。
+
+## 积压 PR 的主干集成复验
+
+旧 head `b2104418` 的两组远程检查共 10 项成功、2 项 Intel cancelled，没有完整 Intel 成功，不能直接合并。2026-10-20 确认本工作树干净、无相关运行进程后，同步 main `34d1d7ad862b10205bf16e8a606b839206fd57eb`，集成 #360 的 FFmpeg 下载源与 #364 的 Intel 90 分钟预算；合并提交 `993b1203945e94d05052931095a2d6d3627de131`。相对于新 main 仍只有原四个文件，工具逻辑和既有断言未改。
+
+使用本机既有固定 PyYAML 6.0.3 路径运行完整工具发现：54 项中 **53 通过、1 项既有外部 Rust loader 跳过**，22.296 秒、退出 0，见 `artifacts/pr-queue/icon-generator-main-integration.log`。实际非法图标子进程、stderr/stdout 隔离及不覆盖文件的回归均在本次全集内。54 个现有 SVG 的 `--check`、来源检查（1,531 受跟踪路径）及差异检查通过。未声称完成新版远程 CI；新 head 仍需平台检查，合集 #138 保持打开。
