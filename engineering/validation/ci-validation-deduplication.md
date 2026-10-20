@@ -66,10 +66,19 @@ Neither foundation checks nor other PR checks are restarted merely to prepare
 this change.
 
 Existing queued runs keep the workflow version that created them. This patch
-does not retroactively cancel or deduplicate those runs. After it is merged,
-each stacked branch needs the updated workflow once, with its actual parent
-integration reviewed. Cancel an old run only after verifying its replacement
-head and preserving the old status. Never record a cancelled run as successful.
+does not retroactively cancel or deduplicate those runs. Unchanged green PR
+heads may be merged in dependency order without restarting their checks. A
+branch needing another source push should first incorporate the updated
+workflow once, with its actual parent integration reviewed. Cancel an old run
+only after verifying its replacement head and preserving the old status. Never
+record a cancelled run as successful.
+
+PR #374 initially published head `ba95253c` against the feature-branch foundation.
+The Actions API reported exactly one run for that head: `39376687346`, event
+`pull_request`, initially queued. No push run was reported. This verifies the
+real stacked-PR trigger entry; it is not evidence that its six jobs passed or
+that superseded-run cancellation has yet completed. The final documentation
+update clarifies migration without changing the validated workflow or tests.
 
 Remote CI, first real PR-event routing, branch-by-branch migration, and final
 Chinese squash merges remain separate acceptance steps. No fixed queue-drain
