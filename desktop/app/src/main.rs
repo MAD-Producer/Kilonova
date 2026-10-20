@@ -294,6 +294,10 @@ struct Shell {
         motion_desktop_media::movie::ExportControl,
     )>,
     exporting_movie: Option<movie_export::MovieExport>,
+    exporting_frame: Option<(
+        std::sync::mpsc::Receiver<Result<Value, String>>,
+        motion_desktop_media::movie::ExportControl,
+    )>,
     export_notified: bool,
     importing_image: Option<std::sync::mpsc::Receiver<Result<Value, String>>>,
     importing_media: Option<(String, Instant)>,
@@ -302,6 +306,7 @@ struct Shell {
     attaching: Option<std::sync::mpsc::Receiver<Result<Value, String>>>,
     attached: bool,
     rendering: std::collections::HashMap<u64, std::sync::mpsc::Receiver<Result<bool, String>>>,
+    exposure_presentations: std::collections::HashSet<u64>,
     resizing: Option<std::sync::mpsc::Receiver<Result<Value, String>>>,
     resize_queue: std::collections::HashMap<u64, [u32; 2]>,
     actions: std::collections::VecDeque<panels::Action>,
@@ -407,6 +412,7 @@ impl Shell {
             audio: None,
             freezing_movie: None,
             exporting_movie: None,
+            exporting_frame: None,
             export_notified: false,
             importing_image: None,
             importing_media: None,
@@ -415,6 +421,7 @@ impl Shell {
             attaching: None,
             attached: false,
             rendering: Default::default(),
+            exposure_presentations: Default::default(),
             resizing: None,
             resize_queue: Default::default(),
             actions: Default::default(),
@@ -460,6 +467,7 @@ impl Shell {
             }
         }
         shell.panels.timeline.column_visibility = shell.workspace.column_visibility();
+        shell.panels.timeline.sampling_visibility = shell.workspace.timeline_sampling_columns;
         Ok(shell)
     }
 }
@@ -680,6 +688,7 @@ impl ApplicationHandler<UserEvent> for Shell {
             self.panels.node_editor.report_error(error);
             self.dirty = true;
         }
+        self.poll_frame_export();
         if let Some((receive, path, control)) = &self.freezing_movie {
             if let Some(result) = self.engine.poll_reply(receive, "freeze_movie") {
                 let output = path.clone();
@@ -778,6 +787,7 @@ impl ApplicationHandler<UserEvent> for Shell {
         }
         for (key, result) in completed {
             self.rendering.remove(&key);
+            self.finish_exposure_present(key, &result);
             match result {
                 Ok(rendered) => {
                     self.pending = !rendered;
@@ -998,10 +1008,11 @@ impl ApplicationHandler<UserEvent> for Shell {
                     .values()
                     .any(|f| f.panel == dock::Panel::Nodes));
         let ui_animating = self.panels.motion.active() || self.panels.timeline.edge_pan_at.is_some();
+        let presentation_pending = self.presentation_pending();
         if busy
             || node_playing
             || ui_animating
-            || self.pending
+            || presentation_pending
             || self.playback.is_some()
             || self.dirty
             || self.importing_image.is_some()
@@ -1009,12 +1020,13 @@ impl ApplicationHandler<UserEvent> for Shell {
             || self.audio_analysis.is_some()
             || self.importing_effect.is_some()
             || self.freezing_movie.is_some()
+            || self.exporting_frame.is_some()
             || self.exporting_movie.as_ref().is_some_and(|e| !e.finished())
         {
             if self.attached
                 && self.resizing.is_none()
                 && self.resize_queue.is_empty()
-                && (self.dirty || ui_animating || node_playing || self.pending)
+                && (self.dirty || ui_animating || node_playing || presentation_pending)
                 && Instant::now() >= self.next_redraw
             {
                 self.redraw();

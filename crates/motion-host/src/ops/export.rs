@@ -6,6 +6,7 @@ use serde_json::json;
 
 pub fn render_plan_info(id: i64) -> Result<serde_json::Value> {
     crate::session::with_session(id, |s| {
+        crate::render_sampling::require_single_time(s.engine.project(), "render_plan_info")?;
         s.observing = false;
         s.sample()?;
         let p = s.engine.project();
@@ -121,6 +122,7 @@ pub fn sample_render_plan_into_inner(
     frame: i32,
     out: &mut [u8],
 ) -> Result<usize> {
+    crate::render_sampling::require_single_time(s.engine.project(), "sample_render_plan")?;
     {
         s.frame = f64::from(frame);
         s.sample()?;
@@ -149,6 +151,7 @@ pub fn sample_render_plan_into_inner(
 /// Write the current frame to `exports/frame-NNNNNN.png`.
 pub fn capture(id: i64) -> Result<serde_json::Value> {
     crate::session::with_session(id, |s| {
+        crate::render_sampling::require_single_time(s.engine.project(), "legacy_capture")?;
         let p = s.engine.project();
         for id in p.reachable_compositions().map_err(|e| e.to_string())? {
             s.effects
@@ -240,6 +243,7 @@ pub fn sample_into_inner(
     frame: i32,
     out: &mut [u8],
 ) -> Result<usize> {
+    crate::render_sampling::require_single_time(s.engine.project(), "sample_planes")?;
     {
         if s.engine
             .project()

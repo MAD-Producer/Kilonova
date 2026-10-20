@@ -14,6 +14,7 @@ pub enum ResourceBudgetScope {
     MaskAndEffectScratch,
     LayerCompositing,
     PreviewTarget,
+    ExposureTargets,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]

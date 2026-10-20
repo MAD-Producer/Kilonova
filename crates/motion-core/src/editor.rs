@@ -313,6 +313,13 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             }
             layer.three_d = enabled;
         }
+        Command::SetLayerSampling { object, sampling } => {
+            let layer = project.layer_mut(object)?;
+            if layer.locked { return Err(Error::Locked(object)); }
+            sampling.validate_content(&layer.content)?;
+            layer.sampling = sampling;
+            if !sampling.is_default() { project.version = project.version.max(21); }
+        }
         Command::SetExpression { expression, frame } => {
             crate::expressions::set(project, expression, frame)?
         }
@@ -941,6 +948,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
         }
     }
     for layer in &project.layers {
+        if !layer.sampling.is_default() { project.version=project.version.max(21); }
         if layer.transform.anchor.is_animated() { project.version=project.version.max(20); }
         if let Content::Vector { vector } = &layer.content { project.version = project.version.max(vector.required_format()); }
         if layer.clip(project.frames).extends_composition(project.frames) { project.version = project.version.max(13); }

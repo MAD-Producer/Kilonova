@@ -12,6 +12,7 @@ impl Session {
     /// Explicit diagnostic read; ordinary playback snapshots do not enumerate allocations.
     pub fn texture_resource_ledger(&self) -> Value {
         let mut ledger = motion_render::TextureResourceLedger::default();
+        ledger.merge(self.sampling.ledger());
         if let Some(g) = &self.graphics {
             ledger.merge(g.renderer.texture_resource_ledger());
             g.scratch.collect_texture_resources(&mut ledger);
@@ -56,6 +57,8 @@ impl Session {
                 "hasLastValidFrame":self.graphics.as_ref().is_some_and(|g|g.scratch.valid()),
                 "nextProbeInMs":self.preview_memory.next_probe_ms().saturating_sub(self.preview_memory_clock.elapsed().as_millis() as u64)},
             "previewVideoProxyBytes":self.preview_video.bytes(),
+            "exposure":self.sampling.status(),
+            "exposureRequired":self.sampling.required(),
             "scratchBudgetBytes":self.effects.scratch_budget(),"memoryPolicyVersion":2,
             "sourceTextureBudgetBytes":self.effects.memory_policy().source_texture_budget_bytes,
             "memoryPolicy":self.effects.memory_policy(),
@@ -75,7 +78,7 @@ impl Session {
             "effectPipelineBuilds":self.graphics.as_ref().map_or(0,|g|g.renderer.effect_pipeline_builds()),
             "compositingPipelineSetBuilds":self.graphics.as_ref().map_or(0,|g|g.renderer.compositing_pipeline_set_builds()),
             "surfaceBounded":self.preview.mode != PreviewMode::High,
-            "gpuTimingActive":self.graphics.as_ref().is_some_and(|g|g.timer.is_some()),
+            "gpuTimingActive":!self.sampling.required() && self.graphics.as_ref().is_some_and(|g|g.timer.is_some()),
             "profiling":self.recorder.is_some(),
             "pluginEditorRecovery":{"open":self.editor.is_some(),"gesture":self.editor.as_ref().is_some_and(|e|e.gesture),
                 "leaseMillis":super::effects::PLUGIN_EDITOR_LEASE.as_millis(),"cancelOperation":"cancel_plugin_gesture","last":self.editor_recovery},
@@ -87,7 +90,8 @@ impl Session {
                 json!({"version":1,"scope":"logical_texture_capacity",
                     "rendererBytes":memory.total_bytes(),"categories":memory,
                     "legacyTextureBytes":g.renderer.texture_bytes(),
-                    "previewTargetBytes":target,"previewOwnedTextureBytes":memory.total_bytes()+target,
+                    "previewTargetBytes":target,"exposureTargetBytes":g.renderer.exposure_texture_bytes(),
+                    "previewOwnedTextureBytes":memory.total_bytes()+target+g.renderer.exposure_texture_bytes(),
                     "driverResidentBytes":null,"cpuDecodedCacheBytes":null,
                     "cpuVideoDecodedCacheBytes":video["cacheBytes"],
                     "cpuVideoPreviewProxyBytes":self.preview_video.bytes(),
@@ -109,6 +113,7 @@ impl Session {
             info["gpuConversions"] = json!(g.renderer.video_gpu_conversions);
             info["standaloneConversionSubmissions"] = json!(g.renderer.video_conversion_submissions);
             info["encodedConversions"] = json!(g.renderer.video_encoded_conversions);
+            info["frameBlendSubmissions"] = json!(g.renderer.video_blend_submissions);
         }
         info
     }
@@ -316,6 +321,7 @@ impl Session {
             "supported":true,"command":"merge_dimensions","policy":"aligned_keys_shared_interpolation",
             "resampling":false,"on_mismatch":"error_preserves_axes","expressions":"preserved",
             "already_coupled":"no_change","project_format_change":false});
+        snapshot["capabilities"]["layer_sampling"]=crate::render_sampling::capabilities();
         snapshot["capabilities"]["composition_api"]["project_format"]=json!(16);
         snapshot["capabilities"]["layer_3d"]["rotation_order"]=json!({"supported":true,"project_format":16,"command":"set_rotation_order",
             "default":"fixed_xyz","missing_field":"local_xyz","orders":["local_xyz","fixed_xyz"],"fixed_xyz":"apply_x_then_y_then_z_about_parent_axes",

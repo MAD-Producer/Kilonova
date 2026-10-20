@@ -30,6 +30,7 @@ pub type Result<T> = std::result::Result<T, String>;
 mod registry_observation;
 mod last_error_observation;
 mod resource_observation;
+mod sampling;
 pub(crate) mod metadata_observation;
 #[cfg(test)]
 mod metadata_observation_tests;
@@ -103,6 +104,7 @@ pub struct Session {
     pub preview: PreviewPolicy,
     pub preview_memory: motion_render::preview_memory::PreviewMemoryPolicy,
     pub preview_video: crate::preview_video::PreviewVideoCache,
+    pub(crate) sampling: sampling::SamplingPreview,
     pub preview_memory_held: bool,
     pub(crate) preview_memory_clock: Instant,
     memory_context: Option<(u64, u64, u32, u32)>,
@@ -156,12 +158,15 @@ impl Session {
         let video_jobs = VideoJobs::with_audio_decoder(root.clone(), audio_decoder(&platform))?;
         let audio_jobs =
             AudioJobs::with_decoder(root.clone(), Limits::default(), audio_decoder(&platform))?;
+        let mut video_frames = VideoFrames::new(platform.clone());
+        let mut sampling = sampling::SamplingPreview::default();
+        sampling.synchronize(project,engine.revision(),&mut video_frames)?;
         Ok(Self {
             composition_contexts: Default::default(),
             composition_bundle: Vec::new(),
             media_compositions: Default::default(),
             video_jobs,
-            video_frames: VideoFrames::new(platform.clone()),
+            video_frames,
             preview_inputs: crate::preview_inputs::PreviewInputReader::new(platform.clone()),
             audio_jobs,
             package_jobs: PackageJobs::default(),
@@ -194,6 +199,7 @@ impl Session {
             preview: PreviewPolicy::default(),
             preview_memory: Default::default(),
             preview_video: Default::default(),
+            sampling,
             preview_memory_held: false,
             preview_memory_clock: Instant::now(),
             memory_context: None,
@@ -286,6 +292,7 @@ impl Session {
         // Frozen package exports stay queryable across project replacement, but
         // their open source handles belong to the old snapshot.
         self.video_frames.clear();
+        self.sampling = Default::default();
         self.preview_inputs.cancel();
         self.preview_video.clear();
         self.preview_memory = Default::default();
@@ -315,6 +322,7 @@ impl Session {
     }
 
     pub fn detach(&mut self) {
+        self.sampling.discard_request();
         self.preview_video.clear();
         self.preview_memory = Default::default();
         self.memory_context = None;
@@ -451,6 +459,7 @@ impl Session {
             self.preview_memory.changed();
             self.memory_context = Some(context);
         }
+        let exposure = self.sampling.required();
         let now_ms = self.preview_memory_clock.elapsed().as_millis() as u64;
         self.preview_memory_held = false;
         if !self.preview_memory.begin(now_ms) {
@@ -459,6 +468,7 @@ impl Session {
             self.presented += u64::from(held);
             return Ok(held);
         }
+        if exposure { return self.render_exposure_with_view(frame,viewport,image,overlay); }
         g.renderer.retain_video_instances(&self.scene);
         self.preview_video.retain(&self.scene);
         let upcoming = motion_render::image_resources::upcoming_assets(
@@ -558,7 +568,7 @@ impl Session {
                     .as_ref()
                     .unwrap()
                     .asset;
-                match self.preview_video.upload(
+                match self.preview_video.upload_prepared(
                     &mut g.renderer,
                     *object,
                     source,
@@ -700,6 +710,8 @@ impl Session {
                     resources: Some(motion_render::FrameResources {
                         textures: g.renderer.texture_memory_breakdown(),
                         preview_target_bytes: g.scratch.texture_bytes(),
+                        exposure_target_bytes: 0,
+                        exposure_media_us: 0,
                         cpu_video_cache_bytes: self.video_frames.cache_bytes()? as u64,
                         cpu_video_proxy_bytes: self.preview_video.bytes() as u64,
                         video_prepare_us: self.video_prepare_us,
@@ -740,7 +752,8 @@ impl Session {
     }
 
     pub fn sample(&mut self) -> Result<()> {
-        let result = self
+        let result = self.sampling.synchronize(self.engine.project(),self.engine.revision(),&mut self.video_frames)
+            .and_then(|_| self
             .scene
             .sample(
                 self.engine.project(),
@@ -750,7 +763,7 @@ impl Session {
                 } else {
                     None
                 }, &motion_core::ExpressionEvaluator)
-            .map_err(|e| e.to_string());
+            .map_err(|e| e.to_string()));
         if let Err(error) = &result {
             self.last_error = Some(error.clone());
         } else if self
@@ -795,7 +808,7 @@ fn preview_refused(g: &mut Graphics, policy: &mut motion_render::preview_memory:
     let Some(rejection) = error.resource_rejection().copied() else { return Err(error.to_string()); };
     let retry = policy.refused(rejection, now_ms);
     g.scratch.discard_candidate();
-    g.renderer.reclaim_preview_working_set().map_err(|e| e.to_string())?;
+    g.renderer.reclaim_preview_working_set().map_err(|e| format!("{error}; preview working-set cleanup also failed: {e}"))?;
     Ok(retry)
 }
 static PREVIEW_SURFACE_FAILURES: motion_render::observability::FailureCounter =

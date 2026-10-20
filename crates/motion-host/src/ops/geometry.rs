@@ -40,6 +40,7 @@ pub fn sample_geometry_into_inner(
     vertices: &mut [u8],
 ) -> Result<serde_json::Value> {
     {
+        crate::render_sampling::require_single_time(s.engine.project(), "sample_geometry")?;
         s.scene
             .sample(s.engine.project(), frame, None, &motion_core::ExpressionEvaluator)
             .map_err(|e| e.to_string())?;
