@@ -106,6 +106,78 @@ impl Drop for Worker {
         WORKERS.fetch_sub(1, Ordering::AcqRel);
     }
 }
+fn finish_import(
+    task: &Mutex<Task>,
+    result: std::thread::Result<Result<Prepared>>,
+    probe: bool,
+    worker_log: &crate::task_logging::TaskLog,
+) {
+    enum Completion {
+        Probe(AudioAsset),
+        Import(Prepared),
+    }
+    // Probe results retain only metadata. Delete their staging tree before
+    // acquiring the task mutex or publishing terminal success.
+    let result = result.map(|result| {
+        result.map(|prepared| {
+            if probe {
+                let metadata = prepared.asset.clone();
+                drop(prepared);
+                Completion::Probe(metadata)
+            } else {
+                Completion::Import(prepared)
+            }
+        })
+    });
+    static RECOVERY: crate::poison_observation::RecoverySite =
+        crate::poison_observation::RecoverySite::new("audio.import.result_lock");
+    let mut recoveries = crate::poison_observation::RecoveryScope::new();
+    let mut t = recoveries.recover(
+        task.lock(),
+        &RECOVERY,
+        worker_log.request_id(),
+        if probe { "probe_audio" } else { "import_audio" },
+    );
+    if t.cancel.load(Ordering::Acquire) {
+        drop(t);
+        let error = crate::task_logging::cancelled_error(&result, &["audio task cancelled"]);
+        worker_log.finish("cancelled", error.as_deref());
+        return;
+    }
+    match result {
+        Ok(Ok(Completion::Probe(metadata))) => {
+            t.status.metadata = Some(metadata);
+            t.status.progress = 1.0;
+            t.status.state = "succeeded".into();
+            t.status.phase = "complete".into();
+        }
+        Ok(Ok(Completion::Import(prepared))) => {
+            t.status.metadata = Some(prepared.asset.clone());
+            t.status.progress = 1.0;
+            t.prepared = Some(prepared);
+            t.status.state = "ready".into();
+            t.status.phase = "awaiting_commit".into();
+        }
+        Ok(Err(error)) => {
+            t.status.state = "failed".into();
+            t.status.phase = "failed".into();
+            t.status.error = Some(error);
+        }
+        Err(payload) => {
+            t.status.state = "failed".into();
+            t.status.phase = "failed".into();
+            t.status.error = Some(format!(
+                "audio worker failed: {}",
+                crate::panic_reason(payload)
+            ));
+        }
+    }
+    let phase = t.status.phase.clone();
+    let error = t.status.error.clone();
+    drop(t);
+    worker_log.finish(&phase, error.as_deref());
+}
+
 impl AudioJobs {
     pub fn new(root: PathBuf, limits: Limits) -> Result<Self> {
         Self::with_decoder(root, limits, Arc::new(crate::decode_audio))
@@ -342,49 +414,7 @@ impl AudioJobs {
                         })
                     },
                 ));
-                static RECOVERY: crate::poison_observation::RecoverySite =
-                    crate::poison_observation::RecoverySite::new("audio.import.result_lock");
-                let mut recoveries = crate::poison_observation::RecoveryScope::new();
-                let mut t = recoveries.recover(
-                    spawn_task.lock(),
-                    &RECOVERY,
-                    worker_log.request_id(),
-                    if probe { "probe_audio" } else { "import_audio" },
-                );
-                if t.cancel.load(Ordering::Acquire) {
-                    drop(t);
-                    let error = crate::task_logging::cancelled_error(&result, &["audio task cancelled"]);
-                    worker_log.finish("cancelled", error.as_deref());
-                    return;
-                }
-                match result {
-                    Ok(Ok(prepared)) => {
-                        t.status.metadata = Some(prepared.asset.clone());
-                        t.status.progress = 1.0;
-                        if probe {
-                            t.status.state = "succeeded".into();
-                            t.status.phase = "complete".into();
-                        } else {
-                            t.prepared = Some(prepared);
-                            t.status.state = "ready".into();
-                            t.status.phase = "awaiting_commit".into();
-                        }
-                    }
-                    Ok(Err(error)) => {
-                        t.status.state = "failed".into();
-                        t.status.phase = "failed".into();
-                        t.status.error = Some(error);
-                    }
-                    Err(payload) => {
-                        t.status.state = "failed".into();
-                        t.status.phase = "failed".into();
-                        t.status.error = Some(format!("audio worker failed: {}", crate::panic_reason(payload)));
-                    }
-                }
-                let phase = t.status.phase.clone();
-                let error = t.status.error.clone();
-                drop(t);
-                worker_log.finish(&phase, error.as_deref());
+                finish_import(&spawn_task, result, probe, &worker_log);
             });
         if let Err(error) = spawn {
             task_log.finish("spawn", Some(&error.to_string()));
@@ -713,3 +743,6 @@ mod drop_failure_tests {
         assert!(cancel.load(Ordering::Acquire), "Drop skipped cancellation of a poisoned registry");
     }
 }
+
+#[cfg(test)]
+pub(crate) mod completion_tests;
