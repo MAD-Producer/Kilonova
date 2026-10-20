@@ -113,3 +113,39 @@ main integration and six successful #370 checks. The candidate is unpublished;
 actual #362 and #371 squash/main reconciliation, final PR targeting and all
 final-head checks remain required. Green checks on the older remote #373 head
 do not waive those requirements. No visual change or new screenshot is claimed.
+
+## Actual main cache and registry integration — 2026-10-20
+
+Local source commit `5689d5668a567890223cfab8860419a485e500a6` has tree
+`bc62ec7c4aad193caeb936fb874024ae7bf26522` and incorporates actual main `44a5a0d2a9f8bc8d28ee66de786a17488c66cf33`.
+The clean preview and actual merge agree. Exactly fourteen inherited paths
+match the already merged cache, dependency-walk and session-registry blobs;
+every other blob matches the prior held candidate. No remote head changed.
+
+Fresh default-level acceptance passed 12 targeted cases:
+
+- core: 7 passed, zero failures/ignores, 0.03 seconds; `373-main-core-recovered.log`
+- panel: 5 passed, zero failures/ignores, 23.08 seconds; `373-main-panel-recovered.log`
+
+The seven core cases cover lens conversion, command validation, animation,
+history/storage and export; the five desktop cases cover the real lens
+controls and worker error channels. The first desktop build stopped before
+tests because Cargo linked a core library missing the lens API present in
+this worktree. The failed build and verbose diagnosis are retained. After
+other builds ended, only this E target's `motion-core` and `motion-model`
+package caches were cleaned (59 files, 994.9 MiB). The unchanged source
+then rebuilt for the recovered run. Diagnosis and cleanup proofs are
+`373-main-{cache-diagnosis,core-model-cache-refresh}.json`; original and
+recovered logs remain separate. No assertion was weakened or skipped.
+
+Provenance (1,577 tracked paths), style-consumer and whitespace guards
+passed on the source integration. Exact-head integration and acceptance
+records are `373-current-main-{integration,acceptance}.json` under
+`.tools/issue-closure-review`. Builds, temporary files and logs remain on E;
+`MOTION_LOG` was unset. This following commit changes only this document.
+
+The candidate is still unpublished. Actual parent squash reconciliation,
+final PR base/head verification and all six final-head checks remain
+required. Historical screenshots keep their original source scope; this
+update claims no new full-suite, physical-input/DPI, cross-platform manual
+or packaged-video execution.
