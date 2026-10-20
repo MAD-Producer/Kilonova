@@ -222,7 +222,9 @@ fn paced_sampling_playback_records_native_costs_without_starving_frames() {
                 "combined-costs.json",
             ] {
                 let source = root.path().join(name);
-                if source.try_exists()? {
+                // A failed child may not have reached later modes. A healthy
+                // child must still supply every required acceptance artifact.
+                if output.status.success() || source.try_exists()? {
                     std::fs::copy(source, directory.join(name))?;
                 }
             }
