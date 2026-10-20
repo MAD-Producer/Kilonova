@@ -143,3 +143,29 @@ and historical visual acceptance above keep their original source boundaries;
 no new complete application screenshot or full-suite run is claimed here.
 The following documentation-only commit does not change tested source. Actual
 parent squash reconciliation and all six final-head remote checks remain required.
+
+
+## Combined shortcut and distribution acceptance — 2026-10-20
+
+Tested local source `6bc6997b986db07c56763f156e46c0f3c076ec05`
+has tree `f7a110ebfa771444c9d8ac1c8b58943a3c8e2ac1`. It combines
+the reviewed distribution candidate with the unchanged published shortcut
+parent. With MOTION_LOG unset, 53 selected tests passed without failures
+or ignores: nine host geometry/history cases (11.71s), five desktop alignment
+and distribution cases (22.38s), and 39 timeline shortcut cases (2.37s).
+Logs are `artifacts/pr-queue/366-cross-chain-{host,align,shortcuts}.log`.
+
+The reused target directory contained artifacts from a different worktree.
+While another build was active, cleanup was deferred without deleting files.
+Only the modification times of this worktree's unchanged motion-model and
+motion-core library entry files were refreshed; their hashes and clean Git
+status were verified. Cargo then recompiled the current dependencies under its
+own locks. No source, assertion, retry or timeout was changed.
+
+Provenance (1,575 tracked paths), panel style consumers and whitespace guards
+passed. Exact source, log hashes and cache preparation are recorded under
+`.tools/issue-closure-review/366-cross-chain-*.json`. Build outputs, temporary
+files and logs remain on E. These targeted results add no new full-suite,
+physical-input, DPI, packaged-video or other-platform manual claim.
+This candidate remains local pending reconciliation with the actual parent
+squashes and six successful checks on its final published head.
