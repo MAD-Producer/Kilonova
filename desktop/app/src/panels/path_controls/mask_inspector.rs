@@ -298,6 +298,7 @@ impl Controls {
         input: &Input,
         locale: Locale,
         host: Panel,
+        filter: crate::panels::types::PropertyFilter,
         out: &mut Vec<Action>,
     ) {
         let context = (
@@ -464,6 +465,7 @@ impl Controls {
             ..mask_keys::Owner::from(layer)
         };
         for mask in &layer.masks {
+            if !mask_path::CHANNELS.into_iter().any(|channel|crate::panels::modified_properties::mask_visible(filter,mask,channel)) { continue; }
             let closed = self.collapsed_mask_cards.contains(&(layer.id, mask.id));
             let heading = Rect::new(
                 area.min[0] + padding + indent,
@@ -613,6 +615,7 @@ impl Controls {
             }
             *y += row;
             for index in mask_path::CHANNELS {
+                if !crate::panels::modified_properties::mask_visible(filter,mask,index) { continue; }
                 let (property, title, range) = spec(index, locale);
                 let values = if index == mask_path::CHANNEL {
                     vec![]

@@ -1,10 +1,10 @@
 name: CI
 
 on:
+  # Include stacked PRs whose base is another feature branch.
   pull_request:
-    branches: [main]
   push:
-    branches: ['**']
+    branches: [main]
     tags: ['v*']
   workflow_dispatch:
 
@@ -12,8 +12,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  # PR refs identify the PR, including forks with identical branch names.
+  # Keep manual validation separate from trusted push publication.
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
 
 env:
   CARGO_TERM_COLOR: always

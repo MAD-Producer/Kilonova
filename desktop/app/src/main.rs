@@ -26,6 +26,8 @@ mod workflow;
 mod workspace;
 #[cfg(test)]
 mod configuration_tests;
+#[cfg(all(test, target_os = "windows"))]
+mod native_test_support;
 use i18n::{Locale, Text as T};
 
 use engine::{AtlasUpload, Engine, UiFrame};
@@ -467,6 +469,7 @@ impl Shell {
             }
         }
         shell.panels.timeline.column_visibility = shell.workspace.column_visibility();
+        if shell.smoke.is_none() { shell.restore_preview_preference()?; }
         shell.panels.timeline.sampling_visibility = shell.workspace.timeline_sampling_columns;
         Ok(shell)
     }

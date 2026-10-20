@@ -106,7 +106,7 @@ impl LayerRows {
             .properties
             .iter()
             .enumerate()
-            .filter(|(_, p)| transform_open && filter.admits(p.property, !p.keys.is_empty()))
+            .filter(|(_, p)| transform_open && filter.admits(p.property, !p.keys.is_empty(), p.modified))
             .map(|(i, _)| i)
             .collect::<Vec<_>>();
         let mask_rows = if expanded {
@@ -140,13 +140,19 @@ impl LayerRows {
             }));
         }
         let transform = masks.end..next;
+        let audio_rows = match filter {
+            super::types::PropertyFilter::All => row.audio,
+            super::types::PropertyFilter::Animated => row.filtered_audio[0],
+            super::types::PropertyFilter::Modified => row.filtered_audio[1],
+            super::types::PropertyFilter::Properties(_) => 0,
+        };
         let audio = transform.end
             ..transform.end
-                + if expanded && row.audio > 0 {
+                + if expanded && audio_rows > 0 {
                     1 + if t.collapsed_audio.contains(&row.id) {
                         0
                     } else {
-                        row.audio
+                        audio_rows
                     }
                 } else {
                     0

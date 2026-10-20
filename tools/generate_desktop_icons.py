@@ -88,6 +88,12 @@ def compile_svg(source):
         fill, stroke = element.get("fill", "currentColor"), element.get("stroke", "none")
         if fill not in ("none", "currentColor") or stroke not in ("none", "currentColor"):
             raise ValueError("icons must use currentColor")
+        cap = element.get("stroke-linecap", "butt")
+        join = element.get("stroke-linejoin", "miter")
+        if cap not in ("butt", "round", "square"):
+            raise ValueError(f"{str(source)[:2048]}: unsupported stroke-linecap {cap[:128]!r}")
+        if join not in ("miter", "round", "bevel"):
+            raise ValueError(f"{str(source)[:2048]}: unsupported stroke-linejoin {join[:128]!r}")
         # Translation and positive uniform scaling preserve the stroke contract.
         transform = element.get("transform", "matrix(1 0 0 1 0 0)")
         match = re.fullmatch(r"matrix\(([^)]+)\)", transform)
@@ -111,7 +117,7 @@ def compile_svg(source):
         if width < 0 or not math.isfinite(width):
             raise ValueError("invalid stroke width")
         shapes.append({"commands": commands, "fill": fill != "none", "stroke": width,
-                       "cap": element.get("stroke-linecap", "butt"), "join": element.get("stroke-linejoin", "miter")})
+                       "cap": cap, "join": join})
     return {"sha256": hashlib.sha256(raw).hexdigest(), "shapes": shapes}
 
 
