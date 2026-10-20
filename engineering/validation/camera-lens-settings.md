@@ -181,3 +181,36 @@ and historical visual acceptance above keep their original source boundaries;
 no new complete application screenshot or full-suite run is claimed here.
 The following documentation-only commit does not change tested source. Actual
 parent squash reconciliation and all six final-head remote checks remain required.
+
+
+## Complete layer-operation chain acceptance — 2026-10-20
+
+Unpublished source `33beb9fb8c9d5b171c67cbbe367e972beec508c1` cleanly integrates the documented combined
+navigation/distribution candidate. All non-validation blobs exactly match
+the reviewed complete product tree `e18a4ab9`; actual main ancestry includes
+the merged alignment and shortcut parents. No conflict or implementation
+change was introduced by this step.
+
+With MOTION_LOG unset, twelve selected cases passed without failures/ignores:
+- `373-combined-parent-core.log`: 7 passed (0.07s)
+- `373-combined-parent-panel.log`: 5 passed (40.64s)
+
+The core cases cover projection conversions, animated/local-time edits,
+atomic rejection, numeric boundaries and persistence/export. Desktop cases
+cover preset selection, cancel/commit history, malformed/locked targets,
+real failure and recovery with default file/stderr/stdout isolation, and
+native bilingual rendering. Provenance (1,586 tracked paths), panel style
+consumers and whitespace guards passed.
+
+To avoid another worktree's incompatible cached model/core variant, only
+the modification times of this worktree's unchanged library entry files
+were refreshed, with exact content hashes and clean Git status verified.
+Cargo rebuilt the current source under its locks. No cache was deleted,
+and no assertion, timeout, ignore or source content changed during the run.
+Build outputs, temporary files and logs remain on E.
+
+This selected run adds no new full-suite or complete-application visual,
+physical DPI or other-platform manual claim. The candidate remains local:
+actual parent squash reconciliation and all six final-head remote checks
+are still required before merge. Earlier feature-parent green checks keep
+their historical scope.
