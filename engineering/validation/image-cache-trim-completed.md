@@ -44,3 +44,31 @@ Local raw evidence is under `E:/Dev/aem/artifacts/issue-126-image-trim-*.log`. T
 ## Remaining work
 
 This does not close aggregate #126. Vector group uniforms, image-input ordering, presenter binding ownership, cold pipeline waits, and other frame allocations require independent verification and changes. No panels, presentation rules, layout, UI interactions, dependencies, third-party assets, or user-facing strings change in this batch.
+
+
+## Native CI integration refresh — 2026-10-20
+
+To clear the existing PR queue, this branch now includes the reviewed #368 head
+`1381cc1`, including the already merged #364 Intel budget. The PR's Rust
+implementation and regression files are byte-identical to the previous head;
+the incoming CI/test infrastructure changes are tracked in
+`native-ci-failure-evidence.md`. Main's zlib source attribution update is retained
+where applicable. No existing assertion, timeout or ignore policy is relaxed.
+
+This is a real baseline change, not a rerun of an unchanged failed head. The
+sampling fixture avoids crossing its original 100-second loop during a slow
+run while retaining strict adjacent-frame progress checks. PNG diagnostics
+publish in-flight, queue and GPU context on the original timeout; adding that
+evidence is not described as fixing the underlying PNG timeout. Evidence paths
+are absolute and fall inside the always-upload directory.
+
+The prior per-PR validation recorded above remains historical evidence. A local
+combined-tree acceptance run is in progress in `artifacts/pr-queue-complete-tests.log`;
+it is not claimed as a full successful run or a replacement for this head's CI.
+The local combined timeline-shortcut suite passed all 39 tests and the tools
+suite passed 54 of 55 checks with one existing optional external-loader skip.
+Those combined results include other PRs, not just this individual branch.
+
+The branch is prepared for stacking on #368, then returning to main after the
+parent merges. Actual publication and final remote checks must be verified
+separately. No new optimization PR, dependency, asset or visual change is added.
