@@ -58,3 +58,26 @@
 本次没有重跑整套桌面/渲染或 FFmpeg 发布构建，旧 head 的完整套件与截图保留原范围；此次无用户可见 UI 变化，不重拍旧界面。最终远程组合 CI、高 DPI 与其他 OS 人工交互仍待验证。父 PR 合入 main 后再核对/调整 base；原采样递增断言、PNG 等待与分布顺序拒绝断言均未改。
 
 本地 Git 传输连接重置且 HTTP/2 连接失败后，改用 Git 数据接口发布。仅将两个未发布提交的时间时区统一为 UTC，并同步本段集成提交引用；作者、时刻、中文消息、父关系与已验证的产品文件内容保持一致。发布前逐项比较树和对象哈希，远程仅快进，不改已发布历史。原网络失败与发布对象核对记录位于 artifacts/pr-queue/。
+
+## Current alignment-parent integration
+
+Local candidate `27d603d6` cleanly merges updated alignment parent `18194c7a`
+and matches preview tree `fb091bed`. Relative to the new parent, the same ten
+feature files change; every added/deleted feature line matches the original
+distribution delta. The integration inherits real-main preferences, property
+reveal, grapheme editing, image-trim reuse and the reviewed CI/native helper.
+It introduces no new distribution behavior, layout, style or menu changes.
+
+Fresh tests passed: host alignment/distribution 9 (9.07 seconds) and desktop
+controls, real worker failures/recovery and position regression 5 (20.40):
+fourteen cases, no failures or ignores. Provenance (1,559 tracked paths),
+style-consumer and whitespace guards passed. Evidence is retained in
+`.tools/issue-closure-review/366-current-parent-{integration,acceptance}.json`
+and `artifacts/pr-queue/366-current-parent-{host,desktop}.log`.
+
+This candidate and its following documentation-only commit remain local while
+#365's current-head checks run. Its historical screenshots and full-suite
+results keep their original source scope. No new full-suite, native capture,
+packaged video or other-platform manual run is claimed. After #365 reaches
+main, recheck the real squash/main tree before updating this existing PR and
+requiring its own fresh remote checks. No remote head was changed in this step.
