@@ -7,7 +7,7 @@ mod tests;
 impl Shell {
     pub(crate) fn panel_maximize_shortcut(&mut self, size: [f32; 2]) -> bool {
         let pressed = self.input.key_presses().any(|(key, modifiers, repeat)| {
-            shortcuts::resolve(shortcuts::Scope::Application, key, modifiers, repeat)
+            self.panels.shortcut_bindings.resolve(shortcuts::Scope::Application, key, modifiers, repeat)
                 == Some(shortcuts::Command::TogglePanelMaximize)
         });
         if !pressed

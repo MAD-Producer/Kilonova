@@ -1,4 +1,5 @@
 mod composition;
+pub(crate) mod preferences;
 use crate::i18n::Locale;
 use motion_ui::{
     input::{Input, Key, MouseButton, Rect},
@@ -71,6 +72,10 @@ pub fn imported_faces(path: &std::path::Path) -> Result<Vec<FontChoice>, String>
     Ok(faces)
 }
 pub enum Event {
+    Preferences(crate::workspace::preferences::Preferences),
+    PreferencesStyle,
+    PreferencesImportKeys,
+    PreferencesExportKeys,
     Settings(Value),
     CreateComposition(Value),
     Text {
@@ -88,6 +93,7 @@ enum Kind {
     Text,
 }
 pub struct Dialog {
+    pub(crate) preferences: Option<preferences::Editor>,
     kind: Kind,
     settings_tab: usize,
     preset_dropdown: motion_ui::widgets::Dropdown,
@@ -149,6 +155,7 @@ impl Dialog {
         let p = &state["project"];
         Self {
             kind: Kind::Settings,
+            preferences: None,
             settings_tab: 0,
             preset_dropdown: Default::default(),
             preset_index: 0,
@@ -177,6 +184,7 @@ impl Dialog {
             .or_else(|| (!fonts.is_empty()).then_some(0));
         Self {
             kind: Kind::Text,
+            preferences: None,
             settings_tab: 0,
             preset_dropdown: Default::default(),
             preset_index: 0,
@@ -204,6 +212,9 @@ impl Dialog {
         input: &Input,
         locale: Locale,
     ) -> Option<Event> {
+        if let Some(preferences) = &mut self.preferences {
+            return preferences.draw(list, atlas, size, input, locale, self.error.as_deref());
+        }
         if !matches!(self.kind, Kind::Text) {
             return self.composition_ui(list, atlas, size, input, locale);
         }

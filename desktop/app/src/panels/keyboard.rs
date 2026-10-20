@@ -3,7 +3,7 @@ use super::{
     helpers::last_frame,
     types::{Action, EffectSearch, Panels},
 };
-use crate::shortcuts::{self, Command, Scope, EFFECT_SEARCH};
+use crate::shortcuts::{Command, Scope, EFFECT_SEARCH};
 use motion_core::Command as Edit;
 use motion_ui::{
     dock::Panel,
@@ -79,6 +79,17 @@ pub fn route(
     owner: Option<Panel>,
     out: &mut Vec<Action>,
 ) -> bool {
+    if input.focus_lost || input.composing || input.ime_consumed
+        || input.pressed.is_some() || input.wheel != [0.; 2] || text_active(panels) || node_context
+        || panels.menu.is_some() || panels.panel_menu.is_some()
+        || panels.timeline.timeline_context_menu.is_some()
+        || panels.project.context_menu.is_some() || panels.effect_search.is_some()
+        || panels.node_editor.popup_open() || panels.layer_actions.modal_in(owner)
+        || panels.layer_actions.text_in(owner) || panels.layer_actions.modal_in(Some(Panel::Timeline))
+        || panels.layer_actions.text_in(Some(Panel::Timeline))
+    {
+        panels.property_reveal.interrupt();
+    }
     super::property_focus::settle(panels);
     if let Some(search) = &panels.effect_search {
         let owned = search.owner == owner;
@@ -111,7 +122,8 @@ pub fn route(
     // File commands still commit the shared node document's active field once.
     if node_context {
         for (key, modifiers, repeat) in input.key_presses() {
-            let request = match shortcuts::resolve(Scope::Nodes, key, modifiers, repeat) {
+            if text_active(panels) && !modifiers.control {continue;}
+            let request = match panels.shortcut_bindings.resolve(Scope::Nodes, key, modifiers, repeat) {
                 Some(Command::Open) => crate::node_editor::Request::Open,
                 Some(Command::Save) => crate::node_editor::Request::Save,
                 Some(Command::SaveAs) => crate::node_editor::Request::SaveAs,
@@ -134,7 +146,8 @@ pub fn route(
     }
     if !input.composing
         && !input.ime_consumed
-        && KeyChord::new(Key::R, true, false, false).pressed(input)
+        && !text_active(panels)
+        && input.key_presses().any(|(k,m,r)| panels.shortcut_bindings.resolve(Scope::Application,k,m,r)==Some(Command::ReloadStyle))
     {
         out.push(Action::ReloadStyle);
         return true;
@@ -142,30 +155,34 @@ pub fn route(
     if text_active(panels) || input.composing || input.ime_consumed {
         return false;
     }
+    // Legacy property handlers still consume J/K/Delete-shaped commands; adapt only
+    // their input, after focus/IME ownership, using the effective user mapping.
+    let adapted = panels.shortcut_bindings.property_input(input);
+    let property_input = adapted.as_ref().unwrap_or(input);
     let effects_owned = super::property_focus::navigation_scope(panels.focused)
         && (panels.effect_controls.has_key_channel() || panels.properties.effects.has_key_channel());
     let effects_navigated = effects_owned && if panels.effect_controls.has_key_channel() {
-        panels.effect_controls.navigate_keys(state, panels.selected, input, out)
-    } else {panels.properties.effects.navigate_keys(state, panels.selected, input, out)};
-    if effects_navigated || effects_owned && input.key_presses().any(|(key, modifiers, _)|
+        panels.effect_controls.navigate_keys(state, panels.selected, property_input, out)
+    } else {panels.properties.effects.navigate_keys(state, panels.selected, property_input, out)};
+    if effects_navigated || effects_owned && property_input.key_presses().any(|(key, modifiers, _)|
         matches!(key, Key::J | Key::K) && !modifiers.control && !modifiers.alt && !modifiers.shift) {
         return true;
     }
     let property_navigation = super::property_focus::navigation_scope(panels.focused)
-        && input.key_presses().any(|(key, modifiers, _)| matches!(key, Key::J | Key::K)
+        && property_input.key_presses().any(|(key, modifiers, _)| matches!(key, Key::J | Key::K)
             && !modifiers.control && !modifiers.alt && !modifiers.shift);
     if (property_navigation || matches!(
         panels.focused,
         Some(Panel::Masks | Panel::Properties | Panel::Vector | Panel::Timeline | Panel::Curves)
     )) && panels
         .path_controls
-        .mask_key_shortcuts(state, panels.selected, input, out)
+        .mask_key_shortcuts(state, panels.selected, property_input, out)
     {
         return true;
     }
     if node_context && !panels.node_editor.editing() {
         for (key, modifiers, repeat) in input.key_presses() {
-            let command = shortcuts::resolve(Scope::Nodes, key, modifiers, repeat);
+            let command = panels.shortcut_bindings.resolve(Scope::Nodes, key, modifiers, repeat);
             if !matches!(command, Some(Command::Undo | Command::Redo)) {
                 continue;
             }
@@ -201,21 +218,22 @@ pub fn route(
     {
         if node_context {
             if !panels.node_editor.editing() {
-                if KeyChord::new(Key::Space, false, false, false).pressed(input) {
+                if input.key_presses().any(|(k,m,r)| panels.shortcut_bindings.resolve(Scope::Nodes,k,m,r)==Some(Command::Play)) {
                     panels.node_preview.toggle();
                     return true;
                 }
-                handle_context_shortcuts(input, panels, state, out, true);
+                handle_context_shortcuts(input, panels, state, out, true, owner);
             }
         } else {
-            handle_shortcuts(input, panels, state, out);
+            handle_context_shortcuts(input, panels, state, out, false, owner);
         }
     }
     false
 }
 
+#[cfg(test)]
 pub fn handle_shortcuts(input: &Input, panels: &mut Panels, state: &Value, out: &mut Vec<Action>) {
-    handle_context_shortcuts(input, panels, state, out, false);
+    handle_context_shortcuts(input, panels, state, out, false, None);
 }
 
 fn handle_context_shortcuts(
@@ -224,18 +242,30 @@ fn handle_context_shortcuts(
     state: &Value,
     out: &mut Vec<Action>,
     node_context: bool,
+    owner: Option<Panel>,
 ) {
     let mut frame = state["frame"].as_f64().unwrap_or(0.0);
     for (key, modifiers, repeat) in input.key_presses() {
+        let property_reveal = panels.shortcut_bindings.resolve(
+            Scope::Animation, key, modifiers, false,
+        ) == Some(Command::AnimatedProperties);
+        if property_reveal && repeat {
+            panels.property_reveal.interrupt();
+            continue;
+        }
+        if !property_reveal {
+            panels.property_reveal.interrupt();
+        }
         // Document edits and canvas navigation remain owned by the node scope.
         // These application actions have no competing node action.
         if node_context {
-            let allowed = match shortcuts::resolve(Scope::Application, key, modifiers, repeat) {
+            let allowed = match panels.shortcut_bindings.resolve(Scope::Application, key, modifiers, repeat) {
                 Some(
                     Command::NewProject
                     | Command::NewComposition
                     | Command::Import
                     | Command::Settings
+                    | Command::Preferences
                     | Command::Export
                     | Command::Solid
                     | Command::Text
@@ -252,11 +282,8 @@ fn handle_context_shortcuts(
                 continue;
             }
         }
-        if key == Key::A
-            && modifiers.control
-            && !modifiers.alt
-            && !modifiers.shift
-            && !repeat
+        if panels.shortcut_bindings.resolve(Scope::Application,key,modifiers,repeat)
+            == Some(Command::SelectAll)
             && super::graph_box::select_all(panels, state)
         {
             continue;
@@ -267,7 +294,21 @@ fn handle_context_shortcuts(
                 | Panel::EffectControls | Panel::Masks | Panel::Vector | Panel::Audio))
                 && panels.animation_controls.track_selection(state, panels.selected)
                     == super::animation_controls::TrackSelection::Invalid;
-        if let Some(command) = shortcuts::resolve(Scope::Animation, key, modifiers, repeat) {
+        if let Some(mut command) = panels.shortcut_bindings.resolve(Scope::Animation, key, modifiers, repeat) {
+            if command == Command::AnimatedProperties && matches!(panels.focused,
+                Some(Panel::Timeline | Panel::Curves | Panel::Properties | Panel::Composition)) {
+                use std::hash::{Hash, Hasher};
+                let mut context = std::collections::hash_map::DefaultHasher::new();
+                state["root"].as_str().hash(&mut context);
+                state["composition"].as_str().hash(&mut context);
+                panels.selected.hash(&mut context);
+                panels.selected_layers.hash(&mut context);
+                panels.focused.map(|panel| panel.dock().0).hash(&mut context);
+                owner.map(|panel| panel.dock().0).hash(&mut context);
+                if panels.property_reveal.press(context.finish(), std::time::Instant::now()) {
+                    command = Command::ModifiedProperties;
+                }
+            }
             if super::timeline_zoom::shortcut(command, input, panels, state) {
                 continue;
             }
@@ -283,7 +324,7 @@ fn handle_context_shortcuts(
                 continue;
             }
         }
-        let Some(command) = shortcuts::resolve(Scope::Application, key, modifiers, repeat) else {
+        let Some(command) = panels.shortcut_bindings.resolve(Scope::Application, key, modifiers, repeat) else {
             continue;
         };
         let selected_ids = panels.editable_selection(state);
@@ -296,6 +337,7 @@ fn handle_context_shortcuts(
             Command::Save => Action::Save,
             Command::Import => Action::ImportMedia,
             Command::Settings => Action::CompositionSettings,
+            Command::Preferences => Action::Preferences,
             Command::Export if cfg!(feature = "ffmpeg") => Action::ExportMovie,
             Command::Export => {
                 static REPORTED: std::sync::Once = std::sync::Once::new();

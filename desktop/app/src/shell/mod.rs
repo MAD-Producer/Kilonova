@@ -13,6 +13,9 @@ mod presentation;
 pub(crate) mod presentation_observation;
 
 pub(crate) mod styles;
+mod preferences;
+mod preferences_acceptance;
+mod shortcut_acceptance;
 
 mod workspaces;
 mod panel_maximize;
@@ -20,6 +23,7 @@ mod panel_maximize_acceptance;
 mod workspace_acceptance;
 
 mod design_acceptance;
+mod alignment_acceptance;
 mod interaction_acceptance;
 mod property_acceptance;
 mod shape_resize_acceptance;

@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 
 #[derive(Default)]
 pub(crate) struct State {
+    pub(super) align: super::align::Controls,
     pub scroll: BTreeMap<u32, f32>,
     color_popup: Option<ColorPopup>,
     preview_quality: Dropdown,
@@ -32,6 +33,8 @@ impl State {
             Some(Panel::Character)
         } else if self.preview_quality.open {
             Some(Panel::Preview)
+        } else if self.align.target.open {
+            Some(Panel::Align)
         } else {
             None
         }
@@ -40,6 +43,7 @@ impl State {
         let begun = self.color_field.take().is_some_and(|(_, mut f)| f.cancel());
         self.color_popup = None;
         self.preview_quality.open = false;
+        self.align.target.open = false;
         begun
     }
 }

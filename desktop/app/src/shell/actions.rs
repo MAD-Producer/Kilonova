@@ -140,6 +140,7 @@ impl Shell {
         context.action = match &action {
             Action::Edit(command) => motion_core::CommandRegistry::id(command),
             Action::EditBatch(_) => "command_batch",
+            Action::AlignLayers { .. } => "align_layers",
             Action::Seek(_) => "seek",
             Action::History(_) => "history",
             Action::Plugin(_) => "plugin",
@@ -213,6 +214,7 @@ impl Shell {
                 self.stop();
                 self.dialog = Some(dialogs::Dialog::new_composition(w, h));
             }
+            Action::Preferences => self.open_preferences(),
             Action::CompositionSettings => {
                 self.stop();
                 self.dialog = Some(dialogs::Dialog::settings(&self.state));
@@ -256,6 +258,10 @@ impl Shell {
                     self.engine
                         .edit_async(serde_json::to_string(&commands).map_err(|e| e.to_string())?)?,
                 ));
+            }
+            Action::AlignLayers {objects,edge,target} => {
+                self.stop();
+                self.editing=Some((Instant::now(),self.engine.align_layers_async(objects,edge,target)?));
             }
             Action::NewNodeEffect(object) => {
                 self.open_node_effect(object, None, false, event_loop)?
@@ -564,7 +570,7 @@ impl Shell {
                 if self.smoke.is_none() { self.workspace.save(&self.layout_path)?; }
             }
             Action::PreviewMode(mode) => {
-                self.state["preview"] = self.engine.preview_mode(mode, 0)?
+                self.set_preview_preference(mode)?;
             }
             Action::ViewKind(kind) => {
                 self.editing = Some((Instant::now(), self.engine.view_async(kind)?));

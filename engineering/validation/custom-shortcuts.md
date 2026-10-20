@@ -1,0 +1,70 @@
+# #277 自定义快捷键与偏好侧边栏验收
+
+## 范围与分支边界
+
+基于 #357 `feat/editor-preferences` 堆叠；开始前核对工作树与开放 PR，避开 #349 已修改属性筛选、#351 测试配置隔离及媒体/渲染分支。快捷键页复用偏好分类侧边栏；没有新增依赖、第三方素材或兼容名称。后续合入 #349 时，其新增命令需按编译器穷尽检查补充本地化名称。
+
+映射由原有 resolver 生成命令目录，空覆盖保持原默认行为。应用、动画、节点按实际焦点域比较冲突，不静默夺取现有键位。支持录入、解除绑定、恢复单项、预设导入/导出、全部重置和独立草稿撤销/重做。恢复默认也检查目标默认键位是否被占用。预设版本为 1，读取最多 64 KiB，覆盖最多 128 项，拒绝未知字段、未知命令、重复项、非法版本和保留键。
+
+应用前验证完整候选，持久化成功后发布共享不可变映射；主窗、浮窗、节点及菜单提示同时使用新值。取消保留已保存配置，改键不写工程历史。既有文件原子发布用于导出，失败保留旧文件和有效映射。
+
+文本、IME、菜单及拖动仍优先。结构性 Escape/Enter、文本光标与效果搜索 Ctrl+Space 不在可改键目录；节点字段的 Ctrl 文档操作仍先提交字段，自定义无 Ctrl 字母不会抢走文本。Shift 保持原有步长/追加语义。属性局部 J/K/Delete 接口通过独立输入副本适配，不改传给字段或画布的输入。此次另修复曲线框选全选仍硬编码 Ctrl+A 的入口，以及分类点击帧选中行未同步的问题；这些是功能修复，不计为新增日志。
+
+## 故障、正常分支和协议边界
+
+| 编号 | 处置与证据 |
+| --- | --- |
+| KEY-01 新增观测 | 导入、导出在实际 IO 前 Info start 并 flush；完成 Debug；失败 Error 含 operation、耗时、有界路径及原始原因。真实坏 JSON 和发布目标为目录的失败，各一次出现在文件与 stderr；stdout 无日志。 |
+| KEY-02 现有覆盖 | 应用沿用 #251 样式/字体/引擎/写盘前 start、主失败与回滚失败分离、原子保存及 UI 错误通道。工作线程的 in-flight、panic 和通道处理不改变。 |
+| KEY-03 正常分支 | 录入冲突、保留键、取消录入、空撤销、关闭弹层、文件选择器取消、焦点丢失属于用户输入或正常退出；显示校验反馈但不增加故障日志。 |
+| KEY-04 功能边界 | 文件选择器进入阻塞操作前 Info start，返回 Debug；本次没有新增超时、重试、线程重启或吞错策略。系统文件选择器无法返回原生内部失败原因是既有接口限制。 |
+| KEY-05 持久数据 | 实际成功导入仅改草稿；非法输入不改草稿、运行映射或已存字节；实际导出失败保留原目标并清理本次临时文件；有效请求随后可成功。保存重开及取消均检查工程、revision、undo、redo 不变。 |
+
+## 验证记录
+
+- 与 #351 `096a946` 在专用组合工作树运行完整桌面回归：615 通过、0 失败、1 个既有音频设备测试忽略，216.20 秒。该次全套之后增加全选入口与分类点击帧修复；随后定向 `custom_` 6 通过、`preferences` 21 通过、`panels::keyboard::` 12 通过，未将后续定向结果称作全套重跑。
+- 键位模型验证全部默认组合兼容、域冲突、重复与保留键、坏/超大/未知版本预设、解除/恢复冲突和真实文件往返。节点改键测试覆盖长按一次撤销、释放结束和文本优先；属性测试覆盖真实效果参数寻帧与图层时间偏移。
+- 真实交互测试覆盖主窗/浮窗、多个节点和工程焦点域、中英文、录入时 IME、Escape、焦点丢失、下拉关闭帧、局部撤销，以及分类点击帧与稳定帧的绘制一致性。
+- 默认日志级别实际子进程验证：3 条导入 start、2 条导出 start 只写文件；导入/导出各 1 条失败同时写文件和 stderr；stdout 隔离。没有用成功 mock 代替失败路径。
+- 带 FFmpeg 的最终原生构建成功，保留 21 条已有警告。中英文原生 GPU 截图包括侧边栏、录入、保留键反馈、作用域/命令下拉、窄窗、编辑菜单及两个真实右键菜单。截图在 `artifacts/custom-shortcuts/native-verified/`；菜单仅更换实际键位提示，保留原外观。
+- 原生重启与 OS 焦点测试读取实际已保存映射：旧 Ctrl+, 不打开设置，新 Ctrl+E 从真实属性浮窗转焦点到主窗；取消后工程与历史不变。分类点击帧修复后的最终复验通过，证据在 `artifacts/custom-shortcuts/native-restart-verified/summary.json` 与实际桌面截图；程序正常退出。
+- 验证过程保留了初轮默认文档漂移、截图辅助代码漏导入 Rect、旧测试点击坐标落入新增第三分类、新增测试误以为夹具没有初始撤销历史等失败记录。分别生成既有默认文档、补导入、调整新增布局下的点击坐标、对比真实历史基线；未删除或放宽既有断言。菜单截图初轮因初始化重置而未展开，修正夹具初始化顺序后重拍，不把旧截图计作菜单证据。
+
+## 最新主干与堆叠集成复验（2026-10-20）
+
+同步父分支 #357 `8154b34`，包含主干 `8dbd58c0` 的 #356、#359、#360，集成提交为 `bc22cc0`。完整桌面回归 **634 通过、0 失败、1 个既有音频设备测试忽略，502.70 秒**；带 FFmpeg 的最终原生构建通过（47.05 秒，21 条既有警告）。记录见 `artifacts/custom-shortcuts/main-integration-clean-ui-tests.log`、`main-integration-build.log`。
+
+首次编译曾复用共享 Cargo target 中较旧的 motion-ui 产物，产生 KeyB/KeyC/KeyV 等缺失错误；确认源码已有这些枚举后，仅清理本次使用 target 的 motion-ui 包并重建，未改产品代码或断言。保留初次失败日志 `main-integration-tests.log`，不将其计为成功。
+
+最终二进制完成实际保存、重启、原生浮窗与 OS 焦点复验：旧 Ctrl+, 不再打开设置，新 Ctrl+E 从浮窗转到主窗；取消保留工程和历史。证据为 `main-integration-restart/summary.json` 与两张原生桌面图。
+
+中英文全套原生属性、偏好设置、快捷键及两个真实右键菜单验收通过，证据为 `main-integration-native-serial/` 和 `main-integration-capture-serial.log`。首次并行执行的英文验收达到原有 90 秒截止点而失败，保留其部分截图、超时日志与 last-stalls；未将该次计为通过，也未延长预算。结束本次完整测试后，以同一二进制、相同每语言 90 秒预算串行执行，中英文均通过。尚不能只凭串行通过认定首次超时的根因。
+
+## DESIGN §0.7 逐项处置与 §12 限制
+
+| 基线位置 | 处置 |
+| --- | --- |
+| path_controls 六处行推进 | retained with reason：不改路径行排版。 |
+| path_controls 双列分配 | retained with reason：不改路径字段几何。 |
+| path_controls 混合按钮高度 | retained with reason：不缩小原命中区。 |
+| path_controls 自绘数值背景 | retained with reason：不改数值控件。 |
+| path_controls 全宽布尔按钮 | retained with reason：不改路径布尔值控件。 |
+| effect_controls 行高与推进 | retained with reason：只接入寻帧输入，不改效果行。 |
+| effect_controls 布尔文本按钮 | retained with reason：不改属性控件类型。 |
+| effect_controls 全宽枚举 | retained with reason：不改效果枚举。新设置使用原生 Dropdown。 |
+| effect_controls with_alpha 悬停 | retained with reason：不改该绘制分支。 |
+| effect_controls 树缩进 | retained with reason：不重写效果树。 |
+| timeline 列坐标 | retained with reason：保持兼容基线，只修改命令路由与菜单提示。 |
+| timeline 吸附线颜色 | retained with reason：不改拖动反馈。 |
+
+新增侧边栏/设置布局使用已有语义尺寸与颜色，没有新 token 或面板字面量尺寸。已有右键菜单的布局、颜色和浅色层级菜单保留，未声称完成旧样式整改。实际截图为 DPI 1；高 DPI、macOS/Linux 人工交互仍待验证。局部通过不等于 DESIGN 全项合规。
+
+## CI 前置修复接入（2026-10-20）
+
+同步父分支 #357 `e19a49b2aff0b71420cf5eeb477e071b51baf9d9`，集成提交 `b546464`。合并预演无冲突，实际相对原快捷键 head 仅七个上游文件：工作流、两个原生测试及四项文档/工具更新；未改快捷键映射、偏好界面、菜单或 token。原有 634 项完整桌面回归及原生截图属于前一 head 的证据，本次没有将其冒充新 head 全套重跑。
+
+本次只对实际变化完成定向组合验收：原生采样播放 **1 通过，40.68 秒**；中英文 PNG 导出生命周期 **1 通过，16.53 秒**；工作流 **5 通过，8.547 秒**。原生采样四种模式、每种 5 次预热与 60 次完成、严格递增断言及原有截止时间均保留。来源检查（1543 个跟踪路径）、面板样式引用检查和差异检查通过。证据在 `artifacts/pr-queue/shortcuts-ci-integration-{sampling,frame-export,workflow-discover}.log`；本机测试产物位于 `artifacts/custom-shortcuts/ci-integration/`。
+
+首次以 `python -m unittest tools.test_ci_workflow` 调用时，工具目录没有加入模块搜索路径，报 `ModuleNotFoundError: ci_release`；保留 `shortcuts-ci-integration-workflow.log`。改用仓库现有工具发现方式 `unittest discover -s tools -p test_ci_workflow.py` 后通过，未改测试或断言。没有为本次仅上游测试/工作流集成重拍旧界面；高 DPI、其他平台人工操作和最终远程 CI 仍待验证。
+
+依赖顺序为 #368 → #357 → #362；父 PR 合入 main 后再核对并调整子 PR base。#349 已知 keyboard.rs/types.rs 集成冲突仍待处理，默认 U/UU 与改键后动画命令的组合不能靠机械选择冲突一侧完成。

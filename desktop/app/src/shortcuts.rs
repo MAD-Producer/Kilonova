@@ -1,14 +1,17 @@
 //! Default desktop chords shared by application and node contexts.
 use motion_ui::input::{Key, KeyChord, Modifiers};
+pub(crate) mod bindings;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Scope {
     Application,
     Animation,
     Nodes,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Command {
     ReloadStyle,
     TogglePanelMaximize,
@@ -19,6 +22,7 @@ pub enum Command {
     SaveAs,
     Import,
     Settings,
+    Preferences,
     Export,
     Undo,
     Redo,
@@ -64,6 +68,7 @@ pub enum Command {
     LeaveGroup,
     Reveal(motion_core::Property),
     AnimatedProperties,
+    ModifiedProperties,
     PreviousKey,
     NextKey,
     ToggleGraph,
@@ -119,6 +124,7 @@ pub fn resolve(scope: Scope, key: Key, m: Modifiers, repeat: bool) -> Option<Com
         (Application, Key::N, true, false, false) => NewComposition,
         (Application, Key::I, true, false, false) => Import,
         (Application, Key::K, true, false, false) => Settings,
+        (Application, Key::Comma, true, false, false) => Preferences,
         (Application, Key::M, true, false, true) => Export,
         (Application, Key::Space, false, false, false) => Play,
         (Application, Key::Home, false, false, false) => FirstFrame,
@@ -136,6 +142,7 @@ pub fn resolve(scope: Scope, key: Key, m: Modifiers, repeat: bool) -> Option<Com
         (Application, Key::Y, true, false, true) => Adjustment,
         (Application, Key::A, true, false, false) => SelectAll,
         (Application, Key::A, true, true, false) => DeselectAll,
+        (Nodes, Key::Space, false, false, false) => Play,
         (Nodes, Key::S, true, true, false) => SaveAs,
         (Nodes, Key::A, true, false, false) => SelectAll,
         (Nodes, Key::A, true, true, false) => DeselectAll,

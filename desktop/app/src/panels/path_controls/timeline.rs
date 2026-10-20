@@ -13,11 +13,7 @@ pub(in crate::panels) fn key_frames(mask: &LayerMask, index: u8) -> Vec<i32> {
 fn visible(mask: &LayerMask, filter: PropertyFilter) -> Vec<u8> {
     mask_path::CHANNELS
         .into_iter()
-        .filter(|index| match filter {
-            PropertyFilter::All => true,
-            PropertyFilter::Animated => mask_keys::animated(mask, *index),
-            PropertyFilter::Properties(_) => false,
-        })
+        .filter(|index| crate::panels::modified_properties::mask_visible(filter,mask,*index))
         .collect()
 }
 #[derive(Default)]

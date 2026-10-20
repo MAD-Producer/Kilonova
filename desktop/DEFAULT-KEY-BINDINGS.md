@@ -40,6 +40,7 @@
 | Application | Right | true | true | false | NextFrame | true |
 | Application | Home | false | false | false | FirstFrame | false |
 | Application | End | false | false | false | LastFrame | false |
+| Application | Comma | true | false | false | Preferences | false |
 | Animation | A | false | false | false | Reveal(Anchor) | false |
 | Animation | A | false | true | false | Reveal(Anchor) | false |
 | Animation | T | false | false | false | Reveal(Opacity) | false |
@@ -99,6 +100,7 @@
 | Nodes | Equal | false | true | false | Arrange | false |
 | Nodes | Tab | false | false | false | EnterGroup | false |
 | Nodes | Tab | true | false | false | LeaveGroup | false |
+| Nodes | Space | false | false | false | Play | false |
 | Nodes | Delete | false | false | false | Delete | false |
 | Nodes | Backspace | false | false | false | Delete | false |
 | Nodes | Left | false | false | false | MoveLeft | true |
