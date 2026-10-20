@@ -86,3 +86,22 @@ time or job-minute reduction has been measured by the local policy tests.
 
 References: [GitHub concurrency](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency),
 [GitHub PR events](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request).
+
+## Integration after foundation merges
+
+PR #368 and the independently validated grapheme PR #367 are now on main at
+`2cb69d019e447328a8e8d926d8407afa8a83d074`. This branch merges that actual main
+commit. The only conflict was the workflow test method name: the deduplication
+name and full assertions were retained byte-for-byte. The workflow and its
+test file are unchanged from the previous reviewed head. The incoming six
+files are exactly the already merged grapheme change; they do not expand this
+PR's diff against main.
+
+All 54 tooling tests completed again: 53 passed and one existing optional
+external-loader check skipped. Provenance and patch-whitespace checks passed.
+Evidence: `artifacts/pr-queue/374-final-main-integration-tools.log`. Git transport
+failed with a connection reset; the two GitHub-signed main commit objects were
+obtained using the official Git API, reconstructed from their verification
+payloads and signatures, and accepted only after their exact SHA-1 hashes and
+existing local tree objects matched. This is source integration, not a CI rerun
+of an unchanged head. The updated head still requires remote CI.

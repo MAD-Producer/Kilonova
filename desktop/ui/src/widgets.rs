@@ -4,6 +4,7 @@ mod property_layout;
 pub use property_layout::PropertyColumns;
 mod composite;
 pub use composite::*;
+use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
     input::{Key, MouseButton, Rect},
@@ -23,6 +24,7 @@ pub struct TextEditor {
     pub error: Option<String>,
     active: bool,
     select_all: bool,
+    /// Extended grapheme index, never a position inside a displayed character.
     cursor: usize,
     dirty: bool,
 }
@@ -34,7 +36,7 @@ impl TextEditor {
         self.text = value.into();
         self.active = true;
         self.select_all = true;
-        self.cursor = self.text.chars().count();
+        self.cursor = self.text.graphemes(true).count();
         self.error = None;
         self.dirty = false;
     }
@@ -44,9 +46,17 @@ impl TextEditor {
     }
     fn byte_index(&self) -> usize {
         self.text
-            .char_indices()
+            .grapheme_indices(true)
             .nth(self.cursor)
             .map_or(self.text.len(), |(i, _)| i)
+    }
+    fn place_after_byte(&mut self, byte: usize) {
+        // Edits can join both neighbors (ZWJ, combining marks, regional pairs).
+        // Re-segment the complete text and snap forward out of the joined cluster.
+        self.cursor = self.text
+            .grapheme_indices(true)
+            .take_while(|(start, _)| *start < byte)
+            .count();
     }
     pub fn input(&mut self, input: &impl crate::InputSource) -> Option<TextEvent> {
         let view = input.input_view();
@@ -63,14 +73,14 @@ impl TextEditor {
             match key {
                 Key::A if mods.control => {
                     self.select_all = true;
-                    self.cursor = self.text.chars().count();
+                    self.cursor = self.text.graphemes(true).count();
                 }
                 Key::Left => {
                     self.cursor = self.cursor.saturating_sub(1);
                     self.select_all = false;
                 }
                 Key::Right => {
-                    self.cursor = (self.cursor + 1).min(self.text.chars().count());
+                    self.cursor = (self.cursor + 1).min(self.text.graphemes(true).count());
                     self.select_all = false;
                 }
                 Key::Home => {
@@ -78,7 +88,7 @@ impl TextEditor {
                     self.select_all = false;
                 }
                 Key::End => {
-                    self.cursor = self.text.chars().count();
+                    self.cursor = self.text.graphemes(true).count();
                     self.select_all = false;
                 }
                 Key::Backspace | Key::Delete => {
@@ -91,13 +101,15 @@ impl TextEditor {
                         self.cursor -= 1;
                         let start = self.byte_index();
                         self.text.replace_range(start..end, "");
-                    } else if key == Key::Delete && self.cursor < self.text.chars().count() {
+                        self.place_after_byte(start);
+                    } else if key == Key::Delete && self.cursor < self.text.graphemes(true).count() {
                         let start = self.byte_index();
                         let end = self.text[start..]
-                            .chars()
+                            .graphemes(true)
                             .next()
-                            .map_or(start, |c| start + c.len_utf8());
+                            .map_or(start, |grapheme| start + grapheme.len());
                         self.text.replace_range(start..end, "");
+                        self.place_after_byte(start);
                     }
                 }
                 _ => {}
@@ -112,7 +124,7 @@ impl TextEditor {
             }
             let index = self.byte_index();
             self.text.insert_str(index, &text);
-            self.cursor += text.chars().count();
+            self.place_after_byte(index + text.len());
             self.error = None;
         }
         self.dirty |= self.text != before;

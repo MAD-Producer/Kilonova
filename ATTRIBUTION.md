@@ -16,6 +16,16 @@ This file lists third-party material currently intended for the repository or a 
 
 ## Rust 依赖 / Rust dependencies
 
+`motion-ui` uses the unmodified `unicode-segmentation` 1.13.3 crate for extended
+grapheme boundaries during editing. Authors: kwantam, Manish Goregaokar and
+unicode-rs contributors. Source: [unicode-rs/unicode-segmentation](https://github.com/unicode-rs/unicode-segmentation),
+crates.io release 1.13.3, package SHA-256
+`c6f5d3c3b1bf09027a88a6bc961fc00497d651009560b5463668dc81b0fa87a8`.
+License: MIT OR Apache-2.0; retain the crate's COPYRIGHT, LICENSE-MIT and
+LICENSE-APACHE notices. No upstream source, tables or assets are modified or
+copied into the repository. The lockfile already includes this transitive package;
+this change declares its direct use by the UI crate without adding another version.
+
 workspace 和传递 Rust 依赖保留各自作者发布的许可证 metadata。发布自动化必须根据 `Cargo.lock` 和包 metadata 生成完整的依赖声明；本表不能替代该清单。
 
 Workspace and transitive Rust dependencies retain the license metadata published by their respective authors. Release automation must generate a complete dependency notice from `Cargo.lock` and package metadata; this table is not a substitute for that inventory.
