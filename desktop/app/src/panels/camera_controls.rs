@@ -14,6 +14,7 @@ mod lens;
 
 #[derive(Default)]
 pub struct Controls {
+    pub(crate) filter: super::types::PropertyFilter,
     object: Option<u64>,
     field: Option<Field>,
     mode: motion_ui::widgets::Dropdown,
@@ -198,7 +199,7 @@ impl Controls {
         }
         let tracks = if object == 0 {
             properties.into_iter().map(|(property, key, title, dimensions)| super::timeline::PropertyRow {
-                property, key, title, axis: None, axes: (0..dimensions).collect(), keys: vec![],
+                property, key, title, axis: None, axes: (0..dimensions).collect(), keys: vec![], modified:false,
             }).collect()
         } else {
             super::timeline::property_rows(state, object)
@@ -206,7 +207,8 @@ impl Controls {
         let mut choice = None;
         let mut selected_track = selection.track_selection(state, Some(object));
         for track in tracks {
-            let super::timeline::PropertyRow { property, key, title, axis: selected_axis, axes, keys } = track;
+            if !self.filter.admits(track.property, !track.keys.is_empty(), track.modified) { continue; }
+            let super::timeline::PropertyRow { property, key, title, axis: selected_axis, axes, keys, .. } = track;
             let dimensions = axes.len();
             let axis = selected_axis.map(|index| [Axis::X, Axis::Y, Axis::Z][index]);
             let row = Rect::new(area.min[0], *y, area.width(), height);
