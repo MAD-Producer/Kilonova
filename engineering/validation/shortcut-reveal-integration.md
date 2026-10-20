@@ -71,3 +71,24 @@ A merge-tree preflight against #371 head `f13dd68` identifies a keyboard-router
 conflict after this parent integration. The child must retain both configurable
 UU routing and layer navigation. No child PR is merged on the strength of the
 parent's tests. #349 and #357 must precede #362 on main.
+
+## Squashed preference-parent integration
+
+PR #357 is now squash-merged on main at `8bf0874b`, after #368 and #367.
+Git's default historical merge base caused twelve apparent add/add or field
+conflicts when integrating that main into this branch. The original #357
+head `e19a49b2` is an ancestor of this branch, and the exact source difference
+from that parent to current main is only the six already merged grapheme files.
+
+A read-only merge using that explicit logical base was clean, yielding tree
+`a13e84b290a1512f4bc53d5b813ec93014c8233f`. The actual merge restored only the
+twelve conflicted paths from that computed tree and required `git write-tree`
+to match it exactly before committing. The resulting first-parent diff is
+exactly the six grapheme files; shortcut routing, preference behavior and
+property-reveal source were not changed. Whitespace checks passed.
+
+This is local integration evidence, not a fresh Rust run or remote CI result.
+The integration is held locally until #349 also reaches main, avoiding another
+CI restart merely for ancestor history. The full combined Release GUI suite
+has since passed with its original deadlines and 1,177 decoded PNGs; this is
+separate combined evidence and does not replace the final branch's checks.
