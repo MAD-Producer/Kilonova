@@ -34,6 +34,8 @@ impl Command {
             FreezeMovie { .. } => "freeze_movie",
             RenderPreview { .. } => "render_preview",
             Edit { .. } => "edit",
+            AlignLayers { .. } => "align_layers",
+            DistributeLayers { .. } => "distribute_layers",
             History { .. } => "history",
             Drag { .. } => "drag",
             Seek { .. } => "seek",

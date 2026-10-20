@@ -333,6 +333,7 @@ impl Shell {
             self.capture_shortcut_screens(size, &report, &mut output)?;
             self.capture_property_followup_screens(size, &report, &mut output)?;
             self.capture_modified_property_screens(size, &report, &mut output)?;
+            self.capture_alignment_screens(size, &report, &mut output)?;
         } else {
             let navigation_screens = self.capture_viewer_navigation(size)?;
             output.extend(navigation_screens);

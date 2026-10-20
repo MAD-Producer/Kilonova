@@ -141,6 +141,8 @@ impl Shell {
             Action::Edit(command) => motion_core::CommandRegistry::id(command),
             Action::EditBatch(_) => "command_batch",
             Action::OrderLayers { .. } => "reorder_layers",
+            Action::AlignLayers { .. } => "align_layers",
+            Action::DistributeLayers { .. } => "distribute_layers",
             Action::Seek(_) => "seek",
             Action::History(_) => "history",
             Action::Plugin(_) => "plugin",
@@ -279,6 +281,14 @@ impl Shell {
                         return Err("reorder_layers: invalid layer ordering snapshot".into()),
                     Err(reason) => self.panels.message = Some(reason.message(self.workspace.locale).into()),
                 }
+            }
+            Action::DistributeLayers {objects,distribution} => {
+                self.stop();
+                self.editing=Some((Instant::now(),self.engine.distribute_layers_async(objects,distribution)?));
+            }
+            Action::AlignLayers {objects,edge,target} => {
+                self.stop();
+                self.editing=Some((Instant::now(),self.engine.align_layers_async(objects,edge,target)?));
             }
             Action::NewNodeEffect(object) => {
                 self.open_node_effect(object, None, false, event_loop)?
