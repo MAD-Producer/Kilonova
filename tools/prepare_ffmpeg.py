@@ -25,6 +25,54 @@ SOURCE_SHA256 = "09f990289327d3ebfedf4fc15cae3f884a65dab7a5aac7bbb5b01ff83900efd
 ZLIB_URL = "https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz"
 ZLIB_SHA256 = "bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16"
 PLATFORMS = ("windows-x86_64", "linux-x86_64", "macos-arm64", "macos-x86_64")
+CACHE_INVENTORY = "build-cache.json"
+
+
+def cache_identity(platform, prefix):
+    # pkg-config files and Linux DT_NEEDED entries can contain the build prefix.
+    # Reject relocation instead of silently using a runtime from another path.
+    return {"schemaVersion": 1, "platform": platform,
+            "recipe": digest(__file__), "prefix": str(prefix.resolve()),
+            "deploymentTarget": os.environ.get("MACOSX_DEPLOYMENT_TARGET", "")}
+
+
+def prefix_inventory(prefix):
+    files = {}
+    for path in sorted(prefix.rglob("*")):
+        if path.name == CACHE_INVENTORY and path.parent == prefix:
+            continue
+        if not path.resolve().is_relative_to(prefix.resolve()):
+            raise ValueError("FFmpeg cache entry escapes its prefix")
+        if path.is_file():
+            files[path.relative_to(prefix).as_posix()] = digest(path)
+    return files
+
+
+def seal_cache(platform, prefix):
+    files = prefix_inventory(prefix)
+    (prefix / CACHE_INVENTORY).write_text(
+        json.dumps({"identity": cache_identity(platform, prefix), "files": files}, indent=2) + "\n",
+        encoding="utf-8")
+
+
+def verified_cache(platform, prefix):
+    """A cache hit never bypasses provenance, headers, or runtime validation."""
+    from package_desktop import runtime_payload
+    try:
+        stored = json.loads((prefix / CACHE_INVENTORY).read_text(encoding="utf-8"))
+        if stored["identity"] != cache_identity(platform, prefix):
+            raise ValueError("recipe, platform, deployment target, or prefix changed")
+        if not stored["files"] or stored["files"] != prefix_inventory(prefix):
+            raise ValueError("prefix inventory or checksum changed")
+        for component in ("avcodec", "avformat", "avutil", "swscale"):
+            if not (prefix / "include" / ("lib" + component) / (component + ".h")).is_file():
+                raise ValueError("development headers missing")
+        runtime_payload(prefix / "runtime.json", platform)
+        print("Reusing verified FFmpeg runtime:", prefix)
+        return True
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        print("FFmpeg runtime cache miss:", error)
+        return False
 
 
 def digest(path):
@@ -74,17 +122,27 @@ def prepare_zlib(platform, output, cache, license_dir):
     return prefix, provenance
 
 
-def prepare(platform, output, cache):
+def prepare(platform, output, cache, *, reuse_verified=False):
     output, cache = Path(output).resolve(), Path(cache).resolve()
     output.mkdir(parents=True, exist_ok=True)
     cache.mkdir(parents=True, exist_ok=True)
+    prefix = output / "prefix"
+    if prefix.is_symlink():
+        raise ValueError("Unsafe FFmpeg build prefix")
+    if reuse_verified and verified_cache(platform, prefix):
+        return prefix
+    if prefix.exists():
+        # Only this tool's fixed child can be removed, never a restored symlink
+        # or a computed directory outside the explicitly selected output.
+        if prefix.is_symlink() or prefix.resolve().parent != output:
+            raise ValueError("Unsafe FFmpeg build prefix")
+        shutil.rmtree(prefix)
     source_archive = download(SOURCE_URL, SOURCE_SHA256, cache / "ffmpeg-n8.1.3.tar.gz")
     source_root = output / "source"
     source_root.mkdir(exist_ok=True)
     with tarfile.open(source_archive) as archive:
         archive.extractall(source_root, filter="data")
     source = source_root / "FFmpeg-n8.1.3"
-    prefix = output / "prefix"
     license_dir = prefix / "licenses"
     license_dir.mkdir(parents=True, exist_ok=True)
     config = []
@@ -153,6 +211,7 @@ def prepare(platform, output, cache):
                 "modifications": "No source changes; shared libraries copied without the command-line programs",
                 "files": files, "licenses": licenses, "dependencies": dependencies}
     (prefix / "runtime.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    seal_cache(platform, prefix)
     return prefix
 
 
@@ -161,8 +220,9 @@ def main():
     parser.add_argument("--platform", required=True, choices=PLATFORMS)
     parser.add_argument("--output", default="artifacts/ffmpeg")
     parser.add_argument("--cache", default="artifacts/ffmpeg-downloads")
+    parser.add_argument("--reuse-verified", action="store_true", help="Reuse a checksum-verified build at the same prefix")
     args = parser.parse_args()
-    prefix = prepare(args.platform, args.output, args.cache)
+    prefix = prepare(args.platform, args.output, args.cache, reuse_verified=args.reuse_verified)
     if env_file := os.environ.get("GITHUB_ENV"):
         with open(env_file, "a", encoding="utf-8") as env:
             env.write(f"FFMPEG_DIR={prefix}\n")
