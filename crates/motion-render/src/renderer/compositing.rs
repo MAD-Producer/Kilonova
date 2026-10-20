@@ -69,6 +69,8 @@ impl Renderer {
                 color: [1.; 4],
                 extent_opacity: [0., 0., d.words[22], flags as f32],
                 uv_scale: [1., 1., size[0] as f32, size[1] as f32],
+                screen_uv: crate::plane_coordinates::screen_map(frame.uv_maps[index],
+                    [0., 0., size[0] as f32, size[1] as f32], d.layer)?,
             };
             self.queue.write_buffer(
                 &gpu.extract_buffer,

@@ -144,3 +144,5 @@ mod tests;
 mod composition_tests;
 #[cfg(test)]
 mod project_tests;
+#[cfg(test)]
+mod sampling_tests;

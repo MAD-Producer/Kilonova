@@ -722,11 +722,13 @@ pub(super) fn render(
         max
     };
     let gutter = GUTTER.min(area.width() * 0.52);
-    let columns = super::timeline_columns::ColumnRects::styled(
+    let columns = super::timeline_columns::ColumnRects::with_sampling(
         &list.styles(),
         area.min[0],
         gutter,
         panels.timeline.column_visibility,
+        panels.timeline.sampling_visibility,
+        super::layer_sampling::available(state),
     );
     let track = Rect::new(
         area.min[0] + gutter,
@@ -973,6 +975,7 @@ pub(super) fn render(
     if let Some(switch) = columns.three_d {
         label(list, atlas, switch.rect(ruler.min[1], ruler.height()), "3D", true);
     }
+    super::layer_sampling::header(list, atlas, &columns, ruler, locale);
     label(
         list,
         atlas,
@@ -1206,6 +1209,9 @@ pub(super) fn render(
                     enabled: layer["three_d"] != true,
                 }));
             }
+        }
+        if let Some(layer) = layer {
+            super::layer_sampling::row(list, atlas, &columns, layer, state, y, row_height, input, out);
         }
         let icon = match layer.map(|l| l["content"]["kind"].as_str().unwrap_or("")) {
             Some("text") => motion_ui::icons::Icon::Text,
@@ -1758,6 +1764,7 @@ pub(super) fn render(
     }
     super::timeline_navigation::paint(list, track, footer_height, total as f32, &panels.timeline, input);
     super::effect_timeline::overlay(list, atlas, area, panels, state, context_input, out);
+    super::layer_sampling::hint(list, atlas, &columns, ruler, area, input, locale);
     panels
         .timeline_columns
         .overlay(list, atlas, area, state, context_input, locale, out);

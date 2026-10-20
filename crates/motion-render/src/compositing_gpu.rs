@@ -20,6 +20,7 @@ pub(crate) struct CompositingGpu {
     blend_layout: wgpu::BindGroupLayout,
     blend_stride: usize,
     size: [u32; 2],
+    format: wgpu::TextureFormat,
 }
 
 impl CompositingGpu {
@@ -64,7 +65,7 @@ impl CompositingGpu {
         );
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("layer and matte plane"),
-            source: wgpu::ShaderSource::Wgsl(crate::plane_coverage::shader(include_str!("plane_matte.wgsl"), true).into()),
+            source: wgpu::ShaderSource::Wgsl(crate::plane_coverage::shader(crate::plane_sampling::MATTE, true).into()),
         });
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("layer matte inputs"),
@@ -247,6 +248,7 @@ impl CompositingGpu {
             zero,
             source: None,
             size: [0; 2],
+            format,
             extract_buffer,
             extract_group,
             extract_stride,
@@ -346,7 +348,7 @@ impl CompositingGpu {
                 sampler,
                 self.size[0],
                 self.size[1],
-                wgpu::TextureFormat::Rgba8UnormSrgb,
+                self.format,
             ));
         }
         Ok(source_bytes > 0)
