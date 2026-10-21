@@ -34,11 +34,31 @@ implementations alone. Its renderer edit adds only an explicit snapshot accessor
 #386 independently adds preview target admission; this baseline does not include
 that PR and this work does not claim its acceptance results.
 
-## Acceptance status
+## Local acceptance
 
-Local validation is pending. Record source-bound commands, complete terminal
-results, and remaining limitations here after execution. Existing test assertions,
-ignores and timeouts must not be weakened.
+Implementation source: `8c1fc62e`. Strengthened gap/unknown-capacity tests:
+`caaa9d04`. Only the new controlled test file changes between those commits;
+production code and existing assertions are identical. The final seven-test
+ledger selection was rerun after that test change. Other selections below use
+the same implementation and their unchanged test sources. Later edits to this
+completion record do not change the tested Rust code.
+
+All builds, temporary files and logs use E. Existing assertions, ignores and
+timeouts were not weakened. Complete terminal results:
+
+| Command/selection | Result |
+| --- | --- |
+| `cargo test -p motion-render --lib submission_ledger --locked -- --test-threads=1` | 7 passed, 0 failed, 0 ignored |
+| `cargo test -p motion-render --test submission_memory --test texture_memory --locked -- --test-threads=1` | 8 passed, 0 failed, 0 ignored |
+| `cargo test -p motion-host --test memory_policy --locked -- --test-threads=1` | 4 passed, 0 failed, 0 ignored |
+| `cargo test -p motion-host --lib --test preview_memory --locked -- --test-threads=1` | 70 passed, 0 failed, 0 ignored |
+| `cargo check --workspace --exclude motion-android --locked` | Passed with existing desktop warnings |
+
+The total is 89 passing tests, counting the final ledger selection once.
+Provenance, panel-style and diff guards pass. Local logs are retained as
+`artifacts/pr-queue/frame-texture-accounting-*.log`, with source and SHA-256
+evidence in the local acceptance record. These selections are not a claim of a
+full workspace test run or completed native cross-platform CI.
 
 New controlled bookkeeping tests allocate actual GPU targets and verify shared
 retirement, replacement with identical dimensions, separate renderer snapshots,
