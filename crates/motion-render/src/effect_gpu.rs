@@ -1022,10 +1022,14 @@ impl GpuState {
         };
         pass.set_bind_group(2, resources, &[]);
         if p.sprite {
-            let instances = self.sprite_buffer.as_ref().ok_or_else(||
-                RenderError::Invalid(format!("effect instance buffer program={} phase=draw is missing", p.program)))?;
-            pass.set_vertex_buffer(0, instances.slice(..));
-            pass.draw(0..6, p.sprite_start..p.sprite_start + p.sprite_count);
+            // The pass still clears its target when every instance is culled.
+            // Zero-instance work needs no vertex buffer or allocation.
+            if p.sprite_count != 0 {
+                let instances = self.sprite_buffer.as_ref().ok_or_else(||
+                    RenderError::Invalid(format!("effect instance buffer program={} phase=draw is missing", p.program)))?;
+                pass.set_vertex_buffer(0, instances.slice(..));
+                pass.draw(0..6, p.sprite_start..p.sprite_start + p.sprite_count);
+            }
         } else {
             pass.draw(0..3, 0..1);
         }
