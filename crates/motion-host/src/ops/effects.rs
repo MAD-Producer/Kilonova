@@ -47,7 +47,7 @@ impl Session {
                     serde_json::from_value(policy.clone()).map_err(crate::Error::from)?;
                 return self.configure_memory_policy(policy);
             }
-            return Ok(json!({"policyVersion":2,"memoryPolicy":self.effects.memory_policy()}));
+            return Ok(json!({"policyVersion":motion_render::resource_policy::MEMORY_POLICY_VERSION,"memoryPolicy":self.effects.memory_policy()}));
         }
         if self.editor.as_ref().is_some_and(|e| e.gesture) && v["op"] != "catalogue" {
             return Err("finish the plugin editor gesture before other plugin operations".into());

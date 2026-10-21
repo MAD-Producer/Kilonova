@@ -357,7 +357,7 @@ impl Project {
             crate::storage::validate_relative_path(&font.path)?;
             ensure(font.path.starts_with("assets/fonts/")&&font.path.ends_with(".ttf"),"invalid managed font path")?;
         }
-        ensure((1..=21).contains(&self.version), "unsupported project format")?;
+        ensure((1..=22).contains(&self.version), "unsupported project format")?;
         ensure(self.plugin_dependencies == self.composition_dependencies(),
                "plugin dependency list does not match effect instances")?;
         self.validate_one(self)?;
@@ -366,7 +366,7 @@ impl Project {
     pub(crate) fn validate_one(&self, document: &Project) -> Result<()> {
         crate::effects::validate_image_graph(self)?;
         ensure(
-            (1..=21).contains(&self.version),
+            (1..=22).contains(&self.version),
             "unsupported project format",
         )?;
         let spatial = [&self.camera.position, &self.camera.target].iter().any(|t| t.keys.iter().any(|k| k.spatial.is_some()))
@@ -404,6 +404,7 @@ impl Project {
         ensure(self.layers.len() <= MAX_LAYERS, "layer limit exceeded")?;
         ensure(self.assets.len() <= MAX_LAYERS * 2, "asset limit exceeded")?;
         self.camera.validate(self.frames)?;
+        ensure(self.version >= 22 || crate::lens::default_gate(&self.camera.film_width_mm), "camera film width requires project format twenty-two")?;
         ensure(
             self.version >= 5 || self.video_assets.is_empty(),
             "video requires project format five",
@@ -632,6 +633,7 @@ impl Project {
                     }
                 }
                 Content::Camera { camera } => {
+                    ensure(self.version >= 22 || crate::lens::default_gate(&camera.film_width_mm), "camera film width requires project format twenty-two")?;
                     ensure(self.version >= 19, "camera layers require project format nineteen")?;
                     ensure(camera.created && camera.parent.is_none(), "camera layers use their layer parent")?;
                     ensure(layer.three_d && layer.transform == Transform::new([0.; 3]),

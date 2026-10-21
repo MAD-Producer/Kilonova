@@ -6,6 +6,7 @@ pub mod audio_edit;
 pub use audio_edit::{AudioMarker, AudioMarkersAction, AudioSourceChannel};
 pub mod boundaries;
 mod camera;
+pub use camera::lens;
 pub mod composition;
 mod curve;
 pub mod color_curves;

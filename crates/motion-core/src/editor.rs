@@ -803,6 +803,18 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             let layer = project.layers.remove(from);
             project.layers.insert(index, layer);
         }
+        Command::CameraLens { object, frame, film_width_mm, focal_length_mm } => {
+            valid_frame(frame)?;
+            let lens = motion_model::lens::Lens::from_focal_length(
+                f64::from(film_width_mm), f64::from(focal_length_mm), project.width, project.height)?;
+            let local = if object == 0 { frame as i32 } else {
+                let frames = project.frames;
+                project.layer_mut(object)?.clip(frames).edit_frame(frame)?
+            };
+            let camera = project.camera_for_mut(object)?;
+            camera.fov.set_at(local, lens.vertical_fov_degrees as f32)?;
+            camera.film_width_mm = film_width_mm;
+        }
         Command::CameraMode { object, mode } => {
             let (start, end) = if object == 0 { (0, project.frames as i32) } else {
                 let frames = project.frames;
@@ -947,7 +959,9 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             layer.transform.anchor.set_at(local,anchor)?;
         }
     }
+    if !motion_model::lens::default_gate(&project.camera.film_width_mm) { project.version = project.version.max(22); }
     for layer in &project.layers {
+        if layer.camera_data().is_some_and(|camera| !motion_model::lens::default_gate(&camera.film_width_mm)) { project.version = project.version.max(22); }
         if !layer.sampling.is_default() { project.version=project.version.max(21); }
         if layer.transform.anchor.is_animated() { project.version=project.version.max(20); }
         if let Content::Vector { vector } = &layer.content { project.version = project.version.max(vector.required_format()); }
