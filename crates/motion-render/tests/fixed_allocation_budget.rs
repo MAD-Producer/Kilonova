@@ -1,9 +1,9 @@
 use motion_render::{AllocationBudget, Renderer};
 
 // Independently count descriptor capacities: 128 aligned draw uniforms, 65,536
-// planar vertices, three clear vertices, two white texels, one identity LUT,
-// and 65,536 sprite instances. This must fail if any fixed resource is omitted.
-const FIXED_BYTES: u64 = 128 * 256 + 65_536 * 20 + 3 * 24 + 2 * 4 + 256 * 4 + 65_536 * 48;
+// planar vertices, three clear vertices, two white texels and one identity LUT.
+// Instance data belongs to on-demand SDK rendering, never the startup baseline.
+const FIXED_BYTES: u64 = 128 * 256 + 65_536 * 20 + 3 * 24 + 2 * 4 + 256 * 4;
 
 #[test]
 fn fixed_resources_are_admitted_and_retire_after_renderer_teardown() {
@@ -12,7 +12,7 @@ fn fixed_resources_are_admitted_and_retire_after_renderer_teardown() {
         pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();
     let info = budget.info().unwrap();
     assert_eq!(info.admitted_bytes, FIXED_BYTES);
-    assert_eq!(info.live_allocations, 7);
+    assert_eq!(info.live_allocations, 6);
     let device = renderer.device.clone();
     let queue = renderer.queue.clone();
     drop(renderer);
