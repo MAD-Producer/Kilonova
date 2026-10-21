@@ -180,3 +180,56 @@ retains it until a renderer submission or teardown. Shared session configuration
 platform-pressure provenance, combined preview recovery, full-quality export policy
 and repeated project/seek/resize acceptance remain pending. #60, #61 and #67 remain
 open; #72 project settings and #87 integration remain parked behind them.
+
+## Accepted local evidence for the second increment
+
+Production and nine new cases: `306e4f7a`. Final checked source:
+`4b5cc19870e586ccbbc19c3813ea2e0a1e86a3fd`, including main
+`4f80293bc480bfd37057bfe5bb3366567b835f89` and its export-freeze lifecycle
+fix. No source changed during the sequential acceptance run.
+
+| Check | Result |
+| --- | --- |
+| Workspace/all-targets FFmpeg check, excluding Android | Pass; existing warnings retained |
+| Entire render library | 59 pass |
+| 29 selected render integration suites | 150 pass; one existing optional probe initially ignored |
+| That optional image probe, explicitly selected with `--ignored --exact` | 1 pass; generated 4096x64 PNG, actual 2048x32 cold/warm proxy bytes agree |
+| Host failure boundaries, memory policy and preview memory | 17 pass |
+| Actual FFmpeg PNG/movie/export round trips | 17 pass |
+| Desktop node preview | 3 pass |
+| Desktop process failure boundaries at default Info | 4 pass |
+| Panel style consumer guard | Pass; no panel file changed |
+
+There are 251 distinct selected passing cases, zero failures and no unresolved
+ignored case in this selection. The ordinary image-resource invocation's existing
+optional probe is recorded as ignored in that invocation, then as executed and
+passed separately; an ignored result is not counted as success. These are Windows
+local checks, not the entire desktop test suite, a full GUI acceptance or
+cross-platform CI. Existing native codec/compiler warnings remain in the logs.
+
+| New case ID | Evidence and boundary |
+| --- | --- |
+| #61-A13 | Evicted, unsubmitted upload destinations retain capacity; same-destination writes deduplicate; polling alone does not retire them; actual renderer submission does |
+| #61-A14 | Real green pixels survive refused source growth; same-sized blue updates reuse capacity at the exact limit; increased capacity permits recovery |
+| #61-A15 | RGBA and YUV-output admission preserve prior completed stamps on refusal; real conversion retires through the submitted encoder lifetime; YUV planes remain outside admission |
+| #61-A16 | Sixty-four actual open encoder scopes refuse standalone conversion before replacing the prior RGBA image; dropping scopes permits the same conversion |
+| #61-A17 | Three renderer teardown cycles with external queue/device handles retire pending destinations after actual GPU completion without capacity drift |
+| #61-A18 | Actual startup white-image admission refuses a three-byte allowance with source/phase context and leaves no reservation |
+| #61-A19 | Actual tint output and cached effect bindings retain the removed source's reservation until invalidation, then release exactly its 64 bytes |
+| #61-A20 | Controlled upload-journal poison retains known destinations, refuses new tracking, logs Error once at Info outside its mutex and retires through the actual queue |
+| #61-A21 | An actual combined-budget refusal preserves its typed scope and exact primary reply; request/operation/source/phase/bytes/time reach file and Error stderr at default Info, without stdout leakage; raising the limit recovers |
+
+The additional regressions preserve existing assertions for real device loss,
+validation faults, effect order/alpha, image working sets, masks/nested/exposure
+pixels, preview front retention/recovery, video seek/cancellation/handoffs and
+actual encoded output. The only earlier assertion updates account explicitly for
+the newly admitted startup image, as described above.
+
+Logs: `E:/Dev/aem/artifacts/pr-queue/source-admission-final-*.log`.
+Source/log/fixture hash receipt:
+`E:/Dev/aem/.tools/issue-closure-review/source-admission-acceptance.json`.
+Focused pre-commit passes are separate intermediate evidence, not additional
+distinct passes. Build/temp/artifact writes stayed on E and own Cargo/GPU commands
+ran sequentially. No dependency or product asset was added. No PR or issue closure
+is claimed for this partial increment. Continue resource enrollment and shared
+session policy/pressure/recovery acceptance before #67 reuse work.
