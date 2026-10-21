@@ -108,7 +108,7 @@ struct V{@builtin(position) p:vec4<f32>,@location(0) uv:vec2<f32>}
 fn rgba_inputs_resize_preserve_aspect_and_share_linear_premultiplied_contract() {
     let renderer = renderer();
     let mut texture =
-        PreviewInputTexture::new(renderer.device.clone(), renderer.queue.clone(), 1 << 20);
+        PreviewInputTexture::new(renderer.device.clone(), renderer.queue.clone(), 1 << 20, renderer.allocation_budget().clone()).unwrap();
     texture
         .upload_rgba(2, 6, &[188, 0, 0, 128].repeat(12), true, 3)
         .unwrap();
@@ -142,7 +142,7 @@ fn rgba_inputs_resize_preserve_aspect_and_share_linear_premultiplied_contract() 
 fn yuv_rotation_and_bounded_gpu_resize_use_correct_source_coordinates() {
     let renderer = renderer();
     let mut texture =
-        PreviewInputTexture::new(renderer.device.clone(), renderer.queue.clone(), 1 << 20);
+        PreviewInputTexture::new(renderer.device.clone(), renderer.queue.clone(), 1 << 20, renderer.allocation_budget().clone()).unwrap();
     let frame = Yuv420Frame {
         width: 4,
         height: 2,
@@ -180,7 +180,7 @@ fn yuv_rotation_and_bounded_gpu_resize_use_correct_source_coordinates() {
 fn invalid_upload_or_budget_rejection_preserves_last_valid_input() {
     let renderer = renderer();
     let mut texture =
-        PreviewInputTexture::new(renderer.device.clone(), renderer.queue.clone(), 320);
+        PreviewInputTexture::new(renderer.device.clone(), renderer.queue.clone(), 320, renderer.allocation_budget().clone()).unwrap();
     texture
         .upload_rgba(8, 8, &[188, 0, 0, 128].repeat(64), true, 8)
         .unwrap();
@@ -191,4 +191,104 @@ fn invalid_upload_or_budget_rejection_preserves_last_valid_input() {
     assert!(texture.upload_rgba(8, 8, &[0; 4], true, 8).is_err());
     assert_eq!(pixels(&renderer, &texture), valid);
     assert_eq!(texture.memory_bytes(), 256);
+}
+
+#[test]
+fn authoring_constructor_and_renderer_targets_share_the_same_combined_allowance() {
+    let budget = motion_render::AllocationBudget::new(19).unwrap();
+    let renderer = pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();
+    let error = PreviewInputTexture::new(renderer.device.clone(), renderer.queue.clone(), 1024, budget.clone()).err().unwrap();
+    assert_eq!(error.resource_rejection(), Some(&motion_render::ResourceRejection::Budget {
+        scope: motion_render::ResourceBudgetScope::RenderAllocations, required_bytes: 20, budget_bytes: 19,
+    }));
+    assert!(error.to_string().contains("buffer size=16 phase=allocate"));
+    assert_eq!(budget.info().unwrap().admitted_bytes, 4);
+    assert_eq!(budget.info().unwrap().live_allocations, 1);
+    budget.set_limit(20).unwrap();
+    let mut input = PreviewInputTexture::new(renderer.device.clone(), renderer.queue.clone(), 1024, budget.clone()).unwrap();
+    assert_eq!(budget.info().unwrap().admitted_bytes, 20);
+    let error = input.upload_rgba(1, 1, &[255; 4], true, 1).unwrap_err();
+    assert_eq!(error.resource_rejection(), Some(&motion_render::ResourceRejection::Budget {
+        scope: motion_render::ResourceBudgetScope::RenderAllocations, required_bytes: 24, budget_bytes: 20,
+    }));
+    assert!(input.view().is_none());
+    assert_eq!(input.dimensions(), (0, 0));
+    assert!(renderer.render_target(1, 1).is_err());
+    drop(input);
+    assert_eq!(budget.info().unwrap().admitted_bytes, 4);
+    renderer.check_health().unwrap();
+}
+
+#[test]
+fn cloned_authoring_views_keep_admission_after_teardown_and_completed_pending_writes() {
+    let budget = motion_render::AllocationBudget::new(36).unwrap();
+    for _ in 0..3 {
+        let renderer = pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();
+        let mut input = PreviewInputTexture::new(renderer.device.clone(), renderer.queue.clone(), 1024, budget.clone()).unwrap();
+        input.upload_rgba(2, 2, &[255; 16], true, 2).unwrap();
+        let view = input.view().unwrap().clone();
+        assert_eq!(budget.info().unwrap().admitted_bytes, 36);
+        let device = renderer.device.clone();
+        drop(input);
+        device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+        assert_eq!(budget.info().unwrap().admitted_bytes, 20);
+        drop(view);
+        assert_eq!(budget.info().unwrap().admitted_bytes, 4);
+        renderer.check_health().unwrap();
+        drop(renderer);
+        device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+        assert_eq!(budget.info().unwrap().admitted_bytes, 0);
+        assert_eq!(budget.info().unwrap().live_allocations, 0);
+    }
+}
+
+#[test]
+fn combined_authoring_refusals_preserve_real_pixels_then_recover_with_admitted_yuv_planes() {
+    let budget = motion_render::AllocationBudget::new(4096).unwrap();
+    let renderer = pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();
+    let mut input = PreviewInputTexture::new(renderer.device.clone(), renderer.queue.clone(), 4096, budget.clone()).unwrap();
+    input.upload_rgba(2, 2, &[0, 255, 0, 255].repeat(4), true, 2).unwrap();
+    let valid = pixels(&renderer, &input);
+    assert_eq!(valid, [0, 255, 0, 255].repeat(4));
+    assert_eq!(budget.info().unwrap().admitted_bytes, 36);
+    budget.set_limit(99).unwrap();
+    let error = input.upload_rgba(4, 4, &[255; 64], false, 2).unwrap_err();
+    assert_eq!(error.resource_rejection(), Some(&motion_render::ResourceRejection::Budget {
+        scope: motion_render::ResourceBudgetScope::RenderAllocations, required_bytes: 100, budget_bytes: 99,
+    }));
+    assert!(error.to_string().contains("phase=rgba_upload"));
+    assert_eq!(input.dimensions(), (2, 2));
+    assert_eq!(input.memory_bytes(), 16);
+    assert_eq!(budget.info().unwrap().admitted_bytes, 36);
+    budget.set_limit(4096).unwrap();
+    assert_eq!(pixels(&renderer, &input), valid);
+    let frame = Yuv420Frame {
+        width: 2, height: 2, rotation: 0, standard: 1, range: 2,
+        phase: [0, 0], chroma_layout: ChromaLayout::Uv, y: vec![128; 4], uv: vec![128; 2],
+    };
+    budget.set_limit(89).unwrap();
+    let error = input.upload_yuv(&frame, 2).unwrap_err();
+    assert_eq!(error.resource_rejection(), Some(&motion_render::ResourceRejection::Budget {
+        scope: motion_render::ResourceBudgetScope::RenderAllocations, required_bytes: 90, budget_bytes: 89,
+    }));
+    for context in ["phase=yuv_upload", "buffer size=48 phase=allocate"] {
+        assert!(error.to_string().contains(context), "{error}");
+    }
+    assert_eq!(input.dimensions(), (2, 2));
+    assert_eq!(input.memory_bytes(), 16);
+    assert_eq!(budget.info().unwrap().admitted_bytes, 36);
+    budget.set_limit(4096).unwrap();
+    assert_eq!(pixels(&renderer, &input), valid);
+    input.upload_yuv(&frame, 2).unwrap();
+    let actual = pixels(&renderer, &input);
+    assert!(actual.iter().zip(frame.to_rgba().unwrap()).all(|(a,b)| a.abs_diff(b) <= 1));
+    assert_eq!(budget.info().unwrap().admitted_bytes, 90);
+    assert_eq!(input.memory_bytes(), 22, "texture subtotal excludes the two uniform buffers");
+    let error = input.upload_rgba(2, 2, &[0; 4], false, 2).unwrap_err();
+    assert!(error.resource_rejection().is_none(), "malformed pixels are not a budget refusal");
+    assert_eq!(pixels(&renderer, &input), actual);
+    drop(input);
+    renderer.device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+    assert_eq!(budget.info().unwrap().admitted_bytes, 4);
+    renderer.check_health().unwrap();
 }

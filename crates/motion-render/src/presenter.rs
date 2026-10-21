@@ -12,8 +12,20 @@ pub struct Presenter {
     buffer: wgpu::Buffer,
     view_buffer: wgpu::Buffer,
     view_group: wgpu::BindGroup,
+    // Retire GPU bindings before releasing their source reservation.
+    source_allocation: Option<crate::allocation_budget::AllocationLease>,
 }
 impl Presenter {
+    pub fn new_admitted(renderer: &Renderer, source: &crate::AdmittedTextureView,
+        format: wgpu::TextureFormat) -> Self {
+        let mut presenter = Self::new(renderer, source, format);
+        presenter.source_allocation = Some(source.lease.clone());
+        presenter
+    }
+    pub fn set_admitted_source(&mut self, device: &wgpu::Device, source: &crate::AdmittedTextureView) {
+        self.set_source(device, source);
+        self.source_allocation = Some(source.lease.clone());
+    }
     pub fn new(
         renderer: &Renderer,
         source: &wgpu::TextureView,
@@ -121,6 +133,7 @@ impl Presenter {
             cache: None,
         });
         Self {
+            source_allocation: None,
             pipeline,
             group,
             format,
@@ -135,6 +148,7 @@ impl Presenter {
     pub fn set_source(&mut self, device: &wgpu::Device, source: &wgpu::TextureView) {
         self.group = Self::source_group(device, &self.layout, &self.sampler, &self.buffer, source);
         self.view_group = Self::source_group(device, &self.layout, &self.sampler, &self.view_buffer, source);
+        self.source_allocation = None;
     }
     fn source_group(device: &wgpu::Device, layout: &wgpu::BindGroupLayout,
         sampler: &wgpu::Sampler, buffer: &wgpu::Buffer, source: &wgpu::TextureView) -> wgpu::BindGroup {
@@ -161,14 +175,14 @@ impl Presenter {
             self.encode(encoder, output, timestamps, Some(viewport), background);
         }
     }
-    pub fn draw(&self, renderer: &Renderer, output: &wgpu::TextureView) {
+    pub fn draw(&self, renderer: &Renderer, output: &wgpu::TextureView) -> Result<(), crate::RenderError> {
         let mut encoder = renderer
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            .allocation_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Motion Studio present"),
-            });
+            })?;
         self.encode(&mut encoder, output, None, None, [0.0, 0.0, 0.0, 1.0]);
-        renderer.submit_tracked(encoder.finish(), |_| {});
+        renderer.submit_allocated(encoder.finish(), |_| {})?;
+        Ok(())
     }
     pub fn encode(
         &self,

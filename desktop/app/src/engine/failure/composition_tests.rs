@@ -3,6 +3,159 @@ use super::*;
 use motion_core::composition::{Composition, MAX_COMPOSITIONS};
 
 #[test]
+fn video_uniform_admission_failure_reaches_reply_file_and_stderr_at_default_level() {
+    const CHILD: &str = "MOTION_VIDEO_UNIFORM_ADMISSION_LOG_CHILD";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let _logger = crate::logging::init(PathBuf::from(root)).unwrap();
+        let budget = motion_render::AllocationBudget::new(89).unwrap();
+        let mut renderer = pollster::block_on(
+            motion_render::Renderer::headless_with_allocation_budget(budget.clone()),
+        ).unwrap();
+        renderer.upload_video_frame(2, 11, 0, 2, 2, &[0, 255, 0, 255].repeat(4)).unwrap();
+        let before = renderer.texture_memory_breakdown();
+        let frame = motion_render::Yuv420Frame {
+            width: 2, height: 2, rotation: 0, standard: 1, range: 2,
+            phase: [0, 0], chroma_layout: motion_render::ChromaLayout::Uv,
+            y: vec![128; 4], uv: vec![128; 2],
+        };
+        let failure = renderer.upload_video_yuv(2, 11, 1, &frame).unwrap_err();
+        assert_eq!(failure.resource_rejection(), Some(&motion_render::ResourceRejection::Budget {
+            scope: motion_render::ResourceBudgetScope::RenderAllocations,
+            required_bytes: 90, budget_bytes: 89,
+        }));
+        assert_eq!(renderer.texture_memory_breakdown(), before);
+        assert_eq!(budget.info().unwrap().admitted_bytes, 20);
+        let original = failure.to_string();
+        for context in ["object=2 source=11 pts_us=1 phase=yuv_prepare", "buffer size=48 phase=allocate", "required_bytes=90", "budget_bytes=89"] {
+            assert!(original.contains(context), "missing {context}: {original}");
+        }
+        let (reply, receive) = channel::<Result<Value, String>>();
+        CURRENT_COMMAND.set(Some(Flight {
+            request: 202, operation: "test_upload_yuv", started: Instant::now(),
+        }));
+        respond(reply, Err(failure.into()));
+        CURRENT_COMMAND.set(None);
+        assert_eq!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err(), original);
+        budget.set_limit(90).unwrap();
+        renderer.upload_video_yuv(2, 11, 1, &frame).unwrap();
+        renderer.device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+        renderer.check_health().unwrap();
+        assert_eq!(renderer.video_gpu_conversions, 1);
+        assert_eq!(budget.info().unwrap().admitted_bytes, 74);
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "engine::failure::composition_tests::video_uniform_admission_failure_reaches_reply_file_and_stderr_at_default_level"])
+        .env(CHILD, root.path()).env_remove("MOTION_LOG").output().unwrap();
+    assert!(output.status.success(), "{}\n{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+    let file = std::fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let cause = "admitted render allocations exceed configured combined budget";
+    let error = file.lines().find(|line| line.contains("error #202 test_upload_yuv ")).unwrap();
+    for context in [cause, "object=2 source=11 pts_us=1 phase=yuv_prepare", "buffer size=48 phase=allocate", "required_bytes=90", "budget_bytes=89", "ms:"] {
+        assert!(error.contains(context), "missing {context}: {error}");
+    }
+    assert!(file.contains("logging initialized level=INFO"));
+    assert!(stderr.contains(error.split("motion_studio::engine: ").nth(1).unwrap()));
+    assert_eq!(stderr.matches(cause).count(), 1);
+    assert!(!stderr.contains("logging initialized"));
+    for marker in [cause, "error #202", "logging initialized"] {
+        assert!(!stdout.contains(marker), "log output leaked to stdout: {stdout}");
+    }
+}
+
+#[test]
+fn combined_allocation_failure_reaches_reply_file_and_stderr_at_default_level() {
+    const CHILD: &str = "MOTION_COMBINED_ALLOCATION_LOG_CHILD";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let _logger = crate::logging::init(PathBuf::from(root)).unwrap();
+        let budget = motion_render::AllocationBudget::new(12).unwrap();
+        let mut renderer = pollster::block_on(
+            motion_render::Renderer::headless_with_allocation_budget(budget.clone()),
+        )
+        .unwrap();
+        let before = budget.info().unwrap();
+        let failure = renderer
+            .upload_image(7, 2, 2, &[0, 255, 0, 255].repeat(4))
+            .unwrap_err();
+        assert!(matches!(
+            failure.resource_rejection(),
+            Some(motion_render::ResourceRejection::Budget {
+                scope: motion_render::ResourceBudgetScope::RenderAllocations,
+                required_bytes: 20,
+                budget_bytes: 12,
+            })
+        ));
+        assert_eq!(budget.info().unwrap(), before);
+        assert_eq!(before.admitted_bytes, 4);
+        let original = failure.to_string();
+        for context in [
+            "Static(7)",
+            "size=2x2",
+            "phase=allocate",
+            "required_bytes=20",
+            "budget_bytes=12",
+        ] {
+            assert!(original.contains(context), "missing {context}: {original}");
+        }
+        let (reply, receive) = channel::<Result<Value, String>>();
+        CURRENT_COMMAND.set(Some(Flight {
+            request: 201,
+            operation: "test_upload_image",
+            started: Instant::now(),
+        }));
+        respond(reply, Err(failure.into()));
+        CURRENT_COMMAND.set(None);
+        assert_eq!(
+            receive
+                .recv_timeout(Duration::from_secs(5))
+                .unwrap()
+                .unwrap_err(),
+            original
+        );
+        budget.set_limit(20).unwrap();
+        renderer
+            .upload_image(7, 2, 2, &[0, 255, 0, 255].repeat(4))
+            .unwrap();
+        assert_eq!(budget.info().unwrap().admitted_bytes, 20);
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "engine::failure::composition_tests::combined_allocation_failure_reaches_reply_file_and_stderr_at_default_level"])
+        .env(CHILD, root.path())
+        .env_remove("MOTION_LOG")
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let file = std::fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let cause = "admitted render allocations exceed configured combined budget";
+    let error = file
+        .lines()
+        .find(|line| line.contains("error #201 test_upload_image "))
+        .unwrap();
+    for context in [cause, "Static(7)", "phase=allocate", "required_bytes=20", "budget_bytes=12", "ms:"] {
+        assert!(error.contains(context), "missing {context}: {error}");
+    }
+    assert!(stderr.contains(error.split("motion_studio::engine: ").nth(1).unwrap()));
+    assert_eq!(stderr.matches(cause).count(), 1);
+    assert!(file.contains("logging initialized level=INFO"));
+    assert!(!stderr.contains("logging initialized"));
+    for marker in [cause, "error #201", "logging initialized"] {
+        assert!(!stdout.contains(marker), "log output leaked to stdout: {stdout}");
+    }
+}
+
+#[test]
 fn video_handoff_budget_failure_reaches_reply_file_and_stderr_at_default_level() {
     const CHILD: &str = "MOTION_VIDEO_HANDOFF_LOG_CHILD";
     if let Some(root) = std::env::var_os(CHILD) {

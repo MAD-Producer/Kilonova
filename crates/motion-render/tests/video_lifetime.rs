@@ -169,7 +169,7 @@ fn hidden_matte_source_is_live_but_unreferenced_hidden_video_is_reclaimed() {
 #[test]
 fn standalone_input_switches_do_not_accumulate_planes_or_rgba_sources() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
-    let mut input = PreviewInputTexture::new(renderer.device.clone(), renderer.queue.clone(), 4096);
+    let mut input = PreviewInputTexture::new(renderer.device.clone(), renderer.queue.clone(), 4096, renderer.allocation_budget().clone()).unwrap();
     let f = pixels();
     let rgba = [128, 128, 128, 255].repeat(256);
     for _ in 0..60 {

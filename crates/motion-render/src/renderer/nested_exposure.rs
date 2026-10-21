@@ -209,7 +209,7 @@ impl Renderer {
             key,
             GpuImage {
                 _texture: target.texture,
-                view: target.view,
+                view: target.view.view,
                 bind_group,
                 bytes,
                 size: (target.width, target.height),
