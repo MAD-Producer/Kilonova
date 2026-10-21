@@ -375,7 +375,7 @@ impl Session {
         let presenter = Presenter::new_admitted(&renderer, &scratch.view, config.format);
         // Auto quality needs GPU cost even without diagnostic recording; only
         // four reusable 32-byte timing buffers are read, never video pixels.
-        let timer = GpuTimer::new(&renderer.device, &renderer.queue);
+        let timer = GpuTimer::new(&renderer)?;
         self.graphics = Some(Graphics {
             surface,
             renderer,

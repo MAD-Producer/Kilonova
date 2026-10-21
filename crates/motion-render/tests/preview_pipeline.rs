@@ -26,7 +26,7 @@ fn full_resolution_composition_fits_the_surface_and_yields_real_pass_timings() {
     assert_eq!(source.texture_bytes(), 128 * 256 * 4);
     let output = r.capture_target(256, 256).unwrap();
     let presenter = Presenter::new(&r, &source.view, r.target_format);
-    let mut timer = GpuTimer::new(&r.device, &r.queue)
+    let mut timer = GpuTimer::new(&r).unwrap()
         .expect("The validation GPU must support timestamp queries");
     let slot = timer.begin(17).unwrap();
     let mut encoder = r.device.create_command_encoder(&Default::default());

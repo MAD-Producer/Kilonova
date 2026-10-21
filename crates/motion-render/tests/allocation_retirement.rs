@@ -1,9 +1,9 @@
 //! Completed work must not pin retired targets through unrelated encoders.
-use motion_render::{AllocationBudget, Renderer};
+use motion_render::{AllocationBudget, Renderer, FIXED_RENDERER_ALLOCATION_BYTES};
 
 #[test]
 fn overlapping_frames_do_not_renew_completed_target_reservations() {
-    let budget = AllocationBudget::new(4 + 8 * 256).unwrap();
+    let budget = AllocationBudget::new(FIXED_RENDERER_ALLOCATION_BYTES + 8 * 256).unwrap();
     let renderer =
         pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();
     let mut current = renderer
@@ -40,9 +40,9 @@ fn overlapping_frames_do_not_renew_completed_target_reservations() {
         samples.push((frame, used));
     }
     drop(current);
-    assert_eq!(budget.info().unwrap().admitted_bytes, 4);
+    assert_eq!(budget.info().unwrap().admitted_bytes, FIXED_RENDERER_ALLOCATION_BYTES);
     assert!(
-        samples.iter().all(|&(_, used)| used == 4),
+        samples.iter().all(|&(_, used)| used == FIXED_RENDERER_ALLOCATION_BYTES),
         "completed transient targets have no user/GPU bindings in the next frame: {samples:?}"
     );
 }

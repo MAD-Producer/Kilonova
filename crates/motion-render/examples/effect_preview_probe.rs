@@ -122,7 +122,7 @@ fn measure(
         .map_err(|e| e.to_string())?;
     let presenter = Presenter::new(renderer, &source.view, renderer.target_format);
     let mut timer =
-        GpuTimer::new(&renderer.device, &renderer.queue).ok_or("GPU timestamps unsupported")?;
+        GpuTimer::new(renderer).map_err(|e| e.to_string())?.ok_or("GPU timestamps unsupported")?;
     let mut scene = Scene::new(p);
     let mut video = fixture();
     let mut gpu = Vec::new();

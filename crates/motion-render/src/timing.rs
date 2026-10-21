@@ -17,7 +17,7 @@ fn read_timestamp_words(mapped: &[u8]) -> Option<[u64; QUERIES as usize]> {
     Some(words)
 }
 struct Slot {
-    buffer: wgpu::Buffer,
+    buffer: crate::allocation_buffer::AllocationBuffer,
     state: Arc<AtomicU8>,
     sequence: u64,
 }
@@ -33,48 +33,61 @@ pub struct GpuTiming {
 pub struct GpuTimer {
     map_failures: crate::observability::FailureCounter,
     queries: wgpu::QuerySet,
-    resolve: wgpu::Buffer,
+    resolve: crate::allocation_buffer::AllocationBuffer,
     slots: [Slot; SLOTS],
     period: f64,
     pub skipped: u64,
     pub errors: u64,
 }
 impl GpuTimer {
-    pub fn new(device: &wgpu::Device, queue: &wgpu::Queue) -> Option<Self> {
+    /// Unsupported timestamp queries are a normal `None`. Capacity refusal is
+    /// an error in the renderer's shared admission budget, never unsupported.
+    pub fn new(renderer: &crate::Renderer) -> Result<Option<Self>, crate::RenderError> {
+        let device = &renderer.device;
         if !device.features().contains(wgpu::Features::TIMESTAMP_QUERY) {
-            return None;
+            return Ok(None);
         }
-        let period = f64::from(queue.get_timestamp_period());
+        let period = f64::from(renderer.queue.get_timestamp_period());
         if !period.is_finite() || period <= 0.0 {
-            return None;
+            return Ok(None);
         }
-        Some(Self {
+        let budget = renderer.allocation_budget();
+        // Finish all fallible reservations before publishing the timer. No
+        // queue writes are needed, so partial construction can retire directly.
+        let resolve = crate::allocation_buffer::AllocationBuffer::new(device, budget,
+            &wgpu::BufferDescriptor {
+                label: Some("Motion Studio timing resolve"),
+                size: SLOTS as u64 * wgpu::QUERY_RESOLVE_BUFFER_ALIGNMENT,
+                usage: wgpu::BufferUsages::QUERY_RESOLVE | wgpu::BufferUsages::COPY_SRC,
+                mapped_at_creation: false,
+            })?;
+        let slot = || -> Result<Slot, crate::RenderError> {
+            Ok(Slot {
+                buffer: crate::allocation_buffer::AllocationBuffer::new(device, budget,
+                    &wgpu::BufferDescriptor {
+                        label: Some("Motion Studio timing words"),
+                        size: TIMESTAMP_BUFFER_BYTES as u64,
+                        usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+                        mapped_at_creation: false,
+                    })?,
+                state: Arc::new(AtomicU8::new(0)),
+                sequence: 0,
+            })
+        };
+        let slots = [slot()?, slot()?, slot()?, slot()?];
+        Ok(Some(Self {
             map_failures: crate::observability::FailureCounter::new(),
             queries: device.create_query_set(&wgpu::QuerySetDescriptor {
                 label: Some("Motion Studio pass timings"),
                 ty: wgpu::QueryType::Timestamp,
                 count: SLOTS as u32 * QUERIES,
             }),
-            resolve: device.create_buffer(&wgpu::BufferDescriptor {
-                label: Some("Motion Studio timing resolve"),
-                size: SLOTS as u64 * wgpu::QUERY_RESOLVE_BUFFER_ALIGNMENT,
-                usage: wgpu::BufferUsages::QUERY_RESOLVE | wgpu::BufferUsages::COPY_SRC,
-                mapped_at_creation: false,
-            }),
-            slots: std::array::from_fn(|_| Slot {
-                buffer: device.create_buffer(&wgpu::BufferDescriptor {
-                    label: Some("Motion Studio timing words"),
-                    size: TIMESTAMP_BUFFER_BYTES as u64,
-                    usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
-                    mapped_at_creation: false,
-                }),
-                state: Arc::new(AtomicU8::new(0)),
-                sequence: 0,
-            }),
+            resolve,
+            slots,
             period,
             skipped: 0,
             errors: 0,
-        })
+        }))
     }
     pub fn begin(&mut self, sequence: u64) -> Option<usize> {
         for (i, s) in self.slots.iter_mut().enumerate() {
@@ -108,11 +121,17 @@ impl GpuTimer {
     }
     pub fn map(&self, slot: usize) {
         let state = self.slots[slot].state.clone();
+        // A pending mapping owns the actual buffer as well as its reservation.
+        // Dropping the timer must not release capacity before that callback.
+        let buffer = wgpu::Buffer::clone(&self.slots[slot].buffer);
+        let allocation = self.slots[slot].buffer.allocation();
         self.slots[slot]
             .buffer
             .slice(..)
             .map_async(wgpu::MapMode::Read, move |result| {
-                state.store(if result.is_ok() { 2 } else { 3 }, Ordering::Release)
+                state.store(if result.is_ok() { 2 } else { 3 }, Ordering::Release);
+                drop(buffer);
+                drop(allocation);
             });
     }
     pub fn collect(&mut self) -> [Option<GpuTiming>; SLOTS] {
@@ -177,3 +196,7 @@ mod tests {
 #[cfg(test)]
 #[path = "timing/observation_tests.rs"]
 mod observation_tests;
+
+#[cfg(test)]
+#[path = "timing/admission_tests.rs"]
+mod admission_tests;
