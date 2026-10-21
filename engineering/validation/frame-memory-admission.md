@@ -811,3 +811,64 @@ textures, mask/compositing resources, other external/raw allocation boundaries,
 shared session policy, platform pressure, frame peaks, bounded preview/export
 and repeated lifecycle acceptance remain pending. #61 and #67 remain open;
 precision and 3D remain parked. No panels, styles, dependencies or assets changed.
+
+
+## Tenth increment: mask mesh and filter uniform admission
+
+Production source `64fda9ba` admits cached mask triangle buffers and every624-byte
+feather/combine uniform from the renderer's combined budget. Mapped mesh
+initialization preserves the previous upload behavior and reserves before
+replacement. Uniform queue writes share the existing pending-upload tracker;
+their capacity survives the cache owner until actual completion. Errors retain
+the original cause and layer/mask/frame/phase through the existing boundary.
+Cached bindings, shader math, return/protocol semantics and pixels are retained.
+
+| Case | Actual path and oracle | Disposition |
+| --- | --- | --- |
+| #61-A64 | One144-byte quad mesh plus three624-byte uniforms; exact2016-byte increase, pixels and retirement | New capacity coverage |
+| #61-A65 | Real refusal at each of three uniform cut points; exact partial capacity, no successful fingerprint, existing slots reused and actual recovered pixels | New failure/recovery coverage |
+| #61-A66 | Refused mesh replacement preserves original identity, fingerprint and exact pixels; normal cache reuse below limit; restored budget changes actual pixels | New preservation coverage |
+| #61-A67 | Actual queued uniform write survives cache drop until native completion; a later encoder does not renew retired ownership | New asynchronous lifetime coverage |
+| #61-A68 | Both unfinished and finished mask command owners retain all buffers after cache drop and GPU polling; unrelated later scopes do not extend old work | New abandonment/retirement coverage |
+| #61-A69 | Actual mask budget refusal, request209/layer77/mask55/frame0/phase/cause/elapsed, unchanged reply and recovered pixels; default file, Error stderr and stdout isolation | Existing boundary, newly exercised failure |
+
+The native control `ecff3b68` reproduced 1,344,592 admitted bytes against
+1,346,608 expected bytes and cargo exit101. It is not counted as a pass. Its
+capacity and pixel assertions remain unchanged. The new fixture's initial
+teardown oracle incorrectly compared the cumulative peak with the preallocation
+snapshot. The corrected full retired snapshot retains the independently counted
+2016-byte peak while requiring every live byte/count/scope to retire; this is a
+fixture correction to peak semantics, not a relaxed capacity or pixel check.
+Existing mask reuse tests retain their binding identities and pixel tolerances;
+their fallible helper calls now require successful results explicitly.
+
+After integrating main #401's original error contracts and the PR400 timestamp
+capability correction, source `64fda9ba` passes render library86, eight actual GPU
+suites40, host library69 and workspace/all-targets FFmpeg check (excluding retired
+Android). Its new desktop fixture failed an unchanged transparent-outside pixel
+assertion because the test project still had the normal opaque background.
+`584b37c4` adds exactly one fixture line selecting a transparent project background;
+every assertion and all production/render/host sources are unchanged. The final
+desktop default-channel suite14 and style guard pass on this source. Together
+these are **209 distinct selected passing tests**, with zero failures or ignores
+in the accepted selections; the first failed desktop run is retained separately
+and its13 passes are not added again. The source/fixture delta is verified exactly.
+`mask-admission-combined-*.log` / `.exit.json` and the local
+`mask-admission-acceptance.json` bind source, command, exit, counts, log SHA-256
+and the failed controls. The original vector192-case result remains attached to
+`e994f343`; the combined209 selection supersedes it for integration. These are
+selected runs, not full workspace/public CI acceptance. No tracked source
+changed during either validation; all caches, temp data and artifacts stayed on E:.
+
+PR400's exact combined source `6042cd04` separately passes190 selected cases
+(render76/GPU33/host69/desktop12) and workspace FFmpeg check after resolving main
+#401's two conflicts. The builder and alpha initialization still precede GPU
+queue writes and preserve native error identity. Its public run39614881573 is
+tracked separately; local acceptance does not assert a public green result.
+
+Mask `clear` retains the existing warm uniform slots; this increment observes
+them but does not add cold pressure eviction. Mask/vector/group/effect/matte
+textures, compositor and presenter buffers, other external boundaries, shared
+session/platform policy, frame-class peaks, bounded preview/export and repeated
+lifecycle acceptance remain pending. #61/#67 stay open; precision and 3D remain
+parked. No panel, UI, style, asset or dependency changed.
