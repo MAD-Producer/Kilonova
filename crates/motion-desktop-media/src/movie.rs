@@ -988,7 +988,8 @@ impl FrozenMovie {
             };
             control.check()?;
             encoder.video_frame(&pixels, frame)?;
-            let until = (u64::from(frame + 1) * 48_000 / u64::from(p.fps)).min(total_samples);
+            let until = (u64::from(frame + 1) * motion_media::OUTPUT_RATE / u64::from(p.fps))
+                .min(total_samples);
             while sample < until {
                 control.check()?;
                 let count = block_size.min((total_samples - sample) as usize);
