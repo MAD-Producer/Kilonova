@@ -9,6 +9,9 @@ pub(super) struct GroupGpu {
     uniform: wgpu::BindGroupLayout,
     composite: wgpu::RenderPipeline,
     encode: wgpu::RenderPipeline,
+    opacity_buffer: crate::vector_upload::ReusableBuffer,
+    opacity_group: Option<wgpu::BindGroup>,
+    opacity_upload: Vec<u8>,
 }
 impl GroupGpu {
     pub(super) fn collect_textures(&self, ledger: &mut crate::TextureResourceLedger) {
@@ -22,7 +25,7 @@ impl GroupGpu {
         let uniform=device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label:Some("vector group opacity"), entries:&[wgpu::BindGroupLayoutEntry {
                 binding:0,visibility:wgpu::ShaderStages::FRAGMENT,
-                ty:wgpu::BindingType::Buffer {ty:wgpu::BufferBindingType::Uniform,has_dynamic_offset:false,min_binding_size:wgpu::BufferSize::new(16)},count:None,
+                ty:wgpu::BindingType::Buffer {ty:wgpu::BufferBindingType::Uniform,has_dynamic_offset:true,min_binding_size:wgpu::BufferSize::new(16)},count:None,
             }],
         });
         let shader=device.create_shader_module(wgpu::ShaderModuleDescriptor {label:Some("vector group copy"),source:wgpu::ShaderSource::Wgsl(include_str!("../group_copy.wgsl").into())});
@@ -34,7 +37,8 @@ impl GroupGpu {
             primitive:Default::default(),depth_stencil:None,multisample:wgpu::MultisampleState {count:samples,..Default::default()},multiview_mask:None,cache:None,
         });
         Self {targets:HashMap::new(),composite:pipeline(4,wgpu::TextureFormat::Rgba8Unorm,Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING)),
-            encode:pipeline(1,wgpu::TextureFormat::Rgba8UnormSrgb,None),uniform}
+            encode:pipeline(1,wgpu::TextureFormat::Rgba8UnormSrgb,None),uniform,
+            opacity_buffer:Default::default(),opacity_group:None,opacity_upload:Vec::new()}
     }
     pub fn grouped(mesh:&VectorMesh) -> bool { !mesh.commands.is_empty() || mesh.root_opacity!=1. }
     fn needed(meshes:&[VectorMesh]) -> HashSet<(u32,u32,usize)> {
@@ -42,11 +46,30 @@ impl GroupGpu {
     }
     pub fn retain(&mut self,meshes:&[VectorMesh]) { let needed=Self::needed(meshes);self.targets.retain(|k,_|needed.contains(k)); }
     pub fn bytes(&self) -> u64 {self.targets.keys().map(|(w,h,_)|u64::from(*w)*u64::from(*h)*20).sum()}
-    pub fn release(&mut self) {self.targets.clear();}
+    pub fn release(&mut self) {self.targets.clear();self.opacity_group=None;self.opacity_buffer.clear();self.opacity_upload=Vec::new();}
     pub fn required_bytes(meshes:&[VectorMesh]) -> u64 {Self::needed(meshes).iter().map(|(w,h,_)|u64::from(*w)*u64::from(*h)*20).sum()}
-    fn opacity(&self,device:&wgpu::Device,alpha:f32) -> wgpu::BindGroup {
-        let buffer=device.create_buffer_init(&wgpu::util::BufferInitDescriptor {label:Some("vector group opacity"),contents:bytemuck::cast_slice(&[alpha,0.,0.,0.]),usage:wgpu::BufferUsages::UNIFORM});
-        device.create_bind_group(&wgpu::BindGroupDescriptor {label:None,layout:&self.uniform,entries:&[wgpu::BindGroupEntry {binding:0,resource:buffer.as_entire_binding()}]})
+    pub(super) fn upload_info(&self) -> (u64,u64) { (self.opacity_buffer.bytes(),self.opacity_buffer.created) }
+    fn prepare_opacity(&mut self,device:&wgpu::Device,encoder:&mut wgpu::CommandEncoder,
+        mesh:&VectorMesh,uploads:&crate::vector_upload::UploadPool,layer:u64,frame:f64) -> Result<u32,RenderError> {
+        let stride=u64::from(device.limits().min_uniform_buffer_offset_alignment).max(16);
+        let count=mesh.commands.iter().filter(|c|c.kind==2).count() as u64 + 1;
+        let size=(count-1).checked_mul(stride).and_then(|bytes|bytes.checked_add(16))
+            .ok_or_else(||RenderError::Invalid("vector opacity upload size overflow".into()))?;
+        if size>u64::from(u32::MAX) {return Err(RenderError::Invalid("vector opacity offsets exceed u32".into()));}
+        let previous=self.opacity_buffer.created;
+        let buffer=self.opacity_buffer.get(device,size,wgpu::BufferUsages::UNIFORM,"reusable vector group opacity")?;
+        if previous!=self.opacity_buffer.created {
+            self.opacity_group=Some(device.create_bind_group(&wgpu::BindGroupDescriptor {label:Some("reusable vector group opacity"),layout:&self.uniform,
+                entries:&[wgpu::BindGroupEntry {binding:0,resource:wgpu::BindingResource::Buffer(wgpu::BufferBinding {buffer:&buffer,offset:0,size:wgpu::BufferSize::new(16)})}]}));
+        }
+        self.opacity_upload.resize(size as usize,0);
+        for (i,alpha) in mesh.commands.iter().filter(|c|c.kind==2).map(|c|c.opacity)
+            .chain(std::iter::once(mesh.root_opacity)).enumerate() {
+            let start=i*stride as usize;
+            self.opacity_upload[start..start+16].copy_from_slice(bytemuck::cast_slice(&[alpha,0.,0.,0.]));
+        }
+        uploads.write(device,encoder,&buffer,&self.opacity_upload,layer,frame)?;
+        Ok(stride as u32)
     }
     fn pass<'a>(encoder:&'a mut wgpu::CommandEncoder,target:&'a Target,clear:bool) -> wgpu::RenderPass<'a> {
         // Store samples between paints; resolve at the end of each pass so the
@@ -62,7 +85,11 @@ impl GroupGpu {
         })
     }
     pub fn draw(&mut self,device:&wgpu::Device,encoder:&mut wgpu::CommandEncoder,image:&wgpu::BindGroupLayout,sampler:&wgpu::Sampler,
-        mesh:&VectorMesh,output:&wgpu::TextureView,paint:&wgpu::RenderPipeline,clear:&wgpu::RenderPipeline,clear_vertices:&wgpu::Buffer) -> Result<(),RenderError> {
+        mesh:&VectorMesh,output:&wgpu::TextureView,paint:&wgpu::RenderPipeline,clear:&wgpu::RenderPipeline,clear_vertices:&wgpu::Buffer,
+        vertices:&wgpu::Buffer,uploads:&crate::vector_upload::UploadPool,layer:u64,frame:f64) -> Result<(),RenderError> {
+        let stride=self.prepare_opacity(device,encoder,mesh,uploads,layer,frame)?;
+        let group=self.opacity_group.as_ref().ok_or_else(||RenderError::Invalid("vector opacity binding missing".into()))?;
+        let mut opacity_index=0;
         for depth in 0..=mesh.scope_depth() {
             self.targets.entry((mesh.width,mesh.height,depth)).or_insert_with(||Target {
                 multisample:device.create_owned_texture(&wgpu::TextureDescriptor {label:Some("pooled vector group MSAA"),
@@ -71,28 +98,25 @@ impl GroupGpu {
                 resolved:crate::effect_gpu::texture(device,image,sampler,mesh.width,mesh.height,wgpu::TextureFormat::Rgba8Unorm),
             });
         }
-        let vertices=device.create_buffer_init(&wgpu::util::BufferInitDescriptor {label:Some("ordered vector group triangles"),
-            contents:if mesh.vertices.is_empty(){&[0u8;24]}else{bytemuck::cast_slice(&mesh.vertices)},usage:wgpu::BufferUsages::VERTEX});
         let target=|depth|&self.targets[&(mesh.width,mesh.height,depth)];
         {let mut pass=Self::pass(encoder,target(0),true);pass.set_pipeline(clear);pass.set_vertex_buffer(0,clear_vertices.slice(..));pass.draw(0..3,0..1);}
         let mut depth=0;
-        for RasterCommand{kind,start,end,opacity} in mesh.commands.iter().copied() {
+        for RasterCommand{kind,start,end,..} in mesh.commands.iter().copied() {
             match kind {
                 0=>{let mut pass=Self::pass(encoder,target(depth),false);pass.set_pipeline(paint);pass.set_vertex_buffer(0,vertices.slice(..));pass.draw(start..end,0..1);}
                 1=>{depth+=1;let mut pass=Self::pass(encoder,target(depth),true);pass.set_pipeline(clear);pass.set_vertex_buffer(0,clear_vertices.slice(..));pass.draw(0..3,0..1);}
                 2=>{if depth==0{return Err(RenderError::Invalid("unbalanced vector group raster commands".into()));}
-                    let group=self.opacity(device,opacity);let mut pass=Self::pass(encoder,target(depth-1),false);
-                    pass.set_pipeline(&self.composite);pass.set_bind_group(0,&target(depth).resolved.composite,&[]);pass.set_bind_group(1,&group,&[]);pass.draw(0..3,0..1);depth-=1;}
+                    let mut pass=Self::pass(encoder,target(depth-1),false);
+                    pass.set_pipeline(&self.composite);pass.set_bind_group(0,&target(depth).resolved.composite,&[]);pass.set_bind_group(1,group,&[opacity_index*stride]);pass.draw(0..3,0..1);depth-=1;opacity_index+=1;}
                 _=>return Err(RenderError::Invalid("invalid vector group raster command".into())),
             }
         }
         if depth!=0{return Err(RenderError::Invalid("unclosed vector group raster scope".into()));}
-        let group=self.opacity(device,mesh.root_opacity);
         let mut pass=encoder.begin_render_pass(&wgpu::RenderPassDescriptor { multiview_mask: None,label:Some("encode vector root once"),
             color_attachments:&[Some(wgpu::RenderPassColorAttachment { depth_slice: None,view:output,resolve_target:None,
                 ops:wgpu::Operations {load:wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),store:wgpu::StoreOp::Store}})],
             depth_stencil_attachment:None,timestamp_writes:None,occlusion_query_set:None});
-        pass.set_pipeline(&self.encode);pass.set_bind_group(0,&target(0).resolved.composite,&[]);pass.set_bind_group(1,&group,&[]);pass.draw(0..3,0..1);
+        pass.set_pipeline(&self.encode);pass.set_bind_group(0,&target(0).resolved.composite,&[]);pass.set_bind_group(1,group,&[opacity_index*stride]);pass.draw(0..3,0..1);
         Ok(())
     }
 }

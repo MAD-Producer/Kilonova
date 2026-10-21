@@ -20,11 +20,22 @@ pub(crate) struct LayerGpu {
     raster_scratch: HashMap<(u32, u32), OwnedTexture>,
     raster_resolve: HashMap<(u32, u32), FxTexture>,
     groups: groups::GroupGpu,
+    uploads: crate::vector_upload::UploadPool,
+    vertex_upload: crate::vector_upload::ReusableBuffer,
 }
 impl LayerGpu {
+    pub fn upload_info(&self) -> Result<crate::VectorUploadInfo, RenderError> {
+        let mut info = self.uploads.info()?;
+        let (opacity_bytes, opacity_created) = self.groups.upload_info();
+        info.vertex_capacity_bytes = self.vertex_upload.bytes();
+        info.opacity_capacity_bytes = opacity_bytes;
+        info.destination_buffers_created_total = self.vertex_upload.created.saturating_add(opacity_created);
+        Ok(info)
+    }
     pub fn release(&mut self) {
         self.accumulators.clear();self.size=[0;2];self.fingerprints.clear();
         self.raster_scratch.clear();self.raster_resolve.clear();self.groups.release();
+        self.uploads.release(); self.vertex_upload.clear();
     }
     pub fn new(
         device: &wgpu::Device,
@@ -154,6 +165,8 @@ impl LayerGpu {
             raster_scratch: HashMap::new(),
             raster_resolve: HashMap::new(),
             groups: groups::GroupGpu::new(device,image),
+            uploads: Default::default(),
+            vertex_upload: Default::default(),
         }
     }
     pub fn prepare_accumulators(
@@ -267,6 +280,9 @@ impl LayerGpu {
         self.raster_resolve
             .retain(|size, _| meshes.iter().any(|m| !groups::GroupGpu::grouped(m) && *size == (m.width, m.height)));
         self.groups.retain(meshes);
+        if meshes.is_empty() {
+            self.uploads.release(); self.vertex_upload.clear(); self.groups.release();
+        }
         // Include the complete working set even when all fingerprints hit.
         // Policy reductions and later meshes must refuse before any new upload.
         let required = *bytes + self.pending_vector_bytes(scene, meshes, images) + resource_bytes;
@@ -330,8 +346,13 @@ impl LayerGpu {
                 *bytes = *bytes - previous + cost;
                 changed = true;
             }
+            let contents = if mesh.vertices.is_empty() { &[0u8;24][..] } else { bytemuck::cast_slice(&mesh.vertices) };
+            let vertices = self.vertex_upload.get(device, contents.len() as u64,
+                wgpu::BufferUsages::VERTEX, "reusable vector raster triangles")?;
+            self.uploads.write(device, encoder, &vertices, contents, id, scene.frame)?;
             if groups::GroupGpu::grouped(mesh) {
-                self.groups.draw(device,encoder,image,sampler,mesh,&images[&key].view,&self.vector,&self.vector_clear,&self.clear_vertices)?;
+                self.groups.draw(device,encoder,image,sampler,mesh,&images[&key].view,&self.vector,&self.vector_clear,&self.clear_vertices,
+                    &vertices,&self.uploads,id,scene.frame)?;
                 self.fingerprints.insert(id,mesh.fingerprint);
                 continue;
             }
@@ -357,15 +378,6 @@ impl LayerGpu {
             let view = multisample.create_view(&Default::default());
             let resolved = self.raster_resolve.entry((mesh.width, mesh.height)).or_insert_with(|| {
                 crate::effect_gpu::texture(device, image, sampler, mesh.width, mesh.height, wgpu::TextureFormat::Rgba8Unorm)
-            });
-            let vertices = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("cached vector raster triangles"),
-                contents: if mesh.vertices.is_empty() {
-                    &[0u8; 24]
-                } else {
-                    bytemuck::cast_slice(&mesh.vertices)
-                },
-                usage: wgpu::BufferUsages::VERTEX,
             });
             {
                 let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {

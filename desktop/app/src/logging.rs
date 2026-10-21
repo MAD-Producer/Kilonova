@@ -409,3 +409,8 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod vector_upload_tests;
+#[cfg(test)]
+mod gpu_callback_tests;
