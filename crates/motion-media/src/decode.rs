@@ -29,18 +29,18 @@ pub fn decode_audio(
     check: &mut dyn FnMut(f64) -> Result<()>,
 ) -> Result<AudioAsset> {
     let mut signature = [0; 12];
-    let mut source = File::open(path).map_err(|e| e.to_string())?;
+    let mut source = File::open(path).map_err(crate::Error::from)?;
     source
         .read_exact(&mut signature)
-        .map_err(|e| e.to_string())?;
-    let bytes = source.metadata().map_err(|e| e.to_string())?.len();
+        .map_err(crate::Error::from)?;
+    let bytes = source.metadata().map_err(crate::Error::from)?.len();
     drop(source);
     if signature[..4] == [0x1a, 0x45, 0xdf, 0xa3] {
         return Err(
             "Matroska audio requires the platform decoder to preserve its source clock".into(),
         );
     }
-    let file = File::open(path).map_err(|e| e.to_string())?;
+    let file = File::open(path).map_err(crate::Error::from)?;
     let mss = MediaSourceStream::new(Box::new(file), Default::default());
     let opts = FormatOptions {
         enable_gapless: true,
@@ -48,7 +48,7 @@ pub fn decode_audio(
     };
     let mut format = symphonia::default::get_probe()
         .format(&Hint::new(), mss, &opts, &Default::default())
-        .map_err(|e| e.to_string())?
+        .map_err(crate::Error::from)?
         .format;
     if format.tracks().len() > 32 {
         return Err("too many audio tracks".into());
@@ -69,7 +69,7 @@ pub fn decode_audio(
     let params = track.codec_params.clone();
     let mut decoder = symphonia::default::get_codecs()
         .make(&params, &DecoderOptions { verify: true })
-        .map_err(|e| e.to_string())?;
+        .map_err(|error| crate::Error::symphonia("initialize", error))?;
     // AAC's AudioSpecificConfig carries the layout even when MP4 headers do not.
     let rate = if matches!(params.codec, CODEC_TYPE_AAC | CODEC_TYPE_ALAC) {
         decoder.last_decoded().spec().rate
@@ -129,7 +129,7 @@ pub fn decode_audio(
         return Err("audio leading gap exceeds one hour".into());
     }
     let mut output =
-        BufWriter::with_capacity(64 * 1024, File::create(pcm).map_err(|e| e.to_string())?);
+        BufWriter::with_capacity(64 * 1024, File::create(pcm).map_err(crate::Error::from)?);
     let mut total = 0u64;
     let mut decoded = 0u64;
     let mut audible = 0u64;
@@ -147,7 +147,7 @@ pub fn decode_audio(
         let n = lead_bytes.min(zeros.len() as u64);
         output
             .write_all(&zeros[..n as usize])
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
         lead_bytes -= n;
     }
     total += edit.leading;
@@ -165,7 +165,7 @@ pub fn decode_audio(
             {
                 break
             }
-            Err(e) => return Err(format!("audio demux failed: {e}")),
+            Err(e) => return Err(crate::Error::decode("demux", e)),
         };
         if packet.track_id() != id {
             continue;
@@ -184,7 +184,7 @@ pub fn decode_audio(
         }
         let audio = decoder
             .decode(&packet)
-            .map_err(|e| format!("audio decode failed: {e}"))?;
+            .map_err(|e| crate::Error::decode("decode", e))?;
         if audio.spec().rate != rate || audio.spec().channels.count() as u32 != channels {
             return Err("audio format changes within source".into());
         }
@@ -230,7 +230,7 @@ pub fn decode_audio(
                 let count = bytes.min(zeros.len() as u64);
                 output
                     .write_all(&zeros[..count as usize])
-                    .map_err(|e| e.to_string())?;
+                    .map_err(crate::Error::from)?;
                 bytes -= count;
             }
             total += gap;
@@ -258,7 +258,7 @@ pub fn decode_audio(
             }
             output
                 .write_all(&s.to_le_bytes())
-                .map_err(|e| e.to_string())?;
+                .map_err(crate::Error::from)?;
         }
         decoded += frames;
         audible += count;
@@ -268,7 +268,7 @@ pub fn decode_audio(
         }
     }
     if mp4_container && expected_frames.is_some_and(|n| packet_end_ts < n) {
-        return Err(format!("MP4 audio sample table is truncated: read through {packet_end_ts}, expected {expected_frames:?}"));
+        return Err(format!("MP4 audio sample table is truncated: read through {packet_end_ts}, expected {expected_frames:?}").into());
     }
     if mp4_container && decoded > 0 {
         if let Some(end) = edit.frames.filter(|end| *end > audible) {
@@ -287,7 +287,7 @@ pub fn decode_audio(
                     let count = bytes.min(zeros.len() as u64);
                     output
                         .write_all(&zeros[..count as usize])
-                        .map_err(|e| e.to_string())?;
+                        .map_err(crate::Error::from)?;
                     bytes -= count;
                 }
                 audible += missing;
@@ -305,13 +305,13 @@ pub fn decode_audio(
         "audio/wav" | "audio/flac" | "audio/aiff" | "audio/mpeg"
     ) && expected_frames.is_some_and(|n| audible != n)
     {
-        return Err(format!("audio decoded length {audible} does not match source {expected_frames:?}; file may be truncated"));
+        return Err(format!("audio decoded length {audible} does not match source {expected_frames:?}; file may be truncated").into());
     }
     if decoder.finalize().verify_ok == Some(false) {
         return Err("audio decoder verification failed".into());
     }
-    output.flush().map_err(|e| e.to_string())?;
-    output.get_ref().sync_all().map_err(|e| e.to_string())?;
+    output.flush().map_err(crate::Error::from)?;
+    output.get_ref().sync_all().map_err(crate::Error::from)?;
     Ok(AudioAsset {
         id: 1,
         path: "assets/probed-audio".into(),
@@ -326,27 +326,27 @@ pub fn decode_audio(
 }
 
 fn aiff_frames(path: &Path) -> Result<u64> {
-    let mut f = File::open(path).map_err(|e| e.to_string())?;
-    let size = f.metadata().map_err(|e| e.to_string())?.len();
-    f.seek(SeekFrom::Start(12)).map_err(|e| e.to_string())?;
+    let mut f = File::open(path).map_err(crate::Error::from)?;
+    let size = f.metadata().map_err(crate::Error::from)?.len();
+    f.seek(SeekFrom::Start(12)).map_err(crate::Error::from)?;
     for _ in 0..4096 {
-        let at = f.stream_position().map_err(|e| e.to_string())?;
+        let at = f.stream_position().map_err(crate::Error::from)?;
         if at + 8 > size {
             break;
         }
         let mut h = [0u8; 8];
-        f.read_exact(&mut h).map_err(|e| e.to_string())?;
+        f.read_exact(&mut h).map_err(crate::Error::from)?;
         let len = u64::from(u32::from_be_bytes(h[4..].try_into().unwrap()));
         if at + 8 + len > size {
             return Err("truncated AIFF chunk".into());
         }
         if &h[..4] == b"COMM" && len >= 18 {
             let mut data = [0u8; 6];
-            f.read_exact(&mut data).map_err(|e| e.to_string())?;
+            f.read_exact(&mut data).map_err(crate::Error::from)?;
             return Ok(u64::from(u32::from_be_bytes(data[2..].try_into().unwrap())));
         }
         f.seek(SeekFrom::Start(at + 8 + len + len % 2))
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
     }
     Err("AIFF sample count missing or chunk budget exceeded".into())
 }

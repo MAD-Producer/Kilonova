@@ -6,7 +6,7 @@
 //! reports the missing capability instead of failing silently.
 use motion_core::{AudioAsset, VideoAsset};
 use motion_host::platform::{Platform, SurfaceTarget, VideoDecoder, VideoQuery};
-use motion_host::Result;
+use motion_media::Result;
 use motion_media::VideoProbe;
 use serde_json::{json, Value};
 use std::{path::Path, sync::Arc};
@@ -134,7 +134,7 @@ impl Platform for DesktopPlatform {
         window: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         width: u32,
         height: u32,
-    ) -> Result<SurfaceTarget> {
+    ) -> motion_host::Result<SurfaceTarget> {
         let mut failures = Vec::new();
         for backend in &self.surface_backends {
             let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
@@ -288,7 +288,7 @@ pub fn verify_video_runtime(path: &Path) -> Result<Value> {
         let frame = decoder.frame(pts, &|| Ok(())).map_err(|e| format!("phase=decode index={index} pts={pts} cause={e}"))?;
         let rgba = frame.rgba().map_err(|e| format!("phase=rgba index={index} pts={pts} cause={e}"))?;
         if frame.pts != pts || frame.end <= pts || rgba.len() != frame.width as usize * frame.height as usize * 4 {
-            return Err(format!("video runtime frame {index} has an invalid timestamp interval or pixel span"));
+            return Err(format!("video runtime frame {index} has an invalid timestamp interval or pixel span").into());
         }
         frames.push(json!({"pts":frame.pts,"end":frame.end,"width":frame.width,
             "height":frame.height,"rgbaBytes":rgba.len(),"decoder":frame.decoder_name}));

@@ -1,14 +1,17 @@
 //! Default desktop chords shared by application and node contexts.
 use motion_ui::input::{Key, KeyChord, Modifiers};
+pub(crate) mod bindings;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Scope {
     Application,
     Animation,
     Nodes,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Command {
     ReloadStyle,
     TogglePanelMaximize,
@@ -58,6 +61,12 @@ pub enum Command {
     MoveRight,
     MoveUp,
     MoveDown,
+    SelectLayerAbove,
+    SelectLayerBelow,
+    OrderLayersUp,
+    OrderLayersDown,
+    OrderLayersTop,
+    OrderLayersBottom,
     Arrange,
     Group,
     Ungroup,
@@ -82,6 +91,12 @@ pub fn resolve(scope: Scope, key: Key, m: Modifiers, repeat: bool) -> Option<Com
     use Command::*;
     use Scope::*;
     let command = match (scope, key, m.control, m.shift, m.alt) {
+        (Animation, Key::Up, true, _, false) => SelectLayerAbove,
+        (Animation, Key::Down, true, _, false) => SelectLayerBelow,
+        (Animation, Key::Up, true, false, true) => OrderLayersUp,
+        (Animation, Key::Down, true, false, true) => OrderLayersDown,
+        (Animation, Key::Up, true, true, true) => OrderLayersTop,
+        (Animation, Key::Down, true, true, true) => OrderLayersBottom,
         (Animation, Key::A, false, _, false) => Reveal(motion_core::Property::Anchor),
         (Animation, Key::P, false, _, false) => Reveal(motion_core::Property::Position),
         (Animation, Key::S, false, _, false) => Reveal(motion_core::Property::Scale),
@@ -139,6 +154,7 @@ pub fn resolve(scope: Scope, key: Key, m: Modifiers, repeat: bool) -> Option<Com
         (Application, Key::Y, true, false, true) => Adjustment,
         (Application, Key::A, true, false, false) => SelectAll,
         (Application, Key::A, true, true, false) => DeselectAll,
+        (Nodes, Key::Space, false, false, false) => Play,
         (Nodes, Key::S, true, true, false) => SaveAs,
         (Nodes, Key::A, true, false, false) => SelectAll,
         (Nodes, Key::A, true, true, false) => DeselectAll,
@@ -171,6 +187,8 @@ pub fn resolve(scope: Scope, key: Key, m: Modifiers, repeat: bool) -> Option<Com
                 | MoveDown
                 | PreviousKey
                 | NextKey
+                | SelectLayerAbove
+                | SelectLayerBelow
         ))
     .then_some(command)
 }

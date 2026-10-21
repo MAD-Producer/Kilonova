@@ -31,7 +31,7 @@ fn require(ok: bool, message: &str) -> Result<()> {
     if ok {
         Ok(())
     } else {
-        Err(format!("invalid MOV sample timing: {message}"))
+        Err(format!("invalid MOV sample timing: {message}").into())
     }
 }
 fn u32_at(data: &[u8], offset: usize) -> Result<u32> {
@@ -54,7 +54,7 @@ fn unique(atoms: &[Atom], kind: &[u8; 4]) -> Result<Option<Atom>> {
 }
 fn mandatory(atoms: &[Atom], kind: &[u8; 4]) -> Result<Atom> {
     unique(atoms, kind)?
-        .ok_or_else(|| format!("missing MOV timing box: {}", String::from_utf8_lossy(kind)))
+        .ok_or_else(|| format!("missing MOV timing box: {}", String::from_utf8_lossy(kind)).into())
 }
 impl Reader<'_> {
     fn read(&mut self, offset: u64, bytes: usize) -> Result<Vec<u8>> {
@@ -72,13 +72,13 @@ impl Reader<'_> {
         )?;
         self.file
             .seek(SeekFrom::Start(offset))
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
         let mut data = vec![0; bytes];
         for block in data.chunks_mut(64 * 1024) {
             (self.check)()?;
             self.file
                 .read_exact(block)
-                .map_err(|e| format!("read MOV timing: {e}"))?;
+                .map_err(|e| crate::Error::from(e).context("read MOV timing".into()))?;
         }
         Ok(data)
     }
@@ -701,7 +701,7 @@ pub fn sample_timing(
     let mut header = [0u8; 8];
     let count = File::open(path)
         .and_then(|mut file| file.read(&mut header))
-        .map_err(|e| e.to_string())?;
+        .map_err(crate::Error::from)?;
     if count < 8
         || !matches!(
             &header[4..8],
@@ -715,8 +715,8 @@ pub fn sample_timing(
 
 fn read_timing(path: &Path, track: u32, check: &dyn Fn() -> Result<()>) -> Result<Mp4SampleTiming> {
     check()?;
-    let file = File::open(path).map_err(|e| e.to_string())?;
-    let length = file.metadata().map_err(|e| e.to_string())?.len();
+    let file = File::open(path).map_err(crate::Error::from)?;
+    let length = file.metadata().map_err(crate::Error::from)?.len();
     let mut reader = Reader {
         file: Box::new(file),
         length,
@@ -758,7 +758,7 @@ fn read_timing(path: &Path, track: u32, check: &dyn Fn() -> Result<()>) -> Resul
             check()?;
             let count = decoder
                 .read(&mut block)
-                .map_err(|e| format!("invalid compressed MOV metadata: {e}"))?;
+                .map_err(|e| crate::Error::from(e).context("invalid compressed MOV metadata".into()))?;
             if count == 0 {
                 break;
             }
@@ -1126,7 +1126,7 @@ mod tests {
         assert_eq!(
             sample_duration(&fixture("video-fragmented.mp4"), 1, 5736, 23, &check)
                 .err()
-                .unwrap(),
+                .unwrap().to_string(),
             "cancelled during timing read"
         );
     }

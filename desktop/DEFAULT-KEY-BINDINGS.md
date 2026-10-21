@@ -75,6 +75,14 @@
 | Animation | Semicolon | false | false | false | ToggleFrameView | false |
 | Animation | Delete | false | false | false | Delete | false |
 | Animation | Backspace | false | false | false | Delete | false |
+| Animation | Up | true | false | false | SelectLayerAbove | true |
+| Animation | Up | true | false | true | OrderLayersUp | false |
+| Animation | Up | true | true | false | SelectLayerAbove | true |
+| Animation | Up | true | true | true | OrderLayersTop | false |
+| Animation | Down | true | false | false | SelectLayerBelow | true |
+| Animation | Down | true | false | true | OrderLayersDown | false |
+| Animation | Down | true | true | false | SelectLayerBelow | true |
+| Animation | Down | true | true | true | OrderLayersBottom | false |
 | Animation | BracketLeft | false | false | false | MoveInToPlayhead | false |
 | Animation | BracketLeft | false | false | true | TrimInToPlayhead | false |
 | Animation | BracketRight | false | false | false | MoveOutToPlayhead | false |
@@ -100,6 +108,7 @@
 | Nodes | Equal | false | true | false | Arrange | false |
 | Nodes | Tab | false | false | false | EnterGroup | false |
 | Nodes | Tab | true | false | false | LeaveGroup | false |
+| Nodes | Space | false | false | false | Play | false |
 | Nodes | Delete | false | false | false | Delete | false |
 | Nodes | Backspace | false | false | false | Delete | false |
 | Nodes | Left | false | false | false | MoveLeft | true |

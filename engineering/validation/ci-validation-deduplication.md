@@ -105,3 +105,57 @@ obtained using the official Git API, reconstructed from their verification
 payloads and signatures, and accepted only after their exact SHA-1 hashes and
 existing local tree objects matched. This is source integration, not a CI rerun
 of an unchanged head. The updated head still requires remote CI.
+
+## Windows native-fixture failure on the policy branch
+
+Run `39380256220`, Windows job `118487905609`, failed its desktop unit step:
+611 passed, one failed and one existing ignore. The PNG fixture reported
+`Present` waiting for 10.030 seconds, queue depth zero, on DX12 Microsoft Basic
+Render Driver. The raw job log is retained as
+`artifacts/pr-queue/374-windows-current-failure.log`. This is a real failed
+validation, not a successful policy rollout.
+
+The hidden-window fixture blocked its window-owner thread on a channel while
+the render worker could synchronously send native messages to that thread.
+The test-only receive helper from #348 services the native event loop while
+preserving one absolute deadline. Both hidden-window fixtures use it for
+Attach and Present. The original 30-second Attach, 10-second Present and
+15-second playback deadlines, strict adjacent-frame progress assertions, and
+all sampling modes and frame counts remain unchanged. Production event
+handling, rendering and UI behavior are unchanged.
+
+A real cross-thread Win32 WM_NULL control verifies that an ordinary blocking
+receive does not service the message, and that the helper does. It also checks
+timeout, disconnect and immediately available replies. The helper and the
+three other test-source files are byte-identical to #348's validated source;
+placing this shared fix here prevents the policy PR from depending on a
+downstream PR's fixture correction. Local Vulkan validation cannot establish
+success on the remote DX12 software adapter; that remains a separate CI gate.
+
+The first local attempt on this branch did not execute a test: MSVC failed
+with LNK1108 because its temporary file was on a full C drive. That log is
+retained as `artifacts/pr-queue/374-message-control.log`. The next attempt
+places both Cargo output and TEMP/TMP on E. No assertion or timeout was
+changed to address this storage failure.
+
+The E-only retry also stopped before test execution: Rust could not map
+dependency metadata (Windows error 1455, paging file too small), and its
+PowerShell host reported out of memory. A separate release build was active
+in another worktree; it was not terminated or modified. The failed retry is
+retained as `artifacts/pr-queue/374-e-temp-message-control.log` and is not
+counted as a source regression or a passing test.
+
+The identical four test-source files already passed actual Cargo validation
+on #348: the native message control (0.27 seconds), bilingual PNG fixture
+(19.02 seconds), and four-mode paced sampling fixture (40.20 seconds). Evidence
+is `348-final-message-control.log`, `348-pumped-png.log`, and
+`348-pumped-sampling.log` under `artifacts/pr-queue`. An independently compiled
+copy with message pumping replaced by sleeping failed the positive message
+control as expected; the actual helper passed. These are existing source-level
+checks from #348, not a fresh complete run of #374. This branch still requires
+its own replacement-head remote checks, including Windows DX12.
+
+After the fixture integration, all 54 tooling tests completed in 53.908 seconds:
+53 passed and the existing optional external-loader check skipped. Provenance,
+panel style-consumer and patch-whitespace guards passed. The workflow and its
+policy tests were not modified by this fixture correction.

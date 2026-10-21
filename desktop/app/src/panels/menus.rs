@@ -83,29 +83,29 @@ pub(super) fn render(
         let entries: Vec<(String, Action, bool)> = match menu {
             0 => vec![
                 (
-                    format!("{}    Ctrl+Alt+N", locale.t(T::NewProject)),
+                    panels.shortcut_bindings.label(locale.t(T::NewProject), crate::shortcuts::Scope::Application, crate::shortcuts::Command::NewProject),
                     Action::New,
                     true,
                 ),
                 (
-                    format!("{}    Ctrl+O", locale.t(T::OpenProject)),
+                    panels.shortcut_bindings.label(locale.t(T::OpenProject), crate::shortcuts::Scope::Application, crate::shortcuts::Command::Open),
                     Action::Open,
                     true,
                 ),
                 (
-                    format!("{}    Ctrl+S", locale.t(T::Save)),
+                    panels.shortcut_bindings.label(locale.t(T::Save), crate::shortcuts::Scope::Application, crate::shortcuts::Command::Save),
                     Action::Save,
                     true,
                 ),
                 (locale.t(T::ExportPackage).into(), Action::Pack, true),
                 (
-                    format!("{}    Ctrl+I", locale.t(T::ImportMedia)),
+                    panels.shortcut_bindings.label(locale.t(T::ImportMedia), crate::shortcuts::Scope::Application, crate::shortcuts::Command::Import),
                     Action::ImportMedia,
                     true,
                 ),
                 (locale.t(T::ExportPng).into(), Action::ExportPng, true),
                 (
-                    format!("{}    Ctrl+Alt+M", locale.t(T::ExportMovie)),
+                    panels.shortcut_bindings.label(locale.t(T::ExportMovie), crate::shortcuts::Scope::Application, crate::shortcuts::Command::Export),
                     Action::ExportMovie,
                     cfg!(feature = "ffmpeg"),
                 ),
@@ -114,12 +114,12 @@ pub(super) fn render(
             ],
             1 => vec![
                 (
-                    format!("{}    Ctrl+Z", locale.t(T::Undo)),
+                    panels.shortcut_bindings.label(locale.t(T::Undo), crate::shortcuts::Scope::Application, crate::shortcuts::Command::Undo),
                     Action::History(0),
                     state["canUndo"].as_bool().unwrap_or(false),
                 ),
                 (
-                    format!("{}    Ctrl+Shift+Z", locale.t(T::Redo)),
+                    panels.shortcut_bindings.label(locale.t(T::Redo), crate::shortcuts::Scope::Application, crate::shortcuts::Command::Redo),
                     Action::History(1),
                     state["canRedo"].as_bool().unwrap_or(false),
                 ),
@@ -129,19 +129,19 @@ pub(super) fn render(
                     state["preview"]["pluginEditorRecovery"]["gesture"] == true && state["observing"] != true,
                 ),
                 (
-                    if locale == Locale::Zh { "偏好设置…    Ctrl+," } else { "Preferences…    Ctrl+," }.into(),
+                    panels.shortcut_bindings.label(if locale == Locale::Zh { "偏好设置…" } else { "Preferences…" },crate::shortcuts::Scope::Application,crate::shortcuts::Command::Preferences),
                     Action::Preferences,
                     true,
                 ),
             ],
             2 => vec![
                 (
-                    format!("{}    Ctrl+N", locale.t(T::NewComposition)),
+                    panels.shortcut_bindings.label(locale.t(T::NewComposition), crate::shortcuts::Scope::Application, crate::shortcuts::Command::NewComposition),
                     Action::NewComposition,
                     true,
                 ),
                 (
-                    format!("{}    Ctrl+K", locale.t(T::CompositionSettings)),
+                    panels.shortcut_bindings.label(locale.t(T::CompositionSettings), crate::shortcuts::Scope::Application, crate::shortcuts::Command::Settings),
                     Action::CompositionSettings,
                     true,
                 ),
@@ -153,7 +153,8 @@ pub(super) fn render(
                     true,
                 ),
             ],
-            3 => vec![
+            3 => {
+                let mut entries = vec![
                 (locale.t(T::NewSolid).into(), Action::AddSolid, true),
                 (locale.t(T::NewText).into(), Action::NewText, true),
                 (locale.t(T::NewNull).into(), Action::AddNull, true),
@@ -186,7 +187,7 @@ pub(super) fn render(
                     editable,
                 ),
                 (
-                    format!("{}    Ctrl+D", locale.t(T::Duplicate)),
+                    panels.shortcut_bindings.label(locale.t(T::Duplicate), crate::shortcuts::Scope::Application, crate::shortcuts::Command::Duplicate),
                     Action::Edit(Command::Duplicate {
                         object: selected.unwrap_or(0),
                     }),
@@ -211,7 +212,10 @@ pub(super) fn render(
                     Action::EditBatch(unlock_commands),
                     can_unlock,
                 ),
-            ],
+                ];
+                entries.extend(super::layer_navigation::menu_entries(panels, state));
+                entries
+            },
             4 => vec![(
                 locale.t(T::ShowEffects).into(),
                 Action::ShowPanel(dock::DockId(2)),

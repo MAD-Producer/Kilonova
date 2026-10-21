@@ -1,13 +1,15 @@
+#[path = "../../motion-effects/tests/support/scene_packages.rs"]
+mod scene_fixtures;
 use motion_core::{Command, EffectAction, EffectInstance, Engine, Layer, Project};
 use motion_render::Scene;
-use motion_effects::{builtin, Registry};
+use motion_effects::{builtin};
 use motion_render::{
     effect_plan::{PlanBuilder, PLAN_VERSION},
     Renderer,
 };
 
 fn project(id: &str) -> Project {
-    let package = builtin::scene_package().unwrap();
+    let package = scene_fixtures::scene_package().unwrap();
     let def = package
         .manifest
         .effects
@@ -44,7 +46,7 @@ fn project(id: &str) -> Project {
 fn plan(p: &Project, frame: f64) -> (Scene, PlanBuilder) {
     let mut scene = Scene::new(p);
     scene.sample(p, frame, None, &motion_core::ExpressionEvaluator).unwrap();
-    let mut builder = PlanBuilder::new(Registry::new_with_builtins().unwrap()).unwrap();
+    let mut builder = PlanBuilder::new(scene_fixtures::registry().unwrap()).unwrap();
     builder.build(&scene, &[0], 128, 128, true).unwrap();
     (scene, builder)
 }
@@ -161,7 +163,7 @@ fn particle_budget_failure_is_explicit_and_binary_plan_has_bounded_instances() {
         .value = [10000., 0., 0., 0.];
     let mut scene = Scene::new(&p);
     scene.sample(&p, 30., None, &motion_core::ExpressionEvaluator).unwrap();
-    let mut builder = PlanBuilder::new(Registry::new_with_builtins().unwrap()).unwrap();
+    let mut builder = PlanBuilder::new(scene_fixtures::registry().unwrap()).unwrap();
     assert!(builder
         .build(&scene, &[0], 128, 128, true)
         .unwrap_err()
@@ -195,6 +197,7 @@ fn two_dimensional_generators_ignore_camera_motion_and_spatial_depth() {
 #[test]
 fn all_generators_render_on_gpu_and_following_image_effects_execute() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    renderer.set_effect_registry(scene_fixtures::registry().unwrap());
     let target = renderer.capture_target(128, 128).unwrap();
     for id in [
         "lens_flare",
@@ -253,7 +256,7 @@ fn hidden_generator_capacity_missing_sources_and_chain_order_block_export() {
         .value = [10000., 0., 0., 0.];
     let mut scene = Scene::new(&p);
     scene.sample(&p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
-    let mut builder = PlanBuilder::new(Registry::new_with_builtins().unwrap()).unwrap();
+    let mut builder = PlanBuilder::new(scene_fixtures::registry().unwrap()).unwrap();
     assert!(builder
         .build(&scene, &[0], 128, 128, true)
         .unwrap_err()
@@ -315,7 +318,7 @@ fn source_image_alpha_uses_filtered_pixels_and_cache_budget_is_explicit() {
     p.layers.push(layer);
     let mut scene = Scene::new(&p);
     scene.sample(&p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
-    let mut builder = PlanBuilder::new(Registry::new_with_builtins().unwrap()).unwrap();
+    let mut builder = PlanBuilder::new(scene_fixtures::registry().unwrap()).unwrap();
     assert!(builder
         .build(&scene, &[0, 1], 128, 128, true)
         .unwrap_err()

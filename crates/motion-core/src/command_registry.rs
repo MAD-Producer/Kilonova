@@ -143,6 +143,7 @@ registry! {
     Command::Anchor { .. } => "anchor" [("object","u64",true), ("anchor","[f32; 2]",true)];
     Command::AnchorAt { .. } => "anchor_at" [("object","u64",true), ("frame","u32",true), ("anchor","[f32; 2]",true)];
     Command::CameraMode { .. } => "camera_mode" [("object","u64",false), ("mode","CameraMode",true)];
+    Command::CameraLens { .. } => "camera_lens" [("object","u64",false), ("frame","u32",true), ("film_width_mm","f32",true), ("focal_length_mm","f32",true)];
     Command::Dolly { .. } => "dolly" [("object","u64",false), ("frame","u32",true), ("amount","f32",true)];
     Command::Pan { .. } => "pan" [("object","u64",false), ("frame","u32",true), ("x","f32",true), ("y","f32",true)];
 }

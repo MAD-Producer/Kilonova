@@ -1,5 +1,5 @@
 use motion_core::{composition::*, Camera, Content, Layer, LayerTimeline, Project};
-use motion_host::{Platform, Result, Session, SurfaceTarget, VideoDecoder, VideoQuery};
+use motion_host::{Platform, Session, SurfaceTarget, VideoDecoder, VideoQuery};
 use serde_json::{json, Value};
 use std::{path::Path, sync::Arc};
 
@@ -66,8 +66,8 @@ impl Platform for Stub {
         _: &Path,
         _: Option<u32>,
         _: Option<u32>,
-        _: &dyn Fn() -> Result<()>,
-    ) -> Result<motion_media::VideoProbe> {
+        _: &dyn Fn() -> motion_media::Result<()>,
+    ) -> motion_media::Result<motion_media::VideoProbe> {
         panic!("registration must not probe media")
     }
     fn open_decoder(
@@ -75,7 +75,7 @@ impl Platform for Stub {
         _: &Path,
         _: motion_core::VideoAsset,
         _: Vec<u64>,
-    ) -> Result<Box<dyn VideoDecoder>> {
+    ) -> motion_media::Result<Box<dyn VideoDecoder>> {
         panic!("registration must not decode video")
     }
     fn decode_audio(
@@ -84,11 +84,11 @@ impl Platform for Stub {
         _: &Path,
         _: Option<u32>,
         _: u64,
-        _: &mut dyn FnMut(f64) -> Result<()>,
-    ) -> Result<motion_core::AudioAsset> {
+        _: &mut dyn FnMut(f64) -> motion_media::Result<()>,
+    ) -> motion_media::Result<motion_core::AudioAsset> {
         panic!("registration must not decode audio")
     }
-    fn media_capabilities(&self, _: Option<&VideoQuery>) -> Result<Value> {
+    fn media_capabilities(&self, _: Option<&VideoQuery>) -> motion_media::Result<Value> {
         Ok(json!({}))
     }
     fn attach_surface(
@@ -96,7 +96,7 @@ impl Platform for Stub {
         _: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         _: u32,
         _: u32,
-    ) -> Result<SurfaceTarget> {
+    ) -> motion_host::Result<SurfaceTarget> {
         panic!("registration must not create a surface")
     }
 }

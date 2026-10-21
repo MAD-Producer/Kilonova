@@ -590,10 +590,11 @@ impl Project {
             Ok((depth, instances))
         }
         let ids = self.composition_ids();
-        let nodes: HashMap<_, _> = ids.iter().map(|id| {
-            let node = self.composition_view(id).expect("known composition");
-            (node.id, node)
-        }).collect();
+        let mut nodes = HashMap::with_capacity(ids.len());
+        for id in &ids {
+            let node = self.composition_view(id)?;
+            nodes.insert(node.id, node);
+        }
         let mut memo = HashMap::new();
         for id in &ids { visit(&nodes, id, &mut Vec::new(), &mut memo, extra)?; }
         Ok(())
@@ -787,7 +788,10 @@ impl Project {
                 json!({"objects":objects}),
             );
         }
-        if indices.last().unwrap() - indices[0] + 1 != indices.len() {
+        let Some((&first, &last)) = indices.first().zip(indices.last()) else {
+            return fail(&source, "invalid_selection", "Select distinct non-camera layers", json!({}));
+        };
+        if last - first + 1 != indices.len() {
             return fail(
                 &source,
                 "noncontiguous_selection",
@@ -890,7 +894,7 @@ impl Project {
             );
         }
         let child_id = self.new_composition_id()?;
-        let insert = indices[0];
+        let insert = first;
         let mut child = Composition::from_project(self);
         child.id = child_id.clone();
         child.name = name;
@@ -903,7 +907,11 @@ impl Project {
             .retain(|e| selected.contains(&e.target.object()));
         self.compositions.push(child);
         let reference = self.add_reference(&child_id, 0)?;
-        let l = self.layers.pop().expect("reference just added");
+        let l = self.layers.pop().ok_or_else(|| Error::Composition(CompositionError {
+            code: "reference_missing".into(), composition: source.clone(),
+            message: "Precomposition reference was not created".into(),
+            details: json!({"object":reference,"target":child_id}),
+        }))?;
         self.layers.retain(|l| !selected.contains(&l.id));
         self.layers.insert(insert, l);
         self.expressions
@@ -1181,7 +1189,11 @@ impl Project {
                         .compositions
                         .iter_mut()
                         .find(|c| c.id == source)
-                        .unwrap() = node;
+                        .ok_or_else(|| Error::Composition(CompositionError {
+                            code: "composition_missing".into(), composition: source.clone(),
+                            message: "Composition does not exist".into(),
+                            details: json!({"phase":"settings_references","target":id}),
+                        }))? = node;
                 }
             }
         }

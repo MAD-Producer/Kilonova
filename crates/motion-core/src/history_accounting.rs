@@ -85,6 +85,7 @@ impl Changes {
             Command::SetColor { object: 0, .. } | Command::Reorder { .. } => return,
             Command::SetColor { object, .. } => *object,
             Command::CameraMode { object, .. }
+            | Command::CameraLens { object, .. }
             | Command::Dolly { object, .. }
             | Command::Pan { object, .. } => *object,
             // Hierarchy, expressions, effects, assets and composition graph

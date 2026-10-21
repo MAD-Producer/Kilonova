@@ -58,6 +58,11 @@ pub enum RenderError {
     Resource { rejection: ResourceRejection, message: String },
     #[error("GPU readback failed: {0}")]
     Readback(String),
+    #[error(transparent)]
+    CompositionPlan(#[from] crate::composition_plan::CompositionPlanError),
+    // Keep protocol-facing text independent of the original boxed source.
+    #[error("{message}")]
+    Context { message: String, #[source] cause: Box<RenderError> },
 }
 pub(crate) type Result<T> = std::result::Result<T, RenderError>;
 
@@ -66,9 +71,13 @@ mod resource_rejection_tests;
 
 impl RenderError {
     pub fn resource_rejection(&self) -> Option<&ResourceRejection> {
-        match self {
-            Self::Resource { rejection, .. } => Some(rejection),
-            _ => None,
+        let mut error = self;
+        loop {
+            match error {
+                Self::Resource { rejection, .. } => return Some(rejection),
+                Self::Context { cause, .. } => error = cause,
+                _ => return None,
+            }
         }
     }
     pub(crate) fn budget(scope: ResourceBudgetScope, required_bytes: u64, budget_bytes: u64, message: impl Into<String>) -> Self {
@@ -544,6 +553,10 @@ impl Renderer {
     }
     pub fn vector_upload_info(&self) -> Result<crate::VectorUploadInfo> {
         self.layer_gpu.upload_info()
+    }
+    /// Explicit diagnostics only: clone bounded metadata, never GPU handles.
+    pub fn submission_memory_snapshot(&self, current: &crate::TextureResourceLedger) -> crate::SubmissionMemorySnapshot {
+        self.submission_ledger.snapshot(current)
     }
     /// Snapshot of application-owned textures; it does not keep GPU handles alive.
     pub fn texture_resource_ledger(&self) -> crate::TextureResourceLedger {
@@ -2296,7 +2309,10 @@ impl RenderTarget {
         ledger.add(&self.texture, crate::TextureCategory::PreviewTargets, owner.into(), state);
     }
     pub fn texture_bytes(&self) -> u64 {
-        u64::from(self.width) * u64::from(self.height) * 4
+        // One mip/sample/layer, using the allocation's format (not the current
+        // renderer setting). Unknown capacity must never count as zero.
+        self.texture.format().block_copy_size(None)
+            .map_or(u64::MAX, |bytes| u64::from(self.width) * u64::from(self.height) * u64::from(bytes))
     }
 }
 pub struct CaptureTarget {

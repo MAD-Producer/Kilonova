@@ -4,7 +4,7 @@ use crate::video_cache::{FrameCache, LOOKAHEAD};
 use crate::video_frame::{DecodedFrame, PreparedVideoFrame};
 use motion_core::{Content, Project, VideoAsset};
 use motion_render::Scene;
-use motion_media::Result;
+use motion_media::{Error as MediaError, Result};
 use serde_json::{json, Value};
 use std::{
     collections::HashMap,
@@ -41,7 +41,7 @@ impl DecodeFlight {
 struct State {
     desired: Option<Request>,
     cache: FrameCache,
-    error: Option<String>,
+    error: Option<MediaError>,
     stop: bool,
     prefetch: bool,
     failed_prefetch: Option<u64>,
@@ -202,7 +202,9 @@ impl Stream {
                             Ok(Arc::new(decoder.as_mut().unwrap().frame(target, &check)?))
                         },
                     ))
-                    .unwrap_or_else(|payload| Err(format!("video decoder worker failed: {}",motion_media::panic_reason(payload))));
+                    .unwrap_or_else(|payload| Err(MediaError::Panic {
+                        operation: "video decoder worker", reason: motion_media::panic_reason(payload),
+                    }));
                     let mut s = copy.0.lock().unwrap_or_else(|e| e.into_inner());
                     s.seeks += decoder
                         .as_ref()
@@ -212,7 +214,7 @@ impl Stream {
                         s.in_flight = None;
                         drop(s);
                         if let Err(error) = &result {
-                            if error != "video target superseded" {
+                            if error.to_string() != "video target superseded" {
                                 log::error!("video decode discarded failure object={object} source={} sequence={} pts_us={target} {}ms stopped=true reason={error}", media.id, flight.sequence, flight.began.elapsed().as_millis());
                             }
                         }
@@ -224,7 +226,7 @@ impl Stream {
                     let last = times[(desired.index + LOOKAHEAD).min(times.len() - 1)];
                     let phase = s.in_flight.map_or(flight.phase, |active| active.phase);
                     let mut failure = result.as_ref().err()
-                        .filter(|error| error.as_str() != "video target superseded" && (required || !speculative))
+                        .filter(|error| error.to_string() != "video target superseded" && (required || !speculative))
                         .map(|error| (error.clone(), phase));
                     let frame_bytes = result.as_ref().ok().map(|frame| frame.bytes());
                     let cache_budget = s.cache.budget();
@@ -248,7 +250,7 @@ impl Stream {
                                 s.cancelled += 1;
                             }
                         }
-                        Err(e) if e == "video target superseded" => {
+                        Err(e) if e.to_string() == "video target superseded" => {
                             s.cancelled += 1;
                         }
                         Err(e) => {
@@ -256,7 +258,7 @@ impl Stream {
                             if required {
                                 s.error = Some(e);
                             } else if speculative {
-                                s.prefetch_failed(media.id, target, &e);
+                                s.prefetch_failed(media.id, target, &e.to_string());
                             }
                         }
                     }
@@ -420,7 +422,7 @@ fn status(s: &State) -> Value {
         "pts_us":frame.as_ref().map(|f|f.pts),"end_us":frame.as_ref().map(|f|f.end),
         "decode_us":frame.as_ref().map(|f|f.decode_us),"codec_us":frame.as_ref().map(|f|f.codec_us),
         "transfer_us":frame.as_ref().map(|f|f.transfer_us),"pack_us":frame.as_ref().map(|f|f.pack_us),
-        "cache_bytes":s.cache.bytes(),"cache_frames":s.cache.len(),"cache_hits":s.hits,"cache_misses":s.misses,"error":s.error,
+        "cache_bytes":s.cache.bytes(),"cache_frames":s.cache.len(),"cache_hits":s.hits,"cache_misses":s.misses,"error":s.error.as_ref().map(ToString::to_string),
         "prefetch_failures":s.prefetch_failures,"prefetch_blocked_pts_us":s.failed_prefetch,"last_prefetch_error":s.last_prefetch_error,
         "in_flight":s.in_flight.map(DecodeFlight::status),"pending_polls":s.pending_polls,"worker_stopped":s.worker_stopped})
 }
@@ -448,15 +450,15 @@ impl VideoFrames {
     fn backend(&self) -> Result<Arc<dyn crate::platform::Platform>> {
         self.platform
             .clone()
-            .ok_or_else(|| "video frames require a host platform".to_owned())
+            .ok_or_else(|| "video frames require a host platform".into())
     }
     pub fn clear(&mut self) {
         for (_, stream) in self.streams.drain() {
             let (worker, stopped) = stream.retire();
             if let Some(worker) = worker { self.retiring.push(worker); }
             if let Err(error) = stopped {
-                self.retirement_error = Some(error.clone());
-                self.pending_retirement_error = Some(error);
+                self.retirement_error = Some(error.to_string());
+                self.pending_retirement_error = Some(error.to_string());
             }
         }
         self.sequences.clear();
@@ -479,7 +481,7 @@ impl VideoFrames {
         }
         if let Some(error) = error {
             self.retirement_error = Some(error.clone());
-            Err(error)
+            Err(error.into())
         } else { Ok(()) }
     }
     /// Supersede unfinished exposure reads without discarding completed caches
@@ -506,15 +508,15 @@ impl VideoFrames {
             let (worker, stopped) = stream.retire();
             if let Some(worker) = worker { self.retiring.push(worker); }
             if let Err(error) = stopped {
-                self.retirement_error = Some(error.clone());
-                self.pending_retirement_error = Some(error);
+                self.retirement_error = Some(error.to_string());
+                self.pending_retirement_error = Some(error.to_string());
             }
         }
     }
     /// Join only completed workers. A slow native decoder never blocks this
     /// caller and still consumes its slot until it actually releases resources.
     fn reap_retired(&mut self) -> Result<()> {
-        if let Some(error) = self.pending_retirement_error.take() { return Err(error); }
+        if let Some(error) = self.pending_retirement_error.take() { return Err(error.into()); }
         let mut index = 0;
         while index < self.retiring.len() {
             if self.retiring[index].is_finished() {
@@ -522,7 +524,7 @@ impl VideoFrames {
                     let error = format!("video decoder retirement failed: {}", motion_media::panic_reason(payload));
                     log::error!("{error}");
                     self.retirement_error = Some(error.clone());
-                    return Err(error);
+                    return Err(error.into());
                 }
             } else { index += 1; }
         }
@@ -642,7 +644,7 @@ impl VideoFrames {
         project: &Project,
         object: u64,
         sequence: u64,
-    ) -> Result<Arc<DecodedFrame>> {
+    ) -> motion_media::Result<Arc<DecodedFrame>> {
         let (current, time, generation) =
             self.sequences.get(&object).ok_or("video request missing")?;
         if *current != sequence {
@@ -854,7 +856,7 @@ mod generation_failure_tests {
             panic!("injected frame-state poison");
         }).is_err());
         let error = frames.generation(&asset,7,0).unwrap_err();
-        assert!(error.contains("state poisoned") && error.contains("object=7"));
+        assert!(error.to_string().contains("state poisoned") && error.to_string().contains("object=7"));
         assert_eq!(frames.counter,10);
     }
 
@@ -863,10 +865,10 @@ mod generation_failure_tests {
         let asset = asset();
         let mut frames = frames(&asset);
         assert_eq!(frames.generation(&asset,7,1000).unwrap(),10);
-        assert!(frames.generation(&asset,7,90000).unwrap_err().contains("outside visible video"));
+        assert!(frames.generation(&asset,7,90000).unwrap_err().to_string().contains("outside visible video"));
         assert_eq!(frames.counter,10);
         frames.streams.get_mut(&7).unwrap().pts=Arc::new(vec![]);
-        assert!(frames.generation(&asset,7,0).unwrap_err().contains("PTS index missing"));
+        assert!(frames.generation(&asset,7,0).unwrap_err().to_string().contains("PTS index missing"));
         assert_eq!(frames.counter,10);
     }
 
@@ -885,24 +887,24 @@ mod generation_failure_tests {
     #[test]
     fn generation_exhaustion_respects_the_decoders_signed_sequence_contract() {
         let mut frames=VideoFrames {counter:i64::MAX as u64,..Default::default()};
-        assert_eq!(frames.generation(&asset(),7,0).unwrap_err(),"video generation exhausted");
+        assert_eq!(frames.generation(&asset(),7,0).unwrap_err().to_string(),"video generation exhausted");
         assert_eq!(frames.counter,i64::MAX as u64);
     }
 
     struct PrefetchBackend(Arc<std::sync::atomic::AtomicBool>);
     impl crate::platform::Platform for PrefetchBackend {
         fn name(&self) -> &'static str { "prefetch-test" }
-        fn probe_video(&self, _: &Path, _: Option<u32>, _: Option<u32>, _: &dyn Fn() -> Result<()>) -> Result<motion_media::VideoProbe> { Err("not used".into()) }
-        fn open_decoder(&self, _: &Path, _: VideoAsset, _: Vec<u64>) -> Result<Box<dyn VideoDecoder>> {
+        fn probe_video(&self, _: &Path, _: Option<u32>, _: Option<u32>, _: &dyn Fn() -> motion_media::Result<()>) -> motion_media::Result<motion_media::VideoProbe> { Err("not used".into()) }
+        fn open_decoder(&self, _: &Path, _: VideoAsset, _: Vec<u64>) -> motion_media::Result<Box<dyn VideoDecoder>> {
             Ok(Box::new(PrefetchDecoder(self.0.clone())))
         }
-        fn decode_audio(&self, _: &Path, _: &Path, _: Option<u32>, _: u64, _: &mut dyn FnMut(f64) -> Result<()>) -> Result<motion_core::AudioAsset> { Err("not used".into()) }
-        fn media_capabilities(&self, _: Option<&crate::platform::VideoQuery>) -> Result<Value> { Err("not used".into()) }
-        fn attach_surface(&self, _: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>, _: u32, _: u32) -> Result<crate::platform::SurfaceTarget> { Err("not used".into()) }
+        fn decode_audio(&self, _: &Path, _: &Path, _: Option<u32>, _: u64, _: &mut dyn FnMut(f64) -> motion_media::Result<()>) -> motion_media::Result<motion_core::AudioAsset> { Err("not used".into()) }
+        fn media_capabilities(&self, _: Option<&crate::platform::VideoQuery>) -> motion_media::Result<Value> { Err("not used".into()) }
+        fn attach_surface(&self, _: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>, _: u32, _: u32) -> crate::Result<crate::platform::SurfaceTarget> { Err("not used".into()) }
     }
     struct PrefetchDecoder(Arc<std::sync::atomic::AtomicBool>);
     impl VideoDecoder for PrefetchDecoder {
-        fn frame(&mut self, time: u64, check: &dyn Fn() -> Result<()>) -> Result<DecodedFrame> {
+        fn frame(&mut self, time: u64, check: &dyn Fn() -> motion_media::Result<()>) -> motion_media::Result<DecodedFrame> {
             check()?;
             if time != 0 && self.0.load(std::sync::atomic::Ordering::Acquire) {
                 return Err("injected speculative decode failure".into());
@@ -966,8 +968,8 @@ mod generation_failure_tests {
         }
         frames.retiring.push(worker);
         let error = frames.reap_retired().unwrap_err();
-        assert!(error.contains("injected retirement cause"), "{error}");
-        assert_eq!(frames.metrics()["retirementError"], error);
+        assert!(error.to_string().contains("injected retirement cause"), "{error}");
+        assert_eq!(frames.metrics()["retirementError"], error.to_string());
         assert_eq!(frames.metrics()["retiringStreams"], 0);
     }
 }

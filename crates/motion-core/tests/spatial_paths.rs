@@ -1,3 +1,5 @@
+#[path = "../../motion-effects/tests/support/scene_packages.rs"]
+mod scene_fixtures;
 use motion_core::{Command, Ease, Engine, Layer, Project, Property, SpatialTangents, Track};
 
 fn project() -> Project {
@@ -164,8 +166,8 @@ fn native_parameter_scope_cancels_only_its_own_track() {
         plugin_editor::{EditorRequest, PluginEditorSession},
         EffectAction, EffectInstance,
     };
-    let package = motion_effects::builtin::particle_package().unwrap();
-    let registry = motion_effects::Registry::new_with_builtins().unwrap();
+    let package = scene_fixtures::particle_package().unwrap();
+    let registry = scene_fixtures::registry().unwrap();
     let mut p = project();
     let definition = package
         .manifest
