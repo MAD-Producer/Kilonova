@@ -40,6 +40,8 @@ Session/ops 原先把已知错误立即转换为 String，调用方无法检查�
 
 对应日志为 `host-error-main-integration-check.log`、`host-error-integration-effects-followup.log`、`host-error-integration-boundaries.log`、`host-error-integration-layer_navigation.log`、`host-error-integration-retired_effect_tests.log` 和 `host-error-integration-logging-composition_bundle_tests.log`。首次效果恢复筛选误用了文件名而非模块名，匹配 0 项，不计入通过数；改用实际模块路径后 7 项全部通过。
 
+跨平台首轮 CI `39532775622` 的 Linux 编译发现 Unix 专有清理测试遗漏一处字符串比较适配。该断言补充显式 `to_string()`，继续检查相同的拒绝原因和外部目录原字节；没有删掉测试或放宽条件。Windows 本地不会编译该 `cfg(unix)` 分支，修复后的 Unix 编译与实际符号链接回归须由新提交的 Linux/macOS CI 验证，不以 Windows 通过代替。
+
 原始日志保留在开发者工作区 `artifacts/pr-ci-followups/`，不作为仓库内可复现附件：`host-error-host-complete-tests.log`、`host-error-desktop-complete-tests.log`、`host-error-native-tests.log`、`host-error-boundary-followup.log`、`host-error-bounded-cause-negative.log`、`host-error-bounded-cause-positive.log`、`host-error-final-log-channels.log` 和 `host-error-final-workspace-check.log`。上面的命令和已提交测试可供复验。
 
 ## DESIGN 基线

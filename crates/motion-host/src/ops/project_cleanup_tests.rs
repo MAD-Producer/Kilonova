@@ -195,7 +195,7 @@ fn substituted_symlink_cannot_redirect_cleanup() {
     fs::write(foreign.path().join("keep"), b"foreign bytes").unwrap();
     std::os::unix::fs::symlink(foreign.path(), &path).unwrap();
     let result: Result<()> = pending.finish(Err("primary".into()));
-    assert!(result.unwrap_err().contains("refused changed directory"));
+    assert!(result.unwrap_err().to_string().contains("refused changed directory"));
     assert_eq!(
         fs::read(foreign.path().join("keep")).unwrap(),
         b"foreign bytes"
