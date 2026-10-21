@@ -7,6 +7,8 @@ mod media_error_tests;
 mod package_publication_tests;
 #[cfg(test)]
 mod frame_blend_tests;
+#[cfg(test)]
+mod composition_bundle_tests;
 
 use std::{
     backtrace::Backtrace,
