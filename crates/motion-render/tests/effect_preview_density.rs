@@ -1,3 +1,5 @@
+#[path = "../../motion-effects/tests/support/scene_packages.rs"]
+mod scene_fixtures;
 use motion_core::{EffectInstance, Layer, Project};
 use motion_render::Scene;
 use motion_render::{
@@ -72,7 +74,7 @@ fn automatic_preview_fits_the_physical_canvas_and_high_is_explicit() {
 }
 #[test]
 fn preview_density_preserves_coordinates_mixed_pool_uvs_and_formal_output() {
-    let registry = motion_effects::Registry::new_with_builtins().unwrap();
+    let registry = scene_fixtures::registry().unwrap();
     let mut builder = PlanBuilder::new(registry).unwrap();
     for name in ["rays", "directional_blur", "glow", "glow_edges", "glint"] {
         let mut p = project(name);
@@ -132,7 +134,7 @@ fn preview_density_preserves_coordinates_mixed_pool_uvs_and_formal_output() {
 #[test]
 fn projected_density_handles_rotations_reflections_and_anisotropic_transforms() {
     let mut builder =
-        PlanBuilder::new(motion_effects::Registry::new_with_builtins().unwrap()).unwrap();
+        PlanBuilder::new(scene_fixtures::registry().unwrap()).unwrap();
     let mut p = project("rays");
     let mut scene = Scene::new(&p);
     for degrees in (0..360).step_by(15) {
@@ -160,7 +162,7 @@ fn projected_density_handles_rotations_reflections_and_anisotropic_transforms() 
         }
     }
     // Perspective/scene generators cannot use a 2D footprint safely.
-    let package = motion_effects::builtin::scene_package().unwrap();
+    let package = scene_fixtures::scene_package().unwrap();
     let def = package
         .manifest
         .effects
@@ -188,6 +190,7 @@ fn projected_density_handles_rotations_reflections_and_anisotropic_transforms() 
 #[test]
 fn gpu_preview_retains_rays_blur_alpha_placement_and_releases_density_changes() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    renderer.set_effect_registry(scene_fixtures::registry().unwrap());
     let target = renderer.capture_target(512, 256).unwrap();
     for name in ["rays", "directional_blur", "glow_edges"] {
         let mut p = project(name);

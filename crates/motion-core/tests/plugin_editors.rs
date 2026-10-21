@@ -1,12 +1,14 @@
+#[path = "../../motion-effects/tests/support/scene_packages.rs"]
+mod scene_fixtures;
+use motion_effects::Registry;
 use motion_core::{
     plugin_editor::{EditorRequest, PluginEditorSession},
     Command, EffectAction, EffectInstance, Engine, Layer, Project,
 };
-use motion_effects::{builtin, Registry};
 
 fn setup() -> (Engine, Registry) {
-    let registry = Registry::new_with_builtins().unwrap();
-    let package = builtin::scene_package().unwrap();
+    let registry = scene_fixtures::registry().unwrap();
+    let package = scene_fixtures::scene_package().unwrap();
     let definition = &package.manifest.effects[0];
     let mut p = Project::new(128, 128, 30, 120).unwrap();
     p.layers.push(Layer::solid(

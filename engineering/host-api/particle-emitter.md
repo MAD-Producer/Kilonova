@@ -1,8 +1,10 @@
 # 运动粒子：SDK 5 宿主与前端交接
 
+当前产品已移除内置运动粒子、镜头光及全部粒子预设；本页保留历史 SDK 契约与测试数据说明。下述包只由测试或显式 SDK 探针注入，不再自动注册，旧工程的包引用和动画数据保持原样，但无法继续使用退役效果。节点编辑器与 UI 编辑器组合生成效果尚未实现。
+
 首批提供 `com.motionstudio.effects.particles` / `1.0.0` 的 `particle_emitter`，中文名“运动粒子”，一级分类“粒子”。这是独立粒子实现，参考通用运动发射器工作流，不声明 Trapcode Particular 文件、预设或算法兼容。原有场景包 `com.motionstudio.effects.scene` 1.0.0 / 1.1.0 保留原字节、版本和局部空间行为。
 
-跨平台规范包现为 particles 1.0.1 / scene 1.1.1，使用固定 ZIP 元数据与 Stored 编码，效果和 shader 契约不变。particles 1.0.0、scene 1.1.0 原始包加入历史注册，旧工程继续按原版本和哈希解析；不会自动迁移实例。
+历史跨平台规范包为 particles 1.0.1 / scene 1.1.1，使用固定 ZIP 元数据与 Stored 编码，效果和 shader 契约不变。particles 1.0.0、scene 1.1.0 原始包保留在测试夹具中，显式注册的 SDK 回归仍按原版本和哈希解析；产品启动不注册这些包，不自动迁移实例。
 
 ## 编辑与调用
 
@@ -95,7 +97,7 @@
 
 ## 构建与验证
 
-`python tools/generate_particle_library.py` 重建新包，不修改历史包；生成器复用 SDK 打包器，并要求 `effect_tool` 完整校验器，可通过 `--validator` 或 `MOTION_EFFECT_VALIDATOR` 指定。`--check` 在临时目录重新生成并对比已提交包字节，不改工作树。场景生成器支持相同选项。已有 CI 的 `sdk/tests` 包含跨 Windows/Linux 元数据和换行输入的实际再生、字节及 SHA-256 对比。`cargo test --workspace -- --test-threads=1` 包括出生位置、参数快照、缓存复用、跳帧、父级和片段时间、速度继承、力场、保存恢复、撤销及 GPU 出图用例。
+`python sdk/tests/support/generate_particle_library.py` 重建测试夹具，不修改历史包；生成器复用 SDK 打包器，并要求 `effect_tool` 完整校验器，可通过 `--validator` 或 `MOTION_EFFECT_VALIDATOR` 指定。`--check` 在临时目录重新生成并对比已提交包字节，不改工作树。场景生成器支持相同选项。已有 CI 的 `sdk/tests` 包含跨 Windows/Linux 元数据和换行输入的实际再生、字节及 SHA-256 对比。`cargo test --workspace -- --test-threads=1` 包括出生位置、参数快照、缓存复用、跳帧、父级和片段时间、速度继承、力场、保存恢复、撤销及 GPU 出图用例。
 
 Android NativeParticleEditorTest 验证原生控件、共享 wgpu 预览、播放与定位、内外关键帧同步、整页提交/撤销/重做和取消。旧 WebView 插件编辑器及浏览器测试继续为原有场景包提供兼容支持。
 
