@@ -20,5 +20,5 @@ sha2 = "0.10"
 [dev-dependencies]
 motion-core = { path = "../motion-core" }
 motion-render = { path = "../motion-render" }
-zip = { version = "2.4", default-features = false, features = ["deflate"] }
+zip = { version = "9.0.5", default-features = false, features = ["deflate"] }
 tempfile = "3"

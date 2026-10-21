@@ -98,7 +98,7 @@ impl EffectPackage {
         let mut total = 0usize;
         for i in 0..archive.len() {
             let mut entry = archive.by_index(i)?;
-            let name = entry.name().to_owned();
+            let name = entry.name()?.into_owned();
             validate_path(&name)?;
             ensure(
                 !entry.is_dir() && entry.unix_mode().is_none_or(|m| m & 0o170000 != 0o120000),
