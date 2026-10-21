@@ -1953,11 +1953,11 @@ impl Renderer {
         );
         if has_compositing {
             let source_bytes=self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes;
+            let needed: Vec<_> = frame.compositing.iter().filter(|c| c.matte >= 0)
+                .map(|c| (frame.draws[c.matte as usize].layer, c.mode >= 3)).collect();
             self.ensure_compositing_gpu(scene.frame, "initialize")?;
             let gpu = self.compositing_gpu.as_mut().ok_or_else(||
                 RenderError::Invalid("compositing initialization did not publish resources".into()))?;
-            let needed: Vec<_> = frame.compositing.iter().filter(|c| c.matte >= 0)
-                .map(|c| (frame.draws[c.matte as usize].layer, c.mode >= 3)).collect();
             gpu.prepare_mattes(&self.device, &self.image_layout, &self.sampler, composition_size, &needed,
                 source_bytes,self.effect_gpu.builder.source_texture_budget)?;
             let changed = gpu.prepare_source(&self.device, &self.image_layout, &self.sampler, has_transfer,self.effect_gpu.builder.source_texture_budget)?;
@@ -1976,6 +1976,7 @@ impl Renderer {
             self.effect_gpu.builder.source_texture_budget,
             )?;
         }
+        let frame = &self.effect_gpu.builder.frame;
         self.geometry_upload.clear();
         self.geometry_upload
             .extend(frame.vertices.iter().map(|v| GeometryVertex {

@@ -21,7 +21,7 @@ fn compositor_refusal_preserves_cause_and_reaches_default_file_and_stderr() {
         let mut scene = motion_render::Scene::new(&project);
         scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
         let mut renderer = pollster::block_on(motion_render::Renderer::headless()).unwrap();
-        let budget = renderer.allocation_budget();
+        let budget = renderer.allocation_budget().clone();
         let target = renderer.capture_target(32, 32).unwrap();
         // Fund ordinary pass parameters; leave less than even the smallest
         // supported 128-layer matte uniform allocation.

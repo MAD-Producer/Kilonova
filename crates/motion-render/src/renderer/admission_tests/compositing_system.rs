@@ -40,7 +40,7 @@ fn drain(renderer: &Renderer) {
 #[test]
 fn matte_and_transfer_system_resources_share_renderer_admission() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
-    let budget = renderer.allocation_budget();
+    let budget = renderer.allocation_budget().clone();
     let before = budget.info().unwrap();
     let gpu = crate::compositing_gpu::CompositingGpu::new(&renderer.device,
         &renderer.queue, &renderer.uniform_layout, &renderer.image_layout,
@@ -61,7 +61,7 @@ fn matte_and_transfer_system_resources_share_renderer_admission() {
 fn every_constructor_cut_point_releases_partial_capacity_before_recovery() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     drain(&renderer);
-    let budget = renderer.allocation_budget();
+    let budget = renderer.allocation_budget().clone();
     let base = budget.info().unwrap();
     let (extract, blend) = capacity(&renderer);
     for (partial, next, marker) in [
@@ -107,7 +107,7 @@ fn normal_matte_refusal_preserves_cached_pixels_and_recovers_without_partial_pub
     assert_eq!(expected[3], 0);
     drop(renderer.compositing_gpu.take());
     drain(&renderer);
-    let budget = renderer.allocation_budget();
+    let budget = renderer.allocation_budget().clone();
     let base = budget.info().unwrap();
     budget.set_limit(base.admitted_bytes).unwrap();
     let error = renderer.capture(&scene, &target).unwrap_err();
@@ -137,7 +137,7 @@ fn exposure_local_refusal_keeps_retained_inputs_and_recovers_the_same_pixels() {
     assert_eq!(expected[3], 0);
     drop(renderer.compositing_gpu.take());
     drain(&renderer);
-    let budget = renderer.allocation_budget();
+    let budget = renderer.allocation_budget().clone();
     let base = budget.info().unwrap();
     budget.set_limit(base.admitted_bytes).unwrap();
     let error = renderer.draw_layer_rasters(&scene, &refs, &target.view, 64, 64).unwrap_err();
@@ -168,7 +168,7 @@ fn queued_zero_extract_and_blend_uploads_retire_after_native_completion_without_
     let mut encoder = renderer.device.create_command_encoder(&Default::default());
     renderer.encode(&scene, &target.view, 64, 64, &mut encoder, None).unwrap();
     drop(encoder);
-    let budget = renderer.allocation_budget();
+    let budget = renderer.allocation_budget().clone();
     let before = budget.info().unwrap();
     let (extract, blend) = capacity(&renderer);
     drop(renderer.compositing_gpu.take());
@@ -186,7 +186,7 @@ fn abandoned_compositing_commands_retain_capacity_until_their_own_drop() {
     enum Work { Encoding(crate::AllocationEncoder), Finished(crate::AllocatedCommandBuffer) }
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     drain(&renderer);
-    let budget = renderer.allocation_budget();
+    let budget = renderer.allocation_budget().clone();
     let base = budget.info().unwrap().admitted_bytes;
     let (extract, blend) = capacity(&renderer);
     for finished in [false, true] {
