@@ -186,10 +186,14 @@ fn insufficient_duplicate_missing_locked_and_expression_selections_reject_whole_
     let registry = Registry::new_with_builtins().unwrap();
     let engine = fixture(false, false);
     let before = engine.project().clone();
+    // Selection policy is checked against the current successfully sampled
+    // frame. Enabling an expression is rejected before its new geometry is
+    // consumed; this policy test must not depend on a cold JS runtime's budget.
+    let scene = sampled(&before, 3.);
     for ids in [vec![], vec![1], vec![1, 2], vec![1, 2, 2], vec![1, 2, 999]] {
         assert!(distribution_plan(
             &before,
-            &sampled(&before, 3.),
+            &scene,
             &registry,
             3.,
             &ids,
@@ -215,15 +219,41 @@ fn insufficient_duplicate_missing_locked_and_expression_selections_reject_whole_
                 profile: motion_core::EXPRESSION_PROFILE.into(),
             }),
         }
-        assert!(distribution_plan(
+        let unchanged = p.clone();
+        let error = distribution_plan(
             &p,
-            &sampled(&p, 3.),
+            &scene,
             &registry,
             3.,
             &[1, 2, 3, 4],
-            Distribution::VerticalCenters
+            Distribution::VerticalCenters,
         )
-        .is_err());
+        .unwrap_err();
+        let reason = if invalid == 2 {
+            "position is controlled by an expression"
+        } else {
+            "requires an unlocked, visible, active 2D drawable layer"
+        };
+        assert_eq!(
+            error.to_string(),
+            format!("distribute: align layer 3: {reason}")
+        );
+        assert_eq!(p, unchanged);
+        if invalid == 2 {
+            p.expressions[0].enabled = false;
+            assert!(
+                distribution_plan(
+                    &p,
+                    &scene,
+                    &registry,
+                    3.,
+                    &[1, 2, 3, 4],
+                    Distribution::VerticalCenters
+                )
+                .is_ok(),
+                "disabled expressions must not reject distribution"
+            );
+        }
     }
 }
 

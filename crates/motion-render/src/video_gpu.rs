@@ -1,6 +1,6 @@
 use crate::resource_ledger::{DeviceTextureExt, OwnedTexture};
 use crate::{
-    allocation_budget::AllocationLease, allocation_buffer::AllocationBuffer,
+    allocation_budget::{AllocationLease, AllocationRetention}, allocation_buffer::AllocationBuffer,
     allocation_uploads::AllocationUploads, AllocationBudget, RenderError, Yuv420Frame,
 };
 use std::{
@@ -20,7 +20,7 @@ use std::{
 pub struct EncodedVideoUpload {
     state: Arc<AtomicU8>,
     queue: wgpu::Queue,
-    allocations: Option<[AllocationLease; 4]>,
+    allocations: Option<[AllocationRetention; 4]>,
 }
 impl EncodedVideoUpload {
     pub fn mark_submitted(mut self) {
@@ -378,7 +378,7 @@ impl VideoGpu {
         EncodedVideoUpload {
             state,
             queue: queue.clone(),
-            allocations: Some(prepared.allocations),
+            allocations: Some(prepared.allocations.map(|lease| lease.retention())),
         }
     }
 }

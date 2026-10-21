@@ -4,7 +4,10 @@ use serde::Serialize;
 use std::{
     collections::BTreeMap,
     ops::{Deref, DerefMut},
-    sync::{Arc, Mutex, MutexGuard, Weak},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, Mutex, MutexGuard, Weak,
+    },
 };
 
 const MAX_ALLOCATIONS: usize = 65_536;
@@ -43,12 +46,40 @@ struct Lease {
     owner: Weak<Mutex<State>>,
     id: u64,
     bytes: u64,
+    // Gauge of actual resource/view/binding handles, bounded by Arc's own
+    // reference count. Command and upload retentions do not renew ownership.
+    owners: AtomicUsize,
 }
 
-#[derive(Clone)]
 pub(crate) struct AllocationLease(Arc<Lease>);
 impl AllocationLease {
-    pub(crate) fn id(&self) -> u64 { self.0.id }
+    pub(crate) fn id(&self) -> u64 {
+        self.0.id
+    }
+    pub(crate) fn retention(&self) -> AllocationRetention {
+        AllocationRetention {
+            _lease: self.0.clone(),
+        }
+    }
+}
+impl Clone for AllocationLease {
+    fn clone(&self) -> Self {
+        let lease = self.0.clone();
+        lease.owners.fetch_add(1, Ordering::Relaxed);
+        Self(lease)
+    }
+}
+impl Drop for AllocationLease {
+    fn drop(&mut self) {
+        self.0.owners.fetch_sub(1, Ordering::Release);
+    }
+}
+
+/// Keeps capacity alive for existing GPU work without making the resource a
+/// candidate for every future encoder's creation-time snapshot.
+#[derive(Clone)]
+pub(crate) struct AllocationRetention {
+    _lease: Arc<Lease>,
 }
 
 impl Drop for Lease {
@@ -85,7 +116,7 @@ impl Drop for Lease {
 }
 
 #[derive(Default)]
-struct EncoderReservations(Mutex<BTreeMap<u64, AllocationLease>>);
+struct EncoderReservations(Mutex<BTreeMap<u64, AllocationRetention>>);
 
 fn invalid(message: &str) -> RenderError {
     RenderError::Invalid(message.into())
@@ -167,6 +198,7 @@ impl AllocationBudget {
                 owner: Arc::downgrade(&self.0),
                 id,
                 bytes,
+                owners: AtomicUsize::new(1),
             }));
             state.next = id;
             state.used = required;
@@ -183,7 +215,7 @@ impl AllocationBudget {
                 .0
                 .lock()
                 .map_err(|_| invalid("render encoder reservations are poisoned"))?
-                .insert(lease.0.id, lease.clone());
+                .insert(lease.0.id, lease.retention());
         }
         Ok(lease)
     }
@@ -196,7 +228,7 @@ impl AllocationBudget {
         owner: Arc<()>,
         descriptor: &wgpu::CommandEncoderDescriptor<'_>,
     ) -> Result<AllocationEncoder, RenderError> {
-        let scope = {
+        let (scope, leases) = {
             let mut state = self.lock()?;
             state.encoders.retain(|scope| scope.strong_count() > 0);
             if state.encoders.len() >= MAX_ENCODERS {
@@ -204,15 +236,24 @@ impl AllocationBudget {
             }
             let leases = state
                 .allocations
-                .iter()
-                .filter_map(|(&id, lease)| {
-                    lease.upgrade().map(|lease| (id, AllocationLease(lease)))
-                })
-                .collect();
-            let scope = Arc::new(EncoderReservations(Mutex::new(leases)));
+                .values()
+                .filter_map(Weak::upgrade)
+                .collect::<Vec<_>>();
+            let scope = Arc::new(EncoderReservations::default());
             state.encoders.push(Arc::downgrade(&scope));
-            scope
+            (scope, leases)
         };
+        // A concurrent last owner/retention may disappear after Weak::upgrade.
+        // Drop omitted leases outside admission state: Lease::drop takes it.
+        for lease in leases {
+            if lease.owners.load(Ordering::Acquire) > 0 {
+                scope
+                    .0
+                    .lock()
+                    .map_err(|_| invalid("render encoder reservations are poisoned"))?
+                    .insert(lease.id, AllocationRetention { _lease: lease });
+            }
+        }
         Ok(AllocationEncoder {
             encoder: device.create_command_encoder(descriptor),
             scope,
