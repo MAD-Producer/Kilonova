@@ -179,6 +179,30 @@ fn finish_import(
     worker_log.finish(&phase, error.as_deref());
 }
 
+// Preserve the spawn failure even when terminal-state publication finds poison.
+fn mark_spawn_failed(
+    task: &Mutex<Task>,
+    task_log: crate::task_logging::TaskLog,
+    error: std::io::Error,
+) -> crate::Error {
+    use crate::poison_observation::{RecoveryScope, RecoverySite};
+    static SPAWN: RecoverySite = RecoverySite::new("video.start.spawn_failure_task");
+    let mut recoveries = RecoveryScope::new();
+    let reason = error.to_string();
+    let mut task = recoveries.recover(
+        task.lock(),
+        &SPAWN,
+        task_log.request_id(),
+        "spawn_video_worker",
+    );
+    task.status.state = "failed".into();
+    task.status.phase = "failed".into();
+    task.status.error = Some(reason.clone());
+    drop(task);
+    task_log.finish("spawn", Some(&reason));
+    error.into()
+}
+
 impl VideoJobs {
     pub fn new(root: PathBuf) -> Result<Self> {
         Self::with_audio_decoder(root, Arc::new(crate::decode_audio))
@@ -203,7 +227,11 @@ impl VideoJobs {
             .cloned()
             .ok_or("video task missing".into())
     }
-    fn reserve(&self, id: &str, operation: &str) -> Result<(Arc<Mutex<Task>>, Worker)> {
+    fn reserve(
+        &self,
+        id: &str,
+        operation: &str,
+    ) -> Result<(Arc<Mutex<Task>>, Worker, VideoTaskStatus)> {
         if id.is_empty() || id.len() > 128 {
             return Err("invalid media request id".into());
         }
@@ -226,22 +254,24 @@ impl VideoJobs {
                 (n < 2).then_some(n + 1)
             })
             .map_err(|_| "video import worker budget exhausted")?;
+        // Return the queued snapshot before publishing the task mutex.
+        let initial = VideoTaskStatus {
+            request_id: id.into(),
+            operation: operation.into(),
+            state: "running".into(),
+            phase: "queued".into(),
+            progress: None,
+            metadata: None,
+            edit_result: None,
+            error: None,
+        };
         let t = Arc::new(Mutex::new(Task {
-            status: VideoTaskStatus {
-                request_id: id.into(),
-                operation: operation.into(),
-                state: "running".into(),
-                phase: "queued".into(),
-                progress: None,
-                metadata: None,
-                edit_result: None,
-                error: None,
-            },
+            status: initial.clone(),
             prepared: None,
             cancel: Arc::new(AtomicBool::new(false)),
         }));
         tasks.insert(id.into(), t.clone());
-        Ok((t, Worker))
+        Ok((t, Worker, initial))
     }
     pub fn status(&self, id: &str) -> Result<VideoTaskStatus> {
         Ok(self
@@ -294,7 +324,7 @@ impl VideoJobs {
         if options.name.len() > 1024 {
             return Err("video name exceeds limit".into());
         }
-        let (task, worker) = self.reserve(
+        let (task, worker, initial) = self.reserve(
             &options.request_id,
             if probe_only {
                 "probe_video"
@@ -302,7 +332,6 @@ impl VideoJobs {
                 "import_video"
             },
         )?;
-        let initial = task.lock().unwrap().status.clone();
         let root = self.root.clone();
         let audio_decode = self.audio_decode.clone();
         let task_log = crate::task_logging::TaskLog::new(&initial.request_id, &initial.operation);
@@ -340,11 +369,7 @@ impl VideoJobs {
             finish_import(&t, result, probe_only, &worker_log);
         });
         if let Err(e) = spawn {
-            task_log.finish("spawn", Some(&e.to_string()));
-            let mut t = task.lock().unwrap();
-            t.status.state = "failed".into();
-            t.status.error = Some(e.to_string());
-            return Err(e.into());
+            return Err(mark_spawn_failed(&task, task_log, e));
         }
         Ok(initial)
     }
@@ -495,8 +520,7 @@ impl VideoJobs {
         expected: VideoAsset,
         probe: ProbeVideo,
     ) -> Result<VideoTaskStatus> {
-        let (task, worker) = self.reserve(id, "prepare_video")?;
-        let initial = task.lock().unwrap().status.clone();
+        let (task, worker, initial) = self.reserve(id, "prepare_video")?;
         let task_log = crate::task_logging::TaskLog::new(&initial.request_id, &initial.operation);
         let worker_log = task_log.clone();
         let t = task.clone();
@@ -582,11 +606,7 @@ impl VideoJobs {
                 worker_log.finish(&phase, error.as_deref());
             });
         if let Err(e) = spawn {
-            task_log.finish("spawn", Some(&e.to_string()));
-            let mut t = task.lock().unwrap();
-            t.status.state = "failed".into();
-            t.status.error = Some(e.to_string());
-            return Err(e.into());
+            return Err(mark_spawn_failed(&task, task_log, e));
         }
         Ok(initial)
     }
@@ -697,7 +717,7 @@ mod registry_tests {
         let directory = tempfile::tempdir().unwrap();
         let jobs = Box::leak(Box::new(VideoJobs::new(directory.path().into()).unwrap()));
         let healthy = VideoJobs::new(directory.path().into()).unwrap();
-        let (_task, _worker) = jobs.reserve("present", "test").unwrap();
+        let (_task, _worker, _initial) = jobs.reserve("present", "test").unwrap();
         check(
             &jobs.tasks,
             "video.registry.contains",

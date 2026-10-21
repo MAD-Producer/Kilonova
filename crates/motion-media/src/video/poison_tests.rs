@@ -30,7 +30,7 @@ fn video_workers_and_drop_observe_real_poison_without_changing_outcomes() {
         }
     });
     if mode == "drop" {
-        let (task, _worker) = jobs.reserve("poison-video", "test").unwrap();
+        let (task, _worker, _initial) = jobs.reserve("poison-video", "test").unwrap();
         *observed.lock().unwrap() = Some(task.clone());
         poison(&task);
         poison(&jobs.tasks);
@@ -106,7 +106,10 @@ fn video_workers_and_drop_observe_real_poison_without_changing_outcomes() {
     assert!(state.prepared.is_none());
     drop(state);
     assert_eq!(
-        jobs.status("poison-video").err().map(|error| error.to_string()).as_deref(),
+        jobs.status("poison-video")
+            .err()
+            .map(|error| error.to_string())
+            .as_deref(),
         Some("video task poisoned")
     );
     let errors = capture.matching("media error request=poison-video");
@@ -119,4 +122,88 @@ fn video_workers_and_drop_observe_real_poison_without_changing_outcomes() {
     } else {
         "operation=import_video"
     }));
+}
+
+#[test]
+fn video_spawn_failure_keeps_native_error_when_terminal_lock_is_poisoned() {
+    let Some(mode) = case(
+        "video::poison_tests::video_spawn_failure_keeps_native_error_when_terminal_lock_is_poisoned",
+        &["import", "probe", "cache", "import_poison", "probe_poison", "cache_poison"],
+    ) else {
+        return;
+    };
+    let directory = tempfile::tempdir().unwrap();
+    let jobs = Arc::new(VideoJobs::new(directory.path().into()).unwrap());
+    let operation = if mode.starts_with("probe") {
+        "probe_video"
+    } else if mode.starts_with("cache") {
+        "prepare_video"
+    } else {
+        "import_video"
+    };
+    let baseline = WORKERS.load(Ordering::Acquire);
+    let (task, worker, initial) = jobs.reserve("spawn-video", operation).unwrap();
+    assert_eq!(WORKERS.load(Ordering::Acquire), baseline + 1);
+    let poisoned = mode.ends_with("poison");
+    if poisoned {
+        poison(&task);
+    }
+    let target = task.clone();
+    let registry = jobs.clone();
+    let capture = Capture::install(move |text| {
+        if text.contains("media poison recovery") || text.starts_with("media error") {
+            unlocked(&target);
+            unlocked(&registry.tasks);
+        }
+    });
+    // Inject the OS-error result at the shared spawn-failure boundary. Do not
+    // exhaust native threads just to force Builder::spawn to fail on CI.
+    let failure = std::io::Error::from_raw_os_error(12345);
+    let reason = failure.to_string();
+    let expected_kind = failure.kind();
+    let error = mark_spawn_failed(
+        &task,
+        crate::task_logging::TaskLog::new(&initial.request_id, &initial.operation),
+        failure,
+    );
+    match error {
+        crate::Error::Io(cause) => {
+            assert_eq!(cause.raw_os_error(), Some(12345));
+            assert_eq!(cause.kind(), expected_kind);
+            assert_eq!(cause.to_string(), reason);
+        }
+        other => panic!("original spawn error replaced: {other:?}"),
+    }
+    let state = task.lock().unwrap_or_else(|error| error.into_inner());
+    assert_eq!(state.status.state, "failed");
+    assert_eq!(state.status.phase, "failed");
+    assert_eq!(state.status.error.as_deref(), Some(reason.as_str()));
+    assert!(state.prepared.is_none());
+    drop(state);
+    // The admission snapshot is independent of later task mutation/poison.
+    assert_eq!(initial.request_id, "spawn-video");
+    assert_eq!(initial.operation, operation);
+    assert_eq!(initial.state, "running");
+    assert_eq!(initial.phase, "queued");
+    assert!(initial.error.is_none());
+    if poisoned {
+        capture.first("video.start.spawn_failure_task", "spawn-video");
+        assert_eq!(
+            jobs.status("spawn-video").err().unwrap().to_string(),
+            "video task poisoned"
+        );
+    } else {
+        assert!(capture.matching("media poison recovery").is_empty());
+        assert_eq!(jobs.status("spawn-video").unwrap().state, "failed");
+        jobs.release("spawn-video").unwrap();
+    }
+    let errors = capture.matching("media error request=spawn-video");
+    assert_eq!(errors.len(), 1, "{errors:?}");
+    assert_eq!(errors[0].0, log::Level::Error);
+    assert!(errors[0]
+        .1
+        .contains(&format!("operation={operation} phase=spawn ")));
+    assert!(errors[0].1.ends_with(&reason));
+    drop(worker);
+    assert_eq!(WORKERS.load(Ordering::Acquire), baseline);
 }
