@@ -226,7 +226,7 @@ fn asymmetric_rectangle_origin_retains_three_d_transform_and_resource_errors_are
         .err()
         .unwrap();
     assert!(
-        error.contains("budget") || error.contains("dimension"),
+        error.to_string().contains("budget") || error.to_string().contains("dimension"),
         "{error}"
     );
 }

@@ -51,7 +51,7 @@ fn invalid_policy_is_atomic_and_mask_planning_uses_the_configured_budget() {
     let scene = scene(&project);
     builder.set_memory_policy(policy(1024)).unwrap();
     let error = builder
-        .build_checked(&scene, &[0], 64, 64, false)
+        .build(&scene, &[0], 64, 64, false)
         .unwrap_err();
     assert!(matches!(
         error.resource_rejection(),
@@ -64,7 +64,7 @@ fn invalid_policy_is_atomic_and_mask_planning_uses_the_configured_budget() {
     builder.set_memory_policy(policy(16384)).unwrap();
     assert_eq!(
         builder
-            .build_checked(&scene, &[0], 64, 64, false)
+            .build(&scene, &[0], 64, 64, false)
             .unwrap()
             .masks
             .len(),
