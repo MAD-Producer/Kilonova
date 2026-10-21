@@ -11,6 +11,8 @@ mod frame_blend_tests;
 mod composition_bundle_tests;
 #[cfg(test)]
 mod command_error_tests;
+#[cfg(test)]
+mod media_task_bounds_tests;
 
 use std::{
     backtrace::Backtrace,

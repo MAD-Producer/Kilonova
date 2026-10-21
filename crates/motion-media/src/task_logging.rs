@@ -1,6 +1,42 @@
 //! Sinks are supplied by the embedding host; never write stdout/stderr directly here.
 use std::time::Instant;
 
+// Bound individual observation fields, in Unicode scalar values, without
+// changing task IDs, returned errors or retained native causes in job state.
+fn log_field(value: &str, limit: usize) -> String {
+    if limit == 0 {
+        return String::new();
+    }
+    let mut chars = value.chars();
+    let mut field: String = chars
+        .by_ref()
+        .take(limit)
+        .map(|c| {
+            if c.is_control() || matches!(c, '\u{2028}' | '\u{2029}') {
+                '\u{fffd}'
+            } else {
+                c
+            }
+        })
+        .collect();
+    if chars.next().is_some() {
+        // Context often precedes a native cause. Keep both ends rather than
+        // letting a long context entirely hide a trailing OS/codec error.
+        let head = limit / 2;
+        field = field.chars().take(head).collect();
+        field.push('…');
+        let tail: Vec<_> = value.chars().rev().take(limit - head - 1).collect();
+        field.extend(tail.into_iter().rev().map(|c| {
+            if c.is_control() || matches!(c, '\u{2028}' | '\u{2029}') {
+                '\u{fffd}'
+            } else {
+                c
+            }
+        }));
+    }
+    field
+}
+
 /// Preserve a failure before cancellation discards a worker's caught result.
 /// Expected cooperative cancellation is a terminal outcome, not a fault.
 pub(crate) fn cancelled_error<T, E: std::fmt::Display>(
@@ -34,8 +70,8 @@ impl TaskLog {
 
     pub(crate) fn new(request: &str, operation: &str) -> Self {
         Self {
-            request: request.into(),
-            operation: operation.into(),
+            request: log_field(request, 128),
+            operation: log_field(operation, 64),
             began: Instant::now(),
         }
     }
@@ -48,7 +84,9 @@ impl TaskLog {
         log::logger().flush();
     }
     pub(crate) fn finish(&self, phase: &str, error: Option<&str>) {
+        let phase = log_field(phase, 64);
         if let Some(error) = error {
+            let error = log_field(error, 2048);
             log::error!(
                 "media error request={} operation={} phase={phase} {}ms: {error}",
                 self.request,
@@ -68,6 +106,24 @@ impl TaskLog {
 
 #[cfg(test)]
 mod cancellation_tests;
+
+#[cfg(test)]
+mod bounds_tests {
+    use super::log_field;
+
+    #[test]
+    fn observation_fields_bound_unicode_and_remove_line_and_terminal_controls() {
+        assert_eq!(log_field("", 4), "");
+        assert_eq!(log_field("not retained", 0), "");
+        assert_eq!(log_field("中文😀", 3), "中文😀");
+        assert_eq!(log_field("中文😀末", 3), "中…末");
+        assert_eq!(
+            log_field("a\r\n\t\0\u{1b}\u{85}\u{2028}\u{2029}z", 64),
+            "a��������z"
+        );
+        assert_eq!(log_field(&"界".repeat(4096), 2048).chars().count(), 2048);
+    }
+}
 
 #[cfg(test)]
 mod tests {
