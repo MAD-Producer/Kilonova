@@ -6,7 +6,7 @@ fn feathered_mask_mesh_and_filter_uniforms_share_renderer_admission() {
     let budget = renderer.allocation_budget().clone();
     let before = budget.info().unwrap();
     let layout = layout(&renderer.device);
-    let mut gpu = MaskGpu::new(&renderer.device, &layout).unwrap();
+    let mut gpu = admitted_gpu(&renderer, &layout);
     let p = project();
     let mut scene = Scene::new(&p);
     scene.sample(&p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
@@ -28,5 +28,9 @@ fn feathered_mask_mesh_and_filter_uniforms_share_renderer_admission() {
     assert_eq!(pixels[32 * 64 + 32], 255);
     assert_eq!(pixels[32 * 64 + 2], 0);
     drop(gpu);
-    assert_eq!(budget.info().unwrap(), before);
+    renderer.device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+    let mut retired = before;
+    // Peak capacity records the completed work; it never falls with live bytes.
+    retired.peak_admitted_bytes += expected;
+    assert_eq!(budget.info().unwrap(), retired);
 }

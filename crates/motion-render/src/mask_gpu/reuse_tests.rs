@@ -8,6 +8,11 @@ use motion_core::{
 
 mod admission_tests;
 
+fn admitted_gpu(renderer: &Renderer, layout: &wgpu::BindGroupLayout) -> MaskGpu {
+    MaskGpu::new(&renderer.device, layout, renderer.allocation_budget().clone(),
+        std::sync::Arc::new(crate::allocation_uploads::AllocationUploads::new(renderer.queue.clone()))).unwrap()
+}
+
 fn layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         label: Some("mask reuse image layout"),
@@ -105,7 +110,7 @@ fn read(renderer: &Renderer, texture: &wgpu::Texture) -> Vec<u8> {
 fn animated_feathered_masks_reuse_actual_bindings_with_stable_memory_and_pixels() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
     let layout = layout(&renderer.device);
-    let mut gpu = MaskGpu::new(&renderer.device, &layout).unwrap();
+    let mut gpu = admitted_gpu(&renderer, &layout);
     let mut p = project();
     let mut scene = Scene::new(&p);
     let mut cache = MaskCache::default();
@@ -195,7 +200,7 @@ fn filled(renderer: &Renderer, value: u8) -> wgpu::Texture {
 fn input_and_source_view_identity_control_rebinding_but_target_and_pipeline_do_not() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
     let layout = layout(&renderer.device);
-    let mut gpu = MaskGpu::new(&renderer.device, &layout).unwrap();
+    let mut gpu = admitted_gpu(&renderer, &layout);
     let textures = [204, 51, 102, 153].map(|v| filled(&renderer, v));
     let views = textures
         .each_ref()
@@ -230,7 +235,7 @@ fn input_and_source_view_identity_control_rebinding_but_target_and_pipeline_do_n
             &views[input].clone(),
             &views[source].clone(),
             &targets[target],
-        );
+        ).unwrap();
         renderer.submit_tracked(encoder.finish(), |_| {});
         let pixels = read(&renderer, &outputs[target]);
         assert!(
@@ -258,7 +263,7 @@ fn input_and_source_view_identity_control_rebinding_but_target_and_pipeline_do_n
 fn resize_slot_shrink_and_empty_masks_release_cached_views_and_recover() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
     let layout = layout(&renderer.device);
-    let mut gpu = MaskGpu::new(&renderer.device, &layout).unwrap();
+    let mut gpu = admitted_gpu(&renderer, &layout);
     let mut p = project();
     let mask = p.layers[0].masks[0].clone();
     let mut scene = Scene::new(&p);

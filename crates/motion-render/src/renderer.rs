@@ -448,7 +448,8 @@ impl Renderer {
             primitive:wgpu::PrimitiveState {cull_mode:None,..Default::default()},depth_stencil:None,multisample:Default::default(),multiview_mask:None,cache:None});
         let allocation_uploads = Arc::new(crate::allocation_uploads::AllocationUploads::new(queue.clone()));
         let layer_gpu = crate::layer_gpu::LayerGpu::new(&device, &uniform_layout, &image_layout, format, &allocation_budget)?;
-        let mask_gpu=crate::mask_gpu::MaskGpu::new(&device,&image_layout)?;
+        let mask_gpu=crate::mask_gpu::MaskGpu::new(&device,&image_layout,
+            allocation_budget.clone(), allocation_uploads.clone())?;
         let white_view = white_texture.create_view(&Default::default());
         let white_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("Motion Studio cached texture binding"),

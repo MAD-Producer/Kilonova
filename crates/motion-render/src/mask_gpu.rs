@@ -5,15 +5,14 @@ use crate::{
     RenderError,
 };
 use std::collections::{HashMap, HashSet};
-use wgpu::util::DeviceExt;
 
 #[cfg(test)]
 mod reuse_tests;
 
 struct Uniform {
-    buffer: wgpu::Buffer,
     group: wgpu::BindGroup,
     inputs: Option<InputBinding>,
+    buffer: crate::allocation_buffer::AllocationBuffer,
 }
 struct InputBinding {
     input: wgpu::TextureView,
@@ -31,10 +30,17 @@ pub(crate) struct MaskGpu {
     scratch: Vec<FxTexture>,
     scratch_size: (u32, u32),
     fingerprints: HashMap<u64, u64>,
-    meshes: HashMap<(u64,u64),(u64,wgpu::Buffer)>,
+    meshes: HashMap<(u64,u64),(u64,crate::allocation_buffer::AllocationBuffer)>,
     pub uploads: u64,
     #[cfg(test)]
     input_binding_observations: Vec<wgpu::BindGroup>,
+    allocation_uploads: std::sync::Arc<crate::allocation_uploads::AllocationUploads>,
+    allocation_budget: crate::AllocationBudget,
+}
+
+fn mask_context(error: RenderError, layer: u64, mask: u64, frame: f64, phase: &str) -> RenderError {
+    let message = format!("mask layer={layer} mask={mask} frame={frame} phase={phase}: {error}");
+    RenderError::Context { message, cause: Box::new(error) }
 }
 fn texture(
     device: &wgpu::Device,
@@ -54,6 +60,8 @@ impl MaskGpu {
     pub fn new(
         device: &wgpu::Device,
         image_layout: &wgpu::BindGroupLayout,
+        allocation_budget: crate::AllocationBudget,
+        allocation_uploads: std::sync::Arc<crate::allocation_uploads::AllocationUploads>,
     ) -> Result<Self, RenderError> {
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some("mask coverage"),
@@ -190,6 +198,8 @@ impl MaskGpu {
             uploads: 0,
             #[cfg(test)]
             input_binding_observations: Vec::new(),
+            allocation_budget,
+            allocation_uploads,
         })
     }
     pub fn scratch_bytes(&self) -> u64 {
@@ -223,14 +233,14 @@ impl MaskGpu {
         input: &wgpu::TextureView,
         source: &wgpu::TextureView,
         target: &wgpu::TextureView,
-    ) {
+    ) -> Result<(), RenderError> {
         if *index >= self.uniforms.len() {
-            let buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            let buffer = crate::allocation_buffer::AllocationBuffer::new(device, &self.allocation_budget, &wgpu::BufferDescriptor {
                 label: Some("mask pass uniform"),
                 size: 624,
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                 mapped_at_creation: false,
-            });
+            })?;
             let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: None,
                 layout: &self.uniform_layout,
@@ -247,6 +257,7 @@ impl MaskGpu {
         }
         let slot = &mut self.uniforms[*index];
         *index += 1;
+        self.allocation_uploads.track(Some(slot.buffer.allocation()))?;
         queue.write_buffer(&slot.buffer, 0, bytemuck::bytes_of(&u));
         // Layout and sampler are immutable here. Match actual view identities,
         // not dimensions: equal-sized replacement textures must rebind.
@@ -310,6 +321,7 @@ impl MaskGpu {
         pass.set_bind_group(0, &slot.group, &[]);
         pass.set_bind_group(1, group, &[]);
         pass.draw(0..3, 0..1);
+        Ok(())
     }
     pub fn prepare(
         &mut self,
@@ -401,15 +413,24 @@ impl MaskGpu {
             for (i, m) in group.iter().enumerate() {
                 let mesh_key=(owner,m.id);
                 if self.meshes.get(&mesh_key).is_none_or(|(fingerprint,_)|*fingerprint!=m.fingerprint) {
-                let vertices = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                let contents: &[u8] = if m.vertices.is_empty() {
+                    &[0; 24]
+                } else {
+                    bytemuck::cast_slice(&m.vertices)
+                };
+                let vertices = crate::allocation_buffer::AllocationBuffer::new(device, &self.allocation_budget, &wgpu::BufferDescriptor {
                     label: Some("mask path triangles"),
-                    contents: if m.vertices.is_empty() {
-                        &[0; 24]
-                    } else {
-                        bytemuck::cast_slice(&m.vertices)
-                    },
+                    size: contents.len() as u64,
                     usage: wgpu::BufferUsages::VERTEX,
-                });
+                    mapped_at_creation: true,
+                }).map_err(|error| mask_context(error, owner, m.id, scene.frame, "vertices"))?;
+                {
+                    let mut mapped = vertices.get_mapped_range_mut(..).map_err(|error|
+                        mask_context(crate::VectorUploadError::Range(std::sync::Arc::new(error)).into(),
+                            owner, m.id, scene.frame, "initialize"))?;
+                    mapped.copy_from_slice(contents);
+                }
+                vertices.unmap();
                 self.meshes.insert(mesh_key,(m.fingerprint,vertices));
                 }
                 let vertices=&self.meshes[&mesh_key].1;
@@ -453,7 +474,7 @@ impl MaskGpu {
                         &input,
                         &input,
                         &target,
-                    );
+                    ).map_err(|error| mask_context(error, owner, m.id, scene.frame, "feather"))?;
                     coverage = next;
                 }
                 let source = self.scratch[coverage].view.clone();
@@ -477,7 +498,7 @@ impl MaskGpu {
                     &input,
                     &source,
                     &target,
-                );
+                ).map_err(|error| mask_context(error, owner, m.id, scene.frame, "combine"))?;
                 previous_slot = Some(slot);
             }
             self.fingerprints.insert(owner, signature);
