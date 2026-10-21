@@ -85,3 +85,90 @@ fn concurrent_renderers_cannot_admit_the_same_remaining_capacity_twice() {
     assert_eq!(info.peak_admitted_bytes, 64);
     assert_eq!(budget.info().unwrap().admitted_bytes, 0);
 }
+
+struct ReleaseCapture {
+    state: Arc<Mutex<State>>,
+    events: Mutex<Vec<(log::Level, String)>>,
+}
+impl log::Log for ReleaseCapture {
+    fn enabled(&self, metadata: &log::Metadata<'_>) -> bool {
+        metadata.level() <= log::Level::Info
+    }
+    fn log(&self, record: &log::Record<'_>) {
+        let text = record.args().to_string();
+        if text.starts_with("render allocation release ") {
+            assert!(!matches!(
+                self.state.try_lock(),
+                Err(std::sync::TryLockError::WouldBlock)
+            ));
+            self.events.lock().unwrap().push((record.level(), text));
+        }
+    }
+    fn flush(&self) {}
+}
+
+#[test]
+fn release_faults_fail_closed_and_emit_once_at_info_after_unlock() {
+    const TEST: &str =
+        "allocation_budget::tests::release_faults_fail_closed_and_emit_once_at_info_after_unlock";
+    const CHILD: &str = "MOTION_TEST_ALLOCATION_RELEASE_FAULT";
+    let Ok(mode) = std::env::var(CHILD) else {
+        for mode in ["poison", "missing", "underflow"] {
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args(["--exact", TEST, "--nocapture"])
+                .env(CHILD, mode)
+                .env_remove("MOTION_LOG")
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{mode}\n{}\n{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            assert!(!String::from_utf8_lossy(&output.stdout).contains("render allocation release "));
+        }
+        return;
+    };
+    let budget = AllocationBudget::new(8).unwrap();
+    let first = budget.reserve(4).unwrap();
+    let alias = first.clone();
+    let second = budget.reserve(4).unwrap();
+    let capture = Box::leak(Box::new(ReleaseCapture {
+        state: budget.0.clone(),
+        events: Mutex::new(Vec::new()),
+    }));
+    log::set_logger(capture).unwrap();
+    log::set_max_level(log::LevelFilter::Info);
+    if mode == "poison" {
+        assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _state = budget.0.lock().unwrap();
+            panic!("controlled allocation state poison");
+        }))
+        .is_err());
+    } else {
+        let mut state = budget.0.lock().unwrap();
+        if mode == "missing" {
+            state.allocations.remove(&first.0.id);
+        } else {
+            state.used = 0;
+        }
+    }
+    drop(first);
+    assert!(capture.events.lock().unwrap().is_empty());
+    drop(alias);
+    drop(second);
+    assert!(budget.check().is_err());
+    assert!(budget.info().is_err());
+    assert!(budget.reserve(1).is_err());
+    assert!(budget.set_limit(8).is_err());
+    let events = capture.events.lock().unwrap();
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].0, log::Level::Error);
+    assert!(events[0].1.contains("id=1 bytes=4"));
+    assert!(events[0].1.contains(if mode == "poison" {
+        "poisoned=true inconsistent=false"
+    } else {
+        "poisoned=false inconsistent=true"
+    }));
+}
