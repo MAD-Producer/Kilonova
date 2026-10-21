@@ -145,7 +145,7 @@ pub fn start_profiling(id: i64, limit: i32) -> Result<serde_json::Value> {
         }
         let g = s.graphics.as_mut().ok_or("no preview surface")?;
         g.renderer.device.poll(wgpu::PollType::wait_indefinitely()).map_err(|e| crate::Error::with_context("profiling GPU wait", e))?;
-        g.timer = GpuTimer::new(&g.renderer.device, &g.renderer.queue);
+        g.timer = GpuTimer::new(&g.renderer)?;
         s.recorder = Some(FrameRecorder::new(s.presented + 1, limit as usize));
         s.update_submission_tracking();
         Ok(s.preview_info())

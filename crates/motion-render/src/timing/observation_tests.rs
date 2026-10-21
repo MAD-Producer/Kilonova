@@ -38,7 +38,7 @@ fn actual_unmapped_timestamp_errors_are_bounded_and_reset_after_a_valid_mapping(
         let renderer = pollster::block_on(crate::Renderer::new_profiled(
             &instance, None, wgpu::TextureFormat::Rgba8UnormSrgb, true,
         )).unwrap();
-        let Some(mut timer) = GpuTimer::new(&renderer.device, &renderer.queue) else {
+        let Some(mut timer) = GpuTimer::new(&renderer).unwrap() else {
             panic!("timestamp queries are required for this controlled GPU test");
         };
         let fail = |timer: &mut GpuTimer, count| {

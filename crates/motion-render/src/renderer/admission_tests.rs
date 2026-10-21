@@ -1,4 +1,6 @@
 use super::*;
+
+const SYSTEM_BYTES: u64 = FIXED_RENDERER_ALLOCATION_BYTES;
 use motion_core::{Asset, Content, EffectInstance, Layer};
 
 mod effect_resources;
@@ -6,7 +8,7 @@ mod frame_blend;
 
 #[test]
 fn cached_effect_bindings_keep_admitted_sources_until_the_bindings_are_invalidated() {
-    let budget = crate::AllocationBudget::new(1 << 20).unwrap();
+    let budget = crate::AllocationBudget::new(SYSTEM_BYTES + (1 << 20)).unwrap();
     let mut renderer =
         pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();
     renderer

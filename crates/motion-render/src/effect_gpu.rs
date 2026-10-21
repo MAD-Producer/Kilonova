@@ -47,16 +47,18 @@ pub(crate) struct EffectGpu {
 }
 pub(crate) struct GpuState {
     allocation_budget: crate::AllocationBudget,
-    allocation_uploads: std::sync::Arc<crate::allocation_uploads::AllocationUploads>,
     uniform_layout: wgpu::BindGroupLayout,
     input_layout: wgpu::BindGroupLayout,
     resource_layout: wgpu::BindGroupLayout,
     sampler: wgpu::Sampler,
+    // Cached raw bindings must retire before their admitted backing resources.
+    resources: HashMap<u32, wgpu::BindGroup>,
+    bindings: Vec<Option<Binding>>,
+    input_resources: Vec<Option<InputResource>>,
     white: FxTexture,
     identity: Lut,
     luts: Vec<Lut>,
     pipelines: HashMap<(u32, u32), wgpu::RenderPipeline>,
-    resources: HashMap<u32, wgpu::BindGroup>,
     resource_textures: HashMap<(String, String), FxTexture>,
     pub resource_bytes: u64,
     pub parameter_resource_upload_bytes: u64,
@@ -70,12 +72,13 @@ pub(crate) struct GpuState {
     scratch_idle_frames: u32,
     epoch: u64,
     buffers: Vec<Buffer>,
-    sprite_buffer: wgpu::Buffer,
-    bindings: Vec<Option<Binding>>,
-    input_resources: Vec<Option<InputResource>>,
+    sprite_buffer: Option<crate::allocation_buffer::AllocationBuffer>,
+    allocation_uploads: std::sync::Arc<crate::allocation_uploads::AllocationUploads>,
 }
 
 const SCRATCH_IDLE_FRAME_LIMIT: u32 = 120;
+#[cfg(test)]
+mod fixed_admission_tests;
 pub(crate) fn texture(
     device: &wgpu::Device,
     layout: &wgpu::BindGroupLayout,
@@ -221,24 +224,38 @@ impl EffectGpu {
             min_filter: wgpu::FilterMode::Linear,
             ..Default::default()
         });
-        let white = texture(
+        let mut builder = PlanBuilder::new(
+            Registry::new_with_builtins().map_err(RenderError::from)?,
+        )?;
+        builder.set_alpha(0, 1, 1, &[255; 4])?;
+        let white = admitted_texture(
             device,
             composite,
             &sampler,
             1,
             1,
             wgpu::TextureFormat::Rgba8Unorm,
-        );
-        upload(queue, &white.texture, 1, 1, &[255; 4]);
-        let identity_texture = texture(
+            &allocation_budget,
+        ).map_err(|error| {
+            let message = format!("effect fallback size=1x1 phase=allocate: {error}");
+            error.with_diagnostic(message)
+        })?;
+        let identity_texture = admitted_texture(
             device,
             composite,
             &sampler,
             256,
             1,
             wgpu::TextureFormat::Rgba8Unorm,
-        );
+            &allocation_budget,
+        ).map_err(|error| {
+            let message = format!("effect identity LUT size=256x1 phase=allocate: {error}");
+            error.with_diagnostic(message)
+        })?;
         let identity_bytes: [u8; 1024] = std::array::from_fn(|i| (i / 4) as u8);
+        allocation_uploads.track(white.texture.allocation())?;
+        allocation_uploads.track(identity_texture.texture.allocation())?;
+        upload(queue, &white.texture, 1, 1, &[255; 4]);
         upload(queue, &identity_texture.texture, 256, 1, &identity_bytes);
         let identity = Lut {
             texture: identity_texture.texture,
@@ -246,9 +263,7 @@ impl EffectGpu {
             last: identity_bytes,
         };
         Ok(Self {
-            builder: PlanBuilder::new(
-                Registry::new_with_builtins().map_err(RenderError::from)?,
-            )?,
+            builder,
             state: GpuState {
                 allocation_budget,
                 allocation_uploads,
@@ -274,12 +289,7 @@ impl EffectGpu {
                 scratch_idle_frames: 0,
                 epoch: 0,
                 buffers: Vec::new(),
-                sprite_buffer: device.create_buffer(&wgpu::BufferDescriptor {
-                    label: Some("bounded scene instances"),
-                    size: (motion_effects::MAX_SPRITES * 48) as u64,
-                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                    mapped_at_creation: false,
-                }),
+                sprite_buffer: None,
                 bindings: Vec::new(),
                 input_resources: Vec::new(),
             },
@@ -304,12 +314,38 @@ impl EffectGpu {
     }
 }
 impl GpuState {
+    fn upload_instances(&mut self, device: &wgpu::Device, queue: &wgpu::Queue,
+        sprites: &[crate::scene_generator::Sprite]) -> Result<(), RenderError> {
+        if sprites.len() > motion_effects::MAX_SPRITES {
+            return Err(RenderError::Invalid(format!("effect instances count={} phase=upload exceeds capacity", sprites.len())));
+        }
+        if sprites.is_empty() { return Ok(()); }
+        let bytes = std::mem::size_of_val(sprites) as u64;
+        if self.sprite_buffer.as_ref().is_none_or(|buffer| buffer.size() < bytes) {
+            let next = crate::allocation_buffer::AllocationBuffer::new(device, &self.allocation_budget, &wgpu::BufferDescriptor {
+                label: Some("bounded scene instances"), size: bytes,
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            }).map_err(|error| {
+                let message = format!("effect instances count={} phase=allocate: {error}", sprites.len());
+                error.with_diagnostic(message)
+            })?;
+            self.allocation_uploads.track(Some(next.allocation()))?;
+            self.sprite_buffer = Some(next);
+        }
+        let buffer = self.sprite_buffer.as_ref().ok_or_else(||
+            RenderError::Invalid("effect instance buffer phase=upload is missing".into()))?;
+        self.allocation_uploads.track(Some(buffer.allocation()))?;
+        queue.write_buffer(buffer, 0, bytemuck::cast_slice(sprites));
+        Ok(())
+    }
     pub fn invalidate(&mut self) {
         self.epoch += 1;
         self.bindings.clear();
         self.input_resources.clear();
     }
     pub fn release_scratch(&mut self) {
+        self.sprite_buffer = None;
         let has_resources = self.pool_slots != 0
             || self.pool.iter().any(Option::is_some)
             || !self.luts.is_empty()
@@ -520,7 +556,7 @@ impl GpuState {
         self.bindings.resize_with(frame.passes.len(), || None);
         self.input_resources.resize_with(frame.passes.len(), || None);
         if !frame.sprites.is_empty() {
-            queue.write_buffer(&self.sprite_buffer, 0, bytemuck::cast_slice(&frame.sprites));
+            self.upload_instances(device, queue, &frame.sprites)?;
         }
         for p in &frame.passes {
             let gamma = (1..=3).contains(&p.output);
@@ -986,8 +1022,14 @@ impl GpuState {
         };
         pass.set_bind_group(2, resources, &[]);
         if p.sprite {
-            pass.set_vertex_buffer(0, self.sprite_buffer.slice(..));
-            pass.draw(0..6, p.sprite_start..p.sprite_start + p.sprite_count);
+            // The pass still clears its target when every instance is culled.
+            // Zero-instance work needs no vertex buffer or allocation.
+            if p.sprite_count != 0 {
+                let instances = self.sprite_buffer.as_ref().ok_or_else(||
+                    RenderError::Invalid(format!("effect instance buffer program={} phase=draw is missing", p.program)))?;
+                pass.set_vertex_buffer(0, instances.slice(..));
+                pass.draw(0..6, p.sprite_start..p.sprite_start + p.sprite_count);
+            }
         } else {
             pass.draw(0..3, 0..1);
         }

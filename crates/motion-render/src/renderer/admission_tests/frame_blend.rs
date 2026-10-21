@@ -77,8 +77,8 @@ fn recover_and_blend(renderer: &mut Renderer) {
 
 #[test]
 fn late_blend_uniform_refusal_preserves_the_decoded_frame_and_recovers_real_pixels() {
-    // Startup image + decoded RGBA + newly allocated cache image + uniform.
-    let budget = crate::AllocationBudget::new(4 + 16 + 16 + 16 - 1).unwrap();
+    // Fixed resources + decoded RGBA + newly allocated cache image + uniform.
+    let budget = crate::AllocationBudget::new(SYSTEM_BYTES + 16 + 16 + 16 - 1).unwrap();
     let mut renderer =
         pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();
     renderer
@@ -89,8 +89,8 @@ fn late_blend_uniform_refusal_preserves_the_decoded_frame_and_recovers_real_pixe
         error.resource_rejection(),
         Some(&ResourceRejection::Budget {
             scope: ResourceBudgetScope::RenderAllocations,
-            required_bytes: 52,
-            budget_bytes: 51,
+            required_bytes: SYSTEM_BYTES + 48,
+            budget_bytes: SYSTEM_BYTES + 47,
         })
     );
     for context in [
@@ -99,7 +99,7 @@ fn late_blend_uniform_refusal_preserves_the_decoded_frame_and_recovers_real_pixe
     ] {
         assert!(error.to_string().contains(context), "{error}");
     }
-    assert_eq!(budget.info().unwrap().admitted_bytes, 36);
+    assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES + 32);
     assert!(renderer.video_blend.is_none());
     assert_eq!(renderer.video_blend_submissions, 0);
     assert!(!renderer.video_blend_source_ready(1, 7, 100, 0));
@@ -107,20 +107,20 @@ fn late_blend_uniform_refusal_preserves_the_decoded_frame_and_recovers_real_pixe
         renderer.images[&TextureKey::Video(1)].video_stamp,
         Some((7, 100))
     );
-    budget.set_limit(1 << 20).unwrap();
+    budget.set_limit(SYSTEM_BYTES + (1 << 20)).unwrap();
     assert!(pixels(&mut renderer)
         .chunks_exact(4)
         .all(|p| p == [0, 0, 0, 255]));
     renderer.cache_video_blend_source(1, 7, 100, 0).unwrap();
     flush(&renderer);
-    assert_eq!(budget.info().unwrap().admitted_bytes, 52);
+    assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES + 48);
     assert!(renderer.video_blend_source_ready(1, 7, 100, 0));
     recover_and_blend(&mut renderer);
 }
 
 #[test]
 fn refused_blend_encoder_does_not_queue_a_write_or_acknowledge_the_cache() {
-    let budget = crate::AllocationBudget::new(1 << 20).unwrap();
+    let budget = crate::AllocationBudget::new(SYSTEM_BYTES + (1 << 20)).unwrap();
     let mut renderer =
         pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();
     renderer
@@ -158,14 +158,14 @@ fn refused_blend_encoder_does_not_queue_a_write_or_acknowledge_the_cache() {
     renderer.reclaim_preview_working_set().unwrap();
     drop(scopes);
     // No submit/poll here: a queued failed uniform write would retain 16 bytes.
-    assert_eq!(budget.info().unwrap().admitted_bytes, 4);
+    assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES);
     recover_and_blend(&mut renderer);
 }
 
 #[test]
 fn abandoned_encoder_scopes_retain_new_blend_uniform_capacity() {
     for finish in [false, true] {
-        let budget = crate::AllocationBudget::new(1 << 20).unwrap();
+        let budget = crate::AllocationBudget::new(SYSTEM_BYTES + (1 << 20)).unwrap();
         let mut renderer =
             pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();
         let encoder = renderer
@@ -176,16 +176,16 @@ fn abandoned_encoder_scopes_retain_new_blend_uniform_capacity() {
             .unwrap();
         renderer.cache_video_blend_source(1, 7, 100, 0).unwrap();
         flush(&renderer);
-        assert_eq!(budget.info().unwrap().admitted_bytes, 52);
-        assert_eq!(budget.info().unwrap().live_allocations, 4);
+        assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES + 48);
+        assert_eq!(budget.info().unwrap().live_allocations, 9);
         renderer.reclaim_preview_working_set().unwrap();
-        assert_eq!(budget.info().unwrap().admitted_bytes, 52);
+        assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES + 48);
         if finish {
             drop(encoder.finish());
         } else {
             drop(encoder);
         }
-        assert_eq!(budget.info().unwrap().admitted_bytes, 4);
+        assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES);
         let device = renderer.device.clone();
         let queue = renderer.queue.clone();
         drop(renderer);
@@ -197,7 +197,7 @@ fn abandoned_encoder_scopes_retain_new_blend_uniform_capacity() {
 
 #[test]
 fn refused_blend_encoder_preserves_completed_output_identity_stamp_and_pixels() {
-    let budget = crate::AllocationBudget::new(1 << 20).unwrap();
+    let budget = crate::AllocationBudget::new(SYSTEM_BYTES + (1 << 20)).unwrap();
     let mut renderer =
         pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();
     renderer

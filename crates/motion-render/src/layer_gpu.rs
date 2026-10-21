@@ -5,13 +5,18 @@ use crate::{
     RenderError,
 };
 use std::collections::HashMap;
-use wgpu::util::DeviceExt;
 mod groups;
+const CLEAR_VERTICES: [[f32; 6]; 3] = [
+    [-1., -1., 0., 0., 0., 0.],
+    [3., -1., 0., 0., 0., 0.],
+    [-1., 3., 0., 0., 0., 0.],
+];
+pub(crate) const CLEAR_VERTEX_BYTES: u64 = std::mem::size_of_val(&CLEAR_VERTICES) as u64;
 pub(crate) struct LayerGpu {
     vector: wgpu::RenderPipeline,
     vector_clear: wgpu::RenderPipeline,
     vector_resolve: wgpu::RenderPipeline,
-    clear_vertices: wgpu::Buffer,
+    clear_vertices: crate::allocation_buffer::AllocationBuffer,
     pub adjustment: wgpu::RenderPipeline,
     pub present: wgpu::RenderPipeline,
     pub accumulators: Vec<FxTexture>,
@@ -42,7 +47,8 @@ impl LayerGpu {
         uniform: &wgpu::BindGroupLayout,
         image: &wgpu::BindGroupLayout,
         format: wgpu::TextureFormat,
-    ) -> Self {
+        budget: &crate::AllocationBudget,
+    ) -> Result<Self, RenderError> {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("vector paints"),
             source: wgpu::ShaderSource::Wgsl(include_str!("vector.wgsl").into()),
@@ -102,15 +108,18 @@ impl LayerGpu {
             })] }),
             primitive: Default::default(), depth_stencil: None, multisample: Default::default(), multiview_mask: None, cache: None,
         });
-        let clear_vertices=device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let clear_vertices = crate::allocation_buffer::AllocationBuffer::new(device, budget, &wgpu::BufferDescriptor {
             label:Some("transparent vector scratch clear"),
-            contents:bytemuck::cast_slice(&[
-                [-1f32,-1.,0.,0.,0.,0.],
-                [3.,-1.,0.,0.,0.,0.],
-                [-1.,3.,0.,0.,0.,0.],
-            ]),
+            size: CLEAR_VERTEX_BYTES,
             usage:wgpu::BufferUsages::VERTEX,
-        });
+            mapped_at_creation: true,
+        })?;
+        {
+            let mut mapped = clear_vertices.get_mapped_range_mut(..).map_err(|error|
+                RenderError::Invalid(format!("transparent vector scratch clear phase=initialize: {error}")))?;
+            mapped.copy_from_slice(bytemuck::cast_slice(&CLEAR_VERTICES));
+        }
+        clear_vertices.unmap();
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("adjustment and present"),
             source: wgpu::ShaderSource::Wgsl(include_str!("adjustment.wgsl").into()),
@@ -148,7 +157,7 @@ impl LayerGpu {
                 cache: None,
             })
         };
-        Self {
+        Ok(Self {
             vector,
             vector_clear,
             vector_resolve,
@@ -167,7 +176,7 @@ impl LayerGpu {
             groups: groups::GroupGpu::new(device,image),
             uploads: Default::default(),
             vertex_upload: Default::default(),
-        }
+        })
     }
     pub fn prepare_accumulators(
         &mut self,

@@ -50,6 +50,30 @@ fn plan(p: &Project, frame: f64) -> (Scene, PlanBuilder) {
     builder.build(&scene, &[0], 128, 128, true).unwrap();
     (scene, builder)
 }
+
+#[test]
+fn culled_sdk_instances_clear_the_target_and_recover_without_a_startup_instance_buffer() {
+    let mut project = project("starfield");
+    let parameters = &mut project.layers[0].effects[0].params;
+    parameters.get_mut("extent").unwrap().track.value = [1024., 1024., 0., 0.];
+    parameters.get_mut("fade").unwrap().track.value = [0.; 4];
+    assert!(!plan(&project, 17.).1.frame.sprites.is_empty(), "fixture must start with visible instances");
+    project.layers[0].transform.position.value = [100000., 64., 0.];
+    let (empty, builder) = plan(&project, 17.);
+    assert!(builder.frame.sprites.is_empty());
+    assert!(builder.frame.passes.iter().any(|pass| pass.sprite && pass.sprite_count == 0));
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    renderer.set_effect_registry(scene_fixtures::registry().unwrap());
+    let target = renderer.capture_target(128, 128).unwrap();
+    let pixels = renderer.capture(&empty, &target).unwrap().0;
+    assert!(pixels.iter().all(|byte| *byte == 0));
+    project.layers[0].transform.position.value = [64., 64., 0.];
+    let (visible, builder) = plan(&project, 17.);
+    assert!(!builder.frame.sprites.is_empty());
+    let pixels = renderer.capture(&visible, &target).unwrap().0;
+    assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+    renderer.check_health().unwrap();
+}
 #[test]
 fn particles_cull_bounds_keep_offscreen_state_and_are_seek_order_independent() {
     let mut p = project("starfield");
