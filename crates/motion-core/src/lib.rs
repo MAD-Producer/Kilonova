@@ -1,4 +1,7 @@
 //! Editing, undo and expression execution over shared Motion Studio data.
+#[cfg(test)]
+#[path = "../../motion-effects/tests/support/scene_packages.rs"]
+mod scene_fixtures;
 mod command_registry;
 pub use command_registry::CommandRegistry;
 mod editor;

@@ -1,8 +1,10 @@
 //! JSON-lines desktop driver for the packaged editor's browser integration tests.
 //! It is not exposed to plugin pages or included in the Android bridge.
+#[path = "../../motion-effects/tests/support/scene_packages.rs"]
+mod scene_fixtures;
+use motion_effects::Registry;
 use motion_core::{plugin_editor::{EditorRequest, PluginEditorSession}, Command, EffectAction, EffectInstance, Engine, Layer, Project};
 use motion_render::Scene;
-use motion_effects::{builtin, Registry};
 use motion_render::Renderer;
 use image::ImageEncoder;
 use serde_json::{json, Value};
@@ -18,7 +20,7 @@ struct Probe {
 impl Probe {
     fn call(&mut self, input: Value) -> Result<Value, Box<dyn std::error::Error>> {
         if input["op"] == "open" {
-            let package = builtin::scene_package()?;
+            let package = scene_fixtures::scene_package()?;
             let id = input["effect"].as_str().ok_or("effect required")?;
             let definition = package
                 .manifest
@@ -133,11 +135,12 @@ impl Probe {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut probe = Probe {
         renderer: pollster::block_on(Renderer::headless())?,
-        registry: Registry::new_with_builtins()?,
+        registry: scene_fixtures::registry()?,
         engine: None,
         editor: None,
         frame: 60,
     };
+    probe.renderer.set_effect_registry(probe.registry.clone());
     for line in io::stdin().lock().lines() {
         let reply = match serde_json::from_str::<Value>(&line?)
             .map_err(|e| e.to_string())
