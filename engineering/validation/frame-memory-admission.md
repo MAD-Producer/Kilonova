@@ -650,3 +650,59 @@ Optional GPU timers, remaining dynamic renderer resources, staging/raw external
 scope, shared session/platform policy, bounded preview/export recovery and full
 repeated lifecycle acceptance remain pending. #60/#61/#67 remain open; #67 reuse,
 project precision and 3D integration are not completed by this increment.
+
+## Eighth increment: optional GPU timing buffer admission
+
+`GpuTimer::new` now uses its renderer's allocation budget. A supported timer
+admits a 1,024-byte resolve buffer and four 32-byte readback buffers: **1,152
+descriptor bytes in five allocations**, independent of query-set/driver memory.
+It returns `Result<Option<GpuTimer>>`: unsupported timestamp queries remain a
+normal `Ok(None)`, while capacity refusal retains the original typed rejection.
+All fallible buffer reservations precede publication and queue writes are not
+needed. Partial construction therefore retires directly when no command scope
+owns those reservations. The host propagates refusal instead of reporting
+unsupported timing; a refused profiling replacement preserves the old timer.
+
+Pending readback callbacks own both their actual raw buffer and its allocation
+lease. Dropping a timer releases its other buffers, while the pending 32 bytes
+retire only when the actual mapping callback runs. No frame-loop wait, retry,
+new dependency, retired particle product, panel or style is introduced.
+
+| Item | Evidence | Disposition |
+| --- | --- | --- |
+| #61-A49 | Independent sum of four aligned resolve slots and four timestamp readbacks; timer and renderer teardown | New admission; expected failing control reproduced |
+| #61-A50 | All five exact capacity boundaries reject with original scope/required/budget/label; partial construction retires before poll/submit; recovery succeeds | New refusal and cleanup coverage |
+| #61-A51 | A device without enabled timestamp queries returns `Ok(None)` and leaves admission unchanged | Normal unsupported branch |
+| #61-A52 | Refused replacement preserves old capacity and slot reservations; existing slots work below a lowered limit | New preservation coverage |
+| #61-A53 | Actual resolve/copy commands retain timing capacity through abandoned and submitted command owners | New lifetime coverage |
+| #61-A54 | Actual queued timestamp words, pending map, timer drop, and real successful callback; only the mapped 32 bytes remain until callback | New asynchronous lifetime coverage |
+| #61-A55 | Actual final timing-buffer refusal through existing `respond`, with request 207/operation/timing/original typed cause; default file, Error stderr and stdout isolation | Existing error boundary, newly exercised failure |
+
+The failing control at `3a98fa9d` reported only 1,344,592 admitted bytes against
+1,345,744 independently expected bytes. Cargo exited 101 after an actual GPU
+assertion failure, not a compile failure. It is not a passing acceptance result.
+The subsequent API adaptation preserves the original byte/count/teardown
+assertions; existing preview pixel and timing assertions are retained.
+
+Source-bound acceptance comprises **165 distinct selected passing tests**:
+- source `c2c1e26e`: render library 70, four GPU integration suites 16, host
+  library 69; the selected existing desktop boundary suite also passed nine
+  cases at this source (not counted twice)
+- source `c453aa53`: the ten-case desktop boundary suite including #61-A55,
+  workspace/all-targets FFmpeg check (excluding retired Android), and the panel
+  style guard all pass
+
+The only source delta between these selections adds the desktop test module and
+its registration. Production and the accepted render/host test sources are
+unchanged. Existing assertions and preview pixel tolerances are retained. These
+are selected tests, not a claim that the entire workspace test matrix ran.
+Raw logs and per-command source/exit receipts are `artifacts/pr-queue/timing-
+admission-*.log` / `.exit.json`; `timing-admission-acceptance.json` in the local
+review directory verifies source deltas, log SHA-256, counts and the failing
+control. Builds, temp data and artifacts remained on E:.
+
+Query-set metadata, driver allocations, raw external encoders, and other dynamic
+layer/vector/mask/compositing resources are not fully covered by this increment.
+Shared session policy, platform pressure, per-frame peaks, bounded full preview
+and export behavior, repeated lifecycle acceptance and #67 remain pending.
+This does not complete #60/#61/#67; precision and 3D remain parked.
