@@ -328,3 +328,28 @@ on E. No dependency, product asset, panel or existing pixel tolerance changed.
 The three source-budget expectation changes account for the actual additional
 Y4/UV2/uniform48 bytes. Remaining work listed above still prevents closure of
 #60/#61/#67; neither project precision settings nor 3D integration resumed.
+
+## Fourth increment: exposure accumulation admission (pending acceptance)
+
+The exposure sample was already admitted. Its linear `Rgba16Unorm` mean texture
+and 16-byte weight buffer now share the same combined allowance. Construction
+stages all three resources before publishing the target; an early sample, middle
+mean or late uniform refusal releases both the category reservation and every
+temporary combined reservation. The typed cause includes extent, allocation
+phase and the original buffer descriptor context where applicable.
+
+Bindings and raw views drop before their owning resources and reservations.
+Admitted encoder scopes retain all three allocations through abandonment or GPU
+completion. The weight buffer is also tracked before each queued write, retaining
+its destination independently of target ownership until submission or teardown.
+Texture category subtotals remain twelve bytes per pixel and exclude the buffer;
+the combined allowance includes the buffer once by identity. This is descriptor
+capacity, not driver residency or upload-staging capacity.
+
+Four new cases are prepared: staged refusal/rollback/recovery, abandoned and
+finished encoder retention plus renderer teardown, refusal of an overlapping
+target without corrupting completed phase pixels, and actual late uniform refusal
+through the default file/Error-stderr/unchanged-reply boundary with controlled
+request metadata. Existing assertions and pixel tolerances are unchanged. Record
+committed-source acceptance separately; no passing result or issue closure is
+claimed by this implementation description.

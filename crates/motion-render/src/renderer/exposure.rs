@@ -108,12 +108,13 @@ impl Drop for Reservation {
 /// Drop cancels the exposure; no partial result can be resolved. Queued work may
 /// outlive ownership, as represented by the renderer's submission ledger.
 pub struct ExposureTarget {
-    sample: RenderTarget,
-    accumulation: OwnedTexture,
-    view: wgpu::TextureView,
-    uniform: wgpu::Buffer,
+    // Bindings and raw views must drop before the owning reservations.
     sample_group: wgpu::BindGroup,
     resolve_group: wgpu::BindGroup,
+    view: wgpu::TextureView,
+    uniform: crate::allocation_buffer::AllocationBuffer,
+    accumulation: OwnedTexture,
+    sample: RenderTarget,
     weights: Vec<f64>,
     total_weight: f64,
     phase: usize,
@@ -250,8 +251,12 @@ impl Renderer {
         }
         let bytes = u64::from(width) * u64::from(height) * 12;
         let reservation = self.reserve_exposure_bytes(bytes, &format!("exposure {width}x{height} phase=allocate"))?;
-        let sample = self.render_target(width, height)?;
-        let accumulation = self.device.create_owned_texture(&wgpu::TextureDescriptor {
+        let diagnostic = |error: RenderError| {
+            let message = format!("exposure {width}x{height} phase=allocate: {error}");
+            error.with_diagnostic(message)
+        };
+        let sample = self.render_target(width, height).map_err(diagnostic)?;
+        let accumulation = self.device.create_admitted_texture(&wgpu::TextureDescriptor {
             label: Some("linear normalized exposure mean"),
             size: wgpu::Extent3d {
                 width,
@@ -264,14 +269,18 @@ impl Renderer {
             format: ACCUMULATION_FORMAT,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
             view_formats: &[],
-        });
+        }, &self.allocation_budget).map_err(diagnostic)?;
         let view = accumulation.create_view(&Default::default());
-        let uniform = self.device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("exposure phase weight"),
-            size: 16,
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
+        let uniform = crate::allocation_buffer::AllocationBuffer::new(
+            &self.device,
+            &self.allocation_budget,
+            &wgpu::BufferDescriptor {
+                label: Some("exposure phase weight"),
+                size: 16,
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            },
+        ).map_err(diagnostic)?;
         let gpu = self
             .exposure_gpu
             .get_or_insert_with(|| ExposureGpu::new(&self.device, self.target_format));
@@ -432,6 +441,12 @@ impl Renderer {
         // In particular, an opaque constant must remain opaque at 80 phases.
         let fraction = weight / total_weight;
         {
+            self.allocation_uploads.track(Some(target.uniform.allocation()))
+                .map_err(|error| {
+                    let message = format!("exposure {}x{} sample={}/{} phase=uniform_track: {error}",
+                        target.sample.width, target.sample.height, target.phase, target.weights.len());
+                    error.with_diagnostic(message)
+                })?;
             self.queue.write_buffer(
                 &target.uniform,
                 0,
