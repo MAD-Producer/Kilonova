@@ -1,6 +1,8 @@
 //! Encoder-ordered uploads. Queue writes would all run before the first draw.
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod admission_tests;
 use std::sync::{Arc, Mutex, Weak};
 use std::time::Instant;
 
