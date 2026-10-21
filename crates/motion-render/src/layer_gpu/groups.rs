@@ -4,13 +4,18 @@ use crate::vector_mesh::{RasterCommand, VectorMesh};
 use std::collections::HashSet;
 
 struct Target { multisample: OwnedTexture, resolved: FxTexture }
+struct OpacityBinding {
+    group: wgpu::BindGroup,
+    // A cached binding owns the same admitted buffer even while it is replaced.
+    _allocation: crate::allocation_budget::AllocationLease,
+}
 pub(super) struct GroupGpu {
     targets: HashMap<(u32,u32,usize),Target>,
     uniform: wgpu::BindGroupLayout,
     composite: wgpu::RenderPipeline,
     encode: wgpu::RenderPipeline,
+    opacity_group: Option<OpacityBinding>,
     opacity_buffer: crate::vector_upload::ReusableBuffer,
-    opacity_group: Option<wgpu::BindGroup>,
     opacity_upload: Vec<u8>,
 }
 impl GroupGpu {
@@ -21,7 +26,7 @@ impl GroupGpu {
             ledger.retained(&target.resolved.texture, crate::TextureCategory::VectorGroupScratch, format!("{owner}/resolve"));
         }
     }
-    pub fn new(device:&wgpu::Device,image:&wgpu::BindGroupLayout) -> Self {
+    pub fn new(device:&wgpu::Device,image:&wgpu::BindGroupLayout,budget:&crate::AllocationBudget) -> Self {
         let uniform=device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label:Some("vector group opacity"), entries:&[wgpu::BindGroupLayoutEntry {
                 binding:0,visibility:wgpu::ShaderStages::FRAGMENT,
@@ -38,7 +43,7 @@ impl GroupGpu {
         });
         Self {targets:HashMap::new(),composite:pipeline(4,wgpu::TextureFormat::Rgba8Unorm,Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING)),
             encode:pipeline(1,wgpu::TextureFormat::Rgba8UnormSrgb,None),uniform,
-            opacity_buffer:Default::default(),opacity_group:None,opacity_upload:Vec::new()}
+            opacity_buffer:crate::vector_upload::ReusableBuffer::new(budget.clone()),opacity_group:None,opacity_upload:Vec::new()}
     }
     pub fn grouped(mesh:&VectorMesh) -> bool { !mesh.commands.is_empty() || mesh.root_opacity!=1. }
     fn needed(meshes:&[VectorMesh]) -> HashSet<(u32,u32,usize)> {
@@ -57,10 +62,16 @@ impl GroupGpu {
             .ok_or_else(||RenderError::Invalid("vector opacity upload size overflow".into()))?;
         if size>u64::from(u32::MAX) {return Err(RenderError::Invalid("vector opacity offsets exceed u32".into()));}
         let previous=self.opacity_buffer.created;
-        let buffer=self.opacity_buffer.get(device,size,wgpu::BufferUsages::UNIFORM,"reusable vector group opacity")?;
+        let buffer=self.opacity_buffer.get(device,size,wgpu::BufferUsages::UNIFORM,"reusable vector group opacity")
+            .map_err(|error| RenderError::Context {
+                message:format!("vector layer={layer} frame={frame} phase=opacity: {error}"),cause:Box::new(error),
+            })?;
         if previous!=self.opacity_buffer.created {
-            self.opacity_group=Some(device.create_bind_group(&wgpu::BindGroupDescriptor {label:Some("reusable vector group opacity"),layout:&self.uniform,
-                entries:&[wgpu::BindGroupEntry {binding:0,resource:wgpu::BindingResource::Buffer(wgpu::BufferBinding {buffer:&buffer,offset:0,size:wgpu::BufferSize::new(16)})}]}));
+            self.opacity_group=Some(OpacityBinding {
+                group:device.create_bind_group(&wgpu::BindGroupDescriptor {label:Some("reusable vector group opacity"),layout:&self.uniform,
+                    entries:&[wgpu::BindGroupEntry {binding:0,resource:wgpu::BindingResource::Buffer(wgpu::BufferBinding {buffer:&buffer,offset:0,size:wgpu::BufferSize::new(16)})}]}),
+                _allocation:buffer.allocation(),
+            });
         }
         self.opacity_upload.resize(size as usize,0);
         for (i,alpha) in mesh.commands.iter().filter(|c|c.kind==2).map(|c|c.opacity)
@@ -88,7 +99,7 @@ impl GroupGpu {
         mesh:&VectorMesh,output:&wgpu::TextureView,paint:&wgpu::RenderPipeline,clear:&wgpu::RenderPipeline,clear_vertices:&wgpu::Buffer,
         vertices:&wgpu::Buffer,uploads:&crate::vector_upload::UploadPool,layer:u64,frame:f64) -> Result<(),RenderError> {
         let stride=self.prepare_opacity(device,encoder,mesh,uploads,layer,frame)?;
-        let group=self.opacity_group.as_ref().ok_or_else(||RenderError::Invalid("vector opacity binding missing".into()))?;
+        let group=&self.opacity_group.as_ref().ok_or_else(||RenderError::Invalid("vector opacity binding missing".into()))?.group;
         let mut opacity_index=0;
         for depth in 0..=mesh.scope_depth() {
             self.targets.entry((mesh.width,mesh.height,depth)).or_insert_with(||Target {

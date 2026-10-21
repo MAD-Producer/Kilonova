@@ -8,6 +8,8 @@ mod effect_admission;
 mod frame_blend_admission;
 mod fixed_admission;
 mod timing_admission;
+mod vector_admission;
+mod mask_admission;
 mod plan_error;
 
 #[test]

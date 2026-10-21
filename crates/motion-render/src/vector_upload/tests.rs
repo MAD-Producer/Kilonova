@@ -23,8 +23,8 @@ fn ordered_copies_reuse_completed_uploads_and_retire_abandoned_work() {
     let renderer = pollster::block_on(crate::Renderer::headless()).unwrap();
     let device = &renderer.device;
     let queue = &renderer.queue;
-    let pool = UploadPool::default();
-    let mut destination = ReusableBuffer::default();
+    let pool = UploadPool::new(renderer.allocation_budget().clone());
+    let mut destination = ReusableBuffer::new(renderer.allocation_budget().clone());
     let target = destination
         .get(
             device,
@@ -152,13 +152,13 @@ fn ordered_copies_reuse_completed_uploads_and_retire_abandoned_work() {
 #[test]
 fn actual_native_remap_failure_is_retained_and_does_not_retry() {
     let renderer = pollster::block_on(crate::Renderer::headless()).unwrap();
-    let pool = UploadPool::default();
-    let source = renderer.device.create_buffer(&wgpu::BufferDescriptor {
+    let pool = UploadPool::new(renderer.allocation_budget().clone());
+    let source = AllocationBuffer::new(&renderer.device, renderer.allocation_budget(), &wgpu::BufferDescriptor {
         label: Some("destroyed remap source"),
         size: 4,
         usage: wgpu::BufferUsages::MAP_WRITE | wgpu::BufferUsages::COPY_SRC,
         mapped_at_creation: false,
-    });
+    }).unwrap();
     {
         let mut state = pool.0.lock().unwrap();
         state.info.pending_buffers = 1;
@@ -166,6 +166,7 @@ fn actual_native_remap_failure_is_retained_and_does_not_retry() {
     }
     let pending = Pending {
         buffer: Some(source.clone()),
+        _destination: None,
         pool: Arc::downgrade(&pool.0),
         encoded_bytes: 4,
         generation: 0,
@@ -199,21 +200,21 @@ fn actual_native_remap_failure_is_retained_and_does_not_retry() {
         pool.0.lock().unwrap().failure,
         Some(VectorUploadError::Remap(_))
     ));
-    let target = renderer.device.create_buffer(&wgpu::BufferDescriptor {
+    let target = AllocationBuffer::new(&renderer.device, renderer.allocation_budget(), &wgpu::BufferDescriptor {
         label: None,
         size: 4,
         usage: wgpu::BufferUsages::COPY_DST,
         mapped_at_creation: false,
-    });
+    }).unwrap();
     let mut encoder = renderer.device.create_command_encoder(&Default::default());
     assert!(matches!(
         pool.write(&renderer.device, &mut encoder, &target, &[0; 4], 49, 4.),
-        Err(VectorUploadError::Remap(_))
+        Err(RenderError::VectorUpload(VectorUploadError::Remap(_)))
     ));
     pool.release();
     assert!(matches!(
         pool.write(&renderer.device, &mut encoder, &target, &[0; 4], 49, 5.),
-        Err(VectorUploadError::Remap(_))
+        Err(RenderError::VectorUpload(VectorUploadError::Remap(_)))
     ));
     assert_eq!(pool.info().unwrap().staging_buffers_created_total, 0);
     assert_eq!(pool.info().unwrap().completed_upload_bytes_total, 0);

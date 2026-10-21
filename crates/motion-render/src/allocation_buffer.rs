@@ -1,7 +1,8 @@
 //! Descriptor-capacity admission for owned GPU buffers, not backend residency.
-use crate::{allocation_budget::AllocationLease, AllocationBudget, RenderError};
+use crate::{allocation_budget::{AllocationLease, AllocationRetention}, AllocationBudget, RenderError};
 use std::ops::Deref;
 
+#[derive(Clone)]
 pub(crate) struct AllocationBuffer {
     buffer: wgpu::Buffer,
     // Drop the raw handle before releasing its logical reservation.
@@ -33,6 +34,9 @@ impl AllocationBuffer {
     }
     pub(crate) fn allocation(&self) -> AllocationLease {
         self.allocation.clone()
+    }
+    pub(crate) fn retention(&self) -> AllocationRetention {
+        self.allocation.retention()
     }
 }
 impl Deref for AllocationBuffer {
