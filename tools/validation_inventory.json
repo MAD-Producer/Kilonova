@@ -36,6 +36,11 @@
       "runner": ".github/workflows/ci.yml",
       "reason": "Executed by the workflow or its test_ci_*.py unittest discovery."
     },
+    "tools/ci_dependency_audit.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "使用固定版本和校验和的 RustSec 工具审计完整 Cargo.lock，保留原始报告与退出状态。"
+    },
     "tools/ci_release.py": {
       "mode": "ci",
       "runner": ".github/workflows/ci.yml",
@@ -154,6 +159,11 @@
       "mode": "ci",
       "runner": ".github/workflows/ci.yml",
       "reason": "Executed by the workflow or its test_ci_*.py unittest discovery."
+    },
+    "tools/test_ci_dependency_audit.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "验证外部审计失败、畸形报告、漏洞结果及未校验下载不能被包装为成功。"
     },
     "tools/test_android_build.py": {
       "mode": "manual",

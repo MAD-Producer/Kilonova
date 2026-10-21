@@ -207,10 +207,32 @@ class WorkflowPolicyTest(unittest.TestCase):
                     self.assertNotEqual(publication[0], route("pull_request", "refs/pull/375/merge", head)[0])
         self.assertNotEqual(route("push", "refs/heads/main")[0], route("push", "refs/tags/v1.2.3")[0])
 
+    def test_dependency_audit_runs_for_prs_and_gates_publication(self):
+        job = self.workflow["jobs"]["dependency-audit"]
+        self.assertNotIn("if", job)
+        self.assertNotIn("continue-on-error", job)
+        commands = [step["run"] for step in job["steps"] if "run" in step]
+        self.assertEqual(commands, [
+            "git -c http.version=HTTP/1.1 clone --depth 1 https://github.com/RustSec/advisory-db.git artifacts/dependency-audit-db",
+            "python tools/ci_dependency_audit.py --database artifacts/dependency-audit-db",
+        ])
+        for step in job["steps"]:
+            self.assertNotIn("continue-on-error", step)
+        uploads = [step for step in job["steps"] if step.get("uses", "").startswith("actions/upload-artifact@")]
+        self.assertEqual(len(uploads), 1)
+        self.assertEqual(uploads[0]["if"], "always()")
+        self.assertEqual(set(uploads[0]["with"]["path"].splitlines()), {
+            "artifacts/dependency-audit/audit.json",
+            "artifacts/dependency-audit/audit.stderr.log",
+            "artifacts/dependency-audit/receipt.json",
+        })
+        self.assertEqual(uploads[0]["with"]["retention-days"], "7")
+        self.assertIn("dependency-audit", self.workflow["jobs"]["publish"]["needs"])
+
     def test_native_and_workspace_jobs_partition_all_supported_packages(self):
         validation = next(step for step in self.checks["steps"] if step.get("name") == "Run Rust and software Vulkan tests")
         self.assertNotIn("if", validation)
-        self.assertEqual(set(self.workflow["jobs"]), {"checks", "desktop", "desktop-media", "publish"})
+        self.assertEqual(set(self.workflow["jobs"]), {"checks", "desktop", "desktop-media", "dependency-audit", "publish"})
         desktop = self.workflow["jobs"]["desktop"]
         self.assertNotIn("if", desktop)
         tests = next(step for step in desktop["steps"] if step.get("name") == "Run desktop unit tests")
@@ -314,7 +336,7 @@ class WorkflowPolicyTest(unittest.TestCase):
         self.assertEqual(policy["id"], "release_policy")
         self.assertNotIn("if", policy)
         publish = self.workflow["jobs"]["publish"]
-        self.assertEqual(publish["needs"], ["checks", "desktop", "desktop-media"])
+        self.assertEqual(publish["needs"], ["checks", "desktop", "desktop-media", "dependency-audit"])
         self.assertEqual(publish["permissions"], {"contents": "write"})
         self.assertIn("python tools/ci_release.py publish-desktop", [step.get("run") for step in publish["steps"]])
         for event, ref, kind in CASES:
