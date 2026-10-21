@@ -2291,7 +2291,10 @@ impl RenderTarget {
         ledger.add(&self.texture, crate::TextureCategory::PreviewTargets, owner.into(), state);
     }
     pub fn texture_bytes(&self) -> u64 {
-        u64::from(self.width) * u64::from(self.height) * 4
+        // One mip/sample/layer, using the allocation's format (not the current
+        // renderer setting). Unknown capacity must never count as zero.
+        self.texture.format().block_copy_size(None)
+            .map_or(u64::MAX, |bytes| u64::from(self.width) * u64::from(self.height) * u64::from(bytes))
     }
 }
 pub struct CaptureTarget {

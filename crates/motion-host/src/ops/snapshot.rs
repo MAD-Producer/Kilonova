@@ -59,7 +59,7 @@ impl Session {
             "previewVideoProxyBytes":self.preview_video.bytes(),
             "exposure":self.sampling.status(),
             "exposureRequired":self.sampling.required(),
-            "scratchBudgetBytes":self.effects.scratch_budget(),"memoryPolicyVersion":2,
+            "scratchBudgetBytes":self.effects.scratch_budget(),"memoryPolicyVersion":motion_render::resource_policy::MEMORY_POLICY_VERSION,
             "sourceTextureBudgetBytes":self.effects.memory_policy().source_texture_budget_bytes,
             "memoryPolicy":self.effects.memory_policy(),
             "effectResolution":if self.preview.mode == PreviewMode::High {"full_layer"} else {"projected_2d"},

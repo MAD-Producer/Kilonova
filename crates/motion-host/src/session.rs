@@ -265,7 +265,7 @@ impl Session {
             self.memory_context = None;
             self.view_revision += 1; // Retained presentation must recheck the new limits.
         }
-        Ok(json!({"policyVersion":2,"memoryPolicy":policy}))
+        Ok(json!({"policyVersion":motion_render::resource_policy::MEMORY_POLICY_VERSION,"memoryPolicy":policy}))
     }
 
     pub fn replace_project(&mut self, engine: Engine, root: PathBuf) -> Result<()> {
@@ -367,15 +367,10 @@ impl Session {
         renderer
             .configure_assets(self.engine.project(), &self.root)
             .map_err(|e| e.to_string())?;
-        let (render_width, render_height) = self.preview.render_dimensions(
-            self.engine.project().width,
-            self.engine.project().height,
-            config.width,
-            config.height,
-        );
-        // Start with a small placeholder; the requested target is prepared under
-        // the bounded policy, rather than failing before the first preview.
-        let scratch = PreviewFrameTargets::new(&renderer, render_width.min(64), render_height.min(64))
+        // The invalid placeholder is never displayed. One pixel leaves room
+        // for a candidate even at the smallest supported two-target allowance;
+        // prepare the real dimensions under the bounded preview policy.
+        let scratch = PreviewFrameTargets::new(&renderer, 1, 1)
             .map_err(|e| e.to_string())?;
         let presenter = Presenter::new(&renderer, &scratch.view, config.format);
         // Auto quality needs GPU cost even without diagnostic recording; only
