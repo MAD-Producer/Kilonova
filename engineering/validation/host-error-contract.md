@@ -48,6 +48,14 @@ Session/ops 原先把已知错误立即转换为 String，调用方无法检查�
 
 该组合源码另行通过 all-targets 锁定离线检查（57.12 秒），宿主故障边界 10 项及内存策略 3 项、真实 GPU 预览预算 5 项、完整分辨率冻结 PNG 导出 1 项、音频 19 项，共 38 项通过；音频仍有 1 项既有物理设备忽略。日志为 `host-error-budget-main-check.log`、`host-error-budget-main-host.log`、`host-error-budget-main-render.log`、`host-error-budget-main-export.log`、`host-error-budget-main-audio.log`。完整 109/676 项没有在该组合后重跑，不将其当作此组合的完整结果。
 
+### 父 PR 合入与帧纹理台账
+
+继续同步 main `0c069663` 的帧纹理容量观测。自动合并无冲突；all-targets 锁定离线检查通过（74 秒），合成打包边界 6 项、帧边界 2 项、提交台账单元 7 项、宿主故障/内存策略 14 项、默认打包日志 1 项、公开音频播放头与实际消费 2 项，共 32 项通过，无失败或忽略。原始日志为 `host-error-ledger-main-*.log`；不是完整工作区测试。
+
+必要依赖 #382 的当前提交 `54a3d74` 四项 CI 均成功，实际合并预览仅涉及 8 个后端及验收文件。审查后按依赖顺序合入，合并提交 `3dfa5e1e`，标题及正文手写中文并从 GitHub 读回确认，实际树与预览一致。未处理其他 PR 队列。
+
+上述 32 项运行对应树 `a56b3ca03a6e4d554624712f74d7d9873cf65afd`。将自己的分支改为同步已合入父 PR 的 main `3dfa5e1e` 后，加入本段记录之前的整个树仍精确相同；不为无源码变化重复计数或把文档修改称为新的运行。证明文件为 `host-error-ledger-parent-tree-proof.json`。#388 的最终跨平台门禁仍以之后的当前提交为准。
+
 原始日志保留在开发者工作区 `artifacts/pr-ci-followups/`，不作为仓库内可复现附件：`host-error-host-complete-tests.log`、`host-error-desktop-complete-tests.log`、`host-error-native-tests.log`、`host-error-boundary-followup.log`、`host-error-bounded-cause-negative.log`、`host-error-bounded-cause-positive.log`、`host-error-final-log-channels.log` 和 `host-error-final-workspace-check.log`。上面的命令和已提交测试可供复验。
 
 ## DESIGN 基线
