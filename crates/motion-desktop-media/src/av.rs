@@ -573,7 +573,7 @@ impl EncoderSettings {
             .clamp(2_000_000, 20_000_000)
     }
 }
-pub const OUTPUT_SAMPLE_RATE: u32 = 48_000;
+pub const OUTPUT_SAMPLE_RATE: u32 = motion_media::OUTPUT_RATE as u32;
 pub const OUTPUT_LAYOUT: av::ChannelLayout = av::ChannelLayout::STEREO;
 
 #[cfg(test)]

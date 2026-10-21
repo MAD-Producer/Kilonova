@@ -61,7 +61,7 @@ impl Mp4Encoder {
             .flags()
             .contains(format::Flags::GLOBAL_HEADER);
         let video_base = Rational(1, fps as i32);
-        let audio_base = Rational(1, 48_000);
+        let audio_base = Rational(1, crate::av::OUTPUT_SAMPLE_RATE as i32);
         let mut video = codec::context::Context::new_with_codec(video_codec)
             .encoder()
             .video()
@@ -98,7 +98,7 @@ impl Mp4Encoder {
             .encoder()
             .audio()
             .map_err(|e| e.to_string())?;
-        audio.set_rate(48_000);
+        audio.set_rate(crate::av::OUTPUT_SAMPLE_RATE as i32);
         audio.set_channel_layout(av::ChannelLayout::STEREO);
         audio.set_format(format::Sample::F32(format::sample::Type::Planar));
         audio.set_time_base(audio_base);
@@ -218,7 +218,7 @@ impl Mp4Encoder {
             return Err("invalid AAC source block or nonsequential audio samples".into());
         }
         let mut pcm = frame::Audio::new(self.audio.format(), samples, av::ChannelLayout::STEREO);
-        pcm.set_rate(48_000);
+        pcm.set_rate(crate::av::OUTPUT_SAMPLE_RATE);
         pcm.set_pts(Some(start_sample as i64));
         for channel in 0..2 {
             for (target, source) in pcm

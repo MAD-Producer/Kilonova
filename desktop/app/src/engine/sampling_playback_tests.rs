@@ -4,13 +4,21 @@ use super::*;
 use crate::{panels, workspace, Locale, Shell};
 use motion_core::{render_sampling::Shutter, vector::*, Content, Ease, Layer, Project};
 
+mod failure_evidence;
+use failure_evidence::report_wait_failure;
+
 // This study asserts progress within one playback cycle. Use the largest
 // legal composition (20 minutes at 30fps), rather than a 100-second fixture
 // that can loop during 65 native completions on slower GPUs. Waits are unchanged.
 const FIXTURE_FPS: u32 = 30;
 const FIXTURE_FRAMES: u32 = motion_core::MAX_FRAMES;
 
-fn drive_frame(shell: &mut Shell, event_loop: &mut winit::event_loop::EventLoop<()>) -> Value {
+fn drive_frame(
+    shell: &mut Shell,
+    event_loop: &mut winit::event_loop::EventLoop<()>,
+    root: &std::path::Path,
+    mode: &str,
+) -> Value {
     let deadline = Instant::now() + Duration::from_secs(15);
     while !shell.playback_ready(Instant::now()) {
         assert!(Instant::now() < deadline, "playback admission stalled");
@@ -48,7 +56,12 @@ fn drive_frame(shell: &mut Shell, event_loop: &mut winit::event_loop::EventLoop<
             &shell.engine.present_async(ui).unwrap(),
             Duration::from_secs(10),
         )
-        .unwrap();
+        .unwrap_or_else(|error| {
+            panic!(
+                "{}",
+                report_wait_failure(&shell.engine, root, mode, expected, polls, error)
+            );
+        });
         present_us += present.elapsed().as_micros();
         shell.finish_exposure_present(0, &result);
         shell.present_due = false;
@@ -152,13 +165,13 @@ fn paced_sampling_playback_records_native_costs_without_starving_frames() {
             shell.action(panels::Action::TogglePlay, None).unwrap();
             let mut warmup = Vec::new();
             for _ in 0..5 {
-                warmup.push(drive_frame(&mut shell, &mut event_loop));
+                warmup.push(drive_frame(&mut shell, &mut event_loop, &root, name));
             }
             let began = Instant::now();
             let mut previous = began;
             let mut records = Vec::new();
             for _ in 0..60 {
-                let mut record = drive_frame(&mut shell, &mut event_loop);
+                let mut record = drive_frame(&mut shell, &mut event_loop, &root, name);
                 let now = Instant::now();
                 record["completion_interval_us"] =
                     serde_json::json!(now.duration_since(previous).as_micros());
@@ -239,6 +252,10 @@ fn paced_sampling_playback_records_native_costs_without_starving_frames() {
                 }
             }
             std::fs::write(directory.join("stderr.log"), &output.stderr)?;
+            let failure = root.path().join("failure.json");
+            if failure.try_exists()? {
+                std::fs::copy(failure, directory.join("failure.json"))?;
+            }
         }
         Ok(())
     })();
