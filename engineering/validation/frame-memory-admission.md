@@ -353,3 +353,43 @@ through the default file/Error-stderr/unchanged-reply boundary with controlled
 request metadata. Existing assertions and pixel tolerances are unchanged. Record
 committed-source acceptance separately; no passing result or issue closure is
 claimed by this implementation description.
+
+## Accepted local evidence for the fourth increment
+
+Checked source: `1810fac1d0226ac78ac692096bdad3fb29d56dc3`, including main
+`8385318aafe8bf9640d9e0db5e45665a6c18e227` and the accepted third increment.
+The worktree remained clean and unchanged during sequential checks.
+
+| Check | Result |
+| --- | --- |
+| Workspace/all-targets FFmpeg check, excluding Android | Pass; existing warnings retained |
+| Eight affected render integration suites | 63 pass |
+| Host failure boundaries, memory policy and preview memory | 17 pass |
+| Desktop failure boundaries at default Info | 6 pass |
+| Panel style consumer guard | Pass; no panel file changed |
+
+This affected-path selection has 86 distinct passing cases, zero failures and no
+ignored cases. It is Windows local evidence, not the complete desktop test suite
+or cross-platform acceptance. The prior 260-case receipt remains historical
+evidence for its exact source, not a claim that all those cases were rerun here.
+
+| New case ID | Evidence and boundary |
+| --- | --- |
+| #61-A28 | Actual sample, mean and uniform refusals roll back category and combined reservations; exact capacity permits recovery without changing the texture-only subtotal |
+| #61-A29 | Open and finished abandoned encoders retain all three exposure allocations; renderer teardown leaves only the externally owned target, then releases to zero |
+| #61-A30 | An overlapping target's late refusal preserves the completed phase and capacity; subsequent red/blue accumulation matches real linear reference pixels and retires to the startup image |
+| #61-A31 | Actual late exposure-uniform refusal preserves the typed cause and unchanged reply; request/operation/extent/phase/bytes/time reach file and Error stderr at default Info without stdout leakage |
+
+Logs: `E:/Dev/aem/artifacts/pr-queue/exposure-admission-final-*.log`.
+Each command has a source-bound exit receipt. Source and log hashes:
+`E:/Dev/aem/.tools/issue-closure-review/exposure-admission-acceptance.json`.
+Build, temporary and artifact writes stayed on E; no dependency, asset, panel,
+existing assertion or pixel tolerance changed.
+
+PR #395 publishes the first three increments. Its Windows CI currently has two
+native-presentation timeout failures; they are retained as failures, not reported
+as green or dismissed as unrelated. The independent
+`ci/desktop-failure-evidence` branch/PR #396 handles native failure evidence.
+The exposure increment is not yet published. Other resource enrollment, shared
+session policy, platform pressure, complete preview/export/lifecycle acceptance
+and #67 reuse remain pending; #60/#61/#67 remain open.
