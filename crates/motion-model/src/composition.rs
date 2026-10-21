@@ -228,21 +228,24 @@ impl Composition {
     }
 }
 impl Project {
-    pub fn composition_view(&self, id: &str) -> Result<CompositionView<'_>> {
-        if id == self.composition_id {
-            return Ok(CompositionView {
-                id: &self.composition_id, name: &self.name, width: self.width, height: self.height,
-                fps: self.fps, frames: self.frames, background: self.background, camera: &self.camera,
-                layers: &self.layers, expressions: &self.expressions,
-            });
-        }
-        let Some(c) = self.compositions.iter().find(|c| c.id == id) else {
-            return fail(id, "composition_missing", "Composition does not exist", json!({}));
-        };
-        Ok(CompositionView {
+    // Borrow the active node and stored bodies directly. Queries must not
+    // recreate their IDs and then rely on a second lookup being infallible.
+    fn composition_views(&self) -> impl Iterator<Item = CompositionView<'_>> {
+        std::iter::once(CompositionView {
+            id: &self.composition_id, name: &self.name, width: self.width, height: self.height,
+            fps: self.fps, frames: self.frames, background: self.background, camera: &self.camera,
+            layers: &self.layers, expressions: &self.expressions,
+        }).chain(self.compositions.iter().map(|c| CompositionView {
             id: &c.id, name: &c.name, width: c.width, height: c.height, fps: c.fps, frames: c.frames,
             background: c.background, camera: &c.camera, layers: &c.layers, expressions: &c.expressions,
-        })
+        }))
+    }
+
+    pub fn composition_view(&self, id: &str) -> Result<CompositionView<'_>> {
+        match self.composition_views().find(|node| node.id == id) {
+            Some(node) => Ok(node),
+            None => fail(id, "composition_missing", "Composition does not exist", json!({})),
+        }
     }
 
     /// Sampling view only. The caller keeps the validated document for graph lookups.
@@ -447,13 +450,11 @@ impl Project {
         Ok(ids)
     }
     pub fn composition_references(&self, target: &str) -> Vec<Value> {
-        self.composition_ids()
-            .into_iter()
-            .flat_map(|id| {
-                let p = self.composition_view(&id).expect("known composition");
+        self.composition_views()
+            .flat_map(|p| {
                 p.layers.iter().filter_map(move |l| match &l.content {
                     Content::Composition { clip } if clip.composition == target => {
-                        Some(json!({"composition":id,"object":l.id}))
+                        Some(json!({"composition":p.id,"object":l.id}))
                     }
                     _ => None,
                 })
@@ -461,20 +462,18 @@ impl Project {
             .collect()
     }
     pub fn composition_list(&self) -> Vec<Value> {
-        let ids = self.composition_ids();
         let mut references: HashMap<&str, Vec<Value>> = HashMap::new();
-        for id in &ids {
-            for layer in self.composition_view(id).expect("known composition").layers {
+        for p in self.composition_views() {
+            for layer in p.layers {
                 if let Content::Composition { clip } = &layer.content {
                     references.entry(&clip.composition).or_default()
-                        .push(json!({"composition":id,"object":layer.id}));
+                        .push(json!({"composition":p.id,"object":layer.id}));
                 }
             }
         }
-        ids.iter().map(|id| {
-            let p = self.composition_view(id).expect("known composition");
-            json!({"id":id,"name":p.name,"width":p.width,"height":p.height,"fps":p.fps,"frames":p.frames,
-                "main":id==MAIN_COMPOSITION,"references":references.get(id.as_str()).cloned().unwrap_or_default(),
+        self.composition_views().map(|p| {
+            json!({"id":p.id,"name":p.name,"width":p.width,"height":p.height,"fps":p.fps,"frames":p.frames,
+                "main":p.id==MAIN_COMPOSITION,"references":references.get(p.id).cloned().unwrap_or_default(),
                 "children":p.layers.iter().filter_map(|l| match &l.content {Content::Composition{clip}=>Some(json!({"object":l.id,"composition":clip.composition})),_=>None}).collect::<Vec<_>>(),
                 "next_layer_id":p.layers.iter().map(|l|l.id).max().unwrap_or(0).checked_add(1)})
         }).collect()

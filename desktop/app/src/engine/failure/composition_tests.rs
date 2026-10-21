@@ -10,6 +10,7 @@ mod fixed_admission;
 mod timing_admission;
 mod vector_admission;
 mod mask_admission;
+mod plan_error;
 
 #[test]
 fn exposure_uniform_admission_failure_reaches_reply_file_and_stderr_at_default_level() {

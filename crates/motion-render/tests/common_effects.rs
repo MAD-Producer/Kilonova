@@ -178,7 +178,7 @@ fn sampled_fractional_enums_cannot_bypass_project_validation() {
     let error = builder
         .build(&scene, &[0, 1], SIZE, SIZE, true)
         .unwrap_err();
-    assert!(error.contains("parameter shape"));
+    assert!(error.to_string().contains("parameter shape"));
     let preview = builder.build(&scene, &[0, 1], SIZE, SIZE, false).unwrap();
     assert!(preview.passes.is_empty());
     assert_eq!(preview.diagnostics.len(), 1);

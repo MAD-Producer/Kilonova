@@ -225,9 +225,9 @@ impl EffectGpu {
             ..Default::default()
         });
         let mut builder = PlanBuilder::new(
-            Registry::new_with_builtins().map_err(|e| RenderError::Invalid(e.to_string()))?,
-        ).map_err(RenderError::Invalid)?;
-        builder.set_alpha(0, 1, 1, &[255; 4]).map_err(RenderError::Invalid)?;
+            Registry::new_with_builtins().map_err(RenderError::from)?,
+        )?;
+        builder.set_alpha(0, 1, 1, &[255; 4])?;
         let white = admitted_texture(
             device,
             composite,

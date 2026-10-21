@@ -40,9 +40,9 @@ fn four_k_adjustment_uses_composite_budget_separate_from_effect_scratch() {
     p.rebuild_plugin_dependencies();
     scene.sample(&p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     let error = b.build(&scene, &[0], 3840, 2160, true).err().unwrap();
-    assert!(error.contains("effect scratch textures"), "{error}");
-    assert!(error.contains("64 MiB"), "{error}");
-    assert!(!error.contains("accumulators"), "{error}");
+    assert!(error.to_string().contains("effect scratch textures"), "{error}");
+    assert!(error.to_string().contains("64 MiB"), "{error}");
+    assert!(!error.to_string().contains("accumulators"), "{error}");
 }
 fn capture(r: &mut Renderer, p: &Project) -> Vec<u8> {
     let mut s = Scene::new(p);

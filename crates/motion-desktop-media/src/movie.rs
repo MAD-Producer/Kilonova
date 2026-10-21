@@ -650,14 +650,18 @@ impl MovieFreezePlan {
         control.check()?;
         project.validate().map_err(|e| e.to_string())?;
         let root = root.canonicalize().map_err(|e| e.to_string())?;
-        let mut plans = motion_render::effect_plan::PlanBuilder::new(registry.clone())?;
-        plans.set_memory_policy(memory_policy)?;
+        // Frozen-movie APIs currently return wire diagnostics. Preserve native
+        // render errors until this existing, explicitly text-only boundary.
+        let mut plans = motion_render::effect_plan::PlanBuilder::new(registry.clone())
+            .map_err(|error| error.to_string())?;
+        plans.set_memory_policy(memory_policy).map_err(|error| error.to_string())?;
         for id in project
             .reachable_compositions()
             .map_err(|e| e.to_string())?
         {
             control.check()?;
-            plans.preflight_project(&project.composition(&id).map_err(|e| e.to_string())?)?;
+            plans.preflight_project(&project.composition(&id).map_err(|e| e.to_string())?)
+                .map_err(|error| error.to_string())?;
         }
         let mut paths: BTreeSet<PathBuf> = project
             .assets

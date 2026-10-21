@@ -6,6 +6,9 @@ use motion_effects::{
 use bytemuck::{Pod, Zeroable};
 use std::sync::Arc;
 
+#[cfg(test)]
+mod error_tests;
+
 pub const PLAN_MAGIC: u32 = 0x46584d53;
 pub const PLAN_VERSION: u32 = 9;
 pub const HEADER_BYTES: usize = 144;
@@ -127,16 +130,16 @@ pub struct EffectFramePlan {
 #[derive(Clone,Copy,Debug)]
 pub struct LayerComposite {pub blend:u32,pub space:u32,pub matte:i32,pub mode:u32,pub visible:bool}
 /// GPU snapshots are evaluated once in dependency order, before compositing.
-pub fn image_input_order(frame: &EffectFramePlan) -> Result<Vec<usize>, String> {
+pub fn image_input_order(frame: &EffectFramePlan) -> Result<Vec<usize>, RenderError> {
     image_input_order_for(frame, &[])
 }
-pub(crate) fn image_input_order_for(frame: &EffectFramePlan, targets: &[u64]) -> Result<Vec<usize>, String> {
+pub(crate) fn image_input_order_for(frame: &EffectFramePlan, targets: &[u64]) -> Result<Vec<usize>, RenderError> {
     fn visit(
         frame: &EffectFramePlan,
         node: usize,
         marks: &mut Vec<u8>,
         order: &mut Vec<usize>,
-    ) -> Result<(), String> {
+    ) -> Result<(), RenderError> {
         if node >= frame.draws.len() {
             return Err("effect image input index is invalid".into());
         }
@@ -153,7 +156,10 @@ pub(crate) fn image_input_order_for(frame: &EffectFramePlan, targets: &[u64]) ->
         }
         marks[node] = 1;
         let draw = &frame.draws[node];
-        for p in &frame.passes[draw.pass_start..draw.pass_end] {
+        let passes = frame.passes.get(draw.pass_start..draw.pass_end).ok_or_else(||
+            RenderError::Invalid(format!("effect image input draw {node} has invalid pass range {}..{} ({} passes)",
+                draw.pass_start, draw.pass_end, frame.passes.len())))?;
+        for p in passes {
             if p.resource_input > 0 && p.uniform.params[30][1] > 0.5 {
                 visit(frame, (p.resource_input - 1) as usize, marks, order)?;
             }
@@ -208,10 +214,10 @@ impl EffectFramePlan {
             + self.masks.iter().map(|m|m.vertices.len()*24).sum::<usize>()
             + self.compositing.len()*20
     }
-    pub fn write(&self, scene: &Scene, out: &mut [u8]) -> Result<usize, String> {
+    pub fn write(&self, scene: &Scene, out: &mut [u8]) -> Result<usize, RenderError> {
         let size = self.buffer_bytes(scene);
         if out.len() < size {
-            return Err(format!("render plan buffer requires {size} bytes"));
+            return Err(format!("render plan buffer requires {size} bytes").into());
         }
         let draw_offset = HEADER_BYTES;
         let pass_offset = draw_offset + self.draws.len() * 128;
@@ -352,7 +358,7 @@ struct Resolved {
     definition: EffectDefinition,
     programs: Vec<u32>,
     mapping: Vec<usize>,
-    error: Option<String>,
+    error: Option<Arc<RenderError>>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ScratchRejection {
@@ -402,10 +408,10 @@ pub struct PlanBuilder {
     pub preview_cache_hits: u64,
     pub preview_plan_builds: u64,
 }
-fn utility(code: &str) -> Result<Arc<shader::CompiledShader>, String> {
+fn utility(code: &str) -> Result<Arc<shader::CompiledShader>, RenderError> {
     shader::compile(code, "main_fx")
         .map(Arc::new)
-        .map_err(|e| e.to_string())
+        .map_err(RenderError::from)
 }
 fn linear(v: f32) -> f32 {
     if v <= 0.04045 {
@@ -419,25 +425,27 @@ impl PlanBuilder {
         sizes: &[[u32; 2]; 8], device_dimension: u32, budget: u64,
         request: &mut Option<ScratchRequest>,
         rejection: &mut Option<ResourceRejection>,
-    ) -> Result<(), String> {
+    ) -> Result<(), RenderError> {
         *rejection = None;
         *request = Some(ScratchRequest { sizes: *sizes, budget_bytes: budget, rejection: None });
         for (slot, size) in sizes.iter().enumerate() {
             if size.iter().any(|&n| n > device_dimension) {
                 request.as_mut().unwrap().rejection = Some(ScratchRejection::DimensionLimit);
-                *rejection = Some(ResourceRejection::TextureDimensions { width: size[0], height: size[1], max_dimension: device_dimension });
-                return Err(format!(
+                let refused = ResourceRejection::TextureDimensions { width: size[0], height: size[1], max_dimension: device_dimension };
+                *rejection = Some(refused);
+                return Err(RenderError::Resource { rejection: refused, message: format!(
                     "effect scratch texture {slot} requires {}x{}; device dimension limit is {}",
                     size[0], size[1], device_dimension
-                ));
+                ) });
             }
         }
         let bytes = scratch_capacity_bytes(sizes);
         if bytes > budget {
             request.as_mut().unwrap().rejection = Some(ScratchRejection::CapacityBudget);
-            *rejection = Some(ResourceRejection::Budget { scope: ResourceBudgetScope::EffectScratch, required_bytes: bytes, budget_bytes: budget });
-            return Err(format!("effect scratch textures require {:.2} MiB; budget is {} MiB (full layer bounds, including effect padding)",
-                bytes as f64 / 1048576.0, budget / 1048576));
+            let refused = ResourceRejection::Budget { scope: ResourceBudgetScope::EffectScratch, required_bytes: bytes, budget_bytes: budget };
+            *rejection = Some(refused);
+            return Err(RenderError::Resource { rejection: refused, message: format!("effect scratch textures require {:.2} MiB; budget is {} MiB (full layer bounds, including effect padding)",
+                bytes as f64 / 1048576.0, budget / 1048576) });
         }
         Ok(())
     }
@@ -447,7 +455,7 @@ impl PlanBuilder {
         width: u32,
         height: u32,
         rgba: &[u8],
-    ) -> Result<(), String> {
+    ) -> Result<(), RenderError> {
         let size = u64::from(width) * u64::from(height);
         let previous = self
             .alpha_images
@@ -479,7 +487,7 @@ impl PlanBuilder {
         &mut self,
         project: &motion_model::Project,
         root: &std::path::Path,
-    ) -> Result<(), String> {
+    ) -> Result<(), RenderError> {
         if !project.layers.iter().any(|l| {
             l.effects
                 .iter()
@@ -491,7 +499,7 @@ impl PlanBuilder {
         for asset in &project.assets {
             if !self.alpha_images.contains_key(&asset.id) {
                 let image = image::open(root.join(&asset.path))
-                    .map_err(|e| e.to_string())?
+                    .map_err(RenderError::from)?
                     .into_rgba8();
                 if image.width() != asset.width || image.height() != asset.height {
                     return Err("occlusion asset metadata mismatch".into());
@@ -507,7 +515,7 @@ impl PlanBuilder {
     /// including nested compositions. Unused library images cannot exhaust it.
     pub fn synchronize_scene_alpha(
         &mut self, scene: &Scene, project: &motion_model::Project, root: &std::path::Path,
-    ) -> Result<(), String> {
+    ) -> Result<(), RenderError> {
         fn collect(scene: &Scene, wanted: &mut std::collections::BTreeSet<u64>) {
             if scene.effects.iter().any(|e| e.enabled && scene.layers.iter().any(|l|l.id==e.layer)
                 && e.scene.as_ref().is_some_and(|s| s.occlusion)) {
@@ -530,14 +538,16 @@ impl PlanBuilder {
         }
         Ok(())
     }
-    pub fn preflight_project(&self, project: &motion_model::Project) -> Result<(), String> {
+    pub fn preflight_project(&self, project: &motion_model::Project) -> Result<(), RenderError> {
         for layer in &project.layers {
             for (chain_index, e) in layer.effects.iter().filter(|e| e.enabled).enumerate() {
                 let location = format!("layer {}, effect {} ({})", layer.id, e.id, e.effect);
                 let package = self
                     .registry
                     .resolve(&e.plugin, &e.version, &e.hash)
-                    .map_err(|err| format!("{location}: {err}"))?;
+                    .map_err(|err| RenderError::Context {
+                        message: format!("{location}: {err}"), cause: Box::new(RenderError::Effects(err)),
+                    })?;
                 let definition = package
                     .manifest
                     .effects
@@ -549,30 +559,30 @@ impl PlanBuilder {
                 {
                     return Err(format!(
                         "{location}: adjustment layers support image effects only"
-                    ));
+                    ).into());
                 }
                 if definition.renderer != motion_effects::RendererKind::Image && chain_index != 0 {
                     return Err(format!(
                         "{location}: scene generator must be first enabled effect"
-                    ));
+                    ).into());
                 }
                 if (definition.renderer != motion_effects::RendererKind::Image) != e.scene.is_some() {
                     return Err(format!(
                         "{location}: saved scene contract differs from plugin"
-                    ));
+                    ).into());
                 }
                 if let Some(source) = e.scene.as_ref().and_then(|s| s.source_layer) {
                     if !project.layers.iter().any(|l| l.id == source) {
-                        return Err(format!("{location}: source layer {source} missing"));
+                        return Err(format!("{location}: source layer {source} missing").into());
                     }
                 }
                 if definition.compatibility == motion_effects::Compatibility::Unsupported {
-                    return Err(format!("{location}: effect is unsupported"));
+                    return Err(format!("{location}: effect is unsupported").into());
                 }
                 if definition.params.len() != e.params.len() {
                     return Err(format!(
                         "{location}: saved parameter layout differs from the plugin"
-                    ));
+                    ).into());
                 }
                 for p in &definition.params {
                     let saved = e
@@ -588,20 +598,20 @@ impl PlanBuilder {
                         return Err(format!(
                             "{location}: parameter {} contract differs from the plugin",
                             p.id
-                        ));
+                        ).into());
                     }
                     if !p.implemented
                         && (saved.track.value != p.default
                             || saved.track.keys.iter().any(|k| k.value != p.default))
                     {
-                        return Err(format!("{location}: parameter {} is not implemented", p.id));
+                        return Err(format!("{location}: parameter {} is not implemented", p.id).into());
                     }
                 }
             }
         }
         Ok(())
     }
-    pub fn new(registry: Registry) -> Result<Self, String> {
+    pub fn new(registry: Registry) -> Result<Self, RenderError> {
         let raster=utility("fn main_fx(p:vec2<f32>)->vec4<f32>{let c=sample_input(p);return vec4(c.rgb*fx.params[0].rgb*fx.params[0].a,c.a*fx.params[0].a);}")?;
         let convert=utility("fn main_fx(p:vec2<f32>)->vec4<f32>{return convert_pixel(sample_input(p),fx.mode.yz,fx.output_mode.xy);}")?;
         let mask_source=utility(crate::mask_plan::APPLY)?;
@@ -673,7 +683,7 @@ impl PlanBuilder {
     pub fn set_memory_policy(
         &mut self,
         policy: crate::resource_policy::MemoryPolicy,
-    ) -> Result<(), String> {
+    ) -> Result<(), RenderError> {
         policy.validate()?;
         if self.memory_policy() != policy {
             self.preview_inputs = None;
@@ -683,7 +693,7 @@ impl PlanBuilder {
         self.preview_target_budget = policy.preview_target_budget_bytes;
         Ok(())
     }
-    pub fn set_scratch_budget(&mut self, budget: u64) -> Result<(), String> {
+    pub fn set_scratch_budget(&mut self, budget: u64) -> Result<(), RenderError> {
         if !(motion_effects::SCRATCH_BUDGET_FLOOR..=crate::resource_policy::MAX_SCRATCH_BUDGET).contains(&budget) {
             return Err("invalid host scratch memory policy".into());
         }
@@ -691,7 +701,7 @@ impl PlanBuilder {
         self.scratch_budget = budget;
         Ok(())
     }
-    pub fn synchronize(&mut self, scene: &Scene) -> Result<(), String> {
+    pub fn synchronize(&mut self, scene: &Scene) -> Result<(), RenderError> {
         self.resolved.resize_with(scene.effects.len(), || None);
         for (index, e) in scene.effects.iter().enumerate() {
             if self.resolved[index].as_ref().is_some_and(|r| {
@@ -708,11 +718,11 @@ impl PlanBuilder {
                 e.hash.clone(),
                 e.effect.clone(),
             );
-            let result = (|| {
+            let result = (|| -> Result<Resolved, RenderError> {
                 let package = self
                     .registry
                     .resolve(&e.plugin, &e.version, &e.hash)
-                    .map_err(|e| e.to_string())?;
+                    .map_err(RenderError::from)?;
                 let definition = package
                     .manifest
                     .effects
@@ -772,7 +782,7 @@ impl PlanBuilder {
                     definition: motion_effects::builtin::manifest().effects.remove(0),
                     programs: vec![],
                     mapping: vec![],
-                    error: Some(err),
+                    error: Some(Arc::new(err)),
                 },
             });
         }
@@ -785,38 +795,24 @@ impl PlanBuilder {
         width: u32,
         height: u32,
         strict: bool,
-    ) -> Result<&EffectFramePlan, String> {
+    ) -> Result<&EffectFramePlan, RenderError> {
         self.preview_inputs = None;
         self.build_internal(scene, assets, width, height, strict, false, false, &[])
     }
-    /// Typed equivalent of `build`, preserving the existing plan and messages.
-    pub fn build_checked(&mut self, scene: &Scene, assets: &[u64], width: u32, height: u32, strict: bool) -> Result<&EffectFramePlan, RenderError> {
-        let result = self.build(scene, assets, width, height, strict).map(|_| ());
-        result.map_err(|message| self.classify_error(message))?;
-        Ok(&self.frame)
-    }
-    /// Typed equivalent of `build_preview`; existing preview diagnostics remain.
-    pub fn build_preview_checked(&mut self, scene: &Scene, assets: &[u64], width: u32, height: u32) -> Result<&EffectFramePlan, RenderError> {
-        let result = self.build_preview(scene, assets, width, height).map(|_| ());
-        result.map_err(|message| self.classify_error(message))?;
-        Ok(&self.frame)
-    }
+
+
     /// Retained local images must not silently bypass failed effects or reuse
     /// an ordinary preview plan that did not materialize the receiver.
     pub(crate) fn build_materialized_checked(&mut self, scene: &Scene, assets: &[u64],
         width: u32, height: u32, receiver: u64, preview: bool) -> Result<&EffectFramePlan, RenderError> {
         self.preview_inputs = None;
-        let result = self.build_internal(scene, assets, width, height, !preview, preview, true, &[receiver]).map(|_| ());
-        result.map_err(|message| self.classify_error(message))?;
-        Ok(&self.frame)
+        self.build_internal(scene, assets, width, height, !preview, preview, true, &[receiver])
     }
     /// Strict receiver-center dependencies used by phase-time adjustments.
     pub(crate) fn build_exposure_context_checked(&mut self, scene: &Scene, assets: &[u64],
         width: u32, height: u32, preview: bool) -> Result<&EffectFramePlan, RenderError> {
         self.preview_inputs = None;
-        let result = self.build_internal(scene, assets, width, height, !preview, preview, true, &[]).map(|_| ());
-        result.map_err(|message| self.classify_error(message))?;
-        Ok(&self.frame)
+        self.build_internal(scene, assets, width, height, !preview, preview, true, &[])
     }
     pub(crate) fn materialized_plane(&self, scene: &Scene, index: usize) -> crate::DrawLayer {
         let mut layer = scene.layers[index].clone();
@@ -843,15 +839,11 @@ impl PlanBuilder {
         layer.sampling = Default::default();
         layer
     }
-    fn classify_error(&self, message: String) -> RenderError {
-        match self.last_resource_rejection {
-            Some(rejection) => RenderError::Resource { rejection, message },
-            None => RenderError::Invalid(message),
-        }
-    }
-    fn reject_budget(&mut self, scope: ResourceBudgetScope, required_bytes: u64, budget_bytes: u64, message: impl Into<String>) -> String {
-        self.last_resource_rejection = Some(ResourceRejection::Budget { scope, required_bytes, budget_bytes });
-        message.into()
+
+    fn reject_budget(&mut self, scope: ResourceBudgetScope, required_bytes: u64, budget_bytes: u64, message: impl Into<String>) -> RenderError {
+        let rejection = ResourceRejection::Budget { scope, required_bytes, budget_bytes };
+        self.last_resource_rejection = Some(rejection);
+        RenderError::Resource { rejection, message: message.into() }
     }
     /// Drop retained preview geometry after an external resource-policy change.
     pub fn invalidate_preview_plan(&mut self) {
@@ -866,21 +858,19 @@ impl PlanBuilder {
         assets: &[u64],
         width: u32,
         height: u32,
-    ) -> Result<&EffectFramePlan, String> {
+    ) -> Result<&EffectFramePlan, RenderError> {
         self.build_preview_internal(scene, assets, width, height, false)
     }
     /// Guarded preview refuses visible effect failures without removing effects.
     pub fn build_preview_guarded(&mut self, scene: &Scene, assets: &[u64], width: u32, height: u32, projected: bool) -> Result<&EffectFramePlan, RenderError> {
-        let result = if projected {
-            self.build_preview_internal(scene, assets, width, height, true).map(|_| ())
+        if projected {
+            self.build_preview_internal(scene, assets, width, height, true)
         } else {
             self.preview_inputs = None;
-            self.build_internal(scene, assets, width, height, false, false, true, &[]).map(|_| ())
-        };
-        result.map_err(|message| self.classify_error(message))?;
-        Ok(&self.frame)
+            self.build_internal(scene, assets, width, height, false, false, true, &[])
+        }
     }
-    fn build_preview_internal(&mut self, scene: &Scene, assets: &[u64], width: u32, height: u32, guarded: bool) -> Result<&EffectFramePlan, String> {
+    fn build_preview_internal(&mut self, scene: &Scene, assets: &[u64], width: u32, height: u32, guarded: bool) -> Result<&EffectFramePlan, RenderError> {
         self.last_scratch_request = None;
         self.last_resource_rejection = None;
         // Scene generators sample births, camera/light sources and occlusion
@@ -919,7 +909,7 @@ impl PlanBuilder {
         preview: bool,
         guarded: bool,
         materialize: &[u64],
-    ) -> Result<&EffectFramePlan, String> {
+    ) -> Result<&EffectFramePlan, RenderError> {
         self.last_scratch_request = None;
         self.last_resource_rejection = None;
         self.synchronize(scene)?;
@@ -960,11 +950,12 @@ impl PlanBuilder {
                     return Err(format!(
                         "layer {}, effect {}: scene generator must be first enabled effect",
                         e.layer, e.instance
-                    ));
+                    ).into());
                 }
                 preceding.insert(e.layer);
                 if let Some(err) = &resolved.error {
-                    return Err(format!("layer {}, effect {}: {err}", e.layer, e.instance));
+                    return Err(RenderError::Shared(err.clone()).with_diagnostic(format!(
+                        "layer {}, effect {}: {}", e.layer, e.instance, err.planning_message())));
                 }
                 if resolved.definition.renderer != motion_effects::RendererKind::Image {
                     crate::scene_generator::validate_settings(e, resolved.definition.renderer)
@@ -976,13 +967,13 @@ impl PlanBuilder {
                             return Err(format!(
                                 "layer {}, effect {}: source layer {source} missing",
                                 e.layer, e.instance
-                            ));
+                            ).into());
                         }
                     }
                 }
                 for id in &resolved.programs {
                     if let Some(error) = self.program_errors.get(id) {
-                        return Err(format!("layer {}, effect {}: {error}", e.layer, e.instance));
+                        return Err(format!("layer {}, effect {}: {error}", e.layer, e.instance).into());
                     }
                 }
                 for (i, p) in resolved.definition.params.iter().enumerate() {
@@ -993,7 +984,7 @@ impl PlanBuilder {
                         return Err(format!(
                             "layer {}, effect {}, parameter {} is invalid or unsupported",
                             e.layer, e.instance, p.id
-                        ));
+                        ).into());
                     }
                 }
             }
@@ -1008,8 +999,9 @@ impl PlanBuilder {
         self.frame.compositing=scene.layers.iter().map(|l|LayerComposite {blend:l.blend.mode.code(),space:u32::from(l.blend.space==motion_model::compositing::BlendSpace::Srgb),matte:l.track_matte.and_then(|m|scene.layers.iter().position(|s|s.id==m.source)).map_or(-1,|i|i as i32),mode:l.track_matte.map_or(0,|m|m.mode.code()),visible:l.composite_visible}).collect();
         for mask in &self.frame.masks {
             if mask.width>self.device_dimension || mask.height>self.device_dimension {
-                self.last_resource_rejection = Some(ResourceRejection::TextureDimensions { width: mask.width, height: mask.height, max_dimension: self.device_dimension });
-                return Err(format!("layer {}, mask {}: raster exceeds device dimensions",scene.layers[mask.layer].id,mask.id));
+                let rejection = ResourceRejection::TextureDimensions { width: mask.width, height: mask.height, max_dimension: self.device_dimension };
+                self.last_resource_rejection = Some(rejection);
+                return Err(RenderError::Resource { rejection, message: format!("layer {}, mask {}: raster exceeds device dimensions",scene.layers[mask.layer].id,mask.id) });
             }
         }
         let post_sources:std::collections::HashSet<_>=scene.effects.iter().filter(|e|e.enabled&&scene.layers.iter().any(|l|l.id==e.layer))
@@ -1053,11 +1045,12 @@ impl PlanBuilder {
                         (layer.size[1] * scale).ceil() as u32,
                     );
                     if w > self.device_dimension || h > self.device_dimension {
-                        self.last_resource_rejection = Some(ResourceRejection::TextureDimensions { width: w, height: h, max_dimension: self.device_dimension });
-                        return Err(format!(
+                        let rejection = ResourceRejection::TextureDimensions { width: w, height: h, max_dimension: self.device_dimension };
+                        self.last_resource_rejection = Some(rejection);
+                        return Err(RenderError::Resource { rejection, message: format!(
                             "layer {}: vector raster exceeds device dimensions",
                             layer.id
-                        ));
+                        ) });
                     }
                     let geometry = crate::vector_mesh::rasterize_with_limit(vector, layer.size, scale, origin, vector_remaining)
                         .map_err(|e| format!("layer {}: {e}", layer.id))?;
@@ -1129,13 +1122,13 @@ impl PlanBuilder {
                 let clock_start = self.frame.passes.len();
                 self.last_resource_rejection = None;
                 let resolved = self.resolved[index].as_ref().unwrap();
-                let result = (|| -> Result<(), String> {
+                let result = (|| -> Result<(), RenderError> {
                     if let Some(err) = &resolved.error {
-                        return Err(err.clone());
+                        return Err(RenderError::Shared(err.clone()));
                     }
                     for id in &resolved.programs {
                         if let Some(error) = self.program_errors.get(id) {
-                            return Err(error.clone());
+                            return Err(RenderError::Invalid(error.clone()));
                         }
                     }
                     let def = &resolved.definition;
@@ -1146,10 +1139,10 @@ impl PlanBuilder {
                     for (i, p) in def.params.iter().enumerate() {
                         let v = e.values[resolved.mapping[i]];
                         if !p.kind.valid_value(&v, p.min, p.max) {
-                            return Err(format!("parameter {} exceeds plugin range", p.id));
+                            return Err(format!("parameter {} exceeds plugin range", p.id).into());
                         }
                         if !p.implemented && v != p.default {
-                            return Err(format!("AE parameter {} is not implemented", p.id));
+                            return Err(format!("AE parameter {} is not implemented", p.id).into());
                         }
                         params[i] = v;
                     }
@@ -1286,12 +1279,12 @@ impl PlanBuilder {
                     };
                     let next = if let Some(rect) = &def.output_bounds {
                         rect.evaluate_with(lookup, region)
-                            .map_err(|error| error.to_string())?
+                            .map_err(RenderError::from)?
                     } else {
                         let pad = def
                             .padding
                             .evaluate_with(lookup, region)
-                            .map_err(|error| error.to_string())?;
+                            .map_err(RenderError::from)?;
                         if pad < 0.0 {
                             return Err("negative output padding".into());
                         }
@@ -1486,11 +1479,11 @@ impl PlanBuilder {
                 self.pass_clocks.extend(std::iter::repeat_n(Some(index), self.frame.passes.len() - clock_start));
                 if let Err(err) = result {
                     let message = format!(
-                        "layer {}, effect {} ({}): {err}",
-                        layer.id, e.instance, e.effect
+                        "layer {}, effect {} ({}): {}",
+                        layer.id, e.instance, e.effect, err.planning_message()
                     );
                     if strict || guarded {
-                        return Err(message);
+                        return Err(err.with_diagnostic(message));
                     }
                     self.frame.diagnostics.push(message);
                     // A bypassed effect is a diagnostic, not the cause of a later error.
@@ -1606,7 +1599,7 @@ impl PlanBuilder {
         self.geometry.set_coverage_viewport(self.plane_coverage.then_some(coverage_viewport));
         self.geometry
             .prepare_with_bounds_and_overlays(scene, &self.sizes, &self.origins, &self.overlays)
-            .map_err(|e| e.to_string())?;
+            .map_err(RenderError::from)?;
         self.frame.vertices.clone_from(&self.geometry.vertices);
         self.frame.uv_maps.clone_from(&self.geometry.uv_maps);
         self.frame.batches.clone_from(&self.geometry.batches);

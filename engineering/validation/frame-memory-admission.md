@@ -737,6 +737,32 @@ dynamic resources, shared/platform policy, preview/export/lifecycle acceptance
 and #67 are still pending; retired builtin particle products remain absent.
 
 
+### Optional timestamp capability in desktop CI
+
+Public source `d8671a3e` passed Rust/GPU, Linux and Windows, but macOS Intel
+job119245623228 failed the desktop timer fixture: its adapter returned the
+documented normal `Ok(None)`, while the fixture required a budget error from
+every adapter. This is a capability-precondition defect in the test. Production
+support detection and budget handling are unchanged.
+
+Source `f6f7698e` checks actual enabled timestamp features and the native queue
+period before selecting the oracle. Supported devices still require the
+original exact typed refusal, byte counts, reply/cause/context and all default
+file/stderr/stdout assertions. Unsupported devices must return `None`, preserve
+the entire admission snapshot, leave GPU health intact, and emit no command
+failure on any output channel. A second test deliberately disables timestamp
+requests on every platform, so this normal branch is exercised independently
+of CI hardware. No test is ignored or retried, and no production API changes.
+
+Both selected desktop subprocess tests pass at exact source `f6f7698e`, with
+zero failures or ignores. `timing-unsupported-fixture.log` / `.exit.json` and
+`timing-unsupported-acceptance.json` retain source, command, exit and log hash.
+The earlier174-case combined acceptance remains attached to its original
+source; these two executions are not presented as another full combined run.
+Fresh public macOS CI is still required before merging. A successful normal
+unsupported test does not prove native timer refusal on that adapter.
+
+
 ## Ninth increment: vector destinations and asynchronous upload staging
 
 At source `e994f343`, vector vertex and group-opacity buffers, plus their
