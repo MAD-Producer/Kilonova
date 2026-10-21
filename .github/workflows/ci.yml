@@ -230,6 +230,26 @@ jobs:
           path: artifacts/desktop/**
           if-no-files-found: warn
           retention-days: 14
+      - name: Preserve failed PR native playback evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure() && github.event_name == 'pull_request'
+        with:
+          name: desktop-failure-${{ matrix.platform }}
+          path: |
+            artifacts/desktop/sampling-playback/costs.json
+            artifacts/desktop/sampling-playback/failure.json
+            artifacts/desktop/sampling-playback/baseline-costs.json
+            artifacts/desktop/sampling-playback/blur-costs.json
+            artifacts/desktop/sampling-playback/raster-costs.json
+            artifacts/desktop/sampling-playback/combined-costs.json
+            artifacts/desktop/sampling-playback/motion-studio.log
+            artifacts/desktop/sampling-playback/stderr.log
+            artifacts/desktop/sampling-playback/baseline.png
+            artifacts/desktop/sampling-playback/blur.png
+            artifacts/desktop/sampling-playback/raster.png
+            artifacts/desktop/sampling-playback/combined.png
+          if-no-files-found: warn
+          retention-days: 7
 
   desktop-media:
     name: Desktop libav backend
