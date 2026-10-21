@@ -51,8 +51,13 @@ fn disabled_tracking_and_bounded_snapshot_gaps_remain_explicit() {
     target.collect_texture_resources(&mut resources, "target", TextureState::Retained);
     let tracker = SubmissionLedger::default();
     tracker.set_enabled(true);
-    let tickets = (0..MAX_SUBMISSION_SNAPSHOTS + 3)
+    let mut tickets = (0..MAX_SUBMISSION_SNAPSHOTS)
         .map(|_| tracker.begin(resources.clone())).collect::<Vec<_>>();
+    let skipped_target = renderer.render_target(8, 4).unwrap();
+    let mut skipped_resources = TextureResourceLedger::default();
+    skipped_target.collect_texture_resources(&mut skipped_resources, "untracked", TextureState::Retained);
+    assert_eq!(skipped_resources.total_known_bytes(), 128);
+    tickets.extend((0..3).map(|_| tracker.begin(skipped_resources.clone())));
     tracker.set_enabled(false);
     let current = TextureResourceLedger::default();
     let snapshot = tracker.snapshot(&current);
@@ -61,6 +66,9 @@ fn disabled_tracking_and_bounded_snapshot_gaps_remain_explicit() {
     assert_eq!(combined.pending_untracked, 3);
     assert_eq!(combined.known_retired_bytes, 64);
     assert_eq!(snapshot.pending_resources.resources().count(), 1);
+    // The distinct overflow target is deliberately absent; the gap counter
+    // prevents this known subtotal from being interpreted as complete coverage.
+    assert_eq!(combined.known_combined_bytes, 64);
     assert_eq!(snapshot.info.skipped_snapshots, 3);
     for ticket in tickets { SubmissionLedger::complete(&tracker.state, ticket); }
     let snapshot = tracker.snapshot(&current);
@@ -95,6 +103,10 @@ fn unknown_depth_capacity_is_deduplicated_without_inventing_bytes() {
     assert_eq!(combined.known_owned_bytes, 0);
     assert_eq!(combined.known_combined_bytes, 0);
     assert_eq!(combined.unknown_capacity_count, 1);
+    let retired = tracker.snapshot(&TextureResourceLedger::default());
+    let combined = FrameTextureCapacity::observe(&TextureResourceLedger::default(), [&retired]);
+    assert_eq!(combined.unknown_capacity_count, 1);
+    assert_eq!(combined.known_retired_bytes, 0);
     SubmissionLedger::complete(&tracker.state, ticket);
     renderer.check_health().unwrap();
 }
