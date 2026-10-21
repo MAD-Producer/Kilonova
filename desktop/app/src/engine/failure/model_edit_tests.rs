@@ -1,6 +1,8 @@
 //! Actual model refusals retain their replies and reach the production sinks.
 use super::*;
 
+mod path_ops;
+
 #[test]
 fn invalid_model_edits_keep_history_and_reach_default_error_channels() {
     const CHILD: &str = "MOTION_MODEL_EDIT_LOG_CHILD";
