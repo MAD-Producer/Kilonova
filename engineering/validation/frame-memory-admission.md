@@ -283,3 +283,48 @@ renderer/effect/mask/vector/plugin buffers and scratch, queue-owned upload stagi
 raw/external GPU scope, session policy sharing, platform pressure and complete
 preview/export/lifecycle acceptance remain pending. Neither #60/#61 nor #67 is
 closed by this resource enrollment; continue them before precision/3D integration.
+
+## Accepted local evidence for the third increment
+
+Checked production and test source: `7f6c81bdc9f2922dd1c7156482272d6e5079becf`,
+including main `2803721b30ecbde1a6714ac74a6ca2267618f9b2`. The source remained
+clean and unchanged throughout acceptance. An interrupted GPU invocation completed
+22 suites; after confirming that its process no longer existed, the nine remaining
+suites ran separately on the same source. The completed suites were not counted
+twice, and an incomplete invocation was not reported as a successful exit.
+
+| Check | Result |
+| --- | --- |
+| Workspace/all-targets FFmpeg check, excluding Android | Pass; existing warnings retained |
+| Entire render library | 59 pass |
+| 31 selected render integration suites | 158 pass; one existing optional probe initially ignored |
+| Optional image probe explicitly executed with `--ignored --exact` | 1 pass; generated 4096x64 original and actual cold/warm 2048x32 proxy agree |
+| Host failure boundaries, memory policy and preview memory | 17 pass |
+| Actual FFmpeg PNG/movie/export round trips | 17 pass |
+| Desktop node preview | 3 pass |
+| Desktop failure boundaries at default Info | 5 pass |
+| Panel style consumer guard | Pass; no panel file changed |
+
+This selection has 260 distinct passing cases, zero failures and no unresolved
+ignored case. The optional probe was executed separately, not counted as passed
+because its ordinary invocation ignored it. This is Windows local evidence, not
+the complete desktop suite, a new GUI launch or cross-platform CI.
+
+| New case ID | Evidence and boundary |
+| --- | --- |
+| #61-A22 | Actual late YUV-uniform refusal preserves old pixels, stamps and capacity; an increased limit permits conversion matching CPU reference pixels |
+| #61-A23 | Raw-encoder upload tokens retain the output, both planes and uniform after cache clearing, through abandonment or actual queue completion |
+| #61-A24 | The authoring copy uniform and renderer targets share an explicitly supplied allowance; constructor and target refusal leave no leaked reservation |
+| #61-A25 | Cloned authoring views retain the same allocation identity across teardown and completed pending writes, returning to zero through three real lifecycles |
+| #61-A26 | Refused authoring source growth and late YUV-uniform allocation preserve actual pixels; recovery succeeds and malformed input remains a distinct fault |
+| #61-A27 | Real YUV-uniform refusal preserves its original typed reply and reaches file and Error stderr once at default Info with request/operation/source/phase/bytes/time; stdout remains isolated |
+
+Logs: `E:/Dev/aem/artifacts/pr-queue/video-plane-admission-final-*.log`.
+Source, log and fixture hash receipt:
+`E:/Dev/aem/.tools/issue-closure-review/video-plane-admission-acceptance.json`.
+The earlier 204- and 251-case receipts remain separate historical evidence.
+Own builds/GPU tests ran sequentially; build, temporary and artifact writes stayed
+on E. No dependency, product asset, panel or existing pixel tolerance changed.
+The three source-budget expectation changes account for the actual additional
+Y4/UV2/uniform48 bytes. Remaining work listed above still prevents closure of
+#60/#61/#67; neither project precision settings nor 3D integration resumed.
