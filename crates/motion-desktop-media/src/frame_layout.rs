@@ -1,6 +1,6 @@
 //! Validate native plane geometry before ffmpeg-next constructs a Rust slice.
 use ffmpeg_next::{self as av, frame};
-use motion_host::Result;
+type Result<T> = std::result::Result<T, String>;
 
 /// Only used with the supported software pixel formats. A positive stride and
 /// the entire `stride * plane_height` span must fit its live AVBufferRef: that

@@ -41,7 +41,7 @@ pub fn observe(id: i64, enabled: bool, az: f64, el: f64) -> Result<serde_json::V
         s.observing = enabled;
         s.view_revision += 1;
         if s.observer.view == motion_core::ObservationView::Free {
-            s.observer.orbit(az as f32, el as f32).map_err(|e| e.to_string())?;
+            s.observer.orbit(az as f32, el as f32).map_err(crate::Error::from)?;
         } else {
             s.observer
                 .pan(
@@ -50,7 +50,7 @@ pub fn observe(id: i64, enabled: bool, az: f64, el: f64) -> Result<serde_json::V
                     s.engine.project().width,
                     s.engine.project().height,
                 )
-                .map_err(|e| e.to_string())?;
+                .map_err(crate::Error::from)?;
         }
         s.sample()?;
         Ok(s.snapshot())
@@ -72,7 +72,7 @@ pub fn navigate(
         }
         s.observer
             .zoom(zoom as f32)
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
         if multi || s.observer.view != motion_core::ObservationView::Free {
             s.sample()?;
             let target = s.observer.camera.target.value;
@@ -83,12 +83,12 @@ pub fn navigate(
                     [dx as f32, dy as f32],
                     [width as u32, height as u32],
                 )
-                .map_err(|e| e.to_string())?;
+                .map_err(crate::Error::from)?;
             s.observer.camera.target.value = std::array::from_fn(|i| target[i] - delta[i]);
         } else {
             s.observer
                 .orbit(dx as f32 * 0.18, dy as f32 * 0.18)
-                .map_err(|e| e.to_string())?;
+                .map_err(crate::Error::from)?;
         }
         s.view_revision += 1;
         s.sample()?;
@@ -144,7 +144,7 @@ pub fn start_profiling(id: i64, limit: i32) -> Result<serde_json::Value> {
             return Err("invalid frame recording limit".into());
         }
         let g = s.graphics.as_mut().ok_or("no preview surface")?;
-        g.renderer.device.poll(wgpu::PollType::wait_indefinitely()).map_err(|e| format!("profiling GPU wait: {e}"))?;
+        g.renderer.device.poll(wgpu::PollType::wait_indefinitely()).map_err(|e| crate::Error::with_context("profiling GPU wait", e))?;
         g.timer = GpuTimer::new(&g.renderer.device, &g.renderer.queue);
         s.recorder = Some(FrameRecorder::new(s.presented + 1, limit as usize));
         s.update_submission_tracking();
@@ -156,7 +156,7 @@ pub fn start_profiling(id: i64, limit: i32) -> Result<serde_json::Value> {
 pub fn stop_profiling(id: i64) -> Result<serde_json::Value> {
     crate::session::with_session(id, |s| {
         if let Some(g) = &mut s.graphics {
-            g.renderer.device.poll(wgpu::PollType::wait_indefinitely()).map_err(|e| format!("profiling GPU wait: {e}"))?;
+            g.renderer.device.poll(wgpu::PollType::wait_indefinitely()).map_err(|e| crate::Error::with_context("profiling GPU wait", e))?;
             if let Some(timer) = &mut g.timer {
                 for t in timer.collect().into_iter().flatten() {
                     if let Some(r) = &mut s.recorder {
@@ -184,13 +184,13 @@ pub fn stop_profiling(id: i64) -> Result<serde_json::Value> {
                 "timingSkipped":g.timer.as_ref().map(|t|t.skipped),
                 "timingErrors":g.timer.as_ref().map(|t|t.errors)}))});
         let folder = s.root.join("exports");
-        std::fs::create_dir_all(&folder).map_err(|e| e.to_string())?;
+        std::fs::create_dir_all(&folder).map_err(crate::Error::from)?;
         let path = folder.join("preview-performance.json");
         std::fs::write(
             &path,
-            serde_json::to_vec(&r.report(metadata)).map_err(|e| e.to_string())?,
+            serde_json::to_vec(&r.report(metadata)).map_err(crate::Error::from)?,
         )
-        .map_err(|e| e.to_string())?;
+        .map_err(crate::Error::from)?;
         s.recorder = None;
         s.update_submission_tracking();
         Ok(json!({"file":path.to_string_lossy()}))
@@ -209,7 +209,7 @@ pub fn render_inner(s: &mut crate::session::Session, frame: f64) -> Result<bool>
     match s.render(frame) {
         Ok(rendered) => Ok(rendered),
         Err(error) => {
-            s.last_error = Some(error);
+            s.last_error = Some(error.to_string());
             Ok(false)
         }
     }

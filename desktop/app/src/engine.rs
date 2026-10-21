@@ -612,7 +612,7 @@ impl Engine {
                     Ok(id) => id,
                     Err(error) => {
                         log::error!("worker startup session failed: {error}");
-                        let _ = ready.send(Err(error));
+                        let _ = ready.send(Err(error.to_string()));
                         return;
                     }
                 };
@@ -621,7 +621,7 @@ impl Engine {
                     Ok(snapshot) => Some(snapshot),
                     Err(error) => {
                         log::error!("worker initial snapshot failed: {error}");
-                        let _ = ready.send(Err(error));
+                        let _ = ready.send(Err(error.to_string()));
                         return;
                     }
                 };
@@ -631,7 +631,7 @@ impl Engine {
                 crate::logging::flush();
                 if let Err(error) = preview::configure_memory(id, total_memory, false) {
                     log::error!("worker startup memory failed: session={id} reason={error}");
-                    let _ = ready.send(Err(error));
+                    let _ = ready.send(Err(error.to_string()));
                     return;
                 }
                 if ready.send(Ok(id)).is_err() {
@@ -1310,7 +1310,7 @@ fn spawn_movie_freeze<T: Send + 'static>(
         }
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(freeze))
             .unwrap_or_else(|payload| Err(format!("movie freeze worker failed: {}", motion_media::panic_reason(payload))));
-        respond(reply, result);
+        respond(reply, result.map_err(motion_host::Error::from));
         if let Some(flight) = flight {
             log::debug!("async done #{} {} {}ms", flight.request, flight.operation, began.elapsed().as_millis());
         }
@@ -1318,14 +1318,14 @@ fn spawn_movie_freeze<T: Send + 'static>(
     }).map(|_| ()).map_err(|error| error.to_string())
 }
 
-fn respond<T>(reply: Sender<Result<T, String>>, value: Result<T, String>) {
+fn respond<T>(reply: Sender<Result<T, String>>, value: motion_host::Result<T>) {
     if let Err(reason) = &value {
         if let Some(flight) = CURRENT_COMMAND.get() {
             log::error!("error #{} {} {}ms: {}", flight.request, flight.operation,
                 flight.started.elapsed().as_millis(), reason);
         }
     }
-    let _ = reply.send(value);
+    let _ = reply.send(value.map_err(String::from));
 }
 
 /// Execute one command against the session.
@@ -1356,7 +1356,7 @@ impl ProjectGuard {
             initial: None,
         })
     }
-    fn ticket(&self, id: i64) -> Result<crate::project_lifecycle::Ticket, String> {
+    fn ticket(&self, id: i64) -> motion_host::Result<crate::project_lifecycle::Ticket> {
         let saved = if self
             .root
             .join("project.json")
@@ -1376,7 +1376,7 @@ impl ProjectGuard {
             })
         })
     }
-    fn changed(&mut self, result: Result<Value, String>) -> Result<Value, String> {
+    fn changed(&mut self, result: motion_host::Result<Value>) -> motion_host::Result<Value> {
         let state = result?;
         let root = PathBuf::from(state["root"].as_str().ok_or("missing project root")?)
             .canonicalize()
@@ -1444,7 +1444,7 @@ fn handle(
         #[cfg(test)]
         Command::TestWait {entered,release,reply}=> {
             let _=entered.send(());
-            respond(reply,release.recv_timeout(std::time::Duration::from_secs(5)).map(|_|serde_json::json!({"ready":true})).map_err(|e|e.to_string()));
+            respond(reply,release.recv_timeout(std::time::Duration::from_secs(5)).map(|_|serde_json::json!({"ready":true})).map_err(|e|motion_host::Error::from(e.to_string())));
         },
         #[cfg(test)]
         Command::TestRecoveryPanic { root, reply } => respond(reply, motion_host::session::with_session(id, |session| {
@@ -1503,7 +1503,7 @@ fn handle(
                 };
                 if let Some(canonical)=&canonical{crate::node_preview::NodePreview::build(&context,&snapshot,canonical).map_err(|e|e.to_string())?;}
                 crate::node_preview::NodePreview::build(&context, &snapshot, &compiled)
-                    .map_err(|error| format!("node graph {} {:?}: {error}", snapshot.document.id, snapshot.preview_stamp()))
+                    .map_err(|error| motion_host::Error::from(format!("node graph {} {:?}: {error}", snapshot.document.id, snapshot.preview_stamp())))
             })?;
             if snapshot.layer_target.is_some(){motion_host::session::with_session(id,|s|crate::node_layer::apply(s,&snapshot,canonical.as_ref().unwrap_or(&compiled)))?;}
             node_preview.active = Some(preview);
@@ -1610,7 +1610,7 @@ fn handle(
                         presentation.composition_renders+=1;
                         s.render_with_view(frame,Some(viewport),ui.composition_image,overlay)
                     };
-                    let result=ui_paint::finish(result,paint_error,ui.window);
+                    let result=ui_paint::finish(result.map_err(String::from),paint_error,ui.window);
                     presentation.retained=if result.as_ref().is_ok_and(|v|*v)
                         && !s.preview_memory_held && s.last_error.is_none()
                         && stamp==CompositionStamp::new(s,&ui,viewport)
@@ -1645,7 +1645,7 @@ fn handle(
             if presentation.last_present_us>=30_000 {
                 log::debug!("[motion-timing] surface {} present: {} us, composition renders={}, reuses={}",ui.window,presentation.last_present_us,presentation.composition_renders,presentation.composition_reuses);
             }
-            result.map_err(|error| format!("{error}; window={} logical_size={:?}", ui.window, ui.logical_size))
+            result.map_err(|error| motion_host::Error::from(format!("{error}; window={} logical_size={:?}", ui.window, ui.logical_size)))
         });
         let mut paint=ui.paint;paint.clear();
         recycle_paint_pool(paints, paint, true);
@@ -1679,12 +1679,12 @@ fn handle(
         Command::ImportImage {file,reply} => respond(reply,motion_host::session::with_session(id,|s|crate::workflow::import_image(s,&file))),
         Command::CreateText {text,size,width,font,reply}=>respond(reply,motion_host::session::with_session(id,|s|crate::workflow::create_text(s,text,size,width,font))),
         Command::FreezeMovie {control,reply}=> {
-            let plan=motion_host::session::with_session(id,|s|motion_desktop_media::movie::FrozenMovie::capture_plan(s,&control));
+            let plan=motion_host::session::with_session(id,|s|motion_desktop_media::movie::FrozenMovie::capture_plan(s,&control).map_err(motion_host::Error::from));
             match plan {
                 Err(error)=>respond(reply,Err(error)),
                 Ok(plan) => {
                     if let Err(error) = spawn_movie_freeze(reply.clone(), move || plan.freeze(&control)) {
-                        respond(reply, Err(error));
+                        respond(reply, Err(error.into()));
                     }
                 }
             }
@@ -1766,7 +1766,7 @@ fn handle(
 }
 
 /// Desktop media requests carry real paths, so the shared opener applies.
-fn media_request(id: i64, text: &str) -> Result<Value, String> {
+fn media_request(id: i64, text: &str) -> motion_host::Result<Value> {
     let value = motion_host::ops::parse_request(text, 16 * 1024, "media request")?;
     let opener = value["path"]
         .as_str()
@@ -1775,7 +1775,7 @@ fn media_request(id: i64, text: &str) -> Result<Value, String> {
 }
 
 /// Capability queries need no session, so they answer from the platform alone.
-fn capabilities_request(platform: &Arc<dyn Platform>, text: &str) -> Result<Value, String> {
+fn capabilities_request(platform: &Arc<dyn Platform>, text: &str) -> motion_host::Result<Value> {
     let value = motion_host::ops::parse_request(text, 16 * 1024, "media request")?;
     let request = serde_json::from_value::<media::Request>(value)
         .map_err(|error| format!("media request: {error}"))?;

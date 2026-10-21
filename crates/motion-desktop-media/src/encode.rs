@@ -2,7 +2,8 @@
 use ffmpeg_next::{
     self as av, codec, color, encoder, format, frame, software, Dictionary, Error, Packet, Rational,
 };
-use motion_host::Result;
+// The encoder's existing public boundary is textual; it does not expose host errors.
+type Result<T> = std::result::Result<T, String>;
 use std::path::Path;
 
 pub fn available() -> bool {

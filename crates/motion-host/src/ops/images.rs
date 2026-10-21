@@ -18,7 +18,7 @@ pub fn image_info(path: &str) -> Result<serde_json::Value> {
 
 /// Validate a project-relative image path and warm its preview proxy.
 pub fn prepare_image(root: PathBuf, path: String) -> Result<serde_json::Value> {
-    motion_core::storage::validate_relative_path(&path).map_err(|e| e.to_string())?;
+    motion_core::storage::validate_relative_path(&path).map_err(crate::Error::from)?;
     let (width, height, format, bytes) =
         motion_render::image_resources::inspect(&root.join(&path))?;
     let asset = Asset {

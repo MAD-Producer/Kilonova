@@ -83,11 +83,11 @@ fn blocked_handler_does_not_block_other_sessions_or_wrong_thread_rejection() {
     let frame = owner.join().unwrap();
     other.join().unwrap();
     let (wrong, operation) = while_blocked.expect("another session waited for the blocked handler");
-    assert_eq!(wrong, WRONG_THREAD);
+    assert_eq!(wrong.to_string(), WRONG_THREAD);
     assert_eq!(operation.unwrap(), 23.);
     assert_eq!(frame.unwrap(), 17.);
     assert_eq!(
-        session::with_session(id, |_| Ok(())).unwrap_err(),
+        session::with_session(id, |_| Ok(())).unwrap_err().to_string(),
         "native session is closed"
     );
 }
@@ -141,7 +141,7 @@ fn operation_error_and_panic_preserve_session_access_and_resource_scope() {
         session.frame = 31.;
         Err("original handler failure".into())
     });
-    assert_eq!(error.unwrap_err(), "original handler failure");
+    assert_eq!(error.unwrap_err().to_string(), "original handler failure");
     let panic = std::panic::catch_unwind(|| {
         session::with_session(id, |_| -> Result<()> { panic!("controlled handler panic") })
     });

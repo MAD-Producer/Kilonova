@@ -39,7 +39,7 @@ pub(crate) fn restore(
             bytes.push((high << 4) | low);
         }
         let package = EffectPackage::from_bytes(bytes)
-            .map_err(|e| format!("invalid compiled node runtime: {e}"))?;
+            .map_err(|e| crate::Error::with_context("invalid compiled node runtime", e))?;
         if package.manifest.id != effect.plugin
             || package.manifest.version != effect.version
             || package.hash != effect.hash
@@ -55,7 +55,7 @@ pub(crate) fn restore(
         }
         registry
             .insert(Arc::new(package))
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
     }
     Ok(())
 }

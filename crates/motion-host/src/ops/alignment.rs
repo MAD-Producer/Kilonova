@@ -113,7 +113,7 @@ fn bounds(scene: &Scene, registry: &Registry, object: u64) -> Result<[[f32; 2]; 
     if layer.screen_overlay {
         return Err(format!(
             "align layer {object}: screen overlay is unsupported"
-        ));
+        ).into());
     }
     let polygon = motion_render::selection_geometry::polygon(layer, scene, registry)
         .ok_or_else(|| format!("align layer {object}: projected bounds unavailable"))?;
@@ -121,14 +121,14 @@ fn bounds(scene: &Scene, registry: &Registry, object: u64) -> Result<[[f32; 2]; 
     for point in polygon {
         for axis in 0..2 {
             if !point[axis].is_finite() {
-                return Err(format!("align layer {object}: nonfinite bounds"));
+                return Err(format!("align layer {object}: nonfinite bounds").into());
             }
             result[0][axis] = result[0][axis].min(point[axis]);
             result[1][axis] = result[1][axis].max(point[axis]);
         }
     }
     if result.iter().flatten().any(|v| !v.is_finite()) {
-        return Err(format!("align layer {object}: empty bounds"));
+        return Err(format!("align layer {object}: empty bounds").into());
     }
     Ok(result)
 }
@@ -208,10 +208,10 @@ fn selected_bounds(
         {
             return Err(format!(
                 "align layer {object}: requires an unlocked, visible, active 2D drawable layer"
-            ));
+            ).into());
         }
         if project.expressions.iter().any(|e|e.enabled && matches!(e.target,ExpressionTarget::Property{object:id,property:Property::Position,..} if id==object)) {
-            return Err(format!("align layer {object}: position is controlled by an expression"));
+            return Err(format!("align layer {object}: position is controlled by an expression").into());
         }
         let rectangle = bounds(scene, registry, object)?;
         rectangles.insert(object, rectangle);
@@ -231,7 +231,7 @@ fn distribution_plan(
         return Err("distribute: at least three layers are required".into());
     }
     let rectangles = selected_bounds(project, scene, registry, frame, objects)
-        .map_err(|e| format!("distribute: {e}"))?;
+        .map_err(|e| crate::Error::with_context("distribute", e))?;
     let axis = distribution.axis();
     let coordinate = |id: u64| {
         let r = rectangles[&id];
@@ -274,7 +274,7 @@ fn distribution_plan(
                 .then(id.cmp(&previous.0))
                 .is_lt()
         {
-            return Err(format!("distribute: fixed endpoints require reversed edge order between layers {} and {id}",previous.0));
+            return Err(format!("distribute: fixed endpoints require reversed edge order between layers {} and {id}",previous.0).into());
         }
         let mut delta = [0.; 3];
         delta[axis] = (cursor - coordinate(id)) as f32;
@@ -300,9 +300,10 @@ fn distribution_plan(
         return Err(format!(
             "distribute: fixed endpoints require reversed edge order between layers {} and {last}",
             previous.0
-        ));
+        ).into());
     }
-    position_commands(project, frame, objects, &deltas).map_err(|e| format!("distribute: {e}"))
+    position_commands(project, frame, objects, &deltas)
+        .map_err(|cause| crate::Error::with_context("distribute", cause))
 }
 
 fn position_commands(
@@ -325,7 +326,7 @@ fn position_commands(
         let mut visited = HashSet::new();
         while let Some(id) = parent {
             if !visited.insert(id) {
-                return Err(format!("align layer {object}: parent cycle"));
+                return Err(format!("align layer {object}: parent cycle").into());
             }
             if let Some(inherited) = deltas.get(&id) {
                 for axis in 0..3 {
@@ -348,14 +349,14 @@ fn position_commands(
             continue;
         }
         let local = motion_core::scene_prefix_delta(project, object, frame, delta)
-            .map_err(|e| format!("align layer {object}: {e}"))?;
+            .map_err(|e| crate::Error::with_context(format!("align layer {object}"), e))?;
         let before = layer.transform.position.sample(layer.local_frame(frame));
         let value = std::array::from_fn(|axis| before[axis] + local[axis]);
         if value
             .iter()
             .any(|v| !v.is_finite() || v.abs() > 10_000_000.)
         {
-            return Err(format!("align layer {object}: position is out of range"));
+            return Err(format!("align layer {object}: position is out of range").into());
         }
         if layer.transform.position.axes.is_some() {
             for (axis, component) in [Axis::X, Axis::Y].into_iter().enumerate() {

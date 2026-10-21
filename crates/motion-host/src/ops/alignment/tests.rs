@@ -364,6 +364,7 @@ fn expression_control_and_singular_parent_reject_the_entire_plan() {
         Target::Composition
     )
     .unwrap_err()
+    .to_string()
     .contains("position is controlled"));
     let mut engine = fixture();
     engine
@@ -392,6 +393,7 @@ fn expression_control_and_singular_parent_reject_the_entire_plan() {
         Target::Composition
     )
     .unwrap_err()
+    .to_string()
     .contains("zero-scale parent"));
     assert_eq!(engine.project(), &before);
 }

@@ -464,6 +464,7 @@ fn frozen_composition_protocol_keeps_sampling_snapshot_and_rejects_stale_or_clos
     assert!(media::read_frozen_composition_video_into(handle, 7, 1)
         .err()
         .unwrap()
+        .to_string()
         .contains("superseded"));
     assert!(media::request_frozen_composition_frame(handle, 13.5, 1).is_err());
     assert_eq!(
@@ -473,6 +474,7 @@ fn frozen_composition_protocol_keeps_sampling_snapshot_and_rejects_stale_or_clos
     assert!(media::read_frozen_composition_video_into(handle, 7, 2)
         .err()
         .unwrap()
+        .to_string()
         .contains("closed"));
     assert_eq!(&mixed.rgba().unwrap()[..4], &[188, 188, 188, 255]);
     crate::session::close(id);

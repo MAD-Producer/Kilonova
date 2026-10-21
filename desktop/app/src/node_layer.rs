@@ -125,7 +125,7 @@ fn check<'a>(
 pub fn persist(
     s: &mut motion_host::Session,
     snapshot: &node_editor::EditorSnapshot,
-) -> Result<Value, String> {
+) -> motion_host::Result<Value> {
     let target = snapshot
         .layer_target
         .as_ref()
@@ -157,7 +157,7 @@ pub fn apply(
     s: &mut motion_host::Session,
     snapshot: &node_editor::EditorSnapshot,
     compiled: &CompiledGraph,
-) -> Result<Value, String> {
+) -> motion_host::Result<Value> {
     let target = snapshot
         .layer_target
         .as_ref()
@@ -474,6 +474,6 @@ mod tests {
         let root = folder.path().join("empty-cache/project");
         std::fs::create_dir_all(&root).unwrap();
         let result = motion_host::Session::new(project, root, motion_desktop_media::platform());
-        assert!(matches!(result,Err(message)if message.contains("does not match")));
+        assert!(matches!(result,Err(message)if message.to_string().contains("does not match")));
     }
 }

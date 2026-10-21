@@ -57,6 +57,116 @@ fn precompose_capacity_error_reaches_structured_reply_without_session_changes() 
     assert_eq!(session.engine.history_diagnostics(), history);
 }
 
+#[test]
+fn malformed_request_retains_json_location_and_native_identity() {
+    let error = motion_host::ops::parse_request("{", 1024, "test request").unwrap_err();
+    let motion_host::Error::Json(cause) = &error else {
+        panic!("JSON failure lost its type: {error:?}");
+    };
+    assert!(cause.is_eof());
+    assert_eq!(cause.line(), 1);
+    assert_eq!(cause.column(), 1);
+    let reply = motion_host::ops::typed_error_envelope(&error);
+    assert_eq!(reply["ok"], false);
+    assert_eq!(reply["error"], cause.to_string());
+    assert!(reply["error_detail"].is_null());
+}
+
+#[test]
+fn project_creation_retains_native_io_cause_through_context() {
+    let directory = tempfile::tempdir().unwrap();
+    let barrier = directory.path().join("file");
+    std::fs::write(&barrier, b"existing file").unwrap();
+    let error = motion_host::ops::project::create(
+        barrier.join("project"), "", Arc::new(Stub),
+    ).unwrap_err();
+    assert!(matches!(&error, motion_host::Error::Io(cause)
+        if cause.raw_os_error().is_some()));
+    let raw_os_error = match &error {
+        motion_host::Error::Io(cause) => cause.raw_os_error(),
+        _ => unreachable!(),
+    };
+    let original = error.to_string();
+    let contextual = motion_host::Error::with_context("create project", error);
+    let source = std::error::Error::source(&contextual).unwrap();
+    let boxed = source.downcast_ref::<Box<motion_host::Error>>()
+        .expect("context source must retain its declared Box<Error>");
+    assert!(matches!(boxed.as_ref(), motion_host::Error::Io(cause)
+        if cause.raw_os_error() == raw_os_error));
+    assert_eq!(contextual.to_string(), format!("create project: {original}"));
+    assert_eq!(std::fs::read(barrier).unwrap(), b"existing file");
+}
+
+#[test]
+fn closed_frozen_session_retains_host_identity_in_source_chain() {
+    let error = motion_host::ops::media::freeze_audio(-1).unwrap_err();
+    let motion_host::Error::Frozen(
+        motion_host::ops::media::frozen::Error::Session(cause)
+    ) = &error else {
+        panic!("frozen reader lost its session cause: {error:?}");
+    };
+    assert!(matches!(cause.as_ref(), motion_host::Error::Message(message)
+        if message == "native session is closed"));
+    assert_eq!(error.to_string(), "native session is closed");
+}
+
+#[test]
+fn structured_composition_replies_require_native_identity() {
+    let directory = tempfile::tempdir().unwrap();
+    let session = Session::new(Project::new(64, 64, 30, 60).unwrap(),
+        directory.path().into(), Arc::new(Stub)).unwrap();
+    let error = session.composition_error("context_busy", "Finish gesture", json!({"object":7}));
+    let detail = error.composition_detail().unwrap().clone();
+    let text = error.to_string();
+    assert_eq!(motion_host::ops::dispatch(|| Err(error))["error_detail"], json!(detail));
+    for reply in [
+        motion_host::ops::dispatch(|| Err(text.clone().into())),
+        motion_host::ops::dispatch(|| std::panic::panic_any(text.clone())),
+    ] {
+        assert_eq!(reply["ok"], false);
+        assert_eq!(reply["error"], text);
+        assert!(reply["error_detail"].is_null(), "text forged native detail: {reply}");
+    }
+    // Explicit old text clients keep their original protocol adapter.
+    assert_eq!(motion_host::ops::error_envelope(&text)["error_detail"], json!(detail));
+}
+
+#[test]
+fn composition_details_survive_media_and_frozen_reader_wrappers() {
+    let project = Project::new(64, 64, 30, 60).unwrap();
+    let model_error = || project.composition("missing-composition").unwrap_err();
+    let wrapped_media = || motion_media::Error::from(model_error())
+        .context("resolve audio composition".into());
+    let frozen = motion_host::ops::media::frozen::Error::Session(
+        Box::new(model_error().into()));
+    let errors = [
+        motion_host::Error::from(wrapped_media()),
+        motion_host::Error::from(frozen),
+        motion_host::Error::from(motion_host::ops::media::frozen::Error::Media(wrapped_media())),
+        motion_host::Error::from(motion_host::ops::media::frozen::Error::Model(model_error())),
+    ];
+    for error in errors {
+        let reply = motion_host::ops::typed_error_envelope(&error);
+        assert_eq!(reply["error_detail"]["code"], "composition_missing");
+        assert_eq!(reply["error_detail"]["composition"], "missing-composition");
+        assert_eq!(reply["error"], error.to_string());
+    }
+}
+
+#[test]
+fn rejected_command_retains_missing_object_without_committing_history() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut session = Session::new(Project::new(64, 64, 30, 60).unwrap(),
+        directory.path().into(), Arc::new(Stub)).unwrap();
+    let before = session.engine.snapshot();
+    let error = session.apply_commands(r#"{"op":"rename","object":7,"name":"missing"}"#).unwrap_err();
+    assert!(matches!(&error, motion_host::Error::Model(motion_core::Error::Missing(7))));
+    assert_eq!(error.to_string(), "object 7 does not exist");
+    assert_eq!(session.engine.snapshot(), before);
+    assert_eq!(session.engine.revision(), 0);
+    assert!(!session.engine.can_undo());
+}
+
 impl Platform for Stub {
     fn name(&self) -> &'static str {
         "asset-registration-test"
@@ -156,7 +266,7 @@ fn audio_plan_failure_is_distinct_from_silence_and_export_rejects_it() {
         .unwrap()
         .contains("rational arithmetic budget"));
     let error = motion_host::ops::export::render_plan_info(id).unwrap_err();
-    assert!(error.contains("export audio plan"), "{error}");
+    assert!(error.to_string().contains("export audio plan"), "{error}");
     motion_host::session::with_session(id, |session| {
         session.engine = motion_core::Engine::new(Project::new(64, 64, 30, 60).unwrap()).unwrap();
         session.scene = motion_render::Scene::new(session.engine.project());
@@ -214,7 +324,7 @@ fn keyframe_collision_reaches_command_reply_without_changing_session() {
                     ),
                 )
                 .unwrap_err();
-                assert!(error.contains("occupied"), "{error}");
+                assert!(error.to_string().contains("occupied"), "{error}");
                 motion_host::session::with_session(id, |session| {
                     assert_eq!(session.engine.project(), &before);
                     assert_eq!(session.engine.revision(), 0);
