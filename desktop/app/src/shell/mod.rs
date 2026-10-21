@@ -10,6 +10,8 @@ mod frame_export;
 pub(crate) mod audio_analysis;
 mod nodes;
 mod presentation;
+#[cfg(all(test, target_os = "windows"))]
+mod native_input_tests;
 pub(crate) mod presentation_observation;
 
 pub(crate) mod styles;
