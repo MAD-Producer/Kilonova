@@ -33,10 +33,34 @@ fn real_media_io_and_codec_faults_keep_default_error_channels() {
             false,
         )
         .unwrap();
-        for request in ["typed-media-io", "typed-media-audio"] {
+        let invalid_progress = AudioJobs::with_decoder(
+            root.clone(),
+            Limits::default(),
+            std::sync::Arc::new({
+                let first = std::sync::atomic::AtomicBool::new(true);
+                move |source, pcm, track, limit, check| {
+                    if first.swap(false, std::sync::atomic::Ordering::AcqRel) {
+                        check(Some(f64::NAN))?;
+                        panic!("non-finite progress must reject the decoder");
+                    }
+                    motion_media::decode_audio(source, pcm, track, limit, check)
+                }
+            }),
+        ).unwrap();
+        invalid_progress.start(
+            Box::new(std::io::Cursor::new(vec![1; 16])),
+            Some(16),
+            options("typed-media-progress"),
+            false,
+        ).unwrap();
+        for request in ["typed-media-io", "typed-media-audio", "typed-media-progress"] {
             let began = Instant::now();
             let status = loop {
-                let status = jobs.status(request).unwrap();
+                let status = if request == "typed-media-progress" {
+                    invalid_progress.status(request).unwrap()
+                } else {
+                    jobs.status(request).unwrap()
+                };
                 if status.state != "running" {
                     break status;
                 }
@@ -51,6 +75,9 @@ fn real_media_io_and_codec_faults_keep_default_error_channels() {
                     reason.contains("open media ") && reason.contains("missing.wav"),
                     "{reason}"
                 );
+            } else if request == "typed-media-progress" {
+                assert_eq!(reason, "invalid media task progress: expected a finite ratio or unknown");
+                assert!(status.progress.is_none_or(f64::is_finite));
             } else {
                 assert!(
                     reason.contains(
@@ -71,6 +98,27 @@ fn real_media_io_and_codec_faults_keep_default_error_channels() {
                 std::thread::sleep(Duration::from_millis(5));
             }
         }
+        let valid = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../crates/motion-media/tests/fixtures/tone-stereo-48000.wav");
+        invalid_progress.release("typed-media-progress").unwrap();
+        invalid_progress.start(
+            Box::new(File::open(valid).unwrap()),
+            None,
+            options("typed-media-progress-recovered"),
+            true,
+        ).unwrap();
+        let began = Instant::now();
+        loop {
+            let status = invalid_progress.status("typed-media-progress-recovered").unwrap();
+            if status.state != "running" {
+                assert_eq!(status.state, "succeeded", "{status:?}");
+                assert_eq!(status.progress, Some(1.0));
+                assert!(status.error.is_none());
+                break;
+            }
+            assert!(began.elapsed() < Duration::from_secs(10));
+            std::thread::sleep(Duration::from_millis(5));
+        }
         return;
     }
     let root = tempfile::tempdir().unwrap();
@@ -89,7 +137,11 @@ fn real_media_io_and_codec_faults_keep_default_error_channels() {
     let stderr = String::from_utf8(output.stderr).unwrap();
     let stdout = String::from_utf8(output.stdout).unwrap();
     assert!(text.contains("logging initialized level=INFO"));
-    for request in ["typed-media-io", "typed-media-audio"] {
+    let recovery_error = "media error request=typed-media-progress-recovered ";
+    assert!(!text.contains(recovery_error));
+    assert!(!stderr.contains(recovery_error));
+    assert!(!stdout.contains(recovery_error));
+    for request in ["typed-media-io", "typed-media-audio", "typed-media-progress"] {
         let marker = format!("media error request={request} ");
         let file: Vec<_> = text.lines().filter(|line| line.contains(&marker)).collect();
         let console: Vec<_> = stderr

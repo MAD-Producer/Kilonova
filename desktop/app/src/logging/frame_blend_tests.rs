@@ -85,7 +85,7 @@ impl Platform for Backend {
         _: &Path,
         _: Option<u32>,
         _: u64,
-        _: &mut dyn FnMut(f64) -> Result<(), motion_media::Error>,
+        _: &mut dyn FnMut(Option<f64>) -> Result<(), motion_media::Error>,
     ) -> Result<motion_core::AudioAsset, motion_media::Error> {
         Err("unused".into())
     }

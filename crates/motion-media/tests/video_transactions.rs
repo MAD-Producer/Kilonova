@@ -86,6 +86,37 @@ fn wait(jobs: &VideoJobs, id: &str) -> motion_media::VideoTaskStatus {
 }
 
 #[test]
+fn video_import_preserves_unknown_audio_progress_until_the_adapter_reports_a_total() {
+    let _guard = TEST_LOCK.lock().unwrap();
+    let root = tempfile::tempdir().unwrap();
+    let (entered_tx, entered_rx) = std::sync::mpsc::channel();
+    let (continue_tx, continue_rx) = std::sync::mpsc::channel();
+    let continue_rx = Mutex::new(continue_rx);
+    let decode: motion_media::DecodeAudio = Arc::new(move |source, pcm, track, limit, check| {
+        check(None)?;
+        entered_tx.send(()).unwrap();
+        continue_rx.lock().unwrap().recv_timeout(Duration::from_secs(10)).unwrap();
+        motion_media::decode_audio(source, pcm, track, limit, check)
+    });
+    let jobs = VideoJobs::with_audio_decoder(root.path().into(), decode).unwrap();
+    start(&jobs, "unknown-video-audio");
+    entered_rx.recv_timeout(Duration::from_secs(10)).unwrap();
+    let pending = jobs.status("unknown-video-audio").unwrap();
+    assert_eq!(pending.state, "running");
+    assert_eq!(pending.phase, "decoding_audio");
+    assert!(pending.progress.is_none());
+    let wire = serde_json::to_value(&pending).unwrap();
+    assert!(wire.as_object().unwrap().contains_key("progress"));
+    assert!(wire["progress"].is_null());
+    continue_tx.send(()).unwrap();
+    let ready = wait(&jobs, "unknown-video-audio");
+    assert_eq!(ready.state, "ready", "{}", serde_json::to_value(&ready).unwrap());
+    assert_eq!(ready.progress, Some(1.0));
+    jobs.cancel("unknown-video-audio").unwrap();
+    jobs.release("unknown-video-audio").unwrap();
+}
+
+#[test]
 fn blocked_thumbnail_keeps_old_video_index_and_retry_rebuilds_both_files() {
     let _guard = TEST_LOCK.lock().unwrap();
     let root = tempfile::tempdir().unwrap();

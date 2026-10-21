@@ -15,8 +15,10 @@ use symphonia::core::{
 
 /// PCM cache is little-endian interleaved f32 at the native source rate.
 /// Decode only a packet at a time; the complete PCM lives on disk.
+/// Progress is a phase-local ratio when the total is known, otherwise None.
+/// Every callback remains a cancellation checkpoint, including unknown progress.
 pub type DecodeAudio = std::sync::Arc<
-    dyn Fn(&Path, &Path, Option<u32>, u64, &mut dyn FnMut(f64) -> Result<()>) -> Result<AudioAsset>
+    dyn Fn(&Path, &Path, Option<u32>, u64, &mut dyn FnMut(Option<f64>) -> Result<()>) -> Result<AudioAsset>
         + Send
         + Sync,
 >;
@@ -26,7 +28,7 @@ pub fn decode_audio(
     pcm: &Path,
     selected_track: Option<u32>,
     max_pcm_bytes: u64,
-    check: &mut dyn FnMut(f64) -> Result<()>,
+    check: &mut dyn FnMut(Option<f64>) -> Result<()>,
 ) -> Result<AudioAsset> {
     let mut signature = [0; 12];
     let mut source = File::open(path).map_err(crate::Error::from)?;
@@ -143,7 +145,7 @@ pub fn decode_audio(
     let zeros = [0; 8192];
     let mut lead_bytes = edit.leading * u64::from(channels) * 4;
     while lead_bytes > 0 {
-        check(0.0)?;
+        check(expected_frames.filter(|n| *n > 0).map(|_| 0.0))?;
         let n = lead_bytes.min(zeros.len() as u64);
         output
             .write_all(&zeros[..n as usize])
@@ -157,7 +159,7 @@ pub fn decode_audio(
         } else {
             decoded
         };
-        check(expected_frames.map_or(0.0, |n| (position as f64 / n.max(1) as f64).min(1.0)))?;
+        check(expected_frames.filter(|n| *n > 0).map(|n| (position as f64 / n as f64).min(1.0)))?;
         let packet = match format.next_packet() {
             Ok(p) => p,
             Err(symphonia::core::errors::Error::IoError(e))
@@ -225,7 +227,8 @@ pub fn decode_audio(
             while bytes > 0 {
                 check(
                     expected_frames
-                        .map_or(0., |n| (packet_end_ts as f64 / n.max(1) as f64).min(1.)),
+                        .filter(|n| *n > 0)
+                        .map(|n| (packet_end_ts as f64 / n as f64).min(1.)),
                 )?;
                 let count = bytes.min(zeros.len() as u64);
                 output
@@ -282,7 +285,8 @@ pub fn decode_audio(
                 while bytes > 0 {
                     check(
                         expected_frames
-                            .map_or(0., |n| (packet_end_ts as f64 / n.max(1) as f64).min(1.)),
+                            .filter(|n| *n > 0)
+                            .map(|n| (packet_end_ts as f64 / n as f64).min(1.)),
                     )?;
                     let count = bytes.min(zeros.len() as u64);
                     output
