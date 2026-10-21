@@ -300,7 +300,7 @@ mod tests {
         let ten = config(include_bytes!(
             "../tests/fixtures/formats/reject-hevc10.mp4"
         ));
-        assert!(hevc_metadata(&ten).unwrap_err().contains("8-bit"));
+        assert!(hevc_metadata(&ten).unwrap_err().to_string().contains("8-bit"));
         for n in 0..csd.len().min(40) {
             assert!(hevc_metadata(&csd[..n]).is_err());
         }

@@ -1,5 +1,7 @@
 //! Owned asynchronous media import, video caches and bounded PCM mixing. No UI dependencies.
 mod avc;
+mod error;
+pub use error::Error;
 pub mod fonts;
 mod decode;
 mod formats;
@@ -45,7 +47,7 @@ pub(crate) fn panic_reason_ref(payload: &(dyn std::any::Any + Send)) -> String {
         .unwrap_or("unknown native error");
     reason.chars().take(2048).collect()
 }
-pub type Result<T> = std::result::Result<T, String>;
+pub type Result<T> = std::result::Result<T, Error>;
 pub const OUTPUT_RATE: u64 = 48_000;
 pub const MAX_BLOCK_FRAMES: usize = 48_000;
 pub const PCM_VERSION: u32 = 2;
@@ -54,7 +56,7 @@ pub fn cache_path(
     root: &std::path::Path,
     asset: &motion_model::AudioAsset,
 ) -> Result<std::path::PathBuf> {
-    motion_model::storage::validate_relative_path(&asset.path).map_err(|e| e.to_string())?;
+    motion_model::storage::validate_relative_path(&asset.path).map_err(crate::Error::from)?;
     let stem = std::path::Path::new(&asset.path)
         .file_stem()
         .and_then(|s| s.to_str())
@@ -63,11 +65,11 @@ pub fn cache_path(
 }
 
 pub(crate) fn contained_dir(root: &std::path::Path, path: &std::path::Path) -> Result<()> {
-    std::fs::create_dir_all(path).map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(path).map_err(crate::Error::from)?;
     if !path
         .canonicalize()
-        .map_err(|e| e.to_string())?
-        .starts_with(root.canonicalize().map_err(|e| e.to_string())?)
+        .map_err(crate::Error::from)?
+        .starts_with(root.canonicalize().map_err(crate::Error::from)?)
     {
         return Err("media directory resolves outside project".into());
     }

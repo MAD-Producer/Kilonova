@@ -2,6 +2,10 @@
 #[cfg(test)]
 mod media_commit_tests;
 #[cfg(test)]
+mod media_error_tests;
+#[cfg(test)]
+mod package_publication_tests;
+#[cfg(test)]
 mod frame_blend_tests;
 
 use std::{
@@ -18,6 +22,9 @@ struct FileLogger {
     writer: Mutex<BufWriter<File>>,
     level: log::LevelFilter,
 }
+
+#[cfg(test)]
+mod frozen_reader_tests;
 static LOGGER: OnceLock<FileLogger> = OnceLock::new();
 thread_local! {
     static IN_PANIC_HOOK: Cell<bool> = const { Cell::new(false) };

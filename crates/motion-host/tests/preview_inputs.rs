@@ -2,7 +2,7 @@ use motion_core::{Asset, Content, Layer, LayerTimeline, Project, VideoAsset, Vid
 use motion_host::{
     preview_inputs::*,
     video_frame::{DecodedFrame, VideoPixels},
-    Platform, Result, VideoDecoder, VideoQuery,
+    Platform, VideoDecoder, VideoQuery,
 };
 use std::{
     path::Path,
@@ -19,8 +19,8 @@ impl Platform for PlatformStub {
         _: &Path,
         _: Option<u32>,
         _: Option<u32>,
-        _: &dyn Fn() -> Result<()>,
-    ) -> Result<motion_media::VideoProbe> {
+        _: &dyn Fn() -> motion_media::Result<()>,
+    ) -> motion_media::Result<motion_media::VideoProbe> {
         Err("not used".into())
     }
     fn open_decoder(
@@ -28,7 +28,7 @@ impl Platform for PlatformStub {
         _: &Path,
         asset: VideoAsset,
         pts: Vec<u64>,
-    ) -> Result<Box<dyn VideoDecoder>> {
+    ) -> motion_media::Result<Box<dyn VideoDecoder>> {
         Ok(Box::new(Decoder { asset, pts }))
     }
     fn decode_audio(
@@ -37,11 +37,11 @@ impl Platform for PlatformStub {
         _: &Path,
         _: Option<u32>,
         _: u64,
-        _: &mut dyn FnMut(f64) -> Result<()>,
-    ) -> Result<motion_core::AudioAsset> {
+        _: &mut dyn FnMut(f64) -> motion_media::Result<()>,
+    ) -> motion_media::Result<motion_core::AudioAsset> {
         Err("not used".into())
     }
-    fn media_capabilities(&self, _: Option<&VideoQuery>) -> Result<serde_json::Value> {
+    fn media_capabilities(&self, _: Option<&VideoQuery>) -> motion_media::Result<serde_json::Value> {
         Ok(serde_json::json!({}))
     }
     fn attach_surface(
@@ -49,7 +49,7 @@ impl Platform for PlatformStub {
         _: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         _: u32,
         _: u32,
-    ) -> Result<motion_host::SurfaceTarget> {
+    ) -> motion_host::Result<motion_host::SurfaceTarget> {
         Err("not used".into())
     }
 }
@@ -58,7 +58,7 @@ struct Decoder {
     pts: Vec<u64>,
 }
 impl VideoDecoder for Decoder {
-    fn frame(&mut self, time: u64, check: &dyn Fn() -> Result<()>) -> Result<DecodedFrame> {
+    fn frame(&mut self, time: u64, check: &dyn Fn() -> motion_media::Result<()>) -> motion_media::Result<DecodedFrame> {
         for _ in 0..12 {
             check()?;
             std::thread::sleep(Duration::from_millis(1));

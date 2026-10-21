@@ -382,6 +382,7 @@ impl PluginEditorSession {
 
 #[cfg(test)]
 mod request_panic_tests {
+    use crate::scene_fixtures;
     use super::*;
     #[test]
     fn rejected_operation_evidence_survives_a_gesture_close_error() {
@@ -444,8 +445,8 @@ mod request_panic_tests {
         );
     }
     fn setup() -> (Engine, PluginEditorSession) {
-        let package = motion_effects::builtin::particle_package().unwrap();
-        let registry = motion_effects::Registry::new_with_builtins().unwrap();
+        let package = scene_fixtures::particle_package().unwrap();
+        let registry = scene_fixtures::registry().unwrap();
         let mut project = Project::new(64,64,30,120).unwrap();
         let mut layer = crate::Layer::solid(1,"editor",[64.;2],[32.,32.,0.],[0.;4]);
         layer.effects.push(crate::EffectInstance::new(1,&package.manifest.id,&package.manifest.version,&package.hash,&package.manifest.effects[0],[64.;2]));

@@ -1,3 +1,5 @@
+#[path = "../../motion-effects/tests/support/scene_packages.rs"]
+mod scene_fixtures;
 use motion_core::{
     compositing::*, masks::LayerMask, vector::*, Asset, Content, EffectInstance,
     ExpressionEvaluator, Layer, Project, Track,
@@ -15,7 +17,7 @@ fn layer(id: u64, color: [f32; 4]) -> Layer {
 }
 fn effect(name: &str, scene: bool) -> EffectInstance {
     let package = if scene {
-        motion_effects::builtin::scene_package()
+        scene_fixtures::scene_package()
     } else {
         motion_effects::builtin::package()
     }
@@ -103,6 +105,7 @@ fn reference(renderer: &mut Renderer, scene: &Scene, width: u32, height: u32) ->
 #[test]
 fn owned_images_survive_other_receivers_and_normal_renders_with_authored_opacity_and_order() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    renderer.set_effect_registry(scene_fixtures::registry().unwrap());
     renderer.set_submission_tracking(true);
     let mut project = project();
     project.layers = vec![layer(1, [1., 0., 0., 1.]), layer(2, [0., 0., 1., 1.])];
@@ -155,6 +158,7 @@ fn owned_images_survive_other_receivers_and_normal_renders_with_authored_opacity
 #[test]
 fn effect_padding_masks_and_effect_stage_image_inputs_match_the_original_renderer() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    renderer.set_effect_registry(scene_fixtures::registry().unwrap());
     let mut project = project();
     let mut receiver = layer(1, [1., 0., 0., 1.]);
     receiver.transform.rotation.value[2] = 13.;
@@ -203,6 +207,7 @@ fn effect_padding_masks_and_effect_stage_image_inputs_match_the_original_rendere
 #[test]
 fn retained_matte_modes_chains_and_letterboxing_survive_cache_reuse() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    renderer.set_effect_registry(scene_fixtures::registry().unwrap());
     for mode in [
         MatteMode::Alpha,
         MatteMode::AlphaInverted,
@@ -282,6 +287,7 @@ fn retained_matte_modes_chains_and_letterboxing_survive_cache_reuse() {
 #[test]
 fn blend_modes_and_scene_generator_keep_their_compositing_contract() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    renderer.set_effect_registry(scene_fixtures::registry().unwrap());
     for mode in [BlendMode::Normal, BlendMode::Multiply, BlendMode::Screen] {
         let mut project = project();
         project.background = [0.1, 0.2, 0.3, 0.5];
@@ -324,6 +330,7 @@ fn blend_modes_and_scene_generator_keep_their_compositing_contract() {
 #[test]
 fn image_and_continuous_vector_keep_source_pixels_and_local_raster_size() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    renderer.set_effect_registry(scene_fixtures::registry().unwrap());
     let mut project = project();
     project.layers.push(layer(1, [1.; 4]));
     project.layers[0].content = Content::Image { asset: 1 };
@@ -364,6 +371,7 @@ fn image_and_continuous_vector_keep_source_pixels_and_local_raster_size() {
 #[test]
 fn shared_temporal_budget_drop_and_refusals_preserve_existing_images() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    renderer.set_effect_registry(scene_fixtures::registry().unwrap());
     let mut project = project();
     project.layers.push(layer(1, [1., 0., 0., 1.]));
     project.layers[0]
@@ -409,6 +417,7 @@ fn shared_temporal_budget_drop_and_refusals_preserve_existing_images() {
         .to_string()
         .contains("duplicate"));
     let mut other = pollster::block_on(Renderer::headless()).unwrap();
+    other.set_effect_registry(scene_fixtures::registry().unwrap());
     let other_output = other.capture_target(64, 64).unwrap();
     assert!(other
         .draw_layer_rasters(&scene, &[&raster], &other_output.view, 64, 64)
@@ -517,6 +526,7 @@ fn receiver_clock_materializes_real_effects_before_phase_accumulation_and_keeps_
     project.layers = vec![moving, sharp];
     let center = sample(&mut project, 0.5);
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    renderer.set_effect_registry(scene_fixtures::registry().unwrap());
     let original = reference(&mut renderer, &center, 64, 64);
     let clock = ExposureClock::new(0.5, &[(1, shutter)], false).unwrap();
     let weights: Vec<_> = clock.phases().iter().map(|phase| phase.weight).collect();
@@ -616,6 +626,7 @@ fn bgra_nested_and_intersecting_receiver_projections_match_existing_pixels() {
         wgpu::TextureFormat::Bgra8UnormSrgb,
     ))
     .unwrap();
+    renderer.set_effect_registry(scene_fixtures::registry().unwrap());
     let mut project = project();
     project.layers = vec![layer(1, [1., 0., 0., 1.]), layer(2, [0., 0., 1., 1.])];
     for (layer, angle) in project.layers.iter_mut().zip([50., -40.]) {
@@ -668,6 +679,7 @@ fn bgra_nested_and_intersecting_receiver_projections_match_existing_pixels() {
 #[test]
 fn unsubmitted_video_is_rejected_and_rasters_keep_completed_pixels_after_upload_reuse() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    renderer.set_effect_registry(scene_fixtures::registry().unwrap());
     let mut project = project();
     project.layers.push(layer(1, [1.; 4]));
     let mut scene = sample(&mut project, 0.);
@@ -739,6 +751,7 @@ fn unsubmitted_video_is_rejected_and_rasters_keep_completed_pixels_after_upload_
 #[test]
 fn failed_effect_is_not_bypassed_in_preview_or_formal_materialization_and_valid_context_recovers() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    renderer.set_effect_registry(scene_fixtures::registry().unwrap());
     let mut project = project();
     project.layers.push(layer(1, [1., 0., 0., 1.]));
     project.layers[0]
@@ -774,6 +787,7 @@ fn failed_effect_is_not_bypassed_in_preview_or_formal_materialization_and_valid_
 #[test]
 fn retained_phase_submission_records_both_local_input_and_exposure_output_capacity() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    renderer.set_effect_registry(scene_fixtures::registry().unwrap());
     renderer.set_submission_tracking(true);
     let mut project = project();
     project.layers.push(layer(1, [0.3, 0.7, 0.2, 1.]));
@@ -809,6 +823,7 @@ fn retained_phase_submission_records_both_local_input_and_exposure_output_capaci
 #[test]
 fn blend_capacity_is_checked_before_allocation_and_original_rasters_recover() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    renderer.set_effect_registry(scene_fixtures::registry().unwrap());
     let mut project = project();
     project.layers = vec![layer(1, [0.2, 0.6, 0.8, 1.]), layer(2, [0.8, 0.3, 0.5, 1.])];
     project.layers[1].blend = LayerBlend {

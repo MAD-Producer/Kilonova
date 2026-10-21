@@ -1,3 +1,5 @@
+#[path = "../../motion-effects/tests/support/scene_packages.rs"]
+mod scene_fixtures;
 use motion_core::{
     Composition, CompositionClip, Content, EffectInstance, Layer, LayerTimeline, Project,
     VideoAsset, VideoClip,
@@ -118,7 +120,7 @@ fn authored_reference_paths_keep_ids_across_clip_boundaries_reentry_and_reopen()
     let reopened: Project = serde_json::from_str(&serde_json::to_string(&p).unwrap()).unwrap();
     reopened.validate().unwrap();
     let mut builder =
-        PlanBuilder::new(motion_effects::Registry::new_with_builtins().unwrap()).unwrap();
+        PlanBuilder::new(scene_fixtures::registry().unwrap()).unwrap();
     for frame in [0., 9.9, 10., 10.1, 19.9, 20., 20.1, 29.9, 30., 50., 0., 20.] {
         sample(&mut reused, &p, frame);
         let mut fresh = Scene::new(&reopened);
@@ -278,7 +280,7 @@ fn nested_aliases_remap_parent_matte_effect_image_and_scene_source_together() {
         stage: EffectImageStage::Source,
     });
     child.layers[0].effects.push(effect);
-    let scene_package = motion_effects::builtin::scene_package().unwrap();
+    let scene_package = scene_fixtures::scene_package().unwrap();
     let scene_definition = scene_package
         .manifest
         .effects

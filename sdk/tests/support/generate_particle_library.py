@@ -5,8 +5,8 @@ import json
 import tempfile
 from generate_scene_library import parameter, pack_library
 
-ROOT = Path(__file__).resolve().parents[1]
-DEST = ROOT / "crates/motion-effects/particle-library"
+ROOT = Path(__file__).resolve().parents[3]
+DEST = ROOT / "crates/motion-effects/tests/fixtures/particle-library"
 
 def generate(destination, validator=None, shader_source=None):
     source = shader_source or DEST / "shaders/sprite.wgsl"

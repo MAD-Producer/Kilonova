@@ -62,9 +62,9 @@ pub struct FontStore {
 }
 impl FontStore {
     pub fn new(root: &Path) -> Result<Self> {
-        fs::create_dir_all(root).map_err(|e| e.to_string())?;
+        fs::create_dir_all(root).map_err(crate::Error::from)?;
         let mut store = Self {
-            root: root.canonicalize().map_err(|e| e.to_string())?,
+            root: root.canonicalize().map_err(crate::Error::from)?,
             faces: VecDeque::new(),
             glyphs: VecDeque::new(),
             glyph_bytes: 0,
@@ -87,10 +87,10 @@ impl FontStore {
     ) -> Result<FontInfo> {
         let mut data = Vec::new();
         fs::File::open(source)
-            .map_err(|e| e.to_string())?
+            .map_err(crate::Error::from)?
             .take(MAX_FONT_BYTES as u64 + 1)
             .read_to_end(&mut data)
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
         self.import_face_bytes(&data, license, face_index)
     }
     pub fn import_bytes(&mut self, data: &[u8], license: &str) -> Result<FontInfo> {
@@ -126,13 +126,13 @@ impl FontStore {
         // Managed paths are content hashes, never names supplied by a font file.
         let path = self.path(&id, "ttf")?;
         if !path.exists() {
-            fs::write(&path, data).map_err(|e| e.to_string())?;
+            fs::write(&path, data).map_err(crate::Error::from)?;
         }
         fs::write(
             self.path(&id, "json")?,
-            serde_json::to_vec_pretty(&info).map_err(|e| e.to_string())?,
+            serde_json::to_vec_pretty(&info).map_err(crate::Error::from)?,
         )
-        .map_err(|e| e.to_string())?;
+        .map_err(crate::Error::from)?;
         self.retain_face(id, Arc::new(font));
         Ok(info)
     }
@@ -147,7 +147,7 @@ impl FontStore {
         if path.exists()
             && !path
                 .canonicalize()
-                .map_err(|e| e.to_string())?
+                .map_err(crate::Error::from)?
                 .starts_with(&self.root)
         {
             return Err("font path escapes store".into());
@@ -169,16 +169,16 @@ impl FontStore {
             return Ok(font);
         }
         let path = self.path(id, "ttf")?;
-        if fs::metadata(&path).map_err(|e| e.to_string())?.len() > MAX_FONT_BYTES as u64 {
+        if fs::metadata(&path).map_err(crate::Error::from)?.len() > MAX_FONT_BYTES as u64 {
             return Err("font exceeds size limit".into());
         }
         let (hash, index) = identity(id)?;
         let mut bytes = Vec::new();
         fs::File::open(path)
-            .map_err(|e| e.to_string())?
+            .map_err(crate::Error::from)?
             .take(MAX_FONT_BYTES as u64 + 1)
             .read_to_end(&mut bytes)
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
         if bytes.len() > MAX_FONT_BYTES {
             return Err("font exceeds size limit".into());
         }
@@ -191,8 +191,8 @@ impl FontStore {
     }
     pub fn catalogue(&self) -> Result<Vec<FontInfo>> {
         let mut result = Vec::new();
-        for entry in fs::read_dir(&self.root).map_err(|e| e.to_string())? {
-            let path = entry.map_err(|e| e.to_string())?.path();
+        for entry in fs::read_dir(&self.root).map_err(crate::Error::from)? {
+            let path = entry.map_err(crate::Error::from)?.path();
             if path.extension().and_then(|v| v.to_str()) != Some("json") {
                 continue;
             }
@@ -201,11 +201,11 @@ impl FontStore {
                 .and_then(|v| v.to_str())
                 .ok_or("invalid font metadata")?;
             let path = self.path(id, "json")?;
-            if fs::metadata(&path).map_err(|e| e.to_string())?.len() > 128 * 1024 {
+            if fs::metadata(&path).map_err(crate::Error::from)?.len() > 128 * 1024 {
                 return Err("font metadata exceeds size limit".into());
             }
-            let info = serde_json::from_slice(&fs::read(path).map_err(|e| e.to_string())?)
-                .map_err(|e| e.to_string())?;
+            let info = serde_json::from_slice(&fs::read(path).map_err(crate::Error::from)?)
+                .map_err(crate::Error::from)?;
             result.push(info);
         }
         result.sort_by(|a: &FontInfo, b| a.id.cmp(&b.id));
@@ -225,7 +225,7 @@ impl FontStore {
         }
         let font = self.face(id)?;
         if !font.has_glyph(ch) {
-            return Err(format!("font has no glyph for U+{:04X}", ch as u32));
+            return Err(format!("font has no glyph for U+{:04X}", ch as u32).into());
         }
         let m = font.metrics(ch, size);
         if m.width == 0 && m.height == 0 && !ch.is_whitespace() {
@@ -276,12 +276,12 @@ impl FontStore {
         // Check the complete atlas before retaining hundreds of glyph bitmaps.
         let font = self.face(id)?;
         let metrics: Vec<_> = chars.iter().map(|c| font.metrics(*c, size)).collect();
-        let max_width = metrics
+        let max_width = (metrics
             .iter()
             .map(|m| m.advance_width.max(m.width as f32 + m.xmin.abs() as f32))
             .fold(1., f32::max)
-            .ceil() as u64
-            + 4;
+            .ceil() as u64)
+            .checked_add(4).ok_or("font atlas exceeds dimension or memory limits")?;
         let ascent = metrics
             .iter()
             .map(|m| m.height as i64 + i64::from(m.ymin))
@@ -295,10 +295,7 @@ impl FontStore {
             .unwrap()
             .min(0);
         let height = (ascent - descent) as u64 + 4;
-        let width = max_width * chars.len() as u64;
-        if width > 8192 || height > 8192 || width * height > 16 * 1024 * 1024 {
-            return Err("font atlas exceeds dimension or memory limits".into());
-        }
+        atlas_dimensions([max_width, height], chars.len())?;
         let glyphs = chars
             .into_iter()
             .map(|c| self.glyph(id, c, size))
@@ -324,10 +321,13 @@ impl FontStore {
                         .max(g.metrics.width as f32 + g.metrics.bearing_x.abs() as f32)
                 })
                 .fold(1., f32::max)
-                .ceil() as u32
-                + 4),
-            (ascent - descent) as u32 + 4,
+                .ceil() as u64)
+                .checked_add(4).ok_or("font atlas exceeds dimension or memory limits")?,
+            (ascent - descent) as u64 + 4,
         ];
+        let dimensions = atlas_dimensions(cell, glyphs.len())?;
+        // The complete extent above proves each cell fits the same u32 limits.
+        let cell = [cell[0] as u32, cell[1] as u32];
         let cell_capacity = u64::from(cell[0]).checked_mul(u64::from(cell[1]))
             .and_then(|n| n.checked_mul(255)).ok_or("font coverage capacity overflow")?;
         let mut ordered: Vec<_> = glyphs
@@ -342,7 +342,7 @@ impl FontStore {
             a.1.total_cmp(&b.1)
                 .then(a.0.metrics.character.cmp(&b.0.metrics.character))
         });
-        let mut raster = blank(cell[0] * ordered.len() as u32, cell[1])?;
+        let mut raster = blank(dimensions[0], dimensions[1])?;
         let mut characters = String::new();
         let mut coverage = Vec::new();
         for (i, (glyph, density)) in ordered.iter().enumerate() {
@@ -427,7 +427,7 @@ fn parse(data: &[u8], index: u32) -> Result<Font> {
             ..Default::default()
         },
     )
-    .map_err(|e| format!("invalid TTF/OTF font: {e}"))
+    .map_err(|e| crate::Error::Font(e.to_string()))
 }
 pub fn raster_key(raster: &Raster) -> String {
     let mut hash = Sha256::new();
@@ -437,14 +437,14 @@ pub fn raster_key(raster: &Raster) -> String {
     format!("{:x}", hash.finalize())
 }
 pub fn save_raster(root: &Path, relative: &str, raster: &Raster) -> Result<()> {
-    motion_model::storage::validate_relative_path(relative).map_err(|e| e.to_string())?;
+    motion_model::storage::validate_relative_path(relative).map_err(crate::Error::from)?;
     let path = root.join(relative);
     crate::contained_dir(root, path.parent().unwrap())?;
     if path.exists()
         && !path
             .canonicalize()
-            .map_err(|e| e.to_string())?
-            .starts_with(root.canonicalize().map_err(|e| e.to_string())?)
+            .map_err(crate::Error::from)?
+            .starts_with(root.canonicalize().map_err(crate::Error::from)?)
     {
         return Err("font raster path escapes project".into());
     }
@@ -455,8 +455,40 @@ pub fn save_raster(root: &Path, relative: &str, raster: &Raster) -> Result<()> {
         raster.height,
         image::ColorType::Rgba8,
     )
-    .map_err(|e| e.to_string())
+    .map_err(crate::Error::from)
 }
+fn atlas_dimensions(cell: [u64; 2], count: usize) -> Result<[u32; 2]> {
+    let invalid = || crate::Error::from("font atlas exceeds dimension or memory limits");
+    let count = u64::try_from(count).map_err(|_| invalid())?;
+    let width = cell[0].checked_mul(count).ok_or_else(invalid)?;
+    let pixels = width.checked_mul(cell[1]).ok_or_else(invalid)?;
+    if count == 0 || width == 0 || cell[1] == 0
+        || width > 8192 || cell[1] > 8192 || pixels > 16 * 1024 * 1024
+    {
+        return Err(invalid());
+    }
+    Ok([width as u32, cell[1] as u32])
+}
+
+#[cfg(test)]
+mod atlas_boundary_tests {
+    use super::atlas_dimensions;
+
+    #[test]
+    fn checked_extent_rejects_overflow_and_preserves_exact_limits() {
+        assert_eq!(atlas_dimensions([32, 64], 256).unwrap(), [8192, 64]);
+        assert_eq!(atlas_dimensions([8192, 2048], 1).unwrap(), [8192, 2048]);
+        for (cell, count) in [
+            ([u64::MAX, 1], 2), ([1, u64::MAX], 2),
+            ([8193, 1], 1), ([1, 8193], 1), ([8192, 2049], 1),
+            ([0, 1], 1), ([1, 0], 1), ([1, 1], 0),
+        ] {
+            assert_eq!(atlas_dimensions(cell, count).unwrap_err().to_string(),
+                "font atlas exceeds dimension or memory limits");
+        }
+    }
+}
+
 fn blank(width: u32, height: u32) -> Result<Raster> {
     if width == 0
         || height == 0
