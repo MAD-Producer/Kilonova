@@ -1,4 +1,4 @@
-//! Nonblocking shell task around the frozen native movie exporter.
+//! Background movie export: start/poll/cancel are nonblocking; teardown joins.
 use motion_desktop_media::movie::{ExportControl, FrozenMovie, MovieResult};
 use serde::Serialize;
 use std::{
@@ -17,6 +17,10 @@ pub struct ExportStatus {
 pub struct MovieExport {
     control: ExportControl,
     status: Arc<Mutex<ExportStatus>>,
+    worker: Option<std::thread::JoinHandle<()>>,
+    revision: u64,
+    output: PathBuf,
+    began: std::time::Instant,
 }
 impl MovieExport {
     pub fn start(snapshot: FrozenMovie, output: PathBuf) -> Result<Self, String> {
@@ -41,51 +45,96 @@ impl MovieExport {
         let cancel = control.clone();
         let revision = snapshot.revision;
         let began = std::time::Instant::now();
-        log::info!("movie export start: revision={revision} path={}", output.display());
+        let owned_output = output.clone();
+        log::info!(
+            "movie export start: revision={revision} path={}",
+            output.display()
+        );
         crate::logging::flush();
-        std::thread::Builder::new()
+        let worker = std::thread::Builder::new()
             .name("motion-movie-export".into())
             .spawn(move || {
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     snapshot.export(&output, &cancel, |progress| {
-                        static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
-                        crate::fallback_observation::recovered(&update, &FAILURES, "movie.status.progress", |value| value.progress = progress);
+                        static FAILURES: crate::fallback_observation::Counter =
+                            crate::fallback_observation::Counter::new();
+                        crate::fallback_observation::recovered(
+                            &update,
+                            &FAILURES,
+                            "movie.status.progress",
+                            |value| value.progress = progress,
+                        );
                     })
                 }))
-                .unwrap_or_else(|payload| Err(format!("movie export worker failed: {}",motion_media::panic_reason(payload))));
-                match &result {
-                    Ok(result) => log::info!("movie export saved: revision={revision} path={} bytes={} {}ms", result.path.display(), result.bytes, began.elapsed().as_millis()),
-                    Err(error) if error == "movie export cancelled" => log::info!("movie export cancelled: revision={revision} path={} {}ms", output.display(), began.elapsed().as_millis()),
-                    Err(error) => log::error!("movie export failed: revision={revision} path={} {}ms reason={error}", output.display(), began.elapsed().as_millis()),
-                }
-                static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
-                crate::fallback_observation::recovered(&update, &FAILURES, "movie.status.finish", |state| {
-                match result {
-                    Ok(result) => {
-                        state.state = "succeeded";
-                        state.progress = 1.0;
-                        state.result = Some(result);
-                    }
-                    Err(error) => {
-                        state.state = if error == "movie export cancelled" {
-                            "cancelled"
-                        } else {
-                            "failed"
-                        };
-                        state.error = Some(error);
-                    }
-                }
+                .unwrap_or_else(|payload| {
+                    Err(format!(
+                        "movie export worker failed: {}",
+                        motion_media::panic_reason(payload)
+                    ))
                 });
+                match &result {
+                    Ok(result) => log::info!(
+                        "movie export saved: revision={revision} path={} bytes={} {}ms",
+                        result.path.display(),
+                        result.bytes,
+                        began.elapsed().as_millis()
+                    ),
+                    Err(error) if error == "movie export cancelled" => log::info!(
+                        "movie export cancelled: revision={revision} path={} {}ms",
+                        output.display(),
+                        began.elapsed().as_millis()
+                    ),
+                    Err(error) => log::error!(
+                        "movie export failed: revision={revision} path={} {}ms reason={error}",
+                        output.display(),
+                        began.elapsed().as_millis()
+                    ),
+                }
+                static FAILURES: crate::fallback_observation::Counter =
+                    crate::fallback_observation::Counter::new();
+                crate::fallback_observation::recovered(
+                    &update,
+                    &FAILURES,
+                    "movie.status.finish",
+                    |state| match result {
+                        Ok(result) => {
+                            state.state = "succeeded";
+                            state.progress = 1.0;
+                            state.result = Some(result);
+                        }
+                        Err(error) => {
+                            state.state = if error == "movie export cancelled" {
+                                "cancelled"
+                            } else {
+                                "failed"
+                            };
+                            state.error = Some(error);
+                        }
+                    },
+                );
             })
             .map_err(|error| {
                 log::error!("movie export spawn failed: revision={revision} reason={error}");
                 error.to_string()
             })?;
-        Ok(Self { control, status })
+        Ok(Self {
+            control,
+            status,
+            worker: Some(worker),
+            revision,
+            output: owned_output,
+            began,
+        })
     }
     pub fn status(&self) -> ExportStatus {
-        static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
-        crate::fallback_observation::recovered(&self.status, &FAILURES, "movie.status.read", |value| value.clone())
+        static FAILURES: crate::fallback_observation::Counter =
+            crate::fallback_observation::Counter::new();
+        crate::fallback_observation::recovered(
+            &self.status,
+            &FAILURES,
+            "movie.status.read",
+            |value| value.clone(),
+        )
     }
     pub fn cancel(&self) -> bool {
         self.control.cancel()
@@ -97,5 +146,47 @@ impl MovieExport {
 impl Drop for MovieExport {
     fn drop(&mut self) {
         self.control.cancel();
+        if let Some(worker) = self.worker.take() {
+            if !worker.is_finished() {
+                log::info!(
+                    "movie export shutdown start: revision={} path={} phase=join elapsed_ms={}",
+                    self.revision,
+                    crate::fallback_observation::short(self.output.display()),
+                    self.began.elapsed().as_millis()
+                );
+                crate::logging::flush();
+            }
+            let joined = std::time::Instant::now();
+            if let Err(payload) = worker.join() {
+                let reason = format!(
+                    "movie export worker closure failed: {}",
+                    motion_media::panic_reason(payload)
+                );
+                log::error!("movie export shutdown failed: revision={} path={} phase=join elapsed_ms={} cause={reason}",
+                    self.revision, crate::fallback_observation::short(self.output.display()), self.began.elapsed().as_millis());
+                static FAILURES: crate::fallback_observation::Counter =
+                    crate::fallback_observation::Counter::new();
+                crate::fallback_observation::recovered(
+                    &self.status,
+                    &FAILURES,
+                    "movie.status.join",
+                    |state| {
+                        if state.error.is_none() {
+                            state.state = "failed";
+                            state.error = Some(reason);
+                        }
+                    },
+                );
+            }
+            log::debug!(
+                "movie export shutdown done: revision={} phase=join elapsed_ms={} join_ms={}",
+                self.revision,
+                self.began.elapsed().as_millis(),
+                joined.elapsed().as_millis()
+            );
+        }
     }
 }
+
+#[cfg(test)]
+mod tests;
