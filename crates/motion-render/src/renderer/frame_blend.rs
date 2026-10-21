@@ -282,7 +282,7 @@ impl Renderer {
         }) {
             return Ok(());
         }
-        let texture = self.device.create_owned_texture(&wgpu::TextureDescriptor {
+        let texture = self.device.create_admitted_texture(&wgpu::TextureDescriptor {
             label: Some("video frame blend image"),
             size: wgpu::Extent3d {
                 width: size.0,
@@ -297,7 +297,7 @@ impl Renderer {
             usage: wgpu::TextureUsages::TEXTURE_BINDING
                 | wgpu::TextureUsages::RENDER_ATTACHMENT
                 | wgpu::TextureUsages::COPY_DST,
-        });
+        }, &self.allocation_budget)?;
         let view = texture.create_view(&wgpu::TextureViewDescriptor {
             format: Some(TARGET_FORMAT),
             ..Default::default()

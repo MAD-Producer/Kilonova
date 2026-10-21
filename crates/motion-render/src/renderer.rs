@@ -32,6 +32,8 @@ const DRAW_SIZE: u64 = std::mem::size_of::<DrawUniform>() as u64;
 mod plane_sampling_tests;
 #[cfg(test)]
 mod image_trim_tests;
+#[cfg(test)]
+mod admission_tests;
 const TARGET_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 static PREFETCH_FAILURES: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
 static IMAGE_PENDING: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
@@ -108,12 +110,13 @@ struct GeometryVertex {
     uv: [f32; 2],
 }
 pub(crate) struct GpuImage {
-    pub(crate) _texture: OwnedTexture,
     pub(crate) view: wgpu::TextureView,
     pub(crate) bind_group: wgpu::BindGroup,
     pub(crate) bytes: u64,
     pub(crate) size: (u32, u32),
     pub(crate) video_stamp: Option<(u64, u64)>,
+    // Release views/bindings before their allocation reservation.
+    pub(crate) _texture: OwnedTexture,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum TextureKey {
@@ -221,6 +224,8 @@ pub struct Renderer {
     pub image_prefetches: u64,
     pub effect_diagnostics: Vec<String>,
     composition_images: std::collections::HashSet<u64>,
+    // Drop last: finish unsubmitted destination lifetimes after cache handles.
+    allocation_uploads: crate::allocation_uploads::AllocationUploads,
 }
 
 impl Renderer {
@@ -420,6 +425,7 @@ impl Renderer {
         let layer_gpu =
             crate::layer_gpu::LayerGpu::new(&device, &uniform_layout, &image_layout, format);
         let mask_gpu=crate::mask_gpu::MaskGpu::new(&device,&image_layout)?;
+        let allocation_uploads = crate::allocation_uploads::AllocationUploads::new(queue.clone());
         let mut renderer = Self {
             allocation_budget,
             allocation_owner: Arc::new(()),
@@ -478,6 +484,7 @@ impl Renderer {
             effect_diagnostics: Vec::new(),
             compositing_gpu: None,
             compositing_pipeline_set_builds: 0,
+            allocation_uploads,
         };
         renderer.effect_gpu.builder.device_dimension =
             renderer.device.limits().max_texture_dimension_2d.min(8192);
@@ -572,13 +579,19 @@ impl Renderer {
         self.submission_ledger.set_enabled(enabled);
     }
     /// Optional metadata instrumentation. Disabled submissions execute no ledger closure.
-    /// Raw queue.submit calls, uploads and caller GPU resources are outside this scope.
+    /// Raw queue.submit calls, uploads and caller GPU resources are outside the
+    /// optional diagnostic snapshot. Enrolled queued-upload destinations retire
+    /// after this submission independently of diagnostic snapshots.
     pub fn submit_tracked(&self, buffer: wgpu::CommandBuffer,
         extra_resources: impl FnOnce(&mut crate::TextureResourceLedger)) -> wgpu::SubmissionIndex {
-        if !self.submission_ledger.enabled() { return self.queue.submit(Some(buffer)); }
-        let mut ledger = self.texture_resource_ledger();
-        extra_resources(&mut ledger);
-        self.submission_ledger.submit(&self.queue, buffer, ledger)
+        let index = if !self.submission_ledger.enabled() { self.queue.submit(Some(buffer)) }
+        else {
+            let mut ledger = self.texture_resource_ledger();
+            extra_resources(&mut ledger);
+            self.submission_ledger.submit(&self.queue, buffer, ledger)
+        };
+        self.allocation_uploads.submitted();
+        index
     }
     pub fn submission_memory_info(&self, current: &crate::TextureResourceLedger) -> crate::SubmissionMemoryInfo {
         self.submission_ledger.info(current)
@@ -815,6 +828,21 @@ impl Renderer {
                 self.texture_bytes - previous + bytes + planes + self.effect_gpu.state.resource_bytes,
                 self.effect_gpu.builder.source_texture_budget, "video planes and images exceed configured source texture budget"));
         }
+        // Reserve the standalone encoding scope before replacing an existing
+        // RGBA image. A scope-cap refusal must preserve its pixels and stamp.
+        let mut standalone = if encoder.is_none() {
+            Some(self.allocation_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("video GPU conversion"),
+            }).map_err(|error| {
+                let message = format!("video object={object} source={source} pts_us={pts} phase=conversion_encode: {error}");
+                error.with_diagnostic(message)
+            })?)
+        } else { None };
+        let encoder = match encoder {
+            Some(encoder) => encoder,
+            None => standalone.as_mut().map(|encoder| &mut **encoder).ok_or_else(||
+                RenderError::Invalid("standalone video conversion encoder is missing".into()))?,
+        };
         if self.images.get(&key).is_none_or(|i| {
             i.size != (width, height)
                 || i._texture.format() != format
@@ -825,7 +853,7 @@ impl Renderer {
         }) {
             // Write encoded RGB bytes to an UNORM attachment, then sample the
             // sRGB view in the same compositing space as existing RGBA uploads.
-            let texture = self.device.create_owned_texture(&wgpu::TextureDescriptor {
+            let texture = self.device.create_admitted_texture(&wgpu::TextureDescriptor {
                 label: Some("GPU converted video"),
                 size: wgpu::Extent3d {
                     width,
@@ -840,7 +868,10 @@ impl Renderer {
                 usage: wgpu::TextureUsages::RENDER_ATTACHMENT
                     | wgpu::TextureUsages::TEXTURE_BINDING
                     | wgpu::TextureUsages::COPY_DST,
-            });
+            }, &self.allocation_budget).map_err(|error| {
+                let message = format!("video object={object} source={source} pts_us={pts} phase=yuv_allocate: {error}");
+                error.with_diagnostic(message)
+            })?;
             let view = texture.create_view(&wgpu::TextureViewDescriptor {
                 format: Some(TARGET_FORMAT),
                 ..Default::default()
@@ -882,14 +913,16 @@ impl Renderer {
         let converter = self
             .video_gpu
             .get_or_insert_with(|| crate::video_gpu::VideoGpu::new(&self.device, format));
-        let upload = if let Some(encoder) = encoder {
-            self.video_encoded_conversions += 1;
-            Some(converter.encode_convert_resized(&self.device, &self.queue,
-                object, frame, &target, (width, height), encoder))
-        } else {
-            converter.convert(&self.device, &self.queue, object, frame, &target);
+        let upload = converter.encode_convert_resized(&self.device, &self.queue,
+            object, frame, &target, (width, height), encoder);
+        let upload = if let Some(encoder) = standalone {
+            self.submit_allocated(encoder.finish(), |_| {})?;
+            upload.mark_submitted();
             self.video_conversion_submissions += 1;
             None
+        } else {
+            self.video_encoded_conversions += 1;
+            Some(upload)
         };
         self.images.get_mut(&key).unwrap().video_stamp = Some((source, pts));
         self.invalidate_video_blend(object);
@@ -981,6 +1014,10 @@ impl Renderer {
             rgba
         };
         if let Some(image) = self.images.get(&id).filter(|i| i.size == (width, height)) {
+            self.allocation_uploads.track(image._texture.allocation()).map_err(|error| {
+                let message = format!("image key={id:?} phase=upload_track: {error}");
+                error.with_diagnostic(message)
+            })?;
             self.queue.write_texture(
                 wgpu::TexelCopyTextureInfo {
                     texture: &image._texture,
@@ -1002,7 +1039,7 @@ impl Renderer {
             );
             return Ok(());
         }
-        let texture = self.device.create_owned_texture(&wgpu::TextureDescriptor {
+        let texture = self.device.create_admitted_texture(&wgpu::TextureDescriptor {
             label: Some("Motion Studio cached image"),
             size: wgpu::Extent3d {
                 width,
@@ -1015,7 +1052,14 @@ impl Renderer {
             format: TARGET_FORMAT,
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
             view_formats: &[],
-        });
+        }, &self.allocation_budget).map_err(|error| {
+            let message = format!("image key={id:?} size={width}x{height} phase=allocate: {error}");
+            error.with_diagnostic(message)
+        })?;
+        self.allocation_uploads.track(texture.allocation()).map_err(|error| {
+            let message = format!("image key={id:?} phase=upload_track: {error}");
+            error.with_diagnostic(message)
+        })?;
         self.queue.write_texture(
             wgpu::TexelCopyTextureInfo {
                 texture: &texture,
@@ -1724,8 +1768,8 @@ impl Renderer {
                     self.texture_bytes+self.video_plane_bytes()+self.effect_gpu.state.resource_bytes+bytes,
                     self.effect_gpu.builder.source_texture_budget, "effect image snapshots exceed source texture budget"));
             }
-            let texture=self.device.create_owned_texture(&wgpu::TextureDescriptor {label:Some("same-frame effect image input"),size:wgpu::Extent3d{width,height,depth_or_array_layers:1},
-                mip_level_count:1,sample_count:1,dimension:wgpu::TextureDimension::D2,format:TARGET_FORMAT,usage:wgpu::TextureUsages::TEXTURE_BINDING|wgpu::TextureUsages::COPY_DST|wgpu::TextureUsages::COPY_SRC,view_formats:&[]});
+            let texture=self.device.create_admitted_texture(&wgpu::TextureDescriptor {label:Some("same-frame effect image input"),size:wgpu::Extent3d{width,height,depth_or_array_layers:1},
+                mip_level_count:1,sample_count:1,dimension:wgpu::TextureDimension::D2,format:TARGET_FORMAT,usage:wgpu::TextureUsages::TEXTURE_BINDING|wgpu::TextureUsages::COPY_DST|wgpu::TextureUsages::COPY_SRC,view_formats:&[]}, &self.allocation_budget)?;
             let view=texture.create_view(&Default::default());
             let bind_group=self.device.create_bind_group(&wgpu::BindGroupDescriptor {label:None,layout:&self.image_layout,entries:&[
                 wgpu::BindGroupEntry{binding:0,resource:wgpu::BindingResource::TextureView(&view)},wgpu::BindGroupEntry{binding:1,resource:wgpu::BindingResource::Sampler(&self.sampler)}]});

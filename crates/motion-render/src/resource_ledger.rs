@@ -13,6 +13,12 @@ pub(crate) struct OwnedTexture {
     allocation: Option<crate::allocation_budget::AllocationLease>,
 }
 impl OwnedTexture {
+    pub(crate) fn allocation(&self) -> Option<crate::allocation_budget::AllocationLease> {
+        self.allocation.clone()
+    }
+    pub(crate) fn allocation_for_view(&self, view: &wgpu::TextureView) -> Option<crate::allocation_budget::AllocationLease> {
+        if &self.texture == view.texture() { self.allocation() } else { None }
+    }
     pub(crate) fn admitted_view(&self) -> Result<crate::AdmittedTextureView, crate::RenderError> {
         let lease = self.allocation.clone().ok_or_else(|| crate::RenderError::Invalid(
             "texture has no allocation reservation".into()))?;

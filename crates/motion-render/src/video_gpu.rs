@@ -163,16 +163,6 @@ impl VideoGpu {
             .and_then(|i| i.completion.as_ref())
             .is_none_or(|s| s.load(Ordering::Acquire) == 1)
     }
-    pub fn convert(
-        &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        object: u64,
-        frame: &Yuv420Frame,
-        target: &wgpu::TextureView,
-    ) {
-        self.convert_resized(device, queue, object, frame, target, frame.display_size());
-    }
     pub fn convert_resized(
         &mut self,
         device: &wgpu::Device,

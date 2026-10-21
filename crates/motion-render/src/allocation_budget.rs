@@ -47,6 +47,9 @@ struct Lease {
 
 #[derive(Clone)]
 pub(crate) struct AllocationLease(Arc<Lease>);
+impl AllocationLease {
+    pub(crate) fn id(&self) -> u64 { self.0.id }
+}
 
 impl Drop for Lease {
     fn drop(&mut self) {
@@ -225,7 +228,7 @@ fn check_capacity(required: u64, budget: u64) -> Result<(), RenderError> {
             ResourceBudgetScope::RenderAllocations,
             required,
             budget,
-            "admitted render allocations exceed configured combined budget",
+            format!("admitted render allocations exceed configured combined budget required_bytes={required} budget_bytes={budget}"),
         ));
     }
     Ok(())

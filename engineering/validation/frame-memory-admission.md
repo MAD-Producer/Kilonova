@@ -130,3 +130,53 @@ on E, with one own Cargo build at a time.
 This accepted increment does not close #61, #60 or #67. Next integrate the latest
 main, enroll the remaining resource and queued-write lifetimes, and connect the
 session-wide policy and pressure/recovery paths before claiming unified coverage.
+
+## Second implementation increment: source destinations and cached bindings
+
+This increment enrolls the startup white image (four bytes), static/RGBA uploads,
+converted video outputs, frame-blend cached outputs and same-frame effect-input
+snapshots in the same admission budget as render/capture targets. Existing source
+category limits remain separate. A replacement reserves its full destination
+before discarding the old image. Same-sized uploads reuse the existing destination.
+Allocation failures retain typed budget causes, required/allowed bytes and source
+or video object/source/timestamp/phase context.
+
+Queue writes require a separate lifetime boundary: `write_texture` stages work
+but does not submit it. A renderer journal deduplicates allocation identities,
+records the destination before the write and retains reservations across cache
+eviction. A subsequent renderer submission transfers them to an actual queue
+completion callback, independently of diagnostic snapshots. Device polling alone
+does not prove that unsubmitted writes have completed. Teardown submits remaining
+writes once without blocking and hands leases to completion; this is a teardown
+flush, not a retry, timeout or worker restart. It also covers callers retaining
+raw device/queue clones after dropping the renderer.
+
+Cached effect input/source and image-resource bind groups retain the matching
+source reservation until their actual binding is released. Renderer-owned
+standalone YUV conversion uses an admitted encoder; reserve its scope before
+replacing the previous RGBA destination so a scope-cap refusal preserves the
+old image and completed stamp. Upload-journal poison refuses new writes, preserves
+known reservations for cleanup and reports Error once per journal after unlocking.
+
+The seven earlier allocation-budget integration cases now explicitly include the
+four-byte startup image for each renderer. Their expected destination/readback
+capacity, shared-renderer live counts and post-retirement baseline change by that
+actual enrolled resource; pixel, scope-cap, lifetime and refusal assertions remain.
+This is accounting for a newly enforced resource, not a relaxed acceptance limit.
+
+New cases cover six actual GPU source/upload lifetimes, actual retained effect
+bindings, poisoned cleanup with suppression and a real combined-budget failure
+through the desktop reply/file/Error-stderr boundary at default Info. The latter
+also checks recovery and stdout isolation. Focused intermediate passes are retained
+separately; final source-bound acceptance will be appended after the committed
+source has completed the selected regressions.
+
+Remaining limits are explicit: YUV planes and uniforms, effect/mask/vector/plugin
+scratch and other buffers are not all enrolled. The queue journal covers admitted
+destinations, not backend upload staging. Detached `PreviewInputTexture` conversions
+and caller-owned/raw GPU entry points remain outside this guarantee. A raw queue
+submission does not retire journal metadata early; the journal conservatively
+retains it until a renderer submission or teardown. Shared session configuration,
+platform-pressure provenance, combined preview recovery, full-quality export policy
+and repeated project/seek/resize acceptance remain pending. #60, #61 and #67 remain
+open; #72 project settings and #87 integration remain parked behind them.
