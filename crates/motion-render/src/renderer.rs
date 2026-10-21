@@ -1953,20 +1953,16 @@ impl Renderer {
         );
         if has_compositing {
             let source_bytes=self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes;
-            let builds = &mut self.compositing_pipeline_set_builds;
-            let gpu = self.compositing_gpu.get_or_insert_with(|| {
-                let gpu = crate::compositing_gpu::CompositingGpu::new(
-                    &self.device, &self.queue, &self.uniform_layout, &self.image_layout, &self.sampler, self.target_format);
-                *builds += 1;
-                gpu
-            });
+            self.ensure_compositing_gpu(scene.frame, "initialize")?;
+            let gpu = self.compositing_gpu.as_mut().ok_or_else(||
+                RenderError::Invalid("compositing initialization did not publish resources".into()))?;
             let needed: Vec<_> = frame.compositing.iter().filter(|c| c.matte >= 0)
                 .map(|c| (frame.draws[c.matte as usize].layer, c.mode >= 3)).collect();
             gpu.prepare_mattes(&self.device, &self.image_layout, &self.sampler, composition_size, &needed,
                 source_bytes,self.effect_gpu.builder.source_texture_budget)?;
             let changed = gpu.prepare_source(&self.device, &self.image_layout, &self.sampler, has_transfer,self.effect_gpu.builder.source_texture_budget)?;
             gpu.prepare_blend_inputs(&self.device, &self.queue, &self.sampler, &self.layer_gpu.accumulators,
-                &scene.layers, changed || accumulators_changed);
+                &scene.layers, changed || accumulators_changed)?;
         } else if let Some(gpu) = &mut self.compositing_gpu { gpu.release(); }
         if masks_changed || vectors_changed || accumulators_changed {
             self.effect_gpu.state.invalidate();

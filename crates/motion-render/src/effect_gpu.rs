@@ -89,7 +89,7 @@ pub(crate) fn texture(
 ) -> FxTexture {
     bind_texture(device, layout, sampler, device.create_owned_texture(&texture_descriptor(w, h, format)))
 }
-fn admitted_texture(
+pub(crate) fn admitted_texture(
     device: &wgpu::Device,
     layout: &wgpu::BindGroupLayout,
     sampler: &wgpu::Sampler,

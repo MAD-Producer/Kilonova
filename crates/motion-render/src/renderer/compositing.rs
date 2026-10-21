@@ -44,6 +44,22 @@ fn coverage_order(frame: &crate::effect_plan::EffectFramePlan) -> Result<Vec<(us
 }
 
 impl Renderer {
+    pub(super) fn ensure_compositing_gpu(&mut self, frame: f64, phase: &str) -> Result<()> {
+        if self.compositing_gpu.is_none() {
+            let gpu = crate::compositing_gpu::CompositingGpu::new(
+                &self.device, &self.queue, &self.uniform_layout, &self.image_layout,
+                &self.sampler, self.target_format, &self.allocation_budget,
+                self.allocation_uploads.clone(),
+            ).map_err(|error| RenderError::Context {
+                message: format!("compositing frame={frame} phase={phase}: {error}"),
+                cause: Box::new(error),
+            })?;
+            self.compositing_gpu = Some(gpu);
+            self.compositing_pipeline_set_builds += 1;
+        }
+        Ok(())
+    }
+
     pub(super) fn encode_track_mattes(
         &self,
         encoder: &mut wgpu::CommandEncoder,
@@ -72,6 +88,7 @@ impl Renderer {
                 screen_uv: crate::plane_coordinates::screen_map(frame.uv_maps[index],
                     [0., 0., size[0] as f32, size[1] as f32], d.layer)?,
             };
+            self.allocation_uploads.track(Some(gpu.extract_buffer.allocation()))?;
             self.queue.write_buffer(
                 &gpu.extract_buffer,
                 (index * gpu.extract_stride) as u64,
