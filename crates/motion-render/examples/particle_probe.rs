@@ -1,4 +1,6 @@
 //! Reproducible six-second moving-emitter demonstration and per-second capture timing.
+#[path = "../../motion-effects/tests/support/scene_packages.rs"]
+mod scene_fixtures;
 use motion_core::{Ease, EffectInstance, Keyframe, Layer, Project};
 use motion_render::Scene;
 use motion_render::Renderer;
@@ -10,7 +12,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .unwrap_or("artifacts/particle-emitter".into()),
     );
     fs::create_dir_all(&out)?;
-    let package = motion_effects::builtin::particle_package()?;
+    let package = scene_fixtures::particle_package()?;
     let mut p = Project::new(960, 540, 30, 180)?;
     p.background = [0.008, 0.015, 0.03, 1.];
     let mut l = Layer::solid(1, "运动发射器", [960., 540.], [480., 270., 0.], [0.; 4]);
@@ -106,6 +108,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         serde_json::to_vec_pretty(&p)?,
     )?;
     let mut r = pollster::block_on(Renderer::headless())?;
+    r.set_effect_registry(scene_fixtures::registry()?);
     if sprite {
         let png = image::open(out.join("assets/sprite.png"))?.into_rgba8();
         r.upload_image(1, 64, 64, png.as_raw())?;

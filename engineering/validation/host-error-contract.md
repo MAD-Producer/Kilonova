@@ -34,6 +34,12 @@ Session/ops 原先把已知错误立即转换为 String，调用方无法检查�
 
 首轮新增 IO source 断言曾失败：测试把派生的 Box<Error> source 当成裸 Error。检查 thiserror 的真实生成实现后，按声明容器检查内部 Io 并核对原始 OS 码；随后故障边界 10 项通过。不把该失败记录成通过，也未放宽既有断言。
 
+### 主线集成补验
+
+独立实现提交 `fc3e387d` 之后，正常合入 main `ec6763d4`，无冲突。继承主线效果退役的测试资源迁移与图层导航改动；未修改他人分支。对合并后的源码另行验证：全工作区 all-targets 锁定离线检查通过（53.52 秒），宿主效果恢复 7 项、真实故障边界 10 项、图层导航及原生菜单 8 项、退役效果原生故障输出 1 项、合成打包默认日志故障/恢复 1 项，共 27 项通过。没有把早先的完整回归当成此次集成后的完整回归。
+
+对应日志为 `host-error-main-integration-check.log`、`host-error-integration-effects-followup.log`、`host-error-integration-boundaries.log`、`host-error-integration-layer_navigation.log`、`host-error-integration-retired_effect_tests.log` 和 `host-error-integration-logging-composition_bundle_tests.log`。首次效果恢复筛选误用了文件名而非模块名，匹配 0 项，不计入通过数；改用实际模块路径后 7 项全部通过。
+
 原始日志保留在开发者工作区 `artifacts/pr-ci-followups/`，不作为仓库内可复现附件：`host-error-host-complete-tests.log`、`host-error-desktop-complete-tests.log`、`host-error-native-tests.log`、`host-error-boundary-followup.log`、`host-error-bounded-cause-negative.log`、`host-error-bounded-cause-positive.log`、`host-error-final-log-channels.log` 和 `host-error-final-workspace-check.log`。上面的命令和已提交测试可供复验。
 
 ## DESIGN 基线
