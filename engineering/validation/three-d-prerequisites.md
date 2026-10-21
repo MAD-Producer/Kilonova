@@ -1,6 +1,9 @@
 # 3D pipeline prerequisite review
 
 Review baseline: `159e9810207b61cfe2d59e98c23f16cf8ca36bde` (2026-10-20 UTC).
+The first increment was integrated with main
+`a14b4b518f507e7dc9a2758e14bea0d8bd46e076`; source-bound results and remaining
+limits are in [preview-target-budget-completed.md](preview-target-budget-completed.md).
 This record describes source coverage and staged work, not completion of
 [#87](https://github.com/MAD-Producer/Kilonova/issues/87).
 
