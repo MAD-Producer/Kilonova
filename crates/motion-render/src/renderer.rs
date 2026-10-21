@@ -540,6 +540,10 @@ impl Renderer {
     pub fn submission_memory_info(&self, current: &crate::TextureResourceLedger) -> crate::SubmissionMemoryInfo {
         self.submission_ledger.info(current)
     }
+    /// Explicit diagnostics only: clone bounded metadata, never GPU handles.
+    pub fn submission_memory_snapshot(&self, current: &crate::TextureResourceLedger) -> crate::SubmissionMemorySnapshot {
+        self.submission_ledger.snapshot(current)
+    }
     /// Snapshot of application-owned textures; it does not keep GPU handles alive.
     pub fn texture_resource_ledger(&self) -> crate::TextureResourceLedger {
         use crate::TextureCategory::*;
