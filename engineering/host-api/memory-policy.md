@@ -1,23 +1,64 @@
-# 会话纹理预算 API
+# Session texture budget API
 
-本接口配置应用允许使用的纹理容量，不查询或声明显卡实际可用显存。配置属于会话运行时状态，不写入工程、不增加撤销步。
+This API configures application-owned logical texture allowances. It does not
+query or declare available GPU memory. Policy is session runtime state: it is
+not saved in project data and does not create undo entries.
 
-Rust 入口为 `motion_host::ops::preview::configure_memory_policy(id, MemoryPolicy)`。已有 Android/桌面插件 JSON 通道也支持以下请求：
+The Rust entry point is
+`motion_host::ops::preview::configure_memory_policy(id, MemoryPolicy)`.
+The shared desktop/Android plugin JSON channel supports a read-only query:
 
 ```json
 {"op":"memory_policy"}
 ```
 
-查询返回 `policyVersion: 2` 与 `memoryPolicy`。更新时提供完整配置：
+Query and update responses contain `policyVersion: 3` and `memoryPolicy`.
+An update supplies the policy object:
 
 ```json
-{"op":"memory_policy","policy":{"sourceTextureBudgetBytes":268435456,"scratchBudgetBytes":100663296}}
+{"op":"memory_policy","policy":{"sourceTextureBudgetBytes":268435456,"scratchBudgetBytes":100663296,"previewTargetBudgetBytes":33554432}}
 ```
 
-`sourceTextureBudgetBytes` 范围为 4 字节至 2 GiB，默认 128 MiB；`scratchBudgetBytes` 范围为 64 至 384 MiB，默认 64 MiB。未知字段、缺失字段和越界值会拒绝整个更新。原 `configure_memory(totalMem, guarded)` 接口仍按原系统内存规则选择 scratch 预算，并保留显式配置的源纹理预算；系统内存数值不视为 GPU 显存容量。
+| Field | Accepted range | Default | Accounting scope |
+| --- | --- | --- | --- |
+| `sourceTextureBudgetBytes` | 4 bytes..2 GiB | 128 MiB | Existing source/working-set checks |
+| `scratchBudgetBytes` | 64..384 MiB | 64 MiB | Effect scratch |
+| `previewTargetBudgetBytes` | 8 bytes..128 MiB | 128 MiB | One retained front plus its candidate |
 
-同一源纹理上限用于图片、视频平面、插件资源、矢量及其光栅工作集、蒙版输出、图层快照、嵌套合成与合成中间纹理。scratch 继续使用独立上限。预算降低后，缓存也接受重新检查；超限返回带 `requiredBytes`、`budgetBytes` 和资源类别的既有类型化拒绝。预览可继续按已有有限降级策略重试并保留旧画面。
+Older requests may omit `previewTargetBudgetBytes`; it defaults to 128 MiB,
+preserving the previous maximum of two 16-megapixel RGBA8 targets. The source and
+scratch fields remain required. Unknown fields and out-of-range values reject
+the entire update atomically. The automatic `configure_memory(totalMem, guarded)`
+entry point keeps its original version-1 response and scratch selection rules,
+and preserves explicit source and preview-target allowances. System RAM is not
+reported as GPU memory capacity.
 
-新建预览/插件编辑器渲染器以及完整质量 PNG 输出继承会话配置。桌面视频导出计划冻结捕获时的完整配置，之后的预览设置修改不会影响该任务。导出不隐式缩小源图片或降低效果分辨率。
+The source allowance is shared by the existing image, video-plane, plugin,
+vector, mask, layer-snapshot, nested-composition and compositing checks; this is
+not one combined reservation allocator. Scratch retains its independent limit.
+Lowering a policy also rechecks cached resources. Refusals preserve the typed
+`requiredBytes`, `budgetBytes` and resource category.
 
-解码文件、包大小、设备纹理尺寸等独立安全限制继续有效。本阶段不包含 GPU 可用预算查询、所有资源的统一预留分配器或整帧峰值预算；预览目标、交换链、CPU 缓存、缓冲区、UI 与独立节点预览等仍按现有策略管理。
+Preview target admission includes the retained front when preparing or reusing a
+candidate, and checks before allocating or replacing it. Capacity uses the actual
+color format, including eight-byte RGBA16Float. The existing per-target
+16-megapixel safety limit and device dimensions remain independent constraints.
+An unrendered host placeholder starts at one pixel; the actual requested frame
+is prepared under the existing finite degradation/cooldown policy. Refused
+candidates do not overwrite the submitted front. The preview snapshot reports
+requested/actual quality, rejection reason and whether a previous frame is held.
+
+New preview and plugin-editor renderers inherit the policy. Full-quality PNG
+and frozen movie export capture the session policy independently of later live
+changes. The preview target allowance does not downscale formal output or limit
+its capture targets. Source and scratch limits still apply to export and report
+an explicit error rather than silently changing resolution or effect settings.
+Accounting for float targets does not enable an end-to-end float composition or
+readback pipeline.
+
+File decode, package and device safety limits remain in force. This API does not
+yet query platform pressure or cap the combined frame peak. The target allowance
+covers one application's front/candidate pair, not swapchain images, exposure
+resources, other renderers, buffers, CPU caches or decoder allocations. Dropping
+an application handle does not prove immediate GPU retirement. The packed
+render-plan version and Android GLES consumer ABI are unchanged.

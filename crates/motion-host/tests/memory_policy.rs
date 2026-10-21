@@ -68,10 +68,14 @@ fn shared_json_policy_is_atomic_runtime_state_and_inherited_by_editor_rendering(
     let policy = MemoryPolicy {
         source_texture_budget_bytes: 32,
         scratch_budget_bytes: 96 << 20,
+        preview_target_budget_bytes: 4 << 20,
     };
     let result = session
         .plugin_request(&serde_json::json!({"op":"memory_policy","policy":policy}).to_string())
         .unwrap();
+    assert_eq!(result["policyVersion"], 3);
+    let queried = session.plugin_request("{\"op\":\"memory_policy\"}").unwrap();
+    assert_eq!(queried, result);
     assert_eq!(
         result["memoryPolicy"],
         serde_json::to_value(policy).unwrap()
@@ -91,6 +95,8 @@ fn shared_json_policy_is_atomic_runtime_state_and_inherited_by_editor_rendering(
     );
     assert_eq!(session.view_revision, view);
     let info = session.preview_info();
+    assert_eq!(info["memoryPolicyVersion"], 3);
+    assert_eq!(info["memoryPolicy"]["previewTargetBudgetBytes"], 4 << 20);
     assert_eq!(info["sourceTextureBudgetBytes"], 32);
     assert_eq!(info["memoryPolicy"], result["memoryPolicy"]);
     assert_eq!(session.engine.revision(), revision);
