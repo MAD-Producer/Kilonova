@@ -42,6 +42,12 @@ Session/ops 原先把已知错误立即转换为 String，调用方无法检查�
 
 跨平台首轮 CI `39532775622` 的 Linux 编译发现 Unix 专有清理测试遗漏一处字符串比较适配。该断言补充显式 `to_string()`，继续检查相同的拒绝原因和外部目录原字节；没有删掉测试或放宽条件。Windows 本地不会编译该 `cfg(unix)` 分支，修复后的 Unix 编译与实际符号链接回归须由新提交的 Linux/macOS CI 验证，不以 Windows 通过代替。
 
+修复提交 `5f8b44f1` 的 run `39533175416` 已实际通过 Linux job `119003938215`，其原始日志明确包含 `substituted_symlink_cannot_redirect_cleanup ... ok`；原始文件为 `pr-388-unix-fixed-linux-job.log`。这是该提交的证据，不替代后续扩展提交的跨平台门禁。
+
+随后并入设备无关音频播放头测试（详见 audio-playhead-clock.md），并同步 main `e76d4a3e` 的预览预算与摄影机实现。唯一冲突位于 Session 的预览目标初始化：保留主线的一像素无效占位及预算策略，同时保留 Error::from 原生错误转换，未恢复旧的 64 像素占位。其他主线改动原样继承。
+
+该组合源码另行通过 all-targets 锁定离线检查（57.12 秒），宿主故障边界 10 项及内存策略 3 项、真实 GPU 预览预算 5 项、完整分辨率冻结 PNG 导出 1 项、音频 19 项，共 38 项通过；音频仍有 1 项既有物理设备忽略。日志为 `host-error-budget-main-check.log`、`host-error-budget-main-host.log`、`host-error-budget-main-render.log`、`host-error-budget-main-export.log`、`host-error-budget-main-audio.log`。完整 109/676 项没有在该组合后重跑，不将其当作此组合的完整结果。
+
 原始日志保留在开发者工作区 `artifacts/pr-ci-followups/`，不作为仓库内可复现附件：`host-error-host-complete-tests.log`、`host-error-desktop-complete-tests.log`、`host-error-native-tests.log`、`host-error-boundary-followup.log`、`host-error-bounded-cause-negative.log`、`host-error-bounded-cause-positive.log`、`host-error-final-log-channels.log` 和 `host-error-final-workspace-check.log`。上面的命令和已提交测试可供复验。
 
 ## DESIGN 基线
