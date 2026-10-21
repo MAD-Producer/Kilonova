@@ -20,6 +20,7 @@ Session/ops 原先把已知错误立即转换为 String，调用方无法检查�
 | HE-06 串行命令与 Present | 既有覆盖、行为保留 | 桌面完整回归包含开始信号、在途状态、默认日志与命令故障；未新增计数器、热路径 IO、Present 日志、超时或重启。没有据此宣称所有未返回操作均已审计。 |
 | HE-07 文本与协议边界 | 明确保留 | respond 仍向原信道发送 String，接收方退出的 best-effort 语义不变；ui_paint、部分视频/图像供应方与独立导出接口仍有原有文本边界，待分别迁移。 |
 | HE-08 聚合验收 | 待办 | #138 其他层的类型迁移、#135 其余故障注入，以及跨平台 CI 仍分别验收；本地 Windows 通过不代表所有平台已通过。 |
+| HE-09 命令与启动错误长度 | 修正既有观察的载荷边界 | 复用有界格式化器，将错误原因限制为 2048 字符并清理控制字符，启动失败记录中的路径独立受限；完整原生原因仍返回原信道。实际 edit 与工程加载失败验证文件、Error stderr、stdout 隔离、原工程字节、回滚及后续成功编辑。锁、初始快照和内存配置的每种启动失败未另行逐一注入，不能据此宣称全部故障已验收。 |
 
 ## 实测
 
@@ -57,6 +58,16 @@ Session/ops 原先把已知错误立即转换为 String，调用方无法检查�
 上述 32 项运行对应树 `a56b3ca03a6e4d554624712f74d7d9873cf65afd`。将自己的分支改为同步已合入父 PR 的 main `3dfa5e1e` 后，加入本段记录之前的整个树仍精确相同；不为无源码变化重复计数或把文档修改称为新的运行。证明文件为 `host-error-ledger-parent-tree-proof.json`。#388 的最终跨平台门禁仍以之后的当前提交为准。
 
 原始日志保留在开发者工作区 `artifacts/pr-ci-followups/`，不作为仓库内可复现附件：`host-error-host-complete-tests.log`、`host-error-desktop-complete-tests.log`、`host-error-native-tests.log`、`host-error-boundary-followup.log`、`host-error-bounded-cause-negative.log`、`host-error-bounded-cause-positive.log`、`host-error-final-log-channels.log` 和 `host-error-final-workspace-check.log`。上面的命令和已提交测试可供复验。
+
+### 命令与启动错误日志补验
+
+最终边界复核发现 `respond` 与启动失败记录仍直接格式化完整原因。新增真实 Engine 子进程用例，以未知编辑操作和包含未知字段的工程触发原生 JSON 错误；旧实现在命令原因长度断言实际得到 3900，而上限为 2048，因此负面对照失败。子进程在该断言之前已验证完整信道回复、失败前后工程与 revision 不变、下一次编辑成功，以及无效工程文件的原字节保留。
+
+修复只影响既有日志的格式化：在写入过程中限制原因长度，控制字符变为空格；启动外层重复记录也应用限制。返回错误、在途发布、启动返回、best-effort 信道和正常 Present 行为保持原协议；未新增重试、计数器或日志站点。新用例在默认 Info 下分别核对文件及 stderr 的长度，确认尾部测试标记未泄漏，stdout 没有错误日志。单独运行通过后，纳入完整日志模块再次通过，不重复计数。
+
+修复后的专项运行：`logging::` 18 项、`engine::failure::` 19 项、`fallback_observation::` 2 项，共 39 项通过，无失败或忽略；包含真实故障恢复、panic、超时、不重复执行、锁释放及日志通道回归。之后工作区 all-targets 锁定离线检查（排除 Android，FFmpeg 和 host diagnostics）通过，用时 2 分 09 秒。并未在此次局部修改后重跑全部工作区测试，跨平台结果仍须核对当前提交。
+
+日志为 `host-command-error-unbounded-negative.log`、`host-command-error-bounded-positive.log`、`host-command-bounded-logging.log`、`host-command-bounded-engine-failure.log`、`host-command-bounded-fallback_observation.log`、`host-command-bounded-workspace-check.log`。测试入口为 `logging::command_error_tests::long_command_and_startup_errors_are_bounded_without_truncating_replies`；其他错误站点和全部敏感载荷治理不在本项完成范围内。
 
 ## DESIGN 基线
 

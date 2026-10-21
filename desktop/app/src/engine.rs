@@ -593,7 +593,9 @@ impl Engine {
                 let mut guard = match ProjectGuard::acquire(&root) {
                     Ok(guard) => guard,
                     Err(e) => {
-                        log::error!("worker startup lock failed: root={} reason={e}", root.display());
+                        log::error!("worker startup lock failed: root={} reason={}",
+                            crate::fallback_observation::short(root.display()),
+                            crate::fallback_observation::error_cause(&e));
                         let _ = ready.send(Err(e));
                         return;
                     }
@@ -611,7 +613,8 @@ impl Engine {
                 let id = match project::create(root, &initial, platform.clone()) {
                     Ok(id) => id,
                     Err(error) => {
-                        log::error!("worker startup session failed: {error}");
+                        log::error!("worker startup session failed: {}",
+                            crate::fallback_observation::error_cause(&error));
                         let _ = ready.send(Err(error.to_string()));
                         return;
                     }
@@ -620,7 +623,8 @@ impl Engine {
                 guard.initial = match motion_host::session::with_session(id, |s| Ok(s.engine.snapshot())) {
                     Ok(snapshot) => Some(snapshot),
                     Err(error) => {
-                        log::error!("worker initial snapshot failed: {error}");
+                        log::error!("worker initial snapshot failed: {}",
+                            crate::fallback_observation::error_cause(&error));
                         let _ = ready.send(Err(error.to_string()));
                         return;
                     }
@@ -630,7 +634,8 @@ impl Engine {
                 log::info!("worker startup phase=memory session={id}");
                 crate::logging::flush();
                 if let Err(error) = preview::configure_memory(id, total_memory, false) {
-                    log::error!("worker startup memory failed: session={id} reason={error}");
+                    log::error!("worker startup memory failed: session={id} reason={}",
+                        crate::fallback_observation::error_cause(&error));
                     let _ = ready.send(Err(error.to_string()));
                     return;
                 }
@@ -762,7 +767,10 @@ impl Engine {
                         "engine thread stopped during startup".into(),
                     Ok(Ok(_)) => unreachable!(),
                 };
-                log::error!("worker startup failed: root={} {}ms reason={error}", startup_root.display(), startup_began.elapsed().as_millis());
+                log::error!("worker startup failed: root={} {}ms reason={}",
+                    crate::fallback_observation::short(startup_root.display()),
+                    startup_began.elapsed().as_millis(),
+                    crate::fallback_observation::error_cause(&error));
                 return Err(error);
             }
         };
@@ -1322,7 +1330,7 @@ fn respond<T>(reply: Sender<Result<T, String>>, value: motion_host::Result<T>) {
     if let Err(reason) = &value {
         if let Some(flight) = CURRENT_COMMAND.get() {
             log::error!("error #{} {} {}ms: {}", flight.request, flight.operation,
-                flight.started.elapsed().as_millis(), reason);
+                flight.started.elapsed().as_millis(), crate::fallback_observation::error_cause(reason));
         }
     }
     let _ = reply.send(value.map_err(String::from));

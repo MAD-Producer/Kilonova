@@ -9,6 +9,8 @@ mod package_publication_tests;
 mod frame_blend_tests;
 #[cfg(test)]
 mod composition_bundle_tests;
+#[cfg(test)]
+mod command_error_tests;
 
 use std::{
     backtrace::Backtrace,
