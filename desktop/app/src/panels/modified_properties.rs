@@ -662,7 +662,7 @@ mod tests {
 
     fn fixture() -> Engine {
         let mut project = Project::new(640, 480, 30, 120).unwrap();
-        project.version = 19; // Directly authored camera layers require format 19.
+        project.version = motion_model::CURRENT_PROJECT_VERSION;
         project.layers.push(Layer::solid(
             7,
             "Defaults",

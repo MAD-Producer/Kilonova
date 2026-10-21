@@ -41,7 +41,7 @@ fn solid(id: u64) -> Layer {
 }
 fn base() -> Project {
     let mut p = Project::new(128, 128, 30, 60).unwrap();
-    p.version = 21;
+    p.version = motion_model::CURRENT_PROJECT_VERSION;
     p.background = [0.; 4];
     p
 }

@@ -66,7 +66,7 @@ fn xs(b: &PlanBuilder) -> Vec<f32> {
 #[test]
 fn particle_birth_history_retains_camera_layer_ancestry_and_invalidates_on_camera_edits() {
     let mut p = project();
-    p.version = 19;
+    p.version = motion_model::CURRENT_PROJECT_VERSION;
     let mut camera = Layer::camera(2, "Camera rig", p.width, p.height);
     camera.visible = false;
     p.layers.push(camera);

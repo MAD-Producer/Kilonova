@@ -61,7 +61,7 @@ fn trim_and_dashes_change_pixels_without_mutating_paths_or_reusing_old_frames() 
     };
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
     let mut p = base();
-    p.version = 11;
+    p.version = motion_model::CURRENT_PROJECT_VERSION;
     let mut v = VectorContent::shape(ShapeKind::Line);
     v.stroke.as_mut().unwrap().cap = LineCap::Butt;
     v.stroke.as_mut().unwrap().width.value = 6.;

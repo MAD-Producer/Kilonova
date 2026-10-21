@@ -2,6 +2,75 @@
 use super::*;
 
 #[test]
+fn rejected_project_schema_preserves_files_state_and_default_error_channels() {
+    const CHILD: &str = "MOTION_PROJECT_SCHEMA_ERROR_CHILD";
+    const TEST: &str = "engine::failure::project_tests::rejected_project_schema_preserves_files_state_and_default_error_channels";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let root = PathBuf::from(root);
+        let _logger = crate::logging::init(root.join("logs")).unwrap();
+        let mut initial = motion_core::Project::new(64, 64, 30, 120).unwrap();
+        initial.layers.push(motion_core::Layer::solid(1, "Layer", [32.; 2], [32., 32., 0.], [1.; 4]));
+        let active = root.join("library/default");
+        motion_core::storage::save(&active, &initial).unwrap();
+        let original = std::fs::read(active.join("project.json")).unwrap();
+        let engine = Engine::start(active.clone(), motion_desktop_media::platform(), 8 << 30).unwrap();
+        let before = engine.state().unwrap();
+        for (name, directory, cause) in [("old-version", "project-101", "unsupported project format"), ("missing-version", "project-102", "missing field `version`"), ("missing-setting", "project-103", "missing field `three_d`")] {
+            let mut value = serde_json::to_value(&initial).unwrap();
+            match name {
+                "old-version" => value["version"] = serde_json::json!(motion_core::CURRENT_PROJECT_VERSION - 1),
+                "missing-version" => { value.as_object_mut().unwrap().remove("version"); }
+                "missing-setting" => { value["layers"][0].as_object_mut().unwrap().remove("three_d"); }
+                _ => unreachable!(),
+            }
+            let folder = root.join("library").join(directory);
+            std::fs::create_dir(&folder).unwrap();
+            let bytes = serde_json::to_vec(&value).unwrap();
+            std::fs::write(folder.join("project.json"), &bytes).unwrap();
+            let error = engine.open_project(directory.into()).unwrap_err();
+            assert!(error.contains(cause), "{error}");
+            if name == "old-version" {
+                assert!(error.contains(&format!("version={}", motion_core::CURRENT_PROJECT_VERSION - 1)));
+                assert!(error.contains(&format!("expected={}", motion_core::CURRENT_PROJECT_VERSION)));
+            }
+            let after = engine.state().unwrap();
+            for key in ["project", "revision", "history", "canUndo", "canRedo"] {
+                assert_eq!(after[key], before[key], "{name}: changed {key}");
+            }
+            assert!(!engine.failed());
+            assert_eq!(std::fs::read(folder.join("project.json")).unwrap(), bytes);
+            assert_eq!(std::fs::read(active.join("project.json")).unwrap(), original);
+            assert!(!folder.join("project.json.tmp").exists());
+        }
+        // Explicitly repair our fixture and make a new request; no automatic retry.
+        std::fs::write(root.join("library/project-103/project.json"), &original).unwrap();
+        engine.open_project("project-103".into()).unwrap();
+        assert_eq!(engine.state().unwrap()["project"], before["project"]);
+        drop(engine);
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", TEST, "--nocapture", "--test-threads=1"])
+        .env(CHILD, root.path()).env_remove("MOTION_LOG").output().unwrap();
+    assert!(output.status.success(), "{}\n{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+    let file = std::fs::read_to_string(root.path().join("logs/motion-studio.log")).unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(file.contains("logging initialized level=INFO"));
+    let errors: Vec<_> = file.lines().filter(|line| line.contains("ERROR") && line.contains(" open_project ")).collect();
+    assert_eq!(errors.len(), 3, "{file}");
+    for cause in ["unsupported project format", "missing field `version`", "missing field `three_d`"] {
+        let error = errors.iter().find(|line| line.contains(cause)).unwrap();
+        assert!(stderr.contains(cause), "{stderr}");
+        assert!(!stdout.contains(cause) && !stdout.contains("logging initialized"));
+        let request = error.split("error #").nth(1).unwrap().split_whitespace().next().unwrap();
+        assert!(error.contains("ms:"));
+        assert!(file.find(&format!("start #{request} open_project")).unwrap() < file.find(*error).unwrap());
+    }
+}
+
+#[test]
 fn recovered_plugin_settings_reach_default_file_and_stderr_without_polling_noise() {
     const CHILD: &str = "MOTION_PLUGIN_SETTINGS_LOG_CHILD";
     const SITE: &str = "site=host.registry.load";
@@ -220,7 +289,7 @@ fn rejected_project_switch_rolls_back_directory_and_preserves_error_channels() {
         // switching the active session. No mocked error or decoder is used.
         let package = motion_effects::builtin::package().unwrap();
         let mut candidate = initial.clone();
-        candidate.version = 17;
+        candidate.version = motion_model::CURRENT_PROJECT_VERSION;
         let mut layer = motion_core::Layer::solid(
             1,
             "private-project-title",

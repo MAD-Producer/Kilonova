@@ -16,7 +16,7 @@ fn reference(id: u64, composition: &str, position: [f32; 3], start: i32) -> Laye
 }
 fn fixture() -> Project {
     let mut p = Project::new(96, 32, 30, 60).unwrap();
-    p.version = 21;
+    p.version = motion_model::CURRENT_PROJECT_VERSION;
     p.background = [0., 0., 0., 1.];
     p.video_assets.push(VideoAsset {
         id: 1,

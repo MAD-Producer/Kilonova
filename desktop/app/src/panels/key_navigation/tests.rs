@@ -16,7 +16,7 @@ fn key<T>(frame: i32, value: T) -> Keyframe<T> {
 
 fn fixture() -> Engine {
     let mut project = Project::new(640, 480, 30, 120).unwrap();
-    project.version = 20;
+    project.version = motion_model::CURRENT_PROJECT_VERSION;
     let mut layer = Layer::solid(7, "Channel", [100.; 2], [10., 20., 30.], [1.; 4]);
     layer.three_d = true;
     layer.transform.anchor.keys = vec![key(-12, [0.2, 0.8]), key(18, [0.8, 0.2])];

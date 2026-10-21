@@ -17,7 +17,7 @@ fn missing_frozen_pcm_keeps_native_cause_and_reaches_default_log_sinks() {
         fs::create_dir_all(project_root.join("assets")).unwrap();
         fs::write(project_root.join("assets/source.wav"), b"registered source").unwrap();
         let mut project = Project::new(32, 32, 30, 30).unwrap();
-        project.version = 21;
+        project.version = motion_model::CURRENT_PROJECT_VERSION;
         project.audio_assets.push(AudioAsset {
             id: 7,
             path: "assets/source.wav".into(),

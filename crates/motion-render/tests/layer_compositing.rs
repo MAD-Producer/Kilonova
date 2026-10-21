@@ -11,7 +11,7 @@ fn render(renderer: &mut Renderer, project: &Project, frame: f64) -> Vec<u8> {
 }
 fn fixture(mode: MatteMode) -> Project {
     let mut p = Project::new(64, 64, 24, 120).unwrap();
-    p.version = 10;
+    p.version = motion_model::CURRENT_PROJECT_VERSION;
     p.background = [0.; 4];
     p.camera.created = false;
     p.layers = vec![
@@ -77,7 +77,7 @@ fn multiply_and_screen_use_straight_colors_then_source_over_alpha() {
     let mut p = Project::new(64, 64, 24, 120).unwrap();
     p.background = [0.; 4];
     p.camera.created = false;
-    p.version = 10;
+    p.version = motion_model::CURRENT_PROJECT_VERSION;
     p.layers = vec![
         Layer::solid(1, "Back", [64.; 2], [32., 32., 0.], [0.2, 0.2, 0.2, 1.]),
         Layer::solid(2, "Front", [64.; 2], [32., 32., 0.], [0.7, 0.7, 0.7, 0.5]),

@@ -510,7 +510,7 @@ fn grouped_selection_uses_authored_owners_and_world_translation_before_repeaters
     let mut h = Harness::new(false, true, Locale::En, 1.);
     let mut project = h.engine.project().clone();
     let mut vector = VectorGroup::wrap(new_vector(path(true)), [180., 120.]);
-    project.version = 20;
+    project.version = motion_model::CURRENT_PROJECT_VERSION;
     let VectorSource::Group { group } = &mut vector.source else {
         panic!()
     };

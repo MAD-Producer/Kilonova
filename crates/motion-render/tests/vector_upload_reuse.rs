@@ -43,7 +43,7 @@ fn group(color: [f32; 4]) -> VectorContent {
 }
 fn fixture() -> Project {
     let mut project = Project::new(96, 64, 30, 60).unwrap();
-    project.version = 21;
+    project.version = motion_model::CURRENT_PROJECT_VERSION;
     project.background = [0.; 4];
     for (id, x, color) in [
         (1, 16., [1., 0., 0., 1.]),

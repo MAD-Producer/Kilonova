@@ -3,7 +3,6 @@ use motion_core::{render_sampling::*, vector::*, *};
 fn fixture() -> Project {
     let mut p = Project::new(128, 128, 30, 60).unwrap();
     let vector = VectorContent::shape(ShapeKind::Ellipse);
-    p.version = p.version.max(vector.required_format());
     let mut layer = Layer::solid(1, "Vector", [24.; 2], [64., 64., 0.], [1.; 4]);
     layer.content = Content::Vector { vector };
     p.layers.push(layer);
@@ -17,15 +16,13 @@ fn continuous() -> LayerSampling {
 }
 
 #[test]
-fn legacy_defaults_remain_byte_equivalent_and_new_settings_roundtrip_with_undo() {
+fn current_settings_are_explicit_and_roundtrip_with_undo() {
     let original = fixture();
     let bytes = serde_json::to_vec(&original).unwrap();
     let migrated: Project = serde_json::from_slice::<Project>(&bytes)
-        .unwrap()
-        .migrate()
         .unwrap();
     assert_eq!(serde_json::to_vec(&migrated).unwrap(), bytes);
-    assert!(!serde_json::to_value(&migrated).unwrap()["layers"][0]
+    assert!(serde_json::to_value(&migrated).unwrap()["layers"][0]
         .as_object()
         .unwrap()
         .contains_key("sampling"));
@@ -36,7 +33,7 @@ fn legacy_defaults_remain_byte_equivalent_and_new_settings_roundtrip_with_undo()
     };
     let parsed = parse_commands(&serde_json::to_string(&command).unwrap()).unwrap();
     e.apply_batch(parsed).unwrap();
-    assert_eq!(e.project().version, 21);
+    assert_eq!(e.project().version, motion_model::CURRENT_PROJECT_VERSION);
     assert_eq!(e.project().layers[0].sampling, continuous());
     let folder = tempfile::tempdir().unwrap();
     storage::save(folder.path(), e.project()).unwrap();
@@ -57,7 +54,7 @@ fn legacy_defaults_remain_byte_equivalent_and_new_settings_roundtrip_with_undo()
 }
 
 #[test]
-fn add_upgrades_format_and_invalid_locked_or_nonvisual_targets_are_atomic() {
+fn add_retains_current_format_and_invalid_locked_or_nonvisual_targets_are_atomic() {
     let mut e = Engine::new(fixture()).unwrap();
     let before = e.project().clone();
     for sampling in [
@@ -92,7 +89,7 @@ fn add_upgrades_format_and_invalid_locked_or_nonvisual_targets_are_atomic() {
     layer.id = 2;
     layer.sampling = continuous();
     e.apply(Command::Add { layer }).unwrap();
-    assert_eq!(e.project().version, 21);
+    assert_eq!(e.project().version, motion_model::CURRENT_PROJECT_VERSION);
     e.undo().unwrap();
     assert_eq!(e.project(), &before);
     let mut p = before.clone();
@@ -123,5 +120,7 @@ fn add_upgrades_format_and_invalid_locked_or_nonvisual_targets_are_atomic() {
     }
     let mut downgraded = before;
     downgraded.layers[0].sampling = continuous();
-    assert!(downgraded.validate().is_err());
+    downgraded.validate().unwrap();
+    downgraded.version = 20;
+    assert!(downgraded.validate().unwrap_err().to_string().contains("unsupported project format"));
 }

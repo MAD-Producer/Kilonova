@@ -143,7 +143,7 @@ fn modifiers_animate_in_clip_time_save_restore_and_undo_atomically() {
         ),
     ])
     .unwrap();
-    assert_eq!(e.project().version, 11);
+    assert_eq!(e.project().version, motion_model::CURRENT_PROJECT_VERSION);
     e.undo().unwrap();
     assert_eq!(e.snapshot(), old);
     e.redo().unwrap();

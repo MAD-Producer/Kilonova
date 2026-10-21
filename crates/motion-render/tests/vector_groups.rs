@@ -5,7 +5,7 @@ fn group()->VectorGroup {
     let VectorSource::Group{group}=v.source else{unreachable!()};*group
 }
 fn project(g:VectorGroup)->Project {
-    let mut p=Project::new(64,64,30,60).unwrap();p.version=12;p.background=[0.;4];p.camera.created=false;
+    let mut p=Project::new(64,64,30,60).unwrap();p.version = motion_model::CURRENT_PROJECT_VERSION;p.background=[0.;4];p.camera.created=false;
     let mut l=Layer::solid(1,"Group",[20.;2],[32.,32.,0.],[1.;4]);
     l.content=Content::Vector{vector:VectorContent{source:VectorSource::Group{group:Box::new(g)},fill:None,stroke:None,trim:None,fill_rule:FillRule::NonZero}};
     p.layers.push(l);p

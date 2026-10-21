@@ -252,7 +252,7 @@ fn reanalysis_keeps_manual_and_corrected_markers_with_atomic_undo_and_save() {
         },
     );
     assert_eq!(engine.project().layers[0].audio_markers.len(), 3);
-    assert_eq!(engine.project().version, 18);
+    assert_eq!(engine.project().version, motion_model::CURRENT_PROJECT_VERSION);
     let first = engine.project().layers[0]
         .audio_markers
         .iter()

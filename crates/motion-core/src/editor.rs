@@ -242,12 +242,10 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
         Command::AudioLevels {object,action}=>{
             let frames=project.frames;
             crate::audio_levels::edit(project.layer_mut(object)?,frames,action)?;
-            if project.layer_mut(object)?.audio_levels.is_some(){project.version=project.version.max(14);}
         }
         Command::AudioMarkers { object, action } => {
             let frames = project.frames;
             motion_model::audio_edit::edit(project.layer_mut(object)?, frames, action)?;
-            if !project.layer_mut(object)?.audio_markers.is_empty() { project.version = project.version.max(18); }
         }
         Command::ExtractAudio { object } => {
             let source = editable_clip(project, object)?.clone();
@@ -258,7 +256,6 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             let index = project.layers.iter().position(|l| l.id == object).ok_or(Error::Missing(object))?;
             if let Content::Video { video } = &mut project.layers[index].content { video.muted = true; }
             project.layers[index].audio_markers.clear();
-            if audio.subframe_range.is_some() { project.version = project.version.max(15); }
             project.layers.insert(index + 1, audio);
         }
         Command::SplitAudioChannels { object } => {
@@ -298,7 +295,6 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
                 project.layers.insert(index + 1, left);
                 project.layers.insert(index + 2, right);
             }
-            project.version = project.version.max(18);
         }
         Command::SetRotationOrder {object,order}=>{
             let layer=project.layer_mut(object)?;
@@ -318,7 +314,6 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             if layer.locked { return Err(Error::Locked(object)); }
             sampling.validate_content(&layer.content)?;
             layer.sampling = sampling;
-            if !sampling.is_default() { project.version = project.version.max(21); }
         }
         Command::SetExpression { expression, frame } => {
             crate::expressions::set(project, expression, frame)?
@@ -337,13 +332,6 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             project.expressions.retain(|e| e.target != target);
         }
         Command::Effect { object, action } => {
-            if matches!(&action, crate::EffectAction::SetNodeGraph { .. })
-                || matches!(&action, crate::EffectAction::Insert { instance }
-                    | crate::EffectAction::Replace { instance } if instance.node_graph.is_some())
-            {
-                project.version = project.version.max(17);
-            }
-            if matches!(&action, crate::EffectAction::Spatial { .. }) { project.version = project.version.max(9); }
             let copy = if let crate::EffectAction::Duplicate { effect } = &action {
                 Some(*effect)
             } else {
@@ -351,13 +339,6 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             };
             let frames = project.frames;
             crate::effects::apply(project.layer_mut(object)?, action, frames)?;
-            if project
-                .layers
-                .iter()
-                .any(|l| l.effects.iter().any(|e| e.scene.is_some()))
-            {
-                project.version = project.version.max(4);
-            }
             if let Some(from) = copy {
                 let to = project.layer_mut(object)?.effects.last().unwrap().id;
                 let copies: Vec<_> = project
@@ -517,7 +498,6 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             valid_frame(frame)?;
             ensure(matches!(property, Property::Position | Property::Target), "spatial path requires a position property")?;
             let frame = project.edit_frame(object, frame)?;
-            project.version = project.version.max(9);
             match channel(project, object, property)? {
                 Channel::Vector(t) => t.set_spatial(frame, tangents)?,
                 _ => return Err(Error::Invalid("spatial path requires a vector property".into())),
@@ -678,18 +658,15 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
         }
         Command::Mask { object, action } => {
             for frame in action.frames() { valid_frame(frame)?; }
-            project.version = project.version.max(8);
             let layer = project.layer_mut(object)?;
             if layer.locked { return Err(Error::Locked(object)); }
             crate::masks::edit(&mut layer.masks, action, layer.timeline.map_or(0, |t| t.offset_frame))?;
         }
         Command::SetLayerBlend {object,mode,space}=> {
-            project.version=project.version.max(10);
             let l=project.layer_mut(object)?;if l.locked{return Err(Error::Locked(object));}
             if let Some(mode)=mode {l.blend.mode=mode;}if let Some(space)=space {l.blend.space=space;}
         }
         Command::SetTrackMatte {object,matte}=> {
-            project.version=project.version.max(10);
             let l=project.layer_mut(object)?;if l.locked{return Err(Error::Locked(object));}l.track_matte=matte;
         }
         Command::RegisterAsset { asset } => project.assets.push(asset),
@@ -718,7 +695,6 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             let mut layer = Layer::camera(object, &format!("Camera {object}"), project.width, project.height);
             layer.timeline = Some(crate::LayerTimeline::full(project.frames));
             project.layers.push(layer);
-            project.version = project.version.max(19);
             result = Some(EditResult::CreateCamera { object });
         }
         Command::Remove { object, frame } => {
@@ -959,17 +935,6 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             layer.transform.anchor.set_at(local,anchor)?;
         }
     }
-    if !motion_model::lens::default_gate(&project.camera.film_width_mm) { project.version = project.version.max(22); }
-    for layer in &project.layers {
-        if layer.camera_data().is_some_and(|camera| !motion_model::lens::default_gate(&camera.film_width_mm)) { project.version = project.version.max(22); }
-        if !layer.sampling.is_default() { project.version=project.version.max(21); }
-        if layer.transform.anchor.is_animated() { project.version=project.version.max(20); }
-        if let Content::Vector { vector } = &layer.content { project.version = project.version.max(vector.required_format()); }
-        if layer.clip(project.frames).extends_composition(project.frames) { project.version = project.version.max(13); }
-        if layer.audio_levels.is_some() {project.version=project.version.max(14);}
-        if layer.subframe_range.is_some() {project.version=project.version.max(15);}
-        if layer.rotation_order!=crate::RotationOrder::LocalXyz {project.version=project.version.max(16);}
-    }
     project.rebuild_plugin_dependencies();
     project.validate()?;
     Ok(result)
@@ -1005,7 +970,7 @@ impl Engine {
     }
     pub fn gesture_active(&self) -> bool { self.gesture.is_some() }
     pub fn new(project: Project) -> Result<Self> {
-        let project = project.migrate()?;
+        project.validate()?;
         let size = crate::history_accounting::ProjectSize::new(&project);
         Ok(Self {
             project,

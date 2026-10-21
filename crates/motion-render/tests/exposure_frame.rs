@@ -27,7 +27,7 @@ impl FrameEvaluator for Recorded {
 }
 fn project(adjustment: bool) -> Project {
     let mut p = Project::new(32, 32, 30, 60).unwrap();
-    p.version = 21;
+    p.version = motion_model::CURRENT_PROJECT_VERSION;
     p.background = [0.; 4];
     for (id, color, y) in [(1, [1., 0., 0., 1.], 8.), (2, [0., 1., 0., 1.], 24.)] {
         let mut l = Layer::solid(id, "persistent receiver", [4.; 2], [16., y, 0.], color);

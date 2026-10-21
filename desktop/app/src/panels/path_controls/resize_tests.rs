@@ -49,7 +49,7 @@ fn layer(vector: VectorContent) -> Layer {
 }
 fn engine(layer: Layer) -> motion_core::Engine {
     let mut project = motion_core::Project::new(640, 480, 30, 120).unwrap();
-    project.version = 20;
+    project.version = motion_model::CURRENT_PROJECT_VERSION;
     project.layers.push(layer);
     motion_core::Engine::new(project).unwrap()
 }

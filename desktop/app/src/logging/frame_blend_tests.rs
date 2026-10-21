@@ -126,7 +126,7 @@ fn fixture(root: &Path) -> Project {
     fs::create_dir_all(path.parent().unwrap()).unwrap();
     motion_media::save_index(&path, &asset, &[0, 33333]).unwrap();
     let mut p = Project::new(32, 32, 30, 2).unwrap();
-    p.version = 21;
+    p.version = motion_model::CURRENT_PROJECT_VERSION;
     p.video_assets.push(asset);
     let mut layer = Layer::solid(7, "Controlled", [2.; 2], [16., 16., 0.], [1.; 4]);
     layer.content = Content::Video {

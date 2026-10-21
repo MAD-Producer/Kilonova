@@ -16,7 +16,7 @@ fn camera(id: u64, distance: f32) -> Layer {
 
 fn fixture() -> Project {
     let mut project = Project::new(96, 96, 30, 90).unwrap();
-    project.version = 19; // Authored camera layers use the established format gate.
+    project.version = motion_model::CURRENT_PROJECT_VERSION;
     project.background = [0.; 4];
     let mut root_top = camera(2, 200.);
     root_top.timeline = Some(LayerTimeline {

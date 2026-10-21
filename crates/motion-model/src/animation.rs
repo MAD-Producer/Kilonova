@@ -95,7 +95,6 @@ pub struct SpatialTangents<T> {
 pub struct Keyframe<T> {
     pub frame: i32,
     pub value: T,
-    #[serde(default)]
     pub ease: Ease,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub curve: Option<Curve>,
