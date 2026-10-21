@@ -118,7 +118,7 @@ fn unavailable_mtime_keeps_optional_fallback_and_logs_after_session_unlock() {
             assert!(capture.0.lock().unwrap().is_empty());
             Err("primary failure retained".into())
         });
-        assert_eq!(result.unwrap_err(), "primary failure retained");
+        assert_eq!(result.unwrap_err().to_string(), "primary failure retained");
         assert_eq!(capture.0.lock().unwrap().len(), 1);
         return;
     }

@@ -58,7 +58,7 @@ fn video_handoff_budget_failure_reaches_reply_file_and_stderr_at_default_level()
             operation: "present",
             started: Instant::now(),
         }));
-        respond(reply, Err(original.clone()));
+        respond(reply, Err(failure.into()));
         CURRENT_COMMAND.set(None);
         assert_eq!(
             receive
@@ -148,7 +148,7 @@ fn source_time_failures_reach_reply_file_and_stderr_at_default_level() {
                 operation: "present",
                 started: Instant::now(),
             }));
-            respond(reply, Err(original.clone()));
+            respond(reply, Err(error.into()));
             CURRENT_COMMAND.set(None);
             let received = receive
                 .recv_timeout(Duration::from_secs(5))

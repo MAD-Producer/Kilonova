@@ -51,7 +51,7 @@ impl Worker {
             })?;
         }
         let plan = motion_host::session::with_session(id, |session| {
-            FrameFreezePlan::capture(session, output, &control)
+            FrameFreezePlan::capture(session, output, &control).map_err(motion_host::Error::from)
         })?;
         let flight = CURRENT_COMMAND.get();
         let observation = self.flight.clone();
@@ -126,7 +126,7 @@ pub(super) fn respond_frame(reply: Sender<Result<Value, String>>, result: Result
         }
         let _ = reply.send(Err("PNG export cancelled".into()));
     } else {
-        respond(reply, result);
+        respond(reply, result.map_err(motion_host::Error::from));
     }
 }
 impl Drop for Worker {

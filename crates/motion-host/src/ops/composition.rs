@@ -51,7 +51,7 @@ impl Session {
         self.engine
             .project()
             .composition_view(id)
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
         let route = if let Some(path) = path {
             if path.is_empty()
                 || path.last().map(String::as_str) != Some(id)
@@ -68,7 +68,7 @@ impl Session {
                     .engine
                     .project()
                     .composition(&pair[0])
-                    .map_err(|e| e.to_string())?;
+                    .map_err(crate::Error::from)?;
                 if !p.layers.iter().any(|l| {
                     matches!(&l.content, motion_core::Content::Composition { clip } if clip.composition == pair[1])
                 }) {
@@ -87,7 +87,7 @@ impl Session {
         self.composition_contexts.entry(old).or_default().frame = self.frame;
         self.engine
             .activate_composition(id)
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
         let context = self.composition_contexts.entry(id.into()).or_default();
         context.path = route;
         self.frame = context
@@ -108,7 +108,7 @@ impl Session {
         self.view_revision += 1;
         self.last_presented_frame = None;
         if let Err(error) = self.sample() {
-            self.last_error = Some(error);
+            self.last_error = Some(error.to_string());
         }
         Ok(())
     }
@@ -125,7 +125,7 @@ impl Session {
         self.engine
             .project()
             .composition_view(id)
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
         let op = v["op"].as_str().ok_or("missing composition operation")?;
         match op {
             "list" => {
@@ -139,7 +139,7 @@ impl Session {
                     .engine
                     .project()
                     .composition_reference_candidates(id)
-                    .map_err(|e| e.to_string())?;
+                    .map_err(crate::Error::from)?;
                 return Ok(json!({"compositions":results}));
             }
             "delete_check" => {
@@ -148,9 +148,9 @@ impl Session {
             }
             "settings_preview" => {
                 let settings =
-                    serde_json::from_value(v["settings"].clone()).map_err(|e| e.to_string())?;
+                    serde_json::from_value(v["settings"].clone()).map_err(crate::Error::from)?;
                 let mut test =
-                    motion_core::Engine::new(self.engine.snapshot()).map_err(|e| e.to_string())?;
+                    motion_core::Engine::new(self.engine.snapshot()).map_err(crate::Error::from)?;
                 let command = motion_core::Command::InComposition {
                     composition: id.into(),
                     command: Box::new(motion_core::Command::Composition {
@@ -159,8 +159,11 @@ impl Session {
                 };
                 return match test.apply_batch(vec![command]) {
                     Ok(result) => Ok(json!({"valid":true,"expected_revision":self.engine.revision(),"results":result})),
-                    Err(e) => Ok(json!({"valid":false,"expected_revision":self.engine.revision(),"error":e.to_string(),
-                        "error_detail":e.to_string().strip_prefix("composition_error:").and_then(|s|serde_json::from_str::<Value>(s).ok())})),
+                    Err(e) => {
+                        let error = crate::Error::from(e);
+                        Ok(json!({"valid":false,"expected_revision":self.engine.revision(),"error":error.to_string(),
+                            "error_detail":error.composition_detail()}))
+                    },
                 };
             }
             "open" => {
@@ -168,7 +171,7 @@ impl Session {
                     .get("path")
                     .map(|p| serde_json::from_value(p.clone()))
                     .transpose()
-                    .map_err(|e| e.to_string())?;
+                    .map_err(crate::Error::from)?;
                 self.open_composition(id, path)?;
             }
             _ => {
@@ -185,16 +188,16 @@ impl Session {
                         return Ok(json!({"composition":id,"revision":self.engine.revision()}))
                     }
                     "position_path" => {
-                        let target = serde_json::from_value(v["target"].clone()).map_err(|e| e.to_string())?;
+                        let target = serde_json::from_value(v["target"].clone()).map_err(crate::Error::from)?;
                         self.sample()?;
                         let mut result = motion_render::position_path::sample(self.engine.project(), &self.scene, &target, self.frame)
-                            .map_err(|e|e.to_string())?;
+                            .map_err(crate::Error::from)?;
                         result["revision"] = json!(self.engine.revision());
                         return Ok(result);
                     }
                     "context" => {
                         let selection: Vec<u64> =
-                            serde_json::from_value(v["selection"].clone()).map_err(|e| e.to_string())?;
+                            serde_json::from_value(v["selection"].clone()).map_err(crate::Error::from)?;
                         if selection.iter().any(|id| {
                             !(*id == 0 && self.engine.project().camera.created)
                                 && !self.engine.project().layers.iter().any(|l| l.id == *id)
@@ -242,15 +245,15 @@ impl Session {
                             }
                             CompositionAction::Settings {
                                 settings: serde_json::from_value(v["settings"].clone())
-                                    .map_err(|e| e.to_string())?,
+                                    .map_err(crate::Error::from)?,
                             }
                         } else {
-                            serde_json::from_value(v["action"].clone()).map_err(|e| e.to_string())?
+                            serde_json::from_value(v["action"].clone()).map_err(crate::Error::from)?
                         };
                         let results = self
                             .engine
                             .apply_batch(vec![motion_core::Command::Composition { action }])
-                            .map_err(|e| e.to_string())?;
+                            .map_err(crate::Error::from)?;
                         if let Some(motion_core::EditResult::Composition { result }) = results.last()
                         {
                             if let Some(selection) = result["selection"].as_array() {
@@ -266,7 +269,7 @@ impl Session {
                         self.video_frames.clear();
                         self.view_revision += 1;
                         if let Err(error) = self.sample() {
-                            self.last_error = Some(error);
+                            self.last_error = Some(error.to_string());
                         }
                         let mut state = self.snapshot();
                         state["edit_results"] = json!(results);
@@ -284,6 +287,12 @@ impl Session {
         }
         Ok(self.snapshot())
     }
+}
+
+fn bounded_cause(error: &crate::Error) -> String {
+    // Display implementations may ignore precision; truncate the resulting text
+    // explicitly, on this failure path only, while returning the full cause.
+    error.to_string().chars().take(2048).collect()
 }
 
 /// Serialize the versioned composition bundle used by frozen export readers.
@@ -314,14 +323,17 @@ pub fn frame_bundle(
             p,
             &assets,
             out,
-        ).map_err(|error| error.to_string())?;
+        ).map_err(crate::Error::from)?;
         Ok(out.len())
     });
     // Host-owned sinks may reenter a session. with_session has released its
     // guards before these records, including every early error return above.
     match &result {
         Ok(bytes) => log::debug!("composition bundle done site=host.composition.bundle session={id} composition={composition:.128} frame={frame} bytes={bytes} elapsed_us={}", began.elapsed().as_micros()),
-        Err(error) => log::error!("composition bundle failed site=host.composition.bundle session={id} composition={composition:.128} frame={frame} phase=sample_or_pack elapsed_us={} cause={error:.2048}", began.elapsed().as_micros()),
+        Err(error) => {
+            let cause = bounded_cause(error);
+            log::error!("composition bundle failed site=host.composition.bundle session={id} composition={composition:.128} frame={frame} phase=sample_or_pack elapsed_us={} cause={cause}", began.elapsed().as_micros());
+        },
     }
     result
 }
@@ -338,7 +350,7 @@ pub fn render(id: i64, composition: &str, frame: f64) -> Result<bool> {
             s.render(frame)
         };
         if let Err(e) = &result {
-            s.last_error = Some(e.clone());
+            s.last_error = Some(e.to_string());
         }
         result
     })
@@ -348,11 +360,37 @@ pub fn request(id: i64, text: &str) -> Result<Value> {
     let value = parse_request(text, 256 * 1024, "composition request")?;
     crate::session::with_session(id, |s| {
         s.composition_request(value).map_err(|e| {
-            if e.starts_with("composition_error:") {
+            if e.composition_detail().is_some() {
                 e
             } else {
-                s.composition_error("invalid_request", &e, json!({}))
+                crate::Error::CompositionContext {
+                    detail: motion_core::composition::CompositionError {
+                        code: "invalid_request".into(),
+                        composition: s.engine.project().composition_id.clone(),
+                        message: e.to_string(),
+                        details: json!({}),
+                    },
+                    cause: Box::new(e),
+                }
             }
         })
     })
+}
+
+#[cfg(test)]
+mod diagnostic_tests {
+    #[test]
+    fn typed_error_cause_is_bounded_without_truncating_returned_failure() {
+        let request = serde_json::json!({"op":"错".repeat(3000)}).to_string();
+        let native = motion_core::parse_commands(&request).unwrap_err();
+        let error = crate::Error::from(native);
+        assert!(matches!(&error, crate::Error::Model(motion_core::Error::Json(_))));
+        let original = error.to_string();
+        assert!(original.chars().count() > 2048);
+        let cause = super::bounded_cause(&error);
+        assert_eq!(cause.chars().count(), 2048);
+        assert!(cause.starts_with("unknown variant `错"));
+        assert!(cause.ends_with('错'));
+        assert_eq!(error.to_string(), original);
+    }
 }

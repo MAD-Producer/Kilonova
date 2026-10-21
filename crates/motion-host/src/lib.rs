@@ -23,6 +23,8 @@
 #![recursion_limit = "256"]
 
 mod node_effects;
+mod error;
+pub use error::Error;
 pub mod ops;
 pub mod platform;
 pub mod preview_inputs;
@@ -38,7 +40,7 @@ pub use platform::{Platform, SurfaceTarget, VideoDecoder, VideoQuery};
 pub use session::{Result, Session};
 
 /// Error type alias used across the host surface.
-pub type SessionError = String;
+pub type SessionError = Error;
 
 /// Base64 for plugin editor assets and legacy HTML editor pages.
 ///

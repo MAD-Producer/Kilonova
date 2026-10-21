@@ -28,7 +28,7 @@ pub fn capabilities() -> serde_json::Value {
 /// before changing session time or touching caller-owned output buffers.
 pub fn require_single_time(project: &Project, operation: &str) -> crate::Result<()> {
     if needs_exposure(project)? {
-        return Err(format!("operation={operation} composition={}: motion blur requires the exposure renderer; single-time plans cannot represent it", project.composition_id));
+        return Err(format!("operation={operation} composition={}: motion blur requires the exposure renderer; single-time plans cannot represent it", project.composition_id).into());
     }
     Ok(())
 }
@@ -64,7 +64,7 @@ pub fn needs_exposure(project: &Project) -> crate::Result<bool> {
     }
     let reachable = project
         .reachable_compositions()
-        .map_err(|error| error.to_string())?;
+        .map_err(crate::Error::from)?;
     Ok(project.compositions.iter().any(|composition| {
         reachable.contains(&composition.id)
             && composition

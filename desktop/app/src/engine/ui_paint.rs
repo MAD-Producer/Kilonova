@@ -83,7 +83,7 @@ mod tests {
                     operation: "present",
                     started: std::time::Instant::now(),
                 }));
-                respond(reply, result);
+                respond(reply, result.map_err(motion_host::Error::from));
                 CURRENT_COMMAND.set(None);
                 assert_eq!(receive.recv().unwrap(), Err(original));
             }

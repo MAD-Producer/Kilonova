@@ -73,7 +73,7 @@ impl SamplingPreview {
         }
         self.cancel(videos)?;
         let document = if needs_exposure(project)? {
-            Some(ExposureDocument::new(Arc::new(project.clone())).map_err(|e| e.to_string())?)
+            Some(ExposureDocument::new(Arc::new(project.clone())).map_err(crate::Error::from)?)
         } else {
             None
         };
@@ -262,8 +262,8 @@ impl Session {
         g.renderer
             .device
             .poll(wgpu::PollType::Poll)
-            .map_err(|e| format!("exposure preview GPU poll: {e}"))?;
-        g.renderer.check_health().map_err(|e| e.to_string())?;
+            .map_err(|e| crate::Error::with_context("exposure preview GPU poll", e))?;
+        g.renderer.check_health().map_err(crate::Error::from)?;
         if let Some(timer) = &mut g.timer {
             for timing in timer.collect().into_iter().flatten() {
                 if let Some(recorder) = &mut self.recorder {
@@ -321,7 +321,7 @@ impl Session {
                 }
                 Err(error) => {
                     if error.resource_rejection().is_none() {
-                        return Err(error.to_string());
+                        return Err(error.into());
                     }
                     self.sampling.discard_request();
                     if preview_refused(
@@ -376,7 +376,7 @@ impl Session {
             let submit_us = micros(submitting.elapsed());
             if let Err(error) = g.renderer.check_health() {
                 g.presenter.set_source(&g.renderer.device, &g.scratch.view);
-                return Err(error.to_string());
+                return Err(error.into());
             }
             g.scratch.commit_submitted();
             g.actual_preview_quality = Some(quality);

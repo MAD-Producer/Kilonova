@@ -18,7 +18,7 @@ pub fn request(id: i64, text: &str, expected_revision: u64) -> Result<Value> {
         16 * 1024,
         "preview input request",
     )?)
-    .map_err(|error| error.to_string())?;
+    .map_err(crate::Error::from)?;
     with_session(id, |session| {
         if session.engine.gesture_active() {
             return Err("finish the active editor gesture before preparing preview input".into());

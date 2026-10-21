@@ -1,0 +1,56 @@
+# 宿主原生错误边界验收
+
+本次推进 #138 的宿主错误类型迁移，并补充 #135 涉及的真实故障回归；两个聚合 issue 均仍有未完成内容，不据此关闭。实现继承 #382 的类型化合成输出边界，不重复归属该 PR 的工作。
+
+## 问题与改动
+
+Session/ops 原先把已知错误立即转换为 String，调用方无法检查原始类型，合成详情还依赖显示文本前缀。本次保留 Model、Render、Media、Effects、JSON、IO、Image、时钟及 GPU poll 原因，按变体生成结构化合成详情。Context、Frozen Session 和主错误容器明确保留 Box<Error>；检查 source 时须按声明的容器下钻。
+
+资源准备回调仍遵守模型事务协议：先恢复未提交的工程，再返回暂存的原生宿主错误；未增加重试。主操作与清理同时失败时分别保留原因。独立导出接口、响应信道、last_error 快照和旧文本协议在明确边界维持现有文本格式。
+
+## 逐项处置
+
+| 项目 | 分类与结果 | 证据与剩余限制 |
+|---|---|---|
+| HE-01 已知原生错误身份 | 新增类型保留 | failure_boundaries 验证真实 JSON、IO、缺失对象和冻结会话失败；原始 OS 码及 JSON 行列可检查。仍返回 String 的供应方尚未全部迁移。 |
+| HE-02 合成错误详情 | 功能边界修正 | 原生 Model、Media、Frozen、Context 包装保留详情；普通文字和 panic 伪造前缀不会获得合成错误身份。显式旧文本适配器继续兼容。 |
+| HE-03 资源准备失败 | 功能边界修正与真实故障验证 | 真实 headless renderer 遇到缺失 PNG 返回 RenderError，工程、revision、历史和 renderer 目录未提交；创建文件后注册成功并可撤销。 |
+| HE-04 工程清理 | 新增类型保留、复用既有观察 | 同时失败时保留主错误和次级 IO 原因。NotFound 清理仍是正常分支；未增加告警或重试。 |
+| HE-05 合成打包诊断 | 复用既有观察、修正原因长度约束 | 锁释放后记录原生错误；默认级别实际故障到达文件与 Error stderr，stdout 隔离，恢复后正常。原因最多 2048 个字符，返回错误保持完整。 |
+| HE-06 串行命令与 Present | 既有覆盖、行为保留 | 桌面完整回归包含开始信号、在途状态、默认日志与命令故障；未新增计数器、热路径 IO、Present 日志、超时或重启。没有据此宣称所有未返回操作均已审计。 |
+| HE-07 文本与协议边界 | 明确保留 | respond 仍向原信道发送 String，接收方退出的 best-effort 语义不变；ui_paint、部分视频/图像供应方与独立导出接口仍有原有文本边界，待分别迁移。 |
+| HE-08 聚合验收 | 待办 | #138 其他层的类型迁移、#135 其余故障注入，以及跨平台 CI 仍分别验收；本地 Windows 通过不代表所有平台已通过。 |
+
+## 实测
+
+环境：Windows，便携 MSVC，官方 wgpu/Naga 30，FFmpeg，debug assertions 开启；独立工作区及专用 target，单测试线程。无新增依赖或素材。以下是发布前本地实现的证据；如后续合入上游有源码变化，须另列集成验证，不能把旧结果算作新提交结果。
+
+- `cargo test -p motion-host --features diagnostics --locked --offline -j2 -- --test-threads=1`：109 项通过，无失败或忽略，含真实 GPU 准备回滚和全部宿主集成测试。
+- `cargo test -p motion-desktop --bin motion-studio --features ffmpeg,motion-host/diagnostics --locked --offline -j2 -- --test-threads=1`：676 项通过，0 失败，454.61 秒；1 项既有忽略要求真实原生音频输出设备，未改动该条件。
+- motion-desktop-media：29 项单元及 6 项 libav 集成测试通过。
+- 上述完整运行之后发现 typed Display 不保证遵守格式精度；新增负面对照以旧写法产生 3856 字符，准确触发 2048 上限断言。改为显式按字符截断后，同一断言通过，完整返回错误不变。
+- 最后修正之后，长度用例 1 项及真实默认日志故障/恢复用例 1 项均通过；工作区 all-targets（排除 Android，启用 FFmpeg 和 host diagnostics）锁定离线检查通过，18.09 秒。完整 109/676 项未在这项局部修正后重跑。
+- `git diff --check`、面板语义样式扫描通过。旧测试仅适配错误显示比较，预期文字、次数、阈值、回滚及输出条件未放宽。
+
+首轮新增 IO source 断言曾失败：测试把派生的 Box<Error> source 当成裸 Error。检查 thiserror 的真实生成实现后，按声明容器检查内部 Io 并核对原始 OS 码；随后故障边界 10 项通过。不把该失败记录成通过，也未放宽既有断言。
+
+原始日志保留在开发者工作区 `artifacts/pr-ci-followups/`，不作为仓库内可复现附件：`host-error-host-complete-tests.log`、`host-error-desktop-complete-tests.log`、`host-error-native-tests.log`、`host-error-boundary-followup.log`、`host-error-bounded-cause-negative.log`、`host-error-bounded-cause-positive.log`、`host-error-final-log-channels.log` 和 `host-error-final-workspace-check.log`。上面的命令和已提交测试可供复验。
+
+## DESIGN 基线
+
+只调整 layer_sampling/tests.rs 的错误文字比较，未修改面板生产代码、布局、绘制、令牌、命中范围或右键菜单；没有新增视觉表现，不声称通过新的视觉整改验收。按 §0.7 逐项记为 retained：
+
+| 基线项 | 保留原因 |
+|---|---|
+| path_controls 六处纵向步进 | 绘制未改，UI 整改按用户要求后续处理 |
+| path_controls:893 两列尺寸 | 同上，无新视觉整改证据 |
+| path_controls 控件高度 | 同上 |
+| path_controls 数字字段自绘 | 同上 |
+| path_controls 布尔按钮 | 同上 |
+| effect_controls 行高与步进 | 同上 |
+| effect_controls 布尔文本按钮 | 同上 |
+| effect_controls 枚举全宽按钮 | 同上 |
+| effect_controls 悬停 alpha | 同上 |
+| effect_controls 层级缩进 | 同上 |
+| timeline 列坐标与标签栏 | 无布局改动，维持兼容基线 |
+| timeline 吸附线颜色 | 保持 DESIGN 的现有保留要求 |
