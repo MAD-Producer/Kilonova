@@ -54,6 +54,10 @@ fn plan(p: &Project, frame: f64) -> (Scene, PlanBuilder) {
 #[test]
 fn culled_sdk_instances_clear_the_target_and_recover_without_a_startup_instance_buffer() {
     let mut project = project("starfield");
+    let parameters = &mut project.layers[0].effects[0].params;
+    parameters.get_mut("extent").unwrap().track.value = [1024., 1024., 0., 0.];
+    parameters.get_mut("fade").unwrap().track.value = [0.; 4];
+    assert!(!plan(&project, 17.).1.frame.sprites.is_empty(), "fixture must start with visible instances");
     project.layers[0].transform.position.value = [100000., 64., 0.];
     let (empty, builder) = plan(&project, 17.);
     assert!(builder.frame.sprites.is_empty());
