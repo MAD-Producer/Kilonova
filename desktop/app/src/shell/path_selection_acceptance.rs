@@ -93,7 +93,13 @@ fn view(shell: &Shell, floating: bool) -> motion_ui::Rect {
         panels::composition_view_styled(shell.workspace.display_root(), size(), &styles)
     }
 }
-fn capture(event_loop: &mut winit::event_loop::EventLoop<()>, shell: &mut Shell, floating: bool, paint: PaintList, path: PathBuf) {
+fn capture(
+    event_loop: &mut winit::event_loop::EventLoop<()>,
+    shell: &mut Shell,
+    floating: bool,
+    paint: PaintList,
+    path: PathBuf,
+) {
     let view = view(shell, floating);
     let mapping = shell
         .panels
@@ -125,8 +131,9 @@ fn capture(event_loop: &mut winit::event_loop::EventLoop<()>, shell: &mut Shell,
                 node_preview: None,
             })
             .unwrap();
-        let ready = crate::native_test_support::receive(event_loop, &reply, Duration::from_secs(10))
-            .unwrap().unwrap();
+        let ready = crate::native_test_support::receive(
+            event_loop, &reply, Duration::from_secs(10),
+        ).unwrap().unwrap();
         if ready {
             break;
         }
@@ -204,13 +211,13 @@ fn point_selection_main_and_native_floating_routes_capture_and_restore() {
                         )
                         .unwrap(),
                 );
-                shell.state = shell
+                let reply = shell
                     .engine
                     .attach_async(main.clone(), physical_size().0, physical_size().1)
-                    .unwrap()
-                    .recv_timeout(Duration::from_secs(30))
-                    .unwrap()
                     .unwrap();
+                shell.state = crate::native_test_support::receive(
+                    &mut event_loop, &reply, Duration::from_secs(30),
+                ).unwrap().unwrap();
                 shell.window = Some(main);
                 shell.attached = true;
                 let before = shell.state["project"].clone();
@@ -439,7 +446,13 @@ fn point_selection_main_and_native_floating_routes_capture_and_restore() {
     assert!(!String::from_utf8_lossy(&output.stdout).contains("motion-engine"));
 }
 
-fn exercise_pen_modes(event_loop: &mut winit::event_loop::EventLoop<()>, shell: &mut Shell, floating: bool, label: &str, artifacts: &std::path::Path) {
+fn exercise_pen_modes(
+    event_loop: &mut winit::event_loop::EventLoop<()>,
+    shell: &mut Shell,
+    floating: bool,
+    label: &str,
+    artifacts: &std::path::Path,
+) {
     let styles = shell
         .panels
         .styles
