@@ -9,6 +9,21 @@ const MAX_MEASURE_SAMPLES: usize = 65536;
 const EPS: f64 = 1e-8;
 type Cubic = [V; 4];
 
+fn validate_coordinates(paths: &[SampledPath], operation: &'static str) -> Result<()> {
+    for (contour, path) in paths.iter().enumerate() {
+        for (node, values) in path.nodes.iter().enumerate() {
+            for (component, value) in values.iter().enumerate() {
+                if !value.is_finite() {
+                    return Err(crate::Error::Invalid(format!(
+                        "invalid sampled path coordinate: operation={operation} contour={contour} node={node} component={component} value={value}"
+                    )));
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 fn split(c: Cubic, t: f64) -> (Cubic, Cubic) {
     let a = c[0].lerp(c[1], t);
     let b = c[1].lerp(c[2], t);
@@ -124,7 +139,11 @@ fn measure(paths: &[SampledPath]) -> Result<Vec<Measured>> {
         })
         .collect()
 }
-fn parameter(s: &Segment, distance: f64) -> f64 {
+fn parameter(s: &Segment, distance: f64) -> Result<f64> {
+    ensure(
+        s.table.len() >= 2,
+        "vector path invariant: phase=parameter arc-length table requires two samples",
+    )?;
     let d = distance.clamp(0., s.length);
     let i = s
         .table
@@ -132,14 +151,14 @@ fn parameter(s: &Segment, distance: f64) -> f64 {
         .clamp(1, s.table.len() - 1);
     let (t0, d0) = s.table[i - 1];
     let (t1, d1) = s.table[i];
-    t0 + (t1 - t0) * ((d - d0) / (d1 - d0).max(EPS))
+    Ok(t0 + (t1 - t0) * ((d - d0) / (d1 - d0).max(EPS)))
 }
-fn cut(p: &Measured, start: f64, end: f64) -> Option<SampledPath> {
+fn cut(p: &Measured, start: f64, end: f64) -> Result<Option<SampledPath>> {
     if end - start <= EPS || p.length <= EPS {
-        return None;
+        return Ok(None);
     }
     if start <= EPS && end >= p.length - EPS {
-        return Some(p.path.clone());
+        return Ok(Some(p.path.clone()));
     }
     let mut nodes: Vec<[f32; 6]> = Vec::new();
     for s in &p.segments {
@@ -148,11 +167,13 @@ fn cut(p: &Measured, start: f64, end: f64) -> Option<SampledPath> {
         if hi - lo <= EPS {
             continue;
         }
-        let c = subcurve(s.curve, parameter(s, lo), parameter(s, hi));
+        let c = subcurve(s.curve, parameter(s, lo)?, parameter(s, hi)?);
         if nodes.is_empty() {
             nodes.push([c[0].x as f32, c[0].y as f32, 0., 0., 0., 0.]);
         }
-        let n = nodes.last_mut().unwrap();
+        let n = nodes.last_mut().ok_or_else(|| {
+            crate::Error::Invalid("vector path invariant: phase=cut missing initial node".into())
+        })?;
         if !s.line {
             n[4] = (c[1].x - c[0].x) as f32;
             n[5] = (c[1].y - c[0].y) as f32;
@@ -176,10 +197,10 @@ fn cut(p: &Measured, start: f64, end: f64) -> Option<SampledPath> {
             )
         });
     }
-    (nodes.len() >= 2).then_some(SampledPath {
+    Ok((nodes.len() >= 2).then_some(SampledPath {
         closed: false,
         nodes,
-    })
+    }))
 }
 fn append(out: &mut Vec<SampledPath>, path: SampledPath, nodes: &mut usize) -> Result<()> {
     *nodes += path.nodes.len();
@@ -190,12 +211,17 @@ fn append(out: &mut Vec<SampledPath>, path: SampledPath, nodes: &mut usize) -> R
     out.push(path);
     Ok(())
 }
-fn join(mut a: SampledPath, b: SampledPath) -> SampledPath {
-    let last = a.nodes.last_mut().unwrap();
-    last[4] = b.nodes[0][4];
-    last[5] = b.nodes[0][5];
-    a.nodes.extend_from_slice(&b.nodes[1..]);
-    a
+fn join(mut a: SampledPath, b: SampledPath) -> Result<SampledPath> {
+    let last = a.nodes.last_mut().ok_or_else(|| {
+        crate::Error::Invalid("vector path invariant: phase=join empty left piece".into())
+    })?;
+    let (first, rest) = b.nodes.split_first().ok_or_else(|| {
+        crate::Error::Invalid("vector path invariant: phase=join empty right piece".into())
+    })?;
+    last[4] = first[4];
+    last[5] = first[5];
+    a.nodes.extend_from_slice(rest);
+    Ok(a)
 }
 fn intervals(start: f32, end: f32, offset: f32) -> Vec<(f64, f64)> {
     let lo = f64::from(start.min(end)) / 100.;
@@ -227,6 +253,7 @@ pub fn trim_by_path(paths: &[SampledPath], t: &SampledTrimPaths) -> Result<Vec<V
             && (-360000.0..=360000.).contains(&t.offset),
         "invalid sampled trim parameters",
     )?;
+    validate_coordinates(paths, "trim")?;
     let ranges = intervals(t.start, t.end, t.offset);
     if ranges == [(0., 1.)] {
         return Ok(paths.iter().cloned().map(|p| vec![p]).collect());
@@ -251,19 +278,26 @@ pub fn trim_by_path(paths: &[SampledPath], t: &SampledTrimPaths) -> Result<Vec<V
                 p,
                 (a * length - base).max(0.),
                 (b * length - base).min(p.length),
-            ) {
+            )? {
                 pieces.push(piece);
             }
         }
         // A wrapped interval on a closed contour is a single stroke across
         // its original seam, with no artificial caps at the first vertex.
         if p.path.closed && pieces.len() == 2 && t.mode == TrimMode::Simultaneously {
-            let b = pieces.pop().unwrap();
-            let a = pieces.pop().unwrap();
-            pieces.push(join(a, b));
+            let b = pieces.pop().ok_or_else(|| {
+                crate::Error::Invalid("vector path invariant: phase=trim missing wrap tail".into())
+            })?;
+            let a = pieces.pop().ok_or_else(|| {
+                crate::Error::Invalid("vector path invariant: phase=trim missing wrap head".into())
+            })?;
+            pieces.push(join(a, b)?);
         }
         nodes += pieces.iter().map(|p| p.nodes.len()).sum::<usize>();
-        ensure(nodes <= MAX_OUTPUT_NODES, "vector path-operation output node limit exceeded")?;
+        ensure(
+            nodes <= MAX_OUTPUT_NODES,
+            "vector path-operation output node limit exceeded",
+        )?;
         out.push(pieces);
         cursor += p.length;
     }
@@ -280,6 +314,7 @@ pub fn dash(paths: &[SampledPath], d: &SampledDashes) -> Result<Vec<SampledPath>
                 .all(|(i, v)| (if i % 2 == 0 { 0.1 } else { 0. }..=32768.).contains(v)),
         "invalid sampled dash pattern",
     )?;
+    validate_coordinates(paths, "dash")?;
     if d.pattern.iter().skip(1).step_by(2).all(|v| *v == 0.) {
         return Ok(paths.to_vec());
     }
@@ -323,20 +358,27 @@ pub fn dash(paths: &[SampledPath], d: &SampledDashes) -> Result<Vec<SampledPath>
         }
         let wrapped = p.path.closed
             && ranges.len() > 1
-            && ranges[0].0 <= EPS
-            && ranges.last().unwrap().1 >= p.length - EPS;
+            && ranges
+                .first()
+                .zip(ranges.last())
+                .is_some_and(|(first, last)| first.0 <= EPS && last.1 >= p.length - EPS);
         if wrapped {
             let first = ranges.remove(0);
-            let last = ranges.pop().unwrap();
-            if let (Some(a), Some(b)) = (cut(p, last.0, last.1), cut(p, first.0, first.1)) {
-                append(&mut out, join(a, b), &mut nodes)?;
+            let last = ranges.pop().ok_or_else(|| {
+                crate::Error::Invalid("vector path invariant: phase=dash missing wrap tail".into())
+            })?;
+            if let (Some(a), Some(b)) = (cut(p, last.0, last.1)?, cut(p, first.0, first.1)?) {
+                append(&mut out, join(a, b)?, &mut nodes)?;
             }
         }
         for (a, b) in ranges {
-            if let Some(piece) = cut(p, a, b) {
+            if let Some(piece) = cut(p, a, b)? {
                 append(&mut out, piece, &mut nodes)?;
             }
         }
     }
     Ok(out)
 }
+
+#[cfg(test)]
+mod tests;
