@@ -115,7 +115,7 @@ fn successful_edits_with_sample_errors_are_observed_after_unlock_without_rollbac
             .join()
             .unwrap();
         assert_eq!(
-            result.unwrap_err(),
+            result.unwrap_err().to_string(),
             "native session must run on its owning worker thread"
         );
         assert!(capture.0.lock().unwrap().is_empty());
@@ -139,7 +139,7 @@ fn successful_edits_with_sample_errors_are_observed_after_unlock_without_rollbac
         })
     };
     if mode == "primary" {
-        assert_eq!(edit().unwrap_err(), "primary operation failure");
+        assert_eq!(edit().unwrap_err().to_string(), "primary operation failure");
         let records = capture.0.lock().unwrap();
         assert_eq!(records.len(), 1);
         assert_eq!(records[0].0, log::Level::Warn);

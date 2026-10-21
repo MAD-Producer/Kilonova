@@ -121,7 +121,7 @@ impl PreparedInput {
                 }
             },
             InputPixels::Transparent => target.transparent(),
-        }
+        }.map_err(crate::Error::from)
     }
 }
 pub enum InputPoll {
@@ -413,7 +413,7 @@ impl PreviewInputReader {
             return Err("preview input snapshot superseded".into());
         }
         if let Some(error) = &current.error {
-            return Err(error.clone());
+            return Err(error.clone().into());
         }
         if let Some((_, _, _, result)) = self.image.poll() {
             if let Some(key) = self.decoding.take() {
@@ -423,7 +423,7 @@ impl PreviewInputReader {
                         Ok(pixels) => pixels,
                         Err(error) => {
                             self.desired.as_mut().unwrap().error = Some(error.clone());
-                            return Err(error);
+                            return Err(error.into());
                         }
                     };
                     if !key.current() {

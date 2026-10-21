@@ -25,7 +25,7 @@ use std::{
     time::Instant,
 };
 
-pub type Result<T> = std::result::Result<T, String>;
+pub type Result<T> = std::result::Result<T, crate::Error>;
 
 mod registry_observation;
 mod last_error_observation;
@@ -143,7 +143,7 @@ pub struct CompositionContext {
 
 impl Session {
     pub fn new(project: Project, root: PathBuf, platform: Arc<dyn Platform>) -> Result<Self> {
-        let engine = Engine::new(project).map_err(|e| e.to_string())?;
+        let engine = Engine::new(project).map_err(crate::Error::from)?;
         let project = engine.project();
         let mut scene = Scene::new(project);
         let initial_error = match scene.sample(project, 0.0, None, &motion_core::ExpressionEvaluator) {
@@ -153,17 +153,17 @@ impl Session {
                 for expression in &mut base.expressions {
                     expression.enabled = false;
                 }
-                scene.sample(&base, 0.0, None, &motion_core::ExpressionEvaluator).map_err(|e| e.to_string())?;
+                scene.sample(&base, 0.0, None, &motion_core::ExpressionEvaluator).map_err(crate::Error::from)?;
                 Some(error.to_string())
             }
-            Err(error) => return Err(error.to_string()),
+            Err(error) => return Err(error.into()),
         };
         let observer = Observer::new(project.width, project.height);
         let plugin_root = root
             .parent()
             .ok_or("project directory has no parent")?
             .join("plugins");
-        let mut registry=registry_observation::load(&plugin_root).map_err(|e|e.to_string())?;
+        let mut registry=registry_observation::load(&plugin_root).map_err(crate::Error::from)?;
         crate::node_effects::restore(project,&mut registry)?;
         let effects = motion_render::effect_plan::PlanBuilder::new(registry)?;
         let video_jobs = VideoJobs::with_audio_decoder(root.clone(), audio_decoder(&platform))?;
@@ -254,12 +254,12 @@ impl Session {
                 graphics
                     .renderer
                     .set_memory_policy(policy)
-                    .map_err(|error| error.to_string())?;
+                    .map_err(crate::Error::from)?;
             }
             if let Some(renderer) = &mut self.editor_renderer {
                 renderer
                     .set_memory_policy(policy)
-                    .map_err(|error| error.to_string())?;
+                    .map_err(crate::Error::from)?;
             }
             self.preview_memory.changed();
             self.memory_context = None;
@@ -278,12 +278,12 @@ impl Session {
         if let Some(g) = &mut self.graphics {
             g.renderer
                 .configure_assets(engine.project(), &root)
-                .map_err(|e| e.to_string())?;
+                .map_err(crate::Error::from)?;
         }
         if let Some(mut editor) = self.editor.take() {
             editor
                 .close(&mut self.engine, false)
-                .map_err(|e| e.to_string())?;
+                .map_err(crate::Error::from)?;
         }
         self.editor_token.clear();
         self.editor_activity = None;
@@ -319,7 +319,7 @@ impl Session {
         self.view_revision += 1;
         // Imported expression source stays editable when frame zero fails.
         if let Err(error) = self.sample() {
-            self.last_error = Some(error);
+            self.last_error = Some(error.to_string());
         }
         Ok(())
     }
@@ -362,16 +362,16 @@ impl Session {
         renderer.set_submission_tracking(self.resource_tracking || self.recorder.is_some());
         renderer
             .set_memory_policy(self.effects.memory_policy())
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
         surface.configure(&renderer.device, &config);
         renderer
             .configure_assets(self.engine.project(), &self.root)
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
         // The invalid placeholder is never displayed. One pixel leaves room
         // for a candidate even at the smallest supported two-target allowance;
         // prepare the real dimensions under the bounded preview policy.
         let scratch = PreviewFrameTargets::new(&renderer, 1, 1)
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
         let presenter = Presenter::new(&renderer, &scratch.view, config.format);
         // Auto quality needs GPU cost even without diagnostic recording; only
         // four reusable 32-byte timing buffers are read, never video pixels.
@@ -416,7 +416,7 @@ impl Session {
         if !viewport.iter().all(|v| v.is_finite()) || x < 0. || y < 0.
             || w <= 0. || h <= 0. || x + w > g.config.width as f32 + 0.01
             || y + h > g.config.height as f32 + 0.01
-        { return Err(format!("invalid composition viewport viewport={viewport:?} surface={}x{} phase=retained", g.config.width, g.config.height)); }
+        { return Err(format!("invalid composition viewport viewport={viewport:?} surface={}x{} phase=retained", g.config.width, g.config.height).into()); }
         let rendered = present_held(g, viewport, image, overlay)?;
         self.presented += u64::from(rendered);
         Ok(rendered)
@@ -453,7 +453,7 @@ impl Session {
             || vx + vw > g.config.width as f32 + 0.01
             || vy + vh > g.config.height as f32 + 0.01
         {
-            return Err(format!("invalid composition viewport viewport={viewport:?} surface={}x{} phase=render", g.config.width, g.config.height));
+            return Err(format!("invalid composition viewport viewport={viewport:?} surface={}x{} phase=render", g.config.width, g.config.height).into());
         }
         let context = (
             self.engine.revision(),
@@ -480,7 +480,7 @@ impl Session {
         let upcoming = motion_render::image_resources::upcoming_assets(
             self.engine.project(),
             frame,
-        ).map_err(|error| error.to_string())?;
+        ).map_err(crate::Error::from)?;
         g.renderer.set_image_prefetch(upcoming);
         let preparing = Instant::now();
         let frames = self.video_frames.prepare_scene(
@@ -500,8 +500,8 @@ impl Session {
             self.presented += u64::from(painted);
             return Ok(false);
         };
-        g.renderer.device.poll(wgpu::PollType::Poll).map_err(|e| format!("preview GPU poll: {e}"))?;
-        g.renderer.check_health().map_err(|e| e.to_string())?;
+        g.renderer.device.poll(wgpu::PollType::Poll).map_err(|e| crate::Error::with_context("preview GPU poll", e))?;
+        g.renderer.check_health().map_err(crate::Error::from)?;
         let mut gpu_work_us = None;
         if let Some(timer) = &mut g.timer {
             for timing in timer.collect().into_iter().flatten() {
@@ -685,7 +685,7 @@ impl Session {
             }
             if let Err(error) = g.renderer.check_health() {
                 g.presenter.set_source(&g.renderer.device, &g.scratch.view);
-                return Err(error.to_string());
+                return Err(error.into());
             }
             g.scratch.commit_submitted();
             g.actual_preview_quality = Some(quality);
@@ -715,7 +715,7 @@ impl Session {
                     gpu: None,
                     resources: Some(motion_render::FrameResources {
                         textures: g.renderer.texture_memory_breakdown(),
-                        vector_upload: g.renderer.vector_upload_info().map_err(|e| e.to_string())?,
+                        vector_upload: g.renderer.vector_upload_info()?,
                         preview_target_bytes: g.scratch.texture_bytes(),
                         exposure_target_bytes: 0,
                         exposure_media_us: 0,
@@ -747,7 +747,7 @@ impl Session {
             if quality.level == 0 {
                 g.renderer
                     .prefetch_scene_assets(image_resolution)
-                    .map_err(|e| e.to_string())?;
+                    .map_err(crate::Error::from)?;
             }
             self.last_error = None;
             return Ok(true);
@@ -770,9 +770,9 @@ impl Session {
                 } else {
                     None
                 }, &motion_core::ExpressionEvaluator)
-            .map_err(|e| e.to_string()));
+            .map_err(crate::Error::from));
         if let Err(error) = &result {
-            self.last_error = Some(error.clone());
+            self.last_error = Some(error.to_string());
         } else if self
             .last_error
             .as_ref()
@@ -783,14 +783,14 @@ impl Session {
         result
     }
 
-    pub fn composition_error(&self, code: &str, message: &str, details: Value) -> String {
+    pub fn composition_error(&self, code: &str, message: &str, details: Value) -> crate::Error {
         motion_core::composition::CompositionError {
             code: code.into(),
             composition: self.engine.project().composition_id.clone(),
             message: message.into(),
             details,
         }
-        .to_string()
+        .into()
     }
 }
 
@@ -812,7 +812,7 @@ fn preview_resource_signature(scene: &Scene) -> u64 {
 }
 fn preview_refused(g: &mut Graphics, policy: &mut motion_render::preview_memory::PreviewMemoryPolicy,
     error: motion_render::RenderError, now_ms: u64) -> Result<bool> {
-    let Some(rejection) = error.resource_rejection().copied() else { return Err(error.to_string()); };
+    let Some(rejection) = error.resource_rejection().copied() else { return Err(error.into()); };
     let retry = policy.refused(rejection, now_ms);
     g.scratch.discard_candidate();
     g.renderer.reclaim_preview_working_set().map_err(|e| format!("{error}; preview working-set cleanup also failed: {e}"))?;
@@ -869,7 +869,7 @@ fn present_chrome(g: &mut Graphics, retained_viewport: Option<[f32; 4]>, image: 
     }
     overlay(&g.renderer, &mut encoder, &view);
     g.renderer.submit_tracked(encoder.finish(), |ledger| g.scratch.collect_texture_resources(ledger));
-    g.renderer.check_health().map_err(|e| e.to_string())?;
+    g.renderer.check_health().map_err(crate::Error::from)?;
     g.renderer.queue.present(output);
     Ok(true)
 }
@@ -919,7 +919,7 @@ pub fn with_session<T>(id: i64, operation: impl FnOnce(&mut Session) -> Result<T
 /// report while it is collected. No registry lock spans filesystem or GPU work.
 pub fn resource_info(directory: &std::path::Path) -> Result<Value> {
     let began = Instant::now();
-    let root = directory.canonicalize().map_err(|e| e.to_string())?;
+    let root = directory.canonicalize().map_err(crate::Error::from)?;
     let entries: Vec<_> = {
         let registry = sessions().lock().unwrap_or_else(|e| e.into_inner());
         registry

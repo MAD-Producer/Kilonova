@@ -289,8 +289,8 @@ fn single_time_routes_reject_blur_before_mutating_session_or_output_and_keep_pic
     ] {
         let error = result.unwrap_err();
         assert!(
-            error.contains(&format!("operation={operation}"))
-                && error.contains("motion blur requires the exposure renderer"),
+            error.to_string().contains(&format!("operation={operation}"))
+                && error.to_string().contains("motion blur requires the exposure renderer"),
             "{error}"
         );
     }
@@ -424,6 +424,7 @@ fn declared_sampling_sources_agree_with_model_and_unreferenced_blur_is_not_a_bou
     assert!(
         motion_host::render_sampling::require_single_time(&project, "probe")
             .unwrap_err()
+            .to_string()
             .contains("motion blur requires")
     );
 }

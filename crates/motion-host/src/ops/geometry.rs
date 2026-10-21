@@ -12,7 +12,7 @@ pub fn hit_candidates(id: i64, x: f64, y: f64) -> Result<serde_json::Value> {
         }
         let candidates = picking
             .hit_candidates([x as f32, y as f32])
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
         Ok(json!({"candidates":candidates,"coordinates":"composition_pixels","selection":"geometry_bounds"}))
     })
 }
@@ -43,7 +43,7 @@ pub fn sample_geometry_into_inner(
         crate::render_sampling::require_single_time(s.engine.project(), "sample_geometry")?;
         s.scene
             .sample(s.engine.project(), frame, None, &motion_core::ExpressionEvaluator)
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
         if s.scene
             .layers
             .iter()
@@ -51,13 +51,13 @@ pub fn sample_geometry_into_inner(
         {
             return Err("vector and adjustment sources require render plan version 4".into());
         }
-        s.geometry.prepare(&s.scene).map_err(|e| e.to_string())?;
+        s.geometry.prepare(&s.scene).map_err(crate::Error::from)?;
         let pb = s.geometry.batches.len() * 128;
         let vb = s.geometry.vertices.len() * 20;
         if parameters.len() < pb || vertices.len() < vb {
             return Err(format!(
                 "geometry buffers too small: need {pb} parameter bytes and {vb} vertex bytes"
-            ));
+            ).into());
         }
         for (i, batch) in s.geometry.batches.iter().enumerate() {
             let layer = &s.scene.layers[batch.layer];

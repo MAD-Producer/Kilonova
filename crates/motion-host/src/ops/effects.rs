@@ -13,7 +13,7 @@ impl Session {
         if request.len() > 256 * 1024 {
             return Err("plugin request exceeds 256 KiB".into());
         }
-        let v: Value = serde_json::from_str(&request).map_err(|e| e.to_string())?;
+        let v: Value = serde_json::from_str(&request).map_err(crate::Error::from)?;
         if v.get("composition")
             .is_some_and(|v| v.as_str() != Some(self.engine.project().composition_id.as_str()))
         {
@@ -44,7 +44,7 @@ impl Session {
         if text("op")? == "memory_policy" {
             if let Some(policy) = v.get("policy") {
                 let policy =
-                    serde_json::from_value(policy.clone()).map_err(|error| error.to_string())?;
+                    serde_json::from_value(policy.clone()).map_err(crate::Error::from)?;
                 return self.configure_memory_policy(policy);
             }
             return Ok(json!({"policyVersion":motion_render::resource_policy::MEMORY_POLICY_VERSION,"memoryPolicy":self.effects.memory_policy()}));
@@ -74,7 +74,7 @@ impl Session {
                     .ok_or("effect instance does not exist")?;
                 let p = registry
                     .resolve(&e.plugin, &e.version, &e.hash)
-                    .map_err(|e| e.to_string())?;
+                    .map_err(crate::Error::from)?;
                 if !p
                     .manifest
                     .effects
@@ -85,7 +85,7 @@ impl Session {
                     return Err("effect does not accept an image input".into());
                 }
                 let input: Option<motion_core::EffectImageInput> =
-                    serde_json::from_value(v["input"].clone()).map_err(|e| e.to_string())?;
+                    serde_json::from_value(v["input"].clone()).map_err(crate::Error::from)?;
                 self.engine
                     .apply(Command::Effect {
                         object,
@@ -94,7 +94,7 @@ impl Session {
                             input,
                         },
                     })
-                    .map_err(|e| e.to_string())?;
+                    .map_err(crate::Error::from)?;
                 self.sample()?;
                 return Ok(self.snapshot());
             }
@@ -106,7 +106,7 @@ impl Session {
             "install" => {
                 registry
                     .install(&self.plugin_root, &PathBuf::from(text("path")?))
-                    .map_err(|e| e.to_string())?;
+                    .map_err(crate::Error::from)?;
             }
             "enable" => registry
                 .enable(
@@ -116,7 +116,7 @@ impl Session {
                     text("hash")?,
                     v["enabled"].as_bool().ok_or("missing enabled")?,
                 )
-                .map_err(|e| e.to_string())?,
+                .map_err(crate::Error::from)?,
             "uninstall" => registry
                 .uninstall(
                     &self.plugin_root,
@@ -124,11 +124,11 @@ impl Session {
                     text("version")?,
                     text("hash")?,
                 )
-                .map_err(|e| e.to_string())?,
+                .map_err(crate::Error::from)?,
             "add" | "upgrade" => {
                 let p = registry
                     .resolve(text("plugin")?, text("version")?, text("hash")?)
-                    .map_err(|e| e.to_string())?;
+                    .map_err(crate::Error::from)?;
                 let def = p
                     .manifest
                     .effects
@@ -146,7 +146,7 @@ impl Session {
                         .map(|value| {
                             value
                                 .as_u64()
-                                .ok_or_else(|| "objects must contain layer ids".to_owned())
+                                .ok_or_else(|| crate::Error::from("objects must contain layer ids"))
                         })
                         .collect::<Result<Vec<_>>>()?
                 } else {
@@ -226,7 +226,7 @@ impl Session {
                         let old = &layer.effects[index];
                         let old_package = registry
                             .resolve(&old.plugin, &old.version, &old.hash)
-                            .map_err(|e| e.to_string())?;
+                            .map_err(crate::Error::from)?;
                         let old_def = old_package
                             .manifest
                             .effects
@@ -266,7 +266,7 @@ impl Session {
                         });
                     }
                 }
-                self.engine.apply_batch(cmds).map_err(|e| e.to_string())?;
+                self.engine.apply_batch(cmds).map_err(crate::Error::from)?;
                 self.sample()?;
                 return Ok(self.snapshot());
             }
@@ -291,7 +291,7 @@ impl Session {
         let cancelled = editor.gesture && self.engine.gesture_active() && !commit;
         let result = editor
             .close(&mut self.engine, commit)
-            .map_err(|e| e.to_string());
+            .map_err(crate::Error::from);
         self.editor_token.clear();
         self.editor_activity = None;
         self.editor_renderer = None;
@@ -299,7 +299,7 @@ impl Session {
         self.editor_recovery =
             Some(json!({"reason":reason,"cancelled":cancelled,"revision":self.engine.revision()}));
         if let Err(error) = self.sample() {
-            self.last_error = Some(error);
+            self.last_error = Some(error.to_string());
         }
         result
     }
@@ -327,7 +327,7 @@ impl Session {
                 object,
                 instance,
             )
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
             let package = self
                 .effects
                 .registry
@@ -336,7 +336,7 @@ impl Session {
                     &editor.dependency.version,
                     &editor.dependency.hash,
                 )
-                .map_err(|e| e.to_string())?;
+                .map_err(crate::Error::from)?;
             let definition = package
                 .manifest
                 .effects
@@ -345,7 +345,7 @@ impl Session {
                 .ok_or("editor definition missing")?;
             let state = editor
                 .state(&self.engine, self.frame.floor() as u32)
-                .map_err(|e| e.to_string())?;
+                .map_err(crate::Error::from)?;
             self.editor_token = format!("editor-{}-{}", next_token(), self.engine.revision());
             self.editor = Some(editor);
             self.editor_activity = Some(std::time::Instant::now());
@@ -383,7 +383,7 @@ impl Session {
                 &editor.dependency.version,
                 &editor.dependency.hash,
             )
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
         match op {
             "editor_asset" => {
                 let path = v["path"].as_str().ok_or("missing editor asset path")?;
@@ -412,7 +412,7 @@ impl Session {
                     return result;
                 }
                 let request: motion_core::plugin_editor::EditorRequest =
-                    serde_json::from_value(v["message"].clone()).map_err(|e| e.to_string())?;
+                    serde_json::from_value(v["message"].clone()).map_err(crate::Error::from)?;
                 let was_gesture = self.editor.as_ref().unwrap().gesture;
                 let result = self.editor.as_mut().unwrap().request(
                     &mut self.engine,
@@ -431,12 +431,12 @@ impl Session {
                                 recovery["cancelled"] = json!(was_gesture);
                             }
                         }
-                        return Err(error.to_string());
+                        return Err(error.into());
                     }
                 };
                 self.editor_activity = Some(std::time::Instant::now());
                 if let Err(error) = self.sample() {
-                    state["render_error"] = json!(error);
+                    state["render_error"] = json!(error.to_string());
                 }
                 Ok(state)
             }
@@ -449,7 +449,7 @@ impl Session {
             .as_ref()
             .ok_or("editor session missing")?
             .state(&self.engine, self.frame.floor() as u32)
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
         let width = message["width"].as_u64().ok_or("missing preview width")?;
         let height = message["height"].as_u64().ok_or("missing preview height")?;
         if !(1..=512).contains(&width) || !(1..=512).contains(&height) {
@@ -458,14 +458,14 @@ impl Session {
         self.sample()?;
         if self.editor_renderer.is_none() {
             let mut renderer =
-                pollster::block_on(Renderer::headless()).map_err(|e| e.to_string())?;
+                pollster::block_on(Renderer::headless()).map_err(crate::Error::from)?;
             renderer.set_effect_registry(self.effects.registry.clone());
             renderer
                 .set_memory_policy(self.effects.memory_policy())
-                .map_err(|e| e.to_string())?;
+                .map_err(crate::Error::from)?;
             renderer
                 .configure_assets(self.engine.project(), &self.root)
-                .map_err(|e| e.to_string())?;
+                .map_err(crate::Error::from)?;
             renderer.set_submission_tracking(self.resource_tracking || self.recorder.is_some());
             self.editor_renderer = Some(renderer);
         }
@@ -476,10 +476,10 @@ impl Session {
                 motion_render::image_resources::Resolution::Preview(1024),
                 false,
             )
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
         renderer
             .preflight_effects(&self.scene, width as u32, height as u32)
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
         if self
             .editor_target
             .as_ref()
@@ -488,12 +488,12 @@ impl Session {
             self.editor_target = Some(
                 renderer
                     .capture_target(width as u32, height as u32)
-                    .map_err(|e| e.to_string())?,
+                    .map_err(crate::Error::from)?,
             );
         }
         let (pixels, stats) = renderer
             .capture(&self.scene, self.editor_target.as_ref().unwrap())
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
         let mut png = Vec::new();
         image::ImageEncoder::write_image(
             image::codecs::png::PngEncoder::new(&mut png),
@@ -502,7 +502,7 @@ impl Session {
             height as u32,
             image::ExtendedColorType::Rgba8,
         )
-        .map_err(|e| e.to_string())?;
+        .map_err(crate::Error::from)?;
         Ok(
             json!({"width":width,"height":height,"png":crate::encode_base64(&png),
             "revision":self.engine.revision(),"frame":self.frame,
@@ -530,14 +530,14 @@ pub fn plugin_pixels(id: i64, program: i32, resource: i32) -> Result<Vec<u8>> {
         let package = program.package.as_ref().ok_or("program has no resources")?;
         image::load_from_memory(&package.files[path])
             .map(|v| v.into_rgba8().into_raw())
-            .map_err(|e| e.to_string())
+            .map_err(crate::Error::from)
     })
 }
 
 /// Sample a five-channel colour curve object into its graph.
 pub fn color_curve_graph(text: &str) -> Result<Value> {
-    let value: motion_core::CurveObject = serde_json::from_str(text).map_err(|e| e.to_string())?;
-    value.validate().map_err(|e| e.to_string())?;
+    let value: motion_core::CurveObject = serde_json::from_str(text).map_err(crate::Error::from)?;
+    value.validate().map_err(crate::Error::from)?;
     Ok(value.graph())
 }
 

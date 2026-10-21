@@ -176,7 +176,7 @@ pub fn request(id: i64, mut value: Value, open: Option<Opener>) -> Result<Value>
         }
         Ok(())
     })?;
-    let request: Request = serde_json::from_value(value).map_err(|e| e.to_string())?;
+    let request: Request = serde_json::from_value(value).map_err(crate::Error::from)?;
     match request {
         Request::MediaCapabilities { video_query } => crate::session::with_session(id, |s| {
             s.platform().media_capabilities(video_query.as_ref()).map_err(Into::into)
@@ -189,7 +189,7 @@ pub fn request(id: i64, mut value: Value, open: Option<Opener>) -> Result<Value>
                 return Err("media request id already exists".into());
             }
             let snapshot = motion_core::storage::PackageSnapshot::new(&s.root, s.engine.project())
-                .map_err(|e| e.to_string())?;
+                .map_err(crate::Error::from)?;
             let stamp = super::stamp()?;
             let output = s
                 .root
@@ -421,7 +421,7 @@ pub fn request(id: i64, mut value: Value, open: Option<Opener>) -> Result<Value>
             let path = path
                 .canonicalize()
                 .map_err(|_| "thumbnail missing; call prepare_video")?;
-            if !path.starts_with(s.root.canonicalize().map_err(|e| e.to_string())?) {
+            if !path.starts_with(s.root.canonicalize().map_err(crate::Error::from)?) {
                 return Err("thumbnail outside project".into());
             }
             Ok(json!({"asset":asset,"path":path,"source_time_us":a.video_start_us,
@@ -465,11 +465,11 @@ mod frozen_registry;
 pub use frozen::{MAX_FROZEN_AUDIO, MAX_FROZEN_VIDEO};
 
 pub fn freeze_audio(id: i64) -> Result<Value> {
-    frozen::freeze_audio(id).map_err(|error| error.to_string())
+    frozen::freeze_audio(id).map_err(crate::Error::from)
 }
 
 pub fn release_frozen_audio(handle: i64) -> Result<Value> {
-    frozen::release_frozen_audio(handle).map_err(|error| error.to_string())
+    frozen::release_frozen_audio(handle).map_err(crate::Error::from)
 }
 
 /// Mix a block of 48 kHz stereo f32 PCM into `out` as little-endian floats.
@@ -504,7 +504,7 @@ pub fn read_frozen_pcm_into(
     frames: usize,
     out: &mut [u8],
 ) -> Result<Value> {
-    frozen::read_frozen_pcm_into(handle, start, frames, out).map_err(|error| error.to_string())
+    frozen::read_frozen_pcm_into(handle, start, frames, out).map_err(crate::Error::from)
 }
 
 fn check_pcm_range(start: u64, frames: usize, out: &[u8]) -> Result<()> {
@@ -528,11 +528,11 @@ fn pcm_envelope(pcm: &[f32], count: usize, start: u64, total: u64, out: &mut [u8
 }
 
 pub fn freeze_video(id: i64) -> Result<Value> {
-    frozen::freeze_video(id).map_err(|error| error.to_string())
+    frozen::freeze_video(id).map_err(crate::Error::from)
 }
 
 pub fn release_frozen_video(handle: i64) -> Result<Value> {
-    frozen::release_frozen_video(handle).map_err(|error| error.to_string())
+    frozen::release_frozen_video(handle).map_err(crate::Error::from)
 }
 
 /// Prepare every video layer of one composition frame for a frozen export.
@@ -541,7 +541,7 @@ pub fn request_frozen_composition_frame(
     frame: f64,
     sequence: u64,
 ) -> Result<Value> {
-    frozen::request_frozen_composition_frame(handle, frame, sequence).map_err(|error| error.to_string())
+    frozen::request_frozen_composition_frame(handle, frame, sequence).map_err(crate::Error::from)
 }
 
 pub fn read_frozen_composition_video_into(
@@ -549,7 +549,7 @@ pub fn read_frozen_composition_video_into(
     object: u64,
     sequence: u64,
 ) -> Result<Arc<crate::video_frame::DecodedFrame>> {
-    frozen::read_frozen_composition_video_into(handle, object, sequence).map_err(|error| error.to_string())
+    frozen::read_frozen_composition_video_into(handle, object, sequence).map_err(crate::Error::from)
 }
 
 pub fn request_frozen_video_frame(
@@ -558,7 +558,7 @@ pub fn request_frozen_video_frame(
     frame: f64,
     sequence: u64,
 ) -> Result<Value> {
-    frozen::request_frozen_video_frame(handle, object, frame, sequence).map_err(|error| error.to_string())
+    frozen::request_frozen_video_frame(handle, object, frame, sequence).map_err(crate::Error::from)
 }
 
 pub fn read_frozen_video_frame_into(
@@ -566,7 +566,7 @@ pub fn read_frozen_video_frame_into(
     object: u64,
     sequence: u64,
 ) -> Result<Arc<crate::video_frame::DecodedFrame>> {
-    frozen::read_frozen_video_frame_into(handle, object, sequence).map_err(|error| error.to_string())
+    frozen::read_frozen_video_frame_into(handle, object, sequence).map_err(crate::Error::from)
 }
 
 /// Decode metadata for a single video frame, used by pixel readback hosts.
