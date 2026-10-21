@@ -53,11 +53,9 @@ impl Renderer {
             // silently bypass a failed effect while preparing a phase source.
             self.preflight_exposure_context(scene, width, height, preview)?;
             let (children, diagnostics) = self.prepare_nested(scene, width, height, preview)?;
-            let mut encoder = self
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            let mut encoder = self.allocation_command_encoder(&wgpu::CommandEncoderDescriptor {
                     label: Some("center-time adjustment dependencies"),
-                });
+                })?;
             let mut stats = self.encode_effects(
                 scene,
                 None,
@@ -71,7 +69,7 @@ impl Renderer {
             )?;
             // Submit center geometry before the phase compositor uploads its
             // independent planes into the shared vertex/uniform buffers.
-            self.submit_tracked(encoder.finish(), |_| {});
+            self.submit_allocated(encoder.finish(), |_| {})?;
             self.check_health()?;
             stats.add(children);
             self.effect_diagnostics.extend(diagnostics);

@@ -140,11 +140,9 @@ impl Renderer {
                 1,
                 TARGET_FORMAT,
             );
-            let mut encoder = self
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            let mut encoder = self.allocation_command_encoder(&wgpu::CommandEncoderDescriptor {
                     label: Some("constant receiver image"),
-                });
+                })?;
             clear_constant(&mut encoder, &image.view);
             let mut plane = layer.clone();
             plane.sampling = Default::default();
@@ -161,9 +159,9 @@ impl Renderer {
                 frame: scene.frame,
                 reservation,
             };
-            self.submit_tracked(encoder.finish(), |ledger| {
+            self.submit_allocated(encoder.finish(), |ledger| {
                 ledger.merge(raster.texture_resource_ledger())
-            });
+            })?;
             self.check_health()?;
             self.effect_diagnostics.clear();
             return Ok(Some((
@@ -186,11 +184,9 @@ impl Renderer {
                     let message = format!("{context}: {error}");
                     error.with_diagnostic(message)
                 })?;
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        let mut encoder = self.allocation_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("receiver-time local image"),
-            });
+            })?;
         let mut output = None;
         let mut stats = self
             .encode_effects(
@@ -210,9 +206,9 @@ impl Renderer {
             })?;
         let raster = output
             .ok_or_else(|| RenderError::Invalid(format!("{context}: missing local image")))?;
-        self.submit_tracked(encoder.finish(), |ledger| {
+        self.submit_allocated(encoder.finish(), |ledger| {
             ledger.merge(raster.texture_resource_ledger())
-        });
+        })?;
         self.check_health().map_err(|error| {
             let message = format!("{context} phase=submit: {error}");
             error.with_diagnostic(message)
@@ -710,11 +706,9 @@ impl Renderer {
             b: (srgb_to_linear(scene.background[2]) * alpha) as f64,
             a: alpha as f64,
         };
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        let mut encoder = self.allocation_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("retained receiver phase"),
-            });
+            })?;
         {
             let _pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("retained phase clear"),
@@ -898,12 +892,12 @@ impl Renderer {
             pass.draw(0..3, 0..1);
             draws += 1;
         }
-        self.submit_tracked(encoder.finish(), |ledger| {
+        self.submit_allocated(encoder.finish(), |ledger| {
             output_resources(ledger);
             for raster in rasters {
                 ledger.merge(raster.texture_resource_ledger());
             }
-        });
+        })?;
         self.check_health()?;
         let mut stats = RenderStats {
             cpu_prepare_us: started.elapsed().as_micros() as u64,

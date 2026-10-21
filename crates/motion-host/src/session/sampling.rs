@@ -347,14 +347,13 @@ impl Session {
                 .ok_or("completed exposure preview target missing")?
                 .view
                 .clone();
-            g.presenter.set_source(&g.renderer.device, &candidate);
+            g.presenter.set_admitted_source(&g.renderer.device, &candidate);
             let view = output.texture.create_view(&Default::default());
             let mut encoder =
                 g.renderer
-                    .device
-                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    .allocation_command_encoder(&wgpu::CommandEncoderDescriptor {
                         label: Some("Motion Studio exposure presentation"),
-                    });
+                    })?;
             g.presenter.encode_view(
                 &g.renderer.queue,
                 &mut encoder,
@@ -370,12 +369,12 @@ impl Session {
             );
             overlay.take().unwrap()(&g.renderer, &mut encoder, &view);
             let submitting = Instant::now();
-            g.renderer.submit_tracked(encoder.finish(), |ledger| {
+            g.renderer.submit_allocated(encoder.finish(), |ledger| {
                 g.scratch.collect_texture_resources(ledger)
-            });
+            })?;
             let submit_us = micros(submitting.elapsed());
             if let Err(error) = g.renderer.check_health() {
-                g.presenter.set_source(&g.renderer.device, &g.scratch.view);
+                g.presenter.set_admitted_source(&g.renderer.device, &g.scratch.view);
                 return Err(error.into());
             }
             g.scratch.commit_submitted();

@@ -368,11 +368,9 @@ impl Renderer {
                 },
             ],
         });
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        let mut encoder = self.allocation_budget.encoder(&self.device, self.allocation_owner.clone(), &wgpu::CommandEncoderDescriptor {
                 label: Some("video frame blend"),
-            });
+            })?;
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("video frame blend"),
@@ -395,7 +393,7 @@ impl Renderer {
             pass.draw(0..3, 0..1);
         }
         // Each uniform write precedes its own submission, including cached-source copies.
-        self.submit_tracked(encoder.finish(), |_| {});
+        self.submit_allocated(encoder.finish(), |_| {})?;
         self.video_blend_submissions = self.video_blend_submissions.saturating_add(1);
         self.check_health()
     }

@@ -162,6 +162,8 @@ impl RenderStats {
 }
 
 pub struct Renderer {
+    allocation_budget: crate::AllocationBudget,
+    allocation_owner: Arc<()>,
     submission_ledger: crate::submission_ledger::SubmissionLedger,
     preview_resource_guard: bool,
     pub adapter: wgpu::Adapter,
@@ -234,6 +236,16 @@ impl Renderer {
         surface: Option<&wgpu::Surface<'_>>,
         format: wgpu::TextureFormat,
         timestamps: bool,
+    ) -> Result<Self> {
+        Self::new_profiled_with_allocation_budget(instance, surface, format, timestamps,
+            crate::AllocationBudget::default()).await
+    }
+    pub async fn new_profiled_with_allocation_budget(
+        instance: &wgpu::Instance,
+        surface: Option<&wgpu::Surface<'_>>,
+        format: wgpu::TextureFormat,
+        timestamps: bool,
+        allocation_budget: crate::AllocationBudget,
     ) -> Result<Self> {
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -409,6 +421,8 @@ impl Renderer {
             crate::layer_gpu::LayerGpu::new(&device, &uniform_layout, &image_layout, format);
         let mask_gpu=crate::mask_gpu::MaskGpu::new(&device,&image_layout)?;
         let mut renderer = Self {
+            allocation_budget,
+            allocation_owner: Arc::new(()),
             preview_resource_guard: false,
             submission_ledger: Default::default(),
             adapter,
@@ -473,6 +487,24 @@ impl Renderer {
     pub async fn headless() -> Result<Self> {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
         Self::new(&instance, None, TARGET_FORMAT).await
+    }
+    pub async fn headless_with_allocation_budget(budget: crate::AllocationBudget) -> Result<Self> {
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
+        Self::new_profiled_with_allocation_budget(&instance, None, TARGET_FORMAT, false, budget).await
+    }
+    pub fn allocation_budget(&self) -> &crate::AllocationBudget { &self.allocation_budget }
+    pub fn allocation_command_encoder(&self, descriptor: &wgpu::CommandEncoderDescriptor<'_>)
+        -> Result<crate::AllocationEncoder>
+    {
+        self.allocation_budget.encoder(&self.device, self.allocation_owner.clone(), descriptor)
+    }
+    /// Retains allocation reservations through queue completion independently
+    /// of whether optional diagnostic submission snapshots are enabled.
+    pub fn submit_allocated(&self, buffer: crate::AllocatedCommandBuffer,
+        extra_resources: impl FnOnce(&mut crate::TextureResourceLedger)) -> Result<wgpu::SubmissionIndex>
+    {
+        buffer.submit(&self.allocation_budget, &self.allocation_owner,
+            |buffer| self.submit_tracked(buffer, extra_resources), &self.queue)
     }
     pub fn effect_plan_builds(&self) -> u64 {
         self.effect_gpu.builder.preview_plan_builds
@@ -1408,13 +1440,12 @@ impl Renderer {
     }
     fn draw_internal(&mut self,scene:&Scene,view:&wgpu::TextureView,width:u32,height:u32,preview:bool)->Result<RenderStats> {
         let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            .allocation_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Motion Studio frame"),
-            });
+            })?;
         let mut stats = self.encode_internal(scene, view, width, height, &mut encoder, None, preview)?;
         let submitted = Instant::now();
-        self.submit_tracked(encoder.finish(), |_| {});
+        self.submit_allocated(encoder.finish(), |_| {})?;
         stats.cpu_prepare_us += submitted.elapsed().as_micros() as u64;
         self.check_health()?;
         Ok(stats)
@@ -1453,6 +1484,7 @@ impl Renderer {
         timestamps: Option<wgpu::RenderPassTimestampWrites<'_>>,
         preview: bool,
     ) -> Result<RenderStats> {
+        self.allocation_budget.check()?;
         let (child_stats, child_diagnostics) = self.prepare_nested(scene, width, height, preview)?;
         let mut stats=self.encode_local(scene,view,width,height,encoder,timestamps,preview)?;
         stats.add(child_stats);self.effect_diagnostics.extend(child_diagnostics);Ok(stats)
@@ -1495,7 +1527,7 @@ impl Renderer {
                     entries:&[wgpu::BindGroupEntry{binding:0,resource:wgpu::BindingResource::TextureView(&target.view)},
                         wgpu::BindGroupEntry{binding:1,resource:wgpu::BindingResource::Sampler(&self.sampler)}],
                 });
-                self.images.insert(key,GpuImage {_texture:target.texture,view:target.view,bind_group:group,bytes,size:(w,h),video_stamp:None});
+                self.images.insert(key,GpuImage {_texture:target.texture,view:target.view.view,bind_group:group,bytes,size:(w,h),video_stamp:None});
                 self.texture_bytes=self.texture_bytes-previous+bytes;
                 self.composition_images.insert(node.layer);
                 self.effect_gpu.invalidate();
@@ -2161,7 +2193,7 @@ impl Renderer {
         {
             return Err(RenderError::Invalid("invalid capture size".into()));
         }
-        let texture = self.device.create_owned_texture(&wgpu::TextureDescriptor {
+        let texture = self.device.create_admitted_texture(&wgpu::TextureDescriptor {
             label: Some("Motion Studio reusable offscreen frame"),
             size: wgpu::Extent3d {
                 width,
@@ -2176,8 +2208,8 @@ impl Renderer {
                 | wgpu::TextureUsages::COPY_SRC
                 | wgpu::TextureUsages::TEXTURE_BINDING,
             view_formats: &[],
-        });
-        let view = texture.create_view(&Default::default());
+        }, &self.allocation_budget)?;
+        let view = texture.admitted_view()?;
         Ok(RenderTarget {
             texture,
             view,
@@ -2188,6 +2220,7 @@ impl Renderer {
     pub fn capture_target(&self, width: u32, height: u32) -> Result<CaptureTarget> {
         let target = self.render_target(width, height)?;
         let row_stride = (width * 4).div_ceil(256) * 256;
+        let buffer_allocation = self.allocation_budget.reserve(u64::from(row_stride) * u64::from(height))?;
         let buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Motion Studio bounded frame readback"),
             size: u64::from(row_stride) * u64::from(height),
@@ -2201,6 +2234,7 @@ impl Renderer {
             width,
             height,
             row_stride,
+            _buffer_allocation: buffer_allocation,
         })
     }
     /// Readback is for screenshots and a measured reference export path, never preview.
@@ -2216,10 +2250,9 @@ impl Renderer {
     pub fn read_target(&self, target: &CaptureTarget) -> Result<Vec<u8>> {
         self.check_health()?;
         let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            .allocation_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Motion Studio screenshot copy"),
-            });
+            })?;
         encoder.copy_texture_to_buffer(
             wgpu::TexelCopyTextureInfo {
                 texture: &target.texture,
@@ -2241,7 +2274,7 @@ impl Renderer {
                 depth_or_array_layers: 1,
             },
         );
-        self.submit_tracked(encoder.finish(), |ledger| ledger.merge(target.texture_resource_ledger()));
+        self.submit_allocated(encoder.finish(), |ledger| ledger.merge(target.texture_resource_ledger()))?;
         let (send, recv) = mpsc::sync_channel(1);
         target
             .buffer
@@ -2300,7 +2333,7 @@ pub fn premultiply_pixels(rgba: &mut [u8]) {
 
 pub struct RenderTarget {
     texture: OwnedTexture,
-    pub view: wgpu::TextureView,
+    pub view: crate::AdmittedTextureView,
     pub width: u32,
     pub height: u32,
 }
@@ -2317,11 +2350,12 @@ impl RenderTarget {
 }
 pub struct CaptureTarget {
     texture: OwnedTexture,
-    pub view: wgpu::TextureView,
+    pub view: crate::AdmittedTextureView,
     buffer: wgpu::Buffer,
     pub width: u32,
     pub height: u32,
     row_stride: u32,
+    _buffer_allocation: crate::allocation_budget::AllocationLease,
 }
 impl CaptureTarget {
     pub fn texture_resource_ledger(&self) -> crate::TextureResourceLedger {

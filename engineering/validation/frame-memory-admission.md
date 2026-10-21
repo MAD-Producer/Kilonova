@@ -47,3 +47,32 @@ need separate scopes; application logical bytes are not measured device VRAM.
 This audit is a work plan and source finding, not new allocation enforcement,
 passing acceptance or closure of an issue. Record implemented paths, source-bound
 tests, output artifacts and remaining limits here as the work proceeds.
+
+## First implementation increment
+
+`AllocationBudget` provides atomic, shared logical-capacity admission with typed
+refusals, checked arithmetic, bounded metadata and alias-safe leases. Offscreen
+targets use their actual texture format; capture targets also reserve aligned
+readback capacity. Views and the admitted Presenter source retain their lease.
+Admitted command encoders conservatively retain the budget's enrolled allocations,
+including new allocations during encoding, through command-buffer abandonment or
+queue completion. Submission rejects a different budget or rendering queue.
+This lifetime protection is independent of optional diagnostic snapshots.
+
+Renderer-owned draw, exposure, frame-blend, layer-raster and adjustment submissions,
+host normal/temporal/retained presentation and desktop UI capture use these scopes.
+Lowering a limit preserves existing reservations and permits presentation of an
+already admitted front; content work and new allocations can refuse. No panel,
+project-format, precision-setting or 3D behavior is changed in this increment.
+
+The peak is conservative admitted logical capacity, not exact frame accesses,
+physical device residency or a complete application GPU-memory bound. Source/video
+uploads, scratch textures, other buffers, external/raw submissions and driver or
+decoder allocations are not yet enrolled. Upload enrollment must preserve pending
+queue-write lifetimes as well as command-buffer lifetimes. Session-wide budget
+configuration, platform pressure, preview recovery and export policy integration
+remain pending. #61, #60 and #67 must remain open.
+
+The first full workspace/all-targets FFmpeg compile passed. Final source-bound
+GPU and host regression evidence will be appended after execution; the earlier
+three unit and six GPU passes describe an intermediate source only.

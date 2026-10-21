@@ -45,7 +45,7 @@ fn read_front(renderer: &Renderer, targets: &PreviewFrameTargets) -> Vec<u8> {
         .capture_target(targets.width, targets.height)
         .unwrap();
     Presenter::new(renderer, &targets.view, wgpu::TextureFormat::Rgba8UnormSrgb)
-        .draw(renderer, &output.view);
+        .draw(renderer, &output.view).unwrap();
     renderer.read_target(&output).unwrap()
 }
 

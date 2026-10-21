@@ -372,7 +372,7 @@ impl Session {
         // prepare the real dimensions under the bounded preview policy.
         let scratch = PreviewFrameTargets::new(&renderer, 1, 1)
             .map_err(crate::Error::from)?;
-        let presenter = Presenter::new(&renderer, &scratch.view, config.format);
+        let presenter = Presenter::new_admitted(&renderer, &scratch.view, config.format);
         // Auto quality needs GPU cost even without diagnostic recording; only
         // four reusable 32-byte timing buffers are read, never video pixels.
         let timer = GpuTimer::new(&renderer.device, &renderer.queue);
@@ -556,10 +556,9 @@ impl Session {
             let sequence = self.presented + 1;
             let mut encoder =
                 g.renderer
-                    .device
-                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    .allocation_command_encoder(&wgpu::CommandEncoderDescriptor {
                         label: Some("Motion Studio bounded composition and presentation"),
-                    });
+                    })?;
             let uploading = Instant::now();
             let mut video_uploads = Vec::new();
             let mut upload_error = None;
@@ -662,7 +661,7 @@ impl Session {
                 }
             };
             let acquire_us = acquiring.elapsed().as_micros() as u64;
-            g.presenter.set_source(&g.renderer.device, &candidate_view);
+            g.presenter.set_admitted_source(&g.renderer.device, &candidate_view);
             let view = output.texture.create_view(&Default::default());
             g.presenter.encode_view(
                 &g.renderer.queue, &mut encoder, &view,
@@ -675,7 +674,7 @@ impl Session {
                 g.timer.as_ref().unwrap().resolve(i, &mut encoder);
             }
             let submitting = Instant::now();
-            g.renderer.submit_tracked(encoder.finish(), |ledger| g.scratch.collect_texture_resources(ledger));
+            g.renderer.submit_allocated(encoder.finish(), |ledger| g.scratch.collect_texture_resources(ledger))?;
             for upload in video_uploads {
                 upload.mark_submitted();
             }
@@ -684,7 +683,7 @@ impl Session {
                 g.timer.as_ref().unwrap().map(i);
             }
             if let Err(error) = g.renderer.check_health() {
-                g.presenter.set_source(&g.renderer.device, &g.scratch.view);
+                g.presenter.set_admitted_source(&g.renderer.device, &g.scratch.view);
                 return Err(error.into());
             }
             g.scratch.commit_submitted();
@@ -853,7 +852,7 @@ fn present_chrome(g: &mut Graphics, retained_viewport: Option<[f32; 4]>, image: 
     overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView)) -> Result<bool> {
     let Some(output) = acquire_preview_surface(g)? else { return Ok(false); };
     let view = output.texture.create_view(&Default::default());
-    let mut encoder = g.renderer.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Motion Studio retained preview") });
+    let mut encoder = g.renderer.allocation_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Motion Studio retained preview") })?;
     if let Some(viewport) = retained_viewport {
         g.presenter.encode_view(&g.renderer.queue, &mut encoder, &view, None,
             if image.is_some() { viewport } else { preview_viewport(viewport, g.last_canvas) }, image, g.last_background);
@@ -868,7 +867,7 @@ fn present_chrome(g: &mut Graphics, retained_viewport: Option<[f32; 4]>, image: 
         });
     }
     overlay(&g.renderer, &mut encoder, &view);
-    g.renderer.submit_tracked(encoder.finish(), |ledger| g.scratch.collect_texture_resources(ledger));
+    g.renderer.submit_allocated(encoder.finish(), |ledger| g.scratch.collect_texture_resources(ledger))?;
     g.renderer.check_health().map_err(crate::Error::from)?;
     g.renderer.queue.present(output);
     Ok(true)

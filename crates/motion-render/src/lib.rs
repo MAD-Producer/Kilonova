@@ -18,6 +18,10 @@ mod submission_ledger;
 pub use submission_ledger::{SubmissionMemoryInfo, SubmissionMemorySnapshot, MAX_SUBMISSION_SNAPSHOTS};
 mod frame_memory;
 pub use frame_memory::FrameTextureCapacity;
+mod allocation_budget;
+pub use allocation_budget::{AllocationBudget, AllocationBudgetInfo, AllocationEncoder,
+    AllocatedCommandBuffer, AdmittedTextureView, DEFAULT_RENDER_ALLOCATION_BUDGET,
+    MAX_RENDER_ALLOCATION_BUDGET};
 pub use resource_ledger::{TextureCategory, TextureState, TextureReference, TextureResource, TextureResourceLedger};
 mod presenter;
 mod viewport;
