@@ -70,7 +70,7 @@ fn switching_order_is_an_explicit_pose_change_with_complete_history_and_format()
         order: RotationOrder::FixedXyz,
     })
     .unwrap();
-    assert_eq!(e.project().version, 16);
+    assert_eq!(e.project().version, motion_model::CURRENT_PROJECT_VERSION);
     assert_eq!(
         e.project().layers[0].transform,
         original.layers[0].transform
@@ -91,7 +91,7 @@ fn switching_order_is_an_explicit_pose_change_with_complete_history_and_format()
 #[test]
 fn anchor_compensation_keeps_geometry_after_order_switch_and_locked_edit_is_atomic() {
     let mut p = project();
-    p.version = 16;
+    p.version = motion_model::CURRENT_PROJECT_VERSION;
     p.layers[0].rotation_order = RotationOrder::FixedXyz;
     let mut e = Engine::new(p).unwrap();
     let mut world = Vec::new();
@@ -131,21 +131,21 @@ fn anchor_compensation_keeps_geometry_after_order_switch_and_locked_edit_is_atom
     assert_eq!(e.snapshot(), locked);
 }
 #[test]
-fn legacy_serialization_is_unchanged_and_fixed_order_requires_its_format() {
+fn rotation_order_is_explicit_and_both_orders_roundtrip() {
     let mut p = project();
-    assert!(!serde_json::to_string(&p)
-        .unwrap()
-        .contains("rotation_order"));
-    p.layers[0].rotation_order = RotationOrder::FixedXyz;
-    assert!(p.validate().is_err());
-    p.version = 16;
-    p.validate().unwrap();
+    for order in [RotationOrder::LocalXyz, RotationOrder::FixedXyz] {
+        p.layers[0].rotation_order = order;
+        p.validate().unwrap();
+        let value = serde_json::to_value(&p).unwrap();
+        assert!(value["layers"][0].get("rotation_order").is_some());
+        assert_eq!(serde_json::from_value::<Project>(value).unwrap(), p);
+    }
 }
 
 #[test]
 fn reparenting_fixed_rotations_keeps_pose_and_tracks_without_euler_decomposition() {
     let mut p = project();
-    p.version = 16;
+    p.version = motion_model::CURRENT_PROJECT_VERSION;
     p.layers[0].rotation_order = RotationOrder::FixedXyz;
     let mut parent = Layer::solid(2, "parent", [1.; 2], [90., 140., 10.], [0.; 4]);
     parent.content = Content::Null;
@@ -187,7 +187,7 @@ fn new_shapes_use_fixed_axes_and_legacy_add_payloads_keep_their_order() {
         e.project().layers[0].rotation_order,
         RotationOrder::FixedXyz
     );
-    assert_eq!(e.project().version, 16);
+    assert_eq!(e.project().version, motion_model::CURRENT_PROJECT_VERSION);
     let old = Layer::solid(2, "old payload", [40.; 2], [128., 128., 0.], [1.; 4]);
     e.apply(Command::Add { layer: old }).unwrap();
     assert_eq!(
@@ -207,7 +207,7 @@ fn new_shapes_use_fixed_axes_and_legacy_add_payloads_keep_their_order() {
 #[test]
 fn particle_birth_poses_and_cache_follow_rotation_order_changes() {
     let mut p = project();
-    p.version = 16;
+    p.version = motion_model::CURRENT_PROJECT_VERSION;
     let package = scene_fixtures::particle_package().unwrap();
     let effect = EffectInstance::new(
         1,

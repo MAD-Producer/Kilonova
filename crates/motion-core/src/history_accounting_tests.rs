@@ -373,7 +373,7 @@ fn history_accounting_failed_batch_prepare_and_save_preserve_the_cache() {
 #[test]
 fn history_accounting_composition_routing_and_activation_keep_exact_payload_sizes() {
     let mut project = Project::demo();
-    project.version = 16;
+    project.version = motion_model::CURRENT_PROJECT_VERSION;
     project.compositions.push(crate::Composition {
         id: "comp-child".into(),
         name: "Child\n\"quoted\"".into(),

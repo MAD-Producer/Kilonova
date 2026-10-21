@@ -14,7 +14,6 @@ pub enum CameraMode {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Camera {
-    #[serde(default = "legacy_created")]
     pub created: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<crate::ParentLink>,
@@ -24,14 +23,10 @@ pub struct Camera {
     pub roll: Track<f32>,
     pub fov: Track<f32>,
     /// Horizontal film gate in millimetres; FOV remains the canonical animated projection.
-    #[serde(default = "lens::default_film_width", skip_serializing_if = "lens::default_gate")]
     pub film_width_mm: f32,
     pub radius: Track<f32>,
     pub azimuth: Track<f32>,
     pub elevation: Track<f32>,
-}
-fn legacy_created() -> bool {
-    true
 }
 
 #[derive(Clone, Copy, Debug)]

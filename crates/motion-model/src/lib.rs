@@ -48,7 +48,7 @@ pub use model::{
     serialized_bytes,
     FontAsset,
     Asset, Content, Layer, LayerTimeline, ParentLink, Project, Transform, MAX_COMPOSITION_FPS,
-    MAX_FRAMES, MAX_LAYERS,
+    MAX_FRAMES, MAX_LAYERS, CURRENT_PROJECT_VERSION,
 };
 pub use clip_range::ClipRange;
 pub use geometry::RotationOrder;

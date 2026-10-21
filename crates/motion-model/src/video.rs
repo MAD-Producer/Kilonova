@@ -91,15 +91,9 @@ impl VideoAsset {
 #[serde(deny_unknown_fields)]
 pub struct VideoClip {
     pub asset: u64,
-    #[serde(default)]
     pub source_offset_us: u64,
-    #[serde(default = "unity")]
     pub volume: f32,
-    #[serde(default)]
     pub muted: bool,
-}
-fn unity() -> f32 {
-    1.0
 }
 impl VideoClip {
     pub fn new(asset: u64) -> Self {

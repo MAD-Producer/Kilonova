@@ -67,7 +67,7 @@ fn spatial_edit_is_atomic_and_round_trips_history_and_format() {
         }),
     };
     e.apply(command).unwrap();
-    assert_eq!(e.project().version, 9);
+    assert_eq!(e.project().version, motion_model::CURRENT_PROJECT_VERSION);
     let saved = serde_json::to_string(e.project()).unwrap();
     let restored: Project = serde_json::from_str(&saved).unwrap();
     restored.validate().unwrap();
@@ -92,7 +92,7 @@ fn spatial_edit_is_atomic_and_round_trips_history_and_format() {
     assert!(e.apply(bad).is_err());
     assert_eq!(e.revision(), revision);
     assert_eq!(e.project().layers, restored.layers);
-    assert_eq!(Engine::new(restored).unwrap().project().version, 9);
+    assert_eq!(Engine::new(restored).unwrap().project().version, motion_model::CURRENT_PROJECT_VERSION);
 }
 
 #[test]
@@ -134,7 +134,7 @@ fn path_query_matches_flat_parent_projection_without_seeking_or_mutating() {
             }),
         )
         .unwrap();
-    p.version = 9;
+    p.version = motion_model::CURRENT_PROJECT_VERSION;
     let original = p.clone();
     let mut scene = motion_render::Scene::new(&p);
     scene.sample(&p, 30., None, &motion_core::ExpressionEvaluator).unwrap();

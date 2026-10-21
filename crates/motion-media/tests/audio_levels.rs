@@ -51,7 +51,7 @@ fn fixture(channels: u32) -> (tempfile::TempDir, Project) {
         }
     }
     let mut p = Project::new(64, 64, 24, 72).unwrap();
-    p.version = 14;
+    p.version = motion_model::CURRENT_PROJECT_VERSION;
     p.audio_assets.push(AudioAsset {
         id: 1,
         path: "assets/tone.wav".into(),

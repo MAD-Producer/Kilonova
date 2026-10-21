@@ -175,7 +175,7 @@ fn png_export_freezes_frame_without_blocking_engine_and_observes_failure_and_can
             fixture(&directory, false);
             if blur {
                 let mut project = motion_core::storage::load(&directory).unwrap();
-                project.version = 21;
+                project.version = motion_model::CURRENT_PROJECT_VERSION;
                 project.layers[0].sampling.motion_blur = Some(motion_core::render_sampling::Shutter { frames:0.5, samples:8 });
                 motion_core::storage::save(&directory, &project).unwrap();
             }
@@ -402,7 +402,7 @@ fn exposure_preview_keeps_progress_across_native_windows_and_cancels_on_explicit
             let directory=root.join(format!("exposure-{floating}-{fail}"));
             fixture(&directory,false);
             let mut project=motion_core::storage::load(&directory).unwrap();
-            project.version=21;
+            project.version = motion_model::CURRENT_PROJECT_VERSION;
             project.layers[0].sampling.motion_blur=Some(motion_core::render_sampling::Shutter {frames:0.5,samples:4});
             for (frame,x) in [(0,8.),(2,24.)] {project.layers[0].transform.position.upsert(frame,[x,16.,0.],motion_core::Ease::Linear).unwrap();}
             motion_core::storage::save(&directory,&project).unwrap();

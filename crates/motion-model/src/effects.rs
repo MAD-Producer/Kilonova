@@ -15,7 +15,6 @@ pub struct PluginDependency {
 #[serde(deny_unknown_fields)]
 pub struct CurveObject {
     pub channels: [Vec<[f32; 2]>; 5],
-    #[serde(default="crate::color_curves::legacy_modes")]
     pub interpolation: [crate::color_curves::ColorInterpolation;5],
     #[serde(default,skip_serializing_if="crate::color_curves::no_overrides")]
     pub channel_luts: [Option<Vec<f32>>;5],
@@ -260,7 +259,7 @@ pub enum EffectImageStage {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum EffectImageInput {
-    Layer { layer: u64, #[serde(default)] stage: EffectImageStage },
+    Layer { layer: u64, stage: EffectImageStage },
     Asset { asset: u64 },
     Empty,
 }

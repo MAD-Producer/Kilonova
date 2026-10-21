@@ -3,7 +3,7 @@ use motion_render::{Renderer, Scene};
 
 fn fixture() -> (Project, Scene) {
     let mut p = Project::new(16, 16, 30, 60).unwrap();
-    p.version = 21;
+    p.version = motion_model::CURRENT_PROJECT_VERSION;
     p.background = [0.; 4];
     p.video_assets.push(VideoAsset {
         id: 1,

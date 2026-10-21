@@ -8,7 +8,7 @@ use std::path::Path;
 pub fn capabilities() -> serde_json::Value {
     use motion_core::render_sampling::{MAX_SHUTTER_SAMPLES, PREVIEW_SHUTTER_SAMPLES};
     serde_json::json!({
-        "version":1,"project_format":21,"command":"set_layer_sampling","animated":false,
+        "version":1,"project_format":motion_core::CURRENT_PROJECT_VERSION,"command":"set_layer_sampling","animated":false,
         "wgpu_preview":true,
         "frame_blend":{"sources":["video"],"modes":["hold","linear"],
             "clock":"actual_source_pts","space":"linear_premultiplied"},

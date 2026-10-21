@@ -51,7 +51,7 @@ fn fixture(root: &Path) -> Project {
     fs::create_dir_all(root.join("assets")).unwrap();
     fs::write(root.join("assets/source.wav"), b"registered source").unwrap();
     let mut project = Project::new(32, 32, 30, 30).unwrap();
-    project.version = 21;
+    project.version = motion_core::CURRENT_PROJECT_VERSION;
     project.audio_assets.push(AudioAsset {
         id: 7,
         path: "assets/source.wav".into(),
@@ -126,7 +126,7 @@ fn video_snapshot_sequences_and_legacy_wire_shapes_remain_compatible_after_sessi
     let root = temp.path().join("project");
     fs::create_dir(&root).unwrap();
     let mut project = Project::new(32, 32, 30, 60).unwrap();
-    project.version = 21;
+    project.version = motion_core::CURRENT_PROJECT_VERSION;
     let session = crate::session::open(root, project.clone(), Arc::new(Stub)).unwrap();
     let report = super::super::freeze_video(session).unwrap();
     let handle = report["handle"].as_i64().unwrap();

@@ -36,7 +36,6 @@ pub struct PropertyExpression {
     pub target: ExpressionTarget,
     pub source: String,
     pub enabled: bool,
-    #[serde(default)]
     pub seed: u32,
     pub profile: String,
 }
@@ -190,10 +189,6 @@ pub(crate) fn validate(project: &Project) -> Result<()> {
     ensure(
         project.expressions.len() <= MAX_EXPRESSIONS,
         "expression limit exceeded",
-    )?;
-    ensure(
-        project.version >= 3 || project.expressions.is_empty(),
-        "expressions require project format 3",
     )?;
     for (i, e) in project.expressions.iter().enumerate() {
         ensure(

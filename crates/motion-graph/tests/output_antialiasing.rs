@@ -71,7 +71,7 @@ fn aligned_planes_preserve_the_last_row_and_column_of_odd_viewports() {
     ] {
         for case in ["plain", "mask", "alpha_matte", "luma_matte", "blend"] {
             let mut project = Project::new(width, height, 30, 60).unwrap();
-            project.version = 10;
+            project.version = motion_core::CURRENT_PROJECT_VERSION;
             project.camera.created = false;
             project.background = [0.; 4];
             let size = [width as f32, height as f32];
@@ -398,7 +398,7 @@ fn coverage_is_shared_by_plain_masked_matted_and_blended_planes() {
         "reflection",
     ] {
         let mut project = Project::new(256, 192, 30, 60).unwrap();
-        project.version = 10;
+        project.version = motion_core::CURRENT_PROJECT_VERSION;
         project.camera.created = false;
         project.background = [0.; 4];
         let mut layer = Layer::solid(1, "Edge", [144., 104.], [128.25, 96.25, 0.], [1.; 4]);

@@ -24,15 +24,10 @@ pub struct AudioMarker {
     /// Source/layer time, so moving and trimming a clip preserve its references.
     pub frame: i32,
     pub label: String,
-    #[serde(default)]
     pub generated: bool,
     /// Retain analysis provenance while protecting a manually adjusted point
     /// from replacement by the next analysis run.
-    #[serde(default, skip_serializing_if = "uncorrected")]
     pub corrected: bool,
-}
-fn uncorrected(value: &bool) -> bool {
-    !*value
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

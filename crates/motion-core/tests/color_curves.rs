@@ -2,7 +2,7 @@ use motion_core::color_curves::ColorInterpolation;
 use motion_core::{Command, CurveObject, EffectAction, EffectInstance, Engine, Layer, Project};
 
 #[test]
-fn smooth_curve_has_known_cubic_shape_and_legacy_missing_mode_stays_linear() {
+fn smooth_curve_has_known_cubic_shape_and_requires_explicit_mode() {
     let mut curve = CurveObject::default();
     curve.channels[0] = vec![[0., 0.], [0.5, 1.], [1., 0.]];
     let lut = curve.lut();
@@ -11,9 +11,10 @@ fn smooth_curve_has_known_cubic_shape_and_legacy_missing_mode_stays_linear() {
     assert!((lut[64][0] - expected).abs() < 1e-6);
     let mut old = serde_json::to_value(&curve).unwrap();
     old.as_object_mut().unwrap().remove("interpolation");
-    let old: CurveObject = serde_json::from_value(old).unwrap();
-    assert_eq!(old.interpolation, [ColorInterpolation::Linear; 5]);
-    assert_eq!(old.lut()[64][0], x * 2.);
+    assert!(serde_json::from_value::<CurveObject>(old).unwrap_err().to_string().contains("interpolation"));
+    let mut linear = curve.clone();
+    linear.interpolation = [ColorInterpolation::Linear; 5];
+    assert_eq!(linear.lut()[64][0], x * 2.);
     let graph = curve.graph();
     let segments = graph["channels"][0]["segments"].as_array().unwrap();
     assert_eq!(segments.len(), 2);

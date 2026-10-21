@@ -123,7 +123,7 @@ fn sixty_clip_traversals_and_reverse_seeks_keep_one_live_video_and_release_the_g
 #[test]
 fn hidden_matte_source_is_live_but_unreferenced_hidden_video_is_reclaimed() {
     let mut p = project();
-    p.version = 10;
+    p.version = motion_model::CURRENT_PROJECT_VERSION;
     let mut source = video(1);
     source.visible = false;
     let mut target = Layer::solid(2, "target", [32.; 2], [16., 16., 0.], [1.; 4]);

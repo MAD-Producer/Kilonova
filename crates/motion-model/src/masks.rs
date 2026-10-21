@@ -53,9 +53,6 @@ fn zero() -> Track<f32> {
 fn feather() -> Track<[f32; 2]> {
     Track::constant([0.; 2])
 }
-fn enabled() -> bool {
-    true
-}
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -63,17 +60,11 @@ pub struct LayerMask {
     pub id: u64,
     pub name: String,
     pub path: VectorPath,
-    #[serde(default)]
     pub mode: MaskMode,
-    #[serde(default = "enabled")]
     pub enabled: bool,
-    #[serde(default)]
     pub inverted: bool,
-    #[serde(default = "hundred")]
     pub opacity: Track<f32>,
-    #[serde(default = "feather")]
     pub feather: Track<[f32; 2]>,
-    #[serde(default = "zero")]
     pub expansion: Track<f32>,
 }
 #[derive(Clone, Debug, PartialEq)]

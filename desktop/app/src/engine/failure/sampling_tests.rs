@@ -37,7 +37,7 @@ fn check_refusal(camera: bool, test_name: &str) {
         let _logger = crate::logging::init(root.clone()).unwrap();
         for (language, locale) in [("zh", Locale::Zh), ("en", Locale::En)] {
             let mut project = Project::new(64, 64, 30, 60).unwrap();
-            project.version = 21;
+            project.version = motion_model::CURRENT_PROJECT_VERSION;
             project.camera.created = camera;
             project.camera.position.value = [32., 32., -10.];
             let mut layer =

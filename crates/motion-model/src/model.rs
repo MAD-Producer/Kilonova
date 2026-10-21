@@ -2,6 +2,9 @@ use crate::{ensure, Camera, Result, Track};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
+/// The only project JSON schema accepted by this build.
+pub const CURRENT_PROJECT_VERSION: u32 = 23;
+
 pub const MAX_LAYERS: usize = 128;
 pub const MAX_FRAMES: u32 = 36_000;
 pub const MAX_COMPOSITION_FPS: u32 = 240;
@@ -117,8 +120,7 @@ impl Transform {
     }
 }
 
-// Static anchors keep the legacy array representation byte-for-value. Animated
-// anchors use the normal Track schema, gated by project format twenty.
+// Static anchors use a compact array; animated anchors carry a complete Track.
 mod anchor_serde {
     use super::*;
     pub fn serialize<S: serde::Serializer>(value: &Track<[f32; 2]>, s: S) -> std::result::Result<S::Ok, S::Error> {
@@ -128,9 +130,9 @@ mod anchor_serde {
     pub fn deserialize<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<Track<[f32; 2]>, D::Error> {
         #[derive(Deserialize)]
         #[serde(untagged)]
-        enum Stored { Legacy([f32; 2]), Animated(Track<[f32; 2]>) }
+        enum Stored { Static([f32; 2]), Animated(Track<[f32; 2]>) }
         Ok(match Stored::deserialize(d)? {
-            Stored::Legacy(value) => Track::constant(value),
+            Stored::Static(value) => Track::constant(value),
             Stored::Animated(track) => track,
         })
     }
@@ -147,11 +149,8 @@ pub struct Layer {
     pub visible: bool,
     pub locked: bool,
     /// New layers are flat until the user explicitly enables spatial transforms.
-    #[serde(default)]
     pub three_d: bool,
-    #[serde(default, skip_serializing_if = "crate::render_sampling::LayerSampling::is_default")]
     pub sampling: crate::render_sampling::LayerSampling,
-    #[serde(default,skip_serializing_if="crate::geometry::default_rotation_order")]
     pub rotation_order:crate::geometry::RotationOrder,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<ParentLink>,
@@ -159,7 +158,6 @@ pub struct Layer {
     pub effects: Vec<crate::EffectInstance>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub masks: Vec<crate::masks::LayerMask>,
-    #[serde(default,skip_serializing_if="crate::compositing::default_blend")]
     pub blend:crate::compositing::LayerBlend,
     #[serde(default,skip_serializing_if="Option::is_none")]
     pub track_matte:Option<crate::compositing::TrackMatte>,
@@ -171,7 +169,6 @@ pub struct Layer {
     pub audio_levels: Option<crate::AudioLevels>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub audio_markers: Vec<crate::AudioMarker>,
-    #[serde(default, skip_serializing_if = "crate::audio_edit::stereo")]
     pub audio_source_channel: crate::AudioSourceChannel,
 }
 impl Layer {
@@ -266,7 +263,6 @@ pub struct ParentLink {
 #[serde(deny_unknown_fields)]
 pub struct Project {
     pub version: u32,
-    #[serde(default = "crate::composition::main_composition")]
     pub composition_id: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub compositions: Vec<crate::Composition>,
@@ -295,7 +291,7 @@ impl Project {
     pub fn new(width: u32, height: u32, fps: u32, frames: u32) -> Result<Self> {
         ensure(width > 0 && height > 0, "composition size must be positive")?;
         let mut project = Self {
-            version: 8,
+            version: CURRENT_PROJECT_VERSION,
             composition_id: crate::MAIN_COMPOSITION.into(),
             compositions: Vec::new(),
             name: "空间练习 01".into(),
@@ -350,6 +346,7 @@ impl Project {
         p
     }
     pub fn validate(&self) -> Result<()> {
+        ensure(self.version == CURRENT_PROJECT_VERSION, &format!("unsupported project format: version={} expected={CURRENT_PROJECT_VERSION}", self.version))?;
         ensure(self.fonts.len()<=128,"too many font assets")?;
         let mut font_ids=HashSet::new();
         for font in &self.fonts {
@@ -357,7 +354,6 @@ impl Project {
             crate::storage::validate_relative_path(&font.path)?;
             ensure(font.path.starts_with("assets/fonts/")&&font.path.ends_with(".ttf"),"invalid managed font path")?;
         }
-        ensure((1..=22).contains(&self.version), "unsupported project format")?;
         ensure(self.plugin_dependencies == self.composition_dependencies(),
                "plugin dependency list does not match effect instances")?;
         self.validate_one(self)?;
@@ -365,28 +361,6 @@ impl Project {
     }
     pub(crate) fn validate_one(&self, document: &Project) -> Result<()> {
         crate::effects::validate_image_graph(self)?;
-        ensure(
-            (1..=22).contains(&self.version),
-            "unsupported project format",
-        )?;
-        let spatial = [&self.camera.position, &self.camera.target].iter().any(|t| t.keys.iter().any(|k| k.spatial.is_some()))
-            || self.layers.iter().any(|l| {
-                [&l.transform.position, &l.transform.rotation, &l.transform.scale].iter().any(|t|t.keys.iter().any(|k|k.spatial.is_some()))
-                    || l.effects.iter().any(|e|e.params.values().any(|p|p.track.keys.iter().any(|k|k.spatial.is_some())))
-            });
-        ensure(self.version >= 9 || !spatial, "spatial paths require project format nine")?;
-        ensure(
-            self.version >= 2 || self.layers.iter().all(|l| l.effects.is_empty()),
-            "version 1 projects cannot contain effects",
-        )?;
-        ensure(
-            self.version >= 4
-                || self
-                    .layers
-                    .iter()
-                    .all(|l| l.effects.iter().all(|e| e.scene.is_none())),
-            "scene generator projects require format 4",
-        )?;
         ensure(
             (1..=8192).contains(&self.width) && (1..=8192).contains(&self.height),
             "invalid composition size",
@@ -404,18 +378,9 @@ impl Project {
         ensure(self.layers.len() <= MAX_LAYERS, "layer limit exceeded")?;
         ensure(self.assets.len() <= MAX_LAYERS * 2, "asset limit exceeded")?;
         self.camera.validate(self.frames)?;
-        ensure(self.version >= 22 || crate::lens::default_gate(&self.camera.film_width_mm), "camera film width requires project format twenty-two")?;
-        ensure(
-            self.version >= 5 || self.video_assets.is_empty(),
-            "video requires project format five",
-        )?;
         ensure(
             self.video_assets.len() <= MAX_LAYERS * 2,
             "video asset limit exceeded",
-        )?;
-        ensure(
-            self.version >= 4 || self.audio_assets.is_empty(),
-            "audio requires project format four",
         )?;
         let mut asset_ids = HashSet::new();
         for asset in &self.assets {
@@ -486,23 +451,14 @@ impl Project {
         }
         let mut ids = HashSet::new();
         crate::compositing::validate(&self.layers)?;
-        ensure(self.version>=17||self.layers.iter().all(|l|l.effects.iter().all(|e|e.node_graph.is_none())),"editable node effects require project format seventeen")?;
         for layer in &self.layers {
             layer.sampling.validate_content(&layer.content)?;
-            ensure(self.version >= 21 || layer.sampling.is_default(), "layer sampling requires project format twenty-one")?;
-            ensure(self.version >= 20 || !layer.transform.anchor.is_animated(), "animated layer anchors require project format twenty")?;
-            ensure(self.version >= 18 || layer.audio_markers.is_empty()
-                && crate::audio_edit::stereo(&layer.audio_source_channel), "audio references require project format eighteen")?;
             crate::audio_edit::validate(layer)?;
-            ensure(self.version>=16||layer.rotation_order==crate::geometry::RotationOrder::LocalXyz,"fixed-axis rotations require project format sixteen")?;
             if let Some(levels)=&layer.audio_levels {
-                ensure(self.version>=14,"audio level envelopes require project format fourteen")?;
                 ensure(matches!(layer.content,Content::Audio{..}|Content::Video{..}|Content::Composition{..}),
                        "audio levels require an audio, video or composition layer")?;
                 levels.validate()?;
             }
-            ensure(self.version>=10||layer.track_matte.is_none()&&layer.blend==crate::compositing::LayerBlend::default(),"layer compositing requires project format ten")?;
-            ensure(self.version >= 8 || layer.masks.is_empty(), "layer masks require project format eight")?;
             crate::masks::validate(&layer.masks).map_err(|e| crate::Error::Invalid(format!("layer {}: {e}",layer.id)))?;
             ensure(layer.masks.is_empty() || !matches!(layer.content, Content::Null | Content::Camera { .. } | Content::Audio {..} | Content::Adjustment),
                 "source masks require an ordinary visual layer; adjustment masks require composition compositing")?;
@@ -521,17 +477,10 @@ impl Project {
             )?;
             layer.clip(self.frames).validate(self.frames)?;
             if let Some(range)=layer.subframe_range {
-                ensure(self.version>=15,"precise layer clips require project format fifteen")?;
                 range.validate()?;
                 ensure(range.covers(layer.clip(self.frames)),"integer clip bounds do not cover precise interval")?;
             }
-            ensure(self.version >= 13 || !layer.clip(self.frames).extends_composition(self.frames),
-                "layer spans outside the composition require project format thirteen")?;
-            if self.version == 1 && layer.timeline.is_none() {
-                layer.transform.validate(self.frames)?;
-            } else {
-                layer.transform.validate_local()?;
-            }
+            layer.transform.validate_local()?;
             ensure(
                 layer.effects.len() <= motion_effects::MAX_EFFECTS_PER_LAYER,
                 "too many layer effects",
@@ -559,7 +508,6 @@ impl Project {
             }
             match &layer.content {
                 Content::Adjustment => {
-                    ensure(self.version >= 6, "adjustment layers require format six")?;
                     ensure(!layer.three_d, "adjustment layers must be 2D")?;
                     ensure(
                         layer.effects.iter().all(|e| e.scene.is_none()),
@@ -567,8 +515,6 @@ impl Project {
                     )?;
                 }
                 Content::Vector { vector } => {
-                    ensure(self.version >= 6, "vector layers require format six")?;
-                    ensure(self.version >= vector.required_format(), "vector content requires a newer project format")?;
                     vector.validate().map_err(|e| {
                         crate::Error::Invalid(format!("layer {} vector: {e}", layer.id))
                     })?;
@@ -633,8 +579,6 @@ impl Project {
                     }
                 }
                 Content::Camera { camera } => {
-                    ensure(self.version >= 22 || crate::lens::default_gate(&camera.film_width_mm), "camera film width requires project format twenty-two")?;
-                    ensure(self.version >= 19, "camera layers require project format nineteen")?;
                     ensure(camera.created && camera.parent.is_none(), "camera layers use their layer parent")?;
                     ensure(layer.three_d && layer.transform == Transform::new([0.; 3]),
                         "camera spatial properties belong to the camera tracks")?;
@@ -688,27 +632,6 @@ impl Project {
                 }),
             _ => None,
         }
-    }
-    /// Upgrade in memory only. Opening an old project never overwrites its file.
-    pub fn migrate(mut self) -> Result<Self> {
-        self.validate()?;
-        if self.version == 1 {
-            self.version = 2;
-            for layer in &mut self.layers {
-                layer
-                    .timeline
-                    .get_or_insert_with(|| LayerTimeline::full(self.frames));
-            }
-        }
-        if self.version < 3 {
-            // Versions 1/2 rendered every layer in 3D. Preserve that appearance.
-            for layer in &mut self.layers {
-                layer.three_d = true;
-            }
-            self.version = 3;
-        }
-        self.version = self.version.max(8);
-        Ok(self)
     }
     pub fn edit_frame(&self, object: u64, frame: u32) -> Result<i32> {
         ensure(frame < self.frames, "edit frame outside the composition")?;

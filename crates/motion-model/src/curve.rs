@@ -11,26 +11,19 @@ pub enum CurveSpace {
     Velocity,
 }
 
-fn one() -> f64 {
-    1.0
-}
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum CurveShape {
     Quadratic {
         control: [f64; 2],
-        #[serde(default)]
         start: f64,
-        #[serde(default = "one")]
         end: f64,
     },
     Cubic {
         control1: [f64; 2],
         control2: [f64; 2],
-        #[serde(default)]
         start: f64,
-        #[serde(default = "one")]
         end: f64,
     },
     Elastic {
@@ -42,7 +35,6 @@ pub enum CurveShape {
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Curve {
-    #[serde(default)]
     pub space: CurveSpace,
     pub shape: CurveShape,
 }
@@ -51,7 +43,6 @@ pub struct Curve {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Easing {
-    #[serde(default)]
     pub ease: Ease,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub curve: Option<Curve>,

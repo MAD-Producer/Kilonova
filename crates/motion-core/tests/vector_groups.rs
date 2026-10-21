@@ -194,7 +194,7 @@ fn group_parameter_commands_use_clip_time_and_atomic_history_and_storage() {
         },
     };
     e.apply(Command::Add { layer }).unwrap();
-    assert_eq!(e.project().version, 12);
+    assert_eq!(e.project().version, motion_model::CURRENT_PROJECT_VERSION);
     e.apply(Command::TrimLayerClip {
         object: 1,
         in_frame: 0,

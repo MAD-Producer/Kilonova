@@ -28,7 +28,7 @@ fn sequential(v: Vec3) -> Vec3 {
 #[test]
 fn combined_rotation_pixels_match_independent_fixed_axis_basis() {
     let mut p = Project::new(256, 256, 24, 48).unwrap();
-    p.version = 16;
+    p.version = motion_model::CURRENT_PROJECT_VERSION;
     p.background = [0., 0., 0., 1.];
     let mut l = Layer::solid(1, "plane", [160., 80.], [128., 128., 0.], [1.; 4]);
     l.three_d = true;

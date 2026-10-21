@@ -132,7 +132,7 @@ fn source_and_original_audio_share_one_owned_file_and_one_history_entry() {
         1
     );
     let p = engine.project();
-    assert_eq!(p.version,16);
+    assert_eq!(p.version,motion_model::CURRENT_PROJECT_VERSION);
     assert_eq!(p.layers[0].rotation_order,motion_core::RotationOrder::FixedXyz);
     assert_eq!(p.video_assets[0].audio_asset, Some(p.audio_assets[0].id));
     assert_eq!(p.video_assets[0].path, p.audio_assets[0].path);

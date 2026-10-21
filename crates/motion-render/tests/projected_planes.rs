@@ -4,7 +4,7 @@ use motion_render::{DrawLayer, PlaneCompositor, Renderer, Scene};
 
 fn fixture(effect: bool) -> Scene {
     let mut p = Project::new(256, 256, 30, 60).unwrap();
-    p.version = 21;
+    p.version = motion_model::CURRENT_PROJECT_VERSION;
     p.background = [0., 0., 0., 1.];
     for (id, angle, color) in [(1, 55., [1., 0., 0., 1.]), (2, -45., [0., 0., 1., 1.])] {
         let mut layer = Layer::solid(

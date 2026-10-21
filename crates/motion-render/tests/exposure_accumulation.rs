@@ -372,7 +372,7 @@ fn cold_nested_mask_and_effect_rendering_preserve_transparent_pixels_through_exp
         Track,
     };
     let mut p = Project::new(32, 32, 30, 60).unwrap();
-    p.version = 21;
+    p.version = motion_model::CURRENT_PROJECT_VERSION;
     p.background = [0.; 4];
     let mut layer = Layer::solid(
         1,

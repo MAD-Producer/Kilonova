@@ -127,7 +127,7 @@ fn retired_effects_leave_catalogue_and_old_project_failures_reach_default_sinks(
         // Loading and saving never strips an unavailable effect or its animation.
         let project_root = root.join("old-project");
         let mut project = motion_core::Project::new(128, 128, 30, 120).unwrap();
-        project.version = 21;
+        project.version = motion_model::CURRENT_PROJECT_VERSION;
         let mut layer =
             motion_core::Layer::solid(1, "Saved emitter", [128.; 2], [64., 64., 0.], [0.; 4]);
         layer.effects.push(motion_core::EffectInstance::new(
