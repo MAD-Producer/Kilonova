@@ -7,7 +7,7 @@ pub(super) fn task() -> Arc<Mutex<Task>> {
             operation: "probe_video".into(),
             state: "running".into(),
             phase: "probing".into(),
-            progress: 0.5,
+            progress: Some(0.5),
             metadata: None,
             edit_result: None,
             error: None,
@@ -120,7 +120,7 @@ fn completion_preserves_probe_import_cancellation_and_failure_contracts() {
         );
         let mut state = task.lock().unwrap();
         assert_eq!(state.status.metadata.as_ref(), Some(&expected));
-        assert_eq!(state.status.progress, 1.0);
+        assert_eq!(state.status.progress, Some(1.0));
         assert!(state.status.error.is_none());
         if probe {
             assert_eq!(state.status.state, "succeeded");

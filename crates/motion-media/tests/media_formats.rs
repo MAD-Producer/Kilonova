@@ -147,7 +147,7 @@ fn unsupported_sources_and_cancelled_platform_fallbacks_never_commit() {
     let root = tempfile::tempdir().unwrap();
     let mut e = Engine::new(project()).unwrap();
     let decoder: motion_media::DecodeAudio = std::sync::Arc::new(|_, _, _, _, check| {
-        check(0.0)?;
+        check(Some(0.0))?;
         Err("unsupported test codec".into())
     });
     let j = AudioJobs::with_decoder(root.path().into(), Limits::default(), decoder).unwrap();

@@ -37,9 +37,9 @@ pub fn decode(
     pcm: &Path,
     selected: Option<u32>,
     limit: u64,
-    check: &mut dyn FnMut(f64) -> Result<()>,
+    check: &mut dyn FnMut(Option<f64>) -> Result<()>,
 ) -> Result<AudioAsset> {
-    check(0.0)?;
+    check(None)?;
     // A platform track index is not a Matroska track number. Keep a single
     // track namespace for Android imports and linked video audio.
     let ext = motion_media::source_extension(path)?;
@@ -47,7 +47,7 @@ pub fn decode(
         match motion_media::decode_audio(path, pcm, selected, limit, check) {
             Ok(a) => return Ok(a),
             Err(rust_error) => {
-                check(0.0)?; // cancellation cannot silently retry with a different decoder
+                check(None)?; // cancellation cannot silently retry with a different decoder
                              // A damaged portable format must not become a permissive,
                              // partial native decode. Fallback covers absent demuxers/codecs.
                 if matches!(ext, "wav" | "flac" | "aiff")
@@ -74,7 +74,7 @@ fn native(
     pcm: &Path,
     selected: Option<u32>,
     limit: u64,
-    check: &mut dyn FnMut(f64) -> Result<()>,
+    check: &mut dyn FnMut(Option<f64>) -> Result<()>,
 ) -> Result<AudioAsset> {
     let _attached = attach()?;
     ACTIVE
@@ -146,9 +146,9 @@ fn native(
     let zeros = [0u8; 8192];
     loop {
         check(if declared > 0 {
-            total as f64 * 1_000_000.0 / f64::from(rate) / declared as f64
+            Some((total as f64 * 1_000_000.0 / f64::from(rate) / declared as f64).min(1.0))
         } else {
-            0.0
+            None
         })?;
         if last_progress.elapsed() > Duration::from_secs(10) {
             return Err("audio decoder timed out".into());
@@ -262,7 +262,7 @@ fn native(
                     }
                     let mut gap_bytes = gap * u64::from(channels) * 4;
                     while gap_bytes > 0 {
-                        check(0.0)?;
+                        check(None)?;
                         let n = gap_bytes.min(zeros.len() as u64) as usize;
                         output.write_all(&zeros[..n]).map_err(|e| e.to_string())?;
                         gap_bytes -= n as u64;
