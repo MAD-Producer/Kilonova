@@ -122,5 +122,5 @@ fn poisoned_existing_task_rejects_reservation_without_another_panic() {
         Some("video task poisoned")
     );
     let healthy = VideoJobs::new(directory.path().into()).unwrap();
-    let (_task, _worker) = healthy.reserve("healthy", "import_video").unwrap();
+    let (_task, _worker, _initial) = healthy.reserve("healthy", "import_video").unwrap();
 }

@@ -180,5 +180,5 @@ fn poisoned_existing_task_rejects_reservation_without_another_panic() {
         Some("audio task poisoned")
     );
     let healthy = AudioJobs::new(directory.path().into(), Limits::default()).unwrap();
-    let (_task, _worker) = healthy.reserve("healthy", "import_audio").unwrap();
+    let (_task, _worker, _initial) = healthy.reserve("healthy", "import_audio").unwrap();
 }

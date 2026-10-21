@@ -242,6 +242,30 @@ fn finish_cache(
     worker_log.finish(&phase, error.as_deref());
 }
 
+// Preserve the spawn failure even when terminal-state publication finds poison.
+fn mark_spawn_failed(
+    task: &Mutex<Task>,
+    task_log: crate::task_logging::TaskLog,
+    error: std::io::Error,
+) -> crate::Error {
+    use crate::poison_observation::{RecoveryScope, RecoverySite};
+    static SPAWN: RecoverySite = RecoverySite::new("audio.start.spawn_failure_task");
+    let mut recoveries = RecoveryScope::new();
+    let reason = error.to_string();
+    let mut task = recoveries.recover(
+        task.lock(),
+        &SPAWN,
+        task_log.request_id(),
+        "spawn_audio_worker",
+    );
+    task.status.state = "failed".into();
+    task.status.phase = "failed".into();
+    task.status.error = Some(reason.clone());
+    drop(task);
+    task_log.finish("spawn", Some(&reason));
+    error.into()
+}
+
 impl AudioJobs {
     pub fn new(root: PathBuf, limits: Limits) -> Result<Self> {
         Self::with_decoder(root, limits, Arc::new(crate::decode_audio))
@@ -274,7 +298,7 @@ impl AudioJobs {
             crate::registry_observation::RegistryObservation::new();
         OBSERVATION.contains(&self.tasks, id, "audio.registry.contains")
     }
-    fn reserve(&self, id: &str, operation: &str) -> Result<(Arc<Mutex<Task>>, Worker)> {
+    fn reserve(&self, id: &str, operation: &str) -> Result<(Arc<Mutex<Task>>, Worker, TaskStatus)> {
         if id.is_empty() || id.len() > 128 {
             return Err("invalid media request id".into());
         }
@@ -303,22 +327,24 @@ impl AudioJobs {
         {
             return Err("audio worker budget exhausted".into());
         }
+        // Return the queued snapshot before publishing the task mutex.
+        let initial = TaskStatus {
+            request_id: id.into(),
+            operation: operation.into(),
+            state: "running".into(),
+            phase: "queued".into(),
+            progress: None,
+            metadata: None,
+            edit_result: None,
+            error: None,
+        };
         let task = Arc::new(Mutex::new(Task {
-            status: TaskStatus {
-                request_id: id.into(),
-                operation: operation.into(),
-                state: "running".into(),
-                phase: "queued".into(),
-                progress: None,
-                metadata: None,
-                edit_result: None,
-                error: None,
-            },
+            status: initial.clone(),
             prepared: None,
             cancel: Arc::new(AtomicBool::new(false)),
         }));
         tasks.insert(id.into(), task.clone());
-        Ok((task, Worker))
+        Ok((task, Worker, initial))
     }
     pub fn status(&self, id: &str) -> Result<TaskStatus> {
         Ok(self
@@ -385,14 +411,13 @@ impl AudioJobs {
         if options.name.len() > 1024 {
             return Err("audio name exceeds import limit".into());
         }
-        let (task, worker) = self.reserve(
+        let (task, worker, initial) = self.reserve(
             &options.request_id,
             if probe { "probe_audio" } else { "import_audio" },
         )?;
         let root = self.root.clone();
         let limits = self.limits;
         let decode = self.decode.clone();
-        let initial = task.lock().unwrap().status.clone();
         let task_log = crate::task_logging::TaskLog::new(&initial.request_id, &initial.operation);
         let worker_log = task_log.clone();
         let spawn_task = task.clone();
@@ -485,11 +510,7 @@ impl AudioJobs {
                 finish_import(&spawn_task, result, probe, &worker_log);
             });
         if let Err(error) = spawn {
-            task_log.finish("spawn", Some(&error.to_string()));
-            let mut t = task.lock().unwrap();
-            t.status.state = "failed".into();
-            t.status.error = Some(error.to_string());
-            return Err(error.into());
+            return Err(mark_spawn_failed(&task, task_log, error));
         }
         Ok(initial)
     }
@@ -617,8 +638,7 @@ impl AudioJobs {
     }
     pub fn prepare_cache(&self, request_id: &str, asset: AudioAsset) -> Result<TaskStatus> {
         asset.validate().map_err(crate::Error::from)?;
-        let (task, worker) = self.reserve(request_id, "prepare_audio")?;
-        let initial = task.lock().unwrap().status.clone();
+        let (task, worker, initial) = self.reserve(request_id, "prepare_audio")?;
         let root = self.root.clone();
         let limit = self.limits.cache_bytes;
         let decode = self.decode.clone();
@@ -681,11 +701,7 @@ impl AudioJobs {
                 finish_cache(&spawn_task, &root, asset, result, &worker_log);
             });
         if let Err(error) = spawn {
-            task_log.finish("spawn", Some(&error.to_string()));
-            let mut t = task.lock().unwrap();
-            t.status.state = "failed".into();
-            t.status.error = Some(error.to_string());
-            return Err(error.into());
+            return Err(mark_spawn_failed(&task, task_log, error));
         }
         Ok(initial)
     }
@@ -742,7 +758,7 @@ mod drop_failure_tests {
             AudioJobs::new(directory.path().into(), Limits::default()).unwrap(),
         ));
         let healthy = AudioJobs::new(directory.path().into(), Limits::default()).unwrap();
-        let (_task, _worker) = jobs.reserve("present", "test").unwrap();
+        let (_task, _worker, _initial) = jobs.reserve("present", "test").unwrap();
         check(
             &jobs.tasks,
             "audio.registry.contains",
