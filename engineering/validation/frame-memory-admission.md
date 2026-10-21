@@ -563,3 +563,90 @@ is not a complete operation rollback claim. Fixed and other dynamic renderer
 resources, upload staging/raw external scope, shared session policy, platform
 pressure, full preview/export/repeated lifecycle acceptance and #67 remain pending.
 #60/#61/#67 remain open; precision settings and 3D integration remain parked.
+
+## Seventh increment: fixed resources and lazy SDK instances
+
+Builtin particle effects and presets were already retired. Their removal retained
+SDK scene rendering, whose implementation still allocated a 3 MiB instance buffer
+for every renderer. This increment removes that unconditional allocation without
+restoring any retired effect. A nonempty SDK frame requests its actual instance
+capacity, bounded by `MAX_SPRITES`; empty frames allocate nothing. Refused growth
+preserves the old allocation, reuse needs no new capacity even below a lowered
+limit, and working-set reclamation releases the buffer after outstanding users.
+
+Fixed draw uniforms (32,768 bytes), planar geometry (1,310,720), clear vertices
+(72), startup white (4), effect fallback white (4) and identity LUT (1,024) now
+share admission: **1,344,592 descriptor bytes in six allocations** per renderer.
+`FIXED_RENDERER_ALLOCATION_BYTES` describes this requested-limit baseline, not
+physical VRAM, staging, optional timers or an entire frame peak. The independent
+test pins both the byte sum and allocation count. Fixed reservations precede
+queue uploads; each of the six startup refusals releases partial admission to
+zero without an extra caller submission or poll. Upload destinations retain
+their reservations through queue completion; bindings drop before their backing
+resources. The mapped clear vertices do not add a queue write.
+
+Existing low-budget fixtures now explicitly fund these six fixed allocations.
+Their dynamic allowances, precise refusals, pixel assertions and tolerances are
+preserved. The cross-queue fixture funds its second renderer before constructing
+it. Expected combined byte totals and allocation counts intentionally changed;
+this is additional enrolled capacity, not an assertion-removal workaround.
+
+| New case ID | Accepted evidence and boundary |
+| --- | --- |
+| #61-A43 | Independently counted fixed descriptor bytes and six identities; real teardown with external device/queue handles retires to zero |
+| #61-A44 | All six exact startup byte boundaries retain typed causes/context and release partial reservations immediately |
+| #61-A45 | Open and finished abandoned commands retain fixed resources after renderer teardown and GPU completion; abandoning their actual owner releases them |
+| #61-A46 | Empty SDK data allocates no instance buffer; exact-size allocation, refused growth with stable old identity, reuse below the limit, count bound, queued-write retention and recovery are exercised |
+| #61-A47 | A fully culled SDK pass clears its real target without an instance allocation, then visible instances recover real nontransparent pixels |
+| #61-A48 | Real startup refusal preserves its reply/cause and request/operation/phase/bytes/time in default Info file and Error-stderr output with stdout isolation |
+
+The fixed-capacity control on `9cbb23b5` recorded only 4 bytes against the
+independent 1,344,592-byte expectation (cargo exit 101). During this increment,
+the first lazy implementation incorrectly rejected a zero-instance pass; test
+source `bbe819a5` reproduced the missing-buffer error. Correction `64f9798e`
+keeps the clear pass and skips its zero-instance draw. Neither control is a
+passing acceptance case. The new recovery fixture subsequently needed four
+setup/eligibility lines to produce visible instances; its transparent/visible
+pixel assertions remain intact.
+
+## Accepted local evidence for the seventh increment
+
+| Source and selection | Result |
+| --- | --- |
+| `14a9e240`: complete render library | 69 pass |
+| `da94f499`: nine completed, unaffected GPU integration binaries | 60 pass |
+| `0a698095`: complete source/video allocation integration suites | 8 pass |
+| `0a698095`: desktop default logging boundaries | 9 pass |
+| `0a698095`: workspace/all-targets FFmpeg check, excluding Android | Pass; existing warnings retained |
+| `0a698095`: panel style consumer guard | Pass; no panel file changed |
+
+These are **146 distinct selected passing cases across source-bound runs**;
+they were not all rerun on the last commit. Only two integration fixture files
+changed after the 69-case library run; production and library-test sources are
+unchanged. Only `source_allocation_budget.rs` changed after the nine passing GPU
+binaries. That multi-binary invocation later failed two source-budget cases
+because three expected capacity expressions omitted the newly enrolled fixed
+baseline. Its overall exit remains 101; it is not labelled green. Correcting
+those three fixture expressions and rerunning the entire source/video allocation
+suites produced the eight passing cases above. Earlier cross-queue funding and
+new recovery-fixture failures are retained too; later success does not erase them.
+
+Logs are `E:/Dev/aem/artifacts/pr-queue/fixed-admission-before-fix.log`,
+`empty-instance-before-fix.log`, `fixed-admission-*`, `fixed-final-*`,
+`fixed-complete-*` and `fixed-finish-*`. Source-bound exit receipts retain the
+failed invocations as well as successes. Source/log hashes, unchanged production
+proof and retained empty/visible pixel assertions are recorded in
+`E:/Dev/aem/.tools/issue-closure-review/fixed-admission-acceptance.json`.
+Worktrees stayed clean and unchanged during each sequential validation command.
+This selection is not a complete desktop suite or cross-platform CI claim.
+
+PR #398 passed all four required current checks and merged as
+`50d43ee33b53f0b9ffbbcdf13d42e3b243716c02` with a Chinese merge message;
+the seventh increment includes that main ancestry. No dependency, asset, panel,
+layout, style or interaction changes. Allocation timing and the zero-instance
+clear correction are the functional resource changes described above.
+
+Optional GPU timers, remaining dynamic renderer resources, staging/raw external
+scope, shared session/platform policy, bounded preview/export recovery and full
+repeated lifecycle acceptance remain pending. #60/#61/#67 remain open; #67 reuse,
+project precision and 3D integration are not completed by this increment.
