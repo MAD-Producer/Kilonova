@@ -6,7 +6,26 @@ use motion_ui::{
     input::{Key, Modifiers},
 };
 
-const SIZE: [f32; 2] = [1280., 800.];
+fn size() -> [f32; 2] {
+    match std::env::var("MOTION_POINT_SELECTION_NATIVE_SIZE").as_deref() {
+        Ok("minimum") => [900., 600.],
+        Ok("default") => [1600., 1000.],
+        Err(std::env::VarError::NotPresent) => [1280., 800.],
+        other => panic!("invalid native acceptance size: {other:?}"),
+    }
+}
+fn pixel_ratio() -> f32 {
+    match std::env::var("MOTION_POINT_SELECTION_NATIVE_SCALE").as_deref() {
+        Ok("1.5") => 1.5,
+        Ok("2") => 2.,
+        Err(std::env::VarError::NotPresent) | Ok("1") => 1.,
+        other => panic!("invalid native acceptance scale: {other:?}"),
+    }
+}
+fn physical_size() -> (u32, u32) {
+    ((size()[0] * pixel_ratio()) as u32,
+     (size()[1] * pixel_ratio()) as u32)
+}
 fn render(shell: &mut Shell, floating: bool, input: &Input) -> (PaintList, Vec<panels::Action>) {
     let mut paint = PaintList::default();
     paint.stylesheet = shell.panels.styles.clone();
@@ -15,7 +34,7 @@ fn render(shell: &mut Shell, floating: bool, input: &Input) -> (PaintList, Vec<p
             &mut paint,
             &mut shell.atlas,
             Panel::Composition,
-            SIZE,
+            size(),
             &mut shell.panels,
             &shell.state,
             input,
@@ -24,7 +43,7 @@ fn render(shell: &mut Shell, floating: bool, input: &Input) -> (PaintList, Vec<p
         panels::chrome(
             &mut paint,
             &mut shell.atlas,
-            SIZE,
+            size(),
             shell.workspace.display_root(),
             &mut shell.panels,
             &shell.state,
@@ -69,9 +88,9 @@ fn view(shell: &Shell, floating: bool) -> motion_ui::Rect {
         .clone()
         .unwrap_or_else(motion_ui::style::default_stylesheet_arc);
     if floating {
-        panels::floating_view_styled(Panel::Composition, SIZE, &styles).unwrap()
+        panels::floating_view_styled(Panel::Composition, size(), &styles).unwrap()
     } else {
-        panels::composition_view_styled(shell.workspace.display_root(), SIZE, &styles)
+        panels::composition_view_styled(shell.workspace.display_root(), size(), &styles)
     }
 }
 fn capture(shell: &mut Shell, floating: bool, paint: PaintList, path: PathBuf) {
@@ -82,16 +101,16 @@ fn capture(shell: &mut Shell, floating: bool, paint: PaintList, path: PathBuf) {
         .navigation
         .mapping(view, [640., 480.])
         .unwrap();
-    let mut ui = shell.ui_frame(paint, SIZE, true);
+    let mut ui = shell.ui_frame(paint, size(), true);
     ui.window = u64::from(floating);
     ui.node_preview = None;
-    ui.composition = Some([view.min[0], view.min[1], view.width(), view.height()]);
+    ui.composition = Some([view.min[0], view.min[1], view.width(), view.height()].map(|v| v * pixel_ratio()));
     ui.composition_image = Some([
         mapping.image.min[0],
         mapping.image.min[1],
         mapping.image.width(),
         mapping.image.height(),
-    ]);
+    ].map(|v| v * pixel_ratio()));
     let deadline = Instant::now() + Duration::from_secs(20);
     loop {
         let ready = shell
@@ -99,7 +118,7 @@ fn capture(shell: &mut Shell, floating: bool, paint: PaintList, path: PathBuf) {
             .present_async(crate::engine::UiFrame {
                 paint: PaintList::default(),
                 atlas: None,
-                logical_size: SIZE,
+                logical_size: size(),
                 composition: ui.composition,
                 composition_image: ui.composition_image,
                 window: ui.window,
@@ -119,7 +138,7 @@ fn capture(shell: &mut Shell, floating: bool, paint: PaintList, path: PathBuf) {
     }
     shell.engine.capture_ui(ui, path.clone()).unwrap();
     let pixels = image::open(path).unwrap().into_rgba8();
-    assert_eq!(pixels.dimensions(), (1280, 800));
+    assert_eq!(pixels.dimensions(), physical_size());
     let first = pixels.get_pixel(0, 0);
     assert!(pixels.pixels().any(|p| p != first));
 }
@@ -168,6 +187,8 @@ fn point_selection_main_and_native_floating_routes_capture_and_restore() {
                 project.layers.push(layer);
                 motion_core::storage::save(&project_root, &project).unwrap();
                 let mut shell = Shell::new(project_root.clone(), None, Some(locale)).unwrap();
+                shell.scale = pixel_ratio();
+                shell.atlas.set_pixel_ratio(shell.scale);
                 shell.workspace = workspace::Workspace::default();
                 shell.workspace.locale = locale;
                 shell.panels.locale = locale;
@@ -180,13 +201,13 @@ fn point_selection_main_and_native_floating_routes_capture_and_restore() {
                         .create_window(
                             winit::window::Window::default_attributes()
                                 .with_visible(false)
-                                .with_inner_size(winit::dpi::PhysicalSize::new(1280, 800)),
+                                .with_inner_size(winit::dpi::PhysicalSize::new(physical_size().0, physical_size().1)),
                         )
                         .unwrap(),
                 );
                 shell.state = shell
                     .engine
-                    .attach_async(main.clone(), 1280, 800)
+                    .attach_async(main.clone(), physical_size().0, physical_size().1)
                     .unwrap()
                     .recv_timeout(Duration::from_secs(30))
                     .unwrap()
@@ -201,13 +222,13 @@ fn point_selection_main_and_native_floating_routes_capture_and_restore() {
                             .create_window(
                                 winit::window::Window::default_attributes()
                                     .with_visible(false)
-                                    .with_inner_size(winit::dpi::PhysicalSize::new(1280, 800)),
+                                    .with_inner_size(winit::dpi::PhysicalSize::new(physical_size().0, physical_size().1)),
                             )
                             .unwrap(),
                     );
                     shell.state = shell
                         .engine
-                        .float_window(1, window.clone(), 1280, 800)
+                        .float_window(1, window.clone(), physical_size().0, physical_size().1)
                         .unwrap();
                     Some(window)
                 } else {
@@ -385,6 +406,7 @@ fn point_selection_main_and_native_floating_routes_capture_and_restore() {
                 assert_eq!(value.as_array().unwrap().len(), 2);
                 shell.state = shell.engine.history(0).unwrap();
                 assert_eq!(shell.state["project"], before);
+                exercise_pen_modes(&mut shell,floating,&label,&artifacts);
                 if floating {
                     shell.engine.close_window(1).unwrap();
                 }
@@ -414,4 +436,163 @@ fn point_selection_main_and_native_floating_routes_capture_and_restore() {
         String::from_utf8_lossy(&output.stderr)
     );
     assert!(!String::from_utf8_lossy(&output.stdout).contains("motion-engine"));
+}
+
+fn exercise_pen_modes(shell: &mut Shell, floating: bool, label: &str, artifacts: &std::path::Path) {
+    let styles = shell
+        .panels
+        .styles
+        .clone()
+        .unwrap_or_else(motion_ui::style::default_stylesheet_arc);
+    let v = view(shell, floating);
+    let pad = styles.metric("padding.panel", 8.);
+    let menu = [
+        v.min[0] + pad + styles.metric("path.tools.width", 176.) * 0.5,
+        v.min[1] + pad + styles.metric("field.height", 18.) * 0.5,
+    ];
+    let before = shell.state["project"].clone();
+    let mut current = 0;
+    for mode in 1..=4 {
+        input(
+            shell,
+            floating,
+            Input {
+                mouse: menu,
+                pressed: Some((MouseButton::Left, menu)),
+                held: Some(MouseButton::Left),
+                ..Default::default()
+            },
+        );
+        if mode == 1 {
+            let (paint, actions) = render(shell, floating, &Input::default());
+            assert!(actions.is_empty());
+            capture(
+                shell,
+                floating,
+                paint,
+                artifacts.join(format!("{label}-pen-menu.png")),
+            );
+        }
+        for _ in current..mode {
+            input(
+                shell,
+                floating,
+                Input {
+                    keys: vec![(Key::Down, Modifiers::default())],
+                    ..Default::default()
+                },
+            );
+        }
+        input(
+            shell,
+            floating,
+            Input {
+                keys: vec![(Key::Enter, Modifiers::default())],
+                ..Default::default()
+            },
+        );
+        current = mode;
+        let mapping = shell
+            .panels
+            .composition
+            .navigation
+            .mapping(v, [640., 480.])
+            .unwrap();
+        let p = panels::path_controls::layer_projection(&shell.state, 7, mapping.image).unwrap();
+        let anchor = match mode {
+            1 => [0., -80.],
+            3 => [120., 80.],
+            _ => [-120., -80.],
+        };
+        let mouse = p.screen(anchor).unwrap();
+        input(
+            shell,
+            floating,
+            Input {
+                mouse,
+                pressed: Some((MouseButton::Left, mouse)),
+                held: Some(MouseButton::Left),
+                ..Default::default()
+            },
+        );
+        assert_eq!(
+            shell.state["project"], before,
+            "press must not commit topology"
+        );
+        input(
+            shell,
+            floating,
+            Input {
+                focus_lost: true,
+                ..Default::default()
+            },
+        );
+        input(
+            shell,
+            floating,
+            Input {
+                mouse,
+                released: Some((MouseButton::Left, mouse)),
+                ..Default::default()
+            },
+        );
+        assert_eq!(
+            shell.state["project"], before,
+            "blur must cancel topology click"
+        );
+        input(
+            shell,
+            floating,
+            Input {
+                mouse,
+                pressed: Some((MouseButton::Left, mouse)),
+                held: Some(MouseButton::Left),
+                ..Default::default()
+            },
+        );
+        input(
+            shell,
+            floating,
+            Input {
+                mouse: [1., 1.],
+                released: Some((MouseButton::Left, mouse)),
+                ..Default::default()
+            },
+        );
+        assert_ne!(
+            shell.state["project"], before,
+            "mode={mode} must apply through the real panel route"
+        );
+        let changed: motion_core::Project =
+            serde_json::from_value(shell.state["project"].clone()).unwrap();
+        let saved = artifacts.join(format!("{label}-pen-{mode}-saved"));
+        motion_core::storage::save(&saved, &changed).unwrap();
+        assert_eq!(motion_core::storage::load(&saved).unwrap(), changed);
+        let (paint, actions) = render(shell, floating, &Input::default());
+        assert!(actions.is_empty());
+        capture(
+            shell,
+            floating,
+            paint,
+            artifacts.join(format!("{label}-pen-{mode}.png")),
+        );
+        input(
+            shell,
+            floating,
+            Input {
+                keys: vec![(
+                    Key::Z,
+                    Modifiers {
+                        control: true,
+                        ..Default::default()
+                    },
+                )],
+                ..Default::default()
+            },
+        );
+        assert_eq!(
+            shell.state["project"], before,
+            "one undo restores the entire path mode={mode}"
+        );
+    }
 }
