@@ -3,8 +3,8 @@ use motion_render::{
     AllocationBudget, Presenter, Renderer, ResourceBudgetScope, ResourceRejection, Scene,
 };
 
-// The renderer-owned 1x1 white source is now admitted as well.
-const SYSTEM_BYTES: u64 = 4;
+// All fixed renderer descriptors share the same allowance as dynamic work.
+const SYSTEM_BYTES: u64 = motion_render::FIXED_RENDERER_ALLOCATION_BYTES;
 
 fn renderer(budget: &AllocationBudget) -> Renderer {
     pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap()
@@ -44,7 +44,7 @@ fn offscreen_views_and_multiple_renderers_share_actual_capacity_and_capture_fail
         budget.info().unwrap().admitted_bytes,
         256 + 2 * SYSTEM_BYTES
     );
-    assert_eq!(budget.info().unwrap().live_allocations, 3);
+    assert_eq!(budget.info().unwrap().live_allocations, 13);
     let smaller = second.render_target(4, 4).unwrap();
     assert_eq!(
         budget.info().unwrap().admitted_bytes,

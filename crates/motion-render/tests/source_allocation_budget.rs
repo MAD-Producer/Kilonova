@@ -1,3 +1,5 @@
+const SYSTEM_BYTES: u64 = motion_render::FIXED_RENDERER_ALLOCATION_BYTES;
+
 use motion_core::{Asset, Content, Layer, Project};
 use motion_render::{
     AllocationBudget, ChromaLayout, Renderer, ResourceBudgetScope, ResourceRejection, Scene,
@@ -41,39 +43,39 @@ fn image_scene() -> Scene {
 
 #[test]
 fn evicted_unsubmitted_destinations_keep_capacity_and_normal_submissions_release_it() {
-    let budget = AllocationBudget::new(4 + 16 + 16).unwrap();
+    let budget = AllocationBudget::new(SYSTEM_BYTES + 16 + 16).unwrap();
     let mut renderer = renderer(&budget);
-    assert_eq!(budget.info().unwrap().admitted_bytes, 4);
+    assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES);
     for _ in 0..6 {
         renderer
             .upload_image(7, 2, 2, &[0, 255, 0, 255].repeat(4))
             .unwrap();
-        assert_eq!(budget.info().unwrap().admitted_bytes, 20);
-        assert_eq!(budget.info().unwrap().live_allocations, 2);
+        assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES + 16);
+        assert_eq!(budget.info().unwrap().live_allocations, 7);
     }
     renderer.clear_assets();
     assert_eq!(renderer.image_dimensions(7), None);
-    assert_eq!(budget.info().unwrap().admitted_bytes, 20);
+    assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES + 16);
     renderer
         .upload_image(8, 2, 2, &[0, 0, 255, 255].repeat(4))
         .unwrap();
     renderer.clear_assets();
-    assert_eq!(budget.info().unwrap().admitted_bytes, 36);
+    assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES + 32);
     let before = budget.info().unwrap();
     let error = renderer.upload_image(9, 1, 1, &[255; 4]).unwrap_err();
     assert_eq!(
         error.resource_rejection(),
         Some(&ResourceRejection::Budget {
             scope: ResourceBudgetScope::RenderAllocations,
-            required_bytes: 40,
-            budget_bytes: 36,
+            required_bytes: SYSTEM_BYTES + 36,
+            budget_bytes: SYSTEM_BYTES + 32,
         })
     );
     for context in [
         "key=Static(9)",
         "phase=allocate",
-        "required_bytes=40",
-        "budget_bytes=36",
+        &format!("required_bytes={}", SYSTEM_BYTES + 36),
+        &format!("budget_bytes={}", SYSTEM_BYTES + 32),
     ] {
         assert!(error.to_string().contains(context), "{error}");
     }
@@ -85,19 +87,19 @@ fn evicted_unsubmitted_destinations_keep_capacity_and_normal_submissions_release
         .device
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
-    assert_eq!(budget.info().unwrap().admitted_bytes, 36);
+    assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES + 32);
     submit_and_wait(&renderer);
-    assert_eq!(budget.info().unwrap().admitted_bytes, 4);
+    assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES);
     renderer.upload_image(9, 1, 1, &[255; 4]).unwrap();
-    assert_eq!(budget.info().unwrap().admitted_bytes, 8);
+    assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES + 4);
     renderer.clear_assets();
     submit_and_wait(&renderer);
-    assert_eq!(budget.info().unwrap().admitted_bytes, 4);
+    assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES);
 }
 
 #[test]
 fn refused_image_growth_keeps_original_pixels_and_same_size_updates_need_no_new_destination() {
-    let budget = AllocationBudget::new(4 + 16 + 64 + 4 * 256).unwrap();
+    let budget = AllocationBudget::new(SYSTEM_BYTES + 16 + 64 + 4 * 256).unwrap();
     let mut renderer = renderer(&budget);
     renderer
         .upload_image(7, 2, 2, &[0, 255, 0, 255].repeat(4))
@@ -107,14 +109,14 @@ fn refused_image_growth_keeps_original_pixels_and_same_size_updates_need_no_new_
     let green = renderer.capture(&scene, &target).unwrap().0;
     assert!(green.chunks_exact(4).all(|pixel| pixel == [0, 255, 0, 255]));
     let before = budget.info().unwrap();
-    assert_eq!(before.admitted_bytes, 1108);
+    assert_eq!(before.admitted_bytes, SYSTEM_BYTES + 1104);
     let error = renderer.upload_image(7, 4, 4, &[255; 64]).unwrap_err();
     assert_eq!(
         error.resource_rejection(),
         Some(&ResourceRejection::Budget {
             scope: ResourceBudgetScope::RenderAllocations,
-            required_bytes: 1172,
-            budget_bytes: 1108,
+            required_bytes: SYSTEM_BYTES + 1168,
+            budget_bytes: SYSTEM_BYTES + 1104,
         })
     );
     assert_eq!(renderer.image_dimensions(7), Some((2, 2)));
@@ -123,20 +125,20 @@ fn refused_image_growth_keeps_original_pixels_and_same_size_updates_need_no_new_
     renderer
         .upload_image(7, 2, 2, &[0, 0, 255, 255].repeat(4))
         .unwrap();
-    assert_eq!(budget.info().unwrap().admitted_bytes, 1108);
+    assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES + 1104);
     let blue = renderer.capture(&scene, &target).unwrap().0;
     assert!(blue.chunks_exact(4).all(|pixel| pixel == [0, 0, 255, 255]));
     drop(target);
     submit_and_wait(&renderer);
-    assert_eq!(budget.info().unwrap().admitted_bytes, 20);
+    assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES + 16);
     renderer.upload_image(7, 4, 4, &[255; 64]).unwrap();
     assert_eq!(renderer.image_dimensions(7), Some((4, 4)));
-    assert_eq!(budget.info().unwrap().admitted_bytes, 68);
+    assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES + 64);
 }
 
 #[test]
 fn video_output_admission_preserves_previous_rgba_and_conversion_retirement() {
-    let budget = AllocationBudget::new(20).unwrap();
+    let budget = AllocationBudget::new(SYSTEM_BYTES + 16).unwrap();
     let mut renderer = renderer(&budget);
     renderer
         .upload_video_frame(1, 10, 0, 2, 2, &[255; 16])
@@ -148,8 +150,8 @@ fn video_output_admission_preserves_previous_rgba_and_conversion_retirement() {
         error.resource_rejection(),
         Some(&ResourceRejection::Budget {
             scope: ResourceBudgetScope::RenderAllocations,
-            required_bytes: 24,
-            budget_bytes: 20,
+            required_bytes: SYSTEM_BYTES + 20,
+            budget_bytes: SYSTEM_BYTES + 16,
         })
     );
     assert!(error
@@ -171,8 +173,8 @@ fn video_output_admission_preserves_previous_rgba_and_conversion_retirement() {
         error.resource_rejection(),
         Some(&ResourceRejection::Budget {
             scope: ResourceBudgetScope::RenderAllocations,
-            required_bytes: 36,
-            budget_bytes: 20,
+            required_bytes: SYSTEM_BYTES + 32,
+            budget_bytes: SYSTEM_BYTES + 16,
         })
     );
     assert!(error
@@ -188,7 +190,7 @@ fn video_output_admission_preserves_previous_rgba_and_conversion_retirement() {
     );
     assert_eq!(renderer.image_count(), 2);
     assert_eq!(renderer.texture_memory_breakdown().video_planes, 0);
-    assert_eq!(budget.info().unwrap().admitted_bytes, 20);
+    assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES + 16);
     // Include the newly admitted Y/UV planes (6) and conversion uniform (48).
     budget.set_limit(36 + 6 + 48).unwrap();
     let unfinished = renderer
@@ -211,13 +213,13 @@ fn video_output_admission_preserves_previous_rgba_and_conversion_retirement() {
         .device
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
-    assert_eq!(budget.info().unwrap().admitted_bytes, 4);
+    assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES);
     renderer.check_health().unwrap();
 }
 
 #[test]
 fn standalone_video_scope_refusal_preserves_the_previous_image_and_stamp() {
-    let budget = AllocationBudget::new(1024).unwrap();
+    let budget = AllocationBudget::new(SYSTEM_BYTES + 1020).unwrap();
     let mut renderer = renderer(&budget);
     renderer
         .upload_video_frame(1, 10, 0, 2, 2, &[255; 16])
@@ -272,12 +274,12 @@ fn standalone_video_scope_refusal_preserves_the_previous_image_and_stamp() {
 
 #[test]
 fn renderer_teardown_retires_unsubmitted_destinations_with_external_queue_and_device_handles() {
-    let budget = AllocationBudget::new(20).unwrap();
+    let budget = AllocationBudget::new(SYSTEM_BYTES + 16).unwrap();
     for _ in 0..3 {
         let mut renderer = renderer(&budget);
         renderer.upload_image(7, 2, 2, &[255; 16]).unwrap();
         renderer.clear_assets();
-        assert_eq!(budget.info().unwrap().admitted_bytes, 20);
+        assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES + 16);
         let device = renderer.device.clone();
         let queue = renderer.queue.clone();
         drop(renderer);

@@ -28,6 +28,14 @@ const CAPTURE_PIXEL_LIMIT: u64 = 16 * 1024 * 1024;
 // Retain at most 16 KiB of CPU eviction scratch between trims.
 const MAX_IMAGE_TRIM_CANDIDATES: usize = 1024;
 const DRAW_SIZE: u64 = std::mem::size_of::<DrawUniform>() as u64;
+const GEOMETRY_VERTICES: u64 = 65_536;
+const UNIFORM_ALIGNMENT: u64 = wgpu::Limits::downlevel_defaults().min_uniform_buffer_offset_alignment as u64;
+/// Fixed logical descriptor capacity per renderer, excluding on-demand SDK
+/// instances, scene resources, targets, staging and driver overhead.
+pub const FIXED_RENDERER_ALLOCATION_BYTES: u64 =
+    DRAW_SIZE.div_ceil(UNIFORM_ALIGNMENT) * UNIFORM_ALIGNMENT * MAX_LAYERS as u64
+    + GEOMETRY_VERTICES * std::mem::size_of::<GeometryVertex>() as u64
+    + crate::layer_gpu::CLEAR_VERTEX_BYTES + 4 + 4 + 1024;
 #[cfg(test)]
 mod plane_sampling_tests;
 #[cfg(test)]
@@ -35,6 +43,16 @@ mod image_trim_tests;
 #[cfg(test)]
 mod admission_tests;
 const TARGET_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
+fn cached_image_descriptor(width: u32, height: u32) -> wgpu::TextureDescriptor<'static> {
+    wgpu::TextureDescriptor {
+        label: Some("Motion Studio cached image"),
+        size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+        mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2,
+        format: TARGET_FORMAT,
+        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+        view_formats: &[],
+    }
+}
 static PREFETCH_FAILURES: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
 static IMAGE_PENDING: crate::observability::FailureCounter = crate::observability::FailureCounter::new();
 static TEXTURE_ACCOUNTING_MISMATCHES: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
@@ -179,12 +197,12 @@ pub struct Renderer {
     image_layout: wgpu::BindGroupLayout,
     uniform_layout: wgpu::BindGroupLayout,
     sampler: wgpu::Sampler,
-    uniform_buffer: wgpu::Buffer,
     uniform_group: wgpu::BindGroup,
+    uniform_buffer: crate::allocation_buffer::AllocationBuffer,
     uniform_stride: usize,
     upload: Vec<u8>,
     compositor: PlaneCompositor,
-    vertex_buffer: wgpu::Buffer,
+    vertex_buffer: crate::allocation_buffer::AllocationBuffer,
     geometry_upload: Vec<GeometryVertex>,
     images: HashMap<TextureKey, GpuImage>,
     texture_bytes: u64,
@@ -295,14 +313,21 @@ impl Renderer {
         device.on_uncaptured_error(Arc::new(move |error| {
             observer.uncaptured(error);
         }));
+        // Admit every fixed resource before any queue upload. Failed startup
+        // then releases its complete reservation without a submission callback.
+        let white_texture = device.create_admitted_texture(&cached_image_descriptor(1, 1), &allocation_budget)
+            .map_err(|error| {
+                let message = format!("image key=Static(0) size=1x1 phase=allocate: {error}");
+                error.with_diagnostic(message)
+            })?;
         let alignment = device.limits().min_uniform_buffer_offset_alignment as usize;
         let uniform_stride = (DRAW_SIZE as usize).div_ceil(alignment) * alignment;
-        let uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        let uniform_buffer = crate::allocation_buffer::AllocationBuffer::new(&device, &allocation_budget, &wgpu::BufferDescriptor {
             label: Some("Motion Studio reusable layer parameters"),
             size: (uniform_stride * MAX_LAYERS) as u64,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
-        });
+        })?;
         let uniform_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Motion Studio parameter layout"),
             entries: &[wgpu::BindGroupLayoutEntry {
@@ -328,12 +353,12 @@ impl Renderer {
                 }),
             }],
         });
-        let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        let vertex_buffer = crate::allocation_buffer::AllocationBuffer::new(&device, &allocation_budget, &wgpu::BufferDescriptor {
             label: Some("Motion Studio bounded planar geometry"),
-            size: 65_536 * std::mem::size_of::<GeometryVertex>() as u64,
+            size: GEOMETRY_VERTICES * std::mem::size_of::<GeometryVertex>() as u64,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
-        });
+        })?;
         let image_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Motion Studio image layout"),
             entries: &[
@@ -422,11 +447,19 @@ impl Renderer {
             fragment:Some(wgpu::FragmentState {module:&mask_shader,entry_point:Some("fragment_main"),compilation_options:Default::default(),targets:&[Some(wgpu::ColorTargetState {format,blend:Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING),write_mask:wgpu::ColorWrites::ALL})]}),
             primitive:wgpu::PrimitiveState {cull_mode:None,..Default::default()},depth_stencil:None,multisample:Default::default(),multiview_mask:None,cache:None});
         let allocation_uploads = Arc::new(crate::allocation_uploads::AllocationUploads::new(queue.clone()));
+        let layer_gpu = crate::layer_gpu::LayerGpu::new(&device, &uniform_layout, &image_layout, format, &allocation_budget)?;
+        let mask_gpu=crate::mask_gpu::MaskGpu::new(&device,&image_layout)?;
+        let white_view = white_texture.create_view(&Default::default());
+        let white_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Motion Studio cached texture binding"),
+            layout: &image_layout,
+            entries: &[
+                wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(&white_view) },
+                wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(&sampler) },
+            ],
+        });
         let effect_gpu = crate::effect_gpu::EffectGpu::new(&device, &queue, &image_layout,
             allocation_budget.clone(), allocation_uploads.clone())?;
-        let layer_gpu =
-            crate::layer_gpu::LayerGpu::new(&device, &uniform_layout, &image_layout, format);
-        let mask_gpu=crate::mask_gpu::MaskGpu::new(&device,&image_layout)?;
         let mut renderer = Self {
             allocation_budget,
             allocation_owner: Arc::new(()),
@@ -449,8 +482,11 @@ impl Renderer {
             compositor: PlaneCompositor::new(),
             vertex_buffer,
             geometry_upload: Vec::with_capacity(MAX_LAYERS * 12),
-            images: HashMap::new(),
-            texture_bytes: 0,
+            images: HashMap::from([(TextureKey::Static(0), GpuImage {
+                view: white_view, bind_group: white_group, bytes: 4, size: (1, 1),
+                video_stamp: None, _texture: white_texture,
+            })]),
+            texture_bytes: 4,
             target_format: format,
             composition_images: Default::default(),
             gpu_failure,
@@ -467,7 +503,7 @@ impl Renderer {
             video_gpu_conversions: 0,
             video_conversion_submissions: 0,
             video_encoded_conversions: 0,
-            asset_order: Vec::new(),
+            asset_order: vec![0],
             image_sources: HashMap::new(),
             image_decode: Default::default(),
             image_active: Default::default(),
@@ -490,6 +526,7 @@ impl Renderer {
         renderer.effect_gpu.builder.device_dimension =
             renderer.device.limits().max_texture_dimension_2d.min(8192);
         renderer.upload_image(0, 1, 1, &[255; 4])?;
+        renderer.effect_gpu.invalidate();
         Ok(renderer)
     }
     pub async fn headless() -> Result<Self> {
@@ -1052,20 +1089,7 @@ impl Renderer {
             );
             return Ok(());
         }
-        let texture = self.device.create_admitted_texture(&wgpu::TextureDescriptor {
-            label: Some("Motion Studio cached image"),
-            size: wgpu::Extent3d {
-                width,
-                height,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: TARGET_FORMAT,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-            view_formats: &[],
-        }, &self.allocation_budget).map_err(|error| {
+        let texture = self.device.create_admitted_texture(&cached_image_descriptor(width, height), &self.allocation_budget).map_err(|error| {
             let message = format!("image key={id:?} size={width}x{height} phase=allocate: {error}");
             error.with_diagnostic(message)
         })?;
@@ -1664,6 +1688,7 @@ impl Renderer {
                 uv: v.uv,
             }));
         if !self.geometry_upload.is_empty() {
+            self.allocation_uploads.track(Some(self.vertex_buffer.allocation()))?;
             self.queue.write_buffer(
                 &self.vertex_buffer,
                 0,
@@ -1693,6 +1718,7 @@ impl Renderer {
         }
         let upload_bytes = scene.layers.len() * self.uniform_stride;
         if upload_bytes > 0 {
+            self.allocation_uploads.track(Some(self.uniform_buffer.allocation()))?;
             self.queue
                 .write_buffer(&self.uniform_buffer, 0, &self.upload[..upload_bytes]);
         }
@@ -1934,6 +1960,7 @@ impl Renderer {
                 uv: v.uv,
             }));
         if !self.geometry_upload.is_empty() {
+            self.allocation_uploads.track(Some(self.vertex_buffer.allocation()))?;
             self.queue.write_buffer(
                 &self.vertex_buffer,
                 0,
@@ -1965,6 +1992,7 @@ impl Renderer {
         }
         let bytes = frame.draws.len() * self.uniform_stride;
         if bytes > 0 {
+            self.allocation_uploads.track(Some(self.uniform_buffer.allocation()))?;
             self.queue
                 .write_buffer(&self.uniform_buffer, 0, &self.upload[..bytes]);
         }

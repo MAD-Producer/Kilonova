@@ -36,7 +36,7 @@ fn effect_parameter_refusal_reaches_original_reply_file_and_stderr_at_default_le
         .unwrap();
         let plan = builder.build_checked(&scene, &[0], 8, 8, true).unwrap();
         let scratch = motion_render::effect_plan::scratch_capacity_bytes(&plan.scratch_sizes);
-        let required = 4 + scratch + motion_effects::shader::UNIFORM_BYTES as u64;
+        let required = SYSTEM_BYTES + scratch + motion_effects::shader::UNIFORM_BYTES as u64;
         let budget = motion_render::AllocationBudget::new(required - 1).unwrap();
         let mut renderer = pollster::block_on(
             motion_render::Renderer::headless_with_allocation_budget(budget.clone()),
@@ -53,7 +53,7 @@ fn effect_parameter_refusal_reaches_original_reply_file_and_stderr_at_default_le
         );
         let original = failure.to_string();
         assert!(original.contains("effect parameters pass=0 phase=allocate"));
-        assert_eq!(budget.info().unwrap().admitted_bytes, 4 + scratch);
+        assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES + scratch);
         let (reply, receive) = channel::<Result<Value, String>>();
         CURRENT_COMMAND.set(Some(Flight {
             request: 204,
@@ -69,7 +69,7 @@ fn effect_parameter_refusal_reaches_original_reply_file_and_stderr_at_default_le
                 .unwrap_err(),
             original
         );
-        budget.set_limit(1 << 20).unwrap();
+        budget.set_limit(SYSTEM_BYTES + (1 << 20)).unwrap();
         renderer.preflight_effects(&scene, 8, 8).unwrap();
         renderer.check_health().unwrap();
         return;

@@ -91,7 +91,7 @@ fn scratch_ids(renderer: &Renderer) -> Vec<String> {
 
 #[test]
 fn refused_later_effect_pool_slot_preserves_old_allocations_and_pixels_then_recovers() {
-    let budget = crate::AllocationBudget::new(4 << 20).unwrap();
+    let budget = crate::AllocationBudget::new(SYSTEM_BYTES + (4 << 20)).unwrap();
     let mut renderer =
         pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();
     let small = scene(&project("gaussian_blur", 32));
@@ -150,7 +150,7 @@ fn refused_later_effect_pool_slot_preserves_old_allocations_and_pixels_then_reco
         budget.info().unwrap().live_allocations,
         before.live_allocations
     );
-    budget.set_limit(4 << 20).unwrap();
+    budget.set_limit(SYSTEM_BYTES + (4 << 20)).unwrap();
     assert_eq!(renderer.capture(&small, &target).unwrap().0, old);
     let large_target = renderer.capture_target(128, 128).unwrap();
     assert!(renderer
@@ -164,7 +164,7 @@ fn refused_later_effect_pool_slot_preserves_old_allocations_and_pixels_then_reco
 
 #[test]
 fn late_effect_parameter_refusal_is_typed_and_reuses_admitted_scratch_on_recovery() {
-    let budget = crate::AllocationBudget::new(1 << 20).unwrap();
+    let budget = crate::AllocationBudget::new(SYSTEM_BYTES + (1 << 20)).unwrap();
     let mut renderer =
         pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();
     let scene = scene(&project("tint", 8));
@@ -172,7 +172,7 @@ fn late_effect_parameter_refusal_is_typed_and_reuses_admitted_scratch_on_recover
     let scratch = crate::effect_plan::scratch_capacity_bytes(
         &renderer.effect_gpu.builder.frame.scratch_sizes,
     );
-    let required = 4 + scratch + motion_effects::shader::UNIFORM_BYTES as u64;
+    let required = SYSTEM_BYTES + scratch + motion_effects::shader::UNIFORM_BYTES as u64;
     budget.set_limit(required - 1).unwrap();
     let error = prepare(&mut renderer, &scene).unwrap_err();
     assert_eq!(
@@ -189,9 +189,9 @@ fn late_effect_parameter_refusal_is_typed_and_reuses_admitted_scratch_on_recover
             .contains("effect parameters pass=0 phase=allocate"),
         "{error}"
     );
-    assert_eq!(budget.info().unwrap().admitted_bytes, 4 + scratch);
+    assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES + scratch);
     let ids = scratch_ids(&renderer);
-    budget.set_limit(1 << 20).unwrap();
+    budget.set_limit(SYSTEM_BYTES + (1 << 20)).unwrap();
     renderer.preflight_effects(&scene, 8, 8).unwrap();
     assert_eq!(scratch_ids(&renderer), ids);
     let target = renderer.capture_target(8, 8).unwrap();
@@ -202,12 +202,12 @@ fn late_effect_parameter_refusal_is_typed_and_reuses_admitted_scratch_on_recover
     drop(target);
     renderer.effect_gpu.state.release_scratch();
     flush(&renderer);
-    assert_eq!(budget.info().unwrap().admitted_bytes, 4);
+    assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES);
 }
 
 #[test]
 fn queued_curve_uploads_and_abandoned_encoders_retain_admitted_destinations() {
-    let budget = crate::AllocationBudget::new(1 << 20).unwrap();
+    let budget = crate::AllocationBudget::new(SYSTEM_BYTES + (1 << 20)).unwrap();
     let mut renderer =
         pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();
     let scene = scene(&project("curves", 8));
@@ -215,7 +215,7 @@ fn queued_curve_uploads_and_abandoned_encoders_retain_admitted_destinations() {
     let scratch = crate::effect_plan::scratch_capacity_bytes(
         &renderer.effect_gpu.builder.frame.scratch_sizes,
     );
-    budget.set_limit(4 + scratch + 1023).unwrap();
+    budget.set_limit(SYSTEM_BYTES + scratch + 1023).unwrap();
     let error = prepare(&mut renderer, &scene).unwrap_err();
     assert!(
         error
@@ -231,8 +231,8 @@ fn queued_curve_uploads_and_abandoned_encoders_retain_admitted_destinations() {
         })
     ));
     assert_eq!(renderer.texture_memory_breakdown().curve_luts, 0);
-    assert_eq!(budget.info().unwrap().admitted_bytes, 4 + scratch);
-    budget.set_limit(1 << 20).unwrap();
+    assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES + scratch);
+    budget.set_limit(SYSTEM_BYTES + (1 << 20)).unwrap();
     prepare(&mut renderer, &scene).unwrap();
     let held = budget.info().unwrap().admitted_bytes;
     let encoder = renderer
@@ -243,16 +243,16 @@ fn queued_curve_uploads_and_abandoned_encoders_retain_admitted_destinations() {
     drop(encoder.finish());
     assert_eq!(
         budget.info().unwrap().admitted_bytes,
-        4 + 1024,
+        SYSTEM_BYTES + 1024,
         "only the queued LUT destination remains"
     );
     flush(&renderer);
-    assert_eq!(budget.info().unwrap().admitted_bytes, 4);
+    assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES);
 }
 
 #[test]
 fn package_texture_refusal_keeps_resource_counts_and_recovers_through_real_upload() {
-    let budget = crate::AllocationBudget::new(1 << 20).unwrap();
+    let budget = crate::AllocationBudget::new(SYSTEM_BYTES + (1 << 20)).unwrap();
     let mut renderer =
         pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();
     let scene = scene(&project("dither", 8));
@@ -265,7 +265,7 @@ fn package_texture_refusal_keeps_resource_counts_and_recovers_through_real_uploa
     let frame = &renderer.effect_gpu.builder.frame;
     let scratch = crate::effect_plan::scratch_capacity_bytes(&frame.scratch_sizes);
     let parameters = frame.passes.len() as u64 * motion_effects::shader::UNIFORM_BYTES as u64;
-    let required = 4 + scratch + parameters + resources;
+    let required = SYSTEM_BYTES + scratch + parameters + resources;
     budget.set_limit(required - 1).unwrap();
     let error = prepare(&mut renderer, &scene).unwrap_err();
     assert_eq!(
@@ -285,9 +285,9 @@ fn package_texture_refusal_keeps_resource_counts_and_recovers_through_real_uploa
     assert_eq!(renderer.effect_gpu.state.resource_bytes, 0);
     assert_eq!(
         budget.info().unwrap().admitted_bytes,
-        4 + scratch + parameters
+        SYSTEM_BYTES + scratch + parameters
     );
-    budget.set_limit(1 << 20).unwrap();
+    budget.set_limit(SYSTEM_BYTES + (1 << 20)).unwrap();
     prepare(&mut renderer, &scene).unwrap();
     assert_eq!(renderer.effect_gpu.state.resource_bytes, resources);
     let target = renderer.capture_target(8, 8).unwrap();
@@ -302,7 +302,7 @@ fn package_texture_refusal_keeps_resource_counts_and_recovers_through_real_uploa
 
 #[test]
 fn curve_preflight_shrink_and_growth_rebinds_the_new_lut_without_retaining_old_capacity() {
-    let budget = crate::AllocationBudget::new(1 << 20).unwrap();
+    let budget = crate::AllocationBudget::new(SYSTEM_BYTES + (1 << 20)).unwrap();
     let mut renderer =
         pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();
     let original = scene(&project("curves", 8));
