@@ -296,9 +296,7 @@ pub fn edit(masks: &mut Vec<LayerMask>, action: MaskAction, offset: i32) -> Resu
         MaskAction::Reorder { .. } => 0,
     };
     let index = masks.iter().position(|m| m.id == id);
-    if !matches!(action, MaskAction::Add { .. } | MaskAction::Reorder { .. }) {
-        ensure(index.is_some(), "mask does not exist")?;
-    }
+    let existing_index = || index.ok_or_else(|| Error::Invalid(format!("mask does not exist: mask={id}")));
     let local = |f: u32| {
         i32::try_from(i64::from(f) - i64::from(offset))
             .map_err(|_| Error::Invalid("mask local frame overflow".into()))
@@ -308,9 +306,9 @@ pub fn edit(masks: &mut Vec<LayerMask>, action: MaskAction, offset: i32) -> Resu
             ensure(index.is_none(), "mask ID already exists")?;
             masks.push(mask);
         }
-        MaskAction::Replace { mask } => masks[index.unwrap()] = mask,
+        MaskAction::Replace { mask } => masks[existing_index()?] = mask,
         MaskAction::Remove { .. } => {
-            masks.remove(index.unwrap());
+            masks.remove(existing_index()?);
         }
         MaskAction::Reorder { masks: order } => {
             let ids: HashSet<_> = order.iter().copied().collect();
@@ -320,7 +318,8 @@ pub fn edit(masks: &mut Vec<LayerMask>, action: MaskAction, offset: i32) -> Resu
                     && masks.iter().all(|m| ids.contains(&m.id)),
                 "mask order must include each existing ID once",
             )?;
-            masks.sort_by_key(|m| order.iter().position(|id| *id == m.id).unwrap());
+            // Membership was checked above, so every key is Some(position).
+            masks.sort_by_key(|m| order.iter().position(|id| *id == m.id));
         }
         MaskAction::Options {
             mode,
@@ -328,12 +327,12 @@ pub fn edit(masks: &mut Vec<LayerMask>, action: MaskAction, offset: i32) -> Resu
             enabled,
             ..
         } => {
-            let m = &mut masks[index.unwrap()];
+            let m = &mut masks[existing_index()?];
             if let Some(mode)=mode {m.mode=mode;}
             if let Some(inverted)=inverted {m.inverted=inverted;}
             if let Some(enabled)=enabled {m.enabled=enabled;}
         }
-        MaskAction::Path { path, .. } => masks[index.unwrap()].path = path,
+        MaskAction::Path { path, .. } => masks[existing_index()?].path = path,
         action => {
             let property = match &action {
                 MaskAction::Set { property, .. }
@@ -381,7 +380,7 @@ pub fn edit(masks: &mut Vec<LayerMask>, action: MaskAction, offset: i32) -> Resu
                 }};
             }
             // Scalar tracks use the same animation/curve commands as vectors.
-            let mask = &mut masks[index.unwrap()];
+            let mask = &mut masks[existing_index()?];
             match property {
                 MaskProperty::Feather => update!(mask.feather, 2),
                 MaskProperty::Node(node) => {

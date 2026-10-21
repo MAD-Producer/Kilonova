@@ -715,6 +715,7 @@ impl Session {
                     gpu: None,
                     resources: Some(motion_render::FrameResources {
                         textures: g.renderer.texture_memory_breakdown(),
+                        vector_upload: g.renderer.vector_upload_info()?,
                         preview_target_bytes: g.scratch.texture_bytes(),
                         exposure_target_bytes: 0,
                         exposure_media_us: 0,
