@@ -416,7 +416,7 @@ mod tests {
             false
         ));
         parameter["track"]["value"][0] = 1.into();
-        parameter["track"]["keys"] = serde_json::json!([{"frame":0,"value":[1.,0.,0.,0.]}]);
+        parameter["track"]["keys"] = serde_json::json!([{"frame":0,"value":[1.,0.,0.,0.],"ease":"linear"}]);
         assert!(effect_value_visible(
             F::Modified,
             &parameter,

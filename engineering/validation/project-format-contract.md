@@ -138,3 +138,11 @@
 - 本地可运行目录：`artifacts/project-format-contract/windows-ffmpeg-debug`。使用仓库打包器的 runtime_payload 校验现有 FFmpeg 运行库的架构、每文件 SHA-256、作者、来源、修订与许可证后，连同原许可证、NOTICE 与 ATTRIBUTION 一起复制；没有伪造 Release 构建报告。清除 PATH 内的 FFmpeg 路径及 FFMPEG_* 环境变量后，`--command-list` 和实际 `--video-smoke silent-24fps.mp4` 均以 0 退出且 stdout 为有效 JSON。证据为该目录下 `local-build-validation.json` 和 stdout/stderr 文件。
 
 边界：没有在本机重新运行全部渲染图像基线、全部桌面用例或其他操作系统；远端 CI 须以本次新提交独立验证，不沿用 #388 的绿色结果。上述 UI 基线保持 retained；本次验收不能视为视觉问题已整改。
+
+### 首轮跨平台 CI 的 fixture 补验
+
+首轮 run `39547823282` 的 Linux job `119049897084` 在完整桌面测试中发现 `panels::observation_tests::real_panel_fallbacks_are_visible_bounded_and_preserve_normal_optional_fields` 失败：健康关键帧 fixture 漏写本轮已改为必填的 ease，导致 track 解码返回 None，随后测试 unwrap 失败。这是本轮遗漏的 fixture 更新；此前本机 417 项专项通过不能代替完整桌面运行。
+
+扫描手写关键帧后，为 observation_tests、properties/tree_tests、modified_properties 三处补齐先前默认语义的 `ease: "linear"`。没有恢复生产补值、修改解码返回值、删除故障观察或放宽日志阈值/恢复断言。原始日志保留为 `pr-389-linux-failure.log`。修正后的完整桌面测试和跨平台结果须分别记录，不沿用首轮结果。
+
+相同失败也从 Windows job `119049896872` 和 macOS Intel job `119049897147` 的原始日志确认，均仅此一项失败。修正后的本机完整桌面命令 `cargo test -p motion-desktop --bin motion-studio --features ffmpeg --locked --offline -j1 -- --test-threads=1` 为 **709 项通过、0 失败、1 项既有物理音频设备测试忽略**，463.53 秒；记录为 `project-format-desktop-complete-fixed.log`。此前 396 项模型/编辑器/宿主组合与此次完整桌面互不重复，合计 1105 项通过、2 项既有忽略；不再另加被包含的 21 项故障测试。
