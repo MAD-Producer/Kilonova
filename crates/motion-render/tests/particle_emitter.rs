@@ -240,7 +240,7 @@ fn missing_source_and_history_expression_block_export_with_preview_fallback() {
     assert!(b
         .build(&s, &[0], 128, 128, true)
         .unwrap_err()
-        .contains("expressions"));
+        .to_string().contains("expressions"));
     assert_eq!(
         b.build(&s, &[0], 128, 128, false)
             .unwrap()
@@ -324,7 +324,7 @@ fn custom_png_sprite_keeps_aspect_alpha_and_shared_texture() {
     assert!(b
         .build(&s, &[0, 1], 128, 128, true)
         .unwrap_err()
-        .contains("sprite"));
+        .to_string().contains("sprite"));
 }
 #[test]
 fn nested_png_emitter_preserves_births_pixels_and_random_seek() {

@@ -34,7 +34,7 @@ fn effect_parameter_refusal_reaches_original_reply_file_and_stderr_at_default_le
             motion_effects::Registry::new_with_builtins().unwrap(),
         )
         .unwrap();
-        let plan = builder.build_checked(&scene, &[0], 8, 8, true).unwrap();
+        let plan = builder.build(&scene, &[0], 8, 8, true).unwrap();
         let scratch = motion_render::effect_plan::scratch_capacity_bytes(&plan.scratch_sizes);
         let required = 4 + scratch + motion_effects::shader::UNIFORM_BYTES as u64;
         let budget = motion_render::AllocationBudget::new(required - 1).unwrap();

@@ -36,16 +36,16 @@ fn sample(project: &Project) -> Scene {
 }
 
 #[test]
-fn checked_plan_preserves_messages_and_distinguishes_capacity_from_dimensions() {
+fn typed_plan_preserves_messages_and_distinguishes_capacity_from_dimensions() {
     let mut builder =
         PlanBuilder::new(motion_effects::Registry::new_with_builtins().unwrap()).unwrap();
     let scene = sample(&project([3840., 2160.]));
-    let original = builder.build(&scene, &[0], 64, 64, true).err().unwrap();
     let error = builder
-        .build_checked(&scene, &[0], 64, 64, true)
+        .build(&scene, &[0], 64, 64, true)
         .err()
         .unwrap();
-    assert_eq!(error.to_string(), format!("GPU validation: {original}"));
+    let required = scratch_capacity_bytes(&builder.last_scratch_request.unwrap().sizes);
+    assert_eq!(error.to_string(), format!("GPU validation: layer 1, effect 1 (gaussian_blur): effect scratch textures require {:.2} MiB; budget is 64 MiB (full layer bounds, including effect padding)", required as f64 / 1048576.));
     let rejected = ResourceRejection::Budget {
         scope: ResourceBudgetScope::EffectScratch,
         required_bytes: scratch_capacity_bytes(&builder.last_scratch_request.unwrap().sizes),
@@ -58,7 +58,7 @@ fn checked_plan_preserves_messages_and_distinguishes_capacity_from_dimensions() 
     assert_eq!(json["budgetBytes"], 64 << 20);
     builder.device_dimension = 32;
     let error = builder
-        .build_checked(&scene, &[0], 64, 64, true)
+        .build(&scene, &[0], 64, 64, true)
         .err()
         .unwrap();
     assert!(matches!(
@@ -76,22 +76,22 @@ fn diagnostics_success_cache_and_unrelated_errors_cannot_reuse_a_budget_refusal(
     let mut builder = PlanBuilder::new(registry.clone()).unwrap();
     let scene = sample(&project([3840., 2160.]));
     let error = builder
-        .build_checked(&scene, &[0], 64, 64, true)
+        .build(&scene, &[0], 64, 64, true)
         .err()
         .unwrap();
     let rejection = *error.resource_rejection().unwrap();
-    let preview = builder.build_preview_checked(&scene, &[0], 64, 64).unwrap();
+    let preview = builder.build_preview(&scene, &[0], 64, 64).unwrap();
     assert!(!preview.diagnostics.is_empty());
     assert_eq!(builder.last_resource_rejection, None);
     let small = sample(&project([64.; 2]));
-    builder.build_preview_checked(&small, &[0], 64, 64).unwrap();
+    builder.build_preview(&small, &[0], 64, 64).unwrap();
     builder.last_resource_rejection = Some(rejection);
-    builder.build_preview_checked(&small, &[0], 64, 64).unwrap();
+    builder.build_preview(&small, &[0], 64, 64).unwrap();
     assert_eq!(builder.preview_cache_hits, 1);
     assert_eq!(builder.last_resource_rejection, None);
     builder.last_resource_rejection = Some(rejection);
     let error = builder
-        .build_checked(&small, &[], 64, 64, true)
+        .build(&small, &[], 64, 64, true)
         .err()
         .unwrap();
     assert!(matches!(error, RenderError::Invalid(_)));

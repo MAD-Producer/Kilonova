@@ -74,9 +74,9 @@ fn four_k_plans_obey_each_tier_and_serialize_the_same_allowance_for_gles() {
             }
             Err(error) => {
                 assert!(!fits, "{error}");
-                assert!(error.contains("effect scratch textures"), "{error}");
-                assert!(error.contains("96 MiB"), "{error}");
-                assert!(!error.contains("accumulators"), "{error}");
+                assert!(error.to_string().contains("effect scratch textures"), "{error}");
+                assert!(error.to_string().contains("96 MiB"), "{error}");
+                assert!(!error.to_string().contains("accumulators"), "{error}");
             }
         }
     }
@@ -87,7 +87,7 @@ fn four_k_plans_obey_each_tier_and_serialize_the_same_allowance_for_gles() {
     b.set_scratch_budget(scratch_budget(6 * GIB, false))
         .unwrap();
     let error = b.build(&scene, &[0], 3840, 2160, true).err().unwrap();
-    assert!(error.contains("192 MiB"), "{error}");
+    assert!(error.to_string().contains("192 MiB"), "{error}");
     b.set_scratch_budget(scratch_budget(12 * GIB, false))
         .unwrap();
     assert!(b.build(&scene, &[0], 3840, 2160, true).is_ok());
@@ -99,7 +99,7 @@ fn four_k_plans_obey_each_tier_and_serialize_the_same_allowance_for_gles() {
     b.set_scratch_budget(scratch_budget(12 * GIB, true))
         .unwrap();
     let error = b.build(&scene, &[0], 3840, 2160, true).err().unwrap();
-    assert!(error.contains("64 MiB"), "{error}");
+    assert!(error.to_string().contains("64 MiB"), "{error}");
 }
 #[test]
 fn changing_budget_invalidates_preview_and_still_enforces_device_dimensions() {
@@ -127,5 +127,5 @@ fn changing_budget_invalidates_preview_and_still_enforces_device_dimensions() {
     b.set_scratch_budget(384 << 20).unwrap();
     b.device_dimension = 2048;
     let error = b.build(&scene, &[0], 3840, 2160, true).err().unwrap();
-    assert!(error.contains("device dimension"), "{error}");
+    assert!(error.to_string().contains("device dimension"), "{error}");
 }

@@ -167,7 +167,7 @@ fn particle_budget_failure_is_explicit_and_binary_plan_has_bounded_instances() {
     assert!(builder
         .build(&scene, &[0], 128, 128, true)
         .unwrap_err()
-        .contains("capacity"));
+        .to_string().contains("capacity"));
     let fallback = builder.build(&scene, &[0], 128, 128, false).unwrap();
     assert_eq!(fallback.diagnostics.len(), 1);
     assert!(fallback.passes.is_empty());
@@ -260,7 +260,7 @@ fn hidden_generator_capacity_missing_sources_and_chain_order_block_export() {
     assert!(builder
         .build(&scene, &[0], 128, 128, true)
         .unwrap_err()
-        .contains("capacity"));
+        .to_string().contains("capacity"));
     let mut p = project("lens_flare");
     p.layers[0].visible = false;
     p.layers[0].effects[0].scene.as_mut().unwrap().source_layer = Some(99);
@@ -268,7 +268,7 @@ fn hidden_generator_capacity_missing_sources_and_chain_order_block_export() {
     assert!(builder
         .build(&scene, &[0], 128, 128, true)
         .unwrap_err()
-        .contains("source layer"));
+        .to_string().contains("source layer"));
     p.layers[0].effects[0].scene.as_mut().unwrap().source_layer = None;
     let package = builtin::package().unwrap();
     let def = package
@@ -293,7 +293,7 @@ fn hidden_generator_capacity_missing_sources_and_chain_order_block_export() {
     assert!(builder
         .build(&scene, &[0], 128, 128, true)
         .unwrap_err()
-        .contains("first enabled"));
+        .to_string().contains("first enabled"));
 }
 #[test]
 fn source_image_alpha_uses_filtered_pixels_and_cache_budget_is_explicit() {
@@ -322,7 +322,7 @@ fn source_image_alpha_uses_filtered_pixels_and_cache_budget_is_explicit() {
     assert!(builder
         .build(&scene, &[0, 1], 128, 128, true)
         .unwrap_err()
-        .contains("alpha"));
+        .to_string().contains("alpha"));
     builder
         .set_alpha(1, 2, 1, &[255, 255, 255, 0, 255, 255, 255, 255])
         .unwrap();

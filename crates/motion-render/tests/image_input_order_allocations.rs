@@ -158,20 +158,20 @@ fn shared_dependencies_and_mattes_remain_in_postorder_once_each() {
 fn dependency_errors_do_not_poison_the_next_traversal() {
     for frame in [plan(&[(2, true), (1, true)]), plan(&[(1, true)])] {
         assert_eq!(
-            image_input_order(&frame).unwrap_err(),
-            "effect image input cycle"
+            image_input_order(&frame).unwrap_err().to_string(),
+            "GPU validation: effect image input cycle"
         );
     }
     let mut invalid = plan(&[(2, true)]);
     assert_eq!(
-        image_input_order(&invalid).unwrap_err(),
-        "effect image input index is invalid"
+        image_input_order(&invalid).unwrap_err().to_string(),
+        "GPU validation: effect image input index is invalid"
     );
     invalid.passes[0].resource_input = 0;
     invalid.compositing.push(matte(1));
     assert_eq!(
-        image_input_order(&invalid).unwrap_err(),
-        "effect image input index is invalid"
+        image_input_order(&invalid).unwrap_err().to_string(),
+        "GPU validation: effect image input index is invalid"
     );
     invalid.compositing.clear();
     assert!(image_input_order(&invalid).unwrap().is_empty());

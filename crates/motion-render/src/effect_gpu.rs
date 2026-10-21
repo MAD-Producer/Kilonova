@@ -247,9 +247,8 @@ impl EffectGpu {
         };
         Ok(Self {
             builder: PlanBuilder::new(
-                Registry::new_with_builtins().map_err(|e| RenderError::Invalid(e.to_string()))?,
-            )
-            .map_err(RenderError::Invalid)?,
+                Registry::new_with_builtins().map_err(RenderError::from)?,
+            )?,
             state: GpuState {
                 allocation_budget,
                 allocation_uploads,

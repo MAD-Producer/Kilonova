@@ -21,7 +21,7 @@ pub enum CompositionPlanError {
         asset: u64,
     },
     #[error("{0}")]
-    Encoding(String),
+    Encoding(#[source] Box<RenderError>),
 }
 
 pub const MAGIC: u32 = 0x4243534d;
@@ -113,17 +113,12 @@ pub fn build(
     out.resize(HEADER + nodes.len() * NODE, 0);
     for (i, e) in nodes.iter().enumerate() {
         let plan = builder
-            .build_checked(e.scene, assets, e.scene.width, e.scene.height, true)
+            .build(e.scene, assets, e.scene.width, e.scene.height, true)
             .map_err(|cause| {
                 // The old bundle boundary displayed the raw plan diagnostic,
                 // without RenderError's GPU validation prefix. Keep that text
                 // while retaining the original error and resource refusal.
-                let diagnostic = match &cause {
-                    RenderError::Invalid(message) | RenderError::Resource { message, .. } => {
-                        e.scene.diagnostic(message)
-                    }
-                    _ => e.scene.diagnostic(&cause.to_string()),
-                };
+                let diagnostic = e.scene.diagnostic(&cause.planning_message());
                 RenderError::Context {
                     message: diagnostic,
                     cause: Box::new(cause),
@@ -147,7 +142,7 @@ pub fn build(
         }
         out.resize(required_bytes, 0);
         plan.write(e.scene, &mut out[start..start + size])
-            .map_err(CompositionPlanError::Encoding)?;
+            .map_err(|cause| CompositionPlanError::Encoding(Box::new(cause)))?;
         let d = HEADER + i * NODE;
         long(out, d, e.reference);
         word(out, d + 8, e.parent as u32);

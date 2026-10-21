@@ -140,7 +140,7 @@ fn measure(
             },
             None,
             None,
-            vec![error],
+            vec![error.to_string()],
         ),
     };
     let mut pass_costs = Vec::new();

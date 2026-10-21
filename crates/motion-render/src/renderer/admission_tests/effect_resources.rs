@@ -50,7 +50,7 @@ fn build(renderer: &mut Renderer, scene: &Scene, extent: u32) {
     renderer
         .effect_gpu
         .builder
-        .build_checked(scene, &renderer.asset_order, extent, extent, true)
+        .build(scene, &renderer.asset_order, extent, extent, true)
         .unwrap();
 }
 fn prepare(renderer: &mut Renderer, scene: &Scene) -> Result<()> {
