@@ -928,3 +928,32 @@ An existing foreign `perf/presenter-source-reuse` worktree has uncommitted
 presenter/session changes; no presenter work was started here to avoid overlap.
 #61/#67 stay open; precision and 3D remain parked. No panels, styles, dependencies
 or assets changed.
+
+
+## PR404 native-window validation followup
+
+Public run39620361094 on vector/mask head064aa623 passed Rust/GPU, Ubuntu and
+macOS Intel. Windows failed two existing native-window tests: paced sampling
+timed out awaiting Present (in-flight11.5s, queue0), and path selection timed out
+awaiting capture_ui. Its731 passes/two failures/one pre-existing ignore are not
+treated as successful acceptance. Raw job logs, failure.json and default file
+logs are retained in the local pr404-windows-failure evidence directory.
+
+The path driver waited for both presentation and screenshot replies on the
+native window owner without message dispatch. Sourcea1a2b8da switches those
+test waits to the existing native message pump and uses it for sampling's final
+screenshot as well. Presentation keeps its10-second wait and screenshots keep
+the existing60-second wait. Every original assertion in all three changed test
+files is preserved byte-for-byte. Product code and interaction remain unchanged.
+
+Exact sourcea1a2b8da passes three selected real Windows controls: cross-thread
+native messages with original deadline assertions, complete main/floating path
+routes and screenshots, and paced sampling across all four modes. Source-bound
+native-capture logs/exit receipts and native-capture-acceptance.json record the
+commands, original failure and SHA-256. These are separate from compositor
+source68f0de50's235 selected passes; they are not a full workspace or a single
+combined-source run. The integration retains the accepted production code and
+identical tested native drivers. Sampling already pumped messages while awaiting
+Present, so the remote baseline timeout's precise cause and resolution remain
+unproven until further public/native evidence. No assertions, retries, ignores,
+timeouts or product semantics were relaxed to obtain a green result.
