@@ -866,6 +866,13 @@ PR400's exact combined source `6042cd04` separately passes190 selected cases
 queue writes and preserve native error identity. Its public run39614881573 is
 tracked separately; local acceptance does not assert a public green result.
 
+Final publication: all four required public checks passed on `6042cd04` in
+run39614881573, including macOS Intel. PR400 was then squash-merged as
+`d60aaea2` with a Chinese commit message. Integrating that squash into this
+batch preserves the accepted source tree exactly; only this completion record
+differs from the final local source bundle. Vector/mask public CI is a separate
+publication stage and is not inferred from PR400's green checks.
+
 Mask `clear` retains the existing warm uniform slots; this increment observes
 them but does not add cold pressure eviction. Mask/vector/group/effect/matte
 textures, compositor and presenter buffers, other external boundaries, shared
