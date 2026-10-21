@@ -93,7 +93,7 @@ fn view(shell: &Shell, floating: bool) -> motion_ui::Rect {
         panels::composition_view_styled(shell.workspace.display_root(), size(), &styles)
     }
 }
-fn capture(shell: &mut Shell, floating: bool, paint: PaintList, path: PathBuf) {
+fn capture(event_loop: &mut winit::event_loop::EventLoop<()>, shell: &mut Shell, floating: bool, paint: PaintList, path: PathBuf) {
     let view = view(shell, floating);
     let mapping = shell
         .panels
@@ -113,7 +113,7 @@ fn capture(shell: &mut Shell, floating: bool, paint: PaintList, path: PathBuf) {
     ].map(|v| v * pixel_ratio()));
     let deadline = Instant::now() + Duration::from_secs(20);
     loop {
-        let ready = shell
+        let reply = shell
             .engine
             .present_async(crate::engine::UiFrame {
                 paint: PaintList::default(),
@@ -124,10 +124,9 @@ fn capture(shell: &mut Shell, floating: bool, paint: PaintList, path: PathBuf) {
                 window: ui.window,
                 node_preview: None,
             })
-            .unwrap()
-            .recv_timeout(Duration::from_secs(10))
-            .unwrap()
             .unwrap();
+        let ready = crate::native_test_support::receive(event_loop, &reply, Duration::from_secs(10))
+            .unwrap().unwrap();
         if ready {
             break;
         }
@@ -136,7 +135,7 @@ fn capture(shell: &mut Shell, floating: bool, paint: PaintList, path: PathBuf) {
             "path capture presentation unavailable"
         );
     }
-    shell.engine.capture_ui(ui, path.clone()).unwrap();
+    crate::native_test_support::capture_ui(event_loop, &shell.engine, ui, path.clone()).unwrap();
     let pixels = image::open(path).unwrap().into_rgba8();
     assert_eq!(pixels.dimensions(), physical_size());
     let first = pixels.get_pixel(0, 0);
@@ -154,7 +153,7 @@ fn point_selection_main_and_native_floating_routes_capture_and_restore() {
             PathBuf::from(std::env::var_os("MOTION_POINT_SELECTION_ARTIFACTS").unwrap());
         std::fs::create_dir_all(&artifacts).unwrap();
         let _logger = crate::logging::init(artifacts.clone()).unwrap();
-        let event_loop = winit::event_loop::EventLoop::builder()
+        let mut event_loop = winit::event_loop::EventLoop::builder()
             .with_any_thread(true)
             .build()
             .unwrap();
@@ -271,6 +270,7 @@ fn point_selection_main_and_native_floating_routes_capture_and_restore() {
                 );
                 assert!(actions.is_empty());
                 capture(
+                    &mut event_loop,
                     &mut shell,
                     floating,
                     paint,
@@ -365,6 +365,7 @@ fn point_selection_main_and_native_floating_routes_capture_and_restore() {
                 let (paint, actions) = render(&mut shell, floating, &Input::default());
                 assert!(actions.is_empty());
                 capture(
+                    &mut event_loop,
                     &mut shell,
                     floating,
                     paint,
@@ -406,7 +407,7 @@ fn point_selection_main_and_native_floating_routes_capture_and_restore() {
                 assert_eq!(value.as_array().unwrap().len(), 2);
                 shell.state = shell.engine.history(0).unwrap();
                 assert_eq!(shell.state["project"], before);
-                exercise_pen_modes(&mut shell,floating,&label,&artifacts);
+                exercise_pen_modes(&mut event_loop,&mut shell,floating,&label,&artifacts);
                 if floating {
                     shell.engine.close_window(1).unwrap();
                 }
@@ -438,7 +439,7 @@ fn point_selection_main_and_native_floating_routes_capture_and_restore() {
     assert!(!String::from_utf8_lossy(&output.stdout).contains("motion-engine"));
 }
 
-fn exercise_pen_modes(shell: &mut Shell, floating: bool, label: &str, artifacts: &std::path::Path) {
+fn exercise_pen_modes(event_loop: &mut winit::event_loop::EventLoop<()>, shell: &mut Shell, floating: bool, label: &str, artifacts: &std::path::Path) {
     let styles = shell
         .panels
         .styles
@@ -467,6 +468,7 @@ fn exercise_pen_modes(shell: &mut Shell, floating: bool, label: &str, artifacts:
             let (paint, actions) = render(shell, floating, &Input::default());
             assert!(actions.is_empty());
             capture(
+                event_loop,
                 shell,
                 floating,
                 paint,
@@ -571,6 +573,7 @@ fn exercise_pen_modes(shell: &mut Shell, floating: bool, label: &str, artifacts:
         let (paint, actions) = render(shell, floating, &Input::default());
         assert!(actions.is_empty());
         capture(
+            event_loop,
             shell,
             floating,
             paint,
