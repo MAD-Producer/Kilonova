@@ -62,7 +62,13 @@ fn media_provider_error_is_bounded_in_logs_but_complete_in_task_replies() {
             if status.state == "failed" {
                 assert_eq!(status.error.as_deref(), Some(original.as_str()));
                 assert_eq!(status.request_id, ID);
-                let text = fs::read_to_string(root.join("motion-studio.log")).unwrap();
+                let text = {
+                    // A failed task is published before its error is logged.
+                    // Snapshot under the sink lock: an unlocked file read can
+                    // end halfway through a UTF-8 character in a pending write.
+                    let _writer = super::LOGGER.get().unwrap().lock_writer();
+                    fs::read_to_string(root.join("motion-studio.log")).unwrap()
+                };
                 if text.contains("media error request=") {
                     break;
                 }

@@ -19,6 +19,7 @@
 | MTB-03 | 既有开始信号与受控阻塞 | 用信道阻止供应方执行 IO，先从实际日志文件读取已 flush 的 Info start，并检查公开任务阶段为 opening；之后才释放并触发真实失败。开始信号不依赖终结记录，Info 不写 stderr。这里验证既有发布顺序，没有新增等待或在途机制。 |
 | MTB-04 | 验收负面对照 | 暂时将原因限额 2048 改为 8192，相同默认日志回归退出 101，实际长度 6069、期望 2048。恢复后的生产源文件 SHA-256 为 `39cba3e6458920d0272e52cf586f874483ef20889adcb38264155db1ce403797`；源码字节相同且更新时间戳后重新编译。未放宽既有断言或提交错误变异。 |
 | MTB-05 | 正常、取消与 panic | 保留媒体完整回归中实际音视频/包失败、受控阻塞、取消保留原始失败、普通取消不报 Error、panic 有界详情和清理等覆盖。只改变经 TaskLog 输出的文本，不据此声称所有后台线程、独立 panic hook 或所有永不返回调用都已治理。 |
+| MTB-06 | 测试读取同步修复 | 首轮 Linux CI run `39566479366` 的 job `119109870623` 在测试第 65 行读取正在追加的日志，实际报 `InvalidData: stream did not contain valid UTF-8`。任务状态先发布、日志随后写入，未同步的文件快照可能截在多字节字符中间。仅将测试快照放在既有文件 sink 锁内读取；保留完整 UTF-8、2048 字符、原始响应、双输出及 stdout 隔离断言，不改生产逻辑、不丢弃非法字节、不增加重试。跨平台修复结果仍需新提交的 CI 验证。 |
 
 ## 验证记录
 
@@ -29,6 +30,7 @@
 - `cargo check --workspace --exclude motion-android --all-targets --features motion-desktop/ffmpeg --locked --offline -j1`：通过，52.40 秒。
 - `cargo build -p motion-desktop --bin motion-studio --features ffmpeg --locked --offline -j1`：通过，22.00 秒，保留 21 条既有二进制警告；桌面测试构建保留 19 条既有警告。
 - 最终新文件 rustfmt、差异空白、来源及面板样式消费者守卫通过；远端 CI 尚待提交后验证，不能据本机通过宣称跨平台通过。
+- 首轮 Linux CI 暴露 MTB-06 的测试快照竞态后，同步读取修正的本机桌面 `logging::` 重跑：21 通过、0 失败、0 忽略，42.18 秒；日志为 `media-task-bounds-snapshot-logging.log`。只修改测试与本文，既有生产源码及负面对照保持不变；新的跨平台 CI 尚待验证。
 
 本地 Debug 程序另带入经 runtime_payload 验证的 7 个共享 FFmpeg DLL 及原许可证；清除开发环境 FFmpeg 配置、PATH 仅留系统目录后，命令清单仍为有效 JSON，72 帧视频实际解码成功。程序及来源/输入哈希说明保存在 `artifacts/media-task-log-bounds/windows-ffmpeg-debug`，不是 Release 发布。
 
