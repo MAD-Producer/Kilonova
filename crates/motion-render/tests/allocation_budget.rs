@@ -143,8 +143,8 @@ fn abandoned_commands_and_cross_budget_submission_release_without_gpu_submission
     drop(encoder);
     assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES);
 
-    let same_budget_other_queue = renderer(&budget);
     budget.set_limit(256 + 2 * SYSTEM_BYTES).unwrap();
+    let same_budget_other_queue = renderer(&budget);
     let target = first.render_target(8, 8).unwrap();
     let encoder = first
         .allocation_command_encoder(&wgpu::CommandEncoderDescriptor::default())
