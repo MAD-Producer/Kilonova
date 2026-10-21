@@ -879,3 +879,52 @@ textures, compositor and presenter buffers, other external boundaries, shared
 session/platform policy, frame-class peaks, bounded preview/export and repeated
 lifecycle acceptance remain pending. #61/#67 stay open; precision and 3D remain
 parked. No panel, UI, style, asset or dependency changed.
+
+
+## Eleventh increment: compositing system admission
+
+Source `68f0de50` admits the full aligned matte-extraction and layer-transfer
+uniform buffers, plus the default R8 zero-coverage texel, from the renderer's
+shared budget. Native construction completes every reservation before the first
+queue write, and publishes the compositor/build count only after success.
+Both ordinary and exposure-local callers retain the native refusal through
+frame/phase context. Both uniform write sites and the zero upload retain their
+destinations through the existing upload tracker. Cached groups drop before
+their resources. Shader math, pixels, cache policy and UI behavior are retained.
+
+| Case | Actual path and oracle | Disposition |
+| --- | --- | --- |
+| #61-A70 | Real buffer sizes plus one texel: 131073-byte increase on this device; three allocations and final retirement | New capacity coverage |
+| #61-A71 | Native refusal at each of three construction cut points; exact required/limit bytes, immediate partial cleanup, no published compositor/build count, recovery | New refusal/recovery coverage |
+| #61-A72 | Ordinary matte failure retains old output pixels and expected center alpha; restored budget reproduces exact pixels | New preservation coverage |
+| #61-A73 | Exposure-local blending refuses initialization while retaining receiver inputs and output; exact recovered pixels | New independent caller coverage |
+| #61-A74 | Real zero, extract and blend queue writes retain all three destinations after cache drop; actual completion retires them without renewal by a later encoder | New asynchronous lifetime coverage |
+| #61-A75 | Unfinished and finished native clear commands retain resources after GPU polling; dropping their own work releases capacity despite an unrelated later scope | New abandonment/retirement coverage |
+| #61-A76 | Real compositor budget failure through the existing command boundary, request210/frame0/phase/cause/elapsed, unchanged reply and actual recovered matte pixels; default file, Error stderr and stdout isolation | Existing boundary, newly exercised failure |
+
+Native control `0eb42339` failed at 1344592 admitted bytes versus1475665 expected,
+cargo exit101, before implementation. Its four capacity/count/retirement
+assertions remain unchanged. The first implementation compile failed borrow
+checks; the retained run is not an acceptance pass. The correction narrows the
+frame borrow and clones the shared test budget handle, without changing any
+assertion. The six initial compositor GPU cases passed before broader checks.
+
+Exact source `68f0de50` passes **235 distinct selected tests**: render library92,
+ten real GPU suites59, host library69 and desktop default-log boundary15,
+with no failures or ignores in these accepted runs. Workspace/all-targets FFmpeg
+check (excluding retired Android) and the panel style guard pass. These are
+selected runs, not full workspace or public CI acceptance. Logs and exit
+receipts `compositing-admission-final-*` bind commands to the frozen source;
+the local `compositing-admission-acceptance.json` verifies counts, failed control,
+retained assertions and log SHA-256. No source changed during validation; all
+build caches, temporary data and artifacts remained on E:.
+
+This measures enrolled logical descriptor capacity, not driver VRAM or queue
+staging. Effect scratch already uses admitted replacement-before-commit and is
+existing coverage. Remaining compositor/mask/vector/retained-layer textures, presenter buffers,
+external/raw boundaries, shared session/platform pressure, frame-class peaks,
+bounded preview/export policy and repeated lifecycle acceptance remain pending.
+An existing foreign `perf/presenter-source-reuse` worktree has uncommitted
+presenter/session changes; no presenter work was started here to avoid overlap.
+#61/#67 stay open; precision and 3D remain parked. No panels, styles, dependencies
+or assets changed.
