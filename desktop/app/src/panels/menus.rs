@@ -153,7 +153,8 @@ pub(super) fn render(
                     true,
                 ),
             ],
-            3 => vec![
+            3 => {
+                let mut entries = vec![
                 (locale.t(T::NewSolid).into(), Action::AddSolid, true),
                 (locale.t(T::NewText).into(), Action::NewText, true),
                 (locale.t(T::NewNull).into(), Action::AddNull, true),
@@ -211,7 +212,10 @@ pub(super) fn render(
                     Action::EditBatch(unlock_commands),
                     can_unlock,
                 ),
-            ],
+                ];
+                entries.extend(super::layer_navigation::menu_entries(panels, state));
+                entries
+            },
             4 => vec![(
                 locale.t(T::ShowEffects).into(),
                 Action::ShowPanel(dock::DockId(2)),

@@ -154,9 +154,27 @@ struct RawBindings {
 impl TryFrom<RawBindings> for Bindings {
     type Error = String;
     fn try_from(raw: RawBindings) -> Result<Self, String> {
-        let value = Self {
+        let mut value = Self {
             overrides: raw.overrides,
         };
+        // Version-1 settings and presets predate the new layer defaults. Preserve
+        // explicit user mappings on load; leave a conflicting new command unbound.
+        // Interactive bind/reset still use strict conflict checks, without this migration.
+        for entry in catalogue().iter().filter(|entry| matches!(entry.command,
+            Command::SelectLayerAbove | Command::SelectLayerBelow | Command::OrderLayersUp
+                | Command::OrderLayersDown | Command::OrderLayersTop | Command::OrderLayersBottom)) {
+            if value.overrides.iter().any(|item| item.scope == entry.scope && item.command == entry.command) {
+                continue;
+            }
+            let occupied = entry.defaults.iter().any(|default| value.overrides.iter().any(|item| {
+                item.chord.is_some_and(|chord| chord == *default
+                    && catalogue().iter().find(|other| other.scope == item.scope && other.command == item.command)
+                        .is_some_and(|other| domains(entry, *default) & domains(other, chord) != 0))
+            }));
+            if occupied {
+                value.overrides.push(Override {scope: entry.scope, command: entry.command, chord: None});
+            }
+        }
         value.validate()?;
         Ok(value)
     }
@@ -364,6 +382,8 @@ fn repeatable(command: Command) -> bool {
             | Command::MoveDown
             | Command::PreviousKey
             | Command::NextKey
+            | Command::SelectLayerAbove
+            | Command::SelectLayerBelow
     )
 }
 fn domains(entry: &Entry, chord: KeyChord) -> u8 {
