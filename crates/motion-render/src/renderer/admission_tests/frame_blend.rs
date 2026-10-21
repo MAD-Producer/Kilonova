@@ -194,3 +194,72 @@ fn abandoned_encoder_scopes_retain_new_blend_uniform_capacity() {
         drop(queue);
     }
 }
+
+#[test]
+fn refused_blend_encoder_preserves_completed_output_identity_stamp_and_pixels() {
+    let budget = crate::AllocationBudget::new(1 << 20).unwrap();
+    let mut renderer =
+        pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();
+    renderer
+        .upload_video_frame(1, 7, 100, 2, 2, &[0, 0, 0, 255].repeat(4))
+        .unwrap();
+    renderer.cache_video_blend_source(1, 7, 100, 0).unwrap();
+    renderer
+        .upload_video_frame(1, 7, 200, 2, 2, &[255; 16])
+        .unwrap();
+    renderer.cache_video_blend_source(1, 7, 200, 1).unwrap();
+    let old_pixels = pixels(&mut renderer);
+    assert!(old_pixels.chunks_exact(4).all(|p| p == [255; 4]));
+    let image = &renderer.images[&TextureKey::Video(1)];
+    assert!(
+        !image
+            ._texture
+            .usage()
+            .contains(wgpu::TextureUsages::RENDER_ATTACHMENT),
+        "fixture must require replacement on first actual mixture"
+    );
+    let old_id = image._texture.allocation().unwrap().id();
+    let before = budget.info().unwrap();
+    let scopes: Vec<_> = (0..64)
+        .map(|_| {
+            renderer
+                .allocation_command_encoder(&Default::default())
+                .unwrap()
+        })
+        .collect();
+    let error = renderer
+        .blend_video_sources(1, 7, 100, 200, 0.5)
+        .unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("too many pending render allocation encoder scopes"),
+        "{error}"
+    );
+    assert!(
+        error
+            .to_string()
+            .contains("object=1 source=7 left_pts_us=100 right_pts_us=200 size=2x2 phase=blend"),
+        "{error}"
+    );
+    let image = &renderer.images[&TextureKey::Video(1)];
+    assert_eq!(
+        image._texture.allocation().unwrap().id(),
+        old_id,
+        "scope refusal replaced the completed output"
+    );
+    assert_eq!(image.video_stamp, Some((7, 200)));
+    assert_eq!(renderer.video_blend_submissions, 2);
+    drop(scopes);
+    assert_eq!(budget.info().unwrap(), before);
+    assert_eq!(pixels(&mut renderer), old_pixels);
+    renderer.blend_video_sources(1, 7, 100, 200, 0.5).unwrap();
+    let actual = pixels(&mut renderer);
+    assert!(
+        actual
+            .chunks_exact(4)
+            .all(|p| (187..=189).contains(&p[0]) && p[0] == p[1] && p[1] == p[2] && p[3] == 255),
+        "{actual:?}"
+    );
+    renderer.check_health().unwrap();
+}
