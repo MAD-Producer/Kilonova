@@ -49,6 +49,10 @@ pub enum RenderError {
     Device(#[from] wgpu::RequestDeviceError),
     #[error(transparent)]
     Image(#[from] image::ImageError),
+    #[error("{0}")]
+    Effects(#[from] motion_effects::Error),
+    #[error("{0}")]
+    Model(#[from] motion_model::Error),
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error(transparent)]
@@ -65,6 +69,11 @@ pub enum RenderError {
     // Keep protocol-facing text independent of the original boxed source.
     #[error("{message}")]
     Context { message: String, #[source] cause: Box<RenderError> },
+    #[error("GPU validation: {message}")]
+    Diagnostic { message: String, #[source] cause: Box<RenderError> },
+    /// Cached failures retain their original identity across repeated plans.
+    #[error("{0}")]
+    Shared(#[source] Arc<RenderError>),
 }
 pub(crate) type Result<T> = std::result::Result<T, RenderError>;
 
@@ -77,7 +86,9 @@ impl RenderError {
         loop {
             match error {
                 Self::Resource { rejection, .. } => return Some(rejection),
-                Self::Context { cause, .. } => error = cause,
+                Self::Context { cause, .. } | Self::Diagnostic { cause, .. } => error = cause,
+                Self::Shared(cause) => error = cause,
+                Self::CompositionPlan(crate::composition_plan::CompositionPlanError::Encoding(cause)) => error = cause,
                 _ => return None,
             }
         }
@@ -87,11 +98,27 @@ impl RenderError {
     }
     // Nested diagnostics must retain typed resource refusals through the parent.
     pub(crate) fn with_diagnostic(self, message: String) -> Self {
+        Self::Diagnostic { message, cause: Box::new(self) }
+    }
+    /// Existing plan diagnostics use the validation detail without a second
+    /// renderer prefix; the returned error retains its complete typed cause.
+    pub(crate) fn planning_message(&self) -> String {
         match self {
-            Self::Resource { rejection, .. } => Self::Resource { rejection, message },
-            _ => Self::Invalid(message),
+            Self::Invalid(message) | Self::Resource { message, .. } | Self::Diagnostic { message, .. } => message.clone(),
+            Self::Shared(cause) => cause.planning_message(),
+            _ => self.to_string(),
         }
     }
+}
+
+// Some CPU planning helpers still expose text-only validation errors. Convert
+// only at those boundaries; native IO, image, effect and resource errors keep
+// their own variants and original sources.
+impl From<String> for RenderError {
+    fn from(message: String) -> Self { Self::Invalid(message) }
+}
+impl From<&str> for RenderError {
+    fn from(message: &str) -> Self { Self::Invalid(message.into()) }
 }
 
 #[repr(C)]
@@ -518,7 +545,7 @@ impl Renderer {
         self.effect_gpu.builder.preview_plan_builds
     }
     pub fn set_scratch_budget(&mut self, bytes: u64) -> Result<()> {
-        self.effect_gpu.builder.set_scratch_budget(bytes).map_err(RenderError::Invalid)
+        self.effect_gpu.builder.set_scratch_budget(bytes)
     }
     pub fn memory_policy(&self) -> crate::resource_policy::MemoryPolicy {
         self.effect_gpu.builder.memory_policy()
@@ -527,7 +554,6 @@ impl Renderer {
         self.effect_gpu
             .builder
             .set_memory_policy(policy)
-            .map_err(RenderError::Invalid)
     }
     pub fn set_preview_resource_guard(&mut self, enabled: bool) {
         self.preview_resource_guard = enabled;
@@ -668,7 +694,7 @@ impl Renderer {
         }
         self.effect_gpu
             .builder
-            .build_checked(scene, &self.asset_order, width, height, true)?;
+            .build(scene, &self.asset_order, width, height, true)?;
         self.prepare_effect_images();
         self.effect_gpu.state.prepare(
             &self.device,
@@ -730,11 +756,13 @@ impl Renderer {
             return Ok(());
         }
         self.upload_pixels(TextureKey::Video(object), width, height, rgba, false)
-            .map_err(|mut error| {
-                if let RenderError::Resource { rejection, message } = &mut error {
-                    *message = format!("video object={object} source={source} pts_us={pts} phase=rgba_upload rejection={rejection:?}: {message}");
+            .map_err(|error| {
+                if let Some(rejection) = error.resource_rejection() {
+                    let message = format!("video object={object} source={source} pts_us={pts} phase=rgba_upload rejection={rejection:?}: {}", error.planning_message());
+                    error.with_diagnostic(message)
+                } else {
+                    error
                 }
-                error
             })?;
         // Keep cancellation/completion state until replacement succeeds.
         if let Some(video) = &mut self.video_gpu { video.remove(object); }
@@ -1110,8 +1138,7 @@ impl Renderer {
         if let TextureKey::Static(asset) = id {
             self.effect_gpu
                 .builder
-                .set_alpha(asset, width, height, rgba)
-                .map_err(RenderError::Invalid)?;
+                .set_alpha(asset, width, height, rgba)?;
         }
         self.images.insert(
             id,
@@ -1813,15 +1840,14 @@ impl Renderer {
             } else if self.preview_resource_guard {
                 self.effect_gpu.builder.build_preview_guarded(scene, &self.asset_order, width, height, preview)
             } else if preview {
-                self.effect_gpu.builder.build_preview_checked(scene, &self.asset_order, width, height)
+                self.effect_gpu.builder.build_preview(scene, &self.asset_order, width, height)
             } else {
-                self.effect_gpu.builder.build_checked(scene, &self.asset_order, width, height, false)
+                self.effect_gpu.builder.build(scene, &self.asset_order, width, height, false)
             }
             ?;
             self.prepare_effect_images();
             let targets: Vec<_> = materialize.as_ref().map(|(id, _)| *id).into_iter().collect();
-            let input_order = crate::effect_plan::image_input_order_for(&self.effect_gpu.builder.frame, &targets)
-                .map_err(RenderError::Invalid)?;
+            let input_order = crate::effect_plan::image_input_order_for(&self.effect_gpu.builder.frame, &targets)?;
             self.prepare_input_snapshots(&input_order)?;
             match self.effect_gpu.state.prepare(
                 &self.device,

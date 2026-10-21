@@ -79,7 +79,17 @@ pub fn build(
     for (i, e) in nodes.iter().enumerate() {
         let plan = builder
             .build(e.scene, assets, e.scene.width, e.scene.height, true)
-            .map_err(|error| e.scene.diagnostic(&error))?;
+            .map_err(|error| {
+                // Adapter for the now-typed plan API; retain the writer's old
+                // raw diagnostic contract without calling the new writer.
+                let detail = match error {
+                    motion_render::RenderError::Invalid(message)
+                    | motion_render::RenderError::Resource { message, .. }
+                    | motion_render::RenderError::Diagnostic { message, .. } => message,
+                    other => other.to_string(),
+                };
+                e.scene.diagnostic(&detail)
+            })?;
         let size = plan.buffer_bytes(e.scene);
         let start = out.len();
         let videos = e
@@ -92,7 +102,7 @@ pub fn build(
             return Err("composition frame bundle exceeds 32 MiB".into());
         }
         out.resize(start + size + videos.len() * VIDEO, 0);
-        plan.write(e.scene, &mut out[start..start + size])?;
+        plan.write(e.scene, &mut out[start..start + size]).map_err(|error| error.to_string())?;
         let d = HEADER + i * NODE;
         long(out, d, e.reference);
         word(out, d + 8, e.parent as u32);

@@ -93,7 +93,7 @@ fn asymmetric_expansion_cropping_preview_scale_and_budget_keep_layer_transform()
         .err()
         .unwrap();
     assert!(
-        error.contains("budget") || error.contains("dimension"),
+        error.to_string().contains("budget") || error.to_string().contains("dimension"),
         "{error}"
     );
     set(&mut p, "effect_opacity", 0.);

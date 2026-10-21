@@ -215,7 +215,7 @@ fn receiver_time_drives_parent_camera_matte_and_effect_input_without_changing_un
                     assert!((matte.opacity - (0.2 + 0.03 * t as f32)).abs() < 1e-6);
                     let target = scene.effects.iter().find(|e| e.layer == 1).unwrap();
                     assert_eq!(target.local_frame, t - 2.);
-                    let plan = builder.build_checked(scene, &[0], 128, 128, true).unwrap();
+                    let plan = builder.build(scene, &[0], 128, 128, true).unwrap();
                     assert!(plan
                         .passes
                         .iter()

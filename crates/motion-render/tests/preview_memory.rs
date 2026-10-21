@@ -160,7 +160,7 @@ fn guarded_preview_refuses_resource_and_shader_errors_while_legacy_diagnostics_r
     let mut builder = PlanBuilder::new(registry).unwrap();
     let huge = scene(&project([3840., 2160.], [1.; 4], true));
     assert!(!builder
-        .build_preview_checked(&huge, &[0], 64, 64)
+        .build_preview(&huge, &[0], 64, 64)
         .unwrap()
         .diagnostics
         .is_empty());

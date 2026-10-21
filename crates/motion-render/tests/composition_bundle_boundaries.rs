@@ -308,7 +308,8 @@ fn nested_budget_refusal_keeps_original_source_identity_text_and_recovery() {
         .downcast_ref::<Box<RenderError>>()
         .unwrap()
         .as_ref();
-    assert!(matches!(source, RenderError::Resource { .. }));
+    let RenderError::Diagnostic { cause, .. } = source else { panic!("{source:?}") };
+    assert!(matches!(cause.as_ref(), RenderError::Resource { .. }));
     assert!(std::ptr::eq(
         error.resource_rejection().unwrap(),
         source.resource_rejection().unwrap()

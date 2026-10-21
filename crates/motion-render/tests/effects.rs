@@ -146,7 +146,7 @@ fn over_budget_effect_is_reported_and_preview_keeps_input() {
     let mut builder =
         PlanBuilder::new(motion_effects::Registry::new_with_builtins().unwrap()).unwrap();
     let error = builder.build(&scene, &[0], 64, 64, true).err().unwrap();
-    assert!(error.contains("layer 1, effect 1") && error.contains("64 MiB"));
+    assert!(error.to_string().contains("layer 1, effect 1") && error.to_string().contains("64 MiB"));
     let preview = builder.build(&scene, &[0], 64, 64, false).unwrap();
     assert_eq!(preview.diagnostics.len(), 1);
     assert!(preview.passes.is_empty());
@@ -224,7 +224,7 @@ fn full_hd_polar_then_edge_glow_fits_and_every_capacity_matches_written_passes()
     builder.device_dimension = 1024;
     let error = builder.build(&scene, &[0], 1080, 1920, true).unwrap_err();
     assert!(
-        error.contains("device dimension limit is 1024") && error.contains("layer 1, effect 1")
+        error.to_string().contains("device dimension limit is 1024") && error.to_string().contains("layer 1, effect 1")
     );
 }
 
