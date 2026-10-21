@@ -73,6 +73,60 @@ queue-write lifetimes as well as command-buffer lifetimes. Session-wide budget
 configuration, platform pressure, preview recovery and export policy integration
 remain pending. #61, #60 and #67 must remain open.
 
-The first full workspace/all-targets FFmpeg compile passed. Final source-bound
-GPU and host regression evidence will be appended after execution; the earlier
-three unit and six GPU passes describe an intermediate source only.
+## Accepted local evidence for this increment
+
+Production implementation: `66d8b8f8b986c6dea2613b4b25bae0dd0844cc62`.
+Additional fault-injection tests: `c511bb51e69873a472a3e1ac3d552c8807e33188`;
+the only intervening source change is `allocation_budget/tests.rs`. This is
+Windows local acceptance, not cross-platform CI or complete #61 acceptance.
+
+| Check | Result | Source |
+| --- | --- | --- |
+| Workspace/all-targets FFmpeg check, excluding Android | Pass, existing warnings retained | `66d8b8f8` |
+| Entire render library | 57 pass | `c511bb51` |
+| 19 selected render integration suites | 107 pass | `66d8b8f8` |
+| Host failure boundaries, memory policy and preview memory | 17 pass | `66d8b8f8` |
+| Actual FFmpeg movie/export round trips | 17 pass | `c511bb51` |
+| Desktop node preview and process failure boundaries | 6 pass | `c511bb51` |
+| Panel style consumer guard | Pass; no panel file changed | `c511bb51` |
+
+The selection contains 204 distinct passing cases, zero failed or ignored. The
+earlier 56-case render-library execution is superseded by the 57-case execution
+and is not added again. The 12 new cases provide these specific proofs:
+
+- #61-A01/A02/A03: alias identity, atomic refusal and recovery; lowered limits;
+  eight real concurrent reservation contenders cannot spend the same allowance
+- #61-A04: actual poisoned state, missing identity and underflow fail closed;
+  release logs Error once per affected budget at Info level after unlocking
+- #61-A05: checked descriptor capacity covers mipmaps, arrays, volume depth,
+  compressed blocks, multisampling, unknown formats and overflow
+- #61-A06/A07: two renderers share actual offscreen capacity; capture refusal
+  rolls back; open, finished, submitted and separately abandoned encoders retain
+  reservations without diagnostic snapshots
+- #61-A08/A09: another budget or queue refuses before submission; the 64-scope
+  metadata ceiling recovers after abandonment
+- #61-A10: a Presenter retains its source after the target is dropped; actual
+  GPU rendering and readback preserve green pixels after lowering the allowance
+- #61-A11/A12: actual Float16 target capacity is eight bytes per pixel; aligned
+  readback capacity is admitted and actual UNORM8 capture pixels remain correct
+
+Existing desktop tests additionally exercise actual command failures through
+the process logger at default Info: original causes reach replies, file logs
+and Error stderr without leaking log text into stdout. Existing render, temporal,
+nested, preview and video assertions were retained; four Presenter call sites
+only unwrap the newly fallible draw result. No full GUI launch or new UI change
+is claimed. Movie tests use the existing local LGPL runtime
+`n8.1.3-16-ge0a878dd70-20261009`, not pinned release qualification.
+
+Logs: `E:/Dev/aem/artifacts/pr-queue/frame-admission-final-*.log`.
+Hash receipt: `E:/Dev/aem/.tools/issue-closure-review/frame-admission-acceptance.json`.
+Retain intermediate failures separately: initial raw-view integration errors,
+the frame-blend Rust borrow error, and a movie command selecting the wrong
+package. The corrected movie command executed all 17 selected tests; the command
+failure is not a product failure or a passing test. Earlier three-unit/six-GPU
+passes are intermediate evidence only. Build and temporary directories stayed
+on E, with one own Cargo build at a time.
+
+This accepted increment does not close #61, #60 or #67. Next integrate the latest
+main, enroll the remaining resource and queued-write lifetimes, and connect the
+session-wide policy and pressure/recovery paths before claiming unified coverage.
