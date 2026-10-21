@@ -6,6 +6,7 @@ use std::time::Instant;
 #[serde(rename_all = "camelCase")]
 pub struct FrameResources {
     pub textures: crate::TextureMemoryBreakdown,
+    pub vector_upload: crate::VectorUploadInfo,
     pub preview_target_bytes: u64,
     pub exposure_target_bytes: u64,
     /// Combined media preparation/upload wall time across exposure polls.
@@ -79,26 +80,36 @@ impl FrameRecorder {
             distribution(self.frames.iter().filter_map(field))
         };
         let resource_count = self.frames.iter().filter(|f| f.resources.is_some()).count();
+        let frames = self.frames.iter().map(|f|json!({"sequence":f.sequence,"frame":f.frame,"elapsedUs":f.elapsed_us,"cpuPrepareUs":f.cpu_prepare_us,
+                "acquireUs":f.acquire_us,"submitUs":f.submit_us,"presentCallUs":f.present_call_us,"renderWallUs":f.render_wall_us,
+                "renderWidth":f.render_width,"renderHeight":f.render_height,"previewFps":f.preview_fps,
+                "resources":f.resources,
+                "gpuCompositionUs":f.gpu.map(|g|g.composition_us),"gpuPresentationUs":f.gpu.map(|g|g.presentation_us),"gpuTotalUs":f.gpu.map(|g|g.total_us)})).collect::<Vec<_>>();
         json!({"metadata":metadata,"durationSeconds":self.start.elapsed().as_secs_f64(),"frameCount":self.frames.len(),"overflowFrames":self.overflow,
             "gpuSampleCount":gpu_count,"gpuSampleCoverage":if self.frames.is_empty(){0.0}else{gpu_count as f64/self.frames.len() as f64},
             "cpuPrepareUs":metric(|f|Some(f.cpu_prepare_us as f64)),"acquireUs":metric(|f|Some(f.acquire_us as f64)),
             "submitUs":metric(|f|Some(f.submit_us as f64)),"presentCallUs":metric(|f|Some(f.present_call_us as f64)),"renderWallUs":metric(|f|Some(f.render_wall_us as f64)),
             "gpuTotalUs":metric(|f|f.gpu.map(|g|g.total_us)),"gpuCompositionUs":metric(|f|f.gpu.map(|g|g.composition_us)),"gpuPresentationUs":metric(|f|f.gpu.map(|g|g.presentation_us)),
             "resourceSampleCount":resource_count,
-            "resourceSampleScope":"Successful frame boundaries; logical application texture capacity and separate CPU video caches. Excludes transient peaks, buffers, decoder external allocations and driver residency. Upload and pipeline counters are cumulative, not per-frame bytes/counts.",
+            "resourceSampleScope":"Successful frame boundaries; logical application texture capacity, separate vector upload buffers and CPU video caches. Excludes transient peaks, other buffers, decoder external allocations and driver residency. Upload and pipeline counters are cumulative, not per-frame bytes/counts.",
             "logicalTextureBytes":metric(|f|f.resources.map(|r| (r.textures.total_bytes()+r.preview_target_bytes+r.exposure_target_bytes) as f64)),
             "exposureTargetBytes":metric(|f|f.resources.map(|r|r.exposure_target_bytes as f64)),
             "exposureMediaUs":metric(|f|f.resources.map(|r|r.exposure_media_us as f64)),
             "cpuVideoCacheBytes":metric(|f|f.resources.map(|r|r.cpu_video_cache_bytes as f64)),
             "cpuVideoProxyBytes":metric(|f|f.resources.map(|r|r.cpu_video_proxy_bytes as f64)),
+            "vectorBufferCapacityBytes":metric(|f|f.resources.map(|r| {
+                let u=r.vector_upload;
+                u.vertex_capacity_bytes.saturating_add(u.opacity_capacity_bytes)
+                    .saturating_add(u.pending_bytes).saturating_add(u.idle_bytes) as f64
+            })),
+            "vectorEncodedUploadBytesTotal":metric(|f|f.resources.map(|r|r.vector_upload.encoded_upload_bytes_total as f64)),
+            "vectorCompletedUploadBytesTotal":metric(|f|f.resources.map(|r|r.vector_upload.completed_upload_bytes_total as f64)),
+            "vectorUploadBufferCreatesTotal":metric(|f|f.resources.map(|r|
+                r.vector_upload.staging_buffers_created_total.saturating_add(r.vector_upload.destination_buffers_created_total) as f64)),
             "videoPrepareUs":metric(|f|f.resources.map(|r|r.video_prepare_us as f64)),
             "videoUploadUs":metric(|f|f.resources.map(|r|r.video_upload_us as f64)),
             "presentationScope":"Native present() calls and GPU pass timestamps. Actual display deadlines require platform presentation tracing (for example PresentMon or FrameTimeline).",
-            "frames":self.frames.iter().map(|f|json!({"sequence":f.sequence,"frame":f.frame,"elapsedUs":f.elapsed_us,"cpuPrepareUs":f.cpu_prepare_us,
-                "acquireUs":f.acquire_us,"submitUs":f.submit_us,"presentCallUs":f.present_call_us,"renderWallUs":f.render_wall_us,
-                "renderWidth":f.render_width,"renderHeight":f.render_height,"previewFps":f.preview_fps,
-                "resources":f.resources,
-                "gpuCompositionUs":f.gpu.map(|g|g.composition_us),"gpuPresentationUs":f.gpu.map(|g|g.presentation_us),"gpuTotalUs":f.gpu.map(|g|g.total_us)})).collect::<Vec<_>>()})
+            "frames":frames})
     }
 }
 pub fn distribution(values: impl Iterator<Item = f64>) -> Value {
