@@ -1,3 +1,5 @@
+#[path = "support/scene_packages.rs"]
+mod scene_fixtures;
 use motion_effects::{builtin, EffectPackage, RendererKind};
 use std::io::Write;
 
@@ -22,7 +24,7 @@ fn rebuild(package: &EffectPackage, manifest: serde_json::Value, omit: Option<&s
 }
 #[test]
 fn sdk_five_birth_history_requires_an_explicit_version_and_contract() {
-    let package=builtin::particle_package().unwrap();
+    let package=scene_fixtures::particle_package().unwrap();
     assert_eq!(package.manifest.id,"com.motionstudio.effects.particles");
     assert_eq!(package.manifest.sdk_version,5);
     assert_eq!(package.manifest.effects[0].renderer,RendererKind::ParticleEmitter);
@@ -41,7 +43,7 @@ fn sdk_five_birth_history_requires_an_explicit_version_and_contract() {
 }
 #[test]
 fn native_slot_bindings_and_limits_are_validated_before_install() {
-    let package=builtin::particle_package().unwrap();
+    let package=scene_fixtures::particle_package().unwrap();
     for slots in [serde_json::json!([{"kind":"parameters","params":["missing"]}]),serde_json::json!([{"kind":"preview","max_size":513}]),serde_json::json!([{"kind":"parameters","params":["size","size"]}]),serde_json::json!([{"kind":"timeline"},{"kind":"timeline"}])] {
         let mut manifest=serde_json::to_value(&package.manifest).unwrap();manifest["effects"][0]["native_editor"]["sections"][0]["slots"]=slots;
         assert!(EffectPackage::from_bytes(rebuild(&package,manifest,None)).is_err());
@@ -49,7 +51,7 @@ fn native_slot_bindings_and_limits_are_validated_before_install() {
 }
 #[test]
 fn sdk_two_generators_and_independent_editor_assets_compile_portably() {
-    let package = builtin::scene_package().unwrap();
+    let package = scene_fixtures::scene_package().unwrap();
     assert_eq!(package.manifest.version, "1.1.1");
     assert_eq!(package.manifest.sdk_version, 2);
     assert_eq!(package.manifest.effects.len(), 6);
@@ -75,14 +77,14 @@ fn sdk_two_generators_and_independent_editor_assets_compile_portably() {
 
 #[test]
 fn scene_editor_upgrade_preserves_published_package_and_render_contracts() {
-    let old = builtin::legacy_scene_package().unwrap();
-    let current = builtin::scene_package().unwrap();
+    let old = scene_fixtures::legacy_scene_package().unwrap();
+    let current = scene_fixtures::scene_package().unwrap();
     assert_eq!(old.manifest.version, "1.0.0");
     assert_eq!(
         old.hash,
         "ffd6d7ddbff861072da76dd7f84f072a7b01b187f8488e59e88e4bc468c20724"
     );
-    let registry = motion_effects::Registry::new_with_builtins().unwrap();
+    let registry = scene_fixtures::registry().unwrap();
     assert!(registry
         .resolve(&old.manifest.id, "1.0.0", &old.hash)
         .is_ok());
@@ -116,7 +118,7 @@ fn scene_editor_upgrade_preserves_published_package_and_render_contracts() {
 }
 #[test]
 fn invalid_editor_assets_sdk_versions_and_simulation_contracts_are_rejected() {
-    let package = builtin::scene_package().unwrap();
+    let package = scene_fixtures::scene_package().unwrap();
     let original = serde_json::to_value(&package.manifest).unwrap();
     assert!(
         EffectPackage::from_bytes(rebuild(&package, original.clone(), Some("ui/editor.js")))
@@ -135,7 +137,7 @@ fn invalid_editor_assets_sdk_versions_and_simulation_contracts_are_rejected() {
 
 #[test]
 fn effects_can_share_editor_png_without_multiplying_the_resource_budget() {
-    let package = builtin::scene_package().unwrap();
+    let package = scene_fixtures::scene_package().unwrap();
     let directory = tempfile::tempdir().unwrap();
     for (path, bytes) in &package.files {
         let destination = directory.path().join(path);

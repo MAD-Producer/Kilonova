@@ -1,6 +1,7 @@
+#[path = "../../motion-effects/tests/support/scene_packages.rs"]
+mod scene_fixtures;
 use motion_core::{Content, Ease, EffectInstance, Keyframe, Layer, LayerTimeline, ParentLink, Project};
 use motion_render::Scene;
-use motion_effects::{builtin, Registry};
 use motion_render::{effect_plan::PlanBuilder, Renderer};
 fn key<T>(frame: i32, value: T) -> Keyframe<T> {
     Keyframe {
@@ -12,7 +13,7 @@ fn key<T>(frame: i32, value: T) -> Keyframe<T> {
     }
 }
 fn project() -> Project {
-    let package = builtin::particle_package().unwrap();
+    let package = scene_fixtures::particle_package().unwrap();
     let mut p = Project::new(128, 128, 30, 120).unwrap();
     p.background = [0.; 4];
     let mut l = Layer::solid(1, "Emitter", [128., 128.], [32., 64., 0.], [0.; 4]);
@@ -48,7 +49,7 @@ fn project() -> Project {
     p
 }
 fn builder() -> PlanBuilder {
-    PlanBuilder::new(Registry::new_with_builtins().unwrap()).unwrap()
+    PlanBuilder::new(scene_fixtures::registry().unwrap()).unwrap()
 }
 fn sample(p: &Project, s: &mut Scene, b: &mut PlanBuilder, f: f64) {
     s.sample(p, f, None, &motion_core::ExpressionEvaluator).unwrap();
@@ -271,6 +272,7 @@ fn world_birth_particles_render_on_gpu_and_survive_undo_redo() {
     engine.redo().unwrap();
     assert_eq!(engine.project().layers[0].effects[0].seed, 123);
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
+    r.set_effect_registry(scene_fixtures::registry().unwrap());
     let target = r.capture_target(128, 128).unwrap();
     let (pixels, _) = r.capture(&s, &target).unwrap();
     for x in [32, 64, 96] {
@@ -304,6 +306,7 @@ fn custom_png_sprite_keeps_aspect_alpha_and_shared_texture() {
         }
     }
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
+    r.set_effect_registry(scene_fixtures::registry().unwrap());
     r.upload_image(1, 16, 8, &rgba).unwrap();
     let target = r.capture_target(128, 128).unwrap();
     let (pixels, first) = r.capture(&s, &target).unwrap();
@@ -351,6 +354,7 @@ fn nested_png_emitter_preserves_births_pixels_and_random_seek() {
     let mut engine = motion_core::Engine::new(nested_project).unwrap();
     engine.apply_batch(motion_core::parse_commands(r#"{"op":"composition","composition":"comp-main","action":{"kind":"reference","target":"comp-1"}}"#).unwrap()).unwrap();
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    renderer.set_effect_registry(scene_fixtures::registry().unwrap());
     renderer.upload_image(1, 8, 8, &[255; 8 * 8 * 4]).unwrap();
     let target = renderer.capture_target(128, 128).unwrap();
     let mut plain = Scene::new(&p);
