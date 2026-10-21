@@ -3,6 +3,9 @@ use motion_desktop_media::av::{probe, Decoder};
 use motion_host::platform::VideoDecoder;
 use std::path::{Path, PathBuf};
 
+#[path = "libav/native_retirement.rs"]
+mod native_retirement;
+
 fn fixture(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../motion-media/tests/fixtures/video")
