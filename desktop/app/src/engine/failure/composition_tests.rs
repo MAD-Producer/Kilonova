@@ -2,6 +2,64 @@
 use super::*;
 use motion_core::composition::{Composition, MAX_COMPOSITIONS};
 
+mod effect_admission;
+
+#[test]
+fn exposure_uniform_admission_failure_reaches_reply_file_and_stderr_at_default_level() {
+    const CHILD: &str = "MOTION_EXPOSURE_UNIFORM_ADMISSION_LOG_CHILD";
+    if let Some(root) = std::env::var_os(CHILD) {
+        let _logger = crate::logging::init(PathBuf::from(root)).unwrap();
+        let budget = motion_render::AllocationBudget::new(31).unwrap();
+        let mut renderer = pollster::block_on(
+            motion_render::Renderer::headless_with_allocation_budget(budget.clone()),
+        ).unwrap();
+        let failure = renderer.exposure_target(1, 1, &[1.]).err().unwrap();
+        assert_eq!(failure.resource_rejection(), Some(&motion_render::ResourceRejection::Budget {
+            scope: motion_render::ResourceBudgetScope::RenderAllocations,
+            required_bytes: 32, budget_bytes: 31,
+        }));
+        assert_eq!(budget.info().unwrap().admitted_bytes, 4);
+        assert_eq!(renderer.exposure_texture_bytes(), 0);
+        let original = failure.to_string();
+        for context in ["exposure 1x1 phase=allocate", "buffer size=16 phase=allocate label=exposure phase weight", "required_bytes=32", "budget_bytes=31"] {
+            assert!(original.contains(context), "missing {context}: {original}");
+        }
+        let (reply, receive) = channel::<Result<Value, String>>();
+        CURRENT_COMMAND.set(Some(Flight {
+            request: 203, operation: "test_exposure_target", started: Instant::now(),
+        }));
+        respond(reply, Err(failure.into()));
+        CURRENT_COMMAND.set(None);
+        assert_eq!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err(), original);
+        budget.set_limit(32).unwrap();
+        let target = renderer.exposure_target(1, 1, &[1.]).unwrap();
+        assert_eq!(budget.info().unwrap().admitted_bytes, 32);
+        drop(target);
+        assert_eq!(budget.info().unwrap().admitted_bytes, 4);
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "engine::failure::composition_tests::exposure_uniform_admission_failure_reaches_reply_file_and_stderr_at_default_level"])
+        .env(CHILD, root.path()).env_remove("MOTION_LOG").output().unwrap();
+    assert!(output.status.success(), "{}\n{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+    let file = std::fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let cause = "admitted render allocations exceed configured combined budget";
+    let error = file.lines().find(|line| line.contains("error #203 test_exposure_target ")).unwrap();
+    for context in [cause, "exposure 1x1 phase=allocate", "buffer size=16 phase=allocate label=exposure phase weight", "required_bytes=32", "budget_bytes=31", "ms:"] {
+        assert!(error.contains(context), "missing {context}: {error}");
+    }
+    assert!(file.contains("logging initialized level=INFO"));
+    assert!(stderr.contains(error.split("motion_studio::engine: ").nth(1).unwrap()));
+    assert_eq!(stderr.matches(cause).count(), 1);
+    assert!(!stderr.contains("logging initialized"));
+    for marker in [cause, "error #203", "logging initialized"] {
+        assert!(!stdout.contains(marker), "log output leaked to stdout: {stdout}");
+    }
+}
+
 #[test]
 fn video_uniform_admission_failure_reaches_reply_file_and_stderr_at_default_level() {
     const CHILD: &str = "MOTION_VIDEO_UNIFORM_ADMISSION_LOG_CHILD";
