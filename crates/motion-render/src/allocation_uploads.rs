@@ -1,5 +1,8 @@
 //! Reservations for enrolled upload destinations, including unsubmitted writes.
-use crate::{allocation_budget::AllocationLease, RenderError};
+use crate::{
+    allocation_budget::{AllocationLease, AllocationRetention},
+    RenderError,
+};
 use std::{
     collections::BTreeMap,
     sync::{
@@ -13,7 +16,7 @@ use std::{
 /// The map deduplicates destinations; queue-owned staging is outside this scope.
 pub(crate) struct AllocationUploads {
     queue: wgpu::Queue,
-    pending: Mutex<BTreeMap<u64, AllocationLease>>,
+    pending: Mutex<BTreeMap<u64, AllocationRetention>>,
     reported_poison: AtomicBool,
 }
 impl AllocationUploads {
@@ -39,11 +42,11 @@ impl AllocationUploads {
             .lock()
             .map_err(|_| RenderError::Invalid("render upload reservations are poisoned".into()))?;
         for lease in leases {
-            pending.insert(lease.id(), lease);
+            pending.insert(lease.id(), lease.retention());
         }
         Ok(())
     }
-    fn take(&self) -> BTreeMap<u64, AllocationLease> {
+    fn take(&self) -> BTreeMap<u64, AllocationRetention> {
         let (pending, poisoned) = {
             let (mut state, poisoned) = match self.pending.lock() {
                 Ok(state) => (state, false),

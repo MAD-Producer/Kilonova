@@ -87,8 +87,9 @@ fn unsubmitted_finished_and_submitted_commands_hold_admission_without_diagnostic
     assert!(renderer.render_target(1, 1).is_err());
     let commands = encoder.finish();
     assert_eq!(budget.info().unwrap().admitted_bytes, 256 + SYSTEM_BYTES);
-    // Independent unfinished work must retain the shared allocation even when
-    // another submission completes. No assumptions about callback timing.
+    // This empty, unrelated encoder has no resource handle for the old target.
+    // It must not renew a reservation held only by the finished command. The
+    // explicit GPU wait keeps this independent of callback timing.
     let unfinished = renderer
         .allocation_command_encoder(&wgpu::CommandEncoderDescriptor::default())
         .unwrap();
@@ -97,7 +98,8 @@ fn unsubmitted_finished_and_submitted_commands_hold_admission_without_diagnostic
         .device
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
-    assert_eq!(budget.info().unwrap().admitted_bytes, 256 + SYSTEM_BYTES);
+    let completed = budget.info().unwrap();
+    assert_eq!(completed.admitted_bytes, SYSTEM_BYTES, "{completed:?}");
     drop(unfinished);
     assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES);
     assert_eq!(budget.info().unwrap().encoder_scopes, 0);
