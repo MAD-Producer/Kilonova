@@ -109,6 +109,7 @@ fn shared_host_reports_policy_applies_command_and_preserves_state_when_rejected(
     assert!(session
         .apply_commands(r#"{"op":"merge_dimensions","object":1,"property":"position"}"#)
         .unwrap_err()
+        .to_string()
         .contains("matching key times"));
     assert_eq!(session.snapshot(), before);
     assert_eq!(

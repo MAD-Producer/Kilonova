@@ -111,7 +111,7 @@ fn assert_rejected(session: &mut Session, commands: Value, expected_error: &str)
     let redo = session.engine.can_redo();
     let saved = fs::read(session.root.join("project.json")).unwrap();
     let error = session.apply_commands(&commands.to_string()).unwrap_err();
-    assert!(error.contains(expected_error), "unexpected error: {error}");
+    assert!(error.to_string().contains(expected_error), "unexpected error: {error}");
     assert_eq!(session.engine.snapshot(), project);
     assert_eq!(session.engine.revision(), revision);
     assert_eq!(session.engine.can_undo(), undo);

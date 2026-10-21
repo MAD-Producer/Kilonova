@@ -24,7 +24,7 @@ fn rollback_removes_only_owned_directory_and_retains_original_error() {
     fs::write(foreign.join("keep"), b"existing bytes").unwrap();
     let (pending, path) = owned(library.path(), "project-1");
     let result: Result<()> = pending.finish(Err("original replace failure".into()));
-    assert_eq!(result.unwrap_err(), "original replace failure");
+    assert_eq!(result.unwrap_err().to_string(), "original replace failure");
     assert!(!path.exists());
     assert_eq!(fs::read(foreign.join("keep")).unwrap(), b"existing bytes");
 
@@ -45,13 +45,21 @@ fn cleanup_error_preserves_primary_and_does_not_delete_substituted_file() {
     let result: Result<()> = pending.finish(Err("original import failure".into()));
     let error = result.unwrap_err();
     assert!(
-        error.starts_with("original import failure; cleanup also failed:"),
+        error.to_string().starts_with("original import failure; cleanup also failed:"),
         "{error}"
     );
     assert!(
-        error.contains("phase=project_cleanup") && error.contains("cause="),
+        error.to_string().contains("phase=project_cleanup") && error.to_string().contains("cause="),
         "{error}"
     );
+    let crate::Error::Cleanup { primary, secondary } = &error else {
+        panic!("cleanup flattened the original failure: {error:?}");
+    };
+    assert!(matches!(primary.as_ref(), crate::Error::Message(message)
+        if message == "original import failure"));
+    assert!(matches!(secondary.as_ref(), crate::Error::ProjectCleanup { cause, .. }
+        if cause.raw_os_error().is_some()));
+    assert_eq!(std::error::Error::source(&error).unwrap().to_string(), "original import failure");
     assert_eq!(fs::read(path).unwrap(), b"foreign replacement");
 }
 
@@ -66,7 +74,7 @@ fn cleanup_refuses_directory_outside_canonical_library() {
     );
     fs::write(foreign.path().join("keep"), b"foreign bytes").unwrap();
     let result: Result<()> = pending.finish(Err("primary".into()));
-    assert!(result.unwrap_err().contains("refused changed directory"));
+    assert!(result.unwrap_err().to_string().contains("refused changed directory"));
     assert_eq!(
         fs::read(foreign.path().join("keep")).unwrap(),
         b"foreign bytes"
@@ -187,7 +195,7 @@ fn substituted_symlink_cannot_redirect_cleanup() {
     fs::write(foreign.path().join("keep"), b"foreign bytes").unwrap();
     std::os::unix::fs::symlink(foreign.path(), &path).unwrap();
     let result: Result<()> = pending.finish(Err("primary".into()));
-    assert!(result.unwrap_err().contains("refused changed directory"));
+    assert!(result.unwrap_err().to_string().contains("refused changed directory"));
     assert_eq!(
         fs::read(foreign.path().join("keep")).unwrap(),
         b"foreign bytes"

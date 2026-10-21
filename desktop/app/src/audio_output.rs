@@ -89,6 +89,8 @@ struct Shared {
     started: AtomicBool,
     error: Mutex<Option<String>>,
     epoch: Instant,
+    #[cfg(test)]
+    test_now_ns: Option<AtomicU64>,
     sequence: AtomicU64,
     anchor_frames: AtomicU64,
     anchor_ns: AtomicU64,
@@ -110,6 +112,8 @@ impl Shared {
             started: AtomicBool::new(false),
             error: Mutex::new(None),
             epoch: Instant::now(),
+            #[cfg(test)]
+            test_now_ns: None,
             sequence: AtomicU64::new(0),
             anchor_frames: AtomicU64::new(0),
             anchor_ns: AtomicU64::new(0),
@@ -130,6 +134,10 @@ impl Shared {
         self.error_poison_evidence.drain("audio.error.publish", self.observation, "mutex_poisoned", "into_inner");
     }
     fn now_ns(&self) -> u64 {
+        #[cfg(test)]
+        if let Some(now) = &self.test_now_ns {
+            return now.load(Ordering::Relaxed);
+        }
         self.epoch.elapsed().as_nanos().min(u128::from(u64::MAX)) as u64
     }
     fn fail(&self, message: String) {
@@ -568,6 +576,9 @@ impl Producer {
         ]))
     }
 }
+
+#[cfg(test)]
+mod playhead_tests;
 
 #[cfg(test)]
 mod tests {

@@ -51,8 +51,8 @@ pub fn envelope<T: serde::Serialize>(value: T) -> Value {
     json!({"ok": true, "data": value})
 }
 
-/// Failure envelope. `composition_error:` payloads are also decoded into
-/// `error_detail` so hosts can map structured engine errors to localized text.
+/// Legacy text-only failure envelope. New native operations use
+/// [`typed_error_envelope`]; the prefix decoder remains only for old text callers.
 pub fn error_envelope(error: &str) -> Value {
     json!({
         "ok": false,
@@ -63,6 +63,12 @@ pub fn error_envelope(error: &str) -> Value {
     })
 }
 
+/// Preserve native identity without parsing the display text.
+pub fn typed_error_envelope(error: &crate::Error) -> Value {
+    json!({"ok": false, "error": error.to_string(),
+        "error_detail": error.composition_detail()})
+}
+
 /// Wrap a host operation in the envelope and in a panic boundary.
 ///
 /// Every host entry point routes through this so a panic in one operation can
@@ -70,8 +76,8 @@ pub fn error_envelope(error: &str) -> Value {
 pub fn dispatch(operation: impl FnOnce() -> Result<Value>) -> Value {
     match catch_panic(operation) {
         Ok(Ok(value)) => envelope(value),
-        Ok(Err(error)) => error_envelope(&error),
-        Err(reason) => error_envelope(&reason),
+        Ok(Err(error)) => typed_error_envelope(&error),
+        Err(reason) => typed_error_envelope(&crate::Error::Message(reason)),
     }
 }
 
@@ -89,15 +95,15 @@ pub fn catch_panic<T>(operation: impl FnOnce() -> T) -> std::result::Result<T, S
 /// Parse a host request body, rejecting oversized payloads before any work.
 pub fn parse_request(text: &str, limit: usize, what: &str) -> Result<Value> {
     if text.len() > limit {
-        return Err(format!("{what} too large"));
+        return Err(format!("{what} too large").into());
     }
-    serde_json::from_str(text).map_err(|e| e.to_string())
+    serde_json::from_str(text).map_err(crate::Error::from)
 }
 
 /// Nanosecond suffix used for import/export sibling directories.
 pub fn stamp() -> Result<u128> {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map_err(|e| e.to_string())
+        .map_err(crate::Error::from)
         .map(|d| d.as_nanos())
 }

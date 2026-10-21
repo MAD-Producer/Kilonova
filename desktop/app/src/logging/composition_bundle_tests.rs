@@ -39,16 +39,17 @@ fn composition_bundle_failure_reaches_file_and_stderr_and_recovers() {
         .unwrap();
         let mut bytes = vec![];
         let error = frame_bundle(id, MAIN_COMPOSITION, 4.5, &mut bytes).unwrap_err();
-        assert!(error.starts_with("composition comp-main:"), "{error}");
-        assert!(error.contains("scratch"), "{error}");
-        session::with_session(id, |s| s.effects.set_scratch_budget(384 * 1024 * 1024)).unwrap();
+        assert!(error.to_string().starts_with("composition comp-main:"), "{error}");
+        assert!(error.to_string().contains("scratch"), "{error}");
+        assert!(matches!(&error, motion_host::Error::Render(_)));
+        session::with_session(id, |s| s.effects.set_scratch_budget(384 * 1024 * 1024).map_err(motion_host::Error::from)).unwrap();
         assert!(frame_bundle(id, MAIN_COMPOSITION, 4.5, &mut bytes).unwrap() > 0);
         assert_eq!(
             &bytes[..4],
             &motion_render::composition_plan::MAGIC.to_le_bytes()
         );
         assert_eq!(
-            frame_bundle(id, &"x".repeat(8192), 5., &mut bytes).unwrap_err(),
+            frame_bundle(id, &"x".repeat(8192), 5., &mut bytes).unwrap_err().to_string(),
             "composition context mismatch"
         );
         session::close(id);

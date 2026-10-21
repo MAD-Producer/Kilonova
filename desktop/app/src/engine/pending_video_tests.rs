@@ -87,7 +87,7 @@ impl Platform for Backend {
         window: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         width: u32,
         height: u32,
-    ) -> Result<motion_host::SurfaceTarget, String> {
+    ) -> motion_host::Result<motion_host::SurfaceTarget> {
         motion_desktop_media::platform().attach_surface(window, width, height)
     }
 }

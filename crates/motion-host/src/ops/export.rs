@@ -10,17 +10,17 @@ pub fn render_plan_info(id: i64) -> Result<serde_json::Value> {
         s.observing = false;
         s.sample()?;
         let p = s.engine.project();
-        for id in p.reachable_compositions().map_err(|e| e.to_string())? {
+        for id in p.reachable_compositions().map_err(crate::Error::from)? {
             s.effects
-                .preflight_project(&p.composition(&id).map_err(|e| e.to_string())?)?;
+                .preflight_project(&p.composition(&id).map_err(crate::Error::from)?)?;
         }
         s.effects
             .synchronize_scene_alpha(&s.scene, p, &s.root)?;
         let assets = std::iter::once(0)
             .chain(p.assets.iter().map(|a| a.id))
             .collect::<Vec<_>>();
-        for id in p.reachable_compositions().map_err(|e| e.to_string())? {
-            let mut node = p.composition(&id).map_err(|e| e.to_string())?;
+        for id in p.reachable_compositions().map_err(crate::Error::from)? {
+            let mut node = p.composition(&id).map_err(crate::Error::from)?;
             for e in &mut node.expressions {
                 e.enabled = false;
             }
@@ -30,7 +30,7 @@ pub fn render_plan_info(id: i64) -> Result<serde_json::Value> {
                 }
             }
             let mut scene = Scene::new(&node);
-            scene.sample(&node, 0., None, &motion_core::ExpressionEvaluator).map_err(|e| e.to_string())?;
+            scene.sample(&node, 0., None, &motion_core::ExpressionEvaluator).map_err(crate::Error::from)?;
             s.effects.synchronize(&scene)?;
         }
         s.effects
@@ -86,7 +86,7 @@ pub fn render_plan_info(id: i64) -> Result<serde_json::Value> {
             + motion_core::MAX_LAYERS * motion_core::masks::MAX_MASKS * motion_render::mask_plan::RECORD_BYTES
             + 262144 * 24;
         let has_audio = !p.audio_voices()
-            .map_err(|e| format!("export audio plan: {e}"))?.is_empty();
+            .map_err(|e| crate::Error::with_context("export audio plan", e))?.is_empty();
         let mut info=json!({"version":motion_render::effect_plan::PLAN_VERSION,
             "scratchBudgetBytes":s.effects.scratch_budget(),
             "headerBytes":motion_render::effect_plan::HEADER_BYTES,
@@ -139,10 +139,10 @@ pub fn sample_render_plan_into_inner(
             let plan = s
                 .effects
                 .build(&s.scene, &assets, p.width, p.height, true)?;
-            plan.write(&s.scene, out).map_err(|e| e.to_string())
+            plan.write(&s.scene, out).map_err(crate::Error::from)
         })();
         if let Err(error) = &result {
-            s.last_error = Some(error.clone());
+            s.last_error = Some(error.to_string());
         }
         result
     }
@@ -153,17 +153,17 @@ pub fn capture(id: i64) -> Result<serde_json::Value> {
     crate::session::with_session(id, |s| {
         crate::render_sampling::require_single_time(s.engine.project(), "legacy_capture")?;
         let p = s.engine.project();
-        for id in p.reachable_compositions().map_err(|e| e.to_string())? {
+        for id in p.reachable_compositions().map_err(crate::Error::from)? {
             s.effects
-                .preflight_project(&p.composition(&id).map_err(|e| e.to_string())?)?;
+                .preflight_project(&p.composition(&id).map_err(crate::Error::from)?)?;
         }
         s.effects
             .synchronize_scene_alpha(&s.scene, p, &s.root)?;
         let mut scene = Scene::new(p);
-        scene.sample(p, s.frame, None, &motion_core::ExpressionEvaluator).map_err(|e| e.to_string())?;
+        scene.sample(p, s.frame, None, &motion_core::ExpressionEvaluator).map_err(crate::Error::from)?;
         let mut temporary = None;
         if s.graphics.is_none() {
-            temporary = Some(pollster::block_on(Renderer::headless()).map_err(|e| e.to_string())?);
+            temporary = Some(pollster::block_on(Renderer::headless()).map_err(crate::Error::from)?);
         }
         let renderer = if let Some(g) = &mut s.graphics {
             &mut g.renderer
@@ -175,17 +175,17 @@ pub fn capture(id: i64) -> Result<serde_json::Value> {
         renderer.set_effect_registry(s.effects.registry.clone());
         renderer
             .set_memory_policy(s.effects.memory_policy())
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
         renderer
             .configure_assets(p, &s.root)
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
         renderer.retain_video_instances(&scene);
         renderer
             .prepare_scene_assets(&scene, motion_render::image_resources::Resolution::Full, false)
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
         let target = renderer
             .capture_target(p.width, p.height)
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
         let frames = s
             .video_frames
             .prepare_scene_exact(p, &s.root, &scene)?
@@ -206,12 +206,12 @@ pub fn capture(id: i64) -> Result<serde_json::Value> {
         }
         let (pixels, _) = renderer
             .capture(&scene, &target)
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
         let dir = s.root.join("exports");
-        std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+        std::fs::create_dir_all(&dir).map_err(crate::Error::from)?;
         let file = dir.join(format!("frame-{:06}.png", s.frame.floor() as u32));
         image::save_buffer(&file, &pixels, p.width, p.height, image::ColorType::Rgba8)
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
         Ok(json!({"path":file.to_string_lossy(),"width":p.width,"height":p.height,"frame":s.frame.floor()}))
     })
 }
@@ -223,9 +223,9 @@ pub fn pack(id: i64) -> Result<serde_json::Value> {
             .parent()
             .ok_or("export package has no parent directory")?;
         std::fs::create_dir_all(parent)
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
         motion_core::storage::export_package(&s.root, s.engine.project(), &output)
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
         Ok(json!({"path":output.to_string_lossy()}))
     })
 }
@@ -256,7 +256,7 @@ pub fn sample_into_inner(
         s.frame = f64::from(frame);
         s.scene
             .sample(s.engine.project(), s.frame, None, &motion_core::ExpressionEvaluator)
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::Error::from)?;
         if s.scene
             .layers
             .iter()
@@ -264,7 +264,7 @@ pub fn sample_into_inner(
         {
             return Err("vector and adjustment sources require render plan version 4".into());
         }
-        s.geometry.prepare(&s.scene).map_err(|e| e.to_string())?;
+        s.geometry.prepare(&s.scene).map_err(crate::Error::from)?;
         if s.scene.layers.iter().any(|l| l.video.is_some()) {
             return Err("video export requires dynamic frame reads and GeometryBridge".into());
         }
@@ -316,17 +316,17 @@ pub fn asset_pixels(id: i64, asset: i64) -> Result<Vec<u8>> {
             .iter()
             .find(|a| a.id == asset as u64)
             .ok_or("asset not found")?;
-        let reader = image::ImageReader::open(s.root.join(&a.path)).map_err(|e| e.to_string())?;
-        let dimensions = reader.into_dimensions().map_err(|e| e.to_string())?;
+        let reader = image::ImageReader::open(s.root.join(&a.path)).map_err(crate::Error::from)?;
+        let dimensions = reader.into_dimensions().map_err(crate::Error::from)?;
         if dimensions != (a.width, a.height)
             || u64::from(a.width) * u64::from(a.height) * 4 > 128 * 1024 * 1024
         {
             return Err("invalid asset dimensions or memory budget".into());
         }
         let mut pixels = image::ImageReader::open(s.root.join(&a.path))
-            .map_err(|e| e.to_string())?
+            .map_err(crate::Error::from)?
             .decode()
-            .map_err(|e| e.to_string())?
+            .map_err(crate::Error::from)?
             .into_rgba8()
             .into_raw();
         motion_render::premultiply_pixels(&mut pixels);
@@ -336,7 +336,7 @@ pub fn asset_pixels(id: i64, asset: i64) -> Result<Vec<u8>> {
 
 fn effect_resource_info(path: &str, bytes: &[u8]) -> Result<serde_json::Value> {
     let image = image::load_from_memory(bytes)
-        .map_err(|e| format!("decode effect resource {path}: {e}"))?;
+        .map_err(|e| crate::Error::with_context(format!("decode effect resource {path}"), e))?;
     Ok(json!({"path":path,"width":image.width(),"height":image.height()}))
 }
 
@@ -345,7 +345,9 @@ mod failure_tests {
     #[test]
     fn corrupt_effect_resource_reports_path_instead_of_zero_dimensions() {
         let error = super::effect_resource_info("sprites/broken.png", b"invalid PNG").unwrap_err();
-        assert!(error.contains("sprites/broken.png"));
+        assert!(error.to_string().contains("sprites/broken.png"));
+        assert!(matches!(&error, crate::Error::Context { cause, .. }
+            if matches!(cause.as_ref(), crate::Error::Image(_))));
         let mut png = std::io::Cursor::new(Vec::new());
         image::DynamicImage::new_rgba8(3, 2).write_to(&mut png, image::ImageFormat::Png).unwrap();
         let info = super::effect_resource_info("sprites/valid.png", png.get_ref()).unwrap();

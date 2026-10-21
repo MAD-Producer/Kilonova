@@ -9,7 +9,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-pub fn import_image(session: &mut Session, source: &Path) -> Result<Value, String> {
+pub fn import_image(session: &mut Session, source: &Path) -> motion_host::Result<Value> {
     let source_info = motion_host::ops::images::image_info(&source.to_string_lossy())?;
     let width = source_info["width"].as_u64().ok_or("image width missing")? as u32;
     let height = source_info["height"]
@@ -125,7 +125,7 @@ pub fn create_text(
     size: f32,
     width: u32,
     font: Option<(std::path::PathBuf, u32)>,
-) -> Result<Value, String> {
+) -> motion_host::Result<Value> {
     session.engine.begin_gesture().map_err(|e| e.to_string())?;
     let result = (|| {
         let font_id = if let Some((path, index)) = font {

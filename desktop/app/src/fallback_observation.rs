@@ -59,6 +59,11 @@ fn bounded_limit(args: fmt::Arguments<'_>, limit: usize) -> String {
     let _ = buffer.write_fmt(args);
     buffer.text
 }
+/// Limit diagnostic output at the writer; callers keep the complete error for
+/// replies and source inspection. Display precision is not a length guarantee.
+pub(crate) fn error_cause(value: impl fmt::Display) -> String {
+    bounded_limit(format_args!("{value}"), 2_048)
+}
 /// Bound each path/cause independently so a long path cannot hide the cause.
 pub(crate) fn short(value: impl fmt::Display) -> impl fmt::Display {
     struct Short<T>(T);

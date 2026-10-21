@@ -3,7 +3,9 @@
 use motion_core::Project;
 use motion_effects::Registry;
 use motion_render::resource_policy::MemoryPolicy;
-use motion_host::{session::Session, Result};
+use motion_host::session::Session;
+// Export providers retain their existing textual API independently of the host.
+type Result<T> = std::result::Result<T, String>;
 use serde::Serialize;
 use std::{
     collections::BTreeSet,

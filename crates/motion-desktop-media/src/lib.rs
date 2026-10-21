@@ -190,7 +190,7 @@ impl Platform for DesktopPlatform {
                 Err(error) => failures.push(format!("{backend:?}: {error}")),
             }
         }
-        Err(format!("no usable GPU backend: {}", failures.join("; ")))
+        Err(format!("no usable GPU backend: {}", failures.join("; ")).into())
     }
 }
 

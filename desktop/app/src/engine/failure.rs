@@ -89,7 +89,7 @@ pub(super) fn recovery(id: i64) -> Result<PathBuf, String> {
         result?;
         file.keep();
         Ok(path)
-    })
+    }).map_err(String::from)
 }
 
 impl Engine {

@@ -95,7 +95,7 @@ fn actual_recovery_is_quiet_when_healthy_and_emits_bounded_evidence_after_unlock
             Some(&"primary panic preserved")
         );
     } else {
-        assert_eq!(operation().unwrap_err(), "primary failure preserved");
+        assert_eq!(operation().unwrap_err().to_string(), "primary failure preserved");
     }
     let records = capture.0.lock().unwrap().clone();
     assert_eq!(records.len(), if mode == "bounded" { 4 } else { 1 });

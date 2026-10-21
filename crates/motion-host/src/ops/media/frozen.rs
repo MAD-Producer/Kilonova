@@ -1,4 +1,4 @@
-//! Typed frozen-reader operations. The parent module retains the legacy text ABI.
+//! Typed frozen-reader operations. Hosts retain the existing wire messages.
 use super::frozen_registry::{Context, Registry};
 pub use super::frozen_registry::{Kind, ReaderInfo, RegistryInfo};
 use motion_media::AudioMixer;
@@ -30,9 +30,8 @@ pub enum Error {
     Invalid(&'static str),
     #[error("{0}")]
     Superseded(&'static str),
-    /// The session layer still exposes String; this is an explicit legacy boundary.
     #[error("{0}")]
-    Session(String),
+    Session(#[source] Box<crate::Error>),
     #[error(transparent)]
     Media(#[from] motion_media::Error),
     #[error(transparent)]
@@ -93,7 +92,7 @@ pub fn freeze_audio(id: i64) -> Result<Value> {
         let (project, root, revision) = crate::session::with_session(id, |s| {
             Ok((s.engine.snapshot(), s.root.clone(), s.engine.revision()))
         })
-        .map_err(Error::Session)?;
+        .map_err(|error| Error::Session(Box::new(error)))?;
         let mut total = 0;
         let handle = audio().create(|| {
             let mixer = AudioMixer::new(project, &root)?;
@@ -121,7 +120,7 @@ pub fn freeze_video(id: i64) -> Result<Value> {
                 s.platform().clone(),
             ))
         })
-        .map_err(Error::Session)?;
+        .map_err(|error| Error::Session(Box::new(error)))?;
         let report = project.clone();
         let handle = video().create(|| {
             Ok(FrozenVideo {

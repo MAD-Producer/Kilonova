@@ -283,6 +283,7 @@ fn negative_gaps_are_equal_overlap_and_ties_use_object_id_without_selection_orde
         Distribution::HorizontalGaps
     )
     .unwrap_err()
+    .to_string()
     .contains("reversed edge order"));
     assert_eq!(impossible, saved);
     let mut tied = fixture(false, false).project().clone();
