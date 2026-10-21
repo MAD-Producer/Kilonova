@@ -6,6 +6,8 @@ use motion_core::{
     Layer, Project, Track,
 };
 
+mod admission_tests;
+
 fn layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         label: Some("mask reuse image layout"),
