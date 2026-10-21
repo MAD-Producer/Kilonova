@@ -706,3 +706,32 @@ layer/vector/mask/compositing resources are not fully covered by this increment.
 Shared session policy, platform pressure, per-frame peaks, bounded full preview
 and export behavior, repeated lifecycle acceptance and #67 remain pending.
 This does not complete #60/#61/#67; precision and 3D remain parked.
+
+
+### Integration with the completed-frame retirement change
+
+PR #399's original commits are included, without reimplementing its ownership /
+work-retention separation. Its AR-01 regression still funded only the former
+four-byte renderer baseline. Direct composition at `f8b467bc` reproduced an
+actual startup refusal (`required_bytes=32772`, `budget_bytes=2052`), before
+entering the retirement loop; cargo exit 101 is retained as a failed control.
+`1db71805` changes exactly four fixture lines: import the independently tested
+fixed-capacity constant and use it in the allowance and two exact retirement
+expectations. The target allowance, four-frame loop and strict requirement that
+completed transient targets leave only startup capacity are unchanged. This is
+an accounting-scope fixture update, not a relaxed lifetime assertion or a new
+product defect fix. The other incoming retirement assertion remains tightened.
+
+The combined source `1db71805` passes **174 distinct selected tests**: render
+library 70, seven GPU suites 25 (including AR-01), host library 69, and desktop
+default-log boundary 10. Workspace/all-targets FFmpeg check (excluding retired
+Android) and the panel style guard also pass. Raw `timing-admission-combined-*`
+logs/exit receipts and `timing-combined-acceptance.json` bind these results to
+the exact source and preserve the failing control. This is the final local
+combined selection, not an assertion that all workspace tests or the updated
+public CI passed. No tracked source changed while either validation ran.
+
+This integrates the incoming resource-lifetime implementation and keeps the
+seven new timing cases in the same PR as the fixed-resource work. #61's remaining
+dynamic resources, shared/platform policy, preview/export/lifecycle acceptance
+and #67 are still pending; retired builtin particle products remain absent.
