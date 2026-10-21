@@ -75,6 +75,8 @@ def expression_value(expression, context):
             return json.loads(visit(node.args[0]))
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "always" and not node.args and not node.keywords:
             return True
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "failure" and not node.args and not node.keywords:
+            return context.get("failure", False)
         if isinstance(node, ast.BoolOp):
             for value in node.values:
                 result = visit(value)
@@ -120,6 +122,32 @@ class WorkflowPolicyTest(unittest.TestCase):
                 self.assertTrue(paths.isabs(destination), (name, destination))
                 resolved = paths.normpath(paths.join(crate_cwd, destination))
                 self.assertEqual(paths.commonpath([upload_root, resolved]), upload_root)
+
+    def test_failed_pr_keeps_native_evidence_without_enabling_publication(self):
+        steps = self.workflow["jobs"]["desktop"]["steps"]
+        artifact_name = "desktop-failure-${{ matrix.platform }}"
+        upload = next(s for s in steps if s.get("with", {}).get("name") == artifact_name)
+        self.assertRegex(upload["uses"], r"actions/upload-artifact@[0-9a-f]{40}$")
+        self.assertEqual(upload["with"]["retention-days"], "7")
+        paths = upload["with"]["path"].splitlines()
+        self.assertEqual(len(paths), 12)
+        self.assertEqual(len(paths), len(set(paths)))
+        self.assertIn("artifacts/desktop/sampling-playback/failure.json", paths)
+        self.assertIn("artifacts/desktop/sampling-playback/stderr.log", paths)
+        self.assertIn("artifacts/desktop/sampling-playback/motion-studio.log", paths)
+        for path in paths:
+            self.assertEqual(posixpath.dirname(path), "artifacts/desktop/sampling-playback")
+            self.assertNotIn("*", path)
+        for event in ["pull_request", "push", "workflow_dispatch"]:
+            for failed in [False, True]:
+                with self.subTest(event=event, failed=failed):
+                    context = {"github": {"event_name": event}, "failure": failed}
+                    self.assertEqual(expression_value(upload["if"], context),
+                                     event == "pull_request" and failed)
+                    if event == "pull_request":
+                        for step in steps:
+                            if step.get("with", {}).get("name", "").startswith("desktop-release-"):
+                                self.assertFalse(expression_value(step["if"], context))
 
     def test_pull_requests_replace_feature_pushes_including_stacked_bases(self):
         triggers = self.workflow["on"]
