@@ -52,6 +52,14 @@ pub struct SubmissionMemoryInfo {
     pub unknown_capacity_count: usize,
 }
 
+/// One metadata-only observation of a renderer's tracked pending submissions.
+/// This cannot identify raw submissions or measure physical GPU retirement.
+#[derive(Clone, Debug)]
+pub struct SubmissionMemorySnapshot {
+    pub info: SubmissionMemoryInfo,
+    pub pending_resources: TextureResourceLedger,
+}
+
 #[derive(Clone, Copy)]
 struct Ticket {
     id: u64,
@@ -140,6 +148,12 @@ impl SubmissionLedger {
         index
     }
     pub fn info(&self, current: &TextureResourceLedger) -> SubmissionMemoryInfo {
+        self.observe(current, false).info
+    }
+    pub fn snapshot(&self, current: &TextureResourceLedger) -> SubmissionMemorySnapshot {
+        self.observe(current, true)
+    }
+    fn observe(&self, current: &TextureResourceLedger, include_resources: bool) -> SubmissionMemorySnapshot {
         let mut recovery = Recovery::new(Site::Info, None);
         let state = recovery.lock(self.state.lock());
         let active = current
@@ -152,7 +166,7 @@ impl SubmissionLedger {
             .filter(|(id, _)| !active.contains(id.as_str()))
             .filter_map(|(_, (_, bytes))| *bytes)
             .sum();
-        SubmissionMemoryInfo {
+        let info = SubmissionMemoryInfo {
             enabled: self.enabled(),
             submitted: state.submitted,
             completed: state.completed,
@@ -164,12 +178,22 @@ impl SubmissionLedger {
             peak_known_pending_bytes: state.peak_known_bytes,
             known_retired_bytes: retired,
             unknown_capacity_count: state.unknown_count,
+        };
+        let mut pending_resources = TextureResourceLedger::default();
+        if include_resources {
+            for resources in state.pending.values() {
+                pending_resources.merge(resources.clone());
+            }
         }
+        SubmissionMemorySnapshot { info, pending_resources }
     }
 }
 
 #[cfg(test)]
 mod observation_tests;
+
+#[cfg(test)]
+mod frame_capacity_tests;
 
 #[cfg(test)]
 mod tests {
