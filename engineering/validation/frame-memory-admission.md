@@ -486,8 +486,9 @@ the object, source, PTS, slot, extent, phase and buffer descriptor context.
 An already admitted, unready cache image remains available for a later retry;
 this change does not claim complete operation rollback or preview recovery.
 
-An encoder reservation is acquired before tracking and queuing the uniform
-write. Scope exhaustion therefore cannot leave a new queued weight update.
+An encoder reservation is acquired before allocating or replacing the output,
+tracking the destination or queuing the uniform write. Scope exhaustion therefore
+preserves the completed output and cannot leave a new queued weight update.
 Successful writes retain their destination through the existing upload journal,
 and allocation scopes hold the weight alongside images through abandonment or
 GPU completion. Texture-category subtotals continue to exclude this buffer;
@@ -500,3 +501,11 @@ or false completion stamp; open and finished abandoned scopes plus teardown;
 and the real refusal through unchanged replies and default file/Error-stderr
 output with stdout isolation. No existing assertion or tolerance changes.
 Record source-bound results separately before treating these cases as accepted.
+
+The additional output-preservation regression reproduced the premature replacement
+on test-only source `2277fc9bbaa648a798d2afd629f0c4acaa4c4cc6`: scope refusal had
+already replaced allocation identity 2 with 8. The expected failing invocation is
+retained in `E:/Dev/aem/artifacts/pr-queue/blend-output-before-fix.log`, with an
+explicit exit-101 receipt. This is reproduction evidence, not a passing case.
+The correction moves the same reservation before target allocation and keeps
+the regression assertions unchanged. Final-source validation remains pending.

@@ -184,8 +184,7 @@ impl Renderer {
             return Ok(());
         }
         let output = TextureKey::VideoBlendSource(object, slot);
-        self.ensure_video_blend_image(output, size, source)?;
-        self.submit_video_blend(input, input, output, 0.0).map_err(|error| {
+        self.submit_video_blend(input, input, output, 0.0, source).map_err(|error| {
             let context = format!("video object={object} source={source} pts_us={pts} slot={slot} size={}x{} phase=blend_cache: {error}", size.0, size.1);
             error.with_diagnostic(context)
         })?;
@@ -239,8 +238,7 @@ impl Renderer {
             )));
         }
         let output = TextureKey::Video(object);
-        self.ensure_video_blend_image(output, size, source)?;
-        self.submit_video_blend(left, right, output, weight).map_err(|error| {
+        self.submit_video_blend(left, right, output, weight, source).map_err(|error| {
             let context = format!("video object={object} source={source} left_pts_us={left_pts} right_pts_us={right_pts} size={}x{} phase=blend: {error}", size.0, size.1);
             error.with_diagnostic(context)
         })?;
@@ -352,7 +350,15 @@ impl Renderer {
         right: TextureKey,
         output: TextureKey,
         weight: f32,
+        source: u64,
     ) -> Result<()> {
+        // Refuse scope exhaustion before replacing a completed output image,
+        // allocating a cache target or queuing a uniform write.
+        let mut encoder = self.allocation_budget.encoder(&self.device, self.allocation_owner.clone(), &wgpu::CommandEncoderDescriptor {
+                label: Some("video frame blend"),
+            })?;
+        let size = self.images[&left].size;
+        self.ensure_video_blend_image(output, size, source)?;
         let output_image = &self.images[&output];
         let format = output_image._texture.format();
         let output_view = output_image._texture.create_view(&Default::default());
@@ -360,10 +366,6 @@ impl Renderer {
             self.video_blend = Some(FrameBlendGpu::new(&self.device, format, &self.allocation_budget)?);
         }
         let gpu = self.video_blend.as_ref().expect("blend pipeline initialized");
-        // Refuse an unavailable encoder scope before queuing a uniform write.
-        let mut encoder = self.allocation_budget.encoder(&self.device, self.allocation_owner.clone(), &wgpu::CommandEncoderDescriptor {
-                label: Some("video frame blend"),
-            })?;
         self.allocation_uploads.track(Some(gpu.uniform.allocation()))?;
         self.queue.write_buffer(
             &gpu.uniform,
