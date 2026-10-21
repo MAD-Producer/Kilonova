@@ -5,8 +5,8 @@ import importlib.util
 import json
 import tempfile
 
-ROOT = Path(__file__).resolve().parents[1]
-DEST = ROOT / "crates/motion-effects/scene-library"
+ROOT = Path(__file__).resolve().parents[3]
+DEST = ROOT / "crates/motion-effects/tests/fixtures/scene-library"
 
 def parameter(id, name, kind, default, low, high, units="", animate=True, options=None):
     values = default if isinstance(default, list) else [default]

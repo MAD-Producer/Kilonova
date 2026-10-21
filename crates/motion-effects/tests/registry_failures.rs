@@ -1,4 +1,6 @@
-use motion_effects::{builtin, EffectPackage, Registry};
+#[path = "support/scene_packages.rs"]
+mod scene_fixtures;
+use motion_effects::{EffectPackage, Registry};
 use std::{
     fs,
     io::Write,
@@ -10,7 +12,7 @@ fn package() -> Arc<EffectPackage> {
     static PACKAGE: OnceLock<Arc<EffectPackage>> = OnceLock::new();
     PACKAGE
         .get_or_init(|| {
-            let original = builtin::particle_package().unwrap();
+            let original = scene_fixtures::particle_package().unwrap();
             let mut manifest = original.manifest.clone();
             manifest.id = "test.registry-transaction".into();
             let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
