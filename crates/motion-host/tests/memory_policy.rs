@@ -170,3 +170,49 @@ fn resource_tracking_is_runtime_only_and_profiling_keeps_it_enabled() {
     assert_eq!(session.view_revision, view);
     assert_eq!(session.engine.snapshot(), project);
 }
+
+
+#[test]
+fn explicit_capacity_query_includes_caller_target_and_preserves_runtime_only_semantics() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut session = Session::new(Project::new(64, 64, 30, 60).unwrap(),
+        directory.path().to_path_buf(), Arc::new(Stub)).unwrap();
+    let project = session.engine.snapshot();
+    let revision = session.engine.revision();
+    let view = session.view_revision;
+    let query = "{\"op\":\"resource_ledger\"}";
+    let empty = session.plugin_request(query).unwrap();
+    let observed = &empty["combinedCapacity"]["observation"];
+    assert_eq!(observed["activeRenderers"], 0);
+    assert_eq!(observed["allActiveRenderersTracked"], false);
+    assert_eq!(observed["knownCombinedBytes"], 0);
+    session.editor_renderer = Some(pollster::block_on(Renderer::headless()).unwrap());
+    let idle = session.plugin_request(query).unwrap();
+    let base = idle["knownBytes"].as_u64().unwrap();
+    assert!(base > 0);
+    session.editor_target = Some(session.editor_renderer.as_ref().unwrap().capture_target(5, 7).unwrap());
+    session.plugin_request("{\"op\":\"resource_tracking\",\"enabled\":true}").unwrap();
+    let occupied = session.plugin_request(query).unwrap();
+    let combined = &occupied["combinedCapacity"];
+    let observed = &combined["observation"];
+    assert_eq!(observed["knownOwnedBytes"], base + 5 * 7 * 4);
+    assert_eq!(observed["knownCombinedBytes"], occupied["knownBytes"]);
+    assert_eq!(observed["knownRetiredBytes"], 0);
+    assert_eq!(observed["unknownCapacityCount"], 0);
+    assert_eq!(observed["activeRenderers"], 1);
+    assert_eq!(observed["allActiveRenderersTracked"], true);
+    assert_eq!(observed["pendingUntracked"], 0);
+    assert_eq!(combined["isFramePeak"], false);
+    assert_eq!(combined["isDriverResidency"], false);
+    assert_eq!(combined["completeCoverage"], false);
+    assert_eq!(combined["atomicAcrossRenderers"], false);
+    assert_eq!(occupied, session.plugin_request(query).unwrap());
+    session.editor_target = None;
+    session.plugin_request("{\"op\":\"resource_tracking\",\"enabled\":false}").unwrap();
+    let released = session.plugin_request(query).unwrap();
+    assert_eq!(released["combinedCapacity"]["observation"]["knownCombinedBytes"], base);
+    assert_eq!(released["combinedCapacity"]["observation"]["allActiveRenderersTracked"], false);
+    assert_eq!(session.engine.snapshot(), project);
+    assert_eq!(session.engine.revision(), revision);
+    assert_eq!(session.view_revision, view);
+}

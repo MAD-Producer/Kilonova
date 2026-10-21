@@ -21,10 +21,19 @@ impl Session {
             ledger.merge(renderer.texture_resource_ledger());
         }
         if let Some(target) = &self.editor_target { ledger.merge(target.texture_resource_ledger()); }
+        let preview_submissions = self.graphics.as_ref()
+            .map(|g| g.renderer.submission_memory_snapshot(&ledger));
+        let editor_submissions = self.editor_renderer.as_ref()
+            .map(|r| r.submission_memory_snapshot(&ledger));
+        let capacity = motion_render::FrameTextureCapacity::observe(&ledger,
+            preview_submissions.iter().chain(editor_submissions.iter()));
         json!({"version":1,"scope":"session_application_owned_texture_capacity",
+            "combinedCapacity":{"version":1,"scope":"current_ownership_and_instrumented_pending_texture_capacity",
+                "observation":capacity,"isFramePeak":false,"isDriverResidency":false,
+                "atomicAcrossRenderers":false,"completeCoverage":false},
             "submissionTracking":{"requested":self.resource_tracking,
-                "preview":self.graphics.as_ref().map(|g|g.renderer.submission_memory_info(&ledger)),
-                "editor":self.editor_renderer.as_ref().map(|r|r.submission_memory_info(&ledger)),
+                "preview":preview_submissions.as_ref().map(|s|&s.info),
+                "editor":editor_submissions.as_ref().map(|s|&s.info),
                 "coverage":"conservative_instrumented_submissions",
                 "excludes":["raw_queue_submissions","standalone_video_conversions","gpu_uploads","swapchain","ui_and_node_preview_resources","detached_renderer_contexts","view_and_bind_group_only_references"]},
             "graphicsAvailable":self.graphics.is_some(),"editorRendererAvailable":self.editor_renderer.is_some(),
