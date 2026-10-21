@@ -19,6 +19,7 @@ pub use submission_ledger::{SubmissionMemoryInfo, SubmissionMemorySnapshot, MAX_
 mod frame_memory;
 pub use frame_memory::FrameTextureCapacity;
 mod allocation_budget;
+mod allocation_buffer;
 mod allocation_uploads;
 pub use allocation_budget::{AllocationBudget, AllocationBudgetInfo, AllocationEncoder,
     AllocatedCommandBuffer, AdmittedTextureView, DEFAULT_RENDER_ALLOCATION_BUDGET,

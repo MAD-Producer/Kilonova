@@ -86,7 +86,7 @@ impl RenderError {
         Self::Resource { rejection: ResourceRejection::Budget { scope, required_bytes, budget_bytes }, message: message.into() }
     }
     // Nested diagnostics must retain typed resource refusals through the parent.
-    fn with_diagnostic(self, message: String) -> Self {
+    pub(crate) fn with_diagnostic(self, message: String) -> Self {
         match self {
             Self::Resource { rejection, .. } => Self::Resource { rejection, message },
             _ => Self::Invalid(message),
@@ -843,7 +843,7 @@ impl Renderer {
             None => standalone.as_mut().map(|encoder| &mut **encoder).ok_or_else(||
                 RenderError::Invalid("standalone video conversion encoder is missing".into()))?,
         };
-        if self.images.get(&key).is_none_or(|i| {
+        let replacement = if self.images.get(&key).is_none_or(|i| {
             i.size != (width, height)
                 || i._texture.format() != format
                 || !i
@@ -890,31 +890,38 @@ impl Renderer {
                     },
                 ],
             });
-            self.images.insert(
-                key,
-                GpuImage {
+            Some(GpuImage {
                     _texture: texture,
                     view,
                     bind_group,
                     bytes,
                     size: (width, height),
                     video_stamp: None,
-                },
-            );
-            self.texture_bytes = self.texture_bytes - previous + bytes;
-            self.effect_gpu.invalidate();
-        }
-        let target = self.images[&key]
+                })
+        } else { None };
+        let image = replacement.as_ref().or_else(|| self.images.get(&key)).ok_or_else(||
+            RenderError::Invalid("video conversion destination is missing".into()))?;
+        let target = image
             ._texture
             .create_view(&wgpu::TextureViewDescriptor {
                 format: Some(format),
                 ..Default::default()
             });
-        let converter = self
-            .video_gpu
-            .get_or_insert_with(|| crate::video_gpu::VideoGpu::new(&self.device, format));
-        let upload = converter.encode_convert_resized(&self.device, &self.queue,
-            object, frame, &target, (width, height), encoder);
+        let new_converter = self.video_gpu.is_none()
+            .then(|| crate::video_gpu::VideoGpu::new(&self.device, format));
+        let converter = self.video_gpu.as_ref().or(new_converter.as_ref()).ok_or_else(||
+            RenderError::Invalid("video converter is missing".into()))?;
+        let prepared = converter.prepare_input(&self.device, &self.allocation_budget, object, frame)
+            .and_then(|prepared| prepared.track(&self.allocation_uploads, &image._texture))
+            .map_err(|error| {
+                let message = format!("video object={object} source={source} pts_us={pts} phase=yuv_prepare: {error}");
+                error.with_diagnostic(message)
+            })?;
+        if let Some(converter) = new_converter { self.video_gpu = Some(converter); }
+        let converter = self.video_gpu.as_mut().ok_or_else(||
+            RenderError::Invalid("prepared video converter is missing".into()))?;
+        let upload = converter.encode_prepared(&self.queue, prepared,
+            frame, &target, (width, height), encoder);
         let upload = if let Some(encoder) = standalone {
             self.submit_allocated(encoder.finish(), |_| {})?;
             upload.mark_submitted();
@@ -924,6 +931,11 @@ impl Renderer {
             self.video_encoded_conversions += 1;
             Some(upload)
         };
+        if let Some(image) = replacement {
+            self.images.insert(key, image);
+            self.texture_bytes = self.texture_bytes - previous + bytes;
+            self.effect_gpu.invalidate();
+        }
         self.images.get_mut(&key).unwrap().video_stamp = Some((source, pts));
         self.invalidate_video_blend(object);
         self.video_uploads += 1;

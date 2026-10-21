@@ -233,3 +233,53 @@ distinct passes. Build/temp/artifact writes stayed on E and own Cargo/GPU comman
 ran sequentially. No dependency or product asset was added. No PR or issue closure
 is claimed for this partial increment. Continue resource enrollment and shared
 session policy/pressure/recovery acceptance before #67 reuse work.
+
+## Third implementation increment: YUV resources and authoring inputs
+
+YUV conversion now reserves its real Y/UV texture descriptors and 48-byte
+parameter buffer in the same combined budget as its output. Prepare resources
+and track all queued-write destinations before replacing a cached input or
+writing pixels. A late refusal must preserve the old RGBA image, completed stamp,
+plane cache and original typed failure. Descriptor buffer capacity is logical
+application capacity, not the backend's native heap size or residency.
+
+An encoded upload token retains all four conversion reservations, including the
+output, until abandonment or completion of the queue submission explicitly marked
+by its caller. This also covers the existing raw-encoder API after cache eviction;
+it does not rely on the caller using an admitted encoder. Callers must still
+submit that encoder on the owning queue before marking the token, or discard both
+on cancellation. Queued plane/uniform writes independently remain in the upload
+journal until a renderer submission or teardown. Batch journal tracking acquires
+its mutex once before any of those writes.
+
+`PreviewInputTexture::new` now requires an explicit shared `AllocationBudget` and
+returns a construction error instead of bypassing admission. Its copy uniform,
+output, RGBA source, YUV planes and conversion uniform are enrolled. Its public
+view is an `AdmittedTextureView`; cloning it retains the same allocation identity.
+RGBA/resize/YUV preparation preserves the prior input until all capacity/scope/
+journal checks succeed. Resizes and conversions submit with admitted lifetimes;
+direct writes use the journal and its nonblocking teardown flush. Budget failures
+are typed separately from invalid pixels and retain authoring phase/dimensions.
+This is an intentional current Rust API change, with all repository callers
+updated; no legacy constructor or implicit independent budget is retained.
+
+The existing source-budget assertions include the newly enrolled Y4/UV2/uniform48
+capacity for their actual 2x2 conversion. Pixel tolerances, refusal conditions,
+scope limits and recovery assertions are unchanged. Existing standalone-input
+tests only pass the explicit shared budget and unwrap construction; their
+original assertions remain intact. Texture-only diagnostic subtotals still
+exclude buffers; the combined admission counter includes them.
+
+Six new cases cover actual late video-uniform refusal with pixel/stamp rollback,
+raw-encoder token submission/cancellation, authoring constructor/shared-target
+refusal, cloned-view lifetime across three teardown cycles, authoring source/YUV
+refusal with pixel recovery and malformed-input classification, and the real
+uniform refusal through the default file/Error-stderr/reply boundary. Record final
+committed-source results separately after the full selected acceptance run.
+
+The prior increments' unenrolled-YUV/authoring statements are historical scope
+records, superseded by this increment only for these named paths. Other
+renderer/effect/mask/vector/plugin buffers and scratch, queue-owned upload staging,
+raw/external GPU scope, session policy sharing, platform pressure and complete
+preview/export/lifecycle acceptance remain pending. Neither #60/#61 nor #67 is
+closed by this resource enrollment; continue them before precision/3D integration.

@@ -8,7 +8,7 @@ use std::{
     },
 };
 
-/// Renderer upload entry points require exclusive access. Record before the
+/// Upload entry points require exclusive access to their owner. Record before the
 /// queue write and retire after a subsequent submission, never on cache eviction.
 /// The map deduplicates destinations; queue-owned staging is outside this scope.
 pub(crate) struct AllocationUploads {
@@ -28,10 +28,19 @@ impl AllocationUploads {
         let lease = lease.ok_or_else(|| {
             RenderError::Invalid("upload destination has no allocation reservation".into())
         })?;
-        self.pending
+        self.track_many(std::iter::once(lease))
+    }
+    pub(crate) fn track_many(
+        &self,
+        leases: impl IntoIterator<Item = AllocationLease>,
+    ) -> Result<(), RenderError> {
+        let mut pending = self
+            .pending
             .lock()
-            .map_err(|_| RenderError::Invalid("render upload reservations are poisoned".into()))?
-            .insert(lease.id(), lease);
+            .map_err(|_| RenderError::Invalid("render upload reservations are poisoned".into()))?;
+        for lease in leases {
+            pending.insert(lease.id(), lease);
+        }
         Ok(())
     }
     fn take(&self) -> BTreeMap<u64, AllocationLease> {
