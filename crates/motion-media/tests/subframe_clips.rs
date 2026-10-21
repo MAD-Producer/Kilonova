@@ -4,7 +4,7 @@ use motion_model::{AudioAsset, AudioClip, ClipRange, Content, Layer, Project};
 fn pcm_clip_boundaries_use_continuous_time_and_output_sample_ceil() {
     let root = tempfile::tempdir().unwrap();
     let mut p = Project::new(64, 64, 24, 24).unwrap();
-    p.version = 15;
+    p.version = motion_model::CURRENT_PROJECT_VERSION;
     let asset = AudioAsset {
         id: 1,
         path: "assets/tone.wav".into(),

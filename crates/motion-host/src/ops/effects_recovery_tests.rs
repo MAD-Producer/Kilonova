@@ -36,7 +36,7 @@ impl Platform for Stub {
         _: &Path,
         _: Option<u32>,
         _: u64,
-        _: &mut dyn FnMut(f64) -> MediaResult<()>,
+        _: &mut dyn FnMut(Option<f64>) -> MediaResult<()>,
     ) -> MediaResult<motion_core::AudioAsset> {
         Err("unused".into())
     }

@@ -54,9 +54,7 @@ pub enum BlendSpace {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LayerBlend {
-    #[serde(default)]
     pub mode: BlendMode,
-    #[serde(default)]
     pub space: BlendSpace,
 }
 pub fn default_blend(value: &LayerBlend) -> bool {
@@ -87,16 +85,11 @@ impl MatteMode {
         }
     }
 }
-fn yes() -> bool {
-    true
-}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TrackMatte {
     pub source: u64,
-    #[serde(default)]
     pub mode: MatteMode,
-    #[serde(default = "yes")]
     pub hide_source: bool,
 }
 pub const MAX_MATTE_DEPTH: usize = 8;

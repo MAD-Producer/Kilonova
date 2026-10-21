@@ -55,7 +55,7 @@ fn invalid_anchor_edit_reaches_reply_file_stderr_without_mutating_state() {
         let after=engine.state().unwrap();assert_eq!(before["project"],after["project"]);assert_eq!(before["revision"],after["revision"]);
         assert!(!engine.failed());
         let mut animated=before.clone();
-        animated["project"]["layers"][0]["transform"]["anchor"]=serde_json::json!({"value":[0.5,0.5],"keys":[{"frame":0,"value":[0.5,0.5]}]});
+        animated["project"]["layers"][0]["transform"]["anchor"]=serde_json::json!({"value":[0.5,0.5],"keys":[{"frame":0,"value":[0.5,0.5],"ease":"linear"}]});
         animated["sampledLayers"]=serde_json::json!([]);
         let mut healthy=animated.clone();healthy["sampledLayers"]=serde_json::json!([{"id":7,"anchor":[0.5,0.5]}]);
         for state in [&animated,&healthy,&animated] {

@@ -12,7 +12,7 @@ fn close(a: glam::Mat4, b: glam::Mat4) {
     );
 }
 #[test]
-fn cameras_are_created_explicitly_and_legacy_projects_keep_their_camera() {
+fn cameras_are_created_explicitly_and_missing_creation_state_is_rejected() {
     let p = Project::new(1080, 1920, 30, 180).unwrap();
     assert!(!p.camera.created);
     let mut e = Engine::new(p).unwrap();
@@ -29,8 +29,7 @@ fn cameras_are_created_explicitly_and_legacy_projects_keep_their_camera() {
     assert_eq!(e.project().layers.len(), 1);
     let mut legacy = serde_json::to_value(Project::demo()).unwrap();
     legacy["camera"].as_object_mut().unwrap().remove("created");
-    let loaded: Project = serde_json::from_value(legacy).unwrap();
-    assert!(loaded.camera.created);
+    assert!(serde_json::from_value::<Project>(legacy).unwrap_err().to_string().contains("created"));
 }
 
 #[test]

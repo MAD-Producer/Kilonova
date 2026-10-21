@@ -254,7 +254,6 @@ pub(crate) fn set(project: &mut Project, expression: PropertyExpression, frame: 
         write(&mut check, &expression.target, frame as f64, &result)
             .map_err(|err| error(&expression.target, frame as f64, err))?;
     }
-    project.version = project.version.max(3);
     if let Some(e) = project
         .expressions
         .iter_mut()

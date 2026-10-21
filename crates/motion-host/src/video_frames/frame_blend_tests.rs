@@ -39,7 +39,7 @@ impl crate::Platform for Backend {
         _: &Path,
         _: Option<u32>,
         _: u64,
-        _: &mut dyn FnMut(f64) -> motion_media::Result<()>,
+        _: &mut dyn FnMut(Option<f64>) -> motion_media::Result<()>,
     ) -> motion_media::Result<motion_core::AudioAsset> {
         Err("unused".into())
     }
@@ -119,7 +119,7 @@ fn fixture(root: &Path) -> Project {
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     motion_media::save_index(&path, &asset, &TIMES).unwrap();
     let mut p = Project::new(16, 16, 100, 60).unwrap();
-    p.version = 21;
+    p.version = motion_core::CURRENT_PROJECT_VERSION;
     p.background = [0.; 4];
     p.video_assets.push(asset);
     let mut layer = Layer::solid(7, "Authored VFR", [16.; 2], [8., 8., 0.], [1.; 4]);

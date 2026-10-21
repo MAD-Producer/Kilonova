@@ -14,6 +14,7 @@ pub use onsets::audio_references;
 mod packages;
 mod poison_observation;
 mod publication;
+mod progress;
 mod registry_observation;
 mod task_logging;
 pub use packages::{PackageJobs, PackageTaskStatus};

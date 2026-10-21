@@ -51,7 +51,7 @@ fn animate(e: &mut Engine) {
     .unwrap();
 }
 #[test]
-fn legacy_anchor_array_keeps_format_pose_and_noncentral_pivot() {
+fn static_anchor_array_keeps_format_pose_and_noncentral_pivot() {
     let mut p = fixture();
     p.layers[1].transform.anchor = Track::constant([0.25, 0.8]);
     let value = serde_json::to_value(&p).unwrap();
@@ -60,8 +60,6 @@ fn legacy_anchor_array_keeps_format_pose_and_noncentral_pivot() {
         serde_json::json!([0.25f32, 0.8f32])
     );
     let migrated = serde_json::from_value::<Project>(value.clone())
-        .unwrap()
-        .migrate()
         .unwrap();
     assert_eq!(serde_json::to_value(&migrated).unwrap(), value);
     for frame in [10., 30.5, 80.] {
@@ -77,7 +75,7 @@ fn legacy_anchor_array_keeps_format_pose_and_noncentral_pivot() {
         enabled: true,
     })
     .unwrap();
-    assert_eq!(e.project().version, 20);
+    assert_eq!(e.project().version, motion_model::CURRENT_PROJECT_VERSION);
     close(before, model(e.project(), 20.));
 }
 #[test]
@@ -267,5 +265,7 @@ fn anchor_keys_move_copy_ease_disable_and_reject_invalid_edits_atomically() {
         .anchor
         .upsert(0, [0.5; 2], Ease::Linear)
         .unwrap();
-    assert!(invalid.validate().is_err());
+    invalid.validate().unwrap();
+    invalid.version = 19;
+    assert!(invalid.validate().unwrap_err().to_string().contains("unsupported project format"));
 }

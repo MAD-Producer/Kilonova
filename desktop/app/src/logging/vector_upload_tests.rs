@@ -13,7 +13,7 @@ fn native_vector_upload_failure_reaches_default_file_and_stderr() {
         let root = PathBuf::from(root);
         let _logger = init(root.join("logs")).unwrap();
         let mut project = Project::new(32, 32, 30, 60).unwrap();
-        project.version = 21;
+        project.version = motion_model::CURRENT_PROJECT_VERSION;
         let mut layer = Layer::solid(47, "Vector", [16.; 2], [16., 16., 0.], [1.; 4]);
         layer.content = Content::Vector {
             vector: VectorContent::shape(ShapeKind::Rectangle),

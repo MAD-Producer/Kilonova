@@ -3,7 +3,7 @@ use motion_core::{Content, Layer, Project, VideoAsset, VideoClip};
 
 fn fixture(video: bool) -> Project {
     let mut project = Project::new(64, 64, 30, 60).unwrap();
-    project.version = 21;
+    project.version = motion_model::CURRENT_PROJECT_VERSION;
     let mut layer = Layer::solid(7, "Sampling study", [32.; 2], [32., 32., 0.], [1.; 4]);
     layer.content = Content::Vector {
         vector: motion_core::vector::VectorContent::shape(motion_core::vector::ShapeKind::Ellipse),

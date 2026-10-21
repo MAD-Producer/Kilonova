@@ -85,13 +85,15 @@ pub trait Platform: Send + Sync {
     /// Audio fallback used only when the portable Symphonia path cannot demux
     /// or decode a source. Implementations must never widen a damaged portable
     /// format into a permissive partial decode.
+    /// Report None when the total frame count is unknown. The callback must
+    /// still run as a cancellation checkpoint; a known fraction is phase-local.
     fn decode_audio(
         &self,
         path: &Path,
         pcm: &Path,
         selected_track: Option<u32>,
         max_pcm_bytes: u64,
-        check: &mut dyn FnMut(f64) -> Result<()>,
+        check: &mut dyn FnMut(Option<f64>) -> Result<()>,
     ) -> Result<AudioAsset>;
 
     /// Device decoder inventory in the `media_capabilities` wire shape.

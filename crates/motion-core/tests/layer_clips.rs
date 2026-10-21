@@ -56,9 +56,8 @@ fn compare(a: &Project, b: &Project, fa: f64, fb: f64, ia: u64, ib: u64) {
 }
 
 #[test]
-fn legacy_migration_is_in_memory_and_preserves_every_fractional_projection() {
+fn current_roundtrip_preserves_every_fractional_projection() {
     let mut p = Project::demo();
-    p.version = 1;
     p.layers[1]
         .transform
         .rotation
@@ -77,21 +76,15 @@ fn legacy_migration_is_in_memory_and_preserves_every_fractional_projection() {
         std::fs::read(tmp.path().join("project.json")).unwrap(),
         original
     );
-    assert_eq!(migrated.version, 8);
+    assert_eq!(migrated.version, motion_core::CURRENT_PROJECT_VERSION);
     for f in 0..360 {
         compare(&p, &migrated, f as f64 / 2.0, f as f64 / 2.0, 2, 2);
     }
     let mut unknown = p;
-    unknown.version = 18;
-    assert!(Engine::new(unknown.clone()).is_ok());
-    unknown.version = 20;
-    assert!(Engine::new(unknown.clone()).is_ok());
-    unknown.version = 21;
-    assert!(Engine::new(unknown.clone()).is_ok());
-    unknown.version = 22;
-    assert!(Engine::new(unknown.clone()).is_ok());
-    unknown.version = 23;
-    assert!(Engine::new(unknown).is_err());
+    for version in [1, 18, 20, 21, 22, motion_core::CURRENT_PROJECT_VERSION + 1] {
+        unknown.version = version;
+        assert!(Engine::new(unknown.clone()).is_err());
+    }
 }
 #[test]
 fn clip_is_left_closed_right_open_at_fractional_frames() {
@@ -118,7 +111,7 @@ fn signed_spans_preserve_hidden_time_and_local_animation_across_storage_and_hist
     layer.timeline=Some(LayerTimeline{in_frame:-10,out_frame:100,offset_frame:-10});
     layer.transform.position.upsert(0,[32.,32.,0.],Ease::Linear).unwrap();
     layer.transform.position.upsert(30,[62.,32.,0.],Ease::Linear).unwrap();
-    e.apply(Command::Add{layer}).unwrap();assert_eq!(e.project().version,13);
+    e.apply(Command::Add{layer}).unwrap();assert_eq!(e.project().version,motion_model::CURRENT_PROJECT_VERSION);
     let before=e.snapshot();let metadata=e.project().timeline_layers(0.);
     assert_eq!((metadata[0].in_frame,metadata[0].out_frame,metadata[0].offset_frame),(-10,100,-10));
     assert_eq!(e.project().layers[0].transform.position.sample(e.project().layers[0].local_frame(0.)),[42.,32.,0.]);
@@ -135,7 +128,7 @@ fn signed_spans_preserve_hidden_time_and_local_animation_across_storage_and_hist
 
 #[test]
 fn extended_span_requires_new_format_and_rename_or_extension_does_not_crop_it() {
-    let mut p=Project::new(64,64,30,60).unwrap();p.version=13;
+    let mut p=Project::new(64,64,30,60).unwrap();p.version = motion_model::CURRENT_PROJECT_VERSION;
     let mut layer=Layer::solid(1,"Extended",[20.;2],[32.,32.,0.],[1.;4]);
     layer.timeline=Some(LayerTimeline{in_frame:-10,out_frame:100,offset_frame:-10});p.layers.push(layer);
     let mut old=p.clone();old.version=12;assert!(old.validate().is_err());

@@ -47,7 +47,7 @@ fn stereo_db_keys_keep_local_time_gesture_and_history() {
         json!({"kind":"set","channel":"left","frame":4,"value":-6,"animated":true}),
     );
     let first = e.snapshot();
-    assert_eq!(first.version, 14);
+    assert_eq!(first.version, motion_model::CURRENT_PROJECT_VERSION);
     assert_eq!(
         first.layers[0].audio_levels.as_ref().unwrap().left.keys[0].frame,
         -6
@@ -105,7 +105,7 @@ fn invalid_ranges_locked_layers_and_non_audio_content_fail_atomically() {
 #[test]
 fn nested_envelopes_use_each_owner_fps_and_fractional_sample_origin() {
     let mut p = project();
-    p.version = 14;
+    p.version = motion_model::CURRENT_PROJECT_VERSION;
     p.fps = 59;
     p.frames = 177;
     let mut child = p.clone();
@@ -153,7 +153,7 @@ fn nested_envelopes_use_each_owner_fps_and_fractional_sample_origin() {
     assert!((v.gain_at(sample)[1] - 10f32.powf(-12. / 20.)).abs() < 1e-6);
 }
 #[test]
-fn old_documents_remain_unchanged_and_bad_tracks_are_rejected() {
+fn current_documents_roundtrip_and_old_versions_or_bad_tracks_are_rejected() {
     let p = project();
     assert!(!serde_json::to_string(&p).unwrap().contains("audio_levels"));
     assert_eq!(
@@ -162,8 +162,9 @@ fn old_documents_remain_unchanged_and_bad_tracks_are_rejected() {
     );
     let mut p = p;
     p.layers[0].audio_levels = Some(AudioLevels::default());
-    assert!(p.validate().is_err());
-    p.version = 14;
+    p.version = 13;
+    assert!(p.validate().unwrap_err().to_string().contains("unsupported project format"));
+    p.version = motion_model::CURRENT_PROJECT_VERSION;
     p.validate().unwrap();
     p.layers[0].audio_levels.as_mut().unwrap().right.value = f32::NAN;
     assert!(p.validate().is_err());

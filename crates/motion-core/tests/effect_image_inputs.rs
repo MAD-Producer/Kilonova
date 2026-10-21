@@ -49,7 +49,8 @@ fn effects_graph_rejects_cycles_but_allows_source_stage_and_disabled_edges() {
         stage: EffectImageStage::Source,
     });
     assert!(p.validate().is_ok());
-    let default: EffectImageInput = serde_json::from_str(r#"{"kind":"layer","layer":2}"#).unwrap();
+    assert!(serde_json::from_str::<EffectImageInput>(r#"{"kind":"layer","layer":2}"#).unwrap_err().to_string().contains("stage"));
+    let default: EffectImageInput = serde_json::from_str(r#"{"kind":"layer","layer":2,"stage":"effects"}"#).unwrap();
     assert_eq!(
         default,
         EffectImageInput::Layer {

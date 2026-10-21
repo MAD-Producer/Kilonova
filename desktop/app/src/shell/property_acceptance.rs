@@ -47,7 +47,6 @@ fn typed_capture_fixtures_paint_clickable_properties_without_media_io() {
 impl Shell {
     fn typed_selection_capture_state(state: &Value, object: u64, audio: bool) -> Result<Value, String> {
         let mut project = motion_core::Project::new(640, 360, 30, 120).map_err(|e| e.to_string())?;
-        project.version = 20;
         let mut layer = Layer::solid(object, "Selection fixture", [100.;2], [100.,100.,0.], [1.;4]);
         if audio {
             layer.size = [0.;2];

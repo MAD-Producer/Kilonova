@@ -9,7 +9,7 @@ use motion_render::{LayerRaster, Renderer, ResourceBudgetScope, ResourceRejectio
 fn project() -> Project {
     let mut project = Project::new(64, 64, 30, 120).unwrap();
     project.background = [0.; 4];
-    project.version = 21;
+    project.version = motion_model::CURRENT_PROJECT_VERSION;
     project
 }
 fn layer(id: u64, color: [f32; 4]) -> Layer {

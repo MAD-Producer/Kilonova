@@ -36,8 +36,8 @@ fn matte_and_blend_edit_history_and_storage_preserve_identity() {
         ])
         .unwrap();
     let edited = engine.snapshot();
-    assert_eq!(original.version, 8);
-    assert_eq!(edited.version, 10);
+    assert_eq!(original.version, motion_model::CURRENT_PROJECT_VERSION);
+    assert_eq!(edited.version, motion_model::CURRENT_PROJECT_VERSION);
     assert_eq!(edited.layers[1].track_matte, Some(link()));
     assert_eq!(edited.layers[1].blend.mode, BlendMode::Screen);
     engine.undo().unwrap();
@@ -103,7 +103,7 @@ fn invalid_links_and_locked_targets_are_atomic() {
 #[test]
 fn hidden_matte_is_sampled_and_precompose_keeps_complete_association() {
     let mut p = fixture();
-    p.version = 10;
+    p.version = motion_model::CURRENT_PROJECT_VERSION;
     p.layers[0].visible = false;
     p.layers[1].track_matte = Some(link());
     let mut engine = Engine::new(p).unwrap();

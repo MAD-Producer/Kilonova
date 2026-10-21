@@ -382,7 +382,7 @@ fn summary_bundles_hidden_axes_masks_and_shape_keys_in_composition_time() {
         Content, LayerTimeline, Track,
     };
     let mut project = fixture().project().clone();
-    project.version = 20;
+    project.version = motion_model::CURRENT_PROJECT_VERSION;
     let layer = &mut project.layers[0];
     layer.timeline = Some(LayerTimeline {
         in_frame: 12,

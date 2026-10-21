@@ -13,7 +13,7 @@
 //! #     fn name(&self) -> &'static str { "test" }
 //! #     fn probe_video(&self, _: &std::path::Path, _: Option<u32>, _: Option<u32>, _: &dyn Fn() -> motion_media::Result<()>) -> motion_media::Result<motion_media::VideoProbe> { unimplemented!() }
 //! #     fn open_decoder(&self, _: &std::path::Path, _: motion_core::VideoAsset, _: Vec<u64>) -> motion_media::Result<Box<dyn motion_host::platform::VideoDecoder>> { unimplemented!() }
-//! #     fn decode_audio(&self, _: &std::path::Path, _: &std::path::Path, _: Option<u32>, _: u64, _: &mut dyn FnMut(f64) -> motion_media::Result<()>) -> motion_media::Result<motion_core::AudioAsset> { unimplemented!() }
+//! #     fn decode_audio(&self, _: &std::path::Path, _: &std::path::Path, _: Option<u32>, _: u64, _: &mut dyn FnMut(Option<f64>) -> motion_media::Result<()>) -> motion_media::Result<motion_core::AudioAsset> { unimplemented!() }
 //! #     fn media_capabilities(&self, _: Option<&motion_host::platform::VideoQuery>) -> motion_media::Result<serde_json::Value> { Ok(serde_json::json!({})) }
 //! #     fn attach_surface(&self, _: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>, _: u32, _: u32) -> motion_host::Result<motion_host::platform::SurfaceTarget> { unimplemented!() }
 //! # }

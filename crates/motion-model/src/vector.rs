@@ -413,10 +413,6 @@ impl VectorContent {
         }else{*self=wrapped;}
         Ok(())
     }
-    pub fn required_format(&self) -> u32 {
-        if matches!(self.source, VectorSource::Group { .. }) { 12 }
-        else if self.has_path_modifiers() { 11 } else { 6 }
-    }
     pub fn has_path_modifiers(&self) -> bool {
         self.trim.is_some() || self.stroke.as_ref().is_some_and(|s| s.dashes.is_some())
     }

@@ -898,7 +898,7 @@ mod generation_failure_tests {
         fn open_decoder(&self, _: &Path, _: VideoAsset, _: Vec<u64>) -> motion_media::Result<Box<dyn VideoDecoder>> {
             Ok(Box::new(PrefetchDecoder(self.0.clone())))
         }
-        fn decode_audio(&self, _: &Path, _: &Path, _: Option<u32>, _: u64, _: &mut dyn FnMut(f64) -> motion_media::Result<()>) -> motion_media::Result<motion_core::AudioAsset> { Err("not used".into()) }
+        fn decode_audio(&self, _: &Path, _: &Path, _: Option<u32>, _: u64, _: &mut dyn FnMut(Option<f64>) -> motion_media::Result<()>) -> motion_media::Result<motion_core::AudioAsset> { Err("not used".into()) }
         fn media_capabilities(&self, _: Option<&crate::platform::VideoQuery>) -> motion_media::Result<Value> { Err("not used".into()) }
         fn attach_surface(&self, _: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>, _: u32, _: u32) -> crate::Result<crate::platform::SurfaceTarget> { Err("not used".into()) }
     }

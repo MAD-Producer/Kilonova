@@ -291,12 +291,12 @@ impl Session {
             "composition_context":self.composition_context_snapshot(),
             "vector_layers":vector_layers,"mask_layers":mask_layers,"source_transforms":source_transforms,
             "platform":{"name":self.platform().name(),"graphics":"wgpu"},
-            "capabilities":{"spatial_paths":{"supported":true,"version":1,"query":"position_path","command":"spatial","parameter_scope":true,"max_visible_keys":512,"max_trace_samples":257,"coordinates":"property_local","temporal_easing":"independent","separated_axes":"trace_only"},"adjustment_layers":{"supported":true,"command":"add_adjustment","composite":"lower_layers","mask":"transformed_rectangle","background":"excluded","three_d":false},"vector_drawing":{"supported":true,"protocol":1,"command":"vector","coordinates":"centered_canvas_pixels_y_down","max_paths":motion_core::vector::MAX_PATHS,"max_nodes":motion_core::vector::MAX_NODES,"fill_rules":["non_zero","even_odd"],"stroke_caps":["butt","round","square"],"stroke_joins":["miter","round","bevel"],"shape_catalog":motion_core::vector::shape_catalog()},"scene_effects":{"sdk_version":motion_effects::SDK_VERSION,"plugin_editor_protocol":1,"max_particles_per_effect":20000,"max_sprites_per_frame":65536,"occlusion":"source_alpha_planes","simulation":"analytic_world_birth_or_legacy_local_space","particle_birth_history":true,"particle_history_expressions":false,"particle_rate_animation":false},"native_plugin_ui":{"supported":true,"protocol":1,"slots":["preview","timeline","parameters","layer_source","image_sprite","seed","transform","note"],"preview":"shared_wgpu_surface","timeline":"shared_composition_clock"},"property_expressions":{"supported":true,"profile":motion_core::EXPRESSION_PROFILE,"engine":"QuickJS-NG","source_max_bytes":8192,"max_expressions":motion_core::MAX_EXPRESSIONS,"cross_property_references":false,"opacity_unit":"percent"},"camera_layers":{"supported":true,"project_format":19,"activation":"topmost_enabled_in_range","legacy_object":0},"layer_clips":true,"layer_3d":{"supported":true,"default":false,"activation":"explicit","command":"set_layer_3d"},
+            "capabilities":{"spatial_paths":{"supported":true,"version":1,"query":"position_path","command":"spatial","parameter_scope":true,"max_visible_keys":512,"max_trace_samples":257,"coordinates":"property_local","temporal_easing":"independent","separated_axes":"trace_only"},"adjustment_layers":{"supported":true,"command":"add_adjustment","composite":"lower_layers","mask":"transformed_rectangle","background":"excluded","three_d":false},"vector_drawing":{"supported":true,"protocol":1,"command":"vector","coordinates":"centered_canvas_pixels_y_down","max_paths":motion_core::vector::MAX_PATHS,"max_nodes":motion_core::vector::MAX_NODES,"fill_rules":["non_zero","even_odd"],"stroke_caps":["butt","round","square"],"stroke_joins":["miter","round","bevel"],"shape_catalog":motion_core::vector::shape_catalog()},"scene_effects":{"sdk_version":motion_effects::SDK_VERSION,"plugin_editor_protocol":1,"max_particles_per_effect":20000,"max_sprites_per_frame":65536,"occlusion":"source_alpha_planes","simulation":"analytic_world_birth_or_legacy_local_space","particle_birth_history":true,"particle_history_expressions":false,"particle_rate_animation":false},"native_plugin_ui":{"supported":true,"protocol":1,"slots":["preview","timeline","parameters","layer_source","image_sprite","seed","transform","note"],"preview":"shared_wgpu_surface","timeline":"shared_composition_clock"},"property_expressions":{"supported":true,"profile":motion_core::EXPRESSION_PROFILE,"engine":"QuickJS-NG","source_max_bytes":8192,"max_expressions":motion_core::MAX_EXPRESSIONS,"cross_property_references":false,"opacity_unit":"percent"},"camera_layers":{"supported":true,"project_format":motion_core::CURRENT_PROJECT_VERSION,"activation":"topmost_enabled_in_range","legacy_object":0},"layer_clips":true,"layer_3d":{"supported":true,"default":false,"activation":"explicit","command":"set_layer_3d"},
                 "planar_intersections":{"supported":true,"method":"bsp","geometry_api":"sampleGeometryInto","max_batches":8192,"max_vertices":65536},
                 "separate_dimensions":{"supported":true,"activation":"explicit",
                 "layer_properties":["position","rotation","scale"],"camera_properties":camera_properties,"axes":["x","y","z"]},
                 "composition":{"fps_range":[1,motion_core::MAX_COMPOSITION_FPS],"fps_presets":[24,25,30,50,60,90,120,144,240],"fps_type":"integer"},
-                "project_package":crate::ops::media::package_limits(),"multiple_compositions":true,"precompose":true,"composition_api":{"version":1,"project_format":9,"max_compositions":motion_core::composition::MAX_COMPOSITIONS,"max_depth":motion_core::composition::MAX_COMPOSITION_DEPTH,"depth_includes_root":true,"max_instances":motion_core::composition::MAX_COMPOSITION_INSTANCES,"max_render_instances":motion_core::composition::MAX_RENDER_COMPOSITION_INSTANCES,"reference_3d":true,"collapse_transformations":false,"precompose_modes":["move_all_attributes"],"precompose_range":["composition"],"precompose_contiguous":true,"precompose_3d":false,"history_scope":"project"},"video_import":true,"audio_import":true,"model_import":false,"prerender":false,
+                "project_package":crate::ops::media::package_limits(),"multiple_compositions":true,"precompose":true,"composition_api":{"version":1,"project_format":motion_core::CURRENT_PROJECT_VERSION,"max_compositions":motion_core::composition::MAX_COMPOSITIONS,"max_depth":motion_core::composition::MAX_COMPOSITION_DEPTH,"depth_includes_root":true,"max_instances":motion_core::composition::MAX_COMPOSITION_INSTANCES,"max_render_instances":motion_core::composition::MAX_RENDER_COMPOSITION_INSTANCES,"reference_3d":true,"collapse_transformations":false,"precompose_modes":["move_all_attributes"],"precompose_range":["composition"],"precompose_contiguous":true,"precompose_3d":false,"history_scope":"project"},"video_import":true,"audio_import":true,"model_import":false,"prerender":false,
                 "layer_masks":{"version":1,"supported":true,"space":"source_pixels_y_down","stage":"before_image_effects","max_masks":16,"max_nodes":2048,"modes":["none","add","subtract","intersect","lighten","darken","difference"],"animated":["path","opacity","feather","expansion"],"variable_feather":false,"adjustment_masks":false},
                 "video":self.video_capabilities(),
                 "effect_image_inputs":{"supported":true,"sdk":6,"command":"image_input","sources":["package","asset","layer","empty"],"stages":["source","effects"],"default_stage":"effects","hidden_source":true,"feedback":false,"gpu_readbacks":0},
@@ -331,45 +331,45 @@ impl Session {
             "resampling":false,"on_mismatch":"error_preserves_axes","expressions":"preserved",
             "already_coupled":"no_change","project_format_change":false});
         snapshot["capabilities"]["layer_sampling"]=crate::render_sampling::capabilities();
-        snapshot["capabilities"]["composition_api"]["project_format"]=json!(16);
-        snapshot["capabilities"]["layer_3d"]["rotation_order"]=json!({"supported":true,"project_format":16,"command":"set_rotation_order",
+        snapshot["capabilities"]["composition_api"]["project_format"]=json!(motion_core::CURRENT_PROJECT_VERSION);
+        snapshot["capabilities"]["layer_3d"]["rotation_order"]=json!({"supported":true,"project_format":motion_core::CURRENT_PROJECT_VERSION,"command":"set_rotation_order",
             "default":"fixed_xyz","missing_field":"local_xyz","orders":["local_xyz","fixed_xyz"],"fixed_xyz":"apply_x_then_y_then_z_about_parent_axes",
             "changes_pose":true,"animated":false,"camera":false});
-        snapshot["capabilities"]["layer_timeline"]["subframe_ranges"]=json!({"supported":true,"project_format":15,
+        snapshot["capabilities"]["layer_timeline"]["subframe_ranges"]=json!({"supported":true,"project_format":motion_core::CURRENT_PROJECT_VERSION,
             "command":"set_layer_range","field":"subframe_range","coordinates":"composition_frames",
             "in_frame_min":-(motion_core::MAX_FRAMES as i32),"out_frame_max":motion_core::MAX_FRAMES,
             "interval":"half_open","offset_precision":"integer_frames","audio_boundaries":"ceil_output_sample"});
-        snapshot["capabilities"]["audio"]["levels"]=json!({"supported":true,"project_format":14,"command":"audio_levels",
+        snapshot["capabilities"]["audio"]["levels"]=json!({"supported":true,"project_format":motion_core::CURRENT_PROJECT_VERSION,"command":"audio_levels",
             "unit":"dB","range":[motion_core::audio_levels::MIN_AUDIO_DB,motion_core::audio_levels::MAX_AUDIO_DB],"channels":["left","right"],"animated":true,
             "sampling":"output_sample","time_coordinates":"layer_local_frames","nested":true,
             "conversion":"10^(dB/20)","expressions":false,"curve_overshoot":"clamp_to_range"});
         snapshot["capabilities"]["audio"]["reference_markers"] = json!({
-            "supported":true,"project_format":18,"command":"audio_markers","max_count":motion_core::audio_edit::MAX_AUDIO_MARKERS,
+            "supported":true,"project_format":motion_core::CURRENT_PROJECT_VERSION,"command":"audio_markers","max_count":motion_core::audio_edit::MAX_AUDIO_MARKERS,
             "storage_coordinates":"layer_local_frames","edit_coordinates":"composition_frames",
             "generated_replacement":"preserve_manual_and_corrected","corrected_references":"retain_analysis_origin"});
         snapshot["capabilities"]["audio"]["channel_separation"] = json!({
-            "supported":true,"project_format":18,"command":"split_audio_channels",
+            "supported":true,"project_format":motion_core::CURRENT_PROJECT_VERSION,"command":"split_audio_channels",
             "requires":"stereo_single_source","preserves_stereo_sum":true,"output":"left_and_right_layers"});
         snapshot["capabilities"]["audio"]["extraction"] = json!({
             "supported":true,"command":"extract_audio","requires":"video_with_audio",
             "output":"audio_layer","source":"preserved_with_audio_muted","reencode":false});
-        snapshot["capabilities"]["layer_timeline"]["extended_spans"]=json!({"supported":true,"project_format":13,
+        snapshot["capabilities"]["layer_timeline"]["extended_spans"]=json!({"supported":true,"project_format":motion_core::CURRENT_PROJECT_VERSION,
             "in_frame_min":-(motion_core::MAX_FRAMES as i32),"out_frame_max":motion_core::MAX_FRAMES,
             "coordinates":"signed_composition_frames","outside_composition":"retained_not_rendered"});
         snapshot["capabilities"]["vector_drawing"]["protocol"]=json!(3);
-        snapshot["capabilities"]["vector_drawing"]["groups"]=json!({"supported":true,"project_format":12,
+        snapshot["capabilities"]["vector_drawing"]["groups"]=json!({"supported":true,"project_format":motion_core::CURRENT_PROJECT_VERSION,
             "max_depth":motion_core::vector::groups::MAX_DEPTH,"max_items":motion_core::vector::groups::MAX_ITEMS,
             "ordered_paints":true,"isolated_opacity":true,"repeater":true,"multiple_repeaters":true,"max_copies":1024,
             "node_parameters":{"supported":true,"key":"node:<path_id>:<node_id>","components":6},"stroke_dash_parameters":true,
             "position_coordinates":"group_local_pixels_y_down","expressions":false,"separated_axes":false,
             "viewport_roi":"2d_without_effects_masks_or_image_consumers"});
-        snapshot["capabilities"]["vector_drawing"]["path_modifiers"]=json!({"project_format":11,
+        snapshot["capabilities"]["vector_drawing"]["path_modifiers"]=json!({"project_format":motion_core::CURRENT_PROJECT_VERSION,
             "trim_paths":true,"trim_modes":["simultaneously","individually"],"trim_range_percent":[0,100],
             "trim_offset_degrees":[-360000,360000],"stroke_dashes":true,"max_dash_pairs":3,
             "dash_length_pixels":[0.1,32768],"gap_length_pixels":[0,32768],"dash_offset_pixels":[-32768,32768],
             "max_output_nodes":motion_core::vector::path_ops::MAX_OUTPUT_NODES,"evaluation_order":["source","trim","dash","paint"],
             "groups":false,"repeater":false,"zero_length_dots":false});
-        snapshot["capabilities"]["layer_compositing"]=json!({"supported":true,"version":1,"project_format":10,
+        snapshot["capabilities"]["layer_compositing"]=json!({"supported":true,"version":1,"project_format":motion_core::CURRENT_PROJECT_VERSION,
             "blend_command":"set_layer_blend","matte_command":"set_track_matte",
             "blend_modes":["normal","add","multiply","screen","overlay","darken","lighten","difference","exclusion","subtract","divide","color_dodge","color_burn","hard_light","soft_light"],
             "blend_spaces":["linear","srgb"],"matte_modes":["alpha","alpha_inverted","luma","luma_inverted"],

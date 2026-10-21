@@ -35,7 +35,7 @@ pub use motion_model::{
 pub use motion_model::{
     FontAsset,
     Asset, Content, Layer, LayerTimeline, ParentLink, Project, Transform, MAX_COMPOSITION_FPS,
-    MAX_FRAMES, MAX_LAYERS,
+    MAX_FRAMES, MAX_LAYERS, CURRENT_PROJECT_VERSION,
 };
 pub use motion_model::{TimelineKey, TimelineLayer, TimelineProperties, TimelineTrack};
 pub use motion_model::{

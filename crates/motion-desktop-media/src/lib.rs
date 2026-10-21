@@ -120,7 +120,7 @@ impl Platform for DesktopPlatform {
         pcm: &Path,
         selected_track: Option<u32>,
         max_pcm_bytes: u64,
-        check: &mut dyn FnMut(f64) -> Result<()>,
+        check: &mut dyn FnMut(Option<f64>) -> Result<()>,
     ) -> Result<AudioAsset> {
         motion_media::decode_audio(path, pcm, selected_track, max_pcm_bytes, check)
     }

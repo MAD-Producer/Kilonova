@@ -93,7 +93,7 @@ fn paced_sampling_playback_records_native_costs_without_starving_frames() {
             ("combined", true, true),
         ] {
             let mut project = Project::new(640, 360, FIXTURE_FPS, FIXTURE_FRAMES).unwrap();
-            project.version = 21;
+            project.version = motion_model::CURRENT_PROJECT_VERSION;
             project.background = [0., 0., 0., 1.];
             for id in 1..=4 {
                 let mut layer = Layer::solid(
