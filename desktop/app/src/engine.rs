@@ -26,6 +26,7 @@ mod diagnostic_names;
 mod failure;
 mod ui_paint;
 mod frame_capture;
+mod movie_freeze;
 #[cfg(test)]
 mod fallback_tests;
 #[cfg(test)]
@@ -407,6 +408,7 @@ pub struct Engine {
     diagnostics: Arc<crate::diagnostics::Diagnostics>,
     in_flight: Arc<Mutex<Option<Flight>>>,
     frame_flight: Arc<Mutex<Option<Flight>>>,
+    movie_freeze_flight: Arc<Mutex<Option<Flight>>>,
     queue_depth: Arc<AtomicUsize>,
     shutdown: Arc<AtomicBool>,
     pending_node_expect: Arc<Mutex<Option<(u64, u64)>>>,
@@ -443,6 +445,12 @@ impl Engine {
     pub fn frame_capture_in_flight(&self) -> Option<(u64, Duration)> {
         static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
         crate::fallback_observation::recovered(&self.frame_flight, &FAILURES, "frame.flight.read", |flight|
+            flight.map(|flight| (flight.request, flight.started.elapsed())))
+    }
+    /// Independent snapshot IO remains visible even when the command worker is idle.
+    pub fn movie_freeze_in_flight(&self) -> Option<(u64, Duration)> {
+        static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
+        crate::fallback_observation::recovered(&self.movie_freeze_flight, &FAILURES, "movie.freeze.flight.read", |flight|
             flight.map(|flight| (flight.request, flight.started.elapsed())))
     }
     pub fn queue_depth(&self) -> usize {
@@ -578,6 +586,8 @@ impl Engine {
         let in_flight = Arc::new(Mutex::new(None));
         let frame_flight = Arc::new(Mutex::new(None));
         let worker_frame_flight = frame_flight.clone();
+        let movie_freeze_flight = Arc::new(Mutex::new(None));
+        let worker_movie_freeze_flight = movie_freeze_flight.clone();
         let worker_flight = in_flight.clone();
         let queue_depth = Arc::new(AtomicUsize::new(0));
         let worker_depth = queue_depth.clone();
@@ -647,6 +657,7 @@ impl Engine {
                 let mut node_preview = NodePreviewState::default();
                 let mut presentation = PresentationState::default();
                 let mut frame_capture = frame_capture::Worker::new(worker_frame_flight);
+                let mut movie_freeze = movie_freeze::Worker::new(worker_movie_freeze_flight);
                 let mut windows = std::collections::HashMap::new();
                 let mut failed_reply = None;
                 let mut channel_closed = true;
@@ -702,6 +713,7 @@ impl Engine {
                         &mut node_preview,
                         &mut presentation,
                         &mut frame_capture,
+                        &mut movie_freeze,
                         &worker_paints,
                         &worker_diagnostics,
                         command,
@@ -743,6 +755,7 @@ impl Engine {
                 drop(painter);
                 drop(node_preview);
                 drop(frame_capture);
+                drop(movie_freeze);
                 {
                     static FAILURES: crate::fallback_observation::Counter = crate::fallback_observation::Counter::new();
                     crate::fallback_observation::recovered(&worker_factory, &FAILURES, "engine.surface.shutdown", |factory| { factory.take(); });
@@ -785,6 +798,7 @@ impl Engine {
             diagnostics,
             in_flight,
             frame_flight,
+            movie_freeze_flight,
             queue_depth,
             shutdown,
             pending_node_expect,
@@ -1302,30 +1316,6 @@ fn clear_target(encoder: &mut wgpu::CommandEncoder, view: &wgpu::TextureView) {
 }
 
 
-/// Carry the originating command into the detached freeze worker. The engine's
-/// in_flight still describes only its serial worker, not this background task.
-fn spawn_movie_freeze<T: Send + 'static>(
-    reply: Sender<Result<T, String>>,
-    freeze: impl FnOnce() -> Result<T, String> + Send + 'static,
-) -> Result<(), String> {
-    let flight = CURRENT_COMMAND.get();
-    std::thread::Builder::new().name("motion-freeze-movie".into()).spawn(move || {
-        CURRENT_COMMAND.set(flight);
-        let began = Instant::now();
-        if let Some(flight) = flight {
-            log::info!("async start #{} {}", flight.request, flight.operation);
-            crate::logging::flush();
-        }
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(freeze))
-            .unwrap_or_else(|payload| Err(format!("movie freeze worker failed: {}", motion_media::panic_reason(payload))));
-        respond(reply, result.map_err(motion_host::Error::from));
-        if let Some(flight) = flight {
-            log::debug!("async done #{} {} {}ms", flight.request, flight.operation, began.elapsed().as_millis());
-        }
-        CURRENT_COMMAND.set(None);
-    }).map(|_| ()).map_err(|error| error.to_string())
-}
-
 fn respond<T>(reply: Sender<Result<T, String>>, value: motion_host::Result<T>) {
     if let Err(reason) = &value {
         if let Some(flight) = CURRENT_COMMAND.get() {
@@ -1424,6 +1414,7 @@ fn handle(
     node_preview: &mut NodePreviewState,
     presentation: &mut PresentationState,
     frame_capture: &mut frame_capture::Worker,
+    movie_freeze: &mut movie_freeze::Worker,
     paints: &Arc<std::sync::Mutex<Vec<motion_ui::paint::PaintList>>>,
     diagnostics: &crate::diagnostics::Diagnostics,
     command: Command,
@@ -1675,7 +1666,7 @@ fn handle(
                 "exposure_renderer":cfg!(feature="ffmpeg"),"codec_check":"export_start","requires":["h264","aac"]});
             state["desktop"]=serde_json::json!({"headless":painter.is_none(),"panelWindows":if painter.is_some(){windows.len()+1}else{0},"sharedGpuDevice":painter.is_some(),"agentToolProtocol":1,
                 "uiPerformance":{"compositionRenders":presentation.composition_renders,"compositionReuses":presentation.composition_reuses,"lastPresentUs":presentation.last_present_us},
-                "diagnostics":diagnostics.status(),"frameExport":frame_capture.status(),
+                "diagnostics":diagnostics.status(),"frameExport":frame_capture.status(),"movieFreeze":movie_freeze.status(),
                 "nodePreview":{"active":node_preview.active.as_ref().map(|p|p.stamp),"frames":node_preview.active.as_ref().map_or(0,|p|p.frames),"shaderRenders":node_preview.active.as_ref().map_or(0,|p|p.renders),"installs":node_preview.installs,"logicalSize":crate::node_preview::LOGICAL_SIZE,"rasterSize":crate::node_preview::RASTER_SIZE,"perFrameCpuReadbacks":0}});state
         })),
         Command::Save(reply) => respond(reply,project::save(id)),
@@ -1690,15 +1681,14 @@ fn handle(
         Command::ImportImage {file,reply} => respond(reply,motion_host::session::with_session(id,|s|crate::workflow::import_image(s,&file))),
         Command::CreateText {text,size,width,font,reply}=>respond(reply,motion_host::session::with_session(id,|s|crate::workflow::create_text(s,text,size,width,font))),
         Command::FreezeMovie {control,reply}=> {
-            let plan=motion_host::session::with_session(id,|s|motion_desktop_media::movie::FrozenMovie::capture_plan(s,&control).map_err(motion_host::Error::from));
-            match plan {
-                Err(error)=>respond(reply,Err(error)),
-                Ok(plan) => {
-                    if let Err(error) = spawn_movie_freeze(reply.clone(), move || plan.freeze(&control)) {
-                        respond(reply, Err(error.into()));
-                    }
-                }
-            }
+            let result = (|| -> motion_host::Result<()> {
+                movie_freeze.available()?;
+                let plan=motion_host::session::with_session(id,|s|motion_desktop_media::movie::FrozenMovie::capture_plan(s,&control).map_err(motion_host::Error::from))?;
+                let cancel = control.clone();
+                movie_freeze.start(reply.clone(), control, move || plan.freeze(&cancel))?;
+                Ok(())
+            })();
+            if let Err(error) = result { movie_freeze::respond_movie(reply, Err(error)); }
         },
         Command::RenderPreview {frame,reply}=>respond(reply,(||{if let Some(frame)=frame {preview::seek(id,frame)?;}export::capture(id)})()),
         Command::Edit { text, reply } => respond(reply,editing::command(id, &text)),

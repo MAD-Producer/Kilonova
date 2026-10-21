@@ -351,8 +351,9 @@ fn asynchronous_movie_freeze_keeps_command_context_before_completion_and_during_
         let (entered, entry) = channel();
         let (release, released) = channel();
         let (reply, receive) = channel::<Result<(),String>>();
+        let mut worker = movie_freeze::Worker::new(Arc::new(Mutex::new(None)));
         CURRENT_COMMAND.set(Some(Flight {request:21,operation:"freeze_movie",started:Instant::now()}));
-        spawn_movie_freeze(reply, move || {
+        worker.start(reply, motion_desktop_media::movie::ExportControl::default(), move || {
             entered.send(()).unwrap();
             released.recv().unwrap();
             Err("controlled freeze IO failure".into())
@@ -367,9 +368,45 @@ fn asynchronous_movie_freeze_keeps_command_context_before_completion_and_during_
 
         let (reply, receive) = channel::<Result<(),String>>();
         CURRENT_COMMAND.set(Some(Flight {request:22,operation:"freeze_movie",started:Instant::now()}));
-        spawn_movie_freeze(reply, || panic!("controlled freeze panic payload")).unwrap();
+        // A received result precedes the final worker bookkeeping. Reap it
+        // explicitly before testing a second independent worker.
+        drop(worker);
+        let mut worker = movie_freeze::Worker::new(Arc::new(Mutex::new(None)));
+        worker.start(reply, motion_desktop_media::movie::ExportControl::default(), || panic!("controlled freeze panic payload")).unwrap();
         CURRENT_COMMAND.set(None);
         assert!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err().contains("controlled freeze panic payload"));
+        drop(worker);
+        let mut worker = movie_freeze::Worker::new(Arc::new(Mutex::new(None)));
+        let (reply, receive) = channel::<Result<(),String>>();
+        CURRENT_COMMAND.set(Some(Flight {request:23,operation:"freeze_movie",started:Instant::now()}));
+        worker.start(reply, motion_desktop_media::movie::ExportControl::default(), || Err("movie export cancelled".into())).unwrap();
+        CURRENT_COMMAND.set(None);
+        assert_eq!(receive.recv_timeout(Duration::from_secs(5)).unwrap().unwrap_err(),"movie export cancelled");
+        drop(worker);
+        struct PanickingReply;
+        impl Drop for PanickingReply {
+            fn drop(&mut self) { panic!("controlled reply cleanup failure"); }
+        }
+        let (reply, receive) = channel();
+        drop(receive);
+        let observation = Arc::new(Mutex::new(None));
+        let mut worker = movie_freeze::Worker::new(observation.clone());
+        CURRENT_COMMAND.set(Some(Flight {request:24,operation:"freeze_movie",started:Instant::now()}));
+        worker.start(reply, motion_desktop_media::movie::ExportControl::default(), || Ok(PanickingReply)).unwrap();
+        CURRENT_COMMAND.set(None);
+        let deadline = Instant::now()+Duration::from_secs(5);
+        while observation.lock().unwrap().is_some() {
+            // A panic outside the handler leaves observation live until join.
+            if fs::read_to_string(root.join("motion-studio.log")).unwrap().contains("controlled reply cleanup failure") { break; }
+            assert!(Instant::now()<deadline);
+            std::thread::yield_now();
+        }
+        drop(worker);
+        assert!(observation.lock().unwrap().is_none());
+        crate::logging::flush();
+        let text = fs::read_to_string(root.join("motion-studio.log")).unwrap();
+        assert!(text.contains("cancelled #23 freeze_movie"));
+        assert!(!text.contains("error #23 freeze_movie"));
         return;
     }
     let root=tempfile::tempdir().unwrap();
@@ -383,4 +420,9 @@ fn asynchronous_movie_freeze_keeps_command_context_before_completion_and_during_
     assert!(text.contains("error #22 freeze_movie ") && text.contains("controlled freeze panic payload"));
     assert!(String::from_utf8_lossy(&output.stderr).contains("controlled freeze IO failure"));
     assert!(!String::from_utf8_lossy(&output.stdout).contains("controlled freeze IO failure"));
+    assert!(!String::from_utf8_lossy(&output.stderr).contains("error #23 freeze_movie"));
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("cancelled #23 freeze_movie"));
+    assert!(text.contains("movie freeze shutdown failed request=Some(24) phase=join cause=controlled reply cleanup failure"));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("movie freeze shutdown failed request=Some(24)"));
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("movie freeze shutdown failed request=Some(24)"));
 }
