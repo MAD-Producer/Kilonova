@@ -7,6 +7,7 @@ fn mask_refusal_preserves_cause_and_reaches_default_file_and_stderr() {
     if let Some(root) = std::env::var_os(CHILD) {
         let _logger = crate::logging::init(PathBuf::from(root)).unwrap();
         let mut project = motion_core::Project::new(32, 32, 30, 60).unwrap();
+        project.background = [0.; 4];
         let mut layer = motion_core::Layer::solid(77, "controlled mask", [32.; 2], [16., 16., 0.], [1.; 4]);
         let mut mask = motion_core::masks::LayerMask::new(55, motion_core::vector::VectorPath {
             id: 1, closed: true,
