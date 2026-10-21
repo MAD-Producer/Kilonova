@@ -563,3 +563,201 @@ is not a complete operation rollback claim. Fixed and other dynamic renderer
 resources, upload staging/raw external scope, shared session policy, platform
 pressure, full preview/export/repeated lifecycle acceptance and #67 remain pending.
 #60/#61/#67 remain open; precision settings and 3D integration remain parked.
+
+## Seventh increment: fixed resources and lazy SDK instances
+
+Builtin particle effects and presets were already retired. Their removal retained
+SDK scene rendering, whose implementation still allocated a 3 MiB instance buffer
+for every renderer. This increment removes that unconditional allocation without
+restoring any retired effect. A nonempty SDK frame requests its actual instance
+capacity, bounded by `MAX_SPRITES`; empty frames allocate nothing. Refused growth
+preserves the old allocation, reuse needs no new capacity even below a lowered
+limit, and working-set reclamation releases the buffer after outstanding users.
+
+Fixed draw uniforms (32,768 bytes), planar geometry (1,310,720), clear vertices
+(72), startup white (4), effect fallback white (4) and identity LUT (1,024) now
+share admission: **1,344,592 descriptor bytes in six allocations** per renderer.
+`FIXED_RENDERER_ALLOCATION_BYTES` describes this requested-limit baseline, not
+physical VRAM, staging, optional timers or an entire frame peak. The independent
+test pins both the byte sum and allocation count. Fixed reservations precede
+queue uploads; each of the six startup refusals releases partial admission to
+zero without an extra caller submission or poll. Upload destinations retain
+their reservations through queue completion; bindings drop before their backing
+resources. The mapped clear vertices do not add a queue write.
+
+Existing low-budget fixtures now explicitly fund these six fixed allocations.
+Their dynamic allowances, precise refusals, pixel assertions and tolerances are
+preserved. The cross-queue fixture funds its second renderer before constructing
+it. Expected combined byte totals and allocation counts intentionally changed;
+this is additional enrolled capacity, not an assertion-removal workaround.
+
+| New case ID | Accepted evidence and boundary |
+| --- | --- |
+| #61-A43 | Independently counted fixed descriptor bytes and six identities; real teardown with external device/queue handles retires to zero |
+| #61-A44 | All six exact startup byte boundaries retain typed causes/context and release partial reservations immediately |
+| #61-A45 | Open and finished abandoned commands retain fixed resources after renderer teardown and GPU completion; abandoning their actual owner releases them |
+| #61-A46 | Empty SDK data allocates no instance buffer; exact-size allocation, refused growth with stable old identity, reuse below the limit, count bound, queued-write retention and recovery are exercised |
+| #61-A47 | A fully culled SDK pass clears its real target without an instance allocation, then visible instances recover real nontransparent pixels |
+| #61-A48 | Real startup refusal preserves its reply/cause and request/operation/phase/bytes/time in default Info file and Error-stderr output with stdout isolation |
+
+The fixed-capacity control on `9cbb23b5` recorded only 4 bytes against the
+independent 1,344,592-byte expectation (cargo exit 101). During this increment,
+the first lazy implementation incorrectly rejected a zero-instance pass; test
+source `bbe819a5` reproduced the missing-buffer error. Correction `64f9798e`
+keeps the clear pass and skips its zero-instance draw. Neither control is a
+passing acceptance case. The new recovery fixture subsequently needed four
+setup/eligibility lines to produce visible instances; its transparent/visible
+pixel assertions remain intact.
+
+## Accepted local evidence for the seventh increment
+
+| Source and selection | Result |
+| --- | --- |
+| `14a9e240`: complete render library | 69 pass |
+| `da94f499`: nine completed, unaffected GPU integration binaries | 60 pass |
+| `0a698095`: complete source/video allocation integration suites | 8 pass |
+| `0a698095`: desktop default logging boundaries | 9 pass |
+| `0a698095`: workspace/all-targets FFmpeg check, excluding Android | Pass; existing warnings retained |
+| `0a698095`: panel style consumer guard | Pass; no panel file changed |
+
+These are **146 distinct selected passing cases across source-bound runs**;
+they were not all rerun on the last commit. Only two integration fixture files
+changed after the 69-case library run; production and library-test sources are
+unchanged. Only `source_allocation_budget.rs` changed after the nine passing GPU
+binaries. That multi-binary invocation later failed two source-budget cases
+because three expected capacity expressions omitted the newly enrolled fixed
+baseline. Its overall exit remains 101; it is not labelled green. Correcting
+those three fixture expressions and rerunning the entire source/video allocation
+suites produced the eight passing cases above. Earlier cross-queue funding and
+new recovery-fixture failures are retained too; later success does not erase them.
+
+Logs are `E:/Dev/aem/artifacts/pr-queue/fixed-admission-before-fix.log`,
+`empty-instance-before-fix.log`, `fixed-admission-*`, `fixed-final-*`,
+`fixed-complete-*` and `fixed-finish-*`. Source-bound exit receipts retain the
+failed invocations as well as successes. Source/log hashes, unchanged production
+proof and retained empty/visible pixel assertions are recorded in
+`E:/Dev/aem/.tools/issue-closure-review/fixed-admission-acceptance.json`.
+Worktrees stayed clean and unchanged during each sequential validation command.
+This selection is not a complete desktop suite or cross-platform CI claim.
+
+PR #398 passed all four required current checks and merged as
+`50d43ee33b53f0b9ffbbcdf13d42e3b243716c02` with a Chinese merge message;
+the seventh increment includes that main ancestry. No dependency, asset, panel,
+layout, style or interaction changes. Allocation timing and the zero-instance
+clear correction are the functional resource changes described above.
+
+Optional GPU timers, remaining dynamic renderer resources, staging/raw external
+scope, shared session/platform policy, bounded preview/export recovery and full
+repeated lifecycle acceptance remain pending. #60/#61/#67 remain open; #67 reuse,
+project precision and 3D integration are not completed by this increment.
+
+## Eighth increment: optional GPU timing buffer admission
+
+`GpuTimer::new` now uses its renderer's allocation budget. A supported timer
+admits a 1,024-byte resolve buffer and four 32-byte readback buffers: **1,152
+descriptor bytes in five allocations**, independent of query-set/driver memory.
+It returns `Result<Option<GpuTimer>>`: unsupported timestamp queries remain a
+normal `Ok(None)`, while capacity refusal retains the original typed rejection.
+All fallible buffer reservations precede publication and queue writes are not
+needed. Partial construction therefore retires directly when no command scope
+owns those reservations. The host propagates refusal instead of reporting
+unsupported timing; a refused profiling replacement preserves the old timer.
+
+Pending readback callbacks own both their actual raw buffer and its allocation
+lease. Dropping a timer releases its other buffers, while the pending 32 bytes
+retire only when the actual mapping callback runs. No frame-loop wait, retry,
+new dependency, retired particle product, panel or style is introduced.
+
+| Item | Evidence | Disposition |
+| --- | --- | --- |
+| #61-A49 | Independent sum of four aligned resolve slots and four timestamp readbacks; timer and renderer teardown | New admission; expected failing control reproduced |
+| #61-A50 | All five exact capacity boundaries reject with original scope/required/budget/label; partial construction retires before poll/submit; recovery succeeds | New refusal and cleanup coverage |
+| #61-A51 | A device without enabled timestamp queries returns `Ok(None)` and leaves admission unchanged | Normal unsupported branch |
+| #61-A52 | Refused replacement preserves old capacity and slot reservations; existing slots work below a lowered limit | New preservation coverage |
+| #61-A53 | Actual resolve/copy commands retain timing capacity through abandoned and submitted command owners | New lifetime coverage |
+| #61-A54 | Actual queued timestamp words, pending map, timer drop, and real successful callback; only the mapped 32 bytes remain until callback | New asynchronous lifetime coverage |
+| #61-A55 | Actual final timing-buffer refusal through existing `respond`, with request 207/operation/timing/original typed cause; default file, Error stderr and stdout isolation | Existing error boundary, newly exercised failure |
+
+The failing control at `3a98fa9d` reported only 1,344,592 admitted bytes against
+1,345,744 independently expected bytes. Cargo exited 101 after an actual GPU
+assertion failure, not a compile failure. It is not a passing acceptance result.
+The subsequent API adaptation preserves the original byte/count/teardown
+assertions; existing preview pixel and timing assertions are retained.
+
+Source-bound acceptance comprises **165 distinct selected passing tests**:
+- source `c2c1e26e`: render library 70, four GPU integration suites 16, host
+  library 69; the selected existing desktop boundary suite also passed nine
+  cases at this source (not counted twice)
+- source `c453aa53`: the ten-case desktop boundary suite including #61-A55,
+  workspace/all-targets FFmpeg check (excluding retired Android), and the panel
+  style guard all pass
+
+The only source delta between these selections adds the desktop test module and
+its registration. Production and the accepted render/host test sources are
+unchanged. Existing assertions and preview pixel tolerances are retained. These
+are selected tests, not a claim that the entire workspace test matrix ran.
+Raw logs and per-command source/exit receipts are `artifacts/pr-queue/timing-
+admission-*.log` / `.exit.json`; `timing-admission-acceptance.json` in the local
+review directory verifies source deltas, log SHA-256, counts and the failing
+control. Builds, temp data and artifacts remained on E:.
+
+Query-set metadata, driver allocations, raw external encoders, and other dynamic
+layer/vector/mask/compositing resources are not fully covered by this increment.
+Shared session policy, platform pressure, per-frame peaks, bounded full preview
+and export behavior, repeated lifecycle acceptance and #67 remain pending.
+This does not complete #60/#61/#67; precision and 3D remain parked.
+
+
+### Integration with the completed-frame retirement change
+
+PR #399's original commits are included, without reimplementing its ownership /
+work-retention separation. Its AR-01 regression still funded only the former
+four-byte renderer baseline. Direct composition at `f8b467bc` reproduced an
+actual startup refusal (`required_bytes=32772`, `budget_bytes=2052`), before
+entering the retirement loop; cargo exit 101 is retained as a failed control.
+`1db71805` changes exactly four fixture lines: import the independently tested
+fixed-capacity constant and use it in the allowance and two exact retirement
+expectations. The target allowance, four-frame loop and strict requirement that
+completed transient targets leave only startup capacity are unchanged. This is
+an accounting-scope fixture update, not a relaxed lifetime assertion or a new
+product defect fix. The other incoming retirement assertion remains tightened.
+
+The combined source `1db71805` passes **174 distinct selected tests**: render
+library 70, seven GPU suites 25 (including AR-01), host library 69, and desktop
+default-log boundary 10. Workspace/all-targets FFmpeg check (excluding retired
+Android) and the panel style guard also pass. Raw `timing-admission-combined-*`
+logs/exit receipts and `timing-combined-acceptance.json` bind these results to
+the exact source and preserve the failing control. This is the final local
+combined selection, not an assertion that all workspace tests or the updated
+public CI passed. No tracked source changed while either validation ran.
+
+This integrates the incoming resource-lifetime implementation and keeps the
+seven new timing cases in the same PR as the fixed-resource work. #61's remaining
+dynamic resources, shared/platform policy, preview/export/lifecycle acceptance
+and #67 are still pending; retired builtin particle products remain absent.
+
+
+### Optional timestamp capability in desktop CI
+
+Public source `d8671a3e` passed Rust/GPU, Linux and Windows, but macOS Intel
+job119245623228 failed the desktop timer fixture: its adapter returned the
+documented normal `Ok(None)`, while the fixture required a budget error from
+every adapter. This is a capability-precondition defect in the test. Production
+support detection and budget handling are unchanged.
+
+Source `f6f7698e` checks actual enabled timestamp features and the native queue
+period before selecting the oracle. Supported devices still require the
+original exact typed refusal, byte counts, reply/cause/context and all default
+file/stderr/stdout assertions. Unsupported devices must return `None`, preserve
+the entire admission snapshot, leave GPU health intact, and emit no command
+failure on any output channel. A second test deliberately disables timestamp
+requests on every platform, so this normal branch is exercised independently
+of CI hardware. No test is ignored or retried, and no production API changes.
+
+Both selected desktop subprocess tests pass at exact source `f6f7698e`, with
+zero failures or ignores. `timing-unsupported-fixture.log` / `.exit.json` and
+`timing-unsupported-acceptance.json` retain source, command, exit and log hash.
+The earlier174-case combined acceptance remains attached to its original
+source; these two executions are not presented as another full combined run.
+Fresh public macOS CI is still required before merging. A successful normal
+unsupported test does not prove native timer refusal on that adapter.

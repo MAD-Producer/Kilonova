@@ -1,3 +1,5 @@
+const SYSTEM_BYTES: u64 = motion_render::FIXED_RENDERER_ALLOCATION_BYTES;
+
 use motion_core::{Layer, Project};
 use motion_render::{
     AllocationBudget, ChromaLayout, Renderer, ResourceBudgetScope, ResourceRejection, Scene,
@@ -48,7 +50,7 @@ fn flush(renderer: &Renderer) {
 
 #[test]
 fn late_video_uniform_refusal_rolls_back_planes_and_output_without_changing_old_pixels() {
-    let budget = AllocationBudget::new(4096).unwrap();
+    let budget = AllocationBudget::new(SYSTEM_BYTES + 4092).unwrap();
     let mut renderer = renderer(&budget);
     renderer
         .upload_video_frame(1, 10, 0, 2, 2, &[0, 255, 0, 255].repeat(4))
@@ -57,7 +59,7 @@ fn late_video_uniform_refusal_rolls_back_planes_and_output_without_changing_old_
     let old = renderer.capture(&scene(), &target).unwrap().0;
     assert_eq!(old, [0, 255, 0, 255].repeat(4));
     let before = budget.info().unwrap();
-    assert_eq!(before.admitted_bytes, 4 + 16 + 16 + 512);
+    assert_eq!(before.admitted_bytes, SYSTEM_BYTES + 16 + 16 + 512);
     let textures = renderer.texture_memory_breakdown();
     let uploads = renderer.video_uploads;
     // New RGBA16 + Y4 + UV2 + uniform48 overlap the old image until completion.
@@ -101,17 +103,17 @@ fn late_video_uniform_refusal_rolls_back_planes_and_output_without_changing_old_
         .all(|(a, b)| a.abs_diff(b) <= 1));
     assert_eq!(
         budget.info().unwrap().admitted_bytes,
-        4 + 16 + 6 + 48 + 16 + 512
+        SYSTEM_BYTES + 16 + 6 + 48 + 16 + 512
     );
     drop(target);
     renderer.clear_assets();
     flush(&renderer);
-    assert_eq!(budget.info().unwrap().admitted_bytes, 4);
+    assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES);
 }
 
 #[test]
 fn raw_encoded_video_tokens_keep_destinations_through_cache_clear_and_real_submission() {
-    let budget = AllocationBudget::new(4 + 16 + 6 + 48).unwrap();
+    let budget = AllocationBudget::new(SYSTEM_BYTES + 16 + 6 + 48).unwrap();
     let mut renderer = renderer(&budget);
     for submitted in [false, true] {
         let mut encoder = renderer.device.create_command_encoder(&Default::default());
@@ -119,11 +121,11 @@ fn raw_encoded_video_tokens_keep_destinations_through_cache_clear_and_real_submi
             .encode_video_yuv(1, 10, 0, &frame(), &mut encoder)
             .unwrap()
             .unwrap();
-        assert_eq!(budget.info().unwrap().admitted_bytes, 74);
-        assert_eq!(budget.info().unwrap().live_allocations, 5);
+        assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES + 70);
+        assert_eq!(budget.info().unwrap().live_allocations, 10);
         renderer.clear_assets();
         // No admitted encoder can hide missing retention by the upload token.
-        assert_eq!(budget.info().unwrap().admitted_bytes, 74);
+        assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES + 70);
         if submitted {
             renderer.queue.submit(Some(encoder.finish()));
             upload.mark_submitted();
@@ -131,10 +133,10 @@ fn raw_encoded_video_tokens_keep_destinations_through_cache_clear_and_real_submi
             drop(encoder);
             drop(upload);
             // Only the queued plane/uniform writes plus the white source remain.
-            assert_eq!(budget.info().unwrap().admitted_bytes, 4 + 6 + 48);
+            assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES + 6 + 48);
         }
         flush(&renderer);
-        assert_eq!(budget.info().unwrap().admitted_bytes, 4);
-        assert_eq!(budget.info().unwrap().live_allocations, 1);
+        assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES);
+        assert_eq!(budget.info().unwrap().live_allocations, 6);
     }
 }
