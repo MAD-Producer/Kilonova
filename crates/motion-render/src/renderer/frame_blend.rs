@@ -5,12 +5,26 @@ use std::collections::HashSet;
 pub(super) struct FrameBlendGpu {
     layout: wgpu::BindGroupLayout,
     pipeline: wgpu::RenderPipeline,
-    uniform: wgpu::Buffer,
+    uniform: crate::allocation_buffer::AllocationBuffer,
     outputs: HashMap<u64, (u64, u64, u64, u32)>,
 }
 
 impl FrameBlendGpu {
-    fn new(device: &wgpu::Device, format: wgpu::TextureFormat) -> Self {
+    fn new(
+        device: &wgpu::Device,
+        format: wgpu::TextureFormat,
+        budget: &crate::AllocationBudget,
+    ) -> Result<Self> {
+        let uniform = crate::allocation_buffer::AllocationBuffer::new(
+            device,
+            budget,
+            &wgpu::BufferDescriptor {
+                label: Some("video frame blend weight"),
+                size: 16,
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            },
+        )?;
         let texture = |binding| wgpu::BindGroupLayoutEntry {
             binding,
             visibility: wgpu::ShaderStages::FRAGMENT,
@@ -76,18 +90,12 @@ impl FrameBlendGpu {
             multiview_mask: None,
             cache: None,
         });
-        let uniform = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("video frame blend weight"),
-            size: 16,
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-        Self {
+        Ok(Self {
             layout,
             pipeline,
             uniform,
             outputs: HashMap::new(),
-        }
+        })
     }
 }
 
@@ -176,8 +184,10 @@ impl Renderer {
             return Ok(());
         }
         let output = TextureKey::VideoBlendSource(object, slot);
-        self.ensure_video_blend_image(output, size, source)?;
-        self.submit_video_blend(input, input, output, 0.0)?;
+        self.submit_video_blend(input, input, output, 0.0, source).map_err(|error| {
+            let context = format!("video object={object} source={source} pts_us={pts} slot={slot} size={}x{} phase=blend_cache: {error}", size.0, size.1);
+            error.with_diagnostic(context)
+        })?;
         self.images
             .get_mut(&output)
             .expect("blend target allocated")
@@ -228,8 +238,10 @@ impl Renderer {
             )));
         }
         let output = TextureKey::Video(object);
-        self.ensure_video_blend_image(output, size, source)?;
-        self.submit_video_blend(left, right, output, weight)?;
+        self.submit_video_blend(left, right, output, weight, source).map_err(|error| {
+            let context = format!("video object={object} source={source} left_pts_us={left_pts} right_pts_us={right_pts} size={}x{} phase=blend: {error}", size.0, size.1);
+            error.with_diagnostic(context)
+        })?;
         // The result is not a decoded frame: a subsequent Hold must upload it anew.
         self.images
             .get_mut(&output)
@@ -338,13 +350,23 @@ impl Renderer {
         right: TextureKey,
         output: TextureKey,
         weight: f32,
+        source: u64,
     ) -> Result<()> {
+        // Refuse scope exhaustion before replacing a completed output image,
+        // allocating a cache target or queuing a uniform write.
+        let mut encoder = self.allocation_budget.encoder(&self.device, self.allocation_owner.clone(), &wgpu::CommandEncoderDescriptor {
+                label: Some("video frame blend"),
+            })?;
+        let size = self.images[&left].size;
+        self.ensure_video_blend_image(output, size, source)?;
         let output_image = &self.images[&output];
         let format = output_image._texture.format();
         let output_view = output_image._texture.create_view(&Default::default());
-        let gpu = self
-            .video_blend
-            .get_or_insert_with(|| FrameBlendGpu::new(&self.device, format));
+        if self.video_blend.is_none() {
+            self.video_blend = Some(FrameBlendGpu::new(&self.device, format, &self.allocation_budget)?);
+        }
+        let gpu = self.video_blend.as_ref().expect("blend pipeline initialized");
+        self.allocation_uploads.track(Some(gpu.uniform.allocation()))?;
         self.queue.write_buffer(
             &gpu.uniform,
             0,
@@ -368,9 +390,6 @@ impl Renderer {
                 },
             ],
         });
-        let mut encoder = self.allocation_budget.encoder(&self.device, self.allocation_owner.clone(), &wgpu::CommandEncoderDescriptor {
-                label: Some("video frame blend"),
-            })?;
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("video frame blend"),
