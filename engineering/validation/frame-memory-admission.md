@@ -476,3 +476,90 @@ No dependency, asset, panel, existing assertion or pixel tolerance changed.
 Remaining renderer resources, upload staging, shared session policy, platform
 pressure, combined preview/export/lifecycle acceptance and #67 reuse are pending.
 #60/#61/#67 remain open; precision settings and 3D integration remain parked.
+
+## Sixth increment: video frame-blend parameters
+
+The lazy 16-byte video frame-blend weight buffer now uses the same allocation
+budget as its images. A refused buffer does not publish a partial pipeline or
+acknowledge an unfinished cache image. Its original typed capacity cause retains
+the object, source, PTS, slot, extent, phase and buffer descriptor context.
+An already admitted, unready cache image remains available for a later retry;
+this change does not claim complete operation rollback or preview recovery.
+
+An encoder reservation is acquired before allocating or replacing the output,
+tracking the destination or queuing the uniform write. Scope exhaustion therefore
+preserves the completed output and cannot leave a new queued weight update.
+Successful writes retain their destination through the existing upload journal,
+and allocation scopes hold the weight alongside images through abandonment or
+GPU completion. Texture-category subtotals continue to exclude this buffer;
+combined capacity includes it once by identity. Queue-owned staging is still
+outside this destination-capacity scope.
+
+Prepared cases exercise an actual late buffer refusal with preserved decoded
+pixels and real linear-blend recovery; scope exhaustion without a queued write
+or false completion stamp; open and finished abandoned scopes plus teardown;
+and the real refusal through unchanged replies and default file/Error-stderr
+output with stdout isolation. No existing assertion or tolerance changes.
+Record source-bound results separately before treating these cases as accepted.
+
+The additional output-preservation regression reproduced the premature replacement
+on test-only source `2277fc9bbaa648a798d2afd629f0c4acaa4c4cc6`: scope refusal had
+already replaced allocation identity 2 with 8. The expected failing invocation is
+retained in `E:/Dev/aem/artifacts/pr-queue/blend-output-before-fix.log`, with an
+explicit exit-101 receipt. This is reproduction evidence, not a passing case.
+The correction moves the same reservation before target allocation and keeps
+the regression assertions unchanged. Final-source evidence follows.
+
+## Accepted local evidence for the sixth increment
+
+Initial source `d80d42b8bd5ca0084078b9f1ca871dd6818ae101` passed the complete
+render library (67), seven affected GPU suites (36), host boundaries/policy/preview
+(17), desktop default logging boundaries (8), workspace/all-targets FFmpeg check
+and the panel style guard: 128 selected passing cases, zero failures or ignores.
+That selection lacked the output-preservation regression; its green count did
+not prove that a refused first mixture preserved the decoded output.
+
+Test-only source `2277fc9bbaa648a798d2afd629f0c4acaa4c4cc6` then reproduced that
+defect, with cargo exit 101 at the allocation-identity assertion. The correction
+in `a4f44c58` kept the regression file unchanged and moved scope admission before
+target allocation/replacement. Final checked source
+`403b09f2f9bce75c9670c330f9b80ad59409bab3` also integrates actual main
+`7967ae21d3ba89938568b50ecedfb704799ed016`, including PR #396's export clock and
+native failure evidence changes and the merged exposure/effect increment.
+
+| Final-source check | Result |
+| --- | --- |
+| Four frame-blend admission/output-preservation GPU library cases | 4 pass |
+| Frame-blend and video-lifetime integration suites | 14 pass |
+| Desktop failure boundaries at default Info | 8 pass |
+| Workspace/all-targets FFmpeg check, excluding Android | Pass; existing warnings retained |
+| Panel style consumer guard | Pass; no panel file changed |
+
+These are 26 selected passes on the final source, zero failures or ignored cases.
+The earlier 128-case selection remains evidence for its exact initial source;
+it was not all rerun on the final source. The selections overlap and must not be
+added. Neither selection is the complete desktop suite or cross-platform CI.
+The worktree remained clean and unchanged during each sequential invocation.
+
+| New case ID | Evidence and boundary |
+| --- | --- |
+| #61-A38 | A real late 16-byte weight refusal retains the typed required/budget cause, decoded stamp and actual black pixels; raising the limit permits cache completion and the real linear midpoint |
+| #61-A39 | Exhausting 64 encoder scopes does not acknowledge an unfinished cache or queue a weight write; reclaiming then dropping scopes returns to the startup image without another submit/poll, and real blend recovery succeeds |
+| #61-A40 | Open and finished abandoned scopes retain the new weight alongside images after actual GPU completion and working-set reclaim; dropping them releases to the startup image, then teardown with external device/queue handles releases to zero |
+| #61-A41 | Actual weight refusal preserves the original reply and request/operation/object/source/PTS/slot/extent/phase/bytes/time in default file/Error-stderr output without stdout leakage |
+| #61-A42 | The same regression that failed before the correction now preserves output allocation identity, decoded stamp, actual white pixels and budget state on scope refusal; a later actual mixture produces the linear midpoint |
+
+Logs: `E:/Dev/aem/artifacts/pr-queue/blend-admission-final-*.log` (initial),
+`blend-output-before-fix.log` (expected failing reproduction), and
+`blend-output-final-*.log` (final). Each command has a source-bound exit receipt.
+Source/log hashes and the unchanged-regression proof are retained in
+`E:/Dev/aem/.tools/issue-closure-review/blend-admission-initial-acceptance.json`
+and `E:/Dev/aem/.tools/issue-closure-review/blend-output-final-acceptance.json`.
+The expected failing control is explicitly excluded from passing acceptance.
+
+No dependency, asset, panel, existing assertion or pixel tolerance changed.
+An unready new cache image can still remain after a first weight refusal; this
+is not a complete operation rollback claim. Fixed and other dynamic renderer
+resources, upload staging/raw external scope, shared session policy, platform
+pressure, full preview/export/repeated lifecycle acceptance and #67 remain pending.
+#60/#61/#67 remain open; precision settings and 3D integration remain parked.

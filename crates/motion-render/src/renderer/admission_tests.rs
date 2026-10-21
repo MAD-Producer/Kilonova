@@ -2,6 +2,7 @@ use super::*;
 use motion_core::{Asset, Content, EffectInstance, Layer};
 
 mod effect_resources;
+mod frame_blend;
 
 #[test]
 fn cached_effect_bindings_keep_admitted_sources_until_the_bindings_are_invalidated() {
