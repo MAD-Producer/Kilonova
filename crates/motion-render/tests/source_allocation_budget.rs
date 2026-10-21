@@ -192,7 +192,7 @@ fn video_output_admission_preserves_previous_rgba_and_conversion_retirement() {
     assert_eq!(renderer.texture_memory_breakdown().video_planes, 0);
     assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES + 16);
     // Include the newly admitted Y/UV planes (6) and conversion uniform (48).
-    budget.set_limit(36 + 6 + 48).unwrap();
+    budget.set_limit(SYSTEM_BYTES + 32 + 6 + 48).unwrap();
     let unfinished = renderer
         .allocation_command_encoder(&Default::default())
         .unwrap();
@@ -206,7 +206,7 @@ fn video_output_admission_preserves_previous_rgba_and_conversion_retirement() {
         .unwrap();
     renderer.retain_video_instances(&empty);
     assert_eq!(renderer.texture_memory_breakdown().video_rgba, 0);
-    assert_eq!(budget.info().unwrap().admitted_bytes, 36 + 6 + 48);
+    assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES + 32 + 6 + 48);
     assert!(renderer.render_target(1, 1).is_err());
     drop(unfinished);
     renderer
@@ -268,7 +268,7 @@ fn standalone_video_scope_refusal_preserves_the_previous_image_and_stamp() {
         .device
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
-    assert_eq!(budget.info().unwrap().admitted_bytes, 20 + 6 + 48);
+    assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES + 16 + 6 + 48);
     renderer.check_health().unwrap();
 }
 
