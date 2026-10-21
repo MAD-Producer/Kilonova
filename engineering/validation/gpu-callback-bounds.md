@@ -37,3 +37,17 @@ Error 的操作、renderer ID、累计次数、耗时、适配器/backend/vendor
 6. `gpu-callback-native-output.json` 及 `native-gpu-callback-6opbmzbj/`：真实默认 Info（MOTION_LOG 未设置），指定 GPU 回调 Error 在文件/stderr/stdout 为 **1/1/0**；文件 **4448 字节**，stderr **3414 字节**。原始适配器为 RTX 4070 Laptop、NVIDIA 591.86、Vulkan。错误在任何 health 查询前已进文件，摘要含 buffer 标签两端及末尾 usage 根因；后续错误不覆盖首因，主动销毁没有额外故障记录。销毁后的测试使用 GPU 等待以排空回调，子进程有 45 秒外部上限；这不是新增生产超时或重试。
 7. 最终工作区 `--all-targets --exclude motion-android --features motion-host/diagnostics --locked --offline` 检查通过，**35 秒**，`gpu-final-workspace.log`。带 FFmpeg 的桌面构建通过，**17.28 秒**，保留 21 条既有构建警告，`gpu-final-build.log`。
 8. 三个新增/修改的故障 Rust 实现及测试文件 rustfmt、暂存差异空白检查通过；来源守卫覆盖 **1569 个跟踪路径**，桌面样式消费守卫通过。没有全量格式化历史生产文件。远程 CI 仍需按最新提交验证，先前 head 的绿色检查不冒充最新检查结果。
+
+## 模型、钢笔主线合并后的复验（2026-10-21）
+
+#380、#379 已合入后，将本分支同步到主线 `c390e3851de4af8b55f8acb01afc4c536a6e4987`。唯一文本冲突位于 Renderer 的相邻诊断接口：同时保留本分支 `vector_upload_info` 和主线 `submission_memory_snapshot`，没有移除提交台账接口，也没有改变上述复用及故障语义。相对该主线只有原有上传、GPU 观察和验收文件差异，无新增产品 UI、依赖、资产或 CI 改动。
+
+沿用独立目标目录 `target/vector-upload-reuse-verified`、原生 MSVC/FFmpeg、锁定离线依赖、debug assertions 开启、两个构建任务及单测试线程。证据位于 `artifacts/pr-ci-followups/`：
+
+- `vector-current-main-check.log`：工作区 `--all-targets --exclude motion-android --features motion-desktop/ffmpeg,motion-host/diagnostics` 检查通过，1 分 53 秒。
+- `vector-current-main-render.log`：完整渲染库 **52 项**、成本记录 **3 项**、矢量复用真实 GPU 像素 **2 项**通过；包含主线替换纹理在途保留、台账上限及预算拒绝回归。两个像素用例继续验证预热后创建次数不增长、跨图层隔离和一次提交内两次 encode 的独立输出。
+- `vector-current-main-upload-logs.log`、`vector-current-main-gpu-logs.log`：各 **1 项**真实原生失败通过。未设置 MOTION_LOG，实际销毁设备触发 BufferAsyncError、非法 buffer usage 触发生产 uncaptured 回调，断言默认文件/Error stderr/stdout 分流为 1/1/0、上下文和有界摘要；子进程内断言不重复计数。
+- 本次合计 **59 个不同测试通过，0 失败、0 忽略**。这是最新组合的定向回归，未重跑完整宿主或完整桌面运行套件；不与早期 201 项相加。前一次仅同步旧主线 `3dfa5e1e` 的检查和 `--no-run` 输出保留为阶段记录，不计作当前运行通过。
+- 来源守卫覆盖 **1638 个跟踪路径**、桌面样式消费及差异空白检查通过。仅有既有编译警告。
+
+最新提交仍须重新通过远程平台 CI；旧 head 的绿色状态不能代替本次检查。上述复验未证明历史 Vulkan loader 访问冲突的根因或修复，也不扩展为 FPS、整机显存下降或聚合 issue 已完成的结论。

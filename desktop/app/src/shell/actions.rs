@@ -140,6 +140,9 @@ impl Shell {
         context.action = match &action {
             Action::Edit(command) => motion_core::CommandRegistry::id(command),
             Action::EditBatch(_) => "command_batch",
+            Action::OrderLayers { .. } => "reorder_layers",
+            Action::AlignLayers { .. } => "align_layers",
+            Action::DistributeLayers { .. } => "distribute_layers",
             Action::Seek(_) => "seek",
             Action::History(_) => "history",
             Action::Plugin(_) => "plugin",
@@ -257,6 +260,35 @@ impl Shell {
                     self.engine
                         .edit_async(serde_json::to_string(&commands).map_err(|e| e.to_string())?)?,
                 ));
+            }
+            Action::OrderLayers { objects, order } => {
+                match panels::layer_navigation::plan(&self.state, &objects, order) {
+                    Ok(commands) if !commands.is_empty() => {
+                        let composition = self.state["composition"].as_str()
+                            .or_else(|| self.state["project"]["composition_id"].as_str())
+                            .ok_or("reorder_layers: missing composition identity")?.to_owned();
+                        let revision = self.state["revision"].as_u64()
+                            .ok_or("reorder_layers: missing project revision")?;
+                        let commands: Vec<_> = commands.into_iter().map(|command|
+                            motion_core::Command::InComposition { composition: composition.clone(), command: Box::new(command) }).collect();
+                        self.stop();
+                        self.editing = Some((Instant::now(), self.engine.edit_async_at_revision(
+                            serde_json::to_string(&commands).map_err(|error| error.to_string())?, revision
+                        )?));
+                    }
+                    Ok(_) => {},
+                    Err(panels::layer_navigation::Unavailable::InvalidSnapshot) =>
+                        return Err("reorder_layers: invalid layer ordering snapshot".into()),
+                    Err(reason) => self.panels.message = Some(reason.message(self.workspace.locale).into()),
+                }
+            }
+            Action::DistributeLayers {objects,distribution} => {
+                self.stop();
+                self.editing=Some((Instant::now(),self.engine.distribute_layers_async(objects,distribution)?));
+            }
+            Action::AlignLayers {objects,edge,target} => {
+                self.stop();
+                self.editing=Some((Instant::now(),self.engine.align_layers_async(objects,edge,target)?));
             }
             Action::NewNodeEffect(object) => {
                 self.open_node_effect(object, None, false, event_loop)?

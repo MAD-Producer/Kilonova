@@ -11,7 +11,7 @@ pub fn audio_references(
     end_seconds: f64,
     check: &mut dyn FnMut(f64) -> Result<()>,
 ) -> Result<Vec<f64>> {
-    asset.validate().map_err(|e| e.to_string())?;
+    asset.validate().map_err(crate::Error::from)?;
     if !begin_seconds.is_finite() || !end_seconds.is_finite() || begin_seconds > end_seconds {
         return Err("invalid audio reference interval".into());
     }

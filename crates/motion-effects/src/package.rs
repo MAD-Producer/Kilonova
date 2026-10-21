@@ -368,7 +368,15 @@ impl Registry {
                     } else {
                         EffectPackage::open(&e.path()).map(Arc::new)
                     };
-                    match package.and_then(|p| r.insert(p)) {
+                    match package.and_then(|p| {
+                        // Intentional retirement, not a failed load. Keep the
+                        // user's cached bytes untouched without rediscovering
+                        // removed product effects on every application start.
+                        if crate::builtin::is_retired_plugin(&p.manifest.id) {
+                            return Ok(());
+                        }
+                        r.insert(p)
+                    }) {
                         Ok(()) => {}
                         Err(e) => r.diagnostics.push(e.to_string()),
                     }
@@ -396,10 +404,20 @@ impl Registry {
         self.packages
             .get(&key)
             .cloned()
-            .ok_or_else(|| Error::Invalid(format!("missing plugin {id} {version} ({hash})")))
+            .ok_or_else(|| {
+                if crate::builtin::is_retired_plugin(id) {
+                    Error::Invalid(format!("retired bundled plugin {id} {version} ({hash}) is no longer available; replace this effect with a user-authored package"))
+                } else {
+                    Error::Invalid(format!("missing plugin {id} {version} ({hash})"))
+                }
+            })
     }
     pub fn install(&mut self, directory: &Path, path: &Path) -> Result<InstalledPlugin> {
         let package = Arc::new(EffectPackage::open(path)?);
+        ensure(
+            !crate::builtin::is_retired_plugin(&package.manifest.id),
+            format!("retired bundled plugin {} is no longer installable; use an independently authored package ID", package.manifest.id),
+        )?;
         let mut next = self.clone();
         // Another session may have installed a version since this registry was opened.
         for installed in Self::load(directory)?.packages.into_values() {
@@ -453,7 +471,7 @@ impl Registry {
         hash: &str,
     ) -> Result<()> {
         ensure(
-            id != crate::builtin::PLUGIN_ID && id != "com.motionstudio.effects.scene",
+            id != crate::builtin::PLUGIN_ID,
             "the preinstalled core library cannot be uninstalled",
         )?;
         let key = (id.into(), version.into(), hash.into());

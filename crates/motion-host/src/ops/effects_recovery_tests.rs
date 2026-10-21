@@ -1,3 +1,5 @@
+#[path = "../../../motion-effects/tests/support/scene_packages.rs"]
+mod scene_fixtures;
 use super::*;
 use crate::{Platform, SurfaceTarget, VideoDecoder, VideoQuery};
 use motion_media::Result as MediaResult;
@@ -25,7 +27,7 @@ impl Platform for Stub {
         _: &Path,
         _: motion_core::VideoAsset,
         _: Vec<u64>,
-    ) -> Result<Box<dyn VideoDecoder>> {
+    ) -> motion_media::Result<Box<dyn VideoDecoder>> {
         Err("unused".into())
     }
     fn decode_audio(
@@ -38,7 +40,7 @@ impl Platform for Stub {
     ) -> MediaResult<motion_core::AudioAsset> {
         Err("unused".into())
     }
-    fn media_capabilities(&self, _: Option<&VideoQuery>) -> Result<serde_json::Value> {
+    fn media_capabilities(&self, _: Option<&VideoQuery>) -> motion_media::Result<serde_json::Value> {
         Ok(serde_json::json!({}))
     }
     fn attach_surface(
@@ -46,14 +48,14 @@ impl Platform for Stub {
         _: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         _: u32,
         _: u32,
-    ) -> Result<SurfaceTarget> {
+    ) -> crate::Result<SurfaceTarget> {
         Err("unused".into())
     }
 }
 
 fn session() -> (tempfile::TempDir, Session, String) {
     let directory = tempfile::tempdir().unwrap();
-    let package = motion_effects::builtin::particle_package().unwrap();
+    let package = scene_fixtures::particle_package().unwrap();
     let mut project = motion_core::Project::new(64, 64, 30, 120).unwrap();
     let mut layer = motion_core::Layer::solid(1, "editor", [64.; 2], [32., 32., 0.], [0.; 4]);
     layer.effects.push(motion_core::EffectInstance::new(
@@ -68,6 +70,7 @@ fn session() -> (tempfile::TempDir, Session, String) {
     project.rebuild_plugin_dependencies();
     let mut session =
         Session::new(project, directory.path().to_path_buf(), Arc::new(Stub)).unwrap();
+    session.effects.registry.insert(package).unwrap();
     session
         .engine
         .apply(Command::SetColor {
@@ -189,6 +192,7 @@ fn host_history_commit_and_cancel_finish_the_plugin_page_consistently() {
         )
         .unwrap();
         let edited = session::with_session(id, |session| {
+            session.effects.registry.insert(scene_fixtures::particle_package().unwrap()).unwrap();
             let opened =
                 session.plugin_request("{\"op\":\"editor_open\",\"object\":1,\"instance\":1}")?;
             begin_and_edit(session, opened["token"].as_str().unwrap());
@@ -239,6 +243,7 @@ fn unrelated_host_entry_recovers_an_expired_page_before_editing() {
     )
     .unwrap();
     crate::session::with_session(id, |session| {
+        session.effects.registry.insert(scene_fixtures::particle_package().unwrap()).unwrap();
         let opened =
             session.plugin_request("{\"op\":\"editor_open\",\"object\":1,\"instance\":1}")?;
         begin_and_edit(session, opened["token"].as_str().unwrap());
@@ -294,7 +299,7 @@ fn batch_effect_add_deduplicates_targets_and_roundtrips_with_one_step_undo() {
         .apply(Command::Duplicate { object: 1 })
         .unwrap();
     let original = session.engine.snapshot();
-    let package = motion_effects::builtin::particle_package().unwrap();
+    let package = scene_fixtures::particle_package().unwrap();
     let request = json!({"op":"add","objects":[1,2,1],"plugin":package.manifest.id,
         "version":package.manifest.version,"hash":package.hash,"effect":package.manifest.effects[0].id});
     session.plugin_request(&request.to_string()).unwrap();
@@ -360,7 +365,7 @@ fn invalid_batch_effect_targets_fail_atomically_and_leave_history_unchanged() {
         session.engine.apply_batch(commands).unwrap();
         let before = session.engine.snapshot();
         let revision = session.engine.revision();
-        let package = motion_effects::builtin::particle_package().unwrap();
+        let package = scene_fixtures::particle_package().unwrap();
         let objects = match mode {
             "missing" => json!([1, 99]),
             "empty" => json!([]),

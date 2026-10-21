@@ -126,22 +126,6 @@
       ],
       "reason": "Maintainer fixture regeneration; generated artifacts are consumed by Rust/device acceptance."
     },
-    "tools/generate_particle_library.py": {
-      "mode": "manual",
-      "command": "python tools/generate_particle_library.py",
-      "requires": [
-        "Python standard library"
-      ],
-      "reason": "Maintainer regeneration changes checked-in fixtures/assets; not an automatic CI mutation."
-    },
-    "tools/generate_scene_library.py": {
-      "mode": "manual",
-      "command": "python tools/generate_scene_library.py",
-      "requires": [
-        "Python standard library"
-      ],
-      "reason": "Maintainer regeneration changes checked-in fixtures/assets; not an automatic CI mutation."
-    },
     "tools/generate_spatial_library.py": {
       "mode": "manual",
       "command": "python tools/generate_spatial_library.py",
@@ -800,7 +784,7 @@
     "crates/motion-effects/library",
     "crates/motion-effects/motion-library",
     "crates/motion-effects/builtin-library",
-    "crates/motion-effects/scene-library",
-    "crates/motion-effects/particle-library"
+    "crates/motion-effects/tests/fixtures/scene-library",
+    "crates/motion-effects/tests/fixtures/particle-library"
   ]
 }

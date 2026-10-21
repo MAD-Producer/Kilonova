@@ -64,6 +64,7 @@ mod tests {
         let policy = MemoryPolicy {
             source_texture_budget_bytes: 256 << 20,
             scratch_budget_bytes: 96 << 20,
+            preview_target_budget_bytes: 4 << 20,
         };
         session.configure_memory_policy(policy).unwrap();
         let plan = FrozenMovie::capture_plan(&session, &ExportControl::default()).unwrap();

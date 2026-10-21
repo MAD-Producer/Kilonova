@@ -2071,6 +2071,7 @@ dependencies = [
  "motion-graph",
  "motion-host",
  "motion-media",
+ "motion-model",
  "motion-render",
  "motion-ui",
  "pollster",
@@ -2155,6 +2156,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "thiserror 2.0.21",
  "wgpu",
 ]
 
@@ -2175,6 +2177,7 @@ dependencies = [
  "sha2",
  "symphonia",
  "tempfile",
+ "thiserror 2.0.21",
  "zip",
 ]
 

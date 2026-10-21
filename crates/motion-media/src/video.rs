@@ -62,13 +62,13 @@ impl Stage {
     fn new(root: &Path) -> Result<Self> {
         let stamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .map_err(|e| e.to_string())?
+            .map_err(crate::Error::from)?
             .as_nanos();
         let path = root.join(format!(
             ".video-import-{stamp}-{}",
             NONCE.fetch_add(1, Ordering::Relaxed)
         ));
-        fs::create_dir(&path).map_err(|e| e.to_string())?;
+        fs::create_dir(&path).map_err(crate::Error::from)?;
         Ok(Self(path))
     }
 }
@@ -160,7 +160,7 @@ fn finish_import(
         Ok(Err(error)) => {
             t.status.state = "failed".into();
             t.status.phase = "failed".into();
-            t.status.error = Some(error);
+            t.status.error = Some(error.to_string());
         }
         Err(payload) => {
             t.status.state = "failed".into();
@@ -183,7 +183,7 @@ impl VideoJobs {
     }
     pub fn with_audio_decoder(root: PathBuf, audio_decode: crate::DecodeAudio) -> Result<Self> {
         Ok(Self {
-            root: root.canonicalize().map_err(|e| e.to_string())?,
+            root: root.canonicalize().map_err(crate::Error::from)?,
             audio_decode,
             tasks: Mutex::new(HashMap::new()),
         })
@@ -212,12 +212,11 @@ impl VideoJobs {
         if tasks.contains_key(id) || tasks.len() >= 64 {
             return Err("duplicate request id or video task budget exceeded".into());
         }
-        if tasks
-            .values()
-            .filter(|t| !t.lock().unwrap().status.terminal())
-            .count()
-            >= 2
-        {
+        let active = tasks.values().try_fold(0, |active, task| -> Result<usize> {
+            let task = task.lock().map_err(|_| "video task poisoned")?;
+            Ok(active + usize::from(!task.status.terminal()))
+        })?;
+        if active >= 2 {
             return Err("at most two unfinished video tasks per session".into());
         }
         WORKERS
@@ -252,14 +251,18 @@ impl VideoJobs {
     }
     pub fn cancel(&self, id: &str) -> Result<VideoTaskStatus> {
         let task = self.task(id)?;
+        let mut prepared = None;
         let mut t = task.lock().map_err(|_| "video task poisoned")?;
         if !t.status.terminal() {
             t.cancel.store(true, Ordering::Release);
-            t.prepared.take();
+            prepared = t.prepared.take();
             t.status.state = "cancelled".into();
             t.status.phase = "cancelled".into();
         }
-        Ok(t.status.clone())
+        let status = t.status.clone();
+        drop(t);
+        drop(prepared);
+        Ok(status)
     }
     pub fn release(&self, id: &str) -> Result<()> {
         let mut tasks = self
@@ -309,17 +312,17 @@ impl VideoJobs {
             let result=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||->Result<Prepared>{
                 update(&t,"opening",0.0)?;let(mut reader,size)=open()?;
                 if size.is_some_and(|s|s>motion_model::storage::MAX_MEDIA_ASSET){return Err("video exceeds 2 GiB".into());}
-                if fs2::available_space(&root).map_err(|e|e.to_string())?<size.unwrap_or(0).saturating_add(1024*1024){return Err("insufficient video source storage".into());}
-                let stage=Stage::new(&root)?;let source=stage.0.join("source.mp4");let mut file=File::create(&source).map_err(|e|e.to_string())?;
+                if fs2::available_space(&root).map_err(crate::Error::from)?<size.unwrap_or(0).saturating_add(1024*1024){return Err("insufficient video source storage".into());}
+                let stage=Stage::new(&root)?;let source=stage.0.join("source.mp4");let mut file=File::create(&source).map_err(crate::Error::from)?;
                 let mut buf=[0u8;motion_model::storage::TRANSFER_BUFFER_BYTES];let mut bytes=0u64;
                 loop {update(&t,"copying",size.map_or(0.0,|s|bytes as f64/s.max(1) as f64))?;
-                    let n=reader.read(&mut buf).map_err(|e|e.to_string())?;if n==0{break;}bytes+=n as u64;
+                    let n=reader.read(&mut buf).map_err(crate::Error::from)?;if n==0{break;}bytes+=n as u64;
                     if bytes>motion_model::storage::MAX_MEDIA_ASSET{return Err("video exceeds 2 GiB".into());}
-                    if bytes%(1024*1024)<n as u64&&fs2::available_space(&root).map_err(|e|e.to_string())?<1024*1024{return Err("insufficient video import storage".into());}
-                    file.write_all(&buf[..n]).map_err(|e|e.to_string())?;
+                    if bytes%(1024*1024)<n as u64&&fs2::available_space(&root).map_err(crate::Error::from)?<1024*1024{return Err("insufficient video import storage".into());}
+                    file.write_all(&buf[..n]).map_err(crate::Error::from)?;
                 }
                 if bytes==0||size.is_some_and(|s|s!=bytes){return Err("video source length mismatch".into());}
-                file.sync_all().map_err(|e|e.to_string())?;drop(file);drop(reader);
+                file.sync_all().map_err(crate::Error::from)?;drop(file);drop(reader);
                 update(&t,"probing",0.0)?;let mut p=probe(&source,options.track,if options.with_audio {options.audio_track}else{Some(u32::MAX)},&||update(&t,"probing",0.0))?;
                 let audio=if options.with_audio {if let Some(track)=p.audio_track {
                     update(&t,"decoding_audio",0.0)?;
@@ -327,9 +330,9 @@ impl VideoJobs {
                     crate::mixer::build_waveform(&pcm,&a,||update(&t,"waveform",0.0))?;Some(a)
                 }else{None}}else{None};
                 if let Some(a)=&audio{p.asset.duration_us=p.asset.duration_us.max(a.duration_us);}
-                p.asset.validate().map_err(|e|e.to_string())?;
+                p.asset.validate().map_err(crate::Error::from)?;
                 save_index(&stage.0.join("index.pts"),&p.asset,&p.timestamps)?;
-                image::save_buffer(stage.0.join("thumbnail.png"),&p.first_rgba,p.asset.display_width,p.asset.display_height,image::ColorType::Rgba8).map_err(|e|e.to_string())?;
+                image::save_buffer(stage.0.join("thumbnail.png"),&p.first_rgba,p.asset.display_width,p.asset.display_height,image::ColorType::Rgba8).map_err(crate::Error::from)?;
                 Ok(Prepared{stage,probe:p,audio,options})
             }));
             finish_import(&t, result, probe_only, &worker_log);
@@ -339,7 +342,7 @@ impl VideoJobs {
             let mut t = task.lock().unwrap();
             t.status.state = "failed".into();
             t.status.error = Some(e.to_string());
-            return Err(e.to_string());
+            return Err(e.into());
         }
         Ok(initial)
     }
@@ -353,13 +356,16 @@ impl VideoJobs {
                 &status.phase,
                 if *attempted { status.error.as_deref() } else { None },
             ),
-            Err(error) => observation.finish("commit", Some(error)),
+            Err(error) => observation.finish("commit", Some(&error.to_string())),
         }
         result.map(|(status, _)| status)
     }
 
     fn commit_inner(&self, id: &str, engine: &mut impl EditSink) -> Result<(VideoTaskStatus, bool)> {
         let task = self.task(id)?;
+        // Declare owned resources before the guard so unwind releases it first.
+        let mut p;
+        let mut publication = crate::publication::PublicationCleanup::default();
         let mut t = task.lock().map_err(|_| "video task poisoned")?;
         if t.status.terminal() {
             return Ok((t.status.clone(), false));
@@ -367,7 +373,7 @@ impl VideoJobs {
         if t.status.state != "ready" {
             return Err("video import is not ready".into());
         }
-        let mut p = t.prepared.take().ok_or("prepared video missing")?;
+        p = t.prepared.take().ok_or("prepared video missing")?;
         let mut published = Vec::new();
         let result = (|| -> Result<Value> {
             let project = engine.project();
@@ -452,12 +458,12 @@ impl VideoJobs {
                 moves.push((p.stage.0.join("decoded.wave"), pcm.with_extension("wave")));
             }
             for (from, to) in moves {
-                fs::rename(from, &to).map_err(|e| e.to_string())?;
+                fs::rename(from, &to).map_err(crate::Error::from)?;
                 published.push(to);
             }
             engine
                 .apply_batch_saved(commands, &self.root)
-                .map_err(|e| e.to_string())?;
+                .map_err(crate::Error::from)?;
             Ok(
                 json!({"op":"import_media","kind":"video","asset":aid,"object":object,"in_frame":at,"out_frame":out,"source_offset_us":0,"has_audio":p.audio.is_some(),"audio_asset":p.probe.asset.audio_asset,"truncated_to_composition":u64::from(out-at)<frames}),
             )
@@ -473,10 +479,10 @@ impl VideoJobs {
             }
             Err(e) => {
                 let paths = published.iter().map(PathBuf::as_path).collect::<Vec<_>>();
-                let error = crate::publication::rollback_files(e, &paths);
+                let error = publication.rollback_files(e, &paths);
                 t.status.state = "failed".into();
                 t.status.phase = "failed".into();
-                t.status.error = Some(error);
+                t.status.error = Some(error.to_string());
             }
         }
         Ok((t.status.clone(), true))
@@ -504,7 +510,7 @@ impl VideoJobs {
                         let source = root
                             .join(&expected.path)
                             .canonicalize()
-                            .map_err(|e| e.to_string())?;
+                            .map_err(crate::Error::from)?;
                         if !source.starts_with(&root) {
                             return Err("video source outside project".into());
                         }
@@ -527,14 +533,15 @@ impl VideoJobs {
                             expected.display_height,
                             image::ColorType::Rgba8,
                         )
-                        .map_err(|e| e.to_string())?;
+                        .map_err(crate::Error::from)?;
                         let cache = video_cache_path(&root, &expected)?;
                         contained_dir(&root, cache.parent().unwrap())?;
+                        let mut publication = crate::publication::PublicationCleanup::default();
                         let mut state = t.lock().map_err(|_| "video task poisoned")?;
                         if state.cancel.load(Ordering::Acquire) {
                             return Err("video cache cancelled".into());
                         }
-                        crate::publication::publish_cache_pair(
+                        publication.publish_cache_pair(
                             (&stage.0.join("index.pts"), &cache),
                             (&stage.0.join("thumbnail.png"), &cache.with_extension("png")),
                         )?;
@@ -559,11 +566,13 @@ impl VideoJobs {
                     return;
                 }
                 if let Err(error) =
-                    result.unwrap_or_else(|payload| Err(format!("video cache worker failed: {}",crate::panic_reason(payload))))
+                    result.unwrap_or_else(|payload| Err(crate::Error::Panic {
+                        operation: "video cache worker", reason: crate::panic_reason(payload),
+                    }))
                 {
                     state.status.state = "failed".into();
                     state.status.phase = "failed".into();
-                    state.status.error = Some(error);
+                    state.status.error = Some(error.to_string());
                 }
                 let phase = state.status.phase.clone();
                 let error = state.status.error.clone();
@@ -575,7 +584,7 @@ impl VideoJobs {
             let mut t = task.lock().unwrap();
             t.status.state = "failed".into();
             t.status.error = Some(e.to_string());
-            return Err(e.to_string());
+            return Err(e.into());
         }
         Ok(initial)
     }
@@ -592,7 +601,10 @@ impl Drop for VideoJobs {
         {
             let mut t = recoveries.recover(task.lock(), &TASK, id, "drop_video");
             t.cancel.store(true, Ordering::Release);
-            t.prepared.take();
+            let prepared = t.prepared.take();
+            drop(t);
+            // Stage cleanup can delete a large tree or call the host logger.
+            drop(prepared);
         }
     }
 }
@@ -606,7 +618,7 @@ fn update(task: &Mutex<Task>, phase: &str, progress: f64) -> Result<()> {
     Ok(())
 }
 pub fn video_cache_path(root: &Path, asset: &VideoAsset) -> Result<PathBuf> {
-    motion_model::storage::validate_relative_path(&asset.path).map_err(|e| e.to_string())?;
+    motion_model::storage::validate_relative_path(&asset.path).map_err(crate::Error::from)?;
     let stem = Path::new(&asset.path)
         .file_stem()
         .and_then(|s| s.to_str())
@@ -615,32 +627,32 @@ pub fn video_cache_path(root: &Path, asset: &VideoAsset) -> Result<PathBuf> {
 }
 pub fn save_index(path: &Path, asset: &VideoAsset, pts: &[u64]) -> Result<()> {
     validate_index(asset, pts)?;
-    let mut f = File::create(path).map_err(|e| e.to_string())?;
+    let mut f = File::create(path).map_err(crate::Error::from)?;
     f.write_all(b"MSVID001")
         .and_then(|_| f.write_all(&asset.bytes.to_le_bytes()))
-        .map_err(|e| e.to_string())?;
+        .map_err(crate::Error::from)?;
     for t in pts {
-        f.write_all(&t.to_le_bytes()).map_err(|e| e.to_string())?;
+        f.write_all(&t.to_le_bytes()).map_err(crate::Error::from)?;
     }
-    f.sync_all().map_err(|e| e.to_string())
+    f.sync_all().map_err(crate::Error::from)
 }
 pub fn load_video_index(root: &Path, asset: &VideoAsset) -> Result<Vec<u64>> {
-    let base = root.canonicalize().map_err(|e| e.to_string())?;
+    let base = root.canonicalize().map_err(crate::Error::from)?;
     let path = video_cache_path(root, asset)?
         .canonicalize()
         .map_err(|_| "video cache missing; call prepare_video")?;
     if !path.starts_with(base) {
         return Err("video cache outside project".into());
     }
-    let mut f = File::open(path).map_err(|e| e.to_string())?;
-    let size = f.metadata().map_err(|e| e.to_string())?.len();
+    let mut f = File::open(path).map_err(crate::Error::from)?;
+    let size = f.metadata().map_err(crate::Error::from)?.len();
     if size != 16 + u64::from(asset.frame_count) * 8
         || size > 16 + u64::from(motion_model::MAX_VIDEO_FRAMES) * 8
     {
         return Err("video cache invalid; call prepare_video".into());
     }
     let mut bytes = vec![0; size as usize];
-    f.read_exact(&mut bytes).map_err(|e| e.to_string())?;
+    f.read_exact(&mut bytes).map_err(crate::Error::from)?;
     if &bytes[..8] != b"MSVID001"
         || u64::from_le_bytes(bytes[8..16].try_into().unwrap()) != asset.bytes
     {
@@ -690,7 +702,7 @@ mod registry_tests {
             |id| healthy.contains(id),
         );
         assert_eq!(
-            jobs.status("present").err().as_deref(),
+            jobs.status("present").err().map(|error| error.to_string()).as_deref(),
             Some("video task registry poisoned")
         );
     }
@@ -698,3 +710,6 @@ mod registry_tests {
 
 #[cfg(test)]
 mod completion_tests;
+
+#[cfg(test)]
+mod resource_tests;

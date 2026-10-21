@@ -411,11 +411,15 @@ impl Controls {
                     child,
                     Rect::new(rect.min[0], y, (rect.width() - 28.).max(1.), row),
                 ) {
+                    let now = std::time::Instant::now();
+                    #[cfg(test)]
+                    let now = self.library_test_click_time.unwrap_or(now);
                     let double = prior_click.as_ref().is_some_and(|(key, time)| {
-                        key == &e.key && time.elapsed() < std::time::Duration::from_millis(400)
+                        key == &e.key
+                            && now.duration_since(*time) < std::time::Duration::from_millis(400)
                     });
                     self.library_selected = Some(e.key.clone());
-                    self.library_last_click = Some((e.key.clone(), std::time::Instant::now()));
+                    self.library_last_click = Some((e.key.clone(), now));
                     if double && e.can_apply(layer) {
                         apply = Some(e.clone());
                     }
@@ -504,6 +508,20 @@ mod tests {
         }
     }
     fn draw(control: &mut Controls, layer: &Value, input: &Input) -> Vec<Action> {
+        let now = control
+            .library_test_click_time
+            .unwrap_or_else(std::time::Instant::now)
+            + std::time::Duration::from_millis(100);
+        draw_at(control, layer, input, now)
+    }
+    fn draw_at(
+        control: &mut Controls,
+        layer: &Value,
+        input: &Input,
+        now: std::time::Instant,
+    ) -> Vec<Action> {
+        // Synthetic clicks carry explicit time, independently of font loading.
+        control.library_test_click_time = Some(now);
         let mut out = vec![];
         let mut atlas = TextAtlas::from_system(12.).unwrap();
         control.draw_library(
@@ -600,6 +618,96 @@ mod tests {
             .as_slice(),
             [Action::Plugin(_)]
         ));
+    }
+    #[test]
+    fn double_click_interval_and_intervening_click_preserve_exact_package_identity() {
+        use std::time::{Duration, Instant};
+        for interval in [399, 400, 401] {
+            let mut controls = Controls {
+                catalogue: std::sync::Arc::new(
+                    serde_json::json!({"packages":[{"enabled":true,"hash":"a","manifest":{"id":"a","version":"1.0.0","name":"A","effects":[{"id":"blur","name":"模糊","english_name":"Blur","category":"模糊与锐化"}]}}]}),
+                ),
+                ..Default::default()
+            };
+            let layer = serde_json::json!({"id":7,"locked":false,"content":{"kind":"solid"}});
+            draw(&mut controls, &layer, &Input::default());
+            draw(&mut controls, &layer, &click(40., 81.));
+            let now = Instant::now();
+            assert!(draw_at(&mut controls, &layer, &click(80., 103.), now).is_empty());
+            let action = draw_at(
+                &mut controls,
+                &layer,
+                &click(80., 103.),
+                now + Duration::from_millis(interval),
+            );
+            if interval < 400 {
+                assert!(
+                    matches!(action.as_slice(), [Action::Plugin(v)] if v["object"]==7 && v["plugin"]=="a" && v["hash"]=="a" && v["effect"]=="blur")
+                );
+            } else {
+                assert!(action.is_empty());
+                assert!(
+                    matches!(draw_at(&mut controls, &layer, &click(80.,103.), now + Duration::from_millis(interval + 100)).as_slice(), [Action::Plugin(v)] if v["effect"]=="blur")
+                );
+            }
+            controls.library_last_click = None;
+            assert!(draw_at(
+                &mut controls,
+                &layer,
+                &click(80., 103.),
+                now + Duration::from_millis(1000)
+            )
+            .is_empty());
+            assert!(draw_at(
+                &mut controls,
+                &layer,
+                &click(280., 300.),
+                now + Duration::from_millis(1100)
+            )
+            .is_empty());
+            assert!(draw_at(
+                &mut controls,
+                &layer,
+                &click(80., 103.),
+                now + Duration::from_millis(1200)
+            )
+            .is_empty());
+        }
+    }
+    #[test]
+    fn delayed_fixture_work_preserves_synthetic_double_click_interval_and_disabled_target() {
+        use std::time::{Duration, Instant};
+        let mut controls = Controls {
+            catalogue: std::sync::Arc::new(
+                serde_json::json!({"packages":[{"enabled":true,"hash":"a","manifest":{"id":"a","version":"1.0.0","name":"A","effects":[{"id":"blur","name":"模糊","english_name":"Blur","category":"模糊与锐化"}]}}]}),
+            ),
+            ..Default::default()
+        };
+        let mut layer = serde_json::json!({"id":7,"locked":false,"content":{"kind":"solid"}});
+        draw(&mut controls, &layer, &Input::default());
+        draw(&mut controls, &layer, &click(40., 81.));
+        let now = Instant::now();
+        assert!(draw_at(&mut controls, &layer, &click(80., 103.), now).is_empty());
+        std::thread::sleep(Duration::from_millis(450));
+        assert!(
+            matches!(draw_at(&mut controls,&layer,&click(80.,103.),now+Duration::from_millis(100)).as_slice(), [Action::Plugin(v)] if v["object"]==7 && v["plugin"]=="a" && v["hash"]=="a" && v["effect"]=="blur")
+        );
+        controls.library_last_click = None;
+        layer["locked"] = true.into();
+        assert!(draw_at(
+            &mut controls,
+            &layer,
+            &click(80., 103.),
+            now + Duration::from_millis(200)
+        )
+        .is_empty());
+        assert!(draw_at(
+            &mut controls,
+            &layer,
+            &click(80., 103.),
+            now + Duration::from_millis(300)
+        )
+        .is_empty());
     }
 }
 

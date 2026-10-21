@@ -1,5 +1,5 @@
 use motion_core::{storage, Ease, Layer, Project};
-use motion_host::{Platform, Result, Session, SurfaceTarget, VideoDecoder, VideoQuery};
+use motion_host::{Platform, Session, SurfaceTarget, VideoDecoder, VideoQuery};
 use serde_json::{json, Value};
 use std::{path::Path, sync::Arc};
 
@@ -13,8 +13,8 @@ impl Platform for NoMedia {
         _: &Path,
         _: Option<u32>,
         _: Option<u32>,
-        _: &dyn Fn() -> Result<()>,
-    ) -> Result<motion_media::VideoProbe> {
+        _: &dyn Fn() -> motion_media::Result<()>,
+    ) -> motion_media::Result<motion_media::VideoProbe> {
         panic!("unexpected media work")
     }
     fn open_decoder(
@@ -22,7 +22,7 @@ impl Platform for NoMedia {
         _: &Path,
         _: motion_core::VideoAsset,
         _: Vec<u64>,
-    ) -> Result<Box<dyn VideoDecoder>> {
+    ) -> motion_media::Result<Box<dyn VideoDecoder>> {
         panic!("unexpected decoder")
     }
     fn decode_audio(
@@ -31,11 +31,11 @@ impl Platform for NoMedia {
         _: &Path,
         _: Option<u32>,
         _: u64,
-        _: &mut dyn FnMut(f64) -> Result<()>,
-    ) -> Result<motion_core::AudioAsset> {
+        _: &mut dyn FnMut(f64) -> motion_media::Result<()>,
+    ) -> motion_media::Result<motion_core::AudioAsset> {
         panic!("unexpected audio work")
     }
-    fn media_capabilities(&self, _: Option<&VideoQuery>) -> Result<Value> {
+    fn media_capabilities(&self, _: Option<&VideoQuery>) -> motion_media::Result<Value> {
         Ok(json!({}))
     }
     fn attach_surface(
@@ -43,7 +43,7 @@ impl Platform for NoMedia {
         _: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         _: u32,
         _: u32,
-    ) -> Result<SurfaceTarget> {
+    ) -> motion_host::Result<SurfaceTarget> {
         panic!("unexpected window")
     }
 }

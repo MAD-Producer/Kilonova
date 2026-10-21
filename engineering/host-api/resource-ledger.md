@@ -1,5 +1,39 @@
 # 纹理资源台账
 
+## Combined ownership and pending capacity (additive API)
+
+An explicit `resource_ledger` query also returns `combinedCapacity`, version 1.
+Its `observation` reports `knownOwnedBytes`, `knownRetiredBytes`,
+`knownCombinedBytes`, `unknownCapacityCount`, `activeRenderers`,
+`allActiveRenderersTracked`, and `pendingUntracked`.
+
+`knownCombinedBytes` is the allocation-ID union of current session ownership
+and the retained metadata of instrumented pending preview/editor submissions.
+It includes caller-declared preview/capture targets. A shared allocation counts
+once even when it appears in several submissions, both renderers, or current
+ownership. `knownRetiredBytes` is the known capacity in that union absent from
+current ownership. Adding each renderer's `knownRetiredBytes` would double-count
+shared allocations; callers should use the combined observation instead.
+
+Unknown capacities remain explicitly counted. The zero-byte known subtotal for
+an unknown allocation does not mean the allocation occupies no memory. A false
+`allActiveRenderersTracked` or nonzero `pendingUntracked` exposes further missing
+coverage. With no active renderers, `allActiveRenderersTracked` is false.
+
+The query takes one metadata snapshot per renderer; callbacks can complete
+between those snapshots. `atomicAcrossRenderers`, `isFramePeak`,
+`isDriverResidency`, and `completeCoverage` are therefore explicitly false.
+Tracking is still opt-in; disabling it retains previously registered pending
+records until completion. No query polls the device, waits for completion,
+submits GPU work, or changes the project/revision. Ordinary playback snapshots
+do not perform this metadata merge.
+
+This is an observation at query time, not a peak history or allocation-admission
+guarantee. The original exclusions below still apply, including raw submissions,
+standalone conversions, detached renderers, buffers, swapchain images and
+external decoder/driver allocations. In particular, neither tracked completion
+nor application-handle removal proves immediate physical GPU retirement.
+
 这是 issue #60 的应用纹理归属基础，不是整帧预算分配器或设备性能验收
 
 ## API

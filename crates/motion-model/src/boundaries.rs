@@ -20,8 +20,10 @@ pub trait EditSink {
 
 /// A prepared archive publishes while the caller holds its cancellation lock.
 /// Dropping it before publication must close and remove its staging file.
+/// Publication borrows the archive so the caller can release that lock before
+/// destroying it. The caller invokes publication at most once.
 pub trait PackagePublication {
-    fn publish(self) -> Result<PathBuf>;
+    fn publish(&mut self) -> Result<PathBuf>;
 }
 
 /// Owned frozen sources move into a worker; concrete handles and IO stay with

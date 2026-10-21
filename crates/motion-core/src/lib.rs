@@ -1,4 +1,7 @@
 //! Editing, undo and expression execution over shared Motion Studio data.
+#[cfg(test)]
+#[path = "../../motion-effects/tests/support/scene_packages.rs"]
+mod scene_fixtures;
 mod command_registry;
 pub use command_registry::CommandRegistry;
 mod editor;
@@ -10,6 +13,7 @@ pub mod storage;
 
 pub use motion_model::{compositing, composition, color_curves, particle_history, masks, vector};
 pub use motion_model::render_sampling;
+pub use motion_model::lens;
 pub use editor::{parse_commands, Engine};
 pub use expressions::{ExpressionEvaluator, ProjectExpressions};
 pub use motion_model::{Axis, AxisTracks, Ease, Keyframe, SpatialTangents, Track, Tween};

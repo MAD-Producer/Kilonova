@@ -96,20 +96,16 @@ impl NodeEditor {
             MenuKind::Canvas => {
                 if !self.parents.is_empty() {
                     entries.push((
-                        language
-                            .text("返回父图 · Ctrl+Tab", "Parent · Ctrl+Tab")
-                            .into(),
+                        self.shortcut_bindings.label(language.text("返回父图", "Parent"),crate::shortcuts::Scope::Nodes,crate::shortcuts::Command::LeaveGroup),
                         Choice::Leave,
                     ));
                 }
                 entries.push((
-                    language
-                        .text("添加节点 · Shift+A", "Add node · Shift+A")
-                        .into(),
+                    self.shortcut_bindings.label(language.text("添加节点", "Add node"),crate::shortcuts::Scope::Nodes,crate::shortcuts::Command::AddNode),
                     Choice::Add,
                 ));
                 entries.push((
-                    language.text("适配全部 · Home", "Frame all · Home").into(),
+                    self.shortcut_bindings.label(language.text("适配全部", "Frame all"),crate::shortcuts::Scope::Nodes,crate::shortcuts::Command::FitAll),
                     Choice::Fit,
                 ));
             }
@@ -120,7 +116,7 @@ impl NodeEditor {
                         Choice::Rename(id.clone()),
                     ));
                     entries.push((
-                        language.text("分组 · Ctrl+G", "Group · Ctrl+G").into(),
+                        self.shortcut_bindings.label(language.text("分组", "Group"),crate::shortcuts::Scope::Nodes,crate::shortcuts::Command::Group),
                         Choice::Group,
                     ));
                     if let Some(node) = self.document.nodes.iter().find(|node| node.id == *id) {
@@ -135,11 +131,11 @@ impl NodeEditor {
                         }
                         if matches!(node.operation, NodeOp::Group { .. }) {
                             entries.push((
-                                language.text("进入子图 · Tab", "Enter group · Tab").into(),
+                                self.shortcut_bindings.label(language.text("进入子图", "Enter group"),crate::shortcuts::Scope::Nodes,crate::shortcuts::Command::EnterGroup),
                                 Choice::Enter(id.clone()),
                             ));
                             entries.push((
-                                language.text("解包 · Alt+G", "Ungroup · Alt+G").into(),
+                                self.shortcut_bindings.label(language.text("解包", "Ungroup"),crate::shortcuts::Scope::Nodes,crate::shortcuts::Command::Ungroup),
                                 Choice::Ungroup,
                             ));
                         }
@@ -154,11 +150,11 @@ impl NodeEditor {
                         ));
                     }
                     entries.push((
-                        language.text("复制 · Ctrl+D", "Duplicate · Ctrl+D").into(),
+                        self.shortcut_bindings.label(language.text("复制", "Duplicate"),crate::shortcuts::Scope::Nodes,crate::shortcuts::Command::Duplicate),
                         Choice::Duplicate,
                     ));
                     entries.push((
-                        language.text("删除 · X", "Delete · X").into(),
+                        self.shortcut_bindings.label(language.text("删除", "Delete"),crate::shortcuts::Scope::Nodes,crate::shortcuts::Command::Delete),
                         Choice::Delete,
                     ));
                 }
@@ -200,8 +196,8 @@ impl NodeEditor {
             }
         }
         if matches!(menu.kind, MenuKind::Canvas | MenuKind::View) {
-            entries.push((language.text("显示网格 · G", "Show grid · G").into(), Choice::ToggleGrid));
-            entries.push((language.text("显示小地图 · N", "Show minimap · N").into(), Choice::ToggleMinimap));
+            entries.push((self.shortcut_bindings.label(language.text("显示网格", "Show grid"),crate::shortcuts::Scope::Nodes,crate::shortcuts::Command::ToggleNodeGrid), Choice::ToggleGrid));
+            entries.push((self.shortcut_bindings.label(language.text("显示小地图", "Show minimap"),crate::shortcuts::Scope::Nodes,crate::shortcuts::Command::ToggleNodeMinimap), Choice::ToggleMinimap));
         }
         if self.preview_target.is_some() && !matches!(menu.kind, MenuKind::View) {
             entries.push((

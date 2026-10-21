@@ -1,6 +1,7 @@
 use crate::{ensure, Result, Track};
 use glam::{Mat4, Quat, Vec3};
 use serde::{Deserialize, Serialize};
+pub mod lens;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -22,6 +23,9 @@ pub struct Camera {
     pub target: Track<[f32; 3]>,
     pub roll: Track<f32>,
     pub fov: Track<f32>,
+    /// Horizontal film gate in millimetres; FOV remains the canonical animated projection.
+    #[serde(default = "lens::default_film_width", skip_serializing_if = "lens::default_gate")]
+    pub film_width_mm: f32,
     pub radius: Track<f32>,
     pub azimuth: Track<f32>,
     pub elevation: Track<f32>,
@@ -71,6 +75,7 @@ impl Camera {
             target: Track::constant(target),
             roll: Track::constant(0.0),
             fov: Track::constant(45.0),
+            film_width_mm: lens::default_film_width(),
             radius: Track::constant(distance),
             azimuth: Track::constant(0.0),
             elevation: Track::constant(0.0),
@@ -83,6 +88,7 @@ impl Camera {
         self.validate_tracks(None)
     }
     fn validate_tracks(&self, frames: Option<u32>) -> Result<()> {
+        lens::validate_film_width(f64::from(self.film_width_mm))?;
         for track in [&self.position, &self.target] {
             if let Some(frames) = frames {
                 track.validate(frames)?;

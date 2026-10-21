@@ -55,11 +55,16 @@ struct NameEdit {
 }
 #[derive(Default)]
 pub(crate) struct Controls {
+    selection: Vec<u64>,
     pub select_generated: Option<u64>,
+    pub(crate) shortcut_bindings: std::sync::Arc<crate::shortcuts::bindings::Bindings>,
     popup: Option<Popup>,
     name: Option<NameEdit>,
     owner: Option<Panel>,
     last_click: Option<(u64, Instant, [f32; 2])>,
+    /// Synthetic input time; real windows always use Instant::now().
+    #[cfg(test)]
+    test_click_time: Option<Instant>,
 }
 fn context(state: &Value) -> (String, String) {
     (
@@ -117,6 +122,9 @@ fn submenu_arrow(list: &mut PaintList, area: Rect, color: motion_ui::theme::Colo
 }
 
 impl Controls {
+    pub(super) fn set_selection(&mut self, objects: Vec<u64>) {
+        self.selection = objects;
+    }
     pub fn editing(&self) -> bool {
         self.popup.is_some() || self.name.is_some()
     }
@@ -153,7 +161,7 @@ impl Controls {
     pub fn open_audio(&mut self, target: u64, anchor: [f32; 2], state: &Value, locale: Locale) {
         self.open(Some(target), anchor, state);
         if let Some(popup) = &mut self.popup {
-            let root = entries(popup, state, locale);
+            let root = entries_with_bindings(popup, state, locale, &self.shortcut_bindings, &self.selection);
             if let Some(index) = root
                 .iter()
                 .position(|e| matches!(e.choice, Choice::Page(Page::Audio)))
@@ -324,6 +332,8 @@ impl Controls {
             self.last_click = None;
         } else if clicked(input, name) && id != 0 {
             let now = Instant::now();
+            #[cfg(test)]
+            let now = self.test_click_time.unwrap_or(now);
             let double = self.last_click.as_ref().is_some_and(|(old, time, p)| {
                 *old == id
                     && now.duration_since(*time) < Duration::from_millis(400)
@@ -429,7 +439,7 @@ impl Controls {
             Page::Root
         };
         popup.page = root_page;
-        let root_entries = entries(popup, state, locale);
+        let root_entries = entries_with_bindings(popup, state, locale, &self.shortcut_bindings, &self.selection);
         popup.page = page;
         if root_entries.is_empty() {
             self.popup = None;
@@ -526,7 +536,7 @@ impl Controls {
         let mut child_card = None;
         let mut child_choice = None;
         if popup.page != root_page {
-            let children = entries(popup, state, locale);
+            let children = entries_with_bindings(popup, state, locale, &self.shortcut_bindings, &self.selection);
             if !children.is_empty() {
                 let height = menu_count(children.len(), bounds, row) as f32 * row + 6.;
                 let parent_y =
@@ -881,6 +891,35 @@ fn disabled_reason(choice: &Choice, layer: &Value, state: &Value, locale: Locale
     }
 }
 
+fn entries_with_bindings(popup:&Popup,state:&Value,locale:Locale,bindings:&crate::shortcuts::bindings::Bindings,selection:&[u64])->Vec<Entry> {
+    let mut rows=entries(popup,state,locale);
+    for row in &mut rows {
+        if let Choice::New(Action::OrderLayers { objects, order }) = &mut row.choice {
+            if popup.target.is_some_and(|id| selection.contains(&id)) {
+                *objects = selection.to_vec();
+            }
+            row.label = bindings.label(order.label(locale), crate::shortcuts::Scope::Animation, order.shortcut());
+            match super::layer_navigation::plan(state, objects, *order) {
+                Ok(commands) => {
+                    row.enabled = !commands.is_empty();
+                    row.disabled_reason = (!row.enabled).then(|| word(locale,
+                        "所选图层已在该排列边界", "Selected layers are already at this ordering boundary"));
+                }
+                Err(reason) => {
+                    row.enabled = false;
+                    row.disabled_reason = Some(reason.message(locale).into());
+                }
+            }
+            continue;
+        }
+        let command=match &row.choice {Choice::Edit(Command::Duplicate {..})=>Some(crate::shortcuts::Command::Duplicate),Choice::Edit(Command::Remove {..})=>Some(crate::shortcuts::Command::Delete),_=>None};
+        if let Some(command)=command {
+            let label=row.label.split("    ").next().unwrap_or(&row.label).to_owned();
+            row.label=bindings.label(&label,crate::shortcuts::Scope::Application,command);
+        }
+    }
+    rows
+}
 fn entries(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
     entries_for(popup, state, locale)
 }
@@ -967,7 +1006,6 @@ fn entries_for(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
     };
     let unlocked = l["locked"] != true && state["observing"] != true;
     let list = state["project"]["layers"].as_array().unwrap();
-    let index = list.iter().position(|l| l["id"] == id).unwrap();
     let timeline = state["timeline_layers"]
         .as_array()
         .into_iter()
@@ -1205,20 +1243,13 @@ fn entries_for(popup: &Popup, state: &Value, locale: Locale) -> Vec<Entry> {
             add("全部解锁", "Unlock All Layers", !unlock.is_empty(), Choice::New(Action::EditBatch(unlock)));
         }
         Page::Order => {
-            for (zh, en, dest) in [
-                ("上移一层", "Move Up", (index + 1).min(list.len() - 1)),
-                ("下移一层", "Move Down", index.saturating_sub(1)),
-                ("置顶", "Move to Top", list.len() - 1),
-                ("置底", "Move to Bottom", 0),
-            ] {
+            use super::layer_navigation::Order;
+            for order in [Order::Up, Order::Down, Order::Top, Order::Bottom] {
                 add(
-                    zh,
-                    en,
-                    unlocked && dest != index,
-                    Choice::Edit(Command::Reorder {
-                        object: id,
-                        index: dest,
-                    }),
+                    order.label(Locale::Zh),
+                    order.label(Locale::En),
+                    unlocked,
+                    Choice::New(Action::OrderLayers { objects: vec![id], order }),
                 );
             }
         }
@@ -1370,6 +1401,21 @@ fn blend_modes() -> Vec<(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn custom_layer_menu_hints_follow_effective_mapping_without_changing_actions() {
+        use crate::shortcuts::{bindings::Bindings,Command as Shortcut,Scope};
+        let state=state(&engine());let mut controls=Controls::default();controls.open(Some(7),[100.,100.],&state);
+        let mut bindings=Bindings::default();bindings.bind(Scope::Application,Shortcut::Duplicate,Some(motion_ui::input::KeyChord::new(Key::B,true,false,false))).unwrap();
+        for locale in [Locale::Zh,Locale::En] {
+            let rows=entries_with_bindings(controls.popup.as_ref().unwrap(),&state,locale,&bindings,&[]);
+            let duplicate=rows.iter().find(|r|matches!(r.choice,Choice::Edit(Command::Duplicate {object:7}))).unwrap();
+            assert!(duplicate.label.ends_with("Ctrl+B") && !duplicate.label.contains("Ctrl+D"));
+            assert!(duplicate.enabled);
+        }
+        bindings.bind(Scope::Application,Shortcut::Duplicate,None).unwrap();
+        let rows=entries_with_bindings(controls.popup.as_ref().unwrap(),&state,Locale::En,&bindings,&[]);
+        assert_eq!(rows.iter().find(|r|matches!(r.choice,Choice::Edit(Command::Duplicate {object:7}))).unwrap().label,"Duplicate");
+    }
     fn state(engine: &motion_core::Engine) -> Value {
         let p = engine.project();
         serde_json::json!({"root":"project-a","composition":p.composition_id,"frame":21,"project":p,"timeline_layers":p.layers.iter().map(|l|{let clip=l.clip(p.frames);serde_json::json!({"object":l.id,"in_frame":clip.in_frame,"out_frame":clip.out_frame})}).collect::<Vec<_>>()})
@@ -1388,6 +1434,17 @@ mod tests {
         motion_core::Engine::new(p).unwrap()
     }
     fn draw(panels: &mut Panels, state: &Value, input: &Input) -> Vec<Action> {
+        let now = panels
+            .layer_actions
+            .test_click_time
+            .unwrap_or_else(Instant::now)
+            + Duration::from_millis(100);
+        draw_at(panels, state, input, now)
+    }
+    fn draw_at(panels: &mut Panels, state: &Value, input: &Input, now: Instant) -> Vec<Action> {
+        // The fixture declares input intervals explicitly. Font discovery and
+        // the test runner's scheduling are not time between synthetic clicks.
+        panels.layer_actions.test_click_time = Some(now);
         let layout = dock::Node::dock(Panel::Timeline.dock());
         let mut atlas = TextAtlas::from_system(12.).unwrap();
         chrome(
@@ -1802,6 +1859,100 @@ mod tests {
         draw(&mut panels, &state, &click(MouseButton::Left, p));
         draw(&mut panels, &state, &click(MouseButton::Left, p));
         assert!(!panels.layer_actions.text_in(Some(Panel::Timeline)));
+    }
+    #[test]
+    fn double_click_interval_target_and_modifiers_preserve_the_original_window() {
+        let engine = engine();
+        let state = state(&engine);
+        let p = point();
+        for locale in [Locale::Zh, Locale::En] {
+            for interval in [399, 400, 401] {
+                let mut panels = Panels {
+                    locale,
+                    ..Default::default()
+                };
+                let now = Instant::now();
+                draw_at(&mut panels, &state, &click(MouseButton::Left, p), now);
+                draw_at(
+                    &mut panels,
+                    &state,
+                    &click(MouseButton::Left, p),
+                    now + Duration::from_millis(interval),
+                );
+                assert_eq!(
+                    panels.layer_actions.text_in(Some(Panel::Timeline)),
+                    interval < 400,
+                    "locale={locale:?} interval={interval}"
+                );
+                if interval >= 400 {
+                    draw_at(
+                        &mut panels,
+                        &state,
+                        &click(MouseButton::Left, p),
+                        now + Duration::from_millis(interval + 100),
+                    );
+                    assert!(panels.layer_actions.text_in(Some(Panel::Timeline)));
+                }
+            }
+            let mut panels = Panels {
+                locale,
+                ..Default::default()
+            };
+            let now = Instant::now();
+            draw_at(&mut panels, &state, &click(MouseButton::Left, p), now);
+            let other = [p[0], p[1] + 22.];
+            draw_at(
+                &mut panels,
+                &state,
+                &click(MouseButton::Left, other),
+                now + Duration::from_millis(100),
+            );
+            assert!(!panels.layer_actions.text_in(Some(Panel::Timeline)));
+            draw_at(
+                &mut panels,
+                &state,
+                &click(MouseButton::Left, other),
+                now + Duration::from_millis(200),
+            );
+            assert!(panels.layer_actions.text_in(Some(Panel::Timeline)));
+
+            let mut panels = Panels {
+                locale,
+                ..Default::default()
+            };
+            let mut modified = click(MouseButton::Left, p);
+            modified.modifiers.control = true;
+            draw_at(&mut panels, &state, &click(MouseButton::Left, p), now);
+            draw_at(
+                &mut panels,
+                &state,
+                &modified,
+                now + Duration::from_millis(100),
+            );
+            draw_at(
+                &mut panels,
+                &state,
+                &click(MouseButton::Left, p),
+                now + Duration::from_millis(200),
+            );
+            assert!(!panels.layer_actions.text_in(Some(Panel::Timeline)));
+        }
+    }
+    #[test]
+    fn delayed_fixture_work_does_not_change_declared_double_click_input_time() {
+        let engine = engine();
+        let state = state(&engine);
+        let mut panels = Panels::default();
+        let now = Instant::now();
+        draw_at(&mut panels, &state, &click(MouseButton::Left, point()), now);
+        std::thread::sleep(Duration::from_millis(450));
+        draw_at(
+            &mut panels,
+            &state,
+            &click(MouseButton::Left, point()),
+            now + Duration::from_millis(100),
+        );
+        assert!(panels.layer_actions.text_in(Some(Panel::Timeline)));
     }
     #[test]
     fn locked_menu_disables_editing_but_allows_unlock_and_checks_split_endpoints() {

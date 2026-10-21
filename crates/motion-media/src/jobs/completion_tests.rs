@@ -39,7 +39,7 @@ pub(crate) fn watch_cleanup(
     observation
 }
 
-fn task() -> Arc<Mutex<Task>> {
+pub(super) fn task() -> Arc<Mutex<Task>> {
     Arc::new(Mutex::new(Task {
         status: TaskStatus {
             request_id: "probe-cleanup-audio".into(),
@@ -56,7 +56,7 @@ fn task() -> Arc<Mutex<Task>> {
     }))
 }
 
-fn prepared(path: PathBuf) -> Prepared {
+pub(super) fn prepared(path: PathBuf) -> Prepared {
     Prepared {
         stage: Stage { path },
         asset: AudioAsset {
@@ -185,4 +185,100 @@ fn completion_preserves_probe_import_cancellation_and_failure_contracts() {
         failed.lock().unwrap().status.error.as_deref(),
         Some("original decode failure")
     );
+}
+
+pub(crate) fn check_blocked_teardown_cleanup(
+    path: &Path,
+    unlocked: impl Fn() -> bool + Send + Sync + 'static,
+    destroy: impl FnOnce() + Send + 'static,
+) {
+    let (entered, observed) = std::sync::mpsc::sync_channel(1);
+    let (resume, wait) = std::sync::mpsc::sync_channel(1);
+    let wait = Mutex::new(wait);
+    let unlocked = Arc::new(unlocked);
+    let callback = unlocked.clone();
+    let observation = watch_cleanup(path, move || {
+        let accessible = callback();
+        entered.send(accessible).unwrap();
+        // Hold the actual cleanup warning in the host logger while the caller
+        // independently checks the task. Never block while holding that task.
+        wait.lock()
+            .unwrap()
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap();
+        accessible
+    });
+    let teardown = std::thread::spawn(destroy);
+    let accessible = observed.recv_timeout(Duration::from_secs(5));
+    let during_cleanup = unlocked();
+    resume.send(()).unwrap();
+    teardown.join().unwrap();
+    assert!(
+        accessible.unwrap(),
+        "cleanup logger could not access task state"
+    );
+    assert!(during_cleanup, "blocked cleanup held the task mutex");
+    assert_eq!(observation.load(Ordering::Acquire), 1);
+    assert!(
+        path.is_file(),
+        "failed cleanup must leave the foreign file intact"
+    );
+}
+
+#[test]
+fn teardown_cleanup_failure_is_observed_outside_task_lock() {
+    if !crate::registry_observation::tests::child(
+        "jobs::completion_tests::teardown_cleanup_failure_is_observed_outside_task_lock",
+    ) {
+        return;
+    }
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("not-a-directory");
+    fs::write(&path, b"foreign file").unwrap();
+    let jobs = AudioJobs::new(directory.path().into(), Limits::default()).unwrap();
+    let task = task();
+    task.lock().unwrap().prepared = Some(prepared(path.clone()));
+    let before = serde_json::to_value(&task.lock().unwrap().status).unwrap();
+    jobs.tasks
+        .lock()
+        .unwrap()
+        .insert("teardown-audio".into(), task.clone());
+    let observed_task = task.clone();
+    check_blocked_teardown_cleanup(
+        &path,
+        move || {
+            observed_task
+                .try_lock()
+                .is_ok_and(|task| task.cancel.load(Ordering::Acquire) && task.prepared.is_none())
+        },
+        move || drop(jobs),
+    );
+    assert_eq!(
+        serde_json::to_value(&task.lock().unwrap().status).unwrap(),
+        before
+    );
+}
+
+#[test]
+fn teardown_removes_stages_and_cancels_tasks_without_prepared_resources() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("stage");
+    fs::create_dir(&path).unwrap();
+    fs::write(path.join("source"), b"staged source").unwrap();
+    let jobs = AudioJobs::new(directory.path().into(), Limits::default()).unwrap();
+    let ready = task();
+    ready.lock().unwrap().prepared = Some(prepared(path.clone()));
+    let pending = task();
+    jobs.tasks.lock().unwrap().extend([
+        ("ready".into(), ready.clone()),
+        ("pending".into(), pending.clone()),
+    ]);
+    drop(jobs);
+    assert!(!path.exists());
+    for task in [ready, pending] {
+        let task = task.lock().unwrap();
+        assert!(task.cancel.load(Ordering::Acquire));
+        assert!(task.prepared.is_none());
+        assert!(task.status.error.is_none());
+    }
 }

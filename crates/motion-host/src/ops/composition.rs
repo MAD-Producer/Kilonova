@@ -293,7 +293,9 @@ pub fn frame_bundle(
     frame: f64,
     out: &mut Vec<u8>,
 ) -> Result<usize> {
-    crate::session::with_session(id, |s| {
+    let began = std::time::Instant::now();
+    log::info!("composition bundle start site=host.composition.bundle session={id} composition={composition:.128} frame={frame} phase=sample");
+    let result = crate::session::with_session(id, |s| {
         if composition != s.engine.project().composition_id {
             return Err("composition context mismatch".into());
         }
@@ -312,9 +314,16 @@ pub fn frame_bundle(
             p,
             &assets,
             out,
-        )?;
+        ).map_err(|error| error.to_string())?;
         Ok(out.len())
-    })
+    });
+    // Host-owned sinks may reenter a session. with_session has released its
+    // guards before these records, including every early error return above.
+    match &result {
+        Ok(bytes) => log::debug!("composition bundle done site=host.composition.bundle session={id} composition={composition:.128} frame={frame} bytes={bytes} elapsed_us={}", began.elapsed().as_micros()),
+        Err(error) => log::error!("composition bundle failed site=host.composition.bundle session={id} composition={composition:.128} frame={frame} phase=sample_or_pack elapsed_us={} cause={error:.2048}", began.elapsed().as_micros()),
+    }
+    result
 }
 
 pub fn render(id: i64, composition: &str, frame: f64) -> Result<bool> {

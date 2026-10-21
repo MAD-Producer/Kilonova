@@ -1,5 +1,5 @@
 use motion_core::{Command, Project};
-use motion_host::{Platform, Result, Session};
+use motion_host::{Platform, Session};
 use motion_render::{resource_policy::MemoryPolicy, Renderer};
 use std::{path::Path, sync::Arc};
 
@@ -13,8 +13,8 @@ impl Platform for Stub {
         _: &Path,
         _: Option<u32>,
         _: Option<u32>,
-        _: &dyn Fn() -> Result<()>,
-    ) -> Result<motion_media::VideoProbe> {
+        _: &dyn Fn() -> motion_media::Result<()>,
+    ) -> motion_media::Result<motion_media::VideoProbe> {
         Err("unused".into())
     }
     fn open_decoder(
@@ -22,7 +22,7 @@ impl Platform for Stub {
         _: &Path,
         _: motion_core::VideoAsset,
         _: Vec<u64>,
-    ) -> Result<Box<dyn motion_host::VideoDecoder>> {
+    ) -> motion_media::Result<Box<dyn motion_host::VideoDecoder>> {
         Err("unused".into())
     }
     fn decode_audio(
@@ -31,11 +31,11 @@ impl Platform for Stub {
         _: &Path,
         _: Option<u32>,
         _: u64,
-        _: &mut dyn FnMut(f64) -> Result<()>,
-    ) -> Result<motion_core::AudioAsset> {
+        _: &mut dyn FnMut(f64) -> motion_media::Result<()>,
+    ) -> motion_media::Result<motion_core::AudioAsset> {
         Err("unused".into())
     }
-    fn media_capabilities(&self, _: Option<&motion_host::VideoQuery>) -> Result<serde_json::Value> {
+    fn media_capabilities(&self, _: Option<&motion_host::VideoQuery>) -> motion_media::Result<serde_json::Value> {
         Ok(serde_json::json!({}))
     }
     fn attach_surface(
@@ -43,7 +43,7 @@ impl Platform for Stub {
         _: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         _: u32,
         _: u32,
-    ) -> Result<motion_host::SurfaceTarget> {
+    ) -> motion_host::Result<motion_host::SurfaceTarget> {
         Err("unused".into())
     }
 }
@@ -68,10 +68,14 @@ fn shared_json_policy_is_atomic_runtime_state_and_inherited_by_editor_rendering(
     let policy = MemoryPolicy {
         source_texture_budget_bytes: 32,
         scratch_budget_bytes: 96 << 20,
+        preview_target_budget_bytes: 4 << 20,
     };
     let result = session
         .plugin_request(&serde_json::json!({"op":"memory_policy","policy":policy}).to_string())
         .unwrap();
+    assert_eq!(result["policyVersion"], 3);
+    let queried = session.plugin_request("{\"op\":\"memory_policy\"}").unwrap();
+    assert_eq!(queried, result);
     assert_eq!(
         result["memoryPolicy"],
         serde_json::to_value(policy).unwrap()
@@ -91,6 +95,8 @@ fn shared_json_policy_is_atomic_runtime_state_and_inherited_by_editor_rendering(
     );
     assert_eq!(session.view_revision, view);
     let info = session.preview_info();
+    assert_eq!(info["memoryPolicyVersion"], 3);
+    assert_eq!(info["memoryPolicy"]["previewTargetBudgetBytes"], 4 << 20);
     assert_eq!(info["sourceTextureBudgetBytes"], 32);
     assert_eq!(info["memoryPolicy"], result["memoryPolicy"]);
     assert_eq!(session.engine.revision(), revision);
@@ -163,4 +169,50 @@ fn resource_tracking_is_runtime_only_and_profiling_keeps_it_enabled() {
     assert_eq!(session.engine.revision(), revision);
     assert_eq!(session.view_revision, view);
     assert_eq!(session.engine.snapshot(), project);
+}
+
+
+#[test]
+fn explicit_capacity_query_includes_caller_target_and_preserves_runtime_only_semantics() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut session = Session::new(Project::new(64, 64, 30, 60).unwrap(),
+        directory.path().to_path_buf(), Arc::new(Stub)).unwrap();
+    let project = session.engine.snapshot();
+    let revision = session.engine.revision();
+    let view = session.view_revision;
+    let query = "{\"op\":\"resource_ledger\"}";
+    let empty = session.plugin_request(query).unwrap();
+    let observed = &empty["combinedCapacity"]["observation"];
+    assert_eq!(observed["activeRenderers"], 0);
+    assert_eq!(observed["allActiveRenderersTracked"], false);
+    assert_eq!(observed["knownCombinedBytes"], 0);
+    session.editor_renderer = Some(pollster::block_on(Renderer::headless()).unwrap());
+    let idle = session.plugin_request(query).unwrap();
+    let base = idle["knownBytes"].as_u64().unwrap();
+    assert!(base > 0);
+    session.editor_target = Some(session.editor_renderer.as_ref().unwrap().capture_target(5, 7).unwrap());
+    session.plugin_request("{\"op\":\"resource_tracking\",\"enabled\":true}").unwrap();
+    let occupied = session.plugin_request(query).unwrap();
+    let combined = &occupied["combinedCapacity"];
+    let observed = &combined["observation"];
+    assert_eq!(observed["knownOwnedBytes"], base + 5 * 7 * 4);
+    assert_eq!(observed["knownCombinedBytes"], occupied["knownBytes"]);
+    assert_eq!(observed["knownRetiredBytes"], 0);
+    assert_eq!(observed["unknownCapacityCount"], 0);
+    assert_eq!(observed["activeRenderers"], 1);
+    assert_eq!(observed["allActiveRenderersTracked"], true);
+    assert_eq!(observed["pendingUntracked"], 0);
+    assert_eq!(combined["isFramePeak"], false);
+    assert_eq!(combined["isDriverResidency"], false);
+    assert_eq!(combined["completeCoverage"], false);
+    assert_eq!(combined["atomicAcrossRenderers"], false);
+    assert_eq!(occupied, session.plugin_request(query).unwrap());
+    session.editor_target = None;
+    session.plugin_request("{\"op\":\"resource_tracking\",\"enabled\":false}").unwrap();
+    let released = session.plugin_request(query).unwrap();
+    assert_eq!(released["combinedCapacity"]["observation"]["knownCombinedBytes"], base);
+    assert_eq!(released["combinedCapacity"]["observation"]["allActiveRenderersTracked"], false);
+    assert_eq!(session.engine.snapshot(), project);
+    assert_eq!(session.engine.revision(), revision);
+    assert_eq!(session.view_revision, view);
 }

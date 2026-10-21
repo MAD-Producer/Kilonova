@@ -76,7 +76,7 @@ impl Gate {
             .lock()
             .unwrap()
             .recv_timeout(Duration::from_secs(15))
-            .map_err(|e| e.to_string())
+            .map_err(|e| e.to_string().into())
     }
 }
 struct Backend(Arc<Gate>);
@@ -89,11 +89,11 @@ impl crate::platform::Platform for Backend {
         _: &Path,
         _: Option<u32>,
         _: Option<u32>,
-        _: &dyn Fn() -> Result<()>,
-    ) -> Result<motion_media::VideoProbe> {
+        _: &dyn Fn() -> motion_media::Result<()>,
+    ) -> motion_media::Result<motion_media::VideoProbe> {
         Err("not used".into())
     }
-    fn open_decoder(&self, _: &Path, _: VideoAsset, _: Vec<u64>) -> Result<Box<dyn VideoDecoder>> {
+    fn open_decoder(&self, _: &Path, _: VideoAsset, _: Vec<u64>) -> motion_media::Result<Box<dyn VideoDecoder>> {
         if self.0.phase == "open_error" {
             self.0.block()?;
             return Err(self.0.error.unwrap_or("controlled open failure").into());
@@ -109,11 +109,11 @@ impl crate::platform::Platform for Backend {
         _: &Path,
         _: Option<u32>,
         _: u64,
-        _: &mut dyn FnMut(f64) -> Result<()>,
-    ) -> Result<motion_core::AudioAsset> {
+        _: &mut dyn FnMut(f64) -> motion_media::Result<()>,
+    ) -> motion_media::Result<motion_core::AudioAsset> {
         Err("not used".into())
     }
-    fn media_capabilities(&self, _: Option<&crate::platform::VideoQuery>) -> Result<Value> {
+    fn media_capabilities(&self, _: Option<&crate::platform::VideoQuery>) -> motion_media::Result<Value> {
         Err("not used".into())
     }
     fn attach_surface(
@@ -121,13 +121,13 @@ impl crate::platform::Platform for Backend {
         _: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         _: u32,
         _: u32,
-    ) -> Result<crate::platform::SurfaceTarget> {
+    ) -> crate::Result<crate::platform::SurfaceTarget> {
         Err("not used".into())
     }
 }
 struct Decoder(Arc<Gate>);
 impl VideoDecoder for Decoder {
-    fn frame(&mut self, time: u64, check: &dyn Fn() -> Result<()>) -> Result<DecodedFrame> {
+    fn frame(&mut self, time: u64, check: &dyn Fn() -> motion_media::Result<()>) -> motion_media::Result<DecodedFrame> {
         check()?;
         if matches!(self.0.phase, "decode" | "oversized") {
             self.0.block()?;
@@ -397,7 +397,7 @@ fn unpolled_required_failures_and_outer_unwind_leave_file_evidence() {
                     let reason =
                         error.unwrap_or("video source frame exceeds its stream cache budget");
                     assert!(text.contains(&format!("reason={reason}")));
-                    assert_eq!(stream.ready(41).err().as_deref(), Some(reason));
+                    assert_eq!(stream.ready(41).err().map(|error| error.to_string()).as_deref(), Some(reason));
                     let state = stream.shared.0.lock().unwrap();
                     assert!(!state.worker_stopped);
                     assert!(state.in_flight.is_none());
