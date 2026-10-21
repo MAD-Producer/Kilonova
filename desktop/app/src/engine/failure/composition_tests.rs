@@ -7,6 +7,7 @@ use motion_core::composition::{Composition, MAX_COMPOSITIONS};
 mod effect_admission;
 mod frame_blend_admission;
 mod fixed_admission;
+mod timing_admission;
 
 #[test]
 fn exposure_uniform_admission_failure_reaches_reply_file_and_stderr_at_default_level() {
