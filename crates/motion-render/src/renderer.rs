@@ -225,7 +225,7 @@ pub struct Renderer {
     pub effect_diagnostics: Vec<String>,
     composition_images: std::collections::HashSet<u64>,
     // Drop last: finish unsubmitted destination lifetimes after cache handles.
-    allocation_uploads: crate::allocation_uploads::AllocationUploads,
+    allocation_uploads: Arc<crate::allocation_uploads::AllocationUploads>,
 }
 
 impl Renderer {
@@ -421,11 +421,12 @@ impl Renderer {
             vertex:wgpu::VertexState {module:&mask_shader,entry_point:Some("vertex_main"),compilation_options:Default::default(),buffers:&[Some(wgpu::VertexBufferLayout {array_stride:std::mem::size_of::<GeometryVertex>() as u64,step_mode:wgpu::VertexStepMode::Vertex,attributes:&wgpu::vertex_attr_array![0=>Float32x3,1=>Float32x2]})]},
             fragment:Some(wgpu::FragmentState {module:&mask_shader,entry_point:Some("fragment_main"),compilation_options:Default::default(),targets:&[Some(wgpu::ColorTargetState {format,blend:Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING),write_mask:wgpu::ColorWrites::ALL})]}),
             primitive:wgpu::PrimitiveState {cull_mode:None,..Default::default()},depth_stencil:None,multisample:Default::default(),multiview_mask:None,cache:None});
-        let effect_gpu = crate::effect_gpu::EffectGpu::new(&device, &queue, &image_layout)?;
+        let allocation_uploads = Arc::new(crate::allocation_uploads::AllocationUploads::new(queue.clone()));
+        let effect_gpu = crate::effect_gpu::EffectGpu::new(&device, &queue, &image_layout,
+            allocation_budget.clone(), allocation_uploads.clone())?;
         let layer_gpu =
             crate::layer_gpu::LayerGpu::new(&device, &uniform_layout, &image_layout, format);
         let mask_gpu=crate::mask_gpu::MaskGpu::new(&device,&image_layout)?;
-        let allocation_uploads = crate::allocation_uploads::AllocationUploads::new(queue.clone());
         let mut renderer = Self {
             allocation_budget,
             allocation_owner: Arc::new(()),

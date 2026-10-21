@@ -9,13 +9,13 @@ use motion_effects::Registry;
 use std::collections::HashMap;
 
 pub(crate) struct FxTexture {
-    pub texture: OwnedTexture,
-    pub view: wgpu::TextureView,
     pub composite: wgpu::BindGroup,
+    pub view: wgpu::TextureView,
+    pub texture: OwnedTexture,
 }
 struct Buffer {
-    buffer: wgpu::Buffer,
     group: wgpu::BindGroup,
+    buffer: crate::allocation_buffer::AllocationBuffer,
 }
 struct Binding {
     key: (
@@ -28,7 +28,7 @@ struct Binding {
         usize,
     ),
     group: wgpu::BindGroup,
-    _allocations: [Option<crate::allocation_budget::AllocationLease>; 2],
+    _allocations: [Option<crate::allocation_budget::AllocationLease>; 3],
 }
 struct InputResource {
     program: u32,
@@ -37,8 +37,8 @@ struct InputResource {
     _allocation: Option<crate::allocation_budget::AllocationLease>,
 }
 struct Lut {
-    texture: OwnedTexture,
     view: wgpu::TextureView,
+    texture: OwnedTexture,
     last: [u8; 1024],
 }
 pub(crate) struct EffectGpu {
@@ -46,6 +46,8 @@ pub(crate) struct EffectGpu {
     pub state: GpuState,
 }
 pub(crate) struct GpuState {
+    allocation_budget: crate::AllocationBudget,
+    allocation_uploads: std::sync::Arc<crate::allocation_uploads::AllocationUploads>,
     uniform_layout: wgpu::BindGroupLayout,
     input_layout: wgpu::BindGroupLayout,
     resource_layout: wgpu::BindGroupLayout,
@@ -82,7 +84,22 @@ pub(crate) fn texture(
     h: u32,
     format: wgpu::TextureFormat,
 ) -> FxTexture {
-    let texture = device.create_owned_texture(&wgpu::TextureDescriptor {
+    bind_texture(device, layout, sampler, device.create_owned_texture(&texture_descriptor(w, h, format)))
+}
+fn admitted_texture(
+    device: &wgpu::Device,
+    layout: &wgpu::BindGroupLayout,
+    sampler: &wgpu::Sampler,
+    w: u32,
+    h: u32,
+    format: wgpu::TextureFormat,
+    budget: &crate::AllocationBudget,
+) -> Result<FxTexture, RenderError> {
+    let texture = device.create_admitted_texture(&texture_descriptor(w, h, format), budget)?;
+    Ok(bind_texture(device, layout, sampler, texture))
+}
+fn texture_descriptor(w: u32, h: u32, format: wgpu::TextureFormat) -> wgpu::TextureDescriptor<'static> {
+    wgpu::TextureDescriptor {
         label: Some("motion-studio effect texture"),
         size: wgpu::Extent3d {
             width: w,
@@ -98,7 +115,14 @@ pub(crate) fn texture(
             | wgpu::TextureUsages::COPY_SRC
             | wgpu::TextureUsages::COPY_DST,
         view_formats: &[],
-    });
+    }
+}
+fn bind_texture(
+    device: &wgpu::Device,
+    layout: &wgpu::BindGroupLayout,
+    sampler: &wgpu::Sampler,
+    texture: OwnedTexture,
+) -> FxTexture {
     let view = texture.create_view(&Default::default());
     let composite = device.create_bind_group(&wgpu::BindGroupDescriptor {
         label: Some("effect composite input"),
@@ -171,6 +195,8 @@ impl EffectGpu {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         composite: &wgpu::BindGroupLayout,
+        allocation_budget: crate::AllocationBudget,
+        allocation_uploads: std::sync::Arc<crate::allocation_uploads::AllocationUploads>,
     ) -> Result<Self, RenderError> {
         let uniform_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("effect SDK uniform"),
@@ -225,6 +251,8 @@ impl EffectGpu {
             )
             .map_err(RenderError::Invalid)?,
             state: GpuState {
+                allocation_budget,
+                allocation_uploads,
                 uniform_layout,
                 input_layout,
                 resource_layout,
@@ -382,20 +410,19 @@ impl GpuState {
             });
         }
         if self.pool_slots != frame.slots || self.pool_sizes != frame.scratch_sizes || self.pool.len() != 8 {
-            let old_slots = self.pool_slots;
-            let old_sizes = self.pool_sizes;
-            let mut old_pool = std::mem::take(&mut self.pool);
+            // Allocate replacements before moving any live slot. A refusal in a
+            // later slot must leave the previous pool and bindings intact.
             let mut next_pool = Vec::with_capacity(8);
             for i in 0..8 {
                 let active = frame.slots & (1 << i) != 0;
                 let reusable = active
-                    && old_slots & (1 << i) != 0
-                    && old_sizes[i] == frame.scratch_sizes[i]
-                    && old_pool.get(i).is_some_and(|slot| slot.is_some());
+                    && self.pool_slots & (1 << i) != 0
+                    && self.pool_sizes[i] == frame.scratch_sizes[i]
+                    && self.pool.get(i).is_some_and(|slot| slot.is_some());
                 if reusable {
-                    next_pool.push(old_pool[i].take());
+                    next_pool.push(None);
                 } else if active {
-                    next_pool.push(Some(texture(
+                    next_pool.push(Some(admitted_texture(
                         device,
                         composite,
                         &self.sampler,
@@ -408,12 +435,22 @@ impl GpuState {
                         } else {
                             wgpu::TextureFormat::Rgba8UnormSrgb
                         },
-                    )));
+                        &self.allocation_budget,
+                    ).map_err(|error| {
+                        let message = format!("effect scratch slot={i} extent={}x{} phase=allocate: {error}",
+                            frame.scratch_sizes[i][0], frame.scratch_sizes[i][1]);
+                        error.with_diagnostic(message)
+                    })?));
                 } else {
                     next_pool.push(None);
                 }
             }
             self.invalidate();
+            for (i, slot) in next_pool.iter_mut().enumerate() {
+                if slot.is_none() && frame.slots & (1 << i) != 0 {
+                    *slot = self.pool[i].take();
+                }
+            }
             self.pool = next_pool;
             self.pool_slots = frame.slots;
             self.pool_sizes = frame.scratch_sizes;
@@ -423,19 +460,29 @@ impl GpuState {
         // change when every slot can still be reused.
         self.pool_width = frame.width;
         self.pool_height = frame.height;
+        if self.luts.len() != scene.curve_luts.len() {
+            // A reused LUT index may name a different allocation after shrink
+            // and growth, including preflights without an intervening draw.
+            self.invalidate();
+        }
         self.luts.truncate(scene.curve_luts.len());
         for (index, lut) in scene.curve_luts.iter().enumerate() {
             let bytes: [u8; 1024] =
                 std::array::from_fn(|i| (lut[i / 4][i % 4].clamp(0.0, 1.0) * 255.0).round() as u8);
             if index >= self.luts.len() {
-                let t = texture(
+                let t = admitted_texture(
                     device,
                     composite,
                     &self.sampler,
                     256,
                     1,
                     wgpu::TextureFormat::Rgba8Unorm,
-                );
+                    &self.allocation_budget,
+                ).map_err(|error| {
+                    let message = format!("effect curve index={index} phase=allocate: {error}");
+                    error.with_diagnostic(message)
+                })?;
+                self.allocation_uploads.track(t.texture.allocation())?;
                 upload(queue, &t.texture, 256, 1, &bytes);
                 self.parameter_resource_upload_bytes += 1024;
                 self.luts.push(Lut {
@@ -444,18 +491,23 @@ impl GpuState {
                     last: bytes,
                 });
             } else if self.luts[index].last != bytes {
+                self.allocation_uploads.track(self.luts[index].texture.allocation())?;
                 upload(queue, &self.luts[index].texture, 256, 1, &bytes);
                 self.parameter_resource_upload_bytes += 1024;
                 self.luts[index].last = bytes;
             }
         }
         while self.buffers.len() < frame.passes.len() {
-            let buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            let index = self.buffers.len();
+            let buffer = crate::allocation_buffer::AllocationBuffer::new(device, &self.allocation_budget, &wgpu::BufferDescriptor {
                 label: Some("reusable effect parameters"),
                 size: motion_effects::shader::UNIFORM_BYTES as u64,
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                 mapped_at_creation: false,
-            });
+            }).map_err(|error| {
+                let message = format!("effect parameters pass={index} phase=allocate: {error}");
+                error.with_diagnostic(message)
+            })?;
             let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: None,
                 layout: &self.uniform_layout,
@@ -601,14 +653,20 @@ impl GpuState {
                                     asset_bytes + self.resource_bytes + bytes, source_budget,
                                     "images and effect resources exceed configured source texture budget"));
                             }
-                            let t = texture(
+                            let t = admitted_texture(
                                 device,
                                 composite,
                                 &self.sampler,
                                 rgba.width(),
                                 rgba.height(),
                                 wgpu::TextureFormat::Rgba8Unorm,
-                            );
+                                &self.allocation_budget,
+                            ).map_err(|error| {
+                                let message = format!("effect resource package={} path={} phase=allocate: {error}",
+                                    package.hash, path.chars().take(192).collect::<String>());
+                                error.with_diagnostic(message)
+                            })?;
+                            self.allocation_uploads.track(t.texture.allocation())?;
                             upload(
                                 queue,
                                 &t.texture,
@@ -671,6 +729,7 @@ impl GpuState {
             .buffers
             .get(index)
             .ok_or_else(|| RenderError::Invalid(format!("effect buffer {index} is missing")))?;
+        self.allocation_uploads.track(Some(buffer.buffer.allocation()))?;
         queue.write_buffer(
             &buffer.buffer,
             0,
@@ -768,8 +827,10 @@ impl GpuState {
             };
             let input = view(p.input)?;
             let source = view(p.source)?;
-            let allocations = [input, source].map(|view| images.values()
-                .find_map(|image| image._texture.allocation_for_view(view)));
+            let allocations = [input, source, lut].map(|view| images.values()
+                .find_map(|image| image._texture.allocation_for_view(view))
+                .or_else(|| self.pool.iter().flatten().find_map(|texture| texture.texture.allocation_for_view(view)))
+                .or_else(|| self.luts.iter().find_map(|lut| lut.texture.allocation_for_view(view))));
             let entries = [
                 wgpu::BindGroupEntry {
                     binding: 0,

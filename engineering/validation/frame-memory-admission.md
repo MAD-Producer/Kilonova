@@ -393,3 +393,35 @@ as green or dismissed as unrelated. The independent
 The exposure increment is not yet published. Other resource enrollment, shared
 session policy, platform pressure, complete preview/export/lifecycle acceptance
 and #67 reuse remain pending; #60/#61/#67 remain open.
+
+## Fifth increment: dynamic effect resources (pending acceptance)
+
+Effect scratch, dynamic curve LUTs, packaged PNG textures and per-pass parameter
+buffers now use the renderer's combined admission budget. Partial scratch growth
+stages replacements without moving existing slots or invalidating their bindings
+until all new slots have been admitted. Texture format separation is unchanged.
+The actual old/new overlap is charged, rather than subtracting a still-live old
+pool from the peak. Refusals retain slot, extent, curve/pass index or bounded
+package/path context and the original typed capacity rejection.
+
+Queued LUT/package/uniform writes journal their destinations before writing.
+The renderer and effect state share that journal, whose final owner flushes pending
+writes at teardown. Cached input bindings now retain admitted scratch and LUT
+identities alongside source images. Bindings and views drop before their owning
+texture or buffer reservation. A LUT count change invalidates cached bindings,
+including a shrink/grow sequence of preflights without an intervening draw; a
+reused numeric index must not retain a replaced allocation.
+
+Four new GPU cases cover later-slot refusal with unchanged old identities and
+pixels, late parameter refusal with scratch reuse and grayscale recovery, LUT
+refusal plus queued/abandoned destination lifetime, and real packaged PNG refusal
+with recovery. Another process-isolated case exercises a real parameter refusal
+through the unchanged reply and default file/Error-stderr boundary. Final
+committed-source acceptance is still pending. Existing assertions and pixel
+tolerances remain unchanged.
+
+Permanent effect fallback/identity textures and the sprite buffer, plus the
+remaining layer/vector/mask/compositing/timing resources, are not enrolled by this
+increment. Queue upload staging is still a separate pending scope. Shared session
+policy, platform pressure, complete preview/export/lifecycle acceptance and #67
+remain pending; this increment does not complete #61.
