@@ -45,3 +45,11 @@ cargo test -p motion-render -p motion-host --locked --offline -j1 -- --test-thre
 未覆盖完整桌面的反复缩放／seek／切工程、平台显存压力、全部资源类别及整帧峰值，不改变渲染像素语义、工程格式、依赖或第三方素材。#61 保持开放。
 
 未修改 panels、用户可见样式或右键菜单。DESIGN §0.7 的十二项逐项处置沿用 `host-error-contract.md` 的基线表，全部 retained：本次仅修正 GPU 分配的引用生命周期，无对应视觉改动；不声称通过新的视觉验收。
+
+## AR-04：macOS Intel 的策略测试夹具
+
+#399 首轮 CI 的 macOS Intel job `119210510838` 在既有分布策略测试失败：`sampled()` 准备场景时，表达式 `[100, 120, 0]` 触发执行预算错误，尚未进入 `distribution_plan`。日志为 `artifacts/pr-ci-followups/pr-399-macos-failed.log`。这份证据不证明真实表达式预算可以忽略，也不把后续通过当作旧失败不存在。
+
+该用例现在使用修改选择约束前的真实已采样场景，验证规划器在消费受控图层的新几何前拒绝 locked／3D／expression 元数据。原有非法选择及工程不变断言保留；对三类元数据再检查确切原因和完整工程不变，并新增禁用表达式后的允许对照。没有扩大表达式或测试等待预算，没有重试、忽略或修改生产逻辑。真实 JS 执行、取消和预算仍由 core 表达式专项负责；本用例不再承担与其策略目标无关的冷启动时序检查。
+
+本地分布完整组 4 项通过（8.12 秒）；真实表达式 `syntax_type_budget_cancel_and_frame_errors_preserve_original_animation` 及 `failed_and_interrupted_projects_cannot_poison_the_next_evaluation` 各 1 项通过，仍执行原有预算／取消／恢复断言。日志为 `pr-399-distribution-policy-fixture.log`、`pr-399-expression-budget.log` 与 `pr-399-expression-recovery.log`。首轮 CI 的 Rust/GPU、Linux 与 Windows 已通过；修订提交仍需重新接受全部跨平台门禁。
