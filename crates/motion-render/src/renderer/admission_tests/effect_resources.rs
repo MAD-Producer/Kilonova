@@ -299,3 +299,49 @@ fn package_texture_refusal_keeps_resource_counts_and_recovers_through_real_uploa
         .all(|pixel| pixel[3] == 255));
     renderer.check_health().unwrap();
 }
+
+#[test]
+fn curve_preflight_shrink_and_growth_rebinds_the_new_lut_without_retaining_old_capacity() {
+    let budget = crate::AllocationBudget::new(1 << 20).unwrap();
+    let mut renderer =
+        pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();
+    let original = scene(&project("curves", 8));
+    let intermediate = scene(&project("tint", 8));
+    let mut changed_project = project("curves", 8);
+    changed_project.layers[0].effects[0]
+        .params
+        .get_mut("p0001")
+        .unwrap()
+        .curve
+        .as_mut()
+        .unwrap()
+        .value
+        .channels[1] = vec![[0., 0.], [1., 0.]];
+    let changed = scene(&changed_project);
+    let target = renderer.capture_target(8, 8).unwrap();
+    let initial = renderer.capture(&original, &target).unwrap().0;
+    assert!(initial
+        .chunks_exact(4)
+        .all(|pixel| pixel[0] >= 250 && pixel[1] <= 1 && pixel[2] <= 1 && pixel[3] == 255));
+    let before = budget.info().unwrap().admitted_bytes;
+    let ids = scratch_ids(&renderer);
+    for _ in 0..3 {
+        // These are valid plans with the same scratch slots and number of
+        // passes. No draw between them can repair a stale cached LUT binding.
+        renderer.preflight_effects(&intermediate, 8, 8).unwrap();
+        assert_eq!(scratch_ids(&renderer), ids);
+        assert_eq!(renderer.texture_memory_breakdown().curve_luts, 0);
+        renderer.preflight_effects(&changed, 8, 8).unwrap();
+        assert_eq!(scratch_ids(&renderer), ids);
+        let actual = renderer.capture(&changed, &target).unwrap().0;
+        assert!(
+            actual
+                .chunks_exact(4)
+                .all(|pixel| pixel[0] <= 1 && pixel[1] <= 1 && pixel[2] <= 1 && pixel[3] == 255),
+            "{actual:?}"
+        );
+        assert_eq!(budget.info().unwrap().admitted_bytes, before);
+        assert_eq!(renderer.texture_memory_breakdown().curve_luts, 1024);
+    }
+    renderer.check_health().unwrap();
+}
