@@ -26,7 +26,9 @@ zip 9 的文件名读取变为可失败接口。效果包与工程包读取使�
 
 初次 CI 工具回归发现新增工具未登记 inventory、本地 Python 缺 PyYAML；已登记并在独立虚拟环境安装与 CI 相同的 PyYAML 6.0.3。随后严格 job 集合断言发现新增 job 未列入旧清单，已精确扩展预期集合并新增审计必须执行、不得 continue-on-error、报告上传和发布依赖断言，保留其他检查。最终工具集 70 项通过、1 项既有跳过；没有删除首次失败日志。实际固定下载／校验／安装的 Windows 工具执行也通过，当前锁文件为零漏洞。完整记录位于 `results.json`、`ci-tools-final.log`、`installer-current/` 与逐阶段日志。
 
-带 FFmpeg 的桌面构建通过；本提交远端 CI 尚待完成，不将本地审计或包装器单测当成完整发布验收。informational/unmaintained 报告仍保留，不因漏洞数为零而声称所有依赖均持续维护。工具超时输出保留目前仅有实现，未以实际阻塞审计进程验收；Linux 安装与 CI 上传的实际执行继续交给本提交远端检查。
+带 FFmpeg 的桌面构建通过，不将本地审计或包装器单测当成完整发布验收。informational/unmaintained 报告仍保留，不因漏洞数为零而声称所有依赖均持续维护。工具超时输出保留目前仅有实现，未以实际阻塞审计进程验收。
+
+原 head 6653fe5f 的 run 39614319284 中，Dependency audit 实际成功；下载 artifact 12351563163，核对固定三份报告、原生退出 0、零漏洞及 Cargo.lock SHA-256 与本地完全一致，数据库 revision 同上。这覆盖 Linux 工具安装、真实审计和远端上传。Rust/GPU、Linux 与 macOS 通过，Windows 桌面两项原生测试超时，PR 尚不能合并；原始失败、测试驱动消息处理修正及剩余采样 Present 根因见 native-capture-message-pump.md。不把审计成功冒充整体 CI 已通过。
 
 本次没有新增产品日志事件、观察键、计数器、UI 或渲染语义；文件名失败沿既有原生错误返回，完整默认日志通道未因这项依赖升级单独重验。DESIGN §0.7 十二项全部 retained，此次没有修改对应面板；逐项理由沿用 host-error-contract.md，不声称视觉验收。
 
