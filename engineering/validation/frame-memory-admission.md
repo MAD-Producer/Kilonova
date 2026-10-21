@@ -957,3 +957,27 @@ identical tested native drivers. Sampling already pumped messages while awaiting
 Present, so the remote baseline timeout's precise cause and resolution remain
 unproven until further public/native evidence. No assertions, retries, ignores,
 timeouts or product semantics were relaxed to obtain a green result.
+
+
+## PR404 main integration validation
+
+Source `8ead9fbc` integrates main `164baf37`, including its dependency-audit
+updates and complete native attachment message dispatch. The only path-driver
+conflict keeps main's 30-second attach pump and all original assertions, while
+using the shared 60-second capture helper. Renderer/host source remains identical
+to accepted `68f0de50`; core/effects and the lockfile match the integrated main.
+No dependency is added by this resource-admission increment.
+
+The frozen integrated source passes workspace/all-targets FFmpeg check, core17
+and effects7 library cases, all15 default-log composition boundary cases, and
+the three actual Windows message/path/playback controls: **42 selected passes**.
+The core library also retains one pre-existing ignored manual large-document
+history measurement; that case was not run or counted as a pass. These results
+are separate from the earlier235 compositor selections and do not represent a
+full workspace test run. Source-bound `compositing-admission-parent-main-*`
+logs and `parent-main-acceptance.json` retain exits, counts and SHA-256.
+
+This resolves the main-integration conflict but does not establish the cause of
+the earlier remote sampling Present timeout. Public checks must be evaluated on
+the newly published head. No assertions, waiting limits, ignores, product panel
+code or UI behavior were changed by conflict resolution. #61/#67 remain open.
