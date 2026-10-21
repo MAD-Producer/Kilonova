@@ -34,6 +34,8 @@ mod video_pixels;
 mod video_gpu;
 mod vector_mesh;
 mod layer_gpu;
+mod vector_upload;
+pub use vector_upload::{VectorUploadError, VectorUploadInfo};
 pub mod mask_plan;
 pub mod compositing_plan;
 mod compositing_gpu;

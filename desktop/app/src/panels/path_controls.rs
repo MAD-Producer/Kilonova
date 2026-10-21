@@ -25,6 +25,7 @@ mod mask_keys;
 mod mask_path;
 mod source_geometry;
 mod point_selection;
+mod pen_tools;
 #[cfg(test)]
 mod property_focus_tests;
 pub(in crate::panels) mod timeline;
@@ -227,6 +228,7 @@ pub struct Controls {
     draft: Option<Draft>,
     drag: Option<Drag>,
     point_selection: point_selection::Selection,
+    pen_tools: pen_tools::Controls,
     selected: Option<(u64, u64)>,
     selected_item: Option<u64>,
     focus: bool,
@@ -377,6 +379,7 @@ impl Controls {
         self.draft.is_some()
             || self.drag.is_some()
             || self.point_selection.editing()
+            || self.pen_tools.editing()
             || self.parameter.is_some()
             || self.keys.editing()
             || self.groups.editing()
@@ -397,6 +400,7 @@ impl Controls {
         let points = self.point_selection.cancel();
         let param = self.parameter.take().is_some_and(|p| p.begun);
         self.draft = None;
+        self.pen_tools.cancel();
         self.parameter_context = None;
         self.focus = false;
         self.add_mask_menu.open = false;
@@ -413,6 +417,7 @@ impl Controls {
             out.push(Action::History(4));
         }
         self.tool = tool;
+        self.pen_tools.mode = pen_tools::Mode::Draw;
         self.selected = None;
         self.selected_item = None;
         self.point_selection.clear();
@@ -602,6 +607,10 @@ impl Controls {
         if self.tool == Tool::Select {
             return false;
         }
+        let mut tool_overlay = list.child();
+        let tool_owned = self.draw_pen_tools(&mut tool_overlay, atlas, clip, input, locale, out);
+        let neutral = Input { mouse: input.mouse, ..Default::default() };
+        let input = if tool_owned { &neutral } else { input };
         if input.pressed.is_some_and(|(_, p)| clip.contains(p)) {
             self.focus = true;
         } else if input.pressed.is_some() && !self.editing() {
@@ -661,6 +670,8 @@ impl Controls {
             self.selected = None;
             self.selected_item = None;
         }
+        let pen_owned = self.pen_tool_input(clip, &sampled, projection.as_ref(), offset,
+            target.as_ref(), state, selected, input, locale, out);
         if self.focus && self.parameter.is_none() && !input.composing {
             for (key, mods) in &input.keys {
                 if mods.control && *key == Key::S {
@@ -754,7 +765,7 @@ impl Controls {
             }
         }
         if let Some((MouseButton::Left, point)) = input.pressed.filter(|(_, p)| clip.contains(*p)
-            && !selection_owned && self.drag.is_none() && state["observing"] != true) {
+            && !selection_owned && !pen_owned && self.drag.is_none() && state["observing"] != true) {
             let hit = hits
                 .into_iter()
                 .filter(|h| h.0 <= HIT_RADIUS)
@@ -1070,9 +1081,9 @@ impl Controls {
         label(
             list,
             atlas,
-            Rect::new(clip.min[0]+padding, clip.min[1]+padding,
+            Rect::new(clip.min[0]+padding, clip.min[1]+padding+styles.metric("field.height",18.)+padding,
                 (clip.width()-padding*2.).max(1.), styles.metric("row.height",22.)),
-            self.notice.as_deref().unwrap_or_else(|| {
+            self.notice.as_deref().or_else(||self.pen_tools.mode.hint(locale)).unwrap_or_else(|| {
                 if self.tool==Tool::Pen && sampled.iter().any(|path|path["bounds_size"].is_array()) {
                     if locale==Locale::Zh {"拖动角点调整宽高 · 对角固定 · Esc取消"}
                     else {"Drag corners to resize · Opposite corner stays fixed · Esc cancels"}
@@ -1083,6 +1094,7 @@ impl Controls {
             }),
             colors.TEXT_MUTED,
         );
+        list.append(tool_overlay);
         clip.contains(input.mouse) || self.editing()
     }
     fn remove_node(&self, l: &Layer, path: u64, node: u64, out: &mut Vec<Action>) {

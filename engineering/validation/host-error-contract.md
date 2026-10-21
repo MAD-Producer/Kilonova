@@ -21,6 +21,7 @@ Session/ops 原先把已知错误立即转换为 String，调用方无法检查�
 | HE-07 文本与协议边界 | 明确保留 | respond 仍向原信道发送 String，接收方退出的 best-effort 语义不变；ui_paint、部分视频/图像供应方与独立导出接口仍有原有文本边界，待分别迁移。 |
 | HE-08 聚合验收 | 待办 | #138 其他层的类型迁移、#135 其余故障注入，以及跨平台 CI 仍分别验收；本地 Windows 通过不代表所有平台已通过。 |
 | HE-09 命令与启动错误长度 | 修正既有观察的载荷边界 | 复用有界格式化器，将错误原因限制为 2048 字符并清理控制字符，启动失败记录中的路径独立受限；完整原生原因仍返回原信道。实际 edit 与工程加载失败验证文件、Error stderr、stdout 隔离、原工程字节、回滚及后续成功编辑。锁、初始快照和内存配置的每种启动失败未另行逐一注入，不能据此宣称全部故障已验收。 |
+| HE-10 矢量上传集成 | 原生错误类型接线、复用既有观察 | 普通呈现和曝光采样新增的上传统计读取直接使用 Render 错误转换，不先转为 String。上传映射及 uncaptured 回调的真实默认日志用例在本组合复验；没有新增日志、重试或 UI，也未单独注入公开 Session 统计读取时的池锁中毒。 |
 
 ## 实测
 
@@ -68,6 +69,23 @@ Session/ops 原先把已知错误立即转换为 String，调用方无法检查�
 修复后的专项运行：`logging::` 18 项、`engine::failure::` 19 项、`fallback_observation::` 2 项，共 39 项通过，无失败或忽略；包含真实故障恢复、panic、超时、不重复执行、锁释放及日志通道回归。之后工作区 all-targets 锁定离线检查（排除 Android，FFmpeg 和 host diagnostics）通过，用时 2 分 09 秒。并未在此次局部修改后重跑全部工作区测试，跨平台结果仍须核对当前提交。
 
 日志为 `host-command-error-unbounded-negative.log`、`host-command-error-bounded-positive.log`、`host-command-bounded-logging.log`、`host-command-bounded-engine-failure.log`、`host-command-bounded-fallback_observation.log`、`host-command-bounded-workspace-check.log`。测试入口为 `logging::command_error_tests::long_command_and_startup_errors_are_bounded_without_truncating_replies`；其他错误站点和全部敏感载荷治理不在本项完成范围内。
+
+### 模型、钢笔与矢量上传组合复验
+
+#380、#379 已合入主线 `c390e385`，本分支继续叠加 #383 的主线同步提交 `0fa89347`，未发生文本冲突。合并检查发现两处新增上传统计仍有字符串转换，因此在普通呈现、曝光采样中改为直接传播 RenderError，沿用本 PR 的原生宿主错误变体。产品行为、统计内容及 respond 的文本协议不变；#383 的资源复用和故障观察仍归属原 PR。
+
+工作区及独立 target 与前述一致。首轮双任务 all-targets 检查在 motion-model 测试元数据编译中实际报告 `memory allocation of 2097152 bytes failed`，随后 rustc 以 `0xc0000409` 退出，宿主测试尚未开始。原始日志 `host-vector-integration-check.log` 保留该失败。改为单构建任务后，相同源码 all-targets 检查通过，15.75 秒，见 `host-vector-integration-check-serial.log`；没有修改源代码或断言来绕过失败，也不把这次资源不足当作已定位的产品故障。
+
+该源码组合的运行结果如下，日志均在开发者工作区 `artifacts/pr-ci-followups/`：
+
+- `host-vector-integration-host.log`：完整宿主 **111 项通过**（含 1 项 doc-test），0 失败、0 忽略，包含真实 GPU 注册失败回滚、原生 JSON/IO 身份、冻结读取与清理、资源策略及并发边界。
+- `host-vector-logging.log`：完整桌面日志模块 **20 项通过**，包括 #383 的实际 BufferAsyncError、非法 GPU usage 默认日志，以及本 PR 的长命令错误/完整回复边界。
+- `host-vector-engine-failure.log`：命令故障 **20 项通过**，包含主线模型无效编辑、工程切换/保存失败、真实默认日志、panic、超时及不重复执行。
+- `host-vector-fallback_observation.log`：应用降级 **2 项通过**；`host-vector-audio_output.log`：音频 **19 项通过**，1 项既有真实声卡测试仍按原条件忽略。
+- 合计 **172 个不同测试通过，0 失败，1 项既有硬件忽略**；不与早期完整运行或 #383 的 59 项相加。完整桌面、全部渲染集成未在这个组合再次运行。
+- 来源守卫覆盖 **1643 个跟踪路径**，样式消费与暂存/工作区差异空白检查通过。没有新增依赖、资产、产品 UI 或 CI 修改。
+
+此前提交 `7456dfa9` 的四项平台 CI 已通过；本次叠加源码必须以新 head 的平台 CI 独立验收，不能沿用旧绿色结果。#383 仍按优先顺序先合入，再将本 PR 转回主线；未关闭 #138/#135，也未将历史 Vulkan loader 偶发访问冲突描述为已修复。
 
 ## DESIGN 基线
 
