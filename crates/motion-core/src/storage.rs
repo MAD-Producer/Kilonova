@@ -374,7 +374,7 @@ pub fn import_package_with_progress(
     let mut names = HashSet::new();
     for i in 0..zip.len() {
         let mut entry = zip.by_index(i)?;
-        let name = entry.name().to_owned();
+        let name = entry.name()?.into_owned();
         ensure(names.insert(name.to_lowercase()), "duplicate archive entry")?;
         ensure(!entry.is_dir(), "unexpected directory entry")?;
         ensure(
