@@ -32,7 +32,7 @@ fn composition(id: &str, fps: u32, layers: Vec<Layer>) -> Composition {
 }
 fn fixture(deep: bool) -> Project {
     let mut project = Project::new(64, 64, 30, 60).unwrap();
-    project.version = 21;
+    project.version = motion_model::CURRENT_PROJECT_VERSION;
     project.background = [0.; 4];
     let mut red = Layer::solid(1, "red shutter", [8.; 2], [32., 16., 0.], [1., 0., 0., 0.7]);
     let mut green = Layer::solid(

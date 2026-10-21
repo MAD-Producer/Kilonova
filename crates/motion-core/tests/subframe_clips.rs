@@ -21,7 +21,7 @@ fn half_open_fractional_ranges_and_covering_bounds_roundtrip_without_changing_tr
     set(&mut e, -0.25, 2.75).unwrap();
     let p = e.snapshot();
     let l = &p.layers[0];
-    assert_eq!(p.version, 15);
+    assert_eq!(p.version, motion_model::CURRENT_PROJECT_VERSION);
     assert_eq!(l.clip(72).in_frame, -1);
     assert_eq!(l.clip(72).out_frame, 3);
     assert!(l.active(0., 72));
@@ -156,7 +156,7 @@ fn settings_and_precomposition_preserve_ranges_and_explicit_shrink_policy() {
 #[test]
 fn exact_audio_interval_keeps_decoded_duration_precision_and_sample_boundaries() {
     let mut p = Project::new(64, 64, 24, 360).unwrap();
-    p.version = 15;
+    p.version = motion_model::CURRENT_PROJECT_VERSION;
     p.audio_assets.push(AudioAsset {
         id: 1,
         path: "assets/music.mp3".into(),
@@ -200,7 +200,7 @@ fn exact_audio_interval_keeps_decoded_duration_precision_and_sample_boundaries()
 #[test]
 fn stored_cover_mismatch_unknown_formats_and_locked_targets_are_rejected() {
     let mut p = project();
-    p.version = 15;
+    p.version = motion_model::CURRENT_PROJECT_VERSION;
     p.layers[0].subframe_range = Some(ClipRange {
         in_frame: 0.25,
         out_frame: 10.75,
@@ -216,19 +216,11 @@ fn stored_cover_mismatch_unknown_formats_and_locked_targets_are_rejected() {
         )
         .unwrap();
     p.validate().unwrap();
-    p.version = 14;
-    assert!(p.validate().is_err());
-    p.version = 18;
-    p.validate().unwrap();
-    p.version = 20;
-    p.validate().unwrap();
-    p.version = 21;
-    p.validate().unwrap();
-    p.version = 22;
-    p.validate().unwrap();
-    p.version = 23;
-    assert!(p.validate().is_err());
-    p.version = 15;
+    for version in [14, 18, 20, 21, 22, motion_core::CURRENT_PROJECT_VERSION + 1] {
+        p.version = version;
+        assert!(p.validate().unwrap_err().to_string().contains("unsupported project format"));
+    }
+    p.version = motion_core::CURRENT_PROJECT_VERSION;
     p.layers[0].locked = true;
     let mut e = Engine::new(p).unwrap();
     assert!(set(&mut e, 0., 4.).is_err());
@@ -240,7 +232,7 @@ fn stored_cover_mismatch_unknown_formats_and_locked_targets_are_rejected() {
 
 #[test]
 fn splitting_precise_audio_at_an_integer_does_not_change_boundary_convention() {
-    let mut p=Project::new(64,64,59,59).unwrap();p.version=15;
+    let mut p=Project::new(64,64,59,59).unwrap();p.version = motion_model::CURRENT_PROJECT_VERSION;
     p.audio_assets.push(AudioAsset{id:1,path:"assets/tone.wav".into(),bytes:64,mime:"audio/wav".into(),track:0,
         sample_rate:48000,channels:1,sample_frames:48000,duration_us:1_000_000});
     let mut l=Layer::solid(1,"audio",[0.;2],[0.;3],[1.;4]);l.content=Content::Audio{audio:AudioClip::new(1)};

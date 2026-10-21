@@ -20,7 +20,8 @@ fn read_json(path: &Path) -> Result<Project> {
         "project JSON exceeds the size limit",
     )?;
     let project: Project = serde_json::from_reader(file.take(MAX_JSON + 1))?;
-    project.migrate()
+    project.validate()?;
+    Ok(project)
 }
 /// Read the saved model without resolving its external assets. This lets a host
 /// compare unsaved edits even when an asset has disappeared from disk.

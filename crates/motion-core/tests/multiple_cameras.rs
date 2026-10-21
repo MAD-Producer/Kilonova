@@ -58,9 +58,11 @@ fn repeated_creation_keeps_distinct_layers_and_undo_redo_and_storage() {
 }
 
 #[test]
-fn legacy_camera_is_visible_in_serialized_state_and_does_not_block_creation() {
-    let mut value = serde_json::to_value(Project::demo()).unwrap();
-    value["camera"].as_object_mut().unwrap().remove("created");
+fn project_camera_state_is_explicit_and_does_not_block_layer_creation() {
+    let value = serde_json::to_value(Project::demo()).unwrap();
+    let mut missing = value.clone();
+    missing["camera"].as_object_mut().unwrap().remove("created");
+    assert!(serde_json::from_value::<Project>(missing).unwrap_err().to_string().contains("created"));
     let legacy: Project = serde_json::from_value(value).unwrap();
     assert!(legacy.camera.created);
     assert_eq!(

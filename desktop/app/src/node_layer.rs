@@ -285,7 +285,7 @@ mod tests {
         let compiled = snapshot.compile().unwrap();
         apply(&mut session, &snapshot, &compiled).unwrap();
         let before = session.engine.project().clone();
-        assert_eq!(before.version, 17);
+        assert_eq!(before.version, motion_model::CURRENT_PROJECT_VERSION);
         assert_eq!(before.layers[0].effects.len(), 1);
         assert!(before.layers[0].effects[0].node_graph.is_some());
         let mut doc = editor.snapshot().document;

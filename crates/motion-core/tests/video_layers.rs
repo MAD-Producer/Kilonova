@@ -76,28 +76,20 @@ fn video_uses_source_time_and_leading_and_trailing_transparency_through_clip_edi
     assert_eq!(before, e.snapshot());
 }
 #[test]
-fn format_four_migrates_in_memory_and_unknown_future_versions_are_rejected() {
-    let mut old = Project::new(64, 64, 60, 240).unwrap();
-    old.version = 4;
-    let bytes = serde_json::to_string(&old).unwrap();
-    let migrated: Project = serde_json::from_str(&bytes).unwrap();
-    assert_eq!(migrated.migrate().unwrap().version, 8);
-    assert!(old.video_assets.is_empty());
-    old.version = 18;
-    old.validate().unwrap();
-    old.version = 20;
-    old.validate().unwrap();
-    old.version = 21;
-    old.validate().unwrap();
-    old.version = 22;
-    old.validate().unwrap();
-    old.version = 23;
-    assert!(old.validate().is_err());
+fn only_current_format_accepts_video_documents() {
+    let mut p = project();
+    for version in (0..motion_core::CURRENT_PROJECT_VERSION).chain([motion_core::CURRENT_PROJECT_VERSION + 1, u32::MAX]) {
+        p.version = version;
+        assert!(p.validate().unwrap_err().to_string().contains("unsupported project format"));
+    }
+    p.version = motion_core::CURRENT_PROJECT_VERSION;
+    p.validate().unwrap();
+    let reopened: Project = serde_json::from_slice(&serde_json::to_vec(&p).unwrap()).unwrap();
+    assert_eq!(reopened, p);
 }
-
 #[test]
 fn video_span_keeps_recoverable_source_time_before_zero_and_after_composition_end() {
-    let mut p=project();p.version=13;p.frames=60;
+    let mut p=project();p.version = motion_model::CURRENT_PROJECT_VERSION;p.frames=60;
     p.layers[0].timeline=Some(LayerTimeline{in_frame:-12,out_frame:100,offset_frame:-12});
     p.validate().unwrap();let mut scene=Scene::new(&p);
     scene.sample(&p,0.,None,&motion_core::ExpressionEvaluator).unwrap();

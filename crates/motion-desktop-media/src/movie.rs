@@ -106,7 +106,7 @@ mod tests {
         let root = dir.path().join("project");
         fs::create_dir_all(&root).unwrap();
         let mut p = Project::new(64,64,30,6).unwrap();
-        p.version = 21;
+        p.version = motion_core::CURRENT_PROJECT_VERSION;
         p.background = [0.,0.,0.,1.];
         for (id,color,y) in [(1,[1.,0.,0.,1.],16.),(2,[0.,1.,0.,1.],48.)] {
             let mut l = Layer::solid(id,"independently animated",[8.;2],[10.,y,0.],color);
@@ -157,7 +157,7 @@ mod tests {
         fs::create_dir_all(index.parent().unwrap()).unwrap();
         motion_media::save_index(&index,&asset,&probe.timestamps).unwrap();
         let mut p = Project::new(64,64,30,6).unwrap();
-        p.version = 21;
+        p.version = motion_core::CURRENT_PROJECT_VERSION;
         p.background = [0.,0.,0.,1.];
         let mut l = Layer::solid(1,"required neighboring video samples",[64.;2],[32.,32.,0.],[1.;4]);
         l.content = Content::Video {video:VideoClip::new(1)};
@@ -494,7 +494,7 @@ mod tests {
         let output = dir.path().join("movie.mp4");
         fs::write(&output,b"existing movie").unwrap();
         let mut project = Project::new(64,64,30,6).unwrap();
-        project.version = 21;
+        project.version = motion_core::CURRENT_PROJECT_VERSION;
         let mut layer = Layer::solid(1,"cancelled receiver",[16.;2],[32.,32.,0.],[1.;4]);
         layer.sampling.motion_blur = Some(motion_core::render_sampling::Shutter {frames:1.,samples:4});
         project.layers.push(layer);

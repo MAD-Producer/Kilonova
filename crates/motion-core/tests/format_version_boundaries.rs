@@ -2,11 +2,13 @@ use motion_core::{storage, Project};
 use std::fs;
 
 #[test]
-fn unsupported_versions_cannot_migrate_load_or_replace_an_existing_project() {
+fn unsupported_versions_cannot_load_or_replace_an_existing_project() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("project.json");
     let valid = Project::new(64, 64, 30, 120).unwrap();
-    for version in [0, u32::MAX] {
+    for version in (0..motion_core::CURRENT_PROJECT_VERSION)
+        .chain([motion_core::CURRENT_PROJECT_VERSION + 1, u32::MAX])
+    {
         let mut invalid = valid.clone();
         invalid.version = version;
         assert!(invalid
@@ -14,10 +16,9 @@ fn unsupported_versions_cannot_migrate_load_or_replace_an_existing_project() {
             .unwrap_err()
             .to_string()
             .contains("unsupported project format"));
-        assert!(invalid
-            .clone()
-            .migrate()
-            .unwrap_err()
+        assert!(motion_core::Engine::new(invalid.clone())
+            .err()
+            .unwrap()
             .to_string()
             .contains("unsupported project format"));
         let unsupported_bytes = serde_json::to_vec(&invalid).unwrap();

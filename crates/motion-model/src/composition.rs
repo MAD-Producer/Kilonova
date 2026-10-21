@@ -12,12 +12,6 @@ pub const MAX_COMPOSITION_DEPTH: usize = 16;
 pub const MAX_COMPOSITION_INSTANCES: usize = 1024;
 /// Sampled nodes in one frame, including the root. GPU byte budgets are separate.
 pub const MAX_RENDER_COMPOSITION_INSTANCES: usize = 64;
-pub fn main_composition() -> String {
-    MAIN_COMPOSITION.into()
-}
-fn one() -> f32 {
-    1.0
-}
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -53,11 +47,8 @@ pub struct CompositionView<'a> {
 #[serde(deny_unknown_fields)]
 pub struct CompositionClip {
     pub composition: String,
-    #[serde(default)]
     pub source_start_frame: i32,
-    #[serde(default = "one")]
     pub volume: f32,
-    #[serde(default)]
     pub muted: bool,
 }
 #[derive(Clone, Debug)]
@@ -498,14 +489,6 @@ impl Project {
         {
             return Ok(());
         }
-        if self.version < 7 {
-            return fail(
-                &self.composition_id,
-                "unsupported_format",
-                "Nested compositions require project format seven",
-                json!({}),
-            );
-        }
         let ids = self.composition_ids();
         let mut unique = HashSet::new();
         if ids.len() > MAX_COMPOSITIONS
@@ -646,7 +629,6 @@ impl Project {
             clip: CompositionClip::new(target.into()),
         };
         l.rotation_order=crate::geometry::RotationOrder::FixedXyz;
-        self.version=self.version.max(16);
         l.timeline = Some(LayerTimeline {
             in_frame: at_frame as i32,
             out_frame: self.frames as i32,

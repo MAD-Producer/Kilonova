@@ -67,31 +67,29 @@ fn child(engine: &mut Engine, name: &str, fps: u32) -> String {
     result["composition"].as_str().unwrap().into()
 }
 #[test]
-fn old_projects_migrate_without_losing_contents_and_main_identity_is_stable() {
-    let mut p = project();
-    p.version = 5;
-    let mut old = serde_json::to_value(&p).unwrap();
-    old.as_object_mut().unwrap().remove("composition_id");
-    old.as_object_mut().unwrap().remove("compositions");
-    let p: Project = serde_json::from_value(old).unwrap();
-    let migrated = p.clone().migrate().unwrap();
-    assert_eq!(migrated.version, 8);
-    assert_eq!(migrated.layers, p.layers);
-    assert_eq!(migrated.composition_id, MAIN_COMPOSITION);
+fn current_projects_require_main_identity_and_preserve_contents() {
+    let p = project();
+    let value = serde_json::to_value(&p).unwrap();
+    let reopened: Project = serde_json::from_value(value.clone()).unwrap();
+    reopened.validate().unwrap();
+    assert_eq!(reopened, p);
+    assert_eq!(reopened.composition_id, MAIN_COMPOSITION);
+    let mut missing = value;
+    missing.as_object_mut().unwrap().remove("composition_id");
+    assert!(serde_json::from_value::<Project>(missing).unwrap_err().to_string().contains("composition_id"));
 }
-
 #[test]
-fn format_six_vectors_and_adjustments_survive_precompose_save_and_reopen() {
+fn current_vectors_and_adjustments_survive_precompose_save_and_reopen() {
     let mut p=project();
     p.layers.clear();
     let mut shape=Layer::solid(1,"ring",[32.,32.],[20.,24.,0.],[1.;4]);
     shape.content=Content::Vector{vector:VectorContent::shape(ShapeKind::Ring)};
     let mut adjustment=Layer::solid(2,"adjustment",[64.,64.],[32.,32.,0.],[1.;4]);
     adjustment.content=Content::Adjustment;
-    p.layers=vec![shape,adjustment];p.version=6;
+    p.layers=vec![shape,adjustment];p.version = motion_model::CURRENT_PROJECT_VERSION;
     let original=p.layers.clone();
     let mut e=Engine::new(p).unwrap();
-    assert_eq!(e.project().version,8);
+    assert_eq!(e.project().version,motion_model::CURRENT_PROJECT_VERSION);
     edit(&mut e,MAIN_COMPOSITION,json!({"kind":"precompose","objects":[1,2],"name":"vector child"}));
     let id=e.project().compositions[0].id.clone();
     e.activate_composition(&id).unwrap();
@@ -99,7 +97,7 @@ fn format_six_vectors_and_adjustments_survive_precompose_save_and_reopen() {
     let root=tempfile::tempdir().unwrap();
     motion_core::storage::save(root.path(),e.project()).unwrap();
     let reopened=motion_core::storage::load(root.path()).unwrap();
-    assert_eq!(reopened.version,16);
+    assert_eq!(reopened.version,motion_model::CURRENT_PROJECT_VERSION);
     assert_eq!(reopened.composition(&id).unwrap().layers,original);
 }
 #[test]

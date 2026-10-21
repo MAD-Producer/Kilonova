@@ -100,7 +100,7 @@ fn png_shell_shows_export_and_completion_in_both_languages() {
     for (language, locale) in [("zh", Locale::Zh), ("en", Locale::En)] {
         let directory = root.join(language);
         let mut project = Project::new(64, 64, 30, 60).unwrap();
-        project.version = 21;
+        project.version = motion_model::CURRENT_PROJECT_VERSION;
         let mut layer = Layer::solid(
             1,
             "Motion study",

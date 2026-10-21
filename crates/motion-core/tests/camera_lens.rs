@@ -54,7 +54,7 @@ fn lens_edit_uses_existing_fov_animation_and_one_undo_with_storage_round_trip() 
     let before = engine.snapshot();
     engine.apply(edit(object, 30, 24., 50.)).unwrap();
     let after = engine.snapshot();
-    assert_eq!(after.version, 22);
+    assert_eq!(after.version, motion_model::CURRENT_PROJECT_VERSION);
     let camera = after.camera_for(object).unwrap();
     let expected = Lens::from_focal_length(24., 50., 1920, 1080).unwrap();
     assert_eq!(camera.film_width_mm, 24.);
@@ -74,7 +74,7 @@ fn lens_edit_uses_existing_fov_animation_and_one_undo_with_storage_round_trip() 
     let mut old = after.clone();
     old.version = 21;
     assert!(old.validate().is_err());
-    old.version = 23;
+    old.version = motion_model::CURRENT_PROJECT_VERSION + 1;
     assert!(old.validate().is_err());
 }
 
@@ -109,13 +109,13 @@ fn failed_lens_edits_and_locked_targets_are_atomic() {
 }
 
 #[test]
-fn old_default_gate_is_omitted_and_default_edits_keep_the_old_format() {
+fn default_gate_is_explicit_and_edits_keep_the_current_format() {
     let (mut engine, object) = engine();
     let before = engine.snapshot();
     let serialized = serde_json::to_value(&before).unwrap();
-    assert!(serialized["camera"].get("film_width_mm").is_none());
+    assert_eq!(serialized["camera"]["film_width_mm"], 36.);
     let camera = &serialized["layers"][0]["content"]["camera"];
-    assert!(camera.get("film_width_mm").is_none());
+    assert_eq!(camera["film_width_mm"], 36.);
     engine.apply(edit(object, 0, 36., 50.)).unwrap();
     assert_eq!(engine.project().version, before.version);
     assert_eq!(
@@ -182,7 +182,7 @@ fn lens_edit_uses_local_clip_time_and_legacy_camera_and_matches_render_projectio
     let mut legacy = Engine::new(Project::demo()).unwrap();
     legacy.apply(edit(0, 0, 24., 50.)).unwrap();
     assert_eq!(legacy.project().camera.film_width_mm, 24.);
-    assert_eq!(legacy.project().version, 22);
+    assert_eq!(legacy.project().version, motion_model::CURRENT_PROJECT_VERSION);
 }
 
 #[test]
@@ -217,7 +217,7 @@ fn scoped_lens_edits_use_target_dimensions_and_survive_package_export() {
             .abs()
             < 1e-5
     );
-    assert_eq!(project.version, 22);
+    assert_eq!(project.version, motion_model::CURRENT_PROJECT_VERSION);
     project.validate().unwrap();
     let root = tempfile::tempdir().unwrap();
     motion_core::storage::save(root.path(), &project).unwrap();

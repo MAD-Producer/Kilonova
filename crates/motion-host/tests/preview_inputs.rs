@@ -37,7 +37,7 @@ impl Platform for PlatformStub {
         _: &Path,
         _: Option<u32>,
         _: u64,
-        _: &mut dyn FnMut(f64) -> motion_media::Result<()>,
+        _: &mut dyn FnMut(Option<f64>) -> motion_media::Result<()>,
     ) -> motion_media::Result<motion_core::AudioAsset> {
         Err("not used".into())
     }
@@ -261,7 +261,7 @@ fn clip_end_is_transparent_and_changed_owned_image_is_rejected() {
 
 #[test]
 fn layer_source_preview_observes_precise_fractional_bounds() {
-    let folder=tempfile::tempdir().unwrap();let mut project=image_project(folder.path());project.version=15;
+    let folder=tempfile::tempdir().unwrap();let mut project=image_project(folder.path());project.version = motion_core::CURRENT_PROJECT_VERSION;
     let frames=project.frames;
     project.layers.iter_mut().find(|l|l.id==3).unwrap().set_interval(frames,motion_core::ClipRange{in_frame:60.25,out_frame:61.75}).unwrap();
     project.validate().unwrap();let mut reader=PreviewInputReader::new(Arc::new(PlatformStub));

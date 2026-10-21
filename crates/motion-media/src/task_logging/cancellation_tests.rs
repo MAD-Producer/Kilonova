@@ -152,7 +152,7 @@ fn start(root: &Path, operation: &str, id: &str, gate: Arc<Gate>, cooperative: b
             let decode: DecodeAudio = Arc::new(move |_, _, _, _, progress| {
                 if cooperative {
                     gate.block();
-                    progress(0.0)?;
+                    progress(None)?;
                     panic!("cancelled progress must reject work");
                 }
                 gate.fail()

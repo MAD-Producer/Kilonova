@@ -15,7 +15,7 @@ fn key<T>(frame: i32, value: T) -> Keyframe<T> {
 
 fn fixture() -> Engine {
     let mut project = Project::new(640, 360, 30, 120).unwrap();
-    project.version = 20;
+    project.version = motion_model::CURRENT_PROJECT_VERSION;
     let mut layer = Layer::solid(7, "Properties", [100.; 2], [0.; 3], [1.; 4]);
     layer.transform.position.keys = vec![key(10, [0.; 3]), key(90, [100.; 3])];
     let path = VectorPath {

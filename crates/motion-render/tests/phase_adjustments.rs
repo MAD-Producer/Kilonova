@@ -12,7 +12,7 @@ use std::{sync::Arc, time::Instant};
 
 fn project() -> Project {
     let mut p = Project::new(64, 64, 30, 120).unwrap();
-    p.version = 21;
+    p.version = motion_model::CURRENT_PROJECT_VERSION;
     p.background = [0.; 4];
     p
 }

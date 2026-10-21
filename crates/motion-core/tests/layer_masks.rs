@@ -37,7 +37,7 @@ fn incremental_options_and_animation_keep_prior_edits_and_bound_elastic_alpha() 
     e.apply(parse(serde_json::json!({"kind":"set","mask":1,"property":"opacity","frame":0,"value":[100]}))).unwrap();
     e.apply(parse(serde_json::json!({"kind":"set","mask":1,"property":"opacity","frame":30,"value":[0]}))).unwrap();
     assert_eq!(e.project().layers[0].masks[0].opacity.keys.len(),2);
-    let easing:motion_core::Easing=serde_json::from_value(serde_json::json!({"ease":"linear","curve":{"shape":{"kind":"elastic","oscillations":2.5,"damping":6.0}}})).unwrap();
+    let easing:motion_core::Easing=serde_json::from_value(serde_json::json!({"ease":"linear","curve":{"space":"progress","shape":{"kind":"elastic","oscillations":2.5,"damping":6.0}}})).unwrap();
     e.apply(Command::Mask{object:1,action:MaskAction::Curve{mask:1,property:MaskProperty::Opacity,frame:0,easing}}).unwrap();
     let mut s=Scene::new(e.project());for frame in 0..30{s.sample(e.project(),f64::from(frame),None, &motion_core::ExpressionEvaluator).unwrap();assert!((0. ..=1.).contains(&s.layers[0].masks[0].opacity));}
 }

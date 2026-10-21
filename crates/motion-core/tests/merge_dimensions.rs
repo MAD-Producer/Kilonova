@@ -219,7 +219,7 @@ fn custom_curves_override_ease_and_unused_final_key_timing_does_not_block_merge(
 #[test]
 fn layer_offsets_scene_sampling_storage_and_package_keep_the_same_animation() {
     let mut p = project();
-    p.version = 13;
+    p.version = motion_model::CURRENT_PROJECT_VERSION;
     p.layers[0].timeline = Some(LayerTimeline {
         in_frame: -10,
         out_frame: 100,

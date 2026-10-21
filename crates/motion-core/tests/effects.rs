@@ -126,7 +126,7 @@ fn ordered_instances_dependencies_and_gesture_undo_survive_storage() {
     let restored: Project = serde_json::from_str(&text).unwrap();
     restored.validate().unwrap();
     assert_eq!(&restored, engine.project());
-    assert_eq!(restored.version, 8);
+    assert_eq!(restored.version, motion_model::CURRENT_PROJECT_VERSION);
     apply(&mut engine, EffectAction::Remove { effect: 1 });
     apply(&mut engine, EffectAction::Remove { effect: 2 });
     assert!(engine.project().plugin_dependencies.is_empty());
@@ -278,11 +278,10 @@ fn discrete_animation_holds_and_rejected_edits_are_atomic() {
     assert_eq!(&before, engine.project());
 }
 #[test]
-fn version_one_migrates_and_missing_dependency_keeps_all_keys() {
+fn old_format_is_rejected_and_missing_dependency_keeps_all_keys() {
     let mut old = Project::demo();
     old.version = 1;
-    let migrated = Engine::new(old).unwrap();
-    assert_eq!(migrated.project().version, 8);
+    assert!(Engine::new(old).is_err());
     let (engine, _) = fixture("tint");
     let mut missing = engine.project().clone();
     missing.layers[0].effects[0].hash = "a".repeat(64);

@@ -3,7 +3,7 @@ use motion_core::{render_sampling::Shutter, Command, Ease, Layer};
 
 fn project() -> Project {
     let mut p = Project::new(32, 32, 30, 6).unwrap();
-    p.version = 21;
+    p.version = motion_core::CURRENT_PROJECT_VERSION;
     p.background = [0., 0., 0., 1.];
     for (id, y, color) in [(1, 8., [1., 0., 0., 1.]), (2, 24., [0., 1., 0., 1.])] {
         let mut layer = Layer::solid(id, "Frozen PNG", [4.; 2], [16., y, 0.], color);

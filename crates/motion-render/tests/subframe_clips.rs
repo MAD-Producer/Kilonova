@@ -5,7 +5,7 @@ use motion_render::{Renderer, Scene};
 #[test]
 fn nested_fractional_visibility_uses_exact_bounds_during_random_seek() {
     let mut p = Project::new(64, 64, 24, 48).unwrap();
-    p.version = 15;
+    p.version = motion_model::CURRENT_PROJECT_VERSION;
     p.background = [0., 0., 1., 1.];
     p.camera.created = false;
     let mut leaf = Layer::solid(1, "red", [64.; 2], [32., 32., 0.], [1., 0., 0., 1.]);

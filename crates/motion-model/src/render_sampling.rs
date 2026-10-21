@@ -62,11 +62,9 @@ impl Shutter {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LayerSampling {
-    #[serde(default)]
     pub frame_blend: FrameBlend,
     #[serde(default)]
     pub motion_blur: Option<Shutter>,
-    #[serde(default)]
     pub continuous_rasterization: bool,
 }
 impl LayerSampling {

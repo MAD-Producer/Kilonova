@@ -26,7 +26,7 @@ fn layers(frames: i32, color: [f32; 4], x: f32) -> Vec<Layer> {
 
 fn fixture() -> Project {
     let mut project = Project::new(64, 64, 30, 6).unwrap();
-    project.version = 19;
+    project.version = motion_core::CURRENT_PROJECT_VERSION;
     project.background = [0., 0., 0., 1.];
     project.layers = layers(6, [1., 0., 0., 1.], 49.);
     project.compositions.push(Composition {

@@ -5,7 +5,7 @@ use std::time::Instant;
 fn fixture() -> Project {
     let mut p = Project::new(256, 256, 30, 60).unwrap();
     p.background = [0.; 4];
-    p.version = 21;
+    p.version = motion_model::CURRENT_PROJECT_VERSION;
     let mut layer = Layer::solid(1, "Authored circle", [24.; 2], [128., 128., 0.], [1.; 4]);
     layer.content = Content::Vector {
         vector: VectorContent::shape(ShapeKind::Ellipse),

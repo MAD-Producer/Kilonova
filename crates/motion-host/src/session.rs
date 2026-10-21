@@ -882,7 +882,7 @@ fn audio_decoder(platform: &Arc<dyn Platform>) -> motion_media::DecodeAudio {
               pcm: &std::path::Path,
               selected: Option<u32>,
               limit: u64,
-              check: &mut dyn FnMut(f64) -> motion_media::Result<()>| {
+              check: &mut dyn FnMut(Option<f64>) -> motion_media::Result<()>| {
             platform.decode_audio(path, pcm, selected, limit, check)
         },
     )

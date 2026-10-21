@@ -1,3 +1,4 @@
+use crate::progress::checked_progress;
 use crate::{cache_path, contained_dir, DecodeAudio, Result};
 use motion_model::{AudioAsset, AudioClip, Command, Content, EditSink, Layer, LayerTimeline};
 use serde::{Deserialize, Serialize};
@@ -51,7 +52,8 @@ pub struct TaskStatus {
     pub operation: String,
     pub state: String,
     pub phase: String,
-    pub progress: f64,
+    /// Phase-local fraction; None means the total work is not known.
+    pub progress: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<AudioAsset>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -147,13 +149,13 @@ fn finish_import(
     match result {
         Ok(Ok(Completion::Probe(metadata))) => {
             t.status.metadata = Some(metadata);
-            t.status.progress = 1.0;
+            t.status.progress = Some(1.0);
             t.status.state = "succeeded".into();
             t.status.phase = "complete".into();
         }
         Ok(Ok(Completion::Import(prepared))) => {
             t.status.metadata = Some(prepared.asset.clone());
-            t.status.progress = 1.0;
+            t.status.progress = Some(1.0);
             t.prepared = Some(prepared);
             t.status.state = "ready".into();
             t.status.phase = "awaiting_commit".into();
@@ -225,7 +227,7 @@ fn finish_cache(
         Ok(()) => {
             t.status.state = "succeeded".into();
             t.status.phase = "complete".into();
-            t.status.progress = 1.0;
+            t.status.progress = Some(1.0);
             t.status.metadata = Some(asset);
         }
         Err(e) => {
@@ -307,7 +309,7 @@ impl AudioJobs {
                 operation: operation.into(),
                 state: "running".into(),
                 phase: "queued".into(),
-                progress: 0.0,
+                progress: None,
                 metadata: None,
                 edit_result: None,
                 error: None,
@@ -401,7 +403,7 @@ impl AudioJobs {
                 worker_log.start();
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
                     || -> Result<Prepared> {
-                        update(&spawn_task, "opening", 0.0)?;
+                        update(&spawn_task, "opening", None)?;
                         let (mut reader, expected_bytes) = open()?;
                         if expected_bytes.is_some_and(|n| n > limits.source_bytes) {
                             return Err("audio source exceeds import size limit".into());
@@ -420,7 +422,7 @@ impl AudioJobs {
                             update(
                                 &spawn_task,
                                 "copying",
-                                expected_bytes.map_or(0.0, |n| bytes as f64 / n.max(1) as f64),
+                                expected_bytes.filter(|n| *n > 0).map(|n| bytes as f64 / n as f64),
                             )?;
                             let n = reader.read(&mut buffer).map_err(crate::Error::from)?;
                             if n == 0 {
@@ -471,7 +473,7 @@ impl AudioJobs {
                             return Err("decoded audio cache exceeds limit".into());
                         }
                         crate::mixer::build_waveform(&pcm, &asset, || {
-                            update(&spawn_task, "waveform", 0.0)
+                            update(&spawn_task, "waveform", None)
                         })?;
                         Ok(Prepared {
                             stage,
@@ -672,7 +674,7 @@ impl AudioJobs {
                             return Err("audio cache budget exceeded".into());
                         }
                         crate::mixer::build_waveform(&pcm, &asset, || {
-                            update(&spawn_task, "waveform", 0.0)
+                            update(&spawn_task, "waveform", None)
                         })?;
                         Ok(stage)
                     }));
@@ -707,15 +709,16 @@ impl Drop for AudioJobs {
         }
     }
 }
-fn update(task: &Arc<Mutex<Task>>, phase: &str, progress: f64) -> Result<()> {
+fn update(task: &Arc<Mutex<Task>>, phase: &str, progress: impl Into<Option<f64>>) -> Result<()> {
     let mut t = task.lock().map_err(|_| "audio task poisoned")?;
     if t.cancel.load(Ordering::Acquire) {
         return Err("audio task cancelled".into());
     }
+    let progress = checked_progress(progress.into())?;
     if t.status.phase != phase {
         t.status.phase = phase.into();
     }
-    t.status.progress = progress.clamp(0.0, 1.0);
+    t.status.progress = progress;
     Ok(())
 }
 

@@ -1,4 +1,5 @@
 //! Streaming source transactions; platform probing is supplied by the Android backend.
+use crate::progress::checked_progress;
 use crate::{contained_dir, Result};
 use motion_model::{AudioAsset, Command, Content, EditSink, Layer, LayerTimeline, VideoAsset, VideoClip};
 use serde::Serialize;
@@ -44,7 +45,8 @@ pub struct VideoTaskStatus {
     pub operation: String,
     pub state: String,
     pub phase: String,
-    pub progress: f64,
+    /// Phase-local fraction; None means the total work is not known.
+    pub progress: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -144,7 +146,7 @@ fn finish_import(
     match result {
         Ok(Ok(Completion::Probe(metadata))) => {
             t.status.metadata = Some(metadata);
-            t.status.progress = 1.0;
+            t.status.progress = Some(1.0);
             t.status.state = "succeeded".into();
             t.status.phase = "complete".into();
         }
@@ -152,7 +154,7 @@ fn finish_import(
             t.status.metadata = Some(
                 json!({"video":prepared.probe.asset,"audio":prepared.audio,"audio_tracks":prepared.probe.tracks}),
             );
-            t.status.progress = 1.0;
+            t.status.progress = Some(1.0);
             t.prepared = Some(prepared);
             t.status.state = "ready".into();
             t.status.phase = "awaiting_commit".into();
@@ -230,7 +232,7 @@ impl VideoJobs {
                 operation: operation.into(),
                 state: "running".into(),
                 phase: "queued".into(),
-                progress: 0.0,
+                progress: None,
                 metadata: None,
                 edit_result: None,
                 error: None,
@@ -310,12 +312,12 @@ impl VideoJobs {
             let _worker=worker;
             worker_log.start();
             let result=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||->Result<Prepared>{
-                update(&t,"opening",0.0)?;let(mut reader,size)=open()?;
+                update(&t,"opening",None)?;let(mut reader,size)=open()?;
                 if size.is_some_and(|s|s>motion_model::storage::MAX_MEDIA_ASSET){return Err("video exceeds 2 GiB".into());}
                 if fs2::available_space(&root).map_err(crate::Error::from)?<size.unwrap_or(0).saturating_add(1024*1024){return Err("insufficient video source storage".into());}
                 let stage=Stage::new(&root)?;let source=stage.0.join("source.mp4");let mut file=File::create(&source).map_err(crate::Error::from)?;
                 let mut buf=[0u8;motion_model::storage::TRANSFER_BUFFER_BYTES];let mut bytes=0u64;
-                loop {update(&t,"copying",size.map_or(0.0,|s|bytes as f64/s.max(1) as f64))?;
+                loop {update(&t,"copying",size.filter(|s|*s>0).map(|s|bytes as f64/s as f64))?;
                     let n=reader.read(&mut buf).map_err(crate::Error::from)?;if n==0{break;}bytes+=n as u64;
                     if bytes>motion_model::storage::MAX_MEDIA_ASSET{return Err("video exceeds 2 GiB".into());}
                     if bytes%(1024*1024)<n as u64&&fs2::available_space(&root).map_err(crate::Error::from)?<1024*1024{return Err("insufficient video import storage".into());}
@@ -323,11 +325,11 @@ impl VideoJobs {
                 }
                 if bytes==0||size.is_some_and(|s|s!=bytes){return Err("video source length mismatch".into());}
                 file.sync_all().map_err(crate::Error::from)?;drop(file);drop(reader);
-                update(&t,"probing",0.0)?;let mut p=probe(&source,options.track,if options.with_audio {options.audio_track}else{Some(u32::MAX)},&||update(&t,"probing",0.0))?;
+                update(&t,"probing",None)?;let mut p=probe(&source,options.track,if options.with_audio {options.audio_track}else{Some(u32::MAX)},&||update(&t,"probing",None))?;
                 let audio=if options.with_audio {if let Some(track)=p.audio_track {
-                    update(&t,"decoding_audio",0.0)?;
+                    update(&t,"decoding_audio",None)?;
                     let pcm=stage.0.join("decoded.pcm");let a=audio_decode(&source,&pcm,Some(track),crate::Limits::default().cache_bytes,&mut |v|update(&t,"decoding_audio",v))?;
-                    crate::mixer::build_waveform(&pcm,&a,||update(&t,"waveform",0.0))?;Some(a)
+                    crate::mixer::build_waveform(&pcm,&a,||update(&t,"waveform",None))?;Some(a)
                 }else{None}}else{None};
                 if let Some(a)=&audio{p.asset.duration_us=p.asset.duration_us.max(a.duration_us);}
                 p.asset.validate().map_err(crate::Error::from)?;
@@ -506,7 +508,7 @@ impl VideoJobs {
                 worker_log.start();
                 let result =
                     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<()> {
-                        update(&t, "probing", 0.0)?;
+                        update(&t, "probing", None)?;
                         let source = root
                             .join(&expected.path)
                             .canonicalize()
@@ -515,7 +517,7 @@ impl VideoJobs {
                             return Err("video source outside project".into());
                         }
                         let mut p = probe(&source, Some(expected.track), Some(u32::MAX), &|| {
-                            update(&t, "probing", 0.0)
+                            update(&t, "probing", None)
                         })?;
                         p.asset.id = expected.id;
                         p.asset.path = expected.path.clone();
@@ -547,7 +549,7 @@ impl VideoJobs {
                         )?;
                         state.status.state = "succeeded".into();
                         state.status.phase = "complete".into();
-                        state.status.progress = 1.0;
+                        state.status.progress = Some(1.0);
                         state.status.metadata = Some(json!({"video":expected}));
                         Ok(())
                     }));
@@ -608,11 +610,12 @@ impl Drop for VideoJobs {
         }
     }
 }
-fn update(task: &Mutex<Task>, phase: &str, progress: f64) -> Result<()> {
+fn update(task: &Mutex<Task>, phase: &str, progress: impl Into<Option<f64>>) -> Result<()> {
     let mut t = task.lock().map_err(|_| "video task poisoned")?;
     if t.cancel.load(Ordering::Acquire) {
         return Err("video import cancelled".into());
     }
+    let progress = checked_progress(progress.into())?;
     t.status.phase = phase.into();
     t.status.progress = progress;
     Ok(())

@@ -103,18 +103,18 @@ fn explicit_switch_is_atomic_persisted_and_retained_by_clip_operations() {
     assert_eq!(motion_core::storage::load(tmp.path()).unwrap(), before);
 }
 #[test]
-fn old_files_preserve_spatial_rendering_in_memory_without_changing_new_layer_defaults() {
+fn current_files_preserve_spatial_rendering_without_changing_new_layer_defaults() {
     let mut p = Project::demo();
-    p.version = 2;
-    let mut raw = serde_json::to_value(&p).unwrap();
-    for l in raw["layers"].as_array_mut().unwrap() {
-        l.as_object_mut().unwrap().remove("three_d");
-    }
+    p.version = motion_model::CURRENT_PROJECT_VERSION;
+    let raw = serde_json::to_value(&p).unwrap();
+    let mut missing = raw.clone();
+    missing["layers"][0].as_object_mut().unwrap().remove("three_d");
+    assert!(serde_json::from_value::<Project>(missing).unwrap_err().to_string().contains("three_d"));
     let tmp = tempfile::tempdir().unwrap();
     let bytes = serde_json::to_vec(&raw).unwrap();
     std::fs::write(tmp.path().join("project.json"), &bytes).unwrap();
     let migrated = motion_core::storage::load(tmp.path()).unwrap();
-    assert_eq!(migrated.version, 8);
+    assert_eq!(migrated.version, motion_model::CURRENT_PROJECT_VERSION);
     assert!(migrated.layers.iter().all(|l| l.three_d));
     assert_eq!(
         bytes,

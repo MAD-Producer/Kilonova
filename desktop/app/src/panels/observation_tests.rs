@@ -17,7 +17,7 @@ fn real_panel_fallbacks_are_visible_bounded_and_preserve_normal_optional_fields(
         let mut atlas = TextAtlas::from_system(12.).unwrap();
         let _logger = crate::logging::init(root.clone()).unwrap();
         let log_path = root.join("motion-studio.log");
-        let track = serde_json::json!({"value":1.,"keys":[{"frame":0,"value":1.}]});
+        let track = serde_json::json!({"value":1.,"keys":[{"frame":0,"value":1.,"ease":"linear"}]});
         for _ in 0..120 {
             let rows = timeline::rows(&healthy);
             assert_eq!(rows.len(), 1);

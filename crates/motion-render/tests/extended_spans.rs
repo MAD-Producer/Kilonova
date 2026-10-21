@@ -7,7 +7,7 @@ fn render(renderer:&mut Renderer,project:&Project,frame:f64)->Vec<u8>{
 }
 #[test]
 fn nested_signed_span_renders_recovered_tail_and_random_seeks_consistently(){
-    let mut p=Project::new(64,64,30,24).unwrap();p.version=13;p.background=[0.,0.,1.,1.];
+    let mut p=Project::new(64,64,30,24).unwrap();p.version = motion_model::CURRENT_PROJECT_VERSION;p.background=[0.,0.,1.,1.];
     let mut leaf=Layer::solid(1,"Red",[64.;2],[32.,32.,0.],[1.,0.,0.,1.]);
     leaf.timeline=Some(LayerTimeline{in_frame:-6,out_frame:36,offset_frame:-6});
     let mut camera=Camera::new(64,64);camera.created=false;

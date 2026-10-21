@@ -51,7 +51,7 @@ fn ae_vector_math_multiline_completion_and_real_js_functions() {
         "function delta(t) { return [t*30,10,0]; } var p=value+delta(time); p*=2; p;",
         target(Property::Position, None),
     );
-    assert_eq!(p.version, 8);
+    assert_eq!(p.version, motion_model::CURRENT_PROJECT_VERSION);
     assert_eq!(p.layers[0].transform.position.value, [10.0, 20.0, 0.0]);
     assert_eq!(
         p.evaluated_at(30.0).unwrap().layers[0]
@@ -343,9 +343,7 @@ fn cache_rollover_and_async_rejection_do_not_contaminate_next_frame() {
 fn old_formats_overlap_locks_and_nonfinite_results_are_rejected_atomically() {
     let mut old = fixture();
     old.version = 1;
-    let e = Engine::new(old).unwrap();
-    assert_eq!(e.project().version, 8);
-    assert!(e.project().expressions.is_empty());
+    assert!(Engine::new(old).is_err());
     let p = set(fixture(), "value+[1,0,0]", target(Property::Position, None));
     let mut e = Engine::new(p).unwrap();
     let before = e.snapshot();
