@@ -735,3 +735,53 @@ This integrates the incoming resource-lifetime implementation and keeps the
 seven new timing cases in the same PR as the fixed-resource work. #61's remaining
 dynamic resources, shared/platform policy, preview/export/lifecycle acceptance
 and #67 are still pending; retired builtin particle products remain absent.
+
+
+## Ninth increment: vector destinations and asynchronous upload staging
+
+At source `e994f343`, vector vertex and group-opacity buffers, plus their
+mapped staging pool, reserve their actual rounded descriptor capacities from
+the renderer's combined admission budget. Growth reserves before replacing
+the old buffer; refusal preserves its aliases and completed output. Cached
+capacity remains reusable below a newly lowered limit. Cached opacity bindings
+retain the buffer allocation for their own lifetime.
+
+Encoded copies retain the destination as work, without promoting it back to an
+actual resource owner. Pending staging/remap callbacks retain their admitted
+buffers through pool replacement or teardown. This preserves #399's distinction
+between an actual owner and work retained by an older frame. Upload allocation
+errors preserve typed rejection and layer/frame/phase context through the
+existing error boundary. Healthy Present behavior and pixel semantics remain.
+
+| Case | Actual path and oracle | Disposition |
+| --- | --- | --- |
+| #61-A56 | 24-byte destination and staging each round to32; exact64-byte increase and teardown | New capacity coverage |
+| #61-A57 | Refused growth preserves identity and aliases; successful replacement and below-limit reuse | New preservation coverage |
+| #61-A58 | Staging refusal leaves counters and destination unchanged; real copied bytes before and after cached reuse below limit | New failure/recovery coverage |
+| #61-A59 | Unfinished and finished raw upload commands retain both buffers after caches/pool drop, until command abandonment | New upload-owner coverage |
+| #61-A60 | Actual submission/remap completion with overlapping allocation scopes; completed destinations are not renewed by unrelated frames | New retirement coverage |
+| #61-A61 | Nested vector opacity, real pixels, exact vertex/opacity/staging sums, reuse and full clear/drop retirement | New composition coverage |
+| #61-A62 | Real reupload budget refusal preserves exact prior output; restored budget produces the changed alpha | New output-preservation coverage |
+| #61-A63 | Actual vector failure through `respond`, request208/layer77/frame0/phase/cause/elapsed; default file, Error stderr and stdout isolation, then actual recovery | Existing boundary, newly exercised failure |
+
+The native GPU control at `30dfdce8` failed with 1,344,592 admitted bytes
+against 1,344,656 expected bytes, cargo exit101. It is retained as a failing
+control, not a passing result. Its three original capacity/count/teardown
+assertions are unchanged. Existing native remap-failure assertions still
+require the same `Remap` cause, now nested in the existing `RenderError` wrapper;
+existing pixel tolerances and return/protocol behavior are unchanged.
+
+Exact source `e994f343` passes **192 distinct selected tests**: render library75,
+seven GPU suites37, host library69, desktop default-log boundary11, with zero
+failures or ignores. Workspace/all-targets FFmpeg check (excluding retired
+Android) and the panel style guard also pass. `vector-admission-*.log` and
+`.exit.json` records bind commands and exits to the source; the local
+`vector-admission-acceptance.json` records their SHA-256 and verifies the failing
+control and retained assertions. No tracked source changed during validation.
+All build caches, temporary data and artifacts remained on E:.
+
+This selection does not claim full workspace/public CI acceptance. Group raster
+textures, mask/compositing resources, other external/raw allocation boundaries,
+shared session policy, platform pressure, frame peaks, bounded preview/export
+and repeated lifecycle acceptance remain pending. #61 and #67 remain open;
+precision and 3D remain parked. No panels, styles, dependencies or assets changed.
