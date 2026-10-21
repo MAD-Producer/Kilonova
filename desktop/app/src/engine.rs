@@ -1534,8 +1534,8 @@ fn handle(
             let mut chrome = motion_ui::Painter::new(&g.renderer.device, wgpu::TextureFormat::Rgba8UnormSrgb);
             let upload = ui.atlas.ok_or("screenshot requires the complete glyph atlas")?;
             chrome.upload_atlas(&g.renderer.device, &g.renderer.queue, &upload.pixels, upload.width, upload.height);
-            let presenter = motion_render::Presenter::new(&g.renderer, &g.scratch.view, wgpu::TextureFormat::Rgba8UnormSrgb);
-            let mut encoder = g.renderer.device.create_command_encoder(&Default::default());
+            let presenter = motion_render::Presenter::new_admitted(&g.renderer, &g.scratch.view, wgpu::TextureFormat::Rgba8UnormSrgb);
+            let mut encoder = g.renderer.allocation_command_encoder(&Default::default()).map_err(|e|e.to_string())?;
             if let Some([x,y,w,h])=ui.composition {
                 let scale = (w / s.scene.width as f32).min(h / s.scene.height as f32);
                 let vw = s.scene.width as f32 * scale; let vh = s.scene.height as f32 * scale;
@@ -1544,7 +1544,10 @@ fn handle(
             } else {clear_target(&mut encoder,&target.view);}
             chrome.render_scaled(&g.renderer.device,&g.renderer.queue,&mut encoder,&target.view,&ui.paint,ui.logical_size,[width as f32/ui.logical_size[0],height as f32/ui.logical_size[1]]).map_err(|e|format!("capture_ui window={}: {e}",ui.window))?;
             if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview) {preview.encode(&g.renderer.device,&g.renderer.queue,&mut encoder,&target.view,viewport,wgpu::TextureFormat::Rgba8UnormSrgb);}
-            g.renderer.queue.submit(Some(encoder.finish()));
+            g.renderer.submit_allocated(encoder.finish(), |ledger| {
+                ledger.merge(target.texture_resource_ledger());
+                g.scratch.collect_texture_resources(ledger);
+            }).map_err(|e|e.to_string())?;
             let pixels = g.renderer.read_target(&target).map_err(|e| e.to_string())?;
             image::save_buffer(&path, &pixels, width, height, image::ColorType::Rgba8).map_err(|e| e.to_string())?;
             Ok(serde_json::json!({"path":path,"width":width,"height":height}))

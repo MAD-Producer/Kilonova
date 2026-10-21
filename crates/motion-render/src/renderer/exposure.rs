@@ -366,11 +366,9 @@ impl Renderer {
         if let Some(scene) = scene {
             self.check_exposure_media(scene, &format!("exposure sample={}", target.phase))?;
         }
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        let mut encoder = self.allocation_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("exposure phase"),
-            });
+            })?;
         let stats = if let Some(scene) = scene {
             Some(
                 self.encode_internal(
@@ -418,14 +416,14 @@ impl Renderer {
         }
         let stats = self.draw_exposure_phase_tracked(context, rasters, &target.sample.view,
             target.sample.width, target.sample.height, adjustments, |ledger| ledger.merge(target.texture_resource_ledger()))?;
-        let encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        let encoder = self.allocation_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("retained phase exposure sum"),
-        });
+        })?;
         self.accumulate_exposure_encoded(target, encoder, Some(stats), true)?
             .ok_or_else(|| RenderError::Invalid("exposure phase=local_accumulate: missing phase statistics".into()))
     }
 
-    fn accumulate_exposure_encoded(&mut self, target: &mut ExposureTarget, mut encoder: wgpu::CommandEncoder,
+    fn accumulate_exposure_encoded(&mut self, target: &mut ExposureTarget, mut encoder: crate::AllocationEncoder,
         mut stats: Option<RenderStats>, has_sample: bool) -> Result<Option<RenderStats>> {
         let weight = target.weights[target.phase];
         let total_weight = target.total_weight + weight;
@@ -474,9 +472,9 @@ impl Renderer {
                     pass.draw(0..3, 0..1);
                 }
             }
-            self.submit_tracked(encoder.finish(), |ledger| {
+            self.submit_allocated(encoder.finish(), |ledger| {
                 ledger.merge(target.texture_resource_ledger())
-            });
+            })?;
             if let Err(error) = self.check_health() {
                 target.poisoned = true;
                 let message = format!(
@@ -518,11 +516,9 @@ impl Renderer {
                 "exposure phase=resolve: output extent or format mismatch".into(),
             ));
         }
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        let mut encoder = self.allocation_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("complete exposure resolve"),
-            });
+            })?;
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("complete exposure resolve"),
@@ -550,10 +546,10 @@ impl Renderer {
             pass.set_bind_group(0, &target.resolve_group, &[]);
             pass.draw(0..3, 0..1);
         }
-        self.submit_tracked(encoder.finish(), |ledger| {
+        self.submit_allocated(encoder.finish(), |ledger| {
             ledger.merge(target.texture_resource_ledger());
             output_resources(ledger);
-        });
+        })?;
         self.check_health()
     }
 

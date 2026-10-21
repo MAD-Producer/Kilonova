@@ -1,5 +1,8 @@
 use crate::resource_ledger::{DeviceTextureExt, OwnedTexture};
-use crate::Yuv420Frame;
+use crate::{
+    allocation_budget::AllocationLease, allocation_buffer::AllocationBuffer,
+    allocation_uploads::AllocationUploads, AllocationBudget, RenderError, Yuv420Frame,
+};
 use std::{
     collections::HashMap,
     sync::{
@@ -11,13 +14,20 @@ use std::{
 /// Keep this token until its encoder is submitted. On cancellation, drop both
 /// the encoder and token; the next upload will retry instead of reusing pixels
 /// that were only encoded. Submission means queued, not GPU-completed.
+/// Marking after submission transfers all conversion reservations to the owning
+/// queue's completion callback, including when the caller uses a raw encoder.
 #[must_use = "mark the upload submitted after queue.submit, or drop it with the aborted encoder"]
 pub struct EncodedVideoUpload {
     state: Arc<AtomicU8>,
+    queue: wgpu::Queue,
+    allocations: Option<[AllocationLease; 4]>,
 }
 impl EncodedVideoUpload {
-    pub fn mark_submitted(self) {
+    pub fn mark_submitted(mut self) {
         self.state.store(1, Ordering::Release);
+        if let Some(allocations) = self.allocations.take() {
+            self.queue.on_submitted_work_done(move || drop(allocations));
+        }
     }
 }
 impl Drop for EncodedVideoUpload {
@@ -28,13 +38,46 @@ impl Drop for EncodedVideoUpload {
     }
 }
 
-struct Input {
+struct InputResources {
     size: (u32, u32, u32, u32),
+    group: wgpu::BindGroup,
+    uniform: AllocationBuffer,
     y: OwnedTexture,
     uv: OwnedTexture,
-    uniform: wgpu::Buffer,
-    group: wgpu::BindGroup,
+}
+struct Input {
+    resources: Arc<InputResources>,
     completion: Option<Arc<AtomicU8>>,
+}
+pub(crate) struct PreparedVideoInput {
+    object: u64,
+    resources: Arc<InputResources>,
+}
+pub(crate) struct PreparedVideoUpload {
+    input: PreparedVideoInput,
+    allocations: [AllocationLease; 4],
+}
+impl PreparedVideoInput {
+    /// Validate all destination reservations before any queue write or cache swap.
+    pub(crate) fn track(
+        self,
+        uploads: &AllocationUploads,
+        output: &OwnedTexture,
+    ) -> Result<PreparedVideoUpload, RenderError> {
+        let missing =
+            || RenderError::Invalid("video destination has no allocation reservation".into());
+        let allocations = [
+            self.resources.y.allocation().ok_or_else(missing)?,
+            self.resources.uv.allocation().ok_or_else(missing)?,
+            self.resources.uniform.allocation(),
+            output.allocation().ok_or_else(missing)?,
+        ];
+        uploads.track_many(allocations[..3].iter().cloned())?;
+        Ok(PreparedVideoUpload {
+            input: self,
+            allocations,
+        })
+    }
 }
 pub(crate) struct VideoGpu {
     layout: wgpu::BindGroupLayout,
@@ -44,8 +87,16 @@ pub(crate) struct VideoGpu {
 impl VideoGpu {
     pub(crate) fn collect_textures(&self, ledger: &mut crate::TextureResourceLedger) {
         for (id, input) in &self.inputs {
-            ledger.retained(&input.y, crate::TextureCategory::VideoPlanes, format!("video/{id}/y"));
-            ledger.retained(&input.uv, crate::TextureCategory::VideoPlanes, format!("video/{id}/uv"));
+            ledger.retained(
+                &input.resources.y,
+                crate::TextureCategory::VideoPlanes,
+                format!("video/{id}/y"),
+            );
+            ledger.retained(
+                &input.resources.uv,
+                crate::TextureCategory::VideoPlanes,
+                format!("video/{id}/uv"),
+            );
         }
     }
     pub fn new(device: &wgpu::Device, format: wgpu::TextureFormat) -> Self {
@@ -124,15 +175,15 @@ impl VideoGpu {
         self.inputs
             .values()
             .map(|i| {
-                u64::from(i.size.0) * u64::from(i.size.1)
-                    + 2 * u64::from(i.size.2) * u64::from(i.size.3)
+                u64::from(i.resources.size.0) * u64::from(i.resources.size.1)
+                    + 2 * u64::from(i.resources.size.2) * u64::from(i.resources.size.3)
             })
             .sum()
     }
     pub fn input_bytes(&self, object: u64) -> u64 {
         self.inputs.get(&object).map_or(0, |i| {
-            u64::from(i.size.0) * u64::from(i.size.1)
-                + 2 * u64::from(i.size.2) * u64::from(i.size.3)
+            u64::from(i.resources.size.0) * u64::from(i.resources.size.1)
+                + 2 * u64::from(i.resources.size.2) * u64::from(i.resources.size.3)
         })
     }
     pub fn replacement_bytes(&self, object: u64, frame: &Yuv420Frame) -> u64 {
@@ -163,55 +214,28 @@ impl VideoGpu {
             .and_then(|i| i.completion.as_ref())
             .is_none_or(|s| s.load(Ordering::Acquire) == 1)
     }
-    pub fn convert(
-        &mut self,
+    pub(crate) fn prepare_input(
+        &self,
         device: &wgpu::Device,
-        queue: &wgpu::Queue,
+        budget: &AllocationBudget,
         object: u64,
         frame: &Yuv420Frame,
-        target: &wgpu::TextureView,
-    ) {
-        self.convert_resized(device, queue, object, frame, target, frame.display_size());
-    }
-    pub fn convert_resized(
-        &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        object: u64,
-        frame: &Yuv420Frame,
-        target: &wgpu::TextureView,
-        output_size: (u32, u32),
-    ) {
-        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("video GPU conversion"),
-        });
-        let upload = self.encode_convert_resized(
-            device,
-            queue,
-            object,
-            frame,
-            target,
-            output_size,
-            &mut encoder,
-        );
-        queue.submit(Some(encoder.finish()));
-        upload.mark_submitted();
-    }
-    pub fn encode_convert_resized(
-        &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        object: u64,
-        frame: &Yuv420Frame,
-        target: &wgpu::TextureView,
-        output_size: (u32, u32),
-        encoder: &mut wgpu::CommandEncoder,
-    ) -> EncodedVideoUpload {
+    ) -> Result<PreparedVideoInput, RenderError> {
         let (cw, ch) = frame.chroma_size();
         let size = (frame.width, frame.height, cw, ch);
-        if self.inputs.get(&object).is_none_or(|i| i.size != size) {
-            let create = |width, height, format| {
-                device.create_owned_texture(&wgpu::TextureDescriptor {
+        if let Some(input) = self
+            .inputs
+            .get(&object)
+            .filter(|input| input.resources.size == size)
+        {
+            return Ok(PreparedVideoInput {
+                object,
+                resources: input.resources.clone(),
+            });
+        }
+        let create = |width, height, format| {
+            device.create_admitted_texture(
+                &wgpu::TextureDescriptor {
                     label: Some("reusable video plane"),
                     size: wgpu::Extent3d {
                         width,
@@ -224,53 +248,74 @@ impl VideoGpu {
                     format,
                     usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
                     view_formats: &[],
-                })
-            };
-            let y = create(frame.width, frame.height, wgpu::TextureFormat::R8Uint);
-            let uv = create(cw, ch, wgpu::TextureFormat::Rg8Uint);
-            let uniform = device.create_buffer(&wgpu::BufferDescriptor {
+                },
+                budget,
+            )
+        };
+        let y = create(frame.width, frame.height, wgpu::TextureFormat::R8Uint)?;
+        let uv = create(cw, ch, wgpu::TextureFormat::Rg8Uint)?;
+        let uniform = AllocationBuffer::new(
+            device,
+            budget,
+            &wgpu::BufferDescriptor {
                 label: Some("video conversion parameters"),
                 size: 48,
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                 mapped_at_creation: false,
-            });
-            let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("video plane binding"),
-                layout: &self.layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::TextureView(
-                            &y.create_view(&Default::default()),
-                        ),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::TextureView(
-                            &uv.create_view(&Default::default()),
-                        ),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 2,
-                        resource: uniform.as_entire_binding(),
-                    },
-                ],
-            });
-            self.inputs.insert(
-                object,
-                Input {
-                    size,
-                    y,
-                    uv,
-                    uniform,
-                    group,
-                    completion: None,
+            },
+        )?;
+        let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("video plane binding"),
+            layout: &self.layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(
+                        &y.create_view(&Default::default()),
+                    ),
                 },
-            );
-        }
-        let input = self.inputs.get_mut(&object).unwrap();
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::TextureView(
+                        &uv.create_view(&Default::default()),
+                    ),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: uniform.as_entire_binding(),
+                },
+            ],
+        });
+        Ok(PreparedVideoInput {
+            object,
+            resources: Arc::new(InputResources {
+                size,
+                group,
+                uniform,
+                y,
+                uv,
+            }),
+        })
+    }
+    pub(crate) fn encode_prepared(
+        &mut self,
+        queue: &wgpu::Queue,
+        prepared: PreparedVideoUpload,
+        frame: &Yuv420Frame,
+        target: &wgpu::TextureView,
+        output_size: (u32, u32),
+        encoder: &mut wgpu::CommandEncoder,
+    ) -> EncodedVideoUpload {
+        let input = prepared.input.resources;
+        let (cw, ch) = frame.chroma_size();
         let state = Arc::new(AtomicU8::new(0));
-        input.completion = Some(state.clone());
+        self.inputs.insert(
+            prepared.input.object,
+            Input {
+                resources: input.clone(),
+                completion: Some(state.clone()),
+            },
+        );
         let write = |texture, pixels: &[u8], width, height, bpp| {
             queue.write_texture(
                 wgpu::TexelCopyTextureInfo {
@@ -330,6 +375,10 @@ impl VideoGpu {
             pass.set_bind_group(0, &input.group, &[]);
             pass.draw(0..3, 0..1);
         }
-        EncodedVideoUpload { state }
+        EncodedVideoUpload {
+            state,
+            queue: queue.clone(),
+            allocations: Some(prepared.allocations),
+        }
     }
 }

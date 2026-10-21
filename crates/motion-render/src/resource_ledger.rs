@@ -10,6 +10,20 @@ static NEXT_TEXTURE_ID: AtomicU64 = AtomicU64::new(1);
 pub(crate) struct OwnedTexture {
     texture: wgpu::Texture,
     id: u64,
+    allocation: Option<crate::allocation_budget::AllocationLease>,
+}
+impl OwnedTexture {
+    pub(crate) fn allocation(&self) -> Option<crate::allocation_budget::AllocationLease> {
+        self.allocation.clone()
+    }
+    pub(crate) fn allocation_for_view(&self, view: &wgpu::TextureView) -> Option<crate::allocation_budget::AllocationLease> {
+        if &self.texture == view.texture() { self.allocation() } else { None }
+    }
+    pub(crate) fn admitted_view(&self) -> Result<crate::AdmittedTextureView, crate::RenderError> {
+        let lease = self.allocation.clone().ok_or_else(|| crate::RenderError::Invalid(
+            "texture has no allocation reservation".into()))?;
+        Ok(crate::AdmittedTextureView { view: self.create_view(&Default::default()), lease })
+    }
 }
 impl Deref for OwnedTexture {
     type Target = wgpu::Texture;
@@ -17,13 +31,87 @@ impl Deref for OwnedTexture {
 }
 pub(crate) trait DeviceTextureExt {
     fn create_owned_texture(&self, descriptor: &wgpu::TextureDescriptor<'_>) -> OwnedTexture;
+    fn create_admitted_texture(&self, descriptor: &wgpu::TextureDescriptor<'_>, budget: &crate::AllocationBudget)
+        -> Result<OwnedTexture, crate::RenderError>;
 }
 impl DeviceTextureExt for wgpu::Device {
     fn create_owned_texture(&self, descriptor: &wgpu::TextureDescriptor<'_>) -> OwnedTexture {
         OwnedTexture {
             texture: self.create_texture(descriptor),
             id: NEXT_TEXTURE_ID.fetch_add(1, Ordering::Relaxed),
+            allocation: None,
         }
+    }
+    fn create_admitted_texture(&self, descriptor: &wgpu::TextureDescriptor<'_>, budget: &crate::AllocationBudget)
+        -> Result<OwnedTexture, crate::RenderError>
+    {
+        let bytes = descriptor_bytes(descriptor).ok_or_else(|| crate::RenderError::Invalid(
+            "unknown, empty or overflowing admitted texture capacity".into()))?;
+        let allocation = budget.reserve(bytes)?;
+        Ok(OwnedTexture {
+            texture: self.create_texture(descriptor),
+            id: NEXT_TEXTURE_ID.fetch_add(1, Ordering::Relaxed),
+            allocation: Some(allocation),
+        })
+    }
+}
+
+fn descriptor_bytes(descriptor: &wgpu::TextureDescriptor<'_>) -> Option<u64> {
+    if descriptor.size.width == 0 || descriptor.size.height == 0
+        || descriptor.size.depth_or_array_layers == 0 || descriptor.mip_level_count == 0
+        || descriptor.mip_level_count > 32 || descriptor.sample_count == 0 { return None; }
+    let block = u64::from(descriptor.format.block_copy_size(None)?);
+    let (bw, bh) = descriptor.format.block_dimensions();
+    let mut total = 0u64;
+    for mip in 0..descriptor.mip_level_count {
+        let width = (descriptor.size.width >> mip).max(1).div_ceil(bw);
+        let height = (descriptor.size.height >> mip).max(1).div_ceil(bh);
+        let depth = if descriptor.dimension == wgpu::TextureDimension::D3 {
+            (descriptor.size.depth_or_array_layers >> mip).max(1)
+        } else { descriptor.size.depth_or_array_layers };
+        total = total.checked_add(u64::from(width).checked_mul(u64::from(height))?
+            .checked_mul(u64::from(depth))?.checked_mul(block)?
+            .checked_mul(u64::from(descriptor.sample_count))?)?;
+    }
+    Some(total)
+}
+
+#[cfg(test)]
+mod descriptor_tests {
+    use super::*;
+    #[test]
+    fn admitted_capacity_checks_mips_arrays_depth_blocks_samples_and_overflow() {
+        let mut descriptor = wgpu::TextureDescriptor {
+            label: None, size: wgpu::Extent3d { width: 4, height: 4, depth_or_array_layers: 2 },
+            mip_level_count: 3, sample_count: 1, dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba16Float, usage: wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        };
+        assert_eq!(descriptor_bytes(&descriptor), Some((16 + 4 + 1) * 2 * 8));
+        descriptor.dimension = wgpu::TextureDimension::D3;
+        descriptor.size.depth_or_array_layers = 4;
+        assert_eq!(descriptor_bytes(&descriptor), Some((64 + 8 + 1) * 8));
+        descriptor.dimension = wgpu::TextureDimension::D2;
+        descriptor.size.depth_or_array_layers = 1;
+        descriptor.mip_level_count = 1;
+        descriptor.sample_count = 4;
+        descriptor.format = wgpu::TextureFormat::Rgba8Unorm;
+        assert_eq!(descriptor_bytes(&descriptor), Some(4 * 4 * 4 * 4));
+        descriptor.sample_count = 1;
+        descriptor.size.width = 7;
+        descriptor.size.height = 5;
+        descriptor.format = wgpu::TextureFormat::Bc1RgbaUnorm;
+        assert_eq!(descriptor_bytes(&descriptor), Some(2 * 2 * 8));
+        descriptor.format = wgpu::TextureFormat::Depth24Plus;
+        assert_eq!(descriptor_bytes(&descriptor), None);
+        descriptor.format = wgpu::TextureFormat::Rgba32Float;
+        descriptor.size = wgpu::Extent3d { width: u32::MAX, height: u32::MAX, depth_or_array_layers: u32::MAX };
+        assert_eq!(descriptor_bytes(&descriptor), None);
+        descriptor.size = wgpu::Extent3d { width: 0, height: 1, depth_or_array_layers: 1 };
+        assert_eq!(descriptor_bytes(&descriptor), None);
+        descriptor.size.width = 1;
+        descriptor.mip_level_count = 33;
+        assert_eq!(descriptor_bytes(&descriptor), None);
     }
 }
 

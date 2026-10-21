@@ -28,6 +28,13 @@ struct Binding {
         usize,
     ),
     group: wgpu::BindGroup,
+    _allocations: [Option<crate::allocation_budget::AllocationLease>; 2],
+}
+struct InputResource {
+    program: u32,
+    pointer: usize,
+    group: wgpu::BindGroup,
+    _allocation: Option<crate::allocation_budget::AllocationLease>,
 }
 struct Lut {
     texture: OwnedTexture,
@@ -63,7 +70,7 @@ pub(crate) struct GpuState {
     buffers: Vec<Buffer>,
     sprite_buffer: wgpu::Buffer,
     bindings: Vec<Option<Binding>>,
-    input_resources: Vec<Option<(u32, usize, wgpu::BindGroup)>>,
+    input_resources: Vec<Option<InputResource>>,
 }
 
 const SCRATCH_IDLE_FRAME_LIMIT: u32 = 120;
@@ -759,10 +766,14 @@ impl GpuState {
             } else {
                 &self.identity.view
             };
+            let input = view(p.input)?;
+            let source = view(p.source)?;
+            let allocations = [input, source].map(|view| images.values()
+                .find_map(|image| image._texture.allocation_for_view(view)));
             let entries = [
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: wgpu::BindingResource::TextureView(view(p.input)?),
+                    resource: wgpu::BindingResource::TextureView(input),
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
@@ -770,7 +781,7 @@ impl GpuState {
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
-                    resource: wgpu::BindingResource::TextureView(view(p.source)?),
+                    resource: wgpu::BindingResource::TextureView(source),
                 },
                 wgpu::BindGroupEntry {
                     binding: 3,
@@ -791,6 +802,7 @@ impl GpuState {
                 .ok_or_else(|| RenderError::Invalid(format!("effect binding slot {index} is out of range")))?;
             *binding_slot = Some(Binding {
                 key,
+                _allocations: allocations,
                 group: device.create_bind_group(&wgpu::BindGroupDescriptor {
                     label: None,
                     layout: &self.input_layout,
@@ -832,7 +844,8 @@ impl GpuState {
                     })?)
                 }
             };
-            let view=&images.get(&image).ok_or_else(||RenderError::Invalid("effect image input is not available".into()))?.view;
+            let image=images.get(&image).ok_or_else(||RenderError::Invalid("effect image input is not available".into()))?;
+            let view=&image.view;
             let pointer=view as *const _ as usize;
             let input_resource = self
                 .input_resources
@@ -840,7 +853,7 @@ impl GpuState {
                 .ok_or_else(|| RenderError::Invalid(format!("effect resource slot {index} is out of range")))?;
             if input_resource
                 .as_ref()
-                .is_none_or(|(program, old, _)| *program != p.program || *old != pointer)
+                .is_none_or(|resource| resource.program != p.program || resource.pointer != pointer)
             {
                 let mut entries=Vec::new();
                 for slot in 0..4 {
@@ -851,9 +864,11 @@ impl GpuState {
                     .input_resources
                     .get_mut(index)
                     .ok_or_else(|| RenderError::Invalid(format!("effect resource slot {index} is out of range")))?;
-                *input_resource = Some((p.program,pointer,device.create_bind_group(&wgpu::BindGroupDescriptor {
+                *input_resource = Some(InputResource { program: p.program, pointer,
+                    _allocation: image._texture.allocation(),
+                    group: device.create_bind_group(&wgpu::BindGroupDescriptor {
                     label:Some("effect image input"),layout:&self.resource_layout,entries:&entries
-                })));
+                }) });
             }
         }
         let pipeline_format = if p.output == 7 {
@@ -903,7 +918,7 @@ impl GpuState {
                 .get(index)
                 .and_then(|resource| resource.as_ref())
                 .ok_or_else(|| RenderError::Invalid(format!("effect resource binding {index} is missing")))?
-                .2
+                .group
         } else {
             self.resources
                 .get(&p.program)

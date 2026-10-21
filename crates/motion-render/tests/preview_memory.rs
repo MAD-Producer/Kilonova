@@ -90,7 +90,7 @@ fn project(size: [f32; 2], color: [f32; 4], blur: bool) -> Project {
 }
 fn pixels(r: &Renderer, targets: &PreviewFrameTargets) -> Vec<u8> {
     let output = r.capture_target(targets.width, targets.height).unwrap();
-    Presenter::new(r, &targets.view, wgpu::TextureFormat::Rgba8UnormSrgb).draw(r, &output.view);
+    Presenter::new(r, &targets.view, wgpu::TextureFormat::Rgba8UnormSrgb).draw(r, &output.view).unwrap();
     r.read_target(&output).unwrap()
 }
 #[test]
