@@ -476,3 +476,27 @@ No dependency, asset, panel, existing assertion or pixel tolerance changed.
 Remaining renderer resources, upload staging, shared session policy, platform
 pressure, combined preview/export/lifecycle acceptance and #67 reuse are pending.
 #60/#61/#67 remain open; precision settings and 3D integration remain parked.
+
+## Sixth increment: video frame-blend parameters (pending acceptance)
+
+The lazy 16-byte video frame-blend weight buffer now uses the same allocation
+budget as its images. A refused buffer does not publish a partial pipeline or
+acknowledge an unfinished cache image. Its original typed capacity cause retains
+the object, source, PTS, slot, extent, phase and buffer descriptor context.
+An already admitted, unready cache image remains available for a later retry;
+this change does not claim complete operation rollback or preview recovery.
+
+An encoder reservation is acquired before tracking and queuing the uniform
+write. Scope exhaustion therefore cannot leave a new queued weight update.
+Successful writes retain their destination through the existing upload journal,
+and allocation scopes hold the weight alongside images through abandonment or
+GPU completion. Texture-category subtotals continue to exclude this buffer;
+combined capacity includes it once by identity. Queue-owned staging is still
+outside this destination-capacity scope.
+
+Prepared cases exercise an actual late buffer refusal with preserved decoded
+pixels and real linear-blend recovery; scope exhaustion without a queued write
+or false completion stamp; open and finished abandoned scopes plus teardown;
+and the real refusal through unchanged replies and default file/Error-stderr
+output with stdout isolation. No existing assertion or tolerance changes.
+Record source-bound results separately before treating these cases as accepted.
