@@ -118,13 +118,13 @@ pub(super) fn sample(
     let local = frame - offset as f64;
     if property.is_scalar() || axis.is_some() {
         Some(serde_json::json!(
-            track::<f32>(source, offset)?.sample(local)
+            observe!("animation_data.sample", track::<f32>(source, offset)?.sample(local), "object={object} property={property:?} axis={axis:?} frame={frame}").ok()?
         ))
     } else if property == Property::Anchor {
-        Some(serde_json::json!(track::<[f32; 2]>(source, offset)?.sample(local)))
+        Some(serde_json::json!(observe!("animation_data.sample", track::<[f32; 2]>(source, offset)?.sample(local), "object={object} property={property:?} axis={axis:?} frame={frame}").ok()?))
     } else {
         Some(serde_json::json!(
-            track::<[f32; 3]>(source, offset)?.sample(local)
+            observe!("animation_data.sample", track::<[f32; 3]>(source, offset)?.sample(local), "object={object} property={property:?} axis={axis:?} frame={frame}").ok()?
         ))
     }
 }

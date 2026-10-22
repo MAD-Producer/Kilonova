@@ -16,12 +16,15 @@ pub(super) fn frames(mask: &LayerMask) -> Vec<i32> {
     frames.dedup();
     frames
 }
-pub(super) fn values(mask: &LayerMask, frame: f64) -> Vec<f32> {
-    mask.path
+pub(super) fn values(mask: &LayerMask, frame: f64) -> motion_core::Result<Vec<f32>> {
+    Ok(mask.path
         .nodes
         .iter()
-        .flat_map(|n| n.geometry.sample(frame))
-        .collect()
+        .map(|n| n.geometry.sample(frame))
+        .collect::<motion_core::Result<Vec<_>>>()?
+        .into_iter()
+        .flatten()
+        .collect())
 }
 
 /// Build one validated path replacement, so a pose operation is atomic and one undo.
@@ -156,7 +159,8 @@ pub(super) fn node_command(
         }));
     }
     let index = mask.path.nodes.iter().position(|n| n.id == node)?;
-    let mut pose = values(mask, f64::from(frame) - f64::from(offset));
+    let mut pose = observe!("mask.node_pose_sample", values(mask, f64::from(frame) - f64::from(offset)),
+        "object={object} mask={} node={node} frame={frame}", mask.id).ok()?;
     pose[index * 6..(index + 1) * 6].copy_from_slice(&geometry);
     command(
         object,

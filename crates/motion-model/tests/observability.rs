@@ -45,8 +45,8 @@ fn default_level_observes_real_model_failures_and_preserves_results() {
 
     let healthy = Track::constant(3.0_f32);
     for _ in 0..120 {
-        assert_eq!(healthy.sample(5.0), 3.0);
-        assert_eq!(healthy.sample(f64::NAN), 3.0); // Documented static fallback.
+        assert_eq!(healthy.sample(5.0).unwrap(), 3.0);
+        assert_eq!(healthy.sample(f64::NAN).unwrap(), 3.0); // Documented static fallback.
         assert_eq!(serialized_bytes(&[1, 2, 3]), 7);
     }
     assert!(LOG.0.lock().unwrap().is_empty());
@@ -79,14 +79,14 @@ fn default_level_observes_real_model_failures_and_preserves_results() {
     ];
     track.validate(11).unwrap();
     for i in 0..120 {
-        assert!(track.sample(5.0).is_infinite());
+        assert!(track.sample(5.0).unwrap().is_infinite());
         // Other properties sampled in the same frame must not reset evidence.
-        assert_eq!(healthy.sample(5.0), 3.0);
+        assert_eq!(healthy.sample(5.0).unwrap(), 3.0);
         let messages = LOG.0.lock().unwrap();
         assert_eq!(messages.len(), if i < 59 { 1 } else { 2 });
     }
-    assert_eq!(track.sample(10.0), f32::MAX);
-    assert!(track.sample(5.0).is_infinite());
+    assert_eq!(track.sample(10.0).unwrap(), f32::MAX);
+    assert!(track.sample(5.0).unwrap().is_infinite());
     assert_eq!(LOG.0.lock().unwrap().len(), 2); // Process-lifetime suppression.
 
     // A genuine serde_json restriction, not a mocked successful return.

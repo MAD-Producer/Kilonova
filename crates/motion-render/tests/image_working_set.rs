@@ -39,7 +39,7 @@ fn particle_sprite_is_demanded_without_an_image_layer_and_released_when_disabled
     project.layers.push(layer);
     project.rebuild_plugin_dependencies();
     project.validate().unwrap();
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     assert!(scene.layers.iter().all(|layer| layer.asset != Some(7)));
     assert!(motion_render::image_resources::scene_assets(&scene).contains(&7));
@@ -123,7 +123,7 @@ fn active_images_share_proxies_with_nested_instances_and_full_output_is_explicit
     p.layers.push(child);
     p.rebuild_plugin_dependencies();
     p.validate().unwrap();
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene.sample(&p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
     r.set_effect_registry(scene_fixtures::registry().unwrap());

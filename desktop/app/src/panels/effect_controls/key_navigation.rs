@@ -316,7 +316,11 @@ pub(super) fn parameter_navigation(
                         effect,
                         param: param.into(),
                         frame,
-                        value: parameter.sample(local),
+                        value: match observe!("effect.key_navigation_sample", parameter.sample(local),
+                            "object={object} effect={effect} param={param} frame={local}") {
+                            Ok(value) => value,
+                            Err(_) => return true,
+                        },
                     }
                 };
                 out.push(Action::EditBatch(vec![

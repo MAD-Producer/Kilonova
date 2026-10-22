@@ -243,7 +243,7 @@ fn independent_oracle_uploads_straight_alpha_capture_without_brightening_the_chi
     red.transform.position = Track::constant([32.,16.,0.]);
     red.sampling.motion_blur = None;
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene.sample(&project,6.5,None,&ExpressionEvaluator).unwrap();
     let target = renderer.capture_target(64,64).unwrap();
     let expected = renderer.capture(&scene,&target).unwrap().0;
@@ -331,7 +331,7 @@ fn child_clip_can_enter_its_shutter_while_center_is_empty_and_green_stays_at_cen
     let mut frame = task(&mut renderer, &project, 9.5, false);
     finish(&mut renderer, &mut frame);
     let actual = renderer.capture_exposure(frame.target()).unwrap();
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene
         .sample(&project, 9.5, None, &ExpressionEvaluator)
         .unwrap();

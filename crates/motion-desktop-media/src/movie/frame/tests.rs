@@ -111,14 +111,14 @@ fn png_uses_frozen_fractional_frame_and_all_samples_without_preview_mutation() {
         .into_rgba8()
         .into_raw();
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
-    let mut center = Scene::new(&frozen);
+    let mut center = Scene::new(&frozen).unwrap();
     center
         .sample(&frozen, 1.25, None, &motion_core::ExpressionEvaluator)
         .unwrap();
     let mut oracle = renderer.exposure_target(32, 32, &[0.125; 8]).unwrap();
     // Independently authored midpoint times; only the red receiver is blurred.
     for time in [0.375, 0.625, 0.875, 1.125, 1.375, 1.625, 1.875, 2.125] {
-        let mut sample = Scene::new(&frozen);
+        let mut sample = Scene::new(&frozen).unwrap();
         sample
             .sample(&frozen, time, None, &motion_core::ExpressionEvaluator)
             .unwrap();

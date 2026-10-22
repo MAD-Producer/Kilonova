@@ -264,8 +264,8 @@ mod tests {
             let invalid = motion_core::Track::constant(f32::INFINITY);
             let healthy = motion_core::Track::constant(3.0_f32);
             for _ in 0..120 {
-                assert!(invalid.sample(5.0).is_infinite());
-                assert_eq!(healthy.sample(5.0), 3.0);
+                assert!(invalid.sample(5.0).unwrap().is_infinite());
+                assert_eq!(healthy.sample(5.0).unwrap(), 3.0);
             }
             return;
         }

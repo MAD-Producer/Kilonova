@@ -11,7 +11,7 @@ fn project(g:VectorGroup)->Project {
     p.layers.push(l);p
 }
 fn capture(r:&mut Renderer,p:&Project,f:f64)->Vec<u8> {
-    let mut s=Scene::new(p);s.sample(p,f,None,&motion_core::ExpressionEvaluator).unwrap();
+    let mut s=Scene::new(p).unwrap();s.sample(p,f,None,&motion_core::ExpressionEvaluator).unwrap();
     let target=r.capture_target(64,64).unwrap();r.capture(&s,&target).unwrap().0
 }
 fn pixel(bytes:&[u8],x:usize,y:usize)->&[u8]{&bytes[(y*64+x)*4..(y*64+x)*4+4]}
@@ -43,7 +43,7 @@ fn two_large_repeaters_rasterize_visible_roi_and_follow_layer_motion() {
     let mut r=pollster::block_on(Renderer::headless()).unwrap();let mut g=group();
     for(id,position)in[(3,[1064.,0.]),(4,[0.,844.])] {g.items.push(GroupItem::Repeater{id,name:"Grid".into(),repeater:Repeater{copies:Track::constant(23.),position:Track::constant(position),..Default::default()}});}
     let mut p=project(g);let first=capture(&mut r,&p,0.);assert_eq!(pixel(&first,32,32),[255,255,255,255]);
-    let mut s=Scene::new(&p);s.sample(&p,0.,None,&motion_core::ExpressionEvaluator).unwrap();assert!(s.layers[0].size[0]<=66.&&s.layers[0].size[1]<=66.);
+    let mut s=Scene::new(&p).unwrap();s.sample(&p,0.,None,&motion_core::ExpressionEvaluator).unwrap();assert!(s.layers[0].size[0]<=66.&&s.layers[0].size[1]<=66.);
     p.layers[0].transform.position.value[0]-=1064.;p.layers[0].transform.position.value[1]-=844.;
     assert_eq!(first,capture(&mut r,&p,0.));
 }

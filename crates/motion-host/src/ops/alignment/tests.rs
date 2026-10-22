@@ -24,7 +24,7 @@ fn fixture() -> Engine {
     Engine::new(p).unwrap()
 }
 fn sampled(p: &Project, frame: f64) -> Scene {
-    let mut scene = Scene::new(p);
+    let mut scene = Scene::new(p).unwrap();
     scene
         .sample(p, frame, None, &motion_core::ExpressionEvaluator)
         .unwrap();
@@ -92,8 +92,8 @@ fn six_edges_use_evaluated_bounds_and_preserve_other_tracks_with_one_undo_and_sa
                     assert_eq!(old.transform.rotation, new.transform.rotation);
                     assert_eq!(old.transform.opacity, new.transform.opacity);
                     assert_eq!(
-                        old.transform.position.sample(17.)[2],
-                        new.transform.position.sample(17.)[2]
+                        old.transform.position.sample(17.).unwrap()[2],
+                        new.transform.position.sample(17.).unwrap()[2]
                     );
                 }
                 let folder = tempfile::tempdir().unwrap();
@@ -319,8 +319,8 @@ fn clip_offsets_write_the_existing_local_key_and_keep_unrelated_keys() {
             engine.project().layers[0].timeline
         );
         assert_eq!(
-            before.layers[0].transform.position.sample(0.),
-            engine.project().layers[0].transform.position.sample(0.)
+            before.layers[0].transform.position.sample(0.).unwrap(),
+            engine.project().layers[0].transform.position.sample(0.).unwrap()
         );
         assert_eq!(
             before.layers[0]

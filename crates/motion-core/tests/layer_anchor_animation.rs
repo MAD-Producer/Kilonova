@@ -23,7 +23,7 @@ fn fixture() -> Project {
     p
 }
 fn model(p: &Project, frame: f64) -> glam::Mat4 {
-    let mut s = Scene::new(p);
+    let mut s = Scene::new(p).unwrap();
     s.sample(p, frame, None, &motion_core::ExpressionEvaluator)
         .unwrap();
     s.layers.iter().find(|l| l.id == 2).unwrap().model
@@ -92,7 +92,7 @@ fn anchor_uses_local_time_and_survives_save_reopen_and_frozen_snapshot() {
             .collect::<Vec<_>>(),
         [0, 40]
     );
-    let a = e.project().layers[1].transform.anchor.sample(20.);
+    let a = e.project().layers[1].transform.anchor.sample(20.).unwrap();
     assert!((a[0] - 0.3).abs() < 1e-6 && (a[1] - 0.7).abs() < 1e-6);
     let timeline = e.project().timeline_layers(30.).unwrap();
     assert_eq!(
@@ -155,7 +155,7 @@ fn animated_anchor_compensation_preserves_parented_separated_pose_and_cancel_und
     animate(&mut e);
     let before = e.snapshot();
     let pose = model(&before, 30.);
-    let anchor = before.layers[1].transform.anchor.sample(20.);
+    let anchor = before.layers[1].transform.anchor.sample(20.).unwrap();
     e.begin_gesture().unwrap();
     for a in [[0.35, 0.8], [0.6, 0.2], anchor] {
         e.apply(Command::AnchorAt {
@@ -211,7 +211,7 @@ fn anchor_keys_move_copy_ease_disable_and_reject_invalid_edits_atomically() {
     })
     .unwrap();
     assert_eq!(
-        e.project().layers[1].transform.anchor.sample(50.),
+        e.project().layers[1].transform.anchor.sample(50.).unwrap(),
         [0.1, 0.9]
     );
     for command in [

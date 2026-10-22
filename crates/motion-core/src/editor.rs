@@ -811,13 +811,13 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             let camera = project.camera_for_mut(object)?;
             ensure(amount.is_finite(), "invalid dolly movement")?;
             if camera.mode == CameraMode::Orbit {
-                let radius = camera.radius.sample(f64::from(local));
+                let radius = camera.radius.sample(f64::from(local))?;
                 camera
                     .radius
                     .set_at(local, (radius - amount).max(1.0))?;
             } else {
-                let eye = Vec3::from_array(camera.position.sample(f64::from(local)));
-                let target = Vec3::from_array(camera.target.sample(f64::from(local)));
+                let eye = Vec3::from_array(camera.position.sample(f64::from(local))?);
+                let target = Vec3::from_array(camera.target.sample(f64::from(local))?);
                 let distance = eye.distance(target);
                 ensure(distance >= 1.0, "camera is too close to its target")?;
                 let step = amount.min(distance - 1.0);
@@ -837,7 +837,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             let camera = project.camera_for_mut(object)?;
             ensure(x.is_finite() && y.is_finite(), "invalid camera pan")?;
             let pose = camera
-                .pose(f64::from(local), width, height);
+                .pose(f64::from(local), width, height)?;
             let forward = (pose.target - pose.eye).normalize();
             let basis_up = if forward.dot(Vec3::Y).abs() > 0.999 {
                 Vec3::Z
@@ -846,14 +846,14 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             };
             let rolled_up = Quat::from_axis_angle(
                 forward,
-                camera.roll.sample(f64::from(local)).to_radians(),
+                camera.roll.sample(f64::from(local))?.to_radians(),
             ) * basis_up;
             let right = forward.cross(rolled_up).normalize();
             let up = right.cross(forward).normalize();
             let delta_world = right * x + up * y;
             let delta = [delta_world.x, -delta_world.y, -delta_world.z];
-            let pos = camera.position.sample(f64::from(local));
-            let target = camera.target.sample(f64::from(local));
+            let pos = camera.position.sample(f64::from(local))?;
+            let target = camera.target.sample(f64::from(local))?;
             let sum = |v: [f32; 3]| std::array::from_fn(|i| v[i] + delta[i]);
             if camera.mode == CameraMode::Position {
                 camera.position.set_at(local, sum(pos))?;
@@ -871,26 +871,26 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             if old.locked {
                 return Err(Error::Locked(object));
             }
-            let compensate = |frame: f64| {
-                let previous = old.transform.anchor.sample(frame);
+            let compensate = |frame: f64| -> Result<[f32; 3]> {
+                let previous = old.transform.anchor.sample(frame)?;
                 let local_delta = Vec3::new((anchor[0]-previous[0])*old.size[0],
                     (previous[1]-anchor[1])*old.size[1],0.);
-                let mut r = old.transform.rotation.sample(frame);
+                let mut r = old.transform.rotation.sample(frame)?;
                 if !old.three_d {
                     r[0] = 0.0;
                     r[1] = 0.0;
                 }
                 let rotation=motion_model::geometry::rotation_quaternion(r,old.rotation_order);
                 let delta = rotation
-                    * (Vec3::from_array(old.transform.scale.sample(frame)) / 100.0 * local_delta);
-                let pos = old.transform.position.sample(frame);
-                [pos[0] + delta.x, pos[1] - delta.y, pos[2] - delta.z]
+                    * (Vec3::from_array(old.transform.scale.sample(frame)?) / 100.0 * local_delta);
+                let pos = old.transform.position.sample(frame)?;
+                Ok([pos[0] + delta.x, pos[1] - delta.y, pos[2] - delta.z])
             };
             let animated = old.transform.position.is_animated()
                 || old.transform.anchor.is_animated()
                 || old.transform.rotation.is_animated()
                 || old.transform.scale.is_animated();
-            let mut position = Track::constant(compensate(0.0));
+            let mut position = Track::constant(compensate(0.0)?);
             if animated {
                 let first = old.clip(project.frames).edit_frame(0)?;
                 let last = old.clip(project.frames).edit_frame(project.frames - 1)?;
@@ -908,7 +908,7 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
                     "anchor compensation exceeds key budget",
                 )?;
                 for frame in first..=last {
-                    position.upsert(frame, compensate(f64::from(frame)), Ease::Linear)?;
+                    position.upsert(frame, compensate(f64::from(frame))?, Ease::Linear)?;
                 }
             }
             if old.transform.position.axes.is_some() {
@@ -924,13 +924,13 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             let layer = project.layer_mut(object)?;
             ensure(layer.camera_data().is_none() && !matches!(layer.content, Content::Audio { .. }), "object has no layer anchor")?;
             if layer.locked { return Err(Error::Locked(object)); }
-            let previous = layer.transform.anchor.sample(f64::from(local));
-            let mut rotation = layer.transform.rotation.sample(f64::from(local));
+            let previous = layer.transform.anchor.sample(f64::from(local))?;
+            let mut rotation = layer.transform.rotation.sample(f64::from(local))?;
             if !layer.three_d { rotation[0]=0.; rotation[1]=0.; }
             let delta = motion_model::geometry::rotation_quaternion(rotation,layer.rotation_order)
-                * (Vec3::from_array(layer.transform.scale.sample(f64::from(local)))/100.
+                * (Vec3::from_array(layer.transform.scale.sample(f64::from(local))?)/100.
                     * Vec3::new((anchor[0]-previous[0])*layer.size[0],(previous[1]-anchor[1])*layer.size[1],0.));
-            let position = layer.transform.position.sample(f64::from(local));
+            let position = layer.transform.position.sample(f64::from(local))?;
             layer.transform.position.set_at(local,[position[0]+delta.x,position[1]-delta.y,position[2]-delta.z])?;
             layer.transform.anchor.set_at(local,anchor)?;
         }

@@ -175,23 +175,24 @@ pub struct EffectParam {
     pub curve: Option<CurveTrack>,
 }
 impl EffectParam {
-    pub fn sample(&self, frame: f64) -> [f32; 4] {
+    pub fn sample(&self, frame: f64) -> Result<[f32; 4]> {
         if self.kind.discrete() {
+            ensure(self.track.axes.is_none(), "discrete effect parameters cannot separate dimensions")?;
             let i = self
                 .track
                 .keys
                 .partition_point(|k| f64::from(k.frame) <= frame);
-            return if self.track.keys.is_empty() {
+            return Ok(if self.track.keys.is_empty() {
                 self.track.value
             } else {
                 self.track.keys[i.saturating_sub(1)].value
-            };
+            });
         }
-        let mut value = self.track.sample(frame);
+        let mut value = self.track.sample(frame)?;
         for v in &mut value[..self.kind.dimensions()] {
             *v = v.clamp(self.min, self.max);
         }
-        value
+        Ok(value)
     }
     fn validate(&self, frames: u32) -> Result<()> {
         ensure(

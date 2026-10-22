@@ -139,26 +139,26 @@ impl Camera {
         }
         Ok(())
     }
-    pub fn position_at(&self, frame: f64) -> [f32; 3] {
+    pub fn position_at(&self, frame: f64) -> Result<[f32; 3]> {
         if self.mode == CameraMode::Position {
             return self.position.sample(frame);
         }
-        let target = self.target.sample(frame);
-        let r = self.radius.sample(frame).clamp(1.0, 10_000_000.0);
-        let az = self.azimuth.sample(frame).to_radians();
-        let el = self.elevation.sample(frame).clamp(-89.0, 89.0).to_radians();
-        [
+        let target = self.target.sample(frame)?;
+        let r = self.radius.sample(frame)?.clamp(1.0, 10_000_000.0);
+        let az = self.azimuth.sample(frame)?.to_radians();
+        let el = self.elevation.sample(frame)?.clamp(-89.0, 89.0).to_radians();
+        Ok([
             target[0] + r * az.sin() * el.cos(),
             target[1] - r * el.sin(),
             target[2] - r * az.cos() * el.cos(),
-        ]
+        ])
     }
-    pub fn pose(&self, frame: f64, width: u32, height: u32) -> CameraPose {
+    pub fn pose(&self, frame: f64, width: u32, height: u32) -> Result<CameraPose> {
         self.pose_parented(frame, width, height, Mat4::IDENTITY)
     }
-    pub fn pose_parented(&self, frame: f64, width: u32, height: u32, parent: Mat4) -> CameraPose {
-        let local_eye = to_world(self.position_at(frame), width, height);
-        let local_target = to_world(self.target.sample(frame), width, height);
+    pub fn pose_parented(&self, frame: f64, width: u32, height: u32, parent: Mat4) -> Result<CameraPose> {
+        let local_eye = to_world(self.position_at(frame)?, width, height);
+        let local_target = to_world(self.target.sample(frame)?, width, height);
         let eye = parent.transform_point3(local_eye);
         let mut target = parent.transform_point3(local_target);
         if eye.distance_squared(target) < 1.0e-8 {
@@ -179,7 +179,7 @@ impl Camera {
             Vec3::Y
         };
         let transformed = parent.transform_vector3(
-            Quat::from_axis_angle(local_forward, self.roll.sample(frame).to_radians())
+            Quat::from_axis_angle(local_forward, self.roll.sample(frame)?.to_radians())
                 * local_basis,
         );
         let up = transformed
@@ -189,17 +189,17 @@ impl Camera {
         let view = Mat4::look_at_rh(eye, target, up);
         // glam's non-GL RH projection has the 0..1 depth range wgpu requires.
         let projection = Mat4::perspective_rh(
-            self.fov.sample(frame).clamp(10.0, 120.0).to_radians(),
+            self.fov.sample(frame)?.clamp(10.0, 120.0).to_radians(),
             width as f32 / height as f32,
             0.5,
             100_000.0,
         );
-        CameraPose {
+        Ok(CameraPose {
             eye,
             target,
             projection: ProjectionKind::Perspective,
             view_projection: projection * view,
-        }
+        })
     }
     /// Bake on integer frames to preserve an existing animation when modes change.
     pub fn convert_mode(&mut self, mode: CameraMode, frames: u32) -> Result<()> {
@@ -247,11 +247,11 @@ impl Camera {
             "camera mode conversion exceeds the keyframe budget",
         )?;
         if mode == CameraMode::Position {
-            let mut positions = Track::constant(self.position_at(f64::from(start)));
+            let mut positions = Track::constant(self.position_at(f64::from(start))?);
             for frame in start..end {
                 positions.upsert(
                     frame,
-                    self.position_at(f64::from(frame)),
+                    self.position_at(f64::from(frame))?,
                     crate::Ease::Linear,
                 )?;
             }
@@ -263,8 +263,8 @@ impl Camera {
             let mut elevation = Track::constant(0.0);
             let mut previous_azimuth: Option<f32> = None;
             for frame in start..end {
-                let pos = Vec3::from_array(self.position_at(f64::from(frame)));
-                let target = Vec3::from_array(self.target.sample(f64::from(frame)));
+                let pos = Vec3::from_array(self.position_at(f64::from(frame))?);
+                let target = Vec3::from_array(self.target.sample(f64::from(frame))?);
                 let delta = pos - target;
                 let r = delta.length();
                 ensure(r >= 1.0, "cannot orbit at a coincident target")?;
@@ -317,7 +317,7 @@ impl Observer {
             view: ObservationView::Free,
         }
     }
-    pub fn pose(&self, width: u32, height: u32) -> CameraPose {
+    pub fn pose(&self, width: u32, height: u32) -> Result<CameraPose> {
         if self.view == ObservationView::Free {
             return self.camera.pose(0.0, width, height);
         }
@@ -330,7 +330,7 @@ impl Observer {
         };
         let half_height = distance * (self.camera.fov.value.to_radians() / 2.0).tan();
         let half_width = half_height * width as f32 / height as f32;
-        CameraPose {
+        Ok(CameraPose {
             eye,
             target,
             projection: ProjectionKind::Orthographic,
@@ -342,14 +342,14 @@ impl Observer {
                 0.5,
                 100_000.0,
             ) * Mat4::look_at_rh(eye, target, up),
-        }
+        })
     }
     pub fn pan(&mut self, x: f32, y: f32, width: u32, height: u32) -> Result<()> {
         ensure(
             x.is_finite() && y.is_finite() && x.abs() <= 1_000_000.0 && y.abs() <= 1_000_000.0,
             "invalid observation pan",
         )?;
-        let p = self.pose(width, height);
+        let p = self.pose(width, height)?;
         let forward = (p.target - p.eye).normalize();
         let base_up = if self.view == ObservationView::Top {
             Vec3::Z

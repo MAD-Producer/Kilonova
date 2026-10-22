@@ -72,7 +72,7 @@ fn fixture(renderer: &mut Renderer) -> Scene {
         l.transform.rotation.value[1] = angle;
         p.layers.push(l);
     }
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene
         .sample(&p, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();

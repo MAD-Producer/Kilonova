@@ -80,7 +80,7 @@ fn narrowed_sample_loops_match_published_pixels_including_sparse_and_fractional_
                 p.layers[0].effects[0].version = package.manifest.version.clone();
                 p.layers[0].effects[0].hash = package.hash.clone();
                 p.rebuild_plugin_dependencies();
-                let mut scene = Scene::new(&p);
+                let mut scene = Scene::new(&p).unwrap();
                 scene.sample(&p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
                 outputs.push(renderer.capture(&scene, &target).unwrap().0);
             }

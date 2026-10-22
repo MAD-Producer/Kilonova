@@ -96,7 +96,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             vec![("frame-000".into(), 0.0), ("frame-015-5".into(), 15.5)]
         };
         for (suffix, frame) in frames {
-            let mut scene = Scene::new(&project);
+            let mut scene = Scene::new(&project)?;
             scene.sample(&project, frame, None, &ExpressionEvaluator)?;
             let (pixels, _) = renderer.capture(&scene, &target)?;
             image::save_buffer(

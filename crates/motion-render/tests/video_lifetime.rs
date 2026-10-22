@@ -68,7 +68,7 @@ fn sixty_clip_traversals_and_reverse_seeks_keep_one_live_video_and_release_the_g
     p.validate().unwrap();
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let baseline = renderer.texture_bytes();
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     let f = pixels();
     let target = renderer.capture_target(32, 32).unwrap();
     let mut peak = 0;
@@ -142,7 +142,7 @@ fn hidden_matte_source_is_live_but_unreferenced_hidden_video_is_reclaimed() {
     for object in [1, 3] {
         renderer.upload_video_yuv(object, 1, 0, &f).unwrap();
     }
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene
         .sample(&p, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();
@@ -193,7 +193,7 @@ fn rgba_handoff_releases_only_its_planes_and_preserves_both_instances_pixels() {
     }
     p.layers[0].transform.position.value = [8., 16., 0.];
     p.layers[1].transform.position.value = [24., 16., 0.];
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene
         .sample(&p, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();

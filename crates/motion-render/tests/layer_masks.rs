@@ -10,7 +10,7 @@ fn project()->Project {
     p.layers.push(Layer::solid(1,"masked",[1080.,1920.],[540.,960.,0.],[1.,0.,0.,1.]));p
 }
 fn capture(r:&mut Renderer,p:&Project)->Vec<u8> {
-    let mut scene=Scene::new(p);scene.sample(p,0.,None, &motion_core::ExpressionEvaluator).unwrap();
+    let mut scene=Scene::new(p).unwrap();scene.sample(p,0.,None, &motion_core::ExpressionEvaluator).unwrap();
     let target=r.capture_target(1080,1920).unwrap();r.capture(&scene,&target).unwrap().0
 }
 fn alpha(p:&[u8],x:usize,y:usize)->u8 {p[(y*1080+x)*4+3]}
@@ -50,7 +50,7 @@ fn feather_expansion_and_masked_input_before_effect() {
 #[test]
 fn portable_mask_records_keep_cached_geometry_and_utility_program() {
     let mut p=project();p.layers[0].masks.push(rectangle(1,200.,300.,600.,1200.));
-    let mut s=Scene::new(&p);s.sample(&p,0.,None, &motion_core::ExpressionEvaluator).unwrap();
+    let mut s=Scene::new(&p).unwrap();s.sample(&p,0.,None, &motion_core::ExpressionEvaluator).unwrap();
     let mut plan=PlanBuilder::new(motion_effects::Registry::new_with_builtins().unwrap()).unwrap();
     let frame=plan.build(&s,&[0],1080,1920,false).unwrap();assert_eq!(frame.masks.len(),1);
     let geometry=frame.masks[0].vertices.clone();let mut bytes=vec![0;frame.buffer_bytes(&s)];frame.write(&s,&mut bytes).unwrap();

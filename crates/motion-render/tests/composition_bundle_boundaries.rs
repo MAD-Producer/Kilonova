@@ -132,7 +132,7 @@ fn fixture() -> Project {
     project
 }
 fn sample(project: &Project, frame: f64) -> Scene {
-    let mut scene = Scene::new(project);
+    let mut scene = Scene::new(project).unwrap();
     scene
         .sample(project, frame, None, &motion_core::ExpressionEvaluator)
         .unwrap();

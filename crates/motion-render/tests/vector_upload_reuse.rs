@@ -63,7 +63,7 @@ fn fixture() -> Project {
     project
 }
 fn capture(renderer: &mut Renderer, project: &Project) -> Vec<u8> {
-    let mut scene = Scene::new(project);
+    let mut scene = Scene::new(project).unwrap();
     scene
         .sample(project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();
@@ -124,7 +124,7 @@ fn refused_vector_reupload_keeps_completed_output_and_recovers_real_pixels() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let budget = renderer.allocation_budget().clone();
     let mut project = fixture();
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     let target = renderer.capture_target(96, 64).unwrap();
     let original = renderer.capture(&scene, &target).unwrap().0;
@@ -260,7 +260,7 @@ fn distinct_encodes_in_one_submission_keep_their_own_vector_pixels() {
     let first_view = first.create_view(&Default::default());
     let second_view = second.create_view(&Default::default());
     let mut encoder = renderer.device.create_command_encoder(&Default::default());
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     opacity(&mut project, 1, 25.);
     scene
         .sample(&project, 0., None, &motion_core::ExpressionEvaluator)

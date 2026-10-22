@@ -555,7 +555,7 @@ fn move_commands(
             .find(|m| m.id == mask)
             .ok_or_else(|| motion_core::Error::Invalid("selected mask disappeared".into()))?;
         let offset = layer.timeline.map_or(0, |t| t.offset_frame);
-        let mut pose = mask_path::values(source, f64::from(frame) - f64::from(offset));
+        let mut pose = mask_path::values(source, f64::from(frame) - f64::from(offset))?;
         let indices: std::collections::BTreeMap<_, _> = source
             .path
             .nodes

@@ -196,7 +196,7 @@ impl<E: FrameEvaluator> ExposureScenes<E> {
             })
             .collect::<Result<Vec<_>>>()?;
         let clock = ExposureClock::new(frame, &shutters, preview)?;
-        let scene = Scene::new(project);
+        let scene = Scene::new(project)?;
         let mut task = Self {
             document,
             root,
@@ -300,8 +300,15 @@ impl<E: FrameEvaluator> ExposureScenes<E> {
         if !cached {
             let root = self.root.as_ref().unwrap_or(&self.document);
             let scene = if centered {
-                self.center_scene
-                    .get_or_insert_with(|| Box::new(Scene::new(root)))
+                if self.center_scene.is_none() {
+                    let scene = match Scene::new(root) {
+                        Ok(scene) => scene,
+                        Err(error) => { self.failed = true; return Err(error); }
+                    };
+                    self.center_scene = Some(Box::new(scene));
+                }
+                self.center_scene.as_deref_mut().ok_or_else(||
+                    motion_model::Error::Invalid("exposure center scene missing after construction".into()))?
             } else {
                 &mut self.scene
             };

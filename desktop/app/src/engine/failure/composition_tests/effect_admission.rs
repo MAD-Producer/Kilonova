@@ -26,7 +26,7 @@ fn effect_parameter_refusal_reaches_original_reply_file_and_stderr_at_default_le
         ));
         project.layers.push(layer);
         project.rebuild_plugin_dependencies();
-        let mut scene = motion_render::Scene::new(&project);
+        let mut scene = motion_render::Scene::new(&project).unwrap();
         scene
             .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
             .unwrap();

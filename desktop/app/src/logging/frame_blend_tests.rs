@@ -146,7 +146,7 @@ fn required_right_reports_default_file_stderr_and_pending_threshold_recovery() {
         let root = PathBuf::from(root);
         let _logger = init(root.clone()).unwrap();
         let project = fixture(&root);
-        let mut scene = Scene::new(&project);
+        let mut scene = Scene::new(&project).unwrap();
         scene
             .sample(&project, 0.5, None, &motion_core::ExpressionEvaluator)
             .unwrap();

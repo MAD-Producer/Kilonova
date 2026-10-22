@@ -113,7 +113,7 @@ fn animated_feathered_masks_reuse_actual_bindings_with_stable_memory_and_pixels(
     let layout = layout(&renderer.device);
     let mut gpu = admitted_gpu(&renderer, &layout);
     let mut p = project();
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     let mut cache = MaskCache::default();
     let mut images = HashMap::new();
     let mut bytes = 0;
@@ -267,7 +267,7 @@ fn resize_slot_shrink_and_empty_masks_release_cached_views_and_recover() {
     let mut gpu = admitted_gpu(&renderer, &layout);
     let mut p = project();
     let mask = p.layers[0].masks[0].clone();
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     let mut cache = MaskCache::default();
     let mut images = HashMap::new();
     let mut bytes = 0;

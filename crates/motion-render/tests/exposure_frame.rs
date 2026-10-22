@@ -76,7 +76,7 @@ fn task(r: &mut Renderer, p: &Project, e: Recorded) -> ExposureFrame<Recorded> {
     ExposureFrame::new(r, scenes, 32, 32).unwrap()
 }
 fn sample(p: &Project, frame: f64) -> Scene {
-    let mut s = Scene::new(p);
+    let mut s = Scene::new(p).unwrap();
     s.sample(p, frame, None, &ExpressionEvaluator).unwrap();
     s
 }

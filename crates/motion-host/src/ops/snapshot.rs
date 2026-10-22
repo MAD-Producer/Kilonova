@@ -152,35 +152,35 @@ impl Session {
     pub fn snapshot(&self) -> crate::Result<Value> {
         let original = self.engine.project();
         let f = self.frame;
-        // Check the fallible projections before any infallible animation sampling.
+        // Project timelines before sampling so structural failures retain their object context.
         let timeline_layers = original.timeline_layers(f)?;
         let timeline_position = original.camera.position.timeline(0)?;
         let timeline_target = original.camera.target.timeline(0)?;
         let p = self.scene.sampled_project(original);
-        let camera = json!({"position":p.camera.position_at(f),"target":p.camera.target.sample(f),
-            "fov":p.camera.fov.sample(f).clamp(10.0,120.0),"roll":p.camera.roll.sample(f),
-            "radius":p.camera.radius.sample(f).clamp(1.0,10_000_000.0),
-            "azimuth":p.camera.azimuth.sample(f),"elevation":p.camera.elevation.sample(f).clamp(-89.0,89.0)});
+        let camera = json!({"position":p.camera.position_at(f)?,"target":p.camera.target.sample(f)?,
+            "fov":p.camera.fov.sample(f)?.clamp(10.0,120.0),"roll":p.camera.roll.sample(f)?,
+            "radius":p.camera.radius.sample(f)?.clamp(1.0,10_000_000.0),
+            "azimuth":p.camera.azimuth.sample(f)?,"elevation":p.camera.elevation.sample(f)?.clamp(-89.0,89.0)});
         let layers: Vec<_> = p
             .layers
             .iter()
-            .map(|l| {
+            .map(|l| -> motion_core::Result<_> {
                 let local = l.local_frame(f);
-                let camera = l.camera_data().map(|c| json!({"position":c.position_at(local),"target":c.target.sample(local),
-                    "roll":c.roll.sample(local),"fov":c.fov.sample(local),"radius":c.radius.sample(local),
-                    "azimuth":c.azimuth.sample(local),"elevation":c.elevation.sample(local)}));
-                let mut sample = json!({"id":l.id,"position":l.transform.position.sample(local),
-            "rotation":l.transform.rotation.sample(local),"scale":l.transform.scale.sample(local),"anchor":l.transform.anchor.sample(local),
-            "opacity":l.transform.opacity.sample(local).clamp(0.0,1.0),"active":l.active(f,p.frames),"three_d":l.three_d,
-            "audio_levels":l.audio_levels.as_ref().map(|levels|{let v=levels.sample(local);json!({"left":v[0],"right":v[1]})})});
+                let camera = l.camera_data().map(|c| -> motion_core::Result<_> { Ok(json!({"position":c.position_at(local)?,"target":c.target.sample(local)?,
+                    "roll":c.roll.sample(local)?,"fov":c.fov.sample(local)?,"radius":c.radius.sample(local)?,
+                    "azimuth":c.azimuth.sample(local)?,"elevation":c.elevation.sample(local)?})) }).transpose()?;
+                let mut sample = json!({"id":l.id,"position":l.transform.position.sample(local)?,
+            "rotation":l.transform.rotation.sample(local)?,"scale":l.transform.scale.sample(local)?,"anchor":l.transform.anchor.sample(local)?,
+            "opacity":l.transform.opacity.sample(local)?.clamp(0.0,1.0),"active":l.active(f,p.frames),"three_d":l.three_d,
+            "audio_levels":l.audio_levels.as_ref().map(|levels| -> motion_core::Result<_> {let v=levels.sample(local)?;Ok(json!({"left":v[0],"right":v[1]}))}).transpose()?});
                 if let Some(camera) = camera {
                     for (key, value) in camera.as_object().into_iter().flatten() {
                         sample[key] = value.clone();
                     }
                 }
-                sample
+                Ok(sample)
             })
-            .collect();
+            .collect::<motion_core::Result<_>>()?;
         let mut projected: Vec<_> = self
             .scene
             .layers
@@ -211,18 +211,21 @@ impl Session {
         let mask_layers:Vec<_>=self.scene.layers.iter().filter_map(|layer| {
             let stored=p.layers.iter().find(|l|l.id==layer.id)?;
             if stored.masks.is_empty(){return None;}
+            Some((|| -> motion_core::Result<_> {
             let local=stored.local_frame(f);
-            let masks:Vec<_>=stored.masks.iter().map(|m|{
-                let nodes:Vec<_>=m.path.nodes.iter().map(|n|json!({"id":n.id,"geometry":n.geometry.sample(local)})).collect();
-                json!({"id":m.id,"opacity":m.opacity.sample(local).clamp(0.,100.),
-                    "feather":m.feather.sample(local).map(|v|v.clamp(0.,motion_core::masks::MAX_MASK_DISTANCE)),
-                    "expansion":m.expansion.sample(local),
-                    "path":{"id":m.path.id,"closed":m.path.closed,"nodes":nodes}})
-            }).collect();
-            Some(json!({"id":layer.id,"mvp":(layer.view_projection*layer.model).to_cols_array(),"masks":masks}))
-        }).collect();
+            let masks:Vec<_>=stored.masks.iter().map(|m| -> motion_core::Result<_> {
+                let nodes:Vec<_>=m.path.nodes.iter().map(|n| -> motion_core::Result<_> {Ok(json!({"id":n.id,"geometry":n.geometry.sample(local)?}))}).collect::<motion_core::Result<_>>()?;
+                Ok(json!({"id":m.id,"opacity":m.opacity.sample(local)?.clamp(0.,100.),
+                    "feather":m.feather.sample(local)?.map(|v|v.clamp(0.,motion_core::masks::MAX_MASK_DISTANCE)),
+                    "expansion":m.expansion.sample(local)?,
+                    "path":{"id":m.path.id,"closed":m.path.closed,"nodes":nodes}}))
+            }).collect::<motion_core::Result<_>>()?;
+            Ok(json!({"id":layer.id,"mvp":(layer.view_projection*layer.model).to_cols_array(),"masks":masks}))
+            })())
+        }).collect::<motion_core::Result<Vec<_>>>()?;
         let vector_layers: Vec<_> = self.scene.layers.iter().filter_map(|layer| {
             let vector=layer.vector.as_ref()?;
+            Some((|| -> motion_core::Result<_> {
             let stored=p.layers.iter().find(|l|l.id==layer.id).and_then(|l|match &l.content {
                 motion_core::Content::Vector{vector}=>Some(&vector.source),_=>None,
             });
@@ -234,7 +237,7 @@ impl Session {
             let parameters=match stored {
                 Some(motion_core::vector::VectorSource::Shape{parameters,..})=>{
                     let offset=p.layers.iter().find(|l|l.id==layer.id).map_or(0,|l|l.clip(p.frames).offset_frame);
-                    parameters.iter().map(|(name,track)|(name.clone(),json!(track.sample(f-f64::from(offset))))).collect::<serde_json::Map<_,_>>()
+                    parameters.iter().map(|(name,track)| -> motion_core::Result<_> {Ok((name.clone(),json!(track.sample(f-f64::from(offset))?)))}).collect::<motion_core::Result<serde_json::Map<_,_>>>()?
                 },_=>serde_json::Map::new(),
             };
             let mut modifier_parameters=serde_json::Map::new();
@@ -247,11 +250,12 @@ impl Session {
                 modifier_parameters.insert("dash_offset".into(),json!(d.offset));
                 for (i,value) in d.pattern.iter().enumerate() {modifier_parameters.insert(format!("dash_{i}"),json!(value));}
             }
-            Some(json!({"id":layer.id,"canvas_size":layer.source_size,"source_rect":layer.source_rect,
+            Ok(json!({"id":layer.id,"canvas_size":layer.source_size,"source_rect":layer.source_rect,
                 "mvp":(layer.view_projection*layer.model).to_cols_array(),"paths":paths,"parameters":parameters,"modifier_parameters":modifier_parameters,
                 "group_parameters":vector.group_parameters,
                 "fill":vector.fill,"stroke":vector.stroke.map(|s|json!({"color":s.0,"width":s.1,"cap":s.2,"join":s.3,"miter_limit":s.4}))}))
-        }).collect();
+            })())
+        }).collect::<motion_core::Result<Vec<_>>>()?;
         // Logical source plane, before vector/effect output bounds expansion.
         // Hosts use this same evaluated matrix for transform and path gestures.
         let source_transforms: Vec<_> = p.layers.iter().filter_map(|layer| {
@@ -262,13 +266,15 @@ impl Session {
                     glam::Mat4::orthographic_rh(-(p.width as f32)*0.5,p.width as f32*0.5,
                         -(p.height as f32)*0.5,p.height as f32*0.5,-1.,1.)
                 });
-            let anchor=layer.transform.anchor.sample(layer.local_frame(f));
+            Some((|| -> motion_core::Result<_> {
+            let anchor=layer.transform.anchor.sample(layer.local_frame(f))?;
             let offset=glam::Mat4::from_translation(glam::Vec3::new(
                 (0.5-anchor[0])*layer.size[0],
                 (anchor[1]-0.5)*layer.size[1],0.));
-            Some(json!({"id":layer.id,"mvp":(vp*world*offset).to_cols_array(),
+            Ok(json!({"id":layer.id,"mvp":(vp*world*offset).to_cols_array(),
                 "size":layer.size,"anchor":anchor,"coordinates":"source_centered_pixels"}))
-        }).collect();
+            })())
+        }).collect::<motion_core::Result<Vec<_>>>()?;
         let camera_properties: Vec<&str> = if !p.camera.created {
             vec![]
         } else if p.camera.mode == motion_core::CameraMode::Position {

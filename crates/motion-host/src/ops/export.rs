@@ -29,7 +29,7 @@ pub fn render_plan_info(id: i64) -> Result<serde_json::Value> {
                     e.enabled = false;
                 }
             }
-            let mut scene = Scene::new(&node);
+            let mut scene = Scene::new(&node)?;
             scene.sample(&node, 0., None, &motion_core::ExpressionEvaluator).map_err(crate::Error::from)?;
             s.effects.synchronize(&scene)?;
         }
@@ -159,7 +159,7 @@ pub fn capture(id: i64) -> Result<serde_json::Value> {
         }
         s.effects
             .synchronize_scene_alpha(&s.scene, p, &s.root)?;
-        let mut scene = Scene::new(p);
+        let mut scene = Scene::new(p)?;
         scene.sample(p, s.frame, None, &motion_core::ExpressionEvaluator).map_err(crate::Error::from)?;
         let mut temporary = None;
         if s.graphics.is_none() {

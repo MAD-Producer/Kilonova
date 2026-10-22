@@ -109,7 +109,7 @@ fn ordered_instances_dependencies_and_gesture_undo_survive_storage() {
     assert_eq!(&before, engine.project());
     engine.redo().unwrap();
     assert_eq!(
-        engine.project().layers[0].effects[0].params["p0003"].sample(0.0)[0],
+        engine.project().layers[0].effects[0].params["p0003"].sample(0.0).unwrap()[0],
         70.0
     );
     apply(&mut engine, EffectAction::Duplicate { effect: id });
@@ -154,7 +154,7 @@ fn numeric_animation_and_curve_luts_are_independent_of_seek_order() {
             value: invert,
         },
     );
-    let mut scene = Scene::new(engine.project());
+    let mut scene = Scene::new(engine.project()).unwrap();
     scene.sample(engine.project(), 15.0, None, &motion_core::ExpressionEvaluator).unwrap();
     let middle = scene.curve_luts.clone();
     for frame in [29.0, 0.0, 59.0, 9.0, 15.0] {
@@ -261,8 +261,8 @@ fn discrete_animation_holds_and_rejected_edits_are_atomic() {
         },
     );
     let param = &engine.project().layers[0].effects[0].params["p0002"];
-    assert_eq!(param.sample(29.99)[0], 1.0);
-    assert_eq!(param.sample(30.0)[0], 3.0);
+    assert_eq!(param.sample(29.99).unwrap()[0], 1.0);
+    assert_eq!(param.sample(30.0).unwrap()[0], 3.0);
     let before = engine.project().clone();
     assert!(engine
         .apply(Command::Effect {
@@ -299,7 +299,7 @@ fn disabled_curves_keep_saved_keys_without_materializing_parameter_resources() {
             enabled: false,
         },
     );
-    let mut scene = Scene::new(engine.project());
+    let mut scene = Scene::new(engine.project()).unwrap();
     scene.sample(engine.project(), 0.0, None, &motion_core::ExpressionEvaluator).unwrap();
     assert!(scene.curve_luts.is_empty());
     assert!(scene.effects[0].lut.is_none());
@@ -360,7 +360,7 @@ fn effect_keys_follow_clip_local_time_through_trim_move_split_and_undo() {
             in_frame: 0,
         })
         .unwrap();
-    let mut scene = Scene::new(engine.project());
+    let mut scene = Scene::new(engine.project()).unwrap();
     for frame in [0.0, 19.0, 5.0] {
         scene.sample(engine.project(), frame, None, &motion_core::ExpressionEvaluator).unwrap();
         let effect = &scene.effects[0];
@@ -485,7 +485,7 @@ fn curve_object_keys_support_negative_local_time_and_full_signed_span() {
         curve.keys.iter().map(|k| k.frame).collect::<Vec<_>>(),
         [-15, 5]
     );
-    let mut scene = Scene::new(engine.project());
+    let mut scene = Scene::new(engine.project()).unwrap();
     scene.sample(engine.project(), 20.0, None, &motion_core::ExpressionEvaluator).unwrap();
     assert!((scene.curve_luts[0][255][0] - 0.25).abs() < 0.001);
     let mut project = engine.project().clone();

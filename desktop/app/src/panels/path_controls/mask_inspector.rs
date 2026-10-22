@@ -620,7 +620,11 @@ impl Controls {
                 let values = if index == mask_path::CHANNEL {
                     vec![]
                 } else {
-                    mask_keys::values(mask, index, local)
+                    match observe!("mask.inspector_sample", mask_keys::values(mask, index, local),
+                        "object={} mask={} channel={index} frame={local}", owner.object, mask.id) {
+                        Ok(values) => values,
+                        Err(_) => { *y += row; continue; },
+                    }
                 };
                 let fields = property_row(styles.as_ref(), area, *y, 0, values.len(), host);
                 self.selection_probe.record(fields.caption, area);

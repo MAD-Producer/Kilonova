@@ -22,12 +22,12 @@ pub fn rotation_quaternion(rotation: [f32; 3], order: RotationOrder) -> Quat {
     }
 }
 
-pub(crate) fn pivot_matrix(layer: &Layer, frame: f64, width: u32, height: u32) -> Mat4 {
+pub(crate) fn pivot_matrix(layer: &Layer, frame: f64, width: u32, height: u32) -> crate::Result<Mat4> {
     let frame = layer.local_frame(frame);
     let t = &layer.transform;
-    let mut rotation = t.rotation.sample(frame);
-    let mut position = t.position.sample(frame);
-    let mut scale = t.scale.sample(frame);
+    let mut rotation = t.rotation.sample(frame)?;
+    let mut position = t.position.sample(frame)?;
+    let mut scale = t.scale.sample(frame)?;
     if !layer.three_d {
         rotation[0] = 0.0;
         rotation[1] = 0.0;
@@ -36,7 +36,7 @@ pub(crate) fn pivot_matrix(layer: &Layer, frame: f64, width: u32, height: u32) -
     }
     let quaternion = rotation_quaternion(rotation, layer.rotation_order);
     let scale = Vec3::from_array(scale) / 100.0;
-    Mat4::from_scale_rotation_translation(scale, quaternion, to_world(position, width, height))
+    Ok(Mat4::from_scale_rotation_translation(scale, quaternion, to_world(position, width, height)))
 }
 
 /// Project parent motion into the composition plane for a flat child.

@@ -20,7 +20,7 @@ fn scene(size: u32) -> motion_render::Scene {
         space: motion_core::compositing::BlendSpace::Srgb,
     };
     project.validate().unwrap();
-    let mut scene = motion_render::Scene::new(&project);
+    let mut scene = motion_render::Scene::new(&project).unwrap();
     scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     scene
 }

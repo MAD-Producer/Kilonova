@@ -200,7 +200,7 @@ fn receiver_time_drives_parent_camera_matte_and_effect_input_without_changing_un
                     assert!((layer.model.w_axis.x - parent_x).abs() < 1e-5);
                     assert_eq!(
                         scene.camera.view_projection,
-                        p.camera.pose(t, 128, 128).view_projection
+                        p.camera.pose(t, 128, 128).unwrap().view_projection
                     );
                     assert_eq!(layer.view_projection, scene.camera.view_projection);
                     let source_effect = scene.effects.iter().find(|e| e.layer == 3).unwrap();
@@ -631,7 +631,7 @@ fn moving_project() -> Project {
 fn actual_sampled_project_layers_reach_gpu_and_keep_the_unblurred_moving_reference_sharp() {
     let p = Arc::new(moving_project());
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
-    let mut center = Scene::new(&p);
+    let mut center = Scene::new(&p).unwrap();
     center
         .sample(&p, 0.5, None, &motion_core::ExpressionEvaluator)
         .unwrap();
@@ -743,7 +743,7 @@ fn observer_pose_is_frozen_for_every_receiver_and_subframe_absence_is_transparen
         .unwrap();
     blur(&mut p.layers[0], 1., 2);
     let observer = Observer::new(128, 128);
-    let expected = observer.pose(128, 128);
+    let expected = observer.pose(128, 128).unwrap();
     let mut task = exposure(
         Arc::new(p),
         MAIN_COMPOSITION,

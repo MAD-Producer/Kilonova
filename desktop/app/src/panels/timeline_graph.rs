@@ -22,12 +22,12 @@ impl Samples {
         }
     }
 
-    fn value(&self, frame: f64, component: usize) -> f32 {
-        match self {
-            Self::Anchor(track) => track.sample(frame)[component],
-            Self::Scalar(track) => track.sample(frame),
-            Self::Vector(track) => track.sample(frame)[component],
-        }
+    fn value(&self, frame: f64, component: usize) -> motion_core::Result<f32> {
+        Ok(match self {
+            Self::Anchor(track) => track.sample(frame)?[component],
+            Self::Scalar(track) => track.sample(frame)?,
+            Self::Vector(track) => track.sample(frame)?[component],
+        })
     }
 }
 
@@ -243,24 +243,32 @@ pub(super) fn render(
     );
     let end = (offset + plot.width() as f64 / ppf.max(1e-6) as f64).min(last_frame(state));
     let scale = data::display_scale(state,object,property,components[0]);
-    let points: Vec<Vec<(f64, f32)>> = components
+    let speed_graph = panels.timeline.speed_graph;
+    let sample = |frame: f64, component: usize| -> motion_core::Result<f32> {
+        Ok(if speed_graph {
+            samples.velocity(frame - layer_offset as f64, component, fps)
+        } else {
+            samples.value(frame - layer_offset as f64, component)?
+        } * scale)
+    };
+    let points = components
         .iter()
         .map(|component| {
             (0..=256)
                 .map(|i| {
                     let frame = offset + (end - offset).max(0.) * i as f64 / 256.;
-                    (
-                        frame,
-                        if panels.timeline.speed_graph {
-                            samples.velocity(frame - layer_offset as f64, *component, fps) * scale
-                        } else {
-                            samples.value(frame - layer_offset as f64, *component) * scale
-                        },
-                    )
+                    sample(frame, *component).map(|value| (frame, value))
                 })
-                .collect()
+                .collect::<motion_core::Result<Vec<_>>>()
         })
-        .collect();
+        .collect::<motion_core::Result<Vec<_>>>();
+    let Ok(points) = observe!("timeline.graph_samples", points,
+        "object={object} property={property:?} axis={axis:?} frame_start={offset} frame_end={end}") else {
+        graph.clip_to(area);
+        list.append(graph);
+        observe_early_return(panels, "sampling_failed");
+        return;
+    };
     let min = points
         .iter()
         .flatten()
@@ -409,11 +417,8 @@ pub(super) fn render(
             else {
                 continue;
             };
-            let value = if panels.timeline.speed_graph {
-                samples.velocity(frame as f64 - layer_offset as f64, components[index], fps) * scale
-            } else {
-                samples.value(frame as f64 - layer_offset as f64, components[index]) * scale
-            };
+            let Ok(value) = observe!("timeline.graph_key_sample", sample(frame as f64, components[index]),
+                "object={object} property={property:?} axis={axis:?} frame={frame}") else { continue; };
             let point = [
                 plot.min[0] + (frame as f64 - offset) as f32 * ppf,
                 y_of(value),
@@ -518,10 +523,11 @@ pub(super) fn render(
     }
     if plot.contains(input.mouse) {
         let frame = offset + (input.mouse[0] - plot.min[0]) as f64 / ppf.max(0.001) as f64;
-        let value = if panels.timeline.speed_graph {
-            samples.velocity(frame - layer_offset as f64, components[0], fps) * scale
-        } else {
-            samples.value(frame - layer_offset as f64, components[0]) * scale
+        let Ok(value) = observe!("timeline.graph_tooltip_sample", sample(frame, components[0]),
+            "object={object} property={property:?} axis={axis:?} frame={frame}") else {
+            graph.clip_to(area);
+            list.append(graph);
+            return;
         };
         let width = 168.;
         let height = 50.;

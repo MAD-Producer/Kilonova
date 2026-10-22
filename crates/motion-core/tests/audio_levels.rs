@@ -149,8 +149,8 @@ fn nested_envelopes_use_each_owner_fps_and_fractional_sample_origin() {
     let sample = 24_813;
     let child_local = (sample as f64 - 48_000. / 59.) * 24. / 48_000. + 6.;
     let expected_db = -12. + (child_local - 6.) / 24. * 12.;
-    assert!((v.gain_at(sample)[0] - 10f32.powf((expected_db as f32 - 6.) / 20.)).abs() < 1e-6);
-    assert!((v.gain_at(sample)[1] - 10f32.powf(-12. / 20.)).abs() < 1e-6);
+    assert!((v.gain_at(sample).unwrap()[0] - 10f32.powf((expected_db as f32 - 6.) / 20.)).abs() < 1e-6);
+    assert!((v.gain_at(sample).unwrap()[1] - 10f32.powf(-12. / 20.)).abs() < 1e-6);
 }
 #[test]
 fn current_documents_roundtrip_and_old_versions_or_bad_tracks_are_rejected() {
@@ -179,12 +179,12 @@ fn precompose_fps_changes_and_package_roundtrip_keep_audio_envelopes() {
     e.apply(Command::Composition{action:CompositionAction::Precompose{objects:vec![1],name:"sound child".into(),range:"composition".into()}}).unwrap();
     let child=e.project().compositions[0].id.clone();
     for sample in [0,12345,24000,47999,60000] {
-        assert_eq!(before.audio_voices().unwrap()[0].gain_at(sample),e.project().audio_voices().unwrap()[0].gain_at(sample));
+        assert_eq!(before.audio_voices().unwrap()[0].gain_at(sample).unwrap(),e.project().audio_voices().unwrap()[0].gain_at(sample).unwrap());
     }
     e.apply(Command::InComposition{composition:child,command:Box::new(Command::Composition{action:CompositionAction::Settings{settings:CompositionSettings{
         name:"sound child".into(),width:64,height:64,fps:48,frames:144,timing:"preserve_seconds".into(),shorten:"reject".into()}}})}).unwrap();
     let retimed=e.snapshot();
-    for sample in [0,12345,24000,47999,60000] {assert_eq!(before.audio_voices().unwrap()[0].gain_at(sample),retimed.audio_voices().unwrap()[0].gain_at(sample));}
+    for sample in [0,12345,24000,47999,60000] {assert_eq!(before.audio_voices().unwrap()[0].gain_at(sample).unwrap(),retimed.audio_voices().unwrap()[0].gain_at(sample).unwrap());}
     let root=tempfile::tempdir().unwrap();std::fs::create_dir(root.path().join("assets")).unwrap();
     std::fs::write(root.path().join("assets/tone.wav"),[0u8;64]).unwrap();
     motion_core::storage::save(root.path(),&retimed).unwrap();

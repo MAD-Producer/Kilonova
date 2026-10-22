@@ -2,7 +2,7 @@ use motion_core::{Camera,Composition,CompositionClip,Content,ExpressionEvaluator
 use motion_render::{Renderer,Scene};
 
 fn render(renderer:&mut Renderer,project:&Project,frame:f64)->Vec<u8>{
-    let mut scene=Scene::new(project);scene.sample(project,frame,None,&ExpressionEvaluator).unwrap();
+    let mut scene=Scene::new(project).unwrap();scene.sample(project,frame,None,&ExpressionEvaluator).unwrap();
     let target=renderer.capture_target(64,64).unwrap();renderer.capture(&scene,&target).unwrap().0
 }
 #[test]

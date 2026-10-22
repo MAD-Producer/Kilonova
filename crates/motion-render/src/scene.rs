@@ -124,9 +124,15 @@ impl Scene {
     pub fn is_screen_overlay(&self, layer: u64) -> bool {
         self.effects.iter().any(|effect| effect.layer == layer && effect_is_screen_generator(effect))
     }
-    pub fn new(project: &Project) -> Self {
-        Self::empty(project.camera.pose(0.0, project.width, project.height), project.background,
-            project.width, project.height, project.fps, project.composition_id.clone())
+    pub fn new(project: &Project) -> motion_model::Result<Self> {
+        Ok(Self::empty(project.camera.pose(0.0, project.width, project.height)?, project.background,
+            project.width, project.height, project.fps, project.composition_id.clone()))
+    }
+    /// Build the initial camera for a composition before a host changes its active context.
+    pub fn for_composition(project: &Project, id: &str) -> motion_model::Result<Self> {
+        let view = project.composition_view(id)?;
+        Ok(Self::empty(view.camera.pose(0.0, view.width, view.height)?, view.background,
+            view.width, view.height, view.fps, view.id.to_owned()))
     }
     pub(crate) fn plane_context(&self, layers: Vec<DrawLayer>) -> Self {
         let mut context = Self::empty(self.camera, self.background, self.width, self.height,
@@ -291,7 +297,7 @@ impl Scene {
                     sampled.particle_history = None;
                 }
                 for (i, p) in e.params.values().enumerate() {
-                    sampled.values[i] = p.sample(sampled.local_frame);
+                    sampled.values[i] = p.sample(sampled.local_frame)?;
                     if let Some(c) = p.curve.as_ref().filter(|_| e.enabled) {
                         sampled.lut = Some(self.curve_luts.len());
                         self.curve_luts.push(c.sample(sampled.local_frame));
@@ -343,7 +349,7 @@ impl Scene {
         self.camera = observer.map_or_else(
             || camera.pose_parented(camera_frame, project.width, project.height, prefix),
             |o| o.pose(project.width, project.height),
-        );
+        )?;
         self.width = project.width;
         self.height = project.height;
         self.background = project.background;
@@ -378,7 +384,7 @@ impl Scene {
             let opacity = layer
                 .transform
                 .opacity
-                .sample(layer.local_frame(frame))
+                .sample(layer.local_frame(frame))?
                 .clamp(0.0, 1.0);
             if opacity <= 0.0 && !referenced {
                 continue;
@@ -392,7 +398,7 @@ impl Scene {
                 let mut node = if let Some(index) = previous_nested.iter().position(|n| n.layer == layer.id && n.composition == clip.composition) {
                     previous_nested.swap_remove(index)
                 } else {
-                    NestedScene {layer:layer.id, composition:clip.composition.clone(), scene:Box::new(Scene::new(&child))}
+                    NestedScene {layer:layer.id, composition:clip.composition.clone(), scene:Box::new(Scene::new(&child)?)}
                 };
                 if let Err(error)=node.scene.sample_inner(document,&child,source,None,depth+1,instances,evaluator){
                     if matches!(&error, motion_model::Error::Composition(e) if e.code == "render_resource_limit") { return Err(error); }
@@ -479,7 +485,7 @@ impl Scene {
                 if let Some(mut bounds) = crate::vector_mesh::group_bounds(v) {
                     let dependencies = project.layers.iter().any(|l| l.effects.iter().any(|e|
                         e.enabled && e.image_input.and_then(motion_model::EffectImageInput::layer)==Some(layer.id)));
-                    let world = self.node_world[order] * geometry_offset(layer, frame);
+                    let world = self.node_world[order] * geometry_offset(layer, frame)?;
                     let m = glam::Mat3::from_cols(world.x_axis.truncate().truncate().extend(0.),
                         world.y_axis.truncate().truncate().extend(0.),world.w_axis.truncate().truncate().extend(1.));
                     let spatial_input = layer.effects.iter().any(|e|e.enabled) || !layer.masks.is_empty() || dependencies;
@@ -525,7 +531,7 @@ impl Scene {
             let screen_overlay = self.is_screen_overlay(layer.id);
             self.layers.push(DrawLayer {
                 id: layer.id,
-                model: self.node_world[order] * geometry_offset(layer, frame) * Mat4::from_translation(vector_center),
+                model: self.node_world[order] * geometry_offset(layer, frame)? * Mat4::from_translation(vector_center),
                 size,
                 source_size: layer.size,
                 source_rect: [
@@ -764,11 +770,11 @@ impl Scene {
     }
 }
 
-pub(crate) fn geometry_offset(layer: &Layer, frame: f64) -> Mat4 {
-    let anchor = layer.transform.anchor.sample(layer.local_frame(frame));
-    Mat4::from_translation(Vec3::new(
+pub(crate) fn geometry_offset(layer: &Layer, frame: f64) -> motion_model::Result<Mat4> {
+    let anchor = layer.transform.anchor.sample(layer.local_frame(frame))?;
+    Ok(Mat4::from_translation(Vec3::new(
         (0.5 - anchor[0]) * layer.size[0],
         (anchor[1] - 0.5) * layer.size[1],
         0.0,
-    ))
+    )))
 }

@@ -58,11 +58,11 @@ fn lens_edit_uses_existing_fov_animation_and_one_undo_with_storage_round_trip() 
     let camera = after.camera_for(object).unwrap();
     let expected = Lens::from_focal_length(24., 50., 1920, 1080).unwrap();
     assert_eq!(camera.film_width_mm, 24.);
-    assert!((f64::from(camera.fov.sample(30.)) - expected.vertical_fov_degrees).abs() < 1e-5);
+    assert!((f64::from(camera.fov.sample(30.).unwrap()) - expected.vertical_fov_degrees).abs() < 1e-5);
     assert_eq!(camera.fov.keys.len(), 2);
     assert_eq!(
-        camera.fov.sample(0.),
-        before.camera_for(object).unwrap().fov.sample(0.)
+        camera.fov.sample(0.).unwrap(),
+        before.camera_for(object).unwrap().fov.sample(0.).unwrap()
     );
     engine.undo().unwrap();
     assert_eq!(engine.project(), &before);
@@ -162,7 +162,7 @@ fn lens_edit_uses_local_clip_time_and_legacy_camera_and_matches_render_projectio
     engine.apply(edit(object, 60, 24., 50.)).unwrap();
     let camera = engine.project().camera_for(object).unwrap();
     assert_eq!(camera.fov.keys.last().unwrap().frame, 30);
-    let mut scene = motion_render::Scene::new(engine.project());
+    let mut scene = motion_render::Scene::new(engine.project()).unwrap();
     scene
         .sample(
             engine.project(),
@@ -174,7 +174,7 @@ fn lens_edit_uses_local_clip_time_and_legacy_camera_and_matches_render_projectio
     let matrix = scene.camera.view_projection;
     let mut reference = engine.snapshot();
     reference.camera_for_mut(object).unwrap().film_width_mm = 36.;
-    let mut reference_scene = motion_render::Scene::new(&reference);
+    let mut reference_scene = motion_render::Scene::new(&reference).unwrap();
     reference_scene
         .sample(&reference, 60., None, &motion_core::ExpressionEvaluator)
         .unwrap();

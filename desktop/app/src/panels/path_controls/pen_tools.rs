@@ -365,7 +365,7 @@ fn split_tracks(
         for frame in frames {
             middle.keys.push(motion_core::Keyframe {
                 frame,
-                value: split(a.sample(f64::from(frame)), b.sample(f64::from(frame)), t).1,
+                value: split(a.sample(f64::from(frame))?, b.sample(f64::from(frame))?, t).1,
                 ease: motion_core::Ease::Linear,
                 curve: None,
                 spatial: None,
@@ -375,8 +375,8 @@ fn split_tracks(
     }
     for key in &template.keys {
         let (_, nv, _) = split(
-            a.sample(f64::from(key.frame)),
-            b.sample(f64::from(key.frame)),
+            a.sample(f64::from(key.frame))?,
+            b.sample(f64::from(key.frame))?,
             t,
         );
         let mut next = key.clone();
@@ -434,7 +434,7 @@ fn edit_path(path: &mut VectorPath, node: u64, edit: Edit, frame: i32) -> motion
             path.closed &= path.nodes.len() >= 3;
         }
         Edit::Corner | Edit::Smooth => {
-            let mut g = path.nodes[index].geometry.sample(f64::from(frame));
+            let mut g = path.nodes[index].geometry.sample(f64::from(frame))?;
             if matches!(edit, Edit::Corner) {
                 g[2..].fill(0.);
             } else {
@@ -450,13 +450,13 @@ fn edit_path(path: &mut VectorPath, node: u64, edit: Edit, frame: i32) -> motion
                 };
                 let anchor = [g[0], g[1]];
                 let sample = |i: Option<usize>| {
-                    i.map(|i| {
-                        let p = path.nodes[i].geometry.sample(f64::from(frame));
-                        [p[0], p[1]]
-                    })
+                    i.map(|i| -> motion_core::Result<_> {
+                        let p = path.nodes[i].geometry.sample(f64::from(frame))?;
+                        Ok([p[0], p[1]])
+                    }).transpose()
                 };
-                let before = sample(previous);
-                let after = sample(next);
+                let before = sample(previous)?;
+                let after = sample(next)?;
                 let incoming = g[2].hypot(g[3]);
                 let outgoing = g[4].hypot(g[5]);
                 let direction = if outgoing > f32::EPSILON {

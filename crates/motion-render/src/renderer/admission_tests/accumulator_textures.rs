@@ -168,7 +168,7 @@ fn cached_transfer_bindings_keep_actual_layer_accumulators_renderable_after_cach
     let mut layer = Layer::solid(1, "transfer", [4.; 2], [2., 2., 0.], [1.; 4]);
     layer.blend.mode = motion_core::compositing::BlendMode::Screen;
     project.layers.push(layer);
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     let gpu = renderer.compositing_gpu.as_mut().unwrap();
     gpu.prepare_targets(&renderer.device, &renderer.image_layout, &renderer.sampler,
@@ -223,7 +223,7 @@ fn ordinary_and_local_accumulator_refusals_preserve_output_then_recover_exact_pi
             space: motion_core::compositing::BlendSpace::Srgb,
         };
         project.validate().unwrap();
-        let mut scene = Scene::new(&project);
+        let mut scene = Scene::new(&project).unwrap();
         scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
         let rasters: Vec<_> = if local { scene.layers.iter().map(|layer|
             renderer.materialize_layer(&scene, layer.id, 64, 64, false).unwrap().unwrap().0).collect() } else { vec![] };

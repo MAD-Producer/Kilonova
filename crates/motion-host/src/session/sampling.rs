@@ -294,11 +294,11 @@ impl Session {
                 surface_size: [g.config.width, g.config.height],
                 viewport,
                 image,
-                observer: observer.as_ref().map(|o| {
-                    o.pose(self.scene.width, self.scene.height)
+                observer: observer.as_ref().map(|o| -> motion_core::Result<_> {
+                    Ok(o.pose(self.scene.width, self.scene.height)?
                         .view_projection
-                        .to_cols_array()
-                }),
+                        .to_cols_array())
+                }).transpose()?,
             };
             let poll_began = Instant::now();
             let result = self.sampling.poll_into(

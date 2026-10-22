@@ -172,7 +172,7 @@ fn renderer_keeps_image_sources_on_configure_sync_and_async_failures() {
     let mut layer = motion_core::Layer::solid(1, "Image", [1.; 2], [0.; 3], [1.; 4]);
     layer.content = motion_core::Content::Image { asset: source.id };
     project.layers.push(layer);
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene
         .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();

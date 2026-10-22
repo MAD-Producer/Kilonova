@@ -50,7 +50,7 @@ fn recent_textures_are_lru_bounded_and_yuv_allocations_reclaim_idle_images() {
     let mut p = Project::new(64, 64, 30, 30).unwrap();
     p.assets = (1..=4).map(|id| fixture(root.path(), id, 2048)).collect();
     p.layers = vec![layer(1, 1, 0, 30)];
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
     r.configure_assets(&p, root.path()).unwrap();
     let target = r.capture_target(64, 64).unwrap();
@@ -141,7 +141,7 @@ fn prefetched_clip_renders_immediately_and_invalid_future_source_only_fails_when
         height: 64,
     });
     p.layers = vec![layer(1, 1, 0, 15), layer(2, 2, 15, 30), layer(9, 9, 18, 30)];
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
     r.configure_assets(&p, root.path()).unwrap();
     scene.sample(&p, 1., None, &motion_core::ExpressionEvaluator).unwrap();

@@ -7,7 +7,7 @@ fn feathered_mask_mesh_and_filter_uniforms_share_renderer_admission() {
     let layout = layout(&renderer.device);
     let mut gpu = admitted_gpu(&renderer, &layout);
     let p = project();
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene.sample(&p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     let masks = MaskCache::default().build(&scene, 1., false).unwrap();
     assert_eq!(masks.len(), 1);
@@ -38,7 +38,7 @@ fn feathered_mask_mesh_and_filter_uniforms_share_renderer_admission() {
 }
 
 fn sampled(p: &Project) -> (Scene, Vec<MaskRaster>) {
-    let mut scene = Scene::new(p);
+    let mut scene = Scene::new(p).unwrap();
     scene.sample(p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     let masks = MaskCache::default().build(&scene, 1., false).unwrap();
     (scene, masks)

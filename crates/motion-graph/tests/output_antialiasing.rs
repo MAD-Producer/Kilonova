@@ -115,7 +115,7 @@ fn aligned_planes_preserve_the_last_row_and_column_of_odd_viewports() {
                 };
             }
             project.layers.push(layer);
-            let mut scene = Scene::new(&project);
+            let mut scene = Scene::new(&project).unwrap();
             scene
                 .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
                 .unwrap();
@@ -205,7 +205,7 @@ fn magnified_sdf_output_is_rasterized_at_display_density() {
     ));
     project.layers.push(layer);
     project.rebuild_plugin_dependencies();
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene
         .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();
@@ -309,7 +309,7 @@ fn check_rotated_graph_output_coverage(angle: f32) {
     ));
     project.layers.push(layer);
     project.rebuild_plugin_dependencies();
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene
         .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();
@@ -451,7 +451,7 @@ fn coverage_is_shared_by_plain_masked_matted_and_blended_planes() {
             };
         }
         project.layers.push(layer);
-        let mut scene = Scene::new(&project);
+        let mut scene = Scene::new(&project).unwrap();
         scene
             .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
             .unwrap();
@@ -564,7 +564,7 @@ fn soft_sphere_output_preserves_animation_and_random_seek_at_display_density() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     renderer.set_effect_registry(registry);
     let target = renderer.capture_target(512, 512).unwrap();
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene
         .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();
@@ -651,7 +651,7 @@ fn magnified_graph_sampling_preserves_source_uvs_and_premultiplied_filtering() {
     renderer.upload_image(1, 64, 64, &image).unwrap();
     renderer.set_effect_registry(registry);
     let target = renderer.capture_target(512, 512).unwrap();
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene
         .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();

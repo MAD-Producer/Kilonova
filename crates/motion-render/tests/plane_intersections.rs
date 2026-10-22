@@ -42,7 +42,7 @@ fn opaque_and_translucent_crossing_planes_occlude_per_pixel_in_both_stack_orders
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let target = renderer.capture_target(256, 256).unwrap();
     let mut p = project();
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     for _ in 0..2 {
         scene.sample(&p, 0.0, None, &motion_core::ExpressionEvaluator).unwrap();
         let (pixels, stats) = renderer.capture(&scene, &target).unwrap();

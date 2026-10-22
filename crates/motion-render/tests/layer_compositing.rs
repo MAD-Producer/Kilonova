@@ -3,7 +3,7 @@ use motion_core::{compositing::*, *};
 use motion_render::Renderer;
 
 fn render(renderer: &mut Renderer, project: &Project, frame: f64) -> Vec<u8> {
-    let mut scene = Scene::new(project);
+    let mut scene = Scene::new(project).unwrap();
     scene.sample(project, frame, None, &motion_core::ExpressionEvaluator).unwrap();
     renderer.retain_video_instances(&scene);
     let target = renderer.capture_target(64, 64).unwrap();
@@ -135,7 +135,7 @@ fn matte_uses_effected_pixels_and_authored_opacity_in_a_letterboxed_view() {
     p.rebuild_plugin_dependencies();
     p.validate().unwrap();
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene.sample(&p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     let target = r.capture_target(96, 64).unwrap();
     let pixels = r.capture(&scene, &target).unwrap().0;

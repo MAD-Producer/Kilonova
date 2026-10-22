@@ -43,7 +43,7 @@ fn check(error: Error, composition: &str, phase: &str, reference: bool) {
 fn sampling_and_prefetch_propagate_rate_errors_and_recover_after_correction() {
     for parent_invalid in [false, true] {
         let mut project = fixture();
-        let mut scene = Scene::new(&project);
+        let mut scene = Scene::new(&project).unwrap();
         if parent_invalid {
             project.fps = 0;
         } else {
@@ -86,7 +86,7 @@ fn valid_out_of_range_clips_and_non_finite_prefetch_queries_stay_normal_misses()
         unreachable!()
     };
     clip.source_start_frame = -120;
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene
         .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();

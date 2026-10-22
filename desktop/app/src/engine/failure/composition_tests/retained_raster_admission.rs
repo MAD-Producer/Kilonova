@@ -6,7 +6,7 @@ fn scene() -> motion_render::Scene {
     project.camera.created = false;
     project.layers.push(motion_core::Layer::solid(77, "receiver", [32.; 2], [32., 32., 0.], [0., 1., 0., 1.]));
     project.validate().unwrap();
-    let mut scene = motion_render::Scene::new(&project);
+    let mut scene = motion_render::Scene::new(&project).unwrap();
     scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     scene
 }

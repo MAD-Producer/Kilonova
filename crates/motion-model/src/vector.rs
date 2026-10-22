@@ -568,11 +568,11 @@ impl VectorContent {
             VectorSource::Group { .. } => unreachable!(),
             VectorSource::Paths { paths } => paths
                 .iter()
-                .map(|p| SampledPath {
+                .map(|p| Ok(SampledPath {
                     closed: p.closed,
-                    nodes: p.nodes.iter().map(|n| n.geometry.sample(frame)).collect(),
-                })
-                .collect(),
+                    nodes: p.nodes.iter().map(|n| n.geometry.sample(frame)).collect::<Result<_>>()?,
+                }))
+                .collect::<Result<_>>()?,
             VectorSource::Shape { shape, parameters } => {
                 let mut values = BTreeMap::new();
                 for p in shape_parameters(*shape) {
@@ -582,7 +582,7 @@ impl VectorContent {
                             p.id,
                         ))
                     })?;
-                    let v = track.sample(frame);
+                    let v = track.sample(frame)?;
                     ensure(
                         (p.min..=p.max).contains(&v) && (!p.discrete || v.fract() == 0.),
                         "sampled shape parameter outside valid range",
@@ -596,32 +596,32 @@ impl VectorContent {
             batches: None,
             root_opacity: 1.,
             group_parameters: BTreeMap::new(),
-            trim: self.trim.as_ref().map(|t| SampledTrimPaths {
-                start: t.start.sample(frame),
-                end: t.end.sample(frame),
-                offset: t.offset.sample(frame),
+            trim: self.trim.as_ref().map(|t| -> Result<_> { Ok(SampledTrimPaths {
+                start: t.start.sample(frame)?,
+                end: t.end.sample(frame)?,
+                offset: t.offset.sample(frame)?,
                 mode: t.mode,
-            }),
+            }) }).transpose()?,
             dashes: self
                 .stroke
                 .as_ref()
                 .and_then(|s| s.dashes.as_ref())
-                .map(|d| SampledDashes {
-                    pattern: d.pattern.iter().map(|t| t.sample(frame)).collect(),
-                    offset: d.offset.sample(frame),
-                }),
+                .map(|d| -> Result<_> { Ok(SampledDashes {
+                    pattern: d.pattern.iter().map(|t| t.sample(frame)).collect::<Result<_>>()?,
+                    offset: d.offset.sample(frame)?,
+                }) }).transpose()?,
             paths,
-            fill: self.fill.as_ref().map(|f| f.sample(frame)),
+            fill: self.fill.as_ref().map(|f| f.sample(frame)).transpose()?,
             fill_rule: self.fill_rule,
-            stroke: self.stroke.as_ref().map(|s| {
-                (
-                    s.color.sample(frame),
-                    s.width.sample(frame),
+            stroke: self.stroke.as_ref().map(|s| -> Result<_> {
+                Ok((
+                    s.color.sample(frame)?,
+                    s.width.sample(frame)?,
                     s.cap,
                     s.join,
                     s.miter_limit,
-                )
-            }),
+                ))
+            }).transpose()?,
         };
         ensure(
             sampled

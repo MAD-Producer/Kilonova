@@ -367,8 +367,12 @@ pub(super) fn rows(state: &Value) -> Vec<Row> {
             )
             .unwrap_or([100.; 2]);
             if let Some(v) = &vector {
-                for frame in super::path_controls::groups::timeline::key_frames(v, vector_size) {
+                if let Ok(frames) = observe!("timeline.vector_key_frames",
+                    super::path_controls::groups::timeline::key_frames(v, vector_size),
+                    "object={}", l["id"]) {
+                for frame in frames {
                     keys.push(f64::from(frame) + f64::from(mask_offset));
+                }
                 }
             }
             keys.sort_by(|a, b| a.total_cmp(b));

@@ -131,16 +131,16 @@ impl PluginEditorSession {
         let values = e
             .params
             .iter()
-            .map(|(id, p)| (id.clone(), json!(p.sample(layer.local_frame(frame as f64)))))
-            .collect::<serde_json::Map<_, _>>();
+            .map(|(id, p)| -> Result<_> { Ok((id.clone(), json!(p.sample(layer.local_frame(frame as f64))?))) })
+            .collect::<Result<serde_json::Map<_, _>>>()?;
         Ok(
             json!({"revision":engine.revision(),"frame":frame,"object":self.object,"instance":self.instance,
             "plugin":self.dependency,"effect":self.effect,"values":values,"params":e.params,"scene":e.scene,"seed":e.seed,
             "expressions":engine.project().expressions.iter().filter(|e|matches!(&e.target,crate::ExpressionTarget::Effect {object,effect,..} if *object==self.object && *effect==self.instance)).collect::<Vec<_>>(),
             "transform":layer.transform,
-            "transform_values":{"position":layer.transform.position.sample(layer.local_frame(frame as f64)),
-                "rotation":layer.transform.rotation.sample(layer.local_frame(frame as f64)),
-                "scale":layer.transform.scale.sample(layer.local_frame(frame as f64))},
+            "transform_values":{"position":layer.transform.position.sample(layer.local_frame(frame as f64))?,
+                "rotation":layer.transform.rotation.sample(layer.local_frame(frame as f64))?,
+                "scale":layer.transform.scale.sample(layer.local_frame(frame as f64))?},
             "dimensions":[engine.project().width,engine.project().height],"camera":engine.project().camera,
             "fps":engine.project().fps,"frames":engine.project().frames,"timeline_offset":layer.timeline.map_or(0,|t|t.offset_frame),
             "images":engine.project().assets.iter().map(|a|json!({"id":a.id,"width":a.width,"height":a.height})).collect::<Vec<_>>(),
@@ -345,7 +345,7 @@ impl PluginEditorSession {
                 let local=layer.clip(engine.project().frames).edit_frame(frame)?;
                 if p.track.keys.is_empty() { EffectAction::Animate {effect,param,frame,enabled:true} }
                 else if p.track.keys.iter().any(|k|k.frame==local) {EffectAction::DeleteKey {effect,param,frame}}
-                else {EffectAction::Set {effect,param,frame,value:p.sample(local as f64)}}
+                else {EffectAction::Set {effect,param,frame,value:p.sample(local as f64)?}}
             },
             EditorRequest::Animate { param, enabled, .. } => EffectAction::Animate {
                 effect,

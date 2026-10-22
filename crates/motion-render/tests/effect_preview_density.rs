@@ -88,7 +88,7 @@ fn preview_density_preserves_coordinates_mixed_pool_uvs_and_formal_output() {
         small.effects.push(effect(name, small.size));
         p.layers.push(small);
         p.rebuild_plugin_dependencies();
-        let mut scene = Scene::new(&p);
+        let mut scene = Scene::new(&p).unwrap();
         scene.sample(&p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
         let full = builder.build(&scene, &[0], 512, 256, true).unwrap();
         let full_scratch = scratch_capacity_bytes(&full.scratch_sizes);
@@ -124,7 +124,7 @@ fn preview_density_preserves_coordinates_mixed_pool_uvs_and_formal_output() {
             "{name}: preview must not change frozen/formal plans"
         );
         p.layers[0].three_d = true;
-        let mut spatial = Scene::new(&p);
+        let mut spatial = Scene::new(&p).unwrap();
         spatial.sample(&p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
         let plan = builder.build_preview(&spatial, &[0], 512, 256).unwrap();
         let draw = plan.draws.iter().find(|d| d.layer == 1).unwrap();
@@ -136,7 +136,7 @@ fn projected_density_handles_rotations_reflections_and_anisotropic_transforms() 
     let mut builder =
         PlanBuilder::new(scene_fixtures::registry().unwrap()).unwrap();
     let mut p = project("rays");
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     for degrees in (0..360).step_by(15) {
         p.layers[0].transform.rotation.value = [0., 0., degrees as f32];
         for scales in [
@@ -194,7 +194,7 @@ fn gpu_preview_retains_rays_blur_alpha_placement_and_releases_density_changes() 
     let target = renderer.capture_target(512, 256).unwrap();
     for name in ["rays", "directional_blur", "glow_edges"] {
         let mut p = project(name);
-        let mut scene = Scene::new(&p);
+        let mut scene = Scene::new(&p).unwrap();
         scene.sample(&p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
         let reference = renderer.capture(&scene, &target).unwrap().0;
         let mut encoder = renderer.device.create_command_encoder(&Default::default());

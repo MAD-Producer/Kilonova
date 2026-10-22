@@ -39,7 +39,7 @@ fn project() -> Project {
 #[test]
 fn video_uses_source_time_and_leading_and_trailing_transparency_through_clip_edits() {
     let mut e = Engine::new(project()).unwrap();
-    let mut scene = Scene::new(e.project());
+    let mut scene = Scene::new(e.project()).unwrap();
     scene.sample(e.project(), 0., None, &motion_core::ExpressionEvaluator).unwrap();
     assert!(scene.layers.is_empty());
     scene.sample(e.project(), 30.5, None, &motion_core::ExpressionEvaluator).unwrap();
@@ -91,7 +91,7 @@ fn only_current_format_accepts_video_documents() {
 fn video_span_keeps_recoverable_source_time_before_zero_and_after_composition_end() {
     let mut p=project();p.version = motion_model::CURRENT_PROJECT_VERSION;p.frames=60;
     p.layers[0].timeline=Some(LayerTimeline{in_frame:-12,out_frame:100,offset_frame:-12});
-    p.validate().unwrap();let mut scene=Scene::new(&p);
+    p.validate().unwrap();let mut scene=Scene::new(&p).unwrap();
     scene.sample(&p,0.,None,&motion_core::ExpressionEvaluator).unwrap();
     assert_eq!(scene.layers[0].video.as_ref().unwrap().source_time_us,200_000);
     scene.sample(&p,59.5,None,&motion_core::ExpressionEvaluator).unwrap();
