@@ -1,7 +1,7 @@
 use super::*;
 use motion_ui::paint::Painter;
 
-fn capture(
+pub(super) fn capture(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     painter: &mut Painter,

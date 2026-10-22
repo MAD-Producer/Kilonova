@@ -11,6 +11,8 @@ use std::{
 };
 #[path = "text_bounds/gpu.rs"]
 mod gpu;
+#[path = "text_bounds/grapheme.rs"]
+mod grapheme;
 
 struct CountingAllocator;
 thread_local! {
