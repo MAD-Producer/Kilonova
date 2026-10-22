@@ -101,6 +101,7 @@ pub struct AudioJobs {
     limits: Limits,
     decode: DecodeAudio,
     tasks: Mutex<HashMap<String, Arc<Mutex<Task>>>>,
+    workers: crate::workers::Workers,
 }
 struct Worker;
 impl Drop for Worker {
@@ -283,6 +284,7 @@ impl AudioJobs {
             limits,
             decode,
             tasks: Mutex::new(HashMap::new()),
+            workers: Default::default(),
         })
     }
     fn task(&self, id: &str) -> Result<Arc<Mutex<Task>>> {
@@ -411,6 +413,7 @@ impl AudioJobs {
         if options.name.len() > 1024 {
             return Err("audio name exceeds import limit".into());
         }
+        self.workers.reap()?;
         let (task, worker, initial) = self.reserve(
             &options.request_id,
             if probe { "probe_audio" } else { "import_audio" },
@@ -421,9 +424,7 @@ impl AudioJobs {
         let task_log = crate::task_logging::TaskLog::new(&initial.request_id, &initial.operation);
         let worker_log = task_log.clone();
         let spawn_task = task.clone();
-        let spawn = std::thread::Builder::new()
-            .name("motion-audio-import".into())
-            .spawn(move || {
+        let spawn = self.workers.spawn("motion-audio-import", task_log.clone(), move || {
                 let _worker = worker;
                 worker_log.start();
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(
@@ -638,6 +639,7 @@ impl AudioJobs {
     }
     pub fn prepare_cache(&self, request_id: &str, asset: AudioAsset) -> Result<TaskStatus> {
         asset.validate().map_err(crate::Error::from)?;
+        self.workers.reap()?;
         let (task, worker, initial) = self.reserve(request_id, "prepare_audio")?;
         let root = self.root.clone();
         let limit = self.limits.cache_bytes;
@@ -645,9 +647,7 @@ impl AudioJobs {
         let task_log = crate::task_logging::TaskLog::new(&initial.request_id, &initial.operation);
         let worker_log = task_log.clone();
         let spawn_task = task.clone();
-        let spawn = std::thread::Builder::new()
-            .name("motion-audio-cache".into())
-            .spawn(move || {
+        let spawn = self.workers.spawn("motion-audio-cache", task_log.clone(), move || {
                 let _worker = worker;
                 worker_log.start();
                 let result =
@@ -723,6 +723,8 @@ impl Drop for AudioJobs {
             // Stage cleanup can delete a large tree or call the host logger.
             drop(prepared);
         }
+        drop(recoveries);
+        self.workers.shutdown();
     }
 }
 fn update(task: &Arc<Mutex<Task>>, phase: &str, progress: impl Into<Option<f64>>) -> Result<()> {
@@ -790,8 +792,18 @@ mod drop_failure_tests {
             panic!("injected task registry poison");
         }));
         assert!(panic.is_err());
+        // Drop now joins the worker. Release its controlled open after seeing
+        // the original cancellation signal, rather than after Drop returns.
+        let release_cancel = cancel.clone();
+        let resume = std::thread::spawn(move || {
+            let deadline = Instant::now() + Duration::from_secs(5);
+            while !release_cancel.load(Ordering::Acquire) && Instant::now() < deadline {
+                std::thread::yield_now();
+            }
+            release.send(()).unwrap();
+        });
         drop(jobs);
-        release.send(()).unwrap();
+        resume.join().unwrap();
         assert!(cancel.load(Ordering::Acquire), "Drop skipped cancellation of a poisoned registry");
     }
 }

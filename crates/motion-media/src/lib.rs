@@ -17,6 +17,7 @@ mod publication;
 mod progress;
 mod registry_observation;
 mod task_logging;
+mod workers;
 pub use packages::{PackageJobs, PackageTaskStatus};
 mod mp4;
 mod mp4_timing;

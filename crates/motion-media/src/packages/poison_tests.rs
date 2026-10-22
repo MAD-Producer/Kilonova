@@ -92,6 +92,7 @@ fn package_admission_spawn_failure_and_drop_emit_after_outer_registry_unlocks() 
             let map = std::mem::take(&mut *jobs.tasks.lock().unwrap());
             let owned = PackageJobs {
                 tasks: Mutex::new(map),
+                workers: Default::default(),
             };
             poison(&owned.tasks);
             drop(owned);

@@ -83,6 +83,13 @@ impl TaskLog {
         );
         log::logger().flush();
     }
+    pub(crate) fn join_start(&self, phase: &'static str) {
+        log::info!("media join start request={} operation={} phase={phase}", self.request, self.operation);
+        log::logger().flush();
+    }
+    pub(crate) fn join_done(&self, phase: &'static str, elapsed: std::time::Duration) {
+        log::debug!("media join done request={} operation={} phase={phase} {}ms", self.request, self.operation, elapsed.as_millis());
+    }
     pub(crate) fn finish(&self, phase: &str, error: Option<&str>) {
         let phase = log_field(phase, 64);
         if let Some(error) = error {
