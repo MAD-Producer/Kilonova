@@ -11,6 +11,8 @@ pub enum Error {
     #[error(transparent)]
     Render(#[from] motion_render::RenderError),
     #[error(transparent)]
+    ImageResource(#[from] motion_render::image_resources::Error),
+    #[error(transparent)]
     Media(#[from] motion_media::Error),
     #[error(transparent)]
     Effects(#[from] motion_effects::Error),

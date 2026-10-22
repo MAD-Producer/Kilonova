@@ -1,5 +1,7 @@
 //! Bounded image decoding. Dimensions describe the source, never the proxy.
 use motion_model::Asset;
+mod error;
+pub use error::Error;
 use crate::Scene;
 use std::{
     collections::BTreeSet,
@@ -115,10 +117,9 @@ pub fn upcoming_assets(project: &motion_model::Project, frame: f64) -> motion_mo
     Ok(ordered.into_iter().map(|(id, _)| id).collect())
 }
 
-pub(crate) const CANCELLED: &str = "image decode superseded";
-fn check_cancel(cancel: Option<&AtomicBool>) -> Result<(), String> {
+fn check_cancel(cancel: Option<&AtomicBool>) -> Result<(), Error> {
     if cancel.is_some_and(|c| c.load(Ordering::Relaxed)) {
-        Err(CANCELLED.into())
+        Err(Error::Cancelled)
     } else {
         Ok(())
     }
@@ -177,13 +178,12 @@ pub struct Source {
     pub root: PathBuf,
 }
 impl Source {
-    pub fn new(root: &Path, asset: &Asset) -> Result<Self, String> {
-        motion_model::storage::validate_relative_path(&asset.path).map_err(|e| e.to_string())?;
-        let base = root.canonicalize().map_err(|e| e.to_string())?;
+    pub fn new(root: &Path, asset: &Asset) -> Result<Self, Error> {
+        motion_model::storage::validate_relative_path(&asset.path)?;
+        let base = root.canonicalize()?;
         let path = root
             .join(&asset.path)
-            .canonicalize()
-            .map_err(|e| e.to_string())?;
+            .canonicalize()?;
         if !path.starts_with(&base) {
             return Err("image resolves outside project directory".into());
         }
@@ -195,26 +195,23 @@ impl Source {
             root: base,
         })
     }
-    pub fn validate(&self) -> Result<image::ImageFormat, String> {
+    pub fn validate(&self) -> Result<image::ImageFormat, Error> {
         let (width, height, format, _) = inspect(&self.path)?;
         if (width, height) != (self.width, self.height) {
-            return Err(format!("image {} metadata mismatch", self.id));
+            return Err(format!("image {} metadata mismatch", self.id).into());
         }
         Ok(format)
     }
 }
 
-pub fn inspect(path: &Path) -> Result<(u32, u32, image::ImageFormat, u64), String> {
-    let meta = path.metadata().map_err(|e| e.to_string())?;
+pub fn inspect(path: &Path) -> Result<(u32, u32, image::ImageFormat, u64), Error> {
+    let meta = path.metadata()?;
     if !meta.is_file() || meta.len() == 0 || meta.len() > MAX_ENCODED_BYTES {
         return Err("encoded image must be 1 byte..64 MiB".into());
     }
-    let reader = image::ImageReader::open(path)
-        .map_err(|e| e.to_string())?
-        .with_guessed_format()
-        .map_err(|e| e.to_string())?;
+    let reader = image::ImageReader::open(path)?.with_guessed_format()?;
     let format = reader.format().ok_or("unsupported image format")?;
-    let (w, h) = reader.into_dimensions().map_err(|e| e.to_string())?;
+    let (w, h) = reader.into_dimensions()?;
     if w == 0 || h == 0 || w > 16384 || h > 16384 {
         return Err("image dimensions must be 1..16384".into());
     }
@@ -229,14 +226,14 @@ pub struct Pixels {
     pub cached: bool,
 }
 
-pub fn decode(source: &Source, resolution: Resolution) -> Result<Pixels, String> {
+pub fn decode(source: &Source, resolution: Resolution) -> Result<Pixels, Error> {
     decode_cancellable(source, resolution, None)
 }
 fn decode_cancellable(
     source: &Source,
     resolution: Resolution,
     cancel: Option<&AtomicBool>,
-) -> Result<Pixels, String> {
+) -> Result<Pixels, Error> {
     check_cancel(cancel)?;
     let (w, h) = resolution.dimensions(source.width, source.height);
     let cost = u64::from(w) * u64::from(h) * 4;
@@ -495,7 +492,7 @@ pub fn decode_into(
     source: &Source,
     resolution: Resolution,
     output: &mut [u8],
-) -> Result<(), String> {
+) -> Result<(), Error> {
     decode_into_cancellable(source, resolution, output, None)
 }
 fn decode_into_cancellable(
@@ -503,7 +500,7 @@ fn decode_into_cancellable(
     resolution: Resolution,
     output: &mut [u8],
     cancel: Option<&AtomicBool>,
-) -> Result<(), String> {
+) -> Result<(), Error> {
     check_cancel(cancel)?;
     let format = source.validate()?;
     let (w, h) = resolution.dimensions(source.width, source.height);
@@ -519,14 +516,11 @@ fn decode_into_cancellable(
     if u64::from(source.width) * u64::from(source.height) * 4 > MAX_DECODED_BYTES {
         return Err("non-PNG source decode exceeds 128 MiB".into());
     }
-    let mut reader = image::ImageReader::open(&source.path)
-        .map_err(|e| e.to_string())?
-        .with_guessed_format()
-        .map_err(|e| e.to_string())?;
+    let mut reader = image::ImageReader::open(&source.path)?.with_guessed_format()?;
     let mut limits = image::Limits::default();
     limits.max_alloc = Some(MAX_DECODED_BYTES);
     reader.limits(limits);
-    let image = reader.decode().map_err(|e| e.to_string())?;
+    let image = reader.decode()?;
     check_cancel(cancel)?;
     use image::GenericImageView;
     let lut = linear_lut();
@@ -603,16 +597,14 @@ fn png_into(
     h: u32,
     output: &mut [u8],
     cancel: Option<&AtomicBool>,
-) -> Result<(), String> {
-    let mut decoder = png::Decoder::new(BufReader::new(
-        File::open(&source.path).map_err(|e| e.to_string())?,
-    ));
+) -> Result<(), Error> {
+    let mut decoder = png::Decoder::new(BufReader::new(File::open(&source.path)?));
     decoder.set_limits(png::Limits {
         bytes: 16 * 1024 * 1024,
     });
     decoder.set_ignore_text_chunk(true);
     decoder.set_transformations(png::Transformations::EXPAND | png::Transformations::STRIP_16);
-    let mut reader = decoder.read_info().map_err(|e| e.to_string())?;
+    let mut reader = decoder.read_info()?;
     if reader.info().width != source.width || reader.info().height != source.height {
         return Err("PNG metadata changed during decoding".into());
     }
@@ -650,8 +642,7 @@ fn png_into(
             for y in (y0..source.height).step_by(dy) {
                 check_cancel(cancel)?;
                 let row = reader
-                    .next_row()
-                    .map_err(|e| e.to_string())?
+                    .next_row()?
                     .ok_or("truncated Adam7 image")?;
                 let xs = (x0..source.width).step_by(dx);
                 if row.data().len() != xs.clone().count() * channels {
@@ -694,8 +685,7 @@ fn png_into(
             for y in 0..source.height {
                 check_cancel(cancel)?;
                 let row = reader
-                    .next_row()
-                    .map_err(|e| e.to_string())?
+                    .next_row()?
                     .ok_or("truncated PNG image")?;
                 if row.data().len() != source.width as usize * channels {
                     return Err("invalid PNG row".into());
@@ -718,7 +708,7 @@ fn png_into(
                     }
                 }
             }
-            reader.finish().map_err(|e| e.to_string())?;
+            reader.finish()?;
             return Ok(());
         }
         let mut sums = vec![[0.; 4]; w as usize];
@@ -727,8 +717,7 @@ fn png_into(
         for y in 0..source.height {
             check_cancel(cancel)?;
             let row = reader
-                .next_row()
-                .map_err(|e| e.to_string())?
+                .next_row()?
                 .ok_or("truncated PNG image")?;
             if row.data().len() != source.width as usize * channels {
                 return Err("invalid PNG row".into());
@@ -756,7 +745,7 @@ fn png_into(
             }
         }
     }
-    reader.finish().map_err(|e| e.to_string())?;
+    reader.finish()?;
     Ok(())
 }
 
@@ -770,7 +759,7 @@ pub struct DecodeTask {
         Resolution,
         bool,
         Arc<AtomicBool>,
-        Receiver<Result<Pixels, String>>,
+        Receiver<Result<Pixels, Error>>,
     )>,
 }
 impl DecodeTask {
@@ -794,7 +783,7 @@ impl DecodeTask {
         source: Source,
         resolution: Resolution,
         speculative: bool,
-    ) -> Result<(), String> {
+    ) -> Result<(), Error> {
         if self.busy() {
             return Err("an image decode is already pending".into());
         }
@@ -812,20 +801,19 @@ impl DecodeTask {
                     let reason = payload.downcast_ref::<String>().map(String::as_str)
                         .or_else(|| payload.downcast_ref::<&str>().copied())
                         .unwrap_or("unknown native error");
-                    Err(format!("image decoder panicked: {}", reason.chars().take(2048).collect::<String>()))
+                    Err(Error::WorkerPanic(reason.chars().take(2048).collect()))
                 });
                 let _ = send.send(result);
-            })
-            .map_err(|e| e.to_string())?;
+            })?;
         self.pending = Some((source, resolution, speculative, cancel, receive));
         Ok(())
     }
-    pub fn poll(&mut self) -> Option<(Source, Resolution, bool, Result<Pixels, String>)> {
+    pub fn poll(&mut self) -> Option<(Source, Resolution, bool, Result<Pixels, Error>)> {
         let (_, _, _, _, receive) = self.pending.as_ref()?;
         let result = match receive.try_recv() {
             Ok(result) => result,
             Err(mpsc::TryRecvError::Empty) => return None,
-            Err(_) => Err("image decode worker disconnected".into()),
+            Err(_) => Err(Error::WorkerDisconnected),
         };
         let (source, resolution, speculative, cancel, _) = self.pending.take().unwrap();
         Some((
@@ -833,7 +821,7 @@ impl DecodeTask {
             resolution,
             speculative,
             if cancel.load(Ordering::Relaxed) {
-                Err(CANCELLED.into())
+                Err(Error::Cancelled)
             } else {
                 result
             },
