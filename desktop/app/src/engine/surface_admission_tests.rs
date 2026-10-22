@@ -2,6 +2,23 @@
 use super::*;
 use winit::{event_loop::EventLoop, platform::windows::EventLoopBuilderExtWindows};
 
+fn native_device_identity(device: &wgpu::Device) -> (wgpu::Backend, usize) {
+    // Core Device IDs are local to an Instance and may compare equal across
+    // different Instances. Keep the original Device alive and compare native
+    // object addresses instead. No native API is called or object modified;
+    // each HAL guard is dropped before the next wgpu call.
+    // SAFETY: only borrow the live HAL object and observe its stable address.
+    unsafe {
+        if let Some(native) = device.as_hal::<wgpu::hal::api::Vulkan>() {
+            return (wgpu::Backend::Vulkan, std::ptr::from_ref(&*native).addr());
+        }
+        if let Some(native) = device.as_hal::<wgpu::hal::api::Dx12>() {
+            return (wgpu::Backend::Dx12, std::ptr::from_ref(&*native).addr());
+        }
+    }
+    panic!("native Windows device has neither a Vulkan nor a D3D12 identity");
+}
+
 fn frame(size: u32) -> UiFrame {
     UiFrame {
         paint: Default::default(),
@@ -165,7 +182,10 @@ fn native_failed_reattach_keeps_original_factory_front_and_default_error_channel
             .as_ref()
             .expect("failed replacement discarded the original factory");
         assert_eq!([factory.config.width, factory.config.height], [96, 96]);
-        assert_eq!(factory.device, original_device);
+        assert_eq!(
+            native_device_identity(&factory.device),
+            native_device_identity(&original_device)
+        );
     }
     let failed = engine.state().unwrap();
     for key in [
@@ -197,7 +217,10 @@ fn native_failed_reattach_keeps_original_factory_front_and_default_error_channel
         let factory = engine.factory.lock().unwrap();
         let factory = factory.as_ref().unwrap();
         assert_eq!([factory.config.width, factory.config.height], [128, 128]);
-        assert_ne!(factory.device, original_device);
+        assert_ne!(
+            native_device_identity(&factory.device),
+            native_device_identity(&original_device)
+        );
     }
     present(&mut events, &engine, 128);
     let recovered = engine.state().unwrap();

@@ -1,8 +1,10 @@
 # Configurable decoded-image capacity (issue #61)
 
-Status: implementation candidate; actual compilation and runtime acceptance are
-pending. Existing frame/export/pressure results do not validate this increment.
-This document is not an issue completion claim.
+Status: focused actual guards D1-D9 pass on c8fb11e5, including full decode
+beyond128MiB, native GPU recovery, host8/16-bit entry points and frozen PNG/movie.
+The cumulative full-render run failed at an independent mask category-history
+fixture before later suites executed. D10 remains pending; these focused results
+do not accept a later product source or close issue #61.
 
 ## Scope and requirements
 
@@ -23,20 +25,25 @@ decode. The existing submitted front and resident GPU textures remain valid.
 Frozen outputs keep the decoded-image policy captured with their other category
 allowances; their shared native admission limit remains live and independent.
 
-## Required evidence (not yet executed)
+## Source-bound evidence and remaining gates
 
 | ID | Guard / evidence | State |
 | --- | --- | --- |
-| D1 | `image_decode_budget`: actual PNG pixels, direct-buffer refusal before mutation, cache recheck, streamed proxy under smaller allowance | Pending |
-| D2 | `image_decode_budget`: native missing file/invalid metadata/wrong buffer identity; JPEG full-source refusal and recovery | Pending |
-| D3 | `image_decode_budget`: actual asynchronous refusal, cancellation of old-budget results, single task slot and recovery | Pending |
-| D4 | `image_decode_budget`: atomic policy validation, independent GPU allowance, omission selects safe CPU default | Pending |
-| D5 | `configured_full_png_can_cross_the_previous_128_mib_result_limit`: generated 8192x4097 PNG, default refusal, actual full decode above 128 MiB with explicit allowance and all pixel checks | Pending |
-| D6 | `image_decode_budget_native`: actual GPU upload/capture, typed CPU refusal without overwriting target, proxy then full recovery, real corrupt PNG remains codec fault | Pending |
-| D7 | Host `cpu_asset_entry_points_follow_session_policy_without_changing_legacy_pixels_or_history`: both original-asset APIs, 8/16-bit PNG sources, low-cap refusal, configured recovery, sentinel tail/source/project/revision/undo preservation | Pending |
-| D8 | `frozen_png_keeps_cpu_decode_allowance_and_preserves_publication_on_refusal` and `frozen_movie_keeps_cpu_decode_allowance_across_live_changes_and_session_close`: immutable CPU policy, previous publication preserved on refusal, original dimensions and successful output after live policy changes/closure | Pending |
-| D9 | `info_start_precedes_real_decoder_access_and_does_not_require_debug`: controlled logger gate before real file decoding, default Info context, Debug completion suppressed | Pending |
+| D1 | `image_decode_budget`: actual PNG pixels, direct-buffer refusal before mutation, cache recheck, streamed proxy under smaller allowance | Pass c8fb11e5 |
+| D2 | `image_decode_budget`: native missing file/invalid metadata/wrong buffer identity; JPEG full-source refusal and recovery | Pass c8fb11e5 |
+| D3 | `image_decode_budget`: actual asynchronous refusal, cancellation of old-budget results, single task slot and recovery | Pass c8fb11e5 |
+| D4 | `image_decode_budget`: atomic policy validation, independent GPU allowance, omission selects safe CPU default | Pass c8fb11e5 |
+| D5 | `configured_full_png_can_cross_the_previous_128_mib_result_limit`: generated 8192x4097 PNG, default refusal, actual full decode above 128 MiB with explicit allowance and all pixel checks | Pass c8fb11e5 |
+| D6 | `image_decode_budget_native`: actual GPU upload/capture, typed CPU refusal without overwriting target, proxy then full recovery, real corrupt PNG remains codec fault | Pass c8fb11e5 |
+| D7 | Host `cpu_asset_entry_points_follow_session_policy_without_changing_legacy_pixels_or_history`: both original-asset APIs, 8/16-bit PNG sources, low-cap refusal, configured recovery, sentinel tail/source/project/revision/undo preservation | Pass c8fb11e5 |
+| D8 | `frozen_png_keeps_cpu_decode_allowance_and_preserves_publication_on_refusal` and `frozen_movie_keeps_cpu_decode_allowance_across_live_changes_and_session_close`: immutable CPU policy, previous publication preserved on refusal, original dimensions and successful output after live policy changes/closure | Pass c8fb11e5 |
+| D9 | `info_start_precedes_real_decoder_access_and_does_not_require_debug`: controlled logger gate before real file decoding, default Info context, Debug completion suppressed | Pass c8fb11e5 |
 | D10 | Workspace/all-target application-FFmpeg check, full render/host/media/application suites, frozen PNG/movie publication/pixel guards, style consumer guard | Pending |
+
+Focused raw receipts: `ui-allocation-ui-v2-{decode,start,native,host-policy,png-default,movie}.exit.json`.
+The decode log SHA-256 is `2ad74d348d4f8f472f3400c9a1434248d7b54d5fe8363893ec7843a9a6044b01`.
+The earlier c9f65122 decode1pass5fail is retained: invalid generated asset paths
+failed before decoding; test-only96022bdd fixes them without changing assertions.
 
 Raw logs and source/hash/exit receipts belong in `artifacts/pr-queue` on E:.
 No inherited success count or passing syntax check can substitute for these

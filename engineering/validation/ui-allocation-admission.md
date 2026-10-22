@@ -4,8 +4,10 @@ Status: source c9f65122 passes all-target UI and application-FFmpeg workspace
 checks, four actual UI GPU tests and the default application error-channel test.
 The cumulative matrix stopped at invalid CPU decode test asset paths (1 pass,
 5 failures before decoding); fixture correction 96022bdd preserves every
-assertion. The additional actual worker recovery test and full regressions
-remain pending. This functional budget increment is not issue completion.
+assertion. Source c8fb11e5 additionally passes actual worker recovery, full
+motion-ui147 and workspace/default all-target checks. Its full-render run fails
+at an expected mask snapshot missing newly added category history; later broad
+suites did not execute. Final cumulative regression remains pending.
 
 ## Scope
 
@@ -52,7 +54,7 @@ GPU admission, not a complete process-memory bound.
 | U4 | `admitted_text_matches_legacy_pixels_through_real_atlas_growth_and_multiple_dpis`: actual glyph rendering, clipped text and real atlas growth at 1x/1.5x/2x DPI; admitted pixels must exactly match the legacy path | Pass c9f65122 |
 | U5 | Application `native_ui_refusals_preserve_cause_and_reach_default_file_stderr_without_stdout`: actual native startup/atlas failures, original host failure precedence, real reply, default Info file and Error stderr, stdout isolation | Pass c9f65122 |
 | U6 | Workspace/all-target FFmpeg and no-FFmpeg compilation, full motion-ui/render/host/media/desktop suites, existing DPI/clipped-text/atlas-growth/pixel guards with assertions unchanged, native lifecycle 24-case artifacts, style guard | Pending |
-| U7 | `actual_ui_atlas_refusal_recovers_in_worker_without_a_second_upload`: actual Windows Engine/Present, two refusals retaining old native atlas, budget recovery without a producer resend, exact native category/pixel/history checks and default output channels | Pending |
+| U7 | `actual_ui_atlas_refusal_recovers_in_worker_without_a_second_upload`: actual Windows Engine/Present, two refusals retaining old native atlas, budget recovery without a producer resend, exact native category/pixel/history checks and default output channels | Pass c8fb11e5 |
 
 The same c9f65122 source passes 15 category/release guards, the actual frame
 category guard, two native host pressure guards and all 24 native lifecycle cases.
@@ -62,11 +64,18 @@ a full pass. Native UI log SHA-256:
 application output log SHA-256:
 `e2c13f909a4b06e580329c044e5686171f3aa8cca8f640b1670c18a5d6137436`.
 
+Actual c8fb11e5 worker atlas recovery artifacts retain report/log/stdout/stderr
+and before/after captures with identical image SHA-256
+`f47355f1fd1e950d2808cc1830628eb5d30a2e9c0d7199559742585b872662c2`.
+The full UI log SHA-256 is
+`2b4575da5c784f26206fa20b7db0d05ecac6e649da30f09b775c36869c7f6f44`.
+
 Existing UI test fixtures now consume the fallible atlas upload result; their
 assertions are unchanged. Example render/capture functions propagate the cause.
 There is no panel, palette, token, layout, text, glyph geometry, shader or
-interaction change. Presenter and Session files owned by the other active
-worktree are untouched. Presenter allocation coverage remains separate work.
+interaction change. The foreign source-binding reuse worktree is untouched.
+The separate own Presenter/Session admission increment is described in
+`presenter-buffer-admission.md` and needs its own source-bound acceptance.
 
 All temporary/build/test artifacts and raw exact-source/hash/exit evidence belong
 on E:. Earlier pressure/base/export results do not validate this candidate.
