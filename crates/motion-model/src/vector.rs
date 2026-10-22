@@ -819,23 +819,28 @@ fn ellipse(rx: f32, ry: f32, start: f32, sweep: f32, closed: bool) -> SampledPat
     for i in 0..=segments {
         let a = start.to_radians() + step * i as f32;
         let k = 4. / 3. * (step / 4.).tan();
-        nodes.push([
+        let mut geometry = [
             rx * a.cos(),
             ry * a.sin(),
             k * rx * a.sin(),
             -k * ry * a.cos(),
             -k * rx * a.sin(),
             k * ry * a.cos(),
-        ]);
+        ];
+        if !closed {
+            if i == 0 {
+                geometry[2] = 0.;
+                geometry[3] = 0.;
+            }
+            if i == segments {
+                geometry[4] = 0.;
+                geometry[5] = 0.;
+            }
+        }
+        nodes.push(geometry);
     }
     if closed {
         nodes.pop();
-    } else {
-        nodes[0][2] = 0.;
-        nodes[0][3] = 0.;
-        let n = nodes.last_mut().unwrap();
-        n[4] = 0.;
-        n[5] = 0.;
     }
     SampledPath { closed, nodes }
 }

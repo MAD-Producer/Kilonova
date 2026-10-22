@@ -340,7 +340,11 @@ fn apply_to(project: &mut Project, command: Command) -> Result<Option<EditResult
             let frames = project.frames;
             crate::effects::apply(project.layer_mut(object)?, action, frames)?;
             if let Some(from) = copy {
-                let to = project.layer_mut(object)?.effects.last().unwrap().id;
+                let to = project.layer_mut(object)?.effects.last().ok_or_else(|| {
+                    Error::Invalid(format!(
+                        "effect duplication produced no instance: object={object} source={from}"
+                    ))
+                })?.id;
                 let copies: Vec<_> = project
                     .expressions
                     .iter()

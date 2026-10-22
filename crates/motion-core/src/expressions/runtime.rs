@@ -8,7 +8,7 @@ use std::{
     collections::HashMap,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
+        Arc, OnceLock,
     },
     time::{Duration, Instant},
 };
@@ -59,14 +59,14 @@ impl JsEngine {
     ) -> Result<Vec<f32>> {
         self.compile(source)?;
         let expired = Arc::new(AtomicBool::new(false));
-        let execution_deadline = Arc::new(Mutex::new(None::<Instant>));
+        let execution_deadline = Arc::new(OnceLock::<Instant>::new());
         let execution_clock = execution_deadline.clone();
         let mark = expired.clone();
         let cancellation = cancel.clone();
         self.runtime.set_interrupt_handler(Some(Box::new(move || {
             let now = Instant::now();
             let stop = cancellation.load(Ordering::Relaxed) || now >= frame_deadline
-                || execution_clock.lock().unwrap().is_some_and(|deadline| now >= deadline);
+                || execution_clock.get().is_some_and(|deadline| now >= *deadline);
             if stop { mark.store(true, Ordering::Relaxed); }
             stop
         })));
@@ -99,7 +99,11 @@ impl JsEngine {
                         expired.store(true, Ordering::Relaxed);
                         return Err(rquickjs::Error::Exception);
                     }
-                    *execution_deadline.lock().unwrap() = Some(deadline);
+                    execution_deadline.set(deadline).map_err(|_| {
+                        rquickjs::Error::new_from_js_message(
+                            "execution deadline", "expression", "execution deadline was already initialized",
+                        )
+                    })?;
                     let result: Value = function.call(())?;
                     if let Some(n) = result.as_number() { return Ok(vec![n as f32]); }
                     if let Some(a) = result.as_array() {
@@ -194,10 +198,13 @@ fn with_engine<T>(f: impl FnOnce(&mut JsEngine) -> Result<T>) -> Result<T> {
         if slot.as_ref().is_none_or(|e| e.code.len() >= CACHE) {
             *slot = Some(JsEngine::new()?);
         }
-        let result = f(slot.as_mut().unwrap());
+        let engine = slot.as_mut().ok_or_else(|| {
+            Error::Invalid("expression runtime unavailable after construction".into())
+        })?;
+        let result = f(engine);
         // Dynamically constructed async functions must not leave jobs or contexts
         // alive for the next frame. Such expressions are outside this profile.
-        if slot.as_ref().unwrap().runtime.is_job_pending() {
+        if engine.runtime.is_job_pending() {
             *slot = None;
             return Err(Error::Invalid(
                 "asynchronous expressions are unsupported".into(),
