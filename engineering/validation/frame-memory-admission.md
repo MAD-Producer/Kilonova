@@ -1144,3 +1144,58 @@ The original public failure, exact-source exit records and hashes are retained
 in `artifacts/pr-queue/pr407-rust-gpu-failed-job.log`,
 `accumulator-admission-ci-{evaluator,expressions}.*`, and
 `.tools/issue-closure-review/combined-evaluator-fixture-acceptance.json`.
+
+
+## Fourteenth increment: retained receiver images and projected mattes
+
+Accepted product/test source: `ff153bf25cbe037471205930e517f7a0de96ce48`.
+The three native retained-receiver factories now use the existing shared
+AllocationBudget: constant 1x1 source, full local image and projected R8 matte.
+Each actual descriptor acquires admission independently of the existing exposure
+category reservation. Partial failure rolls back both staged native admission
+and category capacity. Original typed rejection is retained with bounded
+composition ID, sampled frame, receiver ID, native extent, format and phase.
+No rendering format, retry, deadline, project state or UI behavior changes.
+
+Native control `0629bd97` reproduced four missing bytes for an actual 1x1
+receiver: admitted1344592 versus expected1344596, cargo101. Its complete original
+test and all capacity/live-count/release assertions remain unchanged. The initial
+five-case run `4a06972c` passed three and failed two newly added fixtures. Drawing
+retained coverage released materialization working mattes, so the intended local
+copy refusal occurred at an earlier matte allocation. The corrected fixture
+rewarms that independent stage before setting the cut point. One newly authored
+error-string expectation incorrectly said Unorm; the existing native contract is
+Rgba8UnormSrgb. Source `673bffe6` corrects that expectation and adds a real native
+format assertion. Preexisting repository assertions and all capacity, pixel,
+lifetime and recovery assertions are preserved. The two original fixture failures
+and the subsequent five-case preliminary pass remain separate raw evidence.
+
+| Item | Native evidence | Disposition |
+| --- | --- | --- |
+| #61-A91 | Actual 1x1 receiver contributes four shared bytes and one allocation; owner retirement releases exactly | New admission coverage |
+| #61-A92 | Local32x32 RGBA image and projected64x64 R8 matte cut points preserve both budgets, old green/transparent pixels and exact recovery | New rollback and recovery coverage |
+| #61-A93 | Two real renderers share the same allowance; refusal restores the category counter; releasing the first receiver enables the second | New shared-capacity coverage |
+| #61-A94 | Open, finished-abandoned and submitted native copy work retain both8192 bytes until their own retirement, despite a later scope | New command lifetime coverage |
+| #61-A95 | Retained native receiver survives Renderer teardown with four bytes/one allocation held until its own drop | New owner lifetime coverage |
+| #61-A96 | Actual four-byte refusal request214 preserves typed cause, prior pixels and recovery; default Info file and Error stderr, stdout isolation | New default-output observation |
+
+On the same frozen source, 108 render-library cases,19 desktop composition/error
+cases,61 cases across11 GPU integration suites and69 host-library cases passed:
+**257 distinct selected cases**, zero failures or ignores. Workspace/all-targets
+FFmpeg check excluding Android and the existing panel style consumer guard also
+passed. Preliminary reruns are not added to this count. The desktop observation
+case exercises a real native refusal through CURRENT_COMMAND/respond; it is not
+a full worker-dispatch integration case. These local selected runs do not claim
+full workspace tests or public CI. Final publication may remove the extra terminal
+blank line in the new native test file; its remaining bytes and all tested logic
+must match this accepted source. No panels, styles, dependencies or assets changed.
+
+Raw logs and exact-source receipts are
+`artifacts/pr-queue/retained-raster-admission-final-{library,desktop,gpu,host,workspace,styles}.*`.
+The before-fix/native-first/native-corrected logs preserve the failed control and
+fixture history. `.tools/issue-closure-review/retained-raster-admission-acceptance.json`
+records their hashes and exclusions. Logical bytes are not measured physical
+driver residency. Remaining group/raw resources, foreign Presenter integration,
+shared session/platform pressure, complete bounded preview/export and repeated
+lifecycle acceptance remain pending. #60/#61/#67 stay open; precision and3D are
+not declared ready by this increment.

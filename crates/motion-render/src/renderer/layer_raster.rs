@@ -96,6 +96,24 @@ impl PhaseLayer<'_> {
 }
 
 impl Renderer {
+    fn allocate_layer_raster_image(
+        &self,
+        scene: &Scene,
+        receiver: u64,
+        size: [u32; 2],
+        format: wgpu::TextureFormat,
+        phase: &'static str,
+    ) -> Result<FxTexture> {
+        crate::effect_gpu::admitted_texture(&self.device, &self.image_layout,
+            &self.sampler, size[0], size[1], format, &self.allocation_budget)
+            .map_err(|error| {
+                let message = format!(
+                    "exposure composition={:.64} frame={} object={receiver} size={}x{} format={format:?} phase={phase}: {error}",
+                    scene.composition_id, scene.frame, size[0], size[1]);
+                error.with_diagnostic(message)
+            })
+    }
+
     /// Materialize one receiver using its entire sampled dependency context.
     /// Assets and exact video samples must already be ready, as for draw().
     /// None is a normal absent receiver; adjustment layers require phase-time
@@ -132,14 +150,8 @@ impl Renderer {
                 error.with_diagnostic(message)
             })?;
             let reservation = self.reserve_exposure_bytes(4, &context)?;
-            let image = crate::effect_gpu::texture(
-                &self.device,
-                &self.image_layout,
-                &self.sampler,
-                1,
-                1,
-                TARGET_FORMAT,
-            );
+            let image = self.allocate_layer_raster_image(scene, receiver,
+                [1, 1], TARGET_FORMAT, "local_constant_allocate")?;
             let mut encoder = self.allocation_command_encoder(&wgpu::CommandEncoderDescriptor {
                     label: Some("constant receiver image"),
                 })?;
@@ -295,14 +307,8 @@ impl Renderer {
             bytes,
             &format!("exposure object={receiver} phase=local_allocate"),
         )?;
-        let image = crate::effect_gpu::texture(
-            &self.device,
-            &self.image_layout,
-            &self.sampler,
-            source.size.0,
-            source.size.1,
-            TARGET_FORMAT,
-        );
+        let image = self.allocate_layer_raster_image(scene, receiver,
+            [source.size.0, source.size.1], TARGET_FORMAT, "local_image_allocate")?;
         let copy = |encoder: &mut wgpu::CommandEncoder,
                     src: &wgpu::Texture,
                     dst: &wgpu::Texture,
@@ -328,17 +334,11 @@ impl Renderer {
             );
         }
         let matte = matte_source.map(|source| {
-            let target = crate::effect_gpu::texture(
-                &self.device,
-                &self.image_layout,
-                &self.sampler,
-                matte_size[0],
-                matte_size[1],
-                wgpu::TextureFormat::R8Unorm,
-            );
+            let target = self.allocate_layer_raster_image(scene, receiver,
+                matte_size, wgpu::TextureFormat::R8Unorm, "local_matte_allocate")?;
             copy(encoder, &source.texture, &target.texture, matte_size);
-            target
-        });
+            Ok::<_, RenderError>(target)
+        }).transpose()?;
         let mut plane = self.effect_gpu.builder.materialized_plane(scene, index);
         if constant {
             plane.color = scene.layers[index].color;
