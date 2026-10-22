@@ -13,6 +13,8 @@ use std::{
 const MAX_ALLOCATIONS: usize = 65_536;
 const MAX_ENCODERS: usize = 64;
 mod categories;
+mod observation;
+pub use observation::AllocationLogScope;
 pub use categories::{AllocationCategory, AllocationCategoryFrameInfo, AllocationCategoryInfo};
 use categories::{CATEGORIES, CATEGORY_COUNT};
 pub const DEFAULT_RENDER_ALLOCATION_BUDGET: u64 = 512 * 1024 * 1024;
@@ -114,15 +116,14 @@ impl Drop for Lease {
             state.release_fault_seen |= poisoned || inconsistent;
             (poisoned, inconsistent, report)
         };
-        // Never invoke the logger while holding admission state.
+        // The host scope also defers logging beyond outer business guards.
         if report {
-            log::error!(
-                "render allocation release id={} bytes={} category={:?} poisoned={} inconsistent={}",
+            observation::Event::record(
                 self.id,
                 self.bytes,
                 self.category,
                 poisoned,
-                inconsistent
+                inconsistent,
             );
         }
     }

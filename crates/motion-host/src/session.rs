@@ -932,6 +932,7 @@ fn audio_decoder(platform: &Arc<dyn Platform>) -> motion_media::DecodeAudio {
 /// Run `operation` against a live session on its owning thread.
 pub fn with_session<T>(id: i64, operation: impl FnOnce(&mut Session) -> Result<T>) -> Result<T> {
     let began = Instant::now();
+    let _allocation_scope = motion_render::AllocationLogScope::enter(id);
     let _preview_pressure_scope = preview_pressure::Scope::enter(id);
     let _pressure_scope = motion_render::MemoryPressureLogScope::enter(id);
     let _metadata_scope = metadata_observation::Scope::enter();
@@ -1035,6 +1036,7 @@ pub fn set_creation_error(error: String) {
 
 /// Close a session and release its GPU resources.
 pub fn close(id: i64) {
+    let _allocation_scope = motion_render::AllocationLogScope::enter(id);
     let slot = {
         let mut registry = sessions().lock().unwrap_or_else(|e| e.into_inner());
         if !registry

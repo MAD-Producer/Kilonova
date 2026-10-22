@@ -154,3 +154,25 @@ combined peak. At healthy current/end snapshots, category current/end bytes sum
 to the same combined gauge. No driver, swapchain, raw external allocation or
 CPU decoder capacity is fabricated into a category. `completeCoverage` remains
 false until the remaining application ownership boundaries are enrolled.
+
+## Release-fault observation scopes
+
+Hosts that release enrolled resources while holding business guards must bind an
+`AllocationLogScope::enter(session)` before acquiring those guards. Motion Host
+does this in `with_session` and `close`. The scope stays on its originating thread;
+nested scopes flush only when the outer scope drops, including panic unwind.
+The budget mutex and the thread-local observation borrow are both released
+before the logger runs. Standalone render callers without a business guard keep
+the immediate Error path and do not need a scope.
+
+The existing invariant failure remains once per budget lifetime and stops further
+admission/readout. Deferral retains one fixed-size first cause per thread and a
+saturating count of additional budget faults until the outer operation returns.
+It includes the original allocation ID, category, bytes, flags and session,
+retirement phase and deferred duration. It neither retries nor changes the
+primary caller result or panic. A new operation starts with empty pending state.
+
+Source-bound base and export acceptance is recorded in
+`engineering/validation/frame-export-allocation-windows-completed.md`.
+Pressure, category, lifecycle and release-scope increments still require their
+own cumulative-source results; earlier passing totals do not validate them.

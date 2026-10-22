@@ -27,6 +27,7 @@ mod allocation_uploads;
 mod native_allocation;
 pub use native_allocation::{AdmittedBuffer, AdmittedTexture, AllocationContext};
 pub use allocation_budget::{AllocationBudget, AllocationBudgetInfo, AllocationEncoder,
+    AllocationLogScope,
     AllocationCategory, AllocationCategoryInfo, AllocationCategoryFrameInfo,
     AllocationFrame, AllocationFrameInfo, AllocationFrameOutcome, AllocationFramePeaks,
     FrameOperation, MAX_ACTIVE_ALLOCATION_FRAMES, MAX_RECENT_ALLOCATION_FRAMES,

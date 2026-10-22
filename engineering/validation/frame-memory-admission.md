@@ -1769,3 +1769,27 @@ frame rate or a cross-device performance comparison. Logical capacity may fall
 after native pressure lowers quality; the repeated-capacity guard rejects growth
 relative to the same warmed-up case. Remaining Presenter/UI allocation coverage
 is still excluded and must not be presented as whole-application memory.
+
+## Twenty-fifth increment: release-fault logging outside host guards (pending acceptance)
+
+The existing invariant failure still stops admission and readout, preserves known
+capacity, and reports once over each budget's lifetime. This increment changes
+where the Error record is emitted, not release arithmetic or operation results.
+
+| Item | New observation / boundary | Required evidence |
+| --- | --- | --- |
+| #61-A159 | `AllocationLogScope` precedes Session/registry guards in `with_session` and `close`; nested scopes defer to the outer boundary, including unwind | A real Lease destructor with controlled category drift; a logger that can acquire all budget and business guards on return and unwind |
+| #61-A160 | Each thread retains one fixed-size first cause plus a saturating omitted-event count; session/category/retirement phase remain available | Nested independent-budget failures, lifetime suppression, saturated counter, and empty next-operation state |
+| #61-A161 | Fault logging preserves primary caller errors and panics; standalone use keeps its original immediate Error path | Existing poison/missing/underflow guards unchanged, new primary-cause assertions, default Info capture and stdout isolation |
+
+These are controlled invariant-fault tests, not evidence of naturally occurring
+driver corruption. Compilation and execution on this source are pending. The
+test capture proves lock ordering; it is not the application file/stderr sink.
+Actual application output-channel regression remains a separate required gate.
+The earlier pressure matrix stopped in LLVM with an out-of-memory compilation
+failure before its full-render tests executed. It is being resumed with reduced
+compiler debug metadata while keeping debug assertions, test selection and
+existing assertions. Category and lifecycle acceptance will run against the
+cumulative source to avoid repeatedly building a full matrix at every increment.
+No Presenter/UI, layout, style, project value or undo behavior is changed.
+#60/#61/#67 remain open.
