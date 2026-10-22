@@ -1,6 +1,63 @@
 use super::*;
 
 #[test]
+fn session_budget_refusal_reaches_real_export_worker_reply_file_and_stderr() {
+    const CHILD: &str="MOTION_SESSION_CAPTURE_BUDGET_LOG_ROOT";
+    const NAME: &str="engine::frame_capture::tests::session_budget_refusal_reaches_real_export_worker_reply_file_and_stderr";
+    if let Some(root)=std::env::var_os(CHILD) {
+        let root=PathBuf::from(root);
+        let _logger=crate::logging::init(root.clone()).unwrap();
+        let project=root.join("project");
+        let mut p=motion_core::Project::new(32,24,30,6).unwrap();
+        p.background=[0.,1.,0.,1.];
+        motion_core::storage::save(&project,&p).unwrap();
+        let engine=Engine::start(project,motion_desktop_media::platform(),8<<30).unwrap();
+        let output=root.join("protected.png");
+        std::fs::write(&output,b"previous publication").unwrap();
+        let mut policy=motion_render::resource_policy::MemoryPolicy::default();
+        policy.session_allocation_budget_bytes=1;
+        engine.plugin(serde_json::json!({"op":"memory_policy","policy":policy}).to_string()).unwrap();
+        let reply=engine.capture_async(output.clone(),ExportControl::default()).unwrap();
+        let error=reply.recv_timeout(Duration::from_secs(30)).unwrap().unwrap_err();
+        assert!(error.contains("PNG GPU initialization") && error.contains("required_bytes=4 budget_bytes=1"),"{error}");
+        assert_eq!(std::fs::read(&output).unwrap(),b"previous publication");
+        let info=engine.plugin("{\"op\":\"allocation_budget\"}".into()).unwrap();
+        assert_eq!(info["allocationBudget"]["admittedBytes"],0);
+        assert_eq!(info["allocationBudget"]["liveAllocations"],0);
+        policy.session_allocation_budget_bytes=16<<20;
+        engine.plugin(serde_json::json!({"op":"memory_policy","policy":policy}).to_string()).unwrap();
+        engine.capture_async(output.clone(),ExportControl::default()).unwrap()
+            .recv_timeout(Duration::from_secs(30)).unwrap().unwrap();
+        let image=image::open(&output).unwrap().into_rgba8();
+        assert_eq!(image.dimensions(),(32,24));
+        assert!(image.pixels().all(|p|p.0==[0,255,0,255]));
+        drop(engine);
+        crate::logging::flush();
+        return;
+    }
+    let root=tempfile::tempdir().unwrap();
+    let output=std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact",NAME,"--nocapture","--test-threads=1"])
+        .env(CHILD,root.path()).env_remove("MOTION_LOG").output().unwrap();
+    assert!(output.status.success(),"{}\n{}",String::from_utf8_lossy(&output.stdout),String::from_utf8_lossy(&output.stderr));
+    let file=std::fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
+    let stderr=String::from_utf8(output.stderr).unwrap();
+    let stdout=String::from_utf8(output.stdout).unwrap();
+    let cause="admitted render allocations exceed configured combined budget";
+    let failure=file.lines().find(|line|line.contains("error #") && line.contains(" capture ") && line.contains(cause)).unwrap();
+    for context in ["PNG export revision=0 frame=0","PNG GPU initialization","image key=Static(0)","phase=allocate","required_bytes=4 budget_bytes=1","ms:"] {
+        assert!(failure.contains(context),"missing {context}: {failure}");
+    }
+    assert!(file.contains("logging initialized level=INFO"));
+    assert!(file.lines().any(|line|line.contains("start #") && line.ends_with(" capture")));
+    assert_eq!(stderr.matches(cause).count(),1);
+    assert!(!stderr.contains("logging initialized"));
+    for marker in [cause,"error #","logging initialized"] {
+        assert!(!stdout.contains(marker),"logging leaked to stdout: {stdout}");
+    }
+}
+
+#[test]
 fn finished_worker_panic_clears_observation_before_returning_its_original_error() {
     let flight = Flight {
         request: 47,

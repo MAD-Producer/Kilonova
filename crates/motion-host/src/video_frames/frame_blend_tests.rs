@@ -51,6 +51,7 @@ impl crate::Platform for Backend {
         _: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         _: u32,
         _: u32,
+        _budget: motion_render::AllocationBudget,
     ) -> crate::Result<crate::SurfaceTarget> {
         Err("unused".into())
     }

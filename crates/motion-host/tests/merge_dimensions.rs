@@ -43,6 +43,7 @@ impl Platform for NoMedia {
         _: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         _: u32,
         _: u32,
+        _budget: motion_render::AllocationBudget,
     ) -> motion_host::Result<SurfaceTarget> {
         panic!("unexpected window")
     }

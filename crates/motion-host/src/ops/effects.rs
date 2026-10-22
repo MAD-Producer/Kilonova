@@ -41,6 +41,11 @@ impl Session {
         if text("op")? == "resource_ledger" {
             return Ok(self.texture_resource_ledger());
         }
+        if text("op")? == "allocation_budget" {
+            return Ok(json!({"version":1,"scope":"session_enrolled_native_capacity",
+                "allocationBudget":self.allocation_budget_info()?,
+                "isFramePeak":false,"isDriverResidency":false,"completeCoverage":false}));
+        }
         if text("op")? == "memory_policy" {
             if let Some(policy) = v.get("policy") {
                 let policy =
@@ -458,7 +463,7 @@ impl Session {
         self.sample()?;
         if self.editor_renderer.is_none() {
             let mut renderer =
-                pollster::block_on(Renderer::headless()).map_err(crate::Error::from)?;
+                pollster::block_on(Renderer::headless_with_allocation_budget(self.allocation_budget().clone())).map_err(crate::Error::from)?;
             renderer.set_effect_registry(self.effects.registry.clone());
             renderer
                 .set_memory_policy(self.effects.memory_policy())

@@ -4,6 +4,111 @@ use motion_render::{resource_policy::MemoryPolicy, Renderer};
 use std::{path::Path, sync::Arc};
 
 struct Stub;
+
+#[test]
+fn session_envelope_survives_project_replacement_and_tracks_retained_native_views() {
+    let directory=tempfile::tempdir().unwrap();
+    let mut session=Session::new(Project::new(16,16,30,6).unwrap(),
+        directory.path().to_owned(),Arc::new(Stub)).unwrap();
+    let budget=session.allocation_budget().clone();
+    let mut peak=0;
+    for size in [16,24,32] {
+        let mut project=Project::new(size,size,30,6).unwrap();
+        project.background=[0.,1.,0.,1.];
+        let root=directory.path().join(format!("project-{size}"));
+        std::fs::create_dir(&root).unwrap();
+        session.replace_project(motion_core::Engine::new(project).unwrap(),root).unwrap();
+        let snapshot=session.engine.snapshot();
+        let revision=session.engine.revision();
+        let mut renderer=pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();
+        let target=renderer.capture_target(size,size).unwrap();
+        for frame in [0.,3.,1.] {
+            session.frame=frame;
+            session.sample().unwrap();
+            let pixels=renderer.capture(&session.scene,&target).unwrap().0;
+            assert!(pixels.chunks_exact(4).all(|p|p==[0,255,0,255]));
+        }
+        let view=target.view.clone();
+        let device=renderer.device.clone();
+        let queue=renderer.queue.clone();
+        session.editor_target=Some(target);
+        session.editor_renderer=Some(renderer);
+        peak=peak.max(budget.info().unwrap().admitted_bytes);
+        assert_eq!(session.engine.snapshot(),snapshot);
+        assert_eq!(session.engine.revision(),revision);
+        assert!(!session.engine.can_undo());
+        let next=session.engine.snapshot();
+        session.replace_project(motion_core::Engine::new(next).unwrap(),session.root.clone()).unwrap();
+        device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+        assert!(session.allocation_budget().same_budget(&budget));
+        assert_eq!(budget.info().unwrap().admitted_bytes,u64::from(size)*u64::from(size)*4);
+        assert_eq!(budget.info().unwrap().live_allocations,1);
+        drop(view);
+        assert_eq!(budget.info().unwrap().admitted_bytes,0);
+        assert_eq!(budget.info().unwrap().live_allocations,0);
+        assert_eq!(budget.info().unwrap().peak_admitted_bytes,peak);
+        drop(queue);
+    }
+}
+
+#[test]
+fn session_envelope_updates_are_atomic_and_metadata_queries_are_read_only() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut session = Session::new(Project::new(16,16,30,6).unwrap(),
+        directory.path().to_owned(),Arc::new(Stub)).unwrap();
+    let budget = session.allocation_budget().clone();
+    let before = session.engine.snapshot();
+    let revision = session.engine.revision();
+    let view = session.view_revision;
+    let original = session.effects.memory_policy();
+    for limit in [0, (4u64 << 30) + 1] {
+        let mut policy = original;
+        policy.session_allocation_budget_bytes = limit;
+        assert!(session.configure_memory_policy(policy).unwrap_err().to_string().contains("session allocation budget"));
+        let error = session.plugin_request(&serde_json::json!({"op":"memory_policy","policy":policy}).to_string()).unwrap_err();
+        assert!(error.to_string().contains("session allocation budget"));
+        assert_eq!(session.effects.memory_policy(),original);
+        assert_eq!(budget.info().unwrap().budget_bytes,original.session_allocation_budget_bytes);
+        assert_eq!(session.view_revision,view);
+    }
+    let query = "{\"op\":\"allocation_budget\"}";
+    let empty = session.plugin_request(query).unwrap();
+    assert_eq!(empty["allocationBudget"]["admittedBytes"],0);
+    assert_eq!(empty["allocationBudget"]["peakAdmittedBytes"],0);
+    assert_eq!(empty["isFramePeak"],false);
+    assert_eq!(empty["isDriverResidency"],false);
+    let live = pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();
+    let occupied = budget.info().unwrap();
+    let info = session.plugin_request(query).unwrap();
+    assert_eq!(info["allocationBudget"]["admittedBytes"],occupied.admitted_bytes);
+    assert_eq!(info,session.plugin_request(query).unwrap());
+    assert_eq!(session.allocation_budget_info().unwrap(),occupied);
+    let mut policy = original;
+    policy.session_allocation_budget_bytes = 1;
+    session.configure_memory_policy(policy).unwrap();
+    assert_eq!(budget.info().unwrap().admitted_bytes,occupied.admitted_bytes);
+    assert_eq!(budget.info().unwrap().budget_bytes,1);
+    let error = pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).err().unwrap();
+    assert_eq!(error.resource_rejection(),Some(&motion_render::ResourceRejection::Budget {
+        scope:motion_render::ResourceBudgetScope::RenderAllocations,
+        required_bytes:occupied.admitted_bytes+4,budget_bytes:1}));
+    assert_eq!(budget.info().unwrap().admitted_bytes,occupied.admitted_bytes);
+    assert_eq!(session.engine.snapshot(),before);
+    assert_eq!(session.engine.revision(),revision);
+    assert!(!session.engine.can_undo());
+    let device=live.device.clone();
+    let queue=live.queue.clone();
+    drop(live);
+    device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+    assert_eq!(budget.info().unwrap().admitted_bytes,0);
+    assert_eq!(budget.info().unwrap().live_allocations,0);
+    assert_eq!(budget.info().unwrap().peak_admitted_bytes,occupied.peak_admitted_bytes);
+    session.configure_memory_policy(original).unwrap();
+    let recovered=pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();
+    assert_eq!(budget.info().unwrap().admitted_bytes,occupied.admitted_bytes);
+    drop(recovered);
+    drop(queue);
+}
 impl Platform for Stub {
     fn name(&self) -> &'static str {
         "memory-test"
@@ -43,6 +148,7 @@ impl Platform for Stub {
         _: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         _: u32,
         _: u32,
+        _budget: motion_render::AllocationBudget,
     ) -> motion_host::Result<motion_host::SurfaceTarget> {
         Err("unused".into())
     }
@@ -66,6 +172,7 @@ fn shared_json_policy_is_atomic_runtime_state_and_inherited_by_editor_rendering(
     let revision = session.engine.revision();
     session.editor_renderer = Some(pollster::block_on(Renderer::headless()).unwrap());
     let policy = MemoryPolicy {
+        session_allocation_budget_bytes: 256 << 20,
         source_texture_budget_bytes: 32,
         scratch_budget_bytes: 96 << 20,
         preview_target_budget_bytes: 4 << 20,
@@ -73,7 +180,7 @@ fn shared_json_policy_is_atomic_runtime_state_and_inherited_by_editor_rendering(
     let result = session
         .plugin_request(&serde_json::json!({"op":"memory_policy","policy":policy}).to_string())
         .unwrap();
-    assert_eq!(result["policyVersion"], 3);
+    assert_eq!(result["policyVersion"], 4);
     let queried = session.plugin_request("{\"op\":\"memory_policy\"}").unwrap();
     assert_eq!(queried, result);
     assert_eq!(
@@ -86,8 +193,8 @@ fn shared_json_policy_is_atomic_runtime_state_and_inherited_by_editor_rendering(
         policy
     );
     let view = session.view_revision;
-    assert!(session.plugin_request("{\"op\":\"memory_policy\",\"policy\":{\"sourceTextureBudgetBytes\":0,\"scratchBudgetBytes\":67108864}}").is_err());
-    assert!(session.plugin_request("{\"op\":\"memory_policy\",\"policy\":{\"sourceTextureBudgetBytes\":32,\"scratchBudgetBytes\":67108864,\"autoVram\":true}}").is_err());
+    assert!(session.plugin_request("{\"op\":\"memory_policy\",\"policy\":{\"sessionAllocationBudgetBytes\":536870912,\"sourceTextureBudgetBytes\":0,\"scratchBudgetBytes\":67108864}}").is_err());
+    assert!(session.plugin_request("{\"op\":\"memory_policy\",\"policy\":{\"sessionAllocationBudgetBytes\":536870912,\"sourceTextureBudgetBytes\":32,\"scratchBudgetBytes\":67108864,\"autoVram\":true}}").is_err());
     assert_eq!(session.effects.memory_policy(), policy);
     assert_eq!(
         session.editor_renderer.as_ref().unwrap().memory_policy(),
@@ -95,7 +202,7 @@ fn shared_json_policy_is_atomic_runtime_state_and_inherited_by_editor_rendering(
     );
     assert_eq!(session.view_revision, view);
     let info = session.preview_info();
-    assert_eq!(info["memoryPolicyVersion"], 3);
+    assert_eq!(info["memoryPolicyVersion"], 4);
     assert_eq!(info["memoryPolicy"]["previewTargetBudgetBytes"], 4 << 20);
     assert_eq!(info["sourceTextureBudgetBytes"], 32);
     assert_eq!(info["memoryPolicy"], result["memoryPolicy"]);

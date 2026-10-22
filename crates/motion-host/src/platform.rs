@@ -103,10 +103,13 @@ pub trait Platform: Send + Sync {
     ///
     /// Returning an error is expected when the windowing backend cannot present
     /// on the requested GPU API; the host decides which backends to try.
+    /// The renderer must use this budget before any native allocation;
+    /// Session::attach rejects a target constructed with another identity.
     fn attach_surface(
         &self,
         window: std::sync::Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         width: u32,
         height: u32,
+        budget: motion_render::AllocationBudget,
     ) -> crate::Result<SurfaceTarget>;
 }

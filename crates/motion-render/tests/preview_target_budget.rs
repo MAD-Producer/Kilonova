@@ -57,8 +57,13 @@ fn ledger(targets: &PreviewFrameTargets) -> motion_render::TextureResourceLedger
 
 #[test]
 fn legacy_policy_defaults_and_invalid_updates_preserve_the_live_policy() {
-    let legacy: MemoryPolicy = serde_json::from_str(
+    let missing_session = serde_json::from_str::<MemoryPolicy>(
         r#"{"sourceTextureBudgetBytes":134217728,"scratchBudgetBytes":67108864}"#,
+    )
+    .unwrap_err();
+    assert!(missing_session.to_string().contains("sessionAllocationBudgetBytes"));
+    let legacy: MemoryPolicy = serde_json::from_str(
+        r#"{"sessionAllocationBudgetBytes":536870912,"sourceTextureBudgetBytes":134217728,"scratchBudgetBytes":67108864}"#,
     )
     .unwrap();
     assert_eq!(

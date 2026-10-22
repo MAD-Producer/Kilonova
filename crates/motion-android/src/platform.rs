@@ -37,10 +37,11 @@ impl AndroidPlatform {
         window: ndk::native_window::NativeWindow,
         width: u32,
         height: u32,
+        budget: motion_render::AllocationBudget,
     ) -> Result<SurfaceTarget> {
         let handle: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync> =
             Arc::new(AndroidWindow(window.clone()));
-        self.attach_surface(handle, width, height)
+        self.attach_surface(handle, width, height, budget)
     }
 }
 
@@ -88,6 +89,7 @@ impl Platform for AndroidPlatform {
         window: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         width: u32,
         height: u32,
+        budget: motion_render::AllocationBudget,
     ) -> Result<SurfaceTarget> {
         // Creating a Vulkan surface can connect the Android buffer producer even
         // when no Vulkan adapter exists, so only one backend's surface may stay
@@ -105,11 +107,12 @@ impl Platform for AndroidPlatform {
                     continue;
                 }
             };
-            match pollster::block_on(motion_render::Renderer::new_profiled(
+            match pollster::block_on(motion_render::Renderer::new_profiled_with_allocation_budget(
                 &instance,
                 Some(&surface),
                 wgpu::TextureFormat::Rgba8UnormSrgb,
                 true,
+                budget.clone(),
             )) {
                 Ok(renderer) => {
                     let caps = surface.get_capabilities(&renderer.adapter);
@@ -141,6 +144,9 @@ impl Platform for AndroidPlatform {
                         config,
                         renderer,
                     });
+                }
+                Err(error) if error.resource_rejection().is_some() => {
+                    return Err(motion_host::Error::with_context("preview renderer construction", error));
                 }
                 Err(error) => failures.push(error.to_string()),
             }

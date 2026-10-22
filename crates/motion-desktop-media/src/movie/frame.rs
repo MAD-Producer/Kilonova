@@ -23,7 +23,7 @@ impl FrameFreezePlan {
         if !frame.is_finite() || frame < 0. || frame >= f64::from(session.engine.project().frames) {
             return Err("PNG capture frame is invalid".into());
         }
-        let sources = MovieFreezePlan::new_with_audio(
+        let mut sources = MovieFreezePlan::new_with_audio(
             session.engine.snapshot(),
             &session.root,
             session.effects.registry.clone(),
@@ -32,6 +32,7 @@ impl FrameFreezePlan {
             control,
             false,
         )?;
+        sources.allocation_budget = session.allocation_budget().clone();
         let output = output.unwrap_or_else(|| {
             session
                 .root
@@ -73,7 +74,7 @@ impl FrameFreezePlan {
             .map_err(|e| format!("create PNG temporary: {e}"))?;
         let p = &frozen.project;
         control.check()?;
-        let mut renderer = pollster::block_on(Renderer::headless())
+        let mut renderer = pollster::block_on(Renderer::headless_with_allocation_budget(frozen.allocation_budget.clone()))
             .map_err(|e| format!("PNG GPU initialization: {e}"))?;
         renderer.set_effect_registry(frozen.registry.clone());
         renderer

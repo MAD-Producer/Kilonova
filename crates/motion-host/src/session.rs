@@ -129,6 +129,7 @@ pub struct Session {
     pub(crate) editor_recovery: Option<Value>,
     pub editor_renderer: Option<Renderer>,
     pub editor_target: Option<motion_render::CaptureTarget>,
+    allocation_budget: motion_render::AllocationBudget,
     platform: Arc<dyn Platform>,
 }
 
@@ -224,6 +225,7 @@ impl Session {
             editor_recovery: None,
             editor_renderer: None,
             editor_target: None,
+            allocation_budget: motion_render::AllocationBudget::default(),
             platform,
         })
     }
@@ -231,6 +233,19 @@ impl Session {
     /// The host platform that owns this session's media and surface backends.
     pub fn platform(&self) -> &Arc<dyn Platform> {
         &self.platform
+    }
+
+    /// Shared logical admission for all renderers created for this session.
+    /// Clone before native construction, including host-created surface renderers.
+    /// Retained resources and frozen exports keep the same admission identity.
+    pub fn allocation_budget(&self) -> &motion_render::AllocationBudget {
+        &self.allocation_budget
+    }
+
+    /// Bounded metadata; peak means enrolled capacity since Session creation,
+    /// including concurrent renderers and pending leases, not physical residency.
+    pub fn allocation_budget_info(&self) -> Result<motion_render::AllocationBudgetInfo> {
+        self.allocation_budget.info().map_err(crate::Error::from)
     }
 
     pub(crate) fn update_submission_tracking(&self) {
@@ -249,6 +264,9 @@ impl Session {
     ) -> Result<Value> {
         policy.validate()?;
         if self.effects.memory_policy() != policy {
+            // This can fail on a broken admission invariant. Do it before any
+            // category/policy mutation. Existing owners remain booked on a decrease.
+            self.allocation_budget.set_limit(policy.session_allocation_budget_bytes)?;
             self.effects.set_memory_policy(policy)?;
             if let Some(graphics) = &mut self.graphics {
                 graphics
@@ -350,6 +368,9 @@ impl Session {
     /// Bind a host-created surface. Everything after surface creation is shared
     /// with the Android preview path.
     pub fn attach(&mut self, target: SurfaceTarget) -> Result<()> {
+        if !self.allocation_budget.same_budget(target.renderer.allocation_budget()) {
+            return Err("surface renderer was not constructed with the session allocation budget".into());
+        }
         self.detach();
         let SurfaceTarget {
             instance,

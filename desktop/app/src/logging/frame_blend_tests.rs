@@ -100,6 +100,7 @@ impl Platform for Backend {
         _: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         _: u32,
         _: u32,
+        _budget: motion_render::AllocationBudget,
     ) -> motion_host::Result<motion_host::SurfaceTarget> {
         Err("unused".into())
     }

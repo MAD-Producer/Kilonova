@@ -376,6 +376,7 @@ pub struct PlanBuilder {
     scratch_budget: u64,
     pub(crate) source_texture_budget: u64,
     preview_target_budget: u64,
+    session_allocation_budget: u64,
     pub registry: Registry,
     pub device_dimension: u32,
     pub program_errors: std::collections::BTreeMap<u32, String>,
@@ -650,6 +651,7 @@ impl PlanBuilder {
             scratch_budget: motion_effects::SCRATCH_BUDGET_FLOOR,
             source_texture_budget: crate::resource_policy::DEFAULT_SOURCE_TEXTURE_BUDGET,
             preview_target_budget: crate::resource_policy::MAX_PREVIEW_TARGET_BUDGET,
+            session_allocation_budget: crate::allocation_budget::DEFAULT_RENDER_ALLOCATION_BUDGET,
             preview_inputs: None,
             pass_clocks: Vec::new(),
             preview_cache_hits: 0,
@@ -675,6 +677,7 @@ impl PlanBuilder {
     pub fn scratch_budget(&self) -> u64 { self.scratch_budget }
     pub fn memory_policy(&self) -> crate::resource_policy::MemoryPolicy {
         crate::resource_policy::MemoryPolicy {
+            session_allocation_budget_bytes: self.session_allocation_budget,
             source_texture_budget_bytes: self.source_texture_budget,
             scratch_budget_bytes: self.scratch_budget,
             preview_target_budget_bytes: self.preview_target_budget,
@@ -691,6 +694,7 @@ impl PlanBuilder {
         self.source_texture_budget = policy.source_texture_budget_bytes;
         self.scratch_budget = policy.scratch_budget_bytes;
         self.preview_target_budget = policy.preview_target_budget_bytes;
+        self.session_allocation_budget = policy.session_allocation_budget_bytes;
         Ok(())
     }
     pub fn set_scratch_budget(&mut self, budget: u64) -> Result<(), RenderError> {

@@ -87,8 +87,9 @@ impl Platform for Backend {
         window: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         width: u32,
         height: u32,
+        _budget: motion_render::AllocationBudget,
     ) -> motion_host::Result<motion_host::SurfaceTarget> {
-        motion_desktop_media::platform().attach_surface(window, width, height)
+        motion_desktop_media::platform().attach_surface(window, width, height, _budget)
     }
 }
 fn fixture(root: &Path, delayed: bool) {
