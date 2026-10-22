@@ -32,6 +32,8 @@ mod last_error_observation;
 mod resource_observation;
 mod sampling;
 mod preview_pressure;
+#[cfg(all(test, target_os = "windows"))]
+mod surface_admission_tests;
 pub(crate) mod metadata_observation;
 #[cfg(test)]
 mod metadata_observation_tests;
@@ -385,7 +387,6 @@ impl Session {
         if !self.allocation_budget.same_budget(target.renderer.allocation_budget()) {
             return Err("surface renderer was not constructed with the session allocation budget".into());
         }
-        self.detach();
         let SurfaceTarget {
             instance,
             surface,
@@ -407,10 +408,12 @@ impl Session {
         // prepare the real dimensions under the bounded preview policy.
         let scratch = PreviewFrameTargets::new(&renderer, 1, 1)
             .map_err(crate::Error::from)?;
-        let presenter = Presenter::new_admitted(&renderer, &scratch.view, config.format);
+        let presenter = Presenter::new_admitted(&renderer, &scratch.view, config.format)?;
         // Auto quality needs GPU cost even without diagnostic recording; only
         // four reusable 32-byte timing buffers are read, never video pixels.
         let timer = GpuTimer::new(&renderer)?;
+        // Keep the last valid front until every replacement allocation succeeds.
+        self.detach();
         self.graphics = Some(Graphics {
             surface,
             renderer,
@@ -705,12 +708,17 @@ impl Session {
             let acquire_us = acquiring.elapsed().as_micros() as u64;
             g.presenter.set_admitted_source(&g.renderer.device, &candidate_view);
             let view = output.texture.create_view(&Default::default());
-            g.presenter.encode_view(
+            if let Err(error) = g.presenter.encode_view(
                 &g.renderer.queue, &mut encoder, &view,
                 slot.map(|i| g.timer.as_ref().unwrap().writes(i, 1)),
                 if image.is_some() { viewport } else { preview_viewport(viewport, [self.scene.width, self.scene.height]) },
                 image, self.scene.background,
-            );
+            ) {
+                if let (Some(timer), Some(i)) = (&mut g.timer, slot) {
+                    timer.cancel_unsubmitted(i);
+                }
+                return Err(error.into());
+            }
             overlay.take().unwrap()(&g.renderer, &mut encoder, &view);
             if let Some(i) = slot {
                 g.timer.as_ref().unwrap().resolve(i, &mut encoder);
@@ -897,7 +905,7 @@ fn present_chrome(g: &mut Graphics, retained_viewport: Option<[f32; 4]>, image: 
     let mut encoder = g.renderer.allocation_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Motion Studio retained preview") })?;
     if let Some(viewport) = retained_viewport {
         g.presenter.encode_view(&g.renderer.queue, &mut encoder, &view, None,
-            if image.is_some() { viewport } else { preview_viewport(viewport, g.last_canvas) }, image, g.last_background);
+            if image.is_some() { viewport } else { preview_viewport(viewport, g.last_canvas) }, image, g.last_background)?;
     } else {
         let _clear = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Motion Studio pending preview"),

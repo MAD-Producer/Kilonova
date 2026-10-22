@@ -1,26 +1,29 @@
 use crate::Renderer;
-use wgpu::util::DeviceExt;
+mod memory;
+#[cfg(test)]
+mod admission_tests;
 
 /// GPU-only final presentation keeps the compositor in a predictable sRGB target
 /// even when an Android swapchain exposes a linear UNORM pixel format.
 pub struct Presenter {
     pipeline: wgpu::RenderPipeline,
     group: wgpu::BindGroup,
+    view_group: wgpu::BindGroup,
     format: wgpu::TextureFormat,
     layout: wgpu::BindGroupLayout,
     sampler: wgpu::Sampler,
-    buffer: wgpu::Buffer,
-    view_buffer: wgpu::Buffer,
-    view_group: wgpu::BindGroup,
+    buffer: memory::Buffer,
+    view_buffer: memory::Buffer,
     // Retire GPU bindings before releasing their source reservation.
     source_allocation: Option<crate::allocation_budget::AllocationLease>,
 }
 impl Presenter {
     pub fn new_admitted(renderer: &Renderer, source: &crate::AdmittedTextureView,
-        format: wgpu::TextureFormat) -> Self {
-        let mut presenter = Self::new(renderer, source, format);
+        format: wgpu::TextureFormat) -> Result<Self, crate::RenderError> {
+        let buffers = memory::Buffers::admitted(renderer, format)?;
+        let mut presenter = Self::with_buffers(renderer, source, format, buffers);
         presenter.source_allocation = Some(source.lease.clone());
-        presenter
+        Ok(presenter)
     }
     pub fn set_admitted_source(&mut self, device: &wgpu::Device, source: &crate::AdmittedTextureView) {
         self.set_source(device, source);
@@ -31,6 +34,10 @@ impl Presenter {
         source: &wgpu::TextureView,
         format: wgpu::TextureFormat,
     ) -> Self {
+        Self::with_buffers(renderer, source, format, memory::Buffers::raw(renderer, format))
+    }
+    fn with_buffers(renderer: &Renderer, source: &wgpu::TextureView,
+        format: wgpu::TextureFormat, buffers: memory::Buffers) -> Self {
         let device = &renderer.device;
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Motion Studio surface presentation"),
@@ -68,12 +75,7 @@ impl Presenter {
             min_filter: wgpu::FilterMode::Linear,
             ..Default::default()
         });
-        let mode = [u32::from(format.is_srgb()), 0, 0, 0, 0, 0, 1.0f32.to_bits(), 1.0f32.to_bits()];
-        let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Motion Studio surface color encoding"),
-            contents: bytemuck::cast_slice(&mode),
-            usage: wgpu::BufferUsages::UNIFORM,
-        });
+        let memory::Buffers { color: buffer, view: view_buffer } = buffers;
         let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: None,
             layout: &layout,
@@ -91,11 +93,6 @@ impl Presenter {
                     resource: buffer.as_entire_binding(),
                 },
             ],
-        });
-        let view_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Motion Studio canvas navigation"),
-            contents: bytemuck::cast_slice(&mode),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
         let view_group = Self::source_group(device, &layout, &sampler, &view_buffer, source);
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -165,15 +162,16 @@ impl Presenter {
     /// an out-of-surface GPU viewport or changes the compositor/export camera.
     pub fn encode_view(&self, queue: &wgpu::Queue, encoder: &mut wgpu::CommandEncoder,
         output: &wgpu::TextureView, timestamps: Option<wgpu::RenderPassTimestampWrites<'_>>,
-        viewport: [f32; 4], image: Option<[f32; 4]>, background: [f32; 4]) {
+        viewport: [f32; 4], image: Option<[f32; 4]>, background: [f32; 4]) -> Result<(), crate::RenderError> {
         if let Some([ix, iy, iw, ih]) = image {
             let [x, y, w, h] = viewport;
             let uv = [(x-ix)/iw, (y-iy)/ih, w/iw, h/ih];
-            queue.write_buffer(&self.view_buffer, 16, bytemuck::cast_slice(&uv));
+            self.view_buffer.write(queue, 16, bytemuck::cast_slice(&uv))?;
             self.encode_group(encoder, output, timestamps, Some(viewport), background, &self.view_group);
         } else {
             self.encode(encoder, output, timestamps, Some(viewport), background);
         }
+        Ok(())
     }
     pub fn draw(&self, renderer: &Renderer, output: &wgpu::TextureView) -> Result<(), crate::RenderError> {
         let mut encoder = renderer

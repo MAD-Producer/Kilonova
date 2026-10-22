@@ -62,7 +62,10 @@ regression remains in progress. Its GPU fixture explicitly uses an interior
 frame because a centered shutter at frame zero legitimately samples before the
 clip. The original opaque-color and formal-pixel assertions remain intact.
 
-Remaining Presenter/UI allocations, raw external submissions/resources, driver
+At the accepted base/export sources, Presenter/UI allocations were still outside
+the enrolled gauge. Later UI and Presenter enrollment is recorded separately in
+`ui-allocation-admission.md` and `presenter-buffer-admission.md`; the receipts in
+this document do not accept those later implementations. Raw external submissions/resources, driver
 staging/swapchain and CPU decoder/source-copy capacity are not made complete by
 these logical windows. No new Linux/Metal or stopped Android device acceptance
 is claimed. Issue #61 and the related #60/#67 remain open; no 3D readiness or

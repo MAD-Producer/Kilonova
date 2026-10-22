@@ -14,6 +14,7 @@ fn front(graphics: &Graphics) -> Vec<u8> {
         &graphics.scratch.view,
         wgpu::TextureFormat::Rgba8UnormSrgb,
     )
+    .unwrap()
     .draw(renderer, &target.view)
     .unwrap();
     renderer.read_target(&target).unwrap()

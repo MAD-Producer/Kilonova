@@ -571,6 +571,9 @@ impl Renderer {
         Self::new_profiled_with_allocation_budget(&instance, None, TARGET_FORMAT, false, budget).await
     }
     pub fn allocation_budget(&self) -> &crate::AllocationBudget { &self.allocation_budget }
+    pub(crate) fn allocation_uploads(&self) -> Arc<crate::allocation_uploads::AllocationUploads> {
+        self.allocation_uploads.clone()
+    }
     /// External resources share this renderer's native owner, live allowance
     /// and queued-upload retirement ledger, rather than a new independent budget.
     pub fn allocation_context(&self) -> crate::AllocationContext {

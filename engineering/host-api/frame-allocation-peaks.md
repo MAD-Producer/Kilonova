@@ -19,9 +19,12 @@ This is combined session usage during an observed interval, not the bytes owned
 exclusively by one request, physical VRAM, driver residency, or GPU hardware
 timestamps. Other renderer/export work sharing the allowance can increase the
 peak during an overlap. `completeCoverage` and `isPhysicalVram` remain false.
-Presenter/UI resources, raw external allocations, driver/decoder memory and
-implicit queue-owned staging still have separate or unknown scopes. Per-category
-frame peaks are not supplied by this API.
+Admitted desktop Painter uniforms, geometry and glyph atlases share this gauge.
+The admitted Presenter path also enrolls its two uniforms and retains its source
+view reservation. Standalone raw Painter/Presenter constructors, external raw
+allocations, driver/decoder memory and implicit queue-owned staging remain
+outside this scope. Fixed per-category current and frame peaks are described
+below; their independent maxima must not be added into a combined peak.
 
 ## Lifecycle
 
@@ -53,8 +56,11 @@ admission mutex remains an explicit query error rather than a fabricated zero.
 Direct external `queue.submit`, final upload teardown, and queues without this
 budget are not automatically attached. Automatic windows cover desktop Present,
 CaptureUi and NodeCapture, frozen full-resolution PNG, and frozen movie exports.
-Legacy direct host capture, Presenter/UI enrollment, per-category peaks and
-combined resize/seek/project-switch acceptance remain pending.
+Legacy direct host capture still needs an explicit caller-owned window. Current
+native lifecycle and UI evidence, and the separate pending Presenter acceptance,
+are recorded in `engineering/validation/ui-allocation-admission.md` and
+`engineering/validation/presenter-buffer-admission.md`. Earlier base/export
+results alone do not validate these later increments.
 
 ## Independent exports
 

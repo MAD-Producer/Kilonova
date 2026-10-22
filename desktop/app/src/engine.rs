@@ -45,6 +45,8 @@ mod pending_video_tests;
 mod sampling_playback_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod memory_lifecycle_tests;
+#[cfg(all(test, target_os = "windows"))]
+mod surface_admission_tests;
 use failure::{ErrorReply, Failure, SessionLease};
 
 /// Maximum JSON payload accepted from the UI. Matches the Android bridge limit
@@ -734,6 +736,7 @@ impl Engine {
                         &worker_paints,
                         &worker_diagnostics,
                         &allocation_budget,
+                        &worker_factory,
                         command,
                     ))}).and_then(|result| result);
                     worker_diagnostics.record(request,"worker",operation,queued.elapsed(),Some(began.duration_since(queued)),Some(began.elapsed()),context);
@@ -1227,17 +1230,6 @@ impl Engine {
         // Winit exposes Win32 handles only on the GUI thread. Build a surface
         // here, then transfer rendering ownership to the session worker.
         let target = self.platform.attach_surface(window, width, height, self.allocation_budget.clone())?;
-        self.diagnostics.set_gpu(target.renderer.adapter.get_info());
-        *self
-            .factory
-            .lock()
-            .map_err(|_| "surface factory lock poisoned")? = Some(SurfaceFactory {
-            instance: target.instance.clone(),
-            adapter: target.renderer.adapter.clone(),
-            device: target.renderer.device.clone(),
-            queue: target.renderer.queue.clone(),
-            config: target.config.clone(),
-        });
         self.request(|reply| Command::Attach { target, reply })
     }
     pub fn resize_async(
@@ -1440,6 +1432,7 @@ fn handle(
     paints: &Arc<std::sync::Mutex<Vec<motion_ui::paint::PaintList>>>,
     diagnostics: &crate::diagnostics::Diagnostics,
     allocation_budget: &motion_render::AllocationBudget,
+    factory: &Mutex<Option<SurfaceFactory>>,
     command: Command,
 ) -> bool {
     // Capture, project operations and view changes can overwrite the shared
@@ -1574,13 +1567,15 @@ fn handle(
                 .map_err(|e| format!("phase=capture.atlas: {e}"))?;
             #[cfg(test)]
             diagnostics.native_test_phase("capture.presenter");
-            let presenter = motion_render::Presenter::new_admitted(&g.renderer, &g.scratch.view, wgpu::TextureFormat::Rgba8UnormSrgb);
+            let presenter = motion_render::Presenter::new_admitted(&g.renderer, &g.scratch.view, wgpu::TextureFormat::Rgba8UnormSrgb)
+                .map_err(|e| format!("phase=capture.presenter: {e}"))?;
             let mut encoder = g.renderer.allocation_command_encoder(&Default::default()).map_err(|e|e.to_string())?;
             if let Some([x,y,w,h])=ui.composition {
                 let scale = (w / s.scene.width as f32).min(h / s.scene.height as f32);
                 let vw = s.scene.width as f32 * scale; let vh = s.scene.height as f32 * scale;
                 presenter.encode_view(&g.renderer.queue, &mut encoder, &target.view, None,
-                    if ui.composition_image.is_some() { [x,y,w,h] } else { [x+(w-vw)*0.5,y+(h-vh)*0.5,vw,vh] }, ui.composition_image, s.scene.background);
+                    if ui.composition_image.is_some() { [x,y,w,h] } else { [x+(w-vw)*0.5,y+(h-vh)*0.5,vw,vh] }, ui.composition_image, s.scene.background)
+                    .map_err(|e| format!("phase=capture.presenter: {e}"))?;
             } else {clear_target(&mut encoder,&target.view);}
             #[cfg(test)]
             diagnostics.native_test_phase("capture.paint");
@@ -1607,13 +1602,46 @@ fn handle(
             respond(reply,result);
         },
         Command::Attach { target, reply } => respond(reply,(|| {
-            motion_host::session::with_session(id, |s| {
+            // Check poison before preparing native resources. Never retain this
+            // guard across session access, GPU work or diagnostic publication.
+            drop(factory.lock().map_err(|_| motion_host::Error::from("surface factory lock poisoned"))?);
+            let next_factory = SurfaceFactory {
+                instance: target.instance.clone(),
+                adapter: target.renderer.adapter.clone(),
+                device: target.renderer.device.clone(),
+                queue: target.renderer.queue.clone(),
+                config: target.config.clone(),
+            };
+            let gpu = target.renderer.adapter.get_info();
+            let mut attached = false;
+            let result = motion_host::session::with_session(id, |s| {
                 let next = motion_ui::Painter::new_admitted(&target.renderer.allocation_context(), target.config.format)
                     .map_err(|e| format!("phase=attach.painter: {e}"))?;
                 s.attach(target)?;
                 *painter = Some(next);
+                attached = true;
                 s.snapshot()
-            })
+            });
+            if !attached { return result; }
+            // Publish even if snapshot serialization failed after attachment.
+            // A refused replacement must leave the original factory intact.
+            let publication = factory.lock().map(|mut guard| guard.replace(next_factory));
+            match publication {
+                Ok(previous) => {
+                    drop(previous);
+                    diagnostics.set_gpu(gpu);
+                    result
+                }
+                Err(_) => {
+                    let secondary = motion_host::Error::from("surface factory lock poisoned during attachment publication");
+                    match result {
+                        Ok(_) => Err(secondary),
+                        Err(primary) => Err(motion_host::Error::Cleanup {
+                            primary: Box::new(primary), secondary: Box::new(secondary),
+                        }),
+                    }
+                }
+            }
         })()),
         Command::FloatWindow {key,target,reply} => respond(reply,motion_host::session::with_session(id,|s|{
             if key==0 || windows.contains_key(&key){return Err("invalid floating window id".into());}
