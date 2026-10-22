@@ -41,7 +41,7 @@ fn property_focus_replaces_effect_and_transform_owners_and_consumes_repeated_sta
         },
     };
     let mut original = serde_json::json!({"root":"fixture","composition":"main","frame":40,
-        "project":project,"timeline_layers":project.timeline_layers(40.)});
+        "project":project,"timeline_layers":project.timeline_layers(40.).unwrap()});
     original["project"]["layers"][0]["effects"] =
         serde_json::json!([{"id":1,"params":{"amount":parameter}}]);
     for locale in [Locale::En, Locale::Zh] {

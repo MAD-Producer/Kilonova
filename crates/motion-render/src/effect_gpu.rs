@@ -79,16 +79,6 @@ pub(crate) struct GpuState {
 const SCRATCH_IDLE_FRAME_LIMIT: u32 = 120;
 #[cfg(test)]
 mod fixed_admission_tests;
-pub(crate) fn texture(
-    device: &wgpu::Device,
-    layout: &wgpu::BindGroupLayout,
-    sampler: &wgpu::Sampler,
-    w: u32,
-    h: u32,
-    format: wgpu::TextureFormat,
-) -> FxTexture {
-    bind_texture(device, layout, sampler, device.create_owned_texture(&texture_descriptor(w, h, format)))
-}
 pub(crate) fn admitted_texture(
     device: &wgpu::Device,
     layout: &wgpu::BindGroupLayout,

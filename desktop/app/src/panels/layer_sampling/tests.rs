@@ -129,7 +129,7 @@ fn sampling_controls_apply_real_model_commands_and_roundtrip_history_in_both_lan
             panels.focused = Some(Panel::Timeline);
             panels.select_only(Some(7));
             for index in if video { [0, 1] } else { [1, 2] } {
-                let state = session.snapshot();
+                let state = session.snapshot().unwrap();
                 let click = press(point(&panels, &state, index));
                 apply(&mut session, draw(&mut panels, &state, &click, locale));
             }
@@ -161,7 +161,7 @@ fn sampling_controls_apply_real_model_commands_and_roundtrip_history_in_both_lan
 fn sampling_switches_ignore_readonly_unsupported_and_release_only() {
     let directory = tempfile::tempdir().unwrap();
     let session = session(directory.path(), false);
-    let original = session.snapshot();
+    let original = session.snapshot().unwrap();
     for locale in [Locale::Zh, Locale::En] {
         for reason in 0..4 {
             let mut state = original.clone();

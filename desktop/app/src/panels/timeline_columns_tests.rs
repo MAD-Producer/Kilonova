@@ -20,7 +20,7 @@ fn fixture() -> Engine {
     engine
 }
 fn snapshot(engine: &Engine) -> Value {
-    serde_json::json!({"frame":21.5,"project":engine.project(),"timeline_layers":engine.project().timeline_layers(21.5)})
+    serde_json::json!({"frame":21.5,"project":engine.project(),"timeline_layers":engine.project().timeline_layers(21.5).unwrap()})
 }
 fn draw(panels: &mut Panels, state: &Value, input: Input) -> Vec<Action> {
     let mut out = vec![];

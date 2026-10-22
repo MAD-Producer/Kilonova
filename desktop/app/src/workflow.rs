@@ -29,7 +29,7 @@ pub fn import_image(session: &mut Session, source: &Path) -> motion_host::Result
         .unwrap_or(0)
         .checked_add(1)
         .ok_or("asset IDs exhausted")?;
-    let object = next_layer_id(&session.snapshot())?;
+    let object = next_layer_id(&session.snapshot()?)?;
     let frame = (session.frame.floor() as u32).min(project.frames - 1);
     let position = [project.width as f32 / 2.0, project.height as f32 / 2.0, 0.0];
     let end = project.frames;
@@ -136,7 +136,7 @@ pub fn create_text(
         let raster=session.plugin_request(&serde_json::json!({"op":"font_text","font":font_id,"text":text,"size":size,"width":width}).to_string())?;
         let asset =
             serde_json::from_value::<Asset>(raster["asset"].clone()).map_err(|e| e.to_string())?;
-        let id = next_layer_id(&session.snapshot())?;
+        let id = next_layer_id(&session.snapshot()?)?;
         let project = session.engine.project();
         let mut layer = Layer::solid(
             id,
@@ -152,7 +152,7 @@ pub fn create_text(
             raster_asset: asset.id,
         };
         session.apply_command_batch(vec![Command::Add { layer }])?;
-        Ok::<_, String>(())
+        Ok::<_, motion_host::Error>(())
     })();
     if let Err(error) = &result {
         log::warn!("create text operation failed revision={} size={size} width={width} reason={error}", session.engine.revision());
@@ -166,7 +166,7 @@ pub fn create_text(
         })?;
     result?;
     session.sample()?;
-    Ok(session.snapshot())
+    session.snapshot()
 }
 pub fn null_layer(state: &Value, name: &str) -> Result<Command, String> {
     let id = next_layer_id(state)?;

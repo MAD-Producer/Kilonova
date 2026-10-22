@@ -271,7 +271,7 @@ impl Session {
                         if let Err(error) = self.sample() {
                             self.last_error = Some(error.to_string());
                         }
-                        let mut state = self.snapshot();
+                        let mut state = self.snapshot()?;
                         state["edit_results"] = json!(results);
                         return Ok(state);
                     }
@@ -285,7 +285,7 @@ impl Session {
                 }
             }
         }
-        Ok(self.snapshot())
+        self.snapshot()
     }
 }
 

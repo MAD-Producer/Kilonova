@@ -32,7 +32,7 @@ impl Shell {
         let engine = motion_core::Engine::new(project).map_err(|e| e.to_string())?;
         let mut state = before.clone();
         state["project"] = serde_json::to_value(engine.project()).map_err(|e| e.to_string())?;
-        state["timeline_layers"] = serde_json::to_value(engine.project().timeline_layers(0.))
+        state["timeline_layers"] = serde_json::to_value(engine.project().timeline_layers(0.).unwrap())
             .map_err(|e| e.to_string())?;
         state["sampledLayers"] = serde_json::json!([{"id":7,"anchor":[0.5,0.5],"position":[320.,180.,0.],
             "scale":[100.,100.,100.],"rotation":[0.,0.,12.],"opacity":1.,"active":true,"three_d":false}]);

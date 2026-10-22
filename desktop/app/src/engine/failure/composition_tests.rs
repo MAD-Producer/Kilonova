@@ -11,6 +11,7 @@ mod timing_admission;
 mod vector_admission;
 mod mask_admission;
 mod mask_texture_admission;
+mod vector_texture_admission;
 mod compositing_admission;
 mod matte_texture_admission;
 mod accumulator_admission;

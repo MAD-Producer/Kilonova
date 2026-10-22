@@ -4,6 +4,7 @@ use crate::vector_mesh::{RasterCommand, VectorMesh};
 use std::collections::HashSet;
 
 struct Target { multisample: OwnedTexture, resolved: FxTexture }
+pub(super) struct StagedTargets(Vec<((u32, u32, usize), Target)>);
 struct OpacityBinding {
     group: wgpu::BindGroup,
     // A cached binding owns the same admitted buffer even while it is replaced.
@@ -54,6 +55,37 @@ impl GroupGpu {
     pub fn release(&mut self) {self.targets.clear();self.opacity_group=None;self.opacity_buffer.clear();self.opacity_upload=Vec::new();}
     pub fn required_bytes(meshes:&[VectorMesh]) -> u64 {Self::needed(meshes).iter().map(|(w,h,_)|u64::from(*w)*u64::from(*h)*20).sum()}
     pub(super) fn upload_info(&self) -> (u64,u64) { (self.opacity_buffer.bytes(),self.opacity_buffer.created) }
+    pub(super) fn stage_targets(&self, device: &wgpu::Device, image: &wgpu::BindGroupLayout,
+        sampler: &wgpu::Sampler, scene: &crate::Scene, meshes: &[&VectorMesh],
+        budget: &crate::AllocationBudget) -> Result<StagedTargets, RenderError> {
+        let mut staged = Vec::new();
+        let mut seen = HashSet::new();
+        // Mesh order and ascending depth keep refusal context deterministic.
+        for mesh in meshes.iter().filter(|m| Self::grouped(m)) {
+            let layer = scene.layers[mesh.layer].id;
+            for depth in 0..=mesh.scope_depth() {
+                let key = (mesh.width, mesh.height, depth);
+                if self.targets.contains_key(&key) || !seen.insert(key) { continue; }
+                let format = wgpu::TextureFormat::Rgba8Unorm;
+                let multisample = device.create_admitted_texture(&wgpu::TextureDescriptor {
+                    label: Some("pooled vector group MSAA"),
+                    size: wgpu::Extent3d { width: mesh.width, height: mesh.height, depth_or_array_layers: 1 },
+                    mip_level_count: 1, sample_count: 4, dimension: wgpu::TextureDimension::D2,
+                    format, usage: wgpu::TextureUsages::RENDER_ATTACHMENT, view_formats: &[],
+                }, budget).map_err(|error| vector_texture_error(error, layer, scene.frame,
+                    (mesh.width, mesh.height), format, &format!("group_msaa_allocate depth={depth}")))?;
+                let resolved = crate::effect_gpu::admitted_texture(device, image, sampler,
+                    mesh.width, mesh.height, format, budget)
+                    .map_err(|error| vector_texture_error(error, layer, scene.frame,
+                        (mesh.width, mesh.height), format, &format!("group_resolve_allocate depth={depth}")))?;
+                staged.push((key, Target { multisample, resolved }));
+            }
+        }
+        Ok(StagedTargets(staged))
+    }
+    pub(super) fn commit_targets(&mut self, staged: StagedTargets) {
+        self.targets.extend(staged.0);
+    }
     fn prepare_opacity(&mut self,device:&wgpu::Device,encoder:&mut wgpu::CommandEncoder,
         mesh:&VectorMesh,uploads:&crate::vector_upload::UploadPool,layer:u64,frame:f64) -> Result<u32,RenderError> {
         let stride=u64::from(device.limits().min_uniform_buffer_offset_alignment).max(16);
@@ -95,20 +127,12 @@ impl GroupGpu {
             })],depth_stencil_attachment:None,timestamp_writes:None,occlusion_query_set:None,
         })
     }
-    pub fn draw(&mut self,device:&wgpu::Device,encoder:&mut wgpu::CommandEncoder,image:&wgpu::BindGroupLayout,sampler:&wgpu::Sampler,
+    pub fn draw(&mut self,device:&wgpu::Device,encoder:&mut wgpu::CommandEncoder,
         mesh:&VectorMesh,output:&wgpu::TextureView,paint:&wgpu::RenderPipeline,clear:&wgpu::RenderPipeline,clear_vertices:&wgpu::Buffer,
         vertices:&wgpu::Buffer,uploads:&crate::vector_upload::UploadPool,layer:u64,frame:f64) -> Result<(),RenderError> {
         let stride=self.prepare_opacity(device,encoder,mesh,uploads,layer,frame)?;
         let group=&self.opacity_group.as_ref().ok_or_else(||RenderError::Invalid("vector opacity binding missing".into()))?.group;
         let mut opacity_index=0;
-        for depth in 0..=mesh.scope_depth() {
-            self.targets.entry((mesh.width,mesh.height,depth)).or_insert_with(||Target {
-                multisample:device.create_owned_texture(&wgpu::TextureDescriptor {label:Some("pooled vector group MSAA"),
-                    size:wgpu::Extent3d {width:mesh.width,height:mesh.height,depth_or_array_layers:1},mip_level_count:1,sample_count:4,
-                    dimension:wgpu::TextureDimension::D2,format:wgpu::TextureFormat::Rgba8Unorm,usage:wgpu::TextureUsages::RENDER_ATTACHMENT,view_formats:&[]}),
-                resolved:crate::effect_gpu::texture(device,image,sampler,mesh.width,mesh.height,wgpu::TextureFormat::Rgba8Unorm),
-            });
-        }
         let target=|depth|&self.targets[&(mesh.width,mesh.height,depth)];
         {let mut pass=Self::pass(encoder,target(0),true);pass.set_pipeline(clear);pass.set_vertex_buffer(0,clear_vertices.slice(..));pass.draw(0..3,0..1);}
         let mut depth=0;

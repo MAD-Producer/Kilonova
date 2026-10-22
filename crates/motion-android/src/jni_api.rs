@@ -380,7 +380,7 @@ pub extern "system" fn Java_com_motionstudio_editor_NativeBridge_surface(
             } else {
                 s.detach();
             }
-            Ok(s.snapshot())
+            s.snapshot()
         })
     })
 }

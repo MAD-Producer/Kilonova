@@ -149,10 +149,14 @@ impl Session {
         })
     }
 
-    pub fn snapshot(&self) -> Value {
+    pub fn snapshot(&self) -> crate::Result<Value> {
         let original = self.engine.project();
-        let p = self.scene.sampled_project(original);
         let f = self.frame;
+        // Check the fallible projections before any infallible animation sampling.
+        let timeline_layers = original.timeline_layers(f)?;
+        let timeline_position = original.camera.position.timeline(0)?;
+        let timeline_target = original.camera.target.timeline(0)?;
+        let p = self.scene.sampled_project(original);
         let camera = json!({"position":p.camera.position_at(f),"target":p.camera.target.sample(f),
             "fov":p.camera.fov.sample(f).clamp(10.0,120.0),"roll":p.camera.roll.sample(f),
             "radius":p.camera.radius.sample(f).clamp(1.0,10_000_000.0),
@@ -306,8 +310,8 @@ impl Session {
                 "source_limit_bytes":motion_core::storage::MAX_MEDIA_ASSET,"source_duration_limit_seconds":3600,
                 "pcm_block_limit_frames":motion_media::MAX_BLOCK_FRAMES,"async_import":true,"ui_playback_integrated":true,"mp4_audio_mux_integrated":true}},
             "canRedo":self.engine.can_redo(),"observing":self.observing,"sampledCamera":camera,
-            "sampledLayers":layers,"timeline_layers":original.timeline_layers(f),
-            "timeline_camera":{"position":original.camera.position.timeline(0),"target":original.camera.target.timeline(0)},
+            "sampledLayers":layers,"timeline_layers":timeline_layers,
+            "timeline_camera":{"position":timeline_position,"target":timeline_target},
             "projectedLayers":projected,"presented":self.presented,"cpuPrepareUs":self.last_cpu_us,
             "renderError":self.last_error,
             "effectErrors":self.graphics.as_ref().map(|g|&g.renderer.effect_diagnostics),
@@ -375,6 +379,6 @@ impl Session {
             "blend_spaces":["linear","srgb"],"matte_modes":["alpha","alpha_inverted","luma","luma_inverted"],
             "stage":"after_effects_transforms_opacity","background":"excluded","source_scope":"same_composition",
             "max_matte_depth":motion_core::compositing::MAX_MATTE_DEPTH,"source_deletion":"reject_while_referenced","three_d":true});
-        snapshot
+        Ok(snapshot)
     }
 }

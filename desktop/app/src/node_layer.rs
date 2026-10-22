@@ -143,7 +143,7 @@ pub fn persist(
             || (old["session"] == source_session(snapshot)
                 && old["revision"].as_u64().unwrap_or(0) > snapshot.revision)
     }) {
-        return Ok(s.snapshot());
+        return s.snapshot();
     }
     s.apply_command_batch(vec![Command::Effect {
         object: target.object,
@@ -219,7 +219,7 @@ pub fn apply(
         .validate(s.engine.project().frames)
         .map_err(|e| e.to_string())?;
     if old.as_ref() == Some(&instance) {
-        return Ok(s.snapshot());
+        return s.snapshot();
     }
     let stamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
