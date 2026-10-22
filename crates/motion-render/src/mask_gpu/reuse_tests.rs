@@ -7,6 +7,7 @@ use motion_core::{
 };
 
 mod admission_tests;
+mod texture_admission;
 
 fn admitted_gpu(renderer: &Renderer, layout: &wgpu::BindGroupLayout) -> MaskGpu {
     MaskGpu::new(&renderer.device, layout, renderer.allocation_budget().clone(),

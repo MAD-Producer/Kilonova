@@ -18,6 +18,7 @@ struct InputBinding {
     input: wgpu::TextureView,
     source: wgpu::TextureView,
     group: wgpu::BindGroup,
+    _allocations: [Option<crate::allocation_budget::AllocationLease>; 2],
 }
 pub(crate) struct MaskGpu {
     raster: wgpu::RenderPipeline,
@@ -48,8 +49,13 @@ fn texture(
     sampler: &wgpu::Sampler,
     w: u32,
     h: u32,
-) -> FxTexture {
-    crate::effect_gpu::texture(device, layout, sampler, w, h, wgpu::TextureFormat::R8Unorm)
+    budget: &crate::AllocationBudget,
+) -> Result<FxTexture, RenderError> {
+    crate::effect_gpu::admitted_texture(device, layout, sampler, w, h,
+        wgpu::TextureFormat::R8Unorm, budget).map_err(|error| {
+            let message = format!("mask texture size={w}x{h} format=R8Unorm phase=allocate: {error}");
+            error.with_diagnostic(message)
+        })
 }
 impl MaskGpu {
     pub(crate) fn collect_textures(&self, ledger: &mut crate::TextureResourceLedger) {
@@ -255,6 +261,7 @@ impl MaskGpu {
                 inputs: None,
             });
         }
+        let scratch = &self.scratch;
         let slot = &mut self.uniforms[*index];
         *index += 1;
         self.allocation_uploads.track(Some(slot.buffer.allocation()))?;
@@ -273,6 +280,8 @@ impl MaskGpu {
             .get_or_insert_with(|| InputBinding {
                 input: input.clone(),
                 source: source.clone(),
+                _allocations: [input, source].map(|view| scratch.iter()
+                    .find_map(|target| target.texture.allocation_for_view(view))),
                 group: device.create_bind_group(&wgpu::BindGroupDescriptor {
                     label: Some("mask pass inputs"),
                     layout: &self.input_layout,
@@ -323,6 +332,74 @@ impl MaskGpu {
         pass.draw(0..3, 0..1);
         Ok(())
     }
+    // Stage the complete scratch pool and resized outputs before replacing any
+    // previous native owner, dimensions or input binding. A partial refusal
+    // drops the staged reservations and leaves the previous targets usable.
+    fn prepare_textures(
+        &mut self,
+        device: &wgpu::Device,
+        image_layout: &wgpu::BindGroupLayout,
+        scene: &crate::Scene,
+        masks: &[MaskRaster],
+        images: &mut HashMap<TextureKey, GpuImage>,
+        bytes: &mut u64,
+        other: u64,
+        source_budget: u64,
+    ) -> Result<bool, RenderError> {
+        let (w, h, slots) = mask_plan::scratch_dimensions(masks);
+        let scratch = if (w, h) != self.scratch_size || slots != self.scratch.len() {
+            let first = masks.first().ok_or_else(|| RenderError::Invalid(
+                "mask target preparation requires a nonempty mask list".into()))?;
+            let owner = scene.layers[first.layer].id;
+            Some((0..slots).map(|slot| {
+                texture(device, image_layout, &self.sampler, w, h, &self.allocation_budget)
+                    .map_err(|error| mask_context(error, owner, first.id, scene.frame,
+                        &format!("scratch_allocate slot={slot}")))
+            }).collect::<Result<Vec<_>, _>>()?)
+        } else {
+            None
+        };
+        let mut next = Vec::new();
+        let mut next_bytes = *bytes;
+        for group in masks.chunk_by(|a, b| a.layer == b.layer) {
+            let first = &group[0];
+            let owner = scene.layers[first.layer].id;
+            let key = TextureKey::Mask(owner);
+            let signature = mask_plan::group_fingerprint(group);
+            if self.fingerprints.get(&owner) == Some(&signature) && images.contains_key(&key) {
+                continue;
+            }
+            let cost = u64::from(first.width) * u64::from(first.height);
+            let previous = images.get(&key).map_or(0, |image| image.bytes);
+            if next_bytes - previous + cost + other > source_budget {
+                return Err(RenderError::budget(crate::ResourceBudgetScope::SourceTextures,
+                    next_bytes - previous + cost + other, source_budget,
+                    format!("layer {owner}: source and mask textures exceed configured source texture budget")));
+            }
+            if images.get(&key).is_none_or(|image| image.size != (first.width, first.height)) {
+                let target = texture(device, image_layout, &self.sampler, first.width,
+                    first.height, &self.allocation_budget).map_err(|error|
+                        mask_context(error, owner, first.id, scene.frame, "output_allocate"))?;
+                next.push((key, target, cost, (first.width, first.height)));
+                next_bytes = next_bytes - previous + cost;
+            }
+        }
+        if let Some(scratch) = scratch {
+            self.clear_inputs();
+            self.scratch = scratch;
+            self.scratch_size = (w, h);
+        }
+        let changed = !next.is_empty();
+        for (key, target, cost, size) in next {
+            images.insert(key, GpuImage {
+                _texture: target.texture, view: target.view, bind_group: target.composite,
+                bytes: cost, size, video_stamp: None,
+            });
+        }
+        *bytes = next_bytes;
+        Ok(changed)
+    }
+
     pub fn prepare(
         &mut self,
         device: &wgpu::Device,
@@ -358,14 +435,8 @@ impl MaskGpu {
             self.clear();
             return Ok(changed);
         }
-        let (w, h, slots) = mask_plan::scratch_dimensions(masks);
-        if (w, h) != self.scratch_size || slots != self.scratch.len() {
-            self.clear_inputs();
-            self.scratch = (0..slots)
-                .map(|_| texture(device, image_layout, &self.sampler, w, h))
-                .collect();
-            self.scratch_size = (w, h);
-        }
+        changed |= self.prepare_textures(device, image_layout, scene, masks,
+            images, bytes, other, source_budget)?;
         let mut uniform_index = 0;
         for group in masks.chunk_by(|a, b| a.layer == b.layer) {
             let owner = scene.layers[group[0].layer].id;
@@ -373,39 +444,6 @@ impl MaskGpu {
             let signature = mask_plan::group_fingerprint(group);
             if self.fingerprints.get(&owner) == Some(&signature) && images.contains_key(&key) {
                 continue;
-            }
-            let first = &group[0];
-            let cost = u64::from(first.width) * u64::from(first.height);
-            let previous = images.get(&key).map_or(0, |i| i.bytes);
-            if *bytes - previous + cost + other > source_budget {
-                return Err(RenderError::budget(crate::ResourceBudgetScope::SourceTextures,
-                    *bytes - previous + cost + other, source_budget, format!(
-                    "layer {owner}: source and mask textures exceed configured source texture budget"
-                )));
-            }
-            if images
-                .get(&key)
-                .is_none_or(|i| i.size != (first.width, first.height))
-            {
-                let t = texture(
-                    device,
-                    image_layout,
-                    &self.sampler,
-                    first.width,
-                    first.height,
-                );
-                images.insert(
-                    key,
-                    GpuImage {
-                        _texture: t.texture,
-                        view: t.view,
-                        bind_group: t.composite,
-                        bytes: cost,
-                        size: (first.width, first.height),
-                        video_stamp: None,
-                    },
-                );
-                *bytes = *bytes - previous + cost;
             }
             let blur = group.iter().any(|m| m.feather.iter().any(|f| *f > 0.));
             let accumulator_start = 1 + usize::from(blur);
