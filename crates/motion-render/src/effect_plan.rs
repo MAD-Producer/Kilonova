@@ -1058,7 +1058,10 @@ impl PlanBuilder {
                         ) });
                     }
                     let geometry = crate::vector_mesh::rasterize_with_limit(vector, layer.size, scale, origin, vector_remaining)
-                        .map_err(|e| format!("layer {}: {e}", layer.id))?;
+                        .map_err(|cause| {
+                            let message = format!("layer {}, vector rasterize at frame {}: {cause}", layer.id, scene.frame);
+                            RenderError::from(cause).with_diagnostic(message)
+                        })?;
                     use std::hash::{Hash, Hasher};
                     let mut hash = std::collections::hash_map::DefaultHasher::new();
                     bytemuck::cast_slice::<_, u8>(&geometry.vertices).hash(&mut hash);

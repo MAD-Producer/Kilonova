@@ -5,6 +5,8 @@ use lyon_tessellation::{
 };
 use motion_model::vector::{FillRule, LineCap, LineJoin, SampledVector};
 mod budget;
+mod error;
+pub use error::VectorGeometryError;
 pub const MAX_TRIANGLE_VERTICES: usize = 262144;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Pod, Zeroable)]
@@ -60,9 +62,9 @@ pub fn group_bounds(v: &SampledVector) -> Option<[f32; 4]> {
     if !min.is_finite() { return Some([-0.5,-0.5,1.,1.]); }
     Some([min.x,min.y,max.x-min.x,max.y-min.y])
 }
-pub(crate) fn rasterize_with_limit(v: &SampledVector, size: [f32; 2], scale: f32, origin: [f32; 2], limit: usize) -> Result<RasterGeometry, String> {
+pub(crate) fn rasterize_with_limit(v: &SampledVector, size: [f32; 2], scale: f32, origin: [f32; 2], limit: usize) -> Result<RasterGeometry, VectorGeometryError> {
     let Some(batches) = &v.batches else {
-        return Ok(RasterGeometry { vertices: tessellate_with_limit(v, size, scale, limit)?, commands: vec![], root_opacity: 1. });
+        return Ok(RasterGeometry { vertices: tessellate_native_with_limit(v, size, scale, limit)?, commands: vec![], root_opacity: 1. });
     };
     let mut vertices = Vec::new();
     let mut commands = Vec::new();
@@ -93,6 +95,12 @@ fn paint(mut c: [f32; 4]) -> [f32; 4] {
     }
     c
 }
+fn checked_point(x: f32, y: f32) -> Result<lyon_tessellation::math::Point, VectorGeometryError> {
+    if !x.is_finite() || !y.is_finite() {
+        return Err("vector path coordinate exceeds numeric range".into());
+    }
+    Ok(point(x, y))
+}
 #[cfg(test)]
 pub fn tessellate(
     v: &SampledVector,
@@ -102,11 +110,16 @@ pub fn tessellate(
     tessellate_with_limit(v, size, scale, MAX_TRIANGLE_VERTICES)
 }
 pub(crate) fn tessellate_with_limit(v: &SampledVector, size: [f32; 2], scale: f32, limit: usize) -> Result<Vec<VectorVertex>, String> {
+    // MaskCache still exposes a text error contract; keep that boundary
+    // explicit while rasterized vectors propagate their native causes.
+    tessellate_native_with_limit(v, size, scale, limit).map_err(|cause| cause.to_string())
+}
+fn tessellate_native_with_limit(v: &SampledVector, size: [f32; 2], scale: f32, limit: usize) -> Result<Vec<VectorVertex>, VectorGeometryError> {
     let mut builder = budget::BoundedGeometry::new(Vec::new(), size, limit.min(MAX_TRIANGLE_VERTICES), None);
     tessellate_into(v, scale, &mut builder)?;
     Ok(builder.output)
 }
-fn tessellate_into(v: &SampledVector, scale: f32, builder: &mut budget::BoundedGeometry) -> Result<(), String> {
+fn tessellate_into(v: &SampledVector, scale: f32, builder: &mut budget::BoundedGeometry) -> Result<(), VectorGeometryError> {
     if v.batches.is_some() {
         return Err("grouped vector raster execution is not available yet".into());
     }
@@ -114,19 +127,17 @@ fn tessellate_into(v: &SampledVector, scale: f32, builder: &mut budget::BoundedG
         .trim
         .as_ref()
         .map(|t| motion_model::vector::path_ops::trim(&v.paths, t))
-        .transpose()
-        .map_err(|e| e.to_string())?;
+        .transpose()?;
     let paths = trimmed.as_deref().unwrap_or(&v.paths);
     let dashed = if v.stroke.is_some_and(|s| s.1 > 0.) {
         v.dashes
             .as_ref()
             .map(|d| motion_model::vector::path_ops::dash(paths, d))
-            .transpose()
-            .map_err(|e| e.to_string())?
+            .transpose()?
     } else {
         None
     };
-    let make_path = |fill: bool| {
+    let make_path = |fill: bool| -> Result<Path, VectorGeometryError> {
         let mut b = Path::builder();
         for p in if fill {
             paths
@@ -137,24 +148,24 @@ fn tessellate_into(v: &SampledVector, scale: f32, builder: &mut budget::BoundedG
                 continue;
             }
             let first = p.nodes[0];
-            b.begin(point(first[0], first[1]));
+            b.begin(checked_point(first[0], first[1])?);
             let count = p.nodes.len();
             for i in 1..count + usize::from(p.closed) {
                 let prev = p.nodes[(i - 1) % count];
                 let n = p.nodes[i % count];
                 if prev[4] == 0. && prev[5] == 0. && n[2] == 0. && n[3] == 0. {
-                    b.line_to(point(n[0], n[1]));
+                    b.line_to(checked_point(n[0], n[1])?);
                 } else {
                     b.cubic_bezier_to(
-                        point(prev[0] + prev[4], prev[1] + prev[5]),
-                        point(n[0] + n[2], n[1] + n[3]),
-                        point(n[0], n[1]),
+                        checked_point(prev[0] + prev[4], prev[1] + prev[5])?,
+                        checked_point(n[0] + n[2], n[1] + n[3])?,
+                        checked_point(n[0], n[1])?,
                     );
                 }
             }
             b.end(p.closed || fill);
         }
-        b.build()
+        Ok(b.build())
     };
     let tolerance = (0.2 / scale).max(0.05);
     if let Some(color) = v.fill {
@@ -168,12 +179,12 @@ fn tessellate_into(v: &SampledVector, scale: f32, builder: &mut budget::BoundedG
             });
         let result = FillTessellator::new()
             .tessellate_path(
-                &make_path(true),
+                &make_path(true)?,
                 &options,
                 builder,
             );
         builder.check()?;
-        result.map_err(|e| format!("vector fill: {e:?}"))?;
+        result.map_err(|cause| VectorGeometryError::Tessellation { phase: "fill", cause })?;
     }
     if let Some((color, width, cap, join, miter)) = v.stroke.filter(|s| s.1 > 0.) {
         let color = paint(color);
@@ -196,12 +207,12 @@ fn tessellate_into(v: &SampledVector, scale: f32, builder: &mut budget::BoundedG
             .with_miter_limit(miter);
         let result = StrokeTessellator::new()
             .tessellate_path(
-                &make_path(false),
+                &make_path(false)?,
                 &options,
                 builder,
             );
         builder.check()?;
-        result.map_err(|e| format!("vector stroke: {e:?}"))?;
+        result.map_err(|cause| VectorGeometryError::Tessellation { phase: "stroke", cause })?;
     }
-    builder.check()
+    builder.check().map_err(VectorGeometryError::from)
 }
