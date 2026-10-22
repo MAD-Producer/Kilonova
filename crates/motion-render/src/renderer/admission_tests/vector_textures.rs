@@ -8,7 +8,10 @@ fn vector(grouped: bool, size: f32) -> VectorContent {
     if grouped {
         vector = VectorGroup::wrap(vector, [size; 2]);
         let VectorSource::Group { group } = &mut vector.source else { unreachable!() };
-        group.transform.opacity.value = 50.;
+        // Align half opacity to the actual RGBA8 alpha value. Exactly0.5 is
+        // between127/255 and128/255; two sRGB round trips can then put straight
+        // green at254 on software Vulkan. Keep every pixel assertion exact.
+        group.transform.opacity.value = 100. * (128. / 255.);
     }
     vector
 }

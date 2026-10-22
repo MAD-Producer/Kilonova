@@ -1332,3 +1332,21 @@ work remain untouched. Logical capacity is not physical driver residency.
 Presenter admission/ownership, shared session/platform pressure, the complete
 bounded preview/export loop and repeated lifecycle acceptance remain pending.
 #60/#61/#67 remain open; this increment does not establish precision or3D readiness.
+
+### Public software-Vulkan fixture follow-up
+
+PR412 head `09f6bb98` failed two native vector cases on the Linux software
+Vulkan runner: green was254 instead of255 after the50-percent group's two
+RGBA8/sRGB round trips. The119-case library result was117 passed,2 failed;
+this is a public acceptance failure, not a passing result or budget failure.
+Raw job119618416521 is retained in `artifacts/pr-queue/pr412-rust-gpu-job.log`.
+
+Fixture source `c03b690b4717fbf3349d12961d0502209215bc67` uses the actual
+8-bit half-alpha value128/255 rather than a value halfway between two alpha
+codes. All existing assertions, including exact green255, alpha, capacities,
+rollback, native identity and release, are unchanged. Product code is unchanged.
+All six native vector cases passed locally on that exact source, with zero
+failures/ignores, in `vector-texture-admission-byte-aligned-native.*`.
+The earlier294 selected results remain evidence on their recorded original
+source; this follow-up does not relabel them as a new294-case run. Public CI
+on the replacement PR head is required before merging.
