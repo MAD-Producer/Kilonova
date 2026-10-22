@@ -3,6 +3,7 @@
 //! shaping and bidirectional layout are not yet supported.
 
 use ab_glyph::{Font, FontArc, PxScale, PxScaleFont, ScaleFont};
+use unicode_segmentation::UnicodeSegmentation;
 // Fits the minimum texture dimension supported by the desktop's downlevel
 // devices. RGBA coverage is bounded to 16 MiB on both CPU and GPU.
 const MAX_ATLAS_DIMENSION: u32 = 2048;
@@ -395,7 +396,8 @@ impl TextAtlas {
         text.chars().map(|c| self.advance(c)).sum()
     }
 
-    /// Truncate to fit `width`, appending an ellipsis when characters are lost.
+    /// Truncate at an extended grapheme boundary to fit `width`, appending an
+    /// ellipsis when characters are lost. This does not add script shaping.
     pub fn ellipsize(&mut self, text: &str, width: f32) -> String {
         let (prefix, ellipsis) = self.fitted_text(text, width);
         let mut result = prefix.to_owned();
@@ -417,12 +419,12 @@ impl TextAtlas {
         }
         let mut end = 0;
         let mut used = 0.0;
-        for (index, character) in text.char_indices() {
-            let advance = self.advance(character);
+        for (index, cluster) in text.grapheme_indices(true) {
+            let advance = cluster.chars().map(|c| self.advance(c)).sum::<f32>();
             if used + advance + ellipsis_width > width {
                 break;
             }
-            end = index + character.len_utf8();
+            end = index + cluster.len();
             used += advance;
         }
         (&text[..end], true)
