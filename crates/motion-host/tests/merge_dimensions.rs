@@ -61,7 +61,7 @@ fn shared_host_reports_policy_applies_command_and_preserves_state_when_rejected(
     let mut session = Session::new(p, directory.path().into(), Arc::new(NoMedia)).unwrap();
     session.frame = 30.25;
     session.sample().unwrap();
-    let before = session.snapshot();
+    let before = session.snapshot().unwrap();
     let capability = &before["capabilities"]["separate_dimensions"]["merge"];
     assert_eq!(capability["supported"], true);
     assert_eq!(capability["command"], "merge_dimensions");
@@ -95,7 +95,7 @@ fn shared_host_reports_policy_applies_command_and_preserves_state_when_rejected(
     session.engine.undo().unwrap();
     session.sample().unwrap();
     assert_eq!(
-        session.snapshot()["timeline_layers"],
+        session.snapshot().unwrap()["timeline_layers"],
         before["timeline_layers"]
     );
     session
@@ -105,13 +105,13 @@ fn shared_host_reports_policy_applies_command_and_preserves_state_when_rejected(
         .unwrap();
     storage::save(directory.path(), session.engine.project()).unwrap();
     let saved = std::fs::read(directory.path().join("project.json")).unwrap();
-    let before = session.snapshot();
+    let before = session.snapshot().unwrap();
     assert!(session
         .apply_commands(r#"{"op":"merge_dimensions","object":1,"property":"position"}"#)
         .unwrap_err()
         .to_string()
         .contains("matching key times"));
-    assert_eq!(session.snapshot(), before);
+    assert_eq!(session.snapshot().unwrap(), before);
     assert_eq!(
         std::fs::read(directory.path().join("project.json")).unwrap(),
         saved
@@ -122,7 +122,7 @@ fn shared_host_reports_policy_applies_command_and_preserves_state_when_rejected(
 fn camera_snapshot_exposes_legacy_presence_and_independent_layer_tracks() {
     let directory = tempfile::tempdir().unwrap();
     let mut session = Session::new(Project::demo(), directory.path().into(), Arc::new(NoMedia)).unwrap();
-    assert_eq!(session.snapshot()["project"]["camera"]["created"], true);
+    assert_eq!(session.snapshot().unwrap()["project"]["camera"]["created"], true);
     let old = session.engine.project().camera.clone();
     let first = session.apply_commands(r#"{"op":"create_camera"}"#).unwrap();
     let a = first["edit_result"]["object"].as_u64().unwrap();

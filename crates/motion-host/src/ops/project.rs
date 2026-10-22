@@ -116,13 +116,13 @@ pub fn template(kind: i32) -> Result<Value> {
 }
 
 pub fn state(id: i64) -> Result<Value> {
-    crate::session::with_session(id, |s| Ok(s.snapshot()))
+    crate::session::with_session(id, |s| s.snapshot())
 }
 
 pub fn save(id: i64) -> Result<Value> {
     crate::session::with_session(id, |s| {
         motion_core::storage::save(&s.root, s.engine.project()).map_err(crate::Error::from)?;
-        Ok(s.snapshot())
+        s.snapshot()
     })
 }
 
@@ -154,7 +154,7 @@ fn new_project_inner(id: i64, text: &str, choice: Option<PreviousProject>) -> Re
         motion_core::storage::save(&destination, engine.project()).map_err(crate::Error::from)?;
         s.replace_project(engine, destination)?;
         pending.commit();
-        Ok(s.snapshot())
+        s.snapshot()
     });
     pending.finish(result)
 }
@@ -186,7 +186,7 @@ pub fn open_project(id: i64, name: &str) -> Result<Value> {
         let engine = motion_core::Engine::new(project).map_err(crate::Error::from)?;
         save_previous(s, None)?;
         s.replace_project(engine, destination)?;
-        Ok(s.snapshot())
+        s.snapshot()
     })
 }
 
@@ -196,7 +196,7 @@ pub fn replace(id: i64, text: &str) -> Result<Value> {
         motion_core::storage::validate_assets(&s.root, &project).map_err(crate::Error::from)?;
         let engine = motion_core::Engine::new(project).map_err(crate::Error::from)?;
         s.replace_project(engine, s.root.clone())?;
-        Ok(s.snapshot())
+        s.snapshot()
     })
 }
 
@@ -213,7 +213,7 @@ pub fn open_directory_with_choice(id: i64, directory: &std::path::Path, choice: 
     crate::session::with_session(id, |s| {
         save_previous(s, Some(choice))?;
         s.replace_project(engine, destination)?;
-        Ok(s.snapshot())
+        s.snapshot()
     })
 }
 
@@ -234,7 +234,7 @@ pub fn import_project_with_choice(id: i64, file: &std::path::Path, choice: Previ
         save_previous(s, Some(choice))?;
         s.replace_project(engine, destination)?;
         pending.commit();
-        Ok(s.snapshot())
+        s.snapshot()
     });
     pending.finish(result)
 }

@@ -53,7 +53,7 @@ impl Session {
         if let Err(error) = self.sample() {
             self.last_error = Some(error.to_string());
         }
-        let mut snapshot = self.snapshot();
+        let mut snapshot = self.snapshot()?;
         if let Some(result) = results.last() {
             snapshot["edit_result"] = serde_json::to_value(result).map_err(crate::Error::from)?;
             snapshot["edit_results"] =
@@ -138,7 +138,7 @@ pub fn drag(
             .apply_batch(commands)
             .map_err(crate::Error::from)?;
         s.sample()?;
-        Ok(s.snapshot())
+        s.snapshot()
     })
 }
 
@@ -192,7 +192,7 @@ pub fn history(id: i64, op: i32) -> Result<Value> {
         if let Err(error) = s.sample() {
             s.last_error = Some(error.to_string());
         }
-        Ok(s.snapshot())
+        s.snapshot()
     })
 }
 

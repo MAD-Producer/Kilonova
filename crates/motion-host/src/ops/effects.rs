@@ -28,7 +28,7 @@ impl Session {
         }
         if v["op"] == "cancel_plugin_gesture" {
             self.close_plugin_editor(false, "host_cancel")?;
-            return Ok(self.snapshot());
+            return self.snapshot();
         }
         let text = |name: &str| v[name].as_str().ok_or_else(|| format!("missing {name}"));
         // Available through the existing desktop/Android JSON bridge. Query
@@ -96,7 +96,7 @@ impl Session {
                     })
                     .map_err(crate::Error::from)?;
                 self.sample()?;
-                return Ok(self.snapshot());
+                return self.snapshot();
             }
             "catalogue" => {
                 return Ok(
@@ -268,7 +268,7 @@ impl Session {
                 }
                 self.engine.apply_batch(cmds).map_err(crate::Error::from)?;
                 self.sample()?;
-                return Ok(self.snapshot());
+                return self.snapshot();
             }
             _ => return Err("unknown plugin operation".into()),
         }
@@ -281,7 +281,7 @@ impl Session {
         }
         self.view_revision += 1;
         self.last_presented_frame = None;
-        Ok(self.snapshot())
+        self.snapshot()
     }
 
     pub(crate) fn close_plugin_editor(&mut self, commit: bool, reason: &str) -> Result<()> {
@@ -366,7 +366,7 @@ impl Session {
                     "page_closed"
                 },
             )?;
-            return Ok(self.snapshot());
+            return self.snapshot();
         }
         if op == "editor_heartbeat" {
             self.editor_activity = Some(std::time::Instant::now());

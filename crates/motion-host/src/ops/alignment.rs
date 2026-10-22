@@ -90,7 +90,7 @@ fn execute(
             s.sample()?;
             let commands = planner(s.engine.project(), &s.scene, &s.effects.registry, s.frame)?;
             if commands.is_empty() {
-                return Ok(s.snapshot());
+                return s.snapshot();
             }
             s.apply_command_batch(commands)
         })();

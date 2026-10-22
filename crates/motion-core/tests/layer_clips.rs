@@ -100,7 +100,7 @@ fn clip_is_left_closed_right_open_at_fractional_frames() {
             scene(e.project(), f).layers.iter().any(|l| l.id == 2),
             active
         );
-        assert_eq!(e.project().timeline_layers(f)[1].active, active);
+        assert_eq!(e.project().timeline_layers(f).unwrap()[1].active, active);
     }
 }
 
@@ -112,7 +112,7 @@ fn signed_spans_preserve_hidden_time_and_local_animation_across_storage_and_hist
     layer.transform.position.upsert(0,[32.,32.,0.],Ease::Linear).unwrap();
     layer.transform.position.upsert(30,[62.,32.,0.],Ease::Linear).unwrap();
     e.apply(Command::Add{layer}).unwrap();assert_eq!(e.project().version,motion_model::CURRENT_PROJECT_VERSION);
-    let before=e.snapshot();let metadata=e.project().timeline_layers(0.);
+    let before=e.snapshot();let metadata=e.project().timeline_layers(0.).unwrap();
     assert_eq!((metadata[0].in_frame,metadata[0].out_frame,metadata[0].offset_frame),(-10,100,-10));
     assert_eq!(e.project().layers[0].transform.position.sample(e.project().layers[0].local_frame(0.)),[42.,32.,0.]);
     assert!(!e.project().layers[0].active(-1.,60));assert!(e.project().layers[0].active(59.5,60));assert!(!e.project().layers[0].active(60.,60));
@@ -242,7 +242,7 @@ fn key_commands_convert_composition_time_and_keep_negative_local_keys() {
         },
     })
     .unwrap();
-    let t = &e.project().timeline_layers(15.0)[1].properties.position;
+    let t = &e.project().timeline_layers(15.0).unwrap()[1].properties.position;
     assert!(t.keys.iter().any(|k| k.frame == 5 && k.local_frame == -15));
     assert!(t.keys.iter().any(|k| k.frame == 10 && k.local_frame == -10 && k.ease == Ease::Hold));
     assert!(t

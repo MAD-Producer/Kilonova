@@ -270,7 +270,7 @@ fn audio_plan_failure_is_distinct_from_silence_and_export_rejects_it() {
     motion_host::session::with_session(id, |session| {
         session.engine = motion_core::Engine::new(Project::new(64, 64, 30, 60).unwrap()).unwrap();
         session.scene = motion_render::Scene::new(session.engine.project());
-        let snapshot = session.snapshot();
+        let snapshot = session.snapshot().unwrap();
         assert_eq!(snapshot["has_audio"], false);
         assert!(snapshot["audio_error"].is_null());
         Ok(())
@@ -284,7 +284,7 @@ fn snapshot_exposes_history_pressure_without_persisting_it_into_the_project() {
     let directory = tempfile::tempdir().unwrap();
     let mut session =
         Session::new(Project::demo(), directory.path().into(), Arc::new(Stub)).unwrap();
-    assert_eq!(session.snapshot()["history"]["evictions"], 0);
+    assert_eq!(session.snapshot().unwrap()["history"]["evictions"], 0);
     for index in 0..130 {
         session
             .engine
@@ -294,7 +294,7 @@ fn snapshot_exposes_history_pressure_without_persisting_it_into_the_project() {
             })
             .unwrap();
     }
-    let snapshot = session.snapshot();
+    let snapshot = session.snapshot().unwrap();
     assert_eq!(snapshot["history"]["evictions"], 2);
     assert_eq!(snapshot["history"]["undoEntries"], 128);
     assert!(snapshot["project"].get("history").is_none());

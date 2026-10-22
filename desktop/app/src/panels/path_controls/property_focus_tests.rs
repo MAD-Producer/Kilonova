@@ -53,7 +53,7 @@ fn fixture() -> Engine {
 
 fn state(engine: &Engine) -> Value {
     serde_json::json!({"root":"fixture","composition":"main","frame":40,
-        "revision":1,"project":engine.project(),"timeline_layers":engine.project().timeline_layers(40.)})
+        "revision":1,"project":engine.project(),"timeline_layers":engine.project().timeline_layers(40.).unwrap()})
 }
 
 fn choose_mask(panels: &mut Panels, state: &Value) {

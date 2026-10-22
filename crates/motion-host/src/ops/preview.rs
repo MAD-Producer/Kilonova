@@ -32,7 +32,7 @@ pub fn seek(id: i64, frame: f64) -> Result<serde_json::Value> {
         if s.frame != frame { s.cancel_pending_exposure()?; }
         s.frame = frame;
         s.sample()?;
-        Ok(s.snapshot())
+        s.snapshot()
     })
 }
 
@@ -53,7 +53,7 @@ pub fn observe(id: i64, enabled: bool, az: f64, el: f64) -> Result<serde_json::V
                 .map_err(crate::Error::from)?;
         }
         s.sample()?;
-        Ok(s.snapshot())
+        s.snapshot()
     })
 }
 
@@ -92,7 +92,7 @@ pub fn navigate(
         }
         s.view_revision += 1;
         s.sample()?;
-        Ok(s.snapshot())
+        s.snapshot()
     })
 }
 
@@ -113,7 +113,7 @@ pub fn view(id: i64, kind: i32) -> Result<serde_json::Value> {
             _ => return Err("invalid observation view".into()),
         };
         s.sample()?;
-        Ok(s.snapshot())
+        s.snapshot()
     })
 }
 

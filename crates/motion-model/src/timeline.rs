@@ -1,4 +1,4 @@
-use crate::{Curve, Ease, Project, Track, Tween};
+use crate::{Curve, Ease, Project, Result, Track, Tween};
 use serde::Serialize;
 
 /// Derived edit data, built only for state responses, never for frame sampling.
@@ -28,17 +28,21 @@ pub struct TimelineAxes {
     pub z: TimelineTrack<f32>,
 }
 impl<T: Tween> Track<T> {
-    pub fn timeline(&self, offset: i32) -> TimelineTrack<T> {
-        TimelineTrack {
-            value: self.static_value(),
+    pub fn timeline(&self, offset: i32) -> Result<TimelineTrack<T>> {
+        Ok(TimelineTrack {
+            value: self.static_value()?,
             separated: self.axes.is_some(),
-            axes: self.axes.as_ref().map(|a| {
-                Box::new(TimelineAxes {
-                    x: a.x.timeline(offset),
-                    y: a.y.timeline(offset),
-                    z: a.z.timeline(offset),
+            axes: self
+                .axes
+                .as_ref()
+                .map(|a| {
+                    Ok::<_, crate::Error>(Box::new(TimelineAxes {
+                        x: a.x.timeline(offset)?,
+                        y: a.y.timeline(offset)?,
+                        z: a.z.timeline(offset)?,
+                    }))
                 })
-            }),
+                .transpose()?,
             keys: self
                 .keys
                 .iter()
@@ -51,18 +55,24 @@ impl<T: Tween> Track<T> {
                     spatial: k.spatial.clone(),
                 })
                 .collect(),
-        }
+        })
     }
 }
 #[derive(Debug, Serialize)]
 pub struct TimelineProperties {
     pub anchor: TimelineTrack<[f32; 2]>,
-    #[serde(skip_serializing_if="Option::is_none")] pub target: Option<TimelineTrack<[f32; 3]>>,
-    #[serde(skip_serializing_if="Option::is_none")] pub roll: Option<TimelineTrack<f32>>,
-    #[serde(skip_serializing_if="Option::is_none")] pub fov: Option<TimelineTrack<f32>>,
-    #[serde(skip_serializing_if="Option::is_none")] pub radius: Option<TimelineTrack<f32>>,
-    #[serde(skip_serializing_if="Option::is_none")] pub azimuth: Option<TimelineTrack<f32>>,
-    #[serde(skip_serializing_if="Option::is_none")] pub elevation: Option<TimelineTrack<f32>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target: Option<TimelineTrack<[f32; 3]>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub roll: Option<TimelineTrack<f32>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fov: Option<TimelineTrack<f32>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub radius: Option<TimelineTrack<f32>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub azimuth: Option<TimelineTrack<f32>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub elevation: Option<TimelineTrack<f32>>,
     pub position: TimelineTrack<[f32; 3]>,
     pub rotation: TimelineTrack<[f32; 3]>,
     pub scale: TimelineTrack<[f32; 3]>,
@@ -74,8 +84,8 @@ pub struct TimelineLayer {
     pub in_frame: i32,
     pub out_frame: i32,
     pub offset_frame: i32,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub subframe_range:Option<crate::ClipRange>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subframe_range: Option<crate::ClipRange>,
     pub active: bool,
     pub three_d: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -84,8 +94,8 @@ pub struct TimelineLayer {
     pub video: Option<TimelineVideo>,
     pub properties: TimelineProperties,
     pub masks: Vec<TimelineMask>,
-    pub blend:crate::compositing::LayerBlend,
-    pub track_matte:Option<crate::compositing::TrackMatte>,
+    pub blend: crate::compositing::LayerBlend,
+    pub track_matte: Option<crate::compositing::TrackMatte>,
 }
 #[derive(Debug, Serialize)]
 pub struct TimelineMask {
@@ -121,13 +131,19 @@ pub struct TimelineVideo {
     pub has_audio: bool,
 }
 impl Project {
-    pub fn timeline_layers(&self, frame: f64) -> Vec<TimelineLayer> {
+    pub fn timeline_layers(&self, frame: f64) -> Result<Vec<TimelineLayer>> {
+        if !frame.is_finite() {
+            return Err(crate::Error::Invalid(format!(
+                "timeline query requires finite time: frame={frame}"
+            )));
+        }
         self.layers
             .iter()
             .map(|l| {
+                let result = (|| {
                 let clip = l.clip(self.frames);
                 let t = &l.transform;
-                TimelineLayer {
+                Ok(TimelineLayer {
                     object: l.id,
                     in_frame: clip.in_frame,
                     out_frame: clip.out_frame,
@@ -152,7 +168,10 @@ impl Project {
                                 .audio_assets
                                 .iter()
                                 .find(|a| a.id == audio.asset)
-                                .map_or(0, |a| a.duration_us),
+                                .ok_or_else(|| crate::Error::Invalid(format!(
+                                    "timeline audio asset missing: object={} asset={} frame={frame}",
+                                    l.id, audio.asset,
+                                )))?.duration_us,
                             volume: audio.volume,
                             muted: audio.muted,
                             spatial_properties: matches!(l.content, crate::Content::Video { .. }),
@@ -165,7 +184,10 @@ impl Project {
                             .video_assets
                             .iter()
                             .find(|a| a.id == video.asset)
-                            .unwrap();
+                            .ok_or_else(|| crate::Error::Invalid(format!(
+                                "timeline video asset missing: object={} asset={} frame={frame}",
+                                l.id, video.asset,
+                            )))?;
                         Some(TimelineVideo {
                             asset: a.id,
                             source_time_us: video.source_time_us(l.local_frame(frame), self.fps),
@@ -179,25 +201,30 @@ impl Project {
                         None
                     },
                     properties: TimelineProperties {
-                        anchor: t.anchor.timeline(clip.offset_frame),
-                        position: l.camera_data().map_or(&t.position, |c| &c.position).timeline(clip.offset_frame),
-                        target: l.camera_data().map(|c| c.target.timeline(clip.offset_frame)),
-                        roll: l.camera_data().map(|c| c.roll.timeline(clip.offset_frame)),
-                        fov: l.camera_data().map(|c| c.fov.timeline(clip.offset_frame)),
-                        radius: l.camera_data().map(|c| c.radius.timeline(clip.offset_frame)),
-                        azimuth: l.camera_data().map(|c| c.azimuth.timeline(clip.offset_frame)),
-                        elevation: l.camera_data().map(|c| c.elevation.timeline(clip.offset_frame)),
-                        rotation: t.rotation.timeline(clip.offset_frame),
-                        scale: t.scale.timeline(clip.offset_frame),
-                        opacity: t.opacity.timeline(clip.offset_frame),
+                        anchor: t.anchor.timeline(clip.offset_frame)?,
+                        position: l.camera_data().map_or(&t.position, |c| &c.position).timeline(clip.offset_frame)?,
+                        target: l.camera_data().map(|c| c.target.timeline(clip.offset_frame)).transpose()?,
+                        roll: l.camera_data().map(|c| c.roll.timeline(clip.offset_frame)).transpose()?,
+                        fov: l.camera_data().map(|c| c.fov.timeline(clip.offset_frame)).transpose()?,
+                        radius: l.camera_data().map(|c| c.radius.timeline(clip.offset_frame)).transpose()?,
+                        azimuth: l.camera_data().map(|c| c.azimuth.timeline(clip.offset_frame)).transpose()?,
+                        elevation: l.camera_data().map(|c| c.elevation.timeline(clip.offset_frame)).transpose()?,
+                        rotation: t.rotation.timeline(clip.offset_frame)?,
+                        scale: t.scale.timeline(clip.offset_frame)?,
+                        opacity: t.opacity.timeline(clip.offset_frame)?,
                     },
-                    masks: l.masks.iter().map(|m| TimelineMask {
-                        id: m.id, opacity: m.opacity.timeline(clip.offset_frame),
-                        feather: m.feather.timeline(clip.offset_frame), expansion: m.expansion.timeline(clip.offset_frame),
-                        nodes: m.path.nodes.iter().map(|n| TimelineMaskNode { id:n.id, geometry:n.geometry.timeline(clip.offset_frame) }).collect(),
-                    }).collect(),
+                    masks: l.masks.iter().map(|m| Ok(TimelineMask {
+                        id: m.id, opacity: m.opacity.timeline(clip.offset_frame)?,
+                        feather: m.feather.timeline(clip.offset_frame)?, expansion: m.expansion.timeline(clip.offset_frame)?,
+                        nodes: m.path.nodes.iter().map(|n| Ok(TimelineMaskNode { id:n.id, geometry:n.geometry.timeline(clip.offset_frame)? })).collect::<Result<_>>()?,
+                    })).collect::<Result<_>>()?,
                     blend:l.blend,track_matte:l.track_matte,
-                }
+                })
+                })();
+                result.map_err(|source| crate::Error::Timeline {
+                    object: l.id,
+                    source: Box::new(source),
+                })
             })
             .collect()
     }

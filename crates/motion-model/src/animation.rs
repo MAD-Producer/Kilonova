@@ -230,10 +230,27 @@ impl<'de, T: Tween + Deserialize<'de>> Deserialize<'de> for Track<T> {
 }
 
 impl<T: Tween> Track<T> {
-    pub fn static_value(&self) -> T {
-        self.axes.as_ref().map_or(self.value, |a| {
-            T::from_components([a.x.value, a.y.value, a.z.value]).unwrap()
-        })
+    /// Project the authoritative static value, rejecting invalid separated storage.
+    pub fn static_value(&self) -> Result<T> {
+        match &self.axes {
+            None => Ok(self.value),
+            Some(a) => {
+                ensure(
+                    self.keys.is_empty(),
+                    "separated tracks cannot contain vector keys",
+                )?;
+                ensure(
+                    a.tracks().iter().all(|t| t.axes.is_none()),
+                    "scalar axis tracks cannot contain separated dimensions",
+                )?;
+                T::from_components([a.x.value, a.y.value, a.z.value]).ok_or_else(|| {
+                    crate::Error::Invalid(format!(
+                        "track static value: separated dimensions require a three-component value type={}",
+                        std::any::type_name::<T>().chars().take(128).collect::<String>(),
+                    ))
+                })
+            },
+        }
     }
     pub fn is_animated(&self) -> bool {
         !self.keys.is_empty()
