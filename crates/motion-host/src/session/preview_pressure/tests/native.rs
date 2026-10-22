@@ -224,7 +224,12 @@ fn exercise(events: &winit::event_loop::EventLoop<()>, exposure: bool) {
     assert_eq!(graphics.renderer.image_dimensions(1), Some((1024, 32)));
     let reduced = front(graphics);
     let center = (16 * 32 + 16) * 4;
-    assert!(reduced[center] > 240 && reduced[center + 1] < 4 && reduced[center + 2] < 4);
+    assert!(
+        reduced[center] > 240 && reduced[center + 1] < 4 && reduced[center + 2] < 4,
+        "exposure={exposure} frame={} center_rgba={:?}",
+        session.frame,
+        &reduced[center..center + 4]
+    );
     assert_eq!(session.engine.snapshot(), original);
     assert_eq!(session.engine.revision(), revision);
     assert!(!session.engine.can_undo());
