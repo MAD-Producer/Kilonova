@@ -1047,3 +1047,100 @@ presenter buffers (foreign worktree overlap), external boundaries, shared
 session/platform pressure, frame peaks, bounded preview/export and repeated
 lifecycle acceptance remain pending. Native effect scratch was already admitted.
 #61/#67 stay open; precision and 3D remain parked.
+
+
+## Thirteenth increment: transactional layer accumulators and input-snapshot context
+
+Accepted product/test source: `758eae7c0b6981c5cb2bc643cbf6734937c12caf`.
+This increment follows the twelfth increment's matte/transfer working textures;
+it does not close #61 or #67.
+
+Both actual layer accumulator targets now share the existing AllocationBudget.
+Replacement reserves both targets before replacing either native owner or its
+dimensions. Refusal at either slot drops staged allocations and retains the old
+pair; the ordinary and retained-local compositing callers preserve the original
+typed rejection with frame, phase, slot, extent and format. Warm reuse needs no
+new capacity. Existing command scopes and cached-binding aliases keep admission
+until the resource's own work retires, including abandoned encoders/commands.
+
+The native test-only control `28ecd74b` reported a 128-byte shortfall for two
+actual 4x4 RGBA8 targets and exited 101. Its original capacity, live-count and
+release assertions remain unchanged. Initial implementation `2fce07b1` passed 101
+library cases and failed the new readback fixture: it copied into a product
+capture texture without COPY_DST. Source `c900273d` uses a padded native test
+readback buffer instead, with every budget/dimension/pixel assertion retained.
+The initial failure and corrected102-library/one-default preliminary runs remain
+separate evidence; duplicate cases are not added to final acceptance.
+
+Input snapshots were already admitted, but allocation refusals lacked frame,
+layer, extent and phase. A separate native control `cee07538` reproduced the
+real 4096-byte refusal with the original typed cause and failed the strict
+context assertion. Snapshot allocation and source-category refusals now retain
+those identifiers and their distinct original rejection scopes; the caller adds
+the sampled frame. No return value, retry, deadline or allocation policy changes
+for snapshots. The earlier `d266cfe9` fixture had no actual snapshot dependency
+and failed lookup before the intended control; it is retained as an invalid
+fixture result, not a demonstrated product defect. Its corrected matte-dependent
+setup retains all assertions.
+
+| Item | Native evidence | Disposition |
+| --- | --- | --- |
+| #61-A83 | Both actual accumulator descriptors contribute 128 bytes and two live allocations, then release exactly | New admission coverage |
+| #61-A84 | Both replacement cut points retain old native identities, dimensions, red/blue pixels and booked capacity; warm reuse and successful resize | New atomic replacement coverage |
+| #61-A85 | Encoding, finished-abandoned and actually submitted work keep both targets until their own retirement despite a later scope | New lifetime coverage |
+| #61-A86 | Actual cached Screen binding still renders red/blue to magenta after accumulator/source owners are removed | New retained-binding coverage |
+| #61-A87 | Ordinary and retained-local refusal retain target pixels and original phases; recovery reproduces gray 43 +/-3 and alpha 255 | New public rendering coverage |
+| #61-A88 | Real resized accumulator refusal request 212 retains bytes, prior pixels, cause, elapsed time; default Info file and Error stderr exactly once, stdout isolated | New default-output observation |
+| #61-A89 | Actual combined and source-category snapshot refusals retain layer 77, extent 32x32, original typed scopes, old native texture and pixels; successful recovery | New error-context observation |
+| #61-A90 | Real snapshot refusal request 213 retains frame 0, layer 77, extent, phase, cause and elapsed time across reply, default Info file/Error stderr, with stdout isolation and recovery pixels | New default-output observation |
+
+Final acceptance on the same frozen source: 103 render-library cases, 18 desktop
+composition/default-output cases, 59 cases across ten selected GPU integration
+suites, and 69 host-library cases: **249 distinct selected cases passed**, with
+zero failures or ignores. Workspace/all-targets check with FFmpeg, excluding
+Android, and the existing panel style consumer guard also passed. These are
+selected local runs, not full workspace tests or public CI. No panels, UI,
+dependencies or assets changed.
+
+Raw logs and exact-source exit receipts are
+`artifacts/pr-queue/accumulator-admission-final-{library,desktop,gpu,host,workspace,styles}.*`.
+Controls and fixture failures are retained separately; the acceptance receipt
+`.tools/issue-closure-review/accumulator-admission-acceptance.json` records hashes,
+sources, counts and exclusions. Logical descriptor capacities do not measure
+driver VRAM. Presenter ownership integration, remaining raw retained/group
+resources, platform pressure queries, full bounded-preview policy and interval
+scratch reuse remain pending. No whole-issue completion or blanket3D readiness
+is claimed.
+
+
+### PR407 native CI followup: expression authoring fixture
+
+Public head `bab73092`, run `39700286732`, Rust/GPU job `119567585980`
+failed the existing nested fractional-frame evaluator integration case.
+The original error reported a real expression budget rejection in leaf frame
+9.2, propagated through child frame 22.5. This identifies a budget refusal;
+the precise runner scheduling/preemption cause remains unproven. It failed
+before matte target allocation and is not a demonstrated matte admission defect.
+
+The fixture directly installed PropertyExpression and entered QuickJS for the
+first time inside the existing whole-frame deadline. It now installs the same
+expression through production Engine/InComposition/SetExpression, which compiles
+before creating its evaluation deadline. The original recorded evaluator,
+fractional frames, result and input-preservation assertions remain unchanged.
+Production runtime code, 20ms expression and 100ms frame allowances, cancellation
+and failure semantics are unchanged. No retry, ignore or deadline extension was
+added. Cold project loading may still encounter the existing wall-clock budget;
+that separate limit is not claimed fixed by this authoring-path fixture.
+
+Combined source `8d73d93e752a03630f4bc92db58c6ea348a34423` differs from accepted product source `758eae7c`
+only in this integration fixture and the completion document. On that source,
+both real-evaluator integration cases and 16 expression/sandbox
+cases passed, with zero failures or ignores. The sandbox selection retains
+interruption, failed-source recovery, deferred compile context and cancellation
+checks. These are additional selected runs; they do not replace the 249-case
+resource admission regression or claim a new full-workspace test pass.
+
+The original public failure, exact-source exit records and hashes are retained
+in `artifacts/pr-queue/pr407-rust-gpu-failed-job.log`,
+`accumulator-admission-ci-{evaluator,expressions}.*`, and
+`.tools/issue-closure-review/combined-evaluator-fixture-acceptance.json`.

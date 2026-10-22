@@ -589,7 +589,10 @@ impl Renderer {
             &self.sampler,
             self.target_format,
             has_accumulator.then_some(size),
-        );
+        ).map_err(|error| RenderError::Context {
+            message: format!("compositing frame={} phase=local_accumulators: {error}", context.frame),
+            cause: Box::new(error),
+        })?;
         if changed {
             self.effect_gpu.state.invalidate();
         }

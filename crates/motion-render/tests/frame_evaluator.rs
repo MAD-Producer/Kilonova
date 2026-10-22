@@ -106,6 +106,16 @@ fn nested_compositions_use_the_real_evaluator_at_fractional_source_frames() {
         }],
     });
     project.validate().unwrap();
+    // Set the expression through the production authoring path before sampling.
+    // It compiles the source before starting evaluation's existing frame budget;
+    // constructing PropertyExpression directly also times cold JS compilation.
+    let expression = project.compositions[1].expressions[0].clone();
+    let mut editor = motion_core::Engine::new(project).unwrap();
+    editor.apply(motion_core::Command::InComposition {
+        composition: "comp-leaf".into(),
+        command: Box::new(motion_core::Command::SetExpression { expression, frame: 0 }),
+    }).unwrap();
+    let project = editor.snapshot();
     let original = project.clone();
     let evaluator = RecordingEvaluator(RefCell::new(vec![]));
     let mut scene = Scene::new(&project);

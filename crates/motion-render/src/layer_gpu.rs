@@ -27,6 +27,7 @@ pub(crate) struct LayerGpu {
     groups: groups::GroupGpu,
     uploads: crate::vector_upload::UploadPool,
     vertex_upload: crate::vector_upload::ReusableBuffer,
+    allocation_budget: crate::AllocationBudget,
 }
 impl LayerGpu {
     pub fn upload_info(&self) -> Result<crate::VectorUploadInfo, RenderError> {
@@ -176,6 +177,7 @@ impl LayerGpu {
             groups: groups::GroupGpu::new(device,image,budget),
             uploads: crate::vector_upload::UploadPool::new(budget.clone()),
             vertex_upload: crate::vector_upload::ReusableBuffer::new(budget.clone()),
+            allocation_budget: budget.clone(),
         })
     }
     pub fn prepare_accumulators(
@@ -185,7 +187,7 @@ impl LayerGpu {
         sampler: &wgpu::Sampler,
         format: wgpu::TextureFormat,
         size: Option<[u32; 2]>,
-    ) -> bool {
+    ) -> Result<bool, RenderError> {
         let changed = self.size != size.unwrap_or([0; 2]);
         match size {
             None => {
@@ -193,16 +195,24 @@ impl LayerGpu {
                 self.size = [0; 2];
             }
             Some(size) if self.size != size => {
-                self.accumulators = (0..2)
-                    .map(|_| {
-                        crate::effect_gpu::texture(device, image, sampler, size[0], size[1], format)
+                // Reserve both replacement targets before retiring the old pair.
+                let next = (0..2)
+                    .map(|slot| {
+                        crate::effect_gpu::admitted_texture(device, image, sampler,
+                            size[0], size[1], format, &self.allocation_budget)
+                            .map_err(|error| RenderError::Context {
+                                message: format!("layer accumulator slot={slot} size={}x{} format={format:?} phase=allocate: {error}",
+                                    size[0], size[1]),
+                                cause: Box::new(error),
+                            })
                     })
-                    .collect();
+                    .collect::<Result<Vec<_>, RenderError>>()?;
+                self.accumulators = next;
                 self.size = size;
             }
             _ => {}
         }
-        changed
+        Ok(changed)
     }
     pub(crate) fn collect_textures(&self, ledger: &mut crate::TextureResourceLedger) {
         use crate::TextureCategory::*;
