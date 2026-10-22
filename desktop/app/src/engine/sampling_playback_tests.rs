@@ -213,7 +213,8 @@ fn paced_sampling_playback_records_native_costs_without_starving_frames() {
             reports.push(
                 serde_json::json!({"mode":name,"warmup":warmup,"frames":records,
                 "wall_us":wall_us,"completed_frames_per_second":60_000_000. / wall_us as f64,
-                "preview":state["preview"],"composition":[640,360],"window":[1280,800]}),
+                "preview":state["preview"],"composition":[640,360],"window":[1280,800],
+                "native":shell.engine.native_wait_snapshot()}),
             );
         }
         std::fs::write(root.join("costs.json"),serde_json::to_vec_pretty(&serde_json::json!({

@@ -51,22 +51,15 @@ fn main_fx(p:vec2<f32>)->vec4<f32> {
     return vec4(c.rgb*fx.params[0].rgb*fx.params[0].a,c.a*fx.params[0].a)*coverage;
 }
 "#;
-pub fn shaders() -> Result<&'static [Arc<motion_effects::shader::CompiledShader>; 2], String> {
-    static SHADERS: OnceLock<Result<[Arc<motion_effects::shader::CompiledShader>; 2], String>> =
+pub fn shaders() -> Result<&'static [Arc<motion_effects::shader::CompiledShader>; 2], crate::RenderError> {
+    static SHADERS: OnceLock<Result<[Arc<motion_effects::shader::CompiledShader>; 2], Arc<crate::RenderError>>> =
         OnceLock::new();
-    SHADERS
-        .get_or_init(|| {
-            Ok([
-                Arc::new(
-                    motion_effects::shader::compile(GAUSSIAN, "main_fx").map_err(|e| e.to_string())?,
-                ),
-                Arc::new(
-                    motion_effects::shader::compile(COMBINE, "main_fx").map_err(|e| e.to_string())?,
-                ),
-            ])
-        })
-        .as_ref()
-        .map_err(Clone::clone)
+    crate::compositing_plan::cached_program(&SHADERS, || {
+        Ok([
+            Arc::new(motion_effects::shader::compile(GAUSSIAN, "main_fx")?),
+            Arc::new(motion_effects::shader::compile(COMBINE, "main_fx")?),
+        ])
+    })
 }
 #[derive(Clone, Debug)]
 pub struct MaskRaster {

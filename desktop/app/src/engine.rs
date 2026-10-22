@@ -29,6 +29,8 @@ mod frame_capture;
 mod movie_freeze;
 mod shutdown;
 #[cfg(test)]
+mod native_test_evidence;
+#[cfg(test)]
 mod fallback_tests;
 #[cfg(test)]
 mod queue_tests;
@@ -699,6 +701,8 @@ impl Engine {
                         *current = Some(flight);
                     }
                     CURRENT_COMMAND.set(Some(flight));
+                    #[cfg(test)]
+                    worker_diagnostics.native_test_phase("dispatch");
                     if operation != "present" {
                         log::info!("start #{} {}", request, operation);
                         crate::logging::flush();
@@ -727,6 +731,8 @@ impl Engine {
                     worker_diagnostics.record(request,"worker",operation,queued.elapsed(),Some(began.duration_since(queued)),Some(began.elapsed()),context);
                     *worker_flight.lock().unwrap_or_else(|e| e.into_inner()) = None;
                     CURRENT_COMMAND.set(None);
+                    #[cfg(test)]
+                    worker_diagnostics.native_test_phase("idle");
                     if operation != "present" || began.elapsed() >= Duration::from_millis(100) {
                         log::debug!("done #{} {} {}ms", request, operation, began.elapsed().as_millis());
                     }
@@ -1536,12 +1542,20 @@ fn handle(
             s.apply_commands(&text)
         })),
         Command::CaptureUi { ui, path, reply } => respond(reply,motion_host::session::with_session(id, |s| {
+            #[cfg(test)]
+            diagnostics.native_test_phase("capture.target");
             let g = s.graphics.as_ref().ok_or("desktop surface is not attached")?;
             let (width,height)=if ui.window==0{(g.config.width,g.config.height)}else{let window=windows.get(&ui.window).ok_or("floating screenshot window closed")?;(window.config.width,window.config.height)};
             let target = g.renderer.capture_target(width, height).map_err(|e| e.to_string())?;
+            #[cfg(test)]
+            diagnostics.native_test_phase("capture.painter");
             let mut chrome = motion_ui::Painter::new(&g.renderer.device, wgpu::TextureFormat::Rgba8UnormSrgb);
             let upload = ui.atlas.ok_or("screenshot requires the complete glyph atlas")?;
+            #[cfg(test)]
+            diagnostics.native_test_phase("capture.atlas");
             chrome.upload_atlas(&g.renderer.device, &g.renderer.queue, &upload.pixels, upload.width, upload.height);
+            #[cfg(test)]
+            diagnostics.native_test_phase("capture.presenter");
             let presenter = motion_render::Presenter::new_admitted(&g.renderer, &g.scratch.view, wgpu::TextureFormat::Rgba8UnormSrgb);
             let mut encoder = g.renderer.allocation_command_encoder(&Default::default()).map_err(|e|e.to_string())?;
             if let Some([x,y,w,h])=ui.composition {
@@ -1550,13 +1564,24 @@ fn handle(
                 presenter.encode_view(&g.renderer.queue, &mut encoder, &target.view, None,
                     if ui.composition_image.is_some() { [x,y,w,h] } else { [x+(w-vw)*0.5,y+(h-vh)*0.5,vw,vh] }, ui.composition_image, s.scene.background);
             } else {clear_target(&mut encoder,&target.view);}
+            #[cfg(test)]
+            diagnostics.native_test_phase("capture.paint");
             chrome.render_scaled(&g.renderer.device,&g.renderer.queue,&mut encoder,&target.view,&ui.paint,ui.logical_size,[width as f32/ui.logical_size[0],height as f32/ui.logical_size[1]]).map_err(|e|format!("capture_ui window={}: {e}",ui.window))?;
+            #[cfg(test)]
+            diagnostics.native_test_phase("capture.node");
+
             if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview) {preview.encode(&mut encoder,&target.view,viewport,wgpu::TextureFormat::Rgba8UnormSrgb)?;}
+            #[cfg(test)]
+            diagnostics.native_test_phase("capture.submit");
             g.renderer.submit_allocated(encoder.finish(), |ledger| {
                 ledger.merge(target.texture_resource_ledger());
                 g.scratch.collect_texture_resources(ledger);
             }).map_err(|e|e.to_string())?;
+            #[cfg(test)]
+            diagnostics.native_test_phase("capture.readback");
             let pixels = g.renderer.read_target(&target).map_err(|e| e.to_string())?;
+            #[cfg(test)]
+            diagnostics.native_test_phase("capture.save");
             image::save_buffer(&path, &pixels, width, height, image::ColorType::Rgba8).map_err(|e| e.to_string())?;
             Ok(serde_json::json!({"path":path,"width":width,"height":height}))
         })),
@@ -1587,6 +1612,8 @@ fn handle(
             s.snapshot()
         })),
         Command::Present { ui, reply } => {let result=motion_host::session::with_session(id, |s| {
+            #[cfg(test)]
+            diagnostics.native_test_phase("present.prepare");
             let began = std::time::Instant::now();
             let painter=painter.as_mut().ok_or("desktop surface is not attached")?;
             let floating=if ui.window==0 {None}else{Some(windows.get_mut(&ui.window).ok_or("floating window is closed")?)};
@@ -1596,6 +1623,8 @@ fn handle(
             }
             let result=(|| -> motion_host::Result<bool> {
                 let g=s.graphics.as_ref().ok_or("desktop surface is not attached")?;
+                #[cfg(test)]
+                diagnostics.native_test_phase("present.atlas");
                 if let Some(upload)=&ui.atlas {painter.upload_atlas(&g.renderer.device,&g.renderer.queue,&upload.pixels,upload.width,upload.height);}
                 if let Some(viewport)=ui.composition {
                     let frame=s.frame; // Shared clock, never a stale UI frame.
@@ -1608,12 +1637,21 @@ fn handle(
                     let mut paint_error=None;
                     let mut node_error=None;
                     let overlay=|r:&motion_render::Renderer,encoder:&mut wgpu::CommandEncoder,target:&wgpu::TextureView|{
+                        #[cfg(test)]
+                        diagnostics.native_test_phase("present.overlay.paint");
                         if let Err(error)=painter.render_scaled(&r.device,&r.queue,encoder,target,&ui.paint,ui.logical_size,pixel_ratio) {
                             paint_error=Some(error);
                             return;
                         }
+                        #[cfg(test)]
+                        diagnostics.native_test_phase("present.overlay.node");
                         if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){node_error=preview.encode(encoder,target,viewport,surface_format).err();}
+                        #[cfg(test)]
+                        diagnostics.native_test_phase("present.host_after_overlay");
                     };
+                    #[cfg(test)]
+                    diagnostics.native_test_phase("present.host_render");
+
                     let result=if reuse {
                         presentation.composition_reuses+=1;
                         s.present_retained_with_view(viewport,ui.composition_image,overlay)
@@ -1621,6 +1659,8 @@ fn handle(
                         presentation.composition_renders+=1;
                         s.render_with_view(frame,Some(viewport),ui.composition_image,overlay)
                     };
+                    #[cfg(test)]
+                    diagnostics.native_test_phase("present.result");
                     // The host overlay returns (); retain native failures until
                     // after presentation and preserve an earlier host failure.
                     let result=match (result,node_error) {
@@ -1639,6 +1679,8 @@ fn handle(
                     {Some(stamp)}else{None};
                     result
                 }else{
+                    #[cfg(test)]
+                    diagnostics.native_test_phase("present.surface");
                     let output=match g.surface.get_current_texture(){
                         wgpu::CurrentSurfaceTexture::Success(output)|wgpu::CurrentSurfaceTexture::Suboptimal(output)=>{PRESENT_SURFACE_FAILURES.success();output},
                         error @ (wgpu::CurrentSurfaceTexture::Lost|wgpu::CurrentSurfaceTexture::Outdated)=>{
@@ -1656,7 +1698,12 @@ fn handle(
                     clear_target(&mut encoder,&view);
                     painter.render_scaled(&g.renderer.device,&g.renderer.queue,&mut encoder,&view,&ui.paint,ui.logical_size,[g.config.width as f32/ui.logical_size[0],g.config.height as f32/ui.logical_size[1]]).map_err(|e|format!("present window={}: {e}",ui.window))?;
                     if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){preview.encode(&mut encoder,&view,viewport,g.config.format)?;}
-                    g.renderer.submit_allocated(encoder.finish(),|_|{})?;g.renderer.queue.present(output);Ok(true)
+                    #[cfg(test)]
+                    diagnostics.native_test_phase("present.submit");
+                    g.renderer.submit_allocated(encoder.finish(),|_|{})?;
+                    #[cfg(test)]
+                    diagnostics.native_test_phase("present.commit");
+                    g.renderer.queue.present(output);Ok(true)
                 }
             })();
             if let (Some(w),Some(g))=(floating.as_mut(),s.graphics.as_mut()) {

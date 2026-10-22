@@ -53,6 +53,7 @@ impl CompositingGpu {
         budget: &crate::AllocationBudget,
         allocation_uploads: std::sync::Arc<crate::allocation_uploads::AllocationUploads>,
     ) -> Result<Self, RenderError> {
+        let compiled = crate::compositing_plan::shader()?;
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("layer and matte plane"),
             source: wgpu::ShaderSource::Wgsl(crate::plane_coverage::shader(crate::plane_sampling::MATTE, true).into()),
@@ -157,7 +158,6 @@ impl CompositingGpu {
             label: Some("layer transfer inputs"),
             entries: &entries,
         });
-        let compiled = crate::compositing_plan::shader().expect("checked layer transfer shader");
         let blend_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("layer transfer"),
             source: wgpu::ShaderSource::Wgsl(compiled.wgsl.clone().into()),

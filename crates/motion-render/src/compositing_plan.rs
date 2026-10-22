@@ -1,5 +1,17 @@
 //! Shared separable transfer shader used by native preview and GLES output.
+use crate::RenderError;
 use std::sync::{Arc, OnceLock};
+
+/// Cache immutable host programs without cloning or flattening their failures.
+pub(crate) fn cached_program<T>(
+    cache: &OnceLock<Result<T, Arc<RenderError>>>,
+    compile: impl FnOnce() -> motion_effects::Result<T>,
+) -> Result<&T, RenderError> {
+    cache
+        .get_or_init(|| compile().map_err(|cause| Arc::new(RenderError::Effects(cause))))
+        .as_ref()
+        .map_err(|cause| RenderError::Shared(cause.clone()))
+}
 pub const BLEND: &str = r#"
 fn transfer(b:vec3<f32>,s:vec3<f32>,mode:u32)->vec3<f32> {
     if mode==1u{return min(b+s,vec3(1.0));}
@@ -32,35 +44,27 @@ fn main_fx(p:vec2<f32>)->vec4<f32> {
     return vec4(color,alpha);
 }
 "#;
-pub fn shader() -> Result<&'static Arc<motion_effects::shader::CompiledShader>, String> {
-    static SHADER: OnceLock<Result<Arc<motion_effects::shader::CompiledShader>, String>> =
+pub fn shader() -> Result<&'static Arc<motion_effects::shader::CompiledShader>, RenderError> {
+    static SHADER: OnceLock<Result<Arc<motion_effects::shader::CompiledShader>, Arc<RenderError>>> =
         OnceLock::new();
-    SHADER
-        .get_or_init(|| {
-            motion_effects::shader::compile(BLEND, "main_fx")
-                .map(Arc::new)
-                .map_err(|e| e.to_string())
-        })
-        .as_ref()
-        .map_err(Clone::clone)
+    cached_program(&SHADER, || motion_effects::shader::compile(BLEND, "main_fx").map(Arc::new))
 }
-pub fn plane_programs() -> Result<&'static Vec<motion_effects::shader::GlslShader>, String> {
-    static PROGRAMS: OnceLock<Result<Vec<motion_effects::shader::GlslShader>, String>> =
+pub fn plane_programs() -> Result<&'static Vec<motion_effects::shader::GlslShader>, RenderError> {
+    static PROGRAMS: OnceLock<Result<Vec<motion_effects::shader::GlslShader>, Arc<RenderError>>> =
         OnceLock::new();
-    PROGRAMS
-        .get_or_init(|| {
-            ["fragment_main", "alpha_matte", "luma_matte"]
-                .into_iter()
-                .map(|entry| {
-                    motion_effects::shader::compile_host_program(
-                        &crate::plane_coverage::shader(crate::plane_sampling::MATTE, false),
-                        "vertex_main",
-                        entry,
-                    )
-                    .map_err(|e| e.to_string())
-                })
-                .collect()
-        })
-        .as_ref()
-        .map_err(Clone::clone)
+    cached_program(&PROGRAMS, || {
+        ["fragment_main", "alpha_matte", "luma_matte"]
+            .into_iter()
+            .map(|entry| {
+                motion_effects::shader::compile_host_program(
+                    &crate::plane_coverage::shader(crate::plane_sampling::MATTE, false),
+                    "vertex_main",
+                    entry,
+                )
+            })
+            .collect()
+    })
 }
+
+#[cfg(test)]
+mod error_tests;

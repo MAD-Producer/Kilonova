@@ -115,7 +115,10 @@ impl MaskGpu {
             immediate_size: 0,
         });
         let filters = mask_plan::shaders()
-            .map_err(RenderError::Invalid)?
+            .map_err(|error| {
+                let message = error.to_string();
+                error.with_diagnostic(message)
+            })?
             .iter()
             .map(|shader| {
                 let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
