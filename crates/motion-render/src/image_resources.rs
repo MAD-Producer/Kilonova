@@ -16,7 +16,8 @@ use std::{
 };
 
 pub const MAX_ENCODED_BYTES: u64 = 64 * 1024 * 1024;
-pub const MAX_DECODED_BYTES: u64 = 128 * 1024 * 1024;
+/// Safe default for standalone callers; Session paths use their explicit policy.
+pub const MAX_DECODED_BYTES: u64 = crate::resource_policy::DEFAULT_DECODED_IMAGE_BUDGET;
 pub const MAX_PREVIEW_EDGE: u32 = 2048;
 pub const IDLE_TEXTURE_BYTES: u64 = 32 * 1024 * 1024;
 pub const PREFETCH_SECONDS: f64 = 0.5;
@@ -227,20 +228,55 @@ pub struct Pixels {
 }
 
 pub fn decode(source: &Source, resolution: Resolution) -> Result<Pixels, Error> {
-    decode_cancellable(source, resolution, None)
+    decode_with_budget(source, resolution, MAX_DECODED_BYTES)
+}
+pub fn decode_with_budget(source: &Source, resolution: Resolution, budget: u64) -> Result<Pixels, Error> {
+    decode_cancellable(source, resolution, budget, None)
+}
+
+/// Validate the logical RGBA8 result capacity, independently of codec workspace.
+pub fn decoded_image_bytes(width: u32, height: u32, budget: u64) -> Result<u64, Error> {
+    if width == 0 || height == 0 {
+        return Err("image dimensions must be positive".into());
+    }
+    let cost = u64::from(width).checked_mul(u64::from(height))
+        .and_then(|cost| cost.checked_mul(4))
+        .ok_or_else(|| Error::from("image pixel capacity overflow"))?;
+    check_decode_budget("output", cost, budget)?;
+    Ok(cost)
+}
+
+fn validate_decode_budget(budget: u64) -> Result<(), Error> {
+    if !(4..=crate::resource_policy::MAX_DECODED_IMAGE_BUDGET).contains(&budget) {
+        return Err("decoded image budget must be 4 bytes..2 GiB".into());
+    }
+    Ok(())
+}
+fn check_decode_budget(phase: &'static str, required: u64, budget: u64) -> Result<(), Error> {
+    validate_decode_budget(budget)?;
+    if required > budget {
+        return Err(Error::Budget {
+            rejection: crate::ResourceRejection::Budget {
+                scope: crate::ResourceBudgetScope::DecodedImages,
+                required_bytes: required,
+                budget_bytes: budget,
+            },
+            message: format!("CPU image pixels exceed configured decoded image budget phase={phase} required_bytes={required} budget_bytes={budget}"),
+        });
+    }
+    Ok(())
 }
 fn decode_cancellable(
     source: &Source,
     resolution: Resolution,
+    budget: u64,
     cancel: Option<&AtomicBool>,
 ) -> Result<Pixels, Error> {
     check_cancel(cancel)?;
-    let (w, h) = resolution.dimensions(source.width, source.height);
-    let cost = u64::from(w) * u64::from(h) * 4;
-    if cost > MAX_DECODED_BYTES {
-        return Err("decoded image exceeds 128 MiB".into());
-    }
+    validate_decode_budget(budget)?;
     source.validate()?;
+    let (w, h) = resolution.dimensions(source.width, source.height);
+    let cost = decoded_image_bytes(w, h, budget)?;
     let cache = if matches!(resolution, Resolution::Preview(_))
         && (w, h) != (source.width, source.height)
     {
@@ -259,13 +295,17 @@ fn decode_cancellable(
         }
     }
     check_cancel(cancel)?;
+    let length = usize::try_from(cost).map_err(|_| Error::from("image output exceeds addressable length"))?;
+    let mut rgba = Vec::new();
+    rgba.try_reserve_exact(length)?;
+    rgba.resize(length, 0);
     let mut pixels = Pixels {
         width: w,
         height: h,
-        rgba: vec![0; cost as usize],
+        rgba,
         cached: false,
     };
-    decode_into_cancellable(source, resolution, &mut pixels.rgba, cancel)?;
+    decode_into_cancellable(source, resolution, &mut pixels.rgba, budget, cancel)?;
     check_cancel(cancel)?;
     if let Some(path) = &cache {
         write_proxy(path, &pixels);
@@ -493,32 +533,40 @@ pub fn decode_into(
     resolution: Resolution,
     output: &mut [u8],
 ) -> Result<(), Error> {
-    decode_into_cancellable(source, resolution, output, None)
+    decode_into_with_budget(source, resolution, output, MAX_DECODED_BYTES)
+}
+pub fn decode_into_with_budget(
+    source: &Source,
+    resolution: Resolution,
+    output: &mut [u8],
+    budget: u64,
+) -> Result<(), Error> {
+    decode_into_cancellable(source, resolution, output, budget, None)
 }
 fn decode_into_cancellable(
     source: &Source,
     resolution: Resolution,
     output: &mut [u8],
+    budget: u64,
     cancel: Option<&AtomicBool>,
 ) -> Result<(), Error> {
     check_cancel(cancel)?;
     let format = source.validate()?;
     let (w, h) = resolution.dimensions(source.width, source.height);
     let cost = u64::from(w) * u64::from(h) * 4;
-    if cost > MAX_DECODED_BYTES || output.len() as u64 != cost {
-        return Err("invalid image output length or 128 MiB budget exceeded".into());
+    if output.len() as u64 != cost {
+        return Err("invalid image output length".into());
     }
+    check_decode_budget("output", cost, budget)?;
     if format == image::ImageFormat::Png {
         return png_into(source, w, h, output, cancel);
     }
     // Existing JPEG resources remain supported. Its decoder needs a full image,
     // so validate that cost before allocating even when requesting a proxy.
-    if u64::from(source.width) * u64::from(source.height) * 4 > MAX_DECODED_BYTES {
-        return Err("non-PNG source decode exceeds 128 MiB".into());
-    }
+    check_decode_budget("non_png_source", u64::from(source.width) * u64::from(source.height) * 4, budget)?;
     let mut reader = image::ImageReader::open(&source.path)?.with_guessed_format()?;
     let mut limits = image::Limits::default();
-    limits.max_alloc = Some(MAX_DECODED_BYTES);
+    limits.max_alloc = Some(budget);
     reader.limits(limits);
     let image = reader.decode()?;
     check_cancel(cancel)?;
@@ -757,6 +805,7 @@ pub struct DecodeTask {
     pending: Option<(
         Source,
         Resolution,
+        u64,
         bool,
         Arc<AtomicBool>,
         Receiver<Result<Pixels, Error>>,
@@ -767,14 +816,20 @@ impl DecodeTask {
         self.pending.is_some()
     }
     pub fn cancel_unwanted(&mut self, wanted: &BTreeSet<u64>, resolution: Resolution) {
-        if let Some((source, mode, _, cancel, _)) = &self.pending {
-            if *mode != resolution || !wanted.contains(&source.id) {
+        self.cancel_unwanted_inner(wanted, resolution, None);
+    }
+    pub fn cancel_unwanted_with_budget(&mut self, wanted: &BTreeSet<u64>, resolution: Resolution, budget: u64) {
+        self.cancel_unwanted_inner(wanted, resolution, Some(budget));
+    }
+    fn cancel_unwanted_inner(&mut self, wanted: &BTreeSet<u64>, resolution: Resolution, budget: Option<u64>) {
+        if let Some((source, mode, pending_budget, _, cancel, _)) = &self.pending {
+            if *mode != resolution || !wanted.contains(&source.id) || budget.is_some_and(|budget| budget != *pending_budget) {
                 cancel.store(true, Ordering::Relaxed);
             }
         }
     }
     pub fn cancel(&mut self) {
-        if let Some((_, _, _, cancel, _)) = &self.pending {
+        if let Some((_, _, _, _, cancel, _)) = &self.pending {
             cancel.store(true, Ordering::Relaxed);
         }
     }
@@ -784,6 +839,16 @@ impl DecodeTask {
         resolution: Resolution,
         speculative: bool,
     ) -> Result<(), Error> {
+        self.start_with_budget(source, resolution, speculative, MAX_DECODED_BYTES)
+    }
+    pub fn start_with_budget(
+        &mut self,
+        source: Source,
+        resolution: Resolution,
+        speculative: bool,
+        budget: u64,
+    ) -> Result<(), Error> {
+        validate_decode_budget(budget)?;
         if self.busy() {
             return Err("an image decode is already pending".into());
         }
@@ -794,8 +859,10 @@ impl DecodeTask {
         std::thread::Builder::new()
             .name("motion-image-decode".into())
             .spawn(move || {
+                let began = std::time::Instant::now();
+                log::info!("start image decode source_id={} resolution={:?} decoded_budget_bytes={} speculative={}", input.id, resolution, budget, speculative);
                 let result = std::panic::catch_unwind(|| {
-                    decode_cancellable(&input, resolution, Some(&worker_cancel))
+                    decode_cancellable(&input, resolution, budget, Some(&worker_cancel))
                 })
                 .unwrap_or_else(|payload| {
                     let reason = payload.downcast_ref::<String>().map(String::as_str)
@@ -803,19 +870,20 @@ impl DecodeTask {
                         .unwrap_or("unknown native error");
                     Err(Error::WorkerPanic(reason.chars().take(2048).collect()))
                 });
+                log::debug!("done image decode source_id={} resolution={:?} elapsed_ms={}", input.id, resolution, began.elapsed().as_millis());
                 let _ = send.send(result);
             })?;
-        self.pending = Some((source, resolution, speculative, cancel, receive));
+        self.pending = Some((source, resolution, budget, speculative, cancel, receive));
         Ok(())
     }
     pub fn poll(&mut self) -> Option<(Source, Resolution, bool, Result<Pixels, Error>)> {
-        let (_, _, _, _, receive) = self.pending.as_ref()?;
+        let (_, _, _, _, _, receive) = self.pending.as_ref()?;
         let result = match receive.try_recv() {
             Ok(result) => result,
             Err(mpsc::TryRecvError::Empty) => return None,
             Err(_) => Err(Error::WorkerDisconnected),
         };
-        let (source, resolution, speculative, cancel, _) = self.pending.take().unwrap();
+        let (source, resolution, _, speculative, cancel, _) = self.pending.take().unwrap();
         Some((
             source,
             resolution,

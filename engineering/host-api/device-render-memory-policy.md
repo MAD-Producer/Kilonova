@@ -6,7 +6,7 @@ budget contract or evidence of a maintained Android build. In particular, the
 independent accumulator 128 MiB limit described below is historical and must not
 be treated as the current GPU allocation policy.
 
-Current source uses MemoryPolicy version 4 and packed plan version 9. See the
+Current source uses MemoryPolicy version 5 and packed plan version 9. See the
 [Session resource budget API](memory-policy.md) for configurable source, scratch,
 preview and shared native-admission allowances; [frame allocation windows](frame-allocation-peaks.md)
 for interval/category statistics; and [native pressure](platform-memory-pressure.md)

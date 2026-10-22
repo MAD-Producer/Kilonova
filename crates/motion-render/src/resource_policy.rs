@@ -1,7 +1,9 @@
 //! Application memory policy, not an adapter memory-capacity query.
 use serde::{Deserialize, Serialize};
 
-pub const MEMORY_POLICY_VERSION: u32 = 4;
+pub const MEMORY_POLICY_VERSION: u32 = 5;
+pub const DEFAULT_DECODED_IMAGE_BUDGET: u64 = 128 * 1024 * 1024;
+pub const MAX_DECODED_IMAGE_BUDGET: u64 = 2 * 1024 * 1024 * 1024;
 pub const DEFAULT_SOURCE_TEXTURE_BUDGET: u64 = 128 * 1024 * 1024;
 pub const MAX_SOURCE_TEXTURE_BUDGET: u64 = 2 * 1024 * 1024 * 1024;
 pub const MAX_SCRATCH_BUDGET: u64 = 384 * 1024 * 1024;
@@ -11,6 +13,9 @@ pub const MAX_PREVIEW_TARGET_BUDGET: u64 = 128 * 1024 * 1024;
 
 fn default_preview_target_budget() -> u64 {
     MAX_PREVIEW_TARGET_BUDGET
+}
+fn default_decoded_image_budget() -> u64 {
+    DEFAULT_DECODED_IMAGE_BUDGET
 }
 
 /// Per-session allocation limits; these are not measured GPU capacity.
@@ -23,6 +28,11 @@ pub struct MemoryPolicy {
     /// This is not a physical VRAM capacity or a per-frame residency measurement.
     pub session_allocation_budget_bytes: u64,
     pub source_texture_budget_bytes: u64,
+    /// Per-image CPU RGBA8 result allowance (and full-source capacity for codecs
+    /// that cannot stream a proxy). Independent of native GPU admission, codec
+    /// workspace and concurrent process memory. Omission selects the safe default.
+    #[serde(default = "default_decoded_image_budget")]
+    pub decoded_image_budget_bytes: u64,
     pub scratch_budget_bytes: u64,
     /// Combined capacity of the retained front and the next candidate.
     /// Older callers that omit this field retain the previous allowance.
@@ -34,6 +44,7 @@ impl Default for MemoryPolicy {
         Self {
             session_allocation_budget_bytes: crate::allocation_budget::DEFAULT_RENDER_ALLOCATION_BUDGET,
             source_texture_budget_bytes: DEFAULT_SOURCE_TEXTURE_BUDGET,
+            decoded_image_budget_bytes: default_decoded_image_budget(),
             scratch_budget_bytes: motion_effects::SCRATCH_BUDGET_FLOOR,
             preview_target_budget_bytes: default_preview_target_budget(),
         }
@@ -41,6 +52,9 @@ impl Default for MemoryPolicy {
 }
 impl MemoryPolicy {
     pub fn validate(self) -> Result<(), String> {
+        if !(4..=MAX_DECODED_IMAGE_BUDGET).contains(&self.decoded_image_budget_bytes) {
+            return Err("decoded image budget must be 4 bytes..2 GiB".into());
+        }
         if !(1..=crate::allocation_budget::MAX_RENDER_ALLOCATION_BUDGET)
             .contains(&self.session_allocation_budget_bytes)
         {

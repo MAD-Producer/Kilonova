@@ -71,6 +71,7 @@ mod tests {
         let policy = MemoryPolicy {
             session_allocation_budget_bytes: 512 << 20,
             source_texture_budget_bytes: 256 << 20,
+            decoded_image_budget_bytes: 192 << 20,
             scratch_budget_bytes: 96 << 20,
             preview_target_budget_bytes: 4 << 20,
         };

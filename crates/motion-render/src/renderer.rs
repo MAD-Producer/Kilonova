@@ -106,6 +106,7 @@ impl RenderError {
         loop {
             match error {
                 Self::Resource { rejection, .. } => return Some(rejection),
+                Self::ImageResource(cause) => return cause.resource_rejection(),
                 Self::Context { cause, .. } | Self::Diagnostic { cause, .. } => error = cause,
                 Self::Shared(cause) => error = cause,
                 Self::CompositionPlan(crate::composition_plan::CompositionPlanError::Encoding(cause)) => error = cause,
@@ -605,9 +606,13 @@ impl Renderer {
         self.effect_gpu.builder.memory_policy()
     }
     pub fn set_memory_policy(&mut self, policy: crate::resource_policy::MemoryPolicy) -> Result<()> {
-        self.effect_gpu
-            .builder
-            .set_memory_policy(policy)
+        let decode_changed = self.memory_policy().decoded_image_budget_bytes != policy.decoded_image_budget_bytes;
+        self.effect_gpu.builder.set_memory_policy(policy)?;
+        if decode_changed {
+            self.image_decode.cancel();
+            self.image_prefetch_failed.clear();
+        }
+        Ok(())
     }
     pub fn set_preview_resource_guard(&mut self, enabled: bool) {
         self.preview_resource_guard = enabled;
@@ -1412,7 +1417,8 @@ impl Renderer {
         resolution: crate::image_resources::Resolution,
         asynchronous: bool,
     ) -> Result<bool> {
-        use crate::image_resources::{decode, scene_assets, Resolution};
+        use crate::image_resources::{decode_with_budget, scene_assets, Resolution};
+        let decode_budget = self.effect_gpu.builder.decoded_image_budget;
         let wanted = scene_assets(scene);
         let mut required = 4u64;
         for id in &wanted {
@@ -1455,7 +1461,7 @@ impl Renderer {
         let allowed = if self.image_cache_enabled && asynchronous && !demand_missing {
             wanted.union(&candidates).copied().collect()
         } else { wanted.clone() };
-        self.image_decode.cancel_unwanted(&allowed, resolution);
+        self.image_decode.cancel_unwanted_with_budget(&allowed, resolution, decode_budget);
         if let Some((source, mode, speculative, result)) = self.image_decode.poll() {
             if mode == resolution && allowed.contains(&source.id) && self.image_sources.get(&source.id) == Some(&source)
                 && !self.images.contains_key(&TextureKey::Static(source.id)) {
@@ -1490,14 +1496,14 @@ impl Renderer {
             let source = self.image_sources[&id].clone();
             if asynchronous {
                 if !self.image_decode.busy() {
-                    self.image_decode.start(source, resolution, false)?;
+                    self.image_decode.start_with_budget(source, resolution, false, decode_budget)?;
                 }
                 IMAGE_PENDING.failure("renderer.prepare_scene_assets", format_args!(
                     "source_id={} prefetch_failed={} decoder_busy={}", id,
                     self.image_prefetch_failed.contains(&id), self.image_decode.busy()));
                 return Ok(false);
             }
-            let pixels = decode(&source, resolution)
+            let pixels = decode_with_budget(&source, resolution, decode_budget)
                 .map_err(|error| {
                     let message = format!("image {id}: {error}");
                     RenderError::from(error).with_diagnostic(message)
@@ -1526,7 +1532,7 @@ impl Renderer {
             if w > self.device.limits().max_texture_dimension_2d || h > self.device.limits().max_texture_dimension_2d
                 || bytes + self.image_idle_bytes() > crate::image_resources::IDLE_TEXTURE_BYTES
                 || self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes + bytes > self.effect_gpu.builder.source_texture_budget { continue; }
-            self.image_decode.start(source.clone(), resolution, true)?;
+            self.image_decode.start_with_budget(source.clone(), resolution, true, self.effect_gpu.builder.decoded_image_budget)?;
             self.image_prefetches += 1;
             break;
         }

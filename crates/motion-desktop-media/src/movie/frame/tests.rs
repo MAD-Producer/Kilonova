@@ -2,6 +2,46 @@ use super::*;
 use motion_core::{render_sampling::Shutter, Command, Ease, Layer};
 
 #[test]
+fn frozen_png_keeps_cpu_decode_allowance_and_preserves_publication_on_refusal() {
+    let root = tempfile::tempdir().unwrap();
+    fs::create_dir(root.path().join("assets")).unwrap();
+    image::save_buffer(root.path().join("assets/image.png"), &[31, 129, 221, 255].repeat(4),
+        4, 1, image::ColorType::Rgba8).unwrap();
+    let mut project = Project::new(32, 24, 30, 2).unwrap();
+    project.assets.push(motion_core::Asset { id: 17, path: "assets/image.png".into(), width: 4, height: 1 });
+    let mut layer = Layer::solid(1, "image", [32., 24.], [16., 12., 0.], [1.; 4]);
+    layer.content = motion_core::Content::Image { asset: 17 };
+    project.layers.push(layer);
+    let mut session = Session::new(project, root.path().into(), crate::platform()).unwrap();
+    let before = session.engine.snapshot();
+    let revision = session.engine.revision();
+    let output = root.path().join("frozen-cpu.png");
+    fs::write(&output, b"previous publication").unwrap();
+    let mut policy = session.effects.memory_policy();
+    policy.decoded_image_budget_bytes = 8;
+    session.configure_memory_policy(policy).unwrap();
+    let control = ExportControl::default();
+    let low = FrameFreezePlan::capture(&session, Some(output.clone()), &control).unwrap();
+    policy.decoded_image_budget_bytes = 16;
+    session.configure_memory_policy(policy).unwrap();
+    let error = low.export(&control).unwrap_err();
+    assert!(error.contains("image 17") && error.contains("decoded image budget")
+        && error.contains("required_bytes=16") && error.contains("budget_bytes=8"), "{error}");
+    assert_eq!(fs::read(&output).unwrap(), b"previous publication");
+    let full = FrameFreezePlan::capture(&session, Some(output.clone()), &control).unwrap();
+    policy.decoded_image_budget_bytes = 8;
+    session.configure_memory_policy(policy).unwrap();
+    let result = full.export(&control).unwrap();
+    assert_eq!((result["width"].as_u64(), result["height"].as_u64()), (Some(32), Some(24)));
+    let actual = image::open(&output).unwrap().into_rgba8();
+    assert_eq!(actual.dimensions(), (32, 24));
+    assert_eq!(actual.get_pixel(16, 12).0, [31, 129, 221, 255]);
+    assert_eq!(session.engine.snapshot(), before);
+    assert_eq!(session.engine.revision(), revision);
+    assert!(!session.engine.can_undo());
+}
+
+#[test]
 fn frozen_png_shares_live_session_admission_and_recovers_at_full_quality() {
     let root = tempfile::tempdir().unwrap();
     let mut project = Project::new(32, 24, 30, 6).unwrap();

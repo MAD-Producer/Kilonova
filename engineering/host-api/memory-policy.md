@@ -18,26 +18,28 @@ in README. Its construction signatures are propagated here, but a manual arm64
 cross check still fails at the adapter's String/typed-error boundaries. This API
 increment does not claim a passing Android build or Android device acceptance.
 
-Query and update responses contain `policyVersion: 4` and `memoryPolicy`.
+Query and update responses contain `policyVersion: 5` and `memoryPolicy`.
 An update supplies the policy object:
 
 ```json
-{"op":"memory_policy","policy":{"sessionAllocationBudgetBytes":536870912,"sourceTextureBudgetBytes":268435456,"scratchBudgetBytes":100663296,"previewTargetBudgetBytes":33554432}}
+{"op":"memory_policy","policy":{"sessionAllocationBudgetBytes":536870912,"sourceTextureBudgetBytes":268435456,"decodedImageBudgetBytes":201326592,"scratchBudgetBytes":100663296,"previewTargetBudgetBytes":33554432}}
 ```
 
 | Field | Accepted range | Default | Accounting scope |
 | --- | --- | --- | --- |
 | `sessionAllocationBudgetBytes` | 1 byte..4 GiB | 512 MiB | Shared logical capacity of enrolled native allocations across session renderers and frozen outputs |
 | `sourceTextureBudgetBytes` | 4 bytes..2 GiB | 128 MiB | Existing source/working-set checks |
+| `decodedImageBudgetBytes` | 4 bytes..2 GiB | 128 MiB | Per-image CPU RGBA8 output; full-source capacity for non-streaming codecs |
 | `scratchBudgetBytes` | 64..384 MiB | 64 MiB | Effect scratch |
 | `previewTargetBudgetBytes` | 8 bytes..128 MiB | 128 MiB | One retained front plus its candidate |
 
 The session, source and scratch fields are required. The existing omission rule
-for `previewTargetBudgetBytes` remains 128 MiB. Unknown fields and out-of-range
+for `previewTargetBudgetBytes` remains 128 MiB. Omitting the optional decoded
+image allowance selects its conservative 128 MiB default. Unknown fields and out-of-range
 values reject the entire update before changing runtime policy. The automatic
 `configure_memory(totalMem, guarded)` entry point keeps its original version-1
 response and scratch selection rules, and preserves explicit session, source and
-preview-target allowances. System RAM is not reported as GPU memory capacity.
+preview-target and decoded-image allowances. System RAM is not reported as GPU memory capacity.
 
 Each Session owns one AllocationBudget. Desktop and Android surface renderers,
 host plugin-editor renderers, PNG capture and frozen movie export receive the
@@ -75,6 +77,7 @@ Its full preview/lifecycle acceptance remains pending; implementation presence
 does not inherit earlier-source passing results.
 
 Frozen PNG and movie outputs capture project, effects, assets and category policy
+including the CPU decoded-image allowance
 at job creation. Their shared native allowance remains live: concurrent preview
 allocations and subsequent session allowance updates still apply. An old frozen
 category policy cannot reset the newer shared limit. A frozen job keeps admission
@@ -120,13 +123,31 @@ retirement endpoints. The lifetime peak on `allocation_budget` does not become a
 frame peak when that separate API is enabled.
 
 File decode, package and device safety limits remain in force. In particular,
-`image_resources::MAX_ENCODED_BYTES` bounds encoded image inputs at 64 MiB and
-`MAX_DECODED_BYTES` bounds decoded/proxy pixel buffers at 128 MiB. The legacy host
-CPU `asset_pixels` path also rejects oversized decoded RGBA. These are separate
-CPU/source-copy boundaries; raising `sourceTextureBudgetBytes` does not raise
-them. They have not been removed, raised or enrolled as native GPU capacity.
-Their remaining policy consistency must be reviewed before declaring all
-scattered limits unified or closing issue #61.
+`image_resources::MAX_ENCODED_BYTES` still bounds encoded image inputs at 64 MiB.
+Session rendering, `asset_pixels`, `asset_pixels_into`, and frozen PNG/movie
+output use `decodedImageBudgetBytes` for CPU RGBA8 results. Standalone `decode`
+and `decode_into`, and the pre-registration `prepare_image` probe, retain the
+128 MiB default because they have no Session policy. Explicit standalone callers
+can use `decode_with_budget` and `decode_into_with_budget`.
+
+The decoded-image allowance is independent of GPU texture admission. Increasing
+`sourceTextureBudgetBytes` does not silently increase CPU allowances. A proxy
+checks its own RGBA8 output capacity before reading the cache; PNG streams the
+source without a full RGBA image, while JPEG also checks full-source capacity.
+Result allocation reserves fallibly. Policy refusals carry the typed
+`decodedImages` scope; invalid metadata, wrong output lengths, file/codec errors,
+cancellation and allocation failures retain their original identity.
+
+Changing the CPU allowance invalidates pending image decodes and speculative
+failure suppression. A stale result is discarded even if decoding completed
+before cancellation; the single task slot stays occupied until it returns.
+Resident GPU images and submitted preview frames are retained. This is a
+per-image result/full-source bound, not a total bound on concurrent outputs,
+codec workspace, proxy sampling rows or process RAM. The legacy `asset_pixels`
+entry point preserves its existing conversion/premultiplication semantics and
+permits a bounded 16-bit codec intermediate independently of the RGBA8 result.
+Implementation and actual acceptance are tracked separately in
+[decoded-image budget validation](../validation/decoded-image-budget.md).
 
 Coverage remains incomplete: Presenter/UI resources, CPU caches, decoder memory,
 swapchain images and driver overhead are not all enrolled. Raw external resource

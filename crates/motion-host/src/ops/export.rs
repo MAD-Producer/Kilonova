@@ -318,14 +318,20 @@ pub fn asset_pixels(id: i64, asset: i64) -> Result<Vec<u8>> {
             .ok_or("asset not found")?;
         let reader = image::ImageReader::open(s.root.join(&a.path)).map_err(crate::Error::from)?;
         let dimensions = reader.into_dimensions().map_err(crate::Error::from)?;
-        if dimensions != (a.width, a.height)
-            || u64::from(a.width) * u64::from(a.height) * 4 > 128 * 1024 * 1024
-        {
-            return Err("invalid asset dimensions or memory budget".into());
+        if dimensions != (a.width, a.height) {
+            return Err("invalid asset dimensions".into());
         }
-        let mut pixels = image::ImageReader::open(s.root.join(&a.path))
-            .map_err(crate::Error::from)?
-            .decode()
+        let budget = s.effects.memory_policy().decoded_image_budget_bytes;
+        motion_render::image_resources::decoded_image_bytes(a.width, a.height, budget)
+            .map_err(|cause| crate::Error::with_context(format!("asset_pixels asset={asset}"), cause))?;
+        // Keep this legacy entry point's original conversion/premultiplication
+        // pixels. A 16-bit intermediate can use twice the RGBA8 result capacity;
+        // neither allowance is a complete codec/process memory measurement.
+        let mut reader = image::ImageReader::open(s.root.join(&a.path)).map_err(crate::Error::from)?;
+        let mut limits = image::Limits::default();
+        limits.max_alloc = Some(budget.saturating_mul(2));
+        reader.limits(limits);
+        let mut pixels = reader.decode()
             .map_err(crate::Error::from)?
             .into_rgba8()
             .into_raw();

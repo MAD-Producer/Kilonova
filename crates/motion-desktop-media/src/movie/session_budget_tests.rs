@@ -2,6 +2,46 @@ use super::*;
 use motion_render::Renderer;
 
 #[test]
+fn frozen_movie_keeps_cpu_decode_allowance_across_live_changes_and_session_close() {
+    let root = tempfile::tempdir().unwrap();
+    fs::create_dir(root.path().join("assets")).unwrap();
+    image::save_buffer(root.path().join("assets/image.png"), &[31, 129, 221, 255].repeat(4),
+        4, 1, image::ColorType::Rgba8).unwrap();
+    let mut project = Project::new(32, 24, 30, 2).unwrap();
+    project.assets.push(motion_core::Asset { id: 17, path: "assets/image.png".into(), width: 4, height: 1 });
+    let mut layer = motion_core::Layer::solid(1, "image", [32., 24.], [16., 12., 0.], [1.; 4]);
+    layer.content = motion_core::Content::Image { asset: 17 };
+    project.layers.push(layer);
+    let mut session = Session::new(project, root.path().into(), crate::platform()).unwrap();
+    let before = session.engine.snapshot();
+    let revision = session.engine.revision();
+    let output = root.path().join("frozen-cpu.mp4");
+    fs::write(&output, b"previous publication").unwrap();
+    let mut policy = session.effects.memory_policy();
+    policy.decoded_image_budget_bytes = 8;
+    session.configure_memory_policy(policy).unwrap();
+    let control = ExportControl::default();
+    let low = FrozenMovie::capture_plan(&session, &control).unwrap().freeze(&control).unwrap();
+    policy.decoded_image_budget_bytes = 16;
+    session.configure_memory_policy(policy).unwrap();
+    let error = low.export(&output, &control, |_| {}).err().unwrap();
+    assert!(error.contains("image 17") && error.contains("decoded image budget")
+        && error.contains("required_bytes=16") && error.contains("budget_bytes=8"), "{error}");
+    assert_eq!(fs::read(&output).unwrap(), b"previous publication");
+    let full = FrozenMovie::capture_plan(&session, &control).unwrap().freeze(&control).unwrap();
+    policy.decoded_image_budget_bytes = 8;
+    session.configure_memory_policy(policy).unwrap();
+    assert_eq!(session.engine.snapshot(), before);
+    assert_eq!(session.engine.revision(), revision);
+    assert!(!session.engine.can_undo());
+    drop(session);
+    let result = full.export(&output, &control, |_| {}).unwrap();
+    assert_eq!((result.width, result.height, result.frames, result.revision), (32, 24, 2, revision));
+    assert!(result.bytes > 0);
+    assert_eq!(fs::metadata(output).unwrap().len(), result.bytes);
+}
+
+#[test]
 fn frozen_movie_shares_live_capacity_and_keeps_admission_after_session_close() {
     let root=tempfile::tempdir().unwrap();
     let mut project=Project::new(32,24,30,2).unwrap();
