@@ -155,6 +155,42 @@ impl Platform for Stub {
 }
 
 #[test]
+fn pressure_metadata_keeps_unattached_state_unknown_and_existing_editor_query_read_only() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path().join("project");
+    std::fs::create_dir(&root).unwrap();
+    let mut session = Session::new(Project::new(32, 24, 30, 60).unwrap(), root, Arc::new(Stub)).unwrap();
+    let before = session.engine.snapshot();
+    let revision = session.engine.revision();
+    let policy = session.effects.memory_policy();
+    let allocation = session.allocation_budget_info().unwrap();
+    let unknown = session.plugin_request(r#"{"op":"memory_pressure"}"#).unwrap();
+    assert_eq!(unknown["memoryPressure"]["reading"]["status"], "unavailable");
+    assert_eq!(unknown["memoryPressure"]["reading"]["reason"], "no_active_renderer");
+    assert!(unknown["memoryPressure"]["reading"].get("pools").is_none());
+    assert!(session.editor_renderer.is_none() && session.graphics.is_none());
+    assert_eq!(session.allocation_budget_info().unwrap(), allocation);
+
+    session.editor_renderer = Some(pollster::block_on(Renderer::headless_with_allocation_budget(
+        session.allocation_budget().clone())).unwrap());
+    let occupied = session.allocation_budget_info().unwrap();
+    let first = session.plugin_request(r#"{"op":"memory_pressure"}"#).unwrap();
+    let renderer = session.editor_renderer.as_ref().unwrap();
+    assert_eq!(first["memoryPressure"]["backend"], format!("{:?}", renderer.adapter_info.backend));
+    for _ in 0..100 {
+        let next = session.plugin_request(r#"{"op":"memory_pressure"}"#).unwrap();
+        assert_eq!(next["memoryPressure"]["backend"], first["memoryPressure"]["backend"]);
+        assert_eq!(next["memoryPressure"]["minimumQueryIntervalMs"], 1000);
+    }
+    assert_eq!(session.allocation_budget_info().unwrap(), occupied);
+    assert_eq!(session.effects.memory_policy(), policy);
+    assert_eq!(session.engine.snapshot(), before);
+    assert_eq!(session.engine.revision(), revision);
+    session.editor_renderer = None;
+    assert_eq!(session.memory_pressure_info().reading, motion_render::MemoryPressureSnapshot::without_renderer().reading);
+}
+
+#[test]
 fn shared_json_policy_is_atomic_runtime_state_and_inherited_by_editor_rendering() {
     let directory = tempfile::tempdir().unwrap();
     let root = directory.path().join("project");

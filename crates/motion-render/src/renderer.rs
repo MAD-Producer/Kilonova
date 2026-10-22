@@ -212,6 +212,7 @@ impl RenderStats {
 }
 
 pub struct Renderer {
+    memory_pressure_probe: crate::memory_pressure::MemoryPressureProbe,
     allocation_budget: crate::AllocationBudget,
     allocation_owner: Arc<()>,
     submission_ledger: crate::submission_ledger::SubmissionLedger,
@@ -491,6 +492,7 @@ impl Renderer {
         let effect_gpu = crate::effect_gpu::EffectGpu::new(&device, &queue, &image_layout,
             allocation_budget.clone(), allocation_uploads.clone())?;
         let mut renderer = Self {
+            memory_pressure_probe: Default::default(),
             allocation_budget,
             allocation_owner: Arc::new(()),
             preview_resource_guard: false,
@@ -568,6 +570,18 @@ impl Renderer {
         Self::new_profiled_with_allocation_budget(&instance, None, TARGET_FORMAT, false, budget).await
     }
     pub fn allocation_budget(&self) -> &crate::AllocationBudget { &self.allocation_budget }
+    /// External resources share this renderer's native owner, live allowance
+    /// and queued-upload retirement ledger, rather than a new independent budget.
+    pub fn allocation_context(&self) -> crate::AllocationContext {
+        crate::AllocationContext::new(self.device.clone(), self.queue.clone(),
+            self.allocation_budget.clone(), self.allocation_uploads.clone(), self.allocation_owner.clone())
+    }
+    /// Explicit read-only probe on this renderer's adapter, cached for one second.
+    /// Unknown means no native budget was obtained; application admission and
+    /// preview/export quality are never changed by this observation.
+    pub fn memory_pressure(&mut self) -> crate::MemoryPressureSnapshot {
+        self.memory_pressure_probe.query(&self.adapter)
+    }
     pub fn allocation_command_encoder(&self, descriptor: &wgpu::CommandEncoderDescriptor<'_>)
         -> Result<crate::AllocationEncoder>
     {

@@ -2178,6 +2178,7 @@ dependencies = [
 name = "motion-render"
 version = "0.1.0"
 dependencies = [
+ "ash",
  "bytemuck",
  "glam",
  "image",
@@ -2187,6 +2188,7 @@ dependencies = [
  "motion-effects",
  "motion-media",
  "motion-model",
+ "objc2-metal 0.3.2",
  "png",
  "pollster",
  "serde",
