@@ -79,7 +79,7 @@ fn command(
     };
     Command::CameraLens {
         object,
-        frame: state["frame"].as_f64().unwrap_or(0.).floor().max(0.) as u32,
+        frame: state["frame"].as_f64().unwrap_or(0.).round().max(0.) as u32,
         film_width_mm: film as f32,
         focal_length_mm: focal as f32,
     }
