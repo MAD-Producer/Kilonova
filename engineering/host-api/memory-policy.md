@@ -69,8 +69,10 @@ An unrendered host placeholder starts at one pixel; the actual requested frame
 is prepared under the existing finite degradation/cooldown policy. Refused
 candidates do not overwrite the submitted front. The preview snapshot reports
 requested/actual quality, rejection reason and whether a previous frame is held.
-Complete integration of the shared admission refusal with every preview retry
-and proxy stage still needs its own acceptance.
+The cumulative implementation combines refusal-only adaptation with the separate
+native-pressure floor, idle-first eviction and existing proxy/target controls.
+Its full preview/lifecycle acceptance remains pending; implementation presence
+does not inherit earlier-source passing results.
 
 Frozen PNG and movie outputs capture project, effects, assets and category policy
 at job creation. Their shared native allowance remains live: concurrent preview
@@ -105,12 +107,39 @@ uniforms and full-resolution floating-point output through the renderer's shared
 and command reservations until retirement. Failed replacement retains the last
 valid graph; restoring the allowance permits an ordinary full-quality install.
 
-File decode, package and device safety limits remain in force. Coverage is
-explicitly incomplete: presenter/UI resources, CPU caches, decoder memory,
-swapchain images and driver overhead are not all enrolled. Logical admission
-across devices still does not measure physical VRAM. Read-only native adapter budget metadata is exposed by the
-[platform pressure API](platform-memory-pressure.md); platform execution limits
-are recorded separately in the validation document. Pressure-driven admission,
-combined frame-peak accounting, the complete bounded preview/proxy loop and
-actual presentation lifecycle acceptance remain pending. The packed render-plan
-version and Android GLES consumer ABI are unchanged by this API increment.
+## Separate limits and current coverage
+
+The shared admission limit and source/scratch/preview allowances describe logical
+native GPU capacity. Adapter budget/usage describes advisory platform pressure;
+neither is an available-memory guarantee and neither is obtained by subtracting
+the other. The [platform pressure API](platform-memory-pressure.md) describes
+separate per-pool comparisons, unknown readings and preview-only transitions.
+The [frame allocation API](frame-allocation-peaks.md) describes current, lifetime
+and simultaneous interval peaks, including fixed resource categories and queue
+retirement endpoints. The lifetime peak on `allocation_budget` does not become a
+frame peak when that separate API is enabled.
+
+File decode, package and device safety limits remain in force. In particular,
+`image_resources::MAX_ENCODED_BYTES` bounds encoded image inputs at 64 MiB and
+`MAX_DECODED_BYTES` bounds decoded/proxy pixel buffers at 128 MiB. The legacy host
+CPU `asset_pixels` path also rejects oversized decoded RGBA. These are separate
+CPU/source-copy boundaries; raising `sourceTextureBudgetBytes` does not raise
+them. They have not been removed, raised or enrolled as native GPU capacity.
+Their remaining policy consistency must be reviewed before declaring all
+scattered limits unified or closing issue #61.
+
+Coverage remains incomplete: Presenter/UI resources, CPU caches, decoder memory,
+swapchain images and driver overhead are not all enrolled. Raw external resource
+and submission paths are outside the admitted-wrapper contract. Category totals
+and completed frame windows do not make `completeCoverage` true. Logical
+admission across devices still does not measure physical VRAM.
+
+Pressure consumption, category/frame peaks and repeated native lifecycle guards
+are implemented in the cumulative candidate, with acceptance tracked in
+`engineering/validation/frame-memory-admission.md`. Their runtime and platform
+limits must be verified on that source before claiming delivery. Earlier base
+and export acceptance is recorded separately in
+`engineering/validation/frame-export-allocation-windows-completed.md`. The packed
+render-plan version and Android GLES consumer ABI are unchanged by these budget
+observation/policy increments. Android remains unmaintained; no Android runtime
+acceptance is implied by retaining historical source signatures.

@@ -115,14 +115,18 @@ user payloads are absent.
 
 ## Validation status
 
-The initial local CPU validation build exhausted E: before tests executed;
-its stale shell exit code is rejected as acceptance. After space recovery,
-the base source `8a2cf966` passed six frame CPU tests, two actual native GPU tests
-and the FFmpeg-backend workspace/all-target check. Its broader matrix is tracked
-separately. These are not test results for this version-2/export extension.
-New export, actual worker/default-channel and source-frame assertions remain
-pending exact-source execution. No Linux/Metal runtime or complete issue
-coverage is claimed by this document.
+The initial local CPU validation build exhausted E: before tests executed; its
+stale shell exit code is rejected as acceptance. Subsequent exact-source base
+`8a2cf966` and export `5efb018f` matrices passed, including actual GPU, controlled
+blocking, application-feature PNG/movie, default output-channel and broad
+regression gates. Commands, counts, existing ignores, immutable logs and source
+boundaries are recorded in
+`engineering/validation/frame-export-allocation-windows-completed.md`.
+
+Those results do not accept the later integrated pressure, category, lifecycle
+or release-scope increments. Their current candidate still requires cumulative
+source-bound execution, tracked in `engineering/validation/frame-memory-admission.md`.
+No new Linux/Metal runtime or complete issue coverage is claimed here.
 ## Resource categories
 
 `AllocationBudget::info().categories` reports current and independent lifetime
