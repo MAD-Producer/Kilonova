@@ -97,6 +97,21 @@ fn exercise(events: &winit::event_loop::EventLoop<()>, exposure: bool) {
     )
     .unwrap();
     session.preview.mode = PreviewMode::High;
+    // At frame zero, the centered shutter intentionally samples before the
+    // clip and includes transparency. Use an interior frame for the unchanged
+    // opaque-color oracle shared by ordinary and exposure previews.
+    session.frame = 1.;
+    if exposure {
+        let shutter = session.engine.project().layers[0]
+            .sampling
+            .motion_blur
+            .unwrap();
+        assert!(shutter
+            .taps(session.frame, false)
+            .unwrap()
+            .iter()
+            .all(|tap| tap.frame >= 0. && tap.frame < 6.));
+    }
     session.sample().unwrap();
     assert_eq!(session.sampling.required(), exposure);
     let original = session.engine.snapshot();
@@ -202,7 +217,7 @@ fn exercise(events: &winit::event_loop::EventLoop<()>, exposure: bool) {
     let deadline = Instant::now() + Duration::from_secs(30);
     loop {
         if session
-            .render_with_view(0., Some([0., 0., 64., 64.]), None, |_, _, _| {})
+            .render_with_view(1., Some([0., 0., 64., 64.]), None, |_, _, _| {})
             .unwrap()
         {
             break;
