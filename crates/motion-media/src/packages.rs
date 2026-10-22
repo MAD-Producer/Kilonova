@@ -50,6 +50,7 @@ struct Task {
 #[derive(Default)]
 pub struct PackageJobs {
     tasks: Mutex<HashMap<String, Arc<Mutex<Task>>>>,
+    workers: crate::workers::Workers,
 }
 impl PackageJobs {
     fn task(&self, id: &str) -> Result<Arc<Mutex<Task>>> {
@@ -120,6 +121,7 @@ impl PackageJobs {
         if id.is_empty() || id.len() > 128 {
             return Err("invalid package request id".into());
         }
+        self.workers.reap()?;
         let mut tasks = self.tasks.lock().map_err(|_| "package registry poisoned")?;
         if tasks.contains_key(id) {
             return Err("media request id already exists".into());
@@ -167,9 +169,7 @@ impl PackageJobs {
         let task_log = crate::task_logging::TaskLog::new(&initial.request_id, &initial.operation);
         let worker_log = task_log.clone();
         let spawn_task = task.clone();
-        let spawned = std::thread::Builder::new()
-            .name("motion-package-export".into())
-            .spawn(move || {
+        let spawned = self.workers.spawn("motion-package-export", task_log.clone(), move || {
                 let _worker = worker;
                 worker_log.start();
                 let mut result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -339,6 +339,8 @@ impl Drop for PackageJobs {
                 task.status.phase = "cancelling".into();
             }
         }
+        drop(recoveries);
+        self.workers.shutdown();
     }
 }
 

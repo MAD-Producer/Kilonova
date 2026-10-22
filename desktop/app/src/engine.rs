@@ -27,6 +27,7 @@ mod failure;
 mod ui_paint;
 mod frame_capture;
 mod movie_freeze;
+mod shutdown;
 #[cfg(test)]
 mod fallback_tests;
 #[cfg(test)]
@@ -751,6 +752,7 @@ impl Engine {
                 }
                 if channel_closed { log::error!("worker channel closed"); }
                 worker_depth.store(0, Ordering::Release);
+                let _cleanup = shutdown::Cleanup::begin(worker_flight.clone(), worker_diagnostics.clone(), id);
                 drop(windows);
                 drop(painter);
                 drop(node_preview);

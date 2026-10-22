@@ -100,6 +100,7 @@ pub struct VideoJobs {
     root: PathBuf,
     audio_decode: crate::DecodeAudio,
     tasks: Mutex<HashMap<String, Arc<Mutex<Task>>>>,
+    workers: crate::workers::Workers,
 }
 fn finish_import(
     task: &Mutex<Task>,
@@ -212,6 +213,7 @@ impl VideoJobs {
             root: root.canonicalize().map_err(crate::Error::from)?,
             audio_decode,
             tasks: Mutex::new(HashMap::new()),
+            workers: Default::default(),
         })
     }
     pub fn contains(&self, id: &str) -> bool {
@@ -324,6 +326,7 @@ impl VideoJobs {
         if options.name.len() > 1024 {
             return Err("video name exceeds limit".into());
         }
+        self.workers.reap()?;
         let (task, worker, initial) = self.reserve(
             &options.request_id,
             if probe_only {
@@ -337,7 +340,7 @@ impl VideoJobs {
         let task_log = crate::task_logging::TaskLog::new(&initial.request_id, &initial.operation);
         let worker_log = task_log.clone();
         let t = task.clone();
-        let spawn=std::thread::Builder::new().name("motion-video-import".into()).spawn(move||{
+        let spawn=self.workers.spawn("motion-video-import",task_log.clone(),move||{
             let _worker=worker;
             worker_log.start();
             let result=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||->Result<Prepared>{
@@ -628,6 +631,8 @@ impl Drop for VideoJobs {
             // Stage cleanup can delete a large tree or call the host logger.
             drop(prepared);
         }
+        drop(recoveries);
+        self.workers.shutdown();
     }
 }
 fn update(task: &Mutex<Task>, phase: &str, progress: impl Into<Option<f64>>) -> Result<()> {
