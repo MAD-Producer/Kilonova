@@ -3,6 +3,9 @@ use motion_ui::{
     Color, Rect,
 };
 
+#[path = "path_antialiasing/width.rs"]
+mod width;
+
 fn capture(
     device: &wgpu::Device,
     queue: &wgpu::Queue,

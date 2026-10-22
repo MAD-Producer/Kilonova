@@ -22,18 +22,28 @@ fn join(before: [f32; 2], after: [f32; 2]) -> [f32; 2] {
     [m[0] * factor, m[1] * factor]
 }
 
+fn finite(vertex: &SolidVertex) -> bool {
+    vertex
+        .position
+        .iter()
+        .chain(vertex.geometry.iter())
+        .chain(vertex.params.iter())
+        .all(|x| x.is_finite())
+}
+
 pub(super) fn append(
     out: &mut Vec<SolidVertex>,
     points: &[[f32; 2]],
     color: [f32; 4],
     scale: [f32; 2],
     clip: Option<Rect>,
+    width: f32,
 ) {
-    if points.len() < 2 {
+    if points.len() < 2 || !width.is_finite() || width <= 0. {
         return;
     }
     let fringe = 1. / scale[0].min(scale[1]).max(0.001);
-    let half = 0.5;
+    let half = width * 0.5;
     let extent = half + fringe;
     let closed = points.len() > 2 && points.first() == points.last();
     for (i, pair) in points.windows(2).enumerate() {
@@ -87,7 +97,11 @@ pub(super) fn append(
             vertex.params = [5., half, length, f32::from(caps)];
             vertex
         });
-        append_quad(out, quad, clip);
+        // Finite API inputs can still overflow while expanding an extreme
+        // segment or miter. Never send non-finite positions/distances to wgpu.
+        if quad.iter().all(finite) {
+            append_quad(out, quad, clip);
+        }
     }
 }
 
@@ -150,6 +164,10 @@ fn append_quad(out: &mut Vec<SolidVertex>, quad: [SolidVertex; 4], clip: Option<
             polygon = next;
             count = written;
         }
+        // Clipping arithmetic can also overflow for extreme finite inputs.
+        if !polygon[..count].iter().all(finite) {
+            continue;
+        }
         for i in 1..count.saturating_sub(1) {
             out.extend_from_slice(&[polygon[0], polygon[i], polygon[i + 1]]);
         }
@@ -159,6 +177,26 @@ fn append_quad(out: &mut Vec<SolidVertex>, quad: [SolidVertex; 4], clip: Option<
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn overflowing_inputs_never_emit_non_finite_vertices() {
+        for width in [0., f32::NAN, f32::INFINITY, 1., f32::MAX] {
+            for points in [
+                vec![[-f32::MAX, 0.], [f32::MAX, 0.]],
+                vec![[0., 0.], [1., 0.], [0., 0.001]],
+            ] {
+                for clip in [None, Some(Rect::new(0., 0., 16., 16.))] {
+                    let mut out = vec![];
+                    append(&mut out, &points, [1.; 4], [1.; 2], clip, width);
+                    assert!(out.iter().all(|v| v
+                        .position
+                        .iter()
+                        .chain(v.geometry.iter())
+                        .chain(v.params.iter())
+                        .all(|x| x.is_finite())));
+                }
+            }
+        }
+    }
     #[test]
     fn short_reversing_and_folded_joins_clip_without_panicking_or_losing_distance_values() {
         let mut seed = 0x1234abcd_u32;
@@ -173,7 +211,7 @@ mod tests {
                 .collect();
             let mut vertices = vec![];
             let clip = Rect::new(0., 0., 5., 5.);
-            append(&mut vertices, &points, [1.; 4], [1.; 2], Some(clip));
+            append(&mut vertices, &points, [1.; 4], [1.; 2], Some(clip), 1.);
             assert!(vertices.len() <= 5 * 30);
             for v in vertices {
                 assert!(v

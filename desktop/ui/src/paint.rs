@@ -29,6 +29,13 @@ pub enum Shape {
         points: Vec<[f32; 2]>,
         clip: Option<Rect>,
     },
+    /// Connected, coverage-antialiased stroke of `width` logical pixels.
+    /// Unlike a one-pixel Line, its width scales with content transforms.
+    Stroke {
+        points: Vec<[f32; 2]>,
+        clip: Option<Rect>,
+        width: f32,
+    },
     /// Precompiled SVG geometry, in independent triangle-list order.
     Triangles { points: Vec<[f32; 2]> },
 }
@@ -160,7 +167,7 @@ impl PaintList {
             .zip(std::mem::take(&mut self.colors))
             .enumerate()
         {
-            if let Shape::Line { clip, .. } = &mut shape {
+            if let Shape::Line { clip, .. } | Shape::Stroke { clip, .. } = &mut shape {
                 let bounds = clip.get_or_insert(area);
                 bounds.min = [
                     bounds.min[0].max(area.min[0]),
@@ -656,31 +663,25 @@ pub fn line(list: &mut PaintList, mut points: Vec<[f32; 2]>, color: Color) {
     }
 }
 
-/// Stroke a polyline at a logical-pixel width without changing other line styles.
-pub fn line_with_width(list: &mut PaintList, points: Vec<[f32; 2]>, color: Color, width: f32) {
-    if points.len() < 2 || !width.is_finite() || width <= 0. || color.0[3] <= 0. {
+/// Stroke a connected polyline at a finite, positive logical-pixel width.
+/// Uses the same antialiasing, bounded miter joins and butt caps as `line`.
+/// Invalid inputs and paths containing only repeated points emit no geometry.
+pub fn line_with_width(list: &mut PaintList, mut points: Vec<[f32; 2]>, color: Color, width: f32) {
+    if points.len() < 2
+        || !width.is_finite()
+        || width <= 0.
+        || color.0[3] <= 0.
+        || color.0.iter().any(|v| !v.is_finite())
+        || points.iter().flatten().any(|v| !v.is_finite())
+    {
         return;
     }
-    let mut triangles = Vec::with_capacity((points.len() - 1) * 6);
-    for pair in points.windows(2) {
-        let [a, b] = [pair[0], pair[1]];
-        let dx = b[0] - a[0];
-        let dy = b[1] - a[1];
-        let length = dx.hypot(dy);
-        if !length.is_finite() || length <= f32::EPSILON {
-            continue;
-        }
-        let nx = -dy / length * width * 0.5;
-        let ny = dx / length * width * 0.5;
-        triangles.extend_from_slice(&expand_quad([
-            [a[0] + nx, a[1] + ny],
-            [b[0] + nx, b[1] + ny],
-            [b[0] - nx, b[1] - ny],
-            [a[0] - nx, a[1] - ny],
-        ]));
-    }
-    if !triangles.is_empty() {
-        list.push_shape(Shape::Triangles { points: triangles }, color);
+    points.dedup_by(|a, b| (a[0] - b[0]).hypot(a[1] - b[1]) <= f32::EPSILON);
+    if points.len() > 1 {
+        list.push_shape(
+            Shape::Stroke { points, clip: None, width },
+            color,
+        );
     }
 }
 
@@ -1179,7 +1180,10 @@ impl Painter {
                     }
                 }
                 Shape::Line { points, clip } => {
-                    strokes::append(&mut solids, points, rgba, scale, *clip);
+                    strokes::append(&mut solids, points, rgba, scale, *clip, 1.);
+                }
+                Shape::Stroke { points, clip, width } => {
+                    strokes::append(&mut solids, points, rgba, scale, *clip, *width);
                 }
                 Shape::Triangles { points } => {
                     solids.extend(
@@ -1411,6 +1415,7 @@ mod tests {
             [1.; 4],
             [1.; 2],
             None,
+            1.,
         );
         assert_eq!(line.len(), 12);
         assert!(line.iter().any(|p| p.position[1] > 10.));
