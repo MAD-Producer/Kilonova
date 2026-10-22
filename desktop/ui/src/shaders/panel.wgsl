@@ -96,7 +96,15 @@ fn solid_fs(v:SolidOutput)->@location(0) vec4<f32> {
         return vec4(v.color.rgb,v.color.a*clamp(0.5-diamond_distance/diamond_aa,0.0,1.0));
     }
     if v.params.x>4.5 {
-        return vec4(v.color.rgb,v.color.a*clamp(0.5-stroke_distance/stroke_aa,0.0,1.0));
+        // Integrate both lateral edges when the stroke is narrower than one
+        // physical pixel; a single distance ramp overweights subpixel lines.
+        // For widths >= stroke_aa the second ramp is zero, retaining the
+        // existing one-pixel coverage and end-cap intersection.
+        let side=abs(v.geometry.x);
+        let lateral=clamp(0.5-(side-v.params.y)/stroke_aa,0.0,1.0)
+            -clamp(0.5-(side+v.params.y)/stroke_aa,0.0,1.0);
+        let coverage=min(lateral,clamp(0.5-stroke_distance/stroke_aa,0.0,1.0));
+        return vec4(v.color.rgb,v.color.a*coverage);
     }
     if v.params.x>3.5 {
         let p=v.logical-(v.extra.xy+v.extra.zw*0.5);

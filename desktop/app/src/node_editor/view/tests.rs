@@ -2,6 +2,25 @@ use super::super::tests::{frame, press, release, simple};
 use super::*;
 use motion_ui::input::Modifiers;
 
+#[test]
+fn content_transform_scales_explicit_strokes_and_preserves_one_pixel_lines() {
+    use motion_ui::paint::{self, Shape};
+    for zoom in [0.25, 1., 2.5] {
+        let mut list = PaintList::default();
+        let points = vec![[2., 3.], [12., 13.]];
+        paint::line(&mut list, points.clone(), motion_ui::Color::grey(255));
+        paint::line_with_width(&mut list, points, motion_ui::Color::grey(255), 3.);
+        list.clip_to(Rect::new(0., 1., 16., 16.));
+        controls::transform_content(&mut list, [20., 30.], zoom);
+        let expected_points = vec![[20. + 2. * zoom, 30. + 3. * zoom], [20. + 12. * zoom, 30. + 13. * zoom]];
+        let expected_clip = Rect::new(20., 30. + zoom, 16. * zoom, 16. * zoom);
+        assert!(matches!(&list.shapes[0], Shape::Line {points, clip: Some(clip)}
+            if *points == expected_points && *clip == expected_clip));
+        assert!(matches!(&list.shapes[1], Shape::Stroke {points, clip: Some(clip), width}
+            if *points == expected_points && *clip == expected_clip && *width == 3. * zoom));
+    }
+}
+
 fn socket(editor: &NodeEditor, node: &str, port: &str, output: bool) -> [f32; 2] {
     editor
         .cards(editor.last_canvas)
