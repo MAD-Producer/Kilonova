@@ -29,3 +29,12 @@
 同一已编译测试另直接运行真实子场景，原始文件日志、stderr、stdout 和 summary.json 保留于 shape-parameter-default-output/：默认 Info，两个故障在文件和 stderr 各两条，stdout 不含日志或错误正文；重复执行只保留输出，不增加独立测试数。原始 panic 日志保留。新增测试 rustfmt、差异空白和暂存后来源守卫通过；生产 vector.rs 未作全文件格式化。当前提交远端 CI 尚待执行，不以编译成功代替故障信道、跨平台或视觉验收。
 
 动画采样的构造不变量、其他矢量内部解包、CPU 文本错误接口、桌面文本协议等仍在 #138 继续跟踪，本增量不关闭合集。没有依赖或第三方资产变化。DESIGN §0.7 十二项全部 retained，逐项理由沿用 host-error-contract.md；未修改对应面板，不新增视觉整改或截图验收声明。
+
+
+## SPE-05：与最新资源预算组合验证
+
+原提交 9705e131 的五项必需 CI 全部成功；其后主线合入 #404，故同步 main 776c1b31 后重新验证组合。首次交错使用共享 target 时，桌面故障回归为 34 通过、1 失败：形状参数子进程执行到了旧工作树中仍使用字典索引的模型代码，而当前源码已有可失败查找。原始 shape-parameter-integration-channels.log 保留；该次结果不作为通过或产品缺陷修复证据。
+
+清理 motion-model 编译缓存后，整个验证流水线串行执行，不再插入其他工作树的 Cargo 命令。组合模型 33、核心矢量 20、真实 GPU 矢量像素 14、渲染单元 92、全部桌面故障信道 35，共 194 项通过，0 失败、0 忽略；带 FFmpeg 的非测试构建通过。六阶段全部 Rust/Cargo 源哈希不变，原始记录为 shape-parameter-integration-serial-results.json、-source-receipt.json 及各阶段日志。没有修改生产代码、旧断言、忽略或期限来通过此轮组合验证。
+
+另用该组合测试二进制实际运行缺失参数场景，保留 shape-parameter-integration-default-output 的文件、stderr、stdout 和收据：默认 Info，原始两项错误在文件和 stderr 各两条，stdout 隔离。该次重复执行不增加独立测试数。同步主线后的提交须重新取得其自身远端必需 CI，不沿用原 SHA 的绿色结果。

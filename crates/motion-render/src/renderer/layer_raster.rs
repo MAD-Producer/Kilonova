@@ -594,18 +594,9 @@ impl Renderer {
             self.effect_gpu.state.invalidate();
         }
         if compositing {
-            let builds = &mut self.compositing_pipeline_set_builds;
-            let gpu = self.compositing_gpu.get_or_insert_with(|| {
-                *builds += 1;
-                crate::compositing_gpu::CompositingGpu::new(
-                    &self.device,
-                    &self.queue,
-                    &self.uniform_layout,
-                    &self.image_layout,
-                    &self.sampler,
-                    self.target_format,
-                )
-            });
+            self.ensure_compositing_gpu(context.frame, "local_initialize")?;
+            let gpu = self.compositing_gpu.as_mut().ok_or_else(||
+                RenderError::Invalid("local compositing initialization did not publish resources".into()))?;
             gpu.prepare_mattes(
                 &self.device,
                 &self.image_layout,
@@ -629,7 +620,7 @@ impl Renderer {
                 &self.layer_gpu.accumulators,
                 &scene.layers,
                 changed || source_changed,
-            );
+            )?;
         }
         if prepare_adjustments {
             self.effect_gpu.state.prepare(

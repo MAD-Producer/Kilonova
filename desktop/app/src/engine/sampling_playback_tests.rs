@@ -207,10 +207,9 @@ fn paced_sampling_playback_records_native_costs_without_starving_frames() {
             let (paint, actions) = shell.draw_commands([1280., 800.]);
             assert!(actions.is_empty());
             let ui = shell.ui_frame(paint, [1280., 800.], true);
-            shell
-                .engine
-                .capture_ui(ui, root.join(format!("{name}.png")))
-                .unwrap();
+            crate::native_test_support::capture_ui(
+                &mut event_loop, &shell.engine, ui, root.join(format!("{name}.png")),
+            ).unwrap();
             reports.push(
                 serde_json::json!({"mode":name,"warmup":warmup,"frames":records,
                 "wall_us":wall_us,"completed_frames_per_second":60_000_000. / wall_us as f64,

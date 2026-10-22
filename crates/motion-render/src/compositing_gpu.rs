@@ -7,20 +7,22 @@ pub(crate) struct CompositingGpu {
     pub additive: wgpu::RenderPipeline,
     pub alpha: wgpu::RenderPipeline,
     pub luma: wgpu::RenderPipeline,
+    // Retire cached bindings before their admitted backing resources.
+    pub extract_group: wgpu::BindGroup,
+    pub blend_group: wgpu::BindGroup,
+    pub blend_inputs: Vec<wgpu::BindGroup>,
     pub mattes: HashMap<(u64, bool), FxTexture>,
     pub zero: FxTexture,
     pub source: Option<FxTexture>,
-    pub extract_buffer: wgpu::Buffer,
-    pub extract_group: wgpu::BindGroup,
+    pub extract_buffer: crate::allocation_buffer::AllocationBuffer,
     pub extract_stride: usize,
     pub blend: wgpu::RenderPipeline,
-    pub blend_buffer: wgpu::Buffer,
-    pub blend_group: wgpu::BindGroup,
-    pub blend_inputs: Vec<wgpu::BindGroup>,
+    pub blend_buffer: crate::allocation_buffer::AllocationBuffer,
     blend_layout: wgpu::BindGroupLayout,
     blend_stride: usize,
     size: [u32; 2],
     format: wgpu::TextureFormat,
+    allocation_uploads: std::sync::Arc<crate::allocation_uploads::AllocationUploads>,
 }
 
 impl CompositingGpu {
@@ -41,28 +43,9 @@ impl CompositingGpu {
         image: &wgpu::BindGroupLayout,
         sampler: &wgpu::Sampler,
         format: wgpu::TextureFormat,
-    ) -> Self {
-        let zero =
-            crate::effect_gpu::texture(device, image, sampler, 1, 1, wgpu::TextureFormat::R8Unorm);
-        queue.write_texture(
-            wgpu::TexelCopyTextureInfo {
-                texture: &zero.texture,
-                mip_level: 0,
-                origin: wgpu::Origin3d::ZERO,
-                aspect: wgpu::TextureAspect::All,
-            },
-            &[0],
-            wgpu::TexelCopyBufferLayout {
-                offset: 0,
-                bytes_per_row: Some(1),
-                rows_per_image: Some(1),
-            },
-            wgpu::Extent3d {
-                width: 1,
-                height: 1,
-                depth_or_array_layers: 1,
-            },
-        );
+        budget: &crate::AllocationBudget,
+        allocation_uploads: std::sync::Arc<crate::allocation_uploads::AllocationUploads>,
+    ) -> Result<Self, RenderError> {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("layer and matte plane"),
             source: wgpu::ShaderSource::Wgsl(crate::plane_coverage::shader(crate::plane_sampling::MATTE, true).into()),
@@ -109,12 +92,12 @@ impl CompositingGpu {
         let extract_stride = (std::mem::size_of::<crate::renderer::DrawUniform>() as usize)
             .div_ceil(device.limits().min_uniform_buffer_offset_alignment as usize)
             * device.limits().min_uniform_buffer_offset_alignment as usize;
-        let extract_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        let extract_buffer = crate::allocation_buffer::AllocationBuffer::new(device, budget, &wgpu::BufferDescriptor {
             label: Some("matte source uniforms"),
             size: (extract_stride * motion_model::MAX_LAYERS) as u64,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
-        });
+        })?;
         let extract_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: None,
             layout: uniform,
@@ -206,12 +189,12 @@ impl CompositingGpu {
         let blend_stride = motion_effects::shader::UNIFORM_BYTES
             .div_ceil(device.limits().min_uniform_buffer_offset_alignment as usize)
             * device.limits().min_uniform_buffer_offset_alignment as usize;
-        let blend_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        let blend_buffer = crate::allocation_buffer::AllocationBuffer::new(device, budget, &wgpu::BufferDescriptor {
             label: Some("layer transfer values"),
             size: (blend_stride * motion_model::MAX_LAYERS) as u64,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
-        });
+        })?;
         let blend_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: None,
             layout: &blend_uniform,
@@ -224,7 +207,24 @@ impl CompositingGpu {
                 }),
             }],
         });
-        Self {
+        let zero = crate::effect_gpu::admitted_texture(device, image, sampler,
+            1, 1, wgpu::TextureFormat::R8Unorm, budget).map_err(|error| RenderError::Context {
+                message: format!("compositing zero coverage texture size=1x1 phase=allocate: {error}"),
+                cause: Box::new(error),
+            })?;
+        // All fallible reservations precede the first queue write. A refused
+        // constructor has no pending upload and releases partial capacity now.
+        allocation_uploads.track(zero.texture.allocation())?;
+        queue.write_texture(
+            wgpu::TexelCopyTextureInfo {
+                texture: &zero.texture, mip_level: 0,
+                origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All,
+            },
+            &[0],
+            wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(1), rows_per_image: Some(1) },
+            wgpu::Extent3d { width: 1, height: 1, depth_or_array_layers: 1 },
+        );
+        Ok(Self {
             normal: make(
                 "fragment_main",
                 format,
@@ -258,7 +258,8 @@ impl CompositingGpu {
             blend_inputs: Vec::new(),
             blend_layout,
             blend_stride,
-        }
+            allocation_uploads,
+        })
     }
     pub fn bytes(&self) -> u64 {
         self.mattes
@@ -361,9 +362,9 @@ impl CompositingGpu {
         accumulators: &[FxTexture],
         layers: &[crate::DrawLayer],
         changed: bool,
-    ) {
+    ) -> Result<(), RenderError> {
         if self.source.is_none() {
-            return;
+            return Ok(());
         }
         if changed || self.blend_inputs.is_empty() {
             self.blend_inputs = (0..2)
@@ -397,6 +398,9 @@ impl CompositingGpu {
                 })
                 .collect();
         }
+        if !layers.is_empty() {
+            self.allocation_uploads.track(Some(self.blend_buffer.allocation()))?;
+        }
         for (i, l) in layers.iter().enumerate() {
             let [w, h] = self.size;
             let region = [0., 0., w as f32, h as f32];
@@ -422,6 +426,7 @@ impl CompositingGpu {
                 bytemuck::bytes_of(&u),
             );
         }
+        Ok(())
     }
     pub fn blend_offset(&self, layer: usize) -> u32 {
         (layer * self.blend_stride) as u32

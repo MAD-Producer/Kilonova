@@ -173,9 +173,9 @@ impl LayerGpu {
             fingerprints: HashMap::new(),
             raster_scratch: HashMap::new(),
             raster_resolve: HashMap::new(),
-            groups: groups::GroupGpu::new(device,image),
-            uploads: Default::default(),
-            vertex_upload: Default::default(),
+            groups: groups::GroupGpu::new(device,image,budget),
+            uploads: crate::vector_upload::UploadPool::new(budget.clone()),
+            vertex_upload: crate::vector_upload::ReusableBuffer::new(budget.clone()),
         })
     }
     pub fn prepare_accumulators(
@@ -357,7 +357,11 @@ impl LayerGpu {
             }
             let contents = if mesh.vertices.is_empty() { &[0u8;24][..] } else { bytemuck::cast_slice(&mesh.vertices) };
             let vertices = self.vertex_upload.get(device, contents.len() as u64,
-                wgpu::BufferUsages::VERTEX, "reusable vector raster triangles")?;
+                wgpu::BufferUsages::VERTEX, "reusable vector raster triangles")
+                .map_err(|error| RenderError::Context {
+                    message: format!("vector layer={id} frame={} phase=vertices: {error}", scene.frame),
+                    cause: Box::new(error),
+                })?;
             self.uploads.write(device, encoder, &vertices, contents, id, scene.frame)?;
             if groups::GroupGpu::grouped(mesh) {
                 self.groups.draw(device,encoder,image,sampler,mesh,&images[&key].view,&self.vector,&self.vector_clear,&self.clear_vertices,

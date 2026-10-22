@@ -17,6 +17,19 @@ impl ApplicationHandler for HiddenWindows {
     fn window_event(&mut self, _: &ActiveEventLoop, _: WindowId, _: WindowEvent) {}
 }
 
+/// The hidden window owner must keep dispatching messages during screenshot
+/// rendering too. Preserve Engine::capture_ui's existing sixty-second wait.
+pub(crate) fn capture_ui(
+    event_loop: &mut EventLoop<()>,
+    engine: &crate::engine::Engine,
+    ui: crate::engine::UiFrame,
+    path: std::path::PathBuf,
+) -> Result<serde_json::Value, String> {
+    let reply = engine.request(|reply| crate::engine::Command::CaptureUi { ui, path, reply })?;
+    receive(event_loop, &reply, Duration::from_secs(60))
+        .map_err(|error| format!("capture_ui native reply wait failed: {error}"))?
+}
+
 /// Preserve the caller's deadline while dispatching native window messages.
 /// DXGI can synchronously message the window owner from the render thread.
 /// These hidden fixtures have no interactive event handling; production uses
