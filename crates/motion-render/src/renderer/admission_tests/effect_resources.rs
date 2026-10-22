@@ -301,6 +301,38 @@ fn package_texture_refusal_keeps_resource_counts_and_recovers_through_real_uploa
 }
 
 #[test]
+fn package_png_runtime_decode_obeys_current_cpu_policy_and_recovers_native_pixels() {
+    let project = project("dither", 8);
+    let scene = scene(&project);
+    let mut reference = pollster::block_on(Renderer::headless()).unwrap();
+    let reference_target = reference.capture_target(8, 8).unwrap();
+    let expected = reference.capture(&scene, &reference_target).unwrap().0;
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    let original = renderer.memory_policy();
+    let target = renderer.capture_target(8, 8).unwrap();
+    renderer.set_memory_policy(crate::resource_policy::MemoryPolicy {
+        decoded_image_budget_bytes: 4, ..original
+    }).unwrap();
+    let error = renderer.capture(&scene, &target).unwrap_err();
+    match error.resource_rejection() {
+        Some(ResourceRejection::Budget { scope: ResourceBudgetScope::DecodedImages, required_bytes, budget_bytes }) => {
+            assert!(*required_bytes > 4);
+            assert_eq!(*budget_bytes, 4);
+        }
+        other => panic!("expected CPU package refusal, got {other:?}: {error}"),
+    }
+    for context in ["effect resource package=", "path=assets/blue-noise.png phase=decode"] {
+        assert!(error.to_string().contains(context), "{error}");
+    }
+    assert_eq!(renderer.effect_gpu.state.resource_bytes, 0);
+    assert_eq!(renderer.texture_memory_breakdown().plugin_resources, 0);
+    renderer.set_memory_policy(original).unwrap();
+    assert_eq!(renderer.capture(&scene, &target).unwrap().0, expected);
+    assert!(renderer.effect_gpu.state.resource_bytes > 0);
+    renderer.check_health().unwrap();
+}
+
+#[test]
 fn curve_preflight_shrink_and_growth_rebinds_the_new_lut_without_retaining_old_capacity() {
     let budget = crate::AllocationBudget::new(SYSTEM_BYTES + (1 << 20)).unwrap();
     let mut renderer =

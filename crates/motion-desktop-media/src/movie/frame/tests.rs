@@ -2,6 +2,39 @@ use super::*;
 use motion_core::{render_sampling::Shutter, Command, Ease, Layer};
 
 #[test]
+fn frozen_package_png_policy_preserves_publication_and_full_pixels_after_session_close() {
+    let root = tempfile::tempdir().unwrap();
+    let mut session = Session::new(package_budget_project(), root.path().into(), crate::platform()).unwrap();
+    let before = session.engine.snapshot();
+    let revision = session.engine.revision();
+    let reference = root.path().join("reference.png");
+    let output = root.path().join("frozen-package.png");
+    let control = ExportControl::default();
+    FrameFreezePlan::capture(&session, Some(reference.clone()), &control).unwrap().export(&control).unwrap();
+    let expected = image::open(reference).unwrap().into_rgba8();
+    fs::write(&output, b"previous publication").unwrap();
+    let original = session.effects.memory_policy();
+    let low_policy = MemoryPolicy { decoded_image_budget_bytes: 4, ..original };
+    session.configure_memory_policy(low_policy).unwrap();
+    let low = FrameFreezePlan::capture(&session, Some(output.clone()), &control).unwrap();
+    session.configure_memory_policy(original).unwrap();
+    let error = low.export(&control).unwrap_err();
+    for context in ["effect resource package=", "phase=decode", "budget_bytes=4"] {
+        assert!(error.contains(context), "{error}");
+    }
+    assert_eq!(fs::read(&output).unwrap(), b"previous publication");
+    let full = FrameFreezePlan::capture(&session, Some(output.clone()), &control).unwrap();
+    session.configure_memory_policy(low_policy).unwrap();
+    assert_eq!(session.engine.snapshot(), before);
+    assert_eq!(session.engine.revision(), revision);
+    assert!(!session.engine.can_undo());
+    drop(session);
+    let result = full.export(&control).unwrap();
+    assert_eq!((result["width"].as_u64(), result["height"].as_u64()), (Some(32), Some(24)));
+    assert_eq!(image::open(output).unwrap().into_rgba8(), expected);
+}
+
+#[test]
 fn frozen_png_keeps_cpu_decode_allowance_and_preserves_publication_on_refusal() {
     let root = tempfile::tempdir().unwrap();
     fs::create_dir(root.path().join("assets")).unwrap();

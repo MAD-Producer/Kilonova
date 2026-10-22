@@ -38,6 +38,20 @@ fn png(root: &Path) -> Source {
     source(root, "image.png", 4, 1)
 }
 
+#[test]
+fn in_memory_package_png_checks_current_capacity_and_keeps_native_codec_errors() {
+    let mut encoded = std::io::Cursor::new(Vec::new());
+    let original = image::RgbaImage::from_pixel(2, 2, image::Rgba([17, 43, 91, 255]));
+    original.write_to(&mut encoded, image::ImageFormat::Png).unwrap();
+    let bytes = encoded.into_inner();
+    refusal(&images::decode_png_with_budget(&bytes, 15).unwrap_err(), 16, 15);
+    assert_eq!(images::decode_png_with_budget(&bytes, 16).unwrap(), original);
+    let error = images::decode_png_with_budget(b"corrupt PNG", 16).unwrap_err();
+    assert!(error.resource_rejection().is_none());
+    assert!(matches!(error, images::Error::Image(_)));
+    assert_eq!(images::decode_png_with_budget(&bytes, 16).unwrap(), original);
+}
+
 fn refusal(error: &images::Error, required: u64, budget: u64) {
     assert_eq!(
         error.resource_rejection(),

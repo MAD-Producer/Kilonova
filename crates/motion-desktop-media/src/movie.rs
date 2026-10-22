@@ -21,6 +21,20 @@ use std::{
 pub mod frame;
 mod allocation_observation;
 
+#[cfg(test)]
+fn package_budget_project() -> Project {
+    let package = motion_effects::builtin::package().unwrap();
+    let definition = package.manifest.effects.iter().find(|effect| effect.id == "dither").unwrap();
+    assert!(!definition.resources.is_empty());
+    let mut project = Project::new(32, 24, 30, 2).unwrap();
+    let mut layer = motion_core::Layer::solid(1, "Generated package fixture", [32., 24.], [16., 12., 0.], [0.4, 0.5, 0.6, 1.]);
+    layer.effects.push(motion_core::EffectInstance::new(1, &package.manifest.id,
+        &package.manifest.version, &package.hash, definition, [32., 24.]));
+    project.layers.push(layer);
+    project.rebuild_plugin_dependencies();
+    project
+}
+
 #[cfg_attr(not(feature = "ffmpeg"), allow(dead_code))]
 pub struct FrozenMovie {
     project: Project,

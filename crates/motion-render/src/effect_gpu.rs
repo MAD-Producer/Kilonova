@@ -663,9 +663,14 @@ impl GpuState {
                     for path in &program.resources {
                         let key = (package.hash.clone(), path.clone());
                         if !self.resource_textures.contains_key(&key) {
-                            let rgba = image::load_from_memory(&package.files[path])
-                                .map_err(RenderError::Image)?
-                                .into_rgba8();
+                            let rgba = crate::image_resources::decode_png_with_budget(
+                                &package.files[path], builder.memory_policy().decoded_image_budget_bytes,
+                            ).map_err(|error| {
+                                let error = RenderError::from(error);
+                                let message = format!("effect resource package={} path={} phase=decode: {error}",
+                                    package.hash, path);
+                                error.with_diagnostic(message)
+                            })?;
                             let bytes = u64::from(rgba.width()) * u64::from(rgba.height()) * 4;
                             if rgba.width() > device.limits().max_texture_dimension_2d
                                 || rgba.height() > device.limits().max_texture_dimension_2d

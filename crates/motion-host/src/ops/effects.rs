@@ -63,6 +63,9 @@ impl Session {
         if text("op")?.starts_with("font_") {
             return self.font_request(&v);
         }
+        let package_limits = motion_effects::PackageReadLimits::new(
+            self.effects.memory_policy().decoded_image_budget_bytes,
+        )?;
         let registry = &mut self.effects.registry;
         match text("op")? {
             "image_input" => {
@@ -113,7 +116,7 @@ impl Session {
             }
             "install" => {
                 registry
-                    .install(&self.plugin_root, &PathBuf::from(text("path")?))
+                    .install_with_limits(&self.plugin_root, &PathBuf::from(text("path")?), package_limits)
                     .map_err(crate::Error::from)?;
             }
             "enable" => registry
@@ -536,8 +539,10 @@ pub fn plugin_pixels(id: i64, program: i32, resource: i32) -> Result<Vec<u8>> {
             .get(resource as usize)
             .ok_or("unknown resource")?;
         let package = program.package.as_ref().ok_or("program has no resources")?;
-        image::load_from_memory(&package.files[path])
-            .map(|v| v.into_rgba8().into_raw())
+        motion_render::image_resources::decode_png_with_budget(
+            &package.files[path], s.effects.memory_policy().decoded_image_budget_bytes,
+        )
+            .map(|v| v.into_raw())
             .map_err(crate::Error::from)
     })
 }

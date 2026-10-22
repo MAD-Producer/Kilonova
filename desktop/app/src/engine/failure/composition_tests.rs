@@ -5,6 +5,7 @@ const SYSTEM_BYTES: u64 = motion_render::FIXED_RENDERER_ALLOCATION_BYTES;
 use motion_core::composition::{Composition, MAX_COMPOSITIONS};
 
 mod effect_admission;
+mod package_budget;
 mod frame_blend_admission;
 mod fixed_admission;
 mod timing_admission;

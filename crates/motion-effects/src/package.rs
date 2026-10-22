@@ -51,6 +51,50 @@ const MAX_PACKAGE: usize = 16 * 1024 * 1024;
 const MAX_MANIFEST: usize = 512 * 1024;
 const MAX_SHADER: usize = 256 * 1024;
 const MAX_DISABLED: usize = 512 * 1024;
+pub const DEFAULT_DECODED_IMAGE_BUDGET: u64 = 128 * 1024 * 1024;
+pub const MAX_DECODED_IMAGE_BUDGET: u64 = 2 * 1024 * 1024 * 1024;
+
+/// Validation-time capacity of unique PNG resources in one package. Independent
+/// of the archive byte limits, GPU admission and codec/process memory residency.
+#[derive(Clone, Copy, Debug)]
+pub struct PackageReadLimits {
+    decoded_image_budget_bytes: u64,
+}
+impl Default for PackageReadLimits {
+    fn default() -> Self {
+        Self { decoded_image_budget_bytes: DEFAULT_DECODED_IMAGE_BUDGET }
+    }
+}
+impl PackageReadLimits {
+    pub fn new(decoded_image_budget_bytes: u64) -> Result<Self> {
+        ensure((4..=MAX_DECODED_IMAGE_BUDGET).contains(&decoded_image_budget_bytes),
+            "decoded image budget must be 4 bytes..2 GiB")?;
+        Ok(Self { decoded_image_budget_bytes })
+    }
+}
+
+fn validate_png_resource(data: &[u8], package: &str, name: &str, total: &mut u64, limits: PackageReadLimits) -> Result<()> {
+    let (w, h) = image::ImageReader::new(std::io::Cursor::new(data))
+        .with_guessed_format().map_err(Error::Io)?
+        .into_dimensions().map_err(|error| Error::Invalid(format!("resource {name}: {error}")))?;
+    ensure(w > 0 && h > 0, "package PNG dimensions must be positive")?;
+    let required = u64::from(w).checked_mul(u64::from(h))
+        .and_then(|size| size.checked_mul(4))
+        .and_then(|size| total.checked_add(size))
+        .ok_or_else(|| Error::Invalid("package PNG size overflow".into()))?;
+    if required > limits.decoded_image_budget_bytes {
+        return Err(Error::DecodedResourceBudget {
+            package: package.to_owned(),
+            resource: name.chars().take(256).collect(),
+            required_bytes: required,
+            budget_bytes: limits.decoded_image_budget_bytes,
+        });
+    }
+    image::load_from_memory_with_format(data, image::ImageFormat::Png)
+        .map_err(|error| Error::Invalid(format!("resource {name}: {error}")))?;
+    *total = required;
+    Ok(())
+}
 fn resource_limit(name: &str) -> Result<usize> {
     if name == "manifest.json" { Ok(MAX_MANIFEST) }
     else if name.starts_with("shaders/") && name.ends_with(".wgsl") { Ok(MAX_SHADER) }
@@ -89,6 +133,9 @@ pub struct EffectPackage {
 }
 impl EffectPackage {
     pub fn from_bytes(bytes: Vec<u8>) -> Result<Self> {
+        Self::from_bytes_with_limits(bytes, PackageReadLimits::default())
+    }
+    pub fn from_bytes_with_limits(bytes: Vec<u8>, limits: PackageReadLimits) -> Result<Self> {
         ensure(bytes.len() <= MAX_PACKAGE, "effect package exceeds 16 MiB")?;
         let hash = format!("{:x}", Sha256::digest(&bytes));
         let mut archive = ZipArchive::new(std::io::Cursor::new(&bytes))?;
@@ -139,20 +186,7 @@ impl EffectPackage {
                             "editor text must be UTF-8 without NUL",
                         )?;
                     } else if decoded_resources.insert(path.clone()) {
-                        let (w, h) = image::ImageReader::new(std::io::Cursor::new(data))
-                            .with_guessed_format()
-                            .map_err(Error::Io)?
-                            .into_dimensions()
-                            .map_err(|e| Error::Invalid(e.to_string()))?;
-                        decoded_bytes = decoded_bytes
-                            .checked_add(u64::from(w) * u64::from(h) * 4)
-                            .ok_or_else(|| Error::Invalid("editor PNG size overflow".into()))?;
-                        ensure(
-                            w > 0 && h > 0 && decoded_bytes <= 128 * 1024 * 1024,
-                            "editor PNG exceeds decoded resource budget",
-                        )?;
-                        image::load_from_memory_with_format(data, image::ImageFormat::Png)
-                            .map_err(|e| Error::Invalid(e.to_string()))?;
+                        validate_png_resource(data, &manifest.id, path, &mut decoded_bytes, limits)?;
                     }
                     referenced.insert(path.clone());
                 }
@@ -184,24 +218,8 @@ impl EffectPackage {
                 let data = files
                     .get(name)
                     .ok_or_else(|| Error::Invalid(format!("resource {name} is missing")))?;
-                let reader = image::ImageReader::new(std::io::Cursor::new(data))
-                    .with_guessed_format()
-                    .map_err(Error::Io)?;
-                let (w, h) = reader
-                    .into_dimensions()
-                    .map_err(|e| Error::Invalid(e.to_string()))?;
-                ensure(
-                    w > 0 && h > 0 && u64::from(w) * u64::from(h) * 4 <= 128 * 1024 * 1024,
-                    "effect PNG exceeds decoded texture budget",
-                )?;
                 if decoded_resources.insert(name.clone()) {
-                    decoded_bytes += u64::from(w) * u64::from(h) * 4;
-                    ensure(
-                        decoded_bytes <= 128 * 1024 * 1024,
-                        "package PNG resources exceed 128 MiB",
-                    )?;
-                    image::load_from_memory_with_format(data, image::ImageFormat::Png)
-                        .map_err(|e| Error::Invalid(format!("resource {name}: {e}")))?;
+                    validate_png_resource(data, &manifest.id, name, &mut decoded_bytes, limits)?;
                 }
             }
         }
@@ -218,8 +236,11 @@ impl EffectPackage {
         })
     }
     pub fn open(path: &Path) -> Result<Self> {
+        Self::open_with_limits(path, PackageReadLimits::default())
+    }
+    pub fn open_with_limits(path: &Path, limits: PackageReadLimits) -> Result<Self> {
         let bytes = read_file_bounded(path, MAX_PACKAGE, &path.to_string_lossy())?;
-        Self::from_bytes(bytes)
+        Self::from_bytes_with_limits(bytes, limits)
     }
 }
 #[derive(Debug, Serialize)]
@@ -268,6 +289,9 @@ pub fn package_source_plan(path: &Path) -> Result<SourcePackagePlan> {
 }
 
 pub fn package_directory(path: &Path) -> Result<Vec<u8>> {
+    package_directory_with_limits(path, PackageReadLimits::default())
+}
+pub fn package_directory_with_limits(path: &Path, limits: PackageReadLimits) -> Result<Vec<u8>> {
     let base = path.canonicalize()?;
     let mut manifest_data = read_file_bounded(&source_file(&base, "manifest.json")?, MAX_MANIFEST, "manifest.json")?;
     let manifest: PluginManifest = serde_json::from_slice(&manifest_data)?;
@@ -290,7 +314,7 @@ pub fn package_directory(path: &Path) -> Result<Vec<u8>> {
         writer.write_all(&data)?;
     }
     let bytes = writer.finish()?.into_inner();
-    EffectPackage::from_bytes(bytes.clone())?;
+    EffectPackage::from_bytes_with_limits(bytes.clone(), limits)?;
     Ok(bytes)
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -334,6 +358,9 @@ impl Registry {
         Ok(())
     }
     pub fn load(directory: &Path) -> Result<Self> {
+        Self::load_with_limits(directory, PackageReadLimits::default())
+    }
+    pub fn load_with_limits(directory: &Path, limits: PackageReadLimits) -> Result<Self> {
         let mut r = Self::new_with_builtins()?;
         // Persist each bundled version before an App upgrade replaces its bytes.
         let builtins = crate::builtin::packages()?;
@@ -366,7 +393,7 @@ impl Registry {
                             })
                             .map_err(Error::Io)
                     } else {
-                        EffectPackage::open(&e.path()).map(Arc::new)
+                        EffectPackage::open_with_limits(&e.path(), limits).map(Arc::new)
                     };
                     match package.and_then(|p| {
                         // Intentional retirement, not a failed load. Keep the
@@ -413,14 +440,17 @@ impl Registry {
             })
     }
     pub fn install(&mut self, directory: &Path, path: &Path) -> Result<InstalledPlugin> {
-        let package = Arc::new(EffectPackage::open(path)?);
+        self.install_with_limits(directory, path, PackageReadLimits::default())
+    }
+    pub fn install_with_limits(&mut self, directory: &Path, path: &Path, limits: PackageReadLimits) -> Result<InstalledPlugin> {
+        let package = Arc::new(EffectPackage::open_with_limits(path, limits)?);
         ensure(
             !crate::builtin::is_retired_plugin(&package.manifest.id),
             format!("retired bundled plugin {} is no longer installable; use an independently authored package ID", package.manifest.id),
         )?;
         let mut next = self.clone();
         // Another session may have installed a version since this registry was opened.
-        for installed in Self::load(directory)?.packages.into_values() {
+        for installed in Self::load_with_limits(directory, limits)?.packages.into_values() {
             next.insert(installed)?;
         }
         next.insert(package.clone())?;

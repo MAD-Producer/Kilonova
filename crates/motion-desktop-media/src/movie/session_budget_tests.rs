@@ -2,6 +2,39 @@ use super::*;
 use motion_render::Renderer;
 
 #[test]
+fn frozen_package_movie_uses_captured_cpu_policy_and_preserves_previous_output_on_refusal() {
+    let root = tempfile::tempdir().unwrap();
+    let mut session = Session::new(package_budget_project(), root.path().into(), crate::platform()).unwrap();
+    let before = session.engine.snapshot();
+    let revision = session.engine.revision();
+    let output = root.path().join("frozen-package.mp4");
+    fs::write(&output, b"previous publication").unwrap();
+    let original = session.effects.memory_policy();
+    let low_policy = MemoryPolicy { decoded_image_budget_bytes: 4, ..original };
+    session.configure_memory_policy(low_policy).unwrap();
+    let control = ExportControl::default();
+    let low = FrozenMovie::capture_plan(&session, &control).unwrap().freeze(&control).unwrap();
+    session.configure_memory_policy(original).unwrap();
+    let error = low.export(&output, &control, |_| {}).err().unwrap();
+    for context in ["effect resource package=", "phase=decode", "budget_bytes=4"] {
+        assert!(error.contains(context), "{error}");
+    }
+    assert_eq!(fs::read(&output).unwrap(), b"previous publication");
+    let full = FrozenMovie::capture_plan(&session, &control).unwrap().freeze(&control).unwrap();
+    session.configure_memory_policy(low_policy).unwrap();
+    assert_eq!(session.engine.snapshot(), before);
+    assert_eq!(session.engine.revision(), revision);
+    assert!(!session.engine.can_undo());
+    drop(session);
+    let result = full.export(&output, &control, |_| {}).unwrap();
+    assert_eq!((result.width, result.height, result.frames, result.revision), (32, 24, 2, revision));
+    assert_eq!(fs::metadata(&output).unwrap().len(), result.bytes);
+    let decoded = crate::verify_video_runtime(&output).unwrap();
+    assert_eq!(decoded["decoded"], true);
+    assert_eq!(decoded["sourceFrames"], 2);
+}
+
+#[test]
 fn frozen_movie_keeps_cpu_decode_allowance_across_live_changes_and_session_close() {
     let root = tempfile::tempdir().unwrap();
     fs::create_dir(root.path().join("assets")).unwrap();

@@ -23,6 +23,18 @@ pub const IDLE_TEXTURE_BYTES: u64 = 32 * 1024 * 1024;
 pub const PREFETCH_SECONDS: f64 = 0.5;
 pub const MAX_PREFETCH_IMAGES: usize = 2;
 
+/// Decode an already validated package PNG under the current Session CPU
+/// allowance. Import-time validation cannot authorize a later, lower policy.
+/// Metadata is checked before pixel allocation; codec failures remain native.
+pub fn decode_png_with_budget(encoded: &[u8], budget: u64) -> Result<image::RgbaImage, Error> {
+    validate_decode_budget(budget)?;
+    let (width, height) = image::ImageReader::with_format(
+        std::io::Cursor::new(encoded), image::ImageFormat::Png,
+    ).into_dimensions()?;
+    decoded_image_bytes(width, height, budget)?;
+    Ok(image::load_from_memory_with_format(encoded, image::ImageFormat::Png)?.into_rgba8())
+}
+
 /// Inspect clip dependencies without sampling expressions or animation. Times
 /// are mapped through nested clips in seconds, including mixed frame rates.
 /// Invalid rates/mappings propagate as errors. Negative or non-finite query

@@ -7,11 +7,20 @@ pub use scene::*;
 mod native_ui;
 pub use native_ui::*;
 pub mod shader;
-pub use package::{package_directory, package_source_plan, SourceFilePlan, SourcePackagePlan, EffectPackage, InstalledPlugin, Registry};
+pub use package::{package_directory, package_directory_with_limits, package_source_plan,
+    SourceFilePlan, SourcePackagePlan, EffectPackage, InstalledPlugin, Registry,
+    PackageReadLimits, DEFAULT_DECODED_IMAGE_BUDGET, MAX_DECODED_IMAGE_BUDGET};
 pub use schema::*;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("effect PNG resources exceed configured decoded image budget: package={package} resource={resource} required_bytes={required_bytes} budget_bytes={budget_bytes}; increase the decoded image allowance or reduce package resources")]
+    DecodedResourceBudget {
+        package: String,
+        resource: String,
+        required_bytes: u64,
+        budget_bytes: u64,
+    },
     #[error("{0}")]
     Invalid(String),
     #[error("WGSL parse (phase=wgsl_parse): {message}")]
