@@ -165,8 +165,8 @@ fn shape_corners_resize_width_height_keep_opposite_corner_and_preserve_parameter
                 **inner, vector,
                 "shape parameters and paints remain authored: {kind:?}"
             );
-            let size = size.sample(0.);
-            let position = position.sample(0.);
+            let size = size.sample(0.).unwrap();
+            let position = position.sample(0.).unwrap();
             for i in 0..2 {
                 assert!((size[i] - [180., 110.][i]).abs() < 0.002);
                 assert!((position[i] - sign[i] * [10., 5.][i]).abs() < 0.002);

@@ -23,7 +23,7 @@ fn resource_pressure_does_not_poison_effect_programs_and_the_same_frame_can_retr
     ));
     project.layers.push(layer);
     project.rebuild_plugin_dependencies();
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene
         .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();
@@ -81,7 +81,7 @@ fn nested_diagnostics_preserve_the_childs_budget_refusal() {
         .unwrap();
     let mut project = engine.project().clone();
     let child_id = project.compositions[0].id.clone();
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene
         .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();

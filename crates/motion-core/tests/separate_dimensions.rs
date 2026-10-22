@@ -79,7 +79,7 @@ fn separation_is_explicit_lossless_and_undoable_for_all_curve_kinds() {
             assert!(t.keys.is_empty());
             assert_eq!(t.axes.as_ref().unwrap().x.keys.len(), 2);
             for i in 0..720 {
-                assert_eq!(t.sample(i as f64 / 4.0), original.sample(i as f64 / 4.0));
+                assert_eq!(t.sample(i as f64 / 4.0).unwrap(), original.sample(i as f64 / 4.0).unwrap());
             }
             let revision = e.revision();
             separate(&mut e, Property::Rotation);
@@ -123,7 +123,7 @@ fn independent_axes_keep_different_keys_static_values_and_segment_curves() {
     );
     for (f, x, yvalue) in [(30.0, 540.0, 980.0), (60.0, 640.0, 1020.0)] {
         assert_eq!(
-            e.project().layers[1].transform.position.sample(f),
+            e.project().layers[1].transform.position.sample(f).unwrap(),
             [x, yvalue, 25.0]
         );
     }
@@ -321,8 +321,8 @@ fn axis_tracks_survive_clips_parenting_and_storage_without_vector_shadow_data() 
         e.project().layers[2].transform
     );
     for f in 0..180 {
-        let mut a = Scene::new(&parented);
-        let mut b = Scene::new(e.project());
+        let mut a = Scene::new(&parented).unwrap();
+        let mut b = Scene::new(e.project()).unwrap();
         a.sample(&parented, f as f64, None, &motion_core::ExpressionEvaluator).unwrap();
         b.sample(e.project(), f as f64, None, &motion_core::ExpressionEvaluator).unwrap();
         assert!(a
@@ -407,7 +407,7 @@ fn unsupported_axes_modes_or_targets_fail_without_silent_activation() {
         &mut e,
         r#"{"op":"set_component","object":0,"property":"target","axis":"x","frame":0,"value":600}"#,
     );
-    assert_eq!(e.project().camera.target.sample(0.0)[0], 600.0);
+    assert_eq!(e.project().camera.target.sample(0.0).unwrap()[0], 600.0);
     let scalar = Track::<f32>::constant(0.5);
     assert!(scalar.axes.is_none());
 }

@@ -40,7 +40,7 @@ fn orthographic_observation_views_stay_independent_and_finite() {
     let p = Project::demo();
     let e = Engine::new(p.clone()).unwrap();
     let mut observer = Observer::new(p.width, p.height);
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     for view in [ObservationView::Top, ObservationView::Side] {
         observer.view = view;
         observer.pan(100.0, 50.0, p.width, p.height).unwrap();

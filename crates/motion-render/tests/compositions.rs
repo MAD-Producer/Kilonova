@@ -41,7 +41,7 @@ fn fixture() -> Project {
 }
 fn capture(r: &mut Renderer, p: &Project, f: f64) -> Vec<u8> {
     let target = r.capture_target(p.width, p.height).unwrap();
-    let mut s = Scene::new(p);
+    let mut s = Scene::new(p).unwrap();
     s.sample(p, f, None, &motion_core::ExpressionEvaluator).unwrap();
     r.retain_video_instances(&s);
     r.capture(&s, &target).unwrap().0
@@ -121,7 +121,7 @@ fn nested_effects_and_postorder_bundle_keep_program_and_parent_texture_bindings(
             / a.len() as f64
             <= 3.
     );
-    let mut scene = Scene::new(e.project());
+    let mut scene = Scene::new(e.project()).unwrap();
     scene.sample(e.project(), 40., None, &motion_core::ExpressionEvaluator).unwrap();
     let mut builder =
         PlanBuilder::new(motion_effects::Registry::new_with_builtins().unwrap()).unwrap();
@@ -155,7 +155,7 @@ fn switching_contexts_can_reuse_an_id_for_video_and_composition_without_reusing_
     );
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
     let expected = capture(&mut r, e.project(), 20.);
-    let mut scene = Scene::new(e.project());
+    let mut scene = Scene::new(e.project()).unwrap();
     scene.sample(e.project(), 20., None, &motion_core::ExpressionEvaluator).unwrap();
     let id = scene.layers[0].id;
     scene.nested.clear();
@@ -199,7 +199,7 @@ fn deep_library_draws_only_active_nodes_and_reuses_gpu_outputs_at_normal_resolut
     flat.layers=p.compositions[8].layers.clone();
     let mut r=pollster::block_on(Renderer::headless()).unwrap();
     let expected=capture(&mut r,&flat,0.);
-    let target=r.capture_target(64,64).unwrap();let mut s=Scene::new(&p);
+    let target=r.capture_target(64,64).unwrap();let mut s=Scene::new(&p).unwrap();
     let mut bytes=0;
     for f in [0.,2.,1.,2.,0.] {
         s.sample(&p,f,None, &motion_core::ExpressionEvaluator).unwrap();r.retain_video_instances(&s);
@@ -249,7 +249,7 @@ fn repeated_mixed_rate_shake_reuses_scenes_without_changing_pixels_or_export_pla
     if let Content::Composition { clip } = &mut duplicate.content { clip.source_start_frame = 10; }
     p.layers.push(duplicate);
     p.validate().unwrap();
-    let mut reused = Scene::new(&p);
+    let mut reused = Scene::new(&p).unwrap();
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
     let target = r.capture_target(192, 192).unwrap();
     let mut builder = PlanBuilder::new(motion_effects::Registry::new_with_builtins().unwrap()).unwrap();
@@ -257,7 +257,7 @@ fn repeated_mixed_rate_shake_reuses_scenes_without_changing_pixels_or_export_pla
         reused.sample(&p, frame, None, &motion_core::ExpressionEvaluator).unwrap();
         r.retain_video_instances(&reused);
         let actual = r.capture(&reused, &target).unwrap().0;
-        let mut fresh = Scene::new(&p);
+        let mut fresh = Scene::new(&p).unwrap();
         fresh.sample(&p, frame, None, &motion_core::ExpressionEvaluator).unwrap();
         let expected = r.capture(&fresh, &target).unwrap().0;
         assert_eq!(actual, expected, "scene reuse changed frame {frame}");

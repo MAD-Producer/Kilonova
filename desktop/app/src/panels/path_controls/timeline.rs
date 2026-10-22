@@ -196,11 +196,14 @@ pub(in crate::panels) fn render(
             let values = if index == mask_path::CHANNEL {
                 vec![]
             } else {
-                mask_keys::values(
+                match observe!("mask.timeline_sample", mask_keys::values(
                     mask,
                     index,
                     state["frame"].as_f64().unwrap_or(0.) - f64::from(owner.offset),
-                )
+                ), "object={} mask={} channel={index}", owner.object, mask.id) {
+                    Ok(values) => values,
+                    Err(_) => continue,
+                }
             };
             let fields = super::mask_inspector::property_row(
                 list.styles().as_ref(),

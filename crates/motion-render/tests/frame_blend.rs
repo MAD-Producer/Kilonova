@@ -33,7 +33,7 @@ fn fixture() -> (Project, Scene) {
     layer.sampling.frame_blend = FrameBlend::Linear;
     p.layers.push(layer);
     p.validate().unwrap();
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene
         .sample(&p, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();
@@ -96,7 +96,7 @@ fn actual_gpu_blend_is_linear_and_caches_weights_without_stale_hold_pixels() {
         .sum();
     assert_eq!(ledger_bytes, 3 * 16 * 16 * 4);
     project.layers[0].sampling.frame_blend = FrameBlend::Hold;
-    let mut hold = Scene::new(&project);
+    let mut hold = Scene::new(&project).unwrap();
     hold.sample(&project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();
     renderer.retain_video_instances(&hold);
@@ -212,7 +212,7 @@ fn authored_moving_shape_records_transparent_images_and_resident_capture_cost() 
     project.layers[0].size = [192., 96.];
     project.layers[0].transform.position.value = [96., 48., 0.];
     project.validate().unwrap();
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene
         .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();
@@ -319,7 +319,7 @@ fn desktop_bgra_target_effects_sample_weight_changes_from_the_same_video_view() 
             [16.; 2],
         ));
     project.rebuild_plugin_dependencies();
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene
         .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();

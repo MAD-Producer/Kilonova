@@ -277,8 +277,8 @@ impl<T: Tween> Track<T> {
     /// Healthy sampling copies only scalars/arrays and allocates no memory.
     /// Non-finite results retain their value and produce bounded diagnostics.
     /// NaN time falls back to static values; hosts must reject it first.
-    pub fn sample(&self, frame: f64) -> T {
-        let value = self.sample_value(frame);
+    pub fn sample(&self, frame: f64) -> Result<T> {
+        let value = self.sample_value(frame)?;
         if !value.finite() {
             static FAILURES: crate::observability::Failures = crate::observability::Failures::new();
             FAILURES.record("track.sample", || {
@@ -291,29 +291,42 @@ impl<T: Tween> Track<T> {
                 )
             });
         }
-        value
+        Ok(value)
     }
-    fn sample_value(&self, frame: f64) -> T {
+    fn sample_value(&self, frame: f64) -> Result<T> {
+        let invalid = |phase: &str, reason: &str| crate::Error::Invalid(format!(
+            "track sample: phase={phase} frame={frame} keys={} type={} {reason}",
+            self.keys.len(), std::any::type_name::<T>().chars().take(128).collect::<String>(),
+        ));
         if let Some(a) = &self.axes {
+            if !self.keys.is_empty() {
+                return Err(invalid("storage", "separated tracks cannot contain vector keys"));
+            }
+            if a.tracks().iter().any(|t| t.axes.is_some()) {
+                return Err(invalid("storage", "scalar axis tracks cannot contain separated dimensions"));
+            }
             return T::from_components([
-                a.x.sample_value(frame), a.y.sample_value(frame), a.z.sample_value(frame),
-            ]).expect("validated vector dimensions");
+                a.x.sample_value(frame)?, a.y.sample_value(frame)?, a.z.sample_value(frame)?,
+            ]).ok_or_else(|| invalid("reconstruct", "cannot reconstruct sampled dimensions"));
         }
         if frame.is_nan() {
-            return self.value;
+            return Ok(self.value);
         }
         let Some(first) = self.keys.first() else {
-            return self.value;
+            return Ok(self.value);
         };
         if frame <= f64::from(first.frame) {
-            return first.value;
+            return Ok(first.value);
         }
         let upper = self.keys.partition_point(|k| f64::from(k.frame) <= frame);
         if upper >= self.keys.len() {
-            return self.keys.last().unwrap().value;
+            return self.keys.last().map(|key| key.value)
+                .ok_or_else(|| invalid("interval", "sample endpoint is missing"));
         }
-        let a = &self.keys[upper - 1];
-        let b = &self.keys[upper];
+        let a = upper.checked_sub(1).and_then(|i| self.keys.get(i))
+            .ok_or_else(|| invalid("interval", "sample predecessor is missing"))?;
+        let b = self.keys.get(upper)
+            .ok_or_else(|| invalid("interval", "sample successor is missing"))?;
         let t = ((frame - f64::from(a.frame)) / (f64::from(b.frame) - f64::from(a.frame))) as f32;
         let progress = a.curve.map_or_else(
             || a.ease.map(t),
@@ -322,14 +335,14 @@ impl<T: Tween> Track<T> {
         let outgoing = a.spatial.as_ref().and_then(|s| s.outgoing);
         let incoming = b.spatial.as_ref().and_then(|s| s.incoming);
         if outgoing.is_none() && incoming.is_none() {
-            return a.value.mix(b.value, progress);
+            return Ok(a.value.mix(b.value, progress));
         }
         let c1 = outgoing.map_or_else(|| a.value.mix(b.value, 1.0 / 3.0), |v| a.value.add(v));
         let c2 = incoming.map_or_else(|| a.value.mix(b.value, 2.0 / 3.0), |v| b.value.add(v));
         let p0 = a.value.mix(c1, progress);
         let p1 = c1.mix(c2, progress);
         let p2 = c2.mix(b.value, progress);
-        p0.mix(p1, progress).mix(p1.mix(p2, progress), progress)
+        Ok(p0.mix(p1, progress).mix(p1.mix(p2, progress), progress))
     }
     pub fn validate(&self, frame_count: u32) -> Result<()> {
         self.validate_range(frame_count as usize, Some(frame_count))
@@ -460,7 +473,7 @@ impl<T: Tween> Track<T> {
         if self.edit_axes(|t| t.set_animated(frame, enabled))? {
             return Ok(());
         }
-        let value = self.sample(f64::from(frame));
+        let value = self.sample(f64::from(frame))?;
         if enabled && self.keys.is_empty() {
             self.upsert(frame, value, Ease::Linear)?;
         } else if !enabled {

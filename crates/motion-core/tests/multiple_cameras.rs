@@ -12,7 +12,7 @@ fn create(e: &mut Engine) -> u64 {
     }
 }
 fn scene(p: &Project, frame: f64) -> Scene {
-    let mut scene = Scene::new(p);
+    let mut scene = Scene::new(p).unwrap();
     scene
         .sample(p, frame, None, &motion_core::ExpressionEvaluator)
         .unwrap();
@@ -153,7 +153,7 @@ fn rendering_uses_topmost_enabled_in_range_camera_and_implicit_fallback() {
         frame: 45,
     })
     .unwrap();
-    let expected = motion_core::Camera::new(640, 360).pose(45., 640, 360);
+    let expected = motion_core::Camera::new(640, 360).pose(45., 640, 360).unwrap();
     assert!(scene(e.project(), 45.)
         .camera
         .view_projection
@@ -350,7 +350,7 @@ fn mode_conversion_preserves_trimmed_out_keys_and_rejects_unbounded_bakes() {
         value: [400., 180., -800.],
     })
     .unwrap();
-    let expected = e.project().camera_for(a).unwrap().position_at(90.);
+    let expected = e.project().camera_for(a).unwrap().position_at(90.).unwrap();
     e.apply(Command::TrimLayerClip {
         object: a,
         in_frame: 30,
@@ -367,7 +367,7 @@ fn mode_conversion_preserves_trimmed_out_keys_and_rejects_unbounded_bakes() {
         mode: CameraMode::Position,
     })
     .unwrap();
-    let actual = e.project().camera_for(a).unwrap().position_at(90.);
+    let actual = e.project().camera_for(a).unwrap().position_at(90.).unwrap();
     for axis in 0..3 {
         assert!((actual[axis] - expected[axis]).abs() < 1e-3);
     }

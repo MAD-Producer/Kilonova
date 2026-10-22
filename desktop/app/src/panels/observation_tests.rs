@@ -26,7 +26,7 @@ fn real_panel_fallbacks_are_visible_bounded_and_preserve_normal_optional_fields(
                 .0
                 .is_empty());
             assert_eq!(
-                animation_data::track::<f32>(&track, 0).unwrap().sample(0.),
+                animation_data::track::<f32>(&track, 0).unwrap().sample(0.).unwrap(),
                 1.
             );
             assert_eq!(

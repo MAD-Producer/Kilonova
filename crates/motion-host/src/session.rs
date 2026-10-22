@@ -146,7 +146,7 @@ impl Session {
     pub fn new(project: Project, root: PathBuf, platform: Arc<dyn Platform>) -> Result<Self> {
         let engine = Engine::new(project).map_err(crate::Error::from)?;
         let project = engine.project();
-        let mut scene = Scene::new(project);
+        let mut scene = Scene::new(project)?;
         let initial_error = match scene.sample(project, 0.0, None, &motion_core::ExpressionEvaluator) {
             Ok(()) => None,
             Err(error @ motion_core::Error::Expression { .. }) => {
@@ -299,6 +299,7 @@ impl Session {
     }
 
     pub fn replace_project(&mut self, engine: Engine, root: PathBuf) -> Result<()> {
+        let next_scene = Scene::new(engine.project())?;
         let mut registry=self.effects.registry.clone();
         crate::node_effects::restore(engine.project(),&mut registry)?;
         let platform = self.platform.clone();
@@ -323,7 +324,7 @@ impl Session {
         self.effects.set_registry(registry.clone());
         if let Some(graphics)=&mut self.graphics{graphics.renderer.set_effect_registry(registry);}
         self.effects.alpha_images.clear();
-        self.scene = Scene::new(engine.project());
+        self.scene = next_scene;
         self.observer = Observer::new(engine.project().width, engine.project().height);
         self.composition_contexts.clear();
         self.media_compositions.clear();

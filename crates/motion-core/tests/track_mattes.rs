@@ -117,7 +117,7 @@ fn hidden_matte_is_sampled_and_precompose_keeps_complete_association() {
     assert_eq!(engine.snapshot(), before);
     let together = parse_commands(&json!({"op":"composition","action":{"kind":"precompose","objects":[1,2],"name":"complete"}}).to_string()).unwrap();
     engine.apply_batch(together).unwrap();
-    let mut scene = Scene::new(engine.project());
+    let mut scene = Scene::new(engine.project()).unwrap();
     scene.sample(engine.project(), 0., None, &motion_core::ExpressionEvaluator).unwrap();
     let child = &scene.nested[0].scene;
     let source = child

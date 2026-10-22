@@ -383,7 +383,7 @@ mod tests {
             );
             engine.apply_batch(commands).unwrap();
             assert_eq!(
-                engine.project().layers[0].transform.position.sample(21.),
+                engine.project().layers[0].transform.position.sample(21.).unwrap(),
                 [160., 90., 45.]
             );
             engine.undo().unwrap();

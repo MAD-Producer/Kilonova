@@ -27,7 +27,7 @@ fn four_k_adjustment_uses_composite_budget_separate_from_effect_scratch() {
     a.effects.push(effect("motion_tile", 1));
     p.layers.push(a);
     p.rebuild_plugin_dependencies();
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene.sample(&p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     let mut b = PlanBuilder::new(motion_effects::Registry::new_with_builtins().unwrap()).unwrap();
     let frame = b.build(&scene, &[0], 3840, 2160, true).unwrap();
@@ -45,7 +45,7 @@ fn four_k_adjustment_uses_composite_budget_separate_from_effect_scratch() {
     assert!(!error.to_string().contains("accumulators"), "{error}");
 }
 fn capture(r: &mut Renderer, p: &Project) -> Vec<u8> {
-    let mut s = Scene::new(p);
+    let mut s = Scene::new(p).unwrap();
     s.sample(p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     let target = r.capture_target(64, 64).unwrap();
     r.capture(&s, &target).unwrap().0
@@ -89,7 +89,7 @@ fn trim_and_dashes_change_pixels_without_mutating_paths_or_reusing_old_frames() 
     d.offset.set_animated(0, true).unwrap();
     d.offset.set_at(10, 10.).unwrap();
     p.layers[0].content = Content::Vector { vector: v };
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     let target = r.capture_target(64, 64).unwrap();
     let mut frames = Vec::new();
     for frame in [0., 10., 5., 0.] {
@@ -219,7 +219,7 @@ fn versioned_plan_contains_vector_sources_and_adjustment_boundary() {
     let mut a = Layer::solid(2, "adjust", [64.; 2], [32., 32., 0.], [1.; 4]);
     a.content = Content::Adjustment;
     p.layers.push(a);
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene.sample(&p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     let mut b = PlanBuilder::new(motion_effects::Registry::new_with_builtins().unwrap()).unwrap();
     let frame = b.build(&scene, &[0], 64, 64, true).unwrap();
@@ -304,7 +304,7 @@ fn stacked_adjustments_preserve_alpha_parented_mask_and_crossing_three_d_layers(
     only.layers.remove(3);
     only.rebuild_plugin_dependencies();
     let plain = capture(&mut r, &only);
-    let mut s = Scene::new(&p);
+    let mut s = Scene::new(&p).unwrap();
     s.sample(&p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     let inverse = s.layers.iter().find(|l| l.id == 4).unwrap().model.inverse();
     let mut inside = 0;
@@ -399,7 +399,7 @@ fn animated_geometry_fill_and_stroke_are_seek_independent_and_release_sources() 
     p.layers.push(l);
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
     let target = r.capture_target(64, 64).unwrap();
-    let mut s = Scene::new(&p);
+    let mut s = Scene::new(&p).unwrap();
     s.sample(&p, 17., None, &motion_core::ExpressionEvaluator).unwrap();
     let expected = r.capture(&s, &target).unwrap().0;
     for f in [39., 0., 17., 40., 8., 17.] {

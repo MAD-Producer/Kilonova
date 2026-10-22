@@ -40,7 +40,7 @@ fn effect(name: &str, scene: bool) -> EffectInstance {
 fn sample(project: &mut Project, frame: f64) -> Scene {
     project.rebuild_plugin_dependencies();
     project.validate().unwrap();
-    let mut scene = Scene::new(project);
+    let mut scene = Scene::new(project).unwrap();
     scene
         .sample(project, frame, None, &ExpressionEvaluator)
         .unwrap();
@@ -237,7 +237,7 @@ fn retained_matte_modes_chains_and_letterboxing_survive_cache_reuse() {
         let rasters = retained(&mut renderer, &scene, 96, 64, false);
         assert_eq!(rasters[2].texture_bytes(), 4 + 64 * 64);
         assert_eq!(rasters[2].texture_resource_ledger().resources().count(), 2);
-        let mut empty = Scene::new(&project);
+        let mut empty = Scene::new(&project).unwrap();
         empty.layers.clear();
         let _ = reference(&mut renderer, &empty, 16, 16);
         equal(

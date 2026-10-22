@@ -41,7 +41,7 @@ fn nested_fractional_visibility_uses_exact_bounds_during_random_seek() {
     let target = renderer.capture_target(64, 64).unwrap();
     let mut first = None;
     for time in [0.125, 0.375, 0.1249, 0.3749, 0.125] {
-        let mut scene = Scene::new(&p);
+        let mut scene = Scene::new(&p).unwrap();
         scene.sample(&p, time, None, &ExpressionEvaluator).unwrap();
         let pixels = renderer.capture(&scene, &target).unwrap().0;
         let expected = if (0.125..0.375).contains(&time) {

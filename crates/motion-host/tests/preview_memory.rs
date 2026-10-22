@@ -63,7 +63,7 @@ fn video_scene(w: u32, h: u32) -> Scene {
         [w as f32 / 2., h as f32 / 2., 0.],
         [1.; 4],
     ));
-    let mut s = Scene::new(&p);
+    let mut s = Scene::new(&p).unwrap();
     s.sample(&p, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();
     s.layers[0].video = Some(VideoSample {
@@ -168,7 +168,7 @@ fn proxy_cache_survives_cancelled_upload_and_reclaim_without_retaining_the_decod
     assert_eq!(uploads, renderer.video_uploads);
     assert_eq!(bytes, cache.bytes());
     drop(frame);
-    cache.retain(&Scene::new(&Project::new(w, h, 30, 60).unwrap()));
+    cache.retain(&Scene::new(&Project::new(w, h, 30, 60).unwrap()).unwrap());
     assert_eq!(cache.bytes(), 0);
 }
 #[test]

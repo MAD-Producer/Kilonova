@@ -48,7 +48,7 @@ fn state(engine: &motion_core::Engine, mask: bool) -> Value {
     let nodes: Vec<_> = path
         .nodes
         .iter()
-        .map(|n| serde_json::json!({"id":n.id,"geometry":n.geometry.sample(0.)}))
+        .map(|n| serde_json::json!({"id":n.id,"geometry":n.geometry.sample(0.).unwrap()}))
         .collect();
     let path = serde_json::json!({"id":path.id,"closed":true,"nodes":nodes});
     serde_json::json!({"root":"drag-fixture","revision":engine.revision(),"frame":0,

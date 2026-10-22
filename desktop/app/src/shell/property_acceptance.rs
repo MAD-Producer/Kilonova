@@ -70,13 +70,13 @@ impl Shell {
         let mut view = state.clone();
         view["project"] = serde_json::to_value(engine.project()).map_err(|e| e.to_string())?;
         view["timeline_layers"] = serde_json::to_value(engine.project().timeline_layers(40.).unwrap()).map_err(|e| e.to_string())?;
-        view["sampledLayers"] = engine.project().layers.iter().map(|l| {
+        view["sampledLayers"] = engine.project().layers.iter().map(|l| -> motion_core::Result<_> {
             let local = l.local_frame(40.);
-            serde_json::json!({"id":l.id,"position":l.transform.position.sample(local),
-                "rotation":l.transform.rotation.sample(local),"scale":l.transform.scale.sample(local),
-                "anchor":l.transform.anchor.sample(local),"opacity":l.transform.opacity.sample(local),
-                "active":l.active(40.,engine.project().frames),"three_d":l.three_d})
-        }).collect::<Vec<_>>().into();
+            Ok(serde_json::json!({"id":l.id,"position":l.transform.position.sample(local)?,
+                "rotation":l.transform.rotation.sample(local)?,"scale":l.transform.scale.sample(local)?,
+                "anchor":l.transform.anchor.sample(local)?,"opacity":l.transform.opacity.sample(local)?,
+                "active":l.active(40.,engine.project().frames),"three_d":l.three_d}))
+        }).collect::<motion_core::Result<Vec<_>>>().map_err(|e| e.to_string())?.into();
         view["revision"] = (state["revision"].as_u64().unwrap_or(0).saturating_add(1)).into();
         Ok(view)
     }

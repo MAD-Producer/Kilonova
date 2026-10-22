@@ -436,7 +436,7 @@ fn shape_navigation_buttons_key_only_the_named_parameter_and_keep_local_time_and
         for (item, name) in [(1, "position"), (3, "color"), (4, "width"), (5, "start")] {
             let mut engine = engine();
             install_contents(&mut engine);
-            let tree = parameters::tree(source(&engine), [100.; 2], 21., Locale::Zh);
+            let tree = parameters::tree(source(&engine), [100.; 2], 21., Locale::Zh).unwrap();
             let parameter = parameters::lookup(&tree, item, name).unwrap();
             for frame in [12, 63] {
                 engine.apply(parameter.set(7, item, frame, Some(true))).unwrap();
@@ -451,7 +451,7 @@ fn shape_navigation_buttons_key_only_the_named_parameter_and_keep_local_time_and
             let actions = draw_raw(&mut controls, &engine, &press(point[0], point[1]), host, &mut atlas);
             assert_eq!(actions.len(), 1, "{host:?}/{name}: {actions:?}");
             apply(&mut engine, actions);
-            let tree = parameters::tree(source(&engine), [100.; 2], 21., Locale::Zh);
+            let tree = parameters::tree(source(&engine), [100.; 2], 21., Locale::Zh).unwrap();
             let current = parameters::lookup(&tree, item, name).unwrap();
             assert_eq!(current.keys.iter().map(|(frame, _)| *frame).collect::<Vec<_>>(), vec![0, 21, 51]);
             let added = engine.project().clone();
@@ -471,7 +471,7 @@ fn shape_navigation_buttons_key_only_the_named_parameter_and_keep_local_time_and
             let actions = draw_raw(&mut controls, &engine, &press(point[0], point[1]), host, &mut atlas);
             assert_eq!(actions.len(), 1);
             apply(&mut engine, actions);
-            assert_eq!(parameters::lookup(&parameters::tree(source(&engine), [100.; 2], 21., Locale::Zh), item, name).unwrap().keys.iter().map(|(frame, _)| *frame).collect::<Vec<_>>(), vec![0, 51]);
+            assert_eq!(parameters::lookup(&parameters::tree(source(&engine), [100.; 2], 21., Locale::Zh).unwrap(), item, name).unwrap().keys.iter().map(|(frame, _)| *frame).collect::<Vec<_>>(), vec![0, 51]);
             engine.undo().unwrap();
             assert_eq!(engine.project(), &added);
             for input in [Input { focus_lost: true, ..press(point[0], point[1]) }, Input { keys: vec![(Key::Escape, Default::default())], ..press(point[0], point[1]) }] {
@@ -508,7 +508,7 @@ fn shape_content_rows_edit_fill_stroke_trim_and_group_values_in_both_inspector_h
             }
             let before = e.project().clone();
             let old = parameters::lookup(
-                &parameters::tree(source(&e), [100.; 2], 21., Locale::Zh),
+                &parameters::tree(source(&e), [100.; 2], 21., Locale::Zh).unwrap(),
                 item,
                 key,
             )
@@ -532,7 +532,7 @@ fn shape_content_rows_edit_fill_stroke_trim_and_group_values_in_both_inspector_h
                 apply(&mut e, actions);
             }
             let current = parameters::lookup(
-                &parameters::tree(source(&e), [100.; 2], 21., Locale::Zh),
+                &parameters::tree(source(&e), [100.; 2], 21., Locale::Zh).unwrap(),
                 item,
                 key,
             )
@@ -630,7 +630,7 @@ fn shape_content_geometry_tree_and_fields_stay_inside_narrow_and_wide_panels() {
             }
         }
     }
-    let n = parameters::tree(source(&e), [100.; 2], 0., Locale::Zh);
+    let n = parameters::tree(source(&e), [100.; 2], 0., Locale::Zh).unwrap();
     assert!(parameters::lookup(&n, 2, "fill").is_some());
     assert!(parameters::lookup(&n, 2, "stroke_width").is_some());
 }
@@ -645,7 +645,7 @@ fn key_draw(
 ) -> Vec<Action> {
     let state = serde_json::json!({"root":"fixture","composition":motion_core::composition::MAIN_COMPOSITION,"frame":33,"revision":e.revision(),"project":e.project()});
     let p = parameters::lookup(
-        &parameters::tree(source(e), [100.; 2], 21., Locale::En),
+        &parameters::tree(source(e), [100.; 2], 21., Locale::En).unwrap(),
         item,
         key,
     )
@@ -704,7 +704,7 @@ fn shape_content_timeline_keys_move_copy_cancel_and_delete_with_single_undo() {
         install_contents(&mut e);
         for frame in [21, 60] {
             let p = parameters::lookup(
-                &parameters::tree(source(&e), [100.; 2], f64::from(frame) - 12., Locale::En),
+                &parameters::tree(source(&e), [100.; 2], f64::from(frame) - 12., Locale::En).unwrap(),
                 item,
                 key,
             )
@@ -749,7 +749,7 @@ fn shape_content_timeline_keys_move_copy_cancel_and_delete_with_single_undo() {
             apply(&mut e, actions);
         }
         let p = parameters::lookup(
-            &parameters::tree(source(&e), [100.; 2], 21., Locale::En),
+            &parameters::tree(source(&e), [100.; 2], 21., Locale::En).unwrap(),
             item,
             key,
         )
@@ -777,7 +777,7 @@ fn shape_content_timeline_keys_move_copy_cancel_and_delete_with_single_undo() {
         );
         apply(&mut e, actions);
         let p = parameters::lookup(
-            &parameters::tree(source(&e), [100.; 2], 21., Locale::En),
+            &parameters::tree(source(&e), [100.; 2], 21., Locale::En).unwrap(),
             item,
             key,
         )
@@ -855,7 +855,7 @@ fn shape_content_timeline_keys_move_copy_cancel_and_delete_with_single_undo() {
         apply(&mut e, actions);
         assert_eq!(e.project().layers.len(), 1);
         let p = parameters::lookup(
-            &parameters::tree(source(&e), [100.; 2], 21., Locale::En),
+            &parameters::tree(source(&e), [100.; 2], 21., Locale::En).unwrap(),
             item,
             key,
         )
@@ -901,7 +901,7 @@ fn shape_content_key_popup_samples_clicked_time_and_changes_easing() {
     );
     apply(&mut e, actions);
     let p = parameters::lookup(
-        &parameters::tree(source(&e), [100.; 2], 28., Locale::En),
+        &parameters::tree(source(&e), [100.; 2], 28., Locale::En).unwrap(),
         6,
         "copies",
     )
@@ -943,7 +943,7 @@ fn shape_content_key_popup_samples_clicked_time_and_changes_easing() {
     apply(&mut e, actions);
     assert_eq!(
         parameters::lookup(
-            &parameters::tree(source(&e), [100.; 2], 9., Locale::En),
+            &parameters::tree(source(&e), [100.; 2], 9., Locale::En).unwrap(),
             6,
             "copies"
         )
@@ -962,7 +962,7 @@ fn shape_content_animated_filter_reveals_real_tracks_and_counts_match_rendered_t
     install_contents(&mut e);
     for (item, key) in [(1, "position"), (6, "copies")] {
         let p = parameters::lookup(
-            &parameters::tree(source(&e), [100.; 2], 21., Locale::En),
+            &parameters::tree(source(&e), [100.; 2], 21., Locale::En).unwrap(),
             item,
             key,
         )
@@ -1062,7 +1062,7 @@ fn shape_content_key_selection_cannot_delete_from_a_different_project() {
     let mut e = engine();
     install_contents(&mut e);
     let p = parameters::lookup(
-        &parameters::tree(source(&e), [100.; 2], 21., Locale::En),
+        &parameters::tree(source(&e), [100.; 2], 21., Locale::En).unwrap(),
         6,
         "copies",
     )

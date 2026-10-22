@@ -41,7 +41,7 @@ fn resource_resolution_failure_keeps_gpu_pixels_history_and_gesture() {
     renderer
         .configure_assets(engine.project(), root.path())
         .unwrap();
-    let mut scene = Scene::new(engine.project());
+    let mut scene = Scene::new(engine.project()).unwrap();
     scene
         .sample(
             engine.project(),

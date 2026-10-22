@@ -546,7 +546,7 @@ pub fn plugin_pixels(id: i64, program: i32, resource: i32) -> Result<Vec<u8>> {
 pub fn color_curve_graph(text: &str) -> Result<Value> {
     let value: motion_core::CurveObject = serde_json::from_str(text).map_err(crate::Error::from)?;
     value.validate().map_err(crate::Error::from)?;
-    Ok(value.graph())
+    value.graph().map_err(crate::Error::from)
 }
 
 #[cfg(test)]

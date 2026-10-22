@@ -71,20 +71,20 @@ pub struct AudioEnvelope {
 }
 impl AudioVoice {
     pub fn animated_levels(&self)->bool {self.envelopes.iter().any(|e|e.levels.animated())}
-    pub fn gain_at(&self,sample:u64)->[f32;2] {
+    pub fn gain_at(&self,sample:u64)->Result<[f32;2]> {
         let mut db=[0.;2];
         for envelope in &self.envelopes {
             let local=(sample as f64-envelope.origin_sample)*f64::from(envelope.fps)/48_000.;
-            let values=envelope.levels.sample(local);
+            let values=envelope.levels.sample(local)?;
             db[0]+=values[0];db[1]+=values[1];
         }
         let left=self.volume*crate::audio_levels::db_gain(db[0]);
         let right = if db[0]==db[1]{left}else{self.volume*crate::audio_levels::db_gain(db[1])};
-        match self.source_channel {
+        Ok(match self.source_channel {
             crate::AudioSourceChannel::Stereo => [left, right],
             crate::AudioSourceChannel::Left => [left, 0.],
             crate::AudioSourceChannel::Right => [0., right],
-        }
+        })
     }
 }
 impl CompositionClip {

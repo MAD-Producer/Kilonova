@@ -24,7 +24,7 @@ fn borrowed_evaluation_cache_keeps_snapshot_values_equal_to_rendered_geometry() 
         cached.layers[0].transform.position.value[0] = 80.;
         cached
     });
-    let mut scene = Scene::new(&original);
+    let mut scene = Scene::new(&original).unwrap();
     scene
         .sample(&original, 0., None, &CacheEvaluator(cached))
         .unwrap();
@@ -118,7 +118,7 @@ fn nested_compositions_use_the_real_evaluator_at_fractional_source_frames() {
     let project = editor.snapshot();
     let original = project.clone();
     let evaluator = RecordingEvaluator(RefCell::new(vec![]));
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene.sample(&project, 10.25, None, &evaluator).unwrap();
     let calls = evaluator.0.borrow();
     assert_eq!(calls.len(), 3);
@@ -133,7 +133,7 @@ fn nested_compositions_use_the_real_evaluator_at_fractional_source_frames() {
     let leaf = &scene.nested[0].scene.nested[0].scene;
     let stored_leaf = project.composition_frame_view("comp-leaf").unwrap();
     let evaluated = leaf.sampled_project(&stored_leaf);
-    assert!((evaluated.layers[0].transform.position.sample(9.2)[0] - 9.2).abs() < 1e-5);
+    assert!((evaluated.layers[0].transform.position.sample(9.2).unwrap()[0] - 9.2).abs() < 1e-5);
     assert_eq!(project, original);
     assert_eq!(
         *evaluated,

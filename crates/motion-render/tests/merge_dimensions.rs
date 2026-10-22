@@ -89,8 +89,8 @@ fn merged_tracks_preserve_gpu_pixels_and_frozen_render_plan_at_fractional_times(
             )
             .unwrap();
         let merged = engine.snapshot();
-        let mut before = Scene::new(&frozen);
-        let mut after = Scene::new(&merged);
+        let mut before = Scene::new(&frozen).unwrap();
+        let mut after = Scene::new(&merged).unwrap();
         for frame in [0., 12.5, 25.25, 39.75, 70.5, 95.99] {
             before
                 .sample(&frozen, frame, None, &motion_core::ExpressionEvaluator)

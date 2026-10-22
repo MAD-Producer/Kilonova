@@ -109,7 +109,7 @@ fn edit_gesture_conversion_local_animation_undo_and_atomic_failure() {
         },
     })
     .unwrap();
-    let mut scene = Scene::new(e.project());
+    let mut scene = Scene::new(e.project()).unwrap();
     scene.sample(e.project(), 30., None, &motion_core::ExpressionEvaluator).unwrap();
     assert_eq!(
         scene.layers[0].vector.as_ref().unwrap().paths[0].nodes[0][0],

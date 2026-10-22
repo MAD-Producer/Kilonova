@@ -44,7 +44,7 @@ fn project(id: &str) -> Project {
     engine.snapshot()
 }
 fn plan(p: &Project, frame: f64) -> (Scene, PlanBuilder) {
-    let mut scene = Scene::new(p);
+    let mut scene = Scene::new(p).unwrap();
     scene.sample(p, frame, None, &motion_core::ExpressionEvaluator).unwrap();
     let mut builder = PlanBuilder::new(scene_fixtures::registry().unwrap()).unwrap();
     builder.build(&scene, &[0], 128, 128, true).unwrap();
@@ -185,7 +185,7 @@ fn particle_budget_failure_is_explicit_and_binary_plan_has_bounded_instances() {
         .unwrap()
         .track
         .value = [10000., 0., 0., 0.];
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene.sample(&p, 30., None, &motion_core::ExpressionEvaluator).unwrap();
     let mut builder = PlanBuilder::new(scene_fixtures::registry().unwrap()).unwrap();
     assert!(builder
@@ -262,7 +262,7 @@ fn all_generators_render_on_gpu_and_following_image_effects_execute() {
             [128., 128.],
         ));
         p.rebuild_plugin_dependencies();
-        let mut scene = Scene::new(&p);
+        let mut scene = Scene::new(&p).unwrap();
         scene.sample(&p, 30., None, &motion_core::ExpressionEvaluator).unwrap();
         renderer.capture(&scene, &target).unwrap();
     }
@@ -278,7 +278,7 @@ fn hidden_generator_capacity_missing_sources_and_chain_order_block_export() {
         .unwrap()
         .track
         .value = [10000., 0., 0., 0.];
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene.sample(&p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     let mut builder = PlanBuilder::new(scene_fixtures::registry().unwrap()).unwrap();
     assert!(builder
@@ -340,7 +340,7 @@ fn source_image_alpha_uses_filtered_pixels_and_cache_budget_is_explicit() {
     layer.three_d = true;
     layer.content = motion_core::Content::Image { asset: 1 };
     p.layers.push(layer);
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene.sample(&p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     let mut builder = PlanBuilder::new(scene_fixtures::registry().unwrap()).unwrap();
     assert!(builder

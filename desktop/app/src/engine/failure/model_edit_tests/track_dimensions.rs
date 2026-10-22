@@ -115,7 +115,7 @@ fn actual_dimension_conversion_failures_reach_native_reply_and_default_error_sin
         }
         let mut healthy = Track::constant([1., 2., 3.]);
         healthy.separate().unwrap();
-        assert_eq!(healthy.sample(0.), [1., 2., 3.]);
+        assert_eq!(healthy.sample(0.).unwrap(), [1., 2., 3.]);
         healthy.merge_dimensions().unwrap();
         assert!(healthy.axes.is_none());
         assert_eq!(healthy.value, [1., 2., 3.]);

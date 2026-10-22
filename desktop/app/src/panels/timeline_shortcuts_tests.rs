@@ -1356,10 +1356,10 @@ fn active_numeric_text_can_start_a_new_drag_in_main_and_floating_timeline_and_gr
                 let mut state=state(engine,32.);
                 let layer=&engine.project().layers[0];
                 state["sampledLayers"]=serde_json::json!([{"id":7,
-                    "position":layer.transform.position.sample(20.),
-                    "scale":layer.transform.scale.sample(20.),
-                    "rotation":layer.transform.rotation.sample(20.),
-                    "opacity":layer.transform.opacity.sample(20.)}]);
+                    "position":layer.transform.position.sample(20.).unwrap(),
+                    "scale":layer.transform.scale.sample(20.).unwrap(),
+                    "rotation":layer.transform.rotation.sample(20.).unwrap(),
+                    "opacity":layer.transform.opacity.sample(20.).unwrap()}]);
                 if floating {floating_chrome(&mut PaintList::default(),&mut atlas,Panel::Timeline,size,panels,&state,&input)}
                 else {chrome(&mut PaintList::default(),&mut atlas,size,&layout,panels,&state,&input)}
             };
@@ -1374,7 +1374,7 @@ fn active_numeric_text_can_start_a_new_drag_in_main_and_floating_timeline_and_gr
             apply_graph_actions(&mut engine,actions);
             let actions=draw(&mut panels,&engine,curve_pointer([point[0]+60.,point[1]],false,true));
             apply_graph_actions(&mut engine,actions);
-            let value=engine.project().layers[0].transform.position.sample(20.);
+            let value=engine.project().layers[0].transform.position.sample(20.).unwrap();
             assert_eq!(value,[130.,50.,20.]);
             assert!(panels.properties.field.is_none());
             engine.undo().unwrap();

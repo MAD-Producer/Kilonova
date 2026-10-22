@@ -31,7 +31,7 @@ mod vector_frame_budget_tests {
             l.content=motion_model::Content::Vector {vector:motion_model::vector::VectorContent::shape(motion_model::vector::ShapeKind::Rectangle)};
             p.layers.push(l);
         }
-        let mut s=Scene::new(&p);s.sample(&p,0.,None,&motion_core::ExpressionEvaluator).unwrap();s
+        let mut s=Scene::new(&p).unwrap();s.sample(&p,0.,None,&motion_core::ExpressionEvaluator).unwrap();s
     }
     #[test]
     fn cached_vectors_spend_the_frame_limit_before_new_or_cached_meshes_are_appended() {

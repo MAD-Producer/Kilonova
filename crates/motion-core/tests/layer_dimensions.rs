@@ -17,7 +17,7 @@ fn flat_layers_ignore_camera_and_inactive_spatial_values_until_explicit_activati
     let mut p = flat_project();
     assert!(!p.layers[0].three_d);
     p.layers[0].transform.rotation.value = [50.0, 70.0, 10.0];
-    let mut s = Scene::new(&p);
+    let mut s = Scene::new(&p).unwrap();
     s.sample(&p, 0.0, None, &motion_core::ExpressionEvaluator).unwrap();
     let baseline = s.layers[0].view_projection * s.layers[0].model;
     p.camera.created = true;
@@ -121,8 +121,8 @@ fn current_files_preserve_spatial_rendering_without_changing_new_layer_defaults(
         std::fs::read(tmp.path().join("project.json")).unwrap()
     );
     for f in [0.0, 20.5, 99.75, 179.5] {
-        let mut a = Scene::new(&p);
-        let mut b = Scene::new(&migrated);
+        let mut a = Scene::new(&p).unwrap();
+        let mut b = Scene::new(&migrated).unwrap();
         a.sample(&p, f, None, &motion_core::ExpressionEvaluator).unwrap();
         b.sample(&migrated, f, None, &motion_core::ExpressionEvaluator).unwrap();
         for (a, b) in a.layers.iter().zip(&b.layers) {
@@ -141,7 +141,7 @@ fn intersections_are_split_and_2d_layers_form_composition_boundaries() {
     b.id = 2;
     b.transform.rotation.value[1] = -45.0;
     p.layers.push(b);
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene.sample(&p, 0.0, None, &motion_core::ExpressionEvaluator).unwrap();
     let mut compositor = PlaneCompositor::new();
     compositor.prepare(&scene).unwrap();

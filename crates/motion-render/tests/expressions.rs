@@ -61,7 +61,7 @@ fn expressions_drive_geometry_effects_and_the_shared_export_plan() {
             })
             .unwrap();
     }
-    let mut scene = Scene::new(engine.project());
+    let mut scene = Scene::new(engine.project()).unwrap();
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let target = renderer.capture_target(64, 64).unwrap();
     scene.sample(engine.project(), 0.0, None, &motion_core::ExpressionEvaluator).unwrap();
@@ -144,11 +144,11 @@ fn separated_axis_and_effect_expressions_match_explicit_values_in_pixels_and_fro
         explicit.expressions.clear();
         explicit.layers[0].transform.position.axes.as_mut().unwrap().x.value=16.+frame as f32/30.*16.;
         explicit.layers[0].effects[0].params.get_mut("p0003").unwrap().track.value[0]=(frame as f32/30.*100.).clamp(0.,100.);
-        let mut preview=Scene::new(engine.project());
+        let mut preview=Scene::new(engine.project()).unwrap();
         preview.sample(engine.project(),frame,None,&motion_core::ExpressionEvaluator).unwrap();
-        let mut export=Scene::new(&frozen);
+        let mut export=Scene::new(&frozen).unwrap();
         export.sample(&frozen,frame,None,&motion_core::ExpressionEvaluator).unwrap();
-        let mut reference=Scene::new(&explicit);
+        let mut reference=Scene::new(&explicit).unwrap();
         reference.sample(&explicit,frame,None,&motion_core::ExpressionEvaluator).unwrap();
         let preview_pixels=renderer.capture(&preview,&target).unwrap().0;
         let export_pixels=renderer.capture(&export,&target).unwrap().0;
@@ -164,9 +164,9 @@ fn separated_axis_and_effect_expressions_match_explicit_values_in_pixels_and_fro
         };
         assert_eq!(serialize(&preview),serialize(&reference));
         assert_eq!(serialize(&export),serialize(&reference));
-        assert_eq!(frozen.evaluated_at(frame).unwrap().layers[0].transform.position.sample(frame)[1],32.);
+        assert_eq!(frozen.evaluated_at(frame).unwrap().layers[0].transform.position.sample(frame).unwrap()[1],32.);
     }
     assert!(distinct.len()>2,"the fixture must animate visible content");
     engine.apply(Command::RemoveExpression { target:ExpressionTarget::Property { object:1,property:Property::Position,axis:Some(motion_core::Axis::X) } }).unwrap();
-    assert_eq!(frozen.evaluated_at(30.).unwrap().layers[0].transform.position.sample(30.),[32.,32.,0.]);
+    assert_eq!(frozen.evaluated_at(30.).unwrap().layers[0].transform.position.sample(30.).unwrap(),[32.,32.,0.]);
 }

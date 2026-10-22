@@ -11,15 +11,15 @@ fn dimensions(parameter: &EffectParam) -> usize {
     }
 }
 // Differentiate the actual bounded parameter, not its unclamped track.
-pub(super) fn speed_value(parameter: &EffectParam, frame: f64, fps: f64, component: usize) -> f32 {
+pub(super) fn speed_value(parameter: &EffectParam, frame: f64, fps: f64, component: usize) -> motion_core::Result<f32> {
     if parameter.kind.discrete() {
-        return 0.;
+        return Ok(0.);
     }
-    let value = parameter.track.sample(frame)[component];
+    let value = parameter.track.sample(frame)?[component];
     if value < parameter.min || value > parameter.max {
-        return 0.;
+        return Ok(0.);
     }
-    graph_sampling::velocity(&parameter.track, frame, fps, |v| v[component] as f64) as f32
+    Ok(graph_sampling::velocity(&parameter.track, frame, fps, |v| v[component] as f64) as f32)
 }
 fn cubic(easing: Easing) -> Easing {
     if matches!(
@@ -180,20 +180,26 @@ pub(in crate::panels) fn render(
     let layer_offset = target.source(state).unwrap().0["timeline"]["offset_frame"]
         .as_f64()
         .unwrap_or(0.);
-    let value = |frame: f64| -> f32 {
+    let value = |frame: f64| -> motion_core::Result<f32> {
         if speed {
             speed_value(&parameter, frame - layer_offset, fps, component)
         } else {
-            parameter.sample(frame - layer_offset)[component]
+            Ok(parameter.sample(frame - layer_offset)?[component])
         }
     };
     let end = (offset + plot.width() as f64 / ppf as f64).min(last_frame(state));
-    let points: Vec<_> = (0..=256)
+    let points = (0..=256)
         .map(|i| {
             let f = offset + (end - offset).max(0.) * i as f64 / 256.;
-            (f, value(f))
+            value(f).map(|value| (f, value))
         })
-        .collect();
+        .collect::<motion_core::Result<Vec<_>>>();
+    let Ok(points) = observe!("effect.graph_samples", points,
+        "object={} effect={} param={} frame_start={offset} frame_end={end}", target.object, target.effect, target.param) else {
+        graph.clip_to(area);
+        list.append(graph);
+        return true;
+    };
     let min = points.iter().map(|p| p.1).fold(f32::INFINITY, f32::min);
     let max = points.iter().map(|p| p.1).fold(f32::NEG_INFINITY, f32::max);
     let margin = ((max - min) * 0.1).max(1.);
@@ -265,7 +271,10 @@ pub(in crate::panels) fn render(
         if time < offset || time > end {
             continue;
         }
-        let point = [x_of(time), y_of(value(time))];
+        let Ok(sampled) = observe!("effect.graph_key_sample", value(time),
+            "object={} effect={} param={} frame={time}", target.object, target.effect, target.param)
+            else { continue; };
+        let point = [x_of(time), y_of(sampled)];
         let selected = selected_key.is_some_and(|f| f as f64 == time);
         paint::diamond(
             &mut lines,

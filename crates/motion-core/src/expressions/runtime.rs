@@ -53,7 +53,7 @@ impl JsEngine {
         &mut self,
         source: &str,
         data: &str,
-        sample: impl Fn(f64) -> String + 'static,
+        sample: impl Fn(f64) -> Result<String> + 'static,
         frame_deadline: Instant,
         cancel: Arc<AtomicBool>,
     ) -> Result<Vec<f32>> {
@@ -81,7 +81,9 @@ impl JsEngine {
                                 "number", "sample time", "invalid sample time: seconds must be finite",
                             ));
                         }
-                        Ok(sample(time))
+                        sample(time).map_err(|cause| rquickjs::Error::new_from_js_message(
+                            "sample time", "property", cause.to_string(),
+                        ))
                     })?)?;
                     // SAFETY: only bytecode produced above by this exact runtime is loaded.
                     // Its allocation remains pinned until the runtime is dropped.
@@ -210,7 +212,7 @@ pub(super) fn compile(source: &str) -> Result<()> {
 pub(super) fn evaluate(
     source: &str,
     data: &str,
-    sample: impl Fn(f64) -> String + 'static,
+    sample: impl Fn(f64) -> Result<String> + 'static,
     frame_deadline: Instant,
     cancel: Arc<AtomicBool>,
 ) -> Result<Vec<f32>> {

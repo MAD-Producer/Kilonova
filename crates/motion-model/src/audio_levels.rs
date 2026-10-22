@@ -36,8 +36,9 @@ impl AudioLevels {
         }
         Ok(())
     }
-    pub fn sample(&self, local_frame: f64) -> [f32; 2] {
-        [&self.left, &self.right].map(|t| t.sample(local_frame).clamp(MIN_AUDIO_DB, MAX_AUDIO_DB))
+    pub fn sample(&self, local_frame: f64) -> Result<[f32; 2]> {
+        Ok([self.left.sample(local_frame)?.clamp(MIN_AUDIO_DB, MAX_AUDIO_DB),
+            self.right.sample(local_frame)?.clamp(MIN_AUDIO_DB, MAX_AUDIO_DB)])
     }
     pub fn animated(&self) -> bool {
         !self.left.keys.is_empty() || !self.right.keys.is_empty()

@@ -9,7 +9,7 @@ fn constant_receiver_native_texture_joins_combined_admission_and_releases_with_i
     project.camera.created = false;
     project.layers.push(Layer::solid(77, "receiver", [16.; 2], [32., 32., 0.], [1.; 4]));
     project.validate().unwrap();
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     let before = budget.info().unwrap();
     let raster = renderer.materialize_layer(&scene, 77, 64, 64, false).unwrap().unwrap().0;
@@ -49,7 +49,7 @@ fn image_scene(renderer: &mut Renderer, matte: bool) -> Scene {
         });
     }
     project.validate().unwrap();
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     scene
 }
@@ -122,7 +122,7 @@ fn retained_receiver_capacity_is_shared_across_renderers_and_refusal_restores_ca
     assert_eq!(probe.texture.format(), wgpu::TextureFormat::Rgba8UnormSrgb);
     let mut project = Project::new(64, 64, 30, 60).unwrap();
     project.layers.push(Layer::solid(77, "receiver", [16.; 2], [32., 32., 0.], [1.; 4]));
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     drain(&first);
     drain(&second);
@@ -193,7 +193,7 @@ fn retained_native_receiver_outlives_renderer_without_releasing_its_capacity_ear
     let device = renderer.device.clone();
     let mut project = Project::new(64, 64, 30, 60).unwrap();
     project.layers.push(Layer::solid(77, "receiver", [16.; 2], [32., 32., 0.], [1.; 4]));
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     let raster = renderer.materialize_layer(&scene, 77, 64, 64, false).unwrap().unwrap().0;
     drain(&renderer);

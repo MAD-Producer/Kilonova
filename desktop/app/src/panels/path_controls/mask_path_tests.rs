@@ -90,7 +90,7 @@ fn canvas_anchor_and_handle_drags_record_full_path_poses_and_leave_static_masks_
                 .path
                 .nodes
                 .iter()
-                .map(|n| serde_json::json!({"id":n.id,"geometry":n.geometry.sample(48.)}))
+                .map(|n| serde_json::json!({"id":n.id,"geometry":n.geometry.sample(48.).unwrap()}))
                 .collect();
             serde_json::json!({"root":"fixture","composition":motion_core::composition::MAIN_COMPOSITION,"project":engine.project(),"frame":60,"revision":engine.revision(),
                 "source_transforms":[{"id":7,"mvp":matrix}],"mask_layers":[{"id":7,"masks":[{"id":1,"path":{"id":1,"closed":true,"nodes":nodes}}]}]})
@@ -132,7 +132,7 @@ fn canvas_anchor_and_handle_drags_record_full_path_poses_and_leave_static_masks_
             apply(&mut engine, actions);
         }
         let mask = &engine.project().layers[0].masks[0];
-        let geometry = mask.path.nodes[0].geometry.sample(48.);
+        let geometry = mask.path.nodes[0].geometry.sample(48.).unwrap();
         assert!((geometry[0] - 40.).abs() < 0.001 && (geometry[1] - 30.).abs() < 0.001);
         if animated {
             assert!(mask.path.nodes.iter().all(|n| n
@@ -168,7 +168,7 @@ fn canvas_anchor_and_handle_drags_record_full_path_poses_and_leave_static_masks_
         apply(&mut engine, actions);
         let g = engine.project().layers[0].masks[0].path.nodes[0]
             .geometry
-            .sample(48.);
+            .sample(48.).unwrap();
         assert!((g[4] - 20.).abs() < 0.001 && (g[5] - 10.).abs() < 0.001);
         assert!((g[2] + 20.).abs() < 0.001 && (g[3] + 10.).abs() < 0.001);
         engine.undo().unwrap();
@@ -323,10 +323,10 @@ fn path_stopwatch_viewport_pose_and_key_gestures_use_one_undo_and_local_time() {
         .collect::<Vec<_>>()
         == [9, 48]));
     assert_eq!(
-        mask.path.nodes[1].geometry.sample(48.),
+        mask.path.nodes[1].geometry.sample(48.).unwrap(),
         [100., 0., 0., 0., 0., 0.]
     );
-    assert!((mask.path.nodes[0].geometry.sample(28.5)[0] - 15.).abs() < 0.001);
+    assert!((mask.path.nodes[0].geometry.sample(28.5).unwrap()[0] - 15.).abs() < 0.001);
     let posed = engine.project().clone();
     // Context-menu easing applies to all vertices, including unchanged vertices.
     let x = |frame: u32| 80. + frame as f32 / 119. * 304.;
@@ -521,7 +521,7 @@ fn path_key_menu_add_delete_collision_and_disabling_preserve_sampled_shape() {
         .all(|n| n.geometry.keys.len() == 1));
     engine.undo().unwrap();
     assert_eq!(engine.project(), &before);
-    let values = mask_path::values(&before.layers[0].masks[0], 30.);
+    let values = mask_path::values(&before.layers[0].masks[0], 30.).unwrap();
     let actions = draw(
         &mut controls,
         &engine,
@@ -536,7 +536,7 @@ fn path_key_menu_add_delete_collision_and_disabling_preserve_sampled_shape() {
         mask_path::CHANNEL
     ));
     assert_eq!(
-        mask_path::values(&engine.project().layers[0].masks[0], 30.),
+        mask_path::values(&engine.project().layers[0].masks[0], 30.).unwrap(),
         values
     );
     engine.undo().unwrap();
@@ -593,7 +593,7 @@ fn mask_drag_retries_the_same_geometry_when_the_previous_snapshot_had_no_target(
     let snapshot = |project: &motion_core::Project| {
         let masks: Vec<_> = project.layers[0].masks.iter().map(|mask| {
             let nodes: Vec<_> = mask.path.nodes.iter().map(|node| serde_json::json!({
-                "id":node.id,"geometry":node.geometry.sample(48.)
+                "id":node.id,"geometry":node.geometry.sample(48.).unwrap()
             })).collect();
             serde_json::json!({"id":mask.id,"path":{"id":mask.path.id,"closed":true,"nodes":nodes}})
         }).collect();
@@ -626,6 +626,6 @@ fn mask_drag_retries_the_same_geometry_when_the_previous_snapshot_had_no_target(
     let command = commands.next().expect("the same held geometry must be retried");
     assert!(commands.next().is_none());
     engine.apply(command).unwrap();
-    let geometry = engine.project().layers[0].masks[0].path.nodes[0].geometry.sample(48.);
+    let geometry = engine.project().layers[0].masks[0].path.nodes[0].geometry.sample(48.).unwrap();
     assert!((geometry[0]-30.).abs()<0.001 && (geometry[1]-20.).abs()<0.001);
 }

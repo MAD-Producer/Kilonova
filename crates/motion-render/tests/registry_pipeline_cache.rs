@@ -24,7 +24,7 @@ fn repeated_registry_clone_keeps_preflighted_pipelines_but_replacements_and_disa
     ));
     project.layers.push(layer);
     project.rebuild_plugin_dependencies();
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene
         .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();

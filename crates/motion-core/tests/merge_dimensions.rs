@@ -69,17 +69,17 @@ fn aligned_axes_round_trip_exactly_for_signed_times_holds_and_overshooting_curve
             for i in -200..500 {
                 let frame = f64::from(i) / 4.;
                 assert_eq!(
-                    t.sample(frame),
-                    separated.sample(frame),
+                    t.sample(frame).unwrap(),
+                    separated.sample(frame).unwrap(),
                     "{curve:?} {ease:?} {frame}"
                 );
             }
-            assert_eq!(t.sample(f64::NAN), separated.sample(f64::NAN));
+            assert_eq!(t.sample(f64::NAN).unwrap(), separated.sample(f64::NAN).unwrap());
             assert_eq!(
-                t.sample(f64::NEG_INFINITY),
-                separated.sample(f64::NEG_INFINITY)
+                t.sample(f64::NEG_INFINITY).unwrap(),
+                separated.sample(f64::NEG_INFINITY).unwrap()
             );
-            assert_eq!(t.sample(f64::INFINITY), separated.sample(f64::INFINITY));
+            assert_eq!(t.sample(f64::INFINITY).unwrap(), separated.sample(f64::INFINITY).unwrap());
         }
     }
 }
@@ -112,7 +112,7 @@ fn static_axes_use_current_axis_values_and_already_coupled_vectors_are_noops() {
         (&transform.scale, &before.layers[0].transform.scale),
     ] {
         assert!(t.axes.is_none() && t.keys.is_empty());
-        assert_eq!(t.value, old.sample(12.5));
+        assert_eq!(t.value, old.sample(12.5).unwrap());
     }
     for _ in 0..3 {
         assert!(e.undo().unwrap());
@@ -210,8 +210,8 @@ fn custom_curves_override_ease_and_unused_final_key_timing_does_not_block_merge(
     t.merge_dimensions().unwrap();
     for i in -200..400 {
         assert_eq!(
-            t.sample(f64::from(i) / 4.),
-            before.sample(f64::from(i) / 4.)
+            t.sample(f64::from(i) / 4.).unwrap(),
+            before.sample(f64::from(i) / 4.).unwrap()
         );
     }
 }
@@ -247,8 +247,8 @@ fn layer_offsets_scene_sampling_storage_and_package_keep_the_same_animation() {
     let after = e.snapshot();
     assert_eq!(after.version, version);
     assert_eq!(after.layers[0].timeline, frozen.layers[0].timeline);
-    let mut a = Scene::new(&frozen);
-    let mut b = Scene::new(&after);
+    let mut a = Scene::new(&frozen).unwrap();
+    let mut b = Scene::new(&after).unwrap();
     for i in 0..400 {
         let frame = f64::from(i) / 4.;
         a.sample(&frozen, frame, None, &motion_core::ExpressionEvaluator)
@@ -324,8 +324,8 @@ fn expressions_keep_targets_sources_seeds_key_metadata_and_fractional_samples() 
             let a = before.evaluated_at(frame).unwrap();
             let b = e.project().evaluated_at(frame).unwrap();
             assert_eq!(
-                a.layers[0].transform.position.sample(frame - 20.),
-                b.layers[0].transform.position.sample(frame - 20.)
+                a.layers[0].transform.position.sample(frame - 20.).unwrap(),
+                b.layers[0].transform.position.sample(frame - 20.).unwrap()
             );
         }
     }

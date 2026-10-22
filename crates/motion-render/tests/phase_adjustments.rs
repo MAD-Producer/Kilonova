@@ -49,7 +49,7 @@ fn sample(p: &mut Project, frame: f64) -> Scene {
     scene(p, frame)
 }
 fn scene(p: &Project, frame: f64) -> Scene {
-    let mut s = Scene::new(p);
+    let mut s = Scene::new(p).unwrap();
     s.sample(p, frame, None, &ExpressionEvaluator).unwrap();
     s
 }

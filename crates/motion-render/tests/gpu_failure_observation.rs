@@ -42,7 +42,7 @@ fn real_validation_callbacks_leave_default_level_evidence_before_health_polling(
             [32., 32., 0.],
             [1.; 4],
         ));
-        let mut scene = Scene::new(&project);
+        let mut scene = Scene::new(&project).unwrap();
         scene
             .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
             .unwrap();

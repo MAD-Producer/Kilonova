@@ -507,7 +507,11 @@ pub(super) fn render(
                                 effect: id,
                                 param: param.into(),
                                 frame,
-                                value: parameter.sample(local),
+                                value: match observe!("effect.timeline_key_sample", parameter.sample(local),
+                                    "object={} effect={id} param={param} frame={local}", target.object) {
+                                    Ok(value) => value,
+                                    Err(_) => continue,
+                                },
                             }));
                         }
                         out.push(Action::EditBatch(commands));
@@ -646,7 +650,9 @@ fn draw_value(
     let styles = list.styles();
     let width = (area.max[0] - layout.number.min[0] - styles.metric("padding.panel", 8.)).max(0.);
     let values = Rect::new(layout.number.min[0], y, width, height);
-    let mut value = parameter.sample(local);
+    let Ok(mut value) = observe!("effect.timeline_value", parameter.sample(local),
+        "object={} effect={} param={} frame={local}", target.object, target.effect, target.param)
+        else { return; };
     if parameter.kind == ParamKind::Curve {
         if ui::button_styled(
             list,
@@ -852,7 +858,9 @@ fn begin_key(
         - target.source(state).unwrap().0["timeline"]["offset_frame"]
             .as_f64()
             .unwrap_or(0.);
-    let value = parameter.sample(local);
+    let Ok(value) = observe!("effect.timeline_drag_sample", parameter.sample(local),
+        "object={} effect={} param={} frame={local}", target.object, target.effect, target.param)
+        else { return; };
     let occupied = frames(&parameter, frame as f64 - local)
         .into_iter()
         .filter_map(|f| composition_frame(f, state))

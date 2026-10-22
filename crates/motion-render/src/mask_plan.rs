@@ -262,7 +262,7 @@ mod geometry_budget_tests {
     fn frame_remaining_budget_refuses_new_geometry_and_cached_masks_before_append() {
         let mut project = motion_model::Project::new(64, 64, 30, 60).unwrap();
         project.layers.push(motion_model::Layer::solid(1, "masked", [64.; 2], [32., 32., 0.], [1.; 4]));
-        let mut scene = Scene::new(&project);
+        let mut scene = Scene::new(&project).unwrap();
         scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
         let mask = |id| motion_model::masks::SampledMask {
             id, nodes: [[22., 22.], [42., 22.], [42., 42.], [22., 42.]].into_iter().map(|p| [p[0], p[1], 0., 0., 0., 0.]).collect(),

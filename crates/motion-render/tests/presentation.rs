@@ -60,7 +60,7 @@ fn android_presentation_shader_is_valid_on_an_actual_gpu() {
             .layers
             .push(Layer::solid(id, "color", [32.; 2], center, color));
     }
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene
         .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();

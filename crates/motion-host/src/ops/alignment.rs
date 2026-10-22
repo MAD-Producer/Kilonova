@@ -350,7 +350,7 @@ fn position_commands(
         }
         let local = motion_core::scene_prefix_delta(project, object, frame, delta)
             .map_err(|e| crate::Error::with_context(format!("align layer {object}"), e))?;
-        let before = layer.transform.position.sample(layer.local_frame(frame));
+        let before = layer.transform.position.sample(layer.local_frame(frame))?;
         let value = std::array::from_fn(|axis| before[axis] + local[axis]);
         if value
             .iter()

@@ -46,7 +46,7 @@ fn scoped_shader_rejection_is_reported_and_does_not_poison_later_rendering() {
     assert!(renderer.gpu_error().is_none());
 
     let project = Project::demo();
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene
         .sample(&project, 72., None, &motion_core::ExpressionEvaluator)
         .unwrap();

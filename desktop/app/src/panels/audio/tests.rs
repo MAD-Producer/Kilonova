@@ -1054,10 +1054,10 @@ fn malformed_audio_level_tracks_report_and_preserve_zero_fallback() {
         let _logger = crate::logging::init(root.clone()).unwrap();
         let path = root.join("motion-studio.log");
         let normal = serde_json::json!({"id":7});
-        for _ in 0..120 { assert_eq!(track(&normal,Control::Left).sample(0.),0.); }
+        for _ in 0..120 { assert_eq!(track(&normal,Control::Left).sample(0.).unwrap(),0.); }
         assert!(std::fs::read_to_string(&path).unwrap().is_empty());
         let bad = serde_json::json!({"id":7,"audio_levels":{"left":17}});
-        for _ in 0..120 { assert_eq!(track(&bad,Control::Left).sample(0.),0.); track(&normal,Control::Left); }
+        for _ in 0..120 { assert_eq!(track(&bad,Control::Left).sample(0.).unwrap(),0.); track(&normal,Control::Left); }
         let text = std::fs::read_to_string(path).unwrap();
         let records = text.lines().filter(|l| l.contains("site=audio.level_track ")).collect::<Vec<_>>();
         assert_eq!(records.len(),2);

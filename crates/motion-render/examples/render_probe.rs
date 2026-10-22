@@ -12,7 +12,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::fs::create_dir_all(&root)?;
     let mut renderer = pollster::block_on(Renderer::headless())?;
     let mut engine = Engine::new(Project::demo())?;
-    let mut scene = Scene::new(engine.project());
+    let mut scene = Scene::new(engine.project())?;
     let target = renderer.capture_target(360, 640)?;
     let mut records = Vec::new();
     for (label, movement) in [

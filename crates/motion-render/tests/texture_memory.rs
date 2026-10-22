@@ -5,7 +5,7 @@ use motion_core::{
 use motion_render::{ChromaLayout, Renderer, Scene, Yuv420Frame};
 
 fn render(renderer: &mut Renderer, project: &Project) {
-    let mut scene = Scene::new(project);
+    let mut scene = Scene::new(project).unwrap();
     scene
         .sample(project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();

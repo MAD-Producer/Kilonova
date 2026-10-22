@@ -5,7 +5,7 @@ use motion_render::{Renderer,Scene,TextureCategory,ResourceBudgetScope,ResourceR
     effect_plan::PlanBuilder,resource_policy::MemoryPolicy,PlaneCompositor,selection_geometry};
 
 fn sample(p:&Project)->Scene {
-    let mut s=Scene::new(p);s.sample(p,30.,None,&motion_core::ExpressionEvaluator).unwrap();s
+    let mut s=Scene::new(p).unwrap();s.sample(p,30.,None,&motion_core::ExpressionEvaluator).unwrap();s
 }
 fn vector_project(grouped:bool,second_size:f32)->Project {
     let mut p=Project::new(64,64,30,120).unwrap();p.background=[0.;4];

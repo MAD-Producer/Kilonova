@@ -49,7 +49,8 @@ impl CurveObject {
         for c in &self.channels {
             ensure((2..=64).contains(&c.len()), "curve requires 2..64 points")?;
             ensure(
-                c.first().unwrap()[0] == 0.0 && c.last().unwrap()[0] == 1.0,
+                c.first().is_some_and(|p| p[0] == 0.0)
+                    && c.last().is_some_and(|p| p[0] == 1.0),
                 "curve must cover the unit interval",
             )?;
             for p in c {
@@ -65,12 +66,13 @@ impl CurveObject {
         }
         Ok(())
     }
-    pub fn lut(&self) -> CurveLut {
+    pub fn lut(&self) -> Result<CurveLut> {
+        self.validate()?;
         if let Some(lut) = &self.sampled_lut {
-            return std::array::from_fn(|i| lut[i]);
+            return Ok(std::array::from_fn(|i| lut[i]));
         }
         let curves:[crate::color_curves::Transfer;5]=std::array::from_fn(|i|crate::color_curves::Transfer::new(&self.channels[i],self.interpolation[i],self.channel_luts[i].as_deref()));
-        std::array::from_fn(|i| {
+        Ok(std::array::from_fn(|i| {
             let v = i as f32 / 255.0;
             let master = curves[0].at(v);
             [
@@ -79,22 +81,23 @@ impl CurveObject {
                 curves[3].at(master),
                 curves[4].at(v),
             ]
-        })
+        }))
     }
     /// Turn a frozen/interpolated LUT into independently editable channels.
     /// Untouched channels retain their exact 256 values rather than being fitted.
-    pub fn editable(&self)->Self {
-        let Some(lut)=&self.sampled_lut else{return self.clone();};
+    pub fn editable(&self)->Result<Self> {
+        self.validate()?;
+        let Some(lut)=&self.sampled_lut else{return Ok(self.clone());};
         let mut result=Self::default();result.interpolation=crate::color_curves::legacy_modes();
         for channel in 1..5 {
             let values:Vec<_>=lut.iter().map(|row|row[channel-1]).collect();
             result.channels[channel]=(0..64).map(|i|{let index=if i==63{255}else{i*4};[index as f32/255.,values[index]]}).collect();
             result.channel_luts[channel]=Some(values);
         }
-        result
+        Ok(result)
     }
-    pub fn graph(&self)->serde_json::Value {
-        let value=self.editable();
+    pub fn graph(&self)->Result<serde_json::Value> {
+        let value=self.editable()?;
         let names=["RGB","R","G","B","Alpha"];
         let curves:Vec<_>=(0..5).map(|i|{
             let curve=crate::color_curves::Transfer::new(&value.channels[i],value.interpolation[i],value.channel_luts[i].as_deref());
@@ -102,8 +105,8 @@ impl CurveObject {
                 "lookup":value.channel_luts[i].is_some(),"points":value.channels[i],"segments":curve.segments(),
                 "samples":(0..256).map(|j|[j as f32/255.,curve.at(j as f32/255.)]).collect::<Vec<_>>()})
         }).collect();
-        serde_json::json!({"version":1,"channels":curves,"editableValue":value,"outputLut":self.lut().to_vec(),
-            "preparedFromLut":self.sampled_lut.is_some(),"colorMapping":"channel(master(input))","alphaMapping":"alpha(input_alpha)"})
+        Ok(serde_json::json!({"version":1,"channels":curves,"editableValue":value,"outputLut":self.lut()?.to_vec(),
+            "preparedFromLut":self.sampled_lut.is_some(),"colorMapping":"channel(master(input))","alphaMapping":"alpha(input_alpha)"}))
     }
 }
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -121,26 +124,36 @@ impl Default for CurveTrack {
     }
 }
 impl CurveTrack {
-    pub fn sample(&self, frame: f64) -> CurveLut {
+    pub fn sample(&self, frame: f64) -> Result<CurveLut> {
+        self.sample_value(frame).map_err(|source| Error::ColorCurveSampling {
+            frame, source: Box::new(source),
+        })
+    }
+    fn sample_value(&self, frame: f64) -> Result<CurveLut> {
         if self.keys.is_empty() {
             return self.value.lut();
         }
         let upper = self.keys.partition_point(|k| f64::from(k.frame) <= frame);
         if upper == 0 {
-            return self.keys[0].value.lut();
+            return self.keys.first().ok_or_else(|| Error::Invalid(
+                format!("color curve sample frame={frame}: first key is missing")))?.value.lut();
         }
         if upper >= self.keys.len() {
-            return self.keys.last().unwrap().value.lut();
+            return self.keys.last().ok_or_else(|| Error::Invalid(
+                format!("color curve sample frame={frame}: last key is missing")))?.value.lut();
         }
-        let a = &self.keys[upper - 1];
-        let b = &self.keys[upper];
+        let a = upper.checked_sub(1).and_then(|i| self.keys.get(i))
+            .ok_or_else(|| Error::Invalid(format!("color curve sample frame={frame}: predecessor is missing")))?;
+        let b = self.keys.get(upper)
+            .ok_or_else(|| Error::Invalid(format!("color curve sample frame={frame}: successor is missing")))?;
+        ensure(a.frame < b.frame, "color curve sample interval must increase")?;
         let t = ((frame - f64::from(a.frame)) / (f64::from(b.frame) - f64::from(a.frame))) as f32;
         let t = a
             .curve
             .map_or_else(|| a.ease.map(t), |c| c.sample(f64::from(t)).progress as f32);
-        let aa = a.value.lut();
-        let bb = b.value.lut();
-        std::array::from_fn(|i| std::array::from_fn(|c| aa[i][c] + (bb[i][c] - aa[i][c]) * t))
+        let aa = a.value.lut()?;
+        let bb = b.value.lut()?;
+        Ok(std::array::from_fn(|i| std::array::from_fn(|c| aa[i][c] + (bb[i][c] - aa[i][c]) * t)))
     }
     fn validate(&self, _frames: u32) -> Result<()> {
         self.value.validate()?;
@@ -175,23 +188,24 @@ pub struct EffectParam {
     pub curve: Option<CurveTrack>,
 }
 impl EffectParam {
-    pub fn sample(&self, frame: f64) -> [f32; 4] {
+    pub fn sample(&self, frame: f64) -> Result<[f32; 4]> {
         if self.kind.discrete() {
+            ensure(self.track.axes.is_none(), "discrete effect parameters cannot separate dimensions")?;
             let i = self
                 .track
                 .keys
                 .partition_point(|k| f64::from(k.frame) <= frame);
-            return if self.track.keys.is_empty() {
+            return Ok(if self.track.keys.is_empty() {
                 self.track.value
             } else {
                 self.track.keys[i.saturating_sub(1)].value
-            };
+            });
         }
-        let mut value = self.track.sample(frame);
+        let mut value = self.track.sample(frame)?;
         for v in &mut value[..self.kind.dimensions()] {
             *v = v.clamp(self.min, self.max);
         }
-        value
+        Ok(value)
     }
     fn validate(&self, frames: u32) -> Result<()> {
         ensure(
@@ -653,7 +667,7 @@ pub fn apply(layer: &mut Layer, action: EffectAction, frames: u32) -> Result<()>
                         spatial: None,
                     });
                 } else if !enabled {
-                    let frozen = c.sample(f64::from(frame));
+                    let frozen = c.sample(f64::from(frame))?;
                     let upper = c.keys.partition_point(|k| k.frame <= frame);
                     if !c.keys.is_empty() {
                         c.value = c.keys[upper.saturating_sub(1)].value.clone();

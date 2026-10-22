@@ -83,6 +83,7 @@ impl Session {
         } else {
             vec![id.into()]
         };
+        let next_scene = motion_render::Scene::for_composition(self.engine.project(), id)?;
         let old = self.engine.project().composition_id.clone();
         self.composition_contexts.entry(old).or_default().frame = self.frame;
         self.engine
@@ -97,7 +98,7 @@ impl Session {
             (*id == 0 && self.engine.project().camera.created)
                 || self.engine.project().layers.iter().any(|l| l.id == *id)
         });
-        self.scene = motion_render::Scene::new(self.engine.project());
+        self.scene = next_scene;
         self.observer = motion_core::Observer::new(
             self.engine.project().width,
             self.engine.project().height,

@@ -57,11 +57,11 @@ fn scalar(
     at: f64,
     range: [f64; 2],
     locale: Locale,
-) -> Parameter {
-    Parameter {
+) -> motion_core::Result<Parameter> {
+    Ok(Parameter {
         id: id.into(),
         name: if locale == Locale::Zh { zh } else { en }.into(),
-        values: vec![t.sample(at)],
+        values: vec![t.sample(at)?],
         authored_values: [t.value, 0., 0., 0.],
         keys: t
             .keys
@@ -80,7 +80,7 @@ fn scalar(
         discrete: false,
         color: false,
         static_value: false,
-    }
+    })
 }
 fn vector(
     id: &str,
@@ -90,11 +90,11 @@ fn vector(
     at: f64,
     range: [f64; 2],
     locale: Locale,
-) -> Parameter {
-    Parameter {
+) -> motion_core::Result<Parameter> {
+    Ok(Parameter {
         id: id.into(),
         name: if locale == Locale::Zh { zh } else { en }.into(),
-        values: t.sample(at).to_vec(),
+        values: t.sample(at)?.to_vec(),
         authored_values: [t.value[0], t.value[1], 0., 0.],
         keys: t
             .keys
@@ -113,13 +113,20 @@ fn vector(
         discrete: false,
         color: false,
         static_value: false,
-    }
+    })
 }
-fn color(id: &str, zh: &str, en: &str, t: &Track<[f32; 4]>, at: f64, locale: Locale) -> Parameter {
-    Parameter {
+fn color(
+    id: &str,
+    zh: &str,
+    en: &str,
+    t: &Track<[f32; 4]>,
+    at: f64,
+    locale: Locale,
+) -> motion_core::Result<Parameter> {
+    Ok(Parameter {
         id: id.into(),
         name: if locale == Locale::Zh { zh } else { en }.into(),
-        values: t.sample(at).to_vec(),
+        values: t.sample(at)?.to_vec(),
         authored_values: t.value,
         keys: t
             .keys
@@ -138,7 +145,7 @@ fn color(id: &str, zh: &str, en: &str, t: &Track<[f32; 4]>, at: f64, locale: Loc
         discrete: false,
         color: true,
         static_value: false,
-    }
+    })
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::panels) enum OptionKind {
@@ -367,15 +374,27 @@ pub(in crate::panels) fn filtered_tree(
     if matches!(filter, PropertyFilter::Properties(_)) {
         return None;
     }
-    let mut node = tree(vector, size, at, locale);
+    let mut node = observe!(
+        "path.parameter_tree",
+        tree(vector, size, at, locale),
+        "frame={at}"
+    )
+    .ok()?;
     if filter == PropertyFilter::All {
         return Some(node);
     }
     let baseline = (filter == PropertyFilter::Modified)
-        .then(|| tree(&defaults(vector, false, locale), [100.; 2], 0., locale));
+        .then(|| tree(&defaults(vector, false, locale), [100.; 2], 0., locale))
+        .transpose();
+    let baseline = observe!("path.parameter_defaults", baseline, "frame={at}").ok()?;
     retain(&mut node, baseline.as_ref(), filter).then_some(node)
 }
-fn dashes(out: &mut Vec<Parameter>, d: &StrokeDashes, at: f64, locale: Locale) {
+fn dashes(
+    out: &mut Vec<Parameter>,
+    d: &StrokeDashes,
+    at: f64,
+    locale: Locale,
+) -> motion_core::Result<()> {
     out.push(scalar(
         "dash_offset",
         "虚线偏移",
@@ -384,7 +403,7 @@ fn dashes(out: &mut Vec<Parameter>, d: &StrokeDashes, at: f64, locale: Locale) {
         at,
         [-32768., 32768.],
         locale,
-    ));
+    )?);
     for (i, t) in d.pattern.iter().enumerate() {
         let mut p = scalar(
             &format!("dash_{i}"),
@@ -394,7 +413,7 @@ fn dashes(out: &mut Vec<Parameter>, d: &StrokeDashes, at: f64, locale: Locale) {
             at,
             [if i % 2 == 0 { 0.1 } else { 0. }, 32768.],
             locale,
-        );
+        )?;
         p.name = format!(
             "{} {}",
             if locale == Locale::Zh {
@@ -412,6 +431,7 @@ fn dashes(out: &mut Vec<Parameter>, d: &StrokeDashes, at: f64, locale: Locale) {
         );
         out.push(p);
     }
+    Ok(())
 }
 fn stroke(
     out: &mut Vec<Parameter>,
@@ -420,7 +440,7 @@ fn stroke(
     at: f64,
     locale: Locale,
     embedded: bool,
-) {
+) -> motion_core::Result<()> {
     out.push(color(
         if embedded { "stroke_color" } else { "color" },
         if embedded { "描边颜色" } else { "颜色" },
@@ -428,7 +448,7 @@ fn stroke(
         &s.color,
         at,
         locale,
-    ));
+    )?);
     out.push(scalar(
         if embedded { "stroke_width" } else { "width" },
         "宽度 px",
@@ -437,7 +457,7 @@ fn stroke(
         at,
         [0., 32768.],
         locale,
-    ));
+    )?);
     let mut m = scalar(
         "miter_limit",
         "尖角限制",
@@ -446,7 +466,7 @@ fn stroke(
         at,
         [1., 100.],
         locale,
-    );
+    )?;
     m.static_value = true;
     out.push(m);
     settings.extend([
@@ -460,8 +480,9 @@ fn stroke(
             d.pattern.len() / 2 - 1,
             locale,
         ));
-        dashes(out, d, at, locale);
+        dashes(out, d, at, locale)?;
     }
+    Ok(())
 }
 fn trim(
     out: &mut Vec<Parameter>,
@@ -470,7 +491,7 @@ fn trim(
     at: f64,
     locale: Locale,
     embedded: bool,
-) {
+) -> motion_core::Result<()> {
     for (id, zh, en, track, range) in [
         ("start", "起点 %", "Start %", &t.start, [0., 100.]),
         ("end", "终点 %", "End %", &t.end, [0., 100.]),
@@ -494,18 +515,19 @@ fn trim(
             at,
             range,
             locale,
-        ));
+        )?);
     }
     settings.push(setting(OptionKind::TrimMode, t.mode as usize, locale));
+    Ok(())
 }
 pub(in crate::panels) fn tree(
     vector: &VectorContent,
     size: [f32; 2],
     at: f64,
     locale: Locale,
-) -> Node {
-    if let VectorSource::Group { group } = &vector.source {
-        group_node(group, at, locale)
+) -> motion_core::Result<Node> {
+    Ok(if let VectorSource::Group { group } = &vector.source {
+        group_node(group, at, locale)?
     } else {
         let g = VectorGroup {
             id: 1,
@@ -513,14 +535,14 @@ pub(in crate::panels) fn tree(
             transform: Default::default(),
             items: vec![],
         };
-        let mut root = group_node(&g, at, locale);
+        let mut root = group_node(&g, at, locale)?;
         let (parameters, settings) = geometry(
             vector,
             &Track::constant(size),
             &Track::constant([0.; 2]),
             at,
             locale,
-        );
+        )?;
         root.children.push(Node {
             id: 2,
             tag: 2,
@@ -535,14 +557,14 @@ pub(in crate::panels) fn tree(
             settings,
         });
         root
-    }
+    })
 }
 fn transform_parameters(
     t: &motion_core::vector::groups::GroupTransform,
     at: f64,
     locale: Locale,
-) -> Vec<Parameter> {
-    vec![
+) -> motion_core::Result<Vec<Parameter>> {
+    Ok(vec![
         vector(
             "position",
             "位置",
@@ -551,7 +573,7 @@ fn transform_parameters(
             at,
             [-32768., 32768.],
             locale,
-        ),
+        )?,
         vector(
             "anchor",
             "锚点",
@@ -560,7 +582,7 @@ fn transform_parameters(
             at,
             [-32768., 32768.],
             locale,
-        ),
+        )?,
         vector(
             "scale",
             "缩放 %",
@@ -569,7 +591,7 @@ fn transform_parameters(
             at,
             [-10000., 10000.],
             locale,
-        ),
+        )?,
         scalar(
             "rotation",
             "旋转 °",
@@ -578,8 +600,8 @@ fn transform_parameters(
             at,
             [-360000., 360000.],
             locale,
-        ),
-        scalar("skew", "倾斜 °", "Skew °", &t.skew, at, [-89., 89.], locale),
+        )?,
+        scalar("skew", "倾斜 °", "Skew °", &t.skew, at, [-89., 89.], locale)?,
         scalar(
             "skew_axis",
             "倾斜轴 °",
@@ -588,7 +610,7 @@ fn transform_parameters(
             at,
             [-360000., 360000.],
             locale,
-        ),
+        )?,
         scalar(
             "opacity",
             "不透明度 %",
@@ -597,11 +619,11 @@ fn transform_parameters(
             at,
             [0., 100.],
             locale,
-        ),
-    ]
+        )?,
+    ])
 }
-fn group_node(g: &VectorGroup, at: f64, locale: Locale) -> Node {
-    let parameters = transform_parameters(&g.transform, at, locale);
+fn group_node(g: &VectorGroup, at: f64, locale: Locale) -> motion_core::Result<Node> {
+    let parameters = transform_parameters(&g.transform, at, locale)?;
     let mut children = vec![Node {
         id: g.id,
         tag: 1,
@@ -615,8 +637,13 @@ fn group_node(g: &VectorGroup, at: f64, locale: Locale) -> Node {
         parameters,
         settings: vec![],
     }];
-    children.extend(g.items.iter().map(|item| item_node(item, at, locale)));
-    Node {
+    children.extend(
+        g.items
+            .iter()
+            .map(|item| item_node(item, at, locale))
+            .collect::<motion_core::Result<Vec<_>>>()?,
+    );
+    Ok(Node {
         id: g.id,
         tag: 0,
         name: if g.name == "Group 1" && locale == Locale::Zh {
@@ -627,7 +654,7 @@ fn group_node(g: &VectorGroup, at: f64, locale: Locale) -> Node {
         children,
         parameters: vec![],
         settings: vec![],
-    }
+    })
 }
 fn geometry(
     v: &VectorContent,
@@ -635,12 +662,12 @@ fn geometry(
     position: &Track<[f32; 2]>,
     at: f64,
     locale: Locale,
-) -> (Vec<Parameter>, Vec<Setting>) {
+) -> motion_core::Result<(Vec<Parameter>, Vec<Setting>)> {
     let mut p = vec![];
     let mut s = vec![];
 
     p.extend([
-        vector("size", "大小 px", "Size px", size, at, [0., 32768.], locale),
+        vector("size", "大小 px", "Size px", size, at, [0., 32768.], locale)?,
         vector(
             "position",
             "位置",
@@ -649,7 +676,7 @@ fn geometry(
             at,
             [-32768., 32768.],
             locale,
-        ),
+        )?,
     ]);
     if let VectorSource::Shape { shape, parameters } = &v.source {
         for spec in shape_parameters(*shape) {
@@ -673,7 +700,7 @@ fn geometry(
                     at,
                     [spec.min.into(), spec.max.into()],
                     locale,
-                );
+                )?;
                 param.discrete = spec.discrete;
                 p.push(param);
             }
@@ -685,19 +712,19 @@ fn geometry(
         setting(OptionKind::Trim, usize::from(v.trim.is_some()), locale),
     ]);
     if let Some(c) = &v.fill {
-        p.push(color("fill", "填充颜色", "Fill color", c, at, locale));
+        p.push(color("fill", "填充颜色", "Fill color", c, at, locale)?);
         s.push(setting(OptionKind::FillRule, v.fill_rule as usize, locale));
     }
     if let Some(st) = &v.stroke {
-        stroke(&mut p, &mut s, st, at, locale, true);
+        stroke(&mut p, &mut s, st, at, locale, true)?;
     }
     if let Some(t) = &v.trim {
-        trim(&mut p, &mut s, t, at, locale, true);
+        trim(&mut p, &mut s, t, at, locale, true)?;
     }
 
-    (p, s)
+    Ok((p, s))
 }
-fn item_node(item: &GroupItem, at: f64, locale: Locale) -> Node {
+fn item_node(item: &GroupItem, at: f64, locale: Locale) -> motion_core::Result<Node> {
     if let GroupItem::Group { group } = item {
         return group_node(group, at, locale);
     }
@@ -714,7 +741,7 @@ fn item_node(item: &GroupItem, at: f64, locale: Locale) -> Node {
                     at,
                     [0., 1024.],
                     locale,
-                ),
+                )?,
                 scalar(
                     "offset",
                     "偏移",
@@ -723,7 +750,7 @@ fn item_node(item: &GroupItem, at: f64, locale: Locale) -> Node {
                     at,
                     [-1024., 1024.],
                     locale,
-                ),
+                )?,
                 vector(
                     "position",
                     "位置",
@@ -732,7 +759,7 @@ fn item_node(item: &GroupItem, at: f64, locale: Locale) -> Node {
                     at,
                     [-32768., 32768.],
                     locale,
-                ),
+                )?,
                 vector(
                     "anchor",
                     "锚点",
@@ -741,7 +768,7 @@ fn item_node(item: &GroupItem, at: f64, locale: Locale) -> Node {
                     at,
                     [-32768., 32768.],
                     locale,
-                ),
+                )?,
                 vector(
                     "scale",
                     "缩放 %",
@@ -750,7 +777,7 @@ fn item_node(item: &GroupItem, at: f64, locale: Locale) -> Node {
                     at,
                     [-1000., 1000.],
                     locale,
-                ),
+                )?,
                 scalar(
                     "rotation",
                     "旋转 °",
@@ -759,7 +786,7 @@ fn item_node(item: &GroupItem, at: f64, locale: Locale) -> Node {
                     at,
                     [-360000., 360000.],
                     locale,
-                ),
+                )?,
                 scalar(
                     "start_opacity",
                     "起始不透明度 %",
@@ -768,7 +795,7 @@ fn item_node(item: &GroupItem, at: f64, locale: Locale) -> Node {
                     at,
                     [0., 100.],
                     locale,
-                ),
+                )?,
                 scalar(
                     "end_opacity",
                     "结束不透明度 %",
@@ -777,7 +804,7 @@ fn item_node(item: &GroupItem, at: f64, locale: Locale) -> Node {
                     at,
                     [0., 100.],
                     locale,
-                ),
+                )?,
             ];
             s.push(setting(OptionKind::Composite, r.composite as usize, locale));
         }
@@ -787,7 +814,7 @@ fn item_node(item: &GroupItem, at: f64, locale: Locale) -> Node {
             composite,
             ..
         } => {
-            p.push(color("color", "颜色", "Color", c, at, locale));
+            p.push(color("color", "颜色", "Color", c, at, locale)?);
             s.extend([
                 setting(OptionKind::FillRule, *fill_rule as usize, locale),
                 setting(OptionKind::Composite, *composite as usize, locale),
@@ -798,17 +825,17 @@ fn item_node(item: &GroupItem, at: f64, locale: Locale) -> Node {
             composite,
             ..
         } => {
-            stroke(&mut p, &mut s, st, at, locale, false);
+            stroke(&mut p, &mut s, st, at, locale, false)?;
             s.push(setting(OptionKind::Composite, *composite as usize, locale));
         }
-        GroupItem::Trim { trim: t, .. } => trim(&mut p, &mut s, t, at, locale, false),
+        GroupItem::Trim { trim: t, .. } => trim(&mut p, &mut s, t, at, locale, false)?,
         GroupItem::Geometry {
             vector: v,
             size,
             position,
             ..
         } => {
-            (p, s) = geometry(v, size, position, at, locale);
+            (p, s) = geometry(v, size, position, at, locale)?;
         }
         _ => {}
     }
@@ -831,14 +858,14 @@ fn item_node(item: &GroupItem, at: f64, locale: Locale) -> Node {
     } else {
         item.name().into()
     };
-    Node {
+    Ok(Node {
         id: item.id(),
         tag: 2,
         name,
         children: vec![],
         parameters: p,
         settings: s,
-    }
+    })
 }
 #[cfg(test)]
 pub(in crate::panels) fn lookup(node: &Node, item: u64, id: &str) -> Option<Parameter> {
@@ -861,9 +888,14 @@ pub(in crate::panels) fn lookup_source(
 ) -> Option<Parameter> {
     fn search(g: &VectorGroup, item: u64, id: &str, at: f64, locale: Locale) -> Option<Parameter> {
         if g.id == item {
-            return transform_parameters(&g.transform, at, locale)
-                .into_iter()
-                .find(|p| p.id == id);
+            return observe!(
+                "path.lookup_transform",
+                transform_parameters(&g.transform, at, locale),
+                "item={item} param={id} frame={at}"
+            )
+            .ok()?
+            .into_iter()
+            .find(|p| p.id == id);
         }
         for i in &g.items {
             if let GroupItem::Group { group } = i {
@@ -871,10 +903,15 @@ pub(in crate::panels) fn lookup_source(
                     return Some(p);
                 }
             } else if i.id() == item {
-                return item_node(i, at, locale)
-                    .parameters
-                    .into_iter()
-                    .find(|p| p.id == id);
+                return observe!(
+                    "path.lookup_item",
+                    item_node(i, at, locale),
+                    "item={item} param={id} frame={at}"
+                )
+                .ok()?
+                .parameters
+                .into_iter()
+                .find(|p| p.id == id);
             }
         }
         None
@@ -883,16 +920,26 @@ pub(in crate::panels) fn lookup_source(
         return search(group, item, id, at, locale);
     }
     match item {
-        1 => transform_parameters(&Default::default(), at, locale)
-            .into_iter()
-            .find(|p| p.id == id),
-        2 => geometry(
-            vector,
-            &Track::constant(size),
-            &Track::constant([0.; 2]),
-            at,
-            locale,
+        1 => observe!(
+            "path.lookup_root",
+            transform_parameters(&Default::default(), at, locale),
+            "item={item} param={id} frame={at}"
         )
+        .ok()?
+        .into_iter()
+        .find(|p| p.id == id),
+        2 => observe!(
+            "path.lookup_geometry",
+            geometry(
+                vector,
+                &Track::constant(size),
+                &Track::constant([0.; 2]),
+                at,
+                locale,
+            ),
+            "item={item} param={id} frame={at}"
+        )
+        .ok()?
         .0
         .into_iter()
         .find(|p| p.id == id),

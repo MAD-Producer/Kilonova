@@ -160,7 +160,7 @@ impl AudioMixer {
                 self.samples.push(v);
             }
             let animated_levels=audio.animated_levels();
-            let constant_gain=audio.gain_at(begin);
+            let constant_gain=audio.gain_at(begin)?;
             for sample in begin..end {
                 let pos = position(sample);
                 if pos < 0 || pos >= i128::from(asset.sample_frames) * den {
@@ -169,7 +169,7 @@ impl AudioMixer {
                 let n = pos.div_euclid(den) as i64;
                 let fraction = pos.rem_euclid(den);
                 let target = (sample - start_sample) as usize * 2;
-                let gain=if animated_levels{audio.gain_at(sample)}else{constant_gain};
+                let gain=if animated_levels{audio.gain_at(sample)?}else{constant_gain};
                 for channel in 0..2 {
                     let channel = channel.min(ch - 1);
                     let value = if fraction == 0 && asset.sample_rate <= OUTPUT_RATE as u32 {

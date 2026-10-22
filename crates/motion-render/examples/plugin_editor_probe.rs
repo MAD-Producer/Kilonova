@@ -112,7 +112,7 @@ impl Probe {
             if !(1..=512).contains(&width) || !(1..=512).contains(&height) {
                 return Err("invalid preview size".into());
             }
-            let mut scene = Scene::new(engine.project());
+            let mut scene = Scene::new(engine.project())?;
             scene.sample(engine.project(), self.frame.into(), None, &motion_core::ExpressionEvaluator)?;
             let target = self.renderer.capture_target(width, height)?;
             let (rgba, stats) = self.renderer.capture(&scene, &target)?;

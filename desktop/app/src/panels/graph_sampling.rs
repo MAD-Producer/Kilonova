@@ -100,7 +100,7 @@ mod tests {
                 }),
             },
         ];
-        let derivative = (track.sample(15.02)[1] - track.sample(14.98)[1]) as f64 / 0.04 * 30.;
+        let derivative = (track.sample(15.02).unwrap()[1] - track.sample(14.98).unwrap()[1]) as f64 / 0.04 * 30.;
         assert!((velocity(&track, 15., 30., |v| v[1] as f64) - derivative).abs() < 0.2);
     }
 }

@@ -352,7 +352,7 @@ fn setup(graph: &GraphDocument, path: &std::path::Path) -> (Project, Renderer, C
     (p, renderer, target)
 }
 fn render(p: &Project, r: &mut Renderer, t: &CaptureTarget, frame: f64) -> Vec<u8> {
-    let mut scene = Scene::new(p);
+    let mut scene = Scene::new(p).unwrap();
     scene
         .sample(p, frame, None, &motion_core::ExpressionEvaluator)
         .unwrap();

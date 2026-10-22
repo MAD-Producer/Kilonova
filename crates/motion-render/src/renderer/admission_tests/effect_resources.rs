@@ -40,7 +40,7 @@ fn project(effect: &str, extent: u32) -> Project {
     project
 }
 fn scene(project: &Project) -> Scene {
-    let mut scene = Scene::new(project);
+    let mut scene = Scene::new(project).unwrap();
     scene
         .sample(project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();

@@ -624,7 +624,7 @@ fn effect_speed_uses_the_same_clamp_as_the_value_sampler() {
     parameter.max = 1.;
     parameter.track.keys[0].value[0] = 0.;
     parameter.track.keys[1].value[0] = 1.;
-    assert!((graph::speed_value(&parameter, 40., 30., 0) - 0.5).abs() < 0.0001);
+    assert!((graph::speed_value(&parameter, 40., 30., 0).unwrap() - 0.5).abs() < 0.0001);
     parameter.track.keys[0].curve = Some(motion_core::Curve {
         space: motion_core::CurveSpace::Progress,
         shape: motion_core::CurveShape::Cubic {
@@ -634,13 +634,13 @@ fn effect_speed_uses_the_same_clamp_as_the_value_sampler() {
             end: 1.,
         },
     });
-    assert!(parameter.track.sample(40.)[0] > parameter.max);
-    assert_eq!(parameter.sample(40.)[0], 1.);
+    assert!(parameter.track.sample(40.).unwrap()[0] > parameter.max);
+    assert_eq!(parameter.sample(40.).unwrap()[0], 1.);
     assert!(graph_sampling::velocity(&parameter.track, 40., 30., |v| v[0] as f64).abs() > 0.1);
-    assert_eq!(graph::speed_value(&parameter, 40., 30., 0), 0.);
-    assert_eq!(graph::speed_value(&parameter, 5., 30., 0), 0.);
+    assert_eq!(graph::speed_value(&parameter, 40., 30., 0).unwrap(), 0.);
+    assert_eq!(graph::speed_value(&parameter, 5., 30., 0).unwrap(), 0.);
     parameter.kind = motion_effects::ParamKind::Bool;
-    assert_eq!(graph::speed_value(&parameter, 20., 30., 0), 0.);
+    assert_eq!(graph::speed_value(&parameter, 20., 30., 0).unwrap(), 0.);
 }
 
 #[test]

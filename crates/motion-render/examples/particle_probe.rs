@@ -114,7 +114,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         r.upload_image(1, 64, 64, png.as_raw())?;
     }
     let target = r.capture_target(960, 540)?;
-    let mut s = Scene::new(&p);
+    let mut s = Scene::new(&p)?;
     let mut report = Vec::new();
     let mut elapsed = 0.;
     let mut prepare = 0.;

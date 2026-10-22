@@ -24,7 +24,7 @@ fn fixture() -> Engine {
     Engine::new(p).unwrap()
 }
 fn sampled(p: &Project, frame: f64) -> Scene {
-    let mut scene = Scene::new(p);
+    let mut scene = Scene::new(p).unwrap();
     scene
         .sample(p, frame, None, &motion_core::ExpressionEvaluator)
         .unwrap();
@@ -92,8 +92,8 @@ fn six_edges_use_evaluated_bounds_and_preserve_other_tracks_with_one_undo_and_sa
                     assert_eq!(old.transform.rotation, new.transform.rotation);
                     assert_eq!(old.transform.opacity, new.transform.opacity);
                     assert_eq!(
-                        old.transform.position.sample(17.)[2],
-                        new.transform.position.sample(17.)[2]
+                        old.transform.position.sample(17.).unwrap()[2],
+                        new.transform.position.sample(17.).unwrap()[2]
                     );
                 }
                 let folder = tempfile::tempdir().unwrap();
@@ -319,8 +319,8 @@ fn clip_offsets_write_the_existing_local_key_and_keep_unrelated_keys() {
             engine.project().layers[0].timeline
         );
         assert_eq!(
-            before.layers[0].transform.position.sample(0.),
-            engine.project().layers[0].transform.position.sample(0.)
+            before.layers[0].transform.position.sample(0.).unwrap(),
+            engine.project().layers[0].transform.position.sample(0.).unwrap()
         );
         assert_eq!(
             before.layers[0]
@@ -343,6 +343,11 @@ fn clip_offsets_write_the_existing_local_key_and_keep_unrelated_keys() {
 fn expression_control_and_singular_parent_reject_the_entire_plan() {
     let registry = Registry::new_with_builtins().unwrap();
     let mut p = fixture().project().clone();
+    // This planner consumes an already sampled scene. Its expression-ownership
+    // refusal must not depend on an unrelated JavaScript cold-start deadline.
+    let scene = sampled(&p, 4.);
+    let unrestricted = plan(&p, &scene, &registry, 4., &[1, 2], Edge::Left, Target::Composition).unwrap();
+    assert!(!unrestricted.is_empty());
     p.expressions.push(motion_core::PropertyExpression {
         target: ExpressionTarget::Property {
             object: 2,
@@ -354,9 +359,10 @@ fn expression_control_and_singular_parent_reject_the_entire_plan() {
         seed: 0,
         profile: motion_core::EXPRESSION_PROFILE.into(),
     });
+    let controlled = p.clone();
     assert!(plan(
         &p,
-        &sampled(&p, 4.),
+        &scene,
         &registry,
         4.,
         &[1, 2],
@@ -366,6 +372,12 @@ fn expression_control_and_singular_parent_reject_the_entire_plan() {
     .unwrap_err()
     .to_string()
     .contains("position is controlled"));
+    assert_eq!(p, controlled);
+    p.expressions[0].enabled = false;
+    let disabled = p.clone();
+    let allowed = plan(&p, &scene, &registry, 4., &[1, 2], Edge::Left, Target::Composition).unwrap();
+    assert_eq!(serde_json::to_value(allowed).unwrap(), serde_json::to_value(unrestricted).unwrap());
+    assert_eq!(p, disabled);
     let mut engine = fixture();
     engine
         .apply(Command::Parent {

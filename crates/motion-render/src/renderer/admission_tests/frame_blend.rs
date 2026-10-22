@@ -43,7 +43,7 @@ fn video_scene() -> Scene {
     layer.sampling.frame_blend = motion_core::render_sampling::FrameBlend::Linear;
     project.layers.push(layer);
     project.validate().unwrap();
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene
         .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();

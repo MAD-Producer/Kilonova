@@ -484,7 +484,7 @@ fn exposure_preview_keeps_progress_across_native_windows_and_cancels_on_explicit
                 let mut renderer=pollster::block_on(motion_render::Renderer::headless()).unwrap();
                 let mut target=renderer.exposure_target(32,32,&[0.25;4]).unwrap();
                 for offset in [-0.1875,-0.0625,0.0625,0.1875] {
-                    let mut scene=motion_render::Scene::new(&reference);
+                    let mut scene=motion_render::Scene::new(&reference).unwrap();
                     scene.sample(&reference,expected+offset,None,&motion_core::ExpressionEvaluator).unwrap();
                     renderer.accumulate_exposure(&mut target,Some(&scene),true).unwrap();
                 }

@@ -39,7 +39,7 @@ fn fixture() -> Engine {
     Engine::new(p).unwrap()
 }
 fn scene(p: &Project, f: f64) -> Scene {
-    let mut s = Scene::new(p);
+    let mut s = Scene::new(p).unwrap();
     s.sample(p, f, None, &motion_core::ExpressionEvaluator).unwrap();
     s
 }
@@ -114,7 +114,7 @@ fn signed_spans_preserve_hidden_time_and_local_animation_across_storage_and_hist
     e.apply(Command::Add{layer}).unwrap();assert_eq!(e.project().version,motion_model::CURRENT_PROJECT_VERSION);
     let before=e.snapshot();let metadata=e.project().timeline_layers(0.).unwrap();
     assert_eq!((metadata[0].in_frame,metadata[0].out_frame,metadata[0].offset_frame),(-10,100,-10));
-    assert_eq!(e.project().layers[0].transform.position.sample(e.project().layers[0].local_frame(0.)),[42.,32.,0.]);
+    assert_eq!(e.project().layers[0].transform.position.sample(e.project().layers[0].local_frame(0.)).unwrap(),[42.,32.,0.]);
     assert!(!e.project().layers[0].active(-1.,60));assert!(e.project().layers[0].active(59.5,60));assert!(!e.project().layers[0].active(60.,60));
     e.apply(Command::MoveLayerClip{object:1,in_frame:-20}).unwrap();
     compare(&before,e.project(),20.,10.,1,1);
@@ -263,7 +263,7 @@ fn key_commands_convert_composition_time_and_keep_negative_local_keys() {
         value: 0.3,
     })
     .unwrap();
-    assert_eq!(e.project().layers[1].transform.opacity.sample(-10.0), 0.3);
+    assert_eq!(e.project().layers[1].transform.opacity.sample(-10.0).unwrap(), 0.3);
     assert_eq!(
         scene(e.project(), 10.0)
             .layers
@@ -365,7 +365,7 @@ fn inactive_null_parent_and_camera_rig_sample_their_own_time() {
         .abs_diff_eq(s.camera.view_projection, 1e-4));
     let mut observer = Observer::new(1080, 1920);
     observer.orbit(40.0, 10.0).unwrap();
-    let mut observed = Scene::new(e.project());
+    let mut observed = Scene::new(e.project()).unwrap();
     observed
         .sample(e.project(), 150.0, Some(&observer), &motion_core::ExpressionEvaluator)
         .unwrap();

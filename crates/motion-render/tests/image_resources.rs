@@ -285,7 +285,7 @@ fn scene_demand_excludes_inactive_clips_and_unreferenced_library_assets() {
     timeline.out_frame = 10;
     l.timeline = Some(timeline);
     p.layers.push(l);
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     for (frame, count) in [(0., 0), (5., 1), (9., 1), (10., 0)] {
         scene.sample(&p, frame, None, &motion_core::ExpressionEvaluator).unwrap();
         let demand = images::scene_assets(&scene);

@@ -45,7 +45,7 @@ fn shader_failure_retains_native_effect_error_and_source() {
 #[test]
 fn cached_resolution_failure_retains_same_native_error_and_recovers() {
     let project = project();
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene
         .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();
@@ -132,7 +132,7 @@ fn malformed_dependency_pass_ranges_return_errors_and_healthy_range_recovers() {
 
 #[test]
 fn undersized_plan_buffer_refuses_without_writing() {
-    let scene = Scene::new(&project());
+    let scene = Scene::new(&project()).unwrap();
     let plan = EffectFramePlan::default();
     let mut output = [0xab; 1];
     let error = plan.write(&scene, &mut output).unwrap_err();

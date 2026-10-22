@@ -307,7 +307,7 @@ impl Shell {
                     serde_json::from_value(masks.last().unwrap().clone())
                         .map_err(|e| e.to_string())?;
                 for node in &mut path_mask.path.nodes {
-                    let mut value = node.geometry.sample(60.);
+                    let mut value = node.geometry.sample(60.).map_err(|e| e.to_string())?;
                     value[0] += 20.;
                     node.geometry.set_at(60, value).map_err(|e| e.to_string())?;
                 }

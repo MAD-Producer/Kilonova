@@ -26,7 +26,7 @@ fn project(matte: bool) -> Project {
 }
 
 fn sample(p: &Project) -> Scene {
-    let mut scene = Scene::new(p);
+    let mut scene = Scene::new(p).unwrap();
     scene.sample(p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     scene
 }

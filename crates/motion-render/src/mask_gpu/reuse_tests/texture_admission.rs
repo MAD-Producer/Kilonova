@@ -1,7 +1,7 @@
 use super::*;
 
 fn sampled(project: &Project) -> (Scene, Vec<MaskRaster>) {
-    let mut scene = Scene::new(project);
+    let mut scene = Scene::new(project).unwrap();
     scene.sample(project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     let masks = MaskCache::default().build(&scene, 1., false).unwrap();
     (scene, masks)

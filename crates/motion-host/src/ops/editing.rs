@@ -90,7 +90,7 @@ pub fn drag(
         if !layer.active(s.frame, s.engine.project().frames) {
             return Err("drag layer is outside its clip".into());
         }
-        let position = layer.transform.position.sample(layer.local_frame(s.frame));
+        let position = layer.transform.position.sample(layer.local_frame(s.frame))?;
         let separated = layer.transform.position.axes.is_some();
         let world_position = s
             .scene

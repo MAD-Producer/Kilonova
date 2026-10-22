@@ -103,7 +103,7 @@ fn elastic_overshoot_is_retained_and_invalid_definitions_are_rejected_atomically
         },
     )
     .unwrap();
-    assert!((1..60).any(|frame| t.sample(frame as f64) > 105.0));
+    assert!((1..60).any(|frame| t.sample(frame as f64).unwrap() > 105.0));
     for curve in [
         quadratic(CurveSpace::Velocity, [0.5, 0.0], 0.0),
         quadratic(CurveSpace::Progress, [1.5, 1.0], 1.0),

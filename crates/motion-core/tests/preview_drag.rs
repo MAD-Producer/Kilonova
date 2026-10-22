@@ -8,7 +8,7 @@ fn preview_drag_tracks_screen_distance_at_any_fit_size_and_depth() {
         for z in [-800.0, 0.0, 1200.0] {
             p.layers[1].transform.position = Track::constant([430.0, 810.0, z]);
             p.layers[1].transform.scale = Track::constant([170.0, 65.0, 100.0]);
-            let mut scene = Scene::new(&p);
+            let mut scene = Scene::new(&p).unwrap();
             scene.sample(&p, 0.0, None, &motion_core::ExpressionEvaluator).unwrap();
             let point = p.layers[1].transform.position.value;
             let before = scene.project_point(point);
@@ -47,7 +47,7 @@ fn drag_respects_orbit_and_orthographic_camera_projection() {
     p.camera.elevation.value = 20.0;
     p.camera.roll.value = 12.0;
     let observer = Observer::new(p.width, p.height);
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     for view in [
         None,
         Some(ObservationView::Top),
