@@ -8,6 +8,7 @@
 use crate::input::Rect;
 use crate::theme::Color;
 mod strokes;
+pub mod allocation;
 mod memory;
 #[cfg(test)]
 mod triangle_clip_tests;
@@ -519,18 +520,21 @@ pub struct PaintError {
     pub vertices: usize,
     pub required_bytes: u64,
     pub limit_bytes: u64,
-    native_cause: Option<std::sync::Arc<motion_render::RenderError>>,
+    native_cause: Option<std::sync::Arc<dyn std::error::Error + Send + Sync>>,
+    capacity_refusal: Option<allocation::CapacityRefusal>,
 }
 impl PaintError {
-    fn native(kind: &'static str, cause: motion_render::RenderError) -> Self {
-        let (required_bytes, limit_bytes) = match cause.resource_rejection() {
-            Some(motion_render::ResourceRejection::Budget { required_bytes, budget_bytes, .. }) => (*required_bytes, *budget_bytes),
-            _ => (0, 0),
-        };
-        Self { kind, vertices: 0, required_bytes, limit_bytes, native_cause: Some(std::sync::Arc::new(cause)) }
+    /// Preserve the host's native error identity. Only a typed capacity refusal
+    /// may be supplied as retryable; shader, device and validation faults are not.
+    pub fn from_source(kind: &'static str, cause: impl std::error::Error + Send + Sync + 'static,
+        capacity_refusal: Option<allocation::CapacityRefusal>) -> Self {
+        let (required_bytes, limit_bytes) = capacity_refusal
+            .map_or((0, 0), |refusal| (refusal.required_bytes, refusal.budget_bytes));
+        Self { kind, vertices: 0, required_bytes, limit_bytes,
+            native_cause: Some(std::sync::Arc::new(cause)), capacity_refusal }
     }
-    pub fn resource_rejection(&self) -> Option<&motion_render::ResourceRejection> {
-        self.native_cause.as_ref()?.resource_rejection()
+    pub fn capacity_refusal(&self) -> Option<allocation::CapacityRefusal> {
+        self.capacity_refusal
     }
 }
 impl std::fmt::Display for PaintError {
@@ -549,7 +553,7 @@ impl std::error::Error for PaintError {
 fn vertex_buffer_size<T>(kind: &'static str, vertices: usize, limit: u64) -> Result<u64, PaintError> {
     let required = (vertices as u64).saturating_mul(std::mem::size_of::<T>() as u64);
     if required > limit || vertices > u32::MAX as usize {
-        return Err(PaintError { kind, vertices, required_bytes: required, limit_bytes: limit, native_cause: None });
+        return Err(PaintError { kind, vertices, required_bytes: required, limit_bytes: limit, native_cause: None, capacity_refusal: None });
     }
     Ok(required)
 }
@@ -757,7 +761,7 @@ pub struct Painter {
     glyph_uniform: memory::Buffer,
     solid_buffer: memory::Buffer,
     glyph_buffer: memory::Buffer,
-    admission: Option<motion_render::AllocationContext>,
+    admission: Option<std::rc::Rc<dyn allocation::Context>>,
     sampler: wgpu::Sampler,
     atlas: Option<memory::Texture>,
     pending_atlas: Option<memory::PendingAtlas>,
@@ -778,8 +782,8 @@ impl Painter {
     }
     /// Use this renderer's device, allocated encoders and allocated submissions
     /// for every draw. Admission and queued writes retain the same shared budget.
-    pub fn new_admitted(context: &motion_render::AllocationContext, format: wgpu::TextureFormat) -> Result<Self, PaintError> {
-        let buffers = memory::Buffers::admitted(context)?;
+    pub fn new_admitted(context: std::rc::Rc<dyn allocation::Context>, format: wgpu::TextureFormat) -> Result<Self, PaintError> {
+        let buffers = memory::Buffers::admitted(&context)?;
         Ok(Self::with_buffers(context.device(), format, buffers))
     }
     fn with_buffers(device: &wgpu::Device, format: wgpu::TextureFormat, buffers: memory::Buffers) -> Self {
@@ -953,7 +957,7 @@ impl Painter {
         match self.upload_atlas(device, queue, &pixels, width, height) {
             Ok(()) => Ok(()),
             Err(failure) => {
-                if matches!(failure.resource_rejection(), Some(motion_render::ResourceRejection::Budget { .. })) {
+                if failure.capacity_refusal().is_some() {
                     self.pending_atlas = Some(memory::PendingAtlas { pixels, width, height, failure: failure.clone() });
                 }
                 Err(failure)
@@ -966,9 +970,9 @@ impl Painter {
     pub fn retry_atlas(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) -> Result<(), PaintError> {
         let Some(pending) = &self.pending_atlas else { return Ok(()); };
         let Some(context) = &self.admission else { return Err(pending.failure.clone()); };
-        let info = context.budget().info().map_err(|cause| PaintError::native("glyph atlas admission", cause))?;
+        let available = context.available_bytes()?;
         let required = u64::from(pending.width) * u64::from(pending.height) * 4;
-        if required > info.budget_bytes.saturating_sub(info.admitted_bytes) { return Err(pending.failure.clone()); }
+        if required > available { return Err(pending.failure.clone()); }
         if let Some(pending) = self.pending_atlas.take() {
             self.upload_atlas_owned(device, queue, pending.pixels, pending.width, pending.height)?;
         }
@@ -987,14 +991,14 @@ impl Painter {
         self.pending_atlas = None;
         let max = device.limits().max_texture_dimension_2d;
         if width > max || height > max {
-            return Err(PaintError::native("glyph atlas", motion_render::RenderError::Resource {
-                rejection: motion_render::ResourceRejection::TextureDimensions { width, height, max_dimension: max },
-                message: "glyph atlas exceeds device dimensions".into(),
-            }));
+            return Err(PaintError::from_source("glyph atlas", std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("glyph atlas exceeds device dimensions width={width} height={height} max_dimension={max}")), None));
         }
         let bytes = u64::from(width).checked_mul(u64::from(height)).and_then(|bytes| bytes.checked_mul(4));
         if width == 0 || height == 0 || bytes != Some(pixels.len() as u64) {
-            return Err(PaintError::native("glyph atlas", motion_render::RenderError::Invalid("invalid glyph atlas dimensions or pixel length".into())));
+            return Err(PaintError::from_source("glyph atlas", std::io::Error::new(
+                std::io::ErrorKind::InvalidInput, "invalid glyph atlas dimensions or pixel length"), None));
         }
         if self.atlas_size != [width, height] || self.atlas.is_none() {
             let texture = memory::Texture::new(device, self.admission.as_ref(), &wgpu::TextureDescriptor {

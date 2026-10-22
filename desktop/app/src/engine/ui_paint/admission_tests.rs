@@ -1,6 +1,16 @@
 use super::finish;
 use crate::engine::{respond, Flight, CURRENT_COMMAND};
 
+trait NativeRejection {
+    fn resource_rejection(&self) -> Option<&motion_render::ResourceRejection>;
+}
+impl NativeRejection for motion_ui::paint::PaintError {
+    fn resource_rejection(&self) -> Option<&motion_render::ResourceRejection> {
+        std::error::Error::source(self)?
+            .downcast_ref::<motion_render::RenderError>()?.resource_rejection()
+    }
+}
+
 #[test]
 fn native_ui_refusals_preserve_cause_and_reach_default_file_stderr_without_stdout() {
     const CHILD: &str = "MOTION_UI_ADMISSION_CHILD";
@@ -13,7 +23,7 @@ fn native_ui_refusals_preserve_cause_and_reach_default_file_stderr_without_stdou
         let before = budget.info().unwrap();
         budget.set_limit(before.admitted_bytes + 39).unwrap();
         let startup =
-            motion_ui::Painter::new_admitted(&context, wgpu::TextureFormat::Rgba8UnormSrgb)
+            motion_ui::Painter::new_admitted(super::allocation::context(context.clone()), wgpu::TextureFormat::Rgba8UnormSrgb)
                 .err()
                 .unwrap();
         assert!(startup.resource_rejection().is_some());
@@ -24,7 +34,7 @@ fn native_ui_refusals_preserve_cause_and_reach_default_file_stderr_without_stdou
         assert_eq!(budget.info().unwrap().admitted_bytes, before.admitted_bytes);
         budget.set_limit(before.budget_bytes).unwrap();
         let mut painter =
-            motion_ui::Painter::new_admitted(&context, wgpu::TextureFormat::Rgba8UnormSrgb)
+            motion_ui::Painter::new_admitted(super::allocation::context(context.clone()), wgpu::TextureFormat::Rgba8UnormSrgb)
                 .unwrap();
         let occupied = budget.info().unwrap().admitted_bytes;
         budget.set_limit(occupied + 3).unwrap();

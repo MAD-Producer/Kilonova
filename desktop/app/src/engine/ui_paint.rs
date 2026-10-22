@@ -1,4 +1,5 @@
 //! Preserve a failed chrome upload across the host's infallible overlay callback.
+pub(super) mod allocation;
 #[cfg(test)]
 mod admission_tests;
 

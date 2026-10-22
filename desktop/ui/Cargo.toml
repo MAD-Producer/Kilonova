@@ -10,7 +10,6 @@ crate-type = ["rlib"]
 
 [dependencies]
 log.workspace = true
-motion-render = { path = "../../crates/motion-render" }
 wgpu.workspace = true
 bytemuck.workspace = true
 serde.workspace = true
@@ -22,6 +21,7 @@ lyon_tessellation = "1.0.22"
 unicode-segmentation = "1.13.3"
 
 [dev-dependencies]
+motion-render = { path = "../../crates/motion-render" }
 winit = "0.30"
 pollster.workspace = true
 image.workspace = true

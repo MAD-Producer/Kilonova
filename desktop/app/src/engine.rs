@@ -1558,7 +1558,7 @@ fn handle(
             let target = g.renderer.capture_target(width, height).map_err(|e| e.to_string())?;
             #[cfg(test)]
             diagnostics.native_test_phase("capture.painter");
-            let mut chrome = motion_ui::Painter::new_admitted(&g.renderer.allocation_context(), wgpu::TextureFormat::Rgba8UnormSrgb)
+            let mut chrome = motion_ui::Painter::new_admitted(ui_paint::allocation::context(g.renderer.allocation_context()), wgpu::TextureFormat::Rgba8UnormSrgb)
                 .map_err(|e| format!("phase=capture.painter: {e}"))?;
             let upload = ui.atlas.ok_or("screenshot requires the complete glyph atlas")?;
             #[cfg(test)]
@@ -1615,7 +1615,7 @@ fn handle(
             let gpu = target.renderer.adapter.get_info();
             let mut attached = false;
             let result = motion_host::session::with_session(id, |s| {
-                let next = motion_ui::Painter::new_admitted(&target.renderer.allocation_context(), target.config.format)
+                let next = motion_ui::Painter::new_admitted(ui_paint::allocation::context(target.renderer.allocation_context()), target.config.format)
                     .map_err(|e| format!("phase=attach.painter: {e}"))?;
                 s.attach(target)?;
                 *painter = Some(next);

@@ -1,8 +1,7 @@
 //! Optional shared native admission. Standalone Painter keeps its raw resources;
 //! the desktop uses the renderer's context and allocated submission contract.
-use super::{GlyphVertex, PaintError, SolidVertex, GLYPH_CAPACITY, SOLID_CAPACITY};
-use motion_render::{AdmittedBuffer, AdmittedTexture, AllocationContext};
-use std::ops::Deref;
+use super::{allocation, GlyphVertex, PaintError, SolidVertex, GLYPH_CAPACITY, SOLID_CAPACITY};
+use std::{ops::Deref, rc::Rc};
 use wgpu::util::DeviceExt;
 
 pub(super) struct PendingAtlas {
@@ -15,8 +14,8 @@ pub(super) struct PendingAtlas {
 pub(super) enum Buffer {
     Raw(wgpu::Buffer),
     Admitted {
-        buffer: AdmittedBuffer,
-        context: AllocationContext,
+        buffer: Box<dyn allocation::Buffer>,
+        context: Rc<dyn allocation::Context>,
     },
 }
 impl Deref for Buffer {
@@ -24,7 +23,7 @@ impl Deref for Buffer {
     fn deref(&self) -> &Self::Target {
         match self {
             Self::Raw(buffer) => buffer,
-            Self::Admitted { buffer, .. } => buffer,
+            Self::Admitted { buffer, .. } => buffer.buffer(),
         }
     }
 }
@@ -35,9 +34,7 @@ impl Buffer {
                 queue.write_buffer(buffer, 0, data);
                 Ok(())
             }
-            Self::Admitted { buffer, context } => context
-                .write_buffer(buffer, 0, data)
-                .map_err(|cause| PaintError::native("buffer upload", cause)),
+            Self::Admitted { buffer, .. } => buffer.write(data),
         }
     }
     pub fn growth(
@@ -62,9 +59,7 @@ impl Buffer {
         Ok(Some(match self {
             Self::Raw(_) => Self::Raw(device.create_buffer(&descriptor)),
             Self::Admitted { context, .. } => Self::Admitted {
-                buffer: context
-                    .buffer(&descriptor)
-                    .map_err(|cause| PaintError::native(label, cause))?,
+                buffer: context.buffer(&descriptor)?,
                 context: context.clone(),
             },
         }))
@@ -74,8 +69,7 @@ impl Buffer {
 pub(super) enum Texture {
     Raw(wgpu::Texture),
     Admitted {
-        texture: AdmittedTexture,
-        context: AllocationContext,
+        texture: Box<dyn allocation::Texture>,
     },
 }
 impl Deref for Texture {
@@ -83,23 +77,20 @@ impl Deref for Texture {
     fn deref(&self) -> &Self::Target {
         match self {
             Self::Raw(texture) => texture,
-            Self::Admitted { texture, .. } => texture,
+            Self::Admitted { texture, .. } => texture.texture(),
         }
     }
 }
 impl Texture {
     pub fn new(
         device: &wgpu::Device,
-        context: Option<&AllocationContext>,
+        context: Option<&Rc<dyn allocation::Context>>,
         descriptor: &wgpu::TextureDescriptor<'_>,
     ) -> Result<Self, PaintError> {
         Ok(match context {
             None => Self::Raw(device.create_texture(descriptor)),
             Some(context) => Self::Admitted {
-                texture: context
-                    .texture_in(descriptor, motion_render::TextureCategory::UiAtlas)
-                    .map_err(|cause| PaintError::native("glyph atlas", cause))?,
-                context: context.clone(),
+                texture: context.texture(descriptor)?,
             },
         })
     }
@@ -135,9 +126,7 @@ impl Texture {
                 );
                 Ok(())
             }
-            Self::Admitted { texture, context } => context
-                .write_texture(texture, pixels, layout, size)
-                .map_err(|cause| PaintError::native("glyph atlas upload", cause)),
+            Self::Admitted { texture } => texture.write(pixels, layout, size),
         }
     }
 }
@@ -147,7 +136,7 @@ pub(super) struct Buffers {
     pub glyph_uniform: Buffer,
     pub solid_buffer: Buffer,
     pub glyph_buffer: Buffer,
-    pub context: Option<AllocationContext>,
+    pub context: Option<Rc<dyn allocation::Context>>,
 }
 impl Buffers {
     fn uniform<'a>(
@@ -188,21 +177,17 @@ impl Buffers {
             context: None,
         }
     }
-    pub fn admitted(context: &AllocationContext) -> Result<Self, PaintError> {
+    pub fn admitted(context: &Rc<dyn allocation::Context>) -> Result<Self, PaintError> {
         let bytes = bytemuck::bytes_of(&[0.0f32, 0.0, 1.0, 1.0]);
         let uniform = |label| -> Result<Buffer, PaintError> {
             Ok(Buffer::Admitted {
-                buffer: context
-                    .buffer_init(&Self::uniform(label, bytes))
-                    .map_err(|cause| PaintError::native(label, cause))?,
+                buffer: context.buffer_init(&Self::uniform(label, bytes))?,
                 context: context.clone(),
             })
         };
         let vertices = |label| -> Result<Buffer, PaintError> {
             Ok(Buffer::Admitted {
-                buffer: context
-                    .buffer(&Self::vertices(label, wgpu::COPY_BUFFER_ALIGNMENT))
-                    .map_err(|cause| PaintError::native(label, cause))?,
+                buffer: context.buffer(&Self::vertices(label, wgpu::COPY_BUFFER_ALIGNMENT))?,
                 context: context.clone(),
             })
         };

@@ -4,6 +4,27 @@ use motion_render::{
     Renderer,
 };
 
+// Exercise the real host bridge, rather than an allocator mock or a second
+// implementation. This module and motion-render are dev-only dependencies.
+#[path = "../../../app/src/engine/ui_paint/allocation.rs"]
+mod host_allocation;
+
+fn admitted(context: &motion_render::AllocationContext, format: wgpu::TextureFormat)
+    -> Result<Painter, PaintError>
+{
+    Painter::new_admitted(host_allocation::context(context.clone()), format)
+}
+
+trait NativeRejection {
+    fn resource_rejection(&self) -> Option<&motion_render::ResourceRejection>;
+}
+impl NativeRejection for PaintError {
+    fn resource_rejection(&self) -> Option<&motion_render::ResourceRejection> {
+        std::error::Error::source(self)?
+            .downcast_ref::<motion_render::RenderError>()?.resource_rejection()
+    }
+}
+
 fn bytes(info: &AllocationBudgetInfo, category: Category) -> u64 {
     info.categories
         .iter()
@@ -35,7 +56,7 @@ fn encode(
 ) -> Result<(), PaintError> {
     let mut encoder = renderer
         .allocation_command_encoder(&Default::default())
-        .map_err(|cause| PaintError::native("test encoder", cause))?;
+        .map_err(|cause| host_allocation::error("test encoder", cause))?;
     {
         let _pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
@@ -64,7 +85,7 @@ fn encode(
     )?;
     renderer
         .submit_allocated(encoder.finish(), |_| {})
-        .map_err(|cause| PaintError::native("test submit", cause))?;
+        .map_err(|cause| host_allocation::error("test submit", cause))?;
     Ok(())
 }
 fn colors(pixels: &[u8]) {
@@ -89,7 +110,7 @@ fn startup_refusal_is_atomic_and_actual_ui_allocations_have_disjoint_categories(
     let budget = context.budget().clone();
     let baseline = budget.info().unwrap();
     budget.set_limit(baseline.admitted_bytes + 39).unwrap();
-    let error = Painter::new_admitted(&context, wgpu::TextureFormat::Rgba8UnormSrgb)
+    let error = admitted(&context, wgpu::TextureFormat::Rgba8UnormSrgb)
         .err()
         .unwrap();
     assert_eq!(
@@ -104,6 +125,10 @@ fn startup_refusal_is_atomic_and_actual_ui_allocations_have_disjoint_categories(
         .unwrap()
         .downcast_ref::<motion_render::RenderError>()
         .is_some());
+    assert_eq!(error.capacity_refusal(), Some(allocation::CapacityRefusal {
+        required_bytes: baseline.admitted_bytes + 40,
+        budget_bytes: baseline.admitted_bytes + 39,
+    }));
     assert_eq!(
         budget.info().unwrap().admitted_bytes,
         baseline.admitted_bytes
@@ -113,7 +138,7 @@ fn startup_refusal_is_atomic_and_actual_ui_allocations_have_disjoint_categories(
         baseline.live_allocations
     );
     budget.set_limit(baseline.budget_bytes).unwrap();
-    let mut painter = Painter::new_admitted(&context, wgpu::TextureFormat::Rgba8UnormSrgb).unwrap();
+    let mut painter = admitted(&context, wgpu::TextureFormat::Rgba8UnormSrgb).unwrap();
     let created = budget.info().unwrap();
     assert_eq!(created.admitted_bytes - baseline.admitted_bytes, 40);
     assert_eq!(
@@ -165,11 +190,37 @@ fn startup_refusal_is_atomic_and_actual_ui_allocations_have_disjoint_categories(
 }
 
 #[test]
+fn host_injected_validation_keeps_native_cause_without_capacity_retry() {
+    let renderer = pollster::block_on(Renderer::headless()).unwrap();
+    let context = renderer.allocation_context();
+    let baseline = context.budget().info().unwrap();
+    let host = host_allocation::context(context.clone());
+    let failure = host.buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("invalid empty UI buffer"),
+        contents: &[],
+        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+    }).err().unwrap();
+    assert!(matches!(std::error::Error::source(&failure).unwrap()
+        .downcast_ref::<motion_render::RenderError>(), Some(motion_render::RenderError::Invalid(_))));
+    assert!(failure.capacity_refusal().is_none());
+    assert!(failure.resource_rejection().is_none());
+    assert_eq!(context.budget().info().unwrap().admitted_bytes, baseline.admitted_bytes);
+
+    let mut painter = Painter::new_admitted(host, wgpu::TextureFormat::Rgba8UnormSrgb).unwrap();
+    let failure = painter.upload_atlas_owned(&renderer.device, &renderer.queue,
+        vec![255; 3], 1, 1).unwrap_err();
+    assert!(failure.capacity_refusal().is_none());
+    assert!(painter.pending_atlas.is_none());
+    assert!(painter.atlas.is_none());
+    assert_eq!(context.budget().info().unwrap().admitted_bytes, baseline.admitted_bytes + 40);
+}
+
+#[test]
 fn refused_atlas_and_two_buffer_growth_preserve_old_pixels_then_recover() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
     let context = renderer.allocation_context();
     let budget = context.budget().clone();
-    let mut painter = Painter::new_admitted(&context, wgpu::TextureFormat::Rgba8UnormSrgb).unwrap();
+    let mut painter = admitted(&context, wgpu::TextureFormat::Rgba8UnormSrgb).unwrap();
     let target = renderer.capture_target(8, 8).unwrap();
     painter
         .upload_atlas(&renderer.device, &renderer.queue, &[255; 4], 1, 1)
@@ -270,7 +321,7 @@ fn dropped_painter_remains_in_frame_peak_until_real_gpu_work_retires() {
         .begin_frame(9901, FrameOperation::Present)
         .unwrap()
         .unwrap();
-    let mut painter = Painter::new_admitted(&context, wgpu::TextureFormat::Rgba8UnormSrgb).unwrap();
+    let mut painter = admitted(&context, wgpu::TextureFormat::Rgba8UnormSrgb).unwrap();
     painter
         .upload_atlas(&renderer.device, &renderer.queue, &[255; 4], 1, 1)
         .unwrap();
@@ -333,7 +384,7 @@ fn admitted_text_matches_legacy_pixels_through_real_atlas_growth_and_multiple_dp
         atlas.set_pixel_ratio(ratio);
         let mut raw = Painter::new(&renderer.device, wgpu::TextureFormat::Rgba8UnormSrgb);
         let mut admitted =
-            Painter::new_admitted(&context, wgpu::TextureFormat::Rgba8UnormSrgb).unwrap();
+            admitted(&context, wgpu::TextureFormat::Rgba8UnormSrgb).unwrap();
         let reference = renderer.capture_target(512, 128).unwrap();
         let target = renderer.capture_target(512, 128).unwrap();
         let mut list = PaintList::default();
