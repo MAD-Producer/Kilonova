@@ -1657,3 +1657,36 @@ during compilation before test execution. Its surrounding PowerShell wrapper
 reported stale exit code zero after failing output/launch handling; this is
 explicitly rejected as a passing test receipt. Final validation must use a
 clean exact source, robust subprocess return codes and retained raw output.
+
+## Twenty-first increment: independent export allocation windows
+
+This extension builds on frame-window source `8a2cf966` without changing the
+source frozen in its live validation matrix. That base's six CPU tests, two
+actual GPU tests and workspace check passed after E: recovered. Broader base
+validation and this extension's acceptance must retain distinct source receipts.
+No execution of the tests added below is claimed yet.
+
+| Item | New observation / retained boundary | Evidence required before publication |
+| --- | --- | --- |
+| #61-A137 | Snapshot v2 carries a finite optional authored frame, `ExportJob` and normal `Cancelled` outcome | Finite/nonfinite metadata, serialization and preserved unwind/results |
+| #61-A138 | Frozen PNG opens before copying/render initialization and retains the actual request/fractional frame | Existing shared-capacity refusal/recovery and fractional-exposure pixel guards gain metadata assertions; blocked real decoder must expose the active window |
+| #61-A139 | Movie job opens before native/encoder setup; each full-quality output frame opens before sample/decode | Actual six-frame MP4, setup-active readout, shared allowance refusal, cancellation and unchanged publication/model/undo assertions |
+| #61-A140 | Request survives immutable movie plan/frozen snapshot and engine shutdown | Actual serial-worker dispatch ID must match every later job/frame record and decoded output |
+| #61-A141 | Metadata omission/fault preserves operation semantics, with bounded logging outside Session | Saturated native admission still works; actual cancelled PNG exercises Debug1/Error60 suppression and recovery at default Info with file/Error-stderr and no stdout logs |
+| #61-A142 | Existing desktop observation errors include available phase and elapsed time | Existing threshold/default-channel assertions retained and extended |
+
+Only the existing workspace `log` dependency is enabled in desktop media; no
+new resolved third-party component or asset is introduced. The operation result
+remains authoritative. Queue callbacks prove observed logical retirement, not
+device health or rendered-pixel correctness. CPU codec/decoder/source-copy
+memory, raw external GPU resources, direct legacy host capture, remaining
+Presenter/UI enrollment, per-category peaks, pressure-driven proxy decisions
+and combined resize/seek/project-switch acceptance remain open. No panel, style,
+layout, shader, project value, effect enablement or undo behavior changes.
+
+The application has a distinct `ffmpeg` feature in addition to the media
+dependency's feature. New movie-worker acceptance must explicitly enable
+`motion-desktop/ffmpeg`; enabling only `motion-desktop-media/ffmpeg` does not
+execute application tests guarded by `cfg(feature = "ffmpeg")`. Earlier backend-
+enabled desktop totals are retained with their original commands and are not
+relabelled as coverage of those application-gated tests. #60/#61/#67 remain open.

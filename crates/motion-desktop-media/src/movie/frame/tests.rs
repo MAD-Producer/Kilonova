@@ -21,7 +21,8 @@ fn frozen_png_shares_live_session_admission_and_recovers_at_full_quality() {
     let output = root.path().join("shared-envelope.png");
     fs::write(&output, b"previous publication").unwrap();
     let control = ExportControl::default();
-    let plan = FrameFreezePlan::capture(&session, Some(output.clone()), &control).unwrap();
+    let plan = FrameFreezePlan::capture(&session, Some(output.clone()), &control).unwrap()
+        .with_observation_request(7001);
     let mut policy = session.effects.memory_policy();
     policy.session_allocation_budget_bytes = occupied.admitted_bytes;
     session.configure_memory_policy(policy).unwrap();
@@ -36,11 +37,22 @@ fn frozen_png_shares_live_session_admission_and_recovers_at_full_quality() {
     assert_eq!(session.engine.revision(), revision);
     assert_eq!(session.view_revision, view + 1);
     assert!(!session.engine.can_undo());
+    let peaks = budget.frame_peaks().unwrap();
+    assert!(peaks.active.is_empty());
+    assert_eq!(peaks.recent.len(), 1);
+    let failed = &peaks.recent[0];
+    assert_eq!(failed.request, 7001);
+    assert_eq!(failed.operation, motion_render::FrameOperation::Export);
+    assert_eq!(failed.source_frame, Some(0.));
+    assert_eq!(failed.outcome, Some(motion_render::AllocationFrameOutcome::Failed));
+    assert_eq!(failed.start_admitted_bytes, occupied.admitted_bytes);
+    assert_eq!(failed.peak_admitted_bytes, occupied.admitted_bytes);
+    assert_eq!(failed.end_admitted_bytes, Some(occupied.admitted_bytes));
     policy.session_allocation_budget_bytes = 512 << 20;
     session.configure_memory_policy(policy).unwrap();
     let control = ExportControl::default();
     let result = FrameFreezePlan::capture(&session, Some(output.clone()), &control)
-        .unwrap().export(&control).unwrap();
+        .unwrap().with_observation_request(7002).export(&control).unwrap();
     assert_eq!((result["width"].as_u64(), result["height"].as_u64()), (Some(32), Some(24)));
     let image = image::open(&output).unwrap().into_rgba8();
     assert_eq!(image.dimensions(), (32, 24));
@@ -48,6 +60,16 @@ fn frozen_png_shares_live_session_admission_and_recovers_at_full_quality() {
     assert_eq!(session.engine.snapshot(), before);
     assert_eq!(session.engine.revision(), revision);
     assert!(!session.engine.can_undo());
+    let peaks = budget.frame_peaks().unwrap();
+    assert!(peaks.active.is_empty());
+    let rendered = peaks.recent.last().unwrap();
+    assert_eq!(rendered.request, 7002);
+    assert_eq!(rendered.source_frame, Some(0.));
+    assert_eq!(rendered.outcome, Some(motion_render::AllocationFrameOutcome::Rendered));
+    assert!(rendered.peak_admitted_bytes > occupied.admitted_bytes);
+    assert!(rendered.submissions > 0);
+    assert_eq!(rendered.unconfirmed_submissions, 0);
+    assert_eq!(rendered.end_admitted_bytes, Some(occupied.admitted_bytes));
 }
 
 fn project() -> Project {
@@ -80,7 +102,8 @@ fn png_uses_frozen_fractional_frame_and_all_samples_without_preview_mutation() {
     let mut session = Session::new(project(), root.path().to_owned(), crate::platform()).unwrap();
     session.frame = 1.25;
     let control = ExportControl::default();
-    let plan = FrameFreezePlan::capture(&session, None, &control).unwrap();
+    let plan = FrameFreezePlan::capture(&session, None, &control).unwrap()
+        .with_observation_request(7003);
     let frozen = session.engine.snapshot();
     let revision = session.engine.revision();
     session
@@ -95,6 +118,14 @@ fn png_uses_frozen_fractional_frame_and_all_samples_without_preview_mutation() {
     let started = Instant::now();
     let result = plan.export(&control).unwrap();
     let elapsed = started.elapsed();
+    let peaks = session.allocation_budget().frame_peaks().unwrap();
+    assert!(peaks.active.is_empty());
+    let frame = peaks.recent.last().unwrap();
+    assert_eq!(frame.request, 7003);
+    assert_eq!(frame.source_frame, Some(1.25));
+    assert_eq!(frame.outcome, Some(motion_render::AllocationFrameOutcome::Rendered));
+    assert!(frame.submissions > 0);
+    assert_eq!(frame.unconfirmed_submissions, 0);
     assert_eq!(result["frame"], 1.25);
     assert_eq!(result["revision"], revision);
     assert_eq!(session.frame, 4.);
@@ -179,6 +210,10 @@ fn png_cancel_failure_and_source_protection_preserve_existing_destination() {
     assert!(control.cancel());
     assert_eq!(plan.export(&control).unwrap_err(), "PNG export cancelled");
     assert_eq!(fs::read(&output).unwrap(), b"previous publication");
+    let peaks = session.allocation_budget().frame_peaks().unwrap();
+    assert_eq!(peaks.recent.last().unwrap().outcome,
+        Some(motion_render::AllocationFrameOutcome::Cancelled));
+    assert_eq!(peaks.recent.last().unwrap().submissions, 0);
 
     let control = ExportControl::default();
     let mut plan = FrameFreezePlan::capture(&session, Some(output.clone()), &control).unwrap();

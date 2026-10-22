@@ -19,6 +19,7 @@ use std::{
 };
 
 pub mod frame;
+mod allocation_observation;
 
 #[cfg_attr(not(feature = "ffmpeg"), allow(dead_code))]
 pub struct FrozenMovie {
@@ -27,6 +28,7 @@ pub struct FrozenMovie {
     assets: tempfile::TempDir,
     memory_policy: MemoryPolicy,
     allocation_budget: motion_render::AllocationBudget,
+    observation_request: u64,
     source_paths: BTreeSet<PathBuf>,
     pub revision: u64,
 }
@@ -630,6 +632,7 @@ pub struct MovieFreezePlan {
     root: PathBuf,
     memory_policy: MemoryPolicy,
     allocation_budget: motion_render::AllocationBudget,
+    observation_request: u64,
     revision: u64,
     sources: Vec<(PathBuf, PathBuf, fs::File, fs::Metadata)>,
     source_paths: BTreeSet<PathBuf>,
@@ -637,6 +640,13 @@ pub struct MovieFreezePlan {
     include_audio: bool,
 }
 impl MovieFreezePlan {
+    /// Retain the originating engine request through freezing and later export.
+    /// Zero denotes standalone callers without an engine request.
+    pub fn with_observation_request(mut self, request: u64) -> Self {
+        self.observation_request = request;
+        self
+    }
+
     fn new(
         project: Project,
         root: &Path,
@@ -743,6 +753,7 @@ impl MovieFreezePlan {
             root,
             memory_policy,
             allocation_budget,
+            observation_request: 0,
             revision,
             sources,
             source_paths,
@@ -759,6 +770,7 @@ impl MovieFreezePlan {
             root,
             memory_policy,
             allocation_budget,
+            observation_request,
             revision,
             sources,
             mut source_paths,
@@ -831,6 +843,7 @@ impl MovieFreezePlan {
             assets,
             memory_policy,
             allocation_budget,
+            observation_request,
             source_paths,
             revision,
         })
@@ -899,8 +912,21 @@ impl FrozenMovie {
         self.project.frames
     }
 
-    #[cfg(not(feature = "ffmpeg"))]
     pub fn export(
+        self,
+        output: &Path,
+        control: &ExportControl,
+        progress: impl FnMut(f64),
+    ) -> Result<MovieResult> {
+        let budget = self.allocation_budget.clone();
+        allocation_observation::run(
+            &budget, self.observation_request, motion_render::FrameOperation::ExportJob, None,
+            || self.export_inner(output, control, progress),
+        )
+    }
+
+    #[cfg(not(feature = "ffmpeg"))]
+    fn export_inner(
         self,
         _output: &Path,
         _control: &ExportControl,
@@ -910,7 +936,7 @@ impl FrozenMovie {
     }
 
     #[cfg(feature = "ffmpeg")]
-    pub fn export(
+    fn export_inner(
         self,
         output: &Path,
         control: &ExportControl,
@@ -963,60 +989,69 @@ impl FrozenMovie {
         let mut sample = 0;
         report(0.1);
         for frame in 0..p.frames {
-            control.check()?;
-            let pixels = if let Some(document) = &document {
-                render_exposure_frame(&mut renderer, &mut videos, &mut proxies, p,
-                    document.clone(), self.assets.path(), f64::from(frame), control)?
-            } else {
-                // Scene::sample performs the same animated, expression and recursive
-                // composition evaluation used by the editing host.
-                scene
-                    .sample(p, f64::from(frame), None, &motion_core::ExpressionEvaluator)
-                    .map_err(|e| e.to_string())?;
-                renderer.retain_video_instances(&scene);
-                renderer
-                    .prepare_scene_assets(&scene, Resolution::Full, false)
-                    .map_err(|e| e.to_string())?;
-                let began = Instant::now();
-                let decoded = loop {
+            allocation_observation::run(
+                &self.allocation_budget,
+                self.observation_request,
+                motion_render::FrameOperation::Export,
+                Some(f64::from(frame)),
+                || {
                     control.check()?;
-                    if let Some(frames) = videos.prepare_scene_exact(p, self.assets.path(), &scene)? {
-                        break frames;
+                    let pixels = if let Some(document) = &document {
+                        render_exposure_frame(&mut renderer, &mut videos, &mut proxies, p,
+                            document.clone(), self.assets.path(), f64::from(frame), control)?
+                    } else {
+                        // Scene::sample performs the same animated, expression and recursive
+                        // composition evaluation used by the editing host.
+                        scene
+                            .sample(p, f64::from(frame), None, &motion_core::ExpressionEvaluator)
+                            .map_err(|e| e.to_string())?;
+                        renderer.retain_video_instances(&scene);
+                        renderer
+                            .prepare_scene_assets(&scene, Resolution::Full, false)
+                            .map_err(|e| e.to_string())?;
+                        let began = Instant::now();
+                        let decoded = loop {
+                            control.check()?;
+                            if let Some(frames) = videos.prepare_scene_exact(p, self.assets.path(), &scene)? {
+                                break frames;
+                            }
+                            if began.elapsed() > Duration::from_secs(30) {
+                                return Err("export video frame decode timed out".into());
+                            }
+                            std::thread::sleep(Duration::from_millis(2));
+                        };
+                        for (object, decoded) in decoded {
+                            let source = scene
+                                .video_layers()
+                                .into_iter()
+                                .find(|l| l.id == object)
+                                .and_then(|l| l.video.as_ref())
+                                .ok_or("export video instance missing")?
+                                .asset;
+                            decoded.upload(&mut renderer, object, source)?;
+                        }
+                        renderer
+                            .capture(&scene, target.as_ref().ok_or("ordinary capture target missing")?)
+                            .map_err(|e| format!("render export frame {frame}: {e}"))?.0
+                    };
+                    control.check()?;
+                    encoder.video_frame(&pixels, frame)?;
+                    let until = (u64::from(frame + 1) * motion_media::OUTPUT_RATE / u64::from(p.fps))
+                        .min(total_samples);
+                    while sample < until {
+                        control.check()?;
+                        let count = block_size.min((total_samples - sample) as usize);
+                        let actual = mixer.mix(sample, &mut pcm[..count * 2])?;
+                        if actual != count {
+                            return Err("audio mixer ended before the frozen composition".into());
+                        }
+                        encoder.audio_frame(&pcm[..count * 2], sample)?;
+                        sample += count as u64;
                     }
-                    if began.elapsed() > Duration::from_secs(30) {
-                        return Err("export video frame decode timed out".into());
-                    }
-                    std::thread::sleep(Duration::from_millis(2));
-                };
-                for (object, decoded) in decoded {
-                    let source = scene
-                        .video_layers()
-                        .into_iter()
-                        .find(|l| l.id == object)
-                        .and_then(|l| l.video.as_ref())
-                        .ok_or("export video instance missing")?
-                        .asset;
-                    decoded.upload(&mut renderer, object, source)?;
-                }
-                renderer
-                    .capture(&scene, target.as_ref().ok_or("ordinary capture target missing")?)
-                    .map_err(|e| format!("render export frame {frame}: {e}"))?.0
-            };
-            control.check()?;
-            encoder.video_frame(&pixels, frame)?;
-            let until = (u64::from(frame + 1) * motion_media::OUTPUT_RATE / u64::from(p.fps))
-                .min(total_samples);
-            while sample < until {
-                control.check()?;
-                let count = block_size.min((total_samples - sample) as usize);
-                let actual = mixer.mix(sample, &mut pcm[..count * 2])?;
-                if actual != count {
-                    return Err("audio mixer ended before the frozen composition".into());
-                }
-                encoder.audio_frame(&pcm[..count * 2], sample)?;
-                sample += count as u64;
-            }
-            report(0.1 + f64::from(frame + 1) / f64::from(p.frames) * 0.88);
+                    report(0.1 + f64::from(frame + 1) / f64::from(p.frames) * 0.88);
+                    Ok(())
+                },
+            )?;
         }
         if sample != total_samples {
             return Err("movie mix did not cover the complete composition".into());

@@ -57,6 +57,7 @@ impl Worker {
             FrameFreezePlan::capture(session, output, &control).map_err(motion_host::Error::from)
         })?;
         let flight = CURRENT_COMMAND.get();
+        let plan = plan.with_observation_request(flight.map_or(0, |flight| flight.request));
         let observation = self.flight.clone();
         let cancel = control.clone();
         let worker = std::thread::Builder::new()

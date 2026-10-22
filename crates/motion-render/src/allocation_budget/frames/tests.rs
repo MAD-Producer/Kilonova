@@ -8,6 +8,37 @@ fn begin(budget: &AllocationBudget, request: u64) -> AllocationFrame {
 }
 
 #[test]
+fn authored_frame_context_is_finite_and_optional_and_cancellation_is_distinct() {
+    let budget = AllocationBudget::new(64).unwrap();
+    for frame in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+        assert!(budget
+            .begin_frame_at(19, FrameOperation::Export, frame)
+            .is_err());
+    }
+    let job = budget
+        .begin_frame(19, FrameOperation::ExportJob)
+        .unwrap()
+        .unwrap();
+    let frame = budget
+        .begin_frame_at(19, FrameOperation::Export, 1.25)
+        .unwrap()
+        .unwrap();
+    let active = budget.frame_peaks().unwrap();
+    assert_eq!(active.version, 2);
+    assert_eq!(active.active.len(), 2);
+    assert_eq!(active.active[0].source_frame, None);
+    assert_eq!(active.active[1].source_frame, Some(1.25));
+    assert_eq!(active.omitted_frames, 0);
+    frame.finish(AllocationFrameOutcome::Cancelled);
+    job.finish(AllocationFrameOutcome::Failed);
+    let wire = serde_json::to_value(budget.frame_peaks().unwrap()).unwrap();
+    assert_eq!(wire["recent"][0]["sourceFrame"], 1.25);
+    assert_eq!(wire["recent"][0]["outcome"], "cancelled");
+    assert_eq!(wire["recent"][1]["operation"], "export_job");
+    assert_eq!(wire["recent"][1]["sourceFrame"], serde_json::Value::Null);
+}
+
+#[test]
 fn windows_capture_transient_shared_capacity_without_inheriting_lifetime_peak() {
     let budget = AllocationBudget::new(64).unwrap();
     let original = budget.reserve(64).unwrap();

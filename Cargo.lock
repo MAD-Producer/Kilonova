@@ -2071,6 +2071,7 @@ version = "0.1.0"
 dependencies = [
  "ffmpeg-next",
  "image",
+ "log",
  "motion-core",
  "motion-effects",
  "motion-host",

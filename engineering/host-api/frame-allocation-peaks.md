@@ -7,7 +7,7 @@ gauge. It does not allocate another native allowance or reserve extra bytes.
 
 ## Scope
 
-The snapshot version is 1 and its scope is
+The snapshot version is 2 and its scope is
 `session_enrolled_native_capacity`. It observes the logical capacity of every
 allocation enrolled in that budget while a window is active. Existing retained
 resources are included at entry; successful reservations update every overlapping
@@ -27,7 +27,8 @@ frame peaks are not supplied by this API.
 
 Start before entering a potentially blocking frame operation. Finish the CPU
 scope with `Rendered`, `Skipped`, or `Failed`, preserving the operation's original
-return value and cause. Dropping an unfinished scope marks `Panicked` during
+return value and cause. Normal export cancellation is `Cancelled`, not `Failed`.
+Dropping an unfinished scope marks `Panicked` during
 unwind, otherwise `Abandoned`. Normal `Ok(false)` presentation is `Skipped`;
 its existing degradation observations remain responsible for sustained faults.
 
@@ -36,6 +37,9 @@ made while the CPU scope is open. CPU completion alone cannot retire a window
 whose registered submissions are outstanding. Each queue callback releases its
 upload destinations and command reservations before reporting completion in the
 same callback. It does not rely on ordering between independent callbacks.
+This records observed logical retirement, not a certification of GPU/device
+health. `Rendered` describes the CPU operation's successful result; device errors
+retain their existing reporting paths, independently of a queue-done callback.
 Later submissions do not renew a CPU-ended window. These observations own only
 metadata and never prolong a resource lease or block on GPU completion.
 
@@ -47,10 +51,43 @@ never logs while a Session may be locked inside `device.poll`. A poisoned
 admission mutex remains an explicit query error rather than a fabricated zero.
 
 Direct external `queue.submit`, final upload teardown, and queues without this
-budget are not automatically attached. Render/export integrations can use the
-public scope API, but automatic windows in this increment cover desktop Present,
-CaptureUi and NodeCapture only. PNG/movie frame integrations and combined
-resize/seek/project-switch acceptance remain pending.
+budget are not automatically attached. Automatic windows cover desktop Present,
+CaptureUi and NodeCapture, frozen full-resolution PNG, and frozen movie exports.
+Legacy direct host capture, Presenter/UI enrollment, per-category peaks and
+combined resize/seek/project-switch acceptance remain pending.
+
+## Independent exports
+
+`begin_frame_at(request, operation, source_frame)` additionally records the finite
+authored composition frame. Fractional PNG captures retain the frozen frame,
+even if the editor seeks while the export worker is blocked. Existing
+`begin_frame` callers have `sourceFrame: null`. A movie `ExportJob` window starts
+before encoder/native renderer initialization, covers all output frames, final
+verification and publication, and has no individual source frame. Each movie
+`Export` window starts before sampling/decoding and includes capture/readback,
+that frame's encoding/audio work and its progress callback. PNG's `Export`
+window starts before source freezing and native initialization and includes
+encoding, verification and publication. CPU source-copy bytes, codec/decoder
+memory and native driver overhead remain outside this admitted-capacity gauge.
+
+Immutable movie/PNG plans carry the originating engine request across worker
+handoff. Movie freezing retains that request for a later export, including after
+the engine closes. Standalone callers without such a request use zero, not a
+fabricated engine/session identity. Frozen dimensions, sampling, precision and
+full-resolution rendering remain unchanged; observation never applies preview
+quality, retries an export, changes undo or replaces a failed destination.
+
+Metadata saturation skips the new observation but still performs the original
+export. Actual observation errors are logged once per episode without replacing
+the primary operation result. The export observation site has one process-wide
+consecutive omission counter across PNG, movie jobs and frames: Debug at 1,
+Error once at 60, reset on a successful window. Observation fault suppression
+resets on a successful begin result. Logging happens outside Session/admission
+locks and includes request, operation, source frame, phase and elapsed time.
+The existing file/Error-stderr policy remains responsible for output channels;
+healthy frames add no file I/O. Unwinding preserves the original panic. A panic
+already converted to an error by the existing PNG boundary is observed as its
+returned failure; the panic hook separately retains the original stack.
 
 ## Readout and bounds
 
@@ -73,13 +110,16 @@ counter is process-wide across frame operations; it is separate from each
 budget's lifetime omission count. Actual observation errors emit Error once per
 episode and reset on a successful begin result. Both happen outside Session and
 admission locks. Healthy Present has no added start/done/file logging. Request
-IDs and an enum bound retained context; project text and user payloads are absent.
+IDs, a finite optional frame and an enum bound retained context; project text and
+user payloads are absent.
 
 ## Validation status
 
-The initial local CPU validation build exhausted E: before tests executed.
-Its shell wrapper returned a stale exit code after an output/launch failure;
-the compiler's `no space on device` output is authoritative. It is not passing
-acceptance. New CPU, native GPU and actual worker assertions remain pending
-until exact-source validation completes. No Windows/Linux/Metal runtime or
-complete issue coverage is claimed by this document.
+The initial local CPU validation build exhausted E: before tests executed;
+its stale shell exit code is rejected as acceptance. After space recovery,
+the base source `8a2cf966` passed six frame CPU tests, two actual native GPU tests
+and the FFmpeg-backend workspace/all-target check. Its broader matrix is tracked
+separately. These are not test results for this version-2/export extension.
+New export, actual worker/default-channel and source-frame assertions remain
+pending exact-source execution. No Linux/Metal runtime or complete issue
+coverage is claimed by this document.

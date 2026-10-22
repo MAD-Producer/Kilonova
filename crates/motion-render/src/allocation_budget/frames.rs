@@ -21,6 +21,7 @@ pub enum FrameOperation {
     NodeCapture,
     Render,
     Export,
+    ExportJob,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -29,6 +30,7 @@ pub enum AllocationFrameOutcome {
     Rendered,
     Skipped,
     Failed,
+    Cancelled,
     Panicked,
     Abandoned,
 }
@@ -39,6 +41,8 @@ pub struct AllocationFrameInfo {
     pub id: u64,
     pub request: u64,
     pub operation: FrameOperation,
+    /// Authored composition frame, including fractional PNG captures; not a GPU timestamp.
+    pub source_frame: Option<f64>,
     pub budget_at_start_bytes: u64,
     pub start_admitted_bytes: u64,
     pub peak_admitted_bytes: u64,
@@ -126,6 +130,30 @@ impl AllocationBudget {
         request: u64,
         operation: FrameOperation,
     ) -> Result<Option<AllocationFrame>, RenderError> {
+        self.begin_frame_inner(request, operation, None)
+    }
+
+    /// Observe an actual composition frame without retaining project payloads.
+    pub fn begin_frame_at(
+        &self,
+        request: u64,
+        operation: FrameOperation,
+        source_frame: f64,
+    ) -> Result<Option<AllocationFrame>, RenderError> {
+        if !source_frame.is_finite() {
+            return Err(invalid(
+                "allocation observation source frame must be finite",
+            ));
+        }
+        self.begin_frame_inner(request, operation, Some(source_frame))
+    }
+
+    fn begin_frame_inner(
+        &self,
+        request: u64,
+        operation: FrameOperation,
+        source_frame: Option<f64>,
+    ) -> Result<Option<AllocationFrame>, RenderError> {
         let mut state = self.lock()?;
         if state.frames.active.len() == MAX_ACTIVE_ALLOCATION_FRAMES {
             state.frames.omitted = state.frames.omitted.saturating_add(1);
@@ -140,6 +168,7 @@ impl AllocationBudget {
             id,
             request,
             operation,
+            source_frame,
             budget_at_start_bytes: state.limit,
             start_admitted_bytes: state.used,
             peak_admitted_bytes: state.used,
@@ -170,7 +199,7 @@ impl AllocationBudget {
     pub fn frame_peaks(&self) -> Result<AllocationFramePeaks, RenderError> {
         let state = self.lock()?;
         Ok(AllocationFramePeaks {
-            version: 1,
+            version: 2,
             scope: "session_enrolled_native_capacity",
             complete_coverage: false,
             is_physical_vram: false,

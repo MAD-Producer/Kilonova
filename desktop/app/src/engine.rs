@@ -1771,6 +1771,7 @@ fn handle(
             let result = (|| -> motion_host::Result<()> {
                 movie_freeze.available()?;
                 let plan=motion_host::session::with_session(id,|s|motion_desktop_media::movie::FrozenMovie::capture_plan(s,&control).map_err(motion_host::Error::from))?;
+                let plan = plan.with_observation_request(CURRENT_COMMAND.get().map_or(0, |flight| flight.request));
                 let cancel = control.clone();
                 movie_freeze.start(reply.clone(), control, move || plan.freeze(&cancel))?;
                 Ok(())

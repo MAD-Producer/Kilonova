@@ -9,7 +9,8 @@ pub(super) fn begin(
     static OMITTED: motion_render::observability::FailureCounter =
         motion_render::observability::FailureCounter::new();
     static FAULT: AtomicBool = AtomicBool::new(false);
-    let request = current_command().map_or(0, |command| command.0);
+    let (request, elapsed) = current_command()
+        .map_or((0, Duration::ZERO), |command| (command.0, command.2));
     match budget.begin_frame(request, operation) {
         Ok(frame) => {
             FAULT.store(false, Ordering::Relaxed);
@@ -19,8 +20,8 @@ pub(super) fn begin(
                 OMITTED.failure(
                     "desktop.frame_allocation.observation",
                     format_args!(
-                        "request={request} operation={operation:?} active_limit={}",
-                        motion_render::MAX_ACTIVE_ALLOCATION_FRAMES
+                        "request={request} operation={operation:?} active_limit={} phase=begin elapsed_ms={}",
+                        motion_render::MAX_ACTIVE_ALLOCATION_FRAMES, elapsed.as_millis()
                     ),
                 );
             }
@@ -29,7 +30,7 @@ pub(super) fn begin(
         Err(error) => {
             if !FAULT.swap(true, Ordering::Relaxed) {
                 // Before with_session: no business or observation lock held.
-                log::error!("frame allocation observation failed request={request} operation={operation:?} cause={error}");
+                log::error!("frame allocation observation failed request={request} operation={operation:?} phase=begin elapsed_ms={} cause={error}", elapsed.as_millis());
             }
             None
         }
@@ -109,6 +110,7 @@ mod tests {
         assert_eq!(file.matches(site).count(), 2);
         assert_eq!(stderr.matches(site).count(), 2);
         for line in file.lines().filter(|line| line.contains(site)) {
+            assert!(line.contains("phase=begin elapsed_ms="), "{line}");
             assert!(
                 line.contains("ERROR")
                     && line.contains("count=60 request=901 operation=Present active_limit=64"),
