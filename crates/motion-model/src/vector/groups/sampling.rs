@@ -365,7 +365,7 @@ fn sample_group(g: &VectorGroup, f: f64, serial: &mut u32) -> Result<State> {
                 v.stroke = Some((c, width, s.cap, s.join, s.miter_limit));
                 let mut values = BTreeMap::from([("color".into(), json!(c)), ("width".into(), json!(width))]);
                 if let Some(d) = &s.dashes {
-                    v.dashes = Some(SampledDashes {
+                    let sampled = SampledDashes {
                         pattern: d
                             .pattern
                             .iter()
@@ -373,12 +373,12 @@ fn sample_group(g: &VectorGroup, f: f64, serial: &mut u32) -> Result<State> {
                             .map(|(i, t)| scalar(t, f, if i % 2 == 0 { 0.1 } else { 0. }, 32768.))
                             .collect::<Result<_>>()?,
                         offset: scalar(&d.offset, f, -32768., 32768.)?,
-                    });
-                    let sampled = v.dashes.as_ref().unwrap();
+                    };
                     values.insert("dash_offset".into(), json!(sampled.offset));
                     for (i, value) in sampled.pattern.iter().enumerate() {
                         values.insert(format!("dash_{i}"), json!(value));
                     }
+                    v.dashes = Some(sampled);
                 }
                 state.paint(v, *composite)?;
                 values

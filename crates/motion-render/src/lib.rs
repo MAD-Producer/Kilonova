@@ -44,6 +44,7 @@ mod timing;
 mod video_pixels;
 mod video_gpu;
 mod vector_mesh;
+pub use vector_mesh::VectorGeometryError;
 mod layer_gpu;
 mod vector_upload;
 pub use vector_upload::{VectorUploadError, VectorUploadInfo};

@@ -1,6 +1,6 @@
 //! Stateless scene sampling shared by wgpu preview and GLES export.
 use motion_model::SampledEffect;
-use crate::{DrawLayer, Scene};
+use crate::{DrawLayer, RenderError, Scene};
 use motion_effects::{RendererKind, MAX_PARTICLES, MAX_SPRITES};
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, Vec3};
@@ -39,27 +39,81 @@ pub struct AlphaImage {
     pub pixels: Vec<u8>,
 }
 impl AlphaImage {
-    fn sample(&self, uv: Vec2) -> f32 {
+    fn sample(&self, uv: Vec2) -> Result<f32, RenderError> {
+        let width = self.width as usize;
+        let height = self.height as usize;
+        let required = width.checked_mul(height).ok_or("occlusion alpha dimensions overflow")?;
+        if width == 0 || height == 0 || self.pixels.len() < required {
+            return Err(format!("invalid occlusion alpha {}x{}: {} pixels, requires {required}",
+                self.width, self.height, self.pixels.len()).into());
+        }
+        if !uv.is_finite() {
+            return Err("occlusion alpha coordinates are not finite".into());
+        }
         // Match the compositor's linear filtering and clamped texel centres.
         let p = uv * Vec2::new(self.width as f32, self.height as f32) - Vec2::splat(0.5);
         let a = p.floor();
         let t = p - a;
         let at = |x: f32, y: f32| {
-            self.pixels[(y.clamp(0., self.height as f32 - 1.) as u32 * self.width
-                + x.clamp(0., self.width as f32 - 1.) as u32) as usize] as f32
-                / 255.
+            let x = (x.clamp(0., self.width as f32 - 1.) as usize).min(width - 1);
+            let y = (y.clamp(0., self.height as f32 - 1.) as usize).min(height - 1);
+            self.pixels[y * width + x] as f32 / 255.
         };
         let x0 = at(a.x, a.y) * (1. - t.x) + at(a.x + 1., a.y) * t.x;
         let x1 = at(a.x, a.y + 1.) * (1. - t.x) + at(a.x + 1., a.y + 1.) * t.x;
-        x0 * (1. - t.y) + x1 * t.y
+        Ok(x0 * (1. - t.y) + x1 * t.y)
     }
 }
-fn param(e: &SampledEffect, id: &str) -> Result<[f32; 4], String> {
-    e.param_ids
+fn param(e: &SampledEffect, id: &str) -> Result<[f32; 4], RenderError> {
+    let index = e.param_ids
         .iter()
         .position(|p| p == id)
-        .map(|i| e.values[i])
-        .ok_or_else(|| format!("generator parameter {id} missing"))
+        .ok_or_else(|| RenderError::Invalid(format!("generator parameter {id} missing")))?;
+    let value = e.values.get(index).copied().ok_or_else(|| RenderError::Invalid(format!(
+        "generator parameter {id} index {index} exceeds value count {}", e.values.len()
+    )))?;
+    validate_parameter(id, value)
+}
+pub(crate) fn validate_parameter(id: &str, value: [f32; 4]) -> Result<[f32; 4], RenderError> {
+    let components = match id {
+        "position" | "gravity" | "extent" | "direction" | "wind" => 3,
+        "color" | "end_color" => 4,
+        _ => 1,
+    };
+    if value[..components].iter().any(|v| !v.is_finite()) {
+        return Err(format!("generator parameter {id} contains non-finite components").into());
+    }
+    Ok(value)
+}
+pub(crate) fn birth_range(t: f64, life: f64, rate: f64, prewarm: bool) -> Result<(i64, i64, u32), RenderError> {
+    if !t.is_finite() || t < 0. || !(0. ..=10000.).contains(&rate) || !(0.001..=120.).contains(&life) {
+        return Err("invalid particle time, birth rate or lifetime".into());
+    }
+    if (rate * life).ceil() > MAX_PARTICLES as f64 {
+        return Err(format!("particle capacity exceeds {MAX_PARTICLES}; reduce rate or lifetime").into());
+    }
+    let first = ((t - life) * rate).floor();
+    let last = (t * rate).floor();
+    let fits = |v: f64| v.is_finite() && v >= i64::MIN as f64 && v < i64::MAX as f64;
+    if !fits(first) || !fits(last) {
+        return Err("particle birth index exceeds signed range".into());
+    }
+    let first = (first as i64).checked_add(1).ok_or("particle birth index exceeds signed range")?;
+    let first = first.max(if prewarm { i64::MIN } else { 0 });
+    let last = last as i64;
+    let alive = last.checked_sub(first).and_then(|n| n.checked_add(1))
+        .ok_or("particle birth span exceeds signed range")?.max(0) as u64;
+    if alive > MAX_PARTICLES as u64 {
+        return Err(format!("particle capacity exceeds {MAX_PARTICLES}; reduce rate or lifetime").into());
+    }
+    Ok((first, last, alive as u32))
+}
+fn context(e: &SampledEffect, phase: &str, cause: RenderError) -> RenderError {
+    RenderError::Context {
+        message: format!("layer {}, effect {}, generator {phase} at frame {}: {cause}",
+            e.layer, e.instance, e.local_frame),
+        cause: Box::new(cause),
+    }
 }
 pub(crate) fn random(seed: u32, id: u32, channel: u32) -> f32 {
     let mut v = seed ^ id.wrapping_mul(0x9e3779b9) ^ channel.wrapping_mul(0x85ebca6b);
@@ -83,9 +137,15 @@ pub(crate) fn visible(rect: [f32; 4]) -> bool {
         && rect[1] + rect[3] * 0.5 >= -1.
         && rect[1] - rect[3] * 0.5 <= 1.
 }
-pub fn validate_settings(e: &SampledEffect, kind: RendererKind) -> Result<(), String> {
+pub fn validate_settings(e: &SampledEffect, kind: RendererKind) -> Result<(), RenderError> {
+    validate_settings_inner(e, kind).map_err(|cause| context(e, "settings", cause))
+}
+fn validate_settings_inner(e: &SampledEffect, kind: RendererKind) -> Result<(), RenderError> {
     let settings = e.scene.as_ref().ok_or("scene generator settings missing")?;
-    settings.validate().map_err(|e| e.to_string())?;
+    settings.validate()?;
+    if !e.local_frame.is_finite() {
+        return Err("generator frame is not finite".into());
+    }
     if kind != RendererKind::ParticleEmitter && (settings.particle_space.is_some() || settings.sprite_asset.is_some()) {
         return Err("legacy generators cannot use world-birth particle settings".into());
     }
@@ -101,10 +161,10 @@ pub fn validate_settings(e: &SampledEffect, kind: RendererKind) -> Result<(), St
         if (rate * life).ceil() as usize > MAX_PARTICLES {
             return Err(format!(
                 "particle capacity exceeds {MAX_PARTICLES}; reduce rate or lifetime"
-            ));
+            ).into());
         }
         if kind == RendererKind::ParticleEmitter {
-            if let Some(error) = &e.particle_history_error { return Err(error.clone()); }
+            if let Some(error) = &e.particle_history_error { return Err(error.clone().into()); }
             if settings.particle_space != Some(motion_effects::ParticleSpace::WorldBirth) || e.particle_history.is_none() {
                 return Err("world-birth particle history missing".into());
             }
@@ -133,13 +193,20 @@ pub fn generate(
     alpha: &HashMap<u64, AlphaImage>,
     out: &mut Vec<Sprite>,
     scratch: &mut GeneratorScratch,
-) -> Result<GeneratorStats, String> {
+) -> Result<GeneratorStats, RenderError> {
     let start = out.len();
-    let result = generate_inner(scene, layer, e, kind, alpha, out, scratch);
+    let result = generate_inner(scene, layer, e, kind, alpha, out, scratch).and_then(|stats| {
+        if out.iter().skip(start).any(|sprite| sprite.rect.iter()
+            .chain(sprite.color.iter()).chain(sprite.style.iter()).any(|v| !v.is_finite())) {
+            Err("generated sprite exceeds numeric range".into())
+        } else {
+            Ok(stats)
+        }
+    });
     if result.is_err() {
         out.truncate(start);
     }
-    result
+    result.map_err(|cause| context(e, "generate", cause))
 }
 fn generate_inner(
     scene: &Scene,
@@ -149,13 +216,16 @@ fn generate_inner(
     alpha: &HashMap<u64, AlphaImage>,
     out: &mut Vec<Sprite>,
     scratch: &mut GeneratorScratch,
-) -> Result<GeneratorStats, String> {
+) -> Result<GeneratorStats, RenderError> {
     validate_settings(e, kind)?;
+    if scene.fps == 0 {
+        return Err("generator frame rate must be positive".into());
+    }
     if kind == RendererKind::ParticleEmitter {
         return crate::particle_emitter::generate(scene, layer, e, out, scratch);
     }
     let settings = e.scene.as_ref().ok_or("scene generator settings missing")?;
-    settings.validate().map_err(|e| e.to_string())?;
+    settings.validate()?;
     let start = out.len();
     let mut stats = GeneratorStats::default();
     if kind == RendererKind::Particles {
@@ -170,7 +240,7 @@ fn generate_inner(
         if (rate * life).ceil() as usize > MAX_PARTICLES {
             return Err(format!(
                 "particle capacity exceeds {MAX_PARTICLES}; reduce rate or lifetime"
-            ));
+            ).into());
         }
         if rate == 0. {
             return Ok(stats);
@@ -180,9 +250,7 @@ fn generate_inner(
             return Ok(stats);
         }
         let prewarm = param(e, "prewarm")?[0] > 0.5;
-        let first =
-            (((t - life) * rate).floor() as i64 + 1).max(if prewarm { i64::MIN } else { 0 });
-        let last = (t * rate).floor() as i64;
+        let (first, last, alive) = birth_range(t, life, rate, prewarm)?;
         let speed = param(e, "speed")?[0];
         let spread = param(e, "spread")?[0];
         let gravity = Vec3::from_array(param(e, "gravity")?[..3].try_into().unwrap());
@@ -223,7 +291,6 @@ fn generate_inner(
         } else {
             right
         };
-        let alive = (last - first + 1).max(0) as u32;
         let matrix_norm = (matrix.x_axis.truncate().length_squared()
             + matrix.y_axis.truncate().length_squared()
             + matrix.z_axis.truncate().length_squared())
@@ -405,7 +472,7 @@ fn generate_inner(
     }
     if out.len() > MAX_SPRITES {
         out.truncate(start);
-        return Err(format!("frame sprite budget exceeds {MAX_SPRITES}"));
+        return Err(format!("frame sprite budget exceeds {MAX_SPRITES}").into());
     }
     stats.visible = (out.len() - start) as u32;
     stats.culled = stats.alive - stats.visible;
@@ -419,7 +486,7 @@ fn visibility(
     radius: f32,
     alpha: &HashMap<u64, AlphaImage>,
     vp: glam::Mat4,
-) -> Result<f32, String> {
+) -> Result<f32, RenderError> {
     let right = Vec3::new(vp.x_axis.x, vp.y_axis.x, vp.z_axis.x).normalize_or_zero();
     let up = Vec3::new(vp.x_axis.y, vp.y_axis.y, vp.z_axis.y).normalize_or_zero();
     let clip = vp * light.extend(1.);
@@ -476,6 +543,10 @@ fn visibility(
                     .get(&asset)
                     .ok_or_else(|| format!("occlusion alpha for asset {asset} is not loaded"))?
                     .sample(uv)
+                    .map_err(|cause| RenderError::Context {
+                        message: format!("occlusion alpha for asset {asset}: {cause}"),
+                        cause: Box::new(cause),
+                    })?
             } else {
                 1.
             };

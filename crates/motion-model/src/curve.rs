@@ -55,6 +55,11 @@ pub struct CurveSample {
     pub velocity: f64,
 }
 
+enum CurveDefinition {
+    Bezier([f64; 4], [f64; 4]),
+    Elastic { oscillations: f64, damping: f64 },
+}
+
 impl Easing {
     pub fn validate(self) -> Result<()> {
         if let Some(curve) = self.curve {
@@ -84,7 +89,7 @@ impl Easing {
 impl Curve {
     pub fn definition_scale(self) -> f64 {
         if self.space == CurveSpace::Velocity {
-            if let Some((x, y)) = self.polynomials() {
+            if let CurveDefinition::Bezier(x, y) = self.definition() {
                 return 1.0 / integral(x, y, 1.0);
             }
         }
@@ -121,6 +126,14 @@ impl Curve {
                 self.validate_bezier(&[control1, control2], start, end)?;
             }
         }
+        if self.space == CurveSpace::Velocity {
+            if let CurveDefinition::Bezier(x, y) = self.definition() {
+                ensure(
+                    integral(x, y, 1.0).abs() >= 0.05,
+                    "velocity curve area is too close to zero",
+                )?;
+            }
+        }
         Ok(())
     }
     fn validate_bezier(self, controls: &[[f64; 2]], start: f64, end: f64) -> Result<()> {
@@ -142,22 +155,16 @@ impl Curve {
                 start == 0.0 && end == 1.0,
                 "progress endpoints must be zero and one",
             )?;
-        } else {
-            let (x, y) = self.polynomials().unwrap();
-            ensure(
-                integral(x, y, 1.0).abs() >= 0.05,
-                "velocity curve area is too close to zero",
-            )?;
         }
         Ok(())
     }
-    fn polynomials(self) -> Option<([f64; 4], [f64; 4])> {
-        Some(match self.shape {
+    fn definition(self) -> CurveDefinition {
+        match self.shape {
             CurveShape::Quadratic {
                 control: [x, y],
                 start: s,
                 end: e,
-            } => (
+            } => CurveDefinition::Bezier(
                 [0.0, 2.0 * x, 1.0 - 2.0 * x, 0.0],
                 [s, 2.0 * (y - s), e - 2.0 * y + s, 0.0],
             ),
@@ -166,7 +173,7 @@ impl Curve {
                 control2: [x2, y2],
                 start: s,
                 end: e,
-            } => (
+            } => CurveDefinition::Bezier(
                 [
                     0.0,
                     3.0 * x1,
@@ -180,34 +187,37 @@ impl Curve {
                     e - s + 3.0 * y1 - 3.0 * y2,
                 ],
             ),
-            CurveShape::Elastic { .. } => return None,
-        })
+            CurveShape::Elastic { oscillations, damping } => {
+                CurveDefinition::Elastic { oscillations, damping }
+            }
+        }
     }
     pub fn sample(self, t: f64) -> CurveSample {
         let t = t.clamp(0.0, 1.0);
-        if let CurveShape::Elastic {
-            oscillations,
-            damping,
-        } = self.shape
-        {
-            // Unit step response of a damped oscillator, normalized to end at 1.
-            // In velocity space the editable definition is this response's derivative.
-            let w = std::f64::consts::TAU * oscillations;
-            let step =
-                |t: f64| 1.0 - (-damping * t).exp() * ((w * t).cos() + damping / w * (w * t).sin());
-            let norm = step(1.0);
-            return CurveSample {
-                progress: if t == 0.0 {
-                    0.0
-                } else if t == 1.0 {
-                    1.0
-                } else {
-                    step(t) / norm
-                },
-                velocity: (-damping * t).exp() * (w + damping * damping / w) * (w * t).sin() / norm,
-            };
-        }
-        let (x, y) = self.polynomials().unwrap();
+        let (x, y) = match self.definition() {
+            CurveDefinition::Bezier(x, y) => (x, y),
+            CurveDefinition::Elastic {
+                oscillations,
+                damping,
+            } => {
+                // Unit step response of a damped oscillator, normalized to end at 1.
+                // In velocity space the editable definition is this response's derivative.
+                let w = std::f64::consts::TAU * oscillations;
+                let step =
+                    |t: f64| 1.0 - (-damping * t).exp() * ((w * t).cos() + damping / w * (w * t).sin());
+                let norm = step(1.0);
+                return CurveSample {
+                    progress: if t == 0.0 {
+                        0.0
+                    } else if t == 1.0 {
+                        1.0
+                    } else {
+                        step(t) / norm
+                    },
+                    velocity: (-damping * t).exp() * (w + damping * damping / w) * (w * t).sin() / norm,
+                };
+            }
+        };
         let u = invert(x, t);
         if self.space == CurveSpace::Velocity {
             let area = integral(x, y, 1.0);

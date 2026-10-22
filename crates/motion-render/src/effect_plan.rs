@@ -963,8 +963,9 @@ impl PlanBuilder {
                 }
                 if resolved.definition.renderer != motion_effects::RendererKind::Image {
                     crate::scene_generator::validate_settings(e, resolved.definition.renderer)
-                        .map_err(|error| {
-                            format!("layer {}, effect {}: {error}", e.layer, e.instance)
+                        .map_err(|cause| {
+                            let message = format!("layer {}, effect {}: {}", e.layer, e.instance, cause.planning_message());
+                            cause.with_diagnostic(message)
                         })?;
                     if let Some(source) = e.scene.as_ref().and_then(|s| s.source_layer) {
                         if scene.world_matrix(source).is_none() {
@@ -1057,7 +1058,10 @@ impl PlanBuilder {
                         ) });
                     }
                     let geometry = crate::vector_mesh::rasterize_with_limit(vector, layer.size, scale, origin, vector_remaining)
-                        .map_err(|e| format!("layer {}: {e}", layer.id))?;
+                        .map_err(|cause| {
+                            let message = format!("layer {}, vector rasterize at frame {}: {cause}", layer.id, scene.frame);
+                            RenderError::from(cause).with_diagnostic(message)
+                        })?;
                     use std::hash::{Hash, Hasher};
                     let mut hash = std::collections::hash_map::DefaultHasher::new();
                     bytemuck::cast_slice::<_, u8>(&geometry.vertices).hash(&mut hash);

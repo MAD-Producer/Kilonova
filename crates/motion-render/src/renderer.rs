@@ -77,6 +77,8 @@ pub enum RenderError {
     ImageResource(#[from] crate::image_resources::Error),
     #[error(transparent)]
     VectorUpload(#[from] crate::VectorUploadError),
+    #[error(transparent)]
+    VectorGeometry(#[from] crate::VectorGeometryError),
     #[error("GPU validation: {0}")]
     Invalid(String),
     // Preserve the historical display text while callers inspect the refusal.

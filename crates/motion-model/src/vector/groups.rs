@@ -397,9 +397,9 @@ impl VectorGroup {
                 }
             })
         }
-        fn parent(g: &mut VectorGroup, id: u64) -> Option<&mut VectorGroup> {
-            if g.items.iter().any(|i| i.id() == id) {
-                return Some(g);
+        fn parent(g: &mut VectorGroup, id: u64) -> Option<(&mut VectorGroup, usize)> {
+            if let Some(index) = g.items.iter().position(|i| i.id() == id) {
+                return Some((g, index));
             }
             g.items.iter_mut().find_map(|i| {
                 if let GroupItem::Group { group: g } = i {
@@ -516,23 +516,24 @@ impl VectorGroup {
                 .items
                 .push(item),
             StructureEdit::Remove { item: id } => {
-                let g = parent(self, id)
+                let (g, _) = parent(self, id)
                     .ok_or_else(|| crate::Error::Invalid("group item missing".into()))?;
                 g.items.retain(|i| i.id() != id);
             }
             StructureEdit::Move { item: id, delta } => {
-                let g = parent(self, id)
+                let (g, index) = parent(self, id)
                     .ok_or_else(|| crate::Error::Invalid("group item missing".into()))?;
-                let index = g.items.iter().position(|i| i.id() == id).unwrap();
                 let target =
                     (index as i64 + i64::from(delta)).clamp(0, g.items.len() as i64 - 1) as usize;
                 let i = g.items.remove(index);
                 g.items.insert(target, i);
             }
             StructureEdit::Options { item: id, edit } => {
-                let g = parent(self, id)
+                let (g, index) = parent(self, id)
                     .ok_or_else(|| crate::Error::Invalid("group item missing".into()))?;
-                options(g.items.iter_mut().find(|i| i.id() == id).unwrap(), edit)?;
+                let item = g.items.get_mut(index)
+                    .ok_or_else(|| crate::Error::Invalid("group item missing".into()))?;
+                options(item, edit)?;
             }
         }
         self.validate()
