@@ -51,18 +51,23 @@ fn children(mut b: &[u8]) -> Result<Vec<([u8; 4], &[u8])>> {
     Ok(out)
 }
 fn find<'a>(b: &'a [u8], name: &[u8; 4]) -> Result<Option<&'a [u8]>> {
-    Ok(children(b)?
-        .into_iter()
-        .find(|(k, _)| k == name)
-        .map(|(_, v)| v))
+    let mut matches = children(b)?.into_iter().filter(|(k, _)| k == name);
+    let found = matches.next().map(|(_, value)| value);
+    if matches.next().is_some() {
+        return Err(format!("duplicate MP4 atom {}", String::from_utf8_lossy(name)).into());
+    }
+    Ok(found)
 }
-pub(crate) fn audio_edit(path: &Path, track: u32, rate: u32) -> Result<Edit> {
+/// Read bounded metadata before the decoder constructs TimeBase values. Every
+/// track must be checked: the decoder initializes even unselected tracks.
+pub(crate) fn audio_metadata(path: &Path) -> Result<Option<Vec<u8>>> {
     let mut f = File::open(path).map_err(crate::Error::from)?;
     let len = f.metadata().map_err(crate::Error::from)?.len();
     let mut at = 0;
+    let mut metadata = None;
     for _ in 0..4096 {
         if at == len {
-            return Ok(Edit::default());
+            return Ok(metadata);
         }
         if len.saturating_sub(at) < 8 {
             return Err("truncated MP4 header".into());
@@ -84,102 +89,136 @@ pub(crate) fn audio_edit(path: &Path, track: u32, rate: u32) -> Result<Edit> {
             return Err("invalid MP4 atom size".into());
         }
         if &h[4..8] == b"moov" {
+            if metadata.is_some() {
+                return Err("duplicate MP4 atom moov".into());
+            }
             if n - header > 16 * 1024 * 1024 {
                 return Err("MP4 metadata exceeds 16 MiB budget".into());
             }
             let mut moov = vec![0; (n - header) as usize];
             f.read_exact(&mut moov).map_err(crate::Error::from)?;
             let mvhd = find(&moov, b"mvhd")?.ok_or("missing movie header")?;
-            let movie_rate = u32be(
-                mvhd.get(if mvhd.first() == Some(&1) { 20.. } else { 12.. })
-                    .ok_or("short movie header")?,
-            )?;
-            if movie_rate == 0 {
-                return Err("zero MP4 timebase".into());
-            }
-            // Symphonia exposes zero-based track ordinals, not tkhd's track_ID.
+            header_timebase(mvhd, "mvhd", None)?;
             for (index, (_, trak)) in children(&moov)?
                 .into_iter()
                 .filter(|(k, _)| k == b"trak")
                 .enumerate()
             {
-                if index as u32 != track {
-                    continue;
+                if index >= 32 {
+                    return Err("too many audio tracks".into());
                 }
                 let mdia = find(trak, b"mdia")?.ok_or("missing media header")?;
                 let mdhd = find(mdia, b"mdhd")?.ok_or("missing media timebase")?;
-                let media_rate = u32be(
-                    mdhd.get(if mdhd.first() == Some(&1) { 20.. } else { 12.. })
-                        .ok_or("short media header")?,
-                )?;
-                if media_rate == 0 {
-                    return Err("zero audio timebase".into());
-                }
-                let Some(edts) = find(trak, b"edts")? else {
-                    return Ok(Edit::default());
-                };
-                let Some(elst) = find(edts, b"elst")? else {
-                    return Ok(Edit::default());
-                };
-                if elst.len() < 8 || !matches!(elst[0], 0 | 1) {
-                    return Err("unsupported MP4 edit version".into());
-                }
-                let count = u32be(&elst[4..])? as usize;
-                let wide = elst[0] == 1;
-                let stride = if wide { 20 } else { 12 };
-                if count == 0 {
-                    return Ok(Edit::default());
-                }
-                if count > 2 || elst.len() != 8 + count * stride {
-                    return Err("complex MP4 audio edits are not supported".into());
-                }
-                let mut edit = Edit {rounding_frames:u64::from(rate).div_ceil(u64::from(movie_rate)),..Edit::default()};
-                let mut have_media = false;
-                for entry in elst[8..].chunks_exact(stride) {
-                    let (duration, media, r) = if wide {
-                        (
-                            u64be(entry)?,
-                            i64::from_be_bytes(entry[8..16].try_into().unwrap()),
-                            &entry[16..],
-                        )
-                    } else {
-                        (
-                            u64::from(u32be(entry)?),
-                            i64::from(i32::from_be_bytes(entry[4..8].try_into().unwrap())),
-                            &entry[8..],
-                        )
-                    };
-                    if r != [0, 1, 0, 0] {
-                        return Err("audio edit speed must equal one".into());
-                    }
-                    let frames = duration
-                        .checked_mul(u64::from(rate))
-                        .ok_or("edit duration overflow")?
-                        / u64::from(movie_rate);
-                    if media == -1 && !have_media {
-                        edit.leading = edit
-                            .leading
-                            .checked_add(frames)
-                            .ok_or("edit duration overflow")?;
-                    } else if media >= 0 && !have_media {
-                        edit.skip = (media as u64)
-                            .checked_mul(u64::from(rate))
-                            .ok_or("edit start overflow")?
-                            / u64::from(media_rate);
-                        edit.frames = Some(frames);
-                        have_media = true;
-                    } else {
-                        return Err("complex MP4 audio edits are not supported".into());
-                    }
-                }
-                if !have_media {
-                    return Err("audio edit has no media".into());
-                }
-                return Ok(edit);
+                header_timebase(mdhd, "mdhd", Some(index))?;
             }
-            return Err("selected MP4 track missing".into());
+            metadata = Some(moov);
         }
         at += n;
     }
-    Err("MP4 atom budget exceeded".into())
+    if at == len {
+        Ok(metadata)
+    } else {
+        Err("MP4 atom budget exceeded".into())
+    }
+}
+
+fn header_timebase(header: &[u8], atom: &'static str, track: Option<usize>) -> Result<u32> {
+    let offset = match header.first() {
+        Some(0) => 12,
+        Some(1) => 20,
+        version => {
+            return Err(format!(
+                "invalid MP4 timebase atom={atom} track={track:?} version={version:?}"
+            )
+            .into())
+        }
+    };
+    let value = u32be(header.get(offset..).ok_or("short MP4 timebase header")?)?;
+    if value == 0 {
+        return Err(format!("zero MP4 timebase atom={atom} track={track:?}").into());
+    }
+    Ok(value)
+}
+
+pub(crate) fn audio_edit(moov: &[u8], track: u32, rate: u32) -> Result<Edit> {
+    let mvhd = find(moov, b"mvhd")?.ok_or("missing movie header")?;
+    let movie_rate = header_timebase(mvhd, "mvhd", None)?;
+    // Symphonia exposes zero-based track ordinals, not tkhd's track_ID.
+    for (index, (_, trak)) in children(moov)?
+        .into_iter()
+        .filter(|(k, _)| k == b"trak")
+        .enumerate()
+    {
+        if index as u32 != track {
+            continue;
+        }
+        let mdia = find(trak, b"mdia")?.ok_or("missing media header")?;
+        let mdhd = find(mdia, b"mdhd")?.ok_or("missing media timebase")?;
+        let media_rate = header_timebase(mdhd, "mdhd", Some(index))?;
+        let Some(edts) = find(trak, b"edts")? else {
+            return Ok(Edit::default());
+        };
+        let Some(elst) = find(edts, b"elst")? else {
+            return Ok(Edit::default());
+        };
+        if elst.len() < 8 || !matches!(elst[0], 0 | 1) {
+            return Err("unsupported MP4 edit version".into());
+        }
+        let count = u32be(&elst[4..])? as usize;
+        let wide = elst[0] == 1;
+        let stride = if wide { 20 } else { 12 };
+        if count == 0 {
+            return Ok(Edit::default());
+        }
+        if count > 2 || elst.len() != 8 + count * stride {
+            return Err("complex MP4 audio edits are not supported".into());
+        }
+        let mut edit = Edit {
+            rounding_frames: u64::from(rate).div_ceil(u64::from(movie_rate)),
+            ..Edit::default()
+        };
+        let mut have_media = false;
+        for entry in elst[8..].chunks_exact(stride) {
+            let (duration, media, r) = if wide {
+                (
+                    u64be(entry)?,
+                    i64::from_be_bytes(entry[8..16].try_into().unwrap()),
+                    &entry[16..],
+                )
+            } else {
+                (
+                    u64::from(u32be(entry)?),
+                    i64::from(i32::from_be_bytes(entry[4..8].try_into().unwrap())),
+                    &entry[8..],
+                )
+            };
+            if r != [0, 1, 0, 0] {
+                return Err("audio edit speed must equal one".into());
+            }
+            let frames = duration
+                .checked_mul(u64::from(rate))
+                .ok_or("edit duration overflow")?
+                / u64::from(movie_rate);
+            if media == -1 && !have_media {
+                edit.leading = edit
+                    .leading
+                    .checked_add(frames)
+                    .ok_or("edit duration overflow")?;
+            } else if media >= 0 && !have_media {
+                edit.skip = (media as u64)
+                    .checked_mul(u64::from(rate))
+                    .ok_or("edit start overflow")?
+                    / u64::from(media_rate);
+                edit.frames = Some(frames);
+                have_media = true;
+            } else {
+                return Err("complex MP4 audio edits are not supported".into());
+            }
+        }
+        if !have_media {
+            return Err("audio edit has no media".into());
+        }
+        return Ok(edit);
+    }
+    Err("selected MP4 track missing".into())
 }

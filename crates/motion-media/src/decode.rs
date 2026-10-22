@@ -42,6 +42,12 @@ pub fn decode_audio(
             "Matroska audio requires the platform decoder to preserve its source clock".into(),
         );
     }
+    let mp4_container = &signature[4..8] == b"ftyp";
+    let mp4_metadata = if mp4_container {
+        mp4::audio_metadata(path)?
+    } else {
+        None
+    };
     let file = File::open(path).map_err(crate::Error::from)?;
     let mss = MediaSourceStream::new(Box::new(file), Default::default());
     let opts = FormatOptions {
@@ -86,7 +92,6 @@ pub fn decode_audio(
     if !(8_000..=192_000).contains(&rate) || !matches!(channels, 1 | 2) {
         return Err("audio requires mono/stereo at 8–192 kHz".into());
     }
-    let mp4_container = &signature[4..8] == b"ftyp";
     let mime = if mp4_container {
         "audio/mp4"
     } else if &signature[..4] == b"fLaC" {
@@ -104,8 +109,8 @@ pub fn decode_audio(
     } else {
         return Err("unsupported audio container".into());
     };
-    let edit = if mp4_container {
-        mp4::audio_edit(path, id, rate)?
+    let edit = if let Some(metadata) = mp4_metadata {
+        mp4::audio_edit(&metadata, id, rate)?
     } else {
         mp4::Edit::default()
     };
