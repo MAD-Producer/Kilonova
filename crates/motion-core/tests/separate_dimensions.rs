@@ -330,7 +330,7 @@ fn axis_tracks_survive_clips_parenting_and_storage_without_vector_shadow_data() 
             .unwrap()
             .abs_diff_eq(b.world_matrix(3).unwrap(), 1e-4));
     }
-    let timeline = e.project().timeline_layers(25.0);
+    let timeline = e.project().timeline_layers(25.0).unwrap();
     let a = timeline[1].properties.position.axes.as_ref().unwrap();
     assert_eq!(a.x.keys[0].frame, 20);
     assert_eq!(a.x.keys[0].local_frame, 0);

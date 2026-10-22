@@ -69,7 +69,7 @@ impl Shell {
         let engine = motion_core::Engine::new(project).map_err(|e| e.to_string())?;
         let mut view = state.clone();
         view["project"] = serde_json::to_value(engine.project()).map_err(|e| e.to_string())?;
-        view["timeline_layers"] = serde_json::to_value(engine.project().timeline_layers(40.)).map_err(|e| e.to_string())?;
+        view["timeline_layers"] = serde_json::to_value(engine.project().timeline_layers(40.).unwrap()).map_err(|e| e.to_string())?;
         view["sampledLayers"] = engine.project().layers.iter().map(|l| {
             let local = l.local_frame(40.);
             serde_json::json!({"id":l.id,"position":l.transform.position.sample(local),

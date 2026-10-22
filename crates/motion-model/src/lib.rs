@@ -70,6 +70,12 @@ pub enum Error {
     },
     #[error("{0}")]
     Invalid(String),
+    #[error("timeline object={object} cause={source}")]
+    Timeline {
+        object: u64,
+        #[source]
+        source: Box<Error>,
+    },
     #[error("object {0} does not exist")]
     Missing(u64),
     #[error("object {0} is locked")]

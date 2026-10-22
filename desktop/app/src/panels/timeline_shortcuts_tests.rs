@@ -35,7 +35,7 @@ fn engine() -> Engine {
     engine
 }
 fn state(engine: &Engine, frame: f64) -> Value {
-    serde_json::json!({"frame":frame,"project":engine.project(),"timeline_layers":engine.project().timeline_layers(frame)})
+    serde_json::json!({"frame":frame,"project":engine.project(),"timeline_layers":engine.project().timeline_layers(frame).unwrap()})
 }
 fn panels() -> Panels {
     Panels {
@@ -1535,7 +1535,7 @@ fn in_out_edits_skip_locked_or_empty_selection_and_batch_all_selected_layers() {
         &serde_json::json!({
             "frame": 30.,
             "project": locked_engine.project(),
-            "timeline_layers": locked_engine.project().timeline_layers(30.),
+            "timeline_layers": locked_engine.project().timeline_layers(30.).unwrap(),
             "observing": true,
         }),
         Key::BracketLeft,

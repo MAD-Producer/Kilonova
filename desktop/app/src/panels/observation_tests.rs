@@ -13,7 +13,7 @@ fn real_panel_fallbacks_are_visible_bounded_and_preserve_normal_optional_fields(
             [100., 100., 0.],
             [1.; 4],
         ));
-        let healthy = serde_json::json!({"frame":0,"project":project,"timeline_layers":project.timeline_layers(0.)});
+        let healthy = serde_json::json!({"frame":0,"project":project,"timeline_layers":project.timeline_layers(0.).unwrap()});
         let mut atlas = TextAtlas::from_system(12.).unwrap();
         let _logger = crate::logging::init(root.clone()).unwrap();
         let log_path = root.join("motion-studio.log");
@@ -122,7 +122,7 @@ fn retained_clip_gestures_log_lost_release_and_routing_without_closing_history()
             [100., 100., 0.],
             [1.; 4],
         ));
-        let state = serde_json::json!({"frame":0,"project":project,"timeline_layers":project.timeline_layers(0.)});
+        let state = serde_json::json!({"frame":0,"project":project,"timeline_layers":project.timeline_layers(0.).unwrap()});
         let mut atlas = TextAtlas::from_system(12.).unwrap();
         let _logger = crate::logging::init(root.clone()).unwrap();
         let mut panels = Panels::default();

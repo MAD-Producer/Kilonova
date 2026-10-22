@@ -83,7 +83,7 @@ impl Shell {
             panels.timeline.collapsed_transforms.insert(7);
             panels.timeline.expanded_effects.insert(7);
             panels.effect_timeline.begin_probe(1, "speed");
-            let state = |engine: &motion_core::Engine| serde_json::json!({"root":"effect-timeline-native-fixture","composition":motion_core::composition::MAIN_COMPOSITION,"revision":engine.revision(),"frame":20,"project":engine.project(),"timeline_layers":engine.project().timeline_layers(20.)});
+            let state = |engine: &motion_core::Engine| serde_json::json!({"root":"effect-timeline-native-fixture","composition":motion_core::composition::MAIN_COMPOSITION,"revision":engine.revision(),"frame":20,"project":engine.project(),"timeline_layers":engine.project().timeline_layers(20.).unwrap()});
             let draw = |atlas: &mut TextAtlas,
                         panels: &mut panels::Panels,
                         engine: &mut motion_core::Engine,

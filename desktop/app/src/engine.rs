@@ -1559,18 +1559,18 @@ fn handle(
                 let next = motion_ui::Painter::new(&target.renderer.device, target.config.format);
                 s.attach(target)?;
                 *painter = Some(next);
-                Ok(s.snapshot())
+                s.snapshot()
             })
         })()),
         Command::FloatWindow {key,target,reply} => respond(reply,motion_host::session::with_session(id,|s|{
             if key==0 || windows.contains_key(&key){return Err("invalid floating window id".into());}
-            windows.insert(key,target);Ok(s.snapshot())
+            windows.insert(key,target);s.snapshot()
         })),
         Command::CloseWindow {key,reply} => {windows.remove(&key);respond(reply,project::state(id));},
         Command::Resize { window, width, height, reply } => respond(reply,motion_host::session::with_session(id, |s| {
             if width == 0 || height == 0 {
                 log::debug!("surface resize deferred width={width} height={height} reason=zero_extent");
-                return Ok(s.snapshot());
+                return s.snapshot();
             }
             if let Some(g) = &mut s.graphics {
                 if window==0 {g.config.width=width;g.config.height=height;g.surface.configure(&g.renderer.device,&g.config);}
@@ -1578,7 +1578,7 @@ fn handle(
                 else{return Err("floating window is closed".into());}
                 s.view_revision += 1;
             }
-            Ok(s.snapshot())
+            s.snapshot()
         })),
         Command::Present { ui, reply } => {let result=motion_host::session::with_session(id, |s| {
             let began = std::time::Instant::now();

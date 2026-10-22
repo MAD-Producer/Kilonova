@@ -94,7 +94,7 @@ fn anchor_uses_local_time_and_survives_save_reopen_and_frozen_snapshot() {
     );
     let a = e.project().layers[1].transform.anchor.sample(20.);
     assert!((a[0] - 0.3).abs() < 1e-6 && (a[1] - 0.7).abs() < 1e-6);
-    let timeline = e.project().timeline_layers(30.);
+    let timeline = e.project().timeline_layers(30.).unwrap();
     assert_eq!(
         timeline[1]
             .properties

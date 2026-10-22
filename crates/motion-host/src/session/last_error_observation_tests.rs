@@ -107,7 +107,7 @@ fn successful_edits_with_sample_errors_are_observed_after_unlock_without_rollbac
     ));
     let id = open(root.clone(), project.clone(), Arc::new(Stub)).unwrap();
     for _ in 0..120 {
-        assert!(with_session(id, |s| Ok(s.snapshot())).unwrap()["renderError"].is_null());
+        assert!(with_session(id, |s| s.snapshot()).unwrap()["renderError"].is_null());
     }
     assert!(capture.0.lock().unwrap().is_empty());
     if mode == "owner" {
@@ -172,7 +172,7 @@ fn successful_edits_with_sample_errors_are_observed_after_unlock_without_rollbac
     })
     .unwrap();
     for _ in 0..120 {
-        assert!(with_session(id, |s| Ok(s.snapshot())).unwrap()["renderError"].is_null());
+        assert!(with_session(id, |s| s.snapshot()).unwrap()["renderError"].is_null());
     }
     for _ in 0..59 {
         edit().unwrap();

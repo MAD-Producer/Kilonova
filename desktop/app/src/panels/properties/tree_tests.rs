@@ -3,7 +3,7 @@ use motion_core::{Layer, Project};
 
 fn anchor_state(engine: &motion_core::Engine, frame: f64) -> Value {
     let p=engine.project();
-    serde_json::json!({"frame":frame,"project":p,"timeline_layers":p.timeline_layers(frame),
+    serde_json::json!({"frame":frame,"project":p,"timeline_layers":p.timeline_layers(frame).unwrap(),
         "sampledLayers":p.layers.iter().map(|l|{let f=l.local_frame(frame);serde_json::json!({
             "id":l.id,"anchor":l.transform.anchor.sample(f),"position":l.transform.position.sample(f),
             "rotation":l.transform.rotation.sample(f),"scale":l.transform.scale.sample(f),"opacity":l.transform.opacity.sample(f)})}).collect::<Vec<_>>()})

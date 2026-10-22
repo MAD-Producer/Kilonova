@@ -33,7 +33,7 @@ fn fixture() -> Engine {
 }
 
 fn state(engine: &Engine, frame: f64) -> Value {
-    serde_json::json!({"frame": frame, "project": engine.project(), "timeline_layers": engine.project().timeline_layers(frame)})
+    serde_json::json!({"frame": frame, "project": engine.project(), "timeline_layers": engine.project().timeline_layers(frame).unwrap()})
 }
 
 #[test]

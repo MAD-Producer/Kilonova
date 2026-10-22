@@ -335,7 +335,7 @@ pub fn request(id: i64, mut value: Value, open: Option<Opener>) -> Result<Value>
             };
             s.audio_mixer = None;
             s.sample()?;
-            Ok(json!({"task":task,"state":s.snapshot()}))
+            Ok(json!({"task":task,"state":s.snapshot()?}))
         }),
         Request::CancelMediaImport { request_id } => crate::session::with_session(id, |s| {
             if s.package_jobs.contains(&request_id) {

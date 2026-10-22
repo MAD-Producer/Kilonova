@@ -51,7 +51,7 @@ fn fixture() -> (Engine, Value) {
     (Engine::new(project).unwrap(), catalogue)
 }
 fn state(engine: &Engine) -> Value {
-    serde_json::json!({"root":"effect-fixture","composition":motion_core::composition::MAIN_COMPOSITION,"revision":engine.revision(),"frame":20,"project":engine.project(),"timeline_layers":engine.project().timeline_layers(20.)})
+    serde_json::json!({"root":"effect-fixture","composition":motion_core::composition::MAIN_COMPOSITION,"revision":engine.revision(),"frame":20,"project":engine.project(),"timeline_layers":engine.project().timeline_layers(20.).unwrap()})
 }
 fn setup(catalogue: &Value, locale: Locale) -> Panels {
     let mut p = Panels {

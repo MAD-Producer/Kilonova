@@ -674,7 +674,7 @@ mod tests {
         Engine::new(project).unwrap()
     }
     fn state(engine: &Engine, frame: f64) -> Value {
-        serde_json::json!({"project":engine.project(), "timeline_layers":engine.project().timeline_layers(frame)})
+        serde_json::json!({"project":engine.project(), "timeline_layers":engine.project().timeline_layers(frame).unwrap()})
     }
     #[test]
     fn defaults_static_edits_and_reset_use_authored_values() {
