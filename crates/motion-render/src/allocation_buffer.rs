@@ -28,16 +28,21 @@ impl AllocationBuffer {
             .ok_or_else(|| {
                 RenderError::Invalid("empty or overflowing initialized buffer capacity".into())
             })?;
-        let allocation = budget.reserve(size).map_err(|error| {
-            let label: String = descriptor
-                .label
-                .unwrap_or("unlabelled")
-                .chars()
-                .take(96)
-                .collect();
-            let message = format!("buffer size={size} phase=initialize label={label}: {error}");
-            error.with_diagnostic(message)
-        })?;
+        let allocation = budget
+            .reserve_in(
+                size,
+                crate::allocation_budget::AllocationCategory::buffer(descriptor.usage),
+            )
+            .map_err(|error| {
+                let label: String = descriptor
+                    .label
+                    .unwrap_or("unlabelled")
+                    .chars()
+                    .take(96)
+                    .collect();
+                let message = format!("buffer size={size} phase=initialize label={label}: {error}");
+                error.with_diagnostic(message)
+            })?;
         Ok(Self {
             buffer: device.create_buffer_init(descriptor),
             allocation,
@@ -48,19 +53,24 @@ impl AllocationBuffer {
         budget: &AllocationBudget,
         descriptor: &wgpu::BufferDescriptor<'_>,
     ) -> Result<Self, RenderError> {
-        let allocation = budget.reserve(descriptor.size).map_err(|error| {
-            let label: String = descriptor
-                .label
-                .unwrap_or("unlabelled")
-                .chars()
-                .take(96)
-                .collect();
-            let message = format!(
-                "buffer size={} phase=allocate label={label}: {error}",
-                descriptor.size
-            );
-            error.with_diagnostic(message)
-        })?;
+        let allocation = budget
+            .reserve_in(
+                descriptor.size,
+                crate::allocation_budget::AllocationCategory::buffer(descriptor.usage),
+            )
+            .map_err(|error| {
+                let label: String = descriptor
+                    .label
+                    .unwrap_or("unlabelled")
+                    .chars()
+                    .take(96)
+                    .collect();
+                let message = format!(
+                    "buffer size={} phase=allocate label={label}: {error}",
+                    descriptor.size
+                );
+                error.with_diagnostic(message)
+            })?;
         Ok(Self {
             buffer: device.create_buffer(descriptor),
             allocation,

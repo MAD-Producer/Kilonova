@@ -59,7 +59,7 @@ fn read(renderer: &Renderer, texture: &crate::resource_ledger::OwnedTexture) -> 
 
 fn accumulators(renderer: &Renderer) -> Vec<crate::effect_gpu::FxTexture> {
     (0..2).map(|_| crate::effect_gpu::admitted_texture(&renderer.device, &renderer.image_layout,
-        &renderer.sampler, 4, 4, renderer.target_format, renderer.allocation_budget()).unwrap()).collect()
+        &renderer.sampler, 4, 4, renderer.target_format, renderer.allocation_budget(), crate::TextureCategory::MatteBlendScratch).unwrap()).collect()
 }
 
 fn sample(project: &Project) -> Scene {

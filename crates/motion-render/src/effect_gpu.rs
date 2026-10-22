@@ -87,8 +87,9 @@ pub(crate) fn admitted_texture(
     h: u32,
     format: wgpu::TextureFormat,
     budget: &crate::AllocationBudget,
+    category: crate::TextureCategory,
 ) -> Result<FxTexture, RenderError> {
-    let texture = device.create_admitted_texture(&texture_descriptor(w, h, format), budget)?;
+    let texture = device.create_admitted_texture(&texture_descriptor(w, h, format), budget, category)?;
     Ok(bind_texture(device, layout, sampler, texture))
 }
 fn texture_descriptor(w: u32, h: u32, format: wgpu::TextureFormat) -> wgpu::TextureDescriptor<'static> {
@@ -226,6 +227,7 @@ impl EffectGpu {
             1,
             wgpu::TextureFormat::Rgba8Unorm,
             &allocation_budget,
+            crate::TextureCategory::SystemTextures,
         ).map_err(|error| {
             let message = format!("effect fallback size=1x1 phase=allocate: {error}");
             error.with_diagnostic(message)
@@ -238,6 +240,7 @@ impl EffectGpu {
             1,
             wgpu::TextureFormat::Rgba8Unorm,
             &allocation_budget,
+            crate::TextureCategory::CurveLuts,
         ).map_err(|error| {
             let message = format!("effect identity LUT size=256x1 phase=allocate: {error}");
             error.with_diagnostic(message)
@@ -461,6 +464,7 @@ impl GpuState {
                             wgpu::TextureFormat::Rgba8UnormSrgb
                         },
                         &self.allocation_budget,
+                        crate::TextureCategory::EffectScratch,
                     ).map_err(|error| {
                         let message = format!("effect scratch slot={i} extent={}x{} phase=allocate: {error}",
                             frame.scratch_sizes[i][0], frame.scratch_sizes[i][1]);
@@ -503,6 +507,7 @@ impl GpuState {
                     1,
                     wgpu::TextureFormat::Rgba8Unorm,
                     &self.allocation_budget,
+                    crate::TextureCategory::CurveLuts,
                 ).map_err(|error| {
                     let message = format!("effect curve index={index} phase=allocate: {error}");
                     error.with_diagnostic(message)
@@ -686,6 +691,7 @@ impl GpuState {
                                 rgba.height(),
                                 wgpu::TextureFormat::Rgba8Unorm,
                                 &self.allocation_budget,
+                                crate::TextureCategory::PluginResources,
                             ).map_err(|error| {
                                 let message = format!("effect resource package={} path={} phase=allocate: {error}",
                                     package.hash, path.chars().take(192).collect::<String>());

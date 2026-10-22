@@ -81,7 +81,7 @@ impl AllocationContext {
         Ok(AdmittedTexture {
             texture: self
                 .device
-                .create_admitted_texture(descriptor, &self.budget)
+                .create_admitted_texture(descriptor, &self.budget, crate::TextureCategory::PluginResources)
                 .map_err(|error| {
                     let label: String = descriptor
                         .label

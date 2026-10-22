@@ -199,7 +199,7 @@ fn vector_native_commands_retain_capacity_until_their_own_retirement() {
             format: wgpu::TextureFormat::Rgba8UnormSrgb,
             usage: wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::COPY_DST,
             view_formats: &[],
-        }, &budget).unwrap();
+        }, &budget, crate::TextureCategory::VectorSources).unwrap();
         copy.view = texture.admitted_view().unwrap();
         copy.texture = texture;
         let extent = wgpu::Extent3d { width, height, depth_or_array_layers: 1 };

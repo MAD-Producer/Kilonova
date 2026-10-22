@@ -228,6 +228,7 @@ impl PreviewInputTexture {
                 view_formats: &[],
             },
             &self.allocation_budget,
+            crate::TextureCategory::AuthoringInputs,
         )
     }
     fn next_output(&self, size: (u32, u32)) -> Result<OwnedTexture, RenderError> {

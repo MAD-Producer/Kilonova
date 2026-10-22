@@ -1721,3 +1721,27 @@ exhausting physical VRAM; this must not be represented as real-driver pressure
 reproduction or new Linux/Metal/Android runtime acceptance. Per-category frame
 peaks, remaining Presenter/UI enrollment and repeated resize/seek/project-switch
 combined acceptance remain open. #60/#61/#67 remain open.
+
+## Twenty-third increment: immutable resource-category frame peaks (pending acceptance)
+
+This increment follows the local pressure implementation and does not inherit
+uncompleted pressure-policy acceptance. It adds classified logical admission
+statistics without changing capacity limits, project values or render output.
+
+| Item | Disposition / new observation | Required evidence |
+| --- | --- | --- |
+| #61-A149 | Every enrolled texture creation explicitly supplies a bounded semantic category; buffer descriptors select one of seven fixed roles | Workspace/all-target compile plus actual native preview/capture/image/external-texture/uniform coverage |
+| #61-A150 | Immutable reservation identity prevents alias, view, binding, upload or queued-use double counting across categories | Controlled alias/callback retirement and real allocated native submission assertions |
+| #61-A151 | Shared admission and each frame expose independent category start/current/peak/end values | Non-coincident category peaks differ from the combined peak; next-frame reset and JSON assertions |
+| #61-A152 | Refusal remains atomic and category release uses checked arithmetic | Refused-category state equality; controlled drift must stop admission/readout instead of zeroing known total bytes |
+| #61-A153 | Category endpoints join CPU completion and every registered GPU callback | Pending null endpoints and completed exact category/combined totals, including overlapping windows |
+
+All acceptance for this new source is pending. Fixed metadata covers admitted
+logical capacity only; it is not per-category physical VRAM. There is no new
+per-frame logger or resource query. The API documentation explains why summing
+independent category peaks does not yield a simultaneous total. Remaining
+Presenter/UI enrollment, native-pressure completion, formal output regression
+and repeated resize/seek/project-switch combined acceptance remain open. No
+panel/style/layout/token change is included; DESIGN section 0.7 entries remain
+retained with reason because none of their visual implementation is edited.
+#60/#61/#67 remain open.

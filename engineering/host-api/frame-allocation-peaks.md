@@ -123,3 +123,34 @@ separately. These are not test results for this version-2/export extension.
 New export, actual worker/default-channel and source-frame assertions remain
 pending exact-source execution. No Linux/Metal runtime or complete issue
 coverage is claimed by this document.
+## Resource categories
+
+`AllocationBudget::info().categories` reports current and independent lifetime
+high-water marks for 19 fixed allocation purposes. Each frame record additionally
+contains `categories` with that interval's start, peak and optional end bytes.
+The category end remains null until the CPU scope and every registered queue
+callback have ended, exactly like the combined interval. Categories with zero
+capacity remain present, making bounded snapshots explicit and predictable.
+
+The purposes cover static images, video, vector resources, effects, masks,
+compositing, preview/capture/exposure targets, authoring inputs, plugin resources,
+system textures and seven buffer roles. Texture creation explicitly supplies
+the purpose; it is never inferred from a user-visible label. Buffer roles use
+descriptor usage, with mapped readback/upload, query resolution, geometry,
+storage and uniforms taking precedence over the explicit other-buffer bucket.
+The existing generic offscreen target API retains its capture-target purpose;
+internal preview, nested-composition and exposure callers select their purpose.
+
+A reservation receives one immutable category before native creation. Texture,
+view, binding and buffer aliases and queued/upload retentions do not duplicate
+or move that reservation. Refused admission changes neither the combined nor
+category counters. Checked subtraction detects category drift and stops normal
+admission/readout instead of silently clamping a counter to zero. No logger is
+invoked while holding admission state.
+
+Category maxima usually occur at different moments. Their sum is not the
+simultaneous frame peak: only `peakAdmittedBytes` on the frame expresses that
+combined peak. At healthy current/end snapshots, category current/end bytes sum
+to the same combined gauge. No driver, swapchain, raw external allocation or
+CPU decoder capacity is fabricated into a category. `completeCoverage` remains
+false until the remaining application ownership boundaries are enrolled.

@@ -18,7 +18,7 @@ impl PreviewFrameTargets {
         let bytes = target_bytes(renderer, width, height)?;
         check_budget(renderer, bytes)?;
         Ok(Self {
-            front: renderer.render_target(width, height)?,
+            front: renderer.render_target_in(width, height, crate::TextureCategory::PreviewTargets)?,
             candidate: None,
             valid: false,
         })
@@ -74,7 +74,7 @@ impl PreviewFrameTargets {
             .is_none_or(|t| (t.width, t.height) != (width, height))
         {
             self.candidate = None;
-            self.candidate = Some(renderer.render_target(width, height)?);
+            self.candidate = Some(renderer.render_target_in(width, height, crate::TextureCategory::PreviewTargets)?);
         }
         Ok(self.candidate.as_ref().unwrap())
     }

@@ -345,7 +345,7 @@ impl Renderer {
         }));
         // Admit every fixed resource before any queue upload. Failed startup
         // then releases its complete reservation without a submission callback.
-        let white_texture = device.create_admitted_texture(&cached_image_descriptor(1, 1), &allocation_budget)
+        let white_texture = device.create_admitted_texture(&cached_image_descriptor(1, 1), &allocation_budget, crate::TextureCategory::SystemTextures)
             .map_err(|error| {
                 let message = format!("image key=Static(0) size=1x1 phase=allocate: {error}");
                 error.with_diagnostic(message)
@@ -977,7 +977,7 @@ impl Renderer {
                 usage: wgpu::TextureUsages::RENDER_ATTACHMENT
                     | wgpu::TextureUsages::TEXTURE_BINDING
                     | wgpu::TextureUsages::COPY_DST,
-            }, &self.allocation_budget).map_err(|error| {
+            }, &self.allocation_budget, crate::TextureCategory::VideoRgba).map_err(|error| {
                 let message = format!("video object={object} source={source} pts_us={pts} phase=yuv_allocate: {error}");
                 error.with_diagnostic(message)
             })?;
@@ -1160,7 +1160,14 @@ impl Renderer {
             );
             return Ok(());
         }
-        let texture = self.device.create_admitted_texture(&cached_image_descriptor(width, height), &self.allocation_budget).map_err(|error| {
+        let category = match id {
+            TextureKey::Static(_) => crate::TextureCategory::StaticImages,
+            TextureKey::Video(_) | TextureKey::VideoBlendSource(_, _) => crate::TextureCategory::VideoRgba,
+            TextureKey::Vector(_) => crate::TextureCategory::VectorSources,
+            TextureKey::Mask(_) => crate::TextureCategory::MaskOutputs,
+            TextureKey::EffectInput(_) => crate::TextureCategory::EffectInputSnapshots,
+        };
+        let texture = self.device.create_admitted_texture(&cached_image_descriptor(width, height), &self.allocation_budget, category).map_err(|error| {
             let message = format!("image key={id:?} size={width}x{height} phase=allocate: {error}");
             error.with_diagnostic(message)
         })?;
@@ -1677,7 +1684,7 @@ impl Renderer {
                         self.texture_bytes-previous+self.video_plane_bytes()+self.effect_gpu.state.resource_bytes+bytes,
                         self.effect_gpu.builder.source_texture_budget, format!("composition {}: nested textures exceed configured source texture budget",node.composition)));
                 }
-                let target=self.render_target(w,h)?;
+                let target=self.render_target_in(w,h,crate::TextureCategory::NestedCompositions)?;
                 let group=self.device.create_bind_group(&wgpu::BindGroupDescriptor {
                     label:Some("Composition reference"),layout:&self.image_layout,
                     entries:&[wgpu::BindGroupEntry{binding:0,resource:wgpu::BindingResource::TextureView(&target.view)},
@@ -1884,7 +1891,7 @@ impl Renderer {
                     format!("input snapshot layer={layer} size={width}x{height} phase=source_budget: effect image snapshots exceed source texture budget")));
             }
             let texture=self.device.create_admitted_texture(&wgpu::TextureDescriptor {label:Some("same-frame effect image input"),size:wgpu::Extent3d{width,height,depth_or_array_layers:1},
-                mip_level_count:1,sample_count:1,dimension:wgpu::TextureDimension::D2,format:TARGET_FORMAT,usage:wgpu::TextureUsages::TEXTURE_BINDING|wgpu::TextureUsages::COPY_DST|wgpu::TextureUsages::COPY_SRC,view_formats:&[]}, &self.allocation_budget)
+                mip_level_count:1,sample_count:1,dimension:wgpu::TextureDimension::D2,format:TARGET_FORMAT,usage:wgpu::TextureUsages::TEXTURE_BINDING|wgpu::TextureUsages::COPY_DST|wgpu::TextureUsages::COPY_SRC,view_formats:&[]}, &self.allocation_budget, crate::TextureCategory::EffectInputSnapshots)
                 .map_err(|error| RenderError::Context {
                     message: format!("input snapshot layer={layer} size={width}x{height} phase=allocate: {error}"),
                     cause: Box::new(error),
@@ -2354,6 +2361,9 @@ impl Renderer {
         })
     }
     pub fn render_target(&self, width: u32, height: u32) -> Result<RenderTarget> {
+        self.render_target_in(width, height, crate::TextureCategory::CaptureTargets)
+    }
+    pub(crate) fn render_target_in(&self, width: u32, height: u32, category: crate::TextureCategory) -> Result<RenderTarget> {
         self.check_health()?;
         if width == 0
             || height == 0
@@ -2378,7 +2388,7 @@ impl Renderer {
                 | wgpu::TextureUsages::COPY_SRC
                 | wgpu::TextureUsages::TEXTURE_BINDING,
             view_formats: &[],
-        }, &self.allocation_budget)?;
+        }, &self.allocation_budget, category)?;
         let view = texture.admitted_view()?;
         Ok(RenderTarget {
             texture,
@@ -2390,7 +2400,7 @@ impl Renderer {
     pub fn capture_target(&self, width: u32, height: u32) -> Result<CaptureTarget> {
         let target = self.render_target(width, height)?;
         let row_stride = (width * 4).div_ceil(256) * 256;
-        let buffer_allocation = self.allocation_budget.reserve(u64::from(row_stride) * u64::from(height))?;
+        let buffer_allocation = self.allocation_budget.reserve_in(u64::from(row_stride) * u64::from(height), crate::AllocationCategory::ReadbackBuffers)?;
         let buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Motion Studio bounded frame readback"),
             size: u64::from(row_stride) * u64::from(height),

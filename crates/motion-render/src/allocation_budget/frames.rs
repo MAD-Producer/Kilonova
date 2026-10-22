@@ -1,6 +1,9 @@
 //! Per-frame windows of the shared admitted-capacity gauge. These windows are
 //! independent of the lifetime high-water mark and include overlapping work.
-use super::{invalid, AllocationBudget, State};
+use super::{
+    invalid, AllocationBudget, AllocationCategory, AllocationCategoryFrameInfo, State, CATEGORIES,
+    CATEGORY_COUNT,
+};
 use crate::RenderError;
 use serde::Serialize;
 use std::{
@@ -46,6 +49,9 @@ pub struct AllocationFrameInfo {
     pub budget_at_start_bytes: u64,
     pub start_admitted_bytes: u64,
     pub peak_admitted_bytes: u64,
+    /// Independent category intervals. Their maxima must not be summed into a
+    /// simultaneous frame peak; only peak_admitted_bytes has that meaning.
+    pub categories: Vec<AllocationCategoryFrameInfo>,
     /// None while CPU work or a registered queue completion remains outstanding.
     pub end_admitted_bytes: Option<u64>,
     pub elapsed_us: u64,
@@ -96,12 +102,14 @@ fn micros(began: Instant) -> u64 {
 }
 
 impl Frames {
-    pub(super) fn observe(&mut self, used: u64) {
+    pub(super) fn observe(&mut self, used: u64, category: AllocationCategory, category_used: u64) {
         for frame in self.active.values_mut() {
             frame.info.peak_admitted_bytes = frame.info.peak_admitted_bytes.max(used);
+            let bucket = &mut frame.info.categories[category as usize];
+            bucket.peak_admitted_bytes = bucket.peak_admitted_bytes.max(category_used);
         }
     }
-    fn retire(&mut self, id: u64, used: u64) {
+    fn retire(&mut self, id: u64, used: u64, categories: &[u64; CATEGORY_COUNT]) {
         let Some(frame) = self.active.get(&id) else {
             self.fault = true;
             return;
@@ -114,6 +122,9 @@ impl Frames {
             return;
         };
         frame.info.end_admitted_bytes = Some(used);
+        for category in &mut frame.info.categories {
+            category.end_admitted_bytes = Some(categories[category.category as usize]);
+        }
         frame.info.elapsed_us = micros(frame.began);
         if self.recent.len() == MAX_RECENT_ALLOCATION_FRAMES {
             self.recent.pop_front();
@@ -172,6 +183,15 @@ impl AllocationBudget {
             budget_at_start_bytes: state.limit,
             start_admitted_bytes: state.used,
             peak_admitted_bytes: state.used,
+            categories: CATEGORIES
+                .into_iter()
+                .map(|category| AllocationCategoryFrameInfo {
+                    category,
+                    start_admitted_bytes: state.categories[category as usize],
+                    peak_admitted_bytes: state.categories[category as usize],
+                    end_admitted_bytes: None,
+                })
+                .collect(),
             end_admitted_bytes: None,
             elapsed_us: 0,
             cpu_elapsed_us: None,
@@ -281,7 +301,8 @@ impl AllocationFrame {
             frame.info.outcome = Some(outcome);
             frame.info.cpu_elapsed_us = Some(micros(frame.began));
             let used = state.used;
-            state.frames.retire(self.id, used);
+            let categories = state.categories;
+            state.frames.retire(self.id, used, &categories);
         }
     }
 }
@@ -318,6 +339,7 @@ impl Drop for FrameSubmission {
             state.frames.unconfirmed = state.frames.unconfirmed.saturating_add(1);
         }
         let used = state.used;
+        let categories = state.categories;
         for id in &self.ids {
             let Some(frame) = state.frames.active.get_mut(id) else {
                 state.frames.fault = true;
@@ -332,7 +354,7 @@ impl Drop for FrameSubmission {
                 frame.info.unconfirmed_submissions =
                     frame.info.unconfirmed_submissions.saturating_add(1);
             }
-            state.frames.retire(*id, used);
+            state.frames.retire(*id, used, &categories);
         }
     }
 }

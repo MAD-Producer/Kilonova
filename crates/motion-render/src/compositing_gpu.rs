@@ -215,7 +215,7 @@ impl CompositingGpu {
             }],
         });
         let zero = crate::effect_gpu::admitted_texture(device, image, sampler,
-            1, 1, wgpu::TextureFormat::R8Unorm, budget).map_err(|error| RenderError::Context {
+            1, 1, wgpu::TextureFormat::R8Unorm, budget, crate::TextureCategory::MatteBlendScratch).map_err(|error| RenderError::Context {
                 message: format!("compositing zero coverage texture size=1x1 phase=allocate: {error}"),
                 cause: Box::new(error),
             })?;
@@ -323,6 +323,7 @@ impl CompositingGpu {
             let texture = crate::effect_gpu::admitted_texture(
                 device, image, sampler, size[0], size[1], wgpu::TextureFormat::R8Unorm,
                 &self.allocation_budget,
+                crate::TextureCategory::MatteBlendScratch,
             ).map_err(|error| RenderError::Context {
                 message: format!("compositing matte layer={} luma={} size={}x{} phase=allocate: {error}",
                     key.0, key.1, size[0], size[1]),
@@ -340,6 +341,7 @@ impl CompositingGpu {
                 size[1],
                 self.format,
                 &self.allocation_budget,
+                crate::TextureCategory::MatteBlendScratch,
             ).map_err(|error| RenderError::Context {
                 message: format!("compositing blend source size={}x{} phase=allocate: {error}", size[0], size[1]),
                 cause: Box::new(error),

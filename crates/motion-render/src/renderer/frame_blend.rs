@@ -309,7 +309,7 @@ impl Renderer {
             usage: wgpu::TextureUsages::TEXTURE_BINDING
                 | wgpu::TextureUsages::RENDER_ATTACHMENT
                 | wgpu::TextureUsages::COPY_DST,
-        }, &self.allocation_budget)?;
+        }, &self.allocation_budget, crate::TextureCategory::VideoRgba)?;
         let view = texture.create_view(&wgpu::TextureViewDescriptor {
             format: Some(TARGET_FORMAT),
             ..Default::default()

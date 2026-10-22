@@ -105,7 +105,7 @@ impl<E: FrameEvaluator> NestedPreparation<E> {
                         }
                         let bytes = u64::from(child.size[0]) * u64::from(child.size[1]) * 4;
                         let reservation = renderer.reserve_exposure_bytes(bytes, &context)?;
-                        let target = renderer.render_target(child.size[0], child.size[1])?;
+                        let target = renderer.render_target_in(child.size[0], child.size[1], crate::TextureCategory::NestedCompositions)?;
                         renderer.resolve_exposure_view(task.target(), &target.view, |ledger| {
                             ledger.retained(
                                 &target.texture,

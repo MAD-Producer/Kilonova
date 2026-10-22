@@ -72,10 +72,10 @@ impl GroupGpu {
                     size: wgpu::Extent3d { width: mesh.width, height: mesh.height, depth_or_array_layers: 1 },
                     mip_level_count: 1, sample_count: 4, dimension: wgpu::TextureDimension::D2,
                     format, usage: wgpu::TextureUsages::RENDER_ATTACHMENT, view_formats: &[],
-                }, budget).map_err(|error| vector_texture_error(error, layer, scene.frame,
+                }, budget, crate::TextureCategory::VectorGroupScratch).map_err(|error| vector_texture_error(error, layer, scene.frame,
                     (mesh.width, mesh.height), format, &format!("group_msaa_allocate depth={depth}")))?;
                 let resolved = crate::effect_gpu::admitted_texture(device, image, sampler,
-                    mesh.width, mesh.height, format, budget)
+                    mesh.width, mesh.height, format, budget, crate::TextureCategory::VectorGroupScratch)
                     .map_err(|error| vector_texture_error(error, layer, scene.frame,
                         (mesh.width, mesh.height), format, &format!("group_resolve_allocate depth={depth}")))?;
                 staged.push((key, Target { multisample, resolved }));

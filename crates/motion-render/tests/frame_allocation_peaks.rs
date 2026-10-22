@@ -1,8 +1,125 @@
 //! Actual resource and queue-completion coverage for the shared frame windows.
 use motion_render::{
-    AllocationBudget, AllocationFrameOutcome as Outcome, FrameOperation, Renderer,
-    FIXED_RENDERER_ALLOCATION_BYTES as FIXED,
+    AllocationBudget, AllocationCategory as Category, AllocationFrameOutcome as Outcome,
+    FrameOperation, Renderer, FIXED_RENDERER_ALLOCATION_BYTES as FIXED,
 };
+
+#[test]
+fn actual_preview_capture_upload_and_external_aliases_keep_disjoint_category_peaks() {
+    let budget = AllocationBudget::new(16 << 20).unwrap();
+    let mut renderer =
+        pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();
+    renderer
+        .device
+        .poll(wgpu::PollType::wait_indefinitely())
+        .unwrap();
+    let baseline = budget.info().unwrap();
+    let current = |info: &motion_render::AllocationBudgetInfo, category: Category| {
+        info.categories
+            .iter()
+            .find(|c| c.category == category)
+            .unwrap()
+            .admitted_bytes
+    };
+    let frame = budget
+        .begin_frame(93, FrameOperation::Present)
+        .unwrap()
+        .unwrap();
+    let mut preview = motion_render::PreviewFrameTargets::new(&renderer, 8, 8).unwrap();
+    preview.prepare(&renderer, 8, 8).unwrap();
+    let capture = renderer.capture_target(4, 4).unwrap();
+    renderer.upload_image(77, 2, 2, &[255; 16]).unwrap();
+    let context = renderer.allocation_context();
+    let uniform = context
+        .buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("category uniform"),
+            contents: &[0; 16],
+            usage: wgpu::BufferUsages::UNIFORM,
+        })
+        .unwrap();
+    let plugin = context
+        .texture(&wgpu::TextureDescriptor {
+            label: Some("category plugin texture"),
+            size: wgpu::Extent3d {
+                width: 2,
+                height: 2,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        })
+        .unwrap();
+    let alias = plugin.clone();
+    let view = plugin.view().unwrap();
+    let expected = [
+        (Category::PreviewTargets, 512),
+        (Category::CaptureTargets, 64),
+        (Category::ReadbackBuffers, 1024),
+        (Category::StaticImages, 16),
+        (Category::UniformBuffers, 16),
+        (Category::PluginResources, 16),
+    ];
+    let admitted = budget.info().unwrap();
+    for (category, bytes) in expected {
+        assert_eq!(
+            current(&admitted, category) - current(&baseline, category),
+            bytes,
+            "{category:?}"
+        );
+    }
+    assert_eq!(
+        admitted
+            .categories
+            .iter()
+            .map(|c| c.admitted_bytes)
+            .sum::<u64>(),
+        admitted.admitted_bytes
+    );
+    let encoder = renderer
+        .allocation_command_encoder(&Default::default())
+        .unwrap();
+    drop((preview, capture, uniform, plugin, alias, view));
+    assert_eq!(
+        budget.info().unwrap().admitted_bytes,
+        admitted.admitted_bytes
+    );
+    renderer.submit_allocated(encoder.finish(), |_| {}).unwrap();
+    frame.finish(Outcome::Rendered);
+    renderer
+        .device
+        .poll(wgpu::PollType::wait_indefinitely())
+        .unwrap();
+    let snapshot = budget.frame_peaks().unwrap();
+    assert!(snapshot.active.is_empty());
+    let completed = snapshot.recent.last().unwrap();
+    assert_eq!(completed.peak_admitted_bytes, admitted.admitted_bytes);
+    for (category, bytes) in expected {
+        let observed = completed
+            .categories
+            .iter()
+            .find(|c| c.category == category)
+            .unwrap();
+        assert_eq!(
+            observed.peak_admitted_bytes - current(&baseline, category),
+            bytes,
+            "{category:?}"
+        );
+        let retained = if category == Category::StaticImages {
+            16
+        } else {
+            0
+        };
+        assert_eq!(
+            observed.end_admitted_bytes,
+            Some(current(&baseline, category) + retained),
+            "{category:?}"
+        );
+    }
+}
 
 #[test]
 fn actual_buffers_uploads_and_allocated_submission_contribute_until_retirement() {

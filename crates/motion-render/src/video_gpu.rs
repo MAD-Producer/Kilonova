@@ -250,6 +250,7 @@ impl VideoGpu {
                     view_formats: &[],
                 },
                 budget,
+                crate::TextureCategory::VideoPlanes,
             )
         };
         let y = create(frame.width, frame.height, wgpu::TextureFormat::R8Uint)?;
