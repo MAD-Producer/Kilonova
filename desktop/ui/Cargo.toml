@@ -10,6 +10,7 @@ crate-type = ["rlib"]
 
 [dependencies]
 log.workspace = true
+motion-render = { path = "../../crates/motion-render" }
 wgpu.workspace = true
 bytemuck.workspace = true
 serde.workspace = true

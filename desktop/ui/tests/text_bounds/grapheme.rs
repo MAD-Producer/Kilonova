@@ -131,7 +131,7 @@ fn actual_gpu_draws_the_complete_prefix_and_ellipsis_at_every_alignment() {
                     atlas.pixel_data(),
                     atlas.config().width,
                     atlas.config().height,
-                );
+                ).unwrap();
                 let actual_pixels =
                     gpu::capture(&device, &queue, &mut painter, &actual, [160., 64.], ratio);
                 let expected_pixels =

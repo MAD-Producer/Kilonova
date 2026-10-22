@@ -42,7 +42,7 @@ impl App {
                 self.atlas.pixel_data(),
                 atlas.width,
                 atlas.height,
-            );
+            ).map_err(|e| e.to_string())?;
         }
         let frame = match window.surface.get_current_texture() {
             wgpu::CurrentSurfaceTexture::Success(f) | wgpu::CurrentSurfaceTexture::Suboptimal(f) => f,

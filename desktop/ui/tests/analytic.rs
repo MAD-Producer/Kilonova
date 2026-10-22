@@ -173,7 +173,7 @@ fn mixed_paint_order_covers_old_glyphs_and_keeps_new_glyphs_after_clip_and_appen
     let mut painter = Painter::new(&device, wgpu::TextureFormat::Rgba8Unorm);
     // A deterministic coverage atlas exercises the actual glyph pipeline without
     // depending on platform font shape, hinting or font installation.
-    painter.upload_atlas(&device, &queue, &[255; 4], 1, 1);
+    painter.upload_atlas(&device, &queue, &[255; 4], 1, 1).unwrap();
     let glyph = |position, color| Glyph {
         atlas_size: None,
         position,

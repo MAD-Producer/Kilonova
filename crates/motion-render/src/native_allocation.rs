@@ -78,10 +78,18 @@ impl AllocationContext {
         &self,
         descriptor: &wgpu::TextureDescriptor<'_>,
     ) -> Result<AdmittedTexture, RenderError> {
+        self.texture_in(descriptor, crate::TextureCategory::PluginResources)
+    }
+    /// Resource purpose is immutable across aliases, writes and submissions.
+    pub fn texture_in(
+        &self,
+        descriptor: &wgpu::TextureDescriptor<'_>,
+        category: crate::TextureCategory,
+    ) -> Result<AdmittedTexture, RenderError> {
         Ok(AdmittedTexture {
             texture: self
                 .device
-                .create_admitted_texture(descriptor, &self.budget, crate::TextureCategory::PluginResources)
+                .create_admitted_texture(descriptor, &self.budget, category)
                 .map_err(|error| {
                     let label: String = descriptor
                         .label
@@ -104,6 +112,15 @@ impl AllocationContext {
     ) -> Result<AdmittedBuffer, RenderError> {
         Ok(AdmittedBuffer {
             buffer: AllocationBuffer::new_init(&self.device, &self.budget, descriptor)?,
+            owner: self.owner.clone(),
+        })
+    }
+    pub fn buffer(
+        &self,
+        descriptor: &wgpu::BufferDescriptor<'_>,
+    ) -> Result<AdmittedBuffer, RenderError> {
+        Ok(AdmittedBuffer {
+            buffer: AllocationBuffer::new(&self.device, &self.budget, descriptor)?,
             owner: self.owner.clone(),
         })
     }

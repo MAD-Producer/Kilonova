@@ -27,7 +27,7 @@ impl App {
             self.atlas.pixel_data(),
             atlas.width,
             atlas.height,
-        );
+        ).map_err(|e| e.to_string())?;
         let view = texture.create_view(&Default::default());
         let stride = (width * 4).div_ceil(256) * 256;
         let buffer = gpu.device.create_buffer(&wgpu::BufferDescriptor {

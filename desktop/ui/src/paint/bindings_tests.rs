@@ -125,7 +125,7 @@ fn bindings_survive_repeated_frames_and_pixel_updates_but_follow_atlas_replaceme
         size: [8., 8.],
         color: Color::rgb(0, 255, 0),
     });
-    painter.upload_atlas(&device, &queue, &[255; 64], 4, 4);
+    painter.upload_atlas(&device, &queue, &[255; 64], 4, 4).unwrap();
     let glyph = painter.glyph_bind.clone().unwrap();
     for scale in [1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2] {
         let pixels = capture(&device, &queue, &mut painter, &list, scale);
@@ -140,7 +140,7 @@ fn bindings_survive_repeated_frames_and_pixel_updates_but_follow_atlas_replaceme
     }
     // Uploading new coverage into the same texture must remain visible through
     // the old bind group, without paying for another binding allocation.
-    painter.upload_atlas(&device, &queue, &[0; 64], 4, 4);
+    painter.upload_atlas(&device, &queue, &[0; 64], 4, 4).unwrap();
     let pixels = capture(&device, &queue, &mut painter, &list, 1);
     assert_eq!(
         &pixels[(2 * 16 + 12) * 4..(2 * 16 + 12) * 4 + 4],
@@ -150,7 +150,7 @@ fn bindings_survive_repeated_frames_and_pixel_updates_but_follow_atlas_replaceme
     assert_eq!(painter.bind_group_creations, 2);
     // A new texture generation needs exactly one replacement. A stale binding
     // would still sample the transparent old atlas and fail the pixel check.
-    painter.upload_atlas(&device, &queue, &[255; 256], 8, 8);
+    painter.upload_atlas(&device, &queue, &[255; 256], 8, 8).unwrap();
     let pixels = capture(&device, &queue, &mut painter, &list, 1);
     assert_eq!(
         &pixels[(2 * 16 + 12) * 4..(2 * 16 + 12) * 4 + 4],

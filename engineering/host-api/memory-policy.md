@@ -149,7 +149,21 @@ permits a bounded 16-bit codec intermediate independently of the RGBA8 result.
 Implementation and actual acceptance are tracked separately in
 [decoded-image budget validation](../validation/decoded-image-budget.md).
 
-Coverage remains incomplete: Presenter/UI resources, CPU caches, decoder memory,
+Desktop UI construction and upload use the renderer's allocation context for
+uniform/geometry buffers and a separate `ui_atlas` purpose. Geometry starts at
+minimal empty capacity and grows from actual paint lists. Both vertex-buffer
+replacements are admitted before either old buffer is replaced; a refused atlas
+keeps its previous complete texture and binding. One owned pending bitmap can
+survive a failed upload after the CPU dirty flag was consumed. It is attempted
+again only after current logical capacity can accommodate it, or superseded by
+a newer bitmap. This does not spin GPU allocation attempts while capacity is
+still insufficient. UI draw payloads, shaders, styles and interaction remain
+unchanged. Standalone `Painter::new` remains outside Session admission;
+`Painter::new_admitted` uses the renderer's device, allocated encoders and
+allocated submissions. See [UI admission validation](../validation/ui-allocation-admission.md)
+for pending actual native/pixel/default-output proof.
+
+Coverage remains incomplete: Presenter resources, CPU caches, decoder memory,
 swapchain images and driver overhead are not all enrolled. Raw external resource
 and submission paths are outside the admitted-wrapper contract. Category totals
 and completed frame windows do not make `completeCoverage` true. Logical

@@ -130,7 +130,7 @@ No new Linux/Metal runtime or complete issue coverage is claimed here.
 ## Resource categories
 
 `AllocationBudget::info().categories` reports current and independent lifetime
-high-water marks for 19 fixed allocation purposes. Each frame record additionally
+high-water marks for 20 fixed allocation purposes, including `ui_atlas`. Each frame record additionally
 contains `categories` with that interval's start, peak and optional end bytes.
 The category end remains null until the CPU scope and every registered queue
 callback have ended, exactly like the combined interval. Categories with zero

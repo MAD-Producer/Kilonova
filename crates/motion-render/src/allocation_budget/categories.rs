@@ -25,8 +25,9 @@ pub enum AllocationCategory {
     UploadBuffers,
     TimingBuffers,
     OtherBuffers,
+    UiAtlas,
 }
-pub(super) const CATEGORIES: [AllocationCategory; 19] = [
+pub(super) const CATEGORIES: [AllocationCategory; 20] = [
     AllocationCategory::StaticImages,
     AllocationCategory::Video,
     AllocationCategory::Vector,
@@ -46,6 +47,7 @@ pub(super) const CATEGORIES: [AllocationCategory; 19] = [
     AllocationCategory::UploadBuffers,
     AllocationCategory::TimingBuffers,
     AllocationCategory::OtherBuffers,
+    AllocationCategory::UiAtlas,
 ];
 pub(super) const CATEGORY_COUNT: usize = CATEGORIES.len();
 
@@ -89,6 +91,7 @@ impl From<TextureCategory> for AllocationCategory {
             TextureCategory::AuthoringInputs => Self::AuthoringInputs,
             TextureCategory::PluginResources => Self::PluginResources,
             TextureCategory::SystemTextures => Self::SystemTextures,
+            TextureCategory::UiAtlas => Self::UiAtlas,
         }
     }
 }

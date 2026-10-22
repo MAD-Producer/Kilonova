@@ -1565,11 +1565,13 @@ fn handle(
             let target = g.renderer.capture_target(width, height).map_err(|e| e.to_string())?;
             #[cfg(test)]
             diagnostics.native_test_phase("capture.painter");
-            let mut chrome = motion_ui::Painter::new(&g.renderer.device, wgpu::TextureFormat::Rgba8UnormSrgb);
+            let mut chrome = motion_ui::Painter::new_admitted(&g.renderer.allocation_context(), wgpu::TextureFormat::Rgba8UnormSrgb)
+                .map_err(|e| format!("phase=capture.painter: {e}"))?;
             let upload = ui.atlas.ok_or("screenshot requires the complete glyph atlas")?;
             #[cfg(test)]
             diagnostics.native_test_phase("capture.atlas");
-            chrome.upload_atlas(&g.renderer.device, &g.renderer.queue, &upload.pixels, upload.width, upload.height);
+            chrome.upload_atlas_owned(&g.renderer.device, &g.renderer.queue, upload.pixels, upload.width, upload.height)
+                .map_err(|e| format!("phase=capture.atlas: {e}"))?;
             #[cfg(test)]
             diagnostics.native_test_phase("capture.presenter");
             let presenter = motion_render::Presenter::new_admitted(&g.renderer, &g.scratch.view, wgpu::TextureFormat::Rgba8UnormSrgb);
@@ -1606,7 +1608,8 @@ fn handle(
         },
         Command::Attach { target, reply } => respond(reply,(|| {
             motion_host::session::with_session(id, |s| {
-                let next = motion_ui::Painter::new(&target.renderer.device, target.config.format);
+                let next = motion_ui::Painter::new_admitted(&target.renderer.allocation_context(), target.config.format)
+                    .map_err(|e| format!("phase=attach.painter: {e}"))?;
                 s.attach(target)?;
                 *painter = Some(next);
                 s.snapshot()
@@ -1630,7 +1633,7 @@ fn handle(
             }
             s.snapshot()
         })),
-        Command::Present { ui, reply } => {
+        Command::Present { mut ui, reply } => {
         let frame=frame_allocation::begin(allocation_budget,motion_render::FrameOperation::Present);
         let result=motion_host::session::with_session(id, |s| {
             #[cfg(test)]
@@ -1646,7 +1649,10 @@ fn handle(
                 let g=s.graphics.as_ref().ok_or("desktop surface is not attached")?;
                 #[cfg(test)]
                 diagnostics.native_test_phase("present.atlas");
-                if let Some(upload)=&ui.atlas {painter.upload_atlas(&g.renderer.device,&g.renderer.queue,&upload.pixels,upload.width,upload.height);}
+                if let Some(upload)=ui.atlas.take() {painter.upload_atlas_owned(&g.renderer.device,&g.renderer.queue,upload.pixels,upload.width,upload.height)
+                    .map_err(|e|format!("present window={} phase=atlas: {e}",ui.window))?;}
+                painter.retry_atlas(&g.renderer.device,&g.renderer.queue)
+                    .map_err(|e|format!("present window={} phase=atlas: {e}",ui.window))?;
                 if let Some(viewport)=ui.composition {
                     let frame=s.frame; // Shared clock, never a stale UI frame.
                     let stamp=CompositionStamp::new(s,&ui,viewport);
