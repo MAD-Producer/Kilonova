@@ -2,6 +2,12 @@
 use crate::{effect_gpu::FxTexture, RenderError};
 use std::collections::HashMap;
 
+pub(crate) struct BlendInput {
+    pub group: wgpu::BindGroup,
+    // Raw views in the cached group may outlive a source or accumulator cache.
+    _allocations: [Option<crate::allocation_budget::AllocationLease>; 3],
+}
+
 pub(crate) struct CompositingGpu {
     pub normal: wgpu::RenderPipeline,
     pub additive: wgpu::RenderPipeline,
@@ -10,7 +16,7 @@ pub(crate) struct CompositingGpu {
     // Retire cached bindings before their admitted backing resources.
     pub extract_group: wgpu::BindGroup,
     pub blend_group: wgpu::BindGroup,
-    pub blend_inputs: Vec<wgpu::BindGroup>,
+    pub blend_inputs: Vec<BlendInput>,
     pub mattes: HashMap<(u64, bool), FxTexture>,
     pub zero: FxTexture,
     pub source: Option<FxTexture>,
@@ -23,6 +29,7 @@ pub(crate) struct CompositingGpu {
     size: [u32; 2],
     format: wgpu::TextureFormat,
     allocation_uploads: std::sync::Arc<crate::allocation_uploads::AllocationUploads>,
+    allocation_budget: crate::AllocationBudget,
 }
 
 impl CompositingGpu {
@@ -259,6 +266,7 @@ impl CompositingGpu {
             blend_layout,
             blend_stride,
             allocation_uploads,
+            allocation_budget: budget.clone(),
         })
     }
     pub fn bytes(&self) -> u64 {
@@ -276,12 +284,12 @@ impl CompositingGpu {
             })
     }
     pub fn release(&mut self) {
+        self.blend_inputs.clear();
         self.mattes.clear();
         self.source = None;
         self.size = [0; 2];
-        self.blend_inputs.clear();
     }
-    pub fn prepare_mattes(
+    pub fn prepare_targets(
         &mut self,
         device: &wgpu::Device,
         image: &wgpu::BindGroupLayout,
@@ -290,12 +298,8 @@ impl CompositingGpu {
         needed: &[(u64, bool)],
         other_bytes: u64,
         source_budget: u64,
-    ) -> Result<(), RenderError> {
-        if self.size != size {
-            self.release();
-            self.size = size;
-        }
-        self.mattes.retain(|key, _| needed.contains(key));
+        blend: bool,
+    ) -> Result<bool, RenderError> {
         let pixels = u64::from(size[0]) * u64::from(size[1]);
         let unique: std::collections::HashSet<_> = needed.iter().copied().collect();
         if other_bytes + 1 + pixels * unique.len() as u64 > source_budget {
@@ -303,56 +307,58 @@ impl CompositingGpu {
                 other_bytes + 1 + pixels * unique.len() as u64, source_budget,
                 "track matte textures exceed configured source texture budget"));
         }
-        for key in needed {
-            self.mattes.entry(*key).or_insert_with(|| {
-                crate::effect_gpu::texture(
-                    device,
-                    image,
-                    sampler,
-                    size[0],
-                    size[1],
-                    wgpu::TextureFormat::R8Unorm,
-                )
-            });
-        }
-        Ok(())
-    }
-    pub fn prepare_source(
-        &mut self,
-        device: &wgpu::Device,
-        image: &wgpu::BindGroupLayout,
-        sampler: &wgpu::Sampler,
-        blend: bool,
-        source_budget: u64,
-    ) -> Result<bool, RenderError> {
-        if !blend {
-            self.source = None;
-            self.blend_inputs.clear();
-        }
-        let source_bytes = if blend && self.source.is_none() {
-            u64::from(self.size[0]) * u64::from(self.size[1]) * 4
-        } else {
-            0
-        };
-        if blend
-            && u64::from(self.size[0]) * u64::from(self.size[1]) * 12
-                > source_budget
-        {
+        if blend && pixels * 12 > source_budget {
             return Err(RenderError::budget(crate::ResourceBudgetScope::LayerCompositing,
-                u64::from(self.size[0]) * u64::from(self.size[1]) * 12, source_budget,
+                pixels * 12, source_budget,
                 "layer transfer accumulators exceed configured source texture budget"));
         }
-        if source_bytes > 0 {
-            self.source = Some(crate::effect_gpu::texture(
+        let resized = self.size != size;
+        // Prepare the complete replacement set before changing any live
+        // dimensions, sources, matte identities or cached input bindings.
+        let mut additions = HashMap::new();
+        for key in needed {
+            if (!resized && self.mattes.contains_key(key)) || additions.contains_key(key) {
+                continue;
+            }
+            let texture = crate::effect_gpu::admitted_texture(
+                device, image, sampler, size[0], size[1], wgpu::TextureFormat::R8Unorm,
+                &self.allocation_budget,
+            ).map_err(|error| RenderError::Context {
+                message: format!("compositing matte layer={} luma={} size={}x{} phase=allocate: {error}",
+                    key.0, key.1, size[0], size[1]),
+                cause: Box::new(error),
+            })?;
+            additions.insert(*key, texture);
+        }
+        let source_changed = blend && (resized || self.source.is_none());
+        let next_source = if source_changed {
+            Some(crate::effect_gpu::admitted_texture(
                 device,
                 image,
                 sampler,
-                self.size[0],
-                self.size[1],
+                size[0],
+                size[1],
                 self.format,
-            ));
+                &self.allocation_budget,
+            ).map_err(|error| RenderError::Context {
+                message: format!("compositing blend source size={}x{} phase=allocate: {error}", size[0], size[1]),
+                cause: Box::new(error),
+            })?)
+        } else { None };
+        if resized {
+            self.release();
+        } else if !blend || source_changed {
+            self.blend_inputs.clear();
         }
-        Ok(source_bytes > 0)
+        self.size = size;
+        self.mattes.retain(|key, _| needed.contains(key));
+        self.mattes.extend(additions);
+        if source_changed {
+            self.source = next_source;
+        } else if !blend {
+            self.source = None;
+        }
+        Ok(source_changed)
     }
     pub fn prepare_blend_inputs(
         &mut self,
@@ -390,11 +396,17 @@ impl CompositingGpu {
                             ]
                         })
                         .collect();
-                    device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
                         label: Some("layer transfer backdrop"),
                         layout: &self.blend_layout,
                         entries: &entries,
-                    })
+                    });
+                    BlendInput {
+                        group,
+                        _allocations: [accumulators[i].texture.allocation(),
+                            self.source.as_ref().and_then(|t| t.texture.allocation()),
+                            self.source.as_ref().and_then(|t| t.texture.allocation())],
+                    }
                 })
                 .collect();
         }

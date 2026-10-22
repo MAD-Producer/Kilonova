@@ -168,6 +168,13 @@ fn queued_zero_extract_and_blend_uploads_retire_after_native_completion_without_
     let mut encoder = renderer.device.create_command_encoder(&Default::default());
     renderer.encode(&scene, &target.view, 64, 64, &mut encoder, None).unwrap();
     drop(encoder);
+    // Keep working textures outside this system-upload retirement observation.
+    // Their independent command and binding lifetimes are covered in matte_textures.
+    let _working_textures: Vec<_> = {
+        let gpu = renderer.compositing_gpu.as_ref().unwrap();
+        gpu.mattes.values().map(|t| t.texture.clone())
+            .chain(gpu.source.iter().map(|t| t.texture.clone())).collect()
+    };
     let budget = renderer.allocation_budget().clone();
     let before = budget.info().unwrap();
     let (extract, blend) = capacity(&renderer);

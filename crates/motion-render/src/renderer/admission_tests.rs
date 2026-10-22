@@ -6,6 +6,9 @@ use motion_core::{Asset, Content, EffectInstance, Layer};
 mod effect_resources;
 mod frame_blend;
 mod compositing_system;
+mod matte_textures;
+mod accumulator_textures;
+mod input_snapshot_context;
 
 #[test]
 fn cached_effect_bindings_keep_admitted_sources_until_the_bindings_are_invalidated() {

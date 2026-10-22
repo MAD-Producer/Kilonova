@@ -1702,7 +1702,7 @@ impl Renderer {
             &self.sampler,
             self.target_format,
             None,
-        );
+        )?;
         let [_, _, viewport_width, viewport_height] = crate::fit_viewport(
             [0., 0., width as f32, height as f32], [scene.width, scene.height]);
         self.compositor.set_coverage_viewport(Some([viewport_width, viewport_height]));
@@ -1815,7 +1815,7 @@ impl Renderer {
     fn prepare_input_snapshots(&mut self, input_order: &[usize])->Result<()> {
         let frame=&self.effect_gpu.builder.frame;
         let specs=input_order.iter().copied().map(|i| {
-            let draw=&frame.draws[i];let pass=&frame.passes[draw.pass_end-1];(TextureKey::EffectInput(draw.layer),pass.width,pass.height)
+            let draw=&frame.draws[i];let pass=&frame.passes[draw.pass_end-1];(TextureKey::EffectInput(draw.layer),draw.layer,pass.width,pass.height)
         }).collect::<Vec<_>>();
         let stale=self.images.keys().copied().filter(|key|matches!(key,TextureKey::EffectInput(_))&&!specs.iter().any(|v|v.0==*key)).collect::<Vec<_>>();
         for key in stale {
@@ -1824,19 +1824,24 @@ impl Renderer {
                 self.effect_gpu.invalidate();
             }
         }
-        let needed=specs.iter().filter(|(key,w,h)|self.images.get(key).is_none_or(|image|image.size!=(*w,*h)))
-            .map(|(_,w,h)|u64::from(*w)*u64::from(*h)*4).sum();
+        let needed=specs.iter().filter(|(key,_,w,h)|self.images.get(key).is_none_or(|image|image.size!=(*w,*h)))
+            .map(|(_,_,w,h)|u64::from(*w)*u64::from(*h)*4).sum();
         self.trim_image_cache(needed);
-        for (key,width,height) in specs {
+        for (key,layer,width,height) in specs {
             if self.images.get(&key).is_some_and(|image|image.size==(width,height)){continue;}
             let bytes=u64::from(width)*u64::from(height)*4;
             if self.texture_bytes+self.video_plane_bytes()+self.effect_gpu.state.resource_bytes+bytes>self.effect_gpu.builder.source_texture_budget {
                 return Err(RenderError::budget(ResourceBudgetScope::SourceTextures,
                     self.texture_bytes+self.video_plane_bytes()+self.effect_gpu.state.resource_bytes+bytes,
-                    self.effect_gpu.builder.source_texture_budget, "effect image snapshots exceed source texture budget"));
+                    self.effect_gpu.builder.source_texture_budget,
+                    format!("input snapshot layer={layer} size={width}x{height} phase=source_budget: effect image snapshots exceed source texture budget")));
             }
             let texture=self.device.create_admitted_texture(&wgpu::TextureDescriptor {label:Some("same-frame effect image input"),size:wgpu::Extent3d{width,height,depth_or_array_layers:1},
-                mip_level_count:1,sample_count:1,dimension:wgpu::TextureDimension::D2,format:TARGET_FORMAT,usage:wgpu::TextureUsages::TEXTURE_BINDING|wgpu::TextureUsages::COPY_DST|wgpu::TextureUsages::COPY_SRC,view_formats:&[]}, &self.allocation_budget)?;
+                mip_level_count:1,sample_count:1,dimension:wgpu::TextureDimension::D2,format:TARGET_FORMAT,usage:wgpu::TextureUsages::TEXTURE_BINDING|wgpu::TextureUsages::COPY_DST|wgpu::TextureUsages::COPY_SRC,view_formats:&[]}, &self.allocation_budget)
+                .map_err(|error| RenderError::Context {
+                    message: format!("input snapshot layer={layer} size={width}x{height} phase=allocate: {error}"),
+                    cause: Box::new(error),
+                })?;
             let view=texture.create_view(&Default::default());
             let bind_group=self.device.create_bind_group(&wgpu::BindGroupDescriptor {label:None,layout:&self.image_layout,entries:&[
                 wgpu::BindGroupEntry{binding:0,resource:wgpu::BindingResource::TextureView(&view)},wgpu::BindGroupEntry{binding:1,resource:wgpu::BindingResource::Sampler(&self.sampler)}]});
@@ -1875,7 +1880,10 @@ impl Renderer {
             self.prepare_effect_images();
             let targets: Vec<_> = materialize.as_ref().map(|(id, _)| *id).into_iter().collect();
             let input_order = crate::effect_plan::image_input_order_for(&self.effect_gpu.builder.frame, &targets)?;
-            self.prepare_input_snapshots(&input_order)?;
+            self.prepare_input_snapshots(&input_order).map_err(|error| RenderError::Context {
+                message: format!("effects frame={} phase=input_snapshots: {error}", scene.frame),
+                cause: Box::new(error),
+            })?;
             match self.effect_gpu.state.prepare(
                 &self.device,
                 &self.queue,
@@ -1950,7 +1958,10 @@ impl Renderer {
             &self.sampler,
             self.target_format,
             has_accumulator.then_some(composition_size),
-        );
+        ).map_err(|error| RenderError::Context {
+            message: format!("compositing frame={} phase=accumulators: {error}", scene.frame),
+            cause: Box::new(error),
+        })?;
         if has_compositing {
             let source_bytes=self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes;
             let needed: Vec<_> = frame.compositing.iter().filter(|c| c.matte >= 0)
@@ -1958,9 +1969,12 @@ impl Renderer {
             self.ensure_compositing_gpu(scene.frame, "initialize")?;
             let gpu = self.compositing_gpu.as_mut().ok_or_else(||
                 RenderError::Invalid("compositing initialization did not publish resources".into()))?;
-            gpu.prepare_mattes(&self.device, &self.image_layout, &self.sampler, composition_size, &needed,
-                source_bytes,self.effect_gpu.builder.source_texture_budget)?;
-            let changed = gpu.prepare_source(&self.device, &self.image_layout, &self.sampler, has_transfer,self.effect_gpu.builder.source_texture_budget)?;
+            let changed = gpu.prepare_targets(&self.device, &self.image_layout, &self.sampler,
+                composition_size, &needed, source_bytes, self.effect_gpu.builder.source_texture_budget,
+                has_transfer).map_err(|error| RenderError::Context {
+                    message: format!("compositing frame={} phase=targets: {error}", scene.frame),
+                    cause: Box::new(error),
+                })?;
             gpu.prepare_blend_inputs(&self.device, &self.queue, &self.sampler, &self.layer_gpu.accumulators,
                 &scene.layers, changed || accumulators_changed)?;
         } else if let Some(gpu) = &mut self.compositing_gpu { gpu.release(); }
@@ -2228,7 +2242,7 @@ impl Renderer {
                         ops:wgpu::Operations{load:wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),store:wgpu::StoreOp::Store}})],
                     depth_stencil_attachment:None,timestamp_writes:None,occlusion_query_set:None});
                 pass.set_pipeline(&gpu.blend);pass.set_bind_group(0,&gpu.blend_group,&[gpu.blend_offset(i)]);
-                pass.set_bind_group(1,&gpu.blend_inputs[accumulator],&[]);pass.draw(0..3,0..1);
+                pass.set_bind_group(1,&gpu.blend_inputs[accumulator].group,&[]);pass.draw(0..3,0..1);
                 accumulator=next;composition_draws+=1;
             }
         }
