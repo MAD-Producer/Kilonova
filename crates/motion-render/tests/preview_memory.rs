@@ -58,7 +58,7 @@ fn recovery_needs_time_and_healthy_frames_and_failed_probe_restores_working_qual
     assert!(!policy.blocked());
 }
 fn scene(p: &Project) -> Scene {
-    let mut scene = Scene::new(p);
+    let mut scene = Scene::new(p).unwrap();
     scene
         .sample(p, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();

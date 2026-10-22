@@ -392,10 +392,10 @@ pub(super) fn render_rows(
         let value = if gain {
             gain_db(source(layer)["volume"].as_f64().unwrap_or(1.))
         } else {
-            f64::from(
-                track(layer, control)
-                    .sample(state["frame"].as_f64().unwrap_or(0.) - local_offset as f64),
-            )
+            let local = state["frame"].as_f64().unwrap_or(0.) - local_offset as f64;
+            let Ok(value) = observe!("audio.timeline_sample", track(layer, control).sample(local),
+                "object={object} channel={} frame={local}", control as u8) else { continue; };
+            f64::from(value)
         };
         let caption = word(
             locale,

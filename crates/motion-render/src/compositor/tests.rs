@@ -25,7 +25,7 @@ fn prepare_preserves_split_layer_planes_and_replaces_degenerate_planes_on_reuse(
         layer.transform.rotation.value[1] = rotation;
         project.layers.push(layer);
     }
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     assert_eq!(scene.layers.len(), 3);
     let degenerate = glam::Mat4::from_scale(glam::Vec3::new(0., 1., 1.));

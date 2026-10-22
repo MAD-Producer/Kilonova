@@ -125,8 +125,8 @@ impl ParticleHistory {
     pub fn parameter(&self, id: &str, seconds: f64) -> Result<[f32; 4]> {
         self.params
             .get(id)
-            .map(|p| p.sample(seconds * self.pose.fps as f64))
-            .ok_or_else(|| crate::Error::Invalid(format!("particle parameter {id} missing")))
+            .ok_or_else(|| crate::Error::Invalid(format!("particle parameter {id} missing")))?
+            .sample(seconds * self.pose.fps as f64)
     }
     pub fn matrix_at(
         &self,

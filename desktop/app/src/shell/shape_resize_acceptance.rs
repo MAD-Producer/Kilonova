@@ -158,9 +158,9 @@ impl Shell {
                     let f =
                         layer.local_frame(state["frame"].as_f64().ok_or("resize frame missing")?);
                     for (actual, expected) in size
-                        .sample(f)
+                        .sample(f).map_err(|e| e.to_string())?
                         .into_iter()
-                        .chain(position.sample(f))
+                        .chain(position.sample(f).map_err(|e| e.to_string())?)
                         .zip([420., 260., 50., 30.])
                     {
                         if (actual - expected).abs() > 0.01 {

@@ -1545,8 +1545,9 @@ impl Controls {
                                         "object={object} effect={id} param=p0002"
                                     )
                                     .ok()
-                                    .map(|parameter| {
-                                        let channel = parameter.sample(local)[0];
+                                    .and_then(|parameter| {
+                                        let channel = observe!("effects.curve_channel_sample", parameter.sample(local),
+                                            "object={object} effect={id} param=p0002 frame={local}").ok()?[0];
                                         let _ = observe!(
                                             "effects.curve_channel",
                                             (channel.is_finite()
@@ -1557,7 +1558,7 @@ impl Controls {
                                                 .ok_or("invalid channel converted to index"),
                                             "object={object} effect={id} value={channel}"
                                         );
-                                        (channel as usize).saturating_sub(1)
+                                        Some((channel as usize).saturating_sub(1))
                                     })
                                 } else {
                                     None
@@ -1597,192 +1598,195 @@ impl Controls {
                     effect: id,
                     param: param.into(),
                 };
-                let mut value = track.sample(local);
-                let animate = Rect::new(left, *y, watch_width, row);
-                let mut watch_state = States::default();
-                if animated {
-                    watch_state = watch_state.with(State::Selected);
-                }
-                if locked || !implemented || !parameter["animatable"].as_bool().unwrap_or(false) {
-                    watch_state = watch_state.with(State::Disabled);
-                }
-                if icons::button(list, animate, Icon::Stopwatch, input, &styles, watch_state)
-                    .clicked
-                {
-                    if input.modifiers.alt {
-                        if expression_supported {
-                            self.expressions.open(
-                                state,
-                                expression_target.clone(),
-                                motion_ui::dock::Panel::EffectControls,
-                            );
-                        }
-                    } else {
-                        out.push(Action::Edit(Command::Effect {
-                            object,
-                            action: EffectAction::Animate {
-                                effect: id,
-                                param: param.into(),
-                                frame,
-                                enabled: !animated,
-                            },
-                        }));
+                let sampled = observe!("effects.parameter_sample", track.sample(local),
+                    "object={object} effect={id} param={param} frame={local}");
+                if let Ok(mut value) = sampled {
+                    let animate = Rect::new(left, *y, watch_width, row);
+                    let mut watch_state = States::default();
+                    if animated {
+                        watch_state = watch_state.with(State::Selected);
                     }
-                }
-                if kind == "color" {
-                    self.color_row(
-                        list,
-                        atlas,
-                        values,
-                        *y,
-                        object,
-                        id,
-                        param,
-                        &value,
-                        input,
-                        !locked && implemented,
-                        out,
-                    );
-                    *y += row;
-                    if self.expressions.visible(
-                        state,
-                        &expression_target,
-                        motion_ui::dock::Panel::EffectControls,
-                    ) {
-                        self.expressions.row(
-                            list,
-                            atlas,
-                            Rect::new(label_x, *y, (value_x - label_x).max(0.), row),
-                            Rect::new(value_x, *y, values.width(), row),
-                            state,
-                            expression_target.clone(),
-                            input,
-                            locale,
-                            !locked && implemented && state["observing"] != true,
-                            out,
-                        );
-                        *y += row;
+                    if locked || !implemented || !parameter["animatable"].as_bool().unwrap_or(false) {
+                        watch_state = watch_state.with(State::Disabled);
                     }
-                    continue;
-                }
-                for component in 0..dimensions(kind) {
-                    let count = dimensions(kind);
-                    let cell = if kind == "bool" || kind == "enum" {
-                        values.width()
-                    } else {
-                        (values.width() / count as f32).min(styles.metric("value.min_width", 64.))
-                    };
-                    let x = values.min[0] + component as f32 * cell;
-                    let rect = Rect::new(x, *y, (cell - gap).max(0.), row);
-                    if count > 1 && component + 1 < count {
-                        ui::text(
-                            list,
-                            atlas,
-                            Rect::new(rect.max[0], *y, gap, row),
-                            ",",
-                            colors.TEXT_MUTED,
-                            Align::Left,
-                        );
-                    }
-                    if kind == "bool" || kind == "enum" {
-                        let enabled = !locked && implemented;
-                        let changed =
-                            if kind == "bool" {
-                                motion_ui::widgets::Checkbox::draw(
-                                    list,
-                                    atlas,
-                                    rect,
-                                    if value[0] > 0.5 {
-                                        locale.t(T::Enabled)
-                                    } else {
-                                        locale.t(T::Disabled)
-                                    },
-                                    value[0] > 0.5,
-                                    input,
-                                    enabled,
-                                    false,
-                                    None,
-                                )
-                                .clicked
-                                .then_some(if value[0] > 0.5 { 0. } else { 1. })
-                            } else {
-                                let key = (id, param.to_string());
-                                let curve_channel =
-                                    effect["effect"] == "curves" && param == "p0002";
-                                let items: Vec<_> = parameter["options"]
-                                    .as_array()
-                                    .into_iter()
-                                    .flatten()
-                                    .enumerate()
-                                    .map(|(index, o)| motion_ui::widgets::DropdownItem {
-                                        label: if curve_channel {
-                                            ["RGB", "R", "G", "B", "A"]
-                                                .get(index)
-                                                .copied()
-                                                .unwrap_or("")
-                                        } else {
-                                            o.as_str().unwrap_or("")
-                                        },
-                                        enabled: true,
-                                    })
-                                    .collect();
-                                let dropdown = self.dropdowns.entry(key.clone()).or_default();
-                                let result = dropdown.draw(
-                                    &mut overlays,
-                                    atlas,
-                                    rect,
-                                    area,
-                                    &items,
-                                    (value[0] - parameter["min"].as_f64().unwrap_or(0.) as f32)
-                                        .max(0.) as usize,
-                                    if modal_owner.as_ref() == Some(&key) {
-                                        original_input
-                                    } else {
-                                        input
-                                    },
-                                    enabled,
-                                    false,
+                    if icons::button(list, animate, Icon::Stopwatch, input, &styles, watch_state)
+                        .clicked
+                    {
+                        if input.modifiers.alt {
+                            if expression_supported {
+                                self.expressions.open(
+                                    state,
+                                    expression_target.clone(),
+                                    motion_ui::dock::Panel::EffectControls,
                                 );
-                                if dropdown.open {
-                                    self.enum_owner = Some(key);
-                                } else if self.enum_owner.as_ref() == Some(&key) {
-                                    self.enum_owner = None;
-                                }
-                                result.map(|i| {
-                                    i as f32 + parameter["min"].as_f64().unwrap_or(0.) as f32
-                                })
-                            };
-                        if let Some(next) = changed {
-                            value[0] = next;
+                            }
+                        } else {
                             out.push(Action::Edit(Command::Effect {
                                 object,
-                                action: EffectAction::Set {
+                                action: EffectAction::Animate {
                                     effect: id,
                                     param: param.into(),
                                     frame,
-                                    value,
+                                    enabled: !animated,
                                 },
                             }));
                         }
-                    } else {
-                        let min = parameter["min"].as_f64().unwrap_or(-1e9);
-                        let max = parameter["max"].as_f64().unwrap_or(1e9);
-                        self.channel_field(
+                    }
+                    if kind == "color" {
+                        self.color_row(
                             list,
                             atlas,
-                            rect,
+                            values,
+                            *y,
                             object,
                             id,
                             param,
-                            component,
-                            &mut value,
-                            min,
-                            max,
-                            frame,
+                            &value,
                             input,
                             !locked && implemented,
                             out,
                         );
+                        *y += row;
+                        if self.expressions.visible(
+                            state,
+                            &expression_target,
+                            motion_ui::dock::Panel::EffectControls,
+                        ) {
+                            self.expressions.row(
+                                list,
+                                atlas,
+                                Rect::new(label_x, *y, (value_x - label_x).max(0.), row),
+                                Rect::new(value_x, *y, values.width(), row),
+                                state,
+                                expression_target.clone(),
+                                input,
+                                locale,
+                                !locked && implemented && state["observing"] != true,
+                                out,
+                            );
+                            *y += row;
+                        }
+                        continue;
+                    }
+                    for component in 0..dimensions(kind) {
+                        let count = dimensions(kind);
+                        let cell = if kind == "bool" || kind == "enum" {
+                            values.width()
+                        } else {
+                            (values.width() / count as f32).min(styles.metric("value.min_width", 64.))
+                        };
+                        let x = values.min[0] + component as f32 * cell;
+                        let rect = Rect::new(x, *y, (cell - gap).max(0.), row);
+                        if count > 1 && component + 1 < count {
+                            ui::text(
+                                list,
+                                atlas,
+                                Rect::new(rect.max[0], *y, gap, row),
+                                ",",
+                                colors.TEXT_MUTED,
+                                Align::Left,
+                            );
+                        }
+                        if kind == "bool" || kind == "enum" {
+                            let enabled = !locked && implemented;
+                            let changed =
+                                if kind == "bool" {
+                                    motion_ui::widgets::Checkbox::draw(
+                                        list,
+                                        atlas,
+                                        rect,
+                                        if value[0] > 0.5 {
+                                            locale.t(T::Enabled)
+                                        } else {
+                                            locale.t(T::Disabled)
+                                        },
+                                        value[0] > 0.5,
+                                        input,
+                                        enabled,
+                                        false,
+                                        None,
+                                    )
+                                    .clicked
+                                    .then_some(if value[0] > 0.5 { 0. } else { 1. })
+                                } else {
+                                    let key = (id, param.to_string());
+                                    let curve_channel =
+                                        effect["effect"] == "curves" && param == "p0002";
+                                    let items: Vec<_> = parameter["options"]
+                                        .as_array()
+                                        .into_iter()
+                                        .flatten()
+                                        .enumerate()
+                                        .map(|(index, o)| motion_ui::widgets::DropdownItem {
+                                            label: if curve_channel {
+                                                ["RGB", "R", "G", "B", "A"]
+                                                    .get(index)
+                                                    .copied()
+                                                    .unwrap_or("")
+                                            } else {
+                                                o.as_str().unwrap_or("")
+                                            },
+                                            enabled: true,
+                                        })
+                                        .collect();
+                                    let dropdown = self.dropdowns.entry(key.clone()).or_default();
+                                    let result = dropdown.draw(
+                                        &mut overlays,
+                                        atlas,
+                                        rect,
+                                        area,
+                                        &items,
+                                        (value[0] - parameter["min"].as_f64().unwrap_or(0.) as f32)
+                                            .max(0.) as usize,
+                                        if modal_owner.as_ref() == Some(&key) {
+                                            original_input
+                                        } else {
+                                            input
+                                        },
+                                        enabled,
+                                        false,
+                                    );
+                                    if dropdown.open {
+                                        self.enum_owner = Some(key);
+                                    } else if self.enum_owner.as_ref() == Some(&key) {
+                                        self.enum_owner = None;
+                                    }
+                                    result.map(|i| {
+                                        i as f32 + parameter["min"].as_f64().unwrap_or(0.) as f32
+                                    })
+                                };
+                            if let Some(next) = changed {
+                                value[0] = next;
+                                out.push(Action::Edit(Command::Effect {
+                                    object,
+                                    action: EffectAction::Set {
+                                        effect: id,
+                                        param: param.into(),
+                                        frame,
+                                        value,
+                                    },
+                                }));
+                            }
+                        } else {
+                            let min = parameter["min"].as_f64().unwrap_or(-1e9);
+                            let max = parameter["max"].as_f64().unwrap_or(1e9);
+                            self.channel_field(
+                                list,
+                                atlas,
+                                rect,
+                                object,
+                                id,
+                                param,
+                                component,
+                                &mut value,
+                                min,
+                                max,
+                                frame,
+                                input,
+                                !locked && implemented,
+                                out,
+                            );
+                        }
                     }
                 }
                 *y += row;
@@ -1909,7 +1913,9 @@ impl Controls {
             self.color_popup = None;
             return;
         };
-        let mut value = track.sample(local);
+        let Ok(mut value) = observe!("effects.color_sample", track.sample(local),
+            "object={} effect={} param={} frame={local}", popup.object, popup.effect, popup.param)
+            else { return; };
         let styles = paint.styles();
         let pad = styles.metric("padding.panel", 8.);
         let row = styles.metric("row.height", 22.);

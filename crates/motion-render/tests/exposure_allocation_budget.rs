@@ -16,7 +16,7 @@ fn wait(renderer: &Renderer) {
 fn background(color: [f32; 4]) -> Scene {
     let mut project = Project::new(2, 2, 30, 1).unwrap();
     project.background = color;
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene
         .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();

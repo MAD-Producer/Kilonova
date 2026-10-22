@@ -3,7 +3,7 @@ use motion_render::Scene;
 #[test]
 fn static_mode_conversion_does_not_create_a_dense_keyframe_track() {
     let mut e = Engine::new(Project::demo()).unwrap();
-    let initial = e.project().camera.position_at(0.0);
+    let initial = e.project().camera.position_at(0.0).unwrap();
     e.apply(Command::CameraMode {
         object: 0,
         mode: CameraMode::Orbit,
@@ -27,7 +27,7 @@ fn static_mode_conversion_does_not_create_a_dense_keyframe_track() {
         value: 90.0,
     })
     .unwrap();
-    assert!((e.project().camera.azimuth.sample(75.0) - 45.0).abs() < 0.001);
+    assert!((e.project().camera.azimuth.sample(75.0).unwrap() - 45.0).abs() < 0.001);
     e.undo().unwrap();
     e.undo().unwrap();
     e.apply(Command::CameraMode {
@@ -36,7 +36,7 @@ fn static_mode_conversion_does_not_create_a_dense_keyframe_track() {
     })
     .unwrap();
     assert!(e.project().camera.position.keys.is_empty());
-    let final_position = e.project().camera.position_at(0.0);
+    let final_position = e.project().camera.position_at(0.0).unwrap();
     for i in 0..3 {
         assert!((initial[i] - final_position[i]).abs() < 0.002);
     }
@@ -46,7 +46,7 @@ fn observation_zoom_changes_view_without_changing_the_project() {
     let p = Project::demo();
     let engine = Engine::new(p.clone()).unwrap();
     let mut observer = Observer::new(p.width, p.height);
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene.sample(&p, 0.0, Some(&observer), &motion_core::ExpressionEvaluator).unwrap();
     let before = scene.project_point([700.0, 960.0, 0.0]);
     observer.zoom(2.0).unwrap();

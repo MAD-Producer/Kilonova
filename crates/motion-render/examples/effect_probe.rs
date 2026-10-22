@@ -71,7 +71,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         p.rebuild_plugin_dependencies();
         p.validate()?;
         renderer.upload_image(1, pixels.width(), pixels.height(), pixels.as_raw())?;
-        let mut scene = Scene::new(&p);
+        let mut scene = Scene::new(&p)?;
         scene.sample(&p, case["frame"].as_f64().unwrap_or(0.0), None, &motion_core::ExpressionEvaluator)?;
         match renderer.capture(&scene, &target) {
             Ok((rgba, stats)) => {

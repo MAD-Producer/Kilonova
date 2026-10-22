@@ -44,7 +44,7 @@ fn set(p: &mut Project, id: &str, value: f32) {
         .value[0] = value;
 }
 fn sample(p: &Project, frame: f64) -> Scene {
-    let mut scene = Scene::new(p);
+    let mut scene = Scene::new(p).unwrap();
     scene.sample(p, frame, None, &motion_core::ExpressionEvaluator).unwrap();
     scene
 }

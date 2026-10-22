@@ -145,9 +145,9 @@ impl LayerMask {
         if !self.enabled || self.mode == MaskMode::None || !self.path.closed {
             return Ok(None);
         }
-        let opacity = self.opacity.sample(frame);
-        let feather = self.feather.sample(frame);
-        let expansion = self.expansion.sample(frame);
+        let opacity = self.opacity.sample(frame)?;
+        let feather = self.feather.sample(frame)?;
+        let expansion = self.expansion.sample(frame)?;
         ensure(
             opacity.is_finite(),
             "nonfinite sampled mask opacity",
@@ -167,7 +167,7 @@ impl LayerMask {
             .nodes
             .iter()
             .map(|n| n.geometry.sample(frame))
-            .collect();
+            .collect::<Result<_>>()?;
         ensure(
             nodes
                 .iter()

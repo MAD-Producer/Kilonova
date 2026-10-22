@@ -47,7 +47,7 @@ fn cached_effect_bindings_keep_admitted_sources_until_the_bindings_are_invalidat
     ));
     project.layers.push(layer);
     project.rebuild_plugin_dependencies();
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene
         .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();

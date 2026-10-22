@@ -129,7 +129,7 @@ fn native_page_keys_use_the_same_tracks_and_cancel_or_commit_once() {
         )
         .unwrap();
     assert_eq!(
-        e.project().layers[0].effects[0].params["position"].sample(15.)[0],
+        e.project().layers[0].effects[0].params["position"].sample(15.).unwrap()[0],
         50.
     );
     session.close(&mut e, false).unwrap();

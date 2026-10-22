@@ -66,7 +66,7 @@ fn fixture() -> (Project, Renderer, CaptureTarget) {
 fn render(p: &mut Project, r: &mut Renderer, t: &CaptureTarget, frame: f64) -> Vec<u8> {
     p.rebuild_plugin_dependencies();
     p.validate().unwrap();
-    let mut scene = Scene::new(p);
+    let mut scene = Scene::new(p).unwrap();
     scene.sample(p, frame, None, &motion_core::ExpressionEvaluator).unwrap();
     r.capture(&scene, t).unwrap().0
 }
@@ -231,7 +231,7 @@ fn displacement_uses_hidden_effected_source_and_is_stack_order_independent() {
         parsed.layers[0].effects[0].image_input,
         p.layers[0].effects[0].image_input
     );
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene.sample(&p, 11.25, None, &motion_core::ExpressionEvaluator).unwrap();
     let mut builder =
         PlanBuilder::new(motion_effects::Registry::new_with_builtins().unwrap()).unwrap();

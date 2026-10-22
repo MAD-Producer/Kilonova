@@ -56,7 +56,7 @@ impl Harness {
         let layer = &self.engine.project().layers[0];
         let masks:Vec<_> = layer.masks.iter().map(|m|serde_json::json!({"id":m.id,"path":{
             "id":m.path.id,"closed":m.path.closed,"nodes":m.path.nodes.iter().map(|n|
-                serde_json::json!({"id":n.id,"geometry":n.geometry.sample(layer.local_frame(f64::from(self.frame))),
+                serde_json::json!({"id":n.id,"geometry":n.geometry.sample(layer.local_frame(f64::from(self.frame))).unwrap(),
                     "animated":n.geometry.is_animated()})).collect::<Vec<_>>()}})).collect();
         serde_json::json!({"root":"point-selection-fixture","composition":"comp-main","frame":self.frame,
             "revision":self.engine.revision(),"project":self.engine.project(),"mask_layers":[{"id":7,"masks":masks}],
@@ -139,7 +139,7 @@ impl Harness {
                 .path
                 .nodes
                 .iter()
-                .map(|n| n.geometry.sample(f64::from(self.frame)))
+                .map(|n| n.geometry.sample(f64::from(self.frame)).unwrap())
                 .collect()
         } else {
             source_geometry::paths(&self.engine.project().layers[0], f64::from(self.frame)).unwrap()
@@ -400,12 +400,12 @@ fn animated_masks_with_identical_node_ids_move_together_without_pose_overwrite()
         for (n_index, n) in m.path.nodes.iter().enumerate() {
             let original = &before.layers[0].masks[m_index].path.nodes[n_index].geometry;
             let edited = (m_index == 0 && n_index < 2) || (m_index == 1 && n_index == 0);
-            let a = original.sample(15.);
-            let b = n.geometry.sample(15.);
+            let a = original.sample(15.).unwrap();
+            let b = n.geometry.sample(15.).unwrap();
             assert!((b[0] - a[0] - if edited { 20. } else { 0. }).abs() < 0.002);
             assert!((b[1] - a[1] - if edited { 10. } else { 0. }).abs() < 0.002);
-            assert_eq!(n.geometry.sample(0.), original.sample(0.));
-            assert_eq!(n.geometry.sample(30.), original.sample(30.));
+            assert_eq!(n.geometry.sample(0.).unwrap(), original.sample(0.).unwrap());
+            assert_eq!(n.geometry.sample(30.).unwrap(), original.sample(30.).unwrap());
         }
     }
     h.persist_undo(&before);

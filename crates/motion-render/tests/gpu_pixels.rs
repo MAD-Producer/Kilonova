@@ -40,7 +40,7 @@ fn gpu_sorting_transparency_png_orientation_and_resource_reuse() {
         layer.three_d = true;
     }
     let target = renderer.capture_target(64, 64).unwrap();
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene.sample(&p, 0.0, None, &motion_core::ExpressionEvaluator).unwrap();
     let (out, _) = renderer.capture(&scene, &target).unwrap();
     assert_color(pixel(&out, 32, 32), [0, 0, 255, 255]);

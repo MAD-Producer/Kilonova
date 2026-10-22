@@ -158,7 +158,7 @@ fn video_audio_extraction_preserves_sound_and_picture_with_one_step_history_and_
         assert_eq!(voices[0].offset_sample, before_voice.offset_sample);
         assert_eq!(voices[0].source_offset_us, before_voice.source_offset_us);
         for at in [16_000, 40_000, 99_999] {
-            assert_eq!(voices[0].gain_at(at), before_voice.gain_at(at));
+            assert_eq!(voices[0].gain_at(at).unwrap(), before_voice.gain_at(at).unwrap());
         }
         engine.undo().unwrap();
         assert_eq!(engine.project(), &before);
@@ -447,9 +447,9 @@ fn separated_tracks_preserve_timing_envelopes_and_exact_stereo_sum() {
     assert_eq!(voices[0].source_channel, AudioSourceChannel::Left);
     assert_eq!(voices[1].source_channel, AudioSourceChannel::Right);
     let at = 40 * 48_000 / 30;
-    let original = voice.gain_at(at);
-    assert_eq!(voices[0].gain_at(at), [original[0], 0.]);
-    assert_eq!(voices[1].gain_at(at), [0., original[1]]);
+    let original = voice.gain_at(at).unwrap();
+    assert_eq!(voices[0].gain_at(at).unwrap(), [original[0], 0.]);
+    assert_eq!(voices[1].gain_at(at).unwrap(), [0., original[1]]);
     for split in &voices {
         assert_eq!(split.offset_sample, voice.offset_sample);
         assert_eq!(split.source_offset_us, voice.source_offset_us);

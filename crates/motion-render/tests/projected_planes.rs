@@ -36,7 +36,7 @@ fn fixture(effect: bool) -> Scene {
         ));
         p.rebuild_plugin_dependencies();
     }
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene
         .sample(&p, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();

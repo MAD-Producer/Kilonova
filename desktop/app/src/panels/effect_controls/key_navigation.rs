@@ -304,7 +304,12 @@ pub(super) fn parameter_navigation(
             } else {
                 let value = if let Some(curve) = &parameter.curve {
                     let mut value = curve::value_at(curve, local);
-                    value.sampled_lut = Some(curve.sample(local).to_vec());
+                    let lut = match observe!("effect.curve_key_navigation_sample", curve.sample(local),
+                        "object={object} effect={effect} param={param} frame={local}") {
+                        Ok(lut) => lut,
+                        Err(_) => return true,
+                    };
+                    value.sampled_lut = Some(lut.to_vec());
                     EffectAction::SetCurveObject {
                         effect,
                         param: param.into(),
@@ -316,7 +321,11 @@ pub(super) fn parameter_navigation(
                         effect,
                         param: param.into(),
                         frame,
-                        value: parameter.sample(local),
+                        value: match observe!("effect.key_navigation_sample", parameter.sample(local),
+                            "object={object} effect={effect} param={param} frame={local}") {
+                            Ok(value) => value,
+                            Err(_) => return true,
+                        },
                     }
                 };
                 out.push(Action::EditBatch(vec![

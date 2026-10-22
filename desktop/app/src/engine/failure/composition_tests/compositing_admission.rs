@@ -18,7 +18,7 @@ fn compositor_refusal_preserves_cause_and_reaches_default_file_and_stderr() {
             source: 77, mode: motion_core::compositing::MatteMode::Alpha, hide_source: true,
         });
         project.validate().unwrap();
-        let mut scene = motion_render::Scene::new(&project);
+        let mut scene = motion_render::Scene::new(&project).unwrap();
         scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
         let mut renderer = pollster::block_on(motion_render::Renderer::headless()).unwrap();
         let budget = renderer.allocation_budget().clone();

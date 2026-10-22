@@ -33,7 +33,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ));
     }
     p.layers.push(l);
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p)?;
     scene.sample(&p, 0., None, &motion_core::ExpressionEvaluator)?;
     let mut b = PlanBuilder::new(motion_effects::Registry::new_with_builtins()?)?;
     let mut times = Vec::new();

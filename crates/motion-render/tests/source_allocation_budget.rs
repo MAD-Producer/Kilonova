@@ -34,7 +34,7 @@ fn image_scene() -> Scene {
     let mut layer = Layer::solid(1, "Image", [4.; 2], [2., 2., 0.], [1.; 4]);
     layer.content = Content::Image { asset: 7 };
     project.layers.push(layer);
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene
         .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();
@@ -200,7 +200,7 @@ fn video_output_admission_preserves_previous_rgba_and_conversion_retirement() {
     assert_eq!(renderer.image_count(), 3);
     assert_eq!(renderer.video_conversion_submissions, 1);
     let project = Project::new(4, 4, 30, 1).unwrap();
-    let mut empty = Scene::new(&project);
+    let mut empty = Scene::new(&project).unwrap();
     empty
         .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();

@@ -114,7 +114,7 @@ fn expected_camera(frame: f64, child: bool) -> Camera {
 }
 
 fn assert_pose(scene: &Scene, expected: &Camera, frame: f64) {
-    let expected = expected.pose(frame, 96, 96);
+    let expected = expected.pose(frame, 96, 96).unwrap();
     assert!(
         scene
             .camera
@@ -129,7 +129,7 @@ fn assert_pose(scene: &Scene, expected: &Camera, frame: f64) {
 #[test]
 fn repeated_camera_ids_are_local_to_each_composition_at_fractional_clip_boundaries() {
     let project = fixture();
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     for frame in [0., 6.249, 6.25, 8., 18.249, 18.25, 20., 8., 0., 18.25] {
         scene
             .sample(&project, frame, None, &motion_core::ExpressionEvaluator)
@@ -155,7 +155,7 @@ fn capture(renderer: &mut Renderer, scene: &Scene) -> Vec<u8> {
 }
 
 fn sampled(project: &Project, frame: f64) -> Scene {
-    let mut scene = Scene::new(project);
+    let mut scene = Scene::new(project).unwrap();
     scene
         .sample(project, frame, None, &motion_core::ExpressionEvaluator)
         .unwrap();
@@ -174,7 +174,7 @@ fn nested_camera_pixels_match_independent_legacy_views_after_save_and_random_see
         motion_effects::Registry::new_with_builtins().unwrap(),
     )
     .unwrap();
-    let mut reused = Scene::new(&frozen);
+    let mut reused = Scene::new(&frozen).unwrap();
     for frame in [0., 6.249, 6.25, 8., 18.249, 18.25, 20., 8., 0.] {
         reused
             .sample(&frozen, frame, None, &motion_core::ExpressionEvaluator)

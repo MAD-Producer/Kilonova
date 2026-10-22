@@ -11,7 +11,7 @@ fn leaf(
     item: Option<u64>,
     frame: f64,
     out: &mut Vec<Value>,
-) {
+) -> motion_core::Result<()> {
     let matrix = (basis * Mat3::from_translation(Vec2::from_array(position))).to_cols_array();
     match &vector.source {
         VectorSource::Paths { paths } => {
@@ -19,11 +19,11 @@ fn leaf(
                 let nodes: Vec<_> = path
                     .nodes
                     .iter()
-                    .map(|n| {
-                        serde_json::json!({
-                "id":n.id,"geometry":n.geometry.sample(frame),"animated":n.geometry.is_animated()})
+                    .map(|n| -> motion_core::Result<_> {
+                        Ok(serde_json::json!({
+                "id":n.id,"geometry":n.geometry.sample(frame)?,"animated":n.geometry.is_animated()}))
                     })
-                    .collect();
+                    .collect::<motion_core::Result<_>>()?;
                 out.push(serde_json::json!({"id":path.id,"closed":path.closed,"nodes":nodes,"item":item,"basis":matrix}));
             }
         }
@@ -35,8 +35,9 @@ fn leaf(
                 "bounds_size":size,"bounds_position":position}),
             );
         }
-        VectorSource::Group { .. } => unreachable!("validated geometry cannot contain a group"),
+        VectorSource::Group { .. } => return Err(motion_core::Error::Invalid("source geometry: leaf contains a group".into())),
     }
+    Ok(())
 }
 fn visit(
     group: &VectorGroup,
@@ -56,13 +57,13 @@ fn visit(
                 ..
             } => leaf(
                 vector,
-                size.sample(frame),
-                position.sample(frame),
+                size.sample(frame)?,
+                position.sample(frame)?,
                 basis,
                 Some(*id),
                 frame,
                 out,
-            ),
+            )?,
             _ => {} // Paints and generated copies do not own editable nodes.
         }
     }
@@ -83,7 +84,7 @@ pub(super) fn paths(layer: &Layer, frame: f64) -> motion_core::Result<Vec<Value>
                 None,
                 local,
                 &mut out,
-            );
+            )?;
         }
     }
     Ok(out)

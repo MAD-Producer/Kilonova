@@ -119,7 +119,7 @@ fn healthy_signed_keys_preserve_axis_metadata_samples_and_idempotence() {
     track.keys = vec![key(-10, [4., 5., 6.]), key(20, [7., 8., 9.])];
     let before = track.clone();
     let frames = [-20., -10., -3.25, 0., 8.75, 20., 30.];
-    let expected = frames.map(|frame| before.sample(frame));
+    let expected = frames.map(|frame| before.sample(frame).unwrap());
     track.separate().unwrap();
     assert!(track.keys.is_empty());
     assert_eq!(track.static_value().unwrap(), before.value);
@@ -136,7 +136,7 @@ fn healthy_signed_keys_preserve_axis_metadata_samples_and_idempotence() {
         }
         assert_eq!(axis.keys.len(), before.keys.len());
     }
-    assert_eq!(frames.map(|frame| track.sample(frame)), expected);
+    assert_eq!(frames.map(|frame| track.sample(frame).unwrap()), expected);
     let separated = format!("{track:?}");
     track.separate().unwrap();
     assert_eq!(format!("{track:?}"), separated);
@@ -144,5 +144,5 @@ fn healthy_signed_keys_preserve_axis_metadata_samples_and_idempotence() {
     assert_eq!(track.value, before.value);
     assert_eq!(track.keys, before.keys);
     assert!(track.axes.is_none());
-    assert_eq!(frames.map(|frame| track.sample(frame)), expected);
+    assert_eq!(frames.map(|frame| track.sample(frame).unwrap()), expected);
 }

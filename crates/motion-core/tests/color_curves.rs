@@ -5,7 +5,7 @@ use motion_core::{Command, CurveObject, EffectAction, EffectInstance, Engine, La
 fn smooth_curve_has_known_cubic_shape_and_requires_explicit_mode() {
     let mut curve = CurveObject::default();
     curve.channels[0] = vec![[0., 0.], [0.5, 1.], [1., 0.]];
-    let lut = curve.lut();
+    let lut = curve.lut().unwrap();
     let x = 64.0f32 / 255.;
     let expected = 3. * x - 4. * x * x * x;
     assert!((lut[64][0] - expected).abs() < 1e-6);
@@ -14,8 +14,8 @@ fn smooth_curve_has_known_cubic_shape_and_requires_explicit_mode() {
     assert!(serde_json::from_value::<CurveObject>(old).unwrap_err().to_string().contains("interpolation"));
     let mut linear = curve.clone();
     linear.interpolation = [ColorInterpolation::Linear; 5];
-    assert_eq!(linear.lut()[64][0], x * 2.);
-    let graph = curve.graph();
+    assert_eq!(linear.lut().unwrap()[64][0], x * 2.);
+    let graph = curve.graph().unwrap();
     let segments = graph["channels"][0]["segments"].as_array().unwrap();
     assert_eq!(segments.len(), 2);
     assert!(segments[0][1][1].as_f64().unwrap() > 0.4);
@@ -26,16 +26,16 @@ fn five_channels_are_independent_and_alpha_does_not_change_rgb() {
     let mut curve = CurveObject::default();
     curve.channels[1] = vec![[0., 0.], [0.4, 0.2], [1., 1.]];
     curve.channels[2] = vec![[0., 0.], [0.4, 0.8], [1., 1.]];
-    let rgb = curve.lut();
+    let rgb = curve.lut().unwrap();
     curve.channels[4] = vec![[0., 0.], [1., 0.5]];
-    let alpha = curve.lut();
+    let alpha = curve.lut().unwrap();
     for i in 0..256 {
         assert_eq!(rgb[i][..3], alpha[i][..3]);
         assert!((alpha[i][3] - i as f32 / 510.).abs() < 1e-6);
     }
     assert!(alpha[102][0] < alpha[102][1]);
-    assert_eq!(curve.graph()["channels"].as_array().unwrap().len(), 5);
-    assert_eq!(curve.graph()["channels"][4]["name"], "Alpha");
+    assert_eq!(curve.graph().unwrap()["channels"].as_array().unwrap().len(), 5);
+    assert_eq!(curve.graph().unwrap()["channels"][4]["name"], "Alpha");
 }
 
 #[test]
@@ -44,21 +44,21 @@ fn frozen_current_frame_is_exact_and_editing_one_channel_preserves_the_rest() {
     a.channels[0] = vec![[0., 0.], [0.3, 0.7], [1., 1.]];
     a.channels[4] = vec![[0., 0.], [0.6, 0.2], [1., 0.9]];
     let mut frozen = a.clone();
-    frozen.sampled_lut = Some(a.lut().to_vec());
-    let mut editable = frozen.editable();
-    assert_eq!(editable.lut(), frozen.lut());
-    let before = editable.lut();
+    frozen.sampled_lut = Some(a.lut().unwrap().to_vec());
+    let mut editable = frozen.editable().unwrap();
+    assert_eq!(editable.lut().unwrap(), frozen.lut().unwrap());
+    let before = editable.lut().unwrap();
     editable.channel_luts[1] = None;
     editable.channels[1] = vec![[0., 1.], [1., 0.]];
     editable.interpolation[1] = ColorInterpolation::NaturalCubic;
-    let after = editable.lut();
+    let after = editable.lut().unwrap();
     assert_ne!(before[80][0], after[80][0]);
     for i in 0..256 {
         assert_eq!(before[i][1..], after[i][1..]);
     }
     let roundtrip: CurveObject =
         serde_json::from_str(&serde_json::to_string(&editable).unwrap()).unwrap();
-    assert_eq!(roundtrip.lut(), after);
+    assert_eq!(roundtrip.lut().unwrap(), after);
 }
 
 #[test]
@@ -72,7 +72,7 @@ fn spline_handles_tiny_x_intervals_and_lookup_rejects_nonfinite_or_wrong_lengths
     ];
     curve.validate().unwrap();
     assert!(curve
-        .lut()
+        .lut().unwrap()
         .iter()
         .flatten()
         .all(|v| v.is_finite() && (0. ..=1.).contains(v)));

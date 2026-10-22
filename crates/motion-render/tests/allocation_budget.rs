@@ -196,7 +196,7 @@ fn lowered_limit_keeps_presenter_source_and_allows_retained_presentation_without
     let target = renderer.render_target(8, 8).unwrap();
     let mut project = Project::new(8, 8, 30, 1).unwrap();
     project.background = [0., 1., 0., 1.];
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene
         .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();
@@ -334,7 +334,7 @@ fn admitted_capture_counts_row_aligned_readback_and_preserves_actual_pixels() {
     assert!(renderer.render_target(1, 1).is_err());
     let mut project = Project::new(8, 8, 30, 1).unwrap();
     project.background = [0., 1., 0., 1.];
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene
         .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();

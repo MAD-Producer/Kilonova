@@ -53,7 +53,7 @@ fn entries(
         entries(n, object, t, animated, depth + 1, out);
     }
 }
-pub(in crate::panels) fn key_frames(vector: &VectorContent, size: [f32; 2]) -> Vec<i32> {
+pub(in crate::panels) fn key_frames(vector: &VectorContent, size: [f32; 2]) -> motion_core::Result<Vec<i32>> {
     fn gather(n: &parameters::Node, out: &mut Vec<i32>) {
         for p in &n.parameters {
             out.extend(p.keys.iter().map(|(f, _)| *f));
@@ -63,10 +63,10 @@ pub(in crate::panels) fn key_frames(vector: &VectorContent, size: [f32; 2]) -> V
         }
     }
     let mut keys = vec![];
-    gather(&parameters::tree(vector, size, 0., Locale::En), &mut keys);
+    gather(&parameters::tree(vector, size, 0., Locale::En)?, &mut keys);
     keys.sort_unstable();
     keys.dedup();
-    keys
+    Ok(keys)
 }
 #[derive(Default)]
 pub(in crate::panels) struct Rows {

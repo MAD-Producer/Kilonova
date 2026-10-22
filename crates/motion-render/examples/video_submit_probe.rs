@@ -28,7 +28,7 @@ fn measure(encoded: bool) -> Result<serde_json::Value, Box<dyn std::error::Error
         [w as f32 / 2., h as f32 / 2., 0.],
         [1.; 4],
     ));
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project)?;
     scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator)?;
     scene.layers[0].video = Some(VideoSample {
         asset: 1,

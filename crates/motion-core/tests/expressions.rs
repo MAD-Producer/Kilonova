@@ -42,7 +42,7 @@ fn x(p: &Project, frame: f64) -> f32 {
     p.evaluated_at(frame).unwrap().layers[0]
         .transform
         .position
-        .sample(frame)[0]
+        .sample(frame).unwrap()[0]
 }
 #[test]
 fn ae_vector_math_multiline_completion_and_real_js_functions() {
@@ -141,7 +141,7 @@ fn opacity_percent_axis_accumulation_camera_and_scene_use_computed_values() {
         target(Property::Position, Some(Axis::X)),
     );
     let p = set(p, "value+5", target(Property::Position, Some(Axis::Y)));
-    let mut s = Scene::new(&p);
+    let mut s = Scene::new(&p).unwrap();
     s.sample(&p, 30.0, None, &motion_core::ExpressionEvaluator).unwrap();
     assert_eq!(
         s.sampled_project(&p).layers[0].transform.position.value,

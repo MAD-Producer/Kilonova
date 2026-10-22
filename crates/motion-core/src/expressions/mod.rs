@@ -1,3 +1,5 @@
+#[cfg(test)]
+mod sampling_tests;
 mod runtime;
 mod transpile;
 
@@ -47,7 +49,7 @@ fn evaluate(
         }
     };
     let local = frame - f64::from(offset);
-    let keys:Vec<_>=track.frames().iter().map(|&f|json!({"time":(f64::from(f)+f64::from(offset))/fps,"value":js_value(track.sample(f64::from(f)))})).collect();
+    let keys:Vec<_>=track.frames().iter().map(|&f| -> Result<_> { Ok(json!({"time":(f64::from(f)+f64::from(offset))/fps,"value":js_value(track.sample(f64::from(f))?)})) }).collect::<Result<_>>()?;
     let index = layer.map_or(0, |l| {
         project.layers.len() - project.layers.iter().position(|v| v.id == l.id).unwrap()
     });
@@ -59,17 +61,46 @@ fn evaluate(
             .fold(2166136261u32, |s, b| {
                 (s ^ u32::from(b)).wrapping_mul(16777619)
             });
-    let data=json!({"time":frame/fps,"value":js_value(track.sample(local)),"index":index,"keys":keys,"seed":seed,
+    let data=json!({"time":frame/fps,"value":js_value(track.sample(local)?),"index":index,"keys":keys,"seed":seed,
         "comp":{"width":project.width,"height":project.height,"frameRate":project.fps,"frameDuration":1.0/fps,"duration":project.frames as f64/fps},
         "layer":{"name":layer.map_or("Camera",|l|l.name.as_str()),"index":index,"inPoint":clip.map_or(0.0,|c|c.in_frame as f64/fps),"outPoint":clip.map_or(project.frames as f64/fps,|c|c.out_frame as f64/fps),"startTime":offset as f64/fps}}).to_string();
-    runtime::evaluate(
+    evaluate_source(e, frame, &data,
+        move |time| Ok(js_value(track.sample(time * fps - offset as f64)?).to_string()),
+        deadline, cancel)
+}
+
+/// Keep a native sampling failure even if JavaScript catches the callback exception.
+fn evaluate_source(
+    e: &PropertyExpression,
+    frame: f64,
+    data: &str,
+    sample: impl Fn(f64) -> Result<String> + 'static,
+    deadline: Instant,
+    cancel: Arc<AtomicBool>,
+) -> Result<Vec<f32>> {
+    let sampling_failure = std::rc::Rc::new(std::cell::RefCell::new(None));
+    let captured_failure = sampling_failure.clone();
+    let result = runtime::evaluate(
         &e.source,
         &data,
-        move |t| js_value(track.sample(t * fps - offset as f64)).to_string(),
+        move |time| match sample(time) {
+            Ok(value) => Ok(value),
+            Err(cause) => {
+                // Retain the native first failure across the JavaScript callback boundary.
+                let mut first = captured_failure.borrow_mut();
+                if first.is_none() { *first = Some(cause); }
+                Err(Error::Invalid("valueAtTime track sampling failed".into()))
+            }
+        },
         deadline,
         cancel,
-    )
-    .map_err(|err| error(&e.target, frame, err))
+    );
+    if let Some(source) = sampling_failure.borrow_mut().take() {
+        return Err(Error::ExpressionSampling {
+            target: serde_json::to_string(&e.target)?.chars().take(512).collect(), frame, source: Box::new(source),
+        });
+    }
+    result.map_err(|err| error(&e.target, frame, err))
 }
 fn write(
     project: &mut Project,
@@ -83,7 +114,7 @@ fn write(
         Ok(())
     }
     fn vec(t: &mut Track<[f32; 3]>, axis: Option<Axis>, f: f64, v: &[f32]) -> Result<()> {
-        let mut base = t.sample(f);
+        let mut base = t.sample(f)?;
         if let Some(a) = axis {
             ensure(v.len() == 1, "axis expression must return a scalar")?;
             base[a.index()] = v[0];
@@ -222,7 +253,7 @@ impl ProjectExpressions for Project {
                             .find(|l| l.id == e.target.object())
                             .unwrap()
                             .local_frame(frame)
-                    }),
+                    })?,
                 })
             })
             .collect()

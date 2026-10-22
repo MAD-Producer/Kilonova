@@ -99,7 +99,7 @@ fn anchor_compensation_keeps_geometry_after_order_switch_and_locked_edit_is_atom
     fn model(p: &Project, world: &mut Vec<Mat4>, states: &mut Vec<u8>) -> Mat4 {
         hierarchy::matrices(p, 0., world, states).unwrap();
         let l = &p.layers[0];
-        let a = l.transform.anchor.sample(0.);
+        let a = l.transform.anchor.sample(0.).unwrap();
         world[0]
             * Mat4::from_translation(Vec3::new(
                 (0.5 - a[0]) * l.size[0],

@@ -15,7 +15,7 @@ fn scene(size: u32) -> motion_render::Scene {
         source: 77, mode: motion_core::compositing::MatteMode::Alpha, hide_source: true,
     });
     project.validate().unwrap();
-    let mut scene = motion_render::Scene::new(&project);
+    let mut scene = motion_render::Scene::new(&project).unwrap();
     scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     scene
 }

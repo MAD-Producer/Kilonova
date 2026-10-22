@@ -102,7 +102,7 @@ impl FrameFreezePlan {
                         control,
                     )
                 } else {
-                    let mut scene = Scene::new(p);
+                    let mut scene = Scene::new(p).map_err(|error| error.to_string())?;
                     scene
                         .sample(p, self.frame, None, &motion_core::ExpressionEvaluator)
                         .map_err(|e| e.to_string())?;

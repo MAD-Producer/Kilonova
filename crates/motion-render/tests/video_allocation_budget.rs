@@ -28,7 +28,7 @@ fn scene() -> Scene {
     project
         .layers
         .push(Layer::solid(1, "Video", [2.; 2], [1., 1., 0.], [1.; 4]));
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene
         .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();

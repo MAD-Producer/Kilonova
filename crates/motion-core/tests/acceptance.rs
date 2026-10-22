@@ -59,15 +59,15 @@ fn a1_motion_easing_holds_and_unwrapped_rotation() {
         .opacity
         .upsert(60, 1.0, Ease::Linear)
         .unwrap();
-    vclose(layer.transform.position.sample(30.0), [60.0, 120.0, 30.0]);
-    close(layer.transform.scale.sample(30.0)[0], 125.0);
-    close(layer.transform.rotation.sample(30.0)[2], 180.0);
-    close(layer.transform.opacity.sample(15.0), 0.15625);
+    vclose(layer.transform.position.sample(30.0).unwrap(), [60.0, 120.0, 30.0]);
+    close(layer.transform.scale.sample(30.0).unwrap()[0], 125.0);
+    close(layer.transform.rotation.sample(30.0).unwrap()[2], 180.0);
+    close(layer.transform.opacity.sample(15.0).unwrap(), 0.15625);
     close(Ease::Out.map(0.25), 0.4375);
-    close(layer.transform.opacity.sample(120.0), 1.0);
+    close(layer.transform.opacity.sample(120.0).unwrap(), 1.0);
     layer.transform.opacity.set_ease(0, Ease::Hold).unwrap();
-    close(layer.transform.opacity.sample(59.99), 0.0);
-    close(layer.transform.opacity.sample(60.0), 1.0);
+    close(layer.transform.opacity.sample(59.99).unwrap(), 0.0);
+    close(layer.transform.opacity.sample(60.0).unwrap(), 1.0);
     p.validate().unwrap();
 }
 
@@ -123,7 +123,7 @@ fn a2_key_collision_rejects_batch_and_preserves_redo() {
     assert!(engine.redo().unwrap());
     assert_eq!(engine.project().layers[1].transform.position.keys.len(), 2);
     close(
-        engine.project().layers[1].transform.position.sample(60.0)[0],
+        engine.project().layers[1].transform.position.sample(60.0).unwrap()[0],
         740.0,
     );
     assert!(engine.undo().unwrap());
@@ -135,7 +135,7 @@ fn first_key_at_nonzero_time_holds_before_it_and_disabling_keeps_sample() {
     let mut track = Track::constant(0.2);
     track.set_animated(30, true).unwrap();
     track.set_at(60, 1.0).unwrap();
-    close(track.sample(0.0), 0.2);
+    close(track.sample(0.0).unwrap(), 0.2);
     track.set_animated(45, false).unwrap();
     assert!(track.keys.is_empty());
     close(track.value, 0.6);
@@ -180,7 +180,7 @@ fn edit_batches_are_atomic_and_gestures_have_one_history_entry() {
 fn a3_dolly_changes_near_scale_more_without_moving_layers_or_changing_fov() {
     let mut e = Engine::new(Project::demo()).unwrap();
     let before = e.snapshot();
-    let mut scene = Scene::new(&before);
+    let mut scene = Scene::new(&before).unwrap();
     scene.sample(&before, 0.0, None, &motion_core::ExpressionEvaluator).unwrap();
     let measure = |s: &Scene, z: f32| {
         let a = s.project_point([490.0, 960.0, z]);
@@ -205,7 +205,7 @@ fn a3_dolly_changes_near_scale_more_without_moving_layers_or_changing_fov() {
 fn a4_pan_keeps_direction_and_produces_depth_dependent_parallax() {
     let mut e = Engine::new(Project::demo()).unwrap();
     let original = e.snapshot();
-    let mut scene = Scene::new(&original);
+    let mut scene = Scene::new(&original).unwrap();
     scene.sample(&original, 0.0, None, &motion_core::ExpressionEvaluator).unwrap();
     let direction_before = (scene.camera.target - scene.camera.eye).normalize();
     let near = scene.project_point([540.0, 960.0, -500.0])[0];
@@ -236,18 +236,18 @@ fn a5_orbit_samples_an_arc_with_constant_radius_and_valid_target_orientation() {
     p.camera.azimuth.upsert(0, 0.0, Ease::Linear).unwrap();
     p.camera.azimuth.upsert(60, 90.0, Ease::Linear).unwrap();
     for frame in 0..=60 {
-        let pos = Vec3::from_array(p.camera.position_at(frame as f64));
-        let target = Vec3::from_array(p.camera.target.sample(frame as f64));
+        let pos = Vec3::from_array(p.camera.position_at(frame as f64).unwrap());
+        let target = Vec3::from_array(p.camera.target.sample(frame as f64).unwrap());
         close(pos.distance(target), 2000.0);
-        let pose = p.camera.pose(frame as f64, p.width, p.height);
+        let pose = p.camera.pose(frame as f64, p.width, p.height).unwrap();
         let clip = pose.view_projection * pose.target.extend(1.0);
         close(clip.x / clip.w, 0.0);
         close(clip.y / clip.w, 0.0);
         assert!(pose.view_projection.is_finite());
     }
-    let mid = Vec3::from_array(p.camera.position_at(30.0));
-    let chord = (Vec3::from_array(p.camera.position_at(0.0))
-        + Vec3::from_array(p.camera.position_at(60.0)))
+    let mid = Vec3::from_array(p.camera.position_at(30.0).unwrap());
+    let chord = (Vec3::from_array(p.camera.position_at(0.0).unwrap())
+        + Vec3::from_array(p.camera.position_at(60.0).unwrap()))
         / 2.0;
     assert!(mid.distance(chord) > 500.0);
 }
@@ -267,8 +267,8 @@ fn camera_mode_conversion_preserves_integer_frame_poses() {
     p.camera.convert_mode(CameraMode::Orbit, p.frames).unwrap();
     for f in 0..p.frames {
         vclose(
-            p.camera.position_at(f as f64),
-            original.position_at(f as f64),
+            p.camera.position_at(f as f64).unwrap(),
+            original.position_at(f as f64).unwrap(),
         );
     }
     p.camera
@@ -276,8 +276,8 @@ fn camera_mode_conversion_preserves_integer_frame_poses() {
         .unwrap();
     for f in 0..p.frames {
         vclose(
-            p.camera.position_at(f as f64),
-            original.position_at(f as f64),
+            p.camera.position_at(f as f64).unwrap(),
+            original.position_at(f as f64).unwrap(),
         );
     }
 }
@@ -288,7 +288,7 @@ fn a6_observing_a_scene_does_not_modify_project_or_history() {
     let original = e.snapshot();
     let revision = e.revision();
     let mut observer = Observer::new(original.width, original.height);
-    let mut scene = Scene::new(&original);
+    let mut scene = Scene::new(&original).unwrap();
     scene.sample(&original, 0.0, None, &motion_core::ExpressionEvaluator).unwrap();
     let active = scene.camera.view_projection;
     observer.orbit(50.0, 20.0).unwrap();
@@ -321,8 +321,8 @@ fn anchor_compensation_preserves_rendered_geometry_through_animation() {
         anchor: [0.0, 0.0],
     })
     .unwrap();
-    let mut a = Scene::new(&before);
-    let mut b = Scene::new(e.project());
+    let mut a = Scene::new(&before).unwrap();
+    let mut b = Scene::new(e.project()).unwrap();
     for frame in 0..before.frames {
         a.sample(&before, frame as f64, None, &motion_core::ExpressionEvaluator).unwrap();
         b.sample(e.project(), frame as f64, None, &motion_core::ExpressionEvaluator).unwrap();
@@ -360,7 +360,7 @@ fn same_depth_uses_stack_order_and_distinct_depth_uses_camera_space() {
     for layer in &mut p.layers {
         layer.three_d = true;
     }
-    let mut s = Scene::new(&p);
+    let mut s = Scene::new(&p).unwrap();
     s.sample(&p, 0.0, None, &motion_core::ExpressionEvaluator).unwrap();
     assert_eq!(
         s.layers.iter().map(|l| l.id).collect::<Vec<_>>(),
@@ -429,7 +429,7 @@ fn invalid_edits_and_bad_import_metadata_are_rejected_without_mutation() {
     ] {
         assert!(motion_core::storage::validate_relative_path(path).is_err());
     }
-    let mut s = Scene::new(&p);
+    let mut s = Scene::new(&p).unwrap();
     assert!(s.sample(&p, f64::NAN, None, &motion_core::ExpressionEvaluator).is_err());
     assert!(s.sample(&p, -1.0, None, &motion_core::ExpressionEvaluator).is_err());
     e.apply(Command::Flags {
@@ -466,13 +466,13 @@ fn degenerate_camera_target_and_vertical_view_remain_finite() {
     p.camera.position.value = p.camera.target.value;
     assert!(p
         .camera
-        .pose(0.0, p.width, p.height)
+        .pose(0.0, p.width, p.height).unwrap()
         .view_projection
         .is_finite());
     p.camera.position.value = [540.0, 0.0, 0.0];
     assert!(p
         .camera
-        .pose(0.0, p.width, p.height)
+        .pose(0.0, p.width, p.height).unwrap()
         .view_projection
         .is_finite());
 }

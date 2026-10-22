@@ -40,7 +40,7 @@ fn fixture() -> Project {
 fn different_source_times_use_distinct_video_textures_and_reuse_allocations() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let p = fixture();
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene.sample(&p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     let red = [255, 0, 0, 255].repeat(256);
     let green = [0, 255, 0, 255].repeat(256);
@@ -93,7 +93,7 @@ fn encoded_same_source_instances_keep_distinct_pts_through_effects_and_seek() {
     let mut p = fixture();
     for layer in &mut p.layers { layer.effects.push(effect("brightness_contrast")); }
     p.rebuild_plugin_dependencies();
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene.sample(&p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let mut standalone = pollster::block_on(Renderer::headless()).unwrap();
@@ -135,7 +135,7 @@ fn video_effects_keep_live_instance_pixels_and_rebind_after_visibility_changes()
     p.validate().unwrap();
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let target = renderer.capture_target(64, 32).unwrap();
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     let red = [255, 0, 0, 255].repeat(256);
     let green = [0, 255, 0, 255].repeat(256);
     let blue = [0, 0, 255, 255].repeat(256);

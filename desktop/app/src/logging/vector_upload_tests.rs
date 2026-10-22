@@ -20,7 +20,7 @@ fn native_vector_upload_failure_reaches_default_file_and_stderr() {
         };
         project.layers.push(layer);
         project.validate().unwrap();
-        let mut scene = Scene::new(&project);
+        let mut scene = Scene::new(&project).unwrap();
         scene
             .sample(&project, 3.25, None, &motion_core::ExpressionEvaluator)
             .unwrap();

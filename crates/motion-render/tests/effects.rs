@@ -32,7 +32,7 @@ fn gpu_chain_preserves_alpha_changes_order_and_bypasses_missing_plugins() {
     p.rebuild_plugin_dependencies();
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let target = renderer.capture_target(64, 64).unwrap();
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene.sample(&p, 0.0, None, &motion_core::ExpressionEvaluator).unwrap();
     let (pixels, stats) = renderer.capture(&scene, &target).unwrap();
     let pixel = &pixels[(32 * 64 + 32) * 4..(32 * 64 + 32) * 4 + 4];
@@ -76,7 +76,7 @@ fn strict_plan_checks_hidden_layers_and_binary_buffer_bounds() {
     let mut p = fixture();
     p.layers[0].effects.push(instance("tint", 1));
     p.rebuild_plugin_dependencies();
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene.sample(&p, 0.0, None, &motion_core::ExpressionEvaluator).unwrap();
     let mut builder =
         PlanBuilder::new(motion_effects::Registry::new_with_builtins().unwrap()).unwrap();
@@ -110,7 +110,7 @@ fn effect_outputs_preserve_crossing_plane_batches_in_both_stack_orders() {
         p.layers.push(layer);
     }
     p.rebuild_plugin_dependencies();
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let target = renderer.capture_target(256, 256).unwrap();
     let mut builder =
@@ -141,7 +141,7 @@ fn over_budget_effect_is_reported_and_preview_keeps_input() {
     p.layers[0].size = [4096.0; 2];
     p.layers[0].effects.push(instance("gaussian_blur", 1));
     p.rebuild_plugin_dependencies();
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene.sample(&p, 0.0, None, &motion_core::ExpressionEvaluator).unwrap();
     let mut builder =
         PlanBuilder::new(motion_effects::Registry::new_with_builtins().unwrap()).unwrap();
@@ -196,7 +196,7 @@ fn full_hd_polar_then_edge_glow_fits_and_every_capacity_matches_written_passes()
         .track
         .value[0] = 48.;
     p.rebuild_plugin_dependencies();
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene.sample(&p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     let mut builder =
         PlanBuilder::new(motion_effects::Registry::new_with_builtins().unwrap()).unwrap();
@@ -239,7 +239,7 @@ fn shared_execution_plan_uses_layer_local_effect_clock() {
     p.layers[0].effects.push(instance("wave_warp", 1));
     p.rebuild_plugin_dependencies();
     p.validate().unwrap();
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene.sample(&p, 25.0, None, &motion_core::ExpressionEvaluator).unwrap();
     let mut builder =
         PlanBuilder::new(motion_effects::Registry::new_with_builtins().unwrap()).unwrap();
@@ -259,7 +259,7 @@ fn zero_opacity_avoids_all_scratch_but_keeps_dependency_checks() {
     effect.params.get_mut("effect_opacity").unwrap().track.value[0] = 0.;
     p.layers[0].effects = vec![effect];
     p.rebuild_plugin_dependencies();
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene.sample(&p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     let mut builder =
         PlanBuilder::new(motion_effects::Registry::new_with_builtins().unwrap()).unwrap();

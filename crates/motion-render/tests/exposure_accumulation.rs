@@ -10,7 +10,7 @@ use std::time::Instant;
 fn background(color: [f32; 4]) -> Scene {
     let mut project = Project::new(16, 16, 30, 60).unwrap();
     project.background = color;
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene
         .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();
@@ -331,7 +331,7 @@ fn desktop_bgra_and_rejected_unsubmitted_yuv_do_not_publish_partial_exposures() 
         [8., 8., 0.],
         [1.; 4],
     ));
-    let mut layer = Scene::new(&p);
+    let mut layer = Scene::new(&p).unwrap();
     layer
         .sample(&p, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();
@@ -433,7 +433,7 @@ fn cold_nested_mask_and_effect_rendering_preserve_transparent_pixels_through_exp
     // spatial plane exercising the supported nested/spatial render boundary.
     let mut project = engine.snapshot();
     project.layers[0].three_d = true;
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene
         .sample(&project, 5., None, &motion_core::ExpressionEvaluator)
         .unwrap();
@@ -485,7 +485,7 @@ fn authored_rectangle_shutter_produces_real_image_and_keeps_an_unblurred_layer_f
         [96., 76., 0.],
         [0.95, 0.5, 0.15, 1.],
     ));
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene
         .sample(&p, 10., None, &motion_core::ExpressionEvaluator)
         .unwrap();

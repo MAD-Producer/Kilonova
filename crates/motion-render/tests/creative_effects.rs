@@ -63,7 +63,7 @@ fn all_creative_effects_render_and_neutral_controls_preserve_the_input() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     renderer.upload_image(1, SIZE, SIZE, &pixels).unwrap();
     let target = renderer.capture_target(SIZE, SIZE).unwrap();
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene.sample(&project, 0.0, None, &motion_core::ExpressionEvaluator).unwrap();
     let reference = renderer.capture(&scene, &target).unwrap().0;
     let package = motion_effects::builtin::package().unwrap();
@@ -126,7 +126,7 @@ fn seeded_time_effects_are_independent_of_seek_order_and_follow_layer_local_time
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     renderer.upload_image(1, SIZE, SIZE, &pixels).unwrap();
     let target = renderer.capture_target(SIZE, SIZE).unwrap();
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     for name in [
         "shake",
         "grain",
@@ -186,7 +186,7 @@ fn glow_extends_alpha_without_moving_the_layer_and_chroma_preserves_empty_pixels
     project.rebuild_plugin_dependencies();
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let target = renderer.capture_target(SIZE, SIZE).unwrap();
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene.sample(&project, 0.0, None, &motion_core::ExpressionEvaluator).unwrap();
     let output = renderer.capture(&scene, &target).unwrap().0;
     assert!(

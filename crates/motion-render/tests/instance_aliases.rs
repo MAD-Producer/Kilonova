@@ -115,7 +115,7 @@ fn sample(scene: &mut Scene, p: &Project, frame: f64) {
 #[test]
 fn authored_reference_paths_keep_ids_across_clip_boundaries_reentry_and_reopen() {
     let p = fixture();
-    let mut reused = Scene::new(&p);
+    let mut reused = Scene::new(&p).unwrap();
     let mut known = HashMap::new();
     let reopened: Project = serde_json::from_str(&serde_json::to_string(&p).unwrap()).unwrap();
     reopened.validate().unwrap();
@@ -123,7 +123,7 @@ fn authored_reference_paths_keep_ids_across_clip_boundaries_reentry_and_reopen()
         PlanBuilder::new(scene_fixtures::registry().unwrap()).unwrap();
     for frame in [0., 9.9, 10., 10.1, 19.9, 20., 20.1, 29.9, 30., 50., 0., 20.] {
         sample(&mut reused, &p, frame);
-        let mut fresh = Scene::new(&reopened);
+        let mut fresh = Scene::new(&reopened).unwrap();
         sample(&mut fresh, &reopened, frame);
         for node in &reused.nested {
             let child = nested_video(&reused, node.layer);
@@ -159,7 +159,7 @@ fn authored_reference_paths_keep_ids_across_clip_boundaries_reentry_and_reopen()
 #[test]
 fn clip_entry_does_not_reupload_a_continuously_visible_decoded_source_or_change_its_pixels() {
     let p = fixture();
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let target = renderer.capture_target(96, 32).unwrap();
     let mut source_pts = HashMap::new();
@@ -301,7 +301,7 @@ fn nested_aliases_remap_parent_matte_effect_image_and_scene_source_together() {
     child.layers.extend([matte, input, parent, generator]);
     p.rebuild_plugin_dependencies();
     p.validate().unwrap();
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     for frame in [0., 10., 20., 30., 0.] {
         sample(&mut scene, &p, frame);
         for reference in &scene.nested {

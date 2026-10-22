@@ -138,7 +138,7 @@ fn fixture(root: &Path) -> Project {
     p
 }
 fn scene(p: &Project, frame: f64) -> Scene {
-    let mut scene = Scene::new(p);
+    let mut scene = Scene::new(p).unwrap();
     scene
         .sample(p, frame, None, &motion_core::ExpressionEvaluator)
         .unwrap();
@@ -601,7 +601,7 @@ fn nested_exposure_reuses_stable_video_instances_across_parent_visits_and_new_fr
         p.layers.push(reference);
     }
     p.validate().unwrap();
-    let mut scene=Scene::new(&p);
+    let mut scene=Scene::new(&p).unwrap();
     scene.sample(&p,13.5,None,&motion_core::ExpressionEvaluator).unwrap();
     let expected:std::collections::HashSet<_>=scene.video_layers().into_iter().map(|layer|layer.id).collect();
     assert_eq!(expected.len(),3);
@@ -631,7 +631,7 @@ fn nested_exposure_reuses_stable_video_instances_across_parent_visits_and_new_fr
 fn sampling_idle_cache_evicts_oldest_without_exceeding_four_live_or_retiring_workers() {
     let dir=tempfile::tempdir().unwrap();
     let p=fixture(dir.path());
-    let mut source=Scene::new(&p);
+    let mut source=Scene::new(&p).unwrap();
     source.sample(&p,13.5,None,&motion_core::ExpressionEvaluator).unwrap();
     let control=control();
     let mut reader=VideoFrames::new(Arc::new(Backend(control.clone())));

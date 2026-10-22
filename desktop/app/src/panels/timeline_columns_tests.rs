@@ -66,7 +66,7 @@ fn parent_dropdown_commits_real_id_keeps_world_pose_and_undo_restores_project() 
                 frame: 21
             })]
         ));
-        let mut old = motion_render::Scene::new(&before);
+        let mut old = motion_render::Scene::new(&before).unwrap();
         old.sample(&before, 21., None, &motion_core::ExpressionEvaluator)
             .unwrap();
         for action in actions {
@@ -74,7 +74,7 @@ fn parent_dropdown_commits_real_id_keeps_world_pose_and_undo_restores_project() 
                 engine.apply(command).unwrap();
             }
         }
-        let mut new = motion_render::Scene::new(engine.project());
+        let mut new = motion_render::Scene::new(engine.project()).unwrap();
         new.sample(
             engine.project(),
             21.,

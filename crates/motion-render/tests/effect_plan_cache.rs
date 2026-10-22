@@ -35,7 +35,7 @@ fn bytes(builder: &mut PlanBuilder, scene: &Scene, width: u32) -> Vec<u8> {
 #[test]
 fn static_video_plans_reuse_geometry_but_keep_local_shader_time_on_random_seeks() {
     let p = project();
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     let mut cached = builder();
     for f in [0., 1., 31., 79., 2., 0.] {
         scene.sample(&p, f, None, &motion_core::ExpressionEvaluator).unwrap();
@@ -55,7 +55,7 @@ fn static_video_plans_reuse_geometry_but_keep_local_shader_time_on_random_seeks(
 #[test]
 fn signed_zero_parameters_do_not_reuse_a_different_gpu_uniform_payload() {
     let p = project();
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene.sample(&p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     let index = scene.effects[0]
         .param_ids
@@ -74,7 +74,7 @@ fn signed_zero_parameters_do_not_reuse_a_different_gpu_uniform_payload() {
 #[test]
 fn parameters_geometry_quality_resources_and_strict_export_invalidate_cached_plan() {
     let mut p = project();
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     let mut cached = builder();
     scene.sample(&p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     bytes(&mut cached, &scene, 64);
@@ -151,7 +151,7 @@ fn reused_preview_plan_uploads_changed_curve_lut_and_matches_fresh_gpu_output() 
         l.size,
     ));
     p.layers.push(l);
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     let mut cached = pollster::block_on(Renderer::headless()).unwrap();
     let mut fresh = pollster::block_on(Renderer::headless()).unwrap();
     let target = cached.capture_target(64, 64).unwrap();

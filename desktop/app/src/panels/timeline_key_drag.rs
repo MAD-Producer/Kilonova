@@ -64,7 +64,7 @@ impl Drag {
     }
 }
 
-fn channels(state: &Value, row: &timeline::Row) -> HashMap<Target, BTreeSet<i64>> {
+fn channels(state: &Value, row: &timeline::Row) -> motion_core::Result<HashMap<Target, BTreeSet<i64>>> {
     let mut out = HashMap::new();
     let mut record = |target, frames: &mut dyn Iterator<Item = i64>| {
         out.insert(target, frames.collect());
@@ -151,12 +151,12 @@ fn channels(state: &Value, row: &timeline::Row) -> HashMap<Target, BTreeSet<i64>
     }
     if let Some(vector) = &row.vector {
         shape(
-            path_controls::groups::parameters::tree(vector, row.vector_size, 0., Locale::En),
+            path_controls::groups::parameters::tree(vector, row.vector_size, 0., Locale::En)?,
             offset,
             &mut record,
         );
     }
-    out
+    Ok(out)
 }
 
 pub(super) fn begin(
@@ -176,7 +176,8 @@ pub(super) fn begin(
     let Some((MouseButton::Left, point)) = input.pressed else {
         return;
     };
-    let all = channels(state, row);
+    let Ok(all) = observe!("timeline.key_drag_channels", channels(state, row),
+        "object={} frame={frame}", row.id) else { return; };
     let mut targets: Vec<_> = all
         .iter()
         .filter_map(|(target, frames)| {
@@ -369,7 +370,11 @@ pub(super) fn update(
         // Input can arrive before the serial engine acknowledges our last batch.
         // Until then, use the bounded set of authored times maintained below.
         if state["revision"].as_u64().unwrap_or(0) >= drag.expected_revision {
-            let snapshot = channels(state, row);
+            let Ok(snapshot) = observe!("timeline.key_drag_snapshot", channels(state, row),
+                "object={} frame={}", row.id, drag.current) else {
+                if drag.begun { out.push(Action::History(4)); }
+                return;
+            };
             if drag.targets.iter().any(|target| {
                 !snapshot
                     .get(target)

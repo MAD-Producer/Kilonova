@@ -23,7 +23,7 @@ fn scene(color: [f32; 4]) -> (Project, Scene) {
         [32., 32., 0.],
         color,
     ));
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene
         .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();

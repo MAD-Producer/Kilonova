@@ -53,13 +53,15 @@ pub enum RawTrack {
     Param(Track<[f32; 4]>, usize),
 }
 impl RawTrack {
-    pub fn sample(&self, frame: f64) -> Vec<f32> {
-        match self {
-            Self::Scalar(t) => vec![t.sample(frame)],
-            Self::Vector(t) => t.sample(frame).to_vec(),
-            Self::Component(t, axis) => vec![t.sample(frame)[*axis]],
-            Self::Param(t, n) => t.sample(frame)[..*n].to_vec(),
-        }
+    pub fn sample(&self, frame: f64) -> Result<Vec<f32>> {
+        Ok(match self {
+            Self::Scalar(t) => vec![t.sample(frame)?],
+            Self::Vector(t) => t.sample(frame)?.to_vec(),
+            Self::Component(t, axis) => vec![*t.sample(frame)?.get(*axis)
+                .ok_or_else(|| Error::Invalid(format!("raw track sample: frame={frame} component={axis} outside vector")))?],
+            Self::Param(t, n) => t.sample(frame)?.get(..*n)
+                .ok_or_else(|| Error::Invalid(format!("raw track sample: frame={frame} dimensions={n} outside parameter")))?.to_vec(),
+        })
     }
     pub fn frames(&self) -> Vec<i32> {
         let mut frames: Vec<_> = match self {

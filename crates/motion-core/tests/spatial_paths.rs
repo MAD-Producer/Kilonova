@@ -39,16 +39,16 @@ fn cubic_path_keeps_endpoints_and_independent_temporal_easing() {
         }),
     )
     .unwrap();
-    assert_eq!(t.sample(0.), [0., 0., 0.]);
-    assert_eq!(t.sample(60.), [120., 0., 0.]);
-    assert_eq!(t.sample(30.), [60., 60., 0.]);
+    assert_eq!(t.sample(0.).unwrap(), [0., 0., 0.]);
+    assert_eq!(t.sample(60.).unwrap(), [120., 0., 0.]);
+    assert_eq!(t.sample(30.).unwrap(), [60., 60., 0.]);
     t.set_ease(0, Ease::In).unwrap();
-    assert_eq!(t.sample(30.), [30., 45., 0.]);
+    assert_eq!(t.sample(30.).unwrap(), [30., 45., 0.]);
     t.set_ease(0, Ease::Hold).unwrap();
-    assert_eq!(t.sample(59.), [0., 0., 0.]);
-    assert_eq!(t.sample(60.), [120., 0., 0.]);
+    assert_eq!(t.sample(59.).unwrap(), [0., 0., 0.]);
+    assert_eq!(t.sample(60.).unwrap(), [120., 0., 0.]);
     for f in [17., 44., 9., 17.] {
-        assert_eq!(t.sample(f), [0., 0., 0.]);
+        assert_eq!(t.sample(f).unwrap(), [0., 0., 0.]);
     }
     assert!(t.separate().is_err());
 }
@@ -72,7 +72,7 @@ fn spatial_edit_is_atomic_and_round_trips_history_and_format() {
     let restored: Project = serde_json::from_str(&saved).unwrap();
     restored.validate().unwrap();
     assert_eq!(
-        restored.layers[0].transform.position.sample(30.),
+        restored.layers[0].transform.position.sample(30.).unwrap(),
         [140., 85., 0.]
     );
     e.undo().unwrap();
@@ -136,7 +136,7 @@ fn path_query_matches_flat_parent_projection_without_seeking_or_mutating() {
         .unwrap();
     p.version = motion_model::CURRENT_PROJECT_VERSION;
     let original = p.clone();
-    let mut scene = motion_render::Scene::new(&p);
+    let mut scene = motion_render::Scene::new(&p).unwrap();
     scene.sample(&p, 30., None, &motion_core::ExpressionEvaluator).unwrap();
     let target = motion_render::position_path::PositionTarget::Property {
         object: 1,

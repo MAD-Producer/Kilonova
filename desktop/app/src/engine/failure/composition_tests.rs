@@ -353,7 +353,7 @@ fn source_time_failures_reach_reply_file_and_stderr_at_default_level() {
             .find(|c| c.id == child)
             .unwrap()
             .fps = 0;
-        let mut scene = motion_render::Scene::new(&project);
+        let mut scene = motion_render::Scene::new(&project).unwrap();
         // Ordinary project loading rejects this state. Exercise the actual
         // public API failures with controlled origin context at the production
         // reply boundary, without installing an invalid engine session.

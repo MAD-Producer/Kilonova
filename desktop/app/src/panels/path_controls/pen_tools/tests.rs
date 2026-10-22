@@ -54,15 +54,15 @@ fn assert_close(a: [f32; 2], b: [f32; 2]) {
     assert!(distance(a, b) < 0.00015, "{a:?} != {b:?}");
 }
 fn shape_equal(before: &VectorPath, after: &VectorPath, index: usize, t: f32, frame: f64) {
-    let a = before.nodes[index].geometry.sample(frame);
+    let a = before.nodes[index].geometry.sample(frame).unwrap();
     let b = before.nodes[(index + 1) % before.nodes.len()]
         .geometry
-        .sample(frame);
-    let left = after.nodes[index].geometry.sample(frame);
-    let middle = after.nodes[index + 1].geometry.sample(frame);
+        .sample(frame).unwrap();
+    let left = after.nodes[index].geometry.sample(frame).unwrap();
+    let middle = after.nodes[index + 1].geometry.sample(frame).unwrap();
     let right = after.nodes[(index + 2) % after.nodes.len()]
         .geometry
-        .sample(frame);
+        .sample(frame).unwrap();
     for i in 0..=1000 {
         let u = i as f32 / 1000.;
         let actual = if u <= t {
@@ -259,7 +259,7 @@ fn independent_animation_clocks_preserve_all_authored_poses_and_endpoint_timing(
                     assert_eq!(pair[0].curve, None);
                     let frame = f64::from(pair[0].frame)
                         + (f64::from(pair[1].frame) - f64::from(pair[0].frame)) * 0.5;
-                    let actual = middle.sample(frame);
+                    let actual = middle.sample(frame).unwrap();
                     for (axis, value) in actual.into_iter().enumerate() {
                         assert!(
                             (value - (pair[0].value[axis] + pair[1].value[axis]) * 0.5).abs()
@@ -383,7 +383,7 @@ fn conversion_preserves_anchor_lengths_and_other_keyframes_and_delete_opens_smal
         .unwrap();
     let key = p.nodes[1].geometry.keys[1].clone();
     edit_path(&mut p, 42, Edit::Corner, 0).unwrap();
-    assert_eq!(p.nodes[1].geometry.sample(0.)[2..], [0.; 4]);
+    assert_eq!(p.nodes[1].geometry.sample(0.).unwrap()[2..], [0.; 4]);
     assert_eq!(p.nodes[1].geometry.keys[1], key);
     edit_path(&mut p, 42, Edit::Delete, 0).unwrap();
     assert!(!p.closed);
@@ -462,7 +462,7 @@ impl Harness {
                 "mvp":DMat4::from_scale(glam::DVec3::new(2./640.,2./480.,1.)).to_cols_array()}],
             "mask_layers":[{"id":7,"masks":l.masks.iter().map(|m|serde_json::json!({"id":m.id,"path":{
                 "id":m.path.id,"closed":m.path.closed,"nodes":m.path.nodes.iter().map(|n|
-                    serde_json::json!({"id":n.id,"geometry":n.geometry.sample(0.)})).collect::<Vec<_>>()}})).collect::<Vec<_>>()}]})
+                    serde_json::json!({"id":n.id,"geometry":n.geometry.sample(0.).unwrap()})).collect::<Vec<_>>()}})).collect::<Vec<_>>()}]})
     }
     fn screen(&self, p: [f32; 2]) -> [f32; 2] {
         let p = if self.mask {

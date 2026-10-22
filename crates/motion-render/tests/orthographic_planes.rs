@@ -29,7 +29,7 @@ fn check(view: ObservationView, point: [usize; 2]) {
     let mut project = project(view);
     let mut observer = Observer::new(256, 256);
     observer.view = view;
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let target = renderer.capture_target(256, 256).unwrap();
     for swapped in [false, true] {

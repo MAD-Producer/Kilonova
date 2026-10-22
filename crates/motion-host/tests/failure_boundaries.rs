@@ -270,7 +270,7 @@ fn audio_plan_failure_is_distinct_from_silence_and_export_rejects_it() {
     assert!(error.to_string().contains("export audio plan"), "{error}");
     motion_host::session::with_session(id, |session| {
         session.engine = motion_core::Engine::new(Project::new(64, 64, 30, 60).unwrap()).unwrap();
-        session.scene = motion_render::Scene::new(session.engine.project());
+        session.scene = motion_render::Scene::new(session.engine.project()).unwrap();
         let snapshot = session.snapshot().unwrap();
         assert_eq!(snapshot["has_audio"], false);
         assert!(snapshot["audio_error"].is_null());

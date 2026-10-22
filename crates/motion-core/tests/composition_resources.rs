@@ -96,7 +96,7 @@ fn staggered() -> Project {
 #[test]
 fn large_staggered_library_saves_reopens_and_samples_only_current_ranges() {
     let p = staggered(); p.validate().unwrap();
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     for frame in [0.,1.5,3.,87.,190.,0.,87.] {
         scene.sample(&p,frame,None, &motion_core::ExpressionEvaluator).unwrap();
         assert_eq!(scene.nested.len(),1);
@@ -120,7 +120,7 @@ fn document_and_live_frame_budgets_are_distinct_and_live_failure_is_structured()
     let mut p = staggered();
     for l in &mut p.layers { l.timeline = None; }
     p.validate().unwrap();
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     assert_eq!(error_code(scene.sample(&p,0.,None, &motion_core::ExpressionEvaluator).unwrap_err()),"render_resource_limit");
     for l in &mut p.layers { l.visible=false; }
     scene.sample(&p,0.,None, &motion_core::ExpressionEvaluator).unwrap(); assert!(scene.nested.is_empty());
@@ -175,7 +175,7 @@ fn deep_active_views_keep_static_vector_caches_and_restore_instance_aliases() {
     }
     p.validate().unwrap();
     fn leaf(s:&Scene)->&Scene { if s.nested.is_empty() {s} else {leaf(&s.nested[0].scene)} }
-    let mut s=Scene::new(&p); s.sample(&p,0.,None, &motion_core::ExpressionEvaluator).unwrap();
+    let mut s=Scene::new(&p).unwrap(); s.sample(&p,0.,None, &motion_core::ExpressionEvaluator).unwrap();
     let cached=leaf(&s).layers[0].vector.as_ref().unwrap().clone();
     for frame in [2.,1.,0.,14.5,2.] {
         s.sample(&p,frame,None, &motion_core::ExpressionEvaluator).unwrap();

@@ -57,7 +57,7 @@ fn fixture(separated: bool, parented: bool) -> Engine {
     engine
 }
 fn sampled(project: &Project, frame: f64) -> Scene {
-    let mut scene = Scene::new(project);
+    let mut scene = Scene::new(project).unwrap();
     scene
         .sample(project, frame, None, &motion_core::ExpressionEvaluator)
         .unwrap();
@@ -118,8 +118,8 @@ fn assert_geometry(
         assert_eq!(old.transform.scale, new.transform.scale);
         assert_eq!(old.transform.opacity, new.transform.opacity);
         assert_eq!(
-            old.transform.position.sample(old.local_frame(frame))[2],
-            new.transform.position.sample(new.local_frame(frame))[2]
+            old.transform.position.sample(old.local_frame(frame)).unwrap()[2],
+            new.transform.position.sample(new.local_frame(frame)).unwrap()[2]
         );
     }
 }
@@ -394,7 +394,7 @@ fn animated_offset_clips_update_only_the_current_local_key_and_keep_other_frames
                 let mut value = engine.project().layers[object as usize - 1]
                     .transform
                     .position
-                    .sample(0.);
+                    .sample(0.).unwrap();
                 value[0] += object as f32 * 19.;
                 value[1] += object as f32 * 9.;
                 engine
@@ -421,8 +421,8 @@ fn animated_offset_clips_update_only_the_current_local_key_and_keep_other_frames
             for (old, new) in before.layers.iter().zip(&engine.project().layers) {
                 assert_eq!(old.timeline, new.timeline);
                 assert_eq!(
-                    old.transform.position.sample(0.),
-                    new.transform.position.sample(0.)
+                    old.transform.position.sample(0.).unwrap(),
+                    new.transform.position.sample(0.).unwrap()
                 );
                 assert_eq!(
                     old.transform.position.key_frames().collect::<Vec<_>>(),

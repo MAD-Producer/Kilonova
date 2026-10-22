@@ -26,12 +26,12 @@ impl PositionTarget {
     }
 }
 
-fn point<T: Tween + Serialize>(value: T) -> [f32; 3] {
+fn point<T: Tween + Serialize>(value: T) -> Result<[f32; 3]> {
     // Position arrays have two, three or four stored components; the fourth is
     // the SDK parameter padding, never a homogeneous coordinate.
     value
         .spatial_components()
-        .expect("validated position vector")
+        .ok_or_else(|| Error::Invalid("position path: cannot expose spatial components".into()))
 }
 
 fn geometry<T: Tween + Serialize>(
@@ -42,7 +42,7 @@ fn geometry<T: Tween + Serialize>(
     frames: u32,
     matrix: Mat4,
     editable: bool,
-) -> Value {
+) -> Result<Value> {
     let visible: Vec<_> = track
         .keys
         .iter()
@@ -59,11 +59,11 @@ fn geometry<T: Tween + Serialize>(
         .iter()
         .skip(start)
         .take(512)
-        .map(|k| {
+        .map(|k| -> Result<_> {
             let index = track
                 .keys
                 .binary_search_by_key(&k.frame, |v| v.frame)
-                .unwrap();
+                .map_err(|_| Error::Invalid(format!("position path: missing key frame={}", k.frame)))?;
             let incoming = (index > 0).then(|| {
                 k.spatial.as_ref().and_then(|s| s.incoming).map_or_else(
                     || point(track.keys[index - 1].value.mix(k.value, 2. / 3.)),
@@ -76,10 +76,10 @@ fn geometry<T: Tween + Serialize>(
                     |v| point(k.value.add(v)),
                 )
             });
-            json!({"frame":i64::from(k.frame)+i64::from(offset),"local_frame":k.frame,
-            "value":point(k.value),"incoming":incoming,"outgoing":outgoing,"spatial":k.spatial})
+            Ok(json!({"frame":i64::from(k.frame)+i64::from(offset),"local_frame":k.frame,
+            "value":point(k.value)?,"incoming":incoming.transpose()?,"outgoing":outgoing.transpose()?,"spatial":k.spatial}))
         })
-        .collect();
+        .collect::<Result<_>>()?;
     let mut samples = Vec::new();
     if track.is_animated() {
         let times: Vec<_> = track.key_frames().collect();
@@ -90,15 +90,15 @@ fn geometry<T: Tween + Serialize>(
                 for i in 0..=256 {
                     let at = a + (b - a) * f64::from(i) / 256.;
                     samples.push(
-                        json!({"frame":at,"value":point(track.sample(at-f64::from(offset)))}),
+                        json!({"frame":at,"value":point(track.sample(at-f64::from(offset))?)?}),
                     );
                 }
             }
         }
     }
-    json!({"version":1,"matrix":matrix.to_cols_array(),"value":point(sampled),
+    Ok(json!({"version":1,"matrix":matrix.to_cols_array(),"value":point(sampled)?,
         "keys":nodes,"samples":samples,"editable":editable,"spatial_editable":editable&&track.axes.is_none(),
-        "keys_truncated":visible.len()>512,"projection":"current_parent_and_camera","temporal_easing":"independent"})
+        "keys_truncated":visible.len()>512,"projection":"current_parent_and_camera","temporal_easing":"independent"}))
 }
 
 pub fn sample(
@@ -217,13 +217,13 @@ pub fn sample(
                 * sign;
             geometry(
                 stored,
-                sampled,
+                sampled?,
                 offset,
                 frame,
                 project.frames,
                 matrix,
                 editable,
-            )
+            )?
         }
         PositionTarget::Effect { effect, param, .. } => {
             let layer = layer.ok_or(Error::Missing(object))?;
@@ -286,13 +286,13 @@ pub fn sample(
             };
             geometry(
                 &p.track,
-                sampled,
+                sampled?,
                 offset,
                 frame,
                 project.frames,
                 matrix,
                 editable && p.animatable,
-            )
+            )?
         }
     };
     result["target"] = serde_json::to_value(target)

@@ -51,7 +51,7 @@ fn combined_rotation_pixels_match_independent_fixed_axis_basis() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let target = renderer.capture_target(256, 256).unwrap();
     let mut capture = |p: &Project| {
-        let mut scene = Scene::new(p);
+        let mut scene = Scene::new(p).unwrap();
         scene.sample(p, 7., None, &ExpressionEvaluator).unwrap();
         assert_eq!(scene.hit_candidates([128., 128.]).unwrap()[0].id, 1);
         renderer.capture(&scene, &target).unwrap().0

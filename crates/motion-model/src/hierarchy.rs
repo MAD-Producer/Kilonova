@@ -121,10 +121,10 @@ fn node(
             implicit = crate::Camera::new(p.width, p.height);
             (&implicit, frame)
         };
-        let pose = camera.pose_parented(frame, p.width, p.height, prefix);
+        let pose = camera.pose_parented(frame, p.width, p.height, prefix)?;
         // Recover the camera's orthonormal world basis from its projection/view.
         let projection = Mat4::perspective_rh(
-            camera.fov.sample(frame).clamp(10.0, 120.0).to_radians(),
+            camera.fov.sample(frame)?.clamp(10.0, 120.0).to_radians(),
             p.width as f32 / p.height as f32,
             0.5,
             100_000.0,
@@ -137,7 +137,7 @@ fn node(
         } else {
             crate::geometry::flat_matrix(prefix)
         };
-        prefix * crate::geometry::pivot_matrix(layer, frame, p.width, p.height)
+        prefix * crate::geometry::pivot_matrix(layer, frame, p.width, p.height)?
     };
     ensure(value.is_finite(), "invalid parent transform")?;
     world[index] = value;

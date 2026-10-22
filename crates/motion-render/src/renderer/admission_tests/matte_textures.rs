@@ -63,7 +63,7 @@ fn accumulators(renderer: &Renderer) -> Vec<crate::effect_gpu::FxTexture> {
 }
 
 fn sample(project: &Project) -> Scene {
-    let mut scene = Scene::new(project);
+    let mut scene = Scene::new(project).unwrap();
     scene.sample(project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     scene
 }

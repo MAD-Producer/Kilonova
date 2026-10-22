@@ -61,7 +61,7 @@ fn rejected_encoding_does_not_create_a_submission_and_capture_keeps_existing_pix
         [8., 8., 0.],
         [0.3, 0.6, 0.9, 0.5],
     ));
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene
         .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();

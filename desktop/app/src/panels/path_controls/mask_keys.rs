@@ -105,12 +105,12 @@ pub(super) fn frames(mask: &LayerMask, index: u8) -> Vec<i32> {
         _ => mask.expansion.keys.iter().map(|k| k.frame).collect(),
     }
 }
-pub(super) fn values(mask: &LayerMask, index: u8, local: f64) -> Vec<f32> {
+pub(super) fn values(mask: &LayerMask, index: u8, local: f64) -> motion_core::Result<Vec<f32>> {
     match index {
         mask_path::CHANNEL => mask_path::values(mask, local),
-        0 => vec![mask.opacity.sample(local)],
-        1 => mask.feather.sample(local).to_vec(),
-        _ => vec![mask.expansion.sample(local)],
+        0 => Ok(vec![mask.opacity.sample(local)?]),
+        1 => Ok(mask.feather.sample(local)?.to_vec()),
+        _ => Ok(vec![mask.expansion.sample(local)?]),
     }
 }
 pub(super) fn animated(mask: &LayerMask, index: u8) -> bool {
@@ -248,6 +248,7 @@ impl Controls {
                         .any(|f| i64::from(*f) + i64::from(owner.offset) == i64::from(m.frame))
                 })
         });
+        let mut sampling_failed = false;
         if let Some(menu) = &mut self.menu {
             if menu.channel.property == mask_path::CHANNEL {
                 menu.path = masks
@@ -255,8 +256,12 @@ impl Controls {
                     .find(|m| m.id == menu.channel.mask)
                     .map(|m| (m.clone(), owner.offset));
                 if let Some((mask, offset)) = &menu.path {
-                    menu.values =
-                        mask_path::values(mask, f64::from(menu.frame) - f64::from(*offset));
+                    match observe!("mask.menu_path_sample",
+                        mask_path::values(mask, f64::from(menu.frame) - f64::from(*offset)),
+                        "object={} mask={} frame={}", owner.object, mask.id, menu.frame) {
+                        Ok(values) => menu.values = values,
+                        Err(_) => sampling_failed = true,
+                    }
                 }
             }
             menu.can_curve = menu.existing
@@ -265,7 +270,7 @@ impl Controls {
                         .any(|f| i64::from(*f) + i64::from(owner.offset) > i64::from(menu.frame))
                 });
         }
-        if self.context.as_ref() != Some(&context)
+        if sampling_failed || self.context.as_ref() != Some(&context)
             || owner.locked
             || missing
             || input.focus_lost
@@ -339,7 +344,12 @@ impl Controls {
                 } else {
                     MaskAction::Set {
                         mask: mask.id, property: property(index), frame,
-                        value: values(mask, index, f64::from(frame) - f64::from(owner.offset)),
+                        value: match observe!("mask.key_navigation_sample",
+                            values(mask, index, f64::from(frame) - f64::from(owner.offset)),
+                            "object={} mask={} channel={index} frame={frame}", owner.object, mask.id) {
+                            Ok(values) => values,
+                            Err(_) => return true,
+                        },
                         animated: Some(true),
                     }
                 };
@@ -480,7 +490,12 @@ impl Controls {
                         && stored
                             .iter()
                             .any(|f| i64::from(*f) + i64::from(owner.offset) > i64::from(time)),
-                    values: values(mask, index, f64::from(time) - f64::from(owner.offset)),
+                    values: match observe!("mask.key_menu_sample",
+                        values(mask, index, f64::from(time) - f64::from(owner.offset)),
+                        "object={} mask={} channel={index} frame={time}", owner.object, mask.id) {
+                        Ok(values) => values,
+                        Err(_) => return,
+                    },
                     path: (index == mask_path::CHANNEL).then(|| (mask.clone(), owner.offset)),
                 });
             }
@@ -890,7 +905,7 @@ mod tests {
         let state = serde_json::json!({"root":"fixture","composition":motion_core::composition::MAIN_COMPOSITION,"project":engine.project(),"frame":frame});
         let local = f64::from(frame) - 12.;
         let keys = frames(mask, index);
-        let values = values(mask, index, local);
+        let values = values(mask, index, local).unwrap();
         let mut out = vec![];
         controls.prepare(&state, layer, input, &mut out);
         let modal = controls.modal();
@@ -1440,7 +1455,7 @@ mod tests {
                         mask: 1,
                         property: MaskProperty::Expansion,
                         frame: 21,
-                        value: mask_path::values(mask, 9.),
+                        value: mask_path::values(mask, 9.).unwrap(),
                         animated: Some(true),
                     },
                 )
@@ -1452,7 +1467,7 @@ mod tests {
                         mask: 1,
                         property: MaskProperty::Expansion,
                         frame: 60,
-                        value: mask_path::values(&mask, 48.),
+                        value: mask_path::values(&mask, 48.).unwrap(),
                         animated: Some(true),
                     },
                 )

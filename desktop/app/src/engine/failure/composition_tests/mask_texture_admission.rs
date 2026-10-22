@@ -20,7 +20,7 @@ fn native_mask_texture_refusal_keeps_old_pixels_cause_and_default_output_channel
         layer.masks.push(mask);
         project.layers.push(layer);
         project.validate().unwrap();
-        let mut scene = motion_render::Scene::new(&project);
+        let mut scene = motion_render::Scene::new(&project).unwrap();
         scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
         let mut renderer = pollster::block_on(motion_render::Renderer::headless()).unwrap();
         let budget = renderer.allocation_budget().clone();

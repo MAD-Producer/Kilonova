@@ -21,7 +21,7 @@ struct State {
     parameters: BTreeMap<u64, BTreeMap<String, serde_json::Value>>,
 }
 fn scalar(t: &Track<f32>, f: f64, lo: f32, hi: f32) -> Result<f32> {
-    let v = t.sample(f);
+    let v = t.sample(f)?;
     ensure(
         (lo..=hi).contains(&v),
         "sampled group scalar outside valid range",
@@ -29,7 +29,7 @@ fn scalar(t: &Track<f32>, f: f64, lo: f32, hi: f32) -> Result<f32> {
     Ok(v)
 }
 fn vector(t: &Track<[f32; 2]>, f: f64, lo: f32, hi: f32) -> Result<Vec2> {
-    let v = Vec2::from_array(t.sample(f));
+    let v = Vec2::from_array(t.sample(f)?);
     ensure(
         v.to_array().iter().all(|v| (lo..=hi).contains(v)),
         "sampled group vector outside valid range",
@@ -37,7 +37,7 @@ fn vector(t: &Track<[f32; 2]>, f: f64, lo: f32, hi: f32) -> Result<Vec2> {
     Ok(v)
 }
 fn color(t: &Track<[f32; 4]>, f: f64) -> Result<[f32; 4]> {
-    let v = t.sample(f);
+    let v = t.sample(f)?;
     ensure(
         v.iter().all(|v| (0.0..=1.).contains(v)),
         "sampled group color outside valid range",
@@ -314,20 +314,20 @@ fn sample_group(g: &VectorGroup, f: f64, serial: &mut u32) -> Result<State> {
                 }
                 if let VectorSource::Shape { parameters, .. } = &v.source {
                     for (name, t) in parameters {
-                        values.insert(format!("shape:{name}"), json!(t.sample(f)));
+                        values.insert(format!("shape:{name}"), json!(t.sample(f)?));
                     }
                 }
                 if let VectorSource::Paths { paths } = &v.source {
                     for path in paths {
                         for node in &path.nodes {
-                            values.insert(format!("node:{}:{}", path.id, node.id), json!(node.geometry.sample(f)));
+                            values.insert(format!("node:{}:{}", path.id, node.id), json!(node.geometry.sample(f)?));
                         }
                     }
                 }
                 if let Some(t) = &v.trim {
-                    values.insert("trim_start".into(), json!(t.start.sample(f)));
-                    values.insert("trim_end".into(), json!(t.end.sample(f)));
-                    values.insert("trim_offset".into(), json!(t.offset.sample(f)));
+                    values.insert("trim_start".into(), json!(t.start.sample(f)?));
+                    values.insert("trim_end".into(), json!(t.end.sample(f)?));
+                    values.insert("trim_offset".into(), json!(t.offset.sample(f)?));
                 }
                 if let Some(d) = &sampled.dashes {
                     values.insert("dash_offset".into(), json!(d.offset));

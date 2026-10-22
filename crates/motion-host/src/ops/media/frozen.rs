@@ -195,7 +195,7 @@ pub fn request_frozen_composition_frame(handle: i64, frame: f64, sequence: u64) 
         if sequence < reader.sequence || (sequence == reader.sequence && frame != reader.time) {
             return Err(Error::Superseded("frozen composition request superseded"));
         }
-        let mut scene = motion_render::Scene::new(&reader.project);
+        let mut scene = motion_render::Scene::new(&reader.project)?;
         scene.sample(&reader.project, frame, None, &motion_core::ExpressionEvaluator)?;
         if sequence != reader.sequence { reader.prepared.clear(); reader.sequence = sequence; reader.time = frame; }
         match reader.frames.prepare_scene_exact(&reader.project, &reader.root, &scene)? {

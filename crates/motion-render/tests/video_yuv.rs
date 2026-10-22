@@ -45,7 +45,7 @@ fn scene(width: u32, height: u32) -> Scene {
     // Sampling a source uses validated metadata in ordinary projects; this GPU
     // test supplies draw pixels directly to exercise conversion/compositing.
     p.layers.push(l);
-    let mut s = Scene::new(&p);
+    let mut s = Scene::new(&p).unwrap();
     s.sample(&p, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();
     s.layers[0].video = Some(motion_core::VideoSample {
@@ -222,7 +222,7 @@ fn nested_scene_rejects_unsubmitted_conversion_and_keeps_standalone_pixels() {
             .unwrap(),
         )
         .unwrap();
-    let mut child_scene = Scene::new(engine.project());
+    let mut child_scene = Scene::new(engine.project()).unwrap();
     child_scene
         .sample(
             engine.project(),

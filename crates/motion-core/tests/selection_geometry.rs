@@ -35,7 +35,7 @@ fn fixture() -> (Project, Registry) {
 fn selection_and_picking_move_with_shake_without_changing_stored_transforms() {
     let (p, registry) = fixture();
     let stored = p.clone();
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene.sample(&p, 15., None, &motion_core::ExpressionEvaluator).unwrap();
     let layer = &scene.layers[0];
     let polygon = motion_render::selection_geometry::polygon(layer, &scene, &registry).unwrap();
@@ -68,7 +68,7 @@ fn partial_opacity_contains_original_and_moved_output_and_zero_is_identity() {
         .unwrap()
         .track
         .value = [50., 0., 0., 0.];
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene.sample(&p, 15., None, &motion_core::ExpressionEvaluator).unwrap();
     let polygon =
         motion_render::selection_geometry::polygon(&scene.layers[0], &scene, &registry).unwrap();

@@ -226,7 +226,7 @@ fn differing_frame_rates_offsets_and_duplicate_instances_sample_independently() 
         MAIN_COMPOSITION,
         json!({"kind":"reference","target":id,"at_frame":20}),
     );
-    let mut scene = Scene::new(e.project());
+    let mut scene = Scene::new(e.project()).unwrap();
     scene.sample(e.project(), 25., None, &motion_core::ExpressionEvaluator).unwrap();
     assert_eq!(scene.nested[0].scene.frame, 30.);
     assert_eq!(scene.nested[1].scene.frame, 10.);
@@ -259,9 +259,9 @@ fn nested_expression_views_preserve_time_and_dimensions_without_copying_the_grap
         json!({"kind":"precompose","objects":[1,2],"name":"expression child"}),
     );
     for frame in [0., 40.5, 80., 4.] {
-        let mut original = Scene::new(&before);
+        let mut original = Scene::new(&before).unwrap();
         original.sample(&before, frame, None, &motion_core::ExpressionEvaluator).unwrap();
-        let mut nested = Scene::new(e.project());
+        let mut nested = Scene::new(e.project()).unwrap();
         nested.sample(e.project(), frame, None, &motion_core::ExpressionEvaluator).unwrap();
         assert_eq!(
             original.layers[0].model,

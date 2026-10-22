@@ -76,7 +76,7 @@ fn particle_birth_history_retains_camera_layer_ancestry_and_invalidates_on_camer
     let emitter = &p.layers[0];
     let history = motion_core::particle_history::ParticleHistory::capture(&p, emitter, &emitter.effects[0], None).unwrap();
     let actual = history.matrix_at(0.5, &mut vec![], &mut vec![]).unwrap();
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene.sample(&p, 15., None, &motion_core::ExpressionEvaluator).unwrap();
     assert!(actual.abs_diff_eq(scene.world_matrix(1).unwrap(), 1e-5));
     p.camera_for_mut(2).unwrap().position.value[0] += 50.;
@@ -88,7 +88,7 @@ fn particle_birth_history_retains_camera_layer_ancestry_and_invalidates_on_camer
 #[test]
 fn moving_emitter_leaves_old_births_and_reuses_their_poses() {
     let p = project();
-    let mut s = Scene::new(&p);
+    let mut s = Scene::new(&p).unwrap();
     let mut b = builder();
     sample(&p, &mut s, &mut b, 30.);
     assert_eq!(xs(&b), vec![32., 64., 96.]);
@@ -113,7 +113,7 @@ fn seek_reverse_save_restore_and_seed_edits_are_deterministic() {
         .unwrap()
         .track
         .value[0] = 25.;
-    let mut s = Scene::new(&p);
+    let mut s = Scene::new(&p).unwrap();
     let mut b = builder();
     sample(&p, &mut s, &mut b, 30.);
     let expected = b.frame.sprites.clone();
@@ -150,7 +150,7 @@ fn linked_null_parent_and_clip_offsets_sample_birth_composition_time() {
     p.layers[0].effects[0].scene.as_mut().unwrap().source_layer = Some(2);
     p.layers.extend([source, parent]);
     p.validate().unwrap();
-    let mut s = Scene::new(&p);
+    let mut s = Scene::new(&p).unwrap();
     let mut b = builder();
     sample(&p, &mut s, &mut b, 60.);
     assert_eq!(xs(&b), vec![64., 80., 96.]);
@@ -164,7 +164,7 @@ fn animated_velocity_and_appearance_are_frozen_at_birth() {
         vec![key(0, [0.; 4]), key(30, [32., 0., 0., 0.])];
     e.params.get_mut("size").unwrap().track.keys =
         vec![key(0, [8., 0., 0., 0.]), key(30, [24., 0., 0., 0.])];
-    let mut s = Scene::new(&p);
+    let mut s = Scene::new(&p).unwrap();
     let mut b = builder();
     sample(&p, &mut s, &mut b, 30.);
     assert_eq!(xs(&b), vec![32., 72., 96.]);
@@ -179,7 +179,7 @@ fn inherited_velocity_gravity_and_drag_follow_analytic_motion() {
     e.params.get_mut("inherit_velocity").unwrap().track.value[0] = 1.;
     e.params.get_mut("gravity").unwrap().track.value = [0., 20., 0., 0.];
     e.params.get_mut("drag").unwrap().track.value[0] = 2.;
-    let mut s = Scene::new(&p);
+    let mut s = Scene::new(&p).unwrap();
     let mut b = builder();
     sample(&p, &mut s, &mut b, 30.);
     // Birth 1 at t=0.5 has dx/dt=64 px/s. At age=0.5, drag reduces its travel.
@@ -198,7 +198,7 @@ fn camera_culling_keeps_births_and_reprojects_them() {
     p.layers[0].transform.position.value = [64., 64., 0.];
     p.camera.position.value[0] += 10000.;
     p.camera.target.value[0] += 10000.;
-    let mut s = Scene::new(&p);
+    let mut s = Scene::new(&p).unwrap();
     let mut b = builder();
     sample(&p, &mut s, &mut b, 30.);
     assert_eq!(b.frame.generator_stats.alive, 3);
@@ -213,7 +213,7 @@ fn camera_culling_keeps_births_and_reprojects_them() {
 fn missing_source_and_history_expression_block_export_with_preview_fallback() {
     let mut p = project();
     p.layers[0].effects[0].scene.as_mut().unwrap().source_layer = Some(99);
-    let mut s = Scene::new(&p);
+    let mut s = Scene::new(&p).unwrap();
     let mut b = builder();
     s.sample(&p, 30., None, &motion_core::ExpressionEvaluator).unwrap();
     assert!(b.build(&s, &[0], 128, 128, true).is_err());
@@ -253,7 +253,7 @@ fn missing_source_and_history_expression_block_export_with_preview_fallback() {
 fn world_birth_particles_render_on_gpu_and_survive_undo_redo() {
     let p = project();
     let mut engine = motion_core::Engine::new(p.clone()).unwrap();
-    let mut s = Scene::new(&p);
+    let mut s = Scene::new(&p).unwrap();
     let mut b = builder();
     sample(&p, &mut s, &mut b, 30.);
     let expected = b.frame.sprites.clone();
@@ -292,7 +292,7 @@ fn custom_png_sprite_keeps_aspect_alpha_and_shared_texture() {
     e.scene.as_mut().unwrap().sprite_asset = Some(1);
     e.params.get_mut("size").unwrap().track.value[0] = 16.;
     e.params.get_mut("end_size").unwrap().track.value[0] = 16.;
-    let mut s = Scene::new(&p);
+    let mut s = Scene::new(&p).unwrap();
     s.sample(&p, 30., None, &motion_core::ExpressionEvaluator).unwrap();
     let mut b = builder();
     b.build(&s, &[0, 1], 128, 128, true).unwrap();
@@ -357,8 +357,8 @@ fn nested_png_emitter_preserves_births_pixels_and_random_seek() {
     renderer.set_effect_registry(scene_fixtures::registry().unwrap());
     renderer.upload_image(1, 8, 8, &[255; 8 * 8 * 4]).unwrap();
     let target = renderer.capture_target(128, 128).unwrap();
-    let mut plain = Scene::new(&p);
-    let mut nested = Scene::new(engine.project());
+    let mut plain = Scene::new(&p).unwrap();
+    let mut nested = Scene::new(engine.project()).unwrap();
     for frame in [30., 15., 35., 5., 30.] {
         plain.sample(&p, frame, None, &motion_core::ExpressionEvaluator).unwrap();
         let expected = renderer.capture(&plain, &target).unwrap().0;

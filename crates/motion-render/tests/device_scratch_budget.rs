@@ -49,7 +49,7 @@ fn memory_policy_is_bounded_and_guarded_or_unknown_devices_keep_the_floor() {
 #[test]
 fn four_k_plans_obey_each_tier_and_serialize_the_same_allowance_for_gles() {
     let p = project(&["glow_edges"]);
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene.sample(&p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     let mut b = PlanBuilder::new(motion_effects::Registry::new_with_builtins().unwrap()).unwrap();
     for (mem, fits) in [(3 * GIB, false), (6 * GIB, true), (12 * GIB, true)] {
@@ -104,7 +104,7 @@ fn four_k_plans_obey_each_tier_and_serialize_the_same_allowance_for_gles() {
 #[test]
 fn changing_budget_invalidates_preview_and_still_enforces_device_dimensions() {
     let p = project(&["glow_edges"]);
-    let mut scene = Scene::new(&p);
+    let mut scene = Scene::new(&p).unwrap();
     scene.sample(&p, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     let mut b = PlanBuilder::new(motion_effects::Registry::new_with_builtins().unwrap()).unwrap();
     b.set_scratch_budget(192 << 20).unwrap();

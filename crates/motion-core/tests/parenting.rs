@@ -1,7 +1,7 @@
 use motion_core::{Asset, Command, Content, Engine, Layer, Project, Property};
 use motion_render::Scene;
 fn scene(p: &Project, frame: f64) -> Scene {
-    let mut s = Scene::new(p);
+    let mut s = Scene::new(p).unwrap();
     s.sample(p, frame, None, &motion_core::ExpressionEvaluator).unwrap();
     s
 }

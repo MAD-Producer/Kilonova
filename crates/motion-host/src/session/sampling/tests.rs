@@ -116,13 +116,13 @@ fn preview_candidate_preserves_front_until_complete_and_matches_receiver_oracle(
                 .target(),
         )
         .unwrap();
-    let mut center = Scene::new(&p);
+    let mut center = Scene::new(&p).unwrap();
     center
         .sample(&p, 1., None, &motion_core::ExpressionEvaluator)
         .unwrap();
     let mut oracle = r.exposure_target(32, 32, &[0.25; 4]).unwrap();
     for time in [0.25, 0.75, 1.25, 1.75] {
-        let mut sample = Scene::new(&p);
+        let mut sample = Scene::new(&p).unwrap();
         sample
             .sample(&p, time, None, &motion_core::ExpressionEvaluator)
             .unwrap();
