@@ -4,7 +4,6 @@ use super::*;
 fn feathered_mask_mesh_and_filter_uniforms_share_renderer_admission() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
     let budget = renderer.allocation_budget().clone();
-    let before = budget.info().unwrap();
     let layout = layout(&renderer.device);
     let mut gpu = admitted_gpu(&renderer, &layout);
     let p = project();
@@ -14,11 +13,14 @@ fn feathered_mask_mesh_and_filter_uniforms_share_renderer_admission() {
     assert_eq!(masks.len(), 1);
     let mesh_bytes = (masks[0].vertices.len() as u64 * 24).max(24).next_multiple_of(4);
     // Two feather axes and one combine pass have three distinct 624-byte
-    // uniforms. Texture admission is a separate pending part of #61.
+    // uniforms. Pre-admitted native targets below isolate the buffer delta.
     let expected = mesh_bytes + 3 * 624;
-    let mut encoder = renderer.device.create_command_encoder(&Default::default());
     let mut images = HashMap::new();
     let mut bytes = 0;
+    let _textures = retained_texture_fixture(&renderer, &mut gpu, &layout,
+        &scene, &masks, &mut images, &mut bytes);
+    let before = budget.info().unwrap();
+    let mut encoder = renderer.device.create_command_encoder(&Default::default());
     assert!(gpu.prepare(&renderer.device, &renderer.queue, &mut encoder, &layout,
         &scene, &masks, &mut images, &mut bytes, 0, 128 << 20).unwrap());
     assert_eq!(gpu.uniforms.len(), 3);
@@ -56,7 +58,6 @@ fn assert_refusal(error: &RenderError, required: u64, limit: u64, phase: &str) {
 fn every_mask_uniform_refusal_preserves_partial_capacity_and_recovers_pixels() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
     let budget = renderer.allocation_budget();
-    let base = crate::FIXED_RENDERER_ALLOCATION_BYTES;
     let layout = layout(&renderer.device);
     let (scene, masks) = sampled(&project());
     let mesh = masks[0].vertices.len() as u64 * 24;
@@ -64,6 +65,9 @@ fn every_mask_uniform_refusal_preserves_partial_capacity_and_recovers_pixels() {
         let mut gpu = admitted_gpu(&renderer, &layout);
         let mut images = HashMap::new();
         let mut bytes = 0;
+        let _textures = retained_texture_fixture(&renderer, &mut gpu, &layout,
+            &scene, &masks, &mut images, &mut bytes);
+        let base = budget.info().unwrap().admitted_bytes;
         let limit = base + mesh + existing as u64 * 624 + 623;
         budget.set_limit(limit).unwrap();
         let mut encoder = renderer.device.create_command_encoder(&Default::default());
@@ -184,7 +188,6 @@ fn abandoned_mask_commands_keep_all_buffers_without_renewing_completed_scopes() 
     renderer.queue.submit([]);
     renderer.device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
     let budget = renderer.allocation_budget();
-    let base = crate::FIXED_RENDERER_ALLOCATION_BYTES;
     let layout = layout(&renderer.device);
     let (scene, masks) = sampled(&project());
     let buffers = masks[0].vertices.len() as u64 * 24 + 3 * 624;
@@ -192,6 +195,9 @@ fn abandoned_mask_commands_keep_all_buffers_without_renewing_completed_scopes() 
         let mut gpu = admitted_gpu(&renderer, &layout);
         let mut images = HashMap::new();
         let mut bytes = 0;
+        let _textures = retained_texture_fixture(&renderer, &mut gpu, &layout,
+            &scene, &masks, &mut images, &mut bytes);
+        let base = budget.info().unwrap().admitted_bytes;
         let mut encoder = renderer.allocation_command_encoder(&Default::default()).unwrap();
         gpu.prepare(&renderer.device, &renderer.queue, &mut encoder, &layout,
             &scene, &masks, &mut images, &mut bytes, 0, 128 << 20).unwrap();
@@ -206,4 +212,16 @@ fn abandoned_mask_commands_keep_all_buffers_without_renewing_completed_scopes() 
         drop(later);
     }
     renderer.check_health().unwrap();
+}
+
+// Keep texture capacity in a separate, explicit fixture ownership scope while
+// the older controls measure only mesh and filter-uniform capacity/retirement.
+fn retained_texture_fixture(renderer: &Renderer, gpu: &mut MaskGpu,
+    layout: &wgpu::BindGroupLayout, scene: &Scene, masks: &[MaskRaster],
+    images: &mut HashMap<TextureKey, GpuImage>, bytes: &mut u64,
+) -> Vec<crate::resource_ledger::OwnedTexture> {
+    gpu.prepare_textures(&renderer.device, layout, scene, masks,
+        images, bytes, 0, 128 << 20).unwrap();
+    gpu.scratch.iter().map(|target| target.texture.clone())
+        .chain(images.values().map(|image| image._texture.clone())).collect()
 }

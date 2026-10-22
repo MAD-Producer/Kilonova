@@ -1199,3 +1199,61 @@ driver residency. Remaining group/raw resources, foreign Presenter integration,
 shared session/platform pressure, complete bounded preview/export and repeated
 lifecycle acceptance remain pending. #60/#61/#67 stay open; precision and3D are
 not declared ready by this increment.
+
+
+## Fifteenth increment: native mask output and scratch admission
+
+Accepted product/test source: `5e13bff8c9bb2113041d28f3193b2d318cf54d2a`.
+This extends the earlier mask buffer admission to actual R8 image allocations.
+The complete replacement scratch pool and all resized mask outputs are staged
+before replacing native owners, dimensions or cached inputs. Any texture-stage
+refusal rolls back the staged shared reservations and leaves the previous
+targets, source-category accounting and bindings intact. Cached input/source
+bindings retain the same allocation leases. Ordinary rendering still uses the
+existing formats, mask parameters and typed failure paths, without retries,
+deadline changes, project changes or silent effect removal.
+
+The native control `09a2f9e4` reproduced 12,288 missing shared bytes for two 64x64
+R8 scratch textures and one 64x64 output: booked 1,346,608 versus expected 1,358,896,
+cargo exit 101. Its complete original capacity, live-count, submitted pixel and release
+control is retained unchanged. Initial implementation `5b3c9809` passed all 13
+mask library cases, including five new native cases. Older buffer-only tests
+now pre-admit and explicitly retain actual native texture aliases before
+measuring buffer deltas. Their existing assertion expressions remain unchanged;
+the new cases independently verify complete texture capacity and retirement.
+The existing desktop vertex-refusal fixture first warms the newly admitted
+earlier texture stages, then changes an actual mask vertex to retain its original
+buffer refusal, cause and recovery assertions.
+
+| Item | Native evidence | Disposition |
+| --- | --- | --- |
+| #61-A97 | Actual output and two scratch descriptors add 12,288 bytes and three native allocations in addition to the original four buffers; submitted pixels and exact release | New native admission coverage |
+| #61-A98 | Both scratch slots and output refusal preserve old native IDs, dimensions, bindings, source bytes, shared live counts and pixels; warm reuse and successful 128x64 recovery | New transactional replacement coverage |
+| #61-A99 | A real cached Gaussian input still renders center 255 after cache owners clear; 4096 bytes remain admitted until that binding retires | New cached-alias lifetime coverage |
+| #61-A100 | Encoding, finished-abandoned and actually submitted native mask commands retain all texture/buffer capacity until their own retirement despite a later scope | New native command lifetime coverage |
+| #61-A101 | Two real Renderers share capacity; releasing only scratch still causes output refusal with staged rollback; final owner release permits recovery | New shared-capacity coverage |
+| #61-A102 | Real resized scratch refusal request 215 preserves cause, old target pixels, byte/live counts and exact recovery; default Info file and Error stderr, stdout isolated | New default-output observation |
+
+On this same frozen source, 113 render-library cases, 20 desktop composition/error
+cases, 64 cases across 12 selected GPU integration suites (including the three
+existing full-resolution mask cases), and 69 host-library cases passed:
+**266 distinct selected cases**, zero failures or ignores. Workspace/all-targets
+FFmpeg check excluding Android and the existing panel style consumer guard also
+passed. The 13-case preliminary run overlaps this selection and is not added.
+The new desktop case exercises an actual native failure through
+CURRENT_COMMAND/respond; it is not a full worker-dispatch test. Local selected
+acceptance does not claim full workspace tests or public CI. No panels, styles,
+dependencies or assets changed.
+
+Logs and exact-source receipts are
+`artifacts/pr-queue/mask-texture-admission-final-{library,desktop,gpu,host,workspace,styles}.*`.
+The original failing native control remains in the before-fix log; the acceptance
+receipt `.tools/issue-closure-review/mask-texture-admission-acceptance.json`
+records source IDs, raw hashes and exclusions. 146 worktrees were inspected;
+the old egui worktree's mask changes are the already-main wgpu API migration,
+not this budget implementation. That foreign tree was not modified.
+Logical native capacity is not physical driver VRAM. Ordinary vector source,
+MSAA/resolve and group targets, foreign Presenter integration, complete shared
+session/platform pressure, bounded preview/export and repeated lifecycle
+acceptance remain pending. #60/#61/#67 remain open; precision and 3D readiness
+are not established by this increment.

@@ -25,6 +25,9 @@ fn mask_refusal_preserves_cause_and_reaches_default_file_and_stderr() {
         let mut renderer = pollster::block_on(motion_render::Renderer::headless()).unwrap();
         let budget = renderer.allocation_budget().clone();
         let target = renderer.capture_target(32, 32).unwrap();
+        renderer.capture(&scene, &target).unwrap();
+        project.layers[0].masks[0].path.nodes[0].geometry.value[0] = 5.;
+        scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
         let limit = budget.info().unwrap().admitted_bytes;
         budget.set_limit(limit).unwrap();
         CURRENT_COMMAND.set(Some(Flight {
