@@ -15,7 +15,7 @@ fn source(root: &Path, name: &str, width: u32, height: u32) -> Source {
         root,
         &Asset {
             id: 17,
-            path: name.into(),
+            path: format!("assets/{name}"),
             width,
             height,
         },
@@ -24,8 +24,9 @@ fn source(root: &Path, name: &str, width: u32, height: u32) -> Source {
 }
 
 fn png(root: &Path) -> Source {
+    std::fs::create_dir_all(root.join("assets")).unwrap();
     image::save_buffer(
-        root.join("image.png"),
+        root.join("assets/image.png"),
         &[
             255, 0, 0, 255, 255, 255, 255, 0, 0, 0, 255, 255, 0, 0, 255, 255,
         ],
@@ -153,8 +154,9 @@ fn malformed_inputs_and_invalid_output_buffers_are_not_capacity_refusals() {
 #[test]
 fn jpeg_proxy_refuses_full_source_capacity_and_recovers_with_an_explicit_allowance() {
     let root = tempfile::tempdir().unwrap();
+    std::fs::create_dir(root.path().join("assets")).unwrap();
     image::save_buffer(
-        root.path().join("image.jpg"),
+        root.path().join("assets/image.jpg"),
         &[34, 91, 187].repeat(16),
         4,
         4,
@@ -256,9 +258,10 @@ fn policy_validation_is_atomic_and_cpu_allowance_is_independent_of_gpu_allowance
 #[test]
 fn configured_full_png_can_cross_the_previous_128_mib_result_limit() {
     let root = tempfile::tempdir().unwrap();
+    std::fs::create_dir(root.path().join("assets")).unwrap();
     let (width, height) = (8192, 4097);
     let mut encoder = png::Encoder::new(
-        std::fs::File::create(root.path().join("large.png")).unwrap(),
+        std::fs::File::create(root.path().join("assets/large.png")).unwrap(),
         width,
         height,
     );

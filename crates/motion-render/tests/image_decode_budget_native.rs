@@ -6,8 +6,9 @@ use motion_render::{
 #[test]
 fn actual_cpu_refusal_preserves_target_and_recovers_proxy_then_original_pixels() {
     let root = tempfile::tempdir().unwrap();
+    std::fs::create_dir(root.path().join("assets")).unwrap();
     image::save_buffer(
-        root.path().join("image.png"),
+        root.path().join("assets/image.png"),
         &[
             255, 0, 0, 255, 255, 255, 255, 0, 0, 0, 255, 255, 0, 0, 255, 255,
         ],
@@ -19,7 +20,7 @@ fn actual_cpu_refusal_preserves_target_and_recovers_proxy_then_original_pixels()
     let mut project = Project::new(64, 64, 30, 6).unwrap();
     project.assets.push(Asset {
         id: 17,
-        path: "image.png".into(),
+        path: "assets/image.png".into(),
         width: 4,
         height: 1,
     });
@@ -84,14 +85,14 @@ fn actual_cpu_refusal_preserves_target_and_recovers_proxy_then_original_pixels()
 
     // A real decoder failure must remain a decoder failure after policy update.
     renderer.clear_assets();
-    let mut corrupt = std::fs::read(root.path().join("image.png")).unwrap();
+    let mut corrupt = std::fs::read(root.path().join("assets/image.png")).unwrap();
     let idat = corrupt
         .windows(4)
         .position(|bytes| bytes == b"IDAT")
         .unwrap();
     let size = u32::from_be_bytes(corrupt[idat - 4..idat].try_into().unwrap()) as usize;
     corrupt[idat + 4 + size] ^= 1;
-    std::fs::write(root.path().join("image.png"), corrupt).unwrap();
+    std::fs::write(root.path().join("assets/image.png"), corrupt).unwrap();
     let error = renderer
         .prepare_scene_assets(&scene, Resolution::Full, false)
         .unwrap_err();

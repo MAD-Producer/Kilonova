@@ -47,8 +47,9 @@ fn info_start_precedes_real_decoder_access_and_does_not_require_debug() {
     log::set_logger(capture).unwrap();
     log::set_max_level(log::LevelFilter::Info);
     let root = tempfile::tempdir().unwrap();
+    std::fs::create_dir(root.path().join("assets")).unwrap();
     image::save_buffer(
-        root.path().join("image.png"),
+        root.path().join("assets/image.png"),
         &[31, 129, 221, 255],
         1,
         1,
@@ -59,7 +60,7 @@ fn info_start_precedes_real_decoder_access_and_does_not_require_debug() {
         root.path(),
         &motion_core::Asset {
             id: 17,
-            path: "image.png".into(),
+            path: "assets/image.png".into(),
             width: 1,
             height: 1,
         },
