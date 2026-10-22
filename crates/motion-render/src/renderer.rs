@@ -73,6 +73,8 @@ pub enum RenderError {
     Model(#[from] motion_model::Error),
     #[error(transparent)]
     Io(#[from] std::io::Error),
+    #[error("GPU validation: {0}")]
+    ImageResource(#[from] crate::image_resources::Error),
     #[error(transparent)]
     VectorUpload(#[from] crate::VectorUploadError),
     #[error("GPU validation: {0}")]
@@ -1253,8 +1255,7 @@ impl Renderer {
         // mutation: host command preparation relies on Err being non-destructive.
         let mut sources = HashMap::new();
         for asset in &project.assets {
-            let source = crate::image_resources::Source::new(root, asset)
-                .map_err(RenderError::Invalid)?;
+            let source = crate::image_resources::Source::new(root, asset)?;
             sources.insert(asset.id, source);
         }
         let stale: Vec<_> = self.images.keys().filter_map(|key| match key {
@@ -1425,8 +1426,11 @@ impl Renderer {
                 self.image_upload_bytes += pixels.rgba.len() as u64;
                 self.touch_image(source.id);
                 }
-                Err(error) if error == crate::image_resources::CANCELLED => {}
-                Err(error) if !speculative => return Err(RenderError::Invalid(format!("image {}: {error}", source.id))),
+                Err(crate::image_resources::Error::Cancelled) => {}
+                Err(error) if !speculative => {
+                    let message = format!("image {}: {error}", source.id);
+                    return Err(RenderError::from(error).with_diagnostic(message));
+                },
                 Err(error) => {
                     PREFETCH_FAILURES.failure("renderer.image_prefetch", format_args!("source_id={} error={error}", source.id));
                     self.image_prefetch_failed.insert(source.id);
@@ -1439,7 +1443,7 @@ impl Renderer {
             let source = self.image_sources[&id].clone();
             if asynchronous {
                 if !self.image_decode.busy() {
-                    self.image_decode.start(source, resolution, false).map_err(RenderError::Invalid)?;
+                    self.image_decode.start(source, resolution, false)?;
                 }
                 IMAGE_PENDING.failure("renderer.prepare_scene_assets", format_args!(
                     "source_id={} prefetch_failed={} decoder_busy={}", id,
@@ -1447,7 +1451,10 @@ impl Renderer {
                 return Ok(false);
             }
             let pixels = decode(&source, resolution)
-                .map_err(|e| RenderError::Invalid(format!("image {id}: {e}")))?;
+                .map_err(|error| {
+                    let message = format!("image {id}: {error}");
+                    RenderError::from(error).with_diagnostic(message)
+                })?;
             self.upload_pixels(TextureKey::Static(id), pixels.width, pixels.height, &pixels.rgba, false)?;
             self.image_decodes += u64::from(!pixels.cached);
             self.image_proxy_cache_hits += u64::from(pixels.cached);
@@ -1472,7 +1479,7 @@ impl Renderer {
             if w > self.device.limits().max_texture_dimension_2d || h > self.device.limits().max_texture_dimension_2d
                 || bytes + self.image_idle_bytes() > crate::image_resources::IDLE_TEXTURE_BYTES
                 || self.texture_bytes + self.video_plane_bytes() + self.effect_gpu.state.resource_bytes + bytes > self.effect_gpu.builder.source_texture_budget { continue; }
-            self.image_decode.start(source.clone(), resolution, true).map_err(RenderError::Invalid)?;
+            self.image_decode.start(source.clone(), resolution, true)?;
             self.image_prefetches += 1;
             break;
         }

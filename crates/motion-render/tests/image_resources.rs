@@ -94,7 +94,9 @@ fn cancelling_a_decode_releases_its_only_job_without_delivering_stale_pixels() {
     loop {
         if let Some((_, _, speculative, result)) = worker.poll() {
             assert!(speculative);
-            assert_eq!(result.err().unwrap(), "image decode superseded");
+            let error = result.err().unwrap();
+            assert!(matches!(error, images::Error::Cancelled));
+            assert_eq!(error.to_string(), "image decode superseded");
             assert!(!worker.busy());
             break;
         }

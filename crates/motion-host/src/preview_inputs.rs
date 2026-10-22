@@ -137,7 +137,7 @@ struct ImageKey {
 }
 impl ImageKey {
     fn new(source: Source, resolution: Resolution) -> Result<Self> {
-        let metadata = source.path.metadata().map_err(|error| error.to_string())?;
+        let metadata = source.path.metadata()?;
         let modified = crate::session::metadata_observation::modified(metadata.modified(), source.id, &source.path);
         Ok(Self {
             source,
@@ -160,7 +160,7 @@ struct Desired {
     info: InputInfo,
     source: DesiredSource,
     root: PathBuf,
-    error: Option<String>,
+    error: Option<Arc<motion_render::image_resources::Error>>,
 }
 pub struct PreviewInputReader {
     video: VideoFrames,
@@ -199,7 +199,7 @@ impl PreviewInputReader {
         {
             return Err("invalid preview input sequence, time or raster budget".into());
         }
-        let root = root.canonicalize().map_err(|error| error.to_string())?;
+        let root = root.canonicalize()?;
         if let Some(current) = &self.desired {
             if request.sequence == current.request.sequence
                 && request == current.request
@@ -215,8 +215,7 @@ impl PreviewInputReader {
         let mut snapshot = project.clone();
         if let InputSource::Layer { composition, .. } = &request.source {
             snapshot
-                .activate_composition(composition)
-                .map_err(|error| error.to_string())?;
+                .activate_composition(composition)?;
         }
         if snapshot.fps == 0
             || snapshot.fps > motion_core::MAX_COMPOSITION_FPS
@@ -413,7 +412,7 @@ impl PreviewInputReader {
             return Err("preview input snapshot superseded".into());
         }
         if let Some(error) = &current.error {
-            return Err(error.clone().into());
+            return Err(motion_render::image_resources::Error::Shared(error.clone()).into());
         }
         if let Some((_, _, _, result)) = self.image.poll() {
             if let Some(key) = self.decoding.take() {
@@ -422,8 +421,9 @@ impl PreviewInputReader {
                     let pixels = match result {
                         Ok(pixels) => pixels,
                         Err(error) => {
+                            let error = Arc::new(error);
                             self.desired.as_mut().unwrap().error = Some(error.clone());
-                            return Err(error.into());
+                            return Err(motion_render::image_resources::Error::Shared(error).into());
                         }
                     };
                     if !key.current() {

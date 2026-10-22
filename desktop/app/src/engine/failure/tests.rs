@@ -426,3 +426,4 @@ fn asynchronous_movie_freeze_keeps_command_context_before_completion_and_during_
     assert!(String::from_utf8_lossy(&output.stderr).contains("movie freeze shutdown failed request=Some(24)"));
     assert!(!String::from_utf8_lossy(&output.stdout).contains("movie freeze shutdown failed request=Some(24)"));
 }
+mod image_errors;

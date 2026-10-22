@@ -137,3 +137,4 @@ fn invalid_model_edits_keep_history_and_reach_default_error_channels() {
         assert!(!text.contains(PRIVATE), "user text was logged: {text}");
     }
 }
+mod track_dimensions;

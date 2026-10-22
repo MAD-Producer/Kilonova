@@ -389,13 +389,17 @@ impl<T: Tween> Track<T> {
     pub fn upsert(&mut self, frame: impl TryInto<i32>, value: T, ease: Ease) -> Result<()> {
         let frame = stored_frame(frame)?;
         ensure(value.finite(), "non-finite property value")?;
-        if let Some(axes) = &mut self.axes {
+        if let Some(axes) = &self.axes {
+            self.validate_separated_storage()?;
             let v = value
                 .components()
                 .ok_or_else(|| crate::Error::Invalid("expected vector value".into()))?;
+            ensure(T::from_components(v).is_some(), "expected reconstructible vector value")?;
+            let mut next = axes.clone();
             for axis in [Axis::X, Axis::Y, Axis::Z] {
-                axes.get_mut(axis).upsert(frame, v[axis.index()], ease)?;
+                next.get_mut(axis).upsert(frame, v[axis.index()], ease)?;
             }
+            self.axes = Some(next);
             return Ok(());
         }
         let key = Keyframe {
@@ -418,13 +422,17 @@ impl<T: Tween> Track<T> {
     pub fn set_at(&mut self, frame: impl TryInto<i32>, value: T) -> Result<()> {
         let frame = stored_frame(frame)?;
         ensure(value.finite(), "non-finite property value")?;
-        if let Some(axes) = &mut self.axes {
+        if let Some(axes) = &self.axes {
+            self.validate_separated_storage()?;
             let v = value
                 .components()
                 .ok_or_else(|| crate::Error::Invalid("expected vector value".into()))?;
+            ensure(T::from_components(v).is_some(), "expected reconstructible vector value")?;
+            let mut next = axes.clone();
             for axis in [Axis::X, Axis::Y, Axis::Z] {
-                axes.get_mut(axis).set_at(frame, v[axis.index()])?;
+                next.get_mut(axis).set_at(frame, v[axis.index()])?;
             }
+            self.axes = Some(next);
             return Ok(());
         }
         if self.keys.is_empty() {
@@ -571,6 +579,7 @@ impl<T: Tween> Track<T> {
         let Some(axes) = &self.axes else {
             return Ok(false);
         };
+        self.validate_separated_storage()?;
         let mut next = axes.clone();
         edit(&mut next.x)?;
         edit(&mut next.y)?;
@@ -578,38 +587,58 @@ impl<T: Tween> Track<T> {
         self.axes = Some(next);
         Ok(true)
     }
+    fn validate_separated_storage(&self) -> Result<()> {
+        self.validate_local()?;
+        self.static_value()?;
+        Ok(())
+    }
     pub fn separate(&mut self) -> Result<()> {
+        self.validate_local()?;
         if self.axes.is_some() {
+            self.static_value()?;
             return Ok(());
         }
         ensure(self.keys.iter().all(|k| k.spatial.is_none()), "reset the spatial path before separating dimensions")?;
         let value = self.value.components().ok_or_else(|| {
             crate::Error::Invalid("only vector properties can separate dimensions".into())
         })?;
-        let component = |index: usize| Track {
+        ensure(T::from_components(value).is_some(), "only vector properties can separate dimensions")?;
+        let mut separated: [Track<f32>; 3] = std::array::from_fn(|index| Track {
             value: value[index],
             axes: None,
-            keys: self
-                .keys
-                .iter()
-                .map(|k| Keyframe {
-                    frame: k.frame,
-                    value: k.value.components().unwrap()[index],
-                    ease: k.ease,
-                    curve: k.curve,
+            keys: Vec::with_capacity(self.keys.len()),
+        });
+        for (index, key) in self.keys.iter().enumerate() {
+            let context = |reason: &str| crate::Error::Invalid(format!(
+                "track separate: key index={index} frame={} type={} {reason}",
+                key.frame, std::any::type_name::<T>().chars().take(128).collect::<String>(),
+            ));
+            let value = key.value.components().ok_or_else(|| context("cannot expose three components"))?;
+            if T::from_components(value).is_none() {
+                return Err(context("cannot reconstruct three components"));
+            }
+            for (axis, value) in separated.iter_mut().zip(value) {
+                axis.keys.push(Keyframe {
+                    frame: key.frame,
+                    value,
+                    ease: key.ease,
+                    curve: key.curve,
                     spatial: None,
-                })
-                .collect(),
-        };
-        self.axes = Some(Box::new(AxisTracks {
-            x: component(0),
-            y: component(1),
-            z: component(2),
-        }));
+                });
+            }
+        }
+        for axis in &separated {
+            axis.validate_local()?;
+        }
+        let [x, y, z] = separated;
+        self.axes = Some(Box::new(AxisTracks { x, y, z }));
         self.keys.clear();
         Ok(())
     }
     pub fn axis_mut(&mut self, axis: Axis) -> Result<&mut Track<f32>> {
+        if self.axes.is_some() {
+            self.validate_separated_storage()?;
+        }
         self.axes.as_mut().map(|a| a.get_mut(axis)).ok_or_else(|| {
             crate::Error::Invalid("separate dimensions before editing an axis".into())
         })

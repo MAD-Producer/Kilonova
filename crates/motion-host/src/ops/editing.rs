@@ -224,7 +224,10 @@ mod preparation_failure_tests {
         let error = apply_prepared(&mut engine, commands(), |project| {
             renderer.configure_assets(project, directory.path()).map_err(crate::Error::from)
         }).unwrap_err();
-        assert!(matches!(&error, crate::Error::Render(motion_render::RenderError::Invalid(_))),
+        assert!(matches!(&error,
+            crate::Error::Render(motion_render::RenderError::ImageResource(
+                motion_render::image_resources::Error::Io(cause)))
+                if cause.kind() == std::io::ErrorKind::NotFound),
             "renderer error lost its identity at model callback: {error:?}");
         assert_eq!(engine.snapshot(), before);
         assert_eq!(engine.revision(), 0);
