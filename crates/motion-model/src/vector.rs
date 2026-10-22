@@ -576,7 +576,13 @@ impl VectorContent {
             VectorSource::Shape { shape, parameters } => {
                 let mut values = BTreeMap::new();
                 for p in shape_parameters(*shape) {
-                    let v = parameters[p.id].sample(frame);
+                    let track = parameters.get(p.id).ok_or_else(|| {
+                        crate::Error::Invalid(format!(
+                            "missing shape parameter: operation=sample shape={shape:?} parameter={} frame={frame}",
+                            p.id,
+                        ))
+                    })?;
+                    let v = track.sample(frame);
                     ensure(
                         (p.min..=p.max).contains(&v) && (!p.discrete || v.fract() == 0.),
                         "sampled shape parameter outside valid range",
@@ -751,7 +757,12 @@ impl VectorContent {
                     .into_iter()
                     .find(|p| p.id == parameter)
                     .ok_or_else(|| crate::Error::Invalid("shape parameter missing".into()))?;
-                let t = parameters.get_mut(&parameter).unwrap();
+                let t = parameters.get_mut(p.id).ok_or_else(|| {
+                    crate::Error::Invalid(format!(
+                        "missing shape parameter: operation=edit shape={shape:?} parameter={} frame={frame}",
+                        p.id,
+                    ))
+                })?;
                 t.set_animated(local(frame)?, animated)?;
                 t.set_at(local(frame)?, value)?;
                 if p.discrete {
