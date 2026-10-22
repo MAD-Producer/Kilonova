@@ -43,6 +43,8 @@ mod node_admission_tests;
 mod pending_video_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod sampling_playback_tests;
+#[cfg(all(test, target_os = "windows"))]
+mod memory_lifecycle_tests;
 use failure::{ErrorReply, Failure, SessionLease};
 
 /// Maximum JSON payload accepted from the UI. Matches the Android bridge limit

@@ -1745,3 +1745,27 @@ and repeated resize/seek/project-switch combined acceptance remain open. No
 panel/style/layout/token change is included; DESIGN section 0.7 entries remain
 retained with reason because none of their visual implementation is edited.
 #60/#61/#67 remain open.
+
+## Twenty-fourth increment: combined native lifecycle acceptance (pending execution)
+
+The Windows desktop fixture uses the actual serial Engine, native window/surface,
+production resize/seek/project commands, generated PNG sources, full-quality
+frozen PNG export and GPU UI readback. Four cycles cover six alternating cases
+with two roots, three surface extents and three authored times. The same source
+id and relative path intentionally refer to different colors across projects.
+No user input driver, real media decoder or physical-VRAM measurement is claimed.
+
+| Item | New acceptance guard | Evidence required |
+| --- | --- | --- |
+| #61-A154 | Repeated native resize, seek and project replacement under an explicit 8 MiB shared allowance | Actual worker/native completion and source-bound test output; full desktop regression |
+| #61-A155 | Preview center pixels match independently frozen full-quality PNG references at each authored time | GPU readback and complete authored-size PNG assertions; generated red/blue sources expose stale project input identity |
+| #61-A156 | Completed readbacks retire earlier submissions and all category endpoints reconcile | No active/unconfirmed/faulted windows; category current/end sums match combined gauges |
+| #61-A157 | Capacity stops growing after warmup, while project values, revision and undo remain unchanged | Baseline cycle followed by two verification cycles for every case; raw report retains actual pressure/quality and elapsed time |
+| #61-A158 | Default application logging remains active with stdout isolation | Actual child logger file and output assertions, with optional source-bound artifact retention |
+
+The test is new and unexecuted; no completion is inferred from its source or a
+syntax check. Per-operation deadlines verify finite completion, not a promised
+frame rate or a cross-device performance comparison. Logical capacity may fall
+after native pressure lowers quality; the repeated-capacity guard rejects growth
+relative to the same warmed-up case. Remaining Presenter/UI allocation coverage
+is still excluded and must not be presented as whole-application memory.
