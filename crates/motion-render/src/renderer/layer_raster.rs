@@ -597,7 +597,7 @@ impl Renderer {
             self.ensure_compositing_gpu(context.frame, "local_initialize")?;
             let gpu = self.compositing_gpu.as_mut().ok_or_else(||
                 RenderError::Invalid("local compositing initialization did not publish resources".into()))?;
-            gpu.prepare_mattes(
+            let source_changed = gpu.prepare_targets(
                 &self.device,
                 &self.image_layout,
                 &self.sampler,
@@ -605,14 +605,11 @@ impl Renderer {
                 &[],
                 source_bytes,
                 self.effect_gpu.builder.source_texture_budget,
-            )?;
-            let source_changed = gpu.prepare_source(
-                &self.device,
-                &self.image_layout,
-                &self.sampler,
                 transfer,
-                self.effect_gpu.builder.source_texture_budget,
-            )?;
+            ).map_err(|error| RenderError::Context {
+                message: format!("compositing frame={} phase=local_targets: {error}", context.frame),
+                cause: Box::new(error),
+            })?;
             gpu.prepare_blend_inputs(
                 &self.device,
                 &self.queue,
@@ -853,7 +850,7 @@ impl Renderer {
                 });
                 pass.set_pipeline(&gpu.blend);
                 pass.set_bind_group(0, &gpu.blend_group, &[gpu.blend_offset(i)]);
-                pass.set_bind_group(1, &gpu.blend_inputs[accumulator], &[]);
+                pass.set_bind_group(1, &gpu.blend_inputs[accumulator].group, &[]);
                 pass.draw(0..3, 0..1);
                 accumulator = next;
                 draws += 1;

@@ -1958,9 +1958,12 @@ impl Renderer {
             self.ensure_compositing_gpu(scene.frame, "initialize")?;
             let gpu = self.compositing_gpu.as_mut().ok_or_else(||
                 RenderError::Invalid("compositing initialization did not publish resources".into()))?;
-            gpu.prepare_mattes(&self.device, &self.image_layout, &self.sampler, composition_size, &needed,
-                source_bytes,self.effect_gpu.builder.source_texture_budget)?;
-            let changed = gpu.prepare_source(&self.device, &self.image_layout, &self.sampler, has_transfer,self.effect_gpu.builder.source_texture_budget)?;
+            let changed = gpu.prepare_targets(&self.device, &self.image_layout, &self.sampler,
+                composition_size, &needed, source_bytes, self.effect_gpu.builder.source_texture_budget,
+                has_transfer).map_err(|error| RenderError::Context {
+                    message: format!("compositing frame={} phase=targets: {error}", scene.frame),
+                    cause: Box::new(error),
+                })?;
             gpu.prepare_blend_inputs(&self.device, &self.queue, &self.sampler, &self.layer_gpu.accumulators,
                 &scene.layers, changed || accumulators_changed)?;
         } else if let Some(gpu) = &mut self.compositing_gpu { gpu.release(); }
@@ -2228,7 +2231,7 @@ impl Renderer {
                         ops:wgpu::Operations{load:wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),store:wgpu::StoreOp::Store}})],
                     depth_stencil_attachment:None,timestamp_writes:None,occlusion_query_set:None});
                 pass.set_pipeline(&gpu.blend);pass.set_bind_group(0,&gpu.blend_group,&[gpu.blend_offset(i)]);
-                pass.set_bind_group(1,&gpu.blend_inputs[accumulator],&[]);pass.draw(0..3,0..1);
+                pass.set_bind_group(1,&gpu.blend_inputs[accumulator].group,&[]);pass.draw(0..3,0..1);
                 accumulator=next;composition_draws+=1;
             }
         }

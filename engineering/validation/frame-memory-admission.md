@@ -981,3 +981,69 @@ This resolves the main-integration conflict but does not establish the cause of
 the earlier remote sampling Present timeout. Public checks must be evaluated on
 the newly published head. No assertions, waiting limits, ignores, product panel
 code or UI behavior were changed by conflict resolution. #61/#67 remain open.
+
+
+## Twelfth increment: matte and transfer working-texture admission
+
+Source `d04ef55a`, integrated with main `776c1b31`, admits R8 matte targets and the transfer source in its actual
+target format from the shared renderer budget. Category checks and every new
+working-target reservation finish before replacing any live matte/source,
+dimensions or cached transfer bindings. Partial failure drops only the prepared
+replacement set. Both ordinary and exposure-local callers retain frame/phase,
+layer/luma/size and the original typed refusal. Cached transfer groups retain
+source and accumulator admission aliases independently of cache owners; command
+scopes retain their own work through actual completion or abandonment.
+
+| Case | Actual path and oracle | Disposition |
+| --- | --- | --- |
+| #61-A77 | Two4x4 R8 mattes plus4x4 RGBA8 source:96 actual bytes, three allocations and final release | New capacity coverage |
+| #61-A78 | Refusal at both replacement mattes and final source, plus original category checks; native identities/bindings/pixels unchanged, warm reuse below lowered limit and successful resize | New atomic replacement coverage |
+| #61-A79 | Cached groups render real Screen red/blue pixels after source and admitted accumulator owners drop; capacity retires with the bindings | New independent binding-lifetime coverage |
+| #61-A80 | Unfinished, finished-abandoned and actually submitted clear commands preserve working targets until their own retirement despite unrelated later scopes | New command-lifetime coverage |
+| #61-A81 | Ordinary matte and exposure-local transfer refusal preserves prior output; restored budget reproduces exact expected pixels without rebuilding pipelines | New independent caller coverage |
+| #61-A82 | Real resized-matte refusal through request211 with original reply/cause/frame/phase/elapsed, preserved pixels and recovery; default file, Error stderr exactly once and stdout isolation | Existing error boundary, newly exercised failure |
+
+Native control `837df6bc` failed at1475665 admitted bytes versus1475761 expected,
+cargo exit101: the missing96 bytes are two mattes and one transfer source. Its
+five capacity/count/retirement assertions remain unchanged; only setup follows
+the combined atomic preparation API. First implementation source `6bc150e8`
+passed all five new cases but failed one old system-upload fixture: its total
+also included20480 newly admitted working-texture bytes that legitimately retired
+when cache owners dropped. The fixture now explicitly holds those working
+owners outside its three-system-resource observation. All old assertions remain
+byte-for-byte unchanged; separate new lifetime tests exercise working retirement.
+That actual failure log remains retained and excluded from acceptance.
+
+The first desktop fixture also caught an earlier scratch-slot refusal with the
+same4096-byte delta. Its strict matte-phase assertion failed correctly. The
+fixture now preflights the larger scratch set before restricting capacity;
+all original error, channel and pixel assertions remain unchanged. Its15 passes
+and one failure are retained separately. A subsequent run terminated before
+test output with exit1073807364; that interruption is retained and not counted.
+The resumed source `4d129c4d` still refused at the preceding growing source
+snapshot, correctly failing the matte-phase assertion. The final fixture keeps
+source geometry at16x16 while resizing only the composition/matte framebuffer;
+its original center, edge, byte-count, phase and channel assertions are intact.
+The failed15-pass/one-failure run is retained as evidence, not acceptance.
+That preceding same-frame input-snapshot allocation still needs its own layer,
+extent and phase context; it is a documented pending observation, not a fixed
+site in this increment.
+
+The exact frozen final source passes **241 distinct selected tests**: complete
+render library97, ten real GPU suites59, host library69 and default desktop
+composition/error boundary16. Workspace/all-targets FFmpeg check excluding
+retired Android and the panel style guard pass. Accepted runs have no failures
+or ignores. The earlier97 library passes on `6de3387b` are not added again.
+Main's integrated model/path changes prompted the final source-bound matrix.
+`matte-admission-main-*` logs/exit receipts and
+`matte-admission-acceptance.json` bind commands, native failures and SHA-256 to
+the exact source. These are selected runs, not full workspace or public CI.
+No source changed during validation; all own caches, temporary data and artifacts
+remain on E:. No panels, styles, assets or dependencies were changed.
+
+This closes admission/lifetime coverage for these working targets, not #61's
+entire policy. Layer accumulators, vector/mask/group/retained-layer textures,
+presenter buffers (foreign worktree overlap), external boundaries, shared
+session/platform pressure, frame peaks, bounded preview/export and repeated
+lifecycle acceptance remain pending. Native effect scratch was already admitted.
+#61/#67 stay open; precision and 3D remain parked.
