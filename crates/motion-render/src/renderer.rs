@@ -593,7 +593,7 @@ impl Renderer {
         extra_resources: impl FnOnce(&mut crate::TextureResourceLedger)) -> Result<wgpu::SubmissionIndex>
     {
         buffer.submit(&self.allocation_budget, &self.allocation_owner,
-            |buffer| self.submit_tracked(buffer, extra_resources), &self.queue)
+            |buffer| self.submit_tracked_inner(buffer, extra_resources), &self.queue, &self.allocation_uploads)
     }
     pub fn effect_plan_builds(&self) -> u64 {
         self.effect_gpu.builder.preview_plan_builds
@@ -665,13 +665,25 @@ impl Renderer {
     /// after this submission independently of diagnostic snapshots.
     pub fn submit_tracked(&self, buffer: wgpu::CommandBuffer,
         extra_resources: impl FnOnce(&mut crate::TextureResourceLedger)) -> wgpu::SubmissionIndex {
+        let completion = self.allocation_budget.frame_submission();
+        let index = self.submit_tracked_inner(buffer, extra_resources);
+        let pending_uploads = self.allocation_uploads.take();
+        if completion.is_tracked() || !pending_uploads.is_empty() {
+            self.queue.on_submitted_work_done(move || {
+                drop(pending_uploads);
+                completion.complete();
+            });
+        }
+        index
+    }
+    fn submit_tracked_inner(&self, buffer: wgpu::CommandBuffer,
+        extra_resources: impl FnOnce(&mut crate::TextureResourceLedger)) -> wgpu::SubmissionIndex {
         let index = if !self.submission_ledger.enabled() { self.queue.submit(Some(buffer)) }
         else {
             let mut ledger = self.texture_resource_ledger();
             extra_resources(&mut ledger);
             self.submission_ledger.submit(&self.queue, buffer, ledger)
         };
-        self.allocation_uploads.submitted();
         index
     }
     pub fn submission_memory_info(&self, current: &crate::TextureResourceLedger) -> crate::SubmissionMemoryInfo {

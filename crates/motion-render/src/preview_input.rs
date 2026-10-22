@@ -369,8 +369,8 @@ impl PreviewInputTexture {
             &self.allocation_owner,
             |buffer| self.queue.submit(Some(buffer)),
             &self.queue,
+            &self.allocation_uploads,
         )?;
-        self.allocation_uploads.submitted();
         self.copy_group = Some(group);
         self.rgba = Some(source);
         self.rgba_size = (width, height);
@@ -431,8 +431,8 @@ impl PreviewInputTexture {
             &self.allocation_owner,
             |buffer| self.queue.submit(Some(buffer)),
             &self.queue,
+            &self.allocation_uploads,
         )?;
-        self.allocation_uploads.submitted();
         upload.mark_submitted();
         self.copy_group = None;
         self.rgba = None;

@@ -27,6 +27,8 @@ mod allocation_uploads;
 mod native_allocation;
 pub use native_allocation::{AdmittedBuffer, AdmittedTexture, AllocationContext};
 pub use allocation_budget::{AllocationBudget, AllocationBudgetInfo, AllocationEncoder,
+    AllocationFrame, AllocationFrameInfo, AllocationFrameOutcome, AllocationFramePeaks,
+    FrameOperation, MAX_ACTIVE_ALLOCATION_FRAMES, MAX_RECENT_ALLOCATION_FRAMES,
     AllocatedCommandBuffer, AdmittedTextureView, DEFAULT_RENDER_ALLOCATION_BUDGET,
     MAX_RENDER_ALLOCATION_BUDGET};
 pub use resource_ledger::{TextureCategory, TextureState, TextureReference, TextureResource, TextureResourceLedger};

@@ -27,6 +27,7 @@ mod failure;
 mod ui_paint;
 mod frame_capture;
 mod movie_freeze;
+mod frame_allocation;
 mod shutdown;
 #[cfg(test)]
 mod native_test_evidence;
@@ -462,6 +463,10 @@ impl Engine {
     pub fn queue_depth(&self) -> usize {
         self.queue_depth.load(Ordering::Acquire)
     }
+    /// Remains readable while the serial handler or an enrolled GPU queue waits.
+    pub fn allocation_frame_peaks(&self) -> Result<motion_render::AllocationFramePeaks, String> {
+        self.allocation_budget.frame_peaks().map_err(|error| error.to_string())
+    }
     pub fn diagnostics(&self) -> &Arc<crate::diagnostics::Diagnostics> {
         &self.diagnostics
     }
@@ -657,7 +662,7 @@ impl Engine {
                     let _ = ready.send(Err(error.to_string()));
                     return;
                 }
-                if ready.send(Ok((id, allocation_budget))).is_err() {
+                if ready.send(Ok((id, allocation_budget.clone()))).is_err() {
                     log::warn!("worker startup receiver closed; releasing session={id}");
                     return;
                 }
@@ -726,6 +731,7 @@ impl Engine {
                         &mut movie_freeze,
                         &worker_paints,
                         &worker_diagnostics,
+                        &allocation_budget,
                         command,
                     ))}).and_then(|result| result);
                     worker_diagnostics.record(request,"worker",operation,queued.elapsed(),Some(began.duration_since(queued)),Some(began.elapsed()),context);
@@ -1431,6 +1437,7 @@ fn handle(
     movie_freeze: &mut movie_freeze::Worker,
     paints: &Arc<std::sync::Mutex<Vec<motion_ui::paint::PaintList>>>,
     diagnostics: &crate::diagnostics::Diagnostics,
+    allocation_budget: &motion_render::AllocationBudget,
     command: Command,
 ) -> bool {
     // Capture, project operations and view changes can overwrite the shared
@@ -1523,7 +1530,9 @@ fn handle(
             node_preview.installs += 1;
             Ok(true)
         })()),
-        Command::NodeCapture{seconds,path,reply}=>respond(reply,motion_host::session::with_session(id,|s|{
+        Command::NodeCapture{seconds,path,reply}=>{
+            let frame=frame_allocation::begin(allocation_budget,motion_render::FrameOperation::NodeCapture);
+            let result=motion_host::session::with_session(id,|s|{
             let g=s.graphics.as_ref().ok_or("node GPU not attached")?;
             let preview=node_preview.active.as_mut().ok_or("no valid node preview")?;
             let dimension=crate::node_preview::RASTER_SIZE;
@@ -1535,13 +1544,18 @@ fn handle(
             let fingerprint=pixels.iter().fold(0xcbf29ce484222325u64,|h,b|(h^u64::from(*b)).wrapping_mul(0x100000001b3));
             image::save_buffer(&path,&pixels,dimension,dimension,image::ColorType::Rgba8).map_err(|e|e.to_string())?;
             Ok(serde_json::json!({"path":path,"seconds":seconds,"fingerprint":format!("{fingerprint:016x}"),"stamp":preview.stamp,"renders":preview.renders,"frames":preview.frames}))
-        })),
+            });
+            frame_allocation::finish(frame,&result,|_|true);
+            respond(reply,result);
+        },
         Command::EditChecked {text,revision,reply}=>respond(reply,motion_host::session::with_session(id, |s| {
             if s.engine.gesture_active() { return Err("finish the active editor gesture before an agent edit".into()); }
             if s.engine.revision() != revision { return Err("project revision changed; fetch motion_state before editing".into()); }
             s.apply_commands(&text)
         })),
-        Command::CaptureUi { ui, path, reply } => respond(reply,motion_host::session::with_session(id, |s| {
+        Command::CaptureUi { ui, path, reply } => {
+            let frame=frame_allocation::begin(allocation_budget,motion_render::FrameOperation::CaptureUi);
+            let result=motion_host::session::with_session(id, |s| {
             #[cfg(test)]
             diagnostics.native_test_phase("capture.target");
             let g = s.graphics.as_ref().ok_or("desktop surface is not attached")?;
@@ -1584,7 +1598,10 @@ fn handle(
             diagnostics.native_test_phase("capture.save");
             image::save_buffer(&path, &pixels, width, height, image::ColorType::Rgba8).map_err(|e| e.to_string())?;
             Ok(serde_json::json!({"path":path,"width":width,"height":height}))
-        })),
+            });
+            frame_allocation::finish(frame,&result,|_|true);
+            respond(reply,result);
+        },
         Command::Attach { target, reply } => respond(reply,(|| {
             motion_host::session::with_session(id, |s| {
                 let next = motion_ui::Painter::new(&target.renderer.device, target.config.format);
@@ -1611,7 +1628,9 @@ fn handle(
             }
             s.snapshot()
         })),
-        Command::Present { ui, reply } => {let result=motion_host::session::with_session(id, |s| {
+        Command::Present { ui, reply } => {
+        let frame=frame_allocation::begin(allocation_budget,motion_render::FrameOperation::Present);
+        let result=motion_host::session::with_session(id, |s| {
             #[cfg(test)]
             diagnostics.native_test_phase("present.prepare");
             let began = std::time::Instant::now();
@@ -1718,6 +1737,7 @@ fn handle(
         });
         let mut paint=ui.paint;paint.clear();
         recycle_paint_pool(paints, paint, true);
+        frame_allocation::finish(frame,&result,|rendered|*rendered);
         respond(reply,result);
         },
         Command::OpenDirectory { directory, reply } => respond(reply,(||{

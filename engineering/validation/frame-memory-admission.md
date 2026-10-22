@@ -1627,3 +1627,33 @@ still reports `completeCoverage: false`: Presenter/UI enrollment, whole-frame
 peak accounting, applying native pressure to the bounded preview/cache/proxy
 loop, and actual resize/seek/project-switch combined acceptance remain pending.
 #60/#61/#67 remain open; this increment does not declare 3D readiness.
+
+## Twentieth increment: per-frame shared allocation windows (validation pending)
+
+This work follows the pressure/N1 increment, merged as PR416 with all five
+required checks passing on `53842375`. Its Chinese squash merge is `8c5a8d09`;
+the stable patch identity matches the accepted public head. This new increment
+is separate from that accepted source and has not inherited its test results.
+
+| Item | New observation / retained boundary | Evidence still required |
+| --- | --- | --- |
+| #61-A130 | Shared admission windows capture transient reservations and entry capacity independently of lifetime peaks | CPU overlap/alias/refusal and next-window regression tests |
+| #61-A131 | CPU completion joins all registered queue callbacks; cleanup precedes observation in a single callback | Controlled completion ordering and actual native command/upload retirement |
+| #61-A132 | Active/recent metadata are bounded to 64 each; saturation skips observation and preserves allocation behavior | Saturation, recovery and retained-history assertions |
+| #61-A133 | Panic, abandoned scope, unconfirmed callback and poisoned admission remain explicit | Unwind/drop/poison assertions; no fabricated healthy result |
+| #61-A134 | Present/CaptureUi/NodeCapture start windows before entering Session; direct Engine readout does not queue | Actual failed Present, controlled blocked worker and native NodeCapture assertions |
+| #61-A135 | Healthy Present stays quiet; omitted windows and actual observation faults have bounded logs outside locks | Default output-channel and threshold/recovery acceptance for the new site |
+| #61-A136 | Logical admitted intervals retain explicit scope/coverage limits | API documentation and source-bound completion evidence |
+
+The API contract is `engineering/host-api/frame-allocation-peaks.md`. No Presenter,
+panel, style, layout, input, project value, undo or shader changes are included.
+This is not measured physical VRAM or a hardware GPU-duration trace. Per-category
+peaks, automatic PNG/movie windows, remaining Presenter/UI enrollment, native
+pressure-driven bounded degradation and actual combined lifecycle acceptance
+remain pending. #60/#61/#67 stay open.
+
+The exploratory `frame-allocation-peaks-cpu-v1.log` records an E: disk exhaustion
+during compilation before test execution. Its surrounding PowerShell wrapper
+reported stale exit code zero after failing output/launch handling; this is
+explicitly rejected as a passing test receipt. Final validation must use a
+clean exact source, robust subprocess return codes and retained raw output.

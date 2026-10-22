@@ -24,6 +24,7 @@ struct State {
     release_fault_seen: bool,
     allocations: BTreeMap<u64, Weak<Lease>>,
     encoders: Vec<Weak<EncoderReservations>>,
+    frames: frames::Frames,
 }
 
 /// Clone this before constructing renderers to share one admission limit.
@@ -203,6 +204,7 @@ impl AllocationBudget {
             state.next = id;
             state.used = required;
             state.peak = state.peak.max(required);
+            state.frames.observe(required);
             state.allocations.insert(id, Arc::downgrade(&lease.0));
             state.encoders.retain(|scope| scope.strong_count() > 0);
             let encoders: Vec<_> = state.encoders.iter().filter_map(Weak::upgrade).collect();
@@ -320,6 +322,7 @@ impl AllocatedCommandBuffer {
         owner: &Arc<()>,
         submit: impl FnOnce(wgpu::CommandBuffer) -> wgpu::SubmissionIndex,
         queue: &wgpu::Queue,
+        uploads: &crate::allocation_uploads::AllocationUploads,
     ) -> Result<wgpu::SubmissionIndex, RenderError> {
         if !budget.same_budget(&self.budget) {
             return Err(invalid(
@@ -331,11 +334,24 @@ impl AllocatedCommandBuffer {
                 "render command buffer belongs to another render queue",
             ));
         }
+        let completion = budget.frame_submission();
         let index = submit(self.buffer);
-        queue.on_submitted_work_done(move || drop(self.scope));
+        let pending_uploads = uploads.take();
+        queue.on_submitted_work_done(move || {
+            // One callback establishes cleanup-before-observation ordering;
+            // independent queue callbacks need not provide that relationship.
+            drop(pending_uploads);
+            drop(self.scope);
+            completion.complete();
+        });
         Ok(index)
     }
 }
+
+mod frames;
+pub use frames::{AllocationFrame, AllocationFrameInfo, AllocationFrameOutcome,
+    AllocationFramePeaks, FrameOperation, MAX_ACTIVE_ALLOCATION_FRAMES,
+    MAX_RECENT_ALLOCATION_FRAMES};
 
 /// A cloned offscreen view retains the same single allocation reservation.
 #[derive(Clone)]
