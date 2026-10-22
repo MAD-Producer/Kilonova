@@ -26,12 +26,15 @@ pub struct FrozenMovie {
     registry: Registry,
     assets: tempfile::TempDir,
     memory_policy: MemoryPolicy,
+    allocation_budget: motion_render::AllocationBudget,
     source_paths: BTreeSet<PathBuf>,
     pub revision: u64,
 }
 
 #[cfg(all(test, feature = "ffmpeg"))]
 mod camera_tests;
+#[cfg(all(test, feature = "ffmpeg"))]
+mod session_budget_tests;
 
 #[cfg(all(test, feature = "ffmpeg"))]
 mod tests {
@@ -64,6 +67,7 @@ mod tests {
         )
         .unwrap();
         let policy = MemoryPolicy {
+            session_allocation_budget_bytes: 512 << 20,
             source_texture_budget_bytes: 256 << 20,
             scratch_budget_bytes: 96 << 20,
             preview_target_budget_bytes: 4 << 20,
@@ -625,6 +629,7 @@ pub struct MovieFreezePlan {
     registry: Registry,
     root: PathBuf,
     memory_policy: MemoryPolicy,
+    allocation_budget: motion_render::AllocationBudget,
     revision: u64,
     sources: Vec<(PathBuf, PathBuf, fs::File, fs::Metadata)>,
     source_paths: BTreeSet<PathBuf>,
@@ -655,6 +660,8 @@ impl MovieFreezePlan {
         let mut plans = motion_render::effect_plan::PlanBuilder::new(registry.clone())
             .map_err(|error| error.to_string())?;
         plans.set_memory_policy(memory_policy).map_err(|error| error.to_string())?;
+        let allocation_budget = motion_render::AllocationBudget::new(memory_policy.session_allocation_budget_bytes)
+            .map_err(|error| error.to_string())?;
         for id in project
             .reachable_compositions()
             .map_err(|e| e.to_string())?
@@ -735,6 +742,7 @@ impl MovieFreezePlan {
             registry,
             root,
             memory_policy,
+            allocation_budget,
             revision,
             sources,
             source_paths,
@@ -750,6 +758,7 @@ impl MovieFreezePlan {
             registry,
             root,
             memory_policy,
+            allocation_budget,
             revision,
             sources,
             mut source_paths,
@@ -821,6 +830,7 @@ impl MovieFreezePlan {
             registry,
             assets,
             memory_policy,
+            allocation_budget,
             source_paths,
             revision,
         })
@@ -844,14 +854,16 @@ impl FrozenMovie {
         if !cfg!(feature = "ffmpeg") {
             return Err("MP4 export requires a build with --ffmpeg".into());
         }
-        MovieFreezePlan::new(
+        let mut plan = MovieFreezePlan::new(
             session.engine.snapshot(),
             &session.root,
             session.effects.registry.clone(),
             session.effects.memory_policy(),
             session.engine.revision(),
             control,
-        )
+        )?;
+        plan.allocation_budget = session.allocation_budget().clone();
+        Ok(plan)
     }
 
     pub fn new(
@@ -923,7 +935,7 @@ impl FrozenMovie {
             crate::encode::Mp4Encoder::new(temporary.path(), p.width, p.height, p.fps)?;
         let encoder_name = encoder.video_encoder.clone();
         let mut renderer =
-            pollster::block_on(Renderer::headless()).map_err(|e| format!("export GPU: {e}"))?;
+            pollster::block_on(Renderer::headless_with_allocation_budget(self.allocation_budget.clone())).map_err(|e| format!("export GPU: {e}"))?;
         renderer.set_effect_registry(self.registry.clone());
         renderer
             .set_memory_policy(self.memory_policy)

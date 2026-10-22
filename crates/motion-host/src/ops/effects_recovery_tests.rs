@@ -48,6 +48,7 @@ impl Platform for Stub {
         _: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         _: u32,
         _: u32,
+        _budget: motion_render::AllocationBudget,
     ) -> crate::Result<SurfaceTarget> {
         Err("unused".into())
     }
@@ -90,6 +91,56 @@ fn begin_and_edit(session: &mut Session, token: &str) {
     let revision = session.engine.revision();
     session.plugin_request(&json!({"op":"editor_message","token":token,"message":{"op":"set","revision":revision,"param":"rate","value":[120.,0.,0.,0.]}}).to_string()).unwrap();
     assert!(session.engine.gesture_active());
+}
+
+#[test]
+fn editor_preview_competes_with_live_session_allocations_and_retires_on_close() {
+    let (_directory, mut session, token) = session();
+    let budget = session.allocation_budget().clone();
+    let live = pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();
+    let occupied = budget.info().unwrap();
+    let before = session.engine.snapshot();
+    let revision = session.engine.revision();
+    let mut policy = session.effects.memory_policy();
+    policy.session_allocation_budget_bytes = occupied.admitted_bytes;
+    session.configure_memory_policy(policy).unwrap();
+    let preview = json!({"op":"editor_message","token":token,
+        "message":{"op":"preview","width":16,"height":16}}).to_string();
+    let error = session.plugin_request(&preview).unwrap_err();
+    let crate::Error::Render(cause) = &error else { panic!("native cause was erased: {error}") };
+    assert_eq!(cause.resource_rejection(), Some(&motion_render::ResourceRejection::Budget {
+        scope: motion_render::ResourceBudgetScope::RenderAllocations,
+        required_bytes: occupied.admitted_bytes + 4,
+        budget_bytes: occupied.admitted_bytes,
+    }));
+    assert!(session.editor_renderer.is_none());
+    assert!(session.editor_target.is_none());
+    assert_eq!(budget.info().unwrap().admitted_bytes, occupied.admitted_bytes);
+    assert_eq!(budget.info().unwrap().live_allocations, occupied.live_allocations);
+    policy.session_allocation_budget_bytes = 16 << 20;
+    session.configure_memory_policy(policy).unwrap();
+    let result = session.plugin_request(&preview).unwrap();
+    assert_eq!((result["width"].as_u64(),result["height"].as_u64()),(Some(16),Some(16)));
+    assert!(!result["png"].as_str().unwrap().is_empty());
+    assert!(session.editor_renderer.as_ref().unwrap().allocation_budget().same_budget(&budget));
+    let info = session.plugin_request("{\"op\":\"allocation_budget\"}").unwrap();
+    assert_eq!(info["allocationBudget"]["admittedBytes"], budget.info().unwrap().admitted_bytes);
+    assert_eq!(info["isDriverResidency"], false);
+    assert_eq!(info["completeCoverage"], false);
+    assert!(budget.info().unwrap().admitted_bytes > occupied.admitted_bytes);
+    assert_eq!(session.engine.snapshot(), before);
+    assert_eq!(session.engine.revision(), revision);
+    session.plugin_request(&json!({"op":"editor_close","token":token,"commit":false}).to_string()).unwrap();
+    assert!(session.editor_renderer.is_none());
+    assert!(session.editor_target.is_none());
+    assert_eq!(budget.info().unwrap().admitted_bytes, occupied.admitted_bytes);
+    let device = live.device.clone();
+    let queue = live.queue.clone();
+    drop(live);
+    device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+    assert_eq!(budget.info().unwrap().admitted_bytes, 0);
+    assert_eq!(budget.info().unwrap().live_allocations, 0);
+    drop(queue);
 }
 #[test]
 fn expired_or_disconnected_pages_cancel_and_restore_history_and_saved_edits() {

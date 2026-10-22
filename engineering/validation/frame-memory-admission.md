@@ -1350,3 +1350,108 @@ failures/ignores, in `vector-texture-admission-byte-aligned-native.*`.
 The earlier294 selected results remain evidence on their recorded original
 source; this follow-up does not relabel them as a new294-case run. Public CI
 on the replacement PR head is required before merging.
+
+Replacement head `ad07fc0ed50e68b40437e681d158bde720bb8886` subsequently
+passed all five exact-head public checks. PR412 was squash-merged with a verified
+Chinese subject/body as main `13c5fb9216f3a6c3a6b1b681a5d51b2f4741c390`.
+The merge preflight and result are retained in the local PR412 receipts.
+
+## Seventeenth increment: shared Session admission and full-quality outputs
+
+Product and initial test source: `2298924d3574ea6d75d582432648ce1a7298089a`.
+Corrected integration-fixture source: `cbac61d8e43f75dbbce82c5355f54d320c9d3e86`.
+Actual-main integration and final matrix source: `5bcf2a64fc338f1ae8caeb20e781645deb15bfcd`,
+including main `13c5fb9216f3a6c3a6b1b681a5d51b2f4741c390`.
+Between the initial and corrected fixture sources, only two external integration-test
+files differ; all production bytes are identical. MemoryPolicy version4 adds required
+`sessionAllocationBudgetBytes`, default512 MiB and validated range1 byte..4 GiB.
+Each Session creates one admission identity before constructing any production
+surface, host plugin-editor or frozen-output renderer. Desktop and Android
+Platform construction receive it before fixed native buffers/textures allocate.
+Session attach rejects another identity before detaching the current surface.
+Standalone Renderer callers still supply their own allowance at construction.
+
+Policy changes update the shared live allowance without erasing retained bytes.
+Reducing the allowance below current use preserves existing owners and refuses
+new growth. Frozen PNG and movie jobs retain their immutable project/effect/asset
+and category-policy snapshots, while participating in this live allowance after
+later policy changes and Session closure. An old frozen category policy does not
+reset a newer shared limit. No output resolution, sampling, package/project
+format, retry, deadline, UI behavior or export publication transaction changes.
+
+The new `allocation_budget` plugin query and fallible Session Rust metadata API
+report bounded admitted/live/encoder/peak counts. Peak means lifetime enrolled
+capacity since Session creation, not a measured frame peak or driver residency.
+The response explicitly sets `completeCoverage:false`. Runtime policy and these
+read-only observations do not add project edits or undo entries.
+
+The first control (`da21651d`) stopped at compilation because an existing movie
+test's explicit MemoryPolicy literal lacked the new required field. That is not
+a native reproduction. After completing that fixture, the actual native PNG
+control (`77907e7e`) returned success under an already occupied Session allowance;
+the original new refusal assertion failed, cargo101. Shared construction
+(`972dd6d2`) then passed that same complete native PNG test. Its budget, previous
+file, full32x24 green-pixel and project/revision/undo assertions remain unchanged.
+
+The initial broad GPU run on `2298924d` passed21 cases and failed the old JSON
+preview-default fixture before GPU work because it omitted the new Session field.
+Source `cbac61d8` supplies that required field while preserving its preview-default,
+atomic-invalid-update and round-trip assertions. It also explicitly verifies
+that omission is rejected. Existing invalid source/unknown-field host requests
+now include a valid Session field so they still exercise their intended failures.
+The two existing public policy-version assertions change3 to4 for the intentional
+API version change; no native capacity, pixel, lifecycle or failure assertion is
+weakened. The original compilation and JSON failures remain separate raw evidence.
+
+| Item | Evidence | Disposition |
+| --- | --- | --- |
+| #61-A110 | Policy range/required-field rejection, live native capacity retained below a reduced allowance, exact typed refusal, read-only metadata and recovery | New Session policy and observation coverage |
+| #61-A111 | Desktop constructor signatures receive the shared identity before native allocation; attach checks identity before detach; historical Android signatures propagated | New construction wiring; actual surface execution pending and Android cross check blocked |
+| #61-A112 | Actual host plugin preview competes with another native renderer, preserves the typed allocation refusal, recovers and returns its capacity on editor close | New native editor admission coverage |
+| #61-A113 | Frozen PNG made before policy reduction refuses at actual native construction, preserves the previous file and project state, then recovers at full32x24 dimensions and green pixels | New full-quality PNG pressure coverage |
+| #61-A114 | Real FFmpeg movie export shares occupied capacity, preserves the previous movie on refusal, and exports both32x24 frames after Session closure once capacity is available | New frozen-output lifetime and movie pressure coverage |
+| #61-A115 | Real16/24/32 project replacements and sampled frames preserve admission identity; retained native target views hold exact bytes until drop and then release to zero | New headless lifecycle coverage; actual presentation lifecycle remains pending |
+| #61-A116 | Real Engine capture_async/export worker request rejects one-byte allowance; default Info start, original request/phase/byte cause in file and Error stderr, no stdout leakage; later full-size green PNG succeeds | New actual-worker failure/output coverage |
+
+On that exact actual-main integration source, the local Windows runs produced:
+
+| Scope | Passed | Ignored |
+| --- | ---: | ---: |
+| Full FFmpeg media library | 31 | 0 |
+| Full host, integration and doc tests | 118 | 0 |
+| Full render library | 119 | 0 |
+| Six native GPU integration suites | 22 | 0 |
+| Full desktop binary, FFmpeg enabled | 747 | 1 |
+
+All listed phases had zero failures. The desktop ignore is the preexisting
+`real_output_device_clock_advances_and_reaches_composition_end` case requiring
+a native audio output device. No ignore, assertion relaxation or test-skip flag
+was introduced. Workspace/all-targets FFmpeg check excluding historical Android
+and the existing panel style guard also passed.
+
+The four-case desktop capture run overlaps the full desktop run and is not
+added to a distinct-case total. Initial host/media/render results remain bound
+to `2298924d`; corrected GPU/host-policy and desktop phases are bound to
+`cbac61d8`. Those two sources have identical production bytes. Main then advanced,
+so the full listed local Windows matrix was rerun on actual integration source
+`5bcf2a64`; prior overlapping passes are not added to it. The acceptance receipt
+checks identities explicitly. These results do not claim full workspace tests
+or Linux/macOS execution; the new PR still requires public platform checks.
+No panels, styles, dependencies or assets are changed relative to the main base.
+
+The optional arm64 Android check on `cbac61d8` failed with60 compiler errors at
+legacy JNI/media String/typed-error boundaries; x86_64 was not subsequently run.
+That failure remains raw evidence, not a passing cross check. README explicitly
+stops Android maintenance and automated builds. This increment propagates only
+the historical surface construction signature and does not expand into an
+Android migration or claim Android build/device acceptance.
+
+Raw logs and exact-source exit receipts are
+`artifacts/pr-queue/session-envelope-{png-*,host-envelopes-first,metadata-lifecycle-first,final-v1-*,final-v2-*,main-v1-*}.*`.
+`.tools/issue-closure-review/session-envelope-acceptance.json` records original
+failures, source identities, hashes, phase counts and exclusions. Logical admission
+is not physical GPU memory. Presenter/UI and desktop independent node-preview
+resources, platform pressure queries, measured frame peaks, the complete combined
+pressure/preview-proxy loop and actual surface resize/seek/project-switch
+acceptance remain pending. #60/#61/#67 remain open; this increment does not declare
+precision or3D readiness.

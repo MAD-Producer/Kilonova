@@ -163,7 +163,7 @@ pub fn capture(id: i64) -> Result<serde_json::Value> {
         scene.sample(p, s.frame, None, &motion_core::ExpressionEvaluator).map_err(crate::Error::from)?;
         let mut temporary = None;
         if s.graphics.is_none() {
-            temporary = Some(pollster::block_on(Renderer::headless()).map_err(crate::Error::from)?);
+            temporary = Some(pollster::block_on(Renderer::headless_with_allocation_budget(s.allocation_budget().clone())).map_err(crate::Error::from)?);
         }
         let renderer = if let Some(g) = &mut s.graphics {
             &mut g.renderer

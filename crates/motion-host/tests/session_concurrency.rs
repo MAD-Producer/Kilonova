@@ -200,6 +200,7 @@ impl Platform for Stub {
         _: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         _: u32,
         _: u32,
+        _budget: motion_render::AllocationBudget,
     ) -> Result<SurfaceTarget> {
         panic!("empty project must not create a surface")
     }

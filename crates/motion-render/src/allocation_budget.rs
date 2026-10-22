@@ -219,7 +219,9 @@ impl AllocationBudget {
         }
         Ok(lease)
     }
-    pub(crate) fn same_budget(&self, other: &Self) -> bool {
+    /// Admission identity, independent of current limits or measured bytes.
+    /// Hosts use it to reject renderers constructed outside their Session.
+    pub fn same_budget(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.0, &other.0)
     }
     pub(crate) fn encoder(

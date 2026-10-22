@@ -127,8 +127,9 @@ impl Platform for NativePlatform {
         window: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         width: u32,
         height: u32,
+        _budget: motion_render::AllocationBudget,
     ) -> motion_host::Result<SurfaceTarget> {
-        DesktopPlatform::new().attach_surface(window, width, height)
+        DesktopPlatform::new().attach_surface(window, width, height, _budget)
     }
 }
 

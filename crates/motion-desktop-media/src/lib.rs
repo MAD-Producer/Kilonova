@@ -134,6 +134,7 @@ impl Platform for DesktopPlatform {
         window: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         width: u32,
         height: u32,
+        budget: motion_render::AllocationBudget,
     ) -> motion_host::Result<SurfaceTarget> {
         let mut failures = Vec::new();
         for backend in &self.surface_backends {
@@ -148,11 +149,12 @@ impl Platform for DesktopPlatform {
                     continue;
                 }
             };
-            match pollster::block_on(motion_render::Renderer::new_profiled(
+            match pollster::block_on(motion_render::Renderer::new_profiled_with_allocation_budget(
                 &instance,
                 Some(&surface),
                 wgpu::TextureFormat::Rgba8UnormSrgb,
                 true,
+                budget.clone(),
             )) {
                 Ok(renderer) => {
                     let caps = surface.get_capabilities(&renderer.adapter);
@@ -186,6 +188,9 @@ impl Platform for DesktopPlatform {
                         config,
                         renderer,
                     });
+                }
+                Err(error) if error.resource_rejection().is_some() => {
+                    return Err(motion_host::Error::with_context("preview renderer construction", error));
                 }
                 Err(error) => failures.push(format!("{backend:?}: {error}")),
             }

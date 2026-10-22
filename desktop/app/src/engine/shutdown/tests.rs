@@ -52,8 +52,9 @@ impl Platform for BlockingPlatform {
         window: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         width: u32,
         height: u32,
+        _budget: motion_render::AllocationBudget,
     ) -> motion_host::Result<SurfaceTarget> {
-        self.base.attach_surface(window, width, height)
+        self.base.attach_surface(window, width, height, _budget)
     }
 }
 

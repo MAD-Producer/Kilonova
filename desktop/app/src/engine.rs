@@ -403,6 +403,7 @@ pub struct Engine {
     sender: SyncSender<QueuedCommand>,
     worker: Option<JoinHandle<()>>,
     platform: Arc<dyn Platform>,
+    allocation_budget: motion_render::AllocationBudget,
     factory: Arc<std::sync::Mutex<Option<SurfaceFactory>>>,
     failure: Failure,
     paint_pool: Arc<std::sync::Mutex<Vec<motion_ui::paint::PaintList>>>,
@@ -597,7 +598,7 @@ impl Engine {
         let pending_node_expect = Arc::new(Mutex::new(None));
         let worker_node_expect = pending_node_expect.clone();
         let (sender, receiver) = sync_channel::<QueuedCommand>(COMMAND_QUEUE_CAPACITY);
-        let (ready, opened) = channel::<Result<i64, String>>();
+        let (ready, opened) = channel::<Result<(i64, motion_render::AllocationBudget), String>>();
         let worker = std::thread::Builder::new()
             .name("motion-engine".into())
             .spawn(move || {
@@ -631,8 +632,9 @@ impl Engine {
                     }
                 };
                 let lease = SessionLease(id);
-                guard.initial = match motion_host::session::with_session(id, |s| Ok(s.engine.snapshot())) {
-                    Ok(snapshot) => Some(snapshot),
+                let (initial_snapshot, allocation_budget) = match motion_host::session::with_session(id,
+                    |s| Ok((s.engine.snapshot(), s.allocation_budget().clone()))) {
+                    Ok(snapshot) => snapshot,
                     Err(error) => {
                         log::error!("worker initial snapshot failed: {}",
                             crate::fallback_observation::error_cause(&error));
@@ -640,6 +642,7 @@ impl Engine {
                         return;
                     }
                 };
+                guard.initial = Some(initial_snapshot);
                 // The scratch budget is a device property, so apply it before
                 // the first render rather than after a visible hitch.
                 log::info!("worker startup phase=memory session={id}");
@@ -650,7 +653,7 @@ impl Engine {
                     let _ = ready.send(Err(error.to_string()));
                     return;
                 }
-                if ready.send(Ok(id)).is_err() {
+                if ready.send(Ok((id, allocation_budget))).is_err() {
                     log::warn!("worker startup receiver closed; releasing session={id}");
                     return;
                 }
@@ -771,7 +774,7 @@ impl Engine {
                 log::error!("worker spawn failed: root={} reason={error}", startup_root.display());
                 error.to_string()
             })?;
-        let _id = match opened.recv_timeout(std::time::Duration::from_secs(60)) {
+        let (_id, allocation_budget) = match opened.recv_timeout(std::time::Duration::from_secs(60)) {
             Ok(Ok(id)) => id,
             result => {
                 let error = match result {
@@ -794,6 +797,7 @@ impl Engine {
             sender,
             worker: Some(worker),
             platform: desktop_platform,
+            allocation_budget,
             factory,
             failure,
             paint_pool,
@@ -1206,7 +1210,7 @@ impl Engine {
         self.check_running()?;
         // Winit exposes Win32 handles only on the GUI thread. Build a surface
         // here, then transfer rendering ownership to the session worker.
-        let target = self.platform.attach_surface(window, width, height)?;
+        let target = self.platform.attach_surface(window, width, height, self.allocation_budget.clone())?;
         self.diagnostics.set_gpu(target.renderer.adapter.get_info());
         *self
             .factory

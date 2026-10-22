@@ -1,6 +1,55 @@
 use super::*;
 use motion_core::{render_sampling::Shutter, Command, Ease, Layer};
 
+#[test]
+fn frozen_png_shares_live_session_admission_and_recovers_at_full_quality() {
+    let root = tempfile::tempdir().unwrap();
+    let mut project = Project::new(32, 24, 30, 6).unwrap();
+    project.background = [0., 1., 0., 1.];
+    let mut session = Session::new(project, root.path().to_owned(), crate::platform()).unwrap();
+    let budget = session.allocation_budget().clone();
+    // A real live renderer holds the same native fixed buffers that an editor
+    // preview needs. The dedicated export renderer must compete for their bytes.
+    session.editor_renderer = Some(pollster::block_on(
+        Renderer::headless_with_allocation_budget(budget.clone()),
+    ).unwrap());
+    let before = session.engine.snapshot();
+    let revision = session.engine.revision();
+    let view = session.view_revision;
+    let occupied = budget.info().unwrap();
+    assert!(occupied.admitted_bytes > 0);
+    let output = root.path().join("shared-envelope.png");
+    fs::write(&output, b"previous publication").unwrap();
+    let control = ExportControl::default();
+    let plan = FrameFreezePlan::capture(&session, Some(output.clone()), &control).unwrap();
+    let mut policy = session.effects.memory_policy();
+    policy.session_allocation_budget_bytes = occupied.admitted_bytes;
+    session.configure_memory_policy(policy).unwrap();
+    // Pressure after freeze must still constrain the output worker. No preview
+    // quality change, resampling or overwrite is allowed to make it fit.
+    let error = plan.export(&control).expect_err("PNG must use the live session allowance");
+    assert!(error.contains("PNG GPU initialization") && error.contains("render allocation"), "{error}");
+    assert_eq!(fs::read(&output).unwrap(), b"previous publication");
+    assert_eq!(budget.info().unwrap().admitted_bytes, occupied.admitted_bytes);
+    assert_eq!(budget.info().unwrap().live_allocations, occupied.live_allocations);
+    assert_eq!(session.engine.snapshot(), before);
+    assert_eq!(session.engine.revision(), revision);
+    assert_eq!(session.view_revision, view + 1);
+    assert!(!session.engine.can_undo());
+    policy.session_allocation_budget_bytes = 512 << 20;
+    session.configure_memory_policy(policy).unwrap();
+    let control = ExportControl::default();
+    let result = FrameFreezePlan::capture(&session, Some(output.clone()), &control)
+        .unwrap().export(&control).unwrap();
+    assert_eq!((result["width"].as_u64(), result["height"].as_u64()), (Some(32), Some(24)));
+    let image = image::open(&output).unwrap().into_rgba8();
+    assert_eq!(image.dimensions(), (32, 24));
+    assert!(image.pixels().all(|p| p.0 == [0, 255, 0, 255]));
+    assert_eq!(session.engine.snapshot(), before);
+    assert_eq!(session.engine.revision(), revision);
+    assert!(!session.engine.can_undo());
+}
+
 fn project() -> Project {
     let mut p = Project::new(32, 32, 30, 6).unwrap();
     p.version = motion_core::CURRENT_PROJECT_VERSION;

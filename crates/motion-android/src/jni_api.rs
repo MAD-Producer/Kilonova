@@ -375,7 +375,7 @@ pub extern "system" fn Java_com_motionstudio_editor_NativeBridge_surface(
                 // Android allows one producer per native window. Disconnect the
                 // old swapchain before creating its replacement on this window.
                 s.detach();
-                let target = host().attach_native_window(window, width as u32, height as u32)?;
+                let target = host().attach_native_window(window, width as u32, height as u32, s.allocation_budget().clone())?;
                 s.attach(target)?;
             } else {
                 s.detach();
