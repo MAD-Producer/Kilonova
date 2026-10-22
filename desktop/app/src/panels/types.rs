@@ -341,12 +341,14 @@ pub(crate) struct HeaderHit {
 }
 
 /// Effect search overlay (Ctrl+Space)
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct EffectSearch {
     pub position: [f32; 2],
     pub query: String,
     pub selected_index: usize,
     pub owner: Option<dock::Panel>,
+    /// Explicit opt-in; a newly opened search always applies once and closes.
+    pub continuous: bool,
 }
 
 pub(crate) struct Field {

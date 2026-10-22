@@ -319,7 +319,22 @@ impl Shell {
             Action::Plugin(request) => {
                 self.stop();
                 let request = self.panels.effect_request(request, &self.state);
-                self.state = self.engine.plugin(request.to_string())?;
+                match self.engine.plugin(request.to_string()) {
+                    Ok(next) => {
+                        if request["op"] == "add" {
+                            self.reveal_effect_application(&request, &next);
+                        }
+                        self.state = next;
+                    }
+                    Err(error) => {
+                        if request["op"] == "add" {
+                            self.panels.message = Some(format!("{}: {error}",
+                                if self.workspace.locale == Locale::Zh { "添加效果失败" }
+                                else { "Could not add effect" }));
+                        }
+                        return Err(error);
+                    }
+                }
             }
             Action::ImportEffectPackage => {
                 if let Some(path) = rfd::FileDialog::new()

@@ -354,6 +354,7 @@ These are **only** behaviors evidenced in the supplied audit, **not** an exhaust
 - Opening a dropdown blocks other inputs in the same panel; overlays render after regular content to preserve actual z-order and hit order (`desktop/ui/src/ui.rs`, `widgets/composite.rs`).
 - Preserve the existing repeat-key whitelist in `shortcuts.rs:131-142`: `PreviousFrame`, `NextFrame`, `MoveLeft`, `MoveRight`, `MoveUp`, `MoveDown`, `PreviousKey`, `NextKey`. **Do not enable repeat for every key.**
 - `Esc` cancelling an active interaction must preserve the current `cancel_interaction` contract; visual cleanup must correspond to actual gesture state.
+- Effect search defaults to one addition followed by closing. Its native checkbox, or Tab while search owns input, explicitly enables continuous additions; retain the query and native window ownership until cancellation. Repeated keys and IME confirmation never add effects. Read popup geometry from `effect.search.*` and existing field/row/padding tokens. Successful additions identify their effect and target layers, expand the new effect, and reveal its selected header using the existing selection color. Failure preserves the original project and reports the original cause through the existing error boundary.
 
 ---
 

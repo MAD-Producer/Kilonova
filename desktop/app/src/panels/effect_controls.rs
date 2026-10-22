@@ -18,7 +18,7 @@ use std::collections::HashMap;
 mod curve;
 mod key_navigation;
 mod library;
-pub(super) use library::entries;
+pub(crate) use library::entries;
 
 fn word(locale: Locale, zh: &str, en: &str) -> String {
     if locale == Locale::Zh {
@@ -67,6 +67,8 @@ pub struct Controls {
     curve_editors: HashMap<(u64, u64, String), curve::Editor>,
     collapsed_categories: std::collections::HashSet<String>,
     collapsed_effects: std::collections::HashSet<u64>,
+    revealed_effect: Option<(u64, u64)>,
+    reveal_pending: bool,
     context_menu: Option<EffectContextMenu>,
     color_popup: Option<ColorPopup>,
     collapsed_curves: std::collections::HashSet<(u64, u64, String)>,
@@ -221,6 +223,32 @@ fn dimensions(kind: &str) -> usize {
     }
 }
 impl Controls {
+    pub(crate) fn reveal_effect(&mut self, object: u64, effect: u64) {
+        self.choosing = false;
+        self.property_filter = Default::default();
+        self.collapsed_effects.remove(&effect);
+        self.revealed_effect = Some((object, effect));
+        self.reveal_pending = true;
+    }
+
+    pub(super) fn take_reveal_offset(
+        &mut self, layer: &Value, styles: &motion_ui::style::StyleSheet,
+        locale: Locale, width: f32,
+    ) -> Option<f32> {
+        let (object, effect) = self.revealed_effect?;
+        if !self.reveal_pending || layer["id"] != object { return None; }
+        self.reveal_pending = false;
+        let effects = layer["effects"].as_array()?;
+        let index = effects.iter().position(|item| item["id"] == effect)?;
+        if index == 0 { return Some(0.); }
+        // A one-off projection through the same height calculation as drawing,
+        // including preceding curves and collapsed groups. Never estimate rows.
+        let mut prefix = layer.clone();
+        prefix["effects"] = effects[..index].to_vec().into();
+        Some((self.height(&prefix, styles, locale, width)
+            - styles.metric("padding.panel", 8.)).max(0.))
+    }
+
     pub(super) fn reveal_properties(&mut self, state: &Value, object: u64) {
         for effect in state["project"]["layers"].as_array().into_iter().flatten()
             .filter(|layer| layer["id"] == object)
@@ -1235,7 +1263,9 @@ impl Controls {
                     styles
                         .resolve(
                             "effect.header",
-                            if header_rect.contains(input.mouse) {
+                            if self.revealed_effect == Some((object, id)) {
+                                States::default().with(State::Selected)
+                            } else if header_rect.contains(input.mouse) {
                                 States::default().with(State::Hovered)
                             } else {
                                 States::default()
@@ -2070,6 +2100,26 @@ impl Controls {
             }
             super::numeric::passive(list, atlas, rect, value[component] as f64, input, enabled);
         }
+    }
+}
+
+#[cfg(test)]
+mod application_reveal_tests {
+    use super::*;
+    #[test]
+    fn reveal_reopens_reused_ids_clears_filters_and_scrolls_only_the_target_layer_once() {
+        let styles = PaintList::default().styles();
+        let layer = serde_json::json!({"id":7,"effects":[{"id":1},{"id":2}]});
+        let mut controls = Controls::default();
+        controls.collapsed_effects.insert(2);
+        controls.property_filter = super::super::types::PropertyFilter::Animated;
+        controls.choosing = true;
+        controls.reveal_effect(7,2);
+        assert!(!controls.choosing && !controls.collapsed_effects.contains(&2));
+        assert_eq!(controls.property_filter,super::super::types::PropertyFilter::All);
+        assert_eq!(controls.take_reveal_offset(&serde_json::json!({"id":8}),&styles,Locale::En,360.),None);
+        assert!(controls.take_reveal_offset(&layer,&styles,Locale::En,360.).unwrap() > 0.);
+        assert_eq!(controls.take_reveal_offset(&layer,&styles,Locale::En,360.),None);
     }
 }
 

@@ -1365,6 +1365,7 @@ mod tests {
                 query: "glow".into(),
                 selected_index: 0,
                 owner: Some(Panel::NodeProperties),
+                continuous: false,
             }),
             ..Default::default()
         };
@@ -1495,6 +1496,7 @@ mod tests {
                 query: "glow".into(),
                 selected_index: 0,
                 owner: None,
+                continuous: false,
             }),
             ..Default::default()
         };

@@ -4,6 +4,7 @@ mod node_naming_acceptance;
 mod node_view_acceptance;
 mod node_search_acceptance;
 pub(crate) mod actions;
+mod effect_application;
 mod lifecycle;
 mod media;
 mod frame_export;
