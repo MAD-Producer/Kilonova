@@ -32,3 +32,19 @@
 上述成功发生在构造清理和 main `8a722097` 接入之前，不能当作最终 head 已通过。本提交发布后，必须重新核对自身 CI、实际 checkout/合入树和中文功能说明；最终所有目标/FFmpeg 产品构建也单独记录，旧数字不挪用。#422 正在运行的独立任务保留其原状态，不因合批改写成成功。
 
 MaskCache 旧 String adapter、particle_history_error、其余模型构造、DecodeTask 和旧桌面/导出协议继续开放；Lyon 错误包装不冒充每种内部故障已复现，公开畸形对象探针也不证明正常 GUI 可达。明细见同目录 generator-error-boundaries、generator-numeric-errors、vector-error-boundaries 和 model-construction-invariants；合集 #138/#135 暂不关闭。
+
+## 主线组合实际补验与镜像间接 URI 修正
+
+head `4a29e507` 接入 main 后，本地三阶段全部成功：工作区所有目标及 FFmpeg/host diagnostics 检查 60.890 秒、桌面真实计划失败信道三项通过（0 失败、0 忽略，128.594 秒），以及 FFmpeg 产品构建 53.453 秒。随后实际产品 --command-list 退出 0，24475 字节有效 JSON、stderr 空，产品 SHA `53247c551000224bd4374954fc37d9e43fcb74641f6d483cb93e2da46ff1b66d`。三阶段 Rust/Cargo/WGSL/工作流输入收据不变；这不是本地完整 GPU、GUI、打包运行库或解码验收。
+
+同一最终源码重新执行默认留样，矢量六例、生成器十四例的真实原因经 host/respond/mpsc 回传，文件和 Error stderr 各二十条，stdout 隔离；测试二进制 SHA `8cb3eb87996b07b514e4229aabcd527671337d9c353768f7788a74d9b121aa0e`，输入和二进制均保持。包含父批八例，不作二十个新缺陷或二十项额外回归计数；手动 Flight 的调度范围限制保持。收据在 `native-boundaries-integrated-results.json`、`native-boundaries-integrated-product.json` 与 `native-boundaries-integrated-default-output-results.json`。
+
+#422 的独立 run `39803100051` 已终态：审计和三个桌面平台成功，Rust/GPU `119909029705` 在安装依赖期间耗尽原 45 分钟后取消，实际测试尚未开始。完整原日志 33037 字节，SHA `ef73558281198c1399a8599e7e22dd0130c1528de2a039a8008ac6cce3e66e76`。60.3 MB 下载用 44 分 35 秒，不能称为新源已经生效或测试通过。
+
+实际日志先读取 `file:/etc/apt/apt-mirrors.txt`，随后仍从 Azure HTTP 下载。对照 [runner 官方源配置](https://github.com/actions/runner-images/blob/main/images/ubuntu/scripts/build/configure-apt-sources.sh)，Ubuntu 的源 URI 已替换为 `mirror+file:/etc/apt/apt-mirrors.txt`；此前只替换直接 HTTP 地址，命令退出 0 却未命中间接 URI。这是前次 CI 修复的实际缺口，不归因于业务测试或未经证实的偶发故障。
+
+修正现有三个入口，同时处理该精确间接 URI 和直接 Azure URI，并打印实际 URIs 行供后续日志核对；主机名中的点按字面匹配。Signed-By、Suites、Components、其他源、包列表、测试命令、断言、期限及忽略均保持。实际 GNU sed 执行旧/新工作流命令：旧镜像夹具仍错误地保持不变，新命令通过间接源、直接源、既有官方源、第三方源及相似但不同主机名五种字节对照。原始/候选配置、输出与程序 SHA 留存于 `ubuntu-mirror-routing-probe/`；这证明配置修正，不提前证明托管下载耗时或 CI 成功。
+
+89 个工作目录的路径状态已核对；两个有同名工作流脏改动的隔离旧目录均最后写于 10 月 10 日，没有修改它们。近期该文件提交只有本人的 CI 源修复。确认三阶段 runner 终态后才应用本次工作流修正，全部 Rust/Cargo/WGSL 字节与上述实际产品/信道验收相同；不为仅工作流变化重复宣称新的产品用例数。新 head 的自身 CI 及实际合入树仍必须验证。
+
+修正后的实际工作流再次执行现有工具验收：71 项运行、70 通过、1 项既有 Rust effect_tool 配置跳过，24.213 秒，退出 0。沿用已有固定 PyYAML 6.0.3，没有新增依赖、修改测试源码或断言；工作流及全部 Rust/Cargo/WGSL 输入在该阶段保持。原始 stdout/stderr 与收据为 `ubuntu-mirror-routing-tool-tests.*`。

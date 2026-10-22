@@ -76,7 +76,8 @@ jobs:
         run: python tools/validate_provenance.py
       - name: Install headless Vulkan and native build dependencies
         run: |
-          sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
+          sudo sed -i -e 's|mirror+file:/etc/apt/apt-mirrors\.txt|https://archive.ubuntu.com/ubuntu/|g' -e 's|http://azure\.archive\.ubuntu\.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
+          grep '^URIs:' /etc/apt/sources.list.d/ubuntu.sources
           sudo apt-get update
           sudo apt-get install -y mesa-vulkan-drivers libvulkan1 libclang-18-dev fonts-noto-cjk libasound2-dev
           mkdir -p "$XDG_RUNTIME_DIR"
@@ -152,7 +153,8 @@ jobs:
       - name: Install headless Vulkan and native build dependencies
         if: runner.os == 'Linux'
         run: |
-          sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
+          sudo sed -i -e 's|mirror+file:/etc/apt/apt-mirrors\.txt|https://archive.ubuntu.com/ubuntu/|g' -e 's|http://azure\.archive\.ubuntu\.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
+          grep '^URIs:' /etc/apt/sources.list.d/ubuntu.sources
           sudo apt-get update
           sudo apt-get install -y mesa-vulkan-drivers libvulkan1 libclang-18-dev fonts-noto-cjk xvfb libxkbcommon0 libxkbcommon-x11-0 libasound2-dev
           mkdir -p "$XDG_RUNTIME_DIR"
@@ -306,7 +308,8 @@ jobs:
           python-version: '3.12'
       - name: Install libav, Vulkan and native build dependencies
         run: |
-          sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
+          sudo sed -i -e 's|mirror+file:/etc/apt/apt-mirrors\.txt|https://archive.ubuntu.com/ubuntu/|g' -e 's|http://azure\.archive\.ubuntu\.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
+          grep '^URIs:' /etc/apt/sources.list.d/ubuntu.sources
           sudo apt-get update
           sudo apt-get install -y libavcodec-dev libavformat-dev libavutil-dev \
             libavfilter-dev libswscale-dev libswresample-dev \
