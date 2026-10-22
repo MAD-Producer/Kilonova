@@ -963,8 +963,9 @@ impl PlanBuilder {
                 }
                 if resolved.definition.renderer != motion_effects::RendererKind::Image {
                     crate::scene_generator::validate_settings(e, resolved.definition.renderer)
-                        .map_err(|error| {
-                            format!("layer {}, effect {}: {error}", e.layer, e.instance)
+                        .map_err(|cause| {
+                            let message = format!("layer {}, effect {}: {}", e.layer, e.instance, cause.planning_message());
+                            cause.with_diagnostic(message)
                         })?;
                     if let Some(source) = e.scene.as_ref().and_then(|s| s.source_layer) {
                         if scene.world_matrix(source).is_none() {

@@ -1,5 +1,7 @@
 use super::*;
 
+mod generator_settings;
+
 #[test]
 fn cached_plan_failure_reaches_original_reply_file_and_stderr_at_default_level() {
     const CHILD: &str = "MOTION_NATIVE_PLAN_ERROR_LOG_CHILD";
