@@ -30,9 +30,16 @@ fn shader_failure_retains_native_effect_error_and_source() {
     let error = utility("invalid WGSL").err().unwrap();
     assert!(matches!(
         &error,
-        RenderError::Effects(motion_effects::Error::Invalid(_))
+        RenderError::Effects(motion_effects::Error::ShaderParse { .. })
     ));
     assert!(error.source().unwrap().is::<motion_effects::Error>());
+    let RenderError::Effects(motion_effects::Error::ShaderParse { cause, .. }) = &error else {
+        unreachable!()
+    };
+    assert!(std::ptr::addr_eq(
+        error.source().unwrap().source().unwrap(),
+        cause.as_ref(),
+    ));
 }
 
 #[test]

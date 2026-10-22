@@ -219,8 +219,10 @@ fn compile_internal(
         format!("{HEADER}\n{source}\n@fragment fn sdk_fragment(input:EffectVertex)->@location(0) vec4<f32>{{let p=fx.region.xy+input.uv*fx.region.zw;return mix(sample_source(p),{entry}(p),fx.output_mode.z);}}\n")
     };
     let wgsl = legacy_select::normalize(&wgsl).into_owned();
-    let module =
-        naga::front::wgsl::parse_str(&wgsl).map_err(|e| Error::Invalid(e.emit_to_string(&wgsl)))?;
+    let module = naga::front::wgsl::parse_str(&wgsl).map_err(|cause| Error::ShaderParse {
+        message: cause.emit_to_string(&wgsl),
+        cause: Box::new(cause),
+    })?;
     ensure(
         module.global_variables.len() == 15,
         "plugin shaders cannot declare additional global bindings",
@@ -236,7 +238,10 @@ fn compile_internal(
     )?;
     let info = Validator::new(ValidationFlags::all(), Capabilities::empty())
         .validate(&module)
-        .map_err(|e| Error::Invalid(format!("WGSL validation: {e}")))?;
+        .map_err(|cause| Error::ShaderValidation {
+            context: "WGSL validation",
+            cause: Box::new(cause),
+        })?;
     let glsl = host_glsl(&module, &info, "sdk_vertex", "sdk_fragment")?;
     Ok(CompiledShader { wgsl, glsl, sprite, additive, loop_work })
 }
@@ -244,9 +249,13 @@ fn compile_internal(
 /// Host-owned geometry programs use the same Naga reflection and ES compiler.
 /// Package shaders still pass through the SDK binding and instruction checks.
 pub fn compile_host_program(source: &str, vertex: &str, fragment: &str) -> Result<GlslShader> {
-    let module=naga::front::wgsl::parse_str(source).map_err(|e|Error::Invalid(e.emit_to_string(source)))?;
+    let module=naga::front::wgsl::parse_str(source).map_err(|cause|Error::ShaderParse {
+        message: cause.emit_to_string(source), cause: Box::new(cause),
+    })?;
     let info=Validator::new(ValidationFlags::all(),Capabilities::empty()).validate(&module)
-        .map_err(|e|Error::Invalid(format!("host WGSL validation: {e}")))?;
+        .map_err(|cause|Error::ShaderValidation {
+            context: "host WGSL validation", cause: Box::new(cause),
+        })?;
     host_glsl(&module,&info,vertex,fragment)
 }
 fn host_glsl(module: &naga::Module, info: &naga::valid::ModuleInfo, vertex: &str, fragment: &str) -> Result<GlslShader> {
@@ -278,10 +287,16 @@ fn host_glsl(module: &naga::Module, info: &naga::valid::ModuleInfo, vertex: &str
             &pipeline,
             naga::proc::BoundsCheckPolicies::default(),
         )
-        .map_err(|e| Error::Invalid(format!("GLSL ES 300: {e}")))?;
+        .map_err(|cause| Error::ShaderGlsl {
+            phase: "writer_init", stage,
+            cause: Box::new(cause),
+        })?;
         let reflection = writer
             .write()
-            .map_err(|e| Error::Invalid(format!("GLSL ES 300: {e}")))?;
+            .map_err(|cause| Error::ShaderGlsl {
+                phase: "writer_output", stage,
+                cause: Box::new(cause),
+            })?;
         for (handle, name) in reflection.uniforms {
             if let Some(b) = &module.global_variables[handle].binding {
                 output = output.replace(

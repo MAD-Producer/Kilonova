@@ -14,6 +14,25 @@ pub use schema::*;
 pub enum Error {
     #[error("{0}")]
     Invalid(String),
+    #[error("WGSL parse (phase=wgsl_parse): {message}")]
+    ShaderParse {
+        message: String,
+        #[source]
+        cause: Box<dyn std::error::Error + Send + Sync>,
+    },
+    #[error("{context}: {cause}")]
+    ShaderValidation {
+        context: &'static str,
+        #[source]
+        cause: Box<dyn std::error::Error + Send + Sync>,
+    },
+    #[error("GLSL ES 300: phase={phase} stage={stage:?}: {cause}")]
+    ShaderGlsl {
+        phase: &'static str,
+        stage: naga::ShaderStage,
+        #[source]
+        cause: Box<dyn std::error::Error + Send + Sync>,
+    },
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error(transparent)]

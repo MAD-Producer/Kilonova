@@ -49,6 +49,7 @@ impl Platform for NoMedia {
         _: Arc<dyn wgpu::DisplayAndWindowHandle + Send + Sync>,
         _: u32,
         _: u32,
+        _: motion_render::AllocationBudget,
     ) -> motion_host::Result<motion_host::SurfaceTarget> {
         Err("unexpected GPU surface".into())
     }
