@@ -75,6 +75,12 @@ pub enum Error {
         #[source]
         source: Box<Error>,
     },
+    #[error("color curve sampling at frame {frame}: {source}")]
+    ColorCurveSampling {
+        frame: f64,
+        #[source]
+        source: Box<Error>,
+    },
     #[error("{0}")]
     Invalid(String),
     #[error("timeline object={object} cause={source}")]

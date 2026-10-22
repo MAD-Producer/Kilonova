@@ -299,8 +299,9 @@ impl Scene {
                 for (i, p) in e.params.values().enumerate() {
                     sampled.values[i] = p.sample(sampled.local_frame)?;
                     if let Some(c) = p.curve.as_ref().filter(|_| e.enabled) {
+                        let lut = c.sample(sampled.local_frame)?;
                         sampled.lut = Some(self.curve_luts.len());
-                        self.curve_luts.push(c.sample(sampled.local_frame));
+                        self.curve_luts.push(lut);
                     }
                 }
                 effect_index += 1;

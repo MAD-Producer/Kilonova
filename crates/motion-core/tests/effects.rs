@@ -38,6 +38,36 @@ fn apply(engine: &mut Engine, action: EffectAction) {
 }
 
 #[test]
+fn malformed_color_curve_sampling_does_not_publish_an_invalid_lut_index_and_recovers() {
+    let (engine, _) = fixture("curves");
+    let mut project = engine.project().clone();
+    let mut scene = Scene::new(&project).unwrap();
+    scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
+    let healthy = scene.curve_luts.clone();
+    assert_eq!(healthy.len(), 1);
+    let parameter = project.layers[0].effects[0].params.values_mut()
+        .find(|parameter| parameter.curve.is_some()).unwrap();
+    parameter.curve.as_mut().unwrap().value.sampled_lut = Some(vec![[0.; 4]]);
+    let expected = parameter.curve.as_ref().unwrap().value.validate().unwrap_err().to_string();
+    let before = project.clone();
+    let error = scene.sample(&project, 5., None, &motion_core::ExpressionEvaluator).unwrap_err();
+    let motion_core::Error::ColorCurveSampling { frame, source } = &error else {
+        panic!("missing original color curve failure: {error:?}");
+    };
+    assert_eq!(*frame, 5.);
+    assert!(matches!(source.as_ref(), motion_core::Error::Invalid(_)));
+    assert_eq!(source.to_string(), expected);
+    assert_eq!(project, before);
+    assert!(scene.curve_luts.is_empty());
+    assert!(scene.effects[0].lut.is_none());
+    project.layers[0].effects[0].params.values_mut()
+        .find_map(|parameter| parameter.curve.as_mut()).unwrap().value.sampled_lut = None;
+    scene.sample(&project, 5., None, &motion_core::ExpressionEvaluator).unwrap();
+    assert_eq!(scene.curve_luts, healthy);
+    assert_eq!(scene.effects[0].lut, Some(0));
+}
+
+#[test]
 fn common_controls_reject_invalid_edits_atomically_and_validate_saved_keys() {
     let (mut engine, id) = fixture("posterize");
     for value in [1., 256., f32::NAN] {
@@ -498,7 +528,7 @@ fn curve_object_keys_support_negative_local_time_and_full_signed_span() {
         .unwrap();
     curve.keys[0].frame = i32::MIN;
     curve.keys[1].frame = i32::MAX;
-    assert!((curve.sample(0.0)[255][0] - 0.5).abs() < 0.001);
+    assert!((curve.sample(0.0).unwrap()[255][0] - 0.5).abs() < 0.001);
     project.validate().unwrap();
     let unsupported = serde_json::from_value::<motion_core::Track<[f32; 4]>>(serde_json::json!({
         "axes": {"x":{"value":0,"keys":[]},"y":{"value":0,"keys":[]},"z":{"value":0,"keys":[]}}

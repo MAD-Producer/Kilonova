@@ -893,8 +893,8 @@ fn effect_navigation_uses_the_actual_instance_and_preserves_curve_samples_in_bot
                     let new: EffectParam = serde_json::from_value(find(&added)).unwrap();
                     if effect == curves {
                         assert_eq!(
-                            new.curve.as_ref().unwrap().sample(0.),
-                            old.curve.as_ref().unwrap().sample(0.)
+                            new.curve.as_ref().unwrap().sample(0.).unwrap(),
+                            old.curve.as_ref().unwrap().sample(0.).unwrap()
                         );
                         assert_eq!(
                             new.curve

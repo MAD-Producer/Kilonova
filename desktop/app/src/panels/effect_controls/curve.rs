@@ -20,6 +20,9 @@ const POINT_LIMIT: usize = 64;
 const CHANNELS: [&str; 5] = ["RGB", "R", "G", "B", "A"];
 
 #[cfg(test)]
+mod sampling_failure_tests;
+
+#[cfg(test)]
 mod observation_tests {
     use super::*;
     #[test]
@@ -162,22 +165,27 @@ impl Editor {
         self.channel_menu.open = false;
         self.drag.take().is_some()
     }
-    fn samples(&mut self, value: &CurveObject) -> &[[f32; 2]] {
+    fn samples(&mut self, value: &CurveObject) -> motion_core::Result<&[[f32; 2]]> {
         if !self
             .cache
             .as_ref()
             .is_some_and(|(cached, _)| cached == value)
         {
-            let graph = value.graph();
+            let graph = value.graph()?;
             let samples = graph["channels"][self.channel]["samples"]
                 .as_array()
-                .into_iter()
-                .flatten()
-                .filter_map(|p| Some([p[0].as_f64()? as f32, p[1].as_f64()? as f32]))
-                .collect();
+                .ok_or_else(|| motion_core::Error::Invalid(format!(
+                    "color curve channel={}: sample array is missing", self.channel)))?
+                .iter().enumerate().map(|(index, point)| {
+                    let coordinate = |axis: usize| point[axis].as_f64().filter(|v| v.is_finite())
+                        .map(|v| v as f32).ok_or_else(|| motion_core::Error::Invalid(format!(
+                            "color curve channel={} sample={index} axis={axis}: finite coordinate is missing", self.channel)));
+                    Ok([coordinate(0)?, coordinate(1)?])
+                }).collect::<motion_core::Result<Vec<_>>>()?;
             self.cache = Some((value.clone(), samples));
         }
-        &self.cache.as_ref().unwrap().1
+        self.cache.as_ref().map(|(_, samples)| samples.as_slice())
+            .ok_or_else(|| motion_core::Error::Invalid("color curve sample cache is missing".into()))
     }
     /// `command` wraps an edited curve object into the owning engine command.
     pub fn draw(
@@ -323,7 +331,15 @@ impl Editor {
             .drag
             .as_ref()
             .map_or_else(|| current.clone(), |d| d.value.clone());
-        let samples = self.samples(&value).to_vec();
+        let channel = self.channel;
+        let samples = match observe!("effects.curve_samples", self.samples(&value),
+            "phase=graph channel={channel}") {
+            Ok(samples) => samples.to_vec(),
+            Err(_) => {
+                if self.cancel() { out.push(Action::History(4)); }
+                return;
+            }
+        };
 
         // Background, grid, identity diagonal.
         paint::rect(
