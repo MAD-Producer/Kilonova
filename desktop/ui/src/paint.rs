@@ -745,16 +745,19 @@ pub struct Painter {
     srgb_target: bool,
     solid_pipeline: wgpu::RenderPipeline,
     glyph_pipeline: wgpu::RenderPipeline,
-    solid_layout: wgpu::BindGroupLayout,
     glyph_layout: wgpu::BindGroupLayout,
+    solid_bind: wgpu::BindGroup,
+    glyph_bind: Option<wgpu::BindGroup>,
     solid_uniform: wgpu::Buffer,
     glyph_uniform: wgpu::Buffer,
     solid_buffer: wgpu::Buffer,
     glyph_buffer: wgpu::Buffer,
     sampler: wgpu::Sampler,
     atlas: Option<wgpu::Texture>,
-    atlas_view: Option<wgpu::TextureView>,
     atlas_size: [u32; 2],
+    /// Saturating count over this Painter's lifetime; reset only by constructing
+    /// a new Painter. Includes the solid group and atlas-generation replacements.
+    pub bind_group_creations: u64,
     /// Solid vertices submitted for the last frame.
     pub last_solid_vertices: usize,
     /// Glyph vertices submitted for the last frame.
@@ -883,6 +886,19 @@ impl Painter {
             cache: None,
         });
         let uniform_bytes = bytemuck::bytes_of(&[0.0f32, 0.0, 1.0, 1.0]);
+        let solid_uniform = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("solid uniforms"),
+            contents: uniform_bytes,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+        let solid_bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("solid bind group"),
+            layout: &solid_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: solid_uniform.as_entire_binding(),
+            }],
+        });
         Self {
             srgb_target: format.is_srgb(),
             observation: Default::default(),
@@ -892,13 +908,10 @@ impl Painter {
             draw_batches: Vec::new(),
             solid_pipeline,
             glyph_pipeline,
-            solid_layout,
             glyph_layout,
-            solid_uniform: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("solid uniforms"),
-                contents: uniform_bytes,
-                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            }),
+            solid_bind,
+            glyph_bind: None,
+            solid_uniform,
             glyph_uniform: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("glyph uniforms"),
                 contents: uniform_bytes,
@@ -923,8 +936,8 @@ impl Painter {
                 ..Default::default()
             }),
             atlas: None,
-            atlas_view: None,
             atlas_size: [0, 0],
+            bind_group_creations: 1,
             last_solid_vertices: 0,
             last_glyph_vertices: 0,
             last_draw_calls: 0,
@@ -955,7 +968,26 @@ impl Painter {
                 usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
                 view_formats: &[],
             });
-            self.atlas_view = Some(texture.create_view(&Default::default()));
+            let view = texture.create_view(&Default::default());
+            self.glyph_bind = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("glyph bind group"),
+                layout: &self.glyph_layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: self.glyph_uniform.as_entire_binding(),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: wgpu::BindingResource::TextureView(&view),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 2,
+                        resource: wgpu::BindingResource::Sampler(&self.sampler),
+                    },
+                ],
+            }));
+            self.bind_group_creations = self.bind_group_creations.saturating_add(1);
             self.atlas = Some(texture);
             self.atlas_size = [width, height];
         }
@@ -1208,7 +1240,7 @@ impl Painter {
             }
         }
         self.observation.order(invalid_ops, first_invalid, list.shapes.len(), list.glyphs.len());
-        self.observation.atlas(self.atlas_view.is_none() && self.draw_batches.iter().any(|batch| batch.glyph), list.glyphs.len());
+        self.observation.atlas(self.glyph_bind.is_none() && self.draw_batches.iter().any(|batch| batch.glyph), list.glyphs.len());
         if !solids.is_empty() {
             queue.write_buffer(&self.solid_buffer, 0, bytemuck::cast_slice(&solids));
         }
@@ -1226,34 +1258,6 @@ impl Painter {
             0,
             bytemuck::bytes_of(&[2.0 / viewport[0], 0.0, 0.0, -2.0 / viewport[1]]),
         );
-        let solid_bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("solid bind group"),
-            layout: &self.solid_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: self.solid_uniform.as_entire_binding(),
-            }],
-        });
-        let glyph_bind = self.atlas_view.as_ref().map(|view| {
-            device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("glyph bind group"),
-                layout: &self.glyph_layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: self.glyph_uniform.as_entire_binding(),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::TextureView(view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 2,
-                        resource: wgpu::BindingResource::Sampler(&self.sampler),
-                    },
-                ],
-            })
-        });
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             multiview_mask: None,
             label: Some("panels"),
@@ -1277,13 +1281,13 @@ impl Painter {
         }
         for batch in &self.draw_batches {
             if batch.glyph {
-                let Some(bind) = &glyph_bind else { continue };
+                let Some(bind) = &self.glyph_bind else { continue };
                 pass.set_pipeline(&self.glyph_pipeline);
                 pass.set_bind_group(0, bind, &[]);
                 pass.set_vertex_buffer(0, self.glyph_buffer.slice(..));
             } else {
                 pass.set_pipeline(&self.solid_pipeline);
-                pass.set_bind_group(0, &solid_bind, &[]);
+                pass.set_bind_group(0, &self.solid_bind, &[]);
                 pass.set_vertex_buffer(0, self.solid_buffer.slice(..));
             }
             pass.draw(batch.vertices.clone(), 0..1);
@@ -1295,6 +1299,9 @@ impl Painter {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod bindings_tests;
 
 #[cfg(test)]
 mod tests {
