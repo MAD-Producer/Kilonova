@@ -10,6 +10,7 @@ mod matte_textures;
 mod accumulator_textures;
 mod input_snapshot_context;
 mod retained_rasters;
+mod vector_textures;
 
 #[test]
 fn cached_effect_bindings_keep_admitted_sources_until_the_bindings_are_invalidated() {

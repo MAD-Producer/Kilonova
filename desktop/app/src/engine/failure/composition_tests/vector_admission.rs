@@ -18,6 +18,13 @@ fn vector_refusal_preserves_cause_and_reaches_default_file_and_stderr() {
         let mut renderer = pollster::block_on(motion_render::Renderer::headless()).unwrap();
         let budget = renderer.allocation_budget().clone();
         let target = renderer.capture_target(32, 32).unwrap();
+        // Complete newly admitted texture stages, then grow real geometry to
+        // keep this existing test focused on its original vertex-buffer site.
+        renderer.capture(&scene, &target).unwrap();
+        project.layers[0].content = motion_core::Content::Vector {
+            vector: motion_core::vector::VectorContent::shape(motion_core::vector::ShapeKind::Plus),
+        };
+        scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
         let limit = budget.info().unwrap().admitted_bytes;
         budget.set_limit(limit).unwrap();
         CURRENT_COMMAND.set(Some(Flight {
