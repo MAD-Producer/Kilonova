@@ -57,6 +57,7 @@ impl Session {
         let (width, height) = requested;
         json!({"mode":self.preview.mode.name(),"tier":tier.name(),"width":width,"height":height,"fps":if self.preview_memory.blocked(){tier.fps().min(15)}else{tier.fps()},
             "memoryAdaptation":{"version":1,"status":if self.preview_memory.blocked(){"blocked"}else if quality.level>0{"degraded"}else{"normal"},
+                "nativePressure":self.preview_memory.pressure_info(self.preview_memory_clock.elapsed()),
                 "requested":quality,"actual":self.graphics.as_ref().and_then(|g|g.actual_preview_quality),
                 "requestedWidth":requested.0,"requestedHeight":requested.1,
                 "actualWidth":self.graphics.as_ref().filter(|g|g.scratch.valid()).map(|g|g.scratch.width),

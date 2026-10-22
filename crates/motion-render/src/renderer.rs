@@ -613,6 +613,20 @@ impl Renderer {
         self.preview_resource_guard = enabled;
         self.effect_gpu.builder.invalidate_preview_plan();
     }
+    /// Drop only idle image cache ownership. Active inputs, pending conversions
+    /// and the completed front are preserved. Returned bytes describe evicted
+    /// cache entries; queued aliases may still retain admitted native capacity.
+    pub fn evict_idle_preview_cache(&mut self) -> u64 {
+        self.image_prefetch.clear();
+        let idle: Vec<_> = self.image_access.keys().copied()
+            .filter(|id| *id != 0 && !self.image_active.contains(id)).collect();
+        let mut bytes = 0u64;
+        for id in idle {
+            bytes = bytes.saturating_add(self.images.get(&TextureKey::Static(id)).map_or(0, |image| image.bytes));
+            self.remove_static_image(id);
+        }
+        bytes
+    }
     /// Discard unsubmitted video tokens and their encoder before calling this.
     /// Retained presentation targets belong to the caller, not this working set.
     pub fn reclaim_preview_working_set(&mut self) -> Result<()> {

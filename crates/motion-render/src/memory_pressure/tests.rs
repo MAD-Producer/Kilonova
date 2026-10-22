@@ -13,6 +13,59 @@ fn available(budget: u64, usage: u64) -> MemoryPressureReading {
 }
 
 #[test]
+fn preview_pressure_counts_native_samples_instead_of_cached_calls_at_clock_boundaries() {
+    use crate::preview_memory::{PreviewMemoryPolicy, PreviewPressureAction};
+    let origin = Instant::now();
+    let mut probe = MemoryPressureProbe::default();
+    let mut policy = PreviewMemoryPolicy::default();
+    let first = policy.observe_pressure(Duration::ZERO, || {
+        probe.sample(origin + Duration::from_nanos(1), "Dx12", || {
+            available(100, 95)
+        })
+    });
+    assert!(first.sampled && first.first_high);
+    assert_eq!(first.action, PreviewPressureAction::EvictIdle);
+    let cached = policy.observe_pressure(Duration::from_secs(1), || {
+        let cached = probe.sample(origin + Duration::from_secs(1), "Dx12", || {
+            panic!("the native cache deadline has not elapsed")
+        });
+        assert_eq!(cached.age_ms, 999);
+        let json = serde_json::to_value(&cached).unwrap();
+        assert!(json.get("sampledAt").is_none());
+        assert!(json.get("sampled_at").is_none());
+        cached
+    });
+    assert!(!cached.sampled && !cached.first_high && !cached.persistent_high);
+    assert_eq!(cached.action, PreviewPressureAction::None);
+    assert_eq!(policy.quality(true).level, 0);
+    assert_eq!(
+        policy
+            .pressure_info(Duration::from_secs(1))
+            .consecutive_high_samples,
+        1
+    );
+    let fresh = policy.observe_pressure(Duration::from_secs(2), || {
+        probe.sample(origin + Duration::from_secs(2), "Dx12", || {
+            available(100, 95)
+        })
+    });
+    assert!(fresh.sampled);
+    assert_eq!(
+        fresh.action,
+        PreviewPressureAction::Quality {
+            previous: 0,
+            level: 1
+        }
+    );
+    assert_eq!(
+        policy
+            .pressure_info(Duration::from_secs(2))
+            .consecutive_high_samples,
+        2
+    );
+}
+
+#[test]
 fn native_sampling_is_bounded_and_expiry_does_not_reuse_a_stale_success() {
     let now = Instant::now();
     let calls = Cell::new(0);

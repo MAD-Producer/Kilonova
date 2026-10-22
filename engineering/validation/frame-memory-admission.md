@@ -1690,3 +1690,34 @@ dependency's feature. New movie-worker acceptance must explicitly enable
 execute application tests guarded by `cfg(feature = "ffmpeg")`. Earlier backend-
 enabled desktop totals are retained with their original commands and are not
 relabelled as coverage of those application-gated tests. #60/#61/#67 remain open.
+
+## Twenty-second increment: bounded native-pressure preview policy (pending acceptance)
+
+This work builds on local export-window source `5efb018f`. That frozen source's
+validation runs separately; its results do not validate this increment. This
+section records new implementation and test requirements, not passing evidence.
+
+| Item | Disposition / behavior | Required acceptance |
+| --- | --- | --- |
+| #61-A143 | New functional policy: native advice drives idle eviction first, then bounded image/video proxy and target reductions | Real attached Session cache ownership, active-source dimensions, completed-front pixels and reduced target assertions in ordinary and exposure cases |
+| #61-A144 | Full-precision sampling plus internal native sample identity prevents counting cached callers twice | Policy cadence and real probe-cache clock-boundary regression guards |
+| #61-A145 | Distinct high/low thresholds, five-second lowering and 30-second / five-low / 120-completed-frame recovery | Controlled-time policy guards, unknown/intermediate boundaries, bounded levels and refusal rollback |
+| #61-A146 | Retained preview cannot bypass a changed effective floor; pending exposure candidates are cancelled without dropping the completed front | Actual replacement and formal full-resolution pixel checks, unchanged project/revision/undo, broad existing host/desktop tests |
+| #61-A147 | New bounded default-level pressure signal: Debug first, Error once at distinct high sample 60, reset on normal/unknown boundaries, Warn on floor change | Threshold/suppression/recovery and logger callbacks proving Session/registry/observation locks are released on return and unwind; existing real application output-channel regression |
+| #61-A148 | Diagnostic snapshot distinguishes requested/actual quality and native advice from typed admission refusals | Snapshot context assertions and full workspace checking; no fabricated refusal or native free-VRAM total |
+
+The API contract is `engineering/host-api/platform-memory-pressure.md`. The
+Windows native fixture uses the workspace's already-resolved `winit` only as a
+host dev dependency, with original generated PNGs and an independently authored
+hidden window. No new resolved third-party component or copied asset is added.
+`PROVENANCE.md`, `ATTRIBUTION.md` and `NOTICE` were checked before that dependency
+change. No panel, layout, style, input or authored effect changes are included.
+DESIGN section 0.7 baseline rows remain retained with reason: none of their panel
+or token locations is edited; this work does not claim new visual compliance.
+
+All new-source compilation, runtime, output-channel and full regression evidence
+is pending here. Native readings are injected in policy/host tests to avoid
+exhausting physical VRAM; this must not be represented as real-driver pressure
+reproduction or new Linux/Metal/Android runtime acceptance. Per-category frame
+peaks, remaining Presenter/UI enrollment and repeated resize/seek/project-switch
+combined acceptance remain open. #60/#61/#67 remain open.
