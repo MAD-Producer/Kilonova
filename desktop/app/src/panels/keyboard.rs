@@ -209,6 +209,7 @@ pub fn route(
             query: String::new(),
             selected_index: 0,
             owner,
+            continuous: false,
         });
         return true;
     }
@@ -487,6 +488,7 @@ mod tests {
             query: "glow".into(),
             selected_index: 0,
             owner,
+            continuous: false,
         }
     }
     #[test]

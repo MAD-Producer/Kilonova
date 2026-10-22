@@ -131,6 +131,7 @@ fn editors_popups_ime_repeat_modifiers_and_gestures_keep_keyboard_priority() {
                     query: String::new(),
                     selected_index: 0,
                     owner: None,
+                    continuous: false,
                 })
             }
             _ => unreachable!(),

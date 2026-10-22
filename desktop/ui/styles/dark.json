@@ -133,6 +133,10 @@
       "effect.library.tab_width": 54,
       "effect.library.tab_gap": 4,
       "effect.group.gap": 8,
+      "effect.search.width": 450,
+      "effect.search.row.height": 32,
+      "effect.search.field.height": 36,
+      "effect.search.max_rows": 10,
       "timeline.property.group_offset": 78,
       "timeline.property.watch_offset": 98,
       "timeline.property.caption_offset": 118,
@@ -462,7 +466,12 @@
     },
     "effect.header": {
       "extends": "row",
-      "background": "$colors.header"
+      "background": "$colors.header",
+      "states": {
+        "selected": {
+          "background": "$colors.selected"
+        }
+      }
     },
     "timeline.property.group": {
       "extends": "timeline.row",

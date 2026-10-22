@@ -46,6 +46,9 @@ pub(super) fn render(
     } else {
         &mut panels.effect_controls
     };
+    if let Some(offset) = controls.take_reveal_offset(layer, &styles, panels.locale, area.width()) {
+        panels.auxiliary.scroll.insert(panel as u32, offset);
+    }
     let height = controls.height(layer,&styles,panels.locale, area.width()).max(area.height());
     let scroll_frame = if panel == Panel::Effects {
         Some(panels.library_scroll.begin(
