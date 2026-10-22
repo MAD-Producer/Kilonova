@@ -4,6 +4,7 @@ use motion_effects::{RendererKind, SceneSettings, MAX_PARAMS};
 use motion_render::{scene_generator::validate_settings, RenderError};
 
 mod alpha;
+mod numeric;
 
 fn effect() -> SampledEffect {
     SampledEffect {
@@ -48,6 +49,7 @@ fn actual_generator_refusals_keep_native_sources_and_default_reply_log_channels(
             if matches!(cause.as_ref(), RenderError::Invalid(_))));
         let mut failures = vec![settings, index];
         failures.extend(alpha::actual_refusals());
+        failures.extend(numeric::actual_refusals());
         let mut causes = Vec::new();
         for (index, failure) in failures.into_iter().enumerate() {
             let request = 901 + index as u64;
@@ -104,14 +106,20 @@ fn actual_generator_refusals_keep_native_sources_and_default_reply_log_channels(
     let causes: Vec<String> =
         serde_json::from_slice(&std::fs::read(root.path().join("primary-causes.json")).unwrap())
             .unwrap();
-    assert_eq!(causes.len(), 8);
+    assert_eq!(causes.len(), 14);
     assert!(file.contains("logging initialized level=INFO"));
-    for (request, cause) in (901..909).zip(causes) {
+    for (request, cause) in (901..915).zip(causes) {
         let marker = format!("error #{request} test_generator_settings ");
         for text in [&file, &stderr] {
             let lines: Vec<_> = text.lines().filter(|line| line.contains(&marker)).collect();
             assert_eq!(lines.len(), 1, "{text}");
-            for context in [&cause, "layer 7", "effect 11", "frame 5.5", "ms:"] {
+            let frame = match request {
+                901..=912 => "frame 5.5".to_string(),
+                913 => "frame inf".to_string(),
+                914 => format!("frame {}", f64::MAX),
+                _ => unreachable!(),
+            };
+            for context in [&cause, "layer 7", "effect 11", &frame, "ms:"] {
                 assert!(lines[0].contains(context), "{text}");
             }
         }

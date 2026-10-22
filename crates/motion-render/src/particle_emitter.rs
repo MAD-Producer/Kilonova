@@ -1,7 +1,7 @@
 //! SDK 5 world-birth particles: bounded pose cache + seek-independent analytic motion.
 use crate::scene_generator::{random, GeneratorScratch, GeneratorStats, Sprite};
 use motion_model::{particle_history::ParticleHistory, SampledEffect};
-use crate::{DrawLayer, Scene};
+use crate::{DrawLayer, RenderError, Scene};
 use glam::{Mat4, Vec3};
 use std::{collections::VecDeque, sync::Arc};
 
@@ -29,22 +29,20 @@ impl BirthCache {
 fn project_vector(v: [f32; 4]) -> Vec3 {
     Vec3::new(v[0], -v[1], -v[2])
 }
-fn read(h: &ParticleHistory, name: &str, t: f64) -> Result<[f32; 4], String> {
-    h.parameter(name, t).map_err(|e| e.to_string())
+fn read(h: &ParticleHistory, name: &str, t: f64) -> Result<[f32; 4], RenderError> {
+    super::scene_generator::validate_parameter(name, h.parameter(name, t)?)
 }
-fn centre(c: &mut BirthCache, t: f64) -> Result<Vec3, String> {
+fn centre(c: &mut BirthCache, t: f64) -> Result<Vec3, RenderError> {
     let m = c
         .history
-        .matrix_at(t, &mut c.world, &mut c.states)
-        .map_err(|e| e.to_string())?;
+        .matrix_at(t, &mut c.world, &mut c.states)?;
     Ok(m.transform_point3(project_vector(read(&c.history, "position", t)?)))
 }
-fn birth(c: &mut BirthCache, id: i64, rate: f64) -> Result<Birth, String> {
+fn birth(c: &mut BirthCache, id: i64, rate: f64) -> Result<Birth, RenderError> {
     let t = id as f64 / rate;
     let h = c.history.clone();
     let m = h
-        .matrix_at(t, &mut c.world, &mut c.states)
-        .map_err(|e| e.to_string())?;
+        .matrix_at(t, &mut c.world, &mut c.states)?;
     let r = |channel| random(c.seed, id as u32, channel);
     let z = 2. * r(0) - 1.;
     let theta = r(1) * std::f32::consts::TAU;
@@ -105,7 +103,7 @@ pub(crate) fn generate(
     e: &SampledEffect,
     out: &mut Vec<Sprite>,
     scratch: &mut GeneratorScratch,
-) -> Result<GeneratorStats, String> {
+) -> Result<GeneratorStats, RenderError> {
     let history = e
         .particle_history
         .as_ref()
@@ -118,14 +116,9 @@ pub(crate) fn generate(
         scratch.births.remove(&(e.layer, e.instance));
         return Ok(stats);
     }
-    let first =
-        (((t - life) * rate).floor() as i64 + 1).max(if read(history, "prewarm", 0.)?[0] > 0.5 {
-            i64::MIN
-        } else {
-            0
-        });
-    let last = (t * rate).floor() as i64;
-    stats.alive = (last - first + 1).max(0) as u32;
+    let (first, last, alive) = super::scene_generator::birth_range(t, life, rate,
+        read(history, "prewarm", 0.)?[0] > 0.5)?;
+    stats.alive = alive;
     let cache = scratch
         .births
         .entry((e.layer, e.instance))

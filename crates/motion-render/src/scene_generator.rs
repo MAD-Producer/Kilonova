@@ -69,9 +69,44 @@ fn param(e: &SampledEffect, id: &str) -> Result<[f32; 4], RenderError> {
         .iter()
         .position(|p| p == id)
         .ok_or_else(|| RenderError::Invalid(format!("generator parameter {id} missing")))?;
-    e.values.get(index).copied().ok_or_else(|| RenderError::Invalid(format!(
+    let value = e.values.get(index).copied().ok_or_else(|| RenderError::Invalid(format!(
         "generator parameter {id} index {index} exceeds value count {}", e.values.len()
-    )))
+    )))?;
+    validate_parameter(id, value)
+}
+pub(crate) fn validate_parameter(id: &str, value: [f32; 4]) -> Result<[f32; 4], RenderError> {
+    let components = match id {
+        "position" | "gravity" | "extent" | "direction" | "wind" => 3,
+        "color" | "end_color" => 4,
+        _ => 1,
+    };
+    if value[..components].iter().any(|v| !v.is_finite()) {
+        return Err(format!("generator parameter {id} contains non-finite components").into());
+    }
+    Ok(value)
+}
+pub(crate) fn birth_range(t: f64, life: f64, rate: f64, prewarm: bool) -> Result<(i64, i64, u32), RenderError> {
+    if !t.is_finite() || t < 0. || !(0. ..=10000.).contains(&rate) || !(0.001..=120.).contains(&life) {
+        return Err("invalid particle time, birth rate or lifetime".into());
+    }
+    if (rate * life).ceil() > MAX_PARTICLES as f64 {
+        return Err(format!("particle capacity exceeds {MAX_PARTICLES}; reduce rate or lifetime").into());
+    }
+    let first = ((t - life) * rate).floor();
+    let last = (t * rate).floor();
+    let fits = |v: f64| v.is_finite() && v >= i64::MIN as f64 && v < i64::MAX as f64;
+    if !fits(first) || !fits(last) {
+        return Err("particle birth index exceeds signed range".into());
+    }
+    let first = (first as i64).checked_add(1).ok_or("particle birth index exceeds signed range")?;
+    let first = first.max(if prewarm { i64::MIN } else { 0 });
+    let last = last as i64;
+    let alive = last.checked_sub(first).and_then(|n| n.checked_add(1))
+        .ok_or("particle birth span exceeds signed range")?.max(0) as u64;
+    if alive > MAX_PARTICLES as u64 {
+        return Err(format!("particle capacity exceeds {MAX_PARTICLES}; reduce rate or lifetime").into());
+    }
+    Ok((first, last, alive as u32))
 }
 fn context(e: &SampledEffect, phase: &str, cause: RenderError) -> RenderError {
     RenderError::Context {
@@ -108,6 +143,9 @@ pub fn validate_settings(e: &SampledEffect, kind: RendererKind) -> Result<(), Re
 fn validate_settings_inner(e: &SampledEffect, kind: RendererKind) -> Result<(), RenderError> {
     let settings = e.scene.as_ref().ok_or("scene generator settings missing")?;
     settings.validate()?;
+    if !e.local_frame.is_finite() {
+        return Err("generator frame is not finite".into());
+    }
     if kind != RendererKind::ParticleEmitter && (settings.particle_space.is_some() || settings.sprite_asset.is_some()) {
         return Err("legacy generators cannot use world-birth particle settings".into());
     }
@@ -157,7 +195,14 @@ pub fn generate(
     scratch: &mut GeneratorScratch,
 ) -> Result<GeneratorStats, RenderError> {
     let start = out.len();
-    let result = generate_inner(scene, layer, e, kind, alpha, out, scratch);
+    let result = generate_inner(scene, layer, e, kind, alpha, out, scratch).and_then(|stats| {
+        if out.iter().skip(start).any(|sprite| sprite.rect.iter()
+            .chain(sprite.color.iter()).chain(sprite.style.iter()).any(|v| !v.is_finite())) {
+            Err("generated sprite exceeds numeric range".into())
+        } else {
+            Ok(stats)
+        }
+    });
     if result.is_err() {
         out.truncate(start);
     }
@@ -173,8 +218,11 @@ fn generate_inner(
     scratch: &mut GeneratorScratch,
 ) -> Result<GeneratorStats, RenderError> {
     validate_settings(e, kind)?;
+    if scene.fps == 0 {
+        return Err("generator frame rate must be positive".into());
+    }
     if kind == RendererKind::ParticleEmitter {
-        return crate::particle_emitter::generate(scene, layer, e, out, scratch).map_err(RenderError::from);
+        return crate::particle_emitter::generate(scene, layer, e, out, scratch);
     }
     let settings = e.scene.as_ref().ok_or("scene generator settings missing")?;
     settings.validate()?;
@@ -202,9 +250,7 @@ fn generate_inner(
             return Ok(stats);
         }
         let prewarm = param(e, "prewarm")?[0] > 0.5;
-        let first =
-            (((t - life) * rate).floor() as i64 + 1).max(if prewarm { i64::MIN } else { 0 });
-        let last = (t * rate).floor() as i64;
+        let (first, last, alive) = birth_range(t, life, rate, prewarm)?;
         let speed = param(e, "speed")?[0];
         let spread = param(e, "spread")?[0];
         let gravity = Vec3::from_array(param(e, "gravity")?[..3].try_into().unwrap());
@@ -245,7 +291,6 @@ fn generate_inner(
         } else {
             right
         };
-        let alive = (last - first + 1).max(0) as u32;
         let matrix_norm = (matrix.x_axis.truncate().length_squared()
             + matrix.y_axis.truncate().length_squared()
             + matrix.z_axis.truncate().length_squared())

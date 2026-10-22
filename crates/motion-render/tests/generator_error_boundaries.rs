@@ -1,6 +1,11 @@
 #[path = "../../motion-effects/tests/support/scene_packages.rs"]
 mod scene_fixtures;
 
+#[path = "generator_error_boundaries/numeric.rs"]
+mod numeric;
+#[path = "generator_error_boundaries/time.rs"]
+mod time;
+
 use motion_core::{EffectInstance, Layer, Project, SampledEffect};
 use motion_effects::{LensElement, LensShape, RendererKind, SceneSettings, MAX_PARAMS};
 use motion_render::{effect_plan::PlanBuilder, scene_generator, RenderError, Scene};
