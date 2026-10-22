@@ -17,7 +17,12 @@ fn reply<T>(
 fn ui(size: u32) -> UiFrame {
     UiFrame {
         paint: Default::default(),
-        atlas: None,
+        // CaptureUi requires a complete atlas even for a glyph-free frame.
+        atlas: Some(AtlasUpload {
+            pixels: vec![255; 4],
+            width: 1,
+            height: 1,
+        }),
         logical_size: [size as f32; 2],
         composition: Some([0., 0., size as f32, size as f32]),
         composition_image: None,

@@ -1770,6 +1770,11 @@ after native pressure lowers quality; the repeated-capacity guard rejects growth
 relative to the same warmed-up case. Remaining Presenter/UI allocation coverage
 is still excluded and must not be presented as whole-application memory.
 
+Pre-execution fixture review found that `CaptureUi` always requires a complete
+glyph atlas. This glyph-free fixture supplies a one-texel bitmap, matching the
+existing native screenshot contract. Pixel, capacity, history and project
+assertions are unchanged; this is a test setup correction, not a product change.
+
 ## Twenty-fifth increment: release-fault logging outside host guards (pending acceptance)
 
 The existing invariant failure still stops admission and readout, preserves known
