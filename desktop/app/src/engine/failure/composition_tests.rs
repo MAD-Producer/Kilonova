@@ -11,6 +11,9 @@ mod timing_admission;
 mod vector_admission;
 mod mask_admission;
 mod compositing_admission;
+mod matte_texture_admission;
+mod accumulator_admission;
+mod input_snapshot_context;
 mod plan_error;
 
 #[test]
