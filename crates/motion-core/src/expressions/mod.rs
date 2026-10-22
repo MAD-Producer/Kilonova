@@ -27,7 +27,8 @@ fn evaluate(
     cancel: Arc<AtomicBool>,
 ) -> Result<Vec<f32>> {
     let track = raw(project, &e.target)?;
-    let layer = project.layers.iter().find(|l| l.id == e.target.object());
+    let selected = project.layers.iter().enumerate().find(|(_, l)| l.id == e.target.object());
+    let layer = selected.map(|(_, layer)| layer);
     let offset = layer.map_or(0, |l| l.clip(project.frames).offset_frame);
     let fps = project.fps as f64;
     let percent = matches!(
@@ -50,9 +51,7 @@ fn evaluate(
     };
     let local = frame - f64::from(offset);
     let keys:Vec<_>=track.frames().iter().map(|&f| -> Result<_> { Ok(json!({"time":(f64::from(f)+f64::from(offset))/fps,"value":js_value(track.sample(f64::from(f))?)})) }).collect::<Result<_>>()?;
-    let index = layer.map_or(0, |l| {
-        project.layers.len() - project.layers.iter().position(|v| v.id == l.id).unwrap()
-    });
+    let index = selected.map_or(0, |(index, _)| project.layers.len() - index);
     let clip = layer.map(|l| l.clip(project.frames));
     let seed = e.seed
         ^ (e.target.object() as u32).wrapping_mul(0x9e3779b9)
