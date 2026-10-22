@@ -761,3 +761,223 @@ The earlier174-case combined acceptance remains attached to its original
 source; these two executions are not presented as another full combined run.
 Fresh public macOS CI is still required before merging. A successful normal
 unsupported test does not prove native timer refusal on that adapter.
+
+
+## Ninth increment: vector destinations and asynchronous upload staging
+
+At source `e994f343`, vector vertex and group-opacity buffers, plus their
+mapped staging pool, reserve their actual rounded descriptor capacities from
+the renderer's combined admission budget. Growth reserves before replacing
+the old buffer; refusal preserves its aliases and completed output. Cached
+capacity remains reusable below a newly lowered limit. Cached opacity bindings
+retain the buffer allocation for their own lifetime.
+
+Encoded copies retain the destination as work, without promoting it back to an
+actual resource owner. Pending staging/remap callbacks retain their admitted
+buffers through pool replacement or teardown. This preserves #399's distinction
+between an actual owner and work retained by an older frame. Upload allocation
+errors preserve typed rejection and layer/frame/phase context through the
+existing error boundary. Healthy Present behavior and pixel semantics remain.
+
+| Case | Actual path and oracle | Disposition |
+| --- | --- | --- |
+| #61-A56 | 24-byte destination and staging each round to32; exact64-byte increase and teardown | New capacity coverage |
+| #61-A57 | Refused growth preserves identity and aliases; successful replacement and below-limit reuse | New preservation coverage |
+| #61-A58 | Staging refusal leaves counters and destination unchanged; real copied bytes before and after cached reuse below limit | New failure/recovery coverage |
+| #61-A59 | Unfinished and finished raw upload commands retain both buffers after caches/pool drop, until command abandonment | New upload-owner coverage |
+| #61-A60 | Actual submission/remap completion with overlapping allocation scopes; completed destinations are not renewed by unrelated frames | New retirement coverage |
+| #61-A61 | Nested vector opacity, real pixels, exact vertex/opacity/staging sums, reuse and full clear/drop retirement | New composition coverage |
+| #61-A62 | Real reupload budget refusal preserves exact prior output; restored budget produces the changed alpha | New output-preservation coverage |
+| #61-A63 | Actual vector failure through `respond`, request208/layer77/frame0/phase/cause/elapsed; default file, Error stderr and stdout isolation, then actual recovery | Existing boundary, newly exercised failure |
+
+The native GPU control at `30dfdce8` failed with 1,344,592 admitted bytes
+against 1,344,656 expected bytes, cargo exit101. It is retained as a failing
+control, not a passing result. Its three original capacity/count/teardown
+assertions are unchanged. Existing native remap-failure assertions still
+require the same `Remap` cause, now nested in the existing `RenderError` wrapper;
+existing pixel tolerances and return/protocol behavior are unchanged.
+
+Exact source `e994f343` passes **192 distinct selected tests**: render library75,
+seven GPU suites37, host library69, desktop default-log boundary11, with zero
+failures or ignores. Workspace/all-targets FFmpeg check (excluding retired
+Android) and the panel style guard also pass. `vector-admission-*.log` and
+`.exit.json` records bind commands and exits to the source; the local
+`vector-admission-acceptance.json` records their SHA-256 and verifies the failing
+control and retained assertions. No tracked source changed during validation.
+All build caches, temporary data and artifacts remained on E:.
+
+This selection does not claim full workspace/public CI acceptance. Group raster
+textures, mask/compositing resources, other external/raw allocation boundaries,
+shared session policy, platform pressure, frame peaks, bounded preview/export
+and repeated lifecycle acceptance remain pending. #61 and #67 remain open;
+precision and 3D remain parked. No panels, styles, dependencies or assets changed.
+
+
+## Tenth increment: mask mesh and filter uniform admission
+
+Production source `64fda9ba` admits cached mask triangle buffers and every624-byte
+feather/combine uniform from the renderer's combined budget. Mapped mesh
+initialization preserves the previous upload behavior and reserves before
+replacement. Uniform queue writes share the existing pending-upload tracker;
+their capacity survives the cache owner until actual completion. Errors retain
+the original cause and layer/mask/frame/phase through the existing boundary.
+Cached bindings, shader math, return/protocol semantics and pixels are retained.
+
+| Case | Actual path and oracle | Disposition |
+| --- | --- | --- |
+| #61-A64 | One144-byte quad mesh plus three624-byte uniforms; exact2016-byte increase, pixels and retirement | New capacity coverage |
+| #61-A65 | Real refusal at each of three uniform cut points; exact partial capacity, no successful fingerprint, existing slots reused and actual recovered pixels | New failure/recovery coverage |
+| #61-A66 | Refused mesh replacement preserves original identity, fingerprint and exact pixels; normal cache reuse below limit; restored budget changes actual pixels | New preservation coverage |
+| #61-A67 | Actual queued uniform write survives cache drop until native completion; a later encoder does not renew retired ownership | New asynchronous lifetime coverage |
+| #61-A68 | Both unfinished and finished mask command owners retain all buffers after cache drop and GPU polling; unrelated later scopes do not extend old work | New abandonment/retirement coverage |
+| #61-A69 | Actual mask budget refusal, request209/layer77/mask55/frame0/phase/cause/elapsed, unchanged reply and recovered pixels; default file, Error stderr and stdout isolation | Existing boundary, newly exercised failure |
+
+The native control `ecff3b68` reproduced 1,344,592 admitted bytes against
+1,346,608 expected bytes and cargo exit101. It is not counted as a pass. Its
+capacity and pixel assertions remain unchanged. The new fixture's initial
+teardown oracle incorrectly compared the cumulative peak with the preallocation
+snapshot. The corrected full retired snapshot retains the independently counted
+2016-byte peak while requiring every live byte/count/scope to retire; this is a
+fixture correction to peak semantics, not a relaxed capacity or pixel check.
+Existing mask reuse tests retain their binding identities and pixel tolerances;
+their fallible helper calls now require successful results explicitly.
+
+After integrating main #401's original error contracts and the PR400 timestamp
+capability correction, source `64fda9ba` passes render library86, eight actual GPU
+suites40, host library69 and workspace/all-targets FFmpeg check (excluding retired
+Android). Its new desktop fixture failed an unchanged transparent-outside pixel
+assertion because the test project still had the normal opaque background.
+`584b37c4` adds exactly one fixture line selecting a transparent project background;
+every assertion and all production/render/host sources are unchanged. The final
+desktop default-channel suite14 and style guard pass on this source. Together
+these are **209 distinct selected passing tests**, with zero failures or ignores
+in the accepted selections; the first failed desktop run is retained separately
+and its13 passes are not added again. The source/fixture delta is verified exactly.
+`mask-admission-combined-*.log` / `.exit.json` and the local
+`mask-admission-acceptance.json` bind source, command, exit, counts, log SHA-256
+and the failed controls. The original vector192-case result remains attached to
+`e994f343`; the combined209 selection supersedes it for integration. These are
+selected runs, not full workspace/public CI acceptance. No tracked source
+changed during either validation; all caches, temp data and artifacts stayed on E:.
+
+PR400's exact combined source `6042cd04` separately passes190 selected cases
+(render76/GPU33/host69/desktop12) and workspace FFmpeg check after resolving main
+#401's two conflicts. The builder and alpha initialization still precede GPU
+queue writes and preserve native error identity. Its public run39614881573 is
+tracked separately; local acceptance does not assert a public green result.
+
+Final publication: all four required public checks passed on `6042cd04` in
+run39614881573, including macOS Intel. PR400 was then squash-merged as
+`d60aaea2` with a Chinese commit message. Integrating that squash into this
+batch preserves the accepted source tree exactly; only this completion record
+differs from the final local source bundle. Vector/mask public CI is a separate
+publication stage and is not inferred from PR400's green checks.
+
+Mask `clear` retains the existing warm uniform slots; this increment observes
+them but does not add cold pressure eviction. Mask/vector/group/effect/matte
+textures, compositor and presenter buffers, other external boundaries, shared
+session/platform policy, frame-class peaks, bounded preview/export and repeated
+lifecycle acceptance remain pending. #61/#67 stay open; precision and 3D remain
+parked. No panel, UI, style, asset or dependency changed.
+
+
+## Eleventh increment: compositing system admission
+
+Source `68f0de50` admits the full aligned matte-extraction and layer-transfer
+uniform buffers, plus the default R8 zero-coverage texel, from the renderer's
+shared budget. Native construction completes every reservation before the first
+queue write, and publishes the compositor/build count only after success.
+Both ordinary and exposure-local callers retain the native refusal through
+frame/phase context. Both uniform write sites and the zero upload retain their
+destinations through the existing upload tracker. Cached groups drop before
+their resources. Shader math, pixels, cache policy and UI behavior are retained.
+
+| Case | Actual path and oracle | Disposition |
+| --- | --- | --- |
+| #61-A70 | Real buffer sizes plus one texel: 131073-byte increase on this device; three allocations and final retirement | New capacity coverage |
+| #61-A71 | Native refusal at each of three construction cut points; exact required/limit bytes, immediate partial cleanup, no published compositor/build count, recovery | New refusal/recovery coverage |
+| #61-A72 | Ordinary matte failure retains old output pixels and expected center alpha; restored budget reproduces exact pixels | New preservation coverage |
+| #61-A73 | Exposure-local blending refuses initialization while retaining receiver inputs and output; exact recovered pixels | New independent caller coverage |
+| #61-A74 | Real zero, extract and blend queue writes retain all three destinations after cache drop; actual completion retires them without renewal by a later encoder | New asynchronous lifetime coverage |
+| #61-A75 | Unfinished and finished native clear commands retain resources after GPU polling; dropping their own work releases capacity despite an unrelated later scope | New abandonment/retirement coverage |
+| #61-A76 | Real compositor budget failure through the existing command boundary, request210/frame0/phase/cause/elapsed, unchanged reply and actual recovered matte pixels; default file, Error stderr and stdout isolation | Existing boundary, newly exercised failure |
+
+Native control `0eb42339` failed at 1344592 admitted bytes versus1475665 expected,
+cargo exit101, before implementation. Its four capacity/count/retirement
+assertions remain unchanged. The first implementation compile failed borrow
+checks; the retained run is not an acceptance pass. The correction narrows the
+frame borrow and clones the shared test budget handle, without changing any
+assertion. The six initial compositor GPU cases passed before broader checks.
+
+Exact source `68f0de50` passes **235 distinct selected tests**: render library92,
+ten real GPU suites59, host library69 and desktop default-log boundary15,
+with no failures or ignores in these accepted runs. Workspace/all-targets FFmpeg
+check (excluding retired Android) and the panel style guard pass. These are
+selected runs, not full workspace or public CI acceptance. Logs and exit
+receipts `compositing-admission-final-*` bind commands to the frozen source;
+the local `compositing-admission-acceptance.json` verifies counts, failed control,
+retained assertions and log SHA-256. No source changed during validation; all
+build caches, temporary data and artifacts remained on E:.
+
+This measures enrolled logical descriptor capacity, not driver VRAM or queue
+staging. Effect scratch already uses admitted replacement-before-commit and is
+existing coverage. Remaining compositor/mask/vector/retained-layer textures, presenter buffers,
+external/raw boundaries, shared session/platform pressure, frame-class peaks,
+bounded preview/export policy and repeated lifecycle acceptance remain pending.
+An existing foreign `perf/presenter-source-reuse` worktree has uncommitted
+presenter/session changes; no presenter work was started here to avoid overlap.
+#61/#67 stay open; precision and 3D remain parked. No panels, styles, dependencies
+or assets changed.
+
+
+## PR404 native-window validation followup
+
+Public run39620361094 on vector/mask head064aa623 passed Rust/GPU, Ubuntu and
+macOS Intel. Windows failed two existing native-window tests: paced sampling
+timed out awaiting Present (in-flight11.5s, queue0), and path selection timed out
+awaiting capture_ui. Its731 passes/two failures/one pre-existing ignore are not
+treated as successful acceptance. Raw job logs, failure.json and default file
+logs are retained in the local pr404-windows-failure evidence directory.
+
+The path driver waited for both presentation and screenshot replies on the
+native window owner without message dispatch. Sourcea1a2b8da switches those
+test waits to the existing native message pump and uses it for sampling's final
+screenshot as well. Presentation keeps its10-second wait and screenshots keep
+the existing60-second wait. Every original assertion in all three changed test
+files is preserved byte-for-byte. Product code and interaction remain unchanged.
+
+Exact sourcea1a2b8da passes three selected real Windows controls: cross-thread
+native messages with original deadline assertions, complete main/floating path
+routes and screenshots, and paced sampling across all four modes. Source-bound
+native-capture logs/exit receipts and native-capture-acceptance.json record the
+commands, original failure and SHA-256. These are separate from compositor
+source68f0de50's235 selected passes; they are not a full workspace or a single
+combined-source run. The integration retains the accepted production code and
+identical tested native drivers. Sampling already pumped messages while awaiting
+Present, so the remote baseline timeout's precise cause and resolution remain
+unproven until further public/native evidence. No assertions, retries, ignores,
+timeouts or product semantics were relaxed to obtain a green result.
+
+
+## PR404 main integration validation
+
+Source `8ead9fbc` integrates main `164baf37`, including its dependency-audit
+updates and complete native attachment message dispatch. The only path-driver
+conflict keeps main's 30-second attach pump and all original assertions, while
+using the shared 60-second capture helper. Renderer/host source remains identical
+to accepted `68f0de50`; core/effects and the lockfile match the integrated main.
+No dependency is added by this resource-admission increment.
+
+The frozen integrated source passes workspace/all-targets FFmpeg check, core17
+and effects7 library cases, all15 default-log composition boundary cases, and
+the three actual Windows message/path/playback controls: **42 selected passes**.
+The core library also retains one pre-existing ignored manual large-document
+history measurement; that case was not run or counted as a pass. These results
+are separate from the earlier235 compositor selections and do not represent a
+full workspace test run. Source-bound `compositing-admission-parent-main-*`
+logs and `parent-main-acceptance.json` retain exits, counts and SHA-256.
+
+This resolves the main-integration conflict but does not establish the cause of
+the earlier remote sampling Present timeout. Public checks must be evaluated on
+the newly published head. No assertions, waiting limits, ignores, product panel
+code or UI behavior were changed by conflict resolution. #61/#67 remain open.

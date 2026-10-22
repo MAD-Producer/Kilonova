@@ -81,6 +81,65 @@ fn opacity(project: &mut Project, index: usize, value: f32) {
 }
 
 #[test]
+fn grouped_vector_buffers_share_admission_and_release_after_real_capture() {
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    let budget = renderer.allocation_budget().clone();
+    let mut project = fixture();
+    capture(&mut renderer, &project);
+    let first = renderer.vector_upload_info().unwrap();
+    assert!(first.vertex_capacity_bytes > 0 && first.opacity_capacity_bytes > 0 && first.idle_bytes > 0);
+    assert_eq!(first.pending_buffers, 0);
+    assert_eq!(budget.info().unwrap().admitted_bytes,
+        motion_render::FIXED_RENDERER_ALLOCATION_BYTES + first.vertex_capacity_bytes + first.opacity_capacity_bytes + first.idle_bytes);
+    opacity(&mut project, 1, 25.);
+    let pixels = capture(&mut renderer, &project);
+    assert!(pixels[(32 * 96 + 48) * 4 + 3].abs_diff(32) <= 2);
+    let next = renderer.vector_upload_info().unwrap();
+    assert_eq!(next.destination_buffers_created_total, first.destination_buffers_created_total);
+    assert_eq!(next.staging_buffers_created_total, first.staging_buffers_created_total);
+    assert_eq!(budget.info().unwrap().admitted_bytes,
+        motion_render::FIXED_RENDERER_ALLOCATION_BYTES + next.vertex_capacity_bytes + next.opacity_capacity_bytes + next.idle_bytes);
+    renderer.clear_assets();
+    renderer.device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+    assert_eq!(budget.info().unwrap().admitted_bytes, motion_render::FIXED_RENDERER_ALLOCATION_BYTES);
+    drop(renderer);
+    assert_eq!(budget.info().unwrap().admitted_bytes, 0);
+}
+
+#[test]
+fn refused_vector_reupload_keeps_completed_output_and_recovers_real_pixels() {
+    let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
+    let budget = renderer.allocation_budget().clone();
+    let mut project = fixture();
+    let mut scene = Scene::new(&project);
+    scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
+    let target = renderer.capture_target(96, 64).unwrap();
+    let original = renderer.capture(&scene, &target).unwrap().0;
+    renderer.clear_assets();
+    let created = renderer.vector_upload_info().unwrap().destination_buffers_created_total;
+    let limit = budget.info().unwrap().admitted_bytes;
+    budget.set_limit(limit).unwrap();
+    opacity(&mut project, 1, 25.);
+    scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
+    let failure = renderer.capture(&scene, &target).unwrap_err();
+    assert!(matches!(failure.resource_rejection(), Some(motion_render::ResourceRejection::Budget {
+        scope: motion_render::ResourceBudgetScope::RenderAllocations,
+        required_bytes, budget_bytes,
+    }) if *budget_bytes == limit && *required_bytes > limit));
+    for context in ["vector layer=1 frame=0 phase=vertices", "phase=allocate label=reusable vector raster triangles"] {
+        assert!(failure.to_string().contains(context), "{failure}");
+    }
+    assert_eq!(renderer.vector_upload_info().unwrap().destination_buffers_created_total, created);
+    assert_eq!(renderer.read_target(&target).unwrap(), original);
+    assert!(renderer.gpu_error().is_none());
+    budget.set_limit(8 << 20).unwrap();
+    let recovered = renderer.capture(&scene, &target).unwrap().0;
+    assert_ne!(recovered, original);
+    assert!(recovered[(32 * 96 + 48) * 4 + 3].abs_diff(32) <= 2);
+    assert_eq!(renderer.vector_upload_info().unwrap().pending_buffers, 0);
+}
+
+#[test]
 fn changing_vertex_data_and_opacity_reuses_buffers_without_cross_layer_overwrites() {
     let mut project = fixture();
     opacity(&mut project, 1, 25.);

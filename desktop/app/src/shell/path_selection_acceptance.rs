@@ -142,11 +142,7 @@ fn capture(
             "path capture presentation unavailable"
         );
     }
-    let reply = shell.engine.request(|reply| crate::engine::Command::CaptureUi {
-        ui, path: path.clone(), reply,
-    }).unwrap();
-    crate::native_test_support::receive(event_loop, &reply, Duration::from_secs(60))
-        .unwrap().unwrap();
+    crate::native_test_support::capture_ui(event_loop, &shell.engine, ui, path.clone()).unwrap();
     let pixels = image::open(path).unwrap().into_rgba8();
     assert_eq!(pixels.dimensions(), physical_size());
     let first = pixels.get_pixel(0, 0);

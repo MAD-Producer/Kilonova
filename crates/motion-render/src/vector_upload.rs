@@ -1,8 +1,11 @@
 //! Encoder-ordered uploads. Queue writes would all run before the first draw.
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod admission_tests;
 use std::sync::{Arc, Mutex, Weak};
 use std::time::Instant;
+use crate::{allocation_buffer::AllocationBuffer, AllocationBudget, RenderError};
 
 const IDLE_LIMIT: u64 = 16 * 1024 * 1024;
 const IDLE_BUFFERS: usize = 128;
@@ -49,13 +52,12 @@ pub struct VectorUploadInfo {
 
 #[derive(Default)]
 struct State {
-    idle: Vec<wgpu::Buffer>,
+    idle: Vec<AllocationBuffer>,
     generation: u64,
     failure: Option<VectorUploadError>,
     info: VectorUploadInfo,
 }
-#[derive(Default)]
-pub(crate) struct UploadPool(Arc<Mutex<State>>);
+pub(crate) struct UploadPool(Arc<Mutex<State>>, AllocationBudget);
 
 pub(crate) fn capacity(required: u64, limit: u64) -> Result<u64, VectorUploadError> {
     if required == 0 || required % wgpu::COPY_BUFFER_ALIGNMENT != 0 {
@@ -73,40 +75,43 @@ pub(crate) fn capacity(required: u64, limit: u64) -> Result<u64, VectorUploadErr
         .min(limit))
 }
 
-#[derive(Default)]
 pub(crate) struct ReusableBuffer {
-    buffer: Option<wgpu::Buffer>,
+    buffer: Option<AllocationBuffer>,
+    budget: AllocationBudget,
     pub(crate) created: u64,
 }
 impl ReusableBuffer {
+    pub(crate) fn new(budget: AllocationBudget) -> Self {
+        Self { buffer: None, budget, created: 0 }
+    }
     pub(crate) fn get(
         &mut self,
         device: &wgpu::Device,
         bytes: u64,
         usage: wgpu::BufferUsages,
         label: &'static str,
-    ) -> Result<wgpu::Buffer, VectorUploadError> {
+    ) -> Result<AllocationBuffer, RenderError> {
         let size = capacity(bytes, device.limits().max_buffer_size)?;
         if self
             .buffer
             .as_ref()
             .is_none_or(|buffer| buffer.size() < bytes)
         {
-            self.buffer = Some(device.create_buffer(&wgpu::BufferDescriptor {
+            self.buffer = Some(AllocationBuffer::new(device, &self.budget, &wgpu::BufferDescriptor {
                 label: Some(label),
                 size,
                 usage: usage | wgpu::BufferUsages::COPY_DST,
                 mapped_at_creation: false,
-            }));
+            })?);
             self.created = self.created.saturating_add(1);
         }
-        self.buffer.clone().ok_or(VectorUploadError::Size {
+        self.buffer.clone().ok_or_else(|| VectorUploadError::Size {
             required_bytes: bytes,
             limit_bytes: size,
-        })
+        }.into())
     }
     pub(crate) fn bytes(&self) -> u64 {
-        self.buffer.as_ref().map_or(0, wgpu::Buffer::size)
+        self.buffer.as_ref().map_or(0, |buffer| buffer.size())
     }
     pub(crate) fn clear(&mut self) {
         self.buffer = None;
@@ -114,6 +119,9 @@ impl ReusableBuffer {
 }
 
 impl UploadPool {
+    pub(crate) fn new(budget: AllocationBudget) -> Self {
+        Self(Arc::new(Mutex::new(State::default())), budget)
+    }
     pub(crate) fn info(&self) -> Result<VectorUploadInfo, VectorUploadError> {
         let state = self.0.lock().map_err(|_| VectorUploadError::Poisoned)?;
         let mut info = state.info;
@@ -140,22 +148,22 @@ impl UploadPool {
         &self,
         device: &wgpu::Device,
         encoder: &mut wgpu::CommandEncoder,
-        target: &wgpu::Buffer,
+        target: &AllocationBuffer,
         data: &[u8],
         layer: u64,
         frame: f64,
-    ) -> Result<(), VectorUploadError> {
+    ) -> Result<(), RenderError> {
         let size = capacity(data.len() as u64, device.limits().max_buffer_size)?;
         if data.len() as u64 > target.size() {
             return Err(VectorUploadError::Size {
                 required_bytes: data.len() as u64,
                 limit_bytes: target.size(),
-            });
+            }.into());
         }
         let (source, generation) = {
             let mut state = self.0.lock().map_err(|_| VectorUploadError::Poisoned)?;
             if let Some(error) = &state.failure {
-                return Err(error.clone());
+                return Err(error.clone().into());
             }
             let fit = state
                 .idle
@@ -173,14 +181,18 @@ impl UploadPool {
             (source, state.generation)
         };
         let created = source.is_none();
-        let source = source.unwrap_or_else(|| {
-            device.create_buffer(&wgpu::BufferDescriptor {
+        let source = match source {
+            Some(source) => source,
+            None => AllocationBuffer::new(device, &self.1, &wgpu::BufferDescriptor {
                 label: Some("pooled vector upload staging"),
                 size,
                 usage: wgpu::BufferUsages::MAP_WRITE | wgpu::BufferUsages::COPY_SRC,
                 mapped_at_creation: true,
-            })
-        });
+            }).map_err(|error| RenderError::Context {
+                message: format!("vector upload phase=allocate layer={layer} frame={frame} upload_bytes={}: {error}", data.len()),
+                cause: Box::new(error),
+            })?,
+        };
         {
             let mut state = self.0.lock().map_err(|_| VectorUploadError::Poisoned)?;
             state.info.staging_buffers_created_total = state
@@ -192,6 +204,7 @@ impl UploadPool {
         }
         let pending = Pending {
             buffer: Some(source),
+            _destination: Some(target.retention()),
             pool: Arc::downgrade(&self.0),
             generation,
             layer,
@@ -216,7 +229,7 @@ impl UploadPool {
             }
             // The closure owns cancellation cleanup too: dropping an unsubmitted
             // encoder retires this source instead of stranding it in the cache.
-            let source = source.clone();
+            let source = wgpu::Buffer::clone(source);
             encoder.map_buffer_on_submit(&source, wgpu::MapMode::Write, .., move |result| {
                 pending.complete(result)
             });
@@ -226,7 +239,10 @@ impl UploadPool {
 }
 
 struct Pending {
-    buffer: Option<wgpu::Buffer>,
+    buffer: Option<AllocationBuffer>,
+    // Existing copy work retains capacity without renewing resource ownership
+    // in unrelated future encoder snapshots (the retirement contract of #399).
+    _destination: Option<crate::allocation_budget::AllocationRetention>,
     pool: Weak<Mutex<State>>,
     generation: u64,
     layer: u64,
