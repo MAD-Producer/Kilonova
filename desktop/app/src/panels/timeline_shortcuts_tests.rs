@@ -675,13 +675,23 @@ fn graph_toggle_preserves_layer_property_playhead_and_has_no_vertical_grid() {
     );
     assert!(out.is_empty());
     assert!(panels.timeline.expanded.contains(&7));
+    // The width-aware helper now retains a centerline until GPU expansion,
+    // rather than eagerly storing six raw triangle vertices per segment.
+    // Check visible samples and the actual style width, not that old storage.
     assert!(paint
         .shapes
         .iter()
         .zip(&paint.colors)
         .any(|(shape, color)| *color == paint.styles().color("curve")
-            && matches!(shape,motion_ui::paint::Shape::Triangles {points} if points.len()>100)));
-    assert!(!paint.shapes.iter().any(|s|matches!(s,motion_ui::paint::Shape::Line {points,..} if points.len()==2 && points[0][0]==points[1][0] && points[0][1]!=points[1][1])));
+            && matches!(shape, motion_ui::paint::Shape::Stroke {points, width, clip: Some(clip)}
+                if *width == paint.styles().metric("graph.curve_width", 2.)
+                    && area.contains_rect(*clip)
+                    && points.iter().all(|p| p.iter().all(|v| v.is_finite()))
+                    && points.iter().filter(|p| clip.contains(**p)).count() > 100)));
+    assert!(!paint.shapes.iter().any(|s| matches!(s,
+        motion_ui::paint::Shape::Line {points, ..}
+        | motion_ui::paint::Shape::Stroke {points, ..}
+        if points.len()==2 && points[0][0]==points[1][0] && points[0][1]!=points[1][1])));
     invoke(
         &mut panels,
         &state,

@@ -1124,7 +1124,8 @@ fn responsive_layout_and_paint_remain_within_panel() {
         for shape in paint.shapes {
             let points: Vec<_> = match shape {
                 motion_ui::paint::Shape::Quad { points } => points.into(),
-                motion_ui::paint::Shape::Line { points, clip } => {
+                motion_ui::paint::Shape::Line { points, clip }
+                | motion_ui::paint::Shape::Stroke { points, clip, .. } => {
                     assert!(points.iter().flatten().all(|v| v.is_finite()));
                     clip.map_or(points, |bounds| vec![bounds.min, bounds.max])
                 }
