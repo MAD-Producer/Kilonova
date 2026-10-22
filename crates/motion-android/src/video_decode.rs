@@ -377,7 +377,7 @@ pub fn probe(
         } else {
             chosen_audio
         },
-        first_rgba: first.rgba()?.into_owned(),
+        first_rgba: first.rgba().map_err(|cause| motion_media::Error::backend("host_video_rgba", cause))?.into_owned(),
         tracks: json!(tracks),
     })
 }

@@ -36,13 +36,14 @@ pub enum Error {
     Media(#[from] motion_media::Error),
     #[error(transparent)]
     Model(#[from] motion_core::Error),
-    /// PreparedVideoFrame::decoded still exposes legacy text, unlike decoders.
+    /// Retain the conversion cause alongside the frozen-reader request identity.
     #[error("frozen composition video handle={handle} object={object} sequence={sequence} phase=blend_read: {cause}")]
     BlendRead {
         handle: i64,
         object: u64,
         sequence: u64,
-        cause: String,
+        #[source]
+        cause: Box<crate::Error>,
     },
 }
 
@@ -227,7 +228,7 @@ pub fn read_frozen_composition_video_into(
         handle,
         object,
         sequence,
-        cause,
+        cause: Box::new(cause),
     })
 }
 pub fn request_frozen_video_frame(

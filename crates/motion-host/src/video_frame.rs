@@ -1,4 +1,5 @@
 use motion_render::{Renderer, Yuv420Frame};
+use crate::Result;
 use std::{borrow::Cow, sync::Arc};
 
 /// Immutable required PTS pair. Raw decoder APIs still expose source frames;
@@ -9,7 +10,7 @@ pub struct PreparedVideoFrame {
     pub next: Option<(Arc<DecodedFrame>, f32)>,
 }
 impl PreparedVideoFrame {
-    pub fn upload(&self, renderer: &mut Renderer, object: u64, source: u64) -> Result<(), String> {
+    pub fn upload(&self, renderer: &mut Renderer, object: u64, source: u64) -> Result<()> {
         let Some((right, weight)) = &self.next else { return self.left.upload(renderer, object, source); };
         // Preserve either previously required neighbor before overwriting a slot.
         // Cache misses here are normal and are filled in the following pass.
@@ -19,15 +20,15 @@ impl PreparedVideoFrame {
         for (slot, frame) in [(0, &self.left), (1, right)] {
             if !renderer.reuse_video_blend_source(object, source, frame.pts, slot, (frame.width, frame.height)) {
                 frame.upload(renderer, object, source)?;
-                renderer.cache_video_blend_source(object, source, frame.pts, slot).map_err(|e| e.to_string())?;
+                renderer.cache_video_blend_source(object, source, frame.pts, slot)?;
             }
         }
-        renderer.blend_video_sources(object, source, self.left.pts, right.pts, *weight).map_err(|e| e.to_string())
+        renderer.blend_video_sources(object, source, self.left.pts, right.pts, *weight).map_err(Into::into)
     }
 
     /// Materialize only for the explicit CPU frozen-reader protocol. Interactive
     /// preview and desktop capture use GPU blending, never this pixel loop.
-    pub fn decoded(&self) -> Result<Arc<DecodedFrame>, String> {
+    pub fn decoded(&self) -> Result<Arc<DecodedFrame>> {
         let Some((right, weight)) = &self.next else { return Ok(self.left.clone()); };
         if self.left.width != right.width || self.left.height != right.height
             || self.left.pts >= right.pts
@@ -80,13 +81,13 @@ impl DecodedFrame {
     pub fn encode_upload(
         &self, renderer: &mut Renderer, object: u64, source: u64,
         encoder: &mut wgpu::CommandEncoder,
-    ) -> Result<Option<motion_render::EncodedVideoUpload>, String> {
+    ) -> Result<Option<motion_render::EncodedVideoUpload>> {
         match &self.pixels {
             VideoPixels::Yuv(f) => renderer.encode_video_yuv(object, source, self.pts, f, encoder),
             VideoPixels::Rgba(p) => renderer
                 .upload_video_frame(object, source, self.pts, self.width, self.height, p)
                 .map(|_| None),
-        }.map_err(|e| e.to_string())
+        }.map_err(Into::into)
     }
     pub fn bytes(&self) -> usize {
         match &self.pixels {
@@ -94,19 +95,19 @@ impl DecodedFrame {
             VideoPixels::Rgba(p) => p.len(),
         }
     }
-    pub fn rgba(&self) -> Result<Cow<'_, [u8]>, String> {
+    pub fn rgba(&self) -> Result<Cow<'_, [u8]>> {
         match &self.pixels {
-            VideoPixels::Yuv(f) => f.to_rgba().map(Cow::Owned).map_err(|e| e.to_string()),
+            VideoPixels::Yuv(f) => f.to_rgba().map(Cow::Owned).map_err(Into::into),
             VideoPixels::Rgba(p) => Ok(Cow::Borrowed(p)),
         }
     }
-    pub fn upload(&self, renderer: &mut Renderer, object: u64, source: u64) -> Result<(), String> {
+    pub fn upload(&self, renderer: &mut Renderer, object: u64, source: u64) -> Result<()> {
         match &self.pixels {
             VideoPixels::Yuv(f) => renderer.upload_video_yuv(object, source, self.pts, f),
             VideoPixels::Rgba(p) => {
                 renderer.upload_video_frame(object, source, self.pts, self.width, self.height, p)
             }
         }
-        .map_err(|e| e.to_string())
+        .map_err(Into::into)
     }
 }
