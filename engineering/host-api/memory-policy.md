@@ -99,11 +99,18 @@ GPU poll and does not change project/revision/undo state. Broken accounting stat
 returns an error rather than a fabricated empty result. The older
 `resource_ledger` query remains a separate ownership observation.
 
+The desktop's independent node preview also enrolls its sample image, LUT,
+uniforms and full-resolution floating-point output through the renderer's shared
+[native allocation context](native-allocation-context.md), retaining queued writes
+and command reservations until retirement. Failed replacement retains the last
+valid graph; restoring the allowance permits an ordinary full-quality install.
+
 File decode, package and device safety limits remain in force. Coverage is
-explicitly incomplete: presenter/UI resources, the desktop's independent node
-preview allocations, CPU caches, decoder memory, swapchain images and driver
-overhead are not all enrolled. Logical admission across devices still does not
-measure physical VRAM. Current platform-pressure queries, combined frame-peak
-accounting, the complete bounded preview/proxy loop and actual presentation
-lifecycle acceptance remain pending. The packed render-plan version and Android
-GLES consumer ABI are unchanged by this API increment.
+explicitly incomplete: presenter/UI resources, CPU caches, decoder memory,
+swapchain images and driver overhead are not all enrolled. Logical admission
+across devices still does not measure physical VRAM. Read-only native adapter budget metadata is exposed by the
+[platform pressure API](platform-memory-pressure.md); platform execution limits
+are recorded separately in the validation document. Pressure-driven admission,
+combined frame-peak accounting, the complete bounded preview/proxy loop and
+actual presentation lifecycle acceptance remain pending. The packed render-plan
+version and Android GLES consumer ABI are unchanged by this API increment.

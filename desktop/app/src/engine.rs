@@ -35,6 +35,8 @@ mod queue_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod scope_tests;
 #[cfg(all(test, target_os = "windows"))]
+mod node_admission_tests;
+#[cfg(all(test, target_os = "windows"))]
 mod pending_video_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod sampling_playback_tests;
@@ -1502,13 +1504,13 @@ fn handle(
             let preview = motion_host::session::with_session(id, |session| {
                 let graphics = session.graphics.as_ref().ok_or("node GPU not attached")?;
                 let context = crate::node_preview::GpuContext {
-                    device: graphics.renderer.device.clone(),
-                    queue: graphics.renderer.queue.clone(),
+                    allocations: graphics.renderer.allocation_context(),
                     format: graphics.config.format,
                 };
-                if let Some(canonical)=&canonical{crate::node_preview::NodePreview::build(&context,&snapshot,canonical).map_err(|e|e.to_string())?;}
+                if let Some(canonical)=&canonical{crate::node_preview::NodePreview::build(&context,&snapshot,canonical)
+                    .map_err(|error|motion_host::Error::with_context(format!("node canonical graph {} {:?}",snapshot.document.id,snapshot.preview_stamp()),error))?;}
                 crate::node_preview::NodePreview::build(&context, &snapshot, &compiled)
-                    .map_err(|error| motion_host::Error::from(format!("node graph {} {:?}: {error}", snapshot.document.id, snapshot.preview_stamp())))
+                    .map_err(|error| motion_host::Error::with_context(format!("node graph {} {:?}", snapshot.document.id, snapshot.preview_stamp()),error))
             })?;
             if snapshot.layer_target.is_some(){motion_host::session::with_session(id,|s|crate::node_layer::apply(s,&snapshot,canonical.as_ref().unwrap_or(&compiled)))?;}
             node_preview.active = Some(preview);
@@ -1519,11 +1521,11 @@ fn handle(
             let g=s.graphics.as_ref().ok_or("node GPU not attached")?;
             let preview=node_preview.active.as_mut().ok_or("no valid node preview")?;
             let dimension=crate::node_preview::RASTER_SIZE;
-            let target=g.renderer.capture_target(dimension,dimension).map_err(|e|e.to_string())?;
-            let mut encoder=g.renderer.device.create_command_encoder(&Default::default());clear_target(&mut encoder,&target.view);
-            preview.encode(&g.renderer.device,&g.renderer.queue,&mut encoder,&target.view,crate::node_preview::Viewport{rect:[0.,0.,dimension as f32,dimension as f32],seconds},wgpu::TextureFormat::Rgba8UnormSrgb);
-            g.renderer.queue.submit(Some(encoder.finish()));
-            let pixels=g.renderer.read_target(&target).map_err(|e|e.to_string())?;
+            let target=g.renderer.capture_target(dimension,dimension)?;
+            let mut encoder=g.renderer.allocation_command_encoder(&Default::default())?;clear_target(&mut encoder,&target.view);
+            preview.encode(&mut encoder,&target.view,crate::node_preview::Viewport{rect:[0.,0.,dimension as f32,dimension as f32],seconds},wgpu::TextureFormat::Rgba8UnormSrgb)?;
+            g.renderer.submit_allocated(encoder.finish(),|ledger|ledger.merge(target.texture_resource_ledger()))?;
+            let pixels=g.renderer.read_target(&target)?;
             let fingerprint=pixels.iter().fold(0xcbf29ce484222325u64,|h,b|(h^u64::from(*b)).wrapping_mul(0x100000001b3));
             image::save_buffer(&path,&pixels,dimension,dimension,image::ColorType::Rgba8).map_err(|e|e.to_string())?;
             Ok(serde_json::json!({"path":path,"seconds":seconds,"fingerprint":format!("{fingerprint:016x}"),"stamp":preview.stamp,"renders":preview.renders,"frames":preview.frames}))
@@ -1549,7 +1551,7 @@ fn handle(
                     if ui.composition_image.is_some() { [x,y,w,h] } else { [x+(w-vw)*0.5,y+(h-vh)*0.5,vw,vh] }, ui.composition_image, s.scene.background);
             } else {clear_target(&mut encoder,&target.view);}
             chrome.render_scaled(&g.renderer.device,&g.renderer.queue,&mut encoder,&target.view,&ui.paint,ui.logical_size,[width as f32/ui.logical_size[0],height as f32/ui.logical_size[1]]).map_err(|e|format!("capture_ui window={}: {e}",ui.window))?;
-            if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview) {preview.encode(&g.renderer.device,&g.renderer.queue,&mut encoder,&target.view,viewport,wgpu::TextureFormat::Rgba8UnormSrgb);}
+            if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview) {preview.encode(&mut encoder,&target.view,viewport,wgpu::TextureFormat::Rgba8UnormSrgb)?;}
             g.renderer.submit_allocated(encoder.finish(), |ledger| {
                 ledger.merge(target.texture_resource_ledger());
                 g.scratch.collect_texture_resources(ledger);
@@ -1592,7 +1594,7 @@ fn handle(
             if let (Some(w),Some(g))=(floating.as_mut(),s.graphics.as_mut()) {
                 std::mem::swap(&mut w.surface,&mut g.surface);std::mem::swap(&mut w.config,&mut g.config);
             }
-            let result=(||{
+            let result=(|| -> motion_host::Result<bool> {
                 let g=s.graphics.as_ref().ok_or("desktop surface is not attached")?;
                 if let Some(upload)=&ui.atlas {painter.upload_atlas(&g.renderer.device,&g.renderer.queue,&upload.pixels,upload.width,upload.height);}
                 if let Some(viewport)=ui.composition {
@@ -1604,12 +1606,13 @@ fn handle(
                     // The overlay targets the swapchain, not the composition scratch texture.
                     let surface_format=g.config.format;
                     let mut paint_error=None;
+                    let mut node_error=None;
                     let overlay=|r:&motion_render::Renderer,encoder:&mut wgpu::CommandEncoder,target:&wgpu::TextureView|{
                         if let Err(error)=painter.render_scaled(&r.device,&r.queue,encoder,target,&ui.paint,ui.logical_size,pixel_ratio) {
                             paint_error=Some(error);
                             return;
                         }
-                        if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){preview.encode(&r.device,&r.queue,encoder,target,viewport,surface_format);}
+                        if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){node_error=preview.encode(encoder,target,viewport,surface_format).err();}
                     };
                     let result=if reuse {
                         presentation.composition_reuses+=1;
@@ -1618,7 +1621,18 @@ fn handle(
                         presentation.composition_renders+=1;
                         s.render_with_view(frame,Some(viewport),ui.composition_image,overlay)
                     };
-                    let result=ui_paint::finish(result.map_err(String::from),paint_error,ui.window);
+                    // The host overlay returns (); retain native failures until
+                    // after presentation and preserve an earlier host failure.
+                    let result=match (result,node_error) {
+                        (result,None)=>result,
+                        (Ok(_),Some(error))=>Err(error.into()),
+                        (Err(primary),Some(secondary))=>Err(motion_host::Error::Cleanup{primary:Box::new(primary),secondary:Box::new(secondary.into())}),
+                    };
+                    let result=match (result,paint_error) {
+                        (Ok(value),error)=>ui_paint::finish(Ok(value),error,ui.window).map_err(motion_host::Error::from),
+                        (Err(primary),None)=>Err(primary),
+                        (Err(primary),Some(error))=>Err(motion_host::Error::Cleanup{primary:Box::new(primary),secondary:Box::new(motion_host::Error::from(format!("UI overlay window={}: {error}",ui.window)))}),
+                    };
                     presentation.retained=if result.as_ref().is_ok_and(|v|*v)
                         && !s.preview_memory_held && s.last_error.is_none()
                         && stamp==CompositionStamp::new(s,&ui,viewport)
@@ -1638,11 +1652,11 @@ fn handle(
                         wgpu::CurrentSurfaceTexture::Validation=>return Err("surface acquisition validation failed".into()),
                     };
                     let view=output.texture.create_view(&Default::default());
-                    let mut encoder=g.renderer.device.create_command_encoder(&Default::default());
+                    let mut encoder=g.renderer.allocation_command_encoder(&Default::default())?;
                     clear_target(&mut encoder,&view);
                     painter.render_scaled(&g.renderer.device,&g.renderer.queue,&mut encoder,&view,&ui.paint,ui.logical_size,[g.config.width as f32/ui.logical_size[0],g.config.height as f32/ui.logical_size[1]]).map_err(|e|format!("present window={}: {e}",ui.window))?;
-                    if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){preview.encode(&g.renderer.device,&g.renderer.queue,&mut encoder,&view,viewport,g.config.format);}
-                    g.renderer.queue.submit(Some(encoder.finish()));g.renderer.queue.present(output);Ok(true)
+                    if let (Some(preview),Some(viewport))=(&mut node_preview.active,ui.node_preview){preview.encode(&mut encoder,&view,viewport,g.config.format)?;}
+                    g.renderer.submit_allocated(encoder.finish(),|_|{})?;g.renderer.queue.present(output);Ok(true)
                 }
             })();
             if let (Some(w),Some(g))=(floating.as_mut(),s.graphics.as_mut()) {
@@ -1653,7 +1667,7 @@ fn handle(
             if presentation.last_present_us>=30_000 {
                 log::debug!("[motion-timing] surface {} present: {} us, composition renders={}, reuses={}",ui.window,presentation.last_present_us,presentation.composition_renders,presentation.composition_reuses);
             }
-            result.map_err(|error| motion_host::Error::from(format!("{error}; window={} logical_size={:?}", ui.window, ui.logical_size)))
+            result.map_err(|error| motion_host::Error::with_context(format!("present window={} logical_size={:?}", ui.window, ui.logical_size),error))
         });
         let mut paint=ui.paint;paint.clear();
         recycle_paint_pool(paints, paint, true);

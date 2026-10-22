@@ -1,5 +1,8 @@
 //! Descriptor-capacity admission for owned GPU buffers, not backend residency.
-use crate::{allocation_budget::{AllocationLease, AllocationRetention}, AllocationBudget, RenderError};
+use crate::{
+    allocation_budget::{AllocationLease, AllocationRetention},
+    AllocationBudget, RenderError,
+};
 use std::ops::Deref;
 
 #[derive(Clone)]
@@ -9,6 +12,37 @@ pub(crate) struct AllocationBuffer {
     allocation: AllocationLease,
 }
 impl AllocationBuffer {
+    pub(crate) fn new_init(
+        device: &wgpu::Device,
+        budget: &AllocationBudget,
+        descriptor: &wgpu::util::BufferInitDescriptor<'_>,
+    ) -> Result<Self, RenderError> {
+        use wgpu::util::DeviceExt;
+        // DeviceExt pads mapped-at-creation contents to COPY_BUFFER_ALIGNMENT.
+        // Reserve that native descriptor capacity, before native creation.
+        let size = u64::try_from(descriptor.contents.len())
+            .ok()
+            .and_then(|size| size.checked_add(wgpu::COPY_BUFFER_ALIGNMENT - 1))
+            .map(|size| size / wgpu::COPY_BUFFER_ALIGNMENT * wgpu::COPY_BUFFER_ALIGNMENT)
+            .filter(|size| *size > 0)
+            .ok_or_else(|| {
+                RenderError::Invalid("empty or overflowing initialized buffer capacity".into())
+            })?;
+        let allocation = budget.reserve(size).map_err(|error| {
+            let label: String = descriptor
+                .label
+                .unwrap_or("unlabelled")
+                .chars()
+                .take(96)
+                .collect();
+            let message = format!("buffer size={size} phase=initialize label={label}: {error}");
+            error.with_diagnostic(message)
+        })?;
+        Ok(Self {
+            buffer: device.create_buffer_init(descriptor),
+            allocation,
+        })
+    }
     pub(crate) fn new(
         device: &wgpu::Device,
         budget: &AllocationBudget,

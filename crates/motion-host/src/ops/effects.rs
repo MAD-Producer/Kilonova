@@ -31,6 +31,9 @@ impl Session {
             return self.snapshot();
         }
         let text = |name: &str| v[name].as_str().ok_or_else(|| format!("missing {name}"));
+        if text("op")? == "memory_pressure" {
+            return Ok(json!({"memoryPressure":self.memory_pressure_info()}));
+        }
         // Available through the existing desktop/Android JSON bridge. Query
         // omits policy; writes validate all limits before changing runtime state.
         if text("op")? == "resource_tracking" {

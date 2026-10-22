@@ -1455,3 +1455,175 @@ resources, platform pressure queries, measured frame peaks, the complete combine
 pressure/preview-proxy loop and actual surface resize/seek/project-switch
 acceptance remain pending. #60/#61/#67 remain open; this increment does not declare
 precision or3D readiness.
+
+## Eighteenth increment: read-only native adapter memory budgets
+
+Initial source: `40b96c082728cc23fe4886a6304918eeb95b1061`.
+Final source, including host-lock-safe logging:
+`cb8146d3d0cd78408a6e83e99a8ab79c1ef5dc11`.
+The production base includes the seventeenth increment and its exact-source
+acceptance documentation. PR414 publishes that earlier Session increment as
+`69ba3e69fd85fea6bd36b3e9eec825be394a6aa8`; this follow-up does not relabel
+its Windows desktop747 result as a new run on the pressure-query source.
+
+The new Rust and plugin JSON `memory_pressure` metadata queries use the existing
+renderer adapter. Windows uses HAL's safe DXGI local-segment wrapper; Vulkan
+checks the optional budget extension and actual instance properties entry point
+before querying bounded device-local heaps; Metal reads the existing MTLDevice's
+working-set recommendation and current allocation size. Native handles remain
+inside their wgpu HAL guards. No adapter is independently re-enumerated.
+
+These are advisory process/segment/heap/device observations, not available system
+VRAM, combined logical admission or a measured frame peak. Unknown contains no
+fabricated zero usage/budget. A genuinely reported zero native budget is retained.
+Missing renderer, extension or entry point remains explicit. Session uses its
+surface renderer, otherwise its existing editor renderer; an unattached query
+does not construct a GPU. Configured budgets, preview/output resolution, project
+values, undo and finite-retry policy are not changed by these observations.
+
+Native calls are cached for one second per renderer, including failures and
+unsupported probes. Cached callers do not advance the failure counter. A native
+failure replaces a prior successful reading with unavailable and retains a cause
+bounded to512 Unicode scalar values. Actual consecutive failed queries log Debug
+at1 and Error once at60, saturate, then reset after success or a normal unsupported
+boundary. These are occurrence counts, not a fixed elapsed-time claim.
+
+The first four focused cases passed on `40b96c08`. Static review then identified
+that a host query can still hold the Session mutex when the renderer produces an
+observation. That initial run did not cover the outer host lock. Source
+`cb8146d3` binds a non-Send, nested `MemoryPressureLogScope` before `with_session`
+acquires a registry/session guard. It retains at most one Debug and one Error
+cause plus a saturating omission count, restores scope state during unwind, and
+releases the thread-local borrow before calling a logger. A new controlled
+business-lock test exercises the actual probe's failure producer, nested scopes
+and panic; the logger verifies `try_lock` does not report WouldBlock.
+This is controlled lock/failure coverage, not an injected DXGI/Metal driver fault.
+
+| Item | Evidence | Disposition |
+| --- | --- | --- |
+| #61-A117 | Existing-renderer Rust/JSON metadata, unattached query creates no GPU, repeated queries preserve admission/policy/project/revision | New read-only host boundary |
+| #61-A118 | Actual Windows DXGI and Vulkan queries both return available budgets/usage on the tested machine; source identity is the renderer's existing adapter | New native Windows coverage; Linux and Metal runtime checks remain public-CI/platform work |
+| #61-A119 | Controlled monotonic times prove caching, exact interval expiry, replacement of stale success, bounded causes and explicit unknown/real-zero distinction | New bounded-query coverage |
+| #61-A120 | Info/Debug child processes verify no Error before60, one escalation despite continued failures, recovery reset and stdout isolation | New controlled observation coverage; production sink infrastructure is unchanged |
+| #61-A121 | Logger tries the business mutex on normal return and unwind; nested scopes retain first causes, cap pending evidence and report omitted causes | New controlled lock/retention coverage |
+
+On that exact source, the local Windows runs produced:
+
+| Scope | Passed | Ignored |
+| --- | ---: | ---: |
+| Full host, integration and doc tests | 119 | 0 |
+| Full render library | 124 | 0 |
+| Native DXGI and Vulkan integration | 2 | 0 |
+
+All listed phases had zero failures. The focused five-case pressure run and
+seven-case host-policy run also passed. Workspace/all-targets FFmpeg check,
+excluding historical Android, and the existing panel style guard passed.
+No existing assertion was relaxed, and no test ignore or skip was added.
+
+Focused CPU and host-policy phases overlap the full render/host runs and are not
+added to a distinct-case total. Native availability was observed only on the
+recorded Windows machine. Optional Vulkan support may differ on software drivers;
+the platform test preserves unsupported as an explicit result. No Linux/Metal
+runtime execution, Android build/device success, hardware driver fault injection,
+automatic admission adjustment or pressure-driven preview degradation is claimed.
+
+The only dependency changes declare direct target-specific use of already locked,
+unmodified `ash` and `objc2-metal` packages; no package revision/checksum changes.
+Their authors, revisions, source, licenses and unchanged scope are recorded in
+ATTRIBUTION. No assets, panels, style tokens, output quality, retries or deadlines
+are changed. Healthy Present does not call these explicit queries or perform new
+log IO. The empty host observation scope retains no events and emits no records.
+
+Raw logs and exact-source exit receipts are
+`artifacts/pr-queue/platform-pressure-{first-v1-cpu,first-v2-cpu,final-v1-*}.*`.
+The local `platform-pressure-acceptance.json` receipt records source identities,
+hashes, phase counts and observed native results. Presenter/UI and independent
+desktop node-preview enrollment, frame-peak measurement, applying native pressure
+to the bounded preview/proxy loop, and actual surface resize/seek/project-switch
+acceptance remain pending. #60/#61/#67 remain open.
+
+### Main integration and publication acceptance
+
+Own prerequisite PR414 merged as `b0dfb416dd7c403e5ea9c549c09257b36cb56d17`
+with a Chinese squash subject and body after all five exact-head required checks
+passed. Main advanced between the preflight and merge; the delivered own delta
+has the same stable patch identity as the accepted Session publication. This
+verifies that delta, not all intervening main changes. No other PR was reviewed.
+
+Pressure integration `e79c01aa6aa97ff0b6959731f2a39af96fd95650` passed five
+pressure library tests and two actual Windows native probe tests. Its full host
+check initially failed to compile because a newly integrated test platform
+fixture lacked the new Session allowance parameter. `843111b3` adds only that
+unused fixture parameter, preserving every assertion and all production bytes.
+On exact clean source `843111b308147fa9ba955f85b43ef6f040b45f55`, full host tests passed 120,
+render library tests passed 124, the FFmpeg workspace/all-target check
+excluding historical Android passed, and the panel style guard passed. The
+focused pressure tests overlap the render total. The failed integration log is
+retained and is not counted as a runtime GPU failure.
+
+Raw `platform-pressure-main-v{1,2}-*` logs and source/exit receipts live under
+`artifacts/pr-queue`; `platform-pressure-main-acceptance.json` records hashes and
+per-phase counts. Earlier Windows desktop acceptance is not relabelled as a new
+desktop run on this source. Platform and remaining #61 boundaries above remain
+unchanged.
+
+## Nineteenth increment: independent node-preview native admission
+
+Runtime acceptance source: `d8c1bf9d05ae6685708e1bfb1737395f28422921`.
+Its base includes the accepted read-only pressure increment, actual main
+`b0dfb416`, and the pressure integration fixture correction. The pressure and
+node-preview changes are published together as one own #61 follow-up. The
+earlier pressure source's host/render counts are not relabelled as runs on this
+node-preview source. This is functional admission enforcement in addition to
+observability; it is not a UI redesign or automatic quality-degradation change.
+
+The native negative control `b534fa317f0ac111c8f1e62e0d1334f1b7757a53`
+ran the real GPU constructor and failed the original guard: occupied capacity
+was 1,344,592 bytes, the live allowance was 1,344,593 bytes, yet the independent
+preview still succeeded. This was a runtime assertion failure, not a compilation
+error. The fixed implementation preserves that guard's assertion and the older
+time, color, alpha, pause-cache and temporary-inspection pixel assertions.
+
+| Item | Delivered behavior | Evidence and limits |
+| --- | --- | --- |
+| #61-A122 | `Renderer::allocation_context()` clones the existing renderer's live admission, upload ledger and native owner | Real descriptors reserve capacity before creation, including initialized-buffer padding; it is a trusted native integration API, not a sandbox for raw wgpu aliases |
+| #61-A123 | Admitted texture/view/buffer owners retain a single reservation across aliases and queued writes | Four native tests cover padding, view lifetime, unsubmitted writes, actual command recording, abandoned/submitted scopes, renderer/context exit and recovery |
+| #61-A124 | Sharing an allowance does not authorize uploads on a different native owner | Actual second-device writes are refused before native validation; valid cloned contexts still upload and retire normally |
+| #61-A125 | Independent N1 sample image, LUT, graph uniform, 512-square RGBA16Float target and display uniform all join Session admission | Five native allocation cut points refuse with typed required/budget bytes; partial constructors and temporary canonical validation retain queued uploads until submission completes |
+| #61-A126 | Failed replacement preserves the installed graph, stamp and pixels | Actual pixels remain equal and the old graph continues animating at the live limit; recovery preserves full raster dimensions/precision and produces changed pixels |
+| #61-A127 | Default-level failures reach the real serial worker's reply, file and Error stderr | A hidden native Windows surface exercises successful install/capture, actual budget refusal, retained capture and recovered install; parent verifies Info start, request/operation/timing/cause, one stderr failure and no logging on stdout |
+| #61-A128 | Node capture and both presentation branches retain enrolled allocations through allocated submissions | Node, UI-capture and chrome-only presentation paths use the existing allocation encoder/submission machinery; Presenter/UI's own unadmitted resources remain a separate pending boundary |
+| #61-A129 | Native renderer/host boundaries retain typed admission errors and the primary failure | Graph construction admits resources before compiling user WGSL; scope validation and infallible overlay callbacks preserve earlier causes instead of flattening them before the existing string reply boundary |
+
+Presentation-format changes reuse the admitted display uniform rather than
+allocating another buffer. This preserves the old rendering/color contract and
+permits retained playback at its existing allowance. No shader source, panel,
+layout, style token, input interaction, project value or undo structure changes.
+No automatic retry, timeout, restart or quality reduction is added. `respond`
+still permits protocol-defined discarded replies after receivers exit.
+
+All six acceptance phases passed on exact clean source above, with all caches,
+temporary files and logs on E:. Native allocation tests passed 4; node-preview
+tests passed 6; the Windows worker/default-output-channel test passed 1; full
+FFmpeg desktop tests passed 753, failed 0, and ignored 1 in 728.38 seconds. The
+single ignore remains the pre-existing actual native audio-device test; no new
+ignore or skip was added. Focused node/worker tests overlap the full desktop
+total and must not be added to it. FFmpeg workspace/all-target checking excluding
+the stopped Android target and the panel style guard also passed. Compilation
+alone was not used to claim runtime or default-output-channel acceptance.
+
+Initial fixed source `c47265af` passed the four native allocation tests, then its
+desktop check failed to compile because a repeated array of admitted views
+needed explicit dereferencing. `d8c1bf9d` fixes that conversion, preserving the
+assertions. Both the failed build and the successful final matrix are retained.
+This compilation failure is not counted as another reproduced native defect.
+
+Raw logs and exact-source receipts are
+`artifacts/pr-queue/node-preview-admission-{native-control-v1,final-v1-*,final-v2-*}.*`.
+The local `node-preview-admission-acceptance.json` records log/receipt hashes,
+phase counts, original negative-control evidence and platform exclusions. No new
+Linux/Metal runtime or Android build/device acceptance is claimed. The budget
+still reports `completeCoverage: false`: Presenter/UI enrollment, whole-frame
+peak accounting, applying native pressure to the bounded preview/cache/proxy
+loop, and actual resize/seek/project-switch combined acceptance remain pending.
+#60/#61/#67 remain open; this increment does not declare 3D readiness.

@@ -2,21 +2,25 @@
 use crate::node_editor::EditorSnapshot;
 use motion_effects::{AlphaMode, WorkingSpace};
 use motion_render::effect_plan::EffectUniform;
+use motion_render::{
+    AdmittedBuffer, AdmittedTexture, AdmittedTextureView, AllocationContext, RenderError,
+};
 use motion_ui::{
     paint,
     ui::{self, Align},
     Input, PaintList, Rect, TextAtlas,
 };
 use std::time::Instant;
-use wgpu::util::DeviceExt;
 
 pub const LOGICAL_SIZE: u32 = 64;
 pub const RASTER_SIZE: u32 = 512;
 pub const FPS: f64 = 30.;
+#[cfg(test)]
+#[path = "node_preview/admission_tests.rs"]
+mod admission_tests;
 #[derive(Clone)]
 pub struct GpuContext {
-    pub device: wgpu::Device,
-    pub queue: wgpu::Queue,
+    pub allocations: AllocationContext,
     pub format: wgpu::TextureFormat,
 }
 #[derive(Clone, Copy)]
@@ -278,29 +282,32 @@ pub struct NodePreview {
     pipeline: wgpu::RenderPipeline,
     groups: [wgpu::BindGroup; 3],
     uniform: EffectUniform,
-    buffer: wgpu::Buffer,
-    _source: wgpu::Texture,
-    _lut: wgpu::Texture,
-    _texture: wgpu::Texture,
-    view: wgpu::TextureView,
+    view: AdmittedTextureView,
     display: Display,
     display_mode: [u32; 4],
     pub frames: u64,
     pub renders: u64,
     cached_seconds: Option<f64>,
+    // Raw bind groups/views above must retire before their admitted owners.
+    buffer: AdmittedBuffer,
+    _source: AdmittedTexture,
+    _lut: AdmittedTexture,
+    _texture: AdmittedTexture,
+    allocations: AllocationContext,
 }
 struct Display {
     pipeline: wgpu::RenderPipeline,
     group: wgpu::BindGroup,
     format: wgpu::TextureFormat,
+    buffer: AdmittedBuffer,
 }
 fn texture(
-    device: &wgpu::Device,
+    allocations: &AllocationContext,
     width: u32,
     height: u32,
     format: wgpu::TextureFormat,
-) -> wgpu::Texture {
-    device.create_texture(&wgpu::TextureDescriptor {
+) -> Result<AdmittedTexture, RenderError> {
+    allocations.texture(&wgpu::TextureDescriptor {
         label: Some("independent node preview"),
         size: wgpu::Extent3d {
             width,
@@ -318,14 +325,15 @@ fn texture(
         view_formats: &[],
     })
 }
-fn upload(queue: &wgpu::Queue, texture: &wgpu::Texture, width: u32, height: u32, pixels: &[u8]) {
-    queue.write_texture(
-        wgpu::TexelCopyTextureInfo {
-            texture,
-            mip_level: 0,
-            origin: wgpu::Origin3d::ZERO,
-            aspect: wgpu::TextureAspect::All,
-        },
+fn upload(
+    allocations: &AllocationContext,
+    texture: &AdmittedTexture,
+    width: u32,
+    height: u32,
+    pixels: &[u8],
+) -> Result<(), RenderError> {
+    allocations.write_texture(
+        texture,
         pixels,
         wgpu::TexelCopyBufferLayout {
             offset: 0,
@@ -337,7 +345,7 @@ fn upload(queue: &wgpu::Queue, texture: &wgpu::Texture, width: u32, height: u32,
             height,
             depth_or_array_layers: 1,
         },
-    );
+    )
 }
 fn input_layout(device: &wgpu::Device, count: u32) -> wgpu::BindGroupLayout {
     let entries: Vec<_> = (0..count)
@@ -372,9 +380,9 @@ impl NodePreview {
         context: &GpuContext,
         snapshot: &EditorSnapshot,
         compiled: &motion_graph::CompiledGraph,
-    ) -> Result<Self, String> {
-        let device = &context.device;
-        let queue = &context.queue;
+    ) -> Result<Self, RenderError> {
+        let allocations = &context.allocations;
+        let device = allocations.device();
         let error_scope = device.push_error_scope(wgpu::ErrorFilter::Validation);
         let result = (|| {
             let uniform_layout =
@@ -398,7 +406,7 @@ impl NodePreview {
             let linear = snapshot.document.working_space == WorkingSpace::Linear;
             let premult = snapshot.document.alpha_mode == AlphaMode::Premultiplied;
             let source = texture(
-                device,
+                allocations,
                 LOGICAL_SIZE,
                 LOGICAL_SIZE,
                 if linear {
@@ -406,7 +414,7 @@ impl NodePreview {
                 } else {
                     wgpu::TextureFormat::Rgba8Unorm
                 },
-            );
+            )?;
             let pixels: Vec<u8> = (0..LOGICAL_SIZE * LOGICAL_SIZE)
                 .flat_map(|i| {
                     let x = i % LOGICAL_SIZE;
@@ -419,12 +427,12 @@ impl NodePreview {
                     ]
                 })
                 .collect();
-            upload(queue, &source, LOGICAL_SIZE, LOGICAL_SIZE, &pixels);
-            let lut = texture(device, 256, 1, wgpu::TextureFormat::Rgba8Unorm);
+            upload(allocations, &source, LOGICAL_SIZE, LOGICAL_SIZE, &pixels)?;
+            let lut = texture(allocations, 256, 1, wgpu::TextureFormat::Rgba8Unorm)?;
             let lut_pixels: Vec<_> = (0u8..=255).flat_map(|i| [i; 4]).collect();
-            upload(queue, &lut, 256, 1, &lut_pixels);
-            let source_view = source.create_view(&Default::default());
-            let lut_view = lut.create_view(&Default::default());
+            upload(allocations, &lut, 256, 1, &lut_pixels)?;
+            let source_view = source.view()?;
+            let lut_view = lut.view()?;
             let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
                 mag_filter: wgpu::FilterMode::Linear,
                 min_filter: wgpu::FilterMode::Linear,
@@ -454,7 +462,7 @@ impl NodePreview {
                 })
             };
             let input_group = bind(&input, &[&source_view, &source_view, &lut_view]);
-            let resource_group = bind(&resources, &[&source_view; 4]);
+            let resource_group = bind(&resources, &[&*source_view; 4]);
             let size = LOGICAL_SIZE as f32;
             let region = [0., 0., size, size];
             let mut uniform = EffectUniform {
@@ -480,11 +488,11 @@ impl NodePreview {
             for (index, p) in snapshot.document.public_parameters.iter().enumerate() {
                 uniform.params[index] = p.default;
             }
-            let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            let buffer = allocations.buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("SDK node clock and parameters"),
                 contents: bytemuck::bytes_of(&uniform),
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            });
+            })?;
             let uniform_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("SDK node uniform"),
                 layout: &uniform_layout,
@@ -493,6 +501,22 @@ impl NodePreview {
                     resource: buffer.as_entire_binding(),
                 }],
             });
+            let texture = texture(
+                allocations,
+                RASTER_SIZE,
+                RASTER_SIZE,
+                wgpu::TextureFormat::Rgba16Float,
+            )?;
+            let view = texture.view()?;
+            let display_mode = [
+                u32::from(!linear),
+                u32::from(premult),
+                u32::from(context.format.is_srgb()),
+                0,
+            ];
+            let display = Display::new(allocations, &view, context.format, display_mode, None)?;
+            // Admit output and display capacity before compiling user WGSL, so
+            // a later budget refusal cannot replace an earlier shader fault.
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("N1 compiled graph"),
                 source: wgpu::ShaderSource::Wgsl(compiled.shader.wgsl.clone().into()),
@@ -510,20 +534,6 @@ impl NodePreview {
                 "sdk_fragment",
                 wgpu::TextureFormat::Rgba16Float,
             );
-            let texture = texture(
-                device,
-                RASTER_SIZE,
-                RASTER_SIZE,
-                wgpu::TextureFormat::Rgba16Float,
-            );
-            let view = texture.create_view(&Default::default());
-            let display_mode = [
-                u32::from(!linear),
-                u32::from(premult),
-                u32::from(context.format.is_srgb()),
-                0,
-            ];
-            let display = Display::new(device, &view, context.format, display_mode);
             Ok(Self {
                 stamp: snapshot.preview_stamp(),
                 pipeline,
@@ -539,27 +549,42 @@ impl NodePreview {
                 frames: 0,
                 renders: 0,
                 cached_seconds: None,
+                allocations: allocations.clone(),
             })
         })();
         let error = pollster::block_on(error_scope.pop());
-        if let Some(error) = error {
-            return Err(error.to_string());
+        match (result, error) {
+            (Err(primary), Some(error)) => Err(RenderError::Context {
+                message: format!("{primary}; GPU validation also failed: {error}"),
+                cause: Box::new(primary),
+            }),
+            (Err(primary), None) => Err(primary),
+            (Ok(_), Some(error)) => Err(RenderError::Invalid(error.to_string())),
+            (Ok(value), None) => Ok(value),
         }
-        result
     }
     pub fn encode(
         &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
         encoder: &mut wgpu::CommandEncoder,
         target: &wgpu::TextureView,
         viewport: Viewport,
         format: wgpu::TextureFormat,
-    ) {
+    ) -> Result<(), RenderError> {
+        if self.display.format != format {
+            self.display_mode[2] = u32::from(format.is_srgb());
+            self.display = Display::new(
+                &self.allocations,
+                &self.view,
+                format,
+                self.display_mode,
+                Some(self.display.buffer.clone()),
+            )?;
+        }
         if self.cached_seconds != Some(viewport.seconds) {
             self.uniform.clock[0] = viewport.seconds as f32;
             self.uniform.clock[1] = (viewport.seconds * FPS) as f32;
-            queue.write_buffer(&self.buffer, 0, bytemuck::bytes_of(&self.uniform));
+            self.allocations
+                .write_buffer(&self.buffer, 0, bytemuck::bytes_of(&self.uniform))?;
             {
                 let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     multiview_mask: None,
@@ -586,10 +611,6 @@ impl NodePreview {
             self.cached_seconds = Some(viewport.seconds);
             self.renders += 1;
         }
-        if self.display.format != format {
-            self.display_mode[2] = u32::from(format.is_srgb());
-            self.display = Display::new(device, &self.view, format, self.display_mode);
-        }
         let [x, y, w, h] = viewport.rect;
         if w > 0. && h > 0. {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -615,6 +636,7 @@ impl NodePreview {
             pass.draw(0..3, 0..1);
         }
         self.frames += 1;
+        Ok(())
     }
 }
 fn pipeline(
@@ -653,11 +675,13 @@ fn pipeline(
 }
 impl Display {
     fn new(
-        device: &wgpu::Device,
+        allocations: &AllocationContext,
         source: &wgpu::TextureView,
         format: wgpu::TextureFormat,
         mode: [u32; 4],
-    ) -> Self {
+        existing: Option<AdmittedBuffer>,
+    ) -> Result<Self, RenderError> {
+        let device = allocations.device();
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("node preview presentation"),
             entries: &[
@@ -694,11 +718,16 @@ impl Display {
             min_filter: wgpu::FilterMode::Linear,
             ..Default::default()
         });
-        let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("node preview color contract"),
-            contents: bytemuck::cast_slice(&mode),
-            usage: wgpu::BufferUsages::UNIFORM,
-        });
+        let buffer = if let Some(buffer) = existing {
+            allocations.write_buffer(&buffer, 0, bytemuck::cast_slice(&mode))?;
+            buffer
+        } else {
+            allocations.buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("node preview color contract"),
+                contents: bytemuck::cast_slice(&mode),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            })?
+        };
         let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: None,
             layout: &layout,
@@ -726,7 +755,7 @@ impl Display {
             bind_group_layouts: &[Some(&layout)],
             immediate_size: 0,
         });
-        Self {
+        Ok(Self {
             pipeline: pipeline(
                 device,
                 &pipeline_layout,
@@ -737,40 +766,67 @@ impl Display {
             ),
             group,
             format,
-        }
+            buffer,
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn node_preview_respects_occupied_session_admission() {
+        let budget = motion_render::AllocationBudget::default();
+        let renderer = pollster::block_on(
+            motion_render::Renderer::headless_with_allocation_budget(budget.clone()),
+        )
+        .unwrap();
+        let context = GpuContext {
+            allocations: renderer.allocation_context(),
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+        };
+        let editor = crate::node_editor::NodeEditor::default();
+        let snapshot = editor.snapshot();
+        let compiled = snapshot.compile().unwrap();
+        let occupied = budget.info().unwrap().admitted_bytes;
+        budget.set_limit(occupied + 1).unwrap();
+        let result = NodePreview::build(&context, &snapshot, &compiled);
+        assert!(result.is_err(),
+            "independent N1 preview bypassed the live shared allowance: occupied={occupied} budget={}", occupied + 1);
+    }
+
     fn pixels(
         renderer: &motion_render::Renderer,
         preview: &mut NodePreview,
         seconds: f64,
     ) -> Vec<u8> {
         let target = renderer.capture_target(64, 64).unwrap();
-        let mut encoder = renderer.device.create_command_encoder(&Default::default());
-        preview.encode(
-            &renderer.device,
-            &renderer.queue,
-            &mut encoder,
-            &target.view,
-            Viewport {
-                rect: [0., 0., 64., 64.],
-                seconds,
-            },
-            wgpu::TextureFormat::Rgba8UnormSrgb,
-        );
-        renderer.queue.submit(Some(encoder.finish()));
+        let mut encoder = renderer
+            .allocation_command_encoder(&Default::default())
+            .unwrap();
+        preview
+            .encode(
+                &mut encoder,
+                &target.view,
+                Viewport {
+                    rect: [0., 0., 64., 64.],
+                    seconds,
+                },
+                wgpu::TextureFormat::Rgba8UnormSrgb,
+            )
+            .unwrap();
+        renderer
+            .submit_allocated(encoder.finish(), |ledger| {
+                ledger.merge(target.texture_resource_ledger())
+            })
+            .unwrap();
         renderer.read_target(&target).unwrap()
     }
     #[test]
     fn gpu_preview_obeys_live_time_parameters_alpha_and_pause_cache() {
         let renderer = pollster::block_on(motion_render::Renderer::headless()).unwrap();
         let context = GpuContext {
-            device: renderer.device.clone(),
-            queue: renderer.queue.clone(),
+            allocations: renderer.allocation_context(),
             format: wgpu::TextureFormat::Rgba8UnormSrgb,
         };
         let mut editor = crate::node_editor::NodeEditor::default();
@@ -814,8 +870,7 @@ mod tests {
     fn temporary_output_changes_gpu_pixels_and_restores_canonical_save_and_export() {
         let renderer = pollster::block_on(motion_render::Renderer::headless()).unwrap();
         let context = GpuContext {
-            device: renderer.device.clone(),
-            queue: renderer.queue.clone(),
+            allocations: renderer.allocation_context(),
             format: wgpu::TextureFormat::Rgba8UnormSrgb,
         };
         let mut editor = crate::node_editor::NodeEditor::default();
