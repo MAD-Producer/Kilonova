@@ -1257,3 +1257,78 @@ MSAA/resolve and group targets, foreign Presenter integration, complete shared
 session/platform pressure, bounded preview/export and repeated lifecycle
 acceptance remain pending. #60/#61/#67 remain open; precision and 3D readiness
 are not established by this increment.
+
+
+## Sixteenth increment: native vector source, MSAA and grouped target admission
+
+Accepted product/test source: `b0f239a52b0ba3086b83f8dbff1d378c3fd7c241`.
+This enrolls the actual RGBA8 sRGB vector outputs and linear RGBA8 raster targets
+in the same allocation allowance as buffers and other admitted native resources.
+Four-sample targets reserve their actual sixteen bytes per pixel; the resolve
+reserves four. All changed source outputs, ordinary working pairs and missing
+group size/depth pairs are staged before replacing any old image, pool or
+source-category counter. Texture-stage refusal drops staged reservations and
+preserves old identities, cached working targets and already rendered pixels.
+The pre-replacement dirty decision is retained so a resized output still draws.
+Buffer preparation and subsequent rendering remain separate fallible stages;
+this does not claim whole-frame transactional rendering.
+
+The native control `b3f0a240` reproduced 27,744 missing shared bytes for an actual
+34x34 ordinary vector source/MSAA/resolve set: booked 1,377,872 versus expected
+1,405,616, cargo exit 101. The complete original descriptor-capacity, submitted
+pixel and zero-release assertions remain unchanged. Initial implementation
+`500253d5` passed that control for both ordinary and grouped vectors.
+Six strengthened native cases passed on `300df263` before the final combined run.
+
+Intermediate expanded-case failures are retained honestly: an incomplete fixture
+asset table, an attempt to renew existing pending staging ownership, frozen group
+geometry that did not actually resize, and a copy destination missing COPY_DST.
+The corrected fixtures use the real asset order, completed uploads before the
+native texture lifetime scope, rebuilt group geometry, and an independently
+admitted copy/readback fixture. Product capture usage, upload ownership semantics,
+existing assertions and allocation limits were not weakened for those corrections.
+
+The existing vector buffer suite's original two aggregate-capacity equalities
+covered only fixed allocations plus buffers while vector textures were unenrolled.
+They now add independently measured descriptor bytes for exactly VectorSources,
+VectorRasterScratch and VectorGroupScratch. Comparisons remain exact, native
+capacity is independently tested, and final fixed/zero-release assertions remain.
+This is an expanded accounting oracle, not an assertion that all old expressions
+are unchanged. Existing vertex-phase, old-pixel, recovery and reuse assertions
+remain unchanged; those fixtures now keep admitted textures warm and grow real
+geometry to reach the same vertex-buffer failure boundary. The before-adjustment
+four-case run retained both accounting/site failures and both passing pixel tests.
+The first combined desktop run passed20 cases, including the new native-error
+case, but retained an earlier texture refusal in the existing vertex fixture:
+ellipse bounds rounded to19x18. That fixture now uses axis-aligned Plus geometry
+with unchanged18x18 texture bounds and a larger real vertex buffer. The original
+vertex-phase assertions are retained, with no product geometry or timeout change.
+
+| Item | Native evidence | Disposition |
+| --- | --- | --- |
+| #61-A103 | Actual ordinary/grouped descriptors join shared totals alongside buffers; submitted pixels and exact zero release | New native admission coverage |
+| #61-A104 | Every ordinary and group depth MSAA/resolve cut point preserves old identities, source bytes, live counts and pixels; below-limit warm reuse and recovery | New texture transaction coverage |
+| #61-A105 | Later group refusal rolls back both staged sources and the ordinary working pair across two layers | New cross-layer transaction coverage |
+| #61-A106 | Open, finished-abandoned and actually submitted native copies retain textures until their own retirement; later scopes do not renew retired owners | New native command lifetime coverage |
+| #61-A107 | Admitted source view retains exactly its native bytes after renderer teardown, then releases to zero | New alias lifetime coverage |
+| #61-A108 | Two actual Renderers share capacity; second refusal leaves no reservation; first release enables recovery and actual green pixels | New shared-capacity coverage |
+| #61-A109 | Real source refusal request216 preserves typed cause, old pixels, counters and recovery; default Info file, Error stderr and stdout isolation | New default-output observation |
+
+On this same frozen source, 119 render-library cases, 21 desktop composition/error cases, 85 cases across16 selected GPU suites and 69 host-library cases passed: **294 distinct selected cases**, zero failures or ignores. Workspace/all-targets FFmpeg check excluding Android and the existing panel style consumer guard also passed. Preliminary overlapping reruns are not added to this total.
+
+The desktop native-error case exercises an actual native failure through
+CURRENT_COMMAND/respond; it does not claim full worker-dispatch integration.
+No panels, styles, dependencies, assets, retries, deadlines or project parameters
+changed. Local selected acceptance does not claim full workspace tests or public
+CI. The previously pending mask batch merged only after all five exact-head public
+checks succeeded, using Chinese merge subject/body in PR411 (`b4853443`).
+
+Logs and exact-source receipts are
+`artifacts/pr-queue/vector-texture-admission-{before-fix,existing-buffer-scope-control,native-*,final-*}.*`.
+The acceptance receipt records raw hashes, selected counts and exclusions.
+148 worktrees were inspected; the old egui vector modifications are the already
+main wgpu API migration, not shared admission. Foreign Presenter and timeline
+work remain untouched. Logical capacity is not physical driver residency.
+Presenter admission/ownership, shared session/platform pressure, the complete
+bounded preview/export loop and repeated lifecycle acceptance remain pending.
+#60/#61/#67 remain open; this increment does not establish precision or3D readiness.

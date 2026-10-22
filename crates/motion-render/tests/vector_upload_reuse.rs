@@ -80,6 +80,14 @@ fn opacity(project: &mut Project, index: usize, value: f32) {
     group.transform.opacity.value = value;
 }
 
+fn native_vector_bytes(renderer: &Renderer) -> u64 {
+    renderer.texture_resource_ledger().resources().filter(|t| t.references.iter().any(|r|
+        matches!(r.category, motion_render::TextureCategory::VectorSources
+            | motion_render::TextureCategory::VectorRasterScratch
+            | motion_render::TextureCategory::VectorGroupScratch)))
+        .map(|t| t.logical_bytes.unwrap()).sum()
+}
+
 #[test]
 fn grouped_vector_buffers_share_admission_and_release_after_real_capture() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
@@ -89,16 +97,21 @@ fn grouped_vector_buffers_share_admission_and_release_after_real_capture() {
     let first = renderer.vector_upload_info().unwrap();
     assert!(first.vertex_capacity_bytes > 0 && first.opacity_capacity_bytes > 0 && first.idle_bytes > 0);
     assert_eq!(first.pending_buffers, 0);
+    // Shared totals now include actual native textures as well as buffers.
+    // Measure their descriptors independently; keep exact total/release checks.
+    let native = native_vector_bytes(&renderer);
+    assert!(native > 0);
     assert_eq!(budget.info().unwrap().admitted_bytes,
-        motion_render::FIXED_RENDERER_ALLOCATION_BYTES + first.vertex_capacity_bytes + first.opacity_capacity_bytes + first.idle_bytes);
+        motion_render::FIXED_RENDERER_ALLOCATION_BYTES + first.vertex_capacity_bytes + first.opacity_capacity_bytes + first.idle_bytes + native);
     opacity(&mut project, 1, 25.);
     let pixels = capture(&mut renderer, &project);
     assert!(pixels[(32 * 96 + 48) * 4 + 3].abs_diff(32) <= 2);
     let next = renderer.vector_upload_info().unwrap();
     assert_eq!(next.destination_buffers_created_total, first.destination_buffers_created_total);
     assert_eq!(next.staging_buffers_created_total, first.staging_buffers_created_total);
+    assert_eq!(native_vector_bytes(&renderer), native);
     assert_eq!(budget.info().unwrap().admitted_bytes,
-        motion_render::FIXED_RENDERER_ALLOCATION_BYTES + next.vertex_capacity_bytes + next.opacity_capacity_bytes + next.idle_bytes);
+        motion_render::FIXED_RENDERER_ALLOCATION_BYTES + next.vertex_capacity_bytes + next.opacity_capacity_bytes + next.idle_bytes + native);
     renderer.clear_assets();
     renderer.device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
     assert_eq!(budget.info().unwrap().admitted_bytes, motion_render::FIXED_RENDERER_ALLOCATION_BYTES);
@@ -115,7 +128,11 @@ fn refused_vector_reupload_keeps_completed_output_and_recovers_real_pixels() {
     scene.sample(&project, 0., None, &motion_core::ExpressionEvaluator).unwrap();
     let target = renderer.capture_target(96, 64).unwrap();
     let original = renderer.capture(&scene, &target).unwrap().0;
-    renderer.clear_assets();
+    // Keep the admitted source/raster textures warm and force a larger vertex
+    // upload, preserving this test's original vertex refusal and recovery site.
+    project.layers[0].content = Content::Vector {
+        vector: VectorContent::shape(ShapeKind::Plus),
+    };
     let created = renderer.vector_upload_info().unwrap().destination_buffers_created_total;
     let limit = budget.info().unwrap().admitted_bytes;
     budget.set_limit(limit).unwrap();
