@@ -148,3 +148,5 @@ mod project_tests;
 mod sampling_tests;
 #[cfg(test)]
 mod model_edit_tests;
+#[cfg(test)]
+mod audio_clock_tests;

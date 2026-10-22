@@ -2,6 +2,7 @@
 use super::*;
 
 mod path_ops;
+mod shape_parameters;
 
 #[test]
 fn invalid_model_edits_keep_history_and_reach_default_error_channels() {
