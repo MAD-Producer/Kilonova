@@ -89,3 +89,13 @@ No production peak is cleared, ignored in equality or inferred from current byte
 
 All build/temp/acceptance files stay on E:. No panel, token, layout, control or
 interaction change, dependency, third-party asset or compatibility layer is added.
+
+## Main integration
+
+The delivery branch rebases the17 own commits onto pinned main0bc4550d. Main's
+fallible Scene initialization is inherited; three newly added valid native-test
+fixtures now explicitly unwrap construction before sampling. Their pixel,
+refusal, recovery, retirement and history assertions are unchanged. Rebased
+production export/session callers retain main's native error propagation.
+Earlier source-bound results remain historical evidence; complete acceptance
+must execute on this integrated source. No foreign PR is reviewed or edited.

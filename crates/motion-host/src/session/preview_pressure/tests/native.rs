@@ -143,7 +143,7 @@ fn exercise(events: &winit::event_loop::EventLoop<()>, exposure: bool) {
         let graphics = session.graphics.as_mut().unwrap();
         let mut other = original.clone();
         other.layers[0].content = Content::Image { asset: 2 };
-        let mut idle_scene = Scene::new(&other);
+    let mut idle_scene = Scene::new(&other).unwrap();
         idle_scene
             .sample(&other, 0., None, &motion_core::ExpressionEvaluator)
             .unwrap();

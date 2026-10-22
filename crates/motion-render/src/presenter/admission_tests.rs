@@ -14,7 +14,7 @@ fn uniforms(info: &AllocationBudgetInfo) -> u64 {
 fn source(renderer: &mut Renderer) -> crate::RenderTarget {
     let mut project = motion_core::Project::new(8, 8, 30, 1).unwrap();
     project.background = [0., 1., 0., 1.];
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene
         .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();

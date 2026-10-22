@@ -28,7 +28,7 @@ fn actual_cpu_refusal_preserves_target_and_recovers_proxy_then_original_pixels()
     layer.content = Content::Image { asset: 17 };
     project.layers.push(layer);
     let before = project.clone();
-    let mut scene = Scene::new(&project);
+    let mut scene = Scene::new(&project).unwrap();
     scene
         .sample(&project, 0., None, &motion_core::ExpressionEvaluator)
         .unwrap();
