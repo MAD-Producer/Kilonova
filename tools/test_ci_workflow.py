@@ -115,7 +115,7 @@ class WorkflowPolicyTest(unittest.TestCase):
         for paths, workspace in [(posixpath, "/runner/work/project/project"), (ntpath, r"D:\a\project\project")]:
             crate_cwd = paths.join(workspace, "desktop", "app")
             upload_root = paths.normpath(paths.join(workspace, "artifacts", "desktop"))
-            for name in ["MOTION_SAMPLING_PLAYBACK_ARTIFACTS", "MOTION_FRAME_UI_ARTIFACTS"]:
+            for name in ["MOTION_SAMPLING_PLAYBACK_ARTIFACTS", "MOTION_FRAME_UI_ARTIFACTS", "MOTION_POINT_SELECTION_ARTIFACTS"]:
                 destination = test["env"][name].replace("${{ github.workspace }}", workspace)
                 # Cargo runs the binary from desktop/app; a relative path used
                 # to succeed locally yet silently miss the root upload glob.

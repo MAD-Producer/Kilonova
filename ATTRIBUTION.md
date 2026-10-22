@@ -18,6 +18,19 @@ This file lists third-party material currently intended for the repository or a 
 
 ## Rust 依赖 / Rust dependencies
 
+The read-only adapter memory probe directly uses two unmodified binding crates
+already present in `Cargo.lock`: `ash` 0.38.0+1.3.281 by Maik Klein, Benjamin
+Saunders, Marijn Suijten and ash contributors, from
+[ash-rs/ash](https://github.com/ash-rs/ash), MIT OR Apache-2.0, package SHA-256
+`0bb44936d800fea8f016d7f2311c6a4f97aebd5dc86f09906139ec848cf3a46f`;
+and `objc2-metal` 0.3.2 by the objc2 contributors, from
+[madsmtm/objc2](https://github.com/madsmtm/objc2), Zlib OR Apache-2.0 OR MIT,
+package SHA-256
+`a0125f776a10d00af4152d74616409f0d4a2053a6f57fa5b7d6aa2854ac04794`.
+Their original licenses remain in the published crates. No binding source,
+external assets or documentation text is copied or modified. These target-specific
+direct declarations expose the same native adapter that wgpu already owns.
+
 `motion-ui` uses the unmodified `unicode-segmentation` 1.13.3 crate for extended
 grapheme boundaries during editing. Authors: kwantam, Manish Goregaokar and
 unicode-rs contributors. Source: [unicode-rs/unicode-segmentation](https://github.com/unicode-rs/unicode-segmentation),

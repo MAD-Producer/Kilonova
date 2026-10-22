@@ -15,6 +15,8 @@ const RECENT_LIMIT: usize = 128;
 const STALL_LIMIT: usize = 512;
 const STALL_US: u64 = 16_000;
 const MAX_REPORT_BYTES: usize = 2 * 1024 * 1024;
+#[cfg(test)]
+mod native_test_evidence;
 
 #[derive(Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -79,6 +81,8 @@ pub struct Diagnostics {
     state: Mutex<State>,
     context: Mutex<Context>,
     gpu: Mutex<Option<Value>>,
+    #[cfg(test)]
+    native_phase: Mutex<Option<native_test_evidence::Phase>>,
     jobs: SyncSender<Job>,
     enabled: AtomicBool,
     configured: bool,
@@ -111,6 +115,8 @@ impl Diagnostics {
             state: Mutex::new(State::default()),
             context: Mutex::new(Context::default()),
             gpu: Mutex::new(None),
+            #[cfg(test)]
+            native_phase: Mutex::new(None),
             jobs,
             enabled: AtomicBool::new(false),
             configured: dsn.is_some(),

@@ -13,6 +13,9 @@ mod effect_plan_cache;
 pub mod composition_plan;
 mod measurement;
 mod memory;
+mod memory_pressure;
+pub use memory_pressure::{MemoryPressureLogScope, MemoryPressurePool, MemoryPressureReading, MemoryPressureSnapshot,
+    MemoryPressureSource, MemoryPressureUnavailable};
 mod resource_ledger;
 mod submission_ledger;
 pub use submission_ledger::{SubmissionMemoryInfo, SubmissionMemorySnapshot, MAX_SUBMISSION_SNAPSHOTS};
@@ -21,6 +24,8 @@ pub use frame_memory::FrameTextureCapacity;
 mod allocation_budget;
 mod allocation_buffer;
 mod allocation_uploads;
+mod native_allocation;
+pub use native_allocation::{AdmittedBuffer, AdmittedTexture, AllocationContext};
 pub use allocation_budget::{AllocationBudget, AllocationBudgetInfo, AllocationEncoder,
     AllocatedCommandBuffer, AdmittedTextureView, DEFAULT_RENDER_ALLOCATION_BUDGET,
     MAX_RENDER_ALLOCATION_BUDGET};

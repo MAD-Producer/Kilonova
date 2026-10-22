@@ -171,6 +171,7 @@ jobs:
         env:
           MOTION_SAMPLING_PLAYBACK_ARTIFACTS: ${{ github.workspace }}/artifacts/desktop/sampling-playback
           MOTION_FRAME_UI_ARTIFACTS: ${{ github.workspace }}/artifacts/desktop/frame-export
+          MOTION_POINT_SELECTION_ARTIFACTS: ${{ github.workspace }}/artifacts/desktop/path-selection
         run: cargo test -p motion-desktop -p motion-host -p motion-ui -p motion-desktop-media --locked --features motion-host/diagnostics -- --test-threads=1
       - name: Build the desktop shell
         run: python tools/build_desktop.py --task check
@@ -274,6 +275,18 @@ jobs:
             artifacts/desktop/sampling-playback/blur.png
             artifacts/desktop/sampling-playback/raster.png
             artifacts/desktop/sampling-playback/combined.png
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Preserve failed PR native capture evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure() && github.event_name == 'pull_request' && runner.os == 'Windows'
+        with:
+          name: desktop-capture-failure-${{ matrix.platform }}
+          path: |
+            artifacts/desktop/path-selection/*.failure.json
+            artifacts/desktop/path-selection/motion-studio.log
+            artifacts/desktop/path-selection/stderr.log
+            artifacts/desktop/path-selection/stdout.log
           if-no-files-found: warn
           retention-days: 7
 

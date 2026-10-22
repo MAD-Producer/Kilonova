@@ -248,6 +248,18 @@ impl Session {
         self.allocation_budget.info().map_err(crate::Error::from)
     }
 
+    /// Read the active surface renderer, or the existing headless editor renderer.
+    /// Does not create a GPU, modify admission, or change preview/output quality.
+    pub fn memory_pressure_info(&mut self) -> motion_render::MemoryPressureSnapshot {
+        if let Some(graphics) = &mut self.graphics {
+            graphics.renderer.memory_pressure()
+        } else if let Some(renderer) = &mut self.editor_renderer {
+            renderer.memory_pressure()
+        } else {
+            motion_render::MemoryPressureSnapshot::without_renderer()
+        }
+    }
+
     pub(crate) fn update_submission_tracking(&self) {
         let enabled = self.resource_tracking || self.recorder.is_some();
         if let Some(g) = &self.graphics { g.renderer.set_submission_tracking(enabled); }
@@ -911,6 +923,7 @@ fn audio_decoder(platform: &Arc<dyn Platform>) -> motion_media::DecodeAudio {
 /// Run `operation` against a live session on its owning thread.
 pub fn with_session<T>(id: i64, operation: impl FnOnce(&mut Session) -> Result<T>) -> Result<T> {
     let began = Instant::now();
+    let _pressure_scope = motion_render::MemoryPressureLogScope::enter(id);
     let _metadata_scope = metadata_observation::Scope::enter();
     let _registry_scope = registry_observation::Scope::enter(id);
     let slot = {

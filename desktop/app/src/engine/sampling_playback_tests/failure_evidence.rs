@@ -8,19 +8,14 @@ fn wait_failure_snapshot(
     polls: u32,
     error: &str,
 ) -> Value {
-    // Never ask a stalled worker for state, or wait on its observation lock.
-    let (flight, lock_state) = match engine.in_flight.try_lock() {
-        Ok(guard) => (*guard, "available"),
-        Err(std::sync::TryLockError::Poisoned(error)) => (*error.into_inner(), "poisoned"),
-        Err(std::sync::TryLockError::WouldBlock) => (None, "busy"),
-    };
-    serde_json::json!({
-        "schema_version":1,"phase":"present_reply","mode":mode,"frame":frame,
-        "present_polls":polls,"cause":error,"queue_depth":engine.queue_depth(),
-        "flight_lock":lock_state,"in_flight":flight.map(|f|serde_json::json!({
-            "request":f.request,"operation":f.operation,"elapsed_ms":f.started.elapsed().as_millis()
-        }))
-    })
+    let mut snapshot = engine.native_wait_snapshot();
+    snapshot["schema_version"] = serde_json::json!(1);
+    snapshot["phase"] = serde_json::json!("present_reply");
+    snapshot["mode"] = serde_json::json!(mode);
+    snapshot["frame"] = serde_json::json!(frame);
+    snapshot["present_polls"] = serde_json::json!(polls);
+    snapshot["cause"] = serde_json::json!(error);
+    snapshot
 }
 
 pub(super) fn report_wait_failure(
@@ -72,6 +67,12 @@ fn stalled_worker_evidence_preserves_cause_and_avoids_busy_observation_locks() {
     assert_eq!(snapshot["flight_lock"], "available");
     assert_eq!(snapshot["in_flight"]["operation"], "test_wait");
     assert!(snapshot["in_flight"]["request"].as_u64().unwrap() > 0);
+    assert_eq!(snapshot["native"]["progress"]["value"]["phase"], "dispatch");
+    assert_eq!(
+        snapshot["native"]["progress"]["value"]["request"],
+        snapshot["in_flight"]["request"]
+    );
+    assert_eq!(snapshot["native"]["gpu"]["lock"], "available");
     {
         let _guard = engine.in_flight.lock().unwrap();
         let busy = wait_failure_snapshot(&engine, "controlled", 17., 2, &primary);
