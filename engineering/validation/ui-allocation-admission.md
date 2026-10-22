@@ -1,8 +1,11 @@
 # UI native allocation admission (issue #61)
 
-Status: implementation candidate; compilation and actual runtime acceptance are
-pending. This is a functional budget increment, including upload recovery; it
-is not merely an observation change and is not issue completion evidence.
+Status: source c9f65122 passes all-target UI and application-FFmpeg workspace
+checks, four actual UI GPU tests and the default application error-channel test.
+The cumulative matrix stopped at invalid CPU decode test asset paths (1 pass,
+5 failures before decoding); fixture correction 96022bdd preserves every
+assertion. The additional actual worker recovery test and full regressions
+remain pending. This functional budget increment is not issue completion.
 
 ## Scope
 
@@ -39,16 +42,25 @@ is bounded by the supplied, validated device dimensions; the desktop TextAtlas
 itself remains bounded to 2048x2048 RGBA (16 MiB). It is CPU memory outside native
 GPU admission, not a complete process-memory bound.
 
-## Required acceptance (not yet executed)
+## Source-bound acceptance and remaining gates
 
 | ID | Actual guard | State |
 | --- | --- | --- |
-| U1 | `startup_refusal_is_atomic_and_actual_ui_allocations_have_disjoint_categories`: real native constructor refusal, partial cleanup, typed cause, uniform32/geometry8/atlas16 category deltas and same-texture write reuse | Pending |
-| U2 | `refused_atlas_and_two_buffer_growth_preserve_old_pixels_then_recover`: native atlas replacement and second buffer refusal, complete old state/pixels, recovery, one pending owned upload,60 capacity checks without repeated allocation, subsequent upload/pixel recovery | Pending |
-| U3 | `dropped_painter_remains_in_frame_peak_until_real_gpu_work_retires`: real draws/uploads, dropped owner before submission, retained capacity, GPU completion, reconciled current bytes and atlas frame peak/end | Pending |
-| U4 | `admitted_text_matches_legacy_pixels_through_real_atlas_growth_and_multiple_dpis`: actual glyph rendering, clipped text and real atlas growth at 1x/1.5x/2x DPI; admitted pixels must exactly match the legacy path | Pending |
-| U5 | Application `native_ui_refusals_preserve_cause_and_reach_default_file_stderr_without_stdout`: actual native startup/atlas failures, original host failure precedence, real reply, default Info file and Error stderr, stdout isolation | Pending |
+| U1 | `startup_refusal_is_atomic_and_actual_ui_allocations_have_disjoint_categories`: real native constructor refusal, partial cleanup, typed cause, uniform32/geometry8/atlas16 category deltas and same-texture write reuse | Pass c9f65122 |
+| U2 | `refused_atlas_and_two_buffer_growth_preserve_old_pixels_then_recover`: native atlas replacement and second buffer refusal, complete old state/pixels, recovery, one pending owned upload,60 capacity checks without repeated allocation, subsequent upload/pixel recovery | Pass c9f65122 |
+| U3 | `dropped_painter_remains_in_frame_peak_until_real_gpu_work_retires`: real draws/uploads, dropped owner before submission, retained capacity, GPU completion, reconciled current bytes and atlas frame peak/end | Pass c9f65122 |
+| U4 | `admitted_text_matches_legacy_pixels_through_real_atlas_growth_and_multiple_dpis`: actual glyph rendering, clipped text and real atlas growth at 1x/1.5x/2x DPI; admitted pixels must exactly match the legacy path | Pass c9f65122 |
+| U5 | Application `native_ui_refusals_preserve_cause_and_reach_default_file_stderr_without_stdout`: actual native startup/atlas failures, original host failure precedence, real reply, default Info file and Error stderr, stdout isolation | Pass c9f65122 |
 | U6 | Workspace/all-target FFmpeg and no-FFmpeg compilation, full motion-ui/render/host/media/desktop suites, existing DPI/clipped-text/atlas-growth/pixel guards with assertions unchanged, native lifecycle 24-case artifacts, style guard | Pending |
+| U7 | `actual_ui_atlas_refusal_recovers_in_worker_without_a_second_upload`: actual Windows Engine/Present, two refusals retaining old native atlas, budget recovery without a producer resend, exact native category/pixel/history checks and default output channels | Pending |
+
+The same c9f65122 source passes 15 category/release guards, the actual frame
+category guard, two native host pressure guards and all 24 native lifecycle cases.
+The cumulative CPU failure and missing later phases are retained, not counted as
+a full pass. Native UI log SHA-256:
+`a22f1c3140fb7d8f9ff8e8a616d20c208610e45e043587841e09cb2a4510beab`;
+application output log SHA-256:
+`e2c13f909a4b06e580329c044e5686171f3aa8cca8f640b1670c18a5d6137436`.
 
 Existing UI test fixtures now consume the fallible atlas upload result; their
 assertions are unchanged. Example render/capture functions propagate the cause.

@@ -280,3 +280,262 @@ fn repeated_native_resize_seek_and_project_switch_retire_capacity_without_pixel_
     }
     drop(engine);
 }
+
+#[test]
+fn actual_ui_atlas_refusal_recovers_in_worker_without_a_second_upload() {
+    const NAME: &str = "engine::memory_lifecycle_tests::actual_ui_atlas_refusal_recovers_in_worker_without_a_second_upload";
+    const CHILD: &str = "MOTION_UI_ATLAS_WORKER_CHILD";
+    let Some(directory) = std::env::var_os(CHILD) else {
+        let root = tempfile::tempdir().unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", NAME, "--nocapture", "--test-threads=1"])
+            .env(CHILD, root.path())
+            .env_remove("MOTION_LOG")
+            .output()
+            .unwrap();
+        let mut copy_errors = Vec::new();
+        if let Some(destination) = std::env::var_os("MOTION_UI_ATLAS_WORKER_ARTIFACTS") {
+            let destination = PathBuf::from(destination);
+            if let Err(error) = std::fs::create_dir_all(&destination) {
+                copy_errors.push(error.to_string());
+            } else {
+                for name in [
+                    "report.json",
+                    "motion-studio.log",
+                    "before.png",
+                    "after.png",
+                ] {
+                    let source = root.path().join(name);
+                    if source.exists() {
+                        if let Err(error) = std::fs::copy(source, destination.join(name)) {
+                            copy_errors.push(format!("{name}: {error}"));
+                        }
+                    }
+                }
+                for (name, bytes) in [
+                    ("stdout.log", &output.stdout),
+                    ("stderr.log", &output.stderr),
+                ] {
+                    if let Err(error) = std::fs::write(destination.join(name), bytes) {
+                        copy_errors.push(format!("{name}: {error}"));
+                    }
+                }
+            }
+        }
+        assert!(
+            output.status.success(),
+            "{}\n{}\nartifact copy: {copy_errors:?}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(copy_errors.is_empty(), "artifact copy: {copy_errors:?}");
+        let file = std::fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        let stdout = String::from_utf8(output.stdout).unwrap();
+        assert!(file.contains("logging initialized level=INFO"));
+        let failures: Vec<_> = file
+            .lines()
+            .filter(|line| {
+                line.contains("error #")
+                    && line.contains("phase=atlas")
+                    && line.contains("UI glyph atlas")
+            })
+            .collect();
+        assert_eq!(
+            failures.len(),
+            2,
+            "actual worker refusal and pending refusal must both be reported"
+        );
+        for line in failures {
+            let marker = &line[line.find("error #").unwrap()..];
+            assert!(stderr.contains(marker), "stderr missing {marker}");
+            assert!(!stdout.contains(marker), "stdout leaked {marker}");
+            assert!(marker.contains("present ") && marker.contains("window=0"));
+        }
+        assert!(!file
+            .lines()
+            .any(|line| line.contains("start #") && line.ends_with(" present")));
+        return;
+    };
+    let root = PathBuf::from(directory);
+    let _logging = crate::logging::init(root.clone()).unwrap();
+    let project = fixture(&root, "generated-worker-atlas", [255, 0, 0, 255]);
+    let mut events = EventLoop::builder().with_any_thread(true).build().unwrap();
+    #[allow(deprecated)]
+    let window = Arc::new(
+        events
+            .create_window(
+                winit::window::Window::default_attributes()
+                    .with_visible(false)
+                    .with_inner_size(winit::dpi::PhysicalSize::new(96, 96)),
+            )
+            .unwrap(),
+    );
+    let engine = Engine::start(project.0, motion_desktop_media::platform(), 8 << 30).unwrap();
+    let attached = engine.attach_async(window, 96, 96).unwrap();
+    crate::native_test_support::receive(&mut events, &attached, Duration::from_secs(30))
+        .unwrap()
+        .unwrap();
+    reply(&mut events, &engine, |reply| Command::Seek {
+        frame: 1.,
+        reply,
+    });
+    let frame = |atlas| {
+        let mut frame = ui(96);
+        frame.atlas = atlas;
+        frame.paint.push_glyph(motion_ui::paint::Glyph {
+            atlas_size: None,
+            uv: [0., 0., 1., 1.],
+            position: [4., 4.],
+            size: [8., 8.],
+            color: motion_ui::Color::rgb(0, 255, 0),
+        });
+        frame
+    };
+    let bitmap = |size: u32| AtlasUpload {
+        pixels: vec![255; (size * size * 4) as usize],
+        width: size,
+        height: size,
+    };
+    let began = Instant::now();
+    while !reply(&mut events, &engine, |reply| Command::Present {
+        ui: frame(Some(bitmap(1))),
+        reply,
+    }) {
+        assert!(
+            began.elapsed() < Duration::from_secs(30),
+            "initial native frame never completed"
+        );
+    }
+    crate::native_test_support::capture_ui(
+        &mut events,
+        &engine,
+        frame(Some(bitmap(1))),
+        root.join("before.png"),
+    )
+    .unwrap();
+    let before = engine.state().unwrap();
+    let allocation = engine
+        .plugin("{\"op\":\"allocation_budget\"}".into())
+        .unwrap();
+    let allocation = &allocation["allocationBudget"];
+    let occupied = allocation["admittedBytes"].as_u64().unwrap();
+    let original_limit = allocation["budgetBytes"].as_u64().unwrap();
+    let atlas_bytes = |info: &serde_json::Value| {
+        info["allocationBudget"]["categories"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|category| category["category"] == "ui_atlas")
+            .unwrap()["admittedBytes"]
+            .as_u64()
+            .unwrap()
+    };
+    assert_eq!(
+        atlas_bytes(
+            &engine
+                .plugin("{\"op\":\"allocation_budget\"}".into())
+                .unwrap()
+        ),
+        4
+    );
+    let mut policy = motion_render::resource_policy::MemoryPolicy::default();
+    policy.session_allocation_budget_bytes = occupied + 63;
+    reply(&mut events, &engine, |reply| Command::Plugin {
+        request: serde_json::json!({"op":"memory_policy", "policy":policy}).to_string(),
+        reply,
+    });
+    let mut failures = Vec::new();
+    for atlas in [Some(bitmap(4)), None] {
+        let pending = engine
+            .request(|reply| Command::Present {
+                ui: frame(atlas),
+                reply,
+            })
+            .unwrap();
+        let error =
+            crate::native_test_support::receive(&mut events, &pending, Duration::from_secs(30))
+                .unwrap()
+                .unwrap_err();
+        assert!(
+            error.contains("window=0")
+                && error.contains("phase=atlas")
+                && error.contains("UI glyph atlas")
+        );
+        assert!(error.contains(&(occupied + 64).to_string()));
+        assert!(error.contains(&(occupied + 63).to_string()));
+        failures.push(error);
+        let current = engine
+            .plugin("{\"op\":\"allocation_budget\"}".into())
+            .unwrap();
+        assert_eq!(current["allocationBudget"]["admittedBytes"], occupied);
+        assert_eq!(atlas_bytes(&current), 4);
+        let state = engine.state().unwrap();
+        for key in [
+            "project",
+            "revision",
+            "frame",
+            "lastPresentedFrame",
+            "canUndo",
+        ] {
+            assert_eq!(state[key], before[key], "refusal changed {key}");
+        }
+    }
+    assert_eq!(
+        failures[0], failures[1],
+        "pending refusal must preserve the original cause"
+    );
+    policy.session_allocation_budget_bytes = original_limit;
+    reply(&mut events, &engine, |reply| Command::Plugin {
+        request: serde_json::json!({"op":"memory_policy", "policy":policy}).to_string(),
+        reply,
+    });
+    let began = Instant::now();
+    while !reply(&mut events, &engine, |reply| Command::Present {
+        ui: frame(None),
+        reply,
+    }) {
+        assert!(
+            began.elapsed() < Duration::from_secs(30),
+            "native atlas recovery never completed"
+        );
+    }
+    crate::native_test_support::capture_ui(
+        &mut events,
+        &engine,
+        frame(Some(bitmap(4))),
+        root.join("after.png"),
+    )
+    .unwrap();
+    let recovered = engine
+        .plugin("{\"op\":\"allocation_budget\"}".into())
+        .unwrap();
+    assert_eq!(
+        atlas_bytes(&recovered),
+        64,
+        "actual worker must upload its retained bitmap without a producer resend"
+    );
+    let expected = image::open(root.join("before.png")).unwrap().to_rgba8();
+    let actual = image::open(root.join("after.png")).unwrap().to_rgba8();
+    assert_eq!(
+        actual, expected,
+        "healthy pixels changed after budget recovery"
+    );
+    let state = engine.state().unwrap();
+    for key in [
+        "project",
+        "revision",
+        "frame",
+        "lastPresentedFrame",
+        "canUndo",
+    ] {
+        assert_eq!(state[key], before[key], "recovery changed {key}");
+    }
+    std::fs::write(root.join("report.json"), serde_json::to_vec_pretty(&serde_json::json!({
+        "scope":"Actual Windows serial Engine, admitted glyph atlas and native surfaces; no physical VRAM or application input claim",
+        "before":allocation, "occupiedBytes":occupied, "refusals":failures,
+        "recovered":recovered, "workerRecoveryProducerResends":0,
+        "pixelsEqual":true, "authoredStateUnchanged":true,
+    })).unwrap()).unwrap();
+    drop(engine);
+}
