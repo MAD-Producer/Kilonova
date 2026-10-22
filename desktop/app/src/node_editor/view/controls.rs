@@ -110,6 +110,14 @@ pub(super) fn transform_content(content: &mut PaintList, origin: [f32; 2], zoom:
                     point(&mut clip.max);
                 }
             }
+            Shape::Stroke { points, clip, width } => {
+                points.iter_mut().for_each(&point);
+                *width *= zoom;
+                if let Some(clip) = clip {
+                    point(&mut clip.min);
+                    point(&mut clip.max);
+                }
+            }
             Shape::Procedural { area, clip, kind } => {
                 point(&mut area.min);
                 point(&mut area.max);
