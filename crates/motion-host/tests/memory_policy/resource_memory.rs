@@ -68,7 +68,7 @@ fn public_resource_query_uses_the_same_session_read_protocol() {
 #[test]
 fn unified_query_includes_real_font_and_mixer_capacity_without_changing_pcm_or_history() {
     use motion_core::{AudioAsset, AudioClip, Content, Layer, LayerTimeline};
-    use motion_media::{fonts::FontStore, mixer::AudioMixer};
+    use motion_media::{fonts::FontStore, AudioMixer};
 
     let directory = tempfile::tempdir().unwrap();
     let asset = AudioAsset {
