@@ -354,6 +354,21 @@
       "runner": ".github/workflows/ci.yml",
       "reason": "Executed by unittest discovery; checks GPU sample protocol and actual failed/nonreturning child receipts without running a device study"
     },
+    "tools/collect_native_video_pressure.py": {
+      "mode": "manual",
+      "command": "python tools/collect_native_video_pressure.py --fixtures <four-file-fixtures> --output <new-evidence> --target-dir <build-cache>",
+      "requires": [
+        "Committed clean Release study source and native Windows desktop GPU",
+        "Matching native FFmpeg runtime and four independent actual 4K source files",
+        "A new evidence directory and real production recovery cooldown time"
+      ],
+      "reason": "Explicit source-bound application-budget degradation/recovery study, not physical VRAM exhaustion or playback FPS; ordinary CI must not execute it"
+    },
+    "tools/test_ci_native_video_pressure.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Executed by unittest discovery; rejects inconsistent pressure quality, source, cooldown, completion and unknown timing records without running a device study"
+    },
     "tools/native_frame_activity.py": {
       "mode": "manual",
       "command": "python tools/native_frame_activity.py --study <accepted-native-study> --output <new-activity.json>",
