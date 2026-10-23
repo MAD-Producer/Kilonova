@@ -328,8 +328,16 @@ impl Project {
             volume: f32,
             envelopes: &[AudioEnvelope],
             depth: usize,
+            visited: &mut usize,
             out: &mut Vec<AudioVoice>,
         ) -> Result<()> {
+            if *visited == MAX_COMPOSITION_INSTANCES {
+                return fail(p.id, "resource_limit", "Audio composition instance limit exceeded",
+                    json!({"max_instances":MAX_COMPOSITION_INSTANCES,"phase":"audio_voices"}));
+            }
+            // Per query, including the root. Shared bodies consume one slot for
+            // every expanded visit, matching the document's instance budget.
+            *visited += 1;
             crate::ensure(
                 depth < MAX_COMPOSITION_DEPTH,
                 "audio composition nesting too deep",
@@ -382,6 +390,7 @@ impl Project {
                         volume * clip.volume,
                         &layer_envelopes,
                         depth + 1,
+                        visited,
                         out,
                     )?;
                 } else if let Some(audio) = document.layer_audio(l) {
@@ -403,6 +412,7 @@ impl Project {
             Ok(())
         }
         let mut out = Vec::new();
+        let mut visited = 0;
         visit(
             self,
             root,
@@ -415,6 +425,7 @@ impl Project {
             1.,
             &[],
             0,
+            &mut visited,
             &mut out,
         )?;
         Ok(out)

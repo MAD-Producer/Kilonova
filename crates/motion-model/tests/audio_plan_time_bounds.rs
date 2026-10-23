@@ -246,3 +246,52 @@ fn valid_fractional_boundaries_offsets_and_normal_silence_keep_exact_samples() {
     project.validate().unwrap();
     assert!(project.audio_voices().unwrap().is_empty());
 }
+
+#[test]
+fn audio_graph_instance_budget_accepts_the_boundary_and_rejects_excess_without_mutation() {
+    fn reference(id: u64, target: usize) -> Layer {
+        let mut layer = Layer::solid(id, "Reference", [32., 24.], [16., 12., 0.], [1.; 4]);
+        layer.content = Content::Composition {
+            clip: CompositionClip::new(format!("comp-level-{target}")),
+        };
+        layer
+    }
+    // A shared binary DAG has 1023 expanded instances, including its root.
+    let mut project = Project::new(32, 24, 30, 90).unwrap();
+    project.layers = vec![reference(1, 1), reference(2, 1), reference(3, 9)];
+    for level in 1..=9 {
+        project.compositions.push(Composition {
+            id: format!("comp-level-{level}"),
+            name: "Shared audio graph".into(),
+            width: 32,
+            height: 24,
+            fps: 30,
+            frames: 90,
+            background: [0.; 4],
+            camera: Camera::new(32, 24),
+            layers: if level == 9 {
+                vec![]
+            } else {
+                vec![reference(1, level + 1), reference(2, level + 1)]
+            },
+            expressions: vec![],
+        });
+    }
+    assert_eq!(motion_model::composition::MAX_COMPOSITION_INSTANCES, 1024);
+    project.validate().unwrap();
+    let before = project.clone();
+    assert!(project.audio_voices().unwrap().is_empty());
+    assert_eq!(project, before);
+
+    project.layers.push(reference(4, 9));
+    assert!(project.validate().is_err());
+    let before = project.clone();
+    let failure = project.audio_voices().unwrap_err();
+    let Error::Composition(detail) = failure else {
+        panic!("audio graph lost its native composition limit error");
+    };
+    assert_eq!(detail.code, "resource_limit");
+    assert_eq!(detail.composition, "comp-level-9");
+    assert_eq!(detail.details["max_instances"], 1024);
+    assert_eq!(project, before);
+}
