@@ -46,6 +46,8 @@ impl ProjectPublication {
     pub(super) fn publish(&self, temporary: &Path) -> Result<()> {
         let destination = self.directory.join("project.json");
         replace(temporary, &destination).map_err(|e| failure("publish", &destination, false, e))?;
+        #[cfg(test)]
+        super::crash_tests::reached(super::crash_tests::Phase::Published);
         // fsync(file) does not make its containing directory entry durable.
         // https://man7.org/linux/man-pages/man2/fsync.2.html
         #[cfg(unix)]
