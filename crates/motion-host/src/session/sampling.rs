@@ -423,6 +423,8 @@ impl Session {
                         pipeline_builds_total: g.renderer.effect_pipeline_builds(),
                         memory_quality_level: quality.level,
                         resource_refusals_total: self.preview_memory.refusal_count,
+                        image_readback: Some(g.renderer.image_readback_info()),
+                        timestamp_readback: g.timer.as_ref().map(motion_render::GpuTimer::readback_info),
                     }),
                 });
             }

@@ -12,6 +12,8 @@ pub use preview_targets::PreviewFrameTargets;
 mod effect_plan_cache;
 pub mod composition_plan;
 mod measurement;
+mod readback;
+pub use readback::{ImageReadbackInfo, TimestampReadbackInfo};
 mod memory;
 mod memory_pressure;
 pub use memory_pressure::{MemoryPressureLogScope, MemoryPressurePool, MemoryPressureReading, MemoryPressureSnapshot,

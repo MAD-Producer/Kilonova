@@ -31,6 +31,7 @@ pub struct GpuTiming {
 /// Four reusable timestamp staging buffers. Busy slots are skipped, never
 /// waited on by the frame loop. These are timing words, not image readbacks.
 pub struct GpuTimer {
+    readback: Arc<crate::readback::TimestampReadbackCounters>,
     map_failures: crate::observability::FailureCounter,
     queries: wgpu::QuerySet,
     resolve: crate::allocation_buffer::AllocationBuffer,
@@ -76,6 +77,7 @@ impl GpuTimer {
         };
         let slots = [slot()?, slot()?, slot()?, slot()?];
         Ok(Some(Self {
+            readback: Arc::default(),
             map_failures: crate::observability::FailureCounter::new(),
             queries: device.create_query_set(&wgpu::QuerySetDescriptor {
                 label: Some("Motion Studio pass timings"),
@@ -118,8 +120,11 @@ impl GpuTimer {
         let first = slot as u32 * QUERIES;
         encoder.resolve_query_set(&self.queries, first..first + QUERIES, &self.resolve, offset);
         encoder.copy_buffer_to_buffer(&self.resolve, offset, &self.slots[slot].buffer, 0, 32);
+        self.readback.encoded(TIMESTAMP_BUFFER_BYTES as u64);
     }
     pub fn map(&self, slot: usize) {
+        self.readback.map_requested();
+        let readback = self.readback.clone();
         let state = self.slots[slot].state.clone();
         // A pending mapping owns the actual buffer as well as its reservation.
         // Dropping the timer must not release capacity before that callback.
@@ -129,6 +134,7 @@ impl GpuTimer {
             .buffer
             .slice(..)
             .map_async(wgpu::MapMode::Read, move |result| {
+                readback.map_result(result.is_ok());
                 state.store(if result.is_ok() { 2 } else { 3 }, Ordering::Release);
                 drop(buffer);
                 drop(allocation);
@@ -144,7 +150,7 @@ impl GpuTimer {
             let result = if state == 2 {
                 let words = {
                     match s.buffer.slice(..).get_mapped_range() {
-                        Ok(mapped) => { self.map_failures.success(); read_timestamp_words(&mapped) },
+                        Ok(mapped) => { self.map_failures.success(); self.readback.mapped(mapped.len() as u64); read_timestamp_words(&mapped) },
                         Err(error) => { self.map_failures.failure("render.timestamp.readback", format_args!("slot={i} sequence={} cause={error}", s.sequence)); None },
                     }
                 };
@@ -167,9 +173,12 @@ impl GpuTimer {
                 None
             };
             s.state.store(0, Ordering::Release);
+            self.readback.sample(result.is_some());
             result
         })
     }
+    /// Includes actual mappings even if no recorder owns the native sequence.
+    pub fn readback_info(&self) -> crate::TimestampReadbackInfo { self.readback.info() }
 }
 
 #[cfg(test)]
