@@ -1,0 +1,52 @@
+[
+  {
+    "name": "fill-popup",
+    "sourceSha256": "0f1f4c997fcc4d2ee8fcfceb0b5aa5e346593f73d72d2895737e58207cb77b2f",
+    "crop": [
+      300,
+      45,
+      660,
+      320
+    ],
+    "imageSha256": "6f9841f45c3e6b4234c08d82220b01500b0560ac49934060fa218f1811c98a49"
+  },
+  {
+    "name": "fill-mode-menu",
+    "sourceSha256": "fe0828e778bfe998e493b32790788ee773c7530fe9f87e84fc7e9398c438328e",
+    "crop": [
+      300,
+      45,
+      710,
+      350
+    ],
+    "imageSha256": "36b1dd41f5104191001ac412f453fd4687ea096ba81aaa8f5462b39fe23fe7dc"
+  },
+  {
+    "name": "stroke-popup",
+    "sourceSha256": "2c82861c71b646cae4b514fc0fe8c0181b89e9b5b93c35e77237f7aa4c85a01b",
+    "crop": [
+      300,
+      45,
+      710,
+      320
+    ],
+    "imageSha256": "8b1ee6249409339592f3fc0b12453eac64b34d3b9ec44ff94efa7cc9351cca3f"
+  },
+  {
+    "name": "mixed-selection",
+    "sourceSha256": "e2a9e34b8989169e9ec84d0167680b6b43034451fa70f565f3789526a9198851",
+    "crop": [
+      290,
+      45,
+      600,
+      83
+    ],
+    "imageSha256": "1a2d13c6ac9bb311a66b9ec12b0048cc1455a5c2c495c74e98989362a696ea35"
+  },
+  {
+    "name": "toolbar-minimum",
+    "sourceSha256": "e3dfdbfaa030c0930a003212919a6b19e7f4303630d0850ecbbcf2ad7d3bdb63",
+    "crop": null,
+    "imageSha256": "db5a42860c97c71a9173f3f8ad114452680cc3b40e8c952346208b0618267cb6"
+  }
+]
