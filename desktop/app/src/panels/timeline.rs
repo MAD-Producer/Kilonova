@@ -5,6 +5,10 @@ use super::{
 };
 use std::hash::{Hash, Hasher};
 
+mod row_cache;
+#[cfg(test)]
+mod row_cache_tests;
+
 pub(super) struct Row {
     pub(super) effect_expressions: std::collections::HashSet<(u64,String)>,
     pub(super) spatial: bool,
@@ -684,20 +688,7 @@ pub(super) fn render(
     let total = last_frame(state) + 1.0;
     let fps = state["project"]["fps"].as_u64().unwrap_or(30).max(1) as f32;
     let graph_mode = panels.timeline.graph_mode;
-    let cache_key = (
-        state["root"].as_str().unwrap_or("").to_string(),
-        state["composition"].as_str().unwrap_or("").to_string(),
-        state["revision"].as_u64().unwrap_or(0),
-    );
-    if panels
-        .timeline
-        .rows_cache
-        .as_ref()
-        .is_none_or(|(key, _)| key != &cache_key)
-    {
-        panels.timeline.rows_cache = Some((cache_key, std::sync::Arc::new(rows(state))));
-    }
-    let all_rows = panels.timeline.rows_cache.as_ref().unwrap().1.clone();
+    let all_rows = row_cache::get(&mut panels.timeline.rows_cache, state, || rows(state));
     let query = panels.timeline.timeline_query.to_lowercase();
     let rows: Vec<_> = all_rows
         .iter()
