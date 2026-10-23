@@ -44,6 +44,9 @@ impl Session {
         if text("op")? == "resource_ledger" {
             return Ok(self.texture_resource_ledger());
         }
+        if text("op")? == "resource_memory" {
+            return self.resource_memory_ledger();
+        }
         if text("op")? == "allocation_budget" {
             return Ok(json!({"version":1,"scope":"session_enrolled_native_capacity",
                 "allocationBudget":self.allocation_budget_info()?,

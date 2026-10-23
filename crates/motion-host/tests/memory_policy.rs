@@ -7,6 +7,8 @@ struct Stub;
 
 #[path = "memory_policy/package_budget.rs"]
 mod package_budget;
+#[path = "memory_policy/resource_memory.rs"]
+mod resource_memory;
 
 #[test]
 fn cpu_asset_entry_points_follow_session_policy_without_changing_legacy_pixels_or_history() {

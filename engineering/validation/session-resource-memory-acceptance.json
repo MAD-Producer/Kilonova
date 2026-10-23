@@ -1,0 +1,169 @@
+{
+  "source": "7e177912eab3a6e5c6f8f77d65485ad780b22390",
+  "actualPhases": {
+    "host": {
+      "source": "7e177912eab3a6e5c6f8f77d65485ad780b22390",
+      "root": "E:\\Dev\\aem\\.worktrees\\session-resource-reporting",
+      "target": "E:\\Dev\\aem\\target\\session-resource-memory-7e177912",
+      "phase": "host",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "-p",
+        "motion-host",
+        "-j1",
+        "--",
+        "--test-threads=1"
+      ],
+      "startedUnix": 1792729728.7772508,
+      "buildEnvironment": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_PROFILE_DEV_DEBUG": "0",
+        "CARGO_PROFILE_TEST_DEBUG": "0",
+        "CARGO_INCREMENTAL": "0",
+        "TEMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+        "TMP": "E:/Dev/aem/target/ci-policy-validation-tmp"
+      },
+      "exitCode": 0,
+      "elapsedSeconds": 676.4788274765015,
+      "logSha256": "b505b1397613fe21d34d00645976691a5886cbffe4991dc609e6a1fa59422c83",
+      "testSummaries": [
+        [
+          79,
+          0,
+          0
+        ],
+        [
+          8,
+          0,
+          0
+        ],
+        [
+          10,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          11,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          7,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "validationError": null
+    },
+    "provenance": {
+      "source": "7e177912eab3a6e5c6f8f77d65485ad780b22390",
+      "root": "E:\\Dev\\aem\\.worktrees\\session-resource-reporting",
+      "target": "E:\\Dev\\aem\\target\\session-resource-memory-7e177912",
+      "phase": "provenance",
+      "command": [
+        "C:\\Users\\nova\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "tools/validate_provenance.py"
+      ],
+      "startedUnix": 1792730405.528253,
+      "buildEnvironment": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_PROFILE_DEV_DEBUG": "0",
+        "CARGO_PROFILE_TEST_DEBUG": "0",
+        "CARGO_INCREMENTAL": "0",
+        "TEMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+        "TMP": "E:/Dev/aem/target/ci-policy-validation-tmp"
+      },
+      "exitCode": 0,
+      "elapsedSeconds": 0.21870684623718262,
+      "logSha256": "e9b83657a8205fa7696107a59ff41c05647742988d13ad5617db6c3c1e952d87",
+      "testSummaries": [],
+      "validationError": null
+    },
+    "diff": {
+      "source": "7e177912eab3a6e5c6f8f77d65485ad780b22390",
+      "root": "E:\\Dev\\aem\\.worktrees\\session-resource-reporting",
+      "target": "E:\\Dev\\aem\\target\\session-resource-memory-7e177912",
+      "phase": "diff",
+      "command": [
+        "git",
+        "diff",
+        "--check",
+        "origin/main",
+        "HEAD"
+      ],
+      "startedUnix": 1792730405.9947438,
+      "buildEnvironment": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_PROFILE_DEV_DEBUG": "0",
+        "CARGO_PROFILE_TEST_DEBUG": "0",
+        "CARGO_INCREMENTAL": "0",
+        "TEMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+        "TMP": "E:/Dev/aem/target/ci-policy-validation-tmp"
+      },
+      "exitCode": 0,
+      "elapsedSeconds": 0.0759115219116211,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "testSummaries": [],
+      "validationError": null
+    }
+  },
+  "scope": "CPU ownership/bridge/failure acceptance; not GPU benchmark or Android evidence",
+  "completeIssue60": false,
+  "acceptedNewTests": 7,
+  "sourceChangesAfterAcceptance": "Documentation only; the measured implementation and original assertions remain unchanged",
+  "notAccepted": [
+    "Android devices",
+    "Native window performance",
+    "File decoder throughput",
+    "Complete CPU/external/inference ownership",
+    "Process RAM or physical VRAM totals"
+  ]
+}

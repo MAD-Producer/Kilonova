@@ -50,6 +50,9 @@ impl FrameCache {
     pub fn len(&self) -> usize {
         self.frames.len()
     }
+    pub(crate) fn retained_frames(&self) -> impl Iterator<Item = &Arc<DecodedFrame>> {
+        self.frames.iter()
+    }
     pub fn find(&self, time: u64) -> Option<Arc<DecodedFrame>> {
         self.frames
             .iter()
