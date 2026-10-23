@@ -1,13 +1,15 @@
 //! Structured policy refusals, distinct from malformed input and GPU failures.
 use serde::Serialize;
 
-/// The existing check's accounting scope, not physical/resident GPU memory.
+/// Logical policy scope. CPU decode buffers and native GPU allowances are
+/// independent; none of these scopes measures physical/resident GPU memory.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ResourceBudgetScope {
     RenderAllocations,
     SourceTextures,
     ActiveImages,
+    DecodedImages,
     VectorSources,
     VectorWorkingSet,
     MaskOutputs,

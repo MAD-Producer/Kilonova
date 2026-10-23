@@ -8,6 +8,11 @@ description = "Immediate-mode widget and dock layout library on winit and wgpu"
 [lib]
 crate-type = ["rlib"]
 
+[features]
+# Preserve the existing default suite. CPU-only local runs opt out explicitly.
+default = ["gpu-tests"]
+gpu-tests = []
+
 [dependencies]
 log.workspace = true
 wgpu.workspace = true
@@ -21,6 +26,7 @@ lyon_tessellation = "1.0.22"
 unicode-segmentation = "1.13.3"
 
 [dev-dependencies]
+motion-render = { path = "../../crates/motion-render" }
 winit = "0.30"
 pollster.workspace = true
 image.workspace = true

@@ -157,6 +157,7 @@ fn cjk_fixture_rasterizes_visible_chinese_glyphs() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
 fn actual_gpu_keeps_values_isolated_and_styled_text_pixels_unchanged_at_five_dpi_scales() {
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
     let adapter =
@@ -216,7 +217,7 @@ fn actual_gpu_keeps_values_isolated_and_styled_text_pixels_unchanged_at_five_dpi
                 atlas.pixel_data(),
                 atlas.config().width,
                 atlas.config().height,
-            );
+            ).unwrap();
             let expected = capture(&device, &queue, &mut painter, &old, logical, ratio);
             assert!(
                 expected.iter().any(|v| *v != 0),
@@ -292,7 +293,7 @@ fn actual_gpu_keeps_values_isolated_and_styled_text_pixels_unchanged_at_five_dpi
                 atlas.pixel_data(),
                 atlas.config().width,
                 atlas.config().height,
-            );
+            ).unwrap();
             let actual = capture(&device, &queue, &mut painter, &actual, logical, ratio);
             let value = capture(&device, &queue, &mut painter, &value, logical, ratio);
             let old = capture(&device, &queue, &mut painter, &old, logical, ratio);

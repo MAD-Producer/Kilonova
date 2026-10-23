@@ -101,6 +101,7 @@ fn capture(
     pixels
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
 fn procedural_patterns_and_fractional_dpi_borders_render_actual_pixels() {
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
     let Ok(adapter) =
@@ -159,6 +160,7 @@ fn procedural_patterns_and_fractional_dpi_borders_render_actual_pixels() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
 fn mixed_paint_order_covers_old_glyphs_and_keeps_new_glyphs_after_clip_and_append() {
     use motion_ui::paint::{Glyph, PaintOp};
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
@@ -173,7 +175,7 @@ fn mixed_paint_order_covers_old_glyphs_and_keeps_new_glyphs_after_clip_and_appen
     let mut painter = Painter::new(&device, wgpu::TextureFormat::Rgba8Unorm);
     // A deterministic coverage atlas exercises the actual glyph pipeline without
     // depending on platform font shape, hinting or font installation.
-    painter.upload_atlas(&device, &queue, &[255; 4], 1, 1);
+    painter.upload_atlas(&device, &queue, &[255; 4], 1, 1).unwrap();
     let glyph = |position, color| Glyph {
         atlas_size: None,
         position,
@@ -242,6 +244,7 @@ fn mixed_paint_order_covers_old_glyphs_and_keeps_new_glyphs_after_clip_and_appen
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
 fn stylesheet_radius_and_shadow_render_distinct_clipped_pixels_at_fractional_dpi() {
     use motion_ui::style::{box_style, default_stylesheet, States};
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());

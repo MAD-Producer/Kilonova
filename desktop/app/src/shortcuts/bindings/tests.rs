@@ -107,6 +107,7 @@ fn system_text_unknown_commands_and_duplicate_overrides_are_rejected() {
         chord(Key::A, true, false, false),
         chord(Key::Z, true, false, false),
         chord(Key::Space, true, false, false),
+        chord(Key::Space, true, false, true),
     ] {
         assert!(Bindings::default()
             .bind(Scope::Application, Command::Settings, Some(reserved))

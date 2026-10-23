@@ -25,7 +25,7 @@ fn canvas_zoom_pan_and_fit_crop_pixels_inside_a_valid_surface_viewport() {
     let render = |image| {
         let mut encoder = r.device.create_command_encoder(&Default::default());
         presenter.encode_view(&r.queue, &mut encoder, &output.view, None,
-            [8.,8.,48.,48.], Some(image), [0.,0.,1.,1.]);
+            [8.,8.,48.,48.], Some(image), [0.,0.,1.,1.]).unwrap();
         r.submit_tracked(encoder.finish(), |_| {});
         let pixels = r.read_target(&output).unwrap();
         r.check_health().unwrap();

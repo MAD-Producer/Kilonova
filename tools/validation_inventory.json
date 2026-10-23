@@ -314,6 +314,21 @@
       "mode": "ci",
       "runner": ".github/workflows/ci.yml",
       "reason": "Verify checksum-pinned FFmpeg downloads reject corrupt inputs before release preparation."
+    },
+    "tools/collect_desktop_performance.py": {
+      "mode": "manual",
+      "command": "python tools/collect_desktop_performance.py --output artifacts/desktop-baseline-new --samples 60",
+      "requires": [
+        "Committed clean study source",
+        "Native Release build environment and selected desktop GPU",
+        "New output directory and a recorded environment note"
+      ],
+      "reason": "Explicit source-bound headless GPU study; raw samples are not native-window or physical-device acceptance. Not run on every PR."
+    },
+    "tools/test_ci_desktop_performance.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Discovered by existing test_ci_*.py unittest discovery; verifies archive rejection and actual failing child output without measuring a GPU."
     }
   },
   "android_tests": {

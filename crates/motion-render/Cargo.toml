@@ -31,3 +31,7 @@ motion-core = { path = "../motion-core" }
 motion-media = { path = "../motion-media" }
 serde.workspace = true
 tempfile = "3.17"
+
+[[example]]
+name = "performance_baseline"
+test = true

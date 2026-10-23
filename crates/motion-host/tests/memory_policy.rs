@@ -5,6 +5,83 @@ use std::{path::Path, sync::Arc};
 
 struct Stub;
 
+#[path = "memory_policy/package_budget.rs"]
+mod package_budget;
+
+#[test]
+fn cpu_asset_entry_points_follow_session_policy_without_changing_legacy_pixels_or_history() {
+    struct Open(i64);
+    impl Drop for Open {
+        fn drop(&mut self) { motion_host::session::close(self.0); }
+    }
+    fn rejection(error: &motion_host::Error) -> &motion_render::ResourceRejection {
+        match error {
+            motion_host::Error::Context { cause, .. } => rejection(cause),
+            motion_host::Error::ImageResource(error) => error.resource_rejection().unwrap(),
+            other => panic!("CPU capacity lost native identity: {other:?}"),
+        }
+    }
+    // Preserve both entry points' existing conversion semantics, including
+    // transparent colors and a 16-bit source converted to the RGBA8 result.
+    for sixteen_bit in [false, true] {
+        let directory = tempfile::tempdir().unwrap();
+        std::fs::create_dir(directory.path().join("assets")).unwrap();
+        let path = directory.path().join("assets/image.png");
+        if sixteen_bit {
+            let encoder = image::codecs::png::PngEncoder::new(std::fs::File::create(&path).unwrap());
+            let samples: [u16; 16] = [65535, 0, 0, 32768, 65535, 65535, 65535, 0,
+                12345, 23789, 45678, 65535, 0, 0, 65535, 65535];
+            use image::ImageEncoder;
+            encoder.write_image(bytemuck::cast_slice(&samples), 4, 1, image::ExtendedColorType::Rgba16).unwrap();
+        } else {
+            image::save_buffer(&path,
+                &[255, 0, 0, 128, 255, 255, 255, 0, 37, 113, 241, 255, 0, 0, 255, 255],
+                4, 1, image::ColorType::Rgba8).unwrap();
+        }
+        let source_bytes = std::fs::read(&path).unwrap();
+        let asset = motion_core::Asset { id: 17, path: "assets/image.png".into(), width: 4, height: 1 };
+        let mut expected_legacy = image::ImageReader::open(&path).unwrap().decode().unwrap().into_rgba8().into_raw();
+        motion_render::premultiply_pixels(&mut expected_legacy);
+        let source = motion_render::image_resources::Source::new(directory.path(), &asset).unwrap();
+        let expected_into = motion_render::image_resources::decode(
+            &source, motion_render::image_resources::Resolution::Full).unwrap().rgba;
+        let mut project = Project::new(64, 64, 30, 6).unwrap();
+        project.assets.push(asset);
+        let handle = Open(motion_host::session::open(directory.path().into(), project, Arc::new(Stub)).unwrap());
+        let (before, revision, policy) = motion_host::session::with_session(handle.0, |session| {
+            Ok((session.engine.snapshot(), session.engine.revision(), session.effects.memory_policy()))
+        }).unwrap();
+        let small = MemoryPolicy { decoded_image_budget_bytes: 8, ..policy };
+        motion_host::ops::preview::configure_memory_policy(handle.0, small).unwrap();
+        let error = motion_host::ops::export::asset_pixels(handle.0, 17).unwrap_err();
+        assert_eq!(rejection(&error), &motion_render::ResourceRejection::Budget {
+            scope: motion_render::ResourceBudgetScope::DecodedImages, required_bytes: 16, budget_bytes: 8,
+        });
+        assert!(error.to_string().contains("asset=17"));
+        let mut output = [91; 20];
+        let error = motion_host::ops::images::asset_pixels_into(handle.0, 17, &mut output).unwrap_err();
+        assert_eq!(rejection(&error), &motion_render::ResourceRejection::Budget {
+            scope: motion_render::ResourceBudgetScope::DecodedImages, required_bytes: 16, budget_bytes: 8,
+        });
+        assert_eq!(output, [91; 20]);
+        motion_host::ops::preview::configure_memory_policy(handle.0,
+            MemoryPolicy { decoded_image_budget_bytes: 16, ..policy }).unwrap();
+        assert_eq!(motion_host::ops::export::asset_pixels(handle.0, 17).unwrap(), expected_legacy);
+        let info = motion_host::ops::images::asset_pixels_into(handle.0, 17, &mut output).unwrap();
+        assert_eq!(info["bytes"], 16);
+        assert_eq!(&output[..16], expected_into);
+        assert_eq!(output[16..], [91; 4]);
+        motion_host::session::with_session(handle.0, |session| {
+            assert_eq!(session.engine.snapshot(), before);
+            assert_eq!(session.engine.revision(), revision);
+            assert!(!session.engine.can_undo());
+            assert_eq!(session.effects.memory_policy().source_texture_budget_bytes, policy.source_texture_budget_bytes);
+            Ok(())
+        }).unwrap();
+        assert_eq!(std::fs::read(path).unwrap(), source_bytes);
+    }
+}
+
 #[test]
 fn session_envelope_survives_project_replacement_and_tracks_retained_native_views() {
     let directory=tempfile::tempdir().unwrap();
@@ -210,13 +287,15 @@ fn shared_json_policy_is_atomic_runtime_state_and_inherited_by_editor_rendering(
     let policy = MemoryPolicy {
         session_allocation_budget_bytes: 256 << 20,
         source_texture_budget_bytes: 32,
+        decoded_image_budget_bytes: 192 << 20,
         scratch_budget_bytes: 96 << 20,
         preview_target_budget_bytes: 4 << 20,
     };
     let result = session
         .plugin_request(&serde_json::json!({"op":"memory_policy","policy":policy}).to_string())
         .unwrap();
-    assert_eq!(result["policyVersion"], 4);
+    assert_eq!(result["policyVersion"], 5);
+    assert_eq!(result["memoryPolicy"]["decodedImageBudgetBytes"], 192 << 20);
     let queried = session.plugin_request("{\"op\":\"memory_policy\"}").unwrap();
     assert_eq!(queried, result);
     assert_eq!(
@@ -238,7 +317,7 @@ fn shared_json_policy_is_atomic_runtime_state_and_inherited_by_editor_rendering(
     );
     assert_eq!(session.view_revision, view);
     let info = session.preview_info();
-    assert_eq!(info["memoryPolicyVersion"], 4);
+    assert_eq!(info["memoryPolicyVersion"], 5);
     assert_eq!(info["memoryPolicy"]["previewTargetBudgetBytes"], 4 << 20);
     assert_eq!(info["sourceTextureBudgetBytes"], 32);
     assert_eq!(info["memoryPolicy"], result["memoryPolicy"]);

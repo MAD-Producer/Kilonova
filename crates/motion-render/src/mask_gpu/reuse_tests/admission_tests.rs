@@ -34,6 +34,15 @@ fn feathered_mask_mesh_and_filter_uniforms_share_renderer_admission() {
     let mut retired = before;
     // Peak capacity records the completed work; it never falls with live bytes.
     retired.peak_admitted_bytes += expected;
+    // Independent lifetime peaks retain the completed mesh/uniform capacity too.
+    // Keep the strict whole-snapshot comparison and all current/live fields.
+    for category in &mut retired.categories {
+        match category.category {
+            crate::AllocationCategory::UniformBuffers => category.peak_admitted_bytes += 3 * 624,
+            crate::AllocationCategory::GeometryBuffers => category.peak_admitted_bytes += mesh_bytes,
+            _ => {}
+        }
+    }
     assert_eq!(budget.info().unwrap(), retired);
 }
 

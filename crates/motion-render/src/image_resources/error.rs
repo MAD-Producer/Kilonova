@@ -7,6 +7,8 @@ pub enum Error {
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error(transparent)]
+    Allocation(#[from] std::collections::TryReserveError),
+    #[error(transparent)]
     Image(#[from] image::ImageError),
     #[error(transparent)]
     Png(#[from] png::DecodingError),
@@ -20,9 +22,27 @@ pub enum Error {
     WorkerDisconnected,
     #[error("{0}")]
     Invalid(String),
+    #[error("{message}")]
+    Budget {
+        rejection: crate::ResourceRejection,
+        message: String,
+    },
     /// Preserve the same original failure across repeated preview polls.
     #[error("{0}")]
     Shared(#[source] Arc<Error>),
+}
+
+impl Error {
+    pub fn resource_rejection(&self) -> Option<&crate::ResourceRejection> {
+        let mut error = self;
+        loop {
+            match error {
+                Self::Budget { rejection, .. } => return Some(rejection),
+                Self::Shared(cause) => error = cause,
+                _ => return None,
+            }
+        }
+    }
 }
 
 impl From<String> for Error {

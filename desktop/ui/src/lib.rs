@@ -11,6 +11,11 @@
 //! Keeping the layout model free of rendering means a layout test needs no GPU,
 //! which is why [`dock`] carries its own assertions.
 
+// Compile the actual desktop adapter in native allocation tests without making
+// the widget toolkit depend on the renderer in production.
+#[cfg(test)]
+extern crate self as motion_ui;
+
 pub mod dock;
 mod observability;
 pub mod icons;

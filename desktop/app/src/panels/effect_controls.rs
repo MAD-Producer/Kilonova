@@ -18,7 +18,10 @@ use std::collections::HashMap;
 mod curve;
 mod key_navigation;
 mod library;
-pub(crate) use library::entries;
+mod track_cache;
+#[cfg(test)]
+mod track_cache_tests;
+pub(crate) use library::{entries, Entry};
 
 fn word(locale: Locale, zh: &str, en: &str) -> String {
     if locale == Locale::Zh {
@@ -63,7 +66,7 @@ pub struct Controls {
     pub favorites: std::collections::BTreeSet<String>,
     field: Option<Field>,
     revision: Option<(String, String, u64)>,
-    tracks: HashMap<(u64, u64, String), EffectParam>,
+    tracks: track_cache::TrackCache,
     curve_editors: HashMap<(u64, u64, String), curve::Editor>,
     collapsed_categories: std::collections::HashSet<String>,
     collapsed_effects: std::collections::HashSet<u64>,
@@ -1465,15 +1468,13 @@ impl Controls {
                         opened: true,
                     });
                 }
-                let cache_key = (object, id, param.to_string());
-                if !self.tracks.contains_key(&cache_key) {
-                    let Ok(parameter) = observe!("effects.parameter", serde_json::from_value::<EffectParam>(effect["params"][param].clone()),
-                        "object={object} effect={id} param={param}") else { continue };
-                    self.tracks.insert(cache_key.clone(), parameter);
-                }
+                let Ok(track) = self.tracks.get_or_try_insert(object, id, param, || {
+                    observe!("effects.parameter", serde_json::from_value::<EffectParam>(effect["params"][param].clone()),
+                        "object={object} effect={id} param={param}")
+                }) else { continue };
                 self.selection_intent |= key_navigation::parameter_navigation(&mut self.key_channel, list,
                     Rect::new(area.min[0], *y, area.width(), row), state, input, object, id, param,
-                    &self.tracks[&cache_key], local, locked, out);
+                    track, local, locked, out);
                 if kind == "curve" {
                     let key = (object, id, param.to_string());
                     let open = !self.collapsed_curves.contains(&key);
@@ -1510,20 +1511,10 @@ impl Controls {
                     // This frame follows the same expansion snapshot as its height and hit rectangles.
                     if open {
                         if let Some(current) = observe!(
-                            "effects.parameter",
-                            serde_json::from_value::<EffectParam>(effect["params"][param].clone()),
+                            "effects.curve_track",
+                            track.curve.as_ref().ok_or("curve parameter has no curve track"),
                             "object={object} effect={id} param={param}"
-                        )
-                        .ok()
-                        .and_then(|parameter| {
-                            observe!(
-                                "effects.curve_track",
-                                parameter.curve.ok_or("curve parameter has no curve track"),
-                                "object={object} effect={id} param={param}"
-                            )
-                            .ok()
-                        })
-                        .map(|track| curve::value_at(&track, local))
+                        ).ok().map(|track| curve::value_at(track, local))
                         {
                             let width = (right - left)
                                 .max(0.)
@@ -1537,13 +1528,15 @@ impl Controls {
                                 body,
                                 area,
                                 if effect["effect"] == "curves" {
-                                    observe!(
-                                        "effects.curve_channel_parameter",
-                                        serde_json::from_value::<EffectParam>(
-                                            effect["params"]["p0002"].clone(),
-                                        ),
-                                        "object={object} effect={id} param=p0002"
-                                    )
+                                    self.tracks.get_or_try_insert(object, id, "p0002", || {
+                                        observe!(
+                                            "effects.curve_channel_parameter",
+                                            serde_json::from_value::<EffectParam>(
+                                                effect["params"]["p0002"].clone(),
+                                            ),
+                                            "object={object} effect={id} param=p0002"
+                                        )
+                                    })
                                     .ok()
                                     .and_then(|parameter| {
                                         let channel = observe!("effects.curve_channel_sample", parameter.sample(local),
@@ -1587,7 +1580,6 @@ impl Controls {
                     }
                     continue;
                 }
-                let track = &self.tracks[&cache_key];
                 let animated = !track.track.keys.is_empty();
                 let expression_supported = !track.kind.discrete()
                     && track.kind != motion_effects::ParamKind::Curve

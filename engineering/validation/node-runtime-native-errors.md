@@ -24,3 +24,15 @@
 FFmpeg Debug 产品构建成功；实际新产品 SHA-256 `89d1abdc14d2987af923cff556c0fa6ef706e7713fd7b4945678e3f05bfb849b`，运行 `--command-list` 退出 0、stdout 24475 字节有效 JSON、stderr 为空，运行前后产品和冻结输入不变。此项不冒充 GUI 像素或完整媒体解码验证。启动收据为 `node-runtime-final-product/execution.json`。
 
 复用既有共享 target，不新增构建目录、依赖或素材。没有用户可见 UI 改动。该组合以 #440 原 head `9ff10092` 为父提交，后续快进更新同一 PR，不改写旧提交；新的远端 head 与实际 main 组合仍待独立 CI，两个合集不关闭。
+
+## 当前主线与 UI 测试策略合批验收（2026-10-23）
+
+原生错误修复与实际 main `73a4f525fc7b671bdbf96e10abf6b47248b08d44` 无冲突组合后，完整宿主 131 项通过、0 失败、0 忽略，日志 SHA-256 `75d32406b3360083ded41b5da248395a8423a708857e7162a38758f1c8e93d72`。其后只合入本人 UI 测试选择的 13 文件差异；冻结输入交集逐项核对，宿主源码和测试没有变化，不把原先 126 项再累加。
+
+同一 #440 合批处理 #135 的独立 UI 库 GPU 选择策略，见 `ui-gpu-test-policy.md`。UI 默认 153 项通过、零忽略；CPU 模式 128 项通过、25 项明确忽略，是同一批用例的另一模式，不重复计算。既有工作流 11 项通过。最终组合再次执行桌面七项信道回归，零失败零忽略；与 131 项宿主、153 项 UI 及 11 项工作流合计 302 项不同测试。首次/重复运行、专项包含项、独立信道留样及受控失败不增加计数。
+
+最终冻结输入 `host-ui-final-combination-source-receipt.json` 的桌面日志 SHA-256 `d550c30d6fad9f9c3b4e7281737854d116c196609f654c6603dc67e5a99d9435`；全工作区全目标 FFmpeg/diagnostics/gpu-tests 检查与 FFmpeg 产品构建通过。原有主线编译警告保留，未修改其他分支的生产文件来消除警告，也不声称零警告。
+
+实际产品 `--command-list` 退出 0，24475 字节有效 JSON，stderr 为空；产品 SHA-256 `06507fdbbf20e7ebc0c0631b6c4c12a3d970ed299aa79def9053dd5248fcbb18`，实际启动与冻结输入保持。另用最终桌面测试二进制独立执行实际 worker 失败/回滚/健康恢复：默认 Info start 在 Error 前，ZIP 原因到达回复，一条文件 Error、一条 stderr Error，stdout 隔离。收据为 `host-ui-final-product/execution.json`、`host-ui-final-default-output/execution.json`；不冒充 GUI 像素或全部媒体解码。
+
+同一 PR 通过正常后续提交发布，不改写既有提交；实际远端 head 与之后可能更新的 main 组合必须由自身 CI 验证。本地记录仅证明上述 main 基线。#135 的其他包 GPU 策略及 #138 的其余原生边界继续开放，无用户可见 UI 改动。

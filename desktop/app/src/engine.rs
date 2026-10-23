@@ -27,6 +27,7 @@ mod failure;
 mod ui_paint;
 mod frame_capture;
 mod movie_freeze;
+mod frame_allocation;
 mod shutdown;
 #[cfg(test)]
 mod native_test_evidence;
@@ -42,6 +43,10 @@ mod node_admission_tests;
 mod pending_video_tests;
 #[cfg(all(test, target_os = "windows"))]
 mod sampling_playback_tests;
+#[cfg(all(test, target_os = "windows"))]
+mod memory_lifecycle_tests;
+#[cfg(all(test, target_os = "windows"))]
+mod surface_admission_tests;
 use failure::{ErrorReply, Failure, SessionLease};
 
 /// Maximum JSON payload accepted from the UI. Matches the Android bridge limit
@@ -462,6 +467,10 @@ impl Engine {
     pub fn queue_depth(&self) -> usize {
         self.queue_depth.load(Ordering::Acquire)
     }
+    /// Remains readable while the serial handler or an enrolled GPU queue waits.
+    pub fn allocation_frame_peaks(&self) -> Result<motion_render::AllocationFramePeaks, String> {
+        self.allocation_budget.frame_peaks().map_err(|error| error.to_string())
+    }
     pub fn diagnostics(&self) -> &Arc<crate::diagnostics::Diagnostics> {
         &self.diagnostics
     }
@@ -657,7 +666,7 @@ impl Engine {
                     let _ = ready.send(Err(error.to_string()));
                     return;
                 }
-                if ready.send(Ok((id, allocation_budget))).is_err() {
+                if ready.send(Ok((id, allocation_budget.clone()))).is_err() {
                     log::warn!("worker startup receiver closed; releasing session={id}");
                     return;
                 }
@@ -726,6 +735,8 @@ impl Engine {
                         &mut movie_freeze,
                         &worker_paints,
                         &worker_diagnostics,
+                        &allocation_budget,
+                        &worker_factory,
                         command,
                     ))}).and_then(|result| result);
                     worker_diagnostics.record(request,"worker",operation,queued.elapsed(),Some(began.duration_since(queued)),Some(began.elapsed()),context);
@@ -1219,17 +1230,6 @@ impl Engine {
         // Winit exposes Win32 handles only on the GUI thread. Build a surface
         // here, then transfer rendering ownership to the session worker.
         let target = self.platform.attach_surface(window, width, height, self.allocation_budget.clone())?;
-        self.diagnostics.set_gpu(target.renderer.adapter.get_info());
-        *self
-            .factory
-            .lock()
-            .map_err(|_| "surface factory lock poisoned")? = Some(SurfaceFactory {
-            instance: target.instance.clone(),
-            adapter: target.renderer.adapter.clone(),
-            device: target.renderer.device.clone(),
-            queue: target.renderer.queue.clone(),
-            config: target.config.clone(),
-        });
         self.request(|reply| Command::Attach { target, reply })
     }
     pub fn resize_async(
@@ -1431,6 +1431,8 @@ fn handle(
     movie_freeze: &mut movie_freeze::Worker,
     paints: &Arc<std::sync::Mutex<Vec<motion_ui::paint::PaintList>>>,
     diagnostics: &crate::diagnostics::Diagnostics,
+    allocation_budget: &motion_render::AllocationBudget,
+    factory: &Mutex<Option<SurfaceFactory>>,
     command: Command,
 ) -> bool {
     // Capture, project operations and view changes can overwrite the shared
@@ -1523,7 +1525,9 @@ fn handle(
             node_preview.installs += 1;
             Ok(true)
         })()),
-        Command::NodeCapture{seconds,path,reply}=>respond(reply,motion_host::session::with_session(id,|s|{
+        Command::NodeCapture{seconds,path,reply}=>{
+            let frame=frame_allocation::begin(allocation_budget,motion_render::FrameOperation::NodeCapture);
+            let result=motion_host::session::with_session(id,|s|{
             let g=s.graphics.as_ref().ok_or("node GPU not attached")?;
             let preview=node_preview.active.as_mut().ok_or("no valid node preview")?;
             let dimension=crate::node_preview::RASTER_SIZE;
@@ -1535,13 +1539,18 @@ fn handle(
             let fingerprint=pixels.iter().fold(0xcbf29ce484222325u64,|h,b|(h^u64::from(*b)).wrapping_mul(0x100000001b3));
             image::save_buffer(&path,&pixels,dimension,dimension,image::ColorType::Rgba8).map_err(|e|e.to_string())?;
             Ok(serde_json::json!({"path":path,"seconds":seconds,"fingerprint":format!("{fingerprint:016x}"),"stamp":preview.stamp,"renders":preview.renders,"frames":preview.frames}))
-        })),
+            });
+            frame_allocation::finish(frame,&result,|_|true);
+            respond(reply,result);
+        },
         Command::EditChecked {text,revision,reply}=>respond(reply,motion_host::session::with_session(id, |s| {
             if s.engine.gesture_active() { return Err("finish the active editor gesture before an agent edit".into()); }
             if s.engine.revision() != revision { return Err("project revision changed; fetch motion_state before editing".into()); }
             s.apply_commands(&text)
         })),
-        Command::CaptureUi { ui, path, reply } => respond(reply,motion_host::session::with_session(id, |s| {
+        Command::CaptureUi { ui, path, reply } => {
+            let frame=frame_allocation::begin(allocation_budget,motion_render::FrameOperation::CaptureUi);
+            let result=motion_host::session::with_session(id, |s| {
             #[cfg(test)]
             diagnostics.native_test_phase("capture.target");
             let g = s.graphics.as_ref().ok_or("desktop surface is not attached")?;
@@ -1549,20 +1558,24 @@ fn handle(
             let target = g.renderer.capture_target(width, height).map_err(|e| e.to_string())?;
             #[cfg(test)]
             diagnostics.native_test_phase("capture.painter");
-            let mut chrome = motion_ui::Painter::new(&g.renderer.device, wgpu::TextureFormat::Rgba8UnormSrgb);
+            let mut chrome = motion_ui::Painter::new_admitted(ui_paint::allocation::context(g.renderer.allocation_context()), wgpu::TextureFormat::Rgba8UnormSrgb)
+                .map_err(|e| format!("phase=capture.painter: {e}"))?;
             let upload = ui.atlas.ok_or("screenshot requires the complete glyph atlas")?;
             #[cfg(test)]
             diagnostics.native_test_phase("capture.atlas");
-            chrome.upload_atlas(&g.renderer.device, &g.renderer.queue, &upload.pixels, upload.width, upload.height);
+            chrome.upload_atlas_owned(&g.renderer.device, &g.renderer.queue, upload.pixels, upload.width, upload.height)
+                .map_err(|e| format!("phase=capture.atlas: {e}"))?;
             #[cfg(test)]
             diagnostics.native_test_phase("capture.presenter");
-            let presenter = motion_render::Presenter::new_admitted(&g.renderer, &g.scratch.view, wgpu::TextureFormat::Rgba8UnormSrgb);
+            let presenter = motion_render::Presenter::new_admitted(&g.renderer, &g.scratch.view, wgpu::TextureFormat::Rgba8UnormSrgb)
+                .map_err(|e| format!("phase=capture.presenter: {e}"))?;
             let mut encoder = g.renderer.allocation_command_encoder(&Default::default()).map_err(|e|e.to_string())?;
             if let Some([x,y,w,h])=ui.composition {
                 let scale = (w / s.scene.width as f32).min(h / s.scene.height as f32);
                 let vw = s.scene.width as f32 * scale; let vh = s.scene.height as f32 * scale;
                 presenter.encode_view(&g.renderer.queue, &mut encoder, &target.view, None,
-                    if ui.composition_image.is_some() { [x,y,w,h] } else { [x+(w-vw)*0.5,y+(h-vh)*0.5,vw,vh] }, ui.composition_image, s.scene.background);
+                    if ui.composition_image.is_some() { [x,y,w,h] } else { [x+(w-vw)*0.5,y+(h-vh)*0.5,vw,vh] }, ui.composition_image, s.scene.background)
+                    .map_err(|e| format!("phase=capture.presenter: {e}"))?;
             } else {clear_target(&mut encoder,&target.view);}
             #[cfg(test)]
             diagnostics.native_test_phase("capture.paint");
@@ -1584,14 +1597,51 @@ fn handle(
             diagnostics.native_test_phase("capture.save");
             image::save_buffer(&path, &pixels, width, height, image::ColorType::Rgba8).map_err(|e| e.to_string())?;
             Ok(serde_json::json!({"path":path,"width":width,"height":height}))
-        })),
+            });
+            frame_allocation::finish(frame,&result,|_|true);
+            respond(reply,result);
+        },
         Command::Attach { target, reply } => respond(reply,(|| {
-            motion_host::session::with_session(id, |s| {
-                let next = motion_ui::Painter::new(&target.renderer.device, target.config.format);
+            // Check poison before preparing native resources. Never retain this
+            // guard across session access, GPU work or diagnostic publication.
+            drop(factory.lock().map_err(|_| motion_host::Error::from("surface factory lock poisoned"))?);
+            let next_factory = SurfaceFactory {
+                instance: target.instance.clone(),
+                adapter: target.renderer.adapter.clone(),
+                device: target.renderer.device.clone(),
+                queue: target.renderer.queue.clone(),
+                config: target.config.clone(),
+            };
+            let gpu = target.renderer.adapter.get_info();
+            let mut attached = false;
+            let result = motion_host::session::with_session(id, |s| {
+                let next = motion_ui::Painter::new_admitted(ui_paint::allocation::context(target.renderer.allocation_context()), target.config.format)
+                    .map_err(|e| format!("phase=attach.painter: {e}"))?;
                 s.attach(target)?;
                 *painter = Some(next);
+                attached = true;
                 s.snapshot()
-            })
+            });
+            if !attached { return result; }
+            // Publish even if snapshot serialization failed after attachment.
+            // A refused replacement must leave the original factory intact.
+            let publication = factory.lock().map(|mut guard| guard.replace(next_factory));
+            match publication {
+                Ok(previous) => {
+                    drop(previous);
+                    diagnostics.set_gpu(gpu);
+                    result
+                }
+                Err(_) => {
+                    let secondary = motion_host::Error::from("surface factory lock poisoned during attachment publication");
+                    match result {
+                        Ok(_) => Err(secondary),
+                        Err(primary) => Err(motion_host::Error::Cleanup {
+                            primary: Box::new(primary), secondary: Box::new(secondary),
+                        }),
+                    }
+                }
+            }
         })()),
         Command::FloatWindow {key,target,reply} => respond(reply,motion_host::session::with_session(id,|s|{
             if key==0 || windows.contains_key(&key){return Err("invalid floating window id".into());}
@@ -1611,7 +1661,9 @@ fn handle(
             }
             s.snapshot()
         })),
-        Command::Present { ui, reply } => {let result=motion_host::session::with_session(id, |s| {
+        Command::Present { mut ui, reply } => {
+        let frame=frame_allocation::begin(allocation_budget,motion_render::FrameOperation::Present);
+        let result=motion_host::session::with_session(id, |s| {
             #[cfg(test)]
             diagnostics.native_test_phase("present.prepare");
             let began = std::time::Instant::now();
@@ -1625,7 +1677,10 @@ fn handle(
                 let g=s.graphics.as_ref().ok_or("desktop surface is not attached")?;
                 #[cfg(test)]
                 diagnostics.native_test_phase("present.atlas");
-                if let Some(upload)=&ui.atlas {painter.upload_atlas(&g.renderer.device,&g.renderer.queue,&upload.pixels,upload.width,upload.height);}
+                if let Some(upload)=ui.atlas.take() {painter.upload_atlas_owned(&g.renderer.device,&g.renderer.queue,upload.pixels,upload.width,upload.height)
+                    .map_err(|e|format!("present window={} phase=atlas: {e}",ui.window))?;}
+                painter.retry_atlas(&g.renderer.device,&g.renderer.queue)
+                    .map_err(|e|format!("present window={} phase=atlas: {e}",ui.window))?;
                 if let Some(viewport)=ui.composition {
                     let frame=s.frame; // Shared clock, never a stale UI frame.
                     let stamp=CompositionStamp::new(s,&ui,viewport);
@@ -1718,6 +1773,7 @@ fn handle(
         });
         let mut paint=ui.paint;paint.clear();
         recycle_paint_pool(paints, paint, true);
+        frame_allocation::finish(frame,&result,|rendered|*rendered);
         respond(reply,result);
         },
         Command::OpenDirectory { directory, reply } => respond(reply,(||{
@@ -1751,6 +1807,7 @@ fn handle(
             let result = (|| -> motion_host::Result<()> {
                 movie_freeze.available()?;
                 let plan=motion_host::session::with_session(id,|s|motion_desktop_media::movie::FrozenMovie::capture_plan(s,&control).map_err(motion_host::Error::from))?;
+                let plan = plan.with_observation_request(CURRENT_COMMAND.get().map_or(0, |flight| flight.request));
                 let cancel = control.clone();
                 movie_freeze.start(reply.clone(), control, move || plan.freeze(&cancel))?;
                 Ok(())

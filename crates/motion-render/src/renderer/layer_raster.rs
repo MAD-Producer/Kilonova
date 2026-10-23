@@ -105,7 +105,7 @@ impl Renderer {
         phase: &'static str,
     ) -> Result<FxTexture> {
         crate::effect_gpu::admitted_texture(&self.device, &self.image_layout,
-            &self.sampler, size[0], size[1], format, &self.allocation_budget)
+            &self.sampler, size[0], size[1], format, &self.allocation_budget, crate::TextureCategory::LayerCompositingScratch)
             .map_err(|error| {
                 let message = format!(
                     "exposure composition={:.64} frame={} object={receiver} size={}x{} format={format:?} phase={phase}: {error}",

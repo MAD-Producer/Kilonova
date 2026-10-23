@@ -11,6 +11,12 @@ pub struct FrameFreezePlan {
 }
 
 impl FrameFreezePlan {
+    /// Attach the engine request before this immutable plan leaves the worker.
+    pub fn with_observation_request(mut self, request: u64) -> Self {
+        self.sources = self.sources.with_observation_request(request);
+        self
+    }
+
     /// Capture immutable model/effect state and source handles on the session
     /// worker. Copy, decode, render and publication run on the export worker.
     pub fn capture(
@@ -51,7 +57,12 @@ impl FrameFreezePlan {
         let frame = self.frame;
         let revision = self.sources.revision;
         let output = self.output.clone();
-        self.export_inner(control).map_err(|error| {
+        let budget = self.sources.allocation_budget.clone();
+        let request = self.sources.observation_request;
+        allocation_observation::run(
+            &budget, request, motion_render::FrameOperation::Export, Some(frame),
+            || self.export_inner(control),
+        ).map_err(|error| {
             if error == "movie export cancelled" {
                 "PNG export cancelled".into()
             } else {

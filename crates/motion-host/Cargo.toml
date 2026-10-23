@@ -33,3 +33,6 @@ raw-window-handle = "0.6"
 
 [dev-dependencies]
 tempfile = "3"
+
+[target.'cfg(windows)'.dev-dependencies]
+winit = "0.30"

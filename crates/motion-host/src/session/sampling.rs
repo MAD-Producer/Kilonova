@@ -366,7 +366,7 @@ impl Session {
                 },
                 image,
                 self.scene.background,
-            );
+            )?;
             overlay.take().unwrap()(&g.renderer, &mut encoder, &view);
             let submitting = Instant::now();
             g.renderer.submit_allocated(encoder.finish(), |ledger| {

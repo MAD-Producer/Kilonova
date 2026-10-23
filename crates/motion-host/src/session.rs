@@ -31,6 +31,9 @@ mod registry_observation;
 mod last_error_observation;
 mod resource_observation;
 mod sampling;
+mod preview_pressure;
+#[cfg(all(test, target_os = "windows"))]
+mod surface_admission_tests;
 pub(crate) mod metadata_observation;
 #[cfg(test)]
 mod metadata_observation_tests;
@@ -384,7 +387,6 @@ impl Session {
         if !self.allocation_budget.same_budget(target.renderer.allocation_budget()) {
             return Err("surface renderer was not constructed with the session allocation budget".into());
         }
-        self.detach();
         let SurfaceTarget {
             instance,
             surface,
@@ -406,10 +408,12 @@ impl Session {
         // prepare the real dimensions under the bounded preview policy.
         let scratch = PreviewFrameTargets::new(&renderer, 1, 1)
             .map_err(crate::Error::from)?;
-        let presenter = Presenter::new_admitted(&renderer, &scratch.view, config.format);
+        let presenter = Presenter::new_admitted(&renderer, &scratch.view, config.format)?;
         // Auto quality needs GPU cost even without diagnostic recording; only
         // four reusable 32-byte timing buffers are read, never video pixels.
         let timer = GpuTimer::new(&renderer)?;
+        // Keep the last valid front until every replacement allocation succeeds.
+        self.detach();
         self.graphics = Some(Graphics {
             surface,
             renderer,
@@ -445,12 +449,16 @@ impl Session {
     pub fn present_retained_with_view(&mut self, viewport: [f32; 4], image: Option<[f32; 4]>,
         overlay: impl FnOnce(&Renderer, &mut wgpu::CommandEncoder, &wgpu::TextureView)) -> Result<bool> {
         validate_canvas_image(image)?;
-        let Some(g) = &mut self.graphics else { return Ok(false); };
+        let Some(g) = &self.graphics else { return Ok(false); };
         let [x, y, w, h] = viewport;
         if !viewport.iter().all(|v| v.is_finite()) || x < 0. || y < 0.
             || w <= 0. || h <= 0. || x + w > g.config.width as f32 + 0.01
             || y + h > g.config.height as f32 + 0.01
         { return Err(format!("invalid composition viewport viewport={viewport:?} surface={}x{} phase=retained", g.config.width, g.config.height).into()); }
+        if self.observe_preview_pressure()? {
+            return self.render_with_view(self.frame, Some(viewport), image, overlay);
+        }
+        let Some(g) = &mut self.graphics else { return Ok(false); };
         let rendered = present_held(g, viewport, image, overlay)?;
         self.presented += u64::from(rendered);
         Ok(rendered)
@@ -474,7 +482,7 @@ impl Session {
         self.frame = frame;
         self.sample()?;
         let tier = self.preview.tier();
-        let Some(g) = &mut self.graphics else {
+        let Some(g) = &self.graphics else {
             return Ok(false);
         };
         let viewport = viewport.unwrap_or([0., 0., g.config.width as f32, g.config.height as f32]);
@@ -499,6 +507,8 @@ impl Session {
             self.preview_memory.changed();
             self.memory_context = Some(context);
         }
+        self.observe_preview_pressure()?;
+        let Some(g) = &mut self.graphics else { return Ok(false); };
         let exposure = self.sampling.required();
         let now_ms = self.preview_memory_clock.elapsed().as_millis() as u64;
         self.preview_memory_held = false;
@@ -511,10 +521,11 @@ impl Session {
         if exposure { return self.render_exposure_with_view(frame,viewport,image,overlay); }
         g.renderer.retain_video_instances(&self.scene);
         self.preview_video.retain(&self.scene);
-        let upcoming = motion_render::image_resources::upcoming_assets(
+        let mut upcoming = motion_render::image_resources::upcoming_assets(
             self.engine.project(),
             frame,
         ).map_err(crate::Error::from)?;
+        if !self.preview_memory.allows_image_prefetch() { upcoming.clear(); }
         g.renderer.set_image_prefetch(upcoming);
         let preparing = Instant::now();
         let frames = self.video_frames.prepare_scene(
@@ -697,12 +708,17 @@ impl Session {
             let acquire_us = acquiring.elapsed().as_micros() as u64;
             g.presenter.set_admitted_source(&g.renderer.device, &candidate_view);
             let view = output.texture.create_view(&Default::default());
-            g.presenter.encode_view(
+            if let Err(error) = g.presenter.encode_view(
                 &g.renderer.queue, &mut encoder, &view,
                 slot.map(|i| g.timer.as_ref().unwrap().writes(i, 1)),
                 if image.is_some() { viewport } else { preview_viewport(viewport, [self.scene.width, self.scene.height]) },
                 image, self.scene.background,
-            );
+            ) {
+                if let (Some(timer), Some(i)) = (&mut g.timer, slot) {
+                    timer.cancel_unsubmitted(i);
+                }
+                return Err(error.into());
+            }
             overlay.take().unwrap()(&g.renderer, &mut encoder, &view);
             if let Some(i) = slot {
                 g.timer.as_ref().unwrap().resolve(i, &mut encoder);
@@ -889,7 +905,7 @@ fn present_chrome(g: &mut Graphics, retained_viewport: Option<[f32; 4]>, image: 
     let mut encoder = g.renderer.allocation_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("Motion Studio retained preview") })?;
     if let Some(viewport) = retained_viewport {
         g.presenter.encode_view(&g.renderer.queue, &mut encoder, &view, None,
-            if image.is_some() { viewport } else { preview_viewport(viewport, g.last_canvas) }, image, g.last_background);
+            if image.is_some() { viewport } else { preview_viewport(viewport, g.last_canvas) }, image, g.last_background)?;
     } else {
         let _clear = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Motion Studio pending preview"),
@@ -924,6 +940,8 @@ fn audio_decoder(platform: &Arc<dyn Platform>) -> motion_media::DecodeAudio {
 /// Run `operation` against a live session on its owning thread.
 pub fn with_session<T>(id: i64, operation: impl FnOnce(&mut Session) -> Result<T>) -> Result<T> {
     let began = Instant::now();
+    let _allocation_scope = motion_render::AllocationLogScope::enter(id);
+    let _preview_pressure_scope = preview_pressure::Scope::enter(id);
     let _pressure_scope = motion_render::MemoryPressureLogScope::enter(id);
     let _metadata_scope = metadata_observation::Scope::enter();
     let _registry_scope = registry_observation::Scope::enter(id);
@@ -1026,6 +1044,7 @@ pub fn set_creation_error(error: String) {
 
 /// Close a session and release its GPU resources.
 pub fn close(id: i64) {
+    let _allocation_scope = motion_render::AllocationLogScope::enter(id);
     let slot = {
         let mut registry = sessions().lock().unwrap_or_else(|e| e.into_inner());
         if !registry

@@ -31,7 +31,7 @@ impl Deref for OwnedTexture {
 }
 pub(crate) trait DeviceTextureExt {
     fn create_owned_texture(&self, descriptor: &wgpu::TextureDescriptor<'_>) -> OwnedTexture;
-    fn create_admitted_texture(&self, descriptor: &wgpu::TextureDescriptor<'_>, budget: &crate::AllocationBudget)
+    fn create_admitted_texture(&self, descriptor: &wgpu::TextureDescriptor<'_>, budget: &crate::AllocationBudget, category: TextureCategory)
         -> Result<OwnedTexture, crate::RenderError>;
 }
 impl DeviceTextureExt for wgpu::Device {
@@ -42,12 +42,12 @@ impl DeviceTextureExt for wgpu::Device {
             allocation: None,
         }
     }
-    fn create_admitted_texture(&self, descriptor: &wgpu::TextureDescriptor<'_>, budget: &crate::AllocationBudget)
+    fn create_admitted_texture(&self, descriptor: &wgpu::TextureDescriptor<'_>, budget: &crate::AllocationBudget, category: TextureCategory)
         -> Result<OwnedTexture, crate::RenderError>
     {
         let bytes = descriptor_bytes(descriptor).ok_or_else(|| crate::RenderError::Invalid(
             "unknown, empty or overflowing admitted texture capacity".into()))?;
-        let allocation = budget.reserve(bytes)?;
+        let allocation = budget.reserve_in(bytes, category.into())?;
         Ok(OwnedTexture {
             texture: self.create_texture(descriptor),
             id: NEXT_TEXTURE_ID.fetch_add(1, Ordering::Relaxed),
@@ -122,7 +122,7 @@ pub enum TextureCategory {
     EffectScratch, PluginResources, CurveLuts, VectorRasterScratch,
     VectorGroupScratch, LayerCompositingScratch, MaskScratch, MaskOutputs,
     EffectInputSnapshots, MatteBlendScratch, SystemTextures, PreviewTargets,
-    AuthoringInputs, CaptureTargets, ExposureTargets,
+    AuthoringInputs, CaptureTargets, ExposureTargets, UiAtlas,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]

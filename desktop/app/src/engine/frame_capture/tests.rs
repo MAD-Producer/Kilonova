@@ -24,6 +24,16 @@ fn session_budget_refusal_reaches_real_export_worker_reply_file_and_stderr() {
         let info=engine.plugin("{\"op\":\"allocation_budget\"}".into()).unwrap();
         assert_eq!(info["allocationBudget"]["admittedBytes"],0);
         assert_eq!(info["allocationBudget"]["liveAllocations"],0);
+        let peaks=engine.allocation_frame_peaks().unwrap();
+        assert!(peaks.active.is_empty());
+        assert_eq!(peaks.recent.len(),1);
+        let failed=&peaks.recent[0];
+        assert!(failed.request>0);
+        assert_eq!(failed.operation,motion_render::FrameOperation::Export);
+        assert_eq!(failed.source_frame,Some(0.));
+        assert_eq!(failed.outcome,Some(motion_render::AllocationFrameOutcome::Failed));
+        let log=std::fs::read_to_string(root.join("motion-studio.log")).unwrap();
+        assert!(log.contains(&format!("error #{} capture ",failed.request)));
         policy.session_allocation_budget_bytes=16<<20;
         engine.plugin(serde_json::json!({"op":"memory_policy","policy":policy}).to_string()).unwrap();
         engine.capture_async(output.clone(),ExportControl::default()).unwrap()
@@ -31,6 +41,14 @@ fn session_budget_refusal_reaches_real_export_worker_reply_file_and_stderr() {
         let image=image::open(&output).unwrap().into_rgba8();
         assert_eq!(image.dimensions(),(32,24));
         assert!(image.pixels().all(|p|p.0==[0,255,0,255]));
+        let peaks=engine.allocation_frame_peaks().unwrap();
+        assert!(peaks.active.is_empty());
+        let rendered=peaks.recent.last().unwrap();
+        assert!(rendered.request>failed.request);
+        assert_eq!(rendered.outcome,Some(motion_render::AllocationFrameOutcome::Rendered));
+        assert!(rendered.submissions>0);
+        let log=std::fs::read_to_string(root.join("motion-studio.log")).unwrap();
+        assert!(log.contains(&format!("async start #{} capture ",rendered.request)));
         drop(engine);
         crate::logging::flush();
         return;
@@ -55,6 +73,61 @@ fn session_budget_refusal_reaches_real_export_worker_reply_file_and_stderr() {
     for marker in [cause,"error #","logging initialized"] {
         assert!(!stdout.contains(marker),"logging leaked to stdout: {stdout}");
     }
+}
+
+#[test]
+fn export_window_omissions_escalate_and_recover_in_default_file_and_stderr() {
+    const CHILD: &str="MOTION_EXPORT_WINDOW_OMISSION_LOG_ROOT";
+    const NAME: &str="engine::frame_capture::tests::export_window_omissions_escalate_and_recover_in_default_file_and_stderr";
+    if let Some(root)=std::env::var_os(CHILD) {
+        let root=PathBuf::from(root);
+        let _logger=crate::logging::init(root.clone()).unwrap();
+        let session=motion_host::session::Session::new(
+            motion_core::Project::new(32,24,30,6).unwrap(),root.clone(),motion_desktop_media::platform(),
+        ).unwrap();
+        let budget=session.allocation_budget();
+        let mut occupied:Vec<_>=(0..motion_render::MAX_ACTIVE_ALLOCATION_FRAMES)
+            .map(|id|budget.begin_frame(id as u64,motion_render::FrameOperation::Render).unwrap().unwrap()).collect();
+        let cancelled_export=|| {
+            let control=ExportControl::default();
+            let plan=FrameFreezePlan::capture(&session,Some(root.join("never-published.png")),&control).unwrap()
+                .with_observation_request(9101);
+            assert!(control.cancel());
+            assert_eq!(plan.export(&control).unwrap_err(),"PNG export cancelled");
+        };
+        for _ in 0..120 { cancelled_export(); }
+        drop(occupied.pop());
+        cancelled_export(); // A real observed export resets the omission episode.
+        occupied.push(budget.begin_frame(9000,motion_render::FrameOperation::Render).unwrap().unwrap());
+        for _ in 0..60 { cancelled_export(); }
+        assert_eq!(budget.frame_peaks().unwrap().omitted_frames,180);
+        assert!(!root.join("never-published.png").exists());
+        assert_eq!(budget.info().unwrap().admitted_bytes,0);
+        drop(occupied);
+        crate::logging::flush();
+        return;
+    }
+    let root=tempfile::tempdir().unwrap();
+    let output=std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact",NAME,"--nocapture","--test-threads=1"])
+        .env(CHILD,root.path()).env_remove("MOTION_LOG").output().unwrap();
+    assert!(output.status.success(),"{}\n{}",String::from_utf8_lossy(&output.stdout),String::from_utf8_lossy(&output.stderr));
+    let file=std::fs::read_to_string(root.path().join("motion-studio.log")).unwrap();
+    let stderr=String::from_utf8(output.stderr).unwrap();
+    let stdout=String::from_utf8(output.stdout).unwrap();
+    let site="site=export.frame_allocation.observation";
+    assert!(file.contains("logging initialized level=INFO"));
+    assert_eq!(file.matches(site).count(),2);
+    assert_eq!(stderr.matches(site).count(),2);
+    for line in file.lines().filter(|line|line.contains(site)) {
+        for field in ["ERROR","count=60","request=9101 operation=Export","source_frame=Some(0.0)","phase=begin elapsed_ms=","active_limit=64"] {
+            assert!(line.contains(field),"missing {field}: {line}");
+        }
+    }
+    assert!(!file.contains("count=1 "));
+    assert!(!stdout.contains(site));
+    assert!(!stdout.contains("logging initialized"));
+    assert!(!stderr.contains("logging initialized"));
 }
 
 #[test]

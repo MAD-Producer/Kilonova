@@ -98,6 +98,7 @@ fn warmed_cluster_labels_keep_plain_and_styled_drawing_allocation_free() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
 fn actual_gpu_draws_the_complete_prefix_and_ellipsis_at_every_alignment() {
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
     let adapter = pollster::block_on(instance.request_adapter(&Default::default())).unwrap();
@@ -131,7 +132,7 @@ fn actual_gpu_draws_the_complete_prefix_and_ellipsis_at_every_alignment() {
                     atlas.pixel_data(),
                     atlas.config().width,
                     atlas.config().height,
-                );
+                ).unwrap();
                 let actual_pixels =
                     gpu::capture(&device, &queue, &mut painter, &actual, [160., 64.], ratio);
                 let expected_pixels =

@@ -191,6 +191,12 @@ fn png_export_freezes_frame_without_blocking_engine_and_observes_failure_and_can
             let capture = engine.capture_async(output.clone(), control.clone()).unwrap();
             waiting.recv_timeout(Duration::from_secs(30)).unwrap();
             let flight = engine.frame_capture_in_flight().expect("publish in-flight before decoder enters");
+            let peaks=engine.allocation_frame_peaks().unwrap();
+            let window=peaks.active.iter().find(|w|w.operation==motion_render::FrameOperation::Export).unwrap();
+            assert_eq!(window.request,flight.0);
+            assert_eq!(window.source_frame,Some(1.));
+            assert!(window.outcome.is_none());
+            assert!(window.peak_admitted_bytes>0);
             let log = std::fs::read_to_string(root.join("motion-studio.log")).unwrap();
             assert!(log.contains(&format!("async start #{} capture", flight.0)));
             let pending = engine.request(Command::State).unwrap().recv_timeout(Duration::from_secs(2)).unwrap().unwrap();

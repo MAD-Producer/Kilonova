@@ -7,6 +7,7 @@ use motion_ui::{
 const SCALES: [f32; 5] = [1., 1.25, 1.5, 1.75, 2.];
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
 fn explicit_one_pixel_strokes_match_existing_lines_including_clipping_and_paint_order() {
     let (device, queue) = gpu();
     let mut painter = Painter::new(&device, wgpu::TextureFormat::Rgba8Unorm);
@@ -58,6 +59,7 @@ fn explicit_one_pixel_strokes_match_existing_lines_including_clipping_and_paint_
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
 fn requested_width_controls_gpu_coverage_across_dpi_angles_and_subpixel_offsets() {
     let (device, queue) = gpu();
     let mut painter = Painter::new(&device, wgpu::TextureFormat::Rgba8Unorm);
@@ -150,6 +152,7 @@ fn requested_width_controls_gpu_coverage_across_dpi_angles_and_subpixel_offsets(
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
 fn thick_open_and_closed_joins_do_not_double_blend_and_clipping_preserves_coverage() {
     let (device, queue) = gpu();
     let mut painter = Painter::new(&device, wgpu::TextureFormat::Rgba8Unorm);

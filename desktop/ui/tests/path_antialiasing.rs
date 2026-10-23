@@ -108,6 +108,7 @@ fn gpu() -> (wgpu::Device, wgpu::Queue) {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
 fn valid_diamond_pixels_match_the_legacy_helper_across_dpi_and_clipping() {
     fn legacy_diamond(list: &mut PaintList, center: [f32; 2], radius: f32, color: Color) {
         let [x, y] = center;
@@ -190,6 +191,7 @@ fn valid_diamond_pixels_match_the_legacy_helper_across_dpi_and_clipping() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
 fn diagonal_strokes_have_partial_coverage_and_stable_weight_at_five_dpi_scales() {
     let (device, queue) = gpu();
     let mut painter = Painter::new(&device, wgpu::TextureFormat::Rgba8Unorm);
@@ -230,6 +232,7 @@ fn diagonal_strokes_have_partial_coverage_and_stable_weight_at_five_dpi_scales()
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
 fn joined_transparent_lines_and_closed_paths_do_not_double_blend_or_leak_through_clip() {
     let (device, queue) = gpu();
     let mut painter = Painter::new(&device, wgpu::TextureFormat::Rgba8Unorm);
@@ -294,6 +297,7 @@ fn joined_transparent_lines_and_closed_paths_do_not_double_blend_or_leak_through
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
 fn diamonds_and_subpixel_anchor_boxes_have_covered_edges_and_emit_preview_artifact() {
     let (device, queue) = gpu();
     let mut painter = Painter::new(&device, wgpu::TextureFormat::Rgba8Unorm);

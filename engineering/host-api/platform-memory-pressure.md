@@ -55,9 +55,10 @@ or increment it. Counts do not imply a fixed wall-clock duration.
 
 Native handles are borrowed only inside wgpu's HAL adapter guard. Queries are
 read-only; no native object or reference escapes the guard, and no business or
-observation mutex is held while calling the logger. No native polling is added
-to Present or another healthy per-frame path. A serial worker still publishes
-its existing in-flight/start observation before handling this explicit request.
+observation mutex is held while calling the logger. Preview pressure polling is
+gated as described below; a healthy frame does not make a native call or write a
+log on every invocation. A serial worker still publishes its existing in-flight/
+start observation before handling an explicit non-Present request.
 
 Hosts that call the renderer inside a business lock bind `MemoryPressureLogScope`
 before acquiring that guard. `with_session` does so for the shared host bridge.
@@ -66,12 +67,67 @@ The scope is pinned to its calling thread, supports nesting and retains at most
 one first Debug and one first Error cause, with a saturating omitted count. It
 releases its thread-local observation borrow before invoking the logger.
 
-This API observes pressure; it does not yet connect native budgets to preview
-reclamation, proxy size, admission limits or output retries. Missing queries keep
-the existing conservative application policy. Preview/export dimensions, quality,
-project values and undo history remain governed by their existing code paths.
+The metadata query itself is read-only: it does not reclaim caches, alter the
+configured admission limit, retry an output or modify a project. The attached
+preview consumer below uses these same advisory readings separately.
 Tests and platform acceptance are recorded separately; a compiled probe is not
 proof that a particular driver advertises the optional Vulkan extension.
+
+## Bounded preview consumer
+
+Attached ordinary, exposure and retained preview paths consult the existing
+renderer at most once per native minimum interval (currently one second).
+Interval arithmetic retains full `Duration` precision. A process-local native
+sample identity also prevents re-counting a cached reading when Session and
+probe clock reads straddle a deadline. This identity is not serialized. A
+metadata query may refresh the probe, but it does not directly advance preview
+failure counters. No renderer is constructed solely for this policy.
+
+For each nonzero-budget native pool, compare usage/budget independently with
+checked-width integer arithmetic. Never sum dissimilar pools into free VRAM or
+subtract the application ledger from a native estimate. Empty or zero-budget
+pool results are unknown and cannot authorize a quality increase.
+
+| Reading / action | Preview-only behavior |
+| --- | --- |
+| First sample at or above 90% in an episode | Evict idle image entries and idle CPU video proxies; preserve active inputs, pending conversions and the completed front; suspend speculative image prefetch |
+| Another high sample after eviction | Raise the native quality floor one level, then at most once every five seconds, bounded to the existing four quality levels |
+| Intermediate usage above 70% and below 90% | Hold the current floor and reset consecutive high/low streaks |
+| Usage at or below 70% | Lower the floor one level only after five low samples, 120 successfully rendered frames, and a 30-second cooldown since the last high sample or prior recovery |
+| Unavailable reading | Retain the current floor, reset streaks, expose the unavailable reason; do not invent a successful fallback |
+
+The effective requested quality is the stricter of the existing typed-refusal
+level and the native floor. Existing image/video proxy and intermediate-target
+controls implement that quality; no effect is disabled. A floor change cancels
+an obsolete exposure request, discards only the candidate, invalidates retained
+reuse and clears CPU proxies. Last submitted pixels remain available until a
+replacement is ready. A retained presentation re-enters the ordinary render
+path if its effective quality changed, avoiding a permanent retained bypass.
+
+Native advice never manufactures a `ResourceRejection`, changes configured
+allowances or hides shader, codec, cancellation or device failures. Typed budget
+refusals still follow the existing bounded retry and rollback contract, starting
+above the effective floor. Formal frozen PNG/movie outputs and full-resolution
+capture do not consume the preview floor. Project state and undo remain intact.
+
+`memoryAdaptation.nativePressure` exposes fixed-size policy context: status,
+native floor, source, worst pool, unavailable reason, bounded high/low streaks
+and next sample/change delays. Existing `requested` and `actual` preview quality
+remain separate. An observed eviction is logical cache ownership removal, not
+proof that queued GPU aliases or the driver released physical VRAM.
+
+The first high sample logs Debug; consecutive distinct high samples saturate at
+60 and log Error once at 60. Low, intermediate or unavailable readings reset
+that episode. Counts do not imply a fixed duration. Floor changes log Warn at
+the bounded transition cadence. Registered Session calls defer these records
+past business guards, including unwind, retaining at most three events and an
+omission count. The sink is called after the observation borrow is released.
+Application Error routing remains file plus stderr; healthy Present is quiet.
+
+This consumer is a functional preview policy change, separate from the original
+read-only observation increment. Its actual Windows native tests, source and
+platform limits are recorded in [cumulative acceptance](../validation/resource-budget-preview-completed.md);
+local Windows success does not establish Linux/Metal or Android execution.
 
 Primary references used for independently authored bindings integration:
 

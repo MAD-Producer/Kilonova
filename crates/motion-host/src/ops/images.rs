@@ -57,16 +57,18 @@ pub fn asset_pixels_into_inner(
             .iter()
             .find(|a| a.id == asset as u64)
             .ok_or("asset not found")?;
-        let bytes = u64::from(a.width) * u64::from(a.height) * 4;
-        if bytes > motion_render::image_resources::MAX_DECODED_BYTES || (out.len() as u64) < bytes {
-            return Err("image buffer is too small or exceeds 128 MiB".into());
-        }
         let source = motion_render::image_resources::Source::new(&s.root, a)?;
-        motion_render::image_resources::decode_into(
+        source.validate()?;
+        let bytes = u64::from(source.width) * u64::from(source.height) * 4;
+        if (out.len() as u64) < bytes {
+            return Err("image buffer is too small".into());
+        }
+        motion_render::image_resources::decode_into_with_budget(
             &source,
             motion_render::image_resources::Resolution::Full,
             &mut out[..bytes as usize],
-        )?;
+            s.effects.memory_policy().decoded_image_budget_bytes,
+        ).map_err(|cause| crate::Error::with_context(format!("asset_pixels_into asset={asset}"), cause))?;
         Ok(json!({"version":1,"asset":a.id,"width":a.width,"height":a.height,"bytes":bytes,"resolution":"original"}))
     }
 }
