@@ -410,6 +410,22 @@ pub struct PlanBuilder {
     pub preview_cache_hits: u64,
     pub preview_plan_builds: u64,
 }
+
+impl PlanBuilder {
+    /// Explicit package-owned CPU capacity. Shared registry/program references
+    /// count once; independent program shader copies are outside this scope.
+    pub fn package_memory_info(&self) -> motion_effects::memory::PackageMemoryInfo {
+        use motion_effects::memory::PackageOwner;
+        motion_effects::memory::package_memory(
+            self.registry.packages.values().map(|p| (PackageOwner::Registry, p))
+                .chain(self.programs.iter().filter_map(|p| p.package.as_ref())
+                    .map(|p| (PackageOwner::PlanProgram, p))),
+        )
+    }
+}
+
+#[cfg(test)]
+mod package_memory_tests;
 fn utility(code: &str) -> Result<Arc<shader::CompiledShader>, RenderError> {
     shader::compile(code, "main_fx")
         .map(Arc::new)
