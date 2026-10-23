@@ -305,3 +305,125 @@ fn allocation_failure_is_terminal_until_explicit_memory_policy_disposition() {
     }
     panic!("replacement quality did not complete");
 }
+
+#[test]
+fn observation_request_and_poll_exhaustion_never_wrap_or_refuse_the_request() {
+    let sequence = AtomicU64::new(u64::MAX - 1);
+    assert_eq!(next_request_id(&sequence), Some(u64::MAX - 1));
+    assert_eq!(next_request_id(&sequence), None);
+    assert_eq!(next_request_id(&sequence), None);
+    let mut request = Request::new(key());
+    let id = request.id;
+    assert!(id.is_some());
+    assert_eq!(request.begin_poll(), ExposureCommandContext { request: id, poll: Some(1) });
+    request.poll = Some(u64::MAX - 1);
+    assert_eq!(request.begin_poll().poll, Some(u64::MAX));
+    for _ in 0..3 {
+        assert_eq!(request.begin_poll(), ExposureCommandContext { request: id, poll: None });
+    }
+    assert!(request.failure.is_none());
+    assert!(request.task.is_none());
+    assert_eq!(request.cpu_us, 0);
+    assert_eq!(request.key, key());
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn native_exposure_request_survives_pending_polls_and_late_commands_keep_the_original_identity() {
+    use motion_render::{gpu_commands::CommandStage, AllocationFrameOutcome, FrameOperation};
+    let root = tempfile::tempdir().unwrap();
+    let p = project();
+    let mut r = pollster::block_on(Renderer::headless()).unwrap();
+    r.configure_assets(&p, root.path()).unwrap();
+    let mut scratch = PreviewFrameTargets::new(&r, 32, 32).unwrap();
+    let mut videos = VideoFrames::default();
+    let mut proxies = Default::default();
+    let mut state = SamplingPreview::default();
+    state.synchronize(&p, 1, &mut videos).unwrap();
+    let Some(observer) = r.start_command_profiling(32).unwrap() else {
+        eprintln!("GPU_EXPOSURE_IDENTITY available=false; no native identity acceptance");
+        return;
+    };
+    let mut calls = 0;
+    let mut poll_contexts = std::collections::BTreeMap::new();
+    let mut drive = |state: &mut SamplingPreview, r: &mut Renderer, key: RequestKey| {
+        calls += 1;
+        let request = 900 + calls;
+        let window = r.allocation_budget().begin_frame_at(request, FrameOperation::Present, key.frame)
+            .unwrap().unwrap();
+        let result = poll(state, r, &mut scratch, &mut videos, &mut proxies, root.path(), key,
+            Duration::from_nanos(1)).unwrap();
+        let exposure = state.command_context().unwrap();
+        assert!(!state.status()["identityExhausted"].as_bool().unwrap());
+        poll_contexts.insert((exposure.request.unwrap(), exposure.poll.unwrap()), request);
+        assert!(observer.snapshot().commands.active_exposure_scopes.is_empty());
+        window.finish(if matches!(result, ExposurePoll::Ready(_)) {
+            AllocationFrameOutcome::Rendered
+        } else {
+            AllocationFrameOutcome::Skipped
+        });
+        result
+    };
+    let mut original = None;
+    let mut old_commands = Vec::new();
+    for _ in 0..100 {
+        assert!(matches!(drive(&mut state, &mut r, key()), ExposurePoll::Pending(_)));
+        let identity = state.command_context().unwrap();
+        let request = *original.get_or_insert(identity.request.unwrap());
+        assert_eq!(identity.request, Some(request));
+        old_commands = observer.snapshot().commands.active;
+        if !old_commands.is_empty() { break; }
+    }
+    assert!(!old_commands.is_empty(), "first request never submitted actual GPU work");
+    assert!(old_commands.iter().all(|record| record.exposure.unwrap().request == original));
+    let mut replacement = key();
+    replacement.frame = 1.25;
+    let mut ready = false;
+    let mut replacement_id = None;
+    for _ in 0..1000 {
+        let result = drive(&mut state, &mut r, replacement.clone());
+        let identity = state.command_context().unwrap();
+        let id = *replacement_id.get_or_insert(identity.request.unwrap());
+        assert_ne!(Some(id), original);
+        assert_eq!(identity.request, Some(id));
+        // Callbacks for the abandoned request can now run while its replacement
+        // is current. Original words, IDs and frame contexts must survive.
+        r.device.poll(wgpu::PollType::Wait { submission_index: None, timeout: None }).unwrap();
+        if matches!(result, ExposurePoll::Ready(_)) { ready = true; break; }
+    }
+    assert!(ready, "replacement exposure did not complete");
+    drop(drive);
+    let snapshot = observer.snapshot();
+    assert_eq!(snapshot.commands.counts.omitted_slots, 0);
+    assert_eq!(snapshot.commands.counts.evicted_recent, 0);
+    assert!(!snapshot.commands.observation_fault);
+    assert!(snapshot.commands.active.is_empty());
+    for old in old_commands {
+        let actual = snapshot.commands.recent.iter().find(|record| record.id == old.id).unwrap();
+        assert_eq!(actual.exposure, old.exposure);
+        assert_eq!(actual.timestamp_words.is_some_and(|w| w[1] > w[0]), true);
+    }
+    let records: Vec<_> = snapshot.commands.recent.iter().filter(|record| record.exposure.is_some()).collect();
+    assert!(records.len() > 2);
+    assert!(records.iter().any(|record| record.stage == CommandStage::ExposurePhase));
+    assert!(records.iter().any(|record| record.stage == CommandStage::ExposureResolve));
+    for record in &records {
+        let exposure = record.exposure.unwrap();
+        let expected = poll_contexts[&(exposure.request.unwrap(), exposure.poll.unwrap())];
+        assert_eq!(record.contexts.len(), 1);
+        assert_eq!(record.contexts[0].request, Some(expected));
+        assert_eq!(record.contexts[0].exposure_request, exposure.request);
+        assert_eq!(record.contexts[0].exposure_poll, exposure.poll);
+    }
+    let pixels = r.capture_exposure(state.request.as_ref().unwrap().task.as_ref().unwrap().target()).unwrap();
+    assert_eq!(pixels.len(), 32 * 32 * 4);
+    assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] != 0));
+    // Readback after the poll must not inherit its exposure identity.
+    assert!(observer.snapshot().commands.recent.iter()
+        .filter(|record| record.stage == CommandStage::ReadbackCopy).all(|record| record.exposure.is_none()));
+    eprintln!("GPU_EXPOSURE_IDENTITY {}", json!({
+        "available":true,"requests":[original,replacement_id],"actualPolls":calls,
+        "actualCommandRecords":records.len(),"actualPixelsChecked":32*32,
+        "scope":"actual host exposure polls, native timestamp callbacks and supersession; no video decoding or surface presentation acceptance"
+    }));
+}

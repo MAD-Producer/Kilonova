@@ -10,6 +10,8 @@ use std::{
     },
     time::Instant,
 };
+mod exposure;
+pub use exposure::{ExposureCommandContext, ExposureCommandScope};
 
 pub const MAX_ACTIVE_GPU_COMMANDS: usize = 128;
 pub const MAX_RECENT_GPU_COMMANDS: usize = 256;
@@ -69,6 +71,8 @@ pub struct CommandRecord {
     pub epoch: u64,
     pub id: u64,
     pub stage: CommandStage,
+    /// Captured independently of allowance frames, which may be absent.
+    pub exposure: Option<ExposureCommandContext>,
     pub contexts: Vec<CommandContext>,
     pub omitted_contexts: usize,
     pub phase: CommandPhase,
@@ -87,6 +91,7 @@ pub struct CommandCounts {
     pub omitted_invalid_context: u64,
     pub omitted_identity_exhausted: u64,
     pub omitted_contexts: u64,
+    pub omitted_exposure_scopes: u64,
     pub completed: u64,
     pub discarded: u64,
     pub unconfirmed: u64,
@@ -109,6 +114,8 @@ pub struct CommandSnapshot {
     /// explicit callback cancellation reset it. Work never mapped is unknown,
     /// so busy omissions or pre-submit discards cannot falsely prove recovery.
     pub consecutive_readback_failures: u64,
+    pub active_exposure_scopes: Vec<ExposureCommandContext>,
+    pub suppressed_exposure_scopes: usize,
     pub active: Vec<CommandRecord>,
     /// Completion order, not source-frame or callback creation order.
     pub recent: Vec<CommandRecord>,
@@ -128,6 +135,7 @@ struct State {
     pending_logs: VecDeque<CommandLogEvent>,
     reported_log_omissions: u64,
     reported_fault: bool,
+    exposure: exposure::ExposureScopes,
 }
 pub(super) struct CommandLogEvent {
     pub level: log::Level,
@@ -233,6 +241,16 @@ impl CommandRecords {
         }
         let omitted = contexts.len().saturating_sub(MAX_GPU_COMMAND_CONTEXTS);
         contexts.truncate(MAX_GPU_COMMAND_CONTEXTS);
+        let (exposure, wrong_thread) = state.exposure.current();
+        if wrong_thread {
+            self.fault.store(true, Ordering::Relaxed);
+        }
+        if let Some(exposure) = exposure {
+            for context in &mut contexts {
+                context.exposure_request = exposure.request;
+                context.exposure_poll = exposure.poll;
+            }
+        }
         state.counts.saturated |= increment(&mut state.counts.omitted_contexts, omitted as u64);
         state.counts.saturated |= increment(&mut state.counts.started, 1);
         state.next = id;
@@ -244,6 +262,7 @@ impl CommandRecords {
                     epoch: self.epoch,
                     id,
                     stage,
+                    exposure,
                     contexts,
                     omitted_contexts: omitted,
                     phase: CommandPhase::Encoding,
@@ -267,6 +286,8 @@ impl CommandRecords {
             counts: state.counts.clone(),
             observation_fault: self.fault.load(Ordering::Relaxed),
             consecutive_readback_failures: state.consecutive_failures,
+            active_exposure_scopes: state.exposure.active(),
+            suppressed_exposure_scopes: state.exposure.suppressed,
             active: state
                 .active
                 .values()

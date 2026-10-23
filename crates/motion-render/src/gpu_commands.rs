@@ -12,6 +12,7 @@ use crate::{
 pub use logging::GpuCommandLogScope;
 pub use records::{
     CommandContext, CommandCounts, CommandPhase, CommandRecord, CommandSnapshot, CommandStage,
+    ExposureCommandContext, ExposureCommandScope,
     MAX_ACTIVE_GPU_COMMANDS, MAX_GPU_COMMAND_CONTEXTS, MAX_RECENT_GPU_COMMANDS,
 };
 use records::{CommandRecords, CommandTicket};
@@ -190,6 +191,9 @@ impl GpuCommandProfiler {
 // merged with another renderer or PreviewInput merely to attach observations.
 pub(crate) struct AttachedCommandProfiler(Arc<Pool>);
 impl AttachedCommandProfiler {
+    pub(crate) fn exposure_scope(&self, context: ExposureCommandContext) -> ExposureCommandScope {
+        self.0.records.exposure_scope(context)
+    }
     pub(crate) fn observer(&self) -> GpuCommandObserver {
         self.0.observer()
     }

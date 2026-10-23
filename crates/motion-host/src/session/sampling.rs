@@ -9,6 +9,15 @@ use motion_render::{
     ExposureFrame, ExposurePoll, RenderError, ResourceRejection, TextureResourceLedger,
 };
 use std::time::Duration;
+use motion_render::gpu_commands::ExposureCommandContext;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+// Observation only: identity exhaustion never rejects or restarts rendering.
+// Requests are unique across sessions; poll ordinals are local to that request.
+static NEXT_EXPOSURE_REQUEST: AtomicU64 = AtomicU64::new(1);
+fn next_request_id(sequence: &AtomicU64) -> Option<u64> {
+    sequence.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1)).ok()
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct RequestKey {
@@ -41,10 +50,24 @@ impl Failure {
 }
 struct Request {
     key: RequestKey,
+    id: Option<u64>,
+    poll: Option<u64>,
     task: Option<ExposureFrame<motion_core::ExpressionEvaluator>>,
     failure: Option<Failure>,
     cpu_us: u64,
     media_us: u64,
+}
+impl Request {
+    fn new(key: RequestKey) -> Self {
+        Self {
+            key, id: next_request_id(&NEXT_EXPOSURE_REQUEST), poll: Some(0),
+            task: None, failure: None, cpu_us: 0, media_us: 0,
+        }
+    }
+    fn begin_poll(&mut self) -> ExposureCommandContext {
+        self.poll = self.poll.and_then(|poll| poll.checked_add(1));
+        ExposureCommandContext { request: self.id, poll: self.poll }
+    }
 }
 #[derive(Default)]
 pub(crate) struct SamplingPreview {
@@ -107,7 +130,9 @@ impl SamplingPreview {
             return Value::Null;
         };
         let progress = request.task.as_ref().map(ExposureFrame::progress);
-        json!({"frame":request.key.frame,"width":request.key.size[0],"height":request.key.size[1],
+        json!({"requestId":request.id,"pollId":request.poll,
+            "identityExhausted":request.id.is_none() || request.poll.is_none(),
+            "frame":request.key.frame,"width":request.key.size[0],"height":request.key.size[1],
             "state":if request.failure.is_some(){"failed"}else if request.task.as_ref().is_some_and(|t|t.target().complete()){"ready"}else{"pending"},
             "phase":progress.map(|p|format!("{:?}",p.stage)),"phaseIndex":progress.map(|p|p.phase),
             "phaseCount":progress.map(|p|p.phases),"object":progress.and_then(|p|p.receiver),
@@ -117,6 +142,11 @@ impl SamplingPreview {
     }
     pub(super) fn cpu_us(&self) -> u64 {
         self.request.as_ref().map_or(0, |r| r.cpu_us)
+    }
+    fn command_context(&self) -> Option<ExposureCommandContext> {
+        self.request.as_ref().map(|request| ExposureCommandContext {
+            request: request.id, poll: request.poll,
+        })
     }
     fn media_us(&self) -> u64 {
         self.request.as_ref().map_or(0, |r| r.media_us)
@@ -135,13 +165,7 @@ impl SamplingPreview {
     ) -> std::result::Result<ExposurePoll, RenderError> {
         let cancellation_error = if self.request.as_ref().is_none_or(|r| r.key != key) {
             let error = self.cancel(videos).err();
-            self.request = Some(Request {
-                key,
-                task: None,
-                failure: None,
-                cpu_us: 0,
-                media_us: 0,
-            });
+            self.request = Some(Request::new(key));
             error
         } else {
             None
@@ -150,6 +174,7 @@ impl SamplingPreview {
             .request
             .as_mut()
             .ok_or_else(|| RenderError::Invalid("preview exposure request missing".into()))?;
+        let _command_scope = renderer.exposure_command_scope(request.begin_poll());
         if let Some(error) = &request.failure {
             return Err(error.error());
         }
@@ -312,6 +337,10 @@ impl Session {
                 Duration::from_millis(8),
             );
             let poll_us = micros(poll_began.elapsed());
+            // Presentation belongs to this attempt, including a pending attempt
+            // that only presents retained content. This is not a content ID.
+            let _command_scope = self.sampling.command_context()
+                .and_then(|context| g.renderer.exposure_command_scope(context));
             match result {
                 Ok(ExposurePoll::Pending(_)) => {
                     let retained = g.scratch.valid().then_some(viewport);

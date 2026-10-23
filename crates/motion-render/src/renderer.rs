@@ -639,6 +639,14 @@ impl Renderer {
     pub fn command_observer(&self) -> Option<crate::gpu_commands::GpuCommandObserver> {
         self.command_profiler.as_ref().map(|profiler| profiler.observer())
     }
+    /// Captures an actual host request/poll before entering media or encoding.
+    /// Guard drop restores the enclosing scope on success, error and unwind.
+    /// Disabled profiling creates no scope and takes no observation lock.
+    pub fn exposure_command_scope(&self, context: crate::gpu_commands::ExposureCommandContext)
+        -> Option<crate::gpu_commands::ExposureCommandScope>
+    {
+        self.command_profiler.as_ref().map(|profiler| profiler.exposure_scope(context))
+    }
     /// Returns metadata for exact pending callbacks after retiring this epoch.
     /// Does not wait, retry or cancel render work, or attach it to a later epoch.
     pub fn stop_command_profiling(&mut self) -> Option<crate::gpu_commands::GpuCommandObserver> {
