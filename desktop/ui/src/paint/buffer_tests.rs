@@ -107,6 +107,7 @@ fn capture_size(
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
 fn atlas_growth_keeps_emitted_clipped_and_appended_text_pixels_at_multiple_dpis() {
     use crate::{text::TextAtlas, ui::{self, Align}};
     let (device, queue) = gpu(None);
@@ -181,6 +182,7 @@ fn dense_solids() -> PaintList {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
 fn reported_solid_overrun_grows_and_retains_every_vertex_and_pixel() {
     assert_eq!(std::mem::size_of::<SolidVertex>(), 88);
     let (device, queue) = gpu(None);
@@ -219,6 +221,7 @@ fn reported_solid_overrun_grows_and_retains_every_vertex_and_pixel() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
 fn glyph_growth_keeps_trailing_text_and_interleaved_draw_order() {
     let (device, queue) = gpu(None);
     let mut painter = Painter::new(&device, wgpu::TextureFormat::Rgba8Unorm);
@@ -264,6 +267,7 @@ fn glyph_growth_keeps_trailing_text_and_interleaved_draw_order() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
 fn device_limit_refusal_precedes_upload_and_next_small_frame_recovers() {
     let (device, queue) = gpu(Some(5_767_168));
     let mut painter = Painter::new(&device, wgpu::TextureFormat::Rgba8Unorm);
@@ -290,6 +294,7 @@ fn device_limit_refusal_precedes_upload_and_next_small_frame_recovers() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
 fn geometric_growth_is_clamped_to_a_non_power_of_two_device_limit() {
     let (device, queue) = gpu(Some(5_856_576));
     let mut painter = Painter::new(&device, wgpu::TextureFormat::Rgba8Unorm);

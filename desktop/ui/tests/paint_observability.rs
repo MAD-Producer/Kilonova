@@ -103,6 +103,7 @@ fn draw(
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
 fn actual_painter_reports_discarded_work_once_per_render_and_recovers_without_pixel_changes() {
     const TEST: &str =
         "actual_painter_reports_discarded_work_once_per_render_and_recovers_without_pixel_changes";

@@ -97,6 +97,7 @@ fn capture(
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
 fn bindings_survive_repeated_frames_and_pixel_updates_but_follow_atlas_replacement() {
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
     let adapter =

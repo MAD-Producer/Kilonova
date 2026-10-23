@@ -8,6 +8,11 @@ description = "Immediate-mode widget and dock layout library on winit and wgpu"
 [lib]
 crate-type = ["rlib"]
 
+[features]
+# Preserve the existing default suite. CPU-only local runs opt out explicitly.
+default = ["gpu-tests"]
+gpu-tests = []
+
 [dependencies]
 log.workspace = true
 wgpu.workspace = true

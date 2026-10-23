@@ -183,7 +183,7 @@ jobs:
           MOTION_SAMPLING_PLAYBACK_ARTIFACTS: ${{ github.workspace }}/artifacts/desktop/sampling-playback
           MOTION_FRAME_UI_ARTIFACTS: ${{ github.workspace }}/artifacts/desktop/frame-export
           MOTION_POINT_SELECTION_ARTIFACTS: ${{ github.workspace }}/artifacts/desktop/path-selection
-        run: cargo test -p motion-desktop -p motion-host -p motion-ui -p motion-desktop-media --locked --features motion-host/diagnostics -- --test-threads=1
+        run: cargo test -p motion-desktop -p motion-host -p motion-ui -p motion-desktop-media --locked --features motion-host/diagnostics,motion-ui/gpu-tests -- --test-threads=1
       - name: Build the desktop shell
         run: python tools/build_desktop.py --task check
       - name: Restore pinned libclang wheel cache

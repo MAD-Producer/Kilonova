@@ -137,6 +137,7 @@ fn legacy_draw(list: &mut PaintList, area: Rect, mesh: &Mesh, size: f32, color: 
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
 fn all_icons_keep_legacy_gpu_pixels_through_viewport_host_and_nested_clipping() {
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
     let adapter =

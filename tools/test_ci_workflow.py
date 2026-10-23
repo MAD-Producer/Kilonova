@@ -245,7 +245,9 @@ class WorkflowPolicyTest(unittest.TestCase):
         self.assertIn("--workspace", core_args)
         self.assertEqual(excluded, native | {"motion-android"})
         self.assertEqual((members - excluded) | native, members - {"motion-android"})
-        self.assertIn("motion-host/diagnostics", native_args)
+        native_features = native_args[native_args.index("--features") + 1].split(",")
+        self.assertIn("motion-host/diagnostics", native_features)
+        self.assertIn("motion-ui/gpu-tests", native_features)
         for args in [core_args, native_args]:
             self.assertIn("--locked", args)
             self.assertIn("--test-threads=1", args)

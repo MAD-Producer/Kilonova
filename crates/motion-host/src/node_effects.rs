@@ -5,7 +5,7 @@ use std::sync::Arc;
 pub(crate) fn restore(
     project: &motion_core::Project,
     registry: &mut Registry,
-) -> Result<(), String> {
+) -> crate::Result<()> {
     for effect in project
         .layers
         .iter()

@@ -4,6 +4,7 @@ mod generator_settings;
 mod vector_geometry;
 mod mask_geometry;
 mod exposure_frame;
+mod node_runtime;
 
 #[test]
 fn cached_plan_failure_reaches_original_reply_file_and_stderr_at_default_level() {

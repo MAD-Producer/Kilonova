@@ -104,6 +104,7 @@ fn colors(pixels: &[u8]) {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
 fn startup_refusal_is_atomic_and_actual_ui_allocations_have_disjoint_categories() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
     let context = renderer.allocation_context();
@@ -192,6 +193,7 @@ fn startup_refusal_is_atomic_and_actual_ui_allocations_have_disjoint_categories(
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
 fn host_injected_validation_keeps_native_cause_without_capacity_retry() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
     let context = renderer.allocation_context();
@@ -218,6 +220,7 @@ fn host_injected_validation_keeps_native_cause_without_capacity_retry() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
 fn refused_atlas_and_two_buffer_growth_preserve_old_pixels_then_recover() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
     let context = renderer.allocation_context();
@@ -314,6 +317,7 @@ fn refused_atlas_and_two_buffer_growth_preserve_old_pixels_then_recover() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
 fn dropped_painter_remains_in_frame_peak_until_real_gpu_work_retires() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
     let context = renderer.allocation_context();
@@ -374,6 +378,7 @@ fn dropped_painter_remains_in_frame_peak_until_real_gpu_work_retires() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
 fn admitted_text_matches_legacy_pixels_through_real_atlas_growth_and_multiple_dpis() {
     use crate::{
         text::TextAtlas,
