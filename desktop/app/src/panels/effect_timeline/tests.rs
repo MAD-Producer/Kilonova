@@ -740,3 +740,5 @@ fn effect_move_and_copy_preserve_occupied_keys_release_position_and_roundtrip_hi
         assert_eq!(engine.project(), &original);
     }
 }
+
+mod scroll_cache_tests;

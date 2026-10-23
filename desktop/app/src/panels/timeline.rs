@@ -503,6 +503,8 @@ pub(super) fn reorder_storage_index(len: usize, from_row: usize, slot: usize) ->
     Some(index.min(len - 1))
 }
 
+mod scroll_signature;
+
 fn scroll_extent_signature(
     rows_key: &(String, String, u64),
     timeline: &types::TimelineState,
@@ -520,12 +522,15 @@ fn scroll_extent_signature(
         id.hash(&mut hash);
     }
     timeline.collapsed_transforms.len().hash(&mut hash);
+    timeline.expanded_effects.len().hash(&mut hash);
     for id in &timeline.expanded_effects {
         id.hash(&mut hash);
     }
+    timeline.collapsed_effect_items.len().hash(&mut hash);
     for id in &timeline.collapsed_effect_items {
         id.hash(&mut hash);
     }
+    timeline.collapsed_audio.len().hash(&mut hash);
     for id in &timeline.collapsed_audio {
         id.hash(&mut hash);
     }
@@ -540,10 +545,11 @@ fn scroll_extent_signature(
     for item in &timeline.collapsed_mask_items {
         item.hash(&mut hash);
     }
+    timeline.vector_open.len().hash(&mut hash);
     for item in &timeline.vector_open {
         item.hash(&mut hash);
     }
-    format!("{:?}", timeline.expression_rows).hash(&mut hash);
+    scroll_signature::expression_rows(&timeline.expression_rows, &mut hash);
     timeline.filters.len().hash(&mut hash);
     for entry in &timeline.filters {
         entry.hash(&mut hash);
@@ -2491,3 +2497,6 @@ pub(super) fn render_time_ruler(
     }
     scrub_frame
 }
+
+#[cfg(test)]
+mod scroll_signature_tests;
