@@ -335,7 +335,7 @@ fn native_exposure_request_survives_pending_polls_and_late_commands_keep_the_ori
     let p = project();
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
     let mut r = pollster::block_on(Renderer::new_profiled(
-        &instance, None, wgpu::TextureFormat::Rgba8Unorm, true,
+        &instance, None, wgpu::TextureFormat::Rgba8UnormSrgb, true,
     )).unwrap();
     r.configure_assets(&p, root.path()).unwrap();
     let mut scratch = PreviewFrameTargets::new(&r, 32, 32).unwrap();
