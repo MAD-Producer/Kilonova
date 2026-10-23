@@ -143,3 +143,36 @@ fn interrupted_save_reopens_only_complete_old_or_new_bytes_and_explicit_save_rec
         );
     }
 }
+
+#[test]
+fn partial_temporary_is_ignored_on_load_and_fully_replaced_by_explicit_save() {
+    let temp = tempfile::tempdir().unwrap();
+    let original = Project::new(64, 64, 30, 60).unwrap();
+    let updated = replacement();
+    let oracle = temp.path().join("complete-new");
+    save(&oracle, &updated).unwrap();
+    let new_bytes = fs::read(oracle.join("project.json")).unwrap();
+    let mut trailing = new_bytes.clone();
+    trailing.extend_from_slice(b"uncommitted trailing bytes");
+    let cases = [
+        ("empty", Vec::new()),
+        ("partial", new_bytes[..new_bytes.len() / 2].to_vec()),
+        ("invalid", vec![0xff; new_bytes.len() + 256]),
+        ("trailing", trailing),
+    ];
+    for (name, leftover) in cases {
+        let root = temp.path().join(format!("残留-{name}"));
+        save(&root, &original).unwrap();
+        let destination = root.join("project.json");
+        let temporary = root.join("project.json.tmp");
+        let old_bytes = fs::read(&destination).unwrap();
+        fs::write(&temporary, leftover).unwrap();
+        assert_eq!(load(&root).unwrap(), original, "{name}");
+        assert_eq!(fs::read(&destination).unwrap(), old_bytes, "{name}");
+
+        save(&root, &updated).unwrap();
+        assert_eq!(fs::read(&destination).unwrap(), new_bytes, "{name}");
+        assert_eq!(load(&root).unwrap(), updated, "{name}");
+        assert!(!temporary.exists(), "{name}: temporary must be consumed");
+    }
+}
