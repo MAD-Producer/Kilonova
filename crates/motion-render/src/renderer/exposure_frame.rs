@@ -60,18 +60,19 @@ pub enum ExposurePoll {
 
 struct Failure {
     message: String,
-    rejection: Option<ResourceRejection>,
+    cause: Arc<RenderError>,
 }
 impl Failure {
     fn error(&self) -> RenderError {
-        match self.rejection {
-            Some(rejection) => RenderError::Resource {
-                rejection,
-                message: self.message.clone(),
-            },
-            None => RenderError::Invalid(self.message.clone()),
-        }
+        RenderError::Shared(self.cause.clone()).with_diagnostic(self.message.clone())
     }
+}
+
+// Preserve the existing validation display boundary without discarding the
+// original model error returned by receiver-time evaluation.
+fn model_error(cause: motion_model::Error) -> RenderError {
+    let message = cause.to_string();
+    RenderError::from(cause).with_diagnostic(message)
 }
 
 pub struct ExposureFrame<E> {
@@ -99,7 +100,7 @@ impl<E: FrameEvaluator> ExposureFrame<E> {
         let factory = scenes.child_factory();
         scenes
             .center_scene()
-            .map_err(|error| RenderError::Invalid(error.to_string()))?;
+            .map_err(model_error)?;
         let weights: Vec<_> = scenes.phase_weights().collect();
         let target = renderer.exposure_target(width, height, &weights)?;
         let progress = ExposureProgress {
@@ -198,14 +199,16 @@ impl<E: FrameEvaluator> ExposureFrame<E> {
             let context = format!("exposure composition={} phase=task_{:?} sample={}/{} object={:?} sample_frame={:?}: {error}",
                 self.scenes.project().composition_id, self.progress.stage, self.progress.phase,
                 self.progress.phases, self.progress.receiver, self.progress.sample_frame);
-            // Retain a bounded cause until this task is dropped. The first
-            // returned error preserves the complete original cause/refusal.
+            // Retain one original error per failed task until it is dropped.
+            // Replayed display context keeps the existing character bound;
+            // the first reply still carries the complete diagnostic.
+            let cause = Arc::new(error);
             self.failure = Some(Failure { message: context.chars().take(RETAINED_CAUSE_CHARS).collect(),
-                rejection: error.resource_rejection().copied() });
+                cause: cause.clone() });
             self.progress.stage = ExposureStage::Failed;
             self.rasters.clear();
             self.nested = None;
-            error.with_diagnostic(context)
+            RenderError::Shared(cause).with_diagnostic(context)
         })
     }
     fn poll_inner(
@@ -231,7 +234,7 @@ impl<E: FrameEvaluator> ExposureFrame<E> {
             match self
                 .scenes
                 .current()
-                .map_err(|error| RenderError::Invalid(error.to_string()))?
+                .map_err(model_error)?
             {
                 ExposureSceneStep::Receiver(receiver) => {
                     if receiver.layer().is_some_and(|layer| !layer.adjustment) {
@@ -271,7 +274,7 @@ impl<E: FrameEvaluator> ExposureFrame<E> {
                     self.progress.work_units = self.progress.work_units.saturating_add(1);
                     self.scenes
                         .finish_receiver()
-                        .map_err(|error| RenderError::Invalid(error.to_string()))?;
+                        .map_err(model_error)?;
                 }
                 ExposureSceneStep::PhaseReady { index, .. } => {
                     if index != self.target.phase_index() {
@@ -282,7 +285,7 @@ impl<E: FrameEvaluator> ExposureFrame<E> {
                     let center = self
                         .scenes
                         .center_scene()
-                        .map_err(|error| RenderError::Invalid(error.to_string()))?;
+                        .map_err(model_error)?;
                     if center.layers.iter().any(|layer| layer.adjustment)
                         && !prepare_context(
                             renderer,
@@ -320,7 +323,7 @@ impl<E: FrameEvaluator> ExposureFrame<E> {
                     self.progress.work_units = self.progress.work_units.saturating_add(1);
                     self.scenes
                         .finish_phase()
-                        .map_err(|error| RenderError::Invalid(error.to_string()))?;
+                        .map_err(model_error)?;
                 }
                 ExposureSceneStep::Complete => {
                     if !self.target.complete() {
