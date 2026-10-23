@@ -21,6 +21,9 @@ def fixture(name="animated", gpu=True, samples=3):
         row.update({key: 0 for key in study.COUNTERS})
         row.update(index=index, phase="cold" if index == 0 else "warmup" if index < 8 else "measured",
                    compositionFrame=0 if name == "static" else index, mainSubmissions=1,
+                   drawCalls=4, videoConversions=4 if name == "four-4k-yuv" else 0,
+                   videoConversionSubmissions=4 if name == "four-4k-yuv" else 0,
+                   videoUploadBytes=4 * 3840 * 2160 * 3 // 2 if name == "four-4k-yuv" else 0,
                    pixelReadbackBytes=0, timestampReadbackBytes=32 if gpu else 0,
                    textureLedger={"knownBytes": 16, "unknownCapacityCount": 1, "resources": [
                        {"id": "shared-texture", "logicalBytes": 16, "references": [{"owner": "one"}, {"owner": "two"}]},
@@ -39,6 +42,18 @@ def fixture(name="animated", gpu=True, samples=3):
 
 
 class DesktopPerformanceTests(unittest.TestCase):
+    def test_build_outputs_are_isolated_by_complete_source_revision(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            first = study.target_for_revision(base, SOURCE)
+            second = study.target_for_revision(base, "f" * 40)
+            self.assertNotEqual(first, second)
+            self.assertEqual(first, base.resolve() / "desktop-performance" / SOURCE)
+            self.assertTrue(first.is_relative_to(base.resolve()))
+            for invalid in ("main", SOURCE[:8], "../" + SOURCE, "G" * 40):
+                with self.assertRaisesRegex(ValueError, "complete source"):
+                    study.target_for_revision(base, invalid)
+
     def test_percentiles_recompute_from_steady_raw_samples_and_keep_shared_unknown_capacity(self):
         report = fixture()
         result = study.validate_case(report, "animated", SOURCE, 3)
@@ -68,6 +83,8 @@ class DesktopPerformanceTests(unittest.TestCase):
             (lambda r: r["frames"][0].update(pixelReadbackBytes=4), "readback"),
             (lambda r: r["frames"][0].update(cpuPrepareUs=float("nan")), "measurement"),
             (lambda r: r["frames"][0].update(videoUploadBytes=-1), "measurement"),
+            (lambda r: r["frames"][0].update(drawCalls=0), "actual draws"),
+            (lambda r: r["frames"][0].update(videoConversions=1), "workload"),
             (lambda r: r["frames"][0].update(gpuTotalUs=None), "measurement"),
             (lambda r: r["frames"][0]["textureLedger"].update(unknownCapacityCount=0), "Unknown capacity"),
             (lambda r: r["frames"][0]["textureLedger"].update(knownBytes=15), "subtotal"),
@@ -80,6 +97,16 @@ class DesktopPerformanceTests(unittest.TestCase):
                 mutate(report)
                 with self.assertRaisesRegex(ValueError, reason):
                     study.validate_case(report, "animated", SOURCE, 3)
+
+    def test_four_native_4k_conversions_cannot_be_replaced_with_empty_or_cached_work(self):
+        report = fixture("four-4k-yuv")
+        study.validate_case(report, "four-4k-yuv", SOURCE, 3)
+        for key in ("videoConversions", "videoConversionSubmissions", "videoUploadBytes"):
+            with self.subTest(counter=key):
+                changed = copy.deepcopy(report)
+                changed["frames"][1][key] = 0
+                with self.assertRaisesRegex(ValueError, "workload"):
+                    study.validate_case(changed, "four-4k-yuv", SOURCE, 3)
 
     def test_actual_failed_child_retains_start_exit_and_original_channels(self):
         with tempfile.TemporaryDirectory() as directory:

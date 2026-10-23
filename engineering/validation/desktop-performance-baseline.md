@@ -3,12 +3,17 @@
 Issue: #60. This increment does not close the issue.
 
 Status: implementation and archive-validation regressions are present. The six
-focused Python tests pass, including an actual failing child process and
+focused Python tests passed, including an actual failing child process and
 optimized Python rejection. Complete tool discovery also passed: 77 tests run,
 one existing skip. The initial full discovery failed because the local Python
 lacked PyYAML; using the existing pinned installation fixed the environment,
 without changing tests or adding a dependency. The original failed attempt is
-retained. Rust compilation, fixture tests and actual native runs remain pending.
+retained. The original `0b9da1fe` source compiled and passed both Rust fixture
+tests. Its Release build failed because the shared target reused an older model
+artifact: the compiler saw `Error::Expression.message` while that clean source
+defines `source`. Original logs and the failed receipt remain archived. This
+successor isolates builds by complete commit; its updated tests and actual
+native runs remain pending. No failed attempt is relabeled as a performance run.
 Protocol fixtures in Python tests are not performance evidence.
 
 ## Run and preserve evidence
@@ -23,7 +28,13 @@ python tools/collect_desktop_performance.py --output E:/Dev/aem/artifacts/deskto
 python tools/collect_desktop_performance.py --output E:/Dev/aem/artifacts/desktop-baseline-01 --validate-only
 ```
 
-The tool refuses a dirty source or an existing output directory. It preserves
+The tool refuses a dirty source or an existing output directory. Build outputs
+use `<target-dir>/desktop-performance/<complete-commit>/release`, isolating
+workspace artifacts from other revisions even when they share a cache root.
+The two fast Rust fixture/statistics tests run in normal Cargo test discovery;
+the actual GPU study remains explicit. The archive validator also rejects missing
+draws or any frame lacking all four native 4K YUV uploads/conversions in that case.
+It preserves
 build/native stdout and stderr, start and exit receipts, the original failure,
 per-case events, full authored project JSON, all raw frames and a final PNG.
 Source changes during the run fail acceptance. Successful archives record file

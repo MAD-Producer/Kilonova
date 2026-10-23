@@ -45,6 +45,14 @@ def digest(path):
     return value.hexdigest()
 
 
+def target_for_revision(base, source):
+    # Cargo fingerprints can treat relative workspace paths from another
+    # worktree as fresh. Never bind a new revision to those older artifacts.
+    require(len(source) == 40 and all(c in "0123456789abcdef" for c in source),
+            "Expected a complete source revision")
+    return base.resolve() / "desktop-performance" / source
+
+
 def distribution(values):
     values = sorted(values)
     if not values:
@@ -88,6 +96,12 @@ def validate_case(report, expected_case, expected_source, samples):
         require(frame["mainSubmissions"] == 1, "Unexpected main submission count")
         for key in COUNTERS:
             totals[key] += number(frame[key], key, integer=True)
+        require(frame["drawCalls"] > 0, "Workload produced no actual draws")
+        video = expected_case == "four-4k-yuv"
+        require(frame["videoConversions"] == (4 if video else 0)
+                and frame["videoConversionSubmissions"] == (4 if video else 0)
+                and frame["videoUploadBytes"] == (4 * 3840 * 2160 * 3 // 2 if video else 0),
+                "Declared native video workload was not exercised")
         ledger = frame["textureLedger"]
         number(ledger["knownBytes"], "knownBytes", integer=True)
         number(ledger["unknownCapacityCount"], "unknownCapacityCount", integer=True)
@@ -153,7 +167,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True, help="New artifact directory; never overwrite a prior attempt")
     parser.add_argument("--samples", type=int, default=60)
-    parser.add_argument("--target-dir", type=Path, default=Path(os.environ.get("CARGO_TARGET_DIR", ROOT / "target")))
+    parser.add_argument("--target-dir", type=Path, default=Path(os.environ.get("CARGO_TARGET_DIR", ROOT / "target")),
+                        help="Cache root; build outputs are isolated in a child directory for the exact commit")
     parser.add_argument("--validate-only", action="store_true", help="Verify existing hashes and recompute distributions without running a device")
     parser.add_argument("--environment-note", default="Uncontrolled desktop environment; no quiet-machine or thermal certification")
     args = parser.parse_args()
@@ -176,7 +191,7 @@ def main():
                "physicalDeviceAcceptanceComplete": False}
     try:
         environment = dict(os.environ, MOTION_BENCHMARK_REVISION=source)
-        target = args.target_dir.resolve()
+        target = target_for_revision(args.target_dir, source)
         run(["cargo", "build", "--release", "--locked", "-p", "motion-render", "--example", "performance_baseline",
              "--target-dir", str(target)], output, "build", environment)
         binary = target / "release/examples" / ("performance_baseline.exe" if os.name == "nt" else "performance_baseline")
