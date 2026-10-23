@@ -34,6 +34,7 @@ fn shared_cause(error: &RenderError) -> &Arc<RenderError> {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn missing_file_failure_replays_the_same_native_io_without_retry_then_releases_and_recovers() {
     let root = tempfile::tempdir().unwrap();
     let missing = root.path().join("missing-source.bin");
@@ -122,6 +123,7 @@ fn missing_file_failure_replays_the_same_native_io_without_retry_then_releases_a
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn evaluator_refusals_keep_the_native_composition_in_constructor_and_terminal_replay() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let project = project(false);

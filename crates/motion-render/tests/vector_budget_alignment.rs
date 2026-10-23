@@ -31,6 +31,7 @@ fn working_bytes(r:&Renderer)->u64 {
 fn policy(bytes:u64)->MemoryPolicy {MemoryPolicy {source_texture_budget_bytes:bytes,..Default::default()}}
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn exact_actual_texture_budget_succeeds_and_one_byte_less_refuses_cached_and_uncached_vectors() {
     for grouped in [false,true] {
         for second_size in [20.,24.] {
@@ -85,6 +86,7 @@ fn generator_project()->Project {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn cached_vector_working_set_includes_retained_yuv_planes() {
     let p=vector_project(false,20.);let s=sample(&p);
     let mut r=pollster::block_on(Renderer::headless()).unwrap();
@@ -101,6 +103,7 @@ fn cached_vector_working_set_includes_retained_yuv_planes() {
     assert_eq!(r.texture_resource_ledger(),ledger);
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn spatial_generator_pixels_pick_with_the_rendered_uv_and_leave_logical_transforms_intact() {
     let p=generator_project();let s=sample(&p);let registry=scene_fixtures::registry().unwrap();
     assert!(s.layers[0].three_d&&s.layers[0].screen_overlay);

@@ -16,6 +16,7 @@ mod blend_gpu;
 mod compact_examples_gpu;
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn gradient_replaces_a_seven_node_color_mix_chain_without_changing_pixels() {
     let dir = tempfile::tempdir().unwrap();
     let compact =
@@ -50,6 +51,7 @@ fn gradient_replaces_a_seven_node_color_mix_chain_without_changing_pixels() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn gradient_modes_match_independent_cpu_factors_across_the_image() {
     let dir = tempfile::tempdir().unwrap();
     for mode in [
@@ -99,6 +101,7 @@ fn gradient_modes_match_independent_cpu_factors_across_the_image() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn gradient_degenerate_span_and_conic_center_return_start_color() {
     let dir = tempfile::tempdir().unwrap();
     for (index, (mode, coordinate, end)) in [
@@ -128,6 +131,7 @@ fn gradient_degenerate_span_and_conic_center_return_start_color() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn gradient_color_interpolation_respects_each_alpha_contract() {
     let dir = tempfile::tempdir().unwrap();
     for alpha in [AlphaMode::Straight, AlphaMode::Premultiplied] {
@@ -168,6 +172,7 @@ fn gradient_color_interpolation_respects_each_alpha_contract() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn typed_defaults_match_explicit_constants_on_gpu_and_survive_export() {
     let dir = tempfile::tempdir().unwrap();
     for alpha_mode in [AlphaMode::Straight, AlphaMode::Premultiplied] {
@@ -244,6 +249,7 @@ fn typed_defaults_match_explicit_constants_on_gpu_and_survive_export() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn unused_incomplete_nodes_preserve_gpu_pixels_and_allow_live_parameter_changes() {
     let dir = tempfile::tempdir().unwrap();
     let plain = demo_graph();
@@ -276,6 +282,7 @@ fn unused_incomplete_nodes_preserve_gpu_pixels_and_allow_live_parameter_changes(
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn nested_groups_export_pixel_identically_and_keep_public_parameter_animation() {
     let dir = tempfile::tempdir().unwrap();
     let plain = demo_graph();
@@ -365,6 +372,7 @@ fn pixel(bytes: &[u8], x: usize, y: usize) -> [u8; 4] {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn style_examples_render_animate_and_accept_public_colors_through_exported_packages() {
     let dir = tempfile::tempdir().unwrap();
     for example in builtin_examples()
@@ -415,6 +423,7 @@ fn style_examples_render_animate_and_accept_public_colors_through_exported_packa
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn soft_sphere_projects_orbit_lift_shadow_and_independent_surface_rotation() {
     let graph = builtin_examples()
         .iter()
@@ -545,6 +554,7 @@ fn soft_sphere_projects_orbit_lift_shadow_and_independent_surface_rotation() {
     assert_eq!(report.package_resource_textures, 0);
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn exported_sdf_pixels_preserve_alpha_fractional_time_and_animated_public_slots() {
     let dir = tempfile::tempdir().unwrap();
     let graph = demo_graph();
@@ -607,6 +617,7 @@ fn exported_sdf_pixels_preserve_alpha_fractional_time_and_animated_public_slots(
     );
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn straight_and_premultiplied_graph_contracts_produce_the_same_visible_pixels() {
     let dir = tempfile::tempdir().unwrap();
     let graph = demo_graph();
@@ -641,6 +652,7 @@ fn straight_and_premultiplied_graph_contracts_produce_the_same_visible_pixels() 
     }
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn frame_index_and_seconds_remain_fractional_in_the_actual_gpu_uniforms() {
     let dir = tempfile::tempdir().unwrap();
     let graph = GraphDocument {
@@ -687,6 +699,7 @@ fn frame_index_and_seconds_remain_fractional_in_the_actual_gpu_uniforms() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn sdk6_last_public_slot_is_rendered_and_the_33rd_parameter_is_rejected() {
     let dir = tempfile::tempdir().unwrap();
     let mut graph = demo_graph();

@@ -102,6 +102,7 @@ fn equal(a: &[u8], b: &[u8]) {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn pending_receivers_keep_completed_images_phases_and_evaluation_cache() {
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
     r.set_submission_tracking(true);
@@ -181,6 +182,7 @@ fn pending_receivers_keep_completed_images_phases_and_evaluation_cache() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn center_media_pending_preserves_phase_images_before_adjustment_and_never_restarts() {
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
     let p = project(true);
@@ -210,6 +212,7 @@ fn center_media_pending_preserves_phase_images_before_adjustment_and_never_resta
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn real_upload_refusal_is_terminal_preserves_typed_cause_and_drop_cancels_owned_targets() {
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
     let p = project(false);
@@ -267,6 +270,7 @@ fn real_upload_refusal_is_terminal_preserves_typed_cause_and_drop_cancels_owned_
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn finite_slices_yield_and_wrong_owner_or_zero_slice_do_not_invoke_media_or_poison_task() {
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
     let mut other = pollster::block_on(Renderer::headless()).unwrap();
@@ -302,6 +306,7 @@ fn finite_slices_yield_and_wrong_owner_or_zero_slice_do_not_invoke_media_or_pois
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn center_evaluation_failure_is_contextual_and_allocates_no_exposure_gpu_targets() {
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
     let p = project(false);
@@ -323,6 +328,7 @@ fn center_evaluation_failure_is_contextual_and_allocates_no_exposure_gpu_targets
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn authored_child_shutter_outside_its_whole_exposure_is_transparent_and_unused_children_are_allowed(
 ) {
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
@@ -393,6 +399,7 @@ fn authored_child_shutter_outside_its_whole_exposure_is_transparent_and_unused_c
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn task_initialization_rejects_partly_consumed_scene_schedule_before_gpu_allocation() {
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
     let p = project(false);
@@ -417,6 +424,7 @@ fn task_initialization_rejects_partly_consumed_scene_schedule_before_gpu_allocat
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn failure_after_partial_materialization_releases_images_and_bounds_retained_cause() {
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
     let p = project(false);

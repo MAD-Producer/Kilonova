@@ -91,6 +91,7 @@ fn cpu_asset_entry_points_follow_session_policy_without_changing_legacy_pixels_o
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn session_envelope_survives_project_replacement_and_tracks_retained_native_views() {
     let directory=tempfile::tempdir().unwrap();
     let mut session=Session::new(Project::new(16,16,30,6).unwrap(),
@@ -137,6 +138,7 @@ fn session_envelope_survives_project_replacement_and_tracks_retained_native_view
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn session_envelope_updates_are_atomic_and_metadata_queries_are_read_only() {
     let directory = tempfile::tempdir().unwrap();
     let mut session = Session::new(Project::new(16,16,30,6).unwrap(),
@@ -240,6 +242,7 @@ impl Platform for Stub {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn pressure_metadata_keeps_unattached_state_unknown_and_existing_editor_query_read_only() {
     let directory = tempfile::tempdir().unwrap();
     let root = directory.path().join("project");
@@ -276,6 +279,7 @@ fn pressure_metadata_keeps_unattached_state_unknown_and_existing_editor_query_re
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn shared_json_policy_is_atomic_runtime_state_and_inherited_by_editor_rendering() {
     let directory = tempfile::tempdir().unwrap();
     let root = directory.path().join("project");
@@ -338,6 +342,7 @@ fn shared_json_policy_is_atomic_runtime_state_and_inherited_by_editor_rendering(
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn resource_ledger_json_query_is_read_only_and_available_without_a_surface() {
     let directory = tempfile::tempdir().unwrap();
     let mut session = Session::new(Project::new(64, 64, 30, 60).unwrap(), directory.path().to_path_buf(), Arc::new(Stub)).unwrap();
@@ -365,6 +370,7 @@ fn resource_ledger_json_query_is_read_only_and_available_without_a_surface() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn resource_tracking_is_runtime_only_and_profiling_keeps_it_enabled() {
     let directory = tempfile::tempdir().unwrap();
     let mut session = Session::new(Project::new(64, 64, 30, 60).unwrap(), directory.path().to_path_buf(), Arc::new(Stub)).unwrap();
@@ -403,6 +409,7 @@ fn resource_tracking_is_runtime_only_and_profiling_keeps_it_enabled() {
 
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn explicit_capacity_query_includes_caller_target_and_preserves_runtime_only_semantics() {
     let directory = tempfile::tempdir().unwrap();
     let mut session = Session::new(Project::new(64, 64, 30, 60).unwrap(),

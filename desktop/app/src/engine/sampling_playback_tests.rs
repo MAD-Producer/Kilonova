@@ -88,6 +88,7 @@ fn drive_frame(
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn paced_sampling_playback_records_native_costs_without_starving_frames() {
     const CHILD: &str = "MOTION_SAMPLING_PLAYBACK_CHILD";
     if let Some(root) = std::env::var_os(CHILD) {

@@ -21,6 +21,7 @@ mod retained_raster_admission;
 mod plan_error;
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn exposure_uniform_admission_failure_reaches_reply_file_and_stderr_at_default_level() {
     const CHILD: &str = "MOTION_EXPOSURE_UNIFORM_ADMISSION_LOG_CHILD";
     if let Some(root) = std::env::var_os(CHILD) {
@@ -77,6 +78,7 @@ fn exposure_uniform_admission_failure_reaches_reply_file_and_stderr_at_default_l
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn video_uniform_admission_failure_reaches_reply_file_and_stderr_at_default_level() {
     const CHILD: &str = "MOTION_VIDEO_UNIFORM_ADMISSION_LOG_CHILD";
     if let Some(root) = std::env::var_os(CHILD) {
@@ -141,6 +143,7 @@ fn video_uniform_admission_failure_reaches_reply_file_and_stderr_at_default_leve
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn combined_allocation_failure_reaches_reply_file_and_stderr_at_default_level() {
     const CHILD: &str = "MOTION_COMBINED_ALLOCATION_LOG_CHILD";
     if let Some(root) = std::env::var_os(CHILD) {
@@ -230,6 +233,7 @@ fn combined_allocation_failure_reaches_reply_file_and_stderr_at_default_level() 
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn video_handoff_budget_failure_reaches_reply_file_and_stderr_at_default_level() {
     const CHILD: &str = "MOTION_VIDEO_HANDOFF_LOG_CHILD";
     if let Some(root) = std::env::var_os(CHILD) {

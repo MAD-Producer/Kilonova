@@ -5,6 +5,7 @@ use motion_core::{
 use motion_render::{effect_plan::PlanBuilder, Renderer, Scene};
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn merged_tracks_preserve_gpu_pixels_and_frozen_render_plan_at_fractional_times() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let target = renderer.capture_target(64, 64).unwrap();

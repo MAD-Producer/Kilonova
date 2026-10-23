@@ -12,6 +12,7 @@ fn scene() -> motion_render::Scene {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn retained_receiver_refusal_preserves_budgets_pixels_cause_and_default_output_channels() {
     const CHILD: &str = "MOTION_RETAINED_RASTER_ADMISSION_LOG_CHILD";
     const NAME: &str = "engine::failure::composition_tests::retained_raster_admission::retained_receiver_refusal_preserves_budgets_pixels_cause_and_default_output_channels";

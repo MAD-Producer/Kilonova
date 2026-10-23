@@ -52,6 +52,7 @@ fn plan(p: &Project, frame: f64) -> (Scene, PlanBuilder) {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn culled_sdk_instances_clear_the_target_and_recover_without_a_startup_instance_buffer() {
     let mut project = project("starfield");
     let parameters = &mut project.layers[0].effects[0].params;
@@ -219,6 +220,7 @@ fn two_dimensional_generators_ignore_camera_motion_and_spatial_depth() {
     }
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn all_generators_render_on_gpu_and_following_image_effects_execute() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     renderer.set_effect_registry(scene_fixtures::registry().unwrap());

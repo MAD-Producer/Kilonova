@@ -24,6 +24,7 @@ fn background(color: [f32; 4]) -> Scene {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn sample_mean_and_uniform_refusals_roll_back_both_budgets_then_recover() {
     let budget = AllocationBudget::new(SYSTEM_BYTES + 28).unwrap();
     let mut renderer = renderer(&budget);
@@ -72,6 +73,7 @@ fn sample_mean_and_uniform_refusals_roll_back_both_budgets_then_recover() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn abandoned_exposure_encoders_keep_all_resources_until_their_actual_owner_drops() {
     let budget = AllocationBudget::new(SYSTEM_BYTES + 28).unwrap();
     let mut renderer = renderer(&budget);
@@ -111,6 +113,7 @@ fn abandoned_exposure_encoders_keep_all_resources_until_their_actual_owner_drops
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn failed_overlapping_exposure_preserves_completed_phase_pixels_and_real_retirement() {
     let budget = AllocationBudget::new(SYSTEM_BYTES + 2044).unwrap();
     let mut renderer = renderer(&budget);

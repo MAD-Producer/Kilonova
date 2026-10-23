@@ -9,7 +9,9 @@ description = "Platform-neutral editing host shared by the Android and desktop a
 crate-type = ["rlib"]
 
 [features]
-default = []
+default = ["gpu-tests"]
+# Test selection only; product rendering is always compiled.
+gpu-tests = []
 # Reports GPU fault-injection availability in the state snapshot. The Android
 # adapter gates actual injection on its own `diagnostics` feature; the host only
 # advertises it, so an acceptance build on either platform reports the same key.
@@ -20,7 +22,7 @@ thiserror.workspace = true
 log.workspace = true
 motion-effects = { path = "../motion-effects" }
 motion-core = { path = "../motion-core" }
-motion-render = { path = "../motion-render" }
+motion-render = { path = "../motion-render", default-features = false }
 motion-media = { path = "../motion-media" }
 serde.workspace = true
 serde_json.workspace = true

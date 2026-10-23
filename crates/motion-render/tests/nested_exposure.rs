@@ -236,6 +236,7 @@ fn oracle_context(
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn independent_oracle_uploads_straight_alpha_capture_without_brightening_the_child() {
     let mut project = fixture(false);
     let red = &mut project.compositions[0].layers[0];
@@ -255,6 +256,7 @@ fn independent_oracle_uploads_straight_alpha_capture_without_brightening_the_chi
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn recursive_mixed_rates_parent_shutters_and_repeated_refs_match_independent_readback_oracle() {
     let project = fixture(true);
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
@@ -318,6 +320,7 @@ fn recursive_mixed_rates_parent_shutters_and_repeated_refs_match_independent_rea
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn child_clip_can_enter_its_shutter_while_center_is_empty_and_green_stays_at_center() {
     let mut project = fixture(false);
     let child = &mut project.compositions[0];
@@ -350,6 +353,7 @@ fn child_clip_can_enter_its_shutter_while_center_is_empty_and_green_stays_at_cen
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn resolved_child_waits_for_parent_media_without_restarting_and_transfers_texture_identity() {
     let project = fixture(false);
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
@@ -429,6 +433,7 @@ fn resolved_child_waits_for_parent_media_without_restarting_and_transfers_textur
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn actual_nested_source_budget_refusal_is_terminal_and_explicit_new_task_recovers() {
     let project = fixture(false);
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
@@ -488,6 +493,7 @@ fn actual_nested_source_budget_refusal_is_terminal_and_explicit_new_task_recover
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn nested_effects_parent_matte_adjustment_preview_and_bgra_match_readback_oracle() {
     let mut project = fixture(false);
     let package = motion_effects::builtin::package().unwrap();
@@ -568,6 +574,7 @@ fn nested_effects_parent_matte_adjustment_preview_and_bgra_match_readback_oracle
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn child_resolve_is_charged_to_shared_temporal_budget_before_allocation() {
     let mut project = fixture(false);
     project.compositions[0].width = 2048;
@@ -608,6 +615,7 @@ fn child_resolve_is_charged_to_shared_temporal_budget_before_allocation() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn dropping_parent_cancels_all_pending_nested_gpu_owners_without_restarting_work() {
     let project = fixture(true);
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
@@ -652,6 +660,7 @@ fn dropping_parent_cancels_all_pending_nested_gpu_owners_without_restarting_work
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn all_recursive_scopes_share_one_poll_budget_and_tiny_slices_eventually_complete() {
     let project = fixture(true);
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();

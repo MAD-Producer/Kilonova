@@ -199,6 +199,7 @@ mod frame_capacity_tests;
 mod tests {
     use super::*;
     #[test]
+    #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
     fn shared_submissions_keep_replaced_resources_until_the_last_completion() {
         let mut renderer = pollster::block_on(crate::Renderer::headless()).unwrap();
         renderer.upload_image(7, 2, 2, &[255; 16]).unwrap();

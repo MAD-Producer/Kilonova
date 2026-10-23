@@ -25,6 +25,7 @@ fn capture(shell: &mut Shell, file: PathBuf) {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn native_layer_ordering_is_atomic_observes_stale_revision_and_renders_bilingual_menus() {
     const CHILD: &str = "MOTION_LAYER_NAVIGATION_CHILD";
     if let Some(root) = std::env::var_os(CHILD) {

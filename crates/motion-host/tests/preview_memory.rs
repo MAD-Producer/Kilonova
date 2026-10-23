@@ -107,6 +107,7 @@ fn yuv_proxies_keep_rotation_matrix_range_and_absorb_all_native_chroma_layouts()
     );
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn proxy_cache_survives_cancelled_upload_and_reclaim_without_retaining_the_decoded_frame() {
     let frame = yuv(ChromaLayout::PlanarRows, 90, 1, 2);
     let original = frame.to_rgba().unwrap();
@@ -172,6 +173,7 @@ fn proxy_cache_survives_cancelled_upload_and_reclaim_without_retaining_the_decod
     assert_eq!(cache.bytes(), 0);
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn rgba_preview_is_bounded_and_bad_pixels_are_not_a_memory_refusal() {
     let mut cache = PreviewVideoCache::default();
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();

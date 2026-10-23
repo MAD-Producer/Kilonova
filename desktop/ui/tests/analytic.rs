@@ -103,13 +103,10 @@ fn capture(
 #[test]
 #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires gpu-tests; run with --features gpu-tests")]
 fn procedural_patterns_and_fractional_dpi_borders_render_actual_pixels() {
-    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-    let Ok(adapter) =
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
+    let adapter =
         pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))
-    else {
-        eprintln!("No UI test GPU adapter");
-        return;
-    };
+            .expect("UI pixel regression requires a GPU adapter; disable gpu-tests for a CPU-only run");
     let (device, queue) =
         pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default()))
             .unwrap();

@@ -4,6 +4,7 @@ use motion_ui::dock::{Node, Panel};
 use std::{path::PathBuf, sync::Arc, time::Duration};
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn native_reset_and_bounds_use_main_and_floating_routes_in_both_languages_at_four_dpis() {
     const CHILD: &str = "MOTION_CAMERA_FIELDS_NATIVE_CHILD";
     let Some(root) = std::env::var_os(CHILD) else {

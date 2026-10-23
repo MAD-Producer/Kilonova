@@ -232,6 +232,7 @@ fn reply_cleanup_panic_is_reported_and_clears_in_flight_before_next_request() {
 
 #[cfg(feature = "ffmpeg")]
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn real_snapshot_can_export_and_decode_after_engine_shutdown() {
     let root = tempfile::tempdir().unwrap();
     let directory = root.path().join("project");
@@ -259,6 +260,7 @@ fn real_snapshot_can_export_and_decode_after_engine_shutdown() {
 
 #[cfg(feature = "ffmpeg")]
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn actual_movie_request_survives_freezing_and_engine_exit_in_all_frame_windows() {
     let root=tempfile::tempdir().unwrap();
     let directory=root.path().join("project");

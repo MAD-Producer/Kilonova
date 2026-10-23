@@ -2,6 +2,7 @@ use super::*;
 use motion_render::Renderer;
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn frozen_package_movie_uses_captured_cpu_policy_and_preserves_previous_output_on_refusal() {
     let root = tempfile::tempdir().unwrap();
     let mut session = Session::new(package_budget_project(), root.path().into(), crate::platform()).unwrap();
@@ -35,6 +36,7 @@ fn frozen_package_movie_uses_captured_cpu_policy_and_preserves_previous_output_o
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn frozen_movie_keeps_cpu_decode_allowance_across_live_changes_and_session_close() {
     let root = tempfile::tempdir().unwrap();
     fs::create_dir(root.path().join("assets")).unwrap();
@@ -75,6 +77,7 @@ fn frozen_movie_keeps_cpu_decode_allowance_across_live_changes_and_session_close
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn frozen_movie_shares_live_capacity_and_keeps_admission_after_session_close() {
     let root=tempfile::tempdir().unwrap();
     let mut project=Project::new(32,24,30,2).unwrap();
@@ -131,6 +134,7 @@ fn frozen_movie_shares_live_capacity_and_keeps_admission_after_session_close() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn movie_windows_cover_setup_every_authored_frame_and_post_freeze_cancellation() {
     use motion_render::{AllocationFrameOutcome as Outcome, FrameOperation};
     let root=tempfile::tempdir().unwrap();

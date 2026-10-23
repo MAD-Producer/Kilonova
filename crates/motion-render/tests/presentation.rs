@@ -3,6 +3,7 @@ use motion_render::Scene;
 use motion_render::{Presenter, Renderer};
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn canvas_zoom_pan_and_fit_crop_pixels_inside_a_valid_surface_viewport() {
     let r = pollster::block_on(Renderer::headless()).unwrap();
     let texture = r.device.create_texture(&wgpu::TextureDescriptor {
@@ -46,6 +47,7 @@ fn canvas_zoom_pan_and_fit_crop_pixels_inside_a_valid_surface_viewport() {
     assert_eq!(pixel(&small,60,32), [0,0,255,255]);
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn android_presentation_shader_is_valid_on_an_actual_gpu() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let mut project = Project::new(64, 64, 30, 180).unwrap();
@@ -160,6 +162,7 @@ fn presentation_bytes(renderer: &Renderer, texture: &wgpu::Texture) -> Vec<u8> {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn presentation_validation_failures_are_visible_to_the_test() {
     let r = pollster::block_on(Renderer::headless()).unwrap();
     let source = r.capture_target(64, 64).unwrap();

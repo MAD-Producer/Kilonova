@@ -44,6 +44,7 @@ fn fixture(root: &std::path::Path, id: u64, size: u32) -> Asset {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn recent_textures_are_lru_bounded_and_yuv_allocations_reclaim_idle_images() {
     let root = tempfile::tempdir().unwrap();
     fs::create_dir(root.path().join("assets")).unwrap();
@@ -128,6 +129,7 @@ fn recent_textures_are_lru_bounded_and_yuv_allocations_reclaim_idle_images() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn prefetched_clip_renders_immediately_and_invalid_future_source_only_fails_when_active() {
     let root = tempfile::tempdir().unwrap();
     fs::create_dir(root.path().join("assets")).unwrap();

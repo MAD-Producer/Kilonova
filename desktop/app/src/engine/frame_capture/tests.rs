@@ -1,6 +1,7 @@
 use super::*;
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn session_budget_refusal_reaches_real_export_worker_reply_file_and_stderr() {
     const CHILD: &str="MOTION_SESSION_CAPTURE_BUDGET_LOG_ROOT";
     const NAME: &str="engine::frame_capture::tests::session_budget_refusal_reaches_real_export_worker_reply_file_and_stderr";
@@ -248,6 +249,7 @@ fn shutdown_panic_preserves_context_in_default_file_and_stderr_without_stdout_no
 
 #[cfg(feature = "ffmpeg")]
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn real_png_completion_and_cancelled_shutdown_preserve_output_transaction() {
     let root = tempfile::tempdir().unwrap();
     let project = root.path().join("project");

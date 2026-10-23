@@ -13,11 +13,13 @@ fn finish_capture(shell: &mut Shell) {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn camera_plane_refusal_reaches_shell_and_default_logs_then_recovers() {
     check_refusal(true, "engine::failure::sampling_tests::camera_plane_refusal_reaches_shell_and_default_logs_then_recovers");
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn gpu_coordinate_refusal_reaches_shell_and_default_logs_then_recovers() {
     check_refusal(false, "engine::failure::sampling_tests::gpu_coordinate_refusal_reaches_shell_and_default_logs_then_recovers");
 }

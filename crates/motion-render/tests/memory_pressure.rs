@@ -52,12 +52,14 @@ fn native_probe(backend: wgpu::Backends, expected: MemoryPressureSource) {
 
 #[test]
 #[cfg(target_os = "windows")]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn actual_dxgi_adapter_query_is_bounded_and_does_not_modify_admission() {
     native_probe(wgpu::Backends::DX12, MemoryPressureSource::DxgiLocalSegment);
 }
 
 #[test]
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "android"))]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn actual_vulkan_adapter_query_is_available_or_explicitly_unsupported() {
     native_probe(
         wgpu::Backends::VULKAN,
@@ -67,6 +69,7 @@ fn actual_vulkan_adapter_query_is_available_or_explicitly_unsupported() {
 
 #[test]
 #[cfg(any(target_os = "macos", target_os = "ios"))]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn actual_metal_device_query_is_bounded_and_does_not_modify_admission() {
     native_probe(wgpu::Backends::METAL, MemoryPressureSource::MetalWorkingSet);
 }

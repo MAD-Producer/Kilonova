@@ -61,6 +61,7 @@ fn write_pixel(context: &AllocationContext, pixel: &motion_render::AdmittedTextu
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn padded_capacity_and_queued_uploads_share_the_live_allowance() {
     let budget = AllocationBudget::new(FIXED + 12).unwrap();
     let renderer =
@@ -118,6 +119,7 @@ fn padded_capacity_and_queued_uploads_share_the_live_allowance() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn new_external_resources_join_open_encoders_and_retire_with_native_work() {
     let budget = AllocationBudget::new(FIXED + 12).unwrap();
     let renderer =
@@ -165,6 +167,7 @@ fn new_external_resources_join_open_encoders_and_retire_with_native_work() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn upload_context_retains_destinations_after_renderer_and_resource_owners_exit() {
     let budget = AllocationBudget::default();
     let renderer =
@@ -184,6 +187,7 @@ fn upload_context_retains_destinations_after_renderer_and_resource_owners_exit()
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn shared_budget_does_not_authorize_uploads_from_a_different_native_owner() {
     let budget = AllocationBudget::default();
     let first =

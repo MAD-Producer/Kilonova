@@ -90,6 +90,7 @@ fn scratch_ids(renderer: &Renderer) -> Vec<String> {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn refused_later_effect_pool_slot_preserves_old_allocations_and_pixels_then_recovers() {
     let budget = crate::AllocationBudget::new(SYSTEM_BYTES + (4 << 20)).unwrap();
     let mut renderer =
@@ -163,6 +164,7 @@ fn refused_later_effect_pool_slot_preserves_old_allocations_and_pixels_then_reco
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn late_effect_parameter_refusal_is_typed_and_reuses_admitted_scratch_on_recovery() {
     let budget = crate::AllocationBudget::new(SYSTEM_BYTES + (1 << 20)).unwrap();
     let mut renderer =
@@ -206,6 +208,7 @@ fn late_effect_parameter_refusal_is_typed_and_reuses_admitted_scratch_on_recover
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn queued_curve_uploads_and_abandoned_encoders_retain_admitted_destinations() {
     let budget = crate::AllocationBudget::new(SYSTEM_BYTES + (1 << 20)).unwrap();
     let mut renderer =
@@ -251,6 +254,7 @@ fn queued_curve_uploads_and_abandoned_encoders_retain_admitted_destinations() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn package_texture_refusal_keeps_resource_counts_and_recovers_through_real_upload() {
     let budget = crate::AllocationBudget::new(SYSTEM_BYTES + (1 << 20)).unwrap();
     let mut renderer =
@@ -301,6 +305,7 @@ fn package_texture_refusal_keeps_resource_counts_and_recovers_through_real_uploa
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn package_png_runtime_decode_obeys_current_cpu_policy_and_recovers_native_pixels() {
     let project = project("dither", 8);
     let scene = scene(&project);
@@ -333,6 +338,7 @@ fn package_png_runtime_decode_obeys_current_cpu_policy_and_recovers_native_pixel
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn curve_preflight_shrink_and_growth_rebinds_the_new_lut_without_retaining_old_capacity() {
     let budget = crate::AllocationBudget::new(SYSTEM_BYTES + (1 << 20)).unwrap();
     let mut renderer =

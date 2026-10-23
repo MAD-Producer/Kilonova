@@ -56,6 +56,7 @@ fn ledger(targets: &PreviewFrameTargets) -> motion_render::TextureResourceLedger
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn legacy_policy_defaults_and_invalid_updates_preserve_the_live_policy() {
     let missing_session = serde_json::from_str::<MemoryPolicy>(
         r#"{"sourceTextureBudgetBytes":134217728,"scratchBudgetBytes":67108864}"#,
@@ -89,6 +90,7 @@ fn legacy_policy_defaults_and_invalid_updates_preserve_the_live_policy() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn combined_budget_rejects_reused_candidate_preserves_pixels_and_allows_smaller_frame() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let mut targets = PreviewFrameTargets::new(&renderer, 64, 64).unwrap();
@@ -140,6 +142,7 @@ fn combined_budget_rejects_reused_candidate_preserves_pixels_and_allows_smaller_
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn allocation_refusal_uses_combined_capacity_and_replacement_retains_only_two_targets() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     set_budget(&mut renderer, 16_384);
@@ -178,6 +181,7 @@ fn allocation_refusal_uses_combined_capacity_and_replacement_retains_only_two_ta
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn float_color_targets_are_charged_their_actual_capacity() {
     let instance =
         wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
@@ -208,6 +212,7 @@ fn float_color_targets_are_charged_their_actual_capacity() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn real_target_refusals_exhaust_once_hold_front_and_recover_after_a_budget_change() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let mut targets = PreviewFrameTargets::new(&renderer, 64, 64).unwrap();

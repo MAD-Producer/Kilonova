@@ -21,6 +21,7 @@ fn scene(size: u32) -> motion_render::Scene {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn resized_matte_refusal_keeps_old_pixels_and_original_cause_in_default_output_channels() {
     const CHILD: &str = "MOTION_MATTE_TEXTURE_ADMISSION_LOG_CHILD";
     const NAME: &str = "engine::failure::composition_tests::matte_texture_admission::resized_matte_refusal_keeps_old_pixels_and_original_cause_in_default_output_channels";

@@ -16,6 +16,7 @@ fn capture(r:&mut Renderer,p:&Project)->Vec<u8> {
 fn alpha(p:&[u8],x:usize,y:usize)->u8 {p[(y*1080+x)*4+3]}
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn ordinary_masks_modes_opacity_inversion_and_resources() {
     let mut r=pollster::block_on(Renderer::headless()).unwrap();let mut p=project();
     p.layers[0].masks.push(rectangle(1,200.,300.,600.,1200.));
@@ -32,6 +33,7 @@ fn ordinary_masks_modes_opacity_inversion_and_resources() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn feather_expansion_and_masked_input_before_effect() {
     let mut r=pollster::block_on(Renderer::headless()).unwrap();let mut p=project();
     let mut mask=rectangle(1,200.,300.,600.,1200.);mask.feather.value=[40.,0.];p.layers[0].masks.push(mask);

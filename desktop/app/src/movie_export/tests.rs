@@ -154,6 +154,7 @@ fn closure_panic_reaches_default_sinks_and_preserves_an_existing_primary_error()
 
 #[cfg(feature = "ffmpeg")]
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn real_movie_completion_and_cancellation_survive_owner_cleanup() {
     const CHILD: &str = "MOTION_MOVIE_OWNER_REAL_ROOT";
     if let Some(root) = std::env::var_os(CHILD) {

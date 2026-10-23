@@ -99,6 +99,7 @@ mod tests {
         assert_eq!(session.effects.memory_policy(), MemoryPolicy::default());
     }
     #[test]
+    #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
     fn frozen_movie_samples_animated_layer_anchor_after_live_edits() {
         let dir=tempfile::tempdir().unwrap();
         let root=dir.path().join("project");fs::create_dir_all(&root).unwrap();
@@ -122,6 +123,7 @@ mod tests {
         assert!(pixel(&first,20,20)[0]<40 && pixel(&last,20,20)[0]>220);
     }
     #[test]
+    #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
     fn frozen_movie_renders_receiver_exposure_and_keeps_animated_upper_sharp_after_live_edits() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().join("project");
@@ -156,10 +158,12 @@ mod tests {
             &[("first",&first),("last",&last)]);
     }
     #[test]
+    #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
     fn frozen_movie_integrates_real_adjacent_video_samples_in_linear_exposure() {
         assert_real_video_exposure(false);
     }
     #[test]
+    #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
     fn frozen_movie_integrates_parent_and_child_shutters_at_different_rates_with_real_video() {
         assert_real_video_exposure(true);
     }
@@ -351,6 +355,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
     fn frozen_movie_evaluates_nested_video_effects_expressions_and_original_pcm() {
         let root = tempfile::tempdir().unwrap();
         fs::create_dir_all(root.path().join("assets")).unwrap();
@@ -485,6 +490,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
     fn cancellation_keeps_existing_output_and_removes_temporary_movie() {
         let dir = tempfile::tempdir().unwrap();
         let output = dir.path().join("movie.mp4");
@@ -510,6 +516,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
     fn exposure_cancellation_after_encoded_frame_preserves_destination_and_removes_temporary_movie() {
         let dir = tempfile::tempdir().unwrap();
         let output = dir.path().join("movie.mp4");

@@ -63,6 +63,7 @@ fn render(p: &mut Project, r: &mut Renderer, t: &motion_render::CaptureTarget) -
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn common_effects_produce_results_preserve_alpha_and_bypass_at_zero_opacity() {
     let (mut p, pixels) = fixture();
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
@@ -121,6 +122,7 @@ fn common_effects_produce_results_preserve_alpha_and_bypass_at_zero_opacity() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn wipes_have_exact_endpoints_and_quantizers_have_meaningful_limits() {
     let (mut p, pixels) = fixture();
     let mut r = pollster::block_on(Renderer::headless()).unwrap();

@@ -1,6 +1,7 @@
 use super::*;
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn real_editor_and_session_package_owners_count_once_without_mutating_project_or_gpu_budget() {
     let directory = tempfile::tempdir().unwrap();
     let mut session = Session::new(

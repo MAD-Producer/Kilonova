@@ -6,6 +6,7 @@ fn render(renderer:&mut Renderer,project:&Project,frame:f64)->Vec<u8>{
     let target=renderer.capture_target(64,64).unwrap();renderer.capture(&scene,&target).unwrap().0
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn nested_signed_span_renders_recovered_tail_and_random_seeks_consistently(){
     let mut p=Project::new(64,64,30,24).unwrap();p.version = motion_model::CURRENT_PROJECT_VERSION;p.background=[0.,0.,1.,1.];
     let mut leaf=Layer::solid(1,"Red",[64.;2],[32.,32.,0.],[1.,0.,0.,1.]);

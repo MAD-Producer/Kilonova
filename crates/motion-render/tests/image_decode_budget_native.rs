@@ -4,6 +4,7 @@ use motion_render::{
 };
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn actual_cpu_refusal_preserves_target_and_recovers_proxy_then_original_pixels() {
     let root = tempfile::tempdir().unwrap();
     std::fs::create_dir(root.path().join("assets")).unwrap();

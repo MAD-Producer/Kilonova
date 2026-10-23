@@ -32,6 +32,7 @@ fn edge_pixels(pixels: &[u8]) -> usize {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn projected_vector_raster_changes_real_pixels_and_records_source_cost_without_changing_alpha_area()
 {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
@@ -93,6 +94,7 @@ fn projected_vector_raster_changes_real_pixels_and_records_source_cost_without_c
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn preview_and_formal_plans_share_density_and_resource_refusal_is_explicit() {
     let mut p = fixture();
     p.layers[0].sampling.continuous_rasterization = true;

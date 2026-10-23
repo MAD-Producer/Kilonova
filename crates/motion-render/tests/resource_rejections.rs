@@ -102,6 +102,7 @@ fn diagnostics_success_cache_and_unrelated_errors_cannot_reuse_a_budget_refusal(
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn active_images_refuse_before_upload_and_a_smaller_proxy_can_be_prepared() {
     let root = tempfile::tempdir().unwrap();
     std::fs::create_dir(root.path().join("assets")).unwrap();

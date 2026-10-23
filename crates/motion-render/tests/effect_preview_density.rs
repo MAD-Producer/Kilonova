@@ -188,6 +188,7 @@ fn projected_density_handles_rotations_reflections_and_anisotropic_transforms() 
         .all(|pass| pass.uniform.output_mode[3] == 1.));
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn gpu_preview_retains_rays_blur_alpha_placement_and_releases_density_changes() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     renderer.set_effect_registry(scene_fixtures::registry().unwrap());

@@ -18,6 +18,7 @@ const OUTPUT: u64 = RASTER_SIZE as u64 * RASTER_SIZE as u64 * 8;
 const TOTAL: u64 = SOURCE + LUT + UNIFORM + OUTPUT + 16;
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn every_preview_allocation_refuses_before_creation_and_pending_uploads_retire() {
     let budget = AllocationBudget::default();
     let renderer =
@@ -120,6 +121,7 @@ fn render(
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn refused_replacement_preserves_live_pixels_and_recovery_keeps_full_raster_capacity() {
     let budget = AllocationBudget::default();
     let renderer =

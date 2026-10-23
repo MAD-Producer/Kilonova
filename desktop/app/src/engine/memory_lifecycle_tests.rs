@@ -93,6 +93,7 @@ fn fixture(root: &std::path::Path, name: &str, color: [u8; 4]) -> (PathBuf, Proj
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn repeated_native_resize_seek_and_project_switch_retire_capacity_without_pixel_or_history_drift() {
     const NAME:&str="engine::memory_lifecycle_tests::repeated_native_resize_seek_and_project_switch_retire_capacity_without_pixel_or_history_drift";
     const CHILD: &str = "MOTION_MEMORY_LIFECYCLE_CHILD";
@@ -282,6 +283,7 @@ fn repeated_native_resize_seek_and_project_switch_retire_capacity_without_pixel_
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn actual_ui_atlas_refusal_recovers_in_worker_without_a_second_upload() {
     const NAME: &str = "engine::memory_lifecycle_tests::actual_ui_atlas_refusal_recovers_in_worker_without_a_second_upload";
     const CHILD: &str = "MOTION_UI_ATLAS_WORKER_CHILD";

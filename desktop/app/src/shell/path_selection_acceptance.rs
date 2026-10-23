@@ -150,6 +150,7 @@ fn capture(
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn point_selection_main_and_native_floating_routes_capture_and_restore() {
     const CHILD: &str = "MOTION_POINT_SELECTION_NATIVE_CHILD";
     const TEST:&str="shell::path_selection_acceptance::point_selection_main_and_native_floating_routes_capture_and_restore";

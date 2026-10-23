@@ -26,6 +26,7 @@ fn sequential(v: Vec3) -> Vec3 {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn combined_rotation_pixels_match_independent_fixed_axis_basis() {
     let mut p = Project::new(256, 256, 24, 48).unwrap();
     p.version = motion_model::CURRENT_PROJECT_VERSION;

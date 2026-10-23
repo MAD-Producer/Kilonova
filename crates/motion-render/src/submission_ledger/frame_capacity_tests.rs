@@ -2,6 +2,7 @@ use super::*;
 use crate::{FrameTextureCapacity, Renderer, TextureCategory, TextureState};
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn replaced_target_is_counted_once_across_owners_queues_and_completions() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
     let old = renderer.render_target(4, 4).unwrap();
@@ -44,6 +45,7 @@ fn replaced_target_is_counted_once_across_owners_queues_and_completions() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn disabled_tracking_and_bounded_snapshot_gaps_remain_explicit() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
     let target = renderer.render_target(4, 4).unwrap();
@@ -79,6 +81,7 @@ fn disabled_tracking_and_bounded_snapshot_gaps_remain_explicit() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn unknown_depth_capacity_is_deduplicated_without_inventing_bytes() {
     use crate::resource_ledger::DeviceTextureExt;
     let renderer = pollster::block_on(Renderer::headless()).unwrap();

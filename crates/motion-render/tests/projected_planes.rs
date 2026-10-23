@@ -97,6 +97,7 @@ fn srgb(value: f32) -> u8 {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn independently_sampled_cameras_sort_intersections_by_projected_depth_in_direct_and_effect_paths()
 {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
@@ -211,6 +212,7 @@ fn diff_context(a: &[u8], b: &[u8]) -> String {
     )
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn split_perspective_uvs_match_an_unsplit_textured_plane_without_changing_the_vertex_abi() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     gradient(&mut renderer);
@@ -258,6 +260,7 @@ fn split_perspective_uvs_match_an_unsplit_textured_plane_without_changing_the_ve
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn homogeneous_clipping_handles_camera_plane_crossings_and_culls_normal_outside_geometry() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     gradient(&mut renderer);
@@ -301,6 +304,7 @@ fn homogeneous_clipping_handles_camera_plane_crossings_and_culls_normal_outside_
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn split_textured_plane_retains_local_coordinates_and_perspective_interpolation() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     gradient(&mut renderer);

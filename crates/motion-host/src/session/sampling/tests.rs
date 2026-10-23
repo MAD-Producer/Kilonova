@@ -62,6 +62,7 @@ fn texture_id(target: &motion_render::RenderTarget) -> String {
     id
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn preview_candidate_preserves_front_until_complete_and_matches_receiver_oracle() {
     let root = tempfile::tempdir().unwrap();
     let p = project();
@@ -159,6 +160,7 @@ fn preview_candidate_preserves_front_until_complete_and_matches_receiver_oracle(
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn request_identity_releases_partial_images_and_revision_replaces_immutable_document() {
     let root = tempfile::tempdir().unwrap();
     let mut p = project();
@@ -237,6 +239,7 @@ fn request_identity_releases_partial_images_and_revision_replaces_immutable_docu
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn allocation_failure_is_terminal_until_explicit_memory_policy_disposition() {
     let root = tempfile::tempdir().unwrap();
     let p = project();

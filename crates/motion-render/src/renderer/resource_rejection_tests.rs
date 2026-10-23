@@ -2,6 +2,7 @@ use super::*;
 use motion_core::{EffectInstance, Layer, Project};
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn resource_pressure_does_not_poison_effect_programs_and_the_same_frame_can_retry() {
     let package = motion_effects::builtin::package().unwrap();
     let definition = package
@@ -55,6 +56,7 @@ fn resource_pressure_does_not_poison_effect_programs_and_the_same_frame_can_retr
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn nested_diagnostics_preserve_the_childs_budget_refusal() {
     use motion_core::{parse_commands, Engine, MAIN_COMPOSITION};
     let package = motion_effects::builtin::package().unwrap();

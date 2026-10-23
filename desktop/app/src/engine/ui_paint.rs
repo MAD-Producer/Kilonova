@@ -24,6 +24,7 @@ mod tests {
     use motion_ui::{paint, Color, Painter, Rect};
 
     #[test]
+    #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
     fn real_paint_limit_failure_reaches_reply_file_and_stderr_at_default_level() {
         const CHILD: &str = "MOTION_UI_BUFFER_LIMIT_CHILD";
         const TEST: &str = "engine::ui_paint::tests::real_paint_limit_failure_reaches_reply_file_and_stderr_at_default_level";

@@ -81,6 +81,7 @@ fn reference(mode: ColorBlendMode, b: [f32; 4], s: [f32; 4], strength: f32) -> [
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn blend_all_modes_match_source_over_oracle_in_both_working_spaces_and_alpha_modes() {
     let dir = tempfile::tempdir().unwrap();
     let colors = [
@@ -134,6 +135,7 @@ fn blend_all_modes_match_source_over_oracle_in_both_working_spaces_and_alpha_mod
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn blend_strength_animates_and_random_seek_restores_exported_example_pixels() {
     let dir = tempfile::tempdir().unwrap();
     let mut graph =

@@ -11,6 +11,7 @@ fn renderer(budget: &AllocationBudget) -> Renderer {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn offscreen_views_and_multiple_renderers_share_actual_capacity_and_capture_failure_rolls_back() {
     let budget = AllocationBudget::new(1024 + 2 * SYSTEM_BYTES).unwrap();
     let first = renderer(&budget);
@@ -59,6 +60,7 @@ fn offscreen_views_and_multiple_renderers_share_actual_capacity_and_capture_fail
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn unsubmitted_finished_and_submitted_commands_hold_admission_without_diagnostics() {
     let budget = AllocationBudget::new(256 + SYSTEM_BYTES).unwrap();
     let renderer = renderer(&budget);
@@ -118,6 +120,7 @@ fn unsubmitted_finished_and_submitted_commands_hold_admission_without_diagnostic
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn abandoned_commands_and_cross_budget_submission_release_without_gpu_submission() {
     let budget = AllocationBudget::new(256 + SYSTEM_BYTES).unwrap();
     let first = renderer(&budget);
@@ -161,6 +164,7 @@ fn abandoned_commands_and_cross_budget_submission_release_without_gpu_submission
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn encoder_metadata_has_a_hard_bound_and_recovers_after_abandonment() {
     let budget = AllocationBudget::new(256 + SYSTEM_BYTES).unwrap();
     let renderer = renderer(&budget);
@@ -190,6 +194,7 @@ fn encoder_metadata_has_a_hard_bound_and_recovers_after_abandonment() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn lowered_limit_keeps_presenter_source_and_allows_retained_presentation_without_new_allocations() {
     // Both 32-byte Presenter uniforms are now actually admitted. Keep the
     // original 8x8 source, exact combined capacity and strict pixel oracle.
@@ -292,6 +297,7 @@ fn lowered_limit_keeps_presenter_source_and_allows_retained_presentation_without
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn admitted_targets_use_the_actual_sixteen_bit_float_format_capacity() {
     let budget = AllocationBudget::new(256 + SYSTEM_BYTES).unwrap();
     let instance =
@@ -326,6 +332,7 @@ fn admitted_targets_use_the_actual_sixteen_bit_float_format_capacity() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn admitted_capture_counts_row_aligned_readback_and_preserves_actual_pixels() {
     let budget = AllocationBudget::new(256 + 8 * 256 + SYSTEM_BYTES).unwrap();
     let mut renderer = renderer(&budget);

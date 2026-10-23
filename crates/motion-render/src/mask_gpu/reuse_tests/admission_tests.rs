@@ -1,6 +1,7 @@
 use super::*;
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn feathered_mask_mesh_and_filter_uniforms_share_renderer_admission() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
     let budget = renderer.allocation_budget().clone();
@@ -64,6 +65,7 @@ fn assert_refusal(error: &RenderError, required: u64, limit: u64, phase: &str) {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn every_mask_uniform_refusal_preserves_partial_capacity_and_recovers_pixels() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
     let budget = renderer.allocation_budget();
@@ -111,6 +113,7 @@ fn every_mask_uniform_refusal_preserves_partial_capacity_and_recovers_pixels() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn refused_mask_mesh_replacement_keeps_identity_and_recovers_changed_pixels() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
     let budget = renderer.allocation_budget();
@@ -162,6 +165,7 @@ fn refused_mask_mesh_replacement_keeps_identity_and_recovers_changed_pixels() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn queued_mask_uniform_outlives_drop_without_renewal_by_later_encoders() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
     renderer.queue.submit([]);
@@ -188,6 +192,7 @@ fn queued_mask_uniform_outlives_drop_without_renewal_by_later_encoders() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn abandoned_mask_commands_keep_all_buffers_without_renewing_completed_scopes() {
     enum Work {
         Encoding { _encoder: crate::AllocationEncoder },

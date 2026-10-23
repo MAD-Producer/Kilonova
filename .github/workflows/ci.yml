@@ -101,7 +101,7 @@ jobs:
         run: cargo fetch --locked
       - name: Run Rust and software Vulkan tests
         # Desktop packages run in parallel in the native desktop job below.
-        run: cargo test --workspace --exclude motion-android --exclude motion-desktop --exclude motion-host --exclude motion-ui --exclude motion-desktop-media --locked -- --test-threads=1
+        run: cargo test --workspace --exclude motion-android --exclude motion-desktop --exclude motion-host --exclude motion-ui --exclude motion-desktop-media --locked --features motion-render/gpu-tests,motion-graph/gpu-tests -- --test-threads=1
       - name: Validate SDK packer with the Rust loader
         run: |
           cargo build --locked -p motion-effects --bin effect_tool
@@ -170,20 +170,20 @@ jobs:
           cache-on-failure: true
       - name: Verify Windows GPU output coverage
         if: runner.os == 'Windows'
-        run: cargo test -p motion-graph --test output_antialiasing --locked -- --test-threads=1
+        run: cargo test -p motion-graph --test output_antialiasing --locked --features gpu-tests -- --test-threads=1
       - name: Verify native memory pressure adapter queries
         run: >-
           cargo test -p motion-render --test memory_pressure
           ${{ runner.os == 'Windows' && 'actual_dxgi_adapter_query_is_bounded_and_does_not_modify_admission' ||
           runner.os == 'macOS' && 'actual_metal_device_query_is_bounded_and_does_not_modify_admission' ||
           'actual_vulkan_adapter_query_is_available_or_explicitly_unsupported' }}
-          --locked -- --exact --test-threads=1 --nocapture
+          --locked --features gpu-tests -- --exact --test-threads=1 --nocapture
       - name: Run desktop unit tests
         env:
           MOTION_SAMPLING_PLAYBACK_ARTIFACTS: ${{ github.workspace }}/artifacts/desktop/sampling-playback
           MOTION_FRAME_UI_ARTIFACTS: ${{ github.workspace }}/artifacts/desktop/frame-export
           MOTION_POINT_SELECTION_ARTIFACTS: ${{ github.workspace }}/artifacts/desktop/path-selection
-        run: cargo test -p motion-desktop -p motion-host -p motion-ui -p motion-desktop-media --locked --features motion-host/diagnostics,motion-ui/gpu-tests -- --test-threads=1
+        run: cargo test -p motion-desktop -p motion-host -p motion-ui -p motion-desktop-media --locked --features motion-host/diagnostics,motion-host/gpu-tests,motion-ui/gpu-tests,motion-desktop/gpu-tests,motion-desktop-media/gpu-tests -- --test-threads=1
       - name: Build the desktop shell
         run: python tools/build_desktop.py --task check
       - name: Restore pinned libclang wheel cache
@@ -229,7 +229,7 @@ jobs:
         run: python tools/build_desktop.py --task build --ffmpeg --target ${{ matrix.target }} --report artifacts/desktop/desktop-build.json
       - name: Verify packaged-runtime video decoding
         if: github.event_name != 'pull_request'
-        run: cargo test -p motion-desktop-media --locked --features ffmpeg --test libav -- --test-threads=1
+        run: cargo test -p motion-desktop-media --locked --features ffmpeg,gpu-tests --test libav -- --test-threads=1
       - name: Package desktop release archive
         if: github.event_name != 'pull_request'
         run: python tools/package_desktop.py --binary artifacts/desktop/${{ matrix.binary }} --platform ${{ matrix.platform }} --build-report artifacts/desktop/desktop-build.json --output artifacts/desktop-release
@@ -329,7 +329,7 @@ jobs:
       - name: Build with video import and decoding
         run: python tools/build_desktop.py --task check --ffmpeg
       - name: Test libav probing, seeks and YUV frames
-        run: cargo test -p motion-desktop-media --locked --features ffmpeg -- --test-threads=1
+        run: cargo test -p motion-desktop-media --locked --features ffmpeg,gpu-tests -- --test-threads=1
 
   publish:
     name: Publish desktop release

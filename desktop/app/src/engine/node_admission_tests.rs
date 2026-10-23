@@ -1,6 +1,7 @@
 use super::*;
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn node_admission_refusal_preserves_installed_graph_and_default_log_channels() {
     const CHILD: &str = "MOTION_NODE_ADMISSION_CHILD";
     const NAME:&str="engine::node_admission_tests::node_admission_refusal_preserves_installed_graph_and_default_log_channels";

@@ -13,6 +13,7 @@ mod retained_rasters;
 mod vector_textures;
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn cached_effect_bindings_keep_admitted_sources_until_the_bindings_are_invalidated() {
     let budget = crate::AllocationBudget::new(SYSTEM_BYTES + (1 << 20)).unwrap();
     let mut renderer =

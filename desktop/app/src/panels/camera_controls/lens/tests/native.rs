@@ -35,6 +35,7 @@ fn capture(shell: &mut Shell, path: PathBuf) {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn native_camera_lens_presets_render_in_both_languages_and_commit_to_the_fov_track() {
     const CHILD: &str = "MOTION_CAMERA_LENS_NATIVE_CHILD";
     if let Some(root) = std::env::var_os(CHILD) {

@@ -524,6 +524,7 @@ fn malformed_sampling_and_rejected_edits_reach_default_file_and_error_stderr_onl
 
 #[cfg(target_os = "windows")]
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn sampling_switches_use_native_main_and_floating_routes_with_bilingual_screens() {
     const CHILD: &str = "MOTION_TIMELINE_SAMPLING_CHILD";
     if std::env::var_os(CHILD).is_none() {

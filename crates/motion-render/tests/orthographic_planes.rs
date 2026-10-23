@@ -71,11 +71,13 @@ fn check(view: ObservationView, point: [usize; 2]) {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn top_view_parallel_rays_preserve_opaque_and_translucent_occlusion() {
     check(ObservationView::Top, [128, 218]);
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn side_view_parallel_rays_preserve_opaque_and_translucent_occlusion() {
     check(ObservationView::Side, [218, 128]);
 }

@@ -775,6 +775,7 @@ impl Display {
 mod tests {
     use super::*;
     #[test]
+    #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
     fn node_preview_respects_occupied_session_admission() {
         let budget = motion_render::AllocationBudget::default();
         let renderer = pollster::block_on(
@@ -823,6 +824,7 @@ mod tests {
         renderer.read_target(&target).unwrap()
     }
     #[test]
+    #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
     fn gpu_preview_obeys_live_time_parameters_alpha_and_pause_cache() {
         let renderer = pollster::block_on(motion_render::Renderer::headless()).unwrap();
         let context = GpuContext {
@@ -867,6 +869,7 @@ mod tests {
         );
     }
     #[test]
+    #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
     fn temporary_output_changes_gpu_pixels_and_restores_canonical_save_and_export() {
         let renderer = pollster::block_on(motion_render::Renderer::headless()).unwrap();
         let context = GpuContext {

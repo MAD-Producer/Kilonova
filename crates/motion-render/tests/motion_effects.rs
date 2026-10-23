@@ -75,6 +75,7 @@ fn close(a: &[u8], b: &[u8], tolerance: u8) -> bool {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn all_official_effects_render_bypass_and_survive_fractional_random_seeks() {
     let (mut p, mut r, t) = fixture();
     let reference = render(&mut p, &mut r, &t, 0.);
@@ -110,6 +111,7 @@ fn all_official_effects_render_bypass_and_survive_fractional_random_seeks() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn gradient_modes_points_grid_and_alpha_have_real_pixel_semantics() {
     let (mut p, mut r, t) = fixture();
     let mut outputs = Vec::new();
@@ -158,6 +160,7 @@ fn gradient_modes_points_grid_and_alpha_have_real_pixel_semantics() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn channel_radii_are_independent_and_focus_band_is_exact() {
     let (mut p, mut r, t) = fixture();
     let reference = render(&mut p, &mut r, &t, 0.);
@@ -193,6 +196,7 @@ fn channel_radii_are_independent_and_focus_band_is_exact() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn displacement_uses_hidden_effected_source_and_is_stack_order_independent() {
     let (mut p, mut r, t) = fixture();
     let mut src = Layer::solid(
@@ -252,6 +256,7 @@ fn displacement_uses_hidden_effected_source_and_is_stack_order_independent() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn shared_font_atlas_is_a_persisted_effect_resource_and_dissolve_has_exact_endpoints() {
     let (mut p, mut r, t) = fixture();
     let root = tempfile::tempdir().unwrap();

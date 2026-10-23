@@ -94,6 +94,7 @@ fn pixels(r: &Renderer, targets: &PreviewFrameTargets) -> Vec<u8> {
     r.read_target(&output).unwrap()
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn failed_candidate_preserves_front_pixels_then_lower_resolution_commits_and_reuses_two_targets() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     renderer.set_preview_resource_guard(true);

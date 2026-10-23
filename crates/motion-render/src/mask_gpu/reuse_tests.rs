@@ -108,6 +108,7 @@ fn read(renderer: &Renderer, texture: &wgpu::Texture) -> Vec<u8> {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn animated_feathered_masks_reuse_actual_bindings_with_stable_memory_and_pixels() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
     let layout = layout(&renderer.device);
@@ -198,6 +199,7 @@ fn filled(renderer: &Renderer, value: u8) -> wgpu::Texture {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn input_and_source_view_identity_control_rebinding_but_target_and_pipeline_do_not() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
     let layout = layout(&renderer.device);
@@ -261,6 +263,7 @@ fn input_and_source_view_identity_control_rebinding_but_target_and_pipeline_do_n
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn resize_slot_shrink_and_empty_masks_release_cached_views_and_recover() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
     let layout = layout(&renderer.device);

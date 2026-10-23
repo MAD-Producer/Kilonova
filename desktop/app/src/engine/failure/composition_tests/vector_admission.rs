@@ -1,6 +1,7 @@
 use super::*;
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn vector_refusal_preserves_cause_and_reaches_default_file_and_stderr() {
     const CHILD: &str = "MOTION_VECTOR_ADMISSION_LOG_CHILD";
     const NAME: &str = "engine::failure::composition_tests::vector_admission::vector_refusal_preserves_cause_and_reaches_default_file_and_stderr";

@@ -4,6 +4,7 @@ use motion_host::Session;
 use motion_render::resource_policy::MemoryPolicy;
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn frozen_png_keeps_full_resolution_with_the_minimum_preview_allowance() {
     let directory = tempfile::tempdir().unwrap();
     let root = directory.path().join("project");

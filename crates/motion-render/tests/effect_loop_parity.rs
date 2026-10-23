@@ -3,6 +3,7 @@ use motion_render::Scene;
 use motion_render::Renderer;
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn narrowed_sample_loops_match_published_pixels_including_sparse_and_fractional_taps() {
     let latest = motion_effects::builtin::package().unwrap();
     let previous = motion_effects::builtin::packages()

@@ -92,6 +92,14 @@ pub enum Error {
         #[source]
         source: Box<Error>,
     },
+    #[error("audio timeline composition={composition} object={object} phase={phase} cause={source}")]
+    AudioTimeline {
+        composition: String,
+        object: u64,
+        phase: &'static str,
+        #[source]
+        source: Box<Error>,
+    },
     #[error("object {0} does not exist")]
     Missing(u64),
     #[error("object {0} is locked")]

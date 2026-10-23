@@ -6,6 +6,7 @@ use motion_render::{AllocationBudget, Renderer, ResourceBudgetScope, ResourceRej
 const FIXED_BYTES: u64 = 128 * 256 + 65_536 * 20 + 3 * 24 + 2 * 4 + 256 * 4;
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn fixed_resources_are_admitted_and_retire_after_renderer_teardown() {
     let budget = AllocationBudget::new(8 << 20).unwrap();
     let renderer =
@@ -24,6 +25,7 @@ fn fixed_resources_are_admitted_and_retire_after_renderer_teardown() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn each_fixed_resource_refuses_before_upload_and_rolls_back_partial_startup() {
     for (required, context) in [
         (4, "image key=Static(0) size=1x1 phase=allocate"),
@@ -48,6 +50,7 @@ fn each_fixed_resource_refuses_before_upload_and_rolls_back_partial_startup() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn abandoned_commands_keep_all_fixed_resources_after_renderer_and_gpu_completion() {
     for finished in [false, true] {
         let budget = AllocationBudget::new(FIXED_BYTES).unwrap();

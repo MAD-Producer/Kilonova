@@ -54,6 +54,7 @@ fn pixel(p: &[u8], x: usize, y: usize) -> &[u8] {
     &p[(y * 64 + x) * 4..(y * 64 + x) * 4 + 4]
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn trim_and_dashes_change_pixels_without_mutating_paths_or_reusing_old_frames() {
     use motion_core::{
         vector::{LineCap, StrokeDashes, TrimPaths},
@@ -109,6 +110,7 @@ fn trim_and_dashes_change_pixels_without_mutating_paths_or_reusing_old_frames() 
     );
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn vector_holes_open_paths_stroke_and_cache_render() {
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
     let mut p = base();
@@ -139,6 +141,7 @@ fn vector_holes_open_paths_stroke_and_cache_render() {
     }
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn adjustment_changes_lower_composite_and_keeps_upper_and_background() {
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
     let mut p = base();
@@ -175,6 +178,7 @@ fn adjustment_changes_lower_composite_and_keeps_upper_and_background() {
     assert!(pixel(&half, 20, 32)[0] > lower[0] && pixel(&half, 20, 32)[0] < pixel(&off, 20, 32)[0]);
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn adjustment_blur_spreads_beyond_each_lower_layer_and_obeys_mask() {
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
     let mut p = base();
@@ -235,6 +239,7 @@ fn versioned_plan_contains_vector_sources_and_adjustment_boundary() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn color_effect_keeps_expanded_vector_source_and_original_anchor_in_place() {
     let mut p = base();
     let mut l = Layer::solid(1, "expanded line", [20.; 2], [32., 32., 0.], [1.; 4]);
@@ -262,6 +267,7 @@ fn color_effect_keeps_expanded_vector_source_and_original_anchor_in_place() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn stacked_adjustments_preserve_alpha_parented_mask_and_crossing_three_d_layers() {
     let mut p = base();
     for (id, color, angle) in [(1, [1., 0., 0., 0.5], 25.), (2, [0., 1., 0., 0.4], -25.)] {
@@ -345,6 +351,7 @@ fn stacked_adjustments_preserve_alpha_parented_mask_and_crossing_three_d_layers(
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn animated_geometry_fill_and_stroke_are_seek_independent_and_release_sources() {
     let mut p = base();
     let mut l = Layer::solid(1, "animated vector", [24.; 2], [32., 32., 0.], [1.; 4]);

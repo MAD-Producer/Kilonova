@@ -41,6 +41,7 @@ fn reference(p: [f64; 2], seed: u32, mode: NoiseMode) -> f64 {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn noise_modes_and_four_octaves_match_independent_cpu_pixels() {
     let dir = tempfile::tempdir().unwrap();
     for mode in [NoiseMode::Value, NoiseMode::Perlin] {
@@ -81,6 +82,7 @@ fn noise_modes_and_four_octaves_match_independent_cpu_pixels() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn noise_seed_flooring_recovery_bounds_and_determinism_hold_on_gpu() {
     let dir = tempfile::tempdir().unwrap();
     let sequence = std::cell::Cell::new(0usize);

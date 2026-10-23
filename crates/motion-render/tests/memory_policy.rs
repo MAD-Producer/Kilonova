@@ -73,6 +73,7 @@ fn invalid_policy_is_atomic_and_mask_planning_uses_the_configured_budget() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn lowering_budget_rechecks_resident_images_and_does_not_overwrite_the_target() {
     let directory = tempfile::tempdir().unwrap();
     std::fs::create_dir(directory.path().join("assets")).unwrap();
@@ -129,6 +130,7 @@ fn lowering_budget_rechecks_resident_images_and_does_not_overwrite_the_target() 
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn configured_limits_apply_to_uploads_with_budget_details() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     renderer.set_memory_policy(policy(16)).unwrap();

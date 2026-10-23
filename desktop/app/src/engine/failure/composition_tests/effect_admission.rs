@@ -1,6 +1,7 @@
 use super::*;
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn effect_parameter_refusal_reaches_original_reply_file_and_stderr_at_default_level() {
     const CHILD: &str = "MOTION_EFFECT_PARAMETER_ADMISSION_LOG_CHILD";
     const NAME: &str = "engine::failure::composition_tests::effect_admission::effect_parameter_refusal_reaches_original_reply_file_and_stderr_at_default_level";

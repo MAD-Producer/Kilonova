@@ -195,6 +195,7 @@ fn cancelling_original_input_preserves_actual_queued_storage_until_its_owner_is_
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn actual_editor_and_original_image_tasks_count_independently_then_transfer_to_cache_and_gpu() {
     let (root, mut session) = fixture();
     let budget = session.allocation_budget().clone();

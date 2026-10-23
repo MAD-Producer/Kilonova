@@ -32,6 +32,7 @@ fn alpha(pixels: &[u8], x: usize, y: usize) -> u8 {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn track_matte_modes_use_source_coverage_and_do_not_composite_hidden_source() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     for (mode, center, outer) in [
@@ -56,6 +57,7 @@ fn track_matte_modes_use_source_coverage_and_do_not_composite_hidden_source() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn matte_source_out_of_range_is_zero_coverage_and_random_seek_is_deterministic() {
     let mut p = fixture(MatteMode::Alpha);
     p.layers[0].timeline = Some(LayerTimeline {
@@ -73,6 +75,7 @@ fn matte_source_out_of_range_is_zero_coverage_and_random_seek_is_deterministic()
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn multiply_and_screen_use_straight_colors_then_source_over_alpha() {
     let mut p = Project::new(64, 64, 24, 120).unwrap();
     p.background = [0.; 4];
@@ -106,6 +109,7 @@ fn multiply_and_screen_use_straight_colors_then_source_over_alpha() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn matte_uses_effected_pixels_and_authored_opacity_in_a_letterboxed_view() {
     let mut p = fixture(MatteMode::Luma);
     let package = motion_effects::builtin::package().unwrap();
@@ -145,6 +149,7 @@ fn matte_uses_effected_pixels_and_authored_opacity_in_a_letterboxed_view() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn two_matte_levels_multiply_coverage_before_the_target_is_composited() {
     let mut p = fixture(MatteMode::Alpha);
     p.layers.push(Layer::solid(
@@ -167,6 +172,7 @@ fn two_matte_levels_multiply_coverage_before_the_target_is_composited() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn rotated_three_d_matte_uses_the_same_camera_projection_as_the_target() {
     let mut p=fixture(MatteMode::Alpha);
     p.camera.created=true;
@@ -180,6 +186,7 @@ fn rotated_three_d_matte_uses_the_same_camera_projection_as_the_target() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn normal_blend_and_matte_switches_reuse_pipelines_and_release_working_textures() {
     let mut plain = fixture(MatteMode::Alpha);
     plain.layers[0].visible = true;

@@ -248,6 +248,11 @@ class WorkflowPolicyTest(unittest.TestCase):
         native_features = native_args[native_args.index("--features") + 1].split(",")
         self.assertIn("motion-host/diagnostics", native_features)
         self.assertIn("motion-ui/gpu-tests", native_features)
+        manifests = [tomllib.loads((ROOT / member / "Cargo.toml").read_text(encoding="utf-8")) for member in workspace["members"]]
+        gpu_packages = {manifest["package"]["name"] for manifest in manifests if "gpu-tests" in manifest.get("features", {})}
+        core_features = set(core_args[core_args.index("--features") + 1].split(","))
+        self.assertLessEqual({f"{package}/gpu-tests" for package in gpu_packages - excluded}, core_features)
+        self.assertLessEqual({f"{package}/gpu-tests" for package in gpu_packages & native}, set(native_features))
         for args in [core_args, native_args]:
             self.assertIn("--locked", args)
             self.assertIn("--test-threads=1", args)
@@ -255,6 +260,22 @@ class WorkflowPolicyTest(unittest.TestCase):
         text = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
         for legacy in ("setup-java", "gradle/actions", "android-emulator-runner", "sdkmanager", "KEYSTORE", "motion-android/diagnostics", "tools/build_android.py", "tools/ci_android_ui.py", "tools/generate_editor_icons.py"):
             self.assertNotIn(legacy, text)
+
+    def test_cpu_only_feature_is_not_reenabled_by_internal_dependencies(self):
+        workspace = tomllib.loads((ROOT / "Cargo.toml").read_text(encoding="utf-8"))["workspace"]
+        manifests = [tomllib.loads((ROOT / member / "Cargo.toml").read_text(encoding="utf-8")) for member in workspace["members"]]
+        gpu_packages = {manifest["package"]["name"] for manifest in manifests if "gpu-tests" in manifest.get("features", {})}
+        self.assertTrue(gpu_packages)
+        for manifest in manifests:
+            name = manifest["package"]["name"]
+            if name in gpu_packages:
+                self.assertIn("gpu-tests", manifest["features"]["default"], name)
+            scopes = [manifest, *manifest.get("target", {}).values()]
+            for scope in scopes:
+                for kind in ("dependencies", "dev-dependencies", "build-dependencies"):
+                    for dependency, options in scope.get(kind, {}).items():
+                        if dependency in gpu_packages:
+                            self.assertIs(options.get("default-features"), False, f"{name}: {kind}.{dependency}")
 
     def test_prs_run_three_native_platforms_without_release_steps(self):
         desktop = self.workflow["jobs"]["desktop"]

@@ -2,6 +2,7 @@ use motion_core::{Layer, Project};
 use motion_render::Scene;
 use motion_render::{GpuTimer, Presenter, Renderer};
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn full_resolution_composition_fits_the_surface_and_yields_real_pass_timings() {
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
     let mut r = pollster::block_on(Renderer::new_profiled(

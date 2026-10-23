@@ -27,6 +27,7 @@ fn render_cause(error: &dyn Any) -> &RenderError {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn decoded_upload_and_encoder_keep_real_allocation_refusals() {
     let budget = AllocationBudget::new(motion_render::DEFAULT_RENDER_ALLOCATION_BUDGET).unwrap();
     let mut renderer =
@@ -54,6 +55,7 @@ fn decoded_upload_and_encoder_keep_real_allocation_refusals() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn prepared_upload_preserves_the_required_neighbor_refusal() {
     let budget = AllocationBudget::new(motion_render::DEFAULT_RENDER_ALLOCATION_BUDGET).unwrap();
     let mut renderer =

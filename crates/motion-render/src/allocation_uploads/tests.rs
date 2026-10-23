@@ -22,6 +22,7 @@ impl log::Log for Capture {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn poisoned_upload_retirement_preserves_known_leases_and_logs_once_after_unlock() {
     const CHILD: &str = "MOTION_TEST_UPLOAD_RESERVATION_POISON";
     const TEST: &str = "allocation_uploads::tests::poisoned_upload_retirement_preserves_known_leases_and_logs_once_after_unlock";

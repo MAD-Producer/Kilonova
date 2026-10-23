@@ -4,6 +4,7 @@ use motion_core::{Asset, Command, Content, Engine, Error, Layer, Project, Proper
 use motion_render::{image_resources::Resolution, Renderer, Scene};
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn resource_resolution_failure_keeps_gpu_pixels_history_and_gesture() {
     let root = tempfile::tempdir().unwrap();
     std::fs::create_dir(root.path().join("assets")).unwrap();

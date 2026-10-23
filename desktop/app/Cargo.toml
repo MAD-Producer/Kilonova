@@ -10,21 +10,23 @@ name = "motion-studio"
 path = "src/main.rs"
 
 [features]
-default = []
+default = ["gpu-tests"]
+# Test selection only; product rendering is always compiled.
+gpu-tests = []
 ffmpeg = ["motion-desktop-media/ffmpeg"]
 
 [dependencies]
 log.workspace = true
-motion-graph = { path = "../../crates/motion-graph" }
+motion-graph = { path = "../../crates/motion-graph", default-features = false }
 motion-effects = { path = "../../crates/motion-effects" }
 bytemuck.workspace = true
 glam.workspace = true
-motion-host = { path = "../../crates/motion-host" }
+motion-host = { path = "../../crates/motion-host", default-features = false }
 motion-core = { path = "../../crates/motion-core" }
-motion-render = { path = "../../crates/motion-render" }
+motion-render = { path = "../../crates/motion-render", default-features = false }
 motion-media = { path = "../../crates/motion-media" }
-motion-desktop-media = { path = "../../crates/motion-desktop-media" }
-motion-ui = { path = "../ui" }
+motion-desktop-media = { path = "../../crates/motion-desktop-media", default-features = false }
+motion-ui = { path = "../ui", default-features = false }
 serde.workspace = true
 serde_json.workspace = true
 wgpu.workspace = true

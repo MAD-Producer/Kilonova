@@ -251,6 +251,7 @@ fn effect_application_does_not_report_unrelated_additions_from_a_stale_ui_snapsh
 
 #[cfg(target_os = "windows")]
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn effect_search_native_pixels_and_default_failure_sinks() {
     const CHILD: &str = "MOTION_EFFECT_SEARCH_NATIVE_CHILD";
     const TEST: &str =

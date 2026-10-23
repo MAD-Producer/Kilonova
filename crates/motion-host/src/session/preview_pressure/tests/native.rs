@@ -21,6 +21,7 @@ fn front(graphics: &Graphics) -> Vec<u8> {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn actual_session_evicts_idle_before_downsampling_and_preserves_front_project_and_full_capture() {
     const NAME: &str = "session::preview_pressure::tests::native::actual_session_evicts_idle_before_downsampling_and_preserves_front_project_and_full_capture";
     const CHILD: &str = "MOTION_NATIVE_PREVIEW_PRESSURE_CHILD";

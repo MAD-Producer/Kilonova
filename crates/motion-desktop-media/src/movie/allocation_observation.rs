@@ -68,6 +68,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
     fn result_cancellation_and_unwind_preserve_the_original_operation() {
         let budget =
             AllocationBudget::new(motion_render::FIXED_RENDERER_ALLOCATION_BYTES + 64).unwrap();
@@ -130,6 +131,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
     fn missing_or_invalid_observation_preserves_primary_failure_and_native_admission() {
         let budget =
             AllocationBudget::new(motion_render::FIXED_RENDERER_ALLOCATION_BYTES + 64).unwrap();

@@ -28,6 +28,7 @@ fn source(renderer: &mut Renderer) -> crate::RenderTarget {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn native_presenter_refuses_second_uniform_atomically_then_admits_exact_capacity() {
     fn is_send<T: Send>() {}
     is_send::<Presenter>();
@@ -66,6 +67,7 @@ fn native_presenter_refuses_second_uniform_atomically_then_admits_exact_capacity
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn actual_navigation_pixels_and_dropped_presenter_share_real_frame_retirement() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let source = source(&mut renderer);
@@ -145,6 +147,7 @@ fn actual_navigation_pixels_and_dropped_presenter_share_real_frame_retirement() 
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn unsubmitted_navigation_write_outlives_presenter_without_a_command_scope() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let source = source(&mut renderer);

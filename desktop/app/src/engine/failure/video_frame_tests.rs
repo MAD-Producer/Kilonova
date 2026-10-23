@@ -3,6 +3,7 @@ use motion_host::video_frame::{DecodedFrame, VideoPixels};
 use motion_render::{AllocationBudget, ChromaLayout, RenderError, Renderer, Yuv420Frame};
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn video_frame_refusals_keep_native_causes_and_default_output_channels() {
     const CHILD: &str = "MOTION_VIDEO_FRAME_LOG_CHILD";
     const NAME: &str = "engine::failure::video_frame_tests::video_frame_refusals_keep_native_causes_and_default_output_channels";

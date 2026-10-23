@@ -8,6 +8,7 @@ fn sampled(project: &Project) -> (Scene, Vec<MaskRaster>) {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn native_mask_output_and_scratch_join_shared_admission_and_release_exactly() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
     let budget = renderer.allocation_budget();
@@ -44,6 +45,7 @@ fn native_mask_output_and_scratch_join_shared_admission_and_release_exactly() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn every_native_mask_texture_cut_point_preserves_old_targets_bindings_bytes_and_pixels() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
     let budget = renderer.allocation_budget();
@@ -111,6 +113,7 @@ fn every_native_mask_texture_cut_point_preserves_old_targets_bindings_bytes_and_
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn mask_cached_input_binding_keeps_native_source_admission_and_renders_after_cache_clear() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
     let budget = renderer.allocation_budget();
@@ -158,6 +161,7 @@ fn mask_cached_input_binding_keeps_native_source_admission_and_renders_after_cac
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn mask_texture_and_buffer_commands_retain_capacity_until_their_own_retirement() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
     let budget = renderer.allocation_budget();
@@ -200,6 +204,7 @@ fn mask_texture_and_buffer_commands_retain_capacity_until_their_own_retirement()
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn two_renderers_share_mask_texture_capacity_and_partial_refusal_rolls_back() {
     let budget = crate::AllocationBudget::new(16 << 20).unwrap();
     let first = pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();

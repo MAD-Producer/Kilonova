@@ -4,6 +4,12 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[features]
+# GPU acceptance remains mandatory by default. An explicit CPU-only test run
+# may ignore individual tests that declare this requirement.
+default = ["gpu-tests"]
+gpu-tests = []
+
 [dependencies]
 log.workspace = true
 serde.workspace = true

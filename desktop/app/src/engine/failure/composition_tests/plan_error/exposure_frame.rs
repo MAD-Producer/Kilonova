@@ -55,6 +55,7 @@ fn task(
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn actual_exposure_io_and_terminal_replay_reach_default_reply_channels_then_new_task_recovers() {
     const CHILD: &str = "MOTION_EXPOSURE_NATIVE_ERROR_CHILD";
     const NAME: &str = "engine::failure::composition_tests::plan_error::exposure_frame::actual_exposure_io_and_terminal_replay_reach_default_reply_channels_then_new_task_recovers";

@@ -58,6 +58,7 @@ fn set(effect: &mut EffectInstance, id: &str, value: [f32; 4]) {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn all_creative_effects_render_and_neutral_controls_preserve_the_input() {
     let (mut project, pixels) = fixture();
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
@@ -121,6 +122,7 @@ fn all_creative_effects_render_and_neutral_controls_preserve_the_input() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn seeded_time_effects_are_independent_of_seek_order_and_follow_layer_local_time() {
     let (mut project, pixels) = fixture();
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
@@ -170,6 +172,7 @@ fn seeded_time_effects_are_independent_of_seek_order_and_follow_layer_local_time
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn glow_extends_alpha_without_moving_the_layer_and_chroma_preserves_empty_pixels() {
     let mut project = Project::new(SIZE, SIZE, 30, 120).unwrap();
     project.background = [0.0; 4];

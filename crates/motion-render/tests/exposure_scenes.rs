@@ -628,6 +628,7 @@ fn moving_project() -> Project {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn actual_sampled_project_layers_reach_gpu_and_keep_the_unblurred_moving_reference_sharp() {
     let p = Arc::new(moving_project());
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();

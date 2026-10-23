@@ -103,6 +103,7 @@ fn reference(renderer: &mut Renderer, scene: &Scene, width: u32, height: u32) ->
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn owned_images_survive_other_receivers_and_normal_renders_with_authored_opacity_and_order() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     renderer.set_effect_registry(scene_fixtures::registry().unwrap());
@@ -156,6 +157,7 @@ fn owned_images_survive_other_receivers_and_normal_renders_with_authored_opacity
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn effect_padding_masks_and_effect_stage_image_inputs_match_the_original_renderer() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     renderer.set_effect_registry(scene_fixtures::registry().unwrap());
@@ -205,6 +207,7 @@ fn effect_padding_masks_and_effect_stage_image_inputs_match_the_original_rendere
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn retained_matte_modes_chains_and_letterboxing_survive_cache_reuse() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     renderer.set_effect_registry(scene_fixtures::registry().unwrap());
@@ -285,6 +288,7 @@ fn retained_matte_modes_chains_and_letterboxing_survive_cache_reuse() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn blend_modes_and_scene_generator_keep_their_compositing_contract() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     renderer.set_effect_registry(scene_fixtures::registry().unwrap());
@@ -328,6 +332,7 @@ fn blend_modes_and_scene_generator_keep_their_compositing_contract() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn image_and_continuous_vector_keep_source_pixels_and_local_raster_size() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     renderer.set_effect_registry(scene_fixtures::registry().unwrap());
@@ -369,6 +374,7 @@ fn image_and_continuous_vector_keep_source_pixels_and_local_raster_size() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn shared_temporal_budget_drop_and_refusals_preserve_existing_images() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     renderer.set_effect_registry(scene_fixtures::registry().unwrap());
@@ -488,6 +494,7 @@ fn shared_temporal_budget_drop_and_refusals_preserve_existing_images() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn receiver_clock_materializes_real_effects_before_phase_accumulation_and_keeps_other_layers_sharp()
 {
     use motion_core::{
@@ -617,6 +624,7 @@ fn receiver_clock_materializes_real_effects_before_phase_accumulation_and_keeps_
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn bgra_nested_and_intersecting_receiver_projections_match_existing_pixels() {
     let instance =
         wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
@@ -677,6 +685,7 @@ fn bgra_nested_and_intersecting_receiver_projections_match_existing_pixels() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn unsubmitted_video_is_rejected_and_rasters_keep_completed_pixels_after_upload_reuse() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     renderer.set_effect_registry(scene_fixtures::registry().unwrap());
@@ -749,6 +758,7 @@ fn unsubmitted_video_is_rejected_and_rasters_keep_completed_pixels_after_upload_
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn failed_effect_is_not_bypassed_in_preview_or_formal_materialization_and_valid_context_recovers() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     renderer.set_effect_registry(scene_fixtures::registry().unwrap());
@@ -785,6 +795,7 @@ fn failed_effect_is_not_bypassed_in_preview_or_formal_materialization_and_valid_
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn retained_phase_submission_records_both_local_input_and_exposure_output_capacity() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     renderer.set_effect_registry(scene_fixtures::registry().unwrap());
@@ -821,6 +832,7 @@ fn retained_phase_submission_records_both_local_input_and_exposure_output_capaci
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn blend_capacity_is_checked_before_allocation_and_original_rasters_recover() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     renderer.set_effect_registry(scene_fixtures::registry().unwrap());

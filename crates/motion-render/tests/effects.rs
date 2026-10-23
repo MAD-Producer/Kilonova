@@ -26,6 +26,7 @@ fn fixture() -> Project {
     p
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn gpu_chain_preserves_alpha_changes_order_and_bypasses_missing_plugins() {
     let mut p = fixture();
     p.layers[0].effects.push(instance("tint", 1));
@@ -96,6 +97,7 @@ fn strict_plan_checks_hidden_layers_and_binary_buffer_bounds() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn effect_outputs_preserve_crossing_plane_batches_in_both_stack_orders() {
     let mut p = Project::new(256, 256, 30, 60).unwrap();
     p.background = [0.0, 0.0, 0.0, 1.0];

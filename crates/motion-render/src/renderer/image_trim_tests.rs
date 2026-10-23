@@ -17,6 +17,7 @@ fn measured(renderer: &Renderer) -> u64 {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn image_trim_preserves_lru_ties_active_and_replacement_protection() {
     let mut renderer = renderer();
     for id in 1..=4 {
@@ -49,6 +50,7 @@ fn image_trim_preserves_lru_ties_active_and_replacement_protection() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn repeated_pressure_reuses_one_eviction_allocation_and_healthy_trims_leave_it_idle() {
     let mut renderer = renderer();
     renderer.image_active.insert(1);
@@ -100,6 +102,7 @@ fn repeated_pressure_reuses_one_eviction_allocation_and_healthy_trims_leave_it_i
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn oversized_eviction_storage_is_not_retained_and_clear_releases_small_storage() {
     let mut renderer = renderer();
     for id in 1..=MAX_IMAGE_TRIM_CANDIDATES as u64 + 1 {
