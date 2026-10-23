@@ -1,5 +1,42 @@
 //! Connection hit geometry and non-mutating feedback share the painted Bezier.
 use super::*;
+use std::collections::HashMap;
+
+// Borrow geometry from this pass so moved/collapsed nodes cannot leave stale
+// endpoints behind. Direction is part of the key: input/output names may match.
+pub(super) struct SocketIndex<'a> {
+    sockets: HashMap<(&'a str, &'a str, bool), &'a Socket>,
+}
+
+impl<'a> SocketIndex<'a> {
+    pub(super) fn new(cards: &'a [Card]) -> Self {
+        let mut sockets = HashMap::with_capacity(cards.iter().map(|card| card.sockets.len()).sum());
+        for socket in cards.iter().flat_map(|card| &card.sockets) {
+            // Match the previous linear search even for malformed duplicate IDs.
+            sockets
+                .entry((
+                    socket.port.node.as_str(),
+                    socket.port.port.as_str(),
+                    socket.output,
+                ))
+                .or_insert(socket);
+        }
+        Self { sockets }
+    }
+
+    pub(super) fn find(&self, port: &PortRef, output: bool) -> Option<&'a Socket> {
+        self.sockets
+            .get(&(port.node.as_str(), port.port.as_str(), output))
+            .copied()
+    }
+
+    fn curve(&self, edge: &Connection) -> Vec<[f32; 2]> {
+        self.find(&edge.from, true)
+            .zip(self.find(&edge.to, false))
+            .map(|(a, b)| curve(a.point, b.point))
+            .unwrap_or_default()
+    }
+}
 
 // Preserve the painted socket geometry and the old 9px hover area. Picking
 // never becomes smaller than either that area or the visible outer diamond.
@@ -66,17 +103,9 @@ impl<'a> WireOffer<'a> {
     }
 }
 
+#[cfg(test)]
 pub(super) fn wire_curve(cards: &[Card], edge: &Connection) -> Vec<[f32; 2]> {
-    let find = |port: &PortRef, output| {
-        cards
-            .iter()
-            .flat_map(|c| &c.sockets)
-            .find(|s| s.output == output && &s.port == port)
-    };
-    find(&edge.from, true)
-        .zip(find(&edge.to, false))
-        .map(|(a, b)| curve(a.point, b.point))
-        .unwrap_or_default()
+    SocketIndex::new(cards).curve(edge)
 }
 
 pub(super) fn clip_segment(a: [f32; 2], b: [f32; 2], area: Rect) -> Option<([f32; 2], [f32; 2])> {
@@ -337,12 +366,16 @@ impl NodeEditor {
     }
 
     pub(super) fn wire_at(&self, cards: &[Card], canvas: Rect, point: [f32; 2]) -> Option<PortRef> {
+        if self.document.connections.is_empty() {
+            return None;
+        }
+        let sockets = SocketIndex::new(cards);
         self.document
             .connections
             .iter()
             .rev()
             .find(|edge| {
-                wire_curve(cards, edge).windows(2).any(|p| {
+                sockets.curve(edge).windows(2).any(|p| {
                     clip_segment(p[0], p[1], canvas)
                         .is_some_and(|(a, b)| distance_segment(point, a, b) <= 6.)
                 })
@@ -360,8 +393,12 @@ impl NodeEditor {
         let Some((a, b)) = clip_segment(a, b, canvas) else {
             return;
         };
+        if self.document.connections.is_empty() {
+            return;
+        }
+        let sockets = SocketIndex::new(cards);
         for edge in &self.document.connections {
-            if wire_curve(cards, edge).windows(2).any(|p| {
+            if sockets.curve(edge).windows(2).any(|p| {
                 clip_segment(p[0], p[1], canvas).is_some_and(|(c, d)| near_segments(a, b, c, d, 3.))
             }) {
                 hits.insert(edge.to.clone());
@@ -378,3 +415,6 @@ impl NodeEditor {
         self.wire_offer(cards, canvas, point)?.feedback()
     }
 }
+
+#[cfg(test)]
+mod socket_index_tests;
