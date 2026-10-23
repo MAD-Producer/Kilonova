@@ -284,7 +284,8 @@ impl Span {
             .mapped
             .slice(..)
             .map_async(wgpu::MapMode::Read, move |result| {
-                readback.map_result(result.is_ok());
+                let mapped_successfully = result.is_ok();
+                readback.map_result(mapped_successfully);
                 let (words, cause) = match result {
                     Ok(()) => match slot.mapped.slice(..).get_mapped_range() {
                         Ok(bytes) => {
@@ -295,7 +296,12 @@ impl Span {
                     },
                     Err(error) => (None, Some(error.to_string())),
                 };
-                slot.mapped.unmap();
+                // A cancelled/failed request is already unmapped. Calling
+                // unmap again creates a new validation fault and masks the
+                // original callback cause. Only successful mappings need it.
+                if mapped_successfully {
+                    slot.mapped.unmap();
+                }
                 let valid = cause.is_none() && words.is_some_and(|words| words[1] > words[0]);
                 readback.sample(valid);
                 if let Some(ticket) = ticket {
