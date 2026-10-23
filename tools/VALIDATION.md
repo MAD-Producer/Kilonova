@@ -81,3 +81,16 @@ a passed GPU check. Exit zero means the available measurements pass; it does
 not establish complete physical-device acceptance. The summary retains
 `fullA12AcceptanceComplete: false` and its other missing gates. Supply
 `--seconds` when rechecking a capture shorter than the default ten minutes.
+
+## Desktop native GPU latency archive
+
+`collect_desktop_performance.py` is an explicit manual study, separate from the
+PR test matrix. It builds the Release `performance_baseline` example and keeps
+six fixed projects, raw cold/warm/steady frames, actual adapter/driver metadata,
+original failures and source/binary/artifact hashes. Run `--validate-only` to
+check an existing archive without running a GPU. Its archive/failure regressions
+are discovered by `test_ci_desktop_performance.py`.
+
+See [scope and pending native acceptance](../engineering/validation/desktop-performance-baseline.md).
+This headless, synchronized latency study does not measure window playback,
+physical display deadlines, file decoding or Android device performance.
