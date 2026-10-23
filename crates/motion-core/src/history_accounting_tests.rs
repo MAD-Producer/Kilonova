@@ -99,7 +99,7 @@ fn rename(name: &str) -> Command {
 
 #[test]
 fn history_accounting_matches_json_through_payload_changes_and_undo_redo() {
-    let mut engine = Engine::new(Project::demo()).unwrap();
+    let mut engine = Engine::new(Project::demo().unwrap()).unwrap();
     assert_exact(&engine);
     for command in [
         rename("中\n\"quoted\"\\name"),
@@ -172,7 +172,7 @@ fn history_accounting_matches_json_through_payload_changes_and_undo_redo() {
 
 #[test]
 fn history_accounting_optional_metadata_counts_json_not_external_media_payloads() {
-    let mut project = Project::demo();
+    let mut project = Project::demo().unwrap();
     project.fonts.push(crate::FontAsset {
         id: "test-font".into(),
         path: "assets/fonts/test.ttf".into(),
@@ -246,7 +246,7 @@ fn history_accounting_serialization_failure_keeps_the_fail_closed_size() {
 
 #[test]
 fn history_accounting_exact_budget_boundary_and_128_entry_limit_are_unchanged() {
-    let project = Project::demo();
+    let project = Project::demo().unwrap();
     let initial = exact(&project);
     for (budget, depth) in [(initial - 1, 0), (initial, 1), (initial + 1, 1)] {
         let mut engine = Engine::new(project.clone()).unwrap();
@@ -276,7 +276,7 @@ fn history_accounting_exact_budget_boundary_and_128_entry_limit_are_unchanged() 
 
 #[test]
 fn history_accounting_budget_eviction_matches_the_previous_json_policy() {
-    let mut engine = Engine::new(Project::demo()).unwrap();
+    let mut engine = Engine::new(Project::demo().unwrap()).unwrap();
     engine.history_budget = exact(&engine.project) * 4;
     let mut expected = VecDeque::new();
     for index in 0..160 {
@@ -307,7 +307,7 @@ fn history_accounting_budget_eviction_matches_the_previous_json_policy() {
 
 #[test]
 fn history_accounting_gestures_defer_counting_and_cancel_reuses_the_baseline() {
-    let mut engine = Engine::new(Project::demo()).unwrap();
+    let mut engine = Engine::new(Project::demo().unwrap()).unwrap();
     let baseline = engine.project.clone();
     engine.begin_gesture().unwrap();
     reset_serialized_bytes();
@@ -345,7 +345,7 @@ fn history_accounting_gestures_defer_counting_and_cancel_reuses_the_baseline() {
 
 #[test]
 fn history_accounting_failed_batch_prepare_and_save_preserve_the_cache() {
-    let mut engine = Engine::new(Project::demo()).unwrap();
+    let mut engine = Engine::new(Project::demo().unwrap()).unwrap();
     let original = engine.project.clone();
     reset_serialized_bytes();
     assert!(engine
@@ -372,7 +372,7 @@ fn history_accounting_failed_batch_prepare_and_save_preserve_the_cache() {
 
 #[test]
 fn history_accounting_composition_routing_and_activation_keep_exact_payload_sizes() {
-    let mut project = Project::demo();
+    let mut project = Project::demo().unwrap();
     project.version = motion_model::CURRENT_PROJECT_VERSION;
     project.compositions.push(crate::Composition {
         id: "comp-child".into(),
@@ -525,7 +525,7 @@ fn history_accounting_large_document_measurement() {
 
 #[test]
 fn history_evictions_count_real_unavailable_undo_entries_and_budget_pressure() {
-    let mut engine = Engine::new(Project::demo()).unwrap();
+    let mut engine = Engine::new(Project::demo().unwrap()).unwrap();
     assert_eq!(engine.history_diagnostics()["evictions"],0);
     for index in 0..200 { engine.apply(rename(&format!("history-{index:03}"))).unwrap(); }
     assert_eq!(engine.history_diagnostics()["evictions"],72);
@@ -539,7 +539,7 @@ fn history_evictions_count_real_unavailable_undo_entries_and_budget_pressure() {
     while engine.redo().unwrap() {}
     assert_eq!(engine.history_diagnostics()["evictions"],72);
 
-    let mut engine = Engine::new(Project::demo()).unwrap();
+    let mut engine = Engine::new(Project::demo().unwrap()).unwrap();
     engine.history_budget = exact(engine.project())-1;
     engine.apply(rename("budget-trimmed")).unwrap();
     assert_eq!(engine.history_diagnostics()["evictions"],1);
@@ -549,7 +549,7 @@ fn history_evictions_count_real_unavailable_undo_entries_and_budget_pressure() {
 
 #[test]
 fn active_gesture_age_distinguishes_history_blocking_without_changing_undo_policy() {
-    let mut engine = Engine::new(Project::demo()).unwrap();
+    let mut engine = Engine::new(Project::demo().unwrap()).unwrap();
     assert!(engine.history_diagnostics()["gestureElapsedMs"].is_null());
     engine.apply(rename("before gesture")).unwrap();
     assert!(engine.can_undo());

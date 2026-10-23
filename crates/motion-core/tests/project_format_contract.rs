@@ -28,9 +28,9 @@ where
 
 #[test]
 fn current_project_and_visual_settings_are_required_even_at_constructor_defaults() {
-    required(Project::demo(), &["version", "composition_id"]);
+    required(Project::demo().unwrap(), &["version", "composition_id"]);
     required(
-        Project::demo().layers.remove(0),
+        Project::demo().unwrap().layers.remove(0),
         &[
             "three_d",
             "sampling",
@@ -159,7 +159,7 @@ fn audio_video_and_composition_playback_settings_are_required() {
 
 #[test]
 fn missing_optional_content_means_none_or_empty_without_changing_render_settings() {
-    let original = Project::demo();
+    let original = Project::demo().unwrap();
     let mut encoded = serde_json::to_value(&original).unwrap();
     for field in [
         "compositions",

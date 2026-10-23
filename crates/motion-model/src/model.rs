@@ -313,8 +313,8 @@ impl Project {
         project.validate()?;
         Ok(project)
     }
-    pub fn demo() -> Self {
-        let mut p = Self::new(1080, 1920, 30, 180).unwrap();
+    pub fn demo() -> Result<Self> {
+        let mut p = Self::new(1080, 1920, 30, 180)?;
         p.camera.created = true;
         p.layers = vec![
             Layer::solid(
@@ -343,7 +343,7 @@ impl Project {
         for layer in &mut p.layers {
             layer.three_d = true;
         }
-        p
+        Ok(p)
     }
     pub fn validate(&self) -> Result<()> {
         ensure(self.version == CURRENT_PROJECT_VERSION, &format!("unsupported project format: version={} expected={CURRENT_PROJECT_VERSION}", self.version))?;

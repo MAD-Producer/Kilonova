@@ -2,7 +2,7 @@ use motion_core::{Command, Content, Curve, CurveShape, CurveSpace, Ease, Easing,
 use motion_render::Scene;
 
 fn fixture() -> Engine {
-    let mut p = Project::demo();
+    let mut p = Project::demo().unwrap();
     let l = &mut p.layers[1];
     l.timeline = Some(LayerTimeline {
         in_frame: 20,
@@ -57,7 +57,7 @@ fn compare(a: &Project, b: &Project, fa: f64, fb: f64, ia: u64, ib: u64) {
 
 #[test]
 fn current_roundtrip_preserves_every_fractional_projection() {
-    let mut p = Project::demo();
+    let mut p = Project::demo().unwrap();
     p.layers[1]
         .transform
         .rotation

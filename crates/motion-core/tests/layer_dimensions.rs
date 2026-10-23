@@ -104,7 +104,7 @@ fn explicit_switch_is_atomic_persisted_and_retained_by_clip_operations() {
 }
 #[test]
 fn current_files_preserve_spatial_rendering_without_changing_new_layer_defaults() {
-    let mut p = Project::demo();
+    let mut p = Project::demo().unwrap();
     p.version = motion_model::CURRENT_PROJECT_VERSION;
     let raw = serde_json::to_value(&p).unwrap();
     let mut missing = raw.clone();

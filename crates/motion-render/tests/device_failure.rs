@@ -4,7 +4,7 @@ use motion_render::Renderer;
 #[test]
 fn an_actual_device_destruction_is_reported_and_a_new_device_can_render() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
-    let p = Project::demo();
+    let p = Project::demo().unwrap();
     let mut scene = Scene::new(&p).unwrap();
     scene.sample(&p, 72.0, None, &motion_core::ExpressionEvaluator).unwrap();
     let target = renderer.capture_target(64, 64).unwrap();

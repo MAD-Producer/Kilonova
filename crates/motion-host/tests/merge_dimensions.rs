@@ -122,7 +122,7 @@ fn shared_host_reports_policy_applies_command_and_preserves_state_when_rejected(
 #[test]
 fn camera_snapshot_exposes_legacy_presence_and_independent_layer_tracks() {
     let directory = tempfile::tempdir().unwrap();
-    let mut session = Session::new(Project::demo(), directory.path().into(), Arc::new(NoMedia)).unwrap();
+    let mut session = Session::new(Project::demo().unwrap(), directory.path().into(), Arc::new(NoMedia)).unwrap();
     assert_eq!(session.snapshot().unwrap()["project"]["camera"]["created"], true);
     let old = session.engine.project().camera.clone();
     let first = session.apply_commands(r#"{"op":"create_camera"}"#).unwrap();

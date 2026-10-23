@@ -32,7 +32,7 @@ fn animate(e: &mut Engine, axis: Axis, frame: u32, enabled: bool) {
     .unwrap();
 }
 fn engine() -> Engine {
-    Engine::new(Project::demo()).unwrap()
+    Engine::new(Project::demo().unwrap()).unwrap()
 }
 
 #[test]
@@ -65,7 +65,7 @@ fn separation_is_explicit_lossless_and_undoable_for_all_curve_kinds() {
         }),
     ] {
         for ease in [Ease::Linear, Ease::Hold, Ease::InOut] {
-            let mut p = Project::demo();
+            let mut p = Project::demo().unwrap();
             let t = &mut p.layers[1].transform.rotation;
             t.upsert(0, [0.0, 20.0, 720.0], ease).unwrap();
             t.upsert(90, [360.0, -400.0, 1440.0], Ease::Linear).unwrap();

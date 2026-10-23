@@ -2,17 +2,45 @@
 use crate::Command;
 use serde_json::{json, Value};
 
+#[derive(Clone, Copy)]
+enum FieldKind {
+    Named(&'static str),
+    FloatArray(usize),
+}
+
+macro_rules! field_kind {
+    ([f32; $dimensions:literal]) => { FieldKind::FloatArray($dimensions) };
+    ($name:literal) => { FieldKind::Named($name) };
+}
+
+#[derive(serde::Serialize)]
+struct CommandDescriptor {
+    id: &'static str,
+    undoable: bool,
+    batch_atomic: bool,
+    #[serde(rename = "inputSchema")]
+    input_schema: Value,
+}
+
 pub struct CommandRegistry;
 macro_rules! registry {
-    ($($pattern:pat => $id:literal [$(( $name:literal,$kind:literal,$required:literal )),*];)*) => {
+    ($($pattern:pat => $id:literal [$(( $name:literal,$kind:tt,$required:literal )),*];)*) => {
         impl CommandRegistry {
             /// Exhaustive matching makes every newly added command register here.
             pub fn id(command:&Command)->&'static str {match command {$($pattern=>$id,)*}}
+            fn descriptors()->Vec<CommandDescriptor> {
+                [$(descriptor($id,&[$(($name,field_kind!($kind),$required)),*])),*]
+                    .into_iter().filter(|d| !d.id.starts_with('@')).collect()
+            }
             pub fn catalogue()->Value {
-                let commands=[$(descriptor($id,&[$(($name,$kind,$required)),*])),*].into_iter().filter(|d| !d["id"].as_str().unwrap().starts_with('@')).collect::<Vec<_>>();
+                let commands=Self::descriptors();
                 json!({"version":1,"protocol":"motion-core-command-v1","batch_atomic":true,
                     "command_id_field":"op","coordinates":"composition_frames",
                     "commands":commands})
+            }
+            /// Input schemas from the same typed descriptors as the catalogue.
+            pub fn input_schemas()->Vec<Value> {
+                Self::descriptors().into_iter().map(|d|d.input_schema).collect()
             }
             pub fn parse(text:&str)->crate::Result<Vec<Command>> {crate::parse_commands(text)}
             pub fn run(engine:&mut crate::Engine,commands:Vec<Command>)->crate::Result<Vec<crate::EditResult>> {
@@ -29,7 +57,45 @@ macro_rules! registry {
         }
     }
 }
-fn descriptor(id: &str, fields: &[(&str, &str, bool)]) -> Value {
+fn named_schema(kind: &str) -> (bool, Value) {
+    let (optional, kind) = if kind.starts_with("Option<") {
+        (
+            true,
+            kind.trim_start_matches("Option<").trim_end_matches('>'),
+        )
+    } else {
+        (false, kind)
+    };
+    (
+        optional,
+        match kind {
+            "u64" | "u32" | "usize" => json!({"type":"integer","minimum":0}),
+            "i32" => json!({"type":"integer"}),
+            "f32" | "f64" => json!({"type":"number"}),
+            "bool" => json!({"type":"boolean"}),
+            "String" => json!({"type":"string"}),
+            "Property" => {
+                json!({"type":"string","enum":["anchor","position","rotation","scale","opacity","target","roll","fov","radius","azimuth","elevation"]})
+            }
+            "crate::Axis" => json!({"type":"string","enum":["x","y","z"]}),
+            "crate::geometry::RotationOrder" => {
+                json!({"type":"string","enum":["local_xyz","fixed_xyz"]})
+            }
+            "CameraMode" => json!({"type":"string","enum":["position","orbit"]}),
+            "crate::compositing::BlendMode" => {
+                json!({"type":"string","enum":["normal","add","multiply","screen","overlay","darken","lighten","difference","exclusion","subtract","divide","color_dodge","color_burn","hard_light","soft_light"]})
+            }
+            "crate::compositing::BlendSpace" => {
+                json!({"type":"string","enum":["linear","srgb"]})
+            }
+            "Ease" => json!({"type":"string","enum":["linear","in","out","in_out","hold"]}),
+            "crate::vector::ShapeKind" => json!({"type":"string"}),
+            _ => json!({"type":"object","description":format!("Typed core {} payload",kind)}),
+        },
+    )
+}
+
+fn descriptor(id: &'static str, fields: &[(&str, FieldKind, bool)]) -> CommandDescriptor {
     let mut properties = serde_json::Map::new();
     properties.insert("op".into(), json!({"const":id}));
     // Composition routing is shared by GUI, CLI and MCP and remains explicit.
@@ -39,45 +105,10 @@ fn descriptor(id: &str, fields: &[(&str, &str, bool)]) -> Value {
     );
     let mut required = vec!["op"];
     for (name, kind, is_required) in fields {
-        let (optional, kind) = if kind.starts_with("Option<") {
-            (
-                true,
-                kind.trim_start_matches("Option<").trim_end_matches('>'),
-            )
-        } else {
-            (false, *kind)
-        };
-        let mut schema = if kind.starts_with("[f32;") {
-            let dimensions = kind
-                .trim_start_matches("[f32;")
-                .trim_end_matches(']')
-                .trim()
-                .parse::<usize>()
-                .unwrap();
-            json!({"type":"array","minItems":dimensions,"maxItems":dimensions,"items":{"type":"number"}})
-        } else {
-            match kind {
-                "u64" | "u32" | "usize" => json!({"type":"integer","minimum":0}),
-                "i32" => json!({"type":"integer"}),
-                "f32" | "f64" => json!({"type":"number"}),
-                "bool" => json!({"type":"boolean"}),
-                "String" => json!({"type":"string"}),
-                "Property" => {
-                    json!({"type":"string","enum":["anchor","position","rotation","scale","opacity","target","roll","fov","radius","azimuth","elevation"]})
-                }
-                "crate::Axis" => json!({"type":"string","enum":["x","y","z"]}),
-                "crate::geometry::RotationOrder" => json!({"type":"string","enum":["local_xyz","fixed_xyz"]}),
-                "CameraMode" => json!({"type":"string","enum":["position","orbit"]}),
-                "crate::compositing::BlendMode" => {
-                    json!({"type":"string","enum":["normal","add","multiply","screen","overlay","darken","lighten","difference","exclusion","subtract","divide","color_dodge","color_burn","hard_light","soft_light"]})
-                }
-                "crate::compositing::BlendSpace" => {
-                    json!({"type":"string","enum":["linear","srgb"]})
-                }
-                "Ease" => json!({"type":"string","enum":["linear","in","out","in_out","hold"]}),
-                "crate::vector::ShapeKind" => json!({"type":"string"}),
-                _ => json!({"type":"object","description":format!("Typed core {} payload",kind)}),
-            }
+        let (optional, mut schema) = match *kind {
+            FieldKind::FloatArray(dimensions) => (false,
+                json!({"type":"array","minItems":dimensions,"maxItems":dimensions,"items":{"type":"number"}})),
+            FieldKind::Named(kind) => named_schema(kind),
         };
         if optional {
             schema = json!({"anyOf":[schema,{"type":"null"}]});
@@ -87,7 +118,8 @@ fn descriptor(id: &str, fields: &[(&str, &str, bool)]) -> Value {
             required.push(name);
         }
     }
-    json!({"id":id,"undoable":true,"batch_atomic":true,"inputSchema":{"type":"object","properties":properties,"required":required,"additionalProperties":false}})
+    CommandDescriptor { id, undoable: true, batch_atomic: true,
+        input_schema: json!({"type":"object","properties":properties,"required":required,"additionalProperties":false}) }
 }
 registry! {
     Command::AudioLevels { .. } => "audio_levels" [("object","u64",true), ("action","crate::AudioLevelsAction",true)];
@@ -95,9 +127,9 @@ registry! {
     Command::SplitAudioChannels { .. } => "split_audio_channels" [("object","u64",true)];
     Command::ExtractAudio { .. } => "extract_audio" [("object","u64",true)];
     Command::SetLayerRange { .. } => "set_layer_range" [("object","u64",true), ("in_frame","f64",true), ("out_frame","f64",true)];
-    Command::SetColor { .. } => "set_color" [("object","u64",true), ("value","[f32;4]",true)];
+    Command::SetColor { .. } => "set_color" [("object","u64",true), ("value",[f32;4],true)];
     Command::AddAdjustment { .. } => "add_adjustment" [("id","u64",true), ("name","String",true)];
-    Command::AddShape { .. } => "add_shape" [("id","u64",true), ("name","String",true), ("shape","crate::vector::ShapeKind",true), ("size","[f32; 2]",true), ("position","[f32; 3]",true)];
+    Command::AddShape { .. } => "add_shape" [("id","u64",true), ("name","String",true), ("shape","crate::vector::ShapeKind",true), ("size",[f32; 2],true), ("position",[f32; 3],true)];
     Command::Vector { .. } => "vector" [("object","u64",true), ("action","crate::vector::VectorAction",true)];
     Command::Mask { .. } => "mask" [("object","u64",true), ("action","crate::masks::MaskAction",true)];
     Command::SetLayerBlend { .. } => "set_layer_blend" [("object","u64",true), ("mode","Option<crate::compositing::BlendMode>",false), ("space","Option<crate::compositing::BlendSpace>",false)];
@@ -127,8 +159,8 @@ registry! {
     Command::CopyKey { .. } => "copy_key" [("object","u64",true), ("property","Property",true), ("axis","Option<crate::Axis>",false), ("from","u32",true), ("to","u32",true)];
     Command::RegisterAsset { .. } => "register_asset" [("asset","Asset",true)];
     Command::RegisterFontAsset { .. } => "register_font_asset" [("asset","crate::FontAsset",true)];
-    Command::Content { .. } => "content" [("object","u64",true), ("content","Content",true), ("size","[f32; 2]",true)];
-    Command::SetVector { .. } => "set_vector" [("object","u64",true), ("property","Property",true), ("frame","u32",true), ("value","[f32; 3]",true)];
+    Command::Content { .. } => "content" [("object","u64",true), ("content","Content",true), ("size",[f32; 2],true)];
+    Command::SetVector { .. } => "set_vector" [("object","u64",true), ("property","Property",true), ("frame","u32",true), ("value",[f32; 3],true)];
     Command::SetScalar { .. } => "set_scalar" [("object","u64",true), ("property","Property",true), ("frame","u32",true), ("value","f32",true)];
     Command::Animate { .. } => "animate" [("object","u64",true), ("property","Property",true), ("axis","Option<crate::Axis>",false), ("frame","u32",true), ("enabled","bool",true)];
     Command::MoveKey { .. } => "move_key" [("object","u64",true), ("property","Property",true), ("axis","Option<crate::Axis>",false), ("from","u32",true), ("to","u32",true)];
@@ -140,8 +172,8 @@ registry! {
     Command::Rename { .. } => "rename" [("object","u64",true), ("name","String",true)];
     Command::Reorder { .. } => "reorder" [("object","u64",true), ("index","usize",true)];
     Command::Flags { .. } => "flags" [("object","u64",true), ("visible","bool",true), ("locked","bool",true)];
-    Command::Anchor { .. } => "anchor" [("object","u64",true), ("anchor","[f32; 2]",true)];
-    Command::AnchorAt { .. } => "anchor_at" [("object","u64",true), ("frame","u32",true), ("anchor","[f32; 2]",true)];
+    Command::Anchor { .. } => "anchor" [("object","u64",true), ("anchor",[f32; 2],true)];
+    Command::AnchorAt { .. } => "anchor_at" [("object","u64",true), ("frame","u32",true), ("anchor",[f32; 2],true)];
     Command::CameraMode { .. } => "camera_mode" [("object","u64",false), ("mode","CameraMode",true)];
     Command::CameraLens { .. } => "camera_lens" [("object","u64",false), ("frame","u32",true), ("film_width_mm","f32",true), ("focal_length_mm","f32",true)];
     Command::Dolly { .. } => "dolly" [("object","u64",false), ("frame","u32",true), ("amount","f32",true)];

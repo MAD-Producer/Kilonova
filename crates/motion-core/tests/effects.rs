@@ -309,7 +309,7 @@ fn discrete_animation_holds_and_rejected_edits_are_atomic() {
 }
 #[test]
 fn old_format_is_rejected_and_missing_dependency_keeps_all_keys() {
-    let mut old = Project::demo();
+    let mut old = Project::demo().unwrap();
     old.version = 1;
     assert!(Engine::new(old).is_err());
     let (engine, _) = fixture("tint");

@@ -284,7 +284,7 @@ fn audio_plan_failure_is_distinct_from_silence_and_export_rejects_it() {
 fn snapshot_exposes_history_pressure_without_persisting_it_into_the_project() {
     let directory = tempfile::tempdir().unwrap();
     let mut session =
-        Session::new(Project::demo(), directory.path().into(), Arc::new(Stub)).unwrap();
+        Session::new(Project::demo().unwrap(), directory.path().into(), Arc::new(Stub)).unwrap();
     assert_eq!(session.snapshot().unwrap()["history"]["evictions"], 0);
     for index in 0..130 {
         session
@@ -305,7 +305,7 @@ fn snapshot_exposes_history_pressure_without_persisting_it_into_the_project() {
 fn keyframe_collision_reaches_command_reply_without_changing_session() {
     for separated in [false, true] {
         let directory = tempfile::tempdir().unwrap();
-        let mut project = Project::demo();
+        let mut project = Project::demo().unwrap();
         let track = &mut project.layers[1].transform.position;
         track.upsert(0, [0.0; 3], motion_core::Ease::Linear).unwrap();
         track.upsert(60, [1.0; 3], motion_core::Ease::Out).unwrap();

@@ -114,7 +114,7 @@ fn twenty_layer_animation_sampling_reuses_memory_at_sixty_hz() {
 
 #[test]
 fn continuous_preview_accepts_the_last_half_frame_but_not_the_end_boundary() {
-    let p = Project::demo();
+    let p = Project::demo().unwrap();
     let mut s = Scene::new(&p).unwrap();
     s.sample(&p, 179.5, None, &motion_core::ExpressionEvaluator).unwrap();
     assert!(s.sample(&p, 180.0, None, &motion_core::ExpressionEvaluator).is_err());

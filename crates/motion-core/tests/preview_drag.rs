@@ -3,7 +3,7 @@ use motion_render::Scene;
 
 #[test]
 fn preview_drag_tracks_screen_distance_at_any_fit_size_and_depth() {
-    let mut p = Project::demo();
+    let mut p = Project::demo().unwrap();
     for (width, height) in [(1080, 700), (360, 640), (900, 400)] {
         for z in [-800.0, 0.0, 1200.0] {
             p.layers[1].transform.position = Track::constant([430.0, 810.0, z]);
@@ -41,7 +41,7 @@ fn preview_drag_tracks_screen_distance_at_any_fit_size_and_depth() {
 
 #[test]
 fn drag_respects_orbit_and_orthographic_camera_projection() {
-    let mut p = Project::demo();
+    let mut p = Project::demo().unwrap();
     p.camera.mode = CameraMode::Orbit;
     p.camera.azimuth.value = 35.0;
     p.camera.elevation.value = 20.0;

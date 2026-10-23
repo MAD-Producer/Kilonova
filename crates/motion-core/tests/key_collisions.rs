@@ -2,7 +2,7 @@ use motion_core::{parse_commands, storage, Engine, Project};
 
 #[test]
 fn failed_saved_edit_preserves_disk_revision_and_history() {
-    let mut engine = Engine::new(Project::demo()).unwrap();
+    let mut engine = Engine::new(Project::demo().unwrap()).unwrap();
     engine
         .apply_batch(
             parse_commands(
