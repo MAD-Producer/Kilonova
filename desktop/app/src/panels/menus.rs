@@ -74,10 +74,6 @@ pub(super) fn render(
     if let Some(menu) = panels.menu {
         let selected = panels.selected.filter(|id| *id != 0);
         let frame = state["frame"].as_f64().unwrap_or(0.0).floor() as u32;
-        let (lock_selection, lock_commands) = super::layer_locks::selection(state, panels);
-        let unlock_commands = super::layer_locks::changes(state, None, false);
-        let can_lock = !lock_commands.is_empty();
-        let can_unlock = !unlock_commands.is_empty();
         let editable = selected.is_some_and(|id| state["project"]["layers"].as_array().into_iter().flatten()
             .any(|layer| layer["id"] == id && layer["locked"] != true)) && state["observing"] != true;
         let entries: Vec<(String, Action, bool)> = match menu {
@@ -154,6 +150,10 @@ pub(super) fn render(
                 ),
             ],
             3 => {
+                let (lock_selection, lock_commands) = super::layer_locks::selection(state, panels);
+                let unlock_commands = super::layer_locks::changes(state, None, false);
+                let can_lock = !lock_commands.is_empty();
+                let can_unlock = !unlock_commands.is_empty();
                 let mut entries = vec![
                 (panels.shortcut_bindings.label(locale.t(T::NewSolid), crate::shortcuts::Scope::Application, crate::shortcuts::Command::Solid), Action::AddSolid, true),
                 (panels.shortcut_bindings.label(locale.t(T::NewText), crate::shortcuts::Scope::Application, crate::shortcuts::Command::Text), Action::NewText, true),
