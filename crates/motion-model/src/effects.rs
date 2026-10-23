@@ -842,7 +842,7 @@ pub struct SampledEffect {
     pub lut: Option<usize>,
     pub scene: Option<motion_effects::SceneSettings>,
     pub particle_history: Option<std::sync::Arc<crate::particle_history::ParticleHistory>>,
-    pub particle_history_error: Option<String>,
+    pub particle_history_error: Option<std::sync::Arc<crate::Error>>,
 }
 impl SampledEffect {
     pub fn new(layer: u64, e: &EffectInstance) -> Self {

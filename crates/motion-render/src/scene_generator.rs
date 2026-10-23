@@ -164,7 +164,12 @@ fn validate_settings_inner(e: &SampledEffect, kind: RendererKind) -> Result<(), 
             ).into());
         }
         if kind == RendererKind::ParticleEmitter {
-            if let Some(error) = &e.particle_history_error { return Err(error.clone().into()); }
+            if let Some(error) = &e.particle_history_error {
+                return Err(RenderError::Context {
+                    message: format!("GPU validation: {error}"),
+                    cause: Box::new(RenderError::Model(error.clone().into())),
+                });
+            }
             if settings.particle_space != Some(motion_effects::ParticleSpace::WorldBirth) || e.particle_history.is_none() {
                 return Err("world-birth particle history missing".into());
             }

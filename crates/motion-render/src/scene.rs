@@ -291,7 +291,10 @@ impl Scene {
                     })?;
                     match motion_model::particle_history::ParticleHistory::capture(original, raw_layer, raw_effect, sampled.particle_history.as_ref()) {
                         Ok(history) => sampled.particle_history = Some(history),
-                        Err(error) => { sampled.particle_history = None; sampled.particle_history_error = Some(error.to_string()); }
+                        Err(error) => {
+                            sampled.particle_history = None;
+                            sampled.particle_history_error = Some(std::sync::Arc::new(error));
+                        }
                     }
                 } else {
                     sampled.particle_history = None;
