@@ -73,6 +73,7 @@ impl Error {
         match self {
             Self::Composition(detail) | Self::CompositionContext { detail, .. } => Some(detail),
             Self::Model(motion_core::Error::Composition(detail)) => Some(detail),
+            Self::Render(error) => render_composition_detail(error),
             Self::Media(error) => media_composition_detail(error),
             Self::Frozen(crate::ops::media::frozen::Error::Session(cause)) => {
                 cause.composition_detail()
@@ -86,6 +87,22 @@ impl Error {
             Self::Context { cause, .. } => cause.composition_detail(),
             Self::Cleanup { primary, .. } => primary.composition_detail(),
             _ => None,
+        }
+    }
+}
+
+fn render_composition_detail(error: &motion_render::RenderError) -> Option<&CompositionError> {
+    use motion_render::{composition_plan::CompositionPlanError, RenderError};
+    let mut current = error;
+    loop {
+        match current {
+            RenderError::Model(motion_core::Error::Composition(detail)) => return Some(detail),
+            RenderError::Context { cause, .. } | RenderError::Diagnostic { cause, .. } => {
+                current = cause;
+            }
+            RenderError::Shared(cause) => current = cause,
+            RenderError::CompositionPlan(CompositionPlanError::Encoding(cause)) => current = cause,
+            _ => return None,
         }
     }
 }
