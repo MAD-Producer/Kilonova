@@ -8,6 +8,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
+mod memory;
 
 #[derive(Clone, Copy, Debug, Serialize)]
 pub struct WaveBucket {

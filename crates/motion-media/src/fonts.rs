@@ -15,6 +15,7 @@ use std::{
 pub const MAX_FONT_BYTES: usize = 32 * 1024 * 1024;
 pub const GLYPH_CACHE_BYTES: usize = 16 * 1024 * 1024;
 const MAX_FACES: usize = 2;
+mod memory;
 const MAX_GLYPH_PIXELS: usize = 1024 * 1024;
 pub const BUILTIN_BYTES: &[u8] = include_bytes!("../fonts/IBMPlexMono-Regular.ttf");
 const BUILTIN_LICENSE: &str = include_str!("../fonts/OFL.txt");
