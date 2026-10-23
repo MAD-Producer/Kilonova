@@ -36,6 +36,7 @@ mod color_well;
 mod composition;
 mod curves;
 pub(crate) mod effect_controls;
+mod effect_removal;
 mod effects;
 mod effect_timeline;
 mod expressions;

@@ -216,11 +216,10 @@ pub(super) fn render(
                 entries.extend(super::layer_navigation::menu_entries(panels, state));
                 entries
             },
-            4 => vec![(
-                locale.t(T::ShowEffects).into(),
-                Action::ShowPanel(dock::DockId(2)),
-                true,
-            )],
+            4 => vec![
+                (locale.t(T::ShowEffects).into(), Action::ShowPanel(dock::DockId(2)), true),
+                super::effect_removal::menu_entry(state, panels),
+            ],
             5 => vec![(
                 locale.t(T::AddPositionKey).into(),
                 Action::Edit(Command::Animate {
