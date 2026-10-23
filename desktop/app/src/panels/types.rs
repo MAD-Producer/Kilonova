@@ -136,6 +136,7 @@ pub struct Panels {
     pub(crate) auxiliary: super::auxiliary::State,
     pub(crate) library_scroll: motion_ui::widgets::ScrollArea,
     pub(crate) library_height: f32,
+    pub(crate) effect_drag: super::effect_drag::Controls,
     pub(crate) browser: crate::panels::effect_controls::Controls,
     pub selected: Option<u64>,
     /// Stable selection collection for timeline multi-select. `selected` is

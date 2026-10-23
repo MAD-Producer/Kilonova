@@ -38,6 +38,7 @@ mod composition;
 mod curves;
 pub(crate) mod effect_controls;
 mod effect_removal;
+pub(crate) mod effect_drag;
 mod effects;
 mod effect_timeline;
 mod expressions;
@@ -191,6 +192,8 @@ pub(crate) fn observe_interaction_boundary(panels: &Panels, operation: &str) {
 }
 
 pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
+    panels.effect_drag.cancel();
+    panels.browser.cancel_library_click();
     panels.property_reveal.interrupt();
     let effect_timeline = panels.effect_timeline.cancel();
     let node_changed = panels.node_editor.cancel_interaction();
@@ -297,6 +300,10 @@ pub fn chrome(
     let styles = list.styles();
     let colors = styles.colors();
 
+    let drag_owned = panels.effect_drag.prepare(None, state, input);
+    if drag_owned && !panels.effect_drag.pending() { panels.browser.cancel_library_click(); }
+    let drag_neutral = Input::default();
+    let input = if drag_owned { &drag_neutral } else { input };
     let mut out = Vec::new();
     if panels.normalize_selection(state) {
         out.extend(cancel_interaction(panels));
@@ -618,6 +625,7 @@ pub fn chrome(
     titlebar::render(list, atlas, size, state, body_input, &mut out);
     toolbar::render(list, atlas, size, panels, state,
         if toolbar_modal { input } else { body_input }, &mut out);
+    effect_drag::finish(list, atlas, size, panels, state, &mut out);
     let status = Rect::new(0.0, size[1] - 20.0, size[0], 20.0);
     paint::rect(list, status, colors.CHROME);
     let render_error = state["renderError"].as_str().filter(|s| !s.is_empty());
@@ -632,6 +640,7 @@ pub fn chrome(
     let message = localized_error
         .as_deref()
         .or(panels.drag_readout.as_ref().map(|(_, text)| text.as_str()))
+        .or(panels.effect_drag.status())
         .or(panels.message.as_deref())
         .or(plugin_warning)
         .unwrap_or(panels.locale.t(T::Ready));
@@ -920,6 +929,10 @@ pub fn floating_chrome(
     }
     let toolbar_neutral = Input::default();
     let input = if toolbar_modal { &toolbar_neutral } else { input };
+    let drag_owned = panels.effect_drag.prepare(Some(panel), state, input);
+    if drag_owned && !panels.effect_drag.pending() { panels.browser.cancel_library_click(); }
+    let drag_neutral = Input::default();
+    let input = if drag_owned { &drag_neutral } else { input };
     let mask_header_modal = panels.path_controls.timeline_mask_add_open();
     let mask_header_neutral = Input::default();
     let input = if mask_header_modal && panel != Panel::Timeline {
@@ -1053,6 +1066,7 @@ pub fn floating_chrome(
         Action::Redock(panel.dock()),
         &mut out,
     );
+    effect_drag::finish(list, atlas, size, panels, state, &mut out);
     paint::rect(
         list,
         Rect::new(0.0, size[1] - 20.0, size[0], 20.0),
@@ -1067,6 +1081,7 @@ pub fn floating_chrome(
         localized_error
             .as_deref()
             .or(panels.drag_readout.as_ref().map(|(_, text)| text.as_str()))
+            .or(panels.effect_drag.status())
             .or(panels.message.as_deref())
             .unwrap_or(panels.locale.t(T::SharedProject)),
         styles

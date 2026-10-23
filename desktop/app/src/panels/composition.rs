@@ -306,6 +306,7 @@ pub(super) fn render(
             true,
         );
     }
+    if !observing { panels.effect_drag.target(v, None); }
     let Some(mapping) = panels.composition.navigation.mapping(v, canvas) else {
         return;
     };

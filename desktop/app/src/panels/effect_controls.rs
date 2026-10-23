@@ -55,6 +55,9 @@ pub struct Controls {
     library_initialized: bool,
     library_scroll: motion_ui::widgets::ScrollArea,
     library_selected: Option<String>,
+    library_drag: Option<(Entry, [f32; 2])>,
+    #[cfg(test)]
+    library_row_hits: HashMap<String, Rect>,
     library_last_click: Option<(String, std::time::Instant)>,
     /// Synthetic input time; absent from production builds.
     #[cfg(test)]
