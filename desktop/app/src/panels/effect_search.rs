@@ -10,25 +10,34 @@ use motion_ui::{
     ui::{self, Align},
 };
 use serde_json::Value;
+use std::sync::Arc;
+mod cache;
+pub(crate) type Cache = cache::Cache<super::effect_controls::Entry, Locale>;
 
-struct Entry {
-    name: String,
-    command: Value,
-}
-fn entries(catalogue: &Value, query: &str, locale: Locale, object: u64) -> Vec<Entry> {
-    let query = query.trim().to_lowercase();
-    let mut result = vec![];
-    for effect in super::effect_controls::entries(catalogue, locale)
+fn entries(catalogue: &Value, locale: Locale) -> Vec<(super::effect_controls::Entry, String)> {
+    let mut result: Vec<_> = super::effect_controls::entries(catalogue, locale)
         .into_iter()
-        .filter(|e| e.supported && e.matches(&query))
-    {
-        result.push(Entry {
-            name: effect.name.clone(),
-            command: effect.command(object),
-        });
-    }
+        .filter(|effect| effect.supported)
+        .collect();
     result.sort_by(|a, b| a.name.cmp(&b.name));
     result
+        .into_iter()
+        .map(|effect| {
+            let terms = format!(
+                "{} {} {} {} {} {} {} {}",
+                effect.name,
+                effect.english,
+                effect.original_name,
+                effect.id,
+                effect.category,
+                effect.raw_category,
+                effect.provider,
+                effect.plugin
+            )
+            .to_lowercase();
+            (effect, terms)
+        })
+        .collect()
 }
 
 pub fn render_effect_search(
@@ -36,7 +45,7 @@ pub fn render_effect_search(
     atlas: &mut TextAtlas,
     size: [f32; 2],
     search: &mut EffectSearch,
-    catalogue: &Value,
+    catalogue: &Arc<Value>,
     input: &Input,
     locale: Locale,
     selected_layer: Option<u64>,
@@ -59,12 +68,9 @@ pub fn render_effect_search(
         search.query.pop();
         search.selected_index = 0;
     }
-    let items = entries(
-        catalogue,
-        &search.query,
-        locale,
-        selected_layer.unwrap_or(0),
-    );
+    let items = search.cache.matching(catalogue, locale, &search.query, || {
+        entries(catalogue, locale)
+    });
     search.selected_index = search.selected_index.min(items.len().saturating_sub(1));
     for (key, _) in &input.keys {
         match key {
@@ -147,8 +153,10 @@ pub fn render_effect_search(
         let click = input
             .pressed
             .is_some_and(|(b, p)| b == motion_ui::input::MouseButton::Left && row.contains(p));
-        if selected_layer.is_some() && (click || (enter && i == search.selected_index)) {
-            out.push(Action::Plugin(item.command.clone()));
+        if let Some(object) =
+            selected_layer.filter(|_| click || (enter && i == search.selected_index))
+        {
+            out.push(Action::Plugin(item.command(object)));
             return search.continuous;
         }
     }
@@ -205,10 +213,24 @@ pub fn render_effect_search(
 mod tests {
     use super::*;
     use serde_json::json;
+    fn found(
+        catalogue: &Value,
+        query: &str,
+        locale: Locale,
+    ) -> Vec<super::super::effect_controls::Entry> {
+        let catalogue = Arc::new(catalogue.clone());
+        Cache::default()
+            .matching(&catalogue, locale, query, || entries(&catalogue, locale))
+            .iter()
+            .cloned()
+            .collect()
+    }
     #[test]
     fn continuous_search_is_explicit_and_ignores_repeat_and_ime_confirmations() {
-        let catalogue = json!({"packages":[{"hash":"abc", "manifest":{"id":"builtin","version":"1","name":"内置",
-            "effects":[{"id":"blur","name":"模糊","english_name":"Blur"}]}}]});
+        let catalogue = Arc::new(
+            json!({"packages":[{"hash":"abc", "manifest":{"id":"builtin","version":"1","name":"内置",
+            "effects":[{"id":"blur","name":"模糊","english_name":"Blur"}]}}]}),
+        );
         for locale in [Locale::En, Locale::Zh] {
             let mut atlas = TextAtlas::from_system(13.).unwrap();
             let mut search = EffectSearch {
@@ -279,8 +301,10 @@ mod tests {
     }
     #[test]
     fn effect_search_applies_once_and_keeps_disabled_empty_or_repeated_enter_open() {
-        let catalogue = json!({"packages":[{"hash":"abc", "manifest":{"id":"builtin","version":"1","name":"内置",
-            "effects":[{"id":"blur","name":"高斯模糊","english_name":"Gaussian Blur"}]}}]});
+        let catalogue = Arc::new(
+            json!({"packages":[{"hash":"abc", "manifest":{"id":"builtin","version":"1","name":"内置",
+            "effects":[{"id":"blur","name":"高斯模糊","english_name":"Gaussian Blur"}]}}]}),
+        );
         let mut atlas = TextAtlas::from_system(13.).unwrap();
         let mut search = EffectSearch {
             position: [400., 250.],
@@ -288,6 +312,7 @@ mod tests {
             selected_index: 0,
             owner: None,
             continuous: false,
+            ..Default::default()
         };
         let mut out = vec![];
         let mut input = Input {
@@ -353,20 +378,110 @@ mod tests {
     fn chinese_ui_matches_english_name_and_category() {
         let catalogue = json!({"packages":[{"hash":"abc", "manifest":{"id":"builtin","version":"1","name":"内置",
             "effects":[{"id":"blur","name":"高斯模糊","english_name":"Gaussian Blur","category":"blur-sharpen"}]}}]});
-        assert_eq!(entries(&catalogue, "Gaussian", Locale::Zh, 42).len(), 1);
-        assert_eq!(entries(&catalogue, "blur-sharpen", Locale::Zh, 42).len(), 1);
-        assert!(entries(&catalogue, "missing", Locale::Zh, 42).is_empty());
+        assert_eq!(found(&catalogue, "Gaussian", Locale::Zh).len(), 1);
+        assert_eq!(found(&catalogue, "blur-sharpen", Locale::Zh).len(), 1);
+        assert!(found(&catalogue, "missing", Locale::Zh).is_empty());
     }
     #[test]
     fn search_preserves_package_identity_for_shared_plugin_command() {
         let catalogue = json!({"packages":[{"hash":"abc", "manifest":{"id":"builtin","version":"1.0.0","name":"内置",
             "effects":[{"id":"blur","name":"模糊","english_name":"Blur"}]}}]});
-        let found = entries(&catalogue, "模糊", Locale::En, 42);
+        let found = found(&catalogue, "模糊", Locale::En);
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].name, "Blur");
         assert_eq!(
-            found[0].command,
+            found[0].command(42),
             json!({"op":"add","object":42,"plugin":"builtin","version":"1.0.0","hash":"abc","effect":"blur"})
         );
+    }
+
+    #[test]
+    fn cache_tracks_snapshot_identity_locale_query_and_package_choices() {
+        let mut catalogue = Arc::new(json!({"packages":[
+            {"hash":"old", "manifest":{"id":"builtin","version":"1.0.0","name":"内置", "effects":[
+                {"id":"blur","name":"模糊","english_name":"Blur","category":"blur-sharpen"}]}},
+            {"hash":"new", "manifest":{"id":"builtin","version":"2.0.0","name":"内置", "effects":[
+                {"id":"blur","name":"新模糊","english_name":"New Blur","category":"blur-sharpen"},
+                {"id":"bad","name":"不可用","english_name":"Unsupported","compatibility":"unsupported"}]}},
+            {"hash":"disabled", "enabled":false, "manifest":{"id":"off","version":"1","effects":[
+                {"id":"disabled","name":"禁用","english_name":"Disabled"}]}}
+        ]}));
+        let mut cache = Cache::default();
+        for step in 0..3 {
+            if step == 1 {
+                Arc::make_mut(&mut catalogue)["packages"][1]["enabled"] = false.into();
+            } else if step == 2 {
+                Arc::make_mut(&mut catalogue)["packages"][0]["manifest"]["effects"][0]
+                    ["english_name"] = "Renamed Blur".into();
+            }
+            for locale in [Locale::En, Locale::Zh] {
+                for query in [
+                    "",
+                    " BLUR ",
+                    "模糊",
+                    "blur-sharpen",
+                    "builtin 内置",
+                    "missing",
+                    "unsupported",
+                ] {
+                    let mut expected: Vec<_> =
+                        super::super::effect_controls::entries(&catalogue, locale)
+                            .into_iter()
+                            .filter(|e| e.supported && e.matches(&query.trim().to_lowercase()))
+                            .collect();
+                    expected.sort_by(|a, b| a.name.cmp(&b.name));
+                    let expected: Vec<_> = expected
+                        .iter()
+                        .map(|e| (e.name.clone(), e.command(42)))
+                        .collect();
+                    let actual =
+                        cache.matching(&catalogue, locale, query, || entries(&catalogue, locale));
+                    assert_eq!(
+                        actual
+                            .iter()
+                            .map(|e| (e.name.clone(), e.command(42)))
+                            .collect::<Vec<_>>(),
+                        expected
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn warm_search_applies_to_current_selection_and_stops_for_no_selection() {
+        let catalogue = Arc::new(
+            json!({"packages":[{"hash":"abc", "manifest":{"id":"builtin","version":"1","name":"内置",
+            "effects":[{"id":"blur","name":"模糊","english_name":"Blur"}]}}]}),
+        );
+        let mut atlas = TextAtlas::from_system(13.).unwrap();
+        let mut search = EffectSearch {
+            query: "blur".into(),
+            continuous: true,
+            ..Default::default()
+        };
+        for object in [Some(42), Some(99), None, Some(123)] {
+            let mut actions = vec![];
+            assert!(render_effect_search(
+                &mut PaintList::default(),
+                &mut atlas,
+                [900., 600.],
+                &mut search,
+                &catalogue,
+                &Input {
+                    keys: vec![(Key::Enter, Default::default())],
+                    ..Default::default()
+                },
+                Locale::En,
+                object,
+                &mut actions
+            ));
+            match object {
+                Some(object) => assert!(
+                    matches!(actions.as_slice(), [Action::Plugin(value)] if value["object"] == object && value["hash"] == "abc")
+                ),
+                None => assert!(actions.is_empty()),
+            }
+        }
     }
 }

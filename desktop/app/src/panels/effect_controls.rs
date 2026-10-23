@@ -21,7 +21,7 @@ mod library;
 mod track_cache;
 #[cfg(test)]
 mod track_cache_tests;
-pub(crate) use library::entries;
+pub(crate) use library::{entries, Entry};
 
 fn word(locale: Locale, zh: &str, en: &str) -> String {
     if locale == Locale::Zh {
