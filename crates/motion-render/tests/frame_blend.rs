@@ -54,6 +54,7 @@ fn pixel(renderer: &mut Renderer, scene: &Scene) -> [u8; 4] {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn actual_gpu_blend_is_linear_and_caches_weights_without_stale_hold_pixels() {
     let (mut project, scene) = fixture();
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
@@ -115,6 +116,7 @@ fn actual_gpu_blend_is_linear_and_caches_weights_without_stale_hold_pixels() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn opaque_blend_quantizes_srgb_bytes_in_both_temporal_directions() {
     let (_, scene) = fixture();
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
@@ -157,6 +159,7 @@ fn opaque_blend_quantizes_srgb_bytes_in_both_temporal_directions() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn alpha_budget_refusal_recovery_and_invalid_sources_do_not_alias_objects() {
     let (_, scene) = fixture();
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
@@ -201,6 +204,7 @@ fn alpha_budget_refusal_recovery_and_invalid_sources_do_not_alias_objects() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn authored_moving_shape_records_transparent_images_and_resident_capture_cost() {
     let (mut project, _) = fixture();
     project.width = 192;
@@ -299,6 +303,7 @@ fn authored_moving_shape_records_transparent_images_and_resident_capture_cost() 
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn desktop_bgra_target_effects_sample_weight_changes_from_the_same_video_view() {
     let (mut project, _) = fixture();
     let package = motion_effects::builtin::package().unwrap();
@@ -351,6 +356,7 @@ fn desktop_bgra_target_effects_sample_weight_changes_from_the_same_video_view() 
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn unsubmitted_and_cancelled_yuv_are_not_cached_as_completed_blend_inputs() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let frame = motion_render::Yuv420Frame {

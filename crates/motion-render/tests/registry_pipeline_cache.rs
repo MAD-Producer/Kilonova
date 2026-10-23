@@ -4,6 +4,7 @@ use motion_render::{Renderer, Scene};
 use std::sync::Arc;
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn repeated_registry_clone_keeps_preflighted_pipelines_but_replacements_and_disable_refresh() {
     let package = motion_effects::builtin::package().unwrap();
     let def = package

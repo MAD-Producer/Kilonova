@@ -49,6 +49,7 @@ fn pixels(graphics: &Graphics) -> Vec<u8> {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn native_presenter_refusal_during_surface_replacement_preserves_front_and_recovers() {
     const NAME: &str = "session::surface_admission_tests::native_presenter_refusal_during_surface_replacement_preserves_front_and_recovers";
     const CHILD: &str = "MOTION_SURFACE_ADMISSION_CHILD";

@@ -2,6 +2,7 @@
 use super::*;
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn constant_receiver_native_texture_joins_combined_admission_and_releases_with_its_owner() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let budget = renderer.allocation_budget().clone();
@@ -60,6 +61,7 @@ fn draw(renderer: &mut Renderer, scene: &Scene, raster: &LayerRaster, target: &C
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn local_image_and_matte_cut_points_rollback_both_budgets_and_keep_previous_pixels() {
     for matte in [false, true] {
         let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
@@ -114,6 +116,7 @@ fn local_image_and_matte_cut_points_rollback_both_budgets_and_keep_previous_pixe
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn retained_receiver_capacity_is_shared_across_renderers_and_refusal_restores_category_count() {
     let budget = crate::AllocationBudget::new(16 << 20).unwrap();
     let mut first = pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();
@@ -152,6 +155,7 @@ fn retained_receiver_capacity_is_shared_across_renderers_and_refusal_restores_ca
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn retained_local_image_and_matte_commands_keep_both_allocations_until_their_own_retirement() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let scene = image_scene(&mut renderer, true);
@@ -187,6 +191,7 @@ fn retained_local_image_and_matte_commands_keep_both_allocations_until_their_own
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn retained_native_receiver_outlives_renderer_without_releasing_its_capacity_early() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let budget = renderer.allocation_budget().clone();

@@ -23,6 +23,7 @@ fn pixel(renderer: &Renderer, target: &ExposureTarget) -> [u8; 4] {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn linear_weights_transparency_and_uniform_submission_order_reach_real_pixels() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let mut target = renderer.exposure_target(16, 16, &[0.5, 0.5]).unwrap();
@@ -101,6 +102,7 @@ fn linear_weights_transparency_and_uniform_submission_order_reach_real_pixels() 
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn eighty_nonuniform_phases_preserve_weighted_colors_and_transparent_gaps() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let weights: Vec<_> = (1..=80).map(|index| f64::from(index) / 3240.).collect();
@@ -136,6 +138,7 @@ fn eighty_nonuniform_phases_preserve_weighted_colors_and_transparent_gaps() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn maximal_clock_preserves_constant_layers_and_drop_cancels_without_leaking_the_next_result() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     renderer.set_submission_tracking(true);
@@ -204,6 +207,7 @@ fn maximal_clock_preserves_constant_layers_and_drop_cancels_without_leaking_the_
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn allocation_refusal_counts_all_live_targets_and_current_policy_without_partial_advancement() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     for weights in [
@@ -281,6 +285,7 @@ fn allocation_refusal_counts_all_live_targets_and_current_policy_without_partial
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn desktop_bgra_and_rejected_unsubmitted_yuv_do_not_publish_partial_exposures() {
     let instance =
         wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
@@ -365,6 +370,7 @@ fn desktop_bgra_and_rejected_unsubmitted_yuv_do_not_publish_partial_exposures() 
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn cold_nested_mask_and_effect_rendering_preserve_transparent_pixels_through_exposure() {
     use motion_core::{
         masks::LayerMask,
@@ -467,6 +473,7 @@ fn cold_nested_mask_and_effect_rendering_preserve_transparent_pixels_through_exp
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn authored_rectangle_shutter_produces_real_image_and_keeps_an_unblurred_layer_fixed() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let mut p = Project::new(192, 96, 30, 60).unwrap();

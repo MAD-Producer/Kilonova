@@ -89,6 +89,7 @@ fn native_vector_bytes(renderer: &Renderer) -> u64 {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn grouped_vector_buffers_share_admission_and_release_after_real_capture() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let budget = renderer.allocation_budget().clone();
@@ -120,6 +121,7 @@ fn grouped_vector_buffers_share_admission_and_release_after_real_capture() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn refused_vector_reupload_keeps_completed_output_and_recovers_real_pixels() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let budget = renderer.allocation_budget().clone();
@@ -157,6 +159,7 @@ fn refused_vector_reupload_keeps_completed_output_and_recovers_real_pixels() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn changing_vertex_data_and_opacity_reuses_buffers_without_cross_layer_overwrites() {
     let mut project = fixture();
     opacity(&mut project, 1, 25.);
@@ -236,6 +239,7 @@ fn changing_vertex_data_and_opacity_reuses_buffers_without_cross_layer_overwrite
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn distinct_encodes_in_one_submission_keep_their_own_vector_pixels() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let mut project = fixture();

@@ -2,6 +2,7 @@ use motion_core::Project;
 use motion_render::Scene;
 use motion_render::Renderer;
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn an_actual_device_destruction_is_reported_and_a_new_device_can_render() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let p = Project::demo().unwrap();

@@ -76,6 +76,7 @@ fn recover_and_blend(renderer: &mut Renderer) {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn late_blend_uniform_refusal_preserves_the_decoded_frame_and_recovers_real_pixels() {
     // Fixed resources + decoded RGBA + newly allocated cache image + uniform.
     let budget = crate::AllocationBudget::new(SYSTEM_BYTES + 16 + 16 + 16 - 1).unwrap();
@@ -119,6 +120,7 @@ fn late_blend_uniform_refusal_preserves_the_decoded_frame_and_recovers_real_pixe
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn refused_blend_encoder_does_not_queue_a_write_or_acknowledge_the_cache() {
     let budget = crate::AllocationBudget::new(SYSTEM_BYTES + (1 << 20)).unwrap();
     let mut renderer =
@@ -163,6 +165,7 @@ fn refused_blend_encoder_does_not_queue_a_write_or_acknowledge_the_cache() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn abandoned_encoder_scopes_retain_new_blend_uniform_capacity() {
     for finish in [false, true] {
         let budget = crate::AllocationBudget::new(SYSTEM_BYTES + (1 << 20)).unwrap();
@@ -196,6 +199,7 @@ fn abandoned_encoder_scopes_retain_new_blend_uniform_capacity() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn refused_blend_encoder_preserves_completed_output_identity_stamp_and_pixels() {
     let budget = crate::AllocationBudget::new(SYSTEM_BYTES + (1 << 20)).unwrap();
     let mut renderer =

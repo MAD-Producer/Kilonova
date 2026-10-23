@@ -26,6 +26,7 @@ fn scene(size: u32) -> Scene {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn input_snapshot_refusals_retain_layer_extent_typed_causes_old_texture_and_pixels() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let budget = renderer.allocation_budget().clone();

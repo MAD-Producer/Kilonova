@@ -263,6 +263,7 @@ fn required_right_reports_default_file_stderr_and_pending_threshold_recovery() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn persistent_exposure_media_uses_default_decoder_logs_inflight_and_keeps_failure_terminal() {
     use motion_host::{preview_video::PreviewVideoCache,render_sampling::{ExposureMedia,ExposureMediaPolicy}};
     use motion_render::{exposure_scene::{ExposureDocument,ExposureScenes},ExposureFrame,ExposurePoll,ExposureStage,Renderer};

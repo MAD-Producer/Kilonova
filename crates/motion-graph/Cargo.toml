@@ -5,6 +5,11 @@ edition.workspace = true
 license.workspace = true
 description = "Typed effect node documents and portable SDK 6 image shader export"
 
+[features]
+default = ["gpu-tests"]
+# Test selection only; product rendering is always compiled.
+gpu-tests = []
+
 [dependencies]
 log.workspace = true
 motion-effects = { path = "../motion-effects" }
@@ -16,7 +21,7 @@ zip = { version = "9.0.5", default-features = false, features = ["deflate"] }
 [dev-dependencies]
 tempfile = "3"
 motion-core = { path = "../motion-core" }
-motion-render = { path = "../motion-render" }
+motion-render = { path = "../motion-render", default-features = false }
 pollster.workspace = true
 wgpu.workspace = true
 image.workspace = true

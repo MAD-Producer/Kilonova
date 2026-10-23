@@ -26,6 +26,7 @@ impl log::Log for Capture {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn actual_unmapped_timestamp_errors_are_bounded_and_reset_after_a_valid_mapping() {
     const CHILD: &str = "MOTION_TIMESTAMP_MAP_LOG_CHILD";
     if let Some(path) = std::env::var_os(CHILD) {

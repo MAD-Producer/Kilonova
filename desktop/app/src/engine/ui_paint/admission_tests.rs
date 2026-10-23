@@ -12,6 +12,7 @@ impl NativeRejection for motion_ui::paint::PaintError {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn native_ui_refusals_preserve_cause_and_reach_default_file_stderr_without_stdout() {
     const CHILD: &str = "MOTION_UI_ADMISSION_CHILD";
     const TEST: &str = "engine::ui_paint::admission_tests::native_ui_refusals_preserve_cause_and_reach_default_file_stderr_without_stdout";

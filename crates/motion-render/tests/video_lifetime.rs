@@ -54,6 +54,7 @@ fn pixels() -> Yuv420Frame {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn sixty_clip_traversals_and_reverse_seeks_keep_one_live_video_and_release_the_gap() {
     let mut p = project();
     for frame in 0..60 {
@@ -121,6 +122,7 @@ fn sixty_clip_traversals_and_reverse_seeks_keep_one_live_video_and_release_the_g
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn hidden_matte_source_is_live_but_unreferenced_hidden_video_is_reclaimed() {
     let mut p = project();
     p.version = motion_model::CURRENT_PROJECT_VERSION;
@@ -167,6 +169,7 @@ fn hidden_matte_source_is_live_but_unreferenced_hidden_video_is_reclaimed() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn standalone_input_switches_do_not_accumulate_planes_or_rgba_sources() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
     let mut input = PreviewInputTexture::new(renderer.device.clone(), renderer.queue.clone(), 4096, renderer.allocation_budget().clone()).unwrap();
@@ -185,6 +188,7 @@ fn standalone_input_switches_do_not_accumulate_planes_or_rgba_sources() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn rgba_handoff_releases_only_its_planes_and_preserves_both_instances_pixels() {
     let mut p = project();
     p.layers = vec![video(1), video(2)];
@@ -247,6 +251,7 @@ fn rgba_handoff_releases_only_its_planes_and_preserves_both_instances_pixels() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn same_stamp_rgba_handoff_reuses_pixels_but_releases_completed_planes() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let f = pixels();
@@ -264,6 +269,7 @@ fn same_stamp_rgba_handoff_reuses_pixels_but_releases_completed_planes() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn rgba_growth_uses_the_budget_freed_by_its_retired_planes() {
     use motion_render::resource_policy::MemoryPolicy;
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
@@ -282,6 +288,7 @@ fn rgba_growth_uses_the_budget_freed_by_its_retired_planes() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn rgba_replacement_cannot_borrow_another_live_instances_plane_budget() {
     use motion_render::{resource_policy::MemoryPolicy, ResourceBudgetScope, ResourceRejection};
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
@@ -330,6 +337,7 @@ fn rgba_replacement_cannot_borrow_another_live_instances_plane_budget() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn failed_rgba_handoff_preserves_cancelled_conversion_and_its_original_budget_error() {
     use motion_render::{resource_policy::MemoryPolicy, ResourceBudgetScope, ResourceRejection};
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();

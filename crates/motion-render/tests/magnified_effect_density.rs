@@ -151,6 +151,7 @@ fn magnification_reports_capacity_refusals_instead_of_bypassing_the_effect() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn enlarged_transfer_target_uses_coverage_at_the_working_canvas_resolution() {
     use motion_core::compositing::{BlendMode, BlendSpace, LayerBlend};
     use motion_render::Renderer;

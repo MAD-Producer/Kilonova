@@ -131,6 +131,7 @@ fn parameters_geometry_quality_resources_and_strict_export_invalidate_cached_pla
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn reused_preview_plan_uploads_changed_curve_lut_and_matches_fresh_gpu_output() {
     use motion_render::Renderer;
     let package = motion_effects::builtin::package().unwrap();

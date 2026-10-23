@@ -153,6 +153,7 @@ fn cancellation_has_identity_and_external_text_cannot_spoof_it() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn renderer_keeps_image_sources_on_configure_sync_and_async_failures() {
     use motion_render::{RenderError, Renderer, Scene};
     let root = tempfile::tempdir().unwrap();

@@ -56,6 +56,7 @@ impl Shell {
 
 #[cfg(all(test, target_os = "windows"))]
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn png_shell_shows_export_and_completion_in_both_languages() {
     const CHILD: &str = "MOTION_PNG_SHELL_CAPTURE_CHILD";
     if std::env::var_os(CHILD).is_none() {

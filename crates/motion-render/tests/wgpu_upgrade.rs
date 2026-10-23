@@ -22,6 +22,7 @@ fn unavailable_adapter_keeps_the_original_request_cause() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn scoped_shader_rejection_is_reported_and_does_not_poison_later_rendering() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let scope = renderer

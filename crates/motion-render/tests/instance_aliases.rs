@@ -157,6 +157,7 @@ fn authored_reference_paths_keep_ids_across_clip_boundaries_reentry_and_reopen()
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn clip_entry_does_not_reupload_a_continuously_visible_decoded_source_or_change_its_pixels() {
     let p = fixture();
     let mut scene = Scene::new(&p).unwrap();

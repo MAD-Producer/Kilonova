@@ -3,6 +3,7 @@ use motion_core::{
 };
 use motion_render::{Renderer, Scene};
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn nested_fractional_visibility_uses_exact_bounds_during_random_seek() {
     let mut p = Project::new(64, 64, 24, 48).unwrap();
     p.version = motion_model::CURRENT_PROJECT_VERSION;

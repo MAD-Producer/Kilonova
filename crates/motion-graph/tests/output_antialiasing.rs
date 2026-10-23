@@ -50,6 +50,7 @@ fn area_in_pixel(quad: &[[f64; 2]], x: usize, y: usize) -> f64 {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn aligned_planes_preserve_the_last_row_and_column_of_odd_viewports() {
     use motion_core::{
         compositing::*,
@@ -139,6 +140,7 @@ fn aligned_planes_preserve_the_last_row_and_column_of_odd_viewports() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn magnified_sdf_output_is_rasterized_at_display_density() {
     let folder = tempfile::tempdir().unwrap();
     let mut graph =
@@ -268,6 +270,7 @@ fn magnified_sdf_output_is_rasterized_at_display_density() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn rotated_graph_output_has_pixel_coverage_instead_of_a_binary_quad_edge() {
     // Exercise the limiting one-dimensional integral as well as diagonal edges.
     // The expected coverage remains independent pixel/polygon clipping.
@@ -375,6 +378,7 @@ fn check_rotated_graph_output_coverage(angle: f32) {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn coverage_is_shared_by_plain_masked_matted_and_blended_planes() {
     use motion_core::{
         compositing::*,
@@ -520,6 +524,7 @@ fn coverage_is_shared_by_plain_masked_matted_and_blended_planes() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn soft_sphere_output_preserves_animation_and_random_seek_at_display_density() {
     let folder = tempfile::tempdir().unwrap();
     let graph =
@@ -609,6 +614,7 @@ fn soft_sphere_output_preserves_animation_and_random_seek_at_display_density() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn magnified_graph_sampling_preserves_source_uvs_and_premultiplied_filtering() {
     use motion_core::{Asset, Content};
     let folder = tempfile::tempdir().unwrap();

@@ -57,6 +57,7 @@ fn present(events: &mut EventLoop<()>, engine: &Engine, size: u32) {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn native_failed_reattach_keeps_original_factory_front_and_default_error_channels() {
     const NAME: &str = "engine::surface_admission_tests::native_failed_reattach_keeps_original_factory_front_and_default_error_channels";
     const CHILD: &str = "MOTION_PRESENTER_WORKER_CHILD";

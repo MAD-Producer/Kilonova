@@ -1,6 +1,7 @@
 use super::*;
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn sdk_instances_are_lazy_bounded_and_refused_growth_preserves_the_old_allocation() {
     let renderer = pollster::block_on(crate::Renderer::headless()).unwrap();
     let budget = crate::AllocationBudget::new(1028).unwrap();

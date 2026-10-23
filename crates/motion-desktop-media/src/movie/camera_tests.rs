@@ -66,6 +66,7 @@ fn decoded(path: &Path) -> (Vec<u8>, Vec<u8>) {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn frozen_nested_camera_export_survives_live_camera_edits_and_reference_removal() {
     let directory = tempfile::tempdir().unwrap();
     let root = directory.path().join("project");

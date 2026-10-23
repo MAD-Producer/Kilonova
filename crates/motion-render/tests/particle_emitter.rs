@@ -250,6 +250,7 @@ fn missing_source_and_history_expression_block_export_with_preview_fallback() {
     );
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn world_birth_particles_render_on_gpu_and_survive_undo_redo() {
     let p = project();
     let mut engine = motion_core::Engine::new(p.clone()).unwrap();
@@ -280,6 +281,7 @@ fn world_birth_particles_render_on_gpu_and_survive_undo_redo() {
     }
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn custom_png_sprite_keeps_aspect_alpha_and_shared_texture() {
     let mut p = project();
     p.assets.push(motion_core::Asset {
@@ -327,6 +329,7 @@ fn custom_png_sprite_keeps_aspect_alpha_and_shared_texture() {
         .to_string().contains("sprite"));
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn nested_png_emitter_preserves_births_pixels_and_random_seek() {
     let mut p = project();
     p.assets.push(motion_core::Asset {

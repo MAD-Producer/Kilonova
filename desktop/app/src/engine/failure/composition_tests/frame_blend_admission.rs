@@ -1,6 +1,7 @@
 use super::*;
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn blend_uniform_refusal_preserves_reply_and_reaches_default_file_and_stderr() {
     const CHILD: &str = "MOTION_BLEND_UNIFORM_ADMISSION_LOG_CHILD";
     const NAME: &str = "engine::failure::composition_tests::frame_blend_admission::blend_uniform_refusal_preserves_reply_and_reaches_default_file_and_stderr";

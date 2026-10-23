@@ -30,6 +30,7 @@ fn poison(state: &Mutex<State>) {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn poisoned_submission_sites_are_bounded_visible_and_emit_after_unlock() {
     const TEST: &str = "submission_ledger::observation_tests::poisoned_submission_sites_are_bounded_visible_and_emit_after_unlock";
     const CHILD: &str = "MOTION_TEST_SUBMISSION_RECOVERY";

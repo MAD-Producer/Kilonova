@@ -261,6 +261,7 @@ fn recovery_writer_is_bounded_and_reports_partial_writes() {
 
 #[cfg(target_os = "windows")]
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn attached_hidden_surface_and_factory_release_after_worker_panic() {
     use winit::platform::windows::EventLoopBuilderExtWindows;
     let event_loop = winit::event_loop::EventLoop::builder()

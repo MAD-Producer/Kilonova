@@ -38,6 +38,7 @@ fn drain(renderer: &Renderer) {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn matte_and_transfer_system_resources_share_renderer_admission() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
     let budget = renderer.allocation_budget().clone();
@@ -58,6 +59,7 @@ fn matte_and_transfer_system_resources_share_renderer_admission() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn every_constructor_cut_point_releases_partial_capacity_before_recovery() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     drain(&renderer);
@@ -98,6 +100,7 @@ fn every_constructor_cut_point_releases_partial_capacity_before_recovery() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn normal_matte_refusal_preserves_cached_pixels_and_recovers_without_partial_publication() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let scene = sample(&project(true));
@@ -124,6 +127,7 @@ fn normal_matte_refusal_preserves_cached_pixels_and_recovers_without_partial_pub
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn exposure_local_refusal_keeps_retained_inputs_and_recovers_the_same_pixels() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let scene = sample(&project(false));
@@ -155,6 +159,7 @@ fn exposure_local_refusal_keeps_retained_inputs_and_recovers_the_same_pixels() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn queued_zero_extract_and_blend_uploads_retire_after_native_completion_without_renewal() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     drain(&renderer);
@@ -189,6 +194,7 @@ fn queued_zero_extract_and_blend_uploads_retire_after_native_completion_without_
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn abandoned_compositing_commands_retain_capacity_until_their_own_drop() {
     enum Work { Encoding(crate::AllocationEncoder), Finished(crate::AllocatedCommandBuffer) }
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();

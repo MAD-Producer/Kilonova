@@ -1,12 +1,14 @@
 use super::*;
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn timing_refusal_preserves_cause_and_reaches_default_file_and_stderr() {
     check_timing_channels(true,
         "engine::failure::composition_tests::timing_admission::timing_refusal_preserves_cause_and_reaches_default_file_and_stderr");
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn unsupported_timing_is_quiet_and_preserves_default_output_channels() {
     check_timing_channels(false,
         "engine::failure::composition_tests::timing_admission::unsupported_timing_is_quiet_and_preserves_default_output_channels");

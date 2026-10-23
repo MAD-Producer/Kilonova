@@ -2,6 +2,7 @@
 use motion_render::{AllocationBudget, Renderer, FIXED_RENDERER_ALLOCATION_BYTES};
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn overlapping_frames_do_not_renew_completed_target_reservations() {
     let budget = AllocationBudget::new(FIXED_RENDERER_ALLOCATION_BYTES + 8 * 256).unwrap();
     let renderer =

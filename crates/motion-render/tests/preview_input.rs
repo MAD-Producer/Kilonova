@@ -105,6 +105,7 @@ struct V{@builtin(position) p:vec4<f32>,@location(0) uv:vec2<f32>}
     renderer.read_target(&target).unwrap()
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn rgba_inputs_resize_preserve_aspect_and_share_linear_premultiplied_contract() {
     let renderer = renderer();
     let mut texture =
@@ -139,6 +140,7 @@ fn rgba_inputs_resize_preserve_aspect_and_share_linear_premultiplied_contract() 
     assert_eq!(pixels(&renderer, &texture), vec![0; 4]);
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn yuv_rotation_and_bounded_gpu_resize_use_correct_source_coordinates() {
     let renderer = renderer();
     let mut texture =
@@ -177,6 +179,7 @@ fn yuv_rotation_and_bounded_gpu_resize_use_correct_source_coordinates() {
     assert_eq!(texture.memory_bytes(), count);
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn invalid_upload_or_budget_rejection_preserves_last_valid_input() {
     let renderer = renderer();
     let mut texture =
@@ -196,6 +199,7 @@ fn invalid_upload_or_budget_rejection_preserves_last_valid_input() {
 const SYSTEM_BYTES: u64 = motion_render::FIXED_RENDERER_ALLOCATION_BYTES;
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn authoring_constructor_and_renderer_targets_share_the_same_combined_allowance() {
     let budget = motion_render::AllocationBudget::new(SYSTEM_BYTES + 15).unwrap();
     let renderer = pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();
@@ -222,6 +226,7 @@ fn authoring_constructor_and_renderer_targets_share_the_same_combined_allowance(
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn cloned_authoring_views_keep_admission_after_teardown_and_completed_pending_writes() {
     let budget = motion_render::AllocationBudget::new(SYSTEM_BYTES + 32).unwrap();
     for _ in 0..3 {
@@ -245,6 +250,7 @@ fn cloned_authoring_views_keep_admission_after_teardown_and_completed_pending_wr
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn combined_authoring_refusals_preserve_real_pixels_then_recover_with_admitted_yuv_planes() {
     let budget = motion_render::AllocationBudget::new(SYSTEM_BYTES + 4092).unwrap();
     let renderer = pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();

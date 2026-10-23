@@ -2,6 +2,7 @@ use super::*;
 use std::process::{Command, Stdio};
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn native_gpu_callback_is_bounded_and_reaches_default_sinks_without_health_polling() {
     const CHILD: &str = "MOTION_GPU_CALLBACK_LOG_CHILD";
     const TEST: &str = "logging::gpu_callback_tests::native_gpu_callback_is_bounded_and_reaches_default_sinks_without_health_polling";

@@ -8,6 +8,7 @@ fn profiled(budget: AllocationBudget, timestamps: bool) -> Renderer {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn timer_buffers_share_renderer_admission_and_retire_after_teardown() {
     let budget = AllocationBudget::new(8 << 20).unwrap();
     let renderer = profiled(budget.clone(), true);
@@ -26,6 +27,7 @@ fn timer_buffers_share_renderer_admission_and_retire_after_teardown() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn each_timing_buffer_refusal_is_typed_and_partial_construction_retires() {
     let budget = AllocationBudget::new(8 << 20).unwrap();
     let renderer = profiled(budget.clone(), true);
@@ -55,6 +57,7 @@ fn each_timing_buffer_refusal_is_typed_and_partial_construction_retires() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn unsupported_timestamps_do_not_reserve_or_consume_the_budget() {
     let budget = AllocationBudget::new(FIXED_RENDERER_ALLOCATION_BYTES).unwrap();
     let renderer = profiled(budget.clone(), false);
@@ -64,6 +67,7 @@ fn unsupported_timestamps_do_not_reserve_or_consume_the_budget() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn refused_timer_replacement_preserves_the_old_timer_and_existing_slots() {
     let budget = AllocationBudget::new(FIXED_RENDERER_ALLOCATION_BYTES + 1152).unwrap();
     let renderer = profiled(budget.clone(), true);
@@ -87,6 +91,7 @@ fn refused_timer_replacement_preserves_the_old_timer_and_existing_slots() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn timing_capacity_follows_abandoned_and_submitted_command_owners() {
     let budget = AllocationBudget::new(8 << 20).unwrap();
     let renderer = profiled(budget.clone(), true);

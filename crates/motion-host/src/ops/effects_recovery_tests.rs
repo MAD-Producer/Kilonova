@@ -94,6 +94,7 @@ fn begin_and_edit(session: &mut Session, token: &str) {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn editor_preview_competes_with_live_session_allocations_and_retires_on_close() {
     let (_directory, mut session, token) = session();
     let budget = session.allocation_budget().clone();

@@ -37,6 +37,7 @@ fn fixture() -> Project {
     p
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn different_source_times_use_distinct_video_textures_and_reuse_allocations() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let p = fixture();
@@ -88,6 +89,7 @@ fn effect(name: &str) -> EffectInstance {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn encoded_same_source_instances_keep_distinct_pts_through_effects_and_seek() {
     use motion_render::{ChromaLayout, Yuv420Frame};
     let mut p = fixture();
@@ -126,6 +128,7 @@ fn encoded_same_source_instances_keep_distinct_pts_through_effects_and_seek() {
     assert_eq!(standalone.video_conversion_submissions, 6);
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn video_effects_keep_live_instance_pixels_and_rebind_after_visibility_changes() {
     let mut p = fixture();
     for layer in &mut p.layers {

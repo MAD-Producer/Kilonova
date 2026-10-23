@@ -69,6 +69,7 @@ fn sample(project: &Project) -> Scene {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn matte_and_blend_working_textures_share_admission_and_release_actual_capacity() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     renderer.ensure_compositing_gpu(0., "initialize").unwrap();
@@ -94,6 +95,7 @@ fn matte_and_blend_working_textures_share_admission_and_release_actual_capacity(
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn refused_target_cut_points_keep_old_bindings_pixels_and_dimensions_until_complete_replacement() {
     let mut renderer = initialized();
     let budget = renderer.allocation_budget().clone();
@@ -171,6 +173,7 @@ fn refused_target_cut_points_keep_old_bindings_pixels_and_dimensions_until_compl
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn cached_transfer_bindings_keep_source_and_accumulators_admitted_and_render_after_owner_drop() {
     let mut renderer = initialized();
     let budget = renderer.allocation_budget().clone();
@@ -217,6 +220,7 @@ fn cached_transfer_bindings_keep_source_and_accumulators_admitted_and_render_aft
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn matte_command_scopes_keep_working_textures_until_abandonment_or_actual_completion() {
     enum Work { Encoding(crate::AllocationEncoder), Finished(crate::AllocatedCommandBuffer) }
     let mut renderer = initialized();
@@ -245,6 +249,7 @@ fn matte_command_scopes_keep_working_textures_until_abandonment_or_actual_comple
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn ordinary_and_local_target_refusals_preserve_last_pixels_and_recover_the_same_output() {
     fn draw(renderer: &mut Renderer, scene: &Scene, target: &CaptureTarget, rasters: &[LayerRaster], local: bool) -> Result<Vec<u8>> {
         if !local { return renderer.capture(scene, target).map(|result| result.0); }

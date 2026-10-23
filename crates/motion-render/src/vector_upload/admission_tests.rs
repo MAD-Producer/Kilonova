@@ -1,6 +1,7 @@
 use super::*;
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn vector_destination_and_staging_admit_actual_rounded_capacity() {
     let renderer = pollster::block_on(crate::Renderer::headless()).unwrap();
     let budget = renderer.allocation_budget();
@@ -28,6 +29,7 @@ fn assert_budget(error: &RenderError, required: u64, limit: u64) {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn refused_destination_growth_preserves_aliases_and_reuse_below_a_lowered_limit() {
     let renderer = pollster::block_on(crate::Renderer::headless()).unwrap();
     let budget = renderer.allocation_budget();
@@ -80,6 +82,7 @@ fn read_destination(renderer: &crate::Renderer, target: &AllocationBuffer) -> Ve
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn staging_refusal_is_atomic_and_cached_reuse_needs_no_new_capacity() {
     let renderer = pollster::block_on(crate::Renderer::headless()).unwrap();
     let budget = renderer.allocation_budget();
@@ -121,6 +124,7 @@ fn staging_refusal_is_atomic_and_cached_reuse_needs_no_new_capacity() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn raw_abandoned_commands_retain_both_buffers_after_cache_and_pool_drop() {
     let renderer = pollster::block_on(crate::Renderer::headless()).unwrap();
     let budget = renderer.allocation_budget();
@@ -142,6 +146,7 @@ fn raw_abandoned_commands_retain_both_buffers_after_cache_and_pool_drop() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn completed_uploads_do_not_renew_retired_destinations_in_unrelated_scopes() {
     let renderer = pollster::block_on(crate::Renderer::headless()).unwrap();
     let budget = renderer.allocation_budget();

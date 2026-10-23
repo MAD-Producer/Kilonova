@@ -7,6 +7,7 @@ use motion_render::{Renderer, Scene};
 use std::process::{Command, Stdio};
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn native_vector_upload_failure_reaches_default_file_and_stderr() {
     const CHILD: &str = "MOTION_VECTOR_UPLOAD_LOG_CHILD";
     if let Some(root) = std::env::var_os(CHILD) {

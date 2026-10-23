@@ -1,6 +1,7 @@
 use super::*;
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn transfer_accumulators_share_admission_and_release_actual_capacity() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let budget = renderer.allocation_budget().clone();
@@ -70,6 +71,7 @@ fn read(renderer: &Renderer, texture: &crate::resource_ledger::OwnedTexture, tar
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn accumulator_cut_points_preserve_both_old_targets_pixels_and_dimensions_before_atomic_replacement() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let target = renderer.capture_target(4, 4).unwrap();
@@ -129,6 +131,7 @@ fn accumulator_cut_points_preserve_both_old_targets_pixels_and_dimensions_before
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn accumulator_commands_keep_both_targets_until_their_own_abandonment_or_completion() {
     enum Work { Encoding(crate::AllocationEncoder), Finished(crate::AllocatedCommandBuffer) }
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
@@ -158,6 +161,7 @@ fn accumulator_commands_keep_both_targets_until_their_own_abandonment_or_complet
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn cached_transfer_bindings_keep_actual_layer_accumulators_renderable_after_cache_release() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let target = renderer.capture_target(4, 4).unwrap();
@@ -208,6 +212,7 @@ fn cached_transfer_bindings_keep_actual_layer_accumulators_renderable_after_cach
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn ordinary_and_local_accumulator_refusals_preserve_output_then_recover_exact_pixels() {
     for local in [false, true] {
         let mut renderer = pollster::block_on(Renderer::headless()).unwrap();

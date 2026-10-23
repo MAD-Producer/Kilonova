@@ -3,6 +3,7 @@ use motion_core::{Command, EffectInstance, Engine, ExpressionTarget, Layer, Proj
 use motion_render::Scene;
 use motion_render::{effect_plan::PlanBuilder, Renderer};
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn expressions_drive_geometry_effects_and_the_shared_export_plan() {
     let mut p = Project::new(64, 64, 30, 90).unwrap();
     p.background = [0.0; 4];
@@ -118,6 +119,7 @@ fn expressions_drive_geometry_effects_and_the_shared_export_plan() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn separated_axis_and_effect_expressions_match_explicit_values_in_pixels_and_frozen_plans() {
     let mut project = Project::new(64,64,30,90).unwrap();
     project.background = [0.;4];

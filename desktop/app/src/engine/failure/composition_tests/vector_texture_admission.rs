@@ -1,6 +1,7 @@
 use super::*;
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn native_vector_texture_refusal_keeps_old_pixels_cause_and_default_output_channels() {
     const CHILD: &str = "MOTION_VECTOR_TEXTURE_ADMISSION_LOG_CHILD";
     const NAME: &str = "engine::failure::composition_tests::vector_texture_admission::native_vector_texture_refusal_keeps_old_pixels_cause_and_default_output_channels";

@@ -53,6 +53,7 @@ fn prepare(renderer: &mut Renderer, scene: &Scene, meshes: &[crate::vector_mesh:
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn native_vector_sources_msaa_and_group_targets_join_combined_capacity_and_release() {
     for grouped in [false, true] {
         let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
@@ -86,6 +87,7 @@ fn native_vector_sources_msaa_and_group_targets_join_combined_capacity_and_relea
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn every_vector_texture_cut_point_preserves_old_outputs_pools_bytes_and_submitted_pixels() {
     for grouped in [false, true] {
         let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
@@ -145,6 +147,7 @@ fn every_vector_texture_cut_point_preserves_old_outputs_pools_bytes_and_submitte
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn later_mesh_refusal_rolls_back_staged_ordinary_and_grouped_targets_together() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let budget = renderer.allocation_budget().clone();
@@ -180,6 +183,7 @@ fn later_mesh_refusal_rolls_back_staged_ordinary_and_grouped_targets_together() 
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn vector_native_commands_retain_capacity_until_their_own_retirement() {
     for grouped in [false, true] {
         let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
@@ -241,6 +245,7 @@ fn vector_native_commands_retain_capacity_until_their_own_retirement() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn native_vector_source_alias_survives_renderer_teardown_without_releasing_its_capacity() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let budget = renderer.allocation_budget().clone();
@@ -265,6 +270,7 @@ fn native_vector_source_alias_survives_renderer_teardown_without_releasing_its_c
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn two_renderers_share_vector_capacity_and_failed_staging_leaves_no_reservation() {
     let budget = crate::AllocationBudget::new(16 << 20).unwrap();
     let mut first = pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();

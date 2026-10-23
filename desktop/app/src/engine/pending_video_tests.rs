@@ -166,6 +166,7 @@ fn present(engine: &Engine) -> Result<bool, String> {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn png_export_freezes_frame_without_blocking_engine_and_observes_failure_and_cancel() {
     const CHILD: &str = "MOTION_PNG_EXPORT_CHILD";
     if let Some(root) = std::env::var_os(CHILD) {
@@ -263,6 +264,7 @@ fn png_export_freezes_frame_without_blocking_engine_and_observes_failure_and_can
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn pending_video_presents_chrome_without_acknowledging_an_unready_composition() {
     const CHILD: &str = "MOTION_PENDING_VIDEO_CHROME_CHILD";
     if let Some(root) = std::env::var_os(CHILD) {
@@ -396,6 +398,7 @@ fn pending_video_presents_chrome_without_acknowledging_an_unready_composition() 
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn exposure_preview_keeps_progress_across_native_windows_and_cancels_on_explicit_seek() {
     const CHILD:&str="MOTION_NATIVE_EXPOSURE_PREVIEW_CHILD";
     if let Some(root)=std::env::var_os(CHILD) {

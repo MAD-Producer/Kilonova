@@ -112,6 +112,7 @@ fn pixel(p: &[u8], x: usize, y: usize) -> &[u8] {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn static_adjustments_match_original_opacity_background_upper_and_letterboxing() {
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
     let mut p = project();
@@ -144,6 +145,7 @@ fn static_adjustments_match_original_opacity_background_upper_and_letterboxing()
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn stacked_parented_adjustments_preserve_crossing_planes_mattes_blends_and_bgra() {
     let instance =
         wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
@@ -230,6 +232,7 @@ fn stacked_parented_adjustments_preserve_crossing_planes_mattes_blends_and_bgra(
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn receiver_exposure_keeps_adjustment_parameters_and_effect_inputs_at_center_time() {
     let mut p = project();
     let shutter = Shutter {
@@ -401,6 +404,7 @@ fn receiver_exposure_keeps_adjustment_parameters_and_effect_inputs_at_center_tim
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn empty_backdrop_and_inactive_adjustment_do_not_paint_background() {
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
     let mut p = project();
@@ -420,6 +424,7 @@ fn empty_backdrop_and_inactive_adjustment_do_not_paint_background() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn preparation_failures_preserve_original_cause_phase_and_existing_images() {
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
     let mut p = project();
@@ -462,6 +467,7 @@ fn preparation_failures_preserve_original_cause_phase_and_existing_images() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn receiver_missing_at_center_can_enable_phase_blending_without_losing_adjustment_bindings() {
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
     let mut p = project();
@@ -527,6 +533,7 @@ fn receiver_missing_at_center_can_enable_phase_blending_without_losing_adjustmen
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn nested_dependency_failure_is_not_bypassed_in_preview_and_valid_child_recovers() {
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
     let mut p = project();
@@ -581,6 +588,7 @@ fn nested_dependency_failure_is_not_bypassed_in_preview_and_valid_child_recovers
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn adjustment_accumulator_budget_is_rejected_before_allocation() {
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
     let mut p = project();
@@ -622,6 +630,7 @@ fn adjustment_accumulator_budget_is_rejected_before_allocation() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn dependency_plane_and_sum_submissions_keep_retained_inputs_and_output_in_ledger() {
     let mut r = pollster::block_on(Renderer::headless()).unwrap();
     r.set_submission_tracking(true);

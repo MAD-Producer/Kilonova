@@ -17,6 +17,7 @@ fn capture(r:&mut Renderer,p:&Project,f:f64)->Vec<u8> {
 fn pixel(bytes:&[u8],x:usize,y:usize)->&[u8]{&bytes[(y*64+x)*4..(y*64+x)*4+4]}
 fn fill(id:u64,color:[f32;4])->GroupItem {GroupItem::Fill{id,name:"Fill".into(),color:Track::constant(color),fill_rule:FillRule::NonZero,composite:Composite::Below}}
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn root_opacity_applies_once_after_overlapping_paints_and_edits_refresh_cache() {
     let mut r=pollster::block_on(Renderer::headless()).unwrap();let mut g=group();
     g.items.push(fill(3,[1.,0.,0.,1.]));g.items.push(fill(4,[0.,1.,0.,1.]));g.transform.opacity.value=50.;
@@ -26,6 +27,7 @@ fn root_opacity_applies_once_after_overlapping_paints_and_edits_refresh_cache() 
     let count=r.texture_bytes();assert_eq!(quarter,capture(&mut r,&p,0.));assert_eq!(count,r.texture_bytes());
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn nested_opacity_isolates_the_child_and_repeater_copies_keep_independent_alpha() {
     let mut r=pollster::block_on(Renderer::headless()).unwrap();let mut child=group();child.id=5;
     if let GroupItem::Geometry{id,..}=&mut child.items[0]{*id=6;}
@@ -39,6 +41,7 @@ fn nested_opacity_isolates_the_child_and_repeater_copies_keep_independent_alpha(
     let bytes=r.texture_bytes();r.clear_assets();assert!(r.texture_bytes()<bytes);
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn two_large_repeaters_rasterize_visible_roi_and_follow_layer_motion() {
     let mut r=pollster::block_on(Renderer::headless()).unwrap();let mut g=group();
     for(id,position)in[(3,[1064.,0.]),(4,[0.,844.])] {g.items.push(GroupItem::Repeater{id,name:"Grid".into(),repeater:Repeater{copies:Track::constant(23.),position:Track::constant(position),..Default::default()}});}
@@ -48,6 +51,7 @@ fn two_large_repeaters_rasterize_visible_roi_and_follow_layer_motion() {
     assert_eq!(first,capture(&mut r,&p,0.));
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn independent_paints_and_group_animation_are_seek_order_independent() {
     let mut r=pollster::block_on(Renderer::headless()).unwrap();let mut g=group();g.transform.position.set_animated(0,true).unwrap();g.transform.position.set_at(10,[16.,-8.]).unwrap();
     g.transform.opacity.set_animated(0,true).unwrap();g.transform.opacity.set_at(10,50.).unwrap();
@@ -56,6 +60,7 @@ fn independent_paints_and_group_animation_are_seek_order_independent() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn authored_group_node_and_separate_dash_edits_update_pixels_without_baking_copies() {
     let mut g=group();
     let GroupItem::Geometry{vector,..}=&mut g.items[0] else{unreachable!()};

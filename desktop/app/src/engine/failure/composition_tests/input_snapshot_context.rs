@@ -26,6 +26,7 @@ fn scene(size: u32) -> motion_render::Scene {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn snapshot_refusal_reports_frame_layer_extent_and_original_cause_at_default_level() {
     const CHILD: &str = "MOTION_INPUT_SNAPSHOT_CONTEXT_LOG_CHILD";
     const NAME: &str = "engine::failure::composition_tests::input_snapshot_context::snapshot_refusal_reports_frame_layer_extent_and_original_cause_at_default_level";

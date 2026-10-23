@@ -26,6 +26,7 @@ impl log::Log for Capture {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn real_validation_callbacks_leave_default_level_evidence_before_health_polling() {
     const CHILD: &str = "MOTION_GPU_VALIDATION_LOG_CHILD";
     if let Some(path) = std::env::var_os(CHILD) {

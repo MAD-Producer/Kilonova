@@ -55,6 +55,7 @@ fn scene(width: u32, height: u32) -> Scene {
     s
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn gpu_yuv_matches_cpu_export_for_rotation_range_matrix_and_odd_crop_phase() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let mut pts = 0;
@@ -92,6 +93,7 @@ fn gpu_yuv_matches_cpu_export_for_rotation_range_matrix_and_odd_crop_phase() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn encoded_yuv_matches_the_same_goldens_with_one_main_submission() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let mut pts = 0;
@@ -137,6 +139,7 @@ fn encoded_yuv_matches_the_same_goldens_with_one_main_submission() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn aborted_encoder_retries_the_same_pts_and_does_not_alias_an_unsubmitted_upload() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let f = frame(90, 2, 1);
@@ -196,6 +199,7 @@ fn aborted_encoder_retries_the_same_pts_and_does_not_alias_an_unsubmitted_upload
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn nested_scene_rejects_unsubmitted_conversion_and_keeps_standalone_pixels() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let f = frame(0, 1, 2);

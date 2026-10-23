@@ -1,6 +1,7 @@
 use super::*;
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn fixed_startup_refusal_preserves_cause_and_reaches_default_file_and_stderr() {
     const CHILD: &str = "MOTION_FIXED_STARTUP_ADMISSION_LOG_CHILD";
     const NAME: &str = "engine::failure::composition_tests::fixed_admission::fixed_startup_refusal_preserves_cause_and_reaches_default_file_and_stderr";

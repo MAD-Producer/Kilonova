@@ -17,6 +17,7 @@ fn assert_color(actual: [u8; 4], expected: [u8; 4]) {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn gpu_sorting_transparency_png_orientation_and_resource_reuse() {
     // A missing GPU is a test failure, never a silent skip.
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();

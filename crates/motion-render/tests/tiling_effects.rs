@@ -105,6 +105,7 @@ fn asymmetric_expansion_cropping_preview_scale_and_budget_keep_layer_transform()
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn tile_pixels_repeat_mirror_phase_alpha_and_zero_width_have_distinct_behavior() {
     let mut p = fixture("motion_tile");
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
@@ -141,6 +142,7 @@ fn tile_pixels_repeat_mirror_phase_alpha_and_zero_width_have_distinct_behavior()
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn every_new_effect_renders_finite_and_unsupported_controls_fail_explicitly() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     renderer.upload_image(1, 32, 16, &pixels()).unwrap();
@@ -178,6 +180,7 @@ fn every_new_effect_renders_finite_and_unsupported_controls_fail_explicitly() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn animated_tiles_are_identical_after_restore_and_random_seeking() {
     let mut p = fixture("motion_tile");
     set(&mut p, "output_width", 400.);

@@ -33,6 +33,7 @@ fn value(failure: &Mutex<Option<String>>) -> Option<String> {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn poisoned_gpu_latch_recovery_is_visible_bounded_and_keeps_health_semantics() {
     const TEST: &str = "renderer::gpu_failure::recovery_tests::poisoned_gpu_latch_recovery_is_visible_bounded_and_keeps_health_semantics";
     const CHILD: &str = "MOTION_GPU_LATCH_RECOVERY_TEST";

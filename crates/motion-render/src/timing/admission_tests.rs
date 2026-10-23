@@ -1,6 +1,7 @@
 use super::*;
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn pending_timestamp_mapping_owns_the_buffer_until_its_actual_callback() {
     let budget = crate::AllocationBudget::new(8 << 20).unwrap();
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());

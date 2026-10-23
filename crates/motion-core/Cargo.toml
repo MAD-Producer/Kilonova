@@ -24,5 +24,5 @@ swc_ecma_visit = "29"
 rquickjs = { version = "0.14", default-features = false, features = ["std", "bindgen"] }
 
 [dev-dependencies]
-motion-render = { path = "../motion-render" }
+motion-render = { path = "../motion-render", default-features = false }
 tempfile = "3.17"

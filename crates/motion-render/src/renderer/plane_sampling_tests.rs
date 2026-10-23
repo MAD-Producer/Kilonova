@@ -111,6 +111,7 @@ fn max_difference(a: &[u8], b: &[u8]) -> u8 {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn perspective_filter_preserves_split_pixels_without_additional_texture_capacity() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let scene = fixture(&mut renderer);

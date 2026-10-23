@@ -161,6 +161,7 @@ fn exact(
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn exact_vfr_pair_matches_gpu_preview_and_frozen_bytes_without_nominal_fps_or_weight_redecoding() {
     let dir = tempfile::tempdir().unwrap();
     let p = fixture(dir.path());
@@ -324,6 +325,7 @@ fn blocked_right_is_published_and_required_errors_do_not_become_prefetch_failure
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn yuv_required_sources_mix_on_gpu_and_survive_proxy_and_hold_handoff() {
     let dir = tempfile::tempdir().unwrap();
     let p = fixture(dir.path());
@@ -495,6 +497,7 @@ fn poll_exposure(task:&mut motion_render::ExposureFrame<motion_core::ExpressionE
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn exposure_media_pending_reuses_required_generation_and_exact_vfr_pair_across_all_phases_and_proxy() {
     use crate::render_sampling::ExposureMediaPolicy;
     use motion_render::ExposurePoll;
@@ -542,6 +545,7 @@ fn exposure_media_pending_reuses_required_generation_and_exact_vfr_pair_across_a
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn exposure_required_decoder_error_is_terminal_and_new_explicit_reader_can_recover() {
     use crate::render_sampling::ExposureMediaPolicy;
     use motion_render::{ExposurePoll,ExposureStage};
@@ -585,6 +589,7 @@ fn exposure_required_decoder_error_is_terminal_and_new_explicit_reader_can_recov
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn nested_exposure_reuses_stable_video_instances_across_parent_visits_and_new_frames() {
     use crate::render_sampling::ExposureMediaPolicy;
     use motion_render::ExposurePoll;

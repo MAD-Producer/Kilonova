@@ -1,6 +1,7 @@
 use motion_render::{Renderer, Scene, TextureResourceLedger, TextureState};
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn disabled_tracking_has_no_snapshot_work_and_callbacks_complete_real_submissions() {
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
     let target = renderer.render_target(16, 16).unwrap();
@@ -50,6 +51,7 @@ fn disabled_tracking_has_no_snapshot_work_and_callbacks_complete_real_submission
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn rejected_encoding_does_not_create_a_submission_and_capture_keeps_existing_pixels() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     renderer.set_submission_tracking(true);

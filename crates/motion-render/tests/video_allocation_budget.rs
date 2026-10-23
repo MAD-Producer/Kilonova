@@ -49,6 +49,7 @@ fn flush(renderer: &Renderer) {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn late_video_uniform_refusal_rolls_back_planes_and_output_without_changing_old_pixels() {
     let budget = AllocationBudget::new(SYSTEM_BYTES + 4092).unwrap();
     let mut renderer = renderer(&budget);
@@ -112,6 +113,7 @@ fn late_video_uniform_refusal_rolls_back_planes_and_output_without_changing_old_
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn raw_encoded_video_tokens_keep_destinations_through_cache_clear_and_real_submission() {
     let budget = AllocationBudget::new(SYSTEM_BYTES + 16 + 6 + 48).unwrap();
     let mut renderer = renderer(&budget);

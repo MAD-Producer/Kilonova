@@ -1,6 +1,7 @@
 use super::*;
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn native_mask_texture_refusal_keeps_old_pixels_cause_and_default_output_channels() {
     const CHILD: &str = "MOTION_MASK_TEXTURE_ADMISSION_LOG_CHILD";
     const NAME: &str = "engine::failure::composition_tests::mask_texture_admission::native_mask_texture_refusal_keeps_old_pixels_cause_and_default_output_channels";

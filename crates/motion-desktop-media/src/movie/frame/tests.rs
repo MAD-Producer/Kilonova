@@ -2,6 +2,7 @@ use super::*;
 use motion_core::{render_sampling::Shutter, Command, Ease, Layer};
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn frozen_package_png_policy_preserves_publication_and_full_pixels_after_session_close() {
     let root = tempfile::tempdir().unwrap();
     let mut session = Session::new(package_budget_project(), root.path().into(), crate::platform()).unwrap();
@@ -35,6 +36,7 @@ fn frozen_package_png_policy_preserves_publication_and_full_pixels_after_session
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn frozen_png_keeps_cpu_decode_allowance_and_preserves_publication_on_refusal() {
     let root = tempfile::tempdir().unwrap();
     fs::create_dir(root.path().join("assets")).unwrap();
@@ -75,6 +77,7 @@ fn frozen_png_keeps_cpu_decode_allowance_and_preserves_publication_on_refusal() 
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn frozen_png_shares_live_session_admission_and_recovers_at_full_quality() {
     let root = tempfile::tempdir().unwrap();
     let mut project = Project::new(32, 24, 30, 6).unwrap();
@@ -170,6 +173,7 @@ fn project() -> Project {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn png_uses_frozen_fractional_frame_and_all_samples_without_preview_mutation() {
     let root = tempfile::tempdir().unwrap();
     let mut session = Session::new(project(), root.path().to_owned(), crate::platform()).unwrap();
@@ -263,6 +267,7 @@ fn png_uses_frozen_fractional_frame_and_all_samples_without_preview_mutation() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn png_cancel_failure_and_source_protection_preserve_existing_destination() {
     let root = tempfile::tempdir().unwrap();
     let mut session = Session::new(project(), root.path().to_owned(), crate::platform()).unwrap();
@@ -321,6 +326,7 @@ fn png_cancel_failure_and_source_protection_preserve_existing_destination() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn png_freezes_sources_before_replacement_and_exports_without_ffmpeg_or_pcm() {
     let root = tempfile::tempdir().unwrap();
     fs::create_dir(root.path().join("assets")).unwrap();

@@ -49,6 +49,7 @@ fn particle_sprite_is_demanded_without_an_image_layer_and_released_when_disabled
     assert!(!motion_render::image_resources::scene_assets(&scene).contains(&7));
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn active_images_share_proxies_with_nested_instances_and_full_output_is_explicit() {
     let root = tempfile::tempdir().unwrap();
     fs::create_dir(root.path().join("assets")).unwrap();

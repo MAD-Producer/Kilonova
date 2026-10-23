@@ -9,16 +9,18 @@ description = "Desktop media backend for the shared editing host"
 crate-type = ["rlib"]
 
 [features]
-default = []
+default = ["gpu-tests"]
+# Test selection only; product rendering is always compiled.
+gpu-tests = []
 # Requires libav (ffmpeg) development libraries at build time. Off by default so
 # the workspace and CI build on machines without libav; `tools/build_desktop.py
 # --ffmpeg` turns it on for distributable builds.
 ffmpeg = ["dep:ffmpeg-next"]
 
 [dependencies]
-motion-host = { path = "../motion-host" }
+motion-host = { path = "../motion-host", default-features = false }
 motion-core = { path = "../motion-core" }
-motion-render = { path = "../motion-render" }
+motion-render = { path = "../motion-render", default-features = false }
 motion-media = { path = "../motion-media" }
 motion-effects = { path = "../motion-effects" }
 tempfile = "3"

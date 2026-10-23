@@ -163,6 +163,7 @@ fn sampled(project: &Project, frame: f64) -> Scene {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn nested_camera_pixels_match_independent_legacy_views_after_save_and_random_seek() {
     let project = fixture();
     let directory = tempfile::tempdir().unwrap();

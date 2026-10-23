@@ -31,6 +31,7 @@ fn capture(shell: &mut Shell, destination: PathBuf) {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn retired_effects_leave_catalogue_and_old_project_failures_reach_default_sinks() {
     const CHILD: &str = "MOTION_RETIRED_EFFECT_CHILD";
     const TEST: &str = "shell::retired_effect_tests::retired_effects_leave_catalogue_and_old_project_failures_reach_default_sinks";

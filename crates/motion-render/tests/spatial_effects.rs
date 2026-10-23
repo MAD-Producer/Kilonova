@@ -55,6 +55,7 @@ fn mass_and_center(pixels: &[u8], width: usize) -> (f64, [f64; 2]) {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn shake_moves_the_complete_plane_outside_the_original_bounds_without_editing_tracks() {
     let mut p = fixture("shake");
     set(&mut p, "translation", [32., 16., 0., 0.]);
@@ -119,6 +120,7 @@ fn shake_moves_the_complete_plane_outside_the_original_bounds_without_editing_tr
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn transformed_motion_blur_moves_the_plane_and_retains_the_unmodified_opacity_source() {
     let mut p = fixture("transform_blur");
     set(&mut p, "shift", [38., 24., 0., 0.]);
@@ -145,6 +147,7 @@ fn transformed_motion_blur_moves_the_plane_and_retains_the_unmodified_opacity_so
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn polar_unwrap_keeps_corner_pixels_below_the_original_layer_and_zero_amount_is_identity() {
     let mut p = fixture("polar_coordinates");
     set(&mut p, "p0001", [1., 0., 0., 0.]);

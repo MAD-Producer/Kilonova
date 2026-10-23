@@ -5,6 +5,7 @@ use motion_render::{
 };
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn actual_preview_capture_upload_and_external_aliases_keep_disjoint_category_peaks() {
     let budget = AllocationBudget::new(16 << 20).unwrap();
     let mut renderer =
@@ -122,6 +123,7 @@ fn actual_preview_capture_upload_and_external_aliases_keep_disjoint_category_pea
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn actual_buffers_uploads_and_allocated_submission_contribute_until_retirement() {
     let budget = AllocationBudget::new(FIXED + 16).unwrap();
     let renderer =
@@ -176,6 +178,7 @@ fn actual_buffers_uploads_and_allocated_submission_contribute_until_retirement()
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn shared_renderers_and_tracked_raw_submission_keep_one_combined_peak() {
     let budget = AllocationBudget::new(2 * FIXED + 8).unwrap();
     let first =

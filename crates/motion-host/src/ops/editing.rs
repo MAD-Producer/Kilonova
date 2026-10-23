@@ -210,6 +210,7 @@ mod preparation_failure_tests {
     use super::*;
 
     #[test]
+    #[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
     fn native_renderer_prepare_error_survives_model_rollback_and_recovery() {
         let directory = tempfile::tempdir().unwrap();
         let mut engine = motion_core::Engine::new(

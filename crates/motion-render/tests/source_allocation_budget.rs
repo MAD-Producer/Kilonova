@@ -42,6 +42,7 @@ fn image_scene() -> Scene {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn evicted_unsubmitted_destinations_keep_capacity_and_normal_submissions_release_it() {
     let budget = AllocationBudget::new(SYSTEM_BYTES + 16 + 16).unwrap();
     let mut renderer = renderer(&budget);
@@ -98,6 +99,7 @@ fn evicted_unsubmitted_destinations_keep_capacity_and_normal_submissions_release
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn refused_image_growth_keeps_original_pixels_and_same_size_updates_need_no_new_destination() {
     let budget = AllocationBudget::new(SYSTEM_BYTES + 16 + 64 + 4 * 256).unwrap();
     let mut renderer = renderer(&budget);
@@ -137,6 +139,7 @@ fn refused_image_growth_keeps_original_pixels_and_same_size_updates_need_no_new_
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn video_output_admission_preserves_previous_rgba_and_conversion_retirement() {
     let budget = AllocationBudget::new(SYSTEM_BYTES + 16).unwrap();
     let mut renderer = renderer(&budget);
@@ -218,6 +221,7 @@ fn video_output_admission_preserves_previous_rgba_and_conversion_retirement() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn standalone_video_scope_refusal_preserves_the_previous_image_and_stamp() {
     let budget = AllocationBudget::new(SYSTEM_BYTES + 1020).unwrap();
     let mut renderer = renderer(&budget);
@@ -273,6 +277,7 @@ fn standalone_video_scope_refusal_preserves_the_previous_image_and_stamp() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn renderer_teardown_retires_unsubmitted_destinations_with_external_queue_and_device_handles() {
     let budget = AllocationBudget::new(SYSTEM_BYTES + 16).unwrap();
     for _ in 0..3 {
@@ -294,6 +299,7 @@ fn renderer_teardown_retires_unsubmitted_destinations_with_external_queue_and_de
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn startup_white_source_is_admitted_and_refusal_leaves_no_reservation() {
     let budget = AllocationBudget::new(3).unwrap();
     let error = pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone()))

@@ -47,6 +47,7 @@ fn capture(r: &mut Renderer, p: &Project, f: f64) -> Vec<u8> {
     r.capture(&s, &target).unwrap().0
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn nested_gpu_preserves_pixels_at_keys_and_random_seek_and_reuses_outputs() {
     let mut e = Engine::new(fixture()).unwrap();
     let before = e.snapshot();
@@ -85,6 +86,7 @@ fn nested_gpu_preserves_pixels_at_keys_and_random_seek_and_reuses_outputs() {
     assert!(r.texture_bytes() < bytes);
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn nested_effects_and_postorder_bundle_keep_program_and_parent_texture_bindings() {
     let mut p = fixture();
     let package = motion_effects::builtin::package().unwrap();
@@ -146,6 +148,7 @@ fn nested_effects_and_postorder_bundle_keep_program_and_parent_texture_bindings(
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn switching_contexts_can_reuse_an_id_for_video_and_composition_without_reusing_texture_usage() {
     let mut e = Engine::new(fixture()).unwrap();
     apply(
@@ -177,6 +180,7 @@ fn switching_contexts_can_reuse_an_id_for_video_and_composition_without_reusing_
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn deep_library_draws_only_active_nodes_and_reuses_gpu_outputs_at_normal_resolution() {
     let mut p=Project::new(64,64,24,120).unwrap();p.background=[0.;4];
     let mut reference=Layer::solid(1,"Reference",[64.;2],[32.,32.,0.],[1.;4]);
@@ -219,6 +223,7 @@ fn deep_library_draws_only_active_nodes_and_reuses_gpu_outputs_at_normal_resolut
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn repeated_mixed_rate_shake_reuses_scenes_without_changing_pixels_or_export_plans() {
     let mut p = Project::new(192, 192, 59, 118).unwrap();
     p.background = [0.; 4];

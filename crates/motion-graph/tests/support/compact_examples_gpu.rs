@@ -23,6 +23,7 @@ pub const LEGACY: [(&str, &str, usize, usize); 3] = [
 ];
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn compact_examples_preserve_exported_gpu_pixels_parameters_animation_and_seek() {
     let folder = tempfile::tempdir().unwrap();
     let artifacts =

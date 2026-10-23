@@ -38,6 +38,7 @@ fn project() -> Project {
     p
 }
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn opaque_and_translucent_crossing_planes_occlude_per_pixel_in_both_stack_orders() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let target = renderer.capture_target(256, 256).unwrap();

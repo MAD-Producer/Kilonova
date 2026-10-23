@@ -19,6 +19,7 @@ fn capacity_checks_alignment_limit_and_growth_before_allocating() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn ordered_copies_reuse_completed_uploads_and_retire_abandoned_work() {
     let renderer = pollster::block_on(crate::Renderer::headless()).unwrap();
     let device = &renderer.device;
@@ -150,6 +151,7 @@ fn ordered_copies_reuse_completed_uploads_and_retire_abandoned_work() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn actual_native_remap_failure_is_retained_and_does_not_retry() {
     let renderer = pollster::block_on(crate::Renderer::headless()).unwrap();
     let pool = UploadPool::new(renderer.allocation_budget().clone());

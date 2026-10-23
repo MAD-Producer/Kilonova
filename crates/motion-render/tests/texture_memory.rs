@@ -20,6 +20,7 @@ fn effect(id: &str) -> EffectInstance {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn owned_images_planes_and_fallbacks_are_disjoint_and_external_targets_are_excluded() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     assert_ledger(&renderer);
@@ -57,6 +58,7 @@ fn owned_images_planes_and_fallbacks_are_disjoint_and_external_targets_are_exclu
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn grouped_vectors_share_scratch_while_sources_and_curve_luts_keep_their_owners() {
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
     let mut project = Project::new(64, 64, 30, 60).unwrap();
@@ -95,6 +97,7 @@ fn grouped_vectors_share_scratch_while_sources_and_curve_luts_keep_their_owners(
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn nested_composition_outputs_are_not_reported_as_video_rgba() {
     let mut project = Project::new(64, 64, 30, 60).unwrap();
     project
@@ -123,6 +126,7 @@ fn nested_composition_outputs_are_not_reported_as_video_rgba() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn masks_and_shared_effect_input_snapshots_have_distinct_ownership() {
     use motion_core::{
         masks::LayerMask,
@@ -197,6 +201,7 @@ fn assert_ledger(renderer: &Renderer) {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn resource_identity_survives_reuse_but_not_replacement_or_project_switch() {
     use motion_render::TextureCategory;
     let mut renderer = pollster::block_on(Renderer::headless()).unwrap();
@@ -222,6 +227,7 @@ fn resource_identity_survives_reuse_but_not_replacement_or_project_switch() {
 }
 
 #[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
 fn preview_candidates_swap_ownership_and_aliases_count_once() {
     use motion_render::{PreviewFrameTargets, TextureState};
     let renderer = pollster::block_on(Renderer::headless()).unwrap();
