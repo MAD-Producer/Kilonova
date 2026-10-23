@@ -1,0 +1,706 @@
+{
+  "source": "709de340a6e6f660d1aba4e8532f4a1c36912626",
+  "phases": {
+    "tools": {
+      "source": "709de340a6e6f660d1aba4e8532f4a1c36912626",
+      "root": "E:\\Dev\\aem\\.worktrees\\cost-report-cpu-memory",
+      "phase": "tools",
+      "command": [
+        "C:\\Users\\nova\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tools",
+        "-p",
+        "test_ci_*.py",
+        "-v"
+      ],
+      "startedUnix": 1792735622.756871,
+      "environment": {
+        "TEMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+        "TMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_INCREMENTAL": "0",
+        "CARGO_NET_OFFLINE": "true",
+        "PYTHONPATH": "E:\\Dev\\aem\\.tools\\build-validation-python"
+      },
+      "exitCode": 0,
+      "elapsedSeconds": 31.511996746063232,
+      "logSha256": "7565ac3d878b648ccc9b6c33c4734779ab7680f6ff93de0e95847474b5e2d7d5",
+      "testSummaries": []
+    },
+    "provenance": {
+      "source": "709de340a6e6f660d1aba4e8532f4a1c36912626",
+      "root": "E:\\Dev\\aem\\.worktrees\\cost-report-cpu-memory",
+      "phase": "provenance",
+      "command": [
+        "C:\\Users\\nova\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "tools/validate_provenance.py"
+      ],
+      "startedUnix": 1792735654.4260414,
+      "environment": {
+        "TEMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+        "TMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_INCREMENTAL": "0",
+        "CARGO_NET_OFFLINE": "true",
+        "PYTHONPATH": "E:\\Dev\\aem\\.tools\\build-validation-python"
+      },
+      "exitCode": 0,
+      "elapsedSeconds": 0.13936996459960938,
+      "logSha256": "0f7fee30e444bfa999b54df097dbab023321d82b3b6dbe5cabcecca498acabd3",
+      "testSummaries": []
+    },
+    "inventory": {
+      "source": "709de340a6e6f660d1aba4e8532f4a1c36912626",
+      "root": "E:\\Dev\\aem\\.worktrees\\cost-report-cpu-memory",
+      "phase": "inventory",
+      "command": [
+        "C:\\Users\\nova\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "tools/validation_inventory.py"
+      ],
+      "startedUnix": 1792735654.7120302,
+      "environment": {
+        "TEMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+        "TMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_INCREMENTAL": "0",
+        "CARGO_NET_OFFLINE": "true",
+        "PYTHONPATH": "E:\\Dev\\aem\\.tools\\build-validation-python"
+      },
+      "exitCode": 0,
+      "elapsedSeconds": 0.2204892635345459,
+      "logSha256": "d8603ba5209d8b86a2199e080b90da8ff71f2d059e24ade0eeaaadc24636f905",
+      "testSummaries": []
+    },
+    "native": {
+      "source": "709de340a6e6f660d1aba4e8532f4a1c36912626",
+      "root": "E:\\Dev\\aem\\.worktrees\\cost-report-cpu-memory",
+      "phase": "native",
+      "command": [
+        "C:\\Users\\nova\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "tools/collect_desktop_performance.py",
+        "--output",
+        "E:\\Dev\\aem\\artifacts\\pr-queue\\issue60-cost-cpu-v1-native-artifacts",
+        "--target-dir",
+        "E:\\Dev\\aem\\target\\issue60-cost-cpu-release",
+        "--samples",
+        "60",
+        "--environment-note",
+        "Development desktop; uncontrolled background load/power/thermals. Ownership census after every completed frame is a study condition; not window throughput or speedup evidence."
+      ],
+      "startedUnix": 1792735655.0938025,
+      "environment": {
+        "TEMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+        "TMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_INCREMENTAL": "0",
+        "CARGO_NET_OFFLINE": "true",
+        "PYTHONPATH": "E:\\Dev\\aem\\.tools\\build-validation-python"
+      },
+      "exitCode": 0,
+      "elapsedSeconds": 898.4426567554474,
+      "logSha256": "cb36855c0052d71f332e6fad442f78c42b30622ce00bdc490f9f50d35aeeba8e",
+      "testSummaries": []
+    },
+    "fixtures": {
+      "source": "709de340a6e6f660d1aba4e8532f4a1c36912626",
+      "root": "E:\\Dev\\aem\\.worktrees\\cost-report-cpu-memory",
+      "phase": "fixtures",
+      "command": [
+        "cargo",
+        "test",
+        "--release",
+        "--locked",
+        "--offline",
+        "-p",
+        "motion-render",
+        "--example",
+        "performance_baseline",
+        "--target-dir",
+        "E:\\Dev\\aem\\target\\issue60-cost-cpu-release\\desktop-performance\\709de340a6e6f660d1aba4e8532f4a1c36912626",
+        "--",
+        "--test-threads=1"
+      ],
+      "startedUnix": 1792736553.7552722,
+      "environment": {
+        "TEMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+        "TMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_INCREMENTAL": "0",
+        "CARGO_NET_OFFLINE": "true",
+        "PYTHONPATH": "E:\\Dev\\aem\\.tools\\build-validation-python"
+      },
+      "exitCode": 0,
+      "elapsedSeconds": 93.94024729728699,
+      "logSha256": "25376cf487ea7bd0207ef1857d2b2be9677a28a64fd028192ef31891fdf64f11",
+      "testSummaries": [
+        [
+          2,
+          0,
+          0
+        ]
+      ]
+    },
+    "replay": {
+      "source": "709de340a6e6f660d1aba4e8532f4a1c36912626",
+      "root": "E:\\Dev\\aem\\.worktrees\\cost-report-cpu-memory",
+      "phase": "replay",
+      "command": [
+        "C:\\Users\\nova\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "tools/collect_desktop_performance.py",
+        "--output",
+        "E:\\Dev\\aem\\artifacts\\pr-queue\\issue60-cost-cpu-v1-native-artifacts",
+        "--validate-only"
+      ],
+      "startedUnix": 1792736648.0196533,
+      "environment": {
+        "TEMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+        "TMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_INCREMENTAL": "0",
+        "CARGO_NET_OFFLINE": "true",
+        "PYTHONPATH": "E:\\Dev\\aem\\.tools\\build-validation-python"
+      },
+      "exitCode": 0,
+      "elapsedSeconds": 0.4173152446746826,
+      "logSha256": "fe5af973f6c6c987670fa35f10f6cf69f29dfd1f3adf7f163efe7c36a50bc4e6",
+      "testSummaries": []
+    },
+    "diff": {
+      "source": "709de340a6e6f660d1aba4e8532f4a1c36912626",
+      "root": "E:\\Dev\\aem\\.worktrees\\cost-report-cpu-memory",
+      "phase": "diff",
+      "command": [
+        "git",
+        "diff",
+        "--check",
+        "1a2b4bf1ba6b84fcfb4ce9506b42a98da9a234e8",
+        "HEAD"
+      ],
+      "startedUnix": 1792736648.7191079,
+      "environment": {
+        "TEMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+        "TMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_INCREMENTAL": "0",
+        "CARGO_NET_OFFLINE": "true",
+        "PYTHONPATH": "E:\\Dev\\aem\\.tools\\build-validation-python"
+      },
+      "exitCode": 0,
+      "elapsedSeconds": 0.10442113876342773,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "testSummaries": []
+    }
+  },
+  "binary": {
+    "path": "E:\\Dev\\aem\\target\\issue60-cost-cpu-release\\desktop-performance\\709de340a6e6f660d1aba4e8532f4a1c36912626\\release\\examples\\performance_baseline.exe",
+    "sha256": "0e6335284541ab9a1e38ff8eaa734c39f925974c7bc4173bfaced3078eb454be"
+  },
+  "provenanceSha256": "675526a6dff4b09cfdf4252ea985798f43d60c43a51b7057a7fc7fa7868c9af1",
+  "sampleFrames": 408,
+  "measuredFrames": 360,
+  "cases": [
+    {
+      "case": "static",
+      "adapter": {
+        "backend": "Vulkan",
+        "deviceType": "DiscreteGpu",
+        "driver": "NVIDIA",
+        "driverInfo": "591.86",
+        "name": "NVIDIA GeForce RTX 4070 Laptop GPU"
+      },
+      "rawFrames": 68,
+      "measuredFrames": 60,
+      "finalObservedCpuCapacityBytes": 15999060,
+      "packageAllocations": 7,
+      "programShaderAllocations": 3,
+      "generatedYuv": null,
+      "metadataSampleUs": {
+        "count": 60,
+        "max": 229.0,
+        "p50": 103.0,
+        "p95": 167.0,
+        "p99": 229.0
+      },
+      "waitedWallUs": {
+        "count": 60,
+        "max": 1979.0,
+        "p50": 871.0,
+        "p95": 1844.0,
+        "p99": 1979.0
+      },
+      "pngSha256": "bebc98ed5ac33883ed69514f68e63dd496ccca24cc669f931f6959ff2eda359e",
+      "decodedRgbaSha256": "1d4b33fd4016e373804834e5763d4caf7c2afe57065d5b40be6dc5933454cab3",
+      "original5824ProjectIdentical": true,
+      "original5824PixelsIdentical": true
+    },
+    {
+      "case": "animated",
+      "adapter": {
+        "backend": "Vulkan",
+        "deviceType": "DiscreteGpu",
+        "driver": "NVIDIA",
+        "driverInfo": "591.86",
+        "name": "NVIDIA GeForce RTX 4070 Laptop GPU"
+      },
+      "rawFrames": 68,
+      "measuredFrames": 60,
+      "finalObservedCpuCapacityBytes": 15999060,
+      "packageAllocations": 7,
+      "programShaderAllocations": 3,
+      "generatedYuv": null,
+      "metadataSampleUs": {
+        "count": 60,
+        "max": 230.0,
+        "p50": 61.0,
+        "p95": 147.0,
+        "p99": 230.0
+      },
+      "waitedWallUs": {
+        "count": 60,
+        "max": 2414.0,
+        "p50": 479.0,
+        "p95": 1285.0,
+        "p99": 2414.0
+      },
+      "pngSha256": "e8c054d48945fd242d2620dad6cb2dc09a5270049013e53140185133508fd726",
+      "decodedRgbaSha256": "8b63378088ba9d6adfab745f8bfeb8e5a7c62cdd3e401ca4d1c40dc6af7c04ac",
+      "original5824ProjectIdentical": true,
+      "original5824PixelsIdentical": true
+    },
+    {
+      "case": "effect-chain",
+      "adapter": {
+        "backend": "Vulkan",
+        "deviceType": "DiscreteGpu",
+        "driver": "NVIDIA",
+        "driverInfo": "591.86",
+        "name": "NVIDIA GeForce RTX 4070 Laptop GPU"
+      },
+      "rawFrames": 68,
+      "measuredFrames": 60,
+      "finalObservedCpuCapacityBytes": 16108767,
+      "packageAllocations": 7,
+      "programShaderAllocations": 9,
+      "generatedYuv": null,
+      "metadataSampleUs": {
+        "count": 60,
+        "max": 482.0,
+        "p50": 60.0,
+        "p95": 106.0,
+        "p99": 482.0
+      },
+      "waitedWallUs": {
+        "count": 60,
+        "max": 5275.0,
+        "p50": 2571.0,
+        "p95": 4336.0,
+        "p99": 5275.0
+      },
+      "pngSha256": "0a67b2bf9d563611d64f7ecbd2e30bacfd3cc6d41960feacc66c1c77dc2383ab",
+      "decodedRgbaSha256": "c6db8e6cc2c0dc09ac15c87c4fc2528b3422b014712f9b36e323b5e37300ffe2",
+      "original5824ProjectIdentical": true,
+      "original5824PixelsIdentical": true
+    },
+    {
+      "case": "crossing-3d",
+      "adapter": {
+        "backend": "Vulkan",
+        "deviceType": "DiscreteGpu",
+        "driver": "NVIDIA",
+        "driverInfo": "591.86",
+        "name": "NVIDIA GeForce RTX 4070 Laptop GPU"
+      },
+      "rawFrames": 68,
+      "measuredFrames": 60,
+      "finalObservedCpuCapacityBytes": 15999060,
+      "packageAllocations": 7,
+      "programShaderAllocations": 3,
+      "generatedYuv": null,
+      "metadataSampleUs": {
+        "count": 60,
+        "max": 58.0,
+        "p50": 29.0,
+        "p95": 47.0,
+        "p99": 58.0
+      },
+      "waitedWallUs": {
+        "count": 60,
+        "max": 1270.0,
+        "p50": 216.0,
+        "p95": 758.0,
+        "p99": 1270.0
+      },
+      "pngSha256": "4a4ab01f408e132839b06f86c07ac3ae9cc0dcaa4e2eb7e48c0fb8ef90e7027e",
+      "decodedRgbaSha256": "a8d9b84b8792569219b625b4164cdea21faa0a9e8018fa051e0e76644ad75505",
+      "original5824ProjectIdentical": true,
+      "original5824PixelsIdentical": true
+    },
+    {
+      "case": "nested-matte",
+      "adapter": {
+        "backend": "Vulkan",
+        "deviceType": "DiscreteGpu",
+        "driver": "NVIDIA",
+        "driverInfo": "591.86",
+        "name": "NVIDIA GeForce RTX 4070 Laptop GPU"
+      },
+      "rawFrames": 68,
+      "measuredFrames": 60,
+      "finalObservedCpuCapacityBytes": 15999060,
+      "packageAllocations": 7,
+      "programShaderAllocations": 3,
+      "generatedYuv": null,
+      "metadataSampleUs": {
+        "count": 60,
+        "max": 125.0,
+        "p50": 37.0,
+        "p95": 62.0,
+        "p99": 125.0
+      },
+      "waitedWallUs": {
+        "count": 60,
+        "max": 1542.0,
+        "p50": 627.0,
+        "p95": 1173.0,
+        "p99": 1542.0
+      },
+      "pngSha256": "065434fb5a656e00fa3981df95a2747386534393f7192ab726879f3c697f063c",
+      "decodedRgbaSha256": "496f32bf158910bb1393263e7ed2d29054520f517a735a620c4b4aec522e2a87",
+      "original5824ProjectIdentical": true,
+      "original5824PixelsIdentical": true
+    },
+    {
+      "case": "four-4k-yuv",
+      "adapter": {
+        "backend": "Vulkan",
+        "deviceType": "DiscreteGpu",
+        "driver": "NVIDIA",
+        "driverInfo": "591.86",
+        "name": "NVIDIA GeForce RTX 4070 Laptop GPU"
+      },
+      "rawFrames": 68,
+      "measuredFrames": 60,
+      "finalObservedCpuCapacityBytes": 28440660,
+      "packageAllocations": 7,
+      "programShaderAllocations": 3,
+      "generatedYuv": {
+        "knownCapacityBytes": 12441600,
+        "knownPayloadBytes": 12441600,
+        "owner": "one_reusable_generated_frame",
+        "uv": {
+          "capacityBytes": 4147200,
+          "payloadBytes": 4147200
+        },
+        "y": {
+          "capacityBytes": 8294400,
+          "payloadBytes": 8294400
+        }
+      },
+      "metadataSampleUs": {
+        "count": 60,
+        "max": 408.0,
+        "p50": 113.0,
+        "p95": 184.0,
+        "p99": 408.0
+      },
+      "waitedWallUs": {
+        "count": 60,
+        "max": 17450.0,
+        "p50": 12398.0,
+        "p95": 13904.0,
+        "p99": 17450.0
+      },
+      "pngSha256": "96f67b4f175cb84af519198261c57e459586d8e091b8fdd9a03d46c631056e3a",
+      "decodedRgbaSha256": "16bdc9a7b7284d77385be74218dae9947686505b4127d0bf107d6767fbf98333",
+      "original5824ProjectIdentical": true,
+      "original5824PixelsIdentical": true
+    }
+  ],
+  "scope": "Actual schema2 native Release offline GPU latency with post-frame CPU ownership; not window throughput/physical residency/controlled speedup",
+  "original5824AllProjectHashesIdentical": true,
+  "original5824AllPixelsIdentical": true,
+  "independentImageVerifier": "Pillow 12.3.0; existing local tool only, no project dependency added",
+  "physicalDeviceAcceptanceComplete": false,
+  "completeIssue60": false,
+  "archive": {
+    "path": "data/desktop-performance-cpu-709de340.zip",
+    "bytes": 191613,
+    "sha256": "edf2656c77c9b400f44230dd263a012349b9091296aeeaa3b8919e7ad7035313",
+    "files": [
+      {
+        "path": "native-study/build.exit.json",
+        "bytes": 423,
+        "sha256": "fc9a03328761a533f18d08fdd5380a1a3f46bada5e66612deaca413d70937647"
+      },
+      {
+        "path": "native-study/build.started.json",
+        "bytes": 365,
+        "sha256": "49f504f14a14ab5e99fa83273b5f1fed8e4d75f56d9aa9905c5f1730e0bbc4b9"
+      },
+      {
+        "path": "native-study/build.stderr.log",
+        "bytes": 8621,
+        "sha256": "a392604beabfe38e7fdcb2b8977ddaf8972d94d649de7101c5af0ff448c09759"
+      },
+      {
+        "path": "native-study/build.stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "native-study/native.exit.json",
+        "bytes": 405,
+        "sha256": "f5298eb9ecad69f6ddca55ce0f738b6eb9cc412e88855b29893b9bf7626a28ca"
+      },
+      {
+        "path": "native-study/native.started.json",
+        "bytes": 346,
+        "sha256": "3b72ad9bd264457cf2cf46914e1f5d36f2a62dfc3cda77d94dacede984fab6d4"
+      },
+      {
+        "path": "native-study/native.stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "native-study/native.stdout.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "native-study/native/animated/final.png",
+        "bytes": 19674,
+        "sha256": "e8c054d48945fd242d2620dad6cb2dc09a5270049013e53140185133508fd726"
+      },
+      {
+        "path": "native-study/native/animated/project.json",
+        "bytes": 7460,
+        "sha256": "7162e852569400f5317f882e5ed31f965afb5526fc47d476f60ea23542d56290"
+      },
+      {
+        "path": "native-study/native/animated/report.json",
+        "bytes": 1003082,
+        "sha256": "09c1a267cf5b6f26015c7af4e17a94fa0f50838d02ba0f7ddf6a281f626abbc0"
+      },
+      {
+        "path": "native-study/native/crossing-3d/final.png",
+        "bytes": 35991,
+        "sha256": "4a4ab01f408e132839b06f86c07ac3ae9cc0dcaa4e2eb7e48c0fb8ef90e7027e"
+      },
+      {
+        "path": "native-study/native/crossing-3d/project.json",
+        "bytes": 7466,
+        "sha256": "b04cb9660ad24a7af7f289e14892aee90a017930ff7cf409c5d148d2f7997957"
+      },
+      {
+        "path": "native-study/native/crossing-3d/report.json",
+        "bytes": 1002830,
+        "sha256": "6b11b954f891a14e0885edbf1c1bd46a9aa452f5130bed9b79734eb63031819e"
+      },
+      {
+        "path": "native-study/native/effect-chain/final.png",
+        "bytes": 24427,
+        "sha256": "0a67b2bf9d563611d64f7ecbd2e30bacfd3cc6d41960feacc66c1c77dc2383ab"
+      },
+      {
+        "path": "native-study/native/effect-chain/project.json",
+        "bytes": 27639,
+        "sha256": "ade4920792ecfdcff61541c16a50a28646c5330197fa38c932be434fd74fd08d"
+      },
+      {
+        "path": "native-study/native/effect-chain/report.json",
+        "bytes": 1389590,
+        "sha256": "d080cd35dc8b46c53686b3fec2f5e54fcfa27c02ddf2205b6806398407544a42"
+      },
+      {
+        "path": "native-study/native/events.jsonl",
+        "bytes": 688,
+        "sha256": "da6da15a48f850cbe68b21897a778f5402654e3898ae2ebe7e7a5d5fe107dfec"
+      },
+      {
+        "path": "native-study/native/four-4k-yuv/final.png",
+        "bytes": 19674,
+        "sha256": "96f67b4f175cb84af519198261c57e459586d8e091b8fdd9a03d46c631056e3a"
+      },
+      {
+        "path": "native-study/native/four-4k-yuv/project.json",
+        "bytes": 5864,
+        "sha256": "33dd7e0de8b8215b6a17037e528f7b59ce92f949c7d69c1bea0ee80918e20ea0"
+      },
+      {
+        "path": "native-study/native/four-4k-yuv/report.json",
+        "bytes": 1411480,
+        "sha256": "e4fd2bcd500c306ea9a84180acaee55a4bb8507fc84e35f070e4092c53d3879f"
+      },
+      {
+        "path": "native-study/native/nested-matte/final.png",
+        "bytes": 19646,
+        "sha256": "065434fb5a656e00fa3981df95a2747386534393f7192ab726879f3c697f063c"
+      },
+      {
+        "path": "native-study/native/nested-matte/project.json",
+        "bytes": 9459,
+        "sha256": "a69e97f46b0845056c5f0cbd2f387025e1ac12a66425ceeb37a1b22580717668"
+      },
+      {
+        "path": "native-study/native/nested-matte/report.json",
+        "bytes": 1101198,
+        "sha256": "25e6cfaff1fad70ee733707296edf727d2ef84244a53f9c213212ca3dc367c10"
+      },
+      {
+        "path": "native-study/native/report.json",
+        "bytes": 1079,
+        "sha256": "69197dbe3aa28998fdce33a59712d599824daa7763296095322203d65cf5e5ef"
+      },
+      {
+        "path": "native-study/native/static/final.png",
+        "bytes": 32638,
+        "sha256": "bebc98ed5ac33883ed69514f68e63dd496ccca24cc669f931f6959ff2eda359e"
+      },
+      {
+        "path": "native-study/native/static/project.json",
+        "bytes": 6680,
+        "sha256": "fe8f2a1dd2c184429a2bd50c61222f8f4c68add9baf274334bf7a63aedb6ec6f"
+      },
+      {
+        "path": "native-study/native/static/report.json",
+        "bytes": 1136796,
+        "sha256": "85a7db0c56854d66db3282e09f3b569b88d0817f2516b2c365f3a38be2e891e6"
+      },
+      {
+        "path": "native-study/provenance.json",
+        "bytes": 3816,
+        "sha256": "675526a6dff4b09cfdf4252ea985798f43d60c43a51b7057a7fc7fa7868c9af1"
+      },
+      {
+        "path": "native-study/summary.json",
+        "bytes": 22987,
+        "sha256": "0cfff4d0ad0f945622c020ba1f22882b81d9c3cf5ac17a560113fc89a8cafa4c"
+      },
+      {
+        "path": "phases/issue60-cost-cpu-v1-actual-acceptance.json",
+        "bytes": 14791,
+        "sha256": "c9fff55d37f3269d81bcfb37d85d3a2c0d1dd4c26df91b09d86535edb8782c86"
+      },
+      {
+        "path": "phases/issue60-cost-cpu-v1-diff.exit.json",
+        "bytes": 778,
+        "sha256": "f26bf9e05b8012f12e86df8a2c9c85dd945fd32cf172bf84e83c988f230e2ef5"
+      },
+      {
+        "path": "phases/issue60-cost-cpu-v1-diff.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "phases/issue60-cost-cpu-v1-diff.started.json",
+        "bytes": 610,
+        "sha256": "0875d00c1ccfdddfe09c363994043bd6de2b98de849808c4b1498eedb6dff460"
+      },
+      {
+        "path": "phases/issue60-cost-cpu-v1-fixtures.exit.json",
+        "bytes": 1059,
+        "sha256": "7d618023cca97c4bc1800caf7721de11a2648bcb961c73cfad4d39cc5234c0e9"
+      },
+      {
+        "path": "phases/issue60-cost-cpu-v1-fixtures.log",
+        "bytes": 1166,
+        "sha256": "25376cf487ea7bd0207ef1857d2b2be9677a28a64fd028192ef31891fdf64f11"
+      },
+      {
+        "path": "phases/issue60-cost-cpu-v1-fixtures.started.json",
+        "bytes": 846,
+        "sha256": "bec8e2b93631b0aed0a54599b71172400f332f42311810c9abeb65890001a3d8"
+      },
+      {
+        "path": "phases/issue60-cost-cpu-v1-inventory.exit.json",
+        "bytes": 798,
+        "sha256": "77e76045d8c4f227ee97f4b1bd72bc0fb65daa3a96284aa8c3b2e4202a15118c"
+      },
+      {
+        "path": "phases/issue60-cost-cpu-v1-inventory.log",
+        "bytes": 105,
+        "sha256": "d8603ba5209d8b86a2199e080b90da8ff71f2d059e24ade0eeaaadc24636f905"
+      },
+      {
+        "path": "phases/issue60-cost-cpu-v1-inventory.started.json",
+        "bytes": 631,
+        "sha256": "78de42606bff47194b5eebebdd39481b04f8c019092783a3d154d2fc46196bdf"
+      },
+      {
+        "path": "phases/issue60-cost-cpu-v1-native.exit.json",
+        "bytes": 1214,
+        "sha256": "9530c6a2c46c0aac7cb76a6bce2e3d0daa9f44e2721fb8a9c2e06b844860a563"
+      },
+      {
+        "path": "phases/issue60-cost-cpu-v1-native.log",
+        "bytes": 97,
+        "sha256": "cb36855c0052d71f332e6fad442f78c42b30622ce00bdc490f9f50d35aeeba8e"
+      },
+      {
+        "path": "phases/issue60-cost-cpu-v1-native.started.json",
+        "bytes": 1048,
+        "sha256": "ca747d59fd2f841a89228d08f5ab9a89060f14172deb726235e71eeb1e7791e3"
+      },
+      {
+        "path": "phases/issue60-cost-cpu-v1-phases-accepted.json",
+        "bytes": 7515,
+        "sha256": "97e1817359d57c98a03c75cedb4eb29a672ab40906e3277f69ddea8136d893c0"
+      },
+      {
+        "path": "phases/issue60-cost-cpu-v1-provenance.exit.json",
+        "bytes": 799,
+        "sha256": "eaccf8a29dc53bd179729f330419229fa4cd8a77050ae4a8257a9050b114da10"
+      },
+      {
+        "path": "phases/issue60-cost-cpu-v1-provenance.log",
+        "bytes": 46,
+        "sha256": "0f7fee30e444bfa999b54df097dbab023321d82b3b6dbe5cabcecca498acabd3"
+      },
+      {
+        "path": "phases/issue60-cost-cpu-v1-provenance.started.json",
+        "bytes": 631,
+        "sha256": "a7418cc5ccfb779b52008b1e69119c7800f60660bbf1cb5995cf4b8d93388838"
+      },
+      {
+        "path": "phases/issue60-cost-cpu-v1-replay.exit.json",
+        "bytes": 923,
+        "sha256": "8ccb83320fcf03f44a3045658bbdf66bdf8334725c0d9b9b9facdd15024546a1"
+      },
+      {
+        "path": "phases/issue60-cost-cpu-v1-replay.log",
+        "bytes": 42,
+        "sha256": "fe5af973f6c6c987670fa35f10f6cf69f29dfd1f3adf7f163efe7c36a50bc4e6"
+      },
+      {
+        "path": "phases/issue60-cost-cpu-v1-replay.started.json",
+        "bytes": 756,
+        "sha256": "9bd5404f37a8506250225c5988b5d1789d8bedd14e8ca5c1240c46cf0f9dde7a"
+      },
+      {
+        "path": "phases/issue60-cost-cpu-v1-tools.exit.json",
+        "bytes": 868,
+        "sha256": "4a464c4c62baf468eedac2d8f3fddda1c6784f2c3242f92b22cd0ab27332e0fd"
+      },
+      {
+        "path": "phases/issue60-cost-cpu-v1-tools.log",
+        "bytes": 17126,
+        "sha256": "7565ac3d878b648ccc9b6c33c4734779ab7680f6ff93de0e95847474b5e2d7d5"
+      },
+      {
+        "path": "phases/issue60-cost-cpu-v1-tools.started.json",
+        "bytes": 701,
+        "sha256": "39c5547e4ce75eeaa2fbf36faf1200b14a375c339d791a179b075af90cdf31d5"
+      }
+    ]
+  },
+  "delivery": {
+    "codeSource": "51095815f4cd364c0d52d405dd85ae902ff6ba1c",
+    "identityProof": "effect-package-memory-acceptance.json#/delivery",
+    "newNativeRunOnDelivery": false,
+    "currentHeadCIRequiredBeforeMerge": true
+  }
+}

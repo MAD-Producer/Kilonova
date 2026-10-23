@@ -17,8 +17,11 @@ CPU package archive/expanded-file/text ownership, independent program shader
 text, and the two actual Vec capacities of the single reusable YUV fixture.
 The published `5824c882` schema-1 study remains attributed to its original source;
 replay it with that source's collector, not the schema-2 collector. No compatibility
-fallback invents missing observations. The new native acceptance is pending until
-its own source-bound Release run and raw archive have been accepted.
+fallback invents missing observations. The new source `709de340` is accepted on six actual Release cases, 408 raw /
+360 measured frames, independent pixels and replay. See the
+[CPU cost-report completion](desktop-performance-cpu-completed.md) and its
+[exact receipts](desktop-performance-cpu-acceptance.json). Both historical and
+current studies keep their original measured source and remaining limits.
 
 ## Run and preserve evidence
 
