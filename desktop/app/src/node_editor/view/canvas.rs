@@ -103,11 +103,15 @@ impl NodeEditor {
                 colors.BORDER.with_alpha(0.5),
             );
         }
+        let sockets = (!self.document.connections.is_empty()
+            || matches!(self.drag, Some(Drag::Wire { .. } | Drag::WireInput { .. })))
+            .then(|| wires::SocketIndex::new(cards));
         let find = |port: &PortRef, output: bool| {
-            cards
-                .iter()
-                .flat_map(|c| c.sockets.iter())
-                .find(|s| s.port == *port && s.output == output)
+            sockets.as_ref().and_then(|sockets| sockets.find(port, output))
+        };
+        let source_socket = match &self.drag {
+            Some(Drag::Wire { source, .. }) => find(source, true),
+            _ => None,
         };
 
         // 绘制连线 - 改进样式：更粗、更明显
@@ -251,10 +255,7 @@ impl NodeEditor {
                     for (output, entries) in [(false, ports.inputs), (true, ports.outputs)] {
                         for (index, (port, spec)) in entries.into_iter().enumerate() {
                             let compatible = match &self.drag {
-                                Some(Drag::Wire { source, .. }) if !output => cards
-                                    .iter()
-                                    .flat_map(|card| &card.sockets)
-                                    .find(|socket| socket.output && socket.port == *source)
+                                Some(Drag::Wire { .. }) if !output => source_socket
                                     .is_none_or(|socket| {
                                         motion_graph::ports_compatible(&socket.spec, &spec)
                                     }),
