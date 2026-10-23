@@ -195,7 +195,10 @@ fn native_mapping_cancellation_is_counted_once_and_the_slot_can_measure_later_re
     renderer
         .submit_allocated(encoder(&profiler, &renderer, 41).finish(), |_| {})
         .unwrap();
-    profiler.pool.slots[0].mapped.unmap(); // Actual wgpu cancellation before polling.
+    profiler.pool.slots[0]
+        .cancelled
+        .store(true, Ordering::Release);
+    profiler.pool.slots[0].mapped.unmap(); // Actual owner cancellation before polling.
     poll(&renderer);
     let cancelled = observer.snapshot();
     assert_eq!(cancelled.readback.map_failures, 1);
@@ -203,6 +206,10 @@ fn native_mapping_cancellation_is_counted_once_and_the_slot_can_measure_later_re
     assert_eq!(cancelled.commands.counts.completed, 0);
     assert!(cancelled.commands.recent[0].cause.is_some());
     assert!(cancelled.commands.recent[0].gpu_elapsed_us.is_none());
+    assert_eq!(cancelled.commands.recent[0].phase, CommandPhase::Cancelled);
+    assert_eq!(cancelled.commands.counts.cancelled, 1);
+    assert_eq!(cancelled.commands.consecutive_readback_failures, 0);
+    assert!(profiler.pool.records.take_logs().events.is_empty());
     assert_eq!(cancelled.quarantined_slots, 0);
     poll(&renderer);
     assert_eq!(observer.snapshot().readback, cancelled.readback);
@@ -292,6 +299,278 @@ fn native_submit_unwind_quarantines_the_slot_and_retires_leases_only_after_queue
             "available":true,"actualQueueSubmitted":true,"primaryPanicPreserved":true,
             "quarantinedSlots":snapshot.quarantined_slots,"admissionRestoredOnlyAfterActualPoll":true,
             "actualPixelsChecked":64
+        })
+    );
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn automatic_attachment_joins_only_cpu_active_windows_and_preserves_late_callback_epochs() {
+    fn assert_send<T: Send>() {}
+    assert_send::<Renderer>(); // Session's existing registry/thread contract.
+    let mut renderer = renderer(AllocationBudget::default());
+    assert!(renderer.command_observer().is_none());
+    let budget = renderer.allocation_budget().clone();
+    let target = renderer.capture_target(8, 8).unwrap();
+    let Some(observer) = renderer.start_command_profiling(2).unwrap() else {
+        eprintln!("GPU_COMMAND_ATTACHED available=false; no native attachment acceptance");
+        return;
+    };
+    let first = budget
+        .begin_frame_at(401, FrameOperation::Present, 1.25)
+        .unwrap()
+        .unwrap();
+    let mut commands = renderer
+        .allocation_command_encoder_for(
+            CommandStage::Composition,
+            &wgpu::CommandEncoderDescriptor::default(),
+        )
+        .unwrap();
+    let active = observer.snapshot();
+    assert_eq!(active.commands.active[0].phase, CommandPhase::Encoding);
+    assert_eq!(active.commands.active[0].stage, CommandStage::Composition);
+    assert_eq!(active.commands.active[0].contexts[0].request, Some(401));
+    assert_eq!(
+        active.commands.active[0].contexts[0].source_frame,
+        Some(1.25)
+    );
+    clear(&mut commands, &target.view);
+    renderer
+        .submit_allocated(commands.finish(), |_| {})
+        .unwrap();
+    first.finish(crate::AllocationFrameOutcome::Rendered);
+    assert!(budget
+        .frame_peaks()
+        .unwrap()
+        .active
+        .iter()
+        .any(|f| f.request == 401 && f.outcome.is_some()));
+
+    let second = budget
+        .begin_frame_at(402, FrameOperation::CaptureUi, 2.5)
+        .unwrap()
+        .unwrap();
+    let mut commands = renderer
+        .allocation_command_encoder_for(
+            CommandStage::ReadbackCopy,
+            &wgpu::CommandEncoderDescriptor::default(),
+        )
+        .unwrap();
+    let active = observer.snapshot();
+    let current = active
+        .commands
+        .active
+        .iter()
+        .find(|entry| entry.phase == CommandPhase::Encoding)
+        .unwrap();
+    assert_eq!(current.contexts.len(), 1);
+    assert_eq!(current.contexts[0].request, Some(402));
+    assert_eq!(current.contexts[0].source_frame, Some(2.5));
+    clear(&mut commands, &target.view);
+    renderer
+        .submit_allocated(commands.finish(), |_| {})
+        .unwrap();
+    second.finish(crate::AllocationFrameOutcome::Rendered);
+
+    let current_epoch = observer.snapshot().commands.epoch;
+    let current_budget = budget.info().unwrap().admitted_bytes;
+    budget.set_limit(current_budget).unwrap();
+    assert!(renderer
+        .start_command_profiling(1)
+        .err()
+        .unwrap()
+        .resource_rejection()
+        .is_some());
+    assert_eq!(
+        renderer
+            .command_observer()
+            .unwrap()
+            .snapshot()
+            .commands
+            .epoch,
+        current_epoch
+    );
+    budget
+        .set_limit(crate::DEFAULT_RENDER_ALLOCATION_BUDGET)
+        .unwrap();
+    let retired = renderer.stop_command_profiling().unwrap();
+    assert_eq!(retired.snapshot().commands.epoch, current_epoch);
+    assert!(renderer.command_observer().is_none());
+    let restarted = renderer.start_command_profiling(1).unwrap().unwrap();
+    assert_ne!(restarted.snapshot().commands.epoch, current_epoch);
+    poll(&renderer);
+    let completed = observer.snapshot();
+    assert!(completed.commands.active.is_empty());
+    assert_eq!(completed.commands.counts.completed, 2);
+    assert_eq!(restarted.snapshot().commands.counts.completed, 0);
+    assert!(completed.commands.recent.iter().all(|entry| {
+        entry.contexts.len() == 1 && entry.timestamp_words.is_some_and(|w| w[1] > w[0])
+    }));
+    assert!(renderer
+        .read_target(&target)
+        .unwrap()
+        .chunks_exact(4)
+        .all(|p| p == [255, 0, 0, 255]));
+    eprintln!(
+        "GPU_COMMAND_ATTACHED {}",
+        serde_json::json!({
+            "available":true,"actualCompletions":completed.commands.counts.completed,
+            "requests":completed.commands.recent.iter().map(|entry|entry.contexts[0].request).collect::<Vec<_>>(),
+            "actualPixelsChecked":64,"oldEpoch":current_epoch,"newEpoch":restarted.snapshot().commands.epoch,
+            "scope":"actual automatic encoder attachment; CPU-ended frame exclusion and late callback identity"
+        })
+    );
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn native_invalid_words_defer_one_escalation_at_sixty_then_reset_after_real_gpu_success() {
+    let renderer = renderer(AllocationBudget::default());
+    let Some(profiler) = GpuCommandProfiler::new(&renderer, 1).unwrap() else {
+        eprintln!("GPU_COMMAND_INVALID available=false; no native invalid sample acceptance");
+        return;
+    };
+    let observer = profiler.observer();
+    let target = renderer.capture_target(8, 8).unwrap();
+    let zero = renderer
+        .allocation_context()
+        .buffer(&wgpu::BufferDescriptor {
+            label: Some("native invalid-word injection"),
+            size: WORD_BYTES,
+            usage: wgpu::BufferUsages::COPY_SRC,
+            mapped_at_creation: false,
+        })
+        .unwrap();
+    for request in 501..571 {
+        let mut commands = ObservedEncoder::new(
+            renderer
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor::default()),
+        );
+        commands.observe(
+            profiler
+                .pool
+                .begin(CommandStage::ExposureMedia, contexts(request)),
+        );
+        clear(&mut commands, &target.view);
+        let commands = commands.finish();
+        // Inject invalid diagnostic words with an actual second GPU command,
+        // after the real timestamps resolve. No mocked map result/ready flag.
+        let mut overwrite = renderer
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+        overwrite.copy_buffer_to_buffer(&zero, 0, &profiler.pool.slots[0].mapped, 0, WORD_BYTES);
+        commands.submit(|commands| renderer.queue.submit([commands, overwrite.finish()]));
+        poll(&renderer);
+    }
+    let invalid = observer.snapshot();
+    assert_eq!(invalid.commands.counts.invalid, 70);
+    assert_eq!(invalid.commands.counts.completed, 0);
+    assert_eq!(invalid.readback.mapped_buffer_bytes, 70 * WORD_BYTES);
+    assert!(invalid
+        .commands
+        .recent
+        .iter()
+        .all(|entry| entry.timestamp_words == Some([0, 0]) && entry.gpu_elapsed_us.is_none()));
+    let logs = profiler.pool.records.take_logs();
+    assert_eq!(logs.events.len(), 2);
+    assert_eq!(
+        (logs.events[0].level, logs.events[0].occurrence),
+        (log::Level::Debug, 1)
+    );
+    assert_eq!(
+        (logs.events[1].level, logs.events[1].occurrence),
+        (log::Level::Error, 60)
+    );
+    assert_eq!(logs.events[1].record.contexts[0].request, Some(560));
+    assert!(profiler.pool.records.take_logs().events.is_empty());
+    let mut healthy = encoder(&profiler, &renderer, 571);
+    clear(&mut healthy, &target.view);
+    renderer.submit_allocated(healthy.finish(), |_| {}).unwrap();
+    poll(&renderer);
+    let recovered = observer.snapshot();
+    assert_eq!(recovered.commands.consecutive_readback_failures, 0);
+    assert_eq!(recovered.readback.valid_samples, 1);
+    assert_eq!(recovered.commands.counts.completed, 1);
+    assert!(renderer
+        .read_target(&target)
+        .unwrap()
+        .chunks_exact(4)
+        .all(|p| p == [255, 0, 0, 255]));
+    eprintln!(
+        "GPU_COMMAND_INVALID {}",
+        serde_json::json!({
+            "available":true,"actualInvalidMappedSamples":invalid.commands.counts.invalid,
+            "actualMappedBytes":invalid.readback.mapped_buffer_bytes,"errorEscalations":1,
+            "actualValidSamplesAfterRecovery":recovered.readback.valid_samples,
+            "scope":"native diagnostic-buffer corruption injection; not a hardware driver failure"
+        })
+    );
+}
+
+#[test]
+#[cfg_attr(not(feature = "gpu-tests"), ignore = "requires an actual GPU")]
+fn observed_raw_submission_keeps_original_scope_and_frame_completion_contract() {
+    let budget = AllocationBudget::default();
+    let mut renderer = renderer(budget.clone());
+    let target = renderer.capture_target(8, 8).unwrap();
+    let Some(observer) = renderer.start_command_profiling(1).unwrap() else {
+        eprintln!("GPU_COMMAND_RAW available=false; no native raw-submit acceptance");
+        return;
+    };
+    let foreign = self::renderer(budget.clone());
+    let scopes = budget.info().unwrap().encoder_scopes;
+    let mut wrong = renderer.tracked_command_encoder_for(
+        CommandStage::ExposureMedia,
+        &wgpu::CommandEncoderDescriptor::default(),
+    );
+    clear(&mut wrong, &target.view);
+    assert_eq!(budget.info().unwrap().encoder_scopes, scopes);
+    let primary = foreign.submit_observed(wrong.finish(), |_| {}).unwrap_err();
+    assert!(primary.to_string().contains("another render queue"));
+    assert_eq!(observer.snapshot().commands.counts.discarded, 1);
+    assert_eq!(observer.snapshot().readback.map_requests, 0);
+
+    let frame = budget
+        .begin_frame_at(601, FrameOperation::Present, 7.5)
+        .unwrap()
+        .unwrap();
+    let mut commands = renderer.tracked_command_encoder_for(
+        CommandStage::ExposureMedia,
+        &wgpu::CommandEncoderDescriptor::default(),
+    );
+    clear(&mut commands, &target.view);
+    assert_eq!(budget.info().unwrap().encoder_scopes, scopes);
+    renderer.submit_observed(commands.finish(), |_| {}).unwrap();
+    let current = budget.frame_peaks().unwrap();
+    assert_eq!(
+        current
+            .active
+            .iter()
+            .find(|frame| frame.request == 601)
+            .unwrap()
+            .submissions,
+        1
+    );
+    frame.finish(crate::AllocationFrameOutcome::Rendered);
+    poll(&renderer);
+    let completed = observer.snapshot();
+    assert_eq!(completed.commands.counts.completed, 1);
+    let sample = completed.commands.recent.last().unwrap();
+    assert_eq!(sample.stage, CommandStage::ExposureMedia);
+    assert_eq!(sample.contexts[0].request, Some(601));
+    assert!(sample.timestamp_words.is_some_and(|w| w[1] > w[0]));
+    assert!(renderer
+        .read_target(&target)
+        .unwrap()
+        .chunks_exact(4)
+        .all(|p| p == [255, 0, 0, 255]));
+    eprintln!(
+        "GPU_COMMAND_RAW {}",
+        serde_json::json!({
+            "available":true,"actualRawCompletions":completed.commands.counts.completed,
+            "addedAllocationEncoderScopes":0,"originalFrameSubmissionCount":1,"actualPixelsChecked":64,
+            "scope":"actual raw wrapper/native clear; this does not claim YUV decoder path coverage"
         })
     );
 }

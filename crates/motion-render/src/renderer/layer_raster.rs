@@ -152,7 +152,7 @@ impl Renderer {
             let reservation = self.reserve_exposure_bytes(4, &context)?;
             let image = self.allocate_layer_raster_image(scene, receiver,
                 [1, 1], TARGET_FORMAT, "local_constant_allocate")?;
-            let mut encoder = self.allocation_command_encoder(&wgpu::CommandEncoderDescriptor {
+            let mut encoder = self.allocation_command_encoder_for(crate::gpu_commands::CommandStage::RetainedLayer, &wgpu::CommandEncoderDescriptor {
                     label: Some("constant receiver image"),
                 })?;
             clear_constant(&mut encoder, &image.view);
@@ -196,7 +196,7 @@ impl Renderer {
                     let message = format!("{context}: {error}");
                     error.with_diagnostic(message)
                 })?;
-        let mut encoder = self.allocation_command_encoder(&wgpu::CommandEncoderDescriptor {
+        let mut encoder = self.allocation_command_encoder_for(crate::gpu_commands::CommandStage::RetainedLayer, &wgpu::CommandEncoderDescriptor {
                 label: Some("receiver-time local image"),
             })?;
         let mut output = None;
@@ -697,7 +697,7 @@ impl Renderer {
             b: (srgb_to_linear(scene.background[2]) * alpha) as f64,
             a: alpha as f64,
         };
-        let mut encoder = self.allocation_command_encoder(&wgpu::CommandEncoderDescriptor {
+        let mut encoder = self.allocation_command_encoder_for(crate::gpu_commands::CommandStage::RetainedLayer, &wgpu::CommandEncoderDescriptor {
                 label: Some("retained receiver phase"),
             })?;
         {

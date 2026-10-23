@@ -351,7 +351,7 @@ impl Session {
             let view = output.texture.create_view(&Default::default());
             let mut encoder =
                 g.renderer
-                    .allocation_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    .allocation_command_encoder_for(motion_render::gpu_commands::CommandStage::CompositionAndPresentation, &wgpu::CommandEncoderDescriptor {
                         label: Some("Motion Studio exposure presentation"),
                     })?;
             g.presenter.encode_view(

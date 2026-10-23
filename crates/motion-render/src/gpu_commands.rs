@@ -3,11 +3,13 @@
 //! executed before an encoder are outside these intervals. Never add them to
 //! overlapping root-pass timings. Hosts must explicitly attach this observer;
 //! constructing a profiler does not instrument other encoders or raw submits.
+mod logging;
 mod records;
 use crate::{
     allocation_buffer::AllocationBuffer, readback::TimestampReadbackCounters, AllocationContext,
     AllocationEncoder, RenderError, Renderer, TimestampReadbackInfo,
 };
+pub use logging::GpuCommandLogScope;
 pub use records::{
     CommandContext, CommandCounts, CommandPhase, CommandRecord, CommandSnapshot, CommandStage,
     MAX_ACTIVE_GPU_COMMANDS, MAX_GPU_COMMAND_CONTEXTS, MAX_RECENT_GPU_COMMANDS,
@@ -17,7 +19,7 @@ use serde::Serialize;
 use std::{
     ops::{Deref, DerefMut},
     sync::{
-        atomic::{AtomicU8, Ordering},
+        atomic::{AtomicBool, AtomicU8, Ordering},
         Arc,
     },
 };
@@ -33,6 +35,7 @@ struct Slot {
     resolve: AllocationBuffer,
     mapped: AllocationBuffer,
     state: Arc<AtomicU8>,
+    cancelled: AtomicBool,
 }
 struct Pool {
     slots: Vec<Arc<Slot>>,
@@ -138,6 +141,7 @@ impl GpuCommandProfiler {
                     resolve,
                     mapped,
                     state: Arc::new(AtomicU8::new(FREE)),
+                    cancelled: AtomicBool::new(false),
                 }))
             })
             .collect::<Result<Vec<_>, RenderError>>()?;
@@ -153,16 +157,10 @@ impl GpuCommandProfiler {
         }))
     }
     pub fn observer(&self) -> GpuCommandObserver {
-        GpuCommandObserver {
-            records: self.pool.records.clone(),
-            readback: self.pool.readback.clone(),
-            states: self
-                .pool
-                .slots
-                .iter()
-                .map(|slot| slot.state.clone())
-                .collect(),
-        }
+        self.pool.observer()
+    }
+    pub(crate) fn into_attached(self) -> AttachedCommandProfiler {
+        AttachedCommandProfiler(self.pool)
     }
 
     /// Publishes Encoding before native encoder creation. Ownership checks and
@@ -180,12 +178,69 @@ impl GpuCommandProfiler {
             ));
         }
         let span = self.pool.begin(stage, contexts);
-        let mut encoder = renderer.allocation_command_encoder(descriptor)?;
+        let mut encoder = renderer.unobserved_command_encoder(descriptor)?;
         encoder.observe_commands(span);
         Ok(encoder)
     }
 }
+
+// The external profiler retains AllocationContext's owning-thread contract.
+// Renderer attachment moves only the pool, preserving Renderer/Session's Send
+// layout and their existing explicit owner-thread checks. No native owner is
+// merged with another renderer or PreviewInput merely to attach observations.
+pub(crate) struct AttachedCommandProfiler(Arc<Pool>);
+impl AttachedCommandProfiler {
+    pub(crate) fn observer(&self) -> GpuCommandObserver {
+        self.0.observer()
+    }
+    pub(crate) fn encoder(
+        &self,
+        renderer: &Renderer,
+        descriptor: &wgpu::CommandEncoderDescriptor<'_>,
+        stage: CommandStage,
+    ) -> Result<AllocationEncoder, RenderError> {
+        let span = self
+            .0
+            .begin(stage, renderer.allocation_budget().gpu_command_contexts());
+        let mut encoder = renderer.unobserved_command_encoder(descriptor)?;
+        encoder.observe_commands(span);
+        Ok(encoder)
+    }
+    pub(crate) fn raw_encoder(
+        &self,
+        renderer: &Renderer,
+        descriptor: &wgpu::CommandEncoderDescriptor<'_>,
+        stage: CommandStage,
+    ) -> ObservedEncoder {
+        let span = self
+            .0
+            .begin(stage, renderer.allocation_budget().gpu_command_contexts());
+        let mut encoder = ObservedEncoder::new(renderer.device.create_command_encoder(descriptor));
+        encoder.observe(span);
+        encoder
+    }
+}
+impl Drop for AttachedCommandProfiler {
+    fn drop(&mut self) {
+        // Ending the owner epoch does not cancel GPU commands or unmap buffers.
+        // A late failed callback after explicit retirement is normal cancellation;
+        // exact bytes, original cause and old identity remain in its metadata.
+        for slot in &self.0.slots {
+            if slot.state.load(Ordering::Acquire) == MAPPING {
+                slot.cancelled.store(true, Ordering::Release);
+            }
+        }
+    }
+}
 impl Pool {
+    fn observer(&self) -> GpuCommandObserver {
+        GpuCommandObserver {
+            records: self.records.clone(),
+            readback: self.readback.clone(),
+            states: self.slots.iter().map(|slot| slot.state.clone()).collect(),
+        }
+    }
+
     fn begin(&self, stage: CommandStage, contexts: Vec<CommandContext>) -> Option<Span> {
         let Some(slot) = self
             .slots
@@ -204,6 +259,7 @@ impl Pool {
             slot.state.store(FREE, Ordering::Release);
             return None;
         };
+        slot.cancelled.store(false, Ordering::Release);
         Some(Span {
             slot,
             ticket: Some(ticket),
@@ -305,7 +361,11 @@ impl Span {
                 let valid = cause.is_none() && words.is_some_and(|words| words[1] > words[0]);
                 readback.sample(valid);
                 if let Some(ticket) = ticket {
-                    ticket.mapped(words, period_ns, cause);
+                    if !mapped_successfully && slot.cancelled.load(Ordering::Acquire) {
+                        ticket.cancelled(cause);
+                    } else {
+                        ticket.mapped(words, period_ns, cause);
+                    }
                 }
                 slot.state.store(FREE, Ordering::Release);
             });
@@ -372,6 +432,54 @@ impl DerefMut for ObservedEncoder {
 pub(crate) struct ObservedCommandBuffer {
     raw: wgpu::CommandBuffer,
     span: Option<Span>,
+}
+
+/// Observation wrapper for an existing raw-submit path. It deliberately does
+/// not add the allocation-encoder reservation scope: upload/resource retirement
+/// remains the original Renderer::submit_tracked contract.
+pub struct TrackedCommandEncoder {
+    encoder: ObservedEncoder,
+    owner: Arc<()>,
+}
+impl TrackedCommandEncoder {
+    pub(crate) fn new(encoder: ObservedEncoder, owner: Arc<()>) -> Self {
+        Self { encoder, owner }
+    }
+    pub fn finish(self) -> TrackedCommandBuffer {
+        TrackedCommandBuffer {
+            buffer: self.encoder.finish(),
+            owner: self.owner,
+        }
+    }
+}
+impl Deref for TrackedCommandEncoder {
+    type Target = wgpu::CommandEncoder;
+    fn deref(&self) -> &Self::Target {
+        &self.encoder
+    }
+}
+impl DerefMut for TrackedCommandEncoder {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.encoder
+    }
+}
+pub struct TrackedCommandBuffer {
+    buffer: ObservedCommandBuffer,
+    owner: Arc<()>,
+}
+impl TrackedCommandBuffer {
+    pub(crate) fn submit(
+        self,
+        owner: &Arc<()>,
+        submit: impl FnOnce(wgpu::CommandBuffer) -> wgpu::SubmissionIndex,
+    ) -> Result<wgpu::SubmissionIndex, RenderError> {
+        if !Arc::ptr_eq(owner, &self.owner) {
+            return Err(RenderError::Invalid(
+                "observed raw command buffer belongs to another render queue".into(),
+            ));
+        }
+        Ok(self.buffer.submit(submit))
+    }
 }
 impl ObservedCommandBuffer {
     /// Called only after the existing owner/budget validation. The closure is

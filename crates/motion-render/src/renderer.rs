@@ -218,6 +218,7 @@ pub struct Renderer {
     memory_pressure_probe: crate::memory_pressure::MemoryPressureProbe,
     allocation_budget: crate::AllocationBudget,
     allocation_owner: Arc<()>,
+    command_profiler: Option<crate::gpu_commands::AttachedCommandProfiler>,
     submission_ledger: crate::submission_ledger::SubmissionLedger,
     preview_resource_guard: bool,
     pub adapter: wgpu::Adapter,
@@ -499,6 +500,7 @@ impl Renderer {
             memory_pressure_probe: Default::default(),
             allocation_budget,
             allocation_owner: Arc::new(()),
+            command_profiler: None,
             preview_resource_guard: false,
             submission_ledger: Default::default(),
             adapter,
@@ -593,7 +595,54 @@ impl Renderer {
     pub fn allocation_command_encoder(&self, descriptor: &wgpu::CommandEncoderDescriptor<'_>)
         -> Result<crate::AllocationEncoder>
     {
+        self.allocation_command_encoder_for(crate::gpu_commands::CommandStage::Unclassified, descriptor)
+    }
+    pub fn allocation_command_encoder_for(&self, stage: crate::gpu_commands::CommandStage,
+        descriptor: &wgpu::CommandEncoderDescriptor<'_>) -> Result<crate::AllocationEncoder>
+    {
+        match &self.command_profiler {
+            Some(profiler) => profiler.encoder(self, descriptor, stage),
+            None => self.unobserved_command_encoder(descriptor),
+        }
+    }
+    pub(crate) fn unobserved_command_encoder(&self, descriptor: &wgpu::CommandEncoderDescriptor<'_>)
+        -> Result<crate::AllocationEncoder>
+    {
         self.allocation_budget.encoder(&self.device, self.allocation_owner.clone(), descriptor)
+    }
+    /// Observe the existing raw-submit route without changing its allocation
+    /// reservation/upload retirement contract into the allocated-encoder route.
+    pub fn tracked_command_encoder_for(&self, stage: crate::gpu_commands::CommandStage,
+        descriptor: &wgpu::CommandEncoderDescriptor<'_>) -> crate::gpu_commands::TrackedCommandEncoder
+    {
+        let encoder = match &self.command_profiler {
+            Some(profiler) => profiler.raw_encoder(self, descriptor, stage),
+            None => crate::gpu_commands::ObservedEncoder::new(self.device.create_command_encoder(descriptor)),
+        };
+        crate::gpu_commands::TrackedCommandEncoder::new(encoder, self.allocation_owner.clone())
+    }
+    pub fn submit_observed(&self, buffer: crate::gpu_commands::TrackedCommandBuffer,
+        extra_resources: impl FnOnce(&mut crate::TextureResourceLedger)) -> Result<wgpu::SubmissionIndex>
+    {
+        buffer.submit(&self.allocation_owner, |buffer| self.submit_tracked(buffer, extra_resources))
+    }
+    /// Explicitly allocate detailed timing. It is disabled by default and
+    /// independent of the ordinary root timer. Failure leaves the old epoch.
+    pub fn start_command_profiling(&mut self, slots: usize)
+        -> Result<Option<crate::gpu_commands::GpuCommandObserver>>
+    {
+        let profiler = crate::gpu_commands::GpuCommandProfiler::new(self, slots)?;
+        let observer = profiler.as_ref().map(|profiler| profiler.observer());
+        self.command_profiler = profiler.map(|profiler| profiler.into_attached());
+        Ok(observer)
+    }
+    pub fn command_observer(&self) -> Option<crate::gpu_commands::GpuCommandObserver> {
+        self.command_profiler.as_ref().map(|profiler| profiler.observer())
+    }
+    /// Returns metadata for exact pending callbacks after retiring this epoch.
+    /// Does not wait, retry or cancel render work, or attach it to a later epoch.
+    pub fn stop_command_profiling(&mut self) -> Option<crate::gpu_commands::GpuCommandObserver> {
+        self.command_profiler.take().map(|profiler| profiler.observer())
     }
     /// Retains allocation reservations through queue completion independently
     /// of whether optional diagnostic submission snapshots are enabled.
@@ -966,7 +1015,7 @@ impl Renderer {
         // Reserve the standalone encoding scope before replacing an existing
         // RGBA image. A scope-cap refusal must preserve its pixels and stamp.
         let mut standalone = if encoder.is_none() {
-            Some(self.allocation_command_encoder(&wgpu::CommandEncoderDescriptor {
+            Some(self.allocation_command_encoder_for(crate::gpu_commands::CommandStage::MediaPreparation, &wgpu::CommandEncoderDescriptor {
                 label: Some("video GPU conversion"),
             }).map_err(|error| {
                 let message = format!("video object={object} source={source} pts_us={pts} phase=conversion_encode: {error}");
@@ -1630,7 +1679,7 @@ impl Renderer {
     }
     fn draw_internal(&mut self,scene:&Scene,view:&wgpu::TextureView,width:u32,height:u32,preview:bool)->Result<RenderStats> {
         let mut encoder = self
-            .allocation_command_encoder(&wgpu::CommandEncoderDescriptor {
+            .allocation_command_encoder_for(crate::gpu_commands::CommandStage::Composition, &wgpu::CommandEncoderDescriptor {
                 label: Some("Motion Studio frame"),
             })?;
         let mut stats = self.encode_internal(scene, view, width, height, &mut encoder, None, preview)?;
@@ -2458,7 +2507,7 @@ impl Renderer {
         let observation = self.image_readback.begin();
         self.check_health()?;
         let mut encoder = self
-            .allocation_command_encoder(&wgpu::CommandEncoderDescriptor {
+            .allocation_command_encoder_for(crate::gpu_commands::CommandStage::ReadbackCopy, &wgpu::CommandEncoderDescriptor {
                 label: Some("Motion Studio screenshot copy"),
             })?;
         encoder.copy_texture_to_buffer(

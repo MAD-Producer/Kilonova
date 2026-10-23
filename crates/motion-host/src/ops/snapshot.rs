@@ -158,6 +158,7 @@ impl Session {
             "compositingPipelineSetBuilds":self.graphics.as_ref().map_or(0,|g|g.renderer.compositing_pipeline_set_builds()),
             "surfaceBounded":self.preview.mode != PreviewMode::High,
             "gpuTimingActive":!self.sampling.required() && self.graphics.as_ref().is_some_and(|g|g.timer.is_some()),
+            "gpuCommands":self.graphics.as_ref().and_then(|g|g.renderer.command_observer()).map(|observer|observer.snapshot()),
             "profiling":self.recorder.is_some(),
             "pluginEditorRecovery":{"open":self.editor.is_some(),"gesture":self.editor.as_ref().is_some_and(|e|e.gesture),
                 "leaseMillis":super::effects::PLUGIN_EDITOR_LEASE.as_millis(),"cancelOperation":"cancel_plugin_gesture","last":self.editor_recovery},
