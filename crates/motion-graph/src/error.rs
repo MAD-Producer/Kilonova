@@ -50,6 +50,12 @@ impl std::fmt::Display for Diagnostic {
 pub enum Error {
     #[error("{0}")]
     Invalid(Diagnostic),
+    #[error("{diagnostic}")]
+    Effect {
+        diagnostic: Diagnostic,
+        #[source]
+        cause: Box<motion_effects::Error>,
+    },
     #[error("graph I/O: {0}")]
     Io(#[from] std::io::Error),
     #[error("graph JSON: {0}")]
@@ -61,7 +67,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 impl Error {
     pub fn diagnostic(&self) -> Diagnostic {
         match self {
-            Self::Invalid(d) => d.clone(),
+            Self::Invalid(d) | Self::Effect { diagnostic: d, .. } => d.clone(),
             Self::Io(e) => Diagnostic {
                 code: ErrorCode::Io,
                 node: None,
@@ -80,6 +86,19 @@ impl Error {
                 port: None,
                 message: e.to_string(),
             },
+        }
+    }
+    /// Preserve the existing diagnostic while retaining the native loader or
+    /// compiler cause. The declared Box is exposed by Error::source().
+    pub(crate) fn effect(code: ErrorCode, prefix: &'static str, cause: motion_effects::Error) -> Self {
+        Self::Effect {
+            diagnostic: Diagnostic {
+                code,
+                node: None,
+                port: None,
+                message: format!("{prefix}{cause}"),
+            },
+            cause: Box::new(cause),
         }
     }
     pub(crate) fn invalid(

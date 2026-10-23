@@ -915,7 +915,7 @@ fn compile_plan(
         ));
     }
     let shader = shader::compile(&source, "graph_fx")
-        .map_err(|e| Error::invalid(ErrorCode::Shader, None, None, e.to_string()))?;
+        .map_err(|cause| Error::effect(ErrorCode::Shader, "", cause))?;
     // This exact wrapper is shared with the effect package loader, not inferred
     // from loop_work (which is a separate portable-source validation metric).
     let host_sample_sites = 1;
@@ -1034,7 +1034,7 @@ fn make_manifest(document: &GraphDocument, options: &CompileOptions) -> Result<P
     )?;
     manifest
         .validate()
-        .map_err(|e| Error::invalid(ErrorCode::Manifest, None, None, e.to_string()))?;
+        .map_err(|cause| Error::effect(ErrorCode::Manifest, "", cause))?;
     if serde_json::to_vec_pretty(&manifest)?.len() > 512 * 1024 {
         return Err(Error::invalid(
             ErrorCode::Budget,
