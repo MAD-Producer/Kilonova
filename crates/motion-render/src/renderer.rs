@@ -744,6 +744,10 @@ impl Renderer {
         ledger
     }
     /// Borrowed CPU package owners; no readback or GPU allocation.
+    pub fn compiled_shader_owners(&self) -> impl Iterator<Item = (&str, &std::sync::Arc<motion_effects::shader::CompiledShader>)> {
+        self.effect_gpu.builder.compiled_shader_owners()
+    }
+    /// Borrowed CPU package owners; no readback or GPU allocation.
     pub fn package_memory_owners(&self) -> impl Iterator<Item = (
         motion_effects::memory::PackageOwner, &std::sync::Arc<motion_effects::EffectPackage>,
     )> {

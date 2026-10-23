@@ -37,17 +37,47 @@ fn real_editor_and_session_package_owners_count_once_without_mutating_project_or
         })
         .sum();
     let initial = session.resource_memory_ledger().unwrap();
+    let program_capacity = |builder: &motion_render::effect_plan::PlanBuilder| {
+        builder
+            .programs
+            .iter()
+            .map(|p| {
+                (p.shader.wgsl.capacity()
+                    + p.shader.glsl.vertex.capacity()
+                    + p.shader.glsl.fragment.capacity()) as u64
+            })
+            .sum::<u64>()
+    };
+    let session_shader_capacity = program_capacity(&session.effects);
+    assert!(session_shader_capacity > 0);
     assert_eq!(
         initial["cpu"]["effectPackages"]["knownCapacityBytes"],
         expected_capacity
     );
-    assert_eq!(initial["cpu"]["knownCapacityBytes"], expected_capacity);
+    assert_eq!(
+        initial["cpu"]["knownCapacityBytes"],
+        expected_capacity + session_shader_capacity
+    );
+    assert_eq!(
+        initial["cpu"]["effectProgramShaders"]["knownCapacityBytes"],
+        session_shader_capacity
+    );
     assert!(session.graphics.is_none());
     assert!(session.editor_renderer.is_none());
     let budget = session.allocation_budget().clone();
     let mut renderer =
         pollster::block_on(Renderer::headless_with_allocation_budget(budget.clone())).unwrap();
     renderer.set_effect_registry(session.effects.registry.clone());
+    let mut shader_identities = std::collections::HashSet::new();
+    let total_shader_capacity: u64 = session
+        .effects
+        .compiled_shader_owners()
+        .chain(renderer.compiled_shader_owners())
+        .filter(|(_, s)| shader_identities.insert(Arc::as_ptr(s)))
+        .map(|(_, s)| {
+            (s.wgsl.capacity() + s.glsl.vertex.capacity() + s.glsl.fragment.capacity()) as u64
+        })
+        .sum();
     let device = renderer.device.clone();
     session.editor_renderer = Some(renderer);
     let budget_before = budget.info().unwrap();
@@ -60,7 +90,14 @@ fn real_editor_and_session_package_owners_count_once_without_mutating_project_or
         observed["cpu"]["effectPackages"]["knownCapacityBytes"],
         expected_capacity
     );
-    assert_eq!(observed["cpu"]["knownCapacityBytes"], expected_capacity);
+    assert_eq!(
+        observed["cpu"]["knownCapacityBytes"],
+        expected_capacity + total_shader_capacity
+    );
+    assert_eq!(
+        observed["cpu"]["effectProgramShaders"]["knownCapacityBytes"],
+        total_shader_capacity
+    );
     let resources = observed["cpu"]["effectPackages"]["resources"]
         .as_array()
         .unwrap();
@@ -83,7 +120,10 @@ fn real_editor_and_session_package_owners_count_once_without_mutating_project_or
     // Clearing one CPU owner must not make a still-retained package disappear.
     session.effects.registry.packages.clear();
     let retained = session.resource_memory_ledger().unwrap();
-    assert_eq!(retained["cpu"]["knownCapacityBytes"], expected_capacity);
+    assert_eq!(
+        retained["cpu"]["knownCapacityBytes"],
+        expected_capacity + total_shader_capacity
+    );
     for package in retained["cpu"]["effectPackages"]["resources"]
         .as_array()
         .unwrap()
@@ -100,7 +140,15 @@ fn real_editor_and_session_package_owners_count_once_without_mutating_project_or
             .len(),
         0
     );
-    assert_eq!(released["cpu"]["knownCapacityBytes"], 0);
+    assert_eq!(
+        released["cpu"]["knownCapacityBytes"],
+        session_shader_capacity
+    );
+    session.effects.programs.clear();
+    assert_eq!(
+        session.resource_memory_ledger().unwrap()["cpu"]["knownCapacityBytes"],
+        0
+    );
     assert_eq!(released["completeCoverage"], false);
     assert!(released["external"]["driverResidentBytes"].is_null());
     assert!(

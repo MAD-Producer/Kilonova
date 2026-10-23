@@ -419,6 +419,11 @@ impl PlanBuilder {
     }
 
     /// Borrowed allocation owners for one combined query across renderers.
+    pub fn compiled_shader_owners(&self) -> impl Iterator<Item = (&str, &Arc<shader::CompiledShader>)> {
+        self.programs.iter().map(|p| (p.key.as_str(), &p.shader))
+    }
+
+    /// Borrowed package allocation owners for one combined query across renderers.
     pub fn package_memory_owners(&self) -> impl Iterator<Item = (
         motion_effects::memory::PackageOwner, &Arc<EffectPackage>,
     )> {

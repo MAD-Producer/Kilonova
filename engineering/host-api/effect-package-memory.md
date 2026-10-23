@@ -29,7 +29,14 @@ above the retained package capacity and keep testing payload clearing, capacity
 release and public bridge equality. This is a new observed category, not a change
 to caching or resource admission.
 
-Manifest/map keys, container/allocator/Arc overhead, independent program shader
-copies, external package/shader owners, GPU modules and driver storage remain
+`cpu.effectProgramShaders` separately measures program-owned compiled WGSL/GLSL
+String buffers, including independent copies of package shader text. One query
+deduplicates actual shader Arcs across retained builders; equal text in distinct
+allocations still counts separately. At most 4096 unique shaders and eight
+160-character program contexts per shader are retained. Additional unobserved
+references and omitted contexts are counted. Shader source text is never returned.
+
+Manifest/map keys, container/allocator/Arc overhead, external package/shader
+owners, GPU modules and driver storage remain
 unknown/excluded. The CPU observation is not process RSS or GPU VRAM and keeps
 `completeCoverage=false`. Texture capacity remains a separate domain.

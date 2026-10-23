@@ -4,6 +4,8 @@ use serde::Serialize;
 use std::{collections::HashMap, sync::Arc};
 
 const MAX_PACKAGES: usize = 1024;
+mod shaders;
+pub use shaders::{compiled_shader_memory, ShaderMemory, ShaderMemoryInfo};
 
 #[derive(Clone, Copy, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -19,6 +21,13 @@ pub struct BufferMemory {
     pub capacity_bytes: u64,
 }
 impl BufferMemory {
+    fn shader(shader: &crate::shader::CompiledShader) -> Self {
+        let mut memory = Self::default();
+        for source in [&shader.wgsl, &shader.glsl.vertex, &shader.glsl.fragment] {
+            memory.add(source.len(), source.capacity());
+        }
+        memory
+    }
     fn add(&mut self, len: usize, capacity: usize) {
         self.payload_bytes += len as u64;
         self.capacity_bytes += capacity as u64;
@@ -81,9 +90,9 @@ pub fn package_memory<'a>(
             }
             let mut text = BufferMemory::default();
             for shader in package.shaders.values() {
-                for source in [&shader.wgsl, &shader.glsl.vertex, &shader.glsl.fragment] {
-                    text.add(source.len(), source.capacity());
-                }
+                let owned = BufferMemory::shader(shader);
+                text.payload_bytes += owned.payload_bytes;
+                text.capacity_bytes += owned.capacity_bytes;
             }
             let index = resources.len();
             resources.push(PackageMemory {

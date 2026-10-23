@@ -13,6 +13,8 @@ fn unified_resource_query_keeps_cpu_capacity_separate_and_does_not_initialize_gr
     let view = session.view_revision;
     let project = session.engine.snapshot();
     let packages = session.effects.package_memory_info();
+    let shaders =
+        motion_effects::memory::compiled_shader_memory(session.effects.compiled_shader_owners());
     assert!(
         packages.known_capacity_bytes > 0,
         "startup retains actual built-in packages"
@@ -27,11 +29,11 @@ fn unified_resource_query_keeps_cpu_capacity_separate_and_does_not_initialize_gr
         .unwrap();
     assert_eq!(
         observed["cpu"]["knownPayloadBytes"],
-        packages.known_payload_bytes + 36
+        packages.known_payload_bytes + shaders.known_payload_bytes + 36
     );
     assert_eq!(
         observed["cpu"]["knownCapacityBytes"],
-        packages.known_capacity_bytes + capacity as u64
+        packages.known_capacity_bytes + shaders.known_capacity_bytes + capacity as u64
     );
     assert_eq!(observed["cpu"]["audioOutputScratch"]["payloadBytes"], 32);
     assert_eq!(observed["cpu"]["compositionBundle"]["payloadBytes"], 4);
@@ -53,11 +55,11 @@ fn unified_resource_query_keeps_cpu_capacity_separate_and_does_not_initialize_gr
     let cleared = session.resource_memory_ledger().unwrap();
     assert_eq!(
         cleared["cpu"]["knownPayloadBytes"],
-        packages.known_payload_bytes
+        packages.known_payload_bytes + shaders.known_payload_bytes
     );
     assert_eq!(
         cleared["cpu"]["knownCapacityBytes"],
-        packages.known_capacity_bytes + capacity as u64
+        packages.known_capacity_bytes + shaders.known_capacity_bytes + capacity as u64
     );
     assert_eq!(cleared["cpu"]["audioOutputScratch"]["payloadBytes"], 0);
     assert_eq!(cleared["cpu"]["compositionBundle"]["payloadBytes"], 0);
@@ -65,7 +67,7 @@ fn unified_resource_query_keeps_cpu_capacity_separate_and_does_not_initialize_gr
     session.composition_bundle = Vec::new();
     assert_eq!(
         session.resource_memory_ledger().unwrap()["cpu"]["knownCapacityBytes"],
-        packages.known_capacity_bytes
+        packages.known_capacity_bytes + shaders.known_capacity_bytes
     );
 }
 
@@ -79,7 +81,11 @@ fn public_resource_query_uses_the_same_session_read_protocol() {
     )
     .unwrap();
     let expected = motion_host::session::with_session(handle, |session| {
-        Ok(session.effects.package_memory_info().known_capacity_bytes)
+        Ok(session.effects.package_memory_info().known_capacity_bytes
+            + motion_effects::memory::compiled_shader_memory(
+                session.effects.compiled_shader_owners(),
+            )
+            .known_capacity_bytes)
     })
     .unwrap();
     let result = motion_host::ops::preview::resource_memory(handle);
@@ -130,6 +136,8 @@ fn unified_query_includes_real_font_and_mixer_capacity_without_changing_pcm_or_h
     let view = session.view_revision;
     let project_before = session.engine.snapshot();
     let packages = session.effects.package_memory_info();
+    let shaders =
+        motion_effects::memory::compiled_shader_memory(session.effects.compiled_shader_owners());
     let mut store = FontStore::new(&directory.path().join("fonts")).unwrap();
     let glyph = store.glyph(&FontStore::builtin_id(), 'A', 32.).unwrap();
     let font_info = store.memory_info();
@@ -149,6 +157,7 @@ fn unified_query_includes_real_font_and_mixer_capacity_without_changing_pcm_or_h
             + mixer_info.known_payload_bytes
             + output_payload
             + packages.known_payload_bytes
+            + shaders.known_payload_bytes
     );
     assert_eq!(
         observed["cpu"]["knownCapacityBytes"],
@@ -156,6 +165,7 @@ fn unified_query_includes_real_font_and_mixer_capacity_without_changing_pcm_or_h
             + mixer_info.known_capacity_bytes
             + output_capacity
             + packages.known_capacity_bytes
+            + shaders.known_capacity_bytes
     );
     assert_eq!(
         observed["cpu"]["fontGlyphCache"],
@@ -196,7 +206,7 @@ fn unified_query_includes_real_font_and_mixer_capacity_without_changing_pcm_or_h
     let released = session.resource_memory_ledger().unwrap();
     assert_eq!(
         released["cpu"]["knownCapacityBytes"],
-        output_capacity + packages.known_capacity_bytes
+        output_capacity + packages.known_capacity_bytes + shaders.known_capacity_bytes
     );
     assert!(released["cpu"]["fontGlyphCache"].is_null());
     assert!(released["cpu"]["audioMixer"].is_null());
