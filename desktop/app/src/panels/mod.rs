@@ -594,7 +594,8 @@ pub fn chrome(
         size[0],
         (size[1] - CHROME_HEIGHT - 22.).max(0.),
     );
-    for handle in dock::splitters(layout, layout_area) {
+    let splitter_handles = dock::splitters(layout, layout_area);
+    for handle in &splitter_handles {
         if handle.area.contains(input.mouse) && !menu_modal {
             panels.cursor = Some(if handle.edge.is_horizontal() {
                 motion_ui::cursor::Cursor::ResizeEW
@@ -776,13 +777,7 @@ pub fn chrome(
     }
 
     // Workspace owns splitter interaction and persists the resulting dock tree.
-    let layout_area = Rect::new(
-        0.,
-        CHROME_HEIGHT,
-        size[0],
-        (size[1] - CHROME_HEIGHT - 22.).max(0.),
-    );
-    for (index, handle) in dock::splitters(layout, layout_area).into_iter().enumerate() {
+    for (index, handle) in splitter_handles.into_iter().enumerate() {
         let target = if handle.area.contains(input.mouse) {
             if input.dragging() {
                 1.
