@@ -334,10 +334,19 @@ impl Drag {
                         ];
                         let now = [local[0] - pivot[0], local[1] - pivot[1]];
                         let mut value = self.pose.scale;
-                        if x && y && !input.modifiers.control {
-                            let divisor = start[0] * start[0] + start[1] * start[1];
-                            if divisor > 1e-6 {
-                                let ratio = (now[0] * start[0] + now[1] * start[1]) / divisor;
+                        // Alt releases proportions; Shift also constrains an edge drag.
+                        let uniform = !input.modifiers.alt
+                            && (x && y || input.modifiers.shift && (x || y));
+                        if uniform {
+                            let (numerator, divisor) = if x && y {
+                                (now[0] * start[0] + now[1] * start[1],
+                                    start[0] * start[0] + start[1] * start[1])
+                            } else {
+                                let axis = usize::from(!x);
+                                (now[axis], start[axis])
+                            };
+                            if divisor.abs() > 1e-6 {
+                                let ratio = numerator / divisor;
                                 for (i, v) in value.iter_mut().enumerate() {
                                     if i < 2 || self.pose.three_d {
                                         *v *= ratio;
@@ -568,7 +577,7 @@ mod tests {
             .unwrap();
         (folder, engine, state, Rect::new(0., 0., 1920., 1080.))
     }
-    fn apply(engine: &Engine, actions: Vec<Action>) {
+    pub(super) fn apply(engine: &Engine, actions: Vec<Action>) {
         for action in actions {
             match action {
                 Action::History(op) => {
@@ -824,3 +833,7 @@ mod tests {
 #[cfg(test)]
 #[path = "transform_controls_hit_tests.rs"]
 mod hit_tests;
+
+#[cfg(test)]
+#[path = "transform_controls_scale_tests.rs"]
+mod scale_tests;
