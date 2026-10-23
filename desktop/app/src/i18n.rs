@@ -103,6 +103,7 @@ pub enum Text {
     KeyframeCurves,
     KeyToPlayhead,
     DeleteKey,
+    KeySelectionUnavailable,
     VelocityCurve,
     ProgressCurve,
     CopyCurve,
@@ -294,6 +295,10 @@ impl Locale {
             KeyframeCurves => ("关键帧与曲线", "Keyframes & Curves"),
             KeyToPlayhead => ("移动到播放头", "Move to Playhead"),
             DeleteKey => ("删除关键帧", "Delete Keyframe"),
+            KeySelectionUnavailable => (
+                "所选关键帧已失效，请重新选择",
+                "Selected keyframe is no longer available; select it again",
+            ),
             VelocityCurve => ("速度曲线", "Velocity Curve"),
             ProgressCurve => ("进度曲线", "Progress Curve"),
             CopyCurve => ("复制", "Copy"),

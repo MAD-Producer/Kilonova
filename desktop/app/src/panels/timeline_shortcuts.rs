@@ -34,8 +34,35 @@ fn layer_range(state: &Value, object: u64) -> Option<[f64; 2]> {
     (in_frame.is_finite() && out_frame.is_finite() && in_frame < out_frame)
         .then_some([in_frame, out_frame])
 }
+pub(super) fn refresh_key_notice(panels: &mut Panels, state: &Value) {
+    let Some(message) = panels.message.as_deref() else {
+        return;
+    };
+    if ![Locale::En, Locale::Zh]
+        .into_iter()
+        .any(|locale| message == locale.t(T::KeySelectionUnavailable))
+    {
+        return;
+    }
+    if panels.animation_controls.user_key().is_none()
+        || panels
+            .animation_controls
+            .user_key_in(state, panels.selected)
+            .is_some()
+    {
+        panels.message = None;
+    }
+}
+fn report_stale_key(panels: &mut Panels) {
+    if panels.animation_controls.user_key().is_some() {
+        panels.message = Some(panels.locale.t(T::KeySelectionUnavailable).into());
+    }
+}
 fn selection(panels: &mut Panels, state: &Value) -> Option<KeySelection> {
-    let key = panels.animation_controls.user_key_in(state, panels.selected)?;
+    let Some(key) = panels.animation_controls.user_key_in(state, panels.selected) else {
+        report_stale_key(panels);
+        return None;
+    };
     if panels.selected != Some(key.object)
         || !data::channel(state, key.object, key.property, key.axis).is_some_and(|s| {
             keys(s)
@@ -568,6 +595,7 @@ pub(super) fn handle(
                 return true;
             }
             if panels.animation_controls.track_selection(state, panels.selected) == TrackSelection::Invalid {
+                report_stale_key(panels);
                 return true;
             }
             if let Some(key) = selection(panels, state) {

@@ -94,6 +94,7 @@ pub fn route(
         panels.property_reveal.interrupt();
     }
     super::property_focus::settle(panels);
+    super::timeline_shortcuts::refresh_key_notice(panels, state);
     if let Some(search) = &panels.effect_search {
         let owned = search.owner == owner;
         if effect_search_close_pressed(input) || owned && input.focus_lost {

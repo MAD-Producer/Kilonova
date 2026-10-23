@@ -5,6 +5,7 @@ use motion_core::{
 use motion_ui::input::Modifiers;
 mod property_context_tests;
 mod reveal_axis_tests;
+mod stale_feedback_tests;
 
 fn key<T>(frame: i32, value: T) -> Keyframe<T> {
     Keyframe {
