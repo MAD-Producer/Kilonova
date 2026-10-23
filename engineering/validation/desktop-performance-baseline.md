@@ -2,24 +2,15 @@
 
 Issue: #60. This increment does not close the issue.
 
-Status: implementation and archive-validation regressions are present. The six
-focused Python tests passed, including an actual failing child process and
-optimized Python rejection. Complete tool discovery also passed: 77 tests run,
-one existing skip. The initial full discovery failed because the local Python
-lacked PyYAML; using the existing pinned installation fixed the environment,
-without changing tests or adding a dependency. The original failed attempt is
-retained. The original `0b9da1fe` source compiled and passed both Rust fixture
-tests. Its Release build failed because the shared target reused an older model
-artifact: the compiler saw `Error::Expression.message` while that clean source
-defines `source`. Original logs and the failed receipt remain archived. This
-successor isolates builds by complete commit; its updated tests and actual
-native run on `a381bbaa` completed five cases on an RTX 4070 Laptop GPU/Vulkan,
-then actually refused the four-4K case at its default 128 MiB source allowance
-(required 136857604 bytes). That attempt is failed, not a six-case baseline.
-This successor fixes the study's source allowance at 256 MiB for all cases and
-records the complete policy. Its actual acceptance remains pending. No failed
-attempt is relabeled as a performance run.
-Protocol fixtures in Python tests are not performance evidence.
+Status: the desktop native-data increment is accepted on source `5824c882`.
+All six actual Release workloads, 408 raw / 360 measured frames, independent
+native-pixel hashes, both Release fixture tests, nine focused archive tests,
+complete Python tool discovery (80 run, one existing skip), archive replay,
+provenance and inventory passed. See the [completed record](desktop-performance-baseline-completed.md),
+[exact acceptance manifest](desktop-performance-baseline-acceptance.json) and
+[published raw archive](data/desktop-performance-5824c882.zip). The two original
+failed attempts remain failed. Protocol fixtures alone are not performance evidence.
+Issue #60 remains open for its remaining original scope.
 
 ## Run and preserve evidence
 
@@ -117,7 +108,8 @@ There is no fixed FPS gate or unsupported speedup claim.
 
 ## Remaining issue scope
 
-- Actual Release runs and native fixture acceptance are still pending here
+- This exact six-case desktop Release study is accepted; later source, other
+  adapters and before/after claims require independent runs
 - The existing Session/desktop paced-playback study remains separate; this
   example does not measure a native window, UI, physical input or display deadlines
 - Actual file decoding, CPU image/cache ownership, inference weights/activations,

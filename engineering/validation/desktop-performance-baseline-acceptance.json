@@ -1,0 +1,427 @@
+{
+  "source": "5824c882127397c562f731520e1c798316269938",
+  "root": "E:\\Dev\\aem\\.worktrees\\desktop-performance-baseline",
+  "scope": "Actual headless serialized Release latency on recorded native adapter, not UI/window FPS, controlled thermal baseline, physical exhaustion or Android device acceptance",
+  "phases": {
+    "tools": {
+      "source": "5824c882127397c562f731520e1c798316269938",
+      "root": "E:\\Dev\\aem\\.worktrees\\desktop-performance-baseline",
+      "command": [
+        "C:\\Users\\nova\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tools",
+        "-p",
+        "test_ci_*.py",
+        "-v"
+      ],
+      "exitCode": 0,
+      "launchOrOutputError": null,
+      "testValidationError": null,
+      "testSummaries": [],
+      "logSha256": "4f62009d8686c42f4a00f879d0b87756643147360c8de2d9ba40c1929bf8a4eb",
+      "observed": "2026-10-23T03:51:22.042802+00:00"
+    },
+    "native": {
+      "source": "5824c882127397c562f731520e1c798316269938",
+      "root": "E:\\Dev\\aem\\.worktrees\\desktop-performance-baseline",
+      "command": [
+        "C:\\Users\\nova\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "tools/collect_desktop_performance.py",
+        "--output",
+        "E:\\Dev\\aem\\artifacts\\pr-queue\\issue60-study-v3-native-artifacts",
+        "--target-dir",
+        "E:\\Dev\\aem\\target\\path-selection-ci-verified",
+        "--samples",
+        "60",
+        "--reuse-dependencies-from",
+        "a381bbaa8281d2451a7d68dacd4ee9e5408c1077",
+        "--environment-note",
+        "Development desktop; background software may be active. Actual serialized native latency, not quiet-machine or thermal acceptance."
+      ],
+      "exitCode": 0,
+      "launchOrOutputError": null,
+      "testValidationError": null,
+      "testSummaries": [],
+      "logSha256": "db7b6a7c87ab38164e834e927d6a4898f9533060a295982e87a527f2d2ac44c5",
+      "observed": "2026-10-23T03:53:52.594129+00:00"
+    },
+    "fixtures": {
+      "source": "5824c882127397c562f731520e1c798316269938",
+      "root": "E:\\Dev\\aem\\.worktrees\\desktop-performance-baseline",
+      "command": [
+        "cargo",
+        "test",
+        "--release",
+        "--locked",
+        "-p",
+        "motion-render",
+        "--example",
+        "performance_baseline",
+        "--target-dir",
+        "E:\\Dev\\aem\\target\\path-selection-ci-verified\\desktop-performance\\a381bbaa8281d2451a7d68dacd4ee9e5408c1077",
+        "--",
+        "--test-threads=1"
+      ],
+      "exitCode": 0,
+      "launchOrOutputError": null,
+      "testValidationError": null,
+      "testSummaries": [
+        [
+          2,
+          0,
+          0
+        ]
+      ],
+      "logSha256": "34afe22d8937435b0327bcbd7e8ddec6100f4e8c4035982150903285247038e8",
+      "observed": "2026-10-23T03:54:55.117839+00:00"
+    },
+    "replay": {
+      "source": "5824c882127397c562f731520e1c798316269938",
+      "root": "E:\\Dev\\aem\\.worktrees\\desktop-performance-baseline",
+      "command": [
+        "C:\\Users\\nova\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "tools/collect_desktop_performance.py",
+        "--output",
+        "E:\\Dev\\aem\\artifacts\\pr-queue\\issue60-study-v3-native-artifacts",
+        "--validate-only"
+      ],
+      "exitCode": 0,
+      "launchOrOutputError": null,
+      "testValidationError": null,
+      "testSummaries": [],
+      "logSha256": "fe5af973f6c6c987670fa35f10f6cf69f29dfd1f3adf7f163efe7c36a50bc4e6",
+      "observed": "2026-10-23T03:54:56.328149+00:00"
+    },
+    "provenance": {
+      "source": "5824c882127397c562f731520e1c798316269938",
+      "root": "E:\\Dev\\aem\\.worktrees\\desktop-performance-baseline",
+      "command": [
+        "C:\\Users\\nova\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "tools/validate_provenance.py"
+      ],
+      "exitCode": 0,
+      "launchOrOutputError": null,
+      "testValidationError": null,
+      "testSummaries": [],
+      "logSha256": "144a6a2b31dde8d226b8cc4550a10dee9b6ac2a90ffc882c72d4d7bcc7dcf458",
+      "observed": "2026-10-23T03:54:58.039336+00:00"
+    },
+    "inventory": {
+      "source": "5824c882127397c562f731520e1c798316269938",
+      "root": "E:\\Dev\\aem\\.worktrees\\desktop-performance-baseline",
+      "command": [
+        "C:\\Users\\nova\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "tools/validation_inventory.py"
+      ],
+      "exitCode": 0,
+      "launchOrOutputError": null,
+      "testValidationError": null,
+      "testSummaries": [],
+      "logSha256": "d8603ba5209d8b86a2199e080b90da8ff71f2d059e24ade0eeaaadc24636f905",
+      "observed": "2026-10-23T03:54:59.953935+00:00"
+    }
+  },
+  "binary": {
+    "path": "E:\\Dev\\aem\\target\\path-selection-ci-verified\\desktop-performance\\a381bbaa8281d2451a7d68dacd4ee9e5408c1077\\release\\examples\\performance_baseline.exe",
+    "sha256": "515fffe65eb41062717d743be8f2e5cd027a32e6dde445485dc4c9b204720ca6"
+  },
+  "provenanceSha256": "2c810a5a2cd5a53bf1e3d08e05e37f4051d5639461e62b4878f0ef2ed08ec2e5",
+  "sampleFrames": 408,
+  "measuredFrames": 360,
+  "cases": [
+    {
+      "case": "static",
+      "adapter": {
+        "backend": "Vulkan",
+        "deviceType": "DiscreteGpu",
+        "driver": "NVIDIA",
+        "driverInfo": "591.86",
+        "name": "NVIDIA GeForce RTX 4070 Laptop GPU"
+      },
+      "frames": 68,
+      "measuredFrames": 60,
+      "gpuTimestampSupported": true,
+      "waitedWallUs": {
+        "count": 60,
+        "max": 1087.0,
+        "p50": 474.0,
+        "p95": 638.0,
+        "p99": 1087.0
+      },
+      "gpuTotalUs": {
+        "count": 60,
+        "max": 39.936,
+        "p50": 37.888,
+        "p95": 38.912,
+        "p99": 39.936
+      },
+      "maximumObservedAfterFrameTextureBytes": 10713840,
+      "maximumObservedAfterFrameAdmissionBytes": 15769528,
+      "textureCategories": [
+        "captureTargets",
+        "previewTargets",
+        "systemTextures",
+        "vectorRasterScratch",
+        "vectorSources"
+      ],
+      "pngSha256": "bebc98ed5ac33883ed69514f68e63dd496ccca24cc669f931f6959ff2eda359e",
+      "decodedRgbaSha256": "1d4b33fd4016e373804834e5763d4caf7c2afe57065d5b40be6dc5933454cab3",
+      "caseElapsedMs": 3040
+    },
+    {
+      "case": "animated",
+      "adapter": {
+        "backend": "Vulkan",
+        "deviceType": "DiscreteGpu",
+        "driver": "NVIDIA",
+        "driverInfo": "591.86",
+        "name": "NVIDIA GeForce RTX 4070 Laptop GPU"
+      },
+      "frames": 68,
+      "measuredFrames": 60,
+      "gpuTimestampSupported": true,
+      "waitedWallUs": {
+        "count": 60,
+        "max": 833.0,
+        "p50": 370.0,
+        "p95": 529.0,
+        "p99": 833.0
+      },
+      "gpuTotalUs": {
+        "count": 60,
+        "max": 28.672,
+        "p50": 28.672,
+        "p95": 28.672,
+        "p99": 28.672
+      },
+      "maximumObservedAfterFrameTextureBytes": 7373832,
+      "maximumObservedAfterFrameAdmissionBytes": 12404944,
+      "textureCategories": [
+        "captureTargets",
+        "previewTargets",
+        "systemTextures"
+      ],
+      "pngSha256": "e8c054d48945fd242d2620dad6cb2dc09a5270049013e53140185133508fd726",
+      "decodedRgbaSha256": "8b63378088ba9d6adfab745f8bfeb8e5a7c62cdd3e401ca4d1c40dc6af7c04ac",
+      "caseElapsedMs": 983
+    },
+    {
+      "case": "effect-chain",
+      "adapter": {
+        "backend": "Vulkan",
+        "deviceType": "DiscreteGpu",
+        "driver": "NVIDIA",
+        "driverInfo": "591.86",
+        "name": "NVIDIA GeForce RTX 4070 Laptop GPU"
+      },
+      "frames": 68,
+      "measuredFrames": 60,
+      "gpuTimestampSupported": true,
+      "waitedWallUs": {
+        "count": 60,
+        "max": 3205.0,
+        "p50": 2066.0,
+        "p95": 2337.0,
+        "p99": 3205.0
+      },
+      "gpuTotalUs": {
+        "count": 60,
+        "max": 1684.48,
+        "p50": 1276.928,
+        "p95": 1485.824,
+        "p99": 1684.48
+      },
+      "maximumObservedAfterFrameTextureBytes": 14759304,
+      "maximumObservedAfterFrameAdmissionBytes": 19808512,
+      "textureCategories": [
+        "captureTargets",
+        "effectScratch",
+        "previewTargets",
+        "systemTextures"
+      ],
+      "pngSha256": "0a67b2bf9d563611d64f7ecbd2e30bacfd3cc6d41960feacc66c1c77dc2383ab",
+      "decodedRgbaSha256": "c6db8e6cc2c0dc09ac15c87c4fc2528b3422b014712f9b36e323b5e37300ffe2",
+      "caseElapsedMs": 1006
+    },
+    {
+      "case": "crossing-3d",
+      "adapter": {
+        "backend": "Vulkan",
+        "deviceType": "DiscreteGpu",
+        "driver": "NVIDIA",
+        "driverInfo": "591.86",
+        "name": "NVIDIA GeForce RTX 4070 Laptop GPU"
+      },
+      "frames": 68,
+      "measuredFrames": 60,
+      "gpuTimestampSupported": true,
+      "waitedWallUs": {
+        "count": 60,
+        "max": 678.0,
+        "p50": 237.0,
+        "p95": 389.0,
+        "p99": 678.0
+      },
+      "gpuTotalUs": {
+        "count": 60,
+        "max": 23.552,
+        "p50": 22.528,
+        "p95": 23.552,
+        "p99": 23.552
+      },
+      "maximumObservedAfterFrameTextureBytes": 7373832,
+      "maximumObservedAfterFrameAdmissionBytes": 12404944,
+      "textureCategories": [
+        "captureTargets",
+        "previewTargets",
+        "systemTextures"
+      ],
+      "pngSha256": "4a4ab01f408e132839b06f86c07ac3ae9cc0dcaa4e2eb7e48c0fb8ef90e7027e",
+      "decodedRgbaSha256": "a8d9b84b8792569219b625b4164cdea21faa0a9e8018fa051e0e76644ad75505",
+      "caseElapsedMs": 669
+    },
+    {
+      "case": "nested-matte",
+      "adapter": {
+        "backend": "Vulkan",
+        "deviceType": "DiscreteGpu",
+        "driver": "NVIDIA",
+        "driverInfo": "591.86",
+        "name": "NVIDIA GeForce RTX 4070 Laptop GPU"
+      },
+      "frames": 68,
+      "measuredFrames": 60,
+      "gpuTimestampSupported": true,
+      "waitedWallUs": {
+        "count": 60,
+        "max": 645.0,
+        "p50": 403.0,
+        "p95": 495.0,
+        "p99": 645.0
+      },
+      "gpuTotalUs": {
+        "count": 60,
+        "max": 32.768,
+        "p50": 31.744,
+        "p95": 32.768,
+        "p99": 32.768
+      },
+      "maximumObservedAfterFrameTextureBytes": 11530633,
+      "maximumObservedAfterFrameAdmissionBytes": 16693441,
+      "textureCategories": [
+        "captureTargets",
+        "effectScratch",
+        "matteBlendScratch",
+        "nestedCompositions",
+        "previewTargets",
+        "systemTextures"
+      ],
+      "pngSha256": "065434fb5a656e00fa3981df95a2747386534393f7192ab726879f3c697f063c",
+      "decodedRgbaSha256": "496f32bf158910bb1393263e7ed2d29054520f517a735a620c4b4aec522e2a87",
+      "caseElapsedMs": 645
+    },
+    {
+      "case": "four-4k-yuv",
+      "adapter": {
+        "backend": "Vulkan",
+        "deviceType": "DiscreteGpu",
+        "driver": "NVIDIA",
+        "driverInfo": "591.86",
+        "name": "NVIDIA GeForce RTX 4070 Laptop GPU"
+      },
+      "frames": 68,
+      "measuredFrames": 60,
+      "gpuTimestampSupported": true,
+      "waitedWallUs": {
+        "count": 60,
+        "max": 6306.0,
+        "p50": 5686.0,
+        "p95": 5894.0,
+        "p99": 6306.0
+      },
+      "gpuTotalUs": {
+        "count": 60,
+        "max": 338.944,
+        "p50": 125.952,
+        "p95": 131.072,
+        "p99": 338.944
+      },
+      "maximumObservedAfterFrameTextureBytes": 189850632,
+      "maximumObservedAfterFrameAdmissionBytes": 194881936,
+      "textureCategories": [
+        "captureTargets",
+        "previewTargets",
+        "systemTextures",
+        "videoPlanes",
+        "videoRgba"
+      ],
+      "pngSha256": "96f67b4f175cb84af519198261c57e459586d8e091b8fdd9a03d46c631056e3a",
+      "decodedRgbaSha256": "16bdc9a7b7284d77385be74218dae9947686505b4127d0bf107d6767fbf98333",
+      "caseElapsedMs": 805
+    }
+  ],
+  "dependencyCacheReuse": {
+    "revision": "a381bbaa8281d2451a7d68dacd4ee9e5408c1077",
+    "changedBenchmarkInputs": [
+      "crates/motion-render/examples/performance_baseline.rs",
+      "engineering/validation/desktop-performance-baseline.md",
+      "tools/collect_desktop_performance.py",
+      "tools/test_ci_desktop_performance.py"
+    ]
+  },
+  "earlierFiveCasePixelsUnchanged": true,
+  "existingLocalImageVerifier": "Pillow 12.3.0; no project dependency added",
+  "physicalDeviceAcceptanceComplete": false,
+  "observedUtc": "2026-10-23T03:56:43.574817+00:00",
+  "publishedArchive": {
+    "path": "data/desktop-performance-5824c882.zip",
+    "sha256": "975e3ff4a374454a418a2cced2834bb03e534ccc031555089f1820e468a3128c",
+    "bytes": 113763,
+    "entries": 30,
+    "root": "accepted",
+    "rawFrames": 408,
+    "measuredFrames": 360
+  },
+  "retainedFailedAttempts": {
+    "v1": {
+      "source": "0b9da1fe6ec722dac564ad02a996f3b85ffb8701",
+      "state": "failed",
+      "phaseExitCode": 1,
+      "logSha256": "f04968d03c81e508c44eb9f7836ae44dc22aca4d4751d02922e6d2e2bbce15d9",
+      "originalStderrSha256": "9c9cda39a3223d7f5de9ad768a676a1672bb99f0df6fdcb065a8ff1003fb5156",
+      "cause": "   Compiling percent-encoding v2.3.2\n   Compiling form_urlencoded v1.2.2\n   Compiling url v2.5.8\n   Compiling swc_common v26.0.0\n   Compiling swc_ecma_ast v29.0.2\n   Compiling swc_ecma_visit v29.0.0\n   Compiling getrandom v0.4.3\n   Compiling swc_ecma_utils v35.0.2\n   Compiling ttf-parser v0.25.1\n   Compiling swc_ecma_codegen v32.0.3\n   Compiling swc_ecma_parser v45.1.6\n   Compiling fontdue v0.9.4\n   Compiling motion-render v0.1.0 (E:\\Dev\\aem\\.worktrees\\desktop-performance-baseline\\crates\\motion-render)\nwarning: method `create_owned_texture` is never used\n  --> crates\\motion-render\\src\\resource_ledger.rs:33:8\n   |\n32 | pub(crate) trait DeviceTextureExt {\n   |                  ---------------- method in this trait\n33 |     fn create_owned_texture(&self, descriptor: &wgpu::TextureDescriptor<'_>) -> OwnedTexture;\n   |        ^^^^^^^^^^^^^^^^^^^^\n   |\n   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default\n\nwarning: `motion-render` (lib) generated 1 warning\n   Compiling tempfile v3.27.0\n   Compiling motion-media v0.1.0 (E:\\Dev\\aem\\.worktrees\\desktop-performance-baseline\\crates\\motion-media)\n   Compiling motion-core v0.1.0 (E:\\Dev\\aem\\.worktrees\\desktop-performance-baseline\\crates\\motion-core)\nerror[E0559]: variant `motion_model::Error::Expression` has no field named `source`\n  --> crates\\motion-core\\src\\expressions\\mod.rs:21:9\n   |\n21 |         source: Box::new(error),\n   |         ^^^^^^ `motion_model::Error::Expression` does not have this field\n   |\n   = note: available fields are: `message`\n\nFor more information about this error, try `rustc --explain E0559`.\nerror: could not compile `motion-core` (lib) due to 1 previous error\n",
+      "completedNativeCases": 0,
+      "scope": "Historical failure, not a six-case accepted baseline"
+    },
+    "v2": {
+      "source": "a381bbaa8281d2451a7d68dacd4ee9e5408c1077",
+      "state": "failed",
+      "phaseExitCode": 1,
+      "logSha256": "045715922fa06c6cb8b55f8d02cbcece3d5d3e936ed9bf43460c97302dc55f7c",
+      "originalStderrSha256": "14f750fa6c7c4e03f73f63033281bdd7f92cbccc99cb8d13edd7d620e322ef83",
+      "cause": "Error: Resource { rejection: Budget { scope: SourceTextures, required_bytes: 136857604, budget_bytes: 134217728 }, message: \"video planes and images exceed configured source texture budget\" }\n",
+      "completedNativeCases": 5,
+      "scope": "Historical failure, not a six-case accepted baseline"
+    }
+  },
+  "publicationArchiveReplay": {
+    "source": "5824c882127397c562f731520e1c798316269938",
+    "root": "E:\\Dev\\aem\\.worktrees\\desktop-performance-baseline",
+    "command": [
+      "python",
+      "tools/collect_desktop_performance.py",
+      "--output",
+      "E:/Dev/aem/artifacts/pr-queue/issue60-public-archive-replay-v1/accepted",
+      "--validate-only"
+    ],
+    "exitCode": 0,
+    "launchOrOutputError": null,
+    "testValidationError": null,
+    "testSummaries": [],
+    "logSha256": "fe5af973f6c6c987670fa35f10f6cf69f29dfd1f3adf7f163efe7c36a50bc4e6",
+    "observed": "2026-10-23T04:13:04.238128+00:00"
+  }
+}
