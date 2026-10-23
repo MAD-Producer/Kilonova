@@ -210,6 +210,7 @@ pub fn route(
             selected_index: 0,
             owner,
             continuous: false,
+            ..Default::default()
         });
         return true;
     }
@@ -489,6 +490,7 @@ mod tests {
             selected_index: 0,
             owner,
             continuous: false,
+            ..Default::default()
         }
     }
     #[test]

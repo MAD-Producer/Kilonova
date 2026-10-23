@@ -119,6 +119,7 @@ fn retired_effects_leave_catalogue_and_old_project_failures_reach_default_sinks(
                 selected_index: 0,
                 owner: None,
                 continuous: false,
+                ..Default::default()
             });
             capture(
                 &mut shell,

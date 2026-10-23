@@ -132,6 +132,7 @@ fn editors_popups_ime_repeat_modifiers_and_gestures_keep_keyboard_priority() {
                     selected_index: 0,
                     owner: None,
                     continuous: false,
+                    ..Default::default()
                 })
             }
             _ => unreachable!(),

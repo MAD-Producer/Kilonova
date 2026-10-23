@@ -349,6 +349,7 @@ pub struct EffectSearch {
     pub owner: Option<dock::Panel>,
     /// Explicit opt-in; a newly opened search always applies once and closes.
     pub continuous: bool,
+    pub(crate) cache: super::effect_search::Cache,
 }
 
 pub(crate) struct Field {

@@ -1369,6 +1369,7 @@ mod tests {
                 selected_index: 0,
                 owner: Some(Panel::NodeProperties),
                 continuous: false,
+                ..Default::default()
             }),
             ..Default::default()
         };
@@ -1500,6 +1501,7 @@ mod tests {
                 selected_index: 0,
                 owner: None,
                 continuous: false,
+                ..Default::default()
             }),
             ..Default::default()
         };
