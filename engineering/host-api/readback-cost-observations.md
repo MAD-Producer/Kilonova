@@ -47,6 +47,14 @@ scopes as well. Image captures outside a recording interval remain part of the
 renderer lifetime; first-sample baselines cannot be treated as exclusive frame
 costs. Timestamp counts are not inferred from associated frame sample counts.
 
+Native chrome-only presentations can advance the presentation sequence without
+a completed composition record. GPU callbacks are associated by exact recorded
+sequence, including delayed and out-of-order callbacks. Recorder storage order
+and its existing capacity bound remain unchanged. The four sequence regressions
+exercise gaps, unrelated/overflow callbacks, delayed arrivals and caller order.
+Actual mapping counters remain independent of whether a callback has a matching
+recorded frame.
+
 Each counter saturates at `u64::MAX`; `countersSaturated` makes the resulting loss
 of exact counting explicit. Counters are individually atomic and snapshots are
 not atomic across fields. Compare only known observations from the same owner
