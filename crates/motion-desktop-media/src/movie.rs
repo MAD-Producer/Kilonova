@@ -359,16 +359,16 @@ mod tests {
     fn frozen_movie_evaluates_nested_video_effects_expressions_and_original_pcm() {
         let root = tempfile::tempdir().unwrap();
         fs::create_dir_all(root.path().join("assets")).unwrap();
-        fs::create_dir_all(root.path().join("cache/audio-v1")).unwrap();
-        fs::create_dir_all(root.path().join("cache/video-v1")).unwrap();
         let source = root.path().join("assets/source.mp4");
         source_movie(&source);
         let probe = crate::av::probe(&source, None, Some(u32::MAX), &|| Ok(())).unwrap();
         let mut asset = probe.asset;
         asset.id = 1;
         asset.path = "assets/source.mp4".into();
+        let video_cache = motion_media::video_cache_path(root.path(), &asset).unwrap();
+        fs::create_dir_all(video_cache.parent().unwrap()).unwrap();
         motion_media::save_index(
-            &motion_media::video_cache_path(root.path(), &asset).unwrap(),
+            &video_cache,
             &asset,
             &probe.timestamps,
         )

@@ -1,4 +1,6 @@
-//! Publish paired cache files with rollback of the previous pair.
+//! Publish complete cache directories with rollback of the previous snapshot.
+#[cfg(test)]
+mod atomic_directory_tests;
 use crate::{Error, Result};
 use std::{
     fs, io,
@@ -12,6 +14,7 @@ struct Entry {
     destination: PathBuf,
     backup: Option<PathBuf>,
     published: bool,
+    directory: bool,
 }
 struct Publication {
     directory: PathBuf,
@@ -47,11 +50,18 @@ impl Publication {
     }
 
     fn publish(&mut self, source: &Path, destination: &Path) -> Result<()> {
+        let source_type = fs::symlink_metadata(source)
+            .map_err(|e| Error::from(e).context(format!("inspect staged cache for {}", destination.display())))?
+            .file_type();
+        let directory = source_type.is_dir();
+        if !directory && !source_type.is_file() {
+            return Err(format!("cache source is not a regular file or directory: {}", source.display()).into());
+        }
         let backup = match fs::symlink_metadata(destination) {
             Ok(metadata) => {
-                if !metadata.file_type().is_file() {
+                if if directory { !metadata.file_type().is_dir() } else { !metadata.file_type().is_file() } {
                     return Err(format!(
-                        "cache destination is not a regular file: {}",
+                        "cache destination has an unexpected file type: {}",
                         destination.display()
                     ).into());
                 }
@@ -67,6 +77,7 @@ impl Publication {
             destination: destination.into(),
             backup,
             published: false,
+            directory,
         });
         fs::rename(source, destination)
             .map_err(|e| Error::from(e).context(format!("publish cache {}", destination.display())))?;
@@ -80,18 +91,38 @@ impl Publication {
     fn rollback(&mut self) -> Option<Error> {
         self.finished = true;
         let mut errors = Vec::new();
-        for entry in self.entries.iter().rev() {
+        for (index, entry) in self.entries.iter().enumerate().rev() {
             if entry.published {
-                if let Err(error) = fs::remove_file(&entry.destination) {
+                // Withdraw a published directory atomically; dispose of its
+                // potentially large contents only after business guards drop.
+                let removed = if entry.directory {
+                    match fs::symlink_metadata(&entry.destination) {
+                        Ok(metadata) if metadata.file_type().is_dir() =>
+                            fs::rename(&entry.destination, self.directory.join(format!("discard-{index}"))),
+                        Ok(_) => Err(io::Error::other("published cache directory changed file type")),
+                        Err(error) => Err(error),
+                    }
+                } else { fs::remove_file(&entry.destination) };
+                if let Err(error) = removed {
                     if error.kind() != io::ErrorKind::NotFound {
                         errors.push(Error::from(error).context(format!(
                             "remove new cache {}", entry.destination.display()
                         )));
+                        // The live path may now belong to another writer.
+                        // Preserve our backup rather than replace that object.
+                        continue;
                     }
                 }
             }
             if let Some(backup) = &entry.backup {
-                if let Err(error) = fs::rename(backup, &entry.destination) {
+                let restored = match fs::symlink_metadata(&entry.destination) {
+                    Ok(_) => Err(io::Error::new(io::ErrorKind::AlreadyExists,
+                        "cache destination occupied during rollback")),
+                    Err(error) if error.kind() == io::ErrorKind::NotFound =>
+                        fs::rename(backup, &entry.destination),
+                    Err(error) => Err(error),
+                };
+                if let Err(error) = restored {
                     errors.push(Error::from(error).context(format!(
                         "restore cache {} from {}",
                         entry.destination.display(),
@@ -123,7 +154,10 @@ impl Drop for Publication {
         }
         for index in 0..2 {
             let path = self.directory.join(format!("old-{index}"));
-            if let Err(error) = fs::remove_file(&path) {
+            let removed = if self.entries.get(index).is_some_and(|entry| entry.directory) {
+                fs::remove_dir_all(&path)
+            } else { fs::remove_file(&path) };
+            if let Err(error) = removed {
                 if error.kind() != io::ErrorKind::NotFound {
                     log::warn!(
                         "cache backup cleanup failed: path={} reason={error}",
@@ -131,7 +165,9 @@ impl Drop for Publication {
                     );
                 }
             }
+            cleanup_stage(&self.directory.join(format!("discard-{index}")));
         }
+        cleanup_stage(&self.directory.join("new-cache"));
         if let Err(error) = fs::remove_dir(&self.directory) {
             log::warn!(
                 "cache recovery directory cleanup failed: path={} reason={error}",
@@ -147,10 +183,11 @@ impl Drop for Publication {
 pub(crate) struct PublicationCleanup {
     cache: Option<Publication>,
     rollback_warning: Option<String>,
+    published_cache: bool,
 }
 
-// An unwind between the two file moves still restores the pair while the
-// caller holds its publication/cancellation lock. Observation is deferred.
+// Restore a withdrawn snapshot before the caller's publication/cancellation
+// lock is released. Large directory disposal and observation are deferred.
 struct Attempt<'a>(&'a mut Publication);
 impl Drop for Attempt<'_> {
     fn drop(&mut self) {
@@ -166,22 +203,43 @@ impl PublicationCleanup {
         first: (&Path, &Path),
         second: (&Path, &Path),
     ) -> Result<()> {
+        self.publish_cache_pair_at_checkpoint(first, second, || {})
+            .map_err(|error| error.context(format!("publish cache pair {}", first.1.display())))
+    }
+
+    fn publish_cache_pair_at_checkpoint(
+        &mut self,
+        first: (&Path, &Path),
+        second: (&Path, &Path),
+        checkpoint: impl FnOnce(),
+    ) -> Result<()> {
         if first.1 == second.1 {
             return Err("cache pair destinations must differ".into());
         }
         if self.cache.is_some() {
             return Err("cache publication cleanup already owns a transaction".into());
         }
-        let parent = first.1.parent().ok_or("cache parent missing")?;
+        let cache_directory = first.1.parent().ok_or("cache parent missing")?;
+        if second.1.parent() != Some(cache_directory) {
+            return Err("cache pair members must belong to one directory".into());
+        }
+        let parent = cache_directory.parent().ok_or("cache directory parent missing")?;
         let publication = self.cache.insert(Publication::new(parent)?);
         let attempt = Attempt(publication);
         let publication = &mut *attempt.0;
-        let result = publication
-            .publish(first.0, first.1)
-            .and_then(|()| publication.publish(second.0, second.1));
+        let result = (|| {
+            let staged = publication.directory.join("new-cache");
+            fs::create_dir(&staged).map_err(Error::from)?;
+            stage_cache_member(first, &staged)?;
+            checkpoint();
+            stage_cache_member(second, &staged)?;
+            validate_cache_directory(cache_directory, first.1, second.1)?;
+            publication.publish(&staged, cache_directory)
+        })();
         match result {
             Ok(()) => {
                 publication.finished = true;
+                self.published_cache = true;
                 Ok(())
             }
             Err(error) => match publication.rollback() {
@@ -189,6 +247,16 @@ impl PublicationCleanup {
                 Some(rollback) => Err(error.rollback(vec![rollback])),
             },
         }
+    }
+
+    pub(crate) fn rollback_published_cache(&mut self, primary: impl Into<Error>) -> Error {
+        let primary = primary.into();
+        if std::mem::take(&mut self.published_cache) {
+            if let Some(rollback) = self.cache.as_mut().and_then(Publication::rollback) {
+                return primary.rollback(vec![rollback]);
+            }
+        }
+        primary
     }
 
     pub(crate) fn rollback_files(
@@ -223,6 +291,44 @@ impl PublicationCleanup {
         }
         primary.rollback(secondary)
     }
+}
+
+fn stage_cache_member((source, destination): (&Path, &Path), staged: &Path) -> Result<()> {
+    match fs::symlink_metadata(destination) {
+        Ok(metadata) if !metadata.file_type().is_file() =>
+            return Err(format!("cache destination is not a regular file: {}", destination.display()).into()),
+        Ok(_) => {},
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {},
+        Err(error) => return Err(Error::from(error).context(format!("inspect cache {}", destination.display()))),
+    }
+    let source_type = fs::symlink_metadata(source)
+        .map_err(|error| Error::from(error).context(format!("stage cache {} from {}", destination.display(), source.display())))?
+        .file_type();
+    if !source_type.is_file() {
+        return Err(format!("cache source is not a regular file: {}", source.display()).into());
+    }
+    let name = destination.file_name().ok_or("cache member filename missing")?;
+    fs::rename(source, staged.join(name))
+        .map_err(|error| Error::from(error).context(format!("stage cache {} from {}", destination.display(), source.display())))
+}
+
+fn validate_cache_directory(directory: &Path, first: &Path, second: &Path) -> Result<()> {
+    match fs::symlink_metadata(directory) {
+        Ok(metadata) if !metadata.file_type().is_dir() =>
+            return Err(format!("cache destination is not a directory: {}", directory.display()).into()),
+        Ok(_) => {},
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(Error::from(error).context(format!("inspect cache directory {}", directory.display()))),
+    }
+    for entry in fs::read_dir(directory).map_err(Error::from)? {
+        let entry = entry.map_err(Error::from)?;
+        if (Some(entry.file_name().as_os_str()) != first.file_name()
+            && Some(entry.file_name().as_os_str()) != second.file_name())
+            || !entry.file_type().map_err(Error::from)?.is_file() {
+            return Err(format!("unexpected member in cache directory: {}", entry.path().display()).into());
+        }
+    }
+    Ok(())
 }
 
 impl Drop for PublicationCleanup {

@@ -396,6 +396,7 @@ impl VideoJobs {
         // Declare owned resources before the guard so unwind releases it first.
         let mut p;
         let mut publication = crate::publication::PublicationCleanup::default();
+        let mut audio_publication = crate::publication::PublicationCleanup::default();
         let mut t = task.lock().map_err(|_| "video task poisoned")?;
         if t.status.terminal() {
             return Ok((t.status.clone(), false));
@@ -476,20 +477,20 @@ impl VideoJobs {
             contained_dir(&self.root, &self.root.join("assets"))?;
             let cache = video_cache_path(&self.root, &p.probe.asset)?;
             contained_dir(&self.root, cache.parent().unwrap())?;
-            let mut moves = vec![
-                (p.stage.0.join("source.mp4"), self.root.join(&path)),
-                (p.stage.0.join("index.pts"), cache.clone()),
-                (p.stage.0.join("thumbnail.png"), cache.with_extension("png")),
-            ];
+            let source = self.root.join(&path);
+            fs::rename(p.stage.0.join("source.mp4"), &source).map_err(crate::Error::from)?;
+            published.push(source);
+            publication.publish_cache_pair(
+                (&p.stage.0.join("index.pts"), &cache),
+                (&p.stage.0.join("thumbnail.png"), &cache.with_extension("png")),
+            )?;
             if let Some(a) = &p.audio {
                 let pcm = crate::cache_path(&self.root, a)?;
                 contained_dir(&self.root, pcm.parent().unwrap())?;
-                moves.push((p.stage.0.join("decoded.pcm"), pcm.clone()));
-                moves.push((p.stage.0.join("decoded.wave"), pcm.with_extension("wave")));
-            }
-            for (from, to) in moves {
-                fs::rename(from, &to).map_err(crate::Error::from)?;
-                published.push(to);
+                audio_publication.publish_cache_pair(
+                    (&p.stage.0.join("decoded.pcm"), &pcm),
+                    (&p.stage.0.join("decoded.wave"), &pcm.with_extension("wave")),
+                )?;
             }
             engine
                 .apply_batch_saved(commands, &self.root)
@@ -509,6 +510,8 @@ impl VideoJobs {
             }
             Err(e) => {
                 let paths = published.iter().map(PathBuf::as_path).collect::<Vec<_>>();
+                let e = audio_publication.rollback_published_cache(e);
+                let e = publication.rollback_published_cache(e);
                 let error = publication.rollback_files(e, &paths);
                 t.status.state = "failed".into();
                 t.status.phase = "failed".into();
@@ -651,7 +654,7 @@ pub fn video_cache_path(root: &Path, asset: &VideoAsset) -> Result<PathBuf> {
         .file_stem()
         .and_then(|s| s.to_str())
         .ok_or("invalid video source name")?;
-    Ok(root.join("cache/video-v1").join(format!("{stem}.pts")))
+    Ok(root.join("cache/video-v2").join(stem).join("index.pts"))
 }
 pub fn save_index(path: &Path, asset: &VideoAsset, pts: &[u64]) -> Result<()> {
     validate_index(asset, pts)?;
