@@ -86,10 +86,10 @@ impl MaskCache {
         scene: &Scene,
         scale: f32,
         preview: bool,
-    ) -> Result<Vec<MaskRaster>, String> {
+    ) -> Result<Vec<MaskRaster>, crate::RenderError> {
         self.build_with_limit(scene, scale, preview, vector_mesh::MAX_TRIANGLE_VERTICES)
     }
-    fn build_with_limit(&mut self, scene: &Scene, scale: f32, preview: bool, limit: usize) -> Result<Vec<MaskRaster>, String> {
+    fn build_with_limit(&mut self, scene: &Scene, scale: f32, preview: bool, limit: usize) -> Result<Vec<MaskRaster>, crate::RenderError> {
         self.shapes.retain(|(layer, mask), _| {
             scene
                 .layers
@@ -139,7 +139,16 @@ impl MaskCache {
                             4.,
                         )),
                     };
-                    let vertices = Arc::new(vector_mesh::tessellate_with_limit(&vector, l.size, density, remaining)?);
+                    let vertices = Arc::new(
+                        vector_mesh::tessellate_with_limit(&vector, l.size, density, remaining)
+                            .map_err(|cause| {
+                                let message = format!(
+                                    "layer {}, mask {}, mask tessellate, frame {}: {cause}",
+                                    l.id, m.id, scene.frame,
+                                );
+                                crate::RenderError::from(cause).with_diagnostic(message)
+                            })?,
+                    );
                     let mut hash = std::collections::hash_map::DefaultHasher::new();
                     bytemuck::cast_slice::<_, u8>(&vertices).hash(&mut hash);
                     self.shapes.insert(cache, (key, vertices, hash.finish()));
