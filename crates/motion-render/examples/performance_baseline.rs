@@ -13,6 +13,15 @@ type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 const SIZE: [u32; 2] = [1280, 720];
 const VIDEO_SIZE: [u32; 2] = [3840, 2160];
 const WARMUP: u32 = 8;
+
+fn memory_policy() -> motion_render::resource_policy::MemoryPolicy {
+    motion_render::resource_policy::MemoryPolicy {
+        // Four full-size RGBA outputs plus their YUV planes exceed the normal
+        // 128 MiB source allowance. This is an explicit study condition only.
+        source_texture_budget_bytes: 256 << 20,
+        ..Default::default()
+    }
+}
 const CASES: [&str; 6] = [
     "static",
     "animated",
@@ -175,6 +184,7 @@ fn measure(name: &str, samples: u32, root: &Path) -> Result<Value> {
         true,
     ))?;
     let renderer_create_us = started.elapsed().as_micros();
+    renderer.set_memory_policy(memory_policy())?;
     let source = renderer.render_target(SIZE[0], SIZE[1])?;
     let target = renderer.capture_target(SIZE[0], SIZE[1])?;
     // This standalone path excludes the Presenter's two raw uniform buffers
@@ -335,7 +345,7 @@ fn measure(name: &str, samples: u32, root: &Path) -> Result<Value> {
         "backend":format!("{:?}",info.backend),"deviceType":format!("{:?}",info.device_type)},
         "sourceRevision":option_env!("MOTION_BENCHMARK_REVISION"),"debugAssertions":cfg!(debug_assertions),
         "projectSha256":format!("{:x}",Sha256::digest(&project_bytes)),"finalRgbaSha256":format!("{:x}",Sha256::digest(&pixels)),
-        "dimensions":SIZE,"fps":30,"renderMode":"fixed-full-resolution","warmupFrames":WARMUP,"measuredFrames":samples,"rendererCreateUs":renderer_create_us,
+        "dimensions":SIZE,"fps":30,"renderMode":"fixed-full-resolution","memoryPolicy":renderer.memory_policy(),"warmupFrames":WARMUP,"measuredFrames":samples,"rendererCreateUs":renderer_create_us,
         "submissionScope":"Explicit main and YUV conversion queue submissions; excludes implicit driver/upload staging submissions",
         "gpuTimestampSupported":timer.is_some(),"nativeMemoryPressure":pressure,
         "syntheticYuv":video.as_ref().map(|frame|json!({"dimensions":VIDEO_SIZE,"sources":4,"oneReusableCpuFixtureBytes":frame.y.len()+frame.uv.len(),
@@ -407,6 +417,9 @@ mod tests {
     use super::*;
     #[test]
     fn benchmark_fixtures_are_valid_fixed_and_exercise_the_declared_features() -> Result<()> {
+        memory_policy().validate()?;
+        assert_eq!(memory_policy().source_texture_budget_bytes, 256 << 20);
+        assert!(memory_policy().source_texture_budget_bytes > 4 * 3840 * 2160 * 11 / 2);
         for name in CASES {
             let project = fixture(name, 60)?;
             project.validate()?;

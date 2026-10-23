@@ -35,6 +35,7 @@ def fixture(name="animated", gpu=True, samples=3):
         frames.append(row)
     return {"schemaVersion": 1, "case": name, "sourceRevision": SOURCE, "debugAssertions": False,
             "dimensions": [1280, 720], "fps": 30, "renderMode": "fixed-full-resolution", "warmupFrames": 8, "measuredFrames": samples,
+            "memoryPolicy": {"sourceTextureBudgetBytes": 256 << 20},
             "adapter": {"name": "Protocol fixture only", "driver": "", "driverInfo": "", "backend": "Test", "deviceType": "Test"},
             "gpuTimestampSupported": gpu, "frames": frames,
             "nativeMemoryPressure": {"reading": {"status": "unavailable"}}, "coverageGaps": ["physical hardware not measured"],
@@ -42,6 +43,16 @@ def fixture(name="animated", gpu=True, samples=3):
 
 
 class DesktopPerformanceTests(unittest.TestCase):
+    def test_dependency_reuse_rejects_changes_to_any_native_source_or_build_manifest(self):
+        study.verify_dependency_cache_changes([])
+        study.verify_dependency_cache_changes(list(study.BENCHMARK_INPUTS))
+        for changed in ("crates/motion-model/src/lib.rs", "crates/motion-core/src/expressions/mod.rs",
+                        "crates/motion-render/Cargo.toml", "Cargo.lock", "Cargo.toml", ".cargo/config.toml",
+                        "crates/motion-effects/motion-library/manifest.json", "unknown-input"):
+            with self.subTest(input=changed):
+                with self.assertRaisesRegex(ValueError, "dependency inputs differ"):
+                    study.verify_dependency_cache_changes([changed])
+
     def test_build_outputs_are_isolated_by_complete_source_revision(self):
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
@@ -76,6 +87,7 @@ class DesktopPerformanceTests(unittest.TestCase):
             (lambda r: r.update(debugAssertions=True), "Debug"),
             (lambda r: r.update(dimensions=[640, 360]), "dimensions"),
             (lambda r: r.update(renderMode="auto"), "mode"),
+            (lambda r: r["memoryPolicy"].update(sourceTextureBudgetBytes=128 << 20), "budget"),
             (lambda r: r["frames"].pop(), "missing"),
             (lambda r: r["frames"][0].update(phase="measured"), "warmup"),
             (lambda r: r["frames"][2].update(index=1), "order"),

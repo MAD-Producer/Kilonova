@@ -13,7 +13,12 @@ tests. Its Release build failed because the shared target reused an older model
 artifact: the compiler saw `Error::Expression.message` while that clean source
 defines `source`. Original logs and the failed receipt remain archived. This
 successor isolates builds by complete commit; its updated tests and actual
-native runs remain pending. No failed attempt is relabeled as a performance run.
+native run on `a381bbaa` completed five cases on an RTX 4070 Laptop GPU/Vulkan,
+then actually refused the four-4K case at its default 128 MiB source allowance
+(required 136857604 bytes). That attempt is failed, not a six-case baseline.
+This successor fixes the study's source allowance at 256 MiB for all cases and
+records the complete policy. Its actual acceptance remains pending. No failed
+attempt is relabeled as a performance run.
 Protocol fixtures in Python tests are not performance evidence.
 
 ## Run and preserve evidence
@@ -31,6 +36,14 @@ python tools/collect_desktop_performance.py --output E:/Dev/aem/artifacts/deskto
 The tool refuses a dirty source or an existing output directory. Build outputs
 use `<target-dir>/desktop-performance/<complete-commit>/release`, isolating
 workspace artifacts from other revisions even when they share a cache root.
+An explicit `--reuse-dependencies-from <complete-ancestor-commit>` may reuse a
+previous directory only when every tracked dependency input is unchanged. The
+allowlist contains only this example and its runner/tests/records; any native
+source, Cargo manifest, lockfile or library-resource change refuses reuse. The
+new source revision is still embedded in the example, verified at runtime and
+archived separately from the cache revision. This avoids rebuilding unchanged
+dependencies when correcting a study condition, without trusting timestamps
+across worktrees.
 The two fast Rust fixture/statistics tests run in normal Cargo test discovery;
 the actual GPU study remains explicit. The archive validator also rejects missing
 draws or any frame lacking all four native 4K YUV uploads/conversions in that case.
@@ -49,7 +62,10 @@ embedded commit as a source-bound baseline.
 ## Fixed workloads
 
 All projects use 1280 x 720, 30 fps and an explicit frame interval. Every case
-gets a new renderer. The first frame is retained as cold, the next seven as
+gets a new renderer with a fixed 256 MiB source-texture allowance; four full-size
+RGBA outputs and their YUV planes cannot fit the normal 128 MiB allowance. This
+changes the explicit study configuration, not the application's defaults. The
+first frame is retained as cold, the next seven as
 warmup; only the requested following frames contribute to P50/P95/P99/max.
 The serialized project and its hash pin effect versions, parameters and keys.
 Cold means the first frame of a fresh application renderer, not a purged driver

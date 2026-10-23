@@ -22,6 +22,16 @@ METRICS = ("sceneSampleUs", "cpuPrepareUs", "mediaUploadWallUs", "encodeWallUs",
 COUNTERS = ("mainSubmissions", "videoConversionSubmissions", "videoConversions",
             "videoUploadBytes", "imageUploadBytes", "parameterUploadBytes", "parameterResourceUploadBytes",
             "instanceUploadBytes", "effectPipelineBuilds", "drawCalls")
+# These files are the example itself and its independent runner/tests/records.
+# A change anywhere else, including Cargo manifests or native source, forbids reuse.
+BENCHMARK_INPUTS = frozenset((
+    "crates/motion-render/examples/performance_baseline.rs",
+    "tools/collect_desktop_performance.py", "tools/test_ci_desktop_performance.py",
+    "tools/VALIDATION.md", "tools/validation_inventory.json",
+    "engineering/validation/desktop-performance-baseline.md",
+    "engineering/validation/desktop-performance-baseline-completed.md",
+    "engineering/validation/desktop-performance-baseline-acceptance.json",
+))
 
 
 def require(condition, message):
@@ -53,6 +63,11 @@ def target_for_revision(base, source):
     return base.resolve() / "desktop-performance" / source
 
 
+def verify_dependency_cache_changes(changed):
+    require(set(changed) <= BENCHMARK_INPUTS,
+            "Cached dependency inputs differ; use a new isolated build")
+
+
 def distribution(values):
     values = sorted(values)
     if not values:
@@ -68,6 +83,8 @@ def validate_case(report, expected_case, expected_source, samples):
     require(report["dimensions"] == [1280, 720] and report["fps"] == 30,
             "Fixed dimensions/fps changed")
     require(report["renderMode"] == "fixed-full-resolution", "Render mode changed")
+    require(report["memoryPolicy"]["sourceTextureBudgetBytes"] == 256 << 20,
+            "Fixed source texture budget changed")
     require(report["warmupFrames"] == 8 and report["measuredFrames"] == samples,
             "Warmup/sample contract changed")
     for key in ("name", "driver", "driverInfo", "backend", "deviceType"):
@@ -169,6 +186,7 @@ def main():
     parser.add_argument("--samples", type=int, default=60)
     parser.add_argument("--target-dir", type=Path, default=Path(os.environ.get("CARGO_TARGET_DIR", ROOT / "target")),
                         help="Cache root; build outputs are isolated in a child directory for the exact commit")
+    parser.add_argument("--reuse-dependencies-from", help="Optional complete ancestor commit; reuse requires identical tracked dependency inputs")
     parser.add_argument("--validate-only", action="store_true", help="Verify existing hashes and recompute distributions without running a device")
     parser.add_argument("--environment-note", default="Uncontrolled desktop environment; no quiet-machine or thermal certification")
     args = parser.parse_args()
@@ -191,7 +209,12 @@ def main():
                "physicalDeviceAcceptanceComplete": False}
     try:
         environment = dict(os.environ, MOTION_BENCHMARK_REVISION=source)
-        target = target_for_revision(args.target_dir, source)
+        cache_source = args.reuse_dependencies_from or source
+        target = target_for_revision(args.target_dir, cache_source)
+        git("merge-base", "--is-ancestor", cache_source, source)
+        changed = git("diff", "--name-only", "--no-renames", cache_source, source).splitlines()
+        verify_dependency_cache_changes(changed)
+        receipt["dependencyCache"] = {"revision": cache_source, "changedBenchmarkInputs": changed}
         run(["cargo", "build", "--release", "--locked", "-p", "motion-render", "--example", "performance_baseline",
              "--target-dir", str(target)], output, "build", environment)
         binary = target / "release/examples" / ("performance_baseline.exe" if os.name == "nt" else "performance_baseline")
