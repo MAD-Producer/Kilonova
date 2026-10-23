@@ -329,6 +329,43 @@
       "mode": "ci",
       "runner": ".github/workflows/ci.yml",
       "reason": "Discovered by existing test_ci_*.py unittest discovery; verifies CPU ownership subtotals, shared capacities, unknown coverage, archive rejection and actual failing child output without measuring a GPU."
+    },
+    "tools/collect_native_video_window.py": {
+      "mode": "manual",
+      "command": "python tools/collect_native_video_window.py --fixtures <four-file-fixtures> --output <new-evidence> --target-dir <build-cache>",
+      "requires": [
+        "Windows desktop with GPU and visible native surfaces",
+        "Matching FFmpeg headers/shared runtime and compiler/libclang",
+        "Four actual encoded 4K files and independently decoded reference pixels"
+      ],
+      "reason": "Explicit Release file/window performance collection; ordinary CI must not execute the expensive device study"
+    },
+    "tools/generate_window_video_fixtures.py": {
+      "mode": "manual",
+      "command": "python tools/generate_window_video_fixtures.py --output <new-fixtures> --ffmpeg <ffmpeg> --ffprobe <ffprobe>",
+      "requires": [
+        "Explicit FFmpeg tool with libopenh264 and h264_metadata support",
+        "Matching ffprobe and a new evidence directory"
+      ],
+      "reason": "Independently authored real-file fixture preparation with actual native probes/pixels; not playback or device performance acceptance"
+    },
+    "tools/test_ci_native_video_window.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Executed by unittest discovery; checks GPU sample protocol and actual failed/nonreturning child receipts without running a device study"
+    },
+    "tools/native_frame_activity.py": {
+      "mode": "manual",
+      "command": "python tools/native_frame_activity.py --study <accepted-native-study> --output <new-activity.json>",
+      "requires": [
+        "Complete accepted source-bound native video study and its original executable"
+      ],
+      "reason": "Optional offline counter-interval derivation; it validates actual native evidence and performs no additional GPU work."
+    },
+    "tools/test_ci_native_frame_activity.py": {
+      "mode": "ci",
+      "runner": ".github/workflows/ci.yml",
+      "reason": "Executed by the workflow unittest discovery; tests counter identity/unknown/reset handling and real child failure rejection, not GPU acceptance."
     }
   },
   "android_tests": {

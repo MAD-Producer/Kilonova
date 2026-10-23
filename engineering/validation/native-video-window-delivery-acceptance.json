@@ -1,0 +1,672 @@
+{
+  "recordedUtc": "2026-10-23T12:59:07.455442+00:00",
+  "source": "1092420cb189ec0c0d7fae7103d50d83a6c56175",
+  "measuredSource": "df046e09ae2ca51298bbfc4235f60f5a518bdaa7",
+  "measuredArchiveSha256": "6b10768aeaee3e952a1c181d3c464afa31ffef432063fe29b7dd84c39549758f",
+  "measuredArchiveBytes": 766561,
+  "verifiedEvidenceEntries": 193,
+  "inventoryEntries": 1,
+  "deliveryTerminalAcceptancePresent": true,
+  "performanceRemeasured": false,
+  "issue60Complete": false,
+  "deliveryRustAccepted": true,
+  "deliveryCounts": [
+    1498,
+    0,
+    3
+  ],
+  "diagnosticCounts": [
+    667,
+    0,
+    1
+  ],
+  "originalAbortCauseResolved": false,
+  "validationArchive": "native-video-window-delivery-1092420c.zip",
+  "validationArchiveBytes": 104660,
+  "validationArchiveSha256": "290eb576a371c94888520cd49e6f0d1f9268b926f040f28c2d1c83eb17afb6cc",
+  "validationEvidenceEntries": 20,
+  "phases": {
+    "defaultCheck": {
+      "source": "1092420cb189ec0c0d7fae7103d50d83a6c56175",
+      "root": "E:\\Dev\\aem\\.worktrees\\native-video-cost-delivery",
+      "command": [
+        "cargo",
+        "check",
+        "--locked",
+        "--offline",
+        "-j1",
+        "-p",
+        "motion-desktop"
+      ],
+      "startedUnix": 1792754580.0656016,
+      "target": "E:\\Dev\\aem\\target\\original-source-memory-b273180a",
+      "temp": "E:/Dev/aem/target/ci-policy-validation-tmp",
+      "environment": {
+        "RUST_BACKTRACE": "full",
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_INCREMENTAL": "0",
+        "CARGO_PROFILE_DEV_DEBUG": "0",
+        "CARGO_PROFILE_TEST_DEBUG": "0"
+      },
+      "defaultMotionLog": true,
+      "originalFailureWaived": false,
+      "exitCode": 0,
+      "elapsedSeconds": 388.49517154693604,
+      "logSha256": "b1249652a77f77f68bdadcd0d6c9230b1f2f297413467fa865914da849bfdc5e",
+      "testSummaries": []
+    },
+    "regressions": {
+      "source": "1092420cb189ec0c0d7fae7103d50d83a6c56175",
+      "root": "E:\\Dev\\aem\\.worktrees\\native-video-cost-delivery",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "-j1",
+        "-p",
+        "motion-render",
+        "--test",
+        "frame_timing_sequences",
+        "--",
+        "--test-threads=1"
+      ],
+      "startedUnix": 1792754968.8200722,
+      "target": "E:\\Dev\\aem\\target\\original-source-memory-b273180a",
+      "temp": "E:/Dev/aem/target/ci-policy-validation-tmp",
+      "environment": {
+        "RUST_BACKTRACE": "full",
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_INCREMENTAL": "0",
+        "CARGO_PROFILE_DEV_DEBUG": "0",
+        "CARGO_PROFILE_TEST_DEBUG": "0"
+      },
+      "defaultMotionLog": true,
+      "originalFailureWaived": false,
+      "exitCode": 0,
+      "elapsedSeconds": 102.57786011695862,
+      "logSha256": "f51f8b9bc64fc72075b04e6720cc63c929470fc2e4da088f876b628f8be7820e",
+      "testSummaries": [
+        [
+          4,
+          0,
+          0
+        ]
+      ]
+    },
+    "completeSuites": {
+      "source": "1092420cb189ec0c0d7fae7103d50d83a6c56175",
+      "root": "E:\\Dev\\aem\\.worktrees\\native-video-cost-delivery",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "-j1",
+        "-p",
+        "motion-render",
+        "-p",
+        "motion-host",
+        "-p",
+        "motion-desktop",
+        "--features",
+        "motion-desktop/ffmpeg",
+        "--",
+        "--test-threads=1"
+      ],
+      "startedUnix": 1792755071.6421597,
+      "target": "E:\\Dev\\aem\\target\\original-source-memory-b273180a",
+      "temp": "E:/Dev/aem/target/ci-policy-validation-tmp",
+      "environment": {
+        "RUST_BACKTRACE": "full",
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_INCREMENTAL": "0",
+        "CARGO_PROFILE_DEV_DEBUG": "0",
+        "CARGO_PROFILE_TEST_DEBUG": "0"
+      },
+      "defaultMotionLog": true,
+      "originalFailureWaived": false,
+      "exitCode": 0,
+      "elapsedSeconds": 4980.871055841446,
+      "logSha256": "4c3fa1ff018ccc393329323c2097e16f797bba991a88c40fad192e1dc0aa7520",
+      "testSummaries": [
+        [
+          824,
+          0,
+          2
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          84,
+          0,
+          0
+        ],
+        [
+          8,
+          0,
+          0
+        ],
+        [
+          10,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          17,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          8,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          4,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          162,
+          0,
+          0
+        ],
+        [
+          7,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          6,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          5,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          5,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          4,
+          0,
+          0
+        ],
+        [
+          4,
+          0,
+          0
+        ],
+        [
+          7,
+          0,
+          0
+        ],
+        [
+          7,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          10,
+          0,
+          0
+        ],
+        [
+          8,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          6,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          4,
+          0,
+          0
+        ],
+        [
+          13,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          7,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          6,
+          0,
+          0
+        ],
+        [
+          4,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          10,
+          0,
+          1
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          7,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          12,
+          0,
+          0
+        ],
+        [
+          5,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          5,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          4,
+          0,
+          0
+        ],
+        [
+          9,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          11,
+          0,
+          0
+        ],
+        [
+          9,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          6,
+          0,
+          0
+        ],
+        [
+          4,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          5,
+          0,
+          0
+        ],
+        [
+          4,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          9,
+          0,
+          0
+        ],
+        [
+          6,
+          0,
+          0
+        ],
+        [
+          4,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          6,
+          0,
+          0
+        ],
+        [
+          5,
+          0,
+          0
+        ],
+        [
+          5,
+          0,
+          0
+        ],
+        [
+          9,
+          0,
+          0
+        ],
+        [
+          5,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          5,
+          0,
+          0
+        ],
+        [
+          4,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          8,
+          0,
+          0
+        ],
+        [
+          7,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ]
+    }
+  },
+  "originalMeasuredArchiveUnchanged": true
+}

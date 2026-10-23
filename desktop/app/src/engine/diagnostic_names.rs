@@ -11,6 +11,8 @@ impl Command {
             TestDelay { .. } => "test_delay",
             #[cfg(test)]
             TestWait {..}=>"test_wait",
+            #[cfg(all(test, target_os = "windows", feature = "ffmpeg"))]
+            TestStudy { .. } => "test_study",
             ProjectTicket(_) => "project_ticket",
             ChangeProject { .. } => "change_project",
             NodeSource { .. } => "node_source",
