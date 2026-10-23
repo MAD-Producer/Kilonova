@@ -86,8 +86,11 @@ fn reveal(
         } else {
             bit
         };
-        let selected_axis = timeline::property_rows(state, object).iter()
-            .find(|row| row.property == property).and_then(|row| row.axis).map(axis);
+        let selected_axis = match panels.animation_controls.track_selection(state, panels.selected) {
+            TrackSelection::Current(track) if track.object == object && track.property == property => track.axis,
+            _ => timeline::property_rows(state, object).iter()
+                .find(|row| row.property == property).and_then(|row| row.axis).map(axis),
+        };
         panels
             .animation_controls
             .choose_track_in(state, object, property, selected_axis);
