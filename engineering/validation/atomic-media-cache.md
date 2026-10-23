@@ -28,6 +28,7 @@
 - `cache-directory-full-unit-first.log`：原资源清理测试发现错误缺少发布操作上下文，保留失败；修复上下文，未修改该测试。
 - `cache-directory-full-media-first.log`：新占用测试发现 Windows 恢复覆盖外部文件，保留失败；修复回滚，未修改该断言。
 - `media-cache-lifecycle-final-libav.log`：组合验证首次 10 通过、1 失败；“不同源仍可并行打开”夹具仍假定所有索引共用一个目录。为第二个源按新缓存路径创建父目录，未改变不同源可打开、解码器峰值、像素或资源释放的任何断言。原失败保留，生产代码未因此更改。
+- 最终提交 `637cfb9d` 的 Linux CI（run `39960171484`、job `120436877239`）在 `motion-host/tests/video_retirement.rs` 替换源索引处返回真实 NotFound；本地此前只运行 `video_frames::` 库内筛选，漏掉了该集成夹具。统一核对所有 `save_index` 调用的父目录后，为该替换源创建自己的目录，原峰值、预算、像素和等待期限断言不变，生产实现不变。原始远端执行日志及完整宿主复验日志分别保存在 `media-cache-lifecycle-pr-ci-job-120436877239.log` 与 `media-cache-lifecycle-complete-host.log`，不将此前的 209 项称作完整宿主验收。完整宿主单元、集成和文档测试共 17 组、132 项通过、0 失败；GPU 功能未启用，保留 25 项既有忽略。此前失败的 `retiring_native_calls_keep_their_slots_without_blocking_or_spawning_more_decoders` 已实际通过。
 - `cache-directory-full-media-second.log`：完整 motion-media 165 项通过，两项既有大文件验收未执行。覆盖音频格式、真实畸形 MP4、导入、取消、历史不变性、失败回滚、重建与 worker 释放。
 - `cache-directory-desktop-first.log`：桌面媒体提交五项通过，包含真实文件系统、生产默认日志和显式健康恢复；没有修改已有断言。
 - `cache-directory-default-output/`：另存实际默认文件日志、stderr、stdout、二进制与日志 SHA-256。文件日志 SHA-256：`c0a1533133498a8440eb537a1ec4d0309f7bc78727880db9ce1de8c68118a761`。
