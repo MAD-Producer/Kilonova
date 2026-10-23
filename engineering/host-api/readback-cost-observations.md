@@ -28,6 +28,16 @@ valid/invalid sample attempts remain distinct. A callback without a recorder
 sequence still consumed readback work. Calling collect again does not count a
 completed slot twice. A new timer, including profiling restart, resets its own
 counters. Unsupported timestamp hardware stays absent, not fabricated zero data.
+Starting profiling replaces the timer; its counters restart. The renderer is
+retained, so image-readback lifetime counters do not restart with recording.
+
+`mapFailures` counts actual `Err` callbacks, including explicit cancellation.
+A cancelled request does not by itself emit a fault record or imply a GPU fault.
+The callback regression cancels a real pending mapping with
+[`Buffer::unmap`](https://docs.rs/wgpu/30.0.1/wgpu/struct.Buffer.html#method.unmap),
+polls the actual callback, checks that collection does not count it twice, then
+successfully maps again while retaining the lifetime error count. Renderer
+health remains valid. No fabricated callback result is used.
 
 Successful normal and exposure frame resource records carry optional image and
 timestamp snapshots. Missing renderer/timer observations remain null. Explicit
@@ -45,7 +55,8 @@ No complete readback coverage is claimed: external decoders, raw foreign queue
 operations, other renderer owners and physical transfers remain outside these
 two instrumented APIs. Android validation is outside the confirmed desktop scope.
 
-The native regression uses real padded image pixels, actual device destruction,
-and real timestamp resolve/map operations with unwritten words. Separate counter
+The native regressions use real padded image pixels, actual device destruction,
+cancelled mapping callbacks and real timestamp resolve/map operations with
+unwritten words. Separate counter
 protocol tests cover in-flight publication and saturation. Source or tests alone
 are not acceptance; execution receipts are required before reporting completion.

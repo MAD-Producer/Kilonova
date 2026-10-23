@@ -209,3 +209,7 @@ mod observation_tests;
 #[cfg(test)]
 #[path = "timing/admission_tests.rs"]
 mod admission_tests;
+
+#[cfg(test)]
+#[path = "timing/readback_tests.rs"]
+mod readback_tests;
