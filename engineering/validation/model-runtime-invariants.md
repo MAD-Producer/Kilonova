@@ -30,4 +30,6 @@
 
 本批没有新增日志或观察状态。私有 write 三种拒绝测试证明原生错误身份与模型不变，不声称重新证明完整 worker 的默认输出或阻塞前状态发布；这些信道的既有验收属于父批次。后续远端 CI、主线合入与完整发布验收仍需以各自实际终态为准。
 
+后续同一 #426 补入表达式上下文原生原因链，并接入 main `1021adf0` 统一验收，见 `expression-native-causes.md`。原 head `f9d88955` 的五项必需 CI 已完整通过，完整终态日志与实际 checkout 留存；该旧输入成功不代替新增原因链和新主线组合的验证。
+
 未完成的固定 demo 构造、命令目录编译期描述解析、其他 private unreachable、MaskCache String adapter、particle_history_error、DecodeTask 和旧桌面/导出协议继续分别核验。常量描述及不可触达分支的只读分类不是修复；本批不能关闭整个 #138/#135。

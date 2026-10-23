@@ -328,9 +328,20 @@ pub(super) fn render(
         if let Some((property, axis, choice)) = navigation {
             super::key_navigation::apply_property_choice(panels, state, object, property, axis, choice, out);
         }
+        if panels.camera_controls.cursor {
+            panels.cursor = Some(motion_ui::widgets::numeric_behavior::cursor(
+                input, panels.camera_controls.field_dragging(),
+            ));
+        }
+        if let Some(note) = &panels.camera_controls.drag_readout {
+            panels.drag_readout = Some(note.clone());
+        }
         panels.properties.content_height =
             y - area.min[1] + panels.properties.properties_scroll + pad;
         return;
+    }
+    if panels.camera_controls.cancel() {
+        out.push(Action::History(4));
     }
     let Some(object) = panels.selected.filter(|id| *id != 0) else {
         label(

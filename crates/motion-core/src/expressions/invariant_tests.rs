@@ -1,6 +1,22 @@
 use super::*;
 
 #[test]
+fn expression_context_preserves_original_io_identity_and_os_code() {
+    let target = ExpressionTarget::Effect { object: 7, effect: 11, param: "amount".into() };
+    let cause = std::io::Error::from_raw_os_error(2);
+    let original = cause.to_string();
+    let wrapped = error(&target, 5.5, Error::Io(cause));
+    let Error::Expression { source, frame, target: metadata } = &wrapped else {
+        panic!("missing expression context: {wrapped:?}");
+    };
+    assert_eq!(*frame, 5.5);
+    assert_eq!(serde_json::from_str::<serde_json::Value>(metadata).unwrap(), serde_json::to_value(&target).unwrap());
+    assert!(matches!(source.as_ref(), Error::Io(cause) if cause.raw_os_error() == Some(2)));
+    assert_eq!(std::error::Error::source(&wrapped).unwrap().to_string(), original);
+    assert_eq!(wrapped.to_string(), format!("expression {metadata} at frame 5.5: {original}"));
+}
+
+#[test]
 fn effect_write_refuses_missing_owner_instance_and_parameter_without_mutation() {
     let package = motion_effects::builtin::package().unwrap();
     let definition = package.manifest.effects.iter().find(|e| e.id == "tint").unwrap();

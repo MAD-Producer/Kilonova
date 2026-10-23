@@ -921,6 +921,7 @@ pub fn floating_chrome(
         out.extend(cancel_interaction(panels));
     }
     panels.cursor = None;
+    panels.drag_readout = None;
     let timeline_dropdown = panels.timeline_columns.editing();
     let dropdown_owned = panels.timeline_columns.editing_in(Some(panel));
     let popup_neutral = Input::default();
@@ -1042,8 +1043,10 @@ pub fn floating_chrome(
         atlas,
         Rect::new(8.0, size[1] - 22.0, (size[0] - 16.0).max(1.0), 22.0),
         panels
-            .message
-            .as_deref()
+            .drag_readout
+            .as_ref()
+            .map(|(_, text)| text.as_str())
+            .or(panels.message.as_deref())
             .unwrap_or(panels.locale.t(T::SharedProject)),
         true,
     );

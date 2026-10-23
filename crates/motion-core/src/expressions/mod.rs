@@ -18,7 +18,7 @@ fn error(target: &ExpressionTarget, frame: f64, error: Error) -> Error {
     Error::Expression {
         target: serde_json::to_string(target).unwrap_or_default(),
         frame,
-        message: error.to_string(),
+        source: Box::new(error),
     }
 }
 fn evaluate(

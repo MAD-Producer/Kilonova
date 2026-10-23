@@ -159,14 +159,16 @@ fn deferred_compilation_failure_preserves_target_frame_animation_and_recovery() 
         motion_core::Error::Expression {
             target: metadata,
             frame,
-            message,
+            source,
         } => {
             assert_eq!(frame, 30.);
             assert_eq!(
                 serde_json::from_str::<serde_json::Value>(&metadata).unwrap(),
                 serde_json::to_value(target()).unwrap()
             );
+            let message = source.to_string();
             assert!(message.contains("JavaScript"), "{message}");
+            assert!(matches!(source.as_ref(), motion_core::Error::Invalid(_)), "{source:?}");
         }
         other => panic!("missing expression failure context: {other}"),
     }

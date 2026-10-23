@@ -11,14 +11,23 @@ use motion_ui::{
 };
 use serde_json::Value;
 mod lens;
+#[cfg(test)]
+mod tests;
+mod values;
+use values::{bounds, feedback, text};
 
 #[derive(Default)]
 pub struct Controls {
     pub(crate) filter: super::types::PropertyFilter,
-    object: Option<u64>,
+    context: Option<(String, String, u64, u64, bool)>,
     field: Option<Field>,
     mode: motion_ui::widgets::Dropdown,
     lens: lens::Controls,
+    reset: motion_ui::widgets::Dropdown,
+    reset_target: Option<(Property, usize, Rect)>,
+    sample_failures: u8,
+    #[cfg(test)]
+    rects: Vec<(Property, usize, Rect)>,
     pub cursor: bool,
     pub drag_readout: Option<([f32; 2], String)>,
 }
@@ -58,11 +67,19 @@ fn sample<'a>(state: &'a Value, object: u64) -> &'a Value {
     }
 }
 impl Controls {
+    pub(super) fn field_dragging(&self) -> bool {
+        self.field
+            .as_ref()
+            .is_some_and(|field| field.number.editor.dragging())
+            || self.lens.drag_readout.is_some()
+    }
     pub fn editing(&self) -> bool {
-        self.field.is_some() || self.mode.open || self.lens.editing()
+        self.field.is_some() || self.mode.open || self.lens.editing() || self.reset.open
     }
     pub fn cancel(&mut self) -> bool {
         self.mode.open = false;
+        self.reset.open = false;
+        self.reset_target = None;
         let lens = self.lens.cancel();
         self.field.take().is_some_and(|mut f| f.number.cancel()) || lens
     }
@@ -95,15 +112,48 @@ impl Controls {
         };
         self.cursor = false;
         self.drag_readout = None;
+        #[cfg(test)]
+        self.rects.clear();
         let locked = state["observing"] == true
             || state["project"]["layers"]
                 .as_array()
                 .into_iter()
                 .flatten()
                 .any(|l| l["id"].as_u64() == Some(object) && l["locked"] == true);
-        self.lens.prepare(state, object, input, locked, out);
-        if self.object != Some(object)
+        let frame = state["frame"].as_f64().unwrap_or(f64::NAN);
+        let editable_frame = super::key_navigation::editable_frame(frame, super::last_frame(state));
+        let c = camera(state, object);
+        let orbit = c["mode"] == "orbit";
+        let context = (
+            state["root"].as_str().unwrap_or("").into(),
+            state["composition"].as_str().unwrap_or("").into(),
+            object,
+            frame.to_bits(),
+            orbit,
+        );
+        let changed_context = self.context.as_ref() != Some(&context);
+        let changed_camera = self
+            .context
+            .as_ref()
+            .is_none_or(|old| old.0 != context.0 || old.1 != context.1 || old.2 != context.2);
+        if changed_camera {
+            self.sample_failures = 0;
+        }
+        self.lens.prepare(
+            state,
+            object,
+            input,
+            locked || editable_frame.is_none(),
+            out,
+        );
+        if changed_context
             || locked
+            || editable_frame.is_none()
+            || !c.is_object()
+            || input.focus_lost
+            || input
+                .key_presses()
+                .any(|(key, _, repeat)| key == motion_ui::input::Key::Escape && !repeat)
             || self
                 .field
                 .as_ref()
@@ -113,10 +163,9 @@ impl Controls {
                 out.push(Action::History(4));
             }
         }
-        self.object = Some(object);
-        let c = camera(state, object);
+        self.context = Some(context);
         let sampled = sample(state, object);
-        let orbit = c["mode"] == "orbit";
+        let editable = !locked && editable_frame.is_some() && c.is_object();
         let caption = layout_at(*y, 0, 1);
         ui::text(
             list,
@@ -143,7 +192,8 @@ impl Controls {
         let mode_was_open = self.mode.open;
         let mut overlay = list.child();
         let neutral_mode = Input::default();
-        let mode_input = if self.lens.menu_open() {
+        let reset_was_open = self.reset.open;
+        let mode_input = if self.lens.menu_open() || reset_was_open {
             &neutral_mode
         } else {
             input
@@ -156,7 +206,7 @@ impl Controls {
             &items,
             usize::from(orbit),
             mode_input,
-            !locked,
+            editable,
             false,
         ) {
             if self.cancel() {
@@ -172,12 +222,13 @@ impl Controls {
             }));
         }
         let neutral = Input::default();
-        let lens_input = if mode_was_open || self.mode.open {
+        let lens_input = if mode_was_open || self.mode.open || reset_was_open {
             &neutral
         } else {
             input
         };
-        let input = if mode_was_open || self.mode.open || self.lens.menu_open() {
+        let original_input = input;
+        let input = if mode_was_open || self.mode.open || self.lens.menu_open() || reset_was_open {
             &neutral
         } else {
             input
@@ -198,24 +249,44 @@ impl Controls {
             properties.insert(0, (Property::Position, "position", T::Position, 3));
         }
         let tracks = if object == 0 {
-            properties.into_iter().map(|(property, key, title, dimensions)| super::timeline::PropertyRow {
-                property, key, title, axis: None, axes: (0..dimensions).collect(), keys: vec![], modified:false,
-            }).collect()
+            values::root_rows(c, properties)
         } else {
             super::timeline::property_rows(state, object)
         };
         let mut choice = None;
+        let mut unavailable = None;
         let mut selected_track = selection.track_selection(state, Some(object));
         for track in tracks {
-            if !self.filter.admits(track.property, !track.keys.is_empty(), track.modified) { continue; }
-            let super::timeline::PropertyRow { property, key, title, axis: selected_axis, axes, keys, .. } = track;
+            if !self
+                .filter
+                .admits(track.property, !track.keys.is_empty(), track.modified)
+            {
+                continue;
+            }
+            let super::timeline::PropertyRow {
+                property,
+                key,
+                title,
+                axis: selected_axis,
+                axes,
+                keys,
+                ..
+            } = track;
             let dimensions = axes.len();
             let axis = selected_axis.map(|index| [Axis::X, Axis::Y, Axis::Z][index]);
             let row = Rect::new(area.min[0], *y, area.width(), height);
             let layout = layout_at(*y, 0, dimensions);
-            selection.record_row(super::animation_controls::SelectedTrack {object, property, axis},
-                layout.caption, axes.iter().enumerate().map(|(index, component)|
-                    (*component, layout_at(*y, index, dimensions).number)));
+            selection.record_row(
+                super::animation_controls::SelectedTrack {
+                    object,
+                    property,
+                    axis,
+                },
+                layout.caption,
+                axes.iter().enumerate().map(|(index, component)| {
+                    (*component, layout_at(*y, index, dimensions).number)
+                }),
+            );
             let component = axes.iter().enumerate().find_map(|(index, component)| {
                 clicked(input, layout_at(*y, index, dimensions).number).then_some(*component)
             });
@@ -228,14 +299,38 @@ impl Controls {
                 }
                 selected_track = selection.track_selection(state, Some(object));
             }
-            super::animation_controls::highlight_row(list, row,
-                selected_track == super::animation_controls::TrackSelection::Current(
-                    super::animation_controls::SelectedTrack { object, property, axis }));
-            if let Some(intent) = super::key_navigation::property_intent(list, row, state, input, object, property, axis, &keys) {
+            super::animation_controls::highlight_row(
+                list,
+                row,
+                selected_track
+                    == super::animation_controls::TrackSelection::Current(
+                        super::animation_controls::SelectedTrack {
+                            object,
+                            property,
+                            axis,
+                        },
+                    ),
+            );
+            if object == 0 {
+                let adjacent = super::key_navigation::neighbours(
+                    keys.iter().copied(),
+                    frame,
+                    super::last_frame(state),
+                );
+                let rail = super::key_navigation::rail(&styles, row);
+                if let Some(intent) =
+                    super::key_navigation::draw(list, rail, input, adjacent, editable)
+                {
+                    values::root_choice(state, property, axis, intent, out);
+                }
+            } else if let Some(intent) = super::key_navigation::property_intent(
+                list, row, state, input, object, property, axis, &keys,
+            ) {
                 choice = Some((property, axis, intent));
             }
             super::timeline::property_branch(list, layout.watch);
-            let source = selected_axis.map_or(&c[key], |index| &c[key]["axes"][["x", "y", "z"][index]]);
+            let source =
+                selected_axis.map_or(&c[key], |index| &c[key]["axes"][["x", "y", "z"][index]]);
             let animated = source["keys"]
                 .as_array()
                 .is_some_and(|keys| !keys.is_empty())
@@ -249,21 +344,30 @@ impl Controls {
                 layout.watch,
                 motion_ui::icons::Icon::Stopwatch,
                 animated,
-                !locked,
+                editable,
             );
-            if clicked(input, layout.watch) && !locked {
+            if clicked(input, layout.watch) && editable {
                 out.push(Action::Edit(Command::Animate {
                     object,
                     property,
                     axis,
-                    frame: state["frame"].as_f64().unwrap_or(0.).floor() as u32,
+                    frame: editable_frame.unwrap(),
                     enabled: !animated,
                 }));
             }
             let title = if property == Property::Fov {
-                if locale == Locale::Zh { "垂直视角 °" } else { "V. FOV °" }
-            } else { locale.t(title) };
-            let caption = selected_axis.map_or_else(|| title.to_owned(), |axis| format!("{} {}", title, ["X", "Y", "Z"][axis]));
+                if locale == Locale::Zh {
+                    "垂直视角 °"
+                } else {
+                    "V. FOV °"
+                }
+            } else {
+                locale.t(title)
+            };
+            let caption = selected_axis.map_or_else(
+                || title.to_owned(),
+                |axis| format!("{} {}", title, ["X", "Y", "Z"][axis]),
+            );
             ui::text(
                 list,
                 atlas,
@@ -274,16 +378,70 @@ impl Controls {
             );
             for (component, axis) in axes.into_iter().enumerate() {
                 let rect = layout_at(*y, component, dimensions).number;
-                let value = if property.is_scalar() {
-                    sampled[key].as_f64().unwrap_or(0.)
-                } else {
-                    sampled[key][axis].as_f64().unwrap_or(0.)
+                #[cfg(test)]
+                self.rects.push((property, axis, rect));
+                let value = values::sampled_value(sampled, property, key, axis);
+                let options = bounds(property);
+                if let Some((MouseButton::Right, point)) = input.pressed {
+                    if rect.contains(point) && editable && value.is_some() {
+                        if self.cancel() {
+                            out.push(Action::History(4));
+                        }
+                        self.reset_target = Some((property, axis, rect));
+                        self.reset.open = true;
+                    }
+                }
+                let Some(value) = value else {
+                    unavailable.get_or_insert((
+                        property,
+                        key,
+                        values::sample_problem(sampled, property, key),
+                    ));
+                    if self.field.as_ref().is_some_and(|f| f.property == property) && self.cancel()
+                    {
+                        out.push(Action::History(4));
+                    }
+                    ui::text(
+                        list,
+                        atlas,
+                        rect,
+                        text(locale, "不可用", "Unavailable"),
+                        colors.TEXT_MUTED,
+                        Align::Right,
+                    );
+                    if rect.contains(input.mouse) {
+                        self.drag_readout = Some((
+                            input.mouse,
+                            text(
+                                locale,
+                                "摄影机采样值不可用；未写入数值",
+                                "Camera sample unavailable; no value written",
+                            )
+                            .into(),
+                        ));
+                    }
+                    continue;
                 };
+                if rect.contains(input.mouse) {
+                    self.drag_readout = Some((
+                        input.mouse,
+                        if editable_frame.is_none() {
+                            text(
+                                locale,
+                                "请定位到整帧后编辑；子帧仍可浏览",
+                                "Move to a whole frame to edit; subframes remain viewable",
+                            )
+                            .into()
+                        } else {
+                            feedback(property, locale, false)
+                        },
+                    ));
+                }
                 let active = self
                     .field
                     .as_ref()
                     .is_some_and(|f| f.property == property && f.axis == axis);
-                if clicked(input, rect) && !active && !locked {
+                if clicked(input, rect) && !active && editable {
                     if self.cancel() {
                         out.push(Action::History(4));
                     }
@@ -301,28 +459,15 @@ impl Controls {
                 {
                     field.rect = rect;
                     self.cursor |= field.number.editor.dragging() || rect.contains(input.mouse);
-                    let (min, max, speed) = match property {
-                        Property::Fov => (10., 120., 0.5),
-                        Property::Radius => (1., 10_000_000., 1.),
-                        Property::Elevation => (-89., 89., 0.5),
-                        Property::Roll | Property::Azimuth => (-1_000_000., 1_000_000., 0.5),
-                        _ => (-10_000_000., 10_000_000., 0.5),
-                    };
-                    let events = field.number.draw(
-                        list,
-                        atlas,
-                        rect,
-                        value,
-                        motion_ui::widgets::NumberOptions {
-                            min,
-                            max,
-                            speed,
-                            decimals: 3,
-                        },
-                        input,
-                    );
+                    let events = field.number.draw(list, atlas, rect, value, options, input);
                     if let Some(note) = field.number.readout() {
-                        self.drag_readout = Some((input.mouse, note));
+                        self.drag_readout = Some((
+                            input.mouse,
+                            format!("{note} · {}", feedback(property, locale, false)),
+                        ));
+                    }
+                    if field.number.editor.text.error.is_some() {
+                        self.drag_readout = Some((input.mouse, feedback(property, locale, true)));
                     }
                     if super::numeric::apply(events, out, |v| {
                         camera_command(state, object, property, axis, v)
@@ -330,19 +475,94 @@ impl Controls {
                         self.field = None;
                     }
                 } else {
-                    self.cursor |= !locked && rect.contains(input.mouse);
-                    super::numeric::passive(list, atlas, rect, value, input, !locked);
+                    self.cursor |= editable && rect.contains(input.mouse);
+                    super::numeric::passive(list, atlas, rect, value, input, editable);
                 }
             }
             *y += height;
         }
         self.lens.render(
-            list, atlas, area, y, state, object, lens_input, locale, locked,
-            selection, graph_component, out,
+            list,
+            atlas,
+            area,
+            y,
+            state,
+            object,
+            lens_input,
+            locale,
+            !editable,
+            selection,
+            graph_component,
+            out,
         );
         self.cursor |= self.lens.cursor;
         if self.lens.drag_readout.is_some() {
             self.drag_readout = self.lens.drag_readout.clone();
+        }
+        // One bounded streak per root/composition/camera, across playback frames.
+        // A healthy render or camera identity change resets it, never a timer.
+        if let Some((property, key, cause)) = unavailable {
+            let options = bounds(property);
+            if self.sample_failures < 60 {
+                self.sample_failures += 1;
+            }
+            if self.sample_failures == 1 {
+                log::debug!("camera.fields sample unavailable object={object} property={property:?} field={key} frame={frame} cause={cause} min={} max={} occurrence=1", options.min, options.max);
+            } else if self.sample_failures == 60 {
+                log::error!("camera.fields sample unavailable object={object} property={property:?} field={key} frame={frame} cause={cause} min={} max={} occurrence=60", options.min, options.max);
+                // 61 is a terminal suppression marker until recovery.
+                self.sample_failures = 61;
+            }
+        } else {
+            self.sample_failures = 0;
+        }
+        if let Some((property, axis, anchor)) = self.reset_target {
+            self.drag_readout = None;
+            self.cursor = false;
+            let label = text(locale, "重置当前值", "Reset current value");
+            let default = values::default_value(state, property, axis);
+            let note = if default.is_some() {
+                values::range_note(property, locale)
+            } else {
+                text(
+                    locale,
+                    "无法读取合成尺寸",
+                    "Composition dimensions unavailable",
+                )
+                .into()
+            };
+            let items = [
+                motion_ui::widgets::DropdownItem {
+                    label,
+                    enabled: default.is_some(),
+                },
+                motion_ui::widgets::DropdownItem {
+                    label: &note,
+                    enabled: false,
+                },
+            ];
+            if self
+                .reset
+                .draw_menu(
+                    &mut overlay,
+                    atlas,
+                    anchor,
+                    area,
+                    &items,
+                    original_input,
+                    editable,
+                )
+                .is_some()
+            {
+                if let Some(value) = default {
+                    out.push(Action::Edit(camera_command(
+                        state, object, property, axis, value,
+                    )));
+                }
+            }
+            if !self.reset.open {
+                self.reset_target = None;
+            }
         }
         list.append(overlay);
         choice
@@ -355,7 +575,8 @@ fn camera_command(
     axis: usize,
     value: f32,
 ) -> Command {
-    let frame = state["frame"].as_f64().unwrap_or(0.).floor() as u32;
+    // Callers require editable_frame; use its nearest-integer convention.
+    let frame = state["frame"].as_f64().unwrap_or(0.).round() as u32;
     if matches!(property, Property::Position | Property::Target) {
         let key = if property == Property::Position {
             "position"
