@@ -15,6 +15,7 @@ use std::{
 };
 const MAX_DECODER_WORKERS: usize = 4;
 mod memory;
+mod shutdown;
 static PREFETCH_FAILURES: motion_render::observability::FailureCounter =
     motion_render::observability::FailureCounter::new();
 #[derive(Clone, Copy)]
@@ -206,11 +207,11 @@ impl Stream {
                     .unwrap_or_else(|payload| Err(MediaError::Panic {
                         operation: "video decoder worker", reason: motion_media::panic_reason(payload),
                     }));
+                    // Native telemetry and decoder destruction may block. Keep
+                    // them outside the mutex used by stop and status queries.
+                    let seeks = decoder.as_ref().map_or(0u64, |d| d.seeks());
                     let mut s = copy.0.lock().unwrap_or_else(|e| e.into_inner());
-                    s.seeks += decoder
-                        .as_ref()
-                        .map_or(0u64, |d| d.seeks())
-                        .saturating_sub(previous_seeks);
+                    s.seeks += seeks.saturating_sub(previous_seeks);
                     if s.stop {
                         s.in_flight = None;
                         drop(s);
@@ -231,6 +232,8 @@ impl Stream {
                         .map(|error| (error.clone(), phase));
                     let frame_bytes = result.as_ref().ok().map(|frame| frame.bytes());
                     let cache_budget = s.cache.budget();
+                    let discard_decoder = result.as_ref().err()
+                        .is_some_and(|error| error.to_string() != "video target superseded");
                     match result {
                         Ok(frame) => {
                             s.decoded += 1;
@@ -255,7 +258,6 @@ impl Stream {
                             s.cancelled += 1;
                         }
                         Err(e) => {
-                            decoder = None;
                             if required {
                                 s.error = Some(e);
                             } else if speculative {
@@ -271,6 +273,7 @@ impl Stream {
                     if flight.began.elapsed().as_millis() >= 100 {
                         log::debug!("video decode done object={object} source={} sequence={} pts_us={target} {}ms speculative={speculative}", media.id, flight.sequence, flight.began.elapsed().as_millis());
                     }
+                    if discard_decoder { decoder = None; }
                     // Do not await another VSync: fill the next available cache slot.
                 }
             })
@@ -405,7 +408,14 @@ impl Stream {
 }
 impl Drop for Stream {
     fn drop(&mut self) {
-        if let Err(error) = self.stop() { log::error!("video stream cleanup: {error}"); }
+        if let Some(worker) = self.worker.take() {
+            let mut shutdown = shutdown::Shutdown::new("stream");
+            if let Err(error) = self.stop() {
+                log::error!("video stream cleanup object={} source={} phase=stop: {error}", self.object, self.asset.id);
+            }
+            shutdown.push(worker, Some(self.object), Some(self.asset.id));
+            shutdown.finish();
+        }
     }
 }
 fn status(s: &State) -> Value {
@@ -441,12 +451,28 @@ pub struct VideoFrames {
     // four workers, oldest idle first, instead of reopening at every parent.
     sampling_recent: Vec<u64>,
 }
+impl Drop for VideoFrames {
+    fn drop(&mut self) {
+        // One shared deadline for the whole reader, rather than one wait per
+        // slot. Explicit export finish() retains its existing joined contract.
+        let mut shutdown = shutdown::Shutdown::new("reader");
+        for (_, stream) in self.streams.drain() {
+            let (object, source) = (stream.object, stream.asset.id);
+            let (worker, stopped) = stream.retire();
+            if let Err(error) = stopped {
+                log::error!("video stream cleanup object={object} source={source} phase=stop: {error}");
+            }
+            if let Some(worker) = worker { shutdown.push(worker, Some(object), Some(source)); }
+        }
+        for worker in self.retiring.drain(..) { shutdown.push(worker, None, None); }
+        shutdown.finish();
+    }
+}
 impl VideoFrames {
     pub fn new(platform: Arc<dyn crate::platform::Platform>) -> Self {
-        Self {
-            platform: Some(platform),
-            ..Default::default()
-        }
+        let mut frames = Self::default();
+        frames.platform = Some(platform);
+        frames
     }
     fn backend(&self) -> Result<Arc<dyn crate::platform::Platform>> {
         self.platform
@@ -830,7 +856,8 @@ mod generation_failure_tests {
     }
 
     fn frames(asset: &VideoAsset) -> VideoFrames {
-        let mut frames = VideoFrames {counter:10,..Default::default()};
+        let mut frames = VideoFrames::default();
+        frames.counter = 10;
         let stream = Stream {
             worker: None,
             object:7,
@@ -887,7 +914,8 @@ mod generation_failure_tests {
 
     #[test]
     fn generation_exhaustion_respects_the_decoders_signed_sequence_contract() {
-        let mut frames=VideoFrames {counter:i64::MAX as u64,..Default::default()};
+        let mut frames=VideoFrames::default();
+        frames.counter = i64::MAX as u64;
         assert_eq!(frames.generation(&asset(),7,0).unwrap_err().to_string(),"video generation exhausted");
         assert_eq!(frames.counter,i64::MAX as u64);
     }
