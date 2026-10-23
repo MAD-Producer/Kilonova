@@ -4,6 +4,7 @@ use crate::{video_frame::DecodedFrame, video_frames::VideoFrames, Platform, Resu
 use motion_core::{Content, Project};
 use motion_render::image_resources::{DecodeTask, Pixels, Resolution, Source, MAX_PREVIEW_EDGE};
 use serde::{Deserialize, Serialize};
+mod memory;
 use std::{
     path::{Path, PathBuf},
     sync::Arc,

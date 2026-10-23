@@ -9,6 +9,8 @@ use std::{
     sync::Arc,
     time::{Duration, Instant},
 };
+#[path = "preview_inputs/source_memory.rs"]
+mod source_memory;
 struct PlatformStub;
 impl Platform for PlatformStub {
     fn name(&self) -> &'static str {

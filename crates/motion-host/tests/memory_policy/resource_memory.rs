@@ -38,7 +38,8 @@ fn unified_resource_query_keeps_cpu_capacity_separate_and_does_not_initialize_gr
     assert_eq!(observed["cpu"]["audioOutputScratch"]["payloadBytes"], 32);
     assert_eq!(observed["cpu"]["compositionBundle"]["payloadBytes"], 4);
     assert_eq!(observed["textures"]["knownBytes"], 0);
-    assert_eq!(observed["cpu"]["videoDecodedCache"]["resourceCount"], 0);
+    assert_eq!(observed["version"], 2);
+    assert_eq!(observed["cpu"]["sourcePixelCaches"]["resourceCount"], 0);
     assert!(observed["external"]["driverResidentBytes"].is_null());
     assert!(observed["external"]["decoderBytes"].is_null());
     assert!(observed["cpu"]["unknownBytes"].is_null());
