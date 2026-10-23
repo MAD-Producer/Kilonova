@@ -375,6 +375,7 @@ pub struct ScratchRequest {
 pub struct PlanBuilder {
     scratch_budget: u64,
     pub(crate) source_texture_budget: u64,
+    pub(crate) decoded_image_budget: u64,
     preview_target_budget: u64,
     session_allocation_budget: u64,
     pub registry: Registry,
@@ -650,6 +651,7 @@ impl PlanBuilder {
             mask_cache: Default::default(),
             scratch_budget: motion_effects::SCRATCH_BUDGET_FLOOR,
             source_texture_budget: crate::resource_policy::DEFAULT_SOURCE_TEXTURE_BUDGET,
+            decoded_image_budget: crate::resource_policy::DEFAULT_DECODED_IMAGE_BUDGET,
             preview_target_budget: crate::resource_policy::MAX_PREVIEW_TARGET_BUDGET,
             session_allocation_budget: crate::allocation_budget::DEFAULT_RENDER_ALLOCATION_BUDGET,
             preview_inputs: None,
@@ -679,6 +681,7 @@ impl PlanBuilder {
         crate::resource_policy::MemoryPolicy {
             session_allocation_budget_bytes: self.session_allocation_budget,
             source_texture_budget_bytes: self.source_texture_budget,
+            decoded_image_budget_bytes: self.decoded_image_budget,
             scratch_budget_bytes: self.scratch_budget,
             preview_target_budget_bytes: self.preview_target_budget,
         }
@@ -692,6 +695,7 @@ impl PlanBuilder {
             self.preview_inputs = None;
         }
         self.source_texture_budget = policy.source_texture_budget_bytes;
+        self.decoded_image_budget = policy.decoded_image_budget_bytes;
         self.scratch_budget = policy.scratch_budget_bytes;
         self.preview_target_budget = policy.preview_target_budget_bytes;
         self.session_allocation_budget = policy.session_allocation_budget_bytes;

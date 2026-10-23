@@ -199,7 +199,7 @@ impl LayerGpu {
                 let next = (0..2)
                     .map(|slot| {
                         crate::effect_gpu::admitted_texture(device, image, sampler,
-                            size[0], size[1], format, &self.allocation_budget)
+                            size[0], size[1], format, &self.allocation_budget, crate::TextureCategory::VectorSources)
                             .map_err(|error| RenderError::Context {
                                 message: format!("layer accumulator slot={slot} size={}x{} format={format:?} phase=allocate: {error}",
                                     size[0], size[1]),
@@ -298,7 +298,7 @@ impl LayerGpu {
             if images.get(&key).is_none_or(|i| i.size != size) {
                 let format = wgpu::TextureFormat::Rgba8UnormSrgb;
                 let target = crate::effect_gpu::admitted_texture(device, image, sampler,
-                    size.0, size.1, format, &self.allocation_budget)
+                    size.0, size.1, format, &self.allocation_budget, crate::TextureCategory::VectorRasterScratch)
                     .map_err(|error| vector_texture_error(error, id, scene.frame, size, format, "source_allocate"))?;
                 sources.push((key, GpuImage {
                     _texture: target.texture, view: target.view, bind_group: target.composite,
@@ -313,13 +313,13 @@ impl LayerGpu {
                     size: wgpu::Extent3d { width: size.0, height: size.1, depth_or_array_layers: 1 },
                     mip_level_count: 1, sample_count: 4, dimension: wgpu::TextureDimension::D2,
                     format, usage: wgpu::TextureUsages::RENDER_ATTACHMENT, view_formats: &[],
-                }, &self.allocation_budget)
+                }, &self.allocation_budget, crate::TextureCategory::VectorRasterScratch)
                     .map_err(|error| vector_texture_error(error, id, scene.frame, size, format, "msaa_allocate"))?;
                 multisamples.insert(size, target);
             }
             if !self.raster_resolve.contains_key(&size) && !resolves.contains_key(&size) {
                 let target = crate::effect_gpu::admitted_texture(device, image, sampler,
-                    size.0, size.1, format, &self.allocation_budget)
+                    size.0, size.1, format, &self.allocation_budget, crate::TextureCategory::VectorRasterScratch)
                     .map_err(|error| vector_texture_error(error, id, scene.frame, size, format, "resolve_allocate"))?;
                 resolves.insert(size, target);
             }

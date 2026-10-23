@@ -46,7 +46,7 @@ impl AllocationUploads {
         }
         Ok(())
     }
-    fn take(&self) -> BTreeMap<u64, AllocationRetention> {
+    pub(crate) fn take(&self) -> BTreeMap<u64, AllocationRetention> {
         let (pending, poisoned) = {
             let (mut state, poisoned) = match self.pending.lock() {
                 Ok(state) => (state, false),
@@ -64,6 +64,7 @@ impl AllocationUploads {
         }
         pending
     }
+    #[cfg(test)]
     pub(crate) fn submitted(&self) {
         let pending = self.take();
         if !pending.is_empty() {

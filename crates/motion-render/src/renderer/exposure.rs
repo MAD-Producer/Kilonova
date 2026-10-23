@@ -255,7 +255,7 @@ impl Renderer {
             let message = format!("exposure {width}x{height} phase=allocate: {error}");
             error.with_diagnostic(message)
         };
-        let sample = self.render_target(width, height).map_err(diagnostic)?;
+        let sample = self.render_target_in(width, height, crate::TextureCategory::ExposureTargets).map_err(diagnostic)?;
         let accumulation = self.device.create_admitted_texture(&wgpu::TextureDescriptor {
             label: Some("linear normalized exposure mean"),
             size: wgpu::Extent3d {
@@ -269,7 +269,7 @@ impl Renderer {
             format: ACCUMULATION_FORMAT,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
             view_formats: &[],
-        }, &self.allocation_budget).map_err(diagnostic)?;
+        }, &self.allocation_budget, crate::TextureCategory::ExposureTargets).map_err(diagnostic)?;
         let view = accumulation.create_view(&Default::default());
         let uniform = crate::allocation_buffer::AllocationBuffer::new(
             &self.device,

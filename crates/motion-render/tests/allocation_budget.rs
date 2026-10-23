@@ -191,7 +191,10 @@ fn encoder_metadata_has_a_hard_bound_and_recovers_after_abandonment() {
 
 #[test]
 fn lowered_limit_keeps_presenter_source_and_allows_retained_presentation_without_new_allocations() {
-    let budget = AllocationBudget::new(256 + SYSTEM_BYTES).unwrap();
+    // Both 32-byte Presenter uniforms are now actually admitted. Keep the
+    // original 8x8 source, exact combined capacity and strict pixel oracle.
+    let presenter_bytes = 2 * 32;
+    let budget = AllocationBudget::new(256 + SYSTEM_BYTES + presenter_bytes).unwrap();
     let mut renderer = renderer(&budget);
     let target = renderer.render_target(8, 8).unwrap();
     let mut project = Project::new(8, 8, 30, 1).unwrap();
@@ -205,11 +208,11 @@ fn lowered_limit_keeps_presenter_source_and_allows_retained_presentation_without
         .device
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
-    let presenter = Presenter::new_admitted(&renderer, &target.view, renderer.target_format);
+    let presenter = Presenter::new_admitted(&renderer, &target.view, renderer.target_format).unwrap();
     drop(target);
     budget.set_limit(128 + SYSTEM_BYTES).unwrap();
     assert!(budget.check().is_err());
-    assert_eq!(budget.info().unwrap().admitted_bytes, 256 + SYSTEM_BYTES);
+    assert_eq!(budget.info().unwrap().admitted_bytes, 256 + SYSTEM_BYTES + presenter_bytes);
     assert!(renderer.render_target(1, 1).is_err());
     // Retaining/presenting an already-admitted front does not allocate another
     // target. A lowered budget must not prevent chrome from using that front.
@@ -282,7 +285,7 @@ fn lowered_limit_keeps_presenter_source_and_allows_retained_presentation_without
         }
     }
     readback.unmap();
-    assert_eq!(budget.info().unwrap().admitted_bytes, 256 + SYSTEM_BYTES);
+    assert_eq!(budget.info().unwrap().admitted_bytes, 256 + SYSTEM_BYTES + presenter_bytes);
     drop(presenter);
     assert_eq!(budget.info().unwrap().admitted_bytes, SYSTEM_BYTES);
     budget.check().unwrap();

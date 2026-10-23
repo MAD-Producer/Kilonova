@@ -12,6 +12,11 @@ use std::{
 
 const MAX_ALLOCATIONS: usize = 65_536;
 const MAX_ENCODERS: usize = 64;
+mod categories;
+mod observation;
+pub use observation::AllocationLogScope;
+pub use categories::{AllocationCategory, AllocationCategoryFrameInfo, AllocationCategoryInfo};
+use categories::{CATEGORIES, CATEGORY_COUNT};
 pub const DEFAULT_RENDER_ALLOCATION_BUDGET: u64 = 512 * 1024 * 1024;
 pub const MAX_RENDER_ALLOCATION_BUDGET: u64 = 4 * 1024 * 1024 * 1024;
 
@@ -20,10 +25,13 @@ struct State {
     limit: u64,
     used: u64,
     peak: u64,
+    categories: [u64; CATEGORY_COUNT],
+    category_peaks: [u64; CATEGORY_COUNT],
     next: u64,
     release_fault_seen: bool,
     allocations: BTreeMap<u64, Weak<Lease>>,
     encoders: Vec<Weak<EncoderReservations>>,
+    frames: frames::Frames,
 }
 
 /// Clone this before constructing renderers to share one admission limit.
@@ -40,12 +48,14 @@ pub struct AllocationBudgetInfo {
     pub peak_admitted_bytes: u64,
     pub live_allocations: usize,
     pub encoder_scopes: usize,
+    pub categories: Vec<AllocationCategoryInfo>,
 }
 
 struct Lease {
     owner: Weak<Mutex<State>>,
     id: u64,
     bytes: u64,
+    category: AllocationCategory,
     // Gauge of actual resource/view/binding handles, bounded by Arc's own
     // reference count. Command and upload retentions do not renew ownership.
     owners: AtomicUsize,
@@ -94,22 +104,26 @@ impl Drop for Lease {
             };
             let registered = state.allocations.remove(&self.id).is_some();
             let remaining = state.used.checked_sub(self.bytes);
-            let inconsistent = !registered || remaining.is_none();
+            let category_remaining =
+                state.categories[self.category as usize].checked_sub(self.bytes);
+            let inconsistent = !registered || remaining.is_none() || category_remaining.is_none();
             if !inconsistent {
                 state.used = remaining.unwrap_or(state.used);
+                state.categories[self.category as usize] =
+                    category_remaining.unwrap_or(state.categories[self.category as usize]);
             }
             let report = (poisoned || inconsistent) && !state.release_fault_seen;
             state.release_fault_seen |= poisoned || inconsistent;
             (poisoned, inconsistent, report)
         };
-        // Never invoke the logger while holding admission state.
+        // The host scope also defers logging beyond outer business guards.
         if report {
-            log::error!(
-                "render allocation release id={} bytes={} poisoned={} inconsistent={}",
+            observation::Event::record(
                 self.id,
                 self.bytes,
+                self.category,
                 poisoned,
-                inconsistent
+                inconsistent,
             );
         }
     }
@@ -170,13 +184,29 @@ impl AllocationBudget {
                 .iter()
                 .filter(|scope| scope.strong_count() > 0)
                 .count(),
+            categories: CATEGORIES
+                .into_iter()
+                .map(|category| AllocationCategoryInfo {
+                    category,
+                    admitted_bytes: state.categories[category as usize],
+                    peak_admitted_bytes: state.category_peaks[category as usize],
+                })
+                .collect(),
         })
     }
     pub fn check(&self) -> Result<(), RenderError> {
         let state = self.lock()?;
         check_capacity(state.used, state.limit)
     }
+    #[cfg(test)]
     pub(crate) fn reserve(&self, bytes: u64) -> Result<AllocationLease, RenderError> {
+        self.reserve_in(bytes, AllocationCategory::OtherBuffers)
+    }
+    pub(crate) fn reserve_in(
+        &self,
+        bytes: u64,
+        category: AllocationCategory,
+    ) -> Result<AllocationLease, RenderError> {
         if bytes == 0 {
             return Err(invalid("empty render allocation"));
         }
@@ -187,6 +217,9 @@ impl AllocationBudget {
                 .checked_add(bytes)
                 .ok_or_else(|| invalid("render allocation capacity overflow"))?;
             check_capacity(required, state.limit)?;
+            let category_required = state.categories[category as usize]
+                .checked_add(bytes)
+                .ok_or_else(|| invalid("render allocation category capacity overflow"))?;
             if state.allocations.len() >= MAX_ALLOCATIONS {
                 return Err(invalid("render allocation metadata limit exceeded"));
             }
@@ -198,11 +231,16 @@ impl AllocationBudget {
                 owner: Arc::downgrade(&self.0),
                 id,
                 bytes,
+                category,
                 owners: AtomicUsize::new(1),
             }));
             state.next = id;
             state.used = required;
             state.peak = state.peak.max(required);
+            state.categories[category as usize] = category_required;
+            state.category_peaks[category as usize] =
+                state.category_peaks[category as usize].max(category_required);
+            state.frames.observe(required, category, category_required);
             state.allocations.insert(id, Arc::downgrade(&lease.0));
             state.encoders.retain(|scope| scope.strong_count() > 0);
             let encoders: Vec<_> = state.encoders.iter().filter_map(Weak::upgrade).collect();
@@ -320,6 +358,7 @@ impl AllocatedCommandBuffer {
         owner: &Arc<()>,
         submit: impl FnOnce(wgpu::CommandBuffer) -> wgpu::SubmissionIndex,
         queue: &wgpu::Queue,
+        uploads: &crate::allocation_uploads::AllocationUploads,
     ) -> Result<wgpu::SubmissionIndex, RenderError> {
         if !budget.same_budget(&self.budget) {
             return Err(invalid(
@@ -331,11 +370,25 @@ impl AllocatedCommandBuffer {
                 "render command buffer belongs to another render queue",
             ));
         }
+        let completion = budget.frame_submission();
         let index = submit(self.buffer);
-        queue.on_submitted_work_done(move || drop(self.scope));
+        let pending_uploads = uploads.take();
+        queue.on_submitted_work_done(move || {
+            // One callback establishes cleanup-before-observation ordering;
+            // independent queue callbacks need not provide that relationship.
+            drop(pending_uploads);
+            drop(self.scope);
+            completion.complete();
+        });
         Ok(index)
     }
 }
+
+mod frames;
+pub use frames::{
+    AllocationFrame, AllocationFrameInfo, AllocationFrameOutcome, AllocationFramePeaks,
+    FrameOperation, MAX_ACTIVE_ALLOCATION_FRAMES, MAX_RECENT_ALLOCATION_FRAMES,
+};
 
 /// A cloned offscreen view retains the same single allocation reservation.
 #[derive(Clone)]

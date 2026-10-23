@@ -122,7 +122,7 @@ fn atlas_growth_keeps_emitted_clipped_and_appended_text_pixels_at_multiple_dpis(
         list.clip_to(Rect::new(24., 0., 480., 128.));
         assert!(!list.glyphs.is_empty());
         let initial = atlas.config();
-        painter.upload_atlas(&device, &queue, atlas.pixel_data(), initial.width, initial.height);
+        painter.upload_atlas(&device, &queue, atlas.pixel_data(), initial.width, initial.height).unwrap();
         let before = capture_size(&device, &queue, &mut painter, &list, [512, 128]).unwrap();
         assert!(before.iter().any(|v| *v != 0));
         for size in 48..512 {
@@ -135,7 +135,7 @@ fn atlas_growth_keeps_emitted_clipped_and_appended_text_pixels_at_multiple_dpis(
             "After growth: new glyphs + old cache", Color::grey(255), Align::Left, 24.);
         list.append(added);
         let grown = atlas.config();
-        painter.upload_atlas(&device, &queue, atlas.pixel_data(), grown.width, grown.height);
+        painter.upload_atlas(&device, &queue, atlas.pixel_data(), grown.width, grown.height).unwrap();
         let after = capture_size(&device, &queue, &mut painter, &list, [512, 128]).unwrap();
         assert_eq!(&after[..512 * 64 * 4], &before[..512 * 64 * 4],
             "retained/clipped glyphs changed at pixel ratio {ratio}");
@@ -222,7 +222,7 @@ fn reported_solid_overrun_grows_and_retains_every_vertex_and_pixel() {
 fn glyph_growth_keeps_trailing_text_and_interleaved_draw_order() {
     let (device, queue) = gpu(None);
     let mut painter = Painter::new(&device, wgpu::TextureFormat::Rgba8Unorm);
-    painter.upload_atlas(&device, &queue, &[255; 4], 1, 1);
+    painter.upload_atlas(&device, &queue, &[255; 4], 1, 1).unwrap();
     let mut list = PaintList::default();
     for _ in 0..21_846 {
         list.push_glyph(Glyph {

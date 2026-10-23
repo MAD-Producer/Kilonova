@@ -149,7 +149,7 @@ fn actual_painter_reports_discarded_work_once_per_render_and_recovers_without_pi
     });
     let order_mode = mode == "order";
     if order_mode {
-        painter.upload_atlas(&device, &queue, &[255; 4], 1, 1);
+        painter.upload_atlas(&device, &queue, &[255; 4], 1, 1).unwrap();
         list.order[1] = PaintOp::Glyph(usize::MAX);
     }
     let expected = draw(&device, &queue, &mut painter, &list);
@@ -194,7 +194,7 @@ fn actual_painter_reports_discarded_work_once_per_render_and_recovers_without_pi
     if order_mode {
         list.order[0] = PaintOp::Shape(0);
     } else {
-        painter.upload_atlas(&device, &queue, &[255; 4], 1, 1);
+        painter.upload_atlas(&device, &queue, &[255; 4], 1, 1).unwrap();
     }
     let recovered = draw(&device, &queue, &mut painter, &list);
     assert_eq!(

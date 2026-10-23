@@ -1,6 +1,12 @@
 //! Bounded preview policy. It never changes a project or a formal export.
 use crate::{image_resources::Resolution, ResourceRejection};
 use serde::Serialize;
+use std::time::Duration;
+
+mod pressure;
+pub use pressure::{
+    PreviewPressureAction, PreviewPressureInfo, PreviewPressureStatus, PreviewPressureUpdate,
+};
 
 pub const PREVIEW_MEMORY_LEVELS: u8 = 4;
 pub const PREVIEW_MEMORY_COOLDOWN_MS: u64 = 30_000;
@@ -34,22 +40,41 @@ pub struct PreviewMemoryPolicy {
     successes: u32,
     next_probe_ms: u64,
     recovery: Option<u8>,
+    pressure: pressure::NativePressurePolicy,
     pub refusal_count: u64,
     pub last_rejection: Option<ResourceRejection>,
 }
 impl PreviewMemoryPolicy {
     pub fn quality(&self, high: bool) -> PreviewMemoryQuality {
-        let edge = 2048 >> self.level;
+        let level = self.level.max(self.pressure.level());
+        let edge = 2048 >> level;
         PreviewMemoryQuality {
-            level: self.level,
-            image_edge: if high && self.level == 0 {
-                None
-            } else {
-                Some(edge)
-            },
-            video_edge: if self.level == 0 { None } else { Some(edge) },
-            target_divisor: 1 << self.level,
+            level,
+            image_edge: if high && level == 0 { None } else { Some(edge) },
+            video_edge: if level == 0 { None } else { Some(edge) },
+            target_divisor: 1 << level,
         }
+    }
+    /// Query at most once per actual native-probe cache interval, including when
+    /// this policy is called on every frame. No logging or business locks here.
+    pub fn observe_pressure(
+        &mut self,
+        now: Duration,
+        query: impl FnOnce() -> crate::MemoryPressureSnapshot,
+    ) -> PreviewPressureUpdate {
+        let previous = self.pressure.level();
+        let update = self.pressure.poll(now, self.successes, query);
+        if self.pressure.level() != previous {
+            self.successes = 0;
+            self.recovery = None;
+        }
+        update
+    }
+    pub fn pressure_info(&self, now: Duration) -> PreviewPressureInfo {
+        self.pressure.info(now)
+    }
+    pub fn allows_image_prefetch(&self) -> bool {
+        self.pressure.allows_prefetch()
     }
     pub fn blocked(&self) -> bool {
         self.blocked
@@ -67,7 +92,10 @@ impl PreviewMemoryPolicy {
                 return false;
             }
             self.blocked = false;
-        } else if self.level > 0 && self.successes >= 120 && now_ms >= self.next_probe_ms {
+        } else if self.level > self.pressure.level()
+            && self.successes >= 120
+            && now_ms >= self.next_probe_ms
+        {
             self.recovery = Some(self.level);
             self.level -= 1;
             self.successes = 0;
@@ -85,8 +113,9 @@ impl PreviewMemoryPolicy {
             self.level = working;
             return true;
         }
-        if self.level + 1 < PREVIEW_MEMORY_LEVELS {
-            self.level += 1;
+        let level = self.level.max(self.pressure.level());
+        if level + 1 < PREVIEW_MEMORY_LEVELS {
+            self.level = level + 1;
             true
         } else {
             self.blocked = true;

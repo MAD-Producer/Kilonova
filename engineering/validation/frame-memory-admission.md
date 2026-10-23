@@ -1,5 +1,19 @@
 # Frame memory admission: issue #61
 
+Current local Windows acceptance: all 15 gates pass on `03f629938635bfb7566520deacd5acf303a0880c`; see [cumulative acceptance](resource-budget-preview-completed.md)
+and its source/hash/command manifest. This includes native failure/recovery,
+full suites, actual GUI/MCP, default output channels and Release checking.
+Remote PR checks and new Linux/macOS runtime results are separate. The user
+confirmed maintained Windows/Linux/macOS desktop delivery on 2026-10-23.
+Android is unmaintained, outside this delivery, and has no build/device
+acceptance. Issue #61 is not closed by this local record.
+
+The dated baseline and increment sections below retain their original source-
+bound dispositions, including failures and then-pending work. They are an
+audit history, not the current cumulative status. No historical failure is
+relabeled as a pass. Current scope and remaining platform limits are explicit
+in the cumulative record.
+
 ## Scope and baseline
 
 The starting source is main `26b834f7a73918744884708851b6c6dc8ad567f0`,
@@ -1627,3 +1641,174 @@ still reports `completeCoverage: false`: Presenter/UI enrollment, whole-frame
 peak accounting, applying native pressure to the bounded preview/cache/proxy
 loop, and actual resize/seek/project-switch combined acceptance remain pending.
 #60/#61/#67 remain open; this increment does not declare 3D readiness.
+
+## Twentieth increment: per-frame shared allocation windows (validation pending)
+
+This work follows the pressure/N1 increment, merged as PR416 with all five
+required checks passing on `53842375`. Its Chinese squash merge is `8c5a8d09`;
+the stable patch identity matches the accepted public head. This new increment
+is separate from that accepted source and has not inherited its test results.
+
+| Item | New observation / retained boundary | Evidence still required |
+| --- | --- | --- |
+| #61-A130 | Shared admission windows capture transient reservations and entry capacity independently of lifetime peaks | CPU overlap/alias/refusal and next-window regression tests |
+| #61-A131 | CPU completion joins all registered queue callbacks; cleanup precedes observation in a single callback | Controlled completion ordering and actual native command/upload retirement |
+| #61-A132 | Active/recent metadata are bounded to 64 each; saturation skips observation and preserves allocation behavior | Saturation, recovery and retained-history assertions |
+| #61-A133 | Panic, abandoned scope, unconfirmed callback and poisoned admission remain explicit | Unwind/drop/poison assertions; no fabricated healthy result |
+| #61-A134 | Present/CaptureUi/NodeCapture start windows before entering Session; direct Engine readout does not queue | Actual failed Present, controlled blocked worker and native NodeCapture assertions |
+| #61-A135 | Healthy Present stays quiet; omitted windows and actual observation faults have bounded logs outside locks | Default output-channel and threshold/recovery acceptance for the new site |
+| #61-A136 | Logical admitted intervals retain explicit scope/coverage limits | API documentation and source-bound completion evidence |
+
+The API contract is `engineering/host-api/frame-allocation-peaks.md`. No Presenter,
+panel, style, layout, input, project value, undo or shader changes are included.
+This is not measured physical VRAM or a hardware GPU-duration trace. Per-category
+peaks, automatic PNG/movie windows, remaining Presenter/UI enrollment, native
+pressure-driven bounded degradation and actual combined lifecycle acceptance
+remain pending. #60/#61/#67 stay open.
+
+The exploratory `frame-allocation-peaks-cpu-v1.log` records an E: disk exhaustion
+during compilation before test execution. Its surrounding PowerShell wrapper
+reported stale exit code zero after failing output/launch handling; this is
+explicitly rejected as a passing test receipt. Final validation must use a
+clean exact source, robust subprocess return codes and retained raw output.
+
+## Twenty-first increment: independent export allocation windows
+
+This extension builds on frame-window source `8a2cf966` without changing the
+source frozen in its live validation matrix. That base's six CPU tests, two
+actual GPU tests and workspace check passed after E: recovered. Broader base
+validation and this extension's acceptance must retain distinct source receipts.
+No execution of the tests added below is claimed yet.
+
+| Item | New observation / retained boundary | Evidence required before publication |
+| --- | --- | --- |
+| #61-A137 | Snapshot v2 carries a finite optional authored frame, `ExportJob` and normal `Cancelled` outcome | Finite/nonfinite metadata, serialization and preserved unwind/results |
+| #61-A138 | Frozen PNG opens before copying/render initialization and retains the actual request/fractional frame | Existing shared-capacity refusal/recovery and fractional-exposure pixel guards gain metadata assertions; blocked real decoder must expose the active window |
+| #61-A139 | Movie job opens before native/encoder setup; each full-quality output frame opens before sample/decode | Actual six-frame MP4, setup-active readout, shared allowance refusal, cancellation and unchanged publication/model/undo assertions |
+| #61-A140 | Request survives immutable movie plan/frozen snapshot and engine shutdown | Actual serial-worker dispatch ID must match every later job/frame record and decoded output |
+| #61-A141 | Metadata omission/fault preserves operation semantics, with bounded logging outside Session | Saturated native admission still works; actual cancelled PNG exercises Debug1/Error60 suppression and recovery at default Info with file/Error-stderr and no stdout logs |
+| #61-A142 | Existing desktop observation errors include available phase and elapsed time | Existing threshold/default-channel assertions retained and extended |
+
+Only the existing workspace `log` dependency is enabled in desktop media; no
+new resolved third-party component or asset is introduced. The operation result
+remains authoritative. Queue callbacks prove observed logical retirement, not
+device health or rendered-pixel correctness. CPU codec/decoder/source-copy
+memory, raw external GPU resources, direct legacy host capture, remaining
+Presenter/UI enrollment, per-category peaks, pressure-driven proxy decisions
+and combined resize/seek/project-switch acceptance remain open. No panel, style,
+layout, shader, project value, effect enablement or undo behavior changes.
+
+The application has a distinct `ffmpeg` feature in addition to the media
+dependency's feature. New movie-worker acceptance must explicitly enable
+`motion-desktop/ffmpeg`; enabling only `motion-desktop-media/ffmpeg` does not
+execute application tests guarded by `cfg(feature = "ffmpeg")`. Earlier backend-
+enabled desktop totals are retained with their original commands and are not
+relabelled as coverage of those application-gated tests. #60/#61/#67 remain open.
+
+## Twenty-second increment: bounded native-pressure preview policy (pending acceptance)
+
+This work builds on local export-window source `5efb018f`. That frozen source's
+validation runs separately; its results do not validate this increment. This
+section records new implementation and test requirements, not passing evidence.
+
+| Item | Disposition / behavior | Required acceptance |
+| --- | --- | --- |
+| #61-A143 | New functional policy: native advice drives idle eviction first, then bounded image/video proxy and target reductions | Real attached Session cache ownership, active-source dimensions, completed-front pixels and reduced target assertions in ordinary and exposure cases |
+| #61-A144 | Full-precision sampling plus internal native sample identity prevents counting cached callers twice | Policy cadence and real probe-cache clock-boundary regression guards |
+| #61-A145 | Distinct high/low thresholds, five-second lowering and 30-second / five-low / 120-completed-frame recovery | Controlled-time policy guards, unknown/intermediate boundaries, bounded levels and refusal rollback |
+| #61-A146 | Retained preview cannot bypass a changed effective floor; pending exposure candidates are cancelled without dropping the completed front | Actual replacement and formal full-resolution pixel checks, unchanged project/revision/undo, broad existing host/desktop tests |
+| #61-A147 | New bounded default-level pressure signal: Debug first, Error once at distinct high sample 60, reset on normal/unknown boundaries, Warn on floor change | Threshold/suppression/recovery and logger callbacks proving Session/registry/observation locks are released on return and unwind; existing real application output-channel regression |
+| #61-A148 | Diagnostic snapshot distinguishes requested/actual quality and native advice from typed admission refusals | Snapshot context assertions and full workspace checking; no fabricated refusal or native free-VRAM total |
+
+The API contract is `engineering/host-api/platform-memory-pressure.md`. The
+Windows native fixture uses the workspace's already-resolved `winit` only as a
+host dev dependency, with original generated PNGs and an independently authored
+hidden window. No new resolved third-party component or copied asset is added.
+`PROVENANCE.md`, `ATTRIBUTION.md` and `NOTICE` were checked before that dependency
+change. No panel, layout, style, input or authored effect changes are included.
+DESIGN section 0.7 baseline rows remain retained with reason: none of their panel
+or token locations is edited; this work does not claim new visual compliance.
+
+All new-source compilation, runtime, output-channel and full regression evidence
+is pending here. Native readings are injected in policy/host tests to avoid
+exhausting physical VRAM; this must not be represented as real-driver pressure
+reproduction or new Linux/Metal/Android runtime acceptance. Per-category frame
+peaks, remaining Presenter/UI enrollment and repeated resize/seek/project-switch
+combined acceptance remain open. #60/#61/#67 remain open.
+
+## Twenty-third increment: immutable resource-category frame peaks (pending acceptance)
+
+This increment follows the local pressure implementation and does not inherit
+uncompleted pressure-policy acceptance. It adds classified logical admission
+statistics without changing capacity limits, project values or render output.
+
+| Item | Disposition / new observation | Required evidence |
+| --- | --- | --- |
+| #61-A149 | Every enrolled texture creation explicitly supplies a bounded semantic category; buffer descriptors select one of seven fixed roles | Workspace/all-target compile plus actual native preview/capture/image/external-texture/uniform coverage |
+| #61-A150 | Immutable reservation identity prevents alias, view, binding, upload or queued-use double counting across categories | Controlled alias/callback retirement and real allocated native submission assertions |
+| #61-A151 | Shared admission and each frame expose independent category start/current/peak/end values | Non-coincident category peaks differ from the combined peak; next-frame reset and JSON assertions |
+| #61-A152 | Refusal remains atomic and category release uses checked arithmetic | Refused-category state equality; controlled drift must stop admission/readout instead of zeroing known total bytes |
+| #61-A153 | Category endpoints join CPU completion and every registered GPU callback | Pending null endpoints and completed exact category/combined totals, including overlapping windows |
+
+All acceptance for this new source is pending. Fixed metadata covers admitted
+logical capacity only; it is not per-category physical VRAM. There is no new
+per-frame logger or resource query. The API documentation explains why summing
+independent category peaks does not yield a simultaneous total. Remaining
+Presenter/UI enrollment, native-pressure completion, formal output regression
+and repeated resize/seek/project-switch combined acceptance remain open. No
+panel/style/layout/token change is included; DESIGN section 0.7 entries remain
+retained with reason because none of their visual implementation is edited.
+#60/#61/#67 remain open.
+
+## Twenty-fourth increment: combined native lifecycle acceptance (pending execution)
+
+The Windows desktop fixture uses the actual serial Engine, native window/surface,
+production resize/seek/project commands, generated PNG sources, full-quality
+frozen PNG export and GPU UI readback. Four cycles cover six alternating cases
+with two roots, three surface extents and three authored times. The same source
+id and relative path intentionally refer to different colors across projects.
+No user input driver, real media decoder or physical-VRAM measurement is claimed.
+
+| Item | New acceptance guard | Evidence required |
+| --- | --- | --- |
+| #61-A154 | Repeated native resize, seek and project replacement under an explicit 8 MiB shared allowance | Actual worker/native completion and source-bound test output; full desktop regression |
+| #61-A155 | Preview center pixels match independently frozen full-quality PNG references at each authored time | GPU readback and complete authored-size PNG assertions; generated red/blue sources expose stale project input identity |
+| #61-A156 | Completed readbacks retire earlier submissions and all category endpoints reconcile | No active/unconfirmed/faulted windows; category current/end sums match combined gauges |
+| #61-A157 | Capacity stops growing after warmup, while project values, revision and undo remain unchanged | Baseline cycle followed by two verification cycles for every case; raw report retains actual pressure/quality and elapsed time |
+| #61-A158 | Default application logging remains active with stdout isolation | Actual child logger file and output assertions, with optional source-bound artifact retention |
+
+The test is new and unexecuted; no completion is inferred from its source or a
+syntax check. Per-operation deadlines verify finite completion, not a promised
+frame rate or a cross-device performance comparison. Logical capacity may fall
+after native pressure lowers quality; the repeated-capacity guard rejects growth
+relative to the same warmed-up case. Remaining Presenter/UI allocation coverage
+is still excluded and must not be presented as whole-application memory.
+
+Pre-execution fixture review found that `CaptureUi` always requires a complete
+glyph atlas. This glyph-free fixture supplies a one-texel bitmap, matching the
+existing native screenshot contract. Pixel, capacity, history and project
+assertions are unchanged; this is a test setup correction, not a product change.
+
+## Twenty-fifth increment: release-fault logging outside host guards (pending acceptance)
+
+The existing invariant failure still stops admission and readout, preserves known
+capacity, and reports once over each budget's lifetime. This increment changes
+where the Error record is emitted, not release arithmetic or operation results.
+
+| Item | New observation / boundary | Required evidence |
+| --- | --- | --- |
+| #61-A159 | `AllocationLogScope` precedes Session/registry guards in `with_session` and `close`; nested scopes defer to the outer boundary, including unwind | A real Lease destructor with controlled category drift; a logger that can acquire all budget and business guards on return and unwind |
+| #61-A160 | Each thread retains one fixed-size first cause plus a saturating omitted-event count; session/category/retirement phase remain available | Nested independent-budget failures, lifetime suppression, saturated counter, and empty next-operation state |
+| #61-A161 | Fault logging preserves primary caller errors and panics; standalone use keeps its original immediate Error path | Existing poison/missing/underflow guards unchanged, new primary-cause assertions, default Info capture and stdout isolation |
+
+These are controlled invariant-fault tests, not evidence of naturally occurring
+driver corruption. Compilation and execution on this source are pending. The
+test capture proves lock ordering; it is not the application file/stderr sink.
+Actual application output-channel regression remains a separate required gate.
+The earlier pressure matrix stopped in LLVM with an out-of-memory compilation
+failure before its full-render tests executed. It is being resumed with reduced
+compiler debug metadata while keeping debug assertions, test selection and
+existing assertions. Category and lifecycle acceptance will run against the
+cumulative source to avoid repeatedly building a full matrix at every increment.
+No Presenter/UI, layout, style, project value or undo behavior is changed.
+#60/#61/#67 remain open.

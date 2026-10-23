@@ -124,6 +124,18 @@ fn node_admission_refusal_preserves_installed_graph_and_default_log_channels() {
             engine.state().unwrap()["desktop"]["nodePreview"]["installs"],
             2
         );
+        let peaks = engine.allocation_frame_peaks().unwrap();
+        assert!(peaks.active.is_empty());
+        assert_eq!(peaks.recent.len(), 3);
+        assert!(!peaks.complete_coverage && !peaks.is_physical_vram);
+        for frame in peaks.recent {
+            assert_eq!(frame.operation, motion_render::FrameOperation::NodeCapture);
+            assert_eq!(frame.outcome, Some(motion_render::AllocationFrameOutcome::Rendered));
+            assert!(frame.request > 0 && frame.submissions >= 1);
+            assert!(frame.peak_admitted_bytes >= frame.start_admitted_bytes);
+            assert!(frame.end_admitted_bytes.is_some());
+            assert_eq!(frame.unconfirmed_submissions, 0);
+        }
         drop(engine);
         crate::logging::flush();
         return;

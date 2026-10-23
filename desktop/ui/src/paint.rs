@@ -7,8 +7,9 @@
 
 use crate::input::Rect;
 use crate::theme::Color;
-use wgpu::util::DeviceExt;
 mod strokes;
+pub mod allocation;
+mod memory;
 #[cfg(test)]
 mod triangle_clip_tests;
 
@@ -511,43 +512,56 @@ struct GlyphVertex {
 const SOLID_CAPACITY: usize = 1 << 16;
 const GLYPH_CAPACITY: usize = 1 << 17;
 
-/// A frame cannot fit the device's vertex-buffer or draw-index limits.
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// Device vertex/draw limits or a native admission failure. Native causes retain
+/// their identity; the legacy capacity fields remain available to callers.
+#[derive(Clone, Debug)]
 pub struct PaintError {
     pub kind: &'static str,
     pub vertices: usize,
     pub required_bytes: u64,
     pub limit_bytes: u64,
+    native_cause: Option<std::sync::Arc<dyn std::error::Error + Send + Sync>>,
+    capacity_refusal: Option<allocation::CapacityRefusal>,
+}
+impl PaintError {
+    /// Preserve the host's native error identity. Only a typed capacity refusal
+    /// may be supplied as retryable; shader, device and validation faults are not.
+    pub fn from_source(kind: &'static str, cause: impl std::error::Error + Send + Sync + 'static,
+        capacity_refusal: Option<allocation::CapacityRefusal>) -> Self {
+        let (required_bytes, limit_bytes) = capacity_refusal
+            .map_or((0, 0), |refusal| (refusal.required_bytes, refusal.budget_bytes));
+        Self { kind, vertices: 0, required_bytes, limit_bytes,
+            native_cause: Some(std::sync::Arc::new(cause)), capacity_refusal }
+    }
+    pub fn capacity_refusal(&self) -> Option<allocation::CapacityRefusal> {
+        self.capacity_refusal
+    }
+    /// The toolkit supplies the UI operation; the host's original source and
+    /// typed capacity refusal remain intact.
+    fn with_operation(mut self, kind: &'static str) -> Self {
+        self.kind = kind;
+        self
+    }
 }
 impl std::fmt::Display for PaintError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(cause) = &self.native_cause { return write!(f, "UI {}: {cause}", self.kind); }
         write!(f, "UI vertex buffer capacity exceeded: kind={} vertices={} required_bytes={} limit_bytes={}",
             self.kind, self.vertices, self.required_bytes, self.limit_bytes)
     }
 }
-impl std::error::Error for PaintError {}
+impl std::error::Error for PaintError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        self.native_cause.as_deref().map(|cause| cause as &(dyn std::error::Error + 'static))
+    }
+}
 
 fn vertex_buffer_size<T>(kind: &'static str, vertices: usize, limit: u64) -> Result<u64, PaintError> {
     let required = (vertices as u64).saturating_mul(std::mem::size_of::<T>() as u64);
     if required > limit || vertices > u32::MAX as usize {
-        return Err(PaintError { kind, vertices, required_bytes: required, limit_bytes: limit });
+        return Err(PaintError { kind, vertices, required_bytes: required, limit_bytes: limit, native_cause: None, capacity_refusal: None });
     }
     Ok(required)
-}
-
-fn grow_vertex_buffer(device: &wgpu::Device, buffer: &mut wgpu::Buffer, required: u64, label: &'static str) {
-    if required <= buffer.size() {
-        return;
-    }
-    // Retain capacity across frames and grow geometrically, within the actual
-    // device limit. Vertex contents are replaced by this frame's full upload.
-    let size = required.checked_next_power_of_two().unwrap_or(required)
-        .min(device.limits().max_buffer_size);
-    *buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some(label), size,
-        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-        mapped_at_creation: false,
-    });
 }
 
 /// Draw a filled rectangle.
@@ -749,12 +763,14 @@ pub struct Painter {
     glyph_layout: wgpu::BindGroupLayout,
     solid_bind: wgpu::BindGroup,
     glyph_bind: Option<wgpu::BindGroup>,
-    solid_uniform: wgpu::Buffer,
-    glyph_uniform: wgpu::Buffer,
-    solid_buffer: wgpu::Buffer,
-    glyph_buffer: wgpu::Buffer,
+    solid_uniform: memory::Buffer,
+    glyph_uniform: memory::Buffer,
+    solid_buffer: memory::Buffer,
+    glyph_buffer: memory::Buffer,
+    admission: Option<std::rc::Rc<dyn allocation::Context>>,
     sampler: wgpu::Sampler,
-    atlas: Option<wgpu::Texture>,
+    atlas: Option<memory::Texture>,
+    pending_atlas: Option<memory::PendingAtlas>,
     atlas_size: [u32; 2],
     /// Saturating count over this Painter's lifetime; reset only by constructing
     /// a new Painter. Includes the solid group and atlas-generation replacements.
@@ -768,6 +784,15 @@ pub struct Painter {
 
 impl Painter {
     pub fn new(device: &wgpu::Device, format: wgpu::TextureFormat) -> Self {
+        Self::with_buffers(device, format, memory::Buffers::raw(device))
+    }
+    /// Use this renderer's device, allocated encoders and allocated submissions
+    /// for every draw. Admission and queued writes retain the same shared budget.
+    pub fn new_admitted(context: std::rc::Rc<dyn allocation::Context>, format: wgpu::TextureFormat) -> Result<Self, PaintError> {
+        let buffers = memory::Buffers::admitted(&context)?;
+        Ok(Self::with_buffers(context.device(), format, buffers))
+    }
+    fn with_buffers(device: &wgpu::Device, format: wgpu::TextureFormat, buffers: memory::Buffers) -> Self {
         let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("panel shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("shaders/panel.wgsl").into()),
@@ -886,12 +911,7 @@ impl Painter {
             multiview_mask: None,
             cache: None,
         });
-        let uniform_bytes = bytemuck::bytes_of(&[0.0f32, 0.0, 1.0, 1.0]);
-        let solid_uniform = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("solid uniforms"),
-            contents: uniform_bytes,
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
+        let memory::Buffers { solid_uniform, glyph_uniform, solid_buffer, glyph_buffer, context: admission } = buffers;
         let solid_bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("solid bind group"),
             layout: &solid_layout,
@@ -913,23 +933,10 @@ impl Painter {
             solid_bind,
             glyph_bind: None,
             solid_uniform,
-            glyph_uniform: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("glyph uniforms"),
-                contents: uniform_bytes,
-                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            }),
-            solid_buffer: device.create_buffer(&wgpu::BufferDescriptor {
-                label: Some("solid vertices"),
-                size: (SOLID_CAPACITY * std::mem::size_of::<SolidVertex>()) as u64,
-                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                mapped_at_creation: false,
-            }),
-            glyph_buffer: device.create_buffer(&wgpu::BufferDescriptor {
-                label: Some("glyph vertices"),
-                size: (GLYPH_CAPACITY * std::mem::size_of::<GlyphVertex>()) as u64,
-                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                mapped_at_creation: false,
-            }),
+            glyph_uniform,
+            solid_buffer,
+            glyph_buffer,
+            admission,
             sampler: device.create_sampler(&wgpu::SamplerDescriptor {
                 label: Some("glyph sampler"),
                 mag_filter: wgpu::FilterMode::Linear,
@@ -937,6 +944,7 @@ impl Painter {
                 ..Default::default()
             }),
             atlas: None,
+            pending_atlas: None,
             atlas_size: [0, 0],
             bind_group_creations: 1,
             last_solid_vertices: 0,
@@ -945,7 +953,40 @@ impl Painter {
         }
     }
 
-    /// Upload a glyph atlas bitmap. Only needed when new glyphs were rasterised.
+    /// Move a complete bitmap from the desktop worker. Keep at most one pending
+    /// upload if native admission refuses it; the CPU producer already consumed
+    /// its dirty flag, so dropping this intent would leave new UVs on an old atlas.
+    pub fn upload_atlas_owned(&mut self, device: &wgpu::Device, queue: &wgpu::Queue,
+        pixels: Vec<u8>, width: u32, height: u32) -> Result<(), PaintError>
+    {
+        self.pending_atlas = None;
+        match self.upload_atlas(device, queue, &pixels, width, height) {
+            Ok(()) => Ok(()),
+            Err(failure) => {
+                if failure.capacity_refusal().is_some() {
+                    self.pending_atlas = Some(memory::PendingAtlas { pixels, width, height, failure: failure.clone() });
+                }
+                Err(failure)
+            }
+        }
+    }
+    /// No allocation attempt while the pending atlas still cannot fit. A fresh
+    /// bitmap replaces the pending intent; otherwise capacity recovery permits
+    /// one ordinary upload attempt. Device/codec failures are never retried here.
+    pub fn retry_atlas(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) -> Result<(), PaintError> {
+        let Some(pending) = &self.pending_atlas else { return Ok(()); };
+        let Some(context) = &self.admission else { return Err(pending.failure.clone()); };
+        let available = context.available_bytes()
+            .map_err(|failure| failure.with_operation("glyph atlas admission"))?;
+        let required = u64::from(pending.width) * u64::from(pending.height) * 4;
+        if required > available { return Err(pending.failure.clone()); }
+        if let Some(pending) = self.pending_atlas.take() {
+            self.upload_atlas_owned(device, queue, pending.pixels, pending.width, pending.height)?;
+        }
+        Ok(())
+    }
+    /// Upload a borrowed glyph atlas. Callers retain responsibility for resending
+    /// a refused bitmap; desktop callers use upload_atlas_owned instead.
     pub fn upload_atlas(
         &mut self,
         device: &wgpu::Device,
@@ -953,9 +994,21 @@ impl Painter {
         pixels: &[u8],
         width: u32,
         height: u32,
-    ) {
+    ) -> Result<(), PaintError> {
+        self.pending_atlas = None;
+        let max = device.limits().max_texture_dimension_2d;
+        if width > max || height > max {
+            return Err(PaintError::from_source("glyph atlas", std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("glyph atlas exceeds device dimensions width={width} height={height} max_dimension={max}")), None));
+        }
+        let bytes = u64::from(width).checked_mul(u64::from(height)).and_then(|bytes| bytes.checked_mul(4));
+        if width == 0 || height == 0 || bytes != Some(pixels.len() as u64) {
+            return Err(PaintError::from_source("glyph atlas", std::io::Error::new(
+                std::io::ErrorKind::InvalidInput, "invalid glyph atlas dimensions or pixel length"), None));
+        }
         if self.atlas_size != [width, height] || self.atlas.is_none() {
-            let texture = device.create_texture(&wgpu::TextureDescriptor {
+            let texture = memory::Texture::new(device, self.admission.as_ref(), &wgpu::TextureDescriptor {
                 label: Some("glyph atlas"),
                 size: wgpu::Extent3d {
                     width,
@@ -968,9 +1021,9 @@ impl Painter {
                 format: wgpu::TextureFormat::Rgba8Unorm,
                 usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
                 view_formats: &[],
-            });
+            })?;
             let view = texture.create_view(&Default::default());
-            self.glyph_bind = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
+            let bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("glyph bind group"),
                 layout: &self.glyph_layout,
                 entries: &[
@@ -987,30 +1040,18 @@ impl Painter {
                         resource: wgpu::BindingResource::Sampler(&self.sampler),
                     },
                 ],
-            }));
+            });
+            // Upload before replacing either binding or texture. On refusal,
+            // the previous complete atlas remains paired with its old binding.
+            texture.write(queue, pixels, width, height)?;
+            self.glyph_bind = Some(bind);
             self.bind_group_creations = self.bind_group_creations.saturating_add(1);
             self.atlas = Some(texture);
             self.atlas_size = [width, height];
+        } else if let Some(texture) = &self.atlas {
+            texture.write(queue, pixels, width, height)?;
         }
-        queue.write_texture(
-            wgpu::TexelCopyTextureInfo {
-                texture: self.atlas.as_ref().unwrap(),
-                mip_level: 0,
-                origin: wgpu::Origin3d::ZERO,
-                aspect: wgpu::TextureAspect::All,
-            },
-            pixels,
-            wgpu::TexelCopyBufferLayout {
-                offset: 0,
-                bytes_per_row: Some(width * 4),
-                rows_per_image: Some(height),
-            },
-            wgpu::Extent3d {
-                width,
-                height,
-                depth_or_array_layers: 1,
-            },
-        );
+        Ok(())
     }
 
     /// Record commands and draw them over `target`.
@@ -1213,8 +1254,21 @@ impl Painter {
                 return Err(error);
             }
         };
-        grow_vertex_buffer(device, &mut self.solid_buffer, solid_bytes, "UI solid vertices");
-        grow_vertex_buffer(device, &mut self.glyph_buffer, glyph_bytes, "UI glyph vertices");
+        let growth: Result<_, PaintError> = (|| Ok((
+            self.solid_buffer.growth(device, solid_bytes, "UI solid vertices")?,
+            self.glyph_buffer.growth(device, glyph_bytes, "UI glyph vertices")?,
+        )))();
+        let (solid_growth, glyph_growth) = match growth {
+            Ok(growth) => growth,
+            Err(error) => {
+                self.solid_cpu = solids;
+                self.glyph_cpu = glyphs;
+                return Err(error);
+            }
+        };
+        // Both admissions succeed before replacing either old vertex buffer.
+        if let Some(buffer) = solid_growth { self.solid_buffer = buffer; }
+        if let Some(buffer) = glyph_growth { self.glyph_buffer = buffer; }
         let mut invalid_ops = 0usize;
         let mut first_invalid = None;
         if list.order.len() != list.shapes.len() + list.glyphs.len() {
@@ -1245,23 +1299,20 @@ impl Painter {
         }
         self.observation.order(invalid_ops, first_invalid, list.shapes.len(), list.glyphs.len());
         self.observation.atlas(self.glyph_bind.is_none() && self.draw_batches.iter().any(|batch| batch.glyph), list.glyphs.len());
-        if !solids.is_empty() {
-            queue.write_buffer(&self.solid_buffer, 0, bytemuck::cast_slice(&solids));
+        let uploads: Result<(), PaintError> = (|| {
+            if !solids.is_empty() { self.solid_buffer.write(queue, bytemuck::cast_slice(&solids))?; }
+            if !glyphs.is_empty() { self.glyph_buffer.write(queue, bytemuck::cast_slice(&glyphs))?; }
+            // Logical pixels to clip space: x to the right, y downward.
+            let uniform = [2.0 / viewport[0], 0.0, 0.0, -2.0 / viewport[1]];
+            self.solid_uniform.write(queue, bytemuck::bytes_of(&uniform))?;
+            self.glyph_uniform.write(queue, bytemuck::bytes_of(&uniform))?;
+            Ok(())
+        })();
+        if let Err(error) = uploads {
+            self.solid_cpu = solids;
+            self.glyph_cpu = glyphs;
+            return Err(error);
         }
-        if !glyphs.is_empty() {
-            queue.write_buffer(&self.glyph_buffer, 0, bytemuck::cast_slice(&glyphs));
-        }
-        // Logical pixels to clip space: x to the right, y downward.
-        queue.write_buffer(
-            &self.solid_uniform,
-            0,
-            bytemuck::bytes_of(&[2.0 / viewport[0], 0.0, 0.0, -2.0 / viewport[1]]),
-        );
-        queue.write_buffer(
-            &self.glyph_uniform,
-            0,
-            bytemuck::bytes_of(&[2.0 / viewport[0], 0.0, 0.0, -2.0 / viewport[1]]),
-        );
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             multiview_mask: None,
             label: Some("panels"),
@@ -1306,6 +1357,8 @@ impl Painter {
 
 #[cfg(test)]
 mod bindings_tests;
+#[cfg(test)]
+mod admission_tests;
 
 #[cfg(test)]
 mod tests {

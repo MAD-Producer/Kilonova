@@ -52,7 +52,7 @@ fn texture(
     budget: &crate::AllocationBudget,
 ) -> Result<FxTexture, RenderError> {
     crate::effect_gpu::admitted_texture(device, layout, sampler, w, h,
-        wgpu::TextureFormat::R8Unorm, budget).map_err(|error| {
+        wgpu::TextureFormat::R8Unorm, budget, crate::TextureCategory::MaskScratch).map_err(|error| {
             let message = format!("mask texture size={w}x{h} format=R8Unorm phase=allocate: {error}");
             error.with_diagnostic(message)
         })

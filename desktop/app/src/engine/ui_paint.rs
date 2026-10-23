@@ -1,4 +1,8 @@
 //! Preserve a failed chrome upload across the host's infallible overlay callback.
+pub(super) mod allocation;
+#[cfg(test)]
+mod admission_tests;
+
 pub(super) fn finish(
     result: Result<bool, String>,
     error: Option<motion_ui::paint::PaintError>,

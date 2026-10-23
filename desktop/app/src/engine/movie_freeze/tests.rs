@@ -256,3 +256,30 @@ fn real_snapshot_can_export_and_decode_after_engine_shutdown() {
     assert_eq!(decoded["decoded"], true);
     assert_eq!(decoded["sourceFrames"], 2);
 }
+
+#[cfg(feature = "ffmpeg")]
+#[test]
+fn actual_movie_request_survives_freezing_and_engine_exit_in_all_frame_windows() {
+    let root=tempfile::tempdir().unwrap();
+    let directory=root.path().join("project");
+    let project=motion_core::Project::new(32,24,30,2).unwrap();
+    motion_core::storage::save(&directory,&project).unwrap();
+    let engine=Engine::start(directory,motion_desktop_media::platform(),8<<30).unwrap();
+    let budget=engine.allocation_budget.clone();
+    let control=ExportControl::default();
+    let (reply,receive)=channel();
+    let request=engine.dispatch(Command::FreezeMovie{control:control.clone(),reply}).unwrap();
+    let snapshot=receive.recv_timeout(Duration::from_secs(15)).unwrap().unwrap();
+    drop(engine);
+    let output=root.path().join("observed-snapshot.mp4");
+    let result=snapshot.export(&output,&control,|_|{}).unwrap();
+    assert_eq!((result.width,result.height,result.frames),(32,24,2));
+    assert_eq!(motion_desktop_media::verify_video_runtime(&output).unwrap()["sourceFrames"],2);
+    let peaks=budget.frame_peaks().unwrap();
+    assert!(peaks.active.is_empty());
+    assert_eq!(peaks.recent.len(),3);
+    assert!(peaks.recent.iter().all(|w|w.request==request && w.outcome==Some(motion_render::AllocationFrameOutcome::Rendered)));
+    assert_eq!(peaks.recent.iter().filter_map(|w|w.source_frame).collect::<Vec<_>>(),[0.,1.]);
+    assert_eq!(peaks.recent.last().unwrap().operation,motion_render::FrameOperation::ExportJob);
+    assert_eq!(peaks.recent.last().unwrap().end_admitted_bytes,Some(0));
+}

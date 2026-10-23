@@ -70,6 +70,10 @@ impl MemoryPressureReading {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MemoryPressureSnapshot {
+    /// Process-local sample identity; cached callers retain it. Never serialized
+    /// as a wall clock or exposed as a portable native timestamp.
+    #[serde(skip)]
+    pub(crate) sampled_at: Option<Instant>,
     pub version: u32,
     pub backend: String,
     pub age_ms: u64,
@@ -83,6 +87,7 @@ impl MemoryPressureSnapshot {
     /// A metadata request must not construct a GPU just to obtain a budget.
     pub fn without_renderer() -> Self {
         Self {
+            sampled_at: None,
             version: 1,
             backend: "unattached".into(),
             age_ms: 0,
@@ -147,6 +152,7 @@ impl MemoryPressureProbe {
             self.consecutive_query_failures = 0;
         }
         let value = MemoryPressureSnapshot {
+            sampled_at: Some(now),
             version: 1,
             backend: backend.to_owned(),
             age_ms: 0,

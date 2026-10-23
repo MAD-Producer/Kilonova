@@ -1,4 +1,21 @@
-# 设备效果临时纹理预算（宿主协议 6）
+# Historical scratch-budget contract (packed plan version 6)
+
+This document preserves the earlier scratch-only implementation, including its
+contemporaneous Android and ABI descriptions. It is not the current Session
+budget contract or evidence of a maintained Android build. In particular, the
+independent accumulator 128 MiB limit described below is historical and must not
+be treated as the current GPU allocation policy.
+
+Current source uses MemoryPolicy version 5 and packed plan version 9. See the
+[Session resource budget API](memory-policy.md) for configurable source, scratch,
+preview and shared native-admission allowances; [frame allocation windows](frame-allocation-peaks.md)
+for interval/category statistics; and [native pressure](platform-memory-pressure.md)
+for advisory preview adaptation. Their validation status is independent of this
+historical account. CPU decode/source-copy limits and incomplete Presenter/UI
+enrollment remain explicit boundaries, not evidence of whole-application memory
+coverage or issue #61 completion.
+
+## Earlier implementation
 
 调整图层累加器已与效果临时纹理分开。累加器仍使用独立 128 MiB 检查，蒙版与效果临时纹理共用设备策略的 scratch 预算；其他素材、矢量及嵌套合成资源检查继续保留。工程和效果包格式不变。
 
