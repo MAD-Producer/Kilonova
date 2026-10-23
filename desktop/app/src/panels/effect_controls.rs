@@ -21,6 +21,8 @@ mod library;
 mod track_cache;
 #[cfg(test)]
 mod track_cache_tests;
+#[cfg(test)]
+mod removal_tests;
 pub(crate) use library::{entries, Entry};
 
 fn word(locale: Locale, zh: &str, en: &str) -> String {
@@ -485,7 +487,13 @@ impl Controls {
             styles.resolve("context_menu", States::default()).unwrap(),
         );
         let mut chosen = None;
-        let clear_effects = word(locale, "清除所有效果", "Remove All Effects");
+        let removal_count = super::effect_removal::commands(state, &[object]).map(Iterator::count);
+        let clear_effects = match (locale, removal_count) {
+            (Locale::Zh, Some(count)) => format!("移除此图层全部{count}项效果"),
+            (Locale::En, Some(count)) => format!("Remove this layer's effects ({count})"),
+            (Locale::Zh, None) => "移除此图层全部效果".into(),
+            (Locale::En, None) => "Remove this layer's effects".into(),
+        };
         let locked = state["observing"] == true
             || state["project"]["layers"]
                 .as_array()
@@ -520,7 +528,7 @@ impl Controls {
             ]);
         }
         let clear_index = header.len();
-        header.push((clear_effects, !locked, None));
+        header.push((clear_effects, removal_count.is_some_and(|count| count > 0), None));
         let expression_index = expression.as_ref().map(|_| {
             let index = header.len();
             header.push((if expression_supported {
@@ -638,19 +646,9 @@ impl Controls {
             }));
             self.context_menu = None;
         } else if chosen == Some(clear_index) {
-            let commands = state["project"]["layers"]
-                .as_array()
+            let commands = super::effect_removal::commands(state, &[object])
                 .into_iter()
                 .flatten()
-                .find(|layer| layer["id"].as_u64() == Some(object))
-                .and_then(|layer| layer["effects"].as_array())
-                .into_iter()
-                .flatten()
-                .filter_map(|effect| effect["id"].as_u64())
-                .map(|effect| Command::Effect {
-                    object,
-                    action: EffectAction::Remove { effect },
-                })
                 .collect::<Vec<_>>();
             if !commands.is_empty() {
                 out.push(Action::EditBatch(commands));
