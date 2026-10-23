@@ -3,6 +3,9 @@ use crate::resource_memory::PixelCacheCollector;
 use serde_json::{json, Value};
 
 impl PreviewInputReader {
+    pub(crate) fn image_decode_memory(&self) -> motion_render::image_resources::DecodeMemorySnapshot {
+        self.image.memory_info()
+    }
     /// Observe retained pixels only. In particular, do not call poll(), current()
     /// or request(): those consume completions, inspect files or advance state.
     pub(crate) fn collect_cached_pixels(
@@ -19,6 +22,6 @@ impl PreviewInputReader {
         });
         Ok(json!({"videoStreams":video,"cachedImage":image,
             "imageDecode":{"pending":self.image.busy(),"payloadBytes":null,"capacityBytes":null,
-                "scope":"worker_and_completion_unobserved"}}))
+                "scope":"separate_cpu.imageDecodeTasks_subtotal"}}))
     }
 }

@@ -19,7 +19,9 @@ The standalone `VideoFrames::cache_memory_ledger()` read remains available.
   the serialized composition bundle, cached font glyph coverage, mixer scratch
   and deduplicated shared resampling tables, plus package archives, expanded files
   and package-owned compiled shader text deduplicated across retained builders;
-  independent program-owned shader text is counted in `effectProgramShaders`
+  independent program-owned shader text is counted in `effectProgramShaders`;
+  `imageDecodeTasks` separately counts actual retained worker output, completion
+  output, pixel accumulators and decoded JPEG raster vectors
 - `external`: driver residency, decoder allocation and process residency remain
   null; no CPU or texture subtotal is presented as total process RAM/physical VRAM
 
@@ -40,7 +42,10 @@ Queries never call reader `poll`, `request` or `current`; they do not read files
 consume a queued completion, materialize RGBA from YUV or advance request clocks.
 Cancelling the reader removes its observed cache ownership; an escaped input
 packet can remain alive and is excluded from this Session subtotal, not labeled
-as freed process memory. Pending image-worker/completion capacity remains null.
+as freed process memory. Worker/completion buffers are separately observed in
+`cpu.imageDecodeTasks`; source cache metadata does not add that domain twice.
+Cancellation alone does not clear its retained result capacity. Codec internals
+and retired workers remain unknown. See [image decode ownership](image-decode-memory.md).
 
 Each stream collection visits at most 1024 entries and reports omitted streams.
 The shared inventory retains at most 4096 allocations and eight references per

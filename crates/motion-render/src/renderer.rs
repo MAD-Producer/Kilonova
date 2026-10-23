@@ -743,6 +743,10 @@ impl Renderer {
         if let Some(gpu) = &self.video_gpu { gpu.collect_textures(&mut ledger); }
         ledger
     }
+    /// Explicit CPU decode observation; never polls a completion or touches GPU.
+    pub fn image_decode_memory(&self) -> crate::image_resources::DecodeMemorySnapshot {
+        self.image_decode.memory_info()
+    }
     /// Borrowed CPU package owners; no readback or GPU allocation.
     pub fn compiled_shader_owners(&self) -> impl Iterator<Item = (&str, &std::sync::Arc<motion_effects::shader::CompiledShader>)> {
         self.effect_gpu.builder.compiled_shader_owners()
