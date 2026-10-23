@@ -3,7 +3,9 @@ use super::{
     helpers::last_frame,
     types::{Action, EffectSearch, Panels},
 };
-use crate::shortcuts::{Command, Scope, EFFECT_SEARCH};
+use crate::shortcuts::{self, Command, Scope};
+#[cfg(test)]
+use crate::shortcuts::{EFFECT_SEARCH, EFFECT_SEARCH_ALT};
 use motion_core::Command as Edit;
 use motion_ui::{
     dock::Panel,
@@ -68,7 +70,7 @@ pub(crate) fn layout_shortcuts_blocked(panels: &Panels) -> bool {
 
 /// The modal also owns its closing frame, preventing input from reaching the canvas.
 pub fn effect_search_close_pressed(input: &Input) -> bool {
-    EFFECT_SEARCH.pressed(input) || KeyChord::new(Key::Escape, false, false, false).pressed(input)
+    shortcuts::effect_search_pressed(input) || KeyChord::new(Key::Escape, false, false, false).pressed(input)
 }
 
 pub fn route(
@@ -203,7 +205,7 @@ pub fn route(
             return true;
         }
     }
-    if EFFECT_SEARCH.pressed(input) && !panels.node_editor.editing() {
+    if shortcuts::effect_search_pressed(input) && !panels.node_editor.editing() {
         panels.effect_search = Some(EffectSearch {
             position: input.mouse,
             query: String::new(),
@@ -548,7 +550,7 @@ mod tests {
             (Some(Panel::NodeProperties), None),
             (None, Some(Panel::Info)),
         ] {
-            for chord in [KeyChord::new(Key::Escape, false, false, false), EFFECT_SEARCH] {
+            for chord in [KeyChord::new(Key::Escape, false, false, false), EFFECT_SEARCH, EFFECT_SEARCH_ALT] {
                 let mut panels = Panels {
                     effect_search: Some(search_state(owner)),
                     ..Default::default()
@@ -870,3 +872,7 @@ mod tests {
 #[cfg(test)]
 #[path = "keyboard_node_tests.rs"]
 mod node_scope_tests;
+
+#[cfg(test)]
+#[path = "keyboard_search_tests.rs"]
+mod search_chord_tests;

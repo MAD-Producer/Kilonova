@@ -298,6 +298,39 @@ fn effect_search_native_pixels_and_default_failure_sinks() {
                 .engine
                 .float_window(1, floating.clone(), 400, 300)
                 .unwrap();
+            for (name, owner, size, key) in [
+                ("main", None, [900., 600.], 0),
+                ("float", Some(Panel::Info), [400., 300.], 1),
+            ] {
+                let before = shell.state["project"].clone();
+                let chord = crate::shortcuts::EFFECT_SEARCH_ALT;
+                let (paint, actions) = search_frame(&mut shell, owner, &Input {
+                    mouse: [200., 140.],
+                    keys: vec![(chord.key, chord.modifiers)],
+                    ..Default::default()
+                });
+                assert!(actions.is_empty());
+                assert_eq!(shell.panels.effect_search.as_ref().unwrap().owner, owner);
+                let path = artifacts.join(format!("{tag}-alternate-{name}.png"));
+                let mut ui = shell.ui_frame(paint, size, true);
+                ui.window = key;
+                ui.composition = None;
+                ui.composition_image = None;
+                ui.node_preview = None;
+                shell.engine.capture_ui(ui, path.clone()).unwrap();
+                let pixels = image::open(&path).unwrap().to_rgba8();
+                assert_eq!([pixels.width(), pixels.height()], [size[0] as u32, size[1] as u32]);
+                assert!(pixels.pixels().any(|p| p[0] > 80 && p[1] > 80 && p[2] > 80));
+                receipt.push(json!({"path":path,"logicalSize":size,"renderScale":1.,
+                    "nativeWindow":key,"osScale":main.scale_factor(),"alternate":true,"continuous":false}));
+                let (_, actions) = search_frame(&mut shell, owner, &Input {
+                    keys: vec![(chord.key, chord.modifiers), (Key::Delete, Default::default())],
+                    ..Default::default()
+                });
+                assert!(shell.panels.effect_search.is_none());
+                assert!(actions.is_empty(), "alternate closing frame escaped into document commands");
+                assert_eq!(shell.state["project"], before);
+            }
             shell.panels.effect_search = Some(panels::EffectSearch {
                 position: [200., 140.],
                 query: "brightness".into(),
