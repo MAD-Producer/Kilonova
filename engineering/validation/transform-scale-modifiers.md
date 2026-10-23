@@ -51,3 +51,7 @@
 | timeline snap 指示线 | retained with reason：未修改时间轴主题或拖动反馈。 |
 
 不以编译成功或上述处置冒充完整视觉基线整改；实际功能证据与限制如上。
+
+## 主分支复核
+
+#443 已合入，当前分支已更新到 main `9de4f3ea`；生产代码和新测试相对堆叠提交未变。主分支上下文重新执行变换套件 19/19 与生产检查均通过（`main-transform-controls.log`、`main-check.log`）。同步修正 DESIGN.md 的旧 Ctrl 规则：Alt 释放比例、Shift 边缩放等比、Ctrl 保持当前模式；这是本批功能行为变更，不是无行为变化的日志改动。最终 CI 必须对应这次文档同步后的最新提交。
