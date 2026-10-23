@@ -42,6 +42,7 @@ pub struct FrameRecorder {
     first_sequence: u64,
     limit: usize,
     frames: Vec<FrameMeasurement>,
+    sequences_ordered: bool,
     pub overflow: u64,
 }
 impl FrameRecorder {
@@ -52,6 +53,7 @@ impl FrameRecorder {
             first_sequence,
             limit,
             frames: Vec::with_capacity(limit),
+            sequences_ordered: true,
             overflow: 0,
         }
     }
@@ -60,18 +62,31 @@ impl FrameRecorder {
     }
     pub fn record(&mut self, frame: FrameMeasurement) {
         if self.frames.len() < self.limit {
+            self.sequences_ordered &= self
+                .frames
+                .last()
+                .is_none_or(|previous| previous.sequence < frame.sequence);
             self.frames.push(frame)
         } else {
             self.overflow += 1;
         }
     }
     pub fn timing(&mut self, t: GpuTiming) {
-        if let Some(i) = t.sequence.checked_sub(self.first_sequence) {
-            if let Some(frame) = self.frames.get_mut(i as usize) {
-                if frame.sequence == t.sequence {
-                    frame.gpu = Some(t)
-                }
-            }
+        if t.sequence < self.first_sequence {
+            return;
+        }
+        // Chrome-only presentations advance the native sequence without a
+        // composition record. Match the actual sequence, never its offset.
+        // Native recordings remain ordered even when callbacks arrive late.
+        let index = if self.sequences_ordered {
+            self.frames.binary_search_by_key(&t.sequence, |f| f.sequence).ok()
+        } else {
+            // Keep the public recorder usable with caller-supplied order,
+            // without sorting records or allocating another index.
+            self.frames.iter().position(|f| f.sequence == t.sequence)
+        };
+        if let Some(index) = index {
+            self.frames[index].gpu = Some(t);
         }
     }
     pub fn report(&self, metadata: Value) -> Value {
