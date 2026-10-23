@@ -9,6 +9,30 @@ use motion_render::PreviewMode;
 use serde_json::{json, Value};
 
 impl Session {
+    /// Explicit diagnostic query. Ordinary snapshots and per-frame sampling do
+    /// not enumerate CPU allocations or acquire video cache observation locks.
+    pub fn resource_memory_ledger(&self) -> crate::Result<Value> {
+        let video = self.video_frames.cache_memory_ledger()?;
+        let proxies = self.preview_video.memory_ledger();
+        let audio_payload = self.audio_pcm.len() as u64 * std::mem::size_of::<f32>() as u64;
+        let audio_capacity = self.audio_pcm.capacity() as u64 * std::mem::size_of::<f32>() as u64;
+        let bundle_payload = self.composition_bundle.len() as u64;
+        let bundle_capacity = self.composition_bundle.capacity() as u64;
+        Ok(json!({"version":1,"scope":"session_instrumented_resource_ownership",
+            "textures":self.texture_resource_ledger(),
+            "cpu":{"scope":"observed_owned_vectors_not_process_ram",
+                "knownPayloadBytes":video.known_payload_bytes+proxies.known_payload_bytes+audio_payload+bundle_payload,
+                "knownCapacityBytes":video.known_capacity_bytes+proxies.known_capacity_bytes+audio_capacity+bundle_capacity,
+                "videoDecodedCache":video,"videoPreviewProxies":proxies,
+                "audioOutputScratch":{"payloadBytes":audio_payload,"capacityBytes":audio_capacity},
+                "compositionBundle":{"payloadBytes":bundle_payload,"capacityBytes":bundle_capacity},
+                "completeCoverage":false,"unknownBytes":null,
+                "excludes":["image_decode_worker_and_completion_pixels","font_faces_and_glyphs",
+                    "audio_mixer_and_resampling_tables","effect_package_files","scene_and_project_models",
+                    "job_queues","inference_weights_and_activations","allocator_and_container_overhead"]},
+            "external":{"driverResidentBytes":null,"decoderBytes":null,"processResidentBytes":null},
+            "atomicAcrossDomains":false,"isFramePeak":false,"completeCoverage":false}))
+    }
     /// Explicit diagnostic read; ordinary playback snapshots do not enumerate allocations.
     pub fn texture_resource_ledger(&self) -> Value {
         let mut ledger = motion_render::TextureResourceLedger::default();

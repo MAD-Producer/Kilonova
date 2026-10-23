@@ -24,6 +24,9 @@ struct Entry {
 pub struct PreviewVideoCache {
     entries: HashMap<u64, Entry>,
 }
+#[cfg(test)]
+#[path = "preview_video/memory_tests.rs"]
+mod memory_tests;
 impl PreviewVideoCache {
     pub fn upload_prepared(
         &mut self, renderer: &mut Renderer, object: u64, source: u64,
@@ -70,6 +73,26 @@ impl PreviewVideoCache {
                 Proxy::Rgba { pixels, .. } => pixels.len(),
             })
             .sum()
+    }
+    /// Explicit metadata read: weak source identities do not own decoded pixels.
+    pub fn memory_ledger(&self) -> crate::resource_memory::PixelMemorySnapshot {
+        let mut entries: Vec<_> = self.entries.iter().collect();
+        entries.sort_by_key(|(object, _)| **object);
+        let mut capacity = 0u64;
+        let resources: Vec<_> = entries.into_iter().map(|(object, entry)| {
+            let (payload, reserved) = match &entry.proxy {
+                Proxy::Yuv(frame) => (frame.bytes(), frame.y.capacity() + frame.uv.capacity()),
+                Proxy::Rgba { pixels, .. } => (pixels.len(), pixels.capacity()),
+            };
+            capacity += reserved as u64;
+            serde_json::json!({"object":object,"source":entry.source,
+                "payloadBytes":payload,"capacityBytes":reserved})
+        }).collect();
+        crate::resource_memory::PixelMemorySnapshot {
+            known_payload_bytes:self.bytes() as u64, known_capacity_bytes:capacity,
+            details:serde_json::json!({"scope":"owned_preview_proxy_pixel_vectors",
+            "resources":resources,"sourceReferences":"weak_non_owning",
+            "excludes":["container_and_weak_reference_overhead"]}) }
     }
     pub fn upload(
         &mut self,

@@ -14,6 +14,7 @@ use std::{
     time::Instant,
 };
 const MAX_DECODER_WORKERS: usize = 4;
+mod memory;
 static PREFETCH_FAILURES: motion_render::observability::FailureCounter =
     motion_render::observability::FailureCounter::new();
 #[derive(Clone, Copy)]

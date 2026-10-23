@@ -220,6 +220,11 @@ pub fn resource_ledger(id: i64) -> crate::Result<serde_json::Value> {
     crate::session::with_session(id, |session| Ok(session.texture_resource_ledger()))
 }
 
+/// Read CPU ownership separately from logical GPU capacity and unknown external memory.
+pub fn resource_memory(id: i64) -> crate::Result<serde_json::Value> {
+    crate::session::with_session(id, |session| session.resource_memory_ledger())
+}
+
 /// Toggle bounded submission diagnostics without modifying project/history.
 pub fn resource_tracking(id: i64, enabled: bool) -> Result<serde_json::Value> {
     crate::session::with_session(id, |session| Ok(session.configure_resource_tracking(enabled)))
