@@ -2,6 +2,8 @@ use std::{fs, path::Path};
 
 #[path = "mp4_audio_clock/malformed_sample_table.rs"]
 mod malformed_sample_table;
+#[path = "mp4_audio_clock/malformed_sample_layout.rs"]
+mod malformed_sample_layout;
 
 fn atom(kind: &[u8], body: &[u8]) -> Vec<u8> {
     let mut out = ((body.len() + 8) as u32).to_be_bytes().to_vec();
