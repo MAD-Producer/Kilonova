@@ -169,6 +169,7 @@ fn a_different_source_can_open_while_the_removed_source_is_still_retiring() {
     )
     .unwrap();
     let index = motion_media::video_cache_path(root.path(), &other).unwrap();
+    std::fs::create_dir_all(index.parent().unwrap()).unwrap();
     motion_media::save_index(&index, &other, &probe.timestamps).unwrap();
     project.video_assets.push(other);
     let (gate, waiting) = gate(false);

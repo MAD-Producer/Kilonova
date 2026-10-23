@@ -27,6 +27,7 @@
 - `cache-directory-after-visible-pair.json/.log`：上述同字节测试两项通过。之后另加目录回滚测试并格式化，未修改两个负面对照的断言。
 - `cache-directory-full-unit-first.log`：原资源清理测试发现错误缺少发布操作上下文，保留失败；修复上下文，未修改该测试。
 - `cache-directory-full-media-first.log`：新占用测试发现 Windows 恢复覆盖外部文件，保留失败；修复回滚，未修改该断言。
+- `media-cache-lifecycle-final-libav.log`：组合验证首次 10 通过、1 失败；“不同源仍可并行打开”夹具仍假定所有索引共用一个目录。为第二个源按新缓存路径创建父目录，未改变不同源可打开、解码器峰值、像素或资源释放的任何断言。原失败保留，生产代码未因此更改。
 - `cache-directory-full-media-second.log`：完整 motion-media 165 项通过，两项既有大文件验收未执行。覆盖音频格式、真实畸形 MP4、导入、取消、历史不变性、失败回滚、重建与 worker 释放。
 - `cache-directory-desktop-first.log`：桌面媒体提交五项通过，包含真实文件系统、生产默认日志和显式健康恢复；没有修改已有断言。
 - `cache-directory-default-output/`：另存实际默认文件日志、stderr、stdout、二进制与日志 SHA-256。文件日志 SHA-256：`c0a1533133498a8440eb537a1ec4d0309f7bc78727880db9ce1de8c68118a761`。
