@@ -105,8 +105,9 @@ pub struct CommandSnapshot {
     pub epoch: u64,
     pub counts: CommandCounts,
     pub observation_fault: bool,
-    /// Completion-order streak within this profiler epoch, reset by a valid
-    /// sample, a pre-submit discard, explicit cancellation or normal omission.
+    /// Completion-order readback streak within this epoch. Valid samples and
+    /// explicit callback cancellation reset it. Work never mapped is unknown,
+    /// so busy omissions or pre-submit discards cannot falsely prove recovery.
     pub consecutive_readback_failures: u64,
     pub active: Vec<CommandRecord>,
     /// Completion order, not source-frame or callback creation order.
@@ -185,7 +186,6 @@ impl CommandRecords {
         let mut state = self.lock();
         let counts = &mut state.counts;
         counts.saturated |= increment(&mut counts.omitted_slots, 1);
-        state.consecutive_failures = 0;
     }
     pub(super) fn take_logs(&self) -> CommandLogBatch {
         let mut state = self.lock();
@@ -215,7 +215,6 @@ impl CommandRecords {
         let state = &mut *state;
         if state.active.len() == MAX_ACTIVE_GPU_COMMANDS {
             state.counts.saturated |= increment(&mut state.counts.omitted_busy, 1);
-            state.consecutive_failures = 0;
             return None;
         }
         let Some(id) = state.next.checked_add(1) else {
@@ -375,10 +374,7 @@ impl CommandRecords {
                     });
                 }
             }
-        } else if matches!(
-            phase,
-            CommandPhase::Complete | CommandPhase::Discarded | CommandPhase::Cancelled
-        ) {
+        } else if matches!(phase, CommandPhase::Complete | CommandPhase::Cancelled) {
             state.consecutive_failures = 0;
         }
         if state.recent.len() == MAX_RECENT_GPU_COMMANDS {
@@ -604,7 +600,7 @@ mod tests {
         ticket.mapped(Some(if valid { [11, 22] } else { [0, 0] }), 1.0, None);
     }
     #[test]
-    fn deferred_readback_episodes_escalate_once_at_sixty_and_reset_on_success_and_normal_misses() {
+    fn deferred_readback_episodes_escalate_once_and_unknown_work_cannot_fake_recovery() {
         let records = CommandRecords::new().unwrap();
         for _ in 0..120 {
             outcome(&records, false);
@@ -628,14 +624,9 @@ mod tests {
         }
         assert_eq!(records.take_logs().events.len(), 2);
         records.omit_slot();
-        assert_eq!(records.snapshot().consecutive_readback_failures, 0);
-        for _ in 0..59 {
-            outcome(&records, false);
-        }
-        assert_eq!(records.take_logs().events.len(), 1);
+        assert_eq!(records.snapshot().consecutive_readback_failures, 60);
         drop(records.begin(CommandStage::Unclassified, vec![]).unwrap());
-        assert_eq!(records.snapshot().consecutive_readback_failures, 0);
-        outcome(&records, false);
+        assert_eq!(records.snapshot().consecutive_readback_failures, 60);
         let ticket = records
             .begin(CommandStage::ReadbackCopy, context(72))
             .unwrap();
@@ -643,6 +634,21 @@ mod tests {
         ticket.submit_attempted();
         ticket.mapping();
         ticket.cancelled(Some("actual owner cancellation".into()));
+        assert_eq!(records.snapshot().consecutive_readback_failures, 0);
+        for _ in 0..59 {
+            outcome(&records, false);
+        }
+        assert_eq!(records.take_logs().events.len(), 1);
+        drop(records.begin(CommandStage::Unclassified, vec![]).unwrap());
+        assert_eq!(records.snapshot().consecutive_readback_failures, 59);
+        outcome(&records, false);
+        let events = records.take_logs().events;
+        assert_eq!(events.len(), 1);
+        assert_eq!(
+            (events[0].level, events[0].occurrence),
+            (log::Level::Error, 60)
+        );
+        outcome(&records, true);
         assert_eq!(records.snapshot().consecutive_readback_failures, 0);
         assert_eq!(records.snapshot().counts.cancelled, 1);
         assert!(!records
@@ -662,7 +668,7 @@ mod tests {
             ticket.submit_attempted();
             ticket.mapping();
             ticket.mapped(None, 1.0, Some("x".repeat(1024)));
-            drop(records.begin(CommandStage::Unclassified, vec![]).unwrap());
+            outcome(&records, true);
         }
         let batch = records.take_logs();
         assert_eq!(batch.events.len(), MAX_PENDING_LOG_EVENTS);
