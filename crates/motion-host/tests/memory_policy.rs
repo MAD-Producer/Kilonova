@@ -13,6 +13,8 @@ mod resource_memory;
 mod package_memory;
 #[path = "memory_policy/source_pixel_memory.rs"]
 mod source_pixel_memory;
+#[path = "memory_policy/image_decode_memory.rs"]
+mod image_decode_memory;
 
 #[test]
 fn cpu_asset_entry_points_follow_session_policy_without_changing_legacy_pixels_or_history() {

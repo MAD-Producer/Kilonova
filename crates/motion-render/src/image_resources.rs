@@ -2,6 +2,9 @@
 use motion_model::Asset;
 mod error;
 pub use error::Error;
+mod memory;
+pub use memory::DecodeMemorySnapshot;
+use memory::{Kind, TaskMemory, Tracked};
 use crate::Scene;
 use std::{
     collections::BTreeSet,
@@ -284,6 +287,15 @@ fn decode_cancellable(
     budget: u64,
     cancel: Option<&AtomicBool>,
 ) -> Result<Pixels, Error> {
+    decode_observed(source, resolution, budget, cancel, None).map(Tracked::into_inner)
+}
+fn decode_observed(
+    source: &Source,
+    resolution: Resolution,
+    budget: u64,
+    cancel: Option<&AtomicBool>,
+    memory: Option<&Arc<memory::Allocations>>,
+) -> Result<Tracked<Pixels>, Error> {
     check_cancel(cancel)?;
     validate_decode_budget(budget)?;
     source.validate()?;
@@ -297,27 +309,24 @@ fn decode_cancellable(
         None
     };
     if let Some(path) = &cache {
-        if let Some(rgba) = read_proxy(path, w, h) {
-            return Ok(Pixels {
+        if let Some(rgba) = read_proxy_observed(path, w, h, memory) {
+            return Ok(rgba.map(|rgba| Pixels {
                 width: w,
                 height: h,
                 rgba,
                 cached: true,
-            });
+            }));
         }
     }
     check_cancel(cancel)?;
     let length = usize::try_from(cost).map_err(|_| Error::from("image output exceeds addressable length"))?;
-    let mut rgba = Vec::new();
-    rgba.try_reserve_exact(length)?;
-    rgba.resize(length, 0);
-    let mut pixels = Pixels {
-        width: w,
-        height: h,
-        rgba,
-        cached: false,
-    };
-    decode_into_cancellable(source, resolution, &mut pixels.rgba, budget, cancel)?;
+    let mut pixels = memory::allocate(memory, Kind::Output, || -> Result<_, Error> {
+        let mut rgba = Vec::new();
+        rgba.try_reserve_exact(length)?;
+        rgba.resize(length, 0);
+        Ok(Pixels { width: w, height: h, rgba, cached: false })
+    })?;
+    decode_into_observed(source, resolution, &mut pixels.rgba, budget, cancel, memory)?;
     check_cancel(cancel)?;
     if let Some(path) = &cache {
         write_proxy(path, &pixels);
@@ -422,12 +431,16 @@ fn proxy_path(source: &Source, w: u32, h: u32, cancel: Option<&AtomicBool>) -> O
     PROXY_DIRECTORY.success();
     Some(directory.join(format!("{:x}.rgba", hash.finalize())))
 }
+#[cfg(test)]
 fn read_proxy(path: &Path, w: u32, h: u32) -> Option<Vec<u8>> {
+    read_proxy_observed(path, w, h, None).map(Tracked::into_inner)
+}
+fn read_proxy_observed(path: &Path, w: u32, h: u32, memory: Option<&Arc<memory::Allocations>>) -> Option<Tracked<Vec<u8>>> {
     // Serialize IO within a directory shard; release it before logging.
     let mut events = ProxyEvents::default();
     let result = {
         let _guard = proxy_cache_lock(path, &mut events);
-        read_proxy_inner(path, w, h)
+        read_proxy_inner(path, w, h, memory)
     };
     match result {
         Ok(rgba) => {
@@ -442,7 +455,7 @@ fn read_proxy(path: &Path, w: u32, h: u32) -> Option<Vec<u8>> {
         }
     }
 }
-fn read_proxy_inner(path: &Path, w: u32, h: u32) -> std::io::Result<Option<Vec<u8>>> {
+fn read_proxy_inner(path: &Path, w: u32, h: u32, memory: Option<&Arc<memory::Allocations>>) -> std::io::Result<Option<Tracked<Vec<u8>>>> {
     use sha2::{Digest, Sha256};
     use std::io::{Error, ErrorKind};
     let mut file = match File::open(path) {
@@ -464,11 +477,12 @@ fn read_proxy_inner(path: &Path, w: u32, h: u32) -> std::io::Result<Option<Vec<u
     {
         return Err(Error::new(ErrorKind::InvalidData, "proxy header or dimensions mismatch"));
     }
-    let mut rgba = vec![0; cost as usize];
+    let mut rgba = memory::allocate(memory, Kind::Output,
+        || Ok::<_, std::io::Error>(vec![0; cost as usize]))?;
     file.read_exact(&mut rgba)?;
     let mut digest = [0u8; 32];
     file.read_exact(&mut digest)?;
-    if Sha256::digest(&rgba).as_slice() != digest {
+    if Sha256::digest(&*rgba).as_slice() != digest {
         return Err(Error::new(ErrorKind::InvalidData, "proxy checksum mismatch"));
     }
     Ok(Some(rgba))
@@ -562,6 +576,16 @@ fn decode_into_cancellable(
     budget: u64,
     cancel: Option<&AtomicBool>,
 ) -> Result<(), Error> {
+    decode_into_observed(source, resolution, output, budget, cancel, None)
+}
+fn decode_into_observed(
+    source: &Source,
+    resolution: Resolution,
+    output: &mut [u8],
+    budget: u64,
+    cancel: Option<&AtomicBool>,
+    memory: Option<&Arc<memory::Allocations>>,
+) -> Result<(), Error> {
     check_cancel(cancel)?;
     let format = source.validate()?;
     let (w, h) = resolution.dimensions(source.width, source.height);
@@ -571,7 +595,7 @@ fn decode_into_cancellable(
     }
     check_decode_budget("output", cost, budget)?;
     if format == image::ImageFormat::Png {
-        return png_into(source, w, h, output, cancel);
+        return png_into(source, w, h, output, cancel, memory);
     }
     // Existing JPEG resources remain supported. Its decoder needs a full image,
     // so validate that cost before allocating even when requesting a proxy.
@@ -580,11 +604,12 @@ fn decode_into_cancellable(
     let mut limits = image::Limits::default();
     limits.max_alloc = Some(budget);
     reader.limits(limits);
-    let image = reader.decode()?;
+    let image = memory::allocate(memory, Kind::DecodedImage, || reader.decode())?;
     check_cancel(cancel)?;
     use image::GenericImageView;
     let lut = linear_lut();
-    let mut row = vec![[0.; 4]; w as usize];
+    let mut row = memory::allocate(memory, Kind::Accumulator,
+        || Ok::<_, Error>(vec![[0.; 4]; w as usize]))?;
     let mut rows = 0;
     let mut y_out = 0;
     for y in 0..source.height {
@@ -657,6 +682,7 @@ fn png_into(
     h: u32,
     output: &mut [u8],
     cancel: Option<&AtomicBool>,
+    memory: Option<&Arc<memory::Allocations>>,
 ) -> Result<(), Error> {
     let mut decoder = png::Decoder::new(BufReader::new(File::open(&source.path)?));
     decoder.set_limits(png::Limits {
@@ -682,11 +708,11 @@ fn png_into(
         // Adam7 rows visit each source pixel exactly once. Proxy accumulators
         // are bounded by the proxy dimensions, never by the original image.
         let full = (w, h) == (source.width, source.height);
-        let mut sums = if full {
+        let mut sums = memory::allocate(memory, Kind::Accumulator, || Ok::<_, Error>(if full {
             Vec::new()
         } else {
             vec![[0.; 4]; (w * h) as usize]
-        };
+        }))?;
         for (x0, y0, dx, dy) in [
             (0, 0, 8, 8),
             (4, 0, 8, 8),
@@ -771,7 +797,8 @@ fn png_into(
             reader.finish()?;
             return Ok(());
         }
-        let mut sums = vec![[0.; 4]; w as usize];
+        let mut sums = memory::allocate(memory, Kind::Accumulator,
+            || Ok::<_, Error>(vec![[0.; 4]; w as usize]))?;
         let mut rows = 0;
         let mut yo = 0;
         for y in 0..source.height {
@@ -820,7 +847,8 @@ pub struct DecodeTask {
         u64,
         bool,
         Arc<AtomicBool>,
-        Receiver<Result<Pixels, Error>>,
+        Receiver<Result<Tracked<Pixels>, Error>>,
+        TaskMemory,
     )>,
 }
 impl DecodeTask {
@@ -834,14 +862,14 @@ impl DecodeTask {
         self.cancel_unwanted_inner(wanted, resolution, Some(budget));
     }
     fn cancel_unwanted_inner(&mut self, wanted: &BTreeSet<u64>, resolution: Resolution, budget: Option<u64>) {
-        if let Some((source, mode, pending_budget, _, cancel, _)) = &self.pending {
+        if let Some((source, mode, pending_budget, _, cancel, _, _)) = &self.pending {
             if *mode != resolution || !wanted.contains(&source.id) || budget.is_some_and(|budget| budget != *pending_budget) {
                 cancel.store(true, Ordering::Relaxed);
             }
         }
     }
     pub fn cancel(&mut self) {
-        if let Some((_, _, _, _, cancel, _)) = &self.pending {
+        if let Some((_, _, _, _, cancel, _, _)) = &self.pending {
             cancel.store(true, Ordering::Relaxed);
         }
     }
@@ -860,6 +888,16 @@ impl DecodeTask {
         speculative: bool,
         budget: u64,
     ) -> Result<(), Error> {
+        self.start_with_memory(source, resolution, speculative, budget, TaskMemory::default())
+    }
+    fn start_with_memory(
+        &mut self,
+        source: Source,
+        resolution: Resolution,
+        speculative: bool,
+        budget: u64,
+        memory: TaskMemory,
+    ) -> Result<(), Error> {
         validate_decode_budget(budget)?;
         if self.busy() {
             return Err("an image decode is already pending".into());
@@ -868,13 +906,15 @@ impl DecodeTask {
         let input = source.clone();
         let cancel = Arc::new(AtomicBool::new(false));
         let worker_cancel = cancel.clone();
+        let worker_memory = Arc::clone(&memory.allocations);
         std::thread::Builder::new()
             .name("motion-image-decode".into())
             .spawn(move || {
                 let began = std::time::Instant::now();
                 log::info!("start image decode source_id={} resolution={:?} decoded_budget_bytes={} speculative={}", input.id, resolution, budget, speculative);
+                worker_memory.phase("decoding");
                 let result = std::panic::catch_unwind(|| {
-                    decode_cancellable(&input, resolution, budget, Some(&worker_cancel))
+                    decode_observed(&input, resolution, budget, Some(&worker_cancel), Some(&worker_memory))
                 })
                 .unwrap_or_else(|payload| {
                     let reason = payload.downcast_ref::<String>().map(String::as_str)
@@ -883,19 +923,22 @@ impl DecodeTask {
                     Err(Error::WorkerPanic(reason.chars().take(2048).collect()))
                 });
                 log::debug!("done image decode source_id={} resolution={:?} elapsed_ms={}", input.id, resolution, began.elapsed().as_millis());
+                worker_memory.phase(if result.is_ok() { "completed_output_retained" } else { "failed" });
+                worker_memory.checkpoint("before_send");
                 let _ = send.send(result);
+                worker_memory.checkpoint("after_send");
             })?;
-        self.pending = Some((source, resolution, budget, speculative, cancel, receive));
+        self.pending = Some((source, resolution, budget, speculative, cancel, receive, memory));
         Ok(())
     }
     pub fn poll(&mut self) -> Option<(Source, Resolution, bool, Result<Pixels, Error>)> {
-        let (_, _, _, _, _, receive) = self.pending.as_ref()?;
+        let (_, _, _, _, _, receive, _) = self.pending.as_ref()?;
         let result = match receive.try_recv() {
             Ok(result) => result,
             Err(mpsc::TryRecvError::Empty) => return None,
             Err(_) => Err(Error::WorkerDisconnected),
         };
-        let (source, resolution, _, speculative, cancel, _) = self.pending.take().unwrap();
+        let (source, resolution, _, speculative, cancel, _, _) = self.pending.take().unwrap();
         Some((
             source,
             resolution,
@@ -903,7 +946,7 @@ impl DecodeTask {
             if cancel.load(Ordering::Relaxed) {
                 Err(Error::Cancelled)
             } else {
-                result
+                result.map(Tracked::into_inner)
             },
         ))
     }
