@@ -47,6 +47,7 @@ pub mod preview_input;
 pub mod scene_generator;
 mod particle_emitter;
 mod timing;
+pub mod gpu_commands;
 mod video_pixels;
 mod video_gpu;
 mod vector_mesh;

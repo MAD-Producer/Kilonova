@@ -295,7 +295,7 @@ impl AllocationBudget {
             }
         }
         Ok(AllocationEncoder {
-            encoder: device.create_command_encoder(descriptor),
+            encoder: crate::gpu_commands::ObservedEncoder::new(device.create_command_encoder(descriptor)),
             scope,
             budget: self.clone(),
             owner,
@@ -319,7 +319,7 @@ fn check_capacity(required: u64, budget: u64) -> Result<(), RenderError> {
 /// submission drops the GPU encoder before its leases. Keep the finished
 /// command buffer intact until passing it to Renderer::submit_allocated.
 pub struct AllocationEncoder {
-    encoder: wgpu::CommandEncoder,
+    encoder: crate::gpu_commands::ObservedEncoder,
     scope: Arc<EncoderReservations>,
     budget: AllocationBudget,
     owner: Arc<()>,
@@ -336,6 +336,9 @@ impl DerefMut for AllocationEncoder {
     }
 }
 impl AllocationEncoder {
+    pub(crate) fn observe_commands(&mut self, span: Option<crate::gpu_commands::Span>) {
+        self.encoder.observe(span);
+    }
     pub fn finish(self) -> AllocatedCommandBuffer {
         AllocatedCommandBuffer {
             buffer: self.encoder.finish(),
@@ -346,7 +349,7 @@ impl AllocationEncoder {
     }
 }
 pub struct AllocatedCommandBuffer {
-    buffer: wgpu::CommandBuffer,
+    buffer: crate::gpu_commands::ObservedCommandBuffer,
     scope: Arc<EncoderReservations>,
     budget: AllocationBudget,
     owner: Arc<()>,
@@ -371,7 +374,7 @@ impl AllocatedCommandBuffer {
             ));
         }
         let completion = budget.frame_submission();
-        let index = submit(self.buffer);
+        let index = self.buffer.submit(submit);
         let pending_uploads = uploads.take();
         queue.on_submitted_work_done(move || {
             // One callback establishes cleanup-before-observation ordering;
