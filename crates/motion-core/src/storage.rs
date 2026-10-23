@@ -8,6 +8,8 @@ use std::{
 };
 use zip::{write::SimpleFileOptions, CompressionMethod, ZipArchive, ZipWriter};
 mod publication;
+#[cfg(test)]
+mod crash_tests;
 
 const MAX_JSON: u64 = 16 * 1024 * 1024;
 const MAX_ASSET: u64 = 64 * 1024 * 1024;
@@ -128,10 +130,18 @@ pub fn save(root: &Path, project: &Project) -> Result<()> {
         let file = File::create(&temp)?;
         (ProjectTemporary(temp), file)
     };
+    #[cfg(test)]
+    crash_tests::reached(crash_tests::Phase::TemporaryCreated);
     file.write_all(&bytes)?;
+    #[cfg(test)]
+    crash_tests::reached(crash_tests::Phase::BytesWritten);
     file.sync_all()?;
+    #[cfg(test)]
+    crash_tests::reached(crash_tests::Phase::FileSynced);
     drop(file);
     publication.publish(&temporary.0)?;
+    #[cfg(test)]
+    crash_tests::reached(crash_tests::Phase::Acknowledged);
     Ok(())
 }
 struct PackageSource {
