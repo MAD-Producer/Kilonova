@@ -64,3 +64,108 @@ fn public_resource_query_uses_the_same_session_read_protocol() {
     assert_eq!(value["cpu"]["knownCapacityBytes"], 0);
     assert_eq!(value["textures"]["graphicsAvailable"], false);
 }
+
+#[test]
+fn unified_query_includes_real_font_and_mixer_capacity_without_changing_pcm_or_history() {
+    use motion_core::{AudioAsset, AudioClip, Content, Layer, LayerTimeline};
+    use motion_media::{fonts::FontStore, mixer::AudioMixer};
+
+    let directory = tempfile::tempdir().unwrap();
+    let asset = AudioAsset {
+        id: 1,
+        path: "assets/memory.wav".into(),
+        mime: "audio/wav".into(),
+        bytes: 8192,
+        track: 0,
+        sample_rate: 48000,
+        channels: 1,
+        sample_frames: 2048,
+        duration_us: 2048 * 1_000_000 / 48000,
+    };
+    let cache = motion_media::cache_path(directory.path(), &asset).unwrap();
+    std::fs::create_dir_all(cache.parent().unwrap()).unwrap();
+    std::fs::write(cache, 0.125f32.to_le_bytes().repeat(2048)).unwrap();
+    let mut project = Project::new(64, 64, 30, 3).unwrap();
+    project.audio_assets.push(asset);
+    let mut layer = Layer::solid(1, "Original PCM fixture", [0.; 2], [0.; 3], [1.; 4]);
+    layer.content = Content::Audio {
+        audio: AudioClip::new(1),
+    };
+    layer.timeline = Some(LayerTimeline {
+        in_frame: 0,
+        out_frame: 1,
+        offset_frame: 0,
+    });
+    project.layers.push(layer);
+    project.validate().unwrap();
+    let mut control = AudioMixer::new(project.clone(), directory.path()).unwrap();
+    let mut session = Session::new(project, directory.path().into(), Arc::new(Stub)).unwrap();
+    let revision = session.engine.revision();
+    let view = session.view_revision;
+    let project_before = session.engine.snapshot();
+    let mut store = FontStore::new(&directory.path().join("fonts")).unwrap();
+    let glyph = store.glyph(&FontStore::builtin_id(), 'A', 32.).unwrap();
+    let font_info = store.memory_info();
+    let mixer = AudioMixer::new(session.engine.project().clone(), directory.path()).unwrap();
+    let mixer_info = mixer.memory_info();
+    session.font_store = Some(store);
+    session.audio_mixer = Some((revision, mixer));
+    session.audio_pcm = vec![0.; 256];
+    let output_payload = session.audio_pcm.len() as u64 * 4;
+    let output_capacity = session.audio_pcm.capacity() as u64 * 4;
+    let observed = session
+        .plugin_request(r#"{"op":"resource_memory"}"#)
+        .unwrap();
+    assert_eq!(
+        observed["cpu"]["knownPayloadBytes"],
+        font_info.known_payload_bytes + mixer_info.known_payload_bytes + output_payload
+    );
+    assert_eq!(
+        observed["cpu"]["knownCapacityBytes"],
+        font_info.known_capacity_bytes + mixer_info.known_capacity_bytes + output_capacity
+    );
+    assert_eq!(
+        observed["cpu"]["fontGlyphCache"],
+        serde_json::to_value(font_info).unwrap()
+    );
+    assert_eq!(
+        observed["cpu"]["audioMixer"],
+        serde_json::to_value(mixer_info).unwrap()
+    );
+    assert!(observed["cpu"]["fontGlyphCache"]["faceCapacityBytes"].is_null());
+    assert!(observed["cpu"]["audioMixer"]["fileBackedPcmResidentBytes"].is_null());
+    let mut actual = vec![f32::NAN; 256];
+    let mut expected = vec![f32::NAN; 256];
+    for start in [0, 128, 32] {
+        session.resource_memory_ledger().unwrap();
+        assert_eq!(
+            session
+                .audio_mixer
+                .as_mut()
+                .unwrap()
+                .1
+                .mix(start, &mut actual)
+                .unwrap(),
+            control.mix(start, &mut expected).unwrap()
+        );
+        assert_eq!(
+            actual, expected,
+            "resource query must preserve exact PCM output"
+        );
+    }
+    assert!(session.graphics.is_none());
+    assert!(session.editor_renderer.is_none());
+    assert_eq!(session.engine.revision(), revision);
+    assert_eq!(session.view_revision, view);
+    assert_eq!(session.engine.snapshot(), project_before);
+    session.font_store = None;
+    session.audio_mixer = None;
+    let released = session.resource_memory_ledger().unwrap();
+    assert_eq!(released["cpu"]["knownCapacityBytes"], output_capacity);
+    assert!(released["cpu"]["fontGlyphCache"].is_null());
+    assert!(released["cpu"]["audioMixer"].is_null());
+    assert!(
+        !glyph.coverage.is_empty(),
+        "escaped glyph remains outside Session's observed subtotal"
+    );
+}

@@ -34,6 +34,11 @@ and `completeCoverage` stays false.
 Validation must exercise real built-in glyph caching and eviction, owned spare
 capacity, shared versus distinct buffers, real PCM cache files, shared and
 distinct sample-rate tables, byte-exact mixing after diagnostic queries and
-capacity release. No new font/audio asset or dependency is introduced. Session
-query integration and its acceptance are tracked separately while the existing
-Session CPU resource PR is pending.
+capacity release. No new font/audio asset or dependency is introduced.
+
+The existing Session `resource_memory` query includes `cpu.fontGlyphCache` and
+`cpu.audioMixer` and adds their known payload/capacity to the CPU subtotal.
+Uninitialized stores/mixers are null. Session output PCM and mixer input scratch
+are distinct owned vectors. Parser, external and OS file-cache bytes remain
+unknown. Integration acceptance checks unchanged PCM, project and history, and
+that querying an uninitialized Session does not create a GPU context.

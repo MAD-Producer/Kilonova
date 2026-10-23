@@ -13,7 +13,8 @@ The version 1 response separates three domains:
   its original coverage and pending-submission limitations
 - `cpu`: observed owned Vec payload and backing-storage capacity for active
   video frame caches, preview video proxies, Session audio output scratch and
-  the serialized composition bundle
+  the serialized composition bundle, cached font glyph coverage, mixer scratch
+  and deduplicated shared resampling tables
 - `external`: driver residency, decoder allocation and process residency remain
   null; no CPU or texture subtotal is presented as total process RAM/physical VRAM
 
@@ -41,8 +42,9 @@ capacity until the Vec is replaced or shrunk. `compositionBundle` follows the
 same rule for its byte vector.
 
 Every domain publishes its exclusions. In-flight/retiring decoder output,
-external frame readers, image decode worker/completion pixels, font and mixer
-storage, resampling tables, effect package files, models/jobs, inference and
+external frame readers, image decode worker/completion pixels, original-source
+preview inputs, font parser internals, escaped glyphs/rasters, mixer project and
+container storage, effect package files, models/jobs, inference and
 allocator/container overhead remain outside this increment. Their capacity is
 unknown, not zero. The complete response is not an atomic frame peak and keeps
 `completeCoverage=false`.
