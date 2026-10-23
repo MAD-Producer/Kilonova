@@ -64,7 +64,7 @@ pub fn group_bounds(v: &SampledVector) -> Option<[f32; 4]> {
 }
 pub(crate) fn rasterize_with_limit(v: &SampledVector, size: [f32; 2], scale: f32, origin: [f32; 2], limit: usize) -> Result<RasterGeometry, VectorGeometryError> {
     let Some(batches) = &v.batches else {
-        return Ok(RasterGeometry { vertices: tessellate_native_with_limit(v, size, scale, limit)?, commands: vec![], root_opacity: 1. });
+        return Ok(RasterGeometry { vertices: tessellate_with_limit(v, size, scale, limit)?, commands: vec![], root_opacity: 1. });
     };
     let mut vertices = Vec::new();
     let mut commands = Vec::new();
@@ -107,14 +107,9 @@ pub fn tessellate(
     size: [f32; 2],
     scale: f32,
 ) -> Result<Vec<VectorVertex>, String> {
-    tessellate_with_limit(v, size, scale, MAX_TRIANGLE_VERTICES)
+    tessellate_with_limit(v, size, scale, MAX_TRIANGLE_VERTICES).map_err(|cause| cause.to_string())
 }
-pub(crate) fn tessellate_with_limit(v: &SampledVector, size: [f32; 2], scale: f32, limit: usize) -> Result<Vec<VectorVertex>, String> {
-    // MaskCache still exposes a text error contract; keep that boundary
-    // explicit while rasterized vectors propagate their native causes.
-    tessellate_native_with_limit(v, size, scale, limit).map_err(|cause| cause.to_string())
-}
-fn tessellate_native_with_limit(v: &SampledVector, size: [f32; 2], scale: f32, limit: usize) -> Result<Vec<VectorVertex>, VectorGeometryError> {
+pub(crate) fn tessellate_with_limit(v: &SampledVector, size: [f32; 2], scale: f32, limit: usize) -> Result<Vec<VectorVertex>, VectorGeometryError> {
     let mut builder = budget::BoundedGeometry::new(Vec::new(), size, limit.min(MAX_TRIANGLE_VERTICES), None);
     tessellate_into(v, scale, &mut builder)?;
     Ok(builder.output)
