@@ -34,6 +34,8 @@
 
 `cache-directory-accepted-validation.json` 记录 FFmpeg 七项实测通过、工作区全目标检查通过、带 FFmpeg 的产品构建通过，11 个 Rust 文件在这三阶段前后字节不变。与上述完整媒体及桌面五项合计 177 个不同测试通过，两项既有大文件验收未执行；重复专项和默认输出重放不累加。已有未使用代码警告保留，没有过滤诊断。远端 CI 和合并状态以当前提交的实际运行记录为准，不能把本地通过当作已合入。
 
+发布前还检查了 Rust 之外的缓存路径消费者。桌面音频对照脚本原先写死 `audio-v1`，现在由真实 `audio_probe` 报告 `pcm_path`，脚本直接读取该路径，不再自行推断缓存版本。优化模式的错误 PCM 负面对照仍检查原先的 RMS 失败断言；对应夹具只更新路径和报告字段。工具回归实际执行 20 项，其中 19 通过、1 项原有条件跳过；实际新 probe 与独立 FFmpeg 比较 WAV、MP3、M4A 三个原始合成音频均通过，样本数、两秒时长及 RMS／峰值误差门槛保留，证据在 `cache-directory-audio-parity/decoder-parity.json`。仅桌面的脚本更新，未恢复 Android 维护。
+
 ## #131 音频算术项的有限结论
 
 原报告将 `TimeBase::numer` 视为 u64，推导出 160 位乘积。当前锁定的 Symphonia 0.5.5 中 `TimeBase::{numer,denom}` 实际均为 u32，MP4 demuxer 构造 `TimeBase::new(1, timescale)`；宿主只接受 8,000–192,000 Hz。即使按通用 u32 分子计算，u64 时间戳乘分子再乘该采样率也小于 2^114，不会产生报告中的 u128 回绕。
