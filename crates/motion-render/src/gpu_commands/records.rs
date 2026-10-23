@@ -343,7 +343,7 @@ impl CommandRecords {
         // Publish only bounded events here. GPU callbacks can execute under an
         // outer business guard, so native callbacks and state locks perform no IO.
         if matches!(phase, CommandPhase::MapFailed | CommandPhase::Invalid) {
-            state.consecutive_failures = state.consecutive_failures.saturating_add(1);
+            state.counts.saturated |= increment(&mut state.consecutive_failures, 1);
             let occurrence = state.consecutive_failures;
             if occurrence == 1 || occurrence == 60 {
                 if state.pending_logs.len() == MAX_PENDING_LOG_EVENTS {
@@ -683,5 +683,20 @@ mod tests {
             .chars()
             .count()
             == 256));
+    }
+
+    #[test]
+    fn mixed_failure_streak_saturation_is_visible_and_recovery_does_not_erase_it() {
+        let records = CommandRecords::new().unwrap();
+        records.lock().consecutive_failures = u64::MAX;
+        outcome(&records, false);
+        let snapshot = records.snapshot();
+        assert_eq!(snapshot.consecutive_readback_failures, u64::MAX);
+        assert_eq!(snapshot.counts.invalid, 1);
+        assert!(snapshot.counts.saturated);
+        assert!(records.take_logs().events.is_empty());
+        outcome(&records, true);
+        assert_eq!(records.snapshot().consecutive_readback_failures, 0);
+        assert!(records.snapshot().counts.saturated);
     }
 }
