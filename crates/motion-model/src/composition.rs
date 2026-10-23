@@ -274,14 +274,19 @@ impl Project {
         })
     }
     pub fn audio_voices(&self) -> Result<Vec<AudioVoice>> {
-        if self.fps == 0 {
-            return fail(
-                &self.composition_id,
-                "invalid_frame_rate",
-                "Audio composition frame rate must be positive",
-                json!({"fps":self.fps}),
-            );
+        fn validate_clock(p: CompositionView<'_>) -> Result<()> {
+            if !(1..=crate::MAX_COMPOSITION_FPS).contains(&p.fps) {
+                return fail(p.id, "invalid_frame_rate", "Audio composition frame rate must be 1..240",
+                    json!({"fps":p.fps}));
+            }
+            if !(1..=crate::MAX_FRAMES).contains(&p.frames) {
+                return fail(p.id, "invalid_duration", "Audio composition duration must be 1..36000 frames",
+                    json!({"frames":p.frames}));
+            }
+            Ok(())
         }
+        let root = self.composition_view(&self.composition_id)?;
+        validate_clock(root)?;
         // Preserve fractions until each absolute sample boundary is evaluated.
         // Dividing 48 kHz by fps first loses samples at e.g. 59 or 144 fps.
         #[derive(Clone, Copy)]
@@ -330,10 +335,19 @@ impl Project {
                 "audio composition nesting too deep",
             )?;
             for l in p.layers {
+                let context = |phase, source| Error::AudioTimeline {
+                    composition: p.id.chars().take(64).collect(), object: l.id, phase, source: Box::new(source),
+                };
                 let add = |time: Time, frames: i64, fps: u32| time.add_frames(frames, fps).map_err(|e|
                     Error::Composition(CompositionError { code:"audio_time_limit".into(), composition:p.id.into(),
                         message:e.to_string(), details:json!({"layer":l.id,"frames":frames,"fps":fps}) }));
                 let clip = l.clip(p.frames);
+                clip.validate(p.frames).map_err(|source| context("validate_clip", source))?;
+                if let Some(range) = l.subframe_range {
+                    range.validate().map_err(|source| context("validate_precise_clip", source))?;
+                    crate::ensure(range.covers(clip), "integer clip bounds do not cover precise interval")
+                        .map_err(|source| context("validate_precise_clip", source))?;
+                }
                 let (clip_first,clip_last)=if let Some(range)=l.subframe_range {
                     let base=origin.numerator as f64/origin.denominator as f64;
                     ((base+range.in_frame*48_000./f64::from(p.fps)).ceil() as i64,
@@ -355,6 +369,7 @@ impl Project {
                         continue;
                     }
                     let child = document.composition_view(&clip.composition)?;
+                    validate_clock(child)?;
                     let child_origin =
                         add(offset,-i64::from(clip.source_start_frame),child.fps)?;
                     visit(
@@ -390,7 +405,7 @@ impl Project {
         let mut out = Vec::new();
         visit(
             self,
-            self.composition_view(&self.composition_id)?,
+            root,
             Time {
                 numerator: 0,
                 denominator: 1,
