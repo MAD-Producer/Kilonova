@@ -5,6 +5,7 @@ mod path_ops;
 mod shape_parameters;
 mod timeline_queries;
 mod animation_sampling;
+mod expression_causes;
 
 #[test]
 fn invalid_model_edits_keep_history_and_reach_default_error_channels() {

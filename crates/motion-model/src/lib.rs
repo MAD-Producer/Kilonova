@@ -62,11 +62,12 @@ pub use video::{
 pub enum Error {
     #[error(transparent)]
     Composition(#[from] composition::CompositionError),
-    #[error("expression {target} at frame {frame}: {message}")]
+    #[error("expression {target} at frame {frame}: {source}")]
     Expression {
         target: String,
         frame: f64,
-        message: String,
+        #[source]
+        source: Box<Error>,
     },
     #[error("expression sampling {target} at frame {frame}: {source}")]
     ExpressionSampling {

@@ -1,5 +1,7 @@
 #[cfg(test)]
 mod sampling_tests;
+#[cfg(test)]
+mod invariant_tests;
 mod runtime;
 mod transpile;
 
@@ -16,7 +18,7 @@ fn error(target: &ExpressionTarget, frame: f64, error: Error) -> Error {
     Error::Expression {
         target: serde_json::to_string(target).unwrap_or_default(),
         frame,
-        message: error.to_string(),
+        source: Box::new(error),
     }
 }
 fn evaluate(
@@ -180,10 +182,10 @@ fn write(
                 .effects
                 .iter_mut()
                 .find(|e| e.id == *effect)
-                .unwrap()
-                .params
-                .get_mut(param)
-                .unwrap();
+                .and_then(|e| e.params.get_mut(param))
+                .ok_or_else(|| {
+                    Error::Invalid("expression effect parameter does not exist".into())
+                })?;
             ensure(
                 result.len() == p.kind.dimensions(),
                 "effect expression has incorrect dimensions",
@@ -250,7 +252,7 @@ impl ProjectExpressions for Project {
                             .layers
                             .iter()
                             .find(|l| l.id == e.target.object())
-                            .unwrap()
+                            .ok_or(Error::Missing(e.target.object()))?
                             .local_frame(frame)
                     })?,
                 })
