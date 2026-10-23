@@ -1,0 +1,415 @@
+{
+  "source": "ff31e908c523ad6ef5d2fb0c37350ea3d3679dd3",
+  "base": "ac2482fce6a873fcdc0b2cdc59bfde7d8c63c8c4",
+  "acceptance": {
+    "source": "ff31e908c523ad6ef5d2fb0c37350ea3d3679dd3",
+    "phases": {
+      "host": {
+        "source": "ff31e908c523ad6ef5d2fb0c37350ea3d3679dd3",
+        "root": "E:\\Dev\\aem\\.worktrees\\original-source-memory-fixed",
+        "target": "E:/Dev/aem/target/original-source-memory-b273180a",
+        "phase": "host",
+        "command": [
+          "cargo",
+          "test",
+          "--locked",
+          "--offline",
+          "-p",
+          "motion-host",
+          "-j1",
+          "--",
+          "--test-threads=1"
+        ],
+        "startedUnix": 1792739013.4322913,
+        "environment": {
+          "TEMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+          "TMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+          "CARGO_BUILD_JOBS": "1",
+          "CARGO_PROFILE_DEV_DEBUG": "0",
+          "CARGO_PROFILE_TEST_DEBUG": "0",
+          "CARGO_INCREMENTAL": "0"
+        },
+        "cacheReuse": "Original failed b273 target dependency cache; current source fingerprinted, incremental disabled",
+        "exitCode": 0,
+        "elapsedSeconds": 416.0652983188629,
+        "logSha256": "f02e109b59b168da9117732fb311bc6babae7ca5d053bbc54dd65ae0496f1dfc",
+        "testSummaries": [
+          [
+            84,
+            0,
+            0
+          ],
+          [
+            8,
+            0,
+            0
+          ],
+          [
+            10,
+            0,
+            0
+          ],
+          [
+            2,
+            0,
+            0
+          ],
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            14,
+            0,
+            0
+          ],
+          [
+            2,
+            0,
+            0
+          ],
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            8,
+            0,
+            0
+          ],
+          [
+            3,
+            0,
+            0
+          ],
+          [
+            3,
+            0,
+            0
+          ],
+          [
+            3,
+            0,
+            0
+          ],
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            1,
+            0,
+            0
+          ]
+        ],
+        "missingActualTests": []
+      },
+      "provenance": {
+        "source": "ff31e908c523ad6ef5d2fb0c37350ea3d3679dd3",
+        "root": "E:\\Dev\\aem\\.worktrees\\original-source-memory-fixed",
+        "target": "E:/Dev/aem/target/original-source-memory-b273180a",
+        "phase": "provenance",
+        "command": [
+          "C:\\Users\\nova\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+          "tools/validate_provenance.py"
+        ],
+        "startedUnix": 1792739429.7868934,
+        "environment": {
+          "TEMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+          "TMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+          "CARGO_BUILD_JOBS": "1",
+          "CARGO_PROFILE_DEV_DEBUG": "0",
+          "CARGO_PROFILE_TEST_DEBUG": "0",
+          "CARGO_INCREMENTAL": "0"
+        },
+        "cacheReuse": "Original failed b273 target dependency cache; current source fingerprinted, incremental disabled",
+        "exitCode": 0,
+        "elapsedSeconds": 0.2344212532043457,
+        "logSha256": "82e282487ffbd7107e6732b7eb2be248fd9bf03315bbcd715746008b8d907f38",
+        "testSummaries": [],
+        "missingActualTests": []
+      },
+      "diff": {
+        "source": "ff31e908c523ad6ef5d2fb0c37350ea3d3679dd3",
+        "root": "E:\\Dev\\aem\\.worktrees\\original-source-memory-fixed",
+        "target": "E:/Dev/aem/target/original-source-memory-b273180a",
+        "phase": "diff",
+        "command": [
+          "git",
+          "diff",
+          "--check",
+          "ac2482fce6a873fcdc0b2cdc59bfde7d8c63c8c4",
+          "HEAD"
+        ],
+        "startedUnix": 1792739430.292371,
+        "environment": {
+          "TEMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+          "TMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+          "CARGO_BUILD_JOBS": "1",
+          "CARGO_PROFILE_DEV_DEBUG": "0",
+          "CARGO_PROFILE_TEST_DEBUG": "0",
+          "CARGO_INCREMENTAL": "0"
+        },
+        "cacheReuse": "Original failed b273 target dependency cache; current source fingerprinted, incremental disabled",
+        "exitCode": 0,
+        "elapsedSeconds": 0.17864584922790527,
+        "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "testSummaries": [],
+        "missingActualTests": []
+      }
+    },
+    "completeIssue60": false,
+    "scope": "Actual cached PNG/native-YUV-Vec ownership and no-IO query; not a real video codec, GPU-performance or physical residency claim"
+  },
+  "counts": [
+    141,
+    0,
+    0
+  ],
+  "originalFailure": {
+    "prefix": "issue60-original-source-v1",
+    "receipt": {
+      "source": "b273180abb08727e719e5716d19f0f4268eefa92",
+      "root": "E:\\Dev\\aem\\.worktrees\\original-source-memory",
+      "target": "E:/Dev/aem/target/original-source-memory-b273180a",
+      "phase": "host",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "-p",
+        "motion-host",
+        "-j1",
+        "--",
+        "--test-threads=1"
+      ],
+      "startedUnix": 1792738012.5607471,
+      "environment": {
+        "TEMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+        "TMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_PROFILE_DEV_DEBUG": "0",
+        "CARGO_PROFILE_TEST_DEBUG": "0",
+        "CARGO_INCREMENTAL": "0"
+      },
+      "exitCode": 101,
+      "elapsedSeconds": 894.8877980709076,
+      "logSha256": "78044ea3a531545f7de365cb932e30178e869317088461e5130a59bc164a07fa",
+      "testSummaries": [
+        [
+          84,
+          0,
+          0
+        ],
+        [
+          8,
+          0,
+          0
+        ],
+        [
+          10,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          14,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          7,
+          1,
+          0
+        ]
+      ],
+      "missingActualTests": []
+    },
+    "fixtureOnlyFixNumstat": "7\t0\tcrates/motion-host/tests/preview_inputs/source_memory.rs"
+  },
+  "newTests": [
+    "actual_image_arcs_keep_spare_capacity_and_distinct_equal_allocations_without_retention",
+    "allocation_and_reference_limits_preserve_aliases_mark_unknown_and_reset_per_query",
+    "independent_stream_collections_share_one_identity_scope_and_release_each_owner",
+    "busy_original_cache_preserves_known_active_pixels_and_recovers_without_blocking",
+    "stream_observation_bounds_mark_unvisited_caches_unknown_without_changing_them",
+    "real_original_png_capacity_is_included_without_file_reads_pixel_changes_or_retained_owners",
+    "original_video_worker_cache_enters_session_totals_without_rgba_conversion_or_source_io"
+  ],
+  "implementationIdentity": [
+    {
+      "path": "crates/motion-host/src/ops/snapshot.rs",
+      "gitBlob": "11ec66e97132a3a8e2d35c8b819c048c3563622e",
+      "sha256": "651fdaec43194b0e5d4e92e1d2ad69d2bf03a7ed66736695ace908d7e736f904"
+    },
+    {
+      "path": "crates/motion-host/src/preview_inputs.rs",
+      "gitBlob": "0617f9b883fcdd4c0cd6dce827a8f0b8d1eec1e9",
+      "sha256": "bb009d303f79af92659e4db8f4bf3cc986cbe40adebe030e17299d8fb36ec378"
+    },
+    {
+      "path": "crates/motion-host/src/preview_inputs/memory.rs",
+      "gitBlob": "afc7061d8664f3d492acd512fe59d694041a7204",
+      "sha256": "245ef6e26ba07af562098038ca8eae0baf033c145aca1698b1c07526a1f0f9ff"
+    },
+    {
+      "path": "crates/motion-host/src/resource_memory.rs",
+      "gitBlob": "e68042b7e704da160b9109102547f584fc303f9e",
+      "sha256": "62a550e10defef9fc8e98e3ed9f5bddf58a06b27f9d0b44009bac1ec66f24cdc"
+    },
+    {
+      "path": "crates/motion-host/src/resource_memory/pixel_caches.rs",
+      "gitBlob": "c2f1630e17518c13206c0ca30df3f8ea67c8fa9f",
+      "sha256": "267a57f27eaa5e28f7ad3df0092cc25447c447e7f90d1a790bb601949d4bfcf5"
+    },
+    {
+      "path": "crates/motion-host/src/resource_memory/pixel_caches/tests.rs",
+      "gitBlob": "0a05c6eac2958e504d63b5183f4711b28fdb8c20",
+      "sha256": "9ceba056e753f4f58b1a9c6a79a980b5b01a5f4a48985b16d39d2d5e19faf272"
+    },
+    {
+      "path": "crates/motion-host/src/video_frames/memory.rs",
+      "gitBlob": "23c54c826df0c70e7da632c833b159fb50db37ca",
+      "sha256": "a49d722049a2ec116e9719ec978ee8c2296affba804261814fd97e7d6c3e61a6"
+    },
+    {
+      "path": "crates/motion-host/src/video_frames/memory/tests.rs",
+      "gitBlob": "d7c0f3062964e0b70684abe5f857a89636249385",
+      "sha256": "f78d88286038fd77711881c7955cd3c68c30c2c24a3847a447513fc38324c416"
+    },
+    {
+      "path": "crates/motion-host/tests/memory_policy.rs",
+      "gitBlob": "c749c4d736730039cd400c2c16a01530275e130d",
+      "sha256": "e5142b1a1d2ebfead7914bba61a0580e09074d011e9ae5037f1f634b61abd574"
+    },
+    {
+      "path": "crates/motion-host/tests/memory_policy/resource_memory.rs",
+      "gitBlob": "2c5428bba3e85e991e0c477fe2957d7413241d29",
+      "sha256": "fde762d1b66f704a348651bf5c514aa4846e5cb049dd84df4af7843d06bb06b5"
+    },
+    {
+      "path": "crates/motion-host/tests/memory_policy/source_pixel_memory.rs",
+      "gitBlob": "65404147a3de7c750708147c09e9a871b7ed727f",
+      "sha256": "a129d4366d57e105446f2ec7795f39e83e5842a93c7b42003f3573562e795549"
+    },
+    {
+      "path": "crates/motion-host/tests/preview_inputs.rs",
+      "gitBlob": "ffd51e92709bf06f3f5e0c02ab00cd9139d8e200",
+      "sha256": "3ef43fa8c9df3a5b2a1a1f5a4dce9fc71ca6301de146d4292575e51fd61e79e4"
+    },
+    {
+      "path": "crates/motion-host/tests/preview_inputs/source_memory.rs",
+      "gitBlob": "74008878d6518ef3a46e150101125b90606affd7",
+      "sha256": "7abb4d5c19258c192ec3a3db48137ad66da2e98186cbaf431104e59656082633"
+    },
+    {
+      "path": "engineering/host-api/session-resource-memory.md",
+      "gitBlob": "f82cbe7fbf6284b3d47f255681d71feaf7adb8fc",
+      "sha256": "7181482203dfc014f27263dd11639f75d628fac04ed5676b03cc91442b667aa1"
+    }
+  ],
+  "archive": {
+    "path": "data/original-source-memory-ff31e908.zip",
+    "bytes": 20778,
+    "sha256": "38ad06a387cf9b3f81990c1221c7f612642cadff3c161f8d1a5699c382c4e4fb",
+    "files": [
+      {
+        "path": "issue60-original-source-v1-host.exit.json",
+        "bytes": 1288,
+        "sha256": "de8d54375c718386aae834223222407f3d7b15183af44df9fa44321ac34d2775"
+      },
+      {
+        "path": "issue60-original-source-v1-host.log",
+        "bytes": 25702,
+        "sha256": "78044ea3a531545f7de365cb932e30178e869317088461e5130a59bc164a07fa"
+      },
+      {
+        "path": "issue60-original-source-v1-host.started.json",
+        "bytes": 689,
+        "sha256": "29949b19347ea8bf891c814b87a82bb218674ebc24506f053b87bffe7527426d"
+      },
+      {
+        "path": "issue60-original-source-v2-accepted.json",
+        "bytes": 4501,
+        "sha256": "691a561d2da9c9bb5f4e7dbf74b3b0a8667d5ed2e570d903a158942271f19da6"
+      },
+      {
+        "path": "issue60-original-source-v2-diff.exit.json",
+        "bytes": 970,
+        "sha256": "def97ab8ab9abe8428926a09b68cba22ce542ee37bb3760b356b9c1b6449c2c6"
+      },
+      {
+        "path": "issue60-original-source-v2-diff.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "issue60-original-source-v2-diff.started.json",
+        "bytes": 773,
+        "sha256": "de3acb7202e3f68523d01429462eb3d1ab3511b08fff95ededd1265aff99a660"
+      },
+      {
+        "path": "issue60-original-source-v2-host.exit.json",
+        "bytes": 1629,
+        "sha256": "c84d22e99e9c6c614baa1263857e6a4b3bc1065bc9dcebe9563eeb593652fc39"
+      },
+      {
+        "path": "issue60-original-source-v2-host.log",
+        "bytes": 19195,
+        "sha256": "f02e109b59b168da9117732fb311bc6babae7ca5d053bbc54dd65ae0496f1dfc"
+      },
+      {
+        "path": "issue60-original-source-v2-host.started.json",
+        "bytes": 812,
+        "sha256": "8ee11ba9d697998f3ed8a18c9f8afbefad708ef819b87f5105709cb09994cea0"
+      },
+      {
+        "path": "issue60-original-source-v2-provenance.exit.json",
+        "bytes": 991,
+        "sha256": "8ae5a9b196313d0fb7daf010650918528ad28e2612e5526cb7e88f7190c17be5"
+      },
+      {
+        "path": "issue60-original-source-v2-provenance.log",
+        "bytes": 46,
+        "sha256": "82e282487ffbd7107e6732b7eb2be248fd9bf03315bbcd715746008b8d907f38"
+      },
+      {
+        "path": "issue60-original-source-v2-provenance.started.json",
+        "bytes": 795,
+        "sha256": "88f26aa738f4b2aa541be98245d2747c8713c9285b2912c486c3913f1421b8b9"
+      }
+    ]
+  },
+  "completeIssue60": false,
+  "delivery": {
+    "base": "741a1c738ca48fbbb0468540d090e074da0591d7",
+    "codeSource": "ee5a5df876979fa15ca8015b0bc4b277f0b2b79b",
+    "source": "ff31e908c523ad6ef5d2fb0c37350ea3d3679dd3",
+    "all14ImplementationAndApiBlobsIdentical": true,
+    "completeLocalHostResultRemainsAttributedToMeasuredSource": true,
+    "currentHeadRemoteChecks": "Required separately before merge; not inferred from source identity"
+  }
+}

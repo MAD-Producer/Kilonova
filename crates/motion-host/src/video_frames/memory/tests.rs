@@ -198,3 +198,117 @@ fn poisoned_cache_preserves_object_source_and_phase_in_an_actual_error() {
         assert!(error.contains(context), "{error}");
     }
 }
+
+#[test]
+fn independent_stream_collections_share_one_identity_scope_and_release_each_owner() {
+    let mut bytes = Vec::with_capacity(64);
+    bytes.extend([1, 2, 3, 255]);
+    let capacity = bytes.capacity() as u64;
+    let shared = frame(VideoPixels::Rgba(bytes));
+    let mut active = VideoFrames::default();
+    let mut original = VideoFrames::default();
+    add_stream(&mut active, 10, shared.clone());
+    add_stream(&mut original, 20, shared.clone());
+    add_stream(
+        &mut original,
+        30,
+        frame(VideoPixels::Rgba(vec![1, 2, 3, 255])),
+    );
+    let query = |active: &VideoFrames, original: &VideoFrames| {
+        let mut collector = PixelCacheCollector::default();
+        active
+            .collect_cache_memory(&mut collector, "active_video_stream")
+            .unwrap();
+        original
+            .collect_cache_memory(&mut collector, "original_source_video")
+            .unwrap();
+        collector.finish("global-stream-test")
+    };
+    let before = Arc::strong_count(&shared);
+    let observed = query(&active, &original);
+    assert_eq!(observed.known_payload_bytes, 8);
+    assert_eq!(observed.known_capacity_bytes, capacity + 4);
+    assert_eq!(observed.details["resourceCount"], 2);
+    let aliases = observed.details["resources"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["references"].as_array().unwrap().len() == 2)
+        .unwrap();
+    assert_eq!(aliases["references"][0]["owner"], "active_video_stream");
+    assert_eq!(aliases["references"][1]["owner"], "original_source_video");
+    assert_eq!(Arc::strong_count(&shared), before);
+    active.clear();
+    assert_eq!(
+        query(&active, &original).known_capacity_bytes,
+        observed.known_capacity_bytes
+    );
+    original.clear();
+    assert_eq!(query(&active, &original).known_capacity_bytes, 0);
+    assert_eq!(Arc::strong_count(&shared), 1);
+}
+
+#[test]
+fn busy_original_cache_preserves_known_active_pixels_and_recovers_without_blocking() {
+    let mut active = VideoFrames::default();
+    let mut original = VideoFrames::default();
+    add_stream(&mut active, 1, frame(VideoPixels::Rgba(vec![0; 16])));
+    add_stream(&mut original, 2, frame(VideoPixels::Rgba(vec![0; 32])));
+    let shared = original.streams[&2].shared.clone();
+    let guard = shared.0.lock().unwrap();
+    let (send, receive) = std::sync::mpsc::channel();
+    let worker = std::thread::spawn(move || {
+        let mut collector = PixelCacheCollector::default();
+        active
+            .collect_cache_memory(&mut collector, "active_video_stream")
+            .unwrap();
+        let info = original
+            .collect_cache_memory(&mut collector, "original_source_video")
+            .unwrap();
+        send.send((collector.finish("busy-original-test"), info))
+            .unwrap();
+        (active, original)
+    });
+    let result = receive.recv_timeout(std::time::Duration::from_secs(5));
+    drop(guard);
+    let (active, original) = worker.join().unwrap();
+    let (observed, info) = result.expect("original cache observation blocked on decoder state");
+    assert_eq!(observed.known_capacity_bytes, 16);
+    assert_eq!(info["allActiveStreamCachesObserved"], false);
+    assert_eq!(
+        info["unavailableStreams"][0]["owner"],
+        "original_source_video"
+    );
+    assert!(info["unavailableStreams"][0]["capacityBytes"].is_null());
+    let mut collector = PixelCacheCollector::default();
+    active
+        .collect_cache_memory(&mut collector, "active_video_stream")
+        .unwrap();
+    let info = original
+        .collect_cache_memory(&mut collector, "original_source_video")
+        .unwrap();
+    assert_eq!(info["allActiveStreamCachesObserved"], true);
+    assert_eq!(
+        collector.finish("busy-original-test").known_capacity_bytes,
+        48
+    );
+}
+
+#[test]
+fn stream_observation_bounds_mark_unvisited_caches_unknown_without_changing_them() {
+    let shared = frame(VideoPixels::Rgba(vec![0; 16]));
+    let mut frames = VideoFrames::default();
+    for object in 0..=MAX_OBSERVED_STREAMS {
+        add_stream(&mut frames, object as u64, shared.clone());
+    }
+    let before = Arc::strong_count(&shared);
+    let observed = value(&frames);
+    assert_eq!(observed["streamCount"], MAX_OBSERVED_STREAMS + 1);
+    assert_eq!(observed["observedStreams"], MAX_OBSERVED_STREAMS);
+    assert_eq!(observed["unobservedStreams"], 1);
+    assert_eq!(observed["allActiveStreamCachesObserved"], false);
+    assert_eq!(observed["knownCapacityBytes"], 16);
+    assert_eq!(frames.streams.len(), MAX_OBSERVED_STREAMS + 1);
+    assert_eq!(Arc::strong_count(&shared), before);
+    assert!(observed["unknownBytes"].is_null());
+}

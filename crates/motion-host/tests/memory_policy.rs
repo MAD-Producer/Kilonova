@@ -11,6 +11,8 @@ mod package_budget;
 mod resource_memory;
 #[path = "memory_policy/package_memory.rs"]
 mod package_memory;
+#[path = "memory_policy/source_pixel_memory.rs"]
+mod source_pixel_memory;
 
 #[test]
 fn cpu_asset_entry_points_follow_session_policy_without_changing_legacy_pixels_or_history() {

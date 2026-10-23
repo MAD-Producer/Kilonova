@@ -12,7 +12,12 @@ impl Session {
     /// Explicit diagnostic query. Ordinary snapshots and per-frame sampling do
     /// not enumerate CPU allocations or acquire video cache observation locks.
     pub fn resource_memory_ledger(&self) -> crate::Result<Value> {
-        let video = self.video_frames.cache_memory_ledger()?;
+        let mut collector = crate::resource_memory::PixelCacheCollector::default();
+        let active = self.video_frames.collect_cache_memory(&mut collector, "active_video_stream")?;
+        let original = self.preview_inputs.collect_cached_pixels(&mut collector)?;
+        let mut pixels = collector.finish("session_active_and_original_source_pixel_caches");
+        pixels.details["activeVideoStreams"] = json!(active);
+        pixels.details["originalSource"] = original;
         let proxies = self.preview_video.memory_ledger();
         let shaders = motion_effects::memory::compiled_shader_memory(
             self.effects.compiled_shader_owners()
@@ -32,19 +37,19 @@ impl Session {
         let audio_capacity = self.audio_pcm.capacity() as u64 * std::mem::size_of::<f32>() as u64;
         let bundle_payload = self.composition_bundle.len() as u64;
         let bundle_capacity = self.composition_bundle.capacity() as u64;
-        Ok(json!({"version":1,"scope":"session_instrumented_resource_ownership",
+        Ok(json!({"version":2,"scope":"session_instrumented_resource_ownership",
             "textures":self.texture_resource_ledger(),
             "cpu":{"scope":"observed_owned_vectors_not_process_ram",
-                "knownPayloadBytes":video.known_payload_bytes+proxies.known_payload_bytes+audio_payload+bundle_payload+media_payload+packages.known_payload_bytes+shaders.known_payload_bytes,
-                "knownCapacityBytes":video.known_capacity_bytes+proxies.known_capacity_bytes+audio_capacity+bundle_capacity+media_capacity+packages.known_capacity_bytes+shaders.known_capacity_bytes,
-                "videoDecodedCache":video,"videoPreviewProxies":proxies,
+                "knownPayloadBytes":pixels.known_payload_bytes+proxies.known_payload_bytes+audio_payload+bundle_payload+media_payload+packages.known_payload_bytes+shaders.known_payload_bytes,
+                "knownCapacityBytes":pixels.known_capacity_bytes+proxies.known_capacity_bytes+audio_capacity+bundle_capacity+media_capacity+packages.known_capacity_bytes+shaders.known_capacity_bytes,
+                "sourcePixelCaches":pixels,"videoPreviewProxies":proxies,
                 "fontGlyphCache":fonts,"audioMixer":mixer,
                 "effectPackages":packages,
                 "effectProgramShaders":shaders,
                 "audioOutputScratch":{"payloadBytes":audio_payload,"capacityBytes":audio_capacity},
                 "compositionBundle":{"payloadBytes":bundle_payload,"capacityBytes":bundle_capacity},
                 "completeCoverage":false,"unknownBytes":null,
-                "excludes":["image_decode_worker_and_completion_pixels","original_source_preview_input_cache",
+                "excludes":["image_decode_worker_and_completion_pixels","external_original_source_input_packets",
                     "font_parser_internal_storage_and_external_rasters","audio_mixer_project_voice_and_container_storage",
                     "effect_package_and_shader_metadata_and_external_owners","scene_and_project_models",
                     "job_queues","inference_weights_and_activations","allocator_and_container_overhead"]},

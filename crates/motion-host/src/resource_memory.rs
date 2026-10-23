@@ -1,6 +1,8 @@
 //! Explicit diagnostic metadata; these values are not total process RAM.
 use serde::Serialize;
 use serde_json::Value;
+mod pixel_caches;
+pub(crate) use pixel_caches::PixelCacheCollector;
 
 /// Owned pixel vectors observed by one bounded cache query.
 /// Capacity counts Vec backing storage, excluding allocator/container overhead.
