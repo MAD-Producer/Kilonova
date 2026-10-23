@@ -341,7 +341,9 @@ Differentiate a layer segment bar (in/out/duration) from property keyframes (dia
 | `Alt` | Mask/path point | Disable automatic opposing mirroring |
 | `Ctrl` | Keyframe drag | Duplicate rather than move |
 | `Ctrl` | Bézier handle | Lock time component (X unchanged) |
-| `Ctrl` | Corner scale | Switch from uniform to independent-axis scale |
+| `Alt` | Corner/edge scale | Release the uniform constraint; scale the controlled axes independently |
+| `Shift` | Edge scale | Scale uniformly; `Alt` takes precedence |
+| `Ctrl` | Corner/edge scale | Preserve the default or Shift/Alt scaling mode |
 | `Ctrl` / `Shift` | Segment click | Additive/range selection; suppress dragging |
 | `Shift` | Bézier handle | Snap angles to 15° |
 | `Shift` | Rotation handle | Snap angles to 15° |
