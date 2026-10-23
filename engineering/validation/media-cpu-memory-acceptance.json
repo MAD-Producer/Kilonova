@@ -1,0 +1,622 @@
+{
+  "source": "8f6fe8be071c54fdf76001b94d5f2e4094b3cece",
+  "phases": {
+    "suites": {
+      "source": "8f6fe8be071c54fdf76001b94d5f2e4094b3cece",
+      "root": "E:\\Dev\\aem\\.worktrees\\media-memory-session-integration",
+      "target": "E:\\Dev\\aem\\target\\media-session-1cf1f381",
+      "phase": "suites",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "-p",
+        "motion-media",
+        "-p",
+        "motion-host",
+        "-j1",
+        "--",
+        "--test-threads=1"
+      ],
+      "startedUnix": 1792732219.7620382,
+      "previousFailedSource": "1cf1f381c0ed0bca0912563aca5a489ec60cdde0",
+      "cacheScope": "Same absolute worktree; only public test import changed",
+      "environment": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_PROFILE_DEV_DEBUG": "0",
+        "CARGO_PROFILE_TEST_DEBUG": "0",
+        "CARGO_INCREMENTAL": "0",
+        "TEMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+        "TMP": "E:/Dev/aem/target/ci-policy-validation-tmp"
+      },
+      "exitCode": 0,
+      "elapsedSeconds": 258.6502561569214,
+      "logSha256": "18f7efc800b4b7e0726587356747a4633f8caefa0a478f18a56fe34ae4a08e5a",
+      "testSummaries": [
+        [
+          79,
+          0,
+          0
+        ],
+        [
+          8,
+          0,
+          0
+        ],
+        [
+          10,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          12,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          7,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          92,
+          0,
+          0
+        ],
+        [
+          10,
+          0,
+          1
+        ],
+        [
+          4,
+          0,
+          0
+        ],
+        [
+          4,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          8,
+          0,
+          0
+        ],
+        [
+          3,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          4,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          5,
+          0,
+          1
+        ],
+        [
+          6,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0
+        ]
+      ],
+      "validationError": null
+    },
+    "provenance": {
+      "source": "8f6fe8be071c54fdf76001b94d5f2e4094b3cece",
+      "root": "E:\\Dev\\aem\\.worktrees\\media-memory-session-integration",
+      "target": "E:\\Dev\\aem\\target\\media-session-1cf1f381",
+      "phase": "provenance",
+      "command": [
+        "C:\\Users\\nova\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+        "tools/validate_provenance.py"
+      ],
+      "startedUnix": 1792732478.5744994,
+      "previousFailedSource": "1cf1f381c0ed0bca0912563aca5a489ec60cdde0",
+      "cacheScope": "Same absolute worktree; only public test import changed",
+      "environment": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_PROFILE_DEV_DEBUG": "0",
+        "CARGO_PROFILE_TEST_DEBUG": "0",
+        "CARGO_INCREMENTAL": "0",
+        "TEMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+        "TMP": "E:/Dev/aem/target/ci-policy-validation-tmp"
+      },
+      "exitCode": 0,
+      "elapsedSeconds": 0.15618586540222168,
+      "logSha256": "7238b3016b0d40630fa7498b8baea16ce6215a615456c344ab28457f8109196a",
+      "testSummaries": [],
+      "validationError": null
+    },
+    "diff": {
+      "source": "8f6fe8be071c54fdf76001b94d5f2e4094b3cece",
+      "root": "E:\\Dev\\aem\\.worktrees\\media-memory-session-integration",
+      "target": "E:\\Dev\\aem\\target\\media-session-1cf1f381",
+      "phase": "diff",
+      "command": [
+        "git",
+        "diff",
+        "--check",
+        "742f6040011687a5928eeed434effe202fc083d9",
+        "HEAD"
+      ],
+      "startedUnix": 1792732478.8999774,
+      "previousFailedSource": "1cf1f381c0ed0bca0912563aca5a489ec60cdde0",
+      "cacheScope": "Same absolute worktree; only public test import changed",
+      "environment": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_PROFILE_DEV_DEBUG": "0",
+        "CARGO_PROFILE_TEST_DEBUG": "0",
+        "CARGO_INCREMENTAL": "0",
+        "TEMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+        "TMP": "E:/Dev/aem/target/ci-policy-validation-tmp"
+      },
+      "exitCode": 0,
+      "elapsedSeconds": 0.047506093978881836,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "testSummaries": [],
+      "validationError": null
+    }
+  },
+  "scope": "Actual media and host CPU memory integration, not physical residency or full issue60 completion",
+  "completeIssue60": false,
+  "initialMediaAcceptance": {
+    "source": "9b022723d8c069fff39f09870efe07db555de48f",
+    "phases": {
+      "media": {
+        "source": "9b022723d8c069fff39f09870efe07db555de48f",
+        "root": "E:\\Dev\\aem\\.worktrees\\media-cpu-memory",
+        "target": "E:\\Dev\\aem\\target\\media-cpu-memory-9b022723",
+        "phase": "media",
+        "command": [
+          "cargo",
+          "test",
+          "--locked",
+          "--offline",
+          "-p",
+          "motion-media",
+          "-j1",
+          "--",
+          "--test-threads=1"
+        ],
+        "startedUnix": 1792731208.8719168,
+        "environment": {
+          "CARGO_BUILD_JOBS": "1",
+          "CARGO_PROFILE_DEV_DEBUG": "0",
+          "CARGO_PROFILE_TEST_DEBUG": "0",
+          "CARGO_INCREMENTAL": "0",
+          "TEMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+          "TMP": "E:/Dev/aem/target/ci-policy-validation-tmp"
+        },
+        "exitCode": 0,
+        "elapsedSeconds": 353.07212710380554,
+        "logSha256": "2100863a24c67ae9e016dce9fc9a4606ad983441abbfcbde0edb29bb3821f3ff",
+        "testSummaries": [
+          [
+            92,
+            0,
+            0
+          ],
+          [
+            10,
+            0,
+            1
+          ],
+          [
+            4,
+            0,
+            0
+          ],
+          [
+            4,
+            0,
+            0
+          ],
+          [
+            3,
+            0,
+            0
+          ],
+          [
+            3,
+            0,
+            0
+          ],
+          [
+            8,
+            0,
+            0
+          ],
+          [
+            3,
+            0,
+            0
+          ],
+          [
+            2,
+            0,
+            0
+          ],
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            4,
+            0,
+            0
+          ],
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            5,
+            0,
+            1
+          ],
+          [
+            6,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        "validationError": null
+      },
+      "provenance": {
+        "source": "9b022723d8c069fff39f09870efe07db555de48f",
+        "root": "E:\\Dev\\aem\\.worktrees\\media-cpu-memory",
+        "target": "E:\\Dev\\aem\\target\\media-cpu-memory-9b022723",
+        "phase": "provenance",
+        "command": [
+          "C:\\Users\\nova\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+          "tools/validate_provenance.py"
+        ],
+        "startedUnix": 1792731562.4184933,
+        "environment": {
+          "CARGO_BUILD_JOBS": "1",
+          "CARGO_PROFILE_DEV_DEBUG": "0",
+          "CARGO_PROFILE_TEST_DEBUG": "0",
+          "CARGO_INCREMENTAL": "0",
+          "TEMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+          "TMP": "E:/Dev/aem/target/ci-policy-validation-tmp"
+        },
+        "exitCode": 0,
+        "elapsedSeconds": 0.40650391578674316,
+        "logSha256": "cbba6bc38365d8939dfb40599dcaf2f874c31eb08683bdeec8456bbc85e69ff3",
+        "testSummaries": [],
+        "validationError": null
+      },
+      "diff": {
+        "source": "9b022723d8c069fff39f09870efe07db555de48f",
+        "root": "E:\\Dev\\aem\\.worktrees\\media-cpu-memory",
+        "target": "E:\\Dev\\aem\\target\\media-cpu-memory-9b022723",
+        "phase": "diff",
+        "command": [
+          "git",
+          "diff",
+          "--check",
+          "origin/main",
+          "HEAD"
+        ],
+        "startedUnix": 1792731563.2453835,
+        "environment": {
+          "CARGO_BUILD_JOBS": "1",
+          "CARGO_PROFILE_DEV_DEBUG": "0",
+          "CARGO_PROFILE_TEST_DEBUG": "0",
+          "CARGO_INCREMENTAL": "0",
+          "TEMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+          "TMP": "E:/Dev/aem/target/ci-policy-validation-tmp"
+        },
+        "exitCode": 0,
+        "elapsedSeconds": 0.09282302856445312,
+        "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "testSummaries": [],
+        "validationError": null
+      }
+    },
+    "scope": "Complete media suite plus six actual CPU ownership regressions; Session integration remains pending",
+    "completeIssue60": false
+  },
+  "retainedImportFailure": {
+    "source": "1cf1f381c0ed0bca0912563aca5a489ec60cdde0",
+    "root": "E:\\Dev\\aem\\.worktrees\\media-memory-session-integration",
+    "target": "E:\\Dev\\aem\\target\\media-session-1cf1f381",
+    "phase": "suites",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--offline",
+      "-p",
+      "motion-media",
+      "-p",
+      "motion-host",
+      "-j1",
+      "--",
+      "--test-threads=1"
+    ],
+    "startedUnix": 1792731804.956913,
+    "environment": {
+      "CARGO_BUILD_JOBS": "1",
+      "CARGO_PROFILE_DEV_DEBUG": "0",
+      "CARGO_PROFILE_TEST_DEBUG": "0",
+      "CARGO_INCREMENTAL": "0",
+      "TEMP": "E:/Dev/aem/target/ci-policy-validation-tmp",
+      "TMP": "E:/Dev/aem/target/ci-policy-validation-tmp"
+    },
+    "exitCode": 101,
+    "elapsedSeconds": 352.99449396133423,
+    "logSha256": "fc74a3a9930c1285c712654796f49821f1b48b84ae34e6c9d651ed3e8d02e9f3",
+    "testSummaries": [],
+    "validationError": null
+  },
+  "archive": {
+    "path": "data/media-cpu-memory-8f6fe8be.zip",
+    "bytes": 32797,
+    "sha256": "bad733a0282d811aec3c1be66d08a2c5c17d897cad4b7abb795a1ca5682438ea",
+    "files": [
+      {
+        "path": "issue60-media-memory-v1-accepted.json",
+        "bytes": 4103,
+        "sha256": "44877de64d515231e18bb94ada89327ab228d1f2a8aa5efa90a1c1eda417ae05"
+      },
+      {
+        "path": "issue60-media-memory-v1-diff.exit.json",
+        "bytes": 808,
+        "sha256": "18df68a71f9a0508f698fa688c7154f45c5245be80b8a497f30025acd8270198"
+      },
+      {
+        "path": "issue60-media-memory-v1-diff.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "issue60-media-memory-v1-diff.started.json",
+        "bytes": 612,
+        "sha256": "e66a67f3e35ead76184de1617c5c8ba8e3472439b390546fde502bf9732c301c"
+      },
+      {
+        "path": "issue60-media-memory-v1-media.exit.json",
+        "bytes": 1541,
+        "sha256": "191abaae38776503d2b960abb385aec760aa33039243999ef6f2a4319129742d"
+      },
+      {
+        "path": "issue60-media-memory-v1-media.log",
+        "bytes": 25910,
+        "sha256": "2100863a24c67ae9e016dce9fc9a4606ad983441abbfcbde0edb29bb3821f3ff"
+      },
+      {
+        "path": "issue60-media-memory-v1-media.started.json",
+        "bytes": 681,
+        "sha256": "064eab89d9c797a9bc6ca88adb7b55ea7649369579af3ba40b06f86d682384be"
+      },
+      {
+        "path": "issue60-media-memory-v1-provenance.exit.json",
+        "bytes": 858,
+        "sha256": "53d774c7452a0bdc71e9e901a724d938ea5d775a30b1ed722092399d229582ac"
+      },
+      {
+        "path": "issue60-media-memory-v1-provenance.log",
+        "bytes": 46,
+        "sha256": "cbba6bc38365d8939dfb40599dcaf2f874c31eb08683bdeec8456bbc85e69ff3"
+      },
+      {
+        "path": "issue60-media-memory-v1-provenance.started.json",
+        "bytes": 662,
+        "sha256": "7bd1b3d4899770cd0281ab6e53f790d7611ce4dd16ab5662f199b907ce0e9082"
+      },
+      {
+        "path": "issue60-media-session-v1-suites.exit.json",
+        "bytes": 922,
+        "sha256": "61012bb06799d7a8d3fd122d33421b3214d152f4117d9e493354b2987b2eb5cf"
+      },
+      {
+        "path": "issue60-media-session-v1-suites.log",
+        "bytes": 9650,
+        "sha256": "fc74a3a9930c1285c712654796f49821f1b48b84ae34e6c9d651ed3e8d02e9f3"
+      },
+      {
+        "path": "issue60-media-session-v1-suites.started.json",
+        "bytes": 725,
+        "sha256": "f2483a69ccc3ea466ec11752d8105d6824b2ac92b7d0f38f6c437f69dbf63bb9"
+      },
+      {
+        "path": "issue60-media-session-v2-accepted.json",
+        "bytes": 5572,
+        "sha256": "56926af30917c783bc7b01ceec223a0e4c3e2a4513d48a476e232acd25ba6b04"
+      },
+      {
+        "path": "issue60-media-session-v2-diff.exit.json",
+        "bytes": 998,
+        "sha256": "d5e4a1d878af317f9eed63736615d08d0f526c3db88343abbdccd3daecfd9411"
+      },
+      {
+        "path": "issue60-media-session-v2-diff.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "issue60-media-session-v2-diff.started.json",
+        "bytes": 801,
+        "sha256": "a82850fc1bf1c8522ea1c2141fe0b90f89b60855fa8e1a037d3dd77745ff23f3"
+      },
+      {
+        "path": "issue60-media-session-v2-provenance.exit.json",
+        "bytes": 1018,
+        "sha256": "1d666fb5998350a5ffe4f5011f68f27f376fb8c46be418b4ed95d2c0fe802f01"
+      },
+      {
+        "path": "issue60-media-session-v2-provenance.log",
+        "bytes": 46,
+        "sha256": "7238b3016b0d40630fa7498b8baea16ce6215a615456c344ab28457f8109196a"
+      },
+      {
+        "path": "issue60-media-session-v2-provenance.started.json",
+        "bytes": 822,
+        "sha256": "0a54a33aa08df49ac88542060552f9cecdca84ab5bb798437bcc2012e0558291"
+      },
+      {
+        "path": "issue60-media-session-v2-suites.exit.json",
+        "bytes": 2351,
+        "sha256": "02c83b74dad448f4e481070ec4a2a5ec39736627bee3c151c51b9a448e31290b"
+      },
+      {
+        "path": "issue60-media-session-v2-suites.log",
+        "bytes": 34963,
+        "sha256": "18f7efc800b4b7e0726587356747a4633f8caefa0a478f18a56fe34ae4a08e5a"
+      },
+      {
+        "path": "issue60-media-session-v2-suites.started.json",
+        "bytes": 873,
+        "sha256": "54eaba681022e65a9fd1bab3244716da92ffc2706341901ef076480df57cf775"
+      }
+    ]
+  },
+  "delivery": {
+    "codeSource": "c1dc2f3977c0e5445af23b49679246447416d7d2",
+    "base": "c8504d15b91ba8118ddc5aba8e65e264b4d4df0d",
+    "originalNativeSuiteSource": "8f6fe8be071c54fdf76001b94d5f2e4094b3cece",
+    "observedChangedFilesUnchangedFromNativeSource": [
+      {
+        "path": "crates/motion-host/src/ops/snapshot.rs",
+        "sha256": "383b9d386c358b89832c2515386ee6b421f976265395e5c74fafd8e73f02e2a8"
+      },
+      {
+        "path": "crates/motion-host/tests/memory_policy/resource_memory.rs",
+        "sha256": "53773efc29b1711f2b2c3f3b5d46194095e74c069a5ee49090646dcd82df46ff"
+      },
+      {
+        "path": "crates/motion-media/src/fonts.rs",
+        "sha256": "a69a57f1b92e4ba650eaa400318749a46377477933687aedc502025f06808264"
+      },
+      {
+        "path": "crates/motion-media/src/fonts/memory.rs",
+        "sha256": "fd6e015663fc68f0d07f2f66639aae27516c16f6d38279011ebf756766c96279"
+      },
+      {
+        "path": "crates/motion-media/src/fonts/memory/tests.rs",
+        "sha256": "9b2dba4442d8be43d7ecf610a2cbf891a16b24dfef7815de90a7d76a538941d3"
+      },
+      {
+        "path": "crates/motion-media/src/lib.rs",
+        "sha256": "13c4b2659190490f5ecc196d07067dd30c682374313b071f0786942243c3ade6"
+      },
+      {
+        "path": "crates/motion-media/src/memory.rs",
+        "sha256": "68b935c34ca25479de6725f1775c4a908a5f4921e5630822ff787c7ae247071d"
+      },
+      {
+        "path": "crates/motion-media/src/mixer.rs",
+        "sha256": "cca27826fd0eb185b1179c6449b58ef5cd3b7989433cc2933083ac789e674fe2"
+      },
+      {
+        "path": "crates/motion-media/src/mixer/memory.rs",
+        "sha256": "fc8472e9b80845df7d4b452568198c56a9515081c0b8956a555b251fe8d20c93"
+      },
+      {
+        "path": "crates/motion-media/src/mixer/memory/tests.rs",
+        "sha256": "c31095e6db09990aed3d1630f4d061aea1c327cd9ded6e311a030ad0a5fde7d8"
+      },
+      {
+        "path": "engineering/host-api/media-cpu-memory.md",
+        "sha256": "b43372409d92cc2442ec9a7a7e3c5fad986ac6a1b75f52775d0e1e697d53a3f1"
+      },
+      {
+        "path": "engineering/host-api/session-resource-memory.md",
+        "sha256": "18b370d45be5bbeddfedb3c07882955f19d17f5163b8ac0b477e25fcd4324ddb"
+      }
+    ],
+    "mainHasOwnPR441Merged": true,
+    "currentHeadCI": "pending, required before merge",
+    "localNativeSuiteNotRepeatedAfterRebase": true,
+    "boundary": "279-pass native suite is attributed to8f; rebase carries identical instrumented files; final-head CI must verify the integrated main source"
+  }
+}
