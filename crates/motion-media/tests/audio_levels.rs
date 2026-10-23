@@ -41,9 +41,9 @@ fn channel_separation_keeps_pcm_sum_and_isolates_each_track_with_frozen_export()
 
 fn fixture(channels: u32) -> (tempfile::TempDir, Project) {
     let root = tempfile::tempdir().unwrap();
-    let cache=root.path().join(format!("cache/audio-v{}",motion_media::PCM_VERSION));
+    let cache=root.path().join(format!("cache/audio-v{}/tone",motion_media::PCM_VERSION));
     fs::create_dir_all(&cache).unwrap();
-    let mut file = fs::File::create(cache.join("tone.pcm")).unwrap();
+    let mut file = fs::File::create(cache.join("decoded.pcm")).unwrap();
     for _ in 0..144000 {
         for channel in 0..channels {
             file.write_all(&(if channel == 0 { 0.025f32 } else { -0.025f32 }).to_le_bytes())

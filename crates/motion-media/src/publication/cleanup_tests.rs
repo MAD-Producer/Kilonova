@@ -29,9 +29,12 @@ fn backup_cleanup_warnings_are_deferred_until_unlock_even_on_unwind() {
             .publish_cache_pair((&sources[0], &targets[0]), (&sources[1], &targets[1]))
             .unwrap();
         let path = cleanup.cache.as_ref().unwrap().directory.clone();
-        assert_eq!(fs::read(path.join("old-0")).unwrap(), b"old");
-        fs::remove_file(path.join("old-0")).unwrap();
-        fs::create_dir(path.join("old-0")).unwrap();
+        assert_eq!(fs::read(path.join("old-0/a")).unwrap(), b"old");
+        assert_eq!(fs::read(path.join("old-0/b")).unwrap(), b"old");
+        fs::remove_file(path.join("old-0/a")).unwrap();
+        fs::remove_file(path.join("old-0/b")).unwrap();
+        fs::remove_dir(path.join("old-0")).unwrap();
+        fs::write(path.join("old-0"), b"foreign file blocks directory cleanup").unwrap();
         recovery = Some(path);
         assert!(capture.matching("cleanup failed").is_empty());
         if mode == "unwind" {
@@ -46,7 +49,7 @@ fn backup_cleanup_warnings_are_deferred_until_unlock_even_on_unwind() {
     assert_eq!(warnings.len(), 2);
     assert!(warnings.iter().all(|(level, _)| *level == log::Level::Warn));
     let recovery = recovery.unwrap();
-    assert!(recovery.join("old-0").is_dir());
+    assert_eq!(fs::read(recovery.join("old-0")).unwrap(), b"foreign file blocks directory cleanup");
     assert!(!recovery.join("old-1").exists());
 }
 

@@ -3,6 +3,8 @@ use motion_core::{Engine, Project, VideoAsset};
 use motion_media::{AudioJobs, ImportOptions, Limits, VideoImportOptions, VideoJobs, VideoProbe};
 use std::{path::Path, sync::Arc, time::Instant};
 
+mod cache_directory_tests;
+
 fn fixture(relative: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../crates/motion-media/tests/fixtures")

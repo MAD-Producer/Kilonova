@@ -166,6 +166,7 @@ fn retiring_native_calls_keep_their_slots_without_blocking_or_spawning_more_deco
     replacement.path = "assets/replacement.mp4".into();
     std::fs::write(dir.path().join(&replacement.path), b"123").unwrap();
     let index = motion_media::video_cache_path(dir.path(), &replacement).unwrap();
+    std::fs::create_dir_all(index.parent().unwrap()).unwrap();
     motion_media::save_index(&index, &replacement, &[0]).unwrap();
     changed.video_assets.push(replacement);
     let Content::Video { video } = &mut changed.layers[0].content else {

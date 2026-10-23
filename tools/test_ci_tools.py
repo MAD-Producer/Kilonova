@@ -214,10 +214,10 @@ class OptimizedValidatorTest(unittest.TestCase):
                     if args[0]=='fixture-ffmpeg':
                         kwargs['stdout'].write(array.array('f',[0.0,0.0]).tobytes())
                         return types.SimpleNamespace(returncode=0)
-                    project=Path(args[-1]); cache=project/'cache/audio-v1'
+                    project=Path(args[-1]); cache=project/'cache/audio-v3/source'
                     cache.mkdir(parents=True)
-                    (cache/'source.pcm').write_bytes(array.array('f',[1.0,1.0]).tobytes())
-                    return types.SimpleNamespace(stdout=json.dumps({'metadata':{'path':'assets/source.wav','channels':1,'duration_us':2000000},'elapsed_ms':0}))
+                    (cache/'decoded.pcm').write_bytes(array.array('f',[1.0,1.0]).tobytes())
+                    return types.SimpleNamespace(stdout=json.dumps({'metadata':{'path':'assets/source.wav','channels':1,'duration_us':2000000},'elapsed_ms':0,'pcm_path':'cache/audio-v3/source/decoded.pcm'}))
                 validator.subprocess.run = run
                 sys.argv=['validate_audio.py','--probe','unused','--output',str(validator.ROOT/'evidence')]
                 validator.main()

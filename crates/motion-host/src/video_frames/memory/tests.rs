@@ -31,6 +31,7 @@ fn add_stream(frames: &mut VideoFrames, object: u64, frame: Arc<DecodedFrame>) {
         object,
         Stream {
             object,
+            path: PathBuf::from(&asset.path),
             asset,
             pts: Arc::new(vec![0]),
             worker: None,

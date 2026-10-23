@@ -15,6 +15,8 @@ use std::{
 };
 const MAX_DECODER_WORKERS: usize = 4;
 mod memory;
+mod retirement;
+use retirement::RetiredStream;
 mod shutdown;
 static PREFETCH_FAILURES: motion_render::observability::FailureCounter =
     motion_render::observability::FailureCounter::new();
@@ -69,6 +71,7 @@ impl State {
 struct Stream {
     object: u64,
     asset: VideoAsset,
+    path: PathBuf,
     pts: Arc<Vec<u64>>,
     shared: Arc<(Mutex<State>, Condvar)>,
     worker: Option<JoinHandle<()>>,
@@ -127,6 +130,7 @@ impl Stream {
         let times = pts.clone();
         let media = asset.clone();
         let backend = platform.clone();
+        let path = root.join(&asset.path);
         let worker = std::thread::Builder::new()
             .name("motion-video-frames".into())
             .spawn(move || {
@@ -278,7 +282,7 @@ impl Stream {
                 }
             })
             .map_err(|e| e.to_string())?;
-        Ok(Self { object, asset, pts, shared, worker: Some(worker) })
+        Ok(Self { object, asset, path, pts, shared, worker: Some(worker) })
     }
     fn key(&self, time: u64) -> Result<(u64, usize)> {
         if time < self.asset.video_start_us || time >= self.asset.video_end_us {
@@ -401,9 +405,10 @@ impl Stream {
         self.shared.1.notify_one();
         if poisoned { Err("video frame state poisoned while stopping decoder".into()) } else { Ok(()) }
     }
-    fn retire(mut self) -> (Option<JoinHandle<()>>, Result<()>) {
+    fn retire(mut self) -> (Option<RetiredStream>, Result<()>) {
         let stopped = self.stop();
-        (self.worker.take(), stopped)
+        let worker = self.worker.take().map(|worker| RetiredStream::new(worker, &self));
+        (worker, stopped)
     }
 }
 impl Drop for Stream {
@@ -444,7 +449,7 @@ pub struct VideoFrames {
     sequences: HashMap<u64, (u64, f64, u64)>,
     counter: u64,
     platform: Option<Arc<dyn crate::platform::Platform>>,
-    retiring: Vec<JoinHandle<()>>,
+    retiring: Vec<RetiredStream>,
     retirement_error: Option<String>,
     pending_retirement_error: Option<String>,
     // Exposure visits one local composition at a time. Keep at most the same
@@ -462,9 +467,9 @@ impl Drop for VideoFrames {
             if let Err(error) = stopped {
                 log::error!("video stream cleanup object={object} source={source} phase=stop: {error}");
             }
-            if let Some(worker) = worker { shutdown.push(worker, Some(object), Some(source)); }
+            if let Some(worker) = worker { shutdown.push(worker.worker, Some(object), Some(source)); }
         }
-        for worker in self.retiring.drain(..) { shutdown.push(worker, None, None); }
+        for worker in self.retiring.drain(..) { shutdown.push(worker.worker, Some(worker.object), Some(worker.source)); }
         shutdown.finish();
     }
 }
@@ -647,13 +652,16 @@ impl VideoFrames {
             self.retire(object);
         }
         if !self.streams.contains_key(&object) {
+            let path = root.join(&asset.path);
+            if let Some(worker) = self.retiring.iter().find(|worker| worker.blocks(&path, asset)) {
+                return Ok(worker.pending(asset, object, generation));
+            }
             if self.streams.len() >= MAX_DECODER_WORKERS {
                 return Err("at most four video instances per reader; release idle frames".into());
             }
             if self.streams.len() + self.retiring.len() >= MAX_DECODER_WORKERS {
                 // A pending state is explicit, retryable scheduling backpressure.
-                return Ok(json!({"state":"pending","reason":"decoder_retirement", "sequence":generation,
-                    "object":object,"width":asset.display_width,"height":asset.display_height}));
+                return Ok(self.retiring[0].pending(asset, object, generation));
             }
             self.streams.insert(
                 object,
@@ -837,6 +845,7 @@ impl VideoFrames {
             "holdMaxCacheBudgetBytes":MAX_DECODER_WORKERS * crate::video_cache::MAX_CACHE_BYTES,
             "cacheHits":hits,"cacheMisses":misses,"decodedFrames":decoded,"cancelledFrames":cancelled,"decoderSeeks":seeks,"prefetchFailures":prefetch_failures,"lookaheadFrames":LOOKAHEAD,"streams":self.streams.len(),"decodeInFlight":in_flight,"decodeWorkersStopped":stopped_workers,
             "retiringStreams":self.retiring.iter().filter(|worker| !worker.is_finished()).count(),
+            "retiringWorkers":self.retiring.iter().map(RetiredStream::status).collect::<Vec<_>>(),
             "maxDecoderWorkers":MAX_DECODER_WORKERS,"retirementError":self.retirement_error})
     }
 }
@@ -862,6 +871,7 @@ mod generation_failure_tests {
             worker: None,
             object:7,
             asset:asset.clone(),
+            path: PathBuf::from(&asset.path),
             pts:Arc::new(vec![0,33333]),
             shared:Arc::new((Mutex::new(State {
                 desired:Some(Request {time:0,next:None,source_time:0,index:0,sequence:10}),
@@ -995,7 +1005,8 @@ mod generation_failure_tests {
             assert!(Instant::now() < deadline);
             std::thread::yield_now();
         }
-        frames.retiring.push(worker);
+        let stream = self::frames(&asset()).streams.remove(&7).unwrap();
+        frames.retiring.push(RetiredStream::new(worker, &stream));
         let error = frames.reap_retired().unwrap_err();
         assert!(error.to_string().contains("injected retirement cause"), "{error}");
         assert_eq!(frames.metrics()["retirementError"], error.to_string());

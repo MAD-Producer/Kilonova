@@ -599,14 +599,11 @@ impl AudioJobs {
             let cache = cache_path(&self.root, &prepared.asset)?;
             contained_dir(&self.root, cache.parent().unwrap())?;
             fs::rename(prepared.stage.path.join("source"), &source).map_err(crate::Error::from)?;
-            if let Err(error) = fs::rename(prepared.stage.path.join("decoded.pcm"), &cache) {
-                return Err(publication.rollback_files(error, &[&source]));
-            }
-            if let Err(error) = fs::rename(
-                prepared.stage.path.join("decoded.wave"),
-                cache.with_extension("wave"),
+            if let Err(error) = publication.publish_cache_pair(
+                (&prepared.stage.path.join("decoded.pcm"), &cache),
+                (&prepared.stage.path.join("decoded.wave"), &cache.with_extension("wave")),
             ) {
-                return Err(publication.rollback_files(error, &[&source, &cache]));
+                return Err(publication.rollback_files(error, &[&source]));
             }
             let commands = vec![
                 Command::RegisterAudioAsset {
@@ -615,7 +612,8 @@ impl AudioJobs {
                 Command::Add { layer },
             ];
             if let Err(error) = engine.apply_batch_saved(commands, &self.root) {
-                return Err(publication.rollback_files(error, &[&source, &cache, &cache.with_extension("wave")]));
+                let error = publication.rollback_published_cache(error);
+                return Err(publication.rollback_files(error, &[&source]));
             }
             Ok(
                 json!({"op":"import_media", "kind":"audio", "asset":asset_id,"object":object,"in_frame":in_frame,"out_frame":out_frame,

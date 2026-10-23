@@ -89,7 +89,6 @@ fn portable_formats_preserve_native_rates_samples_waveforms_and_rebuilds() {
 #[test]
 fn downsampling_filters_ultrasonic_aliases_and_is_independent_of_block_boundaries() {
     let root = tempfile::tempdir().unwrap();
-    fs::create_dir_all(root.path().join(format!("cache/audio-v{}",motion_media::PCM_VERSION))).unwrap();
     let rate = 192000;
     let n = rate as u64;
     let a = AudioAsset {
@@ -103,7 +102,9 @@ fn downsampling_filters_ultrasonic_aliases_and_is_independent_of_block_boundarie
         sample_frames: n,
         duration_us: 1_000_000,
     };
-    let mut f = File::create(motion_media::cache_path(root.path(), &a).unwrap()).unwrap();
+    let cache = motion_media::cache_path(root.path(), &a).unwrap();
+    fs::create_dir_all(cache.parent().unwrap()).unwrap();
+    let mut f = File::create(cache).unwrap();
     for i in 0..n {
         let x = (2.0 * std::f64::consts::PI * 32000.0 * i as f64 / f64::from(rate)).sin() as f32;
         f.write_all(&x.to_le_bytes()).unwrap();

@@ -27,7 +27,7 @@ def main():
         run = subprocess.run([str(args.probe.resolve()), str(source), str(project)], check=True, capture_output=True, text=True, encoding="utf-8")
         task = json.loads(run.stdout)
         metadata = task["metadata"]
-        pcm = project / "cache/audio-v1" / (Path(metadata["path"]).stem + ".pcm")
+        pcm = project / task["pcm_path"]
         reference = args.output / (source.name + ".ffmpeg.f32le")
         with reference.open("wb") as output:
             subprocess.run([ffmpeg, "-hide_banner", "-loglevel", "error", "-i", str(source), "-map", "0:a:0", "-f", "f32le", "-c:a", "pcm_f32le", "-"], stdout=output, check=True)

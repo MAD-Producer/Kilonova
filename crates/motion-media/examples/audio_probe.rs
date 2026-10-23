@@ -51,6 +51,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if report["state"] != "succeeded" {
         return Err(report.to_string().into());
     }
+    let asset = engine.snapshot().audio_assets.into_iter().next()
+        .ok_or("committed audio asset missing")?;
+    let pcm = motion_media::cache_path(&root, &asset)?;
+    report["pcm_path"] = serde_json::json!(pcm.strip_prefix(&root)?);
     println!("{}", serde_json::to_string_pretty(&report)?);
     Ok(())
 }
