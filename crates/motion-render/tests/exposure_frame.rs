@@ -9,6 +9,9 @@ use motion_render::{
 };
 use std::{borrow::Cow, cell::RefCell, rc::Rc, sync::Arc, time::Duration};
 
+#[path = "exposure_frame/native_causes.rs"]
+mod native_causes;
+
 #[derive(Clone, Default)]
 struct Recorded {
     frames: Rc<RefCell<Vec<f64>>>,
