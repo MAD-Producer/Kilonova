@@ -2,7 +2,7 @@ use motion_core::{CameraMode, Command, Engine, Observer, Project, Property};
 use motion_render::Scene;
 #[test]
 fn static_mode_conversion_does_not_create_a_dense_keyframe_track() {
-    let mut e = Engine::new(Project::demo()).unwrap();
+    let mut e = Engine::new(Project::demo().unwrap()).unwrap();
     let initial = e.project().camera.position_at(0.0).unwrap();
     e.apply(Command::CameraMode {
         object: 0,
@@ -43,7 +43,7 @@ fn static_mode_conversion_does_not_create_a_dense_keyframe_track() {
 }
 #[test]
 fn observation_zoom_changes_view_without_changing_the_project() {
-    let p = Project::demo();
+    let p = Project::demo().unwrap();
     let engine = Engine::new(p.clone()).unwrap();
     let mut observer = Observer::new(p.width, p.height);
     let mut scene = Scene::new(&p).unwrap();

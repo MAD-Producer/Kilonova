@@ -124,7 +124,7 @@ fn elastic_overshoot_is_retained_and_invalid_definitions_are_rejected_atomically
 
 #[test]
 fn pasting_between_vector_scalar_and_camera_preserves_target_values_times_and_undo() {
-    let mut e = Engine::new(Project::demo()).unwrap();
+    let mut e = Engine::new(Project::demo().unwrap()).unwrap();
     for (object, property) in [
         (2, Property::Position),
         (3, Property::Opacity),

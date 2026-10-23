@@ -5,7 +5,7 @@ fn loading_a_missing_asset_names_it_and_does_not_overwrite_the_project() {
     std::fs::create_dir(root.path().join("assets")).unwrap();
     let asset = root.path().join("assets/alpha.png");
     std::fs::write(&asset, b"test-owned asset").unwrap();
-    let mut p = Project::demo();
+    let mut p = Project::demo().unwrap();
     p.assets.push(Asset {
         id: 1,
         path: "assets/alpha.png".into(),

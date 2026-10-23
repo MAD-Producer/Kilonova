@@ -27,14 +27,14 @@ fn cameras_are_created_explicitly_and_missing_creation_state_is_rejected() {
     assert!(!e.project().camera.created);
     e.redo().unwrap();
     assert_eq!(e.project().layers.len(), 1);
-    let mut legacy = serde_json::to_value(Project::demo()).unwrap();
+    let mut legacy = serde_json::to_value(Project::demo().unwrap()).unwrap();
     legacy["camera"].as_object_mut().unwrap().remove("created");
     assert!(serde_json::from_value::<Project>(legacy).unwrap_err().to_string().contains("created"));
 }
 
 #[test]
 fn deleting_a_parent_preserves_children_and_roundtrips_the_binding() {
-    let mut e = Engine::new(Project::demo()).unwrap();
+    let mut e = Engine::new(Project::demo().unwrap()).unwrap();
     for child in [0, 2] {
         e.apply(Command::Parent { object: child, parent: Some(1), frame: 21 }).unwrap();
     }
@@ -55,7 +55,7 @@ fn deleting_a_parent_preserves_children_and_roundtrips_the_binding() {
 }
 #[test]
 fn every_entity_type_can_parent_other_entities_without_rewriting_animation() {
-    let mut p = Project::demo();
+    let mut p = Project::demo().unwrap();
     let mut null = Layer::solid(4, "空对象", [100.0; 2], [500.0, 900.0, 0.0], [0.0; 4]);
     null.content = Content::Null;
     p.layers.push(null);
@@ -121,7 +121,7 @@ fn every_entity_type_can_parent_other_entities_without_rewriting_animation() {
 }
 #[test]
 fn camera_parenting_and_cycles_are_atomic() {
-    let mut e = Engine::new(Project::demo()).unwrap();
+    let mut e = Engine::new(Project::demo().unwrap()).unwrap();
     e.apply(Command::Parent {
         object: 2,
         parent: Some(0),

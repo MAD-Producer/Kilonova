@@ -21,7 +21,7 @@ fn set(frame: u32, value: [f32; 3]) -> Command {
 
 #[test]
 fn a1_motion_easing_holds_and_unwrapped_rotation() {
-    let mut p = Project::demo();
+    let mut p = Project::demo().unwrap();
     let layer = &mut p.layers[1];
     layer
         .transform
@@ -73,7 +73,7 @@ fn a1_motion_easing_holds_and_unwrapped_rotation() {
 
 #[test]
 fn a2_key_collision_rejects_batch_and_preserves_redo() {
-    let mut engine = Engine::new(Project::demo()).unwrap();
+    let mut engine = Engine::new(Project::demo().unwrap()).unwrap();
     engine
         .apply(Command::Animate {
             axis: None,
@@ -143,7 +143,7 @@ fn first_key_at_nonzero_time_holds_before_it_and_disabling_keeps_sample() {
 
 #[test]
 fn edit_batches_are_atomic_and_gestures_have_one_history_entry() {
-    let mut e = Engine::new(Project::demo()).unwrap();
+    let mut e = Engine::new(Project::demo().unwrap()).unwrap();
     let original = e.snapshot();
     assert!(e
         .apply_batch(vec![
@@ -178,7 +178,7 @@ fn edit_batches_are_atomic_and_gestures_have_one_history_entry() {
 
 #[test]
 fn a3_dolly_changes_near_scale_more_without_moving_layers_or_changing_fov() {
-    let mut e = Engine::new(Project::demo()).unwrap();
+    let mut e = Engine::new(Project::demo().unwrap()).unwrap();
     let before = e.snapshot();
     let mut scene = Scene::new(&before).unwrap();
     scene.sample(&before, 0.0, None, &motion_core::ExpressionEvaluator).unwrap();
@@ -203,7 +203,7 @@ fn a3_dolly_changes_near_scale_more_without_moving_layers_or_changing_fov() {
 
 #[test]
 fn a4_pan_keeps_direction_and_produces_depth_dependent_parallax() {
-    let mut e = Engine::new(Project::demo()).unwrap();
+    let mut e = Engine::new(Project::demo().unwrap()).unwrap();
     let original = e.snapshot();
     let mut scene = Scene::new(&original).unwrap();
     scene.sample(&original, 0.0, None, &motion_core::ExpressionEvaluator).unwrap();
@@ -230,7 +230,7 @@ fn a4_pan_keeps_direction_and_produces_depth_dependent_parallax() {
 
 #[test]
 fn a5_orbit_samples_an_arc_with_constant_radius_and_valid_target_orientation() {
-    let mut p = Project::demo();
+    let mut p = Project::demo().unwrap();
     p.camera.mode = CameraMode::Orbit;
     p.camera.radius.value = 2000.0;
     p.camera.azimuth.upsert(0, 0.0, Ease::Linear).unwrap();
@@ -254,7 +254,7 @@ fn a5_orbit_samples_an_arc_with_constant_radius_and_valid_target_orientation() {
 
 #[test]
 fn camera_mode_conversion_preserves_integer_frame_poses() {
-    let mut p = Project::demo();
+    let mut p = Project::demo().unwrap();
     p.camera
         .position
         .upsert(0, [540.0, 960.0, -2300.0], Ease::Linear)
@@ -284,7 +284,7 @@ fn camera_mode_conversion_preserves_integer_frame_poses() {
 
 #[test]
 fn a6_observing_a_scene_does_not_modify_project_or_history() {
-    let e = Engine::new(Project::demo()).unwrap();
+    let e = Engine::new(Project::demo().unwrap()).unwrap();
     let original = e.snapshot();
     let revision = e.revision();
     let mut observer = Observer::new(original.width, original.height);
@@ -303,7 +303,7 @@ fn a6_observing_a_scene_does_not_modify_project_or_history() {
 
 #[test]
 fn anchor_compensation_preserves_rendered_geometry_through_animation() {
-    let mut p = Project::demo();
+    let mut p = Project::demo().unwrap();
     p.layers[1]
         .transform
         .rotation
@@ -381,7 +381,7 @@ fn a8_project_package_roundtrip_keeps_assets_and_text_metadata() {
     std::fs::create_dir_all(root.join("assets")).unwrap();
     // Storage verifies ownership and exact bytes; image decoding is a renderer test.
     std::fs::write(root.join("assets/text.png"), b"raster-resource-test").unwrap();
-    let mut p = Project::demo();
+    let mut p = Project::demo().unwrap();
     p.assets.push(motion_core::Asset {
         id: 1,
         path: "assets/text.png".into(),
@@ -414,7 +414,7 @@ fn a8_project_package_roundtrip_keeps_assets_and_text_metadata() {
 
 #[test]
 fn invalid_edits_and_bad_import_metadata_are_rejected_without_mutation() {
-    let mut e = Engine::new(Project::demo()).unwrap();
+    let mut e = Engine::new(Project::demo().unwrap()).unwrap();
     let p = e.snapshot();
     assert!(e.apply(set(180, [0.0; 3])).is_err());
     assert!(e.apply(set(0, [f32::NAN, 0.0, 0.0])).is_err());
@@ -443,7 +443,7 @@ fn invalid_edits_and_bad_import_metadata_are_rejected_without_mutation() {
 
 #[test]
 fn frozen_export_has_180_strictly_ordered_timestamps_and_is_edit_independent() {
-    let mut e = Engine::new(Project::demo()).unwrap();
+    let mut e = Engine::new(Project::demo().unwrap()).unwrap();
     let frozen = e.snapshot();
     e.apply(set(0, [100.0, 100.0, 100.0])).unwrap();
     let pts: Vec<_> = (0..frozen.frames)
@@ -462,7 +462,7 @@ fn frozen_export_has_180_strictly_ordered_timestamps_and_is_edit_independent() {
 
 #[test]
 fn degenerate_camera_target_and_vertical_view_remain_finite() {
-    let mut p = Project::demo();
+    let mut p = Project::demo().unwrap();
     p.camera.position.value = p.camera.target.value;
     assert!(p
         .camera

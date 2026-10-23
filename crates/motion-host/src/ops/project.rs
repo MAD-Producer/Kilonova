@@ -112,7 +112,7 @@ pub fn template(kind: i32) -> Result<Value> {
     if kind != 0 {
         return Err("unknown project template".into());
     }
-    serde_json::to_value(Project::demo()).map_err(crate::Error::from)
+    serde_json::to_value(Project::demo()?).map_err(crate::Error::from)
 }
 
 pub fn state(id: i64) -> Result<Value> {

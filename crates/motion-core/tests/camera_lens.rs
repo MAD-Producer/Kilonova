@@ -179,7 +179,7 @@ fn lens_edit_uses_local_clip_time_and_legacy_camera_and_matches_render_projectio
         .sample(&reference, 60., None, &motion_core::ExpressionEvaluator)
         .unwrap();
     assert_eq!(matrix, reference_scene.camera.view_projection);
-    let mut legacy = Engine::new(Project::demo()).unwrap();
+    let mut legacy = Engine::new(Project::demo().unwrap()).unwrap();
     legacy.apply(edit(0, 0, 24., 50.)).unwrap();
     assert_eq!(legacy.project().camera.film_width_mm, 24.);
     assert_eq!(legacy.project().version, motion_model::CURRENT_PROJECT_VERSION);

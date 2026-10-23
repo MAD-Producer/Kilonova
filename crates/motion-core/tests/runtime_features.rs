@@ -2,7 +2,7 @@ use motion_core::{Asset, Command, Content, Ease, Engine, ObservationView, Observ
 use motion_render::Scene;
 #[test]
 fn copied_keys_preserve_values_and_easing_and_are_undoable() {
-    let mut e = Engine::new(Project::demo()).unwrap();
+    let mut e = Engine::new(Project::demo().unwrap()).unwrap();
     e.apply(Command::Animate {
         axis: None,
         object: 2,
@@ -37,7 +37,7 @@ fn copied_keys_preserve_values_and_easing_and_are_undoable() {
 }
 #[test]
 fn orthographic_observation_views_stay_independent_and_finite() {
-    let p = Project::demo();
+    let p = Project::demo().unwrap();
     let e = Engine::new(p.clone()).unwrap();
     let mut observer = Observer::new(p.width, p.height);
     let mut scene = Scene::new(&p).unwrap();
@@ -60,7 +60,7 @@ fn orthographic_observation_views_stay_independent_and_finite() {
 }
 #[test]
 fn asset_and_content_changes_are_atomic_and_undo_restores_references() {
-    let mut e = Engine::new(Project::demo()).unwrap();
+    let mut e = Engine::new(Project::demo().unwrap()).unwrap();
     let old = e.snapshot();
     let asset = Asset {
         id: 12,

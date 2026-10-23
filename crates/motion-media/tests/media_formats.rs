@@ -7,7 +7,7 @@ use std::{
 };
 
 fn project() -> Project {
-    let mut p = Project::demo();
+    let mut p = Project::demo().unwrap();
     p.layers.clear();
     p.frames = 180;
     p

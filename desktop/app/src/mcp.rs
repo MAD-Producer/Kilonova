@@ -117,7 +117,7 @@ fn tool(name: &str, description: &str, input_schema: Value, read_only: bool) -> 
         "annotations":{"readOnlyHint":read_only,"destructiveHint":false,"openWorldHint":false}})
 }
 pub fn tools() -> Value {
-    let command_schema = json!({"oneOf":motion_core::CommandRegistry::catalogue()["commands"].as_array().unwrap().iter().map(|d|d["inputSchema"].clone()).collect::<Vec<_>>()});
+    let command_schema = json!({"oneOf":motion_core::CommandRegistry::input_schemas()});
     json!({"tools":[
         tool("motion_state","Get the current project, revision, sampled transforms and timeline. The stdio host is headless.",schema(json!({}),&[]),true),
         tool("motion_edit","Apply an atomic batch of Motion Studio core commands with one undo step. Fetch state first and provide its revision. Use position/rotation/scale, set_vector/set_scalar/set_component, animate, curve, add, add_shape, duplicate, delete, flags, parent, move_layer_clip or trim_layer_clip. All commands use the shared core JSON API.",schema(json!({
