@@ -415,12 +415,17 @@ impl PlanBuilder {
     /// Explicit package-owned CPU capacity. Shared registry/program references
     /// count once; independent program shader copies are outside this scope.
     pub fn package_memory_info(&self) -> motion_effects::memory::PackageMemoryInfo {
+        motion_effects::memory::package_memory(self.package_memory_owners())
+    }
+
+    /// Borrowed allocation owners for one combined query across renderers.
+    pub fn package_memory_owners(&self) -> impl Iterator<Item = (
+        motion_effects::memory::PackageOwner, &Arc<EffectPackage>,
+    )> {
         use motion_effects::memory::PackageOwner;
-        motion_effects::memory::package_memory(
-            self.registry.packages.values().map(|p| (PackageOwner::Registry, p))
-                .chain(self.programs.iter().filter_map(|p| p.package.as_ref())
-                    .map(|p| (PackageOwner::PlanProgram, p))),
-        )
+        self.registry.packages.values().map(|p| (PackageOwner::Registry, p))
+            .chain(self.programs.iter().filter_map(|p| p.package.as_ref())
+                .map(|p| (PackageOwner::PlanProgram, p)))
     }
 }
 

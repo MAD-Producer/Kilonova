@@ -743,6 +743,12 @@ impl Renderer {
         if let Some(gpu) = &self.video_gpu { gpu.collect_textures(&mut ledger); }
         ledger
     }
+    /// Borrowed CPU package owners; no readback or GPU allocation.
+    pub fn package_memory_owners(&self) -> impl Iterator<Item = (
+        motion_effects::memory::PackageOwner, &std::sync::Arc<motion_effects::EffectPackage>,
+    )> {
+        self.effect_gpu.builder.package_memory_owners()
+    }
     pub fn texture_memory_breakdown(&self) -> crate::TextureMemoryBreakdown {
         let mut memory = crate::TextureMemoryBreakdown {
             video_planes: self.video_plane_bytes(),
