@@ -34,7 +34,8 @@ impl Buffer {
                 queue.write_buffer(buffer, 0, data);
                 Ok(())
             }
-            Self::Admitted { buffer, .. } => buffer.write(data),
+            Self::Admitted { buffer, .. } => buffer.write(data)
+                .map_err(|failure| failure.with_operation("buffer upload")),
         }
     }
     pub fn growth(
@@ -59,7 +60,8 @@ impl Buffer {
         Ok(Some(match self {
             Self::Raw(_) => Self::Raw(device.create_buffer(&descriptor)),
             Self::Admitted { context, .. } => Self::Admitted {
-                buffer: context.buffer(&descriptor)?,
+                buffer: context.buffer(&descriptor)
+                    .map_err(|failure| failure.with_operation(label))?,
                 context: context.clone(),
             },
         }))
@@ -90,7 +92,8 @@ impl Texture {
         Ok(match context {
             None => Self::Raw(device.create_texture(descriptor)),
             Some(context) => Self::Admitted {
-                texture: context.texture(descriptor)?,
+                texture: context.texture(descriptor)
+                    .map_err(|failure| failure.with_operation("glyph atlas"))?,
             },
         })
     }
@@ -126,7 +129,8 @@ impl Texture {
                 );
                 Ok(())
             }
-            Self::Admitted { texture } => texture.write(pixels, layout, size),
+            Self::Admitted { texture } => texture.write(pixels, layout, size)
+                .map_err(|failure| failure.with_operation("glyph atlas upload")),
         }
     }
 }
@@ -181,13 +185,15 @@ impl Buffers {
         let bytes = bytemuck::bytes_of(&[0.0f32, 0.0, 1.0, 1.0]);
         let uniform = |label| -> Result<Buffer, PaintError> {
             Ok(Buffer::Admitted {
-                buffer: context.buffer_init(&Self::uniform(label, bytes))?,
+                buffer: context.buffer_init(&Self::uniform(label, bytes))
+                    .map_err(|failure| failure.with_operation(label))?,
                 context: context.clone(),
             })
         };
         let vertices = |label| -> Result<Buffer, PaintError> {
             Ok(Buffer::Admitted {
-                buffer: context.buffer(&Self::vertices(label, wgpu::COPY_BUFFER_ALIGNMENT))?,
+                buffer: context.buffer(&Self::vertices(label, wgpu::COPY_BUFFER_ALIGNMENT))
+                    .map_err(|failure| failure.with_operation(label))?,
                 context: context.clone(),
             })
         };

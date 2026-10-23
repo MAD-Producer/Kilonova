@@ -32,6 +32,16 @@ this architectural requirement.
 
 ## Acceptance still required
 
+The next Ubuntu desktop run (`39875942298`, job `120161445106`) exposed a
+separate diagnostic regression: the generic host error operation hid the
+toolkit's `glyph vertices` context. The unchanged default-channel assertion
+failed with `file missing UI glyph vertices` (763 passed, 1 failed, 1 existing
+ignored). Toolkit allocation boundaries now attach their known UI operation
+while preserving the exact native error source and capacity refusal. Startup
+and growth regressions additionally assert those operation names. The existing
+file/stderr/stdout assertions remain unchanged. This correction still requires
+its own actual native/default-channel and complete-source acceptance.
+
 Run the unchanged model dependency-boundary test, native toolkit admission tests,
 desktop default-output failure tests, full crate suites, configured package
 limits, default and FFmpeg export paths, Release build, actual GUI/MCP acceptance,

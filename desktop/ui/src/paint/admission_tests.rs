@@ -113,6 +113,8 @@ fn startup_refusal_is_atomic_and_actual_ui_allocations_have_disjoint_categories(
     let error = admitted(&context, wgpu::TextureFormat::Rgba8UnormSrgb)
         .err()
         .unwrap();
+    assert_eq!(error.kind, "glyph vertices");
+    assert!(error.to_string().contains("UI glyph vertices"));
     assert_eq!(
         error.resource_rejection(),
         Some(&motion_render::ResourceRejection::Budget {
@@ -248,6 +250,7 @@ fn refused_atlas_and_two_buffer_growth_preserve_old_pixels_then_recover() {
         .set_limit(before.admitted_bytes + solid_growth + glyph_growth - 1)
         .unwrap();
     let error = encode(&renderer, &mut painter, &list(100), &target).unwrap_err();
+    assert_eq!(error.kind, "UI glyph vertices");
     assert_eq!(
         error.resource_rejection(),
         Some(&motion_render::ResourceRejection::Budget {

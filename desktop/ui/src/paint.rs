@@ -536,6 +536,12 @@ impl PaintError {
     pub fn capacity_refusal(&self) -> Option<allocation::CapacityRefusal> {
         self.capacity_refusal
     }
+    /// The toolkit supplies the UI operation; the host's original source and
+    /// typed capacity refusal remain intact.
+    fn with_operation(mut self, kind: &'static str) -> Self {
+        self.kind = kind;
+        self
+    }
 }
 impl std::fmt::Display for PaintError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -970,7 +976,8 @@ impl Painter {
     pub fn retry_atlas(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) -> Result<(), PaintError> {
         let Some(pending) = &self.pending_atlas else { return Ok(()); };
         let Some(context) = &self.admission else { return Err(pending.failure.clone()); };
-        let available = context.available_bytes()?;
+        let available = context.available_bytes()
+            .map_err(|failure| failure.with_operation("glyph atlas admission"))?;
         let required = u64::from(pending.width) * u64::from(pending.height) * 4;
         if required > available { return Err(pending.failure.clone()); }
         if let Some(pending) = self.pending_atlas.take() {
