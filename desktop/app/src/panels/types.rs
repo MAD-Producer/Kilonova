@@ -369,6 +369,7 @@ pub(crate) struct ScrubState {
     pub begun: bool,
 }
 
+#[derive(Clone, Copy)]
 pub struct Frame {
     pub panel: dock::Panel,
     pub tabs: Rect,

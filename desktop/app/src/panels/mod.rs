@@ -27,6 +27,9 @@ macro_rules! observe {
 }
 
 mod align;
+mod frame_cache;
+#[cfg(test)]
+mod frame_cache_tests;
 pub(crate) mod animation_controls;
 mod animation_data;
 mod audio;
@@ -110,7 +113,30 @@ use types::{Field, ScrubState};
 pub const CHROME_HEIGHT: f32 = metrics::TITLE_BAR + metrics::MENU_BAR + metrics::TOOL_BAR;
 const GUTTER: f32 = 640.0;
 
+thread_local! {
+    static FRAME_CACHE: std::cell::RefCell<frame_cache::Cache<Frame>> =
+        const { std::cell::RefCell::new(frame_cache::Cache::new()) };
+}
+
 pub fn frames(layout: &Node, size: [f32; 2]) -> Vec<Frame> {
+    if let Some(hit) = FRAME_CACHE
+        .try_with(|slot| slot.try_borrow().ok().and_then(|cache| cache.get(layout, size)))
+        .ok()
+        .flatten()
+    {
+        return hit;
+    }
+    let result = calculate_frames(layout, size);
+    // Unavailable slots and oversized/nonfinite keys keep the uncached result.
+    let _ = FRAME_CACHE.try_with(|slot| {
+        if let Ok(mut cache) = slot.try_borrow_mut() {
+            cache.store(layout, size, &result);
+        }
+    });
+    result
+}
+
+fn calculate_frames(layout: &Node, size: [f32; 2]) -> Vec<Frame> {
     dock::solve(
         layout,
         Rect::new(
