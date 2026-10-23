@@ -13,10 +13,13 @@ PR #466 was merged as `81aca69996a629643faebc71345c60afe054a6e1` with a Chinese 
 | `4e0bdddc84206577fbae49aa1a79c59378c869f8` | Standard timestamp boundary feasibility, 1 passed; original query words and 64 real pixels | Local RTX 4070 Laptop/Vulkan only, optional encoder-timestamp feature disabled |
 | `9aba57194ee2fee4f6b049944dac2f7c32ba846e` | Full render/host suites: 683 passed, 0 failed, 1 existing external-fixture ignore; ffmpeg desktop check passed | Earlier primitive source, before automatic host attachment |
 | `da2258ec2c7cfe1ec31e7e838d3b8de1a9fde729` | 12 focused tests passed: 6 native cases and 6 metadata/log-scope cases; host, default desktop and ffmpeg desktop checks passed | Full regression, real file/stderr failure integration and whole-path baselines for this source remain pending |
+| `63a095aaca8d3a9eca9ba0264f4145ee1fd3c895` | Render command tests 16/0/0 and host sampling tests 5/0/0; default and ffmpeg desktop checks passed. New native host case completed 14 polls, 27 command records and 1024 output pixels across two actual requests | Command identity acceptance covers the top-level host exposure path. Decoder, surface presentation, nested-specific identities and final-source full regression remain pending |
 
 The last source is based on merged main `81aca699`, with this branch's GPU commits reapplied. The earlier source `44de827f` failed 5/1/0 because cancellation cleanup called `unmap` after an actual cancelled mapping. Source `9aba5719` fixed that native cleanup defect without weakening the assertions. The original failure log and its disposition remain retained.
 
-Local receipts are under `E:/Dev/aem/artifacts/pr-queue`: `issue60-gpu-command-marker-v1-*`, `issue60-gpu-command-primitive-v1-*`, `issue60-gpu-command-primitive-v2-*`, `issue60-gpu-command-broad-v1-*` and `issue60-gpu-command-integration-v1-*`. These new GPU records have not yet been published as an immutable archive or accepted by PR CI.
+The new host fixture initially used a headless device without timestamp queries (`ff836269`): its 5/0/0 Rust count was explicitly rejected by the acceptance controller because the native report said unavailable. Enabling queries next exposed its incorrect linear target format (`88432ef1`, host 4/1/0). The final fixture uses the original exposure sRGB target contract with timestamp queries enabled. Both rejected attempts remain retained; no assertion was removed or weakened to accept `63a095aa`.
+
+Local receipts are under `E:/Dev/aem/artifacts/pr-queue`: `issue60-gpu-command-marker-v1-*`, `issue60-gpu-command-primitive-v1-*`, `issue60-gpu-command-primitive-v2-*`, `issue60-gpu-command-broad-v1-*`, `issue60-gpu-command-integration-v1-*` and `issue60-gpu-exposure-identity-v1/v2/v3-*`. These new GPU records have not yet been published as an immutable archive or accepted by PR CI.
 
 ## Implemented observations
 
@@ -29,6 +32,9 @@ Local receipts are under `E:/Dev/aem/artifacts/pr-queue`: `issue60-gpu-command-m
 | G5: automatic explicit attachment | `Renderer::start_command_profiling` opts in; ordinary rendering allocates no command timer and inserts no markers. Commands join only currently CPU-active allowance windows. Callback epochs survive restart and cannot become a later frame |
 | G6: raw exposure submission | Observe the existing ExposureMedia raw route while preserving `submit_tracked` retirement, instead of converting it into an allocated-encoder reservation route. Native wrapper tests verify no new allocation-encoder scope and exactly one original frame submission |
 | G7: deferred escalation | Callbacks retain events only; first failed sample is Debug, occurrence 60 is Error once. Successful samples and explicit callback cancellation reset the streak. Unmapped work, capacity omissions and discarded encoders cannot falsely prove recovery. Scope tests check Info filtering, suppression, bounds and flush after business/observation guards, including unwind |
+| G8: stable exposure identity | Requests receive nonwrapping process-unique IDs; every poll has a distinct request-local ordinal. Publish a bounded caller scope before preparation, including before any encoder exists. Command creation captures the identity independently of allowance frames; real callbacks retain it across pending polls and supersession. CPU scopes restore on exit/unwind; unknown/overflow scopes suppress the parent instead of falsely attributing work. Exhaustion remains unknown and never refuses/retries rendering |
+
+Source `63a095aa` also makes mixed-category failure-streak saturation sticky and visible; a successful sample resets the streak without erasing its historical saturation flag. The new scope metadata tests cover controlled blocking, bounds, unknown identity, out-of-order destruction, unwind, thread mismatch and exhaustion. The host native case verifies real ExposurePhase/ExposureResolve commands and exact request/poll/worker-window links; the existing receiver-pixel oracle and terminal-failure tests still pass. Allocation-frame contexts describe active shared-budget windows, not exclusive ownership or exclusive GPU execution. A presentation scope identifies the current attempt, including retained content, rather than identifying the image's originating request; surface presentation has not been accepted by this native case.
 
 Native diagnostic corruption is an injected failure, not evidence of a hardware/driver fault. The six real cases cover independent intervals, cancellation/reuse, submission unwind, automatic active-frame association/restart, invalid-word escalation/recovery and the raw wrapper. They do not demonstrate every production scene route.
 
@@ -36,7 +42,7 @@ The ordinary root timer remains separate. Command intervals include marker overh
 
 ## Pending work
 
-- Carry a stable exposure request identity across pending polls and a distinct poll identity through supersession; current exposure-specific context fields remain unknown
+- Extend the accepted top-level host exposure identities to remaining independent/export callers and validate nested/decoder/surface paths; do not infer that every independent ExposureFrame caller has a host request identity
 - Attach independent PreviewInput owners explicitly without merging allocation owners or putting a device-specific query pool on a shared multi-device budget
 - Collect a bounded full recording trace with exact command/epoch/frame links; the 256-record diagnostic ring alone cannot supply every earlier frame of a long report
 - Verify actual default-level file output, Error stderr and stdout isolation for the new deferred failure path through a real desktop session
