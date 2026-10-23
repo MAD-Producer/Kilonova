@@ -7,6 +7,8 @@ use std::{
     path::Path,
 };
 
+mod sample_clock;
+
 #[derive(Default)]
 pub(crate) struct Edit {
     pub skip: u64,
@@ -110,6 +112,7 @@ pub(crate) fn audio_metadata(path: &Path) -> Result<Option<Vec<u8>>> {
                 let mdia = find(trak, b"mdia")?.ok_or("missing media header")?;
                 let mdhd = find(mdia, b"mdhd")?.ok_or("missing media timebase")?;
                 header_timebase(mdhd, "mdhd", Some(index))?;
+                sample_clock::validate(mdia, index)?;
             }
             metadata = Some(moov);
         }
