@@ -155,11 +155,11 @@ pub(super) fn render(
             ],
             3 => {
                 let mut entries = vec![
-                (locale.t(T::NewSolid).into(), Action::AddSolid, true),
-                (locale.t(T::NewText).into(), Action::NewText, true),
-                (locale.t(T::NewNull).into(), Action::AddNull, true),
+                (panels.shortcut_bindings.label(locale.t(T::NewSolid), crate::shortcuts::Scope::Application, crate::shortcuts::Command::Solid), Action::AddSolid, true),
+                (panels.shortcut_bindings.label(locale.t(T::NewText), crate::shortcuts::Scope::Application, crate::shortcuts::Command::Text), Action::NewText, true),
+                (panels.shortcut_bindings.label(locale.t(T::NewNull), crate::shortcuts::Scope::Application, crate::shortcuts::Command::Null), Action::AddNull, true),
                 (
-                    locale.t(T::NewAdjustment).into(),
+                    panels.shortcut_bindings.label(locale.t(T::NewAdjustment), crate::shortcuts::Scope::Application, crate::shortcuts::Command::Adjustment),
                     Action::AddAdjustment,
                     true,
                 ),
