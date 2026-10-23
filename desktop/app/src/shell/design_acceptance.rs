@@ -215,6 +215,10 @@ impl Shell {
                         screen == "timeline-parent-menu";
                     self.panels.timeline.column_visibility.blend = screen == "timeline-blend-menu";
                     self.panels.timeline.column_visibility.matte = false;
+                    // Sampling switches can reclaim even the requested column on a
+                    // minimum window. This menu fixture selects its own visible
+                    // columns; the saved timeline restores the user's preferences.
+                    self.panels.timeline.sampling_visibility.0 = [false; 3];
                     let layout = workspace::Workspace::design_layout(workspace::Preset::Default);
                     let frame = panels::frames(&layout, size)
                         .into_iter()
