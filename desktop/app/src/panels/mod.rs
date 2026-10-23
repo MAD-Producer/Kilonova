@@ -33,6 +33,7 @@ mod audio;
 mod auxiliary;
 pub(crate) mod camera_controls;
 mod color_well;
+mod toolbar_style;
 mod composition;
 mod curves;
 pub(crate) mod effect_controls;
@@ -222,6 +223,7 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
         | panels.timeline.key_drag.take().is_some_and(|d| d.begun())
         | panels.timeline.timing_drag.take().is_some_and(|d| d.begun());
     let path = panels.path_controls.cancel();
+    let toolbar = panels.toolbar_style.cancel();
     let transform = panels.transform_controls.cancel();
     panels.composition.orbit = None;
     if let Some((_, before)) = panels.composition.pan.take() {
@@ -243,6 +245,7 @@ pub fn cancel_interaction(panels: &mut Panels) -> Vec<Action> {
         || camera
         || audio
         || auxiliary
+        || toolbar
     {
         vec![Action::History(4)]
     } else {
@@ -305,6 +308,10 @@ pub fn chrome(
     }
     panels.cursor = None;
     panels.drag_readout = None;
+    let toolbar_was_editing = panels.toolbar_style.editing();
+    panels.toolbar_style.prepare(state, &panels.selection_ids(),
+        panels.path_controls.tool == path_controls::Tool::Mask, input, &mut out);
+    let toolbar_modal = toolbar_was_editing || panels.toolbar_style.editing();
     let layer_modal = panels.layer_actions.prepare(
         Some(Panel::Timeline),
         state,
@@ -330,6 +337,7 @@ pub fn chrome(
             && !mask_header_modal
             && !layer_modal
             && !panels.expressions.menu_open()
+            && !toolbar_modal
     }) {
         let focused = frames(layout, size)
             .into_iter()
@@ -420,6 +428,7 @@ pub fn chrome(
     let shortcut_modal =
         expression_modal || keyboard::route(input, panels, state, node_keyboard, None, &mut out);
     let menu_modal = layer_modal
+        || toolbar_modal
         || panels.layer_actions.modal_in(Some(Panel::Timeline))
         || shortcut_modal
         || panels.menu.is_some()
@@ -449,6 +458,7 @@ pub fn chrome(
         || audio_modal
         || auxiliary_modal
         || mask_header_modal
+        || toolbar_modal
     {
         &neutral
     } else {
@@ -606,7 +616,8 @@ pub fn chrome(
         paint::rect(list, handle.area, styles.color("dock"));
     }
     titlebar::render(list, atlas, size, state, body_input, &mut out);
-    toolbar::render(list, atlas, size, panels, state, body_input, &mut out);
+    toolbar::render(list, atlas, size, panels, state,
+        if toolbar_modal { input } else { body_input }, &mut out);
     let status = Rect::new(0.0, size[1] - 20.0, size[0], 20.0);
     paint::rect(list, status, colors.CHROME);
     let render_error = state["renderError"].as_str().filter(|s| !s.is_empty());
@@ -671,7 +682,7 @@ pub fn chrome(
         atlas,
         size,
         panels,
-        if shortcut_modal || node_modal {
+        if shortcut_modal || node_modal || toolbar_modal {
             &neutral
         } else {
             input
@@ -868,6 +879,10 @@ pub fn chrome(
         panels.locale,
         &mut out,
     );
+    let toolbar_ids = panels.selection_ids();
+    panels.toolbar_style.overlay(list, atlas, size, state, &toolbar_ids, input, panels.locale, &mut out);
+    if let Some(notice) = &panels.toolbar_style.notice { panels.message = Some(notice.clone()); }
+    if let Some(cursor) = panels.toolbar_style.cursor { panels.cursor = Some(cursor); }
     apply_marker_selection(panels, state);
     scope_edits(out, state)
 }
@@ -896,6 +911,15 @@ pub fn floating_chrome(
     state: &Value,
     input: &Input,
 ) -> Vec<Action> {
+    // The toolbar belongs to the main native window. Moving input to a float
+    // cancels its gesture before that window can dispatch another edit.
+    let mut toolbar_actions = vec![];
+    let toolbar_modal = panels.toolbar_style.editing();
+    if toolbar_modal && (input.focus_lost || input.pressed.is_some() || !input.keys.is_empty() || !input.text.is_empty()) {
+        if panels.toolbar_style.cancel() { toolbar_actions.push(Action::History(4)); }
+    }
+    let toolbar_neutral = Input::default();
+    let input = if toolbar_modal { &toolbar_neutral } else { input };
     let mask_header_modal = panels.path_controls.timeline_mask_add_open();
     let mask_header_neutral = Input::default();
     let input = if mask_header_modal && panel != Panel::Timeline {
@@ -912,7 +936,7 @@ pub fn floating_chrome(
     let styles = list.styles();
     let colors = styles.colors();
 
-    let mut out = vec![];
+    let mut out = toolbar_actions;
     if panels.normalize_selection(state) {
         out.extend(cancel_interaction(panels));
     }

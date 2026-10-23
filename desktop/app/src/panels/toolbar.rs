@@ -11,11 +11,7 @@ use motion_ui::{
 };
 use serde_json::Value;
 
-use super::{
-    helpers::label,
-    types::{Action, Panels, Tool},
-};
-use crate::i18n::Locale;
+use super::types::{Action, Panels, Tool};
 
 /// Render the main toolbar
 pub fn render(
@@ -29,6 +25,9 @@ pub fn render(
 ) {
     let styles = list.styles();
     let colors = styles.colors();
+    let paint_input = input;
+    let neutral = Input::default();
+    let input = if panels.toolbar_style.editing() { &neutral } else { input };
 
     use crate::panels::path_controls::Tool as PathTool;
     let area = Rect::new(
@@ -137,52 +136,21 @@ pub fn render(
         Rect::new(299., area.min[1] + 6., 1., 20.),
         colors.BORDER,
     );
-    let x = 308.;
-    label(
-        list,
-        atlas,
-        Rect::new(x, area.min[1], 32., 32.),
-        if locale == Locale::Zh {
-            "填充"
-        } else {
-            "Fill"
-        },
-        true,
-    );
-    paint::rect(
-        list,
-        Rect::new(x + 34., area.min[1] + 9., 16., 14.),
-        colors.TEXT,
-    );
-    label(
-        list,
-        atlas,
-        Rect::new(x + 55., area.min[1], 32., 32.),
-        if locale == Locale::Zh {
-            "描边"
-        } else {
-            "Stroke"
-        },
-        true,
-    );
-    paint::rect(
-        list,
-        Rect::new(x + 90., area.min[1] + 9., 16., 14.),
-        colors.ACCENT,
-    );
-    label(
-        list,
-        atlas,
-        Rect::new(x + 112., area.min[1], 40., 32.),
-        "3 px",
-        true,
-    );
-    let right = (size[0] - 340.).max(500.);
+    let ids = panels.selection_ids();
+    panels.toolbar_style.render(list, atlas, area, state, &ids,
+        panels.path_controls.tool == PathTool::Mask, paint_input, locale, out);
+    if let Some(notice) = &panels.toolbar_style.notice { panels.message = Some(notice.clone()); }
+    if let Some(cursor) = panels.toolbar_style.cursor { panels.cursor = Some(cursor); }
+    let right = (size[0] - styles.metric("toolbar.workspace.reserve", 340.))
+        .max(super::toolbar_style::end(&styles, atlas, locale) + styles.metric("padding.panel", 8.));
     let mut x = right;
     for preset in crate::workspace::Preset::ALL {
         let text = preset.title(locale);
         let width = (atlas.measure(text) + 16.).max(38.);
         let rect = Rect::new(x, area.min[1] + 4., width, 24.);
+        if rect.max[0] > size[0] - styles.metric("toolbar.workspace.overflow_width", 34.) {
+            break;
+        }
         let states = if preset == panels.workspace_preset {
             States::default().with(State::Selected)
         } else {
