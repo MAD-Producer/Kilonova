@@ -125,8 +125,9 @@ omission count. The sink is called after the observation borrow is released.
 Application Error routing remains file plus stderr; healthy Present is quiet.
 
 This consumer is a functional preview policy change, separate from the original
-read-only observation increment. Its tests, source and platform limits must be
-accepted independently before claiming delivery.
+read-only observation increment. Its actual Windows native tests, source and
+platform limits are recorded in [cumulative acceptance](../validation/resource-budget-preview-completed.md);
+local Windows success does not establish Linux/Metal or Android execution.
 
 Primary references used for independently authored bindings integration:
 

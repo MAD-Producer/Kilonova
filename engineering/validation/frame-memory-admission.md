@@ -1,5 +1,19 @@
 # Frame memory admission: issue #61
 
+Current local Windows acceptance: all 15 gates pass on `03f629938635bfb7566520deacd5acf303a0880c`; see [cumulative acceptance](resource-budget-preview-completed.md)
+and its source/hash/command manifest. This includes native failure/recovery,
+full suites, actual GUI/MCP, default output channels and Release checking.
+Remote PR checks and new Linux/macOS runtime results are separate. The user
+confirmed maintained Windows/Linux/macOS desktop delivery on 2026-10-23.
+Android is unmaintained, outside this delivery, and has no build/device
+acceptance. Issue #61 is not closed by this local record.
+
+The dated baseline and increment sections below retain their original source-
+bound dispositions, including failures and then-pending work. They are an
+audit history, not the current cumulative status. No historical failure is
+relabeled as a pass. Current scope and remaining platform limits are explicit
+in the cumulative record.
+
 ## Scope and baseline
 
 The starting source is main `26b834f7a73918744884708851b6c6dc8ad567f0`,

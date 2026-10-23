@@ -1,6 +1,14 @@
 # UI native allocation admission (issue #61)
 
-Status: source c9f65122 passes all-target UI and application-FFmpeg workspace
+Current local Windows acceptance: all 15 gates pass on `03f629938635bfb7566520deacd5acf303a0880c`; see [cumulative acceptance](resource-budget-preview-completed.md)
+and its source/hash/command manifest. This includes native failure/recovery,
+full suites, actual GUI/MCP, default output channels and Release checking.
+Remote PR checks and new Linux/macOS runtime results are separate. The user
+confirmed maintained Windows/Linux/macOS desktop delivery on 2026-10-23.
+Android is unmaintained, outside this delivery, and has no build/device
+acceptance. Issue #61 is not closed by this local record.
+
+Historical status before cumulative acceptance: source c9f65122 passes all-target UI and application-FFmpeg workspace
 checks, four actual UI GPU tests and the default application error-channel test.
 The cumulative matrix stopped at invalid CPU decode test asset paths (1 pass,
 5 failures before decoding); fixture correction 96022bdd preserves every
@@ -15,9 +23,10 @@ Desktop attachment, presentation and UI capture construct an admitted Painter
 from the same renderer AllocationContext. Uniform and geometry buffers use the
 existing usage categories, and glyph textures use the new fixed `ui_atlas`
 purpose. The category count becomes 20. There is no new third-party package or
-asset: motion-ui adds a path dependency on the existing motion-render crate,
-whose native context owns admission and upload retirement. The locked offline
-dependency graph was checked, but that is not compilation acceptance.
+asset. The toolkit defines the native allocation interface, and the desktop
+host injects the renderer-owned implementation. motion-render is a dev-only
+toolkit dependency; native tests compile the real desktop adapter. The unchanged
+model dependency-boundary assertion and final-source native tests pass.
 
 Admitted construction reserves 40 logical bytes for two 16-byte uniforms and
 two minimal 4-byte empty vertex buffers. Actual geometry grows geometrically
@@ -30,7 +39,8 @@ replaced. Atlas replacement must be admitted and uploaded before its texture
 and binding replace the old pair. Uploads and allocated encoders keep the same
 reservation alive through real queue completion, including destruction of the
 Painter before submission. Native failures keep their original RenderError via
-PaintError::source and typed resource_rejection; vertex/draw limit fields and
+PaintError::source; capacity_refusal publishes only typed capacity metadata.
+The native source retains its exact rejection and scope; vertex/draw limit fields and
 their old failure text remain. PaintError is still Clone; it no longer promises
 value equality for opaque native causes.
 
@@ -48,13 +58,13 @@ GPU admission, not a complete process-memory bound.
 
 | ID | Actual guard | State |
 | --- | --- | --- |
-| U1 | `startup_refusal_is_atomic_and_actual_ui_allocations_have_disjoint_categories`: real native constructor refusal, partial cleanup, typed cause, uniform32/geometry8/atlas16 category deltas and same-texture write reuse | Pass c9f65122 |
-| U2 | `refused_atlas_and_two_buffer_growth_preserve_old_pixels_then_recover`: native atlas replacement and second buffer refusal, complete old state/pixels, recovery, one pending owned upload,60 capacity checks without repeated allocation, subsequent upload/pixel recovery | Pass c9f65122 |
-| U3 | `dropped_painter_remains_in_frame_peak_until_real_gpu_work_retires`: real draws/uploads, dropped owner before submission, retained capacity, GPU completion, reconciled current bytes and atlas frame peak/end | Pass c9f65122 |
-| U4 | `admitted_text_matches_legacy_pixels_through_real_atlas_growth_and_multiple_dpis`: actual glyph rendering, clipped text and real atlas growth at 1x/1.5x/2x DPI; admitted pixels must exactly match the legacy path | Pass c9f65122 |
-| U5 | Application `native_ui_refusals_preserve_cause_and_reach_default_file_stderr_without_stdout`: actual native startup/atlas failures, original host failure precedence, real reply, default Info file and Error stderr, stdout isolation | Pass c9f65122 |
-| U6 | Workspace/all-target FFmpeg and no-FFmpeg compilation, full motion-ui/render/host/media/desktop suites, existing DPI/clipped-text/atlas-growth/pixel guards with assertions unchanged, native lifecycle 24-case artifacts, style guard | Pending |
-| U7 | `actual_ui_atlas_refusal_recovers_in_worker_without_a_second_upload`: actual Windows Engine/Present, two refusals retaining old native atlas, budget recovery without a producer resend, exact native category/pixel/history checks and default output channels | Pass c8fb11e5 |
+| U1 | `startup_refusal_is_atomic_and_actual_ui_allocations_have_disjoint_categories`: real native constructor refusal, partial cleanup, typed cause, uniform32/geometry8/atlas16 category deltas and same-texture write reuse | Pass `03f62993` |
+| U2 | `refused_atlas_and_two_buffer_growth_preserve_old_pixels_then_recover`: native atlas replacement and second buffer refusal, complete old state/pixels, recovery, one pending owned upload,60 capacity checks without repeated allocation, subsequent upload/pixel recovery | Pass `03f62993` |
+| U3 | `dropped_painter_remains_in_frame_peak_until_real_gpu_work_retires`: real draws/uploads, dropped owner before submission, retained capacity, GPU completion, reconciled current bytes and atlas frame peak/end | Pass `03f62993` |
+| U4 | `admitted_text_matches_legacy_pixels_through_real_atlas_growth_and_multiple_dpis`: actual glyph rendering, clipped text and real atlas growth at 1x/1.5x/2x DPI; admitted pixels must exactly match the legacy path | Pass `03f62993` |
+| U5 | Application `native_ui_refusals_preserve_cause_and_reach_default_file_stderr_without_stdout`: actual native startup/atlas failures, original host failure precedence, real reply, default Info file and Error stderr, stdout isolation | Pass `03f62993` |
+| U6 | Workspace/all-target FFmpeg and no-FFmpeg compilation, full motion-ui/render/host/media/desktop suites, existing DPI/clipped-text/atlas-growth/pixel guards with assertions unchanged, native lifecycle 24-case artifacts, style guard | Pass `03f62993` |
+| U7 | `actual_ui_atlas_refusal_recovers_in_worker_without_a_second_upload`: actual Windows Engine/Present, two refusals retaining old native atlas, budget recovery without a producer resend, exact native category/pixel/history checks and default output channels | Pass `03f62993` |
 
 The same c9f65122 source passes 15 category/release guards, the actual frame
 category guard, two native host pressure guards and all 24 native lifecycle cases.
@@ -75,7 +85,9 @@ assertions are unchanged. Example render/capture functions propagate the cause.
 There is no panel, palette, token, layout, text, glyph geometry, shader or
 interaction change. The foreign source-binding reuse worktree is untouched.
 The separate own Presenter/Session admission increment is described in
-`presenter-buffer-admission.md` and needs its own source-bound acceptance.
+`presenter-buffer-admission.md`; its exact-source native/full-suite results
+are included in the cumulative acceptance record.
 
 All temporary/build/test artifacts and raw exact-source/hash/exit evidence belong
-on E:. Earlier pressure/base/export results do not validate this candidate.
+on E:. Earlier pressure/base/export results do not validate a later source;
+the cumulative manifest independently verifies the current candidate.

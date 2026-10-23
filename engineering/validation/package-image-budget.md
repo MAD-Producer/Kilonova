@@ -1,9 +1,10 @@
 # Configured effect-package PNG capacity (issue #61 R6)
 
-Status: implemented candidate, not compiled or executed yet. The separate
-`5a2dfaa4` integrated admission matrix does not accept this later source. Its
-frozen validation continues in the original worktree; this candidate does not
-modify that checkout or start a competing compiler in its build directory.
+Status: actual Windows acceptance passed on current-main product/test source
+`03f629938635bfb7566520deacd5acf303a0880c`; see the [complete source-bound record](resource-budget-preview-completed.md)
+and its exact command/hash manifest.
+The earlier `100fc3ed` candidate was superseded before execution; earlier
+base-source passing results do not validate this later source.
 
 ## Functional change
 
@@ -37,16 +38,16 @@ separate; this change removes the unrelated fixed decoded-PNG cutoff.
 
 | ID | Actual evidence required | State |
 | --- | --- | --- |
-| R6-P1 | Editor/effect PNG aggregate, exact cutoff and shared-path deduplication | Pending |
-| R6-P2 | Generated 8192x4097 PNG: default refusal, configured pack/load above 128 MiB, actual complete pixels | Pending |
-| R6-P3 | Actual registry install refusal preserves input/registry/publication; configured reload recovers | Pending |
-| R6-P4 | Invalid policies and corrupt PNGs retain non-capacity failure identity | Pending |
-| R6-P5 | Actual pack/check subprocesses consume the option; rejection preserves prior publication and stdout | Pending |
-| R6-P6 | Runtime in-memory decode checks the current policy and preserves native codec causes | Pending |
-| R6-P7 | Actual native Dither resource refusal reports CPU scope/package/path; restoration matches independent reference pixels | Pending |
-| R6-P8 | Actual registered Session install/pixel APIs obey policy changes without authored/revision/undo or source-byte changes | Pending |
-| R6-P9 | Actual Engine install command refusal/recovery reaches default Info start, Error file/stderr, original reply and stdout isolation | Pending |
-| R6-P10 | Frozen full-quality PNG/movie package-resource policy, source-bound broad regressions and provenance | Pending |
+| R6-P1 | Editor/effect PNG aggregate, exact cutoff and shared-path deduplication | Pass `03f62993` |
+| R6-P2 | Generated 8192x4097 PNG: default refusal, configured pack/load above 128 MiB, actual complete pixels | Pass `03f62993` |
+| R6-P3 | Actual registry install refusal preserves input/registry/publication; configured reload recovers | Pass `03f62993` |
+| R6-P4 | Invalid policies and corrupt PNGs retain non-capacity failure identity | Pass `03f62993` |
+| R6-P5 | Actual pack/check subprocesses consume the option; rejection preserves prior publication and stdout | Pass `03f62993` |
+| R6-P6 | Runtime in-memory decode checks the current policy and preserves native codec causes | Pass `03f62993` |
+| R6-P7 | Actual native Dither resource refusal reports CPU scope/package/path; restoration matches independent reference pixels | Pass `03f62993` |
+| R6-P8 | Actual registered Session install/pixel APIs obey policy changes without authored/revision/undo or source-byte changes | Pass `03f62993` |
+| R6-P9 | Actual Engine install command refusal/recovery reaches default Info start, Error file/stderr, original reply and stdout isolation | Pass `03f62993` |
+| R6-P10 | Frozen full-quality PNG/movie package-resource policy, source-bound broad regressions and provenance | Pass `03f62993` |
 
 No new dependency or third-party asset is introduced. Test images, HTML and
 manifests are independently generated; existing attributed packaged resources

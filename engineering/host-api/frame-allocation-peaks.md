@@ -57,7 +57,7 @@ Direct external `queue.submit`, final upload teardown, and queues without this
 budget are not automatically attached. Automatic windows cover desktop Present,
 CaptureUi and NodeCapture, frozen full-resolution PNG, and frozen movie exports.
 Legacy direct host capture still needs an explicit caller-owned window. Current
-native lifecycle and UI evidence, and the separate pending Presenter acceptance,
+native lifecycle, UI and Presenter evidence
 are recorded in `engineering/validation/ui-allocation-admission.md` and
 `engineering/validation/presenter-buffer-admission.md`. Earlier base/export
 results alone do not validate these later increments.
@@ -129,9 +129,9 @@ regression gates. Commands, counts, existing ignores, immutable logs and source
 boundaries are recorded in
 `engineering/validation/frame-export-allocation-windows-completed.md`.
 
-Those results do not accept the later integrated pressure, category, lifecycle
-or release-scope increments. Their current candidate still requires cumulative
-source-bound execution, tracked in `engineering/validation/frame-memory-admission.md`.
+Those results do not accept later integrated increments. Their independent
+source-bound pressure, category, lifecycle, Presenter/UI and release-scope results
+are recorded in [cumulative acceptance](../validation/resource-budget-preview-completed.md).
 No new Linux/Metal runtime or complete issue coverage is claimed here.
 ## Resource categories
 
@@ -184,5 +184,6 @@ primary caller result or panic. A new operation starts with empty pending state.
 
 Source-bound base and export acceptance is recorded in
 `engineering/validation/frame-export-allocation-windows-completed.md`.
-Pressure, category, lifecycle and release-scope increments still require their
-own cumulative-source results; earlier passing totals do not validate them.
+Pressure, category, lifecycle and release-scope increments have their own
+[cumulative-source results](../validation/resource-budget-preview-completed.md);
+earlier passing totals do not validate a later product source.

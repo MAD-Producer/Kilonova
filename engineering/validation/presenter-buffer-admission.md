@@ -1,6 +1,14 @@
 # Presenter uniform admission (issue #61)
 
-Status: c8d60ad0 passes all-target render/host/desktop FFmpeg compilation,
+Current local Windows acceptance: all 15 gates pass on `03f629938635bfb7566520deacd5acf303a0880c`; see [cumulative acceptance](resource-budget-preview-completed.md)
+and its source/hash/command manifest. This includes native failure/recovery,
+full suites, actual GUI/MCP, default output channels and Release checking.
+Remote PR checks and new Linux/macOS runtime results are separate. The user
+confirmed maintained Windows/Linux/macOS desktop delivery on 2026-10-23.
+Android is unmaintained, outside this delivery, and has no build/device
+acceptance. Issue #61 is not closed by this local record.
+
+Historical status before cumulative acceptance: c8d60ad0 passes all-target render/host/desktop FFmpeg compilation,
 actual native P1-P4 and the strict retained-source7-test suite. Its new worker
 guard failed at a test identity assumption after refusal/front preservation and
 recovery. Corrected native-identity and mask-history fixtures remain pending.
@@ -51,12 +59,12 @@ this resource-admission task. No other PR is reviewed or merged.
 
 | ID | Actual guard | State |
 | --- | --- | --- |
-| P1 | `native_presenter_refuses_second_uniform_atomically_then_admits_exact_capacity`: actual second-buffer refusal, original cause, rollback, exactly64bytes/two allocations in the uniform category, constructor recovery and final release | Pass c8d60ad0 |
-| P2 | `actual_navigation_pixels_and_dropped_presenter_share_real_frame_retirement`: actual cropped pixels, dropped owner/source before submission, retained combined capacity, GPU completion, exact category/frame end reconciliation | Pass c8d60ad0 |
-| P3 | `unsubmitted_navigation_write_outlives_presenter_without_a_command_scope`: abandon raw commands; queued destination alone remains charged32bytes until an actual allocated empty submission completes | Pass c8d60ad0 |
-| P4 | `native_presenter_refusal_during_surface_replacement_preserves_front_and_recovers`: actual hidden native surfaces, refusal after replacement placeholder creation, old valid front/epoch/pixels/history retained, successful replacement after restoring budget and final native retirement | Pass c8d60ad0 |
-| P4b | `native_failed_reattach_keeps_original_factory_front_and_default_error_channels`: actual serial worker and two hidden native windows; refuse the second Presenter uniform by one byte, preserve original factory/device and present old front under pressure, exact before/after capture, recover replacement, default Info file/Error stderr and stdout isolation | Pending |
-| P5 | Full render/host/UI/media/desktop regressions, ordinary/exposure pressure,24-case lifecycle, actual worker atlas recovery, frozen PNG/movie, default file/stderr/stdout isolation, all-target default/FFmpeg checks and styles | Pending |
+| P1 | `native_presenter_refuses_second_uniform_atomically_then_admits_exact_capacity`: actual second-buffer refusal, original cause, rollback, exactly64bytes/two allocations in the uniform category, constructor recovery and final release | Pass `03f62993` |
+| P2 | `actual_navigation_pixels_and_dropped_presenter_share_real_frame_retirement`: actual cropped pixels, dropped owner/source before submission, retained combined capacity, GPU completion, exact category/frame end reconciliation | Pass `03f62993` |
+| P3 | `unsubmitted_navigation_write_outlives_presenter_without_a_command_scope`: abandon raw commands; queued destination alone remains charged32bytes until an actual allocated empty submission completes | Pass `03f62993` |
+| P4 | `native_presenter_refusal_during_surface_replacement_preserves_front_and_recovers`: actual hidden native surfaces, refusal after replacement placeholder creation, old valid front/epoch/pixels/history retained, successful replacement after restoring budget and final native retirement | Pass `03f62993` |
+| P4b | `native_failed_reattach_keeps_original_factory_front_and_default_error_channels`: actual serial worker and two hidden native windows; refuse the second Presenter uniform by one byte, preserve original factory/device and present old front under pressure, exact before/after capture, recover replacement, default Info file/Error stderr and stdout isolation | Pass `03f62993` |
+| P5 | Full render/host/UI/media/desktop regressions, ordinary/exposure pressure,24-case lifecycle, actual worker atlas recovery, frozen PNG/movie, default file/stderr/stdout isolation, all-target default/FFmpeg checks and styles | Pass `03f62993` |
 
 The existing strict retained-source allocation test previously budgeted only the
 renderer plus its 256-byte source, because Presenter uniforms were not enrolled.
@@ -97,5 +105,6 @@ fallible Scene initialization is inherited; three newly added valid native-test
 fixtures now explicitly unwrap construction before sampling. Their pixel,
 refusal, recovery, retirement and history assertions are unchanged. Rebased
 production export/session callers retain main's native error propagation.
-Earlier source-bound results remain historical evidence; complete acceptance
-must execute on this integrated source. No foreign PR is reviewed or edited.
+Earlier source-bound results remain historical evidence. The cumulative
+acceptance record above verifies this integrated source; earlier failed logs
+remain failures. No foreign PR is reviewed or edited.

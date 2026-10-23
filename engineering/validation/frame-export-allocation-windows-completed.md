@@ -1,5 +1,9 @@
 # Frame and export allocation windows: accepted increments
 
+For later integrated Presenter/UI, CPU decode, pressure/category/lifecycle
+and release-scope results, see [cumulative acceptance](resource-budget-preview-completed.md). The exact-source base/export results
+below remain historical acceptance of their own increments.
+
 This document accepts the bounded observation increments below, not issue #61 as
 a whole. Logical admitted capacity is not physical VRAM or complete application
 memory. Implementation requirements and remaining limits are traced in

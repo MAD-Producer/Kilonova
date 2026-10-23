@@ -73,8 +73,9 @@ candidates do not overwrite the submitted front. The preview snapshot reports
 requested/actual quality, rejection reason and whether a previous frame is held.
 The cumulative implementation combines refusal-only adaptation with the separate
 native-pressure floor, idle-first eviction and existing proxy/target controls.
-Its full preview/lifecycle acceptance remains pending; implementation presence
-does not inherit earlier-source passing results.
+Its exact-source Windows preview/lifecycle results are recorded in the
+[cumulative acceptance](../validation/resource-budget-preview-completed.md);
+remote checks and other native platforms are reported separately.
 
 Frozen PNG and movie outputs capture project, effects, assets and category policy
 including the CPU decoded-image allowance
@@ -128,7 +129,9 @@ Session rendering, `asset_pixels`, `asset_pixels_into`, and frozen PNG/movie
 output use `decodedImageBudgetBytes` for CPU RGBA8 results. Standalone `decode`
 and `decode_into`, and the pre-registration `prepare_image` probe, retain the
 128 MiB default because they have no Session policy. Explicit standalone callers
-can use `decode_with_budget` and `decode_into_with_budget`.
+can use `decode_with_budget` and `decode_into_with_budget`. Legacy standalone
+Renderer eager asset replacement also retains its non-Session decoding path;
+maintained Session rendering uses the registered budget-aware decoder.
 
 The decoded-image allowance is independent of GPU texture admission. Increasing
 `sourceTextureBudgetBytes` does not silently increase CPU allowances. A proxy
@@ -161,20 +164,45 @@ still insufficient. UI draw payloads, shaders, styles and interaction remain
 unchanged. Standalone `Painter::new` remains outside Session admission;
 `Painter::new_admitted` uses the renderer's device, allocated encoders and
 allocated submissions. See [UI admission validation](../validation/ui-allocation-admission.md)
-for pending actual native/pixel/default-output proof.
+for actual native/pixel/default-output proof and its exact-source cumulative
+acceptance link.
 
-Coverage remains incomplete: Presenter resources, CPU caches, decoder memory,
-swapchain images and driver overhead are not all enrolled. Raw external resource
+Admitted Presenter construction includes both 32-byte uniform buffers, the
+retained source, uploads and command lifetimes. Surface replacement prepares
+every candidate resource before discarding the previous accepted graphics.
+Standalone raw Presenter construction remains outside Session admission.
+
+Coverage remains incomplete: CPU caches, codec workspace, swapchain images and
+driver overhead are not enrolled native capacity. Raw external resource
 and submission paths are outside the admitted-wrapper contract. Category totals
 and completed frame windows do not make `completeCoverage` true. Logical
 admission across devices still does not measure physical VRAM.
 
 Pressure consumption, category/frame peaks and repeated native lifecycle guards
 are implemented in the cumulative candidate, with acceptance tracked in
-`engineering/validation/frame-memory-admission.md`. Their runtime and platform
-limits must be verified on that source before claiming delivery. Earlier base
+`engineering/validation/frame-memory-admission.md`. The [cumulative Windows acceptance](../validation/resource-budget-preview-completed.md)
+verifies that source and records the remaining platform limits. Earlier base
 and export acceptance is recorded separately in
 `engineering/validation/frame-export-allocation-windows-completed.md`. The packed
 render-plan version and Android GLES consumer ABI are unchanged by these budget
 observation/policy increments. Android remains unmaintained; no Android runtime
 acceptance is implied by retaining historical source signatures.
+
+
+## Effect-package image resources
+
+Session install and its registry-directory refresh pass the current
+`decodedImageBudgetBytes` to `PackageReadLimits`. Unique editor/effect PNG paths
+share one checked RGBA8 total per package. Current runtime package-resource
+uploads and `plugin_pixels` apply this allowance per decoded image before pixel
+allocation; already resident native textures keep their existing lifetime.
+Frozen PNG/movie renderers consume the captured CPU policy.
+
+Standalone pack/open/load/install APIs retain the conservative default and offer
+explicit-limit variants. `effect_tool pack`, `check` and `glsl` accept
+`--decoded-image-budget-bytes N`. Encoded archive limits and original codec/shader
+errors remain separate; refusal does not publish an incomplete package/output.
+Policy remains runtime Session state, so startup loading uses its default and no
+automatic registry reload command or persistence is introduced. See the
+[package acceptance](../validation/package-image-budget.md) for actual full
+pixels, atomic refusal, default worker output and frozen export tests.

@@ -30,7 +30,7 @@ this architectural requirement.
 - Add a native invalid-buffer/invalid-atlas regression, and assert that the
   injected capacity metadata matches the original native budget refusal.
 
-## Acceptance still required
+## Accepted Windows checks
 
 The next Ubuntu desktop run (`39875942298`, job `120161445106`) exposed a
 separate diagnostic regression: the generic host error operation hid the
@@ -39,16 +39,19 @@ failed with `file missing UI glyph vertices` (763 passed, 1 failed, 1 existing
 ignored). Toolkit allocation boundaries now attach their known UI operation
 while preserving the exact native error source and capacity refusal. Startup
 and growth regressions additionally assert those operation names. The existing
-file/stderr/stdout assertions remain unchanged. This correction still requires
-its own actual native/default-channel and complete-source acceptance.
+file/stderr/stdout assertions remain unchanged. The cumulative record independently verifies this correction through actual
+native/default-channel and complete-source acceptance; the failed CI log remains
+a failed historical attempt.
 
-Run the unchanged model dependency-boundary test, native toolkit admission tests,
+The cumulative source-bound record verifies the unchanged model dependency-boundary test, native toolkit admission tests,
 desktop default-output failure tests, full crate suites, configured package
 limits, default and FFmpeg export paths, Release build, actual GUI/MCP acceptance,
-provenance and style guards on the final source. Retain the failed CI receipt and
+provenance and style guards on the final source. See [cumulative acceptance](resource-budget-preview-completed.md). Retain the failed CI receipt and
 all source-specific prior results. Results from the earlier source cannot accept
-this implementation. Android device and new Linux/Metal runtime acceptance
-remain separate unproven parts of the original issue scope.
+this implementation. The user confirmed maintained Windows/Linux/macOS desktop
+delivery on 2026-10-23. Android is unmaintained and outside this delivery; no
+Android build/device acceptance was performed. New Linux/Metal runtime results
+are separate from this local Windows acceptance.
 
 No panel, layout, style, interaction, retry policy, worker timeout or restart is
 changed by this dependency fix. No third-party code or assets are added.
