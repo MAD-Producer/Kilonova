@@ -1039,17 +1039,24 @@ pub fn floating_chrome(
         Rect::new(0.0, size[1] - 20.0, size[0], 20.0),
         colors.CHROME,
     );
-    label(
+    let render_error = state["renderError"].as_str().filter(|error| !error.is_empty());
+    let localized_error = render_error.map(|error| panels.locale.error(error));
+    motion_ui::style::text_style(
         list,
         atlas,
         Rect::new(8.0, size[1] - 22.0, (size[0] - 16.0).max(1.0), 22.0),
-        panels
-            .drag_readout
-            .as_ref()
-            .map(|(_, text)| text.as_str())
+        localized_error
+            .as_deref()
+            .or(panels.drag_readout.as_ref().map(|(_, text)| text.as_str()))
             .or(panels.message.as_deref())
             .unwrap_or(panels.locale.t(T::SharedProject)),
-        true,
+        styles
+            .resolve(
+                if render_error.is_some() { "error" } else { "label.small.muted" },
+                motion_ui::style::States::default(),
+            )
+            .unwrap(),
+        Align::Left,
     );
     if panels
         .effect_search

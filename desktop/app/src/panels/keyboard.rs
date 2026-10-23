@@ -13,6 +13,7 @@ use motion_ui::{
     input::{Input, Key, KeyChord},
 };
 use serde_json::Value;
+mod delete_feedback;
 
 fn text_active(panels: &Panels) -> bool {
     editor_active(panels)
@@ -75,6 +76,20 @@ pub fn effect_search_close_pressed(input: &Input) -> bool {
 }
 
 pub fn route(
+    input: &Input,
+    panels: &mut Panels,
+    state: &Value,
+    node_context: bool,
+    owner: Option<Panel>,
+    out: &mut Vec<Action>,
+) -> bool {
+    let first_action = out.len();
+    let consumed = route_inner(input, panels, state, node_context, owner, out);
+    delete_feedback::publish(panels, &out[first_action..]);
+    consumed
+}
+
+fn route_inner(
     input: &Input,
     panels: &mut Panels,
     state: &Value,
@@ -875,6 +890,10 @@ mod tests {
 #[cfg(test)]
 #[path = "keyboard_node_tests.rs"]
 mod node_scope_tests;
+
+#[cfg(test)]
+#[path = "keyboard_layer_delete_tests.rs"]
+mod layer_delete_tests;
 
 #[cfg(test)]
 #[path = "keyboard_search_tests.rs"]
