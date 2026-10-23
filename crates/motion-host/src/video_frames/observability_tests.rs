@@ -1,4 +1,5 @@
 use super::*;
+mod shutdown_tests;
 use std::{
     fs::File,
     io::{BufWriter, Write},
@@ -127,6 +128,11 @@ impl crate::platform::Platform for Backend {
     }
 }
 struct Decoder(Arc<Gate>);
+impl Drop for Decoder {
+    fn drop(&mut self) {
+        if self.0.phase == "close" { self.0.block().unwrap(); }
+    }
+}
 impl VideoDecoder for Decoder {
     fn frame(&mut self, time: u64, check: &dyn Fn() -> motion_media::Result<()>) -> motion_media::Result<DecodedFrame> {
         check()?;
@@ -299,8 +305,14 @@ fn decoder_stop_preserves_discarded_failure_but_not_expected_supersession() {
                 stream.request(0, 31, false).unwrap();
                 waiting.recv_timeout(Duration::from_secs(5)).unwrap();
                 let shared = stream.shared.clone();
-                drop(stream);
+                // This case verifies failure-vs-cancellation after stop. Drop
+                // now waits for a bounded join, so release the controlled native
+                // operation after stop and before testing normal disposal. The
+                // shutdown suite separately keeps it blocked past that budget.
+                stream.stop().unwrap();
                 release.0.send(()).unwrap();
+                wait_until(|| stream.worker.as_ref().unwrap().is_finished());
+                drop(stream);
                 wait_until(|| {
                     std::fs::read_to_string(root.join("events.log")).unwrap()
                 .contains(&format!("video decoder worker stopped object={object} source=1 reason=stop_after_decode"))
