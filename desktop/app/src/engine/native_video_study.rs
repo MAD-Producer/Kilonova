@@ -14,6 +14,7 @@ use winit::event_loop::EventLoop;
 
 mod fixture;
 mod playback;
+mod pressure;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 const COMPOSITION: [u32; 2] = [1280, 720];

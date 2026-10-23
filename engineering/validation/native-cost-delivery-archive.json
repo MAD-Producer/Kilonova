@@ -1,0 +1,23 @@
+{
+  "recordedUtc": "2026-10-23T15:00:01.239212+00:00",
+  "actualDesktopSource": "7e694cce803afd4b30951b1ea083249b09450005",
+  "actualRenderHostSource": "6230bdb9dcdfdab9f5dd62abf2b1adac2e8ed520",
+  "measuredPressureSource": "53f2b24ef3bfc8c97811a3cd6748f8e0949cbfa0",
+  "archive": "native-cost-delivery-7e694cce.zip",
+  "archiveBytes": 165226,
+  "archiveSha256": "3c6b347bf161cd46d41b2ff7dee9b3291b0c44cd6ee6653b04e72b741c4ad3f2",
+  "evidenceEntries": 44,
+  "renderHostTotals": [
+    676,
+    0,
+    1
+  ],
+  "desktopTotals": [
+    855,
+    0,
+    3
+  ],
+  "wholeTreeInputEquivalenceVerified": true,
+  "performanceRemeasured": false,
+  "issue60Complete": false
+}

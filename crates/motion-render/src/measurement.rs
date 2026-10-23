@@ -20,6 +20,9 @@ pub struct FrameResources {
     pub pipeline_builds_total: u64,
     pub memory_quality_level: u8,
     pub resource_refusals_total: u64,
+    /// Separate cumulative observations, not capacity or exclusive frame costs.
+    pub image_readback: Option<crate::ImageReadbackInfo>,
+    pub timestamp_readback: Option<crate::TimestampReadbackInfo>,
 }
 #[derive(Clone, Copy, Debug)]
 pub struct FrameMeasurement {
@@ -107,6 +110,7 @@ impl FrameRecorder {
             "gpuTotalUs":metric(|f|f.gpu.map(|g|g.total_us)),"gpuCompositionUs":metric(|f|f.gpu.map(|g|g.composition_us)),"gpuPresentationUs":metric(|f|f.gpu.map(|g|g.presentation_us)),
             "resourceSampleCount":resource_count,
             "resourceSampleScope":"Successful frame boundaries; logical application texture capacity, separate vector upload buffers and CPU video caches. Excludes transient peaks, other buffers, decoder external allocations and driver residency. Upload and pipeline counters are cumulative, not per-frame bytes/counts.",
+            "readbackScope":"Per-renderer image and per-timer timestamp lifetime counters at successful frame boundaries, individually atomic. Missing observations stay null. Encoded spans and mapped buffer lengths are not physical bus traffic. Image capture outside the recorded interval is not an exclusive frame cost.",
             "logicalTextureBytes":metric(|f|f.resources.map(|r| (r.textures.total_bytes()+r.preview_target_bytes+r.exposure_target_bytes) as f64)),
             "exposureTargetBytes":metric(|f|f.resources.map(|r|r.exposure_target_bytes as f64)),
             "exposureMediaUs":metric(|f|f.resources.map(|r|r.exposure_media_us as f64)),

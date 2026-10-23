@@ -258,6 +258,7 @@ pub struct Renderer {
     /// Explicit conversion-only submissions; excludes queue upload staging and readback.
     pub video_conversion_submissions: u64,
     pub video_encoded_conversions: u64,
+    image_readback: crate::readback::ImageReadbackCounters,
     asset_order: Vec<u64>,
     image_sources: HashMap<u64, crate::image_resources::Source>,
     image_decode: crate::image_resources::DecodeTask,
@@ -535,6 +536,7 @@ impl Renderer {
             video_blend_submissions: 0,
             video_upload_bytes: 0,
             video_uploads: 0,
+            image_readback: Default::default(),
             video_gpu_conversions: 0,
             video_conversion_submissions: 0,
             video_encoded_conversions: 0,
@@ -2453,6 +2455,7 @@ impl Renderer {
         Ok((self.read_target(target)?, stats))
     }
     pub fn read_target(&self, target: &CaptureTarget) -> Result<Vec<u8>> {
+        let observation = self.image_readback.begin();
         self.check_health()?;
         let mut encoder = self
             .allocation_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -2480,6 +2483,9 @@ impl Renderer {
             },
         );
         self.submit_allocated(encoder.finish(), |ledger| ledger.merge(target.texture_resource_ledger()))?;
+        let row_bytes = u64::from(target.width) * 4;
+        observation.submitted(row_bytes * u64::from(target.height),
+            u64::from(target.row_stride) * u64::from(target.height.saturating_sub(1)) + row_bytes);
         let (send, recv) = mpsc::sync_channel(1);
         target
             .buffer
@@ -2494,6 +2500,7 @@ impl Renderer {
         let mut pixels = Vec::with_capacity((target.width * target.height * 4) as usize);
         {
             let mapped = target.buffer.slice(..).get_mapped_range().map_err(|e| RenderError::Readback(e.to_string()))?;
+            observation.mapped(mapped.len() as u64);
             for row in mapped.chunks_exact(target.row_stride as usize) {
                 pixels.extend_from_slice(&row[..target.width as usize * 4]);
             }
@@ -2521,8 +2528,11 @@ impl Renderer {
                 }
             }
         }
+        observation.completed(pixels.len() as u64);
         Ok(pixels)
     }
+    /// Read-only cumulative image readback observations, per Renderer lifetime.
+    pub fn image_readback_info(&self) -> crate::ImageReadbackInfo { self.image_readback.info() }
 }
 
 /// Convert straight-alpha sRGB bytes for correct filtered GPU compositing.

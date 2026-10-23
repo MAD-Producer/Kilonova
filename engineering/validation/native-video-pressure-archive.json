@@ -1,0 +1,14 @@
+{
+  "recordedUtc": "2026-10-23T14:02:59.095432+00:00",
+  "measuredSource": "53f2b24ef3bfc8c97811a3cd6748f8e0949cbfa0",
+  "archive": "native-video-pressure-53f2b24e.zip",
+  "archiveBytes": 2668559,
+  "archiveSha256": "028f7f502e203b2391422a4de2267fb88680235024666760bdecf345ef8e6aa3",
+  "evidenceEntries": 90,
+  "omittedLocalEntries": 33,
+  "primaryRevalidationMatched": true,
+  "originalFailureWaived": false,
+  "deliveryPerformanceRemeasured": false,
+  "issue60Complete": false,
+  "nativeDetails": "Original native acceptance and all raw per-frame records are retained in the SHA-256-indexed measurement archive; not duplicated in this index"
+}

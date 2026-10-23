@@ -50,6 +50,11 @@ impl Session {
         let bundle_payload = self.composition_bundle.len() as u64;
         let bundle_capacity = self.composition_bundle.capacity() as u64;
         Ok(json!({"version":2,"scope":"session_instrumented_resource_ownership",
+            "readbacks":{"version":1,"scope":"per_renderer_image_and_per_timer_timestamp_lifetime_counters",
+                "previewImage":self.graphics.as_ref().map(|g|g.renderer.image_readback_info()),
+                "previewTimestamp":self.graphics.as_ref().and_then(|g|g.timer.as_ref().map(motion_render::GpuTimer::readback_info)),
+                "editorImage":self.editor_renderer.as_ref().map(motion_render::Renderer::image_readback_info),
+                "atomicAcrossCounters":false,"completeCoverage":false},
             "textures":self.texture_resource_ledger(),
             "cpu":{"scope":"observed_owned_vectors_not_process_ram",
                 "knownPayloadBytes":pixels.known_payload_bytes+proxies.known_payload_bytes+audio_payload+bundle_payload+media_payload+packages.known_payload_bytes+shaders.known_payload_bytes+image_payload,
@@ -116,6 +121,10 @@ impl Session {
         let requested = quality.dimensions(width, height);
         let (width, height) = requested;
         json!({"mode":self.preview.mode.name(),"tier":tier.name(),"width":width,"height":height,"fps":if self.preview_memory.blocked(){tier.fps().min(15)}else{tier.fps()},
+            "readbacks":{"version":1,"scope":"preview_renderer_image_and_timer_lifetime_counters",
+                "image":self.graphics.as_ref().map(|g|g.renderer.image_readback_info()),
+                "timestamp":self.graphics.as_ref().and_then(|g|g.timer.as_ref().map(motion_render::GpuTimer::readback_info)),
+                "atomicAcrossCounters":false,"completeCoverage":false},
             "memoryAdaptation":{"version":1,"status":if self.preview_memory.blocked(){"blocked"}else if quality.level>0{"degraded"}else{"normal"},
                 "nativePressure":self.preview_memory.pressure_info(self.preview_memory_clock.elapsed()),
                 "requested":quality,"actual":self.graphics.as_ref().and_then(|g|g.actual_preview_quality),
@@ -393,7 +402,9 @@ impl Session {
             "preview":self.preview_info(),
             "graphics":self.graphics.as_ref().map(|g|json!({"width":g.config.width,"height":g.config.height,
                 "renderWidth":g.scratch.width,"renderHeight":g.scratch.height,
-                "renderTargetBytes":g.scratch.texture_bytes(),"previewImageReadbackBytes":0,
+                "renderTargetBytes":g.scratch.texture_bytes(),
+                "imageReadback":g.renderer.image_readback_info(),
+                "timestampReadback":g.timer.as_ref().map(motion_render::GpuTimer::readback_info),
                 "adapter":g.renderer.adapter_info.name,
                 "backend":format!("{:?}",g.renderer.adapter_info.backend),
                 "textureBytes":g.renderer.texture_bytes()}))});

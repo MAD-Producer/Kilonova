@@ -179,7 +179,8 @@ pub fn stop_profiling(id: i64) -> Result<serde_json::Value> {
                 "adapter":g.renderer.adapter_info.name,"driver":g.renderer.adapter_info.driver,
                 "driverInfo":g.renderer.adapter_info.driver_info,"backend":format!("{:?}",g.renderer.adapter_info.backend),
                 "assetTextureBytes":g.renderer.texture_bytes(),"renderTargetBytes":g.scratch.texture_bytes(),
-                "previewImageReadbackBytes":0,
+                "imageReadback":g.renderer.image_readback_info(),
+                "timestampReadback":g.timer.as_ref().map(GpuTimer::readback_info),
                 "timestampReadbackBytesPerSample":if g.timer.is_some(){32}else{0},
                 "timingSkipped":g.timer.as_ref().map(|t|t.skipped),
                 "timingErrors":g.timer.as_ref().map(|t|t.errors)}))});

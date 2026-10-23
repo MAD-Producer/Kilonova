@@ -150,7 +150,7 @@ def verify_gpu_profile(profile, rows):
     return dict(supported=supported, sampleCount=len(samples), coverage=expected_coverage)
 
 
-def validate(output):
+def validate_process_receipts(output, test_name=TEST):
     metadata = read(output / 'provenance.json')
     for phase in ('build', 'native'):
         receipt = read(output / (phase + '.exit.json'))
@@ -163,8 +163,13 @@ def validate(output):
     if sha(Path(executable['path'])) != executable['sha256']:
         raise ValueError('Original compiled test binary is no longer available unchanged')
     native_stdout = (output / 'native.stdout.log').read_text(encoding='utf-8')
-    if TEST not in native_stdout or not re.search(r'test result: ok\. 1 passed; 0 failed; 0 ignored;', native_stdout):
+    if test_name not in native_stdout or not re.search(r'test result: ok\. 1 passed; 0 failed; 0 ignored;', native_stdout):
         raise ValueError('The exact native study did not actually execute and pass')
+    return metadata
+
+
+def validate(output):
+    metadata = validate_process_receipts(output)
     native = output / 'native'
     study = read(native / 'study.json')
     if study['compiledSourceRevision'] != metadata['sourceRevision']:
@@ -231,7 +236,7 @@ def validate(output):
                 controlledOptimizationComparison=False)
 
 
-def collect(args):
+def collect(args, *, test_name=TEST, verifier=validate, source_files=SOURCES):
     if platform.system() != 'Windows':
         raise ValueError('The current native window driver is Windows-only')
     revision = subprocess.check_output(['git','rev-parse','HEAD'], cwd=ROOT, text=True).strip()
@@ -245,7 +250,7 @@ def collect(args):
     # executable for an earlier worktree cannot masquerade as this source.
     env['MOTION_NATIVE_VIDEO_STUDY_REVISION'] = revision
     write_json(args.output / 'provenance.json', dict(sourceRevision=revision,
-        sourceBlobs={p:sha(ROOT/p) for p in SOURCES}, fixtures=str(args.fixtures),
+        sourceBlobs={p:sha(ROOT/p) for p in source_files}, fixtures=str(args.fixtures),
         fixtureManifestSha256=sha(args.fixtures/'fixtures.json'), targetDirectory=str(args.target_dir),
         environmentNote=args.environment_note, platform=platform.platform(),
         buildProfile='Repository Release profile, no optimization overrides',
@@ -269,10 +274,10 @@ def collect(args):
         env['MOTION_NATIVE_VIDEO_STUDY_FIXTURES'] = str(args.fixtures)
         for key in ('MOTION_LOG','MOTION_TRACE_UI','MOTION_DIAGNOSTICS_PATH','MOTION_PROJECT'):
             env.pop(key,None)
-        run_phase(args.output, 'native', [str(executable),'--exact',TEST,'--ignored','--nocapture','--test-threads=1'], env, timeout=600)
+        run_phase(args.output, 'native', [str(executable),'--exact',test_name,'--ignored','--nocapture','--test-threads=1'], env, timeout=600)
         if subprocess.check_output(['git','rev-parse','HEAD'], cwd=ROOT,text=True).strip() != revision or subprocess.check_output(['git','status','--porcelain'],cwd=ROOT).strip():
             raise ValueError('The measured study source changed during execution')
-        result = validate(args.output)
+        result = verifier(args.output)
         write_json(args.output/'accepted.json',result)
         print(json.dumps(result))
     except BaseException as primary:

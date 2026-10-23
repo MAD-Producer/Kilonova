@@ -1,6 +1,6 @@
 use super::*;
 
-fn distribution(records: &[Value], name: &str) -> Value {
+pub(super) fn distribution(records: &[Value], name: &str) -> Value {
     let mut values: Vec<_> = records.iter().filter_map(|r|r[name].as_f64()).collect();
     values.sort_by(f64::total_cmp);
     if values.is_empty() { return Value::Null; }
@@ -9,7 +9,7 @@ fn distribution(records: &[Value], name: &str) -> Value {
         "p99":percentile(0.99),"max":values.last()})
 }
 
-fn present(shell: &mut Shell, loop_: &mut EventLoop<()>, evidence: &mut Evidence) -> Result<Value> {
+pub(super) fn present(shell: &mut Shell, loop_: &mut EventLoop<()>, evidence: &mut Evidence) -> Result<Value> {
     let began = Instant::now();
     let expected = shell.frame;
     let mut polls = 0u32;
