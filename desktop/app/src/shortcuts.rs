@@ -85,6 +85,12 @@ pub enum Command {
 }
 
 pub const EFFECT_SEARCH: KeyChord = KeyChord::new(Key::Space, true, false, false);
+pub const EFFECT_SEARCH_ALT: KeyChord = KeyChord::new(Key::Space, true, false, true);
+
+/// Both structural search chords share repeat and IME suppression.
+pub fn effect_search_pressed(input: &impl motion_ui::InputSource) -> bool {
+    EFFECT_SEARCH.pressed(input) || EFFECT_SEARCH_ALT.pressed(input)
+}
 
 /// Modifiers match exactly. Only navigation and micro-movement accept OS repeat.
 pub fn resolve(scope: Scope, key: Key, m: Modifiers, repeat: bool) -> Option<Command> {
