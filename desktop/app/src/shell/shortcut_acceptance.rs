@@ -53,13 +53,14 @@ impl Shell {
             ("shortcuts-edit-menu", [900., 600.]),
             ("shortcuts-node-menu", [900., 600.]),
             ("shortcuts-layer-menu", [900., 600.]),
+            ("shortcuts-layer-create-menu", [900., 600.]),
         ] {
             let mut paint = PaintList::default();
             paint.stylesheet = self.panels.styles.clone();
             let styles = paint.styles();
             let row = styles.metric("row.height", 22.);
             let gap = styles.metric("auxiliary.gap", 6.);
-            if name.ends_with("edit-menu") || name.ends_with("layer-menu") {
+            if name.ends_with("edit-menu") || name.ends_with("layer-menu") || name.ends_with("layer-create-menu") {
                 let mut panels = panels::Panels {
                     locale: self.workspace.locale,
                     styles: self.panels.styles.clone(),
@@ -90,6 +91,8 @@ impl Shell {
                 }
                 if name.ends_with("edit-menu") {
                     panels.menu = Some(1);
+                } else if name.ends_with("layer-create-menu") {
+                    panels.menu = Some(3);
                 } else {
                     let object = object.ok_or("shortcut menu capture requires a fixture layer")?;
                     panels.layer_actions.open(
